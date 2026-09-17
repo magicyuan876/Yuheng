@@ -1,0 +1,5 @@
+Open Source Software Licensed under the unknown: 
+-------------------------------------------------------------------- 
+1. docx-0.2.4
+Copyright (c) docx authors.
+You may obtain the source code and detailed information about this component at http://github.com/mikemaccana/python-docx.

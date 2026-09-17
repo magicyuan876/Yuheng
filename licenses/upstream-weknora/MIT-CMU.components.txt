@@ -1,0 +1,4 @@
+Open Source Software Licensed under the MIT-CMU: 
+-------------------------------------------------------------------- 
+1. PIL-1.1.5a2
+Copyright © 1997-2011 by Secret Labs AB,  Copyright © 1995-2011 by Fredrik Lundh and contributors,  Copyright © 2010 by Jeffrey A. Clark and contributors
