@@ -1,0 +1,26 @@
+apiVersion: v2
+name: yuheng
+description: |
+  Yuheng - AI-powered Knowledge RAG Platform for building intelligent knowledge bases
+  with document parsing, vector search, and LLM integration.
+type: application
+version: 0.1.0
+appVersion: "v0.7.2"
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/magicyuan876/yuheng
+icon: https://raw.githubusercontent.com/magicyuan876/yuheng/main/docs/images/logo.png
+sources:
+  - https://github.com/magicyuan876/yuheng
+keywords:
+  - ai
+  - rag
+  - knowledge-base
+  - llm
+  - document-parsing
+  - vector-search
+  - chatbot
+maintainers:
+  - name: Yuheng Community
+    url: https://github.com/magicyuan876/yuheng
+annotations:
+  artifacthub.io/license: MIT

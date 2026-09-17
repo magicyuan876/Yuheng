@@ -1,0 +1,14 @@
+{
+  "description": "Yuheng Mini Program plugin",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "projectname": "Yuheng Mini Program",
+  "condition": {}
+}

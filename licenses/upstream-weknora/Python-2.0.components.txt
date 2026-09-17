@@ -1,0 +1,4 @@
+Open Source Software Licensed under the Python-2.0: 
+-------------------------------------------------------------------- 
+1. typing-extensions-4.15.0
+Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023 Python Software Foundation,  All Rights Reserved, Copyright (c) 1995-2001 Corporation for National Research Initiatives,  All Rights Reserved, Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam, The Netherlands. All rights reserved.

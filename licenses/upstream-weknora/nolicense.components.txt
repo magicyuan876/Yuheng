@@ -1,0 +1,5 @@
+Open Source Software Licensed under the nolicense: 
+-------------------------------------------------------------------- 
+1. github.com/leodido/go-urn-1.4.0
+Copyright (c) github.com/leodido/go-urn authors.
+You may obtain the source code and detailed information about this component at github.com/leodido/go-urn.

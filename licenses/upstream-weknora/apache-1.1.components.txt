@@ -1,0 +1,5 @@
+Open Source Software Licensed under the apache-1.1: 
+-------------------------------------------------------------------- 
+1. pandas-2.3.3
+Copyright (c) pandas authors.
+You may obtain the source code and detailed information about this component at https://pandas.pydata.org.

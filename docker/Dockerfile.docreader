@@ -1,0 +1,206 @@
+# =========================
+# 构建阶段（轻量化：仅文档解析 + 图片提取，无 OCR/VLM）
+# =========================
+FROM python:3.10.18-bookworm AS builder
+
+ARG APT_MIRROR=""
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s@http://deb.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources && \
+        sed -i "s@http://security.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources; \
+    fi
+
+WORKDIR /app
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    libffi-dev \
+    libgl1 \
+    libglib2.0-0 \
+    wget \
+    antiword \
+    curl \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# 检查是否存在本地protoc安装包，如果存在则离线安装，否则在线安装
+ARG TARGETARCH
+COPY packages/ /app/packages/
+RUN ls -lah /app/packages/
+# 兼容 BuildKit 和传统构建：如果 TARGETARCH 为空，使用 uname 检测
+RUN if [ -z "$TARGETARCH" ]; then \
+        case $(uname -m) in \
+            "x86_64") TARGETARCH="amd64" ;; \
+            "aarch64") TARGETARCH="arm64" ;; \
+            "armv7l") TARGETARCH="arm" ;; \
+            *) echo "Unsupported architecture: $(uname -m)" && exit 1 ;; \
+        esac; \
+        echo "[自动检测] 架构: $TARGETARCH"; \
+    else \
+        echo "[BuildKit] 架构: $TARGETARCH"; \
+    fi && \
+    case $TARGETARCH in \
+        "amd64") PROTOC_ARCH="x86_64" ;; \
+        "arm64") PROTOC_ARCH="aarch_64" ;; \
+        "arm") PROTOC_ARCH="arm" ;; \
+        *) echo "Unsupported architecture for protoc: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    PROTOC_PACKAGE="protoc-3.19.4-linux-${PROTOC_ARCH}.zip" && \
+    if [ -f "/app/packages/${PROTOC_PACKAGE}" ]; then \
+        echo "发现本地protoc安装包，将进行离线安装"; \
+        cp /app/packages/${PROTOC_PACKAGE} /app/ && \
+        unzip -o /app/${PROTOC_PACKAGE} -d /usr/local && \
+        chmod +x /usr/local/bin/protoc && \
+        rm -f /app/${PROTOC_PACKAGE}; \
+    else \
+        echo "未发现本地protoc安装包，将进行在线安装"; \
+        curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/${PROTOC_PACKAGE} && \
+        unzip -o ${PROTOC_PACKAGE} -d /usr/local && \
+        chmod +x /usr/local/bin/protoc && \
+        rm -f ${PROTOC_PACKAGE}; \
+    fi
+
+# 复制依赖文件
+COPY docreader/pyproject.toml docreader/uv.lock ./
+# PIP_INDEX_URL 为空时走官方 PyPI；国内部署可传镜像源（如
+# https://mirrors.aliyun.com/pypi/simple/），同时作用于 pip 和 uv。
+ARG PIP_INDEX_URL=""
+# 固定 uv 版本，避免不带约束的 `pip install uv` 每次装到不同版本、让构建结果
+# 随上游发版漂移。
+ARG UV_VERSION=0.12.0
+#
+# 依赖安装分两条路径，原因是 uv.lock 把每个包都锁到了官方源
+# （`source = { registry = "https://pypi.org/simple" }`，全部 1176 条）：
+#
+#   * 官方源（deploy_us.sh，PIP_INDEX_URL 为空）：直接 `uv sync --locked`，
+#     lock 与解析结果一致，校验最严格。
+#
+#   * 国内镜像源（deploy_cn.sh，PIP_INDEX_URL 指向阿里云等）：设置
+#     UV_DEFAULT_INDEX 后 uv 会按新 index 重新解析，得到的 registry 与 lock 里
+#     记录的 pypi.org 不符，于是判定 lock 过期，构建失败于
+#       error: The lockfile at `uv.lock` needs to be updated, but `--locked` was provided
+#     这与 uv 版本无关，换任何版本都一样。
+#
+#     `--frozen` 能跳过该校验，但那样 uv 会照 lock 里的 files.pythonhosted.org
+#     地址下载，等于绕开镜像源、失去 cn 模式的意义。
+#
+#     所以改为先用 `uv export` 从 lock 导出带 hash 的依赖清单（导出不重新解析，
+#     不受 index 影响），再用 `uv pip install` 从镜像源下载：版本仍由 lock 锁定，
+#     hash 逐包校验（镜像与 PyPI 是同一批文件，hash 一致），同时走镜像加速。
+#
+# 两条路径产生的 .venv 等价：pyproject.toml 没有 [build-system]，uv 视其为纯依赖
+# 清单，不会安装项目自身，因此 --no-emit-project 不会少装东西。
+#
+# 安装目标用 `--python` 显式指定，不依赖 VIRTUAL_ENV 环境变量被 uv 采纳。
+# 装完立即校验 venv 能导入 generate_proto.sh 所需的 grpc_tools 及运行期关键模块：
+# 否则依赖缺失会拖到后续构建步骤才暴露，报错位置也指不回这里。
+RUN set -eu; \
+    if [ -n "$PIP_INDEX_URL" ]; then \
+        export PIP_INDEX_URL="$PIP_INDEX_URL" UV_DEFAULT_INDEX="$PIP_INDEX_URL"; \
+    fi; \
+    pip install "uv==${UV_VERSION}" --break-system-packages; \
+    if [ -n "$PIP_INDEX_URL" ]; then \
+        python -m uv export --frozen --no-dev --no-emit-project -o /tmp/requirements.txt; \
+        python -m uv venv /app/.venv; \
+        python -m uv pip install --python /app/.venv/bin/python -r /tmp/requirements.txt; \
+        rm -f /tmp/requirements.txt; \
+    else \
+        python -m uv sync --locked --no-dev; \
+    fi; \
+    /app/.venv/bin/python -c "import grpc, grpc_tools.protoc, PIL, pandas, lxml"; \
+    echo "[deps] $(/app/.venv/bin/python -c 'import importlib.metadata as m; print(len(list(m.distributions())))') packages installed into /app/.venv"
+
+# 复制源代码和生成脚本
+COPY docreader docreader
+
+# 生成 protobuf 代码（使用 venv 中的 grpc_tools）
+ENV PATH="/app/.venv/bin:${PATH}"
+RUN chmod +x docreader/scripts/generate_proto.sh && \
+    bash docreader/scripts/generate_proto.sh
+
+# =========================
+# 运行阶段（轻量化）
+# =========================
+FROM python:3.10.18-bookworm AS runner
+
+ARG APT_MIRROR=""
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s@http://deb.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources && \
+        sed -i "s@http://security.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources; \
+    fi
+
+WORKDIR /app
+
+# 安装运行时依赖（已移除 OCR/PaddleOCR 相关依赖）
+# ffmpeg: 视频解析（抽音轨供 ASR 转写、抽关键帧供 VLM 描述）
+RUN apt-get update && apt-get install -y \
+    libjpeg62-turbo \
+    wget \
+    gnupg \
+    openjdk-17-jre-headless \
+    libgl1 \
+    libglib2.0-0 \
+    antiword \
+    tar \
+    dpkg \
+    libxinerama1 \
+    libfontconfig1 \
+    libdbus-glib-1-2 \
+    libcairo2 \
+    libcups2 \
+    libglu1-mesa \
+    libsm6 \
+    libreoffice \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 grpc_health_probe
+ARG TARGETARCH
+# 兼容 BuildKit 和传统构建：如果 TARGETARCH 为空，使用 uname 检测
+RUN if [ -z "$TARGETARCH" ]; then \
+        case $(uname -m) in \
+            "x86_64") TARGETARCH="amd64" ;; \
+            "aarch64") TARGETARCH="arm64" ;; \
+            "armv7l") TARGETARCH="arm" ;; \
+            *) echo "Unsupported architecture: $(uname -m)" && exit 1 ;; \
+        esac; \
+        echo "[自动检测] 架构: $TARGETARCH"; \
+    else \
+        echo "[BuildKit] 架构: $TARGETARCH"; \
+    fi && \
+    GRPC_HEALTH_PROBE_VERSION=v0.4.24 && \
+    case $TARGETARCH in \
+        "amd64") ARCH="amd64" ;; \
+        "arm64") ARCH="arm64" ;; \
+        "arm") ARCH="arm" ;; \
+        *) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+    esac && \
+    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-${ARCH} && \
+    chmod +x /bin/grpc_health_probe
+
+# 从构建阶段复制已安装的依赖和生成的代码
+ENV VIRTUAL_ENV=/app/.venv
+COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# 安装 Playwright 浏览器（网页解析）
+RUN python -m playwright install webkit
+RUN python -m playwright install-deps webkit
+
+COPY docreader/pyproject.toml docreader/uv.lock ./
+COPY --from=builder /app/docreader docreader
+
+# 创建共享临时图片目录
+RUN mkdir -p /tmp/docreader
+
+# 暴露 gRPC 端口
+EXPOSE 50051
+
+# 直接运行 Python 服务（日志输出到 stdout/stderr）
+CMD ["uv", "run", "-m", "docreader.main"]

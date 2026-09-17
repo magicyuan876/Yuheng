@@ -1,0 +1,87 @@
+Yuheng
+Copyright (c) 2026 magicyuan876
+
+================================================================================
+1. Origin
+================================================================================
+
+Yuheng is an independent fork of WeKnora (https://github.com/Tencent/WeKnora).
+
+    Portions Copyright (c) 2025 Tencent.
+    Modifications Copyright (c) 2026 magicyuan876.
+    SPDX-License-Identifier: MIT
+
+A substantial part of this software originates in that upstream project and is
+used under the MIT License. The original copyright notice and license terms are
+reproduced verbatim in the LICENSE file at the root of this repository, which
+also carries the upstream project's third-party component notices unchanged.
+
+Yuheng is not affiliated with, endorsed by, sponsored by, or supported by
+Tencent. It is not an official WeKnora release. "WeKnora" and "Tencent" are the
+marks of their respective owners and appear in this file and in the LICENSE
+file solely to record where this code came from. Support requests concerning
+Yuheng must be directed to this repository, never to the upstream maintainers.
+
+This repository was published as a fresh import of the forked tree. The
+upstream commit history, with its per-commit authorship, is not carried here;
+it remains available in the upstream repository named above, which is the
+authoritative record of who wrote what before the fork. Source comments of the
+form "upstream#NNNN" refer to issue numbers in that upstream repository.
+
+================================================================================
+2. Redistribution
+================================================================================
+
+The MIT License requires that the copyright notice and the permission notice be
+included in all copies or substantial portions of the software. When you
+redistribute Yuheng — as source, as a container image, or as a compiled binary —
+ship the following files together with it:
+
+    LICENSE                    Tencent's MIT text + upstream third-party notices
+    NOTICE                     this file
+    THIRD_PARTY_NOTICES.md     per-dependency attribution for Yuheng's own tree
+    licenses/                  full license texts referenced by the above
+
+At minimum, the following two lines must travel with any redistribution:
+
+    Portions Copyright (c) 2025 Tencent.
+    Modifications Copyright (c) 2026 magicyuan876.
+
+================================================================================
+3. Third-party components
+================================================================================
+
+This software bundles or depends on components licensed under Apache-2.0,
+BSD-2-Clause, BSD-3-Clause, ISC, MIT, MIT-CMU, MPL-2.0, Python-2.0, CC-BY-4.0
+and other terms. THIRD_PARTY_NOTICES.md lists them with their licenses, and
+licenses/ holds the corresponding full texts.
+
+Specific obligations that survive into redistribution:
+
+  * Apache-2.0 — Section 4(b) requires modified files to carry prominent notices
+    of change. Yuheng does not modify any Apache-2.0 licensed dependency in
+    place; they are consumed unmodified from their upstream registries.
+
+  * MPL-2.0 — covered files must remain available under the MPL. Yuheng does not
+    modify any MPL-2.0 licensed file. The components (certifi, dompurify,
+    go-sql-driver/mysql, shoenig/go-m1cpu, hashicorp/errwrap,
+    hashicorp/go-multierror) are consumed unmodified; their sources are at the
+    URLs recorded in THIRD_PARTY_NOTICES.md.
+
+  * CC-BY-4.0 — caniuse-lite (browser-support data used at build time) requires
+    attribution, given in THIRD_PARTY_NOTICES.md.
+
+================================================================================
+4. Known blocking items
+================================================================================
+
+The dependency audit (licenses/NOTICE_AUDIT.md) found components whose licenses
+are incompatible with distributing Yuheng under MIT. Until they are resolved,
+this software must not be published as a binary or container release.
+
+    github.com/liuzl/cedar-go   GPL-2.0    linked via internal/types
+    EbookLib (Python)           AGPL-3.0+  EPUB parsing in docreader
+    chardet (Python)            LGPL-2.1+  encoding detection in docreader
+
+See licenses/NOTICE_AUDIT.md for the import paths, the impact, and the proposed
+replacements.
