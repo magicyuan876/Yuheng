@@ -1,0 +1,191 @@
+Open Source Software Licensed under the bsd-new: 
+-------------------------------------------------------------------- 
+1. ieee754-1.2.0
+Copyright (c) ieee754 authors.
+You may obtain the source code and detailed information about this component at https://github.com/feross/ieee754#readme.
+
+2. github.com/xuri/excelize-2.10.0
+Copyright (c) github.com/xuri/excelize authors.
+You may obtain the source code and detailed information about this component at github.com/xuri/excelize.
+
+3. go.opentelemetry.io/otel/metric-1.37.0
+Copyright (c) go.opentelemetry.io/otel/metric authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/metric.
+
+4. golang.org/x/text-0.30.0
+Copyright (c) golang.org/x/text authors.
+You may obtain the source code and detailed information about this component at golang.org/x/text.
+
+5. github.com/yosida95/uritemplate-3.0.2
+Copyright (c) github.com/yosida95/uritemplate authors.
+You may obtain the source code and detailed information about this component at github.com/yosida95/uritemplate.
+
+6. go.opentelemetry.io/otel/trace-1.37.0
+Copyright (c) go.opentelemetry.io/otel/trace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/trace.
+
+7. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc-1.37.0
+Copyright (c) go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc.
+
+8. torch-2.9.1
+Copyright (c) torch authors.
+You may obtain the source code and detailed information about this component at https://pytorch.org/.
+
+9. golang.org/x/sys-0.37.0
+Copyright (c) golang.org/x/sys authors.
+You may obtain the source code and detailed information about this component at golang.org/x/sys.
+
+10. golang.org/x/crypto-0.43.0
+Copyright (c) golang.org/x/crypto authors.
+You may obtain the source code and detailed information about this component at golang.org/x/crypto.
+
+11. go.opentelemetry.io/otel/exporters/otlp/otlptrace-1.37.0
+Copyright (c) go.opentelemetry.io/otel/exporters/otlp/otlptrace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/otlp/otlptrace.
+
+12. httpx-0.28.1
+Copyright (c) httpx authors.
+You may obtain the source code and detailed information about this component at https://github.com/encode/httpx.
+
+13. go.opentelemetry.io/otel/exporters/stdout/stdouttrace-1.35.0
+Copyright (c) go.opentelemetry.io/otel/exporters/stdout/stdouttrace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/stdout/stdouttrace.
+
+14. github.com/xuri/efp-0.0.1
+Copyright (c) github.com/xuri/efp authors.
+You may obtain the source code and detailed information about this component at github.com/xuri/efp.
+
+15. golang.org/x/net-0.46.0
+Copyright (c) golang.org/x/net authors.
+You may obtain the source code and detailed information about this component at golang.org/x/net.
+
+16. starlette-0.50.0
+Copyright (c) starlette authors.
+You may obtain the source code and detailed information about this component at https://github.com/encode/starlette.
+
+17. @xtuc/ieee754-1.2.0
+Copyright (c) 2008,  Fair Oaks Labs,  Inc.
+
+18. speakingurl-14.0.1
+Copyright (c) speakingurl authors.
+You may obtain the source code and detailed information about this component at http://pid.github.io/speakingurl/.
+
+19. google.golang.org/protobuf-1.36.9
+Copyright (c) google.golang.org/protobuf authors.
+You may obtain the source code and detailed information about this component at google.golang.org/protobuf.
+
+20. github.com/twitchyliquid64/golang-asm-0.15.1
+Copyright (c) github.com/twitchyliquid64/golang-asm authors.
+You may obtain the source code and detailed information about this component at github.com/twitchyliquid64/golang-asm.
+
+21. github.com/pmezard/go-difflib-1.0.0
+Copyright (c) github.com/pmezard/go-difflib authors.
+You may obtain the source code and detailed information about this component at github.com/pmezard/go-difflib.
+
+22. source-map-0.6.1
+Copyright (c) 2009-2011,  Mozilla Foundation and contributors
+
+23. golang.org/x/sync-0.17.0
+Copyright (c) golang.org/x/sync authors.
+You may obtain the source code and detailed information about this component at golang.org/x/sync.
+
+24. github.com/clbanning/mxj-1.8.4
+Copyright (c) github.com/clbanning/mxj authors.
+You may obtain the source code and detailed information about this component at github.com/clbanning/mxj.
+
+25. github.com/google/uuid-1.6.0
+Copyright (c) github.com/google/uuid authors.
+You may obtain the source code and detailed information about this component at github.com/google/uuid.
+
+26. uvicorn-0.38.0
+Copyright (c) uvicorn authors.
+You may obtain the source code and detailed information about this component at https://github.com/encode/uvicorn.
+
+27. sse-starlette-3.0.3
+Copyright (c) sse-starlette authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/sse-starlette/.
+
+28. idna-3.7
+Copyright (c) 2001-2014 Python Software Foundation,  All Rights Reserved, Copyright (c) 1991-2014 Unicode,  Inc. All rights reserved., Copyright (c) 2013-2023,  Kim Davies and contributors.
+
+29. go.opentelemetry.io/otel/sdk-1.37.0
+Copyright (c) go.opentelemetry.io/otel/sdk authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/sdk.
+
+30. github.com/go-json-experiment/json-0.0.0-20250725192818-e39067aee2d2
+Copyright (c) github.com/go-json-experiment/json authors.
+You may obtain the source code and detailed information about this component at github.com/go-json-experiment/json.
+
+31. github.com/puerkitobio/goquery-1.10.3
+Copyright (c) github.com/puerkitobio/goquery authors.
+You may obtain the source code and detailed information about this component at github.com/puerkitobio/goquery.
+
+32. golang.org/x/time-0.13.0
+Copyright (c) golang.org/x/time authors.
+You may obtain the source code and detailed information about this component at golang.org/x/time.
+
+33. github.com/pierrec/lz4-4.1.21
+Copyright (c) github.com/pierrec/lz4 authors.
+You may obtain the source code and detailed information about this component at github.com/pierrec/lz4.
+
+34. httpcore-1.0.9
+Copyright (c) httpcore authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/httpcore/.
+
+35. github.com/spf13/pflag-1.0.6
+Copyright (c) github.com/spf13/pflag authors.
+You may obtain the source code and detailed information about this component at github.com/spf13/pflag.
+
+36. go.opentelemetry.io/otel-1.37.0
+Copyright (c) go.opentelemetry.io/otel authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel.
+
+37. fast-uri-3.0.6
+Copyright (c) 2011-2021,  Gary Court until https:  github.com garycourt uri-js commit a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae, Copyright (c) 2021 The Fastify Team
+
+38. github.com/grpc-ecosystem/grpc-gateway-2.27.1
+Copyright (c) github.com/grpc-ecosystem/grpc-gateway authors.
+You may obtain the source code and detailed information about this component at github.com/grpc-ecosystem/grpc-gateway.
+
+39. python-dotenv-1.2.1
+Copyright (c) python-dotenv authors.
+You may obtain the source code and detailed information about this component at https://github.com/theskumar/python-dotenv.
+
+40. click-8.3.1
+Copyright (c) click authors.
+You may obtain the source code and detailed information about this component at https://palletsprojects.com/p/click/.
+
+41. github.com/bahlo/generic-list-go-0.2.0
+Copyright (c) github.com/bahlo/generic-list-go authors.
+You may obtain the source code and detailed information about this component at github.com/bahlo/generic-list-go.
+
+42. golang.org/x/arch-0.15.0
+Copyright (c) golang.org/x/arch authors.
+You may obtain the source code and detailed information about this component at golang.org/x/arch.
+
+43. github.com/fsnotify/fsnotify-1.8.0
+Copyright (c) github.com/fsnotify/fsnotify authors.
+You may obtain the source code and detailed information about this component at github.com/fsnotify/fsnotify.
+
+44. github.com/xuri/nfp-0.0.2-0.20250530014748-2ddeb826f9a9
+Copyright (c) github.com/xuri/nfp authors.
+You may obtain the source code and detailed information about this component at github.com/xuri/nfp.
+
+45. google-3.0.0
+Copyright (c) google authors.
+You may obtain the source code and detailed information about this component at http://breakingcode.wordpress.com/.
+
+46. github.com/google/go-querystring-1.1.0
+Copyright (c) github.com/google/go-querystring authors.
+You may obtain the source code and detailed information about this component at github.com/google/go-querystring.
+
+47. serialize-javascript-6.0.2
+Copyright 2014 Yahoo  Inc.
+
+48. github.com/klauspost/compress-1.18.0
+Copyright (c) github.com/klauspost/compress authors.
+You may obtain the source code and detailed information about this component at github.com/klauspost/compress.
+
+49. source-map-js-1.2.1
+Copyright (c) 2009-2011,  Mozilla Foundation and contributors

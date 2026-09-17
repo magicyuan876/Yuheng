@@ -1,0 +1,296 @@
+<p align="center">
+  <picture>
+    <img src="./docs/images/logo.png" alt="Yuheng Logo" height="120"/>
+  </picture>
+</p>
+
+<p align="center">
+    <a href="https://github.com/magicyuan876/yuheng/blob/main/LICENSE">
+        <img src="https://img.shields.io/badge/License-MIT-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="License">
+    </a>
+    <a href="./CHANGELOG.md">
+        <img alt="버전" src="https://img.shields.io/badge/version-0.7.2-2e6cc4?labelColor=d4eaf7">
+    </a>
+</p>
+
+<p align="center">
+| <a href="./README.md"><b>English</b></a> | <a href="./README_CN.md"><b>简体中文</b></a> | <a href="./README_JA.md"><b>日本語</b></a> | <b>한국어</b> |
+</p>
+
+<p align="center">
+  <h4 align="center">
+
+  [개요](#-개요) • [아키텍처](#️-아키텍처) • [핵심 기능](#-핵심-기능) • [시작하기](#-시작하기) • [API 레퍼런스](#-api-레퍼런스) • [개발자 가이드](#-개발자-가이드)
+
+  </h4>
+</p>
+
+# 💡 Yuheng — 문서를 살아있는 지식으로: RAG · Agent 추론 · 자동 Wiki 통합 LLM 지식 프레임워크
+
+## 📌 개요
+
+**Yuheng**는 엔터프라이즈급 문서 이해, 시맨틱 검색, 자율 추론 시나리오를 위해 설계된 오픈소스 LLM 기반 지식 프레임워크입니다.
+
+본 프레임워크는 **세 가지 핵심 역량**을 중심으로 구성됩니다. 일상 검색에 최적화된 **RAG 기반 빠른 Q&A**, 지식 검색·MCP 도구·웹 검색을 자율적으로 오케스트레이션하여 복잡한 다단계 작업을 처리하는 **ReAct Agent 추론**, 그리고 Agent가 원본 문서에서 상호 연결된 마크다운 지식베이스와 인터랙티브 지식 그래프를 스스로 생성·유지하는 완전히 새로운 **Wiki 모드**(수동 편집·버전 이력·원클릭 롤백 지원)입니다. 지식 가공 과정도 세밀하게 제어할 수 있습니다. **트리형 폴더**가 업로드 시의 디렉터리 구조를 그대로 유지하고, **청크 편집 및 버전 이력**을 통해 검색 청크를 문서처럼 수정·비교·롤백할 수 있습니다. 다양한 데이터 소스 연동(Feishu 지식베이스 / Feishu 클라우드 드라이브 / Notion / Yuque / RSS, 지속 확장 중), **웹사이트 임베드 Widget**으로 외부 사이트에 에이전트 게시, 프로그램 연동을 위한 **범위 지정 API 키 및 Principal 모델**, 워크스페이스별 **다중 인스턴스 스토리지 백엔드**, 20개 이상의 LLM 프로바이더 통합, Langfuse 기반 풀스택 관측 가능성과 **런타임 작업 큐 대시보드 + Worker 풀 거버넌스**, **엔터프라이즈 멀티 테넌트 RBAC(4단계 역할 매트릭스 + 리소스 소유권 + 테넌트 감사 로그)**, 완전 셀프호스팅이 가능한 모듈형 아키텍처를 결합하여, Yuheng는 흩어진 문서를 검색·추론 가능하며 지속적으로 진화하는 전용 지식 자산으로 탈바꿈시킵니다.
+
+Feishu, Notion, Yuque 등 외부 플랫폼에서 지식 자동 동기화를 지원하며(추가 데이터 소스 개발 중), PDF, Word, 이미지, Excel 등 10가지 이상의 문서 포맷을 처리합니다. WeChat Work, Feishu, Slack, Telegram 등의 IM 채널을 통해 Q&A 서비스를 직접 제공할 수 있습니다. 모델 레이어에서 OpenAI, DeepSeek, Qwen(Alibaba Cloud), Zhipu, Hunyuan, Gemini, MiniMax, NVIDIA, Ollama 등 주요 프로바이더를 지원합니다. 전체 프로세스가 모듈화 설계되어 LLM, 벡터 DB, 스토리지 등 구성 요소를 유연하게 교체 가능하며, 로컬 및 프라이빗 클라우드 배포를 지원하여 데이터 완전 자체 관리가 가능합니다. 또한 Yuheng는 **Langfuse**와 원활하게 통합되어 Agent 추론, 토큰 사용량 및 파이프라인에 대한 포괄적인 관측 가능성(Observability)을 제공합니다.
+
+## 📱 기능 데모
+
+<table>
+  <tr>
+    <td colspan="2" align="center"><b>💬 지능형 Q&A 대화</b><br/><img src="./docs/images/qa.png" alt="지능형 Q&A 대화" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>📖 Wiki 브라우저</b><br/><img src="./docs/images/wiki-browser.png" alt="Wiki 브라우저" width="100%"></td>
+    <td width="50%" align="center"><b>🕸️ Wiki 지식 그래프</b><br/><img src="./docs/images/wiki-graph.png" alt="Wiki 지식 그래프" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>🕘 Wiki 페이지 버전 이력 및 롤백</b><br/><img src="./docs/images/wiki-revision-history.png" alt="Wiki 페이지 버전 이력 및 롤백" width="100%"></td>
+    <td width="50%" align="center"><b>✂️ 청크 편집 및 버전 이력</b><br/><img src="./docs/images/kb-chunk-edit.png" alt="청크 편집 및 버전 이력" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>📁 폴더 트리 및 일괄 작업</b><br/><img src="./docs/images/kb-document-list.png" alt="지식베이스 폴더 트리 및 일괄 작업" width="100%"></td>
+    <td width="50%" align="center"><b>🤖 Agent 모드 · 도구 호출 과정</b><br/><img src="./docs/images/agent-qa.png" alt="Agent 모드 도구 호출 과정" width="100%"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>🔭 관측 가능성 · Langfuse Tracing</b><br/><img src="./docs/images/langfuse.png" alt="Langfuse Tracing" width="100%"></td>
+  </tr>
+</table>
+
+## 🏗️ 아키텍처
+
+![yuheng-architecture.png](./docs/images/architecture.png)
+
+문서 파싱, 벡터화, 검색부터 LLM 추론까지 전체 파이프라인을 모듈화하여 각 구성 요소를 유연하게 교체·확장 가능합니다. 로컬 / 프라이빗 클라우드 배포를 지원하며, 데이터 완전 자체 관리와 진입 장벽 없는 Web UI로 빠르게 시작할 수 있습니다.
+
+## 📊 적용 시나리오
+
+| 시나리오 | 적용 사례 | 핵심 가치 |
+|---------|----------|----------|
+| **기업 지식 관리** | 내부 문서 검색, 규정 Q&A, 운영 매뉴얼 조회 | 지식 탐색 효율 향상, 교육 비용 절감 |
+| **학술 연구 분석** | 논문 검색, 연구 리포트 분석, 학술 자료 정리 | 문헌 조사 가속, 연구 의사결정 지원 |
+| **제품 기술 지원** | 제품 매뉴얼 Q&A, 기술 문서 검색, 트러블슈팅 | 고객 지원 품질 향상, 지원 부담 감소 |
+| **법무/컴플라이언스 검토** | 계약 조항 검색, 규제 정책 조회, 사례 분석 | 컴플라이언스 효율 향상, 법적 리스크 감소 |
+| **의료 지식 지원** | 의학 문헌 검색, 진료 가이드라인 조회, 증례 분석 | 임상 의사결정 지원, 진단 품질 향상 |
+
+## 🧩 기능 개요
+
+**지능형 대화**
+
+| 기능 | 상세 |
+|------|------|
+| 지능형 추론 | ReACT 점진적 멀티스텝 추론, 지식 검색·MCP 도구·웹 검색을 자율 오케스트레이션 |
+| 빠른 Q&A | 지식베이스 기반 RAG Q&A, 빠르고 정확한 답변 |
+| Wiki 모드 | Agent가 주도하여 원본 문서에서 구조화된 마크다운 Wiki 페이지를 자동 생성 및 유지 관리; 브라우저 내 수동 편집, 페이지 버전 이력, 라인 단위 diff 및 원클릭 롤백 |
+| 도구 호출 | 내장 도구, MCP 도구(OAuth2 원격 서비스·대화 중 OAuth 포함), 웹 검색; `@Skill / @MCP` 멘션으로 턴 단위 Agent 런타임 범위 지정 |
+| 대화 전략 | 온라인 프롬프트 편집, 검색 임계값 조정, 멀티턴 문맥 인식, Agent별 인용 출력 토글 |
+| 추천 질문 | 지식베이스 콘텐츠 기반 질문 자동 생성 및 답변 후 후속 질문 |
+| 임시 첨부 | 세션 범위로 이미지 / 문서를 업로드하고 비동기 파싱하여 일회성 Q&A에 사용(이미지 + 첨부 통합 한도) |
+| 인용 및 RAG 진행 | 인라인 인용 팝오버 및 인용 드로어(웹 / KB 소스 구분), 통합 Markdown 렌더링, RAG 파이프라인 단계별 진행 표시 |
+| 세션 관리 | 사이드바에서 소스별(Web / IM / 임베드) 세션 필터 및 그룹화, 세션 제목 인라인 이름 변경 지원 |
+
+**지식 관리**
+
+| 기능 | 상세 |
+|------|------|
+| 지식베이스 타입 | FAQ / 문서 / Wiki, 폴더 임포트·URL 임포트·다중 태그 관리·온라인 입력 |
+| 폴더 트리 | 폴더 업로드 시 원본 디렉터리 구조를 유지하고, 사이드바 트리 탐색·폴더 이름 변경·문서를 다른 폴더로 재배치 지원 |
+| 청크 편집 및 버전 | UI에서 검색 청크를 직접 편집하고 버전별 스냅샷·diff·원클릭 롤백, 편집 후 인덱스 자동 재구축; 생성 질문 추가·수정·삭제·재생성; 문서 커스텀 메타데이터 지원 |
+| 업로드 단위 파싱 설정 | 업로드 확인 대화상자 또는 `process_config` API로 파서·청킹·멀티모달(VLM / ASR)·그래프 추출·질문 생성을 배치 단위로 덮어쓰기; reparse 시 설정 변경 지원 |
+| 일괄 reparse | 여러 문서의 파싱을 한 번에 재큐잉, 배치 단위 `process_config` 지원 |
+| 데이터 소스 임포트 | Feishu 지식베이스 / Feishu 클라우드 드라이브 / Lark / Notion / Yuque / RSS 피드 자동 동기화(추가 데이터 소스 개발 중), 증분·전체 동기화 지원 |
+| 문서 포맷 | PDF / Word / Txt / Markdown / HTML / EPUB / MHTML / 이미지 / CSV / Excel / PPT / JSON |
+| 검색 전략 | BM25 희소 / Dense 밀집 / GraphRAG 그래프 강화 / 부모-자식 청킹 / pgvector HNSW 가속(1024차원) / 다차원 인덱싱 |
+| 일괄 선택 및 태깅 | KB 목록에서 마키(드래그) 다중 선택으로 일괄 reparse 및 일괄 태깅(공통 태그 자동 선택) |
+| E2E 테스트 | 전체 파이프라인 시각화, 리콜 적중률·BLEU / ROUGE 지표 평가 |
+
+**연동 및 확장**
+
+| 기능 | 상세 |
+|------|------|
+| LLM | OpenAI / Azure OpenAI / Anthropic (Claude) / DeepSeek / Qwen (Alibaba Cloud) / Zhipu / Hunyuan / Doubao (Volcengine) / Gemini / MiniMax / NVIDIA / Novita AI / SiliconFlow / OpenRouter / Requesty / Ollama |
+| Embedding | Ollama / BGE / GTE / OpenAI 호환 API |
+| 벡터 DB | PostgreSQL (pgvector) / Elasticsearch / OpenSearch / Milvus / Weaviate / Qdrant / Apache Doris / Tencent VectorDB |
+| 오브젝트 스토리지 | 로컬 / MinIO / AWS S3(IAM Role / IRSA 기본 자격 증명 체인 지원) / Volcengine TOS / Alibaba Cloud OSS / Kingsoft Cloud KS3 / Huawei Cloud OBS; **워크스페이스당 여러 스토리지 인스턴스**, KB 단위 바인딩 및 기본 인스턴스 |
+| IM 통합 | WeChat Work / Feishu / Lark(Feishu 국제판) / QQBot / Slack / Telegram / DingTalk / Mattermost / WeChat / Yunzhijia |
+| 웹사이트 임베드 | 임베드 Widget으로 에이전트 게시, 도메인 허용 목록·속도 제한·보안 모드 Token 교환 |
+| 웹 검색 | DuckDuckGo / Bing / Google / Tavily / Baidu / Ollama / SearXNG / Keenable / Zhipu AI |
+| API 통합 | 범위 지정 API 키(능력 단위 권한 + KB 단위 제한 + 스로틀링된 last_used 추적)와 API 통합 플레이그라운드; MCP OAuth 및 임베드 세션을 Principal 단위로 격리; `resource_urls=public`으로 바로 로드 가능한 파일 / 이미지 URL을 반환하여 인증 프록시 재호출 제거 |
+| MCP Server | 공식 PyPI 패키지 `yuheng-mcp`, 29개 도구, stdio / SSE / HTTP 3가지 트랜스포트 지원 |
+
+**플랫폼**
+
+| 기능 | 상세 |
+|------|------|
+| 배포 | 로컬 / Docker / Kubernetes (Helm), 프라이빗/오프라인 배포 지원 |
+| UI | Web UI / RESTful API / CLI (`yuheng`) / Chrome Extension / 웹사이트 임베드 Widget / WeChat 미니 프로그램 |
+| 관측 가능성 | Langfuse(단일 추적 백엔드)로 ReAct 루프·토큰 소비·도구 호출·파이프라인 추적; Langfuse 스타일의 문서 파싱 추적 타임라인 내장으로 단계별 진행 표시; 시스템 관리자용 런타임 작업 큐 대시보드(큐 깊이·모델별 동시성·실패 작업 조사 및 수동 재시도) |
+| 작업 관리 | MQ 비동기 작업, 단계별 Worker 풀 거버넌스(core / 후처리 / enrichment / maintenance + 탄력적 공유 풀, Wiki 독립 풀)와 모델별 백그라운드 동시성 거버너; 버전 업그레이드 시 자동 DB 마이그레이션 |
+| 모델 관리 | 중앙 설정, YAML 선언형 내장 모델 구성, 지식베이스별 모델 선택, 모델별 사고 모드·Embedding 차원 덮어쓰기, 대화형 모델 디버거, 멀티테넌트 내장 모델 공유, 중앙 관리되는 공유 인프라 |
+
+## 🐋 DeepSeek Harness 플러그인
+
+[**`@magicyuan876/dsh-yuheng`**](./packages/dsh-yuheng/README.md)는 공식 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(`dsh`) 플러그인입니다. harness 자체에는 검색·임베딩·지식베이스 기능이 없으므로, 이 플러그인이 코딩 에이전트에 사내 문서를 제공합니다. `dsh plugin --profile web add @magicyuan876/dsh-yuheng`로 설치하고 배포 주소를 지정하면 네 개의 읽기 전용 도구가 에이전트 도구 목록에 나타납니다.
+
+- **`yuheng_search`** — 하이브리드 검색. 원문 구절을 그대로 반환하며 각 항목에 재사용 가능한 `knowledge_id` 포함
+- **`yuheng_read_document`** — 한 문서의 청크를 순서대로 재조합, 페이징 지원
+- **`yuheng_ask`** — Yuheng가 직접 작성한 인용 포함 답변(RAG 또는 ReAct 파이프라인)
+- **`yuheng_list_knowledge_bases`** — 지식베이스 이름과 id로 에이전트가 검색 범위를 스스로 좁힘
+
+
+## 🚀 시작하기
+
+### 🛠 사전 준비
+
+- [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+- [Git](https://git-scm.com/)
+
+### 📦 설치 및 실행
+
+```bash
+git clone https://github.com/magicyuan876/yuheng.git
+cd yuheng
+cp .env.example .env   # 필요에 따라 .env 편집 (파일 내 주석 참고)
+docker compose pull     # 최신 이미지 가져오기
+docker compose up -d    # 코어 서비스 시작
+```
+
+시작 후 **http://localhost** 에 접속하여 바로 사용 가능합니다.
+
+> 로컬 Ollama 모델을 사용하려면 먼저 `ollama serve > /dev/null 2>&1 &` 를 실행하세요.
+
+### 🔄 업그레이드
+
+기존 배포가 있고 새 release를 다운로드한 경우:
+
+```bash
+# .env에서 YUHENG_VERSION을 대상 버전(예: 0.7.0)으로 설정하거나 latest 유지
+docker compose pull     # YUHENG_VERSION에 맞는 이미지 가져오기
+docker compose up -d    # 새 이미지로 컨테이너 재생성
+```
+
+> `docker compose up -d`만 실행하면 로컬 캐시 이미지가 재사용되어 Web UI 버전이 다운로드한 release와 일치하지 않을 수 있습니다.
+
+### 🔧 선택 서비스 (Docker Compose Profile)
+
+`--profile` 플래그로 추가 컴포넌트를 활성화합니다. 여러 profile 조합 가능:
+
+| Profile | 설명 | 명령어 |
+|---------|------|--------|
+| _(기본)_ | 코어 서비스 | `docker compose pull && docker compose up -d` |
+| `full` | 전체 기능 | `docker compose --profile full pull && docker compose --profile full up -d` |
+| `neo4j` | 지식 그래프 (Neo4j) | `docker compose --profile neo4j pull && docker compose --profile neo4j up -d` |
+| `minio` | 오브젝트 스토리지 (MinIO) | `docker compose --profile minio pull && docker compose --profile minio up -d` |
+| `langfuse` | 트레이싱 (Langfuse) | `docker compose --profile langfuse pull && docker compose --profile langfuse up -d` |
+
+조합 예시: `docker compose --profile neo4j --profile minio pull && docker compose --profile neo4j --profile minio up -d`
+
+서비스 중지: `docker compose down`
+
+### 🌐 서비스 주소
+
+| 서비스 | URL |
+|--------|-----|
+| Web UI | `http://localhost` |
+| 백엔드 API | `http://localhost:8080` |
+| Langfuse 트레이싱 | `http://localhost:3000` |
+
+## 문서 지식 그래프
+
+Yuheng는 문서를 지식 그래프로 변환해 문서 내 서로 다른 섹션 간 관계를 시각화할 수 있습니다. 지식 그래프 기능을 활성화하면 문서 내부의 시맨틱 연관 네트워크를 분석/구성하여 문서 이해를 돕고, 인덱싱과 검색에 구조화된 지원을 제공해 검색 결과의 관련성과 폭을 향상시킵니다.
+
+자세한 설정은 [지식 그래프 설정 가이드](./docs/KnowledgeGraph.md)를 참고하세요.
+
+## MCP 서버
+
+필요한 설정은 [MCP 설정 가이드](./mcp-server/MCP_CONFIG.md)를 참고하세요.
+
+## 📘 API 레퍼런스
+
+**공식 제품 문서**: [`website-docs/`](./website-docs/README.md) — 「입문 → 아키텍처 → 기능 → API → 클라이언트 → 개발」 6개 섹션으로 구성된 완전한 문서 세트로, 약 360개 API 엔드포인트, 약 150개 환경 변수, 9개 확장 지점을 다룹니다. 이 디렉터리는 VitePress 사이트이기도 하여 `cd website-docs && npm install && npm run dev`로 로컬 미리보기가 가능하며, 디렉터리 내 `Dockerfile`로 단독 배포할 수도 있습니다.
+
+문제 해결 FAQ: [문제 해결 FAQ](./docs/QA.md)
+
+상세 API 문서: [API Docs](./docs/api/README.md)
+
+제품 계획 및 예정 기능: [Roadmap](./docs/ROADMAP.md)
+
+## 🧭 개발자 가이드
+
+### ⚡ 고속 개발 모드(권장)
+
+코드를 자주 수정해야 한다면 **매번 Docker 이미지를 다시 빌드할 필요가 없습니다**. 고속 개발 모드를 사용하세요.
+
+```bash
+# 인프라 시작
+make dev-start
+
+# 백엔드 시작 (새 터미널)
+make dev-app
+
+# 프론트엔드 시작 (새 터미널)
+make dev-frontend
+```
+
+**개발 장점:**
+- ✅ 프론트엔드 변경 자동 핫리로드(재시작 불필요)
+- ✅ 백엔드 변경 빠른 재시작(5~10초, Air 핫리로드 지원)
+- ✅ Docker 이미지 재빌드 불필요
+- ✅ IDE 브레이크포인트 디버깅 지원
+
+**상세 문서:** [개발 환경 빠른 시작](./docs/开发指南.md)
+
+## 🤝 기여하기
+
+[Issue](https://github.com/magicyuan876/yuheng/issues) 또는 Pull Request를 환영합니다.
+
+**절차:** Fork → 브랜치 생성 → 변경사항 커밋 → PR 생성
+
+**규칙:** `gofmt`로 코드 포맷팅, [Conventional Commits](https://www.conventionalcommits.org/) 준수 (`feat:` / `fix:` / `docs:` / `test:` / `refactor:`)
+
+## 🔒 보안 공지
+
+**중요:** v0.1.3부터 Yuheng는 시스템 보안 강화를 위해 로그인 인증 기능을 포함합니다. 운영 환경 배포 시 아래 사항을 강력히 권장합니다.
+
+- Yuheng 서비스를 공용 인터넷이 아닌 내부/사설 네트워크 환경에 배포
+- 잠재적 정보 유출 방지를 위해 서비스를 공용 네트워크에 직접 노출하지 않기
+- 배포 환경에 적절한 방화벽 규칙 및 접근 제어 구성
+- 보안 패치와 개선 사항 적용을 위해 최신 버전으로 정기 업데이트
+
+## 👥 기여자
+
+멋진 기여자 여러분께 감사드립니다:
+
+[![Contributors](https://contrib.rocks/image?repo=magicyuan876/yuheng)](https://github.com/magicyuan876/yuheng/graphs/contributors)
+
+## 🙏 출처 표기
+
+Yuheng는 서드파티 오픈소스 소프트웨어를 포함하며, 그중 상당 부분은 MIT 라이선스로 배포되는
+상위 프로젝트에서 유래했습니다. 재배포 시 반드시 동봉해야 할 저작권 표시와 라이선스 조항은
+다음 파일에 있습니다:
+
+- [`LICENSE`](./LICENSE) — 라이선스 전문과 원 저작권 표시(원문 그대로).
+- [`NOTICE`](./NOTICE) — 재배포 시 반드시 동봉해야 할 저작권 문구.
+- [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)와 [`licenses/`](./licenses/) —
+  의존성별 라이선스 전문과 감사 결과.
+
+Yuheng는 독립 프로젝트이며, 포함된 소프트웨어의 저자와 제휴·승인·지원 관계가 없습니다.
+버그 신고와 지원 요청은 [이 저장소의 Issues](https://github.com/magicyuan876/Yuheng/issues)로
+보내 주세요.
+
+## 📄 라이선스
+
+이 프로젝트는 [MIT License](./LICENSE)로 배포됩니다. 저작권 고지와 허가 고지를 함께 유지하는
+조건으로 코드를 자유롭게 사용, 수정, 배포할 수 있습니다. 복제해야 할 구체적 문구는
+[`NOTICE`](./NOTICE)를 참고하세요.
+
+## 📈 프로젝트 통계
+
+<a href="https://www.star-history.com/#magicyuan876/yuheng&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=magicyuan876/yuheng&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=magicyuan876/yuheng&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=magicyuan876/yuheng&type=date&legend=top-left" />
+ </picture>
+</a>

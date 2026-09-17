@@ -1,0 +1,200 @@
+Open Source Software Licensed under the apache-2.0: 
+-------------------------------------------------------------------- 
+1. @xtuc/long-4.2.2
+Copyright (c) @xtuc/long authors.
+You may obtain the source code and detailed information about this component at https://github.com/dcodeIO/long.js#readme.
+
+2. go.opentelemetry.io/otel/metric-1.37.0
+Copyright (c) go.opentelemetry.io/otel/metric authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/metric.
+
+3. long-4.2.2
+Copyright (c) long authors.
+You may obtain the source code and detailed information about this component at https://github.com/dcodeIO/long.js#readme.
+
+4. github.com/bytedance/sonic-1.13.2
+Copyright (c) github.com/bytedance/sonic authors.
+You may obtain the source code and detailed information about this component at github.com/bytedance/sonic.
+
+5. go.opentelemetry.io/auto/sdk-1.1.0
+Copyright (c) go.opentelemetry.io/auto/sdk authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/auto/sdk.
+
+6. github.com/minio/crc64nvme-1.0.1
+Copyright (c) github.com/minio/crc64nvme authors.
+You may obtain the source code and detailed information about this component at github.com/minio/crc64nvme.
+
+7. go.opentelemetry.io/otel/trace-1.37.0
+Copyright (c) go.opentelemetry.io/otel/trace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/trace.
+
+8. go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc-1.37.0
+Copyright (c) go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc.
+
+9. trafilatura-2.0.0
+Copyright (c) trafilatura authors.
+You may obtain the source code and detailed information about this component at https://trafilatura.readthedocs.io.
+
+10. go.opentelemetry.io/otel/exporters/otlp/otlptrace-1.37.0
+Copyright (c) go.opentelemetry.io/otel/exporters/otlp/otlptrace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/otlp/otlptrace.
+
+11. github.com/modern-go/concurrent-0.0.0-20180306012644-bacd9c7ef1dd
+Copyright (c) github.com/modern-go/concurrent authors.
+You may obtain the source code and detailed information about this component at github.com/modern-go/concurrent.
+
+12. gopkg.in/yaml.v3-3.0.1
+Copyright (c) gopkg.in/yaml.v3 authors.
+You may obtain the source code and detailed information about this component at https://goproxy.cn/gopkg.in/yaml.v3/@v/v3.0.1.zip.
+
+13. go.opentelemetry.io/otel/exporters/stdout/stdouttrace-1.35.0
+Copyright (c) go.opentelemetry.io/otel/exporters/stdout/stdouttrace authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/exporters/stdout/stdouttrace.
+
+14. github.com/richardlehane/msoleps-1.0.4
+Copyright (c) github.com/richardlehane/msoleps authors.
+You may obtain the source code and detailed information about this component at github.com/richardlehane/msoleps.
+
+15. google.golang.org/grpc-1.73.0
+Copyright (c) google.golang.org/grpc authors.
+You may obtain the source code and detailed information about this component at google.golang.org/grpc.
+
+16. google.golang.org/genproto/googleapis/rpc-0.0.0-20250603155806-513f23925822
+Copyright (c) google.golang.org/genproto/googleapis/rpc authors.
+You may obtain the source code and detailed information about this component at google.golang.org/genproto/googleapis/rpc.
+
+17. github.com/modern-go/reflect2-1.0.2
+Copyright (c) github.com/modern-go/reflect2 authors.
+You may obtain the source code and detailed information about this component at github.com/modern-go/reflect2.
+
+18. github.com/minio/minio-go-7.0.90
+Copyright (c) github.com/minio/minio-go authors.
+You may obtain the source code and detailed information about this component at github.com/minio/minio-go.
+
+19. requests-default
+Copyright (c) requests authors.
+You may obtain the source code and detailed information about this component at http://python-requests.org.
+
+20. github.com/minio/md5-simd-1.1.2
+Copyright (c) github.com/minio/md5-simd authors.
+You may obtain the source code and detailed information about this component at github.com/minio/md5-simd.
+
+21. openai-2.8.1
+Copyright (c) openai authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/openai/.
+
+22. go.opentelemetry.io/proto/otlp-1.7.0
+Copyright (c) go.opentelemetry.io/proto/otlp authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/proto/otlp.
+
+23. typescript-5.8.3
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+24. github.com/wk8/go-ordered-map-2.1.8
+Copyright (c) github.com/wk8/go-ordered-map authors.
+You may obtain the source code and detailed information about this component at github.com/wk8/go-ordered-map.
+
+25. gopkg.in/yaml-3.0.1
+Copyright (c) gopkg.in/yaml authors.
+You may obtain the source code and detailed information about this component at gopkg.in/yaml.v3.
+
+26. github.com/go-ini/ini-1.67.0
+Copyright (c) github.com/go-ini/ini authors.
+You may obtain the source code and detailed information about this component at github.com/go-ini/ini.
+
+27. leb128-1.13.2
+Copyright (c) leb128 authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+28. go.opentelemetry.io/otel/sdk-1.37.0
+Copyright (c) go.opentelemetry.io/otel/sdk authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel/sdk.
+
+29. google.golang.org/genproto/googleapis/api-0.0.0-20250603155806-513f23925822
+Copyright (c) google.golang.org/genproto/googleapis/api authors.
+You may obtain the source code and detailed information about this component at google.golang.org/genproto/googleapis/api.
+
+30. transformers-4.57.3
+Copyright (c) transformers authors.
+You may obtain the source code and detailed information about this component at https://github.com/huggingface/transformers.
+
+31. github.com/richardlehane/mscfb-1.0.4
+Copyright (c) github.com/richardlehane/mscfb authors.
+You may obtain the source code and detailed information about this component at github.com/richardlehane/mscfb.
+
+32. github.com/bytedance/sonic/loader-0.2.4
+Copyright (c) github.com/bytedance/sonic/loader authors.
+You may obtain the source code and detailed information about this component at github.com/bytedance/sonic/loader.
+
+33. minio-7.2.20
+Copyright (c) minio authors.
+You may obtain the source code and detailed information about this component at https://github.com/minio/minio-py.
+
+34. github.com/elastic/go-elasticsearch-8.18.0
+Copyright (c) github.com/elastic/go-elasticsearch authors.
+You may obtain the source code and detailed information about this component at github.com/elastic/go-elasticsearch.
+
+35. paddleocr-3.3.2
+Copyright (c) paddleocr authors.
+You may obtain the source code and detailed information about this component at https://github.com/PaddlePaddle/PaddleOCR.
+
+36. github.com/elastic/go-elasticsearch-7.17.10
+Copyright (c) github.com/elastic/go-elasticsearch authors.
+You may obtain the source code and detailed information about this component at github.com/elastic/go-elasticsearch.
+
+37. go.opentelemetry.io/otel-1.37.0
+Copyright (c) go.opentelemetry.io/otel authors.
+You may obtain the source code and detailed information about this component at go.opentelemetry.io/otel.
+
+38. @webassemblyjs/leb128-1.13.2
+Copyright 2012 The Obvious Corporation.
+
+39. xlsx-0.20.2
+Copyright (c) xlsx authors.
+You may obtain the source code and detailed information about this component at https://sheetjs.com/.
+
+40. github.com/go-logr/stdr-1.2.2
+Copyright (c) github.com/go-logr/stdr authors.
+You may obtain the source code and detailed information about this component at github.com/go-logr/stdr.
+
+41. github.com/sashabaranov/go-openai-1.40.5
+Copyright (c) github.com/sashabaranov/go-openai authors.
+You may obtain the source code and detailed information about this component at github.com/sashabaranov/go-openai.
+
+42. github.com/spf13/afero-1.12.0
+Copyright (c) github.com/spf13/afero authors.
+You may obtain the source code and detailed information about this component at github.com/spf13/afero.
+
+43. github.com/parquet-go/parquet-go-0.25.0
+Copyright (c) github.com/parquet-go/parquet-go authors.
+You may obtain the source code and detailed information about this component at github.com/parquet-go/parquet-go.
+
+44. python-multipart-0.0.20
+Copyright (c) 2010 by Armin Ronacher., Copyright 2012,  Andrew Dunham
+
+45. dompurify-3.2.6
+Copyright 2015 Mario Heiderich, Copyright 2023 Dr.-Ing. Mario Heiderich,  Cure53
+
+46. github.com/cloudwego/base64x-0.1.5
+Copyright (c) github.com/cloudwego/base64x authors.
+You may obtain the source code and detailed information about this component at github.com/cloudwego/base64x.
+
+47. grpc-1.0.0
+Copyright (c) Hyperf
+
+48. github.com/klauspost/compress-1.18.0
+Copyright (c) github.com/klauspost/compress authors.
+You may obtain the source code and detailed information about this component at github.com/klauspost/compress.
+
+49. github.com/go-logr/logr-1.4.3
+Copyright (c) github.com/go-logr/logr authors.
+You may obtain the source code and detailed information about this component at github.com/go-logr/logr.
+
+50. github.com/elastic/elastic-transport-go-8.7.0
+Copyright (c) github.com/elastic/elastic-transport-go authors.
+You may obtain the source code and detailed information about this component at github.com/elastic/elastic-transport-go.
+
+51. github.com/neo4j/neo4j-go-driver-6.0.0-alpha.1
+Copyright (c) github.com/neo4j/neo4j-go-driver authors.
+You may obtain the source code and detailed information about this component at github.com/neo4j/neo4j-go-driver.

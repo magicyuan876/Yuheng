@@ -1,0 +1,15 @@
+Open Source Software Licensed under the isc: 
+-------------------------------------------------------------------- 
+1. github.com/davecgh/go-spew-1.1.1
+Copyright (c) github.com/davecgh/go-spew authors.
+You may obtain the source code and detailed information about this component at github.com/davecgh/go-spew.
+
+2. picocolors-1.1.1
+Copyright (c) 2021 Alexey Raspopov,  Kostiantyn Denysov,  Anton Verinov
+
+3. graceful-fs-4.2.11
+Copyright (c) 2011-2022 Isaac Z. Schlueter,  Ben Noordhuis,  and Contributors
+
+4. electron-to-chromium-1.5.183
+Copyright (c) electron-to-chromium authors.
+You may obtain the source code and detailed information about this component at https://github.com/kilian/electron-to-chromium#readme.

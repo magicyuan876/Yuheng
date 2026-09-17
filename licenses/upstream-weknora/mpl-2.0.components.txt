@@ -1,0 +1,16 @@
+Open Source Software Licensed under the mpl-2.0: 
+-------------------------------------------------------------------- 
+1. certifi-2023.7.22
+Copyright (c) certifi authors.
+You may obtain the source code and detailed information about this component at https://github.com/certifi/python-certifi.
+
+2. github.com/hashicorp/errwrap-1.1.0
+Copyright (c) github.com/hashicorp/errwrap authors.
+You may obtain the source code and detailed information about this component at github.com/hashicorp/errwrap.
+
+3. github.com/hashicorp/go-multierror-1.1.1
+Copyright (c) github.com/hashicorp/go-multierror authors.
+You may obtain the source code and detailed information about this component at github.com/hashicorp/go-multierror.
+
+4. dompurify-3.2.6
+Copyright 2015 Mario Heiderich, Copyright 2023 Dr.-Ing. Mario Heiderich,  Cure53

@@ -1,0 +1,1123 @@
+Open Source Software Licensed under the mit: 
+-------------------------------------------------------------------- 
+1. sortablejs-1.15.6
+Copyright (c) sortablejs authors.
+You may obtain the source code and detailed information about this component at https://github.com/SortableJS/Sortable#readme.
+
+2. source-map-support-0.5.21
+Copyright (c) 2014 Evan Wallace
+
+3. devtools-api-7.7.7
+Copyright (c) devtools-api authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+4. github.com/goccy/go-json-0.10.5
+Copyright (c) github.com/goccy/go-json authors.
+You may obtain the source code and detailed information about this component at github.com/goccy/go-json.
+
+5. swiper-12.0.3
+Copyright (c) swiper authors.
+You may obtain the source code and detailed information about this component at https://swiperjs.com.
+
+6. markdownify-1.2.2
+Copyright (c) markdownify authors.
+You may obtain the source code and detailed information about this component at http://github.com/matthewwithanm/python-markdownify.
+
+7. github.com/gin-contrib/cors-1.7.5
+Copyright (c) github.com/gin-contrib/cors authors.
+You may obtain the source code and detailed information about this component at github.com/gin-contrib/cors.
+
+8. github.com/go-playground/universal-translator-0.18.1
+Copyright (c) github.com/go-playground/universal-translator authors.
+You may obtain the source code and detailed information about this component at github.com/go-playground/universal-translator.
+
+9. @pagefind/linux-arm64-1.3.0
+Copyright (c) @pagefind/linux-arm64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/pagefind/pagefind#readme.
+
+10. runtime-core-3.5.17
+Copyright (c) runtime-core authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/runtime-core#readme.
+
+11. github.com/mark3labs/mcp-go-0.43.0
+Copyright (c) github.com/mark3labs/mcp-go authors.
+You may obtain the source code and detailed information about this component at github.com/mark3labs/mcp-go.
+
+12. sortablejs-1.15.8
+Copyright (c) sortablejs authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/sortablejs.
+
+13. @popperjs/core-2.11.8
+Copyright (c) @popperjs/core authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/@popperjs/core.
+
+14. events-3.3.0
+Copyright Joyent,  Inc. and other Node contributors.
+
+15. hookable-5.5.3
+Copyright (c) hookable authors.
+You may obtain the source code and detailed information about this component at https://github.com/unjs/hookable#readme.
+
+16. lodash-es-4.17.12
+Copyright (c) lodash-es authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/lodash-es.
+
+17. @babel/parser-7.28.0
+Copyright (c) @babel/parser authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-parser.
+
+18. vue-i18n-11.1.12
+Copyright (c) vue-i18n authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/vue-i18n#readme.
+
+19. @vue/runtime-core-3.5.17
+Copyright (c) @vue/runtime-core authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/runtime-core#readme.
+
+20. trusted-types-2.0.7
+Copyright (c) trusted-types authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types.
+
+21. pinia-3.0.3
+Copyright (c) pinia authors.
+You may obtain the source code and detailed information about this component at https://pinia.vuejs.org.
+
+22. github.com/dustin/go-humanize-1.0.1
+Copyright (c) github.com/dustin/go-humanize authors.
+You may obtain the source code and detailed information about this component at github.com/dustin/go-humanize.
+
+23. combined-stream-1.0.8
+Copyright (c) 2011 Debuggable Limited <felix@debuggable.com>
+
+24. ajv-keywords-5.1.0
+Copyright (c) 2016 Evgeny Poberezkin
+
+25. github.com/yanyiwu/gojieba-1.4.5
+Copyright (c) github.com/yanyiwu/gojieba authors.
+You may obtain the source code and detailed information about this component at github.com/yanyiwu/gojieba.
+
+26. watchpack-2.4.4
+Copyright (c) 2014 - 2015 Tobias Koppers, Copyright JS Foundation and other contributors
+
+27. wast-printer-1.14.1
+Copyright (c) wast-printer authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+28. @vue/compiler-ssr-3.5.17
+Copyright (c) @vue/compiler-ssr authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-ssr#readme.
+
+29. github.com/pelletier/go-toml-2.2.3
+Copyright (c) github.com/pelletier/go-toml authors.
+You may obtain the source code and detailed information about this component at github.com/pelletier/go-toml.
+
+30. @vue/runtime-dom-3.5.17
+Copyright (c) @vue/runtime-dom authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/runtime-dom#readme.
+
+31. anyio-4.12.0
+Copyright (c) anyio authors.
+You may obtain the source code and detailed information about this component at https://github.com/agronholm/anyio.
+
+32. terser-webpack-plugin-5.3.14
+Copyright JS Foundation and other contributors, copyright,  licenses and etc) will be preserved
+
+33. fastapi-0.122.0
+Copyright (c) fastapi authors.
+You may obtain the source code and detailed information about this component at https://github.com/fastapi/fastapi.
+
+34. go.uber.org/dig-1.18.1
+Copyright (c) go.uber.org/dig authors.
+You may obtain the source code and detailed information about this component at go.uber.org/dig.
+
+35. @vue/compiler-core-3.5.17
+Copyright (c) @vue/compiler-core authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-core#readme.
+
+36. ajv-formats-2.1.1
+Copyright (c) 2020 Evgeny Poberezkin
+
+37. h11-0.16.0
+Copyright (c) 2016 Nathaniel J. Smith <njs@pobox.com> and other contributors
+
+38. resolve-uri-3.1.2
+Copyright (c) resolve-uri authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/resolve-uri#readme.
+
+39. ieee754-1.13.2
+Copyright (c) ieee754 authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+40. types-7.28.1
+Copyright (c) types authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-types.
+
+41. has-flag-4.0.0
+Copyright [Sindre Sorhus](https:  sindresorhus.com), Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
+
+42. acorn-8.15.0
+Copyright (c) acorn authors.
+You may obtain the source code and detailed information about this component at https://github.com/acornjs/acorn.
+
+43. go.uber.org/multierr-1.11.0
+Copyright (c) go.uber.org/multierr authors.
+You may obtain the source code and detailed information about this component at go.uber.org/multierr.
+
+44. merge-stream-2.0.0
+Copyright (c) Stephen Sugden <me@stephensugden.com> (stephensugden.com)
+
+45. github.com/sourcegraph/conc-0.3.0
+Copyright (c) github.com/sourcegraph/conc authors.
+You may obtain the source code and detailed information about this component at github.com/sourcegraph/conc.
+
+46. github.com/gobwas/httphead-0.1.0
+Copyright (c) github.com/gobwas/httphead authors.
+You may obtain the source code and detailed information about this component at github.com/gobwas/httphead.
+
+47. github.com/invopop/jsonschema-0.13.0
+Copyright (c) github.com/invopop/jsonschema authors.
+You may obtain the source code and detailed information about this component at github.com/invopop/jsonschema.
+
+48. @types/node-22.16.3
+Copyright (c) @types/node authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node.
+
+49. vue-router-4.5.1
+Copyright (c) vue-router authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/router#readme.
+
+50. supports-color-8.1.1
+(c) Sindre Sorhus <sindresorhus@gmail.com> (https:  sindresorhus.com), Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com), Copyright [Sindre Sorhus](http:  sindresorhus.com)
+
+51. linux-arm64-1.3.0
+Copyright (c) linux-arm64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/cloudcannon/pagefind#readme.
+
+52. mcp-default
+Copyright (c) mcp authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/mcp.
+
+53. es-set-tostringtag-2.1.0
+Copyright (c) 2022 ECMAScript Shims
+
+54. escalade-3.2.0
+Copyright [Luke Edwards](https:  lukeed.com), Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
+
+55. core-base-11.1.12
+Copyright (c) core-base authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/core-base#readme.
+
+56. wasm-opt-1.14.1
+Copyright (c) wasm-opt authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+57. devtools-shared-7.7.7
+Copyright (c) devtools-shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+58. httpx-sse-0.4.3
+Copyright (c) httpx-sse authors.
+You may obtain the source code and detailed information about this component at https://github.com/florimondmanca/httpx-sse.
+
+59. asynckit-0.4.0
+Copyright (c) 2016 Alex Indigo
+
+60. parser-7.28.0
+Copyright (c) parser authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-parser.
+
+61. jsonschema-specifications-2025.9.1
+Copyright (c) jsonschema-specifications authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/jsonschema-specifications/.
+
+62. node-22.16.3
+Copyright (c) node authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node.
+
+63. linux-x64-1.3.0
+Copyright (c) linux-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/cloudcannon/pagefind#readme.
+
+64. @intlify/core-base-11.1.12
+Copyright (c) @intlify/core-base authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/core-base#readme.
+
+65. wasm-gen-1.14.1
+Copyright (c) wasm-gen authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+66. @vue/devtools-api-7.7.7
+Copyright (c) @vue/devtools-api authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+67. @intlify/shared-11.1.12
+Copyright (c) @intlify/shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/shared#readme.
+
+68. @jridgewell/sourcemap-codec-1.5.4
+Copyright (c) @jridgewell/sourcemap-codec authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec.
+
+69. markitdown-0.1.3
+Copyright (c) markitdown authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/markitdown/.
+
+70. @webassemblyjs/helper-numbers-1.13.2
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+71. @jridgewell/trace-mapping-0.3.29
+Copyright (c) @jridgewell/trace-mapping authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping.
+
+72. gopkg.in/yaml.v3-3.0.1
+Copyright (c) gopkg.in/yaml.v3 authors.
+You may obtain the source code and detailed information about this component at https://goproxy.cn/gopkg.in/yaml.v3/@v/v3.0.1.zip.
+
+73. json-schema-traverse-1.0.0
+Copyright (c) 2017 Evgeny Poberezkin
+
+74. github.com/spf13/viper-1.20.1
+Copyright (c) github.com/spf13/viper authors.
+You may obtain the source code and detailed information about this component at github.com/spf13/viper.
+
+75. form-data-4.0.4
+Copyright (c) form-data authors.
+You may obtain the source code and detailed information about this component at https://github.com/form-data/form-data#readme.
+
+76. github.com/jinzhu/now-1.1.5
+Copyright (c) github.com/jinzhu/now authors.
+You may obtain the source code and detailed information about this component at github.com/jinzhu/now.
+
+77. lodash-es-4.17.21
+Copyright 2012-2015 The Dojo Foundation <http:  dojofoundation.org >, Copyright 2012-2016 The Dojo Foundation <http:  dojofoundation.org >, Copyright 2012 John-David Dalton <http:  allyoucanleet.com >, Copyright (c) 2012 Kit Cambridge., Copyright (c) 2007,  Parakey Inc., Copyright JS Foundation and other contributors <https:  js.foundation >, Copyright (c) 2009-2013 Jeremy Ashkenas,  DocumentCloud and Investigative, Copyright (c) 2009-2014 Jeremy Ashkenas,  DocumentCloud and Investigative, Copyright (c) 2009-2015 Jeremy Ashkenas,  DocumentCloud and Investigative, Copyright (c) 2010-2012 Jeremy Ashkenas,  DocumentCloud, Copyright (c) 2009-2016 Jeremy Ashkenas,  DocumentCloud and Investigative, Copyright (c) 2010-2013 Jeremy Ashkenas,  DocumentCloud, Copyright (c) 2009-2016 Jeremy Ashkenas,  DocumentCloud and Investigative, Copyright (c) 2010-2014 Jeremy Ashkenas,  DocumentCloud, Copyright 2012-2013 The Dojo Foundation <http:  dojofoundation.org >, Copyright (c) 2010-2015 Jeremy Ashkenas,  DocumentCloud, Copyright 2010-2012 Mathias Bynens <http:  mathiasbynens.be >, Copyright (c) 2010-2016 Jeremy Ashkenas,  DocumentCloud, Copyright 2010-2013 Mathias Bynens <http:  mathiasbynens.be >, Copyright 2010-2015 Mathias Bynens <http:  mathiasbynens.be >, Copyright (c) 2009-2012 Jeremy Ashkenas,  DocumentCloud, Copyright 2011-2012 John-David Dalton <http:  allyoucanleet.com >, Copyright (c) 2009-2013 Jeremy Ashkenas,  DocumentCloud, Copyright 2011-2013 John-David Dalton <http:  allyoucanleet.com >, Copyright (c) 2010-2013 Brian Cavalier and John Hann, Copyright jQuery Foundation and other contributors <https:  jquery.org >, Copyright (c) 2010-2011,  The Dojo Foundation, Copyright OpenJS Foundation and other contributors <https:  openjsf.org >
+
+78. @webassemblyjs/helper-wasm-bytecode-1.13.2
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+79. textract-1.6.5
+Copyright (c) textract authors.
+You may obtain the source code and detailed information about this component at https://github.com/deanmalmgren/textract.
+
+80. @babel/helper-string-parser-7.27.1
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
+
+81. @webassemblyjs/utf8-1.13.2
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+82. birpc-2.5.0
+Copyright (c) birpc authors.
+You may obtain the source code and detailed information about this component at https://github.com/antfu/birpc#readme.
+
+83. typing-inspection-0.4.2
+Copyright (c) typing-inspection authors.
+You may obtain the source code and detailed information about this component at https://github.com/pydantic/typing-inspection.
+
+84. tapable-2.2.2
+Copyright (c) tapable authors.
+You may obtain the source code and detailed information about this component at https://github.com/webpack/tapable.
+
+85. gopd-1.2.0
+Copyright (c) 2022 Jordan Harband
+
+86. devtools-api-6.6.4
+Copyright (c) devtools-api authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+87. annotated-types-0.7.0
+Copyright (c) 2022 the contributors
+
+88. @webassemblyjs/ast-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+89. hasown-2.0.2
+Copyright (c) 2014 Radu Brehar
+
+90. safe-buffer-5.2.1
+Copyright (c) Feross Aboukhadijeh, Copyright (C) [Feross Aboukhadijeh](http:  feross.org)
+
+91. darwin-arm64-1.3.0
+Copyright (c) darwin-arm64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/cloudcannon/pagefind#readme.
+
+92. helper-api-error-1.13.2
+Copyright (c) helper-api-error authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+93. github.com/panjf2000/ants-2.11.2
+Copyright (c) github.com/panjf2000/ants authors.
+You may obtain the source code and detailed information about this component at github.com/panjf2000/ants.
+
+94. superjson-2.2.2
+Copyright (c) superjson authors.
+You may obtain the source code and detailed information about this component at https://github.com/blitz-js/superjson#readme.
+
+95. github.com/mattn/go-isatty-0.0.20
+Copyright (c) github.com/mattn/go-isatty authors.
+You may obtain the source code and detailed information about this component at github.com/mattn/go-isatty.
+
+96. @vue/compiler-dom-3.5.17
+Copyright (c) @vue/compiler-dom authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme.
+
+97. estree-walker-2.0.2
+Copyright (c) estree-walker authors.
+You may obtain the source code and detailed information about this component at https://github.com/Rich-Harris/estree-walker#readme.
+
+98. ajv-8.17.1
+Copyright (c) 2015-2021 Evgeny Poberezkin
+
+99. mime-types-2.1.35
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>, Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
+
+100. setuptools-80.9.0
+(c) 2014 YOOtheme   MIT License   , Copyright (C) 2016 Jason R Coombs <jaraco@jaraco.com>, Copyright (c) 2010 - 2016 jsPlumb (hello@jsplumbtoolkit.com)
+
+101. reactivity-3.5.17
+Copyright (c) reactivity authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/reactivity#readme.
+
+102. @types/tinycolor2-1.4.6
+Copyright (c) @types/tinycolor2 authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/tinycolor2.
+
+103. commander-2.20.3
+Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>
+
+104. utf8-1.13.2
+Copyright (c) utf8 authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+105. json-schema-7.0.15
+Copyright (c) json-schema authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/json-schema.
+
+106. @vue/compiler-sfc-3.5.17
+Copyright (c) @vue/compiler-sfc authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme.
+
+107. schema-utils-4.3.2
+Copyright JS Foundation and other contributors
+
+108. github.com/subosito/gotenv-1.6.0
+Copyright (c) github.com/subosito/gotenv authors.
+You may obtain the source code and detailed information about this component at github.com/subosito/gotenv.
+
+109. es-define-property-1.0.1
+Copyright (c) es-define-property authors.
+You may obtain the source code and detailed information about this component at https://github.com/ljharb/es-define-property#readme.
+
+110. windows-x64-1.3.0
+Copyright (c) windows-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/cloudcannon/pagefind#readme.
+
+111. referencing-0.37.0
+Copyright (c) referencing authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/referencing/.
+
+112. source-map-0.3.10
+Copyright (c) source-map authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/source-map.
+
+113. github.com/chromedp/sysutil-1.1.0
+Copyright (c) github.com/chromedp/sysutil authors.
+You may obtain the source code and detailed information about this component at github.com/chromedp/sysutil.
+
+114. github.com/chromedp/chromedp-0.14.2
+Copyright (c) github.com/chromedp/chromedp authors.
+You may obtain the source code and detailed information about this component at github.com/chromedp/chromedp.
+
+115. docreader-1.0
+Copyright (c) docreader authors.
+You may obtain the source code and detailed information about this component at https://github.com/CBWhiz/docreader.
+
+116. estree-1.0.8
+Copyright (c) estree authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree.
+
+117. darwin-x64-1.3.0
+Copyright (c) darwin-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/cloudcannon/pagefind#readme.
+
+118. @jridgewell/source-map-0.3.10
+Copyright (c) @jridgewell/source-map authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/source-map.
+
+119. @types/lodash-es-4.17.12
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+120. @microsoft/fetch-event-source-2.0.1
+Copyright (c) @microsoft/fetch-event-source authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/@microsoft/fetch-event-source.
+
+121. has-symbols-1.1.0
+Copyright (c) 2016 Jordan Harband
+
+122. server-renderer-3.5.17
+Copyright (c) server-renderer authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/server-renderer#readme.
+
+123. @vue/server-renderer-3.5.17
+Copyright (c) @vue/server-renderer authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/server-renderer#readme.
+
+124. vue-3.5.17
+Copyright (c) vue authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/vue#readme.
+
+125. @types/papaparse-5.5.0
+Copyright (c) @types/papaparse authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/papaparse.
+
+126. function-bind-1.1.2
+Copyright (c) 2013 Raynos.
+
+127. axios-1.13.2
+Copyright (c) axios authors.
+You may obtain the source code and detailed information about this component at https://axios-http.com.
+
+128. @webassemblyjs/wasm-gen-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+129. gorm.io/gorm-1.25.12
+Copyright (c) gorm.io/gorm authors.
+You may obtain the source code and detailed information about this component at gorm.io/gorm.
+
+130. @pagefind/windows-x64-1.3.0
+Copyright (c) @pagefind/windows-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/pagefind/pagefind#readme.
+
+131. github.com/lib/pq-1.10.9
+Copyright (c) github.com/lib/pq authors.
+You may obtain the source code and detailed information about this component at github.com/lib/pq.
+
+132. github.com/jackc/puddle-2.2.2
+Copyright (c) github.com/jackc/puddle authors.
+You may obtain the source code and detailed information about this component at github.com/jackc/puddle.
+
+133. mime-db-1.52.0
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>, Copyright (c) 2015-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
+
+134. github.com/robfig/cron-3.0.1
+Copyright (c) github.com/robfig/cron authors.
+You may obtain the source code and detailed information about this component at github.com/robfig/cron.
+
+135. buffer-from-1.1.2
+Copyright (c) 2016,  2018 Linus Unneb  ck
+
+136. json-parse-even-better-errors-2.3.1
+Copyright 2017 Kat March  n, Copyright 2017 Kat March5.n
+
+137. @types/eslint-scope-3.7.7
+Copyright (c) Microsoft Corporation.
+
+138. randombytes-2.1.0
+Copyright (c) 2017 crypto-browserify
+
+139. runtime-7.27.6
+Copyright (c) runtime authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-runtime.
+
+140. github.com/buger/jsonparser-1.1.1
+Copyright (c) github.com/buger/jsonparser authors.
+You may obtain the source code and detailed information about this component at github.com/buger/jsonparser.
+
+141. marked-5.1.2
+Copyright (c) 2011-2018,  Christopher Jeffrey. (MIT License), Copyright (c) 2018+,  MarkedJS (https:  github.com markedjs ), Copyright    2004,  John Gruber, Copyright (c) 2011,  Christopher Jeffrey (http:  epsilon-not.net ), Copyright (c) 2011-2012,  Christopher Jeffrey. (MIT License), Copyright (c) 2011-2013,  Christopher Jeffrey. (MIT License), Copyright (c) 2011-2022,  Christopher Jeffrey. (MIT License), Copyright (c) 2011-2014,  Christopher Jeffrey. (MIT License), Copyright (c) 2011-2013,  Christopher Jeffrey (https:  github.com chjj ), Copyright (c) 2011-2014,  Christopher Jeffrey (https:  github.com chjj )
+
+142. @vue/devtools-api-6.6.4
+Copyright (c) @vue/devtools-api authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+143. github.com/jinzhu/inflection-1.0.0
+Copyright (c) github.com/jinzhu/inflection authors.
+You may obtain the source code and detailed information about this component at github.com/jinzhu/inflection.
+
+144. dunder-proto-1.0.1
+Copyright (c) dunder-proto authors.
+You may obtain the source code and detailed information about this component at https://github.com/es-shims/dunder-proto#readme.
+
+145. get-intrinsic-1.3.0
+Copyright (c) 2020 Jordan Harband
+
+146. is-what-4.1.16
+Copyright (c) 2018 Luca Ban - Mesqueeb, Copyright (c) 2018 Luca Ban - Mesqueeb Productions
+
+147. message-compiler-11.1.12
+Copyright (c) message-compiler authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/message-compiler#readme.
+
+148. helper-string-parser-7.27.1
+Copyright (c) helper-string-parser authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-helper-string-parser.
+
+149. github.com/spf13/cast-1.10.0
+Copyright (c) github.com/spf13/cast authors.
+You may obtain the source code and detailed information about this component at github.com/spf13/cast.
+
+150. tdesign-vue-next-1.17.2
+Copyright (c) tdesign-vue-next authors.
+You may obtain the source code and detailed information about this component at https://github.com/Tencent/tdesign-vue-next/blob/develop/README.md.
+
+151. github.com/clbanning/mxj-1.8.4
+Copyright (c) github.com/clbanning/mxj authors.
+You may obtain the source code and detailed information about this component at github.com/clbanning/mxj.
+
+152. github.com/cespare/xxhash-2.3.0
+Copyright (c) github.com/cespare/xxhash authors.
+You may obtain the source code and detailed information about this component at github.com/cespare/xxhash.
+
+153. require-from-string-2.0.2
+Copyright [Vsevolod Strukchinsky](http:  github.com floatdrop), Copyright (c) Vsevolod Strukchinsky <floatdrop@gmail.com> (github.com floatdrop)
+
+154. github.com/olekukonko/tablewriter-0.0.5
+Copyright (c) github.com/olekukonko/tablewriter authors.
+You may obtain the source code and detailed information about this component at github.com/olekukonko/tablewriter.
+
+155. @vue/devtools-shared-7.7.7
+Copyright (c) @vue/devtools-shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+156. papaparse-5.5.0
+Copyright (c) papaparse authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/papaparse.
+
+157. ast-1.14.1
+Copyright (c) ast authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+158. github.com/rivo/uniseg-0.4.7
+Copyright (c) github.com/rivo/uniseg authors.
+You may obtain the source code and detailed information about this component at github.com/rivo/uniseg.
+
+159. runtime-dom-3.5.17
+Copyright (c) runtime-dom authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/runtime-dom#readme.
+
+160. pydantic-2.12.5
+Copyright (c) pydantic authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/pydantic/.
+
+161. helper-wasm-section-1.14.1
+Copyright (c) helper-wasm-section authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+162. github.com/gin-contrib/sse-1.0.0
+Copyright (c) github.com/gin-contrib/sse authors.
+You may obtain the source code and detailed information about this component at github.com/gin-contrib/sse.
+
+163. gopkg.in/yaml-3.0.1
+Copyright (c) gopkg.in/yaml authors.
+You may obtain the source code and detailed information about this component at gopkg.in/yaml.v3.
+
+164. github.com/mattn/go-runewidth-0.0.15
+Copyright (c) github.com/mattn/go-runewidth authors.
+You may obtain the source code and detailed information about this component at github.com/mattn/go-runewidth.
+
+165. @types/trusted-types-2.0.7
+Copyright (c) @types/trusted-types authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types.
+
+166. perfect-debounce-1.0.0
+Copyright (c) perfect-debounce authors.
+You may obtain the source code and detailed information about this component at https://github.com/unjs/perfect-debounce#readme.
+
+167. webpack-sources-3.3.3
+Copyright (c) webpack-sources authors.
+You may obtain the source code and detailed information about this component at https://github.com/webpack/webpack-sources#readme.
+
+168. @babel/types-7.28.1
+Copyright (c) @babel/types authors.
+You may obtain the source code and detailed information about this component at https://babel.dev/docs/en/next/babel-types.
+
+169. @intlify/message-compiler-11.1.12
+Copyright (c) @intlify/message-compiler authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/message-compiler#readme.
+
+170. github.com/tiendc/go-deepcopy-1.7.1
+Copyright (c) github.com/tiendc/go-deepcopy authors.
+You may obtain the source code and detailed information about this component at github.com/tiendc/go-deepcopy.
+
+171. @vue/devtools-kit-7.7.7
+Copyright (c) @vue/devtools-kit authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+172. pydantic_core-2.41.5
+Copyright (c) pydantic_core authors.
+You may obtain the source code and detailed information about this component at https://github.com/pydantic/pydantic-core.
+
+173. @vue/shared-3.5.17
+Copyright (c) @vue/shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/shared#readme.
+
+174. @babel/runtime-7.27.6
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
+
+175. qcloud_cos-3.3.6
+Copyright (c) qcloud_cos authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/qcloud_cos/.
+
+176. @jridgewell/gen-mapping-0.3.12
+Copyright (c) @jridgewell/gen-mapping authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping.
+
+177. lodash-4.17.20
+Copyright (c) lodash authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/lodash.
+
+178. tinycolor2-1.4.6
+Copyright (c) tinycolor2 authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/tinycolor2.
+
+179. gorm.io/driver/postgres-1.5.11
+Copyright (c) gorm.io/driver/postgres authors.
+You may obtain the source code and detailed information about this component at gorm.io/driver/postgres.
+
+180. github.com/json-iterator/go-1.1.12
+Copyright (c) github.com/json-iterator/go authors.
+You may obtain the source code and detailed information about this component at github.com/json-iterator/go.
+
+181. @webassemblyjs/wasm-edit-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+182. @types/estree-1.0.8
+Copyright (c) @types/estree authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree.
+
+183. dompurify-3.0.5
+Copyright (c) dompurify authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/dompurify.
+
+184. compiler-sfc-3.5.17
+Copyright (c) compiler-sfc authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme.
+
+185. github.com/pgvector/pgvector-go-0.3.0
+Copyright (c) github.com/pgvector/pgvector-go authors.
+You may obtain the source code and detailed information about this component at github.com/pgvector/pgvector-go.
+
+186. magic-string-0.30.17
+Copyright (c) magic-string authors.
+You may obtain the source code and detailed information about this component at https://github.com/rich-harris/magic-string#readme.
+
+187. chrome-trace-event-1.0.4
+Copyright (c) 2015 Joyent Inc. All rights reserved.
+
+188. pydantic-settings-2.12.0
+Copyright (c) pydantic-settings authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/pydantic-settings/.
+
+189. gen-mapping-0.3.12
+Copyright (c) gen-mapping authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping.
+
+190. is-what-3.14.1
+Copyright (c) 2018 Luca Ban - Mesqueeb
+
+191. @vue/reactivity-3.5.17
+Copyright (c) @vue/reactivity authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/reactivity#readme.
+
+192. es-module-lexer-1.7.0
+Copyright (c) es-module-lexer authors.
+You may obtain the source code and detailed information about this component at https://github.com/guybedford/es-module-lexer#readme.
+
+193. github.com/mailru/easyjson-0.9.0
+Copyright (c) github.com/mailru/easyjson authors.
+You may obtain the source code and detailed information about this component at github.com/mailru/easyjson.
+
+194. es-object-atoms-1.1.1
+Copyright (c) es-object-atoms authors.
+You may obtain the source code and detailed information about this component at https://github.com/ljharb/es-object-atoms#readme.
+
+195. github.com/cenkalti/backoff-5.0.2
+Copyright (c) github.com/cenkalti/backoff authors.
+You may obtain the source code and detailed information about this component at github.com/cenkalti/backoff.
+
+196. github.com/sagikazarmark/locafero-0.7.0
+Copyright (c) github.com/sagikazarmark/locafero authors.
+You may obtain the source code and detailed information about this component at github.com/sagikazarmark/locafero.
+
+197. @webassemblyjs/wasm-opt-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+198. @pagefind/darwin-arm64-1.3.0
+Copyright (c) @pagefind/darwin-arm64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/pagefind/pagefind#readme.
+
+199. wasm-parser-1.14.1
+Copyright (c) wasm-parser authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+200. @webassemblyjs/helper-buffer-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+201. papaparse-5.5.3
+Copyright (c) 2014 Matthew Holt, Copyright (c) 2015 Matthew Holt
+
+202. @pagefind/darwin-x64-1.3.0
+Copyright (c) @pagefind/darwin-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/pagefind/pagefind#readme.
+
+203. weknora-mcp-server-1.0.0
+Copyright (c) weknora-mcp-server authors.
+You may obtain the source code and detailed information about this component at https://github.com/NannaOlympicBroadcast/WeKnoraMCP.
+
+204. github.com/ollama/ollama-0.11.4
+Copyright (c) github.com/ollama/ollama authors.
+You may obtain the source code and detailed information about this component at github.com/ollama/ollama.
+
+205. github.com/golang-migrate/migrate-4.19.0
+Copyright (c) github.com/golang-migrate/migrate authors.
+You may obtain the source code and detailed information about this component at github.com/golang-migrate/migrate.
+
+206. jsonschema-4.25.1
+Copyright (c) jsonschema authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/jsonschema/.
+
+207. math-intrinsics-1.1.0
+Copyright (c) math-intrinsics authors.
+You may obtain the source code and detailed information about this component at https://github.com/es-shims/math-intrinsics#readme.
+
+208. fetch-event-source-2.0.1
+Copyright (c) fetch-event-source authors.
+You may obtain the source code and detailed information about this component at https://github.com/Azure/fetch-event-source#readme.
+
+209. call-bind-apply-helpers-1.0.2
+Copyright (c) call-bind-apply-helpers authors.
+You may obtain the source code and detailed information about this component at https://github.com/ljharb/call-bind-apply-helpers#readme.
+
+210. get-proto-1.0.1
+Copyright (c) get-proto authors.
+You may obtain the source code and detailed information about this component at https://github.com/ljharb/get-proto#readme.
+
+211. github.com/stretchr/testify-1.11.1
+Copyright (c) github.com/stretchr/testify authors.
+You may obtain the source code and detailed information about this component at github.com/stretchr/testify.
+
+212. @types/sortablejs-1.15.8
+Copyright (c) @types/sortablejs authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/sortablejs.
+
+213. github.com/gabriel-vasile/mimetype-1.4.8
+Copyright (c) github.com/gabriel-vasile/mimetype authors.
+You may obtain the source code and detailed information about this component at github.com/gabriel-vasile/mimetype.
+
+214. github.com/jackc/pgservicefile-0.0.0-20240606120523-5a60cdf6a761
+Copyright (c) github.com/jackc/pgservicefile authors.
+You may obtain the source code and detailed information about this component at github.com/jackc/pgservicefile.
+
+215. github.com/ugorji/go/codec-1.2.12
+Copyright (c) github.com/ugorji/go/codec authors.
+You may obtain the source code and detailed information about this component at github.com/ugorji/go/codec.
+
+216. webpack-5.100.1
+Copyright (c) webpack authors.
+You may obtain the source code and detailed information about this component at https://github.com/webpack/webpack.
+
+217. github.com/chromedp/cdproto-0.0.0-20250724212937-08a3db8b4327
+Copyright (c) github.com/chromedp/cdproto authors.
+You may obtain the source code and detailed information about this component at github.com/chromedp/cdproto.
+
+218. compiler-dom-3.5.17
+Copyright (c) compiler-dom authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme.
+
+219. compiler-core-3.5.17
+Copyright (c) compiler-core authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-core#readme.
+
+220. github.com/mitchellh/mapstructure-1.4.3
+Copyright (c) github.com/mitchellh/mapstructure authors.
+You may obtain the source code and detailed information about this component at github.com/mitchellh/mapstructure.
+
+221. nanoid-3.3.11
+Copyright 2017 Andrey Sitnik <andrey@sitnik.ru>
+
+222. @types/validator-13.15.2
+Copyright (c) @types/validator authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/validator.
+
+223. floating-point-hex-parser-1.13.2
+Copyright (c) floating-point-hex-parser authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+224. delayed-stream-1.0.0
+Copyright (c) 2011 Debuggable Limited <felix@debuggable.com>
+
+225. helper-wasm-bytecode-1.13.2
+Copyright (c) helper-wasm-bytecode authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+226. github.com/mozillazg/go-httpheader-0.2.1
+Copyright (c) github.com/mozillazg/go-httpheader authors.
+You may obtain the source code and detailed information about this component at github.com/mozillazg/go-httpheader.
+
+227. @webassemblyjs/helper-api-error-1.13.2
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+228. update-browserslist-db-1.1.3
+Copyright 2022 Andrey Sitnik <andrey@sitnik.ru> and other contributors, Copyright 2014 Andrey Sitnik <andrey@sitnik.ru>
+
+229. validator-13.15.23
+Copyright (c) validator authors.
+You may obtain the source code and detailed information about this component at https://github.com/jfstn/Validator#readme.
+
+230. wasm-edit-1.14.1
+Copyright (c) wasm-edit authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+231. dayjs-1.11.10
+Copyright (c) 2018-PRESENT,  iamkun
+
+232. proxy-from-env-1.1.0
+Copyright (C) 2016-2018 Rob Wu <rob@robwu.nl>
+
+233. github.com/jackc/pgpassfile-1.0.0
+Copyright (c) github.com/jackc/pgpassfile authors.
+You may obtain the source code and detailed information about this component at github.com/jackc/pgpassfile.
+
+234. tdesign-icons-vue-next-0.4.1
+Copyright (c) tdesign-icons-vue-next authors.
+You may obtain the source code and detailed information about this component at https://github.com/Tencent/tdesign-icons/blob/develop/README.md.
+
+235. @types/eslint-9.6.1
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+236. sourcemap-codec-1.5.4
+Copyright (c) sourcemap-codec authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec.
+
+237. loader-runner-4.3.0
+Copyright (c) Tobias Koppers @sokra
+
+238. github.com/jackc/pgx-5.7.2
+Copyright (c) github.com/jackc/pgx authors.
+You may obtain the source code and detailed information about this component at github.com/jackc/pgx.
+
+239. charset-normalizer-3.4.4
+Copyright (c) charset-normalizer authors.
+You may obtain the source code and detailed information about this component at https://github.com/Ousret/charset_normalizer.
+
+240. @webassemblyjs/wasm-parser-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+241. github.com/gin-gonic/gin-1.10.0
+Copyright (c) github.com/gin-gonic/gin authors.
+You may obtain the source code and detailed information about this component at github.com/gin-gonic/gin.
+
+242. acorn-import-phases-1.0.4
+Copyright (c) acorn-import-phases authors.
+You may obtain the source code and detailed information about this component at https://github.com/nicolo-ribaudo/acorn-import-phases#readme.
+
+243. postcss-8.5.6
+Copyright (c) postcss authors.
+You may obtain the source code and detailed information about this component at https://postcss.org/.
+
+244. @types/lodash-4.17.20
+Copyright (c) @types/lodash authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/lodash.
+
+245. github.com/sirupsen/logrus-1.9.3
+Copyright (c) github.com/sirupsen/logrus authors.
+You may obtain the source code and detailed information about this component at github.com/sirupsen/logrus.
+
+246. @pagefind/linux-x64-1.3.0
+Copyright (c) @pagefind/linux-x64 authors.
+You may obtain the source code and detailed information about this component at https://github.com/pagefind/pagefind#readme.
+
+247. github.com/go-playground/locales-0.14.1
+Copyright (c) github.com/go-playground/locales authors.
+You may obtain the source code and detailed information about this component at github.com/go-playground/locales.
+
+248. github.com/andybalholm/brotli-1.1.0
+Copyright (c) github.com/andybalholm/brotli authors.
+You may obtain the source code and detailed information about this component at github.com/andybalholm/brotli.
+
+249. node-releases-2.0.19
+Copyright (c) 2017 Sergey Rubanov (https:  github.com chicoxyzzy)
+
+250. neo-async-2.6.2
+Copyright (c) 2014-2018 Suguru Motegi
+
+251. eslint-9.6.1
+Copyright (c) eslint authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/eslint.
+
+252. github.com/dgryski/go-rendezvous-0.0.0-20200823014737-9f7001d12a5f
+Copyright (c) github.com/dgryski/go-rendezvous authors.
+You may obtain the source code and detailed information about this component at github.com/dgryski/go-rendezvous.
+
+253. jest-worker-27.5.1
+Copyright (c) Facebook,  Inc. and its affiliates.
+
+254. attrs-25.4.0
+Copyright (c) attrs authors.
+You may obtain the source code and detailed information about this component at https://pypi.org/project/attrs/.
+
+255. helper-buffer-1.14.1
+Copyright (c) helper-buffer authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+256. @types/json-schema-7.0.15
+Copyright (c) Microsoft Corporation.
+
+257. @jridgewell/resolve-uri-3.1.2
+Copyright 2019 Justin Ridgewell <jridgewell@google.com>
+
+258. fast-deep-equal-3.1.3
+Copyright (c) 2017 Evgeny Poberezkin
+
+259. shared-11.1.12
+Copyright (c) shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/intlify/vue-i18n/tree/master/packages/shared#readme.
+
+260. has-tostringtag-1.0.2
+Copyright (c) 2021 Inspect JS
+
+261. github.com/klauspost/cpuid-2.2.10
+Copyright (c) github.com/klauspost/cpuid authors.
+You may obtain the source code and detailed information about this component at github.com/klauspost/cpuid.
+
+262. ollama-0.6.1
+Copyright (c) ollama authors.
+You may obtain the source code and detailed information about this component at https://ollama.com.
+
+263. helper-numbers-1.13.2
+Copyright (c) helper-numbers authors.
+You may obtain the source code and detailed information about this component at https://github.com/xtuc/webassemblyjs#readme.
+
+264. github.com/gobwas/ws-1.4.0
+Copyright (c) github.com/gobwas/ws authors.
+You may obtain the source code and detailed information about this component at github.com/gobwas/ws.
+
+265. @webassemblyjs/floating-point-hex-parser-1.13.2
+Copyright (c) 2017 Mauro Bringolf
+
+266. shared-3.5.17
+Copyright (c) shared authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/shared#readme.
+
+267. copy-anything-3.0.5
+Copyright (c) 2018 Luca Ban
+
+268. github.com/gobwas/pool-0.2.1
+Copyright (c) github.com/gobwas/pool authors.
+You may obtain the source code and detailed information about this component at github.com/gobwas/pool.
+
+269. trace-mapping-0.3.29
+Copyright (c) trace-mapping authors.
+You may obtain the source code and detailed information about this component at https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping.
+
+270. @babel/helper-validator-identifier-7.27.1
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
+
+271. github.com/rs/xid-1.6.0
+Copyright (c) github.com/rs/xid authors.
+You may obtain the source code and detailed information about this component at github.com/rs/xid.
+
+272. helper-validator-identifier-7.27.1
+Copyright (c) helper-validator-identifier authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/helper-validator-identifier.
+
+273. urllib3-2.5.0
+Copyright (c) 2008-2020 Andrey Petrov and contributors (see CONTRIBUTORS.txt)
+
+274. devtools-kit-7.7.7
+Copyright (c) devtools-kit authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/devtools#readme.
+
+275. compiler-ssr-3.5.17
+Copyright (c) compiler-ssr authors.
+You may obtain the source code and detailed information about this component at https://github.com/vuejs/core/tree/main/packages/compiler-ssr#readme.
+
+276. rfdc-1.4.1
+Copyright 2019  David Mark Clements <david.mark.clements@gmail.com>
+
+277. enhanced-resolve-5.18.2
+Copyright (c) enhanced-resolve authors.
+You may obtain the source code and detailed information about this component at http://github.com/webpack/enhanced-resolve.
+
+278. github.com/hibiken/asynq-0.25.1
+Copyright (c) github.com/hibiken/asynq authors.
+You may obtain the source code and detailed information about this component at github.com/hibiken/asynq.
+
+279. mitt-3.0.1
+Copyright (c) 2021 Jason Miller, Copyright (c) 2017 Jason Miller, Copyright [Jason Miller](https:  jasonformat.com )
+
+280. follow-redirects-1.15.9
+Copyright 2017 Olivier Lalonde <olalonde@gmail.com>,  James Talmage <james@talmage.io>,  Ruben Verborgh
+
+281. csstype-3.1.3
+Copyright (c) 2017-2018 Fredrik Nicol
+
+282. github.com/leodido/go-urn-1.4.0
+Copyright (c) github.com/leodido/go-urn authors.
+You may obtain the source code and detailed information about this component at github.com/leodido/go-urn.
+
+283. @webassemblyjs/ieee754-1.13.2
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+284. github.com/klauspost/compress-1.18.0
+Copyright (c) github.com/klauspost/compress authors.
+You may obtain the source code and detailed information about this component at github.com/klauspost/compress.
+
+285. @webassemblyjs/wast-printer-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+286. es-errors-1.3.0
+Copyright (c) es-errors authors.
+You may obtain the source code and detailed information about this component at https://github.com/ljharb/es-errors#readme.
+
+287. github.com/tencentyun/cos-go-sdk-v5-0.7.65
+Copyright (c) github.com/tencentyun/cos-go-sdk-v5 authors.
+You may obtain the source code and detailed information about this component at github.com/tencentyun/cos-go-sdk-v5.
+
+288. @types/dompurify-3.0.5
+Copyright (c) @types/dompurify authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/@types/dompurify.
+
+289. tinycolor2-1.6.0
+Copyright (c),  Brian Grinstead,  http:  briangrinstead.com, Copyright (c) 2018 Foo Studio <developer@foostudio.mx>
+
+290. browserslist-4.25.1
+Copyright (c) browserslist authors.
+You may obtain the source code and detailed information about this component at https://github.com/browserslist/browserslist#readme.
+
+291. validator-13.15.2
+Copyright (c) validator authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/validator.
+
+292. github.com/go-playground/validator-10.26.0
+Copyright (c) github.com/go-playground/validator authors.
+You may obtain the source code and detailed information about this component at github.com/go-playground/validator.
+
+293. pagefind-1.3.0
+Copyright (c) pagefind authors.
+You may obtain the source code and detailed information about this component at https://github.com/CloudCannon/pagefind#readme.
+
+294. github.com/golang-jwt/jwt-5.3.0
+Copyright (c) github.com/golang-jwt/jwt authors.
+You may obtain the source code and detailed information about this component at github.com/golang-jwt/jwt.
+
+295. PyJWT-2.10.1
+Copyright (c) PyJWT authors.
+You may obtain the source code and detailed information about this component at https://github.com/jpadilla/pyjwt.
+
+296. undici-types-6.21.0
+Copyright (c) undici-types authors.
+You may obtain the source code and detailed information about this component at https://undici.nodejs.org.
+
+297. core-2.11.8
+Copyright (c) core authors.
+You may obtain the source code and detailed information about this component at https://www.npmjs.com/package/core.
+
+298. github.com/go-viper/mapstructure-2.2.1
+Copyright (c) github.com/go-viper/mapstructure authors.
+You may obtain the source code and detailed information about this component at github.com/go-viper/mapstructure.
+
+299. @webassemblyjs/helper-wasm-section-1.14.1
+Copyright (c) 2018 Sven Sauleau <sven@sauleau.com>
+
+300. eslint-scope-3.7.7
+Copyright (c) eslint-scope authors.
+You may obtain the source code and detailed information about this component at https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/eslint-scope.

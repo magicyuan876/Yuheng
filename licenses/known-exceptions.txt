@@ -1,0 +1,18 @@
+# Known license exceptions — the blocking list.
+#
+# Every line here is a dependency whose license this project CANNOT ship under
+# MIT, which is present anyway because it was inherited from upstream and has
+# not been replaced yet. tools/license_check.sh downgrades these from a build
+# failure to a loud warning, so that a NEW copyleft dependency still breaks the
+# build instead of disappearing into an already-red pipeline.
+#
+# This file is not permission to release. licenses/NOTICE_AUDIT.md §1 is the
+# authority: while any line below is still present, no binary or container
+# release may be published.
+#
+# Format: <substring matched against a scanner output line>  # why it is here
+# Remove a line the moment the dependency is replaced.
+
+github.com/liuzl/cedar-go    # GPL-2.0; reached from internal/types via longbridgeapp/opencc -> liuzl/da. Linked into every server binary. See NOTICE_AUDIT.md §1.1
+EbookLib                     # AGPL-3.0-or-later; EPUB parsing in docreader. See NOTICE_AUDIT.md §1.2
+chardet                      # LGPL-2.1-or-later; encoding detection in docreader. Replaceable with charset-normalizer (MIT). See NOTICE_AUDIT.md §1.3

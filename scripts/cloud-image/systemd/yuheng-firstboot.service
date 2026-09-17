@@ -1,0 +1,17 @@
+[Unit]
+Description=Yuheng first-boot initialization (runs once)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+Before=yuheng.service
+ConditionPathExists=/usr/local/sbin/yuheng-firstboot.sh
+ConditionPathExists=!/opt/Yuheng/.firstboot.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/yuheng-firstboot.sh
+RemainAfterExit=no
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,94 @@
+name: License
+
+# Yuheng incorporates upstream code under the MIT License (see NOTICE), so the
+# notice files are not decoration: the MIT grant this repository relies on is
+# conditioned on them travelling with the code. This workflow fails the build if one is deleted or hollowed out, and
+# again if a dependency shows up under a license we cannot ship under MIT.
+#
+# The attribution half runs on every change, because a stray sed can strip a
+# copyright header from any file. The dependency half only runs when a manifest
+# moves, since it has to resolve the module/package caches first.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  attribution:
+    name: Attribution files intact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The residual-brand scan uses `git grep`, which needs the work tree
+          # only, but a shallow clone is enough and keeps the job fast.
+          fetch-depth: 1
+      - name: Check notices, copyright headers and brand residue
+        run: tools/license_check.sh attribution
+
+  dependencies:
+    name: Dependency licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Populate the Go module cache
+        run: |
+          go mod download
+          (cd cli && go mod download)
+          (cd client && go mod download)
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Scan dependency licenses
+        run: tools/license_check.sh deps
+
+  docreader-dependencies:
+    name: Dependency licenses (docreader)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync docreader
+        run: uv sync --project docreader --locked
+      - name: Scan installed distributions
+        run: |
+          uv run --project docreader python tools/licensescan/scan_python.py py.json
+
+  mcp-dependencies:
+    name: Dependency licenses (mcp-server)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync mcp-server
+        run: uv sync --project mcp-server --locked
+      - name: Scan installed distributions
+        run: |
+          uv run --project mcp-server python tools/licensescan/scan_python.py py.json

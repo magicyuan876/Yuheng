@@ -1,0 +1,23 @@
+[Unit]
+Description=Yuheng Lite - Knowledge Base Management System
+After=network.target
+
+[Service]
+Type=simple
+User=yuheng
+Group=yuheng
+WorkingDirectory=/opt/yuheng
+EnvironmentFile=/opt/yuheng/.env.lite
+ExecStart=/opt/yuheng/Yuheng-lite
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/yuheng/data
+
+[Install]
+WantedBy=multi-user.target
