@@ -255,3 +255,31 @@ func TestAPageMayNotCarryUnboundedLabels(t *testing.T) {
 	_, err := p.svc.Pages.SetPageLabels(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), ids)
 	require.Error(t, err)
 }
+
+// The chips are drawn with the title, so they have to arrive with it.
+func TestThePageReadCarriesItsLabelsAndTheCallersStar(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	draft := p.label(t, "draft", "orange")
+	d := p.decision(t, p.alice, page.Page.ID)
+
+	_, err := p.svc.Pages.SetPageLabels(ctx(), p.alice, d, []string{draft.ID})
+	require.NoError(t, err)
+
+	view, err := p.svc.Pages.Get(ctx(), p.alice, d)
+	require.NoError(t, err)
+	require.Len(t, view.Labels, 1)
+	assert.Equal(t, "draft", view.Labels[0].Name)
+	assert.False(t, view.Favourite, "nobody has starred it yet")
+
+	require.NoError(t, p.svc.Pages.SetFavourite(ctx(), p.alice, d, true))
+	starred, err := p.svc.Pages.Get(ctx(), p.alice, d)
+	require.NoError(t, err)
+	assert.True(t, starred.Favourite)
+
+	// Starring is per person: Alice's star is not Carol's.
+	asCarol, err := p.svc.Pages.Get(ctx(), p.carol, p.decision(t, p.carol, page.Page.ID))
+	require.NoError(t, err)
+	assert.False(t, asCarol.Favourite)
+	assert.Len(t, asCarol.Labels, 1, "but the labels are the page's, not a person's")
+}

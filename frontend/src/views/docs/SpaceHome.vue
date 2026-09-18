@@ -44,6 +44,8 @@
         <SpaceAvatar :name="space.name" :avatar="space.icon || ''" size="large" />
         <h1>{{ t('docs.pages.welcome', { name: space.name }) }}</h1>
         <p class="welcome-description">{{ space.description || t('docs.pages.welcomeHint') }}</p>
+        <SpaceHomePanel :space-id="space.id" :space-slug="slug" @open="openPage"
+          @open-visit="openVisit" />
         <div v-if="rootNodes.length" class="root-pages">
           <div class="root-pages-title">{{ t('docs.pages.rootPages') }}</div>
           <button v-for="n in rootNodes" :key="n.id" type="button" class="root-page" @click="openPage(n)">
@@ -113,6 +115,8 @@ import {
 import SpaceAvatar from '@/components/SpaceAvatar.vue'
 
 import { canEditSpaceContent, roleAtLeast } from './docsAccess'
+import SpaceHomePanel from './home/SpaceHomePanel.vue'
+import type { Visit } from './home/recentlyViewed'
 import PageView from './PageView.vue'
 import PageTree, { type TreeAction } from './tree/PageTree.vue'
 import { PageTreeModel, pageSlug, shortIdFromSlug, type MoveTarget, type TreeNodeData } from './tree/pageTree'
@@ -209,6 +213,12 @@ const onSelect = (node: TreeNodeData) => {
 
 const openPage = (node: Pick<TreeNodeData, 'title' | 'short_id'>) => {
   router.push({ name: 'docsSpace', params: { slug: slug.value, pageSlug: pageSlug(node.title, node.short_id) } })
+}
+
+/** Opening a row of the on-device list: it carries the slug the URL needs,
+ * so no lookup is required. */
+const openVisit = (v: Visit) => {
+  router.push({ name: 'docsSpace', params: { slug: slug.value, pageSlug: pageSlug(v.title, v.shortId) } })
 }
 
 const onToggle = async (node: TreeNodeData) => {

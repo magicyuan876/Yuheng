@@ -105,8 +105,20 @@
             <t-icon :name="watchState.muted ? 'notification-off' : 'notification'" size="14px" />
             <span>{{ watchState.muted ? t('docs.watch.muted') : t('docs.watch.mute') }}</span>
           </button>
+          <button
+            type="button"
+            class="page-history-link"
+            :aria-pressed="favourite"
+            @click="toggleFavourite"
+          >
+            <t-icon :name="favourite ? 'star-filled' : 'star'" size="14px"
+              :class="{ 'star-on': favourite }" />
+            <span>{{ favourite ? t('docs.home.starred') : t('docs.home.star') }}</span>
+          </button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
+        <PageLabels v-if="page.can_edit || labels.length" class="page-label-row" :page-id="page.id"
+          :space-id="page.space_id" :can-edit="page.can_edit" :labels="labels" @change="onLabelsChanged" />
       </header>
 
       <div class="page-body-row">
@@ -206,12 +218,14 @@ import {
   listBacklinks,
   requestStatus,
   restorePage,
+  setFavourite,
   setMuted,
   setWatch,
   updatePage,
   type DocsPage,
   type DocsSpace,
   type GonePage,
+  type LabelView,
   type PageRef,
   type PageView as PageViewDto,
   type TreeNode,
@@ -222,6 +236,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
 import CommentComposer from './comments/CommentComposer.vue'
+import PageLabels from './labels/PageLabels.vue'
+import { browserStore, recordVisit } from './home/recentlyViewed'
 import NotificationCentre from './notifications/NotificationCentre.vue'
 import CommentsPanel from './comments/CommentsPanel.vue'
 import BacklinksPanel from './editor/BacklinksPanel.vue'
@@ -277,6 +293,31 @@ const watchState = ref<WatchView>({ page_id: '', muted: false, watched: false })
 /** Bumped when the event stream says a notification arrived, so the bell's
  * count is current without polling. */
 const notificationRevision = ref(0)
+
+/** This page's labels, and whether this person starred it. Both arrive with
+ * the page itself; neither costs a second request. */
+const labels = ref<LabelView[]>([])
+const favourite = ref(false)
+
+/** Where this person has been, kept on this device only. */
+const visitStore = browserStore()
+
+function onLabelsChanged(next: LabelView[]) {
+  labels.value = next
+}
+
+async function toggleFavourite() {
+  const current = page.value
+  if (!current) return
+  const next = !favourite.value
+  favourite.value = next
+  try {
+    await setFavourite(current.id, next)
+  } catch (err) {
+    favourite.value = !next
+    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+  }
+}
 
 async function loadWatchState(pageId: string) {
   try {
@@ -449,6 +490,12 @@ async function load() {
     if (props.shortId !== sid) return
     page.value = p
     titleDraft.value = p.title
+    labels.value = p.labels ?? []
+    favourite.value = p.favourite ?? false
+    recordVisit(visitStore, {
+      pageId: p.id, shortId: p.short_id, spaceSlug: props.space.slug,
+      title: p.title, icon: p.icon || undefined, at: Date.now(),
+    })
     emit('loaded', p)
     await Promise.all([
       loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id), loadWatchState(p.id),
@@ -785,9 +832,19 @@ watch(() => props.shortId, load, { immediate: true })
 .page-meta {
   margin-top: 8px;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   font-size: 12px;
   color: var(--td-text-color-placeholder);
+}
+
+.page-label-row {
+  margin-top: 10px;
+}
+
+.star-on {
+  color: var(--td-warning-color);
 }
 
 .page-body-row {

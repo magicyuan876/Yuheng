@@ -277,6 +277,11 @@ export interface PageView extends DocsPage {
   can_edit: boolean
   has_children: boolean
   restricted: boolean
+  /** What the page is filed under. Carried on the page read so the chips
+   * appear with the title rather than a moment after it. */
+  labels?: LabelView[]
+  /** Whether the caller starred this page. */
+  favourite?: boolean
 }
 
 export interface TreeNode extends DocsPage {
@@ -661,6 +666,97 @@ export async function listBacklinks(pageId: string): Promise<PageRef[]> {
  */
 export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
+}
+
+// ---- labels, favourites and the space home ----------------------------------
+
+/** A space's label. */
+export interface LabelView {
+  id: string
+  space_id: string
+  name: string
+  color: string
+  page_count: number
+}
+
+/** What a space's landing page shows. */
+export interface SpaceHome {
+  recently_edited: TreeNode[]
+  labels: LabelView[]
+  favourites: TreeNode[]
+}
+
+/** The colours a label may take; the server refuses anything else. */
+export const LABEL_COLORS = [
+  'gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink',
+] as const
+
+export type LabelColor = typeof LABEL_COLORS[number]
+
+/** Backend: GET /api/v1/docs/spaces/:sid/labels (space reader). */
+export async function listLabels(spaceId: string): Promise<LabelView[]> {
+  return unwrap<LabelView[] | null>(
+    await get(`${base}/spaces/${encodeURIComponent(spaceId)}/labels`),
+  ) ?? []
+}
+
+/** Backend: POST /api/v1/docs/spaces/:sid/labels (space writer). */
+export async function createLabel(
+  spaceId: string, body: { name: string; color?: string },
+): Promise<LabelView> {
+  return unwrap<LabelView>(await post(`${base}/spaces/${encodeURIComponent(spaceId)}/labels`, body))
+}
+
+/** Backend: PATCH /api/v1/docs/spaces/:sid/labels/:lid (space writer). */
+export async function updateLabel(
+  spaceId: string, labelId: string, body: { name?: string; color?: string },
+): Promise<LabelView> {
+  return unwrap<LabelView>(await patch(
+    `${base}/spaces/${encodeURIComponent(spaceId)}/labels/${encodeURIComponent(labelId)}`, body,
+  ))
+}
+
+/** Backend: DELETE /api/v1/docs/spaces/:sid/labels/:lid (space admin). */
+export async function deleteLabel(spaceId: string, labelId: string): Promise<void> {
+  await del(`${base}/spaces/${encodeURIComponent(spaceId)}/labels/${encodeURIComponent(labelId)}`)
+}
+
+/** Backend: PUT /api/v1/docs/pages/:pid/labels. The list replaces what was there. */
+export async function setPageLabels(pageId: string, labelIds: string[]): Promise<LabelView[]> {
+  return unwrap<LabelView[] | null>(await put(
+    `${base}/pages/${encodeURIComponent(pageId)}/labels`, { label_ids: labelIds },
+  )) ?? []
+}
+
+/** Backend: GET /api/v1/docs/spaces/:sid/home (space reader). */
+export async function getSpaceHome(spaceId: string): Promise<SpaceHome> {
+  return unwrap<SpaceHome | null>(
+    await get(`${base}/spaces/${encodeURIComponent(spaceId)}/home`),
+  ) ?? { recently_edited: [], labels: [], favourites: [] }
+}
+
+/**
+ * Backend: GET /api/v1/docs/spaces/:sid/pages-by-label (space reader).
+ * Several labels mean pages carrying all of them.
+ */
+export async function pagesWithLabels(
+  spaceId: string, labelIds: string[], limit?: number,
+): Promise<TreeNode[]> {
+  const query = new URLSearchParams({ labels: labelIds.join(',') })
+  if (limit) query.set('limit', String(limit))
+  return unwrap<TreeNode[] | null>(
+    await get(`${base}/spaces/${encodeURIComponent(spaceId)}/pages-by-label?${query}`),
+  ) ?? []
+}
+
+/** Backend: PUT /api/v1/docs/pages/:pid/favourite (page reader). */
+export async function setFavourite(pageId: string, favourite: boolean): Promise<void> {
+  await put(`${base}/pages/${encodeURIComponent(pageId)}/favourite`, { favourite })
+}
+
+/** Backend: GET /api/v1/docs/favourites (tenant member). */
+export async function listFavourites(): Promise<TreeNode[]> {
+  return unwrap<TreeNode[] | null>(await get(`${base}/favourites`)) ?? []
 }
 
 // ---- watching and notifications ---------------------------------------------

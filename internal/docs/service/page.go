@@ -82,6 +82,12 @@ type PageView struct {
 	HasChildren bool `json:"has_children"`
 	// Restricted is true when this page cuts permission inheritance.
 	Restricted bool `json:"restricted"`
+	// Labels is what the page is filed under. Carried on the page read
+	// rather than fetched separately: the chips are drawn with the title,
+	// and a second round trip would make them appear late.
+	Labels []*LabelView `json:"labels"`
+	// Favourite is whether this caller starred the page.
+	Favourite bool `json:"favourite"`
 }
 
 // TreeNode is one row of a tree listing.
@@ -443,8 +449,20 @@ func (s *PageService) SpaceRoleOf(ctx context.Context, actor *acl.Identity, spac
 }
 
 // Get returns the page the guard resolved.
-func (s *PageService) Get(ctx context.Context, d acl.Decision) (*PageView, error) {
-	return s.view(ctx, d)
+func (s *PageService) Get(ctx context.Context, actor *acl.Identity, d acl.Decision) (*PageView, error) {
+	view, err := s.view(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+	// Only on the single-page read. A tree listing of a hundred rows does not
+	// want a hundred label lookups for chips it does not draw.
+	labels, err := s.PageLabels(ctx, actor, d)
+	if err != nil {
+		return nil, err
+	}
+	view.Labels = labels
+	view.Favourite = s.IsFavourite(ctx, actor, d.Page.ID)
+	return view, nil
 }
 
 // Content returns the body; withHTML adds the rendered projection.

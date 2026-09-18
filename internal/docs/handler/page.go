@@ -154,11 +154,15 @@ func (h *PageHandler) Get(c *gin.Context) {
 	if !h.ready(c) {
 		return
 	}
+	actor, found := identity(c)
+	if !found {
+		return
+	}
 	d, found := decision(c)
 	if !found {
 		return
 	}
-	view, err := h.svc.Get(c.Request.Context(), d)
+	view, err := h.svc.Get(c.Request.Context(), actor, d)
 	if err != nil {
 		fail(c, err)
 		return
