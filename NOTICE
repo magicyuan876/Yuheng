@@ -80,7 +80,6 @@ are incompatible with distributing Yuheng under MIT. Until they are resolved,
 this software must not be published as a binary or container release.
 
     github.com/liuzl/cedar-go   GPL-2.0    linked via internal/types
-    EbookLib (Python)           AGPL-3.0+  EPUB parsing in docreader
 
 See licenses/NOTICE_AUDIT.md for the import paths, the impact, and the proposed
 replacements.
