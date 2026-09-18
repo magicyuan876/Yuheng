@@ -15,4 +15,3 @@
 
 github.com/liuzl/cedar-go    # GPL-2.0; reached from internal/types via longbridgeapp/opencc -> liuzl/da. Linked into every server binary. See NOTICE_AUDIT.md §1.1
 EbookLib                     # AGPL-3.0-or-later; EPUB parsing in docreader. See NOTICE_AUDIT.md §1.2
-chardet                      # LGPL-2.1-or-later; encoding detection in docreader. Replaceable with charset-normalizer (MIT). See NOTICE_AUDIT.md §1.3

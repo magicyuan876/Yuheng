@@ -57,12 +57,15 @@ zipfile + XML reader; EPUB is a ZIP of XHTML, and `python-docx`-style direct
 parsing with `lxml` (BSD-3-Clause) covers the same ground. Alternatively, drop
 EPUB support.
 
-### 1.3 `chardet` 5.2.0 — LGPL-2.1-or-later — docreader (Python)
+### 1.3 `chardet` 5.2.0 — LGPL-2.1-or-later — docreader (Python) — **RESOLVED 2026-09-18**
 
-Encoding detection. LGPL for a pure-Python library imported at runtime is the
-mildest case in this list, but it is on the blocking list by the project's own
-rule. The drop-in replacement is **`charset-normalizer`** (MIT), which is
-already the default in `requests` and exposes a compatible `detect()`.
+`chardet` was never imported by docreader. It arrived as a transitive dependency
+of `textract==1.5.0`, whose only call site (`doc_parser.py::_parse_with_textract`)
+had already been disabled for SSRF reasons. `textract` was removed from
+`docreader/pyproject.toml`, which also dropped `argcomplete`, `docx2txt`,
+`SpeechRecognition` and the `standard-*` shims from the lock. No replacement was
+needed; `requests` already ships `charset-normalizer` (MIT) for encoding
+detection.
 
 ---
 
