@@ -12,5 +12,4 @@
 #
 # Format: <substring matched against a scanner output line>  # why it is here
 # Remove a line the moment the dependency is replaced.
-
-github.com/liuzl/cedar-go    # GPL-2.0; reached from internal/types via longbridgeapp/opencc -> liuzl/da. Linked into every server binary. See NOTICE_AUDIT.md §1.1
+# (empty — every inherited blocker was resolved on 2026-09-18)
