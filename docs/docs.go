@@ -15323,16 +15323,8 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "service_id": {
-                    "description": "Parent MCP service for MCP tool mentions",
-                    "type": "string"
-                },
-                "skill_name": {
-                    "description": "Preloaded agent skill name",
-                    "type": "string"
-                },
                 "type": {
-                    "description": "\"kb\", \"file\", \"tag\", \"mcp\", \"skill\"",
+                    "description": "\"kb\", \"file\", or \"tag\"",
                     "type": "string"
                 }
             }
@@ -20314,16 +20306,8 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "service_id": {
-                    "description": "Parent MCP service for MCP tool mentions",
-                    "type": "string"
-                },
-                "skill_name": {
-                    "description": "Preloaded agent skill name",
-                    "type": "string"
-                },
                 "type": {
-                    "description": "\"kb\", \"file\", \"tag\", \"mcp\", \"skill\"",
+                    "description": "\"kb\", \"file\", or \"tag\"",
                     "type": "string"
                 }
             }
