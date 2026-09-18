@@ -50,6 +50,14 @@
       </li>
     </ul>
 
+    <FindReplacePanel
+      :open="findOpen"
+      :editor="editor ?? null"
+      :editable="editorEditable"
+      :revision="editorRevision"
+      @close="findOpen = false"
+    />
+
     <SelectionToolbar
       :visible="toolbarVisible"
       :placement="toolbarPlace"
@@ -80,6 +88,7 @@
 </template>
 
 <script setup lang="ts">
+import { Extension } from '@tiptap/core'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
 import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3'
@@ -112,6 +121,7 @@ import MentionNodeView from './MentionNodeView.vue'
 import MermaidNodeView from './MermaidNodeView.vue'
 import PageLinkNodeView from './PageLinkNodeView.vue'
 import StatusNodeView from './StatusNodeView.vue'
+import FindReplacePanel from './FindReplacePanel.vue'
 import SelectionToolbar from './SelectionToolbar.vue'
 import SuggestionMenu from './SuggestionMenu.vue'
 import { TitleCache } from './titleCache'
@@ -121,6 +131,7 @@ import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { IdleScheduler } from './idleWork'
 import { DragHandle } from './dragHandle'
+import { findPlugin } from './find'
 import { shouldShow, toolbarPlacement } from './toolbar'
 import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
@@ -309,6 +320,26 @@ const derive = new IdleScheduler(() => {
  * again. Everything else about the bar — whether it applies at all, and where
  * it goes — is decided in toolbar.ts.
  */
+/**
+ * Find and replace.
+ *
+ * The panel is mounted with the editor rather than opened on demand so the
+ * highlight plugin is always present; `findOpen` only decides whether it is
+ * drawn and whether it is searching.
+ */
+const findOpen = ref(false)
+
+const findExtension = Extension.create({
+  name: 'yuhengFind',
+  addProseMirrorPlugins: () => [findPlugin()],
+  addKeyboardShortcuts: () => ({
+    'Mod-f': () => {
+      findOpen.value = true
+      return true
+    },
+  }),
+})
+
 const toolbarVisible = ref(false)
 const toolbarPlace = ref({ left: 0, top: 0, below: false })
 const editorRevision = ref(0)
@@ -357,6 +388,7 @@ const editor = useEditor({
     uploads.extension,
     suggestions.extension,
     DragHandle.configure({ offset: 28, label: t('docs.toolbar.moveBlock') }),
+    findExtension,
     Collaboration.configure({ document: collab.ydoc.value }),
     // Live cursors need a collaboration service to relay awareness; in
     // exclusive-edit mode there is never a second writer to draw.
@@ -428,6 +460,16 @@ defineExpose({ editor, collab, forgetTitle })
 <style scoped lang="less">
 // Created by the drag-handle plugin rather than by this template, so it needs
 // :deep to be reached from a scoped block.
+// Drawn by the find plugin as a decoration, so it is likewise out of scope.
+:deep(.docs-find-match) {
+  background: var(--td-warning-color-2);
+  border-radius: 2px;
+
+  &.is-current {
+    background: var(--td-warning-color-4);
+  }
+}
+
 :deep(.docs-drag-handle) {
   position: absolute;
   visibility: hidden;
@@ -457,6 +499,7 @@ defineExpose({ editor, collab, forgetTitle })
 }
 
 .doc-editor {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;

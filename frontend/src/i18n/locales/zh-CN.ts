@@ -6773,6 +6773,22 @@ export default {
       linkRemove: '移除',
       moveBlock: '移动块',
     },
+    // 查找与替换。
+    find: {
+      title: '查找与替换',
+      findPlaceholder: '查找',
+      replacePlaceholder: '替换为',
+      replace: '替换',
+      replaceAll: '全部替换',
+      next: '下一处',
+      previous: '上一处',
+      count: '第 {index} / {total} 处',
+      none: '无结果',
+      caseSensitive: '区分大小写',
+      wholeWord: '全词匹配',
+      regex: '正则表达式',
+      badPattern: '表达式不完整',
+    },
     commands: {
       paragraph: '正文',
       heading1: '一级标题',
