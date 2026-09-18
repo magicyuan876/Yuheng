@@ -64,7 +64,8 @@ func TestEventStreamDeliversFilteredEvents(t *testing.T) {
 	require.Eventually(t, func() bool { return bus.SubscriberCount() == 1 }, time.Second, 5*time.Millisecond)
 	require.NoError(t, bus.Publish(ctx, events.New(events.PageCreated, 2).WithSpace("s1").WithPage("other-tenant")))
 	require.NoError(t, bus.Publish(ctx, events.New(events.PageCreated, 1).WithSpace("s2").WithPage("other-space")))
-	require.NoError(t, bus.Publish(ctx, events.New(events.PageMeta, 1).WithSpace("s1").WithPage("p1").With("title", "T")))
+	require.NoError(t, bus.Publish(ctx,
+		events.New(events.PageMeta, 1).WithSpace("s1").WithPage("p1").With("title", "T")))
 
 	name, data = readEvent()
 	require.Equal(t, string(events.PageMeta), name)

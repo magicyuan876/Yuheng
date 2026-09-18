@@ -67,7 +67,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.DELETE("/spaces/:sid", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
 	write.POST("/spaces/:sid/restore", g.Contributor(), guard.RequireMember(), idem, ni)
 	read.GET("/spaces/:sid/members", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
-	write.PUT("/spaces/:sid/members", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	write.PUT("/spaces/:sid/members", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
 	write.DELETE("/spaces/:sid/members/:ptype/:pid", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
 	write.PUT("/spaces/:sid/knowledge-base", g.Contributor(),
@@ -90,7 +91,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/pages/by-short-id/:short", g.Viewer(),
 		guard.RequirePage("short", acl.PageByShortID, model.RoleReader), ni)
 	read.GET("/pages/:pid/content", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	write.PUT("/pages/:pid/content", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.PUT("/pages/:pid/content", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.PATCH("/pages/:pid", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.POST("/pages/:pid/move", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.POST("/pages/:pid/duplicate", g.Contributor(),
@@ -115,7 +117,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	write.POST("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	read.GET("/pages/:pid/shares", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	write.POST("/pages/:pid/shares", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.POST("/pages/:pid/shares", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	write.PUT("/pages/:pid/labels", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.PUT("/pages/:pid/watch", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)

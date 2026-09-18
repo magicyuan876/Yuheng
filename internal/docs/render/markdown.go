@@ -83,7 +83,8 @@ func (r *markdownRenderer) block(n *schema.Node) string {
 		}
 		return "!" + link(attr(n, "alt"), src, attr(n, "title"))
 	case schema.NodeAttachment:
-		return link(nameOr(attr(n, "name"), r.opts.str("attachment")), r.opts.attachmentURL(attr(n, "attachmentId")), "")
+		return link(nameOr(attr(n, "name"), r.opts.str("attachment")),
+			r.opts.attachmentURL(attr(n, "attachmentId")), "")
 	case schema.NodeVideo, schema.NodeAudio:
 		return link(r.opts.attachmentURL(attr(n, "attachmentId")), r.opts.attachmentURL(attr(n, "attachmentId")), "")
 	case schema.NodePdfEmbed:

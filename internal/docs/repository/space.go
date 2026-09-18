@@ -31,11 +31,13 @@ type SpaceMemberRepository interface {
 	Remove(ctx context.Context, tenantID uint64, spaceID string, principal model.Principal) error
 	ListBySpace(ctx context.Context, tenantID uint64, spaceID string) ([]*model.SpaceMember, error)
 	// RolesFor returns the roles the principals hold directly in one space.
-	RolesFor(ctx context.Context, tenantID uint64, spaceID string, principals []model.Principal) ([]model.SpaceRole, error)
+	RolesFor(ctx context.Context, tenantID uint64, spaceID string,
+		principals []model.Principal) ([]model.SpaceRole, error)
 	// SpaceRolesFor returns, per space, the strongest role any of the
 	// principals holds directly. Open-space default roles are not included;
 	// the ACL resolver layers those on.
-	SpaceRolesFor(ctx context.Context, tenantID uint64, principals []model.Principal) (map[string]model.SpaceRole, error)
+	SpaceRolesFor(ctx context.Context, tenantID uint64,
+		principals []model.Principal) (map[string]model.SpaceRole, error)
 	// RemoveAllForPrincipal drops a principal from every space (user left the
 	// tenant, group deleted).
 	RemoveAllForPrincipal(ctx context.Context, tenantID uint64, principal model.Principal) error
