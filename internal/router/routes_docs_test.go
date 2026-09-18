@@ -63,6 +63,13 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		{http.MethodGet, "/api/v1/docs/pages/:pid/revisions/:rid", types.APIKeyCapabilityDocsRead},
 		{http.MethodGet, "/api/v1/docs/pages/:pid/revisions/:rid/diff", types.APIKeyCapabilityDocsRead},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/revisions/:rid/restore", types.APIKeyCapabilityDocsWrite},
+		// Comments: writes included, these declare the read capability, because
+		// commenting is not editing the page.
+		{http.MethodGet, "/api/v1/docs/pages/:pid/comments", types.APIKeyCapabilityDocsRead},
+		{http.MethodPost, "/api/v1/docs/pages/:pid/comments", types.APIKeyCapabilityDocsWrite},
+		{http.MethodPatch, "/api/v1/docs/pages/:pid/comments/:cid", types.APIKeyCapabilityDocsWrite},
+		{http.MethodDelete, "/api/v1/docs/pages/:pid/comments/:cid", types.APIKeyCapabilityDocsWrite},
+		{http.MethodPost, "/api/v1/docs/pages/:pid/comments/:cid/resolve", types.APIKeyCapabilityDocsWrite},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

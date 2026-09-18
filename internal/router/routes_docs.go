@@ -180,8 +180,23 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.RevisionDiff)
 	write.POST("/pages/:pid/revisions/:rid/restore", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.RestoreRevision)
-	read.GET("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	write.POST("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	// Comments, addressed under their page for the same reason revisions are:
+	// a comment's permissions are the page's, and authorship decides the rest.
+	//
+	// Every one of these takes the *reader* role, writes included. Commenting
+	// is not editing -- somebody invited to review a page has to be able to
+	// say what they think of it without being handed the ability to change it,
+	// which is this work package's own acceptance criterion.
+	read.GET("/pages/:pid/comments", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Comments)
+	write.POST("/pages/:pid/comments", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.CreateComment)
+	write.PATCH("/pages/:pid/comments/:cid", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.UpdateComment)
+	write.DELETE("/pages/:pid/comments/:cid", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.DeleteComment)
+	write.POST("/pages/:pid/comments/:cid/resolve", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ResolveComment)
 	read.GET("/pages/:pid/shares", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	write.POST("/pages/:pid/shares", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
@@ -211,13 +226,12 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.PUT("/pages/:pid/ydoc", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ls.SaveYDoc)
 
-	// ---- comments, shares, attachments addressed by their own id ----
-	// Revisions are deliberately absent: see the history routes above for why
-	// they are addressed under their page instead. T4.4's route audit should
-	// find this note rather than a missing endpoint.
-	write.PATCH("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
-	write.DELETE("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
-	write.POST("/comments/:cid/resolve", g.Viewer(), guard.RequireMember(), idem, ni)
+	// ---- shares and attachments addressed by their own id ----
+	// Revisions and comments are deliberately absent: both are addressed under
+	// their page above, because the page's permissions are theirs and a guard
+	// that can only check membership would push the real check into each
+	// handler by hand. T4.4's route audit should find this note rather than a
+	// missing endpoint.
 	write.DELETE("/shares/:shid", g.Contributor(), guard.RequireMember(), idem, ni)
 	read.GET("/attachments/:aid", g.Viewer(), guard.RequireMember(), fh.Download)
 	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, fh.Delete)
