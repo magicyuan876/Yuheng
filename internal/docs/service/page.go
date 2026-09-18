@@ -287,6 +287,19 @@ func requireRole(d acl.Decision, min model.SpaceRole) error {
 	return nil
 }
 
+// requireSpaceRole is requireRole for something addressed by its space rather
+// than by a page: a label, a space setting. Same shape, same distinction
+// between "you cannot see this" and "you cannot do this".
+func requireSpaceRole(role, min model.SpaceRole) error {
+	if role == model.RoleNone {
+		return notFound("space")
+	}
+	if !role.AtLeast(min) {
+		return forbidden("this action needs the %s role on the space", min)
+	}
+	return nil
+}
+
 func (s *PageService) view(ctx context.Context, d acl.Decision) (*PageView, error) {
 	counts, err := s.d.Repos.Pages.ChildCounts(ctx, d.Page.TenantID, []string{d.Page.ID})
 	if err != nil {

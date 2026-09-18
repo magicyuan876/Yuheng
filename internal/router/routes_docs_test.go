@@ -78,6 +78,18 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		{http.MethodGet, "/api/v1/docs/notifications", types.APIKeyCapabilityDocsRead},
 		{http.MethodPost, "/api/v1/docs/notifications/read", types.APIKeyCapabilityDocsWrite},
 		{http.MethodPost, "/api/v1/docs/notifications/archive", types.APIKeyCapabilityDocsWrite},
+		// Labels and the space home.
+		{http.MethodGet, "/api/v1/docs/spaces/:sid/labels", types.APIKeyCapabilityDocsRead},
+		{http.MethodPost, "/api/v1/docs/spaces/:sid/labels", types.APIKeyCapabilityDocsWrite},
+		{http.MethodPatch, "/api/v1/docs/spaces/:sid/labels/:lid", types.APIKeyCapabilityDocsWrite},
+		{http.MethodDelete, "/api/v1/docs/spaces/:sid/labels/:lid", types.APIKeyCapabilityDocsWrite},
+		{http.MethodGet, "/api/v1/docs/spaces/:sid/home", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/spaces/:sid/pages-by-label", types.APIKeyCapabilityDocsRead},
+		{http.MethodPut, "/api/v1/docs/pages/:pid/labels", types.APIKeyCapabilityDocsWrite},
+		// Starring is a bookmark, so a reader may do it -- but it is still a
+		// write, and declares the write capability.
+		{http.MethodPut, "/api/v1/docs/pages/:pid/favourite", types.APIKeyCapabilityDocsWrite},
+		{http.MethodGet, "/api/v1/docs/favourites", types.APIKeyCapabilityDocsRead},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

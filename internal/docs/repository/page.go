@@ -21,6 +21,12 @@ type PageRepository interface {
 	GetByShortID(ctx context.Context, tenantID uint64, shortID string) (*model.Page, error)
 	// GetSummaries loads summary columns for a set of live pages.
 	GetSummaries(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error)
+
+	// RecentlyEdited lists a space's live pages by when their bodies last
+	// changed, newest first. Draft pages are included: somebody coming back
+	// to what they were working on is exactly who this list is for.
+	RecentlyEdited(ctx context.Context, tenantID uint64, spaceID string, limit int) (
+		[]*model.Page, error)
 	// GetMany loads live pages with content (duplicate, export).
 	GetMany(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error)
 	// ListChildren returns the live children of parentID (nil = space roots)
@@ -158,6 +164,24 @@ func (r *pageRepository) GetByShortID(ctx context.Context, tenantID uint64, shor
 		return nil, mapNotFound(err)
 	}
 	return &p, nil
+}
+
+func (r *pageRepository) RecentlyEdited(ctx context.Context, tenantID uint64, spaceID string,
+	limit int,
+) ([]*model.Page, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	var pages []*model.Page
+	err := r.db.WithContext(ctx).
+		Select(model.PageSummaryColumns).
+		Where("tenant_id = ? AND space_id = ? AND deleted_at IS NULL", tenantID, spaceID).
+		// content_updated_at is only touched when the body changes, so this
+		// is "what has been written lately" rather than "what has been
+		// renamed or moved lately".
+		Order("content_updated_at DESC, updated_at DESC").
+		Limit(limit).Find(&pages).Error
+	return pages, err
 }
 
 func (r *pageRepository) GetSummaries(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error) {

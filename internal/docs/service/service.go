@@ -85,6 +85,16 @@ type CollabClient interface {
 }
 
 // Deps are the collaborators shared by every service.
+// Favourites is the part of Yuheng's starred-resources service this module
+// uses. Narrow on purpose: depending on the interface rather than the
+// concrete service is the repository's own convention.
+type Favourites interface {
+	List(ctx context.Context, userID string, tenantID uint64, resourceType string) (
+		[]*types.UserResourceFavorite, error)
+	Add(ctx context.Context, userID string, tenantID uint64, resourceType, resourceID string) error
+	Remove(ctx context.Context, userID string, tenantID uint64, resourceType, resourceID string) error
+}
+
 type Deps struct {
 	Repos    *repository.Repositories
 	Resolver *acl.Resolver
@@ -105,6 +115,10 @@ type Deps struct {
 	CollabURL string
 	// MaxYDocBytes caps one page's Yjs state; 0 uses DefaultMaxYDocBytes.
 	MaxYDocBytes int64
+	// Favourites is Yuheng's own starred-resources service, reused rather
+	// than reimplemented: `doc_page` and `doc_space` are resource types in
+	// it. Nil in trimmed builds, and starring is then simply unavailable.
+	Favourites Favourites
 	// Storage and Tenants are required by attachments only; without them
 	// uploading is refused and the rest of the module still works.
 	Storage Storage
