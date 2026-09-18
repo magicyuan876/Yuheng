@@ -34,6 +34,7 @@ type Config struct {
 	PromptTemplates *PromptTemplatesConfig `yaml:"prompt_templates" json:"prompt_templates"`
 	IM              *IMConfig              `yaml:"im"               json:"im"`
 	Agent           *AgentConfig           `yaml:"agent"            json:"agent"`
+	Docs            *DocsConfig            `yaml:"docs"             json:"docs"`
 	// FrontendBaseURL is the externally-visible origin of the SPA, used
 	// to compose absolute share-link URLs. Empty falls back to a host-
 	// relative URL ("/register?token=…") which the SPA then resolves
@@ -589,6 +590,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	warnLegacyEnvPrefix()
+	cfg.Docs = loadDocsConfig()
 
 	// Surface RBAC enforcement state at startup. air's hot-reload only
 	// rebuilds the binary on Go-source changes; it does NOT re-source

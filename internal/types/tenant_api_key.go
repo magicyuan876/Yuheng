@@ -162,6 +162,13 @@ const (
 	APIKeyCapabilitySystemRuntimeRead    APIKeyCapability = "system_runtime_read"
 	APIKeyCapabilitySystemRuntimeManage  APIKeyCapability = "system_runtime_manage"
 	APIKeyCapabilitySystemAuditRead      APIKeyCapability = "system_audit_read"
+
+	// Online documents module (docs). Read covers spaces, pages, comments,
+	// search and the event stream; Write adds authoring; Admin adds page
+	// permissions and tenant groups.
+	APIKeyCapabilityDocsRead  APIKeyCapability = "docs_read"
+	APIKeyCapabilityDocsWrite APIKeyCapability = "docs_write"
+	APIKeyCapabilityDocsAdmin APIKeyCapability = "docs_admin"
 )
 
 // NormalizeAPIKeyCapability maps an input capability string to a known
@@ -218,6 +225,12 @@ func NormalizeAPIKeyCapability(c APIKeyCapability) APIKeyCapability {
 		return APIKeyCapabilitySystemRuntimeManage
 	case APIKeyCapabilitySystemAuditRead:
 		return APIKeyCapabilitySystemAuditRead
+	case APIKeyCapabilityDocsRead:
+		return APIKeyCapabilityDocsRead
+	case APIKeyCapabilityDocsWrite:
+		return APIKeyCapabilityDocsWrite
+	case APIKeyCapabilityDocsAdmin:
+		return APIKeyCapabilityDocsAdmin
 	default:
 		return ""
 	}
