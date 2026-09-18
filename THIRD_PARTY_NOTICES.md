@@ -16,7 +16,7 @@ cutting a release: it carries the blocking items.
 
 | Ecosystem | Components | Source of truth |
 |---|---|---|
-| Go | 380 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
+| Go | 381 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
@@ -38,7 +38,7 @@ cutting a release: it carries the blocking items.
 
 | License | Modules |
 |---|---|
-| MIT | 165 |
+| MIT | 166 |
 | Apache-2.0 | 144 |
 | BSD-3-Clause | 47 |
 | BSD-2-Clause | 12 |
@@ -53,7 +53,7 @@ cutting a release: it carries the blocking items.
 | UNRESOLVED (terminal input; not in the linux module cache) | 1 |
 
 <details>
-<summary>Full list (380 modules)</summary>
+<summary>Full list (381 modules)</summary>
 
 | Module | Version | License |
 |---|---|---|
@@ -379,6 +379,7 @@ cutting a release: it carries the blocking items.
 | `github.com/xuri/nfp` | v0.0.2-0.20250530014748-2ddeb826f9a9 | BSD-3-Clause |
 | `github.com/yanyiwu/gojieba` | v1.4.7 | MIT |
 | `github.com/yosida95/uritemplate/v3` | v3.0.2 | BSD-3-Clause |
+| `github.com/yuin/goldmark` | v1.8.2 | MIT |
 | `github.com/yuin/gopher-lua` | v1.1.1 | MIT |
 | `github.com/yusufpapurcu/wmi` | v1.2.4 | MIT |
 | `github.com/zalando/go-keyring` | v0.2.8 | MIT |
