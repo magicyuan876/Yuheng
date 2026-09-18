@@ -106,6 +106,14 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// Under their own prefix rather than /pages/*: a literal segment and a
 	// path parameter cannot share a position in gin's route tree, and
 	// "suggest" would collide with a page id.
+	// ---- embeds (T2.3) ------------------------------------------------------
+	// Resolving is a read that happens to POST, for the same reason the title
+	// lookup does: the address does not belong in a URL. Neither call reaches
+	// a page, so membership is the only gate; the allow-list is what actually
+	// decides, and it is checked again on save.
+	read.GET("/embeds/policy", g.Viewer(), guard.RequireMember(), pg.EmbedPolicy)
+	read.POST("/embeds/resolve", g.Viewer(), guard.RequireMember(), pg.ResolveEmbed)
+
 	read.GET("/page-links/suggest", g.Viewer(), guard.RequireMember(), pg.SuggestPages)
 	// A POST that only reads: the id list is as long as the open page has
 	// links, which does not belong in a URL. Declared with the read

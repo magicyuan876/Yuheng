@@ -364,9 +364,16 @@ func (r *htmlRenderer) diagram(n *schema.Node) {
 }
 
 func (r *htmlRenderer) embed(n *schema.Node) {
-	url := safeURL(attr(n, "url"))
-	r.open("div", "id", attr(n, "id"), "class", "embed embed-"+attr(n, "provider")+" "+alignClass(n),
-		"data-provider", attr(n, "provider"))
+	provider, raw := attr(n, "provider"), attr(n, "url")
+	url := safeURL(raw)
+	if r.opts.EmbedURL != nil {
+		// The allow-list decides, and it decides now rather than at the
+		// document's last save, so tightening the policy takes effect on the
+		// next page load.
+		url = safeURL(r.opts.EmbedURL(provider, raw))
+	}
+	r.open("div", "id", attr(n, "id"), "class", "embed embed-"+provider+" "+alignClass(n),
+		"data-provider", provider)
 	if url == "" {
 		r.b.WriteString(esc(r.opts.str("embedUnavailable")))
 	} else {

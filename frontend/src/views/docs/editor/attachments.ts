@@ -151,9 +151,15 @@ export class UploadQueue {
   }
 }
 
-/** The ProseMirror attributes an uploaded file becomes, by kind. */
+/**
+ * The ProseMirror node an uploaded file becomes.
+ *
+ * The kind the server derived from the bytes decides, not the name the file
+ * was uploaded under: a video called .txt is still played, and a script called
+ * .mp4 is still a download.
+ */
 export function nodeForAttachment(a: UploadedAttachment): {
-  type: 'image' | 'attachment'
+  type: 'image' | 'video' | 'audio' | 'pdfEmbed' | 'attachment'
   attrs: Record<string, unknown>
 } {
   if (a.kind === 'image') {
@@ -170,9 +176,23 @@ export function nodeForAttachment(a: UploadedAttachment): {
       },
     }
   }
-  // Video, audio and PDF get their own nodes in a later work package; until
-  // then they are file cards, which is a downgrade in presentation only —
-  // the file itself is stored and served the same way.
+  if (a.kind === 'video') {
+    return {
+      type: 'video',
+      attrs: { attachmentId: a.id, align: 'center', width: null, height: null },
+    }
+  }
+  if (a.kind === 'audio') {
+    return { type: 'audio', attrs: { attachmentId: a.id } }
+  }
+  if (a.mime === 'application/pdf') {
+    return {
+      type: 'pdfEmbed',
+      attrs: { attachmentId: a.id, name: a.file_name, width: null, height: null },
+    }
+  }
+  // Everything else is a file card: a name, a size and a download link, which
+  // is all a browser can usefully do with it.
   return {
     type: 'attachment',
     attrs: {

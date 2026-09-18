@@ -57,6 +57,7 @@ import { createLowlight } from 'lowlight'
 import { BlockId, TextBlockAttrs } from './blockAttrs'
 import { MathBlock, MathInline, Mermaid } from './figureNodes'
 import { Mention, PageLink } from './linkNodes'
+import { Audio, Drawio, Embed, Excalidraw, PdfEmbed, Video } from './mediaEmbedNodes'
 import { DocAttachment, DocImage } from './mediaNodes'
 import { Callout, Column, Columns, PageBreak, Status, TableOfContents } from './structureNodes'
 
@@ -159,6 +160,12 @@ export interface EditorNodeViews {
   mermaid?: NodeViewRenderer
   pageLink?: NodeViewRenderer
   mention?: NodeViewRenderer
+  video?: NodeViewRenderer
+  audio?: NodeViewRenderer
+  pdfEmbed?: NodeViewRenderer
+  embed?: NodeViewRenderer
+  drawio?: NodeViewRenderer
+  excalidraw?: NodeViewRenderer
 }
 
 /** Attaches a node view to a node, when the caller supplied one. */
@@ -220,6 +227,13 @@ export function officialExtensions(
     // Links and mentions (T2.2).
     withView(PageLink, views.pageLink),
     withView(Mention, views.mention),
+    // Media, embeds and diagrams (T2.3).
+    withView(Video, views.video),
+    withView(Audio, views.audio),
+    withView(PdfEmbed, views.pdfEmbed),
+    withView(Embed, views.embed),
+    withView(Drawio, views.drawio),
+    withView(Excalidraw, views.excalidraw),
     // Marks.
     Bold,
     Italic,

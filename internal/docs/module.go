@@ -11,6 +11,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/docs/audit"
 	"github.com/magicyuan876/yuheng/internal/docs/collab"
+	"github.com/magicyuan876/yuheng/internal/docs/embed"
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/handler"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
@@ -111,6 +112,8 @@ func NewModule(p Params) *Module {
 		Repos: repos, Resolver: resolver, Bus: bus, Audit: rec, Users: p.Users, Members: p.TenantMembers,
 		CollabURL: cfg.CollabURL, MaxYDocBytes: cfg.MaxYDocBytes,
 		MaxAttachmentBytes: cfg.MaxAttachmentBytes,
+		Embeds:             embed.NewRegistry(cfg.EmbedProviders, cfg.EmbedExtraHosts),
+		DrawioURL:          cfg.DrawioURL,
 	}
 	if p.StorageResolver != nil {
 		deps.Storage = p.StorageResolver

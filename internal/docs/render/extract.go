@@ -28,6 +28,10 @@ type Structure struct {
 	Mentions      []string // distinct user ids
 	Transclusions []Transclusion
 	AttachmentIDs []string // distinct, includes diagram previews
+	// Embeds are the external pages the document frames, in document order.
+	// The save path re-checks each one against the deployment's allow-list,
+	// so a document can never come to hold an iframe the policy refuses.
+	Embeds        []EmbedRef
 	ExternalLinks []string // distinct hrefs of link marks and embeds
 	BlockIDs      []string // every non-empty block id, document order
 	FootnoteIDs   []string // footnote ids in reference order
@@ -35,6 +39,12 @@ type Structure struct {
 	CharCount     int
 	HasTOC        bool
 	HasSubpages   bool
+}
+
+// EmbedRef is one framed external page, as the document declares it.
+type EmbedRef struct {
+	Provider string
+	URL      string
 }
 
 // Extract walks the tree once and collects Structure.
@@ -91,6 +101,9 @@ func (x *extractor) walk(n *schema.Node) {
 		})
 	case schema.NodeEmbed:
 		x.addLink(attr(n, "url"))
+		x.st.Embeds = append(x.st.Embeds, EmbedRef{
+			Provider: attr(n, "provider"), URL: attr(n, "url"),
+		})
 	case schema.NodeFootnoteRef:
 		if id := attr(n, "footnoteId"); id != "" && !x.seenFoot[id] {
 			x.seenFoot[id] = true

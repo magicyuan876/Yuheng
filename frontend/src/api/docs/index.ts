@@ -688,3 +688,35 @@ export async function suggestMentions(
     await get(`${base}/pages/${encodeURIComponent(pageId)}/mention-candidates${suffix}`),
   ) ?? []
 }
+
+// ---- embeds ---------------------------------------------------------------
+
+export interface ResolvedEmbedView {
+  provider: string
+  url: string
+  /** What to put in the iframe. Derived by the server on every call, so a
+   * narrowed allow-list takes effect without rewriting any document. */
+  embed_url: string
+  title?: string
+  author?: string
+  aspect_ratio?: number
+}
+
+export interface EmbedPolicyView {
+  providers: string[]
+  /** The self-hosted draw.io editor; empty means diagrams are read-only. */
+  drawio_url?: string
+}
+
+/** Backend: GET /api/v1/docs/embeds/policy (tenant member). */
+export async function getEmbedPolicy(): Promise<EmbedPolicyView> {
+  return unwrap<EmbedPolicyView>(await get(`${base}/embeds/policy`))
+}
+
+/**
+ * Backend: POST /api/v1/docs/embeds/resolve (tenant member).
+ * Rejects with 400 for an address this deployment does not allow.
+ */
+export async function resolveEmbed(url: string): Promise<ResolvedEmbedView> {
+  return unwrap<ResolvedEmbedView>(await post(`${base}/embeds/resolve`, { url }))
+}

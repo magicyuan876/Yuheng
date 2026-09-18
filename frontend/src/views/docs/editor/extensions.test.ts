@@ -157,11 +157,42 @@ test('a page link stores an id and nothing that could go stale', () => {
   assert.deepEqual(mention, ['label', 'userId'])
 })
 
+// Acceptance (T2.3): a saved diagram shows its rendered preview to a reader
+// and in an export, with no editor involved. That works because the node
+// stores both the editable source and a rendered copy, and the reading path
+// only ever needs the second.
+test('a diagram stores an editable source and a rendered preview', () => {
+  const schema = liveSchema()
+  for (const name of ['drawio', 'excalidraw']) {
+    const attrs = Object.keys(schema.nodes[name]!.spec.attrs ?? {})
+    assert.ok(attrs.includes('attachmentId'), `${name} keeps its source`)
+    assert.ok(attrs.includes('previewAttachmentId'), `${name} keeps a rendering to show`)
+    assert.equal(schema.nodes[name]!.spec.atom, true)
+  }
+})
+
+// Acceptance (T2.3): an embed stores what its author pasted, so the server's
+// allow-list decides what is framed on every read rather than at the last save.
+test('an embed stores the pasted address and never the frame address', () => {
+  const schema = liveSchema()
+  const attrs = Object.keys(schema.nodes.embed!.spec.attrs ?? {}).sort()
+  assert.deepEqual(attrs, ['align', 'height', 'id', 'provider', 'url', 'width'])
+  assert.ok(!attrs.includes('embedUrl'), 'the frame address is derived, never stored')
+})
+
+test('media nodes point at an attachment and nothing else', () => {
+  const schema = liveSchema()
+  for (const name of ['video', 'audio', 'pdfEmbed']) {
+    assert.ok('attachmentId' in schema.nodes[name]!.spec.attrs!, name)
+    assert.equal(schema.nodes[name]!.spec.atom, true, name)
+  }
+})
+
 test('the covered count is a deliberate, documented number', () => {
   // Bumping this alongside a real change is the point: it forces whoever
   // adds a node in a later work package to notice this file and update the
   // decision note in the module comment at the top of extensions.ts.
   const schema = liveSchema()
-  assert.equal(Object.keys(schema.nodes).length, 33, 'node count changed -- update this test and the header comment')
+  assert.equal(Object.keys(schema.nodes).length, 39, 'node count changed -- update this test and the header comment')
   assert.equal(Object.keys(schema.marks).length, 10, 'mark count changed -- update this test and the header comment')
 })

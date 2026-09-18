@@ -34,6 +34,7 @@ export const BLOCK_ID_TYPES = [
   'bulletList', 'orderedList', 'taskList', 'codeBlock', 'table', 'details',
   'image', 'attachment',
   'callout', 'columns', 'pageBreak', 'toc', 'mathBlock', 'mermaid',
+  'video', 'audio', 'pdfEmbed', 'embed', 'drawio', 'excalidraw',
 ] as const
 
 /** Node type names that carry docs-schema's `textBlock` attribute set. */

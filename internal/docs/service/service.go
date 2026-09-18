@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"unicode/utf8"
 
@@ -113,6 +114,15 @@ type Deps struct {
 	// VariantCacheBytes bounds the in-memory cache of rendered image sizes;
 	// 0 uses a 64 MiB default.
 	VariantCacheBytes int
+	// Embeds is the allow-list of external pages a document may frame. nil
+	// refuses every embed, which is the safe direction for a build that
+	// forgot to wire it.
+	Embeds Embeds
+	// DrawioURL is the self-hosted draw.io editor, reported to the client.
+	DrawioURL string
+	// HTTPClient makes the optional oEmbed metadata request; nil uses a
+	// short-timeout client of its own.
+	HTTPClient *http.Client
 }
 
 // Services groups the module's services.

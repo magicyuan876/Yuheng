@@ -31,5 +31,31 @@ export interface DirectoryHandle {
   revision: Ref<number>
 }
 
+/** What an embed node was told about its address. */
+export interface ResolvedEmbed {
+  /** The address to frame, or empty when the deployment refuses it. */
+  embedUrl: string
+  title?: string
+}
+
+export interface EmbedResolverHandle {
+  /** What to frame; undefined while the answer is still being fetched. */
+  get: (provider: string, url: string) => ResolvedEmbed | undefined
+  revision: Ref<number>
+}
+
+/** What a diagram node needs to open its editor. */
+export interface DiagramHost {
+  /** The self-hosted draw.io address, or empty when diagrams are read-only. */
+  drawioURL: Ref<string>
+  /** Stores an edited diagram and returns the two attachment ids. */
+  save: (kind: 'drawio' | 'excalidraw', source: string, preview: string, sourceName: string)
+    => Promise<{ attachmentId: string; previewAttachmentId: string }>
+  /** Reads a stored diagram's source back. */
+  load: (attachmentId: string) => Promise<string>
+}
+
 export const DOCS_TITLE_CACHE: InjectionKey<TitleCacheHandle> = Symbol('docs.titleCache')
+export const DOCS_EMBEDS: InjectionKey<EmbedResolverHandle> = Symbol('docs.embeds')
+export const DOCS_DIAGRAMS: InjectionKey<DiagramHost> = Symbol('docs.diagrams')
 export const DOCS_DIRECTORY: InjectionKey<DirectoryHandle> = Symbol('docs.directory')

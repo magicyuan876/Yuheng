@@ -157,6 +157,9 @@ func (s *PageService) replaceDirect(ctx context.Context, actor *acl.Identity, pa
 		return nil, fmt.Errorf("docs: the validated body no longer parses: %w", err)
 	}
 	structure := render.Extract(node)
+	if err := s.checkEmbeds(structure); err != nil {
+		return nil, err
+	}
 
 	current := page
 	for attempt := 0; ; attempt++ {
