@@ -59,9 +59,10 @@
 <script setup lang="ts">
 import type { Editor } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { IdleScheduler } from './idleWork'
 import {
   findKey, findMatches, matchAfter, replaceAll, replaceMatch, searchRegex, stepMatch,
   type Match,
@@ -173,7 +174,19 @@ function close() {
   props.editor?.commands.focus()
 }
 
-watch([query, options, () => props.revision], () => refresh())
+/**
+ * Searching is deferred the same way the word count is.
+ *
+ * With the panel open, every keystroke in the document would otherwise walk
+ * every block of it. On a page of fifty thousand words that is the difference
+ * between typing and waiting, and the answer is only ever a highlight — it can
+ * arrive a moment late.
+ */
+const rescan = new IdleScheduler(() => refresh())
+
+watch([query, options], () => refresh())
+watch(() => props.revision, () => rescan.schedule())
+onBeforeUnmount(() => rescan.cancel())
 
 watch(() => props.open, (open) => {
   if (open) {

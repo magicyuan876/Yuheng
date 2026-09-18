@@ -11,6 +11,7 @@ import { computed, ref, shallowRef, type Ref } from 'vue'
 import { suggestMentions, suggestPages, type MentionCandidate, type PageRef } from '@/api/docs'
 
 import { blockCommands, matchCommands, type BlockCommand, type CommandTarget } from './commands'
+import { matchEmoji, type Emoji } from './emoji'
 import type { SuggestionItem } from './SuggestionMenu.vue'
 import {
   moveSelection, suggestionPlugin,
@@ -24,13 +25,17 @@ const TRIGGERS: Trigger[] = [
   { name: 'mention', chars: '@', requireBoundary: true },
   // Only after whitespace, so a date or a path does not open the menu.
   { name: 'command', chars: '/', requireBoundary: true },
+  // A colon is ordinary punctuation, so this one needs both a boundary before
+  // it and something typed after it; matchEmoji returns nothing for an empty
+  // query, which is what keeps a menu off an ordinary sentence.
+  { name: 'emoji', chars: ':', requireBoundary: true, maxQuery: 24 },
 ]
 
 /** How long to wait after a keystroke before asking the server. */
 const QUERY_DEBOUNCE_MS = 140
 
 /** Which menu is open. */
-export type SuggestionKind = 'page' | 'mention' | 'command'
+export type SuggestionKind = 'page' | 'mention' | 'command' | 'emoji'
 
 export interface DocSuggestionsOptions {
   pageId: Ref<string>
@@ -77,6 +82,9 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
   const commands = computed<BlockCommand[]>(
     () => matchCommands(catalogue.value, commandQuery.value, (c) => opts.translate(c.labelKey)),
   )
+  // The emoji menu answers from memory in the same way.
+  const emojiQuery = ref('')
+  const emojis = computed<Emoji[]>(() => matchEmoji(emojiQuery.value))
 
   let bound: Editor | null = null
   let active: ActiveTrigger | null = null
@@ -86,6 +94,13 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
   let ticket = 0
 
   const items = computed<SuggestionItem[]>(() => {
+    if (kind.value === 'emoji') {
+      return emojis.value.map((entry) => ({
+        key: entry.char,
+        title: entry.name,
+        icon: entry.char,
+      }))
+    }
     if (kind.value === 'command') {
       return commands.value.map((c) => ({
         key: c.id,
@@ -116,6 +131,7 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
     ticket++
     active = null
     commandQuery.value = ''
+    emojiQuery.value = ''
     open.value = false
     loading.value = false
     pages.value = []
@@ -130,16 +146,18 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
     }
     active = next
     kind.value = next.name === 'command' ? 'command'
-      : next.name === 'mention' ? 'mention' : 'page'
+      : next.name === 'emoji' ? 'emoji'
+        : next.name === 'mention' ? 'mention' : 'page'
     open.value = true
     selected.value = 0
     position.value = caretPosition(bound, next.to)
 
     if (timer !== null) clearTimeout(timer)
-    if (next.name === 'command') {
+    if (next.name === 'command' || next.name === 'emoji') {
       // Nothing to wait for, so nothing is debounced: the list is recomputed
       // from the catalogue as the query changes.
-      commandQuery.value = next.query
+      if (next.name === 'command') commandQuery.value = next.query
+      else emojiQuery.value = next.query
       loading.value = false
       return
     }
@@ -180,6 +198,13 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
     const item = items.value[at]
     if (!item || !active || !bound) return
     const range = { from: active.from, to: active.to }
+    if (kind.value === 'emoji') {
+      // The character replaces the ":name" that was typed, which is what the
+      // shorthand is for.
+      bound.chain().focus().deleteRange(range).insertContent(item.key).run()
+      close()
+      return
+    }
     if (kind.value === 'command') {
       const command = commands.value[at]
       // Closed first: the command edits the document, and a menu still holding
