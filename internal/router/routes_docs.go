@@ -89,8 +89,14 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/spaces/:sid/labels", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
 	write.POST("/spaces/:sid/labels", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
+	// ---- attachments (T1.6) -------------------------------------------------
+	// Uploading is a space-level right; reading one is decided by the page it
+	// belongs to, which the guard cannot know from the URL, so the service
+	// resolves it. No idempotency middleware: an upload is deduplicated by
+	// content digest, which is a better key than one the client invents.
+	fh := h.Files
 	write.POST("/spaces/:sid/attachments", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), fh.Upload)
 	write.POST("/spaces/:sid/imports", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
 	write.POST("/spaces/:sid/export", g.Contributor(),
@@ -117,6 +123,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Ancestors)
 	read.GET("/pages/:pid/children", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Children)
+	read.GET("/pages/:pid/attachments", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), fh.ListForPage)
 	read.GET("/pages/:pid/backlinks", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	read.GET("/pages/:pid/effective-permission", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
@@ -167,8 +175,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.DELETE("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
 	write.POST("/comments/:cid/resolve", g.Viewer(), guard.RequireMember(), idem, ni)
 	write.DELETE("/shares/:shid", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/attachments/:aid", g.Viewer(), guard.RequireMember(), ni)
-	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/attachments/:aid", g.Viewer(), guard.RequireMember(), fh.Download)
+	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, fh.Delete)
 
 	// ---- templates, labels, search, notifications, imports/exports -------------
 	read.GET("/templates", g.Viewer(), guard.RequireMember(), ni)

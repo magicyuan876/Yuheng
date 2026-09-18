@@ -24,6 +24,7 @@ import (
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
+	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
 // Directory resolves user IDs to display data. interfaces.UserRepository
@@ -59,6 +60,20 @@ type Tokens interface {
 	ValidateToken(ctx context.Context, token string) (*types.User, uint64, error)
 }
 
+// Storage resolves the FileService an attachment's bytes are written to and
+// read back from. interfaces.StorageBackendResolver satisfies it.
+type Storage interface {
+	ResolveFileService(ctx context.Context, tenant *types.Tenant, backendID, provider,
+		localBaseDir string) (interfaces.FileService, string, error)
+}
+
+// Tenants supplies the workspace storage accounting attachments are charged
+// against. interfaces.TenantRepository satisfies it.
+type Tenants interface {
+	GetTenantByID(ctx context.Context, id uint64) (*types.Tenant, error)
+	AdjustStorageUsed(ctx context.Context, tenantID uint64, delta int64) error
+}
+
 // CollabClient is the collaboration service as this package uses it:
 // replacing a live document and dropping its connections.
 type CollabClient interface {
@@ -89,6 +104,15 @@ type Deps struct {
 	CollabURL string
 	// MaxYDocBytes caps one page's Yjs state; 0 uses DefaultMaxYDocBytes.
 	MaxYDocBytes int64
+	// Storage and Tenants are required by attachments only; without them
+	// uploading is refused and the rest of the module still works.
+	Storage Storage
+	Tenants Tenants
+	// MaxAttachmentBytes caps one upload; 0 uses DefaultMaxAttachmentBytes.
+	MaxAttachmentBytes int64
+	// VariantCacheBytes bounds the in-memory cache of rendered image sizes;
+	// 0 uses a 64 MiB default.
+	VariantCacheBytes int
 }
 
 // Services groups the module's services.
@@ -100,6 +124,7 @@ type Services struct {
 	// Leases serves the exclusive-edit transport used when no collaboration
 	// service is configured.
 	Leases *LeaseService
+	Files  *AttachmentService
 }
 
 // New wires the services.
@@ -111,6 +136,7 @@ func New(d Deps) *Services {
 		Pages:  &PageService{base: base},
 		Collab: &CollabService{base: base},
 		Leases: &LeaseService{base: base},
+		Files:  &AttachmentService{base: base, variants: newVariantCache(d.VariantCacheBytes)},
 	}
 }
 

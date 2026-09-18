@@ -6719,6 +6719,17 @@ export default {
       iconPlaceholder: '아이콘으로 쓸 이모지를 입력하세요',
       removeIcon: '아이콘 제거',
     },
+    attachments: {
+      attach: '파일 삽입',
+      uploading: '{name} 업로드 중…',
+      remove: '제거',
+      unnamed: '이름 없는 파일',
+      imageAlt: '대체 텍스트 편집',
+      imageAltPrompt: '이 이미지의 대체 텍스트(화면 낭독기와 로드 실패 시 표시)',
+      alignLeft: '왼쪽 정렬',
+      alignCenter: '가운데 정렬',
+      alignRight: '오른쪽 정렬',
+    },
     trash: {
       title: '휴지통',
       subtitle: '삭제한 페이지는 여기에 보관됩니다. 복원하면 원래 위치로 돌아가며, 상위 페이지가 없으면 최상위로 이동합니다.',

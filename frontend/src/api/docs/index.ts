@@ -1,4 +1,4 @@
-import { del, get, patch, post, put } from '@/utils/request'
+import { del, get, patch, post, postUpload, put } from '@/utils/request'
 
 // Online documents API (backend: internal/router/routes_docs.go). Every
 // function unwraps Yuheng's `{ success, data }` envelope and rejects with the
@@ -537,4 +537,64 @@ export async function getPageYDoc(id: string): Promise<YDocState> {
 /** Backend: PUT /api/v1/docs/pages/:pid/ydoc (page writer, holding the lease). 409 on a stale base version. */
 export async function savePageYDoc(id: string, body: SaveYDocRequest): Promise<SaveYDocResult> {
   return unwrap<SaveYDocResult>(await put(`${base}/pages/${encodeURIComponent(id)}/ydoc`, body))
+}
+
+// ---- attachments ----------------------------------------------------------
+
+export type AttachmentKind = 'file' | 'image' | 'video' | 'audio' | 'diagram'
+
+export interface DocsAttachment {
+  id: string
+  space_id: string
+  page_id?: string
+  file_name: string
+  /** The media type the server derived from the bytes, never from the name. */
+  mime: string
+  size_bytes: number
+  kind: AttachmentKind
+  width?: number
+  height?: number
+  /** The permission-checked address to read it from. */
+  url: string
+  uploader?: { user_id: string; username?: string; email?: string; avatar?: string }
+  created_at: string
+  /** Widths this image can also be served at, for a srcset. */
+  variants?: number[]
+}
+
+/**
+ * Backend: POST /api/v1/docs/spaces/:sid/attachments (space writer).
+ * The server sniffs the type, sanitises SVG, deduplicates by content digest
+ * and charges the workspace quota, so the client sends the file as it is.
+ */
+export async function uploadAttachment(
+  spaceId: string,
+  file: File,
+  opts: { pageId?: string; onProgress?: (percent: number) => void; signal?: AbortSignal } = {},
+): Promise<DocsAttachment> {
+  const form = new FormData()
+  form.append('file', file)
+  if (opts.pageId) form.append('page_id', opts.pageId)
+  const res = await postUpload(
+    `${base}/spaces/${encodeURIComponent(spaceId)}/attachments`,
+    form,
+    (event: { loaded?: number; total?: number }) => {
+      if (!opts.onProgress || !event?.total) return
+      opts.onProgress(Math.min(100, Math.round(((event.loaded ?? 0) / event.total) * 100)))
+    },
+    { signal: opts.signal },
+  )
+  return unwrap<DocsAttachment>(res)
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/attachments (page reader). */
+export async function listPageAttachments(pageId: string): Promise<DocsAttachment[]> {
+  return unwrap<DocsAttachment[] | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/attachments`),
+  ) ?? []
+}
+
+/** Backend: DELETE /api/v1/docs/attachments/:aid (page or space writer). */
+export async function deleteAttachment(id: string): Promise<void> {
+  await del(`${base}/attachments/${encodeURIComponent(id)}`)
 }

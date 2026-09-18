@@ -18,6 +18,15 @@
         </template>
       </div>
       <div class="doc-editor-meta">
+        <button
+          v-if="editorEditable"
+          type="button"
+          class="doc-editor-attach"
+          @click="pickFiles"
+        >
+          <t-icon name="attach" size="14px" />
+          <span>{{ t('docs.attachments.attach') }}</span>
+        </button>
         <span v-if="saveLabel" class="doc-editor-save">{{ saveLabel }}</span>
         <span>{{ t('docs.pages.wordCount', { count: wordCount }) }}</span>
       </div>
@@ -27,24 +36,51 @@
       <t-skeleton animation="gradient" :row-col="[{ width: '90%' }, { width: '75%' }, { width: '85%' }]" />
     </div>
     <EditorContent v-else-if="editor" :editor="editor" class="doc-editor-content" />
+
+    <ul v-if="uploads.tasks.value.length" class="doc-editor-uploads">
+      <li v-for="task in uploads.tasks.value" :key="task.key">
+        <t-icon name="upload" size="13px" />
+        <span class="doc-editor-upload-name">{{ task.name }}</span>
+        <t-progress
+          theme="line"
+          :percentage="Math.max(task.progress, 1)"
+          :label="false"
+          class="doc-editor-upload-bar"
+        />
+      </li>
+    </ul>
+
+    <input
+      ref="filePicker"
+      type="file"
+      multiple
+      class="doc-editor-file-input"
+      @change="onFilesPicked"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
-import { EditorContent, useEditor } from '@tiptap/vue-3'
+import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3'
+import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { awarenessUser, type UserLike } from './session'
+import AttachmentNodeView from './AttachmentNodeView.vue'
 import { officialExtensions } from './extensions'
+import ImageNodeView from './ImageNodeView.vue'
+import { awarenessUser, type UserLike } from './session'
+import { useDocUploads } from './useDocUploads'
 import { extractHeadings } from './toc'
 import { countDocument } from './wordCount'
 import { useDocCollab } from './useDocCollab'
 
 const props = defineProps<{
   pageId: string
+  /** The page's space, which is what an upload is stored against. */
+  spaceId: string
   tenantId: string | number
   /** The page's own ACL answer (REST `can_edit`); the composable further
    * narrows this against the live collaboration connection. */
@@ -104,6 +140,30 @@ const bannerText = computed(() => {
   }
 })
 
+const spaceIdRef = computed(() => props.spaceId)
+const pageIdRefForUploads = computed(() => props.pageId)
+
+const uploads = useDocUploads({
+  spaceId: spaceIdRef,
+  pageId: pageIdRefForUploads,
+  canEdit: editorEditable,
+  onError: (message) => void MessagePlugin.error(message),
+  placeholderLabel: (task) => t('docs.attachments.uploading', { name: task.name }),
+})
+
+const filePicker = ref<HTMLInputElement | null>(null)
+
+function pickFiles() {
+  filePicker.value?.click()
+}
+
+function onFilesPicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (editor.value && input.files) uploads.insert(editor.value, [...input.files])
+  // Clearing lets the same file be chosen twice in a row.
+  input.value = ''
+}
+
 const wordCount = ref(0)
 
 /** Exclusive-edit mode saves on a timer rather than keystroke by keystroke,
@@ -121,7 +181,9 @@ const saveLabel = computed(() => {
 
 const editor = useEditor({
   editable: editorEditable.value,
+  editorProps: uploads.editorProps,
   extensions: officialExtensions([
+    uploads.extension,
     Collaboration.configure({ document: collab.ydoc.value }),
     // Live cursors need a collaboration service to relay awareness; in
     // exclusive-edit mode there is never a second writer to draw.
@@ -129,7 +191,10 @@ const editor = useEditor({
       provider: collab.provider.value,
       user: props.currentUser ? awarenessUser(props.currentUser) : { name: '', color: '#999999' },
     })] : []),
-  ]),
+  ], {
+    image: VueNodeViewRenderer(ImageNodeView),
+    attachment: VueNodeViewRenderer(AttachmentNodeView),
+  }),
   onUpdate: ({ editor: ed }) => {
     wordCount.value = countDocument(ed.state.doc).words
     emit('headings', extractHeadings(ed.state.doc))
@@ -137,6 +202,7 @@ const editor = useEditor({
   onCreate: ({ editor: ed }) => {
     wordCount.value = countDocument(ed.state.doc).words
     emit('headings', extractHeadings(ed.state.doc))
+    uploads.bind(ed)
   },
 })
 
@@ -145,6 +211,7 @@ watch(editorEditable, (val) => {
 })
 
 onBeforeUnmount(() => {
+  uploads.bind(null)
   editor.value?.destroy()
 })
 
@@ -236,6 +303,64 @@ defineExpose({ editor, collab })
 
 .doc-editor-save {
   font-variant-numeric: tabular-nums;
+}
+
+.doc-editor-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--td-text-color-placeholder);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+
+  &:hover {
+    color: var(--td-text-color-primary);
+    background: var(--td-bg-color-container-hover);
+  }
+}
+
+.doc-editor-file-input {
+  display: none;
+}
+
+.doc-editor-uploads {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--td-text-color-placeholder);
+    padding: 2px 0;
+  }
+}
+
+.doc-editor-upload-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-editor-upload-bar {
+  flex: 1;
+  max-width: 200px;
+}
+
+:deep(.docs-upload-placeholder) {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--td-text-color-placeholder);
+  background: var(--td-bg-color-secondarycontainer);
 }
 
 .doc-editor-loading {

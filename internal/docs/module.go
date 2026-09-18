@@ -40,6 +40,11 @@ type Params struct {
 	// rejected with a clear message.
 	KnowledgeBases  interfaces.KnowledgeBaseRepository  `optional:"true"`
 	StorageBackends interfaces.StorageBackendRepository `optional:"true"`
+	// StorageResolver and Tenants are what attachments need: where to put the
+	// bytes, and whose storage quota to charge. Without them the module still
+	// boots and uploading is refused with a clear message.
+	StorageResolver interfaces.StorageBackendResolver `optional:"true"`
+	Tenants         interfaces.TenantRepository       `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -105,6 +110,13 @@ func NewModule(p Params) *Module {
 	deps := service.Deps{
 		Repos: repos, Resolver: resolver, Bus: bus, Audit: rec, Users: p.Users, Members: p.TenantMembers,
 		CollabURL: cfg.CollabURL, MaxYDocBytes: cfg.MaxYDocBytes,
+		MaxAttachmentBytes: cfg.MaxAttachmentBytes,
+	}
+	if p.StorageResolver != nil {
+		deps.Storage = p.StorageResolver
+	}
+	if p.Tenants != nil {
+		deps.Tenants = p.Tenants
 	}
 	if p.UserService != nil {
 		deps.Tokens = p.UserService

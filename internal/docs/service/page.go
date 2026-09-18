@@ -1120,10 +1120,18 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 	if page.DeletedAt == nil {
 		return nil, conflict("page is not in the trash")
 	}
+	// Collected before the purge: the foreign key nulls page_id as soon as the
+	// page rows are gone, and there would be nothing left to release.
+	subtree, err := s.d.Repos.Pages.SubtreeIDs(ctx, actor.TenantID, pageID)
+	if err != nil {
+		return nil, err
+	}
+	doomed := s.collectPageAttachments(ctx, actor.TenantID, subtree)
 	ids, err := s.d.Repos.Pages.PurgeOne(ctx, actor.TenantID, pageID)
 	if err != nil {
 		return nil, err
 	}
+	s.releaseAttachments(ctx, actor.TenantID, doomed)
 	s.invalidate(ctx, actor.TenantID)
 	for _, id := range ids {
 		s.evict(ctx, id)
@@ -1146,6 +1154,11 @@ func (s *PageService) EmptyTrash(ctx context.Context, actor *acl.Identity, space
 	}
 	total := 0
 	for _, r := range roots {
+		subtree, err := s.d.Repos.Pages.SubtreeIDs(ctx, actor.TenantID, r.ID)
+		if err != nil {
+			return total, err
+		}
+		doomed := s.collectPageAttachments(ctx, actor.TenantID, subtree)
 		ids, err := s.d.Repos.Pages.PurgeOne(ctx, actor.TenantID, r.ID)
 		if err != nil {
 			if errors.Is(err, repository.ErrNotFound) {
@@ -1153,6 +1166,7 @@ func (s *PageService) EmptyTrash(ctx context.Context, actor *acl.Identity, space
 			}
 			return total, err
 		}
+		s.releaseAttachments(ctx, actor.TenantID, doomed)
 		total += len(ids)
 	}
 	s.invalidate(ctx, actor.TenantID)

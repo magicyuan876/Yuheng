@@ -44,6 +44,10 @@ const (
 	// readers use it to show who is editing and when the page frees up.
 	PageLease Type = "docs.page.lease_changed"
 
+	// AttachmentAdded: a file was uploaded against a page, so an open view
+	// can show it without waiting for the next save.
+	AttachmentAdded Type = "docs.attachment.added"
+
 	CommentChanged      Type = "docs.comment.changed"
 	NotificationCreated Type = "docs.notification.created"
 	GroupChanged        Type = "docs.group.changed"

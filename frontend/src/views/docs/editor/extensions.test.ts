@@ -79,11 +79,25 @@ test('extending officialExtensions with an unrelated extra extension does not di
   assert.deepEqual(Object.keys(withExtra.marks).sort(), Object.keys(base.marks).sort())
 })
 
+test('the media nodes point at an attachment id and never at a stored address', () => {
+  const schema = liveSchema()
+  for (const name of ['image', 'attachment']) {
+    const node = schema.nodes[name]
+    assert.ok(node, `${name} must be part of the editor schema`)
+    assert.ok('attachmentId' in node.spec.attrs!, `${name} must carry an attachment id`)
+    assert.equal(node.spec.atom, true, `${name} has no editable content of its own`)
+  }
+  // An image may also point outside the workspace, which is the one case a
+  // literal address is kept; a file card never has one.
+  assert.ok('src' in schema.nodes.image!.spec.attrs!)
+  assert.ok(!('src' in schema.nodes.attachment!.spec.attrs!))
+})
+
 test('the covered count is a deliberate, documented number', () => {
   // Bumping this alongside a real change is the point: it forces whoever
   // adds a node in a later work package to notice this file and update the
   // decision note in the module comment at the top of extensions.ts.
   const schema = liveSchema()
-  assert.equal(Object.keys(schema.nodes).length, 20, 'node count changed -- update this test and the header comment')
+  assert.equal(Object.keys(schema.nodes).length, 22, 'node count changed -- update this test and the header comment')
   assert.equal(Object.keys(schema.marks).length, 10, 'mark count changed -- update this test and the header comment')
 })
