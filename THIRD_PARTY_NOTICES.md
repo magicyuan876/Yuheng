@@ -18,7 +18,7 @@ cutting a release: it carries the blocking items.
 |---|---|---|
 | Go | 383 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
-| Python (docreader) | 72 distributions | `docreader/uv.lock` (resolved from the built image) |
+| Python (docreader) | 67 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
 
 ---
@@ -868,39 +868,35 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | License | Distributions |
 |---|---|
 | MIT License | 14 |
-| BSD License | 13 |
-| MIT | 11 |
-| Apache Software License | 8 |
+| BSD License | 12 |
+| MIT | 10 |
+| Apache Software License | 7 |
 | BSD-3-Clause | 6 |
 | Apache-2.0 | 5 |
-| Mozilla Public License 2.0 (MPL 2.0) | 1 |
-| GNU Lesser General Public License v2 or later (LGPLv2+) | 1 |
+| 3-Clause BSD License | 1 |
+| Apache Software License; BSD License | 1 |
+| Apache-2.0 AND CNRI-Python | 1 |
 | Apache-2.0 OR BSD-3-Clause | 1 |
-| Python Software Foundation License | 1 |
-| NOT-DECLARED | 1 |
+| BSD License; Apache Software License | 1 |
+| BSD-3-Clause, Apache-2.0, dependency licenses | 1 |
 | GNU Affero General Public License v3 or later (AGPLv3+) | 1 |
 | MIT AND Python-2.0 | 1 |
-| Apache Software License; BSD License | 1 |
 | MIT-CMU | 1 |
-| 3-Clause BSD License | 1 |
-| BSD-3-Clause, Apache-2.0, dependency licenses | 1 |
-| BSD License; Apache Software License | 1 |
-| Apache-2.0 AND CNRI-Python | 1 |
 | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later | 1 |
+| Mozilla Public License 2.0 (MPL 2.0) | 1 |
 | PSF-2.0 | 1 |
+| Python Software Foundation License | 1 |
 
 <details>
-<summary>Full list (72 distributions)</summary>
+<summary>Full list (67 distributions)</summary>
 
 | Distribution | Version | License |
 |---|---|---|
 | `annotated-types` | 0.7.0 | MIT License |
-| `argcomplete` | 3.6.3 | Apache Software License |
 | `babel` | 2.17.0 | BSD License |
 | `beautifulsoup4` | 4.14.2 | MIT License |
 | `certifi` | 2025.10.5 | Mozilla Public License 2.0 (MPL 2.0) |
 | `cffi` | 2.0.0 | MIT |
-| `chardet` | 5.2.0 | GNU Lesser General Public License v2 or later (LGPLv2+) |
 | `charset-normalizer` | 3.4.4 | MIT |
 | `click` | 8.3.0 | BSD-3-Clause |
 | `cobble` | 0.1.4 | BSD License |
@@ -909,7 +905,6 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `cryptography` | 49.0.0 | Apache-2.0 OR BSD-3-Clause |
 | `dateparser` | 1.2.2 | BSD License |
 | `defusedxml` | 0.7.1 | Python Software Foundation License |
-| `docx2txt` | 0.9 | NOT-DECLARED |
 | `EbookLib` | 0.20 | GNU Affero General Public License v3 or later (AGPLv3+) |
 | `et_xmlfile` | 2.0.0 | MIT License |
 | `flatbuffers` | 25.9.23 | Apache Software License |
@@ -954,9 +949,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `setuptools` | 80.9.0 | MIT |
 | `six` | 1.17.0 | MIT License |
 | `soupsieve` | 2.8.4 | MIT |
-| `SpeechRecognition` | 3.14.3 | BSD License |
 | `sympy` | 1.14.0 | BSD License |
-| `textract` | 1.5.0 | MIT |
 | `tld` | 0.13.1 | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later |
 | `trafilatura` | 2.0.0 | Apache Software License |
 | `typing-inspection` | 0.4.2 | MIT |
