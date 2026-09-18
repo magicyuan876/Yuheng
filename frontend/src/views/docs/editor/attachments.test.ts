@@ -76,13 +76,29 @@ test('an uploaded image becomes an image node carrying its own dimensions', () =
   assert.equal(node.attrs.alt, 'photo.png')
 })
 
-test('anything that is not an image becomes a file card', () => {
-  for (const kind of ['file', 'video', 'audio', 'diagram'] as const) {
-    const node = nodeForAttachment(attachment({ kind, file_name: 'thing.bin', mime: 'application/zip' }))
+test('a video, an audio file and a PDF each get their own node', () => {
+  // The kind the server derived from the bytes decides, not the file's name.
+  const video = nodeForAttachment(attachment({ kind: 'video', mime: 'video/mp4', file_name: 'clip.txt' }))
+  assert.equal(video.type, 'video')
+  assert.equal(video.attrs.attachmentId, 'a1')
+
+  const audio = nodeForAttachment(attachment({ kind: 'audio', mime: 'audio/mpeg' }))
+  assert.equal(audio.type, 'audio')
+
+  const pdf = nodeForAttachment(attachment({
+    kind: 'file', mime: 'application/pdf', file_name: 'report.pdf',
+  }))
+  assert.equal(pdf.type, 'pdfEmbed')
+  assert.equal(pdf.attrs.name, 'report.pdf')
+})
+
+test('anything a browser cannot usefully show becomes a file card', () => {
+  for (const [kind, mime] of [['file', 'application/zip'], ['diagram', 'application/xml']] as const) {
+    const node = nodeForAttachment(attachment({ kind, file_name: 'thing.bin', mime }))
     assert.equal(node.type, 'attachment', kind)
     assert.equal(node.attrs.attachmentId, 'a1')
     assert.equal(node.attrs.name, 'thing.bin')
-    assert.equal(node.attrs.mime, 'application/zip')
+    assert.equal(node.attrs.mime, mime)
     assert.equal(node.attrs.size, 1234)
   }
 })

@@ -41,7 +41,22 @@ type DocsConfig struct {
 	// ACLCacheTTLSeconds bounds how long a permission decision may be served
 	// from cache (default 60).
 	ACLCacheTTLSeconds int `yaml:"acl_cache_ttl_seconds" json:"acl_cache_ttl_seconds"`
+	// EmbedProviders names the built-in embed providers to allow. Empty
+	// allows all of them; listing a subset is how a deployment narrows what a
+	// document may put in an iframe.
+	EmbedProviders []string `yaml:"embed_providers" json:"embed_providers"`
+	// EmbedExtraHosts allows additional hosts, framed as given, for a
+	// self-hosted video or whiteboard service. A leading dot allows the
+	// host's subdomains.
+	EmbedExtraHosts []string `yaml:"embed_extra_hosts" json:"embed_extra_hosts"`
+	// DrawioURL is the self-hosted draw.io editor the diagram node opens.
+	// Empty disables creating and editing draw.io diagrams; existing ones
+	// still render from their stored preview.
+	DrawioURL string `yaml:"drawio_url" json:"drawio_url"`
 }
+
+// DrawioEnabled reports whether a draw.io editor is configured.
+func (d *DocsConfig) DrawioEnabled() bool { return d != nil && strings.TrimSpace(d.DrawioURL) != "" }
 
 // CollabEnabled reports whether a collaboration service is configured.
 func (d *DocsConfig) CollabEnabled() bool { return d != nil && strings.TrimSpace(d.CollabURL) != "" }
@@ -88,6 +103,9 @@ func loadDocsConfig() *DocsConfig {
 		RevisionIntervalMinutes: int(envInt64("YUHENG_DOCS_REVISION_INTERVAL_MINUTES", 10)),
 		IndexDebounceSeconds:    int(envInt64("YUHENG_DOCS_INDEX_DEBOUNCE_SECONDS", 60)),
 		ACLCacheTTLSeconds:      int(envInt64("YUHENG_DOCS_ACL_CACHE_TTL_SECONDS", 60)),
+		EmbedProviders:          envList("YUHENG_DOCS_EMBED_PROVIDERS"),
+		EmbedExtraHosts:         envList("YUHENG_DOCS_EMBED_EXTRA_HOSTS"),
+		DrawioURL:               strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
 	}
 	if d.Enabled && d.CollabEnabled() && d.CollabSharedSecret == "" {
 		// Printf: LoadConfig runs before the logger is wired.
@@ -95,6 +113,23 @@ func loadDocsConfig() *DocsConfig {
 			"the collaboration service will not be able to authenticate its callbacks")
 	}
 	return d
+}
+
+// envList reads a comma-separated setting, dropping blanks. An unset variable
+// and one set to an empty string mean the same thing: no explicit list.
+func envList(name string) []string {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func envBool(name string, def bool) bool {

@@ -43,6 +43,15 @@ type Options struct {
 	// "content unavailable" placeholder. Nested transclusions inside the
 	// returned block are not expanded.
 	TransclusionContent func(pageID, blockID string) (node *schema.Node, ok bool)
+	// EmbedURL derives the address to frame for an embed node, or "" when the
+	// deployment's allow-list no longer permits it, in which case a
+	// placeholder is rendered instead.
+	//
+	// nil means "frame whatever the node says", which is only correct because
+	// the save path refuses a node the policy does not allow in the first
+	// place. Supplying it makes a page stop framing an embed as soon as the
+	// policy changes, rather than at its next save.
+	EmbedURL func(provider, rawURL string) string
 	// Subpages lists the child pages of the rendered page for the subpages
 	// node. nil renders an empty container the client fills in.
 	Subpages func() []PageRef

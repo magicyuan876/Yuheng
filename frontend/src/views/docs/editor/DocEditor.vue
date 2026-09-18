@@ -79,7 +79,7 @@ import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3'
 // column of unpositioned glyphs.
 import 'katex/dist/katex.min.css'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { resolvePageTitles } from '@/api/docs'
@@ -90,7 +90,15 @@ import ColumnNodeView from './ColumnNodeView.vue'
 import ColumnsNodeView from './ColumnsNodeView.vue'
 import { officialExtensions } from './extensions'
 import ImageNodeView from './ImageNodeView.vue'
-import { DOCS_DIRECTORY, DOCS_TITLE_CACHE, type DirectoryPerson } from './linkContext'
+import AudioNodeView from './AudioNodeView.vue'
+import DiagramNodeView from './DiagramNodeView.vue'
+import EmbedNodeView from './EmbedNodeView.vue'
+import {
+  DOCS_DIAGRAMS, DOCS_DIRECTORY, DOCS_EMBEDS, DOCS_TITLE_CACHE, type DirectoryPerson,
+} from './linkContext'
+import PdfNodeView from './PdfNodeView.vue'
+import { useDocMedia } from './useDocMedia'
+import VideoNodeView from './VideoNodeView.vue'
 import MathNodeView from './MathNodeView.vue'
 import MentionNodeView from './MentionNodeView.vue'
 import MermaidNodeView from './MermaidNodeView.vue'
@@ -219,6 +227,17 @@ provide(DOCS_DIRECTORY, {
   revision: directoryRevision,
 })
 
+// ---- media, embeds and diagrams --------------------------------------------
+// The embed allow-list lives on the server, so an embed node cannot work out
+// its own frame address; the resolver asks once per address and every node
+// showing it shares the answer.
+const media = useDocMedia({ spaceId: spaceIdRef, pageId: pageIdRefForUploads })
+provide(DOCS_EMBEDS, media.embeds)
+provide(DOCS_DIAGRAMS, media.diagrams)
+onMounted(() => {
+  void media.load()
+})
+
 const suggestions = useDocSuggestions({
   pageId: pageIdRefForUploads,
   spaceId: spaceIdRef,
@@ -283,6 +302,12 @@ const editor = useEditor({
     mermaid: VueNodeViewRenderer(MermaidNodeView),
     pageLink: VueNodeViewRenderer(PageLinkNodeView),
     mention: VueNodeViewRenderer(MentionNodeView),
+    video: VueNodeViewRenderer(VideoNodeView),
+    audio: VueNodeViewRenderer(AudioNodeView),
+    pdfEmbed: VueNodeViewRenderer(PdfNodeView),
+    embed: VueNodeViewRenderer(EmbedNodeView),
+    drawio: VueNodeViewRenderer(DiagramNodeView),
+    excalidraw: VueNodeViewRenderer(DiagramNodeView),
   }),
   onUpdate: ({ editor: ed }) => {
     wordCount.value = countDocument(ed.state.doc).words
@@ -304,6 +329,7 @@ onBeforeUnmount(() => {
   uploads.bind(null)
   suggestions.bind(null)
   titles.dispose()
+  media.dispose()
   editor.value?.destroy()
 })
 

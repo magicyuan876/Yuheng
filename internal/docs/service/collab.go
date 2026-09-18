@@ -214,6 +214,12 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 	}
 	structure := render.Extract(node)
 	text := render.Text(node)
+	// A document may only ever come to hold an iframe this deployment allows.
+	// Checking here rather than only at render time is what keeps a refused
+	// embed out of the stored document altogether.
+	if err := s.checkEmbeds(structure); err != nil {
+		return nil, err
+	}
 
 	editors := dedupe(in.EditorIDs)
 	contributors := append(model.StringList{}, page.ContributorIDs...)
