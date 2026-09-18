@@ -333,7 +333,8 @@ func (r *htmlRenderer) image(n *schema.Node) {
 	} else {
 		src = safeURL(src)
 	}
-	r.open("figure", "id", attr(n, "id"), "class", "image "+alignClass(n), "data-attachment-id", attr(n, "attachmentId"))
+	r.open("figure", "id", attr(n, "id"), "class", "image "+alignClass(n),
+		"data-attachment-id", attr(n, "attachmentId"))
 	r.open("img", "src", src, "alt", attr(n, "alt"), "title", attr(n, "title"),
 		"width", dim(n, "width"), "height", dim(n, "height"), "loading", "lazy")
 	if t := attr(n, "title"); t != "" {
@@ -524,7 +525,8 @@ func (r *htmlRenderer) markedText(n *schema.Node) {
 			if internal || strings.HasPrefix(href, "/") {
 				r.open("a", "href", href, "title", markAttr(m, "title"))
 			} else {
-				r.open("a", "href", href, "title", markAttr(m, "title"), "rel", "noopener noreferrer", "target", "_blank")
+				r.open("a", "href", href, "title", markAttr(m, "title"),
+					"rel", "noopener noreferrer", "target", "_blank")
 			}
 			closers = append(closers, "a")
 		case schema.MarkBold:

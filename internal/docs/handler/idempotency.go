@@ -69,7 +69,8 @@ func Idempotency(store IdempotencyStore, ttl time.Duration) gin.HandlerFunc {
 			return
 		}
 		if len(key) > maxIdempotencyKeyLen {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"success": false, "error": "Idempotency-Key is too long"})
+			c.AbortWithStatusJSON(http.StatusBadRequest,
+				gin.H{"success": false, "error": "Idempotency-Key is too long"})
 			return
 		}
 		ctx := c.Request.Context()
@@ -114,7 +115,8 @@ func Idempotency(store IdempotencyStore, ttl time.Duration) gin.HandlerFunc {
 		// for real, and 4xx are cheap to recompute.
 		if status >= 200 && status < 300 && !rec.overflow {
 			_ = store.Complete(ctx, scoped, &StoredResponse{
-				Status: status, Header: replayHeaders(rec.Header()), Body: rec.buf.Bytes(), CompletedAt: time.Now().UTC(),
+				Status: status, Header: replayHeaders(rec.Header()), Body: rec.buf.Bytes(),
+				CompletedAt: time.Now().UTC(),
 			}, ttl)
 			return
 		}

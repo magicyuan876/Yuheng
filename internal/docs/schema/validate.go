@@ -346,7 +346,8 @@ func (v *validator) checkMarks(child *Node, parent *NodeSpec, path string) {
 		}
 		for otherName, other := range seen {
 			if ms.excludeAl || other.excludeAl || ms.excludes[otherName] || other.excludes[m.Type] {
-				v.report(CodeMarkConflict, markPath, fmt.Sprintf("marks %q and %q exclude each other", m.Type, otherName))
+				v.report(CodeMarkConflict, markPath,
+					fmt.Sprintf("marks %q and %q exclude each other", m.Type, otherName))
 			}
 		}
 		seen[m.Type] = ms

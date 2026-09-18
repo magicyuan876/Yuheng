@@ -64,7 +64,9 @@ func newWorld(t *testing.T, opts ...Option) *world {
 		"1/carol": types.TenantRoleContributor, "1/viewer": types.TenantRoleViewer,
 		"2/alice": types.TenantRoleOwner, // alice is owner of ANOTHER tenant
 	}
-	w := &world{t: t, repos: repos, roles: roles, res: NewResolver(repos, roles, opts...), pages: map[string]*model.Page{}}
+	w := &world{
+		t: t, repos: repos, roles: roles, res: NewResolver(repos, roles, opts...), pages: map[string]*model.Page{},
+	}
 	w.space = &model.Space{TenantID: 1, Slug: "eng", Name: "Engineering", Visibility: model.VisibilityPrivate}
 	require.NoError(t, repos.Spaces.Create(ctx(), w.space))
 	return w
@@ -74,7 +76,9 @@ func ctx() context.Context { return context.Background() }
 
 func (w *world) page(name string, parent string) *model.Page {
 	w.seq++
-	p := &model.Page{TenantID: 1, SpaceID: w.space.ID, Title: name, ShortID: fmt.Sprintf("p%07d", w.seq), Position: "a0"}
+	p := &model.Page{
+		TenantID: 1, SpaceID: w.space.ID, Title: name, ShortID: fmt.Sprintf("p%07d", w.seq), Position: "a0",
+	}
 	if parent != "" {
 		p.ParentID = &w.pages[parent].ID
 	}
@@ -147,7 +151,8 @@ func TestSpaceLayer(t *testing.T) {
 	// Default group: granting "everyone" reaches every tenant member.
 	def, err := w.repos.Groups.EnsureDefault(ctx(), 1, "owner")
 	require.NoError(t, err)
-	require.NoError(t, w.repos.Spaces.Update(ctx(), 1, w.space.ID, map[string]any{"visibility": model.VisibilityPrivate}))
+	require.NoError(t, w.repos.Spaces.Update(ctx(), 1, w.space.ID,
+		map[string]any{"visibility": model.VisibilityPrivate}))
 	w.member(model.GroupPrincipal(def.ID), model.RoleWriter)
 	require.Equal(t, model.RoleWriter, w.role("carol", "root"), "carol is only in the implicit default group")
 	require.Equal(t, model.RoleReader, w.role("viewer", "root"), "still capped by the tenant role")
@@ -276,7 +281,8 @@ func TestCacheServesUntilInvalidated(t *testing.T) {
 	// Change membership behind the resolver's back: the cached decision
 	// stands until someone invalidates the tenant.
 	require.NoError(t, w.repos.Members.Upsert(ctx(), &model.SpaceMember{
-		SpaceID: w.space.ID, TenantID: 1, PrincipalType: model.PrincipalUser, PrincipalID: "alice", Role: model.RoleAdmin,
+		SpaceID: w.space.ID, TenantID: 1, PrincipalType: model.PrincipalUser, PrincipalID: "alice",
+		Role: model.RoleAdmin,
 	}))
 	require.Equal(t, model.RoleReader, w.role("alice", "root"), "stale by design within the TTL")
 	w.res.Invalidate(ctx(), 1)

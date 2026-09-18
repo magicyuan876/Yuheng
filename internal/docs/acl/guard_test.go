@@ -76,9 +76,11 @@ func TestGuardStatusCodes(t *testing.T) {
 	// Pages.
 	require.Equal(t, 200, run("alice", 1, guard.RequirePage("pid", PageByID, model.RoleReader), "/pages/"+root.ID).Code)
 	require.Equal(t, 403, run("alice", 1, guard.RequirePage("pid", PageByID, model.RoleWriter), "/pages/"+root.ID).Code)
-	require.Equal(t, 404, run("alice", 1, guard.RequirePage("pid", PageByID, model.RoleReader), "/pages/"+hidden.ID).Code,
+	pageReader := guard.RequirePage("pid", PageByID, model.RoleReader)
+	pageAdmin := guard.RequirePage("pid", PageByID, model.RoleAdmin)
+	require.Equal(t, 404, run("alice", 1, pageReader, "/pages/"+hidden.ID).Code,
 		"restricted page the caller cannot see reads as missing")
-	require.Equal(t, 200, run("owner", 1, guard.RequirePage("pid", PageByID, model.RoleAdmin), "/pages/"+hidden.ID).Code)
+	require.Equal(t, 200, run("owner", 1, pageAdmin, "/pages/"+hidden.ID).Code)
 	pageByShort := guard.RequirePage("pid", PageByShortID, model.RoleReader)
 	require.Equal(t, 200, run("alice", 1, pageByShort, "/pages/"+root.ShortID).Code)
 
