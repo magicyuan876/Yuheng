@@ -106,10 +106,11 @@ func TestValidateReportsPaths(t *testing.T) {
 func TestValidateStrictJSON(t *testing.T) {
 	s := Default()
 	cases := map[string]string{
-		"unknown key":   `{"type":"doc","content":[{"type":"paragraph","foo":1}]}`,
-		"array root":    `[{"type":"doc"}]`,
-		"missing type":  `{"content":[]}`,
-		"mark no type":  `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"a","marks":[{}]}]}]}`,
+		"unknown key":  `{"type":"doc","content":[{"type":"paragraph","foo":1}]}`,
+		"array root":   `[{"type":"doc"}]`,
+		"missing type": `{"content":[]}`,
+		"mark no type": `{"type":"doc","content":[{"type":"paragraph","content":[` +
+			`{"type":"text","text":"a","marks":[{}]}]}]}`,
 		"trailing junk": `{"type":"doc","content":[{"type":"paragraph"}]} x`,
 	}
 	for name, doc := range cases {
@@ -158,20 +159,30 @@ func TestValidateAllowedRoot(t *testing.T) {
 func TestValidateMarkRules(t *testing.T) {
 	s := Default()
 	text := func(marks string) string {
-		return `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"a","marks":[` + marks + `]}]}]}`
+		return `{"type":"doc","content":[{"type":"paragraph","content":[` +
+			`{"type":"text","text":"a","marks":[` + marks + `]}]}]}`
 	}
 	cases := map[string]struct {
 		doc  string
 		code Code
 	}{
-		"code excludes bold":       {text(`{"type":"code"},{"type":"bold"}`), CodeMarkConflict},
-		"sub excludes sup":         {text(`{"type":"subscript"},{"type":"superscript"}`), CodeMarkConflict},
-		"duplicate link":           {text(`{"type":"link","attrs":{"href":"https://a"}},{"type":"link","attrs":{"href":"https://b"}}`), CodeMarkConflict},
-		"unknown mark":             {text(`{"type":"glow"}`), CodeUnknownMark},
-		"link without href":        {text(`{"type":"link"}`), CodeMissingAttr},
-		"link javascript scheme":   {text(`{"type":"link","attrs":{"href":"javascript:alert(1)"}}`), CodeAttrValue},
-		"bold inside codeBlock":    {`{"type":"doc","content":[{"type":"codeBlock","content":[{"type":"text","text":"x","marks":[{"type":"bold"}]}]}]}`, CodeMarkNotAllowed},
-		"marks on block node":      {`{"type":"doc","content":[{"type":"paragraph","marks":[{"type":"bold"}]}]}`, CodeMarkNotAllowed},
+		"code excludes bold": {text(`{"type":"code"},{"type":"bold"}`), CodeMarkConflict},
+		"sub excludes sup":   {text(`{"type":"subscript"},{"type":"superscript"}`), CodeMarkConflict},
+		"duplicate link": {
+			text(`{"type":"link","attrs":{"href":"https://a"}},{"type":"link","attrs":{"href":"https://b"}}`),
+			CodeMarkConflict,
+		},
+		"unknown mark":           {text(`{"type":"glow"}`), CodeUnknownMark},
+		"link without href":      {text(`{"type":"link"}`), CodeMissingAttr},
+		"link javascript scheme": {text(`{"type":"link","attrs":{"href":"javascript:alert(1)"}}`), CodeAttrValue},
+		"bold inside codeBlock": {
+			`{"type":"doc","content":[{"type":"codeBlock","content":[` +
+				`{"type":"text","text":"x","marks":[{"type":"bold"}]}]}]}`,
+			CodeMarkNotAllowed,
+		},
+		"marks on block node": {
+			`{"type":"doc","content":[{"type":"paragraph","marks":[{"type":"bold"}]}]}`, CodeMarkNotAllowed,
+		},
 		"highlight with bad color": {text(`{"type":"highlight","attrs":{"color":"url(x)"}}`), CodeAttrValue},
 	}
 	for name, c := range cases {
@@ -182,7 +193,8 @@ func TestValidateMarkRules(t *testing.T) {
 		}
 	}
 	// bold + italic + link together is fine.
-	if _, _, err := s.Validate([]byte(text(`{"type":"bold"},{"type":"italic"},{"type":"link","attrs":{"href":"https://example.com"}}`))); err != nil {
+	compatible := text(`{"type":"bold"},{"type":"italic"},{"type":"link","attrs":{"href":"https://example.com"}}`)
+	if _, _, err := s.Validate([]byte(compatible)); err != nil {
 		t.Fatalf("compatible marks rejected: %v", err)
 	}
 }

@@ -42,6 +42,7 @@ type Repositories struct {
 	Members SpaceMemberRepository
 	Groups  GroupRepository
 	Pages   PageRepository
+	Access  PageAccessRepository
 }
 
 // New wires the repositories.
@@ -52,6 +53,7 @@ func New(db *gorm.DB) *Repositories {
 		Members: &spaceMemberRepository{db: db},
 		Groups:  &groupRepository{db: db},
 		Pages:   &pageRepository{db: db},
+		Access:  &pageAccessRepository{db: db},
 	}
 }
 
@@ -62,16 +64,16 @@ func (r *Repositories) Transaction(ctx context.Context, fn func(tx *Repositories
 	})
 }
 
+// DB exposes the underlying handle for callers that need raw access (tests,
+// migrations); services should not use it.
+func (r *Repositories) DB() *gorm.DB { return r.db }
+
 // NewID returns a fresh UUID string for primary keys.
 func NewID() string { return uuid.NewString() }
 
 // now returns the wall clock truncated to microseconds, the finest precision
 // both dialects round-trip identically.
 func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }
-
-func isSQLite(db *gorm.DB) bool {
-	return db != nil && db.Dialector != nil && db.Dialector.Name() == "sqlite"
-}
 
 // isUniqueViolation recognises a unique-constraint failure on either dialect.
 func isUniqueViolation(err error) bool {
