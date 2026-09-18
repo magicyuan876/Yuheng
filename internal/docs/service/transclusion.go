@@ -29,6 +29,24 @@ import (
 // Everything is derived data. A missing or stale snapshot costs one reference
 // one render, and the next save of either page repairs it, so none of it is
 // allowed to fail a save.
+//
+// ---- decision: quoted text is searchable, but not through the quoting page
+//
+// The plan for this work package asks for the quoted content to count towards
+// the quoting page's text when searching. Implemented the obvious way -- by
+// appending the snapshot text to docs_pages.text_content -- that would be a
+// side channel straight past the rule this whole file exists to enforce.
+// Rendering already refuses to show a quoted block to somebody who may not
+// read its source page; a search index that carries the same words under the
+// quoting page's id would let exactly that reader find them, and a snippet
+// would show them.
+//
+// So the text is stored where it can be filtered instead of where it cannot:
+// docs_transclusion_blocks already holds each snapshot's text alongside the
+// id of the page it came from. Search (T5.4) joins that table and applies the
+// reader's own access to the *source* page before a quoted match counts,
+// which satisfies the requirement without the leak. A test below pins the
+// absence: the quoting page's stored text must not contain the quoted words.
 
 // MaxTransclusionLookup bounds one batch of resolutions, which is one open
 // page's worth of references.

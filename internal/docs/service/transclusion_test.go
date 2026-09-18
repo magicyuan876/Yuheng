@@ -162,6 +162,43 @@ func TestAReferenceToAnUnreadablePageResolvesAsMissing(t *testing.T) {
 	assert.Equal(t, got.State, absent.State)
 }
 
+// The plan asks for quoted content to count towards the quoting page when
+// searching. Appending it to that page's stored text would be a side channel
+// straight past the permission check above: a reader who may not open the
+// source page would find its words under the quoting page's id, and a snippet
+// would show them. The text lives in the snapshot table instead, next to the
+// id of the page it came from, where search can filter it. See the decision
+// note at the top of transclusion.go.
+func TestQuotedTextDoesNotEnterTheQuotingPagesOwnText(t *testing.T) {
+	p := newPageEnv(t)
+	source := p.create(t, p.alice, nil, "Secrets")
+	quoting := p.create(t, p.alice, nil, "Guide")
+
+	p.save(t, source.Page.ID, source.Page.YDocVersion, blockBody(
+		map[string]string{"defblk": "the confidential definition"}, "defblk"))
+	p.save(t, quoting.Page.ID, quoting.Page.YDocVersion,
+		refBody("See the definition:", source.Page.ID, "defblk"))
+	current := p.mustPage(t, source.Page.ID)
+	p.save(t, source.Page.ID, current.YDocVersion, blockBody(
+		map[string]string{"defblk": "the confidential definition"}, "defblk"))
+
+	// The reference itself resolves, so the quotation is genuinely in place.
+	require.Equal(t, TransclusionOK, p.resolveRef(t, p.alice, source.Page.ID, "defblk").State)
+
+	quotingPage := p.mustPage(t, quoting.Page.ID)
+	assert.Contains(t, quotingPage.TextContent, "See the definition:", "its own words are indexed")
+	assert.NotContains(t, quotingPage.TextContent, "confidential",
+		"but the quoted words are not, because this page's permissions are not the source page's")
+
+	// They are held where a search can apply the source page's own access.
+	rows, err := p.repos.Blocks.Load(ctx(), 1,
+		[]repository.BlockRef{{PageID: source.Page.ID, BlockID: "defblk"}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Contains(t, rows[0].TextContent, "confidential")
+	assert.Equal(t, source.Page.ID, rows[0].PageID, "attributed to the page whose access governs it")
+}
+
 // Nobody references most pages, and those must not pay for this feature.
 func TestAPageNobodyReferencesStoresNoSnapshots(t *testing.T) {
 	p := newPageEnv(t)
