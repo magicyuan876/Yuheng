@@ -93,11 +93,60 @@ test('the media nodes point at an attachment id and never at a stored address', 
   assert.ok(!('src' in schema.nodes.attachment!.spec.attrs!))
 })
 
+// Acceptance (T2.1): two people editing one column row at the same time must
+// not be able to leave it malformed. The guarantee is structural rather than
+// procedural — the content expression is what ProseMirror enforces on every
+// transaction, whichever order concurrent changes merge in, so no sequence of
+// edits can produce a row the server would then reject.
+test('a column row is bounded by its content expression, not by the editor’s care', () => {
+  const schema = liveSchema()
+  const columns = schema.nodes.columns
+  assert.ok(columns)
+  assert.equal(columns.spec.content, 'column{2,5}')
+  assert.equal(columns.spec.isolating, true, 'edits cannot cross the row boundary')
+
+  // A column exists only inside a row: it belongs to no group, so no content
+  // expression anywhere else in the schema will accept one.
+  const column = schema.nodes.column
+  assert.ok(column)
+  assert.equal(column.spec.group, undefined)
+  assert.equal(column.spec.isolating, true)
+
+  // And the schema refuses to build a row outside the bounds at all.
+  const paragraph = schema.node('paragraph')
+  const one = schema.node('column', null, [paragraph])
+  assert.throws(() => schema.node('columns', null, [one]), /Invalid content/i)
+  assert.throws(
+    () => schema.node('columns', null, Array.from({ length: 6 }, () => schema.node('column', null, [paragraph]))),
+    /Invalid content/i,
+  )
+  assert.doesNotThrow(() => schema.node('columns', null, [
+    schema.node('column', null, [paragraph]),
+    schema.node('column', null, [paragraph]),
+  ]))
+})
+
+test('the figures store their source and never their rendering', () => {
+  const schema = liveSchema()
+  for (const name of ['mathInline', 'mathBlock']) {
+    assert.ok('latex' in schema.nodes[name]!.spec.attrs!, `${name} keeps the formula as written`)
+    assert.equal(schema.nodes[name]!.spec.atom, true)
+  }
+  assert.ok('source' in schema.nodes.mermaid!.spec.attrs!)
+  // Nothing carries rendered output, so a newer KaTeX or Mermaid re-renders
+  // an existing document rather than requiring it to be rewritten.
+  for (const name of ['mathInline', 'mathBlock', 'mermaid']) {
+    const attrs = Object.keys(schema.nodes[name]!.spec.attrs ?? {})
+    assert.ok(!attrs.includes('html'), `${name} must not store HTML`)
+    assert.ok(!attrs.includes('svg'), `${name} must not store an SVG`)
+  }
+})
+
 test('the covered count is a deliberate, documented number', () => {
   // Bumping this alongside a real change is the point: it forces whoever
   // adds a node in a later work package to notice this file and update the
   // decision note in the module comment at the top of extensions.ts.
   const schema = liveSchema()
-  assert.equal(Object.keys(schema.nodes).length, 22, 'node count changed -- update this test and the header comment')
+  assert.equal(Object.keys(schema.nodes).length, 31, 'node count changed -- update this test and the header comment')
   assert.equal(Object.keys(schema.marks).length, 10, 'mark count changed -- update this test and the header comment')
 })

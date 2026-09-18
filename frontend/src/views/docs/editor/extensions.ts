@@ -55,7 +55,9 @@ import yaml from 'highlight.js/lib/languages/yaml'
 import { createLowlight } from 'lowlight'
 
 import { BlockId, TextBlockAttrs } from './blockAttrs'
+import { MathBlock, MathInline, Mermaid } from './figureNodes'
 import { DocAttachment, DocImage } from './mediaNodes'
+import { Callout, Column, Columns, PageBreak, Status, TableOfContents } from './structureNodes'
 
 // A small, common core rather than lowlight's `common`/`all` bundle: this is
 // a documentation tool, not a code sandbox, and a smaller grammar set keeps
@@ -146,6 +148,14 @@ const DocSuperscript = Superscript.extend({ excludes: 'subscript' })
 export interface EditorNodeViews {
   image?: NodeViewRenderer
   attachment?: NodeViewRenderer
+  callout?: NodeViewRenderer
+  columns?: NodeViewRenderer
+  column?: NodeViewRenderer
+  status?: NodeViewRenderer
+  toc?: NodeViewRenderer
+  mathInline?: NodeViewRenderer
+  mathBlock?: NodeViewRenderer
+  mermaid?: NodeViewRenderer
 }
 
 /** Attaches a node view to a node, when the caller supplied one. */
@@ -194,6 +204,16 @@ export function officialExtensions(
     DetailsContent,
     withView(DocImage, views.image),
     withView(DocAttachment, views.attachment),
+    // Structure and figures (T2.1).
+    withView(Callout, views.callout),
+    withView(Columns, views.columns),
+    withView(Column, views.column),
+    withView(Status, views.status),
+    PageBreak,
+    withView(TableOfContents, views.toc),
+    withView(MathInline, views.mathInline),
+    withView(MathBlock, views.mathBlock),
+    withView(Mermaid, views.mermaid),
     // Marks.
     Bold,
     Italic,
