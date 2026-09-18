@@ -6788,6 +6788,14 @@ export default {
       regex: 'Regular expression',
       badPattern: 'Incomplete pattern',
     },
+    // Block references: a block written on one page, shown on another.
+    transclusion: {
+      from: 'From',
+      pending: 'Waiting for the source page to be saved',
+      missing: 'That block is no longer available',
+      copied: 'Block reference copied — paste it on another page',
+      noBlock: 'Put the cursor in a block first',
+    },
     commands: {
       paragraph: 'Text',
       heading1: 'Heading 1',
@@ -6811,6 +6819,7 @@ export default {
       embed: 'Embed',
       excalidraw: 'Drawing',
       noMatches: 'No matching block',
+      copyBlockRef: 'Copy block reference',
     },
     links: {
       loading: 'Resolving…',

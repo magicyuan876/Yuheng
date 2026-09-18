@@ -6785,6 +6785,14 @@ export default {
       regex: '정규식',
       badPattern: '불완전한 패턴',
     },
+    // 블록 참조.
+    transclusion: {
+      from: '출처',
+      pending: '원본 페이지가 저장되기를 기다리는 중',
+      missing: '해당 블록을 더 이상 사용할 수 없습니다',
+      copied: '블록 참조 링크를 복사했습니다. 다른 페이지에 붙여넣으세요',
+      noBlock: '먼저 블록 안에 커서를 놓으세요',
+    },
     commands: {
       paragraph: '본문',
       heading1: '제목 1',
@@ -6808,6 +6816,7 @@ export default {
       embed: '임베드',
       excalidraw: '그림',
       noMatches: '일치하는 블록이 없습니다',
+      copyBlockRef: '블록 참조 링크 복사',
     },
     links: {
       loading: '확인 중…',

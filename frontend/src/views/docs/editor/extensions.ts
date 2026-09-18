@@ -57,6 +57,7 @@ import { createLowlight } from 'lowlight'
 import { BlockId, TextBlockAttrs } from './blockAttrs'
 import { MathBlock, MathInline, Mermaid } from './figureNodes'
 import { Mention, PageLink } from './linkNodes'
+import { Transclusion } from './transclusionNode'
 import { Audio, Drawio, Embed, Excalidraw, PdfEmbed, Video } from './mediaEmbedNodes'
 import { DocAttachment, DocImage } from './mediaNodes'
 import { Callout, Column, Columns, PageBreak, Status, TableOfContents } from './structureNodes'
@@ -160,6 +161,7 @@ export interface EditorNodeViews {
   mermaid?: NodeViewRenderer
   pageLink?: NodeViewRenderer
   mention?: NodeViewRenderer
+  transclusion?: NodeViewRenderer
   video?: NodeViewRenderer
   audio?: NodeViewRenderer
   pdfEmbed?: NodeViewRenderer
@@ -227,6 +229,7 @@ export function officialExtensions(
     // Links and mentions (T2.2).
     withView(PageLink, views.pageLink),
     withView(Mention, views.mention),
+    withView(Transclusion, views.transclusion),
     // Media, embeds and diagrams (T2.3).
     withView(Video, views.video),
     withView(Audio, views.audio),

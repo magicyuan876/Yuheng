@@ -12,6 +12,7 @@
 // Vue.
 import type { InjectionKey, Ref } from 'vue'
 
+import type { ResolvedBlockRef } from './blockRefCache'
 import type { ResolvedPage } from './titleCache'
 
 export interface TitleCacheHandle {
@@ -55,7 +56,14 @@ export interface DiagramHost {
   load: (attachmentId: string) => Promise<string>
 }
 
+/** What a block reference needs to draw the block it points at. */
+export interface BlockRefHandle {
+  get: (ref: { sourcePageId: string; sourceBlockId: string }) => ResolvedBlockRef | undefined
+  revision: Ref<number>
+}
+
 export const DOCS_TITLE_CACHE: InjectionKey<TitleCacheHandle> = Symbol('docs.titleCache')
+export const DOCS_BLOCK_REFS: InjectionKey<BlockRefHandle> = Symbol('docs.blockRefs')
 export const DOCS_EMBEDS: InjectionKey<EmbedResolverHandle> = Symbol('docs.embeds')
 export const DOCS_DIAGRAMS: InjectionKey<DiagramHost> = Symbol('docs.diagrams')
 export const DOCS_DIRECTORY: InjectionKey<DirectoryHandle> = Symbol('docs.directory')

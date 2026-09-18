@@ -52,7 +52,21 @@ export interface BlockCommand {
  * on what it is allowed to contain: a deployment with embeds turned off should
  * not advertise them.
  */
-export function blockCommands(opts: { embeds?: boolean; drawings?: boolean } = {}): BlockCommand[] {
+export interface BlockCommandOptions {
+  embeds?: boolean
+  drawings?: boolean
+  /**
+   * Copies this page's current block as a reference link.
+   *
+   * Passed in rather than built here because it needs the page's id and the
+   * clipboard, neither of which belongs in a catalogue of editor commands.
+   * Absent means the entry is not offered, which is the right thing on a page
+   * that has not been saved yet and therefore has no id to point at.
+   */
+  copyBlockRef?: () => void
+}
+
+export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
   /** Deletes the typed query, then applies the entry on the same chain. */
   const cmd = (
     id: string, labelKey: string, icon: string,
@@ -134,6 +148,25 @@ export function blockCommands(opts: { embeds?: boolean; drawings?: boolean } = {
     list.push(cmd('embed', 'docs.commands.embed', 'link', 'media',
       ['embed', 'iframe', 'video', '嵌入'],
       (c) => (c.insertEmbed as (a: unknown, b: unknown) => Chain)('external', '')))
+  }
+  if (opts.copyBlockRef) {
+    const copy = opts.copyBlockRef
+    list.push({
+      id: 'copyBlockRef',
+      labelKey: 'docs.commands.copyBlockRef',
+      icon: 'quote',
+      group: 'advanced',
+      keywords: ['reference', 'transclude', 'quote', 'block', '引用', '块引用', '复制引用'],
+      run: (editor, range) => {
+        // The typed query goes first: the link is about the block, and
+        // leaving "/ref" in it would put that text in what everybody else
+        // then sees quoted.
+        const focused = (editor.chain().focus as () => Chain)()
+        const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range)
+        ;(trimmed.run as () => void)()
+        copy()
+      },
+    })
   }
   if (opts.drawings !== false) {
     list.push(cmd('excalidraw', 'docs.commands.excalidraw', 'edit', 'media',

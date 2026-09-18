@@ -663,6 +663,34 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+/** One block reference, as the server addresses it. */
+export interface BlockRefRequest {
+  source_page_id: string
+  source_block_id: string
+}
+
+/** One resolved block reference. */
+export interface BlockRefView extends BlockRefRequest {
+  /** 'ok' carries content; 'missing' covers both deleted and not-permitted;
+   * 'pending' means the source page has not been saved since the reference
+   * was recorded, so there is nothing to show yet. */
+  state: 'ok' | 'missing' | 'pending'
+  content?: unknown
+  title?: string
+  icon?: string
+  source_short_id?: string
+}
+
+/**
+ * Backend: POST /api/v1/docs/block-refs/resolve (tenant member).
+ * A POST that only reads, like the title lookup: the list is as long as the
+ * open page has references. Each source page's permissions are checked
+ * server-side, under the reader's own identity rather than the author's.
+ */
+export async function resolveBlockRefs(refs: BlockRefRequest[]): Promise<BlockRefView[]> {
+  return unwrap<BlockRefView[] | null>(await post(`${base}/block-refs/resolve`, { refs })) ?? []
+}
+
 /** Backend: GET /api/v1/docs/page-links/suggest (tenant member, filtered by permission). */
 export async function suggestPages(
   params: { q?: string; space?: string; limit?: number } = {},
