@@ -156,7 +156,7 @@ func (s *PageService) replaceDirect(ctx context.Context, actor *acl.Identity, pa
 		// is a bug worth surfacing rather than writing around.
 		return nil, fmt.Errorf("docs: the validated body no longer parses: %w", err)
 	}
-	attachments := render.Extract(node).AttachmentIDs
+	structure := render.Extract(node)
 
 	current := page
 	for attempt := 0; ; attempt++ {
@@ -175,7 +175,8 @@ func (s *PageService) replaceDirect(ctx context.Context, actor *acl.Identity, pa
 				ContentChanged: !sameDocument(current.Content, parsed.content),
 			})
 		if err == nil {
-			s.bindAttachments(ctx, current, attachments)
+			s.bindAttachments(ctx, current, structure.AttachmentIDs)
+			s.recordLinks(ctx, current, structure)
 			s.afterReplace(ctx, actor, current, reason, version)
 			return &ReplaceResult{YDocVersion: version, Applied: AppliedDirect}, nil
 		}

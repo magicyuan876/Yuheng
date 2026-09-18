@@ -49,6 +49,12 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		{http.MethodGet, "/api/v1/docs/attachments/:aid", types.APIKeyCapabilityDocsRead},
 		{http.MethodDelete, "/api/v1/docs/attachments/:aid", types.APIKeyCapabilityDocsWrite},
 		{http.MethodGet, "/api/v1/docs/pages/:pid/attachments", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/pages/:pid/backlinks", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/pages/:pid/mention-candidates", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/page-links/suggest", types.APIKeyCapabilityDocsRead},
+		// A POST that only reads, so it declares the read capability: the id
+		// list is as long as the open page has links and does not fit a URL.
+		{http.MethodPost, "/api/v1/docs/page-links/titles", types.APIKeyCapabilityDocsRead},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

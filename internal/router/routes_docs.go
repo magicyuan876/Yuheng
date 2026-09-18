@@ -103,6 +103,15 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, ni)
 
 	// ---- pages ---------------------------------------------------------------
+	// Under their own prefix rather than /pages/*: a literal segment and a
+	// path parameter cannot share a position in gin's route tree, and
+	// "suggest" would collide with a page id.
+	read.GET("/page-links/suggest", g.Viewer(), guard.RequireMember(), pg.SuggestPages)
+	// A POST that only reads: the id list is as long as the open page has
+	// links, which does not belong in a URL. Declared with the read
+	// capability, which is what actually governs access.
+	read.POST("/page-links/titles", g.Viewer(), guard.RequireMember(), pg.ResolveTitles)
+
 	write.POST("/pages", g.Contributor(), guard.RequireMember(), idem, pg.Create)
 	read.GET("/pages/:pid", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Get)
 	read.GET("/pages/by-short-id/:short", g.Viewer(),
@@ -128,7 +137,14 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Children)
 	read.GET("/pages/:pid/attachments", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), fh.ListForPage)
-	read.GET("/pages/:pid/backlinks", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	// ---- links, mentions and backlinks (T2.2) ------------------------------
+	// Every one of these is permission-filtered inside the service: a
+	// suggestion list must never become a way to enumerate pages or people
+	// the caller cannot otherwise see.
+	read.GET("/pages/:pid/backlinks", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Backlinks)
+	read.GET("/pages/:pid/mention-candidates", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.SuggestMentions)
 	read.GET("/pages/:pid/effective-permission", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	read.GET("/pages/:pid/access", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)

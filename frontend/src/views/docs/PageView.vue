@@ -103,6 +103,8 @@
         <TocSidebar :entries="headings" @select="scrollToHeading" />
       </div>
 
+      <BacklinksPanel :entries="backlinks" :loading="backlinksLoading" />
+
       <section v-if="children.length" class="page-children">
         <h3>{{ t('docs.pages.subpages') }}</h3>
         <ul>
@@ -137,12 +139,14 @@ import {
   getPageByShortId,
   getPageChildren,
   gonePageFrom,
+  listBacklinks,
   requestStatus,
   restorePage,
   updatePage,
   type DocsPage,
   type DocsSpace,
   type GonePage,
+  type PageRef,
   type PageView as PageViewDto,
   type TreeNode,
 } from '@/api/docs'
@@ -150,6 +154,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
+import BacklinksPanel from './editor/BacklinksPanel.vue'
 import DocEditor from './editor/DocEditor.vue'
 import type { TocEntry } from './editor/toc'
 import TocSidebar from './editor/TocSidebar.vue'
@@ -219,6 +224,22 @@ const onHeadings = (entries: TocEntry[]) => {
   headings.value = entries
 }
 
+// ---- backlinks --------------------------------------------------------------
+const backlinks = ref<PageRef[]>([])
+const backlinksLoading = ref(false)
+
+async function loadBacklinks(id: string) {
+  backlinksLoading.value = true
+  try {
+    const rows = await listBacklinks(id)
+    if (page.value?.id === id) backlinks.value = rows
+  } catch {
+    if (page.value?.id === id) backlinks.value = []
+  } finally {
+    backlinksLoading.value = false
+  }
+}
+
 /** Puts the caret at the heading and lets the editor scroll it into view. */
 const scrollToHeading = (pos: number) => {
   const editor = docEditor.value?.editor
@@ -244,6 +265,7 @@ async function load() {
   notFound.value = false
   page.value = null
   headings.value = []
+  backlinks.value = []
   children.value = []
   ancestors.value = []
   try {
@@ -252,7 +274,7 @@ async function load() {
     page.value = p
     titleDraft.value = p.title
     emit('loaded', p)
-    await Promise.all([loadAncestors(p.id), loadChildren(p)])
+    await Promise.all([loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id)])
     await nextTick()
     autosize()
   } catch (err: unknown) {
@@ -368,6 +390,21 @@ watch(() => props.lastEvent, (ev) => {
   const p = page.value
   if (!ev || !p) return
   const payload = ev.payload ?? {}
+
+  // Renaming any page changes what every link to it should read as, wherever
+  // that link is. The title is cached in the editor rather than stored in the
+  // document, so forgetting the entry is the whole of the update.
+  if (ev.type === 'docs.page.meta_updated' && ev.page_id && ev.page_id !== p.id) {
+    docEditor.value?.forgetTitle(ev.page_id)
+  }
+  // Another page's body may have gained or lost a link to this one; the rows
+  // are rebuilt whenever a page is saved.
+  if (ev.page_id !== p.id
+    && (ev.type === 'docs.page.content_updated' || ev.type === 'docs.page.content_replaced'
+      || ev.type === 'docs.page.deleted' || ev.type === 'docs.page.purged')) {
+    void loadBacklinks(p.id)
+  }
+
   if (ev.page_id === p.id) {
     switch (ev.type) {
       case 'docs.page.meta_updated':
@@ -379,6 +416,9 @@ watch(() => props.lastEvent, (ev) => {
         break
       case 'docs.page.content_updated':
       case 'docs.page.content_replaced':
+        // A body that just changed may have gained or lost a link to this
+        // page, and the backlink rows are rebuilt on save.
+        void loadBacklinks(p.id)
         // Nothing to refetch: the body is the Yjs document the editor is
         // already connected to, and the collaboration service pushes both
         // a peer's edits and a server-side replace straight into it.

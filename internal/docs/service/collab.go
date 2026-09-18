@@ -243,6 +243,10 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 	// time: until the document that references it is saved, nothing says the
 	// paste was kept.
 	s.bindAttachments(ctx, page, structure.AttachmentIDs)
+	// Backlinks are derived from the document, so they are rebuilt here rather
+	// than tracked edit by edit: removing a link means deleting the text around
+	// it, which produces no event of its own.
+	s.recordLinks(ctx, page, structure)
 	if upd.ContentChanged {
 		s.publish(ctx, events.New(events.PageContent, in.TenantID).WithSpace(page.SpaceID).WithPage(in.PageID).
 			WithActor(upd.EditorID).With("version", version).With("word_count", structure.WordCount).
