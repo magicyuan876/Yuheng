@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/docs/model"
@@ -65,6 +66,10 @@ type PageRepository interface {
 	// UpdateMeta writes non-content columns (title, icon, cover, status,
 	// is_locked, template_id, source_refs, position).
 	UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error
+	// SuggestByTitle returns live pages of the given spaces matching a title
+	// substring, newest first, for the link-suggestion menu.
+	SuggestByTitle(ctx context.Context, tenantID uint64, spaceIDs []string, query string,
+		limit int) ([]*model.Page, error)
 	// UpdateContent persists a new body if baseVersion still matches and
 	// returns the new version. ErrConflict means someone persisted first.
 	UpdateContent(ctx context.Context, tenantID uint64, id string, baseVersion int64, upd ContentUpdate) (int64, error)
@@ -520,4 +525,40 @@ func sortPages(pages []*model.Page, less func(a, b *model.Page) bool) {
 			pages[j], pages[j-1] = pages[j-1], pages[j]
 		}
 	}
+}
+
+// SuggestByTitle returns live pages of the given spaces whose title matches,
+// for the link-suggestion menu.
+//
+// Matching is a case-insensitive substring, and an empty query returns the
+// most recently touched pages, which is what somebody who has just typed the
+// trigger and nothing else is most likely reaching for. It is deliberately not
+// full-text search: that arrives with its own work package and its own index,
+// and a menu under the cursor wants the answer in a millisecond.
+func (r *pageRepository) SuggestByTitle(ctx context.Context, tenantID uint64, spaceIDs []string,
+	query string, limit int,
+) ([]*model.Page, error) {
+	if len(spaceIDs) == 0 {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	q := r.db.WithContext(ctx).Select(model.PageSummaryColumns).
+		Where("tenant_id = ? AND space_id IN ? AND deleted_at IS NULL", tenantID, spaceIDs)
+	if query != "" {
+		q = q.Where(`LOWER(title) LIKE ? ESCAPE '\'`, "%"+escapeLike(strings.ToLower(query))+"%")
+	}
+	var out []*model.Page
+	err := q.Order("updated_at DESC, id ASC").Limit(limit).Find(&out).Error
+	return out, err
+}
+
+// escapeLike neutralises the wildcards in a user-supplied pattern, so a query
+// of "%" matches that character rather than every page in the space. The
+// escape character is named in the query itself because SQLite has none by
+// default, and relying on PostgreSQL's staying the same would be a trap.
+func escapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+	return r.Replace(s)
 }

@@ -45,6 +45,7 @@ type Repositories struct {
 	Access  PageAccessRepository
 	Leases  LeaseRepository
 	Files   AttachmentRepository
+	Links   LinkRepository
 }
 
 // New wires the repositories.
@@ -58,6 +59,7 @@ func New(db *gorm.DB) *Repositories {
 		Access:  &pageAccessRepository{db: db},
 		Leases:  &leaseRepository{db: db},
 		Files:   &attachmentRepository{db: db},
+		Links:   &linkRepository{db: db},
 	}
 }
 
@@ -90,6 +92,20 @@ func isUniqueViolation(err error) bool {
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "UNIQUE constraint failed") || strings.Contains(msg, "constraint failed: UNIQUE")
+}
+
+// isForeignKeyViolation recognises a missing referenced row on either dialect.
+// Derived rows such as links are written optimistically; a target that has just
+// been deleted means the reference does not exist, not that the save failed.
+func isForeignKeyViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23503"
+	}
+	return strings.Contains(err.Error(), "FOREIGN KEY constraint failed")
 }
 
 func translateWriteError(err error) error {

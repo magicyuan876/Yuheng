@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -42,8 +44,40 @@ func (t tenantTable) Get(_ context.Context, userID string, tenantID uint64) (*ty
 	}, nil
 }
 
-func (t tenantTable) ListPagedByTenant(context.Context, uint64, string, int, int) ([]*types.TenantMember, error) {
-	return nil, nil
+// ListPagedByTenant answers with the table's own rows, sorted so the result
+// is stable. Mention suggestions are built from it, so a stub returning
+// nothing would make that feature untestable here.
+func (t tenantTable) ListPagedByTenant(_ context.Context, tenantID uint64, search string,
+	offset, limit int,
+) ([]*types.TenantMember, error) {
+	keys := make([]string, 0, len(t))
+	for key := range t {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	out := make([]*types.TenantMember, 0, len(keys))
+	for _, key := range keys {
+		var tid uint64
+		var user string
+		if _, err := fmt.Sscanf(key, "%d/%s", &tid, &user); err != nil {
+			continue
+		}
+		if tid != tenantID || (search != "" && !strings.Contains(user, search)) {
+			continue
+		}
+		out = append(out, &types.TenantMember{
+			UserID: user, TenantID: tid, Role: t[key], Status: types.TenantMemberStatusActive,
+		})
+	}
+	if offset >= len(out) {
+		return nil, nil
+	}
+	end := len(out)
+	if limit > 0 && offset+limit < end {
+		end = offset + limit
+	}
+	return out[offset:end], nil
 }
 
 func (t tenantTable) CountFilteredByTenant(context.Context, uint64, string) (int64, error) {
@@ -142,6 +176,12 @@ func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *re
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), h.Files.Upload)
 	docs.GET("/attachments/:aid", guard.RequireMember(), h.Files.Download)
 	docs.DELETE("/attachments/:aid", guard.RequireMember(), h.Files.Delete)
+	docs.GET("/pages/:pid/backlinks",
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Backlinks)
+	docs.GET("/pages/:pid/mention-candidates",
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.SuggestMentions)
+	docs.GET("/page-links/suggest", guard.RequireMember(), h.Pages.SuggestPages)
+	docs.POST("/page-links/titles", guard.RequireMember(), h.Pages.ResolveTitles)
 	docs.GET("/pages/:pid/attachments",
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Files.ListForPage)
 	docs.GET("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Leases.Get)

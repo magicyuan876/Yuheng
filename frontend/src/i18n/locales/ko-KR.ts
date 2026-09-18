@@ -6733,6 +6733,15 @@ export default {
       mermaidEmpty: '빈 다이어그램입니다. 소스를 열어 그리기를 시작하세요.',
       mermaidBroken: '이 다이어그램은 아직 그릴 수 없습니다. 소스를 확인하세요.',
     },
+    links: {
+      loading: '확인 중…',
+      broken: '사용할 수 없는 링크',
+      brokenHint: '해당 페이지가 삭제되었거나 볼 권한이 없습니다',
+      someone: '누군가',
+      searching: '검색 중…',
+      noMatches: '일치하는 항목이 없습니다',
+      backlinks: '이 페이지를 참조하는 페이지',
+    },
     attachments: {
       attach: '파일 삽입',
       uploading: '{name} 업로드 중…',

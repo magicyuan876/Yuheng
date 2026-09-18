@@ -142,11 +142,26 @@ test('the figures store their source and never their rendering', () => {
   }
 })
 
+// Acceptance (T2.2): renaming a page updates every link to it. That works
+// because no document ever stored the title — only the id.
+test('a page link stores an id and nothing that could go stale', () => {
+  const schema = liveSchema()
+  const attrs = Object.keys(schema.nodes.pageLink!.spec.attrs ?? {})
+  assert.deepEqual(attrs, ['pageId'])
+  assert.equal(schema.nodes.pageLink!.spec.atom, true)
+  assert.equal(schema.nodes.pageLink!.spec.inline, true)
+
+  // A mention keeps a label as a fallback for an export, but the id is what
+  // identifies the person.
+  const mention = Object.keys(schema.nodes.mention!.spec.attrs ?? {}).sort()
+  assert.deepEqual(mention, ['label', 'userId'])
+})
+
 test('the covered count is a deliberate, documented number', () => {
   // Bumping this alongside a real change is the point: it forces whoever
   // adds a node in a later work package to notice this file and update the
   // decision note in the module comment at the top of extensions.ts.
   const schema = liveSchema()
-  assert.equal(Object.keys(schema.nodes).length, 31, 'node count changed -- update this test and the header comment')
+  assert.equal(Object.keys(schema.nodes).length, 33, 'node count changed -- update this test and the header comment')
   assert.equal(Object.keys(schema.marks).length, 10, 'mark count changed -- update this test and the header comment')
 })

@@ -626,3 +626,65 @@ export async function replacePageContent(
 ): Promise<ReplaceContentResult> {
   return unwrap<ReplaceContentResult>(await put(`${base}/pages/${encodeURIComponent(id)}/content`, body))
 }
+
+// ---- page links, mentions and backlinks -----------------------------------
+
+export interface PageRef {
+  page_id: string
+  short_id?: string
+  space_id?: string
+  title: string
+  icon?: string
+  breadcrumb?: string[]
+  /** False when the page is gone or the caller may not see it. The server
+   * does not distinguish the two, so neither does the editor. */
+  resolved: boolean
+}
+
+export interface MentionCandidate {
+  user_id: string
+  username?: string
+  email?: string
+  avatar?: string
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/backlinks (page reader). */
+export async function listBacklinks(pageId: string): Promise<PageRef[]> {
+  return unwrap<PageRef[] | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/backlinks`),
+  ) ?? []
+}
+
+/**
+ * Backend: POST /api/v1/docs/page-links/titles (tenant member).
+ * A POST that only reads: the id list is as long as the open page has links.
+ */
+export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
+  return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
+}
+
+/** Backend: GET /api/v1/docs/page-links/suggest (tenant member, filtered by permission). */
+export async function suggestPages(
+  params: { q?: string; space?: string; limit?: number } = {},
+): Promise<PageRef[]> {
+  const query = new URLSearchParams()
+  if (params.q) query.set('q', params.q)
+  if (params.space) query.set('space', params.space)
+  if (params.limit) query.set('limit', String(params.limit))
+  const suffix = query.toString() ? `?${query}` : ''
+  return unwrap<PageRef[] | null>(await get(`${base}/page-links/suggest${suffix}`)) ?? []
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/mention-candidates (page reader). */
+export async function suggestMentions(
+  pageId: string,
+  params: { q?: string; limit?: number } = {},
+): Promise<MentionCandidate[]> {
+  const query = new URLSearchParams()
+  if (params.q) query.set('q', params.q)
+  if (params.limit) query.set('limit', String(params.limit))
+  const suffix = query.toString() ? `?${query}` : ''
+  return unwrap<MentionCandidate[] | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/mention-candidates${suffix}`),
+  ) ?? []
+}

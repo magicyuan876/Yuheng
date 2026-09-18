@@ -56,6 +56,7 @@ import { createLowlight } from 'lowlight'
 
 import { BlockId, TextBlockAttrs } from './blockAttrs'
 import { MathBlock, MathInline, Mermaid } from './figureNodes'
+import { Mention, PageLink } from './linkNodes'
 import { DocAttachment, DocImage } from './mediaNodes'
 import { Callout, Column, Columns, PageBreak, Status, TableOfContents } from './structureNodes'
 
@@ -156,6 +157,8 @@ export interface EditorNodeViews {
   mathInline?: NodeViewRenderer
   mathBlock?: NodeViewRenderer
   mermaid?: NodeViewRenderer
+  pageLink?: NodeViewRenderer
+  mention?: NodeViewRenderer
 }
 
 /** Attaches a node view to a node, when the caller supplied one. */
@@ -214,6 +217,9 @@ export function officialExtensions(
     withView(MathInline, views.mathInline),
     withView(MathBlock, views.mathBlock),
     withView(Mermaid, views.mermaid),
+    // Links and mentions (T2.2).
+    withView(PageLink, views.pageLink),
+    withView(Mention, views.mention),
     // Marks.
     Bold,
     Italic,

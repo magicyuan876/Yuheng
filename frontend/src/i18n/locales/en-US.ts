@@ -6736,6 +6736,15 @@ export default {
       mermaidEmpty: 'Empty diagram. Open the source to start drawing.',
       mermaidBroken: 'This diagram cannot be drawn yet; check its source.',
     },
+    links: {
+      loading: 'Resolving…',
+      broken: 'Link unavailable',
+      brokenHint: 'That page was deleted, or you cannot see it',
+      someone: 'someone',
+      searching: 'Searching…',
+      noMatches: 'Nothing matches',
+      backlinks: 'Pages that link here',
+    },
     attachments: {
       attach: 'Insert file',
       uploading: 'Uploading {name}…',

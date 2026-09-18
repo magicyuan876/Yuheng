@@ -6737,6 +6737,15 @@ export default {
       mermaidEmpty: '空图表，点「源码」开始画',
       mermaidBroken: '这张图暂时画不出来，检查一下源码',
     },
+    links: {
+      loading: '解析中…',
+      broken: '链接已失效',
+      brokenHint: '目标页面已删除，或你没有查看权限',
+      someone: '某人',
+      searching: '查找中…',
+      noMatches: '没有匹配的结果',
+      backlinks: '引用了本页的页面',
+    },
     attachments: {
       attach: '插入文件',
       uploading: '正在上传 {name}…',

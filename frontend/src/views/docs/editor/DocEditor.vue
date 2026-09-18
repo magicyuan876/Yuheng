@@ -50,6 +50,17 @@
       </li>
     </ul>
 
+    <SuggestionMenu
+      :open="suggestions.open.value"
+      :loading="suggestions.loading.value"
+      :items="suggestions.items.value"
+      :selected="suggestions.selected.value"
+      :kind="suggestions.kind.value"
+      :position="suggestions.position.value"
+      @choose="suggestions.choose"
+      @hover="suggestions.hover"
+    />
+
     <input
       ref="filePicker"
       type="file"
@@ -68,8 +79,10 @@ import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3'
 // column of unpositioned glyphs.
 import 'katex/dist/katex.min.css'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { resolvePageTitles } from '@/api/docs'
 
 import AttachmentNodeView from './AttachmentNodeView.vue'
 import CalloutNodeView from './CalloutNodeView.vue'
@@ -77,10 +90,16 @@ import ColumnNodeView from './ColumnNodeView.vue'
 import ColumnsNodeView from './ColumnsNodeView.vue'
 import { officialExtensions } from './extensions'
 import ImageNodeView from './ImageNodeView.vue'
+import { DOCS_DIRECTORY, DOCS_TITLE_CACHE, type DirectoryPerson } from './linkContext'
 import MathNodeView from './MathNodeView.vue'
+import MentionNodeView from './MentionNodeView.vue'
 import MermaidNodeView from './MermaidNodeView.vue'
+import PageLinkNodeView from './PageLinkNodeView.vue'
 import StatusNodeView from './StatusNodeView.vue'
+import SuggestionMenu from './SuggestionMenu.vue'
+import { TitleCache } from './titleCache'
 import TocNodeView from './TocNodeView.vue'
+import { useDocSuggestions } from './useDocSuggestions'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { extractHeadings } from './toc'
@@ -174,6 +193,49 @@ function onFilesPicked(event: Event) {
   input.value = ''
 }
 
+// ---- page links and mentions ----------------------------------------------
+// One title lookup shared by every link in the document, and one directory
+// shared by every mention. Both are provided rather than passed: a node view
+// is created by ProseMirror and cannot be handed props.
+const titleRevision = ref(0)
+const titles = new TitleCache({
+  resolve: (ids) => resolvePageTitles(ids).then((rows) => rows.map((r) => ({
+    pageId: r.page_id, title: r.title, icon: r.icon,
+    shortId: r.short_id, spaceId: r.space_id, resolved: r.resolved,
+  }))),
+  onChange: () => {
+    titleRevision.value++
+  },
+})
+provide(DOCS_TITLE_CACHE, { get: (id: string) => titles.get(id), revision: titleRevision })
+
+const directoryRevision = ref(0)
+const directory = new Map<string, DirectoryPerson>()
+provide(DOCS_DIRECTORY, {
+  get: (id: string) => {
+    void directoryRevision.value
+    return directory.get(id)
+  },
+  revision: directoryRevision,
+})
+
+const suggestions = useDocSuggestions({
+  pageId: pageIdRefForUploads,
+  spaceId: spaceIdRef,
+  rememberPerson: (person) => {
+    directory.set(person.user_id, {
+      userId: person.user_id, username: person.username, email: person.email, avatar: person.avatar,
+    })
+    directoryRevision.value++
+  },
+})
+
+/** Forgets a cached title so a rename shows up in every link to that page
+ * without a reload. The page view calls it on the rename event. */
+function forgetTitle(pageId?: string) {
+  titles.invalidate(pageId)
+}
+
 const wordCount = ref(0)
 
 /** Exclusive-edit mode saves on a timer rather than keystroke by keystroke,
@@ -191,9 +253,16 @@ const saveLabel = computed(() => {
 
 const editor = useEditor({
   editable: editorEditable.value,
-  editorProps: uploads.editorProps,
+  editorProps: {
+    ...uploads.editorProps,
+    // The menu takes the arrow keys, Enter, Tab and Escape while it is open
+    // and lets every other key through, so the query stays ordinary text in
+    // the document until something is chosen.
+    handleKeyDown: (_view: unknown, event: KeyboardEvent) => suggestions.handleKey(event),
+  },
   extensions: officialExtensions([
     uploads.extension,
+    suggestions.extension,
     Collaboration.configure({ document: collab.ydoc.value }),
     // Live cursors need a collaboration service to relay awareness; in
     // exclusive-edit mode there is never a second writer to draw.
@@ -212,6 +281,8 @@ const editor = useEditor({
     mathInline: VueNodeViewRenderer(MathNodeView),
     mathBlock: VueNodeViewRenderer(MathNodeView),
     mermaid: VueNodeViewRenderer(MermaidNodeView),
+    pageLink: VueNodeViewRenderer(PageLinkNodeView),
+    mention: VueNodeViewRenderer(MentionNodeView),
   }),
   onUpdate: ({ editor: ed }) => {
     wordCount.value = countDocument(ed.state.doc).words
@@ -221,6 +292,7 @@ const editor = useEditor({
     wordCount.value = countDocument(ed.state.doc).words
     emit('headings', extractHeadings(ed.state.doc))
     uploads.bind(ed)
+    suggestions.bind(ed)
   },
 })
 
@@ -230,10 +302,12 @@ watch(editorEditable, (val) => {
 
 onBeforeUnmount(() => {
   uploads.bind(null)
+  suggestions.bind(null)
+  titles.dispose()
   editor.value?.destroy()
 })
 
-defineExpose({ editor, collab })
+defineExpose({ editor, collab, forgetTitle })
 </script>
 
 <style scoped lang="less">
