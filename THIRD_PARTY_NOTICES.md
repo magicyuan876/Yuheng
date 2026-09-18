@@ -16,9 +16,9 @@ cutting a release: it carries the blocking items.
 
 | Ecosystem | Components | Source of truth |
 |---|---|---|
-| Go | 383 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
+| Go | 380 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
-| Python (docreader) | 72 distributions | `docreader/uv.lock` (resolved from the built image) |
+| Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
 
 ---
@@ -29,6 +29,7 @@ cutting a release: it carries the blocking items.
 |---|---|---|
 | `docs/images/*`, `frontend/src/assets/img/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
 | `skills/preloaded/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
+| `internal/types/opencc/TSPhrases.txt`, `TSCharacters.txt` | [OpenCC](https://github.com/BYVoid/OpenCC) (Open Chinese Convert), © BYVoid and contributors | Apache-2.0 — copied unmodified; license text in `internal/types/opencc/LICENSE`, provenance in the README beside it |
 | `third_party/anydoc-go/` | github.com/firecrawl/anydoc | MIT — Copyright (c) 2026 Sideguide Technologies Inc.; see `third_party/anydoc-go/LICENSE` |
 
 ---
@@ -38,22 +39,21 @@ cutting a release: it carries the blocking items.
 | License | Modules |
 |---|---|
 | MIT | 165 |
-| Apache-2.0 | 146 |
+| Apache-2.0 | 144 |
 | BSD-3-Clause | 47 |
 | BSD-2-Clause | 12 |
-| UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | ISC | 2 |
 | MPL-2.0 | 2 |
-| MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) | 1 |
-| UNRESOLVED (terminal input; not in the linux module cache) | 1 |
-| MIT (vendored at third_party/anydoc-go; see its LICENSE) | 1 |
-| GPL-2.0 | 1 |
-| MIT (this repository) | 1 |
-| UNRESOLVED (not in the linux module cache) | 1 |
+| UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | Apache-2.0 (v0.67.0 is replaced by v0.59.0 in go.mod; the replacement is in the cache and scans Apache-2.0) | 1 |
+| MIT (this repository) | 1 |
+| MIT (vendored at third_party/anydoc-go; see its LICENSE) | 1 |
+| MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) | 1 |
+| UNRESOLVED (not in the linux module cache) | 1 |
+| UNRESOLVED (terminal input; not in the linux module cache) | 1 |
 
 <details>
-<summary>Full list (383 modules)</summary>
+<summary>Full list (380 modules)</summary>
 
 | Module | Version | License |
 |---|---|---|
@@ -247,9 +247,6 @@ cutting a release: it carries the blocking items.
 | `github.com/leaanthony/u` | v1.1.1 | MIT |
 | `github.com/leodido/go-urn` | v1.4.0 | MIT |
 | `github.com/lib/pq` | v1.10.9 | MIT |
-| `github.com/liuzl/cedar-go` | v0.0.0-20170805034717-80a9c64b256d | GPL-2.0 |
-| `github.com/liuzl/da` | v0.0.0-20180704015230-14771aad5b1d | Apache-2.0 |
-| `github.com/longbridgeapp/opencc` | v0.3.13 | Apache-2.0 |
 | `github.com/lucasb-eyer/go-colorful` | v1.2.0 | MIT |
 | `github.com/lufia/plan9stats` | v0.0.0-20260330125221-c963978e514e | BSD-3-Clause |
 | `github.com/magicyuan876/yuheng/client` | v0.0.0-00010101000000-000000000000 | MIT (this repository) |
@@ -868,39 +865,34 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | License | Distributions |
 |---|---|
 | MIT License | 14 |
-| BSD License | 13 |
-| MIT | 11 |
-| Apache Software License | 8 |
+| BSD License | 12 |
+| MIT | 10 |
+| Apache Software License | 7 |
 | BSD-3-Clause | 6 |
 | Apache-2.0 | 5 |
-| Mozilla Public License 2.0 (MPL 2.0) | 1 |
-| GNU Lesser General Public License v2 or later (LGPLv2+) | 1 |
-| Apache-2.0 OR BSD-3-Clause | 1 |
-| Python Software Foundation License | 1 |
-| NOT-DECLARED | 1 |
-| GNU Affero General Public License v3 or later (AGPLv3+) | 1 |
-| MIT AND Python-2.0 | 1 |
-| Apache Software License; BSD License | 1 |
-| MIT-CMU | 1 |
 | 3-Clause BSD License | 1 |
-| BSD-3-Clause, Apache-2.0, dependency licenses | 1 |
-| BSD License; Apache Software License | 1 |
+| Apache Software License; BSD License | 1 |
 | Apache-2.0 AND CNRI-Python | 1 |
+| Apache-2.0 OR BSD-3-Clause | 1 |
+| BSD License; Apache Software License | 1 |
+| BSD-3-Clause, Apache-2.0, dependency licenses | 1 |
+| MIT AND Python-2.0 | 1 |
+| MIT-CMU | 1 |
 | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later | 1 |
+| Mozilla Public License 2.0 (MPL 2.0) | 1 |
 | PSF-2.0 | 1 |
+| Python Software Foundation License | 1 |
 
 <details>
-<summary>Full list (72 distributions)</summary>
+<summary>Full list (66 distributions)</summary>
 
 | Distribution | Version | License |
 |---|---|---|
 | `annotated-types` | 0.7.0 | MIT License |
-| `argcomplete` | 3.6.3 | Apache Software License |
 | `babel` | 2.17.0 | BSD License |
 | `beautifulsoup4` | 4.14.2 | MIT License |
 | `certifi` | 2025.10.5 | Mozilla Public License 2.0 (MPL 2.0) |
 | `cffi` | 2.0.0 | MIT |
-| `chardet` | 5.2.0 | GNU Lesser General Public License v2 or later (LGPLv2+) |
 | `charset-normalizer` | 3.4.4 | MIT |
 | `click` | 8.3.0 | BSD-3-Clause |
 | `cobble` | 0.1.4 | BSD License |
@@ -909,8 +901,6 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `cryptography` | 49.0.0 | Apache-2.0 OR BSD-3-Clause |
 | `dateparser` | 1.2.2 | BSD License |
 | `defusedxml` | 0.7.1 | Python Software Foundation License |
-| `docx2txt` | 0.9 | NOT-DECLARED |
-| `EbookLib` | 0.20 | GNU Affero General Public License v3 or later (AGPLv3+) |
 | `et_xmlfile` | 2.0.0 | MIT License |
 | `flatbuffers` | 25.9.23 | Apache Software License |
 | `greenlet` | 3.2.4 | MIT AND Python-2.0 |
@@ -954,9 +944,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `setuptools` | 80.9.0 | MIT |
 | `six` | 1.17.0 | MIT License |
 | `soupsieve` | 2.8.4 | MIT |
-| `SpeechRecognition` | 3.14.3 | BSD License |
 | `sympy` | 1.14.0 | BSD License |
-| `textract` | 1.5.0 | MIT |
 | `tld` | 0.13.1 | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later |
 | `trafilatura` | 2.0.0 | Apache Software License |
 | `typing-inspection` | 0.4.2 | MIT |

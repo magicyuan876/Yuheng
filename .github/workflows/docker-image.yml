@@ -1,10 +1,12 @@
 name: Build and Push Docker Image
+
+# Release-only: images are built and pushed for v* tags, never for branch
+# pushes. NOTICE §4 lists dependencies that block a binary/container release;
+# tagging is the deliberate act that says they have been dealt with.
 on:
   push:
     tags:
       - "v*"
-    branches:
-      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
