@@ -16,7 +16,7 @@ cutting a release: it carries the blocking items.
 
 | Ecosystem | Components | Source of truth |
 |---|---|---|
-| Go | 383 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
+| Go | 380 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
@@ -29,6 +29,7 @@ cutting a release: it carries the blocking items.
 |---|---|---|
 | `docs/images/*`, `frontend/src/assets/img/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
 | `skills/preloaded/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
+| `internal/types/opencc/TSPhrases.txt`, `TSCharacters.txt` | [OpenCC](https://github.com/BYVoid/OpenCC) (Open Chinese Convert), © BYVoid and contributors | Apache-2.0 — copied unmodified; license text in `internal/types/opencc/LICENSE`, provenance in the README beside it |
 | `third_party/anydoc-go/` | github.com/firecrawl/anydoc | MIT — Copyright (c) 2026 Sideguide Technologies Inc.; see `third_party/anydoc-go/LICENSE` |
 
 ---
@@ -38,22 +39,21 @@ cutting a release: it carries the blocking items.
 | License | Modules |
 |---|---|
 | MIT | 165 |
-| Apache-2.0 | 146 |
+| Apache-2.0 | 144 |
 | BSD-3-Clause | 47 |
 | BSD-2-Clause | 12 |
-| UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | ISC | 2 |
 | MPL-2.0 | 2 |
-| MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) | 1 |
-| UNRESOLVED (terminal input; not in the linux module cache) | 1 |
-| MIT (vendored at third_party/anydoc-go; see its LICENSE) | 1 |
-| GPL-2.0 | 1 |
-| MIT (this repository) | 1 |
-| UNRESOLVED (not in the linux module cache) | 1 |
+| UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | Apache-2.0 (v0.67.0 is replaced by v0.59.0 in go.mod; the replacement is in the cache and scans Apache-2.0) | 1 |
+| MIT (this repository) | 1 |
+| MIT (vendored at third_party/anydoc-go; see its LICENSE) | 1 |
+| MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) | 1 |
+| UNRESOLVED (not in the linux module cache) | 1 |
+| UNRESOLVED (terminal input; not in the linux module cache) | 1 |
 
 <details>
-<summary>Full list (383 modules)</summary>
+<summary>Full list (380 modules)</summary>
 
 | Module | Version | License |
 |---|---|---|
@@ -247,9 +247,6 @@ cutting a release: it carries the blocking items.
 | `github.com/leaanthony/u` | v1.1.1 | MIT |
 | `github.com/leodido/go-urn` | v1.4.0 | MIT |
 | `github.com/lib/pq` | v1.10.9 | MIT |
-| `github.com/liuzl/cedar-go` | v0.0.0-20170805034717-80a9c64b256d | GPL-2.0 |
-| `github.com/liuzl/da` | v0.0.0-20180704015230-14771aad5b1d | Apache-2.0 |
-| `github.com/longbridgeapp/opencc` | v0.3.13 | Apache-2.0 |
 | `github.com/lucasb-eyer/go-colorful` | v1.2.0 | MIT |
 | `github.com/lufia/plan9stats` | v0.0.0-20260330125221-c963978e514e | BSD-3-Clause |
 | `github.com/magicyuan876/yuheng/client` | v0.0.0-00010101000000-000000000000 | MIT (this repository) |
