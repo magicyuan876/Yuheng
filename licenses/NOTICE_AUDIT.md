@@ -10,13 +10,26 @@ left alone, and what still blocks a release. It is the companion to
 
 ---
 
-## 1. Blocking items — do not publish a release until these are resolved
+## 1. Blocking items — all resolved on 2026-09-18
 
-Each of these is a dependency whose license is incompatible with distributing
-Yuheng under MIT. They are **inherited from upstream**, not introduced by the
-fork; upstream's own `LICENSE` scan did not surface them.
+Each of these was a dependency whose license is incompatible with distributing
+Yuheng under MIT. They were **inherited from upstream**, not introduced by the
+fork; upstream's own `LICENSE` scan did not surface them. None remains; the
+sections are kept so the reasoning and the replacements stay auditable.
 
-### 1.1 `github.com/liuzl/cedar-go` — GPL-2.0 — **linked into every server build**
+### 1.1 `github.com/liuzl/cedar-go` — GPL-2.0 — **linked into every server build** — **RESOLVED 2026-09-18**
+
+`longbridgeapp/opencc` (and with it `liuzl/da` and `liuzl/cedar-go`) left
+`go.mod`. OpenCC's own `t2s` data — `TSPhrases.txt` and `TSCharacters.txt`,
+Apache-2.0, copied unmodified into `internal/types/opencc/` with their LICENSE
+and a provenance README — is now embedded and applied by `internal/types/t2s.go`
+with the same maximum-matching semantics (phrase table first, character table
+as fallback). Conversion results are therefore unchanged (t2s is a script
+conversion, not a Taiwan-vocabulary one, so 軟體 still becomes 软体 as before);
+only the GPL-licensed trie implementation is gone. A public-domain character table (`gojianfan`) was
+evaluated first and rejected: it left common characters such as 繫 unconverted
+and drifted already-simplified text (案→桉). The analysis below is kept for the
+record.
 
 ```
 github.com/magicyuan876/yuheng/internal/types
@@ -46,23 +59,27 @@ Options, cheapest first:
 2. Vendor a permissively licensed double-array trie in place of `liuzl/da`.
 3. Drop traditional-Chinese FAQ normalisation entirely.
 
-**Decision required from the project owner.** Nothing has been changed here.
+A variant of option 1 was taken (embed OpenCC's own Apache-2.0 tables); see the resolution note above.
 
-### 1.2 `EbookLib` 0.20 — AGPL-3.0-or-later — docreader (Python)
+### 1.2 `EbookLib` 0.20 — AGPL-3.0-or-later — docreader (Python) — **RESOLVED 2026-09-18**
 
-Used for EPUB parsing. AGPL's network clause reaches a hosted service, so
-shipping it inside the docreader image makes the AGPL's source-disclosure
-obligation arguable for the whole service. Replacements: `ebooklib` is largely a
-zipfile + XML reader; EPUB is a ZIP of XHTML, and `python-docx`-style direct
-parsing with `lxml` (BSD-3-Clause) covers the same ground. Alternatively, drop
-EPUB support.
+`docreader/parser/epub_parser.py` now reads the EPUB container directly with the
+standard library: `META-INF/container.xml` → OPF `<manifest>`/`<spine>` for
+reading order, Dublin Core metadata from the OPF, XHTML → Markdown through the
+existing BeautifulSoup + markdownify path. Archives without a usable OPF fall
+back to scanning for XHTML members. `ebooklib` was removed from
+`docreader/pyproject.toml` and the tests build their fixture EPUB with
+`zipfile`, so nothing in the tree imports it any more.
 
-### 1.3 `chardet` 5.2.0 — LGPL-2.1-or-later — docreader (Python)
+### 1.3 `chardet` 5.2.0 — LGPL-2.1-or-later — docreader (Python) — **RESOLVED 2026-09-18**
 
-Encoding detection. LGPL for a pure-Python library imported at runtime is the
-mildest case in this list, but it is on the blocking list by the project's own
-rule. The drop-in replacement is **`charset-normalizer`** (MIT), which is
-already the default in `requests` and exposes a compatible `detect()`.
+`chardet` was never imported by docreader. It arrived as a transitive dependency
+of `textract==1.5.0`, whose only call site (`doc_parser.py::_parse_with_textract`)
+had already been disabled for SSRF reasons. `textract` was removed from
+`docreader/pyproject.toml`, which also dropped `argcomplete`, `docx2txt`,
+`SpeechRecognition` and the `standard-*` shims from the lock. No replacement was
+needed; `requests` already ships `charset-normalizer` (MIT) for encoding
+detection.
 
 ---
 

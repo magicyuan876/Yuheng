@@ -60,7 +60,10 @@ Specific obligations that survive into redistribution:
 
   * Apache-2.0 — Section 4(b) requires modified files to carry prominent notices
     of change. Yuheng does not modify any Apache-2.0 licensed dependency in
-    place; they are consumed unmodified from their upstream registries.
+    place; they are consumed unmodified from their upstream registries. The
+    OpenCC Traditional→Simplified dictionaries bundled at
+    internal/types/opencc/ are likewise copied unmodified; the Apache-2.0 text
+    and the provenance note ship next to them and must stay with any copy.
 
   * MPL-2.0 — covered files must remain available under the MPL. Yuheng does not
     modify any MPL-2.0 licensed file. The components (certifi, dompurify,
@@ -75,13 +78,8 @@ Specific obligations that survive into redistribution:
 4. Known blocking items
 ================================================================================
 
-The dependency audit (licenses/NOTICE_AUDIT.md) found components whose licenses
-are incompatible with distributing Yuheng under MIT. Until they are resolved,
-this software must not be published as a binary or container release.
-
-    github.com/liuzl/cedar-go   GPL-2.0    linked via internal/types
-    EbookLib (Python)           AGPL-3.0+  EPUB parsing in docreader
-    chardet (Python)            LGPL-2.1+  encoding detection in docreader
-
-See licenses/NOTICE_AUDIT.md for the import paths, the impact, and the proposed
-replacements.
+None at present. The dependency audit (licenses/NOTICE_AUDIT.md §1) originally
+found three copyleft dependencies inherited from upstream (a GPL-2.0 trie linked
+into every server binary, an AGPL-3.0 EPUB library and an LGPL-2.1 encoding
+detector); all three were replaced or removed on 2026-09-18. The audit records
+what was done. tools/license_check.sh fails the build if a new one appears.
