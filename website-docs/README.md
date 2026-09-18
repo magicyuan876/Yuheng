@@ -84,13 +84,10 @@ npm run preview  # 预览构建产物
 | [分块机制](03-features/04-chunking.md) | 自适应分块架构（heading/heuristic/recursive）、父子分块、语义边界重叠、ContextHeader、调试端点 |
 | [检索引擎与向量存储](03-features/05-retrieval-engines.md) | 各检索引擎（向量/BM25/全文/混合）能力对比、驱动选择、维度管理、打分归一化 |
 | [模型管理](03-features/06-models.md) | 5 类模型、26 个厂商 Provider、内置模型机制、Ollama 本地模型、限流与用量 |
-| [Agent 引擎](03-features/07-agent.md) | ReAct 循环、24 个内置工具、上下文与记忆管理、技能系统与沙箱、自定义 Agent、建议问题 |
-| [MCP 集成](03-features/08-mcp.md) | MCP 客户端管理、OAuth 2.0 + PKCE 全流程、工具审批、Yuheng MCP Server（`yuheng-mcp`，29 个工具） |
+| [MCP 集成](03-features/08-mcp.md) | MCP 客户端管理、OAuth 2.0 + PKCE 全流程、Yuheng MCP Server（`yuheng-mcp`，23 个工具） |
 | [知识图谱](03-features/09-knowledge-graph.md) | 两级开关、LLM 实体关系抽取、Neo4j 存储、图谱增强检索 |
 | [数据源导入](03-features/10-datasource.md) | 连接器体系（飞书/Lark/Notion/语雀/RSS）、凭据加密、同步调度与增量更新 |
 | [网络搜索与网页抓取](03-features/11-web-search.md) | 9 个搜索引擎、SSRF 防护、web_fetch 双实现、SearXNG 自托管 |
-| [IM 集成](03-features/12-im-integration.md) | 10 个 IM 平台适配、消息处理流水线、内置命令、流式渲染、多实例协同 |
-| [网页嵌入 Embed Channel](03-features/13-embed-channel.md) | 嵌入渠道配置、匿名会话与 token 交换、安全模式、webhook、接入示例 |
 | [Wiki 能力](03-features/14-wiki.md) | 基于知识库的 LLM Wiki 站点生成、四阶段管道、slug 机制、人工编辑与版本回滚、issue 闭环、变更并入知识库活动流 |
 | [评估能力](03-features/15-evaluation.md) | 评估任务、Parquet 数据集格式、12 项检索/生成指标 |
 | [可观测性与审计](03-features/16-observability.md) | 日志体系、Langfuse 追踪、审计日志与保留策略、限流、健康检查 |
@@ -109,16 +106,15 @@ npm run preview  # 预览构建产物
 | [API 总览](04-api/01-api-overview.md) | Base URL、三种认证方式、通用响应包与错误码、分页规范、SSE 协议、限流 |
 | [认证与用户](04-api/02-api-auth.md) | /auth 注册登录、token 刷新、邀请 |
 | [租户与成员](04-api/02-api-tenant.md) | 租户、成员、邀请、API Key、审计 |
-| [组织与共享](04-api/02-api-org.md) | 组织、知识库共享、Agent 共享 |
+| [组织与共享](04-api/02-api-org.md) | 组织、知识库共享 |
 | [知识库与知识](04-api/02-api-knowledge.md) | 知识库、知识、文件夹 |
 | [分块与标签](04-api/02-api-chunks.md) | 分块读写与版本、生成问题、标签、分块预览 |
 | [FAQ 与 Wiki](04-api/02-api-faq-wiki.md) | FAQ 管理与导入、Wiki 读写 |
-| [会话与聊天](04-api/02-api-chat.md) | 会话、消息、知识问答与 Agent 对话（SSE） |
+| [会话与聊天](04-api/02-api-chat.md) | 会话、消息、知识问答（SSE） |
 | [模型与初始化](04-api/02-api-model-system.md) | 模型、初始化向导、评估 |
 | [系统与平台管理](04-api/02-api-system.md) | 系统信息、全局设置、运行时队列、平台 API Key、系统审计 |
 | [基础设施与数据源](04-api/02-api-infra.md) | 向量存储、存储后端、Web 搜索、数据源 |
-| [Agent 与 MCP](04-api/02-api-agent-mcp.md) | Agent、MCP 服务、OAuth、技能、收藏 |
-| [IM、Embed 与文件](04-api/02-api-channels.md) | IM 回调与渠道、微信扫码、Embed、文件服务 |
+| [文件服务](04-api/02-api-files.md) | 统一文件代理、预签名 URL、匿名能力短链 `/r/:token` |
 
 ### 05 客户端
 
@@ -179,7 +175,7 @@ flowchart LR
 
 ## 文档约定
 
-- 文中源码路径均相对仓库根目录，如 `internal/agent/engine.go`。
+- 文中源码路径均相对仓库根目录，如 `internal/handler/session.go`。
 - API 路径默认带 `/api/v1` 前缀；认证方式见 [API 总览](04-api/01-api-overview.md)。
 - 配置示例中的密钥均为占位符，生产环境务必替换（尤其 `JWT_SECRET`、`SYSTEM_AES_KEY`、数据库口令）。
 - 文档基于仓库根目录 `VERSION` 文件对应版本源码整理（VitePress 构建时自动读取），随代码变更同步维护。

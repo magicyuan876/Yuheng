@@ -15,28 +15,20 @@ graph LR
         P4["模型 Provider<br/>(models/provider)"]
         P5["联网搜索引擎<br/>(infrastructure/web_search)"]
         P6["数据源连接器<br/>(datasource/connector)"]
-        P7["IM 平台适配器<br/>(im/adapter.go)"]
-        P8["Agent 工具<br/>(agent/tools)"]
         P9["存储后端<br/>(application/service/file)"]
     end
     DOC["原始文档"] --> P1
     P1 -->|"markdown + 图片"| P2
     P2 -->|"chunks"| P3
     P6 -->|"外部内容同步"| P1
-    P7 -->|"IM 消息"| AG["Agent 引擎"]
-    AG --> P8
-    P8 --> P3
-    P8 --> P5
-    AG --> P4
     P1 -.->|"文件读写"| P9
     P2 -.-> P9
     CT["container.go<br/>(依赖注入 / 注册中枢)"] -.->|"注册"| P3
     CT -.->|"注册"| P5
     CT -.->|"注册"| P6
-    CT -.->|"注册"| P7
 ```
 
-Go 侧绝大多数扩展点的**注册中枢**是 `internal/container/container.go`（依赖注入容器）：检索引擎 `initRetrieveEngineRegistry()`、联网搜索 `registerWebSearchProviders()`、IM 适配器 `registerIMAdapterFactories()`、数据源连接器 `initConnectorRegistry()`。
+Go 侧绝大多数扩展点的**注册中枢**是 `internal/container/container.go`（依赖注入容器）：检索引擎 `initRetrieveEngineRegistry()`、联网搜索 `registerWebSearchProviders()`、数据源连接器 `initConnectorRegistry()`。
 
 ---
 
@@ -482,140 +474,7 @@ if err := registry.Register(mysourceConnector.NewConnector()); err != nil {
 
 ---
 
-## 7. 新增 IM 平台适配器（internal/im）
-
-### 接口定义
-
-```go
-// internal/im/adapter.go
-type Platform string // "wecom" / "feishu" / "lark" / "slack" / "telegram" / "dingtalk" /
-                     // "mattermost" / "wechat" / "qqbot" / "yunzhijia"
-
-// Adapter is the interface every IM platform must implement.
-type Adapter interface {
-    // Platform returns the platform identifier.
-    Platform() Platform
-
-    // VerifyCallback verifies the signature/token of an incoming callback request.
-    VerifyCallback(c *gin.Context) error
-
-    // ParseCallback parses the raw IM callback request into a unified IncomingMessage.
-    // Returns nil message for non-message events (e.g., URL verification).
-    ParseCallback(c *gin.Context) (*IncomingMessage, error)
-
-    // SendReply sends a reply back to the IM platform.
-    SendReply(ctx context.Context, incoming *IncomingMessage, reply *ReplyMessage) error
-
-    // HandleURLVerification handles the initial URL verification challenge.
-    HandleURLVerification(c *gin.Context) bool
-}
-```
-
-两个可选能力接口：
-
-```go
-// internal/im/adapter.go
-// StreamSender：实现后 IM 服务将实时推送流式回答（如飞书流式卡片、Telegram 编辑消息）
-type StreamSender interface {
-    StartStream(ctx context.Context, incoming *IncomingMessage) (string, error)
-    UpdateStreamContent(ctx context.Context, incoming *IncomingMessage, streamID string, fullContent string) error
-    FinalizeStream(ctx context.Context, incoming *IncomingMessage, streamID string, finalContent string) error
-    EndStream(ctx context.Context, incoming *IncomingMessage, streamID string) error
-}
-
-// FileDownloader：实现后，配置了 knowledge_base_id 的渠道会把文件消息入库
-type FileDownloader interface {
-    DownloadFile(ctx context.Context, msg *IncomingMessage) (io.ReadCloser, string, error)
-}
-```
-
-适配器由工厂按渠道实例化（`internal/im/service.go`）：
-
-```go
-// internal/im/service.go
-type AdapterFactory func(ctx context.Context, channel *IMChannel,
-    msgHandler func(ctx context.Context, msg *IncomingMessage) error,
-) (Adapter, context.CancelFunc, error)
-
-func (s *Service) RegisterAdapterFactory(platform string, factory AdapterFactory)
-```
-
-### 现有实现
-
-`internal/im/` 下每个平台一个子包：`wecom/`、`feishu/`（lark 复用，`feishu.NewFactory(RegionLark)`）、`slack/`、`telegram/`、`dingtalk/`、`mattermost/`、`wechat/`、`qqbot/`、`yunzhijia/`。
-
-### 新增步骤
-
-1. 在 `internal/im/adapter.go` 增加 `Platform` 常量；
-2. 新建 `internal/im/myplatform/`，实现 `Adapter`（按需加 `StreamSender`/`FileDownloader`）与 `NewFactory() im.AdapterFactory`；
-3. **注册点：`internal/container/container.go` 的 `registerIMAdapterFactories()`**：
-
-```go
-func registerIMAdapterFactories(imService *imPkg.Service) {
-    imService.RegisterAdapterFactory("wecom", wecom.NewFactory())
-    // ... 在此追加：
-    imService.RegisterAdapterFactory("myplatform", myplatform.NewFactory())
-    if err := imService.LoadAndStartChannels(); err != nil { ... }
-}
-```
-
-4. 渠道配置持久化在 `im_channels` 表，会话映射在 `im_channel_sessions`；前端渠道管理页需增加对应平台的配置表单。
-
----
-
-## 8. 新增 Agent 工具（internal/agent/tools）
-
-### 接口定义
-
-工具接口定义在 `internal/types/agent.go`：
-
-```go
-// internal/types/agent.go
-type Tool interface {
-    // Name returns the unique identifier for this tool
-    Name() string
-
-    // Description returns a human-readable description of what the tool does
-    Description() string
-
-    // Parameters returns the JSON Schema for the tool's parameters
-    Parameters() json.RawMessage
-
-    // Execute runs the tool with the given arguments
-    Execute(ctx context.Context, args json.RawMessage) (*ToolResult, error)
-}
-```
-
-运行时注册表在 `internal/agent/tools/registry.go`：
-
-```go
-// internal/agent/tools/registry.go
-type ToolRegistry struct {
-    tools             map[string]types.Tool
-    maxToolOutputSize int
-}
-
-// RegisterTool adds a tool to the registry.
-// 同名工具 first-wins，防止名称碰撞劫持（GHSA-67q9-58vj-32qx）。
-func (r *ToolRegistry) RegisterTool(tool types.Tool)
-func (r *ToolRegistry) GetTool(name string) (types.Tool, error)
-func (r *ToolRegistry) ListTools() []string
-```
-
-### 现有实现
-
-工具名常量集中在 `internal/agent/tools/definitions.go`：`thinking`、`todo_write`、`grep_chunks`、`knowledge_search`、`list_knowledge_chunks`、`query_knowledge_graph`、`get_document_info`、`database_query`、`data_analysis`、`data_schema`、`web_search`、`web_fetch`、skills 工具（`execute_skill_script`、`read_skill`）、wiki 工具（`wiki_read_page`、`wiki_write_page`、`wiki_replace_text`、`wiki_rename_page`、`wiki_delete_page`、`wiki_search`、`wiki_read_source_doc`、`wiki_flag_issue`、`wiki_read_issue`、`wiki_update_issue`）。实现文件与工具同名（如 `grep_chunks.go`、`knowledge_search.go`、`data_analysis.go`、`mcp_tool.go`——后者把 MCP 服务的远程工具包装成 `types.Tool`）。
-
-### 新增步骤
-
-1. 在 `internal/agent/tools/` 新建 `my_tool.go`，实现 `types.Tool` 四个方法（`Parameters()` 返回 JSON Schema；注意工具名 ≤ 64 字符的 OpenAI 限制，见 `definitions.go` 的 `maxFunctionNameLength`）；
-2. **注册点一：`internal/agent/tools/definitions.go`** — 增加 `ToolMyTool = "my_tool"` 常量，并把工具加进 `AvailableToolDefinitions()`（UI 的可选工具列表，注释明确要求与已注册工具保持同步）；
-3. **注册点二：Agent 引擎的工具装配处** — 在构建 `ToolRegistry` 的服务逻辑（Agent 会话初始化，按 Agent 配置的允许工具列表实例化并 `RegisterTool`）中加入新工具的构造；带资源清理需求时实现 `Cleanup`（`types.Cleanable`）；
-4. 输出体量大的工具注意 `ToolRegistry` 的 `maxToolOutputSize` 截断行为；为工具编写 `_test.go`（同目录有大量参考，如 `grep_chunks_scope_test.go`）。
-
----
-
-## 9. 新增存储后端（对象存储）
+## 7. 新增存储后端（对象存储）
 
 ### 接口定义
 
@@ -699,6 +558,4 @@ default:
 | 模型 Provider | `Provider` / `providerAdapter` / `Embedder` / `Reranker` | `internal/models/provider/provider.go` 等 | `provider.Register()` + `internal/models/chat/provider.go` |
 | 联网搜索 | `WebSearchProvider` | `internal/types/interfaces/web_search.go` | `container.go` `registerWebSearchProviders()` |
 | 数据源连接器 | `Connector` / `StreamingConnector` | `internal/datasource/connector.go` | `container.go` `initConnectorRegistry()` + `ConnectorMetadataRegistry` |
-| IM 适配器 | `Adapter`（+`StreamSender`/`FileDownloader`） | `internal/im/adapter.go` | `container.go` `registerIMAdapterFactories()` |
-| Agent 工具 | `types.Tool` | `internal/types/agent.go` | `internal/agent/tools/definitions.go` + `ToolRegistry.RegisterTool` |
 | 存储后端 | `FileService` | `internal/types/interfaces/file.go` | `internal/application/service/file/factory.go` switch |

@@ -205,7 +205,6 @@ func runChatNDJSON(ctx context.Context, opts *Options, sessionID string, svc Cha
 	req := &sdk.KnowledgeQARequest{
 		Query:            opts.Query,
 		KnowledgeBaseIDs: []string{opts.KBID},
-		AgentEnabled:     false,
 		WebSearchEnabled: false,
 		Channel:          "api",
 	}
@@ -229,7 +228,6 @@ func runChatText(ctx context.Context, opts *Options, sessionID string, autoCreat
 	req := &sdk.KnowledgeQARequest{
 		Query:            opts.Query,
 		KnowledgeBaseIDs: []string{opts.KBID},
-		AgentEnabled:     false,
 		WebSearchEnabled: false,
 		Channel:          "api",
 	}
@@ -286,7 +284,6 @@ func runChatJSON(ctx context.Context, opts *Options, fopts *cmdutil.FormatOption
 	req := &sdk.KnowledgeQARequest{
 		Query:            opts.Query,
 		KnowledgeBaseIDs: []string{opts.KBID},
-		AgentEnabled:     false,
 		WebSearchEnabled: false,
 		Channel:          "api",
 	}

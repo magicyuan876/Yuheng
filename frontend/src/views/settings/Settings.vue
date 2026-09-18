@@ -36,15 +36,6 @@
                         <line x1="2.94" y1="12.5" x2="15.06" y2="12.5" stroke="currentColor" stroke-width="1.2"
                           stroke-linecap="round" />
                       </svg>
-                      <!-- 技能沙箱：隔离运行窗口，避免和 Ollama / 系统设置共用 server -->
-                      <svg v-else-if="item.key === 'sandbox'" width="17" height="17" viewBox="0 0 18 18" fill="none"
-                        xmlns="http://www.w3.org/2000/svg" class="nav-icon">
-                        <rect x="2.5" y="3" width="13" height="12" rx="2" stroke="currentColor" stroke-width="1.2"
-                          fill="none" />
-                        <path d="M2.5 6.5h13" stroke="currentColor" stroke-width="1.2" />
-                        <path d="M5.5 10h4M5.5 12.5h2.5" stroke="currentColor" stroke-width="1.2"
-                          stroke-linecap="round" />
-                      </svg>
                       <span v-else-if="item.emoji" class="nav-icon nav-icon-emoji">{{ item.emoji }}</span>
                       <t-icon v-else :name="item.icon" class="nav-icon" />
                       <span class="nav-label">{{ item.label }}</span>
@@ -72,7 +63,7 @@
             <div class="settings-content">
               <div class="content-wrapper" :class="{
                 'content-wrapper--wide': currentSection === 'members',
-                'content-wrapper--full': SYSTEM_ADMIN_SECTIONS.has(currentSection) || isIntegrationSection(currentSection),
+                'content-wrapper--full': SYSTEM_ADMIN_SECTIONS.has(currentSection),
               }">
                 <!-- 角色不允许访问当前 section（deep-link 进来 / 跨空间切换后角色降级）—— 优先于具体 section 渲染。
                      正常导航走 navItems filter 不会到这里，但 watch(navItems) 的 fallback 会在角色降级
@@ -111,16 +102,6 @@
                     <ChatHistorySettings />
                   </div>
 
-                  <!-- 长期记忆（空间级开关） -->
-                  <div v-if="currentSection === 'memory'" class="section">
-                    <MemoryWorkspaceSettings />
-                  </div>
-
-                  <!-- 我的记忆（个人记忆管理） -->
-                  <div v-if="currentSection === 'mymemory'" class="section">
-                    <MemorySettings />
-                  </div>
-
                   <!-- 向量数据库引擎 -->
                   <div v-if="currentSection === 'vectorstore'" class="section">
                     <VectorStoreSettings />
@@ -134,11 +115,6 @@
                   <!-- 存储引擎 -->
                   <div v-if="currentSection === 'storage'" class="section">
                     <StorageEngineSettings />
-                  </div>
-
-                  <!-- 技能沙箱 -->
-                  <div v-if="currentSection === 'sandbox'" class="section">
-                    <SandboxSettings />
                   </div>
 
                   <!-- 系统信息 -->
@@ -180,15 +156,6 @@
                     <TenantMembers />
                   </div>
 
-                  <!-- 发布集成 -->
-                  <div v-if="isIntegrationSection(currentSection)" class="section">
-                    <IntegrationSettingsSection :tab="integrationTabFromSection(currentSection)" />
-                  </div>
-
-                  <!-- MCP 服务 -->
-                  <div v-if="currentSection === 'mcp'" class="section">
-                    <McpSettings />
-                  </div>
                 </template>
               </div>
             </div>
@@ -215,28 +182,16 @@ import UserProfile from './UserProfile.vue'
 import GeneralSettings from './GeneralSettings.vue'
 import ModelSettings from './ModelSettings.vue'
 import OllamaSettings from './OllamaSettings.vue'
-import McpSettings from './McpSettings.vue'
 import WebSearchSettings from './WebSearchSettings.vue'
 import ChatHistorySettings from './ChatHistorySettings.vue'
-import MemorySettings from './MemorySettings.vue'
-import MemoryWorkspaceSettings from './MemoryWorkspaceSettings.vue'
 import VectorStoreSettings from './VectorStoreSettings.vue'
 import ParserEngineSettings from './ParserEngineSettings.vue'
 import StorageEngineSettings from './StorageBackendSettings.vue'
-import SandboxSettings from './SandboxSettings.vue'
 import TenantMembers from './TenantMembers.vue'
 import SystemSettings from '@/views/system/SystemSettings.vue'
 import RuntimeQueues from '@/views/system/RuntimeQueues.vue'
 import PlatformAPIKeys from '@/views/system/PlatformAPIKeys.vue'
 import SystemAuditLog from '@/views/system/SystemAuditLog.vue'
-import IntegrationSettingsSection from '@/views/integrations/IntegrationSettingsSection.vue'
-import {
-  HIDDEN_INTEGRATION_TABS,
-  INTEGRATION_PREVIEW_ITEMS,
-  INTEGRATION_TABS,
-  INTEGRATION_TAB_CAPABILITY,
-  INTEGRATION_TAB_MIN_ROLE,
-} from '@/config/integrations'
 import {
   SETTINGS_SECTION_MIN_ROLE,
   SYSTEM_ADMIN_SETTINGS_SECTIONS,
@@ -245,9 +200,6 @@ import {
 import { SETTINGS_SECTION_CAPABILITY } from '@/config/deploymentCapabilities'
 import {
   buildSettingsRouteQuery,
-  integrationSectionKey,
-  integrationTabFromSection,
-  isIntegrationSection,
   normalizeSettingsSection as normalizeSettingsSectionFromQuery,
   settingsQueryUnchanged,
 } from '@/config/settingsRoute'
@@ -281,7 +233,7 @@ type NavGroup = {
 // 设置二级导航的最低可见角色来自 settingsAccess.ts，和
 // internal/router/router.go 的守卫矩阵对齐。
 // 以「页面里至少有 1 个有意义的写操作所要求的最低角色」为基准，把基础设
-// 施配置（models 写、ollama 下载、websearch 写、parser/storage/vector/mcp
+// 施配置（models 写、ollama 下载、websearch 写、parser/storage/vector
 // CRUD、chat-history 配置）统一收到 admin；只读类（general / system info /
 // tenant-info / members 名册）保留 viewer 可见；最高敏感的 reset api
 // key 是 owner-only。改这张表前请在 router.go 里复核对应路由组。
@@ -310,28 +262,17 @@ const syncSettingsRoute = (sectionKey: string) => {
 }
 
 const isSectionSupported = (key: string): boolean => {
-  if (isIntegrationSection(key)) {
-    return deploymentCapabilities.isSupported(
-      INTEGRATION_TAB_CAPABILITY[integrationTabFromSection(key)],
-    )
-  }
   return deploymentCapabilities.isSupported(SETTINGS_SECTION_CAPABILITY[key])
 }
 
 const canSeeSection = (key: string): boolean => {
-  if (isIntegrationSection(key)) {
-    const min = INTEGRATION_TAB_MIN_ROLE[integrationTabFromSection(key)]
-    if (!min) return true
-    if (authStore.canAccessAllTenants) return true
-    return authStore.hasRole(min)
-  }
   if (SYSTEM_ADMIN_SECTIONS.has(key)) {
     return authStore.isSystemAdmin
   }
-  // 集中管控模式下，共享基础设施（模型/解析/向量库/存储/沙箱/网络搜索/MCP/Ollama）
+  // 集中管控模式下，共享基础设施（模型/解析/向量库/存储/网络搜索/Ollama）
   // 的配置权归系统管理员。这里不能靠抬高 SETTINGS_SECTION_MIN_ROLE 实现 —— 每个
   // 自助注册用户都是自己个人空间的 Owner，任何角色阈值都恒真。
-  // 注意入口隐藏不影响使用：建知识库/智能体时的选择器走各自的 Viewer+ 读接口，
+  // 注意入口隐藏不影响使用：建知识库时的选择器走各自的 Viewer+ 读接口，
   // 平台资源照常可选，只是凭据和 Base URL 被 DTO 层抹掉。
   if (isPlatformManagedSection(key, governance.centralizedInfra)) {
     // canAccessAllTenants 与后端 RequirePlatformManaged 的 IsCrossTenantSuperuser
@@ -350,34 +291,23 @@ const navItems = computed(() => {
   // 一律走 SETTINGS_SECTION_MIN_ROLE 表，避免 ad-hoc isAdmin/isOwner 散落在多处。
   // 服务端在每条路由上仍以 g.Viewer/Admin/Owner 为准，这里只决定 UI 是
   // 否露入口；改动入口规则请同步更新 settingsAccess.ts 和对应后端路由。
-  const integrationItems: NavItem[] = INTEGRATION_PREVIEW_ITEMS.map((item) => ({
-    key: integrationSectionKey(item.key),
-    icon: item.icon.type === 'icon' ? item.icon.name : 'integration',
-    emoji: item.icon.type === 'emoji' ? item.icon.value : undefined,
-    label: t(`integrations.tabs.${item.key}`),
-  }))
   const all: NavItem[] = [
     { key: 'general', icon: 'setting', label: t('general.title') },
     { key: 'ollama', icon: 'server', label: 'Ollama' },
     { key: 'models', icon: 'control-platform', label: t('settings.modelManagement') },
     { key: 'websearch', icon: 'search', label: t('settings.webSearchConfig') },
     { key: 'chathistory', icon: 'chat', label: t('chatHistorySettings.title') },
-    { key: 'memory', icon: 'bulletpoint', label: t('memoryWorkspaceSettings.title') },
     { key: 'vectorstore', icon: 'data-base', label: t('settings.vectorStoreEngine') },
     { key: 'parser', icon: 'file-search', label: t('settings.parserEngine') },
     { key: 'storage', icon: 'cloud', label: t('settings.storageEngine') },
-    { key: 'sandbox', icon: 'code', label: t('settings.sandbox.title') },
-    { key: 'mcp', icon: 'tools', label: t('settings.mcpService') },
     { key: 'system', icon: 'info-circle', label: t('settings.versionInfo') },
     { key: 'system-global', icon: 'server', label: t('settings.system') },
     { key: 'runtime-queues', icon: 'queue', label: t('settings.taskQueue') },
     { key: 'platform-api-keys', icon: 'secured', label: t('platformApiKeys.title') },
     { key: 'system-audit-log', icon: 'history', label: t('system.globalSettings.audit.tabLabel') },
     { key: 'userprofile', icon: 'user', label: t('userProfile.title') },
-    { key: 'mymemory', icon: 'bookmark', label: t('memorySettings.title') },
     { key: 'tenant', icon: 'user-circle', label: t('settings.tenantInfo') },
     { key: 'members', icon: 'usergroup', label: t('tenantMember.title') },
-    ...integrationItems,
   ]
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
   // viewer 入口然后角色一返回又消失，先卡住不渲染更稳，跟原先 members
@@ -391,7 +321,7 @@ const navItems = computed(() => {
 const navGroups = computed<NavGroup[]>(() => {
   const itemMap = new Map(navItems.value.map((item) => [item.key, item]))
   const pickItems = (keys: string[]) => keys.map((key) => itemMap.get(key)).filter(Boolean) as NavItem[]
-  // 分组：账户 → 空间 → 模型 → 发布集成 → 数据与扩展 → 系统管理 → 平台
+  // 分组：账户 → 空间 → 模型 → 数据与扩展 → 系统管理 → 平台
   // 关键调整：把个人偏好(general)和用户信息收进「账户」；
   // 把空间内功能开关(chathistory)从「平台」挪到「空间」；
   // 把检索引擎和外部集成合并为「数据与扩展」，避免两个 2~3 项的窄分组。
@@ -399,26 +329,17 @@ const navGroups = computed<NavGroup[]>(() => {
     {
       key: 'account',
       label: t('settings.navGroups.account'),
-      items: pickItems(['general', 'userprofile', 'mymemory']),
+      items: pickItems(['general', 'userprofile']),
     },
     {
       key: 'workspace',
       label: t('settings.navGroups.workspace'),
-      items: pickItems(['tenant', 'members', 'chathistory', 'memory']),
+      items: pickItems(['tenant', 'members', 'chathistory']),
     },
     {
       key: 'models_runtime',
       label: t('settings.navGroups.modelsRuntime'),
       items: pickItems(['models', 'ollama']),
-    },
-    {
-      key: 'integrations',
-      label: t('integrations.title'),
-      items: pickItems(
-        INTEGRATION_TABS.filter((tab) => !HIDDEN_INTEGRATION_TABS.has(tab)).map(
-          integrationSectionKey,
-        ),
-      ),
     },
     {
       key: 'data_extensions',
@@ -427,9 +348,7 @@ const navGroups = computed<NavGroup[]>(() => {
         'vectorstore',
         'parser',
         'storage',
-        'sandbox',
         'websearch',
-        'mcp',
       ]),
     },
     {
@@ -460,7 +379,7 @@ const handleNavClick = (item: any) => {
     currentSubSection.value = ''
   }
 
-  // 切换到对应页面，并同步 URL 为 ?section=<navKey>（含 integration-claw）。
+  // 切换到对应页面，并同步 URL 为 ?section=<navKey>。
   // 否则从其它 section 点进来时 query 不变，路由监听会把内容拉回去。
   currentSection.value = item.key
   syncSettingsRoute(item.key)

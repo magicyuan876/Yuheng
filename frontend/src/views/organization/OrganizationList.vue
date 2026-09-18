@@ -148,12 +148,6 @@
                       <span class="badge-count">{{ org.share_count ?? 0 }}</span>
                     </div>
                   </t-tooltip>
-                  <t-tooltip :content="$t('organization.invite.agents')" placement="top">
-                    <div class="feature-badge stat-agent">
-                      <img src="@/assets/img/agent-green.svg" class="stat-agent-icon" alt="" aria-hidden="true" />
-                      <span class="badge-count">{{ org.agent_share_count ?? 0 }}</span>
-                    </div>
-                  </t-tooltip>
                 </div>
                 <t-tooltip v-if="(org.pending_join_request_count ?? 0) > 0"
                   :content="$t('organization.settings.pendingJoinRequestsBadge')" placement="top">
@@ -397,12 +391,6 @@
                         <div class="feature-badge stat-kb">
                           <t-icon name="folder" size="14px" />
                           <span class="badge-count">{{ invitePreviewData.share_count }}</span>
-                        </div>
-                      </t-tooltip>
-                      <t-tooltip :content="$t('organization.invite.agents')" placement="top">
-                        <div class="feature-badge stat-agent">
-                          <img src="@/assets/img/agent-green.svg" class="stat-agent-icon" alt="" aria-hidden="true" />
-                          <span class="badge-count">{{ invitePreviewData.agent_share_count ?? 0 }}</span>
                         </div>
                       </t-tooltip>
                     </div>
@@ -1016,7 +1004,6 @@ function previewSearchableOrg(org: SearchableOrganizationItem) {
     avatar: org.avatar,
     member_count: org.member_count,
     share_count: org.share_count,
-    agent_share_count: org.agent_share_count ?? 0,
     is_already_member: org.is_already_member,
     require_approval: org.require_approval,
     created_at: '', // 搜索列表中没有创建时间，使用空字符串
@@ -1676,22 +1663,6 @@ onUnmounted(() => {
     }
   }
 
-  &.stat-agent {
-    background: rgba(124, 77, 255, 0.08);
-    color: var(--td-brand-color);
-
-    .stat-agent-icon {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-      /* 将绿色 icon 着色为紫色，与标签统一 */
-      filter: brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(236deg);
-    }
-
-    &:hover {
-      background: rgba(124, 77, 255, 0.12);
-    }
-  }
 }
 
 // 待审核角标：与 feature-badge 同高

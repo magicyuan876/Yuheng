@@ -97,41 +97,6 @@ func (p *Projector) Chat(r *sdk.StreamResponse) (ProjectedEvent, bool) {
 	return event, true
 }
 
-// Agent consumes one AgentQAStream frame.
-func (p *Projector) Agent(r *sdk.AgentStreamResponse) (ProjectedEvent, bool) {
-	if r == nil || p.done {
-		return ProjectedEvent{}, false
-	}
-	p.seen = true
-	if r.ResponseType == sdk.AgentResponseTypeComplete {
-		p.done = true
-	}
-	if r.ResponseType == sdk.AgentResponseTypeError && r.Done {
-		p.done = true
-	}
-
-	isAnswer := r.ResponseType == sdk.AgentResponseTypeAnswer
-	isReference := r.ResponseType == sdk.AgentResponseTypeReferences
-	include := isAnswer || (p.verbose && !isReference) || (p.reference && isReference)
-	if !include && p.reference && len(r.KnowledgeReferences) > 0 {
-		return p.agentReferenceEvent(r), true
-	}
-	if !include {
-		return ProjectedEvent{}, false
-	}
-	event := ProjectedEvent{
-		ID:           r.ID,
-		ResponseType: string(r.ResponseType),
-		Content:      r.Content,
-		Done:         r.Done,
-		Data:         r.Data,
-	}
-	if p.reference {
-		event.KnowledgeReferences = format.IndexReferences(r.KnowledgeReferences, p.fallbackKBID)
-	}
-	return event, true
-}
-
 func (p *Projector) chatReferenceEvent(r *sdk.StreamResponse) ProjectedEvent {
 	return ProjectedEvent{
 		ID:                  r.ID,
@@ -140,15 +105,6 @@ func (p *Projector) chatReferenceEvent(r *sdk.StreamResponse) ProjectedEvent {
 		KnowledgeReferences: format.IndexReferences(r.KnowledgeReferences, p.fallbackKBID),
 		SessionID:           r.SessionID,
 		AssistantMessageID:  r.AssistantMessageID,
-	}
-}
-
-func (p *Projector) agentReferenceEvent(r *sdk.AgentStreamResponse) ProjectedEvent {
-	return ProjectedEvent{
-		ID:                  r.ID,
-		ResponseType:        string(sdk.AgentResponseTypeReferences),
-		Done:                r.Done,
-		KnowledgeReferences: format.IndexReferences(r.KnowledgeReferences, p.fallbackKBID),
 	}
 }
 

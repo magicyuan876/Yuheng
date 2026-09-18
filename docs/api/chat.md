@@ -5,11 +5,12 @@
 | 方法 | 路径                          | 描述                     |
 | ---- | ----------------------------- | ------------------------ |
 | POST | `/knowledge-chat/:session_id` | 基于知识库的问答         |
-| POST | `/agent-chat/:session_id`     | 基于 Agent 的智能问答    |
 | POST | `/knowledge-search`           | 基于知识库的搜索知识     |
 | GET  | `/sessions/:session_id/messages/:message_id/suggestions` | 获取已生成的回答后推荐 |
 | POST | `/sessions/:session_id/messages/:message_id/suggestions` | 确保生成或换一批推荐 |
 | POST | `/sessions/:session_id/suggestion-events` | 上报曝光、点击、关闭事件 |
+
+> **变更说明**：`/agent-chat/:session_id` 端点已随 Agent 引擎移除，现在返回 `404`。需要 Agent 编排能力的场景，请由外部 Agent 通过 REST API / Go SDK / CLI / MCP server 调用 Yuheng 的检索与问答能力。
 
 ## POST `/knowledge-chat/:session_id` - 基于知识库的问答
 
@@ -19,9 +20,9 @@
 
 | 参数 | 取值 | 说明 |
 |------|------|------|
-| `resource_urls` | `handle`（默认）/ `public` | `public` 让答案与引用里的图片直接返回可加载的 http(s) 链接，省去逐个调用 `/files` 代理。详见[文件与图片引用](./README.md#文件与图片引用resource-与直链) |
+| `resource_urls` | `handle`（默认）/ `public` | `public` 让答案与引用里的图片直接返回可加载的 http(s) 链接，省去逐个调用 `/files` 代理。详见[文件与图片引用](../../website-docs/03-features/21-file-access.md) |
 
-同样适用于下面的 `/agent-chat/:session_id`、`/knowledge-search` 与 `/sessions/continue-stream/:session_id`。
+同样适用于下面的 `/knowledge-search` 与 `/sessions/continue-stream/:session_id`。
 
 **请求参数**：
 
@@ -30,12 +31,11 @@
 | `query` | string | 是 | 查询文本 |
 | `knowledge_base_ids` | string[] | 否 | 知识库 ID 列表 |
 | `knowledge_ids` | string[] | 否 | 知识文件 ID 列表，指定具体文件进行检索 |
-| `agent_id` | string | 否 | 自定义 Agent ID，指定使用的智能体 |
 | `summary_model_id` | string | 否 | 覆盖默认的摘要模型 ID |
 | `mentioned_items` | object[] | 否 | @提及的知识库和文件列表 |
 | `disable_title` | bool | 否 | 是否禁用自动标题生成（默认 false） |
-| `images` | object[] | 否 | 附带的图片（base64 格式），需要 Agent 启用图片上传 |
-| `channel` | string | 否 | 来源渠道标识：`web`、`api`、`im`、`browser_extension` |
+| `images` | object[] | 否 | 附带的图片（base64 格式） |
+| `channel` | string | 否 | 来源渠道标识：`web`、`api`、`browser_extension` |
 | `suggestion_attribution` | object | 否 | 用户从推荐问题发起本轮时传入 `{suggestion_set_id, question_id}`；服务端会校验归属 |
 
 **请求**:
@@ -46,8 +46,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge-chat/ceb9babb-1e30-41d7-
 --header 'Content-Type: application/json' \
 --data '{
     "query": "彗尾的形状",
-    "knowledge_base_ids": ["kb-00000001"],
-    "agent_id": "builtin-quick-answer"
+    "knowledge_base_ids": ["kb-00000001"]
 }'
 ```
 
@@ -66,27 +65,6 @@ data: {"id":"3475c004-0ada-4306-9d30-d7f5efce50d2","response_type":"answer","con
 event: message
 data: {"id":"3475c004-0ada-4306-9d30-d7f5efce50d2","response_type":"answer","content":"","done":true,"knowledge_references":null}
 ```
-
-## POST `/agent-chat/:session_id` - 基于 Agent 的智能问答
-
-Agent 模式支持更智能的问答，包括工具调用、网络搜索、多知识库检索等能力。
-
-**请求参数**：
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `query` | string | 是 | 查询文本 |
-| `knowledge_base_ids` | string[] | 否 | 知识库 ID 列表，可动态指定本次查询使用的知识库 |
-| `knowledge_ids` | string[] | 否 | 知识文件 ID 列表，可动态指定本次查询使用的具体文件 |
-| `agent_enabled` | bool | 否 | 是否启用 Agent 模式（默认 false，优先使用 Agent 配置） |
-| `agent_id` | string | 否 | 自定义 Agent ID，指定使用的智能体（支持共享 Agent） |
-| `web_search_enabled` | bool | 否 | 是否启用网络搜索（默认 false） |
-| `summary_model_id` | string | 否 | 覆盖默认的摘要模型 ID |
-| `mentioned_items` | object[] | 否 | @提及的知识库和文件列表 |
-| `disable_title` | bool | 否 | 是否禁用自动标题生成（默认 false） |
-| `images` | object[] | 否 | 附带的图片（base64 格式），需要 Agent 启用图片上传 |
-| `channel` | string | 否 | 来源渠道标识：`web`、`api`、`im`、`browser_extension` |
-| `suggestion_attribution` | object | 否 | 用户从推荐问题发起本轮时传入 `{suggestion_set_id, question_id}`；服务端会校验归属 |
 
 ## 回答后推荐问题
 
@@ -112,8 +90,6 @@ Content-Type: application/json
 }
 ```
 
-网页嵌入提供同构接口：`/api/v1/embed/{channel_id}/sessions/{session_id}/...`，继续使用嵌入令牌和 `X-Embed-Session`。
-
 **mentioned_items 结构**：
 
 | 字段 | 类型 | 说明 |
@@ -128,62 +104,3 @@ Content-Type: application/json
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `data` | string | base64 编码的图片数据（`data:image/png;base64,...`） |
-
-**请求**:
-
-```curl
-curl --location 'http://localhost:8080/api/v1/agent-chat/ceb9babb-1e30-41d7-817d-fd584954304b' \
---header 'X-API-Key: sk-xxxxx' \
---header 'Content-Type: application/json' \
---data '{
-    "query": "帮我查询今天的天气",
-    "agent_enabled": true,
-    "web_search_enabled": true,
-    "knowledge_base_ids": ["kb-00000001"],
-    "agent_id": "builtin-smart-reasoning",
-    "mentioned_items": [
-        {
-            "id": "kb-00000001",
-            "name": "天气知识库",
-            "type": "kb",
-            "kb_type": "document"
-        }
-    ]
-}'
-```
-
-**响应格式**:
-服务器端事件流（Server-Sent Events，Content-Type: text/event-stream）
-
-**响应类型说明**：
-
-| response_type | 描述 |
-|---------------|------|
-| `agent_query` | Agent 开始处理查询 |
-| `thinking` | Agent 思考过程 |
-| `tool_call` | 工具调用信息 |
-| `tool_result` | 工具调用结果 |
-| `references` | 知识库检索引用 |
-| `answer` | 最终回答内容 |
-| `reflection` | Agent 反思内容 |
-| `session_title` | 自动生成的会话标题 |
-| `error` | 错误信息 |
-
-**响应示例**:
-
-```
-event: message
-data: {"id":"req-001","response_type":"thinking","content":"用户想查询天气，我需要使用网络搜索工具...","done":false}
-
-event: message
-data: {"id":"req-001","response_type":"tool_call","content":"","done":false,"data":{"tool_name":"web_search","arguments":{"query":"今天天气"}}}
-
-event: message
-data: {"id":"req-001","response_type":"tool_result","content":"搜索结果：今天晴，气温25°C...","done":false}
-
-event: message
-data: {"id":"req-001","response_type":"answer","content":"根据查询结果，今天天气晴朗，气温约25°C。","done":false}
-
-event: message
-data: {"id":"req-001","response_type":"answer","content":"","done":true}
-```

@@ -238,7 +238,6 @@ func RegisterSystemRoutes(
 		systemRoutes.POST("/docreader/reconnect", g.PlatformManaged(), handler.ReconnectDocReader)
 		systemRoutes.GET("/storage-engine-status", g.Viewer(), handler.GetStorageEngineStatus)
 		systemRoutes.POST("/storage-engine-check", g.PlatformManaged(), handler.CheckStorageEngine)
-		systemRoutes.POST("/sandbox-check", g.PlatformManaged(), handler.CheckSandboxConfig)
 	}
 }
 

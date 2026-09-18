@@ -1,5 +1,5 @@
 // Package sessioncmd holds `yuheng session` command tree (list / view /
-// delete / ask / resume / stop) for chat history and agent invocation.
+// delete / resume / stop) for chat history and knowledge-chat streams.
 //
 // Package name `sessioncmd` (not `session`) so callers can `import sdk
 // "github.com/magicyuan876/yuheng/client"` and use `sdk.Session` without
@@ -21,9 +21,7 @@ func NewCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd.AddCommand(NewCmdList(f))
 	cmd.AddCommand(NewCmdView(f))
 	cmd.AddCommand(NewCmdDelete(f))
-	cmd.AddCommand(NewCmdAsk(f))
 	cmd.AddCommand(NewCmdResume(f))
 	cmd.AddCommand(NewCmdStop(f))
-	cmd.AddCommand(NewCmdToolApproval(f))
 	return cmd
 }

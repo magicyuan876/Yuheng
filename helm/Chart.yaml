@@ -5,7 +5,7 @@ description: |
   with document parsing, vector search, and LLM integration.
 type: application
 version: 0.1.0
-appVersion: "v0.7.2"
+appVersion: "v0.1.0"
 kubeVersion: ">=1.25.0-0"
 home: https://github.com/magicyuan876/yuheng
 icon: https://raw.githubusercontent.com/magicyuan876/yuheng/main/docs/images/logo.png

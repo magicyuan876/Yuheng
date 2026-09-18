@@ -53,17 +53,15 @@ API Key 在 Web 页面完成账户注册后，前往账户信息页面获取。
 | 分块管理 | 管理知识的分块内容 | [chunk.md](../../api/chunk.md) |
 | 标签管理 | 管理知识库的标签分类 | [tag.md](../../api/tag.md) |
 | FAQ管理 | 管理FAQ问答对 | [faq.md](../../api/faq.md) |
-| 智能体管理 | 创建和管理自定义智能体 | [agent.md](../../api/agent.md) |
 | 会话管理 | 创建和管理对话会话 | [session.md](../../api/session.md) |
 | 知识搜索 | 在知识库中搜索内容 | [knowledge-search.md](../../api/knowledge-search.md) |
-| 聊天功能 | 基于知识库和 Agent 进行问答 | [chat.md](../../api/chat.md) |
+| 聊天功能 | 基于知识库进行 RAG 问答 | [chat.md](../../api/chat.md) |
 | 消息管理 | 获取和管理对话消息 | [message.md](../../api/message.md) |
 | 评估功能 | 评估模型性能 | [evaluation.md](../../api/evaluation.md) |
 | 初始化管理 | 知识库模型配置与 Ollama 管理 | [initialization.md](../../api/initialization.md) |
 | 系统管理 | 系统信息、解析引擎、存储引擎 | [system.md](../../api/system.md) |
-| MCP 服务 | MCP 工具服务管理 | [mcp-service.md](../../api/mcp-service.md) |
-| 组织管理 | 组织、成员、知识库/智能体共享 | [organization.md](../../api/organization.md) |
-| Skills | 预装智能体技能 | [skill.md](../../api/skill.md) |
+| MCP 服务 | 已移除（原 MCP 工具服务管理，页面保留移除说明） | [mcp-service.md](../../api/mcp-service.md) |
+| 组织管理 | 组织、成员、知识库共享 | [organization.md](../../api/organization.md) |
 | 网络搜索 | 网络搜索服务商 | [web-search.md](../../api/web-search.md) |
 | 向量存储 | 向量数据库连接管理 | [vector-store.md](../../api/vector-store.md) |
 
@@ -73,9 +71,8 @@ API Key 在 Web 页面完成账户注册后，前往账户信息页面获取。
 
 - [OIDC认证调用流程](../安全认证/OIDC认证调用流程.md) — API 认证的 OIDC 流程
 - [内置模型管理](../核心功能/内置模型管理.md) — 模型管理 API 的配置参考
-- [MCP功能使用说明](../核心功能/MCP功能使用说明.md) — MCP 服务管理 API 的使用
+- [MCP功能使用说明](../核心功能/MCP功能使用说明.md) — 通过 MCP 把知识库能力开放给外部 Agent
 - [共享空间说明](../安全认证/共享空间说明.md) — 组织管理 API 的业务逻辑
-- [IM集成开发](../集成扩展/IM集成开发.md) — IM 渠道管理 API
 - [数据源导入开发](../集成扩展/数据源导入开发.md) — 数据源管理 API
 
 ---
@@ -85,7 +82,6 @@ API Key 在 Web 页面完成账户注册后，前往账户信息页面获取。
 - [Home](../Home.md) — Wiki 首页导航
 - [OIDC认证调用流程](../安全认证/OIDC认证调用流程.md) — API 认证机制与 OIDC 相关
 - [内置模型管理](../核心功能/内置模型管理.md) — 模型管理 API 的底层配置
-- [MCP功能使用说明](../核心功能/MCP功能使用说明.md) — MCP 服务 API 的使用场景
+- [MCP功能使用说明](../核心功能/MCP功能使用说明.md) — 通过 MCP 开放知识库能力的 API 场景
 - [共享空间说明](../安全认证/共享空间说明.md) — 组织管理 API 的业务逻辑
-- [IM集成开发](../集成扩展/IM集成开发.md) — IM 渠道 API 的使用场景
 - [数据源导入开发](../集成扩展/数据源导入开发.md) — 数据源 API 的使用场景

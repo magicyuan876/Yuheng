@@ -6,7 +6,7 @@
 //
 // This is the symmetric counterpart to `session resume`: both key on
 // (session_id, message_id). The message_id comes from the init event of the
-// original chat / session ask / resume stream.
+// original chat / resume stream.
 package sessioncmd
 
 import (
@@ -81,7 +81,7 @@ Symmetric with 'session resume': both key on (session_id, message_id).`,
 	cmdutil.AddFormatFlag(cmd, stopFields...)
 	cmdutil.AddDryRunFlag(cmd, &opts.DryRun)
 	cmdutil.SetAgentHelp(cmd, cmdutil.AgentHelp{
-		UsedFor:       "Stop server-side generation for an in-flight assistant message (counterpart to resume). The message_id comes from the init event of the chat / session ask / resume stream you're stopping.",
+		UsedFor:       "Stop server-side generation for an in-flight assistant message (counterpart to resume). The message_id comes from the init event of the chat / resume stream you're stopping.",
 		RequiredFlags: []string{"<session-id> (positional)", "--message (message_id from the init event of the stream you're stopping)"},
 		Examples:      []string{"yuheng session stop sess_xyz --message msg_abc"},
 		Output:        "envelope {session_id, message_id, stopped:true}",

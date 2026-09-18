@@ -1,13 +1,13 @@
 # 检索问答全流程（RAG Pipeline）
 
-本文完整描述 Yuheng 中一次"知识问答"请求从 HTTP 入口到流式回答落盘的全链路：SSE 会话装配 → 事件驱动 Pipeline（意图识别 / 查询改写 / 并行检索 / 重排 / 融合合并 / 过滤 / 数据分析 / 上下文组装 / 流式生成）→ 引用（citation）展开 → 流式输出与断线续传。
+本文完整描述 Yuheng 中一次"知识问答"请求从 HTTP 入口到流式回答落盘的全链路：SSE 会话装配 → 事件驱动 Pipeline（意图识别 / 查询改写 / 并行检索 / 重排 / 融合合并 / 过滤 / 上下文组装 / 流式生成）→ 引用（citation）展开 → 流式输出与断线续传。
 
 各环节对应的源码位置：
 
 | 环节 | 源码位置 |
 |------|----------|
 | HTTP 入口 / SSE 装配 | `internal/handler/session/qa.go`、`helpers.go`、`stream.go` |
-| EventBus → 流事件桥接 | `internal/handler/session/agent_stream_handler.go` |
+| EventBus → 流事件桥接 | `internal/handler/session/stream_handler.go` |
 | Pipeline 编排 | `internal/application/service/session_knowledge_qa.go` |
 | 插件框架与全部阶段插件 | `internal/application/service/chat_pipeline/` |
 | 插件注册（DI 容器） | `internal/container/container.go` |
@@ -15,19 +15,18 @@
 | 跨库混合检索 | `internal/application/service/knowledgebase_search*.go` |
 | 流管理器（断线续传） | `internal/stream/`（`factory.go`、`memory_manager.go`、`redis_manager.go`） |
 | 会话 / 消息管理 | `internal/application/service/session.go`、`message.go` |
-| 引用别名与展开 | `internal/llmreference/`、`internal/llmresource/` |
+| 引用别名与展开 | `internal/modelcontext/` |
 | 文本工具 | `internal/searchutil/` |
 | Prompt 模板 | `config/prompt_templates/`、`internal/config/config.go` |
 
 ## 1. 总体架构
 
-Yuheng 的问答链路是一条**事件驱动的插件管线（Event-Driven Plugin Pipeline）**：每个阶段是一个实现了 `Plugin` 接口的插件，注册到 `EventManager` 上；编排器（`KnowledgeQAByEvent`）按动态组装的 `EventType` 列表逐个触发事件，插件通过责任链（`next()`）串联。生成结果不直接写 HTTP 响应，而是通过每请求独立的 `EventBus` 发布事件，由 `AgentStreamHandler` 落入共享 `StreamManager`（内存或 Redis），HTTP 层以 100ms 轮询将事件推给 SSE 客户端——这一设计天然支持**断线重连续传**与**分布式多副本部署**。
+Yuheng 的问答链路是一条**事件驱动的插件管线（Event-Driven Plugin Pipeline）**：每个阶段是一个实现了 `Plugin` 接口的插件，注册到 `EventManager` 上；编排器（`KnowledgeQAByEvent`）按动态组装的 `EventType` 列表逐个触发事件，插件通过责任链（`next()`）串联。生成结果不直接写 HTTP 响应，而是通过每请求独立的 `EventBus` 发布事件，由 `StreamHandler` 落入共享 `StreamManager`（内存或 Redis），HTTP 层以 100ms 轮询将事件推给 SSE 客户端——这一设计天然支持**断线重连续传**与**分布式多副本部署**。
 
 ```mermaid
 flowchart TD
     subgraph HTTP["HTTP 层 (internal/handler/session)"]
-        A1["POST /sessions/:id/knowledge-qa"]
-        A2["POST /sessions/:id/agent-qa"]
+        A1["POST /knowledge-chat/:session_id"]
         A3["GET /sessions/continue-stream/:id"]
         A4["POST /sessions/:id/stop"]
     end
@@ -35,7 +34,7 @@ flowchart TD
     subgraph Setup["SSE 装配 (qa.go executeQA / setupSSEStream)"]
         B1["创建 user/assistant Message"]
         B2["每请求独立 EventBus"]
-        B3["AgentStreamHandler.Subscribe"]
+        B3["StreamHandler.Subscribe"]
         B4["startStopWatcher 停止监视"]
         B5["GenerateTitleAsync 异步标题"]
     end
@@ -48,22 +47,20 @@ flowchart TD
         C4["WEB_FETCH 网页全文抓取"]
         C5["CHUNK_MERGE 融合合并"]
         C6["FILTER_TOP_K 截断"]
-        C7["DATA_ANALYSIS DuckDB分析"]
-        C8["INTO_CHAT_MESSAGE 上下文组装"]
-        C9["CHAT_COMPLETION_STREAM 流式生成"]
+        C7["INTO_CHAT_MESSAGE 上下文组装"]
+        C8["CHAT_COMPLETION_STREAM 流式生成"]
     end
 
     subgraph Streaming["流式输出"]
         D1["EventBus 事件"]
-        D2["AgentStreamHandler"]
+        D2["StreamHandler"]
         D3["StreamManager 内存/Redis"]
         D4["SSE 100ms 轮询推送"]
     end
 
     A1 --> Setup
-    A2 --> Setup
-    Setup --> C0 --> C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8 --> C9
-    C9 --> D1 --> D2 --> D3 --> D4
+    Setup --> C0 --> C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8
+    C8 --> D1 --> D2 --> D3 --> D4
     A3 --> D3
     A4 --> D3
 ```
@@ -96,7 +93,6 @@ must(container.Invoke(chatpipeline.NewPluginSearch))               // CHUNK_SEAR
 must(container.Invoke(chatpipeline.NewPluginRerank))               // CHUNK_RERANK（链外层）
 must(container.Invoke(chatpipeline.NewPluginWebFetch))             // WEB_FETCH
 must(container.Invoke(chatpipeline.NewPluginMerge))                // CHUNK_MERGE
-must(container.Invoke(chatpipeline.NewPluginDataAnalysis))         // DATA_ANALYSIS
 must(container.Invoke(chatpipeline.NewPluginIntoChatMessage))      // INTO_CHAT_MESSAGE
 must(container.Invoke(chatpipeline.NewPluginChatCompletion))       // CHAT_COMPLETION
 must(container.Invoke(chatpipeline.NewPluginChatCompletionStream)) // CHAT_COMPLETION_STREAM
@@ -121,7 +117,6 @@ must(container.Invoke(chatpipeline.NewPluginWikiBoost))            // CHUNK_RERA
 | `chunk_rerank` | PluginRerank → PluginWikiBoost | `rerank.go`、`wiki_boost.go` |
 | `web_fetch` | PluginWebFetch | `web_fetch.go` |
 | `chunk_merge` | PluginMerge | `merge.go`、`merge_overlap.go`、`merge_expand.go`、`merge_faq.go`、`merge_history.go` |
-| `data_analysis` | PluginDataAnalysis | `data_analysis.go` |
 | `into_chat_message` | PluginIntoChatMessage | `into_chat_message.go` |
 | `chat_completion` | PluginChatCompletion | `chat_completion.go` |
 | `chat_completion_stream` | PluginChatCompletionStream | `chat_completion_stream.go` |
@@ -131,7 +126,7 @@ must(container.Invoke(chatpipeline.NewPluginWikiBoost))            // CHUNK_RERA
 
 `internal/types/chat_manage.go` 中的 `ChatManage` 由三部分嵌入组成：
 
-- **PipelineRequest**（不可变请求配置）：`Query`、`KnowledgeBaseIDs`/`KnowledgeIDs`/`SearchTargets`、`VectorThreshold`/`KeywordThreshold`/`EmbeddingTopK`、`RerankModelID`/`RerankTopK`/`RerankThreshold`、`ChatModelID`/`SummaryConfig`、`FallbackStrategy`、`CitationEnabled`、`EnableRewrite`/`EnableQueryExpansion`、FAQ 策略（`FAQPriorityEnabled`/`FAQDirectAnswerThreshold`/`FAQScoreBoost`）、`DataAnalysisEnabled`、多模态（`Images`/`VLMModelID`/`ChatModelSupportsVision`）、Web 搜索（`WebSearchEnabled`/`WebFetchEnabled`/`WebFetchTopN`）等。
+- **PipelineRequest**（不可变请求配置）：`Query`、`KnowledgeBaseIDs`/`KnowledgeIDs`/`SearchTargets`、`VectorThreshold`/`KeywordThreshold`/`EmbeddingTopK`、`RerankModelID`/`RerankTopK`/`RerankThreshold`、`ChatModelID`/`SummaryConfig`、`FallbackStrategy`、`CitationEnabled`、`EnableRewrite`/`EnableQueryExpansion`、多模态（`Images`/`VLMModelID`/`ChatModelSupportsVision`）、Web 搜索（`WebSearchEnabled`/`WebFetchEnabled`/`WebFetchTopN`）等。
 - **PipelineState**（插件间读写的中间态）：`RewriteQuery`、`Intent`、`History`、`SearchResult` → `RerankResult` → `MergeResult` 三级结果、`Entity`/`EntityKBIDs`/`GraphResult`、`UserContent`、`RenderedContexts`、`SystemPromptOverride` 等。
 - **PipelineContext**（运行时句柄）：`EventBus`、`MessageID`（assistant 消息 ID）、`UserMessageID`。
 
@@ -156,7 +151,6 @@ pipeline = types.NewPipelineBuilder().
     AddIf(req.WebSearchEnabled, types.WEB_FETCH).
     Add(types.CHUNK_MERGE).
     Add(types.FILTER_TOP_K).
-    AddIf(chatManage.DataAnalysisEnabled, types.DATA_ANALYSIS).
     Add(types.INTO_CHAT_MESSAGE).
     Add(types.CHAT_COMPLETION_STREAM).Build()
 ```
@@ -168,7 +162,7 @@ pipeline = types.NewPipelineBuilder().
 `KnowledgeQAByEvent`（`session_knowledge_qa.go`）逐个 `eventManager.Trigger`，并做了大量周边工作：
 
 - 每个阶段包一个 Langfuse span（`pipeline.<event_type>`）；`CHAT_COMPLETION_STREAM` 例外（其 OnEvent 立即返回，span 会早于流结束）。
-- **进度事件**：`progress.go` 把 `CHUNK_SEARCH_PARALLEL → CHUNK_RERANK → CHUNK_MERGE → FILTER_TOP_K`（含条件性的 `WEB_FETCH`/`DATA_ANALYSIS`）合并为一个前端可见的 `knowledge_search` tool_call 进度窗口；`QUERY_UNDERSTAND` 单独一个 `query_understand` 窗口。错误/短路路径也会关闭窗口，避免前端"正在检索知识库"一直转圈。
+- **进度事件**：`progress.go` 把 `CHUNK_SEARCH_PARALLEL → CHUNK_RERANK → CHUNK_MERGE → FILTER_TOP_K`（含条件性的 `WEB_FETCH`）合并为一个前端可见的 `knowledge_search` tool_call 进度窗口；`QUERY_UNDERSTAND` 单独一个 `query_understand` 窗口。错误/短路路径也会关闭窗口，避免前端"正在检索知识库"一直转圈。
 - **引用先行**：在触发 `CHAT_COMPLETION_STREAM` 之前调用 `emitKnowledgeReferencesEvent` 把 `MergeResult` 以 `references` 事件发出——保证 SSE 连接关闭前客户端已拿到引用列表。
 - **取消优先**：每阶段结束先检查 `ctx.Err()`（用户 stop 会取消上下文），必须先于 `ErrSearchNothing` 判断，否则停止会被误判为"检索无结果"而写入兜底回复。
 - **兜底**：`ErrSearchNothing` → `handleFallbackResponse`：`FallbackStrategyFixed` 直接发固定文案 `FallbackResponse`；`FallbackStrategyModel` 用 `FallbackPrompt` 让模型自由回答。
@@ -177,7 +171,7 @@ pipeline = types.NewPipelineBuilder().
 
 ### 3.1 LOAD_HISTORY — 加载会话历史
 
-`load_history.go`。`MaxRounds <= 0` 表示 Agent 显式关闭多轮（`MultiTurnEnabled=false`），直接跳过，**不**回退全局默认。否则调用 `loadAndProcessHistory`（`common.go`）：
+`load_history.go`。`MaxRounds <= 0`（`MultiTurnEnabled=false`，多轮关闭）时直接跳过，**不**回退全局默认。否则调用 `loadAndProcessHistory`（`common.go`）：
 
 1. `messageService.GetRecentMessagesBySession` 取最近 `maxRounds*2+10` 条消息；
 2. 按 `RequestID` 把 user/assistant 配对成 `types.History`（user 侧附加图片 Caption 与附件 prompt；assistant 侧用正则 `regThinkTags` 剥掉思考标签，并携带 `KnowledgeReferences`）；
@@ -192,10 +186,10 @@ pipeline = types.NewPipelineBuilder().
 **PluginQueryUnderstand**（`query_understand.go`）负责改写与意图分类：
 
 - 输入组合分三种：纯文本（chat model）、文本+图片、纯图片（优先用支持视觉的 chat model，否则 `VLMModelID`）。
-- Prompt 来自 `config/prompt_templates/rewrite.yaml`（system + user 对），可被 Agent 级 `RewritePromptSystem`/`RewritePromptUser` 覆盖；占位符 `{conversation}` / `{query}` / `{language}` 由 `types.RenderPromptPlaceholders` 渲染。
+- Prompt 来自 `config/prompt_templates/rewrite.yaml`（system + user 对），可被请求级 `RewritePromptSystem`/`RewritePromptUser` 覆盖；占位符 `{conversation}` / `{query}` / `{language}` 由 `types.RenderPromptPlaceholders` 渲染。
 - 模型要求输出 JSON：`{"rewrite_query":"...","intent":"kb_search","image_description":"..."}`；解析容错（markdown 包裹、字段别名、OCR 字段合并），JSON 完全解析失败时把原文当作改写结果并默认 `kb_search`。
 - 意图枚举（`types.QueryIntent`）：`kb_search`、`web_search`、`greeting`、`chitchat`、`follow_up`、`image_only`、`doc_only`、`summarize`、`clarification`。`NeedsKBRetrieval()` 仅对 `kb_search`/`clarification`/`summarize`/空值返回 true；`ChatManage.NeedsRetrieval()` 对 `web_search` 额外看 `WebSearchEnabled`。**后续所有检索类插件都以 `NeedsRetrieval()` 作为跳过条件**。
-- 非检索意图时 `applyIntentPromptOverride` 用 `config/prompt_templates/intent_prompts.yaml`（模板 id 与意图值一一对应，如 `greeting`）或 Agent 覆盖设置 `SystemPromptOverride`。
+- 非检索意图时 `applyIntentPromptOverride` 用 `config/prompt_templates/intent_prompts.yaml`（模板 id 与意图值一一对应，如 `greeting`）或内部覆盖设置 `SystemPromptOverride`。
 - 图片描述异步回写到 user 消息的 `Images[0].Caption`（供下一轮历史使用）。
 - 可用 `QueryUnderstandModelID` 为该阶段单独指定小模型，失败回退 `ChatModelID`。
 
@@ -215,7 +209,7 @@ pipeline = types.NewPipelineBuilder().
 1. **KB 检索** `searchByTargets`：
    - 按"embedding 模型身份（`model.Name + BaseURL`，跨租户可共享）"对 `SearchTargets` 分组（`ResolveEmbeddingModelKeys`），每组只算一次查询向量（`GetQueryEmbedding`）；
    - 组内无标签/文档约束的整库目标合并为**一次** `HybridSearch` 调用（`params.KnowledgeBaseIDs` 携带多库），带约束的目标逐个 `searchSingleTarget`（携带 `KnowledgeIDs`/`TagIDs`/`ScopeTagIDs`，且显式圈定范围的目标可 `DisableRecallThresholds` 关闭召回阈值）；
-2. **Web 搜索** `searchWebIfEnabled`：`WebSearchEnabled` 时用租户/Agent 解析出的 `WebSearchProviderID` 调用 `webSearchService.Search`，结果经 `searchutil.ConvertWebSearchResults` 转为 SearchResult（URL 作为 ID，`KnowledgeSource="web_search"`）。
+2. **Web 搜索** `searchWebIfEnabled`：`WebSearchEnabled` 时用租户默认 provider（`resolveWebSearchProviderID` 取 `web_search_providers.is_default=true`）调用 `webSearchService.Search`，结果经 `searchutil.ConvertWebSearchResults` 转为 SearchResult（URL 作为 ID，`KnowledgeSource="web_search"`）。
 
 **查询扩展**（`query_expansion.go`）：`EnableQueryExpansion` 且初次召回数少于 `EmbeddingTopK` 时触发。不调用 LLM，本地生成查询变体（去停用词、词序调整、关键短语抽取等）。中文分词走 `types.Jieba.CutForSearch`：连续汉字段落整体交给 jieba 切成词，中英文/数字混排按脚本切换分段处理，不再退化成「一个汉字一个 token」；停用词与长度过滤按 rune 计数，避免多字节字符被误判为单字符，对每个（变体 × SearchTarget）组合并发（信号量上限 16）执行 `HybridSearch`，关键词阈值放宽为原值的 0.8，TopK 放大为 `max(EmbeddingTopK, RerankTopK) * 2`。
 
@@ -230,8 +224,7 @@ pipeline = types.NewPipelineBuilder().
    - 无结果且阈值 > 0.3 → **阈值降级**重试一次（`threshold * 0.7`，下限 0.3）；
    - Rerank API 失败 → 回退原始检索结果继续管线。
 4. **复合打分** `compositeScore`：`0.6*模型分 + 0.3*检索基础分 + 0.1*来源权重`（web_search 来源权重 0.95，其余 1.0），clamp 到 [0,1]。基础分/模型分记录在 `Metadata["base_score"]` / `["model_score"]`。早期版本还会乘一个「越靠文档前部越高」的位置先验（±0.05），因为它与分块编辑后的偏移变化耦合且收益不明确，已被移除。
-5. **FAQ 加权**：`FAQPriorityEnabled` 且 `FAQScoreBoost > 1.0` 时，FAQ chunk 分数乘以 boost（上限 1.0），记 `Metadata["faq_boosted"]`。
-6. **MMR 多样性选择** `applyMMR`（λ=0.7，k=`RerankTopK`）：`mmr = 0.7*relevance - 0.3*max_jaccard_redundancy`，用 `searchutil.TokenizeSimple` + `Jaccard` 并行预计算 token 集合，迭代贪心选出 `RerankResult`。
+5. **MMR 多样性选择** `applyMMR`（λ=0.7，k=`RerankTopK`）：`mmr = 0.7*relevance - 0.3*max_jaccard_redundancy`，用 `searchutil.TokenizeSimple` + `Jaccard` 并行预计算 token 集合，迭代贪心选出 `RerankResult`。
 
 **PluginWikiBoost**（`wiki_boost.go`）注册在同事件链内层，OnEvent 先 `next()`（等重排完成）再后置处理：若 `RerankResult` 中存在 `wiki_page` 类型 chunk 且检索目标中确有开启 Wiki 的 KB，则分数乘 `wikiBoostFactor = 1.3` 并稳定重排序——Wiki 页面是 LLM 预综合的知识，优先于原始 chunk。
 
@@ -262,39 +255,34 @@ pipeline = types.NewPipelineBuilder().
 
 `filter_top_k.go`。对 `MergeResult`（缺省依次回退 `RerankResult`/`SearchResult`）执行 `sortSearchResultsDeterministically`——分数降序，并以 `KnowledgeID`/`ChunkType`/`ChunkIndex`/`ID` 作稳定平局决胜（merge 阶段的 map 遍历会打乱顺序，此处恢复全局可复现排序），然后截断至 `RerankTopK`。
 
-### 3.8 DATA_ANALYSIS — DuckDB 表格数据分析
-
-`data_analysis.go`。默认关闭（`DataAnalysisEnabled` 来自 Agent 配置）。若 `MergeResult` 命中 CSV/Excel 文件：先滤掉 `table_column`/`table_summary` 类型 chunk，取第一个数据文件，用 `tools.NewDataAnalysisTool` 将文件载入 DuckDB 取得 schema，让 LLM 判断是否需要数据分析并生成 DuckDB SQL（结构化输出 `DataAnalysisInput`），执行后把结果作为 `MatchTypeDataAnalysis`、score=1.0 的合成 SearchResult 追加进 `MergeResult`。
-
-### 3.9 INTO_CHAT_MESSAGE — 上下文组装
+### 3.8 INTO_CHAT_MESSAGE — 上下文组装
 
 `into_chat_message.go`：
 
 - `utils.ValidateInput` 校验查询安全性（注入防护）；
 - 非检索意图路径：仍走 `ContextTemplate` 渲染（`contexts` 为空），以注入 `current_time` 等运行时元数据；
-- **FAQ 优先策略**：`FAQPriorityEnabled` 时把 FAQ 与文档结果分为 `source type="faq" priority="high"` 与 `source type="document" priority="supplementary"` 两个分节；最高分 FAQ ≥ `FAQDirectAnswerThreshold` 时其 context 标记 `match="exact"`（提示模型可直接采纳该答案）；
 - 普通路径按 `context id="N"` 顺序编号包裹每个增强后的 passage（`getEnrichedPassageForChat` 会把 ImageInfo 以 Markdown 图片+描述内联进内容）；
 - 头部 `buildDocumentHeader` 输出去重后的文档元信息（title/description）；
 - 渲染 `SummaryConfig.ContextTemplate`（来自 `config/prompt_templates/context_template.yaml`），占位符 `{query}` / `{contexts}` / `{language}`；追加图片描述（非视觉模型）、引用上下文 `QuotedContext`、附件 prompt；
 - 组装后的 `UserContent` **异步回写**到 user 消息的 `RenderedContent`（`persistRenderedContent`），供审计与调试；`RenderedContexts` 保存纯 contexts 串供引用替换用。
 
-### 3.10 CHAT_COMPLETION / CHAT_COMPLETION_STREAM — 生成
+### 3.9 CHAT_COMPLETION / CHAT_COMPLETION_STREAM — 生成
 
 两个插件共享 `common.go` 的辅助函数：
 
 - `prepareChatModel`：取 chat model 并从 `SummaryConfig` 装配 `ChatOptions`（Temperature/TopP/Seed/MaxTokens/Thinking 等）；
 - `prepareMessagesWithHistory`：system prompt = `SystemPromptOverride`（意图覆盖）或 `SummaryConfig.Prompt`（`system_prompt.yaml`），渲染占位符后若检索上下文含 Markdown 图片则追加"检索图片输出要求"段落（`appendRetrievedImageOutputRequirement`）；随后按时间序追加历史 Q/A 对，最后是当前 user 消息（视觉模型附带 `Images`）。
 
-`references.go` 的 `prepareMessagesWithReferences` 在此之上做**引用别名替换**（详见 §7）：把 `RenderedContexts` 中的位置编号上下文替换为 `llmreference.Registry` 生成的按请求隔离的 chunk 别名视图，并在 system prompt 末尾追加引用协议。
+`references.go` 的 `prepareMessagesWithReferences` 在此之上做**引用别名替换**（详见 §7）：把 `RenderedContexts` 中的位置编号上下文替换为 `modelcontext.Registry` 生成的按请求隔离的 chunk 别名视图，并在 system prompt 末尾追加引用协议。
 
 **流式版**（`chat_completion_stream.go`）要求 `EventBus` 必须存在，调用 `chatModel.ChatStream` 后启动 goroutine 消费响应通道：
 
-- `ResponseTypeThinking` → 经 `llmresource.StreamDecoder`（还原 res:// 资源别名）与 `llmreference.StreamExpander`（展开 ref 引用标签）后以 `EventAgentThought` 发出；
+- `ResponseTypeThinking` → 经 `modelcontext` 流式解码（还原 res:// 资源别名）与引用展开（展开 ref 引用标签）后以 `EventAgentThought` 发出；
 - `ResponseTypeAnswer` → 同样双解码后以 `EventAgentFinalAnswer` 发出。带 `Done` 的终态回答**只转发一次**：部分厂商会先按 `finish_reason` 发一次完成、再按流结束哨兵发一次，重复转发会让答案事件排到会话 complete 事件之后；
 - `ResponseTypeError` → `EventError`；
 - 通道关闭或 ctx 取消时 `flushDecoders` 冲刷解码器缓存的尾部字节（跨 chunk 的别名不丢失）再关闭 thinking 流。
 
-**非流式版**（`chat_completion.go`）直接 `Chat`，然后 `resourceRefs.DecodeResponse` + `sourceRefs.ExpandResponse` 还原全文，结果写 `chatManage.ChatResponse`。
+**非流式版**（`chat_completion.go`）直接 `Chat`，然后经同一套解码/展开还原全文，结果写 `chatManage.ChatResponse`。
 
 ## 4. 完整 RAG 流程图
 
@@ -321,18 +309,17 @@ flowchart TD
     P3 --> P3a["passage 清洗 + Caption/OCR/问题增强"]
     P3a --> P3b["Rerank 模型打分, 阈值过滤/降级/top1 兜底"]
     P3b --> P3c["复合分 0.6 model + 0.3 base + 0.1 source"]
-    P3c --> P3d["FAQ boost + MMR lambda 0.7"]
+    P3c --> P3d["MMR lambda 0.7"]
     P3d --> P3e["WikiBoost x1.3 后置加权"]
     P3e --> P4["WEB_FETCH 前 N 网页抓全文"]
     P4 --> P5["CHUNK_MERGE 八步融合"]
     P5 --> P5a["历史引用注入 + 父子块解析"]
     P5a --> P5b["重叠合并 + FAQ 答案填充 + 邻居扩展"]
     P5b --> P6["FILTER_TOP_K 确定性排序截断"]
-    P6 --> P7["DATA_ANALYSIS DuckDB 可选"]
-    P7 --> P8["INTO_CHAT_MESSAGE 上下文模板渲染"]
-    P8 --> REF["references 事件先行推送"]
-    REF --> P9["CHAT_COMPLETION_STREAM"]
-    P9 --> ANS["thinking / answer 流式事件"]
+    P6 --> P7["INTO_CHAT_MESSAGE 上下文模板渲染"]
+    P7 --> REF["references 事件先行推送"]
+    REF --> P8["CHAT_COMPLETION_STREAM"]
+    P8 --> ANS["thinking / answer 流式事件"]
     P3b -. "ErrSearchNothing" .-> FB["Fallback 固定文案或模型自由回答"]
     DEDUP -. "全空" .-> FB
 ```
@@ -341,7 +328,7 @@ flowchart TD
 
 ### 5.1 Session Service（`session.go`）
 
-- CRUD 全套：`CreateSession` / `GetSession`（租户+共享范围）/ `GetOwnedSession`（严格属主，用于 stop 等破坏性操作）/ 分页列表 / `SetSessionPinned` / `UpdateSessionLastRequestState`（记忆输入栏状态：Agent/模型/KB/Web 搜索选择，纯 UI 用）/ 单删、批删、清空。
+- CRUD 全套：`CreateSession` / `GetSession`（租户+共享范围）/ `GetOwnedSession`（严格属主，用于 stop 等破坏性操作）/ 分页列表 / `SetSessionPinned` / `UpdateSessionLastRequestState`（记忆输入栏状态：模型/KB/Web 搜索选择，纯 UI 用）/ 单删、批删、清空。
 - **标题生成**：`GenerateTitleAsync` 在 SSE 装配阶段异步触发（会话无标题时），用 `generate_session_title.yaml` 模板调用对话同款模型，结果经 `EventSessionTitle` 事件流出（SSE `response_type=session_title`），HTTP 层在 complete 后最多再等 3 秒接收标题事件。
 
 ### 5.2 Message Service（`message.go`）
@@ -364,10 +351,10 @@ flowchart TD
 
 接口只有两个方法：`AppendEvent(ctx, sessionID, messageID, StreamEvent)` 与 `GetEvents(ctx, sessionID, messageID, fromOffset) (events, nextOffset, error)`——**生产者只追加，消费者按 offset 拉取**，这使得任意时刻、任意节点都能从头重放。
 
-### 6.2 事件流转：EventBus → AgentStreamHandler → StreamManager → SSE
+### 6.2 事件流转：EventBus → StreamHandler → StreamManager → SSE
 
 1. `setupSSEStream`（`qa.go`）为每个请求创建**独立** `event.EventBus` 和可取消的 `asyncCtx`；
-2. `AgentStreamHandler.Subscribe()`（`agent_stream_handler.go`）订阅 `thought` / `tool_call` / `tool_result` / `references` / `final_answer` / `reflection` / `error` / `session_title` / `agent.complete` / 工具审批 / MCP OAuth 等事件，将其转换为 `StreamEvent` 追加进 StreamManager。它同时在内存中累积 `answerSegments`（按 answer 事件 ID 分段，非终局轮的"开场白"在后续 tool_call 出现时标记 superseded，不落入持久化答案）与 `knowledgeRefs`，流结束时组装 assistant 消息落库；
+2. `StreamHandler.Subscribe()`（`stream_handler.go`）订阅 `thought` / `tool_call` / `tool_result` / `references` / `final_answer` / `error` / `session_title` / `agent.complete` 等事件，将其转换为 `StreamEvent` 追加进 StreamManager。它同时在内存中累积 `answerSegments` 与 `knowledgeRefs`，流结束时组装 assistant 消息落库；
 3. HTTP 层 `handleAgentEventsForSSE`（`stream.go`）以 100ms ticker 轮询 `GetEvents`，把每个 `StreamEvent` 经 `buildStreamResponse` 包装为 `types.StreamResponse` 后 `c.SSEvent("message", response)` 推送；收到 `complete` 事件结束（新会话可再等 3s 标题事件）。
 
 ### 6.3 SSE 协议与 response_type 事件类型
@@ -396,13 +383,10 @@ type StreamResponse struct {
 | `thinking` | 思考过程增量（reasoning_content） |
 | `answer` | 回答文本增量 |
 | `references` | 知识引用列表（`knowledge_references` 字段） |
-| `tool_call` / `tool_result` | Agent/进度工具调用与结果（RAG 管线的 `knowledge_search`、`query_understand` 进度也走这两类） |
-| `reflection` | Agent 反思 |
+| `tool_call` / `tool_result` | 管线工具调用与结果（RAG 管线的 `knowledge_search`、`query_understand` 进度也走这两类） |
 | `session_title` | 异步生成的会话标题 |
 | `error` | 错误（`Done=true` 表示终局错误） |
 | `complete` | 流结束标记（前端以此收尾，不再依赖空 answer+done） |
-| `tool_approval_required` / `tool_approval_resolved` | 危险 MCP 工具审批请求/结果 |
-| `mcp_oauth_required` / `mcp_oauth_resolved` | MCP OAuth 授权请求/结果 |
 | `stop` | 用户停止通知（handler 层构造） |
 
 ### 6.4 断线续传（continue-stream）与停止
@@ -418,12 +402,12 @@ sequenceDiagram
     participant C as 客户端
     participant H as Handler qa.go
     participant B as EventBus 每请求
-    participant S as AgentStreamHandler
+    participant S as StreamHandler
     participant M as StreamManager 内存/Redis
     participant P as Pipeline KnowledgeQAByEvent
     participant L as LLM ChatStream
 
-    C->>H: POST /sessions/:id/knowledge-qa
+    C->>H: POST /knowledge-chat/:session_id
     H->>H: 创建 user+assistant Message
     H->>M: AppendEvent agent_query
     H->>B: 创建 EventBus + asyncCtx
@@ -457,23 +441,23 @@ sequenceDiagram
 
 ## 7. 引用（Citation）生成机制
 
-### 7.1 llmreference：请求级来源别名与 ref 展开
+### 7.1 modelcontext：请求级来源别名与 ref 展开
 
-`internal/llmreference/registry.go`。目标：**内部 ID 不进模型上下文、模型输出的引用可安全展开**。
+`internal/modelcontext/registry.go`（`Registry` 外观是请求生命周期的唯一入口，编解码全部收敛在这个包内）。目标：**内部 ID 不进模型上下文、模型输出的引用可安全展开**。
 
-- `Registry`（每次回答一个实例，含 Agent 的所有工具轮次，绝不跨请求持久化）为来源分配低熵别名：`cN`=知识 chunk、`wN`=网页、`dN`=文档、`bN`=知识库。
-- `ProtocolPrompt(citationsEnabled)` 追加到 system prompt：启用引用时要求模型用 `ref id="cN"` 形式的自闭合标签内联引用（禁止自造 kb/web 标签）；禁用时（`PipelineRequest.CitationEnabled=false`，默认为启用）禁止任何引用输出。
-- `references.go` 的 `prepareMessagesWithReferences` 把 `MergeResult` 按 FAQ 优先序 `RegisterSearchResults` 注册，用 `ModelOutput`（`model_output.go`）把知识/网页结果渲染为面向模型的紧凑 XML 视图（`display_type=search_results` / `web_search_results`），并**替换**消息中原来的 `RenderedContexts`。
-- 模型输出中的 `ref` 标签由 `ExpandText` / `StreamExpander`（流式，处理跨 chunk 分裂的标签）展开为公开标签：chunk → `kb` 标签（携带 chunk_id、knowledge_id 等属性），网页 → `web url title` 标签；未知别名 fail-closed 直接删除。前端据此渲染角标引用。
+- `Registry`（每次回答一个实例，绝不跨请求持久化）为来源分配低熵别名：`cN`=知识 chunk、`wN`=网页、`dN`=文档、`bN`=知识库。
+- `ProtocolPrompt()`（`citations.go`）追加到 system prompt：启用引用时要求模型用 `ref id="cN"` 形式的自闭合标签内联引用（禁止自造 kb/web 标签）；禁用时（`PipelineRequest.CitationEnabled=false`，默认为启用）禁止任何引用输出。
+- `references.go` 的 `prepareMessagesWithReferences` 把 `MergeResult` `RegisterSearchResults` 注册，用 `ModelOutput`（`model_output.go`）把知识/网页结果渲染为面向模型的紧凑 XML 视图（`display_type=search_results` / `web_search_results`），并**替换**消息中原来的 `RenderedContexts`。
+- 模型输出中的 `ref` 标签由 citations 展开器（`ExpandText` / 流式 `StreamExpander`，处理跨 chunk 分裂的标签）展开为公开标签：chunk → `kb` 标签（携带 chunk_id、knowledge_id 等属性），网页 → `web url title` 标签；未知别名 fail-closed 直接删除。前端据此渲染角标引用。
 - 独立于内联引用，`MergeResult` 始终以 `references` SSE 事件整体推送（驱动"召回结果"面板），即使内联引用被禁用。
 
-### 7.2 llmresource：存储资源句柄别名
+### 7.2 modelcontext：存储资源句柄别名
 
-`internal/llmresource/registry.go` 解决另一类问题：`resource://`、`minio://`、`cos://` 等高熵存储句柄以及 wiki `summary/<uuid>` slug 进入模型上下文后，模型复述时容易篡改 URL。`EncodeMessages` 把它们替换为 `res://0001` 形态的低熵别名；流式输出经 `StreamDecoder` 还原（`Flush` 保证跨 chunk 别名不截断丢失），工具调用参数在解码后同样回填真实句柄。
+`internal/modelcontext/resources.go` 解决另一类问题：`resource://`、`minio://`、`cos://` 等高熵存储句柄以及 wiki `summary/<uuid>` slug 进入模型上下文后，模型复述时容易篡改 URL。编码阶段把它们替换为 `res://0001` 形态的低熵别名；流式输出经 `stream.go` 的解码器还原（`Flush` 保证跨 chunk 别名不截断丢失），工具调用参数在解码后同样回填真实句柄。
 
 ## 8. 跨库并发检索与融合（HybridSearch）
 
-`internal/application/service/knowledgebase_search.go` 是所有检索的汇聚点（chat pipeline、Agent 工具、搜索 API 共用）：
+`internal/application/service/knowledgebase_search.go` 是所有检索的汇聚点（chat pipeline 与搜索 API 共用）：
 
 1. **授权与校验**：批量加载 KB（含跨租户 Organization 共享库），逐库 `authorizeKBAccess`；`validateSameEmbeddingModel` 拒绝跨 embedding 空间的多库检索（wiki/graph 无向量库有豁免）。
 2. **入参归一化 + 过召回**：`MatchCount <= 0`（调用方未传时 JSON 反序列化即为 0）先经 `normalizedMatchCount` 归一化为 `types.DefaultRetrievalTopK`（50），使过召回下限、FAQ 迭代触发条件、末尾截断三处读到同一个值——否则截断会把结果集切成 `[:0]`，负数还会越界 panic；随后 `matchCount = max(MatchCount*5, 50) * len(KBs)`，上限 `maxRetrievalPoolSize`（500）。
@@ -488,7 +472,7 @@ sequenceDiagram
    - **负例问题过滤**：查询与 FAQ 的 `NegativeQuestions` 精确匹配（小写去空格）即剔除该条——支持"这个问题不要用这条 FAQ 答"的运营配置。
 8. 截断到 `MatchCount` 后 `processSearchResults` 补全 chunk 元数据（管线场景 `SkipContextEnrichment=true`，上下文组装留给 merge 阶段）。
 
-FAQ 在管线侧的配套策略（Agent 配置 `FAQPriorityEnabled` / `FAQScoreBoost` / `FAQDirectAnswerThreshold`）见 §3.4 与 §3.9。
+聊天管线中 FAQ 分块与其它知识分块按同一得分排序、同样被引用；渲染前 `merge_faq.go` 的 `populateFAQAnswers` 会用标准问 + 答案文本替换分块内容（无条件执行）。
 
 ## 9. 关键词提取与 searchutil
 
@@ -520,6 +504,5 @@ FAQ 在管线侧的配套策略（Agent 配置 `FAQPriorityEnabled` / `FAQScoreB
 | `keywords_extraction.yaml` | `PromptTemplates.KeywordsExtraction` | 关键词提取模板（租户模板 API 暴露） |
 | `generate_questions.yaml` / `generate_summary.yaml` | — | 入库富化（问题生成/摘要，见文档入库文档） |
 | `graph_extraction.yaml` | `ExtractManager.ExtractEntity/ExtractGraph` | 查询实体抽取（`extract_entity.go`）与图谱构建 |
-| `agent_system_prompt.yaml` | — | Agent 模式 system prompt（见 Agent 文档） |
 
 占位符统一用 `types.RenderPromptPlaceholders` 渲染（`{query}`、`{contexts}`、`{conversation}`、`{language}` 等）。引用协议（§7.1）是系统级追加，**不在**任何用户可编辑模板中。

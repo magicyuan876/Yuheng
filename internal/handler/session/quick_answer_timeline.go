@@ -106,7 +106,7 @@ func isQuickAnswerTimelineTool(name string) bool {
 }
 
 // ensureQuickAnswerStep returns the single step a fast-answer turn records
-// into. There is no ReAct loop here, so everything belongs to iteration 0.
+// into. There is no agent loop here, so everything belongs to iteration 0.
 func ensureQuickAnswerStep(msg *types.Message) *types.AgentStep {
 	if len(msg.AgentSteps) == 0 {
 		msg.AgentSteps = types.AgentSteps{{

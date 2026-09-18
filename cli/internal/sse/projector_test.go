@@ -37,16 +37,16 @@ func TestProjector_DefaultKeepsOnlyAnswerEvents(t *testing.T) {
 
 func TestProjector_VerboseAndReferenceIncludeBothDetailClasses(t *testing.T) {
 	p := sse.NewProjector(true, true, "kb_fallback")
-	input := []*sdk.AgentStreamResponse{
-		{ID: "t", ResponseType: sdk.AgentResponseTypeThinking, Content: "think"},
-		{ID: "call", ResponseType: sdk.AgentResponseTypeToolCall, Content: "search"},
-		{ID: "refs", ResponseType: sdk.AgentResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1", KnowledgeBaseID: "kb1", ParentChunkID: "p1", Content: "bulk"}}},
-		{ID: "a", ResponseType: sdk.AgentResponseTypeAnswer, Content: "answer"},
-		{ResponseType: sdk.AgentResponseTypeComplete, Done: true},
+	input := []*sdk.StreamResponse{
+		{ID: "t", ResponseType: sdk.ResponseTypeThinking, Content: "think"},
+		{ID: "call", ResponseType: sdk.ResponseTypeToolCall, Content: "search"},
+		{ID: "refs", ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1", KnowledgeBaseID: "kb1", ParentChunkID: "p1", Content: "bulk"}}},
+		{ID: "a", ResponseType: sdk.ResponseTypeAnswer, Content: "answer"},
+		{ResponseType: sdk.ResponseTypeComplete, Done: true},
 	}
 	var got []sse.ProjectedEvent
 	for _, event := range input {
-		if projected, ok := p.Agent(event); ok {
+		if projected, ok := p.Chat(event); ok {
 			got = append(got, projected)
 		}
 	}
@@ -70,15 +70,15 @@ func TestProjector_VerboseAndReferenceIncludeBothDetailClasses(t *testing.T) {
 
 func TestProjector_ReferenceOnlyAddsIndexesWithoutExecutionTrace(t *testing.T) {
 	p := sse.NewProjector(false, true, "kb_fallback")
-	input := []*sdk.AgentStreamResponse{
-		{ID: "think", ResponseType: sdk.AgentResponseTypeThinking, Content: "hidden"},
-		{ID: "refs", ResponseType: sdk.AgentResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1", KnowledgeBaseID: "kb1", Content: "bulk"}}},
-		{ID: "answer", ResponseType: sdk.AgentResponseTypeAnswer, Content: "answer"},
-		{ResponseType: sdk.AgentResponseTypeComplete, Done: true},
+	input := []*sdk.StreamResponse{
+		{ID: "think", ResponseType: sdk.ResponseTypeThinking, Content: "hidden"},
+		{ID: "refs", ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1", KnowledgeBaseID: "kb1", Content: "bulk"}}},
+		{ID: "answer", ResponseType: sdk.ResponseTypeAnswer, Content: "answer"},
+		{ResponseType: sdk.ResponseTypeComplete, Done: true},
 	}
 	var got []sse.ProjectedEvent
 	for _, event := range input {
-		if projected, ok := p.Agent(event); ok {
+		if projected, ok := p.Chat(event); ok {
 			got = append(got, projected)
 		}
 	}
@@ -92,15 +92,15 @@ func TestProjector_ReferenceOnlyAddsIndexesWithoutExecutionTrace(t *testing.T) {
 
 func TestProjector_VerboseDoesNotImplicitlyAddReferences(t *testing.T) {
 	p := sse.NewProjector(true, false, "kb")
-	input := []*sdk.AgentStreamResponse{
-		{ResponseType: sdk.AgentResponseTypeThinking, Content: "thinking"},
-		{ResponseType: sdk.AgentResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1"}}},
-		{ResponseType: sdk.AgentResponseTypeAnswer, Content: "answer"},
-		{ResponseType: sdk.AgentResponseTypeComplete, Done: true},
+	input := []*sdk.StreamResponse{
+		{ResponseType: sdk.ResponseTypeThinking, Content: "thinking"},
+		{ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1"}}},
+		{ResponseType: sdk.ResponseTypeAnswer, Content: "answer"},
+		{ResponseType: sdk.ResponseTypeComplete, Done: true},
 	}
 	var got []sse.ProjectedEvent
 	for _, event := range input {
-		if projected, ok := p.Agent(event); ok {
+		if projected, ok := p.Chat(event); ok {
 			got = append(got, projected)
 		}
 	}

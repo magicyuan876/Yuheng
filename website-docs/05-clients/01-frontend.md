@@ -8,7 +8,7 @@ Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应�
 
 ## 技术栈总览
 
-依据 `frontend/package.json`（版本 0.7.2）：
+依据 `frontend/package.json`（版本 0.1.0）：
 
 | 类别 | 选型 | 版本 | 说明 |
 | --- | --- | --- | --- |
@@ -293,7 +293,7 @@ RAG 流水线的可视化进度（`views/chat/components/RagPipelineProgress.vue
 
 `frontend/Dockerfile`：
 
-- 基础镜像固定为 digest 锁定的 `nginx:1.30.3-alpine`（注释明确禁止改回浮动 tag——更新的 Alpine 3.24+ 在 CentOS 7 旧内核上无法启动，曾导致 v0.7.0 故障）；
+- 基础镜像固定为 digest 锁定的 `nginx:1.30.3-alpine`（注释明确禁止改回浮动 tag——更新的 Alpine 3.24+ 在 CentOS 7 旧内核上无法启动，曾引发生产故障）；
 - 静态产物需先在宿主机构建（`./scripts/build_frontend_dist.sh`），镜像只 `COPY dist`；
 - `nginx.conf` 作为模板放入 `/etc/nginx/templates/default.conf.template`，暴露 80 端口，入口为 `docker-entrypoint.sh`。
 
@@ -307,7 +307,7 @@ RAG 流水线的可视化进度（`views/chat/components/RagPipelineProgress.vue
 
 - **SPA fallback**：`/` 下 `try_files ... /index.html`，且 `index.html` 设置 `no-cache`（避免升级后用户拿到旧版本）；带 hash 的 `/assets/*` 设置一年 immutable 缓存；
 - **API 代理**：`/api/` 与 `/files` 反代到 `${APP_SCHEME}://${APP_HOST}:${APP_PORT}`，`/api/` 针对 SSE 关闭 `proxy_buffering` / 缓存 / 分块编码，读写超时放宽到 3600s，并配置 3 次 upstream 重试；
-- **资源短链 `/r/`**：`location ^~ /r/` 同样反代到后端。IM 渠道把 `resource://` 图片改写成 `<APP_EXTERNAL_URL>/r/<token>`，缺这段配置时请求会落进 SPA fallback，IM 侧图片显示为空白（详见 [IM 集成](../03-features/12-im-integration.md)）；
+- **资源短链 `/r/`**：`location ^~ /r/` 同样反代到后端。后端把 `resource://` 资源改写成 `<APP_EXTERNAL_URL>/r/<token>` 能力短链，缺这段配置时请求会落进 SPA fallback，导致图片/文件显示为空白（详见 [图片与文件的对外访问](../03-features/21-file-access.md)）；
 - **嵌入页**：`/embed/*` fallback 到 `embed.html`（独立 location，不继承主站的 `X-Frame-Options: SAMEORIGIN`，因此可被第三方 iframe 加载）；`/yuheng-widget.js` 是给第三方站点的静态加载器；文件头部另附可选的独立 embed 子域 server 块示例；
 - 启用 gzip（注释记录了实测收益：低带宽下首屏从 25s 降到 3-5s）及一组安全响应头（`X-Frame-Options`、`X-Content-Type-Options`、`Referrer-Policy` 等，在各 location 内重复声明以规避 nginx `add_header` 不继承的问题）。
 

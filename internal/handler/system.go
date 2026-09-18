@@ -63,7 +63,6 @@ type SystemHandler struct {
 	// singleton tenant.StorageEngineConfig. Optional — nil in partially-wired
 	// unit tests, in which case only the legacy config is consulted.
 	storageBackendRepo interfaces.StorageBackendRepository
-	sandboxConfigSvc   sandboxConfigService
 	// parserResolver owns the platform layer of the parser engine
 	// configuration (ENV < platform < workspace). Optional — nil in partially
 	// wired unit tests, in which case the platform endpoints report that
@@ -85,7 +84,6 @@ func NewSystemHandler(cfg *config.Config,
 	taskInspector interfaces.TaskInspector,
 	knowledgeSvc interfaces.KnowledgeService,
 	storageBackendRepo interfaces.StorageBackendRepository,
-	sandboxConfigSvc *service.TenantSandboxConfigService,
 	parserResolver interfaces.ParserEngineResolver,
 ) *SystemHandler {
 	return &SystemHandler{
@@ -100,7 +98,6 @@ func NewSystemHandler(cfg *config.Config,
 		taskInspector:      taskInspector,
 		knowledgeSvc:       knowledgeSvc,
 		storageBackendRepo: storageBackendRepo,
-		sandboxConfigSvc:   sandboxConfigSvc,
 		parserResolver:     parserResolver,
 	}
 }

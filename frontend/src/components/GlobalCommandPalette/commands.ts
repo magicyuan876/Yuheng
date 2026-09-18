@@ -54,16 +54,6 @@ export function buildCommands(ctx: CommandContext): CmdkCommand[] {
       },
     },
     {
-      id: 'open-agents',
-      label: t('commandPalette.quick.agents'),
-      icon: 'user-circle',
-      keywords: ['agent', 'bot', '智能体', '助手'],
-      run: () => {
-        close()
-        router.push('/platform/agents')
-      },
-    },
-    {
       id: 'open-organizations',
       label: t('commandPalette.quick.organizations'),
       icon: 'usergroup',

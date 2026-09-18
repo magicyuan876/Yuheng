@@ -1,14 +1,8 @@
 export const DEPLOYMENT_CAPABILITY_KEYS = [
   'organizations',
-  'agents',
-  'integrations.im',
-  'integrations.embed',
-  'integrations.api',
-  'settings.mcp',
   'settings.websearch',
   'settings.vectorstore',
   'settings.storage',
-  'settings.sandbox',
 ] as const
 
 export type DeploymentCapabilityKey = typeof DEPLOYMENT_CAPABILITY_KEYS[number]
@@ -43,6 +37,4 @@ export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapab
   websearch: 'settings.websearch',
   vectorstore: 'settings.vectorstore',
   storage: 'settings.storage',
-  sandbox: 'settings.sandbox',
-  mcp: 'settings.mcp',
 }

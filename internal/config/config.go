@@ -33,23 +33,12 @@ type Config struct {
 	WebSearch       *WebSearchConfig       `yaml:"web_search"       json:"web_search"`
 	PromptTemplates *PromptTemplatesConfig `yaml:"prompt_templates" json:"prompt_templates"`
 	IM              *IMConfig              `yaml:"im"               json:"im"`
-	Agent           *AgentConfig           `yaml:"agent"            json:"agent"`
 	// FrontendBaseURL is the externally-visible origin of the SPA, used
 	// to compose absolute share-link URLs. Empty falls back to a host-
 	// relative URL ("/register?token=…") which the SPA then resolves
 	// against window.location.origin — fine for typical single-origin
 	// deployments. Sourced from FRONTEND_BASE_URL env at startup.
 	FrontendBaseURL string `yaml:"frontend_base_url" json:"frontend_base_url"`
-}
-
-// AgentConfig represents the global agent settings.
-type AgentConfig struct {
-	// LLMCallTimeout is the default timeout for a single LLM call in seconds.
-	// Default: 120 (standard agents) or 300 (can be overridden by Env).
-	LLMCallTimeout int `yaml:"llm_call_timeout" json:"llm_call_timeout"`
-	// ToolApprovalTimeoutSeconds is how long the agent waits for human approval on a flagged MCP tool.
-	// 0 means default 600 (10 minutes).
-	ToolApprovalTimeoutSeconds int `yaml:"tool_approval_timeout_seconds" json:"tool_approval_timeout_seconds"`
 }
 
 // IMConfig configures the IM integration service.
@@ -361,7 +350,6 @@ type PromptTemplatesConfig struct {
 	GenerateSessionTitle []PromptTemplate `yaml:"generate_session_title" json:"generate_session_title,omitempty"`
 	GenerateSummary      []PromptTemplate `yaml:"generate_summary"       json:"generate_summary,omitempty"`
 	KeywordsExtraction   []PromptTemplate `yaml:"keywords_extraction"    json:"keywords_extraction,omitempty"`
-	AgentSystemPrompt    []PromptTemplate `yaml:"agent_system_prompt"    json:"agent_system_prompt,omitempty"`
 	GraphExtraction      []PromptTemplate `yaml:"graph_extraction"       json:"graph_extraction,omitempty"`
 	GenerateQuestions    []PromptTemplate `yaml:"generate_questions"     json:"generate_questions,omitempty"`
 	// IntentPrompts holds per-intent system prompt overrides (template ID = intent value).
@@ -554,32 +542,8 @@ func LoadConfig() (*Config, error) {
 		backfillConversationDefaults(&cfg)
 	}
 
-	// Load built-in agent definitions (i18n-aware) from builtin_agents.yaml
-	if err := types.LoadBuiltinAgentsConfig(configDir); err != nil {
-		fmt.Printf("Warning: failed to load builtin agents config: %v\n", err)
-	}
-
-	// Load smart-reasoning agent type presets (rag-qa / wiki-qa / hybrid / custom).
-	if err := types.LoadAgentTypePresetsConfig(configDir); err != nil {
-		fmt.Printf("Warning: failed to load agent type presets: %v\n", err)
-	}
-
-	// Resolve prompt template ID references in builtin agent configs
-	// (e.g. system_prompt_id -> actual content from agent_system_prompt.yaml)
-	if cfg.PromptTemplates != nil {
-		resolveBuiltinAgentPromptIDs(cfg.PromptTemplates)
-		// Validate that every preset references an existing prompt template.
-		types.ResolveAgentTypePresetPromptRefs(func(id string) string {
-			if t := FindTemplateByID(cfg.PromptTemplates, id); t != nil {
-				return t.Content
-			}
-			return ""
-		})
-	}
-
 	// Validate configuration values
 	applyOIDCEnvOverrides(&cfg)
-	applyAgentEnvOverrides(&cfg)
 	applyKnowledgeBaseEnvOverrides(&cfg)
 	applyAuthAndTenantDefaults(&cfg)
 	applyAuditDefaults(&cfg)
@@ -795,29 +759,6 @@ func applyKnowledgeBaseEnvOverrides(cfg *Config) {
 	if value := strings.TrimSpace(os.Getenv("YUHENG_DOCREADER_CALL_TIMEOUT")); value != "" {
 		if d, err := time.ParseDuration(value); err == nil && d > 0 {
 			cfg.KnowledgeBase.DocReaderCallTimeout = d
-		}
-	}
-}
-
-func applyAgentEnvOverrides(cfg *Config) {
-	if cfg.Agent == nil {
-		cfg.Agent = &AgentConfig{}
-	}
-	if value := strings.TrimSpace(os.Getenv("YUHENG_AGENT_LLM_TIMEOUT")); value != "" {
-		if timeout, err := time.ParseDuration(value); err == nil {
-			cfg.Agent.LLMCallTimeout = int(timeout.Seconds())
-		} else if sec, err := time.ParseDuration(value + "s"); err == nil {
-			// Handle case where user just provides a number like "300"
-			cfg.Agent.LLMCallTimeout = int(sec.Seconds())
-		}
-	}
-	// MCP tool human-approval wait timeout (issue #1173). Accepts Go duration
-	// (e.g. "10m", "30s") or a bare number interpreted as seconds.
-	if value := strings.TrimSpace(os.Getenv("YUHENG_AGENT_TOOL_APPROVAL_TIMEOUT")); value != "" {
-		if d, err := time.ParseDuration(value); err == nil {
-			cfg.Agent.ToolApprovalTimeoutSeconds = int(d.Seconds())
-		} else if d, err := time.ParseDuration(value + "s"); err == nil {
-			cfg.Agent.ToolApprovalTimeoutSeconds = int(d.Seconds())
 		}
 	}
 }
@@ -1063,7 +1004,6 @@ func FindTemplateByID(pt *PromptTemplatesConfig, id string) *PromptTemplate {
 		pt.GenerateSessionTitle,
 		pt.GenerateSummary,
 		pt.KeywordsExtraction,
-		pt.AgentSystemPrompt,
 		pt.GraphExtraction,
 		pt.GenerateQuestions,
 		pt.IntentPrompts,
@@ -1075,18 +1015,6 @@ func FindTemplateByID(pt *PromptTemplatesConfig, id string) *PromptTemplate {
 		}
 	}
 	return nil
-}
-
-// resolveBuiltinAgentPromptIDs resolves system_prompt_id and context_template_id
-// references in builtin agent configs by looking up the actual content from
-// prompt template YAML files.
-func resolveBuiltinAgentPromptIDs(pt *PromptTemplatesConfig) {
-	types.ResolveBuiltinAgentPromptRefs(func(id string) string {
-		if t := FindTemplateByID(pt, id); t != nil {
-			return t.Content
-		}
-		return ""
-	})
 }
 
 // promptTemplateFile 用于解析模板文件
@@ -1114,7 +1042,6 @@ func loadPromptTemplates(configDir string) (*PromptTemplatesConfig, error) {
 		"generate_session_title.yaml": &config.GenerateSessionTitle,
 		"generate_summary.yaml":       &config.GenerateSummary,
 		"keywords_extraction.yaml":    &config.KeywordsExtraction,
-		"agent_system_prompt.yaml":    &config.AgentSystemPrompt,
 		"graph_extraction.yaml":       &config.GraphExtraction,
 		"generate_questions.yaml":     &config.GenerateQuestions,
 		"intent_prompts.yaml":         &config.IntentPrompts,

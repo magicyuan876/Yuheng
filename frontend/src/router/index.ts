@@ -67,7 +67,6 @@ const router = createRouter({
       component: () => import("../views/auth/Login.vue"),
       meta: { requiresAuth: false, requiresInit: false }
     },
-    // Embed chat is a separate entry (embed.html + embed-main.ts), not this SPA.
     {
       path: "/register",
       name: "registerByInvite",
@@ -143,12 +142,6 @@ const router = createRouter({
               query: typeof q === 'string' ? { cmdk: q } : { cmdk: '' },
             }
           },
-        },
-        {
-          path: "agents",
-          name: "agentList",
-          component: () => import("../views/agent/AgentList.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'agents' }
         },
         {
           path: "integrations",

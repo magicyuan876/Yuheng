@@ -40,7 +40,6 @@ type OrganizationResponse struct {
 	MemberLimit             int        `json:"member_limit"`
 	MemberCount             int        `json:"member_count"`
 	ShareCount              int        `json:"share_count"`
-	AgentShareCount         int        `json:"agent_share_count"`
 	PendingJoinRequestCount int        `json:"pending_join_request_count"`
 	IsOwner                 bool       `json:"is_owner"`
 	MyRole                  string     `json:"my_role,omitempty"`
@@ -97,20 +96,6 @@ type KnowledgeBaseShareResponse struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
-// AgentShareResponse represents an agent share record in API responses
-type AgentShareResponse struct {
-	ID               string    `json:"id"`
-	AgentID          string    `json:"agent_id"`
-	AgentName        string    `json:"agent_name"`
-	OrganizationID   string    `json:"organization_id"`
-	OrganizationName string    `json:"organization_name"`
-	SharedByUserID   string    `json:"shared_by_user_id"`
-	SharedByUsername string    `json:"shared_by_username"`
-	SourceTenantID   uint64    `json:"source_tenant_id"`
-	Permission       string    `json:"permission"`
-	CreatedAt        time.Time `json:"created_at"`
-}
-
 // JoinRequestResponse represents a join request in API responses
 type JoinRequestResponse struct {
 	ID            string     `json:"id"`
@@ -128,16 +113,6 @@ type JoinRequestResponse struct {
 
 // SharedKnowledgeBaseInfo represents a shared knowledge base
 type SharedKnowledgeBaseInfo struct {
-	ShareID        string    `json:"share_id"`
-	OrganizationID string    `json:"organization_id"`
-	OrgName        string    `json:"org_name"`
-	Permission     string    `json:"permission"`
-	SourceTenantID uint64    `json:"source_tenant_id"`
-	SharedAt       time.Time `json:"shared_at"`
-}
-
-// SharedAgentInfo represents a shared agent
-type SharedAgentInfo struct {
 	ShareID        string    `json:"share_id"`
 	OrganizationID string    `json:"organization_id"`
 	OrgName        string    `json:"org_name"`
@@ -523,55 +498,6 @@ func (c *Client) RemoveKBShare(ctx context.Context, kbID, shareID string) error 
 	return parseResponse(resp, nil)
 }
 
-// --- Agent sharing ---
-
-// ShareAgent shares an agent with an organization
-func (c *Client) ShareAgent(ctx context.Context, agentID, orgID, permission string) (*AgentShareResponse, error) {
-	req := map[string]string{
-		"organization_id": orgID,
-		"permission":      permission,
-	}
-	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/agents/%s/shares", agentID), req, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Success bool                `json:"success"`
-		Data    *AgentShareResponse `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
-}
-
-// ListAgentShares lists shares of an agent
-func (c *Client) ListAgentShares(ctx context.Context, agentID string) ([]AgentShareResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/agents/%s/shares", agentID), nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Success bool `json:"success"`
-		Data    struct {
-			Shares []AgentShareResponse `json:"shares"`
-		} `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data.Shares, nil
-}
-
-// RemoveAgentShare removes an agent share
-func (c *Client) RemoveAgentShare(ctx context.Context, agentID, shareID string) error {
-	resp, err := c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/v1/agents/%s/shares/%s", agentID, shareID), nil, nil)
-	if err != nil {
-		return err
-	}
-	return parseResponse(resp, nil)
-}
-
 // --- Organization shared resources ---
 
 // ListOrgShares lists knowledge bases shared to an organization
@@ -592,24 +518,6 @@ func (c *Client) ListOrgShares(ctx context.Context, orgID string) ([]KnowledgeBa
 	return result.Data.Shares, nil
 }
 
-// ListOrgAgentShares lists agents shared to an organization
-func (c *Client) ListOrgAgentShares(ctx context.Context, orgID string) ([]AgentShareResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/organizations/%s/agent-shares", orgID), nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Success bool `json:"success"`
-		Data    struct {
-			Shares []AgentShareResponse `json:"shares"`
-		} `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data.Shares, nil
-}
-
 // ListSharedKnowledgeBases lists all knowledge bases shared to the current user
 func (c *Client) ListSharedKnowledgeBases(ctx context.Context) ([]SharedKnowledgeBaseInfo, error) {
 	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/shared-knowledge-bases", nil, nil)
@@ -619,22 +527,6 @@ func (c *Client) ListSharedKnowledgeBases(ctx context.Context) ([]SharedKnowledg
 	var result struct {
 		Success bool                      `json:"success"`
 		Data    []SharedKnowledgeBaseInfo `json:"data"`
-	}
-	if err := parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
-}
-
-// ListSharedAgents lists all agents shared to the current user
-func (c *Client) ListSharedAgents(ctx context.Context) ([]SharedAgentInfo, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/shared-agents", nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	var result struct {
-		Success bool              `json:"success"`
-		Data    []SharedAgentInfo `json:"data"`
 	}
 	if err := parseResponse(resp, &result); err != nil {
 		return nil, err

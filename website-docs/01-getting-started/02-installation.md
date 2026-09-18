@@ -69,7 +69,7 @@ docker compose ps                 # 等所有服务变成 healthy/running
 若已有部署并下载了更新的 release：
 
 ```bash
-# 在 .env 中将 YUHENG_VERSION 设为目标版本（如 0.7.0），或保持 latest
+# 在 .env 中将 YUHENG_VERSION 设为目标版本（如 0.1.0），或保持 latest
 docker compose pull
 docker compose up -d
 ```
@@ -175,7 +175,7 @@ make docker-build-frontend
 
 ## 六、Helm 部署（helm/）
 
-`helm/Chart.yaml`：apiVersion v2，chart 名 `yuheng`，appVersion 跟随版本（如 v0.7.2），要求 Kubernetes >= 1.25.0。
+`helm/Chart.yaml`：apiVersion v2，chart 名 `yuheng`，appVersion 跟随版本（如 v0.1.0），要求 Kubernetes >= 1.25.0。
 
 Chart 内包含五个组件：`app`（`magicyuan876/yuheng-app`）、`frontend`（`magicyuan876/yuheng-ui`）、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`（`redis:7-alpine`），并可选启用 `minio` 与 `neo4j`。
 

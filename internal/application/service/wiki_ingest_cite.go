@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/magicyuan876/yuheng/internal/agent"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/modelcontext"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
@@ -93,12 +93,12 @@ func (s *wikiIngestService) extractCandidateSlugs(
 	}
 
 	granularity := batchCtx.ExtractionGranularity.Normalize()
-	raw, err := s.generateWithTemplate(ctx, chatModel, agent.WikiCandidateSlugPrompt, map[string]string{
+	raw, err := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiCandidateSlugPrompt, map[string]string{
 		"Content":             content,
 		"Language":            lang,
 		"PreviousSlugs":       prevSlugsText,
 		"Granularity":         string(granularity),
-		"GranularityGuidance": agent.WikiGranularityGuidance(string(granularity)),
+		"GranularityGuidance": wikiprompts.WikiGranularityGuidance(string(granularity)),
 		"CustomInstructions":  batchCtx.ExtractionInstructions,
 		"InstructionScope":    "wiki_extraction",
 	})
@@ -280,7 +280,7 @@ func (s *wikiIngestService) classifyChunkCitations(
 		batchIdx := bi
 		eg.Go(func() error {
 			chunksXML := renderChunksXML(batch)
-			raw, err := s.generateWithTemplate(ectx, chatModel, agent.WikiChunkCitationPrompt, map[string]string{
+			raw, err := s.generateWithTemplate(ectx, chatModel, wikiprompts.WikiChunkCitationPrompt, map[string]string{
 				"CandidateSlugs": candidatesXML,
 				"ChunksXML":      chunksXML,
 				"Language":       lang,

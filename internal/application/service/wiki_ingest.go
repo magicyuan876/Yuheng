@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"github.com/magicyuan876/yuheng/internal/agent"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/searchutil"
@@ -2110,7 +2110,7 @@ func (s *wikiIngestService) rebuildIndexPage(ctx context.Context, chatModel chat
 		if docSummaries.Len() == 0 {
 			docSummaries.WriteString("(no documents yet)")
 		}
-		generatedIntro, genErr := s.generateWithTemplate(ctx, chatModel, agent.WikiIndexIntroPrompt, map[string]string{
+		generatedIntro, genErr := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiIndexIntroPrompt, map[string]string{
 			"DocumentSummaries":  framing + docSummaries.String(),
 			"Language":           lang,
 			"CustomInstructions": customInstructions,
@@ -2128,7 +2128,7 @@ func (s *wikiIngestService) rebuildIndexPage(ctx context.Context, chatModel chat
 		// would re-flood the context every batch, and the
 		// change-description block already encodes the "what just
 		// changed" signal the prompt is asking for.
-		updatedIntro, genErr := s.generateWithTemplate(ctx, chatModel, agent.WikiIndexIntroUpdatePrompt, map[string]string{
+		updatedIntro, genErr := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiIndexIntroUpdatePrompt, map[string]string{
 			"ExistingIntro":      existingIntro,
 			"ChangeDescription":  changeDesc,
 			"DocumentSummaries":  "",
@@ -2383,7 +2383,7 @@ func (s *wikiIngestService) deduplicateExtractedBatch(
 		return entities, concepts
 	}
 
-	dedupeJSON, err := s.generateWithTemplate(ctx, chatModel, agent.WikiDeduplicationPrompt, map[string]string{
+	dedupeJSON, err := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiDeduplicationPrompt, map[string]string{
 		"Candidates": candBuf.String(),
 	})
 	if err != nil {
@@ -2462,9 +2462,9 @@ func (s *wikiIngestService) generateWithTemplate(ctx context.Context, chatModel 
 	prompt := buf.String()
 	purpose := wikiPromptPurpose(promptTpl)
 	messages := []chat.Message{{Role: "user", Content: prompt}}
-	if promptTpl == agent.WikiPageModifyUserPrompt {
+	if promptTpl == wikiprompts.WikiPageModifyUserPrompt {
 		systemPrompt := types.AppendCustomPromptInstructions(
-			agent.WikiPageModifySystemPrompt,
+			wikiprompts.WikiPageModifySystemPrompt,
 			maskedData["CustomInstructions"],
 			maskedData["InstructionScope"],
 		)
@@ -2481,7 +2481,7 @@ func (s *wikiIngestService) generateWithTemplate(ctx context.Context, chatModel 
 	opts := &chat.ChatOptions{Temperature: 0.3, Thinking: &thinking, MaxTokens: wikiLLMMaxTokens}
 	prefixFingerprint := chat.PromptPrefixFingerprint(messages, opts)
 	warmupKey := ""
-	if promptTpl == agent.WikiPageModifyUserPrompt {
+	if promptTpl == wikiprompts.WikiPageModifyUserPrompt {
 		prefixFingerprint = chat.FingerprintPromptPrefix(
 			messages[0].Content, maskedData["SharedSourceContexts"],
 		)
@@ -2505,7 +2505,7 @@ func (s *wikiIngestService) generateWithTemplate(ctx context.Context, chatModel 
 
 	execute := func() (interface{}, error) {
 		releaseWarmup := func() {}
-		if tenantScoped && promptTpl == agent.WikiPageModifyUserPrompt && strings.TrimSpace(maskedData["SharedSourceContexts"]) != "" {
+		if tenantScoped && promptTpl == wikiprompts.WikiPageModifyUserPrompt && strings.TrimSpace(maskedData["SharedSourceContexts"]) != "" {
 			var warmupErr error
 			releaseWarmup, warmupErr = s.awaitWikiPromptWarmup(ctx, warmupKey)
 			if warmupErr != nil {
@@ -2573,21 +2573,21 @@ func (s *wikiIngestService) generateWithTemplate(ctx context.Context, chatModel 
 
 func wikiPromptPurpose(promptTpl string) string {
 	switch promptTpl {
-	case agent.WikiPageModifyUserPrompt:
+	case wikiprompts.WikiPageModifyUserPrompt:
 		return "wiki_page_modify"
-	case agent.WikiChunkCitationPrompt:
+	case wikiprompts.WikiChunkCitationPrompt:
 		return "wiki_chunk_citation"
-	case agent.WikiCandidateSlugPrompt:
+	case wikiprompts.WikiCandidateSlugPrompt:
 		return "wiki_candidate_slug"
-	case agent.WikiSummaryPrompt:
+	case wikiprompts.WikiSummaryPrompt:
 		return "wiki_summary"
-	case agent.WikiKnowledgeExtractPrompt:
+	case wikiprompts.WikiKnowledgeExtractPrompt:
 		return "wiki_knowledge_extract"
-	case agent.WikiTaxonomyPlanPrompt:
+	case wikiprompts.WikiTaxonomyPlanPrompt:
 		return "wiki_taxonomy_plan"
-	case agent.WikiDeduplicationPrompt:
+	case wikiprompts.WikiDeduplicationPrompt:
 		return "wiki_deduplication"
-	case agent.WikiIndexIntroPrompt, agent.WikiIndexIntroUpdatePrompt:
+	case wikiprompts.WikiIndexIntroPrompt, wikiprompts.WikiIndexIntroUpdatePrompt:
 		return "wiki_index_intro"
 	default:
 		return "wiki_generation"

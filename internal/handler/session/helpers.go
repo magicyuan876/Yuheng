@@ -305,10 +305,10 @@ func (h *Handler) setupStreamHandler(
 	receivedAt time.Time,
 	assistantMessage *types.Message,
 	eventBus *event.EventBus,
-) *AgentStreamHandler {
-	streamHandler := NewAgentStreamHandler(
-		ctx, sessionID, assistantMessageID, requestID, tenantID, receivedAt,
-		assistantMessage, h.streamManager, eventBus, h.artifactCollector,
+) *StreamHandler {
+	streamHandler := NewStreamHandler(
+		ctx, sessionID, assistantMessageID, requestID, receivedAt,
+		assistantMessage, h.streamManager, eventBus,
 	)
 	streamHandler.Subscribe()
 	return streamHandler
@@ -347,7 +347,7 @@ const stopWatcherMaxDuration = 2 * time.Hour
 // independently of the client's SSE connection.
 //
 // Background: the original design only detected the stop marker inside
-// handleAgentEventsForSSE, which is bound to the request context. Once the
+// handleEventsForSSE, which is bound to the request context. Once the
 // client closes the SSE stream (common for API-Key / programmatic callers that
 // close the stream before POSTing /stop), that loop returns and nothing
 // converts the stop marker (written to the shared StreamManager by
@@ -355,10 +355,9 @@ const stopWatcherMaxDuration = 2 * time.Hour
 // completion even though /stop returned success.
 //
 // The watcher is intentionally self-terminating rather than tied to the QA
-// service call returning: KnowledgeQA (quick answer) returns immediately while
-// the actual token stream runs in a background goroutine, whereas AgentQA
-// (smart reasoning) blocks until done. Keying teardown off the call return
-// would therefore tear the watcher down before quick-answer streaming even
+// service call returning: KnowledgeQA returns immediately while
+// the actual token stream runs in a background goroutine. Keying teardown
+// off the call return would therefore tear the watcher down before streaming even
 // starts. Instead it exits when it observes a terminal stream event
 // (complete, or a stream-level error), on stop, or after a safety timeout.
 func (h *Handler) startStopWatcher(
@@ -498,6 +497,5 @@ func searchResultFromMap(refMap map[string]interface{}) *types.SearchResult {
 // createDefaultSummaryConfig and fillSummaryConfigDefaults used to build
 // per-session SummaryConfig from tenant-level ConversationConfig + config.yaml
 // defaults. Both helpers became unreachable when the chat pipeline moved to
-// CustomAgent (builtin-quick-answer / smart-reasoning) and the tenant-level
-// ConversationConfig field was removed; deleting them avoids the only
-// remaining references to that defunct path.
+// knowledge QA and the tenant-level ConversationConfig field was removed;
+// deleting them avoids the only remaining references to that defunct path.

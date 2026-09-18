@@ -2,7 +2,7 @@
 
 有些问题的答案是固定的——退货政策、报销流程、常见报错处理。这类内容用文档检索绕一圈反而不稳，直接维护成问答对更可靠：建库时把类型选成 **FAQ**，条目按「标准问 + 相似问 + 反例问 + 答案」录入，提问时匹配的是问题而不是文档片段，命中就直接给准备好的答案。
 
-常见用法：先用 Excel / CSV 批量导入历史工单里的常见问题，再在界面上补相似问；对容易误命中的问题补反例问。FAQ 库可以和文档库一起被同一个 Agent 检索，形成「先查标准答案、查不到再翻文档」的效果。
+常见用法：先用 Excel / CSV 批量导入历史工单里的常见问题，再在界面上补相似问；对容易误命中的问题补反例问。FAQ 库可以和文档库一起被同一会话检索，命中的 FAQ 分块与其它知识分块一样参与排序、被引用。
 
 <Screenshot
   src="/screenshots/faq-management.png"
@@ -190,7 +190,9 @@ type FAQSearchRequest struct {
 4. **迭代召回**（`applyFAQPostProcessing`）：当过滤后的唯一条目数不足 `match_count` 且向量结果打满时触发 `iterativeRetrieveWithDeduplication`——最多迭代 5 次、每次 TopK 翻倍（种子 `MatchCount*3` 与每轮增长均封顶 500，触顶即停），带去重与负例过滤缓存，无新结果提前终止；
 5. 结果附带 `score`、`match_type`、`matched_question`（实际命中的是标准问还是哪个相似问），答案按 `answer_strategy`（all / random）返回。
 
-非 FAQ 类型 KB 直接跳过该后处理（`if kb.Type != types.KnowledgeBaseTypeFAQ { return chunks, nil }`），普通混合检索不受影响；agent 检索链在 FAQ 库上同样经过这条后处理路径。
+非 FAQ 类型 KB 直接跳过该后处理（`if kb.Type != types.KnowledgeBaseTypeFAQ { return chunks, nil }`），普通混合检索不受影响；聊天管线的检索在 FAQ 库上同样经过这条后处理路径。
+
+**聊天管线侧**：FAQ 分块作为普通检索结果进入 RAG 流程——按得分与其它分块统一排序、统一渲染引用，不再有独立的优先级。渲染 Prompt 前，`internal/application/service/chat_pipeline/merge_faq.go` 的 `populateFAQAnswers` 会把分块内容替换为标准问 + 答案的完整文本（无条件执行，与命中得分无关），因此模型看到的仍是准备好的问答内容。本项目不包含旧的 FAQ 优先策略（结果前置、得分加权 `FAQScoreBoost`、高置信直答阈值 `FAQDirectAnswerThreshold`）：这些开关已随重构移除，不再存在，FAQ 命中与其它知识一视同仁。
 
 ## 7. 克隆 / 共享同步机制
 

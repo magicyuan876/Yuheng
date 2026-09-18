@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/magicyuan876/yuheng/internal/types"
+	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
 func TestPlatformTenantOptionalAPIs(t *testing.T) {
@@ -93,3 +95,53 @@ func TestAttachTargetedPlatformAPIKeyKeepsPlatformPrincipal(t *testing.T) {
 		t.Fatalf("user = %#v, ok=%v", user, ok)
 	}
 }
+
+type fakeTenantService struct {
+	tenant *types.Tenant
+}
+
+func (f *fakeTenantService) GetTenantByID(ctx context.Context, id uint64) (*types.Tenant, error) {
+	return f.tenant, nil
+}
+
+func (f *fakeTenantService) CreateTenant(ctx context.Context, tenant *types.Tenant) (*types.Tenant, error) {
+	return nil, nil
+}
+
+func (f *fakeTenantService) GetTenantsByIDs(ctx context.Context, ids []uint64) (map[uint64]*types.Tenant, error) {
+	return nil, nil
+}
+
+func (f *fakeTenantService) UpdateTenant(ctx context.Context, tenant *types.Tenant) (*types.Tenant, error) {
+	return nil, nil
+}
+
+func (f *fakeTenantService) DeleteTenant(ctx context.Context, id uint64) error {
+	return nil
+}
+
+func (f *fakeTenantService) ListTenants(ctx context.Context) ([]*types.Tenant, error) {
+	return nil, nil
+}
+
+func (f *fakeTenantService) ListAllTenants(ctx context.Context) ([]*types.Tenant, error) {
+	return nil, nil
+}
+
+func (f *fakeTenantService) BulkSetStorageQuota(ctx context.Context, quotaBytes int64) (int64, error) {
+	return 0, nil
+}
+
+func (f *fakeTenantService) SearchTenants(
+	ctx context.Context, keyword string, tenantID uint64, page, pageSize int,
+) ([]*types.Tenant, int64, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeTenantService) GetTenantByIDForUser(
+	ctx context.Context, tenantID uint64, userID string,
+) (*types.Tenant, error) {
+	return f.tenant, nil
+}
+
+var _ interfaces.TenantService = (*fakeTenantService)(nil)

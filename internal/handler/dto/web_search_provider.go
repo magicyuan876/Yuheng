@@ -24,7 +24,7 @@ type WebSearchProviderResponse struct {
 	IsBuiltin bool      `json:"is_builtin"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	// Per-field "configured?" map. See MCPServiceResponse.Credentials.
+	// Per-field "configured?" map.
 	// Omitted for platform-shared rows unless the caller administers the
 	// platform — whether the operator configured a key is their business.
 	Credentials map[string]CredentialFieldMetadata `json:"credentials,omitempty"`

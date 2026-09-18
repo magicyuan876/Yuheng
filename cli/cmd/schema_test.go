@@ -69,13 +69,13 @@ func TestSchema_SingleCommand(t *testing.T) {
 }
 
 // TestSchema_QuotedMultiWordArg: the no-arg `schema` index prints command
-// labels like "agent create"; an agent that pastes that label back as a single
-// quoted arg (`schema "agent create"`) must resolve the same as two tokens,
+// labels like "kb create"; an agent that pastes that label back as a single
+// quoted arg (`schema "kb create"`) must resolve the same as two tokens,
 // not fail with unknown_subcommand.
 func TestSchema_QuotedMultiWordArg(t *testing.T) {
 	out, _ := iostreams.SetForTest(t)
 	root := NewRootCmd(cmdutil.New())
-	root.SetArgs([]string{"schema", "agent create", "--format", "json"})
+	root.SetArgs([]string{"schema", "kb create", "--format", "json"})
 	require.NoError(t, root.Execute(), "got %q", out.String())
 
 	var env struct {
@@ -84,7 +84,7 @@ func TestSchema_QuotedMultiWordArg(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(out.Bytes(), &env), "got %q", out.String())
 	assert.True(t, env.OK)
-	assert.Equal(t, "agent create", env.Data.Command)
+	assert.Equal(t, "kb create", env.Data.Command)
 }
 
 // TestSchema_SurfacesRisk: a destructive command exposes its risk annotation,

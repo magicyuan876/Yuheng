@@ -7,7 +7,6 @@ import i18n from '@/i18n'
 import { reloadFontFromStorage } from '@/composables/useFont'
 import { reloadThemeFromStorage } from '@/composables/useTheme'
 import { resetMigrationLatch } from '@/composables/preferenceStorage'
-import { BUILTIN_QUICK_ANSWER_ID } from '@/api/agent'
 import { useChatResourcesStore } from '@/stores/chatResources'
 import { useEditorResourcesStore } from '@/stores/editorResources'
 import { useOrganizationStore } from '@/stores/organization'
@@ -234,7 +233,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Wipe chat / KB selections that were saved under the previous tenant.
   // These keys are NOT tenant-scoped in storage; after a tenant switch they
   // would otherwise be reloaded verbatim and the chat input would post under
-  // the new tenant with an Agent / model id that only existed in the old
+  // the new tenant with a model id that only existed in the old
   // tenant — backend 403s or "model not found". Called from setSelectedTenant
   // only on an actual tenant change, so logout / init paths are not touched.
   const clearTenantScopedClientState = () => {
@@ -245,9 +244,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (raw) {
         const parsed = JSON.parse(raw)
         if (parsed && typeof parsed === 'object') {
-          parsed.selectedAgentId = BUILTIN_QUICK_ANSWER_ID
-          parsed.selectedAgentSourceTenantId = null
-          parsed.isAgentEnabled = false
           if (parsed.conversationModels && typeof parsed.conversationModels === 'object') {
             parsed.conversationModels.summaryModelId = ''
             parsed.conversationModels.rerankModelId = ''

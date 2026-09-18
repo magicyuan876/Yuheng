@@ -76,7 +76,7 @@ var noDragSel='button,a,input,select,textarea,[role="button"],' +
   '[style*="--wails-draggable: no-drag"],[style*="--wails-draggable:no-drag"]';
 
 var layoutClasses=['main','chat','dialogue-wrap','kb-list-container','kb-list-content',
-  'agent-list-container','agent-list-content','org-list-container','org-list-content','aside_box',
+  'org-list-container','org-list-content','aside_box',
   'ks-container','ks-content','settings-overlay','knowledge-layout',
   'faq-manager-wrapper','login-layout'];
 

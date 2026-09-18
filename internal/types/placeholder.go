@@ -21,8 +21,6 @@ type PromptFieldType string
 const (
 	// PromptFieldSystemPrompt is for system prompts (normal mode)
 	PromptFieldSystemPrompt PromptFieldType = "system_prompt"
-	// PromptFieldAgentSystemPrompt is for agent mode system prompts
-	PromptFieldAgentSystemPrompt PromptFieldType = "agent_system_prompt"
 	// PromptFieldContextTemplate is for context templates
 	PromptFieldContextTemplate PromptFieldType = "context_template"
 	// PromptFieldRewriteSystemPrompt is for rewrite system prompts
@@ -111,14 +109,6 @@ func PlaceholdersByField(fieldType PromptFieldType) []PromptPlaceholder {
 			PlaceholderCurrentWeek,
 			PlaceholderLanguage,
 		}
-	case PromptFieldAgentSystemPrompt:
-		// Agent mode system prompt
-		return []PromptPlaceholder{
-			PlaceholderKnowledgeBases,
-			PlaceholderWebSearchStatus,
-			PlaceholderCurrentTime,
-			PlaceholderLanguage,
-		}
 	case PromptFieldContextTemplate:
 		return []PromptPlaceholder{
 			PlaceholderQuery,
@@ -174,7 +164,6 @@ func AllPlaceholders() []PromptPlaceholder {
 func PlaceholderMap() map[PromptFieldType][]PromptPlaceholder {
 	return map[PromptFieldType][]PromptPlaceholder{
 		PromptFieldSystemPrompt:        PlaceholdersByField(PromptFieldSystemPrompt),
-		PromptFieldAgentSystemPrompt:   PlaceholdersByField(PromptFieldAgentSystemPrompt),
 		PromptFieldContextTemplate:     PlaceholdersByField(PromptFieldContextTemplate),
 		PromptFieldRewriteSystemPrompt: PlaceholdersByField(PromptFieldRewriteSystemPrompt),
 		PromptFieldRewritePrompt:       PlaceholdersByField(PromptFieldRewritePrompt),

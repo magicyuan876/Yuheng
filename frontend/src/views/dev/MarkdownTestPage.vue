@@ -3,7 +3,7 @@
     <h1 class="page-title">Markdown Rendering Test</h1>
     <p class="page-desc">
       Dev-only page for visual regression testing of chat answer markdown
-      (same typography as botmsg / AgentStreamDisplay / embed).
+      (same typography as botmsg).
       Add new test cases or paste arbitrary markdown in the editor below.
     </p>
 
@@ -87,7 +87,7 @@
       <h2>Streaming Shimmer</h2>
       <p class="test-hint">
         The "light sweep" applied to in-progress step titles in
-        AgentStreamDisplay / RagPipelineProgress. Running steps shimmer; finished ones are static.
+        RagPipelineProgress. Running steps shimmer; finished ones are static.
       </p>
       <div class="test-case shimmer-demo">
         <div class="action-card action-pending">
@@ -642,7 +642,7 @@ watch(customInput, () => {
   }
 }
 
-// Chat answer markdown — shared with botmsg / AgentStreamDisplay / embed
+// Chat answer markdown — shared with botmsg
 .markdown-content {
   // Dev page intentionally uses the same chat Markdown mixin as runtime chat.
   // Keep visual changes in chat-markdown.less so this page remains a regression target.

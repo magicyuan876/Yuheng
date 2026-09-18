@@ -11,9 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
-	"github.com/magicyuan876/yuheng/internal/agent/tools"
 	"github.com/magicyuan876/yuheng/internal/application/repository"
-	"github.com/magicyuan876/yuheng/internal/application/service"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
@@ -29,7 +27,6 @@ type KnowledgeBaseHandler struct {
 	service            interfaces.KnowledgeBaseService
 	knowledgeService   interfaces.KnowledgeService
 	kbShareService     interfaces.KBShareService
-	agentShareService  interfaces.AgentShareService
 	asynqClient        interfaces.TaskEnqueuer
 	vectorStoreService interfaces.VectorStoreService // enriches KB responses with bound store display
 	// userService 仅在 list 类接口里用于批量回填 creator_name；
@@ -42,7 +39,6 @@ func NewKnowledgeBaseHandler(
 	service interfaces.KnowledgeBaseService,
 	knowledgeService interfaces.KnowledgeService,
 	kbShareService interfaces.KBShareService,
-	agentShareService interfaces.AgentShareService,
 	asynqClient interfaces.TaskEnqueuer,
 	vectorStoreService interfaces.VectorStoreService,
 	userService interfaces.UserService,
@@ -51,7 +47,6 @@ func NewKnowledgeBaseHandler(
 		service:            service,
 		knowledgeService:   knowledgeService,
 		kbShareService:     kbShareService,
-		agentShareService:  agentShareService,
 		asynqClient:        asynqClient,
 		vectorStoreService: vectorStoreService,
 		userService:        userService,
@@ -155,7 +150,7 @@ func (h *KnowledgeBaseHandler) buildKBListResponse(
 // vector_store_id and any owner-tenant store metadata never reach the
 // wire. The share-record fields (share_id, organization_id, etc.) are
 // kept intact alongside the stripped KB. Callers can pass extras to
-// merge view-specific keys such as is_mine or source_from_agent.
+// merge view-specific keys such as is_mine.
 //
 // Always uses SharedStoreDisplay() regardless of whether the caller is
 // the owner; the cross-tenant share endpoints serve mixed audiences and
@@ -406,7 +401,7 @@ func (h *KnowledgeBaseHandler) CreateKnowledgeBase(c *gin.Context) {
 }
 
 // validateAndGetKnowledgeBase validates request parameters and retrieves the knowledge base.
-// Enforces per-API-key KB scope before tenant/share/agent resolution.
+// Enforces per-API-key KB scope before tenant/share resolution.
 // Returns the knowledge base, knowledge base ID, effective tenant ID for embedding, permission level, and any errors encountered
 // For owned KBs, effectiveTenantID is the caller's tenant ID
 // For shared KBs, effectiveTenantID is the source tenant ID (owner's tenant)
@@ -469,45 +464,6 @@ func (h *KnowledgeBaseHandler) validateAndGetKnowledgeBase(c *gin.Context) (*typ
 		}
 	}
 
-	// Check 3: Shared agent — allow if request has agent_id (and agent can access this KB) OR caller's tenant has any shared agent that can access this KB (e.g. opened from "通过智能体可见" list without agent_id)
-	if h.agentShareService != nil {
-		currentTenantID := tenantID.(uint64)
-		agentID := c.Query("agent_id")
-		if agentID != "" {
-			sourceTenantID, parseErr := types.ParseAgentSourceTenantID(c.Query(types.AgentSourceTenantIDParam))
-			if parseErr != nil {
-				return kb, id, 0, types.OrgMemberRole(""), apperrors.NewBadRequestError(parseErr.Error())
-			}
-			agent, err := h.agentShareService.GetSharedAgentForTenant(ctx, currentTenantID, callerTenantRole, agentID, sourceTenantID)
-			if err == nil && agent != nil {
-				if kb.TenantID != agent.TenantID {
-					logger.Warnf(ctx, "Shared agent workspace mismatch, KB %s tenant: %d, agent tenant: %d", id, kb.TenantID, agent.TenantID)
-				} else {
-					mode := agent.Config.KBSelectionMode
-					if mode == "none" {
-						// no-op, fall through
-					} else if mode == "all" {
-						logger.Infof(ctx, "Tenant %d accessing KB %s via shared agent %s (mode=all)", currentTenantID, id, agentID)
-						return kb, id, kb.TenantID, types.OrgRoleViewer, nil
-					} else if mode == "selected" {
-						for _, allowedID := range agent.Config.KnowledgeBases {
-							if allowedID == id {
-								logger.Infof(ctx, "Tenant %d accessing KB %s via shared agent %s (mode=selected)", currentTenantID, id, agentID)
-								return kb, id, kb.TenantID, types.OrgRoleViewer, nil
-							}
-						}
-					}
-				}
-			}
-		} else {
-			// No agent_id in query: allow if caller's tenant has any shared agent that can access this KB (e.g. from space list "通过智能体可见")
-			can, err := h.agentShareService.TenantCanAccessKBViaSomeSharedAgent(ctx, currentTenantID, callerTenantRole, kb)
-			if err == nil && can {
-				logger.Infof(ctx, "Tenant %d accessing KB %s via some shared agent (no agent_id in query)", currentTenantID, id)
-				return kb, id, kb.TenantID, types.OrgRoleViewer, nil
-			}
-		}
-	}
 	_ = userID
 	_ = userExists
 
@@ -523,12 +479,11 @@ func (h *KnowledgeBaseHandler) validateAndGetKnowledgeBase(c *gin.Context) (*typ
 
 // GetKnowledgeBase godoc
 // @Summary      获取知识库详情
-// @Description  根据ID获取知识库详情。当使用共享智能体时，可传 agent_id 以校验该智能体是否有权访问该知识库。
+// @Description  根据ID获取知识库详情。
 // @Tags         知识库
 // @Accept       json
 // @Produce      json
 // @Param        id         path      string  true   "知识库ID"
-// @Param        agent_id   query     string  false  "共享智能体 ID（用于校验智能体是否有权访问该知识库）"
 // @Success      200  {object}  map[string]interface{}  "知识库详情"
 // @Failure      400  {object}  errors.AppError         "请求参数错误"
 // @Failure      404  {object}  errors.AppError         "知识库不存在"
@@ -550,7 +505,7 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBase(c *gin.Context) {
 	storeView := h.resolveKBStoreView(c.Request.Context(), kb, tenantID)
 	var extras map[string]interface{}
 	if kb.TenantID != tenantID && permission != "" {
-		// Include my_permission in data so frontend can show role (e.g. "只读") instead of "--" for agent-visible KBs
+		// Include my_permission in data so frontend can show role (e.g. "只读") instead of "--" for shared KBs
 		extras = map[string]interface{}{"my_permission": permission}
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildKBResponse(kb, storeView, extras)})
@@ -558,11 +513,10 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBase(c *gin.Context) {
 
 // ListKnowledgeBases godoc
 // @Summary      获取知识库列表
-// @Description  获取当前空间的所有知识库；或当传入 agent_id（共享智能体）时，校验权限后返回该智能体配置的知识库范围（用于 @ 提及）
+// @Description  获取当前空间的所有知识库
 // @Tags         知识库
 // @Accept       json
 // @Produce      json
-// @Param        agent_id  query     string  false  "共享智能体 ID（传入时返回该智能体可用的知识库）"
 // @Success      200  {object}  map[string]interface{}  "知识库列表"
 // @Failure      500  {object}  errors.AppError         "服务器错误"
 // @Security     Bearer
@@ -570,95 +524,6 @@ func (h *KnowledgeBaseHandler) GetKnowledgeBase(c *gin.Context) {
 // @Router       /knowledge-bases [get]
 func (h *KnowledgeBaseHandler) ListKnowledgeBases(c *gin.Context) {
 	ctx := c.Request.Context()
-
-	agentID := c.Query("agent_id")
-	if agentID != "" {
-		userIDVal, ok := c.Get(types.UserIDContextKey.String())
-		if !ok {
-			c.Error(apperrors.NewUnauthorizedError("user ID not found"))
-			return
-		}
-		_ = userIDVal
-		currentTenantID := c.GetUint64(types.TenantIDContextKey.String())
-		if currentTenantID == 0 {
-			c.Error(apperrors.NewUnauthorizedError("workspace ID not found"))
-			return
-		}
-		callerTenantRole := types.TenantRoleFromContext(ctx)
-		requestedSourceTenantID, parseErr := types.ParseAgentSourceTenantID(c.Query(types.AgentSourceTenantIDParam))
-		if parseErr != nil {
-			c.Error(apperrors.NewBadRequestError(parseErr.Error()))
-			return
-		}
-		agent, err := h.agentShareService.GetSharedAgentForTenant(ctx, currentTenantID, callerTenantRole, agentID, requestedSourceTenantID)
-		if err != nil {
-			if stderrors.Is(err, service.ErrAgentShareNotFound) || stderrors.Is(err, service.ErrAgentSharePermission) || stderrors.Is(err, service.ErrAgentNotFoundForShare) {
-				c.Error(apperrors.NewForbiddenError("no permission for this shared agent"))
-				return
-			}
-			logger.ErrorWithFields(ctx, err, nil)
-			c.Error(apperrors.NewInternalServerError(err.Error()))
-			return
-		}
-		mode := agent.Config.KBSelectionMode
-		if mode == "none" {
-			c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
-			return
-		}
-		sourceTenantID := agent.TenantID
-		kbs, err := h.service.ListKnowledgeBasesByTenantID(ctx, sourceTenantID)
-		if err != nil {
-			logger.ErrorWithFields(ctx, err, nil)
-			c.Error(apperrors.NewInternalServerError(err.Error()))
-			return
-		}
-		if mode == "selected" && len(agent.Config.KnowledgeBases) > 0 {
-			allowed := make(map[string]bool)
-			for _, id := range agent.Config.KnowledgeBases {
-				allowed[id] = true
-			}
-			filtered := make([]*types.KnowledgeBase, 0, len(kbs))
-			for _, kb := range kbs {
-				if allowed[kb.ID] {
-					filtered = append(filtered, kb)
-				}
-			}
-			kbs = filtered
-		}
-		kbs = filterKnowledgeBasesForAPIKeyScope(ctx, kbs)
-
-		// `all` mode: authoritative server-side capability filter so a client
-		// that bypassed the frontend (old tab, curl, rogue plugin) can't @ a
-		// KB whose capabilities don't match this agent. The filter combines
-		// tool-derived requirements (smart-reasoning) with the implicit
-		// RAG-only requirement of quick-answer mode (which has no
-		// `allowed_tools` but still needs vector/keyword chunks to work).
-		// Non-`all` modes already constrain the scope explicitly.
-		if mode == "all" {
-			filter := tools.DeriveKBFilterForAgent(agent.Config.AgentMode, agent.Config.AllowedTools)
-			if !filter.IsEmpty() {
-				before := len(kbs)
-				kept := make([]*types.KnowledgeBase, 0, before)
-				for _, kb := range kbs {
-					if tools.KBSatisfiesAgentRequirements(kb.Capabilities(), agent.Config.AgentMode, agent.Config.AllowedTools) {
-						kept = append(kept, kb)
-					}
-				}
-				if removed := before - len(kept); removed > 0 {
-					logger.Infof(ctx,
-						"ListKnowledgeBases(agent=%s, mode=all): capability filter removed %d of %d KBs",
-						agentID, removed, before)
-				}
-				kbs = kept
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    h.buildKBListResponse(ctx, kbs, currentTenantID),
-		})
-		return
-	}
 
 	// Get all knowledge bases for this tenant
 	kbs, err := h.service.ListKnowledgeBases(ctx)
@@ -672,7 +537,7 @@ func (h *KnowledgeBaseHandler) ListKnowledgeBases(c *gin.Context) {
 	// control on the list page. We filter in-process rather than pushing
 	// down into SQL because the tenant-bounded KB list is small (typically
 	// <100 rows) and adding a creator predicate to ListKnowledgeBases would
-	// ripple through every other caller (chat pipeline, agent editor, …).
+	// ripple through every other caller (chat pipeline, …).
 	// Rows with empty CreatorID predate the RBAC migration (PR 5); we treat
 	// them as "not anyone in particular" so they never appear under "mine"
 	// or "others" — they fall out of both filters cleanly.
@@ -779,7 +644,7 @@ func enrichKBCreatorNames(ctx context.Context, userSvc interfaces.UserService, k
 
 // pickUserDisplayName picks the field most users will recognise: Username
 // if present (it's required at registration), Email as a fallback. Used by
-// both KB and Agent list enrichment so the badge text stays consistent.
+// KB list enrichment so the badge text stays consistent.
 func pickUserDisplayName(u *types.User) string {
 	if u == nil {
 		return ""

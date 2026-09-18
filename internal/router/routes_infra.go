@@ -49,41 +49,6 @@ func RegisterModelRoutes(
 	}
 }
 
-// Sandbox configs are workspace infrastructure that hold provider credentials.
-// Scoped API keys cannot safely receive partial authority over them yet because
-// mutation can strand remote sandboxes.
-func RegisterSandboxConfigRoutes(
-	r *gin.RouterGroup,
-	h *handler.SandboxConfigHandler,
-	skills *handler.SandboxSkillHandler,
-	g *rbacGuards,
-) {
-	configs := g.apiKeyGroup(r.Group("/sandbox-configs"), apiKeyFullAccess())
-	{
-		configs.GET("", g.Viewer(), h.List)
-		configs.PUT("/workspace-policy", g.PlatformManaged(), h.SetWorkspacePolicy)
-		configs.POST("/templates/query", g.PlatformManaged(), h.QueryTemplates)
-		configs.POST("", g.PlatformManaged(), h.Create)
-		configs.GET("/:id", g.Viewer(), h.Get)
-		configs.PUT("/:id", g.PlatformManaged(), h.Update)
-		configs.DELETE("/:id", g.PlatformManaged(), h.Delete)
-		configs.GET("/:id/sandboxes", g.Admin(), h.Inventory)
-		// Skills are Admin+ throughout, reads included: an upload drives a
-		// root shell whose output is baked into the image every session of
-		// this config boots, and the listing names what that image carries.
-		// Writes additionally move to the platform under centralised mode.
-		configs.GET("/:id/skills", g.Admin(), skills.List)
-		configs.POST("/:id/skills", g.PlatformManaged(), skills.Upload)
-		configs.GET("/:id/skills/:skillId", g.Admin(), skills.Get)
-		configs.GET("/:id/skills/:skillId/files", g.Admin(), skills.ListFiles)
-		configs.GET("/:id/skills/:skillId/files/content", g.Admin(), skills.GetFile)
-		configs.PATCH("/:id/skills/:skillId", g.PlatformManaged(), skills.Patch)
-		configs.DELETE("/:id/skills/:skillId", g.PlatformManaged(), skills.Delete)
-		configs.GET("/:id/skills/:skillId/install-events", g.Admin(), skills.InstallEvents)
-		configs.GET("/:id/skills/:skillId/transcript", g.Admin(), skills.InstallTranscript)
-	}
-}
-
 // RegisterEvaluationRoutes registers evaluation endpoints. Running an
 // evaluation drives LLM calls (cost) and reads from KBs across the
 // tenant; gate to Admin+ until product asks for a finer-grained
@@ -132,79 +97,6 @@ func RegisterInitializationRoutes(r *gin.RouterGroup, handler *handler.Initializ
 	g.apiKeyRoute(r, http.MethodPost, "/initialization/extract/text-relation", apiKeyManageModels(apiKeyFullAccess()), g.Admin(), handler.ExtractTextRelations)
 	g.apiKeyRoute(r, http.MethodPost, "/initialization/extract/fabri-tag", apiKeyManageModels(apiKeyFullAccess()), g.Admin(), handler.FabriTag)
 	g.apiKeyRoute(r, http.MethodPost, "/initialization/extract/fabri-text", apiKeyManageModels(apiKeyFullAccess()), g.Admin(), handler.FabriText)
-}
-
-// RegisterMCPServiceRoutes registers MCP service routes.
-//
-// MCP services are tenant-level integrations (external tool servers); we
-// gate reads to Viewer+ and any mutation/test to Admin+. Tool-approval
-// resolution is also Admin+ since approving a pending tool call grants
-// the agent permission to execute side-effecting external commands.
-// Credential subresource writes are Admin+ as well since secrets are
-// tenant-scoped.
-func RegisterMCPServiceRoutes(
-	r *gin.RouterGroup,
-	handler *handler.MCPServiceHandler,
-	credHandler *handler.MCPCredentialsHandler,
-	oauthHandler *handler.MCPOAuthHandler,
-	g *rbacGuards,
-) {
-	// MCP OAuth provider redirect. Registered OUTSIDE the /mcp-services group
-	// to avoid a static-vs-":id" route conflict, and left unauthenticated
-	// (allow-listed in middleware/auth.go) because the third-party browser
-	// redirect carries no Yuheng bearer — the single-use state authenticates.
-	r.GET("/mcp-oauth/callback", oauthHandler.Callback)
-
-	mcpServices := g.apiKeyGroup(r.Group("/mcp-services"), apiKeyManageMCPServices(apiKeyFullAccess()))
-	{
-		// Create MCP service — PlatformManaged
-		mcpServices.POST("", g.PlatformManaged(), handler.CreateMCPService)
-		// List MCP services — Viewer+
-		mcpServices.GET("", g.Viewer(), handler.ListMCPServices)
-		// Get MCP service by ID — Viewer+
-		mcpServices.GET("/:id", g.Viewer(), handler.GetMCPService)
-		// Update MCP service — PlatformManaged
-		mcpServices.PUT("/:id", g.PlatformManaged(), handler.UpdateMCPService)
-		// Delete MCP service — PlatformManaged
-		mcpServices.DELETE("/:id", g.PlatformManaged(), handler.DeleteMCPService)
-		// Test MCP service connection — PlatformManaged (probes external infra)
-		mcpServices.POST("/:id/test", g.PlatformManaged(), handler.TestMCPService)
-		// Get MCP service tools — Viewer+
-		mcpServices.GET("/:id/tools", g.Viewer(), handler.GetMCPServiceTools)
-		// Get MCP service resources — Viewer+
-		mcpServices.GET("/:id/resources", g.Viewer(), handler.GetMCPServiceResources)
-		// Per-field credential subresource: secrets never travel via the main
-		// PUT body. See internal/handler/mcp_credentials.go for the contract. — PlatformManaged
-		mcpServices.PUT("/:id/credentials", g.PlatformManaged(), credHandler.Put)
-		mcpServices.DELETE("/:id/credentials/:field", g.PlatformManaged(), credHandler.DeleteField)
-		// MCP tool human approval (issue #1173) — Viewer+ to read; the policy
-		// belongs to whoever owns the service, so writes follow it to the
-		// platform under centralised mode.
-		mcpServices.GET("/:id/tool-approvals", g.Viewer(), handler.ListMCPToolApprovals)
-		mcpServices.PUT("/:id/tool-approvals/:tool_name", g.PlatformManaged(), handler.SetMCPToolApproval)
-		// Per-user OAuth authorization flow. Viewer+ may authorize/inspect/
-		// revoke their own token; the callback is the separate public route
-		// registered above.
-		mcpServices.POST("/:id/oauth/authorize-url", g.Viewer(), oauthHandler.AuthorizeURL)
-		mcpServices.GET("/:id/oauth/status", g.Viewer(), oauthHandler.Status)
-		mcpServices.DELETE("/:id/oauth/token", g.Viewer(), oauthHandler.Revoke)
-	}
-
-	// /agent tool-approval + OAuth resolution are interactive human flows;
-	// not declared for API keys (default-deny).
-	agentTool := r.Group("/agent")
-	{
-		// Resolving a pending tool-approval is gated to tenant members
-		// (Viewer+). The approval card surfaces inside an agent chat the
-		// caller initiated — restricting it to Admin+ blocks the only
-		// people who actually have context to approve, so the gate is
-		// kept at "anyone in the tenant" instead.
-		agentTool.POST("/tool-approvals/:pending_id", g.Viewer(), handler.ResolveToolApproval)
-		// Resume an agent run paused on an in-conversation MCP OAuth prompt.
-		// Same tenant-member (Viewer+) gating rationale as tool-approvals.
-		agentTool.POST("/mcp-oauth-resolutions/:pending_id", g.Viewer(), oauthHandler.ResolveMCPOAuth)
-		agentTool.POST("/mcp-oauth-resolutions/:pending_id/cancel", g.Viewer(), oauthHandler.CancelMCPOAuth)
-	}
 }
 
 // RegisterWebSearchRoutes registers web search routes

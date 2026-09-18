@@ -10,7 +10,7 @@ Yuheng 由三个可独立开发的进程组成：
 | --- | --- | --- | --- |
 | 主后端 `app` | `cmd/server` + `internal/` | Go | **Go 1.26.0**（`go.mod` 中 `go 1.26.0`），需 CGO（DuckDB、sqlite-vec 绑定） |
 | 文档解析服务 `docreader` | `docreader/` | Python + gRPC | **Python >= 3.10.18**（`docreader/pyproject.toml` 中 `requires-python`），依赖用 **uv** 管理（仓库含 `uv.lock`，Docker 内 `uv sync --locked`） |
-| 前端 `frontend` | `frontend/` | Node.js + Vue 3 | Node 22 系（`devDependencies` 含 `@tsconfig/node22`、`@types/node ^22`），Vite 7 + TypeScript ~6.0 + Vue 3.5 + TDesign，版本号 `0.7.2` |
+| 前端 `frontend` | `frontend/` | Node.js + Vue 3 | Node 22 系（`devDependencies` 含 `@tsconfig/node22`、`@types/node ^22`），Vite 7 + TypeScript ~6.0 + Vue 3.5 + TDesign，版本号 `0.1.0` |
 | CLI | `cli/`（独立 Go module） | Go | Go 1.26（`.github/workflows/cli.yml` 矩阵 `go: ['1.26']`） |
 
 推荐额外安装的开发工具：
@@ -158,7 +158,7 @@ make package-mac-app  # 打 macOS .app（scripts/package-mac-app.sh）
 | `dev-app` | 本地 `go run ./cmd/server`（带版本 ldflags） |
 | `dev-frontend` | 本地 `npm run dev` |
 | `build-lite` / `run-lite` / `package-lite` / `package-mac-app` | Lite 模式构建/运行/打包（见 2.3） |
-| `download_spatial` | `go run cmd/download/duckdb/duckdb.go` 下载 DuckDB spatial 扩展（数据分析工具用） |
+| `download_spatial` | `go run cmd/download/duckdb/duckdb.go` 下载 DuckDB spatial 扩展（入库表格摘要的 DuckDB 引擎用） |
 
 ## 4. 测试体系
 

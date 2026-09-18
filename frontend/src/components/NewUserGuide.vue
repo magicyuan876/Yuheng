@@ -22,13 +22,6 @@ const steps = computed<SpotlightGuideStep[]>(() => [
     before: () => uiStore.expandSidebar(),
   },
   {
-    key: 'agents',
-    target: '[data-guide="nav-agents"]',
-    placement: 'right',
-    optional: true,
-    before: () => uiStore.expandSidebar(),
-  },
-  {
     key: 'chat',
     target: '[data-guide="nav-creatChat"]',
     placement: 'right',

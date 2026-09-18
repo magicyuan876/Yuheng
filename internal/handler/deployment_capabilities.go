@@ -11,15 +11,9 @@ import (
 // frontend/src/config/deploymentCapabilities.ts — keep both in sync.
 var DeploymentCapabilityKeys = []string{
 	"organizations",
-	"agents",
-	"integrations.im",
-	"integrations.embed",
-	"integrations.api",
-	"settings.mcp",
 	"settings.websearch",
 	"settings.vectorstore",
 	"settings.storage",
-	"settings.sandbox",
 }
 
 // DeploymentCapability describes whether a deployment exposes a feature route.
@@ -37,15 +31,9 @@ type DeploymentCapabilitiesData struct {
 // DeploymentFeatureAvailability mirrors injected backend handlers/services.
 type DeploymentFeatureAvailability struct {
 	Organizations bool
-	Agents        bool
-	IM            bool
-	Embed         bool
-	API           bool
-	MCP           bool
 	WebSearch     bool
 	VectorStore   bool
 	Storage       bool
-	Sandbox       bool
 }
 
 func supportedDeploymentCapability(supported bool) DeploymentCapability {
@@ -70,15 +58,9 @@ func BuildDeploymentCapabilities(
 		Edition: edition,
 		Capabilities: map[string]DeploymentCapability{
 			"organizations":        organizations,
-			"agents":               supportedDeploymentCapability(available.Agents),
-			"integrations.im":      supportedDeploymentCapability(available.IM),
-			"integrations.embed":   supportedDeploymentCapability(available.Embed),
-			"integrations.api":     supportedDeploymentCapability(available.API),
-			"settings.mcp":         supportedDeploymentCapability(available.MCP),
 			"settings.websearch":   supportedDeploymentCapability(available.WebSearch),
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),
-			"settings.sandbox":     supportedDeploymentCapability(available.Sandbox),
 		},
 	}
 }

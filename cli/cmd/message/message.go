@@ -1,5 +1,5 @@
 // Package messagecmd implements `yuheng message` — inspect and manage the
-// messages inside chat sessions (the multi-turn substrate behind session ask).
+// messages inside chat sessions (the multi-turn substrate behind chat).
 package messagecmd
 
 import (

@@ -257,7 +257,9 @@ test('ask returns the composed answer, citations and a resumable session', async
   assert.equal(value.pipeline, 'rag')
   assert.equal(value.session_id, 'session-mock-1')
   assert.ok(value.references.length > 0)
+  assert.deepEqual(value.tool_calls, ['knowledge_search'])
   assert.match(text, /Citations:/)
+  assert.match(text, /Yuheng tools used: knowledge_search/)
   assert.match(text, /pass session_id to ask a follow-up/)
   assert.equal(mock.requests.some(request => request.path === '/api/v1/sessions'), true)
 })
@@ -296,24 +298,6 @@ test('a configured scope reaches ask without a listing call', async () => {
   assert.equal(mock.requests.some(request => request.path === '/api/v1/knowledge-bases'), false)
   const chat = mock.requests.find(request => request.path.startsWith('/api/v1/knowledge-chat/'))
   assert.deepEqual(chat.body.knowledge_base_ids, ['kb-product'])
-})
-
-// A custom agent resolves its scope server-side from its KBSelectionMode, and
-// ids sent from here would override that as an explicit @mention.
-test('an agent-pipeline ask leaves the scope to the server', async () => {
-  const { byName, mock } = await toolset({ agentId: 'agent-42' })
-  await call(byName.get('yuheng_ask'), { query: '部署方式有哪些' })
-  assert.equal(mock.requests.some(request => request.path === '/api/v1/knowledge-bases'), false)
-  const chat = mock.requests.find(request => request.path.startsWith('/api/v1/agent-chat/'))
-  assert.equal(chat.body.knowledge_base_ids, undefined)
-})
-
-test('a configured agent id switches ask to the agent pipeline', async () => {
-  const { byName } = await toolset({ agentId: 'agent-42' })
-  const { value, text } = await call(byName.get('yuheng_ask'), { query: '部署方式有哪些' })
-  assert.equal(value.pipeline, 'agent')
-  assert.deepEqual(value.tool_calls, ['knowledge_search'])
-  assert.match(text, /Yuheng tools used: knowledge_search/)
 })
 
 test('apply registers into ctx.tools and honours the prefix and toggles', () => {

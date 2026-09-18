@@ -122,36 +122,40 @@ func TestGateAnyOfCapabilities(t *testing.T) {
 	a := NewAPIKeyRouteAuthorizer()
 	a.Register(http.MethodPost, "/api/v1/sessions",
 		APIKeyRoutePolicy{RequireFullAccess: true}.WithCapability(types.APIKeyCapabilityChat))
-	a.Register(http.MethodGet, "/api/v1/agents",
+	a.Register(http.MethodGet, "/api/v1/knowledge-bases",
 		APIKeyRoutePolicy{RequireFullAccess: true}.
-			WithCapability(types.APIKeyCapabilityChat).
-			WithCapability(types.APIKeyCapabilityManageAgents))
-	a.Register(http.MethodPost, "/api/v1/agents",
-		APIKeyRoutePolicy{RequireFullAccess: true}.WithCapability(types.APIKeyCapabilityManageAgents))
+			WithCapability(types.APIKeyCapabilityRetrieve).
+			WithCapability(types.APIKeyCapabilityManageKnowledgeBases))
+	a.Register(http.MethodPost, "/api/v1/knowledge-bases",
+		APIKeyRoutePolicy{RequireFullAccess: true}.WithCapability(types.APIKeyCapabilityManageKnowledgeBases))
 	a.Register(http.MethodPut, "/api/v1/knowledge-bases/:id",
 		APIKeyRoutePolicy{RequireFullAccess: true}.WithCapability(types.APIKeyCapabilityManageKnowledgeBases))
 
 	chat := &types.TenantAPIKeyScope{Capabilities: types.StringArray{"chat"}}
-	manage := &types.TenantAPIKeyScope{Capabilities: types.StringArray{"manage_agents"}}
+	retrieve := &types.TenantAPIKeyScope{Capabilities: types.StringArray{"retrieve"}}
 	manageKBs := &types.TenantAPIKeyScope{Capabilities: types.StringArray{"manage_kbs"}}
 
-	// Either capability satisfies the any-of read route.
-	if !runGate(t, a, chat, http.MethodGet, "/api/v1/agents") {
-		t.Fatal("chat should read agents (any-of)")
+	// Either capability satisfies the any-of list route.
+	if !runGate(t, a, retrieve, http.MethodGet, "/api/v1/knowledge-bases") {
+		t.Fatal("retrieve should list knowledge bases (any-of)")
 	}
-	if !runGate(t, a, manage, http.MethodGet, "/api/v1/agents") {
-		t.Fatal("manage_agents should read agents (any-of)")
+	if !runGate(t, a, manageKBs, http.MethodGet, "/api/v1/knowledge-bases") {
+		t.Fatal("manage_kbs should list knowledge bases (any-of)")
 	}
-	// Only manage_agents may author agents.
-	if runGate(t, a, chat, http.MethodPost, "/api/v1/agents") {
-		t.Fatal("chat must not author agents")
+	// chat alone does not satisfy the any-of route.
+	if runGate(t, a, chat, http.MethodGet, "/api/v1/knowledge-bases") {
+		t.Fatal("chat must not list knowledge bases")
 	}
-	if !runGate(t, a, manage, http.MethodPost, "/api/v1/agents") {
-		t.Fatal("manage_agents should author agents")
+	// Only manage_kbs may create knowledge bases.
+	if runGate(t, a, retrieve, http.MethodPost, "/api/v1/knowledge-bases") {
+		t.Fatal("retrieve must not create knowledge bases")
+	}
+	if !runGate(t, a, manageKBs, http.MethodPost, "/api/v1/knowledge-bases") {
+		t.Fatal("manage_kbs should create knowledge bases")
 	}
 	// Only manage_kbs may manage KB metadata/config.
-	if runGate(t, a, manage, http.MethodPut, "/api/v1/knowledge-bases/:id") {
-		t.Fatal("manage_agents must not manage knowledge bases")
+	if runGate(t, a, chat, http.MethodPut, "/api/v1/knowledge-bases/:id") {
+		t.Fatal("chat must not manage knowledge bases")
 	}
 	if !runGate(t, a, manageKBs, http.MethodPut, "/api/v1/knowledge-bases/:id") {
 		t.Fatal("manage_kbs should manage knowledge bases")

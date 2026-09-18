@@ -1,6 +1,6 @@
 # 租户、用户与认证授权
 
-在 Yuheng 里，一个人（**用户**）可以属于多个**空间**（后端叫租户 Tenant，界面上叫工作空间）。空间是隔离边界：知识库、模型、Agent、会话都归属某个空间，配额也按空间算。想让两个空间之间共享知识库或 Agent，就把它们放进同一个**组织**（共享空间）。
+在 Yuheng 里，一个人（**用户**）可以属于多个**空间**（后端叫租户 Tenant，界面上叫工作空间）。空间是隔离边界：知识库、模型、会话都归属某个空间，配额也按空间算。想让两个空间之间共享知识库，就把它们放进同一个**组织**（共享空间）。
 
 日常最常问的三件事：
 
@@ -10,7 +10,7 @@
 | 把知识库共享给另一个团队 | 建组织 → 把两个空间都加进去 → 在知识库上「共享到组织」 |
 | 让程序调接口 | 空间设置 → API Key，按需勾选能力（检索 / 问答 / 入库 / 管理），必要时限定可访问的知识库 |
 | 管理整个部署（全局设置、任务队列、跨空间审计） | 需要**系统管理员**身份，与空间 Owner 是两回事，见[平台管理与系统管理员](20-platform-admin.md) |
-| 删除整个空间 | 空间设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该空间的知识库、Agent、会话与成员关系，不可撤销 |
+| 删除整个空间 | 空间设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该空间的知识库、会话与成员关系，不可撤销 |
 
 <Screenshot
   src="/screenshots/settings-members.png"
@@ -35,14 +35,12 @@ graph TB
     subgraph org["协作层"]
         O["Organization (组织 / 共享空间)"]
         KBS["KnowledgeBaseShare (KB 共享记录)"]
-        AGS["AgentShare (Agent 共享记录)"]
     end
     U -- "TenantMember (owner)" --> T1
     U -- "TenantMember (contributor)" --> T2
     T1 -- "OrganizationTenantMember (admin/editor/viewer)" --> O
     T2 -- "OrganizationTenantMember" --> O
     O --- KBS
-    O --- AGS
     K["TenantAPIKey (机器主体, capabilities + KB allow-list)"] --> T2
 ```
 
@@ -121,8 +119,8 @@ type TenantRole string
 
 const (
     TenantRoleOwner       TenantRole = "owner"       // 完全控制：删除租户、转移所有权、管理 API Key、成员
-    TenantRoleAdmin       TenantRole = "admin"       // 管理成员、模型、向量库、MCP、IM 等租户基础设施
-    TenantRoleContributor TenantRole = "contributor" // 创建 KB / Agent，编辑自己创建的资源
+    TenantRoleAdmin       TenantRole = "admin"       // 管理成员、模型、向量库等租户基础设施
+    TenantRoleContributor TenantRole = "contributor" // 创建 KB、编辑自己创建的资源
     TenantRoleViewer      TenantRole = "viewer"      // 只读
 )
 
@@ -321,16 +319,12 @@ refreshClaims := jwt.MapClaims{
 | 能力 | 说明 |
 | --- | --- |
 | `retrieve` | 读取 / 搜索知识库数据（KB 列表、知识详情、hybrid-search 等） |
-| `chat` | 会话流：创建 session、knowledge-chat / agent-chat、加载与删除消息 |
-| `read_agents` | 列出与查看 Agent（不含创建修改） |
+| `chat` | 会话流：创建 session、knowledge-chat、加载与删除消息 |
 | `ingest` | 写内容：上传文档、编辑 chunk / FAQ / 标签 / Wiki、批量删除与移动知识 |
 | `manage_kbs` | KB 生命周期：创建 / 复制 / 副本 / 更新 / 删除 / 初始化配置 |
-| `manage_agents` | Agent 增删改与复制 |
 | `message_history` | 搜索与查看租户级聊天历史（`POST /messages/search` 等，独立于 chat） |
 | `manage_models` | 管理模型定义与凭证 |
-| `manage_mcp_services` | 管理 MCP 服务与凭证 |
 | `manage_datasources` | 管理数据源连接器与同步任务 |
-| `manage_channels` | 管理 Embed / IM 渠道集成 |
 | `manage_vector_stores` | 管理向量库与解析器 |
 | `manage_storage_backends` | 管理对象存储后端 |
 | `manage_web_search` | 管理 Web 搜索配置 |
@@ -359,9 +353,7 @@ apiKeyRetrieve(base) / apiKeyChat(base) / apiKeyIngest(base) / ...
 
 | 路由 | 要求能力 |
 | --- | --- |
-| `POST /sessions`、`POST /knowledge-chat/:session_id`、`POST /agent-chat/:session_id`、`GET /messages/:session_id/load` | `chat` |
-| `GET /agents`、`GET /agents/:id`、`GET /agents/:id/suggested-questions` | `read_agents` |
-| `POST/PUT/DELETE /agents`、`POST /agents/:id/copy` | `manage_agents` |
+| `POST /sessions`、`POST /knowledge-chat/:session_id`、`GET /messages/:session_id/load` | `chat` |
 | `PUT/DELETE /knowledge-bases/:id`、`POST /initialization/initialize/:kbId` | `manage_kbs` |
 | `POST /messages/search`、`GET /messages/chat-history-stats` | `message_history`（不是 chat） |
 | `GET /system/admin/settings` | platform key + `system_settings_read` |
@@ -449,7 +441,7 @@ sequenceDiagram
 
 1. **角色守卫**（role-only）：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` / `SystemAdmin()`，问"调用者在本租户的角色是什么"。
 2. **所有权守卫**（ownership-or-role）：`OwnedKBOrAdmin()` 等，问"调用者是否是**这个资源**的创建者，或至少 Admin+"。
-3. **KB 访问守卫**（KB-access）：`KBAccessRead()` / `KBAccessWrite()`，问"调用者的租户能否触达这个 KB"（自有 / 组织共享 / 经共享 Agent 可见）。
+3. **KB 访问守卫**（KB-access）：`KBAccessRead()` / `KBAccessWrite()`，问"调用者的租户能否触达这个 KB"（自有 / 组织共享）。
 
 ### 6.1 角色能力矩阵
 
@@ -457,12 +449,12 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | 删除租户 / 转移所有权 / 管理 API Key | ✓ | ✗ | ✗ | ✗ |
 | 添加 / 移除成员、改角色、发邀请 | ✓ | ✗（handler 限 Owner） | ✗ | ✗ |
-| 配置租户基础设施（模型 / 向量库 / IM / MCP / Web 搜索 / 存储后端 / 数据源） | ✓ | ✓ | ✗ | ✗ |
+| 配置租户基础设施（模型 / 向量库 / Web 搜索 / 存储后端 / 数据源） | ✓ | ✓ | ✗ | ✗ |
 | 清空知识库内容（`DELETE /knowledge-bases/:id/knowledge`） | ✓ | ✓ | ✗ | ✗ |
-| 修改 / 删除**他人**创建的 KB / Agent / 知识 / chunk / Wiki / 标签 | ✓ | ✓ | ✗ | ✗ |
-| 创建 KB / Agent；复制 Agent 给自己 | ✓ | ✓ | ✓ | ✗ |
+| 修改 / 删除**他人**创建的 KB / 知识 / chunk / Wiki / 标签 | ✓ | ✓ | ✗ | ✗ |
+| 创建 KB | ✓ | ✓ | ✓ | ✗ |
 | 修改 / 删除**自己创建**的 KB 及其子资源 | ✓ | ✓ | ✓ | ✗ |
-| 创建/管理自己的会话、发起问答（`/sessions`、`/knowledge-chat`、`/agent-chat` 均为 Viewer+） | ✓ | ✓ | ✓ | ✓ |
+| 创建/管理自己的会话、发起问答（`/sessions`、`/knowledge-chat` 均为 Viewer+） | ✓ | ✓ | ✓ | ✓ |
 | 查看成员列表 / 邀请列表 / KB 列表 / 知识 / 检索 / 预览 | ✓ | ✓ | ✓ | ✓ |
 
 `internal/router/rbac.go` 顶部的设计注释总结了产品语义：
@@ -472,14 +464,14 @@ sequenceDiagram
 > - Viewer：全部只读；
 > - 创建新资源至少需要 Contributor；配置租户基础设施需要 Admin+。
 
-两处容易踩空的例外：**成员增删改角色与发邀请是 Owner 独有**，Admin 也不行（`routes_auth_tenant.go` 上挂的是 `g.Owner()`，成员列表才是 Viewer+）；**Viewer 并非「什么都不能建」**——会话属于自己的工作数据，Viewer 也能建会话、提问，只是建不了知识库和 Agent。
+两处容易踩空的例外：**成员增删改角色与发邀请是 Owner 独有**，Admin 也不行（`routes_auth_tenant.go` 上挂的是 `g.Owner()`，成员列表才是 Viewer+）；**Viewer 并非「什么都不能建」**——会话属于自己的工作数据，Viewer 也能建会话、提问，只是建不了知识库。
 
 ### 6.2 守卫选择规则（Q1 / Q2）
 
 `rbac.go` 明文规定了新增路由的守卫选择方法：
 
-- **Q1：资源有 creator 吗？** 有（KB、Agent、知识文档、Chunk、WikiPage、FAQ 条目、KB 标签）→ 变更路由用 `OwnedXxxOrAdmin`；没有（Model、VectorStore、IM 渠道、WebSearchProvider、DataSource、MCPService 等租户级基础设施）→ 用 `Admin()`；创建入口（资源尚不存在）→ `Contributor()`。
-- **Q2：副作用私有还是公开？** 私有（如 `POST /agents/:id/copy` 只给自己复制）→ `Contributor()` 足够；公开（共享 KB 到组织、禁用全租户 Agent、转移所有权）→ `OwnedXxxOrAdmin` 或 `Admin`。
+- **Q1：资源有 creator 吗？** 有（KB、知识文档、Chunk、WikiPage、FAQ 条目、KB 标签）→ 变更路由用 `OwnedXxxOrAdmin`；没有（Model、VectorStore、WebSearchProvider、DataSource 等租户级基础设施）→ 用 `Admin()`；创建入口（资源尚不存在）→ `Contributor()`。
+- **Q2：副作用私有还是公开？** 私有（如 `POST /knowledge-bases/:id/copy` 只给自己复制）→ `Contributor()` 足够；公开（共享 KB 到组织、转移所有权）→ `OwnedXxxOrAdmin` 或 `Admin`。
 
 ### 6.3 所有权守卫清单
 
@@ -487,12 +479,11 @@ sequenceDiagram
 | --- | --- | --- |
 | `OwnedKBOrAdmin` | `:id` → KB.CreatorID | KB 更新 / 删除 / pin / 上传知识 / 标签 CRUD |
 | `OwnedKBOrAdminFromKbIDParam` | `:kbId` → KB.CreatorID | `/initialization/*` KB 配置路由 |
-| `OwnedAgentOrAdmin` | `:id` → Agent.CreatorID（内置 Agent creator 为空，仅 Admin+ 可改） | Agent 变更 |
 | `OwnedKnowledgeKBOrAdmin` | knowledge `:id` → 所属 KB.CreatorID | 知识更新 / 删除 / 重解析 / 图片编辑 |
 | `OwnedChunkKBOrAdmin` / `...FromChunkID` | `:knowledge_id` 或 chunk `:id` → KB.CreatorID | chunk 变更 |
 | `OwnedWikiKBOrAdmin` | `:kb_id` → KB.CreatorID | Wiki 页面 CRUD |
 
-子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、agent share、KB share 接错轴的 bug）。
+子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、KB share 接错轴的 bug）。
 
 ### 6.4 中间件语义（`internal/middleware/rbac.go`）
 
@@ -516,7 +507,6 @@ sequenceDiagram
 ```text
 1. 自有 KB                    → 等效 Admin 级完全访问
 2. 组织共享 KB (Plan 3)       → 受共享权限封顶
-3. 经共享 Agent 可见          → 仅只读（只在 KBAccessRead 层激活）
 ```
 
 守卫成功后把 `(KB, 有效租户 ID, 权限)` 存入 context 并**改写请求的租户 ID 为有效租户**，下游 handler 无需感知 KB 是自有还是共享。变体 `KBAccessReadFromKnowledgeIDParam` / `...FromChunkIDParam` 支持从 knowledge / chunk ID 反查 KB。读路由最低 `OrgRoleViewer`，写路由最低 `OrgRoleEditor`。
@@ -590,7 +580,6 @@ type KnowledgeBaseShare struct {
     SourceTenantID  uint64        // 共享来源租户
     Permission      OrgMemberRole // 共享授予的最高权限（viewer/editor/admin）
 }
-// AgentShare 结构同形，面向 Agent。
 ```
 
 **共享的前置条件**（`ShareKnowledgeBase`）：调用者租户必须**拥有**该 KB（`kb.TenantID == tenantID`），且在目标组织中角色为 **editor+**。重复共享转为更新权限。

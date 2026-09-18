@@ -18,10 +18,10 @@ func TestSetRisk_NilMapGuard(t *testing.T) {
 	cmd := &cobra.Command{Use: "delete"}
 	// cmd.Annotations is nil by default
 	assert.Nil(t, cmd.Annotations)
-	SetRisk(cmd, "agent.delete")
+	SetRisk(cmd, "model.delete")
 	// Should not panic; should initialize map
 	assert.NotNil(t, cmd.Annotations)
-	assert.Equal(t, "agent.delete", cmd.Annotations["risk.action"])
+	assert.Equal(t, "model.delete", cmd.Annotations["risk.action"])
 }
 
 func TestGetRisk_ReturnsWritten(t *testing.T) {

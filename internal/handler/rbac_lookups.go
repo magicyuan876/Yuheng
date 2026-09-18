@@ -95,51 +95,11 @@ func (h *KnowledgeBaseHandler) KBCreatorLookupFromKbIDParam(c *gin.Context) (str
 	return kb.CreatorID, nil
 }
 
-// AgentCreatorLookup resolves :id -> CustomAgent.CreatedBy. Built-in
-// agents (IsBuiltin == true) are tenant-owned across the board: they
-// belong to the tenant rather than to any one user, so we return
-// ("", nil) and let the role check decide. The same holds for legacy
-// rows whose CreatedBy was never populated.
-//
-// The underlying GetAgentByID already scopes to the caller's tenant,
-// but we keep an explicit defence-in-depth check here in case future
-// refactors loosen the service-layer scope.
-func (h *CustomAgentHandler) AgentCreatorLookup(c *gin.Context) (string, error) {
-	id := c.Param("id")
-	if id == "" {
-		return "", errors.New("missing :id param for agent creator lookup")
-	}
-	ctx := c.Request.Context()
-	tenantID, ok := types.TenantIDFromContext(ctx)
-	if !ok {
-		return "", errors.New("workspace context missing")
-	}
-	agent, err := h.service.GetAgentByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, service.ErrAgentNotFound) ||
-			errors.Is(err, apprepo.ErrCustomAgentNotFound) {
-			return "", middleware.ErrResourceNotFound
-		}
-		return "", err
-	}
-	if agent == nil {
-		return "", middleware.ErrResourceNotFound
-	}
-	if agent.TenantID != tenantID {
-		return "", middleware.ErrResourceNotFound
-	}
-	if agent.IsBuiltin {
-		return "", nil
-	}
-	return agent.CreatedBy, nil
-}
-
 // Compile-time guards: the methods must satisfy middleware.CreatorLookup
 // so route wiring stays type-safe even if a signature drifts.
 var (
 	_ middleware.CreatorLookup = (*KnowledgeBaseHandler)(nil).KBCreatorLookup
 	_ middleware.CreatorLookup = (*KnowledgeBaseHandler)(nil).KBCreatorLookupFromKbIDParam
-	_ middleware.CreatorLookup = (*CustomAgentHandler)(nil).AgentCreatorLookup
 	_ middleware.CreatorLookup = (*KnowledgeHandler)(nil).KBCreatorLookupFromKnowledgeID
 	_ middleware.CreatorLookup = (*ChunkHandler)(nil).KBCreatorLookupFromKnowledgeIDParam
 	_ middleware.CreatorLookup = (*ChunkHandler)(nil).KBCreatorLookupFromChunkIDParam

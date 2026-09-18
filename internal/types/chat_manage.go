@@ -43,16 +43,6 @@ type PipelineRequest struct {
 	// Empty means fall back to ChatModelID.
 	QueryUnderstandModelID string `json:"query_understand_model_id,omitempty"`
 
-	// FAQ strategy
-	FAQPriorityEnabled       bool    `json:"-"`
-	FAQDirectAnswerThreshold float64 `json:"-"`
-	FAQScoreBoost            float64 `json:"-"`
-
-	// DataAnalysisEnabled controls whether the in-pipeline DuckDB SQL
-	// data-analysis stage runs. Off by default to avoid an extra LLM call on
-	// every RAG request that happens to retrieve CSV/Excel chunks.
-	DataAnalysisEnabled bool `json:"-"`
-
 	// Image / multimodal support
 	Images                  []string `json:"-"`
 	VLMModelID              string   `json:"-"`
@@ -128,12 +118,6 @@ type PipelineState struct {
 	ImageDescription     string            `json:"-"`
 	QuotedContext        string            `json:"-"` // Quoted message text, injected at LLM prompt stage
 	SystemPromptOverride string            `json:"-"`
-	// MemoryPrompt is the long-term memory envelope appended to the system
-	// prompt for this turn, empty when memory is off or nothing matched.
-	MemoryPrompt string `json:"-"`
-	// UsedMemories mirrors MemoryPrompt in structured form so the answer can
-	// tell the user which memories it saw.
-	UsedMemories UsedMemories `json:"-"`
 }
 
 // PipelineContext holds runtime context for the current pipeline execution.
@@ -206,47 +190,43 @@ func (c *ChatManage) Clone() *ChatManage {
 
 	return &ChatManage{
 		PipelineRequest: PipelineRequest{
-			Query:                    c.Query,
-			SessionID:                c.SessionID,
-			UserID:                   c.UserID,
-			MaxRounds:                c.MaxRounds,
-			KnowledgeBaseIDs:         knowledgeBaseIDs,
-			KnowledgeIDs:             knowledgeIDs,
-			SearchTargets:            searchTargets,
-			VectorThreshold:          c.VectorThreshold,
-			KeywordThreshold:         c.KeywordThreshold,
-			EmbeddingTopK:            c.EmbeddingTopK,
-			VectorDatabase:           c.VectorDatabase,
-			RerankModelID:            c.RerankModelID,
-			RerankTopK:               c.RerankTopK,
-			RerankThreshold:          c.RerankThreshold,
-			ChatModelID:              c.ChatModelID,
-			SummaryConfig:            c.SummaryConfig,
-			FallbackStrategy:         c.FallbackStrategy,
-			FallbackResponse:         c.FallbackResponse,
-			FallbackPrompt:           c.FallbackPrompt,
-			CitationEnabled:          c.CitationEnabled,
-			EnableRewrite:            c.EnableRewrite,
-			EnableQueryExpansion:     c.EnableQueryExpansion,
-			RewritePromptSystem:      c.RewritePromptSystem,
-			RewritePromptUser:        c.RewritePromptUser,
-			QueryUnderstandModelID:   c.QueryUnderstandModelID,
-			FAQPriorityEnabled:       c.FAQPriorityEnabled,
-			FAQDirectAnswerThreshold: c.FAQDirectAnswerThreshold,
-			FAQScoreBoost:            c.FAQScoreBoost,
-			DataAnalysisEnabled:      c.DataAnalysisEnabled,
-			Images:                   append([]string(nil), c.Images...),
-			VLMModelID:               c.VLMModelID,
-			ChatModelSupportsVision:  c.ChatModelSupportsVision,
-			Attachments:              append(MessageAttachments(nil), c.Attachments...),
-			TenantID:                 c.TenantID,
-			WebSearchEnabled:         c.WebSearchEnabled,
-			WebSearchProviderID:      c.WebSearchProviderID,
-			WebSearchMaxResults:      c.WebSearchMaxResults,
-			WebFetchEnabled:          c.WebFetchEnabled,
-			WebFetchTopN:             c.WebFetchTopN,
-			Language:                 c.Language,
-			IntentPromptOverrides:    maps.Clone(c.IntentPromptOverrides),
+			Query:                   c.Query,
+			SessionID:               c.SessionID,
+			UserID:                  c.UserID,
+			MaxRounds:               c.MaxRounds,
+			KnowledgeBaseIDs:        knowledgeBaseIDs,
+			KnowledgeIDs:            knowledgeIDs,
+			SearchTargets:           searchTargets,
+			VectorThreshold:         c.VectorThreshold,
+			KeywordThreshold:        c.KeywordThreshold,
+			EmbeddingTopK:           c.EmbeddingTopK,
+			VectorDatabase:          c.VectorDatabase,
+			RerankModelID:           c.RerankModelID,
+			RerankTopK:              c.RerankTopK,
+			RerankThreshold:         c.RerankThreshold,
+			ChatModelID:             c.ChatModelID,
+			SummaryConfig:           c.SummaryConfig,
+			FallbackStrategy:        c.FallbackStrategy,
+			FallbackResponse:        c.FallbackResponse,
+			FallbackPrompt:          c.FallbackPrompt,
+			CitationEnabled:         c.CitationEnabled,
+			EnableRewrite:           c.EnableRewrite,
+			EnableQueryExpansion:    c.EnableQueryExpansion,
+			RewritePromptSystem:     c.RewritePromptSystem,
+			RewritePromptUser:       c.RewritePromptUser,
+			QueryUnderstandModelID:  c.QueryUnderstandModelID,
+			Images:                  append([]string(nil), c.Images...),
+			VLMModelID:              c.VLMModelID,
+			ChatModelSupportsVision: c.ChatModelSupportsVision,
+			Attachments:             append(MessageAttachments(nil), c.Attachments...),
+			TenantID:                c.TenantID,
+			WebSearchEnabled:        c.WebSearchEnabled,
+			WebSearchProviderID:     c.WebSearchProviderID,
+			WebSearchMaxResults:     c.WebSearchMaxResults,
+			WebFetchEnabled:         c.WebFetchEnabled,
+			WebFetchTopN:            c.WebFetchTopN,
+			Language:                c.Language,
+			IntentPromptOverrides:   maps.Clone(c.IntentPromptOverrides),
 		},
 		PipelineState: PipelineState{
 			RewriteQuery:         c.RewriteQuery,
@@ -254,8 +234,6 @@ func (c *ChatManage) Clone() *ChatManage {
 			ImageDescription:     c.ImageDescription,
 			QuotedContext:        c.QuotedContext,
 			SystemPromptOverride: c.SystemPromptOverride,
-			MemoryPrompt:         c.MemoryPrompt,
-			UsedMemories:         append(UsedMemories(nil), c.UsedMemories...),
 			RenderedContexts:     c.RenderedContexts,
 			Entity:               entity,
 			EntityKBIDs:          entityKBIDs,
@@ -269,7 +247,6 @@ type EventType string
 
 const (
 	LOAD_HISTORY           EventType = "load_history"
-	MEMORY_RECALL          EventType = "memory_recall"
 	QUERY_UNDERSTAND       EventType = "query_understand"
 	CHUNK_SEARCH           EventType = "chunk_search"
 	CHUNK_SEARCH_PARALLEL  EventType = "chunk_search_parallel"
@@ -277,7 +254,6 @@ const (
 	CHUNK_RERANK           EventType = "chunk_rerank"
 	WEB_FETCH              EventType = "web_fetch"
 	CHUNK_MERGE            EventType = "chunk_merge"
-	DATA_ANALYSIS          EventType = "data_analysis"
 	INTO_CHAT_MESSAGE      EventType = "into_chat_message"
 	CHAT_COMPLETION        EventType = "chat_completion"
 	CHAT_COMPLETION_STREAM EventType = "chat_completion_stream"
@@ -342,7 +318,6 @@ var Pipeline = map[string][]EventType{
 		CHUNK_RERANK,
 		CHUNK_MERGE,
 		FILTER_TOP_K,
-		DATA_ANALYSIS,
 		INTO_CHAT_MESSAGE,
 		CHAT_COMPLETION_STREAM,
 	},

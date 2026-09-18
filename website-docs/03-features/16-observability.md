@@ -145,19 +145,19 @@ OTLP/HTTP exporter，`Authorization: Basic base64(public:secret)`；`x-langfuse-
 
 | 点位 | 源码 | 产出 |
 | --- | --- | --- |
-| HTTP 入口 | `middleware.go` `GinMiddleware` | 对 `shouldTrace` 白名单路径（knowledge-chat / agent-chat / knowledge-search / 各类 ingestion POST/PUT / FAQ 导入 / wiki auto-fix / evaluation / initialization 检测等）开根 Trace，名称为 `METHOD /path`，metadata 含 http.method/path/query/request_id，输出为 status 与 response.size；提取上游 W3C `traceparent` 头继承外部调用方 trace id |
+| HTTP 入口 | `middleware.go` `GinMiddleware` | 对 `shouldTrace` 白名单路径（knowledge-chat / knowledge-search / 各类 ingestion POST/PUT / FAQ 导入 / wiki auto-fix / evaluation / initialization 检测等）开根 Trace，名称为 `METHOD /path`，metadata 含 http.method/path/query/request_id，输出为 status 与 response.size；提取上游 W3C `traceparent` 头继承外部调用方 trace id |
 | asynq worker | `asynq.go` `AsynqMiddleware` | 从 payload 恢复 traceparent 续接 HTTP trace，否则新开 `asynq.<task_type>` trace；包一层 SPAN，metadata 含 task_id/queue/retry/max_retry/payload_bytes；payload 只预览前 1KB |
 | 入队侧注入 | `asynq.go` `InjectTracing` + `internal/types/tracing.go` `TracingContext` | 把 traceparent、user/session 标签以 `lf_*` JSON 字段嵌入任务 payload，跨进程传递 |
 | 模型调用 | `internal/models/{chat,embedding,rerank,vlm,asr}/langfuse_wrapper.go` | 每次调用一个 Generation（模型名、输入、参数、输出、token usage、错误） |
 | 检索/重排摘要 | `retrieval_obs.go` | `SummarizeRetrieveOutput` / `SummarizeSearchResults` 等把召回结果压缩成 top-25 预览（rank/chunk_id/score/160 字符 preview），避免全文进 trace |
-| Agent 执行 | `internal/agent/engine.go`、`act.go` | agent.execute 等 SPAN，经 `logger.CloneContext` 保持与 HTTP 根 trace 同树 |
+| 管线阶段 | `chat_pipeline/progress.go` 等 | 检索/重排/合并等阶段的 span 与 pipeline 日志，经 `logger.CloneContext` 保持与 HTTP 根 trace 同树 |
 
 上报内容（span 属性，`events.go`）：`langfuse.observation.type/input/output/metadata/model.name/model.parameters/usage_details/completion_start_time`、`langfuse.trace.name/input/output/metadata/tags`、`user.id`（显式 user 或 `tenant:<id>`）、`session.id`、`langfuse.environment/release`。
 
 ```mermaid
 flowchart LR
-    A["GinMiddleware<br/>Trace: POST /api/v1/agent-chat"] --> B["Span: agent.execute"]
-    B --> C["Generation: chat (LLM 规划/回答)"]
+    A["GinMiddleware<br/>Trace: POST /api/v1/knowledge-chat"] --> B["Span: pipeline stages (检索/重排/合并)"]
+    B --> C["Generation: chat (LLM 改写/回答)"]
     B --> D["Generation: embedding (检索)"]
     B --> E["Generation: rerank"]
     A --> F["InjectTracing -> asynq payload"]
@@ -226,7 +226,7 @@ flowchart LR
 - Redis 优先：Lua 脚本原子完成"剔除过期 ZSET 成员 → `ZCARD` 计数 → 未超限则 `ZADD` + `PEXPIRE`"，多实例共享预算；member 为 `<instanceID>:<ms>` 保证唯一。
 - Redis 不可用（错误或 Lite 无 Redis）时**自动降级**为进程内 `localLimiter`（`sync.Map` + 每 key 时间戳数组），`StartCleanup` 周期驱逐空 key。
 - `max` 按每次 `Allow` 调用传入，同一 limiter 可对不同 key 用不同预算（如各 embed 渠道各自配额）。
-- 使用方：Web embed 公开接口（每分钟 + 每 24h 两个 limiter，按 channel+ClientIP，`internal/middleware/embed_auth.go`）、IM 服务（`internal/im/service.go`）。
+- 使用方：公开认证端点的 IP 限流（见下节）。
 
 ### 5.2 公开认证端点 IP 限流（`internal/middleware/auth_public_ratelimit.go`）
 
@@ -250,8 +250,7 @@ r.GET("/health", func(c *gin.Context) {
 该文件提供的是**模型引用（usage-by-reference）查询**，即回答"哪些资源正在使用某个模型"，用于删除模型前的依赖保护，而非 token 用量计费：
 
 - `scopeKnowledgeBasesByModelID`：匹配 `knowledge_bases` 中任一模型绑定字段 —— `embedding_model_id`、`summary_model_id`、`image_processing_config.model_id`、`vlm_config.model_id`、`asr_config.model_id`、`wiki_config.synthesis_model_id`（Postgres 用 `->>` JSON 操作符，SQLite 用 `json_extract`，双方言等价）。
-- `scopeCustomAgentsByModelID`：匹配 `custom_agents.config` 中的 `model_id`、`rerank_model_id`、`vlm_model_id`、`asr_model_id`、`query_understand_model_id`、`question_suggestions.follow_ups.model_id`。
-- 消费方：`knowledgebase.go` / `custom_agent.go` 仓储的 `CountByModelID`，被 `internal/application/service/model.go` 的删除守卫调用（KB 或 Agent 引用计数 > 0 时阻止删除模型）。
+- 消费方：`knowledgebase.go` 仓储的 `CountByModelID`，被 `internal/application/service/model.go` 的删除守卫调用（KB 引用计数 > 0 时阻止删除模型）。
 
 token 级别的模型用量则由 Langfuse Generation 的 `usage_details`（`TokenUsage`：input/output/total/cache_*）上报，在 Langfuse UI 中按模型 / 用户（`tenant:<id>`）/ 会话聚合查看。
 
@@ -260,7 +259,7 @@ token 级别的模型用量则由 Langfuse Generation 的 `usage_details`（`Tok
 | 想知道… | 去哪里 |
 | --- | --- |
 | 某次请求全链路发生了什么 | 用响应头 `X-Request-ID` grep 应用日志；开启 `LLM_DEBUG_LOG` 后看 `llm_debug/<request_id>.log` |
-| 一次聊天/解析的 LLM 调用树与 token 消耗 | Langfuse UI（trace 名 `POST /api/v1/agent-chat` 或 `asynq.document:process`） |
+| 一次聊天/解析的 LLM 调用树与 token 消耗 | Langfuse UI（trace 名 `POST /api/v1/knowledge-chat` 或 `asynq.document:process`） |
 | 谁在什么时候改了什么 | 空间审计 `/tenants/:id/audit-log`；KB 活动 `/knowledge-bases/:id/activity`；平台审计 `/system/admin/audit-log` |
 | 为什么某文档一直失败 | `task_dead_letters` 表（scope=knowledge/knowledge_base）+ 运行时面板 archived 任务的 `last_error` |
 | 服务是否存活 | `GET /health`（200 `{"status":"ok"}`） |

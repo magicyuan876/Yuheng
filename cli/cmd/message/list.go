@@ -16,7 +16,7 @@ import (
 )
 
 // messageListFields enumerates the projectable scalar fields of sdk.Message
-// (nested knowledge_references / agent_steps are intentionally excluded).
+// (nested knowledge_references are intentionally excluded).
 var messageListFields = []string{
 	"id", "session_id", "request_id", "role", "content",
 	"is_completed", "channel", "created_at", "updated_at",
@@ -68,7 +68,7 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Before, "before", "", "Only messages created before this RFC3339 timestamp (time-cursor pagination)")
 	cmdutil.AddFormatFlag(cmd, messageListFields...)
 	cmdutil.SetAgentHelp(cmd, cmdutil.AgentHelp{
-		UsedFor:       "List messages in a session. Use the assistant message id from the latest turn to chain follow-ups (session ask), or --before <oldest created_at> to page further back.",
+		UsedFor:       "List messages in a session. Use the assistant message id from the latest turn to chain follow-ups (chat --session), or --before <oldest created_at> to page further back.",
 		RequiredFlags: []string{"--session <session-id>"},
 		Examples: []string{
 			"yuheng message list --session sess_abc",

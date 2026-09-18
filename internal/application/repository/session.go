@@ -72,25 +72,6 @@ func (r *sessionRepository) GetByID(ctx context.Context, tenantID uint64, id str
 	return &session, nil
 }
 
-// GetIMPlatform returns the IM platform bound to a session, or "" when none.
-// It intentionally ignores soft-deleted mappings' visibility rules used by
-// QueryPaged: any mapping (active or cleared) marks the session as IM-origin.
-func (r *sessionRepository) GetIMPlatform(
-	ctx context.Context, tenantID uint64, sessionID string,
-) (string, error) {
-	var platform string
-	err := r.db.WithContext(ctx).
-		Table("im_channel_sessions AS ics").
-		Joins("JOIN sessions AS s ON s.id = ics.session_id").
-		Where("ics.session_id = ? AND s.tenant_id = ?", sessionID, tenantID).
-		Limit(1).
-		Pluck("ics.platform", &platform).Error
-	if err != nil {
-		return "", err
-	}
-	return platform, nil
-}
-
 // GetByTenantID retrieves all sessions for a tenant
 func (r *sessionRepository) GetByTenantID(ctx context.Context, tenantID uint64, userID string) ([]*types.Session, error) {
 	var sessions []*types.Session
@@ -137,8 +118,10 @@ func (r *sessionRepository) GetPagedByTenantID(
 	return sessions, total, nil
 }
 
-// QueryPaged lists sessions for tenant/user with keyword/source/agent filters,
-// pin-aware ordering, and IM origin fields from a LEFT JOIN.
+// QueryPaged lists sessions for tenant/user with keyword/source filters and
+// pin-aware ordering. Source filtering is description/owner based only: the
+// im_channel_sessions table was dropped with the agent infrastructure, so
+// legacy IM rows are indistinguishable from ordinary chats and list as web.
 func (r *sessionRepository) QueryPaged(
 	ctx context.Context, q *types.SessionListQuery,
 ) ([]*types.SessionListItem, int64, error) {
@@ -163,32 +146,25 @@ func (r *sessionRepository) QueryPaged(
 		if q.UserID != "" {
 			db = db.Where("(s.user_id = ? OR s.user_id IS NULL OR s.user_id = '')", q.UserID)
 		}
-		// Skill image maintenance runs in a real session so its transcript can
-		// be read back, but it is not a conversation. Excluding it here rather
-		// than in applySource is deliberate: a source branch only covers its
-		// own bucket, and this row must be absent from all of them, including
-		// the unfiltered listing.
-		db = db.Where(
-			"(s.description IS NULL OR s.description NOT LIKE ?)",
-			types.SkillMaintenanceSessionMarker+"%",
-		)
 		if kw := strings.TrimSpace(q.Keyword); kw != "" {
 			db = db.Where(titleLikeExpr, "%"+escapeLikeKeyword(kw)+"%")
 		}
 		return db
 	}
 
-	// LEFT JOIN IM mappings to surface origin fields and support source/agent filters.
-	// Soft-deleted mappings are intentionally included: a session that was ever bound
-	// to an IM channel belongs to that platform, not "web". /clear and session
-	// recycling soft-delete the mapping (and start a fresh session), so filtering
-	// deleted mappings out here would mis-bucket those past IM conversations into the
-	// user's own web chats ("web" = ics.id IS NULL).
-	// Safe from row fan-out because the IM flow only ever creates a *fresh* session
-	// for a new mapping (never re-maps an existing one), so a session has at most one
-	// mapping row. If that ever changes, this JOIN would need a one-row-per-session
-	// guard (the unique index only constrains active mappings).
-	joinClause := "LEFT JOIN im_channel_sessions ics ON ics.session_id = s.id"
+	// webVisible keeps only ordinary user chats: embed-widget sessions and
+	// API-key sessions are excluded (the latter surface only in the admin-only
+	// "api" bucket). The user_id NULL check keeps legacy tenant-level web rows
+	// visible, since "col NOT LIKE ?" is unknown (not true) for NULL.
+	webVisible := func(db *gorm.DB) *gorm.DB {
+		return db.Where(
+			"(s.description = '' OR s.description NOT LIKE ?) "+
+				"AND (s.user_id IS NULL OR (s.user_id NOT LIKE ? AND s.user_id NOT LIKE ?))",
+			types.EmbedSessionMarkerPrefix+"%",
+			types.SessionOwnerAPITenantKeyPrefix+"%",
+			types.SessionOwnerAPIExternalUserPrefix+"%",
+		)
+	}
 
 	applySource := func(db *gorm.DB) *gorm.DB {
 		src := strings.TrimSpace(q.Source)
@@ -209,42 +185,28 @@ func (r *sessionRepository) QueryPaged(
 				types.SessionOwnerAPIExternalUserPrefix+"%",
 			)
 		case "web":
-			// User web chats only — exclude embed-widget sessions (same IM-null
-			// row) and API-key sessions (surfaced only in the admin-only "api"
-			// bucket). The user_id NULL check keeps legacy tenant-level web rows
-			// visible, since "col NOT LIKE ?" is unknown (not true) for NULL.
-			return db.Where(
-				"ics.id IS NULL AND (s.description = '' OR s.description NOT LIKE ?) "+
-					"AND (s.user_id IS NULL OR (s.user_id NOT LIKE ? AND s.user_id NOT LIKE ?))",
-				embedPrefix+"%",
-				types.SessionOwnerAPITenantKeyPrefix+"%",
-				types.SessionOwnerAPIExternalUserPrefix+"%",
-			)
+			return webVisible(db)
 		case "embed":
-			return db.Where("ics.id IS NULL AND s.description LIKE ?", embedPrefix+"%")
+			return db.Where("s.description LIKE ?", embedPrefix+"%")
 		default:
 			if strings.HasPrefix(lower, "embed:") {
 				channelID := strings.TrimSpace(src[len("embed:"):])
 				if channelID != "" {
-					return db.Where("ics.id IS NULL AND s.description = ?", embedPrefix+channelID)
+					return db.Where("s.description = ?", embedPrefix+channelID)
 				}
 			}
-			return db.Where("ics.platform = ?", lower)
+			// Unknown sources (including legacy IM platform names) fall back to
+			// the web visibility filter: with im_channel_sessions gone there is
+			// no way to recognize IM-origin rows, so they list as ordinary chats.
+			return webVisible(db)
 		}
-	}
-	applyAgent := func(db *gorm.DB) *gorm.DB {
-		if q.AgentID != "" {
-			return db.Where("ics.agent_id = ?", q.AgentID)
-		}
-		return db
 	}
 
-	// Count distinct sessions to guard against fan-out from the join.
 	var total int64
-	countQ := applyAgent(applySource(applyBase(
-		r.db.WithContext(ctx).Table("sessions AS s").Joins(joinClause),
-	)))
-	if err := countQ.Distinct("s.id").Count(&total).Error; err != nil {
+	countQ := applySource(applyBase(
+		r.db.WithContext(ctx).Table("sessions AS s"),
+	))
+	if err := countQ.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -258,16 +220,10 @@ func (r *sessionRepository) QueryPaged(
 	}
 
 	items := make([]*types.SessionListItem, 0)
-	rowsQ := applyAgent(applySource(applyBase(
-		r.db.WithContext(ctx).Table("sessions AS s").Joins(joinClause),
-	))).
-		Select(`s.*,
-			ics.platform       AS im_platform,
-			ics.chat_id        AS im_chat_id,
-			ics.thread_id      AS im_thread_id,
-			ics.user_id        AS im_user_id,
-			ics.agent_id       AS im_agent_id,
-			ics.im_channel_id  AS im_channel_id`).
+	rowsQ := applySource(applyBase(
+		r.db.WithContext(ctx).Table("sessions AS s"),
+	)).
+		Select("s.*").
 		Order(orderClause).
 		Offset((page - 1) * size).
 		Limit(size)
@@ -335,10 +291,9 @@ func (r *sessionRepository) SetOwnerID(ctx context.Context, tenantID uint64, id,
 	return res.RowsAffected, res.Error
 }
 
-// UpdateLastRequestState writes only the agent_config column (used here to
-// store SessionLastRequestState) and bumps updated_at. We deliberately bypass
-// the regular Update path so the call doesn't perturb title/description and
-// stays cheap (single-row UPDATE by PK).
+// UpdateLastRequestState writes only the last_request_state column and bumps
+// updated_at. We deliberately bypass the regular Update path so the call
+// doesn't perturb title/description and stays cheap (single-row UPDATE by PK).
 func (r *sessionRepository) UpdateLastRequestState(
 	ctx context.Context, tenantID uint64, userID string, sessionID string,
 	state *types.SessionLastRequestState,
@@ -356,8 +311,8 @@ func (r *sessionRepository) UpdateLastRequestState(
 		Model(&types.Session{}).
 		Where("tenant_id = ? AND id = ?", tenantID, sessionID), userID).
 		Updates(map[string]interface{}{
-			"agent_config": stateValue,
-			"updated_at":   now,
+			"last_request_state": stateValue,
+			"updated_at":         now,
 		})
 	return res.RowsAffected, res.Error
 }

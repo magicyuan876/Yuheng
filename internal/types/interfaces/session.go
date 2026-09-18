@@ -64,8 +64,6 @@ type SessionService interface {
 	// knowledgeBaseIDs: list of knowledge base IDs to search (supports multi-KB)
 	// knowledgeIDs: list of specific knowledge (file) IDs to search
 	SearchKnowledge(ctx context.Context, knowledgeBaseIDs []string, knowledgeIDs []string, tagScopes []types.TagScope, query string) ([]*types.SearchResult, error)
-	// AgentQA performs agent-based question answering with conversation history and streaming support.
-	AgentQA(ctx context.Context, req *types.QARequest, eventBus *event.EventBus) error
 }
 
 // SessionRepository defines the session repository interface
@@ -77,10 +75,6 @@ type SessionRepository interface {
 	// GetByID loads a session by tenant and id without user scoping. Callers
 	// must enforce access (e.g. embed channel + session signature).
 	GetByID(ctx context.Context, tenantID uint64, id string) (*types.Session, error)
-	// GetIMPlatform returns the IM platform bound to a session via
-	// im_channel_sessions, or "" when the session has no IM mapping. Used to
-	// classify a session's origin folder on read without a full list query.
-	GetIMPlatform(ctx context.Context, tenantID uint64, sessionID string) (string, error)
 	// GetByTenantID gets all sessions visible to the tenant/user scope.
 	GetByTenantID(ctx context.Context, tenantID uint64, userID string) ([]*types.Session, error)
 	// GetPagedByTenantID gets paged sessions visible to the tenant/user scope.

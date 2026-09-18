@@ -1,7 +1,7 @@
 class YuhengLite < Formula
   desc "Knowledge base management system — single-binary Lite edition"
   homepage "https://github.com/magicyuan876/yuheng"
-  version "0.3.6-test"
+  version "0.1.0"
   license "Apache-2.0"
 
   on_macos do

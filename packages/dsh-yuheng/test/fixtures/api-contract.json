@@ -70,20 +70,6 @@
         "knowledge_base_ids": ["kb-product"]
       },
       "goRequestType": "session.CreateKnowledgeQARequest"
-    },
-    {
-      "tool": "yuheng_ask",
-      "method": "POST",
-      "path": "/api/v1/agent-chat/s1",
-      "query": {},
-      "body": {
-        "query": "部署方式",
-        "channel": "api",
-        "agent_id": "agent-42",
-        "agent_enabled": true,
-        "web_search_enabled": true
-      },
-      "goRequestType": "session.CreateKnowledgeQARequest"
     }
   ],
   "responseFieldsRead": {
