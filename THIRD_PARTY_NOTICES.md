@@ -17,7 +17,7 @@ cutting a release: it carries the blocking items.
 | Ecosystem | Components | Source of truth |
 |---|---|---|
 | Go | 381 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
-| npm (frontend) | 449 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
+| npm (frontend) | 569 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
 | npm (collab) | 35 packages | `collab/package-lock.json` (resolved from `collab/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
@@ -448,17 +448,19 @@ cutting a release: it carries the blocking items.
 
 | License | Packages |
 |---|---|
-| MIT | 368 |
-| ISC | 48 |
+| MIT | 474 |
+| ISC | 50 |
+| Apache-2.0 | 17 |
 | BSD-3-Clause | 12 |
-| Apache-2.0 | 8 |
 | BSD-2-Clause | 7 |
+| (MIT AND Zlib) | 2 |
 | CC-BY-4.0 | 1 |
 | (MPL-2.0 OR Apache-2.0) | 1 |
+| CC0-1.0 | 1 |
 | (MIT OR GPL-3.0-or-later) | 1 |
 | NOT-DECLARED | 1 |
-| (MIT AND Zlib) | 1 |
 | Unlicense | 1 |
+| 0BSD | 1 |
 
 Dual- and multi-licensed packages, and the licence Yuheng elects:
 
@@ -469,9 +471,11 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `pako` | MIT AND Zlib | both apply; both are permissive |
 | `caniuse-lite` | CC-BY-4.0 | attribution given here; build-time data, not shipped in the bundle |
 | `khroma` | not declared in `package.json` | **MIT** — stated in its bundled `license` file and README |
+| `fractional-indexing` | CC0-1.0 | a public-domain dedication; no obligations to meet |
+| `@excalidraw/excalidraw` and its React runtime | MIT | loaded only when somebody opens a drawing for editing, in its own chunk |
 
 <details>
-<summary>Full list (449 packages)</summary>
+<summary>Full list (569 packages)</summary>
 
 | Package | Version | License |
 |---|---|---|
@@ -503,11 +507,23 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `@babel/template` | 7.29.7 | MIT |
 | `@babel/traverse` | 7.29.7 | MIT |
 | `@babel/types` | 7.29.7 | MIT |
+| `@braintree/sanitize-url` | 6.0.2 | MIT |
 | `@braintree/sanitize-url` | 7.1.2 | MIT |
+| `@chevrotain/cst-dts-gen` | 11.0.3 | Apache-2.0 |
+| `@chevrotain/gast` | 11.0.3 | Apache-2.0 |
+| `@chevrotain/regexp-to-ast` | 11.0.3 | Apache-2.0 |
+| `@chevrotain/types` | 11.0.3 | Apache-2.0 |
 | `@chevrotain/types` | 11.1.2 | Apache-2.0 |
+| `@chevrotain/utils` | 11.0.3 | Apache-2.0 |
 | `@esbuild/win32-x64` | 0.25.6 | MIT |
+| `@excalidraw/excalidraw` | 0.18.1 | MIT |
+| `@excalidraw/laser-pointer` | 1.3.1 | MIT |
+| `@excalidraw/markdown-to-text` | 0.1.2 | MIT |
+| `@excalidraw/mermaid-to-excalidraw` | 2.2.2 | MIT |
+| `@excalidraw/random-username` | 1.1.0 | MIT |
 | `@floating-ui/core` | 1.8.0 | MIT |
 | `@floating-ui/dom` | 1.8.0 | MIT |
+| `@floating-ui/react-dom` | 2.1.9 | MIT |
 | `@floating-ui/utils` | 0.2.12 | MIT |
 | `@hocuspocus/common` | 4.7.0 | MIT |
 | `@hocuspocus/provider` | 4.7.0 | MIT |
@@ -524,10 +540,46 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `@jridgewell/sourcemap-codec` | 1.5.5 | MIT |
 | `@jridgewell/trace-mapping` | 0.3.29 | MIT |
 | `@lifeomic/attempt` | 3.1.0 | MIT |
+| `@mermaid-js/parser` | 0.6.3 | MIT |
 | `@mermaid-js/parser` | 1.1.1 | MIT |
 | `@microsoft/fetch-event-source` | 2.0.1 | MIT |
 | `@pagefind/windows-x64` | 1.5.2 | MIT |
 | `@popperjs/core` | 2.11.8 | MIT |
+| `@radix-ui/primitive` | 1.0.0 | MIT |
+| `@radix-ui/primitive` | 1.1.1 | MIT |
+| `@radix-ui/react-arrow` | 1.1.2 | MIT |
+| `@radix-ui/react-collection` | 1.0.1 | MIT |
+| `@radix-ui/react-compose-refs` | 1.0.0 | MIT |
+| `@radix-ui/react-compose-refs` | 1.1.1 | MIT |
+| `@radix-ui/react-context` | 1.0.0 | MIT |
+| `@radix-ui/react-context` | 1.1.1 | MIT |
+| `@radix-ui/react-direction` | 1.0.0 | MIT |
+| `@radix-ui/react-dismissable-layer` | 1.1.5 | MIT |
+| `@radix-ui/react-focus-guards` | 1.1.1 | MIT |
+| `@radix-ui/react-focus-scope` | 1.1.2 | MIT |
+| `@radix-ui/react-id` | 1.0.0 | MIT |
+| `@radix-ui/react-id` | 1.1.0 | MIT |
+| `@radix-ui/react-popover` | 1.1.6 | MIT |
+| `@radix-ui/react-popper` | 1.2.2 | MIT |
+| `@radix-ui/react-portal` | 1.1.4 | MIT |
+| `@radix-ui/react-presence` | 1.0.0 | MIT |
+| `@radix-ui/react-presence` | 1.1.2 | MIT |
+| `@radix-ui/react-primitive` | 1.0.1 | MIT |
+| `@radix-ui/react-primitive` | 2.0.2 | MIT |
+| `@radix-ui/react-roving-focus` | 1.0.2 | MIT |
+| `@radix-ui/react-slot` | 1.0.1 | MIT |
+| `@radix-ui/react-slot` | 1.1.2 | MIT |
+| `@radix-ui/react-tabs` | 1.0.2 | MIT |
+| `@radix-ui/react-use-callback-ref` | 1.0.0 | MIT |
+| `@radix-ui/react-use-callback-ref` | 1.1.0 | MIT |
+| `@radix-ui/react-use-controllable-state` | 1.0.0 | MIT |
+| `@radix-ui/react-use-controllable-state` | 1.1.0 | MIT |
+| `@radix-ui/react-use-escape-keydown` | 1.1.0 | MIT |
+| `@radix-ui/react-use-layout-effect` | 1.0.0 | MIT |
+| `@radix-ui/react-use-layout-effect` | 1.1.0 | MIT |
+| `@radix-ui/react-use-rect` | 1.1.0 | MIT |
+| `@radix-ui/react-use-size` | 1.1.0 | MIT |
+| `@radix-ui/rect` | 1.1.0 | MIT |
 | `@rolldown/pluginutils` | 1.0.0-rc.13 | MIT |
 | `@rollup/rollup-win32-x64-gnu` | 4.59.0 | MIT |
 | `@rollup/rollup-win32-x64-msvc` | 4.59.0 | MIT |
@@ -540,7 +592,6 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `@tiptap/extension-code-block-lowlight` | 3.31.3 | MIT |
 | `@tiptap/extension-collaboration` | 3.31.3 | MIT |
 | `@tiptap/extension-collaboration-caret` | 3.31.3 | MIT |
-| `@tiptap/extension-color` | 3.31.3 | MIT |
 | `@tiptap/extension-details` | 3.31.3 | MIT |
 | `@tiptap/extension-document` | 3.31.3 | MIT |
 | `@tiptap/extension-dropcursor` | 3.31.3 | MIT |
@@ -608,6 +659,8 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `@types/lodash-es` | 4.17.12 | MIT |
 | `@types/node` | 22.16.3 | MIT |
 | `@types/papaparse` | 5.5.2 | MIT |
+| `@types/react` | 19.3.0 | MIT |
+| `@types/react-dom` | 19.3.0 | MIT |
 | `@types/sortablejs` | 1.15.8 | MIT |
 | `@types/tinycolor2` | 1.4.6 | MIT |
 | `@types/trusted-types` | 2.0.7 | MIT |
@@ -662,15 +715,25 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `ajv-keywords` | 5.1.0 | MIT |
 | `alien-signals` | 3.1.2 | MIT |
 | `ansi-styles` | 6.2.1 | MIT |
+| `anymatch` | 3.1.3 | ISC |
+| `aria-hidden` | 1.2.6 | MIT |
 | `asynckit` | 0.4.0 | MIT |
 | `axios` | 1.16.0 | MIT |
 | `baseline-browser-mapping` | 2.10.0 | Apache-2.0 |
+| `binary-extensions` | 2.3.0 | MIT |
 | `birpc` | 2.5.0 | MIT |
+| `braces` | 3.0.3 | MIT |
+| `browser-fs-access` | 0.29.1 | Apache-2.0 |
 | `browserslist` | 4.28.1 | MIT |
 | `buffer-from` | 1.1.2 | MIT |
 | `call-bind-apply-helpers` | 1.0.2 | MIT |
 | `caniuse-lite` | 1.0.30001774 | CC-BY-4.0 |
+| `canvas-roundrect-polyfill` | 0.0.1 | MIT |
+| `chevrotain` | 11.0.3 | Apache-2.0 |
+| `chevrotain-allstar` | 0.3.1 | MIT |
+| `chokidar` | 3.6.0 | MIT |
 | `chrome-trace-event` | 1.0.4 | MIT |
+| `clsx` | 1.1.1 | MIT |
 | `combined-stream` | 1.0.8 | MIT |
 | `commander` | 2.20.3 | MIT |
 | `commander` | 7.2.0 | MIT |
@@ -681,6 +744,8 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `core-util-is` | 1.0.3 | MIT |
 | `cose-base` | 1.0.3 | MIT |
 | `cose-base` | 2.2.0 | MIT |
+| `crc-32` | 0.3.0 | Apache-2.0 |
+| `cross-env` | 7.0.3 | MIT |
 | `cross-spawn` | 7.0.6 | MIT |
 | `csstype` | 3.2.3 | MIT |
 | `cytoscape` | 3.33.2 | MIT |
@@ -727,6 +792,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `delaunator` | 5.1.0 | ISC |
 | `delayed-stream` | 1.0.0 | MIT |
 | `dequal` | 2.0.3 | MIT |
+| `detect-node-es` | 1.1.0 | MIT |
 | `devlop` | 1.1.0 | MIT |
 | `docx-preview` | 0.3.7 | Apache-2.0 |
 | `dompurify` | 3.4.11 | (MPL-2.0 OR Apache-2.0) |
@@ -741,6 +807,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `es-object-atoms` | 1.1.1 | MIT |
 | `es-set-tostringtag` | 2.1.0 | MIT |
 | `es-toolkit` | 1.46.1 | MIT |
+| `es6-promise-pool` | 2.5.0 | MIT |
 | `esbuild` | 0.25.6 | MIT |
 | `escalade` | 3.2.0 | MIT |
 | `eslint-scope` | 5.1.1 | BSD-2-Clause |
@@ -752,13 +819,19 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `fast-deep-equal` | 3.1.3 | MIT |
 | `fast-uri` | 3.1.3 | BSD-3-Clause |
 | `fdir` | 6.5.0 | MIT |
+| `fill-range` | 7.1.1 | MIT |
 | `follow-redirects` | 1.16.0 | MIT |
 | `form-data` | 4.0.6 | MIT |
+| `fractional-indexing` | 3.2.0 | CC0-1.0 |
 | `function-bind` | 1.1.2 | MIT |
+| `fuzzy` | 0.1.3 | MIT |
 | `gensync` | 1.0.0-beta.2 | MIT |
 | `get-intrinsic` | 1.3.0 | MIT |
+| `get-nonce` | 1.0.1 | MIT |
 | `get-proto` | 1.0.1 | MIT |
+| `glob-parent` | 5.1.2 | ISC |
 | `glob-to-regexp` | 0.4.1 | BSD-2-Clause |
+| `glur` | 1.1.2 | MIT |
 | `gopd` | 1.2.0 | MIT |
 | `graceful-fs` | 4.2.11 | ISC |
 | `hachure-fill` | 0.5.2 | MIT |
@@ -769,17 +842,25 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `highlight.js` | 11.11.1 | BSD-3-Clause |
 | `hookable` | 5.5.3 | MIT |
 | `iconv-lite` | 0.6.3 | MIT |
+| `image-blob-reduce` | 3.0.1 | MIT |
 | `image-size` | 0.5.5 | MIT |
 | `immediate` | 3.0.6 | MIT |
+| `immutable` | 4.3.9 | MIT |
 | `inherits` | 2.0.4 | ISC |
 | `internmap` | 1.0.1 | ISC |
 | `internmap` | 2.0.3 | ISC |
+| `is-binary-path` | 2.1.0 | MIT |
+| `is-extglob` | 2.1.1 | MIT |
+| `is-glob` | 4.0.3 | MIT |
+| `is-number` | 7.0.0 | MIT |
 | `is-what` | 4.1.16 | MIT |
 | `isarray` | 1.0.0 | MIT |
 | `isexe` | 2.0.0 | ISC |
 | `isexe` | 3.1.1 | ISC |
 | `isomorphic.js` | 0.2.5 | MIT |
 | `jest-worker` | 27.5.1 | MIT |
+| `jotai` | 2.11.0 | MIT |
+| `jotai-scope` | 0.7.2 | MIT |
 | `js-tokens` | 4.0.0 | MIT |
 | `jsesc` | 3.1.0 | MIT |
 | `json-parse-even-better-errors` | 4.0.0 | MIT |
@@ -788,6 +869,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `jszip` | 3.10.1 | (MIT OR GPL-3.0-or-later) |
 | `katex` | 0.16.45 | MIT |
 | `khroma` | 2.1.0 | NOT-DECLARED |
+| `langium` | 3.3.1 | MIT |
 | `layout-base` | 1.0.2 | MIT |
 | `layout-base` | 2.0.1 | MIT |
 | `less` | 4.6.4 | Apache-2.0 |
@@ -796,7 +878,10 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `lie` | 3.3.0 | MIT |
 | `linkifyjs` | 4.3.3 | MIT |
 | `loader-runner` | 4.3.1 | MIT |
+| `lodash-es` | 4.17.21 | MIT |
 | `lodash-es` | 4.18.1 | MIT |
+| `lodash.debounce` | 4.0.8 | MIT |
+| `lodash.throttle` | 4.1.1 | MIT |
 | `lowlight` | 3.3.0 | MIT |
 | `lru-cache` | 5.1.1 | ISC |
 | `magic-string` | 0.30.21 | MIT |
@@ -817,16 +902,23 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `mlly` | 1.8.2 | MIT |
 | `ms` | 2.1.3 | MIT |
 | `muggle-string` | 0.4.1 | MIT |
+| `multimath` | 2.0.0 | MIT |
 | `nanoid` | 3.3.11 | MIT |
+| `nanoid` | 3.3.3 | MIT |
+| `nanoid` | 4.0.2 | MIT |
 | `needle` | 3.3.1 | MIT |
 | `neo-async` | 2.6.2 | MIT |
 | `node-releases` | 2.0.27 | MIT |
+| `normalize-path` | 3.0.0 | MIT |
 | `npm-normalize-package-bin` | 4.0.0 | ISC |
 | `npm-run-all2` | 8.0.4 | MIT |
+| `object-assign` | 4.1.1 | MIT |
+| `open-color` | 1.9.1 | MIT |
 | `orderedmap` | 2.1.1 | MIT |
 | `package-manager-detector` | 1.6.0 | MIT |
 | `pagefind` | 1.5.2 | MIT |
 | `pako` | 1.0.11 | (MIT AND Zlib) |
+| `pako` | 2.0.3 | (MIT AND Zlib) |
 | `papaparse` | 5.5.3 | MIT |
 | `parse-node-version` | 1.0.1 | MIT |
 | `path-browserify` | 1.0.1 | MIT |
@@ -834,13 +926,20 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `path-key` | 3.1.1 | MIT |
 | `pathe` | 2.0.3 | MIT |
 | `perfect-debounce` | 1.0.0 | MIT |
+| `perfect-freehand` | 1.2.0 | MIT |
+| `pica` | 7.1.1 | MIT |
 | `picocolors` | 1.1.1 | ISC |
+| `picomatch` | 2.3.2 | MIT |
 | `picomatch` | 4.0.4 | MIT |
 | `pidtree` | 0.6.0 | MIT |
 | `pify` | 4.0.1 | MIT |
 | `pinia` | 3.0.4 | MIT |
 | `pkg-types` | 1.3.1 | MIT |
+| `png-chunk-text` | 1.0.0 | MIT |
+| `png-chunks-encode` | 1.0.0 | MIT |
+| `png-chunks-extract` | 1.0.0 | MIT |
 | `points-on-curve` | 0.2.0 | MIT |
+| `points-on-curve` | 1.0.1 | MIT |
 | `points-on-path` | 0.2.1 | MIT |
 | `postcss` | 8.5.14 | MIT |
 | `process-nextick-args` | 2.0.1 | MIT |
@@ -859,18 +958,28 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `prosemirror-view` | 1.42.4 | MIT |
 | `proxy-from-env` | 2.1.0 | MIT |
 | `prr` | 1.0.1 | MIT |
+| `pwacompat` | 2.0.17 | Apache-2.0 |
+| `react` | 19.3.0 | MIT |
+| `react-dom` | 19.3.0 | MIT |
+| `react-remove-scroll` | 2.7.2 | MIT |
+| `react-remove-scroll-bar` | 2.3.8 | MIT |
+| `react-style-singleton` | 2.2.3 | MIT |
 | `read-package-json-fast` | 4.0.0 | ISC |
 | `readable-stream` | 2.3.8 | MIT |
+| `readdirp` | 3.6.0 | MIT |
 | `require-from-string` | 2.0.2 | MIT |
 | `rfdc` | 1.4.1 | MIT |
 | `robust-predicates` | 3.0.3 | Unlicense |
 | `rollup` | 4.59.0 | MIT |
 | `rope-sequence` | 1.3.4 | MIT |
+| `roughjs` | 4.6.4 | MIT |
 | `roughjs` | 4.6.6 | MIT |
 | `rw` | 1.3.3 | BSD-3-Clause |
 | `safe-buffer` | 5.1.2 | MIT |
 | `safer-buffer` | 2.1.2 | MIT |
+| `sass` | 1.51.0 | MIT |
 | `sax` | 1.4.1 | ISC |
+| `scheduler` | 0.28.0 | MIT |
 | `schema-utils` | 4.3.3 | MIT |
 | `semver` | 5.7.2 | ISC |
 | `semver` | 6.3.1 | ISC |
@@ -878,6 +987,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `shebang-command` | 2.0.0 | MIT |
 | `shebang-regex` | 3.0.0 | MIT |
 | `shell-quote` | 1.10.0 | MIT |
+| `sliced` | 1.0.1 | MIT |
 | `sortablejs` | 1.15.6 | MIT |
 | `source-map` | 0.6.1 | BSD-3-Clause |
 | `source-map-js` | 1.2.1 | BSD-3-Clause |
@@ -896,16 +1006,28 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `tinycolor2` | 1.6.0 | MIT |
 | `tinyexec` | 1.1.1 | MIT |
 | `tinyglobby` | 0.2.15 | MIT |
+| `to-regex-range` | 5.0.1 | MIT |
 | `ts-dedent` | 2.2.0 | MIT |
+| `tslib` | 2.8.1 | 0BSD |
 | `tsx` | 4.23.1 | MIT |
+| `tunnel-rat` | 0.1.2 | MIT |
 | `typescript` | 6.0.3 | Apache-2.0 |
 | `ufo` | 1.6.3 | MIT |
 | `undici-types` | 6.21.0 | MIT |
 | `update-browserslist-db` | 1.2.3 | MIT |
+| `use-callback-ref` | 1.3.3 | MIT |
+| `use-sidecar` | 1.1.3 | MIT |
+| `use-sync-external-store` | 1.7.0 | MIT |
 | `util-deprecate` | 1.0.2 | MIT |
 | `uuid` | 14.0.1 | MIT |
 | `validator` | 13.15.23 | MIT |
 | `vite` | 7.3.6 | MIT |
+| `vscode-jsonrpc` | 8.2.0 | MIT |
+| `vscode-languageserver` | 9.0.1 | MIT |
+| `vscode-languageserver-protocol` | 3.17.5 | MIT |
+| `vscode-languageserver-textdocument` | 1.0.14 | MIT |
+| `vscode-languageserver-types` | 3.17.5 | MIT |
+| `vscode-uri` | 3.0.8 | MIT |
 | `vscode-uri` | 3.1.0 | MIT |
 | `vue` | 3.5.34 | MIT |
 | `vue-demi` | 0.14.10 | MIT |
@@ -917,6 +1039,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `watchpack` | 2.5.1 | MIT |
 | `webpack` | 5.106.2 | MIT |
 | `webpack-sources` | 3.4.1 | MIT |
+| `webworkify` | 1.5.0 | MIT |
 | `which` | 2.0.2 | ISC |
 | `which` | 5.0.0 | ISC |
 | `xlsx` | 0.20.2 | Apache-2.0 |
@@ -924,6 +1047,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `y-protocols` | 1.0.7 | MIT |
 | `yallist` | 3.1.1 | ISC |
 | `yjs` | 13.6.32 | MIT |
+| `zustand` | 4.5.7 | MIT |
 
 </details>
 
