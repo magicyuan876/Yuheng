@@ -137,6 +137,15 @@ func (s *PageService) replaceThroughCollab(ctx context.Context, actor *acl.Ident
 		}
 		return nil, fmt.Errorf("docs: the collaboration service could not apply the new body: %w", err)
 	}
+	// The store callback has already written the body and, with it, an
+	// ordinary interval snapshot of this very content. Saying what the write
+	// was actually for renames that entry rather than adding a second one
+	// beside it; see base.snapshot.
+	s.snapshot(ctx, snapshotInput{
+		page: page, raw: json.RawMessage(parsed.content), text: parsed.text,
+		words: parsed.words, reason: revisionReasonFor(reason),
+		editors: []string{actorID(actor)}, actor: actorID(actor), changed: true,
+	})
 	s.afterReplace(ctx, actor, page, reason, res.YDocVersion)
 	return &ReplaceResult{YDocVersion: res.YDocVersion, Applied: AppliedCollab}, nil
 }
@@ -182,6 +191,14 @@ func (s *PageService) replaceDirect(ctx context.Context, actor *acl.Identity, pa
 			s.recordLinks(ctx, current, structure)
 			s.recordTransclusions(ctx, current, structure)
 			s.refreshTransclusionSnapshots(ctx, current, node)
+			// A replace is always a deliberate write, so it always leaves a
+			// version behind — named for what it was.
+			s.snapshot(ctx, snapshotInput{
+				page: current, node: node, raw: json.RawMessage(parsed.content),
+				text: parsed.text, words: parsed.words,
+				reason: revisionReasonFor(reason), editors: []string{actorID(actor)},
+				actor: actorID(actor), changed: true,
+			})
 			s.afterReplace(ctx, actor, current, reason, version)
 			return &ReplaceResult{YDocVersion: version, Applied: AppliedDirect}, nil
 		}
