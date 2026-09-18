@@ -1,0 +1,22 @@
+{
+  "expect": "content",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "no body"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

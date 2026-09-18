@@ -1,0 +1,240 @@
+{
+  "$comment": "Single source of truth for the Yuheng document model. The Go validator/renderer (internal/docs/schema, internal/docs/render) and the Tiptap editor (frontend/src/components/docs-editor) are both generated from / asserted against this file. Edit it here only; internal/docs/schema/schema.json is a checked-in copy kept identical by `go generate` and a test.",
+  "version": 1,
+  "topNode": "doc",
+  "limits": {
+    "maxDepth": 64,
+    "maxNodes": 200000,
+    "maxTextBytes": 4000000,
+    "maxAttrStringBytes": 65536
+  },
+  "formats": {
+    "id": "^[A-Za-z0-9-]{8,36}$",
+    "blockId": "^[A-Za-z0-9_-]{6,40}$",
+    "url": "^(https?://|mailto:|tel:)[^\\s]+$",
+    "color": "^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,32}|(rgb|rgba|hsl|hsla)\\([0-9.,%\\s]+\\))$"
+  },
+  "attrSets": {
+    "blockId": {
+      "id": { "type": "string", "format": "blockId", "nullable": true, "default": null }
+    },
+    "textBlock": {
+      "textAlign": { "type": "enum", "values": ["left", "center", "right", "justify"], "default": "left" },
+      "indent": { "type": "int", "min": 0, "max": 8, "default": 0 }
+    },
+    "align": {
+      "align": { "type": "enum", "values": ["left", "center", "right"], "default": "center" }
+    },
+    "dimensions": {
+      "width": { "type": "int", "min": 16, "max": 8192, "nullable": true, "default": null },
+      "height": { "type": "int", "min": 16, "max": 8192, "nullable": true, "default": null }
+    }
+  },
+  "nodes": {
+    "doc": { "content": "block+", "marks": "" },
+
+    "text": { "group": "inline", "text": true },
+    "hardBreak": { "group": "inline", "inline": true, "atom": true },
+
+    "paragraph": { "group": "block", "content": "inline*", "use": ["blockId", "textBlock"] },
+    "heading": {
+      "group": "block", "content": "inline*", "use": ["blockId", "textBlock"],
+      "attrs": { "level": { "type": "int", "min": 1, "max": 6, "required": true } }
+    },
+    "blockquote": { "group": "block", "content": "block+", "use": ["blockId"] },
+    "horizontalRule": { "group": "block", "atom": true, "use": ["blockId"] },
+
+    "bulletList": { "group": "block", "content": "listItem+", "use": ["blockId"] },
+    "orderedList": {
+      "group": "block", "content": "listItem+", "use": ["blockId"],
+      "attrs": { "start": { "type": "int", "min": 1, "max": 1000000, "default": 1 } }
+    },
+    "listItem": { "content": "paragraph block*" },
+    "taskList": { "group": "block", "content": "taskItem+", "use": ["blockId"] },
+    "taskItem": {
+      "content": "paragraph block*",
+      "attrs": { "checked": { "type": "bool", "default": false } }
+    },
+
+    "codeBlock": {
+      "group": "block", "content": "text*", "marks": "", "use": ["blockId"],
+      "attrs": {
+        "language": { "type": "string", "maxLength": 64, "nullable": true, "default": null },
+        "wrap": { "type": "bool", "default": false }
+      }
+    },
+
+    "table": { "group": "block", "content": "tableRow+", "use": ["blockId"] },
+    "tableRow": { "content": "(tableCell | tableHeader)+" },
+    "tableCell": {
+      "content": "block+",
+      "attrs": {
+        "colspan": { "type": "int", "min": 1, "max": 1000, "default": 1 },
+        "rowspan": { "type": "int", "min": 1, "max": 1000, "default": 1 },
+        "colwidth": { "type": "list", "items": "int", "nullable": true, "default": null },
+        "backgroundColor": { "type": "string", "format": "color", "nullable": true, "default": null }
+      }
+    },
+    "tableHeader": {
+      "content": "block+",
+      "attrs": {
+        "colspan": { "type": "int", "min": 1, "max": 1000, "default": 1 },
+        "rowspan": { "type": "int", "min": 1, "max": 1000, "default": 1 },
+        "colwidth": { "type": "list", "items": "int", "nullable": true, "default": null },
+        "backgroundColor": { "type": "string", "format": "color", "nullable": true, "default": null }
+      }
+    },
+
+    "image": {
+      "group": "block", "atom": true, "use": ["blockId", "align", "dimensions"],
+      "attrs": {
+        "attachmentId": { "type": "string", "format": "id", "nullable": true, "default": null },
+        "src": { "type": "string", "format": "url", "maxLength": 2048, "nullable": true, "default": null },
+        "alt": { "type": "string", "maxLength": 1024, "nullable": true, "default": null },
+        "title": { "type": "string", "maxLength": 1024, "nullable": true, "default": null }
+      },
+      "requireOneOf": [["attachmentId", "src"]]
+    },
+    "attachment": {
+      "group": "block", "atom": true, "use": ["blockId"],
+      "attrs": {
+        "attachmentId": { "type": "string", "format": "id", "required": true },
+        "name": { "type": "string", "maxLength": 512, "default": "" },
+        "mime": { "type": "string", "maxLength": 255, "nullable": true, "default": null },
+        "size": { "type": "int", "min": 0, "nullable": true, "default": null }
+      }
+    },
+    "video": {
+      "group": "block", "atom": true, "use": ["blockId", "align", "dimensions"],
+      "attrs": { "attachmentId": { "type": "string", "format": "id", "required": true } }
+    },
+    "audio": {
+      "group": "block", "atom": true, "use": ["blockId"],
+      "attrs": { "attachmentId": { "type": "string", "format": "id", "required": true } }
+    },
+    "pdfEmbed": {
+      "group": "block", "atom": true, "use": ["blockId", "dimensions"],
+      "attrs": {
+        "attachmentId": { "type": "string", "format": "id", "required": true },
+        "name": { "type": "string", "maxLength": 512, "default": "" }
+      }
+    },
+
+    "callout": {
+      "group": "block", "content": "block+", "use": ["blockId"],
+      "attrs": {
+        "kind": { "type": "enum", "values": ["info", "success", "warning", "danger"], "default": "info" },
+        "icon": { "type": "string", "maxLength": 32, "nullable": true, "default": null }
+      }
+    },
+    "columns": {
+      "group": "block", "content": "column{2,5}", "use": ["blockId"],
+      "attrs": { "mode": { "type": "enum", "values": ["normal", "wide"], "default": "normal" } }
+    },
+    "column": {
+      "content": "block+",
+      "attrs": { "width": { "type": "number", "min": 5, "max": 95, "nullable": true, "default": null } }
+    },
+    "details": {
+      "group": "block", "content": "detailsSummary detailsContent", "use": ["blockId"],
+      "attrs": { "open": { "type": "bool", "default": true } }
+    },
+    "detailsSummary": { "content": "inline*" },
+    "detailsContent": { "content": "block+" },
+
+    "mathInline": {
+      "group": "inline", "inline": true, "atom": true,
+      "attrs": { "latex": { "type": "string", "maxLength": 4096, "required": true } }
+    },
+    "mathBlock": {
+      "group": "block", "atom": true, "use": ["blockId"],
+      "attrs": { "latex": { "type": "string", "maxLength": 16384, "required": true } }
+    },
+    "mermaid": {
+      "group": "block", "atom": true, "use": ["blockId"],
+      "attrs": { "source": { "type": "string", "maxLength": 65536, "required": true } }
+    },
+    "drawio": {
+      "group": "block", "atom": true, "use": ["blockId", "align", "dimensions"],
+      "attrs": {
+        "attachmentId": { "type": "string", "format": "id", "required": true },
+        "previewAttachmentId": { "type": "string", "format": "id", "nullable": true, "default": null }
+      }
+    },
+    "excalidraw": {
+      "group": "block", "atom": true, "use": ["blockId", "align", "dimensions"],
+      "attrs": {
+        "attachmentId": { "type": "string", "format": "id", "required": true },
+        "previewAttachmentId": { "type": "string", "format": "id", "nullable": true, "default": null }
+      }
+    },
+    "embed": {
+      "group": "block", "atom": true, "use": ["blockId", "align", "dimensions"],
+      "attrs": {
+        "provider": { "type": "string", "maxLength": 32, "required": true },
+        "url": { "type": "string", "format": "url", "maxLength": 2048, "required": true }
+      }
+    },
+
+    "pageLink": {
+      "group": "inline", "inline": true, "atom": true,
+      "attrs": { "pageId": { "type": "string", "format": "id", "required": true } }
+    },
+    "mention": {
+      "group": "inline", "inline": true, "atom": true,
+      "attrs": {
+        "userId": { "type": "string", "format": "id", "required": true },
+        "label": { "type": "string", "maxLength": 128, "nullable": true, "default": null }
+      }
+    },
+    "transclusion": {
+      "group": "block", "atom": true, "use": ["blockId"],
+      "attrs": {
+        "sourcePageId": { "type": "string", "format": "id", "required": true },
+        "sourceBlockId": { "type": "string", "format": "blockId", "required": true }
+      }
+    },
+    "footnoteRef": {
+      "group": "inline", "inline": true, "atom": true,
+      "attrs": { "footnoteId": { "type": "string", "format": "blockId", "required": true } }
+    },
+    "footnotes": { "group": "block", "content": "footnote*", "use": ["blockId"] },
+    "footnote": {
+      "content": "paragraph+",
+      "attrs": { "footnoteId": { "type": "string", "format": "blockId", "required": true } }
+    },
+    "status": {
+      "group": "inline", "inline": true, "atom": true,
+      "attrs": {
+        "text": { "type": "string", "maxLength": 64, "default": "" },
+        "color": { "type": "enum", "values": ["gray", "blue", "green", "yellow", "red", "purple"], "default": "gray" }
+      }
+    },
+    "pageBreak": { "group": "block", "atom": true, "use": ["blockId"] },
+    "toc": { "group": "block", "atom": true, "use": ["blockId"] },
+    "subpages": { "group": "block", "atom": true, "use": ["blockId"] }
+  },
+  "marks": {
+    "bold": {},
+    "italic": {},
+    "underline": {},
+    "strike": {},
+    "code": { "excludes": "_" },
+    "link": {
+      "excludes": "link",
+      "attrs": {
+        "href": { "type": "string", "format": "url", "maxLength": 2048, "required": true },
+        "title": { "type": "string", "maxLength": 1024, "nullable": true, "default": null },
+        "internal": { "type": "bool", "default": false }
+      }
+    },
+    "highlight": {
+      "attrs": { "color": { "type": "string", "format": "color", "nullable": true, "default": null } }
+    },
+    "subscript": { "excludes": "superscript" },
+    "superscript": { "excludes": "subscript" },
+    "textStyle": {
+      "attrs": { "color": { "type": "string", "format": "color", "nullable": true, "default": null } }
+    }
+  }
+}

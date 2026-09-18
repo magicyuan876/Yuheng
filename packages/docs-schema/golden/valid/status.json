@@ -1,0 +1,17 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "status",
+          "attrs": {
+            "text": "In review",
+            "color": "blue"
+          }
+        }
+      ]
+    }
+  ]
+}

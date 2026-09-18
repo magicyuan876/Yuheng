@@ -1,0 +1,11 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "mermaid",
+      "attrs": {
+        "source": "flowchart LR\n  A-->B"
+      }
+    }
+  ]
+}

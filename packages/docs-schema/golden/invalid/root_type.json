@@ -1,0 +1,12 @@
+{
+  "expect": "root_type",
+  "doc": {
+    "type": "paragraph",
+    "content": [
+      {
+        "type": "text",
+        "text": "not a doc"
+      }
+    ]
+  }
+}

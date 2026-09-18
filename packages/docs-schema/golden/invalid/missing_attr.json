@@ -1,0 +1,17 @@
+{
+  "expect": "missing_attr",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "content": [
+          {
+            "type": "text",
+            "text": "no level"
+          }
+        ]
+      }
+    ]
+  }
+}

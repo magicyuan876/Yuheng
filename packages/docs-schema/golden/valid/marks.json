@@ -1,0 +1,144 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "bold",
+          "marks": [
+            {
+              "type": "bold"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " italic",
+          "marks": [
+            {
+              "type": "italic"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " underline",
+          "marks": [
+            {
+              "type": "underline"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " strike",
+          "marks": [
+            {
+              "type": "strike"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " code",
+          "marks": [
+            {
+              "type": "code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " link",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://example.com/x",
+                "title": "Example"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " internal",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://docs.local/p",
+                "internal": true
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " hl",
+          "marks": [
+            {
+              "type": "highlight",
+              "attrs": {
+                "color": "#ffe066"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " sub",
+          "marks": [
+            {
+              "type": "subscript"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " sup",
+          "marks": [
+            {
+              "type": "superscript"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " red",
+          "marks": [
+            {
+              "type": "textStyle",
+              "attrs": {
+                "color": "rgb(200, 0, 0)"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " combo",
+          "marks": [
+            {
+              "type": "bold"
+            },
+            {
+              "type": "italic"
+            },
+            {
+              "type": "underline"
+            },
+            {
+              "type": "link",
+              "attrs": {
+                "href": "mailto:a@b.c"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
