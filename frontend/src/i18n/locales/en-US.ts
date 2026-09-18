@@ -6772,6 +6772,22 @@ export default {
       linkRemove: 'Remove',
       moveBlock: 'Move block',
     },
+    // Find and replace.
+    find: {
+      title: 'Find and replace',
+      findPlaceholder: 'Find',
+      replacePlaceholder: 'Replace with',
+      replace: 'Replace',
+      replaceAll: 'Replace all',
+      next: 'Next match',
+      previous: 'Previous match',
+      count: '{index} of {total}',
+      none: 'No results',
+      caseSensitive: 'Match case',
+      wholeWord: 'Whole word',
+      regex: 'Regular expression',
+      badPattern: 'Incomplete pattern',
+    },
     commands: {
       paragraph: 'Text',
       heading1: 'Heading 1',

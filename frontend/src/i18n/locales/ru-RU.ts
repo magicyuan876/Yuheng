@@ -6769,6 +6769,22 @@ export default {
       linkRemove: 'Удалить',
       moveBlock: 'Переместить блок',
     },
+    // Поиск и замена.
+    find: {
+      title: 'Поиск и замена',
+      findPlaceholder: 'Найти',
+      replacePlaceholder: 'Заменить на',
+      replace: 'Заменить',
+      replaceAll: 'Заменить все',
+      next: 'Следующее',
+      previous: 'Предыдущее',
+      count: '{index} из {total}',
+      none: 'Нет результатов',
+      caseSensitive: 'Учитывать регистр',
+      wholeWord: 'Слово целиком',
+      regex: 'Регулярное выражение',
+      badPattern: 'Неполное выражение',
+    },
     commands: {
       paragraph: 'Текст',
       heading1: 'Заголовок 1',

@@ -6769,6 +6769,22 @@ export default {
       linkRemove: '제거',
       moveBlock: '블록 이동',
     },
+    // 찾기 및 바꾸기.
+    find: {
+      title: '찾기 및 바꾸기',
+      findPlaceholder: '찾기',
+      replacePlaceholder: '바꿀 내용',
+      replace: '바꾸기',
+      replaceAll: '모두 바꾸기',
+      next: '다음 항목',
+      previous: '이전 항목',
+      count: '{total}개 중 {index}번째',
+      none: '결과 없음',
+      caseSensitive: '대/소문자 구분',
+      wholeWord: '단어 단위',
+      regex: '정규식',
+      badPattern: '불완전한 패턴',
+    },
     commands: {
       paragraph: '본문',
       heading1: '제목 1',
