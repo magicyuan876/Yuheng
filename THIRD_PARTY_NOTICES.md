@@ -18,7 +18,7 @@ cutting a release: it carries the blocking items.
 |---|---|---|
 | Go | 383 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
-| Python (docreader) | 67 distributions | `docreader/uv.lock` (resolved from the built image) |
+| Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
 
 ---
@@ -879,7 +879,6 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | Apache-2.0 OR BSD-3-Clause | 1 |
 | BSD License; Apache Software License | 1 |
 | BSD-3-Clause, Apache-2.0, dependency licenses | 1 |
-| GNU Affero General Public License v3 or later (AGPLv3+) | 1 |
 | MIT AND Python-2.0 | 1 |
 | MIT-CMU | 1 |
 | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later | 1 |
@@ -888,7 +887,7 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | Python Software Foundation License | 1 |
 
 <details>
-<summary>Full list (67 distributions)</summary>
+<summary>Full list (66 distributions)</summary>
 
 | Distribution | Version | License |
 |---|---|---|
@@ -905,7 +904,6 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `cryptography` | 49.0.0 | Apache-2.0 OR BSD-3-Clause |
 | `dateparser` | 1.2.2 | BSD License |
 | `defusedxml` | 0.7.1 | Python Software Foundation License |
-| `EbookLib` | 0.20 | GNU Affero General Public License v3 or later (AGPLv3+) |
 | `et_xmlfile` | 2.0.0 | MIT License |
 | `flatbuffers` | 25.9.23 | Apache Software License |
 | `greenlet` | 3.2.4 | MIT AND Python-2.0 |

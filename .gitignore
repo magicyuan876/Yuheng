@@ -63,3 +63,6 @@ miniprogram/project.private.config.json
 
 # 本地增量部署脚本（registry 不可用时以现有镜像为基座重建）
 .deploy-tmp/Yuheng
+
+# Cygwin/MSYS crash dumps
+*.stackdump

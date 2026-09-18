@@ -48,14 +48,15 @@ Options, cheapest first:
 
 **Decision required from the project owner.** Nothing has been changed here.
 
-### 1.2 `EbookLib` 0.20 — AGPL-3.0-or-later — docreader (Python)
+### 1.2 `EbookLib` 0.20 — AGPL-3.0-or-later — docreader (Python) — **RESOLVED 2026-09-18**
 
-Used for EPUB parsing. AGPL's network clause reaches a hosted service, so
-shipping it inside the docreader image makes the AGPL's source-disclosure
-obligation arguable for the whole service. Replacements: `ebooklib` is largely a
-zipfile + XML reader; EPUB is a ZIP of XHTML, and `python-docx`-style direct
-parsing with `lxml` (BSD-3-Clause) covers the same ground. Alternatively, drop
-EPUB support.
+`docreader/parser/epub_parser.py` now reads the EPUB container directly with the
+standard library: `META-INF/container.xml` → OPF `<manifest>`/`<spine>` for
+reading order, Dublin Core metadata from the OPF, XHTML → Markdown through the
+existing BeautifulSoup + markdownify path. Archives without a usable OPF fall
+back to scanning for XHTML members. `ebooklib` was removed from
+`docreader/pyproject.toml` and the tests build their fixture EPUB with
+`zipfile`, so nothing in the tree imports it any more.
 
 ### 1.3 `chardet` 5.2.0 — LGPL-2.1-or-later — docreader (Python) — **RESOLVED 2026-09-18**
 
