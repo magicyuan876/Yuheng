@@ -24,9 +24,13 @@ type pageEnv struct {
 	space                     *model.Space
 }
 
-func newPageEnv(t *testing.T) *pageEnv {
+func newPageEnv(t *testing.T) *pageEnv { return newPageEnvWith(t) }
+
+// newPageEnvWith builds the fixture with extra dependencies (the
+// collaboration client, a token validator, limits).
+func newPageEnvWith(t *testing.T, opts ...func(*Deps)) *pageEnv {
 	t.Helper()
-	e := newEnv(t)
+	e := newEnv(t, opts...)
 	p := &pageEnv{env: e, alice: e.identity("alice")}
 	sp, err := e.svc.Spaces.Create(ctx(), p.alice, CreateSpaceInput{Name: "Handbook"})
 	require.NoError(t, err)

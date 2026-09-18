@@ -10,6 +10,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/docs/audit"
+	"github.com/magicyuan876/yuheng/internal/docs/collab"
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/handler"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
@@ -31,7 +32,9 @@ type Params struct {
 	Redis         *redis.Client `optional:"true"`
 	TenantMembers interfaces.TenantMemberRepository
 	Users         interfaces.UserRepository
-	Audit         interfaces.AuditLogService `optional:"true"`
+	// UserService validates the tokens the collaboration service relays.
+	UserService interfaces.UserService     `optional:"true"`
+	Audit       interfaces.AuditLogService `optional:"true"`
 	// Knowledge bases and storage backends are optional so the module still
 	// boots in a build that lacks either; binding a space to them is then
 	// rejected with a clear message.
@@ -53,6 +56,8 @@ type Module struct {
 	Audit    *audit.Recorder
 	Services *service.Services
 	Handler  *handler.Handler
+	// Collab talks to the collaboration service; nil in exclusive-edit mode.
+	Collab *collab.Client
 }
 
 // NewModule wires the module from container-provided dependencies.
@@ -96,8 +101,16 @@ func NewModule(p Params) *Module {
 		}
 	})
 
+	collabClient := collab.NewClient(cfg.CollabInternalURL(), cfg.CollabSharedSecret, 15*time.Second)
 	deps := service.Deps{
 		Repos: repos, Resolver: resolver, Bus: bus, Audit: rec, Users: p.Users, Members: p.TenantMembers,
+		CollabURL: cfg.CollabURL, MaxYDocBytes: cfg.MaxYDocBytes,
+	}
+	if p.UserService != nil {
+		deps.Tokens = p.UserService
+	}
+	if collabClient != nil {
+		deps.Collab = collabClient
 	}
 	if p.KnowledgeBases != nil {
 		deps.KnowledgeBases = p.KnowledgeBases
@@ -117,7 +130,7 @@ func NewModule(p Params) *Module {
 	logger.Infof(context.Background(), "[docs] module enabled, %s, redis=%v", mode, p.Redis != nil)
 	return &Module{
 		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec,
-		Services: services, Handler: h,
+		Services: services, Handler: h, Collab: collabClient,
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/docs/audit"
+	"github.com/magicyuan876/yuheng/internal/docs/collab"
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
@@ -52,6 +53,21 @@ type StorageBackends interface {
 	GetByID(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
 }
 
+// Tokens validates a user's access token for the collaboration callbacks,
+// which arrive without a session. interfaces.UserService satisfies it.
+type Tokens interface {
+	ValidateToken(ctx context.Context, token string) (*types.User, uint64, error)
+}
+
+// CollabClient is the collaboration service as this package uses it:
+// replacing a live document and dropping its connections.
+type CollabClient interface {
+	Configured() bool
+	Replace(ctx context.Context, tenantID uint64, pageID string, content json.RawMessage,
+		reason string) (*collab.ReplaceResult, error)
+	Evict(ctx context.Context, pageID string) error
+}
+
 // Deps are the collaborators shared by every service.
 type Deps struct {
 	Repos    *repository.Repositories
@@ -64,6 +80,15 @@ type Deps struct {
 	// binding a space to either is then rejected.
 	KnowledgeBases  KnowledgeBases
 	StorageBackends StorageBackends
+	// Tokens is required by the collaboration callbacks only.
+	Tokens Tokens
+	// Collab is nil in the Lite edition (exclusive editing instead).
+	Collab CollabClient
+	// CollabURL is the browser-facing WebSocket address, empty when pages
+	// are edited exclusively.
+	CollabURL string
+	// MaxYDocBytes caps one page's Yjs state; 0 uses DefaultMaxYDocBytes.
+	MaxYDocBytes int64
 }
 
 // Services groups the module's services.
@@ -71,6 +96,7 @@ type Services struct {
 	Spaces *SpaceService
 	Groups *GroupService
 	Pages  *PageService
+	Collab *CollabService
 }
 
 // New wires the services.
@@ -80,6 +106,7 @@ func New(d Deps) *Services {
 		Spaces: &SpaceService{base: base},
 		Groups: &GroupService{base: base},
 		Pages:  &PageService{base: base},
+		Collab: &CollabService{base: base},
 	}
 }
 

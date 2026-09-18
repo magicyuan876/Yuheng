@@ -966,6 +966,15 @@ func (s *PageService) Delete(ctx context.Context, actor *acl.Identity, d acl.Dec
 		return 0, err
 	}
 	s.invalidate(ctx, actor.TenantID)
+	// Anyone still editing the page (or one of its descendants) must be
+	// disconnected; their client keeps its copy but can no longer save.
+	ids, err := s.d.Repos.Pages.SubtreeIDs(ctx, actor.TenantID, d.Page.ID)
+	if err != nil {
+		ids = []string{d.Page.ID}
+	}
+	for _, id := range ids {
+		s.evict(ctx, id)
+	}
 	s.publish(ctx, events.New(events.PageDeleted, actor.TenantID).WithSpace(d.Page.SpaceID).WithPage(d.Page.ID).
 		WithActor(actor.UserID).With("parent_id", d.Page.ParentID).With("count", n))
 	s.audit(ctx, audit.Entry{
@@ -1116,6 +1125,9 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 		return nil, err
 	}
 	s.invalidate(ctx, actor.TenantID)
+	for _, id := range ids {
+		s.evict(ctx, id)
+	}
 	s.publish(ctx, events.New(events.PagePurged, actor.TenantID).WithSpace(space.ID).WithPage(pageID).
 		WithActor(actor.UserID).With("ids", ids))
 	s.audit(ctx, audit.Entry{

@@ -20,6 +20,12 @@ type DocsConfig struct {
 	// CollabSharedSecret signs the HTTP callbacks between the collaboration
 	// service and this server. Required whenever CollabURL is set.
 	CollabSharedSecret string `yaml:"collab_shared_secret" json:"-"`
+	// CollabInternalBaseURL is the HTTP address this server calls the
+	// collaboration service on (replace, evict). It is separate from
+	// CollabURL because the browser may reach the service through an
+	// ingress ("wss://docs.example.com/collab") while this server talks to
+	// it directly ("http://collab:1234"). Empty derives it from CollabURL.
+	CollabInternalBaseURL string `yaml:"collab_internal_url" json:"collab_internal_url"`
 	// MaxYDocBytes caps the Yjs state of one page (default 20 MiB).
 	MaxYDocBytes int64 `yaml:"max_ydoc_bytes" json:"max_ydoc_bytes"`
 	// MaxAttachmentBytes caps one uploaded file (default 200 MiB).
@@ -40,6 +46,30 @@ type DocsConfig struct {
 // CollabEnabled reports whether a collaboration service is configured.
 func (d *DocsConfig) CollabEnabled() bool { return d != nil && strings.TrimSpace(d.CollabURL) != "" }
 
+// CollabInternalURL is the HTTP base URL for this server's calls to the
+// collaboration service. It prefers the explicit setting and otherwise
+// derives one from the browser-facing WebSocket URL (ws → http, wss → https),
+// which is right for the Compose default where both are the same host.
+func (d *DocsConfig) CollabInternalURL() string {
+	if d == nil {
+		return ""
+	}
+	if v := strings.TrimSpace(d.CollabInternalBaseURL); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	ws := strings.TrimSpace(d.CollabURL)
+	switch {
+	case ws == "":
+		return ""
+	case strings.HasPrefix(ws, "wss://"):
+		return strings.TrimRight("https://"+strings.TrimPrefix(ws, "wss://"), "/")
+	case strings.HasPrefix(ws, "ws://"):
+		return strings.TrimRight("http://"+strings.TrimPrefix(ws, "ws://"), "/")
+	default:
+		return strings.TrimRight(ws, "/")
+	}
+}
+
 // IsEnabled is nil-safe.
 func (d *DocsConfig) IsEnabled() bool { return d != nil && d.Enabled }
 
@@ -51,6 +81,7 @@ func loadDocsConfig() *DocsConfig {
 		Enabled:                 envBool("YUHENG_DOCS_ENABLED", false),
 		CollabURL:               strings.TrimSpace(os.Getenv("YUHENG_COLLAB_URL")),
 		CollabSharedSecret:      strings.TrimSpace(os.Getenv("YUHENG_COLLAB_SHARED_SECRET")),
+		CollabInternalBaseURL:   strings.TrimSpace(os.Getenv("YUHENG_COLLAB_INTERNAL_URL")),
 		MaxYDocBytes:            envInt64("YUHENG_DOCS_MAX_YDOC_BYTES", 20*1024*1024),
 		MaxAttachmentBytes:      envInt64("YUHENG_DOCS_MAX_ATTACHMENT_BYTES", 200*1024*1024),
 		TrashRetentionDays:      int(envInt64("YUHENG_DOCS_TRASH_RETENTION_DAYS", 30)),

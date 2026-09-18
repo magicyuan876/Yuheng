@@ -176,6 +176,15 @@ check_deps() {
     warn "frontend/node_modules not found; skipping the npm scan (run 'npm ci' first)"
   fi
 
+  # The collaboration service is a second npm ecosystem (Node, shipped as its
+  # own image), so it is scanned separately from the frontend bundle.
+  if [[ -d collab/node_modules ]]; then
+    "$PY" tools/licensescan/scan_npm.py collab/node_modules "$tmp/npm-collab.json" > "$tmp/npm-collab.txt" 2>&1
+    report "npm (collab)" "$tmp/npm-collab.txt"
+  else
+    warn "collab/node_modules not found; skipping the collab npm scan (run 'npm ci' in collab/ first)"
+  fi
+
   # -- Python ---------------------------------------------------------------
   # Must run against an interpreter that actually has this project's Python
   # dependencies installed -- a bare system python3 would report the base

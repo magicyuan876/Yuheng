@@ -34,6 +34,9 @@ type Handler struct {
 	Spaces *SpaceHandler
 	Groups *GroupHandler
 	Pages  *PageHandler
+	// Collab serves the internal collaboration callbacks; nil when no
+	// collaboration secret is configured.
+	Collab *CollabHandler
 }
 
 // New builds the handler set.
@@ -46,6 +49,9 @@ func New(deps Deps) *Handler {
 		h.Spaces.svc = deps.Services.Spaces
 		h.Groups.svc = deps.Services.Groups
 		h.Pages.svc = deps.Services.Pages
+		if deps.Config != nil && deps.Config.CollabSharedSecret != "" {
+			h.Collab = NewCollabHandler(deps.Services.Collab, deps.Config.CollabSharedSecret, deps.Config.MaxYDocBytes)
+		}
 	}
 	return h
 }
