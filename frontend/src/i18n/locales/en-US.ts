@@ -4938,6 +4938,7 @@ export default {
       linkPlaceholder: 'Paste or type a link',
       linkRemove: 'Remove',
       moveBlock: 'Move block',
+      comment: 'Comment',
     },
     // Find and replace.
     find: {
@@ -4957,6 +4958,30 @@ export default {
     },
     // Block references: a block written on one page, shown on another.
     // Page history: versions, comparisons and restoring one.
+    // Comments: threads on a passage or on the page.
+    comments: {
+      title: 'Comments',
+      empty: 'No comments yet',
+      placeholder: 'Leave a comment',
+      replyPlaceholder: 'Reply',
+      reply: 'Reply',
+      resolve: 'Resolve',
+      reopen: 'Reopen',
+      resolvedBy: 'Resolved by {name}',
+      showResolved: 'Show resolved',
+      edited: 'edited',
+      submit: 'Comment',
+      submitHint: 'Enter to send, Shift+Enter for a new line',
+      deleteTitle: 'Delete comment',
+      deleteConfirm: 'Delete this reply?',
+      deleteThreadConfirm: 'Delete this comment and its replies?',
+      loadFailed: 'Could not load the comments',
+      group: {
+        inline: 'On the text',
+        page: 'On the page',
+        orphaned: 'Text no longer in the page',
+      },
+    },
     history: {
       title: 'Version history',
       empty: 'No versions yet',

@@ -107,6 +107,36 @@
         <TocSidebar :entries="headings" @select="scrollToHeading" />
       </div>
 
+      <CommentsPanel
+        v-if="comments"
+        class="page-comments"
+        :threads="comments.threads.value"
+        :grouped="comments.grouped.value"
+        :open="comments.open.value"
+        :total="comments.total.value"
+        :loading="comments.loading.value"
+        :active-id="comments.activeID.value"
+        :show-resolved="comments.showResolved.value"
+        @select="onSelectComment"
+        @reply="(parentId, body) => comments?.add({ body, parent_id: parentId })"
+        @edit="(id, body) => comments?.edit(id, body)"
+        @resolve="(id, resolved) => comments?.setResolved(id, resolved)"
+        @delete="(id) => comments?.remove(id)"
+        @update:show-resolved="onShowResolved"
+      />
+
+      <!-- The box for a comment being started on the selection. It lives with
+           the thread list rather than beside the text: a remark is written
+           where the others are, and floating it over the passage would cover
+           the very words it is about. -->
+      <CommentComposer
+        v-if="docEditor?.drafting"
+        class="page-comment-draft"
+        :placeholder="t('docs.comments.placeholder')"
+        @submit="(body) => docEditor?.submitComment(body)"
+        @cancel="() => docEditor?.cancelComment()"
+      />
+
       <BacklinksPanel :entries="backlinks" :loading="backlinksLoading" />
 
       <section v-if="children.length" class="page-children">
@@ -167,6 +197,8 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
+import CommentComposer from './comments/CommentComposer.vue'
+import CommentsPanel from './comments/CommentsPanel.vue'
 import BacklinksPanel from './editor/BacklinksPanel.vue'
 import HistoryPanel from './history/HistoryPanel.vue'
 import DocEditor from './editor/DocEditor.vue'
@@ -209,6 +241,37 @@ const authStore = useAuthStore()
 const capabilities = useDeploymentCapabilitiesStore()
 const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
 const historyOpen = ref(false)
+
+/** The editor owns the comment machinery; the panel is drawn here. */
+const comments = computed(() => docEditor.value?.comments ?? null)
+
+/**
+ * Selecting a thread highlights it and brings its passage into view, which is
+ * what somebody clicking a comment in the list is asking for.
+ */
+function onSelectComment(commentId: string) {
+  const handle = comments.value
+  if (!handle) return
+  handle.select(commentId)
+
+  const placement = handle.placementByID.value.get(commentId)
+  const editor = docEditor.value?.editor
+  if (!placement || placement.from === undefined || !editor) return
+  try {
+    const coords = editor.view.coordsAtPos(placement.from)
+    window.scrollTo({ top: window.scrollY + coords.top - 160, behavior: 'smooth' })
+  } catch {
+    // The position can be stale for a frame after a large remote change;
+    // highlighting without scrolling is still useful.
+  }
+}
+
+function onShowResolved(value: boolean) {
+  const handle = comments.value
+  if (!handle) return
+  handle.showResolved.value = value
+  void handle.load()
+}
 
 /**
  * Counted up when a restore needs the editor rebuilt; part of its key.
@@ -458,6 +521,11 @@ watch(() => props.lastEvent, (ev) => {
     && (ev.type === 'docs.page.content_updated' || ev.type === 'docs.page.content_replaced'
       || ev.type === 'docs.page.deleted' || ev.type === 'docs.page.purged')) {
     void loadBacklinks(p.id)
+  }
+
+  // Somebody else commented, replied, resolved or deleted on this page.
+  if (ev.type === 'docs.comment.changed' && ev.page_id === p.id) {
+    void comments.value?.load()
   }
 
   if (ev.page_id === p.id) {
