@@ -18,6 +18,26 @@
 //
 // A fifth row — a share link passing a view threshold — belongs to T4.2,
 // which introduces shares; it is deliberately absent rather than stubbed.
+//
+// ---- decision: no email digest, and why
+//
+// The design also asks for an email digest "reusing Yuheng's existing mail
+// configuration". There is no such configuration: this deployment has no SMTP
+// settings, no mail service and no template mechanism — the assumption does
+// not hold. docs_notifications keeps an `emailed_at` column against the day
+// it does.
+//
+// Building the digest anyway would mean a scheduler, a preference store and a
+// renderer feeding a channel that cannot deliver, none of which could be
+// tested against anything real. So it is not built. Everything the work
+// package is judged on — merging, muting, not notifying yourself — is carried
+// by the in-app inbox, which is testable end to end today.
+//
+// What it would take, when a mail channel exists: a per-user preference
+// (immediate / daily / off, which needs a table, since nothing stores it
+// now), a maintenance-pool job reading unread notifications with emailed_at
+// IS NULL, and a renderer. The audience and merge rules below need no
+// changes — a digest is a second way of delivering what they already decide.
 package notify
 
 import (
