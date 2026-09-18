@@ -4959,6 +4959,32 @@ export default {
     // 블록 참조.
     // 페이지 기록.
     // 댓글.
+    // 알림 및 페이지 구독.
+    notifications: {
+      title: '알림',
+      empty: '새 알림이 없습니다',
+      unreadOnly: '읽지 않음만',
+      markAllRead: '모두 읽음으로 표시',
+      pageGone: '해당 페이지를 더 이상 사용할 수 없습니다',
+      kind: {
+        comment: '{actor} 님이 《{title}》에 댓글을 남겼습니다',
+        mention: '{actor} 님이 《{title}》에서 회원님을 언급했습니다',
+        page_updated: '{actor} 님이 《{title}》을(를) 편집했습니다',
+        access_granted: '{actor} 님이 《{title}》 접근 권한을 부여했습니다',
+        other: '{actor} 님이 《{title}》에서 작업했습니다',
+      },
+      day: {
+        today: '오늘',
+        yesterday: '어제',
+        earlier: '이전',
+      },
+    },
+    watch: {
+      watch: '구독',
+      watching: '구독 중',
+      mute: '음소거',
+      muted: '음소거됨',
+    },
     comments: {
       title: '댓글',
       empty: '아직 댓글이 없습니다',

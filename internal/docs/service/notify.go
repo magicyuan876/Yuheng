@@ -194,6 +194,22 @@ func (b *base) deliver(ctx context.Context, n notification, recipients []string)
 	if b.d.Repos.Notices == nil || n.page == nil || len(recipients) == 0 {
 		return
 	}
+	// The short id goes into every payload here rather than at each call
+	// site: it is how a client turns a notification into a link, and one
+	// forgotten copy would produce rows that cannot be opened.
+	if n.payload == nil {
+		n.payload = map[string]any{}
+	}
+	n.payload["short_id"] = n.page.ShortID
+	// And the space's slug, because a page's URL is built from both. Looked
+	// up here rather than carried through every call site; a notification is
+	// written rarely enough for one read to be beside the point.
+	if b.d.Repos.Spaces != nil {
+		if space, err := b.d.Repos.Spaces.Get(ctx, n.page.TenantID, n.page.SpaceID); err == nil {
+			n.payload["space_slug"] = space.Slug
+		}
+	}
+
 	payload, err := json.Marshal(n.payload)
 	if err != nil {
 		payload = []byte("{}")
