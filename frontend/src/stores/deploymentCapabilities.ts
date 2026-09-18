@@ -11,6 +11,7 @@ import {
 export const useDeploymentCapabilitiesStore = defineStore('deploymentCapabilities', () => {
   const edition = ref('')
   const capabilities = ref<DeploymentCapabilityMap>({})
+  const docsCollabUrl = ref('')
   const loaded = ref(false)
   const loadError = ref('')
   let loadingPromise: Promise<void> | null = null
@@ -24,10 +25,12 @@ export const useDeploymentCapabilitiesStore = defineStore('deploymentCapabilitie
         const response = await getDeploymentCapabilities()
         edition.value = response.data?.edition || ''
         capabilities.value = response.data?.capabilities || {}
+        docsCollabUrl.value = response.data?.docs_collab_url || ''
         loadError.value = ''
       } catch (error) {
         // 能力探测失败时保持 fail-open；权限仍由后端路由最终校验。
         capabilities.value = {}
+        docsCollabUrl.value = ''
         loadError.value = error instanceof Error ? error.message : String(error)
       } finally {
         loaded.value = true
@@ -49,6 +52,7 @@ export const useDeploymentCapabilitiesStore = defineStore('deploymentCapabilitie
   return {
     edition,
     capabilities,
+    docsCollabUrl,
     loaded,
     loadError,
     ensureLoaded,

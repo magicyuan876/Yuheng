@@ -33,6 +33,12 @@ type DeploymentCapability struct {
 type DeploymentCapabilitiesData struct {
 	Edition      string                          `json:"edition"`
 	Capabilities map[string]DeploymentCapability `json:"capabilities"`
+	// DocsCollabURL is the browser-facing WebSocket address of the docs
+	// collaboration service (e.g. "ws://collab:1234"); empty when the docs
+	// module is disabled or no collaboration service is configured (the
+	// editor then has no realtime provider to connect — a later work
+	// package adds the exclusive-edit fallback for that case).
+	DocsCollabURL string `json:"docs_collab_url,omitempty"`
 }
 
 // DeploymentFeatureAvailability mirrors injected backend handlers/services.
@@ -48,6 +54,8 @@ type DeploymentFeatureAvailability struct {
 	Storage       bool
 	Sandbox       bool
 	Docs          bool
+	// DocsCollabURL is passed through verbatim into DeploymentCapabilitiesData.
+	DocsCollabURL string
 }
 
 func supportedDeploymentCapability(supported bool) DeploymentCapability {
@@ -83,6 +91,7 @@ func BuildDeploymentCapabilities(
 			"settings.sandbox":     supportedDeploymentCapability(available.Sandbox),
 			"docs":                 supportedDeploymentCapability(available.Docs),
 		},
+		DocsCollabURL: available.DocsCollabURL,
 	}
 }
 

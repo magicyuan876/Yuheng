@@ -54,6 +54,8 @@ export interface DeploymentCapability {
 export interface DeploymentCapabilitiesResponse {
   edition: string
   capabilities: Record<string, DeploymentCapability>
+  /** Browser-facing WebSocket address of the docs collaboration service; absent when the docs module is off or no collaboration service is configured. */
+  docs_collab_url?: string
 }
 
 export function getDeploymentCapabilities(): Promise<{ data: DeploymentCapabilitiesResponse }> {
