@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/magicyuan876/yuheng/internal/docs/collab"
@@ -36,19 +37,46 @@ func (f *fakeTokens) ValidateToken(_ context.Context, token string) (*types.User
 	return &copied, f.tenantID, nil
 }
 
-// recordingCollab captures the evictions the services request.
+// recordingCollab stands in for the collaboration service: it records what
+// the server asked it to do and answers the way the real one would.
 type recordingCollab struct {
 	evicted chan string
+
+	mu       sync.Mutex
+	replaced []replacedCall
+	version  int64
+	// failReplace makes the next replace fail, the way an unreachable
+	// service would.
+	failReplace error
+}
+
+type replacedCall struct {
+	pageID  string
+	content string
+	reason  string
 }
 
 func newRecordingCollab() *recordingCollab { return &recordingCollab{evicted: make(chan string, 64)} }
 
 func (r *recordingCollab) Configured() bool { return true }
 
-func (r *recordingCollab) Replace(context.Context, uint64, string, json.RawMessage,
-	string,
+func (r *recordingCollab) Replace(_ context.Context, _ uint64, pageID string, content json.RawMessage,
+	reason string,
 ) (*collab.ReplaceResult, error) {
-	return nil, fmt.Errorf("replacing content arrives with the write-back path")
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.failReplace != nil {
+		return nil, r.failReplace
+	}
+	r.replaced = append(r.replaced, replacedCall{pageID: pageID, content: string(content), reason: reason})
+	r.version++
+	return &collab.ReplaceResult{YDocVersion: r.version}, nil
+}
+
+func (r *recordingCollab) calls() []replacedCall {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]replacedCall(nil), r.replaced...)
 }
 
 func (r *recordingCollab) Evict(_ context.Context, pageID string) error {

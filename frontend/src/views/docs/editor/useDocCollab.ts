@@ -232,14 +232,20 @@ export function useDocCollab(opts: DocCollabOptions): DocCollabHandle {
     const doc = new Y.Doc()
     ydoc.value = doc
 
-    indexeddb = new IndexeddbPersistence(`yuheng-docs-v${INDEXEDDB_SCHEMA_VERSION}-${pageId}`, doc)
-    indexeddb.whenSynced.then(() => {
-      ready.value = true
-    }).catch(() => {
-      ready.value = true // the local cache is a nice-to-have, not a blocker
-    })
-
     if (opts.collabUrl.value) {
+      // The offline cache belongs to the collaborative transport only. There,
+      // the stored Yjs state and the cached one are the same document, so
+      // merging them is what lets an edit made offline survive. In
+      // exclusive-edit mode the server rebuilds the document from JSON
+      // whenever a replace happens, and merging a cache of the previous
+      // document into the new one would duplicate its content rather than
+      // recover anything.
+      indexeddb = new IndexeddbPersistence(`yuheng-docs-v${INDEXEDDB_SCHEMA_VERSION}-${pageId}`, doc)
+      indexeddb.whenSynced.then(() => {
+        ready.value = true
+      }).catch(() => {
+        ready.value = true // the local cache is a nice-to-have, not a blocker
+      })
       connectCollaborative(pageId, tenantId, doc)
     } else {
       connectExclusive(pageId, doc)
