@@ -6767,6 +6767,7 @@ export default {
       clearFormat: 'Очистить форматирование',
       linkPlaceholder: 'Вставьте или введите ссылку',
       linkRemove: 'Удалить',
+      moveBlock: 'Переместить блок',
     },
     commands: {
       paragraph: 'Текст',

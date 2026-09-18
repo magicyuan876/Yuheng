@@ -6770,6 +6770,7 @@ export default {
       clearFormat: 'Clear formatting',
       linkPlaceholder: 'Paste or type a link',
       linkRemove: 'Remove',
+      moveBlock: 'Move block',
     },
     commands: {
       paragraph: 'Text',

@@ -120,6 +120,7 @@ import { useDocSuggestions } from './useDocSuggestions'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { IdleScheduler } from './idleWork'
+import { DragHandle } from './dragHandle'
 import { shouldShow, toolbarPlacement } from './toolbar'
 import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
@@ -355,6 +356,7 @@ const editor = useEditor({
   extensions: officialExtensions([
     uploads.extension,
     suggestions.extension,
+    DragHandle.configure({ offset: 28, label: t('docs.toolbar.moveBlock') }),
     Collaboration.configure({ document: collab.ydoc.value }),
     // Live cursors need a collaboration service to relay awareness; in
     // exclusive-edit mode there is never a second writer to draw.
@@ -424,6 +426,36 @@ defineExpose({ editor, collab, forgetTitle })
 </script>
 
 <style scoped lang="less">
+// Created by the drag-handle plugin rather than by this template, so it needs
+// :deep to be reached from a scoped block.
+:deep(.docs-drag-handle) {
+  position: absolute;
+  visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--td-text-color-placeholder);
+  font-size: 15px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+
+  &:hover {
+    background: var(--td-bg-color-container-hover);
+    color: var(--td-text-color-secondary);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
 .doc-editor {
   display: flex;
   flex-direction: column;
