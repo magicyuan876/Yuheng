@@ -32,11 +32,9 @@ test('centralised mode only relocates shared-infrastructure sections', () => {
   assert.deepEqual(
     [...PLATFORM_MANAGED_SETTINGS_SECTIONS].sort(),
     [
-      'mcp',
       'models',
       'ollama',
       'parser',
-      'sandbox',
       'storage',
       'vectorstore',
       'websearch',
