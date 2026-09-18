@@ -1,9 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 import { useGovernanceStore } from '@/stores/governance'
-import { autoSetup, getCurrentUser, userInfoFromApi } from '@/api/auth'
+import { getCurrentUser, userInfoFromApi } from '@/api/auth'
 import type { DeploymentCapabilityKey } from '@/config/deploymentCapabilities'
 import { MessagePlugin } from 'tdesign-vue-next'
 import i18n from '@/i18n'
@@ -17,35 +16,6 @@ function ensureUploadLimitsFresh() {
   if (uploadLimitsRequested) return
   uploadLimitsRequested = true
   void refreshUploadLimits()
-}
-
-/** Lite /桌面 WebView 硬刷新时可能只打开 `/`，用 session 记住上次页面以便恢复 */
-const LITE_LAST_PATH_KEY = 'yuheng_lite_last_path'
-const AUTO_SETUP_FAILED_KEY = 'yuheng_auto_setup_failed'
-
-function shouldTryAutoSetup() {
-  return localStorage.getItem(AUTO_SETUP_FAILED_KEY) !== 'true'
-}
-
-function markAutoSetupFailed() {
-  localStorage.setItem(AUTO_SETUP_FAILED_KEY, 'true')
-}
-
-function isLiteEdition(authStore: ReturnType<typeof useAuthStore>) {
-  return authStore.isLiteMode || localStorage.getItem('yuheng_lite_mode') === 'true'
-}
-
-function isLiteSpaDefaultEntry(to: RouteLocationNormalized) {
-  return (
-    to.path === '/' ||
-    to.path === '/platform' ||
-    to.path === '/platform/knowledge-bases' ||
-    to.name === 'knowledgeBaseList'
-  )
-}
-
-function isSafeLiteRestoreTarget(path: string) {
-  return path.startsWith('/platform/') && !path.startsWith('/platform/organizations')
 }
 
 function hasPendingOIDCCallback() {
@@ -67,7 +37,6 @@ const router = createRouter({
       component: () => import("../views/auth/Login.vue"),
       meta: { requiresAuth: false, requiresInit: false }
     },
-    // Embed chat is a separate entry (embed.html + embed-main.ts), not this SPA.
     {
       path: "/register",
       name: "registerByInvite",
@@ -143,12 +112,6 @@ const router = createRouter({
               query: typeof q === 'string' ? { cmdk: q } : { cmdk: '' },
             }
           },
-        },
-        {
-          path: "agents",
-          name: "agentList",
-          component: () => import("../views/agent/AgentList.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'agents' }
         },
         {
           path: "integrations",
@@ -252,24 +215,6 @@ const router = createRouter({
   ],
 });
 
-// 持久化 auto-setup / login 返回的认证信息到 store
-function persistLoginResponse(authStore: ReturnType<typeof useAuthStore>, response: any) {
-  if (response.user && response.tenant && response.token) {
-    authStore.setUser(userInfoFromApi(response.user, response.tenant.id))
-    authStore.setToken(response.token)
-    if (response.refresh_token) {
-      authStore.setRefreshToken(response.refresh_token)
-    }
-    authStore.setTenant({
-      id: String(response.tenant.id) || '',
-      name: response.tenant.name || '',
-      owner_id: response.user.id || '',
-      created_at: response.tenant.created_at || new Date().toISOString(),
-      updated_at: response.tenant.updated_at || new Date().toISOString()
-    })
-  }
-}
-
 async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore>) {
   const token = localStorage.getItem('yuheng_token')
   if (!token) return false
@@ -335,8 +280,6 @@ async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore
   }
 }
 
-let autoSetupAttempted = false
-let liteDeepLinkRestoreDone = false
 
 // 路由守卫：检查认证状态和系统初始化状态
 router.beforeEach(async (to, from, next) => {
@@ -347,20 +290,6 @@ router.beforeEach(async (to, from, next) => {
   if (hasPendingOIDCCallback()) {
     next()
     return
-  }
-
-  // Lite：硬刷新后若落在默认首页，恢复本次会话中最后访问的 /platform 子路径
-  if (!liteDeepLinkRestoreDone) {
-    liteDeepLinkRestoreDone = true
-    if (isLiteEdition(authStore)) {
-      const saved = sessionStorage.getItem(LITE_LAST_PATH_KEY)
-      if (saved && isSafeLiteRestoreTarget(saved) && isLiteSpaDefaultEntry(to)) {
-        if (saved !== to.fullPath) {
-          next(saved)
-          return
-        }
-      }
-    }
   }
 
   // Tenantless onboarding still requires a valid user token even though it
@@ -405,22 +334,6 @@ router.beforeEach(async (to, from, next) => {
         return
       }
 
-      if (!autoSetupAttempted && shouldTryAutoSetup()) {
-        autoSetupAttempted = true
-        try {
-          const response = await autoSetup()
-          if (response.success) {
-            persistLoginResponse(authStore, response)
-            authStore.setLiteMode(true)
-            next(to.fullPath)
-            return
-          } else {
-            markAutoSetupFailed()
-          }
-        } catch {
-          markAutoSetupFailed()
-        }
-      }
       next('/login')
       return
     }
@@ -459,13 +372,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next()
-})
-
-router.afterEach((to) => {
-  if (!isLiteEdition(useAuthStore())) return
-  if (to.path === '/login') return
-  if (!to.path.startsWith('/platform')) return
-  sessionStorage.setItem(LITE_LAST_PATH_KEY, to.fullPath)
 })
 
 export default router

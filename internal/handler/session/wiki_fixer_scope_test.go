@@ -41,8 +41,7 @@ func (s *wikiFixerKBShareStub) CheckTenantKBPermission(
 	return s.permission, s.isShared, s.err
 }
 
-func TestResolveBuiltinWikiFixerTenantScope_SharedEditorUsesSourceTenant(t *testing.T) {
-	agent := &types.CustomAgent{ID: types.BuiltinWikiFixerID, TenantID: 10, Name: "Wiki Fixer"}
+func TestResolveSingleSharedKBChatTenantScope_SharedEditorUsesSourceTenant(t *testing.T) {
 	kbLookup := &wikiFixerKBLookupStub{
 		kb: &types.KnowledgeBase{ID: "kb-shared", TenantID: 20, Name: "Shared KB"},
 	}
@@ -51,9 +50,8 @@ func TestResolveBuiltinWikiFixerTenantScope_SharedEditorUsesSourceTenant(t *test
 		isShared:   true,
 	}
 
-	gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
+	effectiveTenantID := resolveSingleSharedKBChatTenantScope(
 		context.Background(),
-		agent,
 		10,
 		types.TenantRoleContributor,
 		[]string{"kb-shared"},
@@ -61,18 +59,14 @@ func TestResolveBuiltinWikiFixerTenantScope_SharedEditorUsesSourceTenant(t *test
 		kbShare,
 	)
 
-	require.NotSame(t, agent, gotAgent)
-	require.Equal(t, uint64(20), gotAgent.TenantID)
 	require.Equal(t, uint64(20), effectiveTenantID)
-	require.Equal(t, uint64(10), agent.TenantID, "must not mutate the cached built-in agent")
 	require.Equal(t, "kb-shared", kbLookup.calledWith)
 	require.Equal(t, "kb-shared", kbShare.checkedKBID)
 	require.Equal(t, uint64(10), kbShare.checkedTenantID)
 	require.Equal(t, types.TenantRoleContributor, kbShare.checkedTenantRole)
 }
 
-func TestResolveBuiltinWikiFixerTenantScope_SharedViewerDoesNotSwitchTenant(t *testing.T) {
-	agent := &types.CustomAgent{ID: types.BuiltinWikiFixerID, TenantID: 10}
+func TestResolveSingleSharedKBChatTenantScope_SharedViewerDoesNotSwitchTenant(t *testing.T) {
 	kbLookup := &wikiFixerKBLookupStub{
 		kb: &types.KnowledgeBase{ID: "kb-shared", TenantID: 20},
 	}
@@ -81,9 +75,8 @@ func TestResolveBuiltinWikiFixerTenantScope_SharedViewerDoesNotSwitchTenant(t *t
 		isShared:   true,
 	}
 
-	gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
+	effectiveTenantID := resolveSingleSharedKBChatTenantScope(
 		context.Background(),
-		agent,
 		10,
 		types.TenantRoleContributor,
 		[]string{"kb-shared"},
@@ -91,45 +84,17 @@ func TestResolveBuiltinWikiFixerTenantScope_SharedViewerDoesNotSwitchTenant(t *t
 		kbShare,
 	)
 
-	require.Same(t, agent, gotAgent)
 	require.Zero(t, effectiveTenantID)
-	require.Equal(t, uint64(10), gotAgent.TenantID)
+	require.Equal(t, uint64(20), kbLookup.kb.TenantID, "must not mutate the KB")
 }
 
-func TestResolveBuiltinWikiFixerTenantScope_IgnoresNonWikiFixerAgents(t *testing.T) {
-	agent := &types.CustomAgent{ID: "custom-agent", TenantID: 10}
-	kbLookup := &wikiFixerKBLookupStub{
-		kb: &types.KnowledgeBase{ID: "kb-shared", TenantID: 20},
-	}
-	kbShare := &wikiFixerKBShareStub{
-		permission: types.OrgRoleEditor,
-		isShared:   true,
-	}
-
-	gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
-		context.Background(),
-		agent,
-		10,
-		types.TenantRoleContributor,
-		[]string{"kb-shared"},
-		kbLookup,
-		kbShare,
-	)
-
-	require.Same(t, agent, gotAgent)
-	require.Zero(t, effectiveTenantID)
-	require.Empty(t, kbLookup.calledWith)
-}
-
-func TestResolveBuiltinWikiFixerTenantScope_RequiresSingleKnowledgeBase(t *testing.T) {
-	agent := &types.CustomAgent{ID: types.BuiltinWikiFixerID, TenantID: 10}
+func TestResolveSingleSharedKBChatTenantScope_RequiresSingleKnowledgeBase(t *testing.T) {
 	kbLookup := &wikiFixerKBLookupStub{
 		kb: &types.KnowledgeBase{ID: "kb-shared", TenantID: 20},
 	}
 
-	gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
+	effectiveTenantID := resolveSingleSharedKBChatTenantScope(
 		context.Background(),
-		agent,
 		10,
 		types.TenantRoleContributor,
 		[]string{"kb-a", "kb-b"},
@@ -137,18 +102,14 @@ func TestResolveBuiltinWikiFixerTenantScope_RequiresSingleKnowledgeBase(t *testi
 		&wikiFixerKBShareStub{permission: types.OrgRoleEditor, isShared: true},
 	)
 
-	require.Same(t, agent, gotAgent)
 	require.Zero(t, effectiveTenantID)
 	require.Empty(t, kbLookup.calledWith)
 }
 
-func TestResolveBuiltinWikiFixerTenantScope_FallsBackOnLookupOrPermissionErrors(t *testing.T) {
-	agent := &types.CustomAgent{ID: types.BuiltinWikiFixerID, TenantID: 10}
-
+func TestResolveSingleSharedKBChatTenantScope_FallsBackOnLookupOrPermissionErrors(t *testing.T) {
 	t.Run("kb lookup error", func(t *testing.T) {
-		gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
+		effectiveTenantID := resolveSingleSharedKBChatTenantScope(
 			context.Background(),
-			agent,
 			10,
 			types.TenantRoleContributor,
 			[]string{"kb-shared"},
@@ -156,14 +117,12 @@ func TestResolveBuiltinWikiFixerTenantScope_FallsBackOnLookupOrPermissionErrors(
 			&wikiFixerKBShareStub{permission: types.OrgRoleEditor, isShared: true},
 		)
 
-		require.Same(t, agent, gotAgent)
 		require.Zero(t, effectiveTenantID)
 	})
 
 	t.Run("permission check error", func(t *testing.T) {
-		gotAgent, effectiveTenantID := resolveBuiltinWikiFixerTenantScope(
+		effectiveTenantID := resolveSingleSharedKBChatTenantScope(
 			context.Background(),
-			agent,
 			10,
 			types.TenantRoleContributor,
 			[]string{"kb-shared"},
@@ -171,7 +130,6 @@ func TestResolveBuiltinWikiFixerTenantScope_FallsBackOnLookupOrPermissionErrors(
 			&wikiFixerKBShareStub{err: errors.New("permission failed")},
 		)
 
-		require.Same(t, agent, gotAgent)
 		require.Zero(t, effectiveTenantID)
 	})
 }

@@ -621,7 +621,7 @@ const navItems = computed(() => {
       items.push({ key: 'datasource', icon: 'cloud-download', label: t('knowledgeEditor.sidebar.datasource'), badge: dsCount.value || undefined })
     }
   }
-  if (editorMode.value === 'edit' && activeKbId.value && !authStore.isLiteMode) {
+  if (editorMode.value === 'edit' && activeKbId.value) {
     items.push({ key: 'share', icon: 'share', label: t('knowledgeEditor.sidebar.share') })
   }
   if (canViewActivity.value) {

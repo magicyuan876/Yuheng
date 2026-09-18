@@ -15,7 +15,7 @@ import "github.com/spf13/cobra"
 
 // Risk levels emitted in the annotation / envelope:
 //   - RiskDestructive: irreversible ops (delete).
-//   - RiskWrite: reversible metadata edits (kb / agent / doc update).
+//   - RiskWrite: reversible metadata edits (kb / doc / model update).
 //
 // "read" remains reserved (read-only commands carry no risk annotation).
 const (
@@ -33,7 +33,7 @@ func SetRisk(cmd *cobra.Command, action string) {
 }
 
 // SetWriteRisk mirrors SetRisk but tags the command at the "write" level —
-// used by update commands (kb / agent / doc update), which are reversible
+// used by update commands (kb / doc / model update), which are reversible
 // metadata edits rather than irreversible destructive ops. They remain
 // confirmation-gated; only the level label differs.
 func SetWriteRisk(cmd *cobra.Command, action string) {

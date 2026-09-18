@@ -18,7 +18,7 @@ const restartInterruptedMessage = "Task interrupted due to application restart"
 // resetPendingTasks resets the state of any knowledge items or sync logs stuck in processing
 // due to an unexpected application restart.
 //
-// In Lite mode (no REDIS_ADDR) normal queued tasks live in process memory, so
+// Without Redis (no REDIS_ADDR) normal queued tasks live in process memory, so
 // a "processing" row at startup is orphaned unless it has a durable wiki op
 // that can be re-triggered.
 //
@@ -39,7 +39,7 @@ func resetPendingTasks(db *gorm.DB) {
 		staleCutoff = time.Now().Add(-resetPendingStaleWindow)
 	}
 
-	// Resolve Lite-mode orphaned knowledge rows first. A finalizing row whose
+	// Resolve no-Redis-mode orphaned knowledge rows first. A finalizing row whose
 	// ONLY remaining slot is backed by a durable wiki op is excluded and resumed
 	// by recoverPendingWikiTasks after handlers are registered. Rows with other
 	// outstanding in-memory subtasks still fail: the wiki op cannot recover them.

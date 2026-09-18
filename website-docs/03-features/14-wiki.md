@@ -2,7 +2,7 @@
 
 上传一堆散乱的文档之后，你常常还是不知道「这批资料里到底有什么」。Wiki 就是为这件事准备的：文档入库后，Yuheng 用大模型从原文里抽出人物、产品、概念等条目，为每个条目生成一篇带出处的 Markdown 页面，页面之间互相链接，形成一个可以像维基百科一样浏览的知识站点。
 
-它和普通问答的区别在于：问答是「你问我答」，Wiki 是「先替你把知识整理好」。资料越多、越零散，Wiki 的价值越明显。而且这些页面不只给人看——Agent 也能读写它们，把它当成长期记忆用；模型写错的地方你可以直接改，每次改动都留版本、可回滚（见「人工编辑与版本历史」）。
+它和普通问答的区别在于：问答是「你问我答」，Wiki 是「先替你把知识整理好」。资料越多、越零散，Wiki 的价值越明显。而且这些页面不只给人看——问答管线检索时会把 Wiki 页面作为一类来源（见检索引擎文档的 Wiki 加权）；模型写错的地方你可以直接改，每次改动都留版本、可回滚（见「人工编辑与版本历史」）。
 
 <Screenshot
   src="/screenshots/wiki-browser.png"
@@ -35,8 +35,8 @@
 | `entity` | 实体页（人、组织、产品、技术等） |
 | `concept` | 概念/主题页 |
 | `index` | wiki 级索引页（元数据） |
-| `synthesis` | 综合分析页，**仅由 Agent 通过 `wiki_write_page` 工具创建** |
-| `comparison` | 对比页，**仅由 Agent 通过 `wiki_write_page` 工具创建** |
+| `synthesis` | 综合分析页，**入库管道不自动生成**（保留类型，供人工整理时选用） |
+| `comparison` | 对比页，**入库管道不自动生成**（保留类型，供人工整理时选用） |
 
 页面状态（`WikiPageStatus`）：`draft` / `published`（默认）/ `archived`。
 
@@ -67,7 +67,7 @@ TypeWikiFinalize = "wiki:finalize"
 
 整个管道分四个阶段（Map-Reduce 结构）：
 
-| 阶段 | 任务 | 做什么 | LLM 提示词（`internal/agent/prompts_wiki.go`） |
+| 阶段 | 任务 | 做什么 | LLM 提示词（`internal/application/service/wikiprompts/prompts_wiki.go`） |
 | --- | --- | --- | --- |
 | Pass 0：候选抽取 | `wiki:ingest` | 从文档抽取候选 slug 骨架（entities + concepts 的 JSON） | `WikiCandidateSlugPrompt` |
 | Pass 1..N：分块引文 | `wiki:ingest` | 逐 chunk 为候选 slug 标注引用，输出 `{ citations: {"slug": ["c001", ...]}, new_slugs: [...] }`；长前缀复用 prefix caching | `WikiChunkCitationPrompt` |
@@ -114,7 +114,7 @@ flowchart TD
     G --> H["写入 wiki_pages<br/>变更投影到知识库活动流 (audit)"]
     H --> I["任务入队 wiki:finalize<br/>(TaskID = wiki-finalize-KBID, 同 KB 去重)"]
     I --> J["Finalize: 重建索引 / 清理死链 / 交叉链接<br/>纯 SQL 与图算法, 无 LLM"]
-    J --> K["published 页面在 WikiBrowser 可浏览<br/>Agent 工具可读写"]
+    J --> K["published 页面在 WikiBrowser 可浏览<br/>问答管线可检索"]
 ```
 
 ## Slug 机制
@@ -133,7 +133,7 @@ flowchart TD
 
   只有新出现的事物才生成新 slug，消失的项不再输出；
 - **Slug Handle（句柄代理）**：ingest 的 LLM 调用中，高熵的真实 slug（尤其含 UUID 的 `summary/...`）会被替换为短句柄（`ref-1`、`ref-2`），模型输出 `[[ref-1|title]]` 后由后端还原为真实 slug，避免模型抄错 UUID（`internal/application/service/wiki_slug_handles.go`）；
-- **引用作用**：Agent 回答中的 wiki 引用以 `[[slug|title]]` 形式出现，`InLinks`/`OutLinks` 依 slug 维护页面图；重命名 slug（`wiki_rename_page` 工具）会自动更新所有反向链接。
+- **引用作用**：页面正文中的 wiki 引用以 `[[slug|title]]` 形式互相链接，`InLinks`/`OutLinks` 依 slug 维护页面图；更新页面修改 slug 时会自动更新所有反向链接。
 
 ## 发布与访问
 
@@ -153,7 +153,7 @@ flowchart TD
 | GET | `/lint` / `/issues` | 质量检查结果 / 问题列表 |
 | GET | `/revisions/*slug` | 版本历史列表；带 `?version=N` 取该版本全文 |
 
-`KBAccessRead` 覆盖：KB 所有者、组织共享、以及通过共享 Agent 获得的访问。
+`KBAccessRead` 覆盖：KB 所有者与组织共享。
 
 ### 写接口（OwnedWikiKBOrAdmin + KBAccessWrite）
 
@@ -182,7 +182,6 @@ Wiki 页面是 LLM 生成的，难免有需要人工订正的地方。页面因�
 | `edit_source` | 含义 |
 | --- | --- |
 | `pipeline` | Wiki 生成管道写的（历史遗留行为空串，按 `pipeline` 处理） |
-| `agent` | Agent 通过 `wiki_write_page` / `wiki_replace_text` 等工具写的 |
 | `user` | 人工在编辑器里改的 |
 | `revert` | 回滚产生的版本 |
 
@@ -206,32 +205,15 @@ Wiki 页面是 LLM 生成的，难免有需要人工订正的地方。页面因�
 <Screenshot
   src="/screenshots/wiki-revision-history.png"
   caption="Wiki 页面版本历史：按来源区分的版本列表与回滚入口"
-  hint="展示某个 wiki 页面的历史抽屉，含版本号、编辑来源（管道/人工/Agent/回滚）、编辑者与时间，以及对比/回滚按钮。" />
+  hint="展示某个 wiki 页面的历史抽屉，含版本号、编辑来源（管道/人工/回滚）、编辑者与时间，以及对比/回滚按钮。" />
 
-## 与 Agent 的关系
+## 与问答管线的关系
 
-Wiki 不只是给人看的——它是 Agent 的一等公民工作区。`internal/agent/tools/definitions.go` 注册了 10 个 wiki 工具：
+Wiki 页面是问答管线的一类检索来源：rerank 之后 `wiki_boost.go` 会对 `wiki_page` 类型的 chunk 加权（×1.3），让 LLM 预综合的 Wiki 页面优先于原始分块进入上下文；被引用的 Wiki 内容同样出现在引用面板中。
 
-| 工具 | 作用 | 关键参数 |
-| --- | --- | --- |
-| `wiki_read_page` | 按 slug 批量读取页面全文 | `slugs: string[]` |
-| `wiki_search` | 正则搜索页面 | `queries`、`limit?`、`knowledge_base_id?` |
-| `wiki_write_page` | 创建/整页覆盖（`synthesis`、`comparison` 页只能由此创建） | `slug`、`title`、`summary`、`content`、`page_type`、`aliases?`、`source_refs?` |
-| `wiki_replace_text` | 页内精确文本替换 | `slug`、`old_text`、`new_text` |
-| `wiki_rename_page` | 重命名 slug，自动更新反向链接 | `slug`、`new_slug` |
-| `wiki_delete_page` | 删除页面并清理死链 | `slug` |
-| `wiki_read_source_doc` | 回读源文档原文（带上下文） | 文档 ID |
-| `wiki_flag_issue` | 标记页面问题 | `slug`、`issue_type ∈ {mixed_entities, contradictory_facts, out_of_date, other}`、`description` |
-| `wiki_read_issue` | 查看问题详情 | 问题 ID |
-| `wiki_update_issue` | 更新问题状态 | 问题 ID、`status ∈ {pending, ignored, resolved}` |
+**Wiki 修复对话**：Wiki 编辑器里的「自动修复」走一次限定范围的问答——请求带 `builtin-wiki-fixer` 标记，后端只用它来选择检索/模型的租户作用域（跨租户共享 KB 时提升到源租户上下文），让模型基于该 KB 的内容给出修复建议（`internal/handler/session/wiki_fixer_scope.go`）。
 
-工具输出为 XML-like 结构（`<wiki_page><metadata>...<summary>...<content>...`），前端用 `frontend/src/utils/wikiToolReferences.ts` 的 `parseWikiToolReferences()` 解析成引用卡片渲染在对话中。
-
-配套机制：
-
-- **Wiki Scope**：Agent 会话内维护 wiki KB 白名单，支持通过 `@mention` 把范围收窄到特定文档/标签，工具执行时自动过滤 `source_refs`（`internal/agent/tools/wiki_tools.go`）；
-- **Wiki Fixer**：内置 Agent（`types.BuiltinWikiFixerID`），负责自动修复 wiki 问题（死链、实体混淆等）。跨租户访问共享 KB 时要求租户角色 ≥ Editor，并自动提升到源租户上下文（`internal/handler/session/wiki_fixer_scope.go`）；
-- **问题闭环**：`wiki_page_issues` 表 + lint 接口 + `auto-fix`，人和 Agent 都可以报告/处理问题。
+**问题闭环**：`wiki_page_issues` 表 + lint 接口 + `auto-fix`——lint 自动检查死链、实体混淆等问题，人和修复对话都可以报告/处理问题。
 
 ## 操作历史（知识库活动流）
 
@@ -248,7 +230,7 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 
 ## 失败恢复
 
-`internal/container/recover_pending_wiki_tasks.go` 在服务启动时闭合 Lite 模式（进程内 `SyncTaskExecutor`）或 Redis 入队中断留下的缺口：
+`internal/container/recover_pending_wiki_tasks.go` 在服务启动时闭合无 Redis 模式（进程内 `SyncTaskExecutor`）或 Redis 入队中断留下的缺口：
 
 1. 扫描持久化的 `task_pending_ops` 表中 `scope = knowledge_base` 且 `task_type ∈ {wiki:ingest, wiki:finalize}` 的待处理组合；
 2. 清理已删除 KB 的残留行（fail-closed）；
@@ -264,8 +246,8 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 | HTTP Handler | `internal/handler/wiki_page.go` |
 | 生成管道 | `internal/application/service/wiki_ingest.go`、`wiki_ingest_batch.go`、`wiki_ingest_cite.go`、`wiki_ingest_dedup.go`、`wiki_ingest_taxonomy.go` |
 | 页面服务 | `internal/application/service/wiki_page.go`、`wiki_linkify.go`、`wiki_lint.go`、`wiki_slug_alias.go`、`wiki_slug_handles.go` |
-| LLM 提示词 | `internal/agent/prompts_wiki.go` |
-| Agent 工具 | `internal/agent/tools/wiki_*.go`（注册于 `internal/agent/tools/definitions.go`） |
+| LLM 提示词 | `internal/application/service/wikiprompts/prompts_wiki.go` |
+| Wiki 修复作用域 | `internal/handler/session/wiki_fixer_scope.go` |
 | 失败恢复 | `internal/container/recover_pending_wiki_tasks.go` |
 | 路由 | `internal/router/router.go`（行为测试见 `internal/router/router_wiki_test.go`） |
 | 数据库迁移 | `migrations/versioned/000037_wiki_and_indexing.up.sql`、`000061_wiki_page_hierarchy.up.sql`、`000077_remove_wiki_log.up.sql` |

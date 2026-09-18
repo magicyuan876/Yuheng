@@ -118,16 +118,18 @@ func TestRetrievalRequestCarriesRequiredFields(t *testing.T) {
 	t.Fatal("the fixture no longer covers /knowledge-search")
 }
 
-// TestChatRequestSelectsThePipeline: the agent route must carry both the agent id
-// and the agent-enabled flag, since the RAG and ReAct pipelines are selected by
-// the same struct.
-func TestChatRequestSelectsThePipeline(t *testing.T) {
+// TestChatRequestCarriesRequiredFields: every chat body binds the fields the
+// handler validates — a non-empty query and the "api" channel — so the plugin
+// cannot send a request the handler rejects with 400 at runtime. The fixture
+// must keep covering the knowledge-chat route with at least one such call.
+func TestChatRequestCarriesRequiredFields(t *testing.T) {
 	fixture := loadFixture(t)
-	var sawRAG, sawAgent bool
+	sawChat := false
 	for _, call := range fixture.Calls {
 		if call.GoRequestType == nil || *call.GoRequestType != "session.CreateKnowledgeQARequest" {
 			continue
 		}
+		sawChat = true
 		var request session.CreateKnowledgeQARequest
 		if err := json.Unmarshal(call.Body, &request); err != nil {
 			t.Fatalf("decode chat body: %v", err)
@@ -138,18 +140,9 @@ func TestChatRequestSelectsThePipeline(t *testing.T) {
 		if request.Channel != "api" {
 			t.Errorf("%s must declare channel \"api\", got %q", call.Path, request.Channel)
 		}
-		switch {
-		case request.AgentID != "":
-			sawAgent = true
-			if !request.AgentEnabled {
-				t.Errorf("%s names an agent but leaves agent_enabled false", call.Path)
-			}
-		default:
-			sawRAG = true
-		}
 	}
-	if !sawRAG || !sawAgent {
-		t.Fatal("the fixture must cover both the RAG and the agent chat route")
+	if !sawChat {
+		t.Fatal("the fixture no longer covers /knowledge-chat")
 	}
 }
 

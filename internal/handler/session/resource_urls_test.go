@@ -228,7 +228,7 @@ func TestHandleAgentEventsForSSE_FlushesHeldContentOnStop(t *testing.T) {
 	}}}
 	c, recorder := newTestGinContext(t, "?resource_urls=public")
 
-	h.handleAgentEventsForSSE(
+	h.handleEventsForSSE(
 		context.Background(), c, "sess1", "msg1", "req-1", nil, false, publicStreamRewriter())
 
 	body := recorder.Body.String()

@@ -100,7 +100,6 @@ func TestEngineAwareNormalizer_UnitInterval(t *testing.T) {
 		types.OpenSearchRetrieverEngineType,
 		types.WeaviateRetrieverEngineType,
 		types.PostgresRetrieverEngineType,
-		types.SQLiteRetrieverEngineType,
 		types.QdrantRetrieverEngineType,
 		types.InfinityRetrieverEngineType,
 		types.TencentVectorDBRetrieverEngineType,

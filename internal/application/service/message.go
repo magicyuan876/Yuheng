@@ -52,7 +52,7 @@ func NewMessageService(messageRepo interfaces.MessageRepository,
 }
 
 // sessionTenantIDForLookup returns the tenant ID to use for session lookup.
-// When SessionTenantIDContextKey is set (e.g. pipeline with shared agent), use it so session/message belong to session owner.
+// When SessionTenantIDContextKey is set, use it so session/message belong to session owner.
 func sessionTenantIDForLookup(ctx context.Context) (uint64, bool) {
 	if v := ctx.Value(types.SessionTenantIDContextKey); v != nil {
 		if tid, ok := v.(uint64); ok && tid != 0 {
@@ -69,7 +69,7 @@ func sessionTenantIDForLookup(ctx context.Context) (uint64, bool) {
 
 func sessionUserIDForLookup(ctx context.Context) string {
 	if ctx.Value(types.SessionTenantIDContextKey) != nil {
-		// Shared-agent pipelines resolve the session owner tenant first; keep that internal lookup tenant-scoped.
+		// Session-owner tenant re-scoping resolves the session owner first; keep that internal lookup tenant-scoped.
 		return ""
 	}
 	return types.SessionOwnerIDFromContext(ctx)
@@ -477,19 +477,6 @@ func (s *messageService) GetChatHistoryKBStats(ctx context.Context) (*types.Chat
 	stats.HasIndexedMessages = kb.KnowledgeCount > 0
 
 	return stats, nil
-}
-
-// GetSessionArtifacts returns every skill-produced artifact recorded against
-// any assistant message of the session. Thin pass-through to the repository:
-// the collector and session cleanup both need it, and centralising it here
-// keeps tests able to inject a stub MessageService.
-func (s *messageService) GetSessionArtifacts(
-	ctx context.Context, sessionID string,
-) (types.MessageArtifacts, error) {
-	if sessionID == "" {
-		return types.MessageArtifacts{}, nil
-	}
-	return s.messageRepo.GetSessionArtifacts(ctx, sessionID)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -183,43 +183,6 @@ echo "YUHENG_API_KEY=your_api_key_here" >> .env
 }
 ```
 
-### 会话管理
-
-#### 创建聊天会话
-```json
-{
-  "tool": "create_session",
-  "arguments": {
-    "kb_id": "kb_123456",
-    "max_rounds": 10,
-    "enable_rewrite": true,
-    "fallback_response": "抱歉，我无法回答这个问题。",
-    "summary_model_id": "gpt-3.5-turbo"
-  }
-}
-```
-
-#### 获取会话详情
-```json
-{
-  "tool": "get_session",
-  "arguments": {
-    "session_id": "sess_345678"
-  }
-}
-```
-
-#### 列出会话
-```json
-{
-  "tool": "list_sessions",
-  "arguments": {
-    "page": 1,
-    "page_size": 10
-  }
-}
-```
-
 ### 聊天功能
 
 #### 发送聊天消息
@@ -227,11 +190,13 @@ echo "YUHENG_API_KEY=your_api_key_here" >> .env
 {
   "tool": "chat",
   "arguments": {
-    "session_id": "sess_345678",
-    "query": "请介绍一下产品的主要功能"
+    "query": "请介绍一下产品的主要功能",
+    "knowledge_base_ids": ["kb_123456"]
   }
 }
 ```
+
+`chat` 每次调用都会自动创建一个新会话，无需手动管理会话；`knowledge_base_ids` 可传知识库名称或 UUID（可用 `list_knowledge_bases` / `list_shared_knowledge_bases` 查询）。
 
 ### 块管理
 
@@ -304,25 +269,13 @@ python main.py --verbose
 }
 ```
 
-#### 步骤 4: 创建聊天会话
-```json
-{
-  "tool": "create_session",
-  "arguments": {
-    "kb_id": "知识库ID",
-    "max_rounds": 5,
-    "enable_rewrite": true
-  }
-}
-```
-
-#### 步骤 5: 开始对话
+#### 步骤 4: 开始对话
 ```json
 {
   "tool": "chat",
   "arguments": {
-    "session_id": "会话ID",
-    "query": "如何使用用户认证API？"
+    "query": "如何使用用户认证API？",
+    "knowledge_base_ids": ["知识库ID"]
   }
 }
 ```
@@ -371,25 +324,11 @@ python main.py --verbose
 }
 ```
 
-### 自定义会话策略
-```json
-{
-  "tool": "create_session",
-  "arguments": {
-    "kb_id": "kb_123456",
-    "max_rounds": 20,
-    "enable_rewrite": true,
-    "fallback_response": "根据现有知识，我无法准确回答您的问题。请尝试重新表述或联系技术支持。"
-  }
-}
-```
-
 ## 性能优化建议
 
 1. **批量操作**: 尽量批量处理知识创建和更新
 2. **缓存策略**: 合理设置搜索阈值以平衡准确性和性能
-3. **会话管理**: 及时清理不需要的会话以节省资源
-4. **监控日志**: 使用 `--verbose` 选项监控性能指标
+3. **监控日志**: 使用 `--verbose` 选项监控性能指标
 
 ## 集成示例
 

@@ -4,7 +4,7 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 
 整套流程分四步：**文档理解 → 建索引 → 混合检索 → 生成回答**，本文后面逐个展开。
 
-代码上是三个进程：Go（Gin）写的后端、Vue 3 的前端、Python（gRPC）的文档解析服务 docreader。部署方式有 Docker Compose、Helm、单二进制 Lite 模式和 macOS 桌面应用，按环境挑一种。
+代码上是三个进程：Go（Gin）写的后端、Vue 3 的前端、Python（gRPC）的文档解析服务 docreader。部署方式有 Docker Compose 与 Helm，按环境挑一种。
 
 <Screenshot
   src="/screenshots/introduction-overview.png"
@@ -19,7 +19,7 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 | 单一向量检索召回不稳 | 向量 + 关键词（BM25）混合检索，RRF 融合，Rerank 重排，可选知识图谱（GraphRAG）与 Wiki 导航 |
 | 模型绑定单一厂商 | 模型抽象层：Ollama 本地模型与 OpenAI 兼容远程接口均可，LLM / Embedding / Rerank / VLM / ASR 分类管理（见 `internal/types/model.go`） |
 | 数据安全与私有化 | 全栈可私有部署；敏感凭证（API Key 等）以 AES-256 落盘加密（`SYSTEM_AES_KEY`）；多租户隔离 + RBAC 角色鉴权 |
-| 只有问答不够用 | 内置 Agent（ReAct 多步推理）、MCP 工具接入、Agent Skills 沙箱执行、Web 搜索（SearXNG 等）、数据分析（对 CSV/Excel 执行 SQL） |
+| 只有问答不够用 | 内置 Agent（ReAct 多步推理）、MCP 工具接入、Agent Skills 沙箱执行、Web 搜索（SearXNG 等） |
 | 团队协作 | 租户（工作空间）+ 成员角色 + 组织（Organization）跨租户知识库共享 + 邀请机制 |
 
 ## 核心概念
@@ -57,8 +57,8 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 | 会话 Session | 一次多轮对话。记录 `LastRequestState`（上次提问时选中的 Agent、模型、知识库范围、Web 搜索、MCP 服务），重开会话时恢复；上下文压缩策略（`sliding_window` / `smart` LLM 摘要）来自 `ContextConfig` |
 | 消息 Message | `user` / `assistant` 角色消息，支持图片、附件、@提及（知识库/文档/标签/MCP/Skill），并统计 `TokenUsage`（含 prompt cache 命中情况） |
 | 模型 Model | 模型注册项。`Type`：`KnowledgeQA`（对话 LLM）/ `Embedding` / `Rerank` / `VLLM`（视觉）/ `ASR`（语音）；`Source`：`local`（Ollama）、`remote` 及 `openai`、`azure_openai`、`gemini`、`deepseek`、`aliyun`、`zhipu`、`volcengine`、`hunyuan`、`siliconflow`、`openrouter`、`jina` 等厂商；`ManagedBy: "yaml"` 表示由 `config/builtin_models.yaml` 声明式管理 |
-| Agent（自定义智能体） CustomAgent | 两种模式：`quick-answer`（经典 RAG 管线）与 `smart-reasoning`（ReAct 多步推理 + 工具调用）。smart-reasoning 下有类型预设 `AgentType`：`rag-qa` / `wiki-qa` / `hybrid-rag-wiki` / `data-analysis` / `custom`（定义见 `config/agent_type_presets.yaml`） |
-| 内置 Agent | 开箱可用：`builtin-quick-answer`（快速问答）、`builtin-smart-reasoning`（智能推理）、`builtin-data-analyst`（数据分析）、`builtin-wiki-researcher`（Wiki 研究员）、`builtin-wiki-fixer`（Wiki 修复员）等 |
+| Agent（自定义智能体） CustomAgent | 两种模式：`quick-answer`（经典 RAG 管线）与 `smart-reasoning`（ReAct 多步推理 + 工具调用）。smart-reasoning 下有类型预设 `AgentType`：`rag-qa` / `wiki-qa` / `hybrid-rag-wiki` / `custom`（定义见 `config/agent_type_presets.yaml`） |
+| 内置 Agent | 开箱可用：`builtin-quick-answer`（快速问答）、`builtin-smart-reasoning`（智能推理）、`builtin-wiki-researcher`（Wiki 研究员）、`builtin-wiki-fixer`（Wiki 修复员）等 |
 | MCP 服务 MCPService | Model Context Protocol 工具接入：`sse` / `http-streamable` / `stdio` 三种传输；认证支持 API Key / Bearer / OAuth2；Agent 可按 `all` / `selected` / `none` 选用其工具 |
 
 ### 概念关系图
@@ -109,10 +109,10 @@ flowchart TB
 - **文档理解**：版式分析、扫描件 OCR、表格抽取、图片多模态描述（VLM）、音频转写（ASR）、按文件类型选择解析引擎（`ParserEngineRules`，可接 MinerU / OpenDataLoader）。
 - **索引管道**：可配置分块（含父子分块与自适应策略）、向量索引、关键词全文索引、FAQ 索引、Wiki 生成、知识图谱抽取、预生成问题（question generation）。
 - **检索**：向量 + BM25 混合检索、RRF 融合、Rerank 重排、查询改写与扩展、意图识别（greeting/chitchat/web_search 等，见 `config/prompt_templates/intent_prompts.yaml`）。
-- **问答与 Agent**：流式 SSE 问答、多轮上下文压缩、引用溯源；ReAct Agent（工具：`knowledge_search`、`grep_chunks`、`wiki_search`、`data_analysis` 等）、MCP 外部工具、Agent Skills（Docker 沙箱执行脚本）、Web 搜索。
+- **问答与 Agent**：流式 SSE 问答、多轮上下文压缩、引用溯源；ReAct Agent（工具：`knowledge_search`、`grep_chunks`、`wiki_search` 等）、MCP 外部工具、Agent Skills（Docker 沙箱执行脚本）、Web 搜索。
 - **多租户与安全**：RBAC 角色鉴权（默认开启，`YUHENG_TENANT_ENABLE_RBAC`）、审计日志（默认保留 90 天）、邀请制注册（`auth.registration_mode=invite_only`，也可用旧变量 `DISABLE_REGISTRATION=true`）、OIDC 单点登录、SSRF 防护、敏感字段 AES-256 加密。
 - **可观测性**：Langfuse 全链路追踪（LLM/Embedding/Rerank/VLM/ASR 调用与 token 统计）、健康检查、Swagger API 文档（`GIN_MODE=debug` 时）。
-- **生态**：REST API（`/api/v1`）+ API Key、独立 MCP Server（把 Yuheng 作为工具暴露给其他 Agent）、CLI（`cli/`）、微信小程序（`miniprogram/`）、浏览器插件渠道。
+- **生态**：REST API（`/api/v1`）+ API Key、独立 MCP Server（把 Yuheng 作为工具暴露给其他 Agent）、CLI（`cli/`）、浏览器插件渠道。
 
 ## 系统组件一览
 

@@ -15,10 +15,9 @@ type InitEvent struct {
 	SessionID string `json:"session_id"`
 	// MessageID anchors a resumed stream (`session resume`) to the
 	// specific assistant message whose event buffer is being replayed. Empty
-	// for fresh streams (chat / session ask) where the message id is only
-	// known after the SDK emits its first agent_query frame.
+	// for fresh streams (chat) where the message id is only known after the
+	// SDK emits its first agent_query frame.
 	MessageID string `json:"message_id,omitempty"`
-	AgentID   string `json:"agent_id,omitempty"`
 	KBID      string `json:"kb_id,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
 	Model     string `json:"model,omitempty"`

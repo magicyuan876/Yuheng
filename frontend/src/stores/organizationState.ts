@@ -9,7 +9,7 @@ export function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
  * Merge a (possibly partial) organization payload onto the existing card.
  *
  * Detail endpoints (e.g. GET /organizations/:id) may omit list-only aggregate
- * fields such as share_count / agent_share_count / pending_join_request_count.
+ * fields such as share_count / pending_join_request_count.
  * A plain replace would blank those badges until the background refresh lands,
  * so when a card already exists we shallow-merge instead of overwriting it.
  */
@@ -34,23 +34,21 @@ export function reviewMemberCountDelta(
 
 interface OrganizationResourceCounts {
   knowledge_bases: { by_organization: Record<string, number> }
-  agents: { by_organization: Record<string, number> }
 }
 
 interface CountedOrganization {
   id: string
   share_count?: number
-  agent_share_count?: number
 }
 
 export function applyOrganizationResourceDelta<T extends CountedOrganization>(
   organizations: T[],
   resourceCounts: OrganizationResourceCounts | null,
   organizationId: string,
-  resource: 'knowledge_bases' | 'agents',
+  resource: 'knowledge_bases',
   delta: number
 ): { organizations: T[]; resourceCounts: OrganizationResourceCounts | null } {
-  const field = resource === 'knowledge_bases' ? 'share_count' : 'agent_share_count'
+  const field = 'share_count'
   const organizationsAfterUpdate = organizations.map(organization => {
     if (organization.id !== organizationId) return organization
     return {

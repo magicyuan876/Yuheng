@@ -184,7 +184,7 @@ curl -X DELETE $BASE/api/v1/system/admin/settings/default_storage_quota -H "Auth
 
 ### GET /api/v1/system/admin/runtime/queues
 
-用途：asynq 队列深度与并发状态（Lite 模式返回 `available:false`；平台 key 需 `system_runtime_read|manage`）。
+用途：asynq 队列深度与并发状态（无 Redis 时返回 `available:false`；平台 key 需 `system_runtime_read|manage`）。
 
 响应：200 `{"available",upstream_concurrency,parse_concurrency,wiki_concurrency,pools,queues,model_limiter_available,models,timestamp}`
 

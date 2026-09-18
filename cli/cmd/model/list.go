@@ -83,7 +83,7 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 	cmd.Flags().IntVarP(&opts.Limit, "limit", "L", 30, "Maximum results to return — client-side cap; meta.has_more/total_count report the full size (1..10000)")
 	cmdutil.AddFormatFlag(cmd, modelListFields...)
 	cmdutil.SetAgentHelp(cmd, cmdutil.AgentHelp{
-		UsedFor: "discover model ids for `agent create --model` and a KB's embedding/summary model",
+		UsedFor: "discover model ids for binding a KB's embedding/summary/chat models",
 		Examples: []string{
 			"yuheng model list",
 			"yuheng model list --type KnowledgeQA --format json",

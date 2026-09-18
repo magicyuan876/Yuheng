@@ -161,8 +161,8 @@ func SessionTenantIDFromContext(ctx context.Context) (uint64, bool) {
 }
 
 // WithSessionID returns a derived context carrying the current session ID.
-// Stateful sandbox backends (e.g. CubeSandbox) rely on this key to route
-// script execution to the per-session persistent MicroVM instance.
+// The chat pipeline attaches it so downstream model-call usage attribution
+// can record token consumption against the session that triggered it.
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
 	if sessionID == "" {
 		return ctx
@@ -178,49 +178,6 @@ func SessionIDFromContext(ctx context.Context) (string, bool) {
 	}
 	v, ok := ctx.Value(SessionIDContextKey).(string)
 	return v, ok && v != ""
-}
-
-// WithSandboxTenantID records the session-owner tenant that session→sandbox
-// bindings must be keyed by, independently of the tenant the rest of the
-// pipeline runs as. Callers set it wherever they swap TenantIDContextKey for a
-// shared agent's workspace.
-func WithSandboxTenantID(ctx context.Context, tenantID uint64) context.Context {
-	if tenantID == 0 {
-		return ctx
-	}
-	return context.WithValue(ctx, SandboxTenantIDContextKey, tenantID)
-}
-
-// SandboxTenantIDFromContext returns the tenant to key session→sandbox
-// bindings by. It falls back to TenantIDFromContext, which is correct for every
-// path that never borrows another workspace's tenant: there the request tenant
-// already IS the session owner.
-func SandboxTenantIDFromContext(ctx context.Context) (uint64, bool) {
-	if ctx == nil {
-		return 0, false
-	}
-	if v, ok := ctx.Value(SandboxTenantIDContextKey).(uint64); ok && v != 0 {
-		return v, true
-	}
-	return TenantIDFromContext(ctx)
-}
-
-// WithMCPOAuthNonInteractive marks ctx as originating from a channel that cannot
-// complete an in-conversation MCP OAuth prompt (e.g. an IM bot). The agent uses
-// this to emit a one-shot authorization notice instead of blocking on the OAuth
-// wait until it times out. See MCPOAuthNonInteractiveContextKey.
-func WithMCPOAuthNonInteractive(ctx context.Context) context.Context {
-	return context.WithValue(ctx, MCPOAuthNonInteractiveContextKey, true)
-}
-
-// IsMCPOAuthNonInteractive reports whether ctx was marked non-interactive for
-// MCP OAuth (see WithMCPOAuthNonInteractive).
-func IsMCPOAuthNonInteractive(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-	v, _ := ctx.Value(MCPOAuthNonInteractiveContextKey).(bool)
-	return v
 }
 
 // WithBackgroundTask marks ctx as originating from an asynq background worker
@@ -248,7 +205,8 @@ type taskRetryMetadata struct {
 }
 
 // WithTaskRetryMetadata records retry counters for task executors that do not
-// provide Asynq's native worker context, notably the Lite synchronous executor.
+// provide Asynq's native worker context, notably the synchronous
+// no-Redis task executor.
 func WithTaskRetryMetadata(ctx context.Context, retried, maxRetry int) context.Context {
 	return context.WithValue(ctx, taskRetryMetadataContextKey{}, taskRetryMetadata{
 		retried: retried, maxRetry: maxRetry,

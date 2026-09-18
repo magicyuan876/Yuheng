@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
@@ -26,7 +25,6 @@ var ErrModelNotFound = errors.New("model not found")
 type modelService struct {
 	repo          interfaces.ModelRepository
 	kbRepo        interfaces.KnowledgeBaseRepository
-	agentRepo     interfaces.CustomAgentRepository
 	ollamaService *ollama.OllamaService
 	pooler        embedding.EmbedderPooler
 	tenantService interfaces.TenantService
@@ -35,7 +33,6 @@ type modelService struct {
 // NewModelService creates a new model service instance
 func NewModelService(repo interfaces.ModelRepository,
 	kbRepo interfaces.KnowledgeBaseRepository,
-	agentRepo interfaces.CustomAgentRepository,
 	ollamaService *ollama.OllamaService,
 	pooler embedding.EmbedderPooler,
 	tenantService interfaces.TenantService,
@@ -43,7 +40,6 @@ func NewModelService(repo interfaces.ModelRepository,
 	return &modelService{
 		repo:          repo,
 		kbRepo:        kbRepo,
-		agentRepo:     agentRepo,
 		ollamaService: ollamaService,
 		pooler:        pooler,
 		tenantService: tenantService,
@@ -399,14 +395,9 @@ func (s *modelService) assertBuiltinModelUnreferenced(ctx context.Context, id st
 		logger.ErrorWithFields(ctx, err, map[string]interface{}{"model_id": id})
 		return err
 	}
-	agentCount, err := s.agentRepo.CountByModelIDAllTenants(ctx, id)
-	if err != nil {
-		logger.ErrorWithFields(ctx, err, map[string]interface{}{"model_id": id})
-		return err
-	}
-	if kbCount > 0 || agentCount > 0 {
-		logger.Warnf(ctx, "Builtin model %s still referenced: kb=%d agent=%d", id, kbCount, agentCount)
-		return apperrors.NewBadRequestError(formatModelInUseMessage(kbCount, agentCount, false))
+	if kbCount > 0 {
+		logger.Warnf(ctx, "Builtin model %s still referenced by %d knowledge base(s)", id, kbCount)
+		return apperrors.NewBadRequestError(formatModelInUseMessage(kbCount, false))
 	}
 	return nil
 }
@@ -470,37 +461,9 @@ func (s *modelService) DeleteModel(ctx context.Context, id string) error {
 		})
 		return err
 	}
-	agentCount, err := s.agentRepo.CountByModelID(ctx, tenantID, id)
-	if err != nil {
-		logger.ErrorWithFields(ctx, err, map[string]interface{}{
-			"model_id": id,
-		})
-		return err
-	}
-	if kbCount > 0 || agentCount > 0 {
-		logger.Warnf(ctx, "Model %s is in use: kb=%d agent=%d", id, kbCount, agentCount)
-		return apperrors.NewBadRequestError(formatModelInUseMessage(kbCount, agentCount, false))
-	}
-
-	if s.tenantService != nil {
-		tenant, err := s.tenantService.GetTenantByID(ctx, tenantID)
-		if err != nil {
-			logger.ErrorWithFields(ctx, err, map[string]interface{}{
-				"model_id":  id,
-				"tenant_id": tenantID,
-			})
-			return err
-		}
-		// Both models memory pins have to be checked. Deleting the extraction
-		// model leaves the workspace pointing at a model that no longer exists,
-		// and distillation only warns when it cannot resolve one, so auto
-		// extraction would stop with nothing surfaced to the admin who did it.
-		if tenant != nil && tenant.MemoryConfig != nil &&
-			(strings.TrimSpace(tenant.MemoryConfig.EmbeddingModelID) == id ||
-				strings.TrimSpace(tenant.MemoryConfig.ExtractModelID) == id) {
-			logger.Warnf(ctx, "Model %s is used by long-term memory", id)
-			return apperrors.NewBadRequestError(formatModelInUseMessage(0, 0, true))
-		}
+	if kbCount > 0 {
+		logger.Warnf(ctx, "Model %s is in use by %d knowledge base(s)", id, kbCount)
+		return apperrors.NewBadRequestError(formatModelInUseMessage(kbCount, false))
 	}
 
 	// Delete model from repository
@@ -740,20 +703,9 @@ func (s *modelService) GetASRModel(ctx context.Context, modelId string) (asr.ASR
 	return sttModel, nil
 }
 
-func formatModelInUseMessage(kbCount, agentCount int64, memory bool) string {
-	var parts []string
-	if kbCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d knowledge base(s)", kbCount))
-	}
-	if agentCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d agent(s)", agentCount))
-	}
-	if memory {
-		parts = append(parts, "long-term memory")
-	}
-	joined := strings.Join(parts, " and ")
+func formatModelInUseMessage(kbCount int64, _ ...bool) string {
 	return fmt.Sprintf(
-		"model is used by %s; reconfigure or remove those references before deleting",
-		joined,
+		"model is used by %d knowledge base(s); reconfigure or remove those references before deleting",
+		kbCount,
 	)
 }

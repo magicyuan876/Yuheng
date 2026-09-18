@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/magicyuan876/yuheng/internal/application/service"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/infrastructure/docparser"
@@ -23,20 +22,13 @@ type Handler struct {
 	streamManager        interfaces.StreamManager        // Manager for handling streaming responses
 	config               *config.Config                  // Application configuration
 	knowledgebaseService interfaces.KnowledgeBaseService // Service for managing knowledge bases
-	customAgentService   interfaces.CustomAgentService   // Service for managing custom agents
-	tenantService        interfaces.TenantService        // Service for loading tenant (shared agent context)
-	agentShareService    interfaces.AgentShareService    // Service for resolving shared agents (KB scope in retrieval)
+	tenantService        interfaces.TenantService        // Service for loading tenant
 	kbShareService       interfaces.KBShareService       // Service for resolving shared KB permissions
 	fileService          interfaces.FileService          // Service for file storage (image uploads)
 	storageResolver      interfaces.StorageBackendResolver
 	modelService         interfaces.ModelService // Service for model management (VLM access)
 	attachmentProcessor  *AttachmentProcessor    // Processor for file attachments
 	temporaryDocuments   interfaces.TemporaryDocumentService
-	// artifactCollector drains skill-generated files from the session sandbox
-	// after an agent turn completes. May be nil when the sandbox backend does
-	// not support artifact collection; handlers must check before using.
-	artifactCollector *service.ArtifactCollector
-	memoryService     interfaces.MemoryService // Service for cross-session long-term memory
 }
 
 // NewHandler creates a new instance of Handler with all necessary dependencies
@@ -47,9 +39,7 @@ func NewHandler(
 	streamManager interfaces.StreamManager,
 	config *config.Config,
 	knowledgebaseService interfaces.KnowledgeBaseService,
-	customAgentService interfaces.CustomAgentService,
 	tenantService interfaces.TenantService,
-	agentShareService interfaces.AgentShareService,
 	kbShareService interfaces.KBShareService,
 	fileService interfaces.FileService,
 	storageResolver interfaces.StorageBackendResolver,
@@ -57,8 +47,6 @@ func NewHandler(
 	documentReader interfaces.DocumentReader,
 	imageResolver *docparser.ImageResolver,
 	temporaryDocuments interfaces.TemporaryDocumentService,
-	artifactCollector *service.ArtifactCollector,
-	memoryService interfaces.MemoryService,
 ) *Handler {
 	return &Handler{
 		sessionService:       sessionService,
@@ -67,16 +55,12 @@ func NewHandler(
 		streamManager:        streamManager,
 		config:               config,
 		knowledgebaseService: knowledgebaseService,
-		customAgentService:   customAgentService,
 		tenantService:        tenantService,
-		agentShareService:    agentShareService,
 		kbShareService:       kbShareService,
 		fileService:          fileService,
 		storageResolver:      storageResolver,
 		modelService:         modelService,
 		temporaryDocuments:   temporaryDocuments,
-		artifactCollector:    artifactCollector,
-		memoryService:        memoryService,
 		attachmentProcessor: NewAttachmentProcessor(
 			fileService,
 			documentReader,
@@ -129,7 +113,7 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	createdSession := &types.Session{
 		TenantID:    tenantID.(uint64),
 		Title:       request.Title,
-		Description: types.SanitizeClientSessionDescription(request.Description, ""),
+		Description: request.Description,
 	}
 	// Attach the calling user as the session owner when available.
 	// API-key callers scope sessions per external user when configured;
@@ -204,7 +188,7 @@ func (h *Handler) GetSession(c *gin.Context) {
 
 // GetSessionsByTenant godoc
 // @Summary      获取会话列表
-// @Description  获取当前空间的会话列表，支持分页、关键字搜索、按来源/Agent 筛选
+// @Description  获取当前空间的会话列表，支持分页、关键字搜索、按来源筛选
 // @Tags         会话
 // @Accept       json
 // @Produce      json
@@ -212,7 +196,6 @@ func (h *Handler) GetSession(c *gin.Context) {
 // @Param        page_size  query     int     false  "每页数量"
 // @Param        keyword    query     string  false  "标题模糊搜索"
 // @Param        source     query     string  false  "来源过滤：web / embed / api / feishu / wechat / slack / ...（api、embed、IM 渠道需 Admin+）"
-// @Param        agent_id   query     string  false  "按 Agent 过滤（仅对 IM 会话生效）"
 // @Success      200        {object}  map[string]interface{}  "会话列表"
 // @Failure      400        {object}  errors.AppError         "请求参数错误"
 // @Security     Bearer
@@ -235,7 +218,6 @@ func (h *Handler) GetSessionsByTenant(c *gin.Context) {
 	result, err := h.sessionService.ListSessions(ctx, &types.SessionListQuery{
 		Keyword:  c.Query("keyword"),
 		Source:   c.Query("source"),
-		AgentID:  c.Query("agent_id"),
 		Page:     pagination.Page,
 		PageSize: pagination.PageSize,
 	})

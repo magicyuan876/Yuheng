@@ -22,7 +22,7 @@ func TestSetModelSharing_RequiresSystemAdmin(t *testing.T) {
 			updated = true
 			return nil
 		},
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	_, err := svc.SetModelSharing(builtinModelContext(false), stored.ID, true)
 	require.Error(t, err)
@@ -50,7 +50,7 @@ func TestSetModelSharing_PromoteClearsYAMLOwnership(t *testing.T) {
 			saved = &copied
 			return nil
 		},
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	got, err := svc.SetModelSharing(builtinModelContext(true), stored.ID, true)
 	require.NoError(t, err)
@@ -67,12 +67,10 @@ func TestSetModelSharing_PromoteClearsYAMLOwnership(t *testing.T) {
 // model the caller's own workspace does not use.
 func TestSetModelSharing_WithdrawRefusedWhileReferenced(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		kbCount  int64
-		agtCount int64
+		name    string
+		kbCount int64
 	}{
-		{"knowledge base in another workspace", 1, 0},
-		{"agent in another workspace", 0, 1},
+		{"knowledge base in another workspace", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			stored := &types.Model{ID: "builtin-embed", TenantID: 10000, IsBuiltin: true}
@@ -86,7 +84,6 @@ func TestSetModelSharing_WithdrawRefusedWhileReferenced(t *testing.T) {
 					},
 				},
 				&stubKBRepoForModelDelete{count: tc.kbCount},
-				&stubAgentRepoForModelDelete{count: tc.agtCount},
 				nil, nil, nil,
 			)
 
@@ -114,7 +111,6 @@ func TestSetModelSharing_WithdrawAllowedWhenUnreferenced(t *testing.T) {
 			},
 		},
 		&stubKBRepoForModelDelete{count: 0},
-		&stubAgentRepoForModelDelete{count: 0},
 		nil, nil, nil,
 	)
 
@@ -138,7 +134,7 @@ func TestSetModelSharing_Idempotent(t *testing.T) {
 			updated = true
 			return nil
 		},
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	got, err := svc.SetModelSharing(builtinModelContext(true), stored.ID, true)
 	require.NoError(t, err)
@@ -147,7 +143,7 @@ func TestSetModelSharing_Idempotent(t *testing.T) {
 }
 
 func TestSetModelSharing_UnknownModel(t *testing.T) {
-	svc := NewModelService(&stubModelRepoForDelete{}, nil, nil, nil, nil, nil)
+	svc := NewModelService(&stubModelRepoForDelete{}, nil, nil, nil, nil)
 
 	_, err := svc.SetModelSharing(builtinModelContext(true), "missing", true)
 	assert.ErrorIs(t, err, ErrModelNotFound)
@@ -167,7 +163,7 @@ func TestUpdateModel_CannotWithdrawSharing(t *testing.T) {
 			saved = &copied
 			return nil
 		},
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	// IsBuiltin left at its zero value, as a partial update would leave it.
 	err := svc.UpdateModel(builtinModelContext(true), &types.Model{ID: stored.ID, Name: "edited"})

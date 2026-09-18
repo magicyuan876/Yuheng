@@ -5,12 +5,12 @@
 // `yuheng mcp serve` exposes a curated subset of the CLI as MCP tools so
 // an IDE-side agent can list / view / search / chat against the user's
 // active Yuheng profile without shelling out to the CLI per call. Most
-// tools are read-only; chat and session_ask create conversation/message
+// tools are read-only; chat creates conversation/message
 // records.
 //
 // Package name is `mcpcmd` to avoid shadowing `cli/internal/mcp` (the
 // transport-and-handlers implementation). Same naming hygiene as
-// `agentcmd` / `sessioncmd`.
+// `sessioncmd`.
 package mcpcmd
 
 import (
@@ -27,12 +27,11 @@ func NewCmd(f *cmdutil.Factory) *cobra.Command {
 		Long: `Exposes yuheng's tool surface as MCP tools so any
 MCP-compatible client can call them over JSON-RPC.
 
-Curated 10-tool surface: kb_list / kb_view / doc_list / doc_view /
-doc_download / search_chunks / chunk_list / agent_list are read-only;
-chat and session_ask create conversation/message records. Destructive
-verbs (create / delete / upload) are deliberately excluded - the agent
-should ask the user before mutating; the CLI's exit-10 protocol covers
-that path.`,
+Curated 8-tool surface: kb_list / kb_view / doc_list / doc_view /
+doc_download / search_chunks / chunk_list are read-only; chat creates
+conversation/message records. Destructive verbs (create / delete /
+upload) are deliberately excluded - the agent should ask the user before
+mutating; the CLI's exit-10 protocol covers that path.`,
 		Args: cobra.NoArgs,
 		Run:  func(c *cobra.Command, _ []string) { _ = c.Help() },
 	}

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,15 +10,9 @@ import (
 // frontend/src/config/deploymentCapabilities.ts — keep both in sync.
 var DeploymentCapabilityKeys = []string{
 	"organizations",
-	"agents",
-	"integrations.im",
-	"integrations.embed",
-	"integrations.api",
-	"settings.mcp",
 	"settings.websearch",
 	"settings.vectorstore",
 	"settings.storage",
-	"settings.sandbox",
 	"docs",
 }
 
@@ -31,28 +24,21 @@ type DeploymentCapability struct {
 
 // DeploymentCapabilitiesData is returned by GET /system/capabilities.
 type DeploymentCapabilitiesData struct {
-	Edition      string                          `json:"edition"`
 	Capabilities map[string]DeploymentCapability `json:"capabilities"`
 	// DocsCollabURL is the browser-facing WebSocket address of the docs
 	// collaboration service (e.g. "ws://collab:1234"); empty when the docs
-	// module is disabled or no collaboration service is configured (the
-	// editor then has no realtime provider to connect — a later work
-	// package adds the exclusive-edit fallback for that case).
+	// module is disabled or no collaboration service is configured. The
+	// editor then has no realtime provider and falls back to exclusive
+	// editing under a lease (see internal/docs/service/lease.go).
 	DocsCollabURL string `json:"docs_collab_url,omitempty"`
 }
 
 // DeploymentFeatureAvailability mirrors injected backend handlers/services.
 type DeploymentFeatureAvailability struct {
 	Organizations bool
-	Agents        bool
-	IM            bool
-	Embed         bool
-	API           bool
-	MCP           bool
 	WebSearch     bool
 	VectorStore   bool
 	Storage       bool
-	Sandbox       bool
 	Docs          bool
 	// DocsCollabURL is passed through verbatim into DeploymentCapabilitiesData.
 	DocsCollabURL string
@@ -67,28 +53,14 @@ func supportedDeploymentCapability(supported bool) DeploymentCapability {
 
 // BuildDeploymentCapabilities derives the deployment capability snapshot.
 func BuildDeploymentCapabilities(
-	edition string,
 	available DeploymentFeatureAvailability,
 ) DeploymentCapabilitiesData {
-	isLite := strings.EqualFold(strings.TrimSpace(edition), "lite")
-	organizations := supportedDeploymentCapability(available.Organizations && !isLite)
-	if isLite {
-		organizations.Reason = "not_supported_in_lite"
-	}
-
 	return DeploymentCapabilitiesData{
-		Edition: edition,
 		Capabilities: map[string]DeploymentCapability{
-			"organizations":        organizations,
-			"agents":               supportedDeploymentCapability(available.Agents),
-			"integrations.im":      supportedDeploymentCapability(available.IM),
-			"integrations.embed":   supportedDeploymentCapability(available.Embed),
-			"integrations.api":     supportedDeploymentCapability(available.API),
-			"settings.mcp":         supportedDeploymentCapability(available.MCP),
+			"organizations":        supportedDeploymentCapability(available.Organizations),
 			"settings.websearch":   supportedDeploymentCapability(available.WebSearch),
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),
-			"settings.sandbox":     supportedDeploymentCapability(available.Sandbox),
 			"docs":                 supportedDeploymentCapability(available.Docs),
 		},
 		DocsCollabURL: available.DocsCollabURL,

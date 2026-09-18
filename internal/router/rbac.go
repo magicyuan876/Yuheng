@@ -19,18 +19,17 @@ import (
 //
 // The four role-only guards (Viewer / Contributor / Admin / Owner) ask
 // "what is the caller's role in this tenant?". The two ownership
-// guards (OwnedKBOrAdmin / OwnedAgentOrAdmin and the per-sub-resource
-// variants) ask "is the caller the creator of THIS resource OR at
-// least Admin+?".
+// guards (OwnedKBOrAdmin and the per-sub-resource variants) ask "is the
+// caller the creator of THIS resource OR at least Admin+?".
 //
 // Picking the wrong one is the single most common source of RBAC
-// bugs in this repo (we caught FAQ/Tag, agent share, KB share, and
-// shared-agents/disabled all wired against the wrong axis). Two
+// bugs in this repo (we caught FAQ/Tag and KB share wired against the
+// wrong axis). Two
 // questions decide it:
 //
 // Q1. Does the resource have a creator?
 //
-//	YES — KB, Agent, Knowledge document, Chunk, WikiPage, FAQ entry,
+//	YES — KB, Knowledge document, Chunk, WikiPage, FAQ entry,
 //	      KB tag, anything stamped with creator_id / created_by.
 //	      => Mutating routes use OwnedXxxOrAdmin.
 //	      The creator passes regardless of role; everyone else needs
@@ -38,30 +37,26 @@ import (
 //	      like Owner; Contributor in someone else's KB acts like
 //	      Viewer" hold uniformly.
 //
-//	NO  — Tenant-wide infrastructure: Model, VectorStore, IM channel,
-//	      WebSearchProvider, DataSource, MCPService
-//	      credentials.
+//	NO  — Tenant-wide infrastructure: Model, VectorStore,
+//	      WebSearchProvider, DataSource credentials.
 //	      => Mutating routes use Admin().
 //	      There is no "creator-of-the-vector-store" concept; configuring
 //	      it affects everyone, so only Admin+ may touch it.
 //
 //	ENTRY POINT — Routes that CREATE a new owned resource (POST
-//	      /knowledge-bases, POST /agents).
+//	      /knowledge-bases).
 //	      => Use Contributor() (or whatever the floor is).
 //	      No resource exists yet, so we can only gate on role. Once
 //	      created, future mutations on /:id flip to OwnedXxxOrAdmin.
 //
 // Q2. Is the side effect "private to me" or "visible to others"?
 //
-//	PRIVATE — Action only affects the caller's own state (e.g.
-//	      POST /agents/:id/copy creates a copy that belongs to the
-//	      caller; the source agent is untouched).
+//	PRIVATE — Action only affects the caller's own state.
 //	      => Contributor() is fine.
 //
 //	PUBLIC — Action exposes a resource beyond its current scope or
 //	      changes state visible to other tenants/users (sharing a KB
-//	      to an org, disabling an agent for the whole tenant,
-//	      transferring ownership).
+//	      to an org, transferring ownership).
 //	      => OwnedXxxOrAdmin (when the action targets a specific
 //	      owned resource) or Admin (when it's tenant-wide).
 //	      Contributor is wrong here even though the role floor passes:
@@ -76,10 +71,10 @@ import (
 //   - As Contributor: I can manage what I created. Other people's
 //     resources behave like read-only, regardless of which UI tab.
 //   - As Viewer: read everything, mutate nothing.
-//   - Creating new resources (KB, agent, chat session) requires being
-//     at least Contributor.
-//   - Configuring tenant infrastructure (models, vector stores, IM,
-//     etc.) requires Admin+.
+//   - Creating new resources (KB, chat session) requires being at
+//     least Contributor.
+//   - Configuring tenant infrastructure (models, vector stores, etc.)
+//     requires Admin+.
 //
 // If a route makes a Contributor surprised that they CAN'T do
 // something they own, the gate is too tight (probably Admin where it
@@ -117,8 +112,7 @@ type rbacGuards struct {
 	// Lookup closures resolve a request's :id into the resource's creator
 	// user ID. Captured up front so the handler-level methods don't have
 	// to be exported into every Register* function as well.
-	kbCreator    middleware.CreatorLookup
-	agentCreator middleware.CreatorLookup
+	kbCreator middleware.CreatorLookup
 	// kbCreatorFromKbIDParam reads :kbId (not :id) for the
 	// /initialization/* routes whose KB is addressed by :kbId.
 	kbCreatorFromKbIDParam middleware.CreatorLookup
@@ -132,15 +126,13 @@ type rbacGuards struct {
 	chunkKBCreatorFromID middleware.CreatorLookup // chunk routes that address chunks by :id (no knowledge id in URL)
 	wikiKBCreator        middleware.CreatorLookup
 
-	// Services for the KB-access guard (own / org-shared / via shared
-	// agent). Captured here so route lines can reference g.KBAccess()
-	// without having to plumb the services through every Register*
-	// function.
-	kbService         middleware.KBLookup
-	knowledgeService  middleware.KnowledgeLookup
-	chunkService      middleware.ChunkLookup
-	kbShareService    interfaces.KBShareService
-	agentShareService interfaces.AgentShareService
+	// Services for the KB-access guard (own / org-shared). Captured here
+	// so route lines can reference g.KBAccess() without having to plumb
+	// the services through every Register* function.
+	kbService        middleware.KBLookup
+	knowledgeService middleware.KnowledgeLookup
+	chunkService     middleware.ChunkLookup
+	kbShareService   interfaces.KBShareService
 
 	// apiKeyAuthorizer is the single source of truth for which routes an
 	// X-API-Key principal may call. Routes opt in via the apiKeyGroup
@@ -161,7 +153,6 @@ type rbacGuards struct {
 func newRBACGuards(
 	cfg *config.Config,
 	kbHandler *handler.KnowledgeBaseHandler,
-	agentHandler *handler.CustomAgentHandler,
 	knowledgeHandler *handler.KnowledgeHandler,
 	chunkHandler *handler.ChunkHandler,
 	wikiHandler *handler.WikiPageHandler,
@@ -169,7 +160,6 @@ func newRBACGuards(
 	knowledgeService interfaces.KnowledgeService,
 	chunkService interfaces.ChunkService,
 	kbShareService interfaces.KBShareService,
-	agentShareService interfaces.AgentShareService,
 	systemSettingService interfaces.SystemSettingService,
 ) *rbacGuards {
 	g := &rbacGuards{cfg: cfg, apiKeyAuthorizer: middleware.NewAPIKeyRouteAuthorizer()}
@@ -183,9 +173,6 @@ func newRBACGuards(
 	if kbHandler != nil {
 		g.kbCreator = kbHandler.KBCreatorLookup
 		g.kbCreatorFromKbIDParam = kbHandler.KBCreatorLookupFromKbIDParam
-	}
-	if agentHandler != nil {
-		g.agentCreator = agentHandler.AgentCreatorLookup
 	}
 	if knowledgeHandler != nil {
 		g.knowledgeKBCreator = knowledgeHandler.KBCreatorLookupFromKnowledgeID
@@ -201,7 +188,6 @@ func newRBACGuards(
 	g.knowledgeService = knowledgeService
 	g.chunkService = chunkService
 	g.kbShareService = kbShareService
-	g.agentShareService = agentShareService
 	return g
 }
 
@@ -224,15 +210,15 @@ func (g *rbacGuards) AdminOrSystemAdmin() gin.HandlerFunc {
 	return middleware.RequireRoleOrSystemAdmin(types.TenantRoleAdmin, g.cfg)
 }
 
-// PlatformManaged gates a WRITE to shared infrastructure (models, MCP
-// services, web-search providers, vector stores, storage backends, sandbox
-// configs, parser engines, Ollama). It is Admin+ while
+// PlatformManaged gates a WRITE to shared infrastructure (models,
+// web-search providers, vector stores, storage backends, parser
+// engines, Ollama). It is Admin+ while
 // governance.centralized_infra is off and SystemAdmin-only once it is on.
 //
 // Pair it only with writes. The matching read routes stay on Viewer() so the
-// knowledge-base and agent editors can still list and select platform
-// resources at point of use — that read path is what makes centralised mode
-// usable rather than merely restrictive.
+// knowledge-base editor can still list and select platform resources at
+// point of use — that read path is what makes centralised mode usable rather
+// than merely restrictive.
 func (g *rbacGuards) PlatformManaged() gin.HandlerFunc {
 	return middleware.RequirePlatformManaged(types.TenantRoleAdmin, g.cfg, g.centralizedInfra)
 }
@@ -274,17 +260,10 @@ func apiKeyRetrieve(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePol
 }
 
 // apiKeyChat layers the "chat" capability on top of a base policy: keys that
-// carry the chat capability can use the conversation flow (sessions, agent
-// listing) without full tenant access.
+// carry the chat capability can use the conversation flow (sessions)
+// without full tenant access.
 func apiKeyChat(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
 	return base.WithCapability(types.APIKeyCapabilityChat)
-}
-
-// apiKeyReadAgents layers the "read_agents" capability on top of a base
-// policy so scoped integrations can inspect available agents without chat or
-// authoring permissions.
-func apiKeyReadAgents(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
-	return base.WithCapability(types.APIKeyCapabilityReadAgents)
 }
 
 // apiKeyIngest layers the "ingest" capability on top of a base policy so a
@@ -302,11 +281,6 @@ func apiKeyManageKnowledgeBases(base middleware.APIKeyRoutePolicy) middleware.AP
 	return base.WithCapability(types.APIKeyCapabilityManageKnowledgeBases)
 }
 
-// apiKeyManageAgents layers the "manage_agents" capability on top of a base policy.
-func apiKeyManageAgents(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
-	return base.WithCapability(types.APIKeyCapabilityManageAgents)
-}
-
 // apiKeyMessageHistory layers the "message_history" capability on top of a
 // base policy so an explicitly granted key can search or inspect tenant chat
 // history without being promoted to full Owner.
@@ -318,16 +292,8 @@ func apiKeyManageModels(base middleware.APIKeyRoutePolicy) middleware.APIKeyRout
 	return base.WithCapability(types.APIKeyCapabilityManageModels)
 }
 
-func apiKeyManageMCPServices(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
-	return base.WithCapability(types.APIKeyCapabilityManageMCPServices)
-}
-
 func apiKeyManageDataSources(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
 	return base.WithCapability(types.APIKeyCapabilityManageDataSources)
-}
-
-func apiKeyManageChannels(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
-	return base.WithCapability(types.APIKeyCapabilityManageChannels)
 }
 
 func apiKeyManageVectorStores(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
@@ -487,13 +453,6 @@ func (g *rbacGuards) OwnedKBOrAdminFromKbIDParam() gin.HandlerFunc {
 	return middleware.RequireOwnershipOrRole(types.TenantRoleAdmin, g.kbCreatorFromKbIDParam, g.cfg)
 }
 
-// OwnedAgentOrAdmin: same shape as OwnedKBOrAdmin but for CustomAgent.
-// Built-in agents (IsBuiltin=true) are tenant-owned; their creator
-// lookup returns "" and only Admin+ may mutate them.
-func (g *rbacGuards) OwnedAgentOrAdmin() gin.HandlerFunc {
-	return middleware.RequireOwnershipOrRole(types.TenantRoleAdmin, g.agentCreator, g.cfg)
-}
-
 // OwnedKnowledgeKBOrAdmin: per-knowledge mutations (update / delete /
 // reparse / image edit) — the URL :id is a knowledge id, the lookup
 // walks it back to the owning KB's CreatorID. Same "creator OR Admin+"
@@ -558,11 +517,10 @@ func (g *rbacGuards) PathTenantMatch() gin.HandlerFunc {
 
 // KB-access guards — orthogonal to the role-and-ownership matrix
 // above. They answer "can the caller's tenant operate on THIS KB?"
-// taking into account three paths:
+// taking into account two paths:
 //
 //   1. Own KB                         — full access (Admin)
 //   2. Org-shared KB (Plan 3)         — capped permission
-//   3. Visible via shared agent       — read-only
 //
 // On success the resolved (KB + effective tenant id + permission)
 // tuple is stashed on c.Keys under middleware.KBAccessContextKey AND
@@ -578,17 +536,14 @@ func (g *rbacGuards) PathTenantMatch() gin.HandlerFunc {
 // (middleware/kb_access.go).
 
 // KBAccessRead gates a KB-scoped read route on the caller having at
-// least Viewer-level access. The agent-share fallback only activates
-// at this level — Editor/Admin reads never go through "I just see it
-// because someone shared an agent". The kbID is read from the gin
-// param named in `param` (typically "id" for /knowledge-bases/:id/...).
+// least Viewer-level access. The kbID is read from the gin param named
+// in `param` (typically "id" for /knowledge-bases/:id/...).
 func (g *rbacGuards) KBAccessRead(param string) gin.HandlerFunc {
 	return middleware.RequireKBAccess(
 		middleware.KBIDFromParam(param),
 		types.OrgRoleViewer,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }
@@ -602,7 +557,6 @@ func (g *rbacGuards) KBAccessWrite(param string) gin.HandlerFunc {
 		types.OrgRoleEditor,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }
@@ -617,7 +571,6 @@ func (g *rbacGuards) KBAccessReadFromKnowledgeIDParam(param string) gin.HandlerF
 		types.OrgRoleViewer,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }
@@ -630,7 +583,6 @@ func (g *rbacGuards) KBAccessWriteFromKnowledgeIDParam(param string) gin.Handler
 		types.OrgRoleEditor,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }
@@ -644,7 +596,6 @@ func (g *rbacGuards) KBAccessReadFromChunkIDParam(param string) gin.HandlerFunc 
 		types.OrgRoleViewer,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }
@@ -658,7 +609,6 @@ func (g *rbacGuards) KBAccessWriteFromChunkIDParam(param string) gin.HandlerFunc
 		types.OrgRoleEditor,
 		g.kbService,
 		g.kbShareService,
-		g.agentShareService,
 		g.cfg,
 	)
 }

@@ -26,7 +26,6 @@ type TenantResponse struct {
 	StorageEngineConfig *types.StorageEngineConfig `json:"storage_engine_config,omitempty"`
 	ChatHistoryConfig   *types.ChatHistoryConfig   `json:"chat_history_config,omitempty"`
 	RetrievalConfig     *types.RetrievalConfig     `json:"retrieval_config,omitempty"`
-	MemoryConfig        *types.MemoryConfig        `json:"memory_config,omitempty"`
 	CreatedAt           time.Time                  `json:"created_at"`
 	UpdatedAt           time.Time                  `json:"updated_at"`
 	DeletedAt           gorm.DeletedAt             `json:"deleted_at"`
@@ -56,7 +55,6 @@ func NewTenantResponseWithRole(tenant *types.Tenant, role types.TenantRole) *Ten
 		ContextConfig:     tenant.ContextConfig,
 		ChatHistoryConfig: tenant.ChatHistoryConfig,
 		RetrievalConfig:   tenant.RetrievalConfig,
-		MemoryConfig:      tenant.MemoryConfig,
 		CreatedAt:         tenant.CreatedAt,
 		UpdatedAt:         tenant.UpdatedAt,
 		DeletedAt:         tenant.DeletedAt,

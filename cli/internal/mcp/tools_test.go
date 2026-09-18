@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -38,12 +37,6 @@ type fakeSvc struct {
 	createSessErr  error
 	kbStreamEvents []*sdk.StreamResponse
 	kbStreamErr    error
-	agents         []sdk.Agent
-	agentsErr      error
-	agent          *sdk.Agent
-	agentErr       error
-	agentEvents    []*sdk.AgentStreamResponse
-	agentStreamErr error
 	chunks         []sdk.Chunk
 	chunksTotal    int64
 	chunksErr      error
@@ -60,10 +53,6 @@ type fakeSvc struct {
 		createSessReq *sdk.CreateSessionRequest
 		kbQAReq       *sdk.KnowledgeQARequest
 		kbQASess      string
-		agentListN    int
-		agentViewID   string
-		agentReq      *sdk.AgentQARequest
-		agentSess     string
 		chunkDocID    string
 		chunkPage     int
 		chunkPageSize int
@@ -110,23 +99,6 @@ func (f *fakeSvc) KnowledgeQAStream(_ context.Context, sess string, req *sdk.Kno
 		}
 	}
 	return f.kbStreamErr
-}
-func (f *fakeSvc) ListAgents(_ context.Context) ([]sdk.Agent, error) {
-	f.calls.agentListN++
-	return f.agents, f.agentsErr
-}
-func (f *fakeSvc) GetAgent(_ context.Context, id string) (*sdk.Agent, error) {
-	f.calls.agentViewID = id
-	return f.agent, f.agentErr
-}
-func (f *fakeSvc) AgentQAStreamWithRequest(_ context.Context, sess string, req *sdk.AgentQARequest, cb sdk.AgentEventCallback, opts ...sdk.ResourceURLOptions) error {
-	f.calls.agentSess, f.calls.agentReq = sess, req
-	for _, e := range f.agentEvents {
-		if err := cb(e); err != nil {
-			return err
-		}
-	}
-	return f.agentStreamErr
 }
 func (f *fakeSvc) ListKnowledgeChunks(_ context.Context, docID string, page, pageSize int, _ ...string) ([]sdk.Chunk, int64, error) {
 	f.calls.chunkDocID = docID
@@ -196,7 +168,7 @@ func TestTool_ListsRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	want := []string{"kb_list", "kb_view", "doc_list", "doc_view", "doc_download", "search_chunks", "chat", "agent_list", "session_ask", "chunk_list"}
+	want := []string{"kb_list", "kb_view", "doc_list", "doc_view", "doc_download", "search_chunks", "chat", "chunk_list"}
 	got := map[string]bool{}
 	for _, tool := range res.Tools {
 		got[tool.Name] = true
@@ -211,10 +183,10 @@ func TestTool_ListsRegistered(t *testing.T) {
 	}
 }
 
-// TestTool_SessionAsk_NotAgentInvoke asserts the MCP rename landed: the
-// registered set must contain "session_ask" and must NOT contain the
-// stale "agent_invoke" name (clean break, no deprecation alias).
-func TestTool_SessionAsk_NotAgentInvoke(t *testing.T) {
+// TestTool_NoStaleAgentInvokeName asserts the MCP tool set does not
+// resurrect the removed "agent_invoke" name (the whole agent tool surface
+// went away with the server-side agent endpoints).
+func TestTool_NoStaleAgentInvokeName(t *testing.T) {
 	c, _ := newTestServer(t, &fakeSvc{})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -226,11 +198,10 @@ func TestTool_SessionAsk_NotAgentInvoke(t *testing.T) {
 	for _, tool := range res.Tools {
 		names[tool.Name] = true
 	}
-	if !names["session_ask"] {
-		t.Error("expected tool 'session_ask' to be registered")
-	}
-	if names["agent_invoke"] {
-		t.Error("stale tool 'agent_invoke' must NOT be registered (clean break, no alias)")
+	for _, stale := range []string{"agent_invoke", "agent_list", "session_ask"} {
+		if names[stale] {
+			t.Errorf("stale tool %q must NOT be registered (clean break, no alias)", stale)
+		}
 	}
 }
 
@@ -481,41 +452,6 @@ func TestMCP_ChatVerbosePreservesThinking(t *testing.T) {
 	}
 }
 
-func TestMCP_SessionAskVerboseAndReferenceReturnsBothDetailClasses(t *testing.T) {
-	svc := &fakeSvc{
-		agentEvents: []*sdk.AgentStreamResponse{
-			{ResponseType: sdk.AgentResponseTypeThinking, Content: "agent thinks"},
-			{ResponseType: sdk.AgentResponseTypeToolCall, ID: "tc1", Content: "knowledge_search"},
-			{ResponseType: sdk.AgentResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{
-				ID:            "c1",
-				ParentChunkID: "p1",
-				Content:       "bulky passage",
-			}}},
-			{ResponseType: sdk.AgentResponseTypeAnswer, Content: "agent answer"},
-			{ResponseType: sdk.AgentResponseTypeComplete, Done: true},
-		},
-	}
-	c, _ := newTestServer(t, svc)
-	var out sessionAskOutput
-	callTool(t, c, "session_ask", map[string]any{"agent_id": "ag1", "query": "tool question", "verbose": true, "reference": true}, &out)
-	want := []string{"thinking", "tool_call", "references", "answer", "complete"}
-	if len(out.Events) != len(want) {
-		t.Fatalf("events=%+v", out.Events)
-	}
-	for i, responseType := range want {
-		if out.Events[i].ResponseType != responseType {
-			t.Errorf("events[%d]=%q, want %q", i, out.Events[i].ResponseType, responseType)
-		}
-	}
-	refs := out.Events[2].KnowledgeReferences
-	if len(refs) != 1 || refs[0].ChunkID != "c1" || refs[0].ParentChunkID != "p1" {
-		t.Errorf("reference indexes=%+v", refs)
-	}
-	if out.Query != "tool question" {
-		t.Errorf("query = %q, want %q", out.Query, "tool question")
-	}
-}
-
 func TestTool_Chat_ExistingSessionSkipsCreate(t *testing.T) {
 	svc := &fakeSvc{
 		kbStreamEvents: []*sdk.StreamResponse{{ResponseType: sdk.ResponseTypeComplete}},
@@ -527,52 +463,6 @@ func TestTool_Chat_ExistingSessionSkipsCreate(t *testing.T) {
 	}
 	if svc.calls.kbQASess != "sess_existing" {
 		t.Errorf("session id not forwarded to QA stream: %s", svc.calls.kbQASess)
-	}
-}
-
-func TestTool_AgentList(t *testing.T) {
-	svc := &fakeSvc{agents: []sdk.Agent{{ID: "ag1", Name: "Research"}}}
-	c, _ := newTestServer(t, svc)
-	var out agentListOutput
-	callTool(t, c, "agent_list", map[string]any{}, &out)
-	if len(out.Items) != 1 || out.Items[0].ID != "ag1" {
-		t.Errorf("got %+v", out)
-	}
-}
-
-func TestTool_SessionAsk(t *testing.T) {
-	svc := &fakeSvc{
-		agentEvents: []*sdk.AgentStreamResponse{
-			{ResponseType: sdk.AgentResponseTypeAnswer, Content: "result"},
-			{ResponseType: sdk.AgentResponseTypeToolCall, ID: "c1", Content: "knowledge_search"},
-			{ResponseType: sdk.AgentResponseTypeComplete, Done: true},
-		},
-	}
-	c, _ := newTestServer(t, svc)
-	var out sessionAskOutput
-	callTool(t, c, "session_ask", map[string]any{"agent_id": "ag1", "query": "x"}, &out)
-	if len(out.Events) != 1 || out.Events[0].ResponseType != "answer" || out.Events[0].Content != "result" {
-		t.Errorf("default events=%+v", out.Events)
-	}
-	if out.AgentID != "ag1" {
-		t.Errorf("agent_id = %q", out.AgentID)
-	}
-}
-
-func TestTool_SessionAsk_StreamAbort(t *testing.T) {
-	svc := &fakeSvc{
-		agentEvents:    []*sdk.AgentStreamResponse{{ResponseType: sdk.AgentResponseTypeAnswer, Content: "partial"}},
-		agentStreamErr: errors.New("connection reset"),
-	}
-	c, _ := newTestServer(t, svc)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	res, err := c.CallTool(ctx, &mcpsdk.CallToolParams{Name: "session_ask", Arguments: map[string]any{"agent_id": "ag1", "query": "x"}})
-	if err != nil {
-		t.Fatalf("unexpected transport error: %v", err)
-	}
-	if !res.IsError {
-		t.Fatal("expected IsError=true on mid-stream abort")
 	}
 }
 
@@ -677,7 +567,7 @@ func derefBool(p *bool) bool {
 }
 
 // TestToolAnnotations_AllToolsHaveExpectedHints locks the per-tool hint
-// table. Each of the 10 registered tools must surface the exact
+// table. Each of the 8 registered tools must surface the exact
 // DestructiveHint / ReadOnlyHint / IdempotentHint / OpenWorldHint + Title
 // values shown below. This guards against silent drift during future
 // refactors (e.g. someone marking chat as readOnly, or an invoke tool as
@@ -703,8 +593,6 @@ func TestToolAnnotations_AllToolsHaveExpectedHints(t *testing.T) {
 		"doc_download":  {destructive: false, readOnly: true, idempotent: true, openWorld: false, title: "Download Document"},
 		"search_chunks": {destructive: false, readOnly: true, idempotent: true, openWorld: false, title: "Search Knowledge Chunks"},
 		"chat":          {destructive: false, readOnly: false, idempotent: false, openWorld: true, title: "Chat with KB (Streaming RAG)"},
-		"agent_list":    {destructive: false, readOnly: true, idempotent: true, openWorld: false, title: "List Custom Agents"},
-		"session_ask":   {destructive: false, readOnly: false, idempotent: false, openWorld: true, title: "Ask a Custom Agent (session ask --agent)"},
 		"chunk_list":    {destructive: false, readOnly: true, idempotent: true, openWorld: false, title: "List Knowledge Chunks"},
 	}
 

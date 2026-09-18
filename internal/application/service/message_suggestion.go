@@ -45,23 +45,20 @@ type suggestionConversationTurn struct {
 }
 
 type messageSuggestionService struct {
-	repo               interfaces.MessageSuggestionRepository
-	messageService     interfaces.MessageService
-	modelService       interfaces.ModelService
-	customAgentService interfaces.CustomAgentService
+	repo           interfaces.MessageSuggestionRepository
+	messageService interfaces.MessageService
+	modelService   interfaces.ModelService
 }
 
 func NewMessageSuggestionService(
 	repo interfaces.MessageSuggestionRepository,
 	messageService interfaces.MessageService,
 	modelService interfaces.ModelService,
-	customAgentService interfaces.CustomAgentService,
 ) interfaces.MessageSuggestionService {
 	return &messageSuggestionService{
-		repo:               repo,
-		messageService:     messageService,
-		modelService:       modelService,
-		customAgentService: customAgentService,
+		repo:           repo,
+		messageService: messageService,
+		modelService:   modelService,
 	}
 }
 
@@ -81,9 +78,9 @@ func (s *messageSuggestionService) EnsureFollowUps(
 
 	tenantID := types.MustTenantIDFromContext(ctx)
 	locale := types.ResolveLanguage(ctx, message.ExecutionContext.Locale)
-	configHash := message.ExecutionContext.AgentConfigHash
+	configHash := message.ExecutionContext.ConfigHash
 	if configHash == "" {
-		configHash = "no-agent-config"
+		configHash = "no-config"
 	}
 	config := message.ExecutionContext.QuestionSuggestions
 	if regenerate && (config == nil || !config.FollowUps.Enabled || !config.FollowUps.AllowRegenerate) {
@@ -93,8 +90,6 @@ func (s *messageSuggestionService) EnsureFollowUps(
 		TenantID:           tenantID,
 		SessionID:          sessionID,
 		AssistantMessageID: assistantMessageID,
-		AgentID:            message.AgentID,
-		AgentTenantID:      message.AgentTenantID,
 		Placement:          types.SuggestionPlacementAfterAnswer,
 		ConfigHash:         configHash,
 		Locale:             locale,
@@ -176,9 +171,9 @@ func (s *messageSuggestionService) GetFollowUps(
 	}
 	tenantID := types.MustTenantIDFromContext(ctx)
 	locale := types.ResolveLanguage(ctx, message.ExecutionContext.Locale)
-	configHash := message.ExecutionContext.AgentConfigHash
+	configHash := message.ExecutionContext.ConfigHash
 	if configHash == "" {
-		configHash = "no-agent-config"
+		configHash = "no-config"
 	}
 	return s.repo.GetByCacheKey(
 		ctx,
@@ -321,11 +316,7 @@ func (s *messageSuggestionService) generateWithModel(
 		return nil, types.TokenUsage{}, errors.New("suggestion model is not configured")
 	}
 
-	modelCtx := ctx
-	if message.AgentTenantID != 0 {
-		modelCtx = context.WithValue(modelCtx, types.TenantIDContextKey, message.AgentTenantID)
-	}
-	chatModel, err := s.modelService.GetChatModel(modelCtx, modelID)
+	chatModel, err := s.modelService.GetChatModel(ctx, modelID)
 	if err != nil {
 		return nil, types.TokenUsage{}, err
 	}
@@ -343,7 +334,7 @@ func (s *messageSuggestionService) generateWithModel(
 		"\n\nRecent completed turns (excluding the current turn):\n" + emptySuggestionSection(generationContext.History) +
 		"\n\nEvidence used by the latest answer:\n" + emptySuggestionSection(generationContext.Evidence)
 	thinking := false
-	response, err := chatModel.Chat(modelCtx, []chat.Message{
+	response, err := chatModel.Chat(ctx, []chat.Message{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
 	}, &chat.ChatOptions{
@@ -384,80 +375,11 @@ func (s *messageSuggestionService) generateFromKnowledge(
 	generationContext suggestionGenerationContext,
 	count int,
 ) (types.SuggestionItems, error) {
-	if count <= 0 || message.AgentID == "" {
-		return types.SuggestionItems{}, nil
-	}
-	knowledgeCtx := ctx
-	if message.AgentTenantID != 0 {
-		knowledgeCtx = context.WithValue(knowledgeCtx, types.TenantIDContextKey, message.AgentTenantID)
-	}
-	poolSize := count * 5
-	if poolSize < 10 {
-		poolSize = 10
-	}
-	if poolSize > suggestionKnowledgeCandidateMax {
-		poolSize = suggestionKnowledgeCandidateMax
-	}
-	knowledgeIDs := message.ExecutionContext.KnowledgeIDs
-	preferActualEvidence := len(generationContext.ActualKnowledgeIDs) > 0
-	if scope, ok := types.TenantAPIKeyScopeFromContext(knowledgeCtx); ok && scope.IsKnowledgeBaseRestricted() {
-		// Restricted API keys cannot safely pass document IDs through the generic
-		// suggestion API because that surface cannot verify each ID's KB binding.
-		preferActualEvidence = false
-	}
-	if preferActualEvidence {
-		knowledgeIDs = generationContext.ActualKnowledgeIDs
-	}
-	candidates, err := s.customAgentService.GetKnowledgeSuggestedQuestions(
-		knowledgeCtx,
-		message.AgentID,
-		message.ExecutionContext.KnowledgeBaseIDs,
-		knowledgeIDs,
-		message.ExecutionContext.TagScopes,
-		poolSize,
-	)
-	if err != nil {
-		return nil, err
-	}
-	// Some retrieved documents do not carry pre-generated questions. Fall back
-	// to the request scope in that case, while still relevance-ranking the pool.
-	if len(candidates) == 0 && preferActualEvidence {
-		candidates, err = s.customAgentService.GetKnowledgeSuggestedQuestions(
-			knowledgeCtx,
-			message.AgentID,
-			message.ExecutionContext.KnowledgeBaseIDs,
-			message.ExecutionContext.KnowledgeIDs,
-			message.ExecutionContext.TagScopes,
-			poolSize,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-	rankKnowledgeSuggestions(
-		candidates,
-		generationContext.CurrentQuery+"\n"+answer+"\n"+generationContext.Evidence,
-	)
-	items := make(types.SuggestionItems, 0, len(candidates))
-	for _, candidate := range candidates {
-		text := strings.TrimSpace(candidate.Question)
-		if text == "" {
-			continue
-		}
-		item := types.SuggestionItem{
-			ID:     uuid.NewString(),
-			Text:   text,
-			Source: candidate.Source,
-		}
-		if candidate.KnowledgeBaseID != "" {
-			item.KnowledgeBaseIDs = []string{candidate.KnowledgeBaseID}
-		}
-		items = append(items, item)
-		if len(items) == count {
-			break
-		}
-	}
-	return items, nil
+	// Knowledge-backed candidates were previously sourced through the custom
+	// agent's KB-scope machinery. With agents removed there is no scope
+	// resolver on this path, so no candidates are produced here; model
+	// generated suggestions (generated/hybrid modes) still run.
+	return types.SuggestionItems{}, nil
 }
 
 func (s *messageSuggestionService) buildGenerationContext(

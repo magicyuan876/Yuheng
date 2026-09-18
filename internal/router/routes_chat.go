@@ -37,8 +37,8 @@ func RegisterMessageRoutes(r *gin.RouterGroup, handler *handler.MessageHandler, 
 // Sessions are per-user resources; the handler enforces user ownership.
 // We gate at Viewer+ to keep non-members out once RBAC is on, matching
 // the message routes above. A future refactor can introduce
-// per-session ownership in the middleware layer the same way KB/agent
-// routes do today.
+// per-session ownership in the middleware layer the same way KB routes
+// do today.
 func RegisterSessionRoutes(
 	r *gin.RouterGroup,
 	handler *session.Handler,
@@ -79,39 +79,18 @@ func RegisterSessionRoutes(
 			sessions.POST("/:session_id/messages/:message_id/suggestions", suggestionHandler.Ensure)
 			sessions.POST("/:session_id/suggestion-events", suggestionHandler.RecordEvent)
 		}
-
-		// Skill-generated file artifacts. The list endpoints only expose
-		// metadata; the actual bytes are streamed via /artifacts/:index/download
-		// so the storage URL never appears on the wire.
-		//
-		// NOTE: gin builds a separate radix tree per HTTP verb but every
-		// path in the same tree must share the same wildcard name. The GET
-		// tree already binds :id via /sessions/:id (GetSession); reusing
-		// :id here (instead of :session_id) avoids the
-		// "wildcard conflicts" panic at route registration. The handlers
-		// read the URL param via c.Param("session_id") with a fallback to
-		// c.Param("id") for exactly this reason.
-		sessions.GET("/:id/artifacts", handler.ListSessionArtifacts)
-		sessions.GET("/:id/messages/:message_id/artifacts", handler.ListMessageArtifacts)
-		sessions.GET("/:id/messages/:message_id/artifacts/:index/download", handler.DownloadMessageArtifact)
 	}
 }
 
 // RegisterChatRoutes 注册路由。Chat endpoints are tenant-member usage
-// surfaces; Viewer+ is sufficient because per-session/per-agent
-// authorisation is enforced inside the handlers.
+// surfaces; Viewer+ is sufficient because per-session authorisation is
+// enforced inside the handlers.
 func RegisterChatRoutes(r *gin.RouterGroup, handler *session.Handler, g *rbacGuards) {
 	// These POST routes append messages and run generation, so a scoped key
 	// needs the explicit chat capability unless it has full tenant access.
 	knowledgeChat := g.apiKeyGroup(r.Group("/knowledge-chat", g.Viewer()), apiKeyChat(apiKeyFullAccess()))
 	{
 		knowledgeChat.POST("/:session_id", handler.KnowledgeQA)
-	}
-
-	// Agent-based chat
-	agentChat := g.apiKeyGroup(r.Group("/agent-chat", g.Viewer()), apiKeyChat(apiKeyFullAccess()))
-	{
-		agentChat.POST("/:session_id", handler.AgentQA)
 	}
 
 	// 新增知识检索接口，不需要session_id

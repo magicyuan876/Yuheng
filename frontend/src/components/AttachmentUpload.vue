@@ -31,8 +31,6 @@ const props = defineProps<{
   maxSize?: number; // in MB
   disabled?: boolean;
   sessionId?: string;
-  agentId?: string;
-  agentSourceTenantId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -143,8 +141,6 @@ const uploadAttachment = async (attachment: AttachmentFile) => {
     const response = await uploadTemporaryAttachment(
       props.sessionId,
       attachment.file,
-      props.agentId,
-      props.agentSourceTenantId,
       'auto',
       (progress) => {
         attachment.progress = progress;

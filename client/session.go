@@ -34,8 +34,9 @@ type SummaryConfig struct {
 }
 
 // CreateSessionRequest session creation request
-// Sessions are now knowledge-base-independent and serve as conversation containers.
-// All configuration comes from custom agent at query time.
+// Sessions are knowledge-base-independent conversation containers;
+// per-request configuration (knowledge base selection, etc.) is supplied
+// at query time.
 type CreateSessionRequest struct {
 	Title       string `json:"title"`       // Session title (optional)
 	Description string `json:"description"` // Session description (optional)
@@ -212,8 +213,6 @@ type KnowledgeQARequest struct {
 	Query            string            `json:"query"`              // Query text for knowledge base search
 	KnowledgeBaseIDs []string          `json:"knowledge_base_ids"` // Selected knowledge base IDs for this request
 	KnowledgeIDs     []string          `json:"knowledge_ids"`      // Selected knowledge IDs for this request
-	AgentEnabled     bool              `json:"agent_enabled"`      // Whether agent mode is enabled for this request
-	AgentID          string            `json:"agent_id"`           // Selected custom agent ID for this request
 	WebSearchEnabled bool              `json:"web_search_enabled"` // Whether web search is enabled for this request
 	SummaryModelID   string            `json:"summary_model_id"`   // Optional summary model ID (overrides session default)
 	DisableTitle     bool              `json:"disable_title"`      // Whether to disable auto title generation
@@ -457,6 +456,16 @@ func (c *Client) StopSession(ctx context.Context, sessionID string, messageID st
 	}
 
 	return parseResponse(resp, &response)
+}
+
+// MentionedItem represents a mentioned item in the request
+type MentionedItem struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`    // "kb", "file", "tag", "mcp", or "skill"
+	KBType string `json:"kb_type"` // "document" or "faq" (only for kb type)
+	KBID   string `json:"kb_id"`   // Parent knowledge base for file/tag mentions
+	KBName string `json:"kb_name"` // Display name for parent KB
 }
 
 // SearchKnowledgeRequest knowledge search request

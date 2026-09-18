@@ -5,7 +5,7 @@ Yuheng 的文档解析、索引构建、富化（摘要 / 问题生成 / 图谱�
 | 模块 | 源码路径 |
 | --- | --- |
 | 任务注册与 worker pool 构建 | `internal/router/task.go` |
-| Lite 模式同步执行器（无 Redis） | `internal/router/sync_task.go` |
+| 无 Redis 同步执行器 | `internal/router/sync_task.go` |
 | 任务巡检 / 取消 / 运维面板 | `internal/router/task_inspector.go`、`internal/router/task_inspector_errors.go` |
 | 队列拓扑与任务类型定义 | `internal/types/task.go` |
 | 死信中间件 | `internal/middleware/asynqdl/asynqdl.go` |
@@ -20,12 +20,12 @@ Yuheng 的文档解析、索引构建、富化（摘要 / 问题生成 / 图谱�
 Yuheng 有两种任务执行模式，通过部署形态选择：
 
 - **asynq 模式（标准部署）**：任务经 `asynq.Client` 序列化为 JSON payload 写入 Redis 队列，由多个独立的 `asynq.Server`（worker pool）消费。`internal/router/task.go` 中 `RunAsynqServer()` 构建统一的 `asynq.ServeMux` 并在 6 个 pool 上运行。
-- **Lite 模式（单机 / macOS App，无 Redis）**：`internal/router/sync_task.go` 的 `SyncTaskExecutor` 实现同一个 `interfaces.TaskEnqueuer` 接口，`Enqueue` 直接把任务派发到 goroutine 执行，支持 `ProcessIn`（延迟）与 `MaxRetry` 选项；重试为线性退避（`attempt * 5s`，上限 30s）。
+- **无 Redis（单机部署）**：`internal/router/sync_task.go` 的 `SyncTaskExecutor` 实现同一个 `interfaces.TaskEnqueuer` 接口，`Enqueue` 直接把任务派发到 goroutine 执行，支持 `ProcessIn`（延迟）与 `MaxRetry` 选项；重试为线性退避（`attempt * 5s`，上限 30s）。
 
 ```go
 // internal/router/sync_task.go
 // SyncTaskExecutor executes tasks synchronously (in a goroutine) without Redis.
-// Used in Lite mode as a drop-in replacement for *asynq.Client.
+// Used when Redis is unavailable as a drop-in replacement for *asynq.Client.
 ```
 
 两种模式注册的 handler 集合完全一致（对比 `RunAsynqServer` 与 `RegisterSyncHandlers`），保证任务语义不因部署形态漂移。
@@ -236,7 +236,7 @@ stateDiagram-v2
 
 ## 6. 任务巡检、取消与运维面板（TaskInspector）
 
-`internal/router/task_inspector.go` 实现 `interfaces.TaskInspector`，asynq 模式下由 `asynq.Inspector` + 原生 Redis client 支撑；Lite 模式为 `noopTaskInspector`（goroutine 无法在启动前被摘除，checkpoint 式中止是唯一停止信号）。
+`internal/router/task_inspector.go` 实现 `interfaces.TaskInspector`，asynq 模式下由 `asynq.Inspector` + 原生 Redis client 支撑；无 Redis 时为 `noopTaskInspector`（goroutine 无法在启动前被摘除，checkpoint 式中止是唯一停止信号）。
 
 ### 6.1 按知识 / 知识库取消
 
@@ -276,7 +276,7 @@ stateDiagram-v2
 `task_pending_ops` 表是 Redis list 队列的持久化替代（重启不丢、无 TTL 驱逐），队列身份是 `(task_type, scope, scope_id)` 三元组，目前主要消费者是 Wiki ingest：
 
 - `Enqueue` / `EnqueueIfKnowledgeBaseActive`：后者在事务中用 Postgres `SHARE` 行锁校验 KB 仍存活，防止 KB 软删后仍写入新的持久化工作。
-- `ClaimBatch`：按 `dedup_key`（=文档）**整组**原子认领。核心不变量：同一文档的多个 op（如 ingest 后跟 retract）绝不拆到两个并发批次；有新鲜 claim（`claimed_at >= staleBefore`）的 key 整体跳过，晚到的兄弟 op 等待持有者完成或 claim 过期。Postgres 上用每个 key 的 anchor 行 `FOR UPDATE SKIP LOCKED` 保证并发认领者拿到**不相交**的 key 集；SQLite（Lite/测试）依赖单写者引擎。
+- `ClaimBatch`：按 `dedup_key`（=文档）**整组**原子认领。核心不变量：同一文档的多个 op（如 ingest 后跟 retract）绝不拆到两个并发批次；有新鲜 claim（`claimed_at >= staleBefore`）的 key 整体跳过，晚到的兄弟 op 等待持有者完成或 claim 过期。Postgres 上用每个 key 的 anchor 行 `FOR UPDATE SKIP LOCKED` 保证并发认领者拿到**不相交**的 key 集。
 - `IncrFailCount`（`UPDATE ... RETURNING` 单往返原子自增）配合服务侧上限（wiki 的 `wikiMaxFailRetries`）：超限后该 op 从 `task_pending_ops` 移入 `task_dead_letters`（`internal/application/service/wiki_ingest.go` 直接 `deadLetterRepo.Insert`）。
 - `ReleaseByIDs` / `DeleteByIDs` / `DeleteByScope` / `DeleteByDedupKey` / `PendingCount` 提供释放、消费确认、KB 生命周期清理与积压观测。
 
@@ -288,7 +288,7 @@ stateDiagram-v2
 
 ## 8. 事件总线（`internal/event`）
 
-事件总线用于**进程内**的会话/Agent 流式事件分发（如 SSE 推送、IM 回调），与 asynq（跨进程持久任务）互补。
+事件总线用于**进程内**的会话流式事件分发（如 SSE 推送），与 asynq（跨进程持久任务）互补。
 
 ### 8.1 结构与投递保证
 
@@ -322,10 +322,8 @@ type Event struct {
 | 重排 | `rerank.start`、`rerank.complete` |
 | 合并 | `merge.start`、`merge.complete` |
 | 聊天生成 | `chat.start`、`chat.complete`、`chat.stream` |
-| Agent 生命周期 | `agent.query`、`agent.plan`、`agent.step`、`agent.tool`、`agent.complete` |
-| Agent 流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`reflection`、`references`、`final_answer` |
-| MCP 工具人工审批 | `tool_approval_required`、`tool_approval_resolved` |
-| MCP OAuth 会话内授权 | `mcp_oauth_required`、`mcp_oauth_resolved` |
+| 问答生命周期 | `agent.query`、`agent.complete` |
+| 问答流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`references`、`final_answer` |
 | 错误 / 会话 / 控制 | `error`、`session_title`、`stop` |
 
 每类事件的数据结构定义在 `internal/event/event_data.go`（如 `AgentToolCallData` 携带 `tool_call_id`/`tool_name`/`arguments`/`hint`，`AgentFinalAnswerData` 携带 `content`/`done`/`is_fallback` 等）。
@@ -334,9 +332,8 @@ type Event struct {
 
 | 订阅者 | 源码 | 订阅内容 |
 | --- | --- | --- |
-| SSE Agent 流式 handler | `internal/handler/session/agent_stream_handler.go` | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`、`reflection`、`error`、`session_title`、`agent.complete`、tool approval 与 MCP OAuth 四类 |
+| SSE 流式 handler | `internal/handler/session/stream_handler.go` | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`、`error`、`session_title`、`agent.complete` 等 |
 | 知识问答 handler | `internal/handler/session/qa.go`、`helpers.go` | `thought`、`final_answer`、`stop` |
-| IM 集成（企微等） | `internal/im/service.go` | `final_answer`、`error`、`references`、`agent.complete`、`thought`、`tool_call`、`tool_result`、`mcp_oauth_required` 等，转译为各 IM 平台消息 |
 
 ## 9. `internal/runtime` 包
 
@@ -350,6 +347,6 @@ type Event struct {
 
 1. **运维面板 / Runtime API**（第 6.2 节）：队列深度、最老 pending 延迟（`latency_ms`）、当日 processed/failed、worker 心跳；按状态浏览任务、查看 `last_error`、`retried/max_retry`、执行 `run_now`/`cancel`/`delete`。
 2. **死信表 SQL**：`SELECT * FROM task_dead_letters WHERE scope='knowledge_base' AND scope_id='<kbID>' ORDER BY id DESC;` 或按 `task_type` 聚合失败率；`task_pending_ops` 的 `PendingCount` / `enqueued_at` 可发现从未排空的积压。
-3. **日志**：worker 侧统一走 `internal/logger`，关键前缀有 `[TaskInspector]`（取消/巡检）、`asynq dead-letter`、`[SyncTask]`（Lite 模式）、`[Housekeeping]`；启动时每个 pool 打印 `asynq <pool> server starting with concurrency=...`。
+3. **日志**：worker 侧统一走 `internal/logger`，关键前缀有 `[TaskInspector]`（取消/巡检）、`asynq dead-letter`、`[SyncTask]`（无 Redis）、`[Housekeeping]`；启动时每个 pool 打印 `asynq <pool> server starting with concurrency=...`。
 4. **Langfuse trace**：开启后每个 asynq 任务是一个 `asynq.<task_type>` SPAN（含 queue、retry、payload 大小元数据），与触发它的 HTTP 请求同 trace（见可观测性文档）。
 5. **平台审计**：对 archived 任务的 `run_now`/`delete`/purge 操作写入 `audit_logs`（`system.queue_task_*` 动作），可追责。

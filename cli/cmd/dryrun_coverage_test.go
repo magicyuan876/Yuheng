@@ -27,8 +27,7 @@ var dryRunExpectation = map[string]bool{
 	"doc reparse":  true, // re-triggers server-side parsing (a state change)
 	"doc update":   true, // edits title/description server-side
 	"chunk delete": true, "message delete": true,
-	"session delete": true, "session stop": true, "session tool-approval resolve": true,
-	"agent create": true, "agent update": true, "agent delete": true,
+	"session delete": true, "session stop": true,
 	"profile add": true, "profile use": true, "profile remove": true,
 	"skills install": true, // writes skill files to a local dir (state change)
 	"auth logout":    true, "auth refresh": true,
@@ -44,7 +43,6 @@ var dryRunExpectation = map[string]bool{
 	"chunk list": false, "chunk view": false,
 	"message list": false, "message search": false,
 	"session list": false, "session view": false,
-	"agent list": false, "agent view": false, "agent status": false, "agent check": false,
 	"model list": false, "model view": false,
 	"search chunks": false, "search docs": false, "search kb": false, "search sessions": false,
 	"auth list": false, "auth status": false, "auth token": false,
@@ -55,7 +53,7 @@ var dryRunExpectation = map[string]bool{
 	"doctor":      false, "version": false,
 	// generate / stream ops — the session-creation side effect is incidental,
 	// not a CRUD write; a no-SDK-call preview would be meaningless.
-	"chat": false, "session ask": false, "session resume": false,
+	"chat": false, "session resume": false,
 	// auth login VALIDATES credentials against the server and stores them; its
 	// whole purpose is the server round-trip, which a side-effect-free dry-run
 	// cannot exercise — so previewing it would be misleading. Exempt by design.

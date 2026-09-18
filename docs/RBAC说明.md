@@ -21,7 +21,7 @@ RBAC 在原有 JWT / API Key 认证之上，叠加了一层**空间内角色矩�
 | 角色 | 标识 | 典型场景 | 关键能力 |
 |------|------|----------|----------|
 | 只读 | `viewer` | 只查阅、提问的成员 | 仅读，不可发起任何变更 |
-| 贡献者 | `contributor` | 上传文档、维护自己的 KB / Agent | 可变更 `creator_id == 自己` 的资源；他人资源等同 Viewer |
+| 贡献者 | `contributor` | 上传文档、维护自己的 KB | 可变更 `creator_id == 自己` 的资源；他人资源等同 Viewer |
 | 管理员 | `admin` | 空间内运维 | 可变更空间内任意资源；管理成员；配置共享基础设施（模型、解析器、存储、向量库等） |
 | Owner | `owner` | 空间所有者 | Admin 的全部权限 + 可删除空间；每个空间**至少有一位，可以有多位** |
 
@@ -40,8 +40,7 @@ Owner 的数量约束是“至少一位”，而不是“只能一位”。系�
 光有角色矩阵不够，否则 Contributor 之间可以互相破坏。为此在迁移 `000043` 中给关键表加了 `creator_id`：
 
 - `knowledge_bases.creator_id` —— 老数据回填为该空间的 Owner；空串/NULL 表示「空间共有，仅 Admin+ 可变更」。
-- `custom_agents.creator_id` —— Agent 创建者。
-- `custom_agents.runnable_by_viewer` —— 默认 `true`，允许 Viewer 在对话中调用该 Agent；置 `false` 则提升到 Contributor 起步。
+- （`custom_agents` 表已随 Agent 基础设施移除，见迁移 `000089_drop_agent_infra`。）
 
 子资源沿着归属链回溯到 KB 的 `creator_id`：
 
@@ -53,8 +52,8 @@ FAQ 条目、生成的问题、KB 标签、Wiki 页面同理。
 
 由此衍生出两类守卫：
 
-- **角色守卫**：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` —— 只看角色。用于空间级基础设施（模型、向量库、IM 通道等）。
-- **归属守卫**：`OwnedKBOrAdmin()` / `OwnedAgentOrAdmin()` / `OwnedChunkKBOrAdmin()` …… —— 「我是这条资源的 `creator_id`」**或**「我至少是 Admin」二者满足其一即可。用于具体资源的写操作。
+- **角色守卫**：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` —— 只看角色。用于空间级基础设施（模型、向量库等）。
+- **归属守卫**：`OwnedKBOrAdmin()` / `OwnedChunkKBOrAdmin()` …… —— 「我是这条资源的 `creator_id`」**或**「我至少是 Admin」二者满足其一即可。用于具体资源的写操作。
 
 这样可以让「Contributor 在自己的 KB 里像 Owner，在别人的 KB 里像 Viewer」自然成立。
 
@@ -65,11 +64,11 @@ FAQ 条目、生成的问题、KB 标签、Wiki 页面同理。
 | 维度 | 解决什么 | 主键模型 | 角色集合 |
 |------|---------|---------|---------|
 | **空间 RBAC** | 同一空间内「你能对自己 / 别人 / 共享基础设施做什么」 | `tenant_members(user_id, tenant_id, role)` | viewer / contributor / admin / owner |
-| **共享空间** | 跨空间「把我的 KB / Agent 让别的空间的人也用」 | `organization_members(user_id, org_id, role)` + 共享关系表 | 管理员 / 编辑者 / 只读 |
+| **共享空间** | 跨空间「把我的 KB 让别的空间的人也用」 | `organization_members(user_id, org_id, role)` + 共享关系表 | 管理员 / 编辑者 / 只读 |
 
 两者**正交**：
 
-- 共享空间不持有任何 KB 或 Agent，它只是「某 KB 以某权限被共享到某空间」的关系记录。
+- 共享空间不持有任何 KB，它只是「某 KB 以某权限被共享到某空间」的关系记录。
 - 资源始终归属一个空间，归属与 `creator_id` 都不会因为共享而改变。
 - 一次对**他人共享给你**的 KB 的写操作，需要同时满足：
   1. **共享一侧**：该 KB 被以「可写」权限共享到了你和发起方都在的共享空间；

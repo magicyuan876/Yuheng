@@ -11,7 +11,6 @@ export interface UseChatStreamHandlerOptions {
   isReplying: Ref<boolean>
   currentAssistantMessageId: Ref<string>
   fullContent: Ref<string>
-  isAgentStreamSession: () => boolean
   scrollToBottom: (force?: boolean) => void
   onReplyComplete?: (content: string) => void
   onTurnComplete?: (message: ChatMessage) => void
@@ -21,15 +20,16 @@ export interface UseChatStreamHandlerOptions {
   isFirstEnter?: Ref<boolean>
   scrollContainer?: Ref<HTMLElement | null>
   onAfterMsgList?: () => void | Promise<void>
-  onAgentQuery?: (
+  /** knowledge-chat 的 agent_query 关联帧：绑定 request/assistant message id。 */
+  onQueryEvent?: (
     data: ChatMessage,
     existingMessage: ChatMessage | undefined,
     created: boolean,
   ) => void
   onMessageCreated?: (message: ChatMessage) => void
   onMessageUpdated?: (message: ChatMessage, payload?: ChatMessage) => void
-  onAgentAnswerDone?: (message: ChatMessage) => void
-  onAgentChunkBound?: (message: ChatMessage, created: boolean) => void
+  onAnswerDone?: (message: ChatMessage) => void
+  onChunkBound?: (message: ChatMessage, created: boolean) => void
   debug?: boolean
 }
 
@@ -41,7 +41,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     isReplying,
     currentAssistantMessageId,
     fullContent,
-    isAgentStreamSession,
     scrollToBottom,
     onReplyComplete,
     onTurnComplete,
@@ -50,11 +49,11 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     isFirstEnter,
     scrollContainer,
     onAfterMsgList,
-    onAgentQuery,
+    onQueryEvent,
     onMessageCreated,
     onMessageUpdated,
-    onAgentAnswerDone,
-    onAgentChunkBound,
+    onAnswerDone,
+    onChunkBound,
     debug = false,
   } = options
 
@@ -90,17 +89,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
   const markAssistantStopped = (message: ChatMessage) => {
     if (!message || message.is_completed) return
     message.is_completed = true
-    if (message.isAgentMode) {
-      if (!message.agentEventStream) message.agentEventStream = []
-      const stream = message.agentEventStream as ChatMessage[]
-      if (!stream.some((e) => e.type === 'stop')) {
-        stream.push({
-          type: 'stop',
-          timestamp: Date.now(),
-          reason: 'user_requested',
-        })
-      }
-    }
   }
 
   /** Finalize any in-flight assistant rows before a new user query is sent. */
@@ -173,66 +161,32 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         thinkContent: '',
         thinking: false,
         is_completed: false,
+        isRagMode: true,
         knowledge_references: [],
       }
-      ensureAgentMessageShell(message, data.id as string | undefined)
+      ensureStreamMessageShell(message, data.id as string | undefined)
       messagesList.push(message)
       emitMessageCreated(message)
       loading.value = false
     } else {
-      ensureAgentMessageShell(message, data.id as string | undefined)
+      ensureStreamMessageShell(message, data.id as string | undefined)
     }
 
     message.knowledge_references = refs.slice()
-    if (created) onAgentChunkBound?.(message, true)
+    if (created) onChunkBound?.(message, true)
     emitMessageUpdated(message, data)
     log('[References] Saved to message, count:', refs.length)
     return message
   }
 
-  // Records which long-term memories the answer saw. Unlike references this
-  // never creates a message shell: memory arrives before the first token, and
-  // an empty bubble that only says "3 memories" would be worse than waiting
-  // for the answer's own placeholder.
-  const applyUsedMemories = (data: ChatMessage) => {
-    const payload = (data.data ?? {}) as Record<string, unknown>
-    const memories = (payload.memories ?? data.memories) as unknown
-    if (!Array.isArray(memories) || memories.length === 0) return undefined
-
-    const message = resolveActiveAssistantMessage(data)
-    if (!message) {
-      log('[Memory] No assistant message to attach memories to')
-      return undefined
-    }
-    message.used_memories = memories.slice()
-    emitMessageUpdated(message, data)
-    log('[Memory] Saved to message, count:', memories.length)
-    return message
-  }
-
-  const ensureAgentMessageShell = (message: ChatMessage, requestId?: string) => {
-    message.isAgentMode = true
-    if (!isAgentStreamSession()) {
-      message.isRagMode = true
-    }
+  const ensureStreamMessageShell = (message: ChatMessage, requestId?: string) => {
+    message.isRagMode = true
     if (!message.agentEventStream) message.agentEventStream = []
     if (!message._eventMap) message._eventMap = new Map()
-    if (!message._pendingToolCalls) message._pendingToolCalls = new Map()
     if (requestId) {
       if (!message.id) message.id = requestId
       if (!message.request_id) message.request_id = requestId
     }
-  }
-
-  const shouldRenderAssistantMessage = (session: ChatMessage) => {
-    if (!session?.isAgentMode) return true
-    if (!session.is_completed) return true
-    const stream = session.agentEventStream
-    if (Array.isArray(stream) && stream.length > 0) return true
-    if (Array.isArray(session.knowledge_references) && session.knowledge_references.length > 0) {
-      return true
-    }
-    return false
   }
 
   const shouldShowGlobalTypingIndicator = (
@@ -241,27 +195,15 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     isRecovering = false,
   ) => {
     if (!isLoading && !isRecovering) return false
-    const last = messages[messages.length - 1]
-    if (last?.role === 'assistant' && last?.isAgentMode && !last?.is_completed) {
-      return false
-    }
     return true
   }
 
-  /** Quick-answer sessions: restore flags lost after history reload. */
-  const restoreQuickAnswerFlags = (item: ChatMessage) => {
-    if (isAgentStreamSession() || item.role !== 'assistant') return
+  /** History reload: restore RAG flags lost after history reload. */
+  const restoreRagFlags = (item: ChatMessage) => {
+    if (item.role !== 'assistant') return
     item.isRagMode = true
-    if (
-      item.agent_steps &&
-      Array.isArray(item.agent_steps) &&
-      item.agent_steps.length > 0
-    ) {
-      item.isAgentMode = true
-      item.hideContent = true
-    }
     ensureRagPipelineHistoryStream(item as Parameters<typeof ensureRagPipelineHistoryStream>[0])
-    if (item.isRagMode && item.agentEventStream) {
+    if (item.agentEventStream) {
       item.agentEventStream = markRaw(item.agentEventStream as object)
     }
   }
@@ -282,6 +224,11 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     return out
   }
 
+  // History replay: rebuild the RAG timeline (thinking card + retrieval /
+  // attachment steps) from the persisted agent_steps JSON. knowledge-chat
+  // records reasoning plus its pipeline tool calls (query_understand /
+  // knowledge_search / attachment_parsing / image_analysis) there so a
+  // reloaded conversation redraws what streamed live.
   const reconstructEventStreamFromSteps = (
     agentSteps: unknown[],
     messageContent: string,
@@ -390,21 +337,17 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
       if (item.id && existingIds.has(item.id)) continue
       if (item.id) existingIds.add(item.id)
 
-      item.isAgentMode = false
       const willContinueStream = preserveIncompleteStreamReactive && !item.is_completed
       if (willContinueStream) {
         item.agentEventStream = item.agentEventStream || []
         item._eventMap = new Map()
-        item._pendingToolCalls = new Map()
       } else {
         item.agent_steps = item.agent_steps ? markRaw(item.agent_steps as object) : item.agent_steps
         item.agentEventStream = markRaw((item.agentEventStream as unknown[]) || [])
         item._eventMap = markRaw(new Map())
-        item._pendingToolCalls = markRaw(new Map())
       }
 
       if (item.agent_steps && Array.isArray(item.agent_steps) && item.agent_steps.length > 0) {
-        item.isAgentMode = true
         item.agentEventStream = markRaw(
           reconstructEventStreamFromSteps(
             item.agent_steps as unknown[],
@@ -414,10 +357,9 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
             Number(item.agent_duration_ms) || 0,
           ),
         )
-        item.hideContent = true
       }
 
-      restoreQuickAnswerFlags(item)
+      restoreRagFlags(item)
 
       if (item.content) {
         const content = String(item.content)
@@ -501,7 +443,10 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     }
   }
 
-  const handleAgentChunk = (data: ChatMessage) => {
+  // knowledge-chat 事件帧处理：thinking / answer / complete / stop / error。
+  // answer 事件按 event_id 累积进 agentEventStream，再重组为 message.content
+  // 供 markdown 渲染；thinking 事件同样累积，供 RAG 时间线卡片展示。
+  const handleStreamChunk = (data: ChatMessage) => {
     const dataId = data.id as string | undefined
     let message = findLastMessage(
       (item) => item.request_id === dataId || item.id === dataId,
@@ -514,8 +459,7 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         request_id: dataId,
         role: 'assistant',
         content: '',
-        isAgentMode: true,
-        isRagMode: !isAgentStreamSession(),
+        isRagMode: true,
         agentEventStream: [],
         _eventMap: new Map(),
         knowledge_references: [],
@@ -527,24 +471,23 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
       message = newMsg
       created = true
     } else {
-      onAgentChunkBound?.(message, false)
+      onChunkBound?.(message, false)
     }
 
     if (created) {
-      onAgentChunkBound?.(message, true)
+      onChunkBound?.(message, true)
     }
 
-    ensureAgentMessageShell(message, dataId)
+    ensureStreamMessageShell(message, dataId)
     applyMessageCreatedAt(message, data.created_at)
 
     if (
       loading.value &&
       (data.response_type === 'thinking' ||
         data.response_type === 'answer' ||
-        data.response_type === 'tool_call' ||
-        data.response_type === 'tool_approval_required')
+        data.response_type === 'error')
     ) {
-      log('[Agent Chunk] Closing loading for continued stream')
+      log('[Stream Chunk] Closing loading for continued stream')
       loading.value = false
     }
 
@@ -598,204 +541,16 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         }
         break
       }
-      case 'tool_approval_required': {
-        if (!message.agentEventStream) message.agentEventStream = []
-        const d = dataPayload || {}
-        ;(message.agentEventStream as ChatMessage[]).push({
-          type: 'tool_approval_required',
-          pending_id: d.pending_id,
-          service_name: d.service_name,
-          mcp_tool_name: d.mcp_tool_name,
-          description: d.description,
-          args_json: d.args_json,
-          timeout_seconds: d.timeout_seconds,
-          requested_at: d.requested_at,
-          tool_call_id: d.tool_call_id,
-          resolved: false,
-        })
-        break
-      }
-      case 'tool_approval_resolved': {
-        const d = dataPayload || {}
-        const pid = d.pending_id
-        const ev = (message.agentEventStream as ChatMessage[] | undefined)?.find(
-          (e) => e.type === 'tool_approval_required' && e.pending_id === pid,
-        )
-        if (ev) {
-          ev.resolved = true
-          ev.approved = d.approved
-          ev.resolve_reason = d.reason
-          ev.timed_out = d.timed_out
-          ev.canceled = d.canceled
-        }
-        break
-      }
-      case 'mcp_oauth_required': {
-        if (!message.agentEventStream) message.agentEventStream = []
-        const d = dataPayload || {}
-        ;(message.agentEventStream as ChatMessage[]).push({
-          type: 'mcp_oauth_required',
-          pending_id: d.pending_id,
-          service_id: d.service_id,
-          service_name: d.service_name,
-          mcp_tool_name: d.mcp_tool_name,
-          timeout_seconds: d.timeout_seconds,
-          requested_at: d.requested_at,
-          tool_call_id: d.tool_call_id,
-          resolved: false,
-        })
-        break
-      }
-      case 'mcp_oauth_resolved': {
-        const d = dataPayload || {}
-        const pid = d.pending_id
-        const sid = d.service_id
-        const list = message.agentEventStream as ChatMessage[] | undefined
-        // Resolve the matching card; also clear any other still-pending cards
-        // for the same service (parallel tool calls dedup to a single auth).
-        list?.forEach((e) => {
-          if (e.type !== 'mcp_oauth_required' || e.resolved) return
-          if (e.pending_id === pid || (sid && e.service_id === sid && d.authorized)) {
-            e.resolved = true
-            e.authorized = d.authorized
-            e.resolve_reason = d.reason
-            e.timed_out = d.timed_out
-            e.canceled = d.canceled
-          }
-        })
-        break
-      }
-      case 'tool_call': {
-        if (dataPayload?.tool_name === 'final_answer') break
-        if (message.agentEventStream) {
-          let retracted = false
-          for (const ev of message.agentEventStream as ChatMessage[]) {
-            if (ev.type === 'answer' && !ev.superseded && ev.content && String(ev.content).trim()) {
-              ev.superseded = true
-              ev.done = true
-              retracted = true
-            }
-          }
-          if (retracted) {
-            message.content = recomposeAgentAnswer(message)
-            fullContent.value = String(message.content || '')
-          }
-        }
-        if (dataPayload && (dataPayload.tool_name || dataPayload.tool_call_id)) {
-          if (!message.agentEventStream) message.agentEventStream = []
-          if (!message._pendingToolCalls) message._pendingToolCalls = new Map()
-          const pending = message._pendingToolCalls as Map<string, ChatMessage>
-          const stream = message.agentEventStream as ChatMessage[]
-          const incomingToolName = dataPayload.tool_name as string | undefined
-          const incomingArguments = dataPayload.arguments
-          const toolCallId =
-            (dataPayload.tool_call_id as string) ||
-            (incomingToolName ? `${incomingToolName}_${Date.now()}` : null)
-          if (!toolCallId) {
-            console.warn('[Tool Call] Received event without identifiable tool_call_id:', dataPayload)
-            break
-          }
-
-          log('[Tool Call]', {
-            tool_call_id: toolCallId,
-            tool_name: incomingToolName,
-            has_arguments: Boolean(incomingArguments),
-          })
-
-          let toolCallEvent = pending.get(toolCallId)
-          if (!toolCallEvent) {
-            toolCallEvent = stream.find(
-              (event) => event.type === 'tool_call' && event.tool_call_id === toolCallId,
-            )
-          }
-          if (toolCallEvent) {
-            if (incomingToolName) toolCallEvent.tool_name = incomingToolName
-            if (incomingArguments) toolCallEvent.arguments = incomingArguments
-            toolCallEvent.pending = true
-            if (!toolCallEvent.timestamp) toolCallEvent.timestamp = Date.now()
-            pending.set(toolCallId, toolCallEvent)
-          } else {
-            const newToolCallEvent = {
-              type: 'tool_call',
-              tool_call_id: toolCallId,
-              tool_name: incomingToolName,
-              arguments: incomingArguments,
-              timestamp: Date.now(),
-              pending: true,
-            }
-            stream.push(newToolCallEvent)
-            pending.set(toolCallId, newToolCallEvent)
-          }
-        }
-        break
-      }
-      case 'tool_result':
       case 'error': {
-        if (dataPayload) {
-          const toolCallId = dataPayload.tool_call_id as string | undefined
-          const toolName = dataPayload.tool_name as string | undefined
-          const success = responseType !== 'error' && dataPayload.success !== false
-          log('[Tool Result]', {
-            tool_call_id: toolCallId,
-            tool_name: toolName,
-            success,
-          })
-          let toolCallEvent: ChatMessage | undefined
-          const pending = message._pendingToolCalls as Map<string, ChatMessage> | undefined
-          if (pending) {
-            if (toolCallId && pending.has(toolCallId)) {
-              toolCallEvent = pending.get(toolCallId)
-              pending.delete(toolCallId)
-            } else {
-              Array.from(pending.entries()).some(([key, value]) => {
-                if (value.tool_name === toolName) {
-                  toolCallEvent = value
-                  pending.delete(key)
-                  return true
-                }
-                return false
-              })
-            }
-          }
-          if (toolCallEvent) {
-            toolCallEvent.pending = false
-            toolCallEvent.success = success
-            toolCallEvent.output = success
-              ? dataPayload.output || data.content
-              : dataPayload.error || data.content
-            toolCallEvent.error = !success ? dataPayload.error || data.content : undefined
-            const duration =
-              dataPayload.duration_ms !== undefined ? dataPayload.duration_ms : dataPayload.duration
-            toolCallEvent.duration = duration
-            toolCallEvent.duration_ms = duration
-            toolCallEvent.display_type = dataPayload.display_type
-            toolCallEvent.tool_data = dataPayload
-            log('[Tool Result] Updated event in stream')
-          } else {
-            console.warn('[Tool Result] No pending tool call found for', toolCallId || toolName)
-          }
-          if (responseType === 'error' && !toolName) {
-            const errorMsg = String(data.content || t('chat.processError'))
-            message.content = errorMsg
-            message.is_completed = true
-            isReplying.value = false
-            loading.value = false
-            fullContent.value = ''
-            currentAssistantMessageId.value = ''
-            reportError(errorMsg)
-            console.error('[Chat Error]', errorMsg)
-          }
-        } else if (responseType === 'error') {
-          const errorMsg = String(data.content || t('chat.processError'))
-          message.content = errorMsg
-          message.is_completed = true
-          isReplying.value = false
-          loading.value = false
-          fullContent.value = ''
-          currentAssistantMessageId.value = ''
-          reportError(errorMsg)
-          console.error('[Chat Error]', errorMsg)
-        }
+        const errorMsg = String(data.content || (dataPayload ? dataPayload.error : '') || t('chat.processError'))
+        message.content = errorMsg
+        message.is_completed = true
+        isReplying.value = false
+        loading.value = false
+        fullContent.value = ''
+        currentAssistantMessageId.value = ''
+        reportError(errorMsg)
+        console.error('[Chat Error]', errorMsg)
         break
       }
       case 'answer': {
@@ -828,7 +583,7 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         }
         if (data.done && !answerEvent.done) {
           answerEvent.done = true
-          onAgentAnswerDone?.(message)
+          onAnswerDone?.(message)
           loading.value = false
           isReplying.value = false
           fullContent.value = ''
@@ -837,7 +592,7 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         break
       }
       case 'complete': {
-        log('[Agent] Complete event received')
+        log('[Stream] Complete event received')
         loading.value = false
         isReplying.value = false
         message.is_completed = true
@@ -845,16 +600,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         onTurnComplete?.(message)
         fullContent.value = ''
         currentAssistantMessageId.value = ''
-        // Hydrate skill-generated artifacts as soon as the SSE completion
-        // event arrives — without this the download button only appears
-        // after a page refresh (the assistant message row is fetched via
-        // getMessageList which does include the artifacts JSON column).
-        // botmsg.vue / AgentStreamDisplay.vue read `message.artifacts`
-        // reactively to decide whether to render the download button.
-        const streamedArtifacts = (dataPayload as any)?.artifacts
-        if (Array.isArray(streamedArtifacts) && streamedArtifacts.length) {
-          message.artifacts = streamedArtifacts
-        }
         if (message.agentEventStream) {
           ;(message.agentEventStream as ChatMessage[]).push({
             type: 'agent_complete',
@@ -865,7 +610,7 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         break
       }
       case 'stop': {
-        log('[Agent] Stop event received')
+        log('[Stream] Stop event received')
         if (!message.agentEventStream) message.agentEventStream = []
         ;(message.agentEventStream as ChatMessage[]).push({
           type: 'stop',
@@ -884,8 +629,21 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     scrollToBottom()
   }
 
+  // Agent 管线事件帧（tool_call / tool_result / 工具审批 / MCP OAuth / 记忆召回 /
+  // reflection 等）：随 agent 能力一并移除，knowledge-chat 不会再发送，收到时安全忽略。
+  const IGNORED_LEGACY_RESPONSE_TYPES = new Set([
+    'tool_call',
+    'tool_result',
+    'tool_approval_required',
+    'tool_approval_resolved',
+    'mcp_oauth_required',
+    'mcp_oauth_resolved',
+    'memory_recalled',
+    'reflection',
+  ])
+
   const processStreamChunk = (data: ChatMessage) => {
-    log('[Agent Event Received]', {
+    log('[Stream Event Received]', {
       response_type: data.response_type,
       id: data.id,
       done: data.done,
@@ -924,21 +682,19 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
           request_id: data.id,
           role: 'assistant',
           content: '',
-          isAgentMode: true,
-          isRagMode: !isAgentStreamSession(),
+          isRagMode: true,
           is_completed: false,
           agentEventStream: [],
           _eventMap: new Map(),
-          _pendingToolCalls: new Map(),
           knowledge_references: [],
         }
         messagesList.push(existingMessage)
         emitMessageCreated(existingMessage)
         loading.value = false
         scrollToBottom(true)
-        log('[Agent Query] Created agent placeholder message')
+        log('[Agent Query] Created assistant placeholder message')
       } else {
-        ensureAgentMessageShell(existingMessage, data.id as string | undefined)
+        ensureStreamMessageShell(existingMessage, data.id as string | undefined)
         if (data.assistant_message_id) {
           existingMessage.id = data.assistant_message_id as string
           existingMessage.assistant_message_id = data.assistant_message_id
@@ -950,34 +706,9 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
         (data.data as Record<string, unknown> | undefined) || data,
         existingMessage,
       )
-      onAgentQuery?.(data, existingMessage, created)
+      onQueryEvent?.(data, existingMessage, created)
       return
     }
-
-    const isAgentOnlyResponse =
-      data.response_type === 'thinking' ||
-      data.response_type === 'tool_call' ||
-      data.response_type === 'tool_result' ||
-      data.response_type === 'reflection'
-
-    const lastMessage = messagesList[messagesList.length - 1]
-    const isCurrentlyAgentMode = lastMessage?.isAgentMode === true
-    const targetsActiveAgentRequest =
-      isAgentStreamSession() &&
-      !!data.id &&
-      (data.id === currentAssistantMessageId.value ||
-        lastMessage?.request_id === data.id ||
-        lastMessage?.id === data.id)
-    const isAgentAnswerChunk =
-      data.response_type === 'answer' && (isAgentStreamSession() || targetsActiveAgentRequest)
-    const isAgentCompleteChunk =
-      data.response_type === 'complete' && (isAgentStreamSession() || targetsActiveAgentRequest)
-
-    const shouldHandleAsAgent =
-      isAgentOnlyResponse ||
-      isCurrentlyAgentMode ||
-      isAgentAnswerChunk ||
-      isAgentCompleteChunk
 
     if (data.response_type === 'references') {
       applyKnowledgeReferences(data)
@@ -985,44 +716,29 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
       return
     }
 
-    if (data.response_type === 'memory_recalled') {
-      applyUsedMemories(data)
+    if (IGNORED_LEGACY_RESPONSE_TYPES.has(data.response_type as string)) {
       return
     }
 
-    if (shouldHandleAsAgent) {
-      handleAgentChunk(data)
-      if (data.response_type === 'stop') {
-        log('[Stop Event] Generation stopped')
-        const stoppedMessage = resolveActiveAssistantMessage(data)
-        if (stoppedMessage) markAssistantStopped(stoppedMessage)
-        loading.value = false
-        isReplying.value = false
-        currentAssistantMessageId.value = ''
-      }
+    if (
+      data.response_type === 'thinking' ||
+      data.response_type === 'answer' ||
+      data.response_type === 'error' ||
+      data.response_type === 'complete' ||
+      data.response_type === 'stop'
+    ) {
+      handleStreamChunk(data)
       return
     }
 
-    if (data.response_type === 'stop') {
-      log('[Stop Event] Non-agent generation stopped')
-      const stoppedMessage = findLastMessage((item) => {
-        if (item.request_id === data.id) return true
-        return item.id === data.id
-      })
-      if (stoppedMessage) stoppedMessage.is_completed = true
-      loading.value = false
-      isReplying.value = false
-      fullContent.value = ''
-      currentAssistantMessageId.value = ''
-      return
-    }
-
+    // 旧版非事件流兜底：按 content 累积的经典路径（history / continue-stream
+    // 之外的异常帧仍可走这里渲染）。
     const existingMessage = findLastMessage((item) => {
       if (item.request_id === data.id) return true
       return item.id === data.id
     })
     if (existingMessage?.is_completed && data.done && !data.content) {
-      log('[Non-Agent] Ignoring duplicate completion event for completed message')
+      log('[Legacy] Ignoring duplicate completion event for completed message')
       return
     }
 
@@ -1071,7 +787,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
 
   return {
     findLastMessage,
-    shouldRenderAssistantMessage,
     shouldShowGlobalTypingIndicator,
     handleMsgList,
     processStreamChunk,

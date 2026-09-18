@@ -29,7 +29,6 @@ show_help() {
     echo "  -p, --app      仅构建应用镜像"
     echo "  -d, --docreader 仅构建文档读取器镜像"
     echo "  -f, --frontend 仅构建前端镜像"
-    echo "  -s, --sandbox  仅构建沙箱镜像"
     echo "  -c, --clean    清理所有本地镜像"
     echo "  -v, --version  显示版本信息"
     exit 0
@@ -210,45 +209,6 @@ build_frontend_image() {
     fi
 }
 
-# 构建沙箱镜像
-build_sandbox_image() {
-    log_info "构建沙箱镜像 (yuheng-sandbox)..."
-
-    cd "$PROJECT_ROOT"
-
-    docker build \
-        --platform $PLATFORM \
-        -f docker/Dockerfile.sandbox \
-        --target sandbox \
-        -t magicyuan876/yuheng-sandbox:latest \
-        .
-
-    if [ $? -ne 0 ]; then
-        log_error "沙箱镜像构建失败"
-        return 1
-    fi
-
-    # Cube 从镜像直接构建模板，并以 :49983/health 探活，缺 envd 必然失败，
-    # 因此 Cube 用的是注入了 envd 的变体镜像。详见 docs/sandbox-cluster.md。
-    # 固定 linux/amd64：envd 的来源镜像 cubesandbox-base 不发布 arm64。
-    log_info "构建沙箱镜像 Cube 变体 (yuheng-sandbox:latest-cube)..."
-
-    docker build \
-        --platform linux/amd64 \
-        -f docker/Dockerfile.sandbox \
-        --target cube \
-        -t magicyuan876/yuheng-sandbox:latest-cube \
-        .
-
-    if [ $? -eq 0 ]; then
-        log_success "沙箱镜像构建成功"
-        return 0
-    else
-        log_error "沙箱镜像 Cube 变体构建失败"
-        return 1
-    fi
-}
-
 # 构建所有镜像
 build_all_images() {
     log_info "开始构建所有镜像..."
@@ -256,7 +216,6 @@ build_all_images() {
     local app_result=0
     local docreader_result=0
     local frontend_result=0
-    local sandbox_result=0
 
     # 构建应用镜像
     build_app_image
@@ -269,10 +228,6 @@ build_all_images() {
     # 构建前端镜像
     build_frontend_image
     frontend_result=$?
-
-    # 构建沙箱镜像
-    build_sandbox_image
-    sandbox_result=$?
 
     # 显示构建结果
     echo ""
@@ -295,13 +250,7 @@ build_all_images() {
         log_error "✗ 前端镜像构建失败"
     fi
 
-    if [ $sandbox_result -eq 0 ]; then
-        log_success "✓ 沙箱镜像构建成功"
-    else
-        log_error "✗ 沙箱镜像构建失败"
-    fi
-
-    if [ $app_result -eq 0 ] && [ $docreader_result -eq 0 ] && [ $frontend_result -eq 0 ] && [ $sandbox_result -eq 0 ]; then
+    if [ $app_result -eq 0 ] && [ $docreader_result -eq 0 ] && [ $frontend_result -eq 0 ]; then
         log_success "所有镜像构建完成！"
         return 0
     else
@@ -331,8 +280,6 @@ clean_images() {
     docker rmi magicyuan876/yuheng-app:latest 2>/dev/null || true
     docker rmi magicyuan876/yuheng-docreader:latest 2>/dev/null || true
     docker rmi magicyuan876/yuheng-ui:latest 2>/dev/null || true
-    docker rmi magicyuan876/yuheng-sandbox:latest 2>/dev/null || true
-    docker rmi magicyuan876/yuheng-sandbox:latest-cube 2>/dev/null || true
     
     docker image prune -f
     
@@ -345,7 +292,6 @@ BUILD_ALL=false
 BUILD_APP=false
 BUILD_DOCREADER=false
 BUILD_FRONTEND=false
-BUILD_SANDBOX=false
 CLEAN_IMAGES=false
 
 # 没有参数时默认构建所有镜像
@@ -364,8 +310,6 @@ while [ "$1" != "" ]; do
         -d | --docreader )  BUILD_DOCREADER=true
                             ;;
         -f | --frontend )   BUILD_FRONTEND=true
-                            ;;
-        -s | --sandbox )    BUILD_SANDBOX=true
                             ;;
         -c | --clean )      CLEAN_IMAGES=true
                             ;;
@@ -411,11 +355,6 @@ fi
 
 if [ "$BUILD_FRONTEND" = true ]; then
     build_frontend_image
-    exit $?
-fi
-
-if [ "$BUILD_SANDBOX" = true ]; then
-    build_sandbox_image
     exit $?
 fi
 

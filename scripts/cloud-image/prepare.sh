@@ -135,8 +135,7 @@ tar -xzf "${tmp}/repo.tar.gz" -C "${tmp}" \
   --wildcards \
   '*/docker-compose.yml' \
   '*/.env.example' \
-  '*/config/config.yaml' \
-  '*/skills/preloaded'
+  '*/config/config.yaml'
 src=$(find "${tmp}" -maxdepth 1 -mindepth 1 -type d -name 'Yuheng-*' | head -1)
 if [[ -z "${src}" ]]; then
   echo "[prepare] 解压失败, 未找到 Yuheng-* 目录" >&2
@@ -146,8 +145,6 @@ fi
 cp    "${src}/docker-compose.yml" "${YUHENG_DIR}/"
 cp    "${src}/.env.example"       "${YUHENG_DIR}/"
 cp    "${src}/config/config.yaml" "${YUHENG_DIR}/config/"
-rm -rf "${YUHENG_DIR}/skills/preloaded"
-cp -r "${src}/skills/preloaded"   "${YUHENG_DIR}/skills/"
 
 # 记录元信息, 供 firstboot / 升级时参考
 cat >"${YUHENG_DIR}/.cloud-image-meta" <<EOF
@@ -165,7 +162,7 @@ sed -i 's/^GIN_MODE=.*/GIN_MODE=release/' .env || true
 # 镜像 tag。无条件覆盖, 避免 .env 残留上一次 prepare 留下的旧版本号。
 # Docker Hub 上 magicyuan876/yuheng-* 的 tag 命名约定：
 #   - 浮动 tag：main（持续指向最新构建）
-#   - 固定 release tag：v 前缀 + semver（如 v0.7.2、v0.5.2）
+#   - 固定 release tag：v 前缀 + semver（如 v0.1.0、v0.2.0）
 # 因此这里不剥 v、也不映射到 latest。
 YUHENG_VERSION_VAL="${YUHENG_REF}"
 if grep -qE '^YUHENG_VERSION=' .env; then
@@ -228,7 +225,7 @@ systemctl enable yuheng-firstboot.service
 echo "[prepare] 6/6 完成"
 echo
 echo "  Yuheng 运行时已部署到 ${YUHENG_DIR}"
-echo "    docker-compose.yml / config/config.yaml / skills/preloaded / .env"
+echo "    docker-compose.yml / config/config.yaml / .env"
 echo "  版本: ${YUHENG_REF}  (见 ${YUHENG_DIR}/.cloud-image-meta)"
 echo
 echo "  打开浏览器访问  http://<本机公网IP>  验证功能"

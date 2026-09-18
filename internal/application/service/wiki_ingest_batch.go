@@ -13,8 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"github.com/magicyuan876/yuheng/internal/agent"
 	apprepo "github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/tracing/langfuse"
@@ -1321,7 +1321,7 @@ func (s *wikiIngestService) mapOneDocument(
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		summaryContent, summaryErr = s.generateWithTemplate(ctx, chatModel, agent.WikiSummaryPrompt, map[string]string{
+		summaryContent, summaryErr = s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiSummaryPrompt, map[string]string{
 			"Content":            content,
 			"Language":           lang,
 			"ExtractedSlugs":     slugListing,
@@ -1619,7 +1619,7 @@ func (s *wikiIngestService) extractEntitiesAndConceptsNoUpsert(
 		prevSlugsText = "(none — this is a new document)"
 	}
 
-	extractionJSON, err := s.generateWithTemplate(ctx, chatModel, agent.WikiKnowledgeExtractPrompt, map[string]string{
+	extractionJSON, err := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiKnowledgeExtractPrompt, map[string]string{
 		"Content":            content,
 		"Language":           lang,
 		"PreviousSlugs":      prevSlugsText,
@@ -2036,7 +2036,7 @@ func (s *wikiIngestService) reduceSlugUpdates(
 		pageAliases := strings.Join(page.Aliases, ", ")
 
 		var updatedContent string
-		updatedContent, err = s.generateWithTemplate(ctx, chatModel, agent.WikiPageModifyUserPrompt, map[string]string{
+		updatedContent, err = s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiPageModifyUserPrompt, map[string]string{
 			"HasAdditions":            hasAdditionsStr,
 			"HasRetractions":          hasRetractionsStr,
 			"PageSlug":                slug,

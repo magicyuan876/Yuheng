@@ -16,15 +16,11 @@ export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
   vectorstore: 'admin',
   parser: 'admin',
   storage: 'admin',
-  sandbox: 'admin',
-  mcp: 'admin',
   system: 'viewer',
   userprofile: 'viewer',
   tenant: 'viewer',
   members: 'viewer',
   groups: 'viewer',
-  mymemory: 'viewer',
-  memory: 'admin',
 }
 
 /**
@@ -48,16 +44,14 @@ export const SYSTEM_ADMIN_SETTINGS_SECTIONS = new Set([
  * governance.centralized_infra system setting is on.
  *
  * These are the shared-infrastructure pages: their contents are selected at
- * point of use (the knowledge-base and agent editors list models, vector
- * stores, storage backends and parser engines through their own Viewer+ read
+ * point of use (the knowledge-base editor lists models, vector stores,
+ * storage backends and parser engines through their own Viewer+ read
  * endpoints), so hiding the settings entry costs a non-admin nothing — they
  * never needed to configure the backing service, only to pick one.
  *
  * Deliberately NOT in this set:
- *  - integrations (im / embed / api) — each team publishes its own bot,
- *    widget and API keys; that is workspace business, not infrastructure.
- *  - chathistory / memory / tenant / members — workspace dimension.
- *  - general / userprofile / mymemory — personal dimension.
+ *  - chathistory / tenant / members — workspace dimension.
+ *  - general / userprofile — personal dimension.
  *
  * Raising SETTINGS_SECTION_MIN_ROLE instead would achieve nothing: every
  * self-registered user is Owner of their own personal workspace, so no role
@@ -72,8 +66,6 @@ export const PLATFORM_MANAGED_SETTINGS_SECTIONS = new Set([
   'vectorstore',
   'parser',
   'storage',
-  'sandbox',
-  'mcp',
 ])
 
 /**

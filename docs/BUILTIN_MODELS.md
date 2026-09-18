@@ -27,7 +27,7 @@ Yuheng 支持三种方式添加内置模型：界面开关（最直接）、YAML
 
 - 凭据与 Base URL 对非系统管理员始终隐藏，普通空间只看到模型名、类型等能力描述，足够在建知识库时选择。
 - 通过界面共享的行 `managed_by` 为空，**不会**被 YAML reconciler 的漂移清理触碰。
-- **取消共享或删除时有护栏**：只要还有任意空间的知识库或智能体绑定该模型，操作会被拒绝并告知引用数量。`knowledge_bases.embedding_model_id` 是没有外键的裸字符串列，强行撤回会让那些空间的检索静默失效。
+- **取消共享或删除时有护栏**：只要还有任意空间的知识库绑定该模型，操作会被拒绝并告知引用数量。`knowledge_bases.embedding_model_id` 是没有外键的裸字符串列，强行撤回会让那些空间的检索静默失效。
 - YAML 托管的内置模型不能在界面删除（删了下次启动会被 reconciler 写回），需从 YAML 移除。
 
 搭配「集中管控基础设施」开关，可以把模型、解析引擎等全部配置收归系统管理员，其他注册用户只保留使用权 —— 见 [集中管控说明](./集中管控说明.md)。
@@ -36,7 +36,7 @@ Yuheng 支持三种方式添加内置模型：界面开关（最直接）、YAML
 
 #### 文件位置
 
-默认路径是 `config/builtin_models.yaml`（与 `config.yaml`、`builtin_agents.yaml` 同目录）。如需挂载到其他位置，设置环境变量 `BUILTIN_MODELS_CONFIG=/absolute/path/builtin_models.yaml` 覆盖。
+默认路径是 `config/builtin_models.yaml`（与 `config.yaml` 同目录）。如需挂载到其他位置，设置环境变量 `BUILTIN_MODELS_CONFIG=/absolute/path/builtin_models.yaml` 覆盖。
 
 文件不存在时启动期会跳过、不报错；解析失败仅记录 Warning、不影响主流程。每次应用启动会重新读取并按 `id` 字段 UPSERT 到 `models` 表（保留 `created_at`，刷新其他字段）。如果同 ID 模型已经由系统管理员在界面保存并转为运行时托管，则保留运行时配置，不再由 YAML 覆盖。
 

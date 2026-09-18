@@ -1,6 +1,6 @@
 ---
 name: yuheng-shared
-description: Use when driving a Yuheng RAG server through the `yuheng` CLI as an agent — authenticating, managing knowledge bases / documents / sessions / agents, running search or chat, or interpreting the CLI's JSON envelopes and exit codes. Read this before any other yuheng-* skill.
+description: Use when driving a Yuheng RAG server through the `yuheng` CLI as an agent — authenticating, managing knowledge bases / documents / sessions, running search or chat, or interpreting the CLI's JSON envelopes and exit codes. Read this before any other yuheng-* skill.
 metadata:
   tested_against: v0.10
 ---
@@ -76,10 +76,10 @@ Default output is `--format json`: a single envelope.
 - `error.type` is a **stable typed code** (e.g. `local.kb_not_found`,
   `input.invalid_argument`, `input.confirmation_required`, `server.error`).
   Branch on it; `error.hint` usually tells you the next action.
-- `--format text` = a live human-readable projection. `chat` and `session ask`
-  buffer a bounded answer-event projection into one JSON envelope by default;
-  pass `--reference` for indexed citations, `--verbose` for execution detail,
-  or `--format ndjson` for raw event lines. `session resume` remains
+- `--format text` = a live human-readable projection. `chat` buffers a
+  bounded answer-event projection into one JSON envelope by default; pass
+  `--reference` for indexed citations, `--verbose` for execution detail, or
+  `--format ndjson` for raw event lines. `session resume` remains
   an NDJSON streaming command.
 - `--jq '<expr>'` filters the envelope (e.g. `yuheng kb list --jq '.data[].id'`).
 - Exception: `yuheng auth token` emits the **raw token** by default (it's a
@@ -121,7 +121,7 @@ exits **5** (adjust the value, retry). Branch on the exit code to tell them apar
 
 ## 5. Destructive writes (exit 10) — hard rule
 
-Destructive commands (`kb/doc/chunk/session/agent delete`, `kb/agent update`,
+Destructive commands (`kb/doc/chunk/session delete`, `kb update`,
 `auth logout`, `doc delete --all`, …) without `-y` exit **10** with
 `error.type = input.confirmation_required` and `error.risk = {level, action}`:
 
@@ -150,20 +150,17 @@ KB=$(yuheng kb create "Docs" --jq '.data.id' --format json | tr -d '"')
 yuheng doc upload ./manual.pdf --kb "$KB"
 ```
 
-## 7a. Reliability patterns for long-running agent runs
+## 7a. Reliability patterns for long-running chat runs
 
 ### Inspecting prior messages
 Use `yuheng message list --session <sess-id>` to review the message history of a session (e.g., after a stream drops) before deciding whether to re-ask or continue. Use `yuheng message search "<query>"` to locate a prior Q&A exchange across all sessions — prefer this over re-running an expensive query when the answer may already exist.
 
-### Tool-approval unlock
-An agent run pauses mid-stream on a tool-approval event when the server requires human sign-off before executing a tool call. The pattern:
-
-1. The stream emits a tool-approval event; capture the `pending_id`.
-2. **Surface the pending tool call to the user** (show tool name + proposed args). Do not auto-approve.
-3. After explicit user go-ahead: `yuheng session tool-approval resolve <pending-id> -y` to approve, or add `--reject --reason "..."` to reject.
-4. Resume the answer: `yuheng session resume <sess-id> --message <msg-id>`.
-
-`--modified-args '{"key":"val"}'` replaces the tool arguments on approve (non-empty JSON object required). This is an exit-10 interaction — see §5.
+### Recovering a dropped stream
+The server keeps generating after your local connection drops (and bills for
+it). Stop generation with `yuheng session stop <sess-id> --message <msg-id>`,
+or re-attach with `yuheng session resume <sess-id> --message <msg-id>` (the
+server replays from event 0 — dedupe by message_id; see the
+`yuheng-rag-search` skill).
 
 ## 8. Resource model & command map
 
@@ -171,9 +168,8 @@ An agent run pauses mid-stream on a tool-approval event when the server requires
 kb        knowledge bases   list/view/create/update/delete/pin/unpin/status/check
 doc       documents in a KB list/view/create/upload/fetch/download/reparse/update/delete/wait
 chunk     retrieval units   list/view/delete   (RAG debug; not search)
-session   conversations     list/view/delete/ask/stop/resume/tool-approval resolve
+session   conversations     list/view/delete/stop/resume
 message   session messages  list/search/delete
-agent     custom agents     list/view/create/update/delete/status/check
 model     configured models list/view/create/update/delete   (update rotates key / base-url in place, id preserved)
 search    retrieval         chunks / docs / kb / sessions
 chat      one-shot KB RAG Q&A (streaming)
@@ -181,17 +177,16 @@ api       raw HTTP passthrough to any server endpoint (escape hatch)
 link/unlink  bind cwd to a KB        mcp serve  expose yuheng as MCP tools
 ```
 
-**chat vs session ask vs search** — the most common confusion: see the
+**chat vs search** — the most common confusion: see the
 `yuheng-rag-search` skill for the decision table. Briefly: `chat` = one-shot
-KB Q&A with an LLM; `session ask --agent <id>` = invoke a *custom agent*;
-`search chunks` = raw hybrid retrieval (no LLM).
+KB Q&A with an LLM; `search chunks` = raw hybrid retrieval (no LLM).
 
 ## 9. CLI vs MCP
 
 For your own scripted control, use the CLI (richer: dry-run, exit-10, all verbs).
 For an IDE/host agent that speaks MCP, `yuheng mcp serve` exposes a curated
 read+chat tool set: `kb_list`, `kb_view`, `doc_list`, `doc_view`, `doc_download`,
-`search_chunks`, `chunk_list`, `agent_list`, `chat`, `session_ask`. MCP tools
+`search_chunks`, `chunk_list`, `chat`. MCP tools
 take raw ids (no name resolution); resolve names via `kb_list` first.
 
 ## 10. Agent self-help

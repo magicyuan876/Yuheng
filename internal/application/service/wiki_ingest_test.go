@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/magicyuan876/yuheng/internal/agent"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/types"
 )
@@ -374,7 +374,7 @@ func TestGenerateWikiPageModifyUsesCacheableMessageLayout(t *testing.T) {
 	model := &templateCaptureChatModel{response: "SUMMARY: page\n# Alpha"}
 	service := &wikiIngestService{}
 	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(7))
-	_, err := service.generateWithTemplate(ctx, model, agent.WikiPageModifyUserPrompt, map[string]string{
+	_, err := service.generateWithTemplate(ctx, model, wikiprompts.WikiPageModifyUserPrompt, map[string]string{
 		"HasAdditions":         "1",
 		"SharedSourceContexts": "<document><context>shared source summary</context></document>\n",
 		"PageSlug":             "concept/alpha",

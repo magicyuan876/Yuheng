@@ -20,7 +20,6 @@ import (
 //
 //   1. KB belongs to caller's tenant   -> grant own access
 //   2. Org-shared KB                    -> grant min(share, role) cap
-//   3. Shared agent carries the KB      -> grant Viewer (read-only)
 //
 // Putting the resolution in a route-level gin.HandlerFunc makes the
 // route declaration the single source of truth for "what permission
@@ -199,7 +198,7 @@ func isResourceNotFound(err error) bool {
 }
 
 // RequireKBAccess returns a gin.HandlerFunc that resolves KB access
-// (own / org-shared / via shared agent), enforces the minimum required
+// (own / org-shared), enforces the minimum required
 // org-level permission, and on success stores the result under
 // KBAccessContextKey AND rewrites c.Request.Context() to carry the
 // effective tenant ID. Handlers downstream just read tenant from
@@ -212,8 +211,7 @@ func isResourceNotFound(err error) bool {
 // gated route at once.
 //
 // Required permission semantics:
-//   - OrgRoleViewer -> read-only routes (the agent-share fallback path
-//     activates only at this level)
+//   - OrgRoleViewer -> read-only routes
 //   - OrgRoleEditor -> mutating routes (org-shared editor or own KB)
 //   - OrgRoleAdmin  -> share-management routes (only the original
 //     sharer / KB owner / Org admin should pass)
@@ -228,7 +226,6 @@ func RequireKBAccess(
 	requiredPermission types.OrgMemberRole,
 	kbService KBLookup,
 	kbShareService interfaces.KBShareService,
-	agentShareService interfaces.AgentShareService,
 	cfg *config.Config,
 ) gin.HandlerFunc {
 	warnOnNilConfig(cfg)
@@ -254,7 +251,7 @@ func RequireKBAccess(
 		// regardless of whether RBAC enforcement is active.
 		enforcing := rbacEnforcementEnabled(cfg)
 
-		access, err := resolveKBAccessOnce(ctx, c, kbID, requiredPermission, kbService, kbShareService, agentShareService)
+		access, err := resolveKBAccessOnce(ctx, kbID, requiredPermission, kbService, kbShareService)
 		switch {
 		case stderrors.Is(err, errKBAccessUnauthorized):
 			if !enforcing {
@@ -306,25 +303,15 @@ func RequireKBAccess(
 	}
 }
 
-// resolveKBAccessOnce performs the actual three-step resolution. Kept
+// resolveKBAccessOnce performs the actual two-step resolution. Kept
 // unexported and using package-private sentinel errors so the guard's
 // error mapping is the only public surface.
-//
-// The shared-agent step honours the ?agent_id query parameter when
-// present, mirroring the in-handler resolution in
-// knowledgebase.go's validateAndGetKnowledgeBase: a request with a
-// specific agent_id is validated against THAT agent's KB scope (mode =
-// all / selected / none), not against "any shared agent". Falling
-// back to "any shared agent" when agent_id is empty preserves the
-// "通过智能体可见" KB list entry point.
 func resolveKBAccessOnce(
 	ctx context.Context,
-	c *gin.Context,
 	kbID string,
 	requiredPermission types.OrgMemberRole,
 	kbService KBLookup,
 	kbShareService interfaces.KBShareService,
-	agentShareService interfaces.AgentShareService,
 ) (*KBAccess, error) {
 	tenantID, ok := types.TenantIDFromContext(ctx)
 	if !ok || tenantID == 0 {
@@ -371,90 +358,8 @@ func resolveKBAccessOnce(
 		}
 	}
 
-	// 3. Shared agent that carries this KB — only ever grants read.
-	if requiredPermission == types.OrgRoleViewer && agentShareService != nil {
-		access, agentErr := resolveSharedAgentAccess(ctx, c, tenantID, callerTenantRole, kb, agentShareService)
-		if agentErr != nil {
-			return nil, agentErr
-		}
-		if access != nil {
-			return access, nil
-		}
-	}
-
 	logger.Warnf(ctx, "[kb_access] tenant %d -> KB %s denied (required=%s)", tenantID, kbID, requiredPermission)
 	return nil, errKBAccessForbidden
-}
-
-// resolveSharedAgentAccess implements the agent-share fallback,
-// mirroring knowledgebase.go's in-handler logic so the guard and the
-// (still-present) handler resolver agree on which requests pass.
-//
-//   - If ?agent_id=X is provided, validate against THAT agent's
-//     KBSelectionMode (all / selected / none). A mismatch means deny;
-//     we do NOT fall back to "any shared agent" because the client
-//     explicitly named one (typically from a @-mention or a deep link
-//     scoped to that agent).
-//   - If ?agent_id is empty, allow when any shared agent reachable by
-//     the caller can access this KB ("通过智能体可见" KB list entry).
-func resolveSharedAgentAccess(
-	ctx context.Context,
-	c *gin.Context,
-	tenantID uint64,
-	callerTenantRole types.TenantRole,
-	kb *types.KnowledgeBase,
-	agentShareService interfaces.AgentShareService,
-) (*KBAccess, error) {
-	agentID := c.Query("agent_id")
-	if agentID != "" {
-		sourceTenantID, err := types.ParseAgentSourceTenantID(c.Query(types.AgentSourceTenantIDParam))
-		if err != nil {
-			return nil, errKBAccessBadRequest
-		}
-		agent, err := agentShareService.GetSharedAgentForTenant(ctx, tenantID, callerTenantRole, agentID, sourceTenantID)
-		if err != nil || agent == nil {
-			return nil, nil
-		}
-		if kb.TenantID != agent.TenantID {
-			logger.Warnf(ctx, "[kb_access] shared agent workspace mismatch: kb=%s kb.tenant=%d agent.tenant=%d",
-				kb.ID, kb.TenantID, agent.TenantID)
-			return nil, nil
-		}
-		switch agent.Config.KBSelectionMode {
-		case "all":
-			logger.Infof(ctx, "[kb_access] tenant %d -> KB %s via shared agent %s (mode=all)",
-				tenantID, kb.ID, agentID)
-			return &KBAccess{
-				KnowledgeBase:     kb,
-				EffectiveTenantID: kb.TenantID,
-				Permission:        types.OrgRoleViewer,
-			}, nil
-		case "selected":
-			for _, allowedID := range agent.Config.KnowledgeBases {
-				if allowedID == kb.ID {
-					logger.Infof(ctx, "[kb_access] tenant %d -> KB %s via shared agent %s (mode=selected)",
-						tenantID, kb.ID, agentID)
-					return &KBAccess{
-						KnowledgeBase:     kb,
-						EffectiveTenantID: kb.TenantID,
-						Permission:        types.OrgRoleViewer,
-					}, nil
-				}
-			}
-		}
-		return nil, nil
-	}
-
-	can, err := agentShareService.TenantCanAccessKBViaSomeSharedAgent(ctx, tenantID, callerTenantRole, kb)
-	if err == nil && can {
-		logger.Infof(ctx, "[kb_access] tenant %d -> KB %s via some shared agent", tenantID, kb.ID)
-		return &KBAccess{
-			KnowledgeBase:     kb,
-			EffectiveTenantID: kb.TenantID,
-			Permission:        types.OrgRoleViewer,
-		}, nil
-	}
-	return nil, nil
 }
 
 var (

@@ -239,27 +239,24 @@ export class YuhengClient {
   }
 
   /**
-   * Ask a question and assemble the streamed answer. `agentId` selects the
-   * ReAct pipeline (`/agent-chat`); without it the RAG pipeline answers
-   * (`/knowledge-chat`).
+   * Ask a question and assemble the streamed answer. The RAG pipeline answers
+   * on `/knowledge-chat`: query rewriting, retrieval, reranking and
+   * summarization all run server-side.
    */
   async ask(
     input: {
       sessionId: string
       query: string
       knowledgeBaseIds: string[]
-      agentId: string | undefined
       webSearch: boolean
     },
     signal: AbortSignal,
   ): Promise<StreamedAnswer> {
-    const route = input.agentId === undefined ? 'knowledge-chat' : 'agent-chat'
-    const path = `/${route}/${encodeURIComponent(input.sessionId)}`
+    const path = `/knowledge-chat/${encodeURIComponent(input.sessionId)}`
     const body = {
       query: input.query,
       channel: 'api',
       ...input.knowledgeBaseIds.length > 0 ? { knowledge_base_ids: input.knowledgeBaseIds } : {},
-      ...input.agentId === undefined ? {} : { agent_id: input.agentId, agent_enabled: true },
       ...input.webSearch ? { web_search_enabled: true } : {},
     }
     const combined = deadline(signal, this.config.chatTimeoutMs)
@@ -305,8 +302,8 @@ interface StreamEvent {
 
 /**
  * Consume Yuheng's `text/event-stream` and assemble the parts a tool result
- * needs: the answer text, its citations, and the tool names the agent used.
- * Server-side `error` events become a thrown failure so the model is never
+ * needs: the answer text, its citations, and the tool names Yuheng's pipeline
+ * used. Server-side `error` events become a thrown failure so the model is never
  * handed a silently empty answer.
  */
 async function assembleStream(

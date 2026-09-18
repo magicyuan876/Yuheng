@@ -29,7 +29,7 @@ func prepareMessagesWithModelContext(
 		return messages, registry
 	}
 
-	ordered := orderedPipelineReferences(chatManage)
+	ordered := chatManage.MergeResult
 	knowledgeResults := make([]*types.SearchResult, 0, len(ordered))
 	knowledgeRows := make([]map[string]interface{}, 0, len(ordered))
 	webRows := make([]map[string]interface{}, 0)
@@ -102,27 +102,6 @@ func isPipelineWebReference(result *types.SearchResult) bool {
 	}
 	return strings.EqualFold(result.ChunkType, string(types.ChunkTypeWebSearch)) ||
 		strings.EqualFold(result.KnowledgeSource, "web_search")
-}
-
-func orderedPipelineReferences(chatManage *types.ChatManage) []*types.SearchResult {
-	if chatManage == nil {
-		return nil
-	}
-	if !chatManage.FAQPriorityEnabled {
-		return chatManage.MergeResult
-	}
-	ordered := make([]*types.SearchResult, 0, len(chatManage.MergeResult))
-	for _, result := range chatManage.MergeResult {
-		if result != nil && result.ChunkType == string(types.ChunkTypeFAQ) {
-			ordered = append(ordered, result)
-		}
-	}
-	for _, result := range chatManage.MergeResult {
-		if result != nil && result.ChunkType != string(types.ChunkTypeFAQ) {
-			ordered = append(ordered, result)
-		}
-	}
-	return ordered
 }
 
 func firstPipelineTitle(result *types.SearchResult) string {

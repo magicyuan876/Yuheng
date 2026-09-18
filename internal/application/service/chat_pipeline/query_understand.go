@@ -19,7 +19,6 @@ import (
 type PluginQueryUnderstand struct {
 	modelService   interfaces.ModelService
 	messageService interfaces.MessageService
-	memoryService  interfaces.MemoryService
 	config         *config.Config
 }
 
@@ -35,13 +34,11 @@ type queryUnderstandOutput struct {
 // and registers it with the event manager.
 func NewPluginQueryUnderstand(eventManager *EventManager,
 	modelService interfaces.ModelService, messageService interfaces.MessageService,
-	memoryService interfaces.MemoryService,
 	config *config.Config,
 ) *PluginQueryUnderstand {
 	res := &PluginQueryUnderstand{
 		modelService:   modelService,
 		messageService: messageService,
-		memoryService:  memoryService,
 		config:         config,
 	}
 	eventManager.Register(res)
@@ -194,9 +191,8 @@ func (p *PluginQueryUnderstand) updateUserMessageImageCaption(ctx context.Contex
 
 // loadHistory fetches and processes conversation history for rewrite context.
 func (p *PluginQueryUnderstand) loadHistory(ctx context.Context, chatManage *types.ChatManage) []*types.History {
-	// Honor the multi-turn-disabled signal: chatManage.MaxRounds == 0 is set
-	// explicitly by applyAgentOverridesToChatManage when the custom agent has
-	// MultiTurnEnabled=false. We must not silently fall back to the global
+	// Honor the multi-turn-disabled signal: chatManage.MaxRounds == 0 disables
+	// history loading explicitly. We must not silently fall back to the global
 	// default, otherwise rewrite + image analysis would still pull old turns
 	// into the context and leak through chatManage.History.
 	if chatManage.MaxRounds <= 0 {
@@ -309,7 +305,6 @@ func (p *PluginQueryUnderstand) buildPrompts(
 	} else {
 		queryContent += "\n<no_document_attached />"
 	}
-	queryContent += p.memoryBackground(ctx, chatManage)
 
 	vals := types.PlaceholderValues{
 		"conversation": conversationText,
@@ -319,58 +314,6 @@ func (p *PluginQueryUnderstand) buildPrompts(
 
 	return types.RenderPromptPlaceholders(systemPrompt, vals),
 		types.RenderPromptPlaceholders(userPrompt, vals)
-}
-
-// memoryBackground gives the rewriter who is asking.
-//
-// This is the point where long-term memory stops being a paragraph appended to
-// the answer prompt and starts changing what gets retrieved. "How do I tune the
-// segmentation" is a different search for someone who works on medical imaging
-// than for someone who works on autonomous driving, and the only place that
-// difference can be applied is before retrieval runs.
-//
-// It is deliberately advisory rather than a filter. Memory narrows nothing and
-// excludes no knowledge base: a stale note about last quarter's project must
-// not be able to make this quarter's documents unreachable.
-func (p *PluginQueryUnderstand) memoryBackground(ctx context.Context, chatManage *types.ChatManage) string {
-	if p.memoryService == nil {
-		return ""
-	}
-	memCtx := p.memoryService.RetrievalContextFor(ctx)
-	if memCtx.Empty() {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString("\n\n<asker_background note=\"背景仅用于消解指代和补全检索词，不要当作问题的一部分\">")
-	if memCtx.Background != "" {
-		b.WriteString("\n" + memCtx.Background)
-	}
-	if len(memCtx.Interests) > 0 {
-		b.WriteString("\n长期关注：" + strings.Join(memCtx.Interests, "、"))
-	}
-	if len(memCtx.Documents) > 0 {
-		b.WriteString("\n常查资料：" + strings.Join(memCtx.Documents, "、"))
-	}
-	b.WriteString("\n</asker_background>")
-
-	// Deliberately does not add to chatManage.UsedMemories. What this reads is
-	// the whole standing background, unfiltered — that is the right input for a
-	// rewriter, but reporting it would claim every turn recalled memories that
-	// have nothing to do with the question. Which memories this turn actually
-	// used is decided in MEMORY_RECALL, by relevance, and the profile entries
-	// here are already reported from there.
-	fields := map[string]interface{}{
-		"session_id": chatManage.SessionID,
-		"interests":  len(memCtx.Interests),
-		"documents":  len(memCtx.Documents),
-		"items":      len(memCtx.Items),
-	}
-	if len(memCtx.Interests) > 0 {
-		fields["interest_previews"] = memCtx.Interests
-	}
-	pipelineInfo(ctx, "QueryUnderstand", "memory_background", fields)
-	return b.String()
 }
 
 // parseOutput extracts the rewritten query, intent classification, and optional

@@ -6,7 +6,6 @@
 
 | 情况 | 考虑 |
 | --- | --- |
-| 单机 / 桌面版，不想跑数据库 | SQLite（内嵌，零依赖） |
 | 向量规模到千万级、要独立扩容 | Qdrant、Milvus |
 | 公司已有 Elasticsearch / OpenSearch 栈 | 复用现有集群 |
 | 要按知识库分开存放数据 | 保持默认引擎，另在「设置 → 向量存储」注册实例并绑定到指定知识库 |
@@ -17,7 +16,7 @@
 |------|----------|
 | 引擎注册（env + DB store） | `internal/container/container.go`（`initRetrieveEngineRegistry`）、`engine_factory.go` |
 | 注册表 / 组合引擎 / 工厂 | `internal/application/service/retriever/`（`registry.go`、`composite.go`、`factory.go`、`normalizer.go`） |
-| 各引擎实现 | `internal/application/repository/retriever/{postgres,sqlite,elasticsearch,opensearch,qdrant,milvus,weaviate,doris,tencentvectordb,neo4j}` |
+| 各引擎实现 | `internal/application/repository/retriever/{postgres,elasticsearch,opensearch,qdrant,milvus,weaviate,doris,tencentvectordb,neo4j}` |
 | 混合检索调度与融合 | `internal/application/service/knowledgebase_search*.go` |
 | 引擎类型常量 | `internal/types/retriever.go` |
 | 租户默认引擎 | `internal/types/tenant.go`（`GetDefaultRetrieverEngines`） |
@@ -62,7 +61,7 @@ flowchart TD
     ENV["环境变量 RETRIEVE_DRIVER=postgres,qdrant,..."] --> REG
     DB["DB 表 vector_stores (实例级绑定)"] --> LOAD["loadDBStoresIntoRegistry"]
     LOAD --> REG["RetrieveEngineRegistry"]
-    REG --> BET["byEngineType: postgres / elasticsearch / opensearch / qdrant / milvus / weaviate / doris / sqlite / tencent_vectordb"]
+    REG --> BET["byEngineType: postgres / elasticsearch / opensearch / qdrant / milvus / weaviate / doris / tencent_vectordb"]
     REG --> BSI["byStoreID: store-uuid 到引擎实例"]
 
     Q["HybridSearch(kbIDs, params)"] --> GRP["resolveStoreGroups 按 (VectorStoreID, 属主租户) 分组"]
@@ -84,7 +83,7 @@ flowchart TD
 
 ## 2. 引擎逐个详解
 
-引擎类型常量见 `internal/types/retriever.go`：`postgres`、`elasticsearch`、`opensearch`、`qdrant`、`milvus`、`weaviate`、`doris`、`sqlite`、`tencent_vectordb`（另有 `infinity`、`elasticfaiss` 为遗留枚举，无可部署实现）。除特别注明外，所有引擎的 `Support()` 均返回 `[keywords, vector]` 两类。
+引擎类型常量见 `internal/types/retriever.go`：`postgres`、`elasticsearch`、`opensearch`、`qdrant`、`milvus`、`weaviate`、`doris`、`tencent_vectordb`（另有 `infinity`、`elasticfaiss` 为遗留枚举，无可部署实现）。除特别注明外，所有引擎的 `Support()` 均返回 `[keywords, vector]` 两类。
 
 ### 2.1 PostgreSQL（pgvector + ParadeDB）— 默认引擎
 
@@ -95,18 +94,7 @@ flowchart TD
 - **过滤**：`knowledge_base_id` / `knowledge_id` / `tag_id` IN 过滤（AND 语义），`is_enabled` 为 NULL 或 true。
 - **建索引**：`BatchSave` + `ON CONFLICT DO NOTHING`；删除按 chunk/source/knowledge ID 物理删除。
 
-### 2.2 SQLite（FTS5 + sqlite-vec）— 轻量单机
-
-`internal/application/repository/retriever/sqlite/repository.go`。零外部依赖的全内嵌方案。
-
-- **向量检索**：`sqlite-vec` 扩展（cgo bindings），**每个维度一张 vec0 虚表**：`CREATE VIRTUAL TABLE ... USING vec0(embedding float[dim] distance_metric=cosine)`；查询 `WHERE v.embedding MATCH ?`（序列化查询向量）`ORDER BY v.distance`，`score = 1 - distance`。启动时 `ensureExistingVecTables` 按已有数据维度补建虚表。
-- **关键词检索**：FTS5 contentless 表 `lite_embeddings_fts`，写入时手动 **bigram 分词**（对中文友好），查询经 `sanitizeFTS5Query` 同样 bigram 化后 `MATCH`。
-- **过滤**：主表 `lite_embeddings` 上的 KB/knowledge/tag/is_enabled 过滤。向量路径的过滤条件必须**先于 top-k 生效**——写成 `v.rowid IN (SELECT ... FROM lite_embeddings filtered WHERE ...)` 的子查询而不是 JOIN 之后再过滤，否则 vec0 先取全局最近的 k 条、再被过滤掉大半，指定知识库或标签时会出现「明明有匹配却召回为空」；
-- **错误传播**：任一检索路径出错直接返回错误，而不是塞一条带 `Error` 字段的空结果继续走——后者会被上层当成「检索成功但没命中」；
-- **阈值**：向量阈值为 0 时视为不过滤，而不是把所有结果都滤掉。
-- 适合桌面版 / 开发环境 / 极小规模部署。
-
-### 2.3 Elasticsearch v8
+### 2.2 Elasticsearch v8
 
 `internal/application/repository/retriever/elasticsearch/v8/repository.go`。typed client，单索引（`ELASTICSEARCH_INDEX`，默认 `Yuheng`），文档含 `dense_vector` embedding 字段。
 
@@ -115,11 +103,11 @@ flowchart TD
 - **过滤**：bool filter（KB/knowledge/tag ID terms；`is_enabled` 用 must_not 反向匹配，历史无该字段的数据视为启用）；启动时探测 mapping 决定 ID 字段是否需要 `.keyword` 后缀。
 - **建索引**：Bulk API 批量写入，空向量拒绝。
 
-### 2.4 Elasticsearch v7 — 仅关键词
+### 2.3 Elasticsearch v7 — 仅关键词
 
 `internal/application/repository/retriever/elasticsearch/v7/repository.go`。注意：**`Support()` 只返回 `[keywords]`**——v7 驱动在 Yuheng 中仅作为 BM25 关键词引擎注册（代码中保留了 `script_score cosineSimilarity` 的向量查询构造，但能力声明不含 vector，Composite 不会把向量请求路由给它）。需向量检索时应搭配其他驱动（如 `RETRIEVE_DRIVER=postgres,elasticsearch_v7`）或升级 v8。
 
-### 2.5 OpenSearch
+### 2.4 OpenSearch
 
 `internal/application/repository/retriever/opensearch/`（多文件拆分：`repository.go`、`retrieve.go`、`query.go`、`mapping.go`、`crud.go` 等）。工程化最完整的驱动。
 
@@ -129,7 +117,7 @@ flowchart TD
 - **建索引**：`mapping.go` 声明式 mapping（`knn_vector` 字段带 method/engine 参数），启动时校验 mapping 指纹，漂移报 `ErrConfigInvalid`；别名管理 + `copy.go` 支持 reindex；索引创建/重建事件经 AuditSink 写审计日志。
 - 配置含 `OPENSEARCH_INSECURE_SKIP_VERIFY` 与 SSRF 安全传输层（`transport.go`）。
 
-### 2.6 Qdrant
+### 2.5 Qdrant
 
 `internal/application/repository/retriever/qdrant/repository.go`。gRPC 客户端（默认端口 6334）。
 
@@ -139,7 +127,7 @@ flowchart TD
 - **过滤**：`getBaseFilter` 用 `MatchKeywords` 精确过滤 KB/knowledge/tag/is_enabled。
 - 配置：`QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_API_KEY` / `QDRANT_USE_TLS`。
 
-### 2.7 Milvus
+### 2.6 Milvus
 
 `internal/application/repository/retriever/milvus/repository.go`。
 
@@ -150,7 +138,7 @@ flowchart TD
 - **启停同步**：`BatchUpdateChunkEnabledStatus` 逐 collection 更新，失败用 `errors.Join` 聚合后**返回错误**而不是只打 warn——主库里已停用的分块绝不能因为索引更新静默失败而继续可被检索到。
 - 配置：`MILVUS_ADDRESS` / `MILVUS_USERNAME` / `MILVUS_PASSWORD` / `MILVUS_DB_NAME` / `MILVUS_METRIC_TYPE`（改后需重建 collection）。
 
-### 2.8 Weaviate
+### 2.7 Weaviate
 
 `internal/application/repository/retriever/weaviate/repository.go`。HTTP + gRPC 双通道。
 
@@ -160,7 +148,7 @@ flowchart TD
 - **过滤**：GraphQL where 过滤 KB/knowledge/tag/is_enabled。
 - 配置：`WEAVIATE_HOST` / `WEAVIATE_GRPC_ADDRESS` / `WEAVIATE_SCHEME` / `WEAVIATE_AUTH_ENABLED` + `WEAVIATE_API_KEY`。
 
-### 2.9 Apache Doris（4.1+）
+### 2.8 Apache Doris（4.1+）
 
 `internal/application/repository/retriever/doris/`（`repository.go` 699 行 + `schema.go` + `structs.go`）。MySQL 协议连 FE（9030），HTTP（8030）走 Stream Load（SSRF 安全客户端）。
 
@@ -171,7 +159,7 @@ flowchart TD
 - **写入**：DUPLICATE KEY 表按 id 显式 delete + insert 保持替换语义；enabled/tag 更新经 Stream Load partial update。
 - 配置：`DORIS_ADDR` / `DORIS_HTTP_PORT` / `DORIS_DATABASE` / `DORIS_USERNAME` / `DORIS_PASSWORD` / `DORIS_TABLE_PREFIX` / `DORIS_COMPAT_MODE`。
 
-### 2.10 腾讯云 VectorDB
+### 2.9 腾讯云 VectorDB
 
 `internal/application/repository/retriever/tencentvectordb/repository.go`。RpcClient，EventualConsistency，10s 超时。
 
@@ -180,7 +168,7 @@ flowchart TD
 - **关键词检索**：本地 `encoder.SparseEncoder`（BM25）把查询编码为稀疏向量，对 `sparse_vector` 字段做稀疏检索，遍历匹配维度的所有 collection。
 - 配置：`TENCENT_VECTORDB_ADDR` / `TENCENT_VECTORDB_USERNAME` / `TENCENT_VECTORDB_API_KEY` / `TENCENT_VECTORDB_DATABASE` / `TENCENT_VECTORDB_COLLECTION`。三项核心配置缺一则跳过注册。
 
-### 2.11 Neo4j — 图谱检索（不在 Registry 体系内）
+### 2.10 Neo4j — 图谱检索（不在 Registry 体系内）
 
 `internal/application/repository/retriever/neo4j/repository.go` 实现的是 `RetrieveGraphRepository`（`SearchNode(ctx, NameSpace, entities)`），不是向量/关键词引擎：按 `NameSpace{KnowledgeBase, Knowledge}` 检索实体节点与关系，服务于 chat pipeline 的 `ENTITY_SEARCH` 阶段（GraphRAG）。由 `NEO4J_ENABLE=true` + `NEO4J_URI`/`NEO4J_USERNAME`/`NEO4J_PASSWORD` 启用。
 
@@ -189,7 +177,6 @@ flowchart TD
 | 引擎 | RETRIEVE_DRIVER 值 | 向量检索 | 关键词/全文 | 关键词打分 | 中文分词 | 维度管理 | 阈值下推 | 部署复杂度 | 适用场景 |
 |------|-------------------|----------|------------|-----------|---------|----------|---------|-----------|----------|
 | PostgreSQL | `postgres` | pgvector halfvec + HNSW 表达式索引 | ParadeDB BM25（`\|\|\|`） | BM25（paradedb.score） | ParadeDB tokenizer | 单表混维，表达式索引按维 cast | 距离阈值 SQL 内 | 低（默认镜像内置） | 默认选择；与业务同库，事务一致 |
-| SQLite | `sqlite` | sqlite-vec vec0（cosine） | FTS5 contentless | FTS5 | 应用侧 bigram | 每维一张 vec0 虚表 | 应用侧 | 极低（内嵌） | 桌面版 / 开发 / 微型部署 |
 | Elasticsearch v8 | `elasticsearch_v8` | script_score cosineSimilarity | match（BM25） | BM25 | ES analyzer | dense_vector 单索引 | 应用侧 | 中 | 已有 ES 8 集群 |
 | Elasticsearch v7 | `elasticsearch_v7` | 不支持（Support 仅 keywords） | match（BM25） | BM25 | ES analyzer | — | — | 中 | 存量 ES 7，仅作关键词引擎，需与其他向量引擎组合 |
 | OpenSearch | `opensearch` | k-NN 插件 knn（HNSW） | match（BM25） | BM25 | OS analyzer | knn_vector 声明式 mapping + 指纹校验 | k-NN 原生 | 中 | 需审计/别名/reindex 的生产 ES 系方案；版本 2.11+/3.x |
@@ -208,7 +195,6 @@ Yuheng 允许不同 KB 使用不同 embedding 模型（维度各异），各引�
 | 引擎 | 策略 |
 |------|------|
 | PostgreSQL | 单表 `embeddings` 混存，行内 `dimension` 列；HNSW 建在 `embedding::halfvec(dim)` 表达式上，检索时 `WHERE dimension = ?` + 同维 cast 命中对应索引 |
-| SQLite | 每维度一张 `vec0` 虚表（启动时按存量数据维度自动补建） |
 | Qdrant / Milvus / TencentVectorDB | 每维度一个 collection：`{base}_{dim}`，首写时 `ensureCollection` 惰性创建（sync.Map 记忆已建维度） |
 | Doris | 每维度一张表：`{prefix}_{dim}`，`schema.go` 生成 DDL 并轮询 ANN 索引就绪 |
 | Elasticsearch / OpenSearch | 单索引 `dense_vector`/`knn_vector` mapping（`ELASTICSEARCH_INDEX` / `OPENSEARCH_INDEX`），维度在 mapping 中固定 |
@@ -227,7 +213,7 @@ Yuheng 允许不同 KB 使用不同 embedding 模型（维度各异），各引�
 | Elasticsearch v8 | [0, 1]（Lucene script_score 非负不变量） | 直通 clamp01 |
 | OpenSearch | [0, 1]（k-NN COSINESIMIL 已做 `(1+cos)/2`） | 直通 clamp01 |
 | Weaviate | [0, 1]（certainty 定义即 `(2-distance)/2`） | 直通 clamp01 |
-| Postgres / SQLite / Qdrant / TencentVectorDB / Doris | 理论 [-1,1]，IR 归一化 embedding 实际 [0,1] | 直通 clamp01 |
+| Postgres / Qdrant / TencentVectorDB / Doris | 理论 [-1,1]，IR 归一化 embedding 实际 [0,1] | 直通 clamp01 |
 | 未知引擎 | — | clamp01 兜底 + 每请求一次 WARN |
 
 **关键词（BM25）分数不归一化**——其值域无上界，压缩会坍缩长尾；下游 RRF 基于 rank，天然免疫尺度差异。`clamp01` 同时消化 NaN/Inf，保护下游排序的严格弱序不变量。同一引擎内部的结果保持原生尺度（直接可比，不做无谓变换）。
@@ -253,7 +239,7 @@ rrfScore = vectorWeight/(rrfK + vectorRank) + keywordWeight/(rrfK + keywordRank)
 
 | 环境变量 | 默认 | 说明 |
 |----------|------|------|
-| `RETRIEVE_DRIVER` | `postgres` | 逗号分隔多驱动：`postgres` / `sqlite` / `elasticsearch_v7` / `elasticsearch_v8` / `opensearch` / `qdrant` / `milvus` / `weaviate` / `doris` / `tencent_vectordb`。多驱动时写操作广播到全部，检索按类型路由 |
+| `RETRIEVE_DRIVER` | `postgres` | 逗号分隔多驱动：`postgres` / `elasticsearch_v7` / `elasticsearch_v8` / `opensearch` / `qdrant` / `milvus` / `weaviate` / `doris` / `tencent_vectordb`。多驱动时写操作广播到全部，检索按类型路由 |
 | `MULTI_STORE_RETRIEVE_TIMEOUT_SEC` | 30 | 多 store 并行检索每组超时 |
 | `ELASTICSEARCH_ADDR` / `_USERNAME` / `_PASSWORD` / `_INDEX` | — / `Yuheng` | ES v7/v8 共用 |
 | `OPENSEARCH_ADDR` / `_USERNAME` / `_PASSWORD` / `_INDEX` / `_INSECURE_SKIP_VERIFY` | — | OpenSearch |
@@ -270,7 +256,7 @@ rrfScore = vectorWeight/(rrfK + vectorRank) + keywordWeight/(rrfK + keywordRank)
 
 ```mermaid
 sequenceDiagram
-    participant P as Chat Pipeline / Agent 工具
+    participant P as Chat Pipeline
     participant H as HybridSearch
     participant G as resolveStoreGroups
     participant C as CompositeRetrieveEngine

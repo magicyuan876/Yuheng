@@ -22,14 +22,11 @@
                   <div v-for="item in group.items" :key="item.key"
                     :class="['nav-item', { 'active': currentSection === item.key }]"
                     @click="currentSection = item.key">
-                    <img v-if="item.key === 'sharedAgents'"
-                      :src="currentSection === 'sharedAgents' ? agentIconActiveSrc : agentIconSrc"
-                      class="nav-icon nav-icon-img" alt="" aria-hidden="true" />
-                    <t-icon v-else :name="item.icon" class="nav-icon" />
+                    <t-icon :name="item.icon" class="nav-icon" />
                     <span class="nav-label">{{ item.label }}</span>
                     <span
-                      v-if="item.badge != null && (item.key === 'sharedKb' || item.key === 'sharedAgents' ? true : item.badge > 0)"
-                      :class="['nav-badge', { 'nav-badge-count': item.key === 'sharedKb' || item.key === 'sharedAgents' }]">{{
+                      v-if="item.badge != null && (item.key === 'sharedKb' ? true : item.badge > 0)"
+                      :class="['nav-badge', { 'nav-badge-count': item.key === 'sharedKb' }]">{{
                         item.badge }}</span>
                   </div>
                 </template>
@@ -248,7 +245,6 @@
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm2') }}</li>
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm3') }}</li>
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm4') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.useSharedAgentsPerm') }}</li>
                       </ul>
                     </div>
                     <div class="permission-card">
@@ -264,7 +260,6 @@
                       <ul class="permission-list">
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm1') }}</li>
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm2') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.useSharedAgentsPerm') }}</li>
                         <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
                         <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.editorPerm3') }}</li>
                       </ul>
@@ -281,7 +276,6 @@
                       </div>
                       <ul class="permission-list">
                         <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.viewerPerm1') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.useSharedAgentsPerm') }}</li>
                         <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
                         <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm2') }}</li>
                         <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm3') }}</li>
@@ -716,90 +710,6 @@
                 </div>
 
                 <!-- 共享智能体 -->
-                <div v-show="currentSection === 'sharedAgents'" class="section">
-                  <div class="section-header">
-                    <div class="section-header-row">
-                      <div class="section-header-titlewrap">
-                        <h2>{{ $t('organization.settings.sharedAgents') }}</h2>
-                        <t-popup placement="bottom-start" trigger="hover"
-                          overlay-class-name="org-permissions-popup-overlay"
-                          :overlay-inner-style="permissionsHintPopupInnerStyle">
-                          <button type="button" class="permissions-trigger-btn"
-                            :aria-label="$t('organization.settings.sharedAgentsKbHintShort')"
-                            :title="$t('organization.settings.sharedAgentsKbHintShort')">
-                            <t-icon name="info-circle" size="16px" />
-                          </button>
-                          <template #content>
-                            <div class="permission-hint-popover">
-                              <p class="permission-hint-title">{{ $t('organization.settings.sharedAgents') }}</p>
-                              <p class="permission-hint-desc">{{ $t('organization.settings.sharedAgentsKbHint') }}</p>
-                            </div>
-                          </template>
-                        </t-popup>
-                      </div>
-                    </div>
-                    <p class="section-description">{{ $t('organization.settings.sharedAgentsDesc') }}</p>
-                  </div>
-
-                  <div class="shared-resources-wrap">
-                    <div class="members-list-header">
-                      <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t('organization.sharedResources.agentListTitle') }}</span>
-                        <span class="members-list-count-badge">{{ sharedAgents.length }}</span>
-                      </div>
-                    </div>
-
-                    <div v-if="sharedAgents.length === 0" class="empty-state">
-                      <t-empty>
-                        <template #description>
-                          <p class="empty-state-title">{{ $t('organization.settings.noSharedAgents') }}</p>
-                          <p class="empty-state-desc">{{ $t('organization.settings.noSharedAgentsTip') }}</p>
-                        </template>
-                      </t-empty>
-                    </div>
-                    <div v-else class="data-table-shell shared-resources-table">
-                      <t-table row-key="id" :data="sharedAgents" :columns="sharedAgentColumns" size="medium" hover
-                        stripe class="shared-agent-table">
-                        <template #name="{ row }">
-                          <span class="resource-name" :title="row.agent_name || row.agent_id">{{ row.agent_name ||
-                            row.agent_id }}</span>
-                        </template>
-                        <template #shared_by="{ row }">
-                          <span class="resource-meta">{{ row.shared_by_username || '—' }}</span>
-                        </template>
-                        <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
-                        <template #scope_kb="{ row }">
-                          <span class="resource-meta" :title="agentKbScopeLabel(row)">{{ agentKbScopeLabel(row) }}</span>
-                        </template>
-                        <template #scope_web_search="{ row }">
-                          <span class="resource-meta">{{ agentWebSearchScopeLabel(row) }}</span>
-                        </template>
-                        <template #scope_mcp="{ row }">
-                          <span class="resource-meta" :title="agentMcpScopeLabel(row)">{{ agentMcpScopeLabel(row) }}</span>
-                        </template>
-                        <template #permission>
-                          <t-tag size="small" theme="default" variant="light">
-                            {{ $t('organization.share.permissionReadonly') }}
-                          </t-tag>
-                        </template>
-                        <template #actions="{ row }">
-                          <t-popconfirm v-if="isAdmin"
-                            :content="$t('organization.settings.removeAgentShareConfirm', { name: row.agent_name || row.agent_id })"
-                            :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
-                            :cancel-btn="{ content: $t('common.cancel') }" placement="left"
-                            @confirm="handleRemoveAgentShare(row)">
-                            <t-tooltip :content="$t('organization.settings.removeShareFromOrg')" placement="top">
-                              <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
-                                <template #icon><t-icon name="delete" /></template>
-                              </t-button>
-                            </t-tooltip>
-                          </t-popconfirm>
-                        </template>
-                      </t-table>
-                    </div>
-                  </div>
-                </div>
-
               </div>
 
               <!-- 底部操作按钮 -->
@@ -826,20 +736,16 @@ import { copyWithToast } from '@/utils/clipboard'
 import {
   getOrganization,
   listOrgShares,
-  listOrgAgentShares,
   listJoinRequests,
   searchTenantsForInvite,
   type OrganizationMember,
   type KnowledgeBaseShare,
-  type AgentShareResponse,
   type JoinRequestResponse,
   type TenantInviteCandidate
 } from '@/api/organization'
 import { useOrganizationStore } from '@/stores/organization'
 import { useAuthStore } from '@/stores/auth'
 import SpaceAvatar from '@/components/SpaceAvatar.vue'
-import agentIconSrc from '@/assets/img/agent.svg'
-import agentIconActiveSrc from '@/assets/img/agent-green.svg'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -868,7 +774,6 @@ const contentWrapperRef = ref<HTMLElement | null>(null)
 const orgInfo = computed(() => orgStore.currentOrganization)
 const members = computed(() => orgStore.currentMembers)
 const sharedKnowledgeBases = ref<KnowledgeBaseShare[]>([])
-const sharedAgents = ref<AgentShareResponse[]>([])
 const joinRequests = ref<JoinRequestResponse[]>([])
 const joinRequestsLoading = ref(false)
 const joinRequestSearchQuery = ref('')
@@ -1015,12 +920,6 @@ const navItems = computed(() => {
       label: t('organization.share.sharedKnowledgeBase'),
       badge: sharedKnowledgeBases.value.length
     })
-    items.push({
-      key: 'sharedAgents',
-      icon: 'control-platform',
-      label: t('organization.settings.sharedAgents'),
-      badge: sharedAgents.value.length
-    })
   }
   return items
 })
@@ -1052,7 +951,7 @@ const navGroups = computed(() => {
     {
       key: 'resources',
       label: t('organization.navGroups.resources'),
-      items: pickItems(['sharedKb', 'sharedAgents']),
+      items: pickItems(['sharedKb']),
     },
   ].filter((group) => group.items.length > 0)
 })
@@ -1090,21 +989,18 @@ const orgRoleMatrix: Record<OrgRole, OrgRolePerm[]> = {
   admin: [
     { key: 'viewerPerm1', has: true },
     { key: 'editorPerm1', has: true },
-    { key: 'useSharedAgentsPerm', has: true },
     { key: 'shareKBPerm', has: true },
     { key: 'adminPerm1', has: true },
   ],
   editor: [
     { key: 'viewerPerm1', has: true },
     { key: 'editorPerm1', has: true },
-    { key: 'useSharedAgentsPerm', has: true },
     { key: 'shareKBPerm', has: false },
     { key: 'adminPerm1', has: false },
   ],
   viewer: [
     { key: 'viewerPerm1', has: true },
     { key: 'editorPerm1', has: false },
-    { key: 'useSharedAgentsPerm', has: true },
     { key: 'shareKBPerm', has: false },
     { key: 'adminPerm1', has: false },
   ],
@@ -1168,45 +1064,6 @@ const sharedKbColumns = computed(() => {
   ]
   return cols
 })
-
-const sharedAgentColumns = computed(() => {
-  const cols = [
-    { colKey: 'name', title: t('organization.sharedResources.columns.name'), ellipsis: true, minWidth: 160 },
-    { colKey: 'shared_by', title: t('organization.sharedResources.columns.sharedBy'), width: 108, ellipsis: true },
-    { colKey: 'created_at', title: t('organization.sharedResources.columns.sharedAt'), width: 118 },
-    { colKey: 'scope_kb', title: t('agent.shareScope.knowledgeBase'), width: 120, ellipsis: true },
-    { colKey: 'scope_web_search', title: t('agent.shareScope.webSearch'), width: 88, ellipsis: true },
-    { colKey: 'scope_mcp', title: t('agent.shareScope.mcp'), width: 108, ellipsis: true },
-    { colKey: 'permission', title: t('organization.sharedResources.columns.permission'), width: 80 },
-  ]
-  if (isAdmin.value) {
-    cols.push({ colKey: 'actions', title: t('organization.members.columns.operations'), width: 72, align: 'left' } as typeof cols[number])
-  }
-  return cols
-})
-
-function agentKbScopeLabel(share: AgentShareResponse): string {
-  if (share.scope_kb === undefined || share.scope_kb === '') return '—'
-  if (share.scope_kb === 'all') return t('agent.shareScope.kbAll')
-  if (share.scope_kb === 'selected' && (share.scope_kb_count ?? 0) > 0) {
-    return t('agent.shareScope.kbSelected', { count: share.scope_kb_count })
-  }
-  return t('agent.shareScope.kbNone')
-}
-
-function agentWebSearchScopeLabel(share: AgentShareResponse): string {
-  if (share.scope_web_search === undefined) return '—'
-  return share.scope_web_search ? t('agent.shareScope.enabled') : t('agent.shareScope.disabled')
-}
-
-function agentMcpScopeLabel(share: AgentShareResponse): string {
-  if (share.scope_mcp === undefined || share.scope_mcp === '') return '—'
-  if (share.scope_mcp === 'all') return t('agent.shareScope.mcpAll')
-  if (share.scope_mcp === 'selected' && (share.scope_mcp_count ?? 0) > 0) {
-    return t('agent.shareScope.mcpSelected', { count: share.scope_mcp_count })
-  }
-  return t('agent.shareScope.mcpNone')
-}
 
 const filteredMembers = computed(() => {
   const query = memberSearchQuery.value.toLowerCase()
@@ -1346,24 +1203,15 @@ const fetchSharedKBs = async () => {
   if (!props.orgId) return
   sharesLoading.value = true
   try {
-    const [kbRes, agentRes] = await Promise.all([
-      listOrgShares(props.orgId),
-      listOrgAgentShares(props.orgId)
-    ])
+    const kbRes = await listOrgShares(props.orgId)
     if (kbRes.success && kbRes.data) {
       sharedKnowledgeBases.value = kbRes.data.shares || []
     } else {
       sharedKnowledgeBases.value = []
     }
-    if (agentRes.success && agentRes.data) {
-      sharedAgents.value = agentRes.data.shares || []
-    } else {
-      sharedAgents.value = []
-    }
   } catch (error) {
     console.error('Failed to fetch shared resources:', error)
     sharedKnowledgeBases.value = []
-    sharedAgents.value = []
   } finally {
     sharesLoading.value = false
   }
@@ -1772,21 +1620,6 @@ const handleRemoveShare = async (share: KnowledgeBaseShare) => {
     if (res.success) {
       MessagePlugin.success(t('organization.settings.removeShareSuccess'))
       sharedKnowledgeBases.value = sharedKnowledgeBases.value.filter(s => s.id !== share.id)
-    } else {
-      MessagePlugin.error(res.message || t('organization.settings.removeShareFailed'))
-    }
-  } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.settings.removeShareFailed'))
-  }
-}
-
-const handleRemoveAgentShare = async (share: AgentShareResponse) => {
-  if (!props.orgId) return
-  try {
-    const res = await orgStore.unshareAgent(share.agent_id, share.id, props.orgId)
-    if (res.success) {
-      MessagePlugin.success(t('organization.settings.removeShareSuccess'))
-      sharedAgents.value = sharedAgents.value.filter(s => s.id !== share.id)
     } else {
       MessagePlugin.error(res.message || t('organization.settings.removeShareFailed'))
     }

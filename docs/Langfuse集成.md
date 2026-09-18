@@ -10,7 +10,7 @@ Yuheng 内置了对 [Langfuse](https://langfuse.com) 的轻量级集成，用于
 - **跨进程 trace 透传**：HTTP 层把 `trace_id` / `parent_observation_id` 注入 asynq payload，worker 在 asynq middleware 层自动 resume；定时任务（例如数据源同步）则退化为独立 trace，依然按任务类型（`asynq.<type>`）聚合。
 - **完全可选**：不配置 `LANGFUSE_*` 环境变量时，Langfuse 相关代码路径是 no-op，不产生任何性能开销。
 - **异步批量上报**：不阻塞业务请求；队列满时静默丢弃，观测数据不会影响用户对话。
-- **开箱即用的部署方式**：Docker Compose（`docker-compose.yml` 已内置环境变量）、Helm Chart（通过 `extraEnv`）、Lite 版本（本地单机）均支持。
+- **开箱即用的部署方式**：Docker Compose（`docker-compose.yml` 已内置环境变量）、Helm Chart（通过 `extraEnv`）均支持。
 
 ## 2. 快速开始
 
@@ -119,9 +119,9 @@ docker compose up -d app
 - **备份**：`pg_dump -d langfuse` 可独立备份 Langfuse 的元数据；事件数据在 ClickHouse 卷（`langfuse_clickhouse_data`）中。
 - **想彻底隔离**（跨机部署、强运维隔离）：可以直接把 `langfuse-web` / `langfuse-worker` 的 `DATABASE_URL` 和 `REDIS_CONNECTION_STRING` 指向任意外部 pg/redis（例如 RDS + ElastiCache）；`langfuse-db-init` 容器可以选择不启动，手动在目标 pg 上 `CREATE DATABASE langfuse` 即可。
 
-#### （B）Yuheng Lite（单机）
+#### （B）自定义环境变量
 
-在 `.env.lite`（或启动脚本导出的环境变量）里加：
+在 `.env`（或启动脚本导出的环境变量）里加：
 
 ```bash
 LANGFUSE_PUBLIC_KEY=pk-lf-xxxxxxxx
@@ -129,7 +129,7 @@ LANGFUSE_SECRET_KEY=sk-lf-xxxxxxxx
 LANGFUSE_HOST=https://cloud.langfuse.com
 ```
 
-启动 `yuheng-lite`（或 macOS `.app`）后效果同上。
+重启应用后效果同上。
 
 #### （C）Helm Chart 部署
 
@@ -227,9 +227,9 @@ Dev 相关容器都带 `-dev` 后缀、用独立网络 `Yuheng-network-dev`，�
 
 | Langfuse 概念 | Yuheng 对应 | 备注 |
 | --- | --- | --- |
-| Trace | 一次 HTTP 请求（含其触发的所有 asynq 任务） | 对于 `knowledge-chat`、`agent-chat`、`knowledge-search`、`generate_title`、`evaluation`、模型连通性测试等在线请求；以及文件上传/URL 入库/manual/reparse/move/copy、FAQ 导入、知识修改、wiki auto-fix、数据源手工触发等入库请求，HTTP 层都会开启 trace，并把 `trace_id` / `parent_observation_id` 注入 asynq payload。 |
-| Span（type=SPAN） | 每个 asynq 任务的执行窗口 / 每次 Agent 执行及其每一轮 / 每次工具调用 | 由 `internal/tracing/langfuse/AsynqMiddleware` 在 `mux.Use` 注册；对每个 handler 自动创建 `asynq.<task_type>` 的 SPAN，并记录 `task_id` / `queue` / `retry` / `payload_bytes`。定时任务（无上游 trace）会退化为 `asynq.<task_type>` 独立 trace。**Agent 相关**：`AgentEngine.Execute` 会开 `agent.execute` 顶层 SPAN，其下每一轮 ReAct 循环开 `agent.round.N` SPAN，每次工具调用开 `agent.tool.<tool_name>` SPAN（参数、输出、耗时、成败、错误都会写入）。 |
-| Generation（type=GENERATION） | 每次 chat / embedding / rerank / VLM / ASR 调用 | 若位于 span 下会自动设置 `parentObservationId`，所以 Langfuse UI 呈现 trace → asynq-span → generation 的树状结构；Agent 模式下是 trace → agent.execute → agent.round.N → (chat.completion.stream + agent.tool.X → rerank/embedding...) 的完整树。 |
+| Trace | 一次 HTTP 请求（含其触发的所有 asynq 任务） | 对于 `knowledge-chat`、`knowledge-search`、`generate_title`、`evaluation`、模型连通性测试等在线请求；以及文件上传/URL 入库/manual/reparse/move/copy、FAQ 导入、知识修改、wiki auto-fix、数据源手工触发等入库请求，HTTP 层都会开启 trace，并把 `trace_id` / `parent_observation_id` 注入 asynq payload。 |
+| Span（type=SPAN） | 每个 asynq 任务的执行窗口 | 由 `internal/tracing/langfuse/AsynqMiddleware` 在 `mux.Use` 注册；对每个 handler 自动创建 `asynq.<task_type>` 的 SPAN，并记录 `task_id` / `queue` / `retry` / `payload_bytes`。定时任务（无上游 trace）会退化为 `asynq.<task_type>` 独立 trace。 |
+| Generation（type=GENERATION） | 每次 chat / embedding / rerank / VLM / ASR 调用 | 若位于 span 下会自动设置 `parentObservationId`，所以 Langfuse UI 呈现 trace → asynq-span → generation 的树状结构；问答链路是 trace → (query_understand / chunk_search / chunk_rerank …) → chat.completion.stream 的完整树。 |
 | Input Tokens | `TokenUsage.PromptTokens` | 来自模型返回的 usage 字段。 |
 | Output Tokens | `TokenUsage.CompletionTokens` | 来自模型返回的 usage 字段。 |
 | Total Tokens | `TokenUsage.TotalTokens` | 大多数厂商返回；未返回时自动求和。 |
@@ -304,9 +304,7 @@ Dev 相关容器都带 `-dev` 后缀、用独立网络 `Yuheng-network-dev`，�
 - `internal/models/rerank/langfuse_wrapper.go` — Rerank 调用装饰器。
 - `internal/models/vlm/langfuse_wrapper.go` — VLM（视觉语言模型）调用装饰器。
 - `internal/models/asr/langfuse_wrapper.go` — ASR（语音识别）调用装饰器。
-- `internal/agent/engine.go` — `agent.execute` 顶层 SPAN 和 `agent.round.<N>` 每轮 SPAN。
-- `internal/agent/act.go` — `agent.tool.<tool_name>` 工具调用 SPAN（包含参数、输出、耗时、成败）。
 - `internal/router/router.go` — 注册 `langfuse.GinMiddleware()`。
 - `internal/router/task.go` — 在 asynq mux 上 `mux.Use(langfuse.AsynqMiddleware())`，使所有 handler 自动被 trace。
 - `internal/container/container.go` — 初始化 + 资源清理。
-- `docker-compose.yml` / `.env.example` / `.env.lite.example` — 预置 `LANGFUSE_*` 环境变量直通。
+- `docker-compose.yml` / `.env.example` — 预置 `LANGFUSE_*` 环境变量直通。

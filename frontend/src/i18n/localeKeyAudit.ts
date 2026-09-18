@@ -81,15 +81,11 @@ const EXTRA_PREFIXES = [
   'contextualGuide.kbList.steps.',
   'contextualGuide.kbCreate.steps.',
   'contextualGuide.tenantModels.steps.',
-  'contextualGuide.tenantModels.stepsAgent.',
   'contextualGuide.kbDetail.steps.',
   'contextualGuide.chat.steps.',
-  'contextualGuide.agentList.steps.',
-  'contextualGuide.agentCreate.steps.',
   'datasource.syncError.',
   'kbSettings.parser.engines.',
   'model.editor.description.',
-  'integrations.tabs.',
   'knowledgeStages.stage.',
   'knowledgeStages.status.',
   'system.globalSettings.runtime.pools.',
@@ -114,7 +110,6 @@ export const CRITICAL_LOCALE_KEYS = [
   'model.editor.description.asr',
   'inviteRegister.emailPlaceholder',
   'knowledgeList.sections.tenantOthers',
-  'agent.sections.tenantOthers',
 ] as const
 
 function addPrefix(usage: I18nUsage, prefix: string): void {

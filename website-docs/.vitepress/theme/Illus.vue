@@ -8,10 +8,10 @@ defineProps<{ name: string }>()
 const gold = 'var(--wk-gold)'
 
 /**
- * 首屏全景图右半部分：九个客户端沿一段椭圆弧展开，连线从核心圆的边缘出发。
+ * 首屏全景图右半部分：七个客户端沿一段椭圆弧展开，连线从核心圆的边缘出发。
  * 角度、落点与曲线控制点都在这里算，避免在模板里堆一串手写坐标。
  */
-const spokes = [-72, -54, -36, -18, 0, 18, 36, 54, 72].map((deg) => {
+const spokes = [-72, -48, -24, 0, 24, 48, 72].map((deg) => {
   const t = (deg * Math.PI) / 180
   const cx = 760 + 380 * Math.cos(t)
   const cy = 122 + 100 * Math.sin(t)
@@ -43,12 +43,12 @@ const s = {
        一张图讲完 Yuheng 与通用 RAG 示意图不一样的地方：
        左边多源接入（文档 / 网页 / 音频 / 图片）收束成一次统一解析，
        中间同一份内容并行写入四路索引（向量 / 关键词 / Wiki / 图谱），
-       右边同一套知识库与 Agent 再扇形展开成九种客户端。
+       右边同一套知识库再扇形展开成七种客户端。
 
        版面规则：
        1. 全图是「收束 → 展开 → 收束 → 展开」的节奏，观者顺着疏密变化走，不需要标注；
        2. 连接一律走三次贝塞尔，控制点按两端距离取，不用直角折线；
-       3. 九个客户端落在同一段椭圆弧上（角度在 script 里算），保证间距均匀；
+       3. 七个客户端落在同一段椭圆弧上（角度在 script 里算），保证间距均匀；
        4. 笔触只有三档：主体 1.3、细节 1.1 且 opacity .45、连接线 opacity .3；
           金色只给四处焦点：解析框、核心圆、每路索引各一个记号。 -->
   <svg
@@ -154,7 +154,7 @@ const s = {
       <path d="M612 210C672 210 700 140 716 138" />
     </g>
 
-    <!-- ---------- 核心：同一套知识库与 Agent ---------- -->
+    <!-- ---------- 核心：同一套知识库 ---------- -->
     <circle cx="760" cy="122" r="53" fill="none" stroke="currentColor" stroke-width="1" opacity="0.16" />
     <circle cx="760" cy="122" r="46" fill="none" :stroke="gold" stroke-width="1.5" />
     <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.75">
@@ -162,12 +162,12 @@ const s = {
     </g>
     <circle cx="775" cy="136" r="3.4" :fill="gold" />
 
-    <!-- 核心扇形展开到九种客户端 -->
+    <!-- 核心扇形展开到七种客户端 -->
     <g stroke="currentColor" stroke-width="1.1" opacity="0.3">
       <path v-for="(sp, i) in spokes" :key="i" :d="sp.d" />
     </g>
 
-    <!-- ---------- 右：九种客户端 ---------- -->
+    <!-- ---------- 右：七种客户端 ---------- -->
     <!-- Web 控制台：窗口里是带出处标记的回答 -->
     <g :transform="`translate(${spokes[0].cx} ${spokes[0].cy})`">
       <rect x="-13" y="-10" width="26" height="20" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.3" />
@@ -192,40 +192,22 @@ const s = {
       <path :stroke="gold" stroke-width="1.1" stroke-linecap="round" opacity="0.75" d="M7-3h4M7 2h4" />
     </g>
 
-    <!-- 网页嵌入挂件：站点角上的悬浮问答 -->
-    <g :transform="`translate(${spokes[3].cx} ${spokes[3].cy})`" fill="none">
-      <rect x="-13" y="-11" width="26" height="22" rx="3.5" stroke="currentColor" stroke-width="1.3" />
-      <path d="M-9-6h10M-9-1h7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.4" />
-      <path :stroke="gold" stroke-width="1.3" stroke-linejoin="round" d="M0 2h11v7H5l-3 2.6V9H0z" />
-    </g>
-
-    <!-- IM 机器人 -->
-    <g :transform="`translate(${spokes[4].cx} ${spokes[4].cy})`" fill="none">
-      <rect x="-11" y="-6" width="22" height="17" rx="5" stroke="currentColor" stroke-width="1.3" />
-      <path d="M0-10.5v4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-      <circle cx="0" cy="-12" r="1.6" stroke="currentColor" stroke-width="1.2" />
-      <g :fill="gold">
-        <circle cx="-4" cy="2.5" r="1.7" />
-        <circle cx="4" cy="2.5" r="1.7" />
-      </g>
-    </g>
-
     <!-- 微信小程序 -->
-    <g :transform="`translate(${spokes[5].cx} ${spokes[5].cy})`" fill="none">
+    <g :transform="`translate(${spokes[3].cx} ${spokes[3].cy})`" fill="none">
       <rect x="-7" y="-12" width="14" height="24" rx="3.5" stroke="currentColor" stroke-width="1.3" />
       <rect x="-4" y="-6" width="8" height="8" rx="2" :stroke="gold" stroke-width="1.3" />
       <path d="M-2.5 8.5h5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.45" />
     </g>
 
     <!-- 命令行 -->
-    <g :transform="`translate(${spokes[6].cx} ${spokes[6].cy})`" fill="none">
+    <g :transform="`translate(${spokes[4].cx} ${spokes[4].cy})`" fill="none">
       <rect x="-13" y="-10" width="26" height="20" rx="3.5" stroke="currentColor" stroke-width="1.3" />
       <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M-7-3.5L-3.5 0-7 3.5" />
       <path d="M0 4h7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.45" />
     </g>
 
     <!-- REST API 与 SDK -->
-    <g :transform="`translate(${spokes[7].cx} ${spokes[7].cy})`" fill="none">
+    <g :transform="`translate(${spokes[5].cx} ${spokes[5].cy})`" fill="none">
       <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
         <path d="M-4-10c-2.8 0-3.2 1.4-3.2 3.4v2.6c0 2-1 3-2.6 3 1.6 0 2.6 1 2.6 3v2.6c0 2 .4 3.4 3.2 3.4" />
         <path d="M4-10c2.8 0 3.2 1.4 3.2 3.4v2.6c0 2 1 3 2.6 3-1.6 0-2.6 1-2.6 3v2.6c0 2-.4 3.4-3.2 3.4" />
@@ -233,8 +215,8 @@ const s = {
       <circle cx="0" cy="1" r="1.8" :fill="gold" />
     </g>
 
-    <!-- MCP：双向 -->
-    <g :transform="`translate(${spokes[8].cx} ${spokes[8].cy})`" fill="none">
+    <!-- MCP Server -->
+    <g :transform="`translate(${spokes[6].cx} ${spokes[6].cy})`" fill="none">
       <g stroke="currentColor" stroke-width="1.3">
         <rect x="-13" y="-7" width="9" height="14" rx="2.5" />
         <rect x="4" y="-7" width="9" height="14" rx="2.5" />
@@ -384,13 +366,6 @@ const s = {
     <path v-bind="s" opacity="0.55" d="M12 6.4v3.2M9.9 13.4l-2.6 1.9M14.1 13.4l2.6 1.9" />
   </svg>
 
-  <!-- Lite：单机一台 -->
-  <svg v-else-if="name === 'lite'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="4" y="4" width="16" height="11" rx="1.8" />
-    <path v-bind="s" opacity="0.5" d="M2.5 18.5h19" />
-    <rect x="9" y="7.5" width="6" height="4" rx="1" fill="none" :stroke="gold" stroke-width="1.4" />
-  </svg>
-
   <!-- ==================== 文档地图 六枚 ==================== -->
 
   <!-- 快速开始：起播 -->
@@ -453,37 +428,6 @@ const s = {
     <path v-bind="s" opacity="0.45" d="M5.5 8.5h6M5.5 12h4" />
     <path :stroke="gold" stroke-width="1.4" d="M14.5 4v16" />
     <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" opacity="0.75" d="M17 9h2M17 12.5h2" />
-  </svg>
-
-  <!-- 网页嵌入挂件：站点角上的悬浮问答 -->
-  <svg v-else-if="name === 'embed'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="2.5" y="3.5" width="19" height="17" rx="2" />
-    <path v-bind="s" opacity="0.45" d="M6 8h7M6 11.5h5" />
-    <path
-      :stroke="gold"
-      stroke-width="1.4"
-      stroke-linejoin="round"
-      fill="none"
-      d="M12.5 13.5h6.5v3.5h-4l-2.5 1.9z"
-    />
-  </svg>
-
-  <!-- 桌面客户端：显示器 -->
-  <svg v-else-if="name === 'desktop'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="2.5" y="4" width="19" height="12.5" rx="2" />
-    <path v-bind="s" d="M9.5 20h5M12 16.5V20" />
-    <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" d="M6.5 8.5h7" />
-  </svg>
-
-  <!-- IM 机器人 -->
-  <svg v-else-if="name === 'bot'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="3.5" y="7.5" width="17" height="12" rx="3" />
-    <path v-bind="s" d="M12 4.2v3.3" />
-    <circle v-bind="s" cx="12" cy="3.2" r="1.2" />
-    <g :fill="gold">
-      <circle cx="9" cy="13.2" r="1.3" />
-      <circle cx="15" cy="13.2" r="1.3" />
-    </g>
   </svg>
 
   <!-- 微信小程序：手机 -->

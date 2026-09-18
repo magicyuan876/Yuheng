@@ -10,10 +10,10 @@
 | --- | --- | --- |
 | Router / Middleware | `internal/router/`、`internal/middleware/` | 路由注册、认证、RBAC、限流、日志、错误信封 |
 | Handler | `internal/handler/`（会话相关在 `internal/handler/session/`） | 解析请求参数（DTO 在 `internal/handler/dto/`）、调用 Service、写响应；不含业务逻辑 |
-| Service | `internal/application/service/`（约 160+ 文件） | 业务编排：知识库/知识/分块、会话与 `chat_pipeline/` 流水线、Agent、租户与成员、模型、数据源同步、Wiki、审计等 |
-| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,elasticsearch,qdrant,milvus,weaviate,doris,opensearch,tencentvectordb,sqlite,neo4j}` |
+| Service | `internal/application/service/`（约 160+ 文件） | 业务编排：知识库/知识/分块、会话与 `chat_pipeline/` 流水线、租户与成员、模型、数据源同步、Wiki、审计等 |
+| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,elasticsearch,qdrant,milvus,weaviate,doris,opensearch,tencentvectordb,neo4j}` |
 | 领域模型 | `internal/types/` | GORM 实体、枚举、context key、接口定义（`types/interfaces`） |
-| 基础设施 | `internal/infrastructure/`（docparser gRPC 客户端、web_search）、`internal/models/`（chat/embedding/rerank 模型适配）、`internal/stream/`、`internal/sandbox/`、`internal/mcp/`、`internal/im/` | 外部系统适配 |
+| 基础设施 | `internal/infrastructure/`（docparser gRPC 客户端、web_search）、`internal/models/`（chat/embedding/rerank 模型适配）、`internal/stream/` | 外部系统适配 |
 
 ```mermaid
 graph TD
@@ -21,11 +21,10 @@ graph TD
     MW --> H["Handler 层 (internal/handler)<br/>参数校验 / DTO 转换"]
     H --> S["Service 层 (internal/application/service)<br/>业务编排 / chat_pipeline / 事务"]
     S --> R["Repository 层 (internal/application/repository)<br/>GORM 数据访问"]
-    S --> AG["Agent 引擎 (internal/agent)<br/>think → act → observe"]
     S --> Q["TaskEnqueuer (Asynq / SyncTaskExecutor)"]
-    R --> DB[("PostgreSQL / SQLite (GORM)")]
+    R --> DB[("PostgreSQL (GORM)")]
     R --> VS[("检索引擎仓储 repository/retriever/*<br/>pgvector / ES / Qdrant / Milvus / Doris ...")]
-    S --> INF["基础设施适配<br/>docparser(gRPC) / models(LLM) / stream / mcp / im / sandbox"]
+    S --> INF["基础设施适配<br/>docparser(gRPC) / models(LLM) / stream"]
     Q --> W["Asynq Worker (同进程, 6 个池)"]
     W --> S
 ```
@@ -49,7 +48,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
     must(container.Provide(NewResourceCleaner, dig.As(new(interfaces.ResourceCleaner))))
     must(container.Provide(config.LoadConfig))
     must(container.Provide(initDatabase))     // *gorm.DB
-    must(container.Provide(initRedisClient))  // *redis.Client（可为 nil：Lite 模式）
+    must(container.Provide(initRedisClient))  // *redis.Client（可为 nil：无 Redis 时）
     ...
     must(container.Provide(repository.NewTenantRepository))
     must(container.Provide(service.NewTenantService))
@@ -73,7 +72,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 
 ### 2.2 注册顺序与条件装配
 
-`BuildContainer` 的注册分为九个阶段（源码中有对应日志）：① 核心基础设施（config/langfuse/db/file/redis/ants 池）→ ② 检索引擎注册表 → ③ 外部客户端（docreader gRPC、Ollama、Neo4j、StreamManager、DuckDB）→ ④ Repository 层（30+ 个）→ ⑤ Service 层（50+ 个，含 MCP Manager、事件总线、Agent 审批闸门 `approval.Gate`）→ ⑥ **任务执行器条件装配** → ⑦ chat_pipeline 插件 → ⑧ Handler 层（40+ 个）与 IM 适配器 → ⑨ Router 与 Asynq server 启动。
+`BuildContainer` 的注册分为九个阶段（源码中有对应日志）：① 核心基础设施（config/langfuse/db/file/redis/ants 池）→ ② 检索引擎注册表 → ③ 外部客户端（docreader gRPC、Ollama、Neo4j、StreamManager、DuckDB）→ ④ Repository 层（30+ 个）→ ⑤ Service 层（50+ 个，含事件总线）→ ⑥ **任务执行器条件装配** → ⑦ chat_pipeline 插件 → ⑧ Handler 层（40+ 个）→ ⑨ Router 与 Asynq server 启动。
 
 第 ⑥ 步是全仓库最重要的条件分支——**Redis 有无决定运行形态**：
 
@@ -85,10 +84,10 @@ if redisAvailable {
     ... // 共 6 个 worker 池 + AsynqInspector
     must(container.Invoke(registerModelConcurrencyLimiter))   // Redis 分布式 per-model 并发闸门
 } else {
-    syncExec := router.NewSyncTaskExecutor()                  // Lite 模式：进程内同步执行器
+    syncExec := router.NewSyncTaskExecutor()                  // 无 Redis：进程内同步执行器
     must(container.Provide(func() interfaces.TaskEnqueuer { return syncExec }))
     must(container.Provide(router.NewNoopTaskInspector))
-    must(container.Invoke(registerLiteModelConcurrencyLimiter)) // 进程内信号量
+    must(container.Invoke(registerLocalModelConcurrencyLimiter)) // 进程内信号量
 }
 ```
 
@@ -98,7 +97,7 @@ if redisAvailable {
 
 - `ResourceCleaner`（`internal/container/cleanup.go`）：各组件通过 `RegisterWithName(name, cleanupFunc)` 注册析构（ants 池、Langfuse flush、数据源调度器、Housekeeping 等），退出时统一 `Cleanup(ctx)`；
 - `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行运行时创建检索引擎实例（`createQdrantEngine` / `createMilvusEngine` / `createDorisEngine` / `createOpenSearchEngine` ...），而非启动期静态绑定单一引擎；
-- `initDatabase` 除建连外还负责：golang-migrate 自动迁移（`AUTO_MIGRATE`，失败仅告警不阻断）、`__pending_env__` 存储 provider 回填、遗留 StorageBackend 迁移、序列同步、Lite 模式 pending 任务复位、`config/builtin_models.yaml` 声明式内置模型 UPSERT；SQLite 时强制 `SetMaxOpenConns(1)` 串行化写入。
+- `initDatabase` 除建连外还负责：golang-migrate 自动迁移（`AUTO_MIGRATE`，失败仅告警不阻断）、`__pending_env__` 存储 provider 回填、遗留 StorageBackend 迁移、序列同步、pending 任务复位、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
 
 ## 3. cmd/server 启动流程
 
@@ -115,7 +114,7 @@ flowchart TD
     F --> F2["bootstrapSystemAdmin<br/>YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL 指定的用户<br/>在无系统管理员时晋升为超管 (幂等)"]
     F --> G["c.Invoke(cfg, router, resourceCleaner, systemSettingSvc)"]
     G --> H["listenWithRetry(addr, 10 次, 300ms 指数退避, 上限 3s)"]
-    H --> I["systemSettingSvc.SubscribeRedis(ctx)<br/>订阅 system_settings 变更 (Lite 模式 no-op)"]
+    H --> I["systemSettingSvc.SubscribeRedis(ctx)<br/>订阅 system_settings 变更 (无 Redis 时 no-op)"]
     I --> J["signal.Notify(shutdownSignals) + server.Serve(listener)"]
     J --> K{"收到第一个信号?"}
     K -->|是| L["listener.Close() 立即释放端口<br/>server.Shutdown(ctx, ShutdownTimeout 默认 30s) 优雅排空"]
@@ -141,10 +140,9 @@ flowchart TD
 1. `gin.New()` + `SetTrustedProxies`（`YUHENG_TRUSTED_PROXIES`，默认仅信任回环与私网段，防止伪造 `X-Forwarded-For` 绕过按 IP 限流）；
 2. 全局中间件：`cors` → `RequestID` → `Language` → `Logger` → `Recovery` → `ErrorHandler`；
 3. 免认证端点：`GET /health`；非 release 模式挂载 `/swagger/*any`；
-4. Embed 页面 `frame-ancestors` CSP 中间件；Lite 版内嵌前端静态资源（`handler.Edition == "lite"`）；
-5. **认证之前**注册的公开路由：IM 平台回调（`/api/v1/im`，各平台自带签名验证）、Web Embed 公开路由（`/api/v1/embed/:channel_id`，`middleware.EmbedAuth` publish-token 鉴权 + Redis 限流）、短时效能力 URL（resource grants）；
+5. **认证之前**注册的公开路由：短时效能力 URL（resource grants）；
 6. `middleware.Auth(...)` 全局认证；随后是需认证的文件代理路由、免认证但签名校验的 presigned 文件路由、Langfuse trace 中间件、`AuditServiceProvider`；
-7. `v1 := r.Group("/api/v1")`：先 `v1.Use(rbacGuards.apiKeyAuthorizer.Middleware())`（API Key 网关，JWT 会话直接放行），再依次调用 30 个 `RegisterXxxRoutes(v1, handler, rbacGuards)`；
+7. `v1 := r.Group("/api/v1")`：先 `v1.Use(rbacGuards.apiKeyAuthorizer.Middleware())`（API Key 网关，JWT 会话直接放行），再依次调用 26 个 `RegisterXxxRoutes(v1, handler, rbacGuards)`；
 8. 收尾自检：`rbacGuards.assertAPIKeyPoliciesMatchRoutes(r)` —— 若声明的 API Key 策略指向不存在的路由模板（路径漂移/拼写错误），**启动即 panic**，避免上线一条永远 403 的死策略。
 
 ### 4.2 路由分组一览
@@ -155,14 +153,12 @@ flowchart TD
 | `/tenants`、`/tenants/:id/*`（成员/邀请/审计） | RegisterTenantRoutes | `manage_members` / `manage_spaces`；`/:id` 组挂 `PathTenantMatch()` |
 | `/knowledge-bases`、`/knowledge-bases/:id/knowledge|faq|tags|shares` | RegisterKnowledgeBaseRoutes 等 | `retrieve` / `ingest`（fallback `full_access`） |
 | `/knowledge`、`/chunks` | RegisterKnowledgeRoutes / RegisterChunkRoutes | `ingest` |
-| `/sessions`、`/knowledge-chat`、`/agent-chat`、`/knowledge-search`、`/messages` | RegisterSessionRoutes / RegisterChatRoutes 等 | `chat` / `retrieve` |
+| `/sessions`、`/knowledge-chat`、`/knowledge-search`、`/messages` | RegisterSessionRoutes / RegisterChatRoutes 等 | `chat` / `retrieve` |
 | `/models`、`/evaluation` | RegisterModelRoutes / RegisterEvaluationRoutes | `manage_models` / `run_evaluations` |
 | `/system`、`/system/admin` | RegisterSystemRoutes / RegisterSystemAdminRoutes | admin 组强制 `g.SystemAdmin()` |
-| `/mcp-services`、`/agent`、`/web-search`、`/web-search-providers` | 对应 Register 函数 | `manage_mcp_services` / `manage_web_search` |
+| `/web-search`、`/web-search-providers` | RegisterWebSearchRoutes / RegisterWebSearchProviderRoutes | `manage_web_search` |
 | `/vector-stores`、`/storage-backends` | RegisterVectorStoreRoutes / RegisterStorageBackendRoutes | `manage_vector_stores` / `manage_storage_backends` |
-| `/agents`、`/agents/:id/shares|embed-channels|im-channels` | RegisterCustomAgentRoutes 等 | `full_access` / `manage_channels` |
-| `/organizations`、`/user/favorites`、`/skills` | 对应 Register 函数 | `manage_spaces` 等 |
-| `/im-channels`、`/embed-channels`、`/wechat` | RegisterIMChannelRoutes / RegisterEmbedChannelRoutes | `manage_channels` |
+| `/organizations`、`/user/favorites` | RegisterOrganizationRoutes / RegisterUserFavoriteRoutes | `manage_spaces` 等 |
 | `/datasource`、`/knowledgebase/:kb_id/wiki`、`/chunker/preview` | RegisterDataSourceRoutes / RegisterWikiPageRoutes / RegisterChunkerDebugRoutes | `manage_datasources` / `ingest` |
 
 ### 4.3 rbacGuards：集中式权限矩阵
@@ -174,8 +170,8 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 ```
 
 - **角色守卫**（问"调用者在租户内是什么角色"）：`Viewer()` / `Contributor()` / `Admin()` / `Owner()` / `AdminOrSystemAdmin()` / `SystemAdmin()`，底层调 `middleware.RequireRole`；
-- **所有权守卫**（问"是否为该资源创建者或 Admin+"）：`OwnedKBOrAdmin()`、`OwnedAgentOrAdmin()`、`OwnedKnowledgeKBOrAdmin()`、`OwnedChunkKBOrAdmin()`、`OwnedWikiKBOrAdmin()` 等——子资源（chunk/wiki/FAQ/tag）通过 `KBCreatorLookupFromKnowledgeID` 等闭包沿 URL 参数回溯到所属 KB 的 `creator_id`，与父资源共用同一条规则；
-- **知识库访问守卫**（三层解析：自有 KB / 跨组织共享 KB / 共享 Agent 可见 KB）：`KBAccessRead|Write(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层为 `middleware.RequireKBAccess`；
+- **所有权守卫**（问"是否为该资源创建者或 Admin+"）：`OwnedKBOrAdmin()`、`OwnedKnowledgeKBOrAdmin()`、`OwnedChunkKBOrAdmin()`、`OwnedWikiKBOrAdmin()` 等——子资源（chunk/wiki/FAQ/tag）通过 `KBCreatorLookupFromKnowledgeID` 等闭包沿 URL 参数回溯到所属 KB 的 `creator_id`，与父资源共用同一条规则；
+- **知识库访问守卫**（两层解析：自有 KB / 跨组织共享 KB）：`KBAccessRead|Write(param)` 及 `...FromKnowledgeIDParam` / `...FromChunkIDParam` 变体，底层为 `middleware.RequireKBAccess`；
 - **租户边界守卫**：`CrossTenant()`（平台级操作需 `EnableCrossTenantAccess` + `CanAccessAllTenants`）、`PathTenantMatch()`（`/tenants/:id` 必须与上下文租户一致）。
 
 源码注释给出了选择守卫的决策树（有 creator 的资源用 OwnedXxxOrAdmin；租户级基础设施用 Admin；创建入口用 Contributor），并明确所有守卫尊重 `cfg.Tenant.EnableRBAC` 开关——关闭时仅记录"本应拒绝"日志后放行（灰度迁移期行为）。
@@ -188,13 +184,12 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 
 | 中间件 | 文件 | 职责与关键逻辑 |
 | --- | --- | --- |
-| `cors.New`（gin-contrib） | router.go | 允许 `Authorization`、`X-API-Key`、`X-Tenant-ID`、`X-Embed-Session` 等头；MaxAge 12h |
+| `cors.New`（gin-contrib） | router.go | 允许 `Authorization`、`X-API-Key`、`X-Tenant-ID`、`X-Request-ID` 等头；MaxAge 12h |
 | `RequestID()` | logger.go | 复用请求头 `X-Request-ID` 或生成 UUID，写入 gin context 与 `Request.Context()`，贯穿日志/追踪 |
 | `Language()` | language.go | 决定文档处理语言：`YUHENG_LANGUAGE` 环境变量 > `Accept-Language` 首个标签 > 默认 `zh-CN` |
 | `Logger()` | logger.go | 请求/响应全量日志；正则脱敏密码/令牌字段、截断 base64 图片 data URL、SSE 响应标记跳过、单条上限 10KB |
 | `Recovery()` | recovery.go | panic 捕获 + 堆栈记录 + 500 响应 |
 | `ErrorHandler()` | error_handler.go | 读取 `c.Errors` 末位错误：`*errors.AppError` 按其 `HTTPCode` 返回 `{success:false, error:{code,message,details}}` 统一信封；其余 500 |
-| `EmbedAuth(...)` | embed_auth.go | 仅挂在 `/api/v1/embed/:channel_id` 公开组：校验 publish token，注入 Embed 渠道上下文；Redis 三级限流（每 IP/分钟、渠道全局/分钟、渠道/日） |
 | `PublicAuthRateLimit()` | auth_public_ratelimit.go | 免认证的邀请查询/受邀注册路由：**进程内存**滑动窗口，60s/30 次/IP，后台每 2 分钟清理过期桶，超限返回 429 |
 | `Auth(...)` | auth.go | 核心认证，三态：① JWT（`Authorization: Bearer`，`userService.ValidateToken`）；② API Key（`X-API-Key`，`AuthenticateAPIKey`）；③ `noAuthAPI` 白名单。支持 `X-Tenant-ID` 切换租户（`IsTenantAccessible` 三层校验：自有租户/跨租户超管/active membership），`resolveTenantRole` 解析租户内角色。写入 context：`TenantIDContextKey`、`TenantInfoContextKey`、`UserContextKey`、`UserIDContextKey`、`TenantRoleContextKey`、`SystemAdminContextKey`、`PrincipalContextKey` 等 |
 | `langfuse.GinMiddleware()` | tracing/langfuse | LLM 可观测 trace；未配置 LANGFUSE_* 时为 no-op |
@@ -202,7 +197,7 @@ kb.PUT("/:id", g.OwnedKBOrAdmin(), handler.UpdateKnowledgeBase)
 | `APIKeyRouteAuthorizer.Middleware()` | api_key_gate.go | API Key 主体的路由级网关：查 `(method, fullPath)` 策略表，校验 `PlatformOnly` / `RequireFullAccess` / `Capabilities`；未声明路由默认拒绝；JWT 用户直接透传 |
 | `RequireRole(min)` 等 | rbac.go | 租户内角色下限校验（owner=40 > admin=30 > contributor=20 > viewer=10）；`RequireOwnershipOrRole(min, creatorLookup)` 允许资源创建者越过角色下限；API Key 主体短路（其授权归 APIKeyGate）；跨租户超管临时获得 Admin；拒绝时调用 `AuditService.LogDenied` |
 | `RequireCrossTenantAccess()` / `RequirePathTenantMatch()` | access.go | 平台级操作网关与 URL 租户一致性校验 |
-| `RequireKBAccess(resolver, perm, ...)` | kb_access.go | KB 三层访问解析（自有 → 组织共享 → 共享 Agent 只读），并**改写** `Request.Context()` 中的 `TenantIDContextKey` 为 KB 源租户，使下游检索自动落到正确租户的数据 |
+| `RequireKBAccess(resolver, perm, ...)` | kb_access.go | KB 两层访问解析（自有 → 组织共享），并**改写** `Request.Context()` 中的 `TenantIDContextKey` 为 KB 源租户，使下游检索自动落到正确租户的数据 |
 | `asynqdl.Middleware()` | asynqdl/ | 非 HTTP：Asynq 任务重试预算耗尽时写入 `task_dead_letters` 表，可挂 `OnDeadLetter` 回调联动业务状态（如标记知识解析失败） |
 
 ## 6. 领域模型总览（internal/types）
@@ -217,7 +212,6 @@ erDiagram
     TENANT ||--o{ TENANT_API_KEY : "API Key (tenant_id 为空则平台级)"
     TENANT ||--o{ KNOWLEDGE_BASE : "拥有"
     TENANT ||--o{ MODEL : "模型配置"
-    TENANT ||--o{ CUSTOM_AGENT : "自定义 Agent"
     TENANT ||--o{ VECTOR_STORE : "向量库实例"
     TENANT ||--o{ STORAGE_BACKEND : "存储后端"
     TENANT ||--o{ DATA_SOURCE : "外部数据源"
@@ -232,7 +226,6 @@ erDiagram
     KNOWLEDGE ||--o{ CHUNK : "分块 (chunk.knowledge_id)"
     DATA_SOURCE ||--o{ SYNC_LOG : "同步记录"
     SESSION ||--o{ MESSAGE : "消息 (message.session_id)"
-    MESSAGE }o--|| CUSTOM_AGENT : "agent_id"
     MESSAGE }o--|| MODEL : "model_id"
 
     TENANT {
@@ -283,7 +276,7 @@ erDiagram
     SESSION {
         string id PK "UUID"
         uint64 tenant_id FK
-        string user_id "用户/API 主体/embed 访客"
+        string user_id "用户/API 主体"
         json last_request_state
     }
     MESSAGE {
@@ -291,7 +284,6 @@ erDiagram
         string session_id FK
         string role "user/assistant/system"
         json knowledge_references "检索引用"
-        json agent_steps "Agent 推理轨迹"
         text rendered_content "RAG 增强后的完整提示"
     }
     MODEL {
@@ -310,7 +302,7 @@ erDiagram
 - **创建时绑定不可变**：KB 的 `VectorStoreID`（gorm tag `<-:create`）与 `StorageBackendID` 一经创建不可修改，保证索引/文件一致性；
 - **异步状态机**：`Knowledge.ParseStatus` 七态 + `PendingSubtasksCount` 追踪 finalizing 阶段并行富化子任务（summary/question/graph）；
 - **审计 append-only**：`AuditLog` 无更新/软删字段，覆盖 50+ 种 `AuditAction`；
-- 非实体的重要类型：`SearchResult` 检索结果、`Pagination`、`Task`/队列拓扑（`task.go`）、各类 JSONB 配置结构（`ChunkingConfig`、`IndexingStrategy`、`CustomAgentConfig` 等）、context key 与取值助手（`context_helpers.go`）。
+- 非实体的重要类型：`SearchResult` 检索结果、`Pagination`、`Task`/队列拓扑（`task.go`）、各类 JSONB 配置结构（`ChunkingConfig`、`IndexingStrategy` 等）、context key 与取值助手（`context_helpers.go`）。
 
 ## 7. 错误处理规范（internal/errors）
 
@@ -346,8 +338,8 @@ type AppError struct {
 | `common/redis_tls.go` | `RedisTLSConfig()` | 按 `REDIS_USE_TLS` 等环境变量生成 Redis TLS 配置 |
 | `utils/crypto.go` | `EncryptAESGCM` / `DecryptAESGCM`（`enc:v1:` 前缀，幂等） | 上文所有敏感字段静态加密的底层实现 |
 | `utils/security.go` | `SanitizeHTML`、`ValidateFilePath`、`SanitizeForLog` | XSS 清洗、目录穿越防护、日志脱敏 |
-| `utils/inject.go` | `ValidateSQL`（基于 `pganalyze/pg_query_go`） | Agent 数据分析生成 SQL 的白名单表校验与注入模式检测 |
-| `utils/presign.go` | `GeneratePresignURL` / `ValidatePresignURL` | HMAC-SHA256 预签名文件 URL（默认 2h，IM 内嵌图片使用） |
+| `utils/inject.go` | `ValidateSQL`（基于 `pganalyze/pg_query_go`） | 表格 DuckDB 查询（入库摘要采样）的白名单表校验与注入模式检测 |
+| `utils/presign.go` | `GeneratePresignURL` / `ValidatePresignURL` | HMAC-SHA256 预签名文件 URL（默认 2h，外链资源使用） |
 | `utils/oidc_state.go` | `GenerateState` / `ValidateState` | OIDC 授权 state 的 HMAC 签名与 10 分钟 TTL（防 CSRF） |
 | `utils/log_sanitize.go` | `CompactImageDataURLForLog` | 截断超长图片 data URL，防日志爆炸 |
 | `utils/storage_error.go` | `SanitizeStorageConnectivityError` | 把存储连接错误转为用户友好提示并隐藏内部主机名 |
@@ -355,4 +347,4 @@ type AppError struct {
 
 ---
 
-至此，后端从进程启动、依赖装配、请求进入到数据落库的全链路已经闭环。后续章节将分别展开 RAG 检索流水线（`chat_pipeline`）、Agent 引擎（`internal/agent`）与文档解析服务（`docreader`）的内部实现。
+至此，后端从进程启动、依赖装配、请求进入到数据落库的全链路已经闭环。后续章节将分别展开 RAG 检索流水线（`chat_pipeline`）与文档解析服务（`docreader`）的内部实现。

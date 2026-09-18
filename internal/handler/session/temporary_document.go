@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -40,48 +39,7 @@ func (h *Handler) UploadTemporaryDocument(c *gin.Context) {
 	}
 	defer file.Close()
 
-	sourceTenantID, parseErr := types.ParseAgentSourceTenantID(c.PostForm(types.AgentSourceTenantIDParam))
-	if parseErr != nil {
-		c.Error(apperrors.NewBadRequestError(parseErr.Error()))
-		return
-	}
-	agent, resourceTenantID, _ := h.resolveAgent(ctx, c, c.PostForm("agent_id"), sourceTenantID)
-	if sourceTenantID != 0 && agent == nil {
-		c.Error(apperrors.NewNotFoundError("Shared agent not found"))
-		return
-	}
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(fileHeader.Filename)), ".")
 	options := types.TemporaryDocumentCreateOptions{ParserEngine: strings.TrimSpace(c.PostForm("parser_engine"))}
-	if agent != nil {
-		options.ResourceTenantID = resourceTenantID
-		if len(agent.Config.SupportedFileTypes) > 0 && !containsFileType(agent.Config.SupportedFileTypes, ext) {
-			c.Error(apperrors.NewBadRequestError("file type is not supported by this agent"))
-			return
-		}
-		if isAudioExtension(ext) {
-			if !agent.Config.AudioUploadEnabled || agent.Config.ASRModelID == "" {
-				c.Error(apperrors.NewBadRequestError("audio upload is not enabled or no ASR model is configured"))
-				return
-			}
-			options.ASRModelID = agent.Config.ASRModelID
-		}
-		// Resolve the parser engine from the agent's chat rules when the caller
-		// did not pass an explicit engine. Tenant-level rules remain the final
-		// fallback and are applied in the parse worker.
-		if options.ParserEngine == "" || options.ParserEngine == "auto" {
-			if engine := agent.Config.ResolveChatParserEngine(ext); engine != "" {
-				options.ParserEngine = engine
-			}
-		}
-		// Image understanding (caption/OCR) uses the agent's VLM model. Images
-		// always benefit; scanned/image-only documents only OCR when the agent
-		// enabled AttachmentImageUnderstanding (see parse worker threshold gate).
-		if agent.Config.ImageUploadEnabled && agent.Config.VLMModelID != "" {
-			options.VLMModelID = agent.Config.VLMModelID
-			options.ImageUnderstanding = agent.Config.AttachmentImageUnderstanding
-			options.OCRMaxPages = agent.Config.AttachmentOCRMaxPages
-		}
-	}
 	document, err := h.temporaryDocuments.Create(
 		ctx, c.GetUint64(types.TenantIDContextKey.String()), sessionID,
 		fileHeader.Filename, fileHeader.Header.Get("Content-Type"), fileHeader.Size, file, options,

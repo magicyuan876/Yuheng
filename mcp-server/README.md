@@ -132,14 +132,8 @@ python test_module.py
 - `list_models` - 列出模型
 - `get_model` - 获取模型详情
 
-### 会话管理
-- `create_session` - 创建聊天会话
-- `get_session` - 获取会话详情
-- `list_sessions` - 列出会话
-- `delete_session` - 删除会话
-
 ### 聊天功能
-- `chat` - 发送聊天消息
+- `chat` - 发送聊天消息（RAG 问答；每次调用自动创建会话，需提供 `query` 和 `knowledge_base_ids`）
 
 ### 块管理
 - `list_chunks` - 列出知识块

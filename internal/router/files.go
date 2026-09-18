@@ -48,19 +48,6 @@ type messageFileLookup interface {
 	GetMessage(ctx context.Context, sessionID, messageID string) (*types.Message, error)
 }
 
-// sharedAgentFileLookup verifies that a source workspace's agent is still
-// shared to the caller. Revoking the share therefore also revokes historical
-// message-file access.
-type sharedAgentFileLookup interface {
-	GetSharedAgentForTenant(
-		ctx context.Context,
-		tenantID uint64,
-		callerTenantRole types.TenantRole,
-		agentID string,
-		sourceTenantID ...uint64,
-	) (*types.CustomAgent, error)
-}
-
 // localStorageBaseDir resolves LOCAL_STORAGE_BASE_DIR with the container
 // default.
 func localStorageBaseDir() string {
@@ -510,15 +497,12 @@ func newKBScopedFileServeHandlerWithResources(
 
 // newMessageScopedFileServeHandler serves resources rendered inside one
 // assistant message. The message service first proves that the caller owns the
-// containing session. For cross-workspace resources we then require the
-// message's agent to still be shared from the resource-owning workspace.
-//
-// The owner tenant comes from the resource registry whenever possible. This
-// also keeps old messages (written before agent_tenant_id was populated)
-// readable without accepting a client-provided source workspace ID.
+// containing session; the owner tenant then comes from the resource registry
+// whenever possible, so cross-workspace references (e.g. citations from an
+// organization-shared KB) keep rendering without accepting a client-provided
+// source workspace ID.
 func newMessageScopedFileServeHandler(
 	messageService messageFileLookup,
-	agentShareService sharedAgentFileLookup,
 	tenantService interfaces.TenantService,
 	globalFileService interfaces.FileService,
 	storageResolver interfaces.StorageBackendResolver,
@@ -560,38 +544,13 @@ func newMessageScopedFileServeHandler(
 			}
 		}
 
-		ownerTenantID := message.AgentTenantID
+		ownerTenantID := callerTenantID
 		if resource != nil {
 			ownerTenantID = resource.TenantID
-			// A modern message records its source tenant. A resource from any
-			// other tenant cannot be smuggled through that message even if the
-			// caller happens to have another shared agent with the same ID.
-			if message.AgentTenantID != 0 && message.AgentTenantID != ownerTenantID {
-				c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: resource not accessible from this message"})
-				return
-			}
 		}
 		if ownerTenantID == 0 {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: message resource workspace missing"})
 			return
-		}
-
-		if ownerTenantID != callerTenantID {
-			if message.AgentID == "" || agentShareService == nil {
-				c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: shared agent access required"})
-				return
-			}
-			agent, shareErr := agentShareService.GetSharedAgentForTenant(
-				ctx,
-				callerTenantID,
-				types.TenantRoleFromContext(ctx),
-				message.AgentID,
-				ownerTenantID,
-			)
-			if shareErr != nil || agent == nil || agent.TenantID != ownerTenantID {
-				c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: shared agent access revoked"})
-				return
-			}
 		}
 
 		// Registered resources carry authoritative tenant ownership. Legacy
@@ -652,7 +611,6 @@ func serveMessageScopedFiles(
 	r *gin.RouterGroup,
 	g *rbacGuards,
 	messageService interfaces.MessageService,
-	agentShareService interfaces.AgentShareService,
 	tenantService interfaces.TenantService,
 	globalFileService interfaces.FileService,
 	storageResolver interfaces.StorageBackendResolver,
@@ -666,7 +624,6 @@ func serveMessageScopedFiles(
 		g.Viewer(),
 		newMessageScopedFileServeHandler(
 			messageService,
-			agentShareService,
 			tenantService,
 			globalFileService,
 			storageResolver,
