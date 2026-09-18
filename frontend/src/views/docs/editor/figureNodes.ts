@@ -7,7 +7,9 @@
 //
 // No Vue here, for the same reason as the other node files: the schema must be
 // loadable in a plain Node test.
-import { mergeAttributes, Node } from '@tiptap/core'
+import { mergeAttributes, Node, nodeInputRule } from '@tiptap/core'
+
+import { MATH_BLOCK_INPUT, MATH_INLINE_INPUT, MERMAID_INPUT } from './inputRules'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -60,6 +62,17 @@ export const MathInline = Node.create({
         commands.insertContent({ type: this.name, attrs: { latex } }),
     }
   },
+
+  addInputRules() {
+    // "$x^2$" becomes the formula, with what was between the delimiters as
+    // its source. The pattern is what keeps a sentence about prices out of
+    // this; see inputRules.ts.
+    return [nodeInputRule({
+      find: MATH_INLINE_INPUT,
+      type: this.type,
+      getAttributes: (match) => ({ latex: match[1] ?? '' }),
+    })]
+  },
 })
 
 /** A formula on a line of its own. */
@@ -87,6 +100,10 @@ export const MathBlock = Node.create({
         commands.insertContent({ type: this.name, attrs: { latex } }),
     }
   },
+
+  addInputRules() {
+    return [nodeInputRule({ find: MATH_BLOCK_INPUT, type: this.type })]
+  },
 })
 
 /** A diagram written in Mermaid's own language. */
@@ -113,5 +130,11 @@ export const Mermaid = Node.create({
       insertMermaid: (source = 'graph TD;\n  A --> B;') => ({ commands }) =>
         commands.insertContent({ type: this.name, attrs: { source } }),
     }
+  },
+
+  addInputRules() {
+    // A fence naming mermaid, which is how such a diagram is written in a
+    // Markdown file; the code block extension takes every other fence.
+    return [nodeInputRule({ find: MERMAID_INPUT, type: this.type })]
   },
 })

@@ -5,9 +5,12 @@
 // As with mediaNodes.ts there is no Vue here, so the schema these declare can
 // be loaded and compared against packages/docs-schema in a plain Node test.
 // The node views arrive separately, through officialExtensions' `views`.
-import { mergeAttributes, Node } from '@tiptap/core'
+import { InputRule, mergeAttributes, Node, nodeInputRule, wrappingInputRule } from '@tiptap/core'
 
 import { CALLOUT_KINDS, MAX_COLUMNS, MIN_COLUMNS, STATUS_COLORS } from './figures'
+import {
+  CALLOUT_INPUT, calloutKindFromMatch, COLUMNS_INPUT, columnCountFromMatch, PAGE_BREAK_INPUT,
+} from './inputRules'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -74,6 +77,16 @@ export const Callout = Node.create({
       unsetCallout: () => ({ commands }) => commands.lift(this.name),
     }
   },
+
+  addInputRules() {
+    // ":::" or ":::warning" wraps the paragraph being typed, which is the
+    // shorthand every Markdown dialect with callouts uses.
+    return [wrappingInputRule({
+      find: CALLOUT_INPUT,
+      type: this.type,
+      getAttributes: (match) => ({ kind: calloutKindFromMatch(match) }),
+    })]
+  },
 })
 
 /**
@@ -101,6 +114,19 @@ export const Columns = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes(HTMLAttributes, { 'data-columns': '', class: 'columns' }), 0]
+  },
+
+  addInputRules() {
+    // A wrapping rule cannot produce a valid row here: the content expression
+    // demands at least two columns, and a wrap would make one. So the rule
+    // removes what was typed and defers to the command, which builds a row
+    // the schema accepts.
+    return [new InputRule({
+      find: COLUMNS_INPUT,
+      handler: ({ range, match, chain }) => {
+        chain().deleteRange(range).insertColumns(columnCountFromMatch(match)).run()
+      },
+    })]
   },
 
   addCommands() {
@@ -206,6 +232,11 @@ export const PageBreak = Node.create({
     return {
       insertPageBreak: () => ({ commands }) => commands.insertContent({ type: this.name }),
     }
+  },
+
+  addInputRules() {
+    // "+++" rather than "---", which the horizontal rule already owns.
+    return [nodeInputRule({ find: PAGE_BREAK_INPUT, type: this.type })]
   },
 })
 
