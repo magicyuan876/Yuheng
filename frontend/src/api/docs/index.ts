@@ -663,6 +663,109 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- page history -----------------------------------------------------------
+
+/** One entry in a page's history. Never carries the body. */
+export interface RevisionView {
+  id: string
+  page_id: string
+  version: number
+  title: string
+  icon?: string
+  /** interval | publish | restore | import | manual */
+  reason: string
+  editor_ids: string[]
+  editors?: { user_id: string; username?: string; email?: string; avatar?: string }[]
+  created_by?: string
+  created_at: string
+  word_count: number
+}
+
+export interface RevisionPage {
+  items: RevisionView[]
+  next_cursor?: string
+}
+
+export interface RevisionDetail extends RevisionView {
+  content: unknown
+}
+
+/** One line of a text comparison. */
+export interface DiffLineView {
+  kind: 'same' | 'added' | 'removed'
+  text: string
+  old_line?: number
+  new_line?: number
+}
+
+/** One block of a structural comparison. */
+export interface DiffBlockView {
+  block_id: string
+  kind: 'same' | 'added' | 'removed' | 'moved' | 'changed'
+  type: string
+  text?: string
+  old_index: number
+  new_index: number
+}
+
+export interface DiffSummaryView {
+  added: number
+  removed: number
+  changed: number
+  moved: number
+  unchanged: number
+}
+
+export interface DiffView {
+  from?: RevisionView
+  /** Absent when the newer side is the page as it stands now. */
+  to?: RevisionView
+  lines: DiffLineView[]
+  blocks: DiffBlockView[]
+  line_summary: DiffSummaryView
+  block_summary: DiffSummaryView
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/revisions (page reader). */
+export async function listRevisions(
+  pageId: string, params: { cursor?: string; limit?: number } = {},
+): Promise<RevisionPage> {
+  const query = new URLSearchParams()
+  if (params.cursor) query.set('cursor', params.cursor)
+  if (params.limit) query.set('limit', String(params.limit))
+  const suffix = query.toString() ? `?${query}` : ''
+  return unwrap<RevisionPage | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/revisions${suffix}`),
+  ) ?? { items: [] }
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/revisions/:rid (page reader). */
+export async function getRevision(pageId: string, revisionId: string): Promise<RevisionDetail> {
+  return unwrap<RevisionDetail>(await get(
+    `${base}/pages/${encodeURIComponent(pageId)}/revisions/${encodeURIComponent(revisionId)}`,
+  ))
+}
+
+/**
+ * Backend: GET /api/v1/docs/pages/:pid/revisions/:rid/diff (page reader).
+ * Omitting `to` compares against the page as it stands now.
+ */
+export async function getRevisionDiff(
+  pageId: string, revisionId: string, to?: string,
+): Promise<DiffView> {
+  const suffix = to ? `?to=${encodeURIComponent(to)}` : ''
+  return unwrap<DiffView>(await get(
+    `${base}/pages/${encodeURIComponent(pageId)}/revisions/${encodeURIComponent(revisionId)}/diff${suffix}`,
+  ))
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/revisions/:rid/restore (page writer). */
+export async function restoreRevision(pageId: string, revisionId: string): Promise<{ ydoc_version: number }> {
+  return unwrap<{ ydoc_version: number }>(await post(
+    `${base}/pages/${encodeURIComponent(pageId)}/revisions/${encodeURIComponent(revisionId)}/restore`, {},
+  ))
+}
+
 /** One block reference, as the server addresses it. */
 export interface BlockRefRequest {
   source_page_id: string

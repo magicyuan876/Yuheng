@@ -82,6 +82,10 @@
                showing the persisted one here too would just disagree with
                it while someone is typing. -->
           <span>{{ t('docs.pages.lastEdited', { time: formatDate(page.content_updated_at || page.updated_at) }) }}</span>
+          <button type="button" class="page-history-link" @click="historyOpen = true">
+            <t-icon name="history" size="14px" />
+            <span>{{ t('docs.history.title') }}</span>
+          </button>
         </div>
       </header>
 
@@ -125,6 +129,15 @@
         {{ t('docs.tree.newSubpage') }}
       </t-button>
     </article>
+
+    <HistoryPanel
+      v-if="page"
+      :visible="historyOpen"
+      :page-id="page.id"
+      :can-edit="page.can_edit"
+      @close="historyOpen = false"
+      @restored="onRestored"
+    />
   </div>
 </template>
 
@@ -155,6 +168,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
 import BacklinksPanel from './editor/BacklinksPanel.vue'
+import HistoryPanel from './history/HistoryPanel.vue'
 import DocEditor from './editor/DocEditor.vue'
 import type { TocEntry } from './editor/toc'
 import TocSidebar from './editor/TocSidebar.vue'
@@ -194,6 +208,39 @@ const iconDraft = ref('')
 const authStore = useAuthStore()
 const capabilities = useDeploymentCapabilitiesStore()
 const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
+const historyOpen = ref(false)
+
+/**
+ * Counted up when a restore needs the editor rebuilt; part of its key.
+ *
+ * Only in exclusive-edit mode. With a collaboration service the restored body
+ * arrives through the same transport an ordinary edit does, and rebuilding
+ * would throw away the cursor for no reason. Without one, the write went
+ * straight to the stored body and the open editor knows nothing about it, so
+ * it has to be built again from what is now on the server.
+ */
+const restoreTick = ref(0)
+
+/**
+ * A restore leaves the page's own row — its word count, its "last edited"
+ * line — saying what it did before, so that is refreshed here.
+ */
+async function onRestored() {
+  if (!collabUrl.value) restoreTick.value++
+  const sid = props.shortId
+  try {
+    const fresh = await getPageByShortId(sid)
+    // Refreshed in place rather than through load(): clearing the page would
+    // unmount the editor, which is exactly what the collaborative case is
+    // trying to avoid.
+    if (props.shortId === sid && page.value?.id === fresh.id) {
+      page.value = { ...page.value, ...fresh }
+    }
+  } catch {
+    // The page is still on screen and correct; a stale word count in the
+    // header is not worth an error message about it.
+  }
+}
 const headings = ref<TocEntry[]>([])
 
 const tenantId = computed(() => authStore.effectiveTenantId ?? '')
@@ -218,7 +265,7 @@ const editingModeKnown = computed(() => capabilities.loaded)
 /** Remounts the editor when the page changes, and also if the collaboration
  * address itself changes, since the editor binds to one Y.Doc and one
  * transport for its lifetime. */
-const editorKey = computed(() => `${page.value?.id ?? ''}|${collabUrl.value}`)
+const editorKey = computed(() => `${page.value?.id ?? ''}|${collabUrl.value}|${restoreTick.value}`)
 
 const onHeadings = (entries: TocEntry[]) => {
   headings.value = entries
