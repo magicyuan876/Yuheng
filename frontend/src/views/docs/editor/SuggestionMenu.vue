@@ -53,7 +53,7 @@ const props = defineProps<{
   loading: boolean
   items: SuggestionItem[]
   selected: number
-  kind: 'page' | 'mention' | 'command'
+  kind: 'page' | 'mention' | 'command' | 'emoji'
   position: { left: number; top: number }
 }>()
 
