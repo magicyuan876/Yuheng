@@ -110,6 +110,8 @@ import TocNodeView from './TocNodeView.vue'
 import { useDocSuggestions } from './useDocSuggestions'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
+import { IdleScheduler } from './idleWork'
+import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
 import { countDocument } from './wordCount'
 import { useDocCollab } from './useDocCollab'
@@ -247,6 +249,11 @@ const suggestions = useDocSuggestions({
     })
     directoryRevision.value++
   },
+  translate: (key) => t(key),
+  allow: () => ({
+    embeds: media.policy.value.providers.length > 0,
+    drawings: true,
+  }),
 })
 
 /** Forgets a cached title so a rename shows up in every link to that page
@@ -270,10 +277,26 @@ const saveLabel = computed(() => {
   }
 })
 
+/**
+ * Counting the words and collecting the headings both walk every node, and
+ * neither answer is one anybody is waiting on keystroke by keystroke. Running
+ * them on every update is what makes a very long page feel heavy, so they are
+ * scheduled for the next idle moment instead and coalesced into one walk.
+ */
+const derive = new IdleScheduler(() => {
+  const ed = editor.value
+  if (!ed || ed.isDestroyed) return
+  wordCount.value = countDocument(ed.state.doc).words
+  emit('headings', extractHeadings(ed.state.doc))
+})
+
 const editor = useEditor({
   editable: editorEditable.value,
   editorProps: {
     ...uploads.editorProps,
+    // Before the upload handler, so a pasted file is still claimed there, and
+    // everything else goes through the sanitiser on its way in.
+    ...pasteEditorProps(),
     // The menu takes the arrow keys, Enter, Tab and Escape while it is open
     // and lets every other key through, so the query stays ordinary text in
     // the document until something is chosen.
@@ -309,11 +332,12 @@ const editor = useEditor({
     drawio: VueNodeViewRenderer(DiagramNodeView),
     excalidraw: VueNodeViewRenderer(DiagramNodeView),
   }),
-  onUpdate: ({ editor: ed }) => {
-    wordCount.value = countDocument(ed.state.doc).words
-    emit('headings', extractHeadings(ed.state.doc))
+  onUpdate: () => {
+    derive.schedule()
   },
   onCreate: ({ editor: ed }) => {
+    // The first count is immediate: an empty word count on a page that has
+    // just opened reads as a page that failed to load.
     wordCount.value = countDocument(ed.state.doc).words
     emit('headings', extractHeadings(ed.state.doc))
     uploads.bind(ed)
@@ -326,6 +350,9 @@ watch(editorEditable, (val) => {
 })
 
 onBeforeUnmount(() => {
+  // Before the editor is destroyed: a pending walk would otherwise run
+  // against a document nobody is looking at.
+  derive.cancel()
   uploads.bind(null)
   suggestions.bind(null)
   titles.dispose()
