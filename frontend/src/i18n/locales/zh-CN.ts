@@ -4960,6 +4960,35 @@ export default {
     // 页面历史：版本、对比与恢复。
     // 评论：针对段落或整页的讨论。
     // 通知与页面关注。
+    // 空间首页：收藏、去过哪里、最近写了什么。
+    home: {
+      favourites: '收藏',
+      recentlyViewed: '最近浏览',
+      recentlyViewedNote: '仅保存在本设备。',
+      recentlyEdited: '最近编辑',
+      nothingYet: '这里还没有内容',
+      clearFilter: '清除',
+      filtered: '筛选结果（{count}）',
+      noneWithLabels: '没有同时带有这些标签的页面',
+      loadFailed: '空间首页加载失败',
+      star: '收藏',
+      starred: '已收藏',
+      justNow: '刚刚',
+      minutesAgo: '{n} 分钟前',
+      hoursAgo: '{n} 小时前',
+      daysAgo: '{n} 天前',
+    },
+    labels: {
+      add: '标签',
+      addFirst: '添加标签',
+      remove: '移除 {name}',
+      search: '查找或新建标签',
+      none: '还没有标签',
+      create: '新建“{name}”',
+      createFailed: '标签新建失败',
+      saveFailed: '标签保存失败',
+      tooMany: '一个页面最多带 {n} 个标签',
+    },
     notifications: {
       title: '通知',
       empty: '没有新消息',

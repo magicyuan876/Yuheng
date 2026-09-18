@@ -4960,6 +4960,35 @@ export default {
     // 페이지 기록.
     // 댓글.
     // 알림 및 페이지 구독.
+    // 스페이스 홈: 즐겨찾기, 최근 본 문서, 최근 편집.
+    home: {
+      favourites: '즐겨찾기',
+      recentlyViewed: '최근 본 문서',
+      recentlyViewedNote: '이 기기에만 저장됩니다.',
+      recentlyEdited: '최근 편집',
+      nothingYet: '아직 작성된 내용이 없습니다',
+      clearFilter: '지우기',
+      filtered: '필터 결과 ({count})',
+      noneWithLabels: '해당 라벨을 모두 가진 페이지가 없습니다',
+      loadFailed: '스페이스 홈을 불러오지 못했습니다',
+      star: '즐겨찾기',
+      starred: '즐겨찾기됨',
+      justNow: '방금',
+      minutesAgo: '{n}분 전',
+      hoursAgo: '{n}시간 전',
+      daysAgo: '{n}일 전',
+    },
+    labels: {
+      add: '라벨',
+      addFirst: '라벨 추가',
+      remove: '{name} 제거',
+      search: '라벨 찾기 또는 만들기',
+      none: '아직 라벨이 없습니다',
+      create: '"{name}" 만들기',
+      createFailed: '라벨을 만들지 못했습니다',
+      saveFailed: '라벨을 저장하지 못했습니다',
+      tooMany: '한 페이지에는 최대 {n}개의 라벨을 붙일 수 있습니다',
+    },
     notifications: {
       title: '알림',
       empty: '새 알림이 없습니다',

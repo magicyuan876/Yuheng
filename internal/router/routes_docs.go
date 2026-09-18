@@ -267,8 +267,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/templates/:tid", g.Viewer(), guard.RequireMember(), ni)
 	write.PATCH("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
 	write.DELETE("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
-	write.PATCH("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
-	write.DELETE("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
+	// A label is addressed under its space above, not by its own id: a
+	// label's permissions *are* the space's, and giving it its own route
+	// would mean every handler re-deriving them. The T0.5 placeholders that
+	// stood here are gone for that reason — see the same note on revisions
+	// and comments.
 	read.GET("/search", g.Viewer(), guard.RequireMember(), ni)
 	// An inbox belongs to its reader rather than to any page, so these are
 	// guarded by membership alone: a notification says what happened, and

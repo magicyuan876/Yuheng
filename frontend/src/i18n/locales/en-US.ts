@@ -4960,6 +4960,36 @@ export default {
     // Page history: versions, comparisons and restoring one.
     // Comments: threads on a passage or on the page.
     // Notifications and watching a page.
+    // The space's landing page: what somebody starred, where they were, and
+    // what the space has been working on.
+    home: {
+      favourites: 'Favourites',
+      recentlyViewed: 'Recently viewed',
+      recentlyViewedNote: 'Kept on this device only.',
+      recentlyEdited: 'Recently edited',
+      nothingYet: 'Nothing has been written here yet',
+      clearFilter: 'Clear',
+      filtered: 'Filtered ({count})',
+      noneWithLabels: 'No page carries all of those labels',
+      loadFailed: 'Could not load this space',
+      star: 'Favourite',
+      starred: 'Favourited',
+      justNow: 'just now',
+      minutesAgo: '{n} min ago',
+      hoursAgo: '{n} h ago',
+      daysAgo: '{n} d ago',
+    },
+    labels: {
+      add: 'Label',
+      addFirst: 'Add a label',
+      remove: 'Remove {name}',
+      search: 'Find or create a label',
+      none: 'No labels yet',
+      create: 'Create "{name}"',
+      createFailed: 'Could not create the label',
+      saveFailed: 'Could not save the labels',
+      tooMany: 'A page may carry at most {n} labels',
+    },
     notifications: {
       title: 'Notifications',
       empty: 'Nothing new',

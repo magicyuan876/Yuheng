@@ -115,7 +115,7 @@ func TestPageCreateRulesAndOrdering(t *testing.T) {
 
 	child := p.create(t, p.bob, &a.ID, "A.1")
 	require.Equal(t, a.ID, *child.ParentID)
-	got, err := p.svc.Pages.Get(ctx(), p.decision(t, p.carol, a.ID))
+	got, err := p.svc.Pages.Get(ctx(), p.carol, p.decision(t, p.carol, a.ID))
 	require.NoError(t, err)
 	require.True(t, got.HasChildren)
 	require.False(t, got.CanEdit, "readers cannot edit")

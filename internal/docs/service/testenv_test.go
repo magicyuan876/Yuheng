@@ -155,20 +155,24 @@ func (f fakeKBs) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string, ten
 }
 
 type env struct {
-	t        *testing.T
-	repos    *repository.Repositories
-	members  *fakeMembers
-	resolver *acl.Resolver
-	bus      *events.MemoryBus
-	audit    *auditSink
-	svc      *Services
-	events   []events.Event
-	mu       sync.Mutex
+	t          *testing.T
+	repos      *repository.Repositories
+	members    *fakeMembers
+	resolver   *acl.Resolver
+	bus        *events.MemoryBus
+	audit      *auditSink
+	favourites *fakeFavourites
+	svc        *Services
+	events     []events.Event
+	mu         sync.Mutex
 }
 
 func newEnv(t *testing.T, opts ...func(*Deps)) *env {
 	t.Helper()
-	e := &env{t: t, repos: openRepos(t), members: newFakeMembers(), bus: events.NewMemoryBus(), audit: &auditSink{}}
+	e := &env{
+		t: t, repos: openRepos(t), members: newFakeMembers(),
+		bus: events.NewMemoryBus(), audit: &auditSink{}, favourites: newFakeFavourites(),
+	}
 	e.resolver = acl.NewResolver(e.repos, acl.NewTenantMemberRoleSource(e.members), acl.WithCache(acl.NewMemoryCache(0)))
 	e.bus.Subscribe(0, func(ev events.Event) {
 		e.mu.Lock()
@@ -177,7 +181,7 @@ func newEnv(t *testing.T, opts ...func(*Deps)) *env {
 	})
 	deps := Deps{
 		Repos: e.repos, Resolver: e.resolver, Bus: e.bus, Audit: audit.NewRecorder(e.audit),
-		Users: e.members, Members: e.members,
+		Users: e.members, Members: e.members, Favourites: e.favourites,
 	}
 	for _, o := range opts {
 		o(&deps)
@@ -215,3 +219,55 @@ func (e *env) mustSpaceRole(id *acl.Identity, sp *model.Space) model.SpaceRole {
 func ctx() context.Context { return context.Background() }
 
 func strp(s string) *string { return &s }
+
+// fakeFavourites stands in for the platform's favourites service, which the
+// docs module borrows rather than duplicating.
+type fakeFavourites struct {
+	mu   sync.Mutex
+	rows map[string][]*types.UserResourceFavorite
+}
+
+func newFakeFavourites() *fakeFavourites {
+	return &fakeFavourites{rows: map[string][]*types.UserResourceFavorite{}}
+}
+
+func (f *fakeFavourites) key(userID string, tenantID uint64, resourceType string) string {
+	return fmt.Sprintf("%s/%d/%s", userID, tenantID, resourceType)
+}
+
+func (f *fakeFavourites) List(_ context.Context, userID string, tenantID uint64, resourceType string) (
+	[]*types.UserResourceFavorite, error,
+) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]*types.UserResourceFavorite{}, f.rows[f.key(userID, tenantID, resourceType)]...), nil
+}
+
+func (f *fakeFavourites) Add(_ context.Context, userID string, tenantID uint64, resourceType, resourceID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := f.key(userID, tenantID, resourceType)
+	for _, row := range f.rows[key] {
+		if row.ResourceID == resourceID {
+			return nil
+		}
+	}
+	f.rows[key] = append(f.rows[key], &types.UserResourceFavorite{
+		UserID: userID, TenantID: tenantID, ResourceType: resourceType, ResourceID: resourceID,
+	})
+	return nil
+}
+
+func (f *fakeFavourites) Remove(_ context.Context, userID string, tenantID uint64, resourceType, resourceID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := f.key(userID, tenantID, resourceType)
+	kept := f.rows[key][:0]
+	for _, row := range f.rows[key] {
+		if row.ResourceID != resourceID {
+			kept = append(kept, row)
+		}
+	}
+	f.rows[key] = kept
+	return nil
+}
