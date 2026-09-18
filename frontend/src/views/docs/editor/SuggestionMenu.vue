@@ -7,7 +7,9 @@
     role="listbox"
   >
     <p v-if="loading" class="docs-suggest-note">{{ t('docs.links.searching') }}</p>
-    <p v-else-if="!items.length" class="docs-suggest-note">{{ t('docs.links.noMatches') }}</p>
+    <p v-else-if="!items.length" class="docs-suggest-note">
+      {{ kind === 'command' ? t('docs.commands.noMatches') : t('docs.links.noMatches') }}
+    </p>
     <button
       v-for="(item, index) in items"
       :key="item.key"
@@ -21,7 +23,7 @@
     >
       <span class="docs-suggest-icon">
         <template v-if="item.icon">{{ item.icon }}</template>
-        <t-icon v-else :name="kind === 'page' ? 'file' : 'user'" size="14px" />
+        <t-icon v-else :name="item.iconName ?? fallbackIcon" size="14px" />
       </span>
       <span class="docs-suggest-text">
         <span class="docs-suggest-title">{{ item.title }}</span>
@@ -32,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /** One row of the menu, already shaped by whoever fetched it. */
@@ -39,20 +42,26 @@ export interface SuggestionItem {
   key: string
   title: string
   hint?: string
+  /** An emoji chosen for the page itself, shown in preference to an icon. */
   icon?: string
+  /** A tdesign icon name, used when the entry has no emoji of its own. */
+  iconName?: string
 }
 
-defineProps<{
+const props = defineProps<{
   open: boolean
   loading: boolean
   items: SuggestionItem[]
   selected: number
-  kind: 'page' | 'mention'
+  kind: 'page' | 'mention' | 'command'
   position: { left: number; top: number }
 }>()
 
 const emit = defineEmits<{ choose: [index: number]; hover: [index: number] }>()
 const { t } = useI18n()
+
+/** What to draw for an entry that brought no icon of its own. */
+const fallbackIcon = computed(() => (props.kind === 'mention' ? 'user' : 'file'))
 </script>
 
 <style scoped lang="less">

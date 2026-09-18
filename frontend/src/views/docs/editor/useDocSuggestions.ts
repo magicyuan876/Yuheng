@@ -10,6 +10,7 @@ import { computed, ref, shallowRef, type Ref } from 'vue'
 
 import { suggestMentions, suggestPages, type MentionCandidate, type PageRef } from '@/api/docs'
 
+import { blockCommands, matchCommands, type BlockCommand, type CommandTarget } from './commands'
 import type { SuggestionItem } from './SuggestionMenu.vue'
 import {
   moveSelection, suggestionPlugin,
@@ -21,23 +22,35 @@ const TRIGGERS: Trigger[] = [
   { name: 'page', chars: '[[' },
   // Only after whitespace, so an email address does not open the menu.
   { name: 'mention', chars: '@', requireBoundary: true },
+  // Only after whitespace, so a date or a path does not open the menu.
+  { name: 'command', chars: '/', requireBoundary: true },
 ]
 
 /** How long to wait after a keystroke before asking the server. */
 const QUERY_DEBOUNCE_MS = 140
+
+/** Which menu is open. */
+export type SuggestionKind = 'page' | 'mention' | 'command'
 
 export interface DocSuggestionsOptions {
   pageId: Ref<string>
   spaceId: Ref<string>
   /** People are looked up so a mention can show the name they use now. */
   rememberPerson: (person: MentionCandidate) => void
+  /** Translates a command's label key, so the slash menu matches the words
+   * somebody actually reads rather than the English behind them. */
+  translate: (key: string) => string
+  /** What this deployment allows, so the menu offers nothing that would fail.
+   * Read on each keystroke rather than once, because the policy arrives from
+   * the server after the editor has already been built. */
+  allow?: () => { embeds?: boolean; drawings?: boolean }
 }
 
 export interface DocSuggestionsHandle {
   extension: Extension
   open: Ref<boolean>
   loading: Ref<boolean>
-  kind: Ref<'page' | 'mention'>
+  kind: Ref<SuggestionKind>
   items: Ref<SuggestionItem[]>
   selected: Ref<number>
   position: Ref<{ left: number; top: number }>
@@ -52,11 +65,18 @@ export interface DocSuggestionsHandle {
 export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHandle {
   const open = ref(false)
   const loading = ref(false)
-  const kind = ref<'page' | 'mention'>('page')
+  const kind = ref<SuggestionKind>('page')
   const selected = ref(0)
   const position = ref({ left: 0, top: 0 })
   const pages = shallowRef<PageRef[]>([])
   const people = shallowRef<MentionCandidate[]>([])
+  // The command menu answers from memory: there is nothing to fetch, so it
+  // has a query rather than a result list, and filters on every keystroke.
+  const commandQuery = ref('')
+  const catalogue = computed(() => blockCommands(opts.allow?.() ?? {}))
+  const commands = computed<BlockCommand[]>(
+    () => matchCommands(catalogue.value, commandQuery.value, (c) => opts.translate(c.labelKey)),
+  )
 
   let bound: Editor | null = null
   let active: ActiveTrigger | null = null
@@ -66,6 +86,13 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
   let ticket = 0
 
   const items = computed<SuggestionItem[]>(() => {
+    if (kind.value === 'command') {
+      return commands.value.map((c) => ({
+        key: c.id,
+        title: opts.translate(c.labelKey),
+        iconName: c.icon,
+      }))
+    }
     if (kind.value === 'page') {
       return pages.value.map((p) => ({
         key: p.page_id,
@@ -88,6 +115,7 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
     }
     ticket++
     active = null
+    commandQuery.value = ''
     open.value = false
     loading.value = false
     pages.value = []
@@ -101,12 +129,20 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
       return
     }
     active = next
-    kind.value = next.name === 'mention' ? 'mention' : 'page'
+    kind.value = next.name === 'command' ? 'command'
+      : next.name === 'mention' ? 'mention' : 'page'
     open.value = true
     selected.value = 0
     position.value = caretPosition(bound, next.to)
 
     if (timer !== null) clearTimeout(timer)
+    if (next.name === 'command') {
+      // Nothing to wait for, so nothing is debounced: the list is recomputed
+      // from the catalogue as the query changes.
+      commandQuery.value = next.query
+      loading.value = false
+      return
+    }
     loading.value = true
     timer = setTimeout(() => {
       timer = null
@@ -144,6 +180,14 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
     const item = items.value[at]
     if (!item || !active || !bound) return
     const range = { from: active.from, to: active.to }
+    if (kind.value === 'command') {
+      const command = commands.value[at]
+      // Closed first: the command edits the document, and a menu still holding
+      // a range that no longer exists is the source of the stray-slash bug.
+      close()
+      command?.run(bound as unknown as CommandTarget, range)
+      return
+    }
     if (kind.value === 'mention') {
       const person = people.value[at]
       bound.chain().focus()
