@@ -33,6 +33,7 @@ export const BLOCK_ID_TYPES = [
   'paragraph', 'heading', 'blockquote', 'horizontalRule',
   'bulletList', 'orderedList', 'taskList', 'codeBlock', 'table', 'details',
   'image', 'attachment',
+  'callout', 'columns', 'pageBreak', 'toc', 'mathBlock', 'mermaid',
 ] as const
 
 /** Node type names that carry docs-schema's `textBlock` attribute set. */

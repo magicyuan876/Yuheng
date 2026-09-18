@@ -64,13 +64,23 @@
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
 import { EditorContent, useEditor, VueNodeViewRenderer } from '@tiptap/vue-3'
+// KaTeX draws with its own stylesheet; without it a formula renders as a
+// column of unpositioned glyphs.
+import 'katex/dist/katex.min.css'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AttachmentNodeView from './AttachmentNodeView.vue'
+import CalloutNodeView from './CalloutNodeView.vue'
+import ColumnNodeView from './ColumnNodeView.vue'
+import ColumnsNodeView from './ColumnsNodeView.vue'
 import { officialExtensions } from './extensions'
 import ImageNodeView from './ImageNodeView.vue'
+import MathNodeView from './MathNodeView.vue'
+import MermaidNodeView from './MermaidNodeView.vue'
+import StatusNodeView from './StatusNodeView.vue'
+import TocNodeView from './TocNodeView.vue'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { extractHeadings } from './toc'
@@ -194,6 +204,14 @@ const editor = useEditor({
   ], {
     image: VueNodeViewRenderer(ImageNodeView),
     attachment: VueNodeViewRenderer(AttachmentNodeView),
+    callout: VueNodeViewRenderer(CalloutNodeView),
+    columns: VueNodeViewRenderer(ColumnsNodeView),
+    column: VueNodeViewRenderer(ColumnNodeView),
+    status: VueNodeViewRenderer(StatusNodeView),
+    toc: VueNodeViewRenderer(TocNodeView),
+    mathInline: VueNodeViewRenderer(MathNodeView),
+    mathBlock: VueNodeViewRenderer(MathNodeView),
+    mermaid: VueNodeViewRenderer(MermaidNodeView),
   }),
   onUpdate: ({ editor: ed }) => {
     wordCount.value = countDocument(ed.state.doc).words
@@ -430,6 +448,13 @@ defineExpose({ editor, collab })
 
   :deep(.ProseMirror a) {
     color: var(--td-brand-color);
+  }
+
+  :deep(.ProseMirror .page-break) {
+    height: 0;
+    margin: 20px 0;
+    border-top: 2px dashed var(--td-component-stroke);
+    position: relative;
   }
 
   :deep(.ProseMirror mark) {
