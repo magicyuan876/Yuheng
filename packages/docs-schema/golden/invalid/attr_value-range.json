@@ -1,0 +1,44 @@
+{
+  "expect": "attr_value",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "attrs": {
+              "width": 150
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "expect": "require_one_of",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "alt": "no source"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "details",
+      "attrs": {
+        "open": false
+      },
+      "content": [
+        {
+          "type": "detailsSummary",
+          "content": [
+            {
+              "type": "text",
+              "text": "Toggle me"
+            }
+          ]
+        },
+        {
+          "type": "detailsContent",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "hidden body"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

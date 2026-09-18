@@ -1,0 +1,14 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "embed",
+      "attrs": {
+        "provider": "youtube",
+        "url": "https://www.youtube.com/watch?v=abc",
+        "width": 560,
+        "height": 315
+      }
+    }
+  ]
+}

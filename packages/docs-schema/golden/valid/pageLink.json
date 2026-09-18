@@ -1,0 +1,20 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "see "
+        },
+        {
+          "type": "pageLink",
+          "attrs": {
+            "pageId": "a1B2c3D4"
+          }
+        }
+      ]
+    }
+  ]
+}

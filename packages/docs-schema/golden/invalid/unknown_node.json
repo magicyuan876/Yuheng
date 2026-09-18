@@ -1,0 +1,11 @@
+{
+  "expect": "unknown_node",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "widget"
+      }
+    ]
+  }
+}

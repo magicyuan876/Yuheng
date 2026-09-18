@@ -1,0 +1,22 @@
+{
+  "expect": "content",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "list item must be listItem"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

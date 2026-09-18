@@ -1,0 +1,22 @@
+{
+  "expect": "mark_not_allowed",
+  "doc": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "content": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

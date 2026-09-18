@@ -1,0 +1,42 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Claim"
+        },
+        {
+          "type": "footnoteRef",
+          "attrs": {
+            "footnoteId": "fn_0001"
+          }
+        }
+      ]
+    },
+    {
+      "type": "footnotes",
+      "content": [
+        {
+          "type": "footnote",
+          "attrs": {
+            "footnoteId": "fn_0001"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Source."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
