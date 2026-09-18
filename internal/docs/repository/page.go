@@ -20,6 +20,8 @@ type PageRepository interface {
 	GetByShortID(ctx context.Context, tenantID uint64, shortID string) (*model.Page, error)
 	// GetSummaries loads summary columns for a set of live pages.
 	GetSummaries(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error)
+	// GetMany loads live pages with content (duplicate, export).
+	GetMany(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error)
 	// ListChildren returns the live children of parentID (nil = space roots)
 	// in reading order, summary columns only.
 	ListChildren(ctx context.Context, tenantID uint64, spaceID string, parentID *string) ([]*model.Page, error)
@@ -34,7 +36,31 @@ type PageRepository interface {
 		afterID string) ([]*model.Page, error)
 	CountLive(ctx context.Context, tenantID uint64, spaceID string) (int64, error)
 
-	// Move re-parents a page (and, when the space changes, its subtree).
+	// GetAnyByShortID loads a page by short id whether or not it is trashed.
+	GetAnyByShortID(ctx context.Context, tenantID uint64, shortID string) (*model.Page, error)
+	// CreateBatch inserts many pages (a duplicated subtree); parents first.
+	CreateBatch(ctx context.Context, pages []*model.Page) error
+	// LockSpace serialises tree writers of a space until the transaction ends.
+	LockSpace(ctx context.Context, tenantID uint64, spaceID string) error
+	// ListChildrenAfter pages through the live children of parentID in
+	// reading order starting after the cursor (nil = from the start).
+	ListChildrenAfter(ctx context.Context, tenantID uint64, spaceID string, parentID *string, after *TreeCursor,
+		limit int) ([]*model.Page, error)
+	// ChildCounts returns the number of live children of each parent.
+	ChildCounts(ctx context.Context, tenantID uint64, parentIDs []string) (map[string]int64, error)
+	// LastPosition returns the position of the last live sibling.
+	LastPosition(ctx context.Context, tenantID uint64, spaceID string, parentID *string) (string, bool, error)
+	// NextPosition returns the position of the live sibling that follows
+	// (afterPosition, afterID).
+	NextPosition(ctx context.Context, tenantID uint64, spaceID string, parentID *string, afterPosition,
+		afterID string) (string, bool, error)
+	// SetPositions rewrites the positions of many pages (a rebalance).
+	SetPositions(ctx context.Context, tenantID uint64, positions map[string]string) error
+	// PurgeOne hard-deletes one trashed page with its subtree.
+	PurgeOne(ctx context.Context, tenantID uint64, id string) ([]string, error)
+
+	// Move re-parents a page (and, when the space changes, its subtree
+	// together with every dependent row that carries a space id).
 	Move(ctx context.Context, tenantID uint64, id string, target MoveTarget) error
 	// UpdateMeta writes non-content columns (title, icon, cover, status,
 	// is_locked, template_id, source_refs, position).
@@ -140,6 +166,17 @@ func (r *pageRepository) GetSummaries(ctx context.Context, tenantID uint64, ids 
 	return out, err
 }
 
+func (r *pageRepository) GetMany(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []*model.Page
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND id IN ? AND deleted_at IS NULL", tenantID, ids).
+		Find(&out).Error
+	return out, err
+}
+
 func (r *pageRepository) ListChildren(ctx context.Context, tenantID uint64, spaceID string,
 	parentID *string,
 ) ([]*model.Page, error) {
@@ -151,7 +188,7 @@ func (r *pageRepository) ListChildren(ctx context.Context, tenantID uint64, spac
 		q = q.Where("parent_id = ?", *parentID)
 	}
 	var out []*model.Page
-	err := q.Order("position ASC, created_at ASC, id ASC").Find(&out).Error
+	err := q.Order("position ASC, id ASC").Find(&out).Error
 	return out, err
 }
 
@@ -288,6 +325,9 @@ func (r *pageRepository) Move(ctx context.Context, tenantID uint64, id string, t
 			if err := tx.Model(&model.Page{}).
 				Where("tenant_id = ? AND id IN ?", tenantID, subtree).
 				Updates(map[string]any{"space_id": target.SpaceID, "updated_at": ts}).Error; err != nil {
+				return err
+			}
+			if err := reSpaceRelated(tx, tenantID, subtree, target.SpaceID); err != nil {
 				return err
 			}
 		}

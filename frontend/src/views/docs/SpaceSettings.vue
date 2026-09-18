@@ -1,9 +1,10 @@
 <template>
   <div class="docs-space-page">
     <div class="page-header">
-      <t-button variant="text" size="small" class="back-btn" @click="router.push({ name: 'docsSpaceList' })">
+      <t-button variant="text" size="small" class="back-btn"
+        @click="router.push({ name: 'docsSpace', params: { slug: route.params.slug as string } })">
         <template #icon><t-icon name="chevron-left" /></template>
-        {{ t('docs.spaces.backToList') }}
+        {{ t('docs.spaces.backToSpace') }}
       </t-button>
       <div v-if="space" class="space-heading">
         <SpaceAvatar :name="space.name" :avatar="space.icon || ''" size="large" />
@@ -403,7 +404,7 @@ const saveSettings = async () => {
     resetForm()
     MessagePlugin.success(t('docs.spaces.updateSuccess'))
     if (slugChanged) {
-      router.replace({ name: 'docsSpace', params: { slug: space.value.slug } })
+      router.replace({ name: 'docsSpaceSettings', params: { slug: space.value.slug } })
     }
   } catch (err: unknown) {
     MessagePlugin.error(errorText(err, t('docs.spaces.updateFailed')))

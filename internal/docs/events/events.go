@@ -37,6 +37,8 @@ const (
 	PageAccess      Type = "docs.page.access_changed"
 	PageReplaced    Type = "docs.page.content_replaced" // import / restore / AI write-back
 	RevisionCreated Type = "docs.revision.created"
+	// TreeRebalanced: a sibling list was renumbered; reload that parent.
+	TreeRebalanced Type = "docs.page.tree_rebalanced"
 
 	CommentChanged      Type = "docs.comment.changed"
 	NotificationCreated Type = "docs.notification.created"

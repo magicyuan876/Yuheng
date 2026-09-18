@@ -200,9 +200,17 @@ const router = createRouter({
           meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
         },
         {
-          path: "docs/spaces/:slug",
-          name: "docsSpace",
+          path: "docs/spaces/:slug/settings",
+          name: "docsSpaceSettings",
           component: () => import("../views/docs/SpaceSettings.vue"),
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+        },
+        {
+          // One record for the space home and its pages so the tree keeps
+          // its state while the user moves between pages.
+          path: "docs/spaces/:slug/:pageSlug?",
+          name: "docsSpace",
+          component: () => import("../views/docs/SpaceHome.vue"),
           meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
         },
         // Compatibility redirects for /platform/system/* URLs. System

@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS docs_pages (
     space_id            VARCHAR(36)  NOT NULL REFERENCES docs_spaces(id) ON DELETE CASCADE,
     parent_id           VARCHAR(36)  REFERENCES docs_pages(id) ON DELETE CASCADE,
     -- Fractional index (Base62 string). Moving a page rewrites one row.
-    position            VARCHAR(64)  NOT NULL DEFAULT '',
+    position            VARCHAR(64)  COLLATE "C" NOT NULL DEFAULT '',
     title               VARCHAR(512) NOT NULL DEFAULT '',
     icon                VARCHAR(64),
     cover               VARCHAR(1024),

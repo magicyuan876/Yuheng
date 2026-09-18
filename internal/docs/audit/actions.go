@@ -36,6 +36,7 @@ const (
 	GroupMemberRemoved  types.AuditAction = "docs.group.member_removed"
 
 	PageCreated    types.AuditAction = "docs.page.created"
+	PageDuplicated types.AuditAction = "docs.page.duplicated"
 	PageMoved      types.AuditAction = "docs.page.moved"
 	PageDeleted    types.AuditAction = "docs.page.deleted"
 	PageRestored   types.AuditAction = "docs.page.restored"
