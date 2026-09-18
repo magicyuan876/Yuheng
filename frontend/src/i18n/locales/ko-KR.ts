@@ -6767,6 +6767,7 @@ export default {
       clearFormat: '서식 지우기',
       linkPlaceholder: '링크를 붙여넣거나 입력하세요',
       linkRemove: '제거',
+      moveBlock: '블록 이동',
     },
     commands: {
       paragraph: '본문',

@@ -6771,6 +6771,7 @@ export default {
       clearFormat: '清除格式',
       linkPlaceholder: '粘贴或输入链接',
       linkRemove: '移除',
+      moveBlock: '移动块',
     },
     commands: {
       paragraph: '正文',
