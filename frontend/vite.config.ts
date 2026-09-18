@@ -103,6 +103,14 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return
+          // Excalidraw and the React runtime it needs are by a wide margin
+          // the largest thing here, and are reached only by somebody who
+          // opens a drawing for editing. Keeping them in their own chunk is
+          // what stops every reader of every page paying for them.
+          if (id.includes('@excalidraw') || id.includes('/react-dom/') || id.includes('/react/')
+            || id.includes('/scheduler/')) {
+            return 'vendor-excalidraw'
+          }
           if (id.includes('mermaid') || id.includes('/dagre') || id.includes('cytoscape')) {
             return 'vendor-mermaid'
           }

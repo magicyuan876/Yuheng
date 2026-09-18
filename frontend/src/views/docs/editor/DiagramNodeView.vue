@@ -30,7 +30,13 @@
     <DrawioDialog
       v-if="kind === 'drawio' && editing"
       :source="source"
-      @save="onSaved"
+      @save="onDrawioSaved"
+      @close="editing = false"
+    />
+    <ExcalidrawDialog
+      v-if="kind === 'excalidraw' && editing"
+      :source="source"
+      @save="onExcalidrawSaved"
       @close="editing = false"
     />
   </NodeViewWrapper>
@@ -45,6 +51,8 @@ import { useI18n } from 'vue-i18n'
 import { attachmentSrc } from './attachments'
 import DrawioDialog from './DrawioDialog.vue'
 import { EMPTY_DRAWIO_XML } from './drawio'
+import { emptyScene } from './excalidraw'
+import ExcalidrawDialog from './ExcalidrawDialog.vue'
 import { DOCS_DIAGRAMS, type DiagramHost } from './linkContext'
 
 const props = defineProps<NodeViewProps>()
@@ -66,9 +74,10 @@ const previewSrc = computed(() => {
   return id ? attachmentSrc(id) : ''
 })
 
-// Only draw.io has an editor here; Excalidraw's arrives with its own change,
-// and until then an existing drawing still renders from its preview.
-const canEdit = computed(() => kind.value === 'drawio' && !!host?.drawioURL.value)
+// draw.io needs a self-hosted editor to be configured; Excalidraw ships with
+// the application and only needs its module, which is loaded on demand.
+const canEdit = computed(() =>
+  kind.value === 'excalidraw' || (kind.value === 'drawio' && !!host?.drawioURL.value))
 
 const frameStyle = computed(() => {
   const width = Number(props.node.attrs.width ?? 0)
@@ -76,7 +85,7 @@ const frameStyle = computed(() => {
 })
 
 const editing = ref(false)
-const source = ref(EMPTY_DRAWIO_XML)
+const source = ref('')
 
 async function openEditor() {
   if (!canEdit.value || !host) return
@@ -91,16 +100,24 @@ async function openEditor() {
       return
     }
   } else {
-    source.value = EMPTY_DRAWIO_XML
+    source.value = kind.value === 'drawio' ? EMPTY_DRAWIO_XML : JSON.stringify(emptyScene())
   }
   editing.value = true
 }
 
-async function onSaved(payload: { xml: string; svg: string }) {
+function onDrawioSaved(payload: { xml: string; svg: string }) {
+  void store(payload.xml, payload.svg)
+}
+
+function onExcalidrawSaved(payload: { scene: string; svg: string }) {
+  void store(payload.scene, payload.svg)
+}
+
+async function store(source: string, svg: string) {
   editing.value = false
   if (!host) return
   try {
-    const stored = await host.save(kind.value, payload.xml, payload.svg, 'diagram')
+    const stored = await host.save(kind.value, source, svg, 'diagram')
     props.updateAttributes({
       attachmentId: stored.attachmentId,
       previewAttachmentId: stored.previewAttachmentId,
