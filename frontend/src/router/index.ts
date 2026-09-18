@@ -191,6 +191,20 @@ const router = createRouter({
           component: () => import("../views/organization/OrganizationList.vue"),
           meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'organizations' }
         },
+        // Online documents (docs module). Registered only when the backend
+        // reports the `docs` capability; see internal/docs.
+        {
+          path: "docs",
+          name: "docsSpaceList",
+          component: () => import("../views/docs/SpaceList.vue"),
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+        },
+        {
+          path: "docs/spaces/:slug",
+          name: "docsSpace",
+          component: () => import("../views/docs/SpaceSettings.vue"),
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+        },
         // Compatibility redirects for /platform/system/* URLs. System
         // administration surfaces live as dedicated sections inside the
         // standard Settings modal; keep stable URLs for bookmarks and

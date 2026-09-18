@@ -33,6 +33,7 @@ func TestBuildDeploymentCapabilitiesIncludesAllKeys(t *testing.T) {
 		VectorStore:   true,
 		Storage:       true,
 		Sandbox:       true,
+		Docs:          true,
 	})
 
 	for _, key := range DeploymentCapabilityKeys {

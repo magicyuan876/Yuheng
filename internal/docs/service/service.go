@@ -1,0 +1,259 @@
+// Package service holds the business rules of the docs module. Handlers
+// parse requests and call in here; repositories persist what is decided
+// here. Every mutation follows the same shape: validate, write in one
+// transaction, then publish a domain event, record an audit row and drop the
+// permission cache, in that order, so a failed write never leaves a trace.
+//
+// The rules were written after reading how established team wikis behave
+// (space membership through users and groups, an implicit "everyone" group,
+// a last-administrator invariant) and are an independent implementation.
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/magicyuan876/yuheng/internal/docs/acl"
+	"github.com/magicyuan876/yuheng/internal/docs/audit"
+	"github.com/magicyuan876/yuheng/internal/docs/events"
+	"github.com/magicyuan876/yuheng/internal/docs/repository"
+	apperrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/types"
+)
+
+// Directory resolves user IDs to display data. interfaces.UserRepository
+// satisfies it.
+type Directory interface {
+	GetUsersByIDs(ctx context.Context, ids []string) (map[string]*types.User, error)
+}
+
+// TenantMembers answers membership questions about the tenant.
+// interfaces.TenantMemberRepository satisfies it.
+type TenantMembers interface {
+	Get(ctx context.Context, userID string, tenantID uint64) (*types.TenantMember, error)
+	ListPagedByTenant(ctx context.Context, tenantID uint64, search string, offset, limit int) ([]*types.TenantMember, error)
+	CountFilteredByTenant(ctx context.Context, tenantID uint64, search string) (int64, error)
+}
+
+// KnowledgeBases checks that a knowledge base belongs to the tenant.
+// interfaces.KnowledgeBaseRepository satisfies it.
+type KnowledgeBases interface {
+	GetKnowledgeBaseByIDAndTenant(ctx context.Context, id string, tenantID uint64) (*types.KnowledgeBase, error)
+}
+
+// StorageBackends checks that a storage backend is usable by the tenant.
+// interfaces.StorageBackendRepository satisfies it.
+type StorageBackends interface {
+	GetByID(ctx context.Context, tenantID uint64, id string) (*types.StorageBackend, error)
+}
+
+// Deps are the collaborators shared by every service.
+type Deps struct {
+	Repos    *repository.Repositories
+	Resolver *acl.Resolver
+	Bus      events.Bus
+	Audit    *audit.Recorder
+	Users    Directory
+	Members  TenantMembers
+	// KnowledgeBases and StorageBackends may be nil (tests, trimmed builds);
+	// binding a space to either is then rejected.
+	KnowledgeBases  KnowledgeBases
+	StorageBackends StorageBackends
+}
+
+// Services groups the module's services.
+type Services struct {
+	Spaces *SpaceService
+	Groups *GroupService
+}
+
+// New wires the services.
+func New(d Deps) *Services {
+	base := &base{d: d}
+	return &Services{
+		Spaces: &SpaceService{base: base},
+		Groups: &GroupService{base: base},
+	}
+}
+
+// base carries the shared collaborators and the post-commit side effects.
+type base struct{ d Deps }
+
+// publish sends a domain event; a failing bus is logged, never surfaced,
+// because the write has already committed.
+func (b *base) publish(ctx context.Context, e events.Event) {
+	if b.d.Bus == nil {
+		return
+	}
+	if err := b.d.Bus.Publish(ctx, e); err != nil {
+		logger.Warnf(ctx, "[docs] publish %s failed: %v", e.Type, err)
+	}
+}
+
+// audit records one row (nil-safe).
+func (b *base) audit(ctx context.Context, e audit.Entry) {
+	b.d.Audit.Record(ctx, e)
+}
+
+// invalidate drops the tenant's cached permission decisions on this
+// instance immediately; the event published alongside reaches the others.
+func (b *base) invalidate(ctx context.Context, tenantID uint64) {
+	if b.d.Resolver != nil {
+		b.d.Resolver.Invalidate(ctx, tenantID)
+	}
+}
+
+// ---- validation helpers ---------------------------------------------------------
+
+// Limits on user-supplied text, in runes.
+const (
+	MaxNameRunes        = 100
+	MaxDescriptionRunes = 4000
+	MaxSettingsBytes    = 16 * 1024
+	// MaxBatch caps the principals accepted by one membership request.
+	MaxBatch = 200
+)
+
+func invalid(format string, args ...any) error {
+	return apperrors.NewValidationError(fmt.Sprintf(format, args...))
+}
+
+func conflict(format string, args ...any) error {
+	return apperrors.NewConflictError(fmt.Sprintf(format, args...))
+}
+
+func forbidden(format string, args ...any) error {
+	return apperrors.NewForbiddenError(fmt.Sprintf(format, args...))
+}
+
+func notFound(what string) error {
+	return apperrors.NewNotFoundError(what + " not found")
+}
+
+// cleanName trims and validates a display name.
+func cleanName(field, raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		return "", invalid("%s is required", field)
+	}
+	if utf8.RuneCountInString(name) > MaxNameRunes {
+		return "", invalid("%s must be at most %d characters", field, MaxNameRunes)
+	}
+	if strings.ContainsAny(name, "\n\r\t") {
+		return "", invalid("%s must be a single line", field)
+	}
+	return name, nil
+}
+
+func cleanDescription(raw string) (string, error) {
+	desc := strings.TrimSpace(raw)
+	if utf8.RuneCountInString(desc) > MaxDescriptionRunes {
+		return "", invalid("description must be at most %d characters", MaxDescriptionRunes)
+	}
+	return desc, nil
+}
+
+// cleanSettings accepts a JSON object of bounded size.
+func cleanSettings(raw json.RawMessage) (json.RawMessage, error) {
+	if len(raw) == 0 {
+		return json.RawMessage("{}"), nil
+	}
+	if len(raw) > MaxSettingsBytes {
+		return nil, invalid("settings must be at most %d bytes", MaxSettingsBytes)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil || obj == nil {
+		return nil, invalid("settings must be a JSON object")
+	}
+	compact, err := json.Marshal(obj)
+	if err != nil {
+		return nil, invalid("settings must be a JSON object")
+	}
+	return compact, nil
+}
+
+// activeMember reports whether the user is an active member of the tenant.
+func (b *base) activeMember(ctx context.Context, tenantID uint64, userID string) (bool, error) {
+	if b.d.Members == nil {
+		return false, fmt.Errorf("docs: tenant member source not configured")
+	}
+	m, err := b.d.Members.Get(ctx, userID, tenantID)
+	if err != nil {
+		if isNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return m != nil && m.Status == types.TenantMemberStatusActive, nil
+}
+
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return msg == "tenant member not found" || msg == "record not found"
+}
+
+// userViews hydrates user IDs into display rows; a directory failure
+// degrades to bare IDs rather than failing the request.
+func (b *base) users(ctx context.Context, ids []string) map[string]*types.User {
+	if b.d.Users == nil || len(ids) == 0 {
+		return map[string]*types.User{}
+	}
+	users, err := b.d.Users.GetUsersByIDs(ctx, ids)
+	if err != nil {
+		logger.Warnf(ctx, "[docs] user lookup failed: %v", err)
+		return map[string]*types.User{}
+	}
+	return users
+}
+
+// UserView is how the module shows a user.
+type UserView struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Avatar   string `json:"avatar,omitempty"`
+}
+
+func userView(id string, users map[string]*types.User) UserView {
+	v := UserView{UserID: id}
+	if u, ok := users[id]; ok && u != nil {
+		v.Username, v.Email, v.Avatar = u.Username, u.Email, u.Avatar
+	}
+	return v
+}
+
+func actorID(actor *acl.Identity) string {
+	if actor == nil {
+		return ""
+	}
+	return actor.UserID
+}
+
+func actorRole(actor *acl.Identity) string {
+	if actor == nil {
+		return ""
+	}
+	return string(actor.TenantRole)
+}
+
+// dedupe returns the distinct non-empty strings in order of first appearance.
+func dedupe(in []string) []string {
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
+}

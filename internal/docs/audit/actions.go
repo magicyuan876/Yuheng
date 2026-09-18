@@ -22,13 +22,18 @@ const (
 	SpaceRestored      types.AuditAction = "docs.space.restored"
 	SpaceMemberAdded   types.AuditAction = "docs.space.member_added"
 	SpaceMemberRemoved types.AuditAction = "docs.space.member_removed"
-	SpaceKBBound       types.AuditAction = "docs.space.kb_bound"
-	SpaceKBUnbound     types.AuditAction = "docs.space.kb_unbound"
+	// SpaceMemberRoleChanged: an existing membership was re-granted with a
+	// different role.
+	SpaceMemberRoleChanged types.AuditAction = "docs.space.member_role_changed"
+	SpaceKBBound           types.AuditAction = "docs.space.kb_bound"
+	SpaceKBUnbound         types.AuditAction = "docs.space.kb_unbound"
 
 	GroupCreated        types.AuditAction = "docs.group.created"
 	GroupUpdated        types.AuditAction = "docs.group.updated"
 	GroupDeleted        types.AuditAction = "docs.group.deleted"
 	GroupMembersChanged types.AuditAction = "docs.group.members_changed"
+	GroupMemberAdded    types.AuditAction = "docs.group.member_added"
+	GroupMemberRemoved  types.AuditAction = "docs.group.member_removed"
 
 	PageCreated    types.AuditAction = "docs.page.created"
 	PageMoved      types.AuditAction = "docs.page.moved"
@@ -72,14 +77,36 @@ const (
 	TargetTemplate   = "docs_template"
 )
 
+// Sink is the slice of the audit log service the recorder needs.
+// interfaces.AuditLogService satisfies it.
+type Sink interface {
+	Log(ctx context.Context, entry *types.AuditLog) error
+}
+
 // Recorder writes audit rows; nil-safe so Lite builds without an audit
 // service keep working.
 type Recorder struct {
-	svc interfaces.AuditLogService
+	svc Sink
 }
 
-// NewRecorder wraps the service (nil allowed).
-func NewRecorder(svc interfaces.AuditLogService) *Recorder { return &Recorder{svc: svc} }
+// NewRecorder wraps the sink (nil allowed). A typed-nil service is treated
+// as absent so an optional DI dependency needs no special casing.
+func NewRecorder(svc Sink) *Recorder {
+	if isNilSink(svc) {
+		return &Recorder{}
+	}
+	return &Recorder{svc: svc}
+}
+
+func isNilSink(s Sink) bool {
+	if s == nil {
+		return true
+	}
+	if svc, ok := s.(interfaces.AuditLogService); ok && svc == nil {
+		return true
+	}
+	return false
+}
 
 // Entry is what a service knows about an audited action.
 type Entry struct {

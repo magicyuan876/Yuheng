@@ -15,5 +15,6 @@ func deploymentCapabilitiesFromRouter(params RouterParams) handler.DeploymentCap
 		VectorStore: params.VectorStoreHandler != nil,
 		Storage:     params.StorageBackendHandler != nil,
 		Sandbox:     params.SandboxConfigHandler != nil,
+		Docs:        params.DocsModule != nil && params.DocsModule.Enabled,
 	})
 }

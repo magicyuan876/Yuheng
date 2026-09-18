@@ -180,6 +180,11 @@
                     <TenantMembers />
                   </div>
 
+                  <!-- 用户组（在线文档模块的第一个消费者） -->
+                  <div v-if="currentSection === 'groups'" class="section">
+                    <TenantGroups />
+                  </div>
+
                   <!-- 发布集成 -->
                   <div v-if="isIntegrationSection(currentSection)" class="section">
                     <IntegrationSettingsSection :tab="integrationTabFromSection(currentSection)" />
@@ -225,6 +230,7 @@ import ParserEngineSettings from './ParserEngineSettings.vue'
 import StorageEngineSettings from './StorageBackendSettings.vue'
 import SandboxSettings from './SandboxSettings.vue'
 import TenantMembers from './TenantMembers.vue'
+import TenantGroups from './TenantGroups.vue'
 import SystemSettings from '@/views/system/SystemSettings.vue'
 import RuntimeQueues from '@/views/system/RuntimeQueues.vue'
 import PlatformAPIKeys from '@/views/system/PlatformAPIKeys.vue'
@@ -377,6 +383,7 @@ const navItems = computed(() => {
     { key: 'mymemory', icon: 'bookmark', label: t('memorySettings.title') },
     { key: 'tenant', icon: 'user-circle', label: t('settings.tenantInfo') },
     { key: 'members', icon: 'usergroup', label: t('tenantMember.title') },
+    { key: 'groups', icon: 'view-list', label: t('docs.groups.title') },
     ...integrationItems,
   ]
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
@@ -404,7 +411,7 @@ const navGroups = computed<NavGroup[]>(() => {
     {
       key: 'workspace',
       label: t('settings.navGroups.workspace'),
-      items: pickItems(['tenant', 'members', 'chathistory', 'memory']),
+      items: pickItems(['tenant', 'members', 'groups', 'chathistory', 'memory']),
     },
     {
       key: 'models_runtime',

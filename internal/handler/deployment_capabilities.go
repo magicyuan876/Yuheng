@@ -20,6 +20,7 @@ var DeploymentCapabilityKeys = []string{
 	"settings.vectorstore",
 	"settings.storage",
 	"settings.sandbox",
+	"docs",
 }
 
 // DeploymentCapability describes whether a deployment exposes a feature route.
@@ -46,6 +47,7 @@ type DeploymentFeatureAvailability struct {
 	VectorStore   bool
 	Storage       bool
 	Sandbox       bool
+	Docs          bool
 }
 
 func supportedDeploymentCapability(supported bool) DeploymentCapability {
@@ -79,6 +81,7 @@ func BuildDeploymentCapabilities(
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),
 			"settings.sandbox":     supportedDeploymentCapability(available.Sandbox),
+			"docs":                 supportedDeploymentCapability(available.Docs),
 		},
 	}
 }

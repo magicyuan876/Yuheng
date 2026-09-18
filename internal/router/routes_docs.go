@@ -58,21 +58,26 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// Live updates. One stream per tab, narrowed by ?space= / ?page=.
 	read.GET("/events", g.Viewer(), guard.RequireMember(), h.Events.Handle)
 
-	// ---- spaces --------------------------------------------------------------
-	read.GET("/spaces", g.Viewer(), guard.RequireMember(), ni)
-	write.POST("/spaces", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/spaces/:sid", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
-	read.GET("/spaces/by-slug/:slug", g.Viewer(), guard.RequireSpace("slug", acl.SpaceBySlug, model.RoleReader), ni)
-	write.PATCH("/spaces/:sid", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
-	write.DELETE("/spaces/:sid", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
-	write.POST("/spaces/:sid/restore", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/spaces/:sid/members", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	// ---- spaces (T1.1) ----------------------------------------------------------
+	sp := h.Spaces
+	read.GET("/spaces", g.Viewer(), guard.RequireMember(), sp.List)
+	write.POST("/spaces", g.Contributor(), guard.RequireMember(), idem, sp.Create)
+	read.GET("/spaces/:sid", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), sp.Get)
+	read.GET("/spaces/by-slug/:slug", g.Viewer(),
+		guard.RequireSpace("slug", acl.SpaceBySlug, model.RoleReader), sp.GetBySlug)
+	write.PATCH("/spaces/:sid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.Update)
+	write.DELETE("/spaces/:sid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.Delete)
+	write.POST("/spaces/:sid/restore", g.Contributor(), guard.RequireMember(), idem, sp.Restore)
+	read.GET("/spaces/:sid/members", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), sp.ListMembers)
 	write.PUT("/spaces/:sid/members", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.SetMembers)
 	write.DELETE("/spaces/:sid/members/:ptype/:pid", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.RemoveMember)
 	write.PUT("/spaces/:sid/knowledge-base", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.BindKnowledgeBase)
 	read.GET("/spaces/:sid/tree", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
 	read.GET("/spaces/:sid/trash", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
 	read.GET("/spaces/:sid/labels", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
@@ -150,15 +155,16 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/recent", g.Viewer(), guard.RequireMember(), ni)
 
 	// ---- tenant groups (tenant-level administration; docs is the first consumer) ----
+	gr := h.Groups
 	groups := g.apiKeyGroup(r.Group("/groups"), apiKeyDocsAdmin(apiKeyFullAccess()))
-	groups.GET("", g.Viewer(), guard.RequireMember(), ni)
-	groups.POST("", g.Admin(), idem, ni)
-	groups.GET("/:gid", g.Viewer(), guard.RequireMember(), ni)
-	groups.PATCH("/:gid", g.Admin(), idem, ni)
-	groups.DELETE("/:gid", g.Admin(), idem, ni)
-	groups.GET("/:gid/members", g.Viewer(), guard.RequireMember(), ni)
-	groups.PUT("/:gid/members", g.Admin(), idem, ni)
-	groups.DELETE("/:gid/members/:uid", g.Admin(), idem, ni)
+	groups.GET("", g.Viewer(), guard.RequireMember(), gr.List)
+	groups.POST("", g.Admin(), guard.RequireMember(), idem, gr.Create)
+	groups.GET("/:gid", g.Viewer(), guard.RequireMember(), gr.Get)
+	groups.PATCH("/:gid", g.Admin(), guard.RequireMember(), idem, gr.Update)
+	groups.DELETE("/:gid", g.Admin(), guard.RequireMember(), idem, gr.Delete)
+	groups.GET("/:gid/members", g.Viewer(), guard.RequireMember(), gr.ListMembers)
+	groups.PUT("/:gid/members", g.Admin(), guard.RequireMember(), idem, gr.AddMembers)
+	groups.DELETE("/:gid/members/:uid", g.Admin(), guard.RequireMember(), idem, gr.RemoveMember)
 }
 
 // dochandlerNotImplemented adapts the docs handler package's placeholder.
