@@ -132,16 +132,32 @@ type Watcher struct {
 // or not they watch it: commenting on somebody's page is addressed to them,
 // and answering somebody is addressed to them, and neither should require
 // having remembered to press a button.
+//
+// Muting still silences them, though, and that is the important half. Somebody
+// who muted a page has said they do not want to hear about it; continuing to
+// write to them because they happen to have written the page would make the
+// control a lie. Only being named by name gets through a mute, because that
+// is a question addressed to them personally rather than traffic on a page.
 func CommentAudience(watchers []Watcher, pageAuthorID, repliedToID, actorID string) []string {
+	muted := make(map[string]bool, len(watchers))
+	for _, watcher := range watchers {
+		if watcher.Muted {
+			muted[watcher.UserID] = true
+		}
+	}
+
 	out := newAudience(actorID)
 	for _, watcher := range watchers {
 		if !watcher.Muted {
 			out.add(watcher.UserID)
 		}
 	}
-	// Not subject to muting: these two are being spoken to, not subscribed.
-	out.add(pageAuthorID)
-	out.add(repliedToID)
+	if !muted[pageAuthorID] {
+		out.add(pageAuthorID)
+	}
+	if !muted[repliedToID] {
+		out.add(repliedToID)
+	}
 	return out.list
 }
 

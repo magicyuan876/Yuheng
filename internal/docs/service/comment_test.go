@@ -19,6 +19,15 @@ func say(text string) json.RawMessage {
 			string(quoted) + `}]}]}`)
 }
 
+// mentioning builds a comment body that names somebody.
+func mentioning(userID string) json.RawMessage {
+	quoted, _ := json.Marshal(userID)
+	return json.RawMessage(
+		`{"type":"doc","content":[{"type":"paragraph","content":[` +
+			`{"type":"text","text":"ask "},` +
+			`{"type":"mention","attrs":{"userId":` + string(quoted) + `}}]}]}`)
+}
+
 // anchorJSON is a well-formed relative position, as the editor would send.
 const anchorJSON = `{
 	"start": {"type": {"client": 1, "clock": 2}, "item": {"client": 1, "clock": 7}, "assoc": 0},

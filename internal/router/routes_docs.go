@@ -202,7 +202,14 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	write.PUT("/pages/:pid/labels", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
-	write.PUT("/pages/:pid/watch", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	// Watching is a reader's right, like commenting: you can follow a page you
+	// are not allowed to change.
+	read.GET("/pages/:pid/watch", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.WatchState)
+	write.PUT("/pages/:pid/watch", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.SetWatch)
+	write.PUT("/pages/:pid/mute", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.SetMute)
 	// ---- exclusive editing (T1.5) -------------------------------------------
 	// Only a deployment without a collaboration service uses these; the rest
 	// answer 409 so a misconfigured client fails loudly instead of editing
@@ -245,8 +252,15 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.PATCH("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
 	write.DELETE("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
 	read.GET("/search", g.Viewer(), guard.RequireMember(), ni)
-	read.GET("/notifications", g.Viewer(), guard.RequireMember(), ni)
-	write.POST("/notifications/read", g.Viewer(), guard.RequireMember(), ni)
+	// An inbox belongs to its reader rather than to any page, so these are
+	// guarded by membership alone: a notification says what happened, and
+	// somebody who has since lost access to a page can still read and dismiss
+	// the row telling them they were mentioned on it.
+	read.GET("/notifications", g.Viewer(), guard.RequireMember(), pg.Notifications)
+	write.POST("/notifications/read", g.Viewer(), guard.RequireMember(), idem,
+		pg.MarkNotificationsRead)
+	write.POST("/notifications/archive", g.Viewer(), guard.RequireMember(), idem,
+		pg.ArchiveNotifications)
 	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), ni)
 	read.GET("/exports/:jid", g.Viewer(), guard.RequireMember(), ni)
 	read.GET("/recent", g.Viewer(), guard.RequireMember(), ni)

@@ -104,6 +104,15 @@ func TestACommentReachesTheAuthorAndThePersonAnswered(t *testing.T) {
 	assert.ElementsMatch(t, []string{"author", "answered"}, got)
 }
 
+// Muting has to silence the page's author too, or the control is a lie: they
+// said they did not want to hear about this page, and writing the page is not
+// consent to hear about it forever.
+func TestMutingSilencesEvenTheAuthorAndThePersonAnswered(t *testing.T) {
+	watchers := []Watcher{muted("author"), muted("answered"), watching("bob")}
+	got := CommentAudience(watchers, "author", "answered", "alice")
+	assert.Equal(t, []string{"bob"}, got)
+}
+
 // Acceptance (T3.3): muting stops the notifications.
 func TestMutingAPageStopsItsComments(t *testing.T) {
 	watchers := []Watcher{watching("bob"), muted("carol")}

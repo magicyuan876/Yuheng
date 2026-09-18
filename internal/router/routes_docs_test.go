@@ -70,6 +70,14 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		{http.MethodPatch, "/api/v1/docs/pages/:pid/comments/:cid", types.APIKeyCapabilityDocsWrite},
 		{http.MethodDelete, "/api/v1/docs/pages/:pid/comments/:cid", types.APIKeyCapabilityDocsWrite},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/comments/:cid/resolve", types.APIKeyCapabilityDocsWrite},
+		// Watching and muting are a reader's own settings on a page.
+		{http.MethodGet, "/api/v1/docs/pages/:pid/watch", types.APIKeyCapabilityDocsRead},
+		{http.MethodPut, "/api/v1/docs/pages/:pid/watch", types.APIKeyCapabilityDocsWrite},
+		{http.MethodPut, "/api/v1/docs/pages/:pid/mute", types.APIKeyCapabilityDocsWrite},
+		// An inbox belongs to its reader, not to a page.
+		{http.MethodGet, "/api/v1/docs/notifications", types.APIKeyCapabilityDocsRead},
+		{http.MethodPost, "/api/v1/docs/notifications/read", types.APIKeyCapabilityDocsWrite},
+		{http.MethodPost, "/api/v1/docs/notifications/archive", types.APIKeyCapabilityDocsWrite},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

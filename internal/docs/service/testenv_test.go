@@ -53,6 +53,10 @@ func newFakeMembers() *fakeMembers {
 		"owner": types.TenantRoleOwner, "admin": types.TenantRoleAdmin,
 		"alice": types.TenantRoleContributor, "bob": types.TenantRoleContributor,
 		"carol": types.TenantRoleContributor, "viewer": types.TenantRoleViewer,
+		// Long enough to satisfy docs-schema's `id` format (8-36 chars), which
+		// the short names above do not. Real user ids are UUIDs; a mention
+		// carries one, so anything testing mentions needs a realistic id.
+		"reviewer-01": types.TenantRoleContributor,
 	} {
 		f.roles["1/"+user] = role
 		f.users[user] = &types.User{ID: user, Username: user, Email: user + "@example.test"}
