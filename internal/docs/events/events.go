@@ -39,6 +39,10 @@ const (
 	RevisionCreated Type = "docs.revision.created"
 	// TreeRebalanced: a sibling list was renumbered; reload that parent.
 	TreeRebalanced Type = "docs.page.tree_rebalanced"
+	// PageLease: somebody took, renewed or released the exclusive-edit lease
+	// on a page. Only a deployment without a collaboration service emits it;
+	// readers use it to show who is editing and when the page frees up.
+	PageLease Type = "docs.page.lease_changed"
 
 	CommentChanged      Type = "docs.comment.changed"
 	NotificationCreated Type = "docs.notification.created"

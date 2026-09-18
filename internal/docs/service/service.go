@@ -97,6 +97,9 @@ type Services struct {
 	Groups *GroupService
 	Pages  *PageService
 	Collab *CollabService
+	// Leases serves the exclusive-edit transport used when no collaboration
+	// service is configured.
+	Leases *LeaseService
 }
 
 // New wires the services.
@@ -107,6 +110,7 @@ func New(d Deps) *Services {
 		Groups: &GroupService{base: base},
 		Pages:  &PageService{base: base},
 		Collab: &CollabService{base: base},
+		Leases: &LeaseService{base: base},
 	}
 }
 

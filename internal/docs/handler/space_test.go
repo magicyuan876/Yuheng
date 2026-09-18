@@ -58,8 +58,6 @@ func (t tenantTable) GetUsersByIDs(_ context.Context, ids []string) (map[string]
 	return out, nil
 }
 
-// newSpaceRouter wires the space and group routes exactly as the router
-// does (guards included) on top of an in-memory database.
 // openHandlerDB opens a private in-memory database with the module's real
 // SQLite migration applied.
 func openHandlerDB(t *testing.T) *gorm.DB {
@@ -77,7 +75,10 @@ func openHandlerDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
+// newSpaceRouter wires the module's routes on top of an in-memory database.
+// opts adjust the service dependencies, which is how a test switches the
+// deployment between the collaborative and the exclusive-edit shape.
+func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *repository.Repositories) {
 	t.Helper()
 	repos := repository.New(openHandlerDB(t))
 
@@ -88,10 +89,14 @@ func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
 	}
 	resolver := acl.NewResolver(repos, acl.NewTenantMemberRoleSource(members), acl.WithCache(acl.NewMemoryCache(0)))
 	guard := acl.NewGuard(resolver)
-	services := service.New(service.Deps{
+	deps := service.Deps{
 		Repos: repos, Resolver: resolver, Bus: events.NewMemoryBus(), Audit: audit.NewRecorder(nil),
 		Users: members, Members: members,
-	})
+	}
+	for _, o := range opts {
+		o(&deps)
+	}
+	services := service.New(deps)
 	h := New(Deps{Repos: repos, Resolver: resolver, Guard: guard, Services: services})
 
 	r := gin.New()
@@ -131,6 +136,11 @@ func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
 	docs.POST("/pages/:pid/restore", guard.RequireMember(), h.Pages.Restore)
 	docs.GET("/pages/:pid/ancestors", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Ancestors)
 	docs.GET("/pages/:pid/children", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Children)
+	docs.GET("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Leases.Get)
+	docs.POST("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.Acquire)
+	docs.DELETE("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.Release)
+	docs.GET("/pages/:pid/ydoc", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Leases.LoadYDoc)
+	docs.PUT("/pages/:pid/ydoc", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.SaveYDoc)
 	groups := r.Group("/groups")
 	groups.GET("", guard.RequireMember(), h.Groups.List)
 	groups.POST("", guard.RequireMember(), h.Groups.Create)

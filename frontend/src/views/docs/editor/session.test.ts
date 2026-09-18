@@ -49,6 +49,43 @@ test('a reader (canEditPage false) always sees the read-only banner, even while 
     deriveBanner({ canEditPage: false, connectionStatus: 'disconnected', collabAccess: 'unknown' }),
     { kind: 'read-only' },
   )
+  assert.deepEqual(
+    deriveBanner({
+      canEditPage: false, connectionStatus: 'connected', collabAccess: 'readonly', leaseHolder: 'alice',
+    }),
+    { kind: 'read-only' },
+    'who holds the lease is irrelevant to somebody who could never edit',
+  )
+})
+
+test('exclusive editing names whoever holds the page', () => {
+  assert.deepEqual(
+    deriveBanner({
+      canEditPage: true, connectionStatus: 'connected', collabAccess: 'readonly', leaseHolder: 'alice',
+    }),
+    { kind: 'lease-held', holder: 'alice' },
+    'a held page must not be reported as a revoked permission',
+  )
+})
+
+test('losing the page mid-edit outranks every other explanation a writer could get', () => {
+  const banner = deriveBanner({
+    canEditPage: true,
+    connectionStatus: 'connected',
+    collabAccess: 'readonly',
+    leaseHolder: 'bob',
+    superseded: true,
+  })
+  assert.deepEqual(banner, { kind: 'superseded' })
+})
+
+test('a deployment with no editing transport says so rather than looking offline', () => {
+  assert.deepEqual(
+    deriveBanner({
+      canEditPage: true, connectionStatus: 'disconnected', collabAccess: 'readonly', unavailable: true,
+    }),
+    { kind: 'unavailable' },
+  )
 })
 
 test('awarenessUser prefers username, then email, then the bare id', () => {

@@ -34,6 +34,8 @@ type Handler struct {
 	Spaces *SpaceHandler
 	Groups *GroupHandler
 	Pages  *PageHandler
+	// Leases serves the exclusive-edit transport (no collaboration service).
+	Leases *LeaseHandler
 	// Collab serves the internal collaboration callbacks; nil when no
 	// collaboration secret is configured.
 	Collab *CollabHandler
@@ -43,12 +45,13 @@ type Handler struct {
 func New(deps Deps) *Handler {
 	h := &Handler{
 		deps: deps, Events: NewEventStream(deps.Bus, 0),
-		Spaces: &SpaceHandler{}, Groups: &GroupHandler{}, Pages: &PageHandler{},
+		Spaces: &SpaceHandler{}, Groups: &GroupHandler{}, Pages: &PageHandler{}, Leases: &LeaseHandler{},
 	}
 	if deps.Services != nil {
 		h.Spaces.svc = deps.Services.Spaces
 		h.Groups.svc = deps.Services.Groups
 		h.Pages.svc = deps.Services.Pages
+		h.Leases.svc = deps.Services.Leases
 		if deps.Config != nil && deps.Config.CollabSharedSecret != "" {
 			h.Collab = NewCollabHandler(deps.Services.Collab, deps.Config.CollabSharedSecret, deps.Config.MaxYDocBytes)
 		}
