@@ -33,6 +33,26 @@ test('turning a feature off takes it out of the menu', () => {
   assert.ok(none.includes('table'), 'the rest of the menu is unaffected')
 })
 
+// Offered only when the caller supplied the action, because a page with no id
+// yet has no block anybody could point at.
+test('the block-reference entry appears only when there is something to copy', () => {
+  assert.ok(!blockCommands().some((c) => c.id === 'copyBlockRef'))
+
+  let copied = 0
+  const withCopy = blockCommands({ copyBlockRef: () => { copied++ } })
+  const entry = withCopy.find((c) => c.id === 'copyBlockRef')
+  assert.ok(entry, 'offered once there is a page to point at')
+
+  const { calls, editor } = recordingEditor()
+  entry.run(editor, { from: 2, to: 6 })
+
+  assert.equal(copied, 1)
+  assert.equal(calls[0]?.name, 'focus')
+  assert.equal(calls[1]?.name, 'deleteRange', 'the typed query goes before the link is copied')
+  assert.deepEqual(calls[1]?.args, [{ from: 2, to: 6 }])
+  assert.equal(calls.at(-1)?.name, 'run')
+})
+
 test('an empty query offers the whole menu in its own order', () => {
   const all = matchCommands(catalogue, '', label)
   assert.deepEqual(all.map((c) => c.id), catalogue.map((c) => c.id))

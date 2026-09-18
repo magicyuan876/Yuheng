@@ -10,7 +10,10 @@ import { computed, ref, shallowRef, type Ref } from 'vue'
 
 import { suggestMentions, suggestPages, type MentionCandidate, type PageRef } from '@/api/docs'
 
-import { blockCommands, matchCommands, type BlockCommand, type CommandTarget } from './commands'
+import {
+  blockCommands, matchCommands,
+  type BlockCommand, type BlockCommandOptions, type CommandTarget,
+} from './commands'
 import { matchEmoji, type Emoji } from './emoji'
 import type { SuggestionItem } from './SuggestionMenu.vue'
 import {
@@ -48,7 +51,7 @@ export interface DocSuggestionsOptions {
   /** What this deployment allows, so the menu offers nothing that would fail.
    * Read on each keystroke rather than once, because the policy arrives from
    * the server after the editor has already been built. */
-  allow?: () => { embeds?: boolean; drawings?: boolean }
+  allow?: () => BlockCommandOptions
 }
 
 export interface DocSuggestionsHandle {

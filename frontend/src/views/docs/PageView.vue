@@ -397,6 +397,14 @@ watch(() => props.lastEvent, (ev) => {
   if (ev.type === 'docs.page.meta_updated' && ev.page_id && ev.page_id !== p.id) {
     docEditor.value?.forgetTitle(ev.page_id)
   }
+  // Another page's body changed, and this one may quote a block of it. What
+  // is shown here is cached, not stored, so forgetting the entries is the
+  // whole of the update — the same shape as the title cache above.
+  if (ev.page_id && ev.page_id !== p.id
+    && (ev.type === 'docs.page.content_updated' || ev.type === 'docs.page.content_replaced'
+      || ev.type === 'docs.page.deleted' || ev.type === 'docs.page.purged')) {
+    docEditor.value?.forgetBlockRefs(ev.page_id)
+  }
   // Another page's body may have gained or lost a link to this one; the rows
   // are rebuilt whenever a page is saved.
   if (ev.page_id !== p.id

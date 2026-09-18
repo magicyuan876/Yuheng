@@ -193,6 +193,6 @@ test('the covered count is a deliberate, documented number', () => {
   // adds a node in a later work package to notice this file and update the
   // decision note in the module comment at the top of extensions.ts.
   const schema = liveSchema()
-  assert.equal(Object.keys(schema.nodes).length, 39, 'node count changed -- update this test and the header comment')
+  assert.equal(Object.keys(schema.nodes).length, 40, 'node count changed -- update this test and the header comment')
   assert.equal(Object.keys(schema.marks).length, 10, 'mark count changed -- update this test and the header comment')
 })

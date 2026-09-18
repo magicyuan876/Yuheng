@@ -99,7 +99,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { resolvePageTitles } from '@/api/docs'
+import { resolveBlockRefs, resolvePageTitles } from '@/api/docs'
 
 import AttachmentNodeView from './AttachmentNodeView.vue'
 import CalloutNodeView from './CalloutNodeView.vue'
@@ -111,7 +111,7 @@ import AudioNodeView from './AudioNodeView.vue'
 import DiagramNodeView from './DiagramNodeView.vue'
 import EmbedNodeView from './EmbedNodeView.vue'
 import {
-  DOCS_DIAGRAMS, DOCS_DIRECTORY, DOCS_EMBEDS, DOCS_TITLE_CACHE, type DirectoryPerson,
+  DOCS_BLOCK_REFS, DOCS_DIAGRAMS, DOCS_DIRECTORY, DOCS_EMBEDS, DOCS_TITLE_CACHE, type DirectoryPerson,
 } from './linkContext'
 import PdfNodeView from './PdfNodeView.vue'
 import { useDocMedia } from './useDocMedia'
@@ -124,12 +124,16 @@ import StatusNodeView from './StatusNodeView.vue'
 import FindReplacePanel from './FindReplacePanel.vue'
 import SelectionToolbar from './SelectionToolbar.vue'
 import SuggestionMenu from './SuggestionMenu.vue'
+import TransclusionNodeView from './TransclusionNodeView.vue'
+import { BlockRefCache } from './blockRefCache'
 import { TitleCache } from './titleCache'
 import TocNodeView from './TocNodeView.vue'
 import { useDocSuggestions } from './useDocSuggestions'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { IdleScheduler } from './idleWork'
+import { blockAt } from './blockMove'
+import { formatBlockRefLink } from './blockRefLink'
 import { DragHandle } from './dragHandle'
 import { findPlugin } from './find'
 import { shouldShow, toolbarPlacement } from './toolbar'
@@ -241,6 +245,72 @@ const titles = new TitleCache({
 })
 provide(DOCS_TITLE_CACHE, { get: (id: string) => titles.get(id), revision: titleRevision })
 
+// ---- block references ------------------------------------------------------
+// One lookup shared by every reference in the document. Resolved under the
+// reader's own permissions, on the server, so a reference to a page they may
+// not open shows nothing rather than its contents.
+const blockRefRevision = ref(0)
+const blockRefs = new BlockRefCache({
+  resolve: (list) => resolveBlockRefs(
+    list.map((r) => ({ source_page_id: r.sourcePageId, source_block_id: r.sourceBlockId })),
+  ).then((rows) => rows.map((r) => ({
+    sourcePageId: r.source_page_id,
+    sourceBlockId: r.source_block_id,
+    state: r.state,
+    content: r.content,
+    title: r.title,
+    icon: r.icon,
+    sourceShortId: r.source_short_id,
+  }))),
+  onChange: () => {
+    blockRefRevision.value++
+  },
+})
+provide(DOCS_BLOCK_REFS, { get: (ref) => blockRefs.get(ref), revision: blockRefRevision })
+
+/**
+ * Forgets what is cached about one source page.
+ *
+ * Exposed so the page view can call it when a page-content event names a page
+ * this document quotes: the correction happens over there, and this is what
+ * makes it show up here without a reload.
+ */
+function forgetBlockRefs(sourcePageId: string) {
+  blockRefs.invalidatePage(sourcePageId)
+}
+
+/**
+ * Copies a link to the block the cursor is in.
+ *
+ * The other half of referencing a block: this puts the address on the
+ * clipboard, and pasting it on another page turns it into the quotation. Two
+ * steps rather than a picker, because the block being quoted and the place it
+ * will appear are usually on different pages and often in different tabs.
+ *
+ * `blockAt` is the drag handle's own idea of "which block is this", so the
+ * link names the block a person would say they were standing in — the list
+ * item rather than the paragraph inside it.
+ */
+function copyCurrentBlockRef() {
+  const ed = editor.value
+  if (!ed || ed.isDestroyed) return
+  const block = blockAt(ed.state, ed.state.selection.from)
+  const blockId = block ? String(block.node.attrs.id ?? '') : ''
+  if (!blockId) {
+    // Every block gets an id as it is typed, so this means an empty document
+    // or a block type that carries none.
+    void MessagePlugin.warning(t('docs.transclusion.noBlock'))
+    return
+  }
+  const link = formatBlockRefLink({ pageId: props.pageId, blockId }, window.location.origin)
+  void navigator.clipboard?.writeText(link).then(
+    () => void MessagePlugin.success(t('docs.transclusion.copied')),
+    // A clipboard a browser refuses is not an error worth a dialogue; showing
+    // the link lets somebody copy it by hand.
+    () => void MessagePlugin.info(link),
+  )
+}
+
 const directoryRevision = ref(0)
 const directory = new Map<string, DirectoryPerson>()
 provide(DOCS_DIRECTORY, {
@@ -275,6 +345,8 @@ const suggestions = useDocSuggestions({
   allow: () => ({
     embeds: media.policy.value.providers.length > 0,
     drawings: true,
+    // Offered only on a page that has an id to point at.
+    copyBlockRef: props.pageId ? copyCurrentBlockRef : undefined,
   }),
 })
 
@@ -409,6 +481,7 @@ const editor = useEditor({
     mermaid: VueNodeViewRenderer(MermaidNodeView),
     pageLink: VueNodeViewRenderer(PageLinkNodeView),
     mention: VueNodeViewRenderer(MentionNodeView),
+    transclusion: VueNodeViewRenderer(TransclusionNodeView),
     video: VueNodeViewRenderer(VideoNodeView),
     audio: VueNodeViewRenderer(AudioNodeView),
     pdfEmbed: VueNodeViewRenderer(PdfNodeView),
@@ -450,11 +523,12 @@ onBeforeUnmount(() => {
   uploads.bind(null)
   suggestions.bind(null)
   titles.dispose()
+  blockRefs.dispose()
   media.dispose()
   editor.value?.destroy()
 })
 
-defineExpose({ editor, collab, forgetTitle })
+defineExpose({ editor, collab, forgetTitle, forgetBlockRefs })
 </script>
 
 <style scoped lang="less">

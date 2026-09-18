@@ -6789,6 +6789,14 @@ export default {
       regex: '正则表达式',
       badPattern: '表达式不完整',
     },
+    // 块引用：写在一处、显示在别处的块。
+    transclusion: {
+      from: '引用自',
+      pending: '等待源页面保存后显示',
+      missing: '该块已不可用',
+      copied: '已复制块引用链接，粘贴到其他页面即可',
+      noBlock: '请先把光标放到某个块里',
+    },
     commands: {
       paragraph: '正文',
       heading1: '一级标题',
@@ -6812,6 +6820,7 @@ export default {
       embed: '嵌入内容',
       excalidraw: '手绘白板',
       noMatches: '没有匹配的块',
+      copyBlockRef: '复制块引用链接',
     },
     links: {
       loading: '解析中…',

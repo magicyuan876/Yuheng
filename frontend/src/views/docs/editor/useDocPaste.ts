@@ -19,9 +19,10 @@
 // by which content arrives, including a drop and the editor's own internal
 // paste commands, and they leave handlePaste free for the upload handler,
 // which needs to claim a pasted *file* before any of this runs.
-import { DOMParser as PMDOMParser, type ResolvedPos, type Schema, Slice } from '@tiptap/pm/model'
+import { DOMParser as PMDOMParser, Fragment, type ResolvedPos, type Schema, Slice } from '@tiptap/pm/model'
 import DOMPurify from 'dompurify'
 
+import { parseBlockRefLink } from './blockRefLink'
 import { looksLikeMarkdown, markdownToHTML } from './markdownPaste'
 import { PASTE_PURIFY_CONFIG, sanitizeSlice } from './paste'
 
@@ -59,6 +60,21 @@ export function pasteEditorProps(): Record<string, unknown> {
       plain: boolean,
       view: SchemaHolder,
     ): Slice | undefined => {
+      // A block-reference link becomes the block it names. This is the
+      // second half of referencing a block: one page copies the link, and
+      // pasting it here is what puts the quotation in. Checked before the
+      // Markdown pass, and honoured even for a literal paste — somebody who
+      // pasted this link meant the block, not its address.
+      const ref = parseBlockRefLink(text)
+      if (ref) {
+        const node = view.state.schema.nodes.transclusion
+        if (node) {
+          return new Slice(Fragment.from(node.create({
+            sourcePageId: ref.pageId, sourceBlockId: ref.blockId,
+          })), 0, 0)
+        }
+      }
+
       if (plain || !looksLikeMarkdown(text)) return undefined
       // Not inside a code block, where the characters are the content.
       for (let depth = $context.depth; depth > 0; depth--) {
