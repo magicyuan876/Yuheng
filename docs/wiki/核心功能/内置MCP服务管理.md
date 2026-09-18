@@ -14,4 +14,4 @@ source: BUILTIN_MCP_SERVICES.md
 1. **`yuheng-mcp`（Python MCP server）**：官方 PyPI 包，支持 stdio / SSE / HTTP 传输，覆盖知识库 / 文档 / 检索 / RAG 问答 / Wiki 等工具面。配置见 [`mcp-server/MCP_CONFIG.md`](../../../mcp-server/MCP_CONFIG.md)。
 2. **`yuheng mcp serve`（CLI 内置 MCP server）**：面向编码 Agent 的受控只读工具面。见 [`cli/README.md`](../../../cli/README.md)。
 
-历史版本（Agent 能力剥离之前）的完整说明保留在 [`docs/BUILTIN_MCP_SERVICES.md`](../../../BUILTIN_MCP_SERVICES.md)。
+历史版本（Agent 能力剥离之前）的完整说明保留在 [`docs/BUILTIN_MCP_SERVICES.md`](../../BUILTIN_MCP_SERVICES.md)。

@@ -34,18 +34,20 @@ migrations/
 | 000000 | 核心初始化 | `tenants`、`models`、`knowledge_bases`、`knowledges`、`chunks`、`sessions`、`messages` |
 | 000001 | 用户认证 + Agent + MCP | `users`、`auth_tokens`、`custom_agents`、`mcp_services`、`knowledge_tags` |
 | 000002-000011 | 向量/检索 | `embeddings`（HNSW + BM25，受 `app.skip_embedding` 门控）、`chunks.flags`、`seq_id`、ParadeDB BM25 索引 |
-| 000012-000018 | 跨租户协作 | `organizations`、`organization_members`、`kb_shares`、`agent_shares`、`organization_join_requests` |
-| 000019-000028 | 消息/IM 增强 | `messages` 扩列（images、rendered_content、agent_duration_ms）、`im_channels`、`im_channel_sessions` |
+| 000012-000018 | 跨租户协作 | `organizations`、`organization_members`、`kb_shares`、`organization_join_requests`（`agent_shares` 已于 000089 移除） |
+| 000019-000028 | 消息增强 | `messages` 扩列（images、rendered_content 等；`agent_*` 列后于 000089 移除/重命名）、`im_channels`、`im_channel_sessions`（IM 表已于 000089 移除） |
 | 000029-000036 | 数据源与向量库抽象 | `data_sources`、`sync_logs`、`web_search_providers`、`vector_stores`、KB 的 asr_config/vector_store_id |
 | 000037-000041 | Wiki 与任务队列 | `wiki_pages`、`wiki_folders`、`wiki_page_issues`、`wiki_log_entries`（已于 000077 移除）、`task_pending_ops`、`task_dead_letters` |
-| 000042-000054 | RBAC / 审计 / 邀请 | `mcp_tool_approvals`、`tenant_members`、`audit_logs`、`organization_tenant_members`、`user_resource_favorites`、`tenant_invitations`、`user_kb_pins`、`invitation_tokens` |
-| 000055-000060 | 处理管道与嵌入渠道 | `knowledge_processing_spans`、`knowledge_pending_subtasks`、`embed_channels`、HNSW 1024 维索引 |
+| 000042-000054 | RBAC / 审计 / 邀请 | `tenant_members`、`audit_logs`、`organization_tenant_members`、`user_resource_favorites`、`tenant_invitations`、`user_kb_pins`、`invitation_tokens`（`mcp_tool_approvals` 已于 000089 移除） |
+| 000055-000060 | 处理管道与嵌入渠道 | `knowledge_processing_spans`、`knowledge_pending_subtasks`、HNSW 1024 维索引（`embed_channels` 已于 000089 移除） |
 | 000061-000067 | Wiki 层级 / OAuth / 文档多标签 / 建议问题 | `wiki_pages` 层级列、`mcp_oauth_clients`、`mcp_oauth_tokens`、`knowledge_tag_relations`、`principals`、`principal_models`、`tenant_api_keys`、`message_suggestion_sets`、`message_suggestion_events` |
 | 000068-000074 | 存储/资源/临时文档 | `storage_backends`、`resources`、`resource_bindings`、`resource_access_grants`、`temporary_documents`、平台级 API key、OAuth 刷新租期 |
 | 000075-000076 | Wiki 版本历史与索引 | `wiki_page_revisions`、`wiki_pages.last_edit_source`/`last_editor_id`、`knowledges.metadata->>'external_id'` 前缀索引 |
 | 000077 | 移除 Wiki 操作日志 | DROP `wiki_log_entries`，并删除历史遗留的 `page_type = 'log'` 页面；Wiki 变更统一记入知识库活动流 |
 | 000078 | 分块编辑与自定义元数据 | `chunks` 增加 `source_content`/`content_revision`/`index_status`/`last_editor_id`/`context_header`，新增 `chunk_revisions` 表，`knowledges` 增加 `custom_metadata` |
 | 000079 | 知识库文件夹树 | `knowledges` 增加 `folder_path` 列并回填历史目录上传（原先路径塞在 `file_name` 里），新增 `(tenant_id, knowledge_base_id, folder_path)` 索引 |
+| 000080-000088 | 自动标签 / 附件制品 / 沙箱与技能配置 / 记忆 / 用量 / 平台共享 | `knowledge_base_auto_tag_config`、`message_artifacts`、`tenant_sandbox_configs`、`memory_*`（6 张，000084）、`message_usage`、`tenant_skills(+快照/transcript)`、`platform_settings` 等 |
+| 000089 | 移除 Agent 基础设施 | DROP `custom_agents`、`agent_shares`、`tenant_disabled_shared_agents`、`mcp_tool_approvals`、`tenant_skills`（+快照/transcript）、`memory_*`（6 张）、`im_channels`、`im_channel_sessions`、`embed_channels`；`sessions.agent_config`→`last_request_state`、`messages.agent_steps`→`turn_steps`，并删除 `sessions.agent_id`、`messages.agent_id/agent_tenant_id/agent_duration_ms` 列。`mcp_services`、`mcp_oauth_*`、`tenant_sandbox_configs` 表保留但相关功能已移除 |
 
 ## 3. 最终表结构
 
@@ -55,7 +57,7 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`api_key`（唯一索引）、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`agent_config`/`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id` |
+| `tenants` | 租户（工作空间），多租户体系根 | `id`（SERIAL，起始 10000）、`name`、`api_key`（唯一索引）、`retriever_engines`（JSONB）、`status`、`storage_quota`/`storage_used`、`context_config`/`conversation_config`/`web_search_config`/`credentials`（JSONB）、`default_storage_backend_id`（`agent_config` 为 000089 后遗留的空列） |
 | `users` | 登录用户 | `id`（UUID）、`username`（唯一）、`email`（唯一）、`password_hash`、`tenant_id`（FK→tenants，ON DELETE SET NULL）、`is_active`、`can_access_all_tenants`（系统管理员）、`preferences`（JSON） |
 | `auth_tokens` | 登录令牌 | `id`、`user_id`（FK→users，CASCADE）、`token`、`token_type`（access/refresh）、`expires_at`（TIMESTAMPTZ，000072 起）、`is_revoked` |
 | `tenant_members` | 租户级 RBAC 成员关系 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
@@ -84,8 +86,8 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `sessions` | 会话（对话上下文与检索参数快照） | `id`、`tenant_id`、`title`、`knowledge_base_id`、`agent_id`（FK→custom_agents）、`user_id`、`max_rounds`、`enable_rewrite`、`fallback_strategy`/`fallback_response`、`keyword_threshold`/`vector_threshold`、`embedding_top_k`/`rerank_top_k`/`rerank_threshold`、`rerank_model_id`/`summary_model_id`、`agent_config`/`context_config`（JSONB） |
-| `messages` | 消息 | `id`、`request_id`、`session_id`（FK）、`role`、`content`/`rendered_content`、`knowledge_references`（JSONB 引用）、`agent_steps`（JSONB，Agent 推理轨迹）、`mentioned_items`/`images`（JSONB）、`is_completed`/`is_fallback`、`channel`（web/IM 渠道）、`agent_id`+`agent_tenant_id`、`model_id`、`knowledge_id`、`agent_duration_ms`、`execution_context` |
+| `sessions` | 会话（对话上下文与检索参数快照） | `id`、`tenant_id`、`title`、`knowledge_base_id`、`user_id`、`max_rounds`、`enable_rewrite`、`fallback_strategy`/`fallback_response`、`keyword_threshold`/`vector_threshold`、`embedding_top_k`/`rerank_top_k`/`rerank_threshold`、`rerank_model_id`/`summary_model_id`、`last_request_state`/`context_config`（JSONB） |
+| `messages` | 消息 | `id`、`request_id`、`session_id`（FK）、`role`、`content`/`rendered_content`、`knowledge_references`（JSONB 引用）、`turn_steps`（JSONB，对话轮次步骤）、`mentioned_items`/`images`（JSONB）、`is_completed`/`is_fallback`、`channel`（web/api）、`model_id`、`knowledge_id`、`execution_context` |
 | `message_suggestion_sets` | 建议问题集（000067） | `tenant_id`、`session_id`、`assistant_message_id`、`placement`（starter/follow_up）、`config_hash`+`locale`（缓存键，唯一）、`status`、`questions`（JSONB）、token/延迟统计、`lease_until` |
 | `message_suggestion_events` | 建议问题曝光/点击事件 | `suggestion_set_id`（FK，CASCADE）、`question_id`、`event_type`、`actor_id` |
 | `temporary_documents` | 会话内临时文档（000070） | `tenant_id`、`session_id`、`resource_ref`、`file_name`/`file_type`/`file_size`、`status`（uploaded/processing/ready/expired）、`content`、`chunks`（JSONB）、`expires_at` |
@@ -94,9 +96,7 @@ migrations/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `custom_agents` | 自定义 Agent | **复合主键 (`id`,`tenant_id`)**、`name`、`is_builtin`、`created_by`（FK→users）、`runnable_by_viewer`、`config`（JSONB：模式/模型/工具/知识范围） |
 | `mcp_services` | MCP 服务配置 | `id`、`tenant_id`、`name`、`enabled`、`transport_type`（stdio/sse/…）、`url`/`headers`/`auth_config`/`stdio_config`/`env_vars`（JSONB）、`is_builtin` |
-| `mcp_tool_approvals` | MCP 工具审批策略（000042） | (`tenant_id`,`service_id`,`tool_name`) 唯一、`require_approval` |
 | `mcp_oauth_clients` | MCP OAuth 客户端（000062） | (`tenant_id`,`service_id`) 唯一、`client_id`/`client_secret`/`redirect_uri` |
 | `mcp_oauth_tokens` | MCP OAuth 令牌 | (`tenant_id`,`user_id`,`service_id`) 唯一、`access_token`/`refresh_token`、`expires_at`、`refresh_lease_id`/`refresh_lease_until`（000074，防并发刷新） |
 | `principals` / `principal_models` | 主体—模型授权（000064） | 主体（用户/租户）可用模型映射 |
@@ -110,8 +110,6 @@ migrations/
 | `organization_tenant_members` | 组织的租户成员（000045） | (`organization_id`,`tenant_id`) 唯一、`role`（admin/editor/viewer）、`representative_user_id` |
 | `organization_join_requests` | 加入/升级申请 | `organization_id`、`user_id`、`status`（pending 唯一）、`requested_role`、`request_type`（join/upgrade）、审批字段 |
 | `kb_shares` | 知识库共享到组织 | (`knowledge_base_id`,`organization_id`) 软删除下唯一、`source_tenant_id`、`permission` |
-| `agent_shares` | Agent 共享到组织 | FK (`agent_id`,`source_tenant_id`)→custom_agents 复合主键、`organization_id`、`permission` |
-| `tenant_disabled_shared_agents` | 租户禁用某共享 Agent | PK（`tenant_id`,`agent_id`,`source_tenant_id`） |
 
 ### 3.6 Wiki
 
@@ -128,9 +126,6 @@ migrations/
 | --- | --- | --- |
 | `data_sources` | 外部数据源连接（Feishu/Notion/语雀/RSS，000029） | `id`、`tenant_id`、`knowledge_base_id`、`type`、`config`（JSONB 凭证）、`sync_schedule`（cron）、`sync_mode`（incremental/full）、`conflict_strategy`、`sync_deletions`、`last_sync_at`/`last_sync_cursor`/`last_sync_result` |
 | `sync_logs` | 每次同步的执行记录 | `data_source_id`（FK，CASCADE）、`status`、`started_at`/`finished_at`、`items_total/created/updated/deleted/skipped/failed`、`error_message` |
-| `im_channels` | IM 渠道接入配置（企业微信/飞书/Slack 等） | `tenant_id`、`platform`、`agent_id`、`knowledge_base_id`、凭证配置 |
-| `im_channel_sessions` | IM 用户/线程 ↔ session 映射 | `im_channel_id`、`session_id`、`agent_id`、平台用户/会话标识 |
-| `embed_channels` | 网页嵌入聊天组件渠道（000060） | `tenant_id`、`agent_id`、公开 token/域名配置 |
 | `web_search_providers` | 联网搜索引擎配置（000030） | `id`、`tenant_id`、`name`、`provider`（bing/google/tavily/searxng…）、`parameters`（JSONB API key）、`is_default` |
 
 ### 3.8 存储 / 资源 / 任务 / 可观测
@@ -175,14 +170,12 @@ erDiagram
 
     tenants ||--o{ sessions : "会话"
     sessions ||--o{ messages : "消息"
-    sessions }o--o| custom_agents : "agent_id"
     sessions }o--o| knowledge_bases : "knowledge_base_id"
     messages }o--o| knowledges : "knowledge_id"
     messages ||--o{ message_suggestion_sets : "建议问题"
     message_suggestion_sets ||--o{ message_suggestion_events : "事件"
     sessions ||--o{ temporary_documents : "临时文档"
 
-    tenants ||--o{ custom_agents : "自定义 Agent"
     tenants ||--o{ mcp_services : "MCP 服务"
     mcp_services ||--o{ mcp_tool_approvals : "工具审批"
     mcp_services ||--o{ mcp_oauth_clients : "OAuth 客户端"
@@ -191,10 +184,8 @@ erDiagram
     users ||--o{ organizations : "owner_id"
     organizations ||--o{ organization_tenant_members : "租户成员"
     organizations ||--o{ kb_shares : "知识库共享"
-    organizations ||--o{ agent_shares : "Agent 共享"
     organizations ||--o{ organization_join_requests : "加入申请"
     knowledge_bases ||--o{ kb_shares : "被共享"
-    custom_agents ||--o{ agent_shares : "被共享 (id, tenant_id)"
 
     knowledge_bases ||--o{ wiki_pages : "Wiki 页面"
     wiki_pages }o--o| wiki_folders : "folder_id"
@@ -204,9 +195,6 @@ erDiagram
     knowledge_bases ||--o{ data_sources : "数据源"
     data_sources ||--o{ sync_logs : "同步日志"
     tenants ||--o{ web_search_providers : "联网搜索配置"
-    tenants ||--o{ im_channels : "IM 渠道"
-    im_channels ||--o{ im_channel_sessions : "渠道会话映射"
-    im_channel_sessions }o--|| sessions : "session_id"
     tenants ||--o{ embed_channels : "嵌入渠道"
 
     tenants ||--o{ storage_backends : "存储后端"

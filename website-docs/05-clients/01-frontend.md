@@ -1,9 +1,8 @@
 # Web 前端（frontend/）
 
-Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应用（SPA），承载知识库管理、Agent 对话、组织协作、系统设置等全部交互界面。同一份代码同时服务三种形态：
+Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应用（SPA），承载知识库管理、对话问答、组织协作、系统设置等全部交互界面。
 
-1. **标准 Web 部署**：Vite 构建产物由 nginx 容器托管，`/api` 反向代理到后端；
-2. **网页嵌入（Embed）**：独立的轻量入口 `frontend/embed.html` + `frontend/src/embed-main.ts`，供第三方网站以 iframe / 浮窗方式嵌入智能体对话；
+1. **标准 Web 部署**：Vite 构建产物由 nginx 容器托管，`/api` 反向代理到后端。
 
 ## 技术栈总览
 
@@ -36,14 +35,13 @@ Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应�
 
 ```mermaid
 flowchart TB
-    subgraph entries["构建入口 (vite.config.ts 双入口)"]
+    subgraph entries["构建入口 (vite.config.ts)"]
         MAIN["index.html + src/main.ts<br/>(主 SPA)"]
-        EMBED["embed.html + src/embed-main.ts<br/>(嵌入渠道 /embed/:channelId)"]
     end
 
     subgraph app["应用层"]
         ROUTER["路由 (src/router/index.ts)<br/>导航守卫: 登录 / 租户 / SystemAdmin"]
-        VIEWS["视图层 (src/views)<br/>knowledge / chat / agent / settings / organization / embed ..."]
+        VIEWS["视图层 (src/views)<br/>knowledge / chat / creatChat / settings / organization / platform ..."]
         COMP["通用组件 (src/components)"]
     end
 
@@ -78,14 +76,13 @@ flowchart TB
 | 目录 | 职责 |
 | --- | --- |
 | `frontend/src/main.ts` | 主 SPA 入口：安装 TDesign / Pinia / Router / i18n，初始化主题与字体，注册 TDesign 图标离线保护（`installTDesignIconOfflineGuard`，避免运行时请求 `tdesign.gtimg.com`），等待 `router.isReady()` 后再挂载以避免首屏闪烁 |
-| `frontend/src/embed-main.ts` | 嵌入入口：独立的 Vue 应用与独立路由（仅 `/embed/:channelId`），挂载 `#embed-app`，使用独立 i18n（`src/i18n/embed.ts`） |
 | `frontend/src/views/` | 页面级组件，按业务域分目录（见下方路由表） |
 | `frontend/src/components/` | 跨页面通用组件（消息气泡、上传遮罩、命令面板等） |
 | `frontend/src/stores/` | Pinia 状态（见下方 store 表） |
 | `frontend/src/api/` | 后端 API 封装（见下方 API 模块表） |
 | `frontend/src/composables/` | 组合式函数：主题、字体、聊天流处理、引用弹层、Embed 桥接等 |
 | `frontend/src/hooks/` | 业务 hook（如 `useKnowledgeBase`） |
-| `frontend/src/utils/` | 工具集：axios 实例、markdown 渲染管线、DOMPurify 消毒、Agent 工具展示等 |
+| `frontend/src/utils/` | 工具集：axios 实例、markdown 渲染管线、DOMPurify 消毒等 |
 | `frontend/src/i18n/` | vue-i18n 配置与语言包 |
 | `frontend/src/assets/theme/` | 主题 CSS 变量（light / dark） |
 | `frontend/src/directives/`、`frontend/src/types/`、`frontend/src/config/` | 自定义指令、类型定义、配置 |
@@ -115,8 +112,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | `/platform/knowledge-bases` | `knowledgeBaseList` | `src/views/knowledge/KnowledgeBaseList.vue` | 知识库列表：空间侧栏（全部/我的/按组织/收藏/最近）、卡片列表、创建入口 |
 | `/platform/knowledge-bases/:kbId` | `knowledgeBaseDetail` | `src/views/knowledge/KnowledgeBase.vue` | 知识库详情：文档列表、上传、解析状态、会话入口、Wiki 等 |
-| `/platform/agents` | `agentList` | `src/views/agent/AgentList.vue` | 智能体（Agent）列表与管理，编辑走 `AgentEditorModal.vue` |
-| `/platform/creatChat` | `globalCreatChat` | `src/views/creatChat/creatChat.vue` | 新建对话页：推荐问题、选择知识库/Agent/模型后发起会话 |
+| `/platform/creatChat` | `globalCreatChat` | `src/views/creatChat/creatChat.vue` | 新建对话页：推荐问题、选择知识库/模型后发起会话 |
 | `/platform/knowledge-bases/:kbId/creatChat` | `kbCreatChat` | `src/views/creatChat/creatChat.vue` | 从某个知识库上下文发起新对话（同一组件） |
 | `/platform/chat/:chatid` | `chat` | `src/views/chat/index.vue` | 会话页：消息流（SSE 流式渲染、骨架屏、虚拟滚动）、引用面板、附件预览 |
 | `/platform/organizations` | `organizationList` | `src/views/organization/OrganizationList.vue` | 组织列表：创建/加入组织、成员与共享资源管理（配合 `OrganizationSettingsModal.vue`） |
@@ -127,21 +123,16 @@ flowchart TB
 | `/platform/system`、`/platform/system/settings`、`/platform/system/admins` | `systemSettings` / `systemAdmins` | 重定向 | 系统管理旧路径 → `/platform/settings?section=system-global`，要求 `requiresSystemAdmin`（视图在 `src/views/system/`：`SystemSettings.vue`、`SystemAuditLog.vue`、`PlatformAPIKeys.vue` 等） |
 | `/platform/system/queues` | `systemQueues` | 重定向 | → `/platform/settings?section=runtime-queues`（运行时任务队列 `src/views/system/RuntimeQueues.vue`） |
 
-### 独立入口：嵌入页
-
-`/embed/:channelId` 不属于主 SPA 路由，而是由 `frontend/embed.html` + `frontend/src/embed-main.ts` 构成的独立入口（nginx 与 Vite dev server 都将 `/embed/*` fallback 到 `embed.html`），组件为 `src/views/embed/EmbedPage.vue`（配套 `EmbedChatView.vue` / `EmbedChatCore.vue` / `EmbedBotMessage.vue` 等），使用 Embed token 鉴权，供第三方网站 iframe 嵌入。
-
 ### 设置中心的分区与可见性
 
-`Settings.vue` 把所有分区按七组呈现，用 `?section=` 定位：
+`Settings.vue` 把所有分区按六组呈现，用 `?section=` 定位：
 
 | 分组 | 分区（`section` 值） |
 | --- | --- |
 | 账户 | `general`（个人偏好）、`userprofile` |
 | 空间 | `tenant`（空间信息）、`members`（成员）、`chathistory` |
 | 模型与运行 | `models`、`ollama` |
-| 发布与集成 | `integration-im`、`integration-embed`、`integration-api`、`integration-chrome`、`integration-claw` |
-| 数据与扩展 | `vectorstore`、`parser`、`storage`、`websearch`、`mcp` |
+| 数据与扩展 | `vectorstore`、`parser`、`storage`、`websearch` |
 | 系统管理 | `system-global`、`runtime-queues`、`platform-api-keys`、`system-audit-log` |
 | 平台 | `system`（版本信息） |
 
@@ -186,14 +177,14 @@ flowchart TB
 | 文件 | Store ID / 类型 | 职责 |
 | --- | --- | --- |
 | `stores/auth.ts` | `useAuthStore` | 认证核心：user / token / refreshToken / tenant / memberships / 角色判断（`hasRole`、`isSystemAdmin`）；登出时级联清理其他 store 的空间级缓存并按用户重载偏好（主题/字体） |
-| `stores/chatResources.ts` | `useChatResourcesStore` | 空间级资源缓存（TTL 60s）：知识库、Agent、模型、Web 搜索 provider 列表，供聊天/新建对话选择器复用 |
-| `stores/editorResources.ts` | `useEditorResourcesStore` | 编辑器/设置相关资源缓存（TTL 60s）：存储引擎配置与状态、Prompt 模板、解析引擎、系统信息、MCP 服务、Skill、Agent 类型预设、检索配置 |
+| `stores/chatResources.ts` | `useChatResourcesStore` | 空间级资源缓存（TTL 60s）：知识库、模型列表，供聊天/新建对话选择器复用 |
+| `stores/editorResources.ts` | `useEditorResourcesStore` | 编辑器/设置相关资源缓存（TTL 60s）：存储引擎配置与状态、Prompt 模板、租户检索配置、解析引擎、系统信息 |
 | `stores/commandPalette.ts` | `useCommandPaletteStore` | 全局命令面板（⌘K / Ctrl+K）开关与查询；最近搜索按 (user, tenant) 作用域存储避免跨账号泄漏 |
-| `stores/organization.ts` | `useOrganizationStore` | 组织协作：组织列表、成员、共享知识库/Agent、加入申请与审核、角色升级等全套动作 |
+| `stores/organization.ts` | `useOrganizationStore` | 组织协作：组织列表、成员、共享知识库、加入申请与审核、角色升级等全套动作 |
 | `stores/organizationState.ts` | 纯函数模块 | 组织列表 upsert / merge、加入审核对成员数影响等纯逻辑（配套单测 `organizationState.test.ts`） |
-| `stores/settings.ts` | 设置 store | 会话与 Agent 配置：选中的知识库/文件/标签/MCP/Skill/工具、模型配置、Ollama 配置、Web 搜索开关等 |
-| `stores/settingsStorage.ts` | 纯函数模块 | 设置持久化（`Yuheng_settings` key）的读取、克隆与内建 Agent 模式修复（配套 `settingsStorage.test.mjs`） |
-| `stores/menu.ts` | `useMenuStore` | 左侧导航菜单结构（新建对话、知识库、Agent 等条目）与 i18n 标题 |
+| `stores/settings.ts` | 设置 store | 会话配置：选中的知识库/文件/标签、模型配置、Ollama 配置、Web 搜索开关等 |
+| `stores/settingsStorage.ts` | 纯函数模块 | 设置持久化（`Yuheng_settings` key）的读取与克隆（配套 `settingsStorage.test.mjs`） |
+| `stores/menu.ts` | `useMenuStore` | 左侧导航菜单结构（新建对话、知识库、组织、设置等条目）与 i18n 标题 |
 | `stores/knowledge.ts` | `knowledgeStore` | 知识卡片列表与总数（轻量） |
 | `stores/ui.ts` | `useUIStore` | 全局 UI 状态：设置模态、知识库编辑模态、手工文档编辑器、侧栏折叠等开关与参数 |
 | `stores/uploadConfirm.ts` | 上传确认 store | 上传/URL 导入/手工录入/重新解析前的处理参数确认对话框状态 |
@@ -205,7 +196,7 @@ flowchart TB
 
 - **axios 实例**：`frontend/src/utils/request.ts` 创建统一实例（`baseURL` 来自 `frontend/src/utils/api-base.ts` 的 `getApiBaseUrl()`，尊重 Vite `BASE_URL` 以支持子路径反代部署；超时 30s）。
 - **请求拦截器**：自动附加 `Authorization: Bearer <yuheng_token>`（Embed 渠道的 `Embed ` token 不被覆盖）、`Accept-Language`（当前 i18n 语言）、`X-Request-ID`（随机串）、`X-Tenant-ID`（跨空间访问，始终携带激活空间 id 以避免切空间后 header 丢失）。
-- **响应拦截器**：2xx 解包返回 `data`；401 触发单飞（single-flight）refresh token 刷新，失败队列重放；公开端点（`/auth/login`、`/auth/auto-setup`、`/auth/invitations/lookup`、`/api/v1/embed/` 等 `PUBLIC_AUTH_PATHS`）的 401 直接抛给页面而不跳登录；Embed 页面永不重定向到 `/login`。
+- **响应拦截器**：2xx 解包返回 `data`；401 触发单飞（single-flight）refresh token 刷新，失败队列重放；公开端点（`/auth/login`、`/auth/register`、`/auth/oidc/`、`/auth/invitations/lookup` 等 `PUBLIC_AUTH_PATHS`）的 401 直接抛给页面而不跳登录。
 - **SSE 流式**：`frontend/src/api/chat/streame.ts` 基于 `@microsoft/fetch-event-source` 封装 `useStream()`，支持流式输出、加载态、错误态与请求调试元数据；上层由 `frontend/src/composables/useChatStreamHandler.ts` 组织为聊天消息流。
 
 ### 模块清单
@@ -214,19 +205,16 @@ flowchart TB
 | --- | --- |
 | `api/auth/` | 登录、注册、OIDC、`getCurrentUser` 会话恢复 |
 | `api/tenant/`（`index` / `members` / `invitations` / `audit-log`） | 租户（工作空间）信息、成员管理、邀请、审计日志 |
-| `api/organization/` | 组织 CRUD、成员、共享知识库/Agent、加入申请 |
+| `api/organization/` | 组织 CRUD、成员、共享知识库、加入申请 |
 | `api/knowledge-base/` | 知识库 CRUD 与文件/知识条目管理 |
 | `api/chat/`（`index` / `streame` / `temporary-attachments`) | 会话 CRUD、标题生成、SSE 流式问答、临时附件 |
 | `api/chat-history.ts` | 聊天历史记录 |
-| `api/agent/` | 自定义 Agent CRUD、类型预设、占位符（含内建 Quick Answer / Smart Reasoning id） |
 | `api/model/` | 模型配置管理 |
 | `api/retrieval.ts` | 租户检索配置 |
 | `api/vector-store.ts` / `api/storage-backend.ts` / `api/chunker/` | 向量库、存储后端、分块器配置 |
 | `api/datasource/` | 数据源接入 |
-| `api/embed/` | 网页嵌入渠道管理（创建渠道、限流等） |
 | `api/initialization/` | 系统初始化流程 |
 | `api/system/` | 系统信息、存储引擎状态、Prompt 模板、解析引擎等系统级接口 |
-| `api/mcp-service.ts` / `api/skill/` | MCP 服务与 Skill 管理 |
 | `api/web-search.ts` / `api/web-search-provider.ts` | Web 搜索及 provider 配置 |
 | `api/wiki/` | 知识库 Wiki 生成相关接口 |
 | `api/message-suggestion.ts` | 推荐问题 |
@@ -251,7 +239,6 @@ RAG 流水线的可视化进度（`views/chat/components/RagPipelineProgress.vue
   - `ko-KR`（韩语）
 - 语言选择持久化在 `localStorage` 的 `locale` key；axios 拦截器会把当前语言写入 `Accept-Language` 请求头，使后端返回本地化内容。
 - 因部分翻译刻意内嵌 `<strong>` 标记（经 DOMPurify 消毒后 v-html 渲染），配置了 `warnHtmlMessage: false` 关闭 vue-i18n 的 HTML 告警。
-- **Embed 独立 i18n**：访客侧嵌入页使用单独的 `frontend/src/i18n/embed.ts`（由 `embed-main.ts` 加载），管理端「网页嵌入」文案仍在主语言包中；`frontend/src/i18n/locales/embed/index.ts` 统一 re-export 语言归一化助手（支持从 URL 参数同步 embed 语言）。
 - **审计与裁剪工具**：语言包体量大、容易积累无人引用的死键或漏翻的新键，因此配套了三个脚本（`frontend/package.json`）：
 
   | 命令 | 作用 |
@@ -275,8 +262,8 @@ RAG 流水线的可视化进度（`views/chat/components/RagPipelineProgress.vue
 
 `frontend/vite.config.ts` 要点：
 
-- **双入口构建**：`rollupOptions.input` 同时构建 `index.html`（主 SPA）与 `embed.html`（嵌入页）；开发环境用自定义插件 `embedHtmlDevFallback()` 把 `/embed/:channelId` 请求改写到 `/embed.html`，与 nginx 行为对齐。
-- **代码分包**：`manualChunks` 将 mermaid/dagre/cytoscape、marked/katex、highlight.js 分别拆为 `vendor-mermaid`、`vendor-markdown`、`vendor-highlight`；embed 入口通过 `modulePreload.resolveDependencies` 过滤重型聊天 chunk，保证嵌入页首屏只加载 token 交换所需代码。
+- **单入口构建**：`rollupOptions.input` 只有 `index.html`（主 SPA）。
+- **代码分包**：`manualChunks` 将 mermaid/dagre/cytoscape、marked/katex、highlight.js 分别拆为 `vendor-mermaid`、`vendor-markdown`、`vendor-highlight`。
 - **版本注入**：`__FRONTEND_VERSION__`（package.json version）与 `__FRONTEND_COMMIT__`（`VITE_FRONTEND_COMMIT` / `GITHUB_SHA` / `git rev-parse`）编译期注入。
 - **开发代理**：dev server（端口 5173）与 preview（端口 4173）都把 `/api`、`/files` 代理到 `VITE_DEV_PROXY_TARGET`（或 `FRONTEND_BACKEND_URL`，默认 `http://localhost:8080`）。
 - **别名**：`@` → `frontend/src`；并对 `@vue-office/pptx` 做入口文件探测修正。
@@ -301,6 +288,5 @@ RAG 流水线的可视化进度（`views/chat/components/RagPipelineProgress.vue
 - **SPA fallback**：`/` 下 `try_files ... /index.html`，且 `index.html` 设置 `no-cache`（避免升级后用户拿到旧版本）；带 hash 的 `/assets/*` 设置一年 immutable 缓存；
 - **API 代理**：`/api/` 与 `/files` 反代到 `${APP_SCHEME}://${APP_HOST}:${APP_PORT}`，`/api/` 针对 SSE 关闭 `proxy_buffering` / 缓存 / 分块编码，读写超时放宽到 3600s，并配置 3 次 upstream 重试；
 - **资源短链 `/r/`**：`location ^~ /r/` 同样反代到后端。后端把 `resource://` 资源改写成 `<APP_EXTERNAL_URL>/r/<token>` 能力短链，缺这段配置时请求会落进 SPA fallback，导致图片/文件显示为空白（详见 [图片与文件的对外访问](../03-features/21-file-access.md)）；
-- **嵌入页**：`/embed/*` fallback 到 `embed.html`（独立 location，不继承主站的 `X-Frame-Options: SAMEORIGIN`，因此可被第三方 iframe 加载）；`/yuheng-widget.js` 是给第三方站点的静态加载器；文件头部另附可选的独立 embed 子域 server 块示例；
 - 启用 gzip（注释记录了实测收益：低带宽下首屏从 25s 降到 3-5s）及一组安全响应头（`X-Frame-Options`、`X-Content-Type-Options`、`Referrer-Policy` 等，在各 location 内重复声明以规避 nginx `add_header` 不继承的问题）。
 
