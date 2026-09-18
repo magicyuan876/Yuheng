@@ -1,0 +1,51 @@
+{
+  "comment": "Signing vectors shared by the Go and TypeScript sides of the collaboration contract. Generated independently of both implementations; if either stops matching, the contract drifted.",
+  "secret": "shared-secret-for-signing-fixtures",
+  "cases": [
+    {
+      "name": "empty body",
+      "method": "GET",
+      "path": "/internal/collab/health",
+      "timestamp": "1700000000000",
+      "body": "",
+      "canonical": "1700000000000\nGET\n/internal/collab/health\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "449107de7387531ac0716dbc9b72b9b4c92c44ed9018400ca8c63a2e12c8c96f"
+    },
+    {
+      "name": "store call",
+      "method": "POST",
+      "path": "/internal/collab/store",
+      "timestamp": "1700000123456",
+      "body": "{\"page_id\":\"p1\",\"base_version\":3}",
+      "canonical": "1700000123456\nPOST\n/internal/collab/store\n3aacd20e843352f964d4b83ef4e8d386ec8f3ce0c40e9a36804a536ea40d0d74",
+      "signature": "884566c246280874242f64719bf8f5808f982a5b8328f71d17883b97fbc0a1aa"
+    },
+    {
+      "name": "load with query",
+      "method": "GET",
+      "path": "/internal/collab/load/p1?tenant=42",
+      "timestamp": "1700000999999",
+      "body": "",
+      "canonical": "1700000999999\nGET\n/internal/collab/load/p1?tenant=42\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "3aa9510850ff77575db74164cd2699712ee7d09ba9144431a15100249b0c50c5"
+    },
+    {
+      "name": "replace with unicode",
+      "method": "POST",
+      "path": "/internal/collab/replace/p1",
+      "timestamp": "1700001000000",
+      "body": "{\"content\":{\"text\":\"玉衡\"}}",
+      "canonical": "1700001000000\nPOST\n/internal/collab/replace/p1\n614cfa20b18c6fff4f69ec0a59a5ca6a9d899479588a4e7d3efba89e6f496e47",
+      "signature": "f7fedfd6e6a6811f89261ad2b533493847029d15ef343120400e09749bc58b0e"
+    },
+    {
+      "name": "evict",
+      "method": "DELETE",
+      "path": "/internal/collab/p1",
+      "timestamp": "1700001111111",
+      "body": "",
+      "canonical": "1700001111111\nDELETE\n/internal/collab/p1\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "c76210fd4d71707d07ac442a2fc26050af183c664c23acefc135c317d93e4895"
+    }
+  ]
+}

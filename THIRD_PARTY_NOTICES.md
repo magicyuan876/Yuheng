@@ -18,6 +18,7 @@ cutting a release: it carries the blocking items.
 |---|---|---|
 | Go | 381 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
 | npm (frontend) | 382 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
+| npm (collab) | 35 packages | `collab/package-lock.json` (resolved from `collab/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
 | Python (mcp-server) | 55 distributions | `mcp-server/uv.lock` (resolved from the built image) |
 
@@ -856,6 +857,62 @@ Dual- and multi-licensed packages, and the licence Yuheng elects:
 | `which` | 5.0.0 | ISC |
 | `xlsx` | 0.20.2 | Apache-2.0 |
 | `yallist` | 3.1.1 | ISC |
+
+</details>
+
+---
+
+## npm packages (collab)
+
+The collaboration service (`collab/`) is a separate Node application with its own
+`package.json` and container image; these are its runtime and build dependencies.
+
+| License | Packages |
+|---|---|
+| MIT | 31 |
+| Apache-2.0 | 3 |
+| 0BSD | 1 |
+
+<details>
+<summary>Full list (35 packages)</summary>
+
+| Package | Version | License |
+|---|---|---|
+| `@esbuild/win32-x64` | 0.28.2 | MIT |
+| `@hocuspocus/common` | 4.7.0 | MIT |
+| `@hocuspocus/provider` | 4.7.0 | MIT |
+| `@hocuspocus/server` | 4.7.0 | MIT |
+| `@ioredis/commands` | 1.10.0 | MIT |
+| `@lifeomic/attempt` | 3.1.0 | MIT |
+| `@types/node` | 24.13.5 | MIT |
+| `@types/ws` | 8.18.1 | MIT |
+| `async-mutex` | 0.5.0 | MIT |
+| `cluster-key-slot` | 1.1.1 | Apache-2.0 |
+| `crossws` | 0.4.12 | MIT |
+| `debug` | 4.4.3 | MIT |
+| `denque` | 2.1.0 | Apache-2.0 |
+| `esbuild` | 0.28.2 | MIT |
+| `ioredis` | 5.11.1 | MIT |
+| `isomorphic.js` | 0.2.5 | MIT |
+| `kleur` | 4.1.5 | MIT |
+| `lib0` | 0.2.117 | MIT |
+| `ms` | 2.1.3 | MIT |
+| `orderedmap` | 2.1.1 | MIT |
+| `prosemirror-model` | 1.25.11 | MIT |
+| `prosemirror-state` | 1.4.4 | MIT |
+| `prosemirror-transform` | 1.12.1 | MIT |
+| `prosemirror-view` | 1.42.3 | MIT |
+| `redis-errors` | 1.2.0 | MIT |
+| `redis-parser` | 3.0.0 | MIT |
+| `standard-as-callback` | 2.1.0 | MIT |
+| `tslib` | 2.8.1 | 0BSD |
+| `tsx` | 4.23.13 | MIT |
+| `typescript` | 5.9.3 | Apache-2.0 |
+| `undici-types` | 7.18.2 | MIT |
+| `ws` | 8.21.3 | MIT |
+| `y-prosemirror` | 1.3.7 | MIT |
+| `y-protocols` | 1.0.7 | MIT |
+| `yjs` | 13.6.32 | MIT |
 
 </details>
 

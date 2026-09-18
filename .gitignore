@@ -19,6 +19,8 @@
 # 构建和依赖文件
 node_modules/
 /dist/
+# The collaboration service bundles to collab/dist at build time.
+collab/dist/
 /build/
 *.log
 

@@ -60,7 +60,9 @@ func (t tenantTable) GetUsersByIDs(_ context.Context, ids []string) (map[string]
 
 // newSpaceRouter wires the space and group routes exactly as the router
 // does (guards included) on top of an in-memory database.
-func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
+// openHandlerDB opens a private in-memory database with the module's real
+// SQLite migration applied.
+func openHandlerDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := fmt.Sprintf("file:docs-handler-%d?mode=memory&cache=shared&_foreign_keys=1", handlerDBSeq.Add(1))
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
@@ -72,7 +74,12 @@ func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
 	ddl, err := os.ReadFile(filepath.FromSlash("../../../migrations/sqlite/000030_docs_module.up.sql"))
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(ddl)).Error)
-	repos := repository.New(db)
+	return db
+}
+
+func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
+	t.Helper()
+	repos := repository.New(openHandlerDB(t))
 
 	members := tenantTable{
 		"1/owner": types.TenantRoleOwner, "1/alice": types.TenantRoleContributor,

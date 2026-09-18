@@ -178,5 +178,23 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	groups.DELETE("/:gid/members/:uid", g.Admin(), guard.RequireMember(), idem, gr.RemoveMember)
 }
 
+// RegisterDocsInternalRoutes mounts the collaboration callbacks.
+//
+// They are registered on the engine BEFORE the session middleware, like the
+// IM callbacks: the collaboration service has no user session and proves
+// itself with an HMAC signature over every request. Nothing is registered
+// when the module is off or no shared secret is configured.
+func RegisterDocsInternalRoutes(r *gin.Engine, m *docs.Module) {
+	if m == nil || !m.Enabled || m.Handler == nil || !m.Handler.Collab.Enabled() {
+		return
+	}
+	h := m.Handler.Collab
+	internal := r.Group("/internal/collab")
+	internal.POST("/authenticate", h.Authenticate)
+	internal.GET("/load/:pid", h.Load)
+	internal.POST("/store", h.Store)
+	internal.GET("/health", h.Health)
+}
+
 // dochandlerNotImplemented adapts the docs handler package's placeholder.
 func dochandlerNotImplemented(c *gin.Context) { dochandler.NotImplemented(c) }

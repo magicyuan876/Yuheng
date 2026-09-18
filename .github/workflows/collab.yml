@@ -1,0 +1,74 @@
+name: Collab
+
+# The collaboration service (collab/) is its own Node application. It bundles
+# the shared document definition from packages/docs-schema, so a change to
+# either runs this workflow.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "collab/**"
+      - "packages/docs-schema/**"
+      - "internal/docs/collab/testdata/**"
+      - ".github/workflows/collab.yml"
+  pull_request:
+    paths:
+      - "collab/**"
+      - "packages/docs-schema/**"
+      - "internal/docs/collab/testdata/**"
+      - ".github/workflows/collab.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  verify:
+    name: Test, type-check, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            collab/package-lock.json
+            packages/docs-schema/package-lock.json
+
+      - name: Install the document schema package
+        working-directory: packages/docs-schema
+        run: npm ci --no-audit --no-fund
+
+      - name: Check the document schema
+        working-directory: packages/docs-schema
+        run: |
+          npm test
+          npm run type-check
+
+      - name: Install the collaboration service
+        working-directory: collab
+        run: npm ci --no-audit --no-fund
+
+      - name: Run tests
+        working-directory: collab
+        run: npm test
+
+      - name: Type-check
+        working-directory: collab
+        run: npm run type-check
+
+      - name: Build
+        working-directory: collab
+        run: npm run build
