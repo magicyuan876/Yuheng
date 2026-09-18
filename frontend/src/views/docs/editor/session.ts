@@ -21,11 +21,24 @@ export interface EditableInput {
    * fetched before the collaboration socket even opens. */
   canEditPage: boolean
   connectionStatus: ConnectionStatus
-  /** From the collaboration connection itself: its `onAuthenticated` scope
-   * at first connect, then narrowed live if GuardExtension's periodic
-   * recheck downgrades it (`yuheng.access`). Never widens without a fresh
-   * connection. */
+  /** From the editing transport itself. With a collaboration service it is
+   * the `onAuthenticated` scope, narrowed live if the server's periodic
+   * recheck downgrades it (`yuheng.access`). In exclusive-edit mode it is
+   * whether this client currently holds the page's lease. Never widens
+   * without a fresh connection. */
   collabAccess: CollabAccess
+}
+
+/** What `deriveBanner` needs on top of the editability inputs. Both extra
+ * fields only ever apply in exclusive-edit mode. */
+export interface BannerInput extends EditableInput {
+  /** The display name of whoever else holds the page's lease; empty when
+   * nobody does, or when this client holds it. */
+  leaseHolder?: string
+  /** True once this client lost the page mid-edit. */
+  superseded?: boolean
+  /** True when the server offers no editing transport at all. */
+  unavailable?: boolean
 }
 
 /**
@@ -55,21 +68,34 @@ export type Banner =
   | { kind: 'offline' }
   | { kind: 'read-only' }
   | { kind: 'permission-narrowed' }
-  /** No collaboration service is configured for this deployment at all
-   * (Lite / exclusive-edit, T1.5); distinct from `offline` so the banner
-   * does not read as a transient, about-to-reconnect problem. */
+  /** Exclusive-edit mode: somebody else holds the page's lease. Named, so
+   * the reader knows who to ask rather than waiting on an anonymous lock. */
+  | { kind: 'lease-held'; holder: string }
+  /** Exclusive-edit mode: this client was writing and lost the page, so its
+   * local document is no longer a continuation of the stored one. */
+  | { kind: 'superseded' }
+  /** No editing transport works here at all: no collaboration service, and
+   * the server does not hand out leases either. Distinct from `offline` so
+   * the banner does not read as a transient, about-to-reconnect problem. */
   | { kind: 'unavailable' }
 
 /**
  * What to tell the user about why they cannot (or temporarily cannot) edit.
- * Order matters: a live narrowing after a successful read-write connection
- * is the most specific, actionable fact and takes priority over the plain
- * connection state; a page the REST call already marked read-only is
- * reported as such rather than blamed on the connection.
+ *
+ * Order matters, and it runs from the most specific, most actionable fact to
+ * the most general. A page the caller was never allowed to edit is reported
+ * as such rather than blamed on a lock or a connection. Losing the page
+ * mid-edit comes next, because it is the only state that asks the user to do
+ * something (reload). Then a named colleague holding the lease, which tells
+ * them who to wait for. Only after all of that does the plain connection
+ * state get a say.
  */
-export function deriveBanner(input: EditableInput): Banner {
-  if (input.canEditPage && input.collabAccess === 'readonly') return { kind: 'permission-narrowed' }
+export function deriveBanner(input: BannerInput): Banner {
   if (!input.canEditPage) return { kind: 'read-only' }
+  if (input.unavailable) return { kind: 'unavailable' }
+  if (input.superseded) return { kind: 'superseded' }
+  if (input.leaseHolder) return { kind: 'lease-held', holder: input.leaseHolder }
+  if (input.collabAccess === 'readonly') return { kind: 'permission-narrowed' }
   if (input.connectionStatus === 'connecting') return { kind: 'connecting' }
   if (input.connectionStatus === 'disconnected') return { kind: 'offline' }
   return { kind: 'none' }

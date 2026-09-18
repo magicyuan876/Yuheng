@@ -43,6 +43,7 @@ type Repositories struct {
 	Groups  GroupRepository
 	Pages   PageRepository
 	Access  PageAccessRepository
+	Leases  LeaseRepository
 }
 
 // New wires the repositories.
@@ -54,6 +55,7 @@ func New(db *gorm.DB) *Repositories {
 		Groups:  &groupRepository{db: db},
 		Pages:   &pageRepository{db: db},
 		Access:  &pageAccessRepository{db: db},
+		Leases:  &leaseRepository{db: db},
 	}
 }
 

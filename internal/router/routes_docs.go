@@ -138,8 +138,28 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	write.PUT("/pages/:pid/labels", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.PUT("/pages/:pid/watch", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
-	write.POST("/pages/:pid/lease", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ni)
-	write.DELETE("/pages/:pid/lease", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ni)
+	// ---- exclusive editing (T1.5) -------------------------------------------
+	// Only a deployment without a collaboration service uses these; the rest
+	// answer 409 so a misconfigured client fails loudly instead of editing
+	// against a lease nobody honours. Reading the lease needs read access
+	// (that is how the read-only view knows who is typing); taking it needs
+	// write access, checked again in the service against the page's role.
+	//
+	// These three writes deliberately carry no Idempotency-Key middleware,
+	// unlike every other write in this file. Each already has a natural
+	// idempotency key of its own — the session identifier for the lease, the
+	// base version for the save — and they repeat on a timer, so a client
+	// that reused one Idempotency-Key across heartbeats would be served a
+	// cached answer for a day.
+	ls := h.Leases
+	read.GET("/pages/:pid/lease", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ls.Get)
+	write.POST("/pages/:pid/lease", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ls.Acquire)
+	write.DELETE("/pages/:pid/lease", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ls.Release)
+	read.GET("/pages/:pid/ydoc", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ls.LoadYDoc)
+	write.PUT("/pages/:pid/ydoc", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ls.SaveYDoc)
 
 	// ---- revisions, comments, shares, attachments addressed by their own id ----
 	read.GET("/revisions/:rid", g.Viewer(), guard.RequireMember(), ni)

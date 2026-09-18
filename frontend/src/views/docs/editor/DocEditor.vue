@@ -18,11 +18,12 @@
         </template>
       </div>
       <div class="doc-editor-meta">
+        <span v-if="saveLabel" class="doc-editor-save">{{ saveLabel }}</span>
         <span>{{ t('docs.pages.wordCount', { count: wordCount }) }}</span>
       </div>
     </div>
 
-    <div v-if="!collab.ready.value && props.collabUrl" class="doc-editor-loading">
+    <div v-if="!collab.ready.value" class="doc-editor-loading">
       <t-skeleton animation="gradient" :row-col="[{ width: '90%' }, { width: '75%' }, { width: '85%' }]" />
     </div>
     <EditorContent v-else-if="editor" :editor="editor" class="doc-editor-content" />
@@ -84,6 +85,8 @@ const bannerIcon = computed(() => ({
   offline: 'error-circle',
   'read-only': 'lock-on',
   'permission-narrowed': 'lock-on',
+  'lease-held': 'user-circle',
+  superseded: 'error-circle',
   unavailable: 'info-circle',
   none: 'info-circle',
 }[banner.value.kind]))
@@ -94,6 +97,8 @@ const bannerText = computed(() => {
     case 'offline': return t('docs.pages.editorOffline')
     case 'read-only': return t('docs.pages.editorReadOnly')
     case 'permission-narrowed': return t('docs.pages.editorPermissionNarrowed')
+    case 'lease-held': return t('docs.pages.editorLeaseHeld', { name: banner.value.holder })
+    case 'superseded': return t('docs.pages.editorSuperseded')
     case 'unavailable': return t('docs.pages.editorUnavailable')
     default: return ''
   }
@@ -101,10 +106,25 @@ const bannerText = computed(() => {
 
 const wordCount = ref(0)
 
+/** Exclusive-edit mode saves on a timer rather than keystroke by keystroke,
+ * so the editor says where a change has got to. A collaborative session
+ * needs no such reassurance: every keystroke is already on the wire. */
+const saveLabel = computed(() => {
+  if (!collab.exclusive.value || !editorEditable.value) return ''
+  switch (collab.saveState.value) {
+    case 'saving': return t('docs.pages.editorSaving')
+    case 'saved': return t('docs.pages.editorSaved')
+    case 'failed': return t('docs.pages.editorSaveFailed')
+    default: return ''
+  }
+})
+
 const editor = useEditor({
   editable: editorEditable.value,
   extensions: officialExtensions([
     Collaboration.configure({ document: collab.ydoc.value }),
+    // Live cursors need a collaboration service to relay awareness; in
+    // exclusive-edit mode there is never a second writer to draw.
     ...(collab.provider.value ? [CollaborationCaret.configure({
       provider: collab.provider.value,
       user: props.currentUser ? awarenessUser(props.currentUser) : { name: '', color: '#999999' },
@@ -155,6 +175,7 @@ defineExpose({ editor, collab })
   }
 
   &--read-only,
+  &--lease-held,
   &--unavailable {
     background: var(--td-bg-color-secondarycontainer);
     color: var(--td-text-color-placeholder);
@@ -206,8 +227,15 @@ defineExpose({ editor, collab })
 }
 
 .doc-editor-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 12px;
   color: var(--td-text-color-placeholder);
+}
+
+.doc-editor-save {
+  font-variant-numeric: tabular-nums;
 }
 
 .doc-editor-loading {

@@ -152,7 +152,14 @@ func displayName(u *types.User) string {
 // Load hands the collaboration service the state to open a document with.
 // Permission was already established by Authenticate; this call only reads.
 func (s *CollabService) Load(ctx context.Context, tenantID uint64, pageID string) (*LoadResult, error) {
-	page, err := s.d.Repos.Pages.Get(ctx, tenantID, pageID)
+	return s.loadState(ctx, tenantID, pageID)
+}
+
+// loadState reads a page's editing state. Both editing transports use it: the
+// collaboration service over its internal callback, and the exclusive-edit
+// REST provider over the public API.
+func (b *base) loadState(ctx context.Context, tenantID uint64, pageID string) (*LoadResult, error) {
+	page, err := b.d.Repos.Pages.Get(ctx, tenantID, pageID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +182,14 @@ func (s *CollabService) Load(ctx context.Context, tenantID uint64, pageID string
 // on yields repository.ErrConflict so the collaboration service can merge
 // the newer state and try again.
 func (s *CollabService) Persist(ctx context.Context, in PersistInput) (*PersistResult, error) {
+	return s.persist(ctx, in)
+}
+
+// persist is the single write path for a page body. It is shared verbatim by
+// the collaboration service's store callback and by the exclusive-edit REST
+// provider, so a page saved either way goes through the same validation,
+// rendering, statistics and event publication.
+func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, error) {
 	limit := s.d.MaxYDocBytes
 	if limit <= 0 {
 		limit = DefaultMaxYDocBytes

@@ -476,3 +476,65 @@ export async function purgeTrashPage(spaceId: string, pageId: string): Promise<{
 export async function emptyTrash(spaceId: string): Promise<{ purged: number }> {
   return unwrap<{ purged: number }>(await del(`${base}/spaces/${encodeURIComponent(spaceId)}/trash`))
 }
+
+// ---- exclusive editing (deployments without a collaboration service) ------
+
+export interface EditLease {
+  page_id: string
+  /** False when the page is free to take. */
+  held: boolean
+  /** True only for the session that asked. */
+  held_by_me: boolean
+  holder?: { user_id: string; username?: string; email?: string; avatar?: string }
+  expires_at?: string
+  /** How often the holder should renew, in seconds. */
+  renew_after_seconds: number
+  ydoc_version: number
+}
+
+export interface YDocState {
+  page_id: string
+  /** Base64 Yjs state; absent for a page that has never been edited. */
+  ydoc?: string
+  /** The stored body to build a Yjs document from, when there is no state yet. */
+  content?: unknown
+  ydoc_version: number
+}
+
+export interface SaveYDocRequest {
+  session_id: string
+  base_version: number
+  /** Base64 Yjs state. */
+  ydoc: string
+  content: unknown
+}
+
+export interface SaveYDocResult {
+  ydoc_version: number
+  lease: EditLease
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/lease (page reader). 409 where a collaboration service runs. */
+export async function getPageLease(id: string): Promise<EditLease> {
+  return unwrap<EditLease>(await get(`${base}/pages/${encodeURIComponent(id)}/lease`))
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/lease (page writer). Takes the lease, or renews this session's. */
+export async function acquirePageLease(id: string, sessionId: string): Promise<EditLease> {
+  return unwrap<EditLease>(await post(`${base}/pages/${encodeURIComponent(id)}/lease`, { session_id: sessionId }))
+}
+
+/** Backend: DELETE /api/v1/docs/pages/:pid/lease (page writer). Only the holding session frees the page. */
+export async function releasePageLease(id: string, sessionId: string): Promise<void> {
+  await del(`${base}/pages/${encodeURIComponent(id)}/lease?session_id=${encodeURIComponent(sessionId)}`)
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/ydoc (page reader). */
+export async function getPageYDoc(id: string): Promise<YDocState> {
+  return unwrap<YDocState>(await get(`${base}/pages/${encodeURIComponent(id)}/ydoc`))
+}
+
+/** Backend: PUT /api/v1/docs/pages/:pid/ydoc (page writer, holding the lease). 409 on a stale base version. */
+export async function savePageYDoc(id: string, body: SaveYDocRequest): Promise<SaveYDocResult> {
+  return unwrap<SaveYDocResult>(await put(`${base}/pages/${encodeURIComponent(id)}/ydoc`, body))
+}

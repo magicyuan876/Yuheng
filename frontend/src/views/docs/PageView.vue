@@ -87,6 +87,7 @@
 
       <div class="page-body-row">
         <DocEditor
+          v-if="editingModeKnown"
           ref="docEditor"
           :key="editorKey"
           class="page-body"
@@ -201,9 +202,16 @@ onMounted(() => {
   void capabilities.ensureLoaded()
 })
 
-/** Remounts the editor when the page changes, and also when the collaboration
- * address arrives: GET /system/capabilities resolves after mount, and the
- * editor binds to one Y.Doc and one provider for its lifetime. */
+/** The editor is not mounted until the deployment capabilities have been
+ * read, because an empty collaboration address means two different things
+ * before and after: "not loaded yet" and "this deployment edits pages
+ * exclusively". Mounting early would open the wrong transport and, in the
+ * exclusive case, take a lease on a page the user is only looking at. */
+const editingModeKnown = computed(() => capabilities.loaded)
+
+/** Remounts the editor when the page changes, and also if the collaboration
+ * address itself changes, since the editor binds to one Y.Doc and one
+ * transport for its lifetime. */
 const editorKey = computed(() => `${page.value?.id ?? ''}|${collabUrl.value}`)
 
 const onHeadings = (entries: TocEntry[]) => {
