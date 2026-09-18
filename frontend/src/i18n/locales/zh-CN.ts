@@ -4938,6 +4938,7 @@ export default {
       linkPlaceholder: '粘贴或输入链接',
       linkRemove: '移除',
       moveBlock: '移动块',
+      comment: '评论',
     },
     // 查找与替换。
     find: {
@@ -4957,6 +4958,30 @@ export default {
     },
     // 块引用：写在一处、显示在别处的块。
     // 页面历史：版本、对比与恢复。
+    // 评论：针对段落或整页的讨论。
+    comments: {
+      title: '评论',
+      empty: '还没有评论',
+      placeholder: '写下评论',
+      replyPlaceholder: '回复',
+      reply: '回复',
+      resolve: '解决',
+      reopen: '重开',
+      resolvedBy: '由 {name} 解决',
+      showResolved: '显示已解决',
+      edited: '已编辑',
+      submit: '发表',
+      submitHint: '回车发送，Shift+回车换行',
+      deleteTitle: '删除评论',
+      deleteConfirm: '删除这条回复？',
+      deleteThreadConfirm: '删除这条评论及其全部回复？',
+      loadFailed: '加载评论失败',
+      group: {
+        inline: '针对正文',
+        page: '针对整页',
+        orphaned: '原文已不在页面中',
+      },
+    },
     history: {
       title: '历史版本',
       empty: '还没有历史版本',

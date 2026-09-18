@@ -32,6 +32,15 @@ export interface ToolbarItem {
   activeAttrs?: Record<string, unknown>
   /** The keyboard shortcut to show in the tooltip, in the platform's notation. */
   shortcut?: string
+  /**
+   * True for an entry that only needs the right to comment.
+   *
+   * There is one, and it matters: a reader may comment but may not edit, so
+   * the bar has to appear for them carrying just that button. Without this
+   * the only way to raise a point on a page would be to have write access to
+   * it, which is precisely what this work package set out to avoid.
+   */
+  commentOnly?: boolean
 }
 
 /**
@@ -56,7 +65,35 @@ export const TOOLBAR_ITEMS: readonly ToolbarItem[] = [
 
   { id: 'link', labelKey: 'docs.toolbar.link', icon: 'link', group: 'insert', activeName: 'link' },
   { id: 'clearFormat', labelKey: 'docs.toolbar.clearFormat', icon: 'format-clear', group: 'insert' },
+  {
+    id: 'comment', labelKey: 'docs.toolbar.comment', icon: 'chat-bubble',
+    group: 'insert', commentOnly: true,
+  },
 ]
+
+/** What this caller may do to the selection. */
+export interface ToolbarAbilities {
+  /** Whether the page may be changed at all. */
+  editable: boolean
+  /** Whether a comment may be left on it; true for a reader. */
+  canComment: boolean
+}
+
+/**
+ * The entries this caller may use.
+ *
+ * A reader gets the comment button and nothing else, which is what makes the
+ * bar useful to them rather than a row of controls that would fail.
+ */
+export function visibleItems(
+  abilities: ToolbarAbilities,
+  items: readonly ToolbarItem[] = TOOLBAR_ITEMS,
+): ToolbarItem[] {
+  if (abilities.editable) {
+    return items.filter((item) => !item.commentOnly || abilities.canComment)
+  }
+  return abilities.canComment ? items.filter((item) => item.commentOnly) : []
+}
 
 /** The width the bar is laid out at, used to keep it on screen. */
 export const TOOLBAR_WIDTH = 380
@@ -71,9 +108,11 @@ export const TOOLBAR_OFFSET = 46
  * such as an image or a diagram (none of these buttons apply to it), and a
  * selection inside a code block (where bold text would be a lie — the content
  * is code, and marks are not stored there).
+ *
+ * A caller who may only comment still gets the bar: see visibleItems.
  */
-export function shouldShow(state: EditorState, editable: boolean): boolean {
-  if (!editable) return false
+export function shouldShow(state: EditorState, abilities: ToolbarAbilities): boolean {
+  if (!abilities.editable && !abilities.canComment) return false
   const { selection } = state
   if (selection.empty) return false
 

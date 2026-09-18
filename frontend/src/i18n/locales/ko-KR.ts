@@ -4938,6 +4938,7 @@ export default {
       linkPlaceholder: '링크를 붙여넣거나 입력하세요',
       linkRemove: '제거',
       moveBlock: '블록 이동',
+      comment: '댓글',
     },
     // 찾기 및 바꾸기.
     find: {
@@ -4957,6 +4958,30 @@ export default {
     },
     // 블록 참조.
     // 페이지 기록.
+    // 댓글.
+    comments: {
+      title: '댓글',
+      empty: '아직 댓글이 없습니다',
+      placeholder: '댓글을 남기세요',
+      replyPlaceholder: '답글',
+      reply: '답글',
+      resolve: '해결',
+      reopen: '다시 열기',
+      resolvedBy: '{name} 님이 해결함',
+      showResolved: '해결된 항목 표시',
+      edited: '수정됨',
+      submit: '등록',
+      submitHint: 'Enter로 전송, Shift+Enter로 줄바꿈',
+      deleteTitle: '댓글 삭제',
+      deleteConfirm: '이 답글을 삭제할까요?',
+      deleteThreadConfirm: '이 댓글과 모든 답글을 삭제할까요?',
+      loadFailed: '댓글을 불러오지 못했습니다',
+      group: {
+        inline: '본문에 대한 댓글',
+        page: '페이지에 대한 댓글',
+        orphaned: '원문이 더 이상 없습니다',
+      },
+    },
     history: {
       title: '버전 기록',
       empty: '아직 버전이 없습니다',

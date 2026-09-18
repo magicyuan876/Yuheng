@@ -63,7 +63,9 @@
       :placement="toolbarPlace"
       :editor="editor ?? null"
       :revision="editorRevision"
+      :can-comment="canComment"
       @dismiss="toolbarVisible = false"
+      @comment="startComment"
     />
 
     <SuggestionMenu
@@ -136,6 +138,8 @@ import { blockAt } from './blockMove'
 import { formatBlockRefLink } from './blockRefLink'
 import { DragHandle } from './dragHandle'
 import { findPlugin } from './find'
+import { commentDecorationPlugin } from '../comments/decorations'
+import { useComments } from '../comments/useComments'
 import { shouldShow, toolbarPlacement } from './toolbar'
 import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
@@ -150,6 +154,10 @@ const props = defineProps<{
   /** The page's own ACL answer (REST `can_edit`); the composable further
    * narrows this against the live collaboration connection. */
   canEdit: boolean
+  /** False on a surface where commenting makes no sense (a preview, an
+   * anonymous share page). Defaults to true: anybody who can see the page
+   * can remark on it. */
+  canComment?: boolean
   collabUrl: string
   currentUser: UserLike | null
   getToken: () => string | null
@@ -158,6 +166,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Fires once per heading-set change, letting the parent drive a TOC sidebar. */
   headings: [entries: { id: string; level: number; text: string; pos: number }[]]
+  /** Fires when a comment has been started on the selection, so the page can
+   * open its comment panel and put the cursor in the box. */
+  commentDraft: []
 }>()
 
 const { t } = useI18n()
@@ -399,6 +410,66 @@ const derive = new IdleScheduler(() => {
  * highlight plugin is always present; `findOpen` only decides whether it is
  * drawn and whether it is searching.
  */
+/**
+ * Comments.
+ *
+ * Assembled here rather than in the page view because this is where both
+ * things it needs live: the editor, and the Y.Doc whose relative positions
+ * the anchors are written against. The panel is drawn by the page, through
+ * the handle exposed below.
+ */
+const comments = useComments({
+  pageId: pageIdRefForUploads,
+  ydoc: computed(() => collab.ydoc.value ?? null),
+  onError: (message) => void MessagePlugin.error(message || t('docs.comments.loadFailed')),
+})
+
+const commentExtension = Extension.create({
+  name: 'yuhengComments',
+  addProseMirrorPlugins: () => [commentDecorationPlugin((id) => comments.select(id))],
+})
+
+/**
+ * Starts a comment on the current selection.
+ *
+ * Called from the selection toolbar. The anchor and the quotation are both
+ * taken now, while the selection is still there: the anchor is what makes the
+ * comment survive other people editing around it, and the quotation is what
+ * places it if that anchor ever stops resolving.
+ */
+const drafting = ref<{ anchor: unknown; quoted: string } | null>(null)
+
+function startComment() {
+  const ed = editor.value
+  if (!ed || ed.isDestroyed) return
+  const { from, to } = ed.state.selection
+  if (to <= from) return
+
+  drafting.value = {
+    anchor: comments.anchorFor(from, to),
+    quoted: ed.state.doc.textBetween(from, to, ' '),
+  }
+  toolbarVisible.value = false
+  emit('commentDraft')
+}
+
+/** Discards a draft comment, when the composer is cancelled. */
+function cancelComment() {
+  drafting.value = null
+}
+
+/** Stores the draft comment. */
+async function submitComment(body: unknown) {
+  const draft = drafting.value
+  if (!draft) return
+  drafting.value = null
+  await comments.add({
+    body,
+    anchor: draft.anchor ?? undefined,
+    quoted_text: draft.quoted,
+  })
+}
+
 const findOpen = ref(false)
 
 const findExtension = Extension.create({
@@ -412,6 +483,15 @@ const findExtension = Extension.create({
   }),
 })
 
+/**
+ * Whether this caller may leave a comment.
+ *
+ * Deliberately not tied to edit rights: a reader may comment, which is what
+ * makes review possible without handing out write access. The server decides
+ * for real; this only decides whether to offer the button.
+ */
+const canComment = computed(() => props.canComment !== false)
+
 const toolbarVisible = ref(false)
 const toolbarPlace = ref({ left: 0, top: 0, below: false })
 const editorRevision = ref(0)
@@ -420,7 +500,7 @@ function refreshToolbar() {
   const ed = editor.value
   if (!ed || ed.isDestroyed) return
   editorRevision.value++
-  if (!shouldShow(ed.state, editorEditable.value)) {
+  if (!shouldShow(ed.state, { editable: editorEditable.value, canComment: canComment.value })) {
     toolbarVisible.value = false
     return
   }
@@ -461,6 +541,7 @@ const editor = useEditor({
     suggestions.extension,
     DragHandle.configure({ offset: 28, label: t('docs.toolbar.moveBlock') }),
     findExtension,
+    commentExtension,
     Collaboration.configure({ document: collab.ydoc.value }),
     // Live cursors need a collaboration service to relay awareness; in
     // exclusive-edit mode there is never a second writer to draw.
@@ -492,6 +573,9 @@ const editor = useEditor({
   onUpdate: () => {
     derive.schedule()
     refreshToolbar()
+    // The document moved under the comment highlights; they are recomputed at
+    // the next idle moment, coalesced like the word count.
+    comments.touch()
   },
   onSelectionUpdate: () => {
     refreshToolbar()
@@ -508,6 +592,8 @@ const editor = useEditor({
     emit('headings', extractHeadings(ed.state.doc))
     uploads.bind(ed)
     suggestions.bind(ed)
+    comments.bind(ed as never)
+    void comments.load()
   },
 })
 
@@ -524,16 +610,38 @@ onBeforeUnmount(() => {
   suggestions.bind(null)
   titles.dispose()
   blockRefs.dispose()
+  comments.dispose()
   media.dispose()
   editor.value?.destroy()
 })
 
-defineExpose({ editor, collab, forgetTitle, forgetBlockRefs })
+defineExpose({
+  editor, collab, comments, drafting,
+  forgetTitle, forgetBlockRefs, startComment, cancelComment, submitComment,
+})
 </script>
 
 <style scoped lang="less">
 // Created by the drag-handle plugin rather than by this template, so it needs
 // :deep to be reached from a scoped block.
+// Comment highlights, drawn as decorations by the comment plugin. Never a
+// mark: see the note at the top of views/docs/comments/decorations.ts.
+:deep(.docs-comment-mark) {
+  background: var(--td-warning-color-1);
+  border-bottom: 2px solid var(--td-warning-color-5);
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--td-warning-color-3);
+  }
+
+  // Placed by its quotation rather than by its stored position: a good guess,
+  // and the reader should be able to tell it is one.
+  &.is-approximate {
+    border-bottom-style: dashed;
+  }
+}
+
 // Drawn by the find plugin as a decoration, so it is likewise out of scope.
 :deep(.docs-find-match) {
   background: var(--td-warning-color-2);

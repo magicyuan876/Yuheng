@@ -663,6 +663,88 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- comments ---------------------------------------------------------------
+
+/** One comment as the server returns it. */
+export interface CommentView {
+  id: string
+  page_id: string
+  parent_id?: string
+  /** A ProseMirror document — a small subset of the page schema. */
+  body: unknown
+  /** The editor's Yjs relative position; absent for a page-level comment. */
+  anchor?: unknown
+  quoted_text?: string
+  placement: 'inline' | 'page'
+  creator: { user_id: string; username?: string; email?: string; avatar?: string }
+  creator_id: string
+  created_at: string
+  edited_at?: string
+  resolved_at?: string
+  resolved_by?: string
+  resolved_user?: { user_id: string; username?: string; email?: string; avatar?: string }
+  replies?: CommentView[]
+  /** What this caller may do, decided server-side so the client does not
+   * reimplement the rules and disagree with them. */
+  can_edit: boolean
+  can_delete: boolean
+  can_resolve: boolean
+}
+
+export interface CommentList {
+  items: CommentView[]
+  open: number
+  total: number
+}
+
+export interface CreateCommentBody {
+  body: unknown
+  anchor?: unknown
+  quoted_text?: string
+  parent_id?: string
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/comments (page reader). */
+export async function listComments(pageId: string, includeResolved = false): Promise<CommentList> {
+  const suffix = includeResolved ? '?resolved=true' : ''
+  return unwrap<CommentList | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/comments${suffix}`),
+  ) ?? { items: [], open: 0, total: 0 }
+}
+
+/**
+ * Backend: POST /api/v1/docs/pages/:pid/comments (page reader).
+ * A reader may comment: commenting is not editing.
+ */
+export async function createComment(pageId: string, body: CreateCommentBody): Promise<CommentView> {
+  return unwrap<CommentView>(await post(`${base}/pages/${encodeURIComponent(pageId)}/comments`, body))
+}
+
+/** Backend: PATCH /api/v1/docs/pages/:pid/comments/:cid (the author only). */
+export async function updateComment(
+  pageId: string, commentId: string, body: unknown,
+): Promise<CommentView> {
+  return unwrap<CommentView>(await patch(
+    `${base}/pages/${encodeURIComponent(pageId)}/comments/${encodeURIComponent(commentId)}`,
+    { body },
+  ))
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/comments/:cid/resolve (page writer or author). */
+export async function resolveComment(
+  pageId: string, commentId: string, resolved: boolean,
+): Promise<CommentView> {
+  return unwrap<CommentView>(await post(
+    `${base}/pages/${encodeURIComponent(pageId)}/comments/${encodeURIComponent(commentId)}/resolve`,
+    { resolved },
+  ))
+}
+
+/** Backend: DELETE /api/v1/docs/pages/:pid/comments/:cid (the author or a space admin). */
+export async function deleteComment(pageId: string, commentId: string): Promise<void> {
+  await del(`${base}/pages/${encodeURIComponent(pageId)}/comments/${encodeURIComponent(commentId)}`)
+}
+
 // ---- page history -----------------------------------------------------------
 
 /** One entry in a page's history. Never carries the body. */

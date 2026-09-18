@@ -7,8 +7,13 @@ import { EditorState, NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { officialExtensions } from './extensions'
 import {
   moveFocus, shouldShow, TOOLBAR_ITEMS, TOOLBAR_OFFSET, TOOLBAR_WIDTH,
-  toolbarGroups, toolbarPlacement,
+  toolbarGroups, toolbarPlacement, visibleItems,
 } from './toolbar'
+
+/** Somebody who may change the page. */
+const writer = { editable: true, canComment: true }
+/** Somebody who may only remark on it. */
+const reader = { editable: false, canComment: true }
 
 const schema = getSchema(officialExtensions())
 
@@ -40,14 +45,47 @@ test('entries are grouped in the order they are listed', () => {
 
 test('nothing is offered when there is nothing selected', () => {
   const state = stateWith(paragraph('hello'))
-  assert.equal(shouldShow(state, true), false)
+  assert.equal(shouldShow(state, writer), false)
+})
+
+// The rule this work package turns on: a reader may comment, so the bar has
+// to appear for them — carrying that button and nothing else.
+test('a reader gets a bar with only the comment button on it', () => {
+  const base = stateWith(paragraph('hello'))
+  const selected = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 1, 4)))
+
+  assert.equal(shouldShow(selected, reader), true)
+  const ids = visibleItems(reader).map((item) => item.id)
+  assert.deepEqual(ids, ['comment'])
+})
+
+test('a writer gets everything, comment included', () => {
+  const ids = visibleItems(writer).map((item) => item.id)
+  assert.equal(ids.length, TOOLBAR_ITEMS.length)
+  assert.ok(ids.includes('bold'))
+  assert.ok(ids.includes('comment'))
+})
+
+test('somebody who may neither edit nor comment gets no bar at all', () => {
+  const base = stateWith(paragraph('hello'))
+  const selected = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 1, 4)))
+  const nobody = { editable: false, canComment: false }
+
+  assert.equal(shouldShow(selected, nobody), false)
+  assert.deepEqual(visibleItems(nobody), [])
+})
+
+test('a writer who may not comment keeps the rest of the bar', () => {
+  const ids = visibleItems({ editable: true, canComment: false }).map((item) => item.id)
+  assert.ok(!ids.includes('comment'))
+  assert.ok(ids.includes('bold'))
 })
 
 test('nothing is offered while the document is read-only', () => {
   const base = stateWith(paragraph('hello'))
   const selected = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 1, 4)))
-  assert.equal(shouldShow(selected, true), true, 'the selection itself is a usable one')
-  assert.equal(shouldShow(selected, false), false)
+  assert.equal(shouldShow(selected, writer), true, 'the selection itself is a usable one')
+  assert.equal(shouldShow(selected, { editable: false, canComment: false }), false)
 })
 
 // Marks are not stored inside a code block, so a bold button there would
@@ -55,7 +93,7 @@ test('nothing is offered while the document is read-only', () => {
 test('nothing is offered inside a code block', () => {
   const base = stateWith({ type: 'codeBlock', content: [{ type: 'text', text: 'const x = 1' }] })
   const selected = base.apply(base.tr.setSelection(TextSelection.create(base.doc, 1, 6)))
-  assert.equal(shouldShow(selected, true), false)
+  assert.equal(shouldShow(selected, writer), false)
 })
 
 test('nothing is offered for a selected image, which none of these buttons apply to', () => {
@@ -66,7 +104,7 @@ test('nothing is offered for a selected image, which none of these buttons apply
   const at = base.doc.resolve(0).nodeAfter!.nodeSize
   const selected = base.apply(base.tr.setSelection(NodeSelection.create(base.doc, at)))
   assert.equal(selected.selection instanceof NodeSelection, true, 'the fixture selects the image')
-  assert.equal(shouldShow(selected, true), false)
+  assert.equal(shouldShow(selected, writer), false)
 })
 
 test('the bar sits centred above the selection', () => {

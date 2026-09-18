@@ -63,7 +63,7 @@ import { useI18n } from 'vue-i18n'
 
 import { isSafeLinkHref } from './paste'
 import {
-  moveFocus, TOOLBAR_ITEMS, TOOLBAR_WIDTH, toolbarGroups, type ToolbarItem,
+  moveFocus, TOOLBAR_WIDTH, toolbarGroups, visibleItems, type ToolbarItem,
 } from './toolbar'
 
 const props = defineProps<{
@@ -73,23 +73,29 @@ const props = defineProps<{
   /** Bumped whenever the document or selection changed, so the pressed states
    * are recomputed; the editor itself is not reactive. */
   revision: number
+  /** A reader may comment without being able to edit, so the bar appears for
+   * them carrying only that button. */
+  canComment?: boolean
 }>()
 
-const emit = defineEmits<{ dismiss: [] }>()
+const emit = defineEmits<{ dismiss: []; comment: [] }>()
 const { t } = useI18n()
 
 const bar = ref<HTMLElement | null>(null)
 const buttons = new Map<string, HTMLElement>()
-const groups = toolbarGroups()
+const groups = computed(() => toolbarGroups(visibleItems({
+  editable: props.editor?.isEditable ?? false,
+  canComment: props.canComment !== false,
+})))
 
 /**
  * The bar is one tab stop: exactly one button is reachable by Tab, and the
  * arrow keys move between them. Which one that is has to survive the bar being
  * hidden and shown again, so it is held here rather than read from the DOM.
  */
-const focusedId = ref<string>(TOOLBAR_ITEMS[0]!.id)
+const focusedId = ref<string>('')
 
-const flat = computed(() => groups.flat())
+const flat = computed(() => groups.value.flat())
 
 /**
  * The link row.
@@ -166,6 +172,10 @@ function isApple(): boolean {
 function run(item: ToolbarItem) {
   const editor = props.editor
   if (!editor) return
+  if (item.id === 'comment') {
+    emit('comment')
+    return
+  }
   // The link entry opens a row of its own rather than changing the text.
   if (item.id === 'link') {
     if (linkOpen.value) closeLink()
@@ -230,7 +240,9 @@ function onKeyDown(event: KeyboardEvent) {
 // behave the same way every time rather than resuming wherever they left off.
 watch(() => props.visible, (shown) => {
   if (shown) {
-    focusedId.value = TOOLBAR_ITEMS[0]!.id
+    // The first entry this caller has, which for a reader is the comment
+    // button rather than bold.
+    focusedId.value = flat.value[0]?.id ?? ''
   } else {
     // A link row left open over a selection that no longer exists would apply
     // to whatever is selected next.

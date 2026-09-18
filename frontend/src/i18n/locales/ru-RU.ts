@@ -4938,6 +4938,7 @@ export default {
       linkPlaceholder: 'Вставьте или введите ссылку',
       linkRemove: 'Удалить',
       moveBlock: 'Переместить блок',
+      comment: 'Комментировать',
     },
     // Поиск и замена.
     find: {
@@ -4957,6 +4958,30 @@ export default {
     },
     // Ссылки на блоки.
     // История страницы.
+    // Комментарии.
+    comments: {
+      title: 'Комментарии',
+      empty: 'Пока нет комментариев',
+      placeholder: 'Оставьте комментарий',
+      replyPlaceholder: 'Ответить',
+      reply: 'Ответить',
+      resolve: 'Решено',
+      reopen: 'Открыть снова',
+      resolvedBy: 'Решено: {name}',
+      showResolved: 'Показывать решённые',
+      edited: 'изменено',
+      submit: 'Отправить',
+      submitHint: 'Enter — отправить, Shift+Enter — новая строка',
+      deleteTitle: 'Удалить комментарий',
+      deleteConfirm: 'Удалить этот ответ?',
+      deleteThreadConfirm: 'Удалить комментарий и все ответы к нему?',
+      loadFailed: 'Не удалось загрузить комментарии',
+      group: {
+        inline: 'К тексту',
+        page: 'К странице',
+        orphaned: 'Текста больше нет на странице',
+      },
+    },
     history: {
       title: 'История версий',
       empty: 'Версий пока нет',
