@@ -258,6 +258,12 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 	// transclusion.go.
 	s.recordTransclusions(ctx, page, structure)
 	s.refreshTransclusionSnapshots(ctx, page, node)
+	// A version of the page, if this save is one. The policy decides; see
+	// internal/docs/history.
+	s.snapshot(ctx, snapshotInput{
+		page: page, node: node, raw: raw, text: text, words: structure.WordCount,
+		reason: model.RevisionInterval, editors: editors, changed: upd.ContentChanged,
+	})
 	if upd.ContentChanged {
 		s.publish(ctx, events.New(events.PageContent, in.TenantID).WithSpace(page.SpaceID).WithPage(in.PageID).
 			WithActor(upd.EditorID).With("version", version).With("word_count", structure.WordCount).

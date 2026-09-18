@@ -1144,6 +1144,11 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 				logger.Warnf(ctx, "[docs] clearing the block snapshots of page %s failed: %v", id, err)
 			}
 		}
+		if s.d.Repos.History != nil {
+			if err := s.d.Repos.History.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+				logger.Warnf(ctx, "[docs] clearing the history of page %s failed: %v", id, err)
+			}
+		}
 	}
 	s.publish(ctx, events.New(events.PagePurged, actor.TenantID).WithSpace(space.ID).WithPage(pageID).
 		WithActor(actor.UserID).With("ids", ids))

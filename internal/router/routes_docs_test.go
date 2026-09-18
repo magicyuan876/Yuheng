@@ -58,6 +58,11 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		// Likewise for block references: the list is as long as the open page
 		// has references, and resolving one reads and changes nothing.
 		{http.MethodPost, "/api/v1/docs/block-refs/resolve", types.APIKeyCapabilityDocsRead},
+		// History is read under the page, and restoring is a write to it.
+		{http.MethodGet, "/api/v1/docs/pages/:pid/revisions", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/pages/:pid/revisions/:rid", types.APIKeyCapabilityDocsRead},
+		{http.MethodGet, "/api/v1/docs/pages/:pid/revisions/:rid/diff", types.APIKeyCapabilityDocsRead},
+		{http.MethodPost, "/api/v1/docs/pages/:pid/revisions/:rid/restore", types.APIKeyCapabilityDocsWrite},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

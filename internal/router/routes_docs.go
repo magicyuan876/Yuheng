@@ -165,10 +165,21 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	admin.POST("/pages/:pid/grants", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
 	admin.DELETE("/pages/:pid/grants/:ptype/:principal", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
-	read.GET("/pages/:pid/revisions", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	read.GET("/pages/:pid/diff", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	// History. Every version is addressed under its page rather than by its
+	// own id, because a version's permissions are the page's permissions --
+	// it is that page at an earlier moment. Addressing one on its own would
+	// mean a guard that can only check membership and a second, hand-written
+	// permission check inside each handler, which is the shape mistakes are
+	// made in. The service additionally refuses a revision id that belongs to
+	// a different page, so the guard and the row cannot disagree.
+	read.GET("/pages/:pid/revisions", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.History)
+	read.GET("/pages/:pid/revisions/:rid", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Revision)
+	read.GET("/pages/:pid/revisions/:rid/diff", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.RevisionDiff)
 	write.POST("/pages/:pid/revisions/:rid/restore", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.RestoreRevision)
 	read.GET("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	write.POST("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	read.GET("/pages/:pid/shares", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
@@ -200,8 +211,10 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.PUT("/pages/:pid/ydoc", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ls.SaveYDoc)
 
-	// ---- revisions, comments, shares, attachments addressed by their own id ----
-	read.GET("/revisions/:rid", g.Viewer(), guard.RequireMember(), ni)
+	// ---- comments, shares, attachments addressed by their own id ----
+	// Revisions are deliberately absent: see the history routes above for why
+	// they are addressed under their page instead. T4.4's route audit should
+	// find this note rather than a missing endpoint.
 	write.PATCH("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
 	write.DELETE("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
 	write.POST("/comments/:cid/resolve", g.Viewer(), guard.RequireMember(), idem, ni)
