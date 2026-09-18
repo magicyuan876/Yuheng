@@ -43,7 +43,7 @@ npm run preview  # 预览构建产物
 | `kb-folder-tree.png` | 知识库 | 文档列表的文件夹树 |
 | `kg-graph.png` | 知识图谱 | 实体关系图 |
 
-仓库 `docs/images/` 下已有一批现成的产品截图（`qa.png`、`knowledgebases.png`、`wiki-browser.png`、`wiki-graph.png`、`settings.png`、`agent-qa.png`、`graph1-3.png`、`langfuse.png`、`rbac-*.png` 等），补图时可以先看看能否直接复用。
+仓库 `docs/images/` 下已有一批现成的产品截图（`qa.png`、`knowledgebases.png`、`wiki-browser.png`、`wiki-graph.png`、`settings.png`、`graph1-3.png`、`langfuse.png`、`rbac-*.png` 等），补图时可以先看看能否直接复用。
 
 ## 阅读路径建议
 
@@ -59,10 +59,10 @@ npm run preview  # 预览构建产物
 
 | 文档 | 内容 |
 | --- | --- |
-| [产品介绍](01-getting-started/01-introduction.md) | Yuheng 是什么、核心概念（租户/知识库/知识/分块/会话/Agent 等）、功能总览与系统组件图 |
+| [产品介绍](01-getting-started/01-introduction.md) | Yuheng 是什么、核心概念（租户/知识库/知识/分块/Wiki/会话等）、功能总览与系统组件图 |
 | [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm |
 | [快速上手](01-getting-started/03-quickstart.md) | 注册 → 初始化向导 → 配置模型 → 建库 → 上传 → 问答的完整路径，含可直接执行的 curl 链路 |
-| [配置详解](01-getting-started/04-configuration.md) | config.yaml 全字段、约 150 个环境变量、prompt 模板、内置模型与内置 Agent 配置 |
+| [配置详解](01-getting-started/04-configuration.md) | config.yaml 全字段、prompt 模板、内置模型配置 |
 
 ### 02 架构
 
@@ -84,7 +84,7 @@ npm run preview  # 预览构建产物
 | [分块机制](03-features/04-chunking.md) | 自适应分块架构（heading/heuristic/recursive）、父子分块、语义边界重叠、ContextHeader、调试端点 |
 | [检索引擎与向量存储](03-features/05-retrieval-engines.md) | 各检索引擎（向量/BM25/全文/混合）能力对比、驱动选择、维度管理、打分归一化 |
 | [模型管理](03-features/06-models.md) | 5 类模型、26 个厂商 Provider、内置模型机制、Ollama 本地模型、限流与用量 |
-| [MCP 集成](03-features/08-mcp.md) | MCP 客户端管理、OAuth 2.0 + PKCE 全流程、Yuheng MCP Server（`yuheng-mcp`，23 个工具） |
+| [MCP 集成](03-features/08-mcp.md) | Yuheng MCP Server（`yuheng-mcp`，23 个工具，stdio / SSE / HTTP） |
 | [知识图谱](03-features/09-knowledge-graph.md) | 两级开关、LLM 实体关系抽取、Neo4j 存储、图谱增强检索 |
 | [数据源导入](03-features/10-datasource.md) | 连接器体系（飞书/Lark/Notion/语雀/RSS）、凭据加密、同步调度与增量更新 |
 | [网络搜索与网页抓取](03-features/11-web-search.md) | 9 个搜索引擎、SSRF 防护、web_fetch 双实现、SearXNG 自托管 |
@@ -99,7 +99,7 @@ npm run preview  # 预览构建产物
 
 ### 04 API 参考
 
-覆盖约 360 个端点，每个端点含权限要求、参数表与 curl 示例。
+覆盖约 220 个端点，每个端点含权限要求、参数表与 curl 示例。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -130,7 +130,7 @@ npm run preview  # 预览构建产物
 | --- | --- |
 | [开发指南](06-development/01-dev-guide.md) | 环境要求、Makefile 全目标、开发模式、四条测试线、CI 与代码规范、调试技巧 |
 | [数据库与迁移](06-development/02-database-schema.md) | 40+ 张表结构与 ER 图、golang-migrate 版本化迁移、新增迁移步骤、故障排查 |
-| [扩展点指南](06-development/03-extension-points.md) | 9 大扩展点：解析器/分块策略/检索引擎/模型 Provider/搜索引擎/数据源连接器/IM 适配器/Agent 工具/存储后端 |
+| [扩展点指南](06-development/03-extension-points.md) | 7 大扩展点：解析器/分块策略/检索引擎/模型 Provider/搜索引擎/数据源连接器/存储后端 |
 
 ## 系统组件速览
 
@@ -172,7 +172,7 @@ flowchart LR
 
 ## 文档约定
 
-- 文中源码路径均相对仓库根目录，如 `internal/handler/session.go`。
+- 文中源码路径均相对仓库根目录，如 `internal/handler/session/`。
 - API 路径默认带 `/api/v1` 前缀；认证方式见 [API 总览](04-api/01-api-overview.md)。
 - 配置示例中的密钥均为占位符，生产环境务必替换（尤其 `JWT_SECRET`、`SYSTEM_AES_KEY`、数据库口令）。
 - 文档基于仓库根目录 `VERSION` 文件对应版本源码整理（VitePress 构建时自动读取），随代码变更同步维护。

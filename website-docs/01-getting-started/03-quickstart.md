@@ -133,16 +133,12 @@ SESSION_ID=$(curl -s -X POST $BASE/sessions -H "$AUTH" -H "Content-Type: applica
 curl -N -X POST $BASE/knowledge-chat/$SESSION_ID -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"这份文档讲了什么？","knowledge_base_ids":["'$KB_ID'"]}'
 
-# 7b) Agent 对话（同为 SSE；agent_id 可取内置 builtin-smart-reasoning）
-curl -N -X POST $BASE/agent-chat/$SESSION_ID -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"query":"总结文档要点并列出依据","agent_enabled":true,"agent_id":"builtin-smart-reasoning","knowledge_base_ids":["'$KB_ID'"]}'
-
 # 8) 仅检索不生成（结构化 JSON 结果）
 curl -s -X POST $BASE/knowledge-search -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"关键字","knowledge_base_ids":["'$KB_ID'"]}'
 ```
 
-问答请求体还支持 `knowledge_ids`（限定单文档）、`web_search_enabled`、`summary_model_id`、`mcp_service_ids`、`skill_names`、`images` / `attachment_uploads`（多模态附件）等字段，完整说明见 [API 参考：会话与聊天](../04-api/02-api-chat.md)。
+问答请求体还支持 `knowledge_ids`（限定单文档）、`web_search_enabled`、`summary_model_id`、`images` / `attachment_uploads`（多模态附件）等字段，完整说明见 [API 参考：会话与聊天](../04-api/02-api-chat.md)。
 
 ### 三种认证方式
 

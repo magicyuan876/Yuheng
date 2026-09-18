@@ -100,8 +100,6 @@ graph TB
     KG -.-> KGSetup
     MCP -.-> BuiltinMCP
     BuiltinMCP -.-> BuiltinModel
-    Skills -.-> IM
-    IM -.-> DS
     DS -.-> SharedSpace
     OIDC -.-> RBAC
     RBAC -.-> SharedSpace

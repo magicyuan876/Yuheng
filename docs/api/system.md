@@ -35,15 +35,9 @@ curl --location 'http://localhost:8080/api/v1/system/capabilities' \
   "data": {
     "capabilities": {
       "organizations": { "supported": true },
-      "agents": { "supported": false, "reason": "route_not_registered" },
-      "integrations.im": { "supported": false, "reason": "route_not_registered" },
-      "integrations.embed": { "supported": false, "reason": "route_not_registered" },
-      "integrations.api": { "supported": true },
-      "settings.mcp": { "supported": false, "reason": "route_not_registered" },
       "settings.websearch": { "supported": true },
       "settings.vectorstore": { "supported": true },
-      "settings.storage": { "supported": true },
-      "settings.sandbox": { "supported": false, "reason": "route_not_registered" }
+      "settings.storage": { "supported": true }
     }
   }
 }

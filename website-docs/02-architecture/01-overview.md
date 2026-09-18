@@ -168,7 +168,7 @@ sequenceDiagram
 | `cmd/` | 可执行入口。`cmd/server`：主服务（main/bootstrap/listen + 平台信号处理）；`cmd/download`：模型/资源下载辅助工具 |
 | `internal/` | Go 后端全部业务代码（分层结构见后端设计篇）：`handler`、`application/service`、`application/repository`、`container`（DI）、`router`、`middleware`、`types`、`modelcontext`、`dataanalysis`、`stream` 等 |
 | `frontend/` | Vue3 + Vite + TDesign 的 Web 前端，构建产物由 NGINX 托管 |
-| `docreader/` | Python gRPC 文档解析微服务：`main.py` 服务端入口、`parser/` 25+ 解析器、`splitter/` 分割器、`proto/` 协议定义、独立 `Dockerfile.docreader` 构建 |
+| `docreader/` | Python gRPC 文档解析微服务：`main.py` 服务端入口、`parser/` 十余个解析器（覆盖 25+ 文件格式）、`splitter/` 分割器、`proto/` 协议定义、独立 `Dockerfile.docreader` 构建 |
 | `cli/` | `yuheng` 命令行工具（约 30 个子命令：部署、日志、备份、诊断等） |
 | `client/` | Go SDK：以 HTTP 客户端形式封装 Yuheng API，供二次开发集成 |
 | `mcp-server/` | Python 实现的 MCP Server（`yuheng_mcp_server.py`），把 Yuheng API 暴露为 MCP 工具给 Claude 等 MCP 客户端 |
