@@ -136,6 +136,12 @@ func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *re
 	docs.POST("/pages/:pid/restore", guard.RequireMember(), h.Pages.Restore)
 	docs.GET("/pages/:pid/ancestors", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Ancestors)
 	docs.GET("/pages/:pid/children", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Children)
+	docs.POST("/spaces/:sid/attachments",
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), h.Files.Upload)
+	docs.GET("/attachments/:aid", guard.RequireMember(), h.Files.Download)
+	docs.DELETE("/attachments/:aid", guard.RequireMember(), h.Files.Delete)
+	docs.GET("/pages/:pid/attachments",
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Files.ListForPage)
 	docs.GET("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Leases.Get)
 	docs.POST("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.Acquire)
 	docs.DELETE("/pages/:pid/lease", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Leases.Release)

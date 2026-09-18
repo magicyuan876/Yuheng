@@ -6723,6 +6723,17 @@ export default {
       iconPlaceholder: '输入一个 Emoji 作为图标',
       removeIcon: '移除图标',
     },
+    attachments: {
+      attach: '插入文件',
+      uploading: '正在上传 {name}…',
+      remove: '移除',
+      unnamed: '未命名文件',
+      imageAlt: '编辑替代文字',
+      imageAltPrompt: '图片的替代文字（供读屏与图片加载失败时显示）',
+      alignLeft: '左对齐',
+      alignCenter: '居中',
+      alignRight: '右对齐',
+    },
     trash: {
       title: '回收站',
       subtitle: '删除的页面会保留在这里；恢复后回到原位置，父页面已删除时挂到空间根部。',

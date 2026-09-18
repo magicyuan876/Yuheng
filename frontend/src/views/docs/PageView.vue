@@ -92,6 +92,7 @@
           :key="editorKey"
           class="page-body"
           :page-id="page.id"
+          :space-id="page.space_id"
           :tenant-id="tenantId"
           :can-edit="page.can_edit"
           :collab-url="collabUrl"

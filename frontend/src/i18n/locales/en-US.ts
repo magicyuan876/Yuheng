@@ -6722,6 +6722,17 @@ export default {
       iconPlaceholder: 'Type an emoji to use as the icon',
       removeIcon: 'Remove icon',
     },
+    attachments: {
+      attach: 'Insert file',
+      uploading: 'Uploading {name}…',
+      remove: 'Remove',
+      unnamed: 'Untitled file',
+      imageAlt: 'Edit alt text',
+      imageAltPrompt: 'Alt text for this image (read aloud, and shown if it fails to load)',
+      alignLeft: 'Align left',
+      alignCenter: 'Align centre',
+      alignRight: 'Align right',
+    },
     trash: {
       title: 'Trash',
       subtitle: 'Deleted pages are kept here. Restored pages return to where they were; if the parent is gone they go to the space root.',

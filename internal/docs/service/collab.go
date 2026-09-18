@@ -238,6 +238,11 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 	if err != nil {
 		return nil, err
 	}
+	// A file pasted into the page becomes that page's attachment here, in the
+	// one place both editing transports pass through, rather than at upload
+	// time: until the document that references it is saved, nothing says the
+	// paste was kept.
+	s.bindAttachments(ctx, page, structure.AttachmentIDs)
 	if upd.ContentChanged {
 		s.publish(ctx, events.New(events.PageContent, in.TenantID).WithSpace(page.SpaceID).WithPage(in.PageID).
 			WithActor(upd.EditorID).With("version", version).With("word_count", structure.WordCount).

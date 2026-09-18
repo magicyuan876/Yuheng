@@ -1,10 +1,12 @@
-// Assembles the editor's Tiptap extension set from official, MIT-licensed
-// packages only. Every node/mark here is one of packages/docs-schema's
-// definitions; the handful the schema declares but no work package has
-// implemented yet (images, callouts, mentions, embeds, and the rest listed
-// in the design's node table under T1.6/T2.x/T3.2) are intentionally absent
-// -- a page containing one fails to load until its own work package lands,
-// which is expected at this stage and called out in docsSchemaTest.ts.
+// Assembles the editor's Tiptap extension set. Every node/mark here is one of
+// packages/docs-schema's definitions. All of them come from official,
+// MIT-licensed Tiptap packages except the two media nodes (image, attachment),
+// which the schema declares in a shape no stock extension has and which live
+// in mediaNodes.ts. The handful the schema declares but no work package has
+// implemented yet (callouts, mentions, embeds, and the rest listed in the
+// design's node table under T2.x/T3.2) are intentionally absent -- a page
+// containing one fails to load until its own work package lands, which is
+// expected at this stage and asserted as expected in extensions.test.ts.
 //
 // Each extension is `.extend()`-ed only where the stock default diverges
 // from packages/docs-schema/schema.json (extra attributes such as Link's
@@ -12,7 +14,7 @@
 // Where the stock shape already matches, it is used as-is -- recorded in
 // the comment on each entry so the next reader does not have to re-derive
 // it by reading the library's source.
-import { Extension, type AnyExtension } from '@tiptap/core'
+import { Extension, type AnyExtension, type NodeViewRenderer } from '@tiptap/core'
 import Blockquote from '@tiptap/extension-blockquote'
 import Bold from '@tiptap/extension-bold'
 import Code from '@tiptap/extension-code'
@@ -53,6 +55,7 @@ import yaml from 'highlight.js/lib/languages/yaml'
 import { createLowlight } from 'lowlight'
 
 import { BlockId, TextBlockAttrs } from './blockAttrs'
+import { DocAttachment, DocImage } from './mediaNodes'
 
 // A small, common core rather than lowlight's `common`/`all` bundle: this is
 // a documentation tool, not a code sandbox, and a smaller grammar set keeps
@@ -136,12 +139,31 @@ const DocSubscript = Subscript.extend({ excludes: 'superscript' })
 const DocSuperscript = Superscript.extend({ excludes: 'subscript' })
 
 /**
- * The officially-covered subset of packages/docs-schema for this work
- * package. Extras get folded in via `extra` (used by the schema-conformance
- * test to also cover the custom BlockId/TextBlockAttrs extensions without
- * duplicating this whole list there).
+ * Node views for the nodes that have one. They are supplied by the caller
+ * rather than declared on the node so that mediaNodes.ts stays free of Vue
+ * and the schema-conformance test can load it without a DOM.
  */
-export function officialExtensions(extra: AnyExtension[] = []): AnyExtension[] {
+export interface EditorNodeViews {
+  image?: NodeViewRenderer
+  attachment?: NodeViewRenderer
+}
+
+/** Attaches a node view to a node, when the caller supplied one. */
+function withView<T extends AnyExtension>(node: T, view?: NodeViewRenderer): AnyExtension {
+  if (!view) return node
+  return node.extend({ addNodeView: () => view })
+}
+
+/**
+ * The covered subset of packages/docs-schema. Extras get folded in via
+ * `extra` (used by the schema-conformance test to also cover the custom
+ * BlockId/TextBlockAttrs extensions without duplicating this whole list
+ * there), and `views` supplies the node views for the media nodes.
+ */
+export function officialExtensions(
+  extra: AnyExtension[] = [],
+  views: EditorNodeViews = {},
+): AnyExtension[] {
   return [
     // doc/text/paragraph: bare, matching the schema exactly.
     Document.extend({ marks: '' }), // no marks allowed directly on the root
@@ -170,6 +192,8 @@ export function officialExtensions(extra: AnyExtension[] = []): AnyExtension[] {
     DocDetails,
     DocDetailsSummary,
     DetailsContent,
+    withView(DocImage, views.image),
+    withView(DocAttachment, views.attachment),
     // Marks.
     Bold,
     Italic,
