@@ -11,7 +11,7 @@
 | Router / Middleware | `internal/router/`、`internal/middleware/` | 路由注册、认证、RBAC、限流、日志、错误信封 |
 | Handler | `internal/handler/`（会话相关在 `internal/handler/session/`） | 解析请求参数（DTO 在 `internal/handler/dto/`）、调用 Service、写响应；不含业务逻辑 |
 | Service | `internal/application/service/`（约 160+ 文件） | 业务编排：知识库/知识/分块、会话与 `chat_pipeline/` 流水线、租户与成员、模型、数据源同步、Wiki、审计等 |
-| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,elasticsearch,qdrant,milvus,weaviate,doris,opensearch,tencentvectordb,sqlite,neo4j}` |
+| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,elasticsearch,qdrant,milvus,weaviate,doris,opensearch,tencentvectordb,neo4j}` |
 | 领域模型 | `internal/types/` | GORM 实体、枚举、context key、接口定义（`types/interfaces`） |
 | 基础设施 | `internal/infrastructure/`（docparser gRPC 客户端、web_search）、`internal/models/`（chat/embedding/rerank 模型适配）、`internal/stream/` | 外部系统适配 |
 
@@ -22,7 +22,7 @@ graph TD
     H --> S["Service 层 (internal/application/service)<br/>业务编排 / chat_pipeline / 事务"]
     S --> R["Repository 层 (internal/application/repository)<br/>GORM 数据访问"]
     S --> Q["TaskEnqueuer (Asynq / SyncTaskExecutor)"]
-    R --> DB[("PostgreSQL / SQLite (GORM)")]
+    R --> DB[("PostgreSQL (GORM)")]
     R --> VS[("检索引擎仓储 repository/retriever/*<br/>pgvector / ES / Qdrant / Milvus / Doris ...")]
     S --> INF["基础设施适配<br/>docparser(gRPC) / models(LLM) / stream"]
     Q --> W["Asynq Worker (同进程, 6 个池)"]
@@ -48,7 +48,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
     must(container.Provide(NewResourceCleaner, dig.As(new(interfaces.ResourceCleaner))))
     must(container.Provide(config.LoadConfig))
     must(container.Provide(initDatabase))     // *gorm.DB
-    must(container.Provide(initRedisClient))  // *redis.Client（可为 nil：Lite 模式）
+    must(container.Provide(initRedisClient))  // *redis.Client（可为 nil：无 Redis 时）
     ...
     must(container.Provide(repository.NewTenantRepository))
     must(container.Provide(service.NewTenantService))
@@ -84,10 +84,10 @@ if redisAvailable {
     ... // 共 6 个 worker 池 + AsynqInspector
     must(container.Invoke(registerModelConcurrencyLimiter))   // Redis 分布式 per-model 并发闸门
 } else {
-    syncExec := router.NewSyncTaskExecutor()                  // Lite 模式：进程内同步执行器
+    syncExec := router.NewSyncTaskExecutor()                  // 无 Redis：进程内同步执行器
     must(container.Provide(func() interfaces.TaskEnqueuer { return syncExec }))
     must(container.Provide(router.NewNoopTaskInspector))
-    must(container.Invoke(registerLiteModelConcurrencyLimiter)) // 进程内信号量
+    must(container.Invoke(registerLocalModelConcurrencyLimiter)) // 进程内信号量
 }
 ```
 
@@ -97,7 +97,7 @@ if redisAvailable {
 
 - `ResourceCleaner`（`internal/container/cleanup.go`）：各组件通过 `RegisterWithName(name, cleanupFunc)` 注册析构（ants 池、Langfuse flush、数据源调度器、Housekeeping 等），退出时统一 `Cleanup(ctx)`；
 - `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行运行时创建检索引擎实例（`createQdrantEngine` / `createMilvusEngine` / `createDorisEngine` / `createOpenSearchEngine` ...），而非启动期静态绑定单一引擎；
-- `initDatabase` 除建连外还负责：golang-migrate 自动迁移（`AUTO_MIGRATE`，失败仅告警不阻断）、`__pending_env__` 存储 provider 回填、遗留 StorageBackend 迁移、序列同步、Lite 模式 pending 任务复位、`config/builtin_models.yaml` 声明式内置模型 UPSERT；SQLite 时强制 `SetMaxOpenConns(1)` 串行化写入。
+- `initDatabase` 除建连外还负责：golang-migrate 自动迁移（`AUTO_MIGRATE`，失败仅告警不阻断）、`__pending_env__` 存储 provider 回填、遗留 StorageBackend 迁移、序列同步、pending 任务复位、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
 
 ## 3. cmd/server 启动流程
 
@@ -114,7 +114,7 @@ flowchart TD
     F --> F2["bootstrapSystemAdmin<br/>YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL 指定的用户<br/>在无系统管理员时晋升为超管 (幂等)"]
     F --> G["c.Invoke(cfg, router, resourceCleaner, systemSettingSvc)"]
     G --> H["listenWithRetry(addr, 10 次, 300ms 指数退避, 上限 3s)"]
-    H --> I["systemSettingSvc.SubscribeRedis(ctx)<br/>订阅 system_settings 变更 (Lite 模式 no-op)"]
+    H --> I["systemSettingSvc.SubscribeRedis(ctx)<br/>订阅 system_settings 变更 (无 Redis 时 no-op)"]
     I --> J["signal.Notify(shutdownSignals) + server.Serve(listener)"]
     J --> K{"收到第一个信号?"}
     K -->|是| L["listener.Close() 立即释放端口<br/>server.Shutdown(ctx, ShutdownTimeout 默认 30s) 优雅排空"]
@@ -140,7 +140,6 @@ flowchart TD
 1. `gin.New()` + `SetTrustedProxies`（`YUHENG_TRUSTED_PROXIES`，默认仅信任回环与私网段，防止伪造 `X-Forwarded-For` 绕过按 IP 限流）；
 2. 全局中间件：`cors` → `RequestID` → `Language` → `Logger` → `Recovery` → `ErrorHandler`；
 3. 免认证端点：`GET /health`；非 release 模式挂载 `/swagger/*any`；
-4. Lite 版内嵌前端静态资源（`handler.Edition == "lite"`）；
 5. **认证之前**注册的公开路由：短时效能力 URL（resource grants）；
 6. `middleware.Auth(...)` 全局认证；随后是需认证的文件代理路由、免认证但签名校验的 presigned 文件路由、Langfuse trace 中间件、`AuditServiceProvider`；
 7. `v1 := r.Group("/api/v1")`：先 `v1.Use(rbacGuards.apiKeyAuthorizer.Middleware())`（API Key 网关，JWT 会话直接放行），再依次调用 26 个 `RegisterXxxRoutes(v1, handler, rbacGuards)`；

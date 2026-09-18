@@ -15,7 +15,6 @@ interface Settings {
   modelConfig: ModelConfig;  // 模型配置
   ollamaConfig: OllamaConfig;  // Ollama配置
   conversationModels: ConversationModels;
-  autoCheckUpdate?: boolean; // 是否自动检查并下载更新
 }
 
 interface ConversationModels {
@@ -75,7 +74,6 @@ const defaultSettings: Settings = {
     rerankModelId: "",
     selectedChatModelId: "",  // 用户当前选择的对话模型ID
   },
-  autoCheckUpdate: true,
 };
 
 export const useSettingsStore = defineStore("settings", {
@@ -105,8 +103,6 @@ export const useSettingsStore = defineStore("settings", {
     // 获取模型配置
     modelConfig: (state) => state.settings.modelConfig || defaultSettings.modelConfig,
 
-    // 是否自动检查并下载更新
-    isAutoCheckUpdateEnabled: (state) => state.settings.autoCheckUpdate ?? true,
   },
 
   actions: {
@@ -241,12 +237,6 @@ export const useSettingsStore = defineStore("settings", {
     // 获取选中的知识库列表
     getSelectedKnowledgeBases(): string[] {
       return this.settings.selectedKnowledgeBases || [];
-    },
-
-    // 启用/禁用自动检查更新
-    toggleAutoCheckUpdate(enabled: boolean) {
-      this.settings.autoCheckUpdate = enabled;
-      localStorage.setItem("Yuheng_settings", JSON.stringify(this.settings));
     },
 
     // File selection actions

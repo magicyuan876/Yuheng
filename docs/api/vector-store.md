@@ -2,7 +2,7 @@
 
 [返回目录](./README.md)
 
-向量存储（VectorStore）API 用于管理空间的向量数据库连接配置，支持 Elasticsearch、PostgreSQL、Qdrant、Milvus、Weaviate、Tencent VectorDB、SQLite 等引擎。接口同时管理用户在 DB 中创建的配置（`source: "user"`）以及通过 `RETRIEVE_DRIVER` 环境变量配置的虚拟存储（`source: "env"`，只读）。
+向量存储（VectorStore）API 用于管理空间的向量数据库连接配置，支持 Elasticsearch、PostgreSQL、Qdrant、Milvus、Weaviate、Tencent VectorDB 等引擎。接口同时管理用户在 DB 中创建的配置（`source: "user"`）以及通过 `RETRIEVE_DRIVER` 环境变量配置的虚拟存储（`source: "env"`，只读）。
 
 | 方法   | 路径                         | 描述                             |
 | ------ | ---------------------------- | -------------------------------- |
@@ -62,7 +62,7 @@ curl --location 'http://localhost:8080/api/v1/vector-stores/types' \
 
 ## POST `/vector-stores/test` - 使用原始凭据测试连接
 
-用前端表单中尚未保存的凭据执行一次连通性测试，不会写入数据库。成功时返回自动检测到的服务器版本（如 ES 版本号）；某些引擎（如 Milvus、SQLite）无法检测版本，`version` 会返回空字符串。
+用前端表单中尚未保存的凭据执行一次连通性测试，不会写入数据库。成功时返回自动检测到的服务器版本（如 ES 版本号）；某些引擎（如 Milvus）无法检测版本，`version` 会返回空字符串。
 
 **参数说明（请求体）**:
 
@@ -335,7 +335,7 @@ curl --location --request PUT 'http://localhost:8080/api/v1/vector-stores/550e84
 
 **Phase 2 — 绑定保护**：
 
-删除请求在事务中执行，并按 `(tenant_id, vector_store_id)` 复合索引统计当前空间中仍绑定到该存储的活跃知识库数量。**只要存在任意绑定的知识库（已软删除的 KB 不计入），删除即被拒绝**，调用者必须先解绑或删除这些知识库才能继续。在 PostgreSQL 上，事务期间会对 `vector_stores` 行加 `SELECT … FOR UPDATE` 行锁，阻止并发的知识库创建请求悄悄落到正在被删除的存储上（SQLite 上则依赖 WAL + 单写入序列化达成同样语义）。
+删除请求在事务中执行，并按 `(tenant_id, vector_store_id)` 复合索引统计当前空间中仍绑定到该存储的活跃知识库数量。**只要存在任意绑定的知识库（已软删除的 KB 不计入），删除即被拒绝**，调用者必须先解绑或删除这些知识库才能继续。在 PostgreSQL 上，事务期间会对 `vector_stores` 行加 `SELECT … FOR UPDATE` 行锁，阻止并发的知识库创建请求悄悄落到正在被删除的存储上。
 
 **路径参数**:
 

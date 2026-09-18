@@ -15,7 +15,7 @@ import (
 )
 
 // SyncTaskExecutor executes tasks synchronously (in a goroutine) without Redis.
-// Used in Lite mode as a drop-in replacement for *asynq.Client.
+// Used when Redis is unavailable as a drop-in replacement for *asynq.Client.
 type SyncTaskExecutor struct {
 	mu       sync.RWMutex
 	handlers map[string]func(context.Context, *asynq.Task) error
@@ -81,7 +81,7 @@ func (e *SyncTaskExecutor) Enqueue(task *asynq.Task, opts ...asynq.Option) (*asy
 		}
 
 		// Tag as a background worker execution so the per-model concurrency
-		// governor throttles Lite-mode ingestion/enrichment LLM calls, mirroring
+		// governor throttles no-Redis ingestion/enrichment LLM calls, mirroring
 		// the asynq backgroundTaskMiddleware in the Redis path.
 		ctx := types.WithBackgroundTask(context.Background())
 		start := time.Now()
@@ -133,7 +133,7 @@ type SyncTaskParams struct {
 }
 
 // RegisterSyncHandlers registers all task handlers on the SyncTaskExecutor.
-// Used in Lite mode instead of RunAsynqServer.
+// Used instead of RunAsynqServer when Redis is unavailable.
 func RegisterSyncHandlers(params SyncTaskParams) {
 	params.Executor.RegisterHandler(types.TypeChunkExtract, params.ChunkExtractor.Handle)
 	params.Executor.RegisterHandler(types.TypeDataTableSummary, params.DataTableSummary.Handle)
@@ -155,5 +155,5 @@ func RegisterSyncHandlers(params SyncTaskParams) {
 	params.Executor.RegisterHandler(types.TypeDataSourceSync, params.DataSourceService.ProcessSync)
 	params.Executor.RegisterHandler(types.TypeWikiIngest, params.WikiIngest.Handle)
 	params.Executor.RegisterHandler(types.TypeWikiFinalize, params.WikiIngest.Handle)
-	logger.Infof(context.Background(), "[SyncTask] All task handlers registered (Lite mode, no Redis)")
+	logger.Infof(context.Background(), "[SyncTask] All task handlers registered (no Redis)")
 }

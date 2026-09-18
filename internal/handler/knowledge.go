@@ -639,8 +639,8 @@ func (h *KnowledgeHandler) GetKnowledgeSpans(c *gin.Context) {
 	}
 
 	// Pick attempt: explicit ?attempt=N wins; otherwise pull the
-	// latest attempt from the spans table. Lite-mode / fresh installs
-	// with zero rows fall through to attempt=0, in which case we
+	// latest attempt from the spans table. Fresh installs with zero
+	// rows fall through to attempt=0, in which case we
 	// return a placeholder tree (5 pending stages, no root, no
 	// children) so the UI still renders.
 	requestedAttempt := 0

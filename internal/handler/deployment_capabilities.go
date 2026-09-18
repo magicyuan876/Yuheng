@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +23,6 @@ type DeploymentCapability struct {
 
 // DeploymentCapabilitiesData is returned by GET /system/capabilities.
 type DeploymentCapabilitiesData struct {
-	Edition      string                          `json:"edition"`
 	Capabilities map[string]DeploymentCapability `json:"capabilities"`
 }
 
@@ -45,19 +43,11 @@ func supportedDeploymentCapability(supported bool) DeploymentCapability {
 
 // BuildDeploymentCapabilities derives the deployment capability snapshot.
 func BuildDeploymentCapabilities(
-	edition string,
 	available DeploymentFeatureAvailability,
 ) DeploymentCapabilitiesData {
-	isLite := strings.EqualFold(strings.TrimSpace(edition), "lite")
-	organizations := supportedDeploymentCapability(available.Organizations && !isLite)
-	if isLite {
-		organizations.Reason = "not_supported_in_lite"
-	}
-
 	return DeploymentCapabilitiesData{
-		Edition: edition,
 		Capabilities: map[string]DeploymentCapability{
-			"organizations":        organizations,
+			"organizations":        supportedDeploymentCapability(available.Organizations),
 			"settings.websearch":   supportedDeploymentCapability(available.WebSearch),
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),

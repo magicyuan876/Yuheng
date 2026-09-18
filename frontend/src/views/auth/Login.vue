@@ -336,7 +336,6 @@ import {
   register,
   getOIDCAuthorizationURL,
   getOIDCConfig,
-  autoSetup,
   getAuthConfig,
   userInfoFromApi,
   getInvitationByToken,
@@ -744,11 +743,11 @@ const handleRegister = async () => {
   }
 }
 
-// Check if already logged in; for lite edition, attempt transparent auto-setup
+// Check if already logged in; logged-in users go straight to the workspace.
 onMounted(async () => {
   // Share-link landing: ?token=xxx switches the form into invite-
   // register mode before any other auto-flow (logged-in redirect /
-  // auto-setup / OIDC) gets a chance to redirect. Resolution failure
+  // OIDC) gets a chance to redirect. Resolution failure
   // surfaces inline; the user can still log in normally if they
   // already have an account. We check this BEFORE the isLoggedIn
   // redirect so an existing session doesn't bounce the user to
@@ -796,22 +795,6 @@ onMounted(async () => {
   if (authStore.isLoggedIn) {
     router.replace('/platform/knowledge-bases')
     return
-  }
-
-  const AUTO_SETUP_FAILED_KEY = 'yuheng_auto_setup_failed'
-  if (localStorage.getItem(AUTO_SETUP_FAILED_KEY) !== 'true') {
-    try {
-      const response = await autoSetup()
-      if (response.success) {
-        authStore.setLiteMode(true)
-        await persistLoginResponse(response)
-        return
-      } else {
-        localStorage.setItem(AUTO_SETUP_FAILED_KEY, 'true')
-      }
-    } catch {
-      localStorage.setItem(AUTO_SETUP_FAILED_KEY, 'true')
-    }
   }
 
   loadOIDCConfig()

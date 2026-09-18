@@ -202,7 +202,7 @@ flowchart LR
 
 - `auditLogService.Log`（`internal/application/service/audit_log.go`）是规范写入口：默认 `outcome=success`、填充 `CreatedAt`；**写失败只记 ERROR 日志不向上传播** —— 审计失败绝不能中断业务操作。
 - `LogDenied` 记录 RBAC 中间件拒绝：以 `(tenant_id, actor, action=rbac.access_denied, route 模板)` 为键做 **1 分钟滑动窗口去重**（`denyDedupWindow`，`repo.CountSinceForDedup`），防止探测客户端灌满表（100 RPS 打同一端点每分钟只产生 1 行）；用路由模板而非原始 URL 作为 dedup 键，防止遍历 UUID 绕过窗口。stderr 侧的 `[rbac] role insufficient` 日志不受去重影响，每次拒绝都打。
-- `middleware/audit_provider.go` 的 `AuditServiceProvider` 把 service 注入 gin context（键 `yuheng.audit_service`），RBAC 中间件经 `AuditServiceFromContext` 取用，nil 安全（Lite 模式可不配审计）。
+- `middleware/audit_provider.go` 的 `AuditServiceProvider` 把 service 注入 gin context（键 `yuheng.audit_service`），RBAC 中间件经 `AuditServiceFromContext` 取用，nil 安全（无 Redis 模式可不配审计）。
 
 ### 4.4 查询 API（`internal/handler/audit_log.go`）
 
@@ -224,7 +224,7 @@ flowchart LR
 ### 5.1 通用滑动窗口限流器（`internal/ratelimit/limiter.go`）
 
 - Redis 优先：Lua 脚本原子完成"剔除过期 ZSET 成员 → `ZCARD` 计数 → 未超限则 `ZADD` + `PEXPIRE`"，多实例共享预算；member 为 `<instanceID>:<ms>` 保证唯一。
-- Redis 不可用（错误或 Lite 无 Redis）时**自动降级**为进程内 `localLimiter`（`sync.Map` + 每 key 时间戳数组），`StartCleanup` 周期驱逐空 key。
+- Redis 不可用（未配置或连接错误）时**自动降级**为进程内 `localLimiter`（`sync.Map` + 每 key 时间戳数组），`StartCleanup` 周期驱逐空 key。
 - `max` 按每次 `Allow` 调用传入，同一 limiter 可对不同 key 用不同预算（如各 embed 渠道各自配额）。
 - 使用方：公开认证端点的 IP 限流（见下节）。
 

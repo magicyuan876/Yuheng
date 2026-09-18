@@ -11,26 +11,11 @@ test('capability filtering is fail-open unless backend explicitly disables a fea
   assert.equal(isDeploymentCapabilitySupported({}, 'organizations'), true)
 
   const capabilities: DeploymentCapabilityMap = {
-    organizations: { supported: false, reason: 'not_supported_in_lite' },
+    organizations: { supported: false, reason: 'route_not_registered' },
     'settings.storage': { supported: true },
   }
   assert.equal(isDeploymentCapabilitySupported(capabilities, 'organizations'), false)
   assert.equal(isDeploymentCapabilitySupported(capabilities, 'settings.storage'), true)
-})
-
-test('organizations stay hidden in lite even when capabilities fail open', () => {
-  assert.equal(
-    isDeploymentCapabilitySupported({}, 'organizations', { liteMode: true }),
-    false,
-  )
-  assert.equal(
-    isDeploymentCapabilitySupported({}, 'organizations', { edition: 'lite' }),
-    false,
-  )
-  assert.equal(
-    isDeploymentCapabilitySupported({}, 'settings.storage', { liteMode: true }),
-    true,
-  )
 })
 
 test('only route-backed settings sections require deployment capabilities', () => {

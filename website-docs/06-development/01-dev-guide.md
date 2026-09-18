@@ -8,7 +8,7 @@ Yuheng 由三个可独立开发的进程组成：
 
 | 组件 | 目录 | 语言 / 运行时 | 版本要求（来源） |
 | --- | --- | --- | --- |
-| 主后端 `app` | `cmd/server` + `internal/` | Go | **Go 1.26.0**（`go.mod` 中 `go 1.26.0`），需 CGO（DuckDB、sqlite-vec 绑定） |
+| 主后端 `app` | `cmd/server` + `internal/` | Go | **Go 1.26.0**（`go.mod` 中 `go 1.26.0`），需 CGO（DuckDB 绑定） |
 | 文档解析服务 `docreader` | `docreader/` | Python + gRPC | **Python >= 3.10.18**（`docreader/pyproject.toml` 中 `requires-python`），依赖用 **uv** 管理（仓库含 `uv.lock`，Docker 内 `uv sync --locked`） |
 | 前端 `frontend` | `frontend/` | Node.js + Vue 3 | Node 22 系（`devDependencies` 含 `@tsconfig/node22`、`@types/node ^22`），Vite 7 + TypeScript ~6.0 + Vue 3.5 + TDesign，版本号 `0.1.0` |
 | CLI | `cli/`（独立 Go module） | Go | Go 1.26（`.github/workflows/cli.yml` 矩阵 `go: ['1.26']`） |
@@ -93,17 +93,6 @@ uv run -m docreader.main      # 启动 gRPC 服务（与 Dockerfile CMD 一致�
 
 docreader 的大量调优参数（PDF 渲染 DPI、扫描件判定、SSRF 白名单、gRPC TLS 等）以 `DOCREADER_*` 环境变量注入，完整清单见 `docker-compose.dev.yml` 的 `docreader.environment` 段。
 
-### 2.3 Lite 模式（零外部依赖）
-
-Lite 模式把 SQLite（+sqlite-vec）与内存队列编译进单个二进制，适合快速体验与桌面端：
-
-```bash
-make build-lite     # 先构建前端到 web/，再 CGO 构建 Go（tags: sqlite_fts5）；SKIP_FRONTEND=1 跳过前端
-make run-lite       # 依赖 .env.lite，构建并启动 Yuheng-lite
-make package-lite   # 打 tarball 发行包（scripts/package-lite.sh）
-make package-mac-app  # 打 macOS .app（scripts/package-mac-app.sh）
-```
-
 ## 3. Makefile 目标全览
 
 以下目标定义在根目录 `Makefile`，`make help` 也有一份中文帮助。
@@ -150,14 +139,13 @@ make package-mac-app  # 打 macOS .app（scripts/package-mac-app.sh）
 | `migrate-force version=N` | 强制设置版本（dirty state 恢复） |
 | `migrate-goto version=N` | 迁移到指定版本 |
 
-### 3.4 开发模式与 Lite
+### 3.4 开发模式
 
 | 目标 | 作用 |
 | --- | --- |
 | `dev-start` / `dev-stop` / `dev-restart` / `dev-logs` / `dev-status` | `scripts/dev.sh start/stop/restart/logs/status`（支持 `DEV_ARGS` 传 profile 参数） |
 | `dev-app` | 本地 `go run ./cmd/server`（带版本 ldflags） |
 | `dev-frontend` | 本地 `npm run dev` |
-| `build-lite` / `run-lite` / `package-lite` / `package-mac-app` | Lite 模式构建/运行/打包（见 2.3） |
 | `download_spatial` | `go run cmd/download/duckdb/duckdb.go` 下载 DuckDB spatial 扩展（入库表格摘要的 DuckDB 引擎用） |
 
 ## 4. 测试体系
@@ -171,7 +159,7 @@ go test ./internal/infrastructure/chunker/...
 go test -run TestXxx ./internal/application/service/...
 ```
 
-主模块测试广泛使用 `go-sqlmock`、`miniredis` 等内存替身（见 `go.mod`），大部分无需真实数据库即可运行。部分包依赖 CGO（DuckDB/sqlite-vec）。
+主模块测试广泛使用 `go-sqlmock`、`miniredis` 等内存替身（见 `go.mod`），大部分无需真实数据库即可运行。部分包依赖 CGO（DuckDB）。
 
 ### 4.2 docreader 测试（Python）
 
@@ -200,10 +188,9 @@ make lint            # go vet
 - `cli/acceptance/contract/` — envelope JSON 输出形状 golden 测试 + error.code 注册表一致性；
 - `cli/acceptance/e2e/` — 对真实 Yuheng server 的黑盒测试（testscript 风格），需要环境变量指向测试服务器；CI 侧由 `.github/workflows/cli-e2e.yml` 承载，**按需触发**（`workflow_dispatch` 手动，或给 PR 打 `acceptance-e2e` 标签），使用 secrets `YUHENG_E2E_HOST` / `YUHENG_E2E_TOKEN`。
 
-### 4.4 tests/ 目录与前端测试
+### 4.4 前端测试
 
-- `tests/miniprogram/miniprogram.test.js` — 小程序客户端的集成测试（Node 测试脚本），是 `tests/` 目前唯一内容；
-- 前端：`cd frontend && npm run type-check`（vue-tsc）与 `npm test`（`tsx --test`，Node test runner）。
+- `cd frontend && npm run type-check`（vue-tsc）与 `npm test`（`tsx --test`，Node test runner）。
 
 ## 5. 代码规范与提交流程
 
@@ -249,7 +236,6 @@ make fmt && make lint && make test
 | `workflows/cli.yml` | `cli/` | ubuntu/macos/windows 三平台矩阵，Go 1.26，`go build` + `go test -race -coverprofile` + `go vet` + skill wire 词表检查 |
 | `workflows/cli-e2e.yml` | 手动 / label | CLI 端到端验收（label `acceptance-e2e` 或手动触发，见 4.3） |
 | `workflows/docker-image.yml` | — | Docker 镜像构建发布 |
-| `workflows/release-lite.yml` | — | Lite 版本发布 |
 | `pull_request_template.md` | — | PR 模板 |
 | `ISSUE_TEMPLATE/` | — | Issue 模板 |
 | `dependabot.yml` | — | 依赖升级机器人 |

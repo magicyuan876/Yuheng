@@ -4,7 +4,7 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 
 整套流程分四步：**文档理解 → 建索引 → 混合检索 → 生成回答**，本文后面逐个展开。
 
-代码上是三个进程：Go（Gin）写的后端、Vue 3 的前端、Python（gRPC）的文档解析服务 docreader。部署方式有 Docker Compose、Helm、单二进制 Lite 模式和 macOS 桌面应用，按环境挑一种。
+代码上是三个进程：Go（Gin）写的后端、Vue 3 的前端、Python（gRPC）的文档解析服务 docreader。部署方式有 Docker Compose 与 Helm，按环境挑一种。
 
 <Screenshot
   src="/screenshots/introduction-overview.png"
@@ -112,7 +112,7 @@ flowchart TB
 - **问答与 Agent**：流式 SSE 问答、多轮上下文压缩、引用溯源；ReAct Agent（工具：`knowledge_search`、`grep_chunks`、`wiki_search` 等）、MCP 外部工具、Agent Skills（Docker 沙箱执行脚本）、Web 搜索。
 - **多租户与安全**：RBAC 角色鉴权（默认开启，`YUHENG_TENANT_ENABLE_RBAC`）、审计日志（默认保留 90 天）、邀请制注册（`auth.registration_mode=invite_only`，也可用旧变量 `DISABLE_REGISTRATION=true`）、OIDC 单点登录、SSRF 防护、敏感字段 AES-256 加密。
 - **可观测性**：Langfuse 全链路追踪（LLM/Embedding/Rerank/VLM/ASR 调用与 token 统计）、健康检查、Swagger API 文档（`GIN_MODE=debug` 时）。
-- **生态**：REST API（`/api/v1`）+ API Key、独立 MCP Server（把 Yuheng 作为工具暴露给其他 Agent）、CLI（`cli/`）、微信小程序（`miniprogram/`）、浏览器插件渠道。
+- **生态**：REST API（`/api/v1`）+ API Key、独立 MCP Server（把 Yuheng 作为工具暴露给其他 Agent）、CLI（`cli/`）、浏览器插件渠道。
 
 ## 系统组件一览
 

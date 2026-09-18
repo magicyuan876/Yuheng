@@ -10,7 +10,7 @@ Yuheng 内置了对 [Langfuse](https://langfuse.com) 的轻量级集成，用于
 - **跨进程 trace 透传**：HTTP 层把 `trace_id` / `parent_observation_id` 注入 asynq payload，worker 在 asynq middleware 层自动 resume；定时任务（例如数据源同步）则退化为独立 trace，依然按任务类型（`asynq.<type>`）聚合。
 - **完全可选**：不配置 `LANGFUSE_*` 环境变量时，Langfuse 相关代码路径是 no-op，不产生任何性能开销。
 - **异步批量上报**：不阻塞业务请求；队列满时静默丢弃，观测数据不会影响用户对话。
-- **开箱即用的部署方式**：Docker Compose（`docker-compose.yml` 已内置环境变量）、Helm Chart（通过 `extraEnv`）、Lite 版本（本地单机）均支持。
+- **开箱即用的部署方式**：Docker Compose（`docker-compose.yml` 已内置环境变量）、Helm Chart（通过 `extraEnv`）均支持。
 
 ## 2. 快速开始
 
@@ -119,9 +119,9 @@ docker compose up -d app
 - **备份**：`pg_dump -d langfuse` 可独立备份 Langfuse 的元数据；事件数据在 ClickHouse 卷（`langfuse_clickhouse_data`）中。
 - **想彻底隔离**（跨机部署、强运维隔离）：可以直接把 `langfuse-web` / `langfuse-worker` 的 `DATABASE_URL` 和 `REDIS_CONNECTION_STRING` 指向任意外部 pg/redis（例如 RDS + ElastiCache）；`langfuse-db-init` 容器可以选择不启动，手动在目标 pg 上 `CREATE DATABASE langfuse` 即可。
 
-#### （B）Yuheng Lite（单机）
+#### （B）自定义环境变量
 
-在 `.env.lite`（或启动脚本导出的环境变量）里加：
+在 `.env`（或启动脚本导出的环境变量）里加：
 
 ```bash
 LANGFUSE_PUBLIC_KEY=pk-lf-xxxxxxxx
@@ -129,7 +129,7 @@ LANGFUSE_SECRET_KEY=sk-lf-xxxxxxxx
 LANGFUSE_HOST=https://cloud.langfuse.com
 ```
 
-启动 `yuheng-lite`（或 macOS `.app`）后效果同上。
+重启应用后效果同上。
 
 #### （C）Helm Chart 部署
 
@@ -307,4 +307,4 @@ Dev 相关容器都带 `-dev` 后缀、用独立网络 `Yuheng-network-dev`，�
 - `internal/router/router.go` — 注册 `langfuse.GinMiddleware()`。
 - `internal/router/task.go` — 在 asynq mux 上 `mux.Use(langfuse.AsynqMiddleware())`，使所有 handler 自动被 trace。
 - `internal/container/container.go` — 初始化 + 资源清理。
-- `docker-compose.yml` / `.env.example` / `.env.lite.example` — 预置 `LANGFUSE_*` 环境变量直通。
+- `docker-compose.yml` / `.env.example` — 预置 `LANGFUSE_*` 环境变量直通。

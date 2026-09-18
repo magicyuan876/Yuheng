@@ -295,17 +295,6 @@ func TestCreateStore_ConnectionConfigValidation(t *testing.T) {
 			},
 			wantError: true,
 		},
-		{
-			// SQLite, like Postgres, is no longer registerable as a DB store
-			// (see validEngineTypes). Reachable only as an env store.
-			name: "sqlite rejected as DB store",
-			store: &types.VectorStore{
-				TenantID: 1, Name: "test",
-				EngineType:       types.SQLiteRetrieverEngineType,
-				ConnectionConfig: types.ConnectionConfig{},
-			},
-			wantError: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -699,15 +688,6 @@ func TestTestConnection_UnsupportedEngineType(t *testing.T) {
 	assert.Equal(t, errors.ErrBadRequest, appErr.Code)
 }
 
-func TestTestConnection_SQLiteAlwaysSucceeds(t *testing.T) {
-	repo := &mockVectorStoreRepo{}
-	svc := NewVectorStoreService(repo, nil, nil, nil, nil)
-
-	version, err := svc.TestConnection(context.Background(), types.SQLiteRetrieverEngineType, types.ConnectionConfig{})
-	assert.NoError(t, err)
-	assert.Empty(t, version)
-}
-
 func TestTestConnection_PostgresDefaultConnection(t *testing.T) {
 	repo := &mockVectorStoreRepo{}
 	svc := NewVectorStoreService(repo, nil, nil, nil, nil)
@@ -821,12 +801,6 @@ func TestValidateConnectionConfig(t *testing.T) {
 			wantError:  true,
 		},
 		{
-			name:       "sqlite always valid",
-			engineType: types.SQLiteRetrieverEngineType,
-			config:     types.ConnectionConfig{},
-			wantError:  false,
-		},
-		{
 			name:       "doris valid",
 			engineType: types.DorisRetrieverEngineType,
 			config:     types.ConnectionConfig{Addr: "doris-fe:9030", Database: "yuheng"},
@@ -866,7 +840,7 @@ func TestValidateConnectionConfig(t *testing.T) {
 // mock would not catch divergence between the row-lock path and the count.
 // ---------------------------------------------------------------------------
 
-// guardTestDDL inlines the subset of migrations/sqlite/000000_init.up.sql
+// guardTestDDL inlines the subset of the SQLite init schema
 // that the delete-guard tests touch. We do not use AutoMigrate because the
 // KnowledgeBase struct carries `type:jsonb` GORM tags that SQLite cannot
 // map cleanly.

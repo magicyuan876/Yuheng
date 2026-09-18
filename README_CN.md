@@ -55,7 +55,7 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 
 **🔎 检索与问答**
 - 可插拔检索引擎：pgvector（默认）、Elasticsearch、OpenSearch、Milvus、
-  Weaviate、Qdrant、Doris、腾讯 VectorDB、SQLite FTS5（Lite）
+  Weaviate、Qdrant、Doris、腾讯 VectorDB
 - 混合检索（向量 + BM25/全文）、Rerank、查询改写与扩展
 - FAQ 条目（批量导入、去重）；知识图谱（Neo4j，可选）；内置联网搜索
   （9 家提供商 + 自托管 SearXNG）
@@ -69,20 +69,18 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 - 完整的 `/api/v1` REST API——Swagger UI 位于 `/swagger/index.html`
 - 细粒度能力域的 API Key（retrieve、ingest、manage 等）
 - [`yuheng-mcp`](./mcp-server/)：23 个 MCP 工具，支持 stdio/SSE/HTTP
-- [Go SDK](./client/) 与 [`yuheng` CLI](./cli/)；[DeepSeek Harness 插件](./packages/dsh-yuheng/)；微信小程序
+- [Go SDK](./client/) 与 [`yuheng` CLI](./cli/)；[DeepSeek Harness 插件](./packages/dsh-yuheng/)
 
 **🏢 平台能力**
 - 多租户；工作空间四级角色；组织与共享空间
 - 审计日志、Langfuse 可观测性、任务队列看板、限流
-- 两种发行版：**standard**（Docker Compose / Helm）与 **lite**
-  （单二进制，内嵌 SQLite + Web UI）
 
 ## 架构
 
 ```
 ┌─────────────┐   REST / SSE   ┌──────────────────────────────┐
 │ Web / CLI   │ ◄────────────► │  Go 后端（Gin，/api/v1）      │
-│  小程序     │                │  问答管道 · RAG · Wiki        │
+└─────────────┘                │  问答管道 · RAG · Wiki        │
 └─────────────┘                │  异步任务（asynq/Redis）       │
 ┌─────────────┐   MCP (23)     └───────┬──────────────┬───────┘
 │ AI 智能体   │ ◄───────────────────── │              │ gRPC（TLS+token）
@@ -120,7 +118,6 @@ docker compose pull && docker compose up -d
 其他运行方式：
 
 ```bash
-make build-lite      # 单二进制 Lite 版（SQLite + 内嵌界面）
 make dev-start       # 本地基础设施（Postgres、Redis、docreader、Langfuse）
 make dev-app         # 后端（Air 热重载）
 make dev-frontend    # Vite 开发服务器
@@ -130,12 +127,11 @@ make dev-frontend    # Vite 开发服务器
 
 | 客户端 | 目录 | 说明 |
 | --- | --- | --- |
-| Web 界面 | [`frontend/`](./frontend/) | Vue 3 + TDesign；同时产出 Wails 桌面端 |
+| Web 界面 | [`frontend/`](./frontend/) | Vue 3 + TDesign |
 | CLI | [`cli/`](./cli/) | `yuheng`——可脚本化的 JSON 输出，多 profile |
 | MCP 服务 | [`mcp-server/`](./mcp-server/) | `pip install yuheng-mcp`——23 个工具 |
 | Go SDK | [`client/`](./client/) | CLI 即基于它 |
 | DeepSeek Harness 插件 | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | `@magicyuan876/dsh-yuheng` |
-| 微信小程序 | [`miniprogram/`](./miniprogram/) | |
 
 ## 文档
 

@@ -60,7 +60,7 @@ npm run preview  # 预览构建产物
 | 文档 | 内容 |
 | --- | --- |
 | [产品介绍](01-getting-started/01-introduction.md) | Yuheng 是什么、核心概念（租户/知识库/知识/分块/会话/Agent 等）、功能总览与系统组件图 |
-| [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm、Lite 单二进制与桌面应用、Homebrew |
+| [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm |
 | [快速上手](01-getting-started/03-quickstart.md) | 注册 → 初始化向导 → 配置模型 → 建库 → 上传 → 问答的完整路径，含可直接执行的 curl 链路 |
 | [配置详解](01-getting-started/04-configuration.md) | config.yaml 全字段、约 150 个环境变量、prompt 模板、内置模型与内置 Agent 配置 |
 
@@ -72,7 +72,7 @@ npm run preview  # 预览构建产物
 | [Go 后端设计](02-architecture/02-backend-design.md) | 四层架构、uber/dig 依赖注入、启动与优雅退出、路由与中间件、领域模型 ER 图 |
 | [文档入库流程](02-architecture/03-document-pipeline.md) | 上传/URL/手动创建 → 存储 → 解析 → 分块 → 向量化 → 索引 → 后处理的全链路与状态机 |
 | [检索问答流程](02-architecture/04-rag-pipeline.md) | chat_pipeline 插件流水线、跨库检索与融合、重排、流式输出（SSE）与引用生成 |
-| [异步任务系统](02-architecture/05-async-tasks.md) | asynq 队列拓扑、6 个 worker pool、Lite 同步模式、死信与任务巡检、事件总线 |
+| [异步任务系统](02-architecture/05-async-tasks.md) | asynq 队列拓扑、6 个 worker pool、无 Redis 同步模式、死信与任务巡检、事件总线 |
 
 ### 03 功能模块
 
@@ -123,15 +123,13 @@ npm run preview  # 预览构建产物
 | [Web 前端](05-clients/01-frontend.md) | Vue 3 + TDesign 技术栈、页面路由、状态管理、i18n、部署 |
 | [命令行工具 CLI](05-clients/02-cli.md) | 17 个命令组、多 profile 配置、输出格式与退出码、脚本化用法 |
 | [Go SDK](05-clients/03-go-sdk.md) | 约 170 个方法的资源覆盖、流式对话、错误处理、完整示例 |
-| [微信小程序](05-clients/04-miniprogram.md) | 页面结构、后端地址与 API Key 配置、构建发布 |
-| [桌面端](05-clients/05-desktop.md) | 单机桌面应用（未正式发布）、数据目录与端口设置、偏好设置与自动更新 |
 
 ### 06 开发指南
 
 | 文档 | 内容 |
 | --- | --- |
 | [开发指南](06-development/01-dev-guide.md) | 环境要求、Makefile 全目标、开发模式、四条测试线、CI 与代码规范、调试技巧 |
-| [数据库与迁移](06-development/02-database-schema.md) | 40+ 张表结构与 ER 图、golang-migrate 双路径（versioned / sqlite）、新增迁移步骤、故障排查 |
+| [数据库与迁移](06-development/02-database-schema.md) | 40+ 张表结构与 ER 图、golang-migrate 版本化迁移、新增迁移步骤、故障排查 |
 | [扩展点指南](06-development/03-extension-points.md) | 9 大扩展点：解析器/分块策略/检索引擎/模型 Provider/搜索引擎/数据源连接器/IM 适配器/Agent 工具/存储后端 |
 
 ## 系统组件速览
@@ -142,7 +140,6 @@ flowchart LR
         FE["Web 前端 Vue 3"]
         CLI["CLI yuheng"]
         SDK["Go SDK"]
-        MINI["微信小程序"]
         EMBED["网页嵌入挂件"]
         IM["IM 平台 x10"]
     end

@@ -366,13 +366,6 @@ const s = {
     <path v-bind="s" opacity="0.55" d="M12 6.4v3.2M9.9 13.4l-2.6 1.9M14.1 13.4l2.6 1.9" />
   </svg>
 
-  <!-- Lite：单机一台 -->
-  <svg v-else-if="name === 'lite'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="4" y="4" width="16" height="11" rx="1.8" />
-    <path v-bind="s" opacity="0.5" d="M2.5 18.5h19" />
-    <rect x="9" y="7.5" width="6" height="4" rx="1" fill="none" :stroke="gold" stroke-width="1.4" />
-  </svg>
-
   <!-- ==================== 文档地图 六枚 ==================== -->
 
   <!-- 快速开始：起播 -->
@@ -435,13 +428,6 @@ const s = {
     <path v-bind="s" opacity="0.45" d="M5.5 8.5h6M5.5 12h4" />
     <path :stroke="gold" stroke-width="1.4" d="M14.5 4v16" />
     <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" opacity="0.75" d="M17 9h2M17 12.5h2" />
-  </svg>
-
-  <!-- 桌面客户端：显示器 -->
-  <svg v-else-if="name === 'desktop'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
-    <rect v-bind="s" x="2.5" y="4" width="19" height="12.5" rx="2" />
-    <path v-bind="s" d="M9.5 20h5M12 16.5V20" />
-    <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" d="M6.5 8.5h7" />
   </svg>
 
   <!-- 微信小程序：手机 -->

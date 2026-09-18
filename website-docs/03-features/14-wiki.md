@@ -230,7 +230,7 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 
 ## 失败恢复
 
-`internal/container/recover_pending_wiki_tasks.go` 在服务启动时闭合 Lite 模式（进程内 `SyncTaskExecutor`）或 Redis 入队中断留下的缺口：
+`internal/container/recover_pending_wiki_tasks.go` 在服务启动时闭合无 Redis 模式（进程内 `SyncTaskExecutor`）或 Redis 入队中断留下的缺口：
 
 1. 扫描持久化的 `task_pending_ops` 表中 `scope = knowledge_base` 且 `task_type ∈ {wiki:ingest, wiki:finalize}` 的待处理组合；
 2. 清理已删除 KB 的残留行（fail-closed）；

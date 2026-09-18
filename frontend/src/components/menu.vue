@@ -4,7 +4,6 @@
         <div class="logo_row" v-if="!uiStore.sidebarCollapsed">
             <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer;">
                 <span class="logo">Yuheng</span>
-                <sup v-if="isLiteEdition" class="lite-badge">Lite</sup>
             </div>
             <div class="logo_actions">
                 <t-tooltip placement="bottom">
@@ -308,7 +307,6 @@ const hasAnySession = computed(() =>
 type MenuItem = { title: string; icon: string; path: string; childrenPath?: string; children?: any[] };
 const { menuArr, visibleMenuArr } = storeToRefs(usemenuStore);
 let activeSubmenu = ref<string>('');
-const isLiteEdition = ref(false);
 
 // 批量管理状态
 const batchMode = ref(false)
@@ -921,14 +919,6 @@ onMounted(async () => {
 
     window.addEventListener(SESSION_MUTATION_EVENT, handleSessionMutation);
 
-    isLiteEdition.value = authStore.isLiteMode
-    getSystemInfo().then(res => {
-        if (res.data?.edition === 'lite') {
-            isLiteEdition.value = true
-            authStore.setLiteMode(true)
-        }
-    }).catch(() => { })
-
     await loadCurrentKbInfo((route.params as any)?.kbId as string)
 
     await loadSessionOriginMeta();
@@ -1125,11 +1115,6 @@ const onDragHandleMouseDown = (e: MouseEvent) => {
     box-shadow: 1px 0 0 rgba(0, 0, 0, 0.02);
     transition: width 0.25s ease, min-width 0.25s ease;
     position: relative;
-
-    // macOS Wails 桌面：红绿灯位于 HiddenInset 标题栏区域，需让出顶部空间
-    html.wails-desktop & {
-        padding-top: 30px;
-    }
 
     &--collapsed {
         min-width: 60px;

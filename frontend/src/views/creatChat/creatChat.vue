@@ -1,8 +1,8 @@
 <template>
     <div class="dialogue-wrap">
         <div class="dialogue-answers">
-            <div class="dialogue-title" style="--wails-draggable: drag">
-                <span style="--wails-draggable: drag">{{ $t('createChat.title') }}</span>
+            <div class="dialogue-title">
+                <span>{{ $t('createChat.title') }}</span>
             </div>
             <InputField ref="inputFieldRef" @send-msg="sendMsg"></InputField>
         </div>

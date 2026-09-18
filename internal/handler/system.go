@@ -50,8 +50,8 @@ type SystemHandler struct {
 	// the dig graph always provides one.
 	auditSvc interfaces.AuditLogService
 	// taskInspector backs the SystemAdmin runtime queue dashboard. Always
-	// provided by the container (asynq-backed in Redis mode, a no-op in
-	// Lite mode), so GetRuntimeQueues can distinguish "no queues in this
+	// provided by the container (asynq-backed in Redis mode, a no-op without
+	// Redis), so GetRuntimeQueues can distinguish "no queues in this
 	// deployment" from "queues are empty".
 	taskInspector interfaces.TaskInspector
 	// knowledgeSvc supplies the domain-level cancellation path used by the
@@ -283,7 +283,6 @@ func (h *SystemHandler) emitAdminAudit(
 // GetSystemInfoResponse defines the response structure for system info
 type GetSystemInfoResponse struct {
 	Version             string `json:"version"`
-	Edition             string `json:"edition"`
 	CommitID            string `json:"commit_id,omitempty"`
 	BuildTime           string `json:"build_time,omitempty"`
 	GoVersion           string `json:"go_version,omitempty"`
@@ -306,7 +305,6 @@ type GetSystemInfoResponse struct {
 // 编译时注入的版本信息
 var (
 	Version   = "unknown"
-	Edition   = "standard"
 	CommitID  = "unknown"
 	BuildTime = "unknown"
 	GoVersion = "unknown"
@@ -361,7 +359,6 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 
 	response := GetSystemInfoResponse{
 		Version:             Version,
-		Edition:             Edition,
 		CommitID:            CommitID,
 		BuildTime:           BuildTime,
 		GoVersion:           GoVersion,
@@ -1720,7 +1717,7 @@ func (h *SystemHandler) CreateSystemUser(c *gin.Context) {
 // @Failure      403 {object} map[string]interface{} "Forbidden: not a system admin"
 // @Router       /system/admin/settings [get]
 // RuntimeQueuesResponse is the payload for the SystemAdmin runtime queue
-// dashboard. `available` is false in Lite mode (no Redis/asynq) so the
+// dashboard. `available` is false when there is no Redis/asynq so the
 // UI can render an "unavailable in this deployment" state instead of an
 // empty table. Each pool reports configured per-process concurrency plus live
 // cluster capacity/active workers aggregated from asynq server heartbeats.

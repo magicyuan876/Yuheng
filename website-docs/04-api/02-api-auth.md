@@ -71,16 +71,6 @@ curl -X POST $BASE/api/v1/auth/invitations/lookup -H 'Content-Type: application/
 curl -X POST $BASE/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"a@ex.com","password":"secret123"}'
 ```
 
-### POST /api/v1/auth/auto-setup
-
-用途：一键初始化（本地/Lite 场景自动建号建空间）。免认证，无请求体。Handler: `internal/handler/auth.go`
-
-响应：200，同 Login。
-
-```bash
-curl -X POST $BASE/api/v1/auth/auto-setup
-```
-
 ### GET /api/v1/auth/config
 
 用途：查询注册模式等认证配置。免认证。Handler: `internal/handler/auth.go`

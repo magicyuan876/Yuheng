@@ -43,7 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
   // v1 deployments will typically have length 1; the field is wired now
   // so PR 3 can render a tenant-switcher UI without a store migration.
   const memberships = ref<Array<{ tenant_id: number; tenant_name?: string; role: string }>>([])
-  const isLiteMode = ref(false)
   // pendingInvitationCount is the number of pending tenant invitations
   // addressed to the current user. Renders as a badge next to the
   // avatar; updated by fetchPendingInvitationCount, which runs after
@@ -404,15 +403,6 @@ export const useAuthStore = defineStore('auth', () => {
     return selectedTenantId.value
   }
 
-  const setLiteMode = (value: boolean) => {
-    isLiteMode.value = value
-    if (value) {
-      localStorage.setItem('yuheng_lite_mode', 'true')
-    } else {
-      localStorage.removeItem('yuheng_lite_mode')
-    }
-  }
-
   const logout = () => {
     // 清空状态
     user.value = null
@@ -440,13 +430,6 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('yuheng_selected_tenant_id')
     localStorage.removeItem('yuheng_selected_tenant_name')
     localStorage.removeItem('yuheng_memberships')
-    localStorage.removeItem('yuheng_lite_mode')
-    isLiteMode.value = false
-    try {
-      sessionStorage.removeItem('yuheng_lite_last_path')
-    } catch {
-      /* ignore */
-    }
     reloadUserPreferences()
   }
 
@@ -531,7 +514,6 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    isLiteMode.value = localStorage.getItem('yuheng_lite_mode') === 'true'
   }
 
   // 初始化时从localStorage恢复状态
@@ -564,7 +546,6 @@ export const useAuthStore = defineStore('auth', () => {
     currentTenantRole,
     hasRole,
     effectiveTenantId,
-    isLiteMode,
 
     // 方法
     setUser,
@@ -583,7 +564,6 @@ export const useAuthStore = defineStore('auth', () => {
     refreshFromAuthMe,
     acceptInvitationByTokenAndRefresh,
     getSelectedTenant,
-    setLiteMode,
     logout,
     initFromStorage
   }
