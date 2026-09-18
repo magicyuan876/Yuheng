@@ -66,6 +66,14 @@ type CreatePageRequest struct {
 	Markdown string          `json:"markdown"`
 }
 
+// ReplaceContentRequest is the body of PUT /docs/pages/{pid}/content.
+// Content and markdown are mutually exclusive; sending neither empties the
+// page, which is a legitimate thing to want and is why it is not an error.
+type ReplaceContentRequest struct {
+	Content  json.RawMessage `json:"content"`
+	Markdown string          `json:"markdown"`
+}
+
 // UpdatePageRequest is the body of PATCH /docs/pages/{pid}; absent fields
 // are unchanged, an empty icon or cover clears it.
 type UpdatePageRequest struct {
@@ -197,6 +205,47 @@ func (h *PageHandler) Content(c *gin.Context) {
 		return
 	}
 	ok(c, out)
+}
+
+// ReplaceContent godoc
+// @Summary      整体写入页面正文
+// @Description  以一次替换写入整篇正文（ProseMirror JSON 或 Markdown）。部署了协同服务时作为一次 Yjs
+// @Description  事务应用，在线用户实时可见且可撤销；否则写入 JSON 并清空 Yjs 状态，下次打开时重建
+// @Tags         在线文档
+// @Accept       json
+// @Produce      json
+// @Param        pid      path  string                 true  "页面 ID"
+// @Param        request  body  ReplaceContentRequest  true  "正文"
+// @Success      200  {object}  map[string]interface{}
+// @Security     Bearer
+// @Router       /docs/pages/{pid}/content [put]
+func (h *PageHandler) ReplaceContent(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	id, found := identity(c)
+	if !found {
+		return
+	}
+	d, found := decision(c)
+	if !found {
+		return
+	}
+	var req ReplaceContentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid request body: "+err.Error())
+		return
+	}
+	// The reason is never taken from the request: a client writing over REST
+	// must not be able to record its edit as an import or a history restore.
+	res, err := h.svc.ReplaceContent(c.Request.Context(), id, d, service.ReplaceInput{
+		Content: req.Content, Markdown: req.Markdown, Reason: service.ReplaceReasonREST,
+	})
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, res)
 }
 
 // Update godoc

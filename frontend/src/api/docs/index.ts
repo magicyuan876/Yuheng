@@ -598,3 +598,31 @@ export async function listPageAttachments(pageId: string): Promise<DocsAttachmen
 export async function deleteAttachment(id: string): Promise<void> {
   await del(`${base}/attachments/${encodeURIComponent(id)}`)
 }
+
+// ---- whole-body writes ----------------------------------------------------
+
+export interface ReplaceContentRequest {
+  /** A ProseMirror document; mutually exclusive with markdown. */
+  content?: unknown
+  markdown?: string
+}
+
+export interface ReplaceContentResult {
+  ydoc_version: number
+  /** 'collab' when the live document was updated in place, 'direct' when the
+   * stored body was replaced and the Yjs state left to be rebuilt. */
+  applied: 'collab' | 'direct'
+}
+
+/**
+ * Backend: PUT /api/v1/docs/pages/:pid/content (page writer).
+ * The single entry point for writing a body without typing it. Where a
+ * collaboration service runs, the change reaches everyone with the page open
+ * as one undoable step.
+ */
+export async function replacePageContent(
+  id: string,
+  body: ReplaceContentRequest,
+): Promise<ReplaceContentResult> {
+  return unwrap<ReplaceContentResult>(await put(`${base}/pages/${encodeURIComponent(id)}/content`, body))
+}

@@ -129,6 +129,8 @@ func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *re
 	docs.GET("/pages/by-short-id/:short", guard.RequirePage("short", acl.PageByShortID, model.RoleReader),
 		h.Pages.GetByShortID)
 	docs.GET("/pages/:pid/content", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Content)
+	docs.PUT("/pages/:pid/content",
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.ReplaceContent)
 	docs.PATCH("/pages/:pid", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.Update)
 	docs.POST("/pages/:pid/move", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.Move)
 	docs.POST("/pages/:pid/duplicate", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Duplicate)

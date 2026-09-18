@@ -108,8 +108,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	read.GET("/pages/by-short-id/:short", g.Viewer(),
 		guard.RequirePage("short", acl.PageByShortID, model.RoleReader), pg.GetByShortID)
 	read.GET("/pages/:pid/content", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Content)
+	// The single entry point for writing a body without typing it (T1.7);
+	// import, history restore and the AI write-back reach the same service
+	// method from inside the server.
 	write.PUT("/pages/:pid/content", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.ReplaceContent)
 	write.PATCH("/pages/:pid", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.Update)
 	write.POST("/pages/:pid/move", g.Contributor(),
