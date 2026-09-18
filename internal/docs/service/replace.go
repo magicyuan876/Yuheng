@@ -180,6 +180,8 @@ func (s *PageService) replaceDirect(ctx context.Context, actor *acl.Identity, pa
 		if err == nil {
 			s.bindAttachments(ctx, current, structure.AttachmentIDs)
 			s.recordLinks(ctx, current, structure)
+			s.recordTransclusions(ctx, current, structure)
+			s.refreshTransclusionSnapshots(ctx, current, node)
 			s.afterReplace(ctx, actor, current, reason, version)
 			return &ReplaceResult{YDocVersion: version, Applied: AppliedDirect}, nil
 		}
