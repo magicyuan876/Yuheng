@@ -46,6 +46,10 @@ type Params struct {
 	// boots and uploading is refused with a clear message.
 	StorageResolver interfaces.StorageBackendResolver `optional:"true"`
 	Tenants         interfaces.TenantRepository       `optional:"true"`
+	// Favourites is Yuheng's own starred-resources service, reused for pages
+	// and spaces rather than reimplemented. Optional for the same reason as
+	// the rest: without it, starring is simply unavailable.
+	Favourites interfaces.UserResourceFavoriteService `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -120,6 +124,9 @@ func NewModule(p Params) *Module {
 	}
 	if p.Tenants != nil {
 		deps.Tenants = p.Tenants
+	}
+	if p.Favourites != nil {
+		deps.Favourites = p.Favourites
 	}
 	if p.UserService != nil {
 		deps.Tokens = p.UserService

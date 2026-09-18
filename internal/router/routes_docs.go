@@ -86,9 +86,23 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, pg.EmptyTrash)
 	write.DELETE("/spaces/:sid/trash/:pid", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, pg.Purge)
-	read.GET("/spaces/:sid/labels", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	// Labels belong to a space, so they are addressed under it -- and so a
+	// label id from elsewhere cannot be reached by naming it, the same rule
+	// revisions and comments follow. The service checks that too.
+	read.GET("/spaces/:sid/labels", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), pg.Labels)
 	write.POST("/spaces/:sid/labels", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, pg.CreateLabel)
+	write.PATCH("/spaces/:sid/labels/:lid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, pg.UpdateLabel)
+	// Deleting takes the label off every page carrying it; the service asks
+	// for an admin, and the guard says so too.
+	write.DELETE("/spaces/:sid/labels/:lid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, pg.DeleteLabel)
+	read.GET("/spaces/:sid/home", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), pg.SpaceHome)
+	read.GET("/spaces/:sid/pages-by-label", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), pg.PagesWithLabels)
 	// ---- attachments (T1.6) -------------------------------------------------
 	// Uploading is a space-level right; reading one is decided by the page it
 	// belongs to, which the guard cannot know from the URL, so the service
@@ -201,7 +215,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.POST("/pages/:pid/shares", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
 	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
-	write.PUT("/pages/:pid/labels", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.PUT("/pages/:pid/labels", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageLabels)
+	// Starring is a bookmark rather than a change, so a reader may do it.
+	write.PUT("/pages/:pid/favourite", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.SetFavourite)
 	// Watching is a reader's right, like commenting: you can follow a page you
 	// are not allowed to change.
 	read.GET("/pages/:pid/watch", g.Viewer(),
@@ -263,6 +281,13 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		pg.ArchiveNotifications)
 	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), ni)
 	read.GET("/exports/:jid", g.Viewer(), guard.RequireMember(), ni)
+	// Somebody's own starred pages, across every space they can see. Filtered
+	// by what they may still open: a page starred and since restricted is
+	// left out rather than shown as a row that cannot be opened.
+	read.GET("/favourites", g.Viewer(), guard.RequireMember(), pg.Favourites)
+	// "Recently edited" is per space and lives on the space home above.
+	// "Recently viewed" is deliberately not a server concern: see the note in
+	// internal/docs/service/home.go.
 	read.GET("/recent", g.Viewer(), guard.RequireMember(), ni)
 
 	// ---- tenant groups (tenant-level administration; docs is the first consumer) ----
