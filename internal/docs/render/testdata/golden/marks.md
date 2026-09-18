@@ -1,0 +1,1 @@
+**bold** *italic* <u>underline</u> ~~strike~~` code` [link](https://example.com/x "Example") [internal](https://docs.local/p) ==hl== <sub>sub</sub> <sup>sup</sup> <span style="color:rgb(200, 0, 0)">red</span> [***<u>combo</u>***](mailto:a@b.c)
