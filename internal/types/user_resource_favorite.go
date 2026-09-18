@@ -8,6 +8,9 @@ import "time"
 const (
 	ResourceTypeKB    = "kb"
 	ResourceTypeAgent = "agent"
+	// Docs module (spaces and pages of the online documents feature).
+	ResourceTypeDocPage  = "doc_page"
+	ResourceTypeDocSpace = "doc_space"
 )
 
 // UserResourceFavorite is a per-(user, tenant) star on a single resource.
@@ -33,7 +36,7 @@ func (UserResourceFavorite) TableName() string {
 // the table and break the frontend's segmented view).
 func IsValidFavoriteResourceType(t string) bool {
 	switch t {
-	case ResourceTypeKB, ResourceTypeAgent:
+	case ResourceTypeKB, ResourceTypeAgent, ResourceTypeDocPage, ResourceTypeDocSpace:
 		return true
 	default:
 		return false
