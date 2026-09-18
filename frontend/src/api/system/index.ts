@@ -27,7 +27,6 @@ export async function deletePlatformAPIKey(keyId: number): Promise<{ success: bo
 
 export interface SystemInfo {
   version: string
-  edition?: string
   commit_id?: string
   build_time?: string
   go_version?: string
@@ -52,7 +51,6 @@ export interface DeploymentCapability {
 }
 
 export interface DeploymentCapabilitiesResponse {
-  edition: string
   capabilities: Record<string, DeploymentCapability>
 }
 

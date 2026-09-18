@@ -58,35 +58,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/auto-setup": {
-            "post": {
-                "description": "Lite 版专用：首次启动时自动创建默认用户和空间并返回令牌，后续启动直接签发令牌，免除手动注册/登录流程",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "认证"
-                ],
-                "summary": "自动初始化（Lite 桌面版）",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.LoginResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "非 Lite 版本",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
-                        }
-                    }
-                }
-            }
-        },
         "/auth/change-password": {
             "post": {
                 "security": [
@@ -16361,7 +16332,6 @@ const docTemplate = `{
                 "milvus",
                 "weaviate",
                 "doris",
-                "sqlite",
                 "tencent_vectordb",
                 "opensearch"
             ],
@@ -16374,7 +16344,6 @@ const docTemplate = `{
                 "MilvusRetrieverEngineType",
                 "WeaviateRetrieverEngineType",
                 "DorisRetrieverEngineType",
-                "SQLiteRetrieverEngineType",
                 "TencentVectorDBRetrieverEngineType",
                 "OpenSearchRetrieverEngineType"
             ]
@@ -16773,16 +16742,12 @@ const docTemplate = `{
                     "description": "ID",
                     "type": "string"
                 },
-                "im_platform": {
-                    "description": "IMPlatform is the originating IM platform (e.g. \"feishu\", \"wecom\") when\nthis session is bound to an IM channel. It is not stored on the sessions\ntable (it lives in im_channel_sessions) and is populated on read so the\nWeb console can classify a session's origin folder without a list query.",
-                    "type": "string"
-                },
                 "is_pinned": {
                     "description": "IsPinned indicates whether the session is pinned in the list.",
                     "type": "boolean"
                 },
                 "last_request_state": {
-                    "description": "LastRequestState records the input-bar state used the last time this\nsession sent a question (model, KB scope, web search).\nPersisted on every successful POST to /knowledge-chat so that reopening\nthe session can restore the original request context to the chat UI.\nStored in the legacy sessions.agent_config JSONB column to avoid a new\nmigration; the shape used today is ` + "`" + `SessionLastRequestState` + "`" + `.",
+                    "description": "LastRequestState records the input-bar state used the last time this\nsession sent a question (model, KB scope, web search).\nPersisted on every successful POST to /knowledge-chat so that reopening\nthe session can restore the original request context to the chat UI.\nStored in the sessions.last_request_state JSONB column; the shape used\ntoday is ` + "`" + `SessionLastRequestState` + "`" + `.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.SessionLastRequestState"
@@ -18737,9 +18702,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "db_version": {
-                    "type": "string"
-                },
-                "edition": {
                     "type": "string"
                 },
                 "go_version": {

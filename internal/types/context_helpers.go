@@ -205,7 +205,8 @@ type taskRetryMetadata struct {
 }
 
 // WithTaskRetryMetadata records retry counters for task executors that do not
-// provide Asynq's native worker context, notably the Lite synchronous executor.
+// provide Asynq's native worker context, notably the synchronous
+// no-Redis task executor.
 func WithTaskRetryMetadata(ctx context.Context, retried, maxRetry int) context.Context {
 	return context.WithValue(ctx, taskRetryMetadataContextKey{}, taskRetryMetadata{
 		retried: retried, maxRetry: maxRetry,

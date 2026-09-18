@@ -533,8 +533,6 @@ func validateConnectionConfig(engineType types.RetrieverEngineType, config types
 		if config.Addr == "" {
 			return errors.NewValidationError("addr is required for opensearch")
 		}
-	case types.SQLiteRetrieverEngineType:
-		// No connection config needed for SQLite
 	}
 	return nil
 }
@@ -588,9 +586,6 @@ func validateConnectionAddrSSRF(engineType types.RetrieverEngineType, config typ
 			return err
 		}
 		return check(config.GrpcAddress)
-	case types.SQLiteRetrieverEngineType:
-		// File-based engine; no remote address to validate.
-		return nil
 	default:
 		// Fail closed. Engines without a DB-store address mapping (postgres,
 		// infinity, elasticfaiss, and any future engine) must not silently

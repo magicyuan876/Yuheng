@@ -29,7 +29,6 @@ logs/
 *.pid
 
 Yuheng
-Yuheng-lite
 cmd/desktop/build/bin/
 /models/
 test/data/mswag.txt

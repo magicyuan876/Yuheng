@@ -12,7 +12,7 @@ import (
 )
 
 // knowledgeBasesTestDDL mirrors the `knowledge_bases` section of
-// migrations/sqlite/000000_init.up.sql. We inline the DDL here instead of
+// the SQLite init schema. We inline the DDL here instead of
 // using GORM AutoMigrate because KnowledgeBase carries fields tagged with
 // `type:jsonb`, which AutoMigrate does not map cleanly onto SQLite.
 const knowledgeBasesTestDDL = `

@@ -130,11 +130,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 		))
 	}
 
-	// 前端静态文件（仅 Lite 版本内嵌前端）
-	if handler.Edition == "lite" {
-		serveFrontendStatic(r)
-	}
-
 	// Short-lived capability URLs for clients that cannot attach
 	// Yuheng authentication headers.
 	serveResourceGrants(r, params.ResourceCatalog, params.TenantService, params.FileService, params.StorageBackendResolver)
@@ -230,7 +225,7 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterEvaluationRoutes(v1, params.EvaluationHandler, rbacGuards)
 		RegisterInitializationRoutes(v1, params.InitializationHandler, rbacGuards)
 		params.SystemHandler.BindDeploymentCapabilities(handler.BuildDeploymentCapabilities(
-			handler.Edition, deploymentCapabilitiesFromRouter(params),
+			deploymentCapabilitiesFromRouter(params),
 		))
 		RegisterSystemRoutes(v1, params.SystemHandler, rbacGuards)
 		RegisterSystemAdminRoutes(v1, params.SystemHandler, params.AuditLogHandler, rbacGuards)

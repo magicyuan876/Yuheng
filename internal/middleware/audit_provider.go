@@ -16,8 +16,8 @@ const auditServiceContextKey = "yuheng.audit_service"
 // service into every request's gin.Context. Wiring is centralised in
 // router.NewRouter so each request gets the same instance for the
 // lifetime of the process; the middleware is a no-op when svc is nil
-// (e.g. lite mode where audit isn't configured) so the rbac reject
-// path degrades gracefully.
+// (e.g. single-instance mode where audit isn't configured) so the rbac
+// reject path degrades gracefully.
 func AuditServiceProvider(svc interfaces.AuditLogService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if svc != nil {

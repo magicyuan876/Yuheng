@@ -2334,7 +2334,6 @@ definitions:
     - milvus
     - weaviate
     - doris
-    - sqlite
     - tencent_vectordb
     - opensearch
     type: string
@@ -2347,7 +2346,6 @@ definitions:
     - MilvusRetrieverEngineType
     - WeaviateRetrieverEngineType
     - DorisRetrieverEngineType
-    - SQLiteRetrieverEngineType
     - TencentVectorDBRetrieverEngineType
     - OpenSearchRetrieverEngineType
   github_com_magicyuan876_yuheng_internal_types.RetrieverEngines:
@@ -2643,13 +2641,6 @@ definitions:
       id:
         description: ID
         type: string
-      im_platform:
-        description: |-
-          IMPlatform is the originating IM platform (e.g. "feishu", "wecom") when
-          this session is bound to an IM channel. It is not stored on the sessions
-          table (it lives in im_channel_sessions) and is populated on read so the
-          Web console can classify a session's origin folder without a list query.
-        type: string
       is_pinned:
         description: IsPinned indicates whether the session is pinned in the list.
         type: boolean
@@ -2661,8 +2652,8 @@ definitions:
           session sent a question (model, KB scope, web search).
           Persisted on every successful POST to /knowledge-chat so that reopening
           the session can restore the original request context to the chat UI.
-          Stored in the legacy sessions.agent_config JSONB column to avoid a new
-          migration; the shape used today is `SessionLastRequestState`.
+          Stored in the sessions.last_request_state JSONB column; the shape used
+          today is `SessionLastRequestState`.
       pinned_at:
         description: PinnedAt records when the session was pinned; nil when not pinned.
         type: string
@@ -4153,8 +4144,6 @@ definitions:
         type: string
       db_version:
         type: string
-      edition:
-        type: string
       go_version:
         type: string
       graph_database_engine:
@@ -5363,25 +5352,6 @@ paths:
       summary: 获取知识文档解析的 Span 树（含历史尝试）
       tags:
       - 知识管理
-  /auth/auto-setup:
-    post:
-      consumes:
-      - application/json
-      description: Lite 版专用：首次启动时自动创建默认用户和空间并返回令牌，后续启动直接签发令牌，免除手动注册/登录流程
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.LoginResponse'
-        "403":
-          description: 非 Lite 版本
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      summary: 自动初始化（Lite 桌面版）
-      tags:
-      - 认证
   /auth/change-password:
     post:
       consumes:

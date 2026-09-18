@@ -22,7 +22,7 @@ func TestDeploymentCapabilityKeysMatchFrontend(t *testing.T) {
 }
 
 func TestBuildDeploymentCapabilitiesIncludesAllKeys(t *testing.T) {
-	result := BuildDeploymentCapabilities("standard", DeploymentFeatureAvailability{
+	result := BuildDeploymentCapabilities(DeploymentFeatureAvailability{
 		Organizations: true,
 		WebSearch:     true,
 		VectorStore:   true,

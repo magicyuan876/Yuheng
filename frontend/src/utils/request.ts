@@ -76,7 +76,7 @@ let failedQueue: Array<{ resolve: Function; reject: Function }> = [];
 // must surface to the page (e.g. expired token), not trigger the
 // refresh-then-redirect-to-login flow (issue #1617). '/auth/register' already
 // covers '/auth/register-by-invite' via substring match.
-const PUBLIC_AUTH_PATHS = ['/auth/auto-setup', '/auth/login', '/auth/register', '/auth/oidc/', '/auth/invitations/lookup', '/api/v1/embed/'];
+const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/oidc/', '/auth/invitations/lookup', '/api/v1/embed/'];
 
 function isPublicAuthRequest(url?: string): boolean {
   if (!url) return false;
@@ -126,7 +126,7 @@ instance.interceptors.response.use(
       return Promise.reject({ message: t('error.networkError') });
     }
     
-    // 公开接口（auto-setup / login / register / oidc）的 401 不走 refresh 逻辑，直接返回错误
+    // 公开接口（login / register / oidc）的 401 不走 refresh 逻辑，直接返回错误
     if ((error.response.status === 401 || error.response.status === 403) && isPublicAuthRequest(originalRequest?.url)) {
       const { status, data } = error.response;
       const msg = typeof data === 'object'

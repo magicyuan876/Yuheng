@@ -15,7 +15,6 @@ aliases: [Home, Index, wiki首页]
 | 页面 | 简介 |
 |------|------|
 | [版本路线图](项目概述/版本路线图.md) | 产品规划与计划方向 |
-| [Lite与标准版区别](项目概述/Lite与标准版区别.md) | 轻量版与标准版的功能对比 |
 
 ## 核心功能
 
@@ -77,7 +76,6 @@ graph TB
     Home --> API参考
 
     项目概述 --> ROADMAP[版本路线图]
-    项目概述 --> LITE[Lite与标准版区别]
 
     核心功能 --> KG[知识图谱]
     核心功能 --> KGSetup[开启知识图谱功能]
@@ -108,7 +106,6 @@ graph TB
     OIDC -.-> RBAC
     RBAC -.-> SharedSpace
     OIDC -.-> SharedSpace
-    LITE -.-> SharedSpace
     WebSearch -.-> VecDB
     DevGuide -.-> QuickDev
     FAQ -.-> DevGuide

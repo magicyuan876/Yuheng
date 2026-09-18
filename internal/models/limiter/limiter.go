@@ -38,9 +38,9 @@ type ModelConcurrencyLimiter interface {
 }
 
 // RuntimeStat is a point-in-time view of a model semaphore. Active is
-// cluster-wide for the Redis backend and process-local in Lite mode. Waiting is
-// deliberately process-local: waiters block in application processes and are
-// not represented in Redis.
+// cluster-wide for the Redis backend and process-local without Redis. Waiting
+// is deliberately process-local: waiters block in application processes and
+// are not represented in Redis.
 type RuntimeStat struct {
 	ModelID string `json:"model_id"`
 	Name    string `json:"name"`

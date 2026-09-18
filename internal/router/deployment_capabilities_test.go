@@ -19,26 +19,11 @@ func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
 	}
 }
 
-func TestBuildDeploymentCapabilitiesHidesOrganizationsInLite(t *testing.T) {
-	result := handler.BuildDeploymentCapabilities("lite", allDeploymentFeaturesAvailable())
-
-	organization := result.Capabilities["organizations"]
-	if organization.Supported {
-		t.Fatal("organizations should be unsupported in lite edition")
-	}
-	if organization.Reason != "not_supported_in_lite" {
-		t.Fatalf("organization reason = %q, want not_supported_in_lite", organization.Reason)
-	}
-	if !result.Capabilities["settings.storage"].Supported {
-		t.Fatal("storage should remain supported in lite edition")
-	}
-}
-
 func TestBuildDeploymentCapabilitiesReflectsMissingRoutes(t *testing.T) {
 	available := allDeploymentFeaturesAvailable()
 	available.WebSearch = false
 
-	result := handler.BuildDeploymentCapabilities("standard", available)
+	result := handler.BuildDeploymentCapabilities(available)
 
 	for _, key := range []string{"settings.websearch"} {
 		capability := result.Capabilities[key]
@@ -57,7 +42,7 @@ func TestBuildDeploymentCapabilitiesReflectsMissingRoutes(t *testing.T) {
 func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	want := handler.BuildDeploymentCapabilities("standard", allDeploymentFeaturesAvailable())
+	want := handler.BuildDeploymentCapabilities(allDeploymentFeaturesAvailable())
 	systemHandler := &handler.SystemHandler{}
 	systemHandler.BindDeploymentCapabilities(want)
 	engine.GET("/capabilities", systemHandler.GetDeploymentCapabilities)
@@ -76,7 +61,7 @@ func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.Code != 0 || body.Data.Edition != "standard" {
+	if body.Code != 0 {
 		t.Fatalf("response = %#v", body)
 	}
 	if !body.Data.Capabilities["settings.websearch"].Supported {

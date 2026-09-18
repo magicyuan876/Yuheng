@@ -61,7 +61,7 @@ Wiki content over REST and MCP.
 
 **🔎 Retrieval & Q&A**
 - Pluggable retrieval engines: pgvector (default), Elasticsearch, OpenSearch,
-  Milvus, Weaviate, Qdrant, Doris, Tencent VectorDB, SQLite FTS5 (Lite)
+  Milvus, Weaviate, Qdrant, Doris, Tencent VectorDB
 - Hybrid retrieval (vector + BM25/full-text), rerank, query rewrite & expansion
 - FAQ entries with bulk import and dedup; knowledge graph (Neo4j, optional);
   built-in web search (9 providers + self-hosted SearXNG)
@@ -81,8 +81,6 @@ Wiki content over REST and MCP.
 **🏢 Platform**
 - Multi-tenant; four-tier workspace roles; organizations & shared spaces
 - Audit log, Langfuse observability, task-queue dashboard, rate limiting
-- Two editions: **standard** (Docker Compose / Helm) and **lite** (single
-  binary with embedded SQLite + web UI)
 
 ## Architecture
 
@@ -127,7 +125,6 @@ Optional Compose profiles add Neo4j, MinIO and Langfuse:
 Other ways to run:
 
 ```bash
-make build-lite      # single-binary Lite edition (SQLite + embedded UI)
 make dev-start       # local infra (Postgres, Redis, docreader, Langfuse)
 make dev-app         # backend with hot reload (Air)
 make dev-frontend    # Vite dev server
@@ -137,12 +134,11 @@ make dev-frontend    # Vite dev server
 
 | Client | Path | Notes |
 | --- | --- | --- |
-| Web UI | [`frontend/`](./frontend/) | Vue 3 + TDesign; also builds the Wails desktop app |
+| Web UI | [`frontend/`](./frontend/) | Vue 3 + TDesign |
 | CLI | [`cli/`](./cli/) | `yuheng` — scriptable JSON output, multi-profile |
 | MCP server | [`mcp-server/`](./mcp-server/) | `pip install yuheng-mcp` — 23 tools |
 | Go SDK | [`client/`](./client/) | used by the CLI |
 | DeepSeek Harness plugin | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | `@magicyuan876/dsh-yuheng` |
-| WeChat mini program | [`miniprogram/`](./miniprogram/) | |
 
 ## Documentation
 

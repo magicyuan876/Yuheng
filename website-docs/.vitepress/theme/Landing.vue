@@ -74,7 +74,6 @@ const chain = [
 const surfaces = [
   { icon: 'console', name: 'Web 控制台', desc: '知识库管理、对话、Wiki 浏览与系统配置的完整界面。' },
   { icon: 'extension', name: 'Chrome 插件', desc: '网页侧边栏问答，支持正文剪藏与 Markdown 速记入库。' },
-  { icon: 'desktop', name: '桌面客户端', desc: '单机运行的桌面应用，自带后端与本地存储；尚未正式发布，需自行构建。' },
   { icon: 'mobile', name: '微信小程序', desc: '移动端入口，支持网页收藏入库与提问。' },
   { icon: 'cli', name: '命令行 yuheng', desc: '文档管理、检索与带引用的流式问答，默认 JSON 输出，便于脚本化。' },
   { icon: 'api', name: 'REST API 与 Go SDK', desc: '完整 /api/v1 接口；API Key 支持按能力与知识库范围授权。' },
@@ -223,13 +222,12 @@ const map = [
     index: '05',
     icon: 'clients',
     title: '客户端',
-    brief: '七种客户端：Web、CLI、SDK、小程序、桌面端、浏览器插件与 Skill。',
+    brief: '六种客户端：Web、CLI、SDK、小程序、浏览器插件与 Skill。',
     items: [
       { text: 'Web 前端', link: '/05-clients/01-frontend' },
       { text: '命令行工具 CLI', link: '/05-clients/02-cli' },
       { text: 'Go SDK', link: '/05-clients/03-go-sdk' },
       { text: '微信小程序', link: '/05-clients/04-miniprogram' },
-      { text: '桌面客户端', link: '/05-clients/05-desktop' },
     ],
   },
   {
@@ -248,12 +246,6 @@ const map = [
 const deployments = [
   { icon: 'compose', name: 'Docker Compose', desc: '标准部署，12 个可选 profile 组合基础设施', note: '' },
   { icon: 'helm', name: 'Helm', desc: 'Kubernetes 集群编排，适用于生产多副本', note: '' },
-  {
-    icon: 'lite',
-    name: 'Lite（单二进制 / 桌面应用）',
-    desc: 'SQLite + 进程内队列，无需 Docker 与外部数据库；提供命令行与图形界面两种形式',
-    note: '桌面应用尚未正式发布，需自行构建',
-  },
 ]
 </script>
 
@@ -462,7 +454,7 @@ const deployments = [
         <div class="deploy-copy">
           <span class="marker">部署</span>
           <h2 class="chapter-title">部署形态</h2>
-          <p class="chapter-sub">标准部署克隆代码、改两个密钥、一条命令拉起全套服务；本机试用可选 Lite 模式，不依赖 PostgreSQL 与 Redis。</p>
+          <p class="chapter-sub">标准部署克隆代码、改两个密钥、一条命令拉起全套服务。</p>
           <ul class="deploy-list">
             <li v-for="d in deployments" :key="d.name">
               <span class="deploy-name">
@@ -1220,7 +1212,7 @@ open http://localhost
 
 .deploy-list li {
   display: grid;
-  /* 名称列要装下图标 + 「Lite（单二进制 / 桌面应用）」，比原来放宽一档 */
+  /* 名称列要装下图标 + 部署形态名，比原来放宽一档 */
   grid-template-columns: 178px 1fr;
   gap: 16px;
   padding: 15px 0;

@@ -877,12 +877,6 @@ func buildEnvStoreForDriver(driver string, envLookup EnvLookupFunc) *VectorStore
 				UseDefaultConnection: true,
 			},
 		}
-	case "sqlite":
-		return &VectorStore{
-			ID:         "__env_sqlite__",
-			Name:       "SQLite",
-			EngineType: SQLiteRetrieverEngineType,
-		}
 	case "elasticsearch_v8":
 		return &VectorStore{
 			ID:         "__env_elasticsearch_v8__",
