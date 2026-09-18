@@ -64,7 +64,7 @@ func TestDefaultGroupRules(t *testing.T) {
 	def := groups[0]
 	require.True(t, def.IsDefault)
 	require.Equal(t, model.DefaultGroupName, def.Name)
-	require.EqualValues(t, 6, def.MemberCount, "every active tenant member is implicitly in it")
+	require.EqualValues(t, 7, def.MemberCount, "every active tenant member is implicitly in it")
 
 	_, err = e.svc.Groups.Update(ctx(), owner, def.ID, UpdateGroupInput{Name: strp("staff")})
 	require.Equal(t, 400, httpCode(t, err), "the default group keeps its name")
@@ -77,7 +77,7 @@ func TestDefaultGroupRules(t *testing.T) {
 
 	page, err := e.svc.Groups.ListMembers(ctx(), owner, def.ID, "", 1, 4)
 	require.NoError(t, err)
-	require.EqualValues(t, 6, page.Total)
+	require.EqualValues(t, 7, page.Total)
 	require.Len(t, page.Members, 4)
 	page, err = e.svc.Groups.ListMembers(ctx(), owner, def.ID, "bob", 1, 20)
 	require.NoError(t, err)

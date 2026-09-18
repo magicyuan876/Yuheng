@@ -21,7 +21,11 @@ import (
 type pageEnv struct {
 	*env
 	alice, bob, carol, viewer *acl.Identity
-	space                     *model.Space
+	// named is a reader whose id is long enough to appear in a mention;
+	// docs-schema's `id` format wants 8-36 characters and the short names
+	// above do not qualify. Real user ids are UUIDs.
+	named *acl.Identity
+	space *model.Space
 }
 
 func newPageEnv(t *testing.T) *pageEnv { return newPageEnvWith(t) }
@@ -38,10 +42,12 @@ func newPageEnvWith(t *testing.T, opts ...func(*Deps)) *pageEnv {
 	_, err = e.svc.Spaces.SetMembers(ctx(), p.alice, sp.Space, []MemberInput{
 		{Type: model.PrincipalUser, ID: "bob", Role: model.RoleWriter},
 		{Type: model.PrincipalUser, ID: "carol", Role: model.RoleReader},
+		{Type: model.PrincipalUser, ID: "reviewer-01", Role: model.RoleReader},
 	})
 	require.NoError(t, err)
 	// Identities are cached; resolve them after the memberships exist.
 	p.bob, p.carol, p.viewer = e.identity("bob"), e.identity("carol"), e.identity("viewer")
+	p.named = e.identity("reviewer-01")
 	return p
 }
 

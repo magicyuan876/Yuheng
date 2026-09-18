@@ -265,6 +265,14 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 		reason: model.RevisionInterval, editors: editors, changed: upd.ContentChanged,
 	})
 	if upd.ContentChanged {
+		// Only the people who chose to watch, and never the person typing;
+		// see internal/docs/notify.
+		s.notifyPageUpdated(ctx, page, upd.EditorID)
+		// Being named in the body of a page is as direct an address as being
+		// named in a comment.
+		s.notifyMentionedInPage(ctx, page, structure.Mentions, upd.EditorID)
+	}
+	if upd.ContentChanged {
 		s.publish(ctx, events.New(events.PageContent, in.TenantID).WithSpace(page.SpaceID).WithPage(in.PageID).
 			WithActor(upd.EditorID).With("version", version).With("word_count", structure.WordCount).
 			With("editors", editors).With("awareness_count", in.AwarenessCount))

@@ -414,6 +414,8 @@ func (s *PageService) Create(ctx context.Context, actor *acl.Identity, in Create
 		TenantID: actor.TenantID, ActorUserID: actor.UserID, ActorRole: actorRole(actor),
 		Action: audit.PageCreated, SpaceID: space.ID, TargetType: audit.TargetPage, TargetID: page.ID,
 	})
+	// Creating a page makes you a watcher of it; see internal/docs/notify.
+	s.autoWatch(ctx, page, actor.UserID, "create")
 	return s.resolve(ctx, actor, page.ID)
 }
 
@@ -1152,6 +1154,17 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 		if s.d.Repos.Comments != nil {
 			if err := s.d.Repos.Comments.DeleteForPage(ctx, actor.TenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the comments of page %s failed: %v", id, err)
+			}
+		}
+		if s.d.Repos.Watchers != nil {
+			if err := s.d.Repos.Watchers.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+				logger.Warnf(ctx, "[docs] clearing the watchers of page %s failed: %v", id, err)
+			}
+		}
+		if s.d.Repos.Notices != nil {
+			// The notifications go too: there would be nothing left to open.
+			if err := s.d.Repos.Notices.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+				logger.Warnf(ctx, "[docs] clearing the notifications of page %s failed: %v", id, err)
 			}
 		}
 	}

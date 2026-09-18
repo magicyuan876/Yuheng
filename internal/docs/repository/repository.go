@@ -49,6 +49,8 @@ type Repositories struct {
 	Blocks   TransclusionRepository
 	History  RevisionRepository
 	Comments CommentRepository
+	Watchers WatcherRepository
+	Notices  NotificationRepository
 }
 
 // New wires the repositories.
@@ -66,6 +68,8 @@ func New(db *gorm.DB) *Repositories {
 		Blocks:   &transclusionRepository{db: db},
 		History:  &revisionRepository{db: db},
 		Comments: &commentRepository{db: db},
+		Watchers: &watcherRepository{db: db},
+		Notices:  &notificationRepository{db: db},
 	}
 }
 

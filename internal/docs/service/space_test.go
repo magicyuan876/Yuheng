@@ -206,7 +206,7 @@ func TestSpaceMembersThroughGroupsAndOrdering(t *testing.T) {
 	// Ordering: admins (alice), then writers (group Backend), then readers with groups first.
 	require.Equal(t, []string{"alice", "Backend", model.DefaultGroupName, "bob"}, names(members))
 	require.True(t, memberByID(members, everyone.ID).IsDefaultGroup)
-	require.EqualValues(t, 6, *memberByID(members, everyone.ID).GroupMemberCount, "default group counts every tenant member")
+	require.EqualValues(t, 7, *memberByID(members, everyone.ID).GroupMemberCount, "default group counts every tenant member")
 	require.EqualValues(t, 2, *memberByID(members, g.ID).GroupMemberCount)
 
 	// Effective roles: bob writer through the group beats direct reader; carol

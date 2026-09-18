@@ -84,6 +84,20 @@ type CreateCommentInput struct {
 	ParentID string
 }
 
+// MaxExcerptRunes bounds the piece of a comment carried in a notification.
+// Enough to know what it is about; short enough that an inbox is not a copy
+// of the discussion.
+const MaxExcerptRunes = 140
+
+// excerptOf shortens a comment for a notification.
+func excerptOf(text string) string {
+	runes := []rune(text)
+	if len(runes) <= MaxExcerptRunes {
+		return text
+	}
+	return string(runes[:MaxExcerptRunes]) + "…"
+}
+
 // MaxCommentsPerPage bounds one page's threads. Generous for a review, and a
 // bound rather than none, because every reader of the page loads all of them.
 const MaxCommentsPerPage = 1000
@@ -102,7 +116,7 @@ func (s *PageService) CreateComment(ctx context.Context, actor *acl.Identity, d 
 		return nil, notFound("comment")
 	}
 
-	body, _, err := comment.ParseBody(in.Body)
+	body, text, err := comment.ParseBody(in.Body)
 	if err != nil {
 		return nil, invalid("%v", err)
 	}
@@ -112,11 +126,13 @@ func (s *PageService) CreateComment(ctx context.Context, actor *acl.Identity, d 
 		Body: model.JSON(in.Body), CreatorID: actorID(actor),
 	}
 
+	repliedToID := ""
 	if in.ParentID != "" {
 		parent, err := s.loadComment(ctx, d, in.ParentID)
 		if err != nil {
 			return nil, err
 		}
+		repliedToID = parent.CreatorID
 		if parent.ParentID != nil {
 			// One level, so a thread is always a remark and its answers. A
 			// deeper tree has nowhere sensible to be drawn.
@@ -150,10 +166,15 @@ func (s *PageService) CreateComment(ctx context.Context, actor *acl.Identity, d 
 	// a comment is its own visible record, signed and dated on the page, so an
 	// audit row would say what anybody can already read. Deleting one removes
 	// that record, which is why only the deletion is audited.
-	//
-	// Who was named goes to T3.3's notifications; read from the document, so a
-	// mention is a mention rather than a string beginning with "@".
-	_ = comment.Mentions(body)
+
+	// Commenting enrols you as a watcher of the page, and so does being named
+	// in one: both mean you are now part of the conversation.
+	mentioned := comment.Mentions(body)
+	s.autoWatch(ctx, d.Page, actorID(actor), "comment")
+	for _, userID := range mentioned {
+		s.autoWatch(ctx, d.Page, userID, "mention")
+	}
+	s.notifyComment(ctx, d.Page, row, repliedToID, excerptOf(text), mentioned)
 
 	return s.commentView(ctx, actor, d, row, nil), nil
 }
