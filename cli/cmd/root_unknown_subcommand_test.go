@@ -8,8 +8,9 @@ import (
 	"github.com/magicyuan876/yuheng/cli/internal/cmdutil"
 )
 
-// TestAgentInvoke_NowReturnsUnknownSubcommand verifies the deleted v0.6
-// command emits a typed envelope rather than cobra's free-form exit-2 prose.
+// TestAgentInvoke_NowReturnsUnknownSubcommand verifies the removed agent
+// command path emits a typed envelope rather than cobra's free-form exit-2
+// prose.
 func TestAgentInvoke_NowReturnsUnknownSubcommand(t *testing.T) {
 	root := NewRootCmd(cmdutil.New())
 	root.SetArgs([]string{"agent", "invoke", "ag_x", "q"})

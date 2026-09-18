@@ -273,7 +273,7 @@ definitions:
         description: When this step occurred
         type: string
       tool_calls:
-        description: Tools called in this step (Act phase)
+        description: Timeline tool calls (Act phase)
         items:
           $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ToolCall'
         type: array
@@ -685,329 +685,6 @@ definitions:
     type: object
   github_com_magicyuan876_yuheng_internal_types.CredentialsConfig:
     type: object
-  github_com_magicyuan876_yuheng_internal_types.CubeSandboxConfig:
-    properties:
-      api_key:
-        description: 加密
-        type: string
-      api_url:
-        type: string
-      cube_sandbox_ttl_seconds:
-        type: integer
-      http_timeout_sec:
-        description: |-
-          HTTPTimeoutSec bounds each HTTP call to the sandbox control plane.
-          0 means use the built-in default (30s), never the deployment's value.
-        type: integer
-      proxy_url:
-        type: string
-      sandbox_domain:
-        type: string
-      template_id:
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.CustomAgentConfig:
-    properties:
-      agent_mode:
-        description: |-
-          ===== Basic Settings =====
-          Agent mode: "quick-answer" for RAG mode, "smart-reasoning" for ReAct agent mode
-        type: string
-      agent_type:
-        description: |-
-          AgentType is a preset category under smart-reasoning mode that pre-fills
-          system prompt, allowed tools and recommended KB compatibility.
-          Valid values: "rag-qa", "wiki-qa", "hybrid-rag-wiki", "custom".
-          Empty / unknown values are treated as "custom" (no preset applied).
-          Ignored for quick-answer mode.
-        type: string
-      allowed_tools:
-        description: Allowed tools (only for agent type)
-        items:
-          type: string
-        type: array
-      asr_model_id:
-        description: ASR model ID for audio transcription (optional)
-        type: string
-      attachment_image_understanding:
-        description: |-
-          AttachmentImageUnderstanding enables VLM OCR fallback for image-only /
-          scanned documents (PDF/PPT whose pages are images). Disabled by default
-          because it materially increases parse latency; only triggers when the
-          extracted text is below a threshold and a VLM model is configured.
-        type: boolean
-      attachment_ocr_max_pages:
-        description: |-
-          AttachmentOCRMaxPages caps how many pages of a scanned / image-only
-          document this agent sends to the VLM for OCR. 0 falls back to the global
-          default (YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES). More pages means higher
-          coverage but slower parsing and more VLM cost.
-        type: integer
-      attachment_parse_wait_timeout_sec:
-        description: |-
-          AttachmentParseWaitTimeoutSec bounds, in seconds, how long a chat turn
-          waits for this agent's still-parsing attachments before proceeding with
-          only the finished ones. 0 falls back to the global default
-          (YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC).
-        type: integer
-      audio_upload_enabled:
-        description: 'Whether audio upload (ASR transcription) is enabled for this
-          agent (default: false)'
-        type: boolean
-      chat_parser_engine_rules:
-        description: |-
-          ===== Chat Attachment Parsing Settings =====
-          ChatParserEngineRules selects parser engines for session-scoped chat
-          attachments by file type. Takes precedence over the tenant-level
-          ParserEngineConfig.ChatParserEngineRules; an explicit per-request
-          parser_engine still overrides both.
-        items:
-          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ParserEngineRule'
-        type: array
-      citation_enabled:
-        description: |-
-          Whether final answers include knowledge/web source citations. Nil defaults to true
-          so agents saved before this option was introduced keep their existing behavior.
-        type: boolean
-      context_template:
-        description: Context template for normal mode (how to format retrieved chunks)
-        type: string
-      context_template_id:
-        description: |-
-          ContextTemplateID references a template ID in prompt_templates/ YAML files.
-          If set and ContextTemplate is empty, the template content will be resolved at startup.
-        type: string
-      data_analysis_enabled:
-        description: |-
-          ===== Data Analysis Settings =====
-          Whether to run the legacy in-pipeline DuckDB SQL data-analysis stage when
-          the retrieved chunks include CSV/Excel files. This issues an extra LLM
-          call to generate a SQL query and is disabled by default because most
-          quick-answer / RAG-style agents do not want the added latency.
-        type: boolean
-      embedding_top_k:
-        description: |-
-          ===== Retrieval Strategy Settings (for both modes) =====
-          Embedding/Vector retrieval top K
-        type: integer
-      enable_query_expansion:
-        description: |-
-          ===== Advanced Settings (mainly for normal mode) =====
-          Whether to enable query expansion
-        type: boolean
-      enable_rewrite:
-        description: Whether to enable query rewrite for multi-turn conversations
-        type: boolean
-      fallback_prompt:
-        description: Fallback prompt (when FallbackStrategy is "model")
-        type: string
-      fallback_response:
-        description: Fixed fallback response (when FallbackStrategy is "fixed")
-        type: string
-      fallback_strategy:
-        description: 'Fallback strategy: "fixed" for fixed response, "model" for model
-          generation'
-        type: string
-      faq_direct_answer_threshold:
-        description: FAQ direct answer threshold - if similarity > this value, use
-          FAQ answer directly
-        type: number
-      faq_priority_enabled:
-        description: |-
-          ===== FAQ Strategy Settings =====
-          Whether FAQ priority strategy is enabled (FAQ answers prioritized over document chunks)
-        type: boolean
-      faq_score_boost:
-        description: FAQ score boost multiplier - FAQ results score multiplied by
-          this factor
-        type: number
-      history_turns:
-        description: Number of history turns to keep in context
-        type: integer
-      image_storage_provider:
-        description: |-
-          Storage provider for image uploads: "local", "minio", "cos", "tos", "s3", "oss", "ks3".
-          Empty means use the global/workspace default provider.
-        type: string
-      image_upload_enabled:
-        description: |-
-          ===== Image Upload / Multimodal Settings =====
-          Whether image upload is enabled for this agent (default: false)
-        type: boolean
-      intent_prompts:
-        additionalProperties:
-          type: string
-        description: |-
-          IntentPrompts holds per-intent system prompt overrides for non-retrieval
-          intents (greeting, chitchat, etc.). Empty values fall back to templates
-          under config/prompt_templates/intent_prompts.yaml.
-        type: object
-      kb_selection_mode:
-        description: |-
-          ===== Knowledge Base Settings =====
-          Knowledge base selection mode: "all" = all KBs, "selected" = specific KBs, "none" = no KB
-        type: string
-      keyword_threshold:
-        description: Keyword retrieval threshold
-        type: number
-      knowledge_bases:
-        description: Associated knowledge base IDs (only used when KBSelectionMode
-          is "selected")
-        items:
-          type: string
-        type: array
-      llm_call_timeout:
-        description: Timeout for a single LLM call in seconds (0 = use global default)
-        type: integer
-      max_completion_tokens:
-        description: Maximum completion tokens (only for normal mode)
-        type: integer
-      max_iterations:
-        description: |-
-          ===== Agent Mode Settings =====
-          Maximum iterations for ReAct loop (only for agent type)
-        type: integer
-      mcp_auth_wait_timeout:
-        description: |-
-          MCPAuthWaitTimeout is how many seconds to wait for in-conversation OAuth
-          authorization before skipping. <=0 uses the gate's configured timeout.
-        type: integer
-      mcp_selection_mode:
-        description: 'MCP service selection mode: "all" = all enabled MCP services,
-          "selected" = specific services, "none" = no MCP'
-        type: string
-      mcp_services:
-        description: Selected MCP service IDs (only used when MCPSelectionMode is
-          "selected")
-        items:
-          type: string
-        type: array
-      memory_enabled:
-        description: |-
-          Whether this agent may read the user's long-term memory. Nil inherits
-          the workspace setting; false opts a single agent out of memory even when
-          the workspace has it on. There is no "on" that overrides the workspace.
-        type: boolean
-      model_id:
-        description: |-
-          ===== Model Settings =====
-          Model ID to use for conversations
-        type: string
-      multi_turn_enabled:
-        description: |-
-          ===== Multi-turn Conversation Settings =====
-          Whether multi-turn conversation is enabled
-        type: boolean
-      query_understand_model_id:
-        description: |-
-          Dedicated chat model ID for the query-understanding (rewrite + intent) step.
-          When empty, the main conversation ModelID is used as a fallback.
-        type: string
-      question_suggestions:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.QuestionSuggestionConfig'
-        description: |-
-          ===== Conversation Question Suggestions =====
-          QuestionSuggestions owns both the static/knowledge-backed prompts shown
-          before the first user turn and the contextual follow-up questions shown
-          after a completed assistant answer.
-      rerank_model_id:
-        description: ReRank model ID for retrieval
-        type: string
-      rerank_threshold:
-        description: Rerank threshold
-        type: number
-      rerank_top_k:
-        description: Rerank top K
-        type: integer
-      retain_retrieval_history:
-        description: Whether to retain retrieval history across turns
-        type: boolean
-      retrieve_kb_only_when_mentioned:
-        description: |-
-          Whether to retrieve knowledge base only when explicitly mentioned with @ (default: false)
-          When true, knowledge base retrieval only happens if user explicitly mentions KB/files with @
-          When false, knowledge base retrieval happens according to KBSelectionMode
-        type: boolean
-      rewrite_prompt_system:
-        description: Rewrite prompt system message
-        type: string
-      rewrite_prompt_user:
-        description: Rewrite prompt user message template
-        type: string
-      sandbox_config_id:
-        description: |-
-          ===== Sandbox Settings =====
-          SandboxConfigID selects which workspace sandbox config this agent's
-          skill scripts run on. Empty means sandbox execution is disabled.
-
-          This references the LOGICAL config, never a specific revision: keeping
-          the indirection here is what would let credential rotation happen
-          without re-pointing every agent (see the spec's §4.8).
-        type: string
-      selected_skills:
-        description: Selected skill names (only used when SkillsSelectionMode is "selected")
-        items:
-          type: string
-        type: array
-      skills_selection_mode:
-        description: |-
-          ===== Skills Settings (only for smart-reasoning mode) =====
-          Skills selection mode: "all" = all preloaded skills, "selected" = specific skills, "none" = no skills
-        type: string
-      supported_file_types:
-        description: |-
-          ===== File Type Restriction Settings =====
-          Supported file types for this agent (e.g., ["csv", "xlsx", "xls"])
-          Empty means all file types are supported
-          When set, only files with matching extensions can be used with this agent
-        items:
-          type: string
-        type: array
-      system_prompt:
-        description: System prompt for the agent (unified prompt, uses web_search_status
-          placeholder for dynamic behavior)
-        type: string
-      system_prompt_id:
-        description: |-
-          SystemPromptID references a template ID in prompt_templates/ YAML files.
-          If set and SystemPrompt is empty, the template content will be resolved at startup.
-        type: string
-      temperature:
-        description: Temperature for LLM (0-1)
-        type: number
-      thinking:
-        description: Whether to enable thinking mode (for models that support extended
-          thinking)
-        type: boolean
-      vector_threshold:
-        description: Vector retrieval threshold
-        type: number
-      vlm_model_id:
-        description: VLM model ID for image analysis (optional, falls back to workspace-level
-          VLM)
-        type: string
-      web_fetch_enabled:
-        description: Whether to auto-fetch full page content for reranked web search
-          results
-        type: boolean
-      web_fetch_top_n:
-        description: 'Max number of pages to fetch after rerank (default: 3)'
-        type: integer
-      web_search_enabled:
-        description: |-
-          ===== Web Search Settings =====
-          Whether web search is enabled
-        type: boolean
-      web_search_max_results:
-        description: Maximum web search results
-        type: integer
-      web_search_provider_id:
-        description: |-
-          WebSearchProviderID references a specific WebSearchProviderEntity.
-          If empty, the workspace's default provider (is_default=true) is used.
-        type: string
-    type: object
   github_com_magicyuan876_yuheng_internal_types.DataSource:
     properties:
       config:
@@ -1083,88 +760,6 @@ definitions:
         type: string
       updated_at:
         description: Last update timestamp
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.DockerSandboxConfig:
-    properties:
-      cpu_limit:
-        description: |-
-          CPULimit is the number of CPU cores one sandbox may use. 0 uses the
-          built-in default.
-        type: number
-      host:
-        description: |-
-          Host is the daemon endpoint in DOCKER_HOST form. Empty means the local
-          unix socket.
-        type: string
-      http_timeout_sec:
-        description: HTTPTimeoutSec bounds each Engine API call. 0 uses the built-in
-          default.
-        type: integer
-      idle_ttl_seconds:
-        description: |-
-          IdleTTLSeconds is how long a session container may go unused before it
-          is reclaimed. The daemon has no idle timeout of its own, so this is what
-          stops an abandoned session from pinning host memory indefinitely.
-        type: integer
-      image:
-        type: string
-      memory_limit_mb:
-        description: MemoryLimitMB caps one sandbox's memory. 0 uses the built-in
-          default.
-        type: integer
-      network_mode:
-        description: |-
-          NetworkMode is the Docker network sandboxes join: "bridge" (default) or
-          "none" for no egress. Nothing else is accepted — host and container:
-          modes share another namespace outright, and a named network is usually
-          the deployment's own compose network, which would put the sandbox next
-          to Postgres and Redis.
-        type: string
-      pids_limit:
-        description: |-
-          PidsLimit caps how many processes one sandbox may run. 0 uses the
-          built-in default.
-        type: integer
-      runtime:
-        description: |-
-          Runtime selects an alternative OCI runtime such as "runsc" (gVisor).
-          Empty uses the daemon default.
-        type: string
-      tls_cert_path:
-        description: |-
-          TLSCertPath is a directory on the Yuheng host containing ca.pem,
-          cert.pem and key.pem. Required when Host is a TCP endpoint.
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.E2BSandboxConfig:
-    properties:
-      api_key:
-        description: 加密
-        type: string
-      api_url:
-        type: string
-      e2b_sandbox_ttl_seconds:
-        type: integer
-      http_timeout_sec:
-        description: |-
-          HTTPTimeoutSec bounds each HTTP call to the sandbox control plane.
-          0 means use the built-in default (30s), never the deployment's value.
-        type: integer
-      proxy_url:
-        description: |-
-          ProxyURL is the data-plane gateway that fronts envd. E2B Cloud resolves
-          "<port>-<sandboxID>.<sandbox_domain>" through public DNS and TLS, so it
-          needs no value here. Self-hosted E2B-compatible control planes usually
-          serve every sandbox from one gateway address and expect the sandbox
-          authority in the Host header; setting this makes Yuheng dial the
-          gateway directly instead of requiring wildcard DNS and a certificate
-          for the sandbox domain. An "http://" gateway also downgrades the
-          data-plane scheme, which the E2B SDK otherwise pins to https.
-        type: string
-      sandbox_domain:
-        type: string
-      template_id:
         type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.EmbeddingParameters:
@@ -1327,33 +922,6 @@ definitions:
         type: number
     required:
     - query_text
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.FollowUpSuggestionConfig:
-    properties:
-      additional_instruction:
-        type: string
-      allow_regenerate:
-        type: boolean
-      categories:
-        items:
-          type: string
-        type: array
-      count:
-        type: integer
-      enabled:
-        type: boolean
-      knowledge_fallback:
-        type: boolean
-      max_context_turns:
-        type: integer
-      mode:
-        type: string
-      model_id:
-        type: string
-      suppress_on_fallback:
-        type: boolean
-      suppress_when_answer_asks_question:
-        type: boolean
     type: object
   github_com_magicyuan876_yuheng_internal_types.GraphNode:
     properties:
@@ -1836,7 +1404,7 @@ definitions:
       resource_counts:
         allOf:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ResourceCountsByOrgResponse'
-        description: 各空间内知识库/智能体数量，供列表侧栏展示
+        description: 各空间内知识库数量，供列表侧栏展示
       total:
         type: integer
     type: object
@@ -1897,145 +1465,6 @@ definitions:
       user:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.User'
     type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPAdvancedConfig:
-    properties:
-      retry_count:
-        description: 'Number of retries, default: 3'
-        type: integer
-      retry_delay:
-        description: 'Delay between retries in seconds, default: 1'
-        type: integer
-      timeout:
-        description: 'Timeout in seconds, default: 30'
-        type: integer
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPAuthConfig:
-    properties:
-      api_key:
-        type: string
-      api_key_header:
-        description: |-
-          APIKeyHeader is the header name that carries APIKey when AuthType is
-          api_key. Empty defaults to "X-API-Key". This is non-secret structural
-          config (the secret is APIKey), so it is not encrypted and is safe to echo
-          back in responses. It lets services that expect the key in a different
-          header (e.g. the raw token directly in "Authorization") work without
-          resorting to plaintext custom headers.
-        type: string
-      auth_server_metadata_url:
-        description: |-
-          AuthServerMetadataURL optionally pins the OAuth authorization server
-          metadata URL. When empty, the server is discovered automatically from
-          the MCP URL (RFC 9728 / RFC 8414).
-        type: string
-      auth_type:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPAuthType'
-        description: |-
-          AuthType selects the authentication strategy. Empty ("") is treated as
-          none for backward compatibility with rows that pre-date this field.
-      custom_headers:
-        additionalProperties:
-          type: string
-        type: object
-      scopes:
-        description: Scopes are the OAuth scopes requested during authorization. Optional.
-        items:
-          type: string
-        type: array
-      token:
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPAuthType:
-    enum:
-    - ""
-    - api_key
-    - bearer
-    - oauth
-    type: string
-    x-enum-varnames:
-    - MCPAuthNone
-    - MCPAuthAPIKey
-    - MCPAuthBearer
-    - MCPAuthOAuth
-  github_com_magicyuan876_yuheng_internal_types.MCPEnvVars:
-    additionalProperties:
-      type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPHeaders:
-    additionalProperties:
-      type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPService:
-    properties:
-      advanced_config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPAdvancedConfig'
-      auth_config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPAuthConfig'
-      created_at:
-        type: string
-      deleted_at:
-        $ref: '#/definitions/gorm.DeletedAt'
-      description:
-        type: string
-      enabled:
-        type: boolean
-      env_vars:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPEnvVars'
-        description: Environment variables for stdio
-      headers:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPHeaders'
-      id:
-        type: string
-      is_builtin:
-        description: Whether this is a builtin MCP service (visible to all workspaces)
-        type: boolean
-      name:
-        type: string
-      stdio_config:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPStdioConfig'
-        description: Required for stdio transport
-      tenant_id:
-        type: integer
-      transport_type:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPTransportType'
-      updated_at:
-        type: string
-      url:
-        description: 'Optional: required for SSE/HTTP Streamable'
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPStdioConfig:
-    properties:
-      args:
-        description: Command arguments array
-        items:
-          type: string
-        type: array
-      command:
-        description: 'Command: "uvx" or "npx"'
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MCPTransportType:
-    enum:
-    - sse
-    - http-streamable
-    - stdio
-    type: string
-    x-enum-comments:
-      MCPTransportHTTPStreamable: HTTP Streamable
-      MCPTransportSSE: Server-Sent Events
-      MCPTransportStdio: Stdio (Standard Input/Output)
-    x-enum-descriptions:
-    - Server-Sent Events
-    - HTTP Streamable
-    - Stdio (Standard Input/Output)
-    x-enum-varnames:
-    - MCPTransportSSE
-    - MCPTransportHTTPStreamable
-    - MCPTransportStdio
   github_com_magicyuan876_yuheng_internal_types.ManualKnowledgePayload:
     properties:
       channel:
@@ -2103,76 +1532,6 @@ definitions:
       tenant_name:
         type: string
     type: object
-  github_com_magicyuan876_yuheng_internal_types.MemoryConfig:
-    properties:
-      embedding_model_id:
-        description: |-
-          EmbeddingModelID is the single model used to score memory against a
-          question. It is pinned per workspace: knowledge bases each have their
-          own embedding model, and grabbing whichever one happens to be listed
-          first would mix incomparable vector spaces. Blank means semantic recall
-          is off and matching stays lexical.
-        type: string
-      enabled:
-        description: |-
-          Enabled defaults to false. Memory retains user statements across
-          sessions, so a workspace admin has to turn it on deliberately.
-        type: boolean
-      extract_delay_seconds:
-        description: |-
-          ExtractDelaySeconds is how long a finished turn waits before
-          distillation runs. Waiting lets one model call cover the several
-          messages a user usually sends in a row. 0 means the default.
-        type: integer
-      extract_instructions:
-        description: |-
-          ExtractInstructions are workspace-specific rules appended to the
-          distillation prompt, for policies the product cannot guess ("never record
-          customer names", "always note the environment a question is about").
-        type: string
-      extract_min_interval_seconds:
-        description: |-
-          ExtractMinIntervalSeconds is the floor between two distillation runs for
-          the same person, and exists purely to bound cost. It never drops a turn:
-          a turn arriving inside the interval is queued and picked up by the next
-          run. 0 means the default.
-        type: integer
-      extract_model_id:
-        description: |-
-          ExtractModelID is the model used by the background extraction task.
-          Empty means "use the model the conversation itself used", which is what
-          the settings UI promises, so the extraction task must never fail merely
-          because this is blank.
-        type: string
-      interest_threshold:
-        description: |-
-          InterestThreshold is how many separate conversations must touch a topic
-          before it becomes a stored interest. 0 means the default. Setting it to 1
-          records every topic on first sight, which is usually too noisy.
-        type: integer
-      max_items:
-        description: MaxItems caps active items per subject. 0 means DefaultMemoryMaxItems.
-        type: integer
-      retrieval_conditioning:
-        description: |-
-          RetrievalConditioning lets memory shape retrieval — query rewriting and
-          per-document ranking — rather than only being appended to the answer
-          prompt. This is where memory earns its keep in a knowledge-base product.
-        type: boolean
-      vector_recall:
-        description: |-
-          VectorRecall adds semantic similarity to memory recall. Nil means on
-          when an embedding model is reachable.
-
-          Lexical matching alone cannot find a memory the user has re-worded, which
-          is most of them: "回答直接给结论" and "别铺垫那么多" share no tokens. The
-          cost is one embedding call per turn, bounded and degraded to lexical on
-          failure, so the feature never becomes a reason a chat is slow.
-        type: boolean
-      write_mode:
-        description: WriteMode is MemoryWriteExplicitOnly or MemoryWriteAuto.
-        type: string
-    type: object
   github_com_magicyuan876_yuheng_internal_types.MentionedItem:
     properties:
       id:
@@ -2200,30 +1559,14 @@ definitions:
     type: object
   github_com_magicyuan876_yuheng_internal_types.Message:
     properties:
-      agent_duration_ms:
-        description: Agent total execution duration in milliseconds (from query start
-          to answer start)
-        type: integer
-      agent_id:
-        description: |-
-          AgentID is the agent used for this individual assistant turn. Unlike the
-          session's last_request_state it remains stable when users switch agents.
-        type: string
       agent_steps:
         description: |-
-          Agent execution steps (only for assistant messages generated by agent)
-          This contains the detailed reasoning process and tool calls made by the agent
-          Stored for user history display, but NOT included in LLM context to avoid redundancy
+          Turn timeline and reasoning steps (assistant messages only). The
+          knowledge-chat pipeline records its retrieval/attachment stages plus any
+          streamed reasoning_content here so a reloaded conversation can redraw
+          the timeline it showed while streaming. NOT included in LLM context.
         items:
           $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.AgentStep'
-        type: array
-      artifacts:
-        description: |-
-          Skill-generated files produced during this assistant turn (assistant messages only).
-          Populated by ArtifactCollector after the sandbox finishes, referenced by the
-          artifact download endpoint. Empty for user messages and turns without skills.
-        items:
-          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MessageArtifact'
         type: array
       attachments:
         description: Attached files (documents, audio, etc., for user messages)
@@ -2300,39 +1643,6 @@ definitions:
           LLM token usage aggregated across every round of the turn that produced this
           assistant message. Persisted so history reads can attribute cost after the
           live stream is gone; NULL (nil) for user messages and pre-feature rows.
-      used_memories:
-        description: |-
-          UsedMemories records which long-term memories were injected into this
-          answer, so the chat UI can show them and let the user delete one on the
-          spot. Persisted rather than only streamed so reopening a conversation
-          still explains what the answer saw.
-        items:
-          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.UsedMemory'
-        type: array
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.MessageArtifact:
-    properties:
-      created_at:
-        description: When Yuheng persisted the blob
-        type: string
-      file_name:
-        description: Original filename inside the sandbox
-        type: string
-      file_size:
-        description: File size in bytes
-        type: integer
-      file_type:
-        description: File extension (e.g., ".pptx", ".pdf")
-        type: string
-      mod_time:
-        description: Sandbox-side modification time (used for diff)
-        type: string
-      source_path:
-        description: Absolute path inside the sandbox (used for diff)
-        type: string
-      url:
-        description: Storage URL (provider://path); persisted, not sent to client
-        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.MessageAttachment:
     properties:
@@ -2640,9 +1950,6 @@ definitions:
     type: object
   github_com_magicyuan876_yuheng_internal_types.OrganizationResponse:
     properties:
-      agent_share_count:
-        description: 共享到该组织的智能体数量
-        type: integer
       avatar:
         type: string
       created_at:
@@ -2841,13 +2148,6 @@ definitions:
           10)'
         type: integer
     type: object
-  github_com_magicyuan876_yuheng_internal_types.QuestionSuggestionConfig:
-    properties:
-      follow_ups:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.FollowUpSuggestionConfig'
-      starters:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StarterSuggestionConfig'
-    type: object
   github_com_magicyuan876_yuheng_internal_types.QueueStat:
     properties:
       active:
@@ -2963,13 +2263,6 @@ definitions:
     type: object
   github_com_magicyuan876_yuheng_internal_types.ResourceCountsByOrgResponse:
     properties:
-      agents:
-        properties:
-          by_organization:
-            additionalProperties:
-              type: integer
-            type: object
-        type: object
       knowledge_bases:
         properties:
           by_organization:
@@ -3041,7 +2334,6 @@ definitions:
     - milvus
     - weaviate
     - doris
-    - sqlite
     - tencent_vectordb
     - opensearch
     type: string
@@ -3054,7 +2346,6 @@ definitions:
     - MilvusRetrieverEngineType
     - WeaviateRetrieverEngineType
     - DorisRetrieverEngineType
-    - SQLiteRetrieverEngineType
     - TencentVectorDBRetrieverEngineType
     - OpenSearchRetrieverEngineType
   github_com_magicyuan876_yuheng_internal_types.RetrieverEngines:
@@ -3350,13 +2641,6 @@ definitions:
       id:
         description: ID
         type: string
-      im_platform:
-        description: |-
-          IMPlatform is the originating IM platform (e.g. "feishu", "wecom") when
-          this session is bound to an IM channel. It is not stored on the sessions
-          table (it lives in im_channel_sessions) and is populated on read so the
-          Web console can classify a session's origin folder without a list query.
-        type: string
       is_pinned:
         description: IsPinned indicates whether the session is pinned in the list.
         type: boolean
@@ -3365,23 +2649,13 @@ definitions:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SessionLastRequestState'
         description: |-
           LastRequestState records the input-bar state used the last time this
-          session sent a question (agent, model, KB scope, web search, MCPs).
-          Persisted on every successful POST to /knowledge-chat or /agent-chat so
-          that reopening the session can restore the original request context to
-          the chat UI. Stored in the legacy sessions.agent_config JSONB column to
-          avoid a new migration; the shape used today is `SessionLastRequestState`.
+          session sent a question (model, KB scope, web search).
+          Persisted on every successful POST to /knowledge-chat so that reopening
+          the session can restore the original request context to the chat UI.
+          Stored in the sessions.last_request_state JSONB column; the shape used
+          today is `SessionLastRequestState`.
       pinned_at:
         description: PinnedAt records when the session was pinned; nil when not pinned.
-        type: string
-      sandbox_config_id:
-        description: |-
-          SandboxConfigID pins which sandbox config this session's CURRENT live
-          sandbox was created on. Empty means no live sandbox;
-          SandboxConfigIDGlobalDefault means the deployment-wide default config.
-
-          This is an ephemeral pin that dies with the sandbox, not a permanent
-          owner: sessions outlive sandboxes by months, so treating it as
-          permanent would make "no session references this config" never true.
         type: string
       tenant_id:
         description: Workspace ID
@@ -3399,19 +2673,11 @@ definitions:
     type: object
   github_com_magicyuan876_yuheng_internal_types.SessionLastRequestState:
     properties:
-      agent_enabled:
-        type: boolean
-      agent_id:
-        type: string
       knowledge_base_ids:
         items:
           type: string
         type: array
       knowledge_ids:
-        items:
-          type: string
-        type: array
-      mcp_service_ids:
         items:
           type: string
         type: array
@@ -3421,10 +2687,6 @@ definitions:
         type: array
       model_id:
         type: string
-      skill_names:
-        items:
-          type: string
-        type: array
       tag_ids:
         items:
           type: string
@@ -3441,45 +2703,6 @@ definitions:
     required:
     - organization_id
     - permission
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.SkillImageConfig:
-    properties:
-      base_template_id:
-        description: |-
-          BaseTemplateID is the template this chain was originally built from;
-          the rebuild path starts over from it.
-        type: string
-      built_at:
-        description: BuiltAt records when this generation was produced.
-        type: string
-      generation:
-        description: |-
-          Generation increments on every successful install/remove, for naming
-          and troubleshooting.
-        type: integer
-      owner_fingerprint:
-        description: |-
-          OwnerFingerprint identifies the provider account that owns the snapshot.
-          Snapshots are invisible across accounts, so a mismatch means "fall back
-          to the base template" rather than "fail".
-        type: string
-      snapshot_id:
-        description: SnapshotID is the currently effective snapshot; empty = base
-          template.
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.StarterSuggestionConfig:
-    properties:
-      count:
-        type: integer
-      enabled:
-        type: boolean
-      items:
-        items:
-          type: string
-        type: array
-      mode:
-        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.StorageBackendConfig:
     properties:
@@ -3765,11 +2988,6 @@ definitions:
       id:
         description: ID
         type: integer
-      memory_config:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MemoryConfig'
-        description: 'Memory config: workspace switch for cross-session long-term
-          memory'
       name:
         description: Name
         type: string
@@ -3822,65 +3040,6 @@ definitions:
     - TenantRoleAdmin
     - TenantRoleContributor
     - TenantRoleViewer
-  github_com_magicyuan876_yuheng_internal_types.TenantSandboxConfig:
-    properties:
-      allow_private_endpoints:
-        description: |-
-          AllowPrivateEndpoints permits this workspace config to reach RFC1918 or
-          loopback cluster endpoints. Link-local/cloud-metadata addresses remain
-          blocked. It is explicit in the UI instead of hidden in process env.
-        type: boolean
-      cube:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.CubeSandboxConfig'
-      default_timeout_sec:
-        description: |-
-          DefaultTimeoutSec is the per-execution timeout in seconds. 0 uses the
-          program's built-in default.
-        type: integer
-      docker:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.DockerSandboxConfig'
-      e2b:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.E2BSandboxConfig'
-      env_vars:
-        additionalProperties:
-          type: string
-        description: "EnvVars are additional environment variables injected into every\nsandbox
-          created for this tenant. \U0001F512 Values are encrypted at rest.\nThese
-          become visible to all scripts running in the tenant's\nsandboxes — do not
-          place secrets here that scripts must not access."
-        type: object
-      sandbox_type:
-        description: |-
-          SandboxType selects the sandbox backend. Named configs may use "cube",
-          "e2b", "docker", or "local". "disabled" is reserved for the hidden
-          workspace policy row.
-        type: string
-      skill_image:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SkillImageConfig'
-        description: |-
-          SkillImage points at the snapshot that carries this config's installed
-          skills. Empty means "use the base template". Written only by the skill
-          install/remove path: MergeSandboxConfigForUpdate ignores client values
-          so a settings-form save cannot wipe or plant the pointer.
-      skill_rollout:
-        description: |-
-          SkillRollout decides whether sessions that already hold a sandbox of
-          this config rebuild after a skill install or removal. Empty and
-          SkillRolloutNextTurn rebuild on the next chat turn. SkillRolloutNewSession
-          leaves those sandboxes on the previous image; only sessions that start
-          afterwards boot the new snapshot.
-        type: string
-      volume_mount:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.VolumeMountConfig'
-        description: |-
-          VolumeMount configures an optional shared volume mounted into every
-          sandbox created for this tenant. Currently used for tenant-installed
-          skills, but the configuration itself is skill-agnostic and can serve
-          any volume-mount use case (shared datasets, pre-installed toolchains,
-          etc.).
-    type: object
   github_com_magicyuan876_yuheng_internal_types.TokenUsage:
     properties:
       cache_miss_tokens:
@@ -3915,7 +3074,7 @@ definitions:
         description: Execution time in milliseconds
         type: integer
       id:
-        description: Function call ID from LLM
+        description: Call ID
         type: string
       name:
         description: Tool name
@@ -3925,7 +3084,7 @@ definitions:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.ToolCallMetadata'
         description: Provider-specific tool-call state for replay
       reflection:
-        description: Agent's reflection on this tool call result (if enabled)
+        description: Reflection on this tool call result (if enabled)
         type: string
       result:
         allOf:
@@ -3948,7 +3107,6 @@ definitions:
         description: Error message if execution failed
         type: string
       images:
-        description: Base64 data URIs from tool (e.g. MCP image content)
         items:
           type: string
         type: array
@@ -3997,15 +3155,6 @@ definitions:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.OrgMemberRole'
     required:
     - permission
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.UsedMemory:
-    properties:
-      content:
-        type: string
-      id:
-        type: string
-      kind:
-        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.User:
     properties:
@@ -4137,37 +3286,6 @@ definitions:
         description: |-
           兼容老版本
           Model Name
-        type: string
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.VolumeMountConfig:
-    properties:
-      enabled:
-        description: Enabled toggles the volume mount for this tenant.
-        type: boolean
-      mount_path:
-        description: |-
-          MountPath is the sandbox-internal path where the volume is mounted.
-          Default: /yuheng/tenant/skills (customizable per use case).
-        type: string
-      provider:
-        description: Provider identifies the volume backend. Currently "e2b" or "cube".
-        type: string
-      volume_id:
-        description: |-
-          VolumeID is the provider-specific volume identifier, populated after
-          EnsureVolume / CreateVolume succeeds.
-        type: string
-      volume_name:
-        description: |-
-          VolumeName is the human-readable volume name, e.g.
-          "yuheng-tenant-<id>-skills".
-        type: string
-      volume_owner_fingerprint:
-        description: |-
-          VolumeOwnerFingerprint = sha256(provider + APIKey + APIURL).
-          Used to detect when the tenant switched to a different backend or
-          API key, at which point the volume is no longer reachable and must
-          be recreated.
         type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.WebSearchConfig:
@@ -4906,19 +4024,6 @@ definitions:
     required:
     - source_id
     type: object
-  internal_handler.CreateAgentRequest:
-    properties:
-      avatar:
-        type: string
-      config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.CustomAgentConfig'
-      description:
-        type: string
-      name:
-        type: string
-    required:
-    - name
-    type: object
   internal_handler.CreateModelRequest:
     properties:
       description:
@@ -5038,8 +4143,6 @@ definitions:
           banner instead of silently hiding the DB version row (see issue #1319).
         type: string
       db_version:
-        type: string
-      edition:
         type: string
       go_version:
         type: string
@@ -5643,56 +4746,6 @@ definitions:
         description: Active / ClusterCapacity
         type: number
     type: object
-  internal_handler.SandboxCheckItem:
-    properties:
-      latency_ms:
-        type: integer
-      message:
-        description: Message carries free-form provider detail for an executed probe.
-        type: string
-      name:
-        type: string
-      ok:
-        type: boolean
-      reason:
-        description: |-
-          Reason is a stable code explaining why a probe was skipped. It exists so
-          the UI can phrase the skip in the operator's language instead of echoing
-          a server-side sentence.
-        type: string
-    type: object
-  internal_handler.SandboxCheckRequest:
-    properties:
-      config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantSandboxConfig'
-      config_id:
-        description: |-
-          ConfigID lets an edit form test stored credentials while overriding only
-          the fields the admin changed in the drawer.
-        type: string
-      deep:
-        description: |-
-          Deep additionally runs a throwaway script. For remote backends this also
-          creates and destroys one sandbox, which is the only way to validate the
-          template ID, data plane, in-sandbox execution, and outbound egress. It may
-          consume real sandbox time, so it is opt-in.
-        type: boolean
-    type: object
-  internal_handler.SandboxCheckResponse:
-    properties:
-      capabilities:
-        additionalProperties:
-          type: boolean
-        type: object
-      checks:
-        items:
-          $ref: '#/definitions/internal_handler.SandboxCheckItem'
-        type: array
-      ok:
-        type: boolean
-      provider:
-        type: string
-    type: object
   internal_handler.SearchMessagesRequest:
     properties:
       limit:
@@ -5807,17 +4860,6 @@ definitions:
     - model_id
     - tags
     - text
-    type: object
-  internal_handler.UpdateAgentRequest:
-    properties:
-      avatar:
-        type: string
-      config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.CustomAgentConfig'
-      description:
-        type: string
-      name:
-        type: string
     type: object
   internal_handler.UpdateChunkRequest:
     properties:
@@ -6056,35 +5098,6 @@ definitions:
           type: string
         type: array
     type: object
-  internal_handler.sandboxConfigRequest:
-    properties:
-      config:
-        $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.TenantSandboxConfig'
-      description:
-        type: string
-      name:
-        type: string
-    required:
-    - name
-    type: object
-  internal_handler.skillPatchRequest:
-    properties:
-      enabled:
-        description: |-
-          Enabled is a pointer because its absence is a bad request rather than a
-          request to disable the skill.
-        type: boolean
-    type: object
-  internal_handler.skillSourceRequest:
-    properties:
-      source:
-        description: |-
-          Source is exactly one of: "@owner/slug" or a slash-free slug (ClawHub),
-          a github.com / gitlab.com / skills.sh / clawhub / skillhub page URL, or
-          a direct zip/SKILL.md URL. Bare "owner/slug" is rejected: it is both a
-          ClawHub id and a GitHub repo. The fetch carries no credential.
-        type: string
-    type: object
   internal_handler.storageBackendRequest:
     properties:
       config:
@@ -6141,16 +5154,9 @@ definitions:
     type: object
   internal_handler_session.CreateKnowledgeQARequest:
     properties:
-      agent_enabled:
-        description: Whether agent mode is enabled for this request
-        type: boolean
       agent_id:
-        description: Selected custom agent ID (backend resolves shared agent and its
-          workspace from share relation)
+        description: Optional behaviour marker (builtin-wiki-fixer); no agent resolution
         type: string
-      agent_source_tenant_id:
-        description: Optional disambiguator; backend still verifies the share relation
-        type: integer
       attachment_ids:
         description: Pre-uploaded session-scoped document IDs
         items:
@@ -6162,7 +5168,7 @@ definitions:
           $ref: '#/definitions/internal_handler_session.AttachmentUpload'
         type: array
       channel:
-        description: 'Source channel: "web", "api", "im", etc.'
+        description: 'Source channel: "web", "api", etc.'
         type: string
       disable_title:
         description: Whether to disable auto title generation
@@ -6182,11 +5188,6 @@ definitions:
         items:
           type: string
         type: array
-      mcp_service_ids:
-        description: Per-request MCP services selected via @mention
-        items:
-          type: string
-        type: array
       mentioned_items:
         description: '@mentioned knowledge bases and files'
         items:
@@ -6195,11 +5196,6 @@ definitions:
       query:
         description: Query text for knowledge base search
         type: string
-      skill_names:
-        description: Per-request Skills selected via @mention
-        items:
-          type: string
-        type: array
       suggestion_attribution:
         $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SuggestionAttribution'
       summary_model_id:
@@ -6329,466 +5325,6 @@ info:
   title: Yuheng API
   version: "1.0"
 paths:
-  /agent-chat/{session_id}:
-    post:
-      consumes:
-      - application/json
-      description: 基于Agent的智能问答，支持多轮对话和SSE流式响应
-      parameters:
-      - description: 会话ID
-        in: path
-        name: session_id
-        required: true
-        type: string
-      - description: 问答请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler_session.CreateKnowledgeQARequest'
-      - default: handle
-        description: 文件引用形式，public 返回可加载直链
-        enum:
-        - handle
-        - public
-        in: query
-        name: resource_urls
-        type: string
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: 问答结果（SSE流）
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Agent问答
-      tags:
-      - 问答
-  /agent/mcp-oauth-resolutions/{pending_id}:
-    post:
-      consumes:
-      - application/json
-      description: 用户在对话中完成 OAuth 授权后调用，校验令牌存在后恢复被暂停的 Agent 工具调用
-      parameters:
-      - description: 待授权 ID
-        in: path
-        name: pending_id
-        required: true
-        type: string
-      - description: '{service_id: string}'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "409":
-          description: 用户尚未完成授权
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      summary: 完成对话内 MCP OAuth 授权
-      tags:
-      - MCP服务
-  /agent/mcp-oauth-resolutions/{pending_id}/cancel:
-    post:
-      description: 用户主动跳过 OAuth 授权，解除 Agent 阻塞
-      parameters:
-      - description: 待授权 ID
-        in: path
-        name: pending_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      summary: 跳过对话内 MCP OAuth 授权
-      tags:
-      - MCP服务
-  /agent/tool-approvals/{pending_id}:
-    post:
-      consumes:
-      - application/json
-      description: 用户审批通过或驳回一次工具调用（用于 Agent 阻塞等待审批的场景）
-      parameters:
-      - description: 待审批记录 ID
-        in: path
-        name: pending_id
-        required: true
-        type: string
-      - description: '{decision: \'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 审批结果
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 待审批记录不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 处理 MCP 工具调用待审批请求
-      tags:
-      - MCP服务
-  /agents:
-    get:
-      consumes:
-      - application/json
-      description: 获取当前空间的所有智能体（包括内置智能体）
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 智能体列表
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取智能体列表
-      tags:
-      - 智能体
-    post:
-      consumes:
-      - application/json
-      description: 创建新的自定义智能体
-      parameters:
-      - description: 智能体信息
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.CreateAgentRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: 创建的智能体
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 创建智能体
-      tags:
-      - 智能体
-  /agents/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: 删除指定的智能体
-      parameters:
-      - description: 智能体ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "403":
-          description: 无法删除内置智能体
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 智能体不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 删除智能体
-      tags:
-      - 智能体
-    get:
-      consumes:
-      - application/json
-      description: 根据ID获取智能体详情
-      parameters:
-      - description: 智能体ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 智能体详情
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 智能体不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取智能体详情
-      tags:
-      - 智能体
-    put:
-      consumes:
-      - application/json
-      description: 更新智能体的名称、描述和配置
-      parameters:
-      - description: 智能体ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 更新请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.UpdateAgentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的智能体
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "403":
-          description: 无法修改内置智能体
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 更新智能体
-      tags:
-      - 智能体
-  /agents/{id}/copy:
-    post:
-      consumes:
-      - application/json
-      description: 复制指定的智能体
-      parameters:
-      - description: 智能体ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: 复制成功
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 智能体不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 复制智能体
-      tags:
-      - 智能体
-  /agents/{id}/shares/{share_id}:
-    delete:
-      description: 从智能体的共享列表中移除指定共享关系
-      parameters:
-      - description: 智能体 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 共享记录 ID
-        in: path
-        name: share_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'success: true'
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: 无权限
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 取消智能体共享
-      tags:
-      - 组织
-  /agents/{id}/suggested-questions:
-    get:
-      consumes:
-      - application/json
-      description: 基于智能体关联的知识库，返回推荐问题供用户快捷提问
-      parameters:
-      - description: 智能体ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 知识库ID列表（逗号分隔），覆盖智能体默认配置
-        in: query
-        name: knowledge_base_ids
-        type: string
-      - description: 知识ID列表（逗号分隔），限定到具体文档
-        in: query
-        name: knowledge_ids
-        type: string
-      - description: 带知识库归属的标签范围（JSON）
-        in: query
-        name: tag_scopes
-        type: string
-      - description: 返回数量上限（未传时使用智能体配置的开场问题数量，最大30）
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 推荐问题列表
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 智能体不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取推荐问题
-      tags:
-      - 智能体
-  /agents/placeholders:
-    get:
-      consumes:
-      - application/json
-      description: 获取所有可用的提示词占位符定义，按字段类型分组
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 占位符定义
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取占位符定义
-      tags:
-      - 智能体
-  /agents/type-presets:
-    get:
-      consumes:
-      - application/json
-      description: 返回所有 smart-reasoning 下可用的智能体类型预设（RAG/Wiki/Hybrid/Custom），用于编辑器自动填充系统提示词、工具和
-        KB 兼容性
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 预设列表
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取智能体类型预设列表
-      tags:
-      - 智能体
   /api/v1/knowledge/{id}/spans:
     get:
       consumes:
@@ -6816,25 +5352,6 @@ paths:
       summary: 获取知识文档解析的 Span 树（含历史尝试）
       tags:
       - 知识管理
-  /auth/auto-setup:
-    post:
-      consumes:
-      - application/json
-      description: Lite 版专用：首次启动时自动创建默认用户和空间并返回令牌，后续启动直接签发令牌，免除手动注册/登录流程
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.LoginResponse'
-        "403":
-          description: 非 Lite 版本
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      summary: 自动初始化（Lite 桌面版）
-      tags:
-      - 认证
   /auth/change-password:
     post:
       consumes:
@@ -8012,176 +6529,6 @@ paths:
       summary: 获取FAQ导入进度
       tags:
       - FAQ管理
-  /im-channels/{id}:
-    delete:
-      description: 删除指定 IM 渠道
-      parameters:
-      - description: 渠道 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'success: true'
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 渠道不存在
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 删除 IM 渠道
-      tags:
-      - IM 渠道
-    put:
-      consumes:
-      - application/json
-      description: 更新指定 IM 渠道的名称、模式、知识库、凭证或启用状态
-      parameters:
-      - description: 渠道 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 更新字段（name/mode/output_mode/knowledge_base_id/credentials/enabled）
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的渠道
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 渠道不存在
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 更新 IM 渠道
-      tags:
-      - IM 渠道
-  /im-channels/{id}/toggle:
-    post:
-      description: 切换指定 IM 渠道的启用状态
-      parameters:
-      - description: 渠道 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的渠道
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 渠道不存在
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 启用/停用 IM 渠道
-      tags:
-      - IM 渠道
-  /im/callback/{channel_id}:
-    get:
-      consumes:
-      - application/json
-      description: 接收各 IM 平台的事件回调；走平台自身签名校验，不使用 API Key
-      parameters:
-      - description: 渠道 ID
-        in: path
-        name: channel_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 处理结果
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: 签名校验失败
-          schema:
-            additionalProperties: true
-            type: object
-      summary: IM 平台回调
-      tags:
-      - IM 回调
-    post:
-      consumes:
-      - application/json
-      description: 接收各 IM 平台的事件回调；走平台自身签名校验，不使用 API Key
-      parameters:
-      - description: 渠道 ID
-        in: path
-        name: channel_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 处理结果
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: 签名校验失败
-          schema:
-            additionalProperties: true
-            type: object
-      summary: IM 平台回调
-      tags:
-      - IM 回调
   /initialization/asr/check:
     post:
       consumes:
@@ -8691,12 +7038,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取当前空间的所有知识库；或当传入 agent_id（共享智能体）时，校验权限后返回该智能体配置的知识库范围（用于 @ 提及）
-      parameters:
-      - description: 共享智能体 ID（传入时返回该智能体可用的知识库）
-        in: query
-        name: agent_id
-        type: string
+      description: 获取当前空间的所有知识库
       produces:
       - application/json
       responses:
@@ -8776,16 +7118,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: 根据ID获取知识库详情。当使用共享智能体时，可传 agent_id 以校验该智能体是否有权访问该知识库。
+      description: 根据ID获取知识库详情。
       parameters:
       - description: 知识库ID
         in: path
         name: id
         required: true
-        type: string
-      - description: 共享智能体 ID（用于校验智能体是否有权访问该知识库）
-        in: query
-        name: agent_id
         type: string
       produces:
       - application/json
@@ -10499,7 +8837,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 根据ID列表批量获取知识条目。可选 kb_id：指定时按该知识库校验权限并用于共享知识库的空间解析；可选 agent_id：使用共享智能体时传此参数，后端按智能体所属空间查询（用于刷新后恢复共享知识库下的文件）
+      description: 根据ID列表批量获取知识条目。可选 kb_id：指定时按该知识库校验权限并用于共享知识库的空间解析
       parameters:
       - collectionFormat: csv
         description: 知识ID列表
@@ -10512,10 +8850,6 @@ paths:
       - description: 可选，知识库ID（用于共享知识库时指定范围）
         in: query
         name: kb_id
-        type: string
-      - description: 可选，共享智能体ID（用于按智能体空间批量拉取文件详情）
-        in: query
-        name: agent_id
         type: string
       produces:
       - application/json
@@ -10775,8 +9109,7 @@ paths:
       consumes:
       - application/json
       description: Search knowledge files by keyword. Pass recent=true without a keyword
-        to browse recent files. When agent_id is set (shared agent), scope is the
-        agent's configured knowledge bases.
+        to browse recent files.
       parameters:
       - description: Keyword to search
         in: query
@@ -10796,10 +9129,6 @@ paths:
       - description: Comma-separated file extensions to filter (e.g., csv,xlsx)
         in: query
         name: file_types
-        type: string
-      - description: Shared agent ID (search within agent's KB scope)
-        in: query
-        name: agent_id
         type: string
       - description: Return recent files when keyword is empty
         in: query
@@ -11581,457 +9910,6 @@ paths:
       summary: Get wiki statistics
       tags:
       - Wiki
-  /mcp-services:
-    get:
-      consumes:
-      - application/json
-      description: 获取当前空间的所有MCP服务
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: MCP服务列表
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取MCP服务列表
-      tags:
-      - MCP服务
-    post:
-      consumes:
-      - application/json
-      description: 创建新的MCP服务配置
-      parameters:
-      - description: MCP服务配置
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.MCPService'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 创建的MCP服务
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 创建MCP服务
-      tags:
-      - MCP服务
-  /mcp-services/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: 删除指定的MCP服务
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 删除MCP服务
-      tags:
-      - MCP服务
-    get:
-      consumes:
-      - application/json
-      description: 根据ID获取MCP服务详情
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: MCP服务详情
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: 服务不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取MCP服务详情
-      tags:
-      - MCP服务
-    put:
-      consumes:
-      - application/json
-      description: 更新MCP服务配置
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 更新字段
-        in: body
-        name: request
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的MCP服务
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 更新MCP服务
-      tags:
-      - MCP服务
-  /mcp-services/{id}/credentials:
-    put:
-      consumes:
-      - application/json
-      description: 为指定字段写入新凭据；省略的字段保留原值；空字符串视为 no-op（如需删除请用 DELETE）
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: '{api_key?: string, token?: string}'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 写入后的凭据状态
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 服务不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 设置 MCP 服务凭据
-      tags:
-      - MCP服务
-  /mcp-services/{id}/credentials/{field}:
-    delete:
-      description: 删除指定字段的存储凭据；删除已为空的字段是幂等的
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 字段名（api_key | token）
-        in: path
-        name: field
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: 字段名非法
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: 服务不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 移除 MCP 服务的单个凭据字段
-      tags:
-      - MCP服务
-  /mcp-services/{id}/oauth/authorize-url:
-    post:
-      consumes:
-      - application/json
-      description: 对使用 OAuth 的 MCP 服务执行发现与动态客户端注册，返回浏览器应跳转的授权地址（当前用户维度）
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: '{redirect_uri: string, frontend_redirect?: string}'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{authorization_url: string, authorization_attempt: string}'
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      summary: 发起 MCP OAuth 授权
-      tags:
-      - MCP服务
-  /mcp-services/{id}/oauth/status:
-    get:
-      description: 返回当前用户的 OAuth Token 生命周期状态；传 authorization_attempt 时只检查本次授权流程
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 本次授权尝试 ID；传入后不会接受历史 Token
-        in: query
-        name: authorization_attempt
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: '{authorized: bool, state: string, refresh_available: bool,
-            expires_at?: string}'
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 查询 MCP OAuth 授权状态
-      tags:
-      - MCP服务
-  /mcp-services/{id}/oauth/token:
-    delete:
-      description: 删除当前用户对指定 MCP 服务的 OAuth 令牌
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-      security:
-      - Bearer: []
-      summary: 撤销 MCP OAuth 授权
-      tags:
-      - MCP服务
-  /mcp-services/{id}/resources:
-    get:
-      consumes:
-      - application/json
-      description: 获取MCP服务提供的资源列表
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 资源列表
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取MCP服务资源列表
-      tags:
-      - MCP服务
-  /mcp-services/{id}/test:
-    post:
-      consumes:
-      - application/json
-      description: 测试MCP服务是否可以正常连接
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 测试结果
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 测试MCP服务连接
-      tags:
-      - MCP服务
-  /mcp-services/{id}/tool-approvals/{tool_name}:
-    put:
-      consumes:
-      - application/json
-      description: 为指定 MCP 服务下的某个工具设置/更新审批要求
-      parameters:
-      - description: MCP 服务 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 工具名
-        in: path
-        name: tool_name
-        required: true
-        type: string
-      - description: '{require_approval: bool}'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新结果
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "404":
-          description: MCP 服务或工具不存在
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 设置 MCP 工具人工审批策略
-      tags:
-      - MCP服务
-  /mcp-services/{id}/tools:
-    get:
-      consumes:
-      - application/json
-      description: 获取MCP服务提供的工具列表
-      parameters:
-      - description: MCP服务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 工具列表
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取MCP服务工具列表
-      tags:
-      - MCP服务
-  /mcp-services/oauth/callback:
-    get:
-      description: 接收授权服务器回调并完成 code 交换，随后重定向回前端
-      parameters:
-      - description: 授权码
-        in: query
-        name: code
-        type: string
-      - description: 状态参数
-        in: query
-        name: state
-        type: string
-      - description: 授权错误码
-        in: query
-        name: error
-        type: string
-      responses:
-        "302":
-          description: Found
-      summary: MCP OAuth 回调
-      tags:
-      - MCP服务
   /me/invitations:
     get:
       description: 返回当前登录用户的待接受邀请（默认仅 pending），用于头像入口和 /invitations 收件箱页。
@@ -12142,365 +10020,6 @@ paths:
       summary: 获取我的待处理邀请数
       tags:
       - 我的邀请
-  /memory/consolidate:
-    post:
-      description: 合并意思接近的条目、归档到期事项，不等待每日后台整理
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 整理结果
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 立刻整理我的记忆
-      tags:
-      - 长期记忆
-  /memory/documents:
-    get:
-      description: 返回当前用户回答里反复引用的文档，次数未达习惯门槛的不展示
-      parameters:
-      - default: 50
-        description: 每页条数
-        in: query
-        name: limit
-        type: integer
-      - description: 偏移量
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 文档列表
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 列出常用资料
-      tags:
-      - 长期记忆
-  /memory/documents/{id}:
-    delete:
-      description: 删除一条文档亲和度计数，之后检索不再因为这份文档而加权
-      parameters:
-      - description: 亲和度 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 停止用某份文档做个性化检索
-      tags:
-      - 长期记忆
-  /memory/export:
-    get:
-      description: 以 JSON 导出当前用户的全部记忆
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 记忆导出
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 导出我的记忆
-      tags:
-      - 长期记忆
-  /memory/items:
-    delete:
-      description: 永久删除当前用户的全部记忆
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 清空成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 清空我的记忆
-      tags:
-      - 长期记忆
-    get:
-      description: 分页返回当前用户的记忆条目，可按状态过滤
-      parameters:
-      - description: 状态过滤
-        enum:
-        - active
-        - superseded
-        - archived
-        - pending
-        in: query
-        name: status
-        type: string
-      - default: 50
-        description: 每页条数
-        in: query
-        name: limit
-        type: integer
-      - description: 偏移量
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 记忆列表
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 列出我的记忆
-      tags:
-      - 长期记忆
-    post:
-      consumes:
-      - application/json
-      description: 手动添加一条长期记忆
-      parameters:
-      - description: 记忆内容
-        in: body
-        name: request
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 新增的记忆
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 新增一条记忆
-      tags:
-      - 长期记忆
-  /memory/items/{id}:
-    delete:
-      description: 永久删除一条记忆
-      parameters:
-      - description: 记忆ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 删除一条记忆
-      tags:
-      - 长期记忆
-    put:
-      consumes:
-      - application/json
-      description: 修改记忆内容与重要度，修改后该条记忆不会被后台抽取覆盖
-      parameters:
-      - description: 记忆ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 记忆内容
-        in: body
-        name: request
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的记忆
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 修改一条记忆
-      tags:
-      - 长期记忆
-  /memory/items/{id}/confirm:
-    post:
-      description: 接受系统推断的记忆，使其开始生效
-      parameters:
-      - description: 记忆 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 确认成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 确认一条推断出的记忆
-      tags:
-      - 长期记忆
-  /memory/items/{id}/reject:
-    post:
-      description: 拒绝系统推断的记忆，并记住这次拒绝
-      parameters:
-      - description: 记忆 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 否决成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 否决一条推断出的记忆
-      tags:
-      - 长期记忆
-  /memory/settings:
-    get:
-      description: 返回合并后的记忆开关状态（空间级 + 个人级）与记忆条数
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 记忆设置
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 获取我的记忆设置
-      tags:
-      - 长期记忆
-    put:
-      consumes:
-      - application/json
-      description: 开启或关闭当前用户自己的长期记忆
-      parameters:
-      - description: 设置
-        in: body
-        name: request
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新后的设置
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 更新我的记忆设置
-      tags:
-      - 长期记忆
-  /memory/topics:
-    get:
-      description: 返回已计数、尚未提升为长期关注的主题，以及距离阈值还差几次
-      parameters:
-      - default: 50
-        description: 每页条数
-        in: query
-        name: limit
-        type: integer
-      - description: 偏移量
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 主题列表
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 列出正在观察的主题
-      tags:
-      - 长期记忆
-  /memory/topics/{id}:
-    delete:
-      description: 删除尚未提升的主题计数，并记住这次拒绝，之后不会再自动记为长期关注
-      parameters:
-      - description: 主题 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 停止跟踪一个主题
-      tags:
-      - 长期记忆
-  /memory/topics/{id}/promote:
-    post:
-      description: 不等待剩余次数，把正在观察的主题提升为一条长期关注记忆
-      parameters:
-      - description: 主题 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 新增的记忆
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 立即记为长期关注
-      tags:
-      - 长期记忆
   /messages/{session_id}/{id}:
     delete:
       consumes:
@@ -12967,33 +10486,6 @@ paths:
       summary: 更新组织
       tags:
       - 组织管理
-  /organizations/{id}/agent-shares:
-    get:
-      description: 返回所有被共享到指定组织的智能体（含我的有效权限）
-      parameters:
-      - description: 组织 ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 智能体共享列表 + total
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: 非组织成员
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取共享到本组织的智能体
-      tags:
-      - 组织
   /organizations/{id}/invite:
     post:
       consumes:
@@ -13309,31 +10801,9 @@ paths:
     get:
       deprecated: true
       responses: {}
-  /organizations/{id}/shared-agents:
-    get:
-      description: 获取指定空间下所有共享智能体，包含他人共享的与我共享的，用于列表页空间视角
-      parameters:
-      - description: 组织ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 获取空间内全部智能体（含我共享的）
-      tags:
-      - 组织管理
   /organizations/{id}/shared-knowledge-bases:
     get:
-      description: 获取指定空间下所有共享知识库，包含直接共享的与通过共享智能体可见的，用于列表页空间视角
+      description: 获取指定空间下所有共享知识库，用于列表页空间视角
       parameters:
       - description: 组织ID
         in: path
@@ -13350,7 +10820,7 @@ paths:
             type: object
       security:
       - Bearer: []
-      summary: 获取空间内全部知识库（含我共享的、含智能体携带的）
+      summary: 获取空间内全部知识库（含我共享的）
       tags:
       - 组织管理
   /organizations/{id}/shares:
@@ -13513,603 +10983,11 @@ paths:
       summary: 搜索可加入的空间
       tags:
       - 组织管理
-  /sandbox-configs:
-    get:
-      description: List workspace sandbox backend configs with credentials masked.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Sandbox configs and defaults
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: List sandbox configs
-      tags:
-      - SandboxConfig
-    post:
-      consumes:
-      - application/json
-      description: Create a named workspace sandbox backend config. Credentials are
-        masked in the response.
-      parameters:
-      - description: Sandbox backend config
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.sandboxConfigRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created sandbox config
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request or validation failure
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Create sandbox config
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}:
-    delete:
-      description: Soft-delete a sandbox backend config. force=true only overrides
-        unverifiable provider inventory, never confirmed live sandboxes.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Force delete when inventory is unverifiable
-        in: query
-        name: force
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Deletion success
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "409":
-          description: Live sandboxes or unverifiable inventory
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Delete sandbox config
-      tags:
-      - SandboxConfig
-    get:
-      description: Retrieve a workspace sandbox backend config with credentials masked.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Sandbox config
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Sandbox config not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Get sandbox config
-      tags:
-      - SandboxConfig
-    put:
-      consumes:
-      - application/json
-      description: Update a sandbox backend config. Identity-field changes are refused
-        while the config owns live or paused sandboxes.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Updated sandbox config
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.sandboxConfigRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Updated sandbox config
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request or validation failure
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Sandbox config not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "409":
-          description: Live sandboxes or unverifiable inventory
-          schema:
-            additionalProperties: true
-            type: object
-        "423":
-          description: Sandbox config is being modified by another request
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Update sandbox config
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/sandboxes:
-    get:
-      description: Return live/paused sandbox inventory and affected agent names for
-        one config.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Sandbox inventory
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Inspect sandbox config inventory
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills:
-    get:
-      description: List the agent skills installed onto one sandbox config's image.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Installed skills
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Sandbox config not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: List installed skills
-      tags:
-      - SandboxConfig
-    post:
-      consumes:
-      - application/json
-      - multipart/form-data
-      description: |-
-        Install a skill onto this sandbox config's image. Send a zip
-        as multipart form field "file", or JSON {"source":"..."} to
-        pull a public skill. source is one of: "@owner/slug" or a
-        slash-free slug (ClawHub), a github.com / gitlab.com /
-        skills.sh / clawhub / skillhub URL, or a direct zip/SKILL.md
-        URL. Bare "owner/slug" is rejected as ambiguous. The source
-        must be readable anonymously. The install boots a sandbox and
-        runs for minutes, so the request is only accepted; follow it
-        via the install-events stream.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill bundle (zip)
-        in: formData
-        name: file
-        type: file
-      - description: Install from a registry, git host, or archive URL
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/internal_handler.skillSourceRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Install accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Missing, oversized or invalid bundle or source
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Sandbox config not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Install a skill
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills/{skillId}:
-    delete:
-      description: |-
-        Remove a skill from the config's image. The removal rebuilds
-        the image and runs for minutes, so it is only accepted; follow
-        it via the install-events stream.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Removal accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Remove an installed skill
-      tags:
-      - SandboxConfig
-    get:
-      description: Retrieve one installed skill of a sandbox config.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Installed skill
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Get an installed skill
-      tags:
-      - SandboxConfig
-    patch:
-      consumes:
-      - application/json
-      description: Show or hide an installed skill. The files stay in the image either
-        way; removal is a separate flow.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      - description: Fields to update
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.skillPatchRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Updated skill
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Update an installed skill
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills/{skillId}/files:
-    get:
-      description: List files in the stored skill bundle without starting a sandbox.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Skill files
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill or files not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: List files of an installed skill
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills/{skillId}/files/content:
-    get:
-      description: Read one skill file as UTF-8, a small base64 image, or binary.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      - description: Skill-root-relative file path
-        in: query
-        name: path
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Skill file
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid path
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill or file not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Read one file of an installed skill
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills/{skillId}/install-events:
-    get:
-      description: |-
-        Server-sent progress for one install or removal. The stream
-        always terminates: with the run's own terminal event, with one
-        derived from the durable status, or with a "detached" frame
-        when it stops following a run that is still going.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: SSE stream of progress events
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Follow an install or removal
-      tags:
-      - SandboxConfig
-  /sandbox-configs/{id}/skills/{skillId}/transcript:
-    get:
-      description: |-
-        Server-sent replay of everything the installer agent did — the
-        prompt it was given, its thinking, the commands it ran and
-        their output — followed live while the install is still
-        running. Frames are the same shape the chat stream uses, so a
-        console renders an install with the components it renders a
-        chat turn with. 404 once the event log has expired; the
-        durable message history is the fallback.
-      parameters:
-      - description: Sandbox config ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Skill ID
-        in: path
-        name: skillId
-        required: true
-        type: string
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: SSE stream of transcript events
-          schema:
-            type: string
-        "204":
-          description: Install is still preparing; retry once locators exist
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Skill or transcript not found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: Follow an install's agent transcript
-      tags:
-      - SandboxConfig
   /sessions:
     get:
       consumes:
       - application/json
-      description: 获取当前空间的会话列表，支持分页、关键字搜索、按来源/Agent 筛选
+      description: 获取当前空间的会话列表，支持分页、关键字搜索、按来源筛选
       parameters:
       - description: 页码
         in: query
@@ -14127,10 +11005,6 @@ paths:
           渠道需 Admin+）
         in: query
         name: source
-        type: string
-      - description: 按 Agent 过滤（仅对 IM 会话生效）
-        in: query
-        name: agent_id
         type: string
       produces:
       - application/json
@@ -14330,38 +11204,6 @@ paths:
       summary: 取消置顶会话
       tags:
       - 会话
-  /sessions/{session_id}/artifacts:
-    get:
-      description: 返回本会话中所有 assistant 消息产生的技能产物元数据（不含 URL）
-      parameters:
-      - description: 会话ID
-        in: path
-        name: session_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      summary: 列出会话生成的产物文件
-      tags:
-      - 会话
-  /sessions/{session_id}/messages/{message_id}/artifacts:
-    get:
-      responses: {}
-  /sessions/{session_id}/messages/{message_id}/artifacts/{index}/download:
-    get:
-      responses: {}
   /sessions/{session_id}/messages/{message_id}/suggestions:
     get:
       parameters:
@@ -14623,27 +11465,6 @@ paths:
       summary: 继续流式响应
       tags:
       - 问答
-  /shared-agents:
-    get:
-      description: 返回所有共享给当前用户所在组织的智能体
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 智能体列表 + total
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取我可访问的共享智能体
-      tags:
-      - 组织
   /shared-knowledge-bases:
     get:
       description: 获取通过组织共享给当前用户的所有知识库
@@ -14660,30 +11481,6 @@ paths:
       summary: 获取共享给我的知识库列表
       tags:
       - 知识库共享
-  /skills:
-    get:
-      consumes:
-      - application/json
-      description: 返回指定沙盒配置镜像内、智能体实际能调用的已安装技能（ready 且启用）。不传 sandbox_config_id 时列表为空。
-      parameters:
-      - description: Sandbox config ID
-        in: query
-        name: sandbox_config_id
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Skills列表
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取当前沙盒配置上可执行的 Skills
-      tags:
-      - Skills
   /storage-backends:
     get:
       description: List all storage backend instances for the current workspace, with
@@ -15719,28 +12516,6 @@ paths:
         "200":
           description: OK
       summary: 使用当前参数检测解析引擎可用性
-      tags:
-      - 系统
-  /system/sandbox-check:
-    post:
-      consumes:
-      - application/json
-      description: 使用当前填写的参数测试沙箱后端，不保存配置；deep=true 会执行临时脚本，远端后端还会创建并销毁一个沙箱
-      parameters:
-      - description: 沙箱配置
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.SandboxCheckRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_handler.SandboxCheckResponse'
-      summary: 测试沙箱连通性
       tags:
       - 系统
   /system/storage-engine-check:
@@ -17119,65 +13894,6 @@ paths:
       summary: 获取可用网络搜索 Provider 列表
       tags:
       - 网络搜索
-  /wechat/qrcode:
-    post:
-      description: 申请一个用于扫码登录绑定的微信二维码（无请求体）
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 二维码信息（qrcode_url + qrcode 标识）
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 二维码生成失败
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 获取微信扫码登录二维码
-      tags:
-      - IM 渠道
-  /wechat/qrcode/status:
-    post:
-      consumes:
-      - application/json
-      description: 查询指定二维码是否已被扫描/确认/过期；confirmed 时返回凭证
-      parameters:
-      - description: '{qrcode: string}'
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 扫码状态
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: 服务器错误
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      - ApiKeyAuth: []
-      summary: 轮询微信二维码状态
-      tags:
-      - IM 渠道
 securityDefinitions:
   ApiKeyAuth:
     description: API Key 认证：空间 Key 固定访问所属空间；平台 Key 调用空间接口时需同时传 X-Tenant-ID

@@ -5,7 +5,6 @@ import {
   API_EXTERNAL_USER_SESSION_OWNER_PREFIX,
   EMBED_SESSION_MARKER_PREFIX,
   classifyDateBucket,
-  configuredPlatforms,
   groupSessions,
   groupSessionsBySource,
   resolveSessionOrigin,
@@ -43,15 +42,6 @@ test('resolveSessionOrigin distinguishes web, IM, and embed sessions', () => {
   )
 })
 
-test('configuredPlatforms returns distinct platform keys in first-seen order', () => {
-  const channels = [
-    { platform: 'feishu' },
-    { platform: 'wecom' },
-    { platform: 'feishu' },
-    { platform: '' },
-  ]
-  assert.deepEqual(configuredPlatforms(channels), ['feishu', 'wecom'])
-})
 
 test('groupSessionsBySource orders web, configured IM, then embed channels', () => {
   const sessions = [

@@ -7,10 +7,10 @@
 | 界面元素 | 说明 |
 | --- | --- |
 | 流水线进度条 | 回答生成前展示当前阶段：附件解析、图片理解、检索文档、联网、工具调用、思考、生成回答 |
-| 思考过程 | 模型的推理内容内联展示在 Agent 时间线里，可折叠 |
+| 思考过程 | 模型的推理内容内联展示在时间线里，可折叠 |
 | 引用角标 | 回答正文中的来源标记，点击定位到原文分块 |
-| 引用面板（references drawer） | 侧栏列出本轮所有检索来源，含 Wiki 工具的返回结果 |
-| 追问建议 | 回答结束后给出的下一步问题，见 [Agent 引擎](07-agent.md)的「建议问题」 |
+| 引用面板（references drawer） | 侧栏列出本轮所有检索来源，含 Wiki 页面的返回结果 |
+| 追问建议 | 回答结束后给出的下一步问题，见 [会话与聊天 API](../04-api/02-api-chat.md)的「建议问题」 |
 
 <Screenshot
   src="/screenshots/chat-references-drawer.png"
@@ -23,7 +23,7 @@
 
 ### 引用开不开，与引用面板无关
 
-Agent 配置里的 `citation_enabled` 只控制**回答正文里的角标**。关掉之后正文变干净，但检索来源照常送进引用面板——也就是说「不显示引用」不等于「不给出处」。该字段为 `nil` 时按开启处理，保证这个选项引入之前保存的 Agent 行为不变。
+问答请求里的 `citation_enabled` 只控制**回答正文里的角标**。关掉之后正文变干净，但检索来源照常送进引用面板——也就是说「不显示引用」不等于「不给出处」。该字段为 `nil` 时按开启处理，保证这个选项引入之前的行为不变。
 
 ### 导出对话
 
@@ -48,21 +48,21 @@ Agent 配置里的 `citation_enabled` 只控制**回答正文里的角标**。�
 - 状态机：`uploaded` → `processing` → `ready`，解析是异步的。发问时如果附件还没解析完，会等待到 `YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC`（默认 60 秒，扫描件建议调大）；
 - 解析产物保留 `YUHENG_CHAT_ATTACHMENT_TTL_HOURS`（默认 24 小时）后清理，附件不会长期占用存储；
 - 扫描件/图片型文档走 VLM OCR，并发与页数上限由 `YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY`（默认 8）与 `YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES`（默认 8）控制；
-- Agent 侧还有三个相关配置：`supported_file_types`（限定可传类型）、`attachment_image_understanding`（是否理解图片）、`chat_parser_engine_rules`（附件走哪个解析引擎），见 [Agent 引擎](07-agent.md)；
+- 附件走哪个解析引擎由租户级 `chat_parser_engine_rules` 配置（`internal/types/tenant.go`）；
 - 临时附件与知识库文档是两套东西：它不进向量索引、不出现在知识库列表里，会话结束即失效。需要长期检索的资料应该正式入库。
 
 ## 3. 渠道会话的可见性
 
-除了网页对话，IM 机器人、网页挂件访客、API Key 调用也都会产生会话。这些「渠道会话」在控制台里**默认不可见**，因为它们按 Key、访客、IM 身份各自隔离。
+除了网页对话，API Key 调用也会产生会话。这些「渠道会话」在控制台里**默认不可见**，因为它们按 Key 各自隔离。
 
 规则在 `internal/application/service/session.go`：
 
 - 会话列表的 `source` 过滤器为空或 `web` 时，只返回调用者自己的会话；
-- 过滤 `api` / `im` / `embed` 属于**空间级视角**，要求 Admin+，否则返回 403（`listing channel sessions requires tenant admin or owner role`）。通过校验后会去掉按用户的收窄，管理员因此能观察到这些原本互相隔离的会话；
-- 侧栏里的 IM / 嵌入 / API 分组也是管理员专属，且会先探测数量，有会话才显示，避免给普通用户留一个永远空着的入口；
+- 过滤 `api` 属于**空间级视角**，要求 Admin+，否则返回 403（`listing channel sessions requires tenant admin or owner role`）。通过校验后会去掉按用户的收窄，管理员因此能观察到这些原本互相隔离的会话；
+- 侧栏里的 API 分组也是管理员专属，且会先探测数量，有会话才显示，避免给普通用户留一个永远空着的入口；
 - 即使是管理员，打开渠道会话也只是**只读观察**；API Key 产生的会话在写接口上始终按归属收窄。
 
-这个设计的用意是：管理员需要排查「机器人昨天怎么答的」，但不该让普通成员翻到别人的客服对话。
+这个设计的用意是：管理员需要排查「集成昨天怎么调的」，但不该让普通成员翻到别人的调用记录。
 
 ## 4. 跨会话历史搜索
 
@@ -78,7 +78,6 @@ Agent 配置里的 `citation_enabled` 只控制**回答正文里的角标**。�
 
 ## 5. 相关章节
 
-- 建议问题（开场问题与追问）：[Agent 引擎](07-agent.md)
+- 建议问题（开场问题与追问）：[会话与聊天 API](../04-api/02-api-chat.md)
 - 回答里的图片与文件怎么送到客户端：[API 总览](../04-api/01-api-overview.md)的「文件引用形式」
-- IM 与网页挂件各自的会话模型：[IM 集成](12-im-integration.md)、[网页嵌入](13-embed-channel.md)
 - 会话与消息的完整接口：[API 参考：会话与聊天](../04-api/02-api-chat.md)

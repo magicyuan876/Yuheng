@@ -75,17 +75,16 @@ details.
 `detail` carries structured per-error context (e.g. `unknown_subcommand`'s
 `available[]` list).
 
-### NDJSON event stream (chat / session ask)
+### NDJSON event stream (chat)
 
 `--format json` and `--format ndjson` both produce one JSON event per line —
 no envelope wrapping. The CLI injects exactly one event (`init`) at the head;
 all subsequent events pass through verbatim from the SDK:
 
 ```
-{"type":"init","session_id":"...","kb_id":"...","profile":"...","agent_id":"..."}
+{"type":"init","session_id":"...","kb_id":"...","profile":"..."}
 {"type":"thinking","content":"..."}
 {"type":"answer","content":"Hello"}
-{"type":"tool_call","name":"...","input":{}}
 {"type":"complete","done":true}
 ```
 
@@ -168,7 +167,7 @@ is or isn't aligned with.
 
 | | |
 |---|---|
-| **Yuheng** | streaming commands (`chat`, `session ask`) emit bare `{type:...}` per line; no envelope |
+| **Yuheng** | streaming commands (`chat`) emit bare `{type:...}` per line; no envelope |
 | **Rationale** | This matches established practice across NDJSON-emitting CLIs and webhook protocols. A streaming envelope requires unwrap before dispatch — net burden with no benefit. |
 
 ### 5. No `schema_version` field in payload
@@ -215,8 +214,8 @@ Key packages:
 - `internal/iostreams/` — global IO singleton + TTY detection + `SetForTest` swap
 - `internal/secrets/` — `Store` interface; `KeyringStore` primary, `FileStore` 0600 fallback, `MemStore` for tests
 - `internal/prompt/` — `TTYPrompter` (password no-echo) + `AgentPrompter` (non-TTY no-prompt sentinel)
-- `internal/sse/` — `Accumulator` for chat / session ask SSE streams
-- `internal/mcp/` — curated 10-tool stdio MCP server (wired by `cmd/mcp/serve.go`); see [MCP tool surface](#mcp-tool-surface) for the curation rationale and inventory
+- `internal/sse/` — `Accumulator` for chat SSE streams
+- `internal/mcp/` — curated 8-tool stdio MCP server (wired by `cmd/mcp/serve.go`); see [MCP tool surface](#mcp-tool-surface) for the curation rationale and inventory
 - `client/` (parent module) — generated SDK
 
 ## Command Structure
@@ -407,7 +406,7 @@ Agents parse the first colon to extract the typed code. The exit code class (see
 | `local.kb_not_found` | 1 | no | list available with `yuheng kb list` |
 | `local.keychain_denied` | 1 | no (system-level) | verify keyring access; falls back to file storage |
 | `local.project_link_corrupt` | 1 | no | remove `.yuheng/project.yaml` and run `yuheng link` again |
-| `local.sse_stream_aborted` | 1 | yes (rerun chat / session ask) | the streaming answer was cut off mid-flight; retry, or pass `--format json` to buffer the full response |
+| `local.sse_stream_aborted` | 1 | yes (rerun chat) | the streaming answer was cut off mid-flight; retry, or pass `--format json` to buffer the full response |
 | `local.unimplemented` | 1 | no | (planned in a future release) |
 | `local.upload_file_not_found` | 1 | no | verify the path is correct and readable |
 | `local.user_aborted` | 1 | no (user said no) | no action taken; pass `-y/--yes` to skip the confirmation prompt |
@@ -457,7 +456,7 @@ auto-retry this exit code — every exit 10 is a user-in-the-loop decision.
 
 ## Stream recovery
 
-The `yuheng session resume <session-id> --message <msg-id>` command resumes an SSE event stream for an existing assistant message. Use cases: network-blip recovery, long-running agent invocation polling, completed-stream inspection.
+The `yuheng session resume <session-id> --message <msg-id>` command resumes an SSE event stream for an existing assistant message. Use cases: network-blip recovery, long-running answer polling, completed-stream inspection.
 
 ### Server semantics: replay-from-0, not cursor-resume
 
@@ -466,7 +465,7 @@ The server **replays all stored events from the start** of the assistant message
 ### Agent contract
 
 1. **Dedupe by message_id** (or maintain a per-message event hash set). Naively processing all received events causes duplicate side effects (re-running tool calls, re-rendering answers).
-2. **Capture message_id from the init event** of the original `chat` or `session ask` invocation — the CLI injects `{"event":"init", "session_id":"...", "message_id":"..."}` as the first NDJSON line.
+2. **Capture message_id from the init event** of the original `chat` invocation — the CLI injects `{"event":"init", "session_id":"...", "message_id":"..."}` as the first NDJSON line.
 3. **Handle `local.sse_stream_aborted` typed error**: server-side buffer expired (TTL exceeded) or process restarted (memory mode). The message is no longer recoverable; restart the original query.
 
 ### Server-side buffer TTL
@@ -480,7 +479,7 @@ After TTL, `yuheng session resume` returns the typed error `local.sse_stream_abo
 
 ## Dry-run contract
 
-The `--dry-run` flag is available on every mutation cobra command (`kb create/edit/delete`, `agent create/edit/delete`, `doc create/upload/fetch/delete`, `chunk delete`, `session delete`, `auth refresh/logout`, `link/unlink`, `profile add/remove`) and on `yuheng api` (POST/PUT/PATCH/DELETE only; GET rejected with FlagError exit 2).
+The `--dry-run` flag is available on every mutation cobra command (`kb create/edit/delete`, `doc create/upload/fetch/delete`, `chunk delete`, `session delete`, `auth refresh/logout`, `link/unlink`, `profile add/remove`) and on `yuheng api` (POST/PUT/PATCH/DELETE only; GET rejected with FlagError exit 2).
 
 ### Envelope shape on dry-run
 
@@ -509,24 +508,24 @@ The dry-run path is **offline** — no SDK calls, no Factory.Client() init, no R
 | `--dry-run` + `api -X GET` (or default GET) | FlagError exit 2: "--dry-run requires explicit -X POST/PUT/PATCH/DELETE; default GET is read-only with no side effect to preview" |
 | `--dry-run` + `--jq <expr>` | jq applied to envelope output normally |
 | `--dry-run` + `kb edit my-kb` | plan.args contains user raw input (NOT ResolveKB-resolved); agent verifies kb name correctness |
-| `--dry-run` + fetch-then-update (`kb edit / agent edit`) | plan.args contains user-explicit fields ONLY; agent infers server-side fetch-then-update preserves unmentioned fields |
+| `--dry-run` + fetch-then-update (`kb edit`) | plan.args contains user-explicit fields ONLY; agent infers server-side fetch-then-update preserves unmentioned fields |
 | `--dry-run` + body containing secrets (`--input` payload) | **plan.body echoes the full body to stdout** so the agent can verify what would be sent; avoid piping secret-bearing bodies through dry-run for inspection |
 
 ### Streaming commands explicitly excluded
 
-`session ask` and `chat` do NOT support `--dry-run` (streaming and dry-run have a semantic mismatch). For prompt-formation preview, use:
+`chat` does NOT support `--dry-run` (streaming and dry-run have a semantic mismatch). For prompt-formation preview, use:
 
 ```bash
-echo '{"query":"...","kb":"..."}' | yuheng api -X POST /api/v1/sessions/<id>/agent-qa --input - --dry-run
+echo '{"query":"...","knowledge_base_ids":["..."]}' | yuheng api -X POST /api/v1/knowledge-chat/<session-id> --input - --dry-run
 ```
 
 ## Risk metadata
 
 Agents see the same `risk.action` string (in the form `noun.verb`) on three independent surfaces:
 
-1. **Error envelope** — `envelope.error.risk.action` on an exit-10 confirmation-required error, so the agent can decide whether to escalate to the user. 11 unique values: `kb.delete`, `kb.edit`, `agent.delete`, `agent.edit`, `doc.delete`, `doc.delete_all`, `session.delete`, `chunk.delete`, `profile.remove`, `auth.logout`, `api.delete`.
+1. **Error envelope** — `envelope.error.risk.action` on an exit-10 confirmation-required error, so the agent can decide whether to escalate to the user. 9 unique values: `kb.delete`, `kb.edit`, `doc.delete`, `doc.delete_all`, `session.delete`, `chunk.delete`, `profile.remove`, `auth.logout`, `api.delete`.
 
-2. **Help text** — a `Risk: <action> (destructive)` line prepended to the top of `--help` output on the 9 destructive cobra commands. `yuheng api` is intentionally excluded: it is a generic HTTP passthrough whose risk depends on the method, so a static Risk: line would mislead for non-DELETE methods.
+2. **Help text** — a `Risk: <action> (destructive)` line prepended to the top of `--help` output on the 7 destructive cobra commands. `yuheng api` is intentionally excluded: it is a generic HTTP passthrough whose risk depends on the method, so a static Risk: line would mislead for non-DELETE methods.
 
 3. **MCP tool annotations** — `Tool.Annotations.destructiveHint` / `readOnlyHint` / `idempotentHint` / `openWorldHint` on every tool returned by `yuheng mcp serve`.
 
@@ -536,7 +535,7 @@ The three surfaces do not auto-sync: each is wired separately so agents that onl
 
 Yuheng's MCP server exposes a curated read-only tool surface. Many MCP servers in the wild ship write / mutation operations on by default and rely on credential-scope or sandbox restrictions for safety. Yuheng opts for curation instead: the server side doesn't yet enforce per-token scope, so an agent holding a user's token has full write access. Until server-side scope ships, the CLI keeps mutation tools out of the MCP surface as a belt-and-braces second line of defense. When server scope arrives this stance can loosen.
 
-The curated 10 tools (`cli/internal/mcp/tools.go`):
+The curated 8 tools (`cli/internal/mcp/tools.go`):
 
 | Tool | Purpose |
 | --- | --- |
@@ -548,8 +547,6 @@ The curated 10 tools (`cli/internal/mcp/tools.go`):
 | `chunk_list` | list chunks of a document for RAG retrieval debug |
 | `search_chunks` | hybrid (vector + keyword) retrieval |
 | `chat` | stream a RAG answer; auto-creates a session if absent |
-| `agent_list` | list custom agents |
-| `session_ask` | run a query through a custom agent |
 
 Adding a tool is a deliberate API expansion — the AI-agent-callable surface is the reason this CLI ships an MCP server, not its CLI command list, so the registration list in `registerTools` is maintained by hand.
 
@@ -574,7 +571,7 @@ Required-input idioms in this codebase:
 
 - Positional required: `cobra.ExactArgs(N)` or `cobra.MinimumNArgs(1)`
 - Flag required: `cmd.MarkFlagRequired("flag")`
-- Custom required (e.g., `agent edit` needs at-least-one-edit-flag): RunE-level validation that returns `input.invalid_argument`
+- Custom required (e.g., `kb edit` needs at-least-one-edit-flag): RunE-level validation that returns `input.invalid_argument`
 - Mutex: `cmd.MarkFlagsMutuallyExclusive("a", "b")`
 
 Reasons hard-required-flags is the v0.5+ default:
@@ -588,7 +585,7 @@ Reasons hard-required-flags is the v0.5+ default:
   JSON used_for / required_flags / examples / output / warnings shape.
   Activated by `YUHENG_AGENT_HELP=1` at `--help` time. Warnings are
   always rendered in human help (stderr, not env-gated). Applied to
-  `chat`, `kb list`, `session ask`, and all destructive commands.
+  `chat`, `kb list`, and all destructive commands.
   Extending to another command requires touching only that command's `NewCmd`.
 
 ## Status / check verb pair pattern
@@ -599,10 +596,9 @@ verbs so the verb itself communicates cost:
 
 - `status <id>` — single HTTP, returns reachable + cheap fields.
 - `check  <id>` — 1 + N HTTP, adds derived state that needs follow-up
-  calls (e.g., aggregating `failed_count` via doc-list page-walk,
-  probing every KB in an agent's scope).
+  calls (e.g., aggregating `failed_count` via doc-list page-walk).
 
-Current pairs: `kb status` / `kb check`, `agent status` / `agent check`.
+Current pair: `kb status` / `kb check`.
 The deep verb's `Long` help text must enumerate the extra HTTP calls so
 cost is predictable.
 

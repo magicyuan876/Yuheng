@@ -106,8 +106,6 @@ export function synthesizeRagPipelineToolEvents(
 export function ensureRagPipelineHistoryStream(item: RagHistoryMessage & {
   content?: string
   is_completed?: boolean
-  isAgentMode?: boolean
-  hideContent?: boolean
 }): void {
   if (!item.is_completed) return
 
@@ -146,7 +144,4 @@ export function ensureRagPipelineHistoryStream(item: RagHistoryMessage & {
       done: true,
     })
   }
-
-  item.isAgentMode = true
-  item.hideContent = true
 }

@@ -10,4 +10,4 @@
 ## [Unreleased]
 
 ### 新增
-- Yuheng 首次公开导入。
+- Yuheng 首次公开导入：MCP Server 聚焦知识平台能力，共 23 个工具（知识库 / 文档 / 检索 / RAG 问答 / 分块 / Wiki / 模型管理），传输支持 stdio / SSE / HTTP；`chat` 工具自动创建会话，调用方只需提供 `query` 与 `knowledge_base_ids`。

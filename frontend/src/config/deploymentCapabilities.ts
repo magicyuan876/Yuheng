@@ -1,14 +1,8 @@
 export const DEPLOYMENT_CAPABILITY_KEYS = [
   'organizations',
-  'agents',
-  'integrations.im',
-  'integrations.embed',
-  'integrations.api',
-  'settings.mcp',
   'settings.websearch',
   'settings.vectorstore',
   'settings.storage',
-  'settings.sandbox',
   'docs',
 ] as const
 
@@ -28,15 +22,8 @@ export type DeploymentCapabilityMap = Partial<Record<DeploymentCapabilityKey, De
 export function isDeploymentCapabilitySupported(
   capabilities: DeploymentCapabilityMap,
   key?: DeploymentCapabilityKey,
-  options?: { liteMode?: boolean; edition?: string },
 ): boolean {
   if (!key) return true
-  if (key === 'organizations') {
-    const isLite =
-      options?.liteMode === true ||
-      options?.edition?.trim().toLowerCase() === 'lite'
-    if (isLite) return false
-  }
   return capabilities[key]?.supported !== false
 }
 
@@ -44,7 +31,7 @@ export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapab
   websearch: 'settings.websearch',
   vectorstore: 'settings.vectorstore',
   storage: 'settings.storage',
-  sandbox: 'settings.sandbox',
-  mcp: 'settings.mcp',
+  // Tenant user groups are part of the docs module's permission model, so
+  // the section follows that capability rather than one of its own.
   groups: 'docs',
 }

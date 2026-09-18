@@ -3,27 +3,25 @@
     <ListSpaceSidebar mode="organization" v-model="spaceSelection" :count-all="organizations.length"
       :count-created="createdCount" :count-joined="joinedCount" />
     <div class="org-list-content">
-      <div class="header" style="--wails-draggable: drag">
-        <div class="header-title" style="--wails-draggable: drag">
-          <div class="title-row" style="--wails-draggable: drag">
-            <h2 style="--wails-draggable: drag">{{ $t('organization.title') }}</h2>
-            <div class="header-actions" style="--wails-draggable: no-drag">
+      <div class="header">
+        <div class="header-title">
+          <div class="title-row">
+            <h2>{{ $t('organization.title') }}</h2>
+            <div class="header-actions">
               <t-tooltip :content="canManageOrg ? $t('organization.joinOrg') : noPermissionTip" placement="bottom">
-                <t-button variant="text" theme="default" size="small" class="header-action-btn"
-                  style="--wails-draggable: no-drag" :disabled="!canManageOrg" @click="handleJoinOrganization">
+                <t-button variant="text" theme="default" size="small" class="header-action-btn" :disabled="!canManageOrg" @click="handleJoinOrganization">
                   <template #icon><t-icon name="enter" size="16px" /></template>
                 </t-button>
               </t-tooltip>
               <t-tooltip :content="canManageOrg ? $t('organization.createOrg') : noPermissionTip" placement="bottom">
-                <t-button variant="text" theme="default" size="small" class="header-action-btn"
-                  style="--wails-draggable: no-drag" :disabled="!canManageOrg" @click="handleCreateOrganization">
+                <t-button variant="text" theme="default" size="small" class="header-action-btn" :disabled="!canManageOrg" @click="handleCreateOrganization">
                   <template #icon><img src="@/assets/img/organization-green.svg" class="org-create-icon" alt=""
                       aria-hidden="true" /></template>
                 </t-button>
               </t-tooltip>
             </div>
           </div>
-          <p class="header-subtitle" style="--wails-draggable: drag">{{ $t('organization.subtitle') }}</p>
+          <p class="header-subtitle">{{ $t('organization.subtitle') }}</p>
         </div>
       </div>
       <div class="org-list-main">
@@ -146,12 +144,6 @@
                     <div class="feature-badge stat-kb">
                       <t-icon name="folder" size="14px" />
                       <span class="badge-count">{{ org.share_count ?? 0 }}</span>
-                    </div>
-                  </t-tooltip>
-                  <t-tooltip :content="$t('organization.invite.agents')" placement="top">
-                    <div class="feature-badge stat-agent">
-                      <img src="@/assets/img/agent-green.svg" class="stat-agent-icon" alt="" aria-hidden="true" />
-                      <span class="badge-count">{{ org.agent_share_count ?? 0 }}</span>
                     </div>
                   </t-tooltip>
                 </div>
@@ -397,12 +389,6 @@
                         <div class="feature-badge stat-kb">
                           <t-icon name="folder" size="14px" />
                           <span class="badge-count">{{ invitePreviewData.share_count }}</span>
-                        </div>
-                      </t-tooltip>
-                      <t-tooltip :content="$t('organization.invite.agents')" placement="top">
-                        <div class="feature-badge stat-agent">
-                          <img src="@/assets/img/agent-green.svg" class="stat-agent-icon" alt="" aria-hidden="true" />
-                          <span class="badge-count">{{ invitePreviewData.agent_share_count ?? 0 }}</span>
                         </div>
                       </t-tooltip>
                     </div>
@@ -1016,7 +1002,6 @@ function previewSearchableOrg(org: SearchableOrganizationItem) {
     avatar: org.avatar,
     member_count: org.member_count,
     share_count: org.share_count,
-    agent_share_count: org.agent_share_count ?? 0,
     is_already_member: org.is_already_member,
     require_approval: org.require_approval,
     created_at: '', // 搜索列表中没有创建时间，使用空字符串
@@ -1676,22 +1661,6 @@ onUnmounted(() => {
     }
   }
 
-  &.stat-agent {
-    background: rgba(124, 77, 255, 0.08);
-    color: var(--td-brand-color);
-
-    .stat-agent-icon {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-      /* 将绿色 icon 着色为紫色，与标签统一 */
-      filter: brightness(0) saturate(100%) invert(48%) sepia(79%) saturate(2476%) hue-rotate(236deg);
-    }
-
-    &:hover {
-      background: rgba(124, 77, 255, 0.12);
-    }
-  }
 }
 
 // 待审核角标：与 feature-badge 同高

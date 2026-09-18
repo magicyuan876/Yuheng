@@ -30,7 +30,7 @@ type ModelResponse struct {
 	CreatedAt   time.Time          `json:"created_at"`
 	UpdatedAt   time.Time          `json:"updated_at"`
 	// Per-field "configured?" map. Omitted for builtin models unless the
-	// caller is a system administrator. See MCPServiceResponse.Credentials.
+	// caller is a system administrator.
 	Credentials map[string]CredentialFieldMetadata `json:"credentials,omitempty"`
 }
 

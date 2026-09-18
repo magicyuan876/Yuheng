@@ -860,7 +860,7 @@ type FilterKnowledgeResponse struct {
 }
 
 // FilterKnowledge searches/filters knowledge entries across knowledge bases
-func (c *Client) FilterKnowledge(ctx context.Context, keyword string, offset, limit int, fileTypes []string, agentID string) ([]Knowledge, bool, error) {
+func (c *Client) FilterKnowledge(ctx context.Context, keyword string, offset, limit int, fileTypes []string) ([]Knowledge, bool, error) {
 	queryParams := url.Values{}
 	if keyword != "" {
 		queryParams.Set("keyword", keyword)
@@ -871,9 +871,6 @@ func (c *Client) FilterKnowledge(ctx context.Context, keyword string, offset, li
 		for _, ft := range fileTypes {
 			queryParams.Add("file_types", ft)
 		}
-	}
-	if agentID != "" {
-		queryParams.Set("agent_id", agentID)
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/knowledge/search", nil, queryParams)

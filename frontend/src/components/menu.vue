@@ -4,7 +4,6 @@
         <div class="logo_row" v-if="!uiStore.sidebarCollapsed">
             <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer;">
                 <span class="logo">Yuheng</span>
-                <sup v-if="isLiteEdition" class="lite-badge">Lite</sup>
             </div>
             <div class="logo_actions">
                 <t-tooltip placement="bottom">
@@ -85,7 +84,7 @@
                         <div class="menu_item-box">
                             <div class="menu_icon">
                                 <img class="icon"
-                                    :src="getImgSrc(item.icon == 'zhishiku' ? knowledgeIcon : item.icon == 'docs' ? docsIcon : item.icon == 'agent' ? agentIcon : item.icon == 'organization' ? organizationIcon : item.icon == 'logout' ? logoutIcon : item.icon == 'setting' ? settingIcon : prefixIcon)"
+                                    :src="getImgSrc(item.icon == 'zhishiku' ? knowledgeIcon : item.icon == 'docs' ? docsIcon : item.icon == 'organization' ? organizationIcon : item.icon == 'logout' ? logoutIcon : item.icon == 'setting' ? settingIcon : prefixIcon)"
                                     alt="">
                             </div>
                             <template v-if="!uiStore.sidebarCollapsed">
@@ -202,7 +201,6 @@ import { onMounted, onUnmounted, watch, computed, ref, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getSessionsList, batchDelSessions, deleteAllSessions, getSession } from "@/api/chat/index";
 import { useChatResourcesStore } from '@/stores/chatResources';
-import { listAllIMChannels } from '@/api/agent/index';
 import SessionSidebarRow from './SessionSidebarRow.vue';
 import {
     clearSession,
@@ -229,10 +227,8 @@ import {
     type SidebarSessionBucket,
 } from './sessionSidebarBuckets';
 import type { SessionForGrouping } from './sessionGrouping';
-import { listAllEmbedChannels } from '@/api/embed/index';
 import {
     classifyDateBucket,
-    configuredPlatforms,
     groupSessionsByDate,
     originGroupKey,
     resolveSessionOrigin,
@@ -258,31 +254,6 @@ import { useI18n } from 'vue-i18n';
 import { getSystemInfo } from '@/api/system';
 
 const chatResources = useChatResourcesStore();
-// Platform logos reused from IMChannelsOverviewPanel — keeps the session list
-// visually consistent with the channels admin view.
-import wecomLogo from '@/assets/img/im/wecom.svg';
-import feishuLogo from '@/assets/img/im/feishu.svg';
-import larkLogo from '@/assets/img/im/lark.svg';
-import slackLogo from '@/assets/img/im/slack.svg';
-import telegramLogo from '@/assets/img/im/telegram.svg';
-import dingtalkLogo from '@/assets/img/im/dingtalk.svg';
-import mattermostLogo from '@/assets/img/im/mattermost.svg';
-import wechatLogo from '@/assets/img/im/wechat.svg';
-import qqbotLogo from '@/assets/img/im/qqbot.png';
-
-const PLATFORM_LOGO: Record<string, string> = {
-    wecom: wecomLogo,
-    feishu: feishuLogo,
-    lark: larkLogo,
-    slack: slackLogo,
-    telegram: telegramLogo,
-    dingtalk: dingtalkLogo,
-    mattermost: mattermostLogo,
-    wechat: wechatLogo,
-    qqbot: qqbotLogo,
-};
-
-const platformLogo = (p: string): string => (p ? PLATFORM_LOGO[p] || '' : '');
 
 const { t } = useI18n();
 const usemenuStore = useMenuStore();
@@ -307,8 +278,6 @@ let bucketRequestToken = 0;
 const sessionListBooting = ref(false);
 const currentSecondpath = ref('');
 const scrollContainer = ref<HTMLElement | null>(null);
-const imPlatforms = ref<string[]>([]);
-const embedChannelNames = ref<Record<string, string>>({});
 const activeSessionBucketKey = ref(DEFAULT_SESSION_BUCKET_KEY);
 const sessionListCanScroll = ref(false);
 const visibleChannelBuckets = computed(() =>
@@ -328,9 +297,7 @@ const sessionSourceOptions = computed(() =>
         visibleChannelBuckets.value.map((bucket) => ({
             key: bucket.key,
             label: bucket.label,
-            platform: bucket.platform,
         })),
-        (platform) => platformLogo(platform),
     ),
 );
 const activeBucket = computed(() => sessionBuckets.value[activeSessionBucketKey.value]);
@@ -340,7 +307,6 @@ const hasAnySession = computed(() =>
 type MenuItem = { title: string; icon: string; path: string; childrenPath?: string; children?: any[] };
 const { menuArr, visibleMenuArr } = storeToRefs(usemenuStore);
 let activeSubmenu = ref<string>('');
-const isLiteEdition = ref(false);
 
 // 批量管理状态
 const batchMode = ref(false)
@@ -388,9 +354,6 @@ const isInCreatChat = computed<boolean>(() => {
 // 是否在对话详情页
 const isInChatDetail = computed<boolean>(() => route.name === 'chat');
 
-// 是否在智能体列表页面
-const isInAgentList = computed<boolean>(() => route.name === 'agentList');
-
 // 是否在组织列表页面
 const isInOrganizationList = computed<boolean>(() => route.name === 'organizationList');
 
@@ -403,8 +366,6 @@ const isMenuItemActive = (itemPath: string): boolean => {
             return currentRoute === 'knowledgeBaseList' ||
                 currentRoute === 'knowledgeBaseDetail' ||
                 currentRoute === 'knowledgeBaseSettings';
-        case 'agents':
-            return currentRoute === 'agentList';
         case 'docs':
             return currentRoute === 'docsSpaceList' || currentRoute === 'docsSpace' || currentRoute === 'docsSpaceSettings';
         case 'organizations':
@@ -437,14 +398,14 @@ const getIconActiveState = (itemPath: string) => {
 // 分离上下两部分菜单（使用 visibleMenuArr 以便 lite 模式过滤 logout）
 const topMenuItems = computed<MenuItem[]>(() => {
     return (visibleMenuArr.value as unknown as MenuItem[]).filter((item: MenuItem) =>
-        item.path === 'knowledge-bases' || item.path === 'docs' || item.path === 'agents'
+        item.path === 'knowledge-bases' || item.path === 'docs'
         || item.path === 'organizations' || item.path === 'creatChat'
     );
 });
 
 const bottomMenuItems = computed<MenuItem[]>(() => {
     return (visibleMenuArr.value as unknown as MenuItem[]).filter((item: MenuItem) => {
-        if (item.path === 'knowledge-bases' || item.path === 'docs' || item.path === 'agents'
+        if (item.path === 'knowledge-bases' || item.path === 'docs'
             || item.path === 'organizations' || item.path === 'creatChat') {
             return false;
         }
@@ -745,12 +706,8 @@ const ensureSessionInSidebar = (sessionId: string) => {
 };
 
 const rebuildBucketDefinitions = () => buildBucketDefinitions(
-    imPlatforms.value,
-    embedChannelNames.value,
     {
         web: t('menu.myChats'),
-        imPlatform: (platform) => t(`agentEditor.im.${platform}`),
-        embedChannel: (name) => name,
         api: t('menu.apiChats'),
     },
     { includeAdminChannelBuckets: authStore.hasRole('admin') },
@@ -935,22 +892,8 @@ async function loadCurrentKbInfo(kbId: string) {
 }
 
 const loadSessionOriginMeta = async () => {
-    try {
-        const res: any = await listAllIMChannels();
-        imPlatforms.value = configuredPlatforms(res?.data || []);
-    } catch {
-        imPlatforms.value = [];
-    }
-    try {
-        const res: any = await listAllEmbedChannels();
-        const names: Record<string, string> = {};
-        for (const ch of res?.data || []) {
-            if (ch?.id && ch?.name) names[ch.id] = ch.name;
-        }
-        embedChannelNames.value = names;
-    } catch {
-        embedChannelNames.value = {};
-    }
+    // IM / embed 渠道已随 agent 能力移除：会话来源只剩 web / api，
+    // 渠道文件夹定义由 rebuildBucketDefinitions 的空列表决定。
 };
 
 const handleSessionMutation = (event: Event) => {
@@ -979,14 +922,6 @@ onMounted(async () => {
     }
 
     window.addEventListener(SESSION_MUTATION_EVENT, handleSessionMutation);
-
-    isLiteEdition.value = authStore.isLiteMode
-    getSystemInfo().then(res => {
-        if (res.data?.edition === 'lite') {
-            isLiteEdition.value = true
-            authStore.setLiteMode(true)
-        }
-    }).catch(() => { })
 
     await loadCurrentKbInfo((route.params as any)?.kbId as string)
 
@@ -1036,7 +971,6 @@ let knowledgeIcon = ref('zhishiku-green.svg');
 let prefixIcon = ref('prefixIcon.svg');
 let logoutIcon = ref('logout.svg');
 let settingIcon = ref('setting.svg');
-let agentIcon = ref('agent.svg');
 let docsIcon = ref('docs.svg');
 let organizationIcon = ref('organization.svg');
 let pathPrefix = ref(route.name)
@@ -1045,16 +979,12 @@ const getIcon = (path: string) => {
     const kbActiveState = getIconActiveState('knowledge-bases');
     const creatChatActiveState = getIconActiveState('creatChat');
     const settingsActiveState = getIconActiveState('settings');
-    const agentsActiveState = route.name === 'agentList';
     const docsActiveState = route.name === 'docsSpaceList' || route.name === 'docsSpace'
         || route.name === 'docsSpaceSettings';
     const organizationsActiveState = route.name === 'organizationList';
 
     // 知识库图标：只在知识库页面显示绿色
     knowledgeIcon.value = kbActiveState.isKbActive ? 'zhishiku-green.svg' : 'zhishiku.svg';
-
-    // 智能体图标：只在智能体页面显示绿色
-    agentIcon.value = agentsActiveState ? 'agent-green.svg' : 'agent.svg';
 
     // 在线文档图标：只在文档页面显示绿色
     docsIcon.value = docsActiveState ? 'docs-green.svg' : 'docs.svg';
@@ -1081,8 +1011,6 @@ const handleMenuClick = async (path: string) => {
         } else {
             router.push('/platform/knowledge-bases')
         }
-    } else if (path === 'agents') {
-        router.push('/platform/agents')
     } else if (path === 'docs') {
         router.push('/platform/docs')
     } else if (path === 'organizations') {
@@ -1199,11 +1127,6 @@ const onDragHandleMouseDown = (e: MouseEvent) => {
     box-shadow: 1px 0 0 rgba(0, 0, 0, 0.02);
     transition: width 0.25s ease, min-width 0.25s ease;
     position: relative;
-
-    // macOS Wails 桌面：红绿灯位于 HiddenInset 标题栏区域，需让出顶部空间
-    html.wails-desktop & {
-        padding-top: 30px;
-    }
 
     &--collapsed {
         min-width: 60px;

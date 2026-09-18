@@ -3,6 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"strings"
 )
 
 // PromptCacheStatus distinguishes a real cache miss from providers that do not
@@ -213,34 +214,12 @@ const (
 	ResponseTypeToolResult ResponseType = "tool_result"
 	// Error response type
 	ResponseTypeError ResponseType = "error"
-	// Reflection response type (for agent reflection)
-	ResponseTypeReflection ResponseType = "reflection"
 	// Session title response type
 	ResponseTypeSessionTitle ResponseType = "session_title"
 	// Agent query response type (query received and processing started)
 	ResponseTypeAgentQuery ResponseType = "agent_query"
 	// Complete response type (agent complete)
 	ResponseTypeComplete ResponseType = "complete"
-	// ToolApprovalRequired: MCP tool marked dangerous — UI must collect user approval before execution continues
-	ResponseTypeToolApprovalRequired ResponseType = "tool_approval_required"
-	// ToolApprovalResolved: user approved/rejected (or timeout); informational for UI replay
-	ResponseTypeToolApprovalResolved ResponseType = "tool_approval_resolved"
-	// MCPOAuthRequired: an OAuth-enabled MCP service was invoked but the user
-	// has not authorized it — UI must surface an "Authorize" prompt and the
-	// agent pauses until authorization completes (or the wait times out).
-	ResponseTypeMCPOAuthRequired ResponseType = "mcp_oauth_required"
-	// MCPOAuthResolved: authorization completed / timed out / canceled;
-	// informational for UI replay.
-	ResponseTypeMCPOAuthResolved ResponseType = "mcp_oauth_resolved"
-	// MemoryRecalled: the long-term memories injected into this answer, so
-	// the UI can show and let the user delete what influenced it.
-	ResponseTypeMemoryRecalled ResponseType = "memory_recalled"
-	// ResponseTypeInstallPrompt is the instruction a skill install handed to
-	// the installer agent. Only the skill install transcript emits this, and
-	// it emits it first, so replaying the log alone shows what was asked for
-	// — the console does not have to read the durable prompt row to caption
-	// the run.
-	ResponseTypeInstallPrompt ResponseType = "install_prompt"
 )
 
 // StreamResponse stream response
@@ -276,4 +255,39 @@ func (c *References) Scan(value interface{}) error {
 		return nil
 	}
 	return json.Unmarshal(b, c)
+}
+
+// ToolResult captures the outcome of one tool/timeline-stage execution.
+type ToolResult struct {
+	Success bool                   `json:"success"`         // Whether the tool executed successfully
+	Output  string                 `json:"output"`          // Human-readable output
+	Data    map[string]interface{} `json:"data,omitempty"`  // Structured data for programmatic use
+	Error   string                 `json:"error,omitempty"` // Error message if execution failed
+	Images  []string               `json:"images,omitempty"`
+}
+
+// ToolCall represents a single tool invocation recorded in a chat turn's
+// timeline (e.g. the fast-answer pipeline's retrieval / attachment stages).
+type ToolCall struct {
+	ID               string                 `json:"id"`                          // Call ID
+	Name             string                 `json:"name"`                        // Tool name
+	Args             map[string]interface{} `json:"args"`                        // Tool arguments
+	Result           *ToolResult            `json:"result"`                      // Execution result (contains Output)
+	Reflection       string                 `json:"reflection,omitempty"`        // Reflection on this tool call result (if enabled)
+	Duration         int64                  `json:"duration"`                    // Execution time in milliseconds
+	ProviderMetadata ToolCallMetadata       `json:"provider_metadata,omitempty"` // Provider-specific tool-call state for replay
+}
+
+// PipelineToolCallIDPrefix marks a persisted tool call the model never made.
+// The fast-answer (KnowledgeQA) pipeline records its retrieval stages as tool
+// calls so a reloaded conversation can redraw the same timeline it showed while
+// streaming. History replay must skip them: asking the model to account for
+// calls it never issued, against tools it may not even have, breaks the
+// request protocol.
+const PipelineToolCallIDPrefix = "ragpipe-"
+
+// IsPipelineToolCallID reports whether a tool call was synthesized by the
+// fast-answer pipeline rather than requested by the model.
+func IsPipelineToolCallID(id string) bool {
+	return strings.HasPrefix(id, PipelineToolCallIDPrefix)
 }

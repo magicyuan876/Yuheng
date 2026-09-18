@@ -13,10 +13,10 @@ export type ApiKeyCapabilityGroup = {
 }
 
 export const TENANT_API_KEY_CAPABILITIES: TenantAPIKeyCapability[] = [
-  'retrieve', 'chat', 'read_agents', 'ingest', 'manage_kbs',
-  'message_history', 'manage_agents', 'manage_mcp_services',
+  'retrieve', 'chat', 'ingest', 'manage_kbs',
+  'message_history',
   'manage_datasources', 'manage_models', 'manage_vector_stores',
-  'manage_storage_backends', 'manage_web_search', 'manage_channels',
+  'manage_storage_backends', 'manage_web_search',
   'run_evaluations', 'manage_members', 'manage_spaces',
   'manage_tenant_settings',
 ]
@@ -28,11 +28,11 @@ export const SYSTEM_API_KEY_CAPABILITIES: TenantAPIKeyCapability[] = [
 ]
 
 export const DEFAULT_TENANT_API_KEY_CAPABILITIES = new Set<TenantAPIKeyCapability>([
-  'retrieve', 'chat', 'read_agents',
+  'retrieve', 'chat',
 ])
 
 export const KB_SCOPED_API_KEY_CAPABILITIES = new Set<TenantAPIKeyCapability>([
-  'retrieve', 'chat', 'ingest', 'manage_kbs', 'manage_agents', 'manage_datasources',
+  'retrieve', 'chat', 'ingest', 'manage_kbs', 'manage_datasources',
 ])
 
 export const TENANT_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
@@ -51,9 +51,6 @@ export const TENANT_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
     key: 'automation',
     labelKey: 'integrations.api.apiKeyCapabilityGroupAutomation',
     capabilities: [
-      { value: 'read_agents', labelKey: 'integrations.api.capabilityReadAgents', hintKey: 'integrations.api.capabilityReadAgentsHint' },
-      { value: 'manage_agents', labelKey: 'integrations.api.capabilityManageAgents', hintKey: 'integrations.api.capabilityManageAgentsHint' },
-      { value: 'manage_mcp_services', labelKey: 'integrations.api.capabilityManageMcpServices', hintKey: 'integrations.api.capabilityManageMcpServicesHint' },
       { value: 'manage_datasources', labelKey: 'integrations.api.capabilityManageDatasources', hintKey: 'integrations.api.capabilityManageDatasourcesHint' },
     ],
   },
@@ -82,7 +79,6 @@ export const TENANT_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
       { value: 'manage_vector_stores', labelKey: 'integrations.api.capabilityManageVectorStores', hintKey: 'integrations.api.capabilityManageVectorStoresHint' },
       { value: 'manage_storage_backends', labelKey: 'integrations.api.capabilityManageStorageBackends', hintKey: 'integrations.api.capabilityManageStorageBackendsHint' },
       { value: 'manage_web_search', labelKey: 'integrations.api.capabilityManageWebSearch', hintKey: 'integrations.api.capabilityManageWebSearchHint' },
-      { value: 'manage_channels', labelKey: 'integrations.api.capabilityManageChannels', hintKey: 'integrations.api.capabilityManageChannelsHint' },
       { value: 'run_evaluations', labelKey: 'integrations.api.capabilityRunEvaluations', hintKey: 'integrations.api.capabilityRunEvaluationsHint' },
       { value: 'manage_tenant_settings', labelKey: 'integrations.api.capabilityManageTenantSettings', hintKey: 'integrations.api.capabilityManageTenantSettingsHint' },
     ],

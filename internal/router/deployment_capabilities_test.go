@@ -15,42 +15,20 @@ import (
 func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
 	return handler.DeploymentFeatureAvailability{
 		Organizations: true,
-		Agents:        true,
-		IM:            true,
-		Embed:         true,
-		API:           true,
-		MCP:           true,
 		WebSearch:     true,
 		VectorStore:   true,
 		Storage:       true,
-		Sandbox:       true,
 		Docs:          true,
-	}
-}
-
-func TestBuildDeploymentCapabilitiesHidesOrganizationsInLite(t *testing.T) {
-	result := handler.BuildDeploymentCapabilities("lite", allDeploymentFeaturesAvailable())
-
-	organization := result.Capabilities["organizations"]
-	if organization.Supported {
-		t.Fatal("organizations should be unsupported in lite edition")
-	}
-	if organization.Reason != "not_supported_in_lite" {
-		t.Fatalf("organization reason = %q, want not_supported_in_lite", organization.Reason)
-	}
-	if !result.Capabilities["agents"].Supported {
-		t.Fatal("agents should remain supported in lite edition")
 	}
 }
 
 func TestBuildDeploymentCapabilitiesReflectsMissingRoutes(t *testing.T) {
 	available := allDeploymentFeaturesAvailable()
-	available.Embed = false
-	available.MCP = false
+	available.WebSearch = false
 
-	result := handler.BuildDeploymentCapabilities("standard", available)
+	result := handler.BuildDeploymentCapabilities(available)
 
-	for _, key := range []string{"integrations.embed", "settings.mcp"} {
+	for _, key := range []string{"settings.websearch"} {
 		capability := result.Capabilities[key]
 		if capability.Supported {
 			t.Fatalf("%s should be unsupported", key)
@@ -91,7 +69,9 @@ func TestDocsCollabURLIsGatedOnTheModuleAndConfig(t *testing.T) {
 	if live.DocsCollabURL != "ws://collab:1234" {
 		t.Fatalf("DocsCollabURL = %q, want ws://collab:1234", live.DocsCollabURL)
 	}
-	if !live.Capabilities["docs"].Supported {
+	// The function now reports raw availability; the capability map is built
+	// from it one layer up.
+	if !handler.BuildDeploymentCapabilities(live).Capabilities["docs"].Supported {
 		t.Fatal("docs should be supported when the module is enabled")
 	}
 }
@@ -99,7 +79,7 @@ func TestDocsCollabURLIsGatedOnTheModuleAndConfig(t *testing.T) {
 func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	want := handler.BuildDeploymentCapabilities("standard", allDeploymentFeaturesAvailable())
+	want := handler.BuildDeploymentCapabilities(allDeploymentFeaturesAvailable())
 	systemHandler := &handler.SystemHandler{}
 	systemHandler.BindDeploymentCapabilities(want)
 	engine.GET("/capabilities", systemHandler.GetDeploymentCapabilities)
@@ -118,10 +98,10 @@ func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if body.Code != 0 || body.Data.Edition != "standard" {
+	if body.Code != 0 {
 		t.Fatalf("response = %#v", body)
 	}
-	if !body.Data.Capabilities["integrations.embed"].Supported {
-		t.Fatal("embed capability should be returned")
+	if !body.Data.Capabilities["settings.websearch"].Supported {
+		t.Fatal("websearch capability should be returned")
 	}
 }

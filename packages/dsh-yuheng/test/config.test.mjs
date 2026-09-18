@@ -42,8 +42,7 @@ test('disabling every tool is refused', () => {
 })
 
 test('blank strings collapse to unset rather than empty headers', () => {
-  const config = resolveConfig({ apiKey: '   ', tenantId: '', agentId: 'agent-7' })
+  const config = resolveConfig({ apiKey: '   ', tenantId: '' })
   assert.equal(config.apiKey, undefined)
   assert.equal(config.tenantId, undefined)
-  assert.equal(config.agentId, 'agent-7')
 })

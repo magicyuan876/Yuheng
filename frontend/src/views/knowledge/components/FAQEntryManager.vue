@@ -40,7 +40,7 @@
             </h2>
             <div class="kb-title-actions">
               <KBInfoPopover
-                v-if="kbInfo && !authStore.isLiteMode"
+                v-if="kbInfo"
                 :kb-info="kbInfo"
               />
               <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">

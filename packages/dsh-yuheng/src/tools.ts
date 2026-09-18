@@ -54,7 +54,7 @@ interface DocumentValue {
 interface AskValue {
   answer: string
   session_id: string
-  pipeline: 'rag' | 'agent'
+  pipeline: 'rag'
   tool_calls: string[]
   references: { knowledge_id: string, document: string, chunk_index: number, content: string }[]
 }
@@ -452,10 +452,9 @@ export function createTools(client: YuhengClient, config: ResolvedConfig): ToolD
   }
 
   if (config.tools.ask) {
-    const pipeline = config.agentId === undefined ? 'RAG' : 'agent'
     definitions.push({
       name: name('ask'),
-      description: `Ask Yuheng a question and get its own composed answer with citations (${pipeline} pipeline runs `
+      description: 'Ask Yuheng a question and get its own composed answer with citations (the RAG pipeline runs '
         + 'server-side: query rewriting, retrieval, reranking and summarization). Reserve it for broad or '
         + 'synthesis questions whose answer spans many documents, where retrieving passages yourself would take '
         + `several rounds. For anything you can answer from specific passages, prefer ${name('search')}: it is far `
@@ -465,7 +464,6 @@ export function createTools(client: YuhengClient, config: ResolvedConfig): ToolD
         properties: {
           query: { type: 'string', description: 'The question to answer.' },
           knowledge_base_ids: { ...STRING_ARRAY, description: 'Restrict retrieval to these knowledge base ids.' },
-          agent_id: { type: 'string', description: 'Custom agent id; selects the server-side ReAct pipeline.' },
           session_id: { type: 'string', description: 'Continue an earlier Yuheng session instead of starting one.' },
           web_search: { type: 'boolean', description: 'Let Yuheng also search the web, when its deployment allows it.' },
         },
@@ -479,7 +477,7 @@ export function createTools(client: YuhengClient, config: ResolvedConfig): ToolD
           properties: {
             answer: { type: 'string' },
             session_id: { type: 'string' },
-            pipeline: { type: 'string', enum: ['rag', 'agent'] },
+            pipeline: { type: 'string', enum: ['rag'] },
             tool_calls: STRING_ARRAY,
             references: {
               type: 'array',
@@ -519,26 +517,22 @@ export function createTools(client: YuhengClient, config: ResolvedConfig): ToolD
         const toolName = name('ask')
         const query = requiredString(args, 'query', toolName)
         const requested = stringArrayArg(args, 'knowledge_base_ids')
-        const agentId = optionalStringArg(args, 'agent_id') ?? config.agentId
-        // A custom agent resolves its own scope server-side from its
-        // KBSelectionMode, and ids sent here would override that as an explicit
-        // mention. The RAG pipeline has no such default: it retrieves only what
-        // the request names, and answers from nothing when it names nothing.
-        const knowledgeBaseIds = agentId === undefined
-          ? await resolveScope(requested, [], exec.signal)
-          : requested.length > 0 ? requested : config.knowledgeBaseIds
-        if (agentId === undefined && knowledgeBaseIds.length === 0) {
+        // The RAG pipeline retrieves only what the request names, and answers
+        // from nothing when it names nothing, so an unconfigured deployment
+        // resolves the full visible set exactly as search does.
+        const knowledgeBaseIds = await resolveScope(requested, [], exec.signal)
+        if (knowledgeBaseIds.length === 0) {
           throw new Error(`${toolName}: this Yuheng credential can see no knowledge base, so there is `
             + 'nothing to answer from. Check the deployment\'s API key scope.')
         }
         const webSearch = argRecord(args)['web_search'] === true
         const sessionId = optionalStringArg(args, 'session_id')
           ?? await client.createSession(`dsh: ${clip(query, 60).text}`, exec.signal)
-        const streamed = await client.ask({ sessionId, query, knowledgeBaseIds, agentId, webSearch }, exec.signal)
+        const streamed = await client.ask({ sessionId, query, knowledgeBaseIds, webSearch }, exec.signal)
         return {
           answer: streamed.answer.trim(),
           session_id: streamed.sessionId,
-          pipeline: agentId === undefined ? 'rag' : 'agent',
+          pipeline: 'rag',
           tool_calls: streamed.toolCalls,
           references: streamed.references.slice(0, config.maxResults).map(reference => ({
             knowledge_id: typeof reference.knowledge_id === 'string' ? reference.knowledge_id : '',

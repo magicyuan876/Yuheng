@@ -103,7 +103,7 @@ func openHandlerDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 	sqlDB.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	ddl, err := os.ReadFile(filepath.FromSlash("../../../migrations/sqlite/000030_docs_module.up.sql"))
+	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(ddl)).Error)
 	return db

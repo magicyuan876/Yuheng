@@ -14,7 +14,7 @@
 
 ## GET `/system/capabilities` - 获取部署能力清单
 
-返回当前部署版本，以及各功能模块是否已在后端注册对应路由。`supported: false` 表示 SPA 应隐藏相关入口；字段缺失或接口不可用时不应据此清空整个菜单（fail-open），但 Lite 版会始终将 `organizations` 标记为不支持。
+返回各功能模块是否已在后端注册对应路由。`supported: false` 表示 SPA 应隐藏相关入口；字段缺失或接口不可用时不应据此清空整个菜单（fail-open）。
 
 **权限**：Viewer+（租户成员）；任意有效 API Key 可读（`apiKeyAny`）。
 
@@ -33,31 +33,17 @@ curl --location 'http://localhost:8080/api/v1/system/capabilities' \
   "code": 0,
   "msg": "success",
   "data": {
-    "edition": "standard",
     "capabilities": {
       "organizations": { "supported": true },
-      "agents": { "supported": true },
-      "integrations.im": { "supported": true },
+      "agents": { "supported": false, "reason": "route_not_registered" },
+      "integrations.im": { "supported": false, "reason": "route_not_registered" },
       "integrations.embed": { "supported": false, "reason": "route_not_registered" },
       "integrations.api": { "supported": true },
-      "settings.mcp": { "supported": true },
+      "settings.mcp": { "supported": false, "reason": "route_not_registered" },
       "settings.websearch": { "supported": true },
       "settings.vectorstore": { "supported": true },
       "settings.storage": { "supported": true },
-      "settings.sandbox": { "supported": true }
-    }
-  }
-}
-```
-
-Lite 版示例（共享空间不可用）:
-
-```json
-{
-  "capabilities": {
-    "organizations": {
-      "supported": false,
-      "reason": "not_supported_in_lite"
+      "settings.sandbox": { "supported": false, "reason": "route_not_registered" }
     }
   }
 }
@@ -79,7 +65,6 @@ curl --location 'http://localhost:8080/api/v1/system/info' \
 {
     "data": {
         "version": "1.2.0",
-        "edition": "community",
         "commit_id": "a1b2c3d",
         "build_time": "2025-08-12T08:00:00Z",
         "go_version": "go1.21.5",

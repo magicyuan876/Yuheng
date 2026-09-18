@@ -318,7 +318,7 @@ const canMutateKnowledge = computed(() => {
   return authStore.hasRole('contributor');
 });
 
-// Effective permission: from direct org share list or from GET /knowledge-bases/:id (e.g. agent-visible KB)
+// Effective permission: from direct org share list or from GET /knowledge-bases/:id
 const effectiveKBPermission = computed(() => orgStore.getKBPermission(kbId.value) || kbInfo.value?.my_permission || '');
 
 // Downloading returns the original source file, which is intentionally more
@@ -2357,7 +2357,7 @@ async function createNewSession(value: string): Promise<void> {
             </h2>
             <!-- 标题行右侧的动作锚点：聚拢"信息"和"设置"两个圆形按钮。 -->
             <div class="kb-title-actions">
-              <KBInfoPopover v-if="kbInfo && !authStore.isLiteMode" :kb-info="kbInfo"
+              <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo"
                 :supported-file-types="[...supportedFileTypes]" />
               <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">
                 <button type="button" class="kb-settings-button" :disabled="!kbId" @click="handleOpenKBSettings">

@@ -77,16 +77,13 @@ const (
 	// within its allowed KB scope without granting chat or content writes.
 	APIKeyCapabilityRetrieve APIKeyCapability = "retrieve"
 	// APIKeyCapabilityChat lets a scoped key run the conversation flow
-	// (sessions + agent listing + self identity) without granting broader
-	// tenant management access.
+	// (sessions + self identity) without granting broader tenant management
+	// access.
 	APIKeyCapabilityChat APIKeyCapability = "chat"
-	// APIKeyCapabilityReadAgents lets a scoped key list and inspect agents
-	// without allowing chat sessions or agent authoring.
-	APIKeyCapabilityReadAgents APIKeyCapability = "read_agents"
 	// APIKeyCapabilityIngest lets a key write content into its allowed
 	// knowledge bases (upload documents, edit chunks/FAQ/tags/wiki). It only
 	// lifts the content-write routes: it never allows creating new knowledge
-	// bases or agents, nor destructive KB clears, and the key's
+	// bases, nor destructive KB clears, and the key's
 	// knowledge_base_ids allow-list still bounds every write.
 	APIKeyCapabilityIngest APIKeyCapability = "ingest"
 	// APIKeyCapabilityManageKnowledgeBases lets a scoped key manage the full
@@ -100,10 +97,6 @@ const (
 	// uploading or editing KB contents does not imply permission to manage
 	// the KB itself.
 	APIKeyCapabilityManageKnowledgeBases APIKeyCapability = "manage_kbs"
-	// APIKeyCapabilityManageAgents lets a key create/read/update/delete/copy
-	// agents. Agent config can carry sensitive model/MCP bindings, so this is
-	// opt-in and off by default.
-	APIKeyCapabilityManageAgents APIKeyCapability = "manage_agents"
 	// APIKeyCapabilityMessageHistory lets a key search and inspect the
 	// tenant-level chat-history knowledge base without granting full Owner
 	// access. It is separate from chat: chat only covers the caller's own
@@ -113,16 +106,10 @@ const (
 	// APIKeyCapabilityManageModels lets a key manage tenant model
 	// definitions, credentials, and model connectivity checks.
 	APIKeyCapabilityManageModels APIKeyCapability = "manage_models"
-	// APIKeyCapabilityManageMCPServices lets a key manage tenant MCP service
-	// definitions, credentials, tool policies, and per-principal OAuth state.
-	APIKeyCapabilityManageMCPServices APIKeyCapability = "manage_mcp_services"
 	// APIKeyCapabilityManageDataSources lets a key manage data-source
 	// connectors and sync jobs. KB scoping applies to data sources bound to a
 	// knowledge base.
 	APIKeyCapabilityManageDataSources APIKeyCapability = "manage_datasources"
-	// APIKeyCapabilityManageChannels lets a key manage embed and IM channel
-	// integrations for agents.
-	APIKeyCapabilityManageChannels APIKeyCapability = "manage_channels"
 	// APIKeyCapabilityManageVectorStores lets a key manage retrieval
 	// infrastructure such as vector stores, parser engines, and storage checks.
 	APIKeyCapabilityManageVectorStores APIKeyCapability = "manage_vector_stores"
@@ -146,7 +133,7 @@ const (
 	APIKeyCapabilityManageMembers APIKeyCapability = "manage_members"
 	// APIKeyCapabilityManageSpaces lets a key manage organization/space
 	// collaboration surfaces such as space membership and join flows. It does
-	// not grant KB/agent share management: share management is reserved for
+	// not grant KB share management: share management is reserved for
 	// full-access keys (and JWT) and scoped keys stay default-deny. This
 	// capability never lifts it.
 	APIKeyCapabilityManageSpaces APIKeyCapability = "manage_spaces"
@@ -179,24 +166,16 @@ func NormalizeAPIKeyCapability(c APIKeyCapability) APIKeyCapability {
 		return APIKeyCapabilityRetrieve
 	case APIKeyCapabilityChat:
 		return APIKeyCapabilityChat
-	case APIKeyCapabilityReadAgents:
-		return APIKeyCapabilityReadAgents
 	case APIKeyCapabilityIngest:
 		return APIKeyCapabilityIngest
 	case APIKeyCapabilityManageKnowledgeBases:
 		return APIKeyCapabilityManageKnowledgeBases
-	case APIKeyCapabilityManageAgents:
-		return APIKeyCapabilityManageAgents
 	case APIKeyCapabilityMessageHistory:
 		return APIKeyCapabilityMessageHistory
 	case APIKeyCapabilityManageModels:
 		return APIKeyCapabilityManageModels
-	case APIKeyCapabilityManageMCPServices:
-		return APIKeyCapabilityManageMCPServices
 	case APIKeyCapabilityManageDataSources:
 		return APIKeyCapabilityManageDataSources
-	case APIKeyCapabilityManageChannels:
-		return APIKeyCapabilityManageChannels
 	case APIKeyCapabilityManageVectorStores:
 		return APIKeyCapabilityManageVectorStores
 	case APIKeyCapabilityManageStorageBackends:

@@ -63,8 +63,6 @@ test('ensureRagPipelineHistoryStream does not invent retrieval for attachment-on
 
   ensureRagPipelineHistoryStream(item)
 
-  assert.equal(item.isAgentMode, true)
-  assert.equal(item.hideContent, true)
   assert.equal(hasRagPipelineToolEvents(item.agentEventStream), false)
   assert.equal(
     item.agentEventStream.some((event) => event.tool_name === 'knowledge_search'),
@@ -94,8 +92,6 @@ test('ensureRagPipelineHistoryStream restores quick-answer history after reload'
 
   ensureRagPipelineHistoryStream(item)
 
-  assert.equal(item.isAgentMode, true)
-  assert.equal(item.hideContent, true)
   assert.equal(hasRagPipelineToolEvents(item.agentEventStream), true)
   assert.equal(
     item.agentEventStream.some((event) => event.type === 'answer'),

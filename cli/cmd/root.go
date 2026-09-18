@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	agentcmd "github.com/magicyuan876/yuheng/cli/cmd/agent"
 	apicmd "github.com/magicyuan876/yuheng/cli/cmd/api"
 	"github.com/magicyuan876/yuheng/cli/cmd/auth"
 	chatcmd "github.com/magicyuan876/yuheng/cli/cmd/chat"
@@ -209,7 +208,6 @@ a curated read-only MCP tool surface for AI agents.`,
 	cmd.AddCommand(chatcmd.NewCmd(f))
 	cmd.AddCommand(sessioncmd.NewCmd(f))
 	cmd.AddCommand(messagecmd.NewCmd(f))
-	cmd.AddCommand(agentcmd.NewCmd(f))
 	cmd.AddCommand(modelcmd.NewCmd(f))
 	cmd.AddCommand(chunkcmd.NewCmdChunk(f))
 	cmd.AddCommand(mcpcmd.NewCmd(f))

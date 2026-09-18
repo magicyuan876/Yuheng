@@ -18,8 +18,6 @@ export interface Config {
   tenantId?: string
   /** Default knowledge-base scope when a call names none. */
   knowledgeBaseIds?: string[]
-  /** Default custom agent for `yuheng_ask`; omitted uses the RAG pipeline. */
-  agentId?: string
   /** Default and maximum number of chunks a search returns. */
   maxResults?: number
   /** Per-chunk character budget before the plugin truncates content. */
@@ -42,7 +40,6 @@ export interface ResolvedConfig {
   apiKey: string | undefined
   tenantId: string | undefined
   knowledgeBaseIds: string[]
-  agentId: string | undefined
   maxResults: number
   maxChunkChars: number
   requestTimeoutMs: number
@@ -165,7 +162,6 @@ export function resolveConfig(raw: Config | undefined): ResolvedConfig {
     apiKey: optionalString(config.apiKey, 'apiKey', violations),
     tenantId: optionalString(config.tenantId, 'tenantId', violations),
     knowledgeBaseIds: stringList(config.knowledgeBaseIds, 'knowledgeBaseIds', violations) ?? [],
-    agentId: optionalString(config.agentId, 'agentId', violations),
     maxResults: positiveInt(config.maxResults, 'maxResults', violations) ?? DEFAULTS.maxResults,
     maxChunkChars: positiveInt(config.maxChunkChars, 'maxChunkChars', violations) ?? DEFAULTS.maxChunkChars,
     requestTimeoutMs: positiveInt(config.requestTimeoutMs, 'requestTimeoutMs', violations) ?? DEFAULTS.requestTimeoutMs,

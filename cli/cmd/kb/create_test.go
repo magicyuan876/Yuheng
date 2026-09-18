@@ -191,7 +191,7 @@ func TestCreate_StorageProvider_InvalidValueReturnsInputError(t *testing.T) {
 
 	// A bad enum *value* (cobra accepted the string; the app rejected it) is an
 	// app-level input error → exit 5, consistent with every other enum flag
-	// (model --type, agent --agent-mode, message search --mode).
+	// (model --type, message search --mode).
 	var typed *cmdutil.Error
 	require.ErrorAs(t, err, &typed)
 	assert.Equal(t, cmdutil.CodeInputInvalidArgument, typed.Code)

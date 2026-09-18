@@ -37,21 +37,10 @@ X-API-Key: <api_key>
 - 平台级（platform）key：在 `POST /api/v1/system/admin/api-keys` 创建，必须携带 `X-Tenant-ID` 选择目标空间（`/system/admin/*`、`/tenants/all|search`、`POST /tenants` 除外），否则返回 409 `TENANT_REQUIRED`。
 - 授权模型（`internal/middleware/api_key_gate.go`，默认拒绝）：每个 `/api/v1` 路由必须显式声明 API key 策略，未声明的路由对任何 key 一律 403。
   - `full_access` key：空间内全权（等效 Owner 的机器形态）。
-  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`read_agents`、`manage_kbs`、`manage_agents`、`message_history`、`manage_models`、`manage_mcp_services`、`manage_datasources`、`manage_channels`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`、`manage_spaces`、`manage_tenant_settings`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
+  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`manage_kbs`、`message_history`、`manage_models`、`manage_datasources`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`、`manage_spaces`、`manage_tenant_settings`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
 - 外部用户主体（可选，按空间 `api-principal-config` 配置）：
   - `direct` 模式：`X-External-User-ID: <外部用户ID>`（≤128 字符）。
   - `signed_token` 模式：`X-External-User-Token: <HS256 JWT>`，要求 `aud=yuheng`、`exp`（生存期 ≤24h）、`tenant_id` claim 与目标空间一致、`sub` 为外部用户 ID。
-
-### 3. Embed publish token（匿名嵌入端）
-
-`/api/v1/embed/:channel_id/*` 公开路由使用独立的 `EmbedAuth` 中间件（`internal/middleware/embed_auth.go`）：
-
-```
-Authorization: Embed <publish_token 或 session_token>
-```
-
-- `POST /embed/:channel_id/exchange` 用 publish token 换取短时效 session token；会话级操作还需 `X-Embed-Session: <sig>`（创建会话时返回的签名句柄）。
-- IM 回调路由（`/api/v1/im/callback/:channel_id`）注册在全局认证中间件之前，使用各 IM 平台自身的签名验证。
 
 ### 认证流程图
 
@@ -92,13 +81,13 @@ flowchart TD
 | --- | --- |
 | `owner` | 空间所有者：空间生命周期、API key、成员管理 |
 | `admin` | 空间管理员：模型/基础设施/渠道等空间级配置 |
-| `contributor` | 贡献者：可创建 KB/Agent，可修改**自己创建**的资源 |
+| `contributor` | 贡献者：可创建 KB，可修改**自己创建**的资源 |
 | `viewer` | 只读成员：读取与会话使用 |
 | SystemAdmin | 平台级管理员（`User.IsSystemAdmin`），独立于空间角色，守卫 `/system/admin/*`，始终强制 |
 
-- 文档中“Viewer+ / Contributor+ / Admin+ / Owner”表示最低角色要求；“创建者 OR Admin+”对应 `RequireOwnershipOrRole`（Contributor 只能改自己创建的 KB/Agent/内容）。
+- 文档中“Viewer+ / Contributor+ / Admin+ / Owner”表示最低角色要求；“创建者 OR Admin+”对应 `RequireOwnershipOrRole`（Contributor 只能改自己创建的 KB/内容）。
 - `cfg.Tenant.EnableRBAC=false` 时角色守卫只记录日志不拦截（rollout fail-open）；SystemAdmin 守卫不受此开关影响。
-- KB 级访问守卫 `KBAccessRead/Write`（`internal/middleware/kb_access.go`）：解析“自有 / 组织共享 / 经共享 Agent 可见”三类访问，并把请求上下文的 tenant 重写为 KB 属主空间。
+- KB 级访问守卫 `KBAccessRead/Write`（`internal/middleware/kb_access.go`）：解析“自有 / 组织共享”两类访问，并把请求上下文的 tenant 重写为 KB 属主空间。
 - API key 主体会短路 JWT 角色守卫，其真实权限完全由 APIKeyGate（capability + KB 白名单）决定。
 - 被拒绝的请求会写入审计日志（`middleware.AuditServiceProvider`，1 分钟滑动窗口去重）。
 
@@ -134,7 +123,6 @@ flowchart TD
 | 1009 | ErrTimeout 超时 | — |
 | 1010 | ErrValidation 参数校验失败 | 400 |
 | 2000-2005 | 空间类：不存在/已存在/停用/名称必填/状态非法/自助创建被禁用 | 404/409/403/… |
-| 2100-2103 | Agent 类：缺思考模型/缺允许工具/迭代次数非法(1-20)/温度非法(0-2) | 400 |
 | 2200-2201 | VectorStore 绑定非法 / 当前不可用 | 400 |
 
 另有非编码错误：`types.StorageQuotaExceededError`（存储配额超限）、`types.DuplicateKnowledgeError`（重复文件/URL，上传接口返回 409 且 `data` 携带已存在的 Knowledge）。
@@ -152,7 +140,7 @@ flowchart TD
 
 ## 流式接口协议（SSE）
 
-聊天类接口（`POST /api/v1/knowledge-chat/:session_id`、`POST /api/v1/agent-chat/:session_id`、`GET /api/v1/sessions/continue-stream/:session_id`，以及 embed 端对应路由）返回 Server-Sent Events：
+聊天类接口（`POST /api/v1/knowledge-chat/:session_id`、`GET /api/v1/sessions/continue-stream/:session_id`）返回 Server-Sent Events：
 
 ```
 Content-Type: text/event-stream
@@ -166,7 +154,7 @@ X-Accel-Buffering: no
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `id` | string | 请求 ID |
-| `response_type` | string | `answer` / `references` / `thinking` / `tool_call` / `tool_result` / `reflection` / `session_title` / `agent_query` / `tool_approval_required` / `tool_approval_resolved` / `mcp_oauth_required` / `mcp_oauth_resolved` / `error` / `complete` |
+| `response_type` | string | `answer` / `references` / `thinking` / `tool_call` / `tool_result` / `session_title` / `agent_query` / `error` / `complete` |
 | `content` | string | 增量文本 |
 | `done` | bool | 该类型事件是否结束 |
 | `knowledge_references` | []SearchResult | `references` 事件携带的引用 |
@@ -188,24 +176,22 @@ X-Accel-Buffering: no
 
 取值只有 `handle`（默认）与 `public`，传其它值返回 400。单次请求参数优先于环境变量，所以把部署默认设成 `public` 之后，仍可以用 `?resource_urls=handle` 单独退回。
 
-支持该参数的接口：`POST /knowledge-chat/{session_id}`、`POST /agent-chat/{session_id}`、`GET /sessions/continue-stream/{session_id}`、`GET /messages/{session_id}/load`、`POST /knowledge-search`。改写覆盖答案正文、`knowledge_references`（含 `image_info`）、Agent 执行步骤与工具结果，以及消息上的图片附件；流式回答里跨 chunk 截断的引用会先缓冲再改写，客户端拿到的始终是完整链接。
+支持该参数的接口：`POST /knowledge-chat/{session_id}`、`GET /sessions/continue-stream/{session_id}`、`GET /messages/{session_id}/load`、`POST /knowledge-search`。改写覆盖答案正文、`knowledge_references`（含 `image_info`）、工具调用与结果，以及消息上的图片附件；流式回答里跨 chunk 截断的引用会先缓冲再改写，客户端拿到的始终是完整链接。
 
 使用前需要知道的几件事：
 
 - **需要具备外链能力**：直链来自存储后端预签名，或 `APP_EXTERNAL_URL` + `/r/<token>`。两者都没有时（如 local 存储且未设 `APP_EXTERNAL_URL`），该引用保持 `resource://` 原样，客户端仍可回退到 `/files`；
 - **直链是限时匿名可读的**（Yuheng 签发的 grant 2 小时，MinIO 预签名 24 小时），任何拿到链接的人在过期前都能读取，不要写进日志或转发给不该看的人；
-- **嵌入渠道不支持**：`/api/v1/embed/...` 下的接口强制 `handle`，访客图片继续走渠道维度的鉴权代理；
 - **限定知识库的 API Key 用 `public` 会返回 403**：这类 Key 本身就被禁止访问 `/files` 代理，能拿到匿名直链等于绕过同一道限制；
 - **同一文件的直链在有效期内复用**，重复请求不会反复签发凭证，客户端与 CDN 缓存因此能命中。
 
-各渠道（Web / IM / 嵌入挂件 / API）分别拿到哪种形式、以及图片加载不出来时怎么排查，见[图片与文件的对外访问](../03-features/21-file-access.md)。
+各渠道（Web / API）分别拿到哪种形式、以及图片加载不出来时怎么排查，见[图片与文件的对外访问](../03-features/21-file-access.md)。
 
 ## 限流说明
 
 | 面 | 限制 | 来源 |
 | --- | --- | --- |
 | 公开分享链接接口（`/auth/invitations/lookup`、`/auth/register-by-invite`） | 每 IP 30 次/分钟（两个端点共享额度），超限 429（code 1006） | `internal/middleware/auth_public_ratelimit.go` |
-| Embed 公开路由 | 每 (channel, IP) `rate_limit_per_minute`（默认 30）/分钟；channel 级 `rate_limit_per_minute*20`（下限 120）/分钟；channel 级 `rate_limit_per_day`（默认 10000）/天；超限 429 | `internal/middleware/embed_auth.go` |
 | 反代信任 | 仅信任 `YUHENG_TRUSTED_PROXIES`（默认回环+内网段）的 `X-Forwarded-For`，防止伪造 IP 绕过限流 | `router.go` `trustedProxies()` |
 
 其余业务接口无全局限流；自助创建空间等配额类拒绝同样使用 429（code 1006）。
@@ -216,13 +202,12 @@ X-Accel-Buffering: no
 | --- | --- | --- |
 | 认证与用户 | [02-api-auth.md](./02-api-auth.md) | `/auth`、`/me/invitations` |
 | 租户（空间）与成员 | [02-api-tenant.md](./02-api-tenant.md) | `/tenants` |
-| 组织与共享 | [02-api-org.md](./02-api-org.md) | `/organizations`、`/shared-*`、`/knowledge-bases/:id/shares`、`/agents/:id/shares` |
+| 组织与共享 | [02-api-org.md](./02-api-org.md) | `/organizations`、`/shared-*`、`/knowledge-bases/:id/shares` |
 | 知识库与知识 | [02-api-knowledge.md](./02-api-knowledge.md) | `/knowledge-bases`、`/knowledge`、知识库文件夹 |
 | 分块与标签 | [02-api-chunks.md](./02-api-chunks.md) | `/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview` |
 | FAQ 与 Wiki | [02-api-faq-wiki.md](./02-api-faq-wiki.md) | `/knowledge-bases/:id/faq`、`/faq`、`/knowledgebase/:kb_id/wiki` |
-| 会话、消息与聊天 | [02-api-chat.md](./02-api-chat.md) | `/sessions`、`/messages`、`/knowledge-chat`、`/agent-chat`、`/knowledge-search` |
+| 会话、消息与聊天 | [02-api-chat.md](./02-api-chat.md) | `/sessions`、`/messages`、`/knowledge-chat`、`/knowledge-search` |
 | 模型与初始化 | [02-api-model-system.md](./02-api-model-system.md) | `/models`、`/initialization`、`/evaluation` |
 | 系统与平台管理 | [02-api-system.md](./02-api-system.md) | `/system`、`/system/admin` |
 | 基础设施与数据源 | [02-api-infra.md](./02-api-infra.md) | `/vector-stores`、`/storage-backends`、`/web-search-providers`、`/datasource` |
-| Agent、MCP 与技能 | [02-api-agent-mcp.md](./02-api-agent-mcp.md) | `/agents`、`/mcp-services`、`/agent`、`/skills`、`/user/favorites` |
-| IM、Embed 与文件服务 | [02-api-channels.md](./02-api-channels.md) | `/im`、`/im-channels`、`/wechat`、`/embed-channels`、`/embed`、`/files`、`/r/:token` |
+| 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/api/v1/files/presigned`、`/r/:token` |

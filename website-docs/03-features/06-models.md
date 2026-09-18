@@ -1,6 +1,6 @@
 # 模型管理
 
-Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和 Agent 上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
+Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和问答上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
 
 <Screenshot
   src="/screenshots/settings-models.png"
@@ -30,7 +30,7 @@ const (
 
 | 类型 | 前端标识 | 客户端包 | 接口 | 用途 |
 |------|---------|---------|------|------|
-| `KnowledgeQA` | `chat` | `internal/models/chat` | `Chat` / `ChatStream`（支持 Tools、Thinking、多模态消息） | 知识问答、Agent 推理、摘要 / 问题生成 / 图谱抽取等一切 LLM 调用 |
+| `KnowledgeQA` | `chat` | `internal/models/chat` | `Chat` / `ChatStream`（支持 Tools、Thinking、多模态消息） | 知识问答、摘要 / 问题生成 / 图谱抽取等一切 LLM 调用 |
 | `Embedding` | `embedding` | `internal/models/embedding` | `Embed` / `BatchEmbed`（含 `GetDimensions`） | 文本向量化，供向量检索索引与查询 |
 | `Rerank` | `rerank` | `internal/models/rerank` | `Rerank(query, documents)` 返回 `RankResult` | 检索结果精排 |
 | `VLLM` | `vllm` | `internal/models/vlm` | `Predict(imgBytes, prompt)` | 视觉语言模型（VLM），文档图片理解 / 多模态解析 |
@@ -121,7 +121,7 @@ func NewRemoteChat(config *ChatConfig) (Chat, error) {
 
 ```mermaid
 flowchart TD
-    H["Handler 层<br/>(model.go / session / agent)"] --> S["modelService.GetChatModel /<br/>GetEmbeddingModel / GetRerankModel /<br/>GetVLMModel / GetASRModel"]
+    H["Handler 层<br/>(model.go / session)"] --> S["modelService.GetChatModel /<br/>GetEmbeddingModel / GetRerankModel /<br/>GetVLMModel / GetASRModel"]
     S --> R["ModelRepository<br/>(models 表, APIKey AES-GCM 解密)"]
     S --> CF["ConfigFromModel<br/>(chat / embedding / rerank / vlm / asr)"]
     CF --> F{"工厂函数<br/>NewChat / NewEmbedder / ..."}
@@ -223,7 +223,7 @@ builtin_models:
 `internal/models/limiter` 提供**按模型 ID 的分布式后台并发闸门**，核心设计（`limiter.go` 包注释）：共享的稀缺资源是模型厂商的请求预算，因此在模型客户端层（唯一能看到所有任务类型的位置）限流，而不是在 asynq 队列层。
 
 - **Redis 后端**（`NewRedisLimiter`）：自愈式分布式信号量。每个持有的槽位是 ZSET 成员（唯一 token），score 为租约到期时间；`acquireScript` Lua 脚本原子地清理过期租约、计数、在限额内准入。租约 TTL 30s，持有方每 TTL/3 心跳续租（同时续 ZSET key 自身的 TTL），进程崩溃后租约自然过期回收。**任何后端错误都 fail-open**——限流器故障绝不能阻断模型流量。
-- **Local 后端**（`NewLocalLimiter`）：Lite 模式（单进程无 Redis）下的进程内计数信号量。
+- **Local 后端**（`NewLocalLimiter`）：无 Redis（单进程）部署下的进程内计数信号量。
 - **仅后台任务被限流**：`GateNamedN`（`governor.go`）只在 `types.IsBackgroundTask(ctx)` 为真（asynq worker：摘要、问题生成、图谱抽取、多模态增强等）时排队；交互式用户请求永不被闸门阻塞。
 - 限额优先取模型自身 `parameters.max_concurrency`，为 0 时回落进程级默认 `model.max_concurrency`（可经系统设置在运行时通过 `SetGlobalLimit` 热更新）。
 - 运行时观测：`GET /system/admin/runtime/queues`（`internal/handler/system.go`）返回 `limiter.RuntimeStats()` 的每模型 `active / waiting / limit`（Redis 后端 active 为集群级，waiting 为进程本地）。

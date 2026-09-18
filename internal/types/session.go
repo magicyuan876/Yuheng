@@ -91,21 +91,12 @@ type Session struct {
 	PinnedAt *time.Time `json:"pinned_at,omitempty"`
 
 	// LastRequestState records the input-bar state used the last time this
-	// session sent a question (agent, model, KB scope, web search, MCPs).
-	// Persisted on every successful POST to /knowledge-chat or /agent-chat so
-	// that reopening the session can restore the original request context to
-	// the chat UI. Stored in the legacy sessions.agent_config JSONB column to
-	// avoid a new migration; the shape used today is `SessionLastRequestState`.
-	LastRequestState *SessionLastRequestState `json:"last_request_state,omitempty" gorm:"column:agent_config;type:jsonb"`
-
-	// SandboxConfigID pins which sandbox config this session's CURRENT live
-	// sandbox was created on. Empty means no live sandbox;
-	// SandboxConfigIDGlobalDefault means the deployment-wide default config.
-	//
-	// This is an ephemeral pin that dies with the sandbox, not a permanent
-	// owner: sessions outlive sandboxes by months, so treating it as
-	// permanent would make "no session references this config" never true.
-	SandboxConfigID string `json:"sandbox_config_id,omitempty" gorm:"type:varchar(36)"`
+	// session sent a question (model, KB scope, web search).
+	// Persisted on every successful POST to /knowledge-chat so that reopening
+	// the session can restore the original request context to the chat UI.
+	// Stored in the sessions.last_request_state JSONB column; the shape used
+	// today is `SessionLastRequestState`.
+	LastRequestState *SessionLastRequestState `json:"last_request_state,omitempty" gorm:"column:last_request_state;type:jsonb"`
 
 	// // Strategy configuration
 	// KnowledgeBaseID   string              `json:"knowledge_base_id"`                    // 关联的知识库ID
@@ -121,18 +112,11 @@ type Session struct {
 	// RerankThreshold   float64             `json:"rerank_threshold"`                     // 排序阈值
 	// SummaryModelID    string              `json:"summary_model_id"`                     // 总结模型ID
 	// SummaryParameters *SummaryConfig      `json:"summary_parameters" gorm:"type:json"`  // 总结模型参数
-	// AgentConfig       *SessionAgentConfig `json:"agent_config"       gorm:"type:jsonb"` // Agent 配置（会话级别，仅存储enabled和knowledge_bases）
 	// ContextConfig     *ContextConfig      `json:"context_config"     gorm:"type:jsonb"` // 上下文管理配置（可选）
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
-
-	// IMPlatform is the originating IM platform (e.g. "feishu", "wecom") when
-	// this session is bound to an IM channel. It is not stored on the sessions
-	// table (it lives in im_channel_sessions) and is populated on read so the
-	// Web console can classify a session's origin folder without a list query.
-	IMPlatform string `json:"im_platform,omitempty" gorm:"-"`
 
 	// Association relationship, not stored in the database
 	Messages []Message `json:"-" gorm:"foreignKey:SessionID"`
@@ -142,6 +126,16 @@ func (s *Session) BeforeCreate(tx *gorm.DB) (err error) {
 	s.ID = uuid.New().String()
 	return nil
 }
+
+// EmbedSessionMarkerPrefix tags sessions created through an embed channel
+// (legacy rows; the embed feature has been removed). Kept so existing rows
+// keep classifying correctly in the session list.
+const EmbedSessionMarkerPrefix = "embed_channel:"
+
+// EmbedSessionOwnerPrefix is the legacy sessions.user_id prefix of embed chat
+// sessions (the embed feature has been removed). Kept so those rows stay
+// admin-only in the Web console.
+const EmbedSessionOwnerPrefix = "embed_session:"
 
 // SessionSourceAPI is the source filter that lists every session created via a
 // tenant API key across the whole tenant. It is an admin-only view: the service
@@ -172,66 +166,33 @@ func SessionRequiresAdminConsoleRead(s *Session, imPlatform string) bool {
 		return true
 	}
 	if strings.HasPrefix(s.Description, EmbedSessionMarkerPrefix) ||
-		strings.HasPrefix(s.UserID, PrincipalEmbedSession+":") {
-		return true
-	}
-	// Defence in depth for skill maintenance transcripts: the listing hides
-	// them, and this keeps a leaked session id from being opened by a
-	// non-admin who happens to own the row.
-	if IsSkillMaintenanceDescription(s.Description) {
+		strings.HasPrefix(s.UserID, EmbedSessionOwnerPrefix) {
 		return true
 	}
 	return strings.TrimSpace(imPlatform) != ""
 }
 
-// IsSkillMaintenanceDescription reports whether description is the reserved
-// prefix that hides skill-install sessions from the console list.
-func IsSkillMaintenanceDescription(description string) bool {
-	return strings.HasPrefix(description, SkillMaintenanceSessionMarker)
-}
-
-// SanitizeClientSessionDescription keeps the skill-maintenance marker off
-// client-writable descriptions. A row that is already a maintenance session
-// keeps its stored description so a PUT cannot un-hide it; any other row
-// drops a planted marker rather than accepting it.
-func SanitizeClientSessionDescription(incoming, existing string) string {
-	if IsSkillMaintenanceDescription(existing) {
-		return existing
-	}
-	if IsSkillMaintenanceDescription(incoming) {
-		return ""
-	}
-	return incoming
-}
-
 // SessionListQuery bundles the parameters for listing sessions.
 // UserID empty means "tenant-wide" (used by API-key callers / legacy rows).
 // Keyword matches title ILIKE '%keyword%'.
-// Source values: "web" (user chats, no IM/embed), "embed" / "embed:{channelID}",
-// "api" (all API-key sessions, Admin+ only), or an IM platform name
-// (e.g. "feishu", "wechat"). IM and embed sources are also Admin+ only.
-// AgentID currently only filters sessions that have an IM channel mapping.
+// Source values: "web" (user chats, no embed/API rows), "embed" /
+// "embed:{channelID}", "api" (all API-key sessions, Admin+ only). Embed and
+// api sources are Admin+ only; unknown sources (including legacy IM platform
+// names) fall back to the web visibility filter.
 type SessionListQuery struct {
 	TenantID uint64
 	UserID   string
 	Keyword  string
 	Source   string
-	AgentID  string
 	Page     int
 	PageSize int
 }
 
-// SessionListItem is a session row enriched with its IM origin (when any).
-// IM-related fields are populated from the im_channel_sessions table via LEFT JOIN
-// and are empty for Web-created sessions.
+// SessionListItem is a session row as returned by QueryPaged. It stays a
+// wrapper over Session so future list-only enrichments have a place to live
+// without changing the repository signature.
 type SessionListItem struct {
 	Session
-	IMPlatform  string `json:"im_platform,omitempty"   gorm:"column:im_platform"`
-	IMChatID    string `json:"im_chat_id,omitempty"    gorm:"column:im_chat_id"`
-	IMThreadID  string `json:"im_thread_id,omitempty"  gorm:"column:im_thread_id"`
-	IMUserID    string `json:"im_user_id,omitempty"    gorm:"column:im_user_id"`
-	IMAgentID   string `json:"im_agent_id,omitempty"   gorm:"column:im_agent_id"`
-	IMChannelID string `json:"im_channel_id,omitempty" gorm:"column:im_channel_id"`
 }
 
 // StringArray represents a list of strings
@@ -274,17 +235,13 @@ func (c *SummaryConfig) Scan(value interface{}) error {
 // SessionLastRequestState captures the user-facing input-bar state at the
 // time of the most recent QA request on a session. It is purely a UI memory
 // aid — none of the fields here drive backend behaviour. They are echoed back
-// to the frontend by GetSession so the chat input can restore the same agent,
-// model, KB scope, etc. the user had selected last time.
+// to the frontend by GetSession so the chat input can restore the same model,
+// KB scope, etc. the user had selected last time.
 type SessionLastRequestState struct {
-	AgentID          string         `json:"agent_id,omitempty"`
-	AgentEnabled     bool           `json:"agent_enabled"`
 	ModelID          string         `json:"model_id,omitempty"`
 	KnowledgeBaseIDs []string       `json:"knowledge_base_ids,omitempty"`
 	KnowledgeIDs     []string       `json:"knowledge_ids,omitempty"`
 	TagIDs           []string       `json:"tag_ids,omitempty"`
-	MCPServiceIDs    []string       `json:"mcp_service_ids,omitempty"`
-	SkillNames       []string       `json:"skill_names,omitempty"`
 	MentionedItems   MentionedItems `json:"mentioned_items,omitempty"`
 	WebSearchEnabled bool           `json:"web_search_enabled"`
 }

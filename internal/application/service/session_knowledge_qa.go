@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/magicyuan876/yuheng/internal/agent/tools"
 	chatpipeline "github.com/magicyuan876/yuheng/internal/application/service/chat_pipeline"
 	"github.com/magicyuan876/yuheng/internal/common"
 	"github.com/magicyuan876/yuheng/internal/event"
@@ -19,7 +18,6 @@ import (
 
 // KnowledgeQA performs knowledge base question answering with LLM summarization
 // Events are emitted through eventBus (references, answer chunks, completion)
-// customAgent is optional - if provided, uses custom agent configuration for multiTurnEnabled and historyTurns
 func (s *sessionService) KnowledgeQA(
 	ctx context.Context,
 	req *types.QARequest,
@@ -33,9 +31,9 @@ func (s *sessionService) KnowledgeQA(
 		req.WebSearchEnabled,
 	)
 
-	// Span the request setup (KB / model resolution, search target building,
-	// agent override application). This covers the visible gap between trace
-	// start and the first stage observation in the Langfuse timeline.
+	// Span the request setup (KB / model resolution, search target building).
+	// This covers the visible gap between trace start and the first stage
+	// observation in the Langfuse timeline.
 	setupCtx, setupSpan := langfuse.GetManager().StartSpan(ctx, langfuse.SpanOptions{
 		Name: "qa.setup",
 		Metadata: map[string]interface{}{
@@ -71,16 +69,12 @@ func (s *sessionService) KnowledgeQA(
 		logger.Infof(ctx, "Fallback strategy not set, using default: %v", fallbackStrategy)
 	}
 
-	// Resolve chat model vision capability and VLM model ID for image routing
+	// Resolve chat model vision capability for image routing
 	var chatModelSupportsVision bool
-	var vlmModelID string
 	if chatModelID != "" {
 		if chatModelInfo, err := s.modelService.GetModelByID(ctx, chatModelID); err == nil && chatModelInfo != nil {
 			chatModelSupportsVision = chatModelInfo.Parameters.SupportsVision
 		}
-	}
-	if req.CustomAgent != nil {
-		vlmModelID = req.CustomAgent.Config.VLMModelID
 	}
 
 	// Resolve retrieval tenant scope using shared helper
@@ -132,7 +126,6 @@ func (s *sessionService) KnowledgeQA(
 			WebFetchTopN:            s.resolveWebFetchTopN(req),
 			TenantID:                retrievalTenantID,
 			Images:                  req.ImageURLs,
-			VLMModelID:              vlmModelID,
 			ChatModelSupportsVision: chatModelSupportsVision,
 			Attachments:             req.Attachments,
 			Language:                types.LanguageNameFromContext(ctx),
@@ -147,17 +140,6 @@ func (s *sessionService) KnowledgeQA(
 			MessageID:     req.AssistantMessageID,
 			UserMessageID: req.UserMessageID,
 		},
-	}
-
-	// Apply custom agent overrides (system prompt, temperature, retrieval params,
-	// rewrite, fallback, FAQ strategy, history turns)
-	s.applyAgentOverridesToChatManage(ctx, req.CustomAgent, chatManage)
-
-	// An agent may opt out of long-term memory. The preference is per-request
-	// rather than per-user, so it travels in the context that the recall
-	// plugin reads.
-	if req.CustomAgent != nil {
-		ctx = types.ApplyAgentMemoryPreference(ctx, req.CustomAgent.Config.MemoryEnabled)
 	}
 
 	// Determine pipeline based on the effective knowledge retrieval scope and
@@ -186,21 +168,18 @@ func (s *sessionService) KnowledgeQA(
 
 		pipeline = types.NewPipelineBuilder().
 			AddIf(hasHistory, types.LOAD_HISTORY).
-			Add(types.MEMORY_RECALL).
 			Add(types.CHAT_COMPLETION_STREAM).
 			Build()
 	} else {
 		// RAG — dynamically assemble based on feature flags.
 		pipeline = types.NewPipelineBuilder().
 			AddIf(hasHistory, types.LOAD_HISTORY).
-			Add(types.MEMORY_RECALL).
 			Add(types.QUERY_UNDERSTAND).
 			Add(types.CHUNK_SEARCH_PARALLEL).
 			Add(types.CHUNK_RERANK).
 			AddIf(req.WebSearchEnabled, types.WEB_FETCH).
 			Add(types.CHUNK_MERGE).
 			Add(types.FILTER_TOP_K).
-			AddIf(chatManage.DataAnalysisEnabled, types.DATA_ANALYSIS).
 			Add(types.INTO_CHAT_MESSAGE).
 			Add(types.CHAT_COMPLETION_STREAM).
 			Build()
@@ -211,8 +190,8 @@ func (s *sessionService) KnowledgeQA(
 
 	// Start knowledge QA event processing (set session tenant so pipeline session/message lookups use session owner)
 	ctx = context.WithValue(ctx, types.SessionTenantIDContextKey, req.Session.TenantID)
-	// Propagate the session ID so stateful sandbox backends (CubeSandbox) can
-	// bind script execution to a per-session MicroVM instance.
+	// Propagate the session ID so downstream per-session accounting (e.g. chat
+	// usage attribution) can read it from the context.
 	ctx = types.WithSessionID(ctx, req.Session.ID)
 	logger.Info(ctx, "Triggering question answering event")
 	setupSpan.Finish(map[string]interface{}{
@@ -320,116 +299,6 @@ func (s *sessionService) selectChatModelID(
 
 	logger.Error(ctx, "No chat model ID available")
 	return "", fmt.Errorf("no chat model ID available: no knowledge bases configured and no available models")
-}
-
-// resolveKnowledgeBasesFromAgent resolves knowledge base IDs based on agent's KBSelectionMode.
-// sessionTenantID is the tenant of the current session (caller); it is compared with
-// customAgent.TenantID to detect the shared-agent scenario and avoid leaking the
-// current user's personal shared KBs into the agent's retrieval scope.
-//
-// Returns the resolved knowledge base IDs based on the selection mode:
-//   - "all": fetches all knowledge bases for the tenant
-//   - "selected": uses the explicitly configured knowledge bases
-//   - "none": returns empty slice
-//   - default: falls back to configured knowledge bases for backward compatibility
-func (s *sessionService) resolveKnowledgeBasesFromAgent(
-	ctx context.Context,
-	customAgent *types.CustomAgent,
-	sessionTenantID uint64,
-) []string {
-	if customAgent == nil {
-		return nil
-	}
-
-	switch customAgent.Config.KBSelectionMode {
-	case "all":
-		// Authoritative capability filter for the runtime path. The frontend
-		// editor and @mention dropdown apply the same filter, but we don't
-		// trust the client here: a stale session payload or API caller could
-		// still ask us to retrieve against an incompatible KB and we'd rather
-		// just drop it (and log) than feed it to tools that would no-op.
-		capFilter := tools.DeriveKBFilterForAgent(customAgent.Config.AgentMode, customAgent.Config.AllowedTools)
-		accept := func(kb *types.KnowledgeBase) bool {
-			if kb == nil {
-				return false
-			}
-			if capFilter.IsEmpty() {
-				return true
-			}
-			return tools.KBSatisfiesAgentRequirements(kb.Capabilities(), customAgent.Config.AgentMode, customAgent.Config.AllowedTools)
-		}
-
-		// Get own knowledge bases (uses ctx TenantID = agent's tenant)
-		allKBs, err := s.knowledgeBaseService.ListKnowledgeBases(ctx)
-		if err != nil {
-			logger.Warnf(ctx, "Failed to list all knowledge bases: %v", err)
-		}
-		kbIDSet := make(map[string]bool)
-		kbIDs := make([]string, 0, len(allKBs))
-		ownSkipped := 0
-		for _, kb := range allKBs {
-			if !accept(kb) {
-				ownSkipped++
-				continue
-			}
-			kbIDs = append(kbIDs, kb.ID)
-			kbIDSet[kb.ID] = true
-		}
-
-		// For shared agents (session tenant != agent tenant), only use the agent
-		// tenant's own KBs. Including the current user's shared KBs would leak
-		// unrelated KBs from other organisations into the agent's retrieval scope.
-		isSharedAgent := sessionTenantID != 0 && sessionTenantID != customAgent.TenantID
-		sharedSkipped := 0
-		if !isSharedAgent {
-			tenantID := types.MustTenantIDFromContext(ctx)
-			userIDVal := ctx.Value(types.UserIDContextKey)
-			if userIDVal != nil {
-				if userID, ok := userIDVal.(string); ok && userID != "" && s.kbShareService != nil {
-					callerTenantRole := types.TenantRoleFromContext(ctx)
-					sharedList, err := s.kbShareService.ListSharedKnowledgeBases(ctx, tenantID, callerTenantRole)
-					if err != nil {
-						logger.Warnf(ctx, "Failed to list shared knowledge bases: %v", err)
-					} else {
-						for _, info := range sharedList {
-							if info == nil || info.KnowledgeBase == nil || kbIDSet[info.KnowledgeBase.ID] {
-								continue
-							}
-							if !accept(info.KnowledgeBase) {
-								sharedSkipped++
-								continue
-							}
-							kbIDs = append(kbIDs, info.KnowledgeBase.ID)
-							kbIDSet[info.KnowledgeBase.ID] = true
-						}
-					}
-				}
-			}
-		} else {
-			logger.Infof(ctx, "Shared agent detected (session tenant %d != agent tenant %d): skipping user's shared KBs",
-				sessionTenantID, customAgent.TenantID)
-		}
-
-		if ownSkipped+sharedSkipped > 0 {
-			logger.Infof(ctx,
-				"KBSelectionMode=all: tool-capability filter removed %d own + %d shared KBs (agent=%s, tools=%v)",
-				ownSkipped, sharedSkipped, customAgent.ID, customAgent.Config.AllowedTools)
-		}
-		logger.Infof(ctx, "KBSelectionMode=all: loaded %d knowledge bases (own + shared)", len(kbIDs))
-		return kbIDs
-	case "selected":
-		logger.Infof(ctx, "KBSelectionMode=selected: using %d configured knowledge bases", len(customAgent.Config.KnowledgeBases))
-		return customAgent.Config.KnowledgeBases
-	case "none":
-		logger.Infof(ctx, "KBSelectionMode=none: no knowledge bases configured")
-		return nil
-	default:
-		// Default to "selected" behavior for backward compatibility
-		if len(customAgent.Config.KnowledgeBases) > 0 {
-			logger.Infof(ctx, "KBSelectionMode not set: using %d configured knowledge bases", len(customAgent.Config.KnowledgeBases))
-		}
-		return customAgent.Config.KnowledgeBases
-	}
 }
 
 // buildSearchTargets computes the unified search targets from knowledgeBaseIDs and knowledgeIDs.
@@ -1242,13 +1111,8 @@ func (s *sessionService) emitFallbackAnswer(ctx context.Context, chatManage *typ
 }
 
 // resolveWebSearchProviderID returns the web search provider ID to use for a pipeline request.
-// Priority: agent config > tenant default (is_default=true)
+// Priority: tenant default (is_default=true)
 func (s *sessionService) resolveWebSearchProviderID(ctx context.Context, req *types.QARequest, tenantID uint64) string {
-	// 1. Agent-level override
-	if req.CustomAgent != nil && req.CustomAgent.Config.WebSearchProviderID != "" {
-		return req.CustomAgent.Config.WebSearchProviderID
-	}
-	// 2. Tenant default
 	if s.webSearchProviderRepo != nil {
 		if defaultProvider, err := s.webSearchProviderRepo.GetDefault(ctx, tenantID); err == nil && defaultProvider != nil {
 			return defaultProvider.ID
@@ -1259,26 +1123,17 @@ func (s *sessionService) resolveWebSearchProviderID(ctx context.Context, req *ty
 
 // resolveWebFetchEnabled returns whether auto web fetch is enabled for this request.
 func (s *sessionService) resolveWebFetchEnabled(req *types.QARequest) bool {
-	if req.CustomAgent != nil {
-		return req.CustomAgent.Config.WebFetchEnabled
-	}
 	return false
 }
 
 // resolveWebFetchTopN returns how many pages to fetch after rerank.
 func (s *sessionService) resolveWebFetchTopN(req *types.QARequest) int {
-	if req.CustomAgent != nil && req.CustomAgent.Config.WebFetchTopN > 0 {
-		return req.CustomAgent.Config.WebFetchTopN
-	}
 	return 3
 }
 
 // resolveWebSearchMaxResults returns the max results for web search.
-// Priority: agent config > tenant default > default (10)
+// Priority: tenant default > default (10)
 func (s *sessionService) resolveWebSearchMaxResults(ctx context.Context, req *types.QARequest) int {
-	if req.CustomAgent != nil && req.CustomAgent.Config.WebSearchMaxResults > 0 {
-		return req.CustomAgent.Config.WebSearchMaxResults
-	}
 	tenantInfo, _ := types.TenantInfoFromContext(ctx)
 	if tenantInfo != nil {
 		return types.EffectiveWebSearchConfig(tenantInfo.WebSearchConfig).MaxResults

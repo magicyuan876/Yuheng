@@ -1057,13 +1057,13 @@ func matchesKnowledgeBase(
 	return false
 }
 
-// noopTaskInspector is the Lite-mode (no Redis) inspector. Inline
+// noopTaskInspector is the no-Redis inspector. Inline
 // goroutines spawned by SyncTaskExecutor cannot be dequeued before
 // they start; the checkpoint-based abort in worker code is the only
 // stop signal in that mode.
 type noopTaskInspector struct{}
 
-// NewNoopTaskInspector returns a no-op TaskInspector for Lite mode.
+// NewNoopTaskInspector returns a no-op TaskInspector for no-Redis mode.
 func NewNoopTaskInspector() interfaces.TaskInspector { return noopTaskInspector{} }
 
 func (noopTaskInspector) CancelTasksForKnowledge(
@@ -1072,7 +1072,7 @@ func (noopTaskInspector) CancelTasksForKnowledge(
 	return 0, 0, nil
 }
 
-// HasQueuedTasksForKnowledge always reports false in Lite mode: inline
+// HasQueuedTasksForKnowledge always reports false without Redis: inline
 // executors never enqueue, so there is no backlog to protect against and
 // the housekeeping sweep's span/updated_at checks stay authoritative.
 func (noopTaskInspector) HasQueuedTasksForKnowledge(
@@ -1081,7 +1081,7 @@ func (noopTaskInspector) HasQueuedTasksForKnowledge(
 	return false, nil
 }
 
-// QueueStats reports "not supported" in Lite mode: there is no Redis /
+// QueueStats reports "not supported" without Redis: there is no Redis /
 // asynq backend to inspect, so the runtime dashboard renders an
 // "unavailable in this deployment" state instead of an empty table.
 func (noopTaskInspector) QueueStats(

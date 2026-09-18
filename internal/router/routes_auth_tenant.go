@@ -188,7 +188,6 @@ func RegisterAuthRoutes(r *gin.RouterGroup, handler *handler.AuthHandler, g *rba
 	r.POST("/auth/register-by-invite", publicAuthRL, handler.RegisterByInvite)
 	r.POST("/auth/invitations/lookup", publicAuthRL, handler.LookupInvitationByToken)
 	r.POST("/auth/login", handler.Login)
-	r.POST("/auth/auto-setup", handler.AutoSetup)
 	r.GET("/auth/config", handler.GetAuthConfig)
 	r.POST("/auth/switch-tenant", handler.SwitchTenant)
 	r.GET("/auth/oidc/config", handler.GetOIDCConfig)
@@ -238,7 +237,6 @@ func RegisterSystemRoutes(
 		systemRoutes.POST("/docreader/reconnect", g.PlatformManaged(), handler.ReconnectDocReader)
 		systemRoutes.GET("/storage-engine-status", g.Viewer(), handler.GetStorageEngineStatus)
 		systemRoutes.POST("/storage-engine-check", g.PlatformManaged(), handler.CheckStorageEngine)
-		systemRoutes.POST("/sandbox-check", g.PlatformManaged(), handler.CheckSandboxConfig)
 	}
 }
 

@@ -8,10 +8,6 @@ const kbShareSource = readFileSync(
   new URL('../knowledge/settings/KBShareSettings.vue', import.meta.url),
   'utf8'
 )
-const agentShareSource = readFileSync(
-  new URL('../../components/AgentShareSettings.vue', import.meta.url),
-  'utf8'
-)
 const storeSource = readFileSync(
   new URL('../../stores/organization.ts', import.meta.url),
   'utf8'
@@ -38,29 +34,22 @@ test('organization settings writes use store actions', () => {
     'reviewOrganizationJoinRequest',
     'inviteOrganizationMember',
     'requestOrganizationRoleUpgrade',
-    'unshareKnowledgeBase',
-    'unshareAgent'
+    'unshareKnowledgeBase'
   ]) {
     assert.match(settingsSource, new RegExp(`orgStore\\.${action}\\(`))
   }
 })
 
-test('knowledge base and agent share editors use store actions', () => {
+test('knowledge base share editor uses store actions', () => {
   assert.match(kbShareSource, /orgStore\.shareKnowledgeBase\(/)
   assert.match(kbShareSource, /orgStore\.unshareKnowledgeBase\(/)
   assert.match(kbShareSource, /orgStore\.changeKnowledgeBaseSharePermission\(/)
-  assert.match(agentShareSource, /orgStore\.shareAgent\(/)
-  assert.match(agentShareSource, /orgStore\.unshareAgent\(/)
 })
 
 test('store invalidates all affected organization caches after sharing', () => {
   assert.match(
     storeSource,
     /invalidateOrganizationData\(\{ sharedKnowledgeBases: true \}\)/
-  )
-  assert.match(
-    storeSource,
-    /invalidateOrganizationData\(\{ sharedAgents: true, sharedKnowledgeBases: true \}\)/
   )
   assert.match(storeSource, /adjustOrganizationResourceCount\(/)
 })

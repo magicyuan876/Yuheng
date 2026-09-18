@@ -123,7 +123,7 @@ Examples:
 			// Escape-hatch DELETE through `yuheng api` is just as destructive
 			// as `yuheng kb delete` - exit-10 destructive protocol must apply
 			// (cli/README.md). PUT/PATCH mutate server state like a typed
-			// `kb/agent/doc update`, so they get the same exit-10 WRITE gate;
+			// `kb/doc update`, so they get the same exit-10 WRITE gate;
 			// without it the raw escape hatch bypassed the "an agent cannot
 			// silently mutate" guarantee. POST stays ungated to match typed
 			// `create` (also ungated). GET/HEAD are reads.

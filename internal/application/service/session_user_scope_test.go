@@ -116,56 +116,6 @@ func TestUpdateSessionIsScopedToCurrentUserAndAllowsNoOp(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateSessionRejectsPlantedMaintenanceDescription(t *testing.T) {
-	svc, db := newTestSessionService(t)
-	aliceSession := &types.Session{
-		TenantID:    1,
-		UserID:      "alice",
-		Title:       "alice private session",
-		Description: "ordinary",
-	}
-	require.NoError(t, db.Create(aliceSession).Error)
-
-	err := svc.UpdateSession(testSessionScopeContext(1, "alice"), &types.Session{
-		ID:          aliceSession.ID,
-		TenantID:    1,
-		Title:       "still mine",
-		Description: types.SkillMaintenanceSessionMarker + "install",
-	})
-	require.NoError(t, err)
-
-	var got types.Session
-	require.NoError(t, db.First(&got, "id = ?", aliceSession.ID).Error)
-	require.Equal(t, "still mine", got.Title)
-	require.Empty(t, got.Description,
-		"a client must not be able to hide a session behind the maintenance marker")
-}
-
-func TestUpdateSessionPreservesMaintenanceDescription(t *testing.T) {
-	svc, db := newTestSessionService(t)
-	marker := types.SkillMaintenanceSessionMarker + "install"
-	row := &types.Session{
-		TenantID:    1,
-		UserID:      "alice",
-		Title:       "Skill install",
-		Description: marker,
-	}
-	require.NoError(t, db.Create(row).Error)
-
-	err := svc.UpdateSession(testSessionScopeContext(1, "alice"), &types.Session{
-		ID:          row.ID,
-		TenantID:    1,
-		Title:       "unhide me",
-		Description: "plain chat",
-	})
-	require.NoError(t, err)
-
-	var got types.Session
-	require.NoError(t, db.First(&got, "id = ?", row.ID).Error)
-	require.Equal(t, marker, got.Description,
-		"a PUT must not strip the marker off a real maintenance session")
-}
-
 func TestGetSessionIsScopedToAPIExternalUser(t *testing.T) {
 	svc, db := newTestSessionService(t)
 	aliceSession := &types.Session{
@@ -260,7 +210,6 @@ func TestGetOwnedSessionDeniesAdminOnAPIKeySessions(t *testing.T) {
 
 func TestListSessionsAPISourceRequiresAdminAndReturnsAllKeys(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	key1 := &types.Session{TenantID: 1, UserID: types.SessionOwnerAPITenantKeyPrefix + "1:10", Title: "key1"}
 	key2 := &types.Session{TenantID: 1, UserID: types.SessionOwnerAPITenantKeyPrefix + "1:20", Title: "key2"}
@@ -292,7 +241,6 @@ func TestListSessionsAPISourceRequiresAdminAndReturnsAllKeys(t *testing.T) {
 
 func TestGetSessionAllowsAdminToReadAPIExternalUserSession(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	apiSession := &types.Session{
 		TenantID: 1,
@@ -311,15 +259,14 @@ func TestGetSessionAllowsAdminToReadAPIExternalUserSession(t *testing.T) {
 	require.Equal(t, apiSession.ID, got.ID)
 }
 
+// A legacy IM platform name is an unknown source now that im_channel_sessions
+// is gone: it requires Admin+ like before, and the admin listing falls back to
+// the web visibility filter (the IM row is indistinguishable from a chat).
 func TestListSessionsIMSourceRequiresAdmin(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
 	require.NoError(t, db.Create(imSession).Error)
-	require.NoError(t, db.Create(&testListSessionsIMChannelSession{
-		SessionID: imSession.ID, Platform: "feishu",
-	}).Error)
 
 	viewerCtx := testSessionScopeContext(1, "alice")
 	_, err := svc.ListSessions(viewerCtx, &types.SessionListQuery{Source: "feishu"})
@@ -336,13 +283,12 @@ func TestListSessionsIMSourceRequiresAdmin(t *testing.T) {
 
 func TestListSessionsEmbedSourceRequiresAdmin(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	embed := &types.Session{
 		TenantID:    1,
 		Title:       "embed chat",
 		Description: types.EmbedSessionMarkerPrefix + "ch-1",
-		UserID:      types.PrincipalEmbedSession + ":1:ch-1:sess-1",
+		UserID:      types.EmbedSessionOwnerPrefix + "1:ch-1:sess-1",
 	}
 	require.NoError(t, db.Create(embed).Error)
 
@@ -359,25 +305,24 @@ func TestListSessionsEmbedSourceRequiresAdmin(t *testing.T) {
 	require.EqualValues(t, 1, result.Total)
 }
 
-func TestGetSessionDeniesViewerOnIMSession(t *testing.T) {
+// Legacy IM sessions keep their rows but the im_channel_sessions mapping table
+// is gone, so they are indistinguishable from ordinary chats: any caller whose
+// owner scope matches can read them, exactly like a plain web session.
+func TestGetSessionTreatsLegacyIMSessionAsOrdinaryRow(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
 	require.NoError(t, db.Create(imSession).Error)
-	require.NoError(t, db.Create(&testListSessionsIMChannelSession{
-		SessionID: imSession.ID, Platform: "feishu",
-	}).Error)
 
 	viewerCtx := testSessionScopeContext(1, "alice")
-	_, err := svc.GetSession(viewerCtx, imSession.ID)
-	require.ErrorIs(t, err, apperrors.ErrSessionNotFound)
-
-	adminCtx := context.WithValue(testSessionScopeContext(1, "alice"), types.TenantRoleContextKey, types.TenantRoleAdmin)
-	got, err := svc.GetSession(adminCtx, imSession.ID)
+	got, err := svc.GetSession(viewerCtx, imSession.ID)
 	require.NoError(t, err)
 	require.Equal(t, imSession.ID, got.ID)
-	require.Equal(t, "feishu", got.IMPlatform)
+
+	adminCtx := context.WithValue(testSessionScopeContext(1, "alice"), types.TenantRoleContextKey, types.TenantRoleAdmin)
+	got, err = svc.GetSession(adminCtx, imSession.ID)
+	require.NoError(t, err)
+	require.Equal(t, imSession.ID, got.ID)
 }
 
 func TestGetSessionAllowsAPITenantRuntimeToReadOwnAPIKeySession(t *testing.T) {
@@ -395,129 +340,27 @@ func TestGetSessionAllowsAPITenantRuntimeToReadOwnAPIKeySession(t *testing.T) {
 	require.Equal(t, apiSession.ID, got.ID)
 }
 
-func TestGetSessionDeniesAPITenantRuntimeFromReadingIMSession(t *testing.T) {
+// A legacy IM row is an ordinary row now that the mapping table is gone, so an
+// API-key principal whose owner scope matches reads it like any legacy
+// tenant-level chat.
+func TestGetSessionAllowsAPITenantRuntimeToReadLegacyIMSession(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
 	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
 	require.NoError(t, db.Create(imSession).Error)
-	require.NoError(t, db.Create(&testListSessionsIMChannelSession{
-		SessionID: imSession.ID, Platform: "feishu",
-	}).Error)
 
-	_, err := svc.GetSession(testAPITenantKeyScopeContext(1, 10), imSession.ID)
-	require.ErrorIs(t, err, apperrors.ErrSessionNotFound)
-}
-
-func TestGetSessionDeniesAPIExternalUserRuntimeFromReadingIMSession(t *testing.T) {
-	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
-
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
-	require.NoError(t, db.Create(&testListSessionsIMChannelSession{
-		SessionID: imSession.ID, Platform: "feishu",
-	}).Error)
-
-	_, err := svc.GetSession(testAPISessionScopeContext(1, "1:alice"), imSession.ID)
-	require.ErrorIs(t, err, apperrors.ErrSessionNotFound)
-}
-
-func TestGetSessionAllowsIMRuntimeToReadIMSession(t *testing.T) {
-	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
-
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
-	require.NoError(t, db.Create(&testListSessionsIMChannelSession{
-		SessionID: imSession.ID,
-		Platform:  "feishu",
-	}).Error)
-
-	ctx := context.WithValue(
-		testSessionScopeContext(1, "system-1"),
-		types.TenantRoleContextKey,
-		types.TenantRoleViewer,
-	)
-	ctx = types.WithPrincipal(ctx, types.Principal{
-		Type: types.PrincipalIMUser,
-		ID:   "1:channel-1:feishu:open-id-1",
-	})
-
-	got, err := svc.GetSession(ctx, imSession.ID)
+	got, err := svc.GetSession(testAPITenantKeyScopeContext(1, 10), imSession.ID)
 	require.NoError(t, err)
 	require.Equal(t, imSession.ID, got.ID)
-	require.Equal(t, "feishu", got.IMPlatform)
 }
 
-func TestGetSessionAllowsEmbedRuntimeToReadOwnEmbedSession(t *testing.T) {
+func TestGetSessionAllowsAPIExternalUserRuntimeToReadLegacyIMSession(t *testing.T) {
 	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
 
-	// An embed-widget session: description marks the channel, user_id is the
-	// per-session principal's storage id (see CreateEmbedSession).
-	principal := types.EmbedSessionPrincipal(1, "ch-1", "sess-1")
-	ownSession := &types.Session{
-		TenantID:    1,
-		Title:       "embed chat",
-		Description: types.EmbedSessionMarkerPrefix + "ch-1",
-		UserID:      principal.StorageID(),
-	}
-	require.NoError(t, db.Create(ownSession).Error)
+	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
+	require.NoError(t, db.Create(imSession).Error)
 
-	// The embed widget authenticates as a Viewer (embed_auth.go) but is the
-	// legitimate owner of its own channel session — symmetric to the IM and
-	// API-tenant runtimes above.
-	ctx := context.WithValue(
-		testSessionScopeContext(1, "system-1"),
-		types.TenantRoleContextKey,
-		types.TenantRoleViewer,
-	)
-	ctx = types.WithPrincipal(ctx, principal)
-
-	got, err := svc.GetSession(ctx, ownSession.ID)
+	got, err := svc.GetSession(testAPISessionScopeContext(1, "1:alice"), imSession.ID)
 	require.NoError(t, err)
-	require.Equal(t, ownSession.ID, got.ID)
+	require.Equal(t, imSession.ID, got.ID)
 }
-
-func TestGetSessionDeniesEmbedRuntimeFromReadingForeignEmbedSession(t *testing.T) {
-	svc, db := newTestSessionService(t)
-	require.NoError(t, db.AutoMigrate(&testListSessionsIMChannelSession{}))
-
-	// A session owned by a different embed session principal.
-	owner := types.EmbedSessionPrincipal(1, "ch-1", "sess-other")
-	foreignSession := &types.Session{
-		TenantID:    1,
-		Title:       "foreign embed chat",
-		Description: types.EmbedSessionMarkerPrefix + "ch-1",
-		UserID:      owner.StorageID(),
-	}
-	require.NoError(t, db.Create(foreignSession).Error)
-
-	// A different embed session principal must not read it — the owner scope
-	// keeps each visitor's conversation isolated even after the bypass is granted.
-	ctx := context.WithValue(
-		testSessionScopeContext(1, "system-1"),
-		types.TenantRoleContextKey,
-		types.TenantRoleViewer,
-	)
-	ctx = types.WithPrincipal(ctx, types.EmbedSessionPrincipal(1, "ch-1", "sess-attacker"))
-
-	_, err := svc.GetSession(ctx, foreignSession.ID)
-	require.ErrorIs(t, err, apperrors.ErrSessionNotFound)
-}
-
-// testListSessionsIMChannelSession lets QueryPaged's LEFT JOIN resolve against a
-// real table in the in-memory SQLite database.
-type testListSessionsIMChannelSession struct {
-	ID          uint64 `gorm:"primaryKey;autoIncrement"`
-	SessionID   string `gorm:"column:session_id"`
-	Platform    string `gorm:"column:platform"`
-	ChatID      string `gorm:"column:chat_id"`
-	ThreadID    string `gorm:"column:thread_id"`
-	UserID      string `gorm:"column:user_id"`
-	AgentID     string `gorm:"column:agent_id"`
-	IMChannelID string `gorm:"column:im_channel_id"`
-}
-
-func (testListSessionsIMChannelSession) TableName() string { return "im_channel_sessions" }

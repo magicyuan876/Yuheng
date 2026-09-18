@@ -323,11 +323,11 @@ func (h *Handler) StopSession(c *gin.Context) {
 	})
 }
 
-// handleAgentEventsForSSE handles agent events for SSE streaming using an existing handler
-// The handler is already subscribed to events and AgentQA is already running
+// handleEventsForSSE handles knowledge-QA events for SSE streaming using an existing handler
+// The handler is already subscribed to events and KnowledgeQA is already running
 // This function polls StreamManager and pushes events to SSE, allowing graceful handling of disconnections
 // waitForTitle: if true, wait for title event after completion (for new sessions without title)
-func (h *Handler) handleAgentEventsForSSE(
+func (h *Handler) handleEventsForSSE(
 	ctx context.Context,
 	c *gin.Context,
 	sessionID, assistantMessageID, requestID string,

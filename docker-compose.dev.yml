@@ -223,14 +223,6 @@ services:
     profiles:
       - neo4j
       - full
-
-  # Sandbox 镜像：仅用于 build/pull，非常驻服务；本地 app 执行 Skills 时按需 docker run 该镜像，用毕即释
-  sandbox:
-    image: magicyuan876/yuheng-sandbox:${YUHENG_VERSION:-latest}
-    container_name: Yuheng-sandbox-dev
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.sandbox
     profiles:
       - full
     command: ["true"]

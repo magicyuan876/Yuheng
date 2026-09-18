@@ -38,7 +38,6 @@ For anything beyond that, override the row from your profile's `cordis.patch.yml
     apiKey: !!js process.env.YUHENG_API_KEY
     knowledgeBaseIds:
       - kb-product-docs
-    agentId: ''            # a Yuheng custom agent id makes `yuheng_ask` use the ReAct pipeline
     maxResults: 8
     maxChunkChars: 1200
     requestTimeoutMs: 30000
@@ -74,7 +73,7 @@ Mounting two deployments is two rows with two prefixes:
 | `yuheng_list_knowledge_bases` | `GET /knowledge-bases` | Knowledge base names and ids, to report what exists or to narrow a later search |
 | `yuheng_search` | `POST /knowledge-search` + `GET /knowledge/search` | Ranked passages verbatim, each with a `knowledge_id`, score and chunk index, plus any document the query names |
 | `yuheng_read_document` | `GET /chunks/:knowledge_id` + `GET /knowledge/:id` | One document's passages reassembled in order, led by its title and summary, with paging |
-| `yuheng_ask` | `POST /sessions` + `POST /knowledge-chat/:id` or `POST /agent-chat/:id` | Yuheng's own answer, its citations, the server-side tools it used, and a resumable `session_id` |
+| `yuheng_ask` | `POST /sessions` + `POST /knowledge-chat/:id` | Yuheng's own answer, its citations, the retrieval steps it ran, and a resumable `session_id` |
 
 `yuheng_search` is the workhorse: it returns the source text for the agent to reason over, which keeps the agent's own
 reasoning auditable. It answers two questions the model cannot always tell apart — *where is this discussed* and *where
@@ -89,8 +88,7 @@ Making the model choose first would be worse: knowledge bases are frequently nam
 
 `yuheng_ask` delegates the whole question to Yuheng. Reserve it for broad or synthesis questions spanning many
 documents, where retrieving passages yourself would take several rounds — it runs another model server-side, so it is
-slow, and it returns a conclusion rather than the evidence behind it. With `agentId` set it leaves the scope alone: a
-custom agent resolves its own from its KB selection mode, and ids sent from here would override that.
+slow, and it returns a conclusion rather than the evidence behind it.
 
 `yuheng_read_document` exists because retrieval returns fragments: once a passage looks right, the agent usually needs
 its neighbours. Every search hit carries the `knowledge_id` that call needs, and page 1 leads with the document's title
@@ -120,7 +118,6 @@ context window. The clip is reported to the model (`truncated: true`) instead of
 | `apiKey` | unset | `X-API-Key`; unset means an unauthenticated deployment |
 | `tenantId` | unset | `X-Tenant-ID`, required for platform-scoped keys |
 | `knowledgeBaseIds` | `[]` | Default scope when a call names none; empty means every knowledge base the credential can see |
-| `agentId` | unset | Sends `yuheng_ask` to the ReAct pipeline |
 | `maxResults` | `8` | Also the ceiling for `max_results` and for cited references |
 | `maxChunkChars` | `1200` | Per-passage character budget |
 | `requestTimeoutMs` | `30000` | Retrieval and document reads |
@@ -157,7 +154,7 @@ types still accept and serve them — so a rename on either side fails CI instea
 
 ## Compatibility
 
-Verified against dsh `0.1.0-rc.8` and Yuheng `0.7.2`. dsh is in developer preview and states that breaking changes
+Verified against dsh `0.1.0-rc.8` and Yuheng `0.1.0`. dsh is in developer preview and states that breaking changes
 will happen; this package deliberately has **no runtime dependencies** and hands `ctx.tools.register()` a plain object,
 so it does not pin any harness package version. If a harness release changes the tool-definition contract, open an issue
 against this repository.

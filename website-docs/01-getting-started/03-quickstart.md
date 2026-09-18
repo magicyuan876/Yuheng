@@ -24,7 +24,6 @@
 - 用户名 2–50 个字符；密码在注册页要求 8–32 位且含字母和数字（直接调 `POST /auth/register` 接口时后端只校验 ≥6 位，建议仍按 8 位以上来）；
 - 团队部署时，注册完第一个账号就可以关闭公开注册，之后通过邀请链接加人。关的方式有两种：设 `DISABLE_REGISTRATION=true`（启动时把注册模式强制为 `invite_only`），或者登录后在「设置 → 系统」里把 `auth.registration_mode` 改成 `invite_only`（立即生效，不用重启）；
 - 如果部署把默认空间策略设成了 `tenantless`（`auth.default_tenant_mode`），注册后**不会**自动建空间，而是被引导到 `/onboarding/workspace`，需要先自建或接受邀请加入一个空间才能继续；
-- 桌面版 / Lite 版免注册，启动即自动创建本地账号。
 
 ::: tip 空间 Owner ≠ 系统管理员
 这两个是不同维度的身份，很容易混：
@@ -86,10 +85,10 @@
 
 ## 6. 再往前一步
 
-- **换成会推理的 Agent**：在对话框顶部切换到内置的「智能推理」Agent，它会自己决定检索几轮、要不要联网、要不要调工具，适合需要多步推理的问题。也可以在「智能体」页建自定义 Agent，挂上 MCP 工具与联网搜索，见 [Agent 引擎](../03-features/07-agent.md)；
+- **把知识库变成 Wiki**：让 LLM 基于知识库生成可对外发布的 Wiki 站点，人工可修订、可追溯版本，见 [Wiki 能力](../03-features/14-wiki.md)；
 - **让答案更准**：开启 Rerank 重排、调整分块大小，见[分块机制](../03-features/04-chunking.md)与[检索引擎](../03-features/05-retrieval-engines.md)；
 - **让知识自动进来**：接飞书 / Notion / 语雀 / RSS 自动同步，见[数据源导入](../03-features/10-datasource.md)；
-- **让别人也能问**：接入企业微信 / 飞书等 IM，或把 Agent 以挂件形式嵌到自己的网站，见 [IM 集成](../03-features/12-im-integration.md)与[网页嵌入](../03-features/13-embed-channel.md)。
+- **让别的系统也能问**：通过 MCP 把知识库检索与问答接入 Claude Desktop、VS Code 等外部客户端，见 [MCP 集成](../03-features/08-mcp.md)。
 
 ## 7. 用 API 走通同样的链路
 

@@ -40,7 +40,6 @@ type RouterParams struct {
 	ModelService                 interfaces.ModelService
 	EvaluationService            interfaces.EvaluationService
 	KBShareService               interfaces.KBShareService
-	AgentShareService            interfaces.AgentShareService
 	KBHandler                    *handler.KnowledgeBaseHandler
 	KnowledgeHandler             *handler.KnowledgeHandler
 	TenantHandler                *handler.TenantHandler
@@ -57,16 +56,11 @@ type RouterParams struct {
 	MessageSuggestionHandler     *handler.MessageSuggestionHandler
 	ModelHandler                 *handler.ModelHandler
 	ModelCredentialsHandler      *handler.ModelCredentialsHandler
-	SandboxConfigHandler         *handler.SandboxConfigHandler
-	SandboxSkillHandler          *handler.SandboxSkillHandler
 	EvaluationHandler            *handler.EvaluationHandler
 	AuthHandler                  *handler.AuthHandler
 	InitializationHandler        *handler.InitializationHandler
 	SystemHandler                *handler.SystemHandler
 	SystemSettingService         interfaces.SystemSettingService
-	MCPServiceHandler            *handler.MCPServiceHandler
-	MCPCredentialsHandler        *handler.MCPCredentialsHandler
-	MCPOAuthHandler              *handler.MCPOAuthHandler
 	WebSearchHandler             *handler.WebSearchHandler
 	WebSearchProviderHandler     *handler.WebSearchProviderHandler
 	WebSearchCredentialsHandler  *handler.WebSearchProviderCredentialsHandler
@@ -76,18 +70,12 @@ type RouterParams struct {
 	ResourceCatalog              interfaces.ResourceCatalog
 	FAQHandler                   *handler.FAQHandler
 	TagHandler                   *handler.TagHandler
-	CustomAgentHandler           *handler.CustomAgentHandler
 	UserFavoriteHandler          *handler.UserResourceFavoriteHandler
-	SkillHandler                 *handler.SkillHandler
 	OrganizationHandler          *handler.OrganizationHandler
-	IMHandler                    *handler.IMHandler
-	EmbedChannelHandler          *handler.EmbedChannelHandler
-	EmbedChannelService          interfaces.EmbedChannelService
 	RedisClient                  *redis.Client
 	DataSourceHandler            *handler.DataSourceHandler
 	DataSourceCredentialsHandler *handler.DataSourceCredentialsHandler
 	WikiPageHandler              *handler.WikiPageHandler
-	MemoryHandler                *handler.MemoryHandler
 	DocsModule                   *docs.Module `optional:"true"`
 }
 
@@ -144,39 +132,10 @@ func NewRouter(params RouterParams) *gin.Engine {
 		))
 	}
 
-	// Embed page framing policy: emit a per-channel `frame-ancestors` CSP so the
-	// embed SPA page (/embed/:channelId) can only be iframed by the channel's
-	// allowed origins. This is the page-level counterpart to the API Origin
-	// allowlist enforced in EmbedAuth. Registered before the static handler so
-	// it runs for the embed HTML response.
-	if params.EmbedChannelService != nil {
-		r.Use(embedFrameAncestorsMiddleware(params.EmbedChannelService))
-	}
-
-	// 前端静态文件（仅 Lite 版本内嵌前端）
-	if handler.Edition == "lite" {
-		serveFrontendStatic(r)
-	}
-
-	// IM 回调路由（在认证中间件之前注册，使用各平台自身的签名验证）
-	RegisterIMRoutes(r, params.IMHandler)
-
 	// 协同服务回调（在认证中间件之前注册，使用 HMAC 共享密钥校验）
 	RegisterDocsInternalRoutes(r, params.DocsModule)
 
-	// Web embed 公开路由（使用 publish token 鉴权，不走全局 Auth）
-	RegisterEmbedPublicRoutes(
-		r,
-		params.EmbedChannelHandler,
-		params.EmbedChannelService,
-		params.TenantService,
-		params.RedisClient,
-		params.FileService,
-		params.StorageBackendResolver,
-		params.ResourceCatalog,
-	)
-
-	// Short-lived capability URLs for IM and other clients that cannot attach
+	// Short-lived capability URLs for clients that cannot attach
 	// Yuheng authentication headers.
 	serveResourceGrants(r, params.ResourceCatalog, params.TenantService, params.FileService, params.StorageBackendResolver)
 
@@ -214,7 +173,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 		rbacGuards := newRBACGuards(
 			params.Config,
 			params.KBHandler,
-			params.CustomAgentHandler,
 			params.KnowledgeHandler,
 			params.ChunkHandler,
 			params.WikiPageHandler,
@@ -222,7 +180,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 			params.KnowledgeService,
 			params.ChunkService,
 			params.KBShareService,
-			params.AgentShareService,
 			params.SystemSettingService,
 		)
 
@@ -239,7 +196,7 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterKnowledgeBaseRoutes(v1, params.KBHandler, rbacGuards)
 		RegisterKnowledgeBaseActivityRoutes(v1, params.AuditLogHandler, rbacGuards)
 		// KB-scoped image proxy: lets tenants render images embedded in
-		// org-shared / agent-visible KB content, which the tenant-scoped
+		// org-shared KB content, which the tenant-scoped
 		// /files route cannot serve because it enforces same-tenant paths.
 		serveKBScopedFiles(
 			v1,
@@ -249,15 +206,14 @@ func NewRouter(params RouterParams) *gin.Engine {
 			params.StorageBackendResolver,
 			params.ResourceCatalog,
 		)
-		// Message-scoped image proxy: shared-agent replies belong to the
-		// caller's session but may reference resources stored in the agent's
-		// source workspace. Authorization is derived from the persisted message,
-		// never from a client-provided workspace ID.
+		// Message-scoped image proxy: replies may reference resources stored
+		// in another workspace (e.g. org-shared content). Authorization is
+		// derived from the persisted message, never from a client-provided
+		// workspace ID.
 		serveMessageScopedFiles(
 			v1,
 			rbacGuards,
 			params.MessageService,
-			params.AgentShareService,
 			params.TenantService,
 			params.FileService,
 			params.StorageBackendResolver,
@@ -272,26 +228,21 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterChatRoutes(v1, params.SessionHandler, rbacGuards)
 		RegisterMessageRoutes(v1, params.MessageHandler, rbacGuards)
 		RegisterModelRoutes(v1, params.ModelHandler, params.ModelCredentialsHandler, rbacGuards)
-		RegisterSandboxConfigRoutes(v1, params.SandboxConfigHandler, params.SandboxSkillHandler, rbacGuards)
 		RegisterEvaluationRoutes(v1, params.EvaluationHandler, rbacGuards)
 		RegisterInitializationRoutes(v1, params.InitializationHandler, rbacGuards)
-		params.SystemHandler.BindDeploymentCapabilities(deploymentCapabilitiesFromRouter(params))
+		params.SystemHandler.BindDeploymentCapabilities(handler.BuildDeploymentCapabilities(
+			deploymentCapabilitiesFromRouter(params),
+		))
 		RegisterSystemRoutes(v1, params.SystemHandler, rbacGuards)
 		RegisterSystemAdminRoutes(v1, params.SystemHandler, params.AuditLogHandler, rbacGuards)
-		RegisterMCPServiceRoutes(v1, params.MCPServiceHandler, params.MCPCredentialsHandler, params.MCPOAuthHandler, rbacGuards)
 		RegisterWebSearchRoutes(v1, params.WebSearchHandler, rbacGuards)
 		RegisterWebSearchProviderRoutes(v1, params.WebSearchProviderHandler, params.WebSearchCredentialsHandler, rbacGuards)
 		RegisterVectorStoreRoutes(v1, params.VectorStoreHandler, rbacGuards)
 		RegisterStorageBackendRoutes(v1, params.StorageBackendHandler, rbacGuards)
-		RegisterCustomAgentRoutes(v1, params.CustomAgentHandler, rbacGuards)
 		RegisterUserFavoriteRoutes(v1, params.UserFavoriteHandler, rbacGuards)
-		RegisterSkillRoutes(v1, params.SkillHandler, rbacGuards)
 		RegisterOrganizationRoutes(v1, params.OrganizationHandler, rbacGuards)
-		RegisterIMChannelRoutes(v1, params.IMHandler, rbacGuards)
-		RegisterEmbedChannelRoutes(v1, params.EmbedChannelHandler, rbacGuards)
 		RegisterDataSourceRoutes(v1, params.DataSourceHandler, params.DataSourceCredentialsHandler, rbacGuards)
 		RegisterWikiPageRoutes(v1, params.WikiPageHandler, rbacGuards)
-		RegisterMemoryRoutes(v1, params.MemoryHandler, rbacGuards)
 		RegisterChunkerDebugRoutes(v1, rbacGuards)
 
 		// Fail fast if any declared API-key policy points at a route

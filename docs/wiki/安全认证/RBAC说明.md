@@ -17,7 +17,7 @@ source: RBAC说明.md
 RBAC 引入前，只要通过 `X-API-Key` 或 JWT 认证成功，调用方在空间内基本等同管理员。一旦一个空间出现多名真人成员，就需要区分：
 
 - 谁可以删除知识库、撤销 API Key；
-- 谁可以编辑「自己」的 KB / Agent；
+- 谁可以编辑「自己」的 KB；
 - 谁只读。
 
 ## 角色矩阵
@@ -44,7 +44,7 @@ Owner 的数量约束是“至少一位”，而不是“只能一位”。系�
 迁移 `000043` 在关键表加上 `creator_id`：
 
 - `knowledge_bases.creator_id` —— 老数据回填为该空间的 Owner；
-- `custom_agents.creator_id` + `runnable_by_viewer`（默认 `true`，允许 Viewer 在对话中调用）。
+- （`custom_agents` 表已随 Agent 基础设施移除，参见迁移 `000089_drop_agent_infra`）
 
 子资源沿 `chunk → knowledge → kb → creator_id` 链回溯。
 
@@ -58,11 +58,11 @@ Owner 的数量约束是“至少一位”，而不是“只能一位”。系�
 | 维度 | 解决什么 | 主键 |
 |------|---------|------|
 | **空间 RBAC** | 同一空间内「你能对自己/别人/共享基础设施做什么」 | `tenant_members(user_id, tenant_id, role)` |
-| **共享空间** | 跨空间「让别的空间的人也能用我的 KB / Agent」 | `organization_members` + 共享关系 |
+| **共享空间** | 跨空间「让别的空间的人也能用我的 KB」 | `organization_members` + 共享关系 |
 
 两者**正交**：
 
-- 共享空间不持有 KB / Agent，只记录「以何种权限共享到了哪个空间」；资源归属与 `creator_id` 不变；
+- 共享空间不持有 KB，只记录「以何种权限共享到了哪个空间」；资源归属与 `creator_id` 不变；
 - 一次对**他人共享过来**的 KB 的写操作，需要同时满足：共享时设了「可写」 + 你在该空间不是 Viewer + 源空间的 RBAC 仍然放行；
 - API Key 跨空间访问**不会**带 Admin 光环——共享路径由 `organization_members.role` 决定，与 API Key 无关。
 
@@ -103,7 +103,6 @@ audit:
 
 - [共享空间说明](./共享空间说明.md) — 跨空间协作与共享，与 RBAC 正交
 - [OIDC认证调用流程](./OIDC认证调用流程.md) — 多空间用户体系的认证入口
-- [Lite与标准版区别](../项目概述/Lite与标准版区别.md) — Lite 单用户场景下 RBAC 实际不发挥作用
 
 ---
 

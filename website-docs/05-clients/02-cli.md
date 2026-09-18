@@ -73,15 +73,6 @@ sudo mv yuheng /usr/local/bin/   # 或放到任意 $PATH 目录
 
 注意：Makefile 中**没有** `install` target，构建产物需自行移动到 `$PATH`。
 
-### Homebrew（服务端 Lite 版，非 CLI）
-
-仓库 `Formula/` 目录下目前只有一个 formula：`Formula/yuheng-lite.rb`，它安装的是 **Yuheng 服务端的单二进制 Lite 版**（`yuheng-lite`），而不是本文档的 `yuheng` CLI。该 formula：
-
-- 按 macOS/Linux × arm64/amd64 四个平台从 GitHub Releases 下载 `Yuheng-lite_v<version>_<os>_<arch>.tar.gz`；
-- 生成 `yuheng-lite` 启动脚本：首次运行自动生成 `~/.config/yuheng/.env.lite` 配置、数据存到 `~/.local/share/yuheng/`；
-- 支持 `brew services start yuheng-lite` 作为后台服务运行，日志在 `$(brew --prefix)/var/log/yuheng-lite.log`。
-
-在本地用 Lite 版做 CLI 的目标服务器是一个方便的组合：`brew services start yuheng-lite` 起服务端，再用 `yuheng profile add local --host http://localhost:8080 --use` 连接。
 
 ---
 

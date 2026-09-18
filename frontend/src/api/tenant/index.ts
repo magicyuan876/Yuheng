@@ -51,15 +51,11 @@ export interface APIPrincipalTestToken {
 // Bounded per-key grants for non-full-access API keys.
 //  - 'retrieve': read/search knowledge-base data within scope
 //  - 'chat': run the conversation flow (sessions + agent listing + self identity)
-//  - 'read_agents': list/read agents without chat or authoring
 //  - 'ingest': write content into allowed knowledge bases (docs/chunks/FAQ/tags/wiki)
 //  - 'manage_kbs': manage the KB lifecycle (create/copy/duplicate/update/delete + config)
-//  - 'manage_agents': create/update/delete/copy agents
 //  - 'message_history': search/read tenant chat-history metadata
 //  - 'manage_models': manage tenant model definitions, checks, and credentials
-//  - 'manage_mcp_services': manage MCP services, credentials, tool policies, and OAuth state
 //  - 'manage_datasources': manage data-source connectors and sync jobs
-//  - 'manage_channels': manage embed and IM channels
 //  - 'manage_vector_stores': manage vector stores and parser/storage checks
 //  - 'manage_web_search': manage web-search providers
 //  - 'run_evaluations': run/read evaluation jobs
@@ -69,15 +65,11 @@ export interface APIPrincipalTestToken {
 export type TenantAPIKeyCapability =
   | 'retrieve'
   | 'chat'
-  | 'read_agents'
   | 'ingest'
   | 'manage_kbs'
-  | 'manage_agents'
   | 'message_history'
   | 'manage_models'
-  | 'manage_mcp_services'
   | 'manage_datasources'
-  | 'manage_channels'
   | 'manage_vector_stores'
   | 'manage_storage_backends'
   | 'manage_web_search'

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -96,72 +95,9 @@ func (s *stubKBShareForGuard) CountByOrganizations(context.Context, []string) (m
 	panic("not implemented")
 }
 
-// stubAgentShareForGuard implements just the two methods the guard
-// touches: GetSharedAgentForTenant (when ?agent_id=X is supplied) and
-// TenantCanAccessKBViaSomeSharedAgent (the any-shared-agent fallback).
-// Every other method panics so unintended new dependencies surface
-// immediately.
-type stubAgentShareForGuard struct {
-	// agents indexed by agent id; nil entry means GetSharedAgentForTenant
-	// returns nil + nil (i.e. caller has no access to that agent id).
-	agents map[string]*types.CustomAgent
-	// kbsViaSomeAgent[kb.ID] -> true means the any-agent fallback grants
-	// access to that KB.
-	kbsViaSomeAgent map[string]bool
-}
-
-func (s *stubAgentShareForGuard) GetSharedAgentForTenant(_ context.Context, _ uint64, _ types.TenantRole, agentID string, _ ...uint64) (*types.CustomAgent, error) {
-	return s.agents[agentID], nil
-}
-
-func (s *stubAgentShareForGuard) TenantCanAccessKBViaSomeSharedAgent(_ context.Context, _ uint64, _ types.TenantRole, kb *types.KnowledgeBase) (bool, error) {
-	return s.kbsViaSomeAgent[kb.ID], nil
-}
-
-func (s *stubAgentShareForGuard) ShareAgent(context.Context, string, string, string, uint64, types.OrgMemberRole) (*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) RemoveShare(context.Context, string, string, uint64) error {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) ListSharesByAgent(context.Context, string, uint64) ([]*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) ListSharesByOrganization(context.Context, string) ([]*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) ListSharedAgents(context.Context, uint64, types.TenantRole) ([]*types.SharedAgentInfo, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) ListSharedAgentsInOrganization(context.Context, string, uint64, types.TenantRole) ([]*types.OrganizationSharedAgentItem, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) ListSharedAgentsInOrganizations(context.Context, []string, uint64, types.TenantRole) (map[string][]*types.OrganizationSharedAgentItem, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) SetSharedAgentDisabledByMe(context.Context, uint64, string, uint64, bool) error {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) GetShare(context.Context, string) (*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) GetShareByAgentAndOrg(context.Context, string, string) (*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) GetShareByAgentIDForTenant(context.Context, uint64, string, uint64) (*types.AgentShare, error) {
-	panic("not implemented")
-}
-func (s *stubAgentShareForGuard) CountByOrganizations(context.Context, []string) (map[string]int64, error) {
-	panic("not implemented")
-}
-
 // guardOpts collects optional knobs for runGuard. Keeps the call site
 // readable when most tests only care about a couple of dimensions.
-type guardOpts struct {
-	agentID             string                  // ?agent_id query param
-	agentSourceTenantID string                  // ?agent_source_tenant_id query param
-	agentShare          *stubAgentShareForGuard // nil means "no agent-share service"
-}
+type guardOpts struct{}
 
 // runGuard fires a single request through the guard and returns the
 // gin recorder + the kb access (if any) the guard stashed. Defaults
@@ -182,18 +118,7 @@ func runGuard(
 	c, _ := gin.CreateTestContext(rec)
 	c.Params = gin.Params{{Key: "id", Value: kbID}}
 
-	url := "/"
-	query := make([]string, 0, 2)
-	if opts.agentID != "" {
-		query = append(query, "agent_id="+opts.agentID)
-	}
-	if opts.agentSourceTenantID != "" {
-		query = append(query, "agent_source_tenant_id="+opts.agentSourceTenantID)
-	}
-	if len(query) > 0 {
-		url = "/?" + strings.Join(query, "&")
-	}
-	req := httptest.NewRequest("GET", url, nil)
+	req := httptest.NewRequest("GET", "/", nil)
 	ctx := context.WithValue(req.Context(), types.TenantIDContextKey, tenantID)
 	c.Request = req.WithContext(ctx)
 
@@ -210,17 +135,11 @@ func runGuard(
 	if share != nil {
 		shareSvc = share
 	}
-	var agentSvc interfaces.AgentShareService
-	if opts.agentShare != nil {
-		agentSvc = opts.agentShare
-	}
-
 	guard := RequireKBAccess(
 		KBIDFromParam("id"),
 		requiredPerm,
 		kbsvc,
 		shareSvc,
-		agentSvc,
 		cfgRBAC(true),
 	)
 	guard(c)
@@ -319,7 +238,6 @@ func TestRequireKBAccess_NoTenant_Aborts(t *testing.T) {
 		types.OrgRoleViewer,
 		&stubKBLookup{},
 		nil,
-		nil,
 		cfgRBAC(true),
 	)
 	guard(c)
@@ -327,165 +245,6 @@ func TestRequireKBAccess_NoTenant_Aborts(t *testing.T) {
 }
 
 // ---------- Agent-share fallback ----------
-
-func TestRequireKBAccess_AgentShare_AnyAgent_ViewerOnly(t *testing.T) {
-	// No org-share entry; caller has at least one shared agent that can
-	// access this KB. Required permission is Viewer, so the agent-share
-	// branch activates and grants read access at the source tenant.
-	agent := &stubAgentShareForGuard{
-		kbsViaSomeAgent: map[string]bool{"kb-shared": true},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent},
-	)
-	require.False(t, c.IsAborted())
-	access, ok := KBAccessFromContext(c)
-	require.True(t, ok)
-	require.Equal(t, uint64(200), access.EffectiveTenantID)
-	require.Equal(t, types.OrgRoleViewer, access.Permission, "agent share grants viewer only")
-}
-
-func TestRequireKBAccess_AgentShare_EditorRequired_Aborts(t *testing.T) {
-	// Required permission is Editor → agent-share fallback MUST NOT
-	// activate. Regression test for the implicit-security-fix in this
-	// PR: old TagHandler.effectiveCtxForKB granted any agent-share
-	// access to write routes, which leaked tag CRUD.
-	agent := &stubAgentShareForGuard{
-		kbsViaSomeAgent: map[string]bool{"kb-shared": true},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleEditor,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent},
-	)
-	require.True(t, c.IsAborted(), "agent share must NOT satisfy Editor requirement")
-}
-
-func TestRequireKBAccess_AgentShare_SpecificAgent_ModeAll(t *testing.T) {
-	// ?agent_id=A and A has KBSelectionMode=all on the source tenant.
-	// Guard should accept regardless of which KB.
-	agent := &stubAgentShareForGuard{
-		agents: map[string]*types.CustomAgent{
-			"agent-A": {
-				ID:       "agent-A",
-				TenantID: 200,
-				Config: types.CustomAgentConfig{
-					KBSelectionMode: "all",
-				},
-			},
-		},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent, agentID: "agent-A"},
-	)
-	require.False(t, c.IsAborted())
-	access, _ := KBAccessFromContext(c)
-	require.Equal(t, types.OrgRoleViewer, access.Permission)
-}
-
-func TestRequireKBAccess_AgentShare_SpecificAgent_ModeSelected_Match(t *testing.T) {
-	agent := &stubAgentShareForGuard{
-		agents: map[string]*types.CustomAgent{
-			"agent-A": {
-				ID:       "agent-A",
-				TenantID: 200,
-				Config: types.CustomAgentConfig{
-					KBSelectionMode: "selected",
-					KnowledgeBases:  []string{"kb-other", "kb-shared"},
-				},
-			},
-		},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent, agentID: "agent-A"},
-	)
-	require.False(t, c.IsAborted())
-}
-
-func TestRequireKBAccess_AgentShare_SpecificAgent_ModeSelected_Miss(t *testing.T) {
-	// ?agent_id=A but A's selected list does NOT include this KB. Even
-	// though SOME OTHER shared agent (B) would have granted access via
-	// the any-agent fallback, the explicit agent_id pins the resolution
-	// to A. This is the divergence the review flagged.
-	agent := &stubAgentShareForGuard{
-		agents: map[string]*types.CustomAgent{
-			"agent-A": {
-				ID:       "agent-A",
-				TenantID: 200,
-				Config: types.CustomAgentConfig{
-					KBSelectionMode: "selected",
-					KnowledgeBases:  []string{"kb-other"},
-				},
-			},
-		},
-		// any-agent fallback would have said yes — but agent_id=A pins us.
-		kbsViaSomeAgent: map[string]bool{"kb-shared": true},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent, agentID: "agent-A"},
-	)
-	require.True(t, c.IsAborted(), "agent_id=A must NOT fall back to any-agent")
-}
-
-func TestRequireKBAccess_AgentShare_SpecificAgent_ModeNone(t *testing.T) {
-	agent := &stubAgentShareForGuard{
-		agents: map[string]*types.CustomAgent{
-			"agent-A": {
-				ID:       "agent-A",
-				TenantID: 200,
-				Config: types.CustomAgentConfig{
-					KBSelectionMode: "none",
-				},
-			},
-		},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent, agentID: "agent-A"},
-	)
-	require.True(t, c.IsAborted(), "agent in mode=none must not grant access")
-}
-
-func TestRequireKBAccess_AgentShare_SpecificAgent_TenantMismatch(t *testing.T) {
-	// Agent belongs to tenant 999 but KB belongs to tenant 200 → reject
-	// (this is the kb.TenantID != agent.TenantID guard in the handler;
-	// preserves cross-tenant isolation when shares get reshuffled).
-	agent := &stubAgentShareForGuard{
-		agents: map[string]*types.CustomAgent{
-			"agent-A": {
-				ID:       "agent-A",
-				TenantID: 999,
-				Config: types.CustomAgentConfig{
-					KBSelectionMode: "all",
-				},
-			},
-		},
-	}
-	_, c := runGuard(t, 100, "kb-shared",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-shared", TenantID: 200},
-		nil,
-		guardOpts{agentShare: agent, agentID: "agent-A"},
-	)
-	require.True(t, c.IsAborted())
-}
-
-// ---------- EnableRBAC=false rollout window ----------
 
 func TestRequireKBAccess_Forbidden_FailOpenWhenRBACDisabled(t *testing.T) {
 	// Same scenario as PermissionBelowMin (which aborts when enforcing),
@@ -509,7 +268,7 @@ func TestRequireKBAccess_Forbidden_FailOpenWhenRBACDisabled(t *testing.T) {
 	guard := RequireKBAccess(
 		KBIDFromParam("id"),
 		types.OrgRoleEditor, // would-deny
-		kbsvc, share, nil,
+		kbsvc, share,
 		cfgRBAC(false), // enforcement off
 	)
 	guard(c)
@@ -532,25 +291,10 @@ func TestRequireKBAccess_NotFound_FiresEvenWhenRBACDisabled(t *testing.T) {
 		KBIDFromParam("id"),
 		types.OrgRoleViewer,
 		&stubKBLookup{kbs: map[string]*types.KnowledgeBase{}},
-		nil, nil,
+		nil,
 		cfgRBAC(false),
 	)
 	guard(c)
 	require.True(t, c.IsAborted(), "404 still fires with enforcement off")
 	_ = rec
-}
-
-func TestRequireKBAccess_InvalidAgentSourceTenantID(t *testing.T) {
-	_, c := runGuard(t, 100, "kb-1",
-		types.OrgRoleViewer,
-		&types.KnowledgeBase{ID: "kb-1", TenantID: 200},
-		nil,
-		guardOpts{
-			agentID:             "agent-1",
-			agentSourceTenantID: "not-a-number",
-			agentShare:          &stubAgentShareForGuard{},
-		},
-	)
-	require.True(t, c.IsAborted())
-	require.NotEmpty(t, c.Errors)
 }

@@ -39,7 +39,7 @@ Requires both the message id (positional) and the parent session id
 DELETE /messages/{session_id}/{id}.
 
 Deleting an assistant message breaks the turn chain for follow-up
-references (session ask). Prefer deleting whole sessions
+references (chat). Prefer deleting whole sessions
 (yuheng session delete) unless you specifically need to redact one turn.
 
 Typed exit codes:

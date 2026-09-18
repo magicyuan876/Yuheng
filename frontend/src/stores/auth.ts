@@ -7,7 +7,6 @@ import i18n from '@/i18n'
 import { reloadFontFromStorage } from '@/composables/useFont'
 import { reloadThemeFromStorage } from '@/composables/useTheme'
 import { resetMigrationLatch } from '@/composables/preferenceStorage'
-import { BUILTIN_QUICK_ANSWER_ID } from '@/api/agent'
 import { useChatResourcesStore } from '@/stores/chatResources'
 import { useEditorResourcesStore } from '@/stores/editorResources'
 import { useOrganizationStore } from '@/stores/organization'
@@ -44,7 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
   // v1 deployments will typically have length 1; the field is wired now
   // so PR 3 can render a tenant-switcher UI without a store migration.
   const memberships = ref<Array<{ tenant_id: number; tenant_name?: string; role: string }>>([])
-  const isLiteMode = ref(false)
   // pendingInvitationCount is the number of pending tenant invitations
   // addressed to the current user. Renders as a badge next to the
   // avatar; updated by fetchPendingInvitationCount, which runs after
@@ -234,7 +232,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Wipe chat / KB selections that were saved under the previous tenant.
   // These keys are NOT tenant-scoped in storage; after a tenant switch they
   // would otherwise be reloaded verbatim and the chat input would post under
-  // the new tenant with an Agent / model id that only existed in the old
+  // the new tenant with a model id that only existed in the old
   // tenant — backend 403s or "model not found". Called from setSelectedTenant
   // only on an actual tenant change, so logout / init paths are not touched.
   const clearTenantScopedClientState = () => {
@@ -245,9 +243,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (raw) {
         const parsed = JSON.parse(raw)
         if (parsed && typeof parsed === 'object') {
-          parsed.selectedAgentId = BUILTIN_QUICK_ANSWER_ID
-          parsed.selectedAgentSourceTenantId = null
-          parsed.isAgentEnabled = false
           if (parsed.conversationModels && typeof parsed.conversationModels === 'object') {
             parsed.conversationModels.summaryModelId = ''
             parsed.conversationModels.rerankModelId = ''
@@ -408,15 +403,6 @@ export const useAuthStore = defineStore('auth', () => {
     return selectedTenantId.value
   }
 
-  const setLiteMode = (value: boolean) => {
-    isLiteMode.value = value
-    if (value) {
-      localStorage.setItem('yuheng_lite_mode', 'true')
-    } else {
-      localStorage.removeItem('yuheng_lite_mode')
-    }
-  }
-
   const logout = () => {
     // 清空状态
     user.value = null
@@ -444,13 +430,6 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('yuheng_selected_tenant_id')
     localStorage.removeItem('yuheng_selected_tenant_name')
     localStorage.removeItem('yuheng_memberships')
-    localStorage.removeItem('yuheng_lite_mode')
-    isLiteMode.value = false
-    try {
-      sessionStorage.removeItem('yuheng_lite_last_path')
-    } catch {
-      /* ignore */
-    }
     reloadUserPreferences()
   }
 
@@ -535,7 +514,6 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    isLiteMode.value = localStorage.getItem('yuheng_lite_mode') === 'true'
   }
 
   // 初始化时从localStorage恢复状态
@@ -568,7 +546,6 @@ export const useAuthStore = defineStore('auth', () => {
     currentTenantRole,
     hasRole,
     effectiveTenantId,
-    isLiteMode,
 
     // 方法
     setUser,
@@ -587,7 +564,6 @@ export const useAuthStore = defineStore('auth', () => {
     refreshFromAuthMe,
     acceptInvitationByTokenAndRefresh,
     getSelectedTenant,
-    setLiteMode,
     logout,
     initFromStorage
   }

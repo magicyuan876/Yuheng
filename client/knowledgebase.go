@@ -228,11 +228,11 @@ type SearchResult struct {
 	// For FAQ: this is the matched question text (standard or similar question)
 	MatchedContent string `json:"matched_content,omitempty"`
 	// KnowledgeBaseID identifies the KB that produced this hit. It is required
-	// for agent runs that search more than one knowledge base.
+	// for requests that search more than one knowledge base.
 	KnowledgeBaseID string `json:"knowledge_base_id,omitempty"`
 	// ParentChunkID / SubChunkID describe the chunk hierarchy: a retrieval
 	// "hit" id may be a sub-chunk, while the parent holds the self-contained
-	// passage an agent fetches via `chunk view <parent_chunk_id>`. The server
+	// passage a caller fetches via `chunk view <parent_chunk_id>`. The server
 	// ships these in the references event; without fields here Go silently
 	// drops them during unmarshal.
 	ParentChunkID string   `json:"parent_chunk_id,omitempty"`

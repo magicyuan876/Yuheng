@@ -108,15 +108,14 @@ func TestBuildEnvVectorStores(t *testing.T) {
 	})
 
 	t.Run("all supported drivers", func(t *testing.T) {
-		stores := BuildEnvVectorStores("postgres,sqlite,elasticsearch_v8,elasticsearch_v7,qdrant,milvus,weaviate,doris,tencent_vectordb", lookup)
-		require.Len(t, stores, 9)
+		stores := BuildEnvVectorStores("postgres,elasticsearch_v8,elasticsearch_v7,qdrant,milvus,weaviate,doris,tencent_vectordb", lookup)
+		require.Len(t, stores, 8)
 
 		ids := make([]string, len(stores))
 		for i, s := range stores {
 			ids[i] = s.ID
 		}
 		assert.Contains(t, ids, "__env_postgres__")
-		assert.Contains(t, ids, "__env_sqlite__")
 		assert.Contains(t, ids, "__env_elasticsearch_v8__")
 		assert.Contains(t, ids, "__env_elasticsearch_v7__")
 		assert.Contains(t, ids, "__env_qdrant__")
@@ -462,7 +461,6 @@ func TestIsValidEngineType(t *testing.T) {
 		"unknown",
 		"",
 		PostgresRetrieverEngineType,
-		SQLiteRetrieverEngineType,
 		InfinityRetrieverEngineType,
 		ElasticFaissRetrieverEngineType,
 	}
@@ -789,13 +787,6 @@ func TestIndexConfig_GetIndexNameOrDefault(t *testing.T) {
 			name:       "postgres returns empty (no index config)",
 			config:     IndexConfig{},
 			engineType: PostgresRetrieverEngineType,
-			expected:   "",
-		},
-		// SQLite (no index config)
-		{
-			name:       "sqlite returns empty (no index config)",
-			config:     IndexConfig{},
-			engineType: SQLiteRetrieverEngineType,
 			expected:   "",
 		},
 	}
@@ -1157,17 +1148,7 @@ func TestVectorStore_PostgresSqliteNotRegisterable(t *testing.T) {
 		assert.Contains(t, err.Error(), "unsupported engine type")
 	})
 
-	t.Run("Validate rejects sqlite as DB store", func(t *testing.T) {
-		v := &VectorStore{
-			Name: "test", TenantID: 1,
-			EngineType: SQLiteRetrieverEngineType,
-		}
-		err := v.Validate()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported engine type")
-	})
-
-	t.Run("GetVectorStoreTypes omits postgres and sqlite", func(t *testing.T) {
+	t.Run("GetVectorStoreTypes omits postgres", func(t *testing.T) {
 		listed := GetVectorStoreTypes()
 		var got []string
 		for _, info := range listed {
@@ -1175,8 +1156,6 @@ func TestVectorStore_PostgresSqliteNotRegisterable(t *testing.T) {
 		}
 		assert.NotContains(t, got, string(PostgresRetrieverEngineType),
 			"postgres must not appear in the UI dropdown — env-store only")
-		assert.NotContains(t, got, string(SQLiteRetrieverEngineType),
-			"sqlite must not appear in the UI dropdown — env-store only")
 	})
 }
 
@@ -1400,7 +1379,6 @@ func TestOpenSearchRetrieverEngineType_DistinctFromExisting(t *testing.T) {
 		MilvusRetrieverEngineType,
 		WeaviateRetrieverEngineType,
 		DorisRetrieverEngineType,
-		SQLiteRetrieverEngineType,
 		TencentVectorDBRetrieverEngineType,
 	}
 	for _, e := range existing {

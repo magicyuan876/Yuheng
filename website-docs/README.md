@@ -60,7 +60,7 @@ npm run preview  # 预览构建产物
 | 文档 | 内容 |
 | --- | --- |
 | [产品介绍](01-getting-started/01-introduction.md) | Yuheng 是什么、核心概念（租户/知识库/知识/分块/会话/Agent 等）、功能总览与系统组件图 |
-| [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm、Lite 单二进制与桌面应用、Homebrew |
+| [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm |
 | [快速上手](01-getting-started/03-quickstart.md) | 注册 → 初始化向导 → 配置模型 → 建库 → 上传 → 问答的完整路径，含可直接执行的 curl 链路 |
 | [配置详解](01-getting-started/04-configuration.md) | config.yaml 全字段、约 150 个环境变量、prompt 模板、内置模型与内置 Agent 配置 |
 
@@ -72,7 +72,7 @@ npm run preview  # 预览构建产物
 | [Go 后端设计](02-architecture/02-backend-design.md) | 四层架构、uber/dig 依赖注入、启动与优雅退出、路由与中间件、领域模型 ER 图 |
 | [文档入库流程](02-architecture/03-document-pipeline.md) | 上传/URL/手动创建 → 存储 → 解析 → 分块 → 向量化 → 索引 → 后处理的全链路与状态机 |
 | [检索问答流程](02-architecture/04-rag-pipeline.md) | chat_pipeline 插件流水线、跨库检索与融合、重排、流式输出（SSE）与引用生成 |
-| [异步任务系统](02-architecture/05-async-tasks.md) | asynq 队列拓扑、6 个 worker pool、Lite 同步模式、死信与任务巡检、事件总线 |
+| [异步任务系统](02-architecture/05-async-tasks.md) | asynq 队列拓扑、6 个 worker pool、无 Redis 同步模式、死信与任务巡检、事件总线 |
 
 ### 03 功能模块
 
@@ -84,13 +84,10 @@ npm run preview  # 预览构建产物
 | [分块机制](03-features/04-chunking.md) | 自适应分块架构（heading/heuristic/recursive）、父子分块、语义边界重叠、ContextHeader、调试端点 |
 | [检索引擎与向量存储](03-features/05-retrieval-engines.md) | 各检索引擎（向量/BM25/全文/混合）能力对比、驱动选择、维度管理、打分归一化 |
 | [模型管理](03-features/06-models.md) | 5 类模型、26 个厂商 Provider、内置模型机制、Ollama 本地模型、限流与用量 |
-| [Agent 引擎](03-features/07-agent.md) | ReAct 循环、24 个内置工具、上下文与记忆管理、技能系统与沙箱、自定义 Agent、建议问题 |
-| [MCP 集成](03-features/08-mcp.md) | MCP 客户端管理、OAuth 2.0 + PKCE 全流程、工具审批、Yuheng MCP Server（`yuheng-mcp`，29 个工具） |
+| [MCP 集成](03-features/08-mcp.md) | MCP 客户端管理、OAuth 2.0 + PKCE 全流程、Yuheng MCP Server（`yuheng-mcp`，23 个工具） |
 | [知识图谱](03-features/09-knowledge-graph.md) | 两级开关、LLM 实体关系抽取、Neo4j 存储、图谱增强检索 |
 | [数据源导入](03-features/10-datasource.md) | 连接器体系（飞书/Lark/Notion/语雀/RSS）、凭据加密、同步调度与增量更新 |
 | [网络搜索与网页抓取](03-features/11-web-search.md) | 9 个搜索引擎、SSRF 防护、web_fetch 双实现、SearXNG 自托管 |
-| [IM 集成](03-features/12-im-integration.md) | 10 个 IM 平台适配、消息处理流水线、内置命令、流式渲染、多实例协同 |
-| [网页嵌入 Embed Channel](03-features/13-embed-channel.md) | 嵌入渠道配置、匿名会话与 token 交换、安全模式、webhook、接入示例 |
 | [Wiki 能力](03-features/14-wiki.md) | 基于知识库的 LLM Wiki 站点生成、四阶段管道、slug 机制、人工编辑与版本回滚、issue 闭环、变更并入知识库活动流 |
 | [评估能力](03-features/15-evaluation.md) | 评估任务、Parquet 数据集格式、12 项检索/生成指标 |
 | [可观测性与审计](03-features/16-observability.md) | 日志体系、Langfuse 追踪、审计日志与保留策略、限流、健康检查 |
@@ -109,16 +106,15 @@ npm run preview  # 预览构建产物
 | [API 总览](04-api/01-api-overview.md) | Base URL、三种认证方式、通用响应包与错误码、分页规范、SSE 协议、限流 |
 | [认证与用户](04-api/02-api-auth.md) | /auth 注册登录、token 刷新、邀请 |
 | [租户与成员](04-api/02-api-tenant.md) | 租户、成员、邀请、API Key、审计 |
-| [组织与共享](04-api/02-api-org.md) | 组织、知识库共享、Agent 共享 |
+| [组织与共享](04-api/02-api-org.md) | 组织、知识库共享 |
 | [知识库与知识](04-api/02-api-knowledge.md) | 知识库、知识、文件夹 |
 | [分块与标签](04-api/02-api-chunks.md) | 分块读写与版本、生成问题、标签、分块预览 |
 | [FAQ 与 Wiki](04-api/02-api-faq-wiki.md) | FAQ 管理与导入、Wiki 读写 |
-| [会话与聊天](04-api/02-api-chat.md) | 会话、消息、知识问答与 Agent 对话（SSE） |
+| [会话与聊天](04-api/02-api-chat.md) | 会话、消息、知识问答（SSE） |
 | [模型与初始化](04-api/02-api-model-system.md) | 模型、初始化向导、评估 |
 | [系统与平台管理](04-api/02-api-system.md) | 系统信息、全局设置、运行时队列、平台 API Key、系统审计 |
 | [基础设施与数据源](04-api/02-api-infra.md) | 向量存储、存储后端、Web 搜索、数据源 |
-| [Agent 与 MCP](04-api/02-api-agent-mcp.md) | Agent、MCP 服务、OAuth、技能、收藏 |
-| [IM、Embed 与文件](04-api/02-api-channels.md) | IM 回调与渠道、微信扫码、Embed、文件服务 |
+| [文件服务](04-api/02-api-files.md) | 统一文件代理、预签名 URL、匿名能力短链 `/r/:token` |
 
 ### 05 客户端
 
@@ -127,15 +123,13 @@ npm run preview  # 预览构建产物
 | [Web 前端](05-clients/01-frontend.md) | Vue 3 + TDesign 技术栈、页面路由、状态管理、i18n、部署 |
 | [命令行工具 CLI](05-clients/02-cli.md) | 17 个命令组、多 profile 配置、输出格式与退出码、脚本化用法 |
 | [Go SDK](05-clients/03-go-sdk.md) | 约 170 个方法的资源覆盖、流式对话、错误处理、完整示例 |
-| [微信小程序](05-clients/04-miniprogram.md) | 页面结构、后端地址与 API Key 配置、构建发布 |
-| [桌面端](05-clients/05-desktop.md) | 单机桌面应用（未正式发布）、数据目录与端口设置、偏好设置与自动更新 |
 
 ### 06 开发指南
 
 | 文档 | 内容 |
 | --- | --- |
 | [开发指南](06-development/01-dev-guide.md) | 环境要求、Makefile 全目标、开发模式、四条测试线、CI 与代码规范、调试技巧 |
-| [数据库与迁移](06-development/02-database-schema.md) | 40+ 张表结构与 ER 图、golang-migrate 双路径（versioned / sqlite）、新增迁移步骤、故障排查 |
+| [数据库与迁移](06-development/02-database-schema.md) | 40+ 张表结构与 ER 图、golang-migrate 版本化迁移、新增迁移步骤、故障排查 |
 | [扩展点指南](06-development/03-extension-points.md) | 9 大扩展点：解析器/分块策略/检索引擎/模型 Provider/搜索引擎/数据源连接器/IM 适配器/Agent 工具/存储后端 |
 
 ## 系统组件速览
@@ -146,7 +140,6 @@ flowchart LR
         FE["Web 前端 Vue 3"]
         CLI["CLI yuheng"]
         SDK["Go SDK"]
-        MINI["微信小程序"]
         EMBED["网页嵌入挂件"]
         IM["IM 平台 x10"]
     end
@@ -179,7 +172,7 @@ flowchart LR
 
 ## 文档约定
 
-- 文中源码路径均相对仓库根目录，如 `internal/agent/engine.go`。
+- 文中源码路径均相对仓库根目录，如 `internal/handler/session.go`。
 - API 路径默认带 `/api/v1` 前缀；认证方式见 [API 总览](04-api/01-api-overview.md)。
 - 配置示例中的密钥均为占位符，生产环境务必替换（尤其 `JWT_SECRET`、`SYSTEM_AES_KEY`、数据库口令）。
 - 文档基于仓库根目录 `VERSION` 文件对应版本源码整理（VitePress 构建时自动读取），随代码变更同步维护。

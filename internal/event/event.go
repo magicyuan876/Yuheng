@@ -41,38 +41,21 @@ const (
 	EventChatComplete EventType = "chat.complete" // 聊天生成完成
 	EventChatStream   EventType = "chat.stream"   // 聊天流式输出
 
-	// Agent events
-	EventAgentQuery    EventType = "agent.query"    // Agent 查询开始
-	EventAgentPlan     EventType = "agent.plan"     // Agent 计划生成
-	EventAgentStep     EventType = "agent.step"     // Agent 步骤执行
-	EventAgentTool     EventType = "agent.tool"     // Agent 工具调用
-	EventAgentComplete EventType = "agent.complete" // Agent 完成
+	// Agent events. These event names are the chat SSE protocol: the
+	// knowledge-chat stream emits query/thought/tool_call/tool_result during
+	// a turn and references/final_answer/complete as the answer progresses.
+	EventAgentQuery    EventType = "agent.query"    // 查询开始
+	EventAgentComplete EventType = "agent.complete" // 生成完成
 
 	// Agent streaming events (for real-time feedback)
-	EventAgentThought     EventType = "thought"      // Agent 思考过程
+	EventAgentThought     EventType = "thought"      // 思考过程 (reasoning_content)
 	EventAgentToolCall    EventType = "tool_call"    // 工具调用通知
 	EventAgentToolResult  EventType = "tool_result"  // 工具结果
-	EventAgentReflection  EventType = "reflection"   // Agent 反思
 	EventAgentReferences  EventType = "references"   // 知识引用
 	EventAgentFinalAnswer EventType = "final_answer" // 最终答案
 
-	// MCP tool human approval (issue #1173)
-	EventToolApprovalRequired EventType = "tool_approval_required"
-	EventToolApprovalResolved EventType = "tool_approval_resolved"
-
-	// MCP OAuth in-conversation authorization prompt: emitted when an
-	// OAuth-enabled MCP service is invoked but the current user has not
-	// authorized it yet. The agent pauses until the user authorizes (or the
-	// wait times out / is canceled).
-	EventMCPOAuthRequired EventType = "mcp_oauth_required"
-	EventMCPOAuthResolved EventType = "mcp_oauth_resolved"
-
 	// Error events
 	EventError EventType = "error" // 错误事件
-
-	// Long-term memory recalled for this turn. Emitted once, before the answer
-	// streams, so the UI can show which memories the answer saw.
-	EventMemoryRecalled EventType = "memory_recalled"
 
 	// Session events
 	EventSessionTitle EventType = "session_title" // 会话标题更新

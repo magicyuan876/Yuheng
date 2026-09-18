@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/magicyuan876/yuheng/internal/agent"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -80,7 +80,7 @@ func (s *wikiIngestService) planBatchTaxonomy(
 				it.slug, it.title, it.pageType, previewText(it.about, 120))
 		}
 
-		raw, err := s.generateWithTemplate(ctx, chatModel, agent.WikiTaxonomyPlanPrompt, map[string]string{
+		raw, err := s.generateWithTemplate(ctx, chatModel, wikiprompts.WikiTaxonomyPlanPrompt, map[string]string{
 			"ExistingTaxonomy": tree,
 			"Items":            itemsBlock.String(),
 			"Language":         lang,

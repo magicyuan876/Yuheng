@@ -31,7 +31,6 @@ logs/
 *.pid
 
 Yuheng
-Yuheng-lite
 cmd/desktop/build/bin/
 /models/
 test/data/mswag.txt
@@ -51,7 +50,13 @@ frontend/chrome-extension/
 Yuheng-Chrome-Extension
 packages/protoc-3.19.4-linux-x86_64.zip
 
+# AI 编程工具自身生成的文件（kimi code / claude code 等开发时产物）
+/AGENTS.md
+CLAUDE.md
 Claude.md
+GEMINI.md
+.cursorignore
+.aider*
 
 # 本地测试脚本
 configure-ollama.sh

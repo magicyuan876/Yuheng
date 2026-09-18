@@ -17,7 +17,7 @@
 
 ### 1. 全局开关：Neo4j 环境变量
 
-`NEO4J_ENABLE` 是知识图谱的唯一全局开关（`docker-compose.yml` 注释明确：`ENABLE_GRAPH_RAG` 自 v0.1.6 起已被 `NEO4J_ENABLE` 取代，Go 主应用不再读取）。
+`NEO4J_ENABLE` 是知识图谱的唯一全局开关（`docker-compose.yml` 注释明确：`ENABLE_GRAPH_RAG` 已被 `NEO4J_ENABLE` 取代，Go 主应用不再读取）。
 
 | 名称 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -127,7 +127,7 @@ SET node.chunks = apoc.coll.union(node.chunks, row.chunks)
 1. **PluginExtractEntity**（`extract_entity.go`，挂在 `QUERY_UNDERSTAND` 事件）：`NEO4J_ENABLE=true` 时，先筛出 `ExtractConfig.Enabled` 的知识库（存入 `chatManage.EntityKBIDs` / `EntityKnowledge`），再用 `ExtractManager.ExtractEntity` 模板 + Chat 模型从**用户查询**里抽取实体名，存入 `chatManage.Entity`。
 2. **PluginSearchEntity**（`search_entity.go`，挂在 `ENTITY_SEARCH` 事件）：对每个启用图谱的知识库 / 文件并行调用 `graphRepo.SearchNode`——Cypher 用 `n.name CONTAINS nodeText` 模糊匹配实体并返回一跳邻居与关系，合并为 `chatManage.GraphResult`；随后 `filterSeenChunk` 取出图谱节点携带的 `chunks`（去掉向量检索已命中的），从 `chunkRepo` 拉取原文并转换为 `SearchResult` 并入候选集，实现"实体 → 关联 chunk"的图谱补充召回。
 
-Agent 模式则提供 `query_knowledge_graph` 工具（`internal/agent/tools/query_knowledge_graph.go`）：校验各知识库是否配置了图谱（`ExtractConfig.Nodes/Relations` 非空），并发对多库执行检索、按 chunk 去重排序，输出中附带各库的图谱配置状态（实体类型 / 关系类型清单）；未配置图谱的库回落为普通混合检索结果。
+未配置图谱的知识库在图谱补充阶段直接跳过，不影响常规向量/关键词检索。
 
 ## 流程图
 
@@ -166,5 +166,5 @@ flowchart TD
 ## 可视化
 
 - **Mermaid 图生成**：`internal/application/service/graph.go` 的 `graphBuilder` 是 `types.GraphBuilder` 接口的内存版实现（LLM 抽实体 → 抽关系 → PMI×0.6 + Strength×0.4 计算关系权重并归一到 1-10 → 计算实体度数 → 构建 chunk 关联图），其 `generateKnowledgeGraphDiagram` 用 DFS 找连通分量并输出 Mermaid `graph TD` 子图（高频实体高亮、强度 >7 的关系用粗箭头）。注意：`NewGraphBuilder` 目前没有被容器装配调用（仓库内无其他引用），属于独立/遗留的图构建与可视化实现；生成的 Mermaid 图输出到日志。
-- **对外 API**：知识图谱本身没有专门的可视化 REST 端点；`query_knowledge_graph` 工具的结构化输出（`graph_configs`、结果列表）供 Agent 前端渲染。`GET /wiki/graph`（`wikiHandler.GetGraph`）是 Wiki 功能自己的图接口，与本文的实体关系图谱无关。
+- **对外 API**：知识图谱本身没有专门的可视化 REST 端点，图谱补充召回的结果以 `SearchResult` 形式进入回答引用。`GET /wiki/graph`（`wikiHandler.GetGraph`）是 Wiki 功能自己的图接口，与本文的实体关系图谱无关。
 - **prompt 模板**：`config/prompt_templates/graph_extraction.yaml` 提供 `default_extract_entities` 等模板（实体类型枚举 Person/Organization/Location/... 与 JSON 输出协议），经 `internal/config/config.go` 的 `extract_entities_prompt_id` / `extract_relationships_prompt_id` 解析进 `Conversation.ExtractEntitiesPrompt` / `ExtractRelationshipsPrompt`，供上述内存版 `graphBuilder` 使用；生产异步抽取路径使用的是 `config.yaml` 中 `extract.extract_graph` / `extract.extract_entity` 模板（`ExtractManagerConfig`）。

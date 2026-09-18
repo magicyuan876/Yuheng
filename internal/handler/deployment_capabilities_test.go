@@ -22,17 +22,11 @@ func TestDeploymentCapabilityKeysMatchFrontend(t *testing.T) {
 }
 
 func TestBuildDeploymentCapabilitiesIncludesAllKeys(t *testing.T) {
-	result := BuildDeploymentCapabilities("standard", DeploymentFeatureAvailability{
+	result := BuildDeploymentCapabilities(DeploymentFeatureAvailability{
 		Organizations: true,
-		Agents:        true,
-		IM:            true,
-		Embed:         true,
-		API:           true,
-		MCP:           true,
 		WebSearch:     true,
 		VectorStore:   true,
 		Storage:       true,
-		Sandbox:       true,
 		Docs:          true,
 	})
 

@@ -14,7 +14,7 @@
 //     After TTL the server returns an error which the CLI maps to
 //     local.sse_stream_aborted.
 //
-// Output shape matches `yuheng chat` and `yuheng session ask` NDJSON mode:
+// Output shape matches `yuheng chat` NDJSON mode:
 // one CLI-injected init line carrying {session_id, message_id, profile} at
 // stream head, then SDK StreamResponse events verbatim. The init line lets
 // agents thread the resume to the original message in their dedupe table
@@ -75,17 +75,17 @@ After TTL expiry the CLI surfaces local.sse_stream_aborted.
 
 Typical use cases:
   - Network blip mid-stream: re-attach with the same session_id + message_id
-    from the original 'session ask' / 'chat' init event.
-  - Long-running agent invocation: poll progress without blocking the original
+    from the original 'chat' init event.
+  - Long-running answer: poll progress without blocking the original
     stream.
   - Post-mortem inspection: replay the full event history of a completed
     message for debugging.
 
-Output is NDJSON (matches 'chat' / 'session ask' --format json|ndjson):
+Output is NDJSON (matches 'chat' --format json|ndjson):
 one init line at head ({session_id, message_id, profile}), then raw SDK
 StreamResponse events verbatim.
 
-Note: unlike 'chat' / 'session ask', this command always emits NDJSON
+Note: unlike 'chat', this command always emits NDJSON
 regardless of --format value. The operator use case (incident response,
 debugging) always wants the raw event log; there is no human-text rendering.
 --format json and --format ndjson behave identically here; --format text is
@@ -178,7 +178,7 @@ func runResume(ctx context.Context, opts *ResumeOptions, _ *cmdutil.FormatOption
 			return cmdutil.Wrapf(cmdutil.CodeOperationCancelled, err, "session resume cancelled")
 		}
 		// WrapStream routes through ClassifySDKError: a terminal SSE error
-		// frame classifies as server.error (matching chat / session ask); a
+		// frame classifies as server.error (matching chat); a
 		// pre-stream HTTP failure (e.g. 404 for an unknown message_id) still
 		// surfaces via ClassifyHTTPError as resource.not_found etc.
 		return cmdutil.WrapStream(err, "resume stream")

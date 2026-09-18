@@ -59,36 +59,6 @@ func (s *stubKBRepoForModelDelete) ListUserKBPinIDs(context.Context, uint64, str
 	return nil, nil
 }
 
-type stubAgentRepoForModelDelete struct {
-	count int64
-}
-
-func (s *stubAgentRepoForModelDelete) CreateAgent(context.Context, *types.CustomAgent) error {
-	return nil
-}
-func (s *stubAgentRepoForModelDelete) GetAgentByID(context.Context, string, uint64) (*types.CustomAgent, error) {
-	return nil, nil
-}
-func (s *stubAgentRepoForModelDelete) ListAgentsByTenantID(context.Context, uint64) ([]*types.CustomAgent, error) {
-	return nil, nil
-}
-func (s *stubAgentRepoForModelDelete) UpdateAgent(context.Context, *types.CustomAgent) error {
-	return nil
-}
-func (s *stubAgentRepoForModelDelete) DeleteAgent(context.Context, string, uint64) error { return nil }
-func (s *stubAgentRepoForModelDelete) CountByModelID(context.Context, uint64, string) (int64, error) {
-	return s.count, nil
-}
-func (s *stubAgentRepoForModelDelete) CountByModelIDAllTenants(context.Context, string) (int64, error) {
-	return s.count, nil
-}
-func (s *stubAgentRepoForModelDelete) CountBySandboxConfigID(context.Context, uint64, string) (int64, error) {
-	return 0, nil
-}
-func (s *stubAgentRepoForModelDelete) ListNamesBySandboxConfigID(context.Context, uint64, string) ([]string, error) {
-	return nil, nil
-}
-
 type stubModelRepoForDelete struct {
 	model  *types.Model
 	delete func(id string) error
@@ -128,7 +98,6 @@ func TestDeleteModel_RejectsWhenReferenced(t *testing.T) {
 	svc := NewModelService(
 		&stubModelRepoForDelete{model: &types.Model{ID: modelID, TenantID: 1}},
 		&stubKBRepoForModelDelete{count: 1},
-		&stubAgentRepoForModelDelete{count: 0},
 		nil, nil, nil,
 	)
 
@@ -138,24 +107,6 @@ func TestDeleteModel_RejectsWhenReferenced(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, apperrors.ErrBadRequest, appErr.Code)
 	assert.Contains(t, appErr.Message, "knowledge base")
-}
-
-func TestDeleteModel_RejectsWhenUsedByAgent(t *testing.T) {
-	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(1))
-	modelID := "agent-model"
-
-	svc := NewModelService(
-		&stubModelRepoForDelete{model: &types.Model{ID: modelID, TenantID: 1}},
-		&stubKBRepoForModelDelete{count: 0},
-		&stubAgentRepoForModelDelete{count: 2},
-		nil, nil, nil,
-	)
-
-	err := svc.DeleteModel(ctx, modelID)
-	require.Error(t, err)
-	appErr, ok := apperrors.IsAppError(err)
-	require.True(t, ok)
-	assert.Contains(t, appErr.Message, "2 agent(s)")
 }
 
 func TestDeleteModel_SucceedsWhenUnreferenced(t *testing.T) {
@@ -173,7 +124,6 @@ func TestDeleteModel_SucceedsWhenUnreferenced(t *testing.T) {
 			},
 		},
 		&stubKBRepoForModelDelete{},
-		&stubAgentRepoForModelDelete{},
 		nil, nil, nil,
 	)
 
@@ -214,76 +164,14 @@ func (s *stubTenantServiceForModelDelete) GetTenantByIDForUser(context.Context, 
 	return s.tenant, nil
 }
 
-func TestDeleteModel_RejectsWhenUsedByMemory(t *testing.T) {
-	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(1))
-	modelID := "memory-embed"
-
-	svc := NewModelService(
-		&stubModelRepoForDelete{model: &types.Model{ID: modelID, TenantID: 1}},
-		&stubKBRepoForModelDelete{},
-		&stubAgentRepoForModelDelete{},
-		nil, nil,
-		&stubTenantServiceForModelDelete{
-			tenant: &types.Tenant{
-				ID:           1,
-				MemoryConfig: &types.MemoryConfig{Enabled: true, EmbeddingModelID: modelID},
-			},
-		},
-	)
-
-	err := svc.DeleteModel(ctx, modelID)
-	require.Error(t, err)
-	appErr, ok := apperrors.IsAppError(err)
-	require.True(t, ok)
-	assert.Contains(t, appErr.Message, "long-term memory")
-}
-
-// The extraction model is pinned by the workspace exactly like the embedding
-// one. Deleting it leaves memory_config pointing at a model that is gone, and
-// distillation only warns when it cannot resolve one, so auto extraction would
-// stop silently instead of the delete being refused.
-func TestDeleteModel_RejectsWhenUsedByMemoryExtraction(t *testing.T) {
-	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(1))
-	modelID := "memory-extract"
-
-	svc := NewModelService(
-		&stubModelRepoForDelete{model: &types.Model{ID: modelID, TenantID: 1}},
-		&stubKBRepoForModelDelete{},
-		&stubAgentRepoForModelDelete{},
-		nil, nil,
-		&stubTenantServiceForModelDelete{
-			tenant: &types.Tenant{
-				ID: 1,
-				MemoryConfig: &types.MemoryConfig{
-					Enabled: true, ExtractModelID: modelID, EmbeddingModelID: "some-other-model",
-				},
-			},
-		},
-	)
-
-	err := svc.DeleteModel(ctx, modelID)
-	require.Error(t, err)
-	appErr, ok := apperrors.IsAppError(err)
-	require.True(t, ok)
-	assert.Contains(t, appErr.Message, "long-term memory")
-}
-
 func TestFormatModelInUseMessage(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t,
 		"model is used by 1 knowledge base(s); reconfigure or remove those references before deleting",
-		formatModelInUseMessage(1, 0, false),
+		formatModelInUseMessage(1),
 	)
 	assert.Equal(t,
-		"model is used by 2 agent(s); reconfigure or remove those references before deleting",
-		formatModelInUseMessage(0, 2, false),
-	)
-	assert.Equal(t,
-		"model is used by 1 knowledge base(s) and 1 agent(s); reconfigure or remove those references before deleting",
-		formatModelInUseMessage(1, 1, false),
-	)
-	assert.Equal(t,
-		"model is used by long-term memory; reconfigure or remove those references before deleting",
-		formatModelInUseMessage(0, 0, true),
+		"model is used by 3 knowledge base(s); reconfigure or remove those references before deleting",
+		formatModelInUseMessage(3),
 	)
 }

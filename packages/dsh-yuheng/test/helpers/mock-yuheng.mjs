@@ -110,7 +110,7 @@ function documentRecord(document) {
   }
 }
 
-/** Assemble the answer the fake RAG/agent pipeline streams back. */
+/** Assemble the answer the fake RAG pipeline streams back. */
 function answerFor(query, results) {
   if (results.length === 0) return `没有检索到与「${query}」相关的内容。`
   const cited = results.slice(0, 2).map(result => result.content).join(' ')
@@ -260,9 +260,9 @@ export async function startMockYuheng(options = {}) {
         return
       }
 
-      const chatMatch = /^\/api\/v1\/(knowledge-chat|agent-chat)\/(.+)$/.exec(url.pathname)
+      const chatMatch = /^\/api\/v1\/knowledge-chat\/(.+)$/.exec(url.pathname)
       if (request.method === 'POST' && chatMatch !== null) {
-        const [, route, sessionId] = chatMatch
+        const sessionId = chatMatch[1]
         response.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -278,21 +278,20 @@ export async function startMockYuheng(options = {}) {
         // no knowledge base of its own (CreateSessionRequest carries none), so
         // Yuheng has no default to fall back on and answers from nothing.
         // Retrieving here anyway would hide an unscoped ask from the tests. The
-        // agent route does have a server-side default, its KBSelectionMode.
+        // real pipeline still reports its retrieval as a knowledge_search
+        // tool_call timeline event, so the stream below carries one too.
         const scoped = (body.knowledge_base_ids ?? []).length > 0 || (body.knowledge_ids ?? []).length > 0
-        const results = route === 'agent-chat' || scoped
+        const results = scoped
           ? searchResults(body.query ?? '', body.knowledge_base_ids ?? [], [])
           : []
-        if (route === 'agent-chat') {
-          send({
-            id: 't1',
-            response_type: 'tool_call',
-            content: '',
-            done: false,
-            session_id: sessionId,
-            tool_calls: [{ id: 'call-1', function: { name: 'knowledge_search', arguments: '{}' } }],
-          })
-        }
+        send({
+          id: 't1',
+          response_type: 'tool_call',
+          content: '',
+          done: false,
+          session_id: sessionId,
+          tool_calls: [{ id: 'call-1', function: { name: 'knowledge_search', arguments: '{}' } }],
+        })
         send({ id: 'r1', response_type: 'references', content: '', done: false, knowledge_references: results })
         const pieces = answerFor(body.query ?? '', results).match(/.{1,24}/gs) ?? []
         // A stream cut off mid-answer, which is what a dropped connection or a

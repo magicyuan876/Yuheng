@@ -38,7 +38,6 @@ temp/
 
 # 本地构建产物 / 二进制
 Yuheng
-Yuheng-lite
 /server
 /dist/
 /build/
@@ -54,7 +53,6 @@ test/data/mswag.txt
 
 # 敏感文件
 .env
-.env.lite
 *.pem
 *.key
 *.crt

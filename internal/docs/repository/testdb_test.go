@@ -16,9 +16,9 @@ import (
 
 var testDBSeq atomic.Int64
 
-// openTestDB opens a private in-memory SQLite database and applies the real
-// SQLite migration for the docs module, so the tests exercise the same DDL
-// the Lite edition runs (and fail if that file stops being valid SQLite).
+// openTestDB opens a private in-memory SQLite database and applies the docs
+// module's schema, so every test runs against the real DDL rather than
+// against whatever AutoMigrate would infer.
 func openTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	name := fmt.Sprintf("file:docs-repo-%d?mode=memory&cache=shared&_foreign_keys=1", testDBSeq.Add(1))
@@ -31,7 +31,7 @@ func openTestDB(t *testing.T) *gorm.DB {
 	sqlDB.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = sqlDB.Close() })
 
-	ddl, err := os.ReadFile(filepath.FromSlash("../../../migrations/sqlite/000030_docs_module.up.sql"))
+	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
 	require.NoError(t, err, "the SQLite migration must exist")
 	require.NoError(t, db.Exec(string(ddl)).Error, "the SQLite migration must apply cleanly")
 	return db

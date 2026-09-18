@@ -27,6 +27,24 @@ type scriptedResumeSvc struct {
 	}
 }
 
+// textOpts returns a FormatOptions configured for the text render path —
+// the most common shape under test.
+func textOpts() *cmdutil.FormatOptions {
+	return &cmdutil.FormatOptions{Mode: cmdutil.FormatText}
+}
+
+// ndjsonOpts returns a FormatOptions for the NDJSON event-stream path
+// (--format ndjson: raw SDK events, one per line).
+func ndjsonOpts() *cmdutil.FormatOptions {
+	return &cmdutil.FormatOptions{Mode: cmdutil.FormatNDJSON}
+}
+
+// jsonOpts returns a FormatOptions configured for the JSON object path
+// (--format json: one accumulated {ok,data} envelope).
+func jsonOpts() *cmdutil.FormatOptions {
+	return &cmdutil.FormatOptions{Mode: cmdutil.FormatJSON}
+}
+
 func (s *scriptedResumeSvc) ContinueStream(_ context.Context, sessionID, messageID string, cb func(*sdk.StreamResponse) error, opts ...sdk.ResourceURLOptions) error {
 	s.got.sessionID = sessionID
 	s.got.messageID = messageID
@@ -163,7 +181,7 @@ func TestContinueStream_NotFound_MapsToResourceNotFound(t *testing.T) {
 
 // TestResume_TerminalStreamError_MapsToServerError pins that a terminal SSE
 // error frame (surfaced by the SDK as *SSEStreamError) classifies as
-// server.error (exit 7) — the SAME as chat / session ask. Guards against the
+// server.error (exit 7) — the SAME as chat. Guards against the
 // prior inconsistency where resume reported the identical server condition as
 // exit 1 while chat/ask reported exit 7.
 func TestResume_TerminalStreamError_MapsToServerError(t *testing.T) {
