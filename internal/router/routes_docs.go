@@ -119,6 +119,10 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// links, which does not belong in a URL. Declared with the read
 	// capability, which is what actually governs access.
 	read.POST("/page-links/titles", g.Viewer(), guard.RequireMember(), pg.ResolveTitles)
+	// Block references, resolved the same way and for the same reasons. Access
+	// to each source page is decided inside the service, per page: a reference
+	// to a page the reader may not open resolves exactly as a deleted one does.
+	read.POST("/block-refs/resolve", g.Viewer(), guard.RequireMember(), pg.ResolveTransclusions)
 
 	write.POST("/pages", g.Contributor(), guard.RequireMember(), idem, pg.Create)
 	read.GET("/pages/:pid", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Get)

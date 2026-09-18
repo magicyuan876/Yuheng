@@ -46,6 +46,7 @@ type Repositories struct {
 	Leases  LeaseRepository
 	Files   AttachmentRepository
 	Links   LinkRepository
+	Blocks  TransclusionRepository
 }
 
 // New wires the repositories.
@@ -60,6 +61,7 @@ func New(db *gorm.DB) *Repositories {
 		Leases:  &leaseRepository{db: db},
 		Files:   &attachmentRepository{db: db},
 		Links:   &linkRepository{db: db},
+		Blocks:  &transclusionRepository{db: db},
 	}
 }
 

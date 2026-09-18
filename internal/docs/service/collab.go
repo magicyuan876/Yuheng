@@ -253,6 +253,11 @@ func (s *base) persist(ctx context.Context, in PersistInput) (*PersistResult, er
 	// than tracked edit by edit: removing a link means deleting the text around
 	// it, which produces no event of its own.
 	s.recordLinks(ctx, page, structure)
+	// Which blocks of other pages this document now watches, and which of
+	// this page's own blocks other documents watch. Two different jobs; see
+	// transclusion.go.
+	s.recordTransclusions(ctx, page, structure)
+	s.refreshTransclusionSnapshots(ctx, page, node)
 	if upd.ContentChanged {
 		s.publish(ctx, events.New(events.PageContent, in.TenantID).WithSpace(page.SpaceID).WithPage(in.PageID).
 			WithActor(upd.EditorID).With("version", version).With("word_count", structure.WordCount).

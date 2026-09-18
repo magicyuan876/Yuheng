@@ -55,6 +55,9 @@ func TestDocsRoutesDeclareCapabilities(t *testing.T) {
 		// A POST that only reads, so it declares the read capability: the id
 		// list is as long as the open page has links and does not fit a URL.
 		{http.MethodPost, "/api/v1/docs/page-links/titles", types.APIKeyCapabilityDocsRead},
+		// Likewise for block references: the list is as long as the open page
+		// has references, and resolving one reads and changes nothing.
+		{http.MethodPost, "/api/v1/docs/block-refs/resolve", types.APIKeyCapabilityDocsRead},
 		{http.MethodPut, "/api/v1/docs/pages/:pid/access", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/docs/pages/:pid/grants", types.APIKeyCapabilityDocsAdmin},
 		{http.MethodPost, "/api/v1/groups", types.APIKeyCapabilityDocsAdmin},

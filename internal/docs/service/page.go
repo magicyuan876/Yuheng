@@ -19,6 +19,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/render"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
 	"github.com/magicyuan876/yuheng/internal/docs/schema"
+	"github.com/magicyuan876/yuheng/internal/logger"
 )
 
 // PageService owns the page tree: creation, ordering, moves, duplication and
@@ -1135,6 +1136,14 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 	s.invalidate(ctx, actor.TenantID)
 	for _, id := range ids {
 		s.evict(ctx, id)
+		// The foreign key cascades these rows away on Postgres, but SQLite
+		// only enforces one when foreign keys are switched on, so the purge
+		// says so explicitly rather than depending on the dialect.
+		if s.d.Repos.Blocks != nil {
+			if err := s.d.Repos.Blocks.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+				logger.Warnf(ctx, "[docs] clearing the block snapshots of page %s failed: %v", id, err)
+			}
+		}
 	}
 	s.publish(ctx, events.New(events.PagePurged, actor.TenantID).WithSpace(space.ID).WithPage(pageID).
 		WithActor(actor.UserID).With("ids", ids))
