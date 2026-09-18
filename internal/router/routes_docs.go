@@ -78,8 +78,14 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.RemoveMember)
 	write.PUT("/spaces/:sid/knowledge-base", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, sp.BindKnowledgeBase)
-	read.GET("/spaces/:sid/tree", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
-	read.GET("/spaces/:sid/trash", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	// ---- page tree and trash (T1.2) ---------------------------------------------
+	pg := h.Pages
+	read.GET("/spaces/:sid/tree", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), pg.Tree)
+	read.GET("/spaces/:sid/trash", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), pg.Trash)
+	write.DELETE("/spaces/:sid/trash", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, pg.EmptyTrash)
+	write.DELETE("/spaces/:sid/trash/:pid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, pg.Purge)
 	read.GET("/spaces/:sid/labels", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
 	write.POST("/spaces/:sid/labels", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
@@ -91,21 +97,26 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, ni)
 
 	// ---- pages ---------------------------------------------------------------
-	write.POST("/pages", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/pages/:pid", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	write.POST("/pages", g.Contributor(), guard.RequireMember(), idem, pg.Create)
+	read.GET("/pages/:pid", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Get)
 	read.GET("/pages/by-short-id/:short", g.Viewer(),
-		guard.RequirePage("short", acl.PageByShortID, model.RoleReader), ni)
-	read.GET("/pages/:pid/content", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+		guard.RequirePage("short", acl.PageByShortID, model.RoleReader), pg.GetByShortID)
+	read.GET("/pages/:pid/content", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Content)
 	write.PUT("/pages/:pid/content", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
-	write.PATCH("/pages/:pid", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
-	write.POST("/pages/:pid/move", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.PATCH("/pages/:pid", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.Update)
+	write.POST("/pages/:pid/move", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.Move)
 	write.POST("/pages/:pid/duplicate", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
-	write.DELETE("/pages/:pid", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
-	write.POST("/pages/:pid/restore", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/pages/:pid/ancestors", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	read.GET("/pages/:pid/children", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.Duplicate)
+	write.DELETE("/pages/:pid", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.Delete)
+	write.POST("/pages/:pid/restore", g.Contributor(), guard.RequireMember(), idem, pg.Restore)
+	read.GET("/pages/:pid/ancestors", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Ancestors)
+	read.GET("/pages/:pid/children", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Children)
 	read.GET("/pages/:pid/backlinks", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
 	read.GET("/pages/:pid/effective-permission", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)

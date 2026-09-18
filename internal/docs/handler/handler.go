@@ -33,14 +33,19 @@ type Handler struct {
 	Events *EventStream
 	Spaces *SpaceHandler
 	Groups *GroupHandler
+	Pages  *PageHandler
 }
 
 // New builds the handler set.
 func New(deps Deps) *Handler {
-	h := &Handler{deps: deps, Events: NewEventStream(deps.Bus, 0), Spaces: &SpaceHandler{}, Groups: &GroupHandler{}}
+	h := &Handler{
+		deps: deps, Events: NewEventStream(deps.Bus, 0),
+		Spaces: &SpaceHandler{}, Groups: &GroupHandler{}, Pages: &PageHandler{},
+	}
 	if deps.Services != nil {
 		h.Spaces.svc = deps.Services.Spaces
 		h.Groups.svc = deps.Services.Groups
+		h.Pages.svc = deps.Services.Pages
 	}
 	return h
 }

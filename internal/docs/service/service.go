@@ -35,7 +35,8 @@ type Directory interface {
 // interfaces.TenantMemberRepository satisfies it.
 type TenantMembers interface {
 	Get(ctx context.Context, userID string, tenantID uint64) (*types.TenantMember, error)
-	ListPagedByTenant(ctx context.Context, tenantID uint64, search string, offset, limit int) ([]*types.TenantMember, error)
+	ListPagedByTenant(ctx context.Context, tenantID uint64, search string, offset,
+		limit int) ([]*types.TenantMember, error)
 	CountFilteredByTenant(ctx context.Context, tenantID uint64, search string) (int64, error)
 }
 
@@ -69,6 +70,7 @@ type Deps struct {
 type Services struct {
 	Spaces *SpaceService
 	Groups *GroupService
+	Pages  *PageService
 }
 
 // New wires the services.
@@ -77,6 +79,7 @@ func New(d Deps) *Services {
 	return &Services{
 		Spaces: &SpaceService{base: base},
 		Groups: &GroupService{base: base},
+		Pages:  &PageService{base: base},
 	}
 }
 

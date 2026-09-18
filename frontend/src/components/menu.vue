@@ -406,7 +406,7 @@ const isMenuItemActive = (itemPath: string): boolean => {
         case 'agents':
             return currentRoute === 'agentList';
         case 'docs':
-            return currentRoute === 'docsSpaceList' || currentRoute === 'docsSpace';
+            return currentRoute === 'docsSpaceList' || currentRoute === 'docsSpace' || currentRoute === 'docsSpaceSettings';
         case 'organizations':
             return currentRoute === 'organizationList';
         case 'creatChat':
@@ -1046,7 +1046,8 @@ const getIcon = (path: string) => {
     const creatChatActiveState = getIconActiveState('creatChat');
     const settingsActiveState = getIconActiveState('settings');
     const agentsActiveState = route.name === 'agentList';
-    const docsActiveState = route.name === 'docsSpaceList' || route.name === 'docsSpace';
+    const docsActiveState = route.name === 'docsSpaceList' || route.name === 'docsSpace'
+        || route.name === 'docsSpaceSettings';
     const organizationsActiveState = route.name === 'organizationList';
 
     // 知识库图标：只在知识库页面显示绿色

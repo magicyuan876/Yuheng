@@ -37,7 +37,9 @@ func (t tenantTable) Get(_ context.Context, userID string, tenantID uint64) (*ty
 	if !ok {
 		return nil, nil
 	}
-	return &types.TenantMember{UserID: userID, TenantID: tenantID, Role: role, Status: types.TenantMemberStatusActive}, nil
+	return &types.TenantMember{
+		UserID: userID, TenantID: tenantID, Role: role, Status: types.TenantMemberStatusActive,
+	}, nil
 }
 
 func (t tenantTable) ListPagedByTenant(context.Context, uint64, string, int, int) ([]*types.TenantMember, error) {
@@ -75,6 +77,7 @@ func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
 	members := tenantTable{
 		"1/owner": types.TenantRoleOwner, "1/alice": types.TenantRoleContributor,
 		"1/bob": types.TenantRoleContributor, "1/viewer": types.TenantRoleViewer,
+		"1/carol": types.TenantRoleContributor,
 	}
 	resolver := acl.NewResolver(repos, acl.NewTenantMemberRoleSource(members), acl.WithCache(acl.NewMemoryCache(0)))
 	guard := acl.NewGuard(resolver)
@@ -105,6 +108,22 @@ func newSpaceRouter(t *testing.T) (*gin.Engine, *repository.Repositories) {
 	docs.PUT("/spaces/:sid/members", guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), h.Spaces.SetMembers)
 	docs.DELETE("/spaces/:sid/members/:ptype/:pid",
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), h.Spaces.RemoveMember)
+	docs.GET("/spaces/:sid/tree", guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), h.Pages.Tree)
+	docs.GET("/spaces/:sid/trash", guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), h.Pages.Trash)
+	docs.DELETE("/spaces/:sid/trash", guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), h.Pages.EmptyTrash)
+	docs.DELETE("/spaces/:sid/trash/:pid", guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), h.Pages.Purge)
+	docs.POST("/pages", guard.RequireMember(), h.Pages.Create)
+	docs.GET("/pages/:pid", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Get)
+	docs.GET("/pages/by-short-id/:short", guard.RequirePage("short", acl.PageByShortID, model.RoleReader),
+		h.Pages.GetByShortID)
+	docs.GET("/pages/:pid/content", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Content)
+	docs.PATCH("/pages/:pid", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.Update)
+	docs.POST("/pages/:pid/move", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.Move)
+	docs.POST("/pages/:pid/duplicate", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Duplicate)
+	docs.DELETE("/pages/:pid", guard.RequirePage("pid", acl.PageByID, model.RoleWriter), h.Pages.Delete)
+	docs.POST("/pages/:pid/restore", guard.RequireMember(), h.Pages.Restore)
+	docs.GET("/pages/:pid/ancestors", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Ancestors)
+	docs.GET("/pages/:pid/children", guard.RequirePage("pid", acl.PageByID, model.RoleReader), h.Pages.Children)
 	groups := r.Group("/groups")
 	groups.GET("", guard.RequireMember(), h.Groups.List)
 	groups.POST("", guard.RequireMember(), h.Groups.Create)
@@ -151,7 +170,8 @@ func TestSpaceRoutesVisibilityAndRoles(t *testing.T) {
 
 	// A stranger to a private space gets 404, never 403, and no listing.
 	require.Equal(t, http.StatusNotFound, call(t, r, "bob", http.MethodGet, "/docs/spaces/"+sid, nil).Code)
-	require.Equal(t, http.StatusNotFound, call(t, r, "bob", http.MethodGet, "/docs/spaces/by-slug/engineering", nil).Code)
+	require.Equal(t, http.StatusNotFound,
+		call(t, r, "bob", http.MethodGet, "/docs/spaces/by-slug/engineering", nil).Code)
 	list := call(t, r, "bob", http.MethodGet, "/docs/spaces", nil)
 	require.Equal(t, http.StatusOK, list.Code)
 	require.Empty(t, list.Body["data"])

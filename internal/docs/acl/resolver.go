@@ -235,14 +235,24 @@ func (r *Resolver) VisibleSpaces(ctx context.Context, id *Identity) (map[string]
 // should surface that as 404 regardless of role, which also avoids leaking
 // whether a page exists.
 func (r *Resolver) Page(ctx context.Context, id *Identity, pageID string) (Decision, error) {
+	// The row is always read fresh: it proves the page is live and gives the
+	// handler current metadata. Only the role computation is cached.
+	page, err := r.repos.Pages.Get(ctx, id.TenantID, pageID)
+	if err != nil {
+		return Decision{}, err
+	}
 	key := "pg:" + id.UserID + ":" + pageID
 	if raw, ok := r.cache.Get(ctx, id.TenantID, key); ok {
 		var cached cachedDecision
-		if json.Unmarshal(raw, &cached) == nil {
-			return cached.toDecision(), nil
+		if json.Unmarshal(raw, &cached) == nil && cached.SpaceID == page.SpaceID {
+			if space, err := r.repos.Spaces.Get(ctx, id.TenantID, page.SpaceID); err == nil {
+				d := cached.toDecision()
+				d.Page, d.Space = page, space
+				return d, nil
+			}
 		}
 	}
-	d, err := r.resolvePage(ctx, id, pageID)
+	d, err := r.Decide(ctx, id, page)
 	if err != nil {
 		return Decision{}, err
 	}
@@ -273,22 +283,17 @@ func fromDecision(d Decision) cachedDecision {
 	return c
 }
 
+// toDecision restores the cached part; the caller attaches the freshly
+// loaded page and space.
 func (c cachedDecision) toDecision() Decision {
-	d := Decision{Role: c.Role, Chain: c.Chain, RestrictedAt: c.RestrictedAt}
-	if c.SpaceID != "" {
-		d.Space = &model.Space{ID: c.SpaceID}
-	}
-	if c.PageID != "" {
-		d.Page = &model.Page{ID: c.PageID, SpaceID: c.SpaceID}
-	}
-	return d
+	return Decision{Role: c.Role, Chain: c.Chain, RestrictedAt: c.RestrictedAt}
 }
 
-func (r *Resolver) resolvePage(ctx context.Context, id *Identity, pageID string) (Decision, error) {
-	page, err := r.repos.Pages.Get(ctx, id.TenantID, pageID)
-	if err != nil {
-		return Decision{}, err
-	}
+// Decide resolves the caller's role on an already loaded page, which may be
+// in the trash (its live ancestors still narrow; trashed ones are skipped).
+// Trash listing and restore use it; live lookups go through Page, which
+// caches.
+func (r *Resolver) Decide(ctx context.Context, id *Identity, page *model.Page) (Decision, error) {
 	space, err := r.repos.Spaces.Get(ctx, id.TenantID, page.SpaceID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -299,7 +304,7 @@ func (r *Resolver) resolvePage(ctx context.Context, id *Identity, pageID string)
 	}
 	d := Decision{Page: page, Space: space}
 
-	ancestors, err := r.repos.Pages.ListAncestors(ctx, id.TenantID, pageID)
+	ancestors, err := r.repos.Pages.ListAncestors(ctx, id.TenantID, page.ID)
 	if err != nil {
 		return Decision{}, fmt.Errorf("acl: ancestors: %w", err)
 	}

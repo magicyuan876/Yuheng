@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -103,6 +104,12 @@ func (g *Guard) RequirePage(param string, by PageLookup, min model.SpaceRole) gi
 		if by == PageByShortID {
 			p, err := g.res.repos.Pages.GetByShortID(c.Request.Context(), id.TenantID, pageID)
 			if err != nil {
+				if errors.Is(err, repository.ErrNotFound) {
+					g.gone(c, id, func(ctx context.Context) (*model.Page, error) {
+						return g.res.repos.Pages.GetAnyByShortID(ctx, id.TenantID, pageID)
+					})
+					return
+				}
 				g.fail(c, err)
 				return
 			}
@@ -110,6 +117,12 @@ func (g *Guard) RequirePage(param string, by PageLookup, min model.SpaceRole) gi
 		}
 		d, err := g.res.Page(c.Request.Context(), id, pageID)
 		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				g.gone(c, id, func(ctx context.Context) (*model.Page, error) {
+					return g.res.repos.Pages.GetAny(ctx, id.TenantID, pageID)
+				})
+				return
+			}
 			g.fail(c, err)
 			return
 		}
@@ -124,6 +137,38 @@ func (g *Guard) RequirePage(param string, by PageLookup, min model.SpaceRole) gi
 		c.Set(DecisionContextKey, d)
 		c.Next()
 	}
+}
+
+// gone answers a lookup that found no live page. When the page exists in
+// the trash and the caller could read it, the answer is 410 with enough
+// detail for a client to offer "restore"; otherwise a plain 404, so the
+// trash leaks nothing to callers who could not see the page anyway.
+func (g *Guard) gone(c *gin.Context, id *Identity, load func(context.Context) (*model.Page, error)) {
+	ctx := c.Request.Context()
+	page, err := load(ctx)
+	if err != nil || page == nil || page.DeletedAt == nil {
+		notFound(c)
+		return
+	}
+	d, err := g.res.Decide(ctx, id, page)
+	if err != nil || d.Role == model.RoleNone {
+		notFound(c)
+		return
+	}
+	c.JSON(http.StatusGone, gin.H{
+		"success": false,
+		"error":   "page is in the trash",
+		"data": gin.H{
+			"page_id":    page.ID,
+			"short_id":   page.ShortID,
+			"space_id":   page.SpaceID,
+			"title":      page.Title,
+			"deleted_at": page.DeletedAt,
+			"deleted_by": page.DeletedBy,
+			"restorable": d.Role.AtLeast(model.RoleWriter),
+		},
+	})
+	c.Abort()
 }
 
 // RequireMember only requires an active tenant membership; used by routes
