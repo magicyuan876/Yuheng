@@ -1,0 +1,162 @@
+package router
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/magicyuan876/yuheng/internal/docs"
+	"github.com/magicyuan876/yuheng/internal/docs/acl"
+	dochandler "github.com/magicyuan876/yuheng/internal/docs/handler"
+	"github.com/magicyuan876/yuheng/internal/docs/model"
+	"github.com/magicyuan876/yuheng/internal/middleware"
+	"github.com/magicyuan876/yuheng/internal/types"
+)
+
+// Online documents module routes (技术方案 §13).
+//
+// Three authorities stack on every route:
+//
+//  1. The API-key gate: each route declares which API-key capability reaches
+//     it (docs_read / docs_write / docs_admin, or full access). Undeclared
+//     routes are denied to API keys by default, like everywhere else.
+//  2. The tenant role floor: Viewer for reads, Contributor for writes, Admin
+//     for tenant-wide administration (groups).
+//  3. The docs ACL guard: the caller's effective space/page role, resolved
+//     from membership, groups and page restrictions, with 404 for resources
+//     the caller cannot see.
+//
+// Handlers that belong to a later work package are wired to NotImplemented
+// (501) so the contract — paths, methods, policies — is fixed and tested now
+// and the module is never half-exposed: the whole tree is registered only when
+// YUHENG_DOCS_ENABLED=true.
+
+func apiKeyDocsRead(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
+	return base.WithCapability(types.APIKeyCapabilityDocsRead)
+}
+
+func apiKeyDocsWrite(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
+	return base.WithCapability(types.APIKeyCapabilityDocsWrite)
+}
+
+func apiKeyDocsAdmin(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
+	return base.WithCapability(types.APIKeyCapabilityDocsAdmin)
+}
+
+// RegisterDocsRoutes mounts /api/v1/docs/** and the tenant group routes.
+// A disabled module registers nothing.
+func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
+	if m == nil || !m.Enabled || m.Handler == nil {
+		return
+	}
+	h := m.Handler
+	guard := m.Guard
+	idem := h.Idempotency()
+	ni := gin.HandlerFunc(dochandlerNotImplemented)
+
+	read := g.apiKeyGroup(r.Group("/docs"), apiKeyDocsRead(apiKeyFullAccess()))
+	write := read.With(apiKeyDocsWrite(apiKeyFullAccess()))
+	admin := read.With(apiKeyDocsAdmin(apiKeyFullAccess()))
+
+	// Live updates. One stream per tab, narrowed by ?space= / ?page=.
+	read.GET("/events", g.Viewer(), guard.RequireMember(), h.Events.Handle)
+
+	// ---- spaces --------------------------------------------------------------
+	read.GET("/spaces", g.Viewer(), guard.RequireMember(), ni)
+	write.POST("/spaces", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/spaces/:sid", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	read.GET("/spaces/by-slug/:slug", g.Viewer(), guard.RequireSpace("slug", acl.SpaceBySlug, model.RoleReader), ni)
+	write.PATCH("/spaces/:sid", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	write.DELETE("/spaces/:sid", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	write.POST("/spaces/:sid/restore", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/spaces/:sid/members", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	write.PUT("/spaces/:sid/members", g.Contributor(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	write.DELETE("/spaces/:sid/members/:ptype/:pid", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	write.PUT("/spaces/:sid/knowledge-base", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleAdmin), idem, ni)
+	read.GET("/spaces/:sid/tree", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	read.GET("/spaces/:sid/trash", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	read.GET("/spaces/:sid/labels", g.Viewer(), guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), ni)
+	write.POST("/spaces/:sid/labels", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
+	write.POST("/spaces/:sid/attachments", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), ni)
+	write.POST("/spaces/:sid/imports", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
+	write.POST("/spaces/:sid/export", g.Contributor(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, ni)
+
+	// ---- pages ---------------------------------------------------------------
+	write.POST("/pages", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/pages/:pid", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/by-short-id/:short", g.Viewer(),
+		guard.RequirePage("short", acl.PageByShortID, model.RoleReader), ni)
+	read.GET("/pages/:pid/content", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	write.PUT("/pages/:pid/content", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.PATCH("/pages/:pid", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.POST("/pages/:pid/move", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.POST("/pages/:pid/duplicate", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	write.DELETE("/pages/:pid", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.POST("/pages/:pid/restore", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/pages/:pid/ancestors", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/:pid/children", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/:pid/backlinks", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/:pid/effective-permission", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/:pid/access", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	admin.PUT("/pages/:pid/access", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
+	read.GET("/pages/:pid/grants", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	admin.POST("/pages/:pid/grants", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
+	admin.DELETE("/pages/:pid/grants/:ptype/:principal", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
+	read.GET("/pages/:pid/revisions", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	read.GET("/pages/:pid/diff", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	write.POST("/pages/:pid/revisions/:rid/restore", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	read.GET("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	write.POST("/pages/:pid/comments", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	read.GET("/pages/:pid/shares", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	write.POST("/pages/:pid/shares", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	write.PUT("/pages/:pid/labels", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+	write.PUT("/pages/:pid/watch", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	write.POST("/pages/:pid/lease", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ni)
+	write.DELETE("/pages/:pid/lease", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleWriter), ni)
+
+	// ---- revisions, comments, shares, attachments addressed by their own id ----
+	read.GET("/revisions/:rid", g.Viewer(), guard.RequireMember(), ni)
+	write.PATCH("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
+	write.DELETE("/comments/:cid", g.Viewer(), guard.RequireMember(), idem, ni)
+	write.POST("/comments/:cid/resolve", g.Viewer(), guard.RequireMember(), idem, ni)
+	write.DELETE("/shares/:shid", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/attachments/:aid", g.Viewer(), guard.RequireMember(), ni)
+	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, ni)
+
+	// ---- templates, labels, search, notifications, imports/exports -------------
+	read.GET("/templates", g.Viewer(), guard.RequireMember(), ni)
+	write.POST("/templates", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/templates/:tid", g.Viewer(), guard.RequireMember(), ni)
+	write.PATCH("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
+	write.DELETE("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
+	write.PATCH("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
+	write.DELETE("/labels/:lid", g.Contributor(), guard.RequireMember(), idem, ni)
+	read.GET("/search", g.Viewer(), guard.RequireMember(), ni)
+	read.GET("/notifications", g.Viewer(), guard.RequireMember(), ni)
+	write.POST("/notifications/read", g.Viewer(), guard.RequireMember(), ni)
+	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), ni)
+	read.GET("/exports/:jid", g.Viewer(), guard.RequireMember(), ni)
+	read.GET("/recent", g.Viewer(), guard.RequireMember(), ni)
+
+	// ---- tenant groups (tenant-level administration; docs is the first consumer) ----
+	groups := g.apiKeyGroup(r.Group("/groups"), apiKeyDocsAdmin(apiKeyFullAccess()))
+	groups.GET("", g.Viewer(), guard.RequireMember(), ni)
+	groups.POST("", g.Admin(), idem, ni)
+	groups.GET("/:gid", g.Viewer(), guard.RequireMember(), ni)
+	groups.PATCH("/:gid", g.Admin(), idem, ni)
+	groups.DELETE("/:gid", g.Admin(), idem, ni)
+	groups.GET("/:gid/members", g.Viewer(), guard.RequireMember(), ni)
+	groups.PUT("/:gid/members", g.Admin(), idem, ni)
+	groups.DELETE("/:gid/members/:uid", g.Admin(), idem, ni)
+}
+
+// dochandlerNotImplemented adapts the docs handler package's placeholder.
+func dochandlerNotImplemented(c *gin.Context) { dochandler.NotImplemented(c) }

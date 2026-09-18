@@ -63,6 +63,7 @@ import (
 	notionConnector "github.com/magicyuan876/yuheng/internal/datasource/connector/notion"
 	rssConnector "github.com/magicyuan876/yuheng/internal/datasource/connector/rss"
 	yuqueConnector "github.com/magicyuan876/yuheng/internal/datasource/connector/yuque"
+	"github.com/magicyuan876/yuheng/internal/docs"
 	"github.com/magicyuan876/yuheng/internal/event"
 	"github.com/magicyuan876/yuheng/internal/handler"
 	"github.com/magicyuan876/yuheng/internal/handler/session"
@@ -390,6 +391,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 
 	// HTTP handlers layer
 	logger.Debugf(ctx, "[Container] Registering HTTP handlers...")
+	must(container.Provide(docs.NewModule))
 	must(container.Provide(handler.NewTenantHandler))
 	must(container.Provide(handler.NewTenantMemberHandler))
 	must(container.Provide(handler.NewTenantInvitationHandler))
