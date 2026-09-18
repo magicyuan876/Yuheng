@@ -4959,6 +4959,32 @@ export default {
     // 块引用：写在一处、显示在别处的块。
     // 页面历史：版本、对比与恢复。
     // 评论：针对段落或整页的讨论。
+    // 通知与页面关注。
+    notifications: {
+      title: '通知',
+      empty: '没有新消息',
+      unreadOnly: '只看未读',
+      markAllRead: '全部标为已读',
+      pageGone: '该页面已不可访问',
+      kind: {
+        comment: '{actor} 在《{title}》中发表了评论',
+        mention: '{actor} 在《{title}》中提到了你',
+        page_updated: '{actor} 编辑了《{title}》',
+        access_granted: '{actor} 给了你《{title}》的访问权限',
+        other: '{actor} 在《{title}》中有新动作',
+      },
+      day: {
+        today: '今天',
+        yesterday: '昨天',
+        earlier: '更早',
+      },
+    },
+    watch: {
+      watch: '关注',
+      watching: '已关注',
+      mute: '静音',
+      muted: '已静音',
+    },
     comments: {
       title: '评论',
       empty: '还没有评论',

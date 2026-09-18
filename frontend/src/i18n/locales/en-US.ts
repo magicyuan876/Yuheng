@@ -4959,6 +4959,32 @@ export default {
     // Block references: a block written on one page, shown on another.
     // Page history: versions, comparisons and restoring one.
     // Comments: threads on a passage or on the page.
+    // Notifications and watching a page.
+    notifications: {
+      title: 'Notifications',
+      empty: 'Nothing new',
+      unreadOnly: 'Unread only',
+      markAllRead: 'Mark all read',
+      pageGone: 'That page is no longer available',
+      kind: {
+        comment: '{actor} commented on {title}',
+        mention: '{actor} mentioned you in {title}',
+        page_updated: '{actor} edited {title}',
+        access_granted: '{actor} gave you access to {title}',
+        other: '{actor} did something on {title}',
+      },
+      day: {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        earlier: 'Earlier',
+      },
+    },
+    watch: {
+      watch: 'Watch',
+      watching: 'Watching',
+      mute: 'Mute',
+      muted: 'Muted',
+    },
     comments: {
       title: 'Comments',
       empty: 'No comments yet',

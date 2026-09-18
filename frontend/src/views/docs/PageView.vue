@@ -86,6 +86,26 @@
             <t-icon name="history" size="14px" />
             <span>{{ t('docs.history.title') }}</span>
           </button>
+          <button
+            type="button"
+            class="page-history-link"
+            :aria-pressed="watchState.watched"
+            @click="toggleWatch"
+          >
+            <t-icon :name="watchState.watched ? 'bookmark' : 'bookmark-add'" size="14px" />
+            <span>{{ watchState.watched ? t('docs.watch.watching') : t('docs.watch.watch') }}</span>
+          </button>
+          <button
+            v-if="watchState.watched"
+            type="button"
+            class="page-history-link"
+            :aria-pressed="watchState.muted"
+            @click="toggleMute"
+          >
+            <t-icon :name="watchState.muted ? 'notification-off' : 'notification'" size="14px" />
+            <span>{{ watchState.muted ? t('docs.watch.muted') : t('docs.watch.mute') }}</span>
+          </button>
+          <NotificationCentre :revision="notificationRevision" />
         </div>
       </header>
 
@@ -182,9 +202,12 @@ import {
   getPageByShortId,
   getPageChildren,
   gonePageFrom,
+  getWatchState,
   listBacklinks,
   requestStatus,
   restorePage,
+  setMuted,
+  setWatch,
   updatePage,
   type DocsPage,
   type DocsSpace,
@@ -192,12 +215,14 @@ import {
   type PageRef,
   type PageView as PageViewDto,
   type TreeNode,
+  type WatchView,
 } from '@/api/docs'
 
 import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
 import CommentComposer from './comments/CommentComposer.vue'
+import NotificationCentre from './notifications/NotificationCentre.vue'
 import CommentsPanel from './comments/CommentsPanel.vue'
 import BacklinksPanel from './editor/BacklinksPanel.vue'
 import HistoryPanel from './history/HistoryPanel.vue'
@@ -241,6 +266,47 @@ const authStore = useAuthStore()
 const capabilities = useDeploymentCapabilitiesStore()
 const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
 const historyOpen = ref(false)
+
+/**
+ * Whether this reader follows the page, and whether they have silenced it.
+ *
+ * Watching is a reader's right rather than an editor's: you can follow a page
+ * you are not allowed to change, which is what makes review work.
+ */
+const watchState = ref<WatchView>({ page_id: '', muted: false, watched: false })
+/** Bumped when the event stream says a notification arrived, so the bell's
+ * count is current without polling. */
+const notificationRevision = ref(0)
+
+async function loadWatchState(pageId: string) {
+  try {
+    watchState.value = await getWatchState(pageId)
+  } catch {
+    // Not knowing whether somebody follows a page is not worth an error over
+    // the page itself; the button simply shows the unwatched state.
+    watchState.value = { page_id: pageId, muted: false, watched: false }
+  }
+}
+
+async function toggleWatch() {
+  const current = page.value
+  if (!current) return
+  try {
+    watchState.value = await setWatch(current.id, !watchState.value.watched)
+  } catch (err) {
+    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+  }
+}
+
+async function toggleMute() {
+  const current = page.value
+  if (!current) return
+  try {
+    watchState.value = await setMuted(current.id, !watchState.value.muted)
+  } catch (err) {
+    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+  }
+}
 
 /** The editor owns the comment machinery; the panel is drawn here. */
 const comments = computed(() => docEditor.value?.comments ?? null)
@@ -384,7 +450,9 @@ async function load() {
     page.value = p
     titleDraft.value = p.title
     emit('loaded', p)
-    await Promise.all([loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id)])
+    await Promise.all([
+      loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id), loadWatchState(p.id),
+    ])
     await nextTick()
     autosize()
   } catch (err: unknown) {
@@ -526,6 +594,12 @@ watch(() => props.lastEvent, (ev) => {
   // Somebody else commented, replied, resolved or deleted on this page.
   if (ev.type === 'docs.comment.changed' && ev.page_id === p.id) {
     void comments.value?.load()
+  }
+
+  // A notification was written for somebody; the bell re-reads its own count
+  // rather than trusting the event, since the event does not say whose.
+  if (ev.type === 'docs.notification.created') {
+    notificationRevision.value++
   }
 
   if (ev.page_id === p.id) {

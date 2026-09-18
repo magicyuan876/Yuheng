@@ -663,6 +663,76 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- watching and notifications ---------------------------------------------
+
+/** How somebody is related to a page. */
+export interface WatchView {
+  page_id: string
+  /** manual | author | comment | mention */
+  reason?: string
+  muted: boolean
+  watched: boolean
+}
+
+/** One entry in somebody's inbox. */
+export interface NotificationView {
+  id: string
+  /** comment | mention | page_updated | access_granted */
+  kind: string
+  page_id?: string
+  space_id?: string
+  comment_id?: string
+  actor_id?: string
+  actor?: { user_id: string; username?: string; email?: string; avatar?: string }
+  payload: Record<string, unknown>
+  read_at?: string
+  created_at: string
+}
+
+export interface NotificationPage {
+  items: NotificationView[]
+  unread: number
+  next_cursor?: string
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/watch (page reader). */
+export async function getWatchState(pageId: string): Promise<WatchView> {
+  return unwrap<WatchView>(await get(`${base}/pages/${encodeURIComponent(pageId)}/watch`))
+}
+
+/** Backend: PUT /api/v1/docs/pages/:pid/watch (page reader). */
+export async function setWatch(pageId: string, watching: boolean): Promise<WatchView> {
+  return unwrap<WatchView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/watch`, { watching }))
+}
+
+/** Backend: PUT /api/v1/docs/pages/:pid/mute (page reader). */
+export async function setMuted(pageId: string, muted: boolean): Promise<WatchView> {
+  return unwrap<WatchView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/mute`, { muted }))
+}
+
+/** Backend: GET /api/v1/docs/notifications (tenant member). */
+export async function listNotifications(
+  params: { unread?: boolean; cursor?: string; limit?: number } = {},
+): Promise<NotificationPage> {
+  const query = new URLSearchParams()
+  if (params.unread) query.set('unread', 'true')
+  if (params.cursor) query.set('cursor', params.cursor)
+  if (params.limit) query.set('limit', String(params.limit))
+  const suffix = query.toString() ? `?${query}` : ''
+  return unwrap<NotificationPage | null>(await get(`${base}/notifications${suffix}`))
+    ?? { items: [], unread: 0 }
+}
+
+/** Backend: POST /api/v1/docs/notifications/read. An empty list means all. */
+export async function markNotificationsRead(ids: string[] = []): Promise<void> {
+  await post(`${base}/notifications/read`, { ids })
+}
+
+/** Backend: POST /api/v1/docs/notifications/archive. An empty list means all. */
+export async function archiveNotifications(ids: string[] = []): Promise<void> {
+  await post(`${base}/notifications/archive`, { ids })
+}
+
 // ---- comments ---------------------------------------------------------------
 
 /** One comment as the server returns it. */

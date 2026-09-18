@@ -4959,6 +4959,32 @@ export default {
     // Ссылки на блоки.
     // История страницы.
     // Комментарии.
+    // Уведомления и подписка на страницу.
+    notifications: {
+      title: 'Уведомления',
+      empty: 'Ничего нового',
+      unreadOnly: 'Только непрочитанные',
+      markAllRead: 'Отметить все прочитанными',
+      pageGone: 'Эта страница больше недоступна',
+      kind: {
+        comment: '{actor} прокомментировал(а) «{title}»',
+        mention: '{actor} упомянул(а) вас в «{title}»',
+        page_updated: '{actor} изменил(а) «{title}»',
+        access_granted: '{actor} открыл(а) вам доступ к «{title}»',
+        other: '{actor} что-то сделал(а) в «{title}»',
+      },
+      day: {
+        today: 'Сегодня',
+        yesterday: 'Вчера',
+        earlier: 'Ранее',
+      },
+    },
+    watch: {
+      watch: 'Подписаться',
+      watching: 'Вы подписаны',
+      mute: 'Отключить',
+      muted: 'Отключено',
+    },
     comments: {
       title: 'Комментарии',
       empty: 'Пока нет комментариев',
