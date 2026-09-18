@@ -39,7 +39,10 @@ var versionedSQLiteColumns = map[string][]string{
 	"storage_backends":     {"is_builtin"},
 }
 
-const expectedSQLiteMigrationVersion = 13
+// The docs module deliberately starts at 000030 rather than 000014 so the
+// core-product migrations keep a contiguous range of their own to grow into;
+// golang-migrate only cares about ordering, not about gaps.
+const expectedSQLiteMigrationVersion = 30
 
 func TestSQLiteMigrationsCreateVersionedSchema(t *testing.T) {
 	repoRoot := sqliteRepoRoot(t)

@@ -78,15 +78,28 @@
           {{ page.title || t('docs.pages.titlePlaceholder') }}
         </h1>
         <div class="page-meta">
+          <!-- The live word count lives in the editor's own toolbar row;
+               showing the persisted one here too would just disagree with
+               it while someone is typing. -->
           <span>{{ t('docs.pages.lastEdited', { time: formatDate(page.content_updated_at || page.updated_at) }) }}</span>
-          <span v-if="page.word_count">· {{ t('docs.pages.wordCount', { count: page.word_count }) }}</span>
         </div>
       </header>
 
-      <t-alert v-if="page.can_edit" theme="info" class="editor-notice" :message="t('docs.pages.editorComingSoon')" />
-
-      <section v-if="html" class="page-body docs-rendered" v-html="html" />
-      <p v-else class="page-empty">{{ t('docs.pages.noContent') }}</p>
+      <div class="page-body-row">
+        <DocEditor
+          ref="docEditor"
+          :key="editorKey"
+          class="page-body"
+          :page-id="page.id"
+          :tenant-id="tenantId"
+          :can-edit="page.can_edit"
+          :collab-url="collabUrl"
+          :current-user="currentUser"
+          :get-token="getToken"
+          @headings="onHeadings"
+        />
+        <TocSidebar :entries="headings" @select="scrollToHeading" />
+      </div>
 
       <section v-if="children.length" class="page-children">
         <h3>{{ t('docs.pages.subpages') }}</h3>
@@ -113,7 +126,7 @@
 
 <script setup lang="ts">
 import { MessagePlugin } from 'tdesign-vue-next'
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -121,7 +134,6 @@ import {
   getPageAncestors,
   getPageByShortId,
   getPageChildren,
-  getPageContent,
   gonePageFrom,
   requestStatus,
   restorePage,
@@ -133,6 +145,12 @@ import {
   type TreeNode,
 } from '@/api/docs'
 
+import { useAuthStore } from '@/stores/auth'
+import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
+
+import DocEditor from './editor/DocEditor.vue'
+import type { TocEntry } from './editor/toc'
+import TocSidebar from './editor/TocSidebar.vue'
 import { pageSlug } from './tree/pageTree'
 import type { DocsEvent } from './useDocsEvents'
 
@@ -157,7 +175,6 @@ const router = useRouter()
 const page = ref<PageViewDto | null>(null)
 const ancestors = ref<DocsPage[]>([])
 const children = ref<TreeNode[]>([])
-const html = ref('')
 const loading = ref(false)
 const gone = ref<GonePage | null>(null)
 const notFound = ref(false)
@@ -165,6 +182,40 @@ const titleDraft = ref('')
 const titleInput = ref<HTMLTextAreaElement | null>(null)
 const iconOpen = ref(false)
 const iconDraft = ref('')
+
+// ---- collaborative editor wiring ------------------------------------------
+const authStore = useAuthStore()
+const capabilities = useDeploymentCapabilitiesStore()
+const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
+const headings = ref<TocEntry[]>([])
+
+const tenantId = computed(() => authStore.effectiveTenantId ?? '')
+const currentUser = computed(() => authStore.user)
+/** The browser-facing collaboration WebSocket address, reported by
+ * GET /system/capabilities; empty in a deployment without the service. */
+const collabUrl = computed(() => capabilities.docsCollabUrl)
+const getToken = () => localStorage.getItem('yuheng_token')
+
+onMounted(() => {
+  // Cheap when another view already loaded it: the store caches the answer.
+  void capabilities.ensureLoaded()
+})
+
+/** Remounts the editor when the page changes, and also when the collaboration
+ * address arrives: GET /system/capabilities resolves after mount, and the
+ * editor binds to one Y.Doc and one provider for its lifetime. */
+const editorKey = computed(() => `${page.value?.id ?? ''}|${collabUrl.value}`)
+
+const onHeadings = (entries: TocEntry[]) => {
+  headings.value = entries
+}
+
+/** Puts the caret at the heading and lets the editor scroll it into view. */
+const scrollToHeading = (pos: number) => {
+  const editor = docEditor.value?.editor
+  if (!editor) return
+  editor.chain().setTextSelection(pos + 1).scrollIntoView().run()
+}
 
 const formatDate = (iso: string | null | undefined) => {
   if (!iso) return ''
@@ -183,7 +234,7 @@ async function load() {
   gone.value = null
   notFound.value = false
   page.value = null
-  html.value = ''
+  headings.value = []
   children.value = []
   ancestors.value = []
   try {
@@ -192,7 +243,7 @@ async function load() {
     page.value = p
     titleDraft.value = p.title
     emit('loaded', p)
-    await Promise.all([loadAncestors(p.id), loadContent(p.id), loadChildren(p)])
+    await Promise.all([loadAncestors(p.id), loadChildren(p)])
     await nextTick()
     autosize()
   } catch (err: unknown) {
@@ -216,15 +267,6 @@ async function loadAncestors(id: string) {
     ancestors.value = await getPageAncestors(id)
   } catch {
     ancestors.value = []
-  }
-}
-
-async function loadContent(id: string) {
-  try {
-    const c = await getPageContent(id, 'html')
-    if (page.value?.id === id) html.value = c.html ?? ''
-  } catch {
-    html.value = ''
   }
 }
 
@@ -328,7 +370,9 @@ watch(() => props.lastEvent, (ev) => {
         break
       case 'docs.page.content_updated':
       case 'docs.page.content_replaced':
-        void loadContent(p.id)
+        // Nothing to refetch: the body is the Yjs document the editor is
+        // already connected to, and the collaboration service pushes both
+        // a peer's edits and a server-side replace straight into it.
         break
       case 'docs.page.deleted':
       case 'docs.page.moved':
@@ -500,12 +544,16 @@ watch(() => props.shortId, load, { immediate: true })
   color: var(--td-text-color-placeholder);
 }
 
-.editor-notice {
-  margin: 20px 0 12px;
+.page-body-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 16px;
 }
 
 .page-body {
-  margin-top: 16px;
+  flex: 1;
+  min-width: 0;
   font-size: 15px;
   line-height: 1.75;
   color: var(--td-text-color-primary);

@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/magicyuan876/yuheng/internal/config"
+	"github.com/magicyuan876/yuheng/internal/docs"
 	"github.com/magicyuan876/yuheng/internal/handler"
 )
 
@@ -59,6 +61,38 @@ func TestBuildDeploymentCapabilitiesReflectsMissingRoutes(t *testing.T) {
 	}
 	if !result.Capabilities["settings.storage"].Supported {
 		t.Fatal("an available route should remain supported")
+	}
+}
+
+func TestDocsCollabURLIsGatedOnTheModuleAndConfig(t *testing.T) {
+	off := deploymentCapabilitiesFromRouter(RouterParams{})
+	if off.DocsCollabURL != "" {
+		t.Fatalf("DocsCollabURL = %q, want empty when the module is absent", off.DocsCollabURL)
+	}
+
+	disabled := deploymentCapabilitiesFromRouter(RouterParams{DocsModule: &docs.Module{Enabled: false}})
+	if disabled.DocsCollabURL != "" {
+		t.Fatalf("DocsCollabURL = %q, want empty when the module is disabled", disabled.DocsCollabURL)
+	}
+
+	exclusive := deploymentCapabilitiesFromRouter(RouterParams{
+		DocsModule: &docs.Module{Enabled: true, Config: &config.DocsConfig{Enabled: true}},
+	})
+	if exclusive.DocsCollabURL != "" {
+		t.Fatalf("DocsCollabURL = %q, want empty when no collaboration service is configured", exclusive.DocsCollabURL)
+	}
+
+	live := deploymentCapabilitiesFromRouter(RouterParams{
+		DocsModule: &docs.Module{
+			Enabled: true,
+			Config:  &config.DocsConfig{Enabled: true, CollabURL: "ws://collab:1234"},
+		},
+	})
+	if live.DocsCollabURL != "ws://collab:1234" {
+		t.Fatalf("DocsCollabURL = %q, want ws://collab:1234", live.DocsCollabURL)
+	}
+	if !live.Capabilities["docs"].Supported {
+		t.Fatal("docs should be supported when the module is enabled")
 	}
 }
 
