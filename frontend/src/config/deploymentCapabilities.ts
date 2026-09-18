@@ -9,6 +9,7 @@ export const DEPLOYMENT_CAPABILITY_KEYS = [
   'settings.vectorstore',
   'settings.storage',
   'settings.sandbox',
+  'docs',
 ] as const
 
 export type DeploymentCapabilityKey = typeof DEPLOYMENT_CAPABILITY_KEYS[number]
@@ -45,4 +46,5 @@ export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapab
   storage: 'settings.storage',
   sandbox: 'settings.sandbox',
   mcp: 'settings.mcp',
+  groups: 'docs',
 }

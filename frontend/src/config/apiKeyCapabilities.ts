@@ -66,6 +66,15 @@ export const TENANT_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
     ],
   },
   {
+    key: 'docs',
+    labelKey: 'integrations.api.apiKeyCapabilityGroupDocs',
+    capabilities: [
+      { value: 'docs_read', labelKey: 'integrations.api.capabilityDocsRead', hintKey: 'integrations.api.capabilityDocsReadHint' },
+      { value: 'docs_write', labelKey: 'integrations.api.capabilityDocsWrite', hintKey: 'integrations.api.capabilityDocsWriteHint' },
+      { value: 'docs_admin', labelKey: 'integrations.api.capabilityDocsAdmin', hintKey: 'integrations.api.capabilityDocsAdminHint' },
+    ],
+  },
+  {
     key: 'tenant',
     labelKey: 'integrations.api.apiKeyCapabilityGroupTenant',
     capabilities: [

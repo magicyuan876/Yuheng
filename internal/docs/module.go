@@ -13,6 +13,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/handler"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
+	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/redis/go-redis/v9"
@@ -29,7 +30,13 @@ type Params struct {
 	DB            *gorm.DB
 	Redis         *redis.Client `optional:"true"`
 	TenantMembers interfaces.TenantMemberRepository
+	Users         interfaces.UserRepository
 	Audit         interfaces.AuditLogService `optional:"true"`
+	// Knowledge bases and storage backends are optional so the module still
+	// boots in a build that lacks either; binding a space to them is then
+	// rejected with a clear message.
+	KnowledgeBases  interfaces.KnowledgeBaseRepository  `optional:"true"`
+	StorageBackends interfaces.StorageBackendRepository `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -44,6 +51,7 @@ type Module struct {
 	Guard    *acl.Guard
 	Bus      events.Bus
 	Audit    *audit.Recorder
+	Services *service.Services
 	Handler  *handler.Handler
 }
 
@@ -88,8 +96,19 @@ func NewModule(p Params) *Module {
 		}
 	})
 
+	deps := service.Deps{
+		Repos: repos, Resolver: resolver, Bus: bus, Audit: rec, Users: p.Users, Members: p.TenantMembers,
+	}
+	if p.KnowledgeBases != nil {
+		deps.KnowledgeBases = p.KnowledgeBases
+	}
+	if p.StorageBackends != nil {
+		deps.StorageBackends = p.StorageBackends
+	}
+	services := service.New(deps)
 	h := handler.New(handler.Deps{
 		Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec, Idempotency: idem,
+		Services: services,
 	})
 	mode := "collaboration service at " + cfg.CollabURL
 	if !cfg.CollabEnabled() {
@@ -97,7 +116,8 @@ func NewModule(p Params) *Module {
 	}
 	logger.Infof(context.Background(), "[docs] module enabled, %s, redis=%v", mode, p.Redis != nil)
 	return &Module{
-		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec, Handler: h,
+		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec,
+		Services: services, Handler: h,
 	}
 }
 

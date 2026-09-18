@@ -22,6 +22,7 @@ func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
 		VectorStore:   true,
 		Storage:       true,
 		Sandbox:       true,
+		Docs:          true,
 	}
 }
 
