@@ -6754,6 +6754,24 @@ export default {
       mermaidBroken: '这张图暂时画不出来，检查一下源码',
     },
     // 斜杠菜单条目。
+    // 选区浮动工具栏。
+    toolbar: {
+      label: '格式',
+      bold: '加粗',
+      italic: '斜体',
+      underline: '下划线',
+      strike: '删除线',
+      code: '行内代码',
+      highlight: '高亮',
+      heading1: '一级标题',
+      heading2: '二级标题',
+      bulletList: '无序列表',
+      blockquote: '引用',
+      link: '链接',
+      clearFormat: '清除格式',
+      linkPlaceholder: '粘贴或输入链接',
+      linkRemove: '移除',
+    },
     commands: {
       paragraph: '正文',
       heading1: '一级标题',

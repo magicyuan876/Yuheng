@@ -50,6 +50,14 @@
       </li>
     </ul>
 
+    <SelectionToolbar
+      :visible="toolbarVisible"
+      :placement="toolbarPlace"
+      :editor="editor ?? null"
+      :revision="editorRevision"
+      @dismiss="toolbarVisible = false"
+    />
+
     <SuggestionMenu
       :open="suggestions.open.value"
       :loading="suggestions.loading.value"
@@ -104,6 +112,7 @@ import MentionNodeView from './MentionNodeView.vue'
 import MermaidNodeView from './MermaidNodeView.vue'
 import PageLinkNodeView from './PageLinkNodeView.vue'
 import StatusNodeView from './StatusNodeView.vue'
+import SelectionToolbar from './SelectionToolbar.vue'
 import SuggestionMenu from './SuggestionMenu.vue'
 import { TitleCache } from './titleCache'
 import TocNodeView from './TocNodeView.vue'
@@ -111,6 +120,7 @@ import { useDocSuggestions } from './useDocSuggestions'
 import { awarenessUser, type UserLike } from './session'
 import { useDocUploads } from './useDocUploads'
 import { IdleScheduler } from './idleWork'
+import { shouldShow, toolbarPlacement } from './toolbar'
 import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
 import { countDocument } from './wordCount'
@@ -290,6 +300,46 @@ const derive = new IdleScheduler(() => {
   emit('headings', extractHeadings(ed.state.doc))
 })
 
+/**
+ * The floating toolbar's state.
+ *
+ * `editorRevision` exists because the editor is not reactive: a Vue component
+ * cannot watch `editor.isActive('bold')`, so the bar is told when to look
+ * again. Everything else about the bar — whether it applies at all, and where
+ * it goes — is decided in toolbar.ts.
+ */
+const toolbarVisible = ref(false)
+const toolbarPlace = ref({ left: 0, top: 0, below: false })
+const editorRevision = ref(0)
+
+function refreshToolbar() {
+  const ed = editor.value
+  if (!ed || ed.isDestroyed) return
+  editorRevision.value++
+  if (!shouldShow(ed.state, editorEditable.value)) {
+    toolbarVisible.value = false
+    return
+  }
+  try {
+    const { from, to } = ed.state.selection
+    const start = ed.view.coordsAtPos(from)
+    // Biased to the left of `to`, so the box ends where the selection does
+    // rather than at the start of the next line.
+    const end = ed.view.coordsAtPos(to, -1)
+    toolbarPlace.value = toolbarPlacement({
+      left: Math.min(start.left, end.left),
+      right: Math.max(start.right, end.right),
+      top: Math.min(start.top, end.top),
+      bottom: Math.max(start.bottom, end.bottom),
+    }, { width: window.innerWidth, height: window.innerHeight })
+    toolbarVisible.value = true
+  } catch {
+    // Coordinates can be stale for a frame after a large remote change; no
+    // bar is better than one in the wrong place.
+    toolbarVisible.value = false
+  }
+}
+
 const editor = useEditor({
   editable: editorEditable.value,
   editorProps: {
@@ -334,6 +384,15 @@ const editor = useEditor({
   }),
   onUpdate: () => {
     derive.schedule()
+    refreshToolbar()
+  },
+  onSelectionUpdate: () => {
+    refreshToolbar()
+  },
+  onBlur: () => {
+    // Not hidden on blur: focus moves into the bar itself when a button is
+    // clicked, and hiding here would take the bar away mid-click. The bar
+    // hides when the selection collapses, which is what actually ends it.
   },
   onCreate: ({ editor: ed }) => {
     // The first count is immediate: an empty word count on a page that has
@@ -347,6 +406,7 @@ const editor = useEditor({
 
 watch(editorEditable, (val) => {
   editor.value?.setEditable(val)
+  refreshToolbar()
 })
 
 onBeforeUnmount(() => {

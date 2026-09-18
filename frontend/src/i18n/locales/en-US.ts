@@ -6753,6 +6753,24 @@ export default {
       mermaidBroken: 'This diagram cannot be drawn yet; check its source.',
     },
     // Slash menu entries. "Command" is what a person types after "/".
+    // The floating toolbar over a selection.
+    toolbar: {
+      label: 'Formatting',
+      bold: 'Bold',
+      italic: 'Italic',
+      underline: 'Underline',
+      strike: 'Strikethrough',
+      code: 'Inline code',
+      highlight: 'Highlight',
+      heading1: 'Heading 1',
+      heading2: 'Heading 2',
+      bulletList: 'Bulleted list',
+      blockquote: 'Quote',
+      link: 'Link',
+      clearFormat: 'Clear formatting',
+      linkPlaceholder: 'Paste or type a link',
+      linkRemove: 'Remove',
+    },
     commands: {
       paragraph: 'Text',
       heading1: 'Heading 1',

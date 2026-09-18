@@ -6750,6 +6750,24 @@ export default {
       mermaidBroken: '이 다이어그램은 아직 그릴 수 없습니다. 소스를 확인하세요.',
     },
     // 슬래시 메뉴 항목.
+    // 선택 영역 위의 서식 도구 모음.
+    toolbar: {
+      label: '서식',
+      bold: '굵게',
+      italic: '기울임',
+      underline: '밑줄',
+      strike: '취소선',
+      code: '인라인 코드',
+      highlight: '형광펜',
+      heading1: '제목 1',
+      heading2: '제목 2',
+      bulletList: '글머리 기호 목록',
+      blockquote: '인용',
+      link: '링크',
+      clearFormat: '서식 지우기',
+      linkPlaceholder: '링크를 붙여넣거나 입력하세요',
+      linkRemove: '제거',
+    },
     commands: {
       paragraph: '본문',
       heading1: '제목 1',
