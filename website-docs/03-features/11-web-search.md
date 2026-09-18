@@ -1,6 +1,6 @@
 # 网络搜索与网页抓取
 
-当知识库检索不足以回答问题时，Yuheng 的 Agent 可以借助 `web_search`（联网搜索）与 `web_fetch`（网页抓取 + LLM 分析）两个工具获取实时信息。底层实现分布在 `internal/infrastructure/web_search`（搜索引擎适配层）、`internal/infrastructure/web_fetch`（轻量抓取器）与 `internal/agent/tools`（Agent 工具层），并通过 `docker/searxng` 提供可选的自托管元搜索引擎。
+当知识库检索不足以回答问题时，Yuheng 的聊天管线可以借助联网搜索（`web_search`）与网页抓取（`web_fetch`）两个阶段获取实时信息。底层实现分布在 `internal/infrastructure/web_search`（搜索引擎适配层）与 `internal/infrastructure/web_fetch`（轻量抓取器），由 `chat_pipeline` 的检索插件按需触发，并通过 `docker/searxng` 提供可选的自托管元搜索引擎。
 
 ## 接口抽象
 
@@ -67,7 +67,7 @@ registry.Register("firecrawl", infra_web_search.NewFirecrawlProvider)
 
 ## 搜索引擎配置（Provider 实体）
 
-每个工作空间可以创建多个搜索引擎配置实例（如 "Production Bing"、"Test Google"），存储为 `web_search_providers` 表的 `WebSearchProviderEntity`（`internal/types/web_search_provider.go`），Agent 按 ID 引用。参数结构 `WebSearchProviderParameters`：
+每个工作空间可以创建多个搜索引擎配置实例（如 "Production Bing"、"Test Google"），存储为 `web_search_providers` 表的 `WebSearchProviderEntity`（`internal/types/web_search_provider.go`），问答请求按 ID 引用。参数结构 `WebSearchProviderParameters`：
 
 | 名称 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
@@ -87,14 +87,14 @@ CRUD 路由（`RegisterWebSearchProviderRoutes`，`internal/router/router.go`）
 - 重定向逐跳经 `ssrfSafeRedirect` 复验 `ValidateURLForSSRF`，超过最大跳数直接失败；
 - 显式 `proxy_url` 需通过 SSRF 校验，未配置时回落 `ProxyFromEnvironment`。
 
-## 搜索工具调用流程
+## 联网搜索的调用流程
 
-Agent 工具 `web_search`（`internal/agent/tools/web_search.go`）遵循 "KB First" 规则（必须先做 `grep_chunks` + `knowledge_search`），其执行链路：
+聊天请求带 `web_search_enabled=true` 时，`PluginSearch`（`chat_pipeline/search.go` 的 SEARCH 阶段）在知识库并行召回后调用 `searchWebIfEnabled`：
 
 ```mermaid
 flowchart TD
-    A["Agent 决策调用 web_search<br/>(query)"] --> B["WebSearchTool.Execute"]
-    B --> C["webSearchService.Search<br/>(providerID, config, query)"]
+    A["问答请求 web_search_enabled=true"] --> B["PluginSearch.searchWebIfEnabled"]
+    B --> C["webSearchService.Search<br/>(providerID, 租户 WebSearchConfig, 改写后 query)"]
     C --> D["Registry.CreateProvider<br/>(按租户参数实例化引擎)"]
     D --> E{"引擎类型"}
     E --> E1["Bing / Tavily / Zhipu / Baidu / ...<br/>(硬编码官方端点)"]
@@ -103,60 +103,51 @@ flowchart TD
     E1 --> F["WebSearchResult 列表<br/>(title / url / snippet / content)"]
     E2 --> F
     E3 --> F
-    F --> G{"compression_method<br/>!= none?"}
-    G -->|"是"| H["CompressWithRAG:<br/>结果写入会话级临时知识库<br/>向量化后按 query 检索压缩"]
-    H --> I["Redis 保存临时 KB 状态<br/>(webSearchStateService)"]
-    G -->|"否"| J["原始结果"]
-    I --> K["格式化输出: wN 短页面 ID +<br/>标题 / 摘要 / 内容 (截断 500 字符)"]
-    J --> K
-    K --> L{"内容被截断或不足?"}
-    L -->|"是"| M["Agent 携带 wN 调用 web_fetch"]
-    L -->|"否"| N["Agent 综合作答"]
+    F --> G["searchutil.ConvertWebSearchResults<br/>转为 SearchResult (URL 作为 ID, source=web_search)"]
+    G --> H["与知识库召回结果一起<br/>进入重排与合并"]
 ```
 
-要点（均见 `web_search.go`）：
+要点（均见 `search.go` 与 `session_knowledge_qa.go` 的解析函数）：
 
-- **RAG 压缩**：`CompressWithRAG` 把搜索结果注入一个隐藏的会话级临时知识库（UI 不展示，用后可清理），用向量检索抽取与 query 相关的片段，避免把整页塞进上下文；临时 KB 的 `tempKBID / seenURLs / knowledgeIDs` 状态经 `WebSearchStateService` 持久化在 Redis，会话内多次搜索复用、不重复索引。
-- 结果 URL 以 **wN 短 ID** 呈现给模型，`web_fetch` 用同一 ID 取回完整页面。
-- provider 由 Agent 配置解析出的 `providerID` 决定，空则回落租户默认。
+- **provider 取租户默认**：`resolveWebSearchProviderID` 直接选 `web_search_providers` 中 `is_default=true` 的配置，没有默认 provider 时记一条 pipeline 警告后跳过联网搜索，不影响知识库检索；`max_results` 取租户 `WebSearchConfig` 的默认值。
+- 结果 URL 作为结果 ID，下游 `PluginWebFetch` 可按 ID 取回完整页面正文。
+- `CompressWithRAG`（搜索结果写入会话级临时 KB 再向量压缩）在当前管线中未启用，保留在 `WebSearchService` 接口上供后续使用。
 
 ## 网页抓取（web_fetch）
 
-### Agent 工具：chromedp 渲染 + LLM 分析
+### 聊天管线内联抓取：PluginWebFetch
 
-抓取能力已收敛到 `internal/infrastructure/web_fetch` 一个实现里，Agent 工具（`internal/agent/tools/web_fetch.go`）只负责批量编排、LLM 分析与结构化结果——此前工具层与基础设施层各有一份抓取代码，安全策略容易走偏。
+`PluginWebFetch`（`chat_pipeline/web_fetch.go`）挂在 WEB_FETCH 阶段（重排之后、合并之前）：从 rerank 结果中挑出 `source=web_search` 的前 N 条（默认 3），并行抓取完整页面正文并替换 snippet，再进入合并与生成。注意当前 `resolveWebFetchEnabled` 固定返回 false（自动抓取默认关闭），该阶段默认跳过，插件保留在管线中供后续开启。
 
-`WebFetchTool` 接收 `{items: [{url: "wN", prompt}]}` 批量任务，并发处理：
+### 共享抓取器：`internal/infrastructure/web_fetch`
+
+抓取能力收敛到 `internal/infrastructure/web_fetch` 一个实现里（当前由聊天管线调用）：`Fetcher.Fetch` 串起 URL 校验、DNS 固定、headless Chrome 渲染与正文抽取——此前工具层与基础设施层各有一份抓取代码，安全策略容易走偏。
 
 ```mermaid
 flowchart TD
-    A["web_fetch(items)"] --> A1["按规范化 URL 去重<br/>重复项直接标 skipped"]
-    A1 --> B["webfetch.Fetcher.Fetch:<br/>URL 格式 + ValidateURLForSSRF"]
+    A["Fetch(url)"] --> B["URL 格式 + ValidateURLForSSRF"]
     B --> C["DNS 解析并 Pin 单一公网 IP<br/>(白名单主机允许私网 IP)"]
     C --> D["renderWithChromium:<br/>headless Chrome 渲染<br/>host-resolver-rules=MAP host pinnedIP"]
     D -->|"失败或空页面"| E["HTTP 兜底:<br/>直连 pinned IP, Host 头保留原域名<br/>(SSRF-safe client)"]
     D -->|"成功"| F["goquery 转正文文本"]
     E --> F
-    F --> G["按 prompt 调用 chat 模型总结"]
-    G --> H["逐 URL 结构化结果<br/>status + code + retryable"]
+    F --> G["正文文本返回调用方"]
 ```
 
-结构化失败语义是这一版的重点：
+结构化失败语义：
 
-- 每个 URL 单独返回状态（`success` / `failed` / `skipped`），**部分失败不会拖垮整批**——成功页面的内容照常可用；
+- 每个 URL 单独返回状态，**部分失败不会拖垮整批**——成功页面的内容照常可用；
 - 失败带稳定的机器可读错误码与可重试标记（`web_fetch.FetchError`）：`invalid_url`、`dns_failed`、`connection_timeout`、`tls_failed`、`http_403`、`http_429`、`http_5xx`、`http_status`、`ssrf_rejected`、`redirect_rejected`、`read_failed`、`html_parse_failed`、`empty_content`、`connection_failed`；
-- 工具输出末尾附一段「Next Steps」指引：全部失败时明确要求模型改用 `web_search` 的标题/摘要作答、声明未经页面校验、对价格库存这类动态事实降低置信度；部分失败时要求直接用成功证据、不要重试不可重试的错误。这样页面抓不到时模型不会陷入反复搜索或凭空编造；
 - 同一批次里重复的 URL 只抓一次。
 
 安全设计要点：
 
 - **DNS pinning**：校验时解析并固定一个安全 IP；chromedp 用 `--host-resolver-rules="MAP host ip"` 强制 Chrome 复用该 IP，HTTP 兜底路径直连该 IP 并保留原始 `Host`/SNI——两条路径都无法二次解析，杜绝 DNS rebinding；
-- 超时 60s（`fetchTimeout`；聊天管线内联抓取用更短的 `pipelineFetchTimeout` 15s），单页读取上限 100KB（`maxBodySize`）；GitHub `blob` 链接自动改写为 `raw.githubusercontent.com`；
-- LLM 调用带 `purpose=web_fetch_summary` 元数据，便于用量归因。
+- 超时 60s（`fetchTimeout`；聊天管线内联抓取用更短的 `pipelineFetchTimeout` 15s），单页读取上限 100KB（`maxBodySize`）；GitHub `blob` 链接自动改写为 `raw.githubusercontent.com`。
 
 ### 共享抓取器：`internal/infrastructure/web_fetch`
 
-`fetcher.go` 同时服务 Agent 工具与聊天管线（`WEB_FETCH` 阶段给高分网页取正文）：SSRF 校验 + `utils.NewSSRFSafeHTTPClient`（重定向逐跳复验）+ 浏览器仿真请求头 + 读取上限，正文抽取用 goquery 移除 `script/style/nav/footer/header/iframe/img` 后取纯文本。`ErrorDetails(err)` 把内部错误映射成上面那张错误码表，调用方据此决定是否重试。
+`fetcher.go` 目前服务聊天管线的 WEB_FETCH 阶段（给高分网页取正文）：SSRF 校验 + `utils.NewSSRFSafeHTTPClient`（重定向逐跳复验）+ 浏览器仿真请求头 + 读取上限，正文抽取用 goquery 移除 `script/style/nav/footer/header/iframe/img` 后取纯文本。`ErrorDetails(err)` 把内部错误映射成上面那张错误码表，调用方据此决定是否重试。
 
 > 关于 readability：`codeberg.org/readeck/go-readability/v2`（go.mod）目前用于 RSS 数据源连接器（`internal/datasource/connector/rss/client.go` 的 `extractArticle`，对文章页做正文净化），`web_fetch` 使用 goquery 做正文抽取。
 

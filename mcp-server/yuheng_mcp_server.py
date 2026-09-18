@@ -240,34 +240,6 @@ class YuhengClient:
         re.IGNORECASE,
     )
 
-    def resolve_agent_id(self, agent_id_or_name: str) -> str:
-        """Resolve an agent ID or name to its canonical ID.
-
-        If *agent_id_or_name* is already a UUID it is returned unchanged.
-        Otherwise all agents are listed and the first one whose ``id``
-        matches exactly or whose ``name`` matches case-insensitively is
-        returned.
-        Raises ValueError when no match is found.
-        """
-        if self._UUID_RE.match(agent_id_or_name):
-            return agent_id_or_name
-        resp = self._request("GET", "/agents")
-        agents = resp.get("data", resp) if isinstance(resp, dict) else resp
-        if isinstance(agents, dict):
-            agents = agents.get("list", agents.get("items", []))
-        needle = agent_id_or_name.lower()
-        for agent in (agents or []):
-            if not isinstance(agent, dict):
-                continue
-            if agent.get("id") == agent_id_or_name:
-                return agent["id"]
-            if agent.get("name", "").lower() == needle:
-                return agent["id"]
-        raise ValueError(
-            f"Agent {agent_id_or_name!r} not found. "
-            "Use list_agents to see available agent IDs and names."
-        )
-
     def resolve_kb_id(self, kb_id_or_name: str) -> str:
         """Resolve a knowledge base name to its UUID if needed.
 
@@ -404,56 +376,25 @@ class YuhengClient:
         """Get model details"""
         return self._request("GET", f"/models/{model_id}")
 
-    # Session Management - Methods for managing chat sessions
-    def create_session(
-        self,
-        kb_id: str,
-        max_rounds: int = 5,
-        enable_rewrite: bool = True,
-        fallback_response: str = "Sorry, I cannot answer this question.",
-        summary_model_id: str = "",
-        title: str = "",
-        description: str = "",
-    ) -> Dict:
-        """Create a new chat session with strategy configuration"""
-        strategy = {
-            "max_rounds": max_rounds,
-            "enable_rewrite": enable_rewrite,
-            "fallback_strategy": "FIXED_RESPONSE",
-            "fallback_response": fallback_response,
-            "embedding_top_k": 10,
-            "keyword_threshold": 0.5,
-            "vector_threshold": 0.7,
-            "summary_model_id": summary_model_id,
-        }
-        data = {
-            "knowledge_base_id": kb_id,
-            "session_strategy": strategy,
-        }
+    # Session Management - Internal helper for the chat flow (not exposed as a tool)
+    def create_session(self, title: str = "") -> Dict:
+        """Create a new chat session (a plain conversation container).
+
+        Sessions on the backend are knowledge-base-independent; per-request
+        configuration (knowledge base selection) travels with the
+        knowledge-chat call itself, so the body deliberately carries no
+        knowledge-base, strategy, or other legacy fields.
+        """
+        data: Dict[str, Any] = {}
         if title:
             data["title"] = title
-        if description:
-            data["description"] = description
         return self._request("POST", "/sessions", json=data)
-
-    def get_session(self, session_id: str) -> Dict:
-        """Get session details"""
-        return self._request("GET", f"/sessions/{session_id}")
-
-    def list_sessions(self, page: int = 1, page_size: int = 20) -> Dict:
-        """List sessions"""
-        params = {"page": page, "page_size": page_size}
-        return self._request("GET", "/sessions", params=params)
-
-    def delete_session(self, session_id: str) -> Dict:
-        """Delete session"""
-        return self._request("DELETE", f"/sessions/{session_id}")
 
     # Chat Functionality - Methods for conversational interactions
     def _consume_sse_stream(self, url: str, body: Dict[str, Any]) -> Dict:
         """POST to *url* with *body*, consume the SSE stream, and return the assembled result.
 
-        Centralised helper used by both chat() and agent_chat().
+        Centralised helper used by chat().
         Timeout: (10s connect, YUHENG_CHAT_TIMEOUT read) — configurable via env var.
         
         Server-Sent Events (SSE) stream format:
@@ -521,17 +462,23 @@ class YuhengClient:
 
     def chat(
         self,
-        session_id: str,
         query: str,
         knowledge_base_ids: list = None,
         web_search_enabled: bool = False,
     ) -> Dict:
         """Send a message to the RAG pipeline (knowledge-chat) and return the assembled answer.
 
-        Provide *knowledge_base_ids* (UUID or name) so the backend can retrieve
-        relevant chunks before summarising with the LLM.
-        For agentic tool-calling use agent_chat() instead.
+        A fresh session is created first (POST /sessions), then the query is
+        streamed to /knowledge-chat/{session_id}. Provide *knowledge_base_ids*
+        (UUIDs) so the backend can retrieve relevant chunks before summarising
+        with the LLM.
         """
+        session_resp = self.create_session(title="MCP chat")
+        session_id = (session_resp.get("data") or {}).get("id", "")
+        if not session_id:
+            raise RequestException(
+                f"Session creation returned no session id: {session_resp}"
+            )
         url = f"{self.base_url}/knowledge-chat/{session_id}"
         body: Dict[str, Any] = {"query": query, "channel": "api"}
         if knowledge_base_ids:
@@ -541,39 +488,6 @@ class YuhengClient:
         result = self._consume_sse_stream(url, body)
         result["session_id"] = session_id
         return result
-
-    def agent_chat(
-        self,
-        session_id: str,
-        query: str,
-        agent_id: str,
-        knowledge_base_ids: list = None,
-        web_search_enabled: bool = False,
-    ) -> Dict:
-        """Send a message to the agentic pipeline (agent-chat) and return the assembled answer.
-
-        *agent_id* is required — the backend uses the CustomAgent config for
-        tool selection (knowledge_search, web_search, SQL, etc.).
-        The agent autonomously decides which knowledge bases to query;
-        pass *knowledge_base_ids* to override or supplement the agent's default KBs.
-        """
-        url = f"{self.base_url}/agent-chat/{session_id}"
-        body: Dict[str, Any] = {"query": query, "agent_id": agent_id, "channel": "api"}
-        if knowledge_base_ids:
-            body["knowledge_base_ids"] = knowledge_base_ids
-        if web_search_enabled:
-            body["web_search_enabled"] = True
-        result = self._consume_sse_stream(url, body)
-        result["session_id"] = session_id
-        return result
-
-    def list_agents(self, page: int = 1, page_size: int = 50) -> Dict:
-        """List all custom agents available to the current tenant."""
-        return self._request("GET", "/agents", params={"page": page, "page_size": page_size})
-
-    def get_agent(self, agent_id: str) -> Dict:
-        """Get full config of a single agent by UUID."""
-        return self._request("GET", f"/agents/{agent_id}")
 
     # Chunk Management - Methods for managing knowledge chunks (text segments)
     def list_chunks(
@@ -624,7 +538,7 @@ client = YuhengClient(YUHENG_BASE_URL, YUHENG_API_KEY)
 # declared via type hints (the framework derives the JSON Schema); required
 # parameters have no default. Descriptions come from the docstring. Tools
 # return dicts/str and the framework handles serialization and error wrapping.
-# Blocking network I/O (chat / agent_chat) is offloaded to a thread executor
+# Blocking network I/O (chat) is offloaded to a thread executor
 # so the async event loop is not blocked.
 # ---------------------------------------------------------------------------
 
@@ -806,61 +720,18 @@ def get_model(model_id: str) -> dict:
 
 
 @mcp.tool()
-def create_session(
-    kb_id: str,
-    max_rounds: int = 5,
-    enable_rewrite: bool = True,
-    fallback_response: str = "Sorry, I cannot answer this question.",
-    summary_model_id: str = "",
-    title: str = "",
-    description: str = "",
-) -> dict:
-    """Create a new chat session bound to a knowledge base with a retrieval strategy.
-
-    kb_id may be a UUID or a knowledge-base name (resolved automatically).
-    """
-    return client.create_session(
-        kb_id=client.resolve_kb_id(kb_id),
-        max_rounds=max_rounds,
-        enable_rewrite=enable_rewrite,
-        fallback_response=fallback_response,
-        summary_model_id=summary_model_id,
-        title=title,
-        description=description,
-    )
-
-
-@mcp.tool()
-def get_session(session_id: str) -> dict:
-    """Get session details."""
-    return client.get_session(session_id)
-
-
-@mcp.tool()
-def list_sessions(page: int = 1, page_size: int = 20) -> dict:
-    """List chat sessions."""
-    return client.list_sessions(page, page_size)
-
-
-@mcp.tool()
-def delete_session(session_id: str) -> dict:
-    """Delete a session."""
-    return client.delete_session(session_id)
-
-
-@mcp.tool()
 async def chat(
-    session_id: str,
     query: str,
     knowledge_base_ids: list[str] | None = None,
     web_search_enabled: bool = False,
 ) -> dict:
     """RAG pipeline chat: retrieve relevant chunks from knowledge bases, then summarise with LLM.
 
-    ALWAYS provide knowledge_base_ids (names like 'my-knowledge-base' or UUIDs) so
-    retrieval can run — without them the answer is based on LLM knowledge only.
+    ALWAYS provide knowledge_base_ids (names like 'my-knowledge-base' or UUIDs) —
+    the backend requires at least one knowledge base per query. A fresh chat
+    session is created automatically for each call; the returned dict includes
+    its session_id.
     Use list_knowledge_bases or list_shared_knowledge_bases to discover available knowledge bases.
-    For multi-step reasoning or tool-calling use agent_chat instead.
     """
     kb_ids = (
         [client.resolve_kb_id(k) for k in knowledge_base_ids]
@@ -869,106 +740,12 @@ async def chat(
     )
     fn = functools.partial(
         client.chat,
-        session_id,
         query,
         knowledge_base_ids=kb_ids,
         web_search_enabled=web_search_enabled,
     )
     # get_running_loop() is the correct API inside async functions.
     return await asyncio.get_running_loop().run_in_executor(None, fn)
-
-
-@mcp.tool()
-async def agent_chat(
-    session_id: str,
-    query: str,
-    agent_id: str,
-    knowledge_base_ids: list[str] | None = None,
-    web_search_enabled: bool = False,
-) -> dict:
-    """Agentic pipeline chat: the agent autonomously calls tools (knowledge_search, web_search, SQL, etc.).
-
-    REQUIRED: agent_id (name or UUID) — use list_agents to discover agents.
-    IMPORTANT: many agents have KBSelectionMode=none and NO built-in knowledge bases.
-    In that case you MUST pass knowledge_base_ids, otherwise the agent will fail
-    with 'no search targets available'. Use get_agent to inspect an agent's
-    kb_selection_mode and knowledge_bases before calling. If kb_selection_mode is
-    'none' or 'selected' with an empty list, always provide knowledge_base_ids.
-    """
-    resolved_agent_id = client.resolve_agent_id(agent_id)
-    kb_ids = (
-        [client.resolve_kb_id(k) for k in knowledge_base_ids]
-        if knowledge_base_ids
-        else None
-    )
-    # Pre-check: if no KB IDs provided, inspect agent config to detect
-    # kb_selection_mode=none/selected-empty so we fail fast with a clear message
-    # instead of the cryptic backend error "no search targets available".
-    if not kb_ids:
-        try:
-            agent_info = client.get_agent(resolved_agent_id)
-            cfg = (agent_info.get("data") or agent_info).get("config") or {}
-            mode = cfg.get("kb_selection_mode", "selected")
-            built_in_kbs = cfg.get("knowledge_bases") or []
-            needs_kbs = (mode == "none") or (
-                mode in ("selected", "") and not built_in_kbs
-            )
-            if needs_kbs:
-                all_kbs = _normalize_kb_entries(
-                    client.list_knowledge_bases()
-                ) + _normalize_kb_entries(client.list_shared_knowledge_bases())
-                seen_ids: set[str] = set()
-                unique_kbs: list[Dict] = []
-                for kb in all_kbs:
-                    kb_id = kb.get("id")
-                    if kb_id and kb_id not in seen_ids:
-                        seen_ids.add(kb_id)
-                        unique_kbs.append(kb)
-                kb_summary = ", ".join(
-                    f"{kb.get('name')} ({kb.get('id')})" for kb in unique_kbs[:10]
-                )
-                raise ValueError(
-                    f"Agent '{agent_id}' has kb_selection_mode='{mode}' with no built-in "
-                    f"knowledge bases. You must provide knowledge_base_ids. "
-                    f"Available knowledge bases: [{kb_summary}]"
-                )
-        except ValueError:
-            raise
-        except Exception as preflight_err:
-            logger.warning(
-                "agent_chat preflight KB check failed (non-fatal): %s", preflight_err
-            )
-    fn = functools.partial(
-        client.agent_chat,
-        session_id,
-        query,
-        resolved_agent_id,
-        knowledge_base_ids=kb_ids,
-        web_search_enabled=web_search_enabled,
-    )
-    return await asyncio.get_running_loop().run_in_executor(None, fn)
-
-
-@mcp.tool()
-def list_agents(page: int = 1, page_size: int = 50) -> dict:
-    """List all custom agents available to the current tenant.
-
-    Use this to discover agent IDs, names, and their KB selection mode before
-    calling agent_chat.
-    """
-    return client.list_agents(page=page, page_size=page_size)
-
-
-@mcp.tool()
-def get_agent(agent_id: str) -> dict:
-    """Get full configuration of a single agent by UUID or name.
-
-    Check kb_selection_mode and knowledge_bases fields: if kb_selection_mode is
-    'none' or 'selected' with an empty knowledge_bases list, you MUST pass
-    knowledge_base_ids when calling agent_chat.
-    """
-    resolved_id = client.resolve_agent_id(agent_id)
-    return client.get_agent(resolved_id)
 
 
 @mcp.tool()

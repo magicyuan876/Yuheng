@@ -86,10 +86,10 @@
 
 ## 6. 再往前一步
 
-- **换成会推理的 Agent**：在对话框顶部切换到内置的「智能推理」Agent，它会自己决定检索几轮、要不要联网、要不要调工具，适合需要多步推理的问题。也可以在「智能体」页建自定义 Agent，挂上 MCP 工具与联网搜索，见 [Agent 引擎](../03-features/07-agent.md)；
+- **把知识库变成 Wiki**：让 LLM 基于知识库生成可对外发布的 Wiki 站点，人工可修订、可追溯版本，见 [Wiki 能力](../03-features/14-wiki.md)；
 - **让答案更准**：开启 Rerank 重排、调整分块大小，见[分块机制](../03-features/04-chunking.md)与[检索引擎](../03-features/05-retrieval-engines.md)；
 - **让知识自动进来**：接飞书 / Notion / 语雀 / RSS 自动同步，见[数据源导入](../03-features/10-datasource.md)；
-- **让别人也能问**：接入企业微信 / 飞书等 IM，或把 Agent 以挂件形式嵌到自己的网站，见 [IM 集成](../03-features/12-im-integration.md)与[网页嵌入](../03-features/13-embed-channel.md)。
+- **让别的系统也能问**：通过 MCP 把知识库检索与问答接入 Claude Desktop、VS Code 等外部客户端，见 [MCP 集成](../03-features/08-mcp.md)。
 
 ## 7. 用 API 走通同样的链路
 

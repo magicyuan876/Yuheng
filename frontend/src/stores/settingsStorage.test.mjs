@@ -2,21 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const SETTINGS_STORAGE_KEY = "Yuheng_settings";
-const BUILTIN_QUICK_ANSWER_ID = "builtin-quick-answer";
-const BUILTIN_SMART_REASONING_ID = "builtin-smart-reasoning";
-
-function reconcileBuiltinAgentMode(settings) {
-  const agentId = settings.selectedAgentId || BUILTIN_QUICK_ANSWER_ID;
-  if (agentId === BUILTIN_QUICK_ANSWER_ID && settings.isAgentEnabled) {
-    settings.isAgentEnabled = false;
-    return true;
-  }
-  if (agentId === BUILTIN_SMART_REASONING_ID && !settings.isAgentEnabled) {
-    settings.isAgentEnabled = true;
-    return true;
-  }
-  return false;
-}
 
 function cloneSettings(settings) {
   return JSON.parse(JSON.stringify(settings));
@@ -28,12 +13,7 @@ function isStoredSettingsRecord(value) {
 
 function reconcileLoadedSettings(loaded) {
   loaded.selectedTags ||= [];
-  loaded.selectedMCPServices ||= [];
-  loaded.selectedSkills ||= loaded.selectedTools || [];
   loaded.selectedFileKbMap ||= {};
-  if (reconcileBuiltinAgentMode(loaded)) {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(loaded));
-  }
   return loaded;
 }
 
@@ -63,11 +43,7 @@ function loadAndReconcileSettings(defaultSettings) {
 
 function makeDefaults() {
   return {
-    isAgentEnabled: false,
-    selectedAgentId: BUILTIN_QUICK_ANSWER_ID,
     selectedTags: [],
-    selectedMCPServices: [],
-    selectedSkills: [],
     selectedFileKbMap: {},
     nested: { items: ["a"] },
   };
@@ -139,15 +115,12 @@ test("loadAndReconcileSettings resets non-object JSON such as null", () => {
 test("loadAndReconcileSettings keeps valid stored settings", () => {
   const store = installMockLocalStorage();
   const stored = {
-    isAgentEnabled: true,
-    selectedAgentId: BUILTIN_QUICK_ANSWER_ID,
     selectedTags: [{ id: "t1", name: "Tag", kbId: "kb1" }],
   };
   store[SETTINGS_STORAGE_KEY] = JSON.stringify(stored);
 
   const loaded = loadAndReconcileSettings(makeDefaults());
 
-  assert.equal(loaded.isAgentEnabled, false);
   assert.equal(loaded.selectedTags.length, 1);
   assert.equal(loaded.selectedTags[0].id, "t1");
 });

@@ -29,8 +29,7 @@ test('knowledge base sharing updates card and resource counts immediately', () =
   const result = applyOrganizationResourceDelta(
     [{ id: 'space-1', share_count: 2 }],
     {
-      knowledge_bases: { by_organization: { 'space-1': 2 } },
-      agents: { by_organization: { 'space-1': 1 } }
+      knowledge_bases: { by_organization: { 'space-1': 2 } }
     },
     'space-1',
     'knowledge_bases',
@@ -43,28 +42,27 @@ test('knowledge base sharing updates card and resource counts immediately', () =
 
 test('resource counts never become negative when a share is removed', () => {
   const result = applyOrganizationResourceDelta(
-    [{ id: 'space-1', agent_share_count: 0 }],
+    [{ id: 'space-1', share_count: 0 }],
     {
-      knowledge_bases: { by_organization: {} },
-      agents: { by_organization: { 'space-1': 0 } }
+      knowledge_bases: { by_organization: { 'space-1': 0 } }
     },
     'space-1',
-    'agents',
+    'knowledge_bases',
     -1
   )
 
-  assert.equal(result.organizations[0].agent_share_count, 0)
-  assert.equal(result.resourceCounts?.agents.by_organization['space-1'], 0)
+  assert.equal(result.organizations[0].share_count, 0)
+  assert.equal(result.resourceCounts?.knowledge_bases.by_organization['space-1'], 0)
 })
 
 test('merge keeps list-only aggregate fields when a detail payload omits them', () => {
   const result = mergeById(
-    [{ id: 'space-1', name: 'Old name', share_count: 5, agent_share_count: 2 }],
+    [{ id: 'space-1', name: 'Old name', share_count: 5 }],
     { id: 'space-1', name: 'New name' }
   )
 
   assert.deepEqual(result, [
-    { id: 'space-1', name: 'New name', share_count: 5, agent_share_count: 2 }
+    { id: 'space-1', name: 'New name', share_count: 5 }
   ])
 })
 

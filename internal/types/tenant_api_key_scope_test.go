@@ -76,16 +76,19 @@ func TestNormalizeAPIKeyCapabilities(t *testing.T) {
 	got := NormalizeAPIKeyCapabilities(StringArray{
 		" Retrieve ",
 		"chat",
-		"read_agents",
 		"manage_kbs",
 		"message_history",
-		"manage_mcp_services",
 		"manage_members",
 		"manage_spaces",
+		"read_agents",
+		"manage_mcp_services",
+		"manage_channels",
 		"bogus",
 		"",
 	})
-	want := []string{"retrieve", "chat", "read_agents", "manage_kbs", "message_history", "manage_mcp_services", "manage_members", "manage_spaces"}
+	// Dead scopes from removed surfaces (agents, MCP services, channels)
+	// normalize away; the rest survive in order.
+	want := []string{"retrieve", "chat", "manage_kbs", "message_history", "manage_members", "manage_spaces"}
 	if len(got) != len(want) {
 		t.Fatalf("normalized = %#v, want %#v", got, want)
 	}

@@ -36,7 +36,6 @@ dsh web
     apiKey: !!js process.env.YUHENG_API_KEY
     knowledgeBaseIds:
       - kb-product-docs
-    agentId: ''            # 填 Yuheng 自定义 Agent id，`yuheng_ask` 就走 ReAct 流水线
     maxResults: 8
     maxChunkChars: 1200
     requestTimeoutMs: 30000
@@ -72,7 +71,7 @@ patch 是整块替换该行的 `config`，所以要保留的字段需要一并�
 | `yuheng_list_knowledge_bases` | `GET /knowledge-bases` | 知识库名称与 id，用于说明有哪些库，或为后续检索缩小范围 |
 | `yuheng_search` | `POST /knowledge-search` + `GET /knowledge/search` | 原文片段与排序，每条带 `knowledge_id`、得分、分块序号，外加查询点名的文档 |
 | `yuheng_read_document` | `GET /chunks/:knowledge_id` + `GET /knowledge/:id` | 单个文档按序拼回的正文，开头给出标题与摘要，支持翻页 |
-| `yuheng_ask` | `POST /sessions` + `POST /knowledge-chat/:id` 或 `POST /agent-chat/:id` | Yuheng 自己的答案、引用、服务端用过的工具，以及可续聊的 `session_id` |
+| `yuheng_ask` | `POST /sessions` + `POST /knowledge-chat/:id` | Yuheng 自己的答案、引用、服务端跑过的检索步骤，以及可续聊的 `session_id` |
 
 `yuheng_search` 是主力：它把原文交给 Agent 自己推理，Agent 的结论因此是可审计的。它在同一次调用里同时匹配片段内容和
 文档名，因为模型常常分不清自己要找的是「哪里讲了这件事」还是「那份叫 X 的文档在哪」。当查询读起来像个标题时，结果里会额外
@@ -83,8 +82,7 @@ patch 是整块替换该行的 `config`，所以要保留的字段需要一并�
 `yuheng_search` 与 `yuheng_ask` 共用。让模型先去挑反而更糟：知识库的命名往往糟糕到无从选择。
 
 `yuheng_ask` 把整个问题委派给 Yuheng。它适合跨多篇文档、需要综合的宽泛问题，也就是自己检索要来回好几轮的场景；它在服务端
-再跑一个模型，所以慢，而且返回的是结论而非支撑结论的证据。配了 `agentId` 时它不会自己填范围：自定义 Agent 会按自己的知识库
-选择模式在服务端解析范围，从这里传 id 反而会把它覆盖掉。
+再跑一个模型，所以慢，而且返回的是结论而非支撑结论的证据。
 
 `yuheng_read_document` 的存在是因为检索返回的是碎片：一旦某个片段看起来对，Agent 通常还需要它的上下文。每条检索结果都带
 着这次调用需要的 `knowledge_id`；第一页会先给出文档标题和 Yuheng 生成的摘要，长文档不必翻完才知道自己拿到的是什么。
@@ -111,7 +109,6 @@ Key 通过 `X-API-Key` 发送。如果用的是平台级 API Key，还需要配 
 | `apiKey` | 未设置 | `X-API-Key`；不设表示部署无鉴权 |
 | `tenantId` | 未设置 | `X-Tenant-ID`，平台级 Key 必填 |
 | `knowledgeBaseIds` | `[]` | 调用未指定范围时的默认值；留空表示检索该凭据可见的全部知识库 |
-| `agentId` | 未设置 | 让 `yuheng_ask` 走 ReAct 流水线 |
 | `maxResults` | `8` | 同时是 `max_results` 与引用条数的上限 |
 | `maxChunkChars` | `1200` | 单个片段的字符预算 |
 | `requestTimeoutMs` | `30000` | 检索与读文档 |
@@ -146,7 +143,7 @@ profile，而它写出的 profile 把设置放在 `pnpm-workspace.yaml` 里。�
 
 ## 兼容性
 
-已针对 dsh `0.1.0-rc.8` 与 Yuheng `0.7.2` 验证。dsh 处于 developer preview 并明确会有破坏性变更；本包因此**没有任何运行
+已针对 dsh `0.1.0-rc.8` 与 Yuheng `0.1.0` 验证。dsh 处于 developer preview 并明确会有破坏性变更；本包因此**没有任何运行
 时依赖**，交给 `ctx.tools.register()` 的只是一个普通对象，不锁定任何 harness 包版本。如果 harness 的工具定义契约发生变化，
 请在本仓库提 issue。
 

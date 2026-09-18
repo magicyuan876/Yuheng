@@ -4,7 +4,6 @@ import type {
   Organization,
   OrganizationMember,
   SharedKnowledgeBase,
-  SharedAgentInfo,
   OrganizationPreview,
   ResourceCountsByOrg,
   SearchableOrganizationItem,
@@ -15,8 +14,7 @@ import type {
   ReviewJoinRequestRequest,
   RequestRoleUpgradeRequest,
   ApiResponse,
-  KnowledgeBaseShare,
-  AgentShareResponse
+  KnowledgeBaseShare
 } from '@/api/organization'
 import {
   listMyOrganizations,
@@ -32,13 +30,10 @@ import {
   updateMemberRole,
   removeMember,
   listSharedKnowledgeBases,
-  listSharedAgents,
   searchSearchableOrganizations,
   shareKnowledgeBase as shareKnowledgeBaseApi,
   removeShare as removeShareApi,
   updateSharePermission as updateSharePermissionApi,
-  shareAgent as shareAgentApi,
-  removeAgentShare as removeAgentShareApi,
   inviteMember as inviteMemberApi,
   reviewJoinRequest as reviewJoinRequestApi,
   requestRoleUpgrade as requestRoleUpgradeApi
@@ -57,12 +52,11 @@ export const useOrganizationStore = defineStore('organization', () => {
   const currentOrganization = ref<Organization | null>(null)
   const currentMembers = ref<OrganizationMember[]>([])
   const sharedKnowledgeBases = ref<SharedKnowledgeBase[]>([])
-  const sharedAgents = ref<SharedAgentInfo[]>([])
   const searchableOrganizations = ref<SearchableOrganizationItem[]>([])
   const previewData = ref<OrganizationPreview | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
-  /** 各空间内知识库/智能体数量（由 GET /organizations 的 resource_counts 填充，供列表侧栏使用） */
+  /** 各空间内知识库数量（由 GET /organizations 的 resource_counts 填充，供列表侧栏使用） */
   const resourceCounts = ref<ResourceCountsByOrg | null>(null)
   /** 用于去重：同一时刻只允许一次 GET /organizations 请求 */
   let organizationsLoadedAt = 0
@@ -70,7 +64,6 @@ export const useOrganizationStore = defineStore('organization', () => {
   const SHARED_RESOURCE_TTL_MS = 60_000
   const SEARCHABLE_ORGANIZATION_TTL_MS = 5 * 60_000
   let sharedKbLoadedAt = 0
-  let sharedAgentsLoadedAt = 0
   let searchableOrganizationsQuery = ''
   const searchableOrganizationCache = new Map<
     string,
@@ -168,7 +161,7 @@ export const useOrganizationStore = defineStore('organization', () => {
 
   function adjustOrganizationResourceCount(
     organizationId: string,
-    resource: 'knowledge_bases' | 'agents',
+    resource: 'knowledge_bases',
     delta: number
   ) {
     organizationsRequest.invalidate()
@@ -486,37 +479,9 @@ export const useOrganizationStore = defineStore('organization', () => {
     return sharedKnowledgeBases.value
   }
 
-  /**
-   * Fetch shared agents (shared to me through organizations).
-   * 去重 + 短期缓存。
-   */
-  const sharedAgentsRequest = createVersionedRequestCoordinator(
-    listSharedAgents,
-    (response) => {
-      if (response.success && response.data) {
-        sharedAgents.value = response.data.filter(s => s.agent != null)
-        sharedAgentsLoadedAt = Date.now()
-      }
-    }
-  )
-
-  async function fetchSharedAgents(options?: { force?: boolean }) {
-    const force = options?.force ?? false
-    if (
-      !force &&
-      sharedAgentsLoadedAt > 0 &&
-      Date.now() - sharedAgentsLoadedAt < SHARED_RESOURCE_TTL_MS
-    ) {
-      return sharedAgents.value
-    }
-    await sharedAgentsRequest.fetch(force)
-    return sharedAgents.value
-  }
-
   interface InvalidateOrganizationDataOptions {
     organizations?: boolean
     sharedKnowledgeBases?: boolean
-    sharedAgents?: boolean
     searchableOrganizations?: boolean
     excludeSearchableOrganizationId?: string
   }
@@ -538,10 +503,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     if (options.sharedKnowledgeBases) {
       sharedKnowledgeBasesRequest.invalidate()
       sharedKbLoadedAt = 0
-    }
-    if (options.sharedAgents) {
-      sharedAgentsRequest.invalidate()
-      sharedAgentsLoadedAt = 0
     }
     if (options.searchableOrganizations) {
       invalidateSearchableOrganizations(options.excludeSearchableOrganizationId)
@@ -650,41 +611,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     return response
   }
 
-  async function shareAgent(
-    agentId: string,
-    request: ShareKnowledgeBaseRequest
-  ): Promise<ApiResponse<AgentShareResponse>> {
-    const response = await shareAgentApi(agentId, request)
-    if (response.success) {
-      adjustOrganizationResourceCount(request.organization_id, 'agents', 1)
-      invalidateOrganizationData({ sharedAgents: true, sharedKnowledgeBases: true })
-      void Promise.all([
-        fetchOrganizations({ force: true }),
-        fetchSharedAgents({ force: true }),
-        fetchSharedKnowledgeBases({ force: true })
-      ])
-    }
-    return response
-  }
-
-  async function unshareAgent(
-    agentId: string,
-    shareId: string,
-    organizationId: string
-  ): Promise<ApiResponse<void>> {
-    const response = await removeAgentShareApi(agentId, shareId)
-    if (response.success) {
-      adjustOrganizationResourceCount(organizationId, 'agents', -1)
-      invalidateOrganizationData({ sharedAgents: true, sharedKnowledgeBases: true })
-      void Promise.all([
-        fetchOrganizations({ force: true }),
-        fetchSharedAgents({ force: true }),
-        fetchSharedKnowledgeBases({ force: true })
-      ])
-    }
-    return response
-  }
-
   async function inviteOrganizationMember(
     organizationId: string,
     request: InviteMemberRequest
@@ -789,19 +715,16 @@ export const useOrganizationStore = defineStore('organization', () => {
     currentOrganization.value = null
     currentMembers.value = []
     sharedKnowledgeBases.value = []
-    sharedAgents.value = []
     searchableOrganizations.value = []
     resourceCounts.value = null
     previewData.value = null
     error.value = null
     sharedKbLoadedAt = 0
-    sharedAgentsLoadedAt = 0
     organizationsLoadedAt = 0
     searchableOrganizationsQuery = ''
     searchableOrganizationCache.clear()
     organizationsRequest.invalidate()
     sharedKnowledgeBasesRequest.invalidate()
-    sharedAgentsRequest.invalidate()
   }
 
   return {
@@ -810,7 +733,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     currentOrganization,
     currentMembers,
     sharedKnowledgeBases,
-    sharedAgents,
     searchableOrganizations,
     resourceCounts,
     previewData,
@@ -837,7 +759,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     changeMemberRole,
     kickMember,
     fetchSharedKnowledgeBases,
-    fetchSharedAgents,
     fetchSearchableOrganizations,
     clearSearchableOrganizations,
     invalidateOrganizationData,
@@ -845,8 +766,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     shareKnowledgeBase,
     unshareKnowledgeBase,
     changeKnowledgeBaseSharePermission,
-    shareAgent,
-    unshareAgent,
     inviteOrganizationMember,
     reviewOrganizationJoinRequest,
     requestOrganizationRoleUpgrade,

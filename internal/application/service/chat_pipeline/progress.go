@@ -46,8 +46,6 @@ func IsConsolidatedRetrievalStage(stage types.EventType, chatManage *types.ChatM
 		return chatManage.NeedsRetrieval()
 	case types.WEB_FETCH:
 		return chatManage.WebSearchEnabled
-	case types.DATA_ANALYSIS:
-		return chatManage.DataAnalysisEnabled && chatManage.NeedsRetrieval()
 	default:
 		return false
 	}

@@ -94,12 +94,6 @@ type chatService interface {
 	KnowledgeQAStream(ctx context.Context, sessionID string, req *sdk.KnowledgeQARequest, cb func(*sdk.StreamResponse) error, opts ...sdk.ResourceURLOptions) error
 }
 
-type agentService interface {
-	ListAgents(ctx context.Context) ([]sdk.Agent, error)
-	GetAgent(ctx context.Context, agentID string) (*sdk.Agent, error)
-	AgentQAStreamWithRequest(ctx context.Context, sessionID string, req *sdk.AgentQARequest, cb sdk.AgentEventCallback, opts ...sdk.ResourceURLOptions) error
-}
-
 // chunkListService is the narrow surface chunk_list depends on. Kept
 // separate from knowledgeService because the chunk subtree is its own
 // domain on the server side (/api/v1/chunks/...).
@@ -107,17 +101,7 @@ type chunkListService interface {
 	ListKnowledgeChunks(ctx context.Context, knowledgeID string, page, pageSize int, chunkTypes ...string) ([]sdk.Chunk, int64, error)
 }
 
-// sessionAskService composes the two SDK methods session_ask needs
-// (CreateSession for the auto-session path + AgentQAStreamWithRequest
-// for the run itself). Declared here alongside the per-domain
-// interfaces above so ServiceClient (server.go) - which embeds the
-// four domain interfaces - also satisfies it.
-type sessionAskService interface {
-	CreateSession(ctx context.Context, req *sdk.CreateSessionRequest) (*sdk.Session, error)
-	AgentQAStreamWithRequest(ctx context.Context, sessionID string, req *sdk.AgentQARequest, cb sdk.AgentEventCallback, opts ...sdk.ResourceURLOptions) error
-}
-
-// registerTools wires the curated 10 tools onto server. Adding a tool here
+// registerTools wires the curated 8 tools onto server. Adding a tool here
 // is a deliberate API expansion - the agent-callable surface is the
 // reason this CLI ships an MCP server, not its CLI command list, so this
 // list must be maintained by hand.
@@ -137,8 +121,6 @@ func registerTools(server *mcpsdk.Server, svc ServiceClient) {
 	addDocDownload(server, svc)
 	addSearchChunks(server, svc)
 	addChat(server, svc)
-	addAgentList(server, svc)
-	addSessionAsk(server, svc)
 	addChunkList(server, svc)
 }
 
@@ -392,7 +374,7 @@ func addSearchChunks(server *mcpsdk.Server, svc knowledgeService) {
 	// nilable map[string]any that violates the auto-generated
 	// type=object constraint when empty. Skipping derivation by using
 	// `any` keeps the structured JSON shape identical while bypassing
-	// the over-eager validator. Same pattern applied to chat / session_ask
+	// the over-eager validator. Same pattern applied to chat
 	// below.
 	mcpsdk.AddTool(server, &mcpsdk.Tool{
 		Name:        "search_chunks",
@@ -484,7 +466,6 @@ func addChat(server *mcpsdk.Server, svc chatService) {
 		req := &sdk.KnowledgeQARequest{
 			Query:            in.Query,
 			KnowledgeBaseIDs: []string{in.KBID},
-			AgentEnabled:     false,
 			Channel:          "api",
 		}
 		projector := sse.NewProjector(in.Verbose, in.Reference, in.KBID)
@@ -511,111 +492,6 @@ func addChat(server *mcpsdk.Server, svc chatService) {
 			AssistantMessageID: projector.AssistantMessageID(),
 			KBID:               in.KBID,
 			Query:              in.Query,
-		}), nil, nil
-	})
-}
-
-// ---- agent_list ----------------------------------------------------------
-
-type agentListInput struct{}
-
-type agentListOutput struct {
-	Items []sdk.Agent `json:"items"`
-}
-
-func addAgentList(server *mcpsdk.Server, svc agentService) {
-	mcpsdk.AddTool(server, &mcpsdk.Tool{
-		Name:        "agent_list",
-		Description: "List the tenant's custom agents. Returns items[] with id, name, description, is_builtin - use to discover an agent_id before session_ask.",
-		Annotations: &mcpsdk.ToolAnnotations{
-			Title:           "List Custom Agents",
-			DestructiveHint: bptr(false),
-			ReadOnlyHint:    true,
-			IdempotentHint:  true,
-			OpenWorldHint:   bptr(false),
-		},
-	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, _ agentListInput) (*mcpsdk.CallToolResult, any, error) {
-		items, err := svc.ListAgents(ctx)
-		if err != nil {
-			return toolErrorResult(cmdutil.WrapHTTP(err, "list agents")), nil, nil
-		}
-		if items == nil {
-			items = []sdk.Agent{}
-		}
-		return successResult(agentListOutput{Items: items}), nil, nil
-	})
-}
-
-// ---- session_ask ---------------------------------------------------------
-
-type sessionAskInput struct {
-	AgentID   string `json:"agent_id" jsonschema:"custom agent ID"`
-	Query     string `json:"query" jsonschema:"user query"`
-	SessionID string `json:"session_id,omitempty" jsonschema:"existing session to continue; auto-created when empty"`
-	Reference bool   `json:"reference,omitempty" jsonschema:"include indexed references"`
-	Verbose   bool   `json:"verbose,omitempty" jsonschema:"include reasoning, tools, and lifecycle events"`
-}
-
-type sessionAskOutput struct {
-	Events    []sse.ProjectedEvent `json:"events"`
-	SessionID string               `json:"session_id"`
-	AgentID   string               `json:"agent_id"`
-	Query     string               `json:"query"`
-}
-
-func addSessionAsk(server *mcpsdk.Server, svc sessionAskService) {
-	mcpsdk.AddTool(server, &mcpsdk.Tool{
-		Name:        "session_ask",
-		Description: "Run a query through a custom agent. Returns a bounded answer-event projection by default; reference=true adds indexed citations and verbose=true adds reasoning, tool, and lifecycle events. MCP tools/call is buffered rather than streaming.",
-		Annotations: &mcpsdk.ToolAnnotations{
-			Title:           "Ask a Custom Agent (session ask --agent)",
-			DestructiveHint: bptr(false),
-			ReadOnlyHint:    false,
-			IdempotentHint:  false,
-			OpenWorldHint:   bptr(true),
-		},
-	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in sessionAskInput) (*mcpsdk.CallToolResult, any, error) {
-		if in.AgentID == "" {
-			return toolErrorResult(cmdutil.NewError(cmdutil.CodeInputMissingFlag, "agent_id is required")), nil, nil
-		}
-		if strings.TrimSpace(in.Query) == "" {
-			return toolErrorResult(cmdutil.NewError(cmdutil.CodeInputMissingFlag, "query cannot be empty")), nil, nil
-		}
-		projector := sse.NewProjector(in.Verbose, in.Reference, "")
-		events := make([]sse.ProjectedEvent, 0)
-		req := &sdk.AgentQARequest{
-			Query:        in.Query,
-			AgentEnabled: true,
-			AgentID:      in.AgentID,
-			Channel:      "api",
-		}
-		// Auto-create session if not supplied. Sessions are agent-
-		// agnostic at creation (verified against server source).
-		sessionID := in.SessionID
-		if sessionID == "" {
-			sess, err := svc.CreateSession(ctx, &sdk.CreateSessionRequest{Title: "yuheng mcp session_ask"})
-			if err != nil {
-				return toolErrorResult(cmdutil.WrapHTTP(err, "create chat session")), nil, nil
-			}
-			sessionID = sess.ID
-		}
-		streamErr := svc.AgentQAStreamWithRequest(ctx, sessionID, req, func(r *sdk.AgentStreamResponse) error {
-			if event, include := projector.Agent(r); include {
-				events = append(events, event)
-			}
-			return nil
-		})
-		if streamErr != nil {
-			return toolStreamError(cmdutil.WrapStream(streamErr, "agent-chat stream"), sessionID, ""), nil, nil
-		}
-		if !projector.Done() {
-			return toolStreamError(cmdutil.NewError(cmdutil.CodeSSEStreamAborted, "stream ended without a terminal event"), sessionID, ""), nil, nil
-		}
-		return successResult(sessionAskOutput{
-			Events:    events,
-			SessionID: sessionID,
-			AgentID:   in.AgentID,
-			Query:     in.Query,
 		}), nil, nil
 	})
 }

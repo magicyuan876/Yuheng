@@ -7,21 +7,15 @@ import (
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
-func TestResolveKnowledgeBasesFiltersImplicitAgentDefaultsForRestrictedAPIKey(t *testing.T) {
+func TestResolveKnowledgeBasesAllowsInScopeRequestKBsForRestrictedAPIKey(t *testing.T) {
 	ctx := types.WithTenantAPIKeyScope(context.Background(), types.TenantAPIKeyScope{
 		KnowledgeBaseIDs: types.StringArray{"kb-allowed"},
 	})
 	svc := &sessionService{}
 
 	kbIDs, knowledgeIDs, err := svc.resolveKnowledgeBases(ctx, &types.QARequest{
-		Session: &types.Session{TenantID: 10000},
-		CustomAgent: &types.CustomAgent{
-			TenantID: 10000,
-			Config: types.CustomAgentConfig{
-				KBSelectionMode: "selected",
-				KnowledgeBases:  []string{"kb-allowed", "kb-blocked"},
-			},
-		},
+		Session:          &types.Session{TenantID: 10000},
+		KnowledgeBaseIDs: []string{"kb-allowed"},
 	})
 	if err != nil {
 		t.Fatalf("resolveKnowledgeBases returned error: %v", err)
@@ -40,18 +34,16 @@ func TestResolveKnowledgeBasesRejectsExplicitOutOfScopeKBForRestrictedAPIKey(t *
 	})
 	svc := &sessionService{}
 
-	_, _, err := svc.resolveKnowledgeBases(ctx, &types.QARequest{
-		Session:          &types.Session{TenantID: 10000},
-		KnowledgeBaseIDs: []string{"kb-blocked"},
-		CustomAgent: &types.CustomAgent{
-			TenantID: 10000,
-			Config: types.CustomAgentConfig{
-				KBSelectionMode: "selected",
-				KnowledgeBases:  []string{"kb-allowed", "kb-blocked"},
-			},
-		},
-	})
-	if err == nil {
-		t.Fatal("expected forbidden for explicit out-of-scope knowledge_base_ids")
+	// Explicit @mention of a KB outside the key scope must be rejected, not
+	// silently filtered — the same holds for a mixed list (kb-blocked is
+	// out of scope even though kb-allowed is fine).
+	for _, requested := range [][]string{{"kb-blocked"}, {"kb-allowed", "kb-blocked"}} {
+		_, _, err := svc.resolveKnowledgeBases(ctx, &types.QARequest{
+			Session:          &types.Session{TenantID: 10000},
+			KnowledgeBaseIDs: requested,
+		})
+		if err == nil {
+			t.Fatalf("expected forbidden for explicit out-of-scope knowledge_base_ids %v", requested)
+		}
 	}
 }

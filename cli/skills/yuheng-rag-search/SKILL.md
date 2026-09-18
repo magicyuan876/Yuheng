@@ -1,6 +1,6 @@
 ---
 name: yuheng-rag-search
-description: Use when retrieving from or asking questions against a Yuheng knowledge base via the `yuheng` CLI — and especially when unsure whether to use `chat`, `session ask`, or `search chunks` for a given goal.
+description: Use when retrieving from or asking questions against a Yuheng knowledge base via the `yuheng` CLI — and especially when unsure whether to use `chat` or `search chunks` for a given goal.
 metadata:
   tested_against: v0.10
 ---
@@ -18,24 +18,19 @@ one wastes turns or returns the wrong shape. Use the decision table.
 | Your goal | Command | LLM synthesis? | Returns |
 |---|---|---|---|
 | Natural-language **answer** grounded in a KB | `chat "<q>" --kb <kb>` | yes | bounded answer events; `--reference` adds citations; `--verbose` adds execution detail |
-| Answer via a **custom agent** (its own KB scope, tools, web search) | `session ask --agent <id> "<q>"` | yes (+ tools) | bounded answer events; `--reference` adds citations; `--verbose` adds execution detail |
 | **Raw context chunks** to reason over yourself (no answer) | `search chunks "<q>" --kb <kb>` | no | ranked chunk list |
 | Which **documents** match a keyword (title/filename) | `search docs "<q>" --kb <kb>` | no | document list |
 | Find a **knowledge base** by name | `search kb "<q>"` | no | KB list |
 | Find a past **session** by title | `search sessions "<q>"` | no | session list |
 
-### The three decisions that matter
+### The decisions that matter
 
-1. **Answer vs raw context.** Want a written answer → `chat` / `session ask`.
-   Want chunks to feed into your *own* reasoning (e.g. you'll synthesize across
-   sources) → `search chunks`. Don't call `chat` just to read source text.
-2. **`chat` vs `session ask`.** `chat` = plain KB RAG Q&A. `session ask --agent
-   <id>` = invoke a *configured custom agent* (it may scope its own KBs, call
-   tools, do web search). If the user set up an agent for this, prefer it
-   (`yuheng agent list` to find ids); otherwise `chat`.
-3. **One-shot vs multi-turn.** Both `chat` and `session ask` return a
-   `data.session_id` in default JSON output. Pass `--session <id>` on the next
-   call to continue the conversation. In NDJSON mode, read it from `init`.
+1. **Answer vs raw context.** Want a written answer → `chat`. Want chunks to
+   feed into your *own* reasoning (e.g. you'll synthesize across sources) →
+   `search chunks`. Don't call `chat` just to read source text.
+2. **One-shot vs multi-turn.** `chat` returns a `data.session_id` in default
+   JSON output. Pass `--session <id>` on the next call to continue the
+   conversation. In NDJSON mode, read it from `init`.
 
 ## Safety / Gotchas
 
@@ -44,10 +39,10 @@ one wastes turns or returns the wrong shape. Use the decision table.
   If none resolves it's exit 1 (`local.kb_id_required`); a bad name is exit 1
   (`local.kb_not_found`). Resolve names with `yuheng kb list` / `search kb`.
   (`search kb` / `search sessions` are tenant-wide and take no `--kb`.)
-- `chat` / `session ask` return one buffered JSON envelope with answer
-  events by default. Add `--reference` for indexed citations and `--verbose`
-  for execution detail; use `--format ndjson` for raw events or `--format
-  text` for the live human-readable projection.
+- `chat` returns one buffered JSON envelope with answer events by default. Add
+  `--reference` for indexed citations and `--verbose` for execution detail; use
+  `--format ndjson` for raw events or `--format text` for the live
+  human-readable projection.
 - A stalled stream is not stopped by Ctrl-C (that just drops your local
   connection; the server keeps generating + billing). Stop it server-side:
   `yuheng session stop <session-id> --message <message-id>` (session_id from
@@ -70,7 +65,4 @@ yuheng chat "How do we handle retries?" --kb engineering --format text
 
 # continue the conversation (session id from data.session_id above)
 yuheng chat "And the max attempts?" --kb engineering --session sess_abc
-
-# answer via a custom agent
-yuheng session ask --agent ag_123 "Summarize this quarter's incidents"
 ```

@@ -186,7 +186,7 @@ flowchart LR
 | `DORIS_ADDR/HTTP_PORT/DATABASE/USERNAME/PASSWORD/TABLE_PREFIX/COMPAT_MODE` | 空 | Apache Doris 4.1+ |
 | `TENCENT_VECTORDB_ADDR/USERNAME/API_KEY/DATABASE/COLLECTION/REPLICA_NUMBER` | 空 | 腾讯云 VectorDB |
 | `MULTI_STORE_RETRIEVE_TIMEOUT_SEC` | 空 | 多引擎并行检索超时 |
-| `NEO4J_ENABLE` / `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` | 空 / bolt://neo4j:7687 / neo4j / password | 知识图谱唯一开关（`ENABLE_GRAPH_RAG` 自 v0.1.6 起废弃） |
+| `NEO4J_ENABLE` / `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` | 空 / bolt://neo4j:7687 / neo4j / password | 知识图谱唯一开关（`ENABLE_GRAPH_RAG` 已废弃） |
 
 ### 文件存储
 
@@ -217,7 +217,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
 | `JWT_SECRET` | 空 | JWT 签名密钥（必填） |
-| `SYSTEM_AES_KEY` | 空 | 敏感字段落盘加密的 AES-256 主密钥，**必须 32 字节**；丢失则已加密数据（租户 API Key、模型 key、向量库凭证等）不可恢复。v0.4.0 起取代 `TENANT_AES_KEY`/`CRYPTO_MASTER_KEY`/`CRYPTO_SALT` |
+| `SYSTEM_AES_KEY` | 空 | 敏感字段落盘加密的 AES-256 主密钥，**必须 32 字节**；丢失则已加密数据（租户 API Key、模型 key、向量库凭证等）不可恢复。取代已废弃的 `TENANT_AES_KEY`/`CRYPTO_MASTER_KEY`/`CRYPTO_SALT` |
 | `DISABLE_REGISTRATION` | false | true 时强制 `registration_mode=invite_only` |
 | `YUHENG_AUTH_DEFAULT_TENANT_MODE` | create_personal | 注册后建空间策略（`create_personal` / `tenantless`） |
 | `YUHENG_TENANT_ENABLE_RBAC` | （默认 true） | 空间角色强制鉴权开关 |
@@ -325,23 +325,22 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 为 smart-reasoning 模式的自定义 Agent 提供「一键预填」：每个预设（`AgentTypePresetEntry`，`internal/types/agent_type_preset.go`）包含 `id`、`i18n`（label/description 多语言）、`config`（预填值，零值不生效）与可选 `kb_filter`（限定可选知识库的能力谓词 `any_of` / `all_of` / `none_of`，能力名：`vector`、`keyword`、`wiki`、`graph`、`faq`）。前端经 `GET /agents/type-presets` 读取。
 
-内置五种预设：
+内置四种预设：
 
 | id | 系统 Prompt | 工具白名单 | 备注 |
 | --- | --- | --- | --- |
-| `rag-qa` | `progressive_rag_agent` | knowledge_search、grep_chunks、list_knowledge_chunks、get_document_info | temperature 0.7、max_iterations 30、FAQ 优先 |
+| `rag-qa` | `progressive_rag_agent` | knowledge_search、grep_chunks、list_knowledge_chunks、get_document_info | temperature 0.7、max_iterations 30 |
 | `wiki-qa` | `wiki_researcher` | wiki_search、wiki_read_page、wiki_read_source_doc、wiki_flag_issue | 需 Wiki 已启用的知识库 |
 | `hybrid-rag-wiki` | `hybrid_rag_wiki_agent` | Wiki + RAG 工具全集 | max_iterations 40，最灵活的预设 |
-| `data-analysis` | `data_analyst` | data_schema、data_analysis | temperature 0.3；`kb_filter: none_of: [faq]`；支持 csv/xlsx |
 | `custom` | 无 | 无预填 | 完全手动配置 |
 
 ## config/builtin_agents.yaml：内置 Agent
 
-定义随系统分发、对所有租户可见的 Agent（`BuiltinAgentEntry`，`internal/types/builtin_agent_config.go`）。每条含 `id`、`avatar`、`is_builtin: true`、`i18n`（default/zh-CN/zh-TW/ja-JP/ko-KR 的名称与描述）与完整 `config`（`CustomAgentConfig`）。文件内置五个 Agent：
+定义随系统分发、对所有租户可见的 Agent（`BuiltinAgentEntry`，`internal/types/builtin_agent_config.go`）。每条含 `id`、`avatar`、`is_builtin: true`、`i18n`（default/zh-CN/zh-TW/ja-JP/ko-KR 的名称与描述）与完整 `config`（`CustomAgentConfig`）。文件内置四个 Agent：
 
-- `builtin-quick-answer`：`agent_mode: quick-answer`，引用 `system_prompt_id: default_kb` 与 `context_template_id: default_context`，带完整检索参数（`embedding_top_k: 10`、`vector_threshold: 0.5`、`rerank_threshold: 0.3`、FAQ 直答阈值 0.9 等）；
+- `builtin-quick-answer`：`agent_mode: quick-answer`，引用 `system_prompt_id: default_kb` 与 `context_template_id: default_context`，带完整检索参数（`embedding_top_k: 10`、`vector_threshold: 0.5`、`rerank_threshold: 0.3` 等）；
 - `builtin-smart-reasoning`：`agent_mode: smart-reasoning`、`agent_type: rag-qa`、`max_iterations: 50`；
-- `builtin-data-analyst`、`builtin-wiki-researcher`、`builtin-wiki-fixer`：分别面向表格分析与 Wiki 场景。
+- `builtin-wiki-researcher`、`builtin-wiki-fixer`：分别面向 Wiki 场景。
 
 `config` 中的 `system_prompt_id` 在启动时由 `resolveBuiltinAgentPromptIDs` 解析为 `agent_system_prompt.yaml` 中的实际内容。修改此文件并重启即可调整内置 Agent 行为。
 

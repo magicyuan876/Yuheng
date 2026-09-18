@@ -9,7 +9,7 @@ const versionLabel = theme.value.yuhengVersion ?? 'unknown'
 const stats = [
   { value: '25', unit: '种', label: '文件格式：文档、网页、扫描件、图片、音频' },
   { value: '26', unit: '家+', label: '模型厂商，也可全部换成本地推理' },
-  { value: '9', unit: '个', label: '使用入口：Web、IM、插件、命令行、MCP' },
+  { value: '7', unit: '个', label: '使用入口：Web、插件、桌面、小程序、命令行、API、MCP' },
   { value: '4', unit: '路', label: '索引同时生效：向量、关键词、Wiki、图谱' },
 ]
 
@@ -36,7 +36,7 @@ const schema = [
     step: '04',
     name: '应用',
     hint: '对外提供的能力',
-    items: ['知识问答', 'Agent 推理', 'Wiki 站点', '数据分析', 'FAQ'],
+    items: ['知识问答', 'Wiki 站点', 'FAQ'],
   },
 ]
 
@@ -66,17 +66,15 @@ const chain = [
     step: '04',
     icon: 'answer',
     title: '给出可核对的回答',
-    desc: '常规问题单轮检索直接生成；复杂任务交给 ReAct Agent 自行决定检索几轮、调哪些工具、要不要跑数据分析。回答流式返回，逐段标注出处，可点开原文核对。',
-    href: '/03-features/07-agent',
+    desc: '先做意图识别与查询改写，向量与 BM25 并行召回、RRF 融合后交给大模型生成。回答流式返回，逐段标注出处，可点开原文核对。',
+    href: '/02-architecture/04-rag-pipeline',
   },
 ]
 
 const surfaces = [
   { icon: 'console', name: 'Web 控制台', desc: '知识库管理、对话、Wiki 浏览与系统配置的完整界面。' },
   { icon: 'extension', name: 'Chrome 插件', desc: '网页侧边栏问答，支持正文剪藏与 Markdown 速记入库。' },
-  { icon: 'embed', name: '网页嵌入挂件', desc: '一段 script 即可在自有站点提供悬浮问答，访客无需登录。' },
   { icon: 'desktop', name: '桌面客户端', desc: '单机运行的桌面应用，自带后端与本地存储；尚未正式发布，需自行构建。' },
-  { icon: 'bot', name: 'IM 机器人', desc: '企业微信、飞书、钉钉、Slack 等 10 个平台的官方适配器。' },
   { icon: 'mobile', name: '微信小程序', desc: '移动端入口，支持网页收藏入库与提问。' },
   { icon: 'cli', name: '命令行 yuheng', desc: '文档管理、检索与带引用的流式问答，默认 JSON 输出，便于脚本化。' },
   { icon: 'api', name: 'REST API 与 Go SDK', desc: '完整 /api/v1 接口；API Key 支持按能力与知识库范围授权。' },
@@ -94,21 +92,21 @@ const features = [
   {
     icon: 'version',
     title: '分块级编辑与版本管理',
-    desc: '解析结果可在分块粒度直接修正，保存后即时重建索引，每次修改保留历史版本并支持回滚。Wiki 页面同样具备版本历史，并区分管道、Agent 与人工三类编辑来源。',
+    desc: '解析结果可在分块粒度直接修正，保存后即时重建索引，每次修改保留历史版本并支持回滚。Wiki 页面同样具备版本历史，并区分管道与人工两类编辑来源。',
     href: '/03-features/02-knowledge-base',
     tag: '可维护性',
   },
   {
     icon: 'channels',
-    title: '多渠道统一接入',
-    desc: '同一个 Agent 可同时发布到 10 个 IM 平台、自有站点的嵌入挂件与浏览器插件，会话、权限与知识范围沿用同一套配置。',
-    href: '/03-features/12-im-integration',
-    tag: '接入',
+    title: '评估能力',
+    desc: '导入 Parquet 格式的问答数据集，离线跑评估任务并计算召回率、答案相关性等 12 项检索与生成指标，用于提示词与参数调整的回归验证。',
+    href: '/03-features/15-evaluation',
+    tag: '答案质量',
   },
   {
     icon: 'mcp',
-    title: 'MCP 双向集成',
-    desc: '作为客户端接入外部 MCP 服务，支持 OAuth 授权与工具级人工审批；同时可作为 MCP Server 对外提供检索能力。',
+    title: 'MCP Server 集成',
+    desc: '通过 yuheng-mcp（Python MCP Server，29 个工具）把检索、问答与知识库管理暴露给 Claude、Cursor 等 MCP 客户端；同样的能力也覆盖在 REST API 与 Go SDK。',
     href: '/03-features/08-mcp',
     tag: '工具生态',
   },
@@ -143,7 +141,7 @@ const features = [
   {
     icon: 'faq',
     title: 'FAQ 精确问答',
-    desc: '退货政策、报销流程这类答案固定的问题可直接维护成问答对，按「标准问 + 相似问 + 反例问」匹配问题而非文档片段。可与文档库被同一 Agent 检索，形成先查标准答案再翻文档的顺序。',
+    desc: '退货政策、报销流程这类答案固定的问题可直接维护成问答对，按「标准问 + 相似问 + 反例问」匹配问题而非文档片段。可与文档库被同一会话检索，形成先查标准答案再翻文档的顺序。',
     href: '/03-features/17-faq',
     tag: '答案质量',
   },
@@ -179,7 +177,7 @@ const map = [
     index: '03',
     icon: 'modules',
     title: '功能模块',
-    brief: '二十一项能力的配置项、行为约定与实现路径。',
+    brief: '十八项能力的配置项、行为约定与实现路径。',
     items: [
       { text: '租户、用户与认证授权', link: '/03-features/01-tenant-auth' },
       { text: '知识库与知识管理', link: '/03-features/02-knowledge-base' },
@@ -187,13 +185,10 @@ const map = [
       { text: '分块机制', link: '/03-features/04-chunking' },
       { text: '检索引擎与向量存储', link: '/03-features/05-retrieval-engines' },
       { text: '模型管理', link: '/03-features/06-models' },
-      { text: 'Agent 引擎', link: '/03-features/07-agent' },
       { text: 'MCP 集成', link: '/03-features/08-mcp' },
       { text: '知识图谱', link: '/03-features/09-knowledge-graph' },
       { text: '数据源导入', link: '/03-features/10-datasource' },
       { text: '网络搜索与网页抓取', link: '/03-features/11-web-search' },
-      { text: 'IM 集成', link: '/03-features/12-im-integration' },
-      { text: '网页嵌入 Embed', link: '/03-features/13-embed-channel' },
       { text: 'Wiki 能力', link: '/03-features/14-wiki' },
       { text: '评估能力', link: '/03-features/15-evaluation' },
       { text: '可观测性与审计', link: '/03-features/16-observability' },
@@ -208,12 +203,11 @@ const map = [
     index: '04',
     icon: 'api',
     title: 'API 参考',
-    brief: '约 360 个端点，含权限要求、参数表与 curl 示例。',
+    brief: '约 290 个端点，含权限要求、参数表与 curl 示例。',
     items: [
       { text: 'API 总览', link: '/04-api/01-api-overview' },
-      { text: 'Agent、MCP 与技能', link: '/04-api/02-api-agent-mcp' },
       { text: '认证与用户', link: '/04-api/02-api-auth' },
-      { text: 'IM、Embed 与文件', link: '/04-api/02-api-channels' },
+      { text: '文件服务', link: '/04-api/02-api-files' },
       { text: '会话、消息与聊天', link: '/04-api/02-api-chat' },
       { text: 'FAQ 与 Wiki', link: '/04-api/02-api-faq-wiki' },
       { text: '基础设施与数据源', link: '/04-api/02-api-infra' },
@@ -273,8 +267,8 @@ const deployments = [
           <h1 class="display">
             开源的知识库问答系统
           </h1>
-          <p class="lede">Yuheng（玉衡）将 PDF、Word、网页与飞书 / Notion / 语雀等来源的资料汇入知识库，提供检索增强的问答能力，回答标注可追溯的出处。除基础问答外，还提供 <strong>Wiki 自动成书</strong>、<strong>ReAct Agent 与 MCP 双向集成</strong>、<strong>知识图谱增强检索</strong>，以及面向团队的<strong>多空间隔离、四级 RBAC、作用域 API Key 与审计日志</strong>。支持完整私有部署，模型可全部替换为本地推理。</p>
-          <p class="lede lede-sub">本文档覆盖部署与配置、功能说明、约 360 个 API 端点的接口参考，以及二次开发的扩展点。</p>
+          <p class="lede">Yuheng（玉衡）将 PDF、Word、网页与飞书 / Notion / 语雀等来源的资料汇入知识库，提供检索增强的问答能力，回答标注可追溯的出处。除基础问答外，还提供 <strong>Wiki 自动成书</strong>、<strong>知识图谱增强检索</strong>、<strong>FAQ 精确问答</strong>，以及面向团队的<strong>多空间隔离、四级 RBAC、作用域 API Key 与审计日志</strong>。支持完整私有部署，模型可全部替换为本地推理。</p>
+          <p class="lede lede-sub">本文档覆盖部署与配置、功能说明、约 290 个 API 端点的接口参考，以及二次开发的扩展点。</p>
           <div class="actions">
             <a class="btn btn-solid" :href="withBase('/01-getting-started/01-introduction')">开始阅读</a>
             <a class="btn btn-ghost" :href="withBase('/02-architecture/01-overview')">系统架构</a>
@@ -342,7 +336,7 @@ const deployments = [
         <Illus name="flow" class="panorama-illus" />
         <p class="panorama-note">
           资料从文件、网页、音频与图片进来，统一解析后并行写入向量、关键词、Wiki 与知识图谱四路索引；
-          同一套知识库与 Agent 再展开成九种客户端，换入口不用换一套系统。
+          同一套知识库再展开成多种客户端，换入口不用换一套系统。
         </p>
       </div>
     </section>
@@ -408,8 +402,8 @@ const deployments = [
       <div class="shell">
         <header class="chapter-head">
           <span class="marker">接入方式</span>
-          <h2 class="chapter-title">九种客户端与集成入口</h2>
-          <p class="chapter-sub">同一套知识库与 Agent 配置，可从浏览器、IM、自有站点、终端与外部智能体访问，无需为各入口重复搭建。</p>
+          <h2 class="chapter-title">七种客户端与集成入口</h2>
+          <p class="chapter-sub">同一套知识库与权限配置，可从浏览器、桌面、移动端、终端与外部智能体访问，无需为各入口重复搭建。</p>
         </header>
 
         <div class="surfaces">
@@ -424,8 +418,6 @@ const deployments = [
 
         <div class="surfaces-actions">
           <a class="btn btn-ghost" :href="withBase('/05-clients/01-frontend')">查看客户端文档</a>
-          <a class="btn btn-text" :href="withBase('/03-features/13-embed-channel')">网页嵌入 ↗</a>
-          <a class="btn btn-text" :href="withBase('/03-features/12-im-integration')">IM 集成 ↗</a>
         </div>
       </div>
     </section>
@@ -435,7 +427,7 @@ const deployments = [
       <div class="shell">
         <header class="chapter-head">
           <span class="marker">文档地图</span>
-          <h2 class="chapter-title">六个部分，五十三篇</h2>
+          <h2 class="chapter-title">六个部分，四十八篇</h2>
           <p class="chapter-sub">覆盖部署上手、系统架构、功能说明、接口参考、客户端与二次开发。</p>
         </header>
 

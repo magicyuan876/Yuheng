@@ -50,10 +50,6 @@
                       <img src="@/assets/img/zhishiku.svg" class="org-meta-icon org-meta-icon-kb" alt="" aria-hidden="true" />
                       {{ org.share_count ?? 0 }}
                     </span>
-                    <span class="org-meta-tag">
-                      <t-icon name="control-platform" class="org-meta-icon org-meta-icon-agent" />
-                      {{ org.agent_share_count ?? 0 }}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -456,11 +452,6 @@ function handleGoToOrgSettings(orgId: string) {
     opacity: 0.75;
   }
 
-  .org-meta-icon-agent {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    opacity: 0.75;
-  }
 }
 </style>
 

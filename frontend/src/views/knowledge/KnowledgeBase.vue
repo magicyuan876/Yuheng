@@ -318,7 +318,7 @@ const canMutateKnowledge = computed(() => {
   return authStore.hasRole('contributor');
 });
 
-// Effective permission: from direct org share list or from GET /knowledge-bases/:id (e.g. agent-visible KB)
+// Effective permission: from direct org share list or from GET /knowledge-bases/:id
 const effectiveKBPermission = computed(() => orgStore.getKBPermission(kbId.value) || kbInfo.value?.my_permission || '');
 
 // Downloading returns the original source file, which is intentionally more

@@ -35,11 +35,6 @@ async function replayCalls() {
   )
   await ragTools.get('yuheng_ask').execute({ query: '默认的检索阈值是多少' }, exec)
 
-  const agentConfig = resolveConfig({ baseUrl: mock.url, agentId: 'agent-42' })
-  const agentAsk = createTools(new YuhengClient(agentConfig), agentConfig)
-    .find(tool => tool.name === 'yuheng_ask')
-  await agentAsk.execute({ query: '部署方式', session_id: 's1', web_search: true }, exec)
-
   return mock.requests.map(request => ({
     method: request.method,
     path: request.path,
@@ -69,7 +64,6 @@ test('the plugin makes exactly the documented Yuheng calls', () => {
 test('the fixture covers every endpoint the plugin touches', () => {
   const endpoints = new Set(observed.map(call => call.path.replace(/\/(session-mock-1|s1|doc-[\w-]+)$/, '/:id')))
   assert.deepEqual([...endpoints].sort(), [
-    '/api/v1/agent-chat/:id',
     '/api/v1/chunks/:id',
     '/api/v1/knowledge-bases',
     '/api/v1/knowledge-search',
@@ -83,10 +77,10 @@ test('the fixture covers every endpoint the plugin touches', () => {
 test('every stream event the plugin handles is declared in the fixture', async () => {
   const mock = await startMockYuheng()
   after(() => mock.close())
-  const config = resolveConfig({ baseUrl: mock.url, agentId: 'agent-42' })
+  const config = resolveConfig({ baseUrl: mock.url })
   const client = new YuhengClient(config)
   const answer = await client.ask(
-    { sessionId: 's1', query: '默认的检索阈值是多少', knowledgeBaseIds: [], agentId: 'agent-42', webSearch: false },
+    { sessionId: 's1', query: '默认的检索阈值是多少', knowledgeBaseIds: ['kb-product'], webSearch: false },
     exec.signal,
   )
   // The mock streams tool_call, references, answer and complete; error is

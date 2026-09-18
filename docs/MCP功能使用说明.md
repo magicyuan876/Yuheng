@@ -1,30 +1,71 @@
-## MCP 功能使用说明
+# MCP 功能使用说明
 
-### 功能概述
-- MCP（Model Context Protocol）让 Yuheng 可以安全地连接外部工具或数据源，扩展 Agent 在推理时可调用的能力。
-- 在前端 `设置 > MCP 服务`（`frontend/src/views/settings/McpSettings.vue`）中集中管理所有服务，无需手动改配置文件。
-- 每个服务都包含名称、传输方式（SSE / HTTP Streamable / Stdio）、连接地址或命令、认证信息以及高级超时与重试策略。
+> 本文档定位：Yuheng 不**消费** MCP 服务（服务端 MCP 服务管理已移除），而是作为**供给方**——通过 `yuheng-mcp`（Python MCP server）或 `yuheng` CLI 内置的 MCP server，把知识库能力开放给外部 Agent（Claude Desktop、Cursor、DeepSeek Harness、Kimi Code 等）。
 
-### 入口与界面
-- 打开控制台左侧菜单 `设置 -> MCP 服务`，即可看到当前空间下的所有 MCP 服务列表。
-- 列表中可快速启停服务、查看描述，并通过右侧菜单执行“测试 / 编辑 / 删除”。
-- “添加服务”按钮会弹出 `McpServiceDialog`，用于创建或修改服务。
+## 新定位：Yuheng 是你 Agent 的知识库 MCP Server
 
-### 常用操作流程
-1. **新建服务**
-   - 点击“添加服务”，填写名称与描述，选择传输方式。
-   - SSE / HTTP Streamable 需提供可访问的服务 URL；Stdio 需配置 `uvx`/`npx` 命令与参数，可附加环境变量。
-   - 根据需要填写 API Key、Bearer Token、超时与重试策略，保存后服务会出现在列表中。
-2. **启停服务**
-   - 在列表开关中切换启用状态，系统会即时调用后端 `updateMCPService`，失败时会自动回滚状态并弹出提示。
-3. **连接测试**
-   - 通过更多菜单选择“测试”，前端会调用 `/api/v1/mcp-services/{id}/test` 并弹出 `McpTestResult`。
-   - 成功时会展示服务可用的工具清单（含输入 schema）和资源列表；失败时会显示错误信息，方便排查网络或鉴权问题。
-4. **编辑 / 删除**
-   - “编辑”会带出原有配置，修改后保存即可。
-   - “删除”需要在弹窗中确认，完成后列表自动刷新。
+MCP（Model Context Protocol）让 AI Agent 以标准协议访问外部工具与数据源。Yuheng 的打开方式是：
 
-### 使用建议
-- **传输方式选择**：优先使用 SSE 获取流式体验；需要标准 HTTP Streamable 兼容时再切换；本地调试或离线环境适合使用 Stdio 并在同机启动 MCP Server。
-- **鉴权管理**：将 API Key / Token 保存在“认证配置”中，生产环境建议单独创建最小权限 Key，并定期轮换。
-- **重试策略**：对公网或第三方服务适当提高 `retry_count` 与 `retry_delay`，避免间歇性超时导致 Agent 中断
+- 外部编码 / 问答 Agent 通过 MCP 调用 Yuheng 的检索、文档、Wiki、RAG 问答能力；
+- Yuheng 自身不再内置 Agent 运行时，也不再管理第三方 MCP 服务（原「设置 > MCP 服务」页面与 `/api/v1/mcp-services` 端点已删除）。
+
+## 两种接入方式
+
+### 方式一：`yuheng-mcp`（Python MCP server，23 个工具）
+
+官方 PyPI 包 `yuheng-mcp`，支持 stdio / SSE / HTTP 三种传输，工具覆盖：租户与知识库管理、文档导入（文件 / URL / 文本）、混合检索、RAG 问答（`chat`，每次调用自动创建会话）、分块管理、Wiki 搜索与阅读、模型管理。
+
+配置步骤（Claude Desktop 示例）：
+
+```json
+{
+  "mcpServers": {
+    "yuheng": {
+      "command": "uvx",
+      "args": ["--from", "yuheng-mcp", "yuheng-mcp-server"],
+      "env": {
+        "YUHENG_API_KEY": "your_api_key_here",
+        "YUHENG_BASE_URL": "http://localhost:8080/api/v1"
+      }
+    }
+  }
+}
+```
+
+更详细的安装与配置（uv / pip / Docker、SSE / HTTP 部署）见 [`mcp-server/MCP_CONFIG.md`](../mcp-server/MCP_CONFIG.md)。
+
+### 方式二：`yuheng` CLI 内置 MCP server（8 个只读工具）
+
+`yuheng mcp serve` 把 CLI 变成一个 stdio MCP server，对外只暴露经过甄选的只读工具面：
+
+| 工具 | 用途 |
+| --- | --- |
+| `kb_list` / `kb_view` | 列出 / 查看知识库 |
+| `doc_list` / `doc_view` / `doc_download` | 列出、查看、下载文档（1 MiB 上限） |
+| `chunk_list` | 查看文档分块（RAG 检索调试） |
+| `search_chunks` | 混合检索（向量 + 关键词） |
+| `chat` | 流式 RAG 问答（无会话时自动创建） |
+
+注册方式：
+
+```json
+{"mcpServers": {"yuheng": {"command": "yuheng", "args": ["mcp", "serve"]}}}
+```
+
+认证复用 CLI 的 profile / 环境变量（`YUHENG_API_KEY` + `YUHENG_HOST`），详见 [`cli/README.md`](../cli/README.md) 与 [`cli/AGENTS.md`](../cli/AGENTS.md)。
+
+## 鉴权建议
+
+- 为 Agent 集成创建**最小权限的权限范围 API Key**（能力级授权 + 按 KB 限制），不要复用人账号密码；
+- 生产环境定期轮换 Key；Yuheng 对凭据做 AES-256-GCM 静态加密；
+- CLI MCP 面为只读设计：变更操作（上传、删除）请走 CLI 命令或 REST API，并遵守 exit-10 人工确认协议。
+
+## 变更备忘（历史参考）
+
+以下功能已随 Agent 能力剥离移除，此处保留作历史参考：
+
+| 原功能 | 现状 | 替代方案 |
+| --- | --- | --- |
+| 服务端 MCP 服务管理（`设置 > MCP 服务`、`/api/v1/mcp-services`） | 已移除 | 由 Agent 宿主自行管理 MCP server；Yuheng 侧使用 `yuheng-mcp` / `yuheng mcp serve` |
+| 内置 MCP 服务（数据库内置、全空间可见） | 已移除 | 同上 |
+| Agent 会话内调用 MCP 工具（`@MCP` 提及、OAuth 远程服务） | 已移除（ReAct 引擎移除） | 由外部 Agent 通过 MCP 调用 Yuheng |

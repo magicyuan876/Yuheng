@@ -13,8 +13,8 @@ import { useAuthStore } from '@/stores/auth'
 
 /**
  * ResourceOriginBadge – a unified, compact label that explains *where* a
- * KB or Agent comes from. Replaces the ad-hoc "我的" / "shared-by-me-badge"
- * / org_name pills scattered across KnowledgeBaseList and AgentList. The
+ * KB comes from. Replaces the ad-hoc "我的" / "shared-by-me-badge"
+ * / org_name pills scattered across KnowledgeBaseList. The
  * variants below cover the five origin shapes the list views actually
  * surface; future origins (e.g. "system" / "imported") should add a new
  * variant rather than re-using one of these.

@@ -270,7 +270,7 @@ rrfScore = vectorWeight/(rrfK + vectorRank) + keywordWeight/(rrfK + keywordRank)
 
 ```mermaid
 sequenceDiagram
-    participant P as Chat Pipeline / Agent 工具
+    participant P as Chat Pipeline
     participant H as HybridSearch
     participant G as resolveStoreGroups
     participant C as CompositeRetrieveEngine

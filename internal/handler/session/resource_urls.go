@@ -54,9 +54,8 @@ func (h *Handler) resolveStreamRewriter(c *gin.Context) (*storageurl.StreamRewri
 // that clients accumulate. A storage reference can straddle two chunks, so these
 // go through the holdback buffer; every other event carries a complete value.
 var deltaResponseTypes = map[types.ResponseType]bool{
-	types.ResponseTypeAnswer:     true,
-	types.ResponseTypeThinking:   true,
-	types.ResponseTypeReflection: true,
+	types.ResponseTypeAnswer:   true,
+	types.ResponseTypeThinking: true,
 }
 
 // terminalResponseTypes end the message as far as the client is concerned, so

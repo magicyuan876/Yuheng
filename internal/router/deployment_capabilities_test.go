@@ -13,15 +13,9 @@ import (
 func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
 	return handler.DeploymentFeatureAvailability{
 		Organizations: true,
-		Agents:        true,
-		IM:            true,
-		Embed:         true,
-		API:           true,
-		MCP:           true,
 		WebSearch:     true,
 		VectorStore:   true,
 		Storage:       true,
-		Sandbox:       true,
 	}
 }
 
@@ -35,19 +29,18 @@ func TestBuildDeploymentCapabilitiesHidesOrganizationsInLite(t *testing.T) {
 	if organization.Reason != "not_supported_in_lite" {
 		t.Fatalf("organization reason = %q, want not_supported_in_lite", organization.Reason)
 	}
-	if !result.Capabilities["agents"].Supported {
-		t.Fatal("agents should remain supported in lite edition")
+	if !result.Capabilities["settings.storage"].Supported {
+		t.Fatal("storage should remain supported in lite edition")
 	}
 }
 
 func TestBuildDeploymentCapabilitiesReflectsMissingRoutes(t *testing.T) {
 	available := allDeploymentFeaturesAvailable()
-	available.Embed = false
-	available.MCP = false
+	available.WebSearch = false
 
 	result := handler.BuildDeploymentCapabilities("standard", available)
 
-	for _, key := range []string{"integrations.embed", "settings.mcp"} {
+	for _, key := range []string{"settings.websearch"} {
 		capability := result.Capabilities[key]
 		if capability.Supported {
 			t.Fatalf("%s should be unsupported", key)
@@ -86,7 +79,7 @@ func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	if body.Code != 0 || body.Data.Edition != "standard" {
 		t.Fatalf("response = %#v", body)
 	}
-	if !body.Data.Capabilities["integrations.embed"].Supported {
-		t.Fatal("embed capability should be returned")
+	if !body.Data.Capabilities["settings.websearch"].Supported {
+		t.Fatal("websearch capability should be returned")
 	}
 }

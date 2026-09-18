@@ -45,8 +45,7 @@ type CreateService interface {
 	CreateKnowledgeBase(ctx context.Context, kb *sdk.KnowledgeBase) (*sdk.KnowledgeBase, error)
 }
 
-// NewCmdCreate builds `yuheng kb create <name>`. Positional <name> only,
-// consistent with `agent create <name>`.
+// NewCmdCreate builds `yuheng kb create <name>`. Positional <name> only.
 func NewCmdCreate(f *cmdutil.Factory) *cobra.Command {
 	opts := &CreateOptions{}
 	cmd := &cobra.Command{
@@ -64,7 +63,7 @@ func NewCmdCreate(f *cmdutil.Factory) *cobra.Command {
 			// --dry-run rejects identically to the live path. ValidateEnum
 			// returns input.invalid_argument (exit 5) and normalizes to the
 			// canonical lowercase form — consistent with every other enum flag
-			// (model --type, agent --agent-mode, message search --mode).
+			// (model --type, message search --mode).
 			// runCreate re-validates for direct-call callers.
 			canonSP, err := cmdutil.ValidateEnum("storage-provider", opts.StorageProvider, storageProviderValues)
 			if err != nil {

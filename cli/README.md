@@ -11,7 +11,6 @@ and documents, run hybrid search, chat with grounded answers, or expose
 a curated read-only MCP tool surface for AI agents.
 
 Available Commands:
-  agent       Manage custom agents (CRUD + status/check)
   api         Make a raw API request to the Yuheng server
   auth        Manage authentication credentials and profiles
   chat        Ask a streaming RAG question against a knowledge base
@@ -91,10 +90,8 @@ yuheng search chunks "what is reciprocal rank fusion?"
 # 7. Ask the LLM (streams to terminal)
 yuheng chat "summarise the design doc"
 
-# 8. Manage custom agents and run them (see `yuheng agent --help` / `yuheng session --help`)
-yuheng model list                               # discover a model id for --model
-yuheng agent list
-yuheng session ask --agent ag_abc "what's our q4 retention plan?"
+# 8. Discover a model id (for --model on chat)
+yuheng model list
 
 # 9. Inspect a document's chunks for RAG retrieval debug
 yuheng chunk list --doc doc_xyz
@@ -103,15 +100,9 @@ yuheng chunk list --doc doc_xyz
 yuheng message list --session sess_abc
 yuheng message search "retry policy"                      # cross-session Q&A retrieval
 
-# 11. Resolve a pending tool approval (agent run blocked on approval event)
-yuheng session tool-approval resolve pend_xxx -y          # approve (after user go-ahead)
-yuheng session resume sess_abc --message msg_xyz # resume the blocked stream
-
-# 12. Health & verification verbs
+# 11. Health & verification verbs
 yuheng kb status kb_abc       # fast snapshot: reachable / counts / processing flag (1 HTTP)
 yuheng kb check kb_abc        # deep verify: also aggregates failed_count via doc list (1+N HTTP)
-yuheng agent status ag_abc    # fast: reachable / model_id
-yuheng agent check ag_abc     # deep: probes every KB in the agent's scope
 ```
 
 ---
@@ -149,7 +140,7 @@ under [`skills/`](skills/) that teach an agent to drive Yuheng without trial and
   sequence, `--kb` resolution, the JSON-envelope + exit-code contract, the exit-10
   protocol, `--dry-run`, and CLI-vs-MCP selection.
 - [`yuheng-rag-search`](skills/yuheng-rag-search/SKILL.md) — when to use `chat`
-  vs `session ask` vs `search chunks`, plus retrieval gotchas.
+  vs `search chunks`, plus retrieval gotchas.
 
 Install them with the CLI (the skills are embedded in the binary, no checkout
 needed):
@@ -277,14 +268,14 @@ Run `yuheng exit-codes` for the machine-readable matrix (JSON); `yuheng help exi
 **Exit 10** is the wire-level signal for "destructive write needs
 explicit confirmation". Pass `-y/--yes` on `kb delete` /
 `doc delete` (including `--all --kb=<id>`) / `session delete` /
-`profile remove` (on the current profile) / `agent delete` /
+`profile remove` (on the current profile) /
 `chunk delete` when running headless.
 **Never auto-add `-y` without the user's explicit go-ahead** — exit 10
 is the guard against unintended writes.
 
 ### Other AI-agent ergonomics
 
-- For chat / session ask in AI-agent contexts, pass `--format json` for a
+- For chat in AI-agent contexts, pass `--format json` for a
   bounded answer-event envelope. Add `--reference` for indexed citations,
   `--verbose` for reasoning/tools/lifecycle events, or `--format ndjson` for
   the unmodified raw stream.
@@ -316,8 +307,6 @@ operations that intentionally go through `yuheng api`:
 - **Per-request `chat` parameters** — multi-KB scope, summary model
   override, image attachments, web search toggle. Use `yuheng api POST
   /api/v1/knowledge-chat/<session-id> --input -`.
-- **Per-request `session ask --agent` overrides** — same shape via
-  `yuheng api POST /api/v1/agent-chat/<session-id> --input -`.
 - **Operations without a CLI verb** — register / change-password /
   OIDC flows, organization / sharing endpoints, tenant management.
 
@@ -368,11 +357,11 @@ yuheng api /api/v1/knowledge-bases --dry-run                                    
 
 ## Resuming streams
 
-The `yuheng session resume` command resumes an SSE event stream for an existing assistant message. Useful for network-blip recovery or polling long-running agent invocations:
+The `yuheng session resume` command resumes an SSE event stream for an existing assistant message. Useful for network-blip recovery or polling long-running answers:
 
 ```bash
 # Original streaming call captures session_id + message_id from init event:
-yuheng session ask "..." --agent ag_xxxx --format ndjson | tee /tmp/stream.ndjson
+yuheng chat "..." --format ndjson | tee /tmp/stream.ndjson
 # {"type":"init","session_id":"sess_abc","message_id":"msg_xyz"}
 # ... events flow ...
 # [network blip]
@@ -382,21 +371,6 @@ yuheng session resume sess_abc --message msg_xyz
 # Server REPLAYS all stored events from the start, then tails new ones.
 # Agent must dedupe (by message_id or event hash) to avoid double-processing.
 ```
-
-### Tool-approval unlock chain
-
-An agent run may pause the stream on a tool-approval event until a human approves or rejects the pending tool call. The unlock sequence:
-
-```bash
-# 1. Stream pauses with a tool-approval event carrying a pending_id.
-# 2. Surface the pending tool call to the user; get explicit go-ahead.
-yuheng session tool-approval resolve pend_xxx -y                      # approve
-# yuheng session tool-approval resolve pend_xxx --reject --reason "..." -y  # reject
-# 3. Resume the stream — server replays + tails from where the run was blocked.
-yuheng session resume sess_abc --message msg_xyz
-```
-
-Pass `--modified-args '{"key":"value"}'` to replace tool arguments on approve (must be a non-empty JSON object). Never auto-pass `-y` — the approval is the exit-10 human-in-the-loop gate.
 
 Server-side buffer TTL: 1 hour for redis mode; process lifetime for memory mode (default). After TTL, expect `local.sse_stream_aborted` typed error.
 
@@ -418,8 +392,6 @@ a fast vs deep choice:
 |---|---|---|
 | `yuheng kb status <kb-id>`     | 1 HTTP    | live counts / processing flag |
 | `yuheng kb check <kb-id>`      | 1+N HTTP  | adds `failed_count` via doc-list page-walk |
-| `yuheng agent status <agent-id>` | 1 HTTP  | reachable / model_id |
-| `yuheng agent check <agent-id>`  | 1+N HTTP | also probes every KB in the agent's scope |
 
 `yuheng doc wait <doc-id> [<doc-id>...]` blocks until each document
 reaches a terminal `parse_status` (completed or failed). Exit codes:

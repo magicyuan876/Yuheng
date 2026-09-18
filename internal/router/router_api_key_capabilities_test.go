@@ -29,7 +29,6 @@ func TestConversationRoutesDeclareChatCapability(t *testing.T) {
 		{http.MethodPost, "/api/v1/sessions/:session_id/messages/:message_id/suggestions"},
 		{http.MethodPost, "/api/v1/sessions/:session_id/suggestion-events"},
 		{http.MethodPost, "/api/v1/knowledge-chat/:session_id"},
-		{http.MethodPost, "/api/v1/agent-chat/:session_id"},
 		{http.MethodGet, "/api/v1/messages/:session_id/load"},
 		{http.MethodDelete, "/api/v1/messages/:session_id/:id"},
 	}
@@ -140,76 +139,6 @@ func TestMessageHistoryRoutesDeclareMessageHistoryCapability(t *testing.T) {
 			}
 			if policyHasCapability(policy, types.APIKeyCapabilityChat) {
 				t.Fatalf("message-history route must not be granted by chat: %#v", policy.Capabilities)
-			}
-		})
-	}
-}
-
-func TestAgentReadRoutesDeclareReadAgentsCapability(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	g := &rbacGuards{}
-	v1 := gin.New().Group("/api/v1")
-
-	RegisterCustomAgentRoutes(v1, &handler.CustomAgentHandler{}, g)
-
-	cases := []struct {
-		method string
-		path   string
-	}{
-		{http.MethodGet, "/api/v1/agents/placeholders"},
-		{http.MethodGet, "/api/v1/agents/type-presets"},
-		{http.MethodGet, "/api/v1/agents"},
-		{http.MethodGet, "/api/v1/agents/:id"},
-		{http.MethodGet, "/api/v1/agents/:id/suggested-questions"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
-			policy := mustLookupAPIKeyPolicy(t, g, tc.method, tc.path)
-			if !policy.RequireFullAccess {
-				t.Fatal("policy should require full access without a matching capability")
-			}
-			if !policyHasCapability(policy, types.APIKeyCapabilityReadAgents) {
-				t.Fatalf("policy capabilities = %#v, want read_agents", policy.Capabilities)
-			}
-			if !policyHasCapability(policy, types.APIKeyCapabilityChat) {
-				t.Fatalf("policy capabilities = %#v, want chat for conversation clients", policy.Capabilities)
-			}
-			if !policyHasCapability(policy, types.APIKeyCapabilityManageAgents) {
-				t.Fatalf("policy capabilities = %#v, want manage_agents for authoring clients", policy.Capabilities)
-			}
-		})
-	}
-}
-
-func TestAgentWriteRoutesRequireManageAgentsCapability(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	g := &rbacGuards{}
-	v1 := gin.New().Group("/api/v1")
-
-	RegisterCustomAgentRoutes(v1, &handler.CustomAgentHandler{}, g)
-
-	cases := []struct {
-		method string
-		path   string
-	}{
-		{http.MethodPost, "/api/v1/agents"},
-		{http.MethodPut, "/api/v1/agents/:id"},
-		{http.MethodDelete, "/api/v1/agents/:id"},
-		{http.MethodPost, "/api/v1/agents/:id/copy"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
-			policy := mustLookupAPIKeyPolicy(t, g, tc.method, tc.path)
-			if !policy.RequireFullAccess {
-				t.Fatal("policy should require full access without a matching capability")
-			}
-			if !policyHasCapability(policy, types.APIKeyCapabilityManageAgents) {
-				t.Fatalf("policy capabilities = %#v, want manage_agents", policy.Capabilities)
-			}
-			if policyHasCapability(policy, types.APIKeyCapabilityReadAgents) {
-				t.Fatalf("agent write route must not be granted by read_agents: %#v", policy.Capabilities)
 			}
 		})
 	}
@@ -338,13 +267,9 @@ func TestTenantInfrastructureRoutesDeclareSpecificCapabilities(t *testing.T) {
 	RegisterModelRoutes(v1, &handler.ModelHandler{}, &handler.ModelCredentialsHandler{}, g)
 	RegisterEvaluationRoutes(v1, &handler.EvaluationHandler{}, g)
 	RegisterSystemRoutes(v1, &handler.SystemHandler{}, g)
-	RegisterMCPServiceRoutes(v1, &handler.MCPServiceHandler{}, &handler.MCPCredentialsHandler{}, &handler.MCPOAuthHandler{}, g)
 	RegisterWebSearchProviderRoutes(v1, &handler.WebSearchProviderHandler{}, &handler.WebSearchProviderCredentialsHandler{}, g)
 	RegisterVectorStoreRoutes(v1, &handler.VectorStoreHandler{}, g)
 	RegisterStorageBackendRoutes(v1, &handler.StorageBackendHandler{}, g)
-	RegisterSandboxConfigRoutes(v1, &handler.SandboxConfigHandler{}, &handler.SandboxSkillHandler{}, g)
-	RegisterEmbedChannelRoutes(v1, &handler.EmbedChannelHandler{}, g)
-	RegisterIMChannelRoutes(v1, &handler.IMHandler{}, g)
 	RegisterDataSourceRoutes(v1, &handler.DataSourceHandler{}, &handler.DataSourceCredentialsHandler{}, g)
 
 	capabilitiesPolicy := mustLookupAPIKeyPolicy(t, g, http.MethodGet, "/api/v1/system/capabilities")
@@ -361,12 +286,9 @@ func TestTenantInfrastructureRoutesDeclareSpecificCapabilities(t *testing.T) {
 		{http.MethodGet, "/api/v1/models", types.APIKeyCapabilityManageModels},
 		{http.MethodPost, "/api/v1/evaluation", types.APIKeyCapabilityRunEvaluations},
 		{http.MethodGet, "/api/v1/system/info", types.APIKeyCapabilityManageVectorStores},
-		{http.MethodGet, "/api/v1/mcp-services", types.APIKeyCapabilityManageMCPServices},
 		{http.MethodGet, "/api/v1/web-search-providers", types.APIKeyCapabilityManageWebSearch},
 		{http.MethodGet, "/api/v1/vector-stores", types.APIKeyCapabilityManageVectorStores},
 		{http.MethodGet, "/api/v1/storage-backends", types.APIKeyCapabilityManageStorageBackends},
-		{http.MethodGet, "/api/v1/embed-channels", types.APIKeyCapabilityManageChannels},
-		{http.MethodGet, "/api/v1/im-channels", types.APIKeyCapabilityManageChannels},
 		{http.MethodGet, "/api/v1/datasource", types.APIKeyCapabilityManageDataSources},
 	}
 
@@ -378,50 +300,6 @@ func TestTenantInfrastructureRoutesDeclareSpecificCapabilities(t *testing.T) {
 			}
 			if !policyHasCapability(policy, tc.cap) {
 				t.Fatalf("policy capabilities = %#v, want %s", policy.Capabilities, tc.cap)
-			}
-		})
-	}
-}
-
-func TestSandboxConfigRoutesRequireFullAccessOnly(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	g := &rbacGuards{}
-	v1 := gin.New().Group("/api/v1")
-
-	RegisterSandboxConfigRoutes(v1, &handler.SandboxConfigHandler{}, &handler.SandboxSkillHandler{}, g)
-
-	cases := []struct {
-		method string
-		path   string
-	}{
-		{http.MethodGet, "/api/v1/sandbox-configs"},
-		{http.MethodPost, "/api/v1/sandbox-configs"},
-		{http.MethodPost, "/api/v1/sandbox-configs/templates/query"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id"},
-		{http.MethodPut, "/api/v1/sandbox-configs/:id"},
-		{http.MethodDelete, "/api/v1/sandbox-configs/:id"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/sandboxes"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills"},
-		{http.MethodPost, "/api/v1/sandbox-configs/:id/skills"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills/:skillId"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills/:skillId/files"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills/:skillId/files/content"},
-		{http.MethodPatch, "/api/v1/sandbox-configs/:id/skills/:skillId"},
-		{http.MethodDelete, "/api/v1/sandbox-configs/:id/skills/:skillId"},
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills/:skillId/install-events"},
-		// The transcript replays the root shell session that built the image,
-		// so it must not be reachable by a scoped key either.
-		{http.MethodGet, "/api/v1/sandbox-configs/:id/skills/:skillId/transcript"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
-			policy := mustLookupAPIKeyPolicy(t, g, tc.method, tc.path)
-			if !policy.RequireFullAccess {
-				t.Fatal("sandbox config routes should require full access")
-			}
-			if len(policy.Capabilities) != 0 {
-				t.Fatalf("sandbox config routes must not be granted by a scoped capability: %#v", policy.Capabilities)
 			}
 		})
 	}
@@ -485,8 +363,6 @@ func TestOrganizationRoutesDeclareManageSpacesCapability(t *testing.T) {
 		{http.MethodGet, "/api/v1/organizations/:id/members"},
 		{http.MethodPut, "/api/v1/organizations/:id/members/:tenant_id"},
 		{http.MethodGet, "/api/v1/shared-knowledge-bases"},
-		{http.MethodGet, "/api/v1/shared-agents"},
-		{http.MethodPost, "/api/v1/shared-agents/disabled"},
 	}
 
 	for _, tc := range cases {
@@ -501,7 +377,7 @@ func TestOrganizationRoutesDeclareManageSpacesCapability(t *testing.T) {
 		})
 	}
 
-	// KB/agent share management is open to full-access keys (tenant-wide
+	// KB share management is open to full-access keys (tenant-wide
 	// authority) but never via a capability.
 	shareRoutes := []struct {
 		method string
@@ -511,9 +387,6 @@ func TestOrganizationRoutesDeclareManageSpacesCapability(t *testing.T) {
 		{http.MethodGet, "/api/v1/knowledge-bases/:id/shares"},
 		{http.MethodPut, "/api/v1/knowledge-bases/:id/shares/:share_id"},
 		{http.MethodDelete, "/api/v1/knowledge-bases/:id/shares/:share_id"},
-		{http.MethodPost, "/api/v1/agents/:id/shares"},
-		{http.MethodGet, "/api/v1/agents/:id/shares"},
-		{http.MethodDelete, "/api/v1/agents/:id/shares/:share_id"},
 	}
 	for _, tc := range shareRoutes {
 		t.Run("share "+tc.method+" "+tc.path, func(t *testing.T) {

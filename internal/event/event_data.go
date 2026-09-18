@@ -98,32 +98,6 @@ func (e Event) WithMetadata(key string, value interface{}) Event {
 	return e
 }
 
-// AgentPlanData represents agent planning event data
-type AgentPlanData struct {
-	Query    string   `json:"query"`
-	Plan     []string `json:"plan"` // Step descriptions
-	Duration int64    `json:"duration_ms,omitempty"`
-}
-
-// AgentStepData represents agent step event data
-type AgentStepData struct {
-	Iteration int         `json:"iteration"`
-	Thought   string      `json:"thought"`
-	ToolCalls interface{} `json:"tool_calls"` // []types.ToolCall
-	Duration  int64       `json:"duration_ms"`
-}
-
-// AgentActionData represents agent tool execution event data
-type AgentActionData struct {
-	Iteration  int                    `json:"iteration"`
-	ToolName   string                 `json:"tool_name"`
-	ToolInput  map[string]interface{} `json:"tool_input"`
-	ToolOutput string                 `json:"tool_output"`
-	Success    bool                   `json:"success"`
-	Error      string                 `json:"error,omitempty"`
-	Duration   int64                  `json:"duration_ms"`
-}
-
 // AgentQueryData represents agent query event data
 type AgentQueryData struct {
 	SessionID string                 `json:"session_id"`
@@ -183,26 +157,11 @@ type AgentReferencesData struct {
 	Iteration  int         `json:"iteration"`
 }
 
-// MemoryRecalledData carries the long-term memories injected into this turn.
-// Memories is []types.UsedMemory, kept as interface{} for the same reason
-// AgentReferencesData does: the event package stays free of a types import.
-type MemoryRecalledData struct {
-	Memories interface{} `json:"memories"`
-}
-
 // AgentFinalAnswerData represents final answer streaming data
 type AgentFinalAnswerData struct {
 	Content    string `json:"content"`
 	Done       bool   `json:"done"`
 	IsFallback bool   `json:"is_fallback,omitempty"` // True when response is a fallback (no knowledge base match)
-}
-
-// AgentReflectionData represents agent reflection data
-type AgentReflectionData struct {
-	ToolCallID string `json:"tool_call_id"` // Tool call ID for tracking
-	Content    string `json:"content"`
-	Iteration  int    `json:"iteration"`
-	Done       bool   `json:"done"` // Whether streaming is complete
 }
 
 // SessionTitleData represents session title update data
@@ -216,60 +175,4 @@ type StopData struct {
 	SessionID string `json:"session_id"`
 	MessageID string `json:"message_id"`
 	Reason    string `json:"reason,omitempty"` // Optional reason for stopping
-}
-
-// ToolApprovalRequiredData is emitted when an MCP tool marked dangerous is about to run.
-type ToolApprovalRequiredData struct {
-	PendingID          string      `json:"pending_id"`
-	TenantID           uint64      `json:"tenant_id"`
-	SessionID          string      `json:"session_id"`
-	AssistantMessageID string      `json:"assistant_message_id"`
-	ServiceID          string      `json:"service_id"`
-	ServiceName        string      `json:"service_name"`
-	MCPToolName        string      `json:"mcp_tool_name"`
-	RegisteredToolName string      `json:"registered_tool_name"`
-	Description        string      `json:"description"`
-	Args               interface{} `json:"args,omitempty"`
-	ArgsJSON           string      `json:"args_json,omitempty"`
-	TimeoutSeconds     int         `json:"timeout_seconds"`
-	RequestedAtUnix    int64       `json:"requested_at"`
-	ToolCallID         string      `json:"tool_call_id"`
-	RequestID          string      `json:"request_id,omitempty"`
-}
-
-// ToolApprovalResolvedData confirms the user decision (or timeout/cancel).
-type ToolApprovalResolvedData struct {
-	PendingID string `json:"pending_id"`
-	Approved  bool   `json:"approved"`
-	Reason    string `json:"reason,omitempty"`
-	TimedOut  bool   `json:"timed_out,omitempty"`
-	Canceled  bool   `json:"canceled,omitempty"`
-}
-
-// MCPOAuthRequiredData is emitted when an OAuth-enabled MCP service is invoked
-// during a conversation but the current user has not authorized it yet. The
-// UI surfaces an "Authorize" card; the agent pauses until the user authorizes.
-type MCPOAuthRequiredData struct {
-	PendingID          string `json:"pending_id"`
-	TenantID           uint64 `json:"tenant_id"`
-	SessionID          string `json:"session_id"`
-	AssistantMessageID string `json:"assistant_message_id"`
-	ServiceID          string `json:"service_id"`
-	ServiceName        string `json:"service_name"`
-	MCPToolName        string `json:"mcp_tool_name"`
-	TimeoutSeconds     int    `json:"timeout_seconds"`
-	RequestedAtUnix    int64  `json:"requested_at"`
-	ToolCallID         string `json:"tool_call_id"`
-	RequestID          string `json:"request_id,omitempty"`
-}
-
-// MCPOAuthResolvedData confirms the outcome of an in-conversation OAuth prompt
-// (authorized / timeout / cancel).
-type MCPOAuthResolvedData struct {
-	PendingID  string `json:"pending_id"`
-	ServiceID  string `json:"service_id"`
-	Authorized bool   `json:"authorized"`
-	Reason     string `json:"reason,omitempty"`
-	TimedOut   bool   `json:"timed_out,omitempty"`
-	Canceled   bool   `json:"canceled,omitempty"`
 }

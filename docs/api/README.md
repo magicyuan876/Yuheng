@@ -84,12 +84,11 @@ X-Request-ID: unique_request_id
 支持该参数的接口：
 
 - `POST /api/v1/knowledge-chat/{session_id}`（SSE）
-- `POST /api/v1/agent-chat/{session_id}`（SSE）
 - `GET /api/v1/sessions/continue-stream/{session_id}`（SSE）
 - `GET /api/v1/messages/{session_id}/load`
 - `POST /api/v1/knowledge-search`
 
-改写覆盖答案正文、`knowledge_references`（含 `image_info`）、Agent 执行步骤与工具结果，以及消息
+改写覆盖答案正文、`knowledge_references`（含 `image_info`）以及消息
 上的图片附件。流式回答里跨两个 chunk 被截断的引用会先缓冲再改写，客户端拿到的始终是完整链接。
 
 ### 注意事项
@@ -99,8 +98,6 @@ X-Request-ID: unique_request_id
   仍可回退到 `/files` 代理。详见 `.env.example` 中的 `APP_EXTERNAL_URL` 说明。
 - **直链是限时匿名可读的**（Yuheng 签发的 grant 2 小时，MinIO 预签名 24 小时）。任何拿到链接的
   人在过期前都能读取该文件，请勿写入日志或转发给不应看到该文件的一方。
-- **嵌入式（embed）渠道不支持该参数。** 其访客是匿名的，`/api/v1/embed/...` 下的接口会强制使用
-  `handle`（即使传了 `?resource_urls=public`、或部署默认是 `public`），图片仍走渠道维度的鉴权代理。
 - **限定知识库的 API Key 不能使用 `public`**，返回 `403`。这类 Key 本身也被拒绝访问 `/files`
   代理，若能拿到匿名直链等于绕过同一道限制。改用 `handle` 即可正常调用。
 - **同一文件的直链会在有效期内复用**：重复请求不会反复签发凭证，也不会每次都拿到不同的 URL，客户端
@@ -120,19 +117,17 @@ Yuheng API 按功能分为以下几类：
 | 分块管理 | 管理知识的分块内容 | [chunk.md](./chunk.md) |
 | 标签管理 | 管理知识库的标签分类 | [tag.md](./tag.md) |
 | FAQ管理 | 管理FAQ问答对 | [faq.md](./faq.md) |
-| 智能体管理 | 创建和管理自定义智能体 | [agent.md](./agent.md) |
 | 会话管理 | 创建和管理对话会话 | [session.md](./session.md) |
 | 知识搜索 | 在知识库中搜索内容 | [knowledge-search.md](./knowledge-search.md) |
-| 聊天功能 | 基于知识库和 Agent 进行问答 | [chat.md](./chat.md) |
+| 聊天功能 | 基于知识库的 RAG 问答 | [chat.md](./chat.md) |
 | 消息管理 | 获取和管理对话消息 | [message.md](./message.md) |
 | 评估功能 | 评估模型性能 | [evaluation.md](./evaluation.md) |
 | 初始化管理 | 知识库模型配置与 Ollama 管理 | [initialization.md](./initialization.md) |
 | 系统管理 | 系统信息、解析引擎、存储引擎 | [system.md](./system.md) |
-| MCP 服务 | MCP 工具服务管理 | [mcp-service.md](./mcp-service.md) |
-| 组织管理 | 组织、成员、知识库/智能体共享 | [organization.md](./organization.md) |
-| Skills | 预装智能体技能 | [skill.md](./skill.md) |
+| 组织管理 | 组织、成员、知识库共享 | [organization.md](./organization.md) |
 | 网络搜索 | 网络搜索服务商 | [web-search.md](./web-search.md) |
 | 向量存储 | 向量数据库连接管理 | [vector-store.md](./vector-store.md) |
 | 存储后端 | 对象/文件存储实例（多实例）管理 | [storage-backend.md](./storage-backend.md) |
-| IM 渠道 | 企业微信 / 飞书 / Slack 等 IM 平台对接，含渠道 CRUD 与回调 | [../IM集成开发文档.md](../IM集成开发文档.md) |
 | 数据源导入 | 飞书 / 企微 / Notion / Confluence 等外部数据源接入与同步 | [../数据源导入开发文档.md](../数据源导入开发文档.md) |
+
+> **变更说明**：智能体管理（`agent.md`）、Skills（`skill.md`）、MCP 服务管理（`mcp-service.md`）与 IM 渠道集成文档已随 Agent 能力剥离移除，对应端点现在返回 `404`。Agent 集成请改用 REST API / Go SDK（`client/`）/ CLI / `yuheng-mcp` MCP server，见 [MCP 功能使用说明](../MCP功能使用说明.md)。

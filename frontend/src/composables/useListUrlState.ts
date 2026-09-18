@@ -2,7 +2,7 @@
 // filter, free-text query) reflected in the route's query string so the
 // URL is shareable, bookmarkable and survives a browser back/forward.
 //
-// Why a composable instead of inlining: KnowledgeBaseList and AgentList
+// Why a composable instead of inlining: KnowledgeBaseList
 // share the same three filters and the same URL-encoding rules. Centralising
 // here means changing the schema (e.g. renaming `scope` -> `view`) is a
 // one-line change for both pages.

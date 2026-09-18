@@ -33,7 +33,6 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/magicyuan876/yuheng/internal/agent/approval"
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	dorisRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/doris"
 	elasticsearchRepoV7 "github.com/magicyuan876/yuheng/internal/application/repository/retriever/elasticsearch/v7"
@@ -49,7 +48,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/application/service"
 	chatpipeline "github.com/magicyuan876/yuheng/internal/application/service/chat_pipeline"
 	"github.com/magicyuan876/yuheng/internal/application/service/file"
-	"github.com/magicyuan876/yuheng/internal/application/service/memory"
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/common"
 	"github.com/magicyuan876/yuheng/internal/config"
@@ -66,20 +64,9 @@ import (
 	"github.com/magicyuan876/yuheng/internal/event"
 	"github.com/magicyuan876/yuheng/internal/handler"
 	"github.com/magicyuan876/yuheng/internal/handler/session"
-	imPkg "github.com/magicyuan876/yuheng/internal/im"
-	"github.com/magicyuan876/yuheng/internal/im/dingtalk"
-	"github.com/magicyuan876/yuheng/internal/im/feishu"
-	"github.com/magicyuan876/yuheng/internal/im/mattermost"
-	"github.com/magicyuan876/yuheng/internal/im/qqbot"
-	"github.com/magicyuan876/yuheng/internal/im/slack"
-	"github.com/magicyuan876/yuheng/internal/im/telegram"
-	"github.com/magicyuan876/yuheng/internal/im/wechat"
-	"github.com/magicyuan876/yuheng/internal/im/wecom"
-	"github.com/magicyuan876/yuheng/internal/im/yunzhijia"
 	"github.com/magicyuan876/yuheng/internal/infrastructure/docparser"
 	infra_web_search "github.com/magicyuan876/yuheng/internal/infrastructure/web_search"
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/mcp"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/models/embedding"
 	"github.com/magicyuan876/yuheng/internal/models/limiter"
@@ -161,40 +148,15 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(repository.NewAuthTokenRepository))
 	must(container.Provide(repository.NewSystemSettingRepository))
 	must(container.Provide(neo4jRepo.NewNeo4jRepository))
-	must(container.Provide(repository.NewMCPServiceRepository))
-	must(container.Provide(repository.NewMCPToolApprovalRepository))
-	must(container.Provide(repository.NewMCPOAuthRepository))
-	must(container.Provide(repository.NewTenantSandboxConfigRepository))
-	must(container.Provide(repository.NewTenantSkillRepository))
-	must(container.Provide(repository.NewCustomAgentRepository))
 	must(container.Provide(repository.NewOrganizationRepository))
 	must(container.Provide(repository.NewKBShareRepository))
-	must(container.Provide(repository.NewAgentShareRepository))
-	must(container.Provide(repository.NewEmbedChannelRepository))
-	must(container.Provide(repository.NewTenantDisabledSharedAgentRepository))
 	must(container.Provide(repository.NewUserResourceFavoriteRepository))
 	must(container.Provide(service.NewWebSearchStateService))
 	must(container.Provide(repository.NewDataSourceRepository))
 	must(container.Provide(repository.NewSyncLogRepository))
 	must(container.Provide(repository.NewWikiPageRepository))
-	must(container.Provide(repository.NewMemoryRepository))
 	must(container.Provide(repository.NewTaskPendingOpsRepository))
 	must(container.Provide(repository.NewTaskDeadLetterRepository))
-
-	// MCP manager for managing MCP client connections
-	logger.Debugf(ctx, "[Container] Registering MCP manager...")
-	must(container.Provide(mcp.NewMCPManager))
-	must(container.Provide(mcp.NewOAuthManager))
-
-	// Sandbox manager fallback is disabled; executable backends are resolved
-	// from named workspace configurations.
-	logger.Debugf(ctx, "[Container] Registering sandbox manager...")
-	must(container.Provide(newSandboxManager))
-	// Per-tenant sandbox backends: the resolver builds a manager per request
-	// from the tenant's own configuration, falling back to the singleton above
-	// for tenants that configured nothing.
-	must(container.Provide(service.NewTenantSandboxConfigLoader))
-	must(container.Provide(newTenantSandboxResolver))
 
 	// Business service layer
 	logger.Debugf(ctx, "[Container] Registering business services...")
@@ -207,7 +169,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(service.NewKnowledgeBaseService))
 	must(container.Provide(service.NewOrganizationService))
 	must(container.Provide(service.NewKBShareService)) // KBShareService must be registered before KnowledgeService and KnowledgeTagService
-	must(container.Provide(service.NewAgentShareService))
 	must(container.Provide(service.NewKnowledgeService))
 	must(container.Provide(service.NewSpanTracker))
 	must(container.Provide(service.NewChunkService))
@@ -222,17 +183,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	// The read half is additionally registered as a process-wide hook in
 	// cmd/server/bootstrap.go so the existing DocReader call sites pick it up.
 	must(container.Provide(service.NewParserEngineResolver))
-	must(container.Provide(func(
-		repo repository.TenantSandboxConfigRepository,
-		agents interfaces.CustomAgentRepository,
-		skills repository.TenantSkillRepository,
-		files interfaces.StorageBackendResolver,
-	) *service.TenantSandboxConfigService {
-		return service.NewTenantSandboxConfigService(repo, agents, buildGlobalSandboxConfig(), skills, files)
-	}))
-	must(container.Provide(func(s *service.TenantSandboxConfigService) service.WorkspaceSandboxPolicy {
-		return s
-	}))
 
 	// Extract services - register individual extracters with names
 	must(container.Provide(service.NewChunkExtractService, dig.Name("chunkExtractor")))
@@ -243,16 +193,12 @@ func BuildContainer(container *dig.Container) *dig.Container {
 
 	must(container.Provide(service.NewMessageService))
 	must(container.Provide(service.NewMessageSuggestionService))
-	must(container.Provide(service.NewMCPServiceService))
-	must(container.Provide(service.NewMCPToolApprovalService))
-	must(container.Provide(service.NewCustomAgentService))
 	must(container.Provide(service.NewUserResourceFavoriteService))
 	must(container.Provide(service.NewWikiPageService))
 	must(container.Provide(service.NewWikiIngestService, dig.Name("wikiIngest")))
 	must(container.Provide(service.NewWikiLintService))
-	must(container.Provide(service.NewEmbedChannelService))
 
-	// Web search service (needed by AgentService)
+	// Web search registry and providers
 	logger.Debugf(ctx, "[Container] Registering web search registry and providers...")
 	must(container.Provide(infra_web_search.NewRegistry))
 	must(container.Invoke(registerWebSearchProviders))
@@ -282,33 +228,12 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendService { return s }))
 	must(container.Provide(func(s *service.StorageBackendService) interfaces.StorageBackendResolver { return s }))
 
-	// Agent service layer (requires event bus, web search service)
-	// SessionService is passed as parameter to CreateAgentEngine method when creating AgentService
-	logger.Debugf(ctx, "[Container] Registering event bus and agent service...")
+	// Event bus and session service
+	logger.Debugf(ctx, "[Container] Registering event bus and session service...")
 	must(container.Provide(event.NewEventBus))
-	must(container.Provide(service.NewSessionSandboxPinner))
-	must(container.Provide(func(cfg *config.Config, s interfaces.MCPToolApprovalService, rdb *redis.Client) *approval.Gate {
-		return approval.NewGate(cfg, &approval.Adapter{Svc: s}, rdb)
-	}))
-	// Expose Gate as MCPApproval interface so AgentService and others can depend on the abstraction.
-	must(container.Provide(func(g *approval.Gate) approval.MCPApproval { return g }))
-	must(container.Provide(service.NewAgentService))
-
-	// Session service (depends on agent service)
-	// SessionService is created after AgentService and passes itself to AgentService.CreateAgentEngine when needed
-	logger.Debugf(ctx, "[Container] Registering memory service...")
-	must(container.Provide(memory.NewMemoryService))
 
 	logger.Debugf(ctx, "[Container] Registering session service...")
 	must(container.Provide(service.NewSessionService))
-	must(container.Provide(service.NewTenantSkillService))
-
-	// ArtifactCollector drains skill-generated files from the sandbox on
-	// each agent turn (see spec at
-	// docs/superpowers/specs/2026-07-10-skill-artifact-download-design.md).
-	// The factory returns nil when the sandbox backend does not support
-	// per-session file inspection; downstream code guards on nil.
-	must(container.Provide(service.NewArtifactCollectorFromSandboxManager))
 
 	logger.Debugf(ctx, "[Container] Registering task enqueuer...")
 	redisAvailable := os.Getenv("REDIS_ADDR") != ""
@@ -366,27 +291,17 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Invoke(chatpipeline.NewPluginRerank))
 	must(container.Invoke(chatpipeline.NewPluginWebFetch))
 	must(container.Invoke(chatpipeline.NewPluginMerge))
-	must(container.Invoke(chatpipeline.NewPluginDataAnalysis))
 	must(container.Invoke(chatpipeline.NewPluginIntoChatMessage))
 	must(container.Invoke(chatpipeline.NewPluginChatCompletion))
 	must(container.Invoke(chatpipeline.NewPluginChatCompletionStream))
 	must(container.Invoke(chatpipeline.NewPluginFilterTopK))
 	must(container.Invoke(chatpipeline.NewPluginQueryUnderstand))
 	must(container.Invoke(chatpipeline.NewPluginLoadHistory))
-	must(container.Invoke(chatpipeline.NewPluginMemoryRecall))
 	must(container.Invoke(chatpipeline.NewPluginExtractEntity))
 	must(container.Invoke(chatpipeline.NewPluginSearchEntity))
 	must(container.Invoke(chatpipeline.NewPluginSearchParallel))
 	must(container.Invoke(chatpipeline.NewPluginWikiBoost))
-	must(container.Invoke(chatpipeline.NewPluginMemoryAffinity))
 	logger.Debugf(ctx, "[Container] Chat pipeline plugins registered")
-
-	// TenantSkillService is provided next to SessionService (handlers need
-	// it), but Invoke constructs the whole chain. SessionService needs
-	// *chatpipeline.EventManager, which only exists after the pipeline
-	// block above — starting the reaper any earlier panics.
-	must(container.Invoke(startTenantSkillReaper))
-	logger.Debugf(ctx, "[Container] Tenant skill reaper registered")
 
 	// HTTP handlers layer
 	logger.Debugf(ctx, "[Container] Registering HTTP handlers...")
@@ -403,19 +318,10 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewMessageHandler))
 	must(container.Provide(handler.NewMessageSuggestionHandler))
 	must(container.Provide(handler.NewModelHandler))
-	must(container.Provide(handler.NewSandboxConfigHandler))
-	must(container.Provide(func(
-		s *service.TenantSkillService, streams interfaces.StreamManager,
-	) *handler.SandboxSkillHandler {
-		return handler.NewSandboxSkillHandler(s, streams)
-	}))
 	must(container.Provide(handler.NewEvaluationHandler))
 	must(container.Provide(handler.NewInitializationHandler))
 	must(container.Provide(handler.NewAuthHandler))
 	must(container.Provide(handler.NewSystemHandler))
-	must(container.Provide(handler.NewMCPServiceHandler))
-	must(container.Provide(handler.NewMCPCredentialsHandler))
-	must(container.Provide(handler.NewMCPOAuthHandler))
 	must(container.Provide(handler.NewModelCredentialsHandler))
 	must(container.Provide(handler.NewWebSearchProviderCredentialsHandler))
 	must(container.Provide(handler.NewDataSourceCredentialsHandler))
@@ -423,25 +329,13 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewWebSearchProviderHandler))
 	must(container.Provide(handler.NewVectorStoreHandler))
 	must(container.Provide(handler.NewStorageBackendHandler))
-	must(container.Provide(handler.NewCustomAgentHandler))
 	must(container.Provide(handler.NewUserResourceFavoriteHandler))
-	must(container.Provide(service.NewSkillService))
-	must(container.Provide(func(s *service.TenantSkillService) *handler.SkillHandler {
-		return handler.NewSkillHandler(s)
-	}))
 	must(container.Provide(handler.NewOrganizationHandler))
-	must(container.Provide(handler.NewMemoryHandler))
 
 	// Data source handler
 	must(container.Provide(handler.NewDataSourceHandler))
 	// Wiki page handler
 	must(container.Provide(handler.NewWikiPageHandler))
-	// IM integration
-	logger.Debugf(ctx, "[Container] Registering IM integration...")
-	must(container.Provide(imPkg.NewService))
-	must(container.Invoke(registerIMService))
-	must(container.Provide(handler.NewIMHandler))
-	must(container.Provide(handler.NewEmbedChannelHandler))
 	logger.Debugf(ctx, "[Container] HTTP handlers registered")
 
 	// Wire the chat package's local image resolver so multimodal chat can read
@@ -1628,33 +1522,6 @@ func registerWebSearchProviders(registry *infra_web_search.Registry) {
 	registry.Register("firecrawl", infra_web_search.NewFirecrawlProvider)
 }
 
-// registerIMService registers adapter factories, loads enabled channels, and
-// wires the process-lifetime shutdown hook. Each platform's factory lives in
-// its own subpackage to keep this file focused on wiring.
-func registerIMService(imService *imPkg.Service, cleaner interfaces.ResourceCleaner) {
-	imService.RegisterAdapterFactory("wecom", wecom.NewFactory())
-	imService.RegisterAdapterFactory("feishu", feishu.NewFactory(feishu.RegionFeishu))
-	// Lark is Feishu's international cloud: same adapter, different host/tenant.
-	imService.RegisterAdapterFactory("lark", feishu.NewFactory(feishu.RegionLark))
-	imService.RegisterAdapterFactory("slack", slack.NewFactory())
-	imService.RegisterAdapterFactory("telegram", telegram.NewFactory())
-	imService.RegisterAdapterFactory("dingtalk", dingtalk.NewFactory())
-	imService.RegisterAdapterFactory("mattermost", mattermost.NewFactory())
-	imService.RegisterAdapterFactory("wechat", wechat.NewFactory())
-	imService.RegisterAdapterFactory("qqbot", qqbot.NewFactory())
-	imService.RegisterAdapterFactory("yunzhijia", yunzhijia.NewFactory())
-
-	// Load and start all enabled channels from database
-	if err := imService.LoadAndStartChannels(); err != nil {
-		logger.Warnf(context.Background(), "[IM] Failed to load channels from database: %v", err)
-	}
-
-	cleaner.RegisterWithName("IMService", func() error {
-		imService.Stop()
-		return nil
-	})
-}
-
 // initConnectorRegistry creates and populates the connector registry with all available connectors.
 // Aggregates registration errors via errors.Join so a misconfigured or duplicated connector fails
 // container initialization loudly instead of silently disabling the feature at runtime.
@@ -1729,22 +1596,6 @@ func startHousekeepingService(svc *service.HousekeepingService, cleaner interfac
 		logger.Warnf(context.Background(), "[Container] housekeeping start failed: %v", err)
 	}
 	cleaner.RegisterWithName("KnowledgeHousekeeping", func() error {
-		svc.Stop()
-		return nil
-	})
-}
-
-// startTenantSkillReaper starts the stuck-install / orphan-snapshot cron and
-// registers cleanup. Best-effort: a startup error is logged but does NOT abort
-// the container — the rest of the system stays usable.
-func startTenantSkillReaper(svc *service.TenantSkillService, cleaner interfaces.ResourceCleaner) {
-	if svc == nil {
-		return
-	}
-	if err := svc.Start(context.Background()); err != nil {
-		logger.Warnf(context.Background(), "[Container] tenant skill reaper start failed: %v", err)
-	}
-	cleaner.RegisterWithName("TenantSkillReaper", func() error {
 		svc.Stop()
 		return nil
 	})

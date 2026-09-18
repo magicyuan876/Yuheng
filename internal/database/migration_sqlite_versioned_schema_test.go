@@ -29,7 +29,6 @@ var versionedSQLiteColumns = map[string][]string{
 	"knowledges":         {"pending_subtasks_count"},         // 000056
 	"messages":           {"attachments", "usage"},           // 000034, 000085
 	"tenant_invitations": {"token", "accepted_count"},        // 000054
-	"embed_channels":     {"allow_memory"},                   // 000060
 	"mcp_oauth_tokens":   {"principal_type", "principal_id"}, // 000064
 	// 000088: platform-shared infrastructure. tenant_sandbox_configs is
 	// deliberately absent — sharing a sandbox config would let one workspace's
@@ -39,7 +38,7 @@ var versionedSQLiteColumns = map[string][]string{
 	"storage_backends":     {"is_builtin"},
 }
 
-const expectedSQLiteMigrationVersion = 13
+const expectedSQLiteMigrationVersion = 14
 
 func TestSQLiteMigrationsCreateVersionedSchema(t *testing.T) {
 	repoRoot := sqliteRepoRoot(t)

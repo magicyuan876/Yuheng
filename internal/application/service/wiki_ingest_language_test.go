@@ -7,7 +7,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/magicyuan876/yuheng/internal/agent"
+	"github.com/magicyuan876/yuheng/internal/application/service/wikiprompts"
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
@@ -101,14 +101,14 @@ func TestResolveSlugUpdateLanguage(t *testing.T) {
 // instruction as "Write in ." and leaves the output language to the model.
 func TestWikiPromptsNeverRenderAnEmptyLanguage(t *testing.T) {
 	prompts := map[string]string{
-		"WikiPageModifyUserPrompt":   agent.WikiPageModifyUserPrompt,
-		"WikiSummaryPrompt":          agent.WikiSummaryPrompt,
-		"WikiIndexIntroPrompt":       agent.WikiIndexIntroPrompt,
-		"WikiIndexIntroUpdatePrompt": agent.WikiIndexIntroUpdatePrompt,
-		"WikiKnowledgeExtractPrompt": agent.WikiKnowledgeExtractPrompt,
-		"WikiCandidateSlugPrompt":    agent.WikiCandidateSlugPrompt,
-		"WikiChunkCitationPrompt":    agent.WikiChunkCitationPrompt,
-		"WikiTaxonomyPlanPrompt":     agent.WikiTaxonomyPlanPrompt,
+		"WikiPageModifyUserPrompt":   wikiprompts.WikiPageModifyUserPrompt,
+		"WikiSummaryPrompt":          wikiprompts.WikiSummaryPrompt,
+		"WikiIndexIntroPrompt":       wikiprompts.WikiIndexIntroPrompt,
+		"WikiIndexIntroUpdatePrompt": wikiprompts.WikiIndexIntroUpdatePrompt,
+		"WikiKnowledgeExtractPrompt": wikiprompts.WikiKnowledgeExtractPrompt,
+		"WikiCandidateSlugPrompt":    wikiprompts.WikiCandidateSlugPrompt,
+		"WikiChunkCitationPrompt":    wikiprompts.WikiChunkCitationPrompt,
+		"WikiTaxonomyPlanPrompt":     wikiprompts.WikiTaxonomyPlanPrompt,
 	}
 
 	for name, tpl := range prompts {

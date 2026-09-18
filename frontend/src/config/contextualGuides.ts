@@ -8,7 +8,6 @@ export function openNewUserGuide() {
 }
 
 export const KB_EDITOR_FOCUS_SECTION_EVENT = 'yuheng:kb-editor-focus-section'
-export const AGENT_EDITOR_FOCUS_SECTION_EVENT = 'yuheng:agent-editor-focus-section'
 
 export type ContextualGuideTourId =
   | 'kbList'
@@ -16,8 +15,6 @@ export type ContextualGuideTourId =
   | 'kbDetail'
   | 'chat'
   | 'tenantModels'
-  | 'agentList'
-  | 'agentCreate'
 
 const focusKbEditorSection = (section: string) => {
   window.dispatchEvent(
@@ -105,26 +102,6 @@ export const CONTEXTUAL_GUIDE_TOURS: Record<ContextualGuideTourId, ContextualGui
       },
       { key: 'done' },
     ],
-  },
-  agentList: {
-    storageKey: 'yuheng:contextual-guide-agent-list:v1',
-    stepI18nPrefix: 'contextualGuide.agentList.steps',
-    openDelayMs: 500,
-    steps: [
-      {
-        key: 'create',
-        target: '.empty-state-btn[data-guide="agent-list-create"], [data-guide="agent-list-create"]',
-        placement: 'bottom',
-        interact: true,
-      },
-    ],
-  },
-  agentCreate: {
-    storageKey: 'yuheng:contextual-guide-agent-create:v1',
-    stepI18nPrefix: 'contextualGuide.agentCreate.steps',
-    openDelayMs: 450,
-    alsoCompleteTours: ['agentList'],
-    steps: [],
   },
 }
 

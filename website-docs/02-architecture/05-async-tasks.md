@@ -288,7 +288,7 @@ stateDiagram-v2
 
 ## 8. 事件总线（`internal/event`）
 
-事件总线用于**进程内**的会话/Agent 流式事件分发（如 SSE 推送、IM 回调），与 asynq（跨进程持久任务）互补。
+事件总线用于**进程内**的会话流式事件分发（如 SSE 推送），与 asynq（跨进程持久任务）互补。
 
 ### 8.1 结构与投递保证
 
@@ -322,10 +322,8 @@ type Event struct {
 | 重排 | `rerank.start`、`rerank.complete` |
 | 合并 | `merge.start`、`merge.complete` |
 | 聊天生成 | `chat.start`、`chat.complete`、`chat.stream` |
-| Agent 生命周期 | `agent.query`、`agent.plan`、`agent.step`、`agent.tool`、`agent.complete` |
-| Agent 流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`reflection`、`references`、`final_answer` |
-| MCP 工具人工审批 | `tool_approval_required`、`tool_approval_resolved` |
-| MCP OAuth 会话内授权 | `mcp_oauth_required`、`mcp_oauth_resolved` |
+| 问答生命周期 | `agent.query`、`agent.complete` |
+| 问答流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`references`、`final_answer` |
 | 错误 / 会话 / 控制 | `error`、`session_title`、`stop` |
 
 每类事件的数据结构定义在 `internal/event/event_data.go`（如 `AgentToolCallData` 携带 `tool_call_id`/`tool_name`/`arguments`/`hint`，`AgentFinalAnswerData` 携带 `content`/`done`/`is_fallback` 等）。
@@ -334,9 +332,8 @@ type Event struct {
 
 | 订阅者 | 源码 | 订阅内容 |
 | --- | --- | --- |
-| SSE Agent 流式 handler | `internal/handler/session/agent_stream_handler.go` | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`、`reflection`、`error`、`session_title`、`agent.complete`、tool approval 与 MCP OAuth 四类 |
+| SSE 流式 handler | `internal/handler/session/stream_handler.go` | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`、`error`、`session_title`、`agent.complete` 等 |
 | 知识问答 handler | `internal/handler/session/qa.go`、`helpers.go` | `thought`、`final_answer`、`stop` |
-| IM 集成（企微等） | `internal/im/service.go` | `final_answer`、`error`、`references`、`agent.complete`、`thought`、`tool_call`、`tool_result`、`mcp_oauth_required` 等，转译为各 IM 平台消息 |
 
 ## 9. `internal/runtime` 包
 

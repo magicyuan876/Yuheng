@@ -52,16 +52,6 @@ export interface SourceGroupLabels {
 }
 
 // Distinct platform keys from the tenant's IM channel overview, in first-seen order.
-export function configuredPlatforms(channels: Array<{ platform: string }>): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const c of channels) {
-    if (!c.platform || seen.has(c.platform)) continue
-    seen.add(c.platform)
-    out.push(c.platform)
-  }
-  return out
-}
 
 export function buildGroupModeOptions(labels: {
   none: string

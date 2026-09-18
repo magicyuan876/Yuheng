@@ -1,6 +1,6 @@
 # 模型管理
 
-Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和 Agent 上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
+Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和问答上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
 
 <Screenshot
   src="/screenshots/settings-models.png"
@@ -30,7 +30,7 @@ const (
 
 | 类型 | 前端标识 | 客户端包 | 接口 | 用途 |
 |------|---------|---------|------|------|
-| `KnowledgeQA` | `chat` | `internal/models/chat` | `Chat` / `ChatStream`（支持 Tools、Thinking、多模态消息） | 知识问答、Agent 推理、摘要 / 问题生成 / 图谱抽取等一切 LLM 调用 |
+| `KnowledgeQA` | `chat` | `internal/models/chat` | `Chat` / `ChatStream`（支持 Tools、Thinking、多模态消息） | 知识问答、摘要 / 问题生成 / 图谱抽取等一切 LLM 调用 |
 | `Embedding` | `embedding` | `internal/models/embedding` | `Embed` / `BatchEmbed`（含 `GetDimensions`） | 文本向量化，供向量检索索引与查询 |
 | `Rerank` | `rerank` | `internal/models/rerank` | `Rerank(query, documents)` 返回 `RankResult` | 检索结果精排 |
 | `VLLM` | `vllm` | `internal/models/vlm` | `Predict(imgBytes, prompt)` | 视觉语言模型（VLM），文档图片理解 / 多模态解析 |
@@ -121,7 +121,7 @@ func NewRemoteChat(config *ChatConfig) (Chat, error) {
 
 ```mermaid
 flowchart TD
-    H["Handler 层<br/>(model.go / session / agent)"] --> S["modelService.GetChatModel /<br/>GetEmbeddingModel / GetRerankModel /<br/>GetVLMModel / GetASRModel"]
+    H["Handler 层<br/>(model.go / session)"] --> S["modelService.GetChatModel /<br/>GetEmbeddingModel / GetRerankModel /<br/>GetVLMModel / GetASRModel"]
     S --> R["ModelRepository<br/>(models 表, APIKey AES-GCM 解密)"]
     S --> CF["ConfigFromModel<br/>(chat / embedding / rerank / vlm / asr)"]
     CF --> F{"工厂函数<br/>NewChat / NewEmbedder / ..."}

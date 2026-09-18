@@ -41,20 +41,12 @@ var contextCloneAcrossDetach = map[ContextKey]bool{
 	// hand background work broader reach than the key it came from.
 	TenantAPIKeyScopeContextKey: true,
 
-	// Session scope. SessionTenantID re-scopes session/message lookups, while
-	// SandboxTenantID keys the session→sandbox binding to the session owner
-	// even when a shared agent borrowed another tenant. Dropping the latter
-	// would silently re-key every binding onto the borrowed tenant, because
-	// setupSSEStream builds its async context through CloneContext, and
-	// abandon a paused MicroVM that keeps billing.
+	// Session scope. SessionTenantID re-scopes session/message lookups.
 	SessionIDContextKey:       true,
 	SessionTenantIDContextKey: true,
-	SandboxTenantIDContextKey: true,
 
-	// Embed callers: the anonymous visitor id isolates embed OAuth, so losing
-	// it would merge visitors together.
-	EmbedQueryContextKey:   true,
-	EmbedVisitorContextKey: true,
+	// Embedding query text for the current operation.
+	EmbedQueryContextKey: true,
 
 	// Diagnostics and presentation that background work is expected to keep.
 	// The Langfuse trace in particular must stay alive so the LLM / embedder /
@@ -65,13 +57,6 @@ var contextCloneAcrossDetach = map[ContextKey]bool{
 	LanguageContextKey:      true,
 	LangfuseTraceContextKey: true,
 
-	// The agent-level opt-out from long-term memory. Recall is gated inside
-	// the QA services, but extraction, the explicit "remember this" route and
-	// document affinity all run from a context descended from a CloneContext.
-	// Dropping this key would let an agent that cannot read memory keep
-	// writing to it.
-	MemoryDisabledContextKey: true,
-
 	// Marks model calls as coming from an asynq worker so the per-model chat
 	// concurrency governor throttles them, leaving interactive chat latency
 	// alone. Document ingestion detaches mid-flight — knowledge_create hands
@@ -80,12 +65,6 @@ var contextCloneAcrossDetach = map[ContextKey]bool{
 	// the ingestion storm the governor exists to contain run past it. Keeping
 	// it can only over-throttle a context that is background by definition.
 	BackgroundTaskContextKey: true,
-	// Marks a channel that cannot resolve an in-conversation MCP OAuth prompt
-	// (an IM bot has no live client to click "Authorize"). Dropping it makes
-	// the agent block on the OAuth wait for every unauthorized service instead
-	// of emitting its one-shot notice, so the failure is a stalled reply.
-	// A detached context has no live client either, which is what this says.
-	MCPOAuthNonInteractiveContextKey: true,
 
 	// ---- Deliberately does not survive a detach ----
 	//
@@ -103,14 +82,10 @@ var contextCloneAcrossDetach = map[ContextKey]bool{
 	// ingest pipeline, which is what detached work should look like; an
 	// inherited "user" would attribute a background rewrite to a person.
 	WikiEditSourceContextKey: false,
-	// The parser engine resolved from one agent's ChatParserEngineRules for
+	// The parser engine resolved from the deployment's ChatParserEngineRules for
 	// one attachment's file type. Read by the attachment processor on the same
 	// context that set it, and meaningless for anything else.
 	ChatParserEngineContextKey: false,
-	// The authenticated embed channel. Every reader takes it straight off the
-	// request context inside the embed handler that authenticated it; nothing
-	// downstream of a detach reads it.
-	EmbedChannelContextKey: false,
 }
 
 // ContextKeysClonedAcrossDetach returns the keys logger.CloneContext carries
