@@ -5091,6 +5091,18 @@ export default {
       published: 'Published',
       changeFailed: 'Could not change the page state',
     },
+    // Export. A whole space is an asynchronous job, and the archive holds
+    // only the pages its requester could read.
+    exportDoc: {
+      title: 'Export',
+      markdown: 'Export as Markdown',
+      html: 'Export as HTML',
+      exportSpace: 'Export the whole space',
+      preparing: 'Building the archive; it will download when it is ready',
+      done: 'Exported {count} pages',
+      partial: 'Exported {count} pages; {skipped} were left out because you cannot read them',
+      failed: 'The export failed',
+    },
     // Space storage usage and its quota.
     storage: {
       title: 'Storage',

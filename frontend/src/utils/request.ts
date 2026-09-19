@@ -1,5 +1,6 @@
 // src/utils/request.js
 import axios from "axios";
+import { fileNameFromDisposition } from "./contentDisposition";
 import { generateRandomString, getMaxFileSizeMB } from "./index";
 import i18n from '@/i18n'
 import { getApiBaseUrl } from './api-base';
@@ -114,6 +115,11 @@ instance.interceptors.response.use(
     // 根据业务状态码处理逻辑
     const { status, data } = response;
     if (status >= 200 && status < 300) {
+      // A download needs its headers: the file name lives in
+      // Content-Disposition, and unwrapping to `data` would throw it away.
+      if ((response.config as any)?.rawResponse) {
+        return response as any;
+      }
       return data;
     } else {
       return Promise.reject(data);
@@ -255,6 +261,62 @@ export async function getDown(url: string): Promise<Blob> {
     responseType: "blob",
   }) as unknown as Blob;
   return res
+}
+
+/** A downloaded file: its bytes and the name the server asked us to use. */
+export interface DownloadedFile {
+  blob: Blob;
+  fileName: string;
+}
+
+/**
+ * POST something and receive a file back.
+ *
+ * The name is read from Content-Disposition, preferring the RFC 5987
+ * filename*= form because that is the only one that can carry a Chinese
+ * title; the plain filename= parameter is the ASCII fallback beside it.
+ */
+export { fileNameFromDisposition };
+
+export async function postDownload(
+  url: string,
+  data = {},
+  fallbackName = "download",
+): Promise<DownloadedFile> {
+  const res = (await instance.post(url, data, {
+    responseType: "blob",
+    rawResponse: true,
+  } as any)) as unknown as { data: Blob; headers: Record<string, string> };
+  return {
+    blob: res.data,
+    fileName: fileNameFromDisposition(res.headers?.["content-disposition"], fallbackName),
+  };
+}
+
+/** GET a file, with the same name handling as postDownload. */
+export async function getDownload(url: string, fallbackName = "download"): Promise<DownloadedFile> {
+  const res = (await instance.get(url, {
+    responseType: "blob",
+    rawResponse: true,
+  } as any)) as unknown as { data: Blob; headers: Record<string, string> };
+  return {
+    blob: res.data,
+    fileName: fileNameFromDisposition(res.headers?.["content-disposition"], fallbackName),
+  };
+}
+
+/** Hand a downloaded file to the browser's save dialog. */
+export function saveBlob(file: DownloadedFile): void {
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoked on the next tick: revoking synchronously can cancel the download
+  // in some browsers before it has started reading.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function postUpload(

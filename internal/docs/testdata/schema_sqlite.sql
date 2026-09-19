@@ -346,6 +346,25 @@ CREATE TABLE IF NOT EXISTS docs_import_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_docs_import_jobs_space ON docs_import_jobs (space_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS docs_export_jobs (
+    id            VARCHAR(36)   PRIMARY KEY,
+    tenant_id     INTEGER       NOT NULL,
+    space_id      VARCHAR(36)   NOT NULL REFERENCES docs_spaces(id) ON DELETE CASCADE,
+    format        VARCHAR(16)   NOT NULL DEFAULT 'markdown',
+    status        VARCHAR(16)   NOT NULL DEFAULT 'pending',
+    result_path   VARCHAR(1024) NOT NULL DEFAULT '',
+    file_name     VARCHAR(512)  NOT NULL DEFAULT '',
+    stats         TEXT          NOT NULL DEFAULT '{}',
+    error         TEXT          NOT NULL DEFAULT '',
+    created_by    VARCHAR(36),
+    created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at   DATETIME,
+    expires_at    DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_docs_export_jobs_space ON docs_export_jobs (space_id, created_at DESC);
+
+
 CREATE TABLE IF NOT EXISTS docs_edit_leases (
     page_id     VARCHAR(36) PRIMARY KEY REFERENCES docs_pages(id) ON DELETE CASCADE,
     tenant_id   INTEGER     NOT NULL,

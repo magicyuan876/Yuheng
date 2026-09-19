@@ -113,8 +113,10 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), fh.Upload)
 	write.POST("/spaces/:sid/imports", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
-	write.POST("/spaces/:sid/export", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, ni)
+	// Reader, not writer: an export takes nothing out of the space that the
+	// person could not already read page by page.
+	write.POST("/spaces/:sid/export", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, pg.ExportSpace)
 
 	// ---- pages ---------------------------------------------------------------
 	// Under their own prefix rather than /pages/*: a literal segment and a
@@ -272,7 +274,8 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.UpdateShare)
 	write.DELETE("/pages/:pid/shares/:shid", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.RevokeShare)
-	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
+	write.POST("/pages/:pid/export", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ExportPage)
 	write.PUT("/pages/:pid/labels", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageLabels)
 	// Starring is a bookmark rather than a change, so a reader may do it.
@@ -351,7 +354,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.POST("/notifications/archive", g.Viewer(), guard.RequireMember(), idem,
 		pg.ArchiveNotifications)
 	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), ni)
-	read.GET("/exports/:jid", g.Viewer(), guard.RequireMember(), ni)
+	// Membership alone: an export job belongs to the person who started it,
+	// and the service refuses anybody else. The space it came from may not
+	// even exist any more.
+	read.GET("/exports/:jid", g.Viewer(), guard.RequireMember(), pg.ExportJob)
+	read.GET("/exports/:jid/download", g.Viewer(), guard.RequireMember(), pg.DownloadExport)
 	// Somebody's own starred pages, across every space they can see. Filtered
 	// by what they may still open: a page starred and since restricted is
 	// left out rather than shown as a row that cannot be opened.

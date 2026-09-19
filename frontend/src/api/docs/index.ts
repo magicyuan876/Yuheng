@@ -1,4 +1,15 @@
-import { del, get, patch, post, postUpload, put } from '@/utils/request'
+import {
+  del,
+  get,
+  getDownload,
+  patch,
+  post,
+  postDownload,
+  postUpload,
+  put,
+  saveBlob,
+  type DownloadedFile,
+} from '@/utils/request'
 
 // Online documents API (backend: internal/router/routes_docs.go). Every
 // function unwraps Yuheng's `{ success, data }` envelope and rejects with the
@@ -1521,4 +1532,74 @@ export async function getEmbedPolicy(): Promise<EmbedPolicyView> {
  */
 export async function resolveEmbed(url: string): Promise<ResolvedEmbedView> {
   return unwrap<ResolvedEmbedView>(await post(`${base}/embeds/resolve`, { url }))
+}
+
+// ---- export ---------------------------------------------------------------
+
+/** How an export is rendered. */
+export type ExportFormat = 'markdown' | 'html'
+
+/** An asynchronous space export, as returned by the job endpoints. */
+export interface ExportJobView {
+  id: string
+  space_id: string
+  format: string
+  /** pending | running | succeeded | partial | failed */
+  status: string
+  file_name?: string
+  /** Pages written into the archive. */
+  exported: number
+  /** Pages left out because the requester cannot read them. */
+  skipped: number
+  error?: string
+  /** True once the archive can be downloaded. */
+  ready: boolean
+  created_at: string
+  finished_at?: string
+  expires_at?: string
+}
+
+/**
+ * Backend: POST /api/v1/docs/pages/:pid/export (page reader).
+ *
+ * Synchronous: the file comes back on this request, and is handed straight to
+ * the browser's save dialog.
+ */
+export async function exportPage(pageId: string, format: ExportFormat = 'markdown'): Promise<void> {
+  const file = await postDownload(
+    `${base}/pages/${encodeURIComponent(pageId)}/export`,
+    { format },
+    `page.${format === 'html' ? 'html' : 'md'}`,
+  )
+  saveBlob(file)
+}
+
+/**
+ * Backend: POST /api/v1/docs/spaces/:sid/export (space reader).
+ *
+ * Asynchronous: this starts a job. Poll it with getExportJob until `ready`,
+ * then call downloadExport. The archive contains only the pages the caller
+ * could read, so only they can download it, and it is deleted after a day.
+ */
+export async function startSpaceExport(
+  spaceId: string,
+  format: ExportFormat = 'markdown',
+): Promise<ExportJobView> {
+  return unwrap<ExportJobView>(
+    await post(`${base}/spaces/${encodeURIComponent(spaceId)}/export`, { format }),
+  )
+}
+
+/** Backend: GET /api/v1/docs/exports/:jid (the person who started it). */
+export async function getExportJob(jobId: string): Promise<ExportJobView> {
+  return unwrap<ExportJobView>(await get(`${base}/exports/${encodeURIComponent(jobId)}`))
+}
+
+/** Backend: GET /api/v1/docs/exports/:jid/download. Saves the archive. */
+export async function downloadExport(jobId: string, fallbackName = 'export.zip'): Promise<void> {
+  const file: DownloadedFile = await getDownload(
+    `${base}/exports/${encodeURIComponent(jobId)}/download`,
+    fallbackName,
+  )
+  saveBlob(file)
 }

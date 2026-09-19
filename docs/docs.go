@@ -1931,6 +1931,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/exports/{jid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "ready 为 true 时可以调用下载接口。只有发起导出的人能看到自己的作业",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "查询导出作业",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "作业 ID",
+                        "name": "jid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/exports/{jid}/download": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只有发起导出的人能下载，且作业过期后不再可用",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "下载导出的压缩包",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "作业 ID",
+                        "name": "jid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "zip 文件",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/docs/favourites": {
             "get": {
                 "security": [
@@ -3110,6 +3179,51 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/export": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把页面渲染成 Markdown 或 HTML 文件直接返回。\n导出的内容与你在页面上能看到的完全一致：指向你无权打开的页面的链接\n不会泄露对方标题，嵌入块按同样的权限规则展开，附件保留为链接",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "导出单个页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "导出格式",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "文件内容",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -4677,6 +4791,52 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/export": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "异步任务：立即返回作业 ID，用 /docs/exports/{jid} 轮询进度。\n压缩包里只包含**发起人**当时能读的页面，因此只有发起人本人可以下载，\n并且会在一天后自动删除",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "导出整个空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "导出格式",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -22856,6 +23016,15 @@ const docTemplate = `{
                 },
                 "title": {
                     "description": "Title overrides the copy's title.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ExportRequest": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "description": "Format is markdown (the default) or html.",
                     "type": "string"
                 }
             }

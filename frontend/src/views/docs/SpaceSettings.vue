@@ -55,6 +55,17 @@
           <dd>
             <StorageUsage :space-id="space.id" />
           </dd>
+          <dt>{{ t('docs.exportDoc.title') }}</dt>
+          <dd>
+            <div class="export-row">
+              <t-select v-model="exportFormat" size="small" :options="exportFormatOptions"
+                class="export-format" :disabled="exporting" />
+              <t-button size="small" :loading="exporting" @click="runSpaceExport">
+                {{ t('docs.exportDoc.exportSpace') }}
+              </t-button>
+            </div>
+            <span v-if="exporting" class="dd-hint">{{ t('docs.exportDoc.preparing') }}</span>
+          </dd>
         </dl>
       </t-tab-panel>
 
@@ -190,6 +201,11 @@ import {
   type SpaceMember,
   type SpaceRole,
   type TenantGroup,
+  downloadExport,
+  getExportJob,
+  startSpaceExport,
+  type ExportFormat,
+  type ExportJobView,
 } from '@/api/docs'
 import SpaceAvatar from '@/components/SpaceAvatar.vue'
 
@@ -441,6 +457,67 @@ watch(slugParam, (next, prev) => {
   if (next && next !== prev) void load()
 })
 onMounted(load)
+// Exporting the whole space.
+//
+// Asynchronous, because a space is a thousand pages and a zip: the request
+// starts a job and this polls it until the archive is ready, then saves it.
+// The archive holds only the pages this person can read, which is why the
+// result message reports what was left out rather than pretending it is
+// complete.
+const exportFormat = ref<ExportFormat>('markdown')
+const exporting = ref(false)
+
+const exportFormatOptions = computed(() => [
+  { label: t('docs.exportDoc.markdown'), value: 'markdown' },
+  { label: t('docs.exportDoc.html'), value: 'html' },
+])
+
+// Polling stops after this long. A job that has not finished by then has not
+// failed — the operator can come back to it — but this page should not keep
+// asking forever.
+const EXPORT_POLL_MS = 1500
+const EXPORT_DEADLINE_MS = 10 * 60 * 1000
+
+async function runSpaceExport() {
+  if (exporting.value || !space.value) return
+  exporting.value = true
+  try {
+    const job = await startSpaceExport(space.value.id, exportFormat.value)
+    const done = await waitForExport(job.id)
+    if (!done) return
+    if (done.status === 'failed') {
+      void MessagePlugin.error(done.error || t('docs.exportDoc.failed'))
+      return
+    }
+    await downloadExport(done.id, done.file_name || 'export.zip')
+    if (done.skipped > 0) {
+      void MessagePlugin.warning(
+        t('docs.exportDoc.partial', { count: done.exported, skipped: done.skipped }),
+      )
+    } else {
+      void MessagePlugin.success(t('docs.exportDoc.done', { count: done.exported }))
+    }
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.exportDoc.failed')))
+  } finally {
+    exporting.value = false
+  }
+}
+
+/** Polls one job to completion, or gives up at the deadline. */
+async function waitForExport(jobId: string): Promise<ExportJobView | null> {
+  const deadline = Date.now() + EXPORT_DEADLINE_MS
+  for (;;) {
+    const job = await getExportJob(jobId)
+    if (job.status !== 'pending' && job.status !== 'running') return job
+    if (Date.now() > deadline) {
+      void MessagePlugin.warning(t('docs.exportDoc.preparing'))
+      return null
+    }
+    await new Promise((resolve) => setTimeout(resolve, EXPORT_POLL_MS))
+  }
+}
+
 </script>
 
 <style scoped lang="less">

@@ -23,7 +23,6 @@ import (
 // notYetRecorded are actions whose feature has not been built, with the work
 // package that will record them. Deleting an entry is part of doing the work.
 var notYetRecorded = map[string]string{
-	"Exported": "T6 (export)",
 	"Imported": "T6 (import)",
 }
 

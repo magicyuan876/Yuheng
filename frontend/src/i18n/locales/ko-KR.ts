@@ -5090,6 +5090,17 @@ export default {
       published: '게시됨',
       changeFailed: '페이지 상태를 변경하지 못했습니다',
     },
+    // 내보내기. 스페이스 전체는 비동기 작업이며, 요청한 사람이 읽을 수 있는 페이지만 담깁니다.
+    exportDoc: {
+      title: '내보내기',
+      markdown: 'Markdown으로 내보내기',
+      html: 'HTML로 내보내기',
+      exportSpace: '스페이스 전체 내보내기',
+      preparing: '압축 파일을 만드는 중입니다. 준비되면 자동으로 내려받습니다',
+      done: '{count}개 페이지를 내보냈습니다',
+      partial: '{count}개 페이지를 내보냈습니다. 권한이 없는 {skipped}개는 제외되었습니다',
+      failed: '내보내기에 실패했습니다',
+    },
     // 스페이스 저장 용량과 한도.
     storage: {
       title: '저장 용량',

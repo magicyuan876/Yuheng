@@ -5089,6 +5089,17 @@ export default {
       published: '已发布',
       changeFailed: '页面状态修改失败',
     },
+    // 导出。整个空间是异步作业，导出包里只有发起人当时能读的页面。
+    exportDoc: {
+      title: '导出',
+      markdown: '导出为 Markdown',
+      html: '导出为 HTML',
+      exportSpace: '导出整个空间',
+      preparing: '正在打包，完成后会自动下载',
+      done: '已导出 {count} 页',
+      partial: '已导出 {count} 页，{skipped} 页因为没有权限未包含在内',
+      failed: '导出失败',
+    },
     // 空间存储用量与配额。
     storage: {
       title: '存储',
