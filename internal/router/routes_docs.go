@@ -171,14 +171,23 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Backlinks)
 	read.GET("/pages/:pid/mention-candidates", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.SuggestMentions)
+	// Page-level permissions. Reading the panel needs only read access:
+	// somebody who can open a page is entitled to know why they can, which is
+	// what makes "why can't my colleague see this" answerable without an
+	// administrator. Changing it needs admin on the page -- and since a grant
+	// can only narrow, never promote, that means a space administrator.
 	read.GET("/pages/:pid/effective-permission", g.Viewer(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	read.GET("/pages/:pid/access", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	admin.PUT("/pages/:pid/access", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
-	read.GET("/pages/:pid/grants", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
-	admin.POST("/pages/:pid/grants", g.Contributor(), guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.EffectivePermission)
+	read.GET("/pages/:pid/access", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.PageAccess)
+	admin.PUT("/pages/:pid/access", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, pg.SetPageAccess)
+	read.GET("/pages/:pid/grants", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.PageGrants)
+	admin.POST("/pages/:pid/grants", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, pg.AddPageGrant)
 	admin.DELETE("/pages/:pid/grants/:ptype/:principal", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, pg.RemovePageGrant)
 	// History. Every version is addressed under its page rather than by its
 	// own id, because a version's permissions are the page's permissions --
 	// it is that page at an earlier moment. Addressing one on its own would

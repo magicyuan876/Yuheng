@@ -580,8 +580,8 @@ func (s *SpaceService) memberViews(ctx context.Context, tenantID uint64, rows []
 	return out, nil
 }
 
-func (s *SpaceService) groupIndex(ctx context.Context, tenantID uint64) (map[string]*model.TenantGroup, error) {
-	groups, err := s.d.Repos.Groups.List(ctx, tenantID)
+func (b *base) groupIndex(ctx context.Context, tenantID uint64) (map[string]*model.TenantGroup, error) {
+	groups, err := b.d.Repos.Groups.List(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -594,14 +594,14 @@ func (s *SpaceService) groupIndex(ctx context.Context, tenantID uint64) (map[str
 
 // groupMemberCount counts a group's members; the default group counts every
 // active tenant member because its membership is implicit.
-func (s *SpaceService) groupMemberCount(ctx context.Context, tenantID uint64, g *model.TenantGroup) (int64, error) {
+func (b *base) groupMemberCount(ctx context.Context, tenantID uint64, g *model.TenantGroup) (int64, error) {
 	if g.IsDefault {
-		if s.d.Members == nil {
+		if b.d.Members == nil {
 			return 0, nil
 		}
-		return s.d.Members.CountFilteredByTenant(ctx, tenantID, "")
+		return b.d.Members.CountFilteredByTenant(ctx, tenantID, "")
 	}
-	ids, err := s.d.Repos.Groups.ListMemberIDs(ctx, tenantID, g.ID)
+	ids, err := b.d.Repos.Groups.ListMemberIDs(ctx, tenantID, g.ID)
 	if err != nil {
 		return 0, err
 	}
