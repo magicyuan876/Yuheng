@@ -5064,6 +5064,24 @@ export default {
       inThisSection: '이 섹션의 문서',
       spaceEmpty: '아직 게시된 내용이 없습니다',
     },
+    // 템플릿: 다시 시작할 만한 페이지 구조.
+    templates: {
+      newFrom: '템플릿으로 새로 만들기',
+      createPage: '페이지 만들기',
+      blank: '빈 페이지',
+      blankHint: '처음부터 시작',
+      shared: '워크스페이스',
+      uncategorised: '템플릿',
+      none: '아직 템플릿이 없습니다',
+      saveAs: '템플릿으로 저장',
+      namePlaceholder: '템플릿 이름',
+      categoryPlaceholder: '분류(선택)',
+      descriptionPlaceholder: '이 템플릿은 어떤 용도인가요?(선택)',
+      stripNote: '페이지 링크, 블록 참조, 멘션, 첨부파일은 저장되지 않습니다. '
+        + '그것들은 문서의 구조가 아니라 이 페이지 자체에 속합니다.',
+      saved: '템플릿으로 저장했습니다',
+      saveFailed: '템플릿을 저장하지 못했습니다',
+    },
     notifications: {
       title: '알림',
       empty: '새 알림이 없습니다',

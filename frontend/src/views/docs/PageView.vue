@@ -131,6 +131,15 @@
             <t-icon name="share" size="14px" />
             <span>{{ t('docs.share.title') }}</span>
           </button>
+          <button
+            v-if="page.can_edit"
+            type="button"
+            class="page-history-link"
+            @click="openSaveTemplate"
+          >
+            <t-icon name="template" size="14px" />
+            <span>{{ t('docs.templates.saveAs') }}</span>
+          </button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
         <PageLabels v-if="page.can_edit || labels.length" class="page-label-row" :page-id="page.id"
@@ -217,6 +226,20 @@
       @restored="onRestored"
     />
 
+    <t-dialog v-model:visible="templateOpen" :header="t('docs.templates.saveAs')" width="480px"
+      destroy-on-close :confirm-btn="{ content: t('common.save'), loading: savingTemplate }"
+      :cancel-btn="t('common.cancel')" @confirm="saveAsTemplate">
+      <div class="template-form">
+        <t-input v-model="templateName" :maxlength="120" :placeholder="t('docs.templates.namePlaceholder')" />
+        <t-input v-model="templateCategory" :maxlength="64"
+          :placeholder="t('docs.templates.categoryPlaceholder')" />
+        <t-textarea v-model="templateDescription" :maxlength="500" :autosize="{ minRows: 2, maxRows: 4 }"
+          :placeholder="t('docs.templates.descriptionPlaceholder')" />
+        <!-- Said before it happens, not discovered afterwards. -->
+        <p class="template-note">{{ t('docs.templates.stripNote') }}</p>
+      </div>
+    </t-dialog>
+
     <t-dialog v-model:visible="shareOpen" :header="t('docs.share.title')" width="560px" destroy-on-close
       :footer="false">
       <SharePanel v-if="page" :page-id="page.id" :can-manage="page.can_edit"
@@ -237,6 +260,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import {
+  createTemplate,
   getPageAncestors,
   getPageByShortId,
   getPageChildren,
@@ -314,6 +338,39 @@ const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
 const historyOpen = ref(false)
 const accessOpen = ref(false)
 const shareOpen = ref(false)
+const templateOpen = ref(false)
+const savingTemplate = ref(false)
+const templateName = ref('')
+const templateCategory = ref('')
+const templateDescription = ref('')
+
+function openSaveTemplate() {
+  templateName.value = page.value?.title ?? ''
+  templateCategory.value = ''
+  templateDescription.value = ''
+  templateOpen.value = true
+}
+
+async function saveAsTemplate() {
+  const current = page.value
+  if (!current || !templateName.value.trim()) return
+  savingTemplate.value = true
+  try {
+    await createTemplate({
+      space_id: current.space_id,
+      name: templateName.value,
+      category: templateCategory.value,
+      description: templateDescription.value,
+      from_page_id: current.id,
+    })
+    templateOpen.value = false
+    void MessagePlugin.success(t('docs.templates.saved'))
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.templates.saveFailed')))
+  } finally {
+    savingTemplate.value = false
+  }
+}
 
 /** The badge in the header follows the panel without a refetch. */
 function onAccessChanged(next: PageAccessView) {
@@ -878,6 +935,19 @@ watch(() => props.shortId, load, { immediate: true })
 
 .page-label-row {
   margin-top: 10px;
+}
+
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.template-note {
+  margin: 0;
+  color: var(--td-text-color-placeholder);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .star-on {

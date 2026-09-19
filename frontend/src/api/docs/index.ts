@@ -315,6 +315,9 @@ export interface CreatePageRequest {
   /** ProseMirror JSON document; exclusive with markdown. */
   content?: unknown
   markdown?: string
+  /** Start the page from a saved body. Mutually exclusive with content and
+   * markdown. */
+  template_id?: string
 }
 
 export interface UpdatePageRequest {
@@ -666,6 +669,79 @@ export async function listBacklinks(pageId: string): Promise<PageRef[]> {
  */
 export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
+}
+
+// ---- templates ---------------------------------------------------------------
+
+/**
+ * A reusable page body.
+ *
+ * `shared` true means the template belongs to the whole workspace and appears
+ * in every space; false means it belongs to one space. `content` is present
+ * only on a single read, never in a listing.
+ */
+export interface TemplateView {
+  id: string
+  space_id?: string
+  name: string
+  description?: string
+  icon?: string
+  category?: string
+  shared: boolean
+  content?: unknown
+  creator: { user_id: string; username?: string; email?: string; avatar?: string }
+  can_edit: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** Backend: GET /api/v1/docs/templates?space=... (workspace member). */
+export async function listTemplates(spaceId?: string): Promise<TemplateView[]> {
+  const query = spaceId ? `?space=${encodeURIComponent(spaceId)}` : ''
+  return unwrap<TemplateView[] | null>(await get(`${base}/templates${query}`)) ?? []
+}
+
+/** Backend: GET /api/v1/docs/templates/:tid — carries the body. */
+export async function getTemplate(templateId: string): Promise<TemplateView> {
+  return unwrap<TemplateView>(await get(`${base}/templates/${encodeURIComponent(templateId)}`))
+}
+
+/**
+ * Backend: POST /api/v1/docs/templates.
+ *
+ * `space_id` empty makes it workspace-wide, which needs an administrator.
+ * Give either `content` or `from_page_id`, never both. Whatever cannot
+ * travel - page links, block references, mentions, attachments - is removed
+ * as it is saved.
+ */
+export async function createTemplate(body: {
+  space_id?: string
+  name: string
+  description?: string
+  icon?: string
+  category?: string
+  content?: unknown
+  from_page_id?: string
+}): Promise<TemplateView> {
+  return unwrap<TemplateView>(await post(`${base}/templates`, body))
+}
+
+/** Backend: PATCH /api/v1/docs/templates/:tid. Absent fields are left alone. */
+export async function updateTemplate(templateId: string, body: {
+  name?: string
+  description?: string
+  icon?: string
+  category?: string
+  content?: unknown
+}): Promise<TemplateView> {
+  return unwrap<TemplateView>(
+    await patch(`${base}/templates/${encodeURIComponent(templateId)}`, body),
+  )
+}
+
+/** Backend: DELETE /api/v1/docs/templates/:tid (scope administrator). */
+export async function deleteTemplate(templateId: string): Promise<void> {
+  await del(`${base}/templates/${encodeURIComponent(templateId)}`)
 }
 
 // ---- public share links and public spaces -----------------------------------

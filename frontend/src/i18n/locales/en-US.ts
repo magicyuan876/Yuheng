@@ -5065,6 +5065,24 @@ export default {
       inThisSection: 'In this section',
       spaceEmpty: 'Nothing has been published here yet',
     },
+    // Templates: a page body worth starting from again.
+    templates: {
+      newFrom: 'New from template',
+      createPage: 'Create page',
+      blank: 'Blank page',
+      blankHint: 'Start with nothing',
+      shared: 'Workspace',
+      uncategorised: 'Templates',
+      none: 'No templates here yet',
+      saveAs: 'Save as template',
+      namePlaceholder: 'Template name',
+      categoryPlaceholder: 'Category (optional)',
+      descriptionPlaceholder: 'What is this template for? (optional)',
+      stripNote: 'Links to other pages, block references, mentions and attachments are not saved: '
+        + 'they belong to this page rather than to the shape of it.',
+      saved: 'Saved as a template',
+      saveFailed: 'Could not save the template',
+    },
     notifications: {
       title: 'Notifications',
       empty: 'Nothing new',
