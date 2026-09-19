@@ -115,6 +115,14 @@
               :class="{ 'star-on': favourite }" />
             <span>{{ favourite ? t('docs.home.starred') : t('docs.home.star') }}</span>
           </button>
+          <button
+            type="button"
+            class="page-history-link"
+            @click="accessOpen = true"
+          >
+            <t-icon :name="page.restricted ? 'lock-on' : 'usergroup'" size="14px" />
+            <span>{{ page.restricted ? t('docs.access.restricted') : t('docs.access.who') }}</span>
+          </button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
         <PageLabels v-if="page.can_edit || labels.length" class="page-label-row" :page-id="page.id"
@@ -200,6 +208,11 @@
       @close="historyOpen = false"
       @restored="onRestored"
     />
+
+    <t-dialog v-model:visible="accessOpen" :header="t('docs.access.title')" width="560px" destroy-on-close
+      :footer="false">
+      <PageAccessPanel v-if="page" :page-id="page.id" @changed="onAccessChanged" />
+    </t-dialog>
   </div>
 </template>
 
@@ -226,6 +239,7 @@ import {
   type DocsSpace,
   type GonePage,
   type LabelView,
+  type PageAccessView,
   type PageRef,
   type PageView as PageViewDto,
   type TreeNode,
@@ -236,6 +250,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
 
 import CommentComposer from './comments/CommentComposer.vue'
+import PageAccessPanel from './access/PageAccessPanel.vue'
 import PageLabels from './labels/PageLabels.vue'
 import { browserStore, recordVisit } from './home/recentlyViewed'
 import NotificationCentre from './notifications/NotificationCentre.vue'
@@ -282,6 +297,12 @@ const authStore = useAuthStore()
 const capabilities = useDeploymentCapabilitiesStore()
 const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
 const historyOpen = ref(false)
+const accessOpen = ref(false)
+
+/** The badge in the header follows the panel without a refetch. */
+function onAccessChanged(next: PageAccessView) {
+  if (page.value) page.value = { ...page.value, restricted: next.restricted || next.inherited_from.length > 0 }
+}
 
 /**
  * Whether this reader follows the page, and whether they have silenced it.

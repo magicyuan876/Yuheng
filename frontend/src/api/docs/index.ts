@@ -668,6 +668,107 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- page-level permissions -------------------------------------------------
+
+/**
+ * One row of a page's permission list.
+ *
+ * `role` is what was granted; `effective` is what it actually does once the
+ * principal's space role has been applied. They differ whenever somebody is
+ * granted more than the space gives them, because a grant is a ceiling and
+ * never a promotion.
+ */
+export interface GrantView {
+  principal_type: 'user' | 'group'
+  principal_id: string
+  role: SpaceRole
+  effective: SpaceRole
+  /** False when the principal has no role in the space, making the grant inert. */
+  in_space: boolean
+  name: string
+  email?: string
+  avatar?: string
+  is_default_group?: boolean
+  group_member_count?: number
+  added_by?: string
+  created_at: string
+}
+
+/** A page in the permission chain. `visible` false means the caller may not
+ * open it, and its title is then withheld. */
+export interface AncestorRef {
+  id: string
+  short_id: string
+  title: string
+  visible: boolean
+}
+
+export interface PageAccessView {
+  page_id: string
+  /** Whether this page itself cuts inheritance. */
+  restricted: boolean
+  /** Restricted ancestors, nearest last: a page can be narrowed by a level
+   * above it that this panel does not manage. */
+  inherited_from: AncestorRef[]
+  grants: GrantView[]
+  can_manage: boolean
+  space_default: SpaceRole
+}
+
+/** The short answer to "what may I do here", for drawing controls. */
+export interface EffectivePermission {
+  page_id: string
+  role: SpaceRole
+  can_edit: boolean
+  can_comment: boolean
+  can_manage_access: boolean
+  restricted: boolean
+  restricted_here: boolean
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/access (page reader). */
+export async function getPageAccess(pageId: string): Promise<PageAccessView> {
+  return unwrap<PageAccessView>(await get(`${base}/pages/${encodeURIComponent(pageId)}/access`))
+}
+
+/**
+ * Backend: PUT /api/v1/docs/pages/:pid/access (page admin).
+ *
+ * `restricted: false` restores inheritance AND drops every grant on the page.
+ */
+export async function setPageRestricted(pageId: string, restricted: boolean): Promise<PageAccessView> {
+  return unwrap<PageAccessView>(
+    await put(`${base}/pages/${encodeURIComponent(pageId)}/access`, { restricted }),
+  )
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/grants (page admin). */
+export async function addPageGrant(
+  pageId: string,
+  body: { principal_type: 'user' | 'group'; principal_id: string; role: SpaceRole },
+): Promise<PageAccessView> {
+  return unwrap<PageAccessView>(
+    await post(`${base}/pages/${encodeURIComponent(pageId)}/grants`, body),
+  )
+}
+
+/** Backend: DELETE /api/v1/docs/pages/:pid/grants/:ptype/:principal (page admin). */
+export async function removePageGrant(
+  pageId: string, principalType: 'user' | 'group', principalId: string,
+): Promise<PageAccessView> {
+  return unwrap<PageAccessView>(await del(
+    `${base}/pages/${encodeURIComponent(pageId)}/grants/`
+    + `${encodeURIComponent(principalType)}/${encodeURIComponent(principalId)}`,
+  ))
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/effective-permission (page reader). */
+export async function getEffectivePermission(pageId: string): Promise<EffectivePermission> {
+  return unwrap<EffectivePermission>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/effective-permission`),
+  )
+}
+
 // ---- labels, favourites and the space home ----------------------------------
 
 /** A space's label. */
