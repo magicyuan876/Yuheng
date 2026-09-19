@@ -99,7 +99,8 @@ func TestSpaceSlugsAndValidation(t *testing.T) {
 	_, err = e.svc.Spaces.Create(ctx(), alice, CreateSpaceInput{Name: "  "})
 	require.Equal(t, 400, httpCode(t, err))
 	_, err = e.svc.Spaces.Create(ctx(), alice, CreateSpaceInput{Name: "Public", Visibility: model.VisibilityPublic})
-	require.Equal(t, 400, httpCode(t, err), "public spaces arrive with sharing (T4.2)")
+	require.Equal(t, 403, httpCode(t, err),
+		"a public space needs the deployment's public-sharing switch, which this fixture leaves off")
 	_, err = e.svc.Spaces.Create(ctx(), alice, CreateSpaceInput{
 		Name: "Open", Visibility: model.VisibilityOpen, DefaultRole: model.RoleAdmin,
 	})

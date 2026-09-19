@@ -366,4 +366,12 @@ func RegisterDocsPublicRoutes(r *gin.Engine, m *docs.Module) {
 	public := r.Group("/api/v1/docs/public")
 	public.GET("/:key", pg.PublicPage)
 	public.POST("/:key/unlock", pg.UnlockPublicPage)
+
+	// Public spaces live under their own prefix rather than under /public,
+	// because gin cannot have a literal segment and a ":key" parameter at the
+	// same position in its route tree -- the same constraint that put page
+	// links under /docs/page-links in T2.2.
+	spaces := r.Group("/api/v1/docs/public-spaces")
+	spaces.GET("/:sid", pg.PublicSpace)
+	spaces.GET("/:sid/pages/:short", pg.PublicSpacePage)
 }

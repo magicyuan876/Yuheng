@@ -14,6 +14,7 @@ var DeploymentCapabilityKeys = []string{
 	"settings.vectorstore",
 	"settings.storage",
 	"docs",
+	"docs.public_sharing",
 }
 
 // DeploymentCapability describes whether a deployment exposes a feature route.
@@ -42,6 +43,10 @@ type DeploymentFeatureAvailability struct {
 	Docs          bool
 	// DocsCollabURL is passed through verbatim into DeploymentCapabilitiesData.
 	DocsCollabURL string
+	// DocsPublicSharing reports whether pages may be published to anonymous
+	// URLs. Clients use it to decide whether to offer the control at all,
+	// rather than offering one whose only outcome is a refusal.
+	DocsPublicSharing bool
 }
 
 func supportedDeploymentCapability(supported bool) DeploymentCapability {
@@ -62,6 +67,7 @@ func BuildDeploymentCapabilities(
 			"settings.vectorstore": supportedDeploymentCapability(available.VectorStore),
 			"settings.storage":     supportedDeploymentCapability(available.Storage),
 			"docs":                 supportedDeploymentCapability(available.Docs),
+			"docs.public_sharing":  supportedDeploymentCapability(available.DocsPublicSharing),
 		},
 		DocsCollabURL: available.DocsCollabURL,
 	}

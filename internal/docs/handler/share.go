@@ -235,3 +235,48 @@ func (h *PageHandler) UnlockPublicPage(c *gin.Context) {
 	c.Header("Cache-Control", "private, no-store")
 	ok(c, res)
 }
+
+// PublicSpace godoc
+// @Summary      访问公开空间（无需登录）
+// @Description  返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享
+// @Description  用空间 ID 而不是 slug 寻址：slug 只在租户内唯一，而访客没有租户
+// @Tags         在线文档
+// @Produce      json
+// @Param        sid  path  string  true  "空间 ID"
+// @Success      200  {object}  map[string]interface{}
+// @Router       /docs/public-spaces/{sid} [get]
+func (h *PageHandler) PublicSpace(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	view, err := h.svc.PublicSpace(c.Request.Context(), c.Param("sid"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	// A public space is meant to be found, so robots are welcome here.
+	c.Header("X-Robots-Tag", "index, follow")
+	ok(c, view)
+}
+
+// PublicSpacePage godoc
+// @Summary      访问公开空间里的一页（无需登录）
+// @Description  受限页面与回收站里的页面一律返回 404，和私有页面无从区分
+// @Tags         在线文档
+// @Produce      json
+// @Param        sid    path  string  true  "空间 ID"
+// @Param        short  path  string  true  "页面 short_id"
+// @Success      200  {object}  map[string]interface{}
+// @Router       /docs/public-spaces/{sid}/pages/{short} [get]
+func (h *PageHandler) PublicSpacePage(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	view, err := h.svc.PublicSpacePage(c.Request.Context(), c.Param("sid"), c.Param("short"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.Header("X-Robots-Tag", "index, follow")
+	ok(c, view)
+}

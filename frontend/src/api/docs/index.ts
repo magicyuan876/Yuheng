@@ -668,6 +668,146 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- public share links and public spaces -----------------------------------
+
+/** A public link as its owner sees it. Carries the key: the owner is the one
+ * person entitled to it. */
+export interface ShareView {
+  id: string
+  page_id: string
+  space_id: string
+  key: string
+  include_children: boolean
+  allow_search_index: boolean
+  has_password: boolean
+  expires_at?: string
+  view_count: number
+  creator: { user_id: string; username?: string; email?: string; avatar?: string }
+  created_at: string
+  /** False when the link resolves to nothing right now — the page was
+   * restricted or trashed after the link was made. */
+  live: boolean
+}
+
+/** What a visit to a link produced. Only 'ok' carries a page. */
+export type ShareState = 'ok' | 'password' | 'expired' | 'revoked' | 'gone'
+
+/** One page in a shared subtree. */
+export interface SharedRef {
+  short_id: string
+  title: string
+  icon?: string
+}
+
+/** What an anonymous visitor gets: a document, and nothing else. */
+export interface SharedPage {
+  title: string
+  icon?: string
+  html: string
+  short_id: string
+  updated_at: string
+  children: SharedRef[]
+  breadcrumb: SharedRef[]
+  allow_search_index: boolean
+  space_name: string
+}
+
+export interface ShareResult {
+  state: ShareState
+  page?: SharedPage
+  unlock_token?: string
+}
+
+export interface PublicSpaceView {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  icon?: string
+  pages: SharedRef[]
+}
+
+/** Backend: GET /api/v1/docs/pages/:pid/shares (page reader). */
+export async function listShares(pageId: string): Promise<ShareView[]> {
+  return unwrap<ShareView[] | null>(
+    await get(`${base}/pages/${encodeURIComponent(pageId)}/shares`),
+  ) ?? []
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/shares (page writer). */
+export async function createShare(pageId: string, body: {
+  include_children?: boolean
+  allow_search_index?: boolean
+  password?: string
+  expires_at?: string | null
+}): Promise<ShareView> {
+  return unwrap<ShareView>(await post(`${base}/pages/${encodeURIComponent(pageId)}/shares`, body))
+}
+
+/**
+ * Backend: PATCH /api/v1/docs/pages/:pid/shares/:shid (page writer).
+ *
+ * An absent field is left alone. `password: ''` removes the password;
+ * `clear_expiry: true` makes the link permanent.
+ */
+export async function updateShare(pageId: string, shareId: string, body: {
+  include_children?: boolean
+  allow_search_index?: boolean
+  password?: string
+  expires_at?: string
+  clear_expiry?: boolean
+}): Promise<ShareView> {
+  return unwrap<ShareView>(await patch(
+    `${base}/pages/${encodeURIComponent(pageId)}/shares/${encodeURIComponent(shareId)}`, body,
+  ))
+}
+
+/** Backend: DELETE /api/v1/docs/pages/:pid/shares/:shid (page writer). */
+export async function revokeShare(pageId: string, shareId: string): Promise<void> {
+  await del(`${base}/pages/${encodeURIComponent(pageId)}/shares/${encodeURIComponent(shareId)}`)
+}
+
+/** The header an unlock token travels in — never a query parameter, so it
+ * stays out of access logs and pasted URLs. */
+export const UNLOCK_HEADER = 'X-Docs-Share-Unlock'
+
+/**
+ * Backend: GET /api/v1/docs/public/:key — no authentication.
+ *
+ * Always answers 200 with a state; a dead link is a thing to render, not a
+ * fetch failure.
+ */
+export async function visitShare(
+  key: string, opts: { page?: string; unlockToken?: string } = {},
+): Promise<ShareResult> {
+  const query = opts.page ? `?page=${encodeURIComponent(opts.page)}` : ''
+  return unwrap<ShareResult>(await get(
+    `${base}/public/${encodeURIComponent(key)}${query}`,
+    opts.unlockToken ? { headers: { [UNLOCK_HEADER]: opts.unlockToken } } : undefined,
+  ))
+}
+
+/** Backend: POST /api/v1/docs/public/:key/unlock — no authentication. */
+export async function unlockShare(key: string, password: string): Promise<ShareResult> {
+  return unwrap<ShareResult>(
+    await post(`${base}/public/${encodeURIComponent(key)}/unlock`, { password }),
+  )
+}
+
+/** Backend: GET /api/v1/docs/public-spaces/:sid — no authentication.
+ * Addressed by id, not slug: a slug is unique per tenant and a visitor has
+ * no tenant. */
+export async function visitPublicSpace(spaceId: string): Promise<PublicSpaceView> {
+  return unwrap<PublicSpaceView>(await get(`${base}/public-spaces/${encodeURIComponent(spaceId)}`))
+}
+
+/** Backend: GET /api/v1/docs/public-spaces/:sid/pages/:short — no authentication. */
+export async function visitPublicSpacePage(spaceId: string, shortId: string): Promise<SharedPage> {
+  return unwrap<SharedPage>(await get(
+    `${base}/public-spaces/${encodeURIComponent(spaceId)}/pages/${encodeURIComponent(shortId)}`,
+  ))
+}
+
 // ---- page-level permissions -------------------------------------------------
 
 /**

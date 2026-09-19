@@ -14,6 +14,9 @@ type SpaceRepository interface {
 	Create(ctx context.Context, space *model.Space) error
 	Get(ctx context.Context, tenantID uint64, id string) (*model.Space, error)
 	GetBySlug(ctx context.Context, tenantID uint64, slug string) (*model.Space, error)
+	// GetPublicByID finds a PUBLIC space by id, without a tenant scope, for
+	// anonymous visitors. It can never return a private space.
+	GetPublicByID(ctx context.Context, id string) (*model.Space, error)
 	// List returns the tenant's live spaces ordered by name.
 	List(ctx context.Context, tenantID uint64) ([]*model.Space, error)
 	// ListByIDs returns live spaces among the given IDs (any order).
@@ -270,4 +273,22 @@ func (r *spaceMemberRepository) RemoveAllForPrincipal(ctx context.Context, tenan
 	return r.db.WithContext(ctx).
 		Where("tenant_id = ? AND principal_type = ? AND principal_id = ?", tenantID, p.Type, p.ID).
 		Delete(&model.SpaceMember{}).Error
+}
+
+// GetPublicByID finds a space by id with no tenant scope.
+//
+// The only query in this package that is not scoped to a tenant, because an
+// anonymous visitor has no tenant to scope it by. The visibility condition is
+// part of the statement rather than a check the caller is trusted to make
+// afterwards: this method cannot return a private space, so no future caller
+// can misuse it into one.
+func (r *spaceRepository) GetPublicByID(ctx context.Context, id string) (*model.Space, error) {
+	var out model.Space
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND visibility = ? AND deleted_at IS NULL", id, model.VisibilityPublic).
+		Take(&out).Error
+	if err != nil {
+		return nil, mapNotFound(err)
+	}
+	return &out, nil
 }
