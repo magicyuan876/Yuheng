@@ -230,6 +230,51 @@ These map to docker-compose profiles:
 | `minio.enabled` | Enable MinIO storage | `false` |
 | `neo4j.enabled` | Enable Neo4j (GraphRAG) | `false` |
 | `qdrant.enabled` | Enable Qdrant vector DB | `false` |
+| `docs.enabled` | Enable online documents | `false` |
+| `collab.enabled` | Enable collaborative editing for online documents | `false` |
+
+### Online documents
+
+Two switches, and they are independent in one direction only.
+
+`docs.enabled=true` turns the module on. That is enough for a complete
+product: spaces, pages, permissions, comments, history, search, export and
+import all work, and the editor uses **exclusive editing** — one writer per
+page at a time, holding a five-minute lease that renews while they type, with
+everybody else reading and seeing who has it.
+
+`collab.enabled=true` adds the collaboration service, which replaces that with
+real-time multi-writer editing. It is an upgrade to the same editor and the
+same build: only the transport differs. It requires `docs.enabled`, and the
+chart refuses to render without it rather than deploying a service with
+nothing to serve.
+
+```bash
+helm install yuheng ./helm   --set docs.enabled=true   --set collab.enabled=true   --set secrets.collabSharedSecret="$(openssl rand -base64 32)"   --set ingress.enabled=true   --set ingress.host=docs.example.com
+```
+
+`docs.collabUrl` defaults to `ws(s)://<ingress.host>/collab`, which is where
+the chart's own ingress rule sends the WebSocket. Set it explicitly when the
+browser reaches the cluster by some other route.
+
+**Two things to check on your ingress controller.** A WebSocket needs the
+protocol upgrade to survive the proxy, and it needs not to be cut off by the
+default read timeout — an editing session holds one connection open for as
+long as the document is on screen. On ingress-nginx:
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+```
+
+**More than one replica needs Redis.** Set `collab.redis.enabled=true` before
+raising `collab.replicaCount`. Without it two replicas holding the same
+document never see each other's edits: both are internally consistent, both
+believe they are correct, and whichever stores last overwrites the other.
+That failure is silent, which is why the chart templates the Redis URL rather
+than leaving it to be remembered.
 
 ## Security Best Practices
 

@@ -1,0 +1,158 @@
+{{/*
+Modifications Copyright (c) 2026 magicyuan876.
+SPDX-License-Identifier: MIT
+
+Yuheng docs collaboration service (Hocuspocus / Yjs) Deployment and Service.
+
+Off by default, and deliberately so: the docs module works without it, with
+the editor falling back to exclusive editing (one writer per page at a time).
+This is an optional upgrade to that, not a prerequisite, so enabling the docs
+module must never require enabling this.
+
+The service holds no credentials and opens no database connection of its own.
+Authentication, loading and persistence are all callbacks to the app, signed
+with the shared secret; that is the whole of its trust relationship.
+*/}}
+{{- if .Values.collab.enabled }}
+{{- if not .Values.docs.enabled }}
+{{- fail "collab.enabled requires docs.enabled: the collaboration service has nothing to serve when the docs module is off" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yuheng.fullname" . }}-collab
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "yuheng.componentLabels" (dict "component" "collab" "context" .) | nindent 4 }}
+spec:
+  replicas: {{ .Values.collab.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "yuheng.componentSelectorLabels" (dict "component" "collab" "context" .) | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "yuheng.componentSelectorLabels" (dict "component" "collab" "context" .) | nindent 8 }}
+    spec:
+      {{- include "yuheng.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "yuheng.serviceAccountName" . }}
+      {{- with .Values.global.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # A pod that goes away takes its unsaved edits with it unless it is given
+      # time to flush them, so the grace period is comfortably longer than
+      # COLLAB_SHUTDOWN_FLUSH_TIMEOUT_MS.
+      terminationGracePeriodSeconds: {{ .Values.collab.terminationGracePeriodSeconds }}
+      containers:
+        - name: collab
+          image: {{ include "yuheng.collab.image" . }}
+          imagePullPolicy: {{ .Values.collab.image.pullPolicy }}
+          {{- with .Values.collab.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: 1234
+              name: http
+              protocol: TCP
+          env:
+            - name: COLLAB_PORT
+              value: "1234"
+            - name: COLLAB_BACKEND_URL
+              value: "http://app:8080"
+            - name: COLLAB_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: COLLAB_SHARED_SECRET
+            {{- if .Values.collab.redis.enabled }}
+            # Multiple replicas without this see different copies of the same
+            # document, each convinced it is right, and the last one to store
+            # wins. Templated from the chart's own Redis rather than left to
+            # the operator, because getting it wrong is silent.
+            #
+            # REDIS_PASSWORD comes first on purpose: Kubernetes only expands a
+            # $(VAR) reference to a variable declared EARLIER in this list, and
+            # the other order yields the literal string "$(REDIS_PASSWORD)" in
+            # the URL -- which fails as an authentication error, pointing at
+            # the password rather than at the ordering.
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: REDIS_PASSWORD
+            - name: COLLAB_REDIS_URL
+              value: {{ .Values.collab.redis.url | default (printf "redis://:$(REDIS_PASSWORD)@redis:6379/%d" (int .Values.collab.redis.database)) | quote }}
+            {{- end }}
+            # Kept in step with the app's own limit: two different ceilings
+            # means one side accepting an update the other refuses to store.
+            - name: COLLAB_MAX_YDOC_BYTES
+              value: {{ .Values.docs.maxYDocBytes | quote }}
+            - name: COLLAB_LOG_LEVEL
+              value: {{ .Values.collab.logLevel | quote }}
+            {{- with .Values.collab.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.collab.resources | nindent 12 }}
+          # /healthz reports the app callback as well as this process, so a
+          # collab pod that cannot reach the app is taken out of the Service
+          # rather than accepting connections it can neither authenticate nor
+          # persist.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      {{- with .Values.collab.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collab.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collab.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Service name must be "collab": the app's YUHENG_COLLAB_INTERNAL_URL and the
+  # ingress rule below both address it by this name.
+  name: collab
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "yuheng.componentLabels" (dict "component" "collab" "context" .) | nindent 4 }}
+spec:
+  type: {{ .Values.collab.service.type }}
+  # A collaboration connection is a long-lived WebSocket, and a client that
+  # reconnects should land back on the pod already holding its document.
+  sessionAffinity: ClientIP
+  selector:
+    {{- include "yuheng.componentSelectorLabels" (dict "component" "collab" "context" .) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.collab.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}

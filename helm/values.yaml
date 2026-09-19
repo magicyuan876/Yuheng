@@ -236,6 +236,105 @@ docreader:
   affinity: {}
 
 # -----------------------------------------------------------------------------
+# Online documents (docs module)
+# -----------------------------------------------------------------------------
+docs:
+  # -- Enable the docs module. Off by default; registers /api/v1/docs/** and
+  # the tenant group endpoints.
+  enabled: false
+
+  # -- Browser-facing WebSocket URL of the collaboration service. Leave empty
+  # for exclusive editing (one writer per page at a time), which is a complete
+  # and supported mode, not a degraded one. When collab.enabled is true this is
+  # usually "wss://<ingress.host>/collab".
+  collabUrl: ""
+
+  # -- Largest Yjs state accepted for one page, in bytes. Shared with the
+  # collaboration service so that both ends agree on the limit.
+  maxYDocBytes: 20971520
+
+  # -- Largest attachment, in bytes.
+  maxAttachmentBytes: 209715200
+
+  # -- Days a trashed page is kept before the sweep purges it.
+  trashRetentionDays: 30
+
+  # -- Allow pages to be shared with people outside the workspace.
+  publicSharing: false
+
+  # -- Additional YUHENG_DOCS_* variables, passed through to the app verbatim.
+  extraEnv: []
+
+# -----------------------------------------------------------------------------
+# Docs collaboration service (Hocuspocus / Yjs)
+# -----------------------------------------------------------------------------
+collab:
+  # -- Enable the collaboration service. Requires docs.enabled.
+  # Leaving this off does not disable online documents: the editor falls back
+  # to exclusive editing, using the same build and the same UI.
+  enabled: false
+
+  # -- Number of replicas. More than one requires collab.redis.enabled, or the
+  # replicas will not see each other's edits.
+  replicaCount: 1
+
+  image:
+    # -- Image repository
+    repository: magicyuan876/yuheng-collab
+    # -- Image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+
+  # -- Log level: debug | info | warn | error
+  logLevel: info
+
+  redis:
+    # -- Share documents between replicas through Redis. Required for
+    # replicaCount > 1.
+    enabled: false
+    # -- Full Redis URL. Empty builds one from the chart's Redis and the
+    # database below.
+    url: ""
+    # -- Redis database index, kept away from the app's own.
+    database: 3
+
+  # -- Seconds a terminating pod is given to flush unsaved documents. Longer
+  # than the service's own flush timeout on purpose.
+  terminationGracePeriodSeconds: 45
+
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # -- Container security context
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+
+  # -- Service configuration
+  service:
+    type: ClusterIP
+    port: 1234
+
+  # -- Additional environment variables (COLLAB_*, see collab/README.md)
+  extraEnv: []
+
+  # -- Node selector
+  nodeSelector: {}
+
+  # -- Tolerations
+  tolerations: []
+
+  # -- Affinity rules
+  affinity: {}
+
+# -----------------------------------------------------------------------------
 # PostgreSQL (ParadeDB - Vector + BM25 Search)
 # -----------------------------------------------------------------------------
 postgresql:
@@ -392,6 +491,10 @@ secrets:
   redisPassword: ""
   # -- JWT signing secret (REQUIRED: change in production)
   jwtSecret: ""
+  # -- HMAC secret shared between the app and the collaboration service
+  # (REQUIRED when collab.enabled is true; at least 16 characters).
+  # Generate with: openssl rand -base64 32
+  collabSharedSecret: ""
   # -- System AES-256 key for database field encryption (must be exactly 32 bytes).
   # Encrypts: tenants.api_key, model API keys, vector store credentials,
   # web search provider keys, model AppSecret values.

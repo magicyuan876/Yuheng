@@ -25,7 +25,12 @@ export MAX_FILE_SIZE=${BODY_LIMIT}M
 export APP_HOST=${APP_HOST:-app}
 export APP_PORT=${APP_PORT:-8080}
 export APP_SCHEME=${APP_SCHEME:-http}
-envsubst '${MAX_FILE_SIZE} ${APP_HOST} ${APP_PORT} ${APP_SCHEME}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+# 在线文档的协同服务。默认指向 compose 里的 collab 容器；该服务没启动时
+# /collab 会返回 502，而这正是前端需要的答案 —— 连不上就退回独占编辑，
+# 不会卡在连接中。
+export COLLAB_HOST=${COLLAB_HOST:-collab}
+export COLLAB_PORT=${COLLAB_PORT:-1234}
+envsubst '${MAX_FILE_SIZE} ${APP_HOST} ${APP_PORT} ${APP_SCHEME} ${COLLAB_HOST} ${COLLAB_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # 启动 nginx
 exec nginx -g 'daemon off;'

@@ -128,6 +128,13 @@ Return the docreader image with tag.
 {{- end }}
 
 {{/*
+Return the collaboration service image with tag.
+*/}}
+{{- define "yuheng.collab.image" -}}
+{{- printf "%s:%s" .Values.collab.image.repository .Values.collab.image.tag }}
+{{- end }}
+
+{{/*
 Return the PostgreSQL image with tag.
 */}}
 {{- define "yuheng.postgresql.image" -}}

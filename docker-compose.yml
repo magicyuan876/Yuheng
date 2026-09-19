@@ -66,6 +66,14 @@ services:
     env_file:
       - .env
     environment:
+      # ========== 在线文档 ==========
+      # 其余 YUHENG_DOCS_* 走上面的 env_file，这里只放一个与 compose 拓扑
+      # 相关、必须由部署方式决定的值。
+      #
+      # 服务端回调协同服务时用容器名直连，不绕 nginx：回调是内网调用，
+      # 多走一层代理只会多一个出故障的地方。浏览器侧的 YUHENG_COLLAB_URL
+      # 则要填用户实际访问的地址（默认 ws://<本站>/collab，见 .env.example K 组）。
+      - YUHENG_COLLAB_INTERNAL_URL=${YUHENG_COLLAB_INTERNAL_URL:-http://collab:1234}
       # ========== 日志 ==========
       # 日志级别，默认debug
       - LOG_LEVEL=${LOG_LEVEL:-debug}
@@ -1023,6 +1031,48 @@ services:
     profiles:
       - langfuse
       - full
+
+  # ---------------------------------------------------------------------------
+  # 在线文档的协同编辑服务（Hocuspocus / Yjs）。
+  #
+  # 只在 `--profile docs` 下启动，因为 docs 模块默认关闭（YUHENG_DOCS_ENABLED）。
+  # 不启动它，在线文档照样能用：编辑器退化为独占编辑（进入即取 5 分钟租约，
+  # 其他人只读），前后端用的是同一套构建产物，差别只在传输层。所以这个服务是
+  # 可选的增强，不是 docs 的前置依赖 —— 部署时不要把它当成必须项。
+  #
+  # 鉴权、加载和落盘全部回调 app：这个进程自己不连数据库，也不持有任何凭证，
+  # 除了与 app 之间那把共享密钥。
+  collab:
+    image: magicyuan876/yuheng-collab:${YUHENG_VERSION:-latest}
+    build:
+      # 构建上下文必须是仓库根目录：服务要打包 packages/docs-schema 里的共享 schema。
+      context: .
+      dockerfile: collab/Dockerfile
+    container_name: Yuheng-collab
+    ports:
+      - "${COLLAB_PORT:-1234}:1234"
+    environment:
+      # app 的内网地址。协同服务用它做鉴权、取文档、写回文档。
+      - COLLAB_BACKEND_URL=${COLLAB_BACKEND_URL:-http://app:8080}
+      # 与 app 的 YUHENG_COLLAB_SHARED_SECRET 必须一致，否则两边互相拒绝。
+      # 没填或少于 16 个字符时，协同服务自己会拒绝启动。这里故意不用
+      # compose 的 ${VAR:?err} 写法：那个检查在解析整份文件时就会触发，
+      # 会连带把根本没启用 docs profile 的人的 `docker compose up` 一起卡死。
+      - COLLAB_SHARED_SECRET=${YUHENG_COLLAB_SHARED_SECRET:-}
+      # 多实例时用 Redis 同步；单实例留空即可。
+      - COLLAB_REDIS_URL=${COLLAB_REDIS_URL:-}
+      - COLLAB_LOG_LEVEL=${COLLAB_LOG_LEVEL:-info}
+      # 单页 Yjs 状态上限，和 app 的 YUHENG_DOCS_MAX_YDOC_BYTES 保持一致，
+      # 否则会出现一边收下、另一边拒绝落盘的情况。
+      - COLLAB_MAX_YDOC_BYTES=${YUHENG_DOCS_MAX_YDOC_BYTES:-20971520}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - Yuheng-network
+    restart: unless-stopped
+    profiles:
+      - docs
 
   mcp:
     build:

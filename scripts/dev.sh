@@ -67,6 +67,7 @@ show_help() {
     echo "可选 Profile（用于 start 命令）:"
     echo "  --minio       启动 MinIO 对象存储"
     echo "  --qdrant      启动 Qdrant 向量数据库"
+    echo "  --docs        启动在线文档的协同编辑服务（不开则为独占编辑）"
     echo "  --neo4j       启动 Neo4j 图数据库"
     echo "  --dex         启动 Dex（OIDC 身份认证）"
     echo "  --langfuse    启动 Langfuse（默认已开启）"
@@ -229,6 +230,10 @@ start_services() {
             --dex)
                 PROFILES="$PROFILES --profile dex"
                 ENABLED_SERVICES="$ENABLED_SERVICES dex"
+                ;;
+            --docs)
+                PROFILES="$PROFILES --profile docs"
+                ENABLED_SERVICES="$ENABLED_SERVICES collab"
                 ;;
             --langfuse)
                 PROFILES="$PROFILES --profile langfuse"

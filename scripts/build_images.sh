@@ -29,6 +29,8 @@ show_help() {
     echo "  -p, --app      仅构建应用镜像"
     echo "  -d, --docreader 仅构建文档读取器镜像"
     echo "  -f, --frontend 仅构建前端镜像"
+    echo "      --collab   仅构建在线文档的协同服务镜像（不在 --all 里："
+    echo "                 docs 模块默认关闭，不该让每次构建都多跑一道 node 打包）"
     echo "  -c, --clean    清理所有本地镜像"
     echo "  -v, --version  显示版本信息"
     exit 0
@@ -209,6 +211,24 @@ build_frontend_image() {
     fi
 }
 
+build_collab_image() {
+    log_info "构建协同服务镜像 (yuheng-collab)..."
+
+    cd "$PROJECT_ROOT"
+
+    # 构建上下文是仓库根目录，不是 collab/：服务要打包
+    # packages/docs-schema 里的共享 schema，它在 collab/ 之外。
+    docker build         --platform $PLATFORM         -f collab/Dockerfile         -t magicyuan876/yuheng-collab:latest         .
+
+    if [ $? -eq 0 ]; then
+        log_success "协同服务镜像构建成功"
+        return 0
+    else
+        log_error "协同服务镜像构建失败"
+        return 1
+    fi
+}
+
 # 构建所有镜像
 build_all_images() {
     log_info "开始构建所有镜像..."
@@ -280,6 +300,7 @@ clean_images() {
     docker rmi magicyuan876/yuheng-app:latest 2>/dev/null || true
     docker rmi magicyuan876/yuheng-docreader:latest 2>/dev/null || true
     docker rmi magicyuan876/yuheng-ui:latest 2>/dev/null || true
+    docker rmi magicyuan876/yuheng-collab:latest 2>/dev/null || true
     
     docker image prune -f
     
@@ -292,6 +313,7 @@ BUILD_ALL=false
 BUILD_APP=false
 BUILD_DOCREADER=false
 BUILD_FRONTEND=false
+BUILD_COLLAB=false
 CLEAN_IMAGES=false
 
 # 没有参数时默认构建所有镜像
@@ -308,6 +330,8 @@ while [ "$1" != "" ]; do
         -p | --app )        BUILD_APP=true
                             ;;
         -d | --docreader )  BUILD_DOCREADER=true
+                            ;;
+        --collab )          BUILD_COLLAB=true
                             ;;
         -f | --frontend )   BUILD_FRONTEND=true
                             ;;
@@ -351,6 +375,10 @@ fi
 if [ "$BUILD_DOCREADER" = true ]; then
     build_docreader_image
     exit $?
+fi
+
+if [ "$BUILD_COLLAB" = true ]; then
+    build_collab_image
 fi
 
 if [ "$BUILD_FRONTEND" = true ]; then

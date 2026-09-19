@@ -139,6 +139,42 @@ spec:
                   name: {{ include "yuheng.secretName" . }}
                   key: NEO4J_PASSWORD
             {{- end }}
+            {{- if .Values.docs.enabled }}
+            # Online documents. The module is off unless this is true, and the
+            # collaboration variables below are what decide whether the editor
+            # is collaborative or exclusive -- both are complete modes.
+            - name: YUHENG_DOCS_ENABLED
+              value: "true"
+            - name: YUHENG_DOCS_MAX_YDOC_BYTES
+              value: {{ .Values.docs.maxYDocBytes | quote }}
+            - name: YUHENG_DOCS_MAX_ATTACHMENT_BYTES
+              value: {{ .Values.docs.maxAttachmentBytes | quote }}
+            - name: YUHENG_DOCS_TRASH_RETENTION_DAYS
+              value: {{ .Values.docs.trashRetentionDays | quote }}
+            - name: YUHENG_DOCS_PUBLIC_SHARING
+              value: {{ .Values.docs.publicSharing | quote }}
+            {{- if .Values.collab.enabled }}
+            # What the browser is told to connect to. Defaults to the ingress
+            # host, which is where the /collab rule sends WebSocket traffic.
+            - name: YUHENG_COLLAB_URL
+              value: {{ .Values.docs.collabUrl | default (printf "%s://%s/collab" (ternary "wss" "ws" .Values.ingress.tls.enabled) .Values.ingress.host) | quote }}
+            # What this server calls back on: the Service directly, not through
+            # the ingress. An internal call has no business leaving the cluster.
+            - name: YUHENG_COLLAB_INTERNAL_URL
+              value: "http://collab:1234"
+            - name: YUHENG_COLLAB_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: COLLAB_SHARED_SECRET
+            {{- else if .Values.docs.collabUrl }}
+            - name: YUHENG_COLLAB_URL
+              value: {{ .Values.docs.collabUrl | quote }}
+            {{- end }}
+            {{- with .Values.docs.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.app.extraEnv }}
             # Additional environment variables
             {{- toYaml . | nindent 12 }}

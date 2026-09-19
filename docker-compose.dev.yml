@@ -223,10 +223,6 @@ services:
     profiles:
       - neo4j
       - full
-    profiles:
-      - full
-    command: ["true"]
-    restart: "no"
 
   docreader:
     build:
@@ -327,6 +323,37 @@ services:
   # OpenDataLoader hybrid backend (optional). Enable profile "odl-hybrid" and set
   # DOCREADER_ODL_HYBRID=docling-fast on docreader. Default --no-ocr (no EasyOCR).
   # Local build only — not published to Docker Hub.
+  # 在线文档的协同编辑服务（开发用）。
+  #
+  # 开发模式下 app 跑在宿主机（make dev-app），所以回调地址指向
+  # host.docker.internal；Linux 上该主机名靠下面的 extra_hosts 生效。
+  #
+  # 启动：./scripts/dev.sh start --docs
+  # 还需要在 .env 里设：
+  #   YUHENG_DOCS_ENABLED=true
+  #   YUHENG_COLLAB_SHARED_SECRET=<至少 16 个字符>
+  #   YUHENG_COLLAB_URL=ws://localhost:1234
+  collab:
+    build:
+      # 上下文是仓库根目录：要打包 packages/docs-schema。
+      context: .
+      dockerfile: collab/Dockerfile
+    image: magicyuan876/yuheng-collab:${YUHENG_VERSION:-latest}
+    container_name: Yuheng-collab-dev
+    ports:
+      - "${COLLAB_PORT:-1234}:1234"
+    environment:
+      - COLLAB_BACKEND_URL=${COLLAB_BACKEND_URL:-http://host.docker.internal:8080}
+      - COLLAB_SHARED_SECRET=${YUHENG_COLLAB_SHARED_SECRET:-}
+      - COLLAB_REDIS_URL=${COLLAB_REDIS_URL:-}
+      - COLLAB_LOG_LEVEL=${COLLAB_LOG_LEVEL:-debug}
+      - COLLAB_MAX_YDOC_BYTES=${YUHENG_DOCS_MAX_YDOC_BYTES:-20971520}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    profiles:
+      - docs
+
   odl-hybrid:
     build:
       context: .

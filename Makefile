@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
+.PHONY: help build run test clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend build-images-collab clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
 
 # Show help
 help:
@@ -31,6 +31,7 @@ help:
 	@echo "  build-images-app  从源码构建应用镜像"
 	@echo "  build-images-docreader 从源码构建文档读取器镜像"
 	@echo "  build-images-frontend  从源码构建前端镜像"
+	@echo "  build-images-collab    从源码构建在线文档的协同服务镜像"
 	@echo "  clean-images      清理本地镜像"
 	@echo ""
 	@echo "数据库:"
@@ -173,6 +174,11 @@ build-images-docreader:
 
 build-images-frontend:
 	./scripts/build_images.sh --frontend
+
+# 在线文档的协同编辑服务。没有它，在线文档依然可用（退化为独占编辑），
+# 所以它不在 build-images 里，需要时单独构建。
+build-images-collab:
+	./scripts/build_images.sh --collab
 
 clean-images:
 	./scripts/build_images.sh --clean
