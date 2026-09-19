@@ -58,6 +58,11 @@ const (
 	PageUpdated Kind = "page_updated"
 	// AccessGranted is being given access to a page or a space.
 	AccessGranted Kind = "access_granted"
+	// ShareViewed is a public link of yours reaching a view milestone. The
+	// fifth row of the table above, and the only one that is a threshold
+	// rather than an event: one notification per visit would be useless on a
+	// link that works, and silent on one that does not.
+	ShareViewed Kind = "share_viewed"
 )
 
 // Merge windows, from the table above.
@@ -81,6 +86,10 @@ func MergeWindow(kind Kind) time.Duration {
 		return CommentWindow
 	case PageUpdated:
 		return PageUpdateWindow
+	case ShareViewed:
+		// Each milestone fires once by construction, so merging two of them
+		// would hide the second rather than tidy anything.
+		return 0
 	default:
 		return 0
 	}

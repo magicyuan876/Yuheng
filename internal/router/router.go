@@ -135,6 +135,9 @@ func NewRouter(params RouterParams) *gin.Engine {
 	// 协同服务回调（在认证中间件之前注册，使用 HMAC 共享密钥校验）
 	RegisterDocsInternalRoutes(r, params.DocsModule)
 
+	// 文档公开分享链接（在认证中间件之前注册：访客没有会话，链接 key 本身就是凭据）
+	RegisterDocsPublicRoutes(r, params.DocsModule)
+
 	// Short-lived capability URLs for clients that cannot attach
 	// Yuheng authentication headers.
 	serveResourceGrants(r, params.ResourceCatalog, params.TenantService, params.FileService, params.StorageBackendResolver)

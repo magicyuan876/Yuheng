@@ -52,6 +52,7 @@ type Repositories struct {
 	Watchers WatcherRepository
 	Notices  NotificationRepository
 	Labels   LabelRepository
+	Shares   ShareRepository
 }
 
 // New wires the repositories.
@@ -72,6 +73,7 @@ func New(db *gorm.DB) *Repositories {
 		Watchers: &watcherRepository{db: db},
 		Notices:  &notificationRepository{db: db},
 		Labels:   &labelRepository{db: db},
+		Shares:   &shareRepository{db: db},
 	}
 }
 

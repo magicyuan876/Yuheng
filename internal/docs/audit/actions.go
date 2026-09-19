@@ -53,6 +53,7 @@ const (
 	PageGrantRemoved     types.AuditAction = "docs.page.grant_removed"
 
 	ShareCreated  types.AuditAction = "docs.share.created"
+	ShareUpdated  types.AuditAction = "docs.share.updated"
 	ShareRevoked  types.AuditAction = "docs.share.revoked"
 	ShareAccessed types.AuditAction = "docs.share.accessed"
 
