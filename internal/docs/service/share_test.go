@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/magicyuan876/yuheng/internal/docs/audit"
 	"github.com/magicyuan876/yuheng/internal/docs/share"
 )
 
@@ -416,4 +417,17 @@ func TestTheOwnersListSaysWhenALinkIsNotLive(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.False(t, rows[0].Live)
+}
+
+// "Content of ours was read from the public internet" is a fact a compliance
+// reviewer needs, and the first visit is when it becomes true.
+func TestTheFirstVisitToALinkIsAudited(t *testing.T) {
+	p := newSharingEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	link := p.publish(t, page.Page.ID, CreateShareInput{})
+
+	assert.False(t, p.audit.has(audit.ShareAccessed), "nothing to record before anybody visits")
+
+	p.visit(t, link.Key, "", "")
+	assert.True(t, p.audit.has(audit.ShareAccessed))
 }

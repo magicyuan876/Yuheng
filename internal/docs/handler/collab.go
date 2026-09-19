@@ -129,7 +129,7 @@ type StoreRequest struct {
 	PageID         string          `json:"page_id"`
 	BaseVersion    int64           `json:"base_version"`
 	YDoc           string          `json:"ydoc"`
-	Content        json.RawMessage `json:"content"`
+	Content        json.RawMessage `json:"content" swaggertype:"object"`
 	EditorIDs      []string        `json:"editor_ids"`
 	AwarenessCount int             `json:"awareness_count"`
 }

@@ -1,0 +1,156 @@
+package service
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/magicyuan876/yuheng/internal/docs/audit"
+	"github.com/magicyuan876/yuheng/internal/docs/model"
+)
+
+// The rule the resolver has enforced since T0.3 and that nothing could
+// trigger until T4.4's audit found it.
+func TestLockingAPageCapsEverybodyElseAtReader(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Settled")
+
+	require.Equal(t, model.RoleWriter, p.decision(t, p.bob, page.Page.ID).Role)
+
+	view, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	require.NoError(t, err)
+	assert.True(t, view.Page.IsLocked)
+
+	assert.Equal(t, model.RoleReader, p.decision(t, p.bob, page.Page.ID).Role,
+		"a writer is capped at reader")
+	assert.Equal(t, model.RoleAdmin, p.decision(t, p.alice, page.Page.ID).Role,
+		"a space admin is not")
+}
+
+func TestUnlockingRestoresEditing(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Settled")
+	d := p.decision(t, p.alice, page.Page.ID)
+
+	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, d, true)
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), false)
+	require.NoError(t, err)
+
+	assert.Equal(t, model.RoleWriter, p.decision(t, p.bob, page.Page.ID).Role)
+}
+
+// If any writer could lock, a disagreement about whether a page is finished
+// would be settled by whoever clicked first.
+func TestOnlyAnAdministratorLocksOrUnlocks(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+
+	_, err := p.svc.Pages.SetLocked(ctx(), p.bob, p.decision(t, p.bob, page.Page.ID), true)
+	require.Error(t, err, "a writer may not lock")
+
+	_, err = p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	require.NoError(t, err)
+
+	// And a writer, now capped at reader, cannot undo it either.
+	_, err = p.svc.Pages.SetLocked(ctx(), p.bob, p.decision(t, p.bob, page.Page.ID), false)
+	require.Error(t, err)
+}
+
+func TestLockingIsIdempotent(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+
+	for i := 0; i < 2; i++ {
+		view, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+		require.NoError(t, err)
+		assert.True(t, view.Page.IsLocked)
+	}
+}
+
+func TestLockingIsAudited(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+
+	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	require.NoError(t, err)
+	assert.True(t, p.audit.has(audit.PageLocked))
+
+	_, err = p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), false)
+	require.NoError(t, err)
+	assert.True(t, p.audit.has(audit.PageUnlocked))
+}
+
+// A locked page refuses the writes it is meant to refuse.
+func TestALockedPageRefusesEdits(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	require.NoError(t, err)
+
+	title := "Renamed"
+	_, err = p.svc.Pages.Update(ctx(), p.bob, p.decision(t, p.bob, page.Page.ID),
+		UpdatePageInput{Title: &title})
+	require.Error(t, err)
+}
+
+// A draft is a label, not a permission: everybody who could read the page
+// can still read it.
+func TestADraftIsStillReadable(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Half written")
+	d := p.decision(t, p.alice, page.Page.ID)
+
+	view, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, model.PageDraft)
+	require.NoError(t, err)
+	assert.Equal(t, model.PageDraft, view.Page.Status)
+
+	assert.Equal(t, model.RoleReader, p.decision(t, p.carol, page.Page.ID).Role,
+		"a reader still reads it")
+}
+
+func TestPublishingIsAudited(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	d := p.decision(t, p.alice, page.Page.ID)
+
+	_, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, model.PageDraft)
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SetPageStatus(ctx(), p.alice,
+		p.decision(t, p.alice, page.Page.ID), model.PagePublished)
+	require.NoError(t, err)
+
+	assert.True(t, p.audit.has(audit.PagePublished))
+}
+
+func TestAStatusThatIsNotAStatusIsRefused(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	d := p.decision(t, p.alice, page.Page.ID)
+
+	for _, status := range []model.PageStatus{"", "archived", "Draft"} {
+		_, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, status)
+		require.Error(t, err, "status %q", status)
+	}
+}
+
+func TestAReaderMayNotChangeTheStatus(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+
+	_, err := p.svc.Pages.SetPageStatus(ctx(), p.carol,
+		p.decision(t, p.carol, page.Page.ID), model.PageDraft)
+	require.Error(t, err)
+}
+
+func TestALockedPageRefusesAStatusChange(t *testing.T) {
+	p := newPageEnv(t)
+	page := p.create(t, p.alice, nil, "Notes")
+	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	require.NoError(t, err)
+
+	_, err = p.svc.Pages.SetPageStatus(ctx(), p.bob,
+		p.decision(t, p.bob, page.Page.ID), model.PageDraft)
+	require.Error(t, err)
+}

@@ -5081,6 +5081,14 @@ export default {
       saved: '已存为模板',
       saveFailed: '模板保存失败',
     },
+    // 锁定页面，以及标记草稿/已发布。
+    lock: {
+      lock: '锁定',
+      locked: '已锁定',
+      draft: '草稿',
+      published: '已发布',
+      changeFailed: '页面状态修改失败',
+    },
     notifications: {
       title: '通知',
       empty: '没有新消息',

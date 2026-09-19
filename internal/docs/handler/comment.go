@@ -21,10 +21,10 @@ import (
 // CreateCommentRequest is the body of POST /docs/pages/:pid/comments.
 type CreateCommentRequest struct {
 	// Body is a ProseMirror document — a small subset of the page schema.
-	Body json.RawMessage `json:"body" binding:"required"`
+	Body json.RawMessage `json:"body" binding:"required" swaggertype:"object"`
 	// Anchor is the editor's Yjs relative position for the commented range.
 	// Absent makes a comment about the page as a whole.
-	Anchor json.RawMessage `json:"anchor,omitempty"`
+	Anchor json.RawMessage `json:"anchor,omitempty" swaggertype:"object"`
 	// QuotedText is what that range covered, kept so the comment can still be
 	// placed if the position stops resolving.
 	QuotedText string `json:"quoted_text,omitempty"`
@@ -34,7 +34,7 @@ type CreateCommentRequest struct {
 
 // UpdateCommentRequest is the body of PATCH /docs/pages/:pid/comments/:cid.
 type UpdateCommentRequest struct {
-	Body json.RawMessage `json:"body" binding:"required"`
+	Body json.RawMessage `json:"body" binding:"required" swaggertype:"object"`
 }
 
 // ResolveCommentRequest is the body of POST /docs/pages/:pid/comments/:cid/resolve.

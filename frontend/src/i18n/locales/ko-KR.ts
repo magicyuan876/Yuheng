@@ -5082,6 +5082,14 @@ export default {
       saved: '템플릿으로 저장했습니다',
       saveFailed: '템플릿을 저장하지 못했습니다',
     },
+    // 페이지 잠금, 그리고 초안/게시 표시.
+    lock: {
+      lock: '잠금',
+      locked: '잠김',
+      draft: '초안',
+      published: '게시됨',
+      changeFailed: '페이지 상태를 변경하지 못했습니다',
+    },
     notifications: {
       title: '알림',
       empty: '새 알림이 없습니다',

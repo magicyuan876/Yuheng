@@ -56,7 +56,7 @@ type CreateSpaceRequest struct {
 	DefaultRole      string          `json:"default_role"`
 	KnowledgeBaseID  *string         `json:"knowledge_base_id"`
 	StorageBackendID *string         `json:"storage_backend_id"`
-	Settings         json.RawMessage `json:"settings"`
+	Settings         json.RawMessage `json:"settings" swaggertype:"object"`
 }
 
 // UpdateSpaceRequest is the body of PATCH /docs/spaces/{sid}; absent fields
@@ -68,7 +68,7 @@ type UpdateSpaceRequest struct {
 	Icon        *string         `json:"icon"`
 	Visibility  *string         `json:"visibility"`
 	DefaultRole *string         `json:"default_role"`
-	Settings    json.RawMessage `json:"settings"`
+	Settings    json.RawMessage `json:"settings" swaggertype:"object"`
 }
 
 // SpaceMemberRequest names one principal and the role to grant.

@@ -33,8 +33,19 @@ func NewEventStream(bus events.Bus, heartbeat time.Duration) *EventStream {
 	return &EventStream{bus: bus, heartbeat: heartbeat, buffer: 64}
 }
 
-// Handle serves GET /docs/events (the guard's RequireMember must run first
-// so an identity is present).
+// Handle godoc
+// @Summary      订阅文档事件流（SSE）
+// @Description  Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等
+// @Description  只推送调用者当前可见的空间；权限变更后不再可见的页面事件会被过滤
+// @Description  可用 space 参数只订阅一个空间；连接期间每 25 秒发一次心跳注释行
+// @Tags         在线文档
+// @Produce      text/event-stream
+// @Param        space  query  string  false  "只订阅该空间的事件"
+// @Success      200  {string}  string  "event stream"
+// @Security     Bearer
+// @Router       /docs/events [get]
+//
+// The guard's RequireMember must run first so an identity is present.
 func (s *EventStream) Handle(c *gin.Context) {
 	id, ok := acl.IdentityFromGin(c)
 	if !ok {

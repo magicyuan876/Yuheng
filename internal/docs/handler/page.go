@@ -62,7 +62,7 @@ type CreatePageRequest struct {
 	ParentID *string         `json:"parent_id"`
 	Title    string          `json:"title"`
 	Icon     *string         `json:"icon"`
-	Content  json.RawMessage `json:"content"`
+	Content  json.RawMessage `json:"content" swaggertype:"object"`
 	Markdown string          `json:"markdown"`
 	// TemplateID starts the page from a saved body, instead of content or
 	// markdown.
@@ -73,7 +73,7 @@ type CreatePageRequest struct {
 // Content and markdown are mutually exclusive; sending neither empties the
 // page, which is a legitimate thing to want and is why it is not an error.
 type ReplaceContentRequest struct {
-	Content  json.RawMessage `json:"content"`
+	Content  json.RawMessage `json:"content" swaggertype:"object"`
 	Markdown string          `json:"markdown"`
 }
 
