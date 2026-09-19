@@ -179,6 +179,7 @@ CREATE TABLE IF NOT EXISTS docs_comments (
     page_id      VARCHAR(36) NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
     parent_id    VARCHAR(36) REFERENCES docs_comments(id) ON DELETE CASCADE,
     body         TEXT        NOT NULL,
+    text_content TEXT        NOT NULL DEFAULT '',
     anchor       TEXT,
     quoted_text  TEXT,
     creator_id   VARCHAR(36) NOT NULL,

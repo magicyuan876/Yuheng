@@ -4,21 +4,24 @@ import "time"
 
 // Comment is a page-level or inline comment thread entry.
 type Comment struct {
-	ID         string     `json:"id"           gorm:"type:varchar(36);primaryKey"`
-	TenantID   uint64     `json:"tenant_id"    gorm:"not null"`
-	SpaceID    string     `json:"space_id"     gorm:"type:varchar(36);not null"`
-	PageID     string     `json:"page_id"      gorm:"type:varchar(36);not null"`
-	ParentID   *string    `json:"parent_id,omitempty" gorm:"type:varchar(36)"`
-	Body       JSON       `json:"body"         gorm:"type:json;not null"`
-	Anchor     JSON       `json:"anchor,omitempty" gorm:"type:json"`
-	QuotedText *string    `json:"quoted_text,omitempty" gorm:"type:text"`
-	CreatorID  string     `json:"creator_id"   gorm:"type:varchar(36);not null"`
-	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
-	ResolvedBy *string    `json:"resolved_by,omitempty" gorm:"type:varchar(36)"`
-	EditedAt   *time.Time `json:"edited_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"   gorm:"autoCreateTime"`
-	UpdatedAt  time.Time  `json:"updated_at"   gorm:"autoUpdateTime"`
-	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
+	ID       string  `json:"id"           gorm:"type:varchar(36);primaryKey"`
+	TenantID uint64  `json:"tenant_id"    gorm:"not null"`
+	SpaceID  string  `json:"space_id"     gorm:"type:varchar(36);not null"`
+	PageID   string  `json:"page_id"      gorm:"type:varchar(36);not null"`
+	ParentID *string `json:"parent_id,omitempty" gorm:"type:varchar(36)"`
+	Body     JSON    `json:"body"         gorm:"type:json;not null"`
+	// TextContent is Body as plain text, kept beside it so search can match
+	// words rather than JSON structure keywords.
+	TextContent string     `json:"-" gorm:"type:text;not null;default:''"`
+	Anchor      JSON       `json:"anchor,omitempty" gorm:"type:json"`
+	QuotedText  *string    `json:"quoted_text,omitempty" gorm:"type:text"`
+	CreatorID   string     `json:"creator_id"   gorm:"type:varchar(36);not null"`
+	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
+	ResolvedBy  *string    `json:"resolved_by,omitempty" gorm:"type:varchar(36)"`
+	EditedAt    *time.Time `json:"edited_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"   gorm:"autoCreateTime"`
+	UpdatedAt   time.Time  `json:"updated_at"   gorm:"autoUpdateTime"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
 
 // TableName pins the table name.

@@ -322,7 +322,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// would mean every handler re-deriving them. The T0.5 placeholders that
 	// stood here are gone for that reason — see the same note on revisions
 	// and comments.
-	read.GET("/search", g.Viewer(), guard.RequireMember(), ni)
+	// Search covers pages, comments and text shown by reference. Membership
+	// is all the guard can establish; every result is filtered by the
+	// caller's own permissions inside the service, including the rule that a
+	// transcluded passage is judged by the page it came FROM.
+	read.GET("/search", g.Viewer(), guard.RequireMember(), pg.Search)
 	// An inbox belongs to its reader rather than to any page, so these are
 	// guarded by membership alone: a notification says what happened, and
 	// somebody who has since lost access to a page can still read and dismiss

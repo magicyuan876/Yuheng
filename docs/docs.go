@@ -4338,6 +4338,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/search": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "同时搜索页面（标题与正文）、**评论**，以及页面通过块引用显示的文本\n结果一律按调用者的权限过滤；块引用文本按**来源页**的权限过滤——\n否则搜索就成了通过引用页阅读无权页面的侧信道\n匹配用子串而不是全文索引：` + "`" + `simple` + "`" + ` 分词会把整句中文当成一个词，\n那样的全文索引对中文文档静默返回空结果",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "搜索文档",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索词",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "只搜这一个空间",
+                        "name": "space",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "结果条数上限",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/spaces": {
             "get": {
                 "security": [

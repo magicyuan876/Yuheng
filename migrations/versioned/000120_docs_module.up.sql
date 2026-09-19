@@ -248,6 +248,10 @@ CREATE TABLE IF NOT EXISTS docs_comments (
     parent_id    VARCHAR(36) REFERENCES docs_comments(id) ON DELETE CASCADE,
     -- ProseMirror JSON (paragraph root; see schema.ValidateOptions.AllowedRoot)
     body         JSONB       NOT NULL,
+    -- The body as plain text, maintained by the service beside the JSON.
+    -- Search matches on this: matching the JSON would hit structure keywords
+    -- ("paragraph", "text") and would miss nothing a reader would call a hit.
+    text_content TEXT        NOT NULL DEFAULT '',
     -- Yjs relative positions {from, to} of the commented range; NULL for a
     -- page-level comment or once the range no longer resolves.
     anchor       JSONB,

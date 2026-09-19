@@ -5103,6 +5103,20 @@ export default {
       belowUsage: '这低于已占用的 {used}。不会删除任何数据，只是在降到新上限以下之前无法继续增长。',
       saveFailed: '上限修改失败',
     },
+    // 搜索：页面、评论，以及页面通过块引用显示的文本。
+    search: {
+      title: '搜索',
+      placeholder: '搜索页面、评论与引用内容',
+      thisSpaceOnly: '只搜本空间',
+      hint: '输入即可搜索。',
+      nothing: '没有匹配「{query}」的内容。',
+      more: '匹配的结果比显示的多，缩小范围可以看到其余部分。',
+      kind: {
+        comment: '评论',
+        transclusion: '引用',
+        page: '页面',
+      },
+    },
     notifications: {
       title: '通知',
       empty: '没有新消息',

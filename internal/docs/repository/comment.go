@@ -36,7 +36,8 @@ type CommentRepository interface {
 	// No plain-text column goes with it: the text is derived from the body
 	// wherever it is wanted (comment.ParseBody), so there is one answer rather
 	// than a stored copy that can fall behind the body it summarises.
-	UpdateBody(ctx context.Context, tenantID uint64, commentID string, body model.JSON) error
+	UpdateBody(ctx context.Context, tenantID uint64, commentID string, body model.JSON,
+		text string) error
 
 	// SetResolved marks a thread resolved or reopens it. `by` is empty when
 	// reopening.
@@ -98,13 +99,14 @@ func (r *commentRepository) ListForPage(ctx context.Context, tenantID uint64, pa
 }
 
 func (r *commentRepository) UpdateBody(ctx context.Context, tenantID uint64, commentID string,
-	body model.JSON,
+	body model.JSON, text string,
 ) error {
 	res := r.db.WithContext(ctx).Model(&model.Comment{}).
 		Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantID, commentID).
 		Updates(map[string]any{
-			"body":      body,
-			"edited_at": now(),
+			"body":         body,
+			"text_content": text,
+			"edited_at":    now(),
 			// The anchor is deliberately not touched: editing what a remark
 			// says does not move what it is about.
 		})

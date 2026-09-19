@@ -671,6 +671,53 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- search --------------------------------------------------------------------
+
+/**
+ * One search result.
+ *
+ * `kind` says what matched: the page itself, a comment on it, or text the
+ * page shows by reference from another page. A transclusion hit carries
+ * `source_page_id` — the page the text lives on, and the page whose
+ * permissions allowed the result.
+ */
+export interface SearchHit {
+  kind: 'page' | 'comment' | 'transclusion'
+  page_id: string
+  short_id: string
+  space_id: string
+  /** The slug a URL is built from. Carried on the hit because results come
+   * from any space the caller can read. */
+  space_slug: string
+  title: string
+  excerpt: string
+  comment_id?: string
+  source_page_id?: string
+  score: number
+}
+
+export interface SearchResults {
+  query: string
+  hits: SearchHit[]
+  /** True when more matched than were returned. */
+  truncated: boolean
+}
+
+/**
+ * Backend: GET /api/v1/docs/search (workspace member).
+ *
+ * Matches pages, comments and referenced text, all filtered by what the
+ * caller may read.
+ */
+export async function searchDocs(
+  query: string, opts: { space?: string; limit?: number } = {},
+): Promise<SearchResults> {
+  const params = new URLSearchParams({ q: query })
+  if (opts.space) params.set('space', opts.space)
+  if (opts.limit) params.set('limit', String(opts.limit))
+  return unwrap<SearchResults>(await get(`${base}/search?${params.toString()}`))
+}
+
 // ---- space storage ------------------------------------------------------------
 
 /** What a space holds and what it may hold. `quota_bytes` 0 is unlimited. */

@@ -8521,6 +8521,41 @@ paths:
       summary: 用密码解锁公开链接（无需登录）
       tags:
       - 在线文档
+  /docs/search:
+    get:
+      description: |-
+        同时搜索页面（标题与正文）、**评论**，以及页面通过块引用显示的文本
+        结果一律按调用者的权限过滤；块引用文本按**来源页**的权限过滤——
+        否则搜索就成了通过引用页阅读无权页面的侧信道
+        匹配用子串而不是全文索引：`simple` 分词会把整句中文当成一个词，
+        那样的全文索引对中文文档静默返回空结果
+      parameters:
+      - description: 搜索词
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: 只搜这一个空间
+        in: query
+        name: space
+        type: string
+      - description: 结果条数上限
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 搜索文档
+      tags:
+      - 在线文档
   /docs/spaces:
     get:
       description: 返回当前用户可读的空间（成员空间、开放空间；租户管理员见全部）及其在每个空间中的角色

@@ -16,6 +16,12 @@
                 <template #icon><t-icon name="add" /></template>
               </t-button>
             </t-tooltip>
+            <t-tooltip :content="t('docs.search.title')">
+              <t-button variant="text" size="small" shape="square" :aria-label="t('docs.search.title')"
+                @click="searchVisible = true">
+                <template #icon><t-icon name="search" /></template>
+              </t-button>
+            </t-tooltip>
             <t-tooltip v-if="canEdit" :content="t('docs.templates.newFrom')">
               <t-button variant="text" size="small" shape="square" :aria-label="t('docs.templates.newFrom')"
                 @click="openTemplatePicker(null)">
@@ -66,6 +72,12 @@
       </div>
       <div v-else-if="spaceMissing" class="space-missing">{{ t('docs.spaces.loadFailed') }}</div>
     </main>
+
+    <!-- Search -->
+    <t-dialog v-model:visible="searchVisible" :header="t('docs.search.title')" width="640px"
+      destroy-on-close :footer="false">
+      <SearchPanel :space-id="space?.id" @close="searchVisible = false" />
+    </t-dialog>
 
     <!-- Start from a template -->
     <t-dialog v-model:visible="templateVisible" :header="t('docs.templates.newFrom')" width="560px"
@@ -129,6 +141,7 @@ import SpaceAvatar from '@/components/SpaceAvatar.vue'
 
 import { canEditSpaceContent, roleAtLeast } from './docsAccess'
 import SpaceHomePanel from './home/SpaceHomePanel.vue'
+import SearchPanel from './search/SearchPanel.vue'
 import TemplatePicker from './templates/TemplatePicker.vue'
 import type { Visit } from './home/recentlyViewed'
 import PageView from './PageView.vue'
@@ -272,6 +285,7 @@ const creating = ref<string | null>(null)
 
 // Starting from a template is a separate, explicit act: putting a chooser in
 // front of every new page would tax the common case to serve the rare one.
+const searchVisible = ref(false)
 const templateVisible = ref(false)
 const templateChoice = ref('')
 const templateParent = ref<string | null>(null)

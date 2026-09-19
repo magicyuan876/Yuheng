@@ -123,7 +123,7 @@ func (s *PageService) CreateComment(ctx context.Context, actor *acl.Identity, d 
 
 	row := &model.Comment{
 		TenantID: d.Page.TenantID, SpaceID: d.Page.SpaceID, PageID: d.Page.ID,
-		Body: model.JSON(in.Body), CreatorID: actorID(actor),
+		Body: model.JSON(in.Body), TextContent: text, CreatorID: actorID(actor),
 	}
 
 	repliedToID := ""
@@ -197,11 +197,15 @@ func (s *PageService) UpdateComment(ctx context.Context, actor *acl.Identity, d 
 	if row.CreatorID != actorID(actor) {
 		return nil, forbidden("only the author of a comment may edit it")
 	}
-	if _, _, err := comment.ParseBody(body); err != nil {
+	_, text, err := comment.ParseBody(body)
+	if err != nil {
 		return nil, invalid("%v", err)
 	}
 
-	if err := s.d.Repos.Comments.UpdateBody(ctx, d.Page.TenantID, commentID, model.JSON(body)); err != nil {
+	// The searchable text is rewritten with the body: an edited comment that
+	// kept its old text would be findable by words it no longer contains.
+	if err := s.d.Repos.Comments.UpdateBody(ctx, d.Page.TenantID, commentID,
+		model.JSON(body), text); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, notFound("comment")
 		}

@@ -31,7 +31,6 @@ import (
 // docsPlaceholderRoutes are the endpoints still answering 501, each with the
 // work package that will implement it. Deleting an entry is part of doing it.
 var docsPlaceholderRoutes = map[string]string{
-	"GET /api/v1/docs/search":               "T5.1 (search, including comments)",
 	"POST /api/v1/docs/pages/:pid/export":   "T6 (export)",
 	"POST /api/v1/docs/spaces/:sid/export":  "T6 (export)",
 	"GET /api/v1/docs/exports/:jid":         "T6 (export)",
