@@ -169,13 +169,17 @@ type Services struct {
 // New wires the services.
 func New(d Deps) *Services {
 	base := &base{d: d}
+	files := &AttachmentService{base: base, variants: newVariantCache(d.VariantCacheBytes)}
 	return &Services{
 		Spaces: &SpaceService{base: base},
 		Groups: &GroupService{base: base},
-		Pages:  &PageService{base: base},
+		// Pages holds the attachment service because importing a bundle
+		// stores its images, and an import is a page operation that happens
+		// to carry files rather than a file operation.
+		Pages:  &PageService{base: base, files: files},
 		Collab: &CollabService{base: base},
 		Leases: &LeaseService{base: base},
-		Files:  &AttachmentService{base: base, variants: newVariantCache(d.VariantCacheBytes)},
+		Files:  files,
 	}
 }
 

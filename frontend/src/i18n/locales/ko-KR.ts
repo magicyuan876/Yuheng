@@ -5101,6 +5101,19 @@ export default {
       partial: '{count}개 페이지를 내보냈습니다. 권한이 없는 {skipped}개는 제외되었습니다',
       failed: '내보내기에 실패했습니다',
     },
+    // 가져오기. .md 파일이나 zip을 올리면 폴더 구조가 페이지 트리가 됩니다.
+    importDoc: {
+      title: '가져오기',
+      pick: 'Markdown 파일 또는 zip 압축 파일 선택',
+      hint: 'zip은 폴더 구조대로 페이지 트리가 되고, 내부 링크는 페이지 링크로, 이미지는 첨부 파일로 저장됩니다',
+      running: '가져오는 중입니다. 잠시만 기다려 주세요',
+      done: '{count}개 페이지를 가져왔습니다',
+      partial: '{count}개 페이지를 가져왔고 {skipped}개 파일은 건너뛰었습니다',
+      attachments: '첨부 파일 {count}개를 저장했습니다',
+      skippedTitle: '건너뛴 파일',
+      failed: '가져오기에 실패했습니다',
+      needsWriter: '가져오려면 스페이스 쓰기 권한이 필요합니다',
+    },
     // 스페이스 저장 용량과 한도.
     storage: {
       title: '저장 용량',

@@ -147,11 +147,47 @@ func (s *AttachmentService) Upload(ctx context.Context, actor *acl.Identity, spa
 		page = d.Page
 	}
 
-	inspected, err := inspect(in.File)
+	file, err := inspect(in.File)
 	if err != nil {
 		return nil, err
 	}
+	return s.persistUpload(ctx, actor, space, page, file)
+}
 
+// UploadBytes stores a file this server already holds in memory.
+//
+// The import runner is the only caller: a file that came out of a bundle has
+// no multipart part behind it, and inventing one so that Upload could be
+// reused would be a lie told to the type system. Everything after the bytes
+// have been read is the same code, which is the part worth sharing.
+func (s *AttachmentService) UploadBytes(ctx context.Context, actor *acl.Identity,
+	space *model.Space, role model.SpaceRole, fileName string, data []byte,
+) (*AttachmentView, error) {
+	if !role.AtLeast(model.RoleWriter) {
+		return nil, forbidden("uploading needs the writer role in this space")
+	}
+	if len(data) == 0 {
+		return nil, invalid("the file is empty")
+	}
+	limit := s.d.MaxAttachmentBytes
+	if limit <= 0 {
+		limit = DefaultMaxAttachmentBytes
+	}
+	if int64(len(data)) > limit {
+		return nil, invalid("the file is %d bytes, over the %d byte limit", len(data), limit)
+	}
+	file, err := inspectBytes(fileName, data)
+	if err != nil {
+		return nil, err
+	}
+	return s.persistUpload(ctx, actor, space, nil, file)
+}
+
+// persistUpload is everything after the bytes have been read: quota, storage,
+// the row, the ledger and the audit trail.
+func (s *AttachmentService) persistUpload(ctx context.Context, actor *acl.Identity,
+	space *model.Space, page *model.Page, inspected *inspected,
+) (*AttachmentView, error) {
 	tenant, fileSvc, err := s.storageFor(ctx, space)
 	if err != nil {
 		return nil, err
@@ -289,6 +325,25 @@ func inspect(fh *multipart.FileHeader) (*inspected, error) {
 	}
 	out.digest = hex.EncodeToString(hasher.Sum(nil))
 
+	return finishInspect(out, buffered)
+}
+
+// inspectBytes is inspect for a file this server already holds.
+func inspectBytes(name string, data []byte) (*inspected, error) {
+	sum := sha256.Sum256(data)
+	out := &inspected{
+		name:   attachment.CleanFileName(name, "file"),
+		size:   int64(len(data)),
+		digest: hex.EncodeToString(sum[:]),
+		sniff:  attachment.Sniff(head(data), name),
+		body:   data,
+	}
+	return finishInspect(out, true)
+}
+
+// finishInspect applies the treatment some kinds of file need before they may
+// be stored: an SVG is sanitised, and an image is measured.
+func finishInspect(out *inspected, buffered bool) (*inspected, error) {
 	if out.sniff.Media == attachment.MediaSVG {
 		if !buffered {
 			return nil, invalid("the SVG is larger than %d bytes", attachment.MaxSVGBytes)

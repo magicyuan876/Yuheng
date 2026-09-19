@@ -56,6 +56,7 @@ type Repositories struct {
 	Templates TemplateRepository
 	Search    SearchRepository
 	Exports   ExportJobRepository
+	Imports   ImportJobRepository
 }
 
 // New wires the repositories.
@@ -80,6 +81,7 @@ func New(db *gorm.DB) *Repositories {
 		Templates: &templateRepository{db: db},
 		Search:    &searchRepository{db: db},
 		Exports:   &exportJobRepository{db: db},
+		Imports:   &importJobRepository{db: db},
 	}
 }
 

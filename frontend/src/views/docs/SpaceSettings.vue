@@ -66,6 +66,23 @@
             </div>
             <span v-if="exporting" class="dd-hint">{{ t('docs.exportDoc.preparing') }}</span>
           </dd>
+          <dt v-if="canWrite">{{ t('docs.importDoc.title') }}</dt>
+          <dd v-if="canWrite">
+            <div class="export-row">
+              <input ref="importInput" type="file" accept=".md,.markdown,.zip"
+                class="import-input" :disabled="importing" @change="onImportPicked" />
+              <t-button size="small" :loading="importing" @click="pickImport">
+                {{ t('docs.importDoc.pick') }}
+              </t-button>
+            </div>
+            <span class="dd-hint">
+              {{ importing ? t('docs.importDoc.running') : t('docs.importDoc.hint') }}
+            </span>
+            <ul v-if="importSkipped.length" class="import-skipped">
+              <li class="import-skipped-title">{{ t('docs.importDoc.skippedTitle') }}</li>
+              <li v-for="(line, i) in importSkipped" :key="i">{{ line }}</li>
+            </ul>
+          </dd>
         </dl>
       </t-tab-panel>
 
@@ -202,10 +219,13 @@ import {
   type SpaceRole,
   type TenantGroup,
   downloadExport,
+  getImportJob,
   getExportJob,
+  startImport,
   startSpaceExport,
   type ExportFormat,
   type ExportJobView,
+  type ImportJobView,
 } from '@/api/docs'
 import SpaceAvatar from '@/components/SpaceAvatar.vue'
 
@@ -234,6 +254,8 @@ const space = ref<DocsSpace | null>(null)
 const loading = ref(true)
 const tab = ref<'overview' | 'members' | 'settings'>('overview')
 const canManage = computed(() => canManageSpace(space.value?.role))
+// Importing needs write access, which is a lower bar than managing the space.
+const canWrite = computed(() => space.value?.role === 'writer' || canManage.value)
 
 const slugParam = computed(() => String(route.params.slug ?? ''))
 
@@ -518,6 +540,72 @@ async function waitForExport(jobId: string): Promise<ExportJobView | null> {
   }
 }
 
+
+
+// Importing a bundle into this space.
+//
+// Asynchronous like the export: the upload starts a job and this polls it.
+// The skipped list is kept on screen after the job ends rather than shown as
+// a toast that disappears -- it names the files that did not make it, and
+// somebody needs to be able to read it and go and look at them.
+const importInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+const importSkipped = ref<string[]>([])
+
+function pickImport() {
+  importInput.value?.click()
+}
+
+async function onImportPicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // The input is cleared either way, so picking the same file twice in a row
+  // still fires a change event.
+  input.value = ''
+  if (!file || !space.value || importing.value) return
+
+  importing.value = true
+  importSkipped.value = []
+  try {
+    const job = await startImport(space.value.id, file)
+    const done = await waitForImport(job.id)
+    if (!done) return
+    importSkipped.value = done.skipped ?? []
+    if (done.status === 'failed') {
+      void MessagePlugin.error(done.error || t('docs.importDoc.failed'))
+      return
+    }
+    if (done.skipped?.length) {
+      void MessagePlugin.warning(
+        t('docs.importDoc.partial', { count: done.created, skipped: done.skipped.length }),
+      )
+    } else {
+      void MessagePlugin.success(t('docs.importDoc.done', { count: done.created }))
+    }
+    if (done.attachments > 0) {
+      void MessagePlugin.info(t('docs.importDoc.attachments', { count: done.attachments }))
+    }
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.importDoc.failed')))
+  } finally {
+    importing.value = false
+  }
+}
+
+/** Polls one import to completion, or gives up at the deadline. */
+async function waitForImport(jobId: string): Promise<ImportJobView | null> {
+  const deadline = Date.now() + EXPORT_DEADLINE_MS
+  for (;;) {
+    const job = await getImportJob(jobId)
+    if (job.done) return job
+    if (Date.now() > deadline) {
+      void MessagePlugin.warning(t('docs.importDoc.running'))
+      return null
+    }
+    await new Promise((resolve) => setTimeout(resolve, EXPORT_POLL_MS))
+  }
+}
+
 </script>
 
 <style scoped lang="less">
@@ -723,5 +811,24 @@ async function waitForExport(jobId: string): Promise<ExportJobView | null> {
   margin: 0 0 12px;
   color: var(--td-text-color-secondary);
   font-size: 13px;
+}
+
+.import-input {
+  display: none;
+}
+
+.import-skipped {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--td-text-color-secondary);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.import-skipped-title {
+  list-style: none;
+  margin-left: -18px;
+  font-weight: 600;
 }
 </style>

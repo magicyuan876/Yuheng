@@ -30,10 +30,7 @@ import (
 
 // docsPlaceholderRoutes are the endpoints still answering 501, each with the
 // work package that will implement it. Deleting an entry is part of doing it.
-var docsPlaceholderRoutes = map[string]string{
-	"POST /api/v1/docs/spaces/:sid/imports": "T6 (import)",
-	"GET /api/v1/docs/imports/:jid":         "T6 (import)",
-}
+var docsPlaceholderRoutes = map[string]string{}
 
 // swaggerSpec is the generated contract, read from the repository root.
 type swaggerSpec struct {

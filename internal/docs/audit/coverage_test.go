@@ -22,9 +22,7 @@ import (
 
 // notYetRecorded are actions whose feature has not been built, with the work
 // package that will record them. Deleting an entry is part of doing the work.
-var notYetRecorded = map[string]string{
-	"Imported": "T6 (import)",
-}
+var notYetRecorded = map[string]string{}
 
 var (
 	declaration = regexp.MustCompile(`(?m)^\t(\w+)\s+types\.AuditAction\s*=`)

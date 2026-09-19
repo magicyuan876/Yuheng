@@ -5103,6 +5103,20 @@ export default {
       partial: 'Exported {count} pages; {skipped} were left out because you cannot read them',
       failed: 'The export failed',
     },
+    // Import. Upload a .md file or a zip; the folder structure becomes the
+    // page tree, and one bad file does not cost the rest.
+    importDoc: {
+      title: 'Import',
+      pick: 'Choose a Markdown file or a zip archive',
+      hint: 'A zip becomes a page tree following its folders; links inside it become page links and images become attachments',
+      running: 'Importing, this may take a moment',
+      done: 'Imported {count} pages',
+      partial: 'Imported {count} pages; {skipped} files were skipped',
+      attachments: 'Stored {count} attachments',
+      skippedTitle: 'Files that were skipped',
+      failed: 'The import failed',
+      needsWriter: 'Importing needs write access to this space',
+    },
     // Space storage usage and its quota.
     storage: {
       title: 'Storage',

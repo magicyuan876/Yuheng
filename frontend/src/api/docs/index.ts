@@ -1603,3 +1603,52 @@ export async function downloadExport(jobId: string, fallbackName = 'export.zip')
   )
   saveBlob(file)
 }
+
+// ---- import ---------------------------------------------------------------
+
+/** An asynchronous import, as returned by the job endpoints. */
+export interface ImportJobView {
+  id: string
+  space_id: string
+  kind: string
+  /** pending | running | succeeded | partial | failed */
+  status: string
+  file_name?: string
+  target_parent_id?: string
+  /** Pages that now exist. */
+  created: number
+  /** Files stored alongside them. */
+  attachments: number
+  /** What was left out, and why. */
+  skipped?: string[]
+  error?: string
+  /** True once the job has stopped, whatever the outcome. */
+  done: boolean
+  created_at: string
+  finished_at?: string
+}
+
+/**
+ * Backend: POST /api/v1/docs/spaces/:sid/imports (space writer).
+ *
+ * Takes a .md file or a .zip of them. Asynchronous: poll with getImportJob
+ * until `done`. A file the importer cannot read does not fail the whole
+ * import; it is named in `skipped`.
+ */
+export async function startImport(
+  spaceId: string,
+  file: File,
+  parentId?: string,
+): Promise<ImportJobView> {
+  const form = new FormData()
+  form.append('file', file)
+  if (parentId) form.append('parent_id', parentId)
+  return unwrap<ImportJobView>(
+    await postUpload(`${base}/spaces/${encodeURIComponent(spaceId)}/imports`, form),
+  )
+}
+
+/** Backend: GET /api/v1/docs/imports/:jid (anybody who can read the space). */
+export async function getImportJob(jobId: string): Promise<ImportJobView> {
+  return unwrap<ImportJobView>(await get(`${base}/imports/${encodeURIComponent(jobId)}`))
+}
