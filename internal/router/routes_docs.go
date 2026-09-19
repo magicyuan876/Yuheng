@@ -230,6 +230,13 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	admin.PUT("/spaces/:sid/quota", g.Admin(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, sp.SetSpaceQuota)
 
+	// Rebuilding a space's knowledge-base index. An administrator's act: it
+	// costs embedding calls and changes what everybody's retrieval returns.
+	// Ordinary edits are mirrored automatically by internal/docs/indexer.go;
+	// this is for a newly bound knowledge base or a bulk permission change.
+	admin.POST("/spaces/:sid/reindex", g.Admin(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, pg.RebuildIndex)
+
 	// Maintenance. Both sweeps default to a dry run and need a workspace
 	// administrator: they are the only endpoints in the module whose purpose
 	// is to destroy data, and they run on a timer anyway (internal/docs/

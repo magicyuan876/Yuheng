@@ -5102,6 +5102,53 @@
                 }
             }
         },
+        "/docs/spaces/{sid}/reindex": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把空间里符合条件的页面重新写入绑定的知识库。需要空间管理员：\n重建会产生向量化开销，并改变所有人的检索结果\n**受限页面永远不会入库**（检索没有逐条权限过滤），草稿与回收站页面同理；\n每页返回被跳过的原因\n分页返回，用 after 传上一次的 next_cursor 续做",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "重建空间的知识库索引",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一次返回的 next_cursor",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "本次处理条数上限",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/spaces/{sid}/restore": {
             "post": {
                 "security": [

@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS docs_pages (
     is_locked           BOOLEAN      NOT NULL DEFAULT 0,
     template_id         VARCHAR(36),
     source_refs         TEXT         NOT NULL DEFAULT '[]',
+    knowledge_id        VARCHAR(36),
     contributor_ids     TEXT         NOT NULL DEFAULT '[]',
     creator_id          VARCHAR(36),
     last_editor_id      VARCHAR(36),

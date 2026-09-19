@@ -142,3 +142,40 @@ func (h *PageHandler) SweepTrash(c *gin.Context) {
 	}
 	ok(c, report)
 }
+
+// RebuildIndex godoc
+// @Summary      重建空间的知识库索引
+// @Description  把空间里符合条件的页面重新写入绑定的知识库。需要空间管理员：
+// @Description  重建会产生向量化开销，并改变所有人的检索结果
+// @Description  **受限页面永远不会入库**（检索没有逐条权限过滤），草稿与回收站页面同理；
+// @Description  每页返回被跳过的原因
+// @Description  分页返回，用 after 传上一次的 next_cursor 续做
+// @Tags         在线文档
+// @Produce      json
+// @Param        sid    path   string  true   "空间 ID"
+// @Param        after  query  string  false  "上一次返回的 next_cursor"
+// @Param        limit  query  int     false  "本次处理条数上限"
+// @Success      200  {object}  map[string]interface{}
+// @Security     Bearer
+// @Router       /docs/spaces/{sid}/reindex [post]
+func (h *PageHandler) RebuildIndex(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	actor, found := identity(c)
+	if !found {
+		return
+	}
+	sp, role, found := space(c)
+	if !found {
+		return
+	}
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	results, next, err := h.svc.SyncSpaceToKnowledge(c.Request.Context(), actor, sp, role,
+		c.Query("after"), limit)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, gin.H{"results": results, "next_cursor": next})
+}
