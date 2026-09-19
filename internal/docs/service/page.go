@@ -134,6 +134,10 @@ type CreatePageInput struct {
 	// module's converter. At most one may be set; neither yields an empty page.
 	Content  json.RawMessage
 	Markdown string
+	// TemplateID starts the page from a saved body. Mutually exclusive with
+	// Content and Markdown; the template must be one this caller may use in
+	// this space.
+	TemplateID string
 }
 
 // UpdatePageInput is a partial metadata update; nil leaves a field alone and
@@ -349,6 +353,19 @@ func (s *PageService) Create(ctx context.Context, actor *acl.Identity, in Create
 	if err != nil {
 		return nil, err
 	}
+	// A template is resolved before the body is parsed, because it becomes
+	// the body: everything after this point treats a templated page exactly
+	// like one created with content, which is the point.
+	if in.TemplateID != "" {
+		if len(in.Content) > 0 || strings.TrimSpace(in.Markdown) != "" {
+			return nil, invalid("a template and a body are mutually exclusive")
+		}
+		tpl, err := s.templateFor(ctx, actor, in.TemplateID, in.SpaceID)
+		if err != nil {
+			return nil, err
+		}
+		in.Content = json.RawMessage(tpl.Content)
+	}
 	b, err := parseBody(in)
 	if err != nil {
 		return nil, err
@@ -394,6 +411,11 @@ func (s *PageService) Create(ctx context.Context, actor *acl.Identity, in Create
 		Content: b.content, TextContent: b.text, WordCount: b.words, Status: model.PagePublished,
 		CreatorID: &uid, LastEditorID: &uid, ContributorIDs: model.StringList{uid},
 		SourceRefs: model.StringList{},
+	}
+	// Recorded so that "which pages came from this template" is answerable,
+	// and so a template's author can see whether anybody uses it.
+	if in.TemplateID != "" {
+		page.TemplateID = &in.TemplateID
 	}
 	for attempt := 0; attempt < 5; attempt++ {
 		page.ShortID, err = newShortID()

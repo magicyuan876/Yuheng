@@ -54,10 +54,11 @@ const (
 	// renamed, recoloured or removed. Carries the space, so a list open on it
 	// reloads; what happened to which page is not part of it, because a label
 	// removed touches every page carrying it.
-	ShareChanged   Type = "docs.share.changed"
-	LabelChanged   Type = "docs.label.changed"
-	GroupChanged   Type = "docs.group.changed"
-	ACLInvalidated Type = "docs.acl.invalidated"
+	ShareChanged    Type = "docs.share.changed"
+	TemplateChanged Type = "docs.template.changed"
+	LabelChanged    Type = "docs.label.changed"
+	GroupChanged    Type = "docs.group.changed"
+	ACLInvalidated  Type = "docs.acl.invalidated"
 )
 
 // Event is what travels over the bus. Payload is small, JSON-friendly data
