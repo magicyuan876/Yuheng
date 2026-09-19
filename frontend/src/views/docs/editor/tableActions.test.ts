@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
-  CELL_COLORS, TABLE_ACTIONS, TABLE_TOOLBAR_OFFSET, TABLE_TOOLBAR_WIDTH,
-  canRun, runAction, tableGroups, tableToolbarPlacement,
+  CELL_COLORS, CELL_COLORS_SOFT, CELL_COLORS_STRONG, TABLE_ACTIONS,
+  TABLE_TOOLBAR_OFFSET, TABLE_TOOLBAR_WIDTH,
+  canRun, isCellColor, runAction, tableGroups, tableToolbarPlacement,
 } from './tableActions'
 
 /** An editor stand-in that records what was chained on it. */
@@ -30,8 +31,10 @@ test('every action names an icon and belongs to a group', () => {
   for (const action of TABLE_ACTIONS) {
     assert.ok(action.icon, `${action.id} has no icon`)
     assert.ok(action.labelKey.startsWith('docs.table.'), `${action.id} label`)
-    // Every entry either runs a command or opens a palette, never neither.
-    assert.ok(action.command || action.palette, `${action.id} does nothing`)
+    // Every entry does exactly one thing: a command, a tableOps op, or the
+    // palette. Two of them, or none, is a catalogue mistake.
+    const kinds = [action.command, action.op, action.palette].filter(Boolean).length
+    assert.equal(kinds, 1, `${action.id} declares ${kinds} kinds of behaviour`)
   }
 })
 
@@ -80,6 +83,38 @@ test('runAction does nothing for the palette entry', () => {
 
 test('the cell colours are distinct', () => {
   assert.equal(new Set(CELL_COLORS).size, CELL_COLORS.length)
+})
+
+test('the two colour bands line up, ten hues each', () => {
+  // The grid draws ten to a row, so a band of any other length would leave
+  // the pale swatch sitting above a different hue than the one it tints.
+  assert.equal(CELL_COLORS_SOFT.length, 10)
+  assert.equal(CELL_COLORS_STRONG.length, 10)
+  assert.deepEqual(CELL_COLORS, [...CELL_COLORS_SOFT, ...CELL_COLORS_STRONG])
+})
+
+test('every offered colour is one the server would accept', () => {
+  // The palette is the one place a bad colour could be introduced wholesale;
+  // the check is the same regex the schema applies on save.
+  for (const color of CELL_COLORS) {
+    assert.ok(isCellColor(color), `${color} would be rejected on save`)
+  }
+})
+
+test('isCellColor accepts the notations the schema allows', () => {
+  for (const ok of ['#fff', '#ffffff', '#ffffffff', 'red', 'rebeccapurple',
+    'rgb(1, 2, 3)', 'rgba(1,2,3,0.5)', 'hsl(1, 2%, 3%)']) {
+    assert.ok(isCellColor(ok), ok)
+  }
+})
+
+test('isCellColor refuses what the schema would reject', () => {
+  // url() is the one that matters: it is how a stylesheet value smuggles a
+  // request to somewhere else in, and the server rejects it for that reason.
+  for (const bad of ['url(x)', 'javascript:alert(1)', '#12', '', ' #fff',
+    'rgb(1,2,3); background: url(x)', '#gggggg']) {
+    assert.equal(isCellColor(bad), false, bad)
+  }
 })
 
 const viewport = { width: 1200, height: 800 }

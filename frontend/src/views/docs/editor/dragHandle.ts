@@ -1,10 +1,18 @@
-// The handle that appears beside the block under the pointer.
+// The "+" that appears beside the block under the pointer.
 //
-// The handle does four things: it says which block it is about, it starts a
-// drag of that block, it selects it on a click, and it opens the block menu
-// — the convert / duplicate / delete / copy-reference menu that is the other
-// half of a drag handle in every block editor people know. The "+" button
-// above it inserts an empty block after the current one, the Feishu habit.
+// One control rather than the pair this file used to draw. It carries three
+// gestures, which is what lets a single button replace the "+"-and-handle
+// strip without losing anything:
+//
+//   click        insert a block below and open the slash menu on it
+//   drag         move this block, the same drag the old handle started
+//   right-click  the block menu: turn into / duplicate / delete / copy ref
+//
+// The click is deliberately not "insert an empty paragraph". It inserts the
+// paragraph and then types "/" into it, so what opens is the slash menu
+// itself — the same menu, the same list, the same filtering — rather than a
+// second, parallel insert menu that would drift out of step with it.
+//
 // Where a block ends up, and whether it may go there at all, is ProseMirror's
 // own drop handling and blockMove.ts — neither is re-implemented here.
 //
@@ -22,11 +30,11 @@ import { blockMenuItems, runBlockAction } from './blockMenu'
 import { blockAt, canMove, moveBlock } from './blockMove'
 
 export interface DragHandleOptions {
-  /** How far left of the text the handle sits. */
+  /** How far left of the text the button sits. */
   offset: number
-  /** The accessible name for the handle, already translated. */
+  /** The accessible name for the button's drag gesture, already translated. */
   label: string
-  /** The accessible name for the "+" button, already translated. */
+  /** The accessible name for the button itself, already translated. */
   addLabel: string
   /** The accessible name for the block menu, already translated. */
   menuLabel: string
@@ -44,15 +52,11 @@ export interface DragHandleOptions {
 const handleKey = new PluginKey('yuhengDragHandle')
 
 /**
- * The strip the two buttons live in.
+ * The strip the button lives in.
  *
- * One wrapper rather than two separately positioned buttons, for two
- * reasons. It is what centres the pair on the block as a unit, the Feishu
- * way, instead of the "+" riding a fixed 24px above a handle pinned to the
- * block's first line. And it makes the hover target continuous: moving the
- * pointer from the "+" onto the handle never leaves the strip, so the strip
- * cannot vanish mid-gesture the way two buttons with a gap between them
- * could.
+ * A wrapper around a single button looks redundant, and is not: it is what
+ * the hover bridge (see the CSS) hangs off, and what keeps the positioning
+ * arithmetic in one place if a second control is ever added back.
  */
 function createTools(): HTMLElement {
   const el = document.createElement('div')
@@ -61,28 +65,21 @@ function createTools(): HTMLElement {
 }
 
 /**
- * Builds the handle element.
+ * Builds the button.
  *
- * It is a real button rather than a styled div so it is focusable, announced,
- * and activated by Enter and Space without any of that being written here.
+ * A real button rather than a styled div so it is focusable, announced, and
+ * activated by Enter and Space without any of that being written here. It is
+ * `draggable` because the same element is also the block's drag handle: one
+ * control, three gestures.
  */
-function createHandle(label: string): HTMLButtonElement {
-  const el = document.createElement('button')
-  el.type = 'button'
-  el.className = 'docs-drag-handle'
-  el.draggable = true
-  el.setAttribute('aria-label', label)
-  el.tabIndex = -1
-  el.innerHTML = '<span aria-hidden="true">⁙</span>'
-  return el
-}
-
-/** The "+" button above the handle: a new empty block after this one. */
-function createAddButton(label: string): HTMLButtonElement {
+function createAddButton(label: string, dragLabel: string): HTMLButtonElement {
   const el = document.createElement('button')
   el.type = 'button'
   el.className = 'docs-drag-plus'
+  el.draggable = true
   el.setAttribute('aria-label', label)
+  el.title = `${label}
+${dragLabel}`
   el.tabIndex = -1
   el.innerHTML = '<span aria-hidden="true">+</span>'
   return el
@@ -123,7 +120,6 @@ function renderMenu(
 
 function dragHandlePlugin(options: DragHandleOptions): Plugin {
   let tools: HTMLElement | null = null
-  let handle: HTMLButtonElement | null = null
   let plus: HTMLButtonElement | null = null
   let menu: HTMLElement | null = null
   let blockPos: number | null = null
@@ -153,7 +149,7 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
    * and crossing it fires mouseleave on the editor with a relatedTarget that
    * is not the strip. Hiding on that event is correct for somebody leaving
    * the document and wrong for the far commoner case of somebody reaching for
-   * the handle, and the two are indistinguishable at the moment the event
+   * the button, and the two are indistinguishable at the moment the event
    * arrives. Waiting a moment tells them apart: a pointer heading for the
    * strip arrives well inside the delay and cancels it.
    */
@@ -179,11 +175,12 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
    * The vertical centre of a block's *first line*, relative to its own box.
    *
    * Centring the strip on the whole block is only right for a one-line
-   * paragraph; on a three-line one, or on a list, it leaves the handle
-   * floating beside the middle of the text with nothing to point at. Feishu
-   * aligns it with the first line, so that is what is measured here: the
-   * first client rect of the block's own text, falling back to the line
-   * height and finally to the box when a block has neither (an image, say).
+   * paragraph; on a three-line one, or on a list, it leaves the button
+   * floating beside the middle of the text with nothing to point at. The
+   * first line is the one it belongs beside, so that is what is measured
+   * here: the first client rect of the block's own text, falling back to the
+   * line height and finally to the box when a block has neither (an image,
+   * say).
    */
   const firstLineCentre = (dom: HTMLElement, box: DOMRect): number => {
     const range = document.createRange()
@@ -246,9 +243,9 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
     tools.style.top = `${box.top - hostBox.top + firstLineCentre(dom, box)}px`
   }
 
-  /** Opens the menu beside the handle, flipped at the viewport's edges. */
+  /** Opens the menu beside the button, flipped at the viewport's edges. */
   const openMenu = (view: EditorView) => {
-    if (!menu || !handle || blockPos === null) return
+    if (!menu || !plus || blockPos === null) return
     menuItems = blockMenuItems({ copyBlockRef: options.copyBlockRef })
     menuIndex = 0
     renderMenu(menu, menuItems, menuIndex, options.translate)
@@ -256,10 +253,10 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
     menu.setAttribute('aria-hidden', 'false')
     menuOpen = true
 
-    const handleBox = handle.getBoundingClientRect()
+    const handleBox = plus.getBoundingClientRect()
     const menuWidth = menu.offsetWidth || 220
     const menuHeight = menu.offsetHeight || 320
-    // Right of the handle by default; to its left when there is no room,
+    // Right of the button by default; to its left when there is no room,
     // which is the narrow-viewport case the flip exists for.
     let left = handleBox.right + 4
     if (left + menuWidth > window.innerWidth - 8) {
@@ -276,10 +273,8 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
 
     view: (view) => {
       tools = createTools()
-      handle = createHandle(options.label)
-      plus = createAddButton(options.addLabel)
+      plus = createAddButton(options.addLabel, options.label)
       tools.appendChild(plus)
-      tools.appendChild(handle)
       menu = document.createElement('div')
       menu.className = 'docs-block-menu'
       menu.tabIndex = -1
@@ -311,14 +306,60 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
         view.focus()
       }
 
-      handle.addEventListener('click', (event) => {
+      /**
+       * Inserts a block below and opens the slash menu on it.
+       *
+       * The "/" is really typed into the document rather than the menu being
+       * summoned directly, because the menu is driven by the text before the
+       * cursor (see suggestion.ts). Going through the text is what makes this
+       * button and the key indistinguishable: the same trigger, the same
+       * query as more is typed, and the same cleanup — whichever entry is
+       * chosen deletes the range the "/" occupies, exactly as when typed.
+       *
+       * An empty paragraph is reused rather than followed by a second one.
+       * Clicking "+" beside a blank line and getting two blank lines, the
+       * caret in the lower one, is not what anybody means by it.
+       */
+      const insertWithSlashMenu = (view: EditorView) => {
+        if (blockPos === null) return
+        const paragraph = view.state.schema.nodes.paragraph
+        const block = blockAt(view.state, blockPos + 1)
+        if (!paragraph || !block) return
+
+        const here = view.state.doc.nodeAt(blockPos)
+        const reuse = here?.type === paragraph && here.content.size === 0
+        const tr = view.state.tr
+        let caret: number
+        if (reuse) {
+          caret = blockPos + 1
+        } else {
+          tr.insert(block.end, paragraph.createAndFill()!)
+          caret = block.end + 1
+        }
+        tr.insertText('/', caret)
+        tr.setSelection(TextSelection.near(tr.doc.resolve(caret + 1)))
+        tr.scrollIntoView()
+        view.dispatch(tr)
+        view.focus()
+      }
+
+      plus.addEventListener('click', (event) => {
+        event.preventDefault()
+        closeMenu()
+        insertWithSlashMenu(view)
+      })
+
+      // The block menu — turn into / duplicate / delete / copy reference —
+      // now hangs off the same button's context menu, since there is no
+      // second button left to carry it.
+      plus.addEventListener('contextmenu', (event) => {
         event.preventDefault()
         select()
         if (menuOpen) closeMenu()
         else openMenu(view)
       })
 
-      handle.addEventListener('dragstart', (event) => {
+      plus.addEventListener('dragstart', (event) => {
         if (blockPos === null || !event.dataTransfer) return
         // Selecting first is what makes this a move of the block rather than
         // of whatever happened to be selected before.
@@ -331,28 +372,13 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
           const dom = view.nodeDOM(blockPos)
           if (dom instanceof HTMLElement) event.dataTransfer.setDragImage(dom, 0, 0)
         } catch {
-          // Without a drag image the browser draws the handle itself, which is
-          // ugly but harmless.
+          // Without a drag image the browser draws the button itself, which
+          // is ugly but harmless.
         }
       })
 
-      handle.addEventListener('dragend', () => {
+      plus.addEventListener('dragend', () => {
         view.dragging = null
-      })
-
-      plus.addEventListener('click', (event) => {
-        event.preventDefault()
-        closeMenu()
-        if (blockPos === null) return
-        const block = blockAt(view.state, blockPos + 1)
-        const paragraph = view.state.schema.nodes.paragraph
-        if (!block || !paragraph) return
-        const tr = view.state.tr.insert(block.end, paragraph.createAndFill()!)
-        const $at = tr.doc.resolve(Math.min(block.end + 1, tr.doc.content.size))
-        tr.setSelection(TextSelection.near($at))
-        tr.scrollIntoView()
-        view.dispatch(tr)
-        view.focus()
       })
 
       menu.addEventListener('mousedown', (event) => event.preventDefault())
@@ -393,7 +419,7 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
         if (!item || blockPos === null) return
         closeMenu()
         if (item.id === 'copyBlockRef') {
-          // The block reference names the block the handle is beside, so the
+          // The block reference names the block the button is beside, so the
           // selection has to be on it before the caller reads it.
           select()
           options.copyBlockRef?.()
@@ -409,7 +435,6 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
           tools?.remove()
           menu?.remove()
           tools = null
-          handle = null
           plus = null
           menu = null
           blockPos = null
@@ -437,7 +462,7 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
         },
         mousedown: () => {
           // A click into the text is a new intention; the menu belongs to
-          // the block the handle was beside.
+          // the block the button was beside.
           closeMenu()
           return false
         },
@@ -446,13 +471,13 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
   })
 }
 
-/** The extension: the handle, the menu, and the shortcuts that do the same. */
+/** The extension: the button, the menu, and the shortcuts that do the same. */
 export const DragHandle = Extension.create<DragHandleOptions>({
   name: 'yuhengDragHandle',
 
   addOptions() {
     return {
-      offset: 52,
+      offset: 32,
       label: 'Move block',
       addLabel: 'Add block',
       menuLabel: 'Block actions',

@@ -5,9 +5,19 @@
 // decision worth testing without a browser. The bar itself then only has to
 // draw a list and call `run`.
 //
-// The catalogue is deliberately the set Feishu and Yuque both put on a table:
-// rows and columns in and out, a header row, merge and split, a cell colour,
-// and a way to remove the table. Anything rarer belongs in the slash menu.
+// The catalogue is deliberately the set a table is actually edited with:
+// rows and columns in and out, reordering either, merge and split, the header
+// toggles, a cell colour, even column widths, and a way to remove the table.
+// Anything rarer belongs in the slash menu.
+//
+// Two kinds of entry, because the table extension does not cover all of it.
+// Most call a command it already has; the reordering and the width evening
+// call into tableOps.ts, which works the table node out by hand.
+import type { EditorState, Transaction } from '@tiptap/pm/state'
+
+import {
+  canMoveColumn, canMoveRow, distributeColumns, moveColumn, moveRow, tableContext,
+} from './tableOps'
 
 /** A chain of editor commands, kept loose because it is the editor's own. */
 type Chain = Record<string, (...args: never[]) => unknown>
@@ -16,6 +26,38 @@ type Chain = Record<string, (...args: never[]) => unknown>
 export interface TableTarget {
   chain: () => Chain
   can: () => { chain: () => Chain }
+  /** Needed by the `op` entries, which read the table node directly. */
+  state?: EditorState
+  /** Where an `op` entry's transaction is dispatched. */
+  view?: { dispatch: (tr: Transaction) => void; focus?: () => void }
+}
+
+/** The op entries, as a pair of "can it run" and "run it". */
+const OPS: Record<NonNullable<TableAction['op']>, {
+  can: (state: EditorState) => boolean
+  run: (state: EditorState) => Transaction | null
+}> = {
+  moveRowUp: {
+    can: (s) => canMoveRow(tableContext(s), -1),
+    run: (s) => moveRow(s, -1),
+  },
+  moveRowDown: {
+    can: (s) => canMoveRow(tableContext(s), 1),
+    run: (s) => moveRow(s, 1),
+  },
+  moveColumnLeft: {
+    can: (s) => canMoveColumn(tableContext(s), -1),
+    run: (s) => moveColumn(s, -1),
+  },
+  moveColumnRight: {
+    can: (s) => canMoveColumn(tableContext(s), 1),
+    run: (s) => moveColumn(s, 1),
+  },
+  distributeColumns: {
+    // Only worth offering when some column actually carries a width.
+    can: (s) => distributeColumns(s) !== null,
+    run: (s) => distributeColumns(s),
+  },
 }
 
 /** One button on the table bar. */
@@ -35,6 +77,12 @@ export interface TableAction {
   palette?: boolean
   /** The command's name on the editor's chain; absent for the palette. */
   command?: string
+  /**
+   * An operation from tableOps.ts, for the entries the table extension has
+   * no command for: reordering a row or column, and evening out the column
+   * widths. Mutually exclusive with `command`.
+   */
+  op?: 'moveRowUp' | 'moveRowDown' | 'moveColumnLeft' | 'moveColumnRight' | 'distributeColumns'
   /** Arguments for that command, when it takes any. */
   args?: unknown
   /** True for an entry that removes something, drawn in the danger colour. */
@@ -42,30 +90,72 @@ export interface TableAction {
 }
 
 /**
- * The cell colours the palette offers, behind a "default" entry that clears
- * the colour again. Tints rather than the saturated text colours: a cell fill
- * sits behind words and has to stay readable under them.
+ * The cell colours the palette offers.
+ *
+ * Two bands of the same ten hues: a pale one for filling a cell that still
+ * has to be read through, and a saturated one for a cell that is meant to
+ * shout. The first version of this palette carried only the pale band, which
+ * made every swatch look like a slightly different shade of white.
+ *
+ * Ten per band, so the grid lays out as two even rows.
  */
-export const CELL_COLORS: readonly string[] = [
-  '#ffe3e3', '#ffe8cc', '#fff3bf', '#d3f9d8',
-  '#c5f6fa', '#d0ebff', '#e5dbff', '#f3f0ff', '#f1f3f5',
+export const CELL_COLORS_SOFT: readonly string[] = [
+  '#ffc9c9', '#ffd8a8', '#ffec99', '#b2f2bb', '#96f2d7',
+  '#a5d8ff', '#bac8ff', '#d0bfff', '#fcc2d7', '#dee2e6',
 ]
 
-/** The bar's contents, in the order they are read and moved through. */
+export const CELL_COLORS_STRONG: readonly string[] = [
+  '#ff8787', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9',
+  '#4dabf7', '#748ffc', '#9775fa', '#f783ac', '#adb5bd',
+]
+
+/** Both bands, in the order they are drawn. */
+export const CELL_COLORS: readonly string[] = [...CELL_COLORS_SOFT, ...CELL_COLORS_STRONG]
+
+/**
+ * Whether a colour is one the document may actually carry.
+ *
+ * The same shapes the server's schema accepts for a `color`-formatted
+ * attribute (see the `formats.color` entry in schema.json): a hex triplet of
+ * any supported length, a CSS colour name, or an rgb/rgba/hsl/hsla call.
+ * Checked here so a colour the picker produced in some other notation is
+ * refused while the picker is open, rather than accepted into the document
+ * and then rejected by the server on save — by which time the person has
+ * moved on and the page silently stops persisting.
+ */
+export function isCellColor(value: string): boolean {
+  return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,32}|(rgb|rgba|hsl|hsla)\([0-9.,%\s]+\))$/.test(value)
+}
+
+/**
+ * The bar's contents, in the order they are read and moved through.
+ *
+ * Entries carrying a `command` call straight into the table extension;
+ * entries carrying an `op` are the ones it has no command for (see
+ * tableOps.ts).
+ */
 export const TABLE_ACTIONS: readonly TableAction[] = [
   { id: 'addRowBefore', labelKey: 'docs.table.addRowBefore', icon: 'arrow-up', group: 'row', command: 'addRowBefore' },
   { id: 'addRowAfter', labelKey: 'docs.table.addRowAfter', icon: 'arrow-down', group: 'row', command: 'addRowAfter' },
+  { id: 'moveRowUp', labelKey: 'docs.table.moveRowUp', icon: 'chevron-up', group: 'row', op: 'moveRowUp' },
+  { id: 'moveRowDown', labelKey: 'docs.table.moveRowDown', icon: 'chevron-down', group: 'row', op: 'moveRowDown' },
   { id: 'deleteRow', labelKey: 'docs.table.deleteRow', icon: 'minus-rectangle', group: 'row', command: 'deleteRow', danger: true },
 
   { id: 'addColumnBefore', labelKey: 'docs.table.addColumnBefore', icon: 'arrow-left', group: 'column', command: 'addColumnBefore' },
   { id: 'addColumnAfter', labelKey: 'docs.table.addColumnAfter', icon: 'arrow-right', group: 'column', command: 'addColumnAfter' },
-  { id: 'deleteColumn', labelKey: 'docs.table.deleteColumn', icon: 'minus-rectangle', group: 'column', command: 'deleteColumn', danger: true },
+  { id: 'moveColumnLeft', labelKey: 'docs.table.moveColumnLeft', icon: 'chevron-left', group: 'column', op: 'moveColumnLeft' },
+  { id: 'moveColumnRight', labelKey: 'docs.table.moveColumnRight', icon: 'chevron-right', group: 'column', op: 'moveColumnRight' },
+  // A different glyph from deleteRow's: side by side on the bar, two
+  // identical minus-rectangles read as the same button twice.
+  { id: 'deleteColumn', labelKey: 'docs.table.deleteColumn', icon: 'minus-circle', group: 'column', command: 'deleteColumn', danger: true },
 
   { id: 'mergeCells', labelKey: 'docs.table.mergeCells', icon: 'merge-cells', group: 'cell', command: 'mergeCells' },
   { id: 'splitCell', labelKey: 'docs.table.splitCell', icon: 'table-split', group: 'cell', command: 'splitCell' },
   { id: 'cellColor', labelKey: 'docs.table.cellColor', icon: 'fill-color', group: 'cell', palette: true },
 
   { id: 'toggleHeaderRow', labelKey: 'docs.table.toggleHeaderRow', icon: 'table-1', group: 'table', command: 'toggleHeaderRow' },
+  { id: 'toggleHeaderColumn', labelKey: 'docs.table.toggleHeaderColumn', icon: 'table-2', group: 'table', command: 'toggleHeaderColumn' },
+  { id: 'distributeColumns', labelKey: 'docs.table.distributeColumns', icon: 'expand-horizontal', group: 'table', op: 'distributeColumns' },
   { id: 'deleteTable', labelKey: 'docs.table.deleteTable', icon: 'delete', group: 'table', command: 'deleteTable', danger: true },
 ]
 
@@ -81,6 +171,14 @@ export const TABLE_ACTIONS: readonly TableAction[] = [
 export function canRun(editor: TableTarget | null, action: TableAction): boolean {
   if (!editor) return false
   if (action.palette) return true
+  if (action.op) {
+    if (!editor.state) return false
+    try {
+      return OPS[action.op].can(editor.state)
+    } catch {
+      return false
+    }
+  }
   if (!action.command) return false
   try {
     const chain = editor.can().chain() as Chain
@@ -96,7 +194,16 @@ export function canRun(editor: TableTarget | null, action: TableAction): boolean
 
 /** Runs an entry. Returns false when it had nothing to call. */
 export function runAction(editor: TableTarget | null, action: TableAction): boolean {
-  if (!editor || !action.command) return false
+  if (!editor) return false
+  if (action.op) {
+    if (!editor.state || !editor.view) return false
+    const tr = OPS[action.op].run(editor.state)
+    if (!tr) return false
+    editor.view.dispatch(tr)
+    editor.view.focus?.()
+    return true
+  }
+  if (!action.command) return false
   const chain = (editor.chain() as Chain).focus as unknown as () => Chain
   const focused = typeof chain === 'function' ? chain() : (editor.chain() as Chain)
   const call = (focused as Chain)[action.command] as
@@ -140,7 +247,7 @@ export interface TablePlacement {
 }
 
 /** The width the bar is laid out at, used to keep it on screen. */
-export const TABLE_TOOLBAR_WIDTH = 384
+export const TABLE_TOOLBAR_WIDTH = 560
 /** The bar's height plus the gap it keeps from the table. */
 export const TABLE_TOOLBAR_OFFSET = 44
 

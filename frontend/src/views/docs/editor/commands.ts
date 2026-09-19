@@ -29,8 +29,8 @@ export interface BlockCommand {
    * A short word drawn in place of the icon.
    *
    * The icon set has no H1/H2/H3 glyph, and a heading entry that borrows the
-   * bold icon tells a reader nothing. "H1" drawn as text is what Feishu and
-   * Notion both show, and it is unambiguous in every language.
+   * bold icon tells a reader nothing. "H1" drawn as text names the level
+   * outright, and reads the same in every language.
    */
   badge?: string
   /** Which section of the menu it appears under. */

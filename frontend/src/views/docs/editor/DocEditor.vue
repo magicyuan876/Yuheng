@@ -592,7 +592,7 @@ const editor = useEditor({
     uploads.extension,
     suggestions.extension,
     DragHandle.configure({
-      offset: 52,
+      offset: 32,
       label: t('docs.toolbar.moveBlock'),
       addLabel: t('docs.toolbar.addBlock'),
       menuLabel: t('docs.toolbar.blockMenu'),
@@ -711,25 +711,21 @@ defineExpose({
   }
 }
 
-// The strip holding the "+" and the drag handle beside the hovered block.
-// One container so the pair centres on the block as a unit and the hover
-// target between the two buttons has no gap to fall through.
+// The strip holding the "+" beside the hovered block.
 :deep(.docs-drag-tools) {
   position: absolute;
   visibility: hidden;
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: 2px;
   // Aligned with the block's first line: `place` puts the strip's top on
   // that line's centre, this lifts it back up by half of itself.
   transform: translateY(-50%);
   user-select: none;
 
-  // The gutter between the buttons and the text belongs to neither, and a
+  // The gutter between the button and the text belongs to neither, and a
   // pointer crossing it is on its way here. This bridge makes that crossing
   // a hover of the strip itself, so the deferred hide is cancelled the
-  // moment somebody sets off towards the handle rather than at the end of
+  // moment somebody sets off towards the button rather than at the end of
   // its delay.
   &::after {
     content: '';
@@ -737,22 +733,26 @@ defineExpose({
     left: 100%;
     top: -6px;
     bottom: -6px;
-    width: 16px;
+    width: 20px;
   }
 }
 
-:deep(.docs-drag-handle) {
+// One control, three gestures: click inserts a block and opens the slash
+// menu, dragging moves the block, right-click opens the block menu. `grab`
+// rather than `pointer` because the drag is the gesture a cursor cannot
+// otherwise advertise; the click target is obvious from the glyph.
+:deep(.docs-drag-plus) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--td-text-color-placeholder);
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1;
   cursor: grab;
   user-select: none;
@@ -764,29 +764,6 @@ defineExpose({
 
   &:active {
     cursor: grabbing;
-  }
-}
-
-// The "+" above the drag handle: a new empty block after the hovered one.
-:deep(.docs-drag-plus) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  user-select: none;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-secondary);
   }
 }
 
@@ -944,10 +921,9 @@ defineExpose({
 }
 
 .doc-editor-content {
-  // The gutter the "+" and the drag handle live in. Without it the strip is
-  // positioned outside the content box and clipped away; Feishu reserves the
-  // same margin for the same reason.
-  padding-left: 56px;
+  // The gutter the "+" lives in. Without it the strip is positioned outside
+  // the content box and clipped away.
+  padding-left: 40px;
 
   :deep(.ProseMirror) {
     outline: none;
@@ -996,9 +972,9 @@ defineExpose({
     padding: 0;
   }
 
-  // Tables, dressed the way Feishu and Yuque dress theirs: a tinted header
-  // row, a hairline grid, hover and selection feedback, and a draggable
-  // edge on every column. The wrapper is what @tiptap/extension-table puts
+  // Tables: a tinted header row, a hairline grid, hover and selection
+  // feedback, and a draggable edge on every column. The wrapper is what
+  // @tiptap/extension-table puts
   // round a resizable table; scrolling it rather than the page is what keeps
   // a wide table from stretching the document.
   :deep(.ProseMirror .tableWrapper) {
@@ -1045,6 +1021,13 @@ defineExpose({
     background: var(--td-bg-color-secondarycontainer);
     font-weight: 600;
     color: var(--td-text-color-primary);
+    // The header stays put while a long table scrolls under it.
+    // `position: relative` on the cells is what the resize grip needs, so
+    // the header opts back out of it here; the z-index keeps it over the
+    // body rows it scrolls past.
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
 
   :deep(.ProseMirror tbody tr:hover) > td {
@@ -1061,8 +1044,8 @@ defineExpose({
     pointer-events: none;
   }
 
-  // The column-resize grip: invisible until the pointer is on it, then the
-  // brand-coloured rule Feishu shows while a column is being dragged.
+  // The column-resize grip: invisible until the pointer is on it, then a
+  // brand-coloured rule for as long as the column is being dragged.
   :deep(.ProseMirror .column-resize-handle) {
     position: absolute;
     right: -2px;

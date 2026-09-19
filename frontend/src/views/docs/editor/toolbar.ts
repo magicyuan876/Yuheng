@@ -28,8 +28,8 @@ export interface ToolbarItem {
    * A short word drawn in place of the icon.
    *
    * The icon set has no H1/H2 glyph; borrowing the bold one for a heading
-   * button leaves two entries on the bar looking identical. "H1" as text is
-   * what Feishu and Notion draw, and it needs no translation.
+   * button leaves two entries on the bar looking identical. "H1" as text
+   * names the level outright, and needs no translation.
    */
   badge?: string
   /** Buttons are drawn in groups with a divider between them. */
