@@ -1,14 +1,17 @@
 # Dependabot configuration for the Yuheng repository.
 #
-# Policy:
-#   * `/cli` is the only ecosystem that receives routine version updates
-#     (monthly, grouped into one minor/patch PR and one major PR). It's
-#     a standalone Go binary with a small, well-scoped dependency surface
-#     where staying current is cheap.
-#   * Every other ecosystem (server gomod, /client, all five npm
-#     workspaces, docreader pip, github-actions) is configured as
-#     "security-only" — no scheduled version PRs, but CVE security
-#     updates still open PRs automatically.
+# Policy: EVERY ecosystem is security-only. No scheduled version PRs are
+# opened for anything -- not the server module, not /cli, not any of the five
+# npm workspaces, not docreader, not the actions. A CVE still opens a PR,
+# grouped into one per ecosystem.
+#
+# READ THIS BEFORE TRUSTING THE FILE: none of it does anything until
+# "Dependabot alerts" and "Dependabot security updates" are switched on in
+# Settings -> Code security. Both are currently OFF, so Dependabot opens
+# nothing at all on this repository. That is deliberate for now -- the project
+# is pre-release and has never been tagged -- but it means there is no
+# automated CVE warning either. Turning both on is the single action that
+# activates everything below.
 #
 # Security-only pattern (mirrors fluent/fluentd-kubernetes-daemonset and
 # the dependabot docs for "Disabling Dependabot version updates"):
@@ -60,20 +63,22 @@ updates:
         applies-to: security-updates
         patterns: ["*"]
 
+  # /cli used to take routine monthly version bumps. Paused while the project
+  # is pre-release: the churn is not worth reviewing yet, and the security
+  # lanes below are what actually matter. To bring it back, restore the entry
+  # documented at the bottom of this file.
   - package-ecosystem: gomod
     directory: "/cli"
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
     groups:
-      cli-deps:
+      cli-security:
+        applies-to: security-updates
         patterns: ["*"]
-        update-types: ["minor", "patch"]
-      cli-deps-major:
-        patterns: ["*"]
-        update-types: ["major"]
 
   - package-ecosystem: gomod
     directory: "/client"
@@ -190,3 +195,25 @@ updates:
       gha-security:
         applies-to: security-updates
         patterns: ["*"]
+
+# ---------------------------------------------------------------------------
+# Paused: routine version updates for /cli.
+#
+# Restore this in place of the security-only /cli entry above to resume one
+# grouped minor/patch PR and one grouped major PR per month.
+#
+#   - package-ecosystem: gomod
+#     directory: "/cli"
+#     schedule:
+#       interval: monthly
+#     open-pull-requests-limit: 3
+#     commit-message:
+#       prefix: "chore(deps)"
+#     groups:
+#       cli-deps:
+#         patterns: ["*"]
+#         update-types: ["minor", "patch"]
+#       cli-deps-major:
+#         patterns: ["*"]
+#         update-types: ["major"]
+# ---------------------------------------------------------------------------
