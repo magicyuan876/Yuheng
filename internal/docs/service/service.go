@@ -134,6 +134,11 @@ type Deps struct {
 	Embeds Embeds
 	// DrawioURL is the self-hosted draw.io editor, reported to the client.
 	DrawioURL string
+	// PublicSharing allows pages to be published to anonymous URLs. Off by
+	// default and off in every build that does not set it: an installation
+	// that never wanted anything on the public internet should not acquire
+	// the ability by upgrading.
+	PublicSharing bool
 	// HTTPClient makes the optional oEmbed metadata request; nil uses a
 	// short-timeout client of its own.
 	HTTPClient *http.Client

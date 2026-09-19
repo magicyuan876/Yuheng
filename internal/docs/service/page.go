@@ -1009,6 +1009,11 @@ func (s *PageService) Delete(ctx context.Context, actor *acl.Identity, d acl.Dec
 	for _, id := range ids {
 		s.evict(ctx, id)
 	}
+	// And any public link to the subtree stops working. A trashed page
+	// already fails the share layer's own checks, so this is not what makes
+	// it safe; it is what keeps the link list honest and what stops a later
+	// restore from silently republishing something.
+	s.RevokeSharesForPages(ctx, actor.TenantID, ids)
 	s.publish(ctx, events.New(events.PageDeleted, actor.TenantID).WithSpace(d.Page.SpaceID).WithPage(d.Page.ID).
 		WithActor(actor.UserID).With("parent_id", d.Page.ParentID).With("count", n))
 	s.audit(ctx, audit.Entry{

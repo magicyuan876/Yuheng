@@ -118,6 +118,7 @@ func NewModule(p Params) *Module {
 		MaxAttachmentBytes: cfg.MaxAttachmentBytes,
 		Embeds:             embed.NewRegistry(cfg.EmbedProviders, cfg.EmbedExtraHosts),
 		DrawioURL:          cfg.DrawioURL,
+		PublicSharing:      cfg.PublicSharing,
 	}
 	if p.StorageResolver != nil {
 		deps.Storage = p.StorageResolver

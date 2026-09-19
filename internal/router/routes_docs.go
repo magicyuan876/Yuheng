@@ -220,9 +220,17 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.DeleteComment)
 	write.POST("/pages/:pid/comments/:cid/resolve", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ResolveComment)
-	read.GET("/pages/:pid/shares", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), ni)
+	// Public links. Listing them needs only read access, because "this page
+	// is published on the internet" is something every reader of it should be
+	// able to see; publishing one needs write access.
+	read.GET("/pages/:pid/shares", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Shares)
 	write.POST("/pages/:pid/shares", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, ni)
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.CreateShare)
+	write.PATCH("/pages/:pid/shares/:shid", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.UpdateShare)
+	write.DELETE("/pages/:pid/shares/:shid", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.RevokeShare)
 	write.POST("/pages/:pid/export", g.Viewer(), guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, ni)
 	write.PUT("/pages/:pid/labels", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageLabels)
@@ -266,7 +274,9 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// that can only check membership would push the real check into each
 	// handler by hand. T4.4's route audit should find this note rather than a
 	// missing endpoint.
-	write.DELETE("/shares/:shid", g.Contributor(), guard.RequireMember(), idem, ni)
+	// A share link is addressed under its page above, for the same reason
+	// revisions, comments and labels are: its permissions are the page's. The
+	// T0.5 placeholder that stood here is gone rather than unimplemented.
 	read.GET("/attachments/:aid", g.Viewer(), guard.RequireMember(), fh.Download)
 	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, fh.Delete)
 
@@ -335,3 +345,25 @@ func RegisterDocsInternalRoutes(r *gin.Engine, m *docs.Module) {
 
 // dochandlerNotImplemented adapts the docs handler package's placeholder.
 func dochandlerNotImplemented(c *gin.Context) { dochandler.NotImplemented(c) }
+
+// RegisterDocsPublicRoutes mounts the anonymous share-link endpoints.
+//
+// Registered on the engine BEFORE the authentication middleware, like the IM
+// callbacks and the presigned-file routes, because a visitor following a
+// shared URL has no session and must not be asked for one. The link key is
+// the whole credential; everything the key does not cover is refused inside
+// the service rather than by a guard here, because there is no principal for
+// a guard to reason about.
+//
+// Nothing is registered when the module is off or when the deployment has not
+// switched public sharing on, so an installation that never wanted anything
+// on the public internet does not even expose the routes.
+func RegisterDocsPublicRoutes(r *gin.Engine, m *docs.Module) {
+	if m == nil || !m.Enabled || m.Handler == nil || !m.Config.PublicSharing {
+		return
+	}
+	pg := m.Handler.Pages
+	public := r.Group("/api/v1/docs/public")
+	public.GET("/:key", pg.PublicPage)
+	public.POST("/:key/unlock", pg.UnlockPublicPage)
+}

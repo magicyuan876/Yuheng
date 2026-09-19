@@ -53,6 +53,11 @@ type DocsConfig struct {
 	// Empty disables creating and editing draw.io diagrams; existing ones
 	// still render from their stored preview.
 	DrawioURL string `yaml:"drawio_url" json:"drawio_url"`
+	// PublicSharing allows pages to be published to anonymous URLs that need
+	// no login. Off unless YUHENG_DOCS_PUBLIC_SHARING=true: an installation
+	// that never wanted anything reachable from the public internet should
+	// not acquire the ability by upgrading.
+	PublicSharing bool `yaml:"public_sharing" json:"public_sharing"`
 }
 
 // DrawioEnabled reports whether a draw.io editor is configured.
@@ -106,6 +111,7 @@ func loadDocsConfig() *DocsConfig {
 		EmbedProviders:          envList("YUHENG_DOCS_EMBED_PROVIDERS"),
 		EmbedExtraHosts:         envList("YUHENG_DOCS_EMBED_EXTRA_HOSTS"),
 		DrawioURL:               strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
+		PublicSharing:           envBool("YUHENG_DOCS_PUBLIC_SHARING", false),
 	}
 	if d.Enabled && d.CollabEnabled() && d.CollabSharedSecret == "" {
 		// Printf: LoadConfig runs before the logger is wired.

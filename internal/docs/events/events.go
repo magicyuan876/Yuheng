@@ -54,6 +54,7 @@ const (
 	// renamed, recoloured or removed. Carries the space, so a list open on it
 	// reloads; what happened to which page is not part of it, because a label
 	// removed touches every page carrying it.
+	ShareChanged   Type = "docs.share.changed"
 	LabelChanged   Type = "docs.label.changed"
 	GroupChanged   Type = "docs.group.changed"
 	ACLInvalidated Type = "docs.acl.invalidated"
