@@ -458,6 +458,39 @@ CREATE TABLE IF NOT EXISTS docs_import_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_docs_import_jobs_space ON docs_import_jobs (space_id, created_at DESC);
 
+-- Asynchronous space exports. Separate from docs_import_jobs rather than a
+-- shared table with a direction column: an import has a source path and a
+-- target parent, an export has a result path and a format, and a table whose
+-- columns are meaningful for half its rows is one every query has to
+-- apologise for.
+CREATE TABLE IF NOT EXISTS docs_export_jobs (
+    id            VARCHAR(36)   PRIMARY KEY,
+    tenant_id     BIGINT        NOT NULL,
+    space_id      VARCHAR(36)   NOT NULL REFERENCES docs_spaces(id) ON DELETE CASCADE,
+    -- markdown | html
+    format        VARCHAR(16)   NOT NULL DEFAULT 'markdown',
+    -- pending | running | succeeded | partial | failed
+    status        VARCHAR(16)   NOT NULL DEFAULT 'pending',
+    -- Where the finished archive was written, in the space's storage backend.
+    result_path   VARCHAR(1024) NOT NULL DEFAULT '',
+    file_name     VARCHAR(512)  NOT NULL DEFAULT '',
+    -- Page counts and skipped-page reasons, for the progress display.
+    stats         JSONB         NOT NULL DEFAULT '{}'::JSONB,
+    error         TEXT          NOT NULL DEFAULT '',
+    -- The export contains exactly what this person could read, so only they
+    -- may download it. See internal/docs/service/exportjob.go.
+    created_by    VARCHAR(36),
+    created_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    finished_at   TIMESTAMPTZ,
+    -- Archives are deleted after this, by the maintenance sweep.
+    expires_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_docs_export_jobs_space ON docs_export_jobs (space_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_docs_export_jobs_expiry ON docs_export_jobs (expires_at)
+    WHERE expires_at IS NOT NULL;
+
+
 -- Exclusive-edit leases used when no collaboration service is configured
 -- (Lite edition). Standard deployments never write this table.
 CREATE TABLE IF NOT EXISTS docs_edit_leases (

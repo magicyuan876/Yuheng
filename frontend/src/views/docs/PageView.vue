@@ -131,6 +131,16 @@
             <t-icon name="share" size="14px" />
             <span>{{ t('docs.share.title') }}</span>
           </button>
+          <t-dropdown
+            :options="exportOptions"
+            trigger="click"
+            @click="(item: { value: string }) => runExport(item.value as ExportFormat)"
+          >
+            <button type="button" class="page-history-link" :disabled="exporting">
+              <t-icon name="download" size="14px" />
+              <span>{{ t('docs.exportDoc.title') }}</span>
+            </button>
+          </t-dropdown>
           <button
             v-if="page.can_edit"
             type="button"
@@ -280,6 +290,7 @@ import { useRouter } from 'vue-router'
 
 import {
   createTemplate,
+  exportPage,
   setPageLocked,
   setPageStatus,
   getPageAncestors,
@@ -298,6 +309,7 @@ import {
   type DocsSpace,
   type GonePage,
   type LabelView,
+  type ExportFormat,
   type PageAccessView,
   type PageRef,
   type PageView as PageViewDto,
@@ -364,6 +376,26 @@ const savingTemplate = ref(false)
 const templateName = ref('')
 const templateCategory = ref('')
 const templateDescription = ref('')
+
+// Exporting this page. The file is built by the request and handed to the
+// browser's save dialog, so there is nothing to poll and nothing to clean up.
+const exporting = ref(false)
+const exportOptions = computed(() => [
+  { content: t('docs.exportDoc.markdown'), value: 'markdown' },
+  { content: t('docs.exportDoc.html'), value: 'html' },
+])
+
+async function runExport(format: ExportFormat) {
+  if (exporting.value || !page.value) return
+  exporting.value = true
+  try {
+    await exportPage(page.value.id, format)
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.exportDoc.failed')))
+  } finally {
+    exporting.value = false
+  }
+}
 
 function openSaveTemplate() {
   templateName.value = page.value?.title ?? ''

@@ -487,7 +487,7 @@ func (s *AttachmentService) ListForPage(ctx context.Context, d acl.Decision) ([]
 
 // ---- storage and quota ----------------------------------------------------
 
-func (s *AttachmentService) storageFor(ctx context.Context, space *model.Space) (*types.Tenant,
+func (s *base) storageFor(ctx context.Context, space *model.Space) (*types.Tenant,
 	interfaces.FileService, error,
 ) {
 	if s.d.Storage == nil {
@@ -517,7 +517,7 @@ func (s *AttachmentService) storageFor(ctx context.Context, space *model.Space) 
 	return tenant, fileSvc, nil
 }
 
-func (s *AttachmentService) storageForSpaceID(ctx context.Context, tenantID uint64,
+func (s *base) storageForSpaceID(ctx context.Context, tenantID uint64,
 	spaceID string,
 ) (*types.Tenant, interfaces.FileService, error) {
 	space, err := s.d.Repos.Spaces.Get(ctx, tenantID, spaceID)

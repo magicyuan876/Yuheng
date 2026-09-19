@@ -265,6 +265,19 @@ const (
 	ImportFailed    ImportJobStatus = "failed"
 )
 
+// JobStatus is the lifecycle of an import or an export. The two share it
+// because the states are genuinely the same; the rows are not.
+type JobStatus = ImportJobStatus
+
+// Job statuses, named without the Import prefix for the shared alias.
+const (
+	JobPending   = ImportPending
+	JobRunning   = ImportRunning
+	JobSucceeded = ImportSucceeded
+	JobPartial   = ImportPartial
+	JobFailed    = ImportFailed
+)
+
 // GroupSource records where a group's membership is managed.
 type GroupSource string
 

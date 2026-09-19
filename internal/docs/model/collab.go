@@ -173,3 +173,30 @@ type ImportJob struct {
 
 // TableName pins the table name.
 func (ImportJob) TableName() string { return "docs_import_jobs" }
+
+// ExportJob tracks an asynchronous export of a space.
+//
+// Separate from ImportJob rather than one table with a direction: an import
+// has a source and a target parent, an export has a result and a format.
+type ExportJob struct {
+	ID       string    `json:"id"        gorm:"type:varchar(36);primaryKey"`
+	TenantID uint64    `json:"tenant_id" gorm:"not null"`
+	SpaceID  string    `json:"space_id"  gorm:"type:varchar(36);not null"`
+	Format   string    `json:"format"    gorm:"type:varchar(16);not null;default:'markdown'"`
+	Status   JobStatus `json:"status"    gorm:"type:varchar(16);not null;default:'pending'"`
+	// ResultPath is where the finished archive was written; empty until it
+	// succeeds.
+	ResultPath string     `json:"-"          gorm:"type:varchar(1024);not null;default:''"`
+	FileName   string     `json:"file_name"  gorm:"type:varchar(512);not null;default:''"`
+	Stats      JSON       `json:"stats"      gorm:"type:json;not null;default:'{}'"`
+	Error      string     `json:"error"      gorm:"type:text;not null;default:''"`
+	CreatedBy  *string    `json:"created_by,omitempty" gorm:"type:varchar(36)"`
+	CreatedAt  time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	// ExpiresAt is when the archive is deleted by the maintenance sweep.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// TableName pins the table name.
+func (ExportJob) TableName() string { return "docs_export_jobs" }

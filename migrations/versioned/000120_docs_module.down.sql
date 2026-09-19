@@ -8,6 +8,7 @@
 DO $$ BEGIN RAISE NOTICE '[Migration 000120 DOWN] Dropping docs module tables...'; END $$;
 
 DROP TABLE IF EXISTS docs_edit_leases;
+DROP TABLE IF EXISTS docs_export_jobs;
 DROP TABLE IF EXISTS docs_import_jobs;
 DROP TABLE IF EXISTS docs_page_labels;
 DROP TABLE IF EXISTS docs_labels;

@@ -209,3 +209,97 @@ const (
 	RetentionActor     = "system:retention"
 	RetentionActorRole = "system"
 )
+
+// SweepExpiredExports deletes archives whose download window has closed.
+//
+// A space export is a copy of a space's contents sitting in object storage,
+// assembled for one person. Keeping it after they have had their day to
+// download it means the most concentrated thing this module produces outlives
+// the reason it exists, so the sweep is not housekeeping — it is the second
+// half of the export feature.
+//
+// The job row goes with the archive rather than being kept as history: a row
+// saying an export once existed, with a result_path pointing at nothing, is a
+// thing every later reader has to work out the meaning of.
+func (s *PageService) SweepExpiredExports(ctx context.Context, opts SweepOptions) (
+	*SweepReport, error,
+) {
+	report := &SweepReport{DryRun: opts.DryRun}
+	if s.d.Repos.Exports == nil {
+		return report, nil
+	}
+	limit := opts.limit()
+
+	// Jobs abandoned by a restart are closed out first, so a stale row does
+	// not sit at "running" until somebody notices.
+	report.Considered += s.failStaleExports(ctx, opts)
+
+	rows, err := s.d.Repos.Exports.ListExpired(ctx, opts.at(), limit)
+	if err != nil {
+		return nil, err
+	}
+	report.Considered += len(rows)
+	report.More = len(rows) == limit
+
+	for _, job := range rows {
+		if opts.DryRun {
+			report.Deleted++
+			continue
+		}
+		if err := s.releaseExport(ctx, job); err != nil {
+			logger.Warnf(ctx, "[docs] releasing expired export %s failed: %v", job.ID, err)
+			report.Failed++
+			continue
+		}
+		report.Deleted++
+	}
+	return report, nil
+}
+
+// StaleExportAfter is how long an unfinished export is believed.
+//
+// Longer than any export should take, because the cost of being impatient is
+// telling somebody their export failed while it is still being written.
+const StaleExportAfter = 2 * time.Hour
+
+// failStaleExports closes out jobs left running by a restart.
+//
+// Nothing resumes an interrupted export: the goroutine that was building the
+// archive is gone with the process, and the job it was writing would
+// otherwise say "running" until the end of time. Marking it failed is the
+// honest answer, and the person can start another one.
+func (s *PageService) failStaleExports(ctx context.Context, opts SweepOptions) int {
+	rows, err := s.d.Repos.Exports.ListStale(ctx, opts.at().Add(-StaleExportAfter), opts.limit())
+	if err != nil {
+		logger.Warnf(ctx, "[docs] listing stale exports failed: %v", err)
+		return 0
+	}
+	if opts.DryRun {
+		return len(rows)
+	}
+	closed := 0
+	for _, job := range rows {
+		s.failExport(ctx, job.TenantID, job.ID, "the export was interrupted and did not finish")
+		closed++
+	}
+	return closed
+}
+
+// releaseExport deletes one archive and then its row, in that order and for
+// the same reason releaseOrphan does: a row without its object is retried by
+// the next sweep, an object without its row is lost.
+func (s *PageService) releaseExport(ctx context.Context, job *model.ExportJob) error {
+	if job.ResultPath != "" {
+		space, err := s.d.Repos.Spaces.Get(ctx, job.TenantID, job.SpaceID)
+		if err == nil {
+			if _, files, err := s.storageFor(ctx, space); err == nil && files != nil {
+				if err := files.DeleteFile(ctx, job.ResultPath); err != nil {
+					return err
+				}
+			}
+		}
+		// A space that has since been deleted took its storage with it; the
+		// row is still ours to clean up, so this is not an error.
+	}
+	return s.d.Repos.Exports.Delete(ctx, job.TenantID, job.ID)
+}

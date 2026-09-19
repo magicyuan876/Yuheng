@@ -23,6 +23,12 @@ func created(c *gin.Context, data any) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": data})
 }
 
+// accepted writes the success envelope with 202, for work that was started
+// rather than done.
+func accepted(c *gin.Context, data any) {
+	c.JSON(http.StatusAccepted, gin.H{"success": true, "data": data})
+}
+
 // noContent ends a request that has nothing to return.
 func noContent(c *gin.Context) { c.Status(http.StatusNoContent) }
 
