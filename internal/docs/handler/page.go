@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -12,7 +14,14 @@ import (
 )
 
 // PageHandler serves /docs/pages/** and the tree/trash routes under a space.
-type PageHandler struct{ svc *service.PageService }
+type PageHandler struct {
+	svc *service.PageService
+	// files and retention serve the maintenance endpoints only: a sweep of
+	// orphaned attachments is an attachment operation, and the trash sweep
+	// needs the deployment's retention window.
+	files     *service.AttachmentService
+	retention time.Duration
+}
 
 func (h *PageHandler) ready(c *gin.Context) bool {
 	if h == nil || h.svc == nil {

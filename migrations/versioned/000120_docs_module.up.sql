@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS docs_spaces (
     knowledge_base_id   VARCHAR(36),
     storage_backend_id  VARCHAR(36),
     settings            JSONB        NOT NULL DEFAULT '{}'::JSONB,
+    -- Attachment bytes this space may hold; 0 means unlimited, as everywhere
+    -- else in Yuheng. A column rather than a key in settings: settings is
+    -- writable by a space administrator, and a quota somebody can raise for
+    -- themselves is not a quota. Only a workspace administrator may set it.
+    quota_bytes         BIGINT       NOT NULL DEFAULT 0 CHECK (quota_bytes >= 0),
     creator_id          VARCHAR(36),
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),

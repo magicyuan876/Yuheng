@@ -51,6 +51,10 @@
           <dd>{{ formatDate(space.created_at) }}</dd>
           <dt>{{ t('docs.spaces.overview.updated') }}</dt>
           <dd>{{ formatDate(space.updated_at) }}</dd>
+          <dt>{{ t('docs.storage.title') }}</dt>
+          <dd>
+            <StorageUsage :space-id="space.id" />
+          </dd>
         </dl>
       </t-tab-panel>
 
@@ -188,6 +192,8 @@ import {
   type TenantGroup,
 } from '@/api/docs'
 import SpaceAvatar from '@/components/SpaceAvatar.vue'
+
+import StorageUsage from './quota/StorageUsage.vue'
 
 import {
   canManageSpace,

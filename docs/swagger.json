@@ -1950,6 +1950,86 @@
                 }
             }
         },
+        "/docs/maintenance/expired-trash": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "保留期由 YUHENG_DOCS_TRASH_RETENTION_DAYS 决定；走与手动清空回收站\n完全相同的清理路径，附件、历史、评论、分享链接一并释放\n**默认是试运行**：要真的删除必须显式传 dry_run=false",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "清理超过保留期的回收站页面（维护）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "传 false 才真正删除，默认只报告",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "本次处理条数上限",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/maintenance/orphan-attachments": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只清理超过宽限期（24 小时）且没有绑定到任何页面的附件\n**默认是试运行**：要真的删除必须显式传 dry_run=false",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "清理无人引用的附件（维护）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "传 false 才真正删除，默认只报告",
+                        "name": "dry_run",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "本次处理条数上限",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/notifications": {
             "get": {
                 "security": [
@@ -4928,6 +5008,53 @@
                 }
             }
         },
+        "/docs/spaces/{sid}/quota": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "需要**工作区**管理员：空间管理员能给自己提额的配额不是配额\n把配额设到低于当前用量是允许的，它只是阻止继续增长，不会删除任何数据",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "设置空间存储配额",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "字节数，0 表示不限",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.QuotaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/spaces/{sid}/restore": {
             "post": {
                 "security": [
@@ -5112,6 +5239,41 @@
                         "description": "每页数量，默认 500，最多 2000",
                         "name": "limit",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/usage": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "任何空间成员都能查看：看不到为什么上传被拒，只会重试然后去问人\nquota_bytes 为 0 表示不限；from_default 表示该数字来自部署默认值而非本空间",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "空间存储用量与配额",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -22638,6 +22800,15 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "handler.QuotaRequest": {
+            "type": "object",
+            "properties": {
+                "quota_bytes": {
+                    "description": "QuotaBytes 0 means unlimited.",
+                    "type": "integer"
                 }
             }
         },

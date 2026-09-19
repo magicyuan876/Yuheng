@@ -671,6 +671,36 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- space storage ------------------------------------------------------------
+
+/** What a space holds and what it may hold. `quota_bytes` 0 is unlimited. */
+export interface SpaceUsage {
+  space_id: string
+  used_bytes: number
+  quota_bytes: number
+  /** True when the limit came from the deployment rather than this space. */
+  from_default: boolean
+  /** Whether the caller may change the quota (workspace administrators only). */
+  can_manage: boolean
+}
+
+/** Backend: GET /api/v1/docs/spaces/:sid/usage (space reader). */
+export async function getSpaceUsage(spaceId: string): Promise<SpaceUsage> {
+  return unwrap<SpaceUsage>(await get(`${base}/spaces/${encodeURIComponent(spaceId)}/usage`))
+}
+
+/**
+ * Backend: PUT /api/v1/docs/spaces/:sid/quota (workspace administrator).
+ *
+ * Setting a quota below current usage stops the space growing and deletes
+ * nothing.
+ */
+export async function setSpaceQuota(spaceId: string, quotaBytes: number): Promise<SpaceUsage> {
+  return unwrap<SpaceUsage>(
+    await put(`${base}/spaces/${encodeURIComponent(spaceId)}/quota`, { quota_bytes: quotaBytes }),
+  )
+}
+
 // ---- locking and publication state -------------------------------------------
 
 /**

@@ -68,6 +68,9 @@ type Module struct {
 	Handler  *handler.Handler
 	// Collab talks to the collaboration service; nil in exclusive-edit mode.
 	Collab *collab.Client
+	// Cleaner runs the maintenance sweeps on a timer; nil when the module is
+	// off. Started by the module and stopped by Close.
+	Cleaner *Cleaner
 }
 
 // NewModule wires the module from container-provided dependencies.
@@ -115,10 +118,11 @@ func NewModule(p Params) *Module {
 	deps := service.Deps{
 		Repos: repos, Resolver: resolver, Bus: bus, Audit: rec, Users: p.Users, Members: p.TenantMembers,
 		CollabURL: cfg.CollabURL, MaxYDocBytes: cfg.MaxYDocBytes,
-		MaxAttachmentBytes: cfg.MaxAttachmentBytes,
-		Embeds:             embed.NewRegistry(cfg.EmbedProviders, cfg.EmbedExtraHosts),
-		DrawioURL:          cfg.DrawioURL,
-		PublicSharing:      cfg.PublicSharing,
+		MaxAttachmentBytes:     cfg.MaxAttachmentBytes,
+		Embeds:                 embed.NewRegistry(cfg.EmbedProviders, cfg.EmbedExtraHosts),
+		DrawioURL:              cfg.DrawioURL,
+		PublicSharing:          cfg.PublicSharing,
+		DefaultSpaceQuotaBytes: cfg.DefaultSpaceQuotaBytes,
 	}
 	if p.StorageResolver != nil {
 		deps.Storage = p.StorageResolver
@@ -151,15 +155,30 @@ func NewModule(p Params) *Module {
 		mode = "exclusive-edit mode (no collaboration service)"
 	}
 	logger.Infof(context.Background(), "[docs] module enabled, %s, redis=%v", mode, p.Redis != nil)
+
+	cleaner := NewCleaner(services.Pages, services.Files,
+		time.Duration(cfg.TrashRetentionDays)*24*time.Hour,
+		time.Duration(cfg.CleanupIntervalMinutes)*time.Minute)
+	cleaner.Start(context.Background())
+
 	return &Module{
 		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec,
-		Services: services, Handler: h, Collab: collabClient,
+		Services: services, Handler: h, Collab: collabClient, Cleaner: cleaner,
 	}
 }
 
-// Close releases background resources (the Redis subscriber loop).
+// Close releases background resources: the maintenance loop and the Redis
+// subscriber.
+//
+// The cleaner is stopped first and waited for, so a sweep in flight finishes
+// its current deletion rather than being cut off between releasing an object
+// and removing the row that points at it.
 func (m *Module) Close() error {
-	if m == nil || m.Bus == nil {
+	if m == nil {
+		return nil
+	}
+	m.Cleaner.Stop()
+	if m.Bus == nil {
 		return nil
 	}
 	return m.Bus.Close()

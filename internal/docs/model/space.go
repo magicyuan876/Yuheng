@@ -15,10 +15,15 @@ type Space struct {
 	KnowledgeBaseID  *string         `json:"knowledge_base_id,omitempty"  gorm:"type:varchar(36)"`
 	StorageBackendID *string         `json:"storage_backend_id,omitempty" gorm:"type:varchar(36)"`
 	Settings         JSON            `json:"settings"           gorm:"type:json;not null;default:'{}'"`
-	CreatorID        *string         `json:"creator_id,omitempty" gorm:"type:varchar(36)"`
-	CreatedAt        time.Time       `json:"created_at"         gorm:"autoCreateTime"`
-	UpdatedAt        time.Time       `json:"updated_at"         gorm:"autoUpdateTime"`
-	DeletedAt        *time.Time      `json:"deleted_at,omitempty"`
+	// QuotaBytes caps the attachment bytes this space may hold; 0 is
+	// unlimited, as everywhere else in Yuheng. A column rather than a key in
+	// Settings, because Settings is writable by a space administrator and a
+	// quota somebody can raise for themselves is not a quota.
+	QuotaBytes int64      `json:"quota_bytes" gorm:"not null;default:0"`
+	CreatorID  *string    `json:"creator_id,omitempty" gorm:"type:varchar(36)"`
+	CreatedAt  time.Time  `json:"created_at"         gorm:"autoCreateTime"`
+	UpdatedAt  time.Time  `json:"updated_at"         gorm:"autoUpdateTime"`
+	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
 }
 
 // TableName pins the table name.

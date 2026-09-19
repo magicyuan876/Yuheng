@@ -5091,6 +5091,21 @@ export default {
       published: 'Published',
       changeFailed: 'Could not change the page state',
     },
+    // Space storage usage and its quota.
+    storage: {
+      title: 'Storage',
+      unlimited: 'no limit',
+      unlimitedHint: 'This space has no storage limit.',
+      fromDefault: 'This limit is the workspace default.',
+      nearlyFull: 'This space is nearly full.',
+      full: 'This space is full. New attachments will be refused until something is removed.',
+      setQuota: 'Set limit',
+      quotaPlaceholder: 'e.g. 500 MB, or empty for no limit',
+      quotaHint: 'A plain number is bytes. Leave it empty to remove the limit.',
+      belowUsage: 'That is below the {used} already stored. Nothing is deleted; '
+        + 'the space simply cannot grow until it is under the new limit.',
+      saveFailed: 'Could not change the limit',
+    },
     notifications: {
       title: 'Notifications',
       empty: 'Nothing new',

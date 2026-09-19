@@ -58,6 +58,15 @@ type DocsConfig struct {
 	// that never wanted anything reachable from the public internet should
 	// not acquire the ability by upgrading.
 	PublicSharing bool `yaml:"public_sharing" json:"public_sharing"`
+	// DefaultSpaceQuotaBytes caps the attachment bytes of a space that has no
+	// quota of its own; 0 leaves those spaces unlimited. A workspace
+	// administrator can still set a different number per space.
+	DefaultSpaceQuotaBytes int64 `yaml:"default_space_quota_bytes" json:"default_space_quota_bytes"`
+	// CleanupIntervalMinutes is how often the maintenance sweeps run
+	// (orphaned attachments, expired trash); 0 uses 60. A negative value
+	// switches the sweeps off, which is how an operator who wants to run
+	// them by hand does it.
+	CleanupIntervalMinutes int `yaml:"cleanup_interval_minutes" json:"cleanup_interval_minutes"`
 }
 
 // DrawioEnabled reports whether a draw.io editor is configured.
@@ -112,6 +121,8 @@ func loadDocsConfig() *DocsConfig {
 		EmbedExtraHosts:         envList("YUHENG_DOCS_EMBED_EXTRA_HOSTS"),
 		DrawioURL:               strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
 		PublicSharing:           envBool("YUHENG_DOCS_PUBLIC_SHARING", false),
+		DefaultSpaceQuotaBytes:  envInt64("YUHENG_DOCS_SPACE_QUOTA_BYTES", 0),
+		CleanupIntervalMinutes:  int(envInt64("YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES", 60)),
 	}
 	if d.Enabled && d.CollabEnabled() && d.CollabSharedSecret == "" {
 		// Printf: LoadConfig runs before the logger is wired.

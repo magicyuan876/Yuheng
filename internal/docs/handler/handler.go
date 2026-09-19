@@ -56,6 +56,10 @@ func New(deps Deps) *Handler {
 		h.Pages.svc = deps.Services.Pages
 		h.Leases.svc = deps.Services.Leases
 		h.Files.svc = deps.Services.Files
+		h.Pages.files = deps.Services.Files
+		if deps.Config != nil {
+			h.Pages.retention = time.Duration(deps.Config.TrashRetentionDays) * 24 * time.Hour
+		}
 		if deps.Config != nil && deps.Config.CollabSharedSecret != "" {
 			h.Collab = NewCollabHandler(deps.Services.Collab, deps.Config.CollabSharedSecret, deps.Config.MaxYDocBytes)
 		}

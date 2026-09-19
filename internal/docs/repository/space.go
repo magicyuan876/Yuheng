@@ -17,6 +17,8 @@ type SpaceRepository interface {
 	// GetPublicByID finds a PUBLIC space by id, without a tenant scope, for
 	// anonymous visitors. It can never return a private space.
 	GetPublicByID(ctx context.Context, id string) (*model.Space, error)
+	// SetQuota writes a space's attachment byte limit; 0 is unlimited.
+	SetQuota(ctx context.Context, tenantID uint64, id string, bytes int64) error
 	// List returns the tenant's live spaces ordered by name.
 	List(ctx context.Context, tenantID uint64) ([]*model.Space, error)
 	// ListByIDs returns live spaces among the given IDs (any order).
@@ -291,4 +293,18 @@ func (r *spaceRepository) GetPublicByID(ctx context.Context, id string) (*model.
 		return nil, mapNotFound(err)
 	}
 	return &out, nil
+}
+
+// SetQuota writes a space's attachment byte limit.
+func (r *spaceRepository) SetQuota(ctx context.Context, tenantID uint64, id string, bytes int64) error {
+	res := r.db.WithContext(ctx).Model(&model.Space{}).
+		Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantID, id).
+		Updates(map[string]any{"quota_bytes": bytes, "updated_at": now()})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

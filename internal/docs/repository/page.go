@@ -69,6 +69,11 @@ type PageRepository interface {
 	// Move re-parents a page (and, when the space changes, its subtree
 	// together with every dependent row that carries a space id).
 	Move(ctx context.Context, tenantID uint64, id string, target MoveTarget) error
+	// ListExpiredTrashRoots returns trash roots deleted before the cutoff: a
+	// page whose own deleted_at has passed the retention window and whose
+	// parent is not itself in the trash, so a subtree is purged from its top
+	// rather than one page at a time.
+	ListExpiredTrashRoots(ctx context.Context, before time.Time, limit int) ([]*model.Page, error)
 	// UpdateMeta writes non-content columns (title, icon, cover, status,
 	// is_locked, template_id, source_refs, position).
 	UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error
@@ -585,4 +590,28 @@ func (r *pageRepository) SuggestByTitle(ctx context.Context, tenantID uint64, sp
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 	return r.Replace(s)
+}
+
+// ListExpiredTrashRoots finds subtrees whose retention window has passed.
+//
+// Only roots: a page is a trash root when its parent is not also deleted, so
+// purging it takes its descendants with it. Without that condition a sweep
+// would try to purge children whose parents it had already removed, and the
+// count of what it did would be meaningless.
+func (r *pageRepository) ListExpiredTrashRoots(ctx context.Context, before time.Time,
+	limit int,
+) ([]*model.Page, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+	var rows []*model.Page
+	err := r.db.WithContext(ctx).
+		Select(model.PageSummaryColumns).
+		Where("deleted_at IS NOT NULL AND deleted_at < ?", before).
+		Where("parent_id IS NULL OR parent_id NOT IN (?)",
+			r.db.Model(&model.Page{}).Select("id").Where("deleted_at IS NOT NULL")).
+		Order("deleted_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
 }
