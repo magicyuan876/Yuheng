@@ -281,11 +281,15 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.DELETE("/attachments/:aid", g.Contributor(), guard.RequireMember(), idem, fh.Delete)
 
 	// ---- templates, labels, search, notifications, imports/exports -------------
-	read.GET("/templates", g.Viewer(), guard.RequireMember(), ni)
-	write.POST("/templates", g.Contributor(), guard.RequireMember(), idem, ni)
-	read.GET("/templates/:tid", g.Viewer(), guard.RequireMember(), ni)
-	write.PATCH("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
-	write.DELETE("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, ni)
+	// Templates are addressed by their own id, unlike most of this module,
+	// because a tenant-wide one has no space to sit under. The guard can only
+	// establish membership; each template's real scope is checked in the
+	// service, which knows whether it belongs to a space or to everybody.
+	read.GET("/templates", g.Viewer(), guard.RequireMember(), pg.Templates)
+	write.POST("/templates", g.Contributor(), guard.RequireMember(), idem, pg.CreateTemplate)
+	read.GET("/templates/:tid", g.Viewer(), guard.RequireMember(), pg.Template)
+	write.PATCH("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, pg.UpdateTemplate)
+	write.DELETE("/templates/:tid", g.Contributor(), guard.RequireMember(), idem, pg.DeleteTemplate)
 	// A label is addressed under its space above, not by its own id: a
 	// label's permissions *are* the space's, and giving it its own route
 	// would mean every handler re-deriving them. The T0.5 placeholders that

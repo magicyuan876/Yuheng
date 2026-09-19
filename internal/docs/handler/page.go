@@ -64,6 +64,9 @@ type CreatePageRequest struct {
 	Icon     *string         `json:"icon"`
 	Content  json.RawMessage `json:"content"`
 	Markdown string          `json:"markdown"`
+	// TemplateID starts the page from a saved body, instead of content or
+	// markdown.
+	TemplateID string `json:"template_id,omitempty"`
 }
 
 // ReplaceContentRequest is the body of PUT /docs/pages/{pid}/content.
@@ -132,7 +135,7 @@ func (h *PageHandler) Create(c *gin.Context) {
 	}
 	view, err := h.svc.Create(c.Request.Context(), id, service.CreatePageInput{
 		SpaceID: req.SpaceID, ParentID: req.ParentID, Title: req.Title, Icon: req.Icon,
-		Content: req.Content, Markdown: req.Markdown,
+		Content: req.Content, Markdown: req.Markdown, TemplateID: req.TemplateID,
 	})
 	if err != nil {
 		fail(c, err)
