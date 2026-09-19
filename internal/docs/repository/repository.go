@@ -54,6 +54,7 @@ type Repositories struct {
 	Labels    LabelRepository
 	Shares    ShareRepository
 	Templates TemplateRepository
+	Search    SearchRepository
 }
 
 // New wires the repositories.
@@ -76,6 +77,7 @@ func New(db *gorm.DB) *Repositories {
 		Labels:    &labelRepository{db: db},
 		Shares:    &shareRepository{db: db},
 		Templates: &templateRepository{db: db},
+		Search:    &searchRepository{db: db},
 	}
 }
 

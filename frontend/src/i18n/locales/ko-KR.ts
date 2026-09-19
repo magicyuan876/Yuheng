@@ -5105,6 +5105,20 @@ export default {
         + '새 한도 아래로 내려갈 때까지 늘릴 수 없을 뿐입니다.',
       saveFailed: '한도를 변경하지 못했습니다',
     },
+    // 검색: 페이지, 댓글, 그리고 페이지가 참조로 보여주는 텍스트.
+    search: {
+      title: '검색',
+      placeholder: '페이지, 댓글, 인용 내용 검색',
+      thisSpaceOnly: '이 스페이스에서만',
+      hint: '입력하면 검색합니다.',
+      nothing: '「{query}」와(과) 일치하는 내용이 없습니다.',
+      more: '표시된 것보다 많이 일치했습니다. 범위를 좁히면 나머지를 볼 수 있습니다.',
+      kind: {
+        comment: '댓글',
+        transclusion: '인용',
+        page: '페이지',
+      },
+    },
     notifications: {
       title: '알림',
       empty: '새 알림이 없습니다',

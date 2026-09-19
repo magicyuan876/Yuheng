@@ -5106,6 +5106,20 @@ export default {
         + 'the space simply cannot grow until it is under the new limit.',
       saveFailed: 'Could not change the limit',
     },
+    // Search: pages, comments, and text a page shows by reference.
+    search: {
+      title: 'Search',
+      placeholder: 'Search pages, comments and quoted text',
+      thisSpaceOnly: 'This space only',
+      hint: 'Type to search.',
+      nothing: 'Nothing matched "{query}".',
+      more: 'More matched than are shown. Narrow the search to see the rest.',
+      kind: {
+        comment: 'Comment',
+        transclusion: 'Quoted',
+        page: 'Page',
+      },
+    },
     notifications: {
       title: 'Notifications',
       empty: 'Nothing new',
