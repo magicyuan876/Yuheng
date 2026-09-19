@@ -2980,6 +2980,53 @@
                 }
             }
         },
+        "/docs/pages/{pid}/draft": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把选定的知识条目交给知识库配置的模型，生成页面正文并写入\n**来源必须由调用方指定**：自动检索出来的内容是使用者无法核对的内容，\n而且会把「这些条目谁能看」的判断复制到本模块里\n只能引用**本空间所绑定的那个知识库**里的条目\n写入走与其他写入相同的 replace 路径，所以会先留一条历史版本，可以回退\n返回 source_ids 并记录在页面上：生成的内容要能追溯来源",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "用知识库内容起草页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "指令与来源条目",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.DraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/pages/{pid}/duplicate": {
             "post": {
                 "security": [
@@ -22767,6 +22814,25 @@
                 "visibility": {
                     "description": "Visibility: private (default) or open.",
                     "type": "string"
+                }
+            }
+        },
+        "handler.DraftRequest": {
+            "type": "object",
+            "required": [
+                "instruction"
+            ],
+            "properties": {
+                "instruction": {
+                    "description": "Instruction says what the draft should cover.",
+                    "type": "string"
+                },
+                "knowledge_ids": {
+                    "description": "KnowledgeIDs are the entries to draw on. They must belong to the\nknowledge base this page's space is bound to.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
