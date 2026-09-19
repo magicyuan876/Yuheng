@@ -5,8 +5,8 @@
 #     (monthly, grouped into one minor/patch PR and one major PR). It's
 #     a standalone Go binary with a small, well-scoped dependency surface
 #     where staying current is cheap.
-#   * Every other ecosystem (server gomod, /client, frontend npm,
-#     docreader pip, github-actions) is configured as
+#   * Every other ecosystem (server gomod, /client, all five npm
+#     workspaces, docreader pip, github-actions) is configured as
 #     "security-only" — no scheduled version PRs, but CVE security
 #     updates still open PRs automatically.
 #
@@ -99,6 +99,67 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
     groups:
       frontend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # The collaboration service is the only part of this repository that listens
+  # on a socket of its own, so its transport dependencies (ws, @hocuspocus)
+  # are the ones where a CVE matters most here.
+  - package-ecosystem: npm
+    directory: "/collab"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+    groups:
+      collab-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # The shared document definition, bundled into both the frontend and the
+  # collaboration service.
+  - package-ecosystem: npm
+    directory: "/packages/docs-schema"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+    groups:
+      docs-schema-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Published to npm, so a vulnerable dependency here reaches other people's
+  # machines rather than only this deployment.
+  - package-ecosystem: npm
+    directory: "/packages/dsh-yuheng"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+    groups:
+      dsh-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Build-time only (the documentation site is static), but it is still built
+  # in CI from these dependencies.
+  - package-ecosystem: npm
+    directory: "/website-docs"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+    groups:
+      website-docs-security:
         applies-to: security-updates
         patterns: ["*"]
 

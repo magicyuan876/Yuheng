@@ -165,7 +165,7 @@ cd cli && make build && make test
 Yuheng is derived in part from the [WeKnora](https://github.com/Tencent/WeKnora)
 project, MIT-licensed upstream code is used with notice — see
 [`NOTICE`](./NOTICE), [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md), and
-[`licenses/upstream-weknora/`](./licenses/upstream-weknora/).
+[`licenses/upstream-weknora/`](./licenses/upstream-weknora/). <!-- license-check: attribution -->
 
 ## License
 
