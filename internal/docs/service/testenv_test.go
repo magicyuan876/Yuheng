@@ -23,7 +23,7 @@ import (
 
 var dbSeq atomic.Int64
 
-func openRepos(t *testing.T) *repository.Repositories {
+func openRepos(t *testing.T) (*repository.Repositories, *gorm.DB) {
 	t.Helper()
 	dsn := fmt.Sprintf("file:docs-svc-%d?mode=memory&cache=shared&_foreign_keys=1", dbSeq.Add(1))
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
@@ -35,7 +35,7 @@ func openRepos(t *testing.T) *repository.Repositories {
 	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(ddl)).Error)
-	return repository.New(db)
+	return repository.New(db), db
 }
 
 // fakeMembers is the tenant membership table: "tenant/user" -> role. It
@@ -125,6 +125,13 @@ func (a *auditSink) Log(_ context.Context, row *types.AuditLog) error {
 	return nil
 }
 
+// rows returns a copy of what was captured.
+func (a *auditSink) snapshot() []*types.AuditLog {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]*types.AuditLog{}, a.rows...)
+}
+
 func (a *auditSink) actions() []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -161,6 +168,7 @@ type env struct {
 	resolver   *acl.Resolver
 	bus        *events.MemoryBus
 	audit      *auditSink
+	gorm       *gorm.DB
 	favourites *fakeFavourites
 	svc        *Services
 	events     []events.Event
@@ -170,9 +178,10 @@ type env struct {
 func newEnv(t *testing.T, opts ...func(*Deps)) *env {
 	t.Helper()
 	e := &env{
-		t: t, repos: openRepos(t), members: newFakeMembers(),
+		t: t, members: newFakeMembers(),
 		bus: events.NewMemoryBus(), audit: &auditSink{}, favourites: newFakeFavourites(),
 	}
+	e.repos, e.gorm = openRepos(t)
 	e.resolver = acl.NewResolver(e.repos, acl.NewTenantMemberRoleSource(e.members), acl.WithCache(acl.NewMemoryCache(0)))
 	e.bus.Subscribe(0, func(ev events.Event) {
 		e.mu.Lock()

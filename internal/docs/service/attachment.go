@@ -165,7 +165,13 @@ func (s *AttachmentService) Upload(ctx context.Context, actor *acl.Identity, spa
 	}
 	fresh := existing == nil
 	if fresh {
+		// Both limits apply and they answer different questions: the
+		// workspace one asks whether the installation is safe, the space one
+		// whether a single team is filling the disk.
 		if err := s.checkQuota(tenant, inspected.size); err != nil {
+			return nil, err
+		}
+		if err := s.checkSpaceQuota(ctx, space, inspected.size); err != nil {
 			return nil, err
 		}
 	}

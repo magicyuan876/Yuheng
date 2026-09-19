@@ -220,6 +220,24 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.DeleteComment)
 	write.POST("/pages/:pid/comments/:cid/resolve", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ResolveComment)
+	// Storage. Any member of the space may see the usage, because somebody
+	// whose upload was refused should be able to find out why without asking
+	// an administrator; only a WORKSPACE administrator may change the number,
+	// which is the whole reason the quota is a column rather than a space
+	// setting (see service/quota.go).
+	read.GET("/spaces/:sid/usage", g.Viewer(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), sp.SpaceUsage)
+	admin.PUT("/spaces/:sid/quota", g.Admin(),
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, sp.SetSpaceQuota)
+
+	// Maintenance. Both sweeps default to a dry run and need a workspace
+	// administrator: they are the only endpoints in the module whose purpose
+	// is to destroy data, and they run on a timer anyway (internal/docs/
+	// cleanup.go). These exist so an operator can look before that happens,
+	// and can drain a backlog faster than hourly when one has built up.
+	admin.POST("/maintenance/orphan-attachments", g.Admin(), guard.RequireMember(), pg.SweepOrphans)
+	admin.POST("/maintenance/expired-trash", g.Admin(), guard.RequireMember(), pg.SweepTrash)
+
 	// Locking and publication state. Locking needs admin on the page: the
 	// resolver caps everybody else at reader on a locked page, so an admin is
 	// the only one who could undo it anyway. Marking a draft is a writer's

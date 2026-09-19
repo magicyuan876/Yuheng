@@ -5090,6 +5090,21 @@ export default {
       published: '게시됨',
       changeFailed: '페이지 상태를 변경하지 못했습니다',
     },
+    // 스페이스 저장 용량과 한도.
+    storage: {
+      title: '저장 용량',
+      unlimited: '제한 없음',
+      unlimitedHint: '이 스페이스에는 저장 한도가 없습니다.',
+      fromDefault: '이 한도는 워크스페이스 기본값입니다.',
+      nearlyFull: '이 스페이스가 거의 찼습니다.',
+      full: '이 스페이스가 가득 찼습니다. 공간을 확보하기 전까지 새 첨부파일을 올릴 수 없습니다.',
+      setQuota: '한도 설정',
+      quotaPlaceholder: '예: 500 MB, 비워두면 제한 없음',
+      quotaHint: '숫자만 입력하면 바이트입니다. 비워두면 한도가 사라집니다.',
+      belowUsage: '이미 저장된 {used}보다 작습니다. 삭제되는 것은 없으며, '
+        + '새 한도 아래로 내려갈 때까지 늘릴 수 없을 뿐입니다.',
+      saveFailed: '한도를 변경하지 못했습니다',
+    },
     notifications: {
       title: '알림',
       empty: '새 알림이 없습니다',

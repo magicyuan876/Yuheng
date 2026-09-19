@@ -125,6 +125,10 @@ type Deps struct {
 	Tenants Tenants
 	// MaxAttachmentBytes caps one upload; 0 uses DefaultMaxAttachmentBytes.
 	MaxAttachmentBytes int64
+	// DefaultSpaceQuotaBytes is the attachment limit for spaces that have
+	// none of their own; 0 leaves those spaces unlimited. It lets a careful
+	// deployment be careful without anybody visiting every space.
+	DefaultSpaceQuotaBytes int64
 	// VariantCacheBytes bounds the in-memory cache of rendered image sizes;
 	// 0 uses a 64 MiB default.
 	VariantCacheBytes int

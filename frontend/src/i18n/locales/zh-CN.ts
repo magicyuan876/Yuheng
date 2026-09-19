@@ -5089,6 +5089,20 @@ export default {
       published: '已发布',
       changeFailed: '页面状态修改失败',
     },
+    // 空间存储用量与配额。
+    storage: {
+      title: '存储',
+      unlimited: '不限',
+      unlimitedHint: '该空间没有存储上限。',
+      fromDefault: '该上限来自工作区默认值。',
+      nearlyFull: '该空间快满了。',
+      full: '该空间已满，在腾出空间之前无法再上传附件。',
+      setQuota: '设置上限',
+      quotaPlaceholder: '例如 500 MB，留空表示不限',
+      quotaHint: '只填数字表示字节。留空则取消上限。',
+      belowUsage: '这低于已占用的 {used}。不会删除任何数据，只是在降到新上限以下之前无法继续增长。',
+      saveFailed: '上限修改失败',
+    },
     notifications: {
       title: '通知',
       empty: '没有新消息',

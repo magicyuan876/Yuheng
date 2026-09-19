@@ -43,6 +43,9 @@ type AttachmentRepository interface {
 	// ListOrphans returns attachments that no page claims and that are older
 	// than the cutoff, for the maintenance pool to release.
 	ListOrphans(ctx context.Context, before time.Time, limit int) ([]*model.Attachment, error)
+	// SumBytesBySpace totals the live attachments held by one space, which is
+	// what a space quota is measured against.
+	SumBytesBySpace(ctx context.Context, tenantID uint64, spaceID string) (int64, error)
 }
 
 type attachmentRepository struct{ db *gorm.DB }
@@ -202,4 +205,25 @@ func (r *attachmentRepository) ListOrphans(ctx context.Context, before time.Time
 		Limit(limit).
 		Find(&rows).Error
 	return rows, err
+}
+
+// SumBytesBySpace totals what a space currently holds.
+//
+// Counted rather than cached. A cached total drifts the first time anything
+// deletes a row by a path this file does not know about, and a wrong quota
+// either blocks work that should be allowed or allows work that should not.
+// The query is indexed on (tenant_id, space_id) and a space's attachment
+// count is bounded by the quota this feeds.
+func (r *attachmentRepository) SumBytesBySpace(ctx context.Context, tenantID uint64,
+	spaceID string,
+) (int64, error) {
+	var total *int64
+	err := r.db.WithContext(ctx).Model(&model.Attachment{}).
+		Where("tenant_id = ? AND space_id = ? AND deleted_at IS NULL", tenantID, spaceID).
+		Select("COALESCE(SUM(size_bytes), 0)").
+		Scan(&total).Error
+	if err != nil || total == nil {
+		return 0, err
+	}
+	return *total, nil
 }

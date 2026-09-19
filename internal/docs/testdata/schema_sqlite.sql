@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS docs_spaces (
     knowledge_base_id   VARCHAR(36),
     storage_backend_id  VARCHAR(36),
     settings            TEXT         NOT NULL DEFAULT '{}',
+    quota_bytes         INTEGER      NOT NULL DEFAULT 0,
     creator_id          VARCHAR(36),
     created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

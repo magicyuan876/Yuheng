@@ -1181,56 +1181,76 @@ func (s *PageService) Purge(ctx context.Context, actor *acl.Identity, space *mod
 	if page.DeletedAt == nil {
 		return nil, conflict("page is not in the trash")
 	}
+	return s.purgeSubtree(ctx, actor.TenantID, space.ID, pageID, actor.UserID, actorRole(actor))
+}
+
+// purgeSubtree is the one path by which pages are permanently removed.
+//
+// Shared by the manual purge above and by the retention sweep in
+// maintenance.go. It exists as one function rather than two similar ones
+// because everything it releases — attachments, block snapshots, history,
+// comments, watchers, notifications, share links — is a thing that would be
+// left behind by whichever copy somebody forgot to update, and debris from a
+// purge is invisible until a quota or a stale link makes it somebody's
+// problem months later.
+func (s *PageService) purgeSubtree(ctx context.Context, tenantID uint64, spaceID, pageID,
+	actorUserID, actorRoleName string,
+) ([]string, error) {
 	// Collected before the purge: the foreign key nulls page_id as soon as the
 	// page rows are gone, and there would be nothing left to release.
-	subtree, err := s.d.Repos.Pages.SubtreeIDs(ctx, actor.TenantID, pageID)
+	subtree, err := s.d.Repos.Pages.SubtreeIDs(ctx, tenantID, pageID)
 	if err != nil {
 		return nil, err
 	}
-	doomed := s.collectPageAttachments(ctx, actor.TenantID, subtree)
-	ids, err := s.d.Repos.Pages.PurgeOne(ctx, actor.TenantID, pageID)
+	doomed := s.collectPageAttachments(ctx, tenantID, subtree)
+	ids, err := s.d.Repos.Pages.PurgeOne(ctx, tenantID, pageID)
 	if err != nil {
 		return nil, err
 	}
-	s.releaseAttachments(ctx, actor.TenantID, doomed)
-	s.invalidate(ctx, actor.TenantID)
+	s.releaseAttachments(ctx, tenantID, doomed)
+	s.invalidate(ctx, tenantID)
 	for _, id := range ids {
 		s.evict(ctx, id)
 		// The foreign key cascades these rows away on Postgres, but SQLite
 		// only enforces one when foreign keys are switched on, so the purge
 		// says so explicitly rather than depending on the dialect.
 		if s.d.Repos.Blocks != nil {
-			if err := s.d.Repos.Blocks.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+			if err := s.d.Repos.Blocks.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the block snapshots of page %s failed: %v", id, err)
 			}
 		}
 		if s.d.Repos.History != nil {
-			if err := s.d.Repos.History.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+			if err := s.d.Repos.History.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the history of page %s failed: %v", id, err)
 			}
 		}
 		if s.d.Repos.Comments != nil {
-			if err := s.d.Repos.Comments.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+			if err := s.d.Repos.Comments.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the comments of page %s failed: %v", id, err)
 			}
 		}
 		if s.d.Repos.Watchers != nil {
-			if err := s.d.Repos.Watchers.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+			if err := s.d.Repos.Watchers.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the watchers of page %s failed: %v", id, err)
 			}
 		}
 		if s.d.Repos.Notices != nil {
 			// The notifications go too: there would be nothing left to open.
-			if err := s.d.Repos.Notices.DeleteForPage(ctx, actor.TenantID, id); err != nil {
+			if err := s.d.Repos.Notices.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the notifications of page %s failed: %v", id, err)
 			}
 		}
 	}
-	s.publish(ctx, events.New(events.PagePurged, actor.TenantID).WithSpace(space.ID).WithPage(pageID).
-		WithActor(actor.UserID).With("ids", ids))
+	// A share link to a purged page already fails the share layer's own
+	// checks; revoking keeps the owner's link list from being a list of dead
+	// addresses.
+	s.RevokeSharesForPages(ctx, tenantID, ids)
+
+	s.publish(ctx, events.New(events.PagePurged, tenantID).WithSpace(spaceID).WithPage(pageID).
+		WithActor(actorUserID).With("ids", ids))
 	s.audit(ctx, audit.Entry{
-		TenantID: actor.TenantID, ActorUserID: actor.UserID, ActorRole: actorRole(actor),
-		Action: audit.PagePurged, SpaceID: space.ID, TargetType: audit.TargetPage, TargetID: pageID,
+		TenantID: tenantID, ActorUserID: actorUserID, ActorRole: actorRoleName,
+		Action: audit.PagePurged, SpaceID: spaceID, TargetType: audit.TargetPage, TargetID: pageID,
 	})
 	return ids, nil
 }
