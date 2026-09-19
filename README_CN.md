@@ -155,7 +155,7 @@ cd cli && make build && make test
 Yuheng 部分衍生自 [WeKnora](https://github.com/Tencent/WeKnora) 项目，上游
 MIT 代码按声明使用——见 [`NOTICE`](./NOTICE)、
 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) 与
-[`licenses/upstream-weknora/`](./licenses/upstream-weknora/)。
+[`licenses/upstream-weknora/`](./licenses/upstream-weknora/)。 <!-- license-check: attribution -->
 
 ## 许可证
 
