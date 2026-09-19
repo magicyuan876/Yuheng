@@ -58,9 +58,16 @@ type UpdateSpaceInput struct {
 
 // normaliseVisibility applies the coupling between visibility and default
 // role: a private space grants nothing by default; an open space must grant
-// at least reader, else "open" would mean nothing. Public spaces (anonymous
-// readers) arrive with sharing (T4.2) and are rejected until then.
-func normaliseVisibility(v model.SpaceVisibility, role model.SpaceRole) (model.SpaceVisibility, model.SpaceRole, error) {
+// at least reader, else "open" would mean nothing.
+//
+// A public space is readable by anyone at all, with no login, so it is
+// refused unless the deployment has switched public sharing on — the same
+// gate a share link goes through, because both put content on the public
+// internet and an installation that said no to one did not say yes to the
+// other.
+func (s *SpaceService) normaliseVisibility(v model.SpaceVisibility, role model.SpaceRole) (
+	model.SpaceVisibility, model.SpaceRole, error,
+) {
 	if v == "" {
 		v = model.VisibilityPrivate
 	}
@@ -76,9 +83,20 @@ func normaliseVisibility(v model.SpaceVisibility, role model.SpaceRole) (model.S
 		}
 		return v, role, nil
 	case model.VisibilityPublic:
-		return "", "", invalid("public spaces are not available yet")
+		if !s.d.PublicSharing {
+			return "", "", forbidden("public sharing is switched off in this deployment")
+		}
+		// The default role governs signed-in members; anonymous visitors
+		// always get reader and nothing more, which the resolver enforces.
+		if role == "" || role == model.RoleNone {
+			role = model.RoleReader
+		}
+		if role != model.RoleReader && role != model.RoleWriter {
+			return "", "", invalid("default_role of a public space must be reader or writer")
+		}
+		return v, role, nil
 	default:
-		return "", "", invalid("visibility must be private or open")
+		return "", "", invalid("visibility must be private, open or public")
 	}
 }
 
@@ -92,7 +110,7 @@ func (s *SpaceService) Create(ctx context.Context, actor *acl.Identity, in Creat
 	if err != nil {
 		return nil, err
 	}
-	vis, role, err := normaliseVisibility(in.Visibility, in.DefaultRole)
+	vis, role, err := s.normaliseVisibility(in.Visibility, in.DefaultRole)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +361,7 @@ func (s *SpaceService) Update(ctx context.Context, actor *acl.Identity, space *m
 		if in.DefaultRole != nil {
 			role = *in.DefaultRole
 		}
-		vis, role, err := normaliseVisibility(vis, role)
+		vis, role, err := s.normaliseVisibility(vis, role)
 		if err != nil {
 			return nil, err
 		}

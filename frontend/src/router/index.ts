@@ -48,6 +48,28 @@ const router = createRouter({
       component: () => import("../views/auth/Login.vue"),
       meta: { requiresAuth: false, requiresInit: false }
     },
+    // Anonymous document routes. No authentication, no workspace, no init
+    // check: a visitor following a shared URL has none of those and must not
+    // be sent to a login page. The short "/d/" prefix keeps a link that
+    // somebody pastes into a chat readable.
+    {
+      path: "/d/:key",
+      name: "docsPublicLink",
+      component: () => import("../views/docs/public/PublicDoc.vue"),
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+    },
+    {
+      path: "/s/:spaceId",
+      name: "docsPublicSpace",
+      component: () => import("../views/docs/public/PublicSpace.vue"),
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+    },
+    {
+      path: "/s/:spaceId/:short",
+      name: "docsPublicSpacePage",
+      component: () => import("../views/docs/public/PublicDoc.vue"),
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+    },
     {
       path: "/onboarding/workspace",
       name: "workspaceOnboarding",

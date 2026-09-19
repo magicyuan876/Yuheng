@@ -7,13 +7,22 @@ import (
 
 func deploymentCapabilitiesFromRouter(params RouterParams) handler.DeploymentFeatureAvailability {
 	return handler.DeploymentFeatureAvailability{
-		Organizations: params.OrganizationHandler != nil,
-		WebSearch:     params.WebSearchHandler != nil && params.WebSearchProviderHandler != nil && params.WebSearchCredentialsHandler != nil,
-		VectorStore:   params.VectorStoreHandler != nil,
-		Storage:       params.StorageBackendHandler != nil,
-		Docs:          params.DocsModule != nil && params.DocsModule.Enabled,
-		DocsCollabURL: docsCollabURL(params.DocsModule),
+		Organizations:     params.OrganizationHandler != nil,
+		WebSearch:         params.WebSearchHandler != nil && params.WebSearchProviderHandler != nil && params.WebSearchCredentialsHandler != nil,
+		VectorStore:       params.VectorStoreHandler != nil,
+		Storage:           params.StorageBackendHandler != nil,
+		Docs:              params.DocsModule != nil && params.DocsModule.Enabled,
+		DocsCollabURL:     docsCollabURL(params.DocsModule),
+		DocsPublicSharing: docsPublicSharing(params.DocsModule),
 	}
+}
+
+// docsPublicSharing reports whether this deployment allows pages to be
+// published to anonymous URLs. Off unless YUHENG_DOCS_PUBLIC_SHARING is set;
+// clients use it to hide the control rather than offer one that can only be
+// refused.
+func docsPublicSharing(m *docs.Module) bool {
+	return m != nil && m.Enabled && m.Config != nil && m.Config.PublicSharing
 }
 
 // docsCollabURL exposes the browser-facing collaboration WebSocket address

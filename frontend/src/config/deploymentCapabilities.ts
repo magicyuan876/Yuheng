@@ -4,6 +4,7 @@ export const DEPLOYMENT_CAPABILITY_KEYS = [
   'settings.vectorstore',
   'settings.storage',
   'docs',
+  'docs.public_sharing',
 ] as const
 
 export type DeploymentCapabilityKey = typeof DEPLOYMENT_CAPABILITY_KEYS[number]
