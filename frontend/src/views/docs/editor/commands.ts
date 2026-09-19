@@ -25,6 +25,14 @@ export interface BlockCommand {
   labelKey: string
   /** A tdesign icon name. */
   icon: string
+  /**
+   * A short word drawn in place of the icon.
+   *
+   * The icon set has no H1/H2/H3 glyph, and a heading entry that borrows the
+   * bold icon tells a reader nothing. "H1" drawn as text is what Feishu and
+   * Notion both show, and it is unambiguous in every language.
+   */
+  badge?: string
   /** Which section of the menu it appears under. */
   group: 'basic' | 'insert' | 'media' | 'advanced'
   /**
@@ -72,8 +80,9 @@ export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
     id: string, labelKey: string, icon: string,
     group: BlockCommand['group'], keywords: string[],
     apply: (c: Chain) => unknown,
+    badge?: string,
   ): BlockCommand => ({
-    id, labelKey, icon, group, keywords,
+    id, labelKey, icon, group, keywords, badge,
     run: (editor, range) => {
       const focused = (editor.chain().focus as () => Chain)()
       const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range)
@@ -83,19 +92,19 @@ export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
   })
 
   const list: BlockCommand[] = [
-    cmd('paragraph', 'docs.commands.paragraph', 'textformat', 'basic',
+    cmd('paragraph', 'docs.commands.paragraph', 'text', 'basic',
       ['text', 'paragraph', 'p', '正文', '段落'],
       (c) => (c.setParagraph as () => Chain)()),
-    cmd('heading1', 'docs.commands.heading1', 'format-vertical-align-top', 'basic',
+    cmd('heading1', 'docs.commands.heading1', 'textformat-bold', 'basic',
       ['h1', 'heading', 'title', '标题', '一级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 1 })),
-    cmd('heading2', 'docs.commands.heading2', 'format-vertical-align-center', 'basic',
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 1 }), 'H1'),
+    cmd('heading2', 'docs.commands.heading2', 'textformat-bold', 'basic',
       ['h2', 'heading', '标题', '二级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 2 })),
-    cmd('heading3', 'docs.commands.heading3', 'format-vertical-align-bottom', 'basic',
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 2 }), 'H2'),
+    cmd('heading3', 'docs.commands.heading3', 'textformat-bold', 'basic',
       ['h3', 'heading', '标题', '三级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 3 })),
-    cmd('bulletList', 'docs.commands.bulletList', 'list', 'basic',
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 3 }), 'H3'),
+    cmd('bulletList', 'docs.commands.bulletList', 'order-list', 'basic',
       ['ul', 'bullet', 'list', '列表', '无序列表'],
       (c) => (c.toggleBulletList as () => Chain)()),
     cmd('orderedList', 'docs.commands.orderedList', 'order-descending', 'basic',

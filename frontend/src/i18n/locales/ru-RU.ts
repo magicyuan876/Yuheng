@@ -4944,6 +4944,22 @@ export default {
       addBlock: 'Добавить блок ниже',
       blockMenu: 'Действия с блоком',
     },
+    // Плавающая панель над таблицей.
+    table: {
+      label: 'Таблица',
+      addRowBefore: 'Вставить строку выше',
+      addRowAfter: 'Вставить строку ниже',
+      deleteRow: 'Удалить строку',
+      addColumnBefore: 'Вставить столбец слева',
+      addColumnAfter: 'Вставить столбец справа',
+      deleteColumn: 'Удалить столбец',
+      mergeCells: 'Объединить ячейки',
+      splitCell: 'Разделить ячейку',
+      cellColor: 'Цвет ячейки',
+      cellColorDefault: 'Без заливки',
+      toggleHeaderRow: 'Строка заголовка',
+      deleteTable: 'Удалить таблицу',
+    },
     // Поиск и замена.
     find: {
       title: 'Поиск и замена',

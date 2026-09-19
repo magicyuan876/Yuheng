@@ -146,14 +146,79 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
     blockPos = null
   }
 
+  /**
+   * Hiding is deferred, and any pointer activity cancels it.
+   *
+   * Between the text and the strip there is a gutter that belongs to neither,
+   * and crossing it fires mouseleave on the editor with a relatedTarget that
+   * is not the strip. Hiding on that event is correct for somebody leaving
+   * the document and wrong for the far commoner case of somebody reaching for
+   * the handle, and the two are indistinguishable at the moment the event
+   * arrives. Waiting a moment tells them apart: a pointer heading for the
+   * strip arrives well inside the delay and cancels it.
+   */
+  let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+  const keepAlive = () => {
+    if (hideTimer === null) return
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+
+  const hideSoon = () => {
+    keepAlive()
+    hideTimer = setTimeout(() => {
+      hideTimer = null
+      // A menu somebody opened is not a hover affordance any more; it stays
+      // until it is dismissed.
+      if (!menuOpen) hide()
+    }, 220)
+  }
+
+  /**
+   * The vertical centre of a block's *first line*, relative to its own box.
+   *
+   * Centring the strip on the whole block is only right for a one-line
+   * paragraph; on a three-line one, or on a list, it leaves the handle
+   * floating beside the middle of the text with nothing to point at. Feishu
+   * aligns it with the first line, so that is what is measured here: the
+   * first client rect of the block's own text, falling back to the line
+   * height and finally to the box when a block has neither (an image, say).
+   */
+  const firstLineCentre = (dom: HTMLElement, box: DOMRect): number => {
+    const range = document.createRange()
+    try {
+      range.selectNodeContents(dom)
+      const first = range.getClientRects()[0]
+      if (first && first.height > 0 && first.height <= box.height) {
+        return first.top - box.top + first.height / 2
+      }
+    } catch {
+      // A node with nothing selectable inside it; the fallbacks below apply.
+    } finally {
+      range.detach?.()
+    }
+    const style = getComputedStyle(dom)
+    const line = Number.parseFloat(style.lineHeight)
+    if (Number.isFinite(line) && line > 0 && line <= box.height) {
+      return Number.parseFloat(style.paddingTop || '0') + line / 2
+    }
+    return box.height / 2
+  }
+
   /** Puts the strip beside the block at the given coordinates. */
   const place = (view: EditorView, event: MouseEvent) => {
     if (!tools || !view.editable) return
     const found = view.posAtCoords({ left: event.clientX, top: event.clientY })
-    if (!found) return hide()
+    // No position under the pointer means it is over the editor's own padding
+    // — the gutter the strip itself sits in. Leaving the strip where it is is
+    // the whole point: hiding here is what made it vanish as soon as somebody
+    // moved towards the buttons they were aiming for.
+    if (!found) return
+    keepAlive()
 
     const block = blockAt(view.state, found.inside >= 0 ? found.inside + 1 : found.pos)
-    if (!block) return hide()
+    if (!block) return
 
     let dom: HTMLElement | null = null
     try {
@@ -161,21 +226,24 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
     } catch {
       dom = null
     }
-    if (!dom || !(dom instanceof HTMLElement)) return hide()
+    if (!dom || !(dom instanceof HTMLElement)) return
 
     // The pointer moved on to a different block: the menu is about the one
     // the strip is beside, so it does not follow the pointer.
     if (menuOpen && blockPos !== null && block.pos !== blockPos) closeMenu()
 
     const box = dom.getBoundingClientRect()
-    const editorBox = view.dom.getBoundingClientRect()
+    // Against the element the strip is a child of, not against the editor's
+    // content box. The two differ whenever the host carries a border or
+    // padding of its own, and that difference was the offset by which the
+    // strip sat wrong.
+    const hostBox = (tools.offsetParent ?? view.dom).getBoundingClientRect()
     blockPos = block.pos
     tools.style.visibility = 'visible'
-    tools.style.left = `${box.left - editorBox.left - options.offset}px`
-    // Centred on the block, not pinned to its first line: the CSS translates
-    // the strip up by half of itself, so the pair straddles the block's
-    // middle the way Feishu's does.
-    tools.style.top = `${box.top - editorBox.top + box.height / 2}px`
+    tools.style.left = `${box.left - hostBox.left - options.offset}px`
+    // On the block's first line, not its middle: the CSS lifts the strip by
+    // half of itself, so this is the line's centre.
+    tools.style.top = `${box.top - hostBox.top + firstLineCentre(dom, box)}px`
   }
 
   /** Opens the menu beside the handle, flipped at the viewport's edges. */
@@ -227,6 +295,14 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
       if (getComputedStyle(host).position === 'static') host.style.position = 'relative'
       host.appendChild(tools)
       document.body.appendChild(menu)
+
+      // The strip and the menu are outside view.dom, so the editor's own
+      // mouseleave is what fires when the pointer reaches them. These cancel
+      // the pending hide, and re-arm it when the pointer leaves for good.
+      for (const el of [tools, menu]) {
+        el.addEventListener('mouseenter', keepAlive)
+        el.addEventListener('mouseleave', hideSoon)
+      }
 
       const select = () => {
         if (blockPos === null) return
@@ -329,6 +405,7 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
 
       return {
         destroy: () => {
+          keepAlive()
           tools?.remove()
           menu?.remove()
           tools = null
@@ -348,15 +425,14 @@ function dragHandlePlugin(options: DragHandleOptions): Plugin {
           return false
         },
         mouseleave: (_view, event) => {
-          // Not when the pointer moved onto the strip or the menu: the strip
-          // is a single continuous target, so moving from the "+" onto the
-          // handle never fires this with a target outside it, and the strip
-          // stays put mid-gesture instead of vanishing between the buttons.
+          // Straight onto the strip or the menu: nothing to do.
           const to = (event as MouseEvent).relatedTarget
           if (to instanceof HTMLElement && (
             to.closest('.docs-drag-tools') || to.closest('.docs-block-menu')
           )) return false
-          hide()
+          // Otherwise the pointer may still be crossing the gutter towards
+          // the strip, so the strip is given a moment to be reached.
+          hideSoon()
           return false
         },
         mousedown: () => {
@@ -376,7 +452,7 @@ export const DragHandle = Extension.create<DragHandleOptions>({
 
   addOptions() {
     return {
-      offset: 28,
+      offset: 52,
       label: 'Move block',
       addLabel: 'Add block',
       menuLabel: 'Block actions',

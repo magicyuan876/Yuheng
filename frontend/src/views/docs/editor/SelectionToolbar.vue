@@ -26,7 +26,8 @@
         @click="run(item)"
         @focus="focusedId = item.id"
       >
-        <t-icon :name="item.icon" size="16px" />
+        <span v-if="item.badge" class="docs-toolbar-badge" aria-hidden="true">{{ item.badge }}</span>
+        <t-icon v-else :name="item.icon" size="16px" />
       </button>
     </template>
 
@@ -382,6 +383,13 @@ watch(() => props.visible, (shown) => {
     background: var(--td-brand-color-light);
     color: var(--td-brand-color);
   }
+}
+
+.docs-toolbar-badge {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .docs-toolbar-link {

@@ -137,8 +137,16 @@ watch(() => props.selected, async () => {
 
 .docs-suggest-icon {
   flex: none;
-  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
   text-align: center;
+  // A badge such as "H1" stands in for an icon the set does not have, so it
+  // is drawn at the weight an icon reads at rather than as body text.
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   color: var(--td-text-color-placeholder);
 }
 

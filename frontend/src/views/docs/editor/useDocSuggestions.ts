@@ -147,6 +147,7 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
             rows.push({
               key: command.id,
               title: opts.translate(command.labelKey),
+              icon: command.badge,
               iconName: command.icon,
               group: opts.translate('docs.commands.group.recent'),
             })
@@ -157,6 +158,7 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
         rows.push({
           key: command.id,
           title: opts.translate(command.labelKey),
+          icon: command.badge,
           iconName: command.icon,
           group: groupLabel(command.group),
         })

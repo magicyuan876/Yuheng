@@ -37,11 +37,11 @@ export interface BlockMenuItem {
  */
 export function blockMenuItems(opts: { copyBlockRef?: () => void } = {}): BlockMenuItem[] {
   const convert: BlockMenuItem[] = [
-    { id: 'paragraph', labelKey: 'docs.commands.paragraph', icon: 'textformat', section: 'convert' },
-    { id: 'heading1', labelKey: 'docs.commands.heading1', icon: 'format-vertical-align-top', section: 'convert' },
-    { id: 'heading2', labelKey: 'docs.commands.heading2', icon: 'format-vertical-align-center', section: 'convert' },
-    { id: 'heading3', labelKey: 'docs.commands.heading3', icon: 'format-vertical-align-bottom', section: 'convert' },
-    { id: 'bulletList', labelKey: 'docs.commands.bulletList', icon: 'list', section: 'convert' },
+    { id: 'paragraph', labelKey: 'docs.commands.paragraph', icon: 'text', section: 'convert' },
+    { id: 'heading1', labelKey: 'docs.commands.heading1', icon: 'textformat-bold', section: 'convert' },
+    { id: 'heading2', labelKey: 'docs.commands.heading2', icon: 'textformat-bold', section: 'convert' },
+    { id: 'heading3', labelKey: 'docs.commands.heading3', icon: 'textformat-bold', section: 'convert' },
+    { id: 'bulletList', labelKey: 'docs.commands.bulletList', icon: 'order-list', section: 'convert' },
     { id: 'orderedList', labelKey: 'docs.commands.orderedList', icon: 'order-descending', section: 'convert' },
     { id: 'taskList', labelKey: 'docs.commands.taskList', icon: 'check-rectangle', section: 'convert' },
     { id: 'blockquote', labelKey: 'docs.commands.blockquote', icon: 'quote', section: 'convert' },

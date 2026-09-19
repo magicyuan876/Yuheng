@@ -4944,6 +4944,22 @@ export default {
       addBlock: 'Add block below',
       blockMenu: 'Block actions',
     },
+    // The floating toolbar over a table.
+    table: {
+      label: 'Table',
+      addRowBefore: 'Insert row above',
+      addRowAfter: 'Insert row below',
+      deleteRow: 'Delete row',
+      addColumnBefore: 'Insert column left',
+      addColumnAfter: 'Insert column right',
+      deleteColumn: 'Delete column',
+      mergeCells: 'Merge cells',
+      splitCell: 'Split cell',
+      cellColor: 'Cell colour',
+      cellColorDefault: 'No fill',
+      toggleHeaderRow: 'Toggle header row',
+      deleteTable: 'Delete table',
+    },
     // Find and replace.
     find: {
       title: 'Find and replace',

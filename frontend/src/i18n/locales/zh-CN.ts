@@ -4944,6 +4944,22 @@ export default {
       addBlock: '在下面新建块',
       blockMenu: '块操作',
     },
+    // 表格浮动工具栏。
+    table: {
+      label: '表格',
+      addRowBefore: '在上方插入行',
+      addRowAfter: '在下方插入行',
+      deleteRow: '删除行',
+      addColumnBefore: '在左侧插入列',
+      addColumnAfter: '在右侧插入列',
+      deleteColumn: '删除列',
+      mergeCells: '合并单元格',
+      splitCell: '拆分单元格',
+      cellColor: '单元格颜色',
+      cellColorDefault: '无填充',
+      toggleHeaderRow: '切换标题行',
+      deleteTable: '删除表格',
+    },
     // 查找与替换。
     find: {
       title: '查找与替换',

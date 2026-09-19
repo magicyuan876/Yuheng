@@ -68,6 +68,13 @@
       @comment="startComment"
     />
 
+    <TableToolbar
+      :visible="tableVisible"
+      :placement="tablePlace"
+      :editor="editor ?? null"
+      :revision="editorRevision"
+    />
+
     <SuggestionMenu
       :open="suggestions.open.value"
       :loading="suggestions.loading.value"
@@ -125,6 +132,7 @@ import PageLinkNodeView from './PageLinkNodeView.vue'
 import StatusNodeView from './StatusNodeView.vue'
 import FindReplacePanel from './FindReplacePanel.vue'
 import SelectionToolbar from './SelectionToolbar.vue'
+import TableToolbar from './TableToolbar.vue'
 import SuggestionMenu from './SuggestionMenu.vue'
 import TransclusionNodeView from './TransclusionNodeView.vue'
 import { BlockRefCache } from './blockRefCache'
@@ -141,6 +149,7 @@ import { findPlugin } from './find'
 import { commentDecorationPlugin } from '../comments/decorations'
 import { useComments } from '../comments/useComments'
 import { shouldShow, toolbarPlacement } from './toolbar'
+import { tableToolbarPlacement } from './tableActions'
 import { pasteEditorProps } from './useDocPaste'
 import { extractHeadings } from './toc'
 import { countDocument } from './wordCount'
@@ -496,10 +505,53 @@ const toolbarVisible = ref(false)
 const toolbarPlace = ref({ left: 0, top: 0, below: false })
 const editorRevision = ref(0)
 
+/**
+ * The table bar, shown whenever the caret is inside a table.
+ *
+ * Separate from the selection bar rather than folded into it: the two answer
+ * different questions — one is about the text somebody has selected, the
+ * other about the table it happens to sit in — and they are visible at
+ * different times. A caret resting in an empty cell has no selection at all
+ * and still needs the row and column controls, which is precisely the case a
+ * selection-only bar misses.
+ */
+const tableVisible = ref(false)
+const tablePlace = ref({ left: 0, top: 0 })
+
+function refreshTableToolbar() {
+  const ed = editor.value
+  if (!ed || ed.isDestroyed || !editorEditable.value || !ed.isActive('table')) {
+    tableVisible.value = false
+    return
+  }
+  // The table's own box, found from the DOM the caret is in: a cell's
+  // coordinates would put the bar over whichever cell happened to be active.
+  let el: HTMLTableElement | null = null
+  try {
+    const cell = ed.view.domAtPos(ed.state.selection.from).node
+    el = (cell instanceof HTMLElement ? cell : cell.parentElement)?.closest('table') ?? null
+  } catch {
+    // The DOM can be a frame behind the document after a large remote
+    // change; no bar is better than one in the wrong place.
+    el = null
+  }
+  if (!el) {
+    tableVisible.value = false
+    return
+  }
+  const box = el.getBoundingClientRect()
+  tablePlace.value = tableToolbarPlacement(
+    { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+    { width: window.innerWidth, height: window.innerHeight },
+  )
+  tableVisible.value = true
+}
+
 function refreshToolbar() {
   const ed = editor.value
   if (!ed || ed.isDestroyed) return
   editorRevision.value++
+  refreshTableToolbar()
   if (!shouldShow(ed.state, { editable: editorEditable.value, canComment: canComment.value })) {
     toolbarVisible.value = false
     return
@@ -540,7 +592,7 @@ const editor = useEditor({
     uploads.extension,
     suggestions.extension,
     DragHandle.configure({
-      offset: 28,
+      offset: 52,
       label: t('docs.toolbar.moveBlock'),
       addLabel: t('docs.toolbar.addBlock'),
       menuLabel: t('docs.toolbar.blockMenu'),
@@ -666,13 +718,27 @@ defineExpose({
   position: absolute;
   visibility: hidden;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  width: 20px;
-  // Centred on the block: `place` puts the strip's top at the block's
-  // middle, this lifts it back up by half of itself.
+  gap: 2px;
+  // Aligned with the block's first line: `place` puts the strip's top on
+  // that line's centre, this lifts it back up by half of itself.
   transform: translateY(-50%);
   user-select: none;
+
+  // The gutter between the buttons and the text belongs to neither, and a
+  // pointer crossing it is on its way here. This bridge makes that crossing
+  // a hover of the strip itself, so the deferred hide is cancelled the
+  // moment somebody sets off towards the handle rather than at the end of
+  // its delay.
+  &::after {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: -6px;
+    bottom: -6px;
+    width: 16px;
+  }
 }
 
 :deep(.docs-drag-handle) {
@@ -878,6 +944,11 @@ defineExpose({
 }
 
 .doc-editor-content {
+  // The gutter the "+" and the drag handle live in. Without it the strip is
+  // positioned outside the content box and clipped away; Feishu reserves the
+  // same margin for the same reason.
+  padding-left: 56px;
+
   :deep(.ProseMirror) {
     outline: none;
     font-size: 15px;
@@ -925,17 +996,94 @@ defineExpose({
     padding: 0;
   }
 
+  // Tables, dressed the way Feishu and Yuque dress theirs: a tinted header
+  // row, a hairline grid, hover and selection feedback, and a draggable
+  // edge on every column. The wrapper is what @tiptap/extension-table puts
+  // round a resizable table; scrolling it rather than the page is what keeps
+  // a wide table from stretching the document.
+  :deep(.ProseMirror .tableWrapper) {
+    margin: 1em 0;
+    overflow-x: auto;
+    // A resized column can leave the table narrower than the text, and a
+    // block that shrinks to its content reads as an accident.
+    padding-bottom: 2px;
+  }
+
   :deep(.ProseMirror table) {
     border-collapse: collapse;
+    table-layout: fixed;
     width: 100%;
-    margin: 1em 0;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 6px;
+    // Cells draw the grid; this is the outer edge the radius rounds.
+    box-shadow: 0 0 0 1px var(--td-component-stroke);
   }
 
   :deep(.ProseMirror th),
   :deep(.ProseMirror td) {
+    position: relative;
+    box-sizing: border-box;
+    min-width: 60px;
     border: 1px solid var(--td-component-stroke);
-    padding: 6px 10px;
+    padding: 7px 10px;
     text-align: left;
+    vertical-align: top;
+
+    // A paragraph is the only thing a cell usually holds, and the margin it
+    // carries in prose is wrong inside one.
+    > p {
+      margin: 0;
+    }
+
+    > p + p {
+      margin-top: 6px;
+    }
+  }
+
+  :deep(.ProseMirror th) {
+    background: var(--td-bg-color-secondarycontainer);
+    font-weight: 600;
+    color: var(--td-text-color-primary);
+  }
+
+  :deep(.ProseMirror tbody tr:hover) > td {
+    background: var(--td-bg-color-container-hover);
+  }
+
+  // The cells of a multi-cell selection, which ProseMirror marks for us.
+  :deep(.ProseMirror .selectedCell::after) {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--td-brand-color-light);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  // The column-resize grip: invisible until the pointer is on it, then the
+  // brand-coloured rule Feishu shows while a column is being dragged.
+  :deep(.ProseMirror .column-resize-handle) {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    z-index: 20;
+    background: var(--td-brand-color);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :deep(.ProseMirror .column-resize-handle:hover),
+  :deep(.ProseMirror.resize-cursor .column-resize-handle) {
+    opacity: 1;
+  }
+
+  // While a column is being dragged the pointer says so everywhere, not
+  // only over the grip.
+  :deep(.ProseMirror.resize-cursor) {
+    cursor: col-resize;
   }
 
   :deep(.ProseMirror a) {

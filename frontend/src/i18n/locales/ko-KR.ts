@@ -4944,6 +4944,22 @@ export default {
       addBlock: '아래에 블록 추가',
       blockMenu: '블록 작업',
     },
+    // 표 위에 뜨는 도구 모음.
+    table: {
+      label: '표',
+      addRowBefore: '위에 행 삽입',
+      addRowAfter: '아래에 행 삽입',
+      deleteRow: '행 삭제',
+      addColumnBefore: '왼쪽에 열 삽입',
+      addColumnAfter: '오른쪽에 열 삽입',
+      deleteColumn: '열 삭제',
+      mergeCells: '셀 병합',
+      splitCell: '셀 분할',
+      cellColor: '셀 색상',
+      cellColorDefault: '채우기 없음',
+      toggleHeaderRow: '머리글 행 전환',
+      deleteTable: '표 삭제',
+    },
     // 찾기 및 바꾸기.
     find: {
       title: '찾기 및 바꾸기',

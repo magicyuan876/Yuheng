@@ -207,7 +207,18 @@ export function officialExtensions(
     TaskList,
     DocTaskItem,
     DocCodeBlock,
-    Table,
+    // Resizable is off in the stock extension, which leaves every column the
+    // same width for ever — the single biggest gap between this table and the
+    // one Feishu or Yuque inserts. `cellMinWidth` stops a column being dragged
+    // down to nothing, and allowing a node selection is what lets the table
+    // toolbar act on the table as a whole.
+    Table.configure({
+      resizable: true,
+      handleWidth: 6,
+      cellMinWidth: 60,
+      lastColumnResizable: true,
+      allowTableNodeSelection: true,
+    }),
     TableRow,
     DocTableCell,
     DocTableHeader,

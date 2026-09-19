@@ -24,6 +24,14 @@ export interface ToolbarItem {
   labelKey: string
   /** A tdesign icon name. */
   icon: string
+  /**
+   * A short word drawn in place of the icon.
+   *
+   * The icon set has no H1/H2 glyph; borrowing the bold one for a heading
+   * button leaves two entries on the bar looking identical. "H1" as text is
+   * what Feishu and Notion draw, and it needs no translation.
+   */
+  badge?: string
   /** Buttons are drawn in groups with a divider between them. */
   group: 'format' | 'block' | 'insert'
   /** The mark or node this button reflects, for the pressed state. */
@@ -68,21 +76,21 @@ export const TEXT_COLORS: readonly string[] = [
  * of text is selected, and the slash menu carries the rest.
  */
 export const TOOLBAR_ITEMS: readonly ToolbarItem[] = [
-  { id: 'bold', labelKey: 'docs.toolbar.bold', icon: 'format-bold', group: 'format', activeName: 'bold', shortcut: 'Mod+B' },
-  { id: 'italic', labelKey: 'docs.toolbar.italic', icon: 'format-italic', group: 'format', activeName: 'italic', shortcut: 'Mod+I' },
-  { id: 'underline', labelKey: 'docs.toolbar.underline', icon: 'format-underline', group: 'format', activeName: 'underline', shortcut: 'Mod+U' },
-  { id: 'strike', labelKey: 'docs.toolbar.strike', icon: 'strikethrough', group: 'format', activeName: 'strike', shortcut: 'Mod+Shift+S' },
+  { id: 'bold', labelKey: 'docs.toolbar.bold', icon: 'textformat-bold', group: 'format', activeName: 'bold', shortcut: 'Mod+B' },
+  { id: 'italic', labelKey: 'docs.toolbar.italic', icon: 'textformat-italic', group: 'format', activeName: 'italic', shortcut: 'Mod+I' },
+  { id: 'underline', labelKey: 'docs.toolbar.underline', icon: 'textformat-underline', group: 'format', activeName: 'underline', shortcut: 'Mod+U' },
+  { id: 'strike', labelKey: 'docs.toolbar.strike', icon: 'textformat-strikethrough', group: 'format', activeName: 'strike', shortcut: 'Mod+Shift+S' },
   { id: 'code', labelKey: 'docs.toolbar.code', icon: 'code', group: 'format', activeName: 'code', shortcut: 'Mod+E' },
   { id: 'highlight', labelKey: 'docs.toolbar.highlight', icon: 'highlight', group: 'format', activeName: 'highlight' },
   { id: 'textColor', labelKey: 'docs.toolbar.textColor', icon: 'fill-color', group: 'format', palette: true },
 
-  { id: 'heading1', labelKey: 'docs.toolbar.heading1', icon: 'format-vertical-align-top', group: 'block', activeName: 'heading', activeAttrs: { level: 1 } },
-  { id: 'heading2', labelKey: 'docs.toolbar.heading2', icon: 'format-vertical-align-center', group: 'block', activeName: 'heading', activeAttrs: { level: 2 } },
-  { id: 'bulletList', labelKey: 'docs.toolbar.bulletList', icon: 'list', group: 'block', activeName: 'bulletList' },
+  { id: 'heading1', labelKey: 'docs.toolbar.heading1', icon: 'textformat-bold', badge: 'H1', group: 'block', activeName: 'heading', activeAttrs: { level: 1 } },
+  { id: 'heading2', labelKey: 'docs.toolbar.heading2', icon: 'textformat-bold', badge: 'H2', group: 'block', activeName: 'heading', activeAttrs: { level: 2 } },
+  { id: 'bulletList', labelKey: 'docs.toolbar.bulletList', icon: 'order-list', group: 'block', activeName: 'bulletList' },
   { id: 'blockquote', labelKey: 'docs.toolbar.blockquote', icon: 'quote', group: 'block', activeName: 'blockquote' },
 
   { id: 'link', labelKey: 'docs.toolbar.link', icon: 'link', group: 'insert', activeName: 'link' },
-  { id: 'clearFormat', labelKey: 'docs.toolbar.clearFormat', icon: 'format-clear', group: 'insert' },
+  { id: 'clearFormat', labelKey: 'docs.toolbar.clearFormat', icon: 'clear-formatting', group: 'insert' },
   {
     id: 'comment', labelKey: 'docs.toolbar.comment', icon: 'chat-bubble',
     group: 'insert', commentOnly: true,
