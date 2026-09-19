@@ -62,14 +62,12 @@ func convertMentionedItems(items []MentionedItemRequest) types.MentionedItems {
 	result := make(types.MentionedItems, len(items))
 	for i, item := range items {
 		result[i] = types.MentionedItem{
-			ID:        item.ID,
-			Name:      item.Name,
-			Type:      item.Type,
-			KBType:    item.KBType,
-			KBID:      item.KBID,
-			KBName:    item.KBName,
-			ServiceID: item.ServiceID,
-			SkillName: item.SkillName,
+			ID:     item.ID,
+			Name:   item.Name,
+			Type:   item.Type,
+			KBType: item.KBType,
+			KBID:   item.KBID,
+			KBName: item.KBName,
 		}
 	}
 	return result

@@ -262,9 +262,8 @@ Handler: `internal/handler/session/qa.go`。API key：聊天需 `chat`/full；`k
 | `web_search_enabled` | bool | 否 | 联网搜索 |
 | `summary_model_id` | string | 否 | 总结模型 |
 | `mcp_service_ids` | []string | 否 | @提及的 MCP 服务 |
-| `skill_names` | []string | 否 | @提及的技能 |
 | `tag_ids` | []string | 否 | 标签过滤 |
-| `mentioned_items` | []object | 否 | @提及项（type/kb_id/kb_name/service_id/skill_name） |
+| `mentioned_items` | []object | 否 | @提及项（`type`：`kb` / `file` / `tag`） |
 | `disable_title` | bool | 否 | 禁用自动标题 |
 | `images` | []object | 否 | 图片（`data` base64 / `url` / `caption`） |
 | `attachment_uploads` | []object | 否 | 内联附件（`data` base64、`file_name`、`file_size`） |
@@ -278,15 +277,6 @@ Handler: `internal/handler/session/qa.go`。API key：聊天需 `chat`/full；`k
 curl -N -X POST $BASE/api/v1/knowledge-chat/s-1 -H "X-API-Key: $API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"query":"退款政策是什么?","knowledge_base_ids":["kb-1"]}'
-```
-
-### POST /api/v1/agent-chat/:session_id
-
-用途：Agent 问答（SSE 流式，含 `thinking/tool_call/tool_result/tool_approval_required/mcp_oauth_required` 等事件）。请求体同上。
-
-```bash
-curl -N -X POST $BASE/api/v1/agent-chat/s-1 -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"query":"分析上季度数据","agent_id":"agent-1"}'
 ```
 
 ### POST /api/v1/knowledge-search

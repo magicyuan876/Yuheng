@@ -1,10 +1,4 @@
 <p align="center">
-  <picture>
-    <img src="./docs/images/logo.png" alt="Yuheng Logo" height="120"/>
-  </picture>
-</p>
-
-<p align="center">
     <a href="https://github.com/magicyuan876/yuheng/blob/main/LICENSE">
         <img src="https://img.shields.io/badge/License-MIT-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="License">
     </a>
