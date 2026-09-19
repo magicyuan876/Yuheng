@@ -42,6 +42,20 @@ spec:
                 name: app
                 port:
                   name: http
+          {{- if .Values.collab.enabled }}
+          # Collaboration WebSocket. Ahead of the catch-all for the same reason
+          # /api is: the frontend would otherwise swallow it. Some ingress
+          # controllers need an annotation to allow the protocol upgrade
+          # (nginx: nginx.ingress.kubernetes.io/proxy-read-timeout, and a
+          # websocket-services annotation on older builds) -- see helm/README.md.
+          - path: /collab
+            pathType: Prefix
+            backend:
+              service:
+                name: collab
+                port:
+                  name: http
+          {{- end }}
           # Frontend routes - catch-all
           - path: /
             pathType: Prefix
