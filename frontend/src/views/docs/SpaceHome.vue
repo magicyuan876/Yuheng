@@ -16,6 +16,12 @@
                 <template #icon><t-icon name="add" /></template>
               </t-button>
             </t-tooltip>
+            <t-tooltip v-if="canEdit" :content="t('docs.templates.newFrom')">
+              <t-button variant="text" size="small" shape="square" :aria-label="t('docs.templates.newFrom')"
+                @click="openTemplatePicker(null)">
+                <template #icon><t-icon name="template" /></template>
+              </t-button>
+            </t-tooltip>
             <t-tooltip :content="t('docs.trash.title')">
               <t-button variant="text" size="small" shape="square" :aria-label="t('docs.trash.title')"
                 @click="trashVisible = true">
@@ -60,6 +66,13 @@
       </div>
       <div v-else-if="spaceMissing" class="space-missing">{{ t('docs.spaces.loadFailed') }}</div>
     </main>
+
+    <!-- Start from a template -->
+    <t-dialog v-model:visible="templateVisible" :header="t('docs.templates.newFrom')" width="560px"
+      destroy-on-close :confirm-btn="{ content: t('docs.templates.createPage') }"
+      :cancel-btn="t('common.cancel')" @confirm="createFromTemplate">
+      <TemplatePicker v-if="space" v-model="templateChoice" :space-id="space.id" />
+    </t-dialog>
 
     <!-- Rename -->
     <t-dialog v-model:visible="renameVisible" :header="t('docs.tree.rename')" width="460px" destroy-on-close
@@ -116,6 +129,7 @@ import SpaceAvatar from '@/components/SpaceAvatar.vue'
 
 import { canEditSpaceContent, roleAtLeast } from './docsAccess'
 import SpaceHomePanel from './home/SpaceHomePanel.vue'
+import TemplatePicker from './templates/TemplatePicker.vue'
 import type { Visit } from './home/recentlyViewed'
 import PageView from './PageView.vue'
 import PageTree, { type TreeAction } from './tree/PageTree.vue'
@@ -255,13 +269,34 @@ const onMove = async (dragId: string, target: MoveTarget) => {
 
 // ---- actions -------------------------------------------------------------------------------
 const creating = ref<string | null>(null)
+
+// Starting from a template is a separate, explicit act: putting a chooser in
+// front of every new page would tax the common case to serve the rare one.
+const templateVisible = ref(false)
+const templateChoice = ref('')
+const templateParent = ref<string | null>(null)
 const pendingNode = ref<TreeNodeData | null>(null)
 
-async function createUnder(parentId: string | null) {
+/** Opens the template chooser for a new page under parentId. */
+function openTemplatePicker(parentId: string | null) {
+  templateParent.value = parentId
+  templateChoice.value = ''
+  templateVisible.value = true
+}
+
+async function createFromTemplate() {
+  templateVisible.value = false
+  await createUnder(templateParent.value, templateChoice.value || undefined)
+}
+
+async function createUnder(parentId: string | null, templateId?: string) {
   if (!space.value) return
   creating.value = parentId ?? ROOT_KEY
   try {
-    const page = await createPage({ space_id: space.value.id, parent_id: parentId, title: '' })
+    const page = await createPage({
+      space_id: space.value.id, parent_id: parentId, title: '',
+      ...(templateId ? { template_id: templateId } : {}),
+    })
     if (parentId) {
       if (!model.isLoaded(parentId)) await loadChildren(parentId)
       model.expand(parentId)

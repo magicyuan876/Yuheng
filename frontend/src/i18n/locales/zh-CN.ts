@@ -5064,6 +5064,23 @@ export default {
       inThisSection: '本节内容',
       spaceEmpty: '这里还没有发布任何内容',
     },
+    // 模板：值得再用一次的页面结构。
+    templates: {
+      newFrom: '从模板新建',
+      createPage: '创建页面',
+      blank: '空白页面',
+      blankHint: '从零开始',
+      shared: '工作区',
+      uncategorised: '模板',
+      none: '这里还没有模板',
+      saveAs: '存为模板',
+      namePlaceholder: '模板名称',
+      categoryPlaceholder: '分类（可选）',
+      descriptionPlaceholder: '这个模板用来做什么？（可选）',
+      stripNote: '页面链接、块引用、提及与附件不会被保存：它们属于这一页本身，而不属于它的结构。',
+      saved: '已存为模板',
+      saveFailed: '模板保存失败',
+    },
     notifications: {
       title: '通知',
       empty: '没有新消息',
