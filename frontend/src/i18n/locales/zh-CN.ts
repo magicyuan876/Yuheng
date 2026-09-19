@@ -5100,6 +5100,19 @@ export default {
       partial: '已导出 {count} 页，{skipped} 页因为没有权限未包含在内',
       failed: '导出失败',
     },
+    // 导入。上传 .md 或 zip，按目录结构建页面树；单个文件失败不影响其余。
+    importDoc: {
+      title: '导入',
+      pick: '选择 Markdown 文件或 zip 压缩包',
+      hint: '压缩包会按目录结构建立页面树，内部链接还原为页面链接，图片存为附件',
+      running: '正在导入，请稍候',
+      done: '已导入 {count} 个页面',
+      partial: '已导入 {count} 个页面，{skipped} 个文件被跳过',
+      attachments: '另存了 {count} 个附件',
+      skippedTitle: '被跳过的文件',
+      failed: '导入失败',
+      needsWriter: '导入需要空间的写入权限',
+    },
     // 空间存储用量与配额。
     storage: {
       title: '存储',

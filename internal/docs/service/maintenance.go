@@ -303,3 +303,36 @@ func (s *PageService) releaseExport(ctx context.Context, job *model.ExportJob) e
 	}
 	return s.d.Repos.Exports.Delete(ctx, job.TenantID, job.ID)
 }
+
+// SweepStaleImports closes out imports left running by a restart.
+//
+// The same reasoning as failStaleExports, and deliberately not folded into it:
+// an interrupted import has already created some of its pages, so the honest
+// report is "failed" on a job whose work is partly done, and somebody reading
+// the code should see that said out loud rather than inferred from a shared
+// helper. The pages it made are left alone — they are ordinary pages now, and
+// deleting somebody's content because a process died would be far worse than
+// leaving a half-imported tree they can finish or bin themselves.
+func (s *PageService) SweepStaleImports(ctx context.Context, opts SweepOptions) (
+	*SweepReport, error,
+) {
+	report := &SweepReport{DryRun: opts.DryRun}
+	if s.d.Repos.Imports == nil {
+		return report, nil
+	}
+	rows, err := s.d.Repos.Imports.ListStale(ctx, opts.at().Add(-StaleExportAfter), opts.limit())
+	if err != nil {
+		return nil, err
+	}
+	report.Considered = len(rows)
+	if opts.DryRun {
+		report.Deleted = len(rows)
+		return report, nil
+	}
+	for _, job := range rows {
+		s.failImport(ctx, job.TenantID, job.ID,
+			"the import was interrupted; the pages it had already created were kept")
+		report.Deleted++
+	}
+	return report, nil
+}

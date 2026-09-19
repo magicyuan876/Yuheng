@@ -23,10 +23,12 @@ import (
 //     from membership, groups and page restrictions, with 404 for resources
 //     the caller cannot see.
 //
-// Handlers that belong to a later work package are wired to NotImplemented
-// (501) so the contract — paths, methods, policies — is fixed and tested now
-// and the module is never half-exposed: the whole tree is registered only when
-// YUHENG_DOCS_ENABLED=true.
+// Every route here now reaches a real handler; while the module was being
+// built, the ones whose work package had not arrived were wired to
+// NotImplemented (501) so that the contract — paths, methods, policies — was
+// fixed and tested from the start. routes_docs_swagger_test.go still checks
+// for placeholders in both directions, so reintroducing one is deliberate and
+// visible. The whole tree is registered only when YUHENG_DOCS_ENABLED=true.
 
 func apiKeyDocsRead(base middleware.APIKeyRoutePolicy) middleware.APIKeyRoutePolicy {
 	return base.WithCapability(types.APIKeyCapabilityDocsRead)
@@ -49,7 +51,6 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	h := m.Handler
 	guard := m.Guard
 	idem := h.Idempotency()
-	ni := gin.HandlerFunc(dochandlerNotImplemented)
 
 	read := g.apiKeyGroup(r.Group("/docs"), apiKeyDocsRead(apiKeyFullAccess()))
 	write := read.With(apiKeyDocsWrite(apiKeyFullAccess()))
@@ -111,8 +112,12 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	fh := h.Files
 	write.POST("/spaces/:sid/attachments", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), fh.Upload)
+	// No idempotency middleware: an upload is a file, and the natural key for
+	// "the same import twice" is the bundle itself, which a client cannot
+	// summarise into a header any better than the person can decide not to
+	// press the button twice.
 	write.POST("/spaces/:sid/imports", g.Contributor(),
-		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), idem, ni)
+		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), pg.StartImport)
 	// Reader, not writer: an export takes nothing out of the space that the
 	// person could not already read page by page.
 	write.POST("/spaces/:sid/export", g.Viewer(),
@@ -353,7 +358,9 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		pg.MarkNotificationsRead)
 	write.POST("/notifications/archive", g.Viewer(), guard.RequireMember(), idem,
 		pg.ArchiveNotifications)
-	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), ni)
+	// Membership alone: the service refuses anybody who cannot read the space
+	// the import went into.
+	read.GET("/imports/:jid", g.Viewer(), guard.RequireMember(), pg.ImportJob)
 	// Membership alone: an export job belongs to the person who started it,
 	// and the service refuses anybody else. The space it came from may not
 	// even exist any more.
@@ -400,7 +407,10 @@ func RegisterDocsInternalRoutes(r *gin.Engine, m *docs.Module) {
 	internal.GET("/health", h.Health)
 }
 
-// dochandlerNotImplemented adapts the docs handler package's placeholder.
+// dochandlerNotImplemented adapts the docs handler package's placeholder. No
+// route uses it any more; it stays because the contract test identifies a
+// placeholder by comparing against this function, and because a route added
+// ahead of its implementation should still have somewhere honest to point.
 func dochandlerNotImplemented(c *gin.Context) { dochandler.NotImplemented(c) }
 
 // RegisterDocsPublicRoutes mounts the anonymous share-link endpoints.

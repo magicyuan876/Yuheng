@@ -31,7 +31,12 @@ import (
 // write transaction and jittered, so two users creating pages under the same
 // parent at the same moment never end up with equal keys; client-supplied
 // keys are accepted for API users who keep their own tree model.
-type PageService struct{ *base }
+type PageService struct {
+	*base
+	// files stores the attachments an imported bundle carries. May be nil in
+	// a trimmed build, which importAssets reports rather than crashes on.
+	files *AttachmentService
+}
 
 // Limits on page metadata.
 const (

@@ -129,6 +129,9 @@ func (c *Cleaner) RunOnce(ctx context.Context) {
 	c.sweep(ctx, "expired exports", func() (*service.SweepReport, error) {
 		return c.pages.SweepExpiredExports(ctx, service.SweepOptions{})
 	})
+	c.sweep(ctx, "stale imports", func() (*service.SweepReport, error) {
+		return c.pages.SweepStaleImports(ctx, service.SweepOptions{})
+	})
 }
 
 // sweep runs one job, surviving its panics and reporting what it did.

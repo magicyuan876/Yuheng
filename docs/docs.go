@@ -2026,6 +2026,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/imports/{jid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "done 为 true 时任务已结束。skipped 列出没能导入的文件和原因",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "查询导入作业",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "作业 ID",
+                        "name": "jid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/maintenance/expired-trash": {
             "post": {
                 "security": [
@@ -4872,6 +4907,57 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/imports": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "上传一个 .md 文件或 .zip 压缩包（multipart，字段名 file），按目录结构创建页面树。\n异步任务：立即返回作业 ID，用 /docs/imports/{jid} 轮询。\n压缩包内部的相对链接会还原成页面链接，图片会存为附件；\n单个文件失败不会让整次导入失败，结果里会逐条列出跳过的原因",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "导入 Markdown",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Markdown 文件或 zip 压缩包",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "导入到这个页面下面，不填则导入到空间根部",
+                        "name": "parent_id",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
