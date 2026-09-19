@@ -39,7 +39,7 @@ type SaveYDocRequest struct {
 	// YDoc is the full Yjs state, base64-encoded.
 	YDoc string `json:"ydoc" binding:"required"`
 	// Content is the ProseMirror body the server validates, renders and indexes.
-	Content json.RawMessage `json:"content" binding:"required"`
+	Content json.RawMessage `json:"content" binding:"required" swaggertype:"object"`
 }
 
 // Get godoc

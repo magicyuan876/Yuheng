@@ -140,6 +140,25 @@
             <t-icon name="template" size="14px" />
             <span>{{ t('docs.templates.saveAs') }}</span>
           </button>
+          <button
+            v-if="page.role === 'admin'"
+            type="button"
+            class="page-history-link"
+            :aria-pressed="page.is_locked"
+            @click="toggleLock"
+          >
+            <t-icon :name="page.is_locked ? 'lock-on' : 'lock-off'" size="14px" />
+            <span>{{ page.is_locked ? t('docs.lock.locked') : t('docs.lock.lock') }}</span>
+          </button>
+          <button
+            v-if="page.can_edit"
+            type="button"
+            class="page-history-link"
+            @click="toggleDraft"
+          >
+            <t-icon :name="page.status === 'draft' ? 'edit-2' : 'check-circle'" size="14px" />
+            <span>{{ page.status === 'draft' ? t('docs.lock.draft') : t('docs.lock.published') }}</span>
+          </button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
         <PageLabels v-if="page.can_edit || labels.length" class="page-label-row" :page-id="page.id"
@@ -261,6 +280,8 @@ import { useRouter } from 'vue-router'
 
 import {
   createTemplate,
+  setPageLocked,
+  setPageStatus,
   getPageAncestors,
   getPageByShortId,
   getPageChildren,
@@ -349,6 +370,28 @@ function openSaveTemplate() {
   templateCategory.value = ''
   templateDescription.value = ''
   templateOpen.value = true
+}
+
+async function toggleLock() {
+  const current = page.value
+  if (!current) return
+  try {
+    const next = await setPageLocked(current.id, !current.is_locked)
+    page.value = { ...current, ...next }
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.lock.changeFailed')))
+  }
+}
+
+async function toggleDraft() {
+  const current = page.value
+  if (!current) return
+  try {
+    const next = await setPageStatus(current.id, current.status === 'draft' ? 'published' : 'draft')
+    page.value = { ...current, ...next }
+  } catch (err) {
+    void MessagePlugin.error(errorText(err, t('docs.lock.changeFailed')))
+  }
 }
 
 async function saveAsTemplate() {

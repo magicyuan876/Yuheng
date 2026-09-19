@@ -1723,6 +1723,3599 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/attachments/{aid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "校验调用者对所属页面的读权限后返回文件内容；w 可取 320/800/1600 获取图片的较小渲染",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取附件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "附件 ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "图片宽度（320/800/1600）",
+                        "name": "w",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除附件记录；底层对象在最后一条引用它的记录消失时才真正删除（去重共享）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除附件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "附件 ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/docs/block-refs/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把 (页面 ID, 块 ID) 解析成该块当前的内容，供编辑器和阅读页渲染块引用。\n块已删除或调用者无权查看源页面时返回 missing，两种情况不作区分；\n引用已登记但源页面尚未保存过时返回 pending。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "批量解析块引用",
+                "parameters": [
+                    {
+                        "description": "块引用列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResolveTransclusionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/embeds/policy": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回本部署允许的嵌入服务商列表，以及自建 draw.io 地址（未配置则为空，此时不能新建或编辑 draw.io 图）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "查询嵌入策略",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/embeds/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "校验粘贴的地址是否在本部署的嵌入白名单内，返回要放进 iframe 的地址；不在白名单内返回 400。会尽力抓取标题（经 SSRF 校验，只访问服务商自己的 oEmbed 端点）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "解析可嵌入地址",
+                "parameters": [
+                    {
+                        "description": "地址",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResolveEmbedRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/events": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等\n只推送调用者当前可见的空间；权限变更后不再可见的页面事件会被过滤\n可用 space 参数只订阅一个空间；连接期间每 25 秒发一次心跳注释行",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "订阅文档事件流（SSE）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "只订阅该空间的事件",
+                        "name": "space",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/favourites": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只返回调用者仍然可以打开的页面：收藏后失去权限的页面不再出现",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出本人收藏的页面",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按时间倒序返回通知，游标分页；通知属于接收者本人，不受页面权限影响",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出本人的通知",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "只看未读",
+                        "name": "unread",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一页返回的游标",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认与上限均为 50",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/notifications/archive": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "从通知列表中移除，但不删除记录；ids 为空表示全部归档",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "归档通知",
+                "parameters": [
+                    {
+                        "description": "通知 ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.NotificationIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/notifications/read": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "ids 为空表示全部标记为已读",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "标记通知为已读",
+                "parameters": [
+                    {
+                        "description": "通知 ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.NotificationIDsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/page-links/suggest": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按标题模糊匹配返回可插入为页面链接的页面；只返回调用者有权查看的页面。space 留空时在全部可见空间里找",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "页面链接建议",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "标题关键字",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "限定空间 ID",
+                        "name": "space",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条数上限（最多 12）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/page-links/titles": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把页面 ID 解析成当前标题，供编辑器里的页面链接显示；页面已删除或调用者无权查看时 resolved=false，两种情况不作区分",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "批量解析页面链接标题",
+                "parameters": [
+                    {
+                        "description": "页面 ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResolveTitlesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "在父页面（或空间根）末尾新建页面；可携带 JSON 文档或 Markdown 作为初始内容",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "创建页面",
+                "parameters": [
+                    {
+                        "description": "页面",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreatePageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/by-short-id/{short}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "按短标识获取页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面短标识",
+                        "name": "short",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回页面元数据、调用者的有效角色与是否有子页面；回收站中的页面返回 410",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "获取页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "页面及其子页面进入回收站；可从空间回收站恢复",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "修改标题、图标或封面；正文通过协同服务或 replace 接口写入",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "更新页面元数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdatePageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/access": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回本页是否切断继承、被哪些上级收窄、以及受限时的授权名单\n能打开页面即可查看：知道自己为什么能看见，是回答\"同事为什么看不见\"的前提",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取页面权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "切断时会自动把页面作者加入名单——收窄受众不等于没收作者的页面\n恢复继承会一并删除本页的全部授权",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "切断或恢复页面的权限继承",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "restricted=false 表示恢复继承",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RestrictRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/ancestors": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "从空间根到父页面的祖先链，不含页面本身",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "页面面包屑",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/attachments": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出页面附件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/backlinks": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回引用了这个页面（页面链接或块引用）且调用者有权查看的页面；看不到的页面不出现在列表里",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出引用本页的页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/children": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按阅读顺序分页返回一个页面的直接子页面（仅调用者可见的）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "子页面列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一页返回的 next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 500，最多 2000",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/comments": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按时间正序返回页面的评论线程，回复嵌在各自线程下；\n默认不含已解决的线程",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出页面评论",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否包含已解决的线程，默认 false",
+                        "name": "resolved",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "在页面上发表评论；带 anchor 为行内评论，不带为页面级评论，\n带 parent_id 为回复。\n只读成员即可评论——评论不是编辑",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "发表评论或回复",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "评论内容",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/comments/{cid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "评论作者或空间管理员可以删除；删除线程会连同它的回复一起删除",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除评论",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "评论 ID",
+                        "name": "cid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只有评论作者可以修改自己的评论；修改正文不会移动它所指向的位置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "修改评论",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "评论 ID",
+                        "name": "cid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新的评论内容",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/comments/{cid}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "可写页面的人可以解决任何线程，评论作者可以解决自己的；\n回复随线程一起解决，不能单独解决",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "解决或重开评论线程",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "线程 ID",
+                        "name": "cid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "resolved=false 表示重开",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResolveCommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/content": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回 ProseMirror JSON 正文与版本号；format=html 时附带只读 HTML 渲染",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "获取页面正文",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "json（默认）或 html",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "以一次替换写入整篇正文（ProseMirror JSON 或 Markdown）。部署了协同服务时作为一次 Yjs\n事务应用，在线用户实时可见且可撤销；否则写入 JSON 并清空 Yjs 状态，下次打开时重建",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "整体写入页面正文",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "正文",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ReplaceContentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/duplicate": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "复制页面及调用者可见的子树到原位置之后或另一空间；副本沿用目标位置的权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "复制页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.DuplicatePageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/effective-permission": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "供客户端决定画哪些控件：角色、能否编辑、能否评论、能否管理权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "本人在该页的有效权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/favourite": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "能阅读页面即可收藏——收藏是书签，不改动任何内容",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "收藏或取消收藏页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "favourite=false 表示取消收藏",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.FavouriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/grants": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "与 GET /access 返回同一份名单，供只关心名单的客户端使用；页面未受限时为空",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出页面的授权名单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "授权只能收窄：给空间里的只读成员授予 admin，他仍然是只读\n返回的 effective 字段是这条授权实际生效的角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "给某人或某组授权",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "主体与角色",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.GrantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/grants/{ptype}/{principal}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "移除一条授权",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "主体类型：user 或 group",
+                        "name": "ptype",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户 ID 或用户组 ID",
+                        "name": "principal",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/labels": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "传入的列表是设置之后页面的全部标签，不是追加；只能使用本空间的标签",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "设置页面的标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "标签 ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.PageLabelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/lease": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "独占编辑模式（未部署协同服务）下返回当前谁在编辑该页面；部署了协同服务时返回 409",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "查询页面编辑租约",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "独占编辑模式下取得页面的写入权；同一 session 重复调用即续期，他人持有且未过期时返回持有者信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "获取或续期页面编辑租约",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "会话标识",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LeaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "独占编辑模式下主动交还写入权；只有持有该租约的会话能释放",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "释放页面编辑租约",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "会话标识",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LeaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/lock": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "锁定后除空间管理员外一律降为只读，正在编辑的会话会被立即断开\n加锁与解锁都需要空间管理员：否则「这页是否写完」就由先点的人说了算",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "锁定或解锁页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "locked=false 表示解锁",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LockRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/mention-candidates": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回能读到这个页面的人，供 @ 提及使用；受限页面会相应收窄候选人范围",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "提及人选建议",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "姓名或邮箱关键字",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条数上限（最多 12）",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/move": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "改变父页面、排序位置或所属空间；跨空间移动携带子树，调用者不可见的子页面留在原空间根部",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "移动页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标位置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.MovePageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/mute": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "静音后不再收到该页面的评论与更新通知，但仍保留关注关系；\n被 @ 提及仍然会通知——那是对你个人的提问，不是页面动静",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "静音或取消静音页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "muted=false 表示取消静音",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.MuteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把回收站中的页面及随之删除的子页面恢复；父页面仍在回收站时挂到空间根部",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "恢复页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/revisions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "按时间倒序返回页面的历史版本（不含正文），游标分页；\n可读该页面即可查看历史",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出页面历史版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一页返回的游标",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认与上限均为 100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/revisions/{rid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回某个历史版本的完整正文，用于预览与恢复前确认",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取一个历史版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "版本 ID",
+                        "name": "rid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/revisions/{rid}/diff": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回逐行文本差异与按块 ID 的结构差异；不传 to 时与页面当前内容比较",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "比较两个版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "较旧的版本 ID",
+                        "name": "rid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "较新的版本 ID，缺省为页面当前内容",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/revisions/{rid}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把页面正文恢复为该版本；恢复前会先为当前内容留一个版本，\n因此恢复本身也可以再被撤回。\n写入走与导入相同的统一入口，所以正在协同编辑的人会实时看到内容变化",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "恢复到某个历史版本",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "版本 ID",
+                        "name": "rid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/shares": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "能阅读页面即可查看：「这页已经发布到公网」是每个读者都该知道的事",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出页面的公开链接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "受限页面不能发布；需要部署开启 YUHENG_DOCS_PUBLIC_SHARING",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "发布公开链接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "链接设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ShareRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/shares/{shid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "停用是永久的：同一个 key 不会再指向任何页面",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "停用公开链接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "链接 ID",
+                        "name": "shid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "password 传空字符串表示取消密码；改密码会让已解锁的浏览器重新输入",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "修改公开链接的设置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "链接 ID",
+                        "name": "shid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "要修改的设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ShareUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/status": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "草稿**不是**权限：能读这个页面的人照样能读。它只是一个标记，\n让客户端可以排序、筛选，或者把未完成的内容排除在「成品」列表之外",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "标记页面为草稿或已发布",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "draft 或 published",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.StatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/watch": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "查询本人对页面的关注状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "关注后会收到该页面的评论与正文更新通知；\n创建页面、评论、被提及会自动关注",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "关注或取消关注页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "watching=false 表示取消关注",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.WatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/ydoc": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "独占编辑模式下返回页面的 Yjs 全量状态（base64）；从未协同编辑过的页面改为返回正文 JSON 供客户端首次构建",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "获取页面协同状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "独占编辑模式下提交 Yjs 全量状态与正文 JSON；需持有未过期的编辑租约，base_version 落后时返回 409",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "提交页面协同状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "协同状态",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SaveYDocRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/public-spaces/{sid}": {
+            "get": {
+                "description": "返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享\n用空间 ID 而不是 slug 寻址：slug 只在租户内唯一，而访客没有租户",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "访问公开空间（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/public-spaces/{sid}/pages/{short}": {
+            "get": {
+                "description": "受限页面与回收站里的页面一律返回 404，和私有页面无从区分",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "访问公开空间里的一页（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "页面 short_id",
+                        "name": "short",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/public/{key}": {
+            "get": {
+                "description": "返回渲染后的文档。链接失效、过期、被停用或页面已受限时返回 state 而不是内容\n带密码的链接先返回 state=password，解锁后用 X-Docs-Share-Unlock 头再请求",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "访问公开链接（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "链接 key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "子树中某页的 short_id，缺省为链接根页",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/public/{key}/unlock": {
+            "post": {
+                "description": "成功返回 unlock_token，客户端存起来并在后续请求用 X-Docs-Share-Unlock 头带上",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "用密码解锁公开链接（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "链接 key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "密码",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UnlockRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回当前用户可读的空间（成员空间、开放空间；租户管理员见全部）及其在每个空间中的角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出可见的文档空间",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "创建文档空间",
+                "parameters": [
+                    {
+                        "description": "空间",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/by-slug/{slug}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "按 slug 获取文档空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "获取文档空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除文档空间（移入回收站）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "空间管理员可修改名称、slug、描述、图标、可见性与默认角色；可见性 private 时默认角色固定为 none",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "更新文档空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "变更字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateSpaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/attachments": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按 sha256 去重并计入租户配额",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "上传附件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "文件",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "page_id",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/home": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "一次返回最近编辑、标签与本人收藏，所有列表都按调用者可见性过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "空间首页",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/knowledge-base": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在租户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "绑定/解绑知识库与存储后端",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "绑定",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.BindKnowledgeBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/labels": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回空间的标签及各自的页面数（只统计未删除的页面）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出空间标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "空间写入者即可新建：给自己的内容归档不该需要管理员批准",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "新建空间标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "标签名与颜色",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LabelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/labels/{lid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "需要空间管理员：删除会把标签从所有页面上摘掉",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除标签",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "标签 ID",
+                        "name": "lid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "重命名标签或改颜色",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "标签 ID",
+                        "name": "lid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新的标签名或颜色",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LabelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "直接成员（用户与用户组），管理员优先，同一角色内用户组在前",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出空间成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "幂等：已是成员的主体更新为新角色；空间至少保留一名管理员",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "添加成员或修改成员角色",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "成员列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SetSpaceMembersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/members/{ptype}/{pid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "移除空间成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "主体类型 user|group",
+                        "name": "ptype",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "主体 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/pages-by-label": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "传多个标签时取交集——同时带有全部这些标签的页面",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "按标签筛选页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "标签 ID，逗号分隔",
+                        "name": "labels",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条数上限",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "仅租户管理员可恢复",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "从回收站恢复文档空间",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/trash": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "最近删除优先，列出调用者可见的已删除页面（删除根，不展开子页面）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "空间回收站",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "清空空间回收站",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/trash/{pid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "空间管理员永久删除一个已删除页面及其子树，不可恢复",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "彻底删除回收站中的页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/spaces/{sid}/tree": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回 parent 下（省略则为根）的子页面一页；每行带 has_children 与 can_edit",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "空间页面树（按父节点懒加载）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "父页面 ID；省略为根",
+                        "name": "parent",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一页返回的 next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 500，最多 2000",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/templates": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "返回全工作区共享的模板，以及（给定 space 时）该空间自己的模板",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "列出可用模板",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID；缺省只返回共享模板",
+                        "name": "space",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "可以直接给正文，也可以用 from_page_id 把某个页面存为模板（需要能读该页面）\n保存时会移除无法跨页复用的内容：页面链接、块引用、提及与附件",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "保存模板",
+                "parameters": [
+                    {
+                        "description": "模板内容",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.TemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/templates/{tid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取单个模板（含正文）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模板 ID",
+                        "name": "tid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除会把模板从所有人的列表里移除，所以需要该作用域的管理员",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "删除模板",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模板 ID",
+                        "name": "tid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "只传要改的字段；共享模板需要工作区管理员",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "修改模板",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模板 ID",
+                        "name": "tid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "要修改的字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.TemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/evaluation/": {
             "get": {
                 "security": [
@@ -1860,6 +5453,308 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
+                    }
+                }
+            }
+        },
+        "/groups": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "默认组（全体成员）在前；每个组附成员数",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "列出用户组",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "组名在租户内唯一（不区分大小写）；可同时指定初始成员",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "创建用户组",
+                "parameters": [
+                    {
+                        "description": "用户组",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/groups/{gid}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "获取用户组",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "同时移除该组在所有空间与页面上的授权；默认组不可删除",
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "删除用户组",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "默认组不可改名",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "更新用户组",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "变更字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateGroupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/groups/{gid}/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "分页列出用户组成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "按用户名/邮箱筛选",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码（从 1 起）",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量（最大 100）",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "已在组内的用户被跳过；默认组的成员关系是隐式的，不接受添加",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "向用户组添加成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "用户 ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SetGroupMembersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/groups/{gid}/members/{uid}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "tags": [
+                    "用户组"
+                ],
+                "summary": "从用户组移除成员",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户组 ID",
+                        "name": "gid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户 ID",
+                        "name": "uid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 }
             }
@@ -18485,6 +22380,561 @@ const docTemplate = `{
                 },
                 "valid": {
                     "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.BindKnowledgeBaseRequest": {
+            "type": "object",
+            "properties": {
+                "knowledge_base_id": {
+                    "type": "string"
+                },
+                "storage_backend_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.BlockRefRequest": {
+            "type": "object",
+            "required": [
+                "source_block_id",
+                "source_page_id"
+            ],
+            "properties": {
+                "source_block_id": {
+                    "type": "string"
+                },
+                "source_page_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CreateCommentRequest": {
+            "type": "object",
+            "required": [
+                "body"
+            ],
+            "properties": {
+                "anchor": {
+                    "description": "Anchor is the editor's Yjs relative position for the commented range.\nAbsent makes a comment about the page as a whole.",
+                    "type": "object"
+                },
+                "body": {
+                    "description": "Body is a ProseMirror document — a small subset of the page schema.",
+                    "type": "object"
+                },
+                "parent_id": {
+                    "description": "ParentID makes this a reply to an existing thread.",
+                    "type": "string"
+                },
+                "quoted_text": {
+                    "description": "QuotedText is what that range covered, kept so the comment can still be\nplaced if the position stops resolving.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CreateGroupRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "member_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CreatePageRequest": {
+            "type": "object",
+            "required": [
+                "space_id"
+            ],
+            "properties": {
+                "content": {
+                    "type": "object"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "markdown": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "space_id": {
+                    "type": "string"
+                },
+                "template_id": {
+                    "description": "TemplateID starts the page from a saved body, instead of content or\nmarkdown.",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.CreateSpaceRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "default_role": {
+                    "description": "DefaultRole for open spaces: reader (default) or writer.",
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "knowledge_base_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "type": "object"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "storage_backend_id": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "description": "Visibility: private (default) or open.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.DuplicatePageRequest": {
+            "type": "object",
+            "properties": {
+                "parent_id": {
+                    "description": "ParentID (other space only) places the copy under a page there.",
+                    "type": "string"
+                },
+                "space_id": {
+                    "description": "SpaceID copies into another space; empty duplicates next to the original.",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Title overrides the copy's title.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.FavouriteRequest": {
+            "type": "object",
+            "properties": {
+                "favourite": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.GrantRequest": {
+            "type": "object",
+            "properties": {
+                "principal_id": {
+                    "type": "string"
+                },
+                "principal_type": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.LabelRequest": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.LeaseRequest": {
+            "type": "object",
+            "required": [
+                "session_id"
+            ],
+            "properties": {
+                "session_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.LockRequest": {
+            "type": "object",
+            "properties": {
+                "locked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.MovePageRequest": {
+            "type": "object",
+            "properties": {
+                "after_id": {
+                    "$ref": "#/definitions/handler.OptionalID"
+                },
+                "parent_id": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "string"
+                },
+                "space_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.MuteRequest": {
+            "type": "object",
+            "properties": {
+                "muted": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.NotificationIDsRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.OptionalID": {
+            "type": "object",
+            "properties": {
+                "set": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.PageLabelsRequest": {
+            "type": "object",
+            "properties": {
+                "label_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.ReplaceContentRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "object"
+                },
+                "markdown": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ResolveCommentRequest": {
+            "type": "object",
+            "properties": {
+                "resolved": {
+                    "description": "Resolved false reopens a thread; the field is explicit rather than the\nroute being two verbs, so reopening is as ordinary as settling.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.ResolveEmbedRequest": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ResolveTitlesRequest": {
+            "type": "object",
+            "required": [
+                "page_ids"
+            ],
+            "properties": {
+                "page_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.ResolveTransclusionsRequest": {
+            "type": "object",
+            "required": [
+                "refs"
+            ],
+            "properties": {
+                "refs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.BlockRefRequest"
+                    }
+                }
+            }
+        },
+        "handler.RestrictRequest": {
+            "type": "object",
+            "properties": {
+                "restricted": {
+                    "description": "Restricted false restores inheritance and drops every grant.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "handler.SaveYDocRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "session_id",
+                "ydoc"
+            ],
+            "properties": {
+                "base_version": {
+                    "description": "BaseVersion is the ydoc_version this state was derived from.",
+                    "type": "integer"
+                },
+                "content": {
+                    "description": "Content is the ProseMirror body the server validates, renders and indexes.",
+                    "type": "object"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "ydoc": {
+                    "description": "YDoc is the full Yjs state, base64-encoded.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SetGroupMembersRequest": {
+            "type": "object",
+            "required": [
+                "user_ids"
+            ],
+            "properties": {
+                "user_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handler.SetSpaceMembersRequest": {
+            "type": "object",
+            "required": [
+                "members"
+            ],
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.SpaceMemberRequest"
+                    }
+                }
+            }
+        },
+        "handler.ShareRequest": {
+            "type": "object",
+            "properties": {
+                "allow_search_index": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "include_children": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ShareUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "allow_search_index": {
+                    "type": "boolean"
+                },
+                "clear_expiry": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "include_children": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SpaceMemberRequest": {
+            "type": "object",
+            "required": [
+                "principal_id",
+                "principal_type",
+                "role"
+            ],
+            "properties": {
+                "principal_id": {
+                    "type": "string"
+                },
+                "principal_type": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.StatusRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.TemplateRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "object"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "from_page_id": {
+                    "description": "FromPageID saves an existing page's body instead of a supplied one.",
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "space_id": {
+                    "description": "SpaceID empty makes the template tenant-wide (needs an administrator).",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UnlockRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UpdateCommentRequest": {
+            "type": "object",
+            "required": [
+                "body"
+            ],
+            "properties": {
+                "body": {
+                    "type": "object"
+                }
+            }
+        },
+        "handler.UpdateGroupRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UpdatePageRequest": {
+            "type": "object",
+            "properties": {
+                "cover": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UpdateSpaceRequest": {
+            "type": "object",
+            "properties": {
+                "default_role": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "type": "object"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.WatchRequest": {
+            "type": "object",
+            "properties": {
+                "watching": {
                     "type": "boolean"
                 }
             }

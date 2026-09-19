@@ -714,7 +714,20 @@ func (s *PageService) countVisit(ctx context.Context, row *model.Share) {
 		logger.Warnf(ctx, "docs: counting a share visit failed: %v", err)
 		return
 	}
+	// Audited on the first visit and at each milestone, not on every one.
+	//
+	// "Content of ours was read from the public internet" is a fact a
+	// compliance reviewer needs, and the first visit is when it becomes true.
+	// A row per visit would make the audit log unreadable and would put the
+	// module's highest write rate on its slowest table; the milestones keep
+	// the trail proportionate to how far the content actually travelled.
 	milestone := share.Milestone(views)
+	if views == 1 || milestone > 0 {
+		s.audit(ctx, audit.Entry{
+			TenantID: row.TenantID, Action: audit.ShareAccessed,
+			SpaceID: row.SpaceID, TargetType: audit.TargetShare, TargetID: row.ID,
+		})
+	}
 	if milestone == 0 || row.CreatorID == nil {
 		return
 	}

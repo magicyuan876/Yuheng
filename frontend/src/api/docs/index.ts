@@ -671,6 +671,35 @@ export async function resolvePageTitles(pageIds: string[]): Promise<PageRef[]> {
   return unwrap<PageRef[] | null>(await post(`${base}/page-links/titles`, { page_ids: pageIds })) ?? []
 }
 
+// ---- locking and publication state -------------------------------------------
+
+/**
+ * Backend: PUT /api/v1/docs/pages/:pid/lock (page admin).
+ *
+ * A locked page caps everybody except space administrators at reader, and
+ * open collaborative sessions are disconnected. Both locking and unlocking
+ * need an administrator.
+ */
+export async function setPageLocked(pageId: string, locked: boolean): Promise<PageView> {
+  return unwrap<PageView>(
+    await put(`${base}/pages/${encodeURIComponent(pageId)}/lock`, { locked }),
+  )
+}
+
+/**
+ * Backend: PUT /api/v1/docs/pages/:pid/status (page writer).
+ *
+ * A draft is a label rather than a permission: everybody who could read the
+ * page still can.
+ */
+export async function setPageStatus(
+  pageId: string, status: 'draft' | 'published',
+): Promise<PageView> {
+  return unwrap<PageView>(
+    await put(`${base}/pages/${encodeURIComponent(pageId)}/status`, { status }),
+  )
+}
+
 // ---- templates ---------------------------------------------------------------
 
 /**

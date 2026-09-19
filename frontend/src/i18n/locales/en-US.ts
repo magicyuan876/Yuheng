@@ -5083,6 +5083,14 @@ export default {
       saved: 'Saved as a template',
       saveFailed: 'Could not save the template',
     },
+    // Locking a page, and marking it draft or published.
+    lock: {
+      lock: 'Lock',
+      locked: 'Locked',
+      draft: 'Draft',
+      published: 'Published',
+      changeFailed: 'Could not change the page state',
+    },
     notifications: {
       title: 'Notifications',
       empty: 'Nothing new',

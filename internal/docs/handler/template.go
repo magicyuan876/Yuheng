@@ -24,7 +24,7 @@ type TemplateRequest struct {
 	Description string          `json:"description,omitempty"`
 	Icon        string          `json:"icon,omitempty"`
 	Category    string          `json:"category,omitempty"`
-	Content     json.RawMessage `json:"content,omitempty"`
+	Content     json.RawMessage `json:"content,omitempty" swaggertype:"object"`
 	// FromPageID saves an existing page's body instead of a supplied one.
 	FromPageID string `json:"from_page_id,omitempty"`
 }

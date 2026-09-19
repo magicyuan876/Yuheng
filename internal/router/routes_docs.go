@@ -220,6 +220,15 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.DeleteComment)
 	write.POST("/pages/:pid/comments/:cid/resolve", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ResolveComment)
+	// Locking and publication state. Locking needs admin on the page: the
+	// resolver caps everybody else at reader on a locked page, so an admin is
+	// the only one who could undo it anyway. Marking a draft is a writer's
+	// act, because a draft is a label rather than a permission.
+	admin.PUT("/pages/:pid/lock", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, pg.SetLocked)
+	write.PUT("/pages/:pid/status", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageStatus)
+
 	// Public links. Listing them needs only read access, because "this page
 	// is published on the internet" is something every reader of it should be
 	// able to see; publishing one needs write access.
@@ -311,10 +320,11 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// by what they may still open: a page starred and since restricted is
 	// left out rather than shown as a row that cannot be opened.
 	read.GET("/favourites", g.Viewer(), guard.RequireMember(), pg.Favourites)
-	// "Recently edited" is per space and lives on the space home above.
-	// "Recently viewed" is deliberately not a server concern: see the note in
-	// internal/docs/service/home.go.
-	read.GET("/recent", g.Viewer(), guard.RequireMember(), ni)
+	// There is no /recent. "Recently edited" is per space and lives on the
+	// space home above; "recently viewed" is deliberately not a server
+	// concern at all (see the note in internal/docs/service/home.go). The
+	// T0.5 placeholder that stood here is gone rather than unimplemented: an
+	// endpoint that will always answer 501 is a worse answer than no endpoint.
 
 	// ---- tenant groups (tenant-level administration; docs is the first consumer) ----
 	gr := h.Groups

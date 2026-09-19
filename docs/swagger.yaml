@@ -3988,6 +3988,382 @@ definitions:
         description: Valid is true if Time is not NULL
         type: boolean
     type: object
+  handler.BindKnowledgeBaseRequest:
+    properties:
+      knowledge_base_id:
+        type: string
+      storage_backend_id:
+        type: string
+    type: object
+  handler.BlockRefRequest:
+    properties:
+      source_block_id:
+        type: string
+      source_page_id:
+        type: string
+    required:
+    - source_block_id
+    - source_page_id
+    type: object
+  handler.CreateCommentRequest:
+    properties:
+      anchor:
+        description: |-
+          Anchor is the editor's Yjs relative position for the commented range.
+          Absent makes a comment about the page as a whole.
+        type: object
+      body:
+        description: Body is a ProseMirror document — a small subset of the page schema.
+        type: object
+      parent_id:
+        description: ParentID makes this a reply to an existing thread.
+        type: string
+      quoted_text:
+        description: |-
+          QuotedText is what that range covered, kept so the comment can still be
+          placed if the position stops resolving.
+        type: string
+    required:
+    - body
+    type: object
+  handler.CreateGroupRequest:
+    properties:
+      description:
+        type: string
+      member_ids:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  handler.CreatePageRequest:
+    properties:
+      content:
+        type: object
+      icon:
+        type: string
+      markdown:
+        type: string
+      parent_id:
+        type: string
+      space_id:
+        type: string
+      template_id:
+        description: |-
+          TemplateID starts the page from a saved body, instead of content or
+          markdown.
+        type: string
+      title:
+        type: string
+    required:
+    - space_id
+    type: object
+  handler.CreateSpaceRequest:
+    properties:
+      default_role:
+        description: 'DefaultRole for open spaces: reader (default) or writer.'
+        type: string
+      description:
+        type: string
+      icon:
+        type: string
+      knowledge_base_id:
+        type: string
+      name:
+        type: string
+      settings:
+        type: object
+      slug:
+        type: string
+      storage_backend_id:
+        type: string
+      visibility:
+        description: 'Visibility: private (default) or open.'
+        type: string
+    required:
+    - name
+    type: object
+  handler.DuplicatePageRequest:
+    properties:
+      parent_id:
+        description: ParentID (other space only) places the copy under a page there.
+        type: string
+      space_id:
+        description: SpaceID copies into another space; empty duplicates next to the
+          original.
+        type: string
+      title:
+        description: Title overrides the copy's title.
+        type: string
+    type: object
+  handler.FavouriteRequest:
+    properties:
+      favourite:
+        type: boolean
+    type: object
+  handler.GrantRequest:
+    properties:
+      principal_id:
+        type: string
+      principal_type:
+        type: string
+      role:
+        type: string
+    type: object
+  handler.LabelRequest:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  handler.LeaseRequest:
+    properties:
+      session_id:
+        type: string
+    required:
+    - session_id
+    type: object
+  handler.LockRequest:
+    properties:
+      locked:
+        type: boolean
+    type: object
+  handler.MovePageRequest:
+    properties:
+      after_id:
+        $ref: '#/definitions/handler.OptionalID'
+      parent_id:
+        type: string
+      position:
+        type: string
+      space_id:
+        type: string
+    type: object
+  handler.MuteRequest:
+    properties:
+      muted:
+        type: boolean
+    type: object
+  handler.NotificationIDsRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.OptionalID:
+    properties:
+      set:
+        type: boolean
+      value:
+        type: string
+    type: object
+  handler.PageLabelsRequest:
+    properties:
+      label_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.ReplaceContentRequest:
+    properties:
+      content:
+        type: object
+      markdown:
+        type: string
+    type: object
+  handler.ResolveCommentRequest:
+    properties:
+      resolved:
+        description: |-
+          Resolved false reopens a thread; the field is explicit rather than the
+          route being two verbs, so reopening is as ordinary as settling.
+        type: boolean
+    type: object
+  handler.ResolveEmbedRequest:
+    properties:
+      url:
+        type: string
+    required:
+    - url
+    type: object
+  handler.ResolveTitlesRequest:
+    properties:
+      page_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - page_ids
+    type: object
+  handler.ResolveTransclusionsRequest:
+    properties:
+      refs:
+        items:
+          $ref: '#/definitions/handler.BlockRefRequest'
+        type: array
+    required:
+    - refs
+    type: object
+  handler.RestrictRequest:
+    properties:
+      restricted:
+        description: Restricted false restores inheritance and drops every grant.
+        type: boolean
+    type: object
+  handler.SaveYDocRequest:
+    properties:
+      base_version:
+        description: BaseVersion is the ydoc_version this state was derived from.
+        type: integer
+      content:
+        description: Content is the ProseMirror body the server validates, renders
+          and indexes.
+        type: object
+      session_id:
+        type: string
+      ydoc:
+        description: YDoc is the full Yjs state, base64-encoded.
+        type: string
+    required:
+    - content
+    - session_id
+    - ydoc
+    type: object
+  handler.SetGroupMembersRequest:
+    properties:
+      user_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - user_ids
+    type: object
+  handler.SetSpaceMembersRequest:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/handler.SpaceMemberRequest'
+        type: array
+    required:
+    - members
+    type: object
+  handler.ShareRequest:
+    properties:
+      allow_search_index:
+        type: boolean
+      expires_at:
+        type: string
+      include_children:
+        type: boolean
+      password:
+        type: string
+    type: object
+  handler.ShareUpdateRequest:
+    properties:
+      allow_search_index:
+        type: boolean
+      clear_expiry:
+        type: boolean
+      expires_at:
+        type: string
+      include_children:
+        type: boolean
+      password:
+        type: string
+    type: object
+  handler.SpaceMemberRequest:
+    properties:
+      principal_id:
+        type: string
+      principal_type:
+        type: string
+      role:
+        type: string
+    required:
+    - principal_id
+    - principal_type
+    - role
+    type: object
+  handler.StatusRequest:
+    properties:
+      status:
+        type: string
+    type: object
+  handler.TemplateRequest:
+    properties:
+      category:
+        type: string
+      content:
+        type: object
+      description:
+        type: string
+      from_page_id:
+        description: FromPageID saves an existing page's body instead of a supplied
+          one.
+        type: string
+      icon:
+        type: string
+      name:
+        type: string
+      space_id:
+        description: SpaceID empty makes the template tenant-wide (needs an administrator).
+        type: string
+    type: object
+  handler.UnlockRequest:
+    properties:
+      password:
+        type: string
+    type: object
+  handler.UpdateCommentRequest:
+    properties:
+      body:
+        type: object
+    required:
+    - body
+    type: object
+  handler.UpdateGroupRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  handler.UpdatePageRequest:
+    properties:
+      cover:
+        type: string
+      icon:
+        type: string
+      title:
+        type: string
+    type: object
+  handler.UpdateSpaceRequest:
+    properties:
+      default_role:
+        type: string
+      description:
+        type: string
+      icon:
+        type: string
+      name:
+        type: string
+      settings:
+        type: object
+      slug:
+        type: string
+      visibility:
+        type: string
+    type: object
+  handler.WatchRequest:
+    properties:
+      watching:
+        type: boolean
+    type: object
   internal_handler.AddFavoriteRequest:
     properties:
       id:
@@ -6430,6 +6806,2334 @@ paths:
       summary: Test connection with raw credentials (no persistence)
       tags:
       - DataSource
+  /docs/attachments/{aid}:
+    delete:
+      description: 删除附件记录；底层对象在最后一条引用它的记录消失时才真正删除（去重共享）
+      parameters:
+      - description: 附件 ID
+        in: path
+        name: aid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 删除附件
+      tags:
+      - 在线文档
+    get:
+      description: 校验调用者对所属页面的读权限后返回文件内容；w 可取 320/800/1600 获取图片的较小渲染
+      parameters:
+      - description: 附件 ID
+        in: path
+        name: aid
+        required: true
+        type: string
+      - description: 图片宽度（320/800/1600）
+        in: query
+        name: w
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - Bearer: []
+      summary: 读取附件
+      tags:
+      - 在线文档
+  /docs/block-refs/resolve:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        把 (页面 ID, 块 ID) 解析成该块当前的内容，供编辑器和阅读页渲染块引用。
+        块已删除或调用者无权查看源页面时返回 missing，两种情况不作区分；
+        引用已登记但源页面尚未保存过时返回 pending。
+      parameters:
+      - description: 块引用列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ResolveTransclusionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 批量解析块引用
+      tags:
+      - 在线文档
+  /docs/embeds/policy:
+    get:
+      description: 返回本部署允许的嵌入服务商列表，以及自建 draw.io 地址（未配置则为空，此时不能新建或编辑 draw.io 图）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询嵌入策略
+      tags:
+      - 在线文档
+  /docs/embeds/resolve:
+    post:
+      consumes:
+      - application/json
+      description: 校验粘贴的地址是否在本部署的嵌入白名单内，返回要放进 iframe 的地址；不在白名单内返回 400。会尽力抓取标题（经 SSRF
+        校验，只访问服务商自己的 oEmbed 端点）
+      parameters:
+      - description: 地址
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ResolveEmbedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 解析可嵌入地址
+      tags:
+      - 在线文档
+  /docs/events:
+    get:
+      description: |-
+        Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等
+        只推送调用者当前可见的空间；权限变更后不再可见的页面事件会被过滤
+        可用 space 参数只订阅一个空间；连接期间每 25 秒发一次心跳注释行
+      parameters:
+      - description: 只订阅该空间的事件
+        in: query
+        name: space
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: 订阅文档事件流（SSE）
+      tags:
+      - 在线文档
+  /docs/favourites:
+    get:
+      description: 只返回调用者仍然可以打开的页面：收藏后失去权限的页面不再出现
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出本人收藏的页面
+      tags:
+      - 在线文档
+  /docs/notifications:
+    get:
+      description: 按时间倒序返回通知，游标分页；通知属于接收者本人，不受页面权限影响
+      parameters:
+      - description: 只看未读
+        in: query
+        name: unread
+        type: boolean
+      - description: 上一页返回的游标
+        in: query
+        name: cursor
+        type: string
+      - description: 每页条数，默认与上限均为 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出本人的通知
+      tags:
+      - 在线文档
+  /docs/notifications/archive:
+    post:
+      consumes:
+      - application/json
+      description: 从通知列表中移除，但不删除记录；ids 为空表示全部归档
+      parameters:
+      - description: 通知 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.NotificationIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 归档通知
+      tags:
+      - 在线文档
+  /docs/notifications/read:
+    post:
+      consumes:
+      - application/json
+      description: ids 为空表示全部标记为已读
+      parameters:
+      - description: 通知 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.NotificationIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 标记通知为已读
+      tags:
+      - 在线文档
+  /docs/page-links/suggest:
+    get:
+      description: 按标题模糊匹配返回可插入为页面链接的页面；只返回调用者有权查看的页面。space 留空时在全部可见空间里找
+      parameters:
+      - description: 标题关键字
+        in: query
+        name: q
+        type: string
+      - description: 限定空间 ID
+        in: query
+        name: space
+        type: string
+      - description: 条数上限（最多 12）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 页面链接建议
+      tags:
+      - 在线文档
+  /docs/page-links/titles:
+    post:
+      consumes:
+      - application/json
+      description: 把页面 ID 解析成当前标题，供编辑器里的页面链接显示；页面已删除或调用者无权查看时 resolved=false，两种情况不作区分
+      parameters:
+      - description: 页面 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ResolveTitlesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 批量解析页面链接标题
+      tags:
+      - 在线文档
+  /docs/pages:
+    post:
+      consumes:
+      - application/json
+      description: 在父页面（或空间根）末尾新建页面；可携带 JSON 文档或 Markdown 作为初始内容
+      parameters:
+      - description: 页面
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreatePageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}:
+    delete:
+      description: 页面及其子页面进入回收站；可从空间回收站恢复
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除页面
+      tags:
+      - 在线文档
+    get:
+      description: 返回页面元数据、调用者的有效角色与是否有子页面；回收站中的页面返回 410
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取页面
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      description: 修改标题、图标或封面；正文通过协同服务或 replace 接口写入
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 字段
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdatePageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新页面元数据
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/access:
+    get:
+      description: |-
+        返回本页是否切断继承、被哪些上级收窄、以及受限时的授权名单
+        能打开页面即可查看：知道自己为什么能看见，是回答"同事为什么看不见"的前提
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 读取页面权限
+      tags:
+      - 在线文档
+    put:
+      consumes:
+      - application/json
+      description: |-
+        切断时会自动把页面作者加入名单——收窄受众不等于没收作者的页面
+        恢复继承会一并删除本页的全部授权
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: restricted=false 表示恢复继承
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RestrictRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 切断或恢复页面的权限继承
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/ancestors:
+    get:
+      description: 从空间根到父页面的祖先链，不含页面本身
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 页面面包屑
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/attachments:
+    get:
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出页面附件
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/backlinks:
+    get:
+      description: 返回引用了这个页面（页面链接或块引用）且调用者有权查看的页面；看不到的页面不出现在列表里
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出引用本页的页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/children:
+    get:
+      description: 按阅读顺序分页返回一个页面的直接子页面（仅调用者可见的）
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 上一页返回的 next_cursor
+        in: query
+        name: cursor
+        type: string
+      - description: 每页数量，默认 500，最多 2000
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 子页面列表
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/comments:
+    get:
+      description: |-
+        按时间正序返回页面的评论线程，回复嵌在各自线程下；
+        默认不含已解决的线程
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 是否包含已解决的线程，默认 false
+        in: query
+        name: resolved
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出页面评论
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: |-
+        在页面上发表评论；带 anchor 为行内评论，不带为页面级评论，
+        带 parent_id 为回复。
+        只读成员即可评论——评论不是编辑
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 评论内容
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 发表评论或回复
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/comments/{cid}:
+    delete:
+      description: 评论作者或空间管理员可以删除；删除线程会连同它的回复一起删除
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 评论 ID
+        in: path
+        name: cid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除评论
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      description: 只有评论作者可以修改自己的评论；修改正文不会移动它所指向的位置
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 评论 ID
+        in: path
+        name: cid
+        required: true
+        type: string
+      - description: 新的评论内容
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改评论
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/comments/{cid}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        可写页面的人可以解决任何线程，评论作者可以解决自己的；
+        回复随线程一起解决，不能单独解决
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 线程 ID
+        in: path
+        name: cid
+        required: true
+        type: string
+      - description: resolved=false 表示重开
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ResolveCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 解决或重开评论线程
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/content:
+    get:
+      description: 返回 ProseMirror JSON 正文与版本号；format=html 时附带只读 HTML 渲染
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: json（默认）或 html
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取页面正文
+      tags:
+      - 在线文档
+    put:
+      consumes:
+      - application/json
+      description: |-
+        以一次替换写入整篇正文（ProseMirror JSON 或 Markdown）。部署了协同服务时作为一次 Yjs
+        事务应用，在线用户实时可见且可撤销；否则写入 JSON 并清空 Yjs 状态，下次打开时重建
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 正文
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ReplaceContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 整体写入页面正文
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/duplicate:
+    post:
+      consumes:
+      - application/json
+      description: 复制页面及调用者可见的子树到原位置之后或另一空间；副本沿用目标位置的权限
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 目标
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/handler.DuplicatePageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 复制页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/effective-permission:
+    get:
+      description: 供客户端决定画哪些控件：角色、能否编辑、能否评论、能否管理权限
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 本人在该页的有效权限
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/favourite:
+    put:
+      consumes:
+      - application/json
+      description: 能阅读页面即可收藏——收藏是书签，不改动任何内容
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: favourite=false 表示取消收藏
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.FavouriteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 收藏或取消收藏页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/grants:
+    get:
+      description: 与 GET /access 返回同一份名单，供只关心名单的客户端使用；页面未受限时为空
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出页面的授权名单
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: |-
+        授权只能收窄：给空间里的只读成员授予 admin，他仍然是只读
+        返回的 effective 字段是这条授权实际生效的角色
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 主体与角色
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.GrantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 给某人或某组授权
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/grants/{ptype}/{principal}:
+    delete:
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 主体类型：user 或 group
+        in: path
+        name: ptype
+        required: true
+        type: string
+      - description: 用户 ID 或用户组 ID
+        in: path
+        name: principal
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 移除一条授权
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/labels:
+    put:
+      consumes:
+      - application/json
+      description: 传入的列表是设置之后页面的全部标签，不是追加；只能使用本空间的标签
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 标签 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PageLabelsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 设置页面的标签
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/lease:
+    delete:
+      consumes:
+      - application/json
+      description: 独占编辑模式下主动交还写入权；只有持有该租约的会话能释放
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 会话标识
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LeaseRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 释放页面编辑租约
+      tags:
+      - 在线文档
+    get:
+      description: 独占编辑模式（未部署协同服务）下返回当前谁在编辑该页面；部署了协同服务时返回 409
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询页面编辑租约
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: 独占编辑模式下取得页面的写入权；同一 session 重复调用即续期，他人持有且未过期时返回持有者信息
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 会话标识
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LeaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取或续期页面编辑租约
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/lock:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        锁定后除空间管理员外一律降为只读，正在编辑的会话会被立即断开
+        加锁与解锁都需要空间管理员：否则「这页是否写完」就由先点的人说了算
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: locked=false 表示解锁
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LockRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 锁定或解锁页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/mention-candidates:
+    get:
+      description: 返回能读到这个页面的人，供 @ 提及使用；受限页面会相应收窄候选人范围
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 姓名或邮箱关键字
+        in: query
+        name: q
+        type: string
+      - description: 条数上限（最多 12）
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 提及人选建议
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/move:
+    post:
+      consumes:
+      - application/json
+      description: 改变父页面、排序位置或所属空间；跨空间移动携带子树，调用者不可见的子页面留在原空间根部
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 目标位置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MovePageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 移动页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/mute:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        静音后不再收到该页面的评论与更新通知，但仍保留关注关系；
+        被 @ 提及仍然会通知——那是对你个人的提问，不是页面动静
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: muted=false 表示取消静音
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MuteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 静音或取消静音页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/restore:
+    post:
+      description: 把回收站中的页面及随之删除的子页面恢复；父页面仍在回收站时挂到空间根部
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 恢复页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/revisions:
+    get:
+      description: |-
+        按时间倒序返回页面的历史版本（不含正文），游标分页；
+        可读该页面即可查看历史
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 上一页返回的游标
+        in: query
+        name: cursor
+        type: string
+      - description: 每页条数，默认与上限均为 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出页面历史版本
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/revisions/{rid}:
+    get:
+      description: 返回某个历史版本的完整正文，用于预览与恢复前确认
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 版本 ID
+        in: path
+        name: rid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 读取一个历史版本
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/revisions/{rid}/diff:
+    get:
+      description: 返回逐行文本差异与按块 ID 的结构差异；不传 to 时与页面当前内容比较
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 较旧的版本 ID
+        in: path
+        name: rid
+        required: true
+        type: string
+      - description: 较新的版本 ID，缺省为页面当前内容
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 比较两个版本
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/revisions/{rid}/restore:
+    post:
+      description: |-
+        把页面正文恢复为该版本；恢复前会先为当前内容留一个版本，
+        因此恢复本身也可以再被撤回。
+        写入走与导入相同的统一入口，所以正在协同编辑的人会实时看到内容变化
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 版本 ID
+        in: path
+        name: rid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 恢复到某个历史版本
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/shares:
+    get:
+      description: 能阅读页面即可查看：「这页已经发布到公网」是每个读者都该知道的事
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出页面的公开链接
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: 受限页面不能发布；需要部署开启 YUHENG_DOCS_PUBLIC_SHARING
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 链接设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ShareRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 发布公开链接
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/shares/{shid}:
+    delete:
+      description: 停用是永久的：同一个 key 不会再指向任何页面
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 链接 ID
+        in: path
+        name: shid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 停用公开链接
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      description: password 传空字符串表示取消密码；改密码会让已解锁的浏览器重新输入
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 链接 ID
+        in: path
+        name: shid
+        required: true
+        type: string
+      - description: 要修改的设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ShareUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改公开链接的设置
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/status:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        草稿**不是**权限：能读这个页面的人照样能读。它只是一个标记，
+        让客户端可以排序、筛选，或者把未完成的内容排除在「成品」列表之外
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: draft 或 published
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 标记页面为草稿或已发布
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/watch:
+    get:
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 查询本人对页面的关注状态
+      tags:
+      - 在线文档
+    put:
+      consumes:
+      - application/json
+      description: |-
+        关注后会收到该页面的评论与正文更新通知；
+        创建页面、评论、被提及会自动关注
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: watching=false 表示取消关注
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.WatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 关注或取消关注页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/ydoc:
+    get:
+      description: 独占编辑模式下返回页面的 Yjs 全量状态（base64）；从未协同编辑过的页面改为返回正文 JSON 供客户端首次构建
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取页面协同状态
+      tags:
+      - 在线文档
+    put:
+      consumes:
+      - application/json
+      description: 独占编辑模式下提交 Yjs 全量状态与正文 JSON；需持有未过期的编辑租约，base_version 落后时返回 409
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 协同状态
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SaveYDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 提交页面协同状态
+      tags:
+      - 在线文档
+  /docs/pages/by-short-id/{short}:
+    get:
+      parameters:
+      - description: 页面短标识
+        in: path
+        name: short
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 按短标识获取页面
+      tags:
+      - 在线文档
+  /docs/public-spaces/{sid}:
+    get:
+      description: |-
+        返回空间信息与顶层页面。空间必须是 public，且部署开启了公开分享
+        用空间 ID 而不是 slug 寻址：slug 只在租户内唯一，而访客没有租户
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 访问公开空间（无需登录）
+      tags:
+      - 在线文档
+  /docs/public-spaces/{sid}/pages/{short}:
+    get:
+      description: 受限页面与回收站里的页面一律返回 404，和私有页面无从区分
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 页面 short_id
+        in: path
+        name: short
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 访问公开空间里的一页（无需登录）
+      tags:
+      - 在线文档
+  /docs/public/{key}:
+    get:
+      description: |-
+        返回渲染后的文档。链接失效、过期、被停用或页面已受限时返回 state 而不是内容
+        带密码的链接先返回 state=password，解锁后用 X-Docs-Share-Unlock 头再请求
+      parameters:
+      - description: 链接 key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 子树中某页的 short_id，缺省为链接根页
+        in: query
+        name: page
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 访问公开链接（无需登录）
+      tags:
+      - 在线文档
+  /docs/public/{key}/unlock:
+    post:
+      consumes:
+      - application/json
+      description: 成功返回 unlock_token，客户端存起来并在后续请求用 X-Docs-Share-Unlock 头带上
+      parameters:
+      - description: 链接 key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: 密码
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UnlockRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用密码解锁公开链接（无需登录）
+      tags:
+      - 在线文档
+  /docs/spaces:
+    get:
+      description: 返回当前用户可读的空间（成员空间、开放空间；租户管理员见全部）及其在每个空间中的角色
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出可见的文档空间
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: 创建者自动成为空间管理员；slug 省略时由名称生成并保证唯一
+      parameters:
+      - description: 空间
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateSpaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建文档空间
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}:
+    delete:
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 删除文档空间（移入回收站）
+      tags:
+      - 在线文档
+    get:
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取文档空间
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      description: 空间管理员可修改名称、slug、描述、图标、可见性与默认角色；可见性 private 时默认角色固定为 none
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 变更字段
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateSpaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新文档空间
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 向空间上传一个文件（multipart，字段名 file）；可选 page_id 直接绑定到页面。按内容嗅探类型、SVG 去脚本、按
+        sha256 去重并计入租户配额
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 页面 ID
+        in: formData
+        name: page_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 上传附件
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/home:
+    get:
+      description: 一次返回最近编辑、标签与本人收藏，所有列表都按调用者可见性过滤
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 空间首页
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/knowledge-base:
+    put:
+      consumes:
+      - application/json
+      description: 字段缺省表示不变，空字符串表示清除；知识库必须属于当前空间所在租户
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 绑定
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.BindKnowledgeBaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 绑定/解绑知识库与存储后端
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/labels:
+    get:
+      description: 返回空间的标签及各自的页面数（只统计未删除的页面）
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出空间标签
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: 空间写入者即可新建：给自己的内容归档不该需要管理员批准
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 标签名与颜色
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LabelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 新建空间标签
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/labels/{lid}:
+    delete:
+      description: 需要空间管理员：删除会把标签从所有页面上摘掉
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 标签 ID
+        in: path
+        name: lid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除标签
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 标签 ID
+        in: path
+        name: lid
+        required: true
+        type: string
+      - description: 新的标签名或颜色
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LabelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 重命名标签或改颜色
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/members:
+    get:
+      description: 直接成员（用户与用户组），管理员优先，同一角色内用户组在前
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出空间成员
+      tags:
+      - 在线文档
+    put:
+      consumes:
+      - application/json
+      description: 幂等：已是成员的主体更新为新角色；空间至少保留一名管理员
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 成员列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetSpaceMembersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 添加成员或修改成员角色
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/members/{ptype}/{pid}:
+    delete:
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 主体类型 user|group
+        in: path
+        name: ptype
+        required: true
+        type: string
+      - description: 主体 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 移除空间成员
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/pages-by-label:
+    get:
+      description: 传多个标签时取交集——同时带有全部这些标签的页面
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 标签 ID，逗号分隔
+        in: query
+        name: labels
+        required: true
+        type: string
+      - description: 条数上限
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 按标签筛选页面
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/restore:
+    post:
+      description: 仅租户管理员可恢复
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 从回收站恢复文档空间
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/trash:
+    delete:
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 清空空间回收站
+      tags:
+      - 在线文档
+    get:
+      description: 最近删除优先，列出调用者可见的已删除页面（删除根，不展开子页面）
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 空间回收站
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/trash/{pid}:
+    delete:
+      description: 空间管理员永久删除一个已删除页面及其子树，不可恢复
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 彻底删除回收站中的页面
+      tags:
+      - 在线文档
+  /docs/spaces/{sid}/tree:
+    get:
+      description: 返回 parent 下（省略则为根）的子页面一页；每行带 has_children 与 can_edit
+      parameters:
+      - description: 空间 ID
+        in: path
+        name: sid
+        required: true
+        type: string
+      - description: 父页面 ID；省略为根
+        in: query
+        name: parent
+        type: string
+      - description: 上一页返回的 next_cursor
+        in: query
+        name: cursor
+        type: string
+      - description: 每页数量，默认 500，最多 2000
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 空间页面树（按父节点懒加载）
+      tags:
+      - 在线文档
+  /docs/spaces/by-slug/{slug}:
+    get:
+      parameters:
+      - description: 空间 slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 按 slug 获取文档空间
+      tags:
+      - 在线文档
+  /docs/templates:
+    get:
+      description: 返回全工作区共享的模板，以及（给定 space 时）该空间自己的模板
+      parameters:
+      - description: 空间 ID；缺省只返回共享模板
+        in: query
+        name: space
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出可用模板
+      tags:
+      - 在线文档
+    post:
+      consumes:
+      - application/json
+      description: |-
+        可以直接给正文，也可以用 from_page_id 把某个页面存为模板（需要能读该页面）
+        保存时会移除无法跨页复用的内容：页面链接、块引用、提及与附件
+      parameters:
+      - description: 模板内容
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.TemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 保存模板
+      tags:
+      - 在线文档
+  /docs/templates/{tid}:
+    delete:
+      description: 删除会把模板从所有人的列表里移除，所以需要该作用域的管理员
+      parameters:
+      - description: 模板 ID
+        in: path
+        name: tid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 删除模板
+      tags:
+      - 在线文档
+    get:
+      parameters:
+      - description: 模板 ID
+        in: path
+        name: tid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 读取单个模板（含正文）
+      tags:
+      - 在线文档
+    patch:
+      consumes:
+      - application/json
+      description: 只传要改的字段；共享模板需要工作区管理员
+      parameters:
+      - description: 模板 ID
+        in: path
+        name: tid
+        required: true
+        type: string
+      - description: 要修改的字段
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.TemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 修改模板
+      tags:
+      - 在线文档
   /evaluation/:
     get:
       consumes:
@@ -6517,6 +9221,197 @@ paths:
       summary: 获取FAQ导入进度
       tags:
       - FAQ管理
+  /groups:
+    get:
+      description: 默认组（全体成员）在前；每个组附成员数
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 列出用户组
+      tags:
+      - 用户组
+    post:
+      consumes:
+      - application/json
+      description: 组名在租户内唯一（不区分大小写）；可同时指定初始成员
+      parameters:
+      - description: 用户组
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 创建用户组
+      tags:
+      - 用户组
+  /groups/{gid}:
+    delete:
+      description: 同时移除该组在所有空间与页面上的授权；默认组不可删除
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 删除用户组
+      tags:
+      - 用户组
+    get:
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取用户组
+      tags:
+      - 用户组
+    patch:
+      consumes:
+      - application/json
+      description: 默认组不可改名
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      - description: 变更字段
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 更新用户组
+      tags:
+      - 用户组
+  /groups/{gid}/members:
+    get:
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      - description: 按用户名/邮箱筛选
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: 页码（从 1 起）
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量（最大 100）
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 分页列出用户组成员
+      tags:
+      - 用户组
+    put:
+      consumes:
+      - application/json
+      description: 已在组内的用户被跳过；默认组的成员关系是隐式的，不接受添加
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      - description: 用户 ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SetGroupMembersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 向用户组添加成员
+      tags:
+      - 用户组
+  /groups/{gid}/members/{uid}:
+    delete:
+      parameters:
+      - description: 用户组 ID
+        in: path
+        name: gid
+        required: true
+        type: string
+      - description: 用户 ID
+        in: path
+        name: uid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: 从用户组移除成员
+      tags:
+      - 用户组
   /initialization/asr/check:
     post:
       consumes:
