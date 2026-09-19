@@ -27,16 +27,14 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { attachmentSrc } from './attachments'
+import { useAttachmentUrl } from './useAttachmentUrl'
 
 const props = defineProps<NodeViewProps>()
 const { t } = useI18n()
 
 const align = computed(() => String(props.node.attrs.align ?? 'center'))
-const src = computed(() => {
-  const id = props.node.attrs.attachmentId as string | null
-  return id ? attachmentSrc(id) : ''
-})
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
+const src = useAttachmentUrl(attachmentId)
 const frameStyle = computed(() => {
   const width = Number(props.node.attrs.width ?? 0)
   return width > 0 ? { width: `${width}px` } : {}

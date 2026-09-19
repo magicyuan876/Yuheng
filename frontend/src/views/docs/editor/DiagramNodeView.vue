@@ -48,7 +48,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { attachmentSrc } from './attachments'
+import { useAttachmentUrl } from './useAttachmentUrl'
 import DrawioDialog from './DrawioDialog.vue'
 import { EMPTY_DRAWIO_XML } from './drawio'
 import { emptyScene } from './excalidraw'
@@ -69,10 +69,8 @@ const align = computed(() => String(props.node.attrs.align ?? 'center'))
  * being loaded — the source attachment is fetched only when somebody actually
  * opens the editor.
  */
-const previewSrc = computed(() => {
-  const id = props.node.attrs.previewAttachmentId as string | null
-  return id ? attachmentSrc(id) : ''
-})
+const previewId = computed(() => (props.node.attrs.previewAttachmentId as string | null) ?? null)
+const previewSrc = useAttachmentUrl(previewId)
 
 // draw.io needs a self-hosted editor to be configured; Excalidraw ships with
 // the application and only needs its module, which is loaded on demand.

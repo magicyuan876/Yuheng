@@ -141,8 +141,8 @@ export function useDocMedia(opts: DocMediaOptions): DocMediaHandle {
   }
 }
 
-/** The bearer token, for the one fetch that does not go through the client. */
-function authHeaders(): Record<string, string> {
+/** The bearer token, for the fetches that do not go through the client. */
+export function authHeaders(): Record<string, string> {
   try {
     const token = localStorage.getItem('yuheng_token')
     return token ? { Authorization: `Bearer ${token}` } : {}

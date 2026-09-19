@@ -6,9 +6,8 @@
   >
     <figure class="docs-image-frame" :style="frameStyle">
       <img
+        v-if="src"
         :src="src"
-        :srcset="srcset || undefined"
-        :sizes="srcset ? '(max-width: 720px) 100vw, 720px' : undefined"
         :alt="node.attrs.alt || ''"
         :title="node.attrs.title || undefined"
         loading="lazy"
@@ -57,7 +56,7 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { attachmentSrc, attachmentSrcSet } from './attachments'
+import { useAttachmentUrl } from './useAttachmentUrl'
 
 const props = defineProps<NodeViewProps>()
 const { t } = useI18n()
@@ -76,23 +75,12 @@ const alignments = [
 
 const align = computed(() => String(props.node.attrs.align ?? 'center'))
 
-/** Our own files are addressed by id; an external image keeps its own URL. */
-const src = computed(() => {
-  const id = props.node.attrs.attachmentId as string | null
-  return id ? attachmentSrc(id) : String(props.node.attrs.src ?? '')
-})
-
-const srcset = computed(() => {
-  const id = props.node.attrs.attachmentId as string | null
-  return id ? attachmentSrcSet(id, variants.value) : ''
-})
-
-/** Widths smaller than the stored one, which is what the server will render. */
-const variants = computed(() => {
-  const width = Number(props.node.attrs.width ?? 0)
-  const offered = [320, 800, 1600]
-  return width > 0 ? offered.filter((w) => w < width) : offered
-})
+/** Our own files are addressed by id and fetched with the token as a blob
+ * URL, because a bare <img> cannot send Authorization; an external image
+ * keeps its own URL. */
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
+const blobUrl = useAttachmentUrl(attachmentId)
+const src = computed(() => attachmentId.value ? blobUrl.value : String(props.node.attrs.src ?? ''))
 
 const frameStyle = computed(() => {
   const width = Number(props.node.attrs.width ?? 0)

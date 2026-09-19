@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	urlpkg "net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -429,10 +430,15 @@ func (s *AttachmentService) Fetch(ctx context.Context, actor *acl.Identity, id s
 	// from being treated as a document are actually applied.
 	if serving.Inline && !serving.Sandbox {
 		if url, err := fileSvc.GetFileURL(ctx, row.FilePath); err == nil && url != "" {
-			return &ServeResult{
-				Redirect: url, FileName: row.FileName, ContentType: serving.ContentType,
-				Inline: true, Size: row.SizeBytes,
-			}, nil
+			// Local storage returns its local://... storage path when no
+			// external URL is configured; a browser cannot follow that, so
+			// only an actual http(s) address earns the redirect.
+			if u, parseErr := urlpkg.Parse(url); parseErr == nil && (u.Scheme == "http" || u.Scheme == "https") {
+				return &ServeResult{
+					Redirect: url, FileName: row.FileName, ContentType: serving.ContentType,
+					Inline: true, Size: row.SizeBytes,
+				}, nil
+			}
 		}
 	}
 	body, err := fileSvc.GetFile(ctx, row.FilePath)

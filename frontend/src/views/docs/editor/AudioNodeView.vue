@@ -19,15 +19,13 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { attachmentSrc } from './attachments'
+import { useAttachmentUrl } from './useAttachmentUrl'
 
 const props = defineProps<NodeViewProps>()
 const { t } = useI18n()
 
-const src = computed(() => {
-  const id = props.node.attrs.attachmentId as string | null
-  return id ? attachmentSrc(id) : ''
-})
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
+const src = useAttachmentUrl(attachmentId)
 </script>
 
 <style scoped lang="less">
