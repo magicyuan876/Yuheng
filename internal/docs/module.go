@@ -50,6 +50,11 @@ type Params struct {
 	// and spaces rather than reimplemented. Optional for the same reason as
 	// the rest: without it, starring is simply unavailable.
 	Favourites interfaces.UserResourceFavoriteService `optional:"true"`
+	// KnowledgeService mirrors pages into a space's bound knowledge base.
+	// Optional: without it a space can still name a knowledge base and
+	// nothing is sent to it, which is exactly the state this module was in
+	// before T5.2.
+	KnowledgeService interfaces.KnowledgeService `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -71,6 +76,8 @@ type Module struct {
 	// Cleaner runs the maintenance sweeps on a timer; nil when the module is
 	// off. Started by the module and stopped by Close.
 	Cleaner *Cleaner
+	// Indexer mirrors edited pages into their space's knowledge base.
+	Indexer *Indexer
 }
 
 // NewModule wires the module from container-provided dependencies.
@@ -133,6 +140,9 @@ func NewModule(p Params) *Module {
 	if p.Favourites != nil {
 		deps.Favourites = p.Favourites
 	}
+	if p.KnowledgeService != nil {
+		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService)
+	}
 	if p.UserService != nil {
 		deps.Tokens = p.UserService
 	}
@@ -156,6 +166,10 @@ func NewModule(p Params) *Module {
 	}
 	logger.Infof(context.Background(), "[docs] module enabled, %s, redis=%v", mode, p.Redis != nil)
 
+	indexer := NewIndexer(services.Pages, bus,
+		time.Duration(cfg.IndexDebounceSeconds)*time.Second)
+	indexer.Start(context.Background())
+
 	cleaner := NewCleaner(services.Pages, services.Files,
 		time.Duration(cfg.TrashRetentionDays)*24*time.Hour,
 		time.Duration(cfg.CleanupIntervalMinutes)*time.Minute)
@@ -164,6 +178,7 @@ func NewModule(p Params) *Module {
 	return &Module{
 		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec,
 		Services: services, Handler: h, Collab: collabClient, Cleaner: cleaner,
+		Indexer: indexer,
 	}
 }
 
@@ -177,6 +192,7 @@ func (m *Module) Close() error {
 	if m == nil {
 		return nil
 	}
+	m.Indexer.Stop()
 	m.Cleaner.Stop()
 	if m.Bus == nil {
 		return nil

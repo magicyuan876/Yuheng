@@ -154,6 +154,11 @@ CREATE TABLE IF NOT EXISTS docs_pages (
     template_id         VARCHAR(36),
     -- Knowledge entry IDs this page was distilled from (AI write-back).
     source_refs         JSONB        NOT NULL DEFAULT '[]'::JSONB,
+    -- The knowledge entry this page is mirrored into, when its space is
+    -- bound to a knowledge base and the page is eligible for indexing (see
+    -- internal/docs/index). NULL means "not indexed", which is the state of
+    -- every restricted page, draft and trashed page by design.
+    knowledge_id        VARCHAR(36),
     -- Distinct editor user IDs, maintained by the persist path.
     contributor_ids     JSONB        NOT NULL DEFAULT '[]'::JSONB,
     creator_id          VARCHAR(36),

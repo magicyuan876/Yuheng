@@ -5,23 +5,26 @@ import "time"
 // Page is a node in a space's page tree. Content is the ProseMirror JSON
 // projection; YDoc is the Yjs state and the collaboration truth source.
 type Page struct {
-	ID               string     `json:"id"                gorm:"type:varchar(36);primaryKey"`
-	ShortID          string     `json:"short_id"          gorm:"type:varchar(12);not null"`
-	TenantID         uint64     `json:"tenant_id"         gorm:"not null"`
-	SpaceID          string     `json:"space_id"          gorm:"type:varchar(36);not null"`
-	ParentID         *string    `json:"parent_id"         gorm:"type:varchar(36)"`
-	Position         string     `json:"position"          gorm:"type:varchar(64);not null;default:''"`
-	Title            string     `json:"title"             gorm:"type:varchar(512);not null;default:''"`
-	Icon             *string    `json:"icon,omitempty"    gorm:"type:varchar(64)"`
-	Cover            *string    `json:"cover,omitempty"   gorm:"type:varchar(1024)"`
-	Content          JSON       `json:"content,omitempty" gorm:"type:json"`
-	YDoc             []byte     `json:"-"                 gorm:"column:ydoc;type:bytes"`
-	YDocVersion      int64      `json:"ydoc_version"      gorm:"column:ydoc_version;not null;default:0"`
-	TextContent      string     `json:"-"                 gorm:"type:text;not null;default:''"`
-	Status           PageStatus `json:"status"            gorm:"type:varchar(16);not null;default:'published'"`
-	IsLocked         bool       `json:"is_locked"         gorm:"not null;default:false"`
-	TemplateID       *string    `json:"template_id,omitempty" gorm:"type:varchar(36)"`
-	SourceRefs       StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
+	ID          string     `json:"id"                gorm:"type:varchar(36);primaryKey"`
+	ShortID     string     `json:"short_id"          gorm:"type:varchar(12);not null"`
+	TenantID    uint64     `json:"tenant_id"         gorm:"not null"`
+	SpaceID     string     `json:"space_id"          gorm:"type:varchar(36);not null"`
+	ParentID    *string    `json:"parent_id"         gorm:"type:varchar(36)"`
+	Position    string     `json:"position"          gorm:"type:varchar(64);not null;default:''"`
+	Title       string     `json:"title"             gorm:"type:varchar(512);not null;default:''"`
+	Icon        *string    `json:"icon,omitempty"    gorm:"type:varchar(64)"`
+	Cover       *string    `json:"cover,omitempty"   gorm:"type:varchar(1024)"`
+	Content     JSON       `json:"content,omitempty" gorm:"type:json"`
+	YDoc        []byte     `json:"-"                 gorm:"column:ydoc;type:bytes"`
+	YDocVersion int64      `json:"ydoc_version"      gorm:"column:ydoc_version;not null;default:0"`
+	TextContent string     `json:"-"                 gorm:"type:text;not null;default:''"`
+	Status      PageStatus `json:"status"            gorm:"type:varchar(16);not null;default:'published'"`
+	IsLocked    bool       `json:"is_locked"         gorm:"not null;default:false"`
+	TemplateID  *string    `json:"template_id,omitempty" gorm:"type:varchar(36)"`
+	SourceRefs  StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
+	// KnowledgeID is the knowledge-base entry mirroring this page, when its
+	// space is bound to one and the page is eligible. nil means not indexed.
+	KnowledgeID      *string    `json:"knowledge_id,omitempty" gorm:"type:varchar(36)"`
 	ContributorIDs   StringList `json:"contributor_ids"   gorm:"type:json;not null;default:'[]'"`
 	CreatorID        *string    `json:"creator_id,omitempty"     gorm:"type:varchar(36)"`
 	LastEditorID     *string    `json:"last_editor_id,omitempty" gorm:"type:varchar(36)"`

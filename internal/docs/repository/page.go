@@ -74,6 +74,13 @@ type PageRepository interface {
 	// parent is not itself in the trash, so a subtree is purged from its top
 	// rather than one page at a time.
 	ListExpiredTrashRoots(ctx context.Context, before time.Time, limit int) ([]*model.Page, error)
+	// SetKnowledgeID points a page at its knowledge-base entry, or clears it.
+	//
+	// Separate from UpdateMeta because that method only touches live pages,
+	// and this one must also work on a page in the trash: a trashed page has
+	// its entry removed, and the pointer has to be cleared with it or the
+	// page is treated as indexed for ever.
+	SetKnowledgeID(ctx context.Context, tenantID uint64, pageID string, knowledgeID *string) error
 	// UpdateMeta writes non-content columns (title, icon, cover, status,
 	// is_locked, template_id, source_refs, position).
 	UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error
@@ -371,7 +378,7 @@ func (r *pageRepository) Move(ctx context.Context, tenantID uint64, id string, t
 
 var pageMetaColumns = map[string]bool{
 	"title": true, "icon": true, "cover": true, "status": true, "is_locked": true, "template_id": true,
-	"source_refs": true, "position": true, "attachment_bytes": true,
+	"source_refs": true, "position": true, "attachment_bytes": true, "knowledge_id": true,
 }
 
 func (r *pageRepository) UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error {
@@ -614,4 +621,21 @@ func (r *pageRepository) ListExpiredTrashRoots(ctx context.Context, before time.
 		Limit(limit).
 		Find(&rows).Error
 	return rows, err
+}
+
+// SetKnowledgeID points a page at its knowledge entry, or clears it. Works on
+// trashed pages too; see the interface comment.
+func (r *pageRepository) SetKnowledgeID(ctx context.Context, tenantID uint64, pageID string,
+	knowledgeID *string,
+) error {
+	res := r.db.WithContext(ctx).Model(&model.Page{}).
+		Where("tenant_id = ? AND id = ?", tenantID, pageID).
+		UpdateColumn("knowledge_id", knowledgeID)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

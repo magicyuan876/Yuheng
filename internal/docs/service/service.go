@@ -125,6 +125,9 @@ type Deps struct {
 	Tenants Tenants
 	// MaxAttachmentBytes caps one upload; 0 uses DefaultMaxAttachmentBytes.
 	MaxAttachmentBytes int64
+	// Knowledge mirrors pages into a space's knowledge base. Nil leaves
+	// every space unindexed, which is the state of a build without it.
+	Knowledge Knowledge
 	// DefaultSpaceQuotaBytes is the attachment limit for spaces that have
 	// none of their own; 0 leaves those spaces unlimited. It lets a careful
 	// deployment be careful without anybody visiting every space.
