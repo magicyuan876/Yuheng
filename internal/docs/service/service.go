@@ -125,6 +125,9 @@ type Deps struct {
 	Tenants Tenants
 	// MaxAttachmentBytes caps one upload; 0 uses DefaultMaxAttachmentBytes.
 	MaxAttachmentBytes int64
+	// Drafter writes pages from knowledge-base material. Nil makes the
+	// feature unavailable, which is the state of a build without a model.
+	Drafter Drafter
 	// Knowledge mirrors pages into a space's knowledge base. Nil leaves
 	// every space unindexed, which is the state of a build without it.
 	Knowledge Knowledge

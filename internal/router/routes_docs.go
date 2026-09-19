@@ -230,6 +230,13 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	admin.PUT("/spaces/:sid/quota", g.Admin(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, sp.SetSpaceQuota)
 
+	// Drafting a page from knowledge-base material. Writing the page is the
+	// permission this needs; the material is checked separately against the
+	// space's own bound knowledge base, so this cannot become a way to read
+	// somebody else's.
+	write.POST("/pages/:pid/draft", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.DraftPage)
+
 	// Rebuilding a space's knowledge-base index. An administrator's act: it
 	// costs embedding calls and changes what everybody's retrieval returns.
 	// Ordinary edits are mirrored automatically by internal/docs/indexer.go;
