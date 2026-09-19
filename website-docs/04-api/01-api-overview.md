@@ -23,7 +23,7 @@ BASE=http://localhost:8080
 Authorization: Bearer <access_token>
 ```
 
-- 通过 `POST /api/v1/auth/login`（或 register / auto-setup / OIDC）获得 `token` 与 `refresh_token`；`POST /api/v1/auth/refresh` 换发新 token。
+- 通过 `POST /api/v1/auth/login`（或 register / OIDC）获得 `token` 与 `refresh_token`；`POST /api/v1/auth/refresh` 换发新 token。
 - 可选请求头 `X-Tenant-ID: <tenant_id>`：在 JWT 指向的空间之外切换目标空间（须为该空间活跃成员，或具备 `CanAccessAllTenants` 跨空间超管属性）。畸形或 `0` 值直接返回 400。
 - 若 JWT 未解析出任何空间且接口非“无空间可用”白名单（如 `/auth/me`、`/me/invitations` 等），返回 409 `{"code":"TENANT_REQUIRED"}`。
 

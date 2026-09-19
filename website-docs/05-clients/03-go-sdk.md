@@ -95,7 +95,7 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 
 ## 资源与方法总览
 
-以下均为 `Client` 的公开方法，内部方法（`buildRequest`、`doRequest`、`doRequestStream`、`processAgentSSEStream` 等）不列入。
+以下均为 `Client` 的公开方法，内部方法（`buildRequest`、`doRequest`、`doRequestStream` 等）不列入。
 
 ### 认证 Auth — `client/auth.go`
 
@@ -142,7 +142,7 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `UpdateImageInfo` | 更新图片信息 |
 | `CreateManualKnowledge` | 创建手写（manual）知识 |
 | `UpdateManualKnowledge` | 更新手写知识 |
-| `FilterKnowledge` | 按关键词/文件类型/agent 过滤知识 |
+| `FilterKnowledge` | 按关键词/文件类型过滤知识 |
 | `MoveKnowledge` | 跨知识库迁移知识 |
 | `GetKnowledgeMoveProgress` | 查询迁移任务进度 |
 | `PreviewKnowledgeFile` | 预览知识文件（返回原始 `*http.Response`） |
@@ -188,27 +188,6 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `EnsureMessageSuggestions` | 确保（可强制重新）生成推荐问题 | `client/message_suggestion.go` |
 | `GetMessageSuggestions` | 获取消息的推荐问题 | `client/message_suggestion.go` |
 | `RecordMessageSuggestionEvent` | 上报推荐问题点击/曝光事件 | `client/message_suggestion.go` |
-
-### Agent 对话（流式）— `client/agent.go`
-
-| 方法 | 说明 |
-|---|---|
-| `AgentQAStream` | Agent 模式流式问答（Deprecated，简化入口） |
-| `AgentQAStreamWithRequest` | Agent 模式流式问答（完整 `AgentQARequest` 载荷） |
-| `NewAgentSession` | 创建 `AgentSession` 包装器（其上有 `Ask` / `AskWithRequest` / `GetSessionID`） |
-
-### Agent 管理 — `client/agent_manage.go`
-
-| 方法 | 说明 |
-|---|---|
-| `CreateAgent` | 创建自定义 Agent |
-| `ListAgents` | 列出 Agent |
-| `GetAgent` | 获取 Agent |
-| `UpdateAgent` | 更新 Agent |
-| `DeleteAgent` | 删除 Agent |
-| `CopyAgent` | 复制 Agent |
-| `GetAgentPlaceholders` | 获取 Agent 配置占位符 |
-| `GetSuggestedQuestions` | 获取 Agent 建议问题 |
 
 ### 模型 Model — `client/model.go`
 
@@ -338,24 +317,16 @@ func (c *Client) KnowledgeQAStream(
 ) error
 ```
 
-每帧 `StreamResponse` 携带 `ResponseType`（`answer`、`references`、`thinking`、`tool_call`、`tool_result`、`error`、`reflection`、`session_title`、`agent_query`、`complete`）、增量 `Content`、结束标记 `Done`，以及 `Done` 帧上的 `KnowledgeReferences`（引用来源）。
+每帧 `StreamResponse` 携带 `ResponseType`（`answer`、`references`、`thinking`、`tool_call`、`error`、`session_title`、`complete`）、增量 `Content`、结束标记 `Done`，以及 `Done` 帧上的 `KnowledgeReferences`（引用来源）。
 
-### Agent 问答流：`AgentQAStreamWithRequest`（`client/agent.go`）
-
-```go
-type AgentEventCallback func(*AgentStreamResponse) error
-
-func (c *Client) AgentQAStreamWithRequest(ctx context.Context,
-    sessionID string, request *AgentQARequest, callback AgentEventCallback,
-) error
-```
-
-`AgentQARequest` 支持 `KnowledgeBaseIDs`、`AgentID`、`WebSearchEnabled`、`MentionedItems`（@提及知识库/文件/标签/MCP/skill）、`Images`（多模态图片）等字段。也可用便捷包装器：
+`KnowledgeQARequest` 支持 `KnowledgeBaseIDs`、`KnowledgeIDs`、`WebSearchEnabled`、`MentionedItems`（@提及知识库/文件/标签）、`Images`（多模态图片）等字段：
 
 ```go
-as := apiClient.NewAgentSession(session.ID)
-err := as.Ask(ctx, "介绍一下 Yuheng", func(ev *client.AgentStreamResponse) error {
-    if ev.ResponseType == client.AgentResponseTypeAnswer {
+err := apiClient.KnowledgeQAStream(ctx, session.ID, &client.KnowledgeQARequest{
+    Query:            "介绍一下 Yuheng",
+    KnowledgeBaseIDs: []string{"kb-1"},
+}, func(ev *client.StreamResponse) error {
+    if ev.ResponseType == "answer" {
         fmt.Print(ev.Content)
     }
     return nil
@@ -602,7 +573,7 @@ func main() {
 
 - 客户端核心与错误类型：`client/client.go`
 - 认证：`client/auth.go`
-- 流式问答：`client/session.go`、`client/agent.go`
+- 流式问答：`client/session.go`
 - 流式错误：`client/stream_errors.go`
 - 日志：`client/log.go`
 - 完整用法示例：`client/example.go`

@@ -8,7 +8,7 @@ version: 0.1.0
 appVersion: "v0.1.0"
 kubeVersion: ">=1.25.0-0"
 home: https://github.com/magicyuan876/yuheng
-icon: https://raw.githubusercontent.com/magicyuan876/yuheng/main/docs/images/logo.png
+icon: https://raw.githubusercontent.com/magicyuan876/yuheng/main/website-docs/public/logo-mark.svg
 sources:
   - https://github.com/magicyuan876/yuheng
 keywords:

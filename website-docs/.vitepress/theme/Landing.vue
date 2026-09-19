@@ -9,7 +9,7 @@ const versionLabel = theme.value.yuhengVersion ?? 'unknown'
 const stats = [
   { value: '25', unit: '种', label: '文件格式：文档、网页、扫描件、图片、音频' },
   { value: '26', unit: '家+', label: '模型厂商，也可全部换成本地推理' },
-  { value: '7', unit: '个', label: '使用入口：Web、插件、桌面、小程序、命令行、API、MCP' },
+  { value: '5', unit: '个', label: '使用入口：Web、命令行、API、MCP、dsh 插件' },
   { value: '4', unit: '路', label: '索引同时生效：向量、关键词、Wiki、图谱' },
 ]
 
@@ -74,7 +74,6 @@ const chain = [
 const surfaces = [
   { icon: 'console', name: 'Web 控制台', desc: '知识库管理、对话、Wiki 浏览与系统配置的完整界面。' },
   { icon: 'extension', name: 'Chrome 插件', desc: '网页侧边栏问答，支持正文剪藏与 Markdown 速记入库。' },
-  { icon: 'mobile', name: '微信小程序', desc: '移动端入口，支持网页收藏入库与提问。' },
   { icon: 'cli', name: '命令行 yuheng', desc: '文档管理、检索与带引用的流式问答，默认 JSON 输出，便于脚本化。' },
   { icon: 'api', name: 'REST API 与 Go SDK', desc: '完整 /api/v1 接口；API Key 支持按能力与知识库范围授权。' },
   { icon: 'mcp', name: 'MCP Server', desc: '将 Yuheng 暴露为 MCP 工具，供 Claude、Cursor 等客户端检索。' },
@@ -222,19 +221,18 @@ const map = [
     index: '05',
     icon: 'clients',
     title: '客户端',
-    brief: '六种客户端：Web、CLI、SDK、小程序、浏览器插件与 Skill。',
+    brief: '三种客户端：Web、CLI 与 Go SDK，另有 MCP Server 与 dsh 插件。',
     items: [
       { text: 'Web 前端', link: '/05-clients/01-frontend' },
       { text: '命令行工具 CLI', link: '/05-clients/02-cli' },
       { text: 'Go SDK', link: '/05-clients/03-go-sdk' },
-      { text: '微信小程序', link: '/05-clients/04-miniprogram' },
     ],
   },
   {
     index: '06',
     icon: 'dev',
     title: '开发指南',
-    brief: '本地开发环境、数据库迁移，以及九类可插拔扩展点。',
+    brief: '本地开发环境、数据库迁移，以及七类可插拔扩展点。',
     items: [
       { text: '开发指南', link: '/06-development/01-dev-guide' },
       { text: '数据库与迁移', link: '/06-development/02-database-schema' },

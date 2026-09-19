@@ -5,7 +5,7 @@ Yuheng 的配置由四层组成，**优先级从低到高**：
 | 层 | 位置 | 什么时候用 |
 | --- | --- | --- |
 | 主配置文件 | `config/config.yaml` | 结构化的默认值，随镜像分发 |
-| 模板 / 预设 | `config/prompt_templates/*.yaml`、`builtin_agents.yaml`、`agent_type_presets.yaml`、`builtin_models.yaml` | 提示词、内置 Agent、内置模型 |
+| 模板 / 预设 | `config/prompt_templates/*.yaml`、`builtin_models.yaml` | 提示词模板、内置模型 |
 | 环境变量 | `.env` / 容器 environment | 部署级覆盖，改完需重启 |
 | 运行时系统设置 | 数据库 `system_settings` 表，界面在「设置 → 系统」 | 一部分开关可以在线改，**盖过环境变量**，绝大多数立即生效 |
 
@@ -21,8 +21,7 @@ Yuheng 的配置由四层组成，**优先级从低到高**：
 2. **环境变量展开**：对文件内容做正则替换，`${ENV_VAR}` 会被同名环境变量的值替换；变量未设置时保留字面量 `${ENV_VAR}` 原样（便于暴露配置错误）；
 3. viper 开启 `AutomaticEnv()` 且 key 分隔符 `.` 映射为 `_`（即 `server.port` 可被环境变量 `SERVER_PORT` 覆盖）；
 4. 从 `config/prompt_templates/*.yaml` 加载提示词模板，并按 `xxx_prompt_id` 字段**回填**到 conversation 配置（`backfillConversationDefaults`）；
-5. 加载 `builtin_agents.yaml`（内置 Agent）与 `agent_type_presets.yaml`（Agent 类型预设），并解析其中的 `system_prompt_id` 引用；
-6. 应用环境变量覆盖（OIDC、Agent、KnowledgeBase、Auth/Tenant、Audit 各组）并执行 `ValidateConfig` 校验。
+5. 应用环境变量覆盖（OIDC、KnowledgeBase、Auth/Tenant、Audit 各组）并执行 `ValidateConfig` 校验。
 
 ```mermaid
 flowchart LR
@@ -30,11 +29,7 @@ flowchart LR
     EXP --> V["viper Unmarshal 为 Config 结构体"]
     PT["config/prompt_templates/*.yaml"] --> BF["backfillConversationDefaults (按 *_prompt_id 解析为文本)"]
     V --> BF
-    BA["config/builtin_agents.yaml"] --> LD["LoadBuiltinAgentsConfig"]
-    AP["config/agent_type_presets.yaml"] --> LD2["LoadAgentTypePresetsConfig"]
-    BF --> OV["applyOIDCEnvOverrides / applyAgentEnvOverrides / applyKnowledgeBaseEnvOverrides / applyAuthAndTenantDefaults / applyAuditDefaults"]
-    LD --> OV
-    LD2 --> OV
+    BF --> OV["applyOIDCEnvOverrides / applyKnowledgeBaseEnvOverrides / applyAuthAndTenantDefaults / applyAuditDefaults"]
     OV --> VC["ValidateConfig"] --> CFG["最终 *config.Config"]
 ```
 
@@ -121,8 +116,6 @@ flowchart LR
 | `auth` | `AuthConfig` | `registration_mode`：`self_serve`（默认）/ `invite_only`（`DISABLE_REGISTRATION=true` 时强制）；`default_tenant_mode`：`create_personal`（默认）/ `tenantless` |
 | `audit` | `AuditConfig` | `retention_days`：审计日志保留天数，段落省略时默认 90；0 禁用清理；<0 校验报错（env `YUHENG_AUDIT_RETENTION_DAYS`） |
 | `oidc_auth` | `OIDCAuthConfig` | `enable`、`issuer_url`、`discovery_url`（缺省由 issuer 拼 `/.well-known/openid-configuration`）、`client_id`、`client_secret`、`authorization_endpoint`、`token_endpoint`、`user_info_endpoint`、`scopes`（默认 `openid profile email`）、`user_info_mapping.username`（默认 `name`）/`email`（默认 `email`）；全部可用 `OIDC_AUTH_*` 环境变量覆盖 |
-| `agent` | `AgentConfig` | `llm_call_timeout`：单次 LLM 调用超时秒数（默认 120，env `YUHENG_AGENT_LLM_TIMEOUT`）；`tool_approval_timeout_seconds`：MCP 工具人工审批等待（默认 600，env `YUHENG_AGENT_TOOL_APPROVAL_TIMEOUT`） |
-| `im` | `IMConfig` | IM 渠道 QA 并发：`workers`（5）、`global_max_workers`（0=不限，需 Redis）、`max_queue_size`（50）、`max_per_user`（3）、`rate_limit_window`（60s）、`rate_limit_max`（10） |
 | `docreader` | `DocReaderConfig` | `addr`（gRPC 地址如 `docreader:50051` 或 HTTP base URL）、`transport`：`grpc`（默认）/ `http`；通常用 env `DOCREADER_ADDR` / `DOCREADER_TRANSPORT` |
 | `vector_database` | `VectorDatabaseConfig` | `driver`（通常用 env `RETRIEVE_DRIVER`） |
 | `stream_manager` | `StreamManagerConfig` | `type`：`memory` / `redis`；`redis.address/username/password/db/prefix/ttl`；`cleanup_timeout`（通常用 env `STREAM_MANAGER_TYPE`、`REDIS_*`） |
@@ -148,17 +141,17 @@ flowchart LR
 | `YUHENG_TRUSTED_PROXIES` | 空 | gin 信任代理 CIDR（逗号分隔） |
 | `MAX_FILE_SIZE_MB` | 50 | 上传文件大小限制（app/frontend/docreader 三处共用） |
 | `CONCURRENCY_POOL_SIZE` | 5 | 通用并发池 |
-| `APP_EXTERNAL_URL` / `FRONTEND_BASE_URL` | 空 | IM 渠道图片/文件外链的外部可达 URL / 前端外部 origin |
+| `APP_EXTERNAL_URL` / `FRONTEND_BASE_URL` | 空 | 文件引用外链的外部可达 URL（配合 `RESOURCE_URL_MODE=public`，详见 [图片与文件的对外访问](../03-features/21-file-access.md)） / 前端外部 origin（用于生成邀请等绝对链接） |
 | `RESOURCE_URL_MODE` | handle | API 响应里文件引用的默认形式：`handle` 返回内部 `resource://`，`public` 返回可直接加载的限时外链。单次请求可用 `?resource_urls=` 覆盖，详见 [API 总览](../04-api/01-api-overview.md) |
 
-`APP_EXTERNAL_URL` 影响 IM 渠道能否渲染知识库图片。IM 平台需要拿到公网 http(s) URL，二选一：
+`APP_EXTERNAL_URL` 决定 `resource://` 引用能否改写成外部可加载的链接，二选一：
 
 1. 存储后端本身公网可达（对象存储用公网 endpoint，或把 `MINIO_ENDPOINT` 设成公网 host），此时 `resource://` 回退到后端预签名 URL，不需要本变量；
 2. 设置 `APP_EXTERNAL_URL`，`resource://` 图片被改写成 `<APP_EXTERNAL_URL>/r/<token>` 走 Yuheng 自身（需要 nginx 代理 `/r/`，官方前端镜像已内置该 location）。
 
-默认的 MinIO 内网部署与 `local` 后端都只能走第二种。IM 渠道已启用但本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出 IM 端无法访问的链接。
+默认的 MinIO 内网部署与 `local` 后端都只能走第二种。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
 
-四种 URL 形式与各渠道的取法见[图片与文件的对外访问](../03-features/21-file-access.md)。
+四种 URL 形式与取法见[图片与文件的对外访问](../03-features/21-file-access.md)。
 
 ### 数据库与队列
 
@@ -245,14 +238,10 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | 其余 `DOCREADER_PDF_*`（词距/边栏/隐藏文本/嵌入图/图表区等 20+ 项） | 见 `docker-compose.yml` docreader 段注释 | PDF 版式与抽取精调 |
 | `DOCREADER_EXTERNAL_HTTP_PROXY` / `_HTTPS_PROXY` | 空 | docreader 出站抓取代理 |
 
-### Agent、Skills 与附件
+### 会话附件
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| Sandbox 配置 | 设置页按空间维护 | 后端、凭据、模板、超时和私网访问策略不再读取 `YUHENG_SANDBOX_*` |
-| `YUHENG_SKILLS_DIR` | 空（镜像内 /app/skills/preloaded） | 自定义 Skills 目录 |
-| `YUHENG_AGENT_LLM_TIMEOUT` | 120s | Agent 单次 LLM 调用超时（Go duration 或纯数字秒） |
-| `YUHENG_AGENT_TOOL_APPROVAL_TIMEOUT` / `_FAIL_OPEN` | 600s / fail-close | MCP 工具人工审批等待与失败策略 |
 | `YUHENG_CHAT_ATTACHMENT_TTL_HOURS` / `_WAIT_TIMEOUT_SEC` / `_OCR_CONCURRENCY` / `_OCR_MAX_PAGES` | 24 / 60 / 8 / 8 | 聊天附件解析保留时长、等待超时与 OCR 并发/页数上限 |
 | `YUHENG_HOUSEKEEPING_ENABLED` | 启用 | 回收卡在 processing 的脏数据 |
 | `YUHENG_DOCUMENT_PROCESS_TIMEOUT` / `YUHENG_DOCREADER_CALL_TIMEOUT` | 2h / 30m | 文档处理任务与单次 RPC 超时 |
@@ -293,7 +282,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 | 字段 | 说明 |
 | --- | --- |
-| `id` | 唯一 ID，被 config.yaml 的 `*_prompt_id`、内置 Agent 的 `system_prompt_id`、类型预设引用 |
+| `id` | 唯一 ID，被 config.yaml 的 `*_prompt_id` 引用 |
 | `name` / `description` | 展示名与说明 |
 | `content` | 系统侧 Prompt 正文（所有模板必备） |
 | `user` | 用户侧 Prompt（仅 system+user 配对模板使用，如 rewrite、keywords_extraction） |
@@ -319,29 +308,6 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `intent_prompts.yaml` | 意图路由的分意图系统 Prompt（模板 ID = 意图值） | `greeting`、`chitchat`、`follow_up`、`image_only`、`summarize`、`web_search`、`doc_only` |
 
 **可定制点**：直接编辑模板 `content`，或新增模板条目并把 config.yaml 中对应 `*_prompt_id` 改为新 ID；重启（compose 已挂载 `./config/config.yaml`，模板目录随镜像/挂载）即生效。ID 找不到时启动日志会输出 `Warning: xxx_prompt_id not found`。
-
-## config/agent_type_presets.yaml：Agent 类型预设
-
-为 smart-reasoning 模式的自定义 Agent 提供「一键预填」：每个预设（`AgentTypePresetEntry`，`internal/types/agent_type_preset.go`）包含 `id`、`i18n`（label/description 多语言）、`config`（预填值，零值不生效）与可选 `kb_filter`（限定可选知识库的能力谓词 `any_of` / `all_of` / `none_of`，能力名：`vector`、`keyword`、`wiki`、`graph`、`faq`）。前端经 `GET /agents/type-presets` 读取。
-
-内置四种预设：
-
-| id | 系统 Prompt | 工具白名单 | 备注 |
-| --- | --- | --- | --- |
-| `rag-qa` | `progressive_rag_agent` | knowledge_search、grep_chunks、list_knowledge_chunks、get_document_info | temperature 0.7、max_iterations 30 |
-| `wiki-qa` | `wiki_researcher` | wiki_search、wiki_read_page、wiki_read_source_doc、wiki_flag_issue | 需 Wiki 已启用的知识库 |
-| `hybrid-rag-wiki` | `hybrid_rag_wiki_agent` | Wiki + RAG 工具全集 | max_iterations 40，最灵活的预设 |
-| `custom` | 无 | 无预填 | 完全手动配置 |
-
-## config/builtin_agents.yaml：内置 Agent
-
-定义随系统分发、对所有租户可见的 Agent（`BuiltinAgentEntry`，`internal/types/builtin_agent_config.go`）。每条含 `id`、`avatar`、`is_builtin: true`、`i18n`（default/zh-CN/zh-TW/ja-JP/ko-KR 的名称与描述）与完整 `config`（`CustomAgentConfig`）。文件内置四个 Agent：
-
-- `builtin-quick-answer`：`agent_mode: quick-answer`，引用 `system_prompt_id: default_kb` 与 `context_template_id: default_context`，带完整检索参数（`embedding_top_k: 10`、`vector_threshold: 0.5`、`rerank_threshold: 0.3` 等）；
-- `builtin-smart-reasoning`：`agent_mode: smart-reasoning`、`agent_type: rag-qa`、`max_iterations: 50`；
-- `builtin-wiki-researcher`、`builtin-wiki-fixer`：分别面向 Wiki 场景。
-
-`config` 中的 `system_prompt_id` 在启动时由 `resolveBuiltinAgentPromptIDs` 解析为 `agent_system_prompt.yaml` 中的实际内容。修改此文件并重启即可调整内置 Agent 行为。
 
 ## config/builtin_models.yaml.example：声明式内置模型
 

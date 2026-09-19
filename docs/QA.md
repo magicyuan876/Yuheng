@@ -122,16 +122,7 @@ environment:
 
 **优势**：使用外部 OCR 模型可以获得更好的识别效果，且不受平台限制。
 
-## 6. 如何使用数据分析功能？
-
-> **该功能已移除。** 原聊天管道中的数据分析阶段（对检索到的 CSV/Excel 分块执行 DuckDB
-> 只读 SQL）已随 Agent 工具配置一并删除，不再有用户入口。
->
-> DuckDB 引擎本身仍保留，用于**入库时的表格摘要**：上传 CSV / Excel 表格后，系统会在提取阶段
-> 加载表格、采样数据并生成表格摘要与列描述，作为普通知识分块参与检索问答。除此之外，没有
-> 对话内的 SQL 分析能力。
-
-## 7. 页面里刚保存的配置几秒后又消失了？
+## 6. 页面里刚保存的配置几秒后又消失了？
 
 这类问题通常不是配置真的被系统清掉了，而是浏览器代理、缓存或插件干扰导致前端读到了异常响应，页面随后又被旧状态覆盖。
 
@@ -149,7 +140,7 @@ docker compose restart app
 
 如果重启后短时间恢复正常，但再次访问又出现相同现象，仍应优先检查浏览器代理、缓存和多环境串连问题，而不是直接判断为后端配置丢失。
 
-## 8. SSRF 校验白名单（`SSRF_WHITELIST`）
+## 7. SSRF 校验白名单（`SSRF_WHITELIST`）
 
 可选配置。在 `.env` 中设置 `SSRF_WHITELIST`，用于在 URL 校验等环节将指定目标加入白名单，从而绕过常规 SSRF 限制。值为逗号分隔的多条规则，每条可以是：
 
@@ -168,7 +159,7 @@ docker compose restart app
 ```
 
 
-## 9. 如何开启和查看 Langfuse 可观测性追踪？
+## 8. 如何开启和查看 Langfuse 可观测性追踪？
 
 Yuheng 支持通过 Langfuse 对 RAG 检索管道、大模型 Token 消耗以及异步任务流水线进行全链路追踪。
 
@@ -182,7 +173,7 @@ LANGFUSE_HOST=https://cloud.langfuse.com # 或你的私有部署地址
 ```
 3. 重启服务后，系统会自动对所有支持的模型调用和问答请求进行追踪，你可以在 Langfuse 的 Traces 面板中直观地看到每次对话和后台任务的详细执行瀑布图与 Token 统计。
 
-## 10. 什么是 Wiki 模式？如何使用？
+## 9. 什么是 Wiki 模式？如何使用？
 
 Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链接的 Markdown Wiki 知识库，从而实现复杂知识的体系化沉淀和图谱化。
 
@@ -192,7 +183,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 3. 当你向该知识库上传文档时，系统会自动触发异步任务，通过大模型提取文档中的实体与核心概念，并自动生成结构化的 Wiki 页面及页面间的知识图谱链接。
 4. 你可以在该知识库的“Wiki”标签页中，使用专用的 Wiki 浏览器查阅、管理页面，并通过可视化的知识图谱查看不同内容之间的关联关系。
 
-## 11. 升级到 0.6.0 后，原本能做的操作变成了「权限不足」？
+## 10. 升级到 0.6.0 后，原本能做的操作变成了「权限不足」？
 
 0.6.0 引入了空间内 RBAC（角色矩阵 + 资源归属），所有写入接口都会按角色 + `creator_id` 鉴权。常见现象：
 
@@ -203,7 +194,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 如需临时回退到「仅审计、不拦截」灰度窗口，可在配置里设置 `tenant.enable_rbac=false`（或环境变量 `YUHENG_TENANT_ENABLE_RBAC=false`）。完整的角色矩阵和归属链请见 [`docs/RBAC说明.md`](./RBAC说明.md)。
 
-## 12. 为什么登录后没有自动回到上次的工作区？
+## 11. 为什么登录后没有自动回到上次的工作区？
 
 升级到 0.6.0 后系统会记住「最后活跃工作区」并在登录后自动恢复。若仍未恢复，通常是：
 
@@ -211,7 +202,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 2. 你最后访问的那个工作区已经把你移除（`/leave` 或被管理员剔除）— 系统会回退到默认空间；
 3. JWT 中携带了 `tenant_id` 但已无效 — 退出重登录即可。
 
-## 13. 如何让多人协作时正确分配权限？
+## 12. 如何让多人协作时正确分配权限？
 
 按照 [`docs/RBAC说明.md`](./RBAC说明.md) 的角色矩阵：
 
@@ -222,7 +213,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 如果你希望开启「invite-only」（不允许自助注册到本空间），可在空间设置里打开邀请制，并通过「邀请」入口签发邀请码或链接。
 
-## 14. 文档解析卡在「处理中」/ 解析追踪时间线打不开怎么办？
+## 13. 文档解析卡在「处理中」/ 解析追踪时间线打不开怎么办？
 
 0.6.1 起每个文档解析都会记录一棵 Langfuse 风格的 Span 树（`knowledge_processing_spans` 表），可在知识库卡片菜单或卡片上的「Trace」入口打开侧边时间线，逐阶段查看进度。常见情况：
 
@@ -230,14 +221,14 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 - **时间线一直显示「更新中」但无数据**：通常是轮询请求静默失败（网络 / 反向代理截断 SSE）。0.6.1 会显式暴露轮询失败，刷新页面或检查 Nginx 是否缓冲了响应即可。
 - **升级后没有时间线数据**：确认数据库迁移 `000055_knowledge_processing_spans`、`000056_knowledge_pending_subtasks` 已执行（服务启动会自动迁移）。
 
-## 15. 如何启用 OpenSearch 作为向量库？
+## 14. 如何启用 OpenSearch 作为向量库？
 
 0.6.1 新增了 OpenSearch 向量库驱动（k-NN）。在 **设置 → 向量库** 中新增 OpenSearch 引擎并填写连接地址、凭据即可；KB 可绑定该向量库。注意：
 
 - 连接地址会经过 SSRF 策略校验，内网 / 回环地址需符合放行规则；可用「测试连接」先行校验。
 - 集成测试与索引映射细节见 [`docs/dev/opensearch-integration-test.md`](./dev/opensearch-integration-test.md)。
 
-## 16. 内置模型（builtin models）如何用 YAML 声明式管理？
+## 15. 内置模型（builtin models）如何用 YAML 声明式管理？
 
 0.6.1 起平台内置模型由 `config/builtin_models.yaml` 声明式驱动，支持 `${ENV}` 变量插值，并通过 `managed_by` 字段与漂移巡检保持数据库与 YAML 一致。常见问题：
 
@@ -245,11 +236,11 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 - **Docker 下环境变量未注入**：`builtin_models` 依赖 `env_file` 数组形式注入变量，确认 compose 中按数组形式挂载了 `.env`。
 - 参考样例：`config/builtin_models.yaml.example`。
 
-## 17. 系统管理员（System Admin）与平台设置怎么用？
+## 16. 系统管理员（System Admin）与平台设置怎么用？
 
 0.6.1 引入了系统管理员与统一平台设置面板（含平台审计日志），与空间内 RBAC 区分：系统管理员管理的是「平台级」配置，而非单个空间内的资源。首次启用需通过系统管理员 bootstrap 流程晋升首个管理员；撤销管理员权限有安全防护（避免误撤导致无人可管）。相关迁移为 `000053_system_admin_and_settings`。
 
-## 18. 上传时如何自定义解析配置（process_config）？
+## 17. 上传时如何自定义解析配置（process_config）？
 
 0.6.2 起，文件 / URL / 文件夹上传可携带 `process_config`（`KnowledgeProcessOverrides`），在**本次批次**内覆盖知识库默认的解析引擎、分块、多模态（VLM / ASR）、问题生成、图谱抽取等设置，而不会改动 KB 全局配置。Web UI 在上传前会弹出确认对话框供调整；API 与 `yuheng doc upload` 传同名 JSON 即可。
 
@@ -258,61 +249,27 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 - **图片 / 音频校验**：批次含图片时需 KB 已配置 VLM；含音频时需已配置 ASR，否则上传会被拒绝。
 - 详见 [`docs/api/knowledge.md`](./api/knowledge.md)。
 
-## 19. 升级到 0.6.2 后 `yuheng` CLI 登录或 MCP 工具报错？
-
-> **备注**：本节及以下历史条目描述本仓库首次公开导入之前的旧版本变更。当前 CLI 已移除 `agent` /
-> `session ask` / `tool-approval` 等命令（服务端 Agent 能力已剥离），`chat` 为唯一问答入口。
-
-0.6.2 随附 **CLI v0.9**（破坏性变更），常见迁移：
-
-- **`auth login` 不再创建 profile**：先 `yuheng profile add <name> --host <url> --use`，再 `yuheng auth login`；切换 profile 用全局 `--profile <name>`。
-- **`auth logout` / `auth refresh` 去掉 `--name`**：作用于当前 active profile。
-- **MCP 工具 `agent_invoke` 已更名为 `session_ask`**：外部 MCP 客户端需刷新工具 schema。
-- **`agent create --kb` 改为 `--attach-kb`**；`doc delete --all` 与 `search chunks` / `search docs` 的 `--kb` 必填且支持名称或 ID。
-- 新增 `yuheng session stop <session-id>` 可中止进行中的 Agent 运行；仓库内附带 `yuheng-rag-search` / `yuheng-shared` 内置 Skills。
-- 详见 [`cli/CHANGELOG.md`](../cli/CHANGELOG.md)。
-
-## 20. pgvector 检索变慢或刚升级后需要做什么？
+## 18. pgvector 检索变慢或刚升级后需要做什么？
 
 0.6.2 新增迁移 `000059_embeddings_hnsw_1024`，为 **1024 维** embedding（如 bge-m3）在 PostgreSQL pgvector 上创建 HNSW 索引。服务启动会自动执行迁移；若你使用其他维度，该索引可能不适用，需按自身 embedding 维度另行调优。升级后首次大批量入库期间索引构建可能占用额外 I/O，属正常现象。
 
-## 21. 如何在网站嵌入 Yuheng 智能体（Embed Widget）？
-
-> **该功能已移除。** 嵌入渠道（Embed Widget）随 Agent 基础设施剥离删除
-> （`embed_channels` 表由迁移 `000089_drop_agent_infra` 清理，相关端点返回 404）。
-> 若需在外部站点提供问答，可自建前端调用
-> [`docs/api/chat.md`](./api/chat.md) 的 knowledge-chat 接口。
-
-## 22. 文档如何设置多个标签？
+## 19. 文档如何设置多个标签？
 
 0.6.3 将文档标签从单选升级为**多标签**（迁移 `000063_knowledge_multi_tags`）。在知识库列表可为文档打多个标签，侧边栏支持按标签筛选；**标签管理**抽屉可批量维护标签。API 上传 / 更新知识时传 `tag_ids` 数组（取代旧的单 `tag_id`）。
 
-## 23. 如何批量重新解析文档？
+## 20. 如何批量重新解析文档？
 
 在知识库文档列表框选多篇文档后，使用批量操作栏的 **重新解析**；也可调用 `POST /knowledge/batch-reparse`，body 可含 `ids` 与可选 `process_config`。任务异步入队，UI 会在入队后刷新状态。单篇仍可用 `POST /knowledge/:id/reparse`。
 
-## 24. RSS 数据源如何配置？
+## 21. RSS 数据源如何配置？
 
 0.6.3 新增 **RSS / Atom** 连接器。在知识库 **设置 → 数据源** 中选择 RSS，填写 Feed URL 与同步策略即可全量 / 增量拉取正文入库。若部分条目失败，同步日志会展示 partial failure 详情；编辑数据源保存配置**不会**自动触发同步，需手动点同步。
 
-## 25. MCP 远程服务如何配置 OAuth2？
-
-> **服务端 MCP 服务管理已移除**（原「设置 → MCP」页面与 `/api/v1/mcp-services` 端点，
-> 迁移 `000089_drop_agent_infra` 清理相关数据表）。当前 Yuheng 作为 MCP **供给方**：
-> 通过 `yuheng-mcp`（Python MCP server）或 `yuheng mcp serve`（CLI 内置）把知识库能力开放给
-> 外部 Agent，见 [`docs/MCP功能使用说明.md`](./MCP功能使用说明.md)。
-
-## 26. Embedding 维度如何覆盖？
+## 22. Embedding 维度如何覆盖？
 
 在 **设置 → 模型** 编辑 Embedding 模型时可填写 **dimensions** 覆盖值（如 1024、1536）。0.6.3 修复了部分提供商请求未携带 `dimensions` 的问题（#1654）。若向量库索引维度与模型不一致，检索可能异常，请保持 KB 绑定向量库与模型维度一致。
 
-## 27. Agent 提示「模型未就绪」无法对话？
-
-> **该功能已移除。** Agent（智能体）已随服务端剥离；问答对话的模型就绪校验改在
-> 知识库绑定模型缺失时于会话中直接报错。模型连通性可在 **设置 → 模型** 的
-> **调试抽屉**中测试。
-
-## 28. 如何创建并限制权限范围 API Key？
+## 23. 如何创建并限制权限范围 API Key？
 
 Yuheng 采用**权限范围 API Key 与 Principal 模型**（迁移 `000064_principal_model`、`000065_tenant_api_keys`）。API Key 不再等同于某个人类用户，而是独立的 Principal，携带显式角色与能力（capability）授权：
 
@@ -325,7 +282,7 @@ Yuheng 采用**权限范围 API Key 与 Principal 模型**（迁移 `000064_prin
 
 SystemAdmin 可在 **系统管理 → 平台 API Key** 创建 `scope_type=platform` 的 Key。平台 Key 不绑定单一空间：调用普通空间 API 时必须携带 `X-Tenant-ID`，并继续受原有 capability 和知识库范围守卫约束；调用开放的系统控制面接口则需要对应的 `system_*` capability。平台 Key 不支持 `full_access`，也不能创建、轮换或吊销其他平台 Key。
 
-## 29. 一个空间如何绑定多个对象存储实例？
+## 24. 一个空间如何绑定多个对象存储实例？
 
 Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。一个空间可注册多个存储实例（`local` / `minio` / `cos` / `tos` / `s3` / `oss` / `ks3` / `obs`），不同知识库绑定到不同实例，空间维度还有一个默认实例：
 
@@ -333,7 +290,7 @@ Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。�
 - 未显式绑定的新知识库使用空间默认实例；响应中的 `access_key_id` / `secret_access_key` 会被掩码，更新时提交掩码占位符不会覆盖库中真实凭据。
 - 若创建知识库时提示存储引擎不可用，请确认目标 provider 在 `STORAGE_ALLOW_LIST` 允许范围内。详见 [`docs/api/storage-backend.md`](./api/storage-backend.md)。
 
-## 30. 后台解析/入库任务积压或需要排查失败任务怎么办？
+## 25. 后台解析/入库任务积压或需要排查失败任务怎么办？
 
 系统管理员可使用**运行时任务队列面板**与 **Worker 池治理**。文档处理从单一聚合池改为分阶段独立池（core / 后处理 / enrichment / maintenance）+ 弹性共享池，Wiki 独立治理：
 
@@ -341,43 +298,24 @@ Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。�
 - 可通过 `YUHENG_ASYNQ_*_CONCURRENCY` 与 `asynq.*_concurrency` 系统设置调整各池并发（需重启服务）；`model.max_concurrency` 用于约束单模型后台并发。
 - 详见 [`docs/worker-pool-governance.md`](./worker-pool-governance.md)。注意：Worker 并发只是调度预算，仍受模型配额、DocReader 容量、向量库与数据库连接数限制。
 
-## 31. 对话中如何临时上传图片/文档做一次性问答？
+## 26. 对话中如何临时上传图片/文档做一次性问答？
 
 支持**会话级临时附件**（迁移 `000070_temporary_documents`）。在对话输入区上传图片或文档，系统异步解析后仅用于当前会话的问答，不会写入知识库。图片与附件共享一个合并数量上限；附件内容会在多轮对话中保留。
 
-## 32. 如何接入 QQBot / Lark（飞书国际版）？
-
-> **IM 集成已移除。** 原「设置 → IM 集成」渠道（企微 / 飞书 / Lark / Slack /
-> Telegram / 钉钉 / QQBot / 云之家 / Mattermost）随 Agent 基础设施剥离删除
-> （`im_channels` 等表由迁移 `000089_drop_agent_infra` 清理）。如需在 IM 中使用
-> Yuheng 知识库，可由 IM 侧机器人调用 REST API / `yuheng-mcp` 实现。
-
-## 33. 如何为 Redis 启用 TLS？
+## 27. 如何为 Redis 启用 TLS？
 
 支持 Redis 的 **TLS 连接**（#1930）。按环境变量启用 TLS 后，启动日志会打印 TLS 配置状态便于确认。若连接失败，请核对证书/CA 配置与 Redis 服务端是否要求 TLS。
 
-## 34. `yuheng` CLI 命令找不到或行为变化？
-
-CLI 经历过一次 Agent 优先的破坏性改版：新增 `model` / `message` / `config` / `skills` 命令组，`doc reparse` / `doc update`，`kb config` / `kb config set`；`session continue` 更名为 `session resume`，曾新增 `session tool-approval` 与 agent-first 的 chat / `session ask` 输出模式，并强化了 SSE 可靠性与类型化错误。其中 Agent 相关命令已随服务端 Agent 能力剥离移除，`chat` 为唯一问答入口。详见 [`cli/CHANGELOG.md`](../cli/CHANGELOG.md)。
-
-## 35. 如何接入云之家（Yunzhijia）？
-
-> **IM 集成已移除**（见第 32 条）。云之家渠道随 Agent 基础设施剥离删除。
-
-## 36. 如何使用火山引擎 Rerank / 智谱 AI 网络搜索？
+## 28. 如何使用火山引擎 Rerank / 智谱 AI 网络搜索？
 
 支持两个供应商：
 
 - **火山引擎 Rerank**：在 **设置 → 模型** 中添加 Rerank 模型并选择火山引擎。当单次请求文档数超过 API 上限时，客户端会自动分批发送并合并结果。vLLM Rerank 现默认不再发送 `truncate_prompt_tokens` 以提升兼容性。
 - **智谱 AI 网络搜索**：在 **设置 → 网络搜索** 中选择智谱 AI 作为搜索供应商并填写凭据即可，用于问答联网检索。
 
-## 37. 对话记忆（Memory）功能在哪里？还需要 Neo4j 吗？
+## 29. 官方文档在哪里看？如何本地或独立部署文档站？
 
-基于 Neo4j 的会话记忆（episodic memory）与整个长期记忆子系统均已移除（相关表由迁移 `000089_drop_agent_infra` 清理），对话不再依赖记忆召回。**注意：知识图谱（GraphRAG / 图检索）仍然使用 Neo4j**，因此若你启用了图谱检索，Neo4j 依旧是必需组件，无需移除部署。若你此前仅为记忆功能部署 Neo4j 且未使用图谱，可按需精简。
-
-## 38. 官方文档在哪里看？如何本地或独立部署文档站？
-
-完整的官方产品文档位于仓库 [`website-docs/`](../website-docs/README.md) 目录，按「入门 → 架构 → 功能 → API → 客户端 → 开发」六个板块组织，覆盖约 360 个 API 端点、约 150 个环境变量与 9 大扩展点。
+完整的官方产品文档位于仓库 [`website-docs/`](../website-docs/README.md) 目录，按「入门 → 架构 → 功能 → API → 客户端 → 开发」六个板块组织，覆盖约 220 个 API 端点、约 330 个环境变量（含 `.env.example` 中的注释示例）与 7 大扩展点。
 
 该目录同时是一个 VitePress 站点，两种使用方式：
 
@@ -394,13 +332,13 @@ docker run -d -p 8081:8081 yuheng-docs
 
 `website-docs/sample-data/` 下还提供了 4 份 Markdown 样例文档与 1 份 FAQ 导入 JSON，可以直接用来跑一遍「建库 → 上传 → 问答」；`examples/mcp-demo/` 是一个可直接运行的本地 MCP 服务示例。
 
-## 39. 文件夹上传后文档标题变成了一长串路径？
+## 30. 文件夹上传后文档标题变成了一长串路径？
 
 旧版本的行为是：文件夹上传会把相对目录塞进 `file_name`，导致列表里显示整条路径，也无法按文件夹筛选。
 
 当前版本把路径拆到独立的 `folder_path` 字段（迁移 `000079_knowledge_folder_path`），并**自动回填历史数据**，因此已有知识库同样会呈现正确的文件夹树，无需重新上传。文档列表左侧会出现文件夹树，可以像文件管理器一样浏览、重命名文件夹，也可以通过行内的文件夹选择器把文档重新归档到其他文件夹。单独上传（非文件夹）的文档统一挂在树的根目录下。
 
-## 40. 分块内容不准确，可以手动修改吗？改完会重新建索引吗？
+## 31. 分块内容不准确，可以手动修改吗？改完会重新建索引吗？
 
 可以。支持在界面上直接编辑检索分块（迁移 `000078_chunk_editing_and_custom_metadata`）：
 
@@ -409,13 +347,13 @@ docker run -d -p 8081:8081 yuheng-docs
 - 分块的生成问题可以单独增删改与重新生成，且在内容编辑后仍会保留。
 - 注意：重新解析（reparse）整篇文档会按新的解析结果重建分块，此前的人工编辑不会被保留，请谨慎操作。
 
-## 41. Wiki 页面被自动流水线覆盖了，能找回旧版本吗？
+## 32. Wiki 页面被自动流水线覆盖了，能找回旧版本吗？
 
 能。Wiki 页面提供版本历史（迁移 `000075_wiki_page_revisions`）：页面每次被覆盖前都会留存一份快照，在 Wiki 浏览器右上角打开「版本历史」抽屉即可查看完整历史、行级 diff，并一键回滚到任意版本。每个版本都会记录来源（`pipeline` 流水线 / `user` 手动编辑 / `revert` 回滚），便于判断是谁改的。页面也支持在浏览器内直接手动编辑。
 
 另外，Wiki 浏览器里重复的操作日志已移除（迁移 `000077_remove_wiki_log`），Wiki 的变更记录统一并入**知识库活动流**查看。
 
-## 42. 第三方 App 拿到的图片链接是 `resource://...` 无法显示，怎么办？
+## 33. 第三方 App 拿到的图片链接是 `resource://...` 无法显示，怎么办？
 
 默认情况下 API 返回的是内部句柄 `resource://<handle>`，客户端需要再调用带鉴权的 `/files` 代理才能取到图。可开启直链模式，让接口直接返回可加载的 http(s) 链接：
 
@@ -431,11 +369,11 @@ docker run -d -p 8081:8081 yuheng-docs
 
 详见 [API 文档 · 文件与图片引用](./api/README.md)。
 
-## 43. 使用 AWS S3 但不想在配置里写 AK/SK？
+## 34. 使用 AWS S3 但不想在配置里写 AK/SK？
 
 支持 **AWS SDK 默认凭据链**（#2008）：把 `S3_ACCESS_KEY` 与 `S3_SECRET_KEY` **同时留空**即可，SDK 会依次尝试 EC2/ECS/EKS 实例角色、IRSA / Web Identity、环境变量与共享配置文件。注意两者必须同时填写或同时留空，只填一个会报配置错误。`S3_ENDPOINT` 也可留空，此时使用 `S3_REGION` 对应的 AWS 标准端点。
 
-## 44. MCP Server 用 `uvx` 启动失败，或者应该装哪个包？
+## 35. MCP Server 用 `uvx` 启动失败，或者应该装哪个包？
 
 Yuheng 的 MCP Server 包名为 **`yuheng-mcp`**，命令行入口是 `yuheng-mcp-server` / `yuheng-server`（源码运行：`uv run --project mcp-server yuheng-mcp-server`）。
 

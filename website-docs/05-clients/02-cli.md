@@ -19,8 +19,8 @@ flowchart TB
         G1["profile / auth / config<br/>(连接与凭证)"]
         G2["kb / doc / chunk / link<br/>(知识库与文档)"]
         G3["search / chat / session / message<br/>(检索与对话)"]
-        G4["agent / model<br/>(自定义 Agent 与模型)"]
-        G5["mcp / skills / api<br/>(Agent 集成与逃生舱)"]
+        G4["model<br/>(模型管理)"]
+        G5["mcp / skills / api<br/>(对外集成与逃生舱)"]
         G6["doctor / version / schema / exit-codes<br/>(诊断与自省)"]
     end
 
@@ -156,7 +156,7 @@ JWT profile（同时持有 access + refresh token）会自动获得 401 透明�
 | `--yes` | `-y` | 跳过破坏性操作的确认提示 |
 | `--version` | | 打印版本（等价于 `yuheng version`） |
 
-许多写命令还注册了 `--dry-run`（`cli/internal/cmdutil/dryrun.go`），覆盖 kb/doc/agent/model/profile/session/link/api/skills 等几乎全部 mutation 命令：不执行任何写操作，输出 `meta.dry_run=true` + `meta.plan`（将要执行的动作描述）。
+许多写命令还注册了 `--dry-run`（`cli/internal/cmdutil/dryrun.go`），覆盖 kb/doc/model/profile/session/link/api/skills 等几乎全部 mutation 命令：不执行任何写操作，输出 `meta.dry_run=true` + `meta.plan`（将要执行的动作描述）。
 
 ### JSON Envelope 输出契约（`cli/internal/output/envelope.go`）
 
@@ -179,7 +179,7 @@ JWT profile（同时持有 access + refresh token）会自动获得 401 透明�
 
 错误类型是分层字符串（`cli/internal/cmdutil/errors.go`）：`auth.*`、`resource.*`、`input.*`、`server.*`、`network.error`、`operation.*`、`local.*`、`internal.error`。`retry_argv` 是可直接 exec 的修复命令数组。
 
-`--format ndjson` 用于流式命令（`chat` / `session ask` / `session resume`）：首行注入 CLI `init` 事件（含 session_id、kb_id、profile），之后逐行透传 SDK SSE 事件（`cli/internal/sse/`）。
+`--format ndjson` 用于流式命令（`chat` / `session resume`）：首行注入 CLI `init` 事件（含 session_id、kb_id、profile），之后逐行透传 SDK SSE 事件（`cli/internal/sse/`）。
 
 ### 退出码矩阵（`cli/cmd/exitcodes.go`，可运行 `yuheng exit-codes` 获取机器可读版本）
 
@@ -197,7 +197,7 @@ JWT profile（同时持有 access + refresh token）会自动获得 401 透明�
 | 124 | 操作超时 | `operation.timeout` | 提高 `--timeout` 或检查底层任务 |
 | 130 | 被信号取消（SIGINT/SIGTERM） | — | 停止，不要重试 |
 
-**高风险写保护（exit-10 协议）**：删除类、`kb config set`、`api -X DELETE/PUT/PATCH`、`message delete`、`session tool-approval resolve` 等命令在非 TTY / JSON 场景下若未加 `-y`，直接以退出码 10 返回 `input.confirmation_required` 且不执行任何变更 —— agent 无法静默修改服务器状态。
+**高风险写保护（exit-10 协议）**：删除类、`kb config set`、`api -X DELETE/PUT/PATCH`、`message delete` 等命令在非 TTY / JSON 场景下若未加 `-y`，直接以退出码 10 返回 `input.confirmation_required` 且不执行任何变更 —— agent 无法静默修改服务器状态。
 
 ### 机器自省
 
@@ -352,16 +352,9 @@ yuheng chat "继续" --session sess_abc --format ndjson
 |---|---|---|
 | list | `list` | 会话列表：`--limit/-L`、`--page-size`、`--all-pages`、`--since`（如 7d / 24h / 30m） |
 | view | `view <session-id>` | 查看会话；`--full` 连同聊天记录一起加载、`--limit/-L` |
-| ask | `ask "<text>"` | 向**服务端自定义 Agent** 提问：`-a/--agent`（必填）、`--session`、`--reference`、`--verbose` |
 | resume | `resume <session-id>` | 续接进行中/已完成消息的 SSE 事件流：`-m/--message`（必填） |
 | stop | `stop <session-id>` | 停止某条 assistant 消息的生成：`-m/--message`（必填） |
 | delete | `delete <session-id> [<session-id>...]` | 批量删除（exit-10 保护） |
-| tool-approval resolve | `resolve <pending-id>` | 批准/拒绝 Agent 运行中挂起的工具调用：`--reject`、`--reason`、`--modified-args`（JSON，仅批准时）；高风险写 |
-
-```bash
-yuheng session ask "总结这个 KB" --agent agt_123 --format ndjson
-yuheng session tool-approval resolve <pending-id> --reject --reason "不允许写操作" -y
-```
 
 ### message — 会话内消息（`cli/cmd/message/`）
 
@@ -370,23 +363,6 @@ yuheng session tool-approval resolve <pending-id> --reject --reason "不允许�
 | list | `list --session <session-id>` | 列消息（新→旧，时间游标分页）：`--session`（必填）、`--limit/-L`、`--before`（RFC3339） |
 | search | `search "<query>"` | 跨会话搜索聊天历史（问答对）：`--limit/-L`（默认 20）、`--mode keyword|vector|hybrid`、`--session`（可重复，限定范围） |
 | delete | `delete <message-id> --session <session-id>` | 删除单条消息（`--session` 必填；高风险写，exit-10 保护） |
-
-### agent — 自定义 Agent CRUD（`cli/cmd/agent/`）
-
-| 子命令 | Use | 说明 |
-|---|---|---|
-| list | `list` | 列表：`--limit/-L` |
-| view | `view <agent-id>` | 查看配置 |
-| create | `create <name>` | 创建：`--model`（必填，除非 `--generate-skeleton`）、`--description`、`--system-prompt` / `--system-prompt-file`（互斥，`-` 读 stdin）、`--agent-mode`、`--attach-kb`（可重复）、`--kb-selection-mode`、`--rerank-model`、`--temperature`、`--from`（复制已有 Agent）、`--config-file`（完整 AgentConfig YAML/JSON）、`--generate-skeleton`（输出空白配置骨架） |
-| update | `update <agent-id>` | 更新（`agent/edit.go`）：`--name`、`--description`、`--model`、`--system-prompt(-file)`、`--agent-mode`、`--rerank-model`、`--temperature`、`--add-kb` / `--remove-kb`（可重复、幂等）、`--kb-selection-mode`、`--config-file`（整体替换基线后再叠加细粒度 flag） |
-| delete | `delete <agent-id>` | 删除（exit-10 保护） |
-| status | `status <agent-id>` | 健康状态 |
-| check | `check <agent-id>` | 端到端校验（状态 + kb_scope 可达性） |
-
-```bash
-yuheng agent create researcher --model gpt-4o --attach-kb <kb-id> --system-prompt-file ./prompt.md
-yuheng agent update agt_123 --add-kb <kb-id2> --temperature 0.3
-```
 
 ### model — 模型管理（`cli/cmd/model/`）
 
@@ -429,7 +405,7 @@ yuheng api /api/v1/knowledge-bases/<id> -X DELETE -y
 |---|---|---|
 | serve | `serve` | 在 stdin/stdout 上运行 JSON-RPC 2.0 MCP 服务器（当前仅 stdio 传输）；日志走 stderr；启动即急切构建 SDK client，无 profile 时以 `auth.unauthenticated` 立即失败 |
 
-暴露**精选 10 个工具**（实现见 `cli/internal/mcp/tools.go`）：`kb_list` / `kb_view` / `doc_list` / `doc_view` / `doc_download` / `search_chunks` / `chunk_list` / `agent_list` 为只读；`chat` 与 `session_ask` 会创建会话/消息记录。破坏性动词（create / delete / upload）被刻意排除。
+暴露**精选 8 个工具**（实现见 `cli/internal/mcp/tools.go`）：`kb_list` / `kb_view` / `doc_list` / `doc_view` / `doc_download` / `search_chunks` / `chunk_list` 为只读；`chat` 会创建会话/消息记录。破坏性动词（create / delete / upload）被刻意排除。
 
 MCP 客户端注册示例（写入客户端的 `mcpServers` 配置）：
 
