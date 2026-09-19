@@ -4939,6 +4939,10 @@ export default {
       linkRemove: '제거',
       moveBlock: '블록 이동',
       comment: '댓글',
+      textColor: '글자 색',
+      colorDefault: '기본값',
+      addBlock: '아래에 블록 추가',
+      blockMenu: '블록 작업',
     },
     // 찾기 및 바꾸기.
     find: {
@@ -5256,6 +5260,19 @@ export default {
       excalidraw: '그림',
       noMatches: '일치하는 블록이 없습니다',
       copyBlockRef: '블록 참조 링크 복사',
+      group: {
+        recent: '최근 사용',
+        basic: '기본',
+        insert: '삽입',
+        media: '미디어',
+        advanced: '고급',
+      },
+    },
+    blockMenu: {
+      convertTo: '변환',
+      actions: '작업',
+      duplicate: '복사본 만들기',
+      delete: '삭제',
     },
     links: {
       loading: '확인 중…',

@@ -539,7 +539,14 @@ const editor = useEditor({
   extensions: officialExtensions([
     uploads.extension,
     suggestions.extension,
-    DragHandle.configure({ offset: 28, label: t('docs.toolbar.moveBlock') }),
+    DragHandle.configure({
+      offset: 28,
+      label: t('docs.toolbar.moveBlock'),
+      addLabel: t('docs.toolbar.addBlock'),
+      menuLabel: t('docs.toolbar.blockMenu'),
+      translate: (key) => t(key),
+      copyBlockRef: props.pageId ? copyCurrentBlockRef : undefined,
+    }),
     findExtension,
     commentExtension,
     Collaboration.configure({ document: collab.ydoc.value }),
@@ -652,9 +659,23 @@ defineExpose({
   }
 }
 
-:deep(.docs-drag-handle) {
+// The strip holding the "+" and the drag handle beside the hovered block.
+// One container so the pair centres on the block as a unit and the hover
+// target between the two buttons has no gap to fall through.
+:deep(.docs-drag-tools) {
   position: absolute;
   visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  // Centred on the block: `place` puts the strip's top at the block's
+  // middle, this lifts it back up by half of itself.
+  transform: translateY(-50%);
+  user-select: none;
+}
+
+:deep(.docs-drag-handle) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -679,6 +700,33 @@ defineExpose({
     cursor: grabbing;
   }
 }
+
+// The "+" above the drag handle: a new empty block after the hovered one.
+:deep(.docs-drag-plus) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--td-text-color-placeholder);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background: var(--td-bg-color-container-hover);
+    color: var(--td-text-color-secondary);
+  }
+}
+
+// The block menu is appended to the document body by the drag-handle
+// plugin, so its styles live in the unscoped block below; scoped ones
+// cannot reach it.
 
 .doc-editor {
   position: relative;
@@ -963,5 +1011,56 @@ defineExpose({
 
 .doc-editor--readonly .doc-editor-content :deep(.ProseMirror) {
   cursor: default;
+}
+</style>
+
+<!-- The block menu is appended to the document body by the drag-handle
+plugin, so its styles live in an unscoped block; the scoped ones above
+cannot reach it. Same self-drawn look as the slash menu. -->
+<style lang="less">
+.docs-block-menu {
+  position: fixed;
+  z-index: 1300;
+  min-width: 200px;
+  max-width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 8px;
+  background: var(--td-bg-color-container);
+  box-shadow: var(--td-shadow-2);
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--td-brand-color);
+    outline-offset: -2px;
+  }
+}
+
+.docs-block-menu-section {
+  margin: 0;
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  color: var(--td-text-color-placeholder);
+}
+
+.docs-block-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13.5px;
+  color: var(--td-text-color-primary);
+
+  &.is-active {
+    background: var(--td-bg-color-container-hover);
+  }
 }
 </style>

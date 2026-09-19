@@ -54,6 +54,42 @@
       </button>
     </form>
   </div>
+
+  <!-- The colour palette hangs off the bar rather than living inside it, so
+    the bar's own width and layout are untouched. It sits under the bar, or
+    above it when the bar itself flipped below the selection. -->
+  <div
+    v-if="colorOpen && visible"
+    class="docs-toolbar-colors"
+    role="listbox"
+    :aria-label="t('docs.toolbar.textColor')"
+    :style="colorStyle"
+    @keydown.esc.prevent.stop="closeColors"
+  >
+    <button
+      type="button"
+      class="docs-toolbar-swatch docs-toolbar-swatch--default"
+      :class="{ 'is-active': currentColor === '' }"
+      :title="t('docs.toolbar.colorDefault')"
+      :aria-label="t('docs.toolbar.colorDefault')"
+      @mousedown.prevent
+      @click="applyColor('')"
+    >
+      <t-icon name="close" size="12px" />
+    </button>
+    <button
+      v-for="color in TEXT_COLORS"
+      :key="color"
+      type="button"
+      class="docs-toolbar-swatch"
+      :class="{ 'is-active': currentColor === color }"
+      :style="{ background: color }"
+      :title="color"
+      :aria-label="color"
+      @mousedown.prevent
+      @click="applyColor(color)"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -63,7 +99,7 @@ import { useI18n } from 'vue-i18n'
 
 import { isSafeLinkHref } from './paste'
 import {
-  moveFocus, TOOLBAR_WIDTH, toolbarGroups, visibleItems, type ToolbarItem,
+  moveFocus, TEXT_COLORS, TOOLBAR_WIDTH, toolbarGroups, visibleItems, type ToolbarItem,
 } from './toolbar'
 
 const props = defineProps<{
@@ -140,6 +176,41 @@ function removeLink() {
   closeLink()
 }
 
+/**
+ * The colour palette.
+ *
+ * One entry on the bar opens it instead of running a command. The palette
+ * hangs off the bar in its own fixed box — inside the bar it would squeeze
+ * the buttons — and applies through the TextStyle/Color extensions' own
+ * commands, so a picked colour is a `style` attribute the schema already
+ * allows and un-picking is `unsetColor`.
+ */
+const colorOpen = ref(false)
+const colorStyle = computed(() => ({
+  left: `${props.placement.left}px`,
+  top: props.placement.below
+    ? `${props.placement.top - 40}px`
+    : `${props.placement.top + 40}px`,
+}))
+
+/** The colour on the selection now, '' when it carries none. */
+const currentColor = computed(() => {
+  void props.revision
+  return String(props.editor?.getAttributes('textStyle').color ?? '')
+})
+
+function applyColor(color: string) {
+  const editor = props.editor
+  if (!editor) return
+  if (color === '') editor.chain().focus().unsetColor().run()
+  else editor.chain().focus().setColor(color).run()
+}
+
+function closeColors() {
+  colorOpen.value = false
+  props.editor?.commands.focus()
+}
+
 function registerButton(id: string, el: unknown) {
   if (el && el instanceof HTMLElement) buttons.set(id, el)
   else buttons.delete(id)
@@ -176,10 +247,19 @@ function run(item: ToolbarItem) {
     emit('comment')
     return
   }
+  // The palette entry opens the palette rather than changing the text.
+  if (item.palette) {
+    colorOpen.value = !colorOpen.value
+    linkOpen.value = false
+    return
+  }
   // The link entry opens a row of its own rather than changing the text.
   if (item.id === 'link') {
     if (linkOpen.value) closeLink()
-    else openLink()
+    else {
+      colorOpen.value = false
+      openLink()
+    }
     return
   }
 
@@ -245,9 +325,11 @@ watch(() => props.visible, (shown) => {
     focusedId.value = flat.value[0]?.id ?? ''
   } else {
     // A link row left open over a selection that no longer exists would apply
-    // to whatever is selected next.
+    // to whatever is selected next; a palette left open would float over
+    // nothing in particular.
     linkOpen.value = false
     linkDraft.value = ''
+    colorOpen.value = false
   }
 })
 </script>
@@ -341,5 +423,46 @@ watch(() => props.visible, (shown) => {
     color: var(--td-text-color-disabled);
     cursor: default;
   }
+}
+
+.docs-toolbar-colors {
+  position: fixed;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 8px;
+  background: var(--td-bg-color-container);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+}
+
+.docs-toolbar-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--td-text-color-placeholder);
+
+  &:hover,
+  &:focus-visible {
+    outline: 2px solid var(--td-brand-color);
+    outline-offset: 1px;
+  }
+
+  &.is-active {
+    outline: 2px solid var(--td-brand-color);
+    outline-offset: 1px;
+  }
+}
+
+.docs-toolbar-swatch--default {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
 }
 </style>

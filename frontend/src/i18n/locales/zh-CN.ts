@@ -4939,6 +4939,10 @@ export default {
       linkRemove: '移除',
       moveBlock: '移动块',
       comment: '评论',
+      textColor: '文字颜色',
+      colorDefault: '默认色',
+      addBlock: '在下面新建块',
+      blockMenu: '块操作',
     },
     // 查找与替换。
     find: {
@@ -5254,6 +5258,19 @@ export default {
       excalidraw: '手绘白板',
       noMatches: '没有匹配的块',
       copyBlockRef: '复制块引用链接',
+      group: {
+        recent: '最近使用',
+        basic: '基础',
+        insert: '插入',
+        media: '媒体',
+        advanced: '高级',
+      },
+    },
+    blockMenu: {
+      convertTo: '转换为',
+      actions: '操作',
+      duplicate: '创建副本',
+      delete: '删除',
     },
     links: {
       loading: '解析中…',

@@ -33,6 +33,13 @@ export interface ToolbarItem {
   /** The keyboard shortcut to show in the tooltip, in the platform's notation. */
   shortcut?: string
   /**
+   * True for an entry whose button opens a palette of its own instead of
+   * running one command. There is one — the text colour — and the palette
+   * it opens is drawn by the component, so the bar's own geometry in this
+   * file stays unchanged.
+   */
+  palette?: boolean
+  /**
    * True for an entry that only needs the right to comment.
    *
    * There is one, and it matters: a reader may comment but may not edit, so
@@ -42,6 +49,16 @@ export interface ToolbarItem {
    */
   commentOnly?: boolean
 }
+
+/**
+ * The preset text colours the palette offers, behind the "default" entry
+ * that clears the colour again. Kept here rather than in the component so
+ * the list is one named thing a test can hold this code to.
+ */
+export const TEXT_COLORS: readonly string[] = [
+  '#e03131', '#e8590c', '#f08c00', '#2f9e44',
+  '#0b7285', '#1971c2', '#6741d9', '#ae3ec9', '#868e96',
+]
 
 /**
  * The bar's contents, in the order they are read and moved through.
@@ -57,6 +74,7 @@ export const TOOLBAR_ITEMS: readonly ToolbarItem[] = [
   { id: 'strike', labelKey: 'docs.toolbar.strike', icon: 'strikethrough', group: 'format', activeName: 'strike', shortcut: 'Mod+Shift+S' },
   { id: 'code', labelKey: 'docs.toolbar.code', icon: 'code', group: 'format', activeName: 'code', shortcut: 'Mod+E' },
   { id: 'highlight', labelKey: 'docs.toolbar.highlight', icon: 'highlight', group: 'format', activeName: 'highlight' },
+  { id: 'textColor', labelKey: 'docs.toolbar.textColor', icon: 'fill-color', group: 'format', palette: true },
 
   { id: 'heading1', labelKey: 'docs.toolbar.heading1', icon: 'format-vertical-align-top', group: 'block', activeName: 'heading', activeAttrs: { level: 1 } },
   { id: 'heading2', labelKey: 'docs.toolbar.heading2', icon: 'format-vertical-align-center', group: 'block', activeName: 'heading', activeAttrs: { level: 2 } },

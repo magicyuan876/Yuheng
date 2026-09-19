@@ -37,6 +37,29 @@ const TRIGGERS: Trigger[] = [
 /** How long to wait after a keystroke before asking the server. */
 const QUERY_DEBOUNCE_MS = 140
 
+/** Where the recently used command ids live, most recent first. */
+const RECENT_COMMANDS_KEY = 'yuheng.docs.recentCommands'
+const RECENT_COMMANDS_MAX = 5
+
+function readRecentCommands(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_COMMANDS_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function recordRecentCommand(id: string): void {
+  try {
+    const next = [id, ...readRecentCommands().filter((existing) => existing !== id)]
+    localStorage.setItem(RECENT_COMMANDS_KEY, JSON.stringify(next.slice(0, RECENT_COMMANDS_MAX)))
+  } catch {
+    // A full or unavailable storage loses the recents, nothing more.
+  }
+}
+
 /** Which menu is open. */
 export type SuggestionKind = 'page' | 'mention' | 'command' | 'emoji'
 
@@ -105,11 +128,40 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
       }))
     }
     if (kind.value === 'command') {
-      return commands.value.map((c) => ({
-        key: c.id,
-        title: opts.translate(c.labelKey),
-        iconName: c.icon,
-      }))
+      const matches = commands.value
+      // The group label is resolved here rather than in the menu: the menu
+      // is one component for four kinds of suggestion, and only commands
+      // carry a section.
+      const groupLabel = (group: string) => opts.translate(`docs.commands.group.${group}`)
+      const rows: SuggestionItem[] = []
+      if (commandQuery.value.trim() === '') {
+        // Nothing typed yet: the last few commands used get a "Recent"
+        // section of their own, ahead of the catalogue, because that is
+        // where a hand already knows what it wants to do next. A query
+        // narrows the whole catalogue instead, and the section would only
+        // repeat rows already underneath it.
+        const byId = new Map(matches.map((c) => [c.id, c]))
+        for (const id of readRecentCommands()) {
+          const command = byId.get(id)
+          if (command) {
+            rows.push({
+              key: command.id,
+              title: opts.translate(command.labelKey),
+              iconName: command.icon,
+              group: opts.translate('docs.commands.group.recent'),
+            })
+          }
+        }
+      }
+      for (const command of matches) {
+        rows.push({
+          key: command.id,
+          title: opts.translate(command.labelKey),
+          iconName: command.icon,
+          group: groupLabel(command.group),
+        })
+      }
+      return rows
     }
     if (kind.value === 'page') {
       return pages.value.map((p) => ({
@@ -209,10 +261,14 @@ export function useDocSuggestions(opts: DocSuggestionsOptions): DocSuggestionsHa
       return
     }
     if (kind.value === 'command') {
-      const command = commands.value[at]
+      // Looked up by id rather than by row index: the "Recent" section adds
+      // rows that are also in the catalogue, so an index into `commands`
+      // would run the entry next to the one that was clicked.
+      const command = catalogue.value.find((c) => c.id === item.key)
       // Closed first: the command edits the document, and a menu still holding
       // a range that no longer exists is the source of the stray-slash bug.
       close()
+      if (command) recordRecentCommand(command.id)
       command?.run(bound as unknown as CommandTarget, range)
       return
     }

@@ -4939,6 +4939,10 @@ export default {
       linkRemove: 'Remove',
       moveBlock: 'Move block',
       comment: 'Comment',
+      textColor: 'Text color',
+      colorDefault: 'Default',
+      addBlock: 'Add block below',
+      blockMenu: 'Block actions',
     },
     // Find and replace.
     find: {
@@ -5259,6 +5263,19 @@ export default {
       excalidraw: 'Drawing',
       noMatches: 'No matching block',
       copyBlockRef: 'Copy block reference',
+      group: {
+        recent: 'Recent',
+        basic: 'Basic',
+        insert: 'Insert',
+        media: 'Media',
+        advanced: 'Advanced',
+      },
+    },
+    blockMenu: {
+      convertTo: 'Turn into',
+      actions: 'Actions',
+      duplicate: 'Duplicate',
+      delete: 'Delete',
     },
     links: {
       loading: 'Resolving…',

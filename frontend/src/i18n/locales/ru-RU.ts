@@ -4939,6 +4939,10 @@ export default {
       linkRemove: 'Удалить',
       moveBlock: 'Переместить блок',
       comment: 'Комментировать',
+      textColor: 'Цвет текста',
+      colorDefault: 'По умолчанию',
+      addBlock: 'Добавить блок ниже',
+      blockMenu: 'Действия с блоком',
     },
     // Поиск и замена.
     find: {
@@ -5258,6 +5262,19 @@ export default {
       excalidraw: 'Рисунок',
       noMatches: 'Нет подходящего блока',
       copyBlockRef: 'Скопировать ссылку на блок',
+      group: {
+        recent: 'Недавние',
+        basic: 'Основные',
+        insert: 'Вставка',
+        media: 'Медиа',
+        advanced: 'Расширенные',
+      },
+    },
+    blockMenu: {
+      convertTo: 'Преобразовать в',
+      actions: 'Действия',
+      duplicate: 'Создать копию',
+      delete: 'Удалить',
     },
     links: {
       loading: 'Определяем…',
