@@ -19,16 +19,16 @@
 // by which content arrives, including a drop and the editor's own internal
 // paste commands, and they leave handlePaste free for the upload handler,
 // which needs to claim a pasted *file* before any of this runs.
-import { DOMParser as PMDOMParser, Fragment, type ResolvedPos, type Schema, Slice } from '@tiptap/pm/model'
-import DOMPurify from 'dompurify'
+import { DOMParser as PMDOMParser, Fragment, type ResolvedPos, type Schema, Slice } from "@tiptap/pm/model";
+import DOMPurify from "dompurify";
 
-import { parseBlockRefLink } from './blockRefLink'
-import { looksLikeMarkdown, markdownToHTML } from './markdownPaste'
-import { PASTE_PURIFY_CONFIG, sanitizeSlice } from './paste'
+import { parseBlockRefLink } from "./blockRefLink";
+import { looksLikeMarkdown, markdownToHTML } from "./markdownPaste";
+import { PASTE_PURIFY_CONFIG, sanitizeSlice } from "./paste";
 
 /** A view, narrowed to the one thing the slice pass needs from it. */
 interface SchemaHolder {
-  state: { schema: Schema }
+  state: { schema: Schema };
 }
 
 /**
@@ -38,13 +38,14 @@ interface SchemaHolder {
  * owns nothing that needs tearing down.
  */
 export function pasteEditorProps(): Record<string, unknown> {
-  const purify = (html: string): string => DOMPurify.sanitize(html, {
-    ...PASTE_PURIFY_CONFIG,
-    ALLOWED_TAGS: [...PASTE_PURIFY_CONFIG.ALLOWED_TAGS],
-    ALLOWED_ATTR: [...PASTE_PURIFY_CONFIG.ALLOWED_ATTR],
-    FORBID_TAGS: [...PASTE_PURIFY_CONFIG.FORBID_TAGS],
-    FORBID_ATTR: [...PASTE_PURIFY_CONFIG.FORBID_ATTR],
-  }) as string
+  const purify = (html: string): string =>
+    DOMPurify.sanitize(html, {
+      ...PASTE_PURIFY_CONFIG,
+      ALLOWED_TAGS: [...PASTE_PURIFY_CONFIG.ALLOWED_TAGS],
+      ALLOWED_ATTR: [...PASTE_PURIFY_CONFIG.ALLOWED_ATTR],
+      FORBID_TAGS: [...PASTE_PURIFY_CONFIG.FORBID_TAGS],
+      FORBID_ATTR: [...PASTE_PURIFY_CONFIG.FORBID_ATTR],
+    }) as string;
 
   return {
     /**
@@ -65,32 +66,37 @@ export function pasteEditorProps(): Record<string, unknown> {
       // pasting it here is what puts the quotation in. Checked before the
       // Markdown pass, and honoured even for a literal paste — somebody who
       // pasted this link meant the block, not its address.
-      const ref = parseBlockRefLink(text)
+      const ref = parseBlockRefLink(text);
       if (ref) {
-        const node = view.state.schema.nodes.transclusion
+        const node = view.state.schema.nodes.transclusion;
         if (node) {
-          return new Slice(Fragment.from(node.create({
-            sourcePageId: ref.pageId, sourceBlockId: ref.blockId,
-          })), 0, 0)
+          return new Slice(
+            Fragment.from(
+              node.create({
+                sourcePageId: ref.pageId,
+                sourceBlockId: ref.blockId,
+              }),
+            ),
+            0,
+            0,
+          );
         }
       }
 
-      if (plain || !looksLikeMarkdown(text)) return undefined
+      if (plain || !looksLikeMarkdown(text)) return undefined;
       // Not inside a code block, where the characters are the content.
       for (let depth = $context.depth; depth > 0; depth--) {
-        if ($context.node(depth).type.spec.code) return undefined
+        if ($context.node(depth).type.spec.code) return undefined;
       }
 
-      const dom = new window.DOMParser()
-        .parseFromString(purify(markdownToHTML(text)), 'text/html')
+      const dom = new window.DOMParser().parseFromString(purify(markdownToHTML(text)), "text/html");
       return PMDOMParser.fromSchema(view.state.schema).parseSlice(dom.body, {
         preserveWhitespace: false,
-      })
+      });
     },
 
     transformPastedHTML: purify,
 
-    transformPasted: (slice: Slice, view: SchemaHolder): Slice =>
-      sanitizeSlice(slice, view.state.schema),
-  }
+    transformPasted: (slice: Slice, view: SchemaHolder): Slice => sanitizeSlice(slice, view.state.schema),
+  };
 }

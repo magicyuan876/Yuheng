@@ -19,15 +19,19 @@
               <div class="settings-nav">
                 <template v-for="group in navGroups" :key="group.key">
                   <div class="nav-group-title">{{ group.label }}</div>
-                  <div v-for="item in group.items" :key="item.key"
-                    :class="['nav-item', { 'active': currentSection === item.key }]"
-                    @click="currentSection = item.key">
+                  <div
+                    v-for="item in group.items"
+                    :key="item.key"
+                    :class="['nav-item', { active: currentSection === item.key }]"
+                    @click="currentSection = item.key"
+                  >
                     <t-icon :name="item.icon" class="nav-icon" />
                     <span class="nav-label">{{ item.label }}</span>
                     <span
                       v-if="item.badge != null && (item.key === 'sharedKb' ? true : item.badge > 0)"
-                      :class="['nav-badge', { 'nav-badge-count': item.key === 'sharedKb' }]">{{
-                        item.badge }}</span>
+                      :class="['nav-badge', { 'nav-badge-count': item.key === 'sharedKb' }]"
+                      >{{ item.badge }}</span
+                    >
                   </div>
                 </template>
               </div>
@@ -39,50 +43,68 @@
                 <!-- 组织管理员但空间角色不足，给出只读提示 -->
                 <div v-if="showTenantRoleHint" class="tenant-role-hint">
                   <t-icon name="info-circle" size="16px" />
-                  <span>{{ $t('organization.rbac.needTenantAdminTip') }}</span>
+                  <span>{{ $t("organization.rbac.needTenantAdminTip") }}</span>
                 </div>
                 <!-- 基本信息 -->
                 <div v-show="currentSection === 'basic'" class="section">
                   <div class="section-header">
-                    <h2>{{ $t('organization.editor.basicTitle') }}</h2>
-                    <p class="section-description">{{ $t('organization.editor.basicDesc') }}</p>
+                    <h2>{{ $t("organization.editor.basicTitle") }}</h2>
+                    <p class="section-description">{{ $t("organization.editor.basicDesc") }}</p>
                   </div>
 
                   <div class="settings-group">
                     <!-- 空间名称与头像：一行展示，头像点击弹出 Emoji 选择 -->
                     <div class="setting-row">
                       <div class="setting-info">
-                        <label>{{ $t('organization.name') }} <span class="required">*</span></label>
-                        <p class="desc">{{ $t('organization.editor.nameTip') }}</p>
+                        <label>{{ $t("organization.name") }} <span class="required">*</span></label>
+                        <p class="desc">{{ $t("organization.editor.nameTip") }}</p>
                       </div>
                       <div class="setting-control">
                         <div class="name-input-wrapper">
-                          <t-popup v-model="avatarPopoverVisible" trigger="click" placement="bottom-left"
-                            :disabled="!isAdmin" overlay-class-name="avatar-emoji-popover">
+                          <t-popup
+                            v-model="avatarPopoverVisible"
+                            trigger="click"
+                            placement="bottom-left"
+                            :disabled="!isAdmin"
+                            overlay-class-name="avatar-emoji-popover"
+                          >
                             <div class="avatar-trigger-wrap">
                               <SpaceAvatar :name="formData.name || '?'" :avatar="formData.avatar" size="medium" />
-                              <span v-if="isAdmin" class="avatar-change-hint">{{ $t('organization.avatar') }}</span>
+                              <span v-if="isAdmin" class="avatar-change-hint">{{ $t("organization.avatar") }}</span>
                             </div>
                             <template #content>
                               <div class="avatar-popover-content" @click.stop>
-                                <p class="avatar-popover-title">{{ $t('organization.avatarPickerHint') }}</p>
+                                <p class="avatar-popover-title">{{ $t("organization.avatarPickerHint") }}</p>
                                 <div class="avatar-emoji-grid">
-                                  <button v-for="emoji in avatarEmojiOptions" :key="emoji" type="button"
+                                  <button
+                                    v-for="emoji in avatarEmojiOptions"
+                                    :key="emoji"
+                                    type="button"
                                     class="avatar-emoji-btn"
                                     :class="{ 'is-selected': formData.avatar === 'emoji:' + emoji }"
-                                    @click="selectAvatarEmoji(emoji)">
+                                    @click="selectAvatarEmoji(emoji)"
+                                  >
                                     {{ emoji }}
                                   </button>
                                 </div>
-                                <t-button v-if="formData.avatar" variant="text" size="small" class="avatar-clear-btn"
-                                  @click="clearAvatarEmoji">
-                                  {{ $t('organization.avatarClear') }}
+                                <t-button
+                                  v-if="formData.avatar"
+                                  variant="text"
+                                  size="small"
+                                  class="avatar-clear-btn"
+                                  @click="clearAvatarEmoji"
+                                >
+                                  {{ $t("organization.avatarClear") }}
                                 </t-button>
                               </div>
                             </template>
                           </t-popup>
-                          <t-input v-model="formData.name" :placeholder="$t('organization.namePlaceholder')"
-                            :disabled="!isAdmin" class="name-input" />
+                          <t-input
+                            v-model="formData.name"
+                            :placeholder="$t('organization.namePlaceholder')"
+                            :disabled="!isAdmin"
+                            class="name-input"
+                          />
                         </div>
                       </div>
                     </div>
@@ -90,21 +112,25 @@
                     <!-- 空间描述 -->
                     <div class="setting-row">
                       <div class="setting-info">
-                        <label>{{ $t('organization.description') }}</label>
-                        <p class="desc">{{ $t('organization.editor.descriptionTip') }}</p>
+                        <label>{{ $t("organization.description") }}</label>
+                        <p class="desc">{{ $t("organization.editor.descriptionTip") }}</p>
                       </div>
                       <div class="setting-control">
-                        <t-textarea v-model="formData.description"
+                        <t-textarea
+                          v-model="formData.description"
                           :placeholder="$t('organization.descriptionPlaceholder')"
-                          :autosize="{ minRows: 3, maxRows: 6 }" :maxlength="500" :disabled="!isAdmin" />
+                          :autosize="{ minRows: 3, maxRows: 6 }"
+                          :maxlength="500"
+                          :disabled="!isAdmin"
+                        />
                       </div>
                     </div>
 
                     <!-- 邀请成员 (仅管理员可见) -->
                     <div v-if="isAdmin && orgId" class="setting-row setting-row-vertical">
                       <div class="setting-info full-width">
-                        <label>{{ $t('organization.settings.inviteMembers') }}</label>
-                        <p class="desc">{{ $t('organization.settings.inviteMembersDesc') }}</p>
+                        <label>{{ $t("organization.settings.inviteMembers") }}</label>
+                        <p class="desc">{{ $t("organization.settings.inviteMembersDesc") }}</p>
                       </div>
                       <div class="setting-control full-width">
                         <div class="invite-card">
@@ -112,7 +138,7 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="qrcode" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.inviteCode') }}</span>
+                              <span class="invite-method-title">{{ $t("organization.inviteCode") }}</span>
                             </div>
                             <div class="invite-code-box">
                               <span class="invite-code-value">{{ inviteCode }}</span>
@@ -123,8 +149,12 @@
                                   </t-button>
                                 </t-tooltip>
                                 <t-tooltip :content="$t('organization.refreshInviteCode')">
-                                  <t-button variant="text" size="small" @click="refreshInviteCode"
-                                    :loading="refreshingCode">
+                                  <t-button
+                                    variant="text"
+                                    size="small"
+                                    @click="refreshInviteCode"
+                                    :loading="refreshingCode"
+                                  >
                                     <t-icon name="refresh" />
                                   </t-button>
                                 </t-tooltip>
@@ -139,13 +169,19 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="time" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.settings.inviteLinkValidity')
+                              <span class="invite-method-title">{{
+                                $t("organization.settings.inviteLinkValidity")
                               }}</span>
                             </div>
-                            <p class="invite-validity-desc">{{ $t('organization.settings.inviteLinkValidityDesc') }}</p>
-                            <t-select v-model="formData.invite_code_validity_days" :options="inviteValidityOptions"
-                              size="small" class="invite-validity-select" :disabled="!isAdmin"
-                              @change="handleValidityChange" />
+                            <p class="invite-validity-desc">{{ $t("organization.settings.inviteLinkValidityDesc") }}</p>
+                            <t-select
+                              v-model="formData.invite_code_validity_days"
+                              :options="inviteValidityOptions"
+                              size="small"
+                              class="invite-validity-select"
+                              :disabled="!isAdmin"
+                              @change="handleValidityChange"
+                            />
                           </div>
 
                           <div class="invite-divider"></div>
@@ -154,7 +190,7 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="link" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.settings.inviteLink') }}</span>
+                              <span class="invite-method-title">{{ $t("organization.settings.inviteLink") }}</span>
                             </div>
                             <div class="invite-link-box">
                               <span class="invite-link-value">{{ inviteLink }}</span>
@@ -172,11 +208,11 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="check-circle" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.settings.requireApproval') }}</span>
+                              <span class="invite-method-title">{{ $t("organization.settings.requireApproval") }}</span>
                             </div>
                             <div class="approval-toggle">
                               <t-switch v-model="formData.require_approval" @change="handleApprovalToggle" />
-                              <span class="approval-desc">{{ $t('organization.settings.requireApprovalDesc') }}</span>
+                              <span class="approval-desc">{{ $t("organization.settings.requireApprovalDesc") }}</span>
                             </div>
                           </div>
 
@@ -186,11 +222,11 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="search" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.settings.searchable') }}</span>
+                              <span class="invite-method-title">{{ $t("organization.settings.searchable") }}</span>
                             </div>
                             <div class="approval-toggle">
                               <t-switch v-model="formData.searchable" @change="handleSearchableToggle" />
-                              <span class="approval-desc">{{ $t('organization.settings.searchableDesc') }}</span>
+                              <span class="approval-desc">{{ $t("organization.settings.searchableDesc") }}</span>
                             </div>
                           </div>
 
@@ -200,33 +236,36 @@
                           <div class="invite-method">
                             <div class="invite-method-header">
                               <t-icon name="user-add" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t('organization.settings.memberLimit') }}</span>
+                              <span class="invite-method-title">{{ $t("organization.settings.memberLimit") }}</span>
                             </div>
-                            <p class="invite-validity-desc">{{ $t('organization.settings.memberLimitDesc') }}</p>
+                            <p class="invite-validity-desc">{{ $t("organization.settings.memberLimitDesc") }}</p>
                             <div class="member-limit-input-row">
-                              <t-input-number v-model="formData.member_limit" :min="0" :max="10000"
-                                :placeholder="$t('organization.settings.memberLimitPlaceholder')" theme="normal"
-                                style="width: 140px;" />
-                              <span class="member-limit-hint">{{ $t('organization.settings.memberLimitHint', {
-                                count:
-                                  orgInfo?.member_count
-                                  ?? 0
-                              }) }}</span>
+                              <t-input-number
+                                v-model="formData.member_limit"
+                                :min="0"
+                                :max="10000"
+                                :placeholder="$t('organization.settings.memberLimitPlaceholder')"
+                                theme="normal"
+                                style="width: 140px"
+                              />
+                              <span class="member-limit-hint">{{
+                                $t("organization.settings.memberLimitHint", {
+                                  count: orgInfo?.member_count ?? 0,
+                                })
+                              }}</span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
-
-
                   </div>
                 </div>
 
                 <!-- 创建空间 - 权限说明 -->
                 <div v-if="isCreateMode" v-show="currentSection === 'permissions'" class="section">
                   <div class="section-header">
-                    <h2>{{ $t('organization.editor.permissionsTitle') }}</h2>
-                    <p class="section-description">{{ $t('organization.editor.permissionsDesc') }}</p>
+                    <h2>{{ $t("organization.editor.permissionsTitle") }}</h2>
+                    <p class="section-description">{{ $t("organization.editor.permissionsDesc") }}</p>
                   </div>
 
                   <div class="permissions-info">
@@ -236,15 +275,15 @@
                           <t-icon name="user-safety" />
                         </div>
                         <div class="permission-title">
-                          <span class="role-name">{{ $t('organization.role.admin') }}</span>
-                          <t-tag size="small" theme="primary">{{ $t('organization.editor.fullAccess') }}</t-tag>
+                          <span class="role-name">{{ $t("organization.role.admin") }}</span>
+                          <t-tag size="small" theme="primary">{{ $t("organization.editor.fullAccess") }}</t-tag>
                         </div>
                       </div>
                       <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm1') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm2') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm3') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm4') }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm1") }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm2") }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm3") }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm4") }}</li>
                       </ul>
                     </div>
                     <div class="permission-card">
@@ -253,15 +292,15 @@
                           <t-icon name="edit" />
                         </div>
                         <div class="permission-title">
-                          <span class="role-name">{{ $t('organization.role.editor') }}</span>
-                          <t-tag size="small" theme="warning">{{ $t('organization.editor.editAccess') }}</t-tag>
+                          <span class="role-name">{{ $t("organization.role.editor") }}</span>
+                          <t-tag size="small" theme="warning">{{ $t("organization.editor.editAccess") }}</t-tag>
                         </div>
                       </div>
                       <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm1') }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm2') }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.editorPerm3') }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm1") }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm2") }}</li>
+                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}</li>
+                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.editorPerm3") }}</li>
                       </ul>
                     </div>
                     <div class="permission-card">
@@ -270,21 +309,21 @@
                           <t-icon name="browse" />
                         </div>
                         <div class="permission-title">
-                          <span class="role-name">{{ $t('organization.role.viewer') }}</span>
-                          <t-tag size="small">{{ $t('organization.editor.viewAccess') }}</t-tag>
+                          <span class="role-name">{{ $t("organization.role.viewer") }}</span>
+                          <t-tag size="small">{{ $t("organization.editor.viewAccess") }}</t-tag>
                         </div>
                       </div>
                       <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.viewerPerm1') }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm2') }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm3') }}</li>
+                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.viewerPerm1") }}</li>
+                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}</li>
+                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm2") }}</li>
+                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm3") }}</li>
                       </ul>
                     </div>
                   </div>
                   <div class="info-notice">
                     <t-icon name="info-circle" />
-                    <span>{{ $t('organization.editor.ownerNote') }}</span>
+                    <span>{{ $t("organization.editor.ownerNote") }}</span>
                   </div>
                 </div>
 
@@ -293,32 +332,48 @@
                   <div class="section-header">
                     <div class="section-header-row">
                       <div class="section-header-titlewrap">
-                        <h2>{{ $t('organization.manageMembers') }}</h2>
-                        <t-popup placement="bottom-start" trigger="hover"
+                        <h2>{{ $t("organization.manageMembers") }}</h2>
+                        <t-popup
+                          placement="bottom-start"
+                          trigger="hover"
                           overlay-class-name="org-permissions-popup-overlay"
-                          :overlay-inner-style="permissionsPopupInnerStyle">
-                          <button type="button" class="permissions-trigger-btn"
+                          :overlay-inner-style="permissionsPopupInnerStyle"
+                        >
+                          <button
+                            type="button"
+                            class="permissions-trigger-btn"
                             :aria-label="$t('organization.editor.permissionsTitle')"
-                            :title="$t('organization.settings.permissionsIconHint')">
+                            :title="$t('organization.settings.permissionsIconHint')"
+                          >
                             <t-icon name="info-circle" size="16px" />
                           </button>
                           <template #content>
                             <div class="permissions-compact permissions-compact--popover">
                               <div class="permissions-compact-header">
-                                <span class="permissions-compact-title">{{ $t('organization.editor.permissionsTitle') }}</span>
-                                <span class="permissions-compact-desc">{{ $t('organization.editor.permissionsDesc') }}</span>
+                                <span class="permissions-compact-title">{{
+                                  $t("organization.editor.permissionsTitle")
+                                }}</span>
+                                <span class="permissions-compact-desc">{{
+                                  $t("organization.editor.permissionsDesc")
+                                }}</span>
                               </div>
                               <div class="permissions-compact-grid">
-                                <div v-for="role in orgRoleMatrixOrder" :key="role"
-                                  :class="['perm-role-block', role, { 'is-me': orgInfo?.my_role === role }]">
+                                <div
+                                  v-for="role in orgRoleMatrixOrder"
+                                  :key="role"
+                                  :class="['perm-role-block', role, { 'is-me': orgInfo?.my_role === role }]"
+                                >
                                   <div class="perm-role-tag">
                                     <t-icon :name="orgRoleIcon(role)" size="12px" />
                                     <span>{{ $t(`organization.role.${role}`) }}</span>
-                                    <span v-if="orgInfo?.my_role === role" class="me-badge">{{ $t('common.me') }}</span>
+                                    <span v-if="orgInfo?.my_role === role" class="me-badge">{{ $t("common.me") }}</span>
                                   </div>
                                   <div class="perm-items">
-                                    <span v-for="(perm, idx) in orgRoleMatrix[role]" :key="idx"
-                                      :class="['perm-item', perm.has ? 'has' : 'no']">
+                                    <span
+                                      v-for="(perm, idx) in orgRoleMatrix[role]"
+                                      :key="idx"
+                                      :class="['perm-item', perm.has ? 'has' : 'no']"
+                                    >
                                       <t-icon :name="perm.has ? 'check' : 'close'" size="12px" />
                                       {{ $t(`organization.editor.${perm.key}`) }}
                                     </span>
@@ -330,109 +385,180 @@
                         </t-popup>
                       </div>
                     </div>
-                    <p class="section-description">{{ $t('organization.settings.membersDesc') }}</p>
+                    <p class="section-description">{{ $t("organization.settings.membersDesc") }}</p>
                   </div>
 
                   <div class="members-list-wrap">
                     <div class="members-list-header">
                       <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t('organization.members.listTitle') }}</span>
+                        <span class="members-list-title">{{ $t("organization.members.listTitle") }}</span>
                         <span class="members-list-count-badge">{{ filteredMembers.length }}</span>
                       </div>
                       <div class="members-list-actions">
                         <div class="members-list-search">
-                          <t-input v-model="memberSearchQuery" size="small"
-                            :placeholder="$t('organization.members.searchPlaceholder')" clearable>
+                          <t-input
+                            v-model="memberSearchQuery"
+                            size="small"
+                            :placeholder="$t('organization.members.searchPlaceholder')"
+                            clearable
+                          >
                             <template #prefix-icon>
                               <t-icon name="search" />
                             </template>
                           </t-input>
                         </div>
-                        <t-popup v-if="canRequestUpgrade" v-model="upgradePopupVisible" trigger="click"
-                          placement="bottom-end" destroy-on-close overlay-class-name="org-upgrade-popup-overlay">
-                          <t-button variant="outline" shape="square" size="small" class="members-list-upgrade-btn"
+                        <t-popup
+                          v-if="canRequestUpgrade"
+                          v-model="upgradePopupVisible"
+                          trigger="click"
+                          placement="bottom-end"
+                          destroy-on-close
+                          overlay-class-name="org-upgrade-popup-overlay"
+                        >
+                          <t-button
+                            variant="outline"
+                            shape="square"
+                            size="small"
+                            class="members-list-upgrade-btn"
                             :disabled="hasPendingUpgrade"
-                            :title="hasPendingUpgrade ? $t('organization.upgrade.pending') : $t('organization.upgrade.requestUpgrade')"
-                            :aria-label="hasPendingUpgrade ? $t('organization.upgrade.pending') : $t('organization.upgrade.requestUpgrade')">
+                            :title="
+                              hasPendingUpgrade
+                                ? $t('organization.upgrade.pending')
+                                : $t('organization.upgrade.requestUpgrade')
+                            "
+                            :aria-label="
+                              hasPendingUpgrade
+                                ? $t('organization.upgrade.pending')
+                                : $t('organization.upgrade.requestUpgrade')
+                            "
+                          >
                             <template #icon><t-icon name="arrow-up" /></template>
                           </t-button>
                           <template #content>
                             <div class="org-upgrade-popup-inner" @click.stop>
-                              <div class="member-invite-popup-title">{{ $t('organization.upgrade.dialogTitle') }}</div>
-                              <p class="add-member-tip">{{ $t('organization.upgrade.dialogDesc') }}</p>
+                              <div class="member-invite-popup-title">{{ $t("organization.upgrade.dialogTitle") }}</div>
+                              <p class="add-member-tip">{{ $t("organization.upgrade.dialogDesc") }}</p>
 
                               <div class="upgrade-current-role-bar">
-                                <span class="upgrade-current-role-label">{{ $t('organization.upgrade.currentRole') }}</span>
+                                <span class="upgrade-current-role-label">{{
+                                  $t("organization.upgrade.currentRole")
+                                }}</span>
                                 <t-tag size="small" :theme="getRoleTheme(orgInfo?.my_role || 'viewer')" variant="light">
-                                  {{ $t(`organization.role.${orgInfo?.my_role || 'viewer'}`) }}
+                                  {{ $t(`organization.role.${orgInfo?.my_role || "viewer"}`) }}
                                 </t-tag>
                               </div>
 
                               <div class="org-upgrade-fields">
                                 <div class="org-upgrade-field">
-                                  <label class="org-upgrade-field-label">{{ $t('organization.upgrade.selectRole') }}</label>
+                                  <label class="org-upgrade-field-label">{{
+                                    $t("organization.upgrade.selectRole")
+                                  }}</label>
                                   <div class="upgrade-role-pills">
-                                    <button v-for="opt in upgradeRoleOptions" :key="opt.value" type="button"
-                                      :class="['upgrade-role-pill', { active: upgradeForm.requested_role === opt.value }]"
-                                      @click="upgradeForm.requested_role = opt.value as 'editor' | 'admin'">
+                                    <button
+                                      v-for="opt in upgradeRoleOptions"
+                                      :key="opt.value"
+                                      type="button"
+                                      :class="[
+                                        'upgrade-role-pill',
+                                        { active: upgradeForm.requested_role === opt.value },
+                                      ]"
+                                      @click="upgradeForm.requested_role = opt.value as 'editor' | 'admin'"
+                                    >
                                       {{ opt.label }}
                                     </button>
                                   </div>
                                 </div>
                                 <div class="org-upgrade-field org-upgrade-field--last">
-                                  <label class="org-upgrade-field-label">{{ $t('organization.upgrade.reason') }}</label>
-                                  <t-textarea v-model="upgradeForm.message" size="medium"
+                                  <label class="org-upgrade-field-label">{{ $t("organization.upgrade.reason") }}</label>
+                                  <t-textarea
+                                    v-model="upgradeForm.message"
+                                    size="medium"
                                     :placeholder="$t('organization.upgrade.reasonPlaceholder')"
-                                    :autosize="{ minRows: 2, maxRows: 4 }" :maxlength="500" />
+                                    :autosize="{ minRows: 2, maxRows: 4 }"
+                                    :maxlength="500"
+                                  />
                                 </div>
                               </div>
 
                               <div class="invite-popup-footer">
-                                <t-button variant="outline" :disabled="upgradeSubmitting"
-                                  @click="upgradePopupVisible = false">
-                                  {{ $t('common.cancel') }}
+                                <t-button
+                                  variant="outline"
+                                  :disabled="upgradeSubmitting"
+                                  @click="upgradePopupVisible = false"
+                                >
+                                  {{ $t("common.cancel") }}
                                 </t-button>
                                 <t-button theme="primary" :loading="upgradeSubmitting" @click="handleSubmitUpgrade">
-                                  {{ $t('organization.upgrade.submitBtn') }}
+                                  {{ $t("organization.upgrade.submitBtn") }}
                                 </t-button>
                               </div>
                             </div>
                           </template>
                         </t-popup>
-                        <t-popup v-if="isAdmin" v-model="addMemberPopupVisible" trigger="click" placement="bottom-end"
-                          destroy-on-close overlay-class-name="org-add-member-popup-overlay">
-                          <t-button theme="primary" variant="outline" shape="square" size="small"
-                            class="members-list-add-btn" :title="$t('organization.addMember.button')"
-                            :aria-label="$t('organization.addMember.button')">
+                        <t-popup
+                          v-if="isAdmin"
+                          v-model="addMemberPopupVisible"
+                          trigger="click"
+                          placement="bottom-end"
+                          destroy-on-close
+                          overlay-class-name="org-add-member-popup-overlay"
+                        >
+                          <t-button
+                            theme="primary"
+                            variant="outline"
+                            shape="square"
+                            size="small"
+                            class="members-list-add-btn"
+                            :title="$t('organization.addMember.button')"
+                            :aria-label="$t('organization.addMember.button')"
+                          >
                             <template #icon><t-icon name="user-add" /></template>
                           </t-button>
                           <template #content>
                             <div class="member-invite-popup-inner" @click.stop>
-                              <div class="member-invite-popup-title">{{ $t('organization.addMember.dialogTitle') }}</div>
-                              <p class="add-member-tip">{{ $t('organization.addMember.tipTenant') }}</p>
+                              <div class="member-invite-popup-title">
+                                {{ $t("organization.addMember.dialogTitle") }}
+                              </div>
+                              <p class="add-member-tip">{{ $t("organization.addMember.tipTenant") }}</p>
                               <t-form layout="vertical" class="member-invite-form">
                                 <t-form-item :label="$t('organization.addMember.searchTenant')">
                                   <div class="member-form-control">
-                                    <t-select v-model="selectedTenantId"
-                                      :placeholder="$t('organization.addMember.searchTenantPlaceholder')" filterable
-                                      :filter="() => true" :loading="tenantSearchLoading" @search="handleTenantSearch"
-                                      clearable :options="tenantSearchOptions" />
-                                    <p class="field-hint">{{ $t('organization.addMember.searchTenantHint') }}</p>
+                                    <t-select
+                                      v-model="selectedTenantId"
+                                      :placeholder="$t('organization.addMember.searchTenantPlaceholder')"
+                                      filterable
+                                      :filter="() => true"
+                                      :loading="tenantSearchLoading"
+                                      @search="handleTenantSearch"
+                                      clearable
+                                      :options="tenantSearchOptions"
+                                    />
+                                    <p class="field-hint">{{ $t("organization.addMember.searchTenantHint") }}</p>
                                   </div>
                                 </t-form-item>
                                 <t-form-item :label="$t('organization.addMember.selectRole')">
-                                  <t-select v-model="addMemberRole" :options="addMemberRoleOptions"
-                                    :placeholder="$t('organization.addMember.selectRole')" />
+                                  <t-select
+                                    v-model="addMemberRole"
+                                    :options="addMemberRoleOptions"
+                                    :placeholder="$t('organization.addMember.selectRole')"
+                                  />
                                 </t-form-item>
                               </t-form>
                               <div class="invite-popup-footer">
-                                <t-button variant="outline" :disabled="addMemberSubmitting"
-                                  @click="addMemberPopupVisible = false">
-                                  {{ $t('common.cancel') }}
+                                <t-button
+                                  variant="outline"
+                                  :disabled="addMemberSubmitting"
+                                  @click="addMemberPopupVisible = false"
+                                >
+                                  {{ $t("common.cancel") }}
                                 </t-button>
-                                <t-button theme="primary" :loading="addMemberSubmitting"
-                                  :disabled="selectedTenantId == null" @click="handleAddMember">
-                                  {{ $t('organization.addMember.confirmBtn') }}
+                                <t-button
+                                  theme="primary"
+                                  :loading="addMemberSubmitting"
+                                  :disabled="selectedTenantId == null"
+                                  @click="handleAddMember"
+                                >
+                                  {{ $t("organization.addMember.confirmBtn") }}
                                 </t-button>
                               </div>
                             </div>
@@ -443,33 +569,51 @@
 
                     <div v-if="membersLoading && members.length === 0" class="loading-inline">
                       <t-loading size="small" />
-                      <span>{{ $t('organization.members.loading') }}</span>
+                      <span>{{ $t("organization.members.loading") }}</span>
                     </div>
                     <div v-else-if="filteredMembers.length === 0" class="empty-state">
-                      <t-empty :description="memberSearchQuery.trim()
-                        ? $t('organization.members.emptySearch', { q: memberSearchQuery })
-                        : $t('organization.noMembers')" />
+                      <t-empty
+                        :description="
+                          memberSearchQuery.trim()
+                            ? $t('organization.members.emptySearch', { q: memberSearchQuery })
+                            : $t('organization.noMembers')
+                        "
+                      />
                     </div>
                     <div v-else class="data-table-shell members-table-shell">
-                      <t-table row-key="id" :data="filteredMembers" :columns="memberColumns" size="medium" hover
-                        stripe :loading="membersLoading">
+                      <t-table
+                        row-key="id"
+                        :data="filteredMembers"
+                        :columns="memberColumns"
+                        size="medium"
+                        hover
+                        stripe
+                        :loading="membersLoading"
+                      >
                         <template #member="{ row }">
                           <div class="member-cell">
                             <span class="member-name">
                               {{ memberPrimaryLabel(row) }}
-                              <span v-if="isOwnerMember(row)" class="owner-tag">{{ $t('organization.owner') }}</span>
-                              <span v-if="row.user_id === authStore.currentUserId" class="me-tag">{{ $t('common.me')
+                              <span v-if="isOwnerMember(row)" class="owner-tag">{{ $t("organization.owner") }}</span>
+                              <span v-if="row.user_id === authStore.currentUserId" class="me-tag">{{
+                                $t("common.me")
                               }}</span>
                             </span>
-                            <span v-if="memberSecondaryLabel(row)" class="member-email">{{ memberSecondaryLabel(row)
+                            <span v-if="memberSecondaryLabel(row)" class="member-email">{{
+                              memberSecondaryLabel(row)
                             }}</span>
                           </div>
                         </template>
                         <template #role="{ row }">
                           <div class="role-cell">
-                            <t-select v-if="isAdmin && !isOwnerMember(row)" :model-value="row.role"
-                              class="member-role-select" size="small" :options="roleOptions"
-                              @change="(val: string) => handleRoleChange(row, val)" />
+                            <t-select
+                              v-if="isAdmin && !isOwnerMember(row)"
+                              :model-value="row.role"
+                              class="member-role-select"
+                              size="small"
+                              :options="roleOptions"
+                              @change="(val: string) => handleRoleChange(row, val)"
+                            />
                             <t-tag v-else size="small" :theme="getRoleTheme(row.role)">
                               {{ $t(`organization.role.${row.role}`) }}
                             </t-tag>
@@ -477,11 +621,14 @@
                         </template>
                         <template #joined_at="{ row }">{{ formatDate(row.joined_at) }}</template>
                         <template #actions="{ row }">
-                          <t-popconfirm v-if="isAdmin && !isOwnerMember(row)"
+                          <t-popconfirm
+                            v-if="isAdmin && !isOwnerMember(row)"
                             :content="$t('organization.detail.removeMemberConfirm', { name: memberPrimaryLabel(row) })"
                             :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
-                            :cancel-btn="{ content: $t('common.cancel') }" placement="left"
-                            @confirm="confirmRemoveMember(row)">
+                            :cancel-btn="{ content: $t('common.cancel') }"
+                            placement="left"
+                            @confirm="confirmRemoveMember(row)"
+                          >
                             <t-tooltip :content="$t('organization.detail.removeMember')" placement="top">
                               <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
                                 <template #icon><t-icon name="user-clear" /></template>
@@ -497,20 +644,24 @@
                 <!-- 加入申请（待审核） -->
                 <div v-show="currentSection === 'joinRequests'" class="section">
                   <div class="section-header">
-                    <h2>{{ $t('organization.settings.joinRequests') }}</h2>
-                    <p class="section-description">{{ $t('organization.settings.joinRequestsDesc') }}</p>
+                    <h2>{{ $t("organization.settings.joinRequests") }}</h2>
+                    <p class="section-description">{{ $t("organization.settings.joinRequestsDesc") }}</p>
                   </div>
 
                   <div class="members-list-wrap join-requests-wrap">
                     <div class="members-list-header">
                       <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t('organization.joinRequests.listTitle') }}</span>
+                        <span class="members-list-title">{{ $t("organization.joinRequests.listTitle") }}</span>
                         <span class="members-list-count-badge">{{ filteredJoinRequests.length }}</span>
                       </div>
                       <div class="members-list-actions">
                         <div class="members-list-search">
-                          <t-input v-model="joinRequestSearchQuery" size="small"
-                            :placeholder="$t('organization.joinRequests.searchPlaceholder')" clearable>
+                          <t-input
+                            v-model="joinRequestSearchQuery"
+                            size="small"
+                            :placeholder="$t('organization.joinRequests.searchPlaceholder')"
+                            clearable
+                          >
                             <template #prefix-icon>
                               <t-icon name="search" />
                             </template>
@@ -521,16 +672,27 @@
 
                     <div v-if="joinRequestsLoading && joinRequests.length === 0" class="loading-inline">
                       <t-loading size="small" />
-                      <span>{{ $t('organization.joinRequests.loading') }}</span>
+                      <span>{{ $t("organization.joinRequests.loading") }}</span>
                     </div>
                     <div v-else-if="filteredJoinRequests.length === 0" class="empty-state">
-                      <t-empty :description="joinRequestSearchQuery.trim()
-                        ? $t('organization.joinRequests.emptySearch', { q: joinRequestSearchQuery })
-                        : $t('organization.settings.noPendingRequests')" />
+                      <t-empty
+                        :description="
+                          joinRequestSearchQuery.trim()
+                            ? $t('organization.joinRequests.emptySearch', { q: joinRequestSearchQuery })
+                            : $t('organization.settings.noPendingRequests')
+                        "
+                      />
                     </div>
                     <div v-else class="data-table-shell join-requests-table">
-                      <t-table row-key="id" :data="filteredJoinRequests" :columns="joinRequestColumns" size="medium"
-                        hover stripe :loading="joinRequestsLoading">
+                      <t-table
+                        row-key="id"
+                        :data="filteredJoinRequests"
+                        :columns="joinRequestColumns"
+                        size="medium"
+                        hover
+                        stripe
+                        :loading="joinRequestsLoading"
+                      >
                         <template #applicant="{ row }">
                           <div class="member-cell">
                             <span class="member-name">{{ joinRequestApplicantLabel(row) }}</span>
@@ -540,11 +702,16 @@
                           </div>
                         </template>
                         <template #request_type="{ row }">
-                          <t-tag size="small" :theme="row.request_type === 'upgrade' ? 'warning' : 'primary'"
-                            variant="light">
-                            {{ row.request_type === 'upgrade'
-                              ? $t('organization.joinRequests.typeUpgrade')
-                              : $t('organization.joinRequests.typeJoin') }}
+                          <t-tag
+                            size="small"
+                            :theme="row.request_type === 'upgrade' ? 'warning' : 'primary'"
+                            variant="light"
+                          >
+                            {{
+                              row.request_type === "upgrade"
+                                ? $t("organization.joinRequests.typeUpgrade")
+                                : $t("organization.joinRequests.typeJoin")
+                            }}
                           </t-tag>
                         </template>
                         <template #requested_role="{ row }">
@@ -559,51 +726,84 @@
                         </template>
                         <template #message="{ row }">
                           <span class="join-request-message" :title="row.message || undefined">
-                            {{ row.message || '—' }}
+                            {{ row.message || "—" }}
                           </span>
                         </template>
                         <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
                         <template #actions="{ row }">
                           <div class="join-request-actions">
-                            <t-popup :visible="approvePopupRequestId === row.id"
-                              placement="left-start" destroy-on-close overlay-class-name="org-approve-request-popup-overlay"
-                              @visible-change="(visible: boolean) => handleApprovePopupVisibleChange(visible, row)">
+                            <t-popup
+                              :visible="approvePopupRequestId === row.id"
+                              placement="left-start"
+                              destroy-on-close
+                              overlay-class-name="org-approve-request-popup-overlay"
+                              @visible-change="(visible: boolean) => handleApprovePopupVisibleChange(visible, row)"
+                            >
                               <t-tooltip :content="$t('organization.settings.approve')" placement="top">
-                                <t-button theme="primary" variant="text" shape="square" size="small"
-                                  :loading="reviewingRequestId === row.id" @click.stop="openApprovePopup(row)">
+                                <t-button
+                                  theme="primary"
+                                  variant="text"
+                                  shape="square"
+                                  size="small"
+                                  :loading="reviewingRequestId === row.id"
+                                  @click.stop="openApprovePopup(row)"
+                                >
                                   <template #icon><t-icon name="check" /></template>
                                 </t-button>
                               </t-tooltip>
                               <template #content>
                                 <div class="org-approve-request-popup-inner" @click.stop>
-                                  <div class="member-invite-popup-title">{{ $t('organization.joinRequests.approveTitle') }}</div>
+                                  <div class="member-invite-popup-title">
+                                    {{ $t("organization.joinRequests.approveTitle") }}
+                                  </div>
                                   <p class="add-member-tip">
-                                    {{ $t('organization.joinRequests.approveDesc', { name: joinRequestApplicantLabel(row) }) }}
+                                    {{
+                                      $t("organization.joinRequests.approveDesc", {
+                                        name: joinRequestApplicantLabel(row),
+                                      })
+                                    }}
                                   </p>
                                   <div class="org-upgrade-field org-upgrade-field--last">
-                                    <label class="org-upgrade-field-label">{{ $t('organization.settings.assignRole') }}</label>
+                                    <label class="org-upgrade-field-label">{{
+                                      $t("organization.settings.assignRole")
+                                    }}</label>
                                     <t-select v-model="approveAssignRole" size="medium" :options="orgRoleOptions" />
                                   </div>
                                   <div class="invite-popup-footer">
-                                    <t-button variant="outline" :disabled="reviewingRequestId === row.id"
-                                      @click="closeApprovePopup">
-                                      {{ $t('common.cancel') }}
+                                    <t-button
+                                      variant="outline"
+                                      :disabled="reviewingRequestId === row.id"
+                                      @click="closeApprovePopup"
+                                    >
+                                      {{ $t("common.cancel") }}
                                     </t-button>
-                                    <t-button theme="primary" :loading="reviewingRequestId === row.id"
-                                      @click="confirmApproveRequest(row)">
-                                      {{ $t('organization.settings.approve') }}
+                                    <t-button
+                                      theme="primary"
+                                      :loading="reviewingRequestId === row.id"
+                                      @click="confirmApproveRequest(row)"
+                                    >
+                                      {{ $t("organization.settings.approve") }}
                                     </t-button>
                                   </div>
                                 </div>
                               </template>
                             </t-popup>
-                            <t-popconfirm :content="$t('organization.joinRequests.rejectConfirm')"
+                            <t-popconfirm
+                              :content="$t('organization.joinRequests.rejectConfirm')"
                               :confirm-btn="{ content: $t('organization.settings.reject'), theme: 'danger' }"
-                              :cancel-btn="{ content: $t('common.cancel') }" placement="left"
-                              @confirm="handleRejectRequest(row)">
+                              :cancel-btn="{ content: $t('common.cancel') }"
+                              placement="left"
+                              @confirm="handleRejectRequest(row)"
+                            >
                               <t-tooltip :content="$t('organization.settings.reject')" placement="top">
-                                <t-button theme="danger" variant="text" shape="square" size="small"
-                                  :loading="reviewingRequestId === row.id" @click.stop>
+                                <t-button
+                                  theme="danger"
+                                  variant="text"
+                                  shape="square"
+                                  size="small"
+                                  :loading="reviewingRequestId === row.id"
+                                  @click.stop
+                                >
                                   <template #icon><t-icon name="close" /></template>
                                 </t-button>
                               </t-tooltip>
@@ -620,55 +820,73 @@
                   <div class="section-header">
                     <div class="section-header-row">
                       <div class="section-header-titlewrap">
-                        <h2>{{ $t('organization.share.sharedKnowledgeBase') }}</h2>
-                        <t-popup placement="bottom-start" trigger="hover"
+                        <h2>{{ $t("organization.share.sharedKnowledgeBase") }}</h2>
+                        <t-popup
+                          placement="bottom-start"
+                          trigger="hover"
                           overlay-class-name="org-permissions-popup-overlay"
-                          :overlay-inner-style="permissionsHintPopupInnerStyle">
-                          <button type="button" class="permissions-trigger-btn"
+                          :overlay-inner-style="permissionsHintPopupInnerStyle"
+                        >
+                          <button
+                            type="button"
+                            class="permissions-trigger-btn"
                             :aria-label="$t('organization.settings.permissionCalcFormula')"
-                            :title="$t('organization.settings.permissionCalcFormula')">
+                            :title="$t('organization.settings.permissionCalcFormula')"
+                          >
                             <t-icon name="info-circle" size="16px" />
                           </button>
                           <template #content>
                             <div class="permission-hint-popover">
-                              <p class="permission-hint-title">{{ $t('organization.settings.sharePermissionLabel') }}</p>
-                              <p class="permission-hint-desc">{{ $t('organization.settings.permissionCalcTip') }}</p>
+                              <p class="permission-hint-title">
+                                {{ $t("organization.settings.sharePermissionLabel") }}
+                              </p>
+                              <p class="permission-hint-desc">{{ $t("organization.settings.permissionCalcTip") }}</p>
                             </div>
                           </template>
                         </t-popup>
                       </div>
                     </div>
-                    <p class="section-description">{{ $t('organization.settings.sharedDesc') }}</p>
+                    <p class="section-description">{{ $t("organization.settings.sharedDesc") }}</p>
                   </div>
 
                   <div class="shared-resources-wrap">
                     <div class="members-list-header">
                       <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t('organization.sharedResources.kbListTitle') }}</span>
+                        <span class="members-list-title">{{ $t("organization.sharedResources.kbListTitle") }}</span>
                         <span class="members-list-count-badge">{{ sharedKnowledgeBases.length }}</span>
                       </div>
                     </div>
 
                     <div v-if="sharesLoading && sharedKnowledgeBases.length === 0" class="loading-inline">
                       <t-loading size="small" />
-                      <span>{{ $t('organization.sharedResources.loading') }}</span>
+                      <span>{{ $t("organization.sharedResources.loading") }}</span>
                     </div>
                     <div v-else-if="sharedKnowledgeBases.length === 0" class="empty-state">
                       <t-empty>
                         <template #description>
-                          <p class="empty-state-title">{{ $t('organization.settings.noSharedKB') }}</p>
-                          <p class="empty-state-desc">{{ $t('organization.settings.noSharedKBTip') }}</p>
+                          <p class="empty-state-title">{{ $t("organization.settings.noSharedKB") }}</p>
+                          <p class="empty-state-desc">{{ $t("organization.settings.noSharedKBTip") }}</p>
                         </template>
                       </t-empty>
                     </div>
                     <div v-else class="data-table-shell shared-resources-table">
-                      <t-table row-key="id" :data="sharedKnowledgeBases" :columns="sharedKbColumns" size="medium"
-                        hover stripe :loading="sharesLoading" class="shared-kb-table">
+                      <t-table
+                        row-key="id"
+                        :data="sharedKnowledgeBases"
+                        :columns="sharedKbColumns"
+                        size="medium"
+                        hover
+                        stripe
+                        :loading="sharesLoading"
+                        class="shared-kb-table"
+                      >
                         <template #name="{ row }">
-                          <span class="resource-name" :title="row.knowledge_base_name">{{ row.knowledge_base_name }}</span>
+                          <span class="resource-name" :title="row.knowledge_base_name">{{
+                            row.knowledge_base_name
+                          }}</span>
                         </template>
                         <template #shared_by="{ row }">
-                          <span class="resource-meta">{{ row.shared_by_username || '—' }}</span>
+                          <span class="resource-meta">{{ row.shared_by_username || "—" }}</span>
                         </template>
                         <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
                         <template #space_permission="{ row }">
@@ -677,31 +895,46 @@
                           </t-tag>
                         </template>
                         <template #my_permission="{ row }">
-                          <t-tag size="small"
-                            :theme="getPermissionTheme(row.my_permission ?? row.permission)" variant="light">
+                          <t-tag
+                            size="small"
+                            :theme="getPermissionTheme(row.my_permission ?? row.permission)"
+                            variant="light"
+                          >
                             {{ sharePermissionLabel(row.my_permission ?? row.permission) }}
                           </t-tag>
                         </template>
                         <template #actions="{ row }">
                           <div class="resource-row-actions">
                             <t-tooltip :content="$t('knowledgeList.detail.goToKb')" placement="top">
-                              <t-button theme="primary" shape="square" variant="text" size="small"
+                              <t-button
+                                theme="primary"
+                                shape="square"
+                                variant="text"
+                                size="small"
                                 :aria-label="$t('knowledgeList.detail.goToKb')"
-                                @click.stop="handleShareClick(row)">
+                                @click.stop="handleShareClick(row)"
+                              >
                                 <template #icon><t-icon name="browse" /></template>
                               </t-button>
                             </t-tooltip>
-                            <t-popconfirm v-if="isAdmin"
-                            :content="$t('organization.settings.removeShareConfirm', { name: row.knowledge_base_name || row.knowledge_base_id })"
-                            :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
-                            :cancel-btn="{ content: $t('common.cancel') }" placement="left"
-                            @confirm="handleRemoveShare(row)">
-                            <t-tooltip :content="$t('organization.settings.removeShareFromOrg')" placement="top">
-                              <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
-                                <template #icon><t-icon name="delete" /></template>
-                              </t-button>
-                            </t-tooltip>
-                          </t-popconfirm>
+                            <t-popconfirm
+                              v-if="isAdmin"
+                              :content="
+                                $t('organization.settings.removeShareConfirm', {
+                                  name: row.knowledge_base_name || row.knowledge_base_id,
+                                })
+                              "
+                              :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
+                              :cancel-btn="{ content: $t('common.cancel') }"
+                              placement="left"
+                              @confirm="handleRemoveShare(row)"
+                            >
+                              <t-tooltip :content="$t('organization.settings.removeShareFromOrg')" placement="top">
+                                <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
+                                  <template #icon><t-icon name="delete" /></template>
+                                </t-button>
+                              </t-tooltip>
+                            </t-popconfirm>
                           </div>
                         </template>
                       </t-table>
@@ -714,9 +947,9 @@
 
               <!-- 底部操作按钮 -->
               <div class="settings-footer">
-                <t-button variant="outline" @click="handleClose">{{ $t('common.cancel') }}</t-button>
+                <t-button variant="outline" @click="handleClose">{{ $t("common.cancel") }}</t-button>
                 <t-button v-if="isAdmin" theme="primary" :loading="submitting" @click="handleSave">
-                  {{ isCreateMode ? $t('common.create') : $t('common.save') }}
+                  {{ isCreateMode ? $t("common.create") : $t("common.save") }}
                 </t-button>
               </div>
             </div>
@@ -728,11 +961,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { copyWithToast } from '@/utils/clipboard'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { copyWithToast } from "@/utils/clipboard";
 import {
   getOrganization,
   listOrgShares,
@@ -741,144 +974,169 @@ import {
   type OrganizationMember,
   type KnowledgeBaseShare,
   type JoinRequestResponse,
-  type TenantInviteCandidate
-} from '@/api/organization'
-import { useOrganizationStore } from '@/stores/organization'
-import { useAuthStore } from '@/stores/auth'
-import SpaceAvatar from '@/components/SpaceAvatar.vue'
+  type TenantInviteCandidate,
+} from "@/api/organization";
+import { useOrganizationStore } from "@/stores/organization";
+import { useAuthStore } from "@/stores/auth";
+import SpaceAvatar from "@/components/SpaceAvatar.vue";
 
-const router = useRouter()
-const authStore = useAuthStore()
-const { t } = useI18n()
+const router = useRouter();
+const authStore = useAuthStore();
+const { t } = useI18n();
 
-const orgStore = useOrganizationStore()
+const orgStore = useOrganizationStore();
 
 interface Props {
-  visible: boolean
-  orgId?: string
-  mode?: 'view' | 'edit' | 'create'
+  visible: boolean;
+  orgId?: string;
+  mode?: "view" | "edit" | "create";
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  mode: 'view'
-})
+  mode: "view",
+});
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-  (e: 'saved'): void
-}>()
+  (e: "update:visible", value: boolean): void;
+  (e: "saved"): void;
+}>();
 
 // State
-const currentSection = ref('basic')
-const contentWrapperRef = ref<HTMLElement | null>(null)
-const orgInfo = computed(() => orgStore.currentOrganization)
-const members = computed(() => orgStore.currentMembers)
-const sharedKnowledgeBases = ref<KnowledgeBaseShare[]>([])
-const joinRequests = ref<JoinRequestResponse[]>([])
-const joinRequestsLoading = ref(false)
-const joinRequestSearchQuery = ref('')
-const reviewingRequestId = ref<string | null>(null)
-const sharesLoading = ref(false)
-const membersLoading = ref(false)
-const memberSearchQuery = ref('')
-const submitting = ref(false)
-const refreshingCode = ref(false)
-const inviteCode = ref('')
-const inviteCodeExpiresAt = ref<string | null>(null)
-const upgradePopupVisible = ref(false)
-const upgradeSubmitting = ref(false)
-const hasPendingUpgrade = ref(false)
+const currentSection = ref("basic");
+const contentWrapperRef = ref<HTMLElement | null>(null);
+const orgInfo = computed(() => orgStore.currentOrganization);
+const members = computed(() => orgStore.currentMembers);
+const sharedKnowledgeBases = ref<KnowledgeBaseShare[]>([]);
+const joinRequests = ref<JoinRequestResponse[]>([]);
+const joinRequestsLoading = ref(false);
+const joinRequestSearchQuery = ref("");
+const reviewingRequestId = ref<string | null>(null);
+const sharesLoading = ref(false);
+const membersLoading = ref(false);
+const memberSearchQuery = ref("");
+const submitting = ref(false);
+const refreshingCode = ref(false);
+const inviteCode = ref("");
+const inviteCodeExpiresAt = ref<string | null>(null);
+const upgradePopupVisible = ref(false);
+const upgradeSubmitting = ref(false);
+const hasPendingUpgrade = ref(false);
 const upgradeForm = ref({
-  requested_role: 'editor' as 'admin' | 'editor' | 'viewer',
-  message: ''
-})
+  requested_role: "editor" as "admin" | "editor" | "viewer",
+  message: "",
+});
 
 // 添加成员（按空间邀请）相关状态。Plan 3 之后，邀请实际上是把
 // 一整个空间拉进空间；这里的「搜索结果」是空间候选列表，每条带一个
 // 代表用户用于展示。`selectedTenantId` 是真正提交给后端的 tenant_id。
-const addMemberPopupVisible = ref(false)
-const addMemberSubmitting = ref(false)
-const tenantSearchLoading = ref(false)
-const tenantSearchResults = ref<TenantInviteCandidate[]>([])
-const selectedTenantId = ref<number | null>(null)
-const addMemberRole = ref<'admin' | 'editor' | 'viewer'>('viewer')
+const addMemberPopupVisible = ref(false);
+const addMemberSubmitting = ref(false);
+const tenantSearchLoading = ref(false);
+const tenantSearchResults = ref<TenantInviteCandidate[]>([]);
+const selectedTenantId = ref<number | null>(null);
+const addMemberRole = ref<"admin" | "editor" | "viewer">("viewer");
 
 const formData = ref({
-  name: '',
-  description: '',
-  avatar: '' as string,
+  name: "",
+  description: "",
+  avatar: "" as string,
   require_approval: false,
   searchable: false,
   invite_code_validity_days: 7 as number,
-  member_limit: 50 as number // 0 = unlimited
-})
+  member_limit: 50 as number, // 0 = unlimited
+});
 
 // 空间头像可选 Emoji（方案三：Emoji 作为头像）
 const avatarEmojiOptions = [
-  '🚀', '📁', '👥', '🏢', '💡', '📚', '🌟', '🔧', '📌', '🎯',
-  '📂', '🔒', '🌐', '⚡', '🎨', '📊', '🤝', '💼', '📧', '🏠',
-  '🔑', '📈', '✨', '📋', '🌍', '💬', '🔔', '📦', '🎉', '🌈'
-]
-const avatarPopoverVisible = ref(false)
+  "🚀",
+  "📁",
+  "👥",
+  "🏢",
+  "💡",
+  "📚",
+  "🌟",
+  "🔧",
+  "📌",
+  "🎯",
+  "📂",
+  "🔒",
+  "🌐",
+  "⚡",
+  "🎨",
+  "📊",
+  "🤝",
+  "💼",
+  "📧",
+  "🏠",
+  "🔑",
+  "📈",
+  "✨",
+  "📋",
+  "🌍",
+  "💬",
+  "🔔",
+  "📦",
+  "🎉",
+  "🌈",
+];
+const avatarPopoverVisible = ref(false);
 
 function selectAvatarEmoji(emoji: string) {
-  formData.value.avatar = 'emoji:' + emoji
-  avatarPopoverVisible.value = false
+  formData.value.avatar = "emoji:" + emoji;
+  avatarPopoverVisible.value = false;
 }
 function clearAvatarEmoji() {
-  formData.value.avatar = ''
-  avatarPopoverVisible.value = false
+  formData.value.avatar = "";
+  avatarPopoverVisible.value = false;
 }
 
 // Computed
-const isCreateMode = computed(() => props.mode === 'create')
+const isCreateMode = computed(() => props.mode === "create");
 // 后端组织相关变更接口（保存设置、邀请、搜索用户、改/删成员、审核加入申请、
 // 升级申请、刷新邀请码、移除共享等）在路由层都要求当前空间角色 ≥ admin（见
 // internal/router/router.go 的 RegisterOrganizationRoutes）。跨空间超管可绕过。
 // 因此前端任何"管理类"入口必须同时满足：组织内是 admin/owner ∩ 当前空间 admin+。
-const hasTenantAdmin = computed(
-  () => authStore.hasRole('admin') || authStore.canAccessAllTenants
-)
+const hasTenantAdmin = computed(() => authStore.hasRole("admin") || authStore.canAccessAllTenants);
 const isAdmin = computed(() => {
-  if (isCreateMode.value) return hasTenantAdmin.value
-  const orgAdmin = orgInfo.value?.my_role === 'admin' || orgInfo.value?.is_owner
-  return !!orgAdmin && hasTenantAdmin.value
-})
+  if (isCreateMode.value) return hasTenantAdmin.value;
+  const orgAdmin = orgInfo.value?.my_role === "admin" || orgInfo.value?.is_owner;
+  return !!orgAdmin && hasTenantAdmin.value;
+});
 
 // 当用户在组织内是 admin/owner 但当前空间角色不足时，展示只读提示
 const showTenantRoleHint = computed(() => {
-  if (isCreateMode.value) return !hasTenantAdmin.value
-  const orgAdmin = orgInfo.value?.my_role === 'admin' || orgInfo.value?.is_owner
-  return !!orgAdmin && !hasTenantAdmin.value
-})
+  if (isCreateMode.value) return !hasTenantAdmin.value;
+  const orgAdmin = orgInfo.value?.my_role === "admin" || orgInfo.value?.is_owner;
+  return !!orgAdmin && !hasTenantAdmin.value;
+});
 
 // 是否可以申请权限升级（非管理员成员可申请；后端也要求空间 admin+）
 const canRequestUpgrade = computed(() => {
-  if (isCreateMode.value || !props.orgId) return false
-  const myRole = orgInfo.value?.my_role
-  if (!myRole || myRole === 'admin') return false
-  return hasTenantAdmin.value
-})
+  if (isCreateMode.value || !props.orgId) return false;
+  const myRole = orgInfo.value?.my_role;
+  if (!myRole || myRole === "admin") return false;
+  return hasTenantAdmin.value;
+});
 
 // 可申请的角色选项（比当前角色高的角色）
 const upgradeRoleOptions = computed(() => {
-  const myRole = orgInfo.value?.my_role || 'viewer'
-  const options = []
-  if (myRole === 'viewer') {
-    options.push({ label: t('organization.role.editor'), value: 'editor' })
-    options.push({ label: t('organization.role.admin'), value: 'admin' })
-  } else if (myRole === 'editor') {
-    options.push({ label: t('organization.role.admin'), value: 'admin' })
+  const myRole = orgInfo.value?.my_role || "viewer";
+  const options = [];
+  if (myRole === "viewer") {
+    options.push({ label: t("organization.role.editor"), value: "editor" });
+    options.push({ label: t("organization.role.admin"), value: "admin" });
+  } else if (myRole === "editor") {
+    options.push({ label: t("organization.role.admin"), value: "admin" });
   }
-  return options
-})
+  return options;
+});
 
 // 添加成员时可选的角色
 const addMemberRoleOptions = computed(() => [
-  { label: t('organization.role.viewer'), value: 'viewer' },
-  { label: t('organization.role.editor'), value: 'editor' },
-  { label: t('organization.role.admin'), value: 'admin' },
-])
+  { label: t("organization.role.viewer"), value: "viewer" },
+  { label: t("organization.role.editor"), value: "editor" },
+  { label: t("organization.role.admin"), value: "admin" },
+]);
 
 // 空间搜索结果选项。成员单位是空间，只按空间名搜索，因此直接展示空间名；
 // 空间名缺失时回退到空间 ID。
@@ -886,232 +1144,234 @@ const tenantSearchOptions = computed(() =>
   tenantSearchResults.value.map((c) => ({
     label: c.tenant_name || `tenant#${c.tenant_id}`,
     value: c.tenant_id,
-  }))
-)
+  })),
+);
 
 const modalTitle = computed(() => {
-  if (isCreateMode.value) return t('organization.createOrg')
-  return t('organization.settings.editTitle')
-})
+  if (isCreateMode.value) return t("organization.createOrg");
+  return t("organization.settings.editTitle");
+});
 
 const navItems = computed(() => {
   const items: { key: string; icon: string; label: string; badge?: number }[] = [
-    { key: 'basic', icon: 'info-circle', label: t('organization.editor.navBasic') },
-  ]
+    { key: "basic", icon: "info-circle", label: t("organization.editor.navBasic") },
+  ];
   if (isCreateMode.value) {
-    items.push({ key: 'permissions', icon: 'user-safety', label: t('organization.editor.navPermissions') })
+    items.push({ key: "permissions", icon: "user-safety", label: t("organization.editor.navPermissions") });
   }
   // 只有在编辑已有组织时才显示成员管理、加入申请（仅管理员）、共享知识库
   if (props.orgId && !isCreateMode.value) {
-    items.push({ key: 'members', icon: 'user', label: t('organization.manageMembers') })
+    items.push({ key: "members", icon: "user", label: t("organization.manageMembers") });
     if (isAdmin.value) {
-      const pendingCount = orgInfo.value?.pending_join_request_count ?? 0
+      const pendingCount = orgInfo.value?.pending_join_request_count ?? 0;
       items.push({
-        key: 'joinRequests',
-        icon: 'user-add',
-        label: t('organization.settings.joinRequests'),
-        badge: pendingCount > 0 ? pendingCount : undefined
-      })
+        key: "joinRequests",
+        icon: "user-add",
+        label: t("organization.settings.joinRequests"),
+        badge: pendingCount > 0 ? pendingCount : undefined,
+      });
     }
     items.push({
-      key: 'sharedKb',
-      icon: 'folder-open',
-      label: t('organization.share.sharedKnowledgeBase'),
-      badge: sharedKnowledgeBases.value.length
-    })
+      key: "sharedKb",
+      icon: "folder-open",
+      label: t("organization.share.sharedKnowledgeBase"),
+      badge: sharedKnowledgeBases.value.length,
+    });
   }
-  return items
-})
+  return items;
+});
 
 const navGroups = computed(() => {
-  const itemMap = new Map(navItems.value.map((item) => [item.key, item]))
-  const pickItems = (keys: string[]) =>
-    keys.map((key) => itemMap.get(key)).filter(Boolean) as typeof navItems.value
+  const itemMap = new Map(navItems.value.map((item) => [item.key, item]));
+  const pickItems = (keys: string[]) => keys.map((key) => itemMap.get(key)).filter(Boolean) as typeof navItems.value;
   if (isCreateMode.value) {
     return [
       {
-        key: 'basic',
-        label: t('organization.navGroups.basic'),
-        items: pickItems(['basic', 'permissions']),
+        key: "basic",
+        label: t("organization.navGroups.basic"),
+        items: pickItems(["basic", "permissions"]),
       },
-    ].filter((group) => group.items.length > 0)
+    ].filter((group) => group.items.length > 0);
   }
   return [
     {
-      key: 'basic',
-      label: t('organization.navGroups.basic'),
-      items: pickItems(['basic']),
+      key: "basic",
+      label: t("organization.navGroups.basic"),
+      items: pickItems(["basic"]),
     },
     {
-      key: 'management',
-      label: t('organization.navGroups.management'),
-      items: pickItems(['members', 'joinRequests']),
+      key: "management",
+      label: t("organization.navGroups.management"),
+      items: pickItems(["members", "joinRequests"]),
     },
     {
-      key: 'resources',
-      label: t('organization.navGroups.resources'),
-      items: pickItems(['sharedKb']),
+      key: "resources",
+      label: t("organization.navGroups.resources"),
+      items: pickItems(["sharedKb"]),
     },
-  ].filter((group) => group.items.length > 0)
-})
+  ].filter((group) => group.items.length > 0);
+});
 
 const roleOptions = computed(() => [
-  { label: t('organization.role.admin'), value: 'admin' },
-  { label: t('organization.role.editor'), value: 'editor' },
-  { label: t('organization.role.viewer'), value: 'viewer' }
-])
+  { label: t("organization.role.admin"), value: "admin" },
+  { label: t("organization.role.editor"), value: "editor" },
+  { label: t("organization.role.viewer"), value: "viewer" },
+]);
 
 const permissionsPopupInnerStyle = {
-  boxSizing: 'border-box' as const,
-  padding: '0',
-  width: 'min(520px, calc(100vw - 24px))',
-  maxWidth: 'min(520px, calc(100vw - 24px))',
-  maxHeight: 'min(400px, 65vh)',
-  overflow: 'hidden',
-}
+  boxSizing: "border-box" as const,
+  padding: "0",
+  width: "min(520px, calc(100vw - 24px))",
+  maxWidth: "min(520px, calc(100vw - 24px))",
+  maxHeight: "min(400px, 65vh)",
+  overflow: "hidden",
+};
 
 const permissionsHintPopupInnerStyle = {
-  boxSizing: 'border-box' as const,
-  padding: '0',
-  width: 'min(400px, calc(100vw - 24px))',
-  maxWidth: 'min(400px, calc(100vw - 24px))',
-  maxHeight: 'min(280px, 65vh)',
-  overflow: 'hidden',
-}
+  boxSizing: "border-box" as const,
+  padding: "0",
+  width: "min(400px, calc(100vw - 24px))",
+  maxWidth: "min(400px, calc(100vw - 24px))",
+  maxHeight: "min(280px, 65vh)",
+  overflow: "hidden",
+};
 
-type OrgRole = 'admin' | 'editor' | 'viewer'
-type OrgRolePerm = { key: string; has: boolean }
+type OrgRole = "admin" | "editor" | "viewer";
+type OrgRolePerm = { key: string; has: boolean };
 
-const orgRoleMatrixOrder: OrgRole[] = ['admin', 'editor', 'viewer']
+const orgRoleMatrixOrder: OrgRole[] = ["admin", "editor", "viewer"];
 
 const orgRoleMatrix: Record<OrgRole, OrgRolePerm[]> = {
   admin: [
-    { key: 'viewerPerm1', has: true },
-    { key: 'editorPerm1', has: true },
-    { key: 'shareKBPerm', has: true },
-    { key: 'adminPerm1', has: true },
+    { key: "viewerPerm1", has: true },
+    { key: "editorPerm1", has: true },
+    { key: "shareKBPerm", has: true },
+    { key: "adminPerm1", has: true },
   ],
   editor: [
-    { key: 'viewerPerm1', has: true },
-    { key: 'editorPerm1', has: true },
-    { key: 'shareKBPerm', has: false },
-    { key: 'adminPerm1', has: false },
+    { key: "viewerPerm1", has: true },
+    { key: "editorPerm1", has: true },
+    { key: "shareKBPerm", has: false },
+    { key: "adminPerm1", has: false },
   ],
   viewer: [
-    { key: 'viewerPerm1', has: true },
-    { key: 'editorPerm1', has: false },
-    { key: 'shareKBPerm', has: false },
-    { key: 'adminPerm1', has: false },
+    { key: "viewerPerm1", has: true },
+    { key: "editorPerm1", has: false },
+    { key: "shareKBPerm", has: false },
+    { key: "adminPerm1", has: false },
   ],
-}
+};
 
 function orgRoleIcon(role: OrgRole): string {
   switch (role) {
-    case 'admin':
-      return 'user-safety'
-    case 'editor':
-      return 'edit'
+    case "admin":
+      return "user-safety";
+    case "editor":
+      return "edit";
     default:
-      return 'browse'
+      return "browse";
   }
 }
 
 const memberColumns = computed(() => {
   const cols = [
-    { colKey: 'member', title: t('organization.members.columns.member'), ellipsis: true, minWidth: 160 },
-    { colKey: 'role', title: t('organization.members.columns.role'), width: 132 },
-    { colKey: 'joined_at', title: t('organization.members.columns.joinedAt'), width: 154 },
-  ]
+    { colKey: "member", title: t("organization.members.columns.member"), ellipsis: true, minWidth: 160 },
+    { colKey: "role", title: t("organization.members.columns.role"), width: 132 },
+    { colKey: "joined_at", title: t("organization.members.columns.joinedAt"), width: 154 },
+  ];
   if (isAdmin.value) {
-    cols.push({ colKey: 'actions', title: t('organization.members.columns.operations'), width: 88, align: 'left' } as typeof cols[number])
+    cols.push({
+      colKey: "actions",
+      title: t("organization.members.columns.operations"),
+      width: 88,
+      align: "left",
+    } as (typeof cols)[number]);
   }
-  return cols
-})
+  return cols;
+});
 
 function sharePermissionLabel(permission: string): string {
-  if (permission === 'editor' || permission === 'admin') {
-    return t('organization.share.permissionEditable')
+  if (permission === "editor" || permission === "admin") {
+    return t("organization.share.permissionEditable");
   }
-  return t('organization.share.permissionReadonly')
+  return t("organization.share.permissionReadonly");
 }
 
 const joinRequestColumns = computed(() => {
   const cols = [
-    { colKey: 'applicant', title: t('organization.joinRequests.columns.applicant'), ellipsis: true, minWidth: 160 },
-    { colKey: 'request_type', title: t('organization.joinRequests.columns.type'), width: 88 },
-    { colKey: 'requested_role', title: t('organization.joinRequests.columns.requestedRole'), width: 140 },
-    { colKey: 'message', title: t('organization.joinRequests.columns.message'), ellipsis: true, minWidth: 120 },
-    { colKey: 'created_at', title: t('organization.joinRequests.columns.appliedAt'), width: 154 },
-    { colKey: 'actions', title: t('organization.members.columns.operations'), width: 88, align: 'left' },
-  ]
-  return cols
-})
+    { colKey: "applicant", title: t("organization.joinRequests.columns.applicant"), ellipsis: true, minWidth: 160 },
+    { colKey: "request_type", title: t("organization.joinRequests.columns.type"), width: 88 },
+    { colKey: "requested_role", title: t("organization.joinRequests.columns.requestedRole"), width: 140 },
+    { colKey: "message", title: t("organization.joinRequests.columns.message"), ellipsis: true, minWidth: 120 },
+    { colKey: "created_at", title: t("organization.joinRequests.columns.appliedAt"), width: 154 },
+    { colKey: "actions", title: t("organization.members.columns.operations"), width: 88, align: "left" },
+  ];
+  return cols;
+});
 
 const sharedKbColumns = computed(() => {
   const cols = [
-    { colKey: 'name', title: t('organization.sharedResources.columns.name'), ellipsis: true, minWidth: 180 },
-    { colKey: 'shared_by', title: t('organization.sharedResources.columns.sharedBy'), width: 120, ellipsis: true },
-    { colKey: 'created_at', title: t('organization.sharedResources.columns.sharedAt'), width: 154 },
-    { colKey: 'space_permission', title: t('organization.settings.sharePermissionLabel'), width: 108 },
-    { colKey: 'my_permission', title: t('organization.settings.myPermissionLabel'), width: 96 },
+    { colKey: "name", title: t("organization.sharedResources.columns.name"), ellipsis: true, minWidth: 180 },
+    { colKey: "shared_by", title: t("organization.sharedResources.columns.sharedBy"), width: 120, ellipsis: true },
+    { colKey: "created_at", title: t("organization.sharedResources.columns.sharedAt"), width: 154 },
+    { colKey: "space_permission", title: t("organization.settings.sharePermissionLabel"), width: 108 },
+    { colKey: "my_permission", title: t("organization.settings.myPermissionLabel"), width: 96 },
     {
-      colKey: 'actions',
-      title: t('organization.members.columns.operations'),
+      colKey: "actions",
+      title: t("organization.members.columns.operations"),
       width: isAdmin.value ? 96 : 64,
-      align: 'left',
+      align: "left",
     },
-  ]
-  return cols
-})
+  ];
+  return cols;
+});
 
 const filteredMembers = computed(() => {
-  const query = memberSearchQuery.value.toLowerCase()
-  if (!query) return members.value
-  return members.value.filter((m) =>
-    (m.tenant_name || '').toLowerCase().includes(query) ||
-    (m.username || '').toLowerCase().includes(query) ||
-    (m.email || '').toLowerCase().includes(query)
-  )
-})
+  const query = memberSearchQuery.value.toLowerCase();
+  if (!query) return members.value;
+  return members.value.filter(
+    (m) =>
+      (m.tenant_name || "").toLowerCase().includes(query) ||
+      (m.username || "").toLowerCase().includes(query) ||
+      (m.email || "").toLowerCase().includes(query),
+  );
+});
 
 const filteredJoinRequests = computed(() => {
-  const query = joinRequestSearchQuery.value.trim().toLowerCase()
-  if (!query) return joinRequests.value
+  const query = joinRequestSearchQuery.value.trim().toLowerCase();
+  if (!query) return joinRequests.value;
   return joinRequests.value.filter((req) => {
-    const haystack = [req.username, req.email, req.user_id, req.message]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return haystack.includes(query)
-  })
-})
+    const haystack = [req.username, req.email, req.user_id, req.message].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(query);
+  });
+});
 
 function joinRequestApplicantLabel(req: JoinRequestResponse): string {
-  return req.username || req.email || req.user_id
+  return req.username || req.email || req.user_id;
 }
 
 function joinRequestApplicantSecondary(req: JoinRequestResponse): string {
-  const primary = joinRequestApplicantLabel(req)
-  if (req.email && req.email !== primary) return req.email
-  return ''
+  const primary = joinRequestApplicantLabel(req);
+  if (req.email && req.email !== primary) return req.email;
+  return "";
 }
 
 // 成员行的主标题：优先展示「空间名」，回退到代表用户名 / 空间 ID。Plan 3
 // 之后每一行成员都对应一个空间，UI 必须先于代表用户呈现空间身份，
 // 否则用户会误以为这是按"人"加进来的。
 const memberPrimaryLabel = (m: OrganizationMember): string => {
-  return m.tenant_name || m.username || `tenant#${m.tenant_id}`
-}
+  return m.tenant_name || m.username || `tenant#${m.tenant_id}`;
+};
 
 // 副标题：主标题展示的是空间名时，副标题展示代表用户名；如果主标题已经
 // 是用户名（无 tenant_name 时的回退），副标题留空，避免重复信息。
 // 邮箱在空间成员列表里没什么用（不是邀请人需要联系的对象），不展示。
 const memberSecondaryLabel = (m: OrganizationMember): string => {
   if (m.tenant_name && m.username) {
-    return m.username
+    return m.username;
   }
-  return ''
-}
+  return "";
+};
 
 // Owner identification is tenant-keyed after Plan 3 (#1303): the org's
 // pinned owner_tenant_id (migration 000046) is the authority on which
@@ -1120,250 +1380,250 @@ const memberSecondaryLabel = (m: OrganizationMember): string => {
 // owner_tenant_id wasn't backfilled — in that case the old per-user
 // rule is still better than nothing.
 const isOwnerMember = (member: OrganizationMember): boolean => {
-  const ownerTenantID = orgInfo.value?.owner_tenant_id
+  const ownerTenantID = orgInfo.value?.owner_tenant_id;
   if (ownerTenantID && ownerTenantID > 0) {
-    return member.tenant_id === ownerTenantID
+    return member.tenant_id === ownerTenantID;
   }
-  return member.user_id === orgInfo.value?.owner_id
-}
+  return member.user_id === orgInfo.value?.owner_id;
+};
 
 const inviteLink = computed(() => {
-  if (!inviteCode.value) return ''
-  return `${window.location.origin}/join?code=${inviteCode.value}`
-})
+  if (!inviteCode.value) return "";
+  return `${window.location.origin}/join?code=${inviteCode.value}`;
+});
 
 const inviteValidityOptions = computed(() => [
-  { label: t('organization.settings.validity1Day'), value: 1 },
-  { label: t('organization.settings.validity7Days'), value: 7 },
-  { label: t('organization.settings.validity30Days'), value: 30 },
-  { label: t('organization.settings.validityNever'), value: 0 }
-])
+  { label: t("organization.settings.validity1Day"), value: 1 },
+  { label: t("organization.settings.validity7Days"), value: 7 },
+  { label: t("organization.settings.validity30Days"), value: 30 },
+  { label: t("organization.settings.validityNever"), value: 0 },
+]);
 
 const remainingValidityText = computed(() => {
-  const at = inviteCodeExpiresAt.value
-  if (!at) return t('organization.settings.remainingValidityNever')
-  const exp = new Date(at)
-  const now = new Date()
-  if (exp.getTime() <= now.getTime()) return t('organization.settings.remainingValidityExpired')
-  const days = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
-  return t('organization.settings.remainingValidity', { n: days })
-})
+  const at = inviteCodeExpiresAt.value;
+  if (!at) return t("organization.settings.remainingValidityNever");
+  const exp = new Date(at);
+  const now = new Date();
+  if (exp.getTime() <= now.getTime()) return t("organization.settings.remainingValidityExpired");
+  const days = Math.ceil((exp.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  return t("organization.settings.remainingValidity", { n: days });
+});
 
 // Methods
 const handleClose = () => {
   // Blur before unmount so TDesign textarea autosize won't run on a detached node.
   if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
+    document.activeElement.blur();
   }
-  emit('update:visible', false)
-}
+  emit("update:visible", false);
+};
 
 const fetchOrgDetail = async () => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
-    const res = await getOrganization(props.orgId)
-    if (!props.visible) return
+    const res = await getOrganization(props.orgId);
+    if (!props.visible) return;
     if (res.success && res.data) {
-      orgStore.setCurrentOrganization(res.data)
-      const validity = res.data.invite_code_validity_days
-      const memberLimit = res.data.member_limit
+      orgStore.setCurrentOrganization(res.data);
+      const validity = res.data.invite_code_validity_days;
+      const memberLimit = res.data.member_limit;
       formData.value = {
         name: res.data.name,
-        description: res.data.description || '',
-        avatar: res.data.avatar || '',
+        description: res.data.description || "",
+        avatar: res.data.avatar || "",
         require_approval: res.data.require_approval || false,
         searchable: res.data.searchable || false,
-        invite_code_validity_days: typeof validity === 'number' ? validity : 7,
-        member_limit: typeof memberLimit === 'number' && memberLimit >= 0 ? memberLimit : 50
-      }
-      inviteCode.value = res.data.invite_code || ''
-      inviteCodeExpiresAt.value = res.data.invite_code_expires_at ?? null
+        invite_code_validity_days: typeof validity === "number" ? validity : 7,
+        member_limit: typeof memberLimit === "number" && memberLimit >= 0 ? memberLimit : 50,
+      };
+      inviteCode.value = res.data.invite_code || "";
+      inviteCodeExpiresAt.value = res.data.invite_code_expires_at ?? null;
       // 初始化是否有待处理的升级申请
-      hasPendingUpgrade.value = res.data.has_pending_upgrade || false
+      hasPendingUpgrade.value = res.data.has_pending_upgrade || false;
     }
   } catch (error) {
-    console.error('Failed to fetch org:', error)
+    console.error("Failed to fetch org:", error);
   }
-}
+};
 
 const fetchMembers = async () => {
-  if (!props.orgId) return
-  membersLoading.value = true
+  if (!props.orgId) return;
+  membersLoading.value = true;
   try {
-    await orgStore.fetchMembers(props.orgId)
+    await orgStore.fetchMembers(props.orgId);
   } catch (error) {
-    console.error('Failed to fetch members:', error)
+    console.error("Failed to fetch members:", error);
   } finally {
-    membersLoading.value = false
+    membersLoading.value = false;
   }
-}
+};
 
 const fetchSharedKBs = async () => {
-  if (!props.orgId) return
-  sharesLoading.value = true
+  if (!props.orgId) return;
+  sharesLoading.value = true;
   try {
-    const kbRes = await listOrgShares(props.orgId)
+    const kbRes = await listOrgShares(props.orgId);
     if (kbRes.success && kbRes.data) {
-      sharedKnowledgeBases.value = kbRes.data.shares || []
+      sharedKnowledgeBases.value = kbRes.data.shares || [];
     } else {
-      sharedKnowledgeBases.value = []
+      sharedKnowledgeBases.value = [];
     }
   } catch (error) {
-    console.error('Failed to fetch shared resources:', error)
-    sharedKnowledgeBases.value = []
+    console.error("Failed to fetch shared resources:", error);
+    sharedKnowledgeBases.value = [];
   } finally {
-    sharesLoading.value = false
+    sharesLoading.value = false;
   }
-}
+};
 
 const orgRoleOptions = [
-  { label: t('organization.role.viewer'), value: 'viewer' },
-  { label: t('organization.role.editor'), value: 'editor' },
-  { label: t('organization.role.admin'), value: 'admin' },
-]
-const approvePopupRequestId = ref<string | null>(null)
-const approveAssignRole = ref<'viewer' | 'editor' | 'admin'>('viewer')
+  { label: t("organization.role.viewer"), value: "viewer" },
+  { label: t("organization.role.editor"), value: "editor" },
+  { label: t("organization.role.admin"), value: "admin" },
+];
+const approvePopupRequestId = ref<string | null>(null);
+const approveAssignRole = ref<"viewer" | "editor" | "admin">("viewer");
 
-function normalizeJoinRequestRole(role: string): 'viewer' | 'editor' | 'admin' {
-  if (role === 'admin' || role === 'editor' || role === 'viewer') return role
-  return 'viewer'
+function normalizeJoinRequestRole(role: string): "viewer" | "editor" | "admin" {
+  if (role === "admin" || role === "editor" || role === "viewer") return role;
+  return "viewer";
 }
 
 function openApprovePopup(req: JoinRequestResponse) {
-  approvePopupRequestId.value = req.id
-  approveAssignRole.value = normalizeJoinRequestRole(req.requested_role)
+  approvePopupRequestId.value = req.id;
+  approveAssignRole.value = normalizeJoinRequestRole(req.requested_role);
 }
 
 function closeApprovePopup() {
-  approvePopupRequestId.value = null
+  approvePopupRequestId.value = null;
 }
 
 function handleApprovePopupVisibleChange(visible: boolean, req: JoinRequestResponse) {
   if (visible) {
-    openApprovePopup(req)
-    return
+    openApprovePopup(req);
+    return;
   }
   if (approvePopupRequestId.value === req.id) {
-    closeApprovePopup()
+    closeApprovePopup();
   }
 }
 
 function roleLabel(role: string) {
-  if (role === 'admin') return t('organization.role.admin')
-  if (role === 'editor') return t('organization.role.editor')
-  return t('organization.role.viewer')
+  if (role === "admin") return t("organization.role.admin");
+  if (role === "editor") return t("organization.role.editor");
+  return t("organization.role.viewer");
 }
 
 const fetchJoinRequests = async () => {
-  if (!props.orgId) return
-  joinRequestsLoading.value = true
+  if (!props.orgId) return;
+  joinRequestsLoading.value = true;
   try {
-    const res = await listJoinRequests(props.orgId)
+    const res = await listJoinRequests(props.orgId);
     if (res.success && res.data) {
-      joinRequests.value = res.data.requests || []
+      joinRequests.value = res.data.requests || [];
     } else {
-      joinRequests.value = []
+      joinRequests.value = [];
     }
   } catch (error) {
-    console.error('Failed to fetch join requests:', error)
-    joinRequests.value = []
+    console.error("Failed to fetch join requests:", error);
+    joinRequests.value = [];
   } finally {
-    joinRequestsLoading.value = false
+    joinRequestsLoading.value = false;
   }
-}
+};
 
 /**
  * 审批结果会同时影响设置弹窗、空间卡片和全局侧栏中的待审批数量。
  * 后两处读取的是 organization store，因此必须绕过列表缓存并同步最新计数。
  */
 const refreshOrganizationAfterReview = async () => {
-  await Promise.all([
-    fetchOrgDetail(),
-    fetchMembers()
-  ])
-}
+  await Promise.all([fetchOrgDetail(), fetchMembers()]);
+};
 
 const confirmApproveRequest = async (req: JoinRequestResponse) => {
-  const success = await handleApproveRequest(req, approveAssignRole.value)
-  if (success) closeApprovePopup()
-}
+  const success = await handleApproveRequest(req, approveAssignRole.value);
+  if (success) closeApprovePopup();
+};
 
-const handleApproveRequest = async (req: JoinRequestResponse, assignRole: 'viewer' | 'editor' | 'admin'): Promise<boolean> => {
-  if (!props.orgId) return false
-  reviewingRequestId.value = req.id
+const handleApproveRequest = async (
+  req: JoinRequestResponse,
+  assignRole: "viewer" | "editor" | "admin",
+): Promise<boolean> => {
+  if (!props.orgId) return false;
+  reviewingRequestId.value = req.id;
   try {
     const res = await orgStore.reviewOrganizationJoinRequest(
       props.orgId,
       req.id,
       { approved: true, role: assignRole },
-      { requestType: req.request_type }
-    )
+      { requestType: req.request_type },
+    );
     if (res.success) {
-      MessagePlugin.success(t('organization.settings.approveSuccess'))
-      joinRequests.value = joinRequests.value.filter(r => r.id !== req.id)
-      await refreshOrganizationAfterReview()
-      return true
+      MessagePlugin.success(t("organization.settings.approveSuccess"));
+      joinRequests.value = joinRequests.value.filter((r) => r.id !== req.id);
+      await refreshOrganizationAfterReview();
+      return true;
     }
-    MessagePlugin.error(res.message || t('organization.settings.reviewFailed'))
-    return false
+    MessagePlugin.error(res.message || t("organization.settings.reviewFailed"));
+    return false;
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.settings.reviewFailed'))
-    return false
+    MessagePlugin.error(error?.message || t("organization.settings.reviewFailed"));
+    return false;
   } finally {
-    reviewingRequestId.value = null
+    reviewingRequestId.value = null;
   }
-}
+};
 
 const handleRejectRequest = async (req: JoinRequestResponse) => {
-  if (!props.orgId) return
-  reviewingRequestId.value = req.id
+  if (!props.orgId) return;
+  reviewingRequestId.value = req.id;
   try {
     const res = await orgStore.reviewOrganizationJoinRequest(
       props.orgId,
       req.id,
       { approved: false },
-      { requestType: req.request_type }
-    )
+      { requestType: req.request_type },
+    );
     if (res.success) {
-      MessagePlugin.success(t('organization.settings.rejectSuccess'))
-      joinRequests.value = joinRequests.value.filter(r => r.id !== req.id)
-      await refreshOrganizationAfterReview()
+      MessagePlugin.success(t("organization.settings.rejectSuccess"));
+      joinRequests.value = joinRequests.value.filter((r) => r.id !== req.id);
+      await refreshOrganizationAfterReview();
     } else {
-      MessagePlugin.error(res.message || t('organization.settings.reviewFailed'))
+      MessagePlugin.error(res.message || t("organization.settings.reviewFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.settings.reviewFailed'))
+    MessagePlugin.error(error?.message || t("organization.settings.reviewFailed"));
   } finally {
-    reviewingRequestId.value = null
+    reviewingRequestId.value = null;
   }
-}
+};
 
 const handleSave = async () => {
   if (!formData.value.name.trim()) {
-    MessagePlugin.warning(t('organization.nameRequired'))
-    currentSection.value = 'basic'
-    return
+    MessagePlugin.warning(t("organization.nameRequired"));
+    currentSection.value = "basic";
+    return;
   }
 
-  submitting.value = true
+  submitting.value = true;
   try {
     if (isCreateMode.value) {
       // 创建模式
       const result = await orgStore.create(
         formData.value.name.trim(),
         formData.value.description.trim(),
-        formData.value.avatar || undefined
-      )
+        formData.value.avatar || undefined,
+      );
       if (result) {
-        MessagePlugin.success(t('organization.createSuccess'))
-        emit('saved')
-        handleClose()
+        MessagePlugin.success(t("organization.createSuccess"));
+        emit("saved");
+        handleClose();
       } else {
-        MessagePlugin.error(orgStore.error || t('organization.createFailed'))
+        MessagePlugin.error(orgStore.error || t("organization.createFailed"));
       }
     } else {
       // 编辑模式
-      if (!props.orgId) return
+      if (!props.orgId) return;
       const result = await orgStore.updateOrganization(props.orgId, {
         name: formData.value.name.trim(),
         description: formData.value.description.trim(),
@@ -1371,364 +1631,381 @@ const handleSave = async () => {
         require_approval: formData.value.require_approval,
         searchable: formData.value.searchable,
         invite_code_validity_days: formData.value.invite_code_validity_days,
-        member_limit: formData.value.member_limit
-      })
+        member_limit: formData.value.member_limit,
+      });
       if (result) {
-        MessagePlugin.success(t('common.saveSuccess'))
-        emit('saved')
-        handleClose()
+        MessagePlugin.success(t("common.saveSuccess"));
+        emit("saved");
+        handleClose();
       } else {
-        MessagePlugin.error(orgStore.error || t('common.saveFailed'))
+        MessagePlugin.error(orgStore.error || t("common.saveFailed"));
       }
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.saveFailed'))
+    MessagePlugin.error(error?.message || t("common.saveFailed"));
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
-}
+};
 
 const handleRoleChange = async (member: OrganizationMember, newRole: string) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
     const success = await orgStore.changeMemberRole(
       props.orgId,
       member.tenant_id,
-      newRole as 'admin' | 'editor' | 'viewer'
-    )
+      newRole as "admin" | "editor" | "viewer",
+    );
     if (success) {
-      MessagePlugin.success(t('organization.roleUpdated'))
+      MessagePlugin.success(t("organization.roleUpdated"));
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.roleUpdateFailed'))
-      fetchMembers()
+      MessagePlugin.error(orgStore.error || t("organization.roleUpdateFailed"));
+      fetchMembers();
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.roleUpdateFailed'))
-    fetchMembers()
+    MessagePlugin.error(error?.message || t("organization.roleUpdateFailed"));
+    fetchMembers();
   }
-}
+};
 
 const confirmRemoveMember = async (member: OrganizationMember) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
 
   try {
-    const success = await orgStore.kickMember(props.orgId, member.tenant_id)
+    const success = await orgStore.kickMember(props.orgId, member.tenant_id);
     if (success) {
-      MessagePlugin.success(t('organization.memberRemoved'))
+      MessagePlugin.success(t("organization.memberRemoved"));
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.memberRemoveFailed'))
+      MessagePlugin.error(orgStore.error || t("organization.memberRemoveFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.memberRemoveFailed'))
+    MessagePlugin.error(error?.message || t("organization.memberRemoveFailed"));
   }
-}
+};
 
 watch(upgradePopupVisible, (visible) => {
-  if (!visible) return
+  if (!visible) return;
   upgradeForm.value = {
-    requested_role: (upgradeRoleOptions.value[0]?.value as 'editor' | 'admin') || 'editor',
-    message: '',
-  }
-})
+    requested_role: (upgradeRoleOptions.value[0]?.value as "editor" | "admin") || "editor",
+    message: "",
+  };
+});
 
 const handleSubmitUpgrade = async () => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
 
-  upgradeSubmitting.value = true
+  upgradeSubmitting.value = true;
   try {
     const res = await orgStore.requestOrganizationRoleUpgrade(props.orgId, {
       requested_role: upgradeForm.value.requested_role,
-      message: upgradeForm.value.message
-    })
+      message: upgradeForm.value.message,
+    });
     if (res.success) {
-      MessagePlugin.success(t('organization.upgrade.submitSuccess'))
-      hasPendingUpgrade.value = true
-      upgradePopupVisible.value = false
+      MessagePlugin.success(t("organization.upgrade.submitSuccess"));
+      hasPendingUpgrade.value = true;
+      upgradePopupVisible.value = false;
     } else {
-      MessagePlugin.error(res.message || t('organization.upgrade.submitFailed'))
+      MessagePlugin.error(res.message || t("organization.upgrade.submitFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.upgrade.submitFailed'))
+    MessagePlugin.error(error?.message || t("organization.upgrade.submitFailed"));
   } finally {
-    upgradeSubmitting.value = false
+    upgradeSubmitting.value = false;
   }
-}
+};
 
 // 添加成员：搜索空间（仅按空间名模糊匹配，按 tenant_id 去重）
-let tenantSearchTimer: ReturnType<typeof setTimeout> | null = null
+let tenantSearchTimer: ReturnType<typeof setTimeout> | null = null;
 const handleTenantSearch = (query: string) => {
   if (tenantSearchTimer) {
-    clearTimeout(tenantSearchTimer)
+    clearTimeout(tenantSearchTimer);
   }
   if (!query || query.length < 2) {
-    tenantSearchResults.value = []
-    return
+    tenantSearchResults.value = [];
+    return;
   }
   tenantSearchTimer = setTimeout(async () => {
-    if (!props.orgId) return
-    tenantSearchLoading.value = true
+    if (!props.orgId) return;
+    tenantSearchLoading.value = true;
     try {
-      const res = await searchTenantsForInvite(props.orgId, query, 10)
+      const res = await searchTenantsForInvite(props.orgId, query, 10);
       if (res.success && res.data) {
-        tenantSearchResults.value = res.data
+        tenantSearchResults.value = res.data;
       }
     } catch (error) {
-      console.error('Failed to search tenants:', error)
+      console.error("Failed to search tenants:", error);
     } finally {
-      tenantSearchLoading.value = false
+      tenantSearchLoading.value = false;
     }
-  }, 300)
-}
+  }, 300);
+};
 
 // 添加成员：把选中的空间拉入空间。后端要求 tenant_id；representative_user_id
 // 仅做展示/审计用，所以把搜索结果中代表用户也一并带上。
 const handleAddMember = async () => {
-  if (!props.orgId || selectedTenantId.value == null) return
+  if (!props.orgId || selectedTenantId.value == null) return;
 
-  const candidate = tenantSearchResults.value.find(
-    (c) => c.tenant_id === selectedTenantId.value
-  )
+  const candidate = tenantSearchResults.value.find((c) => c.tenant_id === selectedTenantId.value);
 
-  addMemberSubmitting.value = true
+  addMemberSubmitting.value = true;
   try {
     const res = await orgStore.inviteOrganizationMember(props.orgId, {
       tenant_id: selectedTenantId.value,
       representative_user_id: candidate?.representative_user_id,
       role: addMemberRole.value,
-    })
+    });
     if (res.success) {
-      MessagePlugin.success(t('organization.addMember.success'))
-      addMemberPopupVisible.value = false
-      resetAddMemberDialog()
-      fetchMembers() // 刷新成员列表
+      MessagePlugin.success(t("organization.addMember.success"));
+      addMemberPopupVisible.value = false;
+      resetAddMemberDialog();
+      fetchMembers(); // 刷新成员列表
     } else {
-      MessagePlugin.error(res.message || t('organization.addMember.failed'))
+      MessagePlugin.error(res.message || t("organization.addMember.failed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.addMember.failed'))
+    MessagePlugin.error(error?.message || t("organization.addMember.failed"));
   } finally {
-    addMemberSubmitting.value = false
+    addMemberSubmitting.value = false;
   }
-}
+};
 
 // 重置添加成员弹窗
 const resetAddMemberDialog = () => {
-  selectedTenantId.value = null
-  addMemberRole.value = 'viewer'
-  tenantSearchResults.value = []
-}
+  selectedTenantId.value = null;
+  addMemberRole.value = "viewer";
+  tenantSearchResults.value = [];
+};
 
 const copyInviteCode = async () => {
-  await copyWithToast(inviteCode.value, 'common.copied')
-}
+  await copyWithToast(inviteCode.value, "common.copied");
+};
 
 const copyInviteLink = async () => {
-  await copyWithToast(inviteLink.value, 'common.copied')
-}
+  await copyWithToast(inviteLink.value, "common.copied");
+};
 
 const refreshInviteCode = async () => {
-  if (!props.orgId) return
-  refreshingCode.value = true
+  if (!props.orgId) return;
+  refreshingCode.value = true;
   try {
-    const code = await orgStore.refreshInviteCode(props.orgId)
+    const code = await orgStore.refreshInviteCode(props.orgId);
     if (code) {
-      inviteCode.value = code
-      MessagePlugin.success(t('organization.inviteCodeRefreshed'))
-      await fetchOrgDetail()
+      inviteCode.value = code;
+      MessagePlugin.success(t("organization.inviteCodeRefreshed"));
+      await fetchOrgDetail();
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.inviteCodeRefreshFailed'))
+      MessagePlugin.error(orgStore.error || t("organization.inviteCodeRefreshFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.inviteCodeRefreshFailed'))
+    MessagePlugin.error(error?.message || t("organization.inviteCodeRefreshFailed"));
   } finally {
-    refreshingCode.value = false
+    refreshingCode.value = false;
   }
-}
+};
 
 const handleValidityChange = async (value: number) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
     const result = await orgStore.updateOrganization(props.orgId, {
-      invite_code_validity_days: value
-    })
+      invite_code_validity_days: value,
+    });
     if (result) {
-      MessagePlugin.success(t('common.saveSuccess'))
+      MessagePlugin.success(t("common.saveSuccess"));
     } else {
-      formData.value.invite_code_validity_days = orgInfo.value?.invite_code_validity_days ?? 7
-      MessagePlugin.error(orgStore.error || t('common.saveFailed'))
+      formData.value.invite_code_validity_days = orgInfo.value?.invite_code_validity_days ?? 7;
+      MessagePlugin.error(orgStore.error || t("common.saveFailed"));
     }
   } catch (error: any) {
-    formData.value.invite_code_validity_days = orgInfo.value?.invite_code_validity_days ?? 7
-    MessagePlugin.error(error?.message || t('common.saveFailed'))
+    formData.value.invite_code_validity_days = orgInfo.value?.invite_code_validity_days ?? 7;
+    MessagePlugin.error(error?.message || t("common.saveFailed"));
   }
-}
+};
 
 // 切换审核开关时立即保存
 const handleApprovalToggle = async (value: boolean) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
     const result = await orgStore.updateOrganization(props.orgId, {
-      require_approval: value
-    })
+      require_approval: value,
+    });
     if (result) {
-      MessagePlugin.success(t('common.saveSuccess'))
+      MessagePlugin.success(t("common.saveSuccess"));
     } else {
       // 回滚
-      formData.value.require_approval = !value
-      MessagePlugin.error(orgStore.error || t('common.saveFailed'))
+      formData.value.require_approval = !value;
+      MessagePlugin.error(orgStore.error || t("common.saveFailed"));
     }
   } catch (error: any) {
     // 回滚
-    formData.value.require_approval = !value
-    MessagePlugin.error(error?.message || t('common.saveFailed'))
+    formData.value.require_approval = !value;
+    MessagePlugin.error(error?.message || t("common.saveFailed"));
   }
-}
+};
 
 // 切换开放可被搜索时立即保存
 const handleSearchableToggle = async (value: boolean) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
     const result = await orgStore.updateOrganization(props.orgId, {
-      searchable: value
-    })
+      searchable: value,
+    });
     if (result) {
-      MessagePlugin.success(t('common.saveSuccess'))
+      MessagePlugin.success(t("common.saveSuccess"));
     } else {
-      formData.value.searchable = !value
-      MessagePlugin.error(orgStore.error || t('common.saveFailed'))
+      formData.value.searchable = !value;
+      MessagePlugin.error(orgStore.error || t("common.saveFailed"));
     }
   } catch (error: any) {
-    formData.value.searchable = !value
-    MessagePlugin.error(error?.message || t('common.saveFailed'))
+    formData.value.searchable = !value;
+    MessagePlugin.error(error?.message || t("common.saveFailed"));
   }
-}
+};
 
 const handleShareClick = (share: KnowledgeBaseShare) => {
-  handleClose()
-  router.push(`/platform/knowledge-bases/${share.knowledge_base_id}`)
-}
+  handleClose();
+  router.push(`/platform/knowledge-bases/${share.knowledge_base_id}`);
+};
 
 const handleRemoveShare = async (share: KnowledgeBaseShare) => {
-  if (!props.orgId) return
+  if (!props.orgId) return;
   try {
-    const res = await orgStore.unshareKnowledgeBase(
-      share.knowledge_base_id,
-      share.id,
-      props.orgId
-    )
+    const res = await orgStore.unshareKnowledgeBase(share.knowledge_base_id, share.id, props.orgId);
     if (res.success) {
-      MessagePlugin.success(t('organization.settings.removeShareSuccess'))
-      sharedKnowledgeBases.value = sharedKnowledgeBases.value.filter(s => s.id !== share.id)
+      MessagePlugin.success(t("organization.settings.removeShareSuccess"));
+      sharedKnowledgeBases.value = sharedKnowledgeBases.value.filter((s) => s.id !== share.id);
     } else {
-      MessagePlugin.error(res.message || t('organization.settings.removeShareFailed'))
+      MessagePlugin.error(res.message || t("organization.settings.removeShareFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.settings.removeShareFailed'))
+    MessagePlugin.error(error?.message || t("organization.settings.removeShareFailed"));
   }
-}
+};
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const getRoleTheme = (role: string) => {
   switch (role) {
-    case 'admin': return 'primary'
-    case 'editor': return 'warning'
-    case 'viewer': return 'default'
-    default: return 'default'
+    case "admin":
+      return "primary";
+    case "editor":
+      return "warning";
+    case "viewer":
+      return "default";
+    default:
+      return "default";
   }
-}
+};
 
 const getPermissionTheme = (permission: string) => {
   switch (permission) {
-    case 'admin': return 'primary'
-    case 'editor': return 'warning'
-    case 'viewer': return 'default'
-    default: return 'default'
+    case "admin":
+      return "primary";
+    case "editor":
+      return "warning";
+    case "viewer":
+      return "default";
+    default:
+      return "default";
   }
-}
+};
 
 const scrollContentToTop = async () => {
-  await nextTick()
-  contentWrapperRef.value?.scrollTo({ top: 0, behavior: 'auto' })
-}
+  await nextTick();
+  contentWrapperRef.value?.scrollTo({ top: 0, behavior: "auto" });
+};
 
-let previousBodyOverflow = ''
-let bodyScrollLocked = false
+let previousBodyOverflow = "";
+let bodyScrollLocked = false;
 
 const lockBackgroundScroll = () => {
-  if (bodyScrollLocked) return
-  previousBodyOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
-  bodyScrollLocked = true
-}
+  if (bodyScrollLocked) return;
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+  bodyScrollLocked = true;
+};
 
 const unlockBackgroundScroll = () => {
-  if (!bodyScrollLocked) return
-  document.body.style.overflow = previousBodyOverflow
-  bodyScrollLocked = false
-}
+  if (!bodyScrollLocked) return;
+  document.body.style.overflow = previousBodyOverflow;
+  bodyScrollLocked = false;
+};
 
 // Watch
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    lockBackgroundScroll()
-    void scrollContentToTop()
-    currentSection.value = 'basic'
-    memberSearchQuery.value = ''
-    joinRequestSearchQuery.value = ''
-    approvePopupRequestId.value = null
-    joinRequests.value = []
-    if (props.mode === 'create') {
-      // 创建模式：重置表单
-      formData.value = { name: '', description: '', avatar: '', require_approval: false, searchable: false, invite_code_validity_days: 7, member_limit: 50 }
-      orgStore.clearCurrentOrganizationContext()
-      sharedKnowledgeBases.value = []
-      inviteCode.value = ''
-      inviteCodeExpiresAt.value = null
-    } else if (props.orgId) {
-      // 清空上一个组织的详情上下文，避免在 fetchOrgDetail 返回前短暂显示旧组织信息
-      if (orgStore.currentOrganization?.id !== props.orgId) {
-        orgStore.clearCurrentOrganizationContext()
-        sharedKnowledgeBases.value = []
+watch(
+  () => props.visible,
+  (newVal) => {
+    if (newVal) {
+      lockBackgroundScroll();
+      void scrollContentToTop();
+      currentSection.value = "basic";
+      memberSearchQuery.value = "";
+      joinRequestSearchQuery.value = "";
+      approvePopupRequestId.value = null;
+      joinRequests.value = [];
+      if (props.mode === "create") {
+        // 创建模式：重置表单
+        formData.value = {
+          name: "",
+          description: "",
+          avatar: "",
+          require_approval: false,
+          searchable: false,
+          invite_code_validity_days: 7,
+          member_limit: 50,
+        };
+        orgStore.clearCurrentOrganizationContext();
+        sharedKnowledgeBases.value = [];
+        inviteCode.value = "";
+        inviteCodeExpiresAt.value = null;
+      } else if (props.orgId) {
+        // 清空上一个组织的详情上下文，避免在 fetchOrgDetail 返回前短暂显示旧组织信息
+        if (orgStore.currentOrganization?.id !== props.orgId) {
+          orgStore.clearCurrentOrganizationContext();
+          sharedKnowledgeBases.value = [];
+        }
+        fetchOrgDetail();
+        fetchMembers();
+        fetchSharedKBs();
       }
-      fetchOrgDetail()
-      fetchMembers()
-      fetchSharedKBs()
+    } else {
+      unlockBackgroundScroll();
     }
-  } else {
-    unlockBackgroundScroll()
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+);
 
-watch(() => props.orgId, () => {
-  if (props.visible) {
-    void scrollContentToTop()
-  }
-})
+watch(
+  () => props.orgId,
+  () => {
+    if (props.visible) {
+      void scrollContentToTop();
+    }
+  },
+);
 
 watch(currentSection, (section) => {
-  void scrollContentToTop()
-  if (section === 'joinRequests' && props.orgId) {
-    fetchJoinRequests()
+  void scrollContentToTop();
+  if (section === "joinRequests" && props.orgId) {
+    fetchJoinRequests();
   }
-})
+});
 
 onBeforeUnmount(() => {
-  unlockBackgroundScroll()
-})
+  unlockBackgroundScroll();
+});
 
 watch(addMemberPopupVisible, (visible) => {
   if (!visible) {
-    resetAddMemberDialog()
+    resetAddMemberDialog();
   }
-})
+});
 </script>
 
 <style scoped lang="less">
@@ -2253,7 +2530,9 @@ watch(addMemberPopupVisible, (visible) => {
   background: var(--td-bg-color-container);
   font-size: 18px;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .avatar-popover-content .avatar-emoji-btn:hover {
@@ -2432,7 +2711,9 @@ watch(addMemberPopupVisible, (visible) => {
   color: var(--td-text-color-secondary);
   cursor: pointer;
   line-height: 0;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 
   :deep(.t-icon) {
     display: block;
@@ -3146,7 +3427,7 @@ watch(addMemberPopupVisible, (visible) => {
   }
 }
 
-:root[theme-mode='dark'] .org-permissions-popup-overlay .t-popup__content {
+:root[theme-mode="dark"] .org-permissions-popup-overlay .t-popup__content {
   background: rgba(36, 36, 36, 0.92) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   box-shadow:
@@ -3171,7 +3452,9 @@ watch(addMemberPopupVisible, (visible) => {
     padding: 16px;
     border-radius: 10px;
     border: 1px solid var(--td-component-stroke);
-    box-shadow: var(--td-shadow-2), 0 8px 24px rgba(15, 23, 42, 0.08);
+    box-shadow:
+      var(--td-shadow-2),
+      0 8px 24px rgba(15, 23, 42, 0.08);
   }
 }
 
@@ -3262,7 +3545,9 @@ watch(addMemberPopupVisible, (visible) => {
     line-height: 1.4;
     color: var(--td-text-color-secondary);
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
 
     &:hover,
     &:focus-visible {

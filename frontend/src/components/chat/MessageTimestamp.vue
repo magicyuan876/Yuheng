@@ -3,33 +3,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { getConversationTimestampModel } from '@/utils/messageTimestamp'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { getConversationTimestampModel } from "@/utils/messageTimestamp";
 
 const props = defineProps<{
-  value?: unknown
-}>()
+  value?: unknown;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const model = computed(() => getConversationTimestampModel(props.value))
-const datetime = computed(() => model.value?.datetime ?? '')
+const model = computed(() => getConversationTimestampModel(props.value));
+const datetime = computed(() => model.value?.datetime ?? "");
 const label = computed(() => {
-  const next = model.value
-  if (!next) return ''
-  if (next.kind === 'today') return t('chat.conversationTime.today', { time: next.time })
-  if (next.kind === 'yesterday') return t('chat.conversationTime.yesterday', { time: next.time })
-  if (next.kind === 'thisYear') {
-    return t('chat.conversationTime.thisYear', { month: next.month, day: next.day, time: next.time })
+  const next = model.value;
+  if (!next) return "";
+  if (next.kind === "today") return t("chat.conversationTime.today", { time: next.time });
+  if (next.kind === "yesterday") return t("chat.conversationTime.yesterday", { time: next.time });
+  if (next.kind === "thisYear") {
+    return t("chat.conversationTime.thisYear", { month: next.month, day: next.day, time: next.time });
   }
-  return t('chat.conversationTime.otherYear', {
+  return t("chat.conversationTime.otherYear", {
     year: next.year,
     month: next.month,
     day: next.day,
     time: next.time,
-  })
-})
+  });
+});
 </script>
 
 <style scoped lang="less">

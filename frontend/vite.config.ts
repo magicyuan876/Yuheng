@@ -1,51 +1,49 @@
-import { fileURLToPath, URL } from 'node:url'
-import { resolve, dirname } from 'node:path'
-import { existsSync } from 'node:fs'
-import { execSync } from 'node:child_process'
-import { createRequire } from 'node:module'
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
+import { fileURLToPath, URL } from "node:url";
+import { resolve, dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import vueJsx from "@vitejs/plugin-vue-jsx";
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const require = createRequire(import.meta.url)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
-const pkg = require('./package.json') as { version?: string }
-const FRONTEND_VERSION = pkg.version ?? 'unknown'
+const pkg = require("./package.json") as { version?: string };
+const FRONTEND_VERSION = pkg.version ?? "unknown";
 
 function resolveFrontendCommit(): string {
-  const fromEnv = process.env.VITE_FRONTEND_COMMIT || process.env.GITHUB_SHA
+  const fromEnv = process.env.VITE_FRONTEND_COMMIT || process.env.GITHUB_SHA;
   if (fromEnv) {
-    return fromEnv.slice(0, 7)
+    return fromEnv.slice(0, 7);
   }
   try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
       .toString()
-      .trim()
+      .trim();
   } catch {
-    return 'unknown'
+    return "unknown";
   }
 }
 
-const FRONTEND_COMMIT = resolveFrontendCommit()
+const FRONTEND_COMMIT = resolveFrontendCommit();
 
 const DEV_PROXY_TARGET =
-  process.env.VITE_DEV_PROXY_TARGET ||
-  process.env.FRONTEND_BACKEND_URL ||
-  'http://localhost:8080'
+  process.env.VITE_DEV_PROXY_TARGET || process.env.FRONTEND_BACKEND_URL || "http://localhost:8080";
 
 function resolveVueOfficePptxEntry(): string {
   try {
-    const pkgDir = dirname(require.resolve('@vue-office/pptx/package.json'))
+    const pkgDir = dirname(require.resolve("@vue-office/pptx/package.json"));
     const candidates = [
-      resolve(pkgDir, 'lib/v3/index.js'),
-      resolve(pkgDir, 'lib/index.js'),
-      resolve(pkgDir, 'lib/v3/vue-office-pptx.mjs'),
-    ]
-    const matched = candidates.find((candidate) => existsSync(candidate))
-    return matched ?? '@vue-office/pptx'
+      resolve(pkgDir, "lib/v3/index.js"),
+      resolve(pkgDir, "lib/index.js"),
+      resolve(pkgDir, "lib/v3/vue-office-pptx.mjs"),
+    ];
+    const matched = candidates.find((candidate) => existsSync(candidate));
+    return matched ?? "@vue-office/pptx";
   } catch {
-    return '@vue-office/pptx'
+    return "@vue-office/pptx";
   }
 }
 
@@ -57,40 +55,41 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
+        main: resolve(__dirname, "index.html"),
       },
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return
+          if (!id.includes("node_modules")) return;
           // Excalidraw and the React runtime it needs are by a wide margin
           // the largest thing here, and are reached only by somebody who
           // opens a drawing for editing. Keeping them in their own chunk is
           // what stops every reader of every page paying for them.
-          if (id.includes('@excalidraw') || id.includes('/react-dom/') || id.includes('/react/')
-            || id.includes('/scheduler/')) {
-            return 'vendor-excalidraw'
+          if (
+            id.includes("@excalidraw") ||
+            id.includes("/react-dom/") ||
+            id.includes("/react/") ||
+            id.includes("/scheduler/")
+          ) {
+            return "vendor-excalidraw";
           }
-          if (id.includes('mermaid') || id.includes('/dagre') || id.includes('cytoscape')) {
-            return 'vendor-mermaid'
+          if (id.includes("mermaid") || id.includes("/dagre") || id.includes("cytoscape")) {
+            return "vendor-mermaid";
           }
-          if (id.includes('marked') || id.includes('katex')) {
-            return 'vendor-markdown'
+          if (id.includes("marked") || id.includes("katex")) {
+            return "vendor-markdown";
           }
-          if (id.includes('highlight.js')) {
-            return 'vendor-highlight'
+          if (id.includes("highlight.js")) {
+            return "vendor-highlight";
           }
         },
       },
     },
   },
-  plugins: [
-    vue(),
-    vueJsx(),
-  ],
+  plugins: [vue(), vueJsx()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@vue-office/pptx': resolveVueOfficePptxEntry(),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@vue-office/pptx": resolveVueOfficePptxEntry(),
     },
   },
   server: {
@@ -98,17 +97,17 @@ export default defineConfig({
     host: true,
     // 代理配置，用于开发环境
     proxy: {
-      '/api': {
+      "/api": {
         target: DEV_PROXY_TARGET,
         changeOrigin: true,
         secure: false,
       },
-      '/files': {
+      "/files": {
         target: DEV_PROXY_TARGET,
         changeOrigin: true,
         secure: false,
-      }
-    }
+      },
+    },
   },
   // `vite preview` 用生产构建产物(dist)本地起服务，是最接近 release 镜像的环境：
   // 同样的压缩 / 拆包 / CSS 加载顺序，可提前暴露只在生产构建出现的问题
@@ -117,16 +116,16 @@ export default defineConfig({
     port: 4173,
     host: true,
     proxy: {
-      '/api': {
+      "/api": {
         target: DEV_PROXY_TARGET,
         changeOrigin: true,
         secure: false,
       },
-      '/files': {
+      "/files": {
         target: DEV_PROXY_TARGET,
         changeOrigin: true,
         secure: false,
-      }
-    }
-  }
-})
+      },
+    },
+  },
+});

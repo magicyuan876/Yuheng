@@ -10,60 +10,64 @@
 // that rendered as "loading" re-render as a title a moment later — the caches
 // themselves are plain objects, deliberately, so they can be tested without
 // Vue.
-import type { InjectionKey, Ref } from 'vue'
+import type { InjectionKey, Ref } from "vue";
 
-import type { ResolvedBlockRef } from './blockRefCache'
-import type { ResolvedPage } from './titleCache'
+import type { ResolvedBlockRef } from "./blockRefCache";
+import type { ResolvedPage } from "./titleCache";
 
 export interface TitleCacheHandle {
-  get: (pageId: string) => ResolvedPage | undefined
-  revision: Ref<number>
+  get: (pageId: string) => ResolvedPage | undefined;
+  revision: Ref<number>;
 }
 
 export interface DirectoryPerson {
-  userId: string
-  username?: string
-  email?: string
-  avatar?: string
+  userId: string;
+  username?: string;
+  email?: string;
+  avatar?: string;
 }
 
 export interface DirectoryHandle {
-  get: (userId: string) => DirectoryPerson | undefined
-  revision: Ref<number>
+  get: (userId: string) => DirectoryPerson | undefined;
+  revision: Ref<number>;
 }
 
 /** What an embed node was told about its address. */
 export interface ResolvedEmbed {
   /** The address to frame, or empty when the deployment refuses it. */
-  embedUrl: string
-  title?: string
+  embedUrl: string;
+  title?: string;
 }
 
 export interface EmbedResolverHandle {
   /** What to frame; undefined while the answer is still being fetched. */
-  get: (provider: string, url: string) => ResolvedEmbed | undefined
-  revision: Ref<number>
+  get: (provider: string, url: string) => ResolvedEmbed | undefined;
+  revision: Ref<number>;
 }
 
 /** What a diagram node needs to open its editor. */
 export interface DiagramHost {
   /** The self-hosted draw.io address, or empty when diagrams are read-only. */
-  drawioURL: Ref<string>
+  drawioURL: Ref<string>;
   /** Stores an edited diagram and returns the two attachment ids. */
-  save: (kind: 'drawio' | 'excalidraw', source: string, preview: string, sourceName: string)
-    => Promise<{ attachmentId: string; previewAttachmentId: string }>
+  save: (
+    kind: "drawio" | "excalidraw",
+    source: string,
+    preview: string,
+    sourceName: string,
+  ) => Promise<{ attachmentId: string; previewAttachmentId: string }>;
   /** Reads a stored diagram's source back. */
-  load: (attachmentId: string) => Promise<string>
+  load: (attachmentId: string) => Promise<string>;
 }
 
 /** What a block reference needs to draw the block it points at. */
 export interface BlockRefHandle {
-  get: (ref: { sourcePageId: string; sourceBlockId: string }) => ResolvedBlockRef | undefined
-  revision: Ref<number>
+  get: (ref: { sourcePageId: string; sourceBlockId: string }) => ResolvedBlockRef | undefined;
+  revision: Ref<number>;
 }
 
-export const DOCS_TITLE_CACHE: InjectionKey<TitleCacheHandle> = Symbol('docs.titleCache')
-export const DOCS_BLOCK_REFS: InjectionKey<BlockRefHandle> = Symbol('docs.blockRefs')
-export const DOCS_EMBEDS: InjectionKey<EmbedResolverHandle> = Symbol('docs.embeds')
-export const DOCS_DIAGRAMS: InjectionKey<DiagramHost> = Symbol('docs.diagrams')
-export const DOCS_DIRECTORY: InjectionKey<DirectoryHandle> = Symbol('docs.directory')
+export const DOCS_TITLE_CACHE: InjectionKey<TitleCacheHandle> = Symbol("docs.titleCache");
+export const DOCS_BLOCK_REFS: InjectionKey<BlockRefHandle> = Symbol("docs.blockRefs");
+export const DOCS_EMBEDS: InjectionKey<EmbedResolverHandle> = Symbol("docs.embeds");
+export const DOCS_DIAGRAMS: InjectionKey<DiagramHost> = Symbol("docs.diagrams");
+export const DOCS_DIRECTORY: InjectionKey<DirectoryHandle> = Symbol("docs.directory");

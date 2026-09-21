@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref, watch, type ComputedRef } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, type ComputedRef } from "vue";
 
 export interface TypewriterOptions {
   /** Comfortable reveal floor in characters per second. */
@@ -41,11 +41,7 @@ function advanceCodePoints(text: string, start: number, count: number): number {
  * CJK text advances in compact 2–4 character phrases. Latin text waits briefly
  * for a whole-word boundary instead of crawling through a word letter by letter.
  */
-export function nextTypewriterReveal(
-  text: string,
-  start: number,
-  availableCharacters: number,
-): number {
+export function nextTypewriterReveal(text: string, start: number, availableCharacters: number): number {
   if (start >= text.length) return text.length;
 
   const firstEnd = nextCodePointEnd(text, start);
@@ -99,8 +95,8 @@ export function useTypewriter(
   let reduceMotion = false;
   let motionQuery: MediaQueryList | null = null;
 
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reduceMotion = motionQuery.matches;
   }
 
@@ -165,7 +161,7 @@ export function useTypewriter(
       stop();
     }
   };
-  motionQuery?.addEventListener('change', handleMotionChange);
+  motionQuery?.addEventListener("change", handleMotionChange);
 
   watch(
     getTarget,
@@ -193,7 +189,7 @@ export function useTypewriter(
 
   onBeforeUnmount(() => {
     stop();
-    motionQuery?.removeEventListener('change', handleMotionChange);
+    motionQuery?.removeEventListener("change", handleMotionChange);
   });
 
   return { displayed };

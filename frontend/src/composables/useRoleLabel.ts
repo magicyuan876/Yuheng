@@ -1,6 +1,6 @@
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { useAuthStore } from "@/stores/auth";
 
 /**
  * Format a tenant role enum value ('viewer' | 'contributor' | 'admin' | 'owner')
@@ -16,22 +16,21 @@ import { useAuthStore } from '@/stores/auth'
  * runtime "icon not found" footgun on uncommon role names.
  */
 export function useRoleLabel() {
-  const { t } = useI18n()
+  const { t } = useI18n();
   const formatRole = (role: string | null | undefined): string => {
-    if (!role) return ''
-    const key = `tenantMember.role.${role}`
-    const label = t(key)
-    return label === key ? role : label
-  }
+    if (!role) return "";
+    const key = `tenantMember.role.${role}`;
+    const label = t(key);
+    return label === key ? role : label;
+  };
   const ROLE_ICONS: Record<string, string> = {
-    owner: 'secured',
-    admin: 'user-circle',
-    contributor: 'edit',
-    viewer: 'browse',
-  }
-  const roleIcon = (role: string | null | undefined): string =>
-    (role && ROLE_ICONS[role]) || ''
-  return { formatRole, roleIcon }
+    owner: "secured",
+    admin: "user-circle",
+    contributor: "edit",
+    viewer: "browse",
+  };
+  const roleIcon = (role: string | null | undefined): string => (role && ROLE_ICONS[role]) || "";
+  return { formatRole, roleIcon };
 }
 
 /**
@@ -52,23 +51,23 @@ export function useRoleLabel() {
  * sitting in my home tenant right now?".
  */
 export function useHomeTenant() {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
   const homeTenantId = computed<number | null>(() => {
-    const raw = authStore.user?.tenant_id
-    if (raw === null || raw === undefined || raw === '') return null
-    const n = Number(raw)
-    return Number.isFinite(n) && n > 0 ? n : null
-  })
-  const activeTenantId = computed<number | null>(() => authStore.effectiveTenantId)
+    const raw = authStore.user?.tenant_id;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  const activeTenantId = computed<number | null>(() => authStore.effectiveTenantId);
   const isHomeTenantActive = computed(() => {
-    const home = homeTenantId.value
-    const active = activeTenantId.value
-    return home !== null && active !== null && home === active
-  })
+    const home = homeTenantId.value;
+    const active = activeTenantId.value;
+    return home !== null && active !== null && home === active;
+  });
   const isHomeTenant = (id: number | string | null | undefined): boolean => {
-    if (id === null || id === undefined || id === '') return false
-    const home = homeTenantId.value
-    return home !== null && Number(id) === home
-  }
-  return { homeTenantId, activeTenantId, isHomeTenantActive, isHomeTenant }
+    if (id === null || id === undefined || id === "") return false;
+    const home = homeTenantId.value;
+    return home !== null && Number(id) === home;
+  };
+  return { homeTenantId, activeTenantId, isHomeTenantActive, isHomeTenant };
 }

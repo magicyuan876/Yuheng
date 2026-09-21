@@ -52,14 +52,9 @@
     </div>
 
     <div class="docs-table-colors-foot">
-      <button
-        type="button"
-        class="docs-table-colors-action"
-        @mousedown.prevent
-        @click="applyColor(null)"
-      >
+      <button type="button" class="docs-table-colors-action" @mousedown.prevent @click="applyColor(null)">
         <t-icon name="close" size="13px" />
-        <span>{{ t('docs.table.cellColorDefault') }}</span>
+        <span>{{ t("docs.table.cellColorDefault") }}</span>
       </button>
       <button
         type="button"
@@ -70,7 +65,7 @@
         @click="pickerOpen = !pickerOpen"
       >
         <t-icon name="palette" size="13px" />
-        <span>{{ t('docs.table.cellColorCustom') }}</span>
+        <span>{{ t("docs.table.cellColorCustom") }}</span>
       </button>
     </div>
 
@@ -91,92 +86,95 @@
 </template>
 
 <script setup lang="ts">
-import type { Editor } from '@tiptap/core'
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import type { Editor } from "@tiptap/core";
+import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import {
-  CELL_COLORS, canRun, isCellColor, runAction, tableGroups,
-  type TableAction, type TablePlacement,
-} from './tableActions'
+  CELL_COLORS,
+  canRun,
+  isCellColor,
+  runAction,
+  tableGroups,
+  type TableAction,
+  type TablePlacement,
+} from "./tableActions";
 
 const props = defineProps<{
-  visible: boolean
-  placement: TablePlacement
-  editor: Editor | null
+  visible: boolean;
+  placement: TablePlacement;
+  editor: Editor | null;
   /** Bumped whenever the document or selection changed; the editor itself is
    * not reactive, and every button's enabled state depends on both. */
-  revision: number
-}>()
+  revision: number;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 /** What the picker opens on when the cell carries no fill of its own. */
-const DEFAULT_PICK = '#4dabf7'
+const DEFAULT_PICK = "#4dabf7";
 
-const groups = computed(() => tableGroups())
-const colorOpen = ref(false)
-const pickerOpen = ref(false)
+const groups = computed(() => tableGroups());
+const colorOpen = ref(false);
+const pickerOpen = ref(false);
 
 /**
  * The editor as the catalogue wants it: the chain, plus the state and view
  * the tableOps-backed entries need to read the table node and dispatch.
  */
 const target = computed(() => {
-  void props.revision
-  const editor = props.editor
-  if (!editor) return null
+  void props.revision;
+  const editor = props.editor;
+  if (!editor) return null;
   return {
     chain: () => editor.chain() as never,
     can: () => editor.can() as never,
     state: editor.state,
     view: editor.view,
-  }
-})
+  };
+});
 
 /** The fill on the cell the caret is in, '' when it carries none. */
 const currentColor = computed(() => {
-  void props.revision
-  const editor = props.editor
-  if (!editor) return ''
+  void props.revision;
+  const editor = props.editor;
+  if (!editor) return "";
   try {
     return String(
-      editor.getAttributes('tableCell')?.backgroundColor
-      ?? editor.getAttributes('tableHeader')?.backgroundColor
-      ?? '',
-    )
+      editor.getAttributes("tableCell")?.backgroundColor ?? editor.getAttributes("tableHeader")?.backgroundColor ?? "",
+    );
   } catch {
     // A node type the schema does not have, which happens while extensions
     // are still being swapped on a page change.
-    return ''
+    return "";
   }
-})
+});
 
 function enabled(action: TableAction): boolean {
-  void props.revision
-  return canRun(target.value as never, action)
+  void props.revision;
+  return canRun(target.value as never, action);
 }
 
 function run(action: TableAction) {
   if (action.palette) {
-    colorOpen.value = !colorOpen.value
-    if (!colorOpen.value) pickerOpen.value = false
-    return
+    colorOpen.value = !colorOpen.value;
+    if (!colorOpen.value) pickerOpen.value = false;
+    return;
   }
-  colorOpen.value = false
-  pickerOpen.value = false
-  runAction(target.value as never, action)
+  colorOpen.value = false;
+  pickerOpen.value = false;
+  runAction(target.value as never, action);
 }
 
 function closeColors() {
-  colorOpen.value = false
-  pickerOpen.value = false
-  props.editor?.commands.focus()
+  colorOpen.value = false;
+  pickerOpen.value = false;
+  props.editor?.commands.focus();
 }
 
 /** A colour dragged out of the picker panel. */
 function onPick(value: unknown) {
-  if (typeof value === 'string' && isCellColor(value)) applyColor(value)
+  if (typeof value === "string" && isCellColor(value)) applyColor(value);
 }
 
 /**
@@ -192,22 +190,25 @@ function onPick(value: unknown) {
  * has moved on, and all they see is a page that quietly stopped saving.
  */
 function applyColor(color: string | null) {
-  if (color !== null && !isCellColor(color)) return
-  props.editor?.chain().focus().setCellAttribute('backgroundColor', color).run()
+  if (color !== null && !isCellColor(color)) return;
+  props.editor?.chain().focus().setCellAttribute("backgroundColor", color).run();
   // The palette stays open while the picker is up, so a colour can be tried
   // and changed without reopening it; a preset closes it, which is the
   // one-click gesture a swatch promises.
-  if (!pickerOpen.value) colorOpen.value = false
+  if (!pickerOpen.value) colorOpen.value = false;
 }
 
 // A palette left open over a table the caret has since left would apply to
 // whatever cell is entered next.
-watch(() => props.visible, (shown) => {
-  if (!shown) {
-    colorOpen.value = false
-    pickerOpen.value = false
-  }
-})
+watch(
+  () => props.visible,
+  (shown) => {
+    if (!shown) {
+      colorOpen.value = false;
+      pickerOpen.value = false;
+    }
+  },
+);
 </script>
 
 <style scoped lang="less">

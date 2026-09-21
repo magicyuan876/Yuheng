@@ -2,7 +2,7 @@
   <aside class="kb-folder-tree" :class="{ 'is-collapsed': collapsed }">
     <div class="kb-folder-tree__header">
       <template v-if="!collapsed">
-        <span class="kb-folder-tree__title">{{ t('knowledgeBase.folderTree.title') }}</span>
+        <span class="kb-folder-tree__title">{{ t("knowledgeBase.folderTree.title") }}</span>
         <t-tooltip :content="t('knowledgeBase.folderTree.collapse')" placement="top">
           <button
             type="button"
@@ -54,9 +54,13 @@
             v-if="row.hasChildren"
             class="kb-folder-row__toggle"
             role="button"
-            :aria-label="t(isExpanded(row.path)
-              ? 'knowledgeBase.folderTree.collapseFolder'
-              : 'knowledgeBase.folderTree.expandFolder')"
+            :aria-label="
+              t(
+                isExpanded(row.path)
+                  ? 'knowledgeBase.folderTree.collapseFolder'
+                  : 'knowledgeBase.folderTree.expandFolder',
+              )
+            "
             @click.stop="toggle(row.path)"
           >
             <t-icon :name="isExpanded(row.path) ? 'chevron-down' : 'chevron-right'" />
@@ -81,7 +85,7 @@
           />
           <template v-else>
             <span class="kb-folder-row__label">
-              {{ row.kind === 'root' ? t('knowledgeBase.folderTree.rootRow') : row.name }}
+              {{ row.kind === "root" ? t("knowledgeBase.folderTree.rootRow") : row.name }}
             </span>
             <span class="kb-folder-row__trailing">
               <span class="kb-folder-row__count">{{ row.totalCount }}</span>
@@ -107,7 +111,7 @@
                   <div class="popup-menu kb-folder-row__menu" @click.stop>
                     <div class="popup-menu-item" @click="onFolderMenuRename(row)">
                       <t-icon name="edit" class="menu-icon" />
-                      <span>{{ t('knowledgeBase.folderTree.rename') }}</span>
+                      <span>{{ t("knowledgeBase.folderTree.rename") }}</span>
                     </div>
                   </div>
                 </template>
@@ -121,94 +125,91 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { KnowledgeFolderTree } from '@/api/knowledge-base/index'
-import {
-  buildFolderRows,
-  folderAncestorPaths,
-  joinFolderPath,
-  ROOT_FOLDER_PATH,
-  type FolderRow,
-} from '../folderTree'
+import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import type { KnowledgeFolderTree } from "@/api/knowledge-base/index";
+import { buildFolderRows, folderAncestorPaths, joinFolderPath, ROOT_FOLDER_PATH, type FolderRow } from "../folderTree";
 
-const props = withDefaults(defineProps<{
-  tree: KnowledgeFolderTree | null
-  /** Selected folder path; the empty string is the knowledge base top level. */
-  selectedPath: string
-  loading?: boolean
-  collapsed?: boolean
-  canEdit?: boolean
-}>(), {
-  loading: false,
-  collapsed: false,
-  canEdit: false,
-})
+const props = withDefaults(
+  defineProps<{
+    tree: KnowledgeFolderTree | null;
+    /** Selected folder path; the empty string is the knowledge base top level. */
+    selectedPath: string;
+    loading?: boolean;
+    collapsed?: boolean;
+    canEdit?: boolean;
+  }>(),
+  {
+    loading: false,
+    collapsed: false,
+    canEdit: false,
+  },
+);
 
 const emit = defineEmits<{
-  select: [path: string]
-  'update:collapsed': [collapsed: boolean]
-  rename: [payload: { from: string; to: string }]
-}>()
+  select: [path: string];
+  "update:collapsed": [collapsed: boolean];
+  rename: [payload: { from: string; to: string }];
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 // The root starts expanded so the uploaded structure is visible without a click.
-const expanded = ref(new Set<string>([ROOT_FOLDER_PATH]))
+const expanded = ref(new Set<string>([ROOT_FOLDER_PATH]));
 // null, not '', because '' is the root's own path: a falsy sentinel would put
 // the root row into rename mode permanently.
-const renamingPath = ref<string | null>(null)
-const menuOpenPath = ref<string | null>(null)
-const renameValue = ref('')
-const renameInputRef = ref<HTMLInputElement | HTMLInputElement[] | null>(null)
+const renamingPath = ref<string | null>(null);
+const menuOpenPath = ref<string | null>(null);
+const renameValue = ref("");
+const renameInputRef = ref<HTMLInputElement | HTMLInputElement[] | null>(null);
 
-const rows = computed(() => buildFolderRows(props.tree, expanded.value))
+const rows = computed(() => buildFolderRows(props.tree, expanded.value));
 
-const isExpanded = (path: string) => expanded.value.has(path)
+const isExpanded = (path: string) => expanded.value.has(path);
 
 // The root has no name of its own to edit, and excluding it here means no
 // sentinel value can ever put it into rename mode.
-const isRenaming = (row: FolderRow) => row.kind === 'folder' && renamingPath.value === row.path
+const isRenaming = (row: FolderRow) => row.kind === "folder" && renamingPath.value === row.path;
 
 const toggle = (path: string) => {
-  const next = new Set(expanded.value)
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expanded.value = next
-}
+  const next = new Set(expanded.value);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  expanded.value = next;
+};
 
 const startRename = async (row: FolderRow) => {
-  renamingPath.value = row.path
-  renameValue.value = row.name
-  await nextTick()
-  const input = Array.isArray(renameInputRef.value) ? renameInputRef.value[0] : renameInputRef.value
-  input?.focus()
-  input?.select()
-}
+  renamingPath.value = row.path;
+  renameValue.value = row.name;
+  await nextTick();
+  const input = Array.isArray(renameInputRef.value) ? renameInputRef.value[0] : renameInputRef.value;
+  input?.focus();
+  input?.select();
+};
 
 const onFolderMenuVisible = (path: string, visible: boolean) => {
-  menuOpenPath.value = visible ? path : null
-}
+  menuOpenPath.value = visible ? path : null;
+};
 
 const onFolderMenuRename = async (row: FolderRow) => {
-  menuOpenPath.value = null
-  await startRename(row)
-}
+  menuOpenPath.value = null;
+  await startRename(row);
+};
 
 const cancelRename = () => {
-  renamingPath.value = null
-  renameValue.value = ''
-}
+  renamingPath.value = null;
+  renameValue.value = "";
+};
 
 const commitRename = (row: FolderRow) => {
-  if (!isRenaming(row)) return
-  const name = renameValue.value.trim()
-  cancelRename()
+  if (!isRenaming(row)) return;
+  const name = renameValue.value.trim();
+  cancelRename();
   // Only the last segment is edited here; the folder keeps its place in the tree.
-  if (!name || name === row.name) return
-  const parent = row.path.slice(0, Math.max(0, row.path.length - row.name.length - 1))
-  emit('rename', { from: row.path, to: joinFolderPath(parent, name) })
-}
+  if (!name || name === row.name) return;
+  const parent = row.path.slice(0, Math.max(0, row.path.length - row.name.length - 1));
+  emit("rename", { from: row.path, to: joinFolderPath(parent, name) });
+};
 
 // Keep the selected folder reachable: expand the root and every folder above
 // the active path, both on first load and when the selection changes from
@@ -216,25 +217,25 @@ const commitRename = (row: FolderRow) => {
 watch(
   () => [props.selectedPath, props.tree] as const,
   () => {
-    const next = new Set(expanded.value)
-    folderAncestorPaths(props.selectedPath).forEach((path) => next.add(path))
-    expanded.value = next
+    const next = new Set(expanded.value);
+    folderAncestorPaths(props.selectedPath).forEach((path) => next.add(path));
+    expanded.value = next;
   },
   { immediate: true },
-)
+);
 
 // First load also opens the top-level folders, so a two-level upload is visible
 // in full without any expanding.
 watch(
   () => props.tree,
   (tree) => {
-    if (!tree?.folders?.length || expanded.value.size > 1) return
-    const next = new Set(expanded.value)
-    tree.folders.forEach((folder) => next.add(folder.path))
-    expanded.value = next
+    if (!tree?.folders?.length || expanded.value.size > 1) return;
+    const next = new Set(expanded.value);
+    tree.folders.forEach((folder) => next.add(folder.path));
+    expanded.value = next;
   },
   { immediate: true },
-)
+);
 </script>
 
 <style scoped lang="less">
@@ -287,7 +288,9 @@ watch(
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     color: var(--td-brand-color);
@@ -333,7 +336,9 @@ watch(
   text-align: left;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     background: var(--td-bg-color-container-hover);
@@ -426,7 +431,9 @@ watch(
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
 
   &:hover {
     color: var(--td-brand-color);

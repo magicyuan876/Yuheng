@@ -1,196 +1,195 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin, NotifyPlugin } from 'tdesign-vue-next'
-import ManualKnowledgeEditor from '@/components/manual-knowledge-editor.vue'
-import UploadConfirmHost from '@/components/UploadConfirmHost.vue'
-import { useAuthStore } from '@/stores/auth'
-import { getCurrentUser, userInfoFromApi } from '@/api/auth'
-import { consumePendingTenantSwitchToast } from '@/utils/tenantSwitch'
-import { useRoleLabel } from '@/composables/useRoleLabel'
-import { notifyLoginSuccess } from '@/utils/loginNotify'
-import { renderWorkspaceNotifyContent } from '@/utils/workspaceNotifyContent'
+import { computed, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin, NotifyPlugin } from "tdesign-vue-next";
+import ManualKnowledgeEditor from "@/components/manual-knowledge-editor.vue";
+import UploadConfirmHost from "@/components/UploadConfirmHost.vue";
+import { useAuthStore } from "@/stores/auth";
+import { getCurrentUser, userInfoFromApi } from "@/api/auth";
+import { consumePendingTenantSwitchToast } from "@/utils/tenantSwitch";
+import { useRoleLabel } from "@/composables/useRoleLabel";
+import { notifyLoginSuccess } from "@/utils/loginNotify";
+import { renderWorkspaceNotifyContent } from "@/utils/workspaceNotifyContent";
 
 // TDesign locale configs
-import enUSConfig from 'tdesign-vue-next/esm/locale/en_US'
-import zhCNConfig from 'tdesign-vue-next/esm/locale/zh_CN'
-import koKRConfig from 'tdesign-vue-next/esm/locale/ko_KR'
-import ruRUConfig from 'tdesign-vue-next/esm/locale/ru_RU'
+import enUSConfig from "tdesign-vue-next/esm/locale/en_US";
+import zhCNConfig from "tdesign-vue-next/esm/locale/zh_CN";
+import koKRConfig from "tdesign-vue-next/esm/locale/ko_KR";
+import ruRUConfig from "tdesign-vue-next/esm/locale/ru_RU";
 
-const { locale, t, tm } = useI18n()
-const { formatRole, roleIcon } = useRoleLabel()
-const router = useRouter()
-const authStore = useAuthStore()
+const { locale, t, tm } = useI18n();
+const { formatRole, roleIcon } = useRoleLabel();
+const router = useRouter();
+const authStore = useAuthStore();
 
 const tdLocaleMap: Record<string, object> = {
-  'en-US': enUSConfig,
-  'zh-CN': zhCNConfig,
-  'ko-KR': koKRConfig,
-  'ru-RU': ruRUConfig,
-}
+  "en-US": enUSConfig,
+  "zh-CN": zhCNConfig,
+  "ko-KR": koKRConfig,
+  "ru-RU": ruRUConfig,
+};
 
-const tdGlobalConfig = computed(() => tdLocaleMap[locale.value] || enUSConfig)
+const tdGlobalConfig = computed(() => tdLocaleMap[locale.value] || enUSConfig);
 
 const decodeOIDCResult = (encoded: string) => {
-  const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4)
-  const binary = window.atob(padded)
-  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
-  return JSON.parse(new TextDecoder().decode(bytes))
-}
+  const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  const binary = window.atob(padded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+};
 
-const clearOIDCCallbackState = (path = '/') => {
-  window.history.replaceState({}, document.title, path)
-}
+const clearOIDCCallbackState = (path = "/") => {
+  window.history.replaceState({}, document.title, path);
+};
 
 const syncOIDCUserContext = async () => {
-  const currentUserResponse = await getCurrentUser()
+  const currentUserResponse = await getCurrentUser();
   if (!currentUserResponse.success || !currentUserResponse.data?.user) {
-    throw new Error(currentUserResponse.message || 'Failed to get user information')
+    throw new Error(currentUserResponse.message || "Failed to get user information");
   }
 
-  const { user, tenant, memberships, capabilities } = currentUserResponse.data
-  authStore.setUser(userInfoFromApi(user, tenant?.id))
+  const { user, tenant, memberships, capabilities } = currentUserResponse.data;
+  authStore.setUser(userInfoFromApi(user, tenant?.id));
   if (tenant) {
     authStore.setTenant({
-      id: String(tenant.id) || '',
-      name: tenant.name || '',
-      owner_id: tenant.owner_id || user.id || '',
+      id: String(tenant.id) || "",
+      name: tenant.name || "",
+      owner_id: tenant.owner_id || user.id || "",
       description: tenant.description,
       status: tenant.status,
       business: tenant.business,
       storage_quota: tenant.storage_quota,
       storage_used: tenant.storage_used,
       created_at: tenant.created_at || new Date().toISOString(),
-      updated_at: tenant.updated_at || new Date().toISOString()
-    })
+      updated_at: tenant.updated_at || new Date().toISOString(),
+    });
   } else {
-    authStore.setTenant(null)
+    authStore.setTenant(null);
   }
   // Refresh memberships so currentTenantRole reflects any role change
   // since the last login (e.g. an Owner demoted us to Viewer in a
   // peer tenant). Without this, memberships stay frozen at the
   // login-time snapshot and the UI silently lies about our authority.
   if (Array.isArray(memberships)) {
-    authStore.setMemberships(memberships)
+    authStore.setMemberships(memberships);
   }
-  if (typeof capabilities?.can_create_tenant === 'boolean') {
-    authStore.setCanCreateTenant(capabilities.can_create_tenant)
+  if (typeof capabilities?.can_create_tenant === "boolean") {
+    authStore.setCanCreateTenant(capabilities.can_create_tenant);
   }
   // Same active-vs-home reconciliation as Login.vue: if the OIDC login
   // landed us in a non-home tenant (because the backend honoured a
   // remembered last-active-tenant preference) make sure X-Tenant-ID
   // override is set; otherwise drop any stale override.
-  const activeIdNum = tenant?.id != null ? Number(tenant.id) : NaN
-  const homeIdNum = user.tenant_id != null ? Number(user.tenant_id) : NaN
+  const activeIdNum = tenant?.id != null ? Number(tenant.id) : NaN;
+  const homeIdNum = user.tenant_id != null ? Number(user.tenant_id) : NaN;
   if (Number.isFinite(activeIdNum) && Number.isFinite(homeIdNum) && activeIdNum !== homeIdNum) {
-    authStore.setSelectedTenant(activeIdNum, tenant?.name || null)
+    authStore.setSelectedTenant(activeIdNum, tenant?.name || null);
   } else {
-    authStore.setSelectedTenant(null, null)
+    authStore.setSelectedTenant(null, null);
   }
-}
+};
 
 const persistOIDCLoginResponse = async (response: any) => {
   if (!response.token) {
-    throw new Error(response.message || 'OIDC login failed')
+    throw new Error(response.message || "OIDC login failed");
   }
 
-  authStore.setToken(response.token)
+  authStore.setToken(response.token);
   if (response.refresh_token) {
-    authStore.setRefreshToken(response.refresh_token)
+    authStore.setRefreshToken(response.refresh_token);
   }
 
-  await syncOIDCUserContext()
+  await syncOIDCUserContext();
 
   // OIDC 跳转前暂存的邀请 token：拿到会话后兑换并进入对应空间。
-  const pendingInviteToken = sessionStorage.getItem('yuheng_pending_invite_token')
+  const pendingInviteToken = sessionStorage.getItem("yuheng_pending_invite_token");
   if (pendingInviteToken) {
-    sessionStorage.removeItem('yuheng_pending_invite_token')
-    const result = await authStore.acceptInvitationByTokenAndRefresh(pendingInviteToken)
-    await nextTick()
-    if (result.ok) MessagePlugin.success(t('inviteRegister.joined'))
-    else MessagePlugin.warning(t('inviteRegister.invalidBody'))
+    sessionStorage.removeItem("yuheng_pending_invite_token");
+    const result = await authStore.acceptInvitationByTokenAndRefresh(pendingInviteToken);
+    await nextTick();
+    if (result.ok) MessagePlugin.success(t("inviteRegister.joined"));
+    else MessagePlugin.warning(t("inviteRegister.invalidBody"));
     // 会话已有效，无论 token 是否兑换成功都进入应用。
-    router.replace('/platform/knowledge-bases')
-    return
+    router.replace("/platform/knowledge-bases");
+    return;
   }
 
-  await nextTick()
-  router.replace(authStore.hasValidTenant ? '/platform/knowledge-bases' : '/onboarding/workspace')
-}
+  await nextTick();
+  router.replace(authStore.hasValidTenant ? "/platform/knowledge-bases" : "/onboarding/workspace");
+};
 
 const handleGlobalOIDCCallback = async () => {
-  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
-  if (!hash) return
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+  if (!hash) return;
 
-  const params = new URLSearchParams(hash)
-  const oidcError = params.get('oidc_error')
-  const oidcErrorDescription = params.get('oidc_error_description')
-  const oidcResult = params.get('oidc_result')
+  const params = new URLSearchParams(hash);
+  const oidcError = params.get("oidc_error");
+  const oidcErrorDescription = params.get("oidc_error_description");
+  const oidcResult = params.get("oidc_result");
 
-  if (!oidcError && !oidcResult) return
+  if (!oidcError && !oidcResult) return;
 
   if (oidcError) {
-    clearOIDCCallbackState('/login')
-    await router.replace('/login')
-    MessagePlugin.error(oidcErrorDescription || 'OIDC login failed')
-    return
+    clearOIDCCallbackState("/login");
+    await router.replace("/login");
+    MessagePlugin.error(oidcErrorDescription || "OIDC login failed");
+    return;
   }
 
   try {
     if (!oidcResult) {
-      clearOIDCCallbackState('/login')
-      await router.replace('/login')
-      MessagePlugin.error('OIDC login failed')
-      return
+      clearOIDCCallbackState("/login");
+      await router.replace("/login");
+      MessagePlugin.error("OIDC login failed");
+      return;
     }
 
-    const response = decodeOIDCResult(oidcResult)
+    const response = decodeOIDCResult(oidcResult);
     if (response.success) {
-      clearOIDCCallbackState('/')
-      await persistOIDCLoginResponse(response)
-      notifyLoginSuccess(response, t, tm, formatRole, roleIcon)
-      return
+      clearOIDCCallbackState("/");
+      await persistOIDCLoginResponse(response);
+      notifyLoginSuccess(response, t, tm, formatRole, roleIcon);
+      return;
     }
 
-    clearOIDCCallbackState('/login')
-    await router.replace('/login')
-    MessagePlugin.error(response.message || 'OIDC login failed')
+    clearOIDCCallbackState("/login");
+    await router.replace("/login");
+    MessagePlugin.error(response.message || "OIDC login failed");
   } catch (error: any) {
-    console.error('Global OIDC callback handling failed:', error)
-    authStore.logout()
-    clearOIDCCallbackState('/login')
-    await router.replace('/login')
-    MessagePlugin.error(error.message || 'OIDC login failed')
+    console.error("Global OIDC callback handling failed:", error);
+    authStore.logout();
+    clearOIDCCallbackState("/login");
+    await router.replace("/login");
+    MessagePlugin.error(error.message || "OIDC login failed");
   }
-}
-
+};
 
 // Pending invitations poll: fires once on mount (logged-in case) and
 // then every 2 minutes. Light enough to keep the avatar-row badge
 // near-live without slamming the API, and avoids the cost of a
 // dedicated SSE/WebSocket connection. Stopped on logout via the
 // computed below.
-let invitationPollTimer: ReturnType<typeof setInterval> | null = null
-const INVITATION_POLL_INTERVAL_MS = 2 * 60 * 1000
+let invitationPollTimer: ReturnType<typeof setInterval> | null = null;
+const INVITATION_POLL_INTERVAL_MS = 2 * 60 * 1000;
 
 const startInvitationPolling = () => {
-  if (invitationPollTimer || !authStore.isLoggedIn) return
+  if (invitationPollTimer || !authStore.isLoggedIn) return;
   // Immediate fetch so the badge is correct before the first tick.
-  authStore.fetchPendingInvitationCount()
+  authStore.fetchPendingInvitationCount();
   invitationPollTimer = setInterval(() => {
-    if (!authStore.isLoggedIn) return
-    authStore.fetchPendingInvitationCount()
-  }, INVITATION_POLL_INTERVAL_MS)
-}
+    if (!authStore.isLoggedIn) return;
+    authStore.fetchPendingInvitationCount();
+  }, INVITATION_POLL_INTERVAL_MS);
+};
 
 const stopInvitationPolling = () => {
   if (invitationPollTimer) {
-    clearInterval(invitationPollTimer)
-    invitationPollTimer = null
+    clearInterval(invitationPollTimer);
+    invitationPollTimer = null;
   }
-}
+};
 
 // React to login/logout via the store's isLoggedIn computed. Watching
 // here (rather than only on first mount) handles the OIDC callback
@@ -198,28 +197,26 @@ const stopInvitationPolling = () => {
 watch(
   () => authStore.isLoggedIn,
   (logged) => {
-    if (logged) startInvitationPolling()
-    else stopInvitationPolling()
+    if (logged) startInvitationPolling();
+    else stopInvitationPolling();
   },
   { immediate: true },
-)
+);
 
 // 切换空间后会 hard reload；切换前 stash 的 toast 这里 consume 并弹出，
 // 这样 toast 显示在新页面上，duration 才真正生效。
 const showPendingTenantSwitchToast = () => {
-  const pending = consumePendingTenantSwitchToast()
-  if (!pending) return
-  const templateKey = pending.role
-    ? 'tenant.switchSuccessContentWithRole'
-    : 'tenant.switchSuccessContent'
+  const pending = consumePendingTenantSwitchToast();
+  if (!pending) return;
+  const templateKey = pending.role ? "tenant.switchSuccessContentWithRole" : "tenant.switchSuccessContent";
   // Use tm() not t() — vue-i18n v11's `t()` replaces unspecified named
   // placeholders with empty strings, which would strip {name}/{role}
   // before the chip renderer can split on them. tm() returns the raw
   // message verbatim.
-  const rawTemplate = tm(templateKey)
-  const template = typeof rawTemplate === 'string' ? rawTemplate : ''
+  const rawTemplate = tm(templateKey);
+  const template = typeof rawTemplate === "string" ? rawTemplate : "";
   NotifyPlugin.success({
-    title: t('tenant.switchSuccessTitle'),
+    title: t("tenant.switchSuccessTitle"),
     content: renderWorkspaceNotifyContent({
       template,
       name: pending.name,
@@ -229,18 +226,17 @@ const showPendingTenantSwitchToast = () => {
     }),
     duration: 6000,
     closeBtn: true,
-  })
-}
+  });
+};
 
 onMounted(() => {
-  handleGlobalOIDCCallback()
-  showPendingTenantSwitchToast()
-})
+  handleGlobalOIDCCallback();
+  showPendingTenantSwitchToast();
+});
 
 onUnmounted(() => {
-  stopInvitationPolling()
-})
-
+  stopInvitationPolling();
+});
 </script>
 <template>
   <t-config-provider :globalConfig="tdGlobalConfig">

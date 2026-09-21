@@ -3,14 +3,14 @@ const SEPARATOR_CELL = /^:?-{3,}:?$/;
 
 function splitRowCells(line: string): string[] {
   const inner = line.trim();
-  if (!inner.startsWith('|')) {
+  if (!inner.startsWith("|")) {
     return [];
   }
-  let parts = inner.split('|');
-  if (parts.length && parts[0].trim() === '') {
+  let parts = inner.split("|");
+  if (parts.length && parts[0].trim() === "") {
     parts = parts.slice(1);
   }
-  if (parts.length && parts[parts.length - 1].trim() === '') {
+  if (parts.length && parts[parts.length - 1].trim() === "") {
     parts = parts.slice(0, -1);
   }
   return parts.map((part) => part.trim());
@@ -18,7 +18,7 @@ function splitRowCells(line: string): string[] {
 
 function isTableRow(line: string): boolean {
   const stripped = line.trim();
-  return stripped.startsWith('|') && stripped.includes('|', 1);
+  return stripped.startsWith("|") && stripped.includes("|", 1);
 }
 
 function isSeparatorRow(line: string): boolean {
@@ -28,12 +28,12 @@ function isSeparatorRow(line: string): boolean {
 
 function isEmptyRow(line: string): boolean {
   const cells = splitRowCells(line);
-  return cells.length > 0 && cells.every((cell) => cell === '');
+  return cells.length > 0 && cells.every((cell) => cell === "");
 }
 
 function separatorRowFor(headerLine: string): string {
   const cells = splitRowCells(headerLine);
-  return `| ${cells.map(() => '---').join(' | ')} |`;
+  return `| ${cells.map(() => "---").join(" | ")} |`;
 }
 
 function normalizeTableBlock(block: string[]): string[] {
@@ -52,7 +52,7 @@ function normalizeTableBlock(block: string[]): string[] {
 
 /** Fix MarkItDown-style tables: empty row + separator before real rows. */
 export function normalizeSpuriousTablePrefixes(content: string): string {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const out: string[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -68,5 +68,5 @@ export function normalizeSpuriousTablePrefixes(content: string): string {
     }
     out.push(...normalizeTableBlock(block));
   }
-  return out.join('\n');
+  return out.join("\n");
 }

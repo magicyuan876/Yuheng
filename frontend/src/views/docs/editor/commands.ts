@@ -11,20 +11,20 @@
 // translated label so it matches whatever the reader actually sees.
 
 /** A chain of editor commands, kept loose because it is the editor's own. */
-type Chain = Record<string, (...args: never[]) => unknown>
+type Chain = Record<string, (...args: never[]) => unknown>;
 
 /** The narrow view of the editor a command needs. */
 export interface CommandTarget {
-  chain: () => Chain
+  chain: () => Chain;
 }
 
 /** One entry in the slash menu. */
 export interface BlockCommand {
-  id: string
+  id: string;
   /** The i18n key for the label shown in the menu. */
-  labelKey: string
+  labelKey: string;
   /** A tdesign icon name. */
-  icon: string
+  icon: string;
   /**
    * A short word drawn in place of the icon.
    *
@@ -32,9 +32,9 @@ export interface BlockCommand {
    * bold icon tells a reader nothing. "H1" drawn as text names the level
    * outright, and reads the same in every language.
    */
-  badge?: string
+  badge?: string;
   /** Which section of the menu it appears under. */
-  group: 'basic' | 'insert' | 'media' | 'advanced'
+  group: "basic" | "insert" | "media" | "advanced";
   /**
    * Extra words that should find this entry.
    *
@@ -42,7 +42,7 @@ export interface BlockCommand {
    * somebody type "/h1" for a heading, or a Chinese word while the interface
    * is in English, and still find the thing they meant.
    */
-  keywords: string[]
+  keywords: string[];
   /**
    * Runs the command.
    *
@@ -50,7 +50,7 @@ export interface BlockCommand {
    * it, because leaving "/im" sitting in front of a freshly inserted image is
    * the classic slash-menu bug.
    */
-  run: (editor: CommandTarget, range: { from: number; to: number }) => void
+  run: (editor: CommandTarget, range: { from: number; to: number }) => void;
 }
 
 /**
@@ -61,8 +61,8 @@ export interface BlockCommand {
  * not advertise them.
  */
 export interface BlockCommandOptions {
-  embeds?: boolean
-  drawings?: boolean
+  embeds?: boolean;
+  drawings?: boolean;
   /**
    * Offers the draw.io diagram editor alongside the whiteboard.
    *
@@ -72,7 +72,7 @@ export interface BlockCommandOptions {
    * Offering it without one would insert a diagram that cannot then be
    * opened — the node view could only say so after the fact.
    */
-  drawio?: boolean
+  drawio?: boolean;
   /**
    * Copies this page's current block as a reference link.
    *
@@ -81,111 +81,169 @@ export interface BlockCommandOptions {
    * Absent means the entry is not offered, which is the right thing on a page
    * that has not been saved yet and therefore has no id to point at.
    */
-  copyBlockRef?: () => void
+  copyBlockRef?: () => void;
 }
 
 export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
   /** Deletes the typed query, then applies the entry on the same chain. */
   const cmd = (
-    id: string, labelKey: string, icon: string,
-    group: BlockCommand['group'], keywords: string[],
+    id: string,
+    labelKey: string,
+    icon: string,
+    group: BlockCommand["group"],
+    keywords: string[],
     apply: (c: Chain) => unknown,
     badge?: string,
   ): BlockCommand => ({
-    id, labelKey, icon, group, keywords, badge,
+    id,
+    labelKey,
+    icon,
+    group,
+    keywords,
+    badge,
     run: (editor, range) => {
-      const focused = (editor.chain().focus as () => Chain)()
-      const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range)
-      const result = apply(trimmed) as { run?: () => void } | undefined
-      result?.run?.()
+      const focused = (editor.chain().focus as () => Chain)();
+      const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range);
+      const result = apply(trimmed) as { run?: () => void } | undefined;
+      result?.run?.();
     },
-  })
+  });
 
   const list: BlockCommand[] = [
-    cmd('paragraph', 'docs.commands.paragraph', 'text', 'basic',
-      ['text', 'paragraph', 'p', '正文', '段落'],
-      (c) => (c.setParagraph as () => Chain)()),
-    cmd('heading1', 'docs.commands.heading1', 'textformat-bold', 'basic',
-      ['h1', 'heading', 'title', '标题', '一级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 1 }), 'H1'),
-    cmd('heading2', 'docs.commands.heading2', 'textformat-bold', 'basic',
-      ['h2', 'heading', '标题', '二级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 2 }), 'H2'),
-    cmd('heading3', 'docs.commands.heading3', 'textformat-bold', 'basic',
-      ['h3', 'heading', '标题', '三级标题'],
-      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 3 }), 'H3'),
-    cmd('bulletList', 'docs.commands.bulletList', 'order-list', 'basic',
-      ['ul', 'bullet', 'list', '列表', '无序列表'],
-      (c) => (c.toggleBulletList as () => Chain)()),
-    cmd('orderedList', 'docs.commands.orderedList', 'order-descending', 'basic',
-      ['ol', 'ordered', 'number', 'list', '有序列表', '编号'],
-      (c) => (c.toggleOrderedList as () => Chain)()),
-    cmd('taskList', 'docs.commands.taskList', 'check-rectangle', 'basic',
-      ['todo', 'task', 'checkbox', '任务', '待办'],
-      (c) => (c.toggleTaskList as () => Chain)()),
-    cmd('blockquote', 'docs.commands.blockquote', 'quote', 'basic',
-      ['quote', '引用'],
-      (c) => (c.toggleBlockquote as () => Chain)()),
-    cmd('codeBlock', 'docs.commands.codeBlock', 'code', 'basic',
-      ['code', 'pre', '代码', '代码块'],
-      (c) => (c.toggleCodeBlock as () => Chain)()),
+    cmd("paragraph", "docs.commands.paragraph", "text", "basic", ["text", "paragraph", "p", "正文", "段落"], (c) =>
+      (c.setParagraph as () => Chain)(),
+    ),
+    cmd(
+      "heading1",
+      "docs.commands.heading1",
+      "textformat-bold",
+      "basic",
+      ["h1", "heading", "title", "标题", "一级标题"],
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 1 }),
+      "H1",
+    ),
+    cmd(
+      "heading2",
+      "docs.commands.heading2",
+      "textformat-bold",
+      "basic",
+      ["h2", "heading", "标题", "二级标题"],
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 2 }),
+      "H2",
+    ),
+    cmd(
+      "heading3",
+      "docs.commands.heading3",
+      "textformat-bold",
+      "basic",
+      ["h3", "heading", "标题", "三级标题"],
+      (c) => (c.toggleHeading as (a: unknown) => Chain)({ level: 3 }),
+      "H3",
+    ),
+    cmd(
+      "bulletList",
+      "docs.commands.bulletList",
+      "order-list",
+      "basic",
+      ["ul", "bullet", "list", "列表", "无序列表"],
+      (c) => (c.toggleBulletList as () => Chain)(),
+    ),
+    cmd(
+      "orderedList",
+      "docs.commands.orderedList",
+      "order-descending",
+      "basic",
+      ["ol", "ordered", "number", "list", "有序列表", "编号"],
+      (c) => (c.toggleOrderedList as () => Chain)(),
+    ),
+    cmd(
+      "taskList",
+      "docs.commands.taskList",
+      "check-rectangle",
+      "basic",
+      ["todo", "task", "checkbox", "任务", "待办"],
+      (c) => (c.toggleTaskList as () => Chain)(),
+    ),
+    cmd("blockquote", "docs.commands.blockquote", "quote", "basic", ["quote", "引用"], (c) =>
+      (c.toggleBlockquote as () => Chain)(),
+    ),
+    cmd("codeBlock", "docs.commands.codeBlock", "code", "basic", ["code", "pre", "代码", "代码块"], (c) =>
+      (c.toggleCodeBlock as () => Chain)(),
+    ),
 
-    cmd('table', 'docs.commands.table', 'table', 'insert',
-      ['table', 'grid', '表格'],
-      (c) => (c.insertTable as (a: unknown) => Chain)({ rows: 3, cols: 3, withHeaderRow: true })),
-    cmd('callout', 'docs.commands.callout', 'info-circle', 'insert',
-      ['callout', 'note', 'warning', 'tip', '提示', '高亮块'],
-      (c) => (c.setCallout as (a: unknown) => Chain)('info')),
-    cmd('columns', 'docs.commands.columns', 'view-column', 'insert',
-      ['columns', 'layout', '分栏', '列'],
-      (c) => (c.insertColumns as (a: unknown) => Chain)(2)),
-    cmd('divider', 'docs.commands.divider', 'minus', 'insert',
-      ['divider', 'hr', 'rule', 'separator', '分割线'],
-      (c) => (c.setHorizontalRule as () => Chain)()),
-    cmd('pageBreak', 'docs.commands.pageBreak', 'page-first', 'insert',
-      ['break', 'page', '分页'],
-      (c) => (c.insertPageBreak as () => Chain)()),
-    cmd('toc', 'docs.commands.toc', 'list-numbered', 'insert',
-      ['toc', 'outline', 'contents', '目录'],
-      (c) => (c.insertTableOfContents as () => Chain)()),
-    cmd('status', 'docs.commands.status', 'tag', 'insert',
-      ['status', 'label', 'badge', '状态', '标签'],
-      (c) => (c.insertStatus as (a: unknown, b: unknown) => Chain)('', 'gray')),
+    cmd("table", "docs.commands.table", "table", "insert", ["table", "grid", "表格"], (c) =>
+      (c.insertTable as (a: unknown) => Chain)({ rows: 3, cols: 3, withHeaderRow: true }),
+    ),
+    cmd(
+      "callout",
+      "docs.commands.callout",
+      "info-circle",
+      "insert",
+      ["callout", "note", "warning", "tip", "提示", "高亮块"],
+      (c) => (c.setCallout as (a: unknown) => Chain)("info"),
+    ),
+    cmd("columns", "docs.commands.columns", "view-column", "insert", ["columns", "layout", "分栏", "列"], (c) =>
+      (c.insertColumns as (a: unknown) => Chain)(2),
+    ),
+    cmd("divider", "docs.commands.divider", "minus", "insert", ["divider", "hr", "rule", "separator", "分割线"], (c) =>
+      (c.setHorizontalRule as () => Chain)(),
+    ),
+    cmd("pageBreak", "docs.commands.pageBreak", "page-first", "insert", ["break", "page", "分页"], (c) =>
+      (c.insertPageBreak as () => Chain)(),
+    ),
+    cmd("toc", "docs.commands.toc", "list-numbered", "insert", ["toc", "outline", "contents", "目录"], (c) =>
+      (c.insertTableOfContents as () => Chain)(),
+    ),
+    cmd("status", "docs.commands.status", "tag", "insert", ["status", "label", "badge", "状态", "标签"], (c) =>
+      (c.insertStatus as (a: unknown, b: unknown) => Chain)("", "gray"),
+    ),
 
-    cmd('mathBlock', 'docs.commands.mathBlock', 'formula', 'advanced',
-      ['math', 'latex', 'formula', 'equation', '公式', '数学'],
-      (c) => (c.insertMathBlock as (a: unknown) => Chain)('')),
-    cmd('mathInline', 'docs.commands.mathInline', 'formula', 'advanced',
-      ['math', 'latex', 'inline', '行内公式'],
-      (c) => (c.insertMathInline as (a: unknown) => Chain)('')),
-    cmd('mermaid', 'docs.commands.mermaid', 'chart-bubble', 'advanced',
-      ['mermaid', 'diagram', 'flowchart', '流程图', '图表'],
-      (c) => (c.insertMermaid as () => Chain)()),
-  ]
+    cmd(
+      "mathBlock",
+      "docs.commands.mathBlock",
+      "formula",
+      "advanced",
+      ["math", "latex", "formula", "equation", "公式", "数学"],
+      (c) => (c.insertMathBlock as (a: unknown) => Chain)(""),
+    ),
+    cmd("mathInline", "docs.commands.mathInline", "formula", "advanced", ["math", "latex", "inline", "行内公式"], (c) =>
+      (c.insertMathInline as (a: unknown) => Chain)(""),
+    ),
+    cmd(
+      "mermaid",
+      "docs.commands.mermaid",
+      "chart-bubble",
+      "advanced",
+      ["mermaid", "diagram", "flowchart", "流程图", "图表"],
+      (c) => (c.insertMermaid as () => Chain)(),
+    ),
+  ];
 
   if (opts.embeds !== false) {
-    list.push(cmd('embed', 'docs.commands.embed', 'link', 'media',
-      ['embed', 'iframe', 'video', '嵌入'],
-      (c) => (c.insertEmbed as (a: unknown, b: unknown) => Chain)('external', '')))
+    list.push(
+      cmd("embed", "docs.commands.embed", "link", "media", ["embed", "iframe", "video", "嵌入"], (c) =>
+        (c.insertEmbed as (a: unknown, b: unknown) => Chain)("external", ""),
+      ),
+    );
   }
   if (opts.copyBlockRef) {
-    const copy = opts.copyBlockRef
+    const copy = opts.copyBlockRef;
     list.push({
-      id: 'copyBlockRef',
-      labelKey: 'docs.commands.copyBlockRef',
-      icon: 'quote',
-      group: 'advanced',
-      keywords: ['reference', 'transclude', 'quote', 'block', '引用', '块引用', '复制引用'],
+      id: "copyBlockRef",
+      labelKey: "docs.commands.copyBlockRef",
+      icon: "quote",
+      group: "advanced",
+      keywords: ["reference", "transclude", "quote", "block", "引用", "块引用", "复制引用"],
       run: (editor, range) => {
         // The typed query goes first: the link is about the block, and
         // leaving "/ref" in it would put that text in what everybody else
         // then sees quoted.
-        const focused = (editor.chain().focus as () => Chain)()
-        const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range)
-        ;(trimmed.run as () => void)()
-        copy()
+        const focused = (editor.chain().focus as () => Chain)();
+        const trimmed = (focused.deleteRange as (r: unknown) => Chain)(range);
+        (trimmed.run as () => void)();
+        copy();
       },
-    })
+    });
   }
   // Two entries, named for the job rather than for the editor behind them.
   //
@@ -198,16 +256,30 @@ export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
   // answer to the other's question, so the menu asks which job rather than
   // which vendor.
   if (opts.drawings !== false) {
-    list.push(cmd('whiteboard', 'docs.commands.whiteboard', 'palette', 'media',
-      ['draw', 'sketch', 'whiteboard', 'freehand', '白板', '手绘', '涂鸦'],
-      (c) => (c.insertExcalidraw as (a: unknown, b: unknown) => Chain)('', null)))
+    list.push(
+      cmd(
+        "whiteboard",
+        "docs.commands.whiteboard",
+        "palette",
+        "media",
+        ["draw", "sketch", "whiteboard", "freehand", "白板", "手绘", "涂鸦"],
+        (c) => (c.insertExcalidraw as (a: unknown, b: unknown) => Chain)("", null),
+      ),
+    );
   }
   if (opts.drawio) {
-    list.push(cmd('diagram', 'docs.commands.diagram', 'sitemap', 'media',
-      ['diagram', 'flowchart', 'uml', 'drawio', '流程图', '架构图', '图表'],
-      (c) => (c.insertDrawio as (a: unknown, b: unknown) => Chain)('', null)))
+    list.push(
+      cmd(
+        "diagram",
+        "docs.commands.diagram",
+        "sitemap",
+        "media",
+        ["diagram", "flowchart", "uml", "drawio", "流程图", "架构图", "图表"],
+        (c) => (c.insertDrawio as (a: unknown, b: unknown) => Chain)("", null),
+      ),
+    );
   }
-  return list
+  return list;
 }
 
 /**
@@ -227,23 +299,23 @@ export function matchCommands(
   query: string,
   label: (command: BlockCommand) => string,
 ): BlockCommand[] {
-  const needle = query.trim().toLowerCase()
-  if (needle === '') return [...catalogue]
+  const needle = query.trim().toLowerCase();
+  if (needle === "") return [...catalogue];
 
-  const scored: { command: BlockCommand; rank: number; at: number }[] = []
+  const scored: { command: BlockCommand; rank: number; at: number }[] = [];
   catalogue.forEach((command, at) => {
-    const rank = rankOf(command, needle, label(command).toLowerCase())
-    if (rank >= 0) scored.push({ command, rank, at })
-  })
-  scored.sort((a, b) => (a.rank - b.rank) || (a.at - b.at))
-  return scored.map((s) => s.command)
+    const rank = rankOf(command, needle, label(command).toLowerCase());
+    if (rank >= 0) scored.push({ command, rank, at });
+  });
+  scored.sort((a, b) => a.rank - b.rank || a.at - b.at);
+  return scored.map((s) => s.command);
 }
 
 /** Lower is a better match; -1 is no match at all. */
 function rankOf(command: BlockCommand, needle: string, label: string): number {
-  if (label.startsWith(needle)) return 0
-  if (command.keywords.some((k) => k.toLowerCase().startsWith(needle))) return 1
-  if (label.includes(needle)) return 2
-  if (command.keywords.some((k) => k.toLowerCase().includes(needle))) return 3
-  return -1
+  if (label.startsWith(needle)) return 0;
+  if (command.keywords.some((k) => k.toLowerCase().startsWith(needle))) return 1;
+  if (label.includes(needle)) return 2;
+  if (command.keywords.some((k) => k.toLowerCase().includes(needle))) return 3;
+  return -1;
 }

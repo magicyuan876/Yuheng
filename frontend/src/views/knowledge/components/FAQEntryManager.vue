@@ -7,7 +7,7 @@
           <div class="faq-title-row">
             <h2 class="faq-breadcrumb">
               <button type="button" class="breadcrumb-link" @click="handleNavigateToKbList">
-                {{ $t('menu.knowledgeBase') }}
+                {{ $t("menu.knowledgeBase") }}
               </button>
               <t-icon name="chevron-right" class="breadcrumb-separator" />
               <KBSwitcherDropdown
@@ -26,8 +26,13 @@
                   </template>
                 </button>
               </KBSwitcherDropdown>
-              <button v-else type="button" class="breadcrumb-link" :disabled="!props.kbId"
-                @click="handleNavigateToCurrentKB">
+              <button
+                v-else
+                type="button"
+                class="breadcrumb-link"
+                :disabled="!props.kbId"
+                @click="handleNavigateToCurrentKB"
+              >
                 <template v-if="!kbInfo">
                   <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
                 </template>
@@ -36,63 +41,88 @@
                 </template>
               </button>
               <t-icon name="chevron-right" class="breadcrumb-separator" />
-              <span class="breadcrumb-current">{{ $t('knowledgeEditor.faq.title') }}</span>
+              <span class="breadcrumb-current">{{ $t("knowledgeEditor.faq.title") }}</span>
             </h2>
             <div class="kb-title-actions">
-              <KBInfoPopover
-                v-if="kbInfo"
-                :kb-info="kbInfo"
-              />
+              <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo" />
               <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">
                 <button type="button" class="kb-settings-button" @click="handleOpenKBSettings">
                   <t-icon name="setting" size="16px" />
                 </button>
               </t-tooltip>
               <!-- 导入结果：默认仅图标，hover / 点击展开详情 -->
-              <div v-if="showImportResultBadge" class="faq-import-host"
-                :class="{ 'is-expanded': importResultExpanded }">
-                <button type="button" class="faq-import-trigger"
+              <div
+                v-if="showImportResultBadge"
+                class="faq-import-host"
+                :class="{ 'is-expanded': importResultExpanded }"
+              >
+                <button
+                  type="button"
+                  class="faq-import-trigger"
                   :aria-label="$t('faqManager.import.recentResult')"
-                  @click.stop="importResultExpanded = !importResultExpanded">
+                  @click.stop="importResultExpanded = !importResultExpanded"
+                >
                   <t-icon name="check-circle-filled" size="16px" />
                 </button>
                 <div class="faq-import-panel">
                   <div class="faq-import-strip faq-import-strip--result faq-import-strip--panel">
                     <span class="faq-import-strip__text">{{ importResultSummary }}</span>
-                    <t-tag size="small" variant="light"
-                      :theme="importResult!.import_mode === 'append' ? 'primary' : 'warning'">
-                      {{ importResult!.import_mode === 'append' ? $t('faqManager.import.appendMode') :
-                        $t('faqManager.import.replaceMode') }}
+                    <t-tag
+                      size="small"
+                      variant="light"
+                      :theme="importResult!.import_mode === 'append' ? 'primary' : 'warning'"
+                    >
+                      {{
+                        importResult!.import_mode === "append"
+                          ? $t("faqManager.import.appendMode")
+                          : $t("faqManager.import.replaceMode")
+                      }}
                     </t-tag>
-                    <t-button v-if="importResult!.failed_entries_url && importResult!.failed_count > 0"
-                      variant="text" theme="danger" size="small" class="faq-import-strip__link"
-                      @click="downloadFailedEntries">
-                      {{ $t('faqManager.import.downloadReasons') }}
+                    <t-button
+                      v-if="importResult!.failed_entries_url && importResult!.failed_count > 0"
+                      variant="text"
+                      theme="danger"
+                      size="small"
+                      class="faq-import-strip__link"
+                      @click="downloadFailedEntries"
+                    >
+                      {{ $t("faqManager.import.downloadReasons") }}
                     </t-button>
                     <span class="faq-import-strip__time">{{ formatImportTime(importResult!.imported_at) }}</span>
-                    <button type="button" class="faq-import-strip__close" :aria-label="$t('common.close')"
-                      @click="closeImportResult">
+                    <button
+                      type="button"
+                      class="faq-import-strip__close"
+                      :aria-label="$t('common.close')"
+                      @click="closeImportResult"
+                    >
                       <t-icon name="close" size="14px" />
                     </button>
                   </div>
                 </div>
               </div>
               <!-- 导入进行中 -->
-              <div v-else-if="isImportInProgress && importState.taskStatus"
+              <div
+                v-else-if="isImportInProgress && importState.taskStatus"
                 class="faq-import-strip faq-import-strip--in-title"
-                :class="`faq-import-strip--${importState.taskStatus.status}`">
-                <t-icon :name="importProgressIcon" size="16px" class="faq-import-strip__icon"
-                  :class="{ 'is-spinning': importState.taskStatus.status === 'running' }" />
+                :class="`faq-import-strip--${importState.taskStatus.status}`"
+              >
+                <t-icon
+                  :name="importProgressIcon"
+                  size="16px"
+                  class="faq-import-strip__icon"
+                  :class="{ 'is-spinning': importState.taskStatus.status === 'running' }"
+                />
                 <span class="faq-import-strip__text">{{ importProgressText }}</span>
                 <div class="faq-import-strip__bar">
                   <div class="faq-import-strip__bar-fill" :style="{ width: `${importState.taskStatus.progress}%` }" />
                 </div>
-                <span class="faq-import-strip__count">{{ importState.taskStatus.processed }}/{{
-                  importState.taskStatus.total }}</span>
+                <span class="faq-import-strip__count"
+                  >{{ importState.taskStatus.processed }}/{{ importState.taskStatus.total }}</span
+                >
               </div>
             </div>
           </div>
-          <p class="faq-subtitle">{{ $t('knowledgeEditor.faq.subtitle') }}</p>
+          <p class="faq-subtitle">{{ $t("knowledgeEditor.faq.subtitle") }}</p>
         </div>
       </div>
 
@@ -100,26 +130,41 @@
         <div class="faq-card-area">
           <!-- 搜索栏与标签筛选 -->
           <div class="faq-filter-bar">
-            <t-input v-model.trim="entrySearchKeyword" :placeholder="$t('knowledgeEditor.faq.searchPlaceholder')"
-              clearable class="faq-search-input" @clear="loadEntries()" @enter="loadEntries()">
+            <t-input
+              v-model.trim="entrySearchKeyword"
+              :placeholder="$t('knowledgeEditor.faq.searchPlaceholder')"
+              clearable
+              class="faq-search-input"
+              @clear="loadEntries()"
+              @enter="loadEntries()"
+            >
               <template #prefix-icon>
                 <t-icon name="search" size="16px" />
               </template>
             </t-input>
             <div class="faq-filter-bar__filters">
-              <t-popup v-model:visible="tagFilterPanelVisible" trigger="click" placement="bottom-left"
-                overlay-class-name="tag-filter-popup" :overlay-inner-style="{ padding: 0 }">
+              <t-popup
+                v-model:visible="tagFilterPanelVisible"
+                trigger="click"
+                placement="bottom-left"
+                overlay-class-name="tag-filter-popup"
+                :overlay-inner-style="{ padding: 0 }"
+              >
                 <template #content>
                   <div class="tag-filter-panel" @click.stop>
                     <div class="tag-filter-panel__header">
                       <div class="tag-filter-panel__title">
-                        <span>{{ $t('knowledgeBase.tagFilterTitle') }}</span>
+                        <span>{{ $t("knowledgeBase.tagFilterTitle") }}</span>
                         <span class="tag-filter-panel__count">({{ sidebarCategoryCount }})</span>
                       </div>
                     </div>
                     <div class="tag-search-bar">
-                      <t-input v-model.trim="tagSearchQuery" size="small"
-                        :placeholder="$t('knowledgeBase.tagSearchPlaceholder')" clearable>
+                      <t-input
+                        v-model.trim="tagSearchQuery"
+                        size="small"
+                        :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
+                        clearable
+                      >
                         <template #prefix-icon>
                           <t-icon name="search" size="14px" />
                         </template>
@@ -129,8 +174,10 @@
                       <template v-if="tagLoading && !sidebarTags.length">
                         <div class="tag-filter-chips">
                           <div v-for="n in 8" :key="'skel-tag-' + n" class="tag-filter-chip-skeleton">
-                            <t-skeleton animation="gradient"
-                              :row-col="[{ width: '56px', height: '24px', type: 'rect' }]" />
+                            <t-skeleton
+                              animation="gradient"
+                              :row-col="[{ width: '56px', height: '24px', type: 'rect' }]"
+                            />
                           </div>
                         </div>
                       </template>
@@ -150,29 +197,32 @@
                           </button>
                         </div>
                         <div v-if="!sidebarTags.length" class="tag-empty-state">
-                          {{ $t('knowledgeBase.tagEmptyResult') }}
+                          {{ $t("knowledgeBase.tagEmptyResult") }}
                         </div>
                         <div v-if="tagHasMore" class="tag-load-more">
                           <t-button variant="text" size="small" :loading="tagLoadingMore" @click.stop="loadTags()">
-                            {{ $t('tenant.loadMore') }}
+                            {{ $t("tenant.loadMore") }}
                           </t-button>
                         </div>
                       </template>
                     </div>
                     <div v-if="canEdit" class="tag-filter-panel__footer">
                       <t-button variant="text" size="small" class="tag-manage-link" @click="openTagManageDrawer">
-                        {{ $t('knowledgeBase.tagManageLink') }}
+                        {{ $t("knowledgeBase.tagManageLink") }}
                       </t-button>
                     </div>
                   </div>
                 </template>
                 <div class="doc-filter-field">
-                  <button type="button" class="doc-tag-filter-trigger doc-filter-field__control"
+                  <button
+                    type="button"
+                    class="doc-tag-filter-trigger doc-filter-field__control"
                     :class="{ open: tagFilterPanelVisible, 'is-placeholder': isTagFilterPlaceholder }"
                     :aria-label="$t('knowledgeBase.tagFilterTitle')"
                     :title="activeTagFilterTitle"
                     @mouseenter="tagFilterTriggerHover = true"
-                    @mouseleave="tagFilterTriggerHover = false">
+                    @mouseleave="tagFilterTriggerHover = false"
+                  >
                     <span class="doc-tag-filter-trigger__prefix" aria-hidden="true">
                       <t-icon name="discount" size="16px" />
                     </span>
@@ -203,8 +253,12 @@
               <!-- 新建：新建条目 / 导入 -->
               <template v-if="faqCreateOptions.length">
                 <t-tooltip :content="$t('knowledgeEditor.faq.createGroup')" placement="top">
-                  <t-dropdown :options="faqCreateOptions" trigger="click" placement="bottom-right"
-                    @click="handleFaqAction">
+                  <t-dropdown
+                    :options="faqCreateOptions"
+                    trigger="click"
+                    placement="bottom-right"
+                    @click="handleFaqAction"
+                  >
                     <t-button variant="text" theme="default" class="content-bar-icon-btn" size="small">
                       <template #icon><t-icon name="add" size="16px" /></template>
                     </t-button>
@@ -212,27 +266,40 @@
                 </t-tooltip>
               </template>
               <!-- 导出 -->
-              <t-dropdown :options="faqExportOptions" trigger="click" placement="bottom-right"
-                @click="handleFaqAction">
+              <t-dropdown :options="faqExportOptions" trigger="click" placement="bottom-right" @click="handleFaqAction">
                 <t-tooltip :content="$t('knowledgeEditor.faqExport.exportButton')" placement="top">
-                  <t-button variant="text" theme="default" class="content-bar-icon-btn" size="small"
-                    :loading="exportLoading">
+                  <t-button
+                    variant="text"
+                    theme="default"
+                    class="content-bar-icon-btn"
+                    size="small"
+                    :loading="exportLoading"
+                  >
                     <template #icon><t-icon name="download" size="16px" /></template>
                   </t-button>
                 </t-tooltip>
               </t-dropdown>
               <!-- 检索 -->
               <t-tooltip :content="$t('knowledgeEditor.faq.searchTest')" placement="top">
-                <t-button variant="text" theme="default" class="content-bar-icon-btn" size="small"
-                  @click="handleFaqAction({ value: 'search' })">
+                <t-button
+                  variant="text"
+                  theme="default"
+                  class="content-bar-icon-btn"
+                  size="small"
+                  @click="handleFaqAction({ value: 'search' })"
+                >
                   <template #icon><t-icon name="search" size="16px" /></template>
                 </t-button>
               </t-tooltip>
             </div>
           </div>
           <!-- Card List Container with Scroll -->
-          <div ref="scrollContainer" class="faq-scroll-container"
-            :class="{ 'has-batch-bar': selectedRowKeys.length > 0 && canSelectEntries }" @scroll="handleScroll">
+          <div
+            ref="scrollContainer"
+            class="faq-scroll-container"
+            :class="{ 'has-batch-bar': selectedRowKeys.length > 0 && canSelectEntries }"
+            @scroll="handleScroll"
+          >
             <!-- FAQ 骨架屏 -->
             <div v-if="loading && entries.length === 0" class="faq-skeleton-grid">
               <div v-for="n in 6" :key="'faq-skel-' + n" class="faq-card faq-card-skeleton">
@@ -240,21 +307,38 @@
                   <t-skeleton animation="gradient" :row-col="[{ width: '80%', height: '16px' }]" />
                 </div>
                 <div class="faq-card-body">
-                  <t-skeleton animation="gradient"
-                    :row-col="[{ width: '100%', height: '13px' }, { width: '90%', height: '13px' }, { width: '60%', height: '13px' }]" />
+                  <t-skeleton
+                    animation="gradient"
+                    :row-col="[
+                      { width: '100%', height: '13px' },
+                      { width: '90%', height: '13px' },
+                      { width: '60%', height: '13px' },
+                    ]"
+                  />
                 </div>
                 <div class="faq-skel-footer">
-                  <t-skeleton animation="gradient"
-                    :row-col="[[{ width: '50px', height: '18px', type: 'rect' }, { width: '60px', height: '18px', type: 'rect' }]]" />
+                  <t-skeleton
+                    animation="gradient"
+                    :row-col="[
+                      [
+                        { width: '50px', height: '18px', type: 'rect' },
+                        { width: '60px', height: '18px', type: 'rect' },
+                      ],
+                    ]"
+                  />
                 </div>
               </div>
             </div>
             <!-- Card List -->
             <template v-else-if="entries.length > 0">
               <div ref="cardListRef" class="faq-card-list">
-                <div v-for="entry in entries" :key="entry.id" class="faq-card"
-                  :class="{ 'selected': selectedRowKeys.includes(entry.id), 'is-selectable': canSelectEntries }"
-                  @click="handleCardSelect(entry.id, !selectedRowKeys.includes(entry.id))">
+                <div
+                  v-for="entry in entries"
+                  :key="entry.id"
+                  class="faq-card"
+                  :class="{ selected: selectedRowKeys.includes(entry.id), 'is-selectable': canSelectEntries }"
+                  @click="handleCardSelect(entry.id, !selectedRowKeys.includes(entry.id))"
+                >
                   <!-- Card Header -->
                   <div class="faq-card-header">
                     <div class="faq-header-top">
@@ -262,9 +346,15 @@
                         {{ entry.standard_question }}
                       </div>
                       <div class="faq-card-actions">
-                        <t-popup v-if="canManage" v-model="entry.showMore" overlayClassName="card-more-popup"
-                          trigger="click" destroy-on-close placement="bottom-right"
-                          @visible-change="(visible: boolean) => (entry.showMore = visible)">
+                        <t-popup
+                          v-if="canManage"
+                          v-model="entry.showMore"
+                          overlayClassName="card-more-popup"
+                          trigger="click"
+                          destroy-on-close
+                          placement="bottom-right"
+                          @visible-change="(visible: boolean) => (entry.showMore = visible)"
+                        >
                           <div class="card-more-btn" @click.stop>
                             <img class="more-icon" src="@/assets/img/more.png" alt="" />
                           </div>
@@ -272,11 +362,11 @@
                             <div class="popup-menu" @click.stop>
                               <div class="popup-menu-item" @click.stop="handleMenuEdit(entry)">
                                 <t-icon class="menu-icon" name="edit" />
-                                <span>{{ $t('common.edit') }}</span>
+                                <span>{{ $t("common.edit") }}</span>
                               </div>
                               <div class="popup-menu-item delete" @click.stop="handleMenuDelete(entry)">
                                 <t-icon class="menu-icon" name="delete" />
-                                <span>{{ $t('common.delete') }}</span>
+                                <span>{{ $t("common.delete") }}</span>
                               </div>
                             </div>
                           </template>
@@ -289,19 +379,26 @@
                   <div class="faq-card-body">
                     <!-- Similar Questions Section -->
                     <div v-if="entry.similar_questions?.length" class="faq-section similar">
-                      <div class="faq-section-label clickable"
-                        @click.stop="entry.similarCollapsed = !entry.similarCollapsed">
-                        <span>{{ $t('knowledgeEditor.faq.similarQuestions') }}</span>
-                        <span class="section-count">
-                          ({{ entry.similar_questions.length }})
-                        </span>
-                        <t-icon :name="entry.similarCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon" />
+                      <div
+                        class="faq-section-label clickable"
+                        @click.stop="entry.similarCollapsed = !entry.similarCollapsed"
+                      >
+                        <span>{{ $t("knowledgeEditor.faq.similarQuestions") }}</span>
+                        <span class="section-count"> ({{ entry.similar_questions.length }}) </span>
+                        <t-icon
+                          :name="entry.similarCollapsed ? 'chevron-right' : 'chevron-down'"
+                          class="collapse-icon"
+                        />
                       </div>
                       <Transition name="slide-down">
                         <div v-if="!entry.similarCollapsed" class="faq-tags">
-                          <FAQTagTooltip v-for="question in entry.similar_questions" :key="question" :content="question"
-                            type="similar" placement="top">
+                          <FAQTagTooltip
+                            v-for="question in entry.similar_questions"
+                            :key="question"
+                            :content="question"
+                            type="similar"
+                            placement="top"
+                          >
                             <t-tag size="small" variant="light-outline" class="question-tag">
                               {{ question }}
                             </t-tag>
@@ -312,19 +409,26 @@
 
                     <!-- Negative Questions Section -->
                     <div v-if="entry.negative_questions?.length" class="faq-section negative">
-                      <div class="faq-section-label clickable"
-                        @click.stop="entry.negativeCollapsed = !entry.negativeCollapsed">
-                        <span>{{ $t('knowledgeEditor.faq.negativeQuestions') }}</span>
-                        <span class="section-count">
-                          ({{ entry.negative_questions.length }})
-                        </span>
-                        <t-icon :name="entry.negativeCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon" />
+                      <div
+                        class="faq-section-label clickable"
+                        @click.stop="entry.negativeCollapsed = !entry.negativeCollapsed"
+                      >
+                        <span>{{ $t("knowledgeEditor.faq.negativeQuestions") }}</span>
+                        <span class="section-count"> ({{ entry.negative_questions.length }}) </span>
+                        <t-icon
+                          :name="entry.negativeCollapsed ? 'chevron-right' : 'chevron-down'"
+                          class="collapse-icon"
+                        />
                       </div>
                       <Transition name="slide-down">
                         <div v-if="!entry.negativeCollapsed" class="faq-tags">
-                          <FAQTagTooltip v-for="question in entry.negative_questions" :key="question"
-                            :content="question" type="negative" placement="top">
+                          <FAQTagTooltip
+                            v-for="question in entry.negative_questions"
+                            :key="question"
+                            :content="question"
+                            type="negative"
+                            placement="top"
+                          >
                             <t-tag size="small" theme="warning" variant="light-outline" class="question-tag">
                               {{ question }}
                             </t-tag>
@@ -335,19 +439,26 @@
 
                     <!-- Answers Section -->
                     <div class="faq-section answers">
-                      <div class="faq-section-label clickable"
-                        @click.stop="entry.answersCollapsed = !entry.answersCollapsed">
-                        <span>{{ $t('knowledgeEditor.faq.answers') }}</span>
-                        <span v-if="entry.answers?.length" class="section-count">
-                          ({{ entry.answers.length }})
-                        </span>
-                        <t-icon :name="entry.answersCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon" />
+                      <div
+                        class="faq-section-label clickable"
+                        @click.stop="entry.answersCollapsed = !entry.answersCollapsed"
+                      >
+                        <span>{{ $t("knowledgeEditor.faq.answers") }}</span>
+                        <span v-if="entry.answers?.length" class="section-count"> ({{ entry.answers.length }}) </span>
+                        <t-icon
+                          :name="entry.answersCollapsed ? 'chevron-right' : 'chevron-down'"
+                          class="collapse-icon"
+                        />
                       </div>
                       <Transition name="slide-down">
                         <div v-if="!entry.answersCollapsed" class="faq-tags">
-                          <FAQTagTooltip v-for="answer in entry.answers" :key="answer" :content="answer" type="answer"
-                            placement="top">
+                          <FAQTagTooltip
+                            v-for="answer in entry.answers"
+                            :key="answer"
+                            :content="answer"
+                            type="answer"
+                            placement="top"
+                          >
                             <t-tag size="small" theme="success" variant="light-outline" class="question-tag">
                               {{ answer }}
                             </t-tag>
@@ -361,16 +472,19 @@
                   <div class="faq-card-footer">
                     <div class="faq-card-tag" @click.stop>
                       <template v-if="canEdit && tagList.length">
-                        <t-dropdown :options="tagDropdownOptions" trigger="click"
-                          @click="(data: any) => handleEntryTagChange(entry.id, data.value as string)">
+                        <t-dropdown
+                          :options="tagDropdownOptions"
+                          trigger="click"
+                          @click="(data: any) => handleEntryTagChange(entry.id, data.value as string)"
+                        >
                           <t-tag size="small" variant="light-outline" class="faq-tag-chip">
-                            <span class="tag-text">{{ getTagName(entry.tag_id) || $t('knowledgeBase.untagged') }}</span>
+                            <span class="tag-text">{{ getTagName(entry.tag_id) || $t("knowledgeBase.untagged") }}</span>
                           </t-tag>
                         </t-dropdown>
                       </template>
                       <template v-else>
                         <t-tag size="small" variant="light-outline" class="faq-tag-chip">
-                          <span class="tag-text">{{ getTagName(entry.tag_id) || $t('knowledgeBase.untagged') }}</span>
+                          <span class="tag-text">{{ getTagName(entry.tag_id) || $t("knowledgeBase.untagged") }}</span>
                         </t-tag>
                       </template>
                     </div>
@@ -395,13 +509,23 @@
                       </t-tooltip>
                       -->
                       <t-tooltip
-                        :content="entry.is_enabled ? $t('knowledgeEditor.faq.statusEnabled') : $t('knowledgeEditor.faq.statusDisabled')"
-                        placement="top">
+                        :content="
+                          entry.is_enabled
+                            ? $t('knowledgeEditor.faq.statusEnabled')
+                            : $t('knowledgeEditor.faq.statusDisabled')
+                        "
+                        placement="top"
+                      >
                         <div class="status-item-compact">
-                          <t-switch :key="`${entry.id}-${entry.is_enabled}`" size="small" :value="entry.is_enabled"
+                          <t-switch
+                            :key="`${entry.id}-${entry.is_enabled}`"
+                            size="small"
+                            :value="entry.is_enabled"
                             :loading="!!entryStatusLoading[entry.id]"
-                            :disabled="!!entryStatusLoading[entry.id] || !canEdit" @click.stop
-                            @change="(value: boolean) => handleEntryStatusChange(entry, value)" />
+                            :disabled="!!entryStatusLoading[entry.id] || !canEdit"
+                            @click.stop
+                            @change="(value: boolean) => handleEntryStatusChange(entry, value)"
+                          />
                         </div>
                       </t-tooltip>
                     </div>
@@ -413,8 +537,8 @@
               <div class="faq-empty-state">
                 <div class="empty-content">
                   <t-icon name="file-add" size="48px" class="empty-icon" />
-                  <div class="empty-text">{{ $t('knowledgeEditor.faq.emptyTitle') }}</div>
-                  <div class="empty-desc">{{ $t('knowledgeEditor.faq.emptyDesc') }}</div>
+                  <div class="empty-text">{{ $t("knowledgeEditor.faq.emptyTitle") }}</div>
+                  <div class="empty-desc">{{ $t("knowledgeEditor.faq.emptyDesc") }}</div>
                 </div>
               </div>
             </template>
@@ -422,36 +546,57 @@
               <t-loading size="small" :text="$t('common.loading')" />
             </div>
             <div v-if="hasMore === false && entries.length > 0" class="faq-no-more">
-              {{ $t('common.noMoreData') }}
+              {{ $t("common.noMoreData") }}
             </div>
           </div>
           <div class="faq-batch-bar-anchor">
-            <FAQBatchBar :count="selectedRowKeys.length" :enabled-count="selectedEnabledCount"
-              :disabled-count="selectedDisabledCount" :can-edit="canEdit" :can-manage="canManage"
-              :tag-loading="batchTagLoading" :status-action="batchStatusAction"
-              :delete-loading="batchDeleteLoading" @cancel="clearFAQSelection" @batch-tag="openBatchTagDialog"
-              @enable="handleBatchStatusChange(true)" @disable="handleBatchStatusChange(false)"
-              @delete="handleBatchDelete" />
+            <FAQBatchBar
+              :count="selectedRowKeys.length"
+              :enabled-count="selectedEnabledCount"
+              :disabled-count="selectedDisabledCount"
+              :can-edit="canEdit"
+              :can-manage="canManage"
+              :tag-loading="batchTagLoading"
+              :status-action="batchStatusAction"
+              :delete-loading="batchDeleteLoading"
+              @cancel="clearFAQSelection"
+              @batch-tag="openBatchTagDialog"
+              @enable="handleBatchStatusChange(true)"
+              @disable="handleBatchStatusChange(false)"
+              @delete="handleBatchDelete"
+            />
           </div>
         </div>
       </div>
     </div>
     <!-- Editor Drawer -->
-    <t-drawer v-model:visible="editorVisible"
+    <t-drawer
+      v-model:visible="editorVisible"
       :header="editorMode === 'create' ? $t('knowledgeEditor.faq.editorCreate') : $t('knowledgeEditor.faq.editorEdit')"
-      :close-btn="true" size="520px" placement="right" class="faq-editor-drawer" @close="handleEditorClose">
+      :close-btn="true"
+      size="520px"
+      placement="right"
+      class="faq-editor-drawer"
+      @close="handleEditorClose"
+    >
       <div class="faq-editor-drawer-content">
-        <t-form ref="editorFormRef" :data="editorForm" :rules="editorRules" layout="vertical" :label-width="0"
-          class="faq-editor-form">
+        <t-form
+          ref="editorFormRef"
+          :data="editorForm"
+          :rules="editorRules"
+          layout="vertical"
+          :label-width="0"
+          class="faq-editor-form"
+        >
           <div class="settings-group">
             <!-- 标准问 -->
             <div class="setting-row vertical setting-row-primary">
               <div class="setting-info">
                 <label class="required-label">
-                  {{ $t('knowledgeEditor.faq.standardQuestion') }}
+                  {{ $t("knowledgeEditor.faq.standardQuestion") }}
                   <span class="required-mark">*</span>
                 </label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.standardQuestionDesc') }}</p>
+                <p class="desc">{{ $t("knowledgeEditor.faq.standardQuestionDesc") }}</p>
               </div>
               <div class="setting-control">
                 <t-input v-model="editorForm.standard_question" :maxlength="200" class="full-width-input" />
@@ -461,24 +606,38 @@
             <!-- 相似问 -->
             <div class="setting-row vertical setting-row-optional setting-row-similar">
               <div class="setting-info">
-                <label class="optional-label">{{ $t('knowledgeEditor.faq.similarQuestions') }}</label>
-                <p class="desc optional-desc">{{ $t('knowledgeEditor.faq.similarQuestionsDesc') }}</p>
+                <label class="optional-label">{{ $t("knowledgeEditor.faq.similarQuestions") }}</label>
+                <p class="desc optional-desc">{{ $t("knowledgeEditor.faq.similarQuestionsDesc") }}</p>
               </div>
               <div class="setting-control">
                 <div class="full-width-input-wrapper">
-                  <t-input v-model="similarInput" :placeholder="$t('knowledgeEditor.faq.similarPlaceholder')"
-                    @enter="addSimilar" class="full-width-input" />
-                  <t-button theme="primary" variant="outline"
-                    :disabled="!similarInput.trim() || editorForm.similar_questions.length >= 10" @click="addSimilar"
-                    class="add-item-btn" size="small">
+                  <t-input
+                    v-model="similarInput"
+                    :placeholder="$t('knowledgeEditor.faq.similarPlaceholder')"
+                    @enter="addSimilar"
+                    class="full-width-input"
+                  />
+                  <t-button
+                    theme="primary"
+                    variant="outline"
+                    :disabled="!similarInput.trim() || editorForm.similar_questions.length >= 10"
+                    @click="addSimilar"
+                    class="add-item-btn"
+                    size="small"
+                  >
                     <t-icon name="add" size="16px" />
                   </t-button>
                 </div>
                 <div v-if="editorForm.similar_questions.length > 0" class="item-list">
                   <div v-for="(question, index) in editorForm.similar_questions" :key="index" class="item-row">
                     <div class="item-content">{{ question }}</div>
-                    <t-button theme="default" variant="text" size="small" @click="removeSimilar(index)"
-                      class="remove-item-btn">
+                    <t-button
+                      theme="default"
+                      variant="text"
+                      size="small"
+                      @click="removeSimilar(index)"
+                      class="remove-item-btn"
+                    >
                       <t-icon name="close" size="16px" />
                     </t-button>
                   </div>
@@ -489,25 +648,42 @@
             <!-- 反例 -->
             <div class="setting-row vertical setting-row-optional setting-row-negative">
               <div class="setting-info">
-                <label class="optional-label">{{ $t('knowledgeEditor.faq.negativeQuestions') }}</label>
-                <p class="desc optional-desc">{{ $t('knowledgeEditor.faq.negativeQuestionsDesc') }}</p>
+                <label class="optional-label">{{ $t("knowledgeEditor.faq.negativeQuestions") }}</label>
+                <p class="desc optional-desc">{{ $t("knowledgeEditor.faq.negativeQuestionsDesc") }}</p>
               </div>
               <div class="setting-control">
                 <div class="full-width-input-wrapper">
-                  <t-input v-model="negativeInput" :placeholder="$t('knowledgeEditor.faq.negativePlaceholder')"
-                    @enter="addNegative" class="full-width-input" />
-                  <t-button theme="primary" variant="outline"
-                    :disabled="!negativeInput.trim() || editorForm.negative_questions.length >= 10" @click="addNegative"
-                    class="add-item-btn" size="small">
+                  <t-input
+                    v-model="negativeInput"
+                    :placeholder="$t('knowledgeEditor.faq.negativePlaceholder')"
+                    @enter="addNegative"
+                    class="full-width-input"
+                  />
+                  <t-button
+                    theme="primary"
+                    variant="outline"
+                    :disabled="!negativeInput.trim() || editorForm.negative_questions.length >= 10"
+                    @click="addNegative"
+                    class="add-item-btn"
+                    size="small"
+                  >
                     <t-icon name="add" size="16px" />
                   </t-button>
                 </div>
                 <div v-if="editorForm.negative_questions.length > 0" class="item-list">
-                  <div v-for="(question, index) in editorForm.negative_questions" :key="index"
-                    class="item-row negative">
+                  <div
+                    v-for="(question, index) in editorForm.negative_questions"
+                    :key="index"
+                    class="item-row negative"
+                  >
                     <div class="item-content">{{ question }}</div>
-                    <t-button theme="default" variant="text" size="small" @click="removeNegative(index)"
-                      class="remove-item-btn">
+                    <t-button
+                      theme="default"
+                      variant="text"
+                      size="small"
+                      @click="removeNegative(index)"
+                      class="remove-item-btn"
+                    >
                       <t-icon name="close" size="16px" />
                     </t-button>
                   </div>
@@ -519,20 +695,30 @@
             <div class="setting-row vertical setting-row-primary setting-row-answer">
               <div class="setting-info">
                 <label class="required-label">
-                  {{ $t('knowledgeEditor.faq.answers') }}
+                  {{ $t("knowledgeEditor.faq.answers") }}
                   <span class="required-mark">*</span>
                 </label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.answersDesc') }}</p>
+                <p class="desc">{{ $t("knowledgeEditor.faq.answersDesc") }}</p>
               </div>
               <div class="setting-control">
                 <div class="textarea-container">
                   <div class="full-width-input-wrapper textarea-wrapper">
-                    <t-textarea v-model="answerInput" :placeholder="$t('knowledgeEditor.faq.answerPlaceholder')"
-                      :autosize="{ minRows: 3, maxRows: 6 }" class="full-width-textarea" @keydown.ctrl.enter="addAnswer"
-                      @keydown.meta.enter="addAnswer" />
-                    <t-button theme="primary" variant="outline"
-                      :disabled="!answerInput.trim() || editorForm.answers.length >= 5" @click="addAnswer"
-                      class="add-item-btn" size="small">
+                    <t-textarea
+                      v-model="answerInput"
+                      :placeholder="$t('knowledgeEditor.faq.answerPlaceholder')"
+                      :autosize="{ minRows: 3, maxRows: 6 }"
+                      class="full-width-textarea"
+                      @keydown.ctrl.enter="addAnswer"
+                      @keydown.meta.enter="addAnswer"
+                    />
+                    <t-button
+                      theme="primary"
+                      variant="outline"
+                      :disabled="!answerInput.trim() || editorForm.answers.length >= 5"
+                      @click="addAnswer"
+                      class="add-item-btn"
+                      size="small"
+                    >
                       <t-icon name="add" size="16px" />
                     </t-button>
                   </div>
@@ -541,8 +727,13 @@
                 <div v-if="editorForm.answers.length > 0" class="item-list">
                   <div v-for="(answer, index) in editorForm.answers" :key="index" class="item-row answer-row">
                     <div class="item-content">{{ answer }}</div>
-                    <t-button theme="default" variant="text" size="small" @click="removeAnswer(index)"
-                      class="remove-item-btn">
+                    <t-button
+                      theme="default"
+                      variant="text"
+                      size="small"
+                      @click="removeAnswer(index)"
+                      class="remove-item-btn"
+                    >
                       <t-icon name="close" size="16px" />
                     </t-button>
                   </div>
@@ -552,12 +743,17 @@
 
             <div class="setting-row vertical">
               <div class="setting-info">
-                <label>{{ $t('knowledgeBase.tagLabel') }}</label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.tagDesc') }}</p>
+                <label>{{ $t("knowledgeBase.tagLabel") }}</label>
+                <p class="desc">{{ $t("knowledgeEditor.faq.tagDesc") }}</p>
               </div>
               <div class="setting-control">
-                <t-select v-model="editorForm.tag_id" class="full-width-input" :options="tagSelectOptions" clearable
-                  :placeholder="$t('knowledgeEditor.faq.tagPlaceholder')" />
+                <t-select
+                  v-model="editorForm.tag_id"
+                  class="full-width-input"
+                  :options="tagSelectOptions"
+                  clearable
+                  :placeholder="$t('knowledgeEditor.faq.tagPlaceholder')"
+                />
               </div>
             </div>
           </div>
@@ -567,10 +763,10 @@
       <template #footer>
         <div class="faq-editor-drawer-footer">
           <t-button theme="default" variant="outline" @click="editorVisible = false">
-            {{ $t('common.cancel') }}
+            {{ $t("common.cancel") }}
           </t-button>
           <t-button theme="primary" @click="handleSubmitEntry" :loading="savingEntry">
-            {{ editorMode === 'create' ? $t('knowledgeEditor.faq.editorCreate') : $t('common.save') }}
+            {{ editorMode === "create" ? $t("knowledgeEditor.faq.editorCreate") : $t("common.save") }}
           </t-button>
         </div>
       </template>
@@ -590,53 +786,68 @@
 
             <div class="faq-import-container">
               <div class="faq-import-header">
-                <h2 class="import-title">{{ $t('knowledgeEditor.faqImport.title') }}</h2>
+                <h2 class="import-title">{{ $t("knowledgeEditor.faqImport.title") }}</h2>
               </div>
 
               <div class="faq-import-content">
                 <!-- 导入模式选择 -->
                 <div class="import-form-item">
-                  <label class="import-form-label required">{{ $t('knowledgeEditor.faqImport.modeLabel') }}</label>
+                  <label class="import-form-label required">{{ $t("knowledgeEditor.faqImport.modeLabel") }}</label>
                   <t-radio-group v-model="importState.mode" class="import-radio-group">
-                    <t-radio-button value="append">{{ $t('knowledgeEditor.faqImport.appendMode') }}</t-radio-button>
-                    <t-radio-button value="replace">{{ $t('knowledgeEditor.faqImport.replaceMode') }}</t-radio-button>
+                    <t-radio-button value="append">{{ $t("knowledgeEditor.faqImport.appendMode") }}</t-radio-button>
+                    <t-radio-button value="replace">{{ $t("knowledgeEditor.faqImport.replaceMode") }}</t-radio-button>
                   </t-radio-group>
                 </div>
 
                 <!-- 文件上传区域 -->
                 <div class="import-form-item">
                   <div class="file-label-row">
-                    <label class="import-form-label required">{{ $t('knowledgeEditor.faqImport.fileLabel') }}</label>
-                    <t-dropdown :options="downloadExampleOptions" placement="bottom-right" trigger="click"
-                      @click="handleDownloadExample" class="download-example-dropdown">
+                    <label class="import-form-label required">{{ $t("knowledgeEditor.faqImport.fileLabel") }}</label>
+                    <t-dropdown
+                      :options="downloadExampleOptions"
+                      placement="bottom-right"
+                      trigger="click"
+                      @click="handleDownloadExample"
+                      class="download-example-dropdown"
+                    >
                       <t-button theme="default" variant="outline" size="small" class="download-example-btn">
                         <t-icon name="download" size="16px" />
-                        <span>{{ $t('knowledgeEditor.faqImport.downloadExample') }}</span>
+                        <span>{{ $t("knowledgeEditor.faqImport.downloadExample") }}</span>
                       </t-button>
                     </t-dropdown>
                   </div>
                   <div class="file-upload-wrapper">
-                    <input ref="fileInputRef" type="file" accept=".json,.csv,.xlsx,.xls" @change="handleFileChange"
-                      class="file-input-hidden" />
-                    <div class="file-upload-area" :class="{ 'has-file': importState.file }"
-                      @click="fileInputRef?.click()" @dragover.prevent @dragenter.prevent
-                      @drop.prevent="handleFileDrop">
+                    <input
+                      ref="fileInputRef"
+                      type="file"
+                      accept=".json,.csv,.xlsx,.xls"
+                      @change="handleFileChange"
+                      class="file-input-hidden"
+                    />
+                    <div
+                      class="file-upload-area"
+                      :class="{ 'has-file': importState.file }"
+                      @click="fileInputRef?.click()"
+                      @dragover.prevent
+                      @dragenter.prevent
+                      @drop.prevent="handleFileDrop"
+                    >
                       <div class="file-upload-content">
                         <t-icon name="upload" size="32px" class="upload-icon" />
                         <div class="upload-text">
                           <span v-if="!importState.file" class="upload-primary-text">
-                            {{ $t('knowledgeEditor.faqImport.clickToUpload') }}
+                            {{ $t("knowledgeEditor.faqImport.clickToUpload") }}
                           </span>
                           <span v-else class="upload-file-name">
                             {{ importState.file.name }}
                           </span>
                           <span v-if="!importState.file" class="upload-secondary-text">
-                            {{ $t('knowledgeEditor.faqImport.dragDropTip') }}
+                            {{ $t("knowledgeEditor.faqImport.dragDropTip") }}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <p class="import-form-tip">{{ $t('knowledgeEditor.faqImport.fileTip') }}</p>
+                    <p class="import-form-tip">{{ $t("knowledgeEditor.faqImport.fileTip") }}</p>
                   </div>
                 </div>
 
@@ -645,7 +856,7 @@
                   <div class="preview-header">
                     <t-icon name="file-view" size="16px" class="preview-icon" />
                     <span class="preview-title">
-                      {{ $t('knowledgeEditor.faqImport.previewCount', { count: importState.preview.length }) }}
+                      {{ $t("knowledgeEditor.faqImport.previewCount", { count: importState.preview.length }) }}
                     </span>
                   </div>
                   <div class="preview-list">
@@ -655,22 +866,33 @@
                     </div>
                   </div>
                   <p v-if="importState.preview.length > 5" class="preview-more">
-                    {{ $t('knowledgeEditor.faqImport.previewMore', { count: importState.preview.length - 5 }) }}
+                    {{ $t("knowledgeEditor.faqImport.previewMore", { count: importState.preview.length - 5 }) }}
                   </p>
                 </div>
-
               </div>
 
               <div class="faq-import-footer">
-                <t-button theme="default" variant="outline" @click="handleCancelImport"
-                  :disabled="importState.importing && importState.taskStatus?.status === 'running'">
-                  {{ $t('common.cancel') }}
+                <t-button
+                  theme="default"
+                  variant="outline"
+                  @click="handleCancelImport"
+                  :disabled="importState.importing && importState.taskStatus?.status === 'running'"
+                >
+                  {{ $t("common.cancel") }}
                 </t-button>
-                <t-button theme="primary" @click="handleImport" :loading="importState.importing && !importState.taskId"
-                  :disabled="importState.taskStatus?.status === 'running'">
-                  {{ importState.taskStatus?.status === 'success' ? $t('common.close') :
-                    importState.taskStatus?.status === 'failed' ? $t('common.retry') :
-                      $t('knowledgeEditor.faqImport.importButton') }}
+                <t-button
+                  theme="primary"
+                  @click="handleImport"
+                  :loading="importState.importing && !importState.taskId"
+                  :disabled="importState.taskStatus?.status === 'running'"
+                >
+                  {{
+                    importState.taskStatus?.status === "success"
+                      ? $t("common.close")
+                      : importState.taskStatus?.status === "failed"
+                        ? $t("common.retry")
+                        : $t("knowledgeEditor.faqImport.importButton")
+                  }}
                 </t-button>
               </div>
             </div>
@@ -685,8 +907,11 @@
         <div v-if="batchTagDialogVisible" class="batch-tag-overlay" @click.self="batchTagDialogVisible = false">
           <div class="batch-tag-modal">
             <!-- 关闭按钮 -->
-            <button class="batch-tag-close-btn" @click="batchTagDialogVisible = false"
-              :aria-label="$t('general.close')">
+            <button
+              class="batch-tag-close-btn"
+              @click="batchTagDialogVisible = false"
+              :aria-label="$t('general.close')"
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               </svg>
@@ -694,21 +919,27 @@
 
             <div class="batch-tag-container">
               <div class="batch-tag-header">
-                <h2 class="batch-tag-title">{{ $t('knowledgeEditor.faq.batchUpdateTag') }}</h2>
+                <h2 class="batch-tag-title">{{ $t("knowledgeEditor.faq.batchUpdateTag") }}</h2>
               </div>
 
               <div class="batch-tag-content">
                 <div class="batch-tag-tip">
                   <t-icon name="info-circle" size="16px" class="tip-icon" />
-                  <span>{{ $t('knowledgeEditor.faq.batchUpdateTagTip', { count: selectedRowKeys.length }) }}</span>
+                  <span>{{ $t("knowledgeEditor.faq.batchUpdateTagTip", { count: selectedRowKeys.length }) }}</span>
                 </div>
                 <t-form layout="vertical" class="batch-tag-form">
                   <t-form-item :label="$t('knowledgeBase.tagLabel')">
-                    <t-select v-model="batchTagValue" :options="tagSelectOptions"
-                      :placeholder="$t('knowledgeBase.tagPlaceholder')" clearable filterable class="batch-tag-select">
+                    <t-select
+                      v-model="batchTagValue"
+                      :options="tagSelectOptions"
+                      :placeholder="$t('knowledgeBase.tagPlaceholder')"
+                      clearable
+                      filterable
+                      class="batch-tag-select"
+                    >
                       <template #empty>
                         <div class="tag-select-empty">
-                          {{ $t('knowledgeBase.noTags') }}
+                          {{ $t("knowledgeBase.noTags") }}
                         </div>
                       </template>
                     </t-select>
@@ -718,11 +949,15 @@
 
               <div class="batch-tag-footer">
                 <t-button theme="default" variant="outline" @click="batchTagDialogVisible = false">
-                  {{ $t('common.cancel') }}
+                  {{ $t("common.cancel") }}
                 </t-button>
-                <t-button theme="primary" :loading="batchTagLoading" :disabled="batchActionLoading"
-                  @click="handleBatchTag">
-                  {{ $t('common.confirm') }}
+                <t-button
+                  theme="primary"
+                  :loading="batchTagLoading"
+                  :disabled="batchActionLoading"
+                  @click="handleBatchTag"
+                >
+                  {{ $t("common.confirm") }}
                 </t-button>
               </div>
             </div>
@@ -732,33 +967,49 @@
     </Teleport>
 
     <!-- Search Test Drawer -->
-    <t-drawer v-model:visible="searchDrawerVisible" :header="$t('knowledgeEditor.faq.searchTestTitle')"
-      :close-btn="true" size="420px" placement="right" class="faq-search-drawer">
+    <t-drawer
+      v-model:visible="searchDrawerVisible"
+      :header="$t('knowledgeEditor.faq.searchTestTitle')"
+      :close-btn="true"
+      size="420px"
+      placement="right"
+      class="faq-search-drawer"
+    >
       <div class="search-test-content">
         <t-form layout="vertical" class="search-form" :label-width="0">
           <div class="settings-group">
             <!-- 查询文本 -->
             <div class="setting-row vertical search-first-row">
               <div class="setting-info">
-                <label>{{ $t('knowledgeEditor.faq.queryLabel') }}</label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.queryPlaceholder') }}</p>
+                <label>{{ $t("knowledgeEditor.faq.queryLabel") }}</label>
+                <p class="desc">{{ $t("knowledgeEditor.faq.queryPlaceholder") }}</p>
               </div>
               <div class="setting-control">
-                <t-input v-model="searchForm.query" :placeholder="$t('knowledgeEditor.faq.queryPlaceholder')"
-                  @enter="handleSearch" class="full-width-input" />
+                <t-input
+                  v-model="searchForm.query"
+                  :placeholder="$t('knowledgeEditor.faq.queryPlaceholder')"
+                  @enter="handleSearch"
+                  class="full-width-input"
+                />
               </div>
             </div>
 
             <!-- 相似度阈值 -->
             <div class="setting-row vertical">
               <div class="setting-info">
-                <label>{{ $t('knowledgeEditor.faq.similarityThresholdLabel') }}</label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.vectorThresholdDesc') }}</p>
+                <label>{{ $t("knowledgeEditor.faq.similarityThresholdLabel") }}</label>
+                <p class="desc">{{ $t("knowledgeEditor.faq.vectorThresholdDesc") }}</p>
               </div>
               <div class="setting-control">
                 <div class="slider-wrapper">
-                  <t-slider v-model="searchForm.vectorThreshold" :min="0" :max="1" :step="0.1" :show-tooltip="true"
-                    :format-tooltip="(val: number) => val.toFixed(2)" />
+                  <t-slider
+                    v-model="searchForm.vectorThreshold"
+                    :min="0"
+                    :max="1"
+                    :step="0.1"
+                    :show-tooltip="true"
+                    :format-tooltip="(val: number) => val.toFixed(2)"
+                  />
                   <div class="slider-value">{{ searchForm.vectorThreshold.toFixed(2) }}</div>
                 </div>
               </div>
@@ -767,8 +1018,8 @@
             <!-- 匹配数量 -->
             <div class="setting-row vertical">
               <div class="setting-info">
-                <label>{{ $t('knowledgeEditor.faq.matchCountLabel') }}</label>
-                <p class="desc">{{ $t('knowledgeEditor.faq.matchCountDesc') }}</p>
+                <label>{{ $t("knowledgeEditor.faq.matchCountLabel") }}</label>
+                <p class="desc">{{ $t("knowledgeEditor.faq.matchCountDesc") }}</p>
               </div>
               <div class="setting-control">
                 <div class="slider-wrapper">
@@ -782,7 +1033,7 @@
             <div class="setting-row vertical">
               <div class="setting-control">
                 <t-button theme="primary" block :loading="searching" @click="handleSearch" class="search-button">
-                  {{ searching ? $t('knowledgeEditor.faq.searching') : $t('knowledgeEditor.faq.searchButton') }}
+                  {{ searching ? $t("knowledgeEditor.faq.searching") : $t("knowledgeEditor.faq.searchButton") }}
                 </t-button>
               </div>
             </div>
@@ -792,14 +1043,18 @@
         <!-- Search Results -->
         <div v-if="searchResults.length > 0 || hasSearched" class="search-results">
           <div class="results-header">
-            <span>{{ $t('knowledgeEditor.faq.searchResults') }} ({{ searchResults.length }})</span>
+            <span>{{ $t("knowledgeEditor.faq.searchResults") }} ({{ searchResults.length }})</span>
           </div>
           <div v-if="searchResults.length === 0" class="no-results">
-            {{ $t('knowledgeEditor.faq.noResults') }}
+            {{ $t("knowledgeEditor.faq.noResults") }}
           </div>
           <div v-else class="results-list">
-            <div v-for="(result, index) in searchResults" :key="result.id" class="result-card"
-              :class="{ 'expanded': result.expanded }">
+            <div
+              v-for="(result, index) in searchResults"
+              :key="result.id"
+              class="result-card"
+              :class="{ expanded: result.expanded }"
+            >
               <div class="result-header" @click="toggleResult(result)">
                 <div class="result-question-wrapper">
                   <div class="result-main">
@@ -807,9 +1062,11 @@
                       <span class="result-index">{{ index + 1 }}.</span>
                       {{ result.standard_question }}
                     </div>
-                    <div v-if="result.matched_question && result.matched_question !== result.standard_question"
-                      class="matched-question">
-                      <span class="matched-label">{{ $t('knowledgeEditor.faq.matchedQuestion') }}:</span>
+                    <div
+                      v-if="result.matched_question && result.matched_question !== result.standard_question"
+                      class="matched-question"
+                    >
+                      <span class="matched-label">{{ $t("knowledgeEditor.faq.matchedQuestion") }}:</span>
                       <span class="matched-text">{{ result.matched_question }}</span>
                     </div>
                   </div>
@@ -824,7 +1081,7 @@
               <Transition name="slide-down">
                 <div v-if="result.expanded" class="result-body">
                   <div v-if="result.answers?.length" class="result-section">
-                    <div class="section-label">{{ $t('knowledgeEditor.faq.answers') }}</div>
+                    <div class="section-label">{{ $t("knowledgeEditor.faq.answers") }}</div>
                     <div class="result-tags">
                       <t-tooltip v-for="answer in result.answers" :key="answer" :content="answer" placement="top">
                         <t-tag size="small" theme="success" variant="light" class="answer-tag">
@@ -834,10 +1091,14 @@
                     </div>
                   </div>
                   <div v-if="result.similar_questions?.length" class="result-section">
-                    <div class="section-label">{{ $t('knowledgeEditor.faq.similarQuestions') }}</div>
+                    <div class="section-label">{{ $t("knowledgeEditor.faq.similarQuestions") }}</div>
                     <div class="result-tags">
-                      <t-tooltip v-for="question in result.similar_questions" :key="question" :content="question"
-                        placement="top">
+                      <t-tooltip
+                        v-for="question in result.similar_questions"
+                        :key="question"
+                        :content="question"
+                        placement="top"
+                      >
                         <t-tag size="small" variant="light-outline" class="question-tag">
                           {{ question }}
                         </t-tag>
@@ -862,13 +1123,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, computed, nextTick, onUnmounted, h } from 'vue'
-import { MessagePlugin, Icon as TIcon } from 'tdesign-vue-next'
-import type { FormRules, FormInstanceFunctions } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useOrganizationStore } from '@/stores/organization'
+import { ref, reactive, watch, onMounted, computed, nextTick, onUnmounted, h } from "vue";
+import { MessagePlugin, Icon as TIcon } from "tdesign-vue-next";
+import type { FormRules, FormInstanceFunctions } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import { useOrganizationStore } from "@/stores/organization";
 import {
   listFAQEntries,
   upsertFAQEntries,
@@ -884,59 +1145,59 @@ import {
   listKnowledgeBases,
   getFAQImportProgress,
   updateFAQImportResultDisplayStatus,
-} from '@/api/knowledge-base'
-import * as XLSX from 'xlsx'
-import Papa from 'papaparse'
-import FAQTagTooltip from '@/components/FAQTagTooltip.vue'
-import KBInfoPopover from '@/components/KBInfoPopover.vue'
-import KBSwitcherDropdown from '@/components/KBSwitcherDropdown.vue'
-import FAQBatchBar from './FAQBatchBar.vue'
-import KbTagManageDrawer from './KbTagManageDrawer.vue'
-import { useUIStore } from '@/stores/ui'
+} from "@/api/knowledge-base";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import FAQTagTooltip from "@/components/FAQTagTooltip.vue";
+import KBInfoPopover from "@/components/KBInfoPopover.vue";
+import KBSwitcherDropdown from "@/components/KBSwitcherDropdown.vue";
+import FAQBatchBar from "./FAQBatchBar.vue";
+import KbTagManageDrawer from "./KbTagManageDrawer.vue";
+import { useUIStore } from "@/stores/ui";
 
 interface FAQEntry {
-  id: number
-  chunk_id: string
-  knowledge_id: string
-  knowledge_base_id: string
-  tag_id?: number
-  is_enabled: boolean
-  is_recommended: boolean
-  standard_question: string
-  similar_questions: string[]
-  negative_questions: string[]
-  answers: string[]
-  updated_at: string
-  showMore?: boolean
-  score?: number
-  match_type?: string
-  matched_question?: string
-  expanded?: boolean
-  similarCollapsed?: boolean
-  negativeCollapsed?: boolean
-  answersCollapsed?: boolean
+  id: number;
+  chunk_id: string;
+  knowledge_id: string;
+  knowledge_base_id: string;
+  tag_id?: number;
+  is_enabled: boolean;
+  is_recommended: boolean;
+  standard_question: string;
+  similar_questions: string[];
+  negative_questions: string[];
+  answers: string[];
+  updated_at: string;
+  showMore?: boolean;
+  score?: number;
+  match_type?: string;
+  matched_question?: string;
+  expanded?: boolean;
+  similarCollapsed?: boolean;
+  negativeCollapsed?: boolean;
+  answersCollapsed?: boolean;
 }
 
 interface FAQEntryPayload {
-  standard_question: string
-  similar_questions: string[]
-  negative_questions: string[]
-  answers: string[]
-  tag_id?: number
-  tag_name?: string
-  is_enabled?: boolean
-  is_recommended?: boolean
+  standard_question: string;
+  similar_questions: string[];
+  negative_questions: string[];
+  answers: string[];
+  tag_id?: number;
+  tag_name?: string;
+  is_enabled?: boolean;
+  is_recommended?: boolean;
 }
 
 const props = defineProps<{
-  kbId: string
-}>()
+  kbId: string;
+}>();
 
-const { t } = useI18n()
-const router = useRouter()
-const uiStore = useUIStore()
-const authStore = useAuthStore()
-const orgStore = useOrganizationStore()
+const { t } = useI18n();
+const router = useRouter();
+const uiStore = useUIStore();
+const authStore = useAuthStore();
+const orgStore = useOrganizationStore();
 
 // Permission control: check if current user owns this KB or has edit/manage permission.
 //
@@ -948,24 +1209,24 @@ const orgStore = useOrganizationStore()
 // inside canEdit / canManage. Legacy KBs with empty creator_id stay tenant-owned
 // (Admin+ may manage).
 const isOwner = computed(() => {
-  if (!kbInfo.value) return false
-  const creatorId = (kbInfo.value as any).creator_id || ''
-  const userId = authStore.user?.id || ''
-  if (!creatorId) return false
-  return creatorId === userId
-})
+  if (!kbInfo.value) return false;
+  const creatorId = (kbInfo.value as any).creator_id || "";
+  const userId = authStore.user?.id || "";
+  if (!creatorId) return false;
+  return creatorId === userId;
+});
 
 // Current KB's shared record (when accessed via organization share)
-const currentSharedKb = computed(() =>
-  orgStore.sharedKnowledgeBases.find((s) => s.knowledge_base?.id === props.kbId) ?? null,
-)
+const currentSharedKb = computed(
+  () => orgStore.sharedKnowledgeBases.find((s) => s.knowledge_base?.id === props.kbId) ?? null,
+);
 
 // Accessed via organization share: presence in the sharedKnowledgeBases list
 // means we reached this KB through a shared space, so the user's local tenant
 // role is irrelevant — only the share grant counts. tenant_id comparison
 // alone is unreliable (a user can be a member of both source and receiving
 // tenants); share-list presence is the authoritative signal.
-const isViaShare = computed(() => !!currentSharedKb.value)
+const isViaShare = computed(() => !!currentSharedKb.value);
 
 // Can edit: when accessed via an organization share, ONLY the share grant
 // counts — even if the current user happens to be the original creator of
@@ -974,568 +1235,559 @@ const isViaShare = computed(() => !!currentSharedKb.value)
 // different tenant context will be 403'd on write. Otherwise: KB creator
 // (any role) or tenant Admin+ in the home tenant.
 const canEdit = computed(() => {
-  if (isViaShare.value) return orgStore.canEditKB(props.kbId, false)
-  if (isOwner.value) return true
-  if (authStore.hasRole('admin')) return true
-  return orgStore.canEditKB(props.kbId, false)
-})
+  if (isViaShare.value) return orgStore.canEditKB(props.kbId, false);
+  if (isOwner.value) return true;
+  if (authStore.hasRole("admin")) return true;
+  return orgStore.canEditKB(props.kbId, false);
+});
 
 // Can manage (delete, settings, share): same isViaShare-first rule. For
 // shared KBs only an 'admin' share grant qualifies — editor/viewer (and
 // even being the creator viewed via share) never grant delete/settings.
 const canManage = computed(() => {
-  if (isViaShare.value) return orgStore.canManageKB(props.kbId, false)
-  if (isOwner.value) return true
-  if (authStore.hasRole('admin')) return true
-  return orgStore.canManageKB(props.kbId, false)
-})
+  if (isViaShare.value) return orgStore.canManageKB(props.kbId, false);
+  if (isOwner.value) return true;
+  if (authStore.hasRole("admin")) return true;
+  return orgStore.canManageKB(props.kbId, false);
+});
 
-const canSelectEntries = computed(() => canEdit.value || canManage.value)
+const canSelectEntries = computed(() => canEdit.value || canManage.value);
 
 const faqExportOptions = computed(() => [
-  { content: t('knowledgeEditor.faqExport.exportCSV'), value: 'export_csv' },
-  { content: t('knowledgeEditor.faqExport.exportJSON'), value: 'export_json' },
-])
+  { content: t("knowledgeEditor.faqExport.exportCSV"), value: "export_csv" },
+  { content: t("knowledgeEditor.faqExport.exportJSON"), value: "export_json" },
+]);
 
 // FAQ 操作：新建组（新建条目 + 导入）
 const faqCreateOptions = computed(() => {
-  if (!canEdit.value) return []
+  if (!canEdit.value) return [];
   return [
-    { content: t('knowledgeEditor.faq.editorCreate'), value: 'create', prefixIcon: () => h(TIcon, { name: 'add', size: '16px' }) },
-    { content: t('knowledgeEditor.faqImport.importButton'), value: 'import', prefixIcon: () => h(TIcon, { name: 'upload', size: '16px' }) },
-  ]
-})
+    {
+      content: t("knowledgeEditor.faq.editorCreate"),
+      value: "create",
+      prefixIcon: () => h(TIcon, { name: "add", size: "16px" }),
+    },
+    {
+      content: t("knowledgeEditor.faqImport.importButton"),
+      value: "import",
+      prefixIcon: () => h(TIcon, { name: "upload", size: "16px" }),
+    },
+  ];
+});
 
 // 处理 FAQ 操作
 const handleFaqAction = (data: { value: string }) => {
   switch (data.value) {
-    case 'create':
-      openEditor()
-      break
-    case 'import':
-      openImportDialog()
-      break
-    case 'search':
-      searchDrawerVisible.value = true
-      break
-    case 'export_csv':
-      handleExportCSV()
-      break
-    case 'export_json':
-      handleExportJSON()
-      break
-    case 'export':
-      handleExportCSV()
-      break
+    case "create":
+      openEditor();
+      break;
+    case "import":
+      openImportDialog();
+      break;
+    case "search":
+      searchDrawerVisible.value = true;
+      break;
+    case "export_csv":
+      handleExportCSV();
+      break;
+    case "export_json":
+      handleExportJSON();
+      break;
+    case "export":
+      handleExportCSV();
+      break;
   }
-}
+};
 
-const loading = ref(true)
-const loadingMore = ref(false)
-const entries = ref<FAQEntry[]>([])
-const entryStatusLoading = reactive<Record<number, boolean>>({})
-const selectedRowKeys = ref<number[]>([])
-const batchDeleteLoading = ref(false)
-const batchTagLoading = ref(false)
-const batchStatusAction = ref<'enable' | 'disable' | null>(null)
+const loading = ref(true);
+const loadingMore = ref(false);
+const entries = ref<FAQEntry[]>([]);
+const entryStatusLoading = reactive<Record<number, boolean>>({});
+const selectedRowKeys = ref<number[]>([]);
+const batchDeleteLoading = ref(false);
+const batchTagLoading = ref(false);
+const batchStatusAction = ref<"enable" | "disable" | null>(null);
 const selectedEntries = computed(() => {
-  const selectedIds = new Set(selectedRowKeys.value)
-  return entries.value.filter(entry => selectedIds.has(entry.id))
-})
-const selectedEnabledCount = computed(() => (
-  selectedEntries.value.filter(entry => entry.is_enabled !== false).length
-))
-const selectedDisabledCount = computed(() => selectedEntries.value.length - selectedEnabledCount.value)
-const batchActionLoading = computed(() => (
-  batchDeleteLoading.value
-  || batchTagLoading.value
-  || batchStatusAction.value != null
-))
-const scrollContainer = ref<HTMLElement | null>(null)
-const cardListRef = ref<HTMLElement | null>(null)
-const hasMore = ref(true)
-const pageSize = 20
-let currentPage = 1
-const entrySearchKeyword = ref('')
-let entrySearchDebounce: number | null = null
+  const selectedIds = new Set(selectedRowKeys.value);
+  return entries.value.filter((entry) => selectedIds.has(entry.id));
+});
+const selectedEnabledCount = computed(() => selectedEntries.value.filter((entry) => entry.is_enabled !== false).length);
+const selectedDisabledCount = computed(() => selectedEntries.value.length - selectedEnabledCount.value);
+const batchActionLoading = computed(
+  () => batchDeleteLoading.value || batchTagLoading.value || batchStatusAction.value != null,
+);
+const scrollContainer = ref<HTMLElement | null>(null);
+const cardListRef = ref<HTMLElement | null>(null);
+const hasMore = ref(true);
+const pageSize = 20;
+let currentPage = 1;
+const entrySearchKeyword = ref("");
+let entrySearchDebounce: number | null = null;
 
-const tagList = ref<any[]>([])
-const tagLoading = ref(false)
-const selectedTagIds = ref<string[]>([])
-const tagFilterPanelVisible = ref(false)
-const tagFilterTriggerHover = ref(false)
-const tagFilterCleared = ref(false)
-const tagManageDrawerVisible = ref(false)
-const overallFAQTotal = ref(0)
-const tagSearchQuery = ref('')
-const TAG_PAGE_SIZE = 20
-const tagPage = ref(1)
-const tagHasMore = ref(false)
-const tagLoadingMore = ref(false)
-const tagTotal = ref(0)
-let tagSearchDebounce: number | null = null
+const tagList = ref<any[]>([]);
+const tagLoading = ref(false);
+const selectedTagIds = ref<string[]>([]);
+const tagFilterPanelVisible = ref(false);
+const tagFilterTriggerHover = ref(false);
+const tagFilterCleared = ref(false);
+const tagManageDrawerVisible = ref(false);
+const overallFAQTotal = ref(0);
+const tagSearchQuery = ref("");
+const TAG_PAGE_SIZE = 20;
+const tagPage = ref(1);
+const tagHasMore = ref(false);
+const tagLoadingMore = ref(false);
+const tagTotal = ref(0);
+let tagSearchDebounce: number | null = null;
 
-const showTagFilterClear = computed(
-  () => selectedTagIds.value.length > 0 && tagFilterTriggerHover.value,
-)
+const showTagFilterClear = computed(() => selectedTagIds.value.length > 0 && tagFilterTriggerHover.value);
 
-const isTagFilterPlaceholder = computed(
-  () => selectedTagIds.value.length === 0 && tagFilterCleared.value,
-)
+const isTagFilterPlaceholder = computed(() => selectedTagIds.value.length === 0 && tagFilterCleared.value);
 
 const tagMap = computed<Record<string, any>>(() => {
-  const map: Record<string, any> = {}
+  const map: Record<string, any> = {};
   tagList.value.forEach((tag) => {
-    map[tag.id] = tag
-  })
-  return map
-})
+    map[tag.id] = tag;
+  });
+  return map;
+});
 
 // tagMapBySeqId uses seq_id as key for looking up by entry.tag_id
 const tagMapBySeqId = computed<Record<number, any>>(() => {
-  const map: Record<number, any> = {}
+  const map: Record<number, any> = {};
   tagList.value.forEach((tag) => {
-    map[tag.seq_id] = tag
-  })
-  return map
-})
+    map[tag.seq_id] = tag;
+  });
+  return map;
+});
 
-const regularTags = computed(() => tagList.value)
+const regularTags = computed(() => tagList.value);
 const tagDropdownOptions = computed(() =>
   regularTags.value.map((tag: any) => ({ content: tag.name, value: String(tag.seq_id) })),
-)
-const tagSelectOptions = computed(() =>
-  regularTags.value.map((tag: any) => ({ label: tag.name, value: tag.seq_id })),
-)
+);
+const tagSelectOptions = computed(() => regularTags.value.map((tag: any) => ({ label: tag.name, value: tag.seq_id })));
 
-const sidebarCategoryCount = computed(() => tagTotal.value || tagList.value.length)
+const sidebarCategoryCount = computed(() => tagTotal.value || tagList.value.length);
 const sidebarTags = computed(() => {
-  const list = tagList.value
-  const selectedIds = selectedTagIds.value
+  const list = tagList.value;
+  const selectedIds = selectedTagIds.value;
   if (!selectedIds.length) {
-    return list
+    return list;
   }
   const missingSelected = selectedIds
     .filter((id) => !list.some((tag) => tag.id === id))
     .map((id) => tagMap.value[id])
-    .filter(Boolean)
+    .filter(Boolean);
   if (!missingSelected.length) {
-    return list
+    return list;
   }
-  return [...missingSelected, ...list]
-})
+  return [...missingSelected, ...list];
+});
 
 const activeTagFilterLabel = computed(() => {
   if (selectedTagIds.value.length === 0) {
-    return tagFilterCleared.value
-      ? t('knowledgeBase.tagFilterPlaceholder')
-      : t('knowledgeBase.allTags')
+    return tagFilterCleared.value ? t("knowledgeBase.tagFilterPlaceholder") : t("knowledgeBase.allTags");
   }
   if (selectedTagIds.value.length === 1) {
-    const id = selectedTagIds.value[0]
-    return tagMap.value[id]?.name || t('knowledgeBase.allTags')
+    const id = selectedTagIds.value[0];
+    return tagMap.value[id]?.name || t("knowledgeBase.allTags");
   }
-  return t('knowledgeBase.tagFilterMulti', { count: selectedTagIds.value.length })
-})
+  return t("knowledgeBase.tagFilterMulti", { count: selectedTagIds.value.length });
+});
 
 const activeTagFilterTitle = computed(() => {
   if (selectedTagIds.value.length === 0) {
-    return t('knowledgeBase.tagFilterTitle')
+    return t("knowledgeBase.tagFilterTitle");
   }
-  const names = selectedTagIds.value
-    .map((id) => tagMap.value[id]?.name)
-    .filter(Boolean)
-  return names.length > 0 ? names.join('、') : t('knowledgeBase.tagFilterTitle')
-})
+  const names = selectedTagIds.value.map((id) => tagMap.value[id]?.name).filter(Boolean);
+  return names.length > 0 ? names.join("、") : t("knowledgeBase.tagFilterTitle");
+});
 
-const isTagFilterActive = (tagId: string) => selectedTagIds.value.includes(tagId)
+const isTagFilterActive = (tagId: string) => selectedTagIds.value.includes(tagId);
 
-const kbInfo = ref<any>(null)
-const knowledgeList = ref<Array<{ id: string; name: string; type?: string }>>([])
+const kbInfo = ref<any>(null);
+const knowledgeList = ref<Array<{ id: string; name: string; type?: string }>>([]);
 
 const loadKnowledgeInfo = async (kbId: string) => {
   if (!kbId) {
-    kbInfo.value = null
-    return
+    kbInfo.value = null;
+    return;
   }
   try {
-    const res: any = await getKnowledgeBaseById(kbId)
-    kbInfo.value = res?.data || null
-    return kbInfo.value
+    const res: any = await getKnowledgeBaseById(kbId);
+    kbInfo.value = res?.data || null;
+    return kbInfo.value;
   } catch (error) {
-    console.error('Failed to load knowledge base info:', error)
-    kbInfo.value = null
-    return null
+    console.error("Failed to load knowledge base info:", error);
+    kbInfo.value = null;
+    return null;
   }
-}
+};
 
 const loadKnowledgeList = async () => {
   try {
-    const res: any = await listKnowledgeBases()
+    const res: any = await listKnowledgeBases();
     const myKbs: typeof knowledgeList.value = (res?.data || []).map((item: any) => ({
       id: String(item.id),
       name: item.name,
       type: item.type,
-    }))
+    }));
 
     // Also include shared knowledge bases from orgStore
     const sharedKbs: typeof knowledgeList.value = (orgStore.sharedKnowledgeBases || [])
-      .filter(s => s.knowledge_base != null)
-      .map(s => ({
+      .filter((s) => s.knowledge_base != null)
+      .map((s) => ({
         id: String(s.knowledge_base.id),
         name: s.knowledge_base.name,
         type: s.knowledge_base.type,
-      }))
+      }));
 
     // Merge and deduplicate by id (my KBs take precedence)
-    const myKbIds = new Set(myKbs.map(kb => kb.id))
-    const uniqueSharedKbs = sharedKbs.filter(kb => !myKbIds.has(kb.id))
+    const myKbIds = new Set(myKbs.map((kb) => kb.id));
+    const uniqueSharedKbs = sharedKbs.filter((kb) => !myKbIds.has(kb.id));
 
-    knowledgeList.value = [...myKbs, ...uniqueSharedKbs]
+    knowledgeList.value = [...myKbs, ...uniqueSharedKbs];
   } catch (error) {
-    console.error('Failed to load knowledge bases:', error)
+    console.error("Failed to load knowledge bases:", error);
   }
-}
+};
 
-const editorVisible = ref(false)
-const editorMode = ref<'create' | 'edit'>('create')
-const currentEntryId = ref<number | null>(null)
+const editorVisible = ref(false);
+const editorMode = ref<"create" | "edit">("create");
+const currentEntryId = ref<number | null>(null);
 const editorForm = reactive<FAQEntryPayload>({
-  standard_question: '',
+  standard_question: "",
   similar_questions: [],
   negative_questions: [],
   answers: [],
   tag_id: undefined,
-})
-const editorFormRef = ref<FormInstanceFunctions>()
-const savingEntry = ref(false)
+});
+const editorFormRef = ref<FormInstanceFunctions>();
+const savingEntry = ref(false);
 
 // 输入框状态
-const answerInput = ref('')
-const similarInput = ref('')
-const negativeInput = ref('')
+const answerInput = ref("");
+const similarInput = ref("");
+const negativeInput = ref("");
 
-const importVisible = ref(false)
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const importVisible = ref(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const importState = reactive({
-  mode: 'append' as 'append' | 'replace',
+  mode: "append" as "append" | "replace",
   file: null as File | null,
   preview: [] as FAQEntryPayload[],
   importing: false,
   taskId: null as string | null,
   taskStatus: null as {
-    status: string
-    progress: number
-    total: number
-    processed: number
-    message?: string
-    error?: string
+    status: string;
+    progress: number;
+    total: number;
+    processed: number;
+    message?: string;
+    error?: string;
   } | null,
   pollingInterval: null as ReturnType<typeof setInterval> | null,
-})
+});
 
 // FAQ导入结果状态（持久化的）
 type FAQImportResultView = {
-  total_entries: number
-  success_count: number
-  failed_count: number
-  skipped_count: number
-  partial_failed_count: number
-  merged_count: number
-  added_count: number
-  import_mode: string
-  imported_at: string
-  task_id: string
-  processing_time: number
-  message?: string
-  failed_entries_url?: string
+  total_entries: number;
+  success_count: number;
+  failed_count: number;
+  skipped_count: number;
+  partial_failed_count: number;
+  merged_count: number;
+  added_count: number;
+  import_mode: string;
+  imported_at: string;
+  task_id: string;
+  processing_time: number;
+  message?: string;
+  failed_entries_url?: string;
   success_entries?: Array<{
-    index: number
-    seq_id: number
-    tag_id?: number
-    tag_name?: string
-    standard_question: string
-  }>
-  display_status: string
-}
+    index: number;
+    seq_id: number;
+    tag_id?: number;
+    tag_name?: string;
+    standard_question: string;
+  }>;
+  display_status: string;
+};
 
-const importResult = ref<FAQImportResultView | null>(null)
-const importResultExpanded = ref(false)
+const importResult = ref<FAQImportResultView | null>(null);
+const importResultExpanded = ref(false);
 
-const showImportResultBadge = computed(() => (
-  !!importResult.value
-  && importResult.value.display_status === 'open'
-  && !importState.taskId
-))
+const showImportResultBadge = computed(
+  () => !!importResult.value && importResult.value.display_status === "open" && !importState.taskId,
+);
 
 const isImportInProgress = computed(() => {
-  const status = importState.taskStatus?.status
-  return !!importState.taskId && (status === 'running' || status === 'pending')
-})
+  const status = importState.taskStatus?.status;
+  return !!importState.taskId && (status === "running" || status === "pending");
+});
 
 const importResultSummary = computed(() => {
-  const result = importResult.value
-  if (!result) return ''
+  const result = importResult.value;
+  if (!result) return "";
   if (result.message?.trim()) {
-    return result.message.trim()
+    return result.message.trim();
   }
-  const parts: string[] = []
-  parts.push(`${t('faqManager.import.totalData')} ${result.total_entries}`)
+  const parts: string[] = [];
+  parts.push(`${t("faqManager.import.totalData")} ${result.total_entries}`);
   if (result.merged_count > 0) {
     if (result.added_count > 0) {
-      parts.push(`${t('faqManager.import.added')} ${result.added_count}`)
+      parts.push(`${t("faqManager.import.added")} ${result.added_count}`);
     }
-    parts.push(`${t('faqManager.import.merged')} ${result.merged_count}`)
+    parts.push(`${t("faqManager.import.merged")} ${result.merged_count}`);
   } else if (result.success_count > 0) {
-    parts.push(`${t('faqManager.import.success')} ${result.success_count}`)
+    parts.push(`${t("faqManager.import.success")} ${result.success_count}`);
   }
   if (result.partial_failed_count > 0) {
-    parts.push(`${t('faqManager.import.partialFailed')} ${result.partial_failed_count}`)
+    parts.push(`${t("faqManager.import.partialFailed")} ${result.partial_failed_count}`);
   }
   if (result.failed_count > 0) {
-    parts.push(`${t('faqManager.import.failed')} ${result.failed_count}`)
+    parts.push(`${t("faqManager.import.failed")} ${result.failed_count}`);
   }
   if (result.skipped_count > 0) {
-    parts.push(`${t('faqManager.import.skipped')} ${result.skipped_count}`)
+    parts.push(`${t("faqManager.import.skipped")} ${result.skipped_count}`);
   }
-  return parts.join(' · ')
-})
+  return parts.join(" · ");
+});
 
 const importProgressTitle = computed(() => {
-  const status = importState.taskStatus?.status
-  if (status === 'running') return t('faqManager.import.importing')
-  if (status === 'success') return t('faqManager.import.importDone')
-  if (status === 'failed') return t('faqManager.import.importFailed')
-  return t('faqManager.import.waiting')
-})
+  const status = importState.taskStatus?.status;
+  if (status === "running") return t("faqManager.import.importing");
+  if (status === "success") return t("faqManager.import.importDone");
+  if (status === "failed") return t("faqManager.import.importFailed");
+  return t("faqManager.import.waiting");
+});
 
 const importProgressIcon = computed(() => {
-  const status = importState.taskStatus?.status
-  if (status === 'running') return 'loading'
-  if (status === 'success') return 'check-circle-filled'
-  if (status === 'failed') return 'error-circle-filled'
-  return 'time-filled'
-})
+  const status = importState.taskStatus?.status;
+  if (status === "running") return "loading";
+  if (status === "success") return "check-circle-filled";
+  if (status === "failed") return "error-circle-filled";
+  return "time-filled";
+});
 
 const importProgressText = computed(() => {
-  const status = importState.taskStatus
-  if (!status) return ''
-  if (status.error) return status.error
-  if (status.message?.trim()) return status.message.trim()
-  return importProgressTitle.value
-})
+  const status = importState.taskStatus;
+  if (!status) return "";
+  if (status.error) return status.error;
+  if (status.message?.trim()) return status.message.trim();
+  return importProgressTitle.value;
+});
 
 // Search test state
-const searchDrawerVisible = ref(false)
-const searching = ref(false)
-const hasSearched = ref(false)
-const searchResults = ref<FAQEntry[]>([])
+const searchDrawerVisible = ref(false);
+const searching = ref(false);
+const hasSearched = ref(false);
+const searchResults = ref<FAQEntry[]>([]);
 const searchForm = reactive({
-  query: '',
+  query: "",
   vectorThreshold: 0.7,
   matchCount: 10,
-})
-
+});
 
 const getTagName = (tagId?: number) => {
-  if (!tagId) return t('knowledgeBase.untagged')
-  return tagMapBySeqId.value[tagId]?.name || t('knowledgeBase.untagged')
-}
+  if (!tagId) return t("knowledgeBase.untagged");
+  return tagMapBySeqId.value[tagId]?.name || t("knowledgeBase.untagged");
+};
 
 const handleTagFilterChange = (tagIds: string[]) => {
-  selectedTagIds.value = tagIds
-  uiStore.clearSelectedTagIds()
-  tagIds.forEach((id) => uiStore.toggleSelectedTagId(id))
-}
+  selectedTagIds.value = tagIds;
+  uiStore.clearSelectedTagIds();
+  tagIds.forEach((id) => uiStore.toggleSelectedTagId(id));
+};
 
 const handleTagRowClick = (tagId: string) => {
-  const next = new Set(selectedTagIds.value)
+  const next = new Set(selectedTagIds.value);
   if (next.has(tagId)) {
-    next.delete(tagId)
+    next.delete(tagId);
   } else {
-    next.add(tagId)
+    next.add(tagId);
   }
   if (next.size > 0) {
-    tagFilterCleared.value = false
+    tagFilterCleared.value = false;
   }
-  handleTagFilterChange([...next])
-}
+  handleTagFilterChange([...next]);
+};
 
 const clearTagFilter = () => {
-  tagFilterCleared.value = true
-  handleTagFilterChange([])
-}
+  tagFilterCleared.value = true;
+  handleTagFilterChange([]);
+};
 
 const openTagManageDrawer = () => {
-  tagFilterPanelVisible.value = false
-  tagManageDrawerVisible.value = true
-}
+  tagFilterPanelVisible.value = false;
+  tagManageDrawerVisible.value = true;
+};
 
 const onTagManageChanged = (payload?: { deletedTagId?: string }) => {
-  if (!props.kbId) return
-  void loadTags(true)
+  if (!props.kbId) return;
+  void loadTags(true);
   if (payload?.deletedTagId && selectedTagIds.value.includes(payload.deletedTagId)) {
-    selectedTagIds.value = selectedTagIds.value.filter((id) => id !== payload.deletedTagId)
-    handleTagFilterChange([...selectedTagIds.value])
+    selectedTagIds.value = selectedTagIds.value.filter((id) => id !== payload.deletedTagId);
+    handleTagFilterChange([...selectedTagIds.value]);
   }
-  currentPage = 1
-  entries.value = []
-  selectedRowKeys.value = []
-  void loadEntries()
-}
+  currentPage = 1;
+  entries.value = [];
+  selectedRowKeys.value = [];
+  void loadEntries();
+};
 
 const loadTags = async (reset = false) => {
   if (!props.kbId) {
-    tagList.value = []
-    tagTotal.value = 0
-    tagHasMore.value = false
-    tagPage.value = 1
-    return
+    tagList.value = [];
+    tagTotal.value = 0;
+    tagHasMore.value = false;
+    tagPage.value = 1;
+    return;
   }
 
   if (reset) {
-    tagPage.value = 1
-    tagList.value = []
-    tagTotal.value = 0
-    tagHasMore.value = false
+    tagPage.value = 1;
+    tagList.value = [];
+    tagTotal.value = 0;
+    tagHasMore.value = false;
   } else if (tagLoading.value || tagLoadingMore.value) {
-    return
+    return;
   }
 
-  const currentTagPage = tagPage.value || 1
-  tagLoading.value = currentTagPage === 1
-  tagLoadingMore.value = currentTagPage > 1
+  const currentTagPage = tagPage.value || 1;
+  tagLoading.value = currentTagPage === 1;
+  tagLoadingMore.value = currentTagPage > 1;
 
   try {
     const res: any = await listKnowledgeTags(props.kbId, {
       page: currentTagPage,
       page_size: TAG_PAGE_SIZE,
       keyword: tagSearchQuery.value || undefined,
-    })
+    });
     const pageData = (res?.data || {}) as {
-      data?: any[]
-      total?: number
-    }
+      data?: any[];
+      total?: number;
+    };
     const pageTags = (pageData.data || []).map((tag: any) => ({
       ...tag,
       id: String(tag.id),
-    }))
+    }));
 
     if (currentTagPage === 1) {
-      tagList.value = pageTags
+      tagList.value = pageTags;
     } else {
-      tagList.value = [...tagList.value, ...pageTags]
+      tagList.value = [...tagList.value, ...pageTags];
     }
 
-    tagTotal.value = pageData.total || tagList.value.length
-    tagHasMore.value = tagList.value.length < tagTotal.value
+    tagTotal.value = pageData.total || tagList.value.length;
+    tagHasMore.value = tagList.value.length < tagTotal.value;
     if (tagHasMore.value) {
-      tagPage.value = currentTagPage + 1
+      tagPage.value = currentTagPage + 1;
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    tagLoading.value = false
-    tagLoadingMore.value = false
+    tagLoading.value = false;
+    tagLoadingMore.value = false;
   }
-}
+};
 
 const handleEntryTagChange = async (entryId: number, value?: string) => {
-  if (!props.kbId) return
-  const targetEntry = entries.value.find((item) => item.id === entryId)
-  const previousTagId = targetEntry ? targetEntry.tag_id : undefined
-  const normalizedValue = value ? Number(value) : null
+  if (!props.kbId) return;
+  const targetEntry = entries.value.find((item) => item.id === entryId);
+  const previousTagId = targetEntry ? targetEntry.tag_id : undefined;
+  const normalizedValue = value ? Number(value) : null;
   if (normalizedValue === previousTagId) {
-    return
+    return;
   }
   try {
-    await updateFAQEntryTagBatch(props.kbId, { updates: { [entryId]: normalizedValue } })
-    MessagePlugin.success(t('knowledgeEditor.messages.updateSuccess'))
-    await loadEntries()
-    await loadTags(true)
+    await updateFAQEntryTagBatch(props.kbId, { updates: { [entryId]: normalizedValue } });
+    MessagePlugin.success(t("knowledgeEditor.messages.updateSuccess"));
+    await loadEntries();
+    await loadTags(true);
   } catch (error: any) {
     if (targetEntry) {
-      targetEntry.tag_id = previousTagId
+      targetEntry.tag_id = previousTagId;
     }
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   }
-}
+};
 
 const handleNavigateToKbList = () => {
-  router.push('/platform/knowledge-bases')
-}
+  router.push("/platform/knowledge-bases");
+};
 
 const handleNavigateToCurrentKB = () => {
-  if (!props.kbId) return
-  router.push(`/platform/knowledge-bases/${props.kbId}`)
-}
+  if (!props.kbId) return;
+  router.push(`/platform/knowledge-bases/${props.kbId}`);
+};
 
 const handleOpenKBSettings = () => {
   if (!props.kbId) {
-    MessagePlugin.warning(t('knowledgeEditor.messages.missingId'))
-    return
+    MessagePlugin.warning(t("knowledgeEditor.messages.missingId"));
+    return;
   }
-  uiStore.openKBSettings(props.kbId)
-}
+  uiStore.openKBSettings(props.kbId);
+};
 
 const handleKnowledgeDropdownSelect = (data: { value: string }) => {
-  if (!data?.value || data.value === props.kbId) return
-  router.push(`/platform/knowledge-bases/${data.value}`)
-}
+  if (!data?.value || data.value === props.kbId) return;
+  router.push(`/platform/knowledge-bases/${data.value}`);
+};
 
 const handleEntryStatusChange = async (entry: FAQEntry, value: boolean) => {
   if (!props.kbId) {
-    return
+    return;
   }
-  const entryIndex = entries.value.findIndex(e => e.id === entry.id)
+  const entryIndex = entries.value.findIndex((e) => e.id === entry.id);
   if (entryIndex === -1) {
-    return
+    return;
   }
   // 从数组中获取实际的对象引用，确保使用最新的数据
-  const actualEntry = entries.value[entryIndex]
-  const previous = actualEntry.is_enabled
+  const actualEntry = entries.value[entryIndex];
+  const previous = actualEntry.is_enabled;
   if (previous === value) {
-    return
+    return;
   }
   // 直接更新属性，Vue 3 的响应式系统应该能够检测到
-  actualEntry.is_enabled = value
-  entryStatusLoading[entry.id] = true
+  actualEntry.is_enabled = value;
+  entryStatusLoading[entry.id] = true;
   try {
-    await updateFAQEntryFieldsBatch(props.kbId, { by_id: { [entry.id]: { is_enabled: value } } })
-    MessagePlugin.success(t(value ? 'knowledgeEditor.faq.statusEnableSuccess' : 'knowledgeEditor.faq.statusDisableSuccess'))
+    await updateFAQEntryFieldsBatch(props.kbId, { by_id: { [entry.id]: { is_enabled: value } } });
+    MessagePlugin.success(
+      t(value ? "knowledgeEditor.faq.statusEnableSuccess" : "knowledgeEditor.faq.statusDisableSuccess"),
+    );
   } catch (error: any) {
     // 失败时回滚
-    actualEntry.is_enabled = previous
-    MessagePlugin.error(error?.message || t('knowledgeEditor.faq.statusUpdateFailed'))
+    actualEntry.is_enabled = previous;
+    MessagePlugin.error(error?.message || t("knowledgeEditor.faq.statusUpdateFailed"));
   } finally {
-    entryStatusLoading[entry.id] = false
+    entryStatusLoading[entry.id] = false;
   }
-}
+};
 
 const editorRules: FormRules<FAQEntryPayload> = {
-  standard_question: [
-    { required: true, message: t('knowledgeEditor.messages.nameRequired') },
-  ],
+  standard_question: [{ required: true, message: t("knowledgeEditor.messages.nameRequired") }],
   answers: [
     {
       validator: (val: string[]) => Array.isArray(val) && val.length > 0,
-      message: t('knowledgeEditor.faq.answerRequired'),
+      message: t("knowledgeEditor.faq.answerRequired"),
     },
   ],
-}
+};
 
 const loadEntries = async (append = false) => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
   if (append) {
-    loadingMore.value = true
+    loadingMore.value = true;
   } else {
-    loading.value = true
-    currentPage = 1
-    entries.value = []
-    selectedRowKeys.value = []
+    loading.value = true;
+    currentPage = 1;
+    entries.value = [];
+    selectedRowKeys.value = [];
     Object.keys(entryStatusLoading).forEach((key) => {
-      delete entryStatusLoading[Number(key)]
-    })
+      delete entryStatusLoading[Number(key)];
+    });
   }
 
   try {
@@ -1544,193 +1796,193 @@ const loadEntries = async (append = false) => {
       const totalRes = await listFAQEntries(props.kbId, {
         page: 1,
         page_size: 1,
-      })
-      const totalData = (totalRes.data || {}) as { total: number }
-      overallFAQTotal.value = totalData.total || 0
+      });
+      const totalData = (totalRes.data || {}) as { total: number };
+      overallFAQTotal.value = totalData.total || 0;
     }
 
     const res = await listFAQEntries(props.kbId, {
       page: currentPage,
       page_size: pageSize,
-      tag_ids: selectedTagIds.value.length > 0 ? selectedTagIds.value.join(',') : undefined,
+      tag_ids: selectedTagIds.value.length > 0 ? selectedTagIds.value.join(",") : undefined,
       keyword: entrySearchKeyword.value ? entrySearchKeyword.value.trim() : undefined,
-    })
+    });
     const pageData = (res.data || {}) as {
-      data: FAQEntry[]
-      total: number
-    }
-    const newEntries = (pageData.data || []).map(entry => ({
+      data: FAQEntry[];
+      total: number;
+    };
+    const newEntries = (pageData.data || []).map((entry) => ({
       ...entry,
       showMore: false,
-      similarCollapsed: true,  // 相似问默认折叠
-      negativeCollapsed: true,  // 反例默认折叠
-      answersCollapsed: true,   // 答案默认折叠
+      similarCollapsed: true, // 相似问默认折叠
+      negativeCollapsed: true, // 反例默认折叠
+      answersCollapsed: true, // 答案默认折叠
       is_enabled: entry.is_enabled !== false,
-    }))
+    }));
 
     if (append) {
-      entries.value = [...entries.value, ...newEntries]
+      entries.value = [...entries.value, ...newEntries];
     } else {
-      entries.value = newEntries
+      entries.value = newEntries;
     }
     // 判断是否还有更多数据
-    hasMore.value = entries.value.length < (pageData.total || 0)
-    currentPage++
+    hasMore.value = entries.value.length < (pageData.total || 0);
+    currentPage++;
 
     // 等待 DOM 更新后重新布局
-    await nextTick()
-    arrangeCards()
+    await nextTick();
+    arrangeCards();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    loading.value = false
-    loadingMore.value = false
+    loading.value = false;
+    loadingMore.value = false;
 
     // 检查是否需要继续加载以填满可视区域
     // 延迟执行以确保 arrangeCards 的 requestAnimationFrame 完成
     setTimeout(() => {
-      checkAndLoadMore()
-    }, 350)
+      checkAndLoadMore();
+    }, 350);
   }
-}
+};
 
 const handleScroll = () => {
-  if (!scrollContainer.value || loadingMore.value || !hasMore.value) return
+  if (!scrollContainer.value || loadingMore.value || !hasMore.value) return;
 
-  const container = scrollContainer.value
-  const scrollTop = container.scrollTop
-  const scrollHeight = container.scrollHeight
-  const clientHeight = container.clientHeight
+  const container = scrollContainer.value;
+  const scrollTop = container.scrollTop;
+  const scrollHeight = container.scrollHeight;
+  const clientHeight = container.clientHeight;
 
   // 当滚动到距离底部 200px 时加载更多
   if (scrollTop + clientHeight >= scrollHeight - 200) {
-    loadEntries(true)
+    loadEntries(true);
   }
-}
+};
 
 // 检查内容是否填满可视区域，如果没有且还有更多数据，继续加载
 const checkAndLoadMore = () => {
-  if (!scrollContainer.value) return
-  if (loadingMore.value || loading.value) return
-  if (!hasMore.value) return
+  if (!scrollContainer.value) return;
+  if (loadingMore.value || loading.value) return;
+  if (!hasMore.value) return;
 
-  const container = scrollContainer.value
-  const scrollHeight = container.scrollHeight
-  const clientHeight = container.clientHeight
+  const container = scrollContainer.value;
+  const scrollHeight = container.scrollHeight;
+  const clientHeight = container.clientHeight;
 
   // 如果内容高度小于容器高度 + 50px 的缓冲，说明可能没有滚动条或接近底部，需要继续加载
   if (scrollHeight <= clientHeight + 50) {
-    loadEntries(true)
+    loadEntries(true);
   }
-}
+};
 
 const handleCardSelect = (entryId: number, checked: boolean) => {
-  if (!canSelectEntries.value || batchActionLoading.value) return
+  if (!canSelectEntries.value || batchActionLoading.value) return;
   if (checked) {
     if (!selectedRowKeys.value.includes(entryId)) {
-      selectedRowKeys.value.push(entryId)
+      selectedRowKeys.value.push(entryId);
     }
   } else {
-    const index = selectedRowKeys.value.indexOf(entryId)
+    const index = selectedRowKeys.value.indexOf(entryId);
     if (index > -1) {
-      selectedRowKeys.value.splice(index, 1)
+      selectedRowKeys.value.splice(index, 1);
     }
   }
-}
+};
 
 const clearFAQSelection = () => {
-  if (batchActionLoading.value) return
-  selectedRowKeys.value = []
-}
+  if (batchActionLoading.value) return;
+  selectedRowKeys.value = [];
+};
 
 const resetEditorForm = () => {
-  editorForm.standard_question = ''
-  editorForm.similar_questions = []
-  editorForm.negative_questions = []
-  editorForm.answers = []
-  editorForm.tag_id = undefined
-  answerInput.value = ''
-  similarInput.value = ''
-  negativeInput.value = ''
-}
+  editorForm.standard_question = "";
+  editorForm.similar_questions = [];
+  editorForm.negative_questions = [];
+  editorForm.answers = [];
+  editorForm.tag_id = undefined;
+  answerInput.value = "";
+  similarInput.value = "";
+  negativeInput.value = "";
+};
 
 const openEditor = (entry?: FAQEntry) => {
   if (entry) {
-    editorMode.value = 'edit'
-    currentEntryId.value = entry.id
-    editorForm.standard_question = entry.standard_question
-    editorForm.similar_questions = [...(entry.similar_questions || [])]
-    editorForm.negative_questions = [...(entry.negative_questions || [])]
-    editorForm.answers = [...(entry.answers || [])]
-    editorForm.tag_id = entry.tag_id || undefined
+    editorMode.value = "edit";
+    currentEntryId.value = entry.id;
+    editorForm.standard_question = entry.standard_question;
+    editorForm.similar_questions = [...(entry.similar_questions || [])];
+    editorForm.negative_questions = [...(entry.negative_questions || [])];
+    editorForm.answers = [...(entry.answers || [])];
+    editorForm.tag_id = entry.tag_id || undefined;
   } else {
-    editorMode.value = 'create'
-    currentEntryId.value = null
-    resetEditorForm()
+    editorMode.value = "create";
+    currentEntryId.value = null;
+    resetEditorForm();
   }
-  answerInput.value = ''
-  similarInput.value = ''
-  negativeInput.value = ''
-  editorVisible.value = true
-}
+  answerInput.value = "";
+  similarInput.value = "";
+  negativeInput.value = "";
+  editorVisible.value = true;
+};
 
 const handleEditorClose = () => {
   // 关闭时重置表单
-  resetEditorForm()
-  answerInput.value = ''
-  similarInput.value = ''
-  negativeInput.value = ''
-  editorFormRef.value?.clearValidate?.()
-}
+  resetEditorForm();
+  answerInput.value = "";
+  similarInput.value = "";
+  negativeInput.value = "";
+  editorFormRef.value?.clearValidate?.();
+};
 
 // 添加答案
 const addAnswer = () => {
-  const trimmed = answerInput.value.trim()
+  const trimmed = answerInput.value.trim();
   if (trimmed && editorForm.answers.length < 5 && !editorForm.answers.includes(trimmed)) {
-    editorForm.answers.push(trimmed)
-    answerInput.value = ''
+    editorForm.answers.push(trimmed);
+    answerInput.value = "";
   }
-}
+};
 
 // 删除答案
 const removeAnswer = (index: number) => {
-  editorForm.answers.splice(index, 1)
-}
+  editorForm.answers.splice(index, 1);
+};
 
 // 添加相似问
 const addSimilar = () => {
-  const trimmed = similarInput.value.trim()
+  const trimmed = similarInput.value.trim();
   if (trimmed && editorForm.similar_questions.length < 10 && !editorForm.similar_questions.includes(trimmed)) {
-    editorForm.similar_questions.push(trimmed)
-    similarInput.value = ''
+    editorForm.similar_questions.push(trimmed);
+    similarInput.value = "";
   }
-}
+};
 
 // 删除相似问
 const removeSimilar = (index: number) => {
-  editorForm.similar_questions.splice(index, 1)
-}
+  editorForm.similar_questions.splice(index, 1);
+};
 
 // 添加反例
 const addNegative = () => {
-  const trimmed = negativeInput.value.trim()
+  const trimmed = negativeInput.value.trim();
   if (trimmed && editorForm.negative_questions.length < 10 && !editorForm.negative_questions.includes(trimmed)) {
-    editorForm.negative_questions.push(trimmed)
-    negativeInput.value = ''
+    editorForm.negative_questions.push(trimmed);
+    negativeInput.value = "";
   }
-}
+};
 
 // 删除反例
 const removeNegative = (index: number) => {
-  editorForm.negative_questions.splice(index, 1)
-}
+  editorForm.negative_questions.splice(index, 1);
+};
 
 const handleSubmitEntry = async () => {
-  if (!editorFormRef.value) return
-  const result = await editorFormRef.value.validate?.()
-  if (result !== true) return
+  if (!editorFormRef.value) return;
+  const result = await editorFormRef.value.validate?.();
+  if (result !== true) return;
 
-  savingEntry.value = true
+  savingEntry.value = true;
   try {
     const payload: FAQEntryPayload = {
       standard_question: editorForm.standard_question,
@@ -1738,332 +1990,336 @@ const handleSubmitEntry = async () => {
       negative_questions: [...editorForm.negative_questions],
       answers: [...editorForm.answers],
       tag_id: editorForm.tag_id || undefined,
-    }
-    if (editorMode.value === 'create') {
-      await createFAQEntry(props.kbId, payload)
-      MessagePlugin.success(t('knowledgeEditor.messages.createSuccess'))
+    };
+    if (editorMode.value === "create") {
+      await createFAQEntry(props.kbId, payload);
+      MessagePlugin.success(t("knowledgeEditor.messages.createSuccess"));
     } else if (currentEntryId.value) {
-      await updateFAQEntry(props.kbId, currentEntryId.value, payload)
-      MessagePlugin.success(t('knowledgeEditor.messages.updateSuccess'))
+      await updateFAQEntry(props.kbId, currentEntryId.value, payload);
+      MessagePlugin.success(t("knowledgeEditor.messages.updateSuccess"));
     }
-    editorVisible.value = false
-    await loadEntries()
+    editorVisible.value = false;
+    await loadEntries();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    savingEntry.value = false
+    savingEntry.value = false;
   }
-}
+};
 
 const handleBatchDelete = async () => {
-  if (!canManage.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return
-  const selectedIds = [...selectedRowKeys.value]
-  batchDeleteLoading.value = true
+  if (!canManage.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return;
+  const selectedIds = [...selectedRowKeys.value];
+  batchDeleteLoading.value = true;
   try {
-    await deleteFAQEntries(props.kbId, selectedIds)
-    MessagePlugin.success(t('knowledgeEditor.faq.batchDeleteSuccess', { count: selectedIds.length }))
-    selectedRowKeys.value = []
-    await loadEntries()
+    await deleteFAQEntries(props.kbId, selectedIds);
+    MessagePlugin.success(t("knowledgeEditor.faq.batchDeleteSuccess", { count: selectedIds.length }));
+    selectedRowKeys.value = [];
+    await loadEntries();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    batchDeleteLoading.value = false
+    batchDeleteLoading.value = false;
   }
-}
+};
 
 // 批量状态更新对话框
-const batchTagDialogVisible = ref(false)
-const batchTagValue = ref<string>('')
+const batchTagDialogVisible = ref(false);
+const batchTagValue = ref<string>("");
 
 const openBatchTagDialog = () => {
-  if (!canEdit.value || !selectedRowKeys.value.length || batchActionLoading.value) return
-  batchTagValue.value = ''
-  batchTagDialogVisible.value = true
-}
+  if (!canEdit.value || !selectedRowKeys.value.length || batchActionLoading.value) return;
+  batchTagValue.value = "";
+  batchTagDialogVisible.value = true;
+};
 
 const handleBatchTag = async () => {
-  if (!canEdit.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return
-  const selectedIds = [...selectedRowKeys.value]
-  batchTagLoading.value = true
+  if (!canEdit.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return;
+  const selectedIds = [...selectedRowKeys.value];
+  batchTagLoading.value = true;
   try {
-    const updates: Record<number, number | null> = {}
-    selectedIds.forEach(id => {
-      updates[id] = batchTagValue.value ? Number(batchTagValue.value) : null
-    })
-    await updateFAQEntryTagBatch(props.kbId, { updates })
-    MessagePlugin.success(t('knowledgeEditor.messages.updateSuccess'))
-    batchTagDialogVisible.value = false
-    selectedRowKeys.value = []
-    await loadEntries()
-    await loadTags(true)
+    const updates: Record<number, number | null> = {};
+    selectedIds.forEach((id) => {
+      updates[id] = batchTagValue.value ? Number(batchTagValue.value) : null;
+    });
+    await updateFAQEntryTagBatch(props.kbId, { updates });
+    MessagePlugin.success(t("knowledgeEditor.messages.updateSuccess"));
+    batchTagDialogVisible.value = false;
+    selectedRowKeys.value = [];
+    await loadEntries();
+    await loadTags(true);
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    batchTagLoading.value = false
+    batchTagLoading.value = false;
   }
-}
+};
 
 const handleBatchStatusChange = async (isEnabled: boolean) => {
-  if (!canEdit.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return
-  const selectedIds = [...selectedRowKeys.value]
-  batchStatusAction.value = isEnabled ? 'enable' : 'disable'
+  if (!canEdit.value || !selectedRowKeys.value.length || !props.kbId || batchActionLoading.value) return;
+  const selectedIds = [...selectedRowKeys.value];
+  batchStatusAction.value = isEnabled ? "enable" : "disable";
   try {
-    const by_id: Record<number, { is_enabled: boolean }> = {}
-    selectedIds.forEach(id => {
-      by_id[id] = { is_enabled: isEnabled }
-    })
-    await updateFAQEntryFieldsBatch(props.kbId, { by_id })
-    MessagePlugin.success(t(isEnabled ? 'knowledgeEditor.faq.statusEnableSuccess' : 'knowledgeEditor.faq.statusDisableSuccess'))
-    selectedRowKeys.value = []
-    await loadEntries()
+    const by_id: Record<number, { is_enabled: boolean }> = {};
+    selectedIds.forEach((id) => {
+      by_id[id] = { is_enabled: isEnabled };
+    });
+    await updateFAQEntryFieldsBatch(props.kbId, { by_id });
+    MessagePlugin.success(
+      t(isEnabled ? "knowledgeEditor.faq.statusEnableSuccess" : "knowledgeEditor.faq.statusDisableSuccess"),
+    );
+    selectedRowKeys.value = [];
+    await loadEntries();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
-    batchStatusAction.value = null
+    batchStatusAction.value = null;
   }
-}
+};
 
 const handleMenuEdit = (entry: FAQEntry) => {
-  entry.showMore = false
-  openEditor(entry)
-}
+  entry.showMore = false;
+  openEditor(entry);
+};
 
 const handleMenuDelete = async (entry: FAQEntry) => {
-  entry.showMore = false
+  entry.showMore = false;
   try {
-    await deleteFAQEntries(props.kbId, [entry.id])
-    MessagePlugin.success(t('knowledgeEditor.faqImport.deleteSuccess'))
-    await loadEntries()
+    await deleteFAQEntries(props.kbId, [entry.id]);
+    MessagePlugin.success(t("knowledgeEditor.faqImport.deleteSuccess"));
+    await loadEntries();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   }
-}
+};
 
 const openImportDialog = () => {
   // 如果正在导入，不允许打开导入对话框
-  if (importState.taskStatus?.status === 'running') {
-    MessagePlugin.warning(t('faqManager.import.importInProgress'))
-    return
+  if (importState.taskStatus?.status === "running") {
+    MessagePlugin.warning(t("faqManager.import.importInProgress"));
+    return;
   }
-  stopPolling()
-  importVisible.value = true
-  importState.file = null
-  importState.preview = []
-  importState.mode = 'append'
+  stopPolling();
+  importVisible.value = true;
+  importState.file = null;
+  importState.preview = [];
+  importState.mode = "append";
   // 注意：不清除taskId和taskStatus，以便在关闭对话框后仍能看到进度
-  importState.importing = false
-}
+  importState.importing = false;
+};
 
 const processFile = async (file: File) => {
-  importState.file = file
+  importState.file = file;
 
   try {
-    let parsed: FAQEntryPayload[] = []
-    if (file.name.endsWith('.json')) {
-      parsed = await parseJSONFile(file)
-    } else if (file.name.endsWith('.csv')) {
-      parsed = await parseCSVFile(file)
-    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      parsed = await parseExcelFile(file)
+    let parsed: FAQEntryPayload[] = [];
+    if (file.name.endsWith(".json")) {
+      parsed = await parseJSONFile(file);
+    } else if (file.name.endsWith(".csv")) {
+      parsed = await parseCSVFile(file);
+    } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      parsed = await parseExcelFile(file);
     } else {
-      MessagePlugin.warning(t('knowledgeEditor.faqImport.unsupportedFormat'))
-      importState.preview = []
-      return
+      MessagePlugin.warning(t("knowledgeEditor.faqImport.unsupportedFormat"));
+      importState.preview = [];
+      return;
     }
-    importState.preview = parsed
+    importState.preview = parsed;
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('knowledgeEditor.faqImport.parseFailed'))
-    importState.preview = []
+    MessagePlugin.error(error?.message || t("knowledgeEditor.faqImport.parseFailed"));
+    importState.preview = [];
   }
-}
+};
 
 const handleFileChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-  await processFile(file)
-}
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  await processFile(file);
+};
 
 const handleFileDrop = async (event: DragEvent) => {
-  const file = event.dataTransfer?.files[0]
-  if (!file) return
-  await processFile(file)
-}
+  const file = event.dataTransfer?.files[0];
+  if (!file) return;
+  await processFile(file);
+};
 
 const parseJSONFile = async (file: File): Promise<FAQEntryPayload[]> => {
-  const text = await file.text()
-  const data = JSON.parse(text)
+  const text = await file.text();
+  const data = JSON.parse(text);
   if (!Array.isArray(data)) {
-    throw new Error(t('knowledgeEditor.faqImport.invalidJSON'))
+    throw new Error(t("knowledgeEditor.faqImport.invalidJSON"));
   }
-  return data.map(normalizePayload)
-}
+  return data.map(normalizePayload);
+};
 
 const parseCSVFile = async (file: File): Promise<FAQEntryPayload[]> => {
-  const text = await file.text()
+  const text = await file.text();
 
   // 使用 papaparse 解析 CSV，自动处理引号、转义、分隔符等
   return new Promise((resolve, reject) => {
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
-      delimiter: '', // 自动检测分隔符（逗号或制表符）
+      delimiter: "", // 自动检测分隔符（逗号或制表符）
       quoteChar: '"',
       escapeChar: '"',
       transformHeader: (header: string) => {
         // 移除字段名中的括号和说明，只保留核心字段名
-        const cleaned = header.trim()
-          .replace(/\([^)]*\)/g, '') // 移除括号及内容
+        const cleaned = header
           .trim()
+          .replace(/\([^)]*\)/g, "") // 移除括号及内容
+          .trim();
         // 对于中文字段名，不转换为小写；对于英文字段名，转换为小写
-        return /[\u4e00-\u9fa5]/.test(cleaned) ? cleaned : cleaned.toLowerCase()
+        return /[\u4e00-\u9fa5]/.test(cleaned) ? cleaned : cleaned.toLowerCase();
       },
       complete: (results) => {
         try {
-          const payloads: FAQEntryPayload[] = []
+          const payloads: FAQEntryPayload[] = [];
           results.data.forEach((row: any) => {
-            const record: Record<string, string> = {}
+            const record: Record<string, string> = {};
             // 将行数据转换为记录对象
             Object.keys(row).forEach((key) => {
-              record[key] = String(row[key] || '').trim()
-            })
+              record[key] = String(row[key] || "").trim();
+            });
 
-            const isDisabled = parseBooleanField(record['是否停用'], false)
+            const isDisabled = parseBooleanField(record["是否停用"], false);
             payloads.push(
               normalizePayload({
-                standard_question: record['问题'] || record['standard_question'] || record['question'] || '',
-                answers: splitByDelimiter(record['机器人回答'] || record['answers']),
-                similar_questions: splitByDelimiter(record['相似问题'] || record['similar_questions']),
-                negative_questions: splitByDelimiter(record['反例问题'] || record['negative_questions']),
-                tag_id: record['tag_id'] ? Number(record['tag_id']) : undefined,
-                tag_name: record['标签'] || record['分类'] || record['tag_name'] || '',
+                standard_question: record["问题"] || record["standard_question"] || record["question"] || "",
+                answers: splitByDelimiter(record["机器人回答"] || record["answers"]),
+                similar_questions: splitByDelimiter(record["相似问题"] || record["similar_questions"]),
+                negative_questions: splitByDelimiter(record["反例问题"] || record["negative_questions"]),
+                tag_id: record["tag_id"] ? Number(record["tag_id"]) : undefined,
+                tag_name: record["标签"] || record["分类"] || record["tag_name"] || "",
                 is_enabled: isDisabled !== undefined ? !isDisabled : undefined, // 是否停用：FALSE表示启用，TRUE表示停用，所以取反
               }),
-            )
-          })
-          resolve(payloads)
+            );
+          });
+          resolve(payloads);
         } catch (error) {
-          reject(error)
+          reject(error);
         }
       },
       error: (error: Error) => {
-        reject(new Error(`CSV parse failed: ${error.message}`))
+        reject(new Error(`CSV parse failed: ${error.message}`));
       },
-    })
-  })
-}
+    });
+  });
+};
 
 const parseExcelFile = async (file: File): Promise<FAQEntryPayload[]> => {
-  const data = await file.arrayBuffer()
-  const workbook = XLSX.read(data, { type: 'array' })
-  const sheetName = workbook.SheetNames[0]
-  const worksheet = workbook.Sheets[sheetName]
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array" });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
   // 使用 raw: false 确保正确处理引号和转义
   const json = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, {
-    defval: '',
-    raw: false // 确保字符串值被正确解析
-  })
+    defval: "",
+    raw: false, // 确保字符串值被正确解析
+  });
   return json.map((row) => {
     // 获取原始表头（去除括号说明）
-    const normalizedRow: Record<string, string> = {}
+    const normalizedRow: Record<string, string> = {};
     Object.keys(row).forEach((key) => {
-      const normalizedKey = key.trim()
-        .replace(/\([^)]*\)/g, '') // 移除括号及内容
+      const normalizedKey = key
         .trim()
+        .replace(/\([^)]*\)/g, "") // 移除括号及内容
+        .trim();
       // 对于中文字段名，不转换为小写；对于英文字段名，转换为小写
-      const finalKey = /[\u4e00-\u9fa5]/.test(normalizedKey) ? normalizedKey : normalizedKey.toLowerCase()
+      const finalKey = /[\u4e00-\u9fa5]/.test(normalizedKey) ? normalizedKey : normalizedKey.toLowerCase();
       // 确保值是字符串类型
-      normalizedRow[finalKey] = String(row[key] || '').trim()
-    })
+      normalizedRow[finalKey] = String(row[key] || "").trim();
+    });
 
-    const isDisabled = parseBooleanField(normalizedRow['是否停用'], false)
+    const isDisabled = parseBooleanField(normalizedRow["是否停用"], false);
     return normalizePayload({
-      standard_question: normalizedRow['问题'] || normalizedRow['standard_question'] || normalizedRow['question'] || '',
-      answers: splitByDelimiter(normalizedRow['机器人回答'] || normalizedRow['answers']),
-      similar_questions: splitByDelimiter(normalizedRow['相似问题'] || normalizedRow['similar_questions']),
-      negative_questions: splitByDelimiter(normalizedRow['反例问题'] || normalizedRow['negative_questions']),
-      tag_id: normalizedRow['tag_id'] ? Number(normalizedRow['tag_id']) : undefined,
-      tag_name: normalizedRow['标签'] || normalizedRow['分类'] || normalizedRow['tag_name'] || '',
+      standard_question: normalizedRow["问题"] || normalizedRow["standard_question"] || normalizedRow["question"] || "",
+      answers: splitByDelimiter(normalizedRow["机器人回答"] || normalizedRow["answers"]),
+      similar_questions: splitByDelimiter(normalizedRow["相似问题"] || normalizedRow["similar_questions"]),
+      negative_questions: splitByDelimiter(normalizedRow["反例问题"] || normalizedRow["negative_questions"]),
+      tag_id: normalizedRow["tag_id"] ? Number(normalizedRow["tag_id"]) : undefined,
+      tag_name: normalizedRow["标签"] || normalizedRow["分类"] || normalizedRow["tag_name"] || "",
       is_enabled: isDisabled !== undefined ? !isDisabled : undefined, // 是否停用：FALSE表示启用，TRUE表示停用，所以取反
-    })
-  })
-}
+    });
+  });
+};
 
 const splitByDelimiter = (value?: string) => {
-  if (!value) return []
+  if (!value) return [];
   // 只使用 ## 作为分隔符，避免错误分割包含逗号、分号等内容
-  const trimmedValue = value.trim()
-  if (!trimmedValue) return []
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return [];
 
   // 如果包含 ## 分隔符，按 ## 分割
-  if (trimmedValue.includes('##')) {
+  if (trimmedValue.includes("##")) {
     return trimmedValue
-      .split('##')
-      .map(item => item.trim())
-      .filter(Boolean)
+      .split("##")
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
   // 如果没有 ## 分隔符，整个值作为一个答案
-  return [trimmedValue]
-}
+  return [trimmedValue];
+};
 
 // 解析布尔字段（支持多种格式：TRUE/FALSE, true/false, 是/否, 1/0等）
 const parseBooleanField = (value?: string, defaultValue: boolean = true): boolean | undefined => {
-  if (!value) return undefined
-  const normalized = value.trim().toUpperCase()
-  if (normalized === 'TRUE' || normalized === '1' || normalized === '是' || normalized === 'YES') {
-    return true
+  if (!value) return undefined;
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "TRUE" || normalized === "1" || normalized === "是" || normalized === "YES") {
+    return true;
   }
-  if (normalized === 'FALSE' || normalized === '0' || normalized === '否' || normalized === 'NO') {
-    return false
+  if (normalized === "FALSE" || normalized === "0" || normalized === "否" || normalized === "NO") {
+    return false;
   }
-  return defaultValue
-}
+  return defaultValue;
+};
 
 const normalizePayload = (payload: Partial<FAQEntryPayload>): FAQEntryPayload => ({
-  standard_question: payload.standard_question || '',
+  standard_question: payload.standard_question || "",
   answers: payload.answers?.filter(Boolean) || [],
   similar_questions: payload.similar_questions?.filter(Boolean) || [],
   negative_questions: payload.negative_questions?.filter(Boolean) || [],
   tag_id: payload.tag_id || undefined,
-  tag_name: payload.tag_name || '',
+  tag_name: payload.tag_name || "",
   is_enabled: payload.is_enabled !== undefined ? payload.is_enabled : undefined,
-})
+});
 
 const stopPolling = () => {
   if (importState.pollingInterval) {
-    clearInterval(importState.pollingInterval)
-    importState.pollingInterval = null
+    clearInterval(importState.pollingInterval);
+    importState.pollingInterval = null;
   }
-}
+};
 
 const startPolling = (taskId: string) => {
-  stopPolling()
+  stopPolling();
   // 保存taskId到localStorage，以便刷新后恢复
-  saveTaskIdToStorage(taskId)
+  saveTaskIdToStorage(taskId);
 
   // 记录上次已处理数量，用于判断是否需要刷新列表
-  let lastProcessed = 0
+  let lastProcessed = 0;
 
   importState.pollingInterval = setInterval(async () => {
     try {
-      const res: any = await getFAQImportProgress(taskId)
-      const progressData = res?.data
+      const res: any = await getFAQImportProgress(taskId);
+      const progressData = res?.data;
       if (progressData) {
         // 从Redis进度数据中提取状态
         // status: "pending" -> "pending", "processing" -> "running", "completed" -> "success", "failed" -> "failed"
-        let status = progressData.status
-        if (status === 'processing') {
-          status = 'running'
-        } else if (status === 'completed') {
-          status = 'success'
+        let status = progressData.status;
+        if (status === "processing") {
+          status = "running";
+        } else if (status === "completed") {
+          status = "success";
         }
 
-        const progress = progressData.progress || 0
-        const total = progressData.total || 0
-        const processed = progressData.processed || 0
-        const error = progressData.error || ''
-        const message = progressData.message || ''
+        const progress = progressData.progress || 0;
+        const total = progressData.total || 0;
+        const processed = progressData.processed || 0;
+        const error = progressData.error || "";
+        const message = progressData.message || "";
 
         importState.taskStatus = {
           status: status,
@@ -2072,204 +2328,204 @@ const startPolling = (taskId: string) => {
           processed: processed,
           message: message,
           error: error,
-        }
+        };
 
         // 进度更新时刷新FAQ列表（每增加一些条目就刷新一次）
         if (processed > lastProcessed) {
-          lastProcessed = processed
-          await loadEntries()
-          await loadTags(true)
+          lastProcessed = processed;
+          await loadEntries();
+          await loadTags(true);
         }
 
         // 任务完成或失败，停止轮询（但不自动关闭进度条，让用户手动关闭）
-        if (status === 'success' || status === 'failed') {
-          stopPolling()
-          if (status === 'success') {
+        if (status === "success" || status === "failed") {
+          stopPolling();
+          if (status === "success") {
             // 保存已完成的 taskId 用于后续加载结果
             if (importState.taskId) {
-              saveLastCompletedTaskId(importState.taskId)
+              saveLastCompletedTaskId(importState.taskId);
             }
-            MessagePlugin.success(progressData.message || t('knowledgeEditor.faqImport.importSuccess'))
+            MessagePlugin.success(progressData.message || t("knowledgeEditor.faqImport.importSuccess"));
             // 清除筛选条件，确保用户能看到所有新导入的数据
-            selectedTagIds.value = []
-            tagFilterCleared.value = false
-            uiStore.clearSelectedTagIds()
-            entrySearchKeyword.value = ''
-            overallFAQTotal.value = 0  // Reset to trigger re-fetch
-            await loadEntries()
-            await loadTags(true)
-            await loadImportResult() // 加载最新的导入结果统计
+            selectedTagIds.value = [];
+            tagFilterCleared.value = false;
+            uiStore.clearSelectedTagIds();
+            entrySearchKeyword.value = "";
+            overallFAQTotal.value = 0; // Reset to trigger re-fetch
+            await loadEntries();
+            await loadTags(true);
+            await loadImportResult(); // 加载最新的导入结果统计
             // 任务完成后，3秒后自动关闭进度条
             setTimeout(() => {
-              if (importState.taskStatus?.status === 'success') {
-                handleCloseProgress()
+              if (importState.taskStatus?.status === "success") {
+                handleCloseProgress();
               }
-            }, 3000)
+            }, 3000);
           } else {
-            MessagePlugin.error(error || t('common.operationFailed'))
+            MessagePlugin.error(error || t("common.operationFailed"));
             // 失败时不自动关闭，让用户看到错误信息
           }
         }
       }
     } catch (error: any) {
-      console.error('Failed to poll task status:', error)
+      console.error("Failed to poll task status:", error);
       // 如果任务不存在或已过期，清除存储
-      if (error?.response?.status === 404 || error?.message?.includes('not found')) {
-        clearTaskIdFromStorage()
-        stopPolling()
-        importState.taskId = null
-        importState.taskStatus = null
+      if (error?.response?.status === 404 || error?.message?.includes("not found")) {
+        clearTaskIdFromStorage();
+        stopPolling();
+        importState.taskId = null;
+        importState.taskStatus = null;
       }
     }
-  }, 3000) // 每3秒轮询一次
-}
+  }, 3000); // 每3秒轮询一次
+};
 
 const handleCancelImport = () => {
-  stopPolling()
-  importState.importing = false
-  importState.taskId = null
-  importState.taskStatus = null
-  importVisible.value = false
+  stopPolling();
+  importState.importing = false;
+  importState.taskId = null;
+  importState.taskStatus = null;
+  importVisible.value = false;
   // 注意：不清除localStorage，因为任务可能还在进行中
-}
+};
 
 const handleCloseProgress = () => {
-  stopPolling()
-  importState.taskId = null
-  importState.taskStatus = null
-  clearTaskIdFromStorage()
-}
+  stopPolling();
+  importState.taskId = null;
+  importState.taskStatus = null;
+  clearTaskIdFromStorage();
+};
 
 // localStorage相关函数
 const getStorageKey = () => {
-  return `faq_import_task_${props.kbId}`
-}
+  return `faq_import_task_${props.kbId}`;
+};
 
 const saveTaskIdToStorage = (taskId: string) => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
   try {
-    localStorage.setItem(getStorageKey(), taskId)
+    localStorage.setItem(getStorageKey(), taskId);
   } catch (error) {
-    console.error('Failed to save taskId to localStorage:', error)
+    console.error("Failed to save taskId to localStorage:", error);
   }
-}
+};
 
 const getTaskIdFromStorage = (): string | null => {
-  if (!props.kbId) return null
+  if (!props.kbId) return null;
   try {
-    return localStorage.getItem(getStorageKey())
+    return localStorage.getItem(getStorageKey());
   } catch (error) {
-    console.error('Failed to get taskId from localStorage:', error)
-    return null
+    console.error("Failed to get taskId from localStorage:", error);
+    return null;
   }
-}
+};
 
 const clearTaskIdFromStorage = () => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
   try {
-    localStorage.removeItem(getStorageKey())
+    localStorage.removeItem(getStorageKey());
   } catch (error) {
-    console.error('Failed to clear taskId from localStorage:', error)
+    console.error("Failed to clear taskId from localStorage:", error);
   }
-}
+};
 
 // 恢复导入任务状态（用于刷新后恢复）
 const restoreImportTask = async () => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
 
-  const savedTaskId = getTaskIdFromStorage()
-  if (!savedTaskId) return
+  const savedTaskId = getTaskIdFromStorage();
+  if (!savedTaskId) return;
 
   try {
     // 查询Redis中的进度状态
-    const res: any = await getFAQImportProgress(savedTaskId)
-    const progressData = res?.data
+    const res: any = await getFAQImportProgress(savedTaskId);
+    const progressData = res?.data;
 
     if (progressData) {
       // 从Redis进度数据中提取状态
-      let status = progressData.status
-      if (status === 'processing') {
-        status = 'running'
-      } else if (status === 'completed') {
-        status = 'success'
+      let status = progressData.status;
+      if (status === "processing") {
+        status = "running";
+      } else if (status === "completed") {
+        status = "success";
       }
 
-      const progress = progressData.progress || 0
-      const total = progressData.total || 0
-      const processed = progressData.processed || 0
-      const error = progressData.error || ''
+      const progress = progressData.progress || 0;
+      const total = progressData.total || 0;
+      const processed = progressData.processed || 0;
+      const error = progressData.error || "";
 
-      importState.taskId = savedTaskId
+      importState.taskId = savedTaskId;
       importState.taskStatus = {
         status: status,
         progress: progress,
         total: total,
         processed: processed,
-        message: progressData.message || '',
+        message: progressData.message || "",
         error: error,
-      }
+      };
 
       // 如果任务还在进行中，恢复轮询
-      if (status === 'pending' || status === 'running') {
-        startPolling(savedTaskId)
+      if (status === "pending" || status === "running") {
+        startPolling(savedTaskId);
       } else {
         // 任务已完成或失败，清除存储
-        clearTaskIdFromStorage()
+        clearTaskIdFromStorage();
       }
     } else {
       // 任务不存在，清除存储
-      clearTaskIdFromStorage()
+      clearTaskIdFromStorage();
     }
   } catch (error: any) {
-    console.error('Failed to restore import task:', error)
+    console.error("Failed to restore import task:", error);
     // 如果任务不存在或已过期，清除存储
-    if (error?.response?.status === 404 || error?.message?.includes('not found')) {
-      clearTaskIdFromStorage()
+    if (error?.response?.status === 404 || error?.message?.includes("not found")) {
+      clearTaskIdFromStorage();
     }
   }
-}
+};
 
 // localStorage key for last completed task
 const getLastCompletedTaskKey = () => {
-  return `faq_import_last_completed_${props.kbId}`
-}
+  return `faq_import_last_completed_${props.kbId}`;
+};
 
 const saveLastCompletedTaskId = (taskId: string) => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
   try {
-    localStorage.setItem(getLastCompletedTaskKey(), taskId)
+    localStorage.setItem(getLastCompletedTaskKey(), taskId);
   } catch (error) {
-    console.error('Failed to save last completed taskId:', error)
+    console.error("Failed to save last completed taskId:", error);
   }
-}
+};
 
 const getLastCompletedTaskId = (): string | null => {
-  if (!props.kbId) return null
+  if (!props.kbId) return null;
   try {
-    return localStorage.getItem(getLastCompletedTaskKey())
+    return localStorage.getItem(getLastCompletedTaskKey());
   } catch (error) {
-    return null
+    return null;
   }
-}
+};
 
 // 加载持久化的导入结果统计
 const loadImportResult = async () => {
-  if (!props.kbId) return
+  if (!props.kbId) return;
 
-  const lastTaskId = getLastCompletedTaskId()
+  const lastTaskId = getLastCompletedTaskId();
   if (!lastTaskId) {
-    importResult.value = null
-    return
+    importResult.value = null;
+    return;
   }
 
   try {
-    const res: any = await getFAQImportProgress(lastTaskId)
-    const data = res?.data
-    if (data && data.status === 'completed') {
+    const res: any = await getFAQImportProgress(lastTaskId);
+    const data = res?.data;
+    if (data && data.status === "completed") {
       // 检查后端返回的 display_status，如果是 close 则不显示
-      if (data.display_status === 'close') {
-        importResult.value = null
-        return
+      if (data.display_status === "close") {
+        importResult.value = null;
+        return;
       }
       // Map progress fields to importResult format
       importResult.value = {
@@ -2280,538 +2536,559 @@ const loadImportResult = async () => {
         partial_failed_count: data.partial_failed_count || 0,
         merged_count: data.merged_count || 0,
         added_count: data.added_count || 0,
-        message: data.message || '',
-        import_mode: data.import_mode || 'append',
+        message: data.message || "",
+        import_mode: data.import_mode || "append",
         imported_at: data.imported_at,
         task_id: data.task_id,
         failed_entries_url: data.failed_entries_url,
         success_entries: data.success_entries,
-        display_status: data.display_status || 'open',
+        display_status: data.display_status || "open",
         processing_time: data.processing_time || 0,
-      }
+      };
     } else {
-      importResult.value = null
+      importResult.value = null;
     }
   } catch (error) {
-    console.error('Failed to load FAQ import result:', error)
-    importResult.value = null
+    console.error("Failed to load FAQ import result:", error);
+    importResult.value = null;
   }
-}
+};
 
 // 关闭导入结果统计卡片
 const closeImportResult = async () => {
-  importResultExpanded.value = false
-  if (!props.kbId) return
+  importResultExpanded.value = false;
+  if (!props.kbId) return;
   try {
-    await updateFAQImportResultDisplayStatus(props.kbId, 'close')
+    await updateFAQImportResultDisplayStatus(props.kbId, "close");
     if (importResult.value) {
-      importResult.value.display_status = 'close'
+      importResult.value.display_status = "close";
     }
   } catch (error) {
-    console.error('Failed to close import result:', error)
+    console.error("Failed to close import result:", error);
   }
-}
+};
 
 // 下载失败条目原因
 const downloadFailedEntries = () => {
   if (!importResult.value?.failed_entries_url) {
-    MessagePlugin.warning(t('faqManager.import.noFailedRecords'))
-    return
+    MessagePlugin.warning(t("faqManager.import.noFailedRecords"));
+    return;
   }
   // 直接打开下载链接
-  window.open(importResult.value.failed_entries_url, '_blank')
-}
+  window.open(importResult.value.failed_entries_url, "_blank");
+};
 
 // 格式化导入时间
 const formatImportTime = (timeStr?: string) => {
-  if (!timeStr) return ''
+  if (!timeStr) return "";
   try {
-    const date = new Date(timeStr)
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    const date = new Date(timeStr);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   } catch (e) {
-    return timeStr
+    return timeStr;
   }
-}
+};
 
 const handleImport = async () => {
   if (!importState.file || !importState.preview.length) {
-    MessagePlugin.warning(t('knowledgeEditor.faqImport.selectFile'))
-    return
+    MessagePlugin.warning(t("knowledgeEditor.faqImport.selectFile"));
+    return;
   }
 
   // 如果任务已完成或失败，关闭对话框
-  if (importState.taskStatus?.status === 'success' || importState.taskStatus?.status === 'failed') {
-    if (importState.taskStatus.status === 'success') {
-      handleCancelImport()
+  if (importState.taskStatus?.status === "success" || importState.taskStatus?.status === "failed") {
+    if (importState.taskStatus.status === "success") {
+      handleCancelImport();
     } else {
       // 失败时重试
-      importState.taskId = null
-      importState.taskStatus = null
-      importState.importing = false
+      importState.taskId = null;
+      importState.taskStatus = null;
+      importState.importing = false;
     }
-    return
+    return;
   }
 
-  importState.importing = true
+  importState.importing = true;
   try {
     const res: any = await upsertFAQEntries(props.kbId, {
       entries: importState.preview,
       mode: importState.mode,
-    })
+    });
 
-    const taskId = res?.data?.task_id
+    const taskId = res?.data?.task_id;
     if (taskId) {
-      importState.taskId = taskId
+      importState.taskId = taskId;
       importState.taskStatus = {
-        status: 'pending',
+        status: "pending",
         progress: 0,
         total: importState.preview.length,
         processed: 0,
-        message: t('faqManager.import.progressHint'),
-      }
+        message: t("faqManager.import.progressHint"),
+      };
       // 开始轮询任务状态
-      startPolling(taskId)
+      startPolling(taskId);
       // 立即关闭导入对话框，进度将在列表页面顶部显示
-      importVisible.value = false
+      importVisible.value = false;
       // 重置导入对话框状态（但保留taskId和taskStatus用于进度显示）
-      importState.file = null
-      importState.preview = []
-      importState.importing = false
+      importState.file = null;
+      importState.preview = [];
+      importState.importing = false;
     } else {
       // 如果没有返回任务ID，可能是旧版本API，使用同步方式
-      MessagePlugin.success(t('knowledgeEditor.faqImport.importSuccess'))
-      importVisible.value = false
-      await loadEntries()
-      importState.importing = false
+      MessagePlugin.success(t("knowledgeEditor.faqImport.importSuccess"));
+      importVisible.value = false;
+      await loadEntries();
+      importState.importing = false;
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
-    importState.importing = false
-    stopPolling()
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
+    importState.importing = false;
+    stopPolling();
   }
-}
+};
 
 // 组件卸载时清理轮询
 onUnmounted(() => {
-  stopPolling()
-})
+  stopPolling();
+});
 
 // 下载示例文件选项
 const downloadExampleOptions = computed(() => [
-  { content: t('knowledgeEditor.faqImport.downloadExampleJSON'), value: 'json' },
-  { content: t('knowledgeEditor.faqImport.downloadExampleCSV'), value: 'csv' },
-  { content: t('knowledgeEditor.faqImport.downloadExampleExcel'), value: 'excel' },
-])
+  { content: t("knowledgeEditor.faqImport.downloadExampleJSON"), value: "json" },
+  { content: t("knowledgeEditor.faqImport.downloadExampleCSV"), value: "csv" },
+  { content: t("knowledgeEditor.faqImport.downloadExampleExcel"), value: "excel" },
+]);
 
 // 示例数据
 const exampleData: FAQEntryPayload[] = [
   {
-    standard_question: '什么是 Yuheng 知识库？',
-    answers: ['Yuheng 知识库是一个智能知识库管理系统', '它支持多种知识库类型和导入方式'],
-    similar_questions: ['知识库平台是什么？', '介绍一下 Yuheng 知识库'],
-    negative_questions: ['这不是知识库平台', '与知识库平台无关'],
-    tag_name: '产品介绍',
+    standard_question: "什么是 Yuheng 知识库？",
+    answers: ["Yuheng 知识库是一个智能知识库管理系统", "它支持多种知识库类型和导入方式"],
+    similar_questions: ["知识库平台是什么？", "介绍一下 Yuheng 知识库"],
+    negative_questions: ["这不是知识库平台", "与知识库平台无关"],
+    tag_name: "产品介绍",
   },
   {
-    standard_question: '如何创建知识库？',
-    answers: ['点击"新建知识库"按钮', '选择知识库类型并填写相关信息', '完成创建后即可开始使用'],
-    similar_questions: ['怎么创建知识库？', '如何新建知识库？'],
+    standard_question: "如何创建知识库？",
+    answers: ['点击"新建知识库"按钮', "选择知识库类型并填写相关信息", "完成创建后即可开始使用"],
+    similar_questions: ["怎么创建知识库？", "如何新建知识库？"],
     negative_questions: [],
-    tag_name: '使用指南',
+    tag_name: "使用指南",
   },
-]
+];
 
 // 下载示例文件
 const handleDownloadExample = (data: { value: string }) => {
-  const { value } = data
+  const { value } = data;
   switch (value) {
-    case 'json':
-      downloadJSONExample()
-      break
-    case 'csv':
-      downloadCSVExample()
-      break
-    case 'excel':
-      downloadExcelExample()
-      break
+    case "json":
+      downloadJSONExample();
+      break;
+    case "csv":
+      downloadCSVExample();
+      break;
+    case "excel":
+      downloadExcelExample();
+      break;
   }
-}
+};
 
 // 下载 JSON 示例
 const downloadJSONExample = () => {
-  const jsonStr = JSON.stringify(exampleData, null, 2)
-  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'faq_example.json'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
+  const jsonStr = JSON.stringify(exampleData, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "faq_example.json";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 // 下载 CSV 示例
 const downloadCSVExample = () => {
-  const headers = ['标签(必填)', '问题(必填)', '相似问题(选填-多个用##分隔)', '反例问题(选填-多个用##分隔)', '机器人回答(必填-多个用##分隔)', '是否全部回复(选填-默认FALSE)', '是否停用(选填-默认FALSE)', '是否禁止被推荐(选填-默认False 可被推荐)']
+  const headers = [
+    "标签(必填)",
+    "问题(必填)",
+    "相似问题(选填-多个用##分隔)",
+    "反例问题(选填-多个用##分隔)",
+    "机器人回答(必填-多个用##分隔)",
+    "是否全部回复(选填-默认FALSE)",
+    "是否停用(选填-默认FALSE)",
+    "是否禁止被推荐(选填-默认False 可被推荐)",
+  ];
   const rows = exampleData.map((item) => {
     return [
-      item.tag_name || '', // 标签
+      item.tag_name || "", // 标签
       item.standard_question,
-      item.similar_questions.join('##'),
-      item.negative_questions.join('##'),
-      item.answers.join('##'),
-      'FALSE', // 是否全部回复
-      'FALSE', // 是否停用
-      'FALSE', // 是否禁止被推荐
-    ]
-  })
+      item.similar_questions.join("##"),
+      item.negative_questions.join("##"),
+      item.answers.join("##"),
+      "FALSE", // 是否全部回复
+      "FALSE", // 是否停用
+      "FALSE", // 是否禁止被推荐
+    ];
+  });
   const csvContent = [
-    headers.join('\t'), // 使用制表符分隔
-    ...rows.map((row) => row.map((cell) => {
-      // 如果包含制表符、换行符或引号，需要用引号包裹
-      if (cell.includes('\t') || cell.includes('\n') || cell.includes('"')) {
-        return `"${cell.replace(/"/g, '""')}"`
-      }
-      return cell
-    }).join('\t')),
-  ].join('\n')
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'faq_example.csv'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
+    headers.join("\t"), // 使用制表符分隔
+    ...rows.map((row) =>
+      row
+        .map((cell) => {
+          // 如果包含制表符、换行符或引号，需要用引号包裹
+          if (cell.includes("\t") || cell.includes("\n") || cell.includes('"')) {
+            return `"${cell.replace(/"/g, '""')}"`;
+          }
+          return cell;
+        })
+        .join("\t"),
+    ),
+  ].join("\n");
+  const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "faq_example.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 // 下载 Excel 示例
 const downloadExcelExample = () => {
   const worksheet = XLSX.utils.json_to_sheet(
     exampleData.map((item) => ({
-      '标签(必填)': item.tag_name || '',
-      '问题(必填)': item.standard_question,
-      '相似问题(选填-多个用##分隔)': item.similar_questions.join('##'),
-      '反例问题(选填-多个用##分隔)': item.negative_questions.join('##'),
-      '机器人回答(必填-多个用##分隔)': item.answers.join('##'),
-      '是否全部回复(选填-默认FALSE)': 'FALSE',
-      '是否停用(选填-默认FALSE)': 'FALSE',
-      '是否禁止被推荐(选填-默认False 可被推荐)': 'FALSE',
+      "标签(必填)": item.tag_name || "",
+      "问题(必填)": item.standard_question,
+      "相似问题(选填-多个用##分隔)": item.similar_questions.join("##"),
+      "反例问题(选填-多个用##分隔)": item.negative_questions.join("##"),
+      "机器人回答(必填-多个用##分隔)": item.answers.join("##"),
+      "是否全部回复(选填-默认FALSE)": "FALSE",
+      "是否停用(选填-默认FALSE)": "FALSE",
+      "是否禁止被推荐(选填-默认False 可被推荐)": "FALSE",
     })),
-  )
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'FAQ')
-  XLSX.writeFile(workbook, 'faq_example.xlsx')
-}
+  );
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "FAQ");
+  XLSX.writeFile(workbook, "faq_example.xlsx");
+};
 
 // 导出 FAQ 数据
-const exportLoading = ref(false)
-const downloadExportBlob = (blob: Blob, ext: 'csv' | 'json') => {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `faq_export_${new Date().toISOString().slice(0, 10)}.${ext}`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-const handleExportFAQ = async (format: 'csv' | 'json') => {
+const exportLoading = ref(false);
+const downloadExportBlob = (blob: Blob, ext: "csv" | "json") => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `faq_export_${new Date().toISOString().slice(0, 10)}.${ext}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+const handleExportFAQ = async (format: "csv" | "json") => {
   if (!props.kbId) {
-    MessagePlugin.warning(t('knowledgeBase.selectKnowledgeBase'))
-    return
+    MessagePlugin.warning(t("knowledgeBase.selectKnowledgeBase"));
+    return;
   }
 
-  exportLoading.value = true
+  exportLoading.value = true;
   try {
-    const blob = await exportFAQEntries(props.kbId, format)
-    downloadExportBlob(blob, format)
-    MessagePlugin.success(t('knowledgeEditor.faqExport.exportSuccess'))
+    const blob = await exportFAQEntries(props.kbId, format);
+    downloadExportBlob(blob, format);
+    MessagePlugin.success(t("knowledgeEditor.faqExport.exportSuccess"));
   } catch (error: any) {
-    console.error('Export failed:', error)
-    MessagePlugin.error(t('knowledgeEditor.faqExport.exportFailed'))
+    console.error("Export failed:", error);
+    MessagePlugin.error(t("knowledgeEditor.faqExport.exportFailed"));
   } finally {
-    exportLoading.value = false
+    exportLoading.value = false;
   }
-}
-const handleExportCSV = () => handleExportFAQ('csv')
-const handleExportJSON = () => handleExportFAQ('json')
+};
+const handleExportCSV = () => handleExportFAQ("csv");
+const handleExportJSON = () => handleExportFAQ("json");
 
 watch(
   () => props.kbId,
   async (newKbId) => {
-    currentPage = 1
-    hasMore.value = true
-    selectedTagIds.value = []
-    tagFilterCleared.value = false
-    uiStore.clearSelectedTagIds()
-    overallFAQTotal.value = 0
-    tagSearchQuery.value = ''
+    currentPage = 1;
+    hasMore.value = true;
+    selectedTagIds.value = [];
+    tagFilterCleared.value = false;
+    uiStore.clearSelectedTagIds();
+    overallFAQTotal.value = 0;
+    tagSearchQuery.value = "";
 
     if (!newKbId) {
-      kbInfo.value = null
+      kbInfo.value = null;
       // kbId变化时，清除之前的任务状态
-      stopPolling()
-      importState.taskId = null
-      importState.taskStatus = null
-      clearTaskIdFromStorage()
-      return
+      stopPolling();
+      importState.taskId = null;
+      importState.taskStatus = null;
+      clearTaskIdFromStorage();
+      return;
     }
 
-    const info = await loadKnowledgeInfo(newKbId)
-    if (!info || info.type !== 'faq') {
-      return
+    const info = await loadKnowledgeInfo(newKbId);
+    if (!info || info.type !== "faq") {
+      return;
     }
 
-    loadEntries()
-    loadTags(true)
+    loadEntries();
+    loadTags(true);
     // 恢复导入任务状态（如果存在）
-    await restoreImportTask()
+    await restoreImportTask();
   },
   { immediate: true },
-)
+);
 
 watch(selectedTagIds, (newVal, oldVal) => {
-  if (oldVal === undefined) return
-  if (newVal.join(',') !== oldVal.join(',')) {
-    currentPage = 1
-    entries.value = []
-    selectedRowKeys.value = []
-    loadEntries()
+  if (oldVal === undefined) return;
+  if (newVal.join(",") !== oldVal.join(",")) {
+    currentPage = 1;
+    entries.value = [];
+    selectedRowKeys.value = [];
+    loadEntries();
   }
-})
+});
 
 watch(tagSearchQuery, (newVal, oldVal) => {
-  if (newVal === oldVal) return
+  if (newVal === oldVal) return;
   if (tagSearchDebounce) {
-    window.clearTimeout(tagSearchDebounce)
+    window.clearTimeout(tagSearchDebounce);
   }
   tagSearchDebounce = window.setTimeout(() => {
-    loadTags(true)
-  }, 300)
-})
+    loadTags(true);
+  }, 300);
+});
 
 // 监听FAQ搜索关键词变化
 watch(entrySearchKeyword, (newVal, oldVal) => {
-  if (newVal === oldVal) return
+  if (newVal === oldVal) return;
   if (entrySearchDebounce) {
-    window.clearTimeout(entrySearchDebounce)
+    window.clearTimeout(entrySearchDebounce);
   }
   entrySearchDebounce = window.setTimeout(() => {
-    loadEntries()
-  }, 300)
-})
+    loadEntries();
+  }, 300);
+});
 
 const handleSearch = async () => {
   if (!searchForm.query.trim()) {
-    MessagePlugin.warning(t('knowledgeEditor.faq.queryPlaceholder'))
-    return
+    MessagePlugin.warning(t("knowledgeEditor.faq.queryPlaceholder"));
+    return;
   }
 
-  searching.value = true
-  hasSearched.value = true
+  searching.value = true;
+  hasSearched.value = true;
   try {
     const res = await searchFAQEntries(props.kbId, {
       query_text: searchForm.query.trim(),
       vector_threshold: searchForm.vectorThreshold,
       match_count: searchForm.matchCount,
-    })
+    });
     const results = (res.data || []).map((entry: FAQEntry) => ({
       ...entry,
-      similarCollapsed: true,  // 相似问默认折叠
-      negativeCollapsed: true,  // 反例默认折叠
-      answersCollapsed: true,   // 答案默认折叠
+      similarCollapsed: true, // 相似问默认折叠
+      negativeCollapsed: true, // 反例默认折叠
+      answersCollapsed: true, // 答案默认折叠
       expanded: false,
-    })) as FAQEntry[]
+    })) as FAQEntry[];
 
     // 按score从大到小排序
-    searchResults.value = results.sort((a, b) => (b.score || 0) - (a.score || 0))
+    searchResults.value = results.sort((a, b) => (b.score || 0) - (a.score || 0));
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
-    searchResults.value = []
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
+    searchResults.value = [];
   } finally {
-    searching.value = false
+    searching.value = false;
   }
-}
+};
 
 const toggleResult = (result: FAQEntry) => {
-  result.expanded = !result.expanded
-}
+  result.expanded = !result.expanded;
+};
 
 // 防抖函数
-let arrangeCardsTimer: ReturnType<typeof setTimeout> | null = null
+let arrangeCardsTimer: ReturnType<typeof setTimeout> | null = null;
 const debounceArrangeCards = (delay = 100) => {
   if (arrangeCardsTimer) {
-    clearTimeout(arrangeCardsTimer)
+    clearTimeout(arrangeCardsTimer);
   }
   arrangeCardsTimer = setTimeout(() => {
-    arrangeCards()
-    arrangeCardsTimer = null
-  }, delay)
-}
+    arrangeCards();
+    arrangeCardsTimer = null;
+  }, delay);
+};
 
 // 瀑布流布局函数 - 优化版本，避免闪烁
 const arrangeCards = () => {
-  if (!cardListRef.value) return
+  if (!cardListRef.value) return;
 
-  const cards = cardListRef.value.querySelectorAll('.faq-card') as NodeListOf<HTMLElement>
-  if (cards.length === 0) return
+  const cards = cardListRef.value.querySelectorAll(".faq-card") as NodeListOf<HTMLElement>;
+  if (cards.length === 0) return;
 
   // 获取容器宽度和列数
-  const containerWidth = cardListRef.value.offsetWidth
-  const gap = 12 // 与 CSS gap 保持一致
-  let columnCount = 1
+  const containerWidth = cardListRef.value.offsetWidth;
+  const gap = 12; // 与 CSS gap 保持一致
+  let columnCount = 1;
 
   // 根据容器宽度计算列数（增加每行的卡片数量）
-  if (containerWidth >= 2560) columnCount = 12
-  else if (containerWidth >= 1920) columnCount = 10
-  else if (containerWidth >= 1536) columnCount = 8
-  else if (containerWidth >= 1280) columnCount = 6
-  else if (containerWidth >= 1024) columnCount = 5
-  else if (containerWidth >= 768) columnCount = 4
-  else if (containerWidth >= 640) columnCount = 3
+  if (containerWidth >= 2560) columnCount = 12;
+  else if (containerWidth >= 1920) columnCount = 10;
+  else if (containerWidth >= 1536) columnCount = 8;
+  else if (containerWidth >= 1280) columnCount = 6;
+  else if (containerWidth >= 1024) columnCount = 5;
+  else if (containerWidth >= 768) columnCount = 4;
+  else if (containerWidth >= 640) columnCount = 3;
 
-  const columnWidth = (containerWidth - (gap * (columnCount - 1))) / columnCount
+  const columnWidth = (containerWidth - gap * (columnCount - 1)) / columnCount;
 
   // 初始化每列的高度数组
-  const columnHeights = new Array(columnCount).fill(0)
+  const columnHeights = new Array(columnCount).fill(0);
 
   // 使用 requestAnimationFrame 优化性能
   requestAnimationFrame(() => {
     // 先设置宽度，保持当前位置不变
     cards.forEach((card) => {
       // 确保卡片是绝对定位
-      if (card.style.position !== 'absolute') {
-        card.style.position = 'absolute'
+      if (card.style.position !== "absolute") {
+        card.style.position = "absolute";
       }
       // 设置宽度以便正确计算高度
-      card.style.width = `${columnWidth}px`
-    })
+      card.style.width = `${columnWidth}px`;
+    });
 
     // 等待浏览器重新计算布局
     requestAnimationFrame(() => {
       // 计算所有卡片的高度（不改变位置）
-      const cardHeights: number[] = []
+      const cardHeights: number[] = [];
       cards.forEach((card) => {
-        const height = card.offsetHeight || card.getBoundingClientRect().height
-        cardHeights.push(height)
-      })
+        const height = card.offsetHeight || card.getBoundingClientRect().height;
+        cardHeights.push(height);
+      });
 
       // 计算新位置
-      const newPositions: Array<{ top: number; left: number }> = []
+      const newPositions: Array<{ top: number; left: number }> = [];
       cardHeights.forEach((height) => {
-        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights))
-        const top = columnHeights[shortestColumnIndex]
-        const left = shortestColumnIndex * (columnWidth + gap)
+        const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+        const top = columnHeights[shortestColumnIndex];
+        const left = shortestColumnIndex * (columnWidth + gap);
 
-        newPositions.push({ top, left })
-        columnHeights[shortestColumnIndex] += height + gap
-      })
+        newPositions.push({ top, left });
+        columnHeights[shortestColumnIndex] += height + gap;
+      });
 
       // 批量更新所有卡片位置，使用CSS过渡实现平滑移动
       cards.forEach((card, index) => {
-        const { top, left } = newPositions[index]
-        const currentTop = parseFloat(card.style.top) || 0
-        const currentLeft = parseFloat(card.style.left) || 0
+        const { top, left } = newPositions[index];
+        const currentTop = parseFloat(card.style.top) || 0;
+        const currentLeft = parseFloat(card.style.left) || 0;
 
         // 如果位置发生变化，添加过渡效果
         if (Math.abs(currentTop - top) > 1 || Math.abs(currentLeft - left) > 1) {
           // 使用 will-change 提示浏览器优化
-          card.style.willChange = 'top, left'
-          card.style.transition = 'top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          card.style.willChange = "top, left";
+          card.style.transition = "top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
         }
 
-        card.style.position = 'absolute'
-        card.style.top = `${top}px`
-        card.style.left = `${left}px`
-        card.style.width = `${columnWidth}px`
-      })
+        card.style.position = "absolute";
+        card.style.top = `${top}px`;
+        card.style.left = `${left}px`;
+        card.style.width = `${columnWidth}px`;
+      });
 
       // 设置容器高度
-      const maxHeight = Math.max(...columnHeights)
+      const maxHeight = Math.max(...columnHeights);
       if (cardListRef.value) {
-        cardListRef.value.style.height = `${maxHeight}px`
-        cardListRef.value.style.position = 'relative'
+        cardListRef.value.style.height = `${maxHeight}px`;
+        cardListRef.value.style.position = "relative";
       }
 
       // 动画完成后移除过渡和 will-change，避免影响后续交互
       setTimeout(() => {
         cards.forEach((card) => {
-          card.style.transition = ''
-          card.style.willChange = ''
-        })
-      }, 300)
-    })
-  })
-}
+          card.style.transition = "";
+          card.style.willChange = "";
+        });
+      }, 300);
+    });
+  });
+};
 
 // 监听窗口大小变化（使用防抖）
-let resizeTimer: ReturnType<typeof setTimeout> | null = null
+let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 const handleResize = () => {
   if (resizeTimer) {
-    clearTimeout(resizeTimer)
+    clearTimeout(resizeTimer);
   }
   resizeTimer = setTimeout(() => {
-    arrangeCards()
+    arrangeCards();
     // 窗口变大时可能需要加载更多，延迟执行确保布局完成
     setTimeout(() => {
-      checkAndLoadMore()
-    }, 350)
-    resizeTimer = null
-  }, 150)
-}
+      checkAndLoadMore();
+    }, 350);
+    resizeTimer = null;
+  }, 150);
+};
 
 onMounted(async () => {
   // Ensure shared knowledge bases are loaded before loading the knowledge list
-  orgStore.fetchSharedKnowledgeBases()
-  loadKnowledgeList()
-  window.addEventListener('resize', handleResize)
+  orgStore.fetchSharedKnowledgeBases();
+  loadKnowledgeList();
+  window.addEventListener("resize", handleResize);
   // 如果已有kbId，恢复导入任务状态
   if (props.kbId) {
-    await restoreImportTask()
-    await loadImportResult() // 加载导入结果
+    await restoreImportTask();
+    await loadImportResult(); // 加载导入结果
   }
-})
+});
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
+  window.removeEventListener("resize", handleResize);
   if (arrangeCardsTimer) {
-    clearTimeout(arrangeCardsTimer)
+    clearTimeout(arrangeCardsTimer);
   }
   if (resizeTimer) {
-    clearTimeout(resizeTimer)
+    clearTimeout(resizeTimer);
   }
-})
+});
 
 // 监听 entries 变化，重新布局
-watch(() => entries.value.length, () => {
-  nextTick(() => {
-    arrangeCards()
-  })
-})
+watch(
+  () => entries.value.length,
+  () => {
+    nextTick(() => {
+      arrangeCards();
+    });
+  },
+);
 
 // 监听折叠状态变化，重新布局（使用防抖和动画完成后的回调）
-watch(() => entries.value.map(e => ({
-  id: e.id,
-  similarCollapsed: e.similarCollapsed,
-  negativeCollapsed: e.negativeCollapsed,
-  answersCollapsed: e.answersCollapsed
-})), () => {
-  // 使用 nextTick 确保 DOM 更新
-  nextTick(() => {
-    // 等待一个渲染帧，让高度变化生效
-    requestAnimationFrame(() => {
-      // 再等待一个渲染帧，确保高度计算准确
+watch(
+  () =>
+    entries.value.map((e) => ({
+      id: e.id,
+      similarCollapsed: e.similarCollapsed,
+      negativeCollapsed: e.negativeCollapsed,
+      answersCollapsed: e.answersCollapsed,
+    })),
+  () => {
+    // 使用 nextTick 确保 DOM 更新
+    nextTick(() => {
+      // 等待一个渲染帧，让高度变化生效
       requestAnimationFrame(() => {
-        // 等待 Transition 动画完成后再布局（slide-down 动画时长约 200ms）
-        // 使用防抖避免频繁调用
-        debounceArrangeCards(250)
-      })
-    })
-  })
-}, { deep: true })
+        // 再等待一个渲染帧，确保高度计算准确
+        requestAnimationFrame(() => {
+          // 等待 Transition 动画完成后再布局（slide-down 动画时长约 200ms）
+          // 使用防抖避免频繁调用
+          debounceArrangeCards(250);
+        });
+      });
+    });
+  },
+  { deep: true },
+);
 </script>
 
 <style lang="less">
@@ -3066,7 +3343,9 @@ watch(() => entries.value.map(e => ({
     font-size: 14px;
     line-height: 1;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
 
     &:hover,
     &.open {
@@ -3105,7 +3384,9 @@ watch(() => entries.value.map(e => ({
     &__caret {
       flex-shrink: 0;
       color: var(--td-text-color-placeholder);
-      transition: transform 0.2s ease, color 0.2s ease;
+      transition:
+        transform 0.2s ease,
+        color 0.2s ease;
 
       &.open {
         color: var(--td-brand-color);
@@ -3294,7 +3575,6 @@ watch(() => entries.value.map(e => ({
   }
 }
 
-
 // 导入结果入口：默认仅图标，hover / 点击展开浮层
 .faq-import-host {
   position: relative;
@@ -3327,7 +3607,10 @@ watch(() => entries.value.map(e => ({
     visibility: hidden;
     pointer-events: none;
     transform: translateY(-4px);
-    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease,
+      visibility 0.15s ease;
   }
 
   &:hover .faq-import-panel,
@@ -3351,7 +3634,6 @@ watch(() => entries.value.map(e => ({
     }
   }
 }
-
 
 // FAQ 导入提示条（紧凑单行）
 .faq-import-strip {
@@ -3438,7 +3720,9 @@ watch(() => entries.value.map(e => ({
     background: transparent;
     color: var(--td-text-color-placeholder);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
 
     &:hover {
       background: rgba(0, 0, 0, 0.06);
@@ -3496,7 +3780,6 @@ watch(() => entries.value.map(e => ({
   }
 }
 
-
 .tag-filter-bar {
   display: flex;
   align-items: center;
@@ -3508,7 +3791,6 @@ watch(() => entries.value.map(e => ({
     font-size: 14px;
   }
 }
-
 
 .kb-settings-button {
   width: 30px;
@@ -3562,7 +3844,7 @@ watch(() => entries.value.map(e => ({
   padding: 0 16px;
   pointer-events: none;
 
-  &>* {
+  & > * {
     pointer-events: auto;
   }
 }
@@ -3627,7 +3909,10 @@ watch(() => entries.value.map(e => ({
   max-width: 100%;
   overflow: hidden;
   cursor: default;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
   box-sizing: border-box;
   height: fit-content;
 
@@ -3901,7 +4186,7 @@ watch(() => entries.value.map(e => ({
     margin-bottom: 1px;
 
     &::before {
-      content: '';
+      content: "";
       width: 3px;
       height: 10px;
       background: var(--td-brand-color);
@@ -3963,14 +4248,14 @@ watch(() => entries.value.map(e => ({
   contain: layout style paint; // 优化渲染性能
 
   // 确保每个标签都有最大宽度限制
-  >* {
+  > * {
     max-width: 100%;
     min-width: 0;
     flex: 0 1 auto;
   }
 
   // 当标签单独一行时，限制最大宽度
-  >*:first-child:last-child {
+  > *:first-child:last-child {
     max-width: 100%;
   }
 }
@@ -4032,7 +4317,6 @@ watch(() => entries.value.map(e => ({
   padding: 8px 0;
   font-family: var(--app-font-family);
 }
-
 
 .faq-load-more,
 .faq-no-more {
@@ -4259,7 +4543,7 @@ watch(() => entries.value.map(e => ({
   flex: 1;
 
   &.required::after {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     margin-left: 4px;
     font-weight: 600;
@@ -4612,7 +4896,6 @@ watch(() => entries.value.map(e => ({
   margin-top: 8px;
 }
 
-
 .item-row {
   display: flex;
   align-items: center;
@@ -4772,7 +5055,7 @@ watch(() => entries.value.map(e => ({
 
     // 左侧颜色标记（标准问和答案都用绿色）
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       left: 0;
       top: 20px;
@@ -4795,7 +5078,7 @@ watch(() => entries.value.map(e => ({
 
     // 左侧颜色标记
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       left: 0;
       top: 20px;
@@ -5019,7 +5302,9 @@ watch(() => entries.value.map(e => ({
 .modal-leave-active .faq-import-modal,
 .modal-enter-active .batch-tag-modal,
 .modal-leave-active .batch-tag-modal {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .modal-enter-from,
@@ -5037,9 +5322,9 @@ watch(() => entries.value.map(e => ({
 
 // Tag 样式优化
 .answer-tag {
-  background: var(--td-brand-color)1a;
+  background: var(--td-brand-color) 1a;
   color: var(--td-brand-color);
-  border-color: var(--td-brand-color)33;
+  border-color: var(--td-brand-color) 33;
 }
 
 .question-tag {
@@ -5255,7 +5540,9 @@ watch(() => entries.value.map(e => ({
   border-radius: 8px;
   background: var(--td-bg-color-container);
   padding: 14px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   width: 100%;
   box-sizing: border-box;
@@ -5394,14 +5681,16 @@ watch(() => entries.value.map(e => ({
 
 // Slide down animation - 优化性能
 .slide-down-enter-active {
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   will-change: opacity, transform;
 }
 
 .slide-down-leave-active {
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   will-change: opacity, transform;

@@ -1,15 +1,7 @@
 <template>
   <NodeViewWrapper class="docs-media" :class="[`docs-media--${align}`, { 'docs-media--selected': selected }]">
-    <video
-      v-if="src"
-      class="docs-media-video"
-      :src="src"
-      :style="frameStyle"
-      controls
-      preload="metadata"
-      playsinline
-    />
-    <p v-else class="docs-media-missing">{{ t('docs.media.missing') }}</p>
+    <video v-if="src" class="docs-media-video" :src="src" :style="frameStyle" controls preload="metadata" playsinline />
+    <p v-else class="docs-media-missing">{{ t("docs.media.missing") }}</p>
     <button
       v-if="editor.isEditable"
       type="button"
@@ -23,22 +15,22 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { useAttachmentUrl } from './useAttachmentUrl'
+import { useAttachmentUrl } from "./useAttachmentUrl";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const align = computed(() => String(props.node.attrs.align ?? 'center'))
-const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
-const src = useAttachmentUrl(attachmentId)
+const align = computed(() => String(props.node.attrs.align ?? "center"));
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null);
+const src = useAttachmentUrl(attachmentId);
 const frameStyle = computed(() => {
-  const width = Number(props.node.attrs.width ?? 0)
-  return width > 0 ? { width: `${width}px` } : {}
-})
+  const width = Number(props.node.attrs.width ?? 0);
+  return width > 0 ? { width: `${width}px` } : {};
+});
 </script>
 
 <style scoped lang="less">

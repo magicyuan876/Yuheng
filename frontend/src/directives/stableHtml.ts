@@ -1,7 +1,7 @@
-import type { ObjectDirective } from 'vue';
+import type { ObjectDirective } from "vue";
 
 function imageIdentity(img: HTMLImageElement): string {
-  return (img.getAttribute('data-protected-src') || img.currentSrc || img.src || '').trim();
+  return (img.getAttribute("data-protected-src") || img.currentSrc || img.src || "").trim();
 }
 
 function canMorph(current: Node, next: Node): boolean {
@@ -23,30 +23,24 @@ function syncAttributes(current: Element, next: Element, preserved: Set<string> 
 
 function morphImage(current: HTMLImageElement, next: HTMLImageElement): void {
   const sameProtectedSource = Boolean(
-    current.getAttribute('data-protected-src')
-      && current.getAttribute('data-protected-src') === next.getAttribute('data-protected-src'),
+    current.getAttribute("data-protected-src") &&
+    current.getAttribute("data-protected-src") === next.getAttribute("data-protected-src"),
   );
   const sameIdentity = imageIdentity(current) === imageIdentity(next);
   const sameProtectedAlt = Boolean(
-    current.getAttribute('data-protected-src')
-      && next.getAttribute('data-protected-src')
-      && current.alt
-      && current.alt === next.alt,
+    current.getAttribute("data-protected-src") &&
+    next.getAttribute("data-protected-src") &&
+    current.alt &&
+    current.alt === next.alt,
   );
-  const keepDecodedImage = current.complete
-    && current.naturalWidth > 1
-    && (sameProtectedSource || sameIdentity || sameProtectedAlt);
+  const keepDecodedImage =
+    current.complete && current.naturalWidth > 1 && (sameProtectedSource || sameIdentity || sameProtectedAlt);
 
   if (keepDecodedImage) {
     // Never write the placeholder src (or loading flags) over an image Chrome
     // has already decoded. More importantly, leave this exact DOM node attached
     // to the document so Chromium keeps its painted image layer.
-    syncAttributes(current, next, new Set([
-      'src',
-      'data-protected-src',
-      'data-img-loading',
-      'data-auth-hydrated',
-    ]));
+    syncAttributes(current, next, new Set(["src", "data-protected-src", "data-img-loading", "data-auth-hydrated"]));
     return;
   }
 
@@ -104,12 +98,12 @@ function morphChildren(currentParent: ParentNode, nextParent: ParentNode): void 
  */
 export const vStableHtml: ObjectDirective<HTMLElement, string> = {
   beforeMount(el, binding) {
-    el.innerHTML = binding.value || '';
+    el.innerHTML = binding.value || "";
   },
   updated(el, binding) {
-    const html = binding.value || '';
+    const html = binding.value || "";
     if (html === binding.oldValue) return;
-    const template = document.createElement('template');
+    const template = document.createElement("template");
     template.innerHTML = html;
     morphChildren(el, template.content);
   },

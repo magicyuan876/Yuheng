@@ -2,17 +2,17 @@
   <aside class="docs-comments" :aria-label="t('docs.comments.title')">
     <header class="docs-comments-head">
       <h3>
-        {{ t('docs.comments.title') }}
+        {{ t("docs.comments.title") }}
         <span v-if="total" class="docs-comments-count">{{ open }}/{{ total }}</span>
       </h3>
       <label class="docs-comments-toggle">
         <input v-model="resolvedShown" type="checkbox" />
-        {{ t('docs.comments.showResolved') }}
+        {{ t("docs.comments.showResolved") }}
       </label>
     </header>
 
-    <p v-if="loading && !threads.length" class="docs-comments-note">{{ t('common.loading') }}</p>
-    <p v-else-if="!threads.length" class="docs-comments-note">{{ t('docs.comments.empty') }}</p>
+    <p v-if="loading && !threads.length" class="docs-comments-note">{{ t("common.loading") }}</p>
+    <p v-else-if="!threads.length" class="docs-comments-note">{{ t("docs.comments.empty") }}</p>
 
     <!-- Comments that lost their place are grouped rather than scattered, so
          it is obvious they are a category and not one-off oddities. -->
@@ -61,7 +61,7 @@
           />
           <template v-else>
             <button type="button" class="docs-comments-action" @click="replyingTo = thread.id">
-              {{ t('docs.comments.reply') }}
+              {{ t("docs.comments.reply") }}
             </button>
             <button
               v-if="thread.can_resolve"
@@ -69,10 +69,10 @@
               class="docs-comments-action"
               @click="emit('resolve', thread.id, !thread.resolved_at)"
             >
-              {{ thread.resolved_at ? t('docs.comments.reopen') : t('docs.comments.resolve') }}
+              {{ thread.resolved_at ? t("docs.comments.reopen") : t("docs.comments.resolve") }}
             </button>
             <span v-if="thread.resolved_at" class="docs-comments-resolved">
-              {{ t('docs.comments.resolvedBy', { name: displayName(thread.resolved_user) }) }}
+              {{ t("docs.comments.resolvedBy", { name: displayName(thread.resolved_user) }) }}
             </span>
           </template>
         </footer>
@@ -82,42 +82,42 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
-import type { CommentView } from '@/api/docs'
+import type { CommentView } from "@/api/docs";
 
-import CommentComposer from './CommentComposer.vue'
-import CommentItem from './CommentItem.vue'
+import CommentComposer from "./CommentComposer.vue";
+import CommentItem from "./CommentItem.vue";
 
 const props = defineProps<{
-  threads: CommentView[]
-  grouped: { inline: CommentView[]; page: CommentView[]; orphaned: CommentView[] }
-  open: number
-  total: number
-  loading: boolean
-  activeId: string
-  showResolved: boolean
+  threads: CommentView[];
+  grouped: { inline: CommentView[]; page: CommentView[]; orphaned: CommentView[] };
+  open: number;
+  total: number;
+  loading: boolean;
+  activeId: string;
+  showResolved: boolean;
   /** The comment a request is in flight for, so its buttons can wait. */
-  busyId?: string
-}>()
+  busyId?: string;
+}>();
 
 const emit = defineEmits<{
-  select: [commentId: string]
-  reply: [parentId: string, body: unknown]
-  edit: [commentId: string, body: unknown]
-  resolve: [commentId: string, resolved: boolean]
-  delete: [commentId: string]
-  'update:showResolved': [value: boolean]
-}>()
+  select: [commentId: string];
+  reply: [parentId: string, body: unknown];
+  edit: [commentId: string, body: unknown];
+  resolve: [commentId: string, resolved: boolean];
+  delete: [commentId: string];
+  "update:showResolved": [value: boolean];
+}>();
 
-const { t } = useI18n()
-const replyingTo = ref('')
+const { t } = useI18n();
+const replyingTo = ref("");
 
 const resolvedShown = computed({
   get: () => props.showResolved,
-  set: (value: boolean) => emit('update:showResolved', value),
-})
+  set: (value: boolean) => emit("update:showResolved", value),
+});
 
 /**
  * The order the sidebar reads in: comments on passages first, top to bottom
@@ -125,26 +125,29 @@ const resolvedShown = computed({
  * text is gone.
  */
 const groups = computed(() => [
-  { key: 'inline' as const, items: props.grouped.inline },
-  { key: 'page' as const, items: props.grouped.page },
-  { key: 'orphaned' as const, items: props.grouped.orphaned },
-])
+  { key: "inline" as const, items: props.grouped.inline },
+  { key: "page" as const, items: props.grouped.page },
+  { key: "orphaned" as const, items: props.grouped.orphaned },
+]);
 
 function displayName(user?: { username?: string; email?: string }): string {
-  return user?.username || user?.email || t('docs.links.someone')
+  return user?.username || user?.email || t("docs.links.someone");
 }
 
 function submitReply(threadId: string, body: unknown) {
-  emit('reply', threadId, body)
-  replyingTo.value = ''
+  emit("reply", threadId, body);
+  replyingTo.value = "";
 }
 
 // A thread that went away takes the reply box with it.
-watch(() => props.threads, (threads) => {
-  if (replyingTo.value && !threads.some((thread) => thread.id === replyingTo.value)) {
-    replyingTo.value = ''
-  }
-})
+watch(
+  () => props.threads,
+  (threads) => {
+    if (replyingTo.value && !threads.some((thread) => thread.id === replyingTo.value)) {
+      replyingTo.value = "";
+    }
+  },
+);
 </script>
 
 <style scoped lang="less">

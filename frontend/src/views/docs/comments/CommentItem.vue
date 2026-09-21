@@ -3,25 +3,15 @@
     <header class="docs-comment-head">
       <span class="docs-comment-author">{{ authorName }}</span>
       <time class="docs-comment-when" :datetime="comment.created_at">{{ when }}</time>
-      <span v-if="comment.edited_at" class="docs-comment-edited">{{ t('docs.comments.edited') }}</span>
+      <span v-if="comment.edited_at" class="docs-comment-edited">{{ t("docs.comments.edited") }}</span>
 
       <span class="docs-comment-spacer" />
       <template v-if="!editing">
-        <button
-          v-if="comment.can_edit"
-          type="button"
-          class="docs-comment-action"
-          @click.stop="startEditing"
-        >
-          {{ t('common.edit') }}
+        <button v-if="comment.can_edit" type="button" class="docs-comment-action" @click.stop="startEditing">
+          {{ t("common.edit") }}
         </button>
-        <button
-          v-if="comment.can_delete"
-          type="button"
-          class="docs-comment-action"
-          @click.stop="confirmDelete"
-        >
-          {{ t('common.delete') }}
+        <button v-if="comment.can_delete" type="button" class="docs-comment-action" @click.stop="confirmDelete">
+          {{ t("common.delete") }}
         </button>
       </template>
     </header>
@@ -40,31 +30,32 @@
 </template>
 
 <script setup lang="ts">
-import { generateHTML } from '@tiptap/core'
-import { DialogPlugin } from 'tdesign-vue-next'
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { generateHTML } from "@tiptap/core";
+import { DialogPlugin } from "tdesign-vue-next";
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
-import type { CommentView } from '@/api/docs'
+import type { CommentView } from "@/api/docs";
 
-import { officialExtensions } from '../editor/extensions'
+import { officialExtensions } from "../editor/extensions";
 
-import CommentComposer from './CommentComposer.vue'
+import CommentComposer from "./CommentComposer.vue";
 
-const props = defineProps<{ comment: CommentView; busy?: boolean }>()
-const emit = defineEmits<{ edit: [body: unknown]; delete: [] }>()
-const { t, locale } = useI18n()
+const props = defineProps<{ comment: CommentView; busy?: boolean }>();
+const emit = defineEmits<{ edit: [body: unknown]; delete: [] }>();
+const { t, locale } = useI18n();
 
-const editing = ref(false)
+const editing = ref(false);
 
-const authorName = computed(() =>
-  props.comment.creator?.username || props.comment.creator?.email || t('docs.links.someone'))
+const authorName = computed(
+  () => props.comment.creator?.username || props.comment.creator?.email || t("docs.links.someone"),
+);
 
 const when = computed(() => {
-  const at = new Date(props.comment.created_at)
-  if (Number.isNaN(at.getTime())) return props.comment.created_at
-  return at.toLocaleString(locale.value, { dateStyle: 'short', timeStyle: 'short' })
-})
+  const at = new Date(props.comment.created_at);
+  if (Number.isNaN(at.getTime())) return props.comment.created_at;
+  return at.toLocaleString(locale.value, { dateStyle: "short", timeStyle: "short" });
+});
 
 /**
  * The comment, rendered read-only.
@@ -76,36 +67,34 @@ const when = computed(() => {
  * further still.
  */
 const html = computed(() => {
-  const body = props.comment.body
-  if (!body) return ''
+  const body = props.comment.body;
+  if (!body) return "";
   try {
-    return generateHTML(body as Record<string, unknown>, officialExtensions() as never)
+    return generateHTML(body as Record<string, unknown>, officialExtensions() as never);
   } catch {
-    return ''
+    return "";
   }
-})
+});
 
 function startEditing() {
-  editing.value = true
+  editing.value = true;
 }
 
 function commitEdit(body: unknown) {
-  editing.value = false
-  emit('edit', body)
+  editing.value = false;
+  emit("edit", body);
 }
 
 function confirmDelete() {
   const dialog = DialogPlugin.confirm({
-    header: t('docs.comments.deleteTitle'),
-    body: props.comment.parent_id
-      ? t('docs.comments.deleteConfirm')
-      : t('docs.comments.deleteThreadConfirm'),
-    confirmBtn: { content: t('common.delete'), theme: 'danger' },
+    header: t("docs.comments.deleteTitle"),
+    body: props.comment.parent_id ? t("docs.comments.deleteConfirm") : t("docs.comments.deleteThreadConfirm"),
+    confirmBtn: { content: t("common.delete"), theme: "danger" },
     onConfirm: () => {
-      dialog.hide()
-      emit('delete')
+      dialog.hide();
+      emit("delete");
     },
-  })
+  });
 }
 </script>
 

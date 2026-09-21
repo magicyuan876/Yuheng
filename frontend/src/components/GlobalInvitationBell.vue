@@ -6,10 +6,13 @@
          Tenant 审计、SettingDrawer 等）弹出时会自然覆盖铃铛，不需要特意联动隐藏。
        - 点击铃铛复用同一份 MyInvitationsDialog，行为与之前一致。 -->
   <template v-if="pendingInvitationCount > 0">
-    <t-badge :count="pendingInvitationCount" :max-count="99" :offset="[6, 4]"
-      class="global-invitation-bell">
-      <button type="button" class="global-invitation-bell__btn"
-        :title="$t('tenantInvitation.inboxTooltip')" @click="openDialog">
+    <t-badge :count="pendingInvitationCount" :max-count="99" :offset="[6, 4]" class="global-invitation-bell">
+      <button
+        type="button"
+        class="global-invitation-bell__btn"
+        :title="$t('tenantInvitation.inboxTooltip')"
+        @click="openDialog"
+      >
         <t-icon name="notification" size="18px" />
       </button>
     </t-badge>
@@ -18,18 +21,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import MyInvitationsDialog from '@/components/MyInvitationsDialog.vue'
+import { computed, ref } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import MyInvitationsDialog from "@/components/MyInvitationsDialog.vue";
 
-const authStore = useAuthStore()
+const authStore = useAuthStore();
 
-const pendingInvitationCount = computed(() => authStore.pendingInvitationCount)
+const pendingInvitationCount = computed(() => authStore.pendingInvitationCount);
 
-const dialogVisible = ref(false)
+const dialogVisible = ref(false);
 const openDialog = () => {
-  dialogVisible.value = true
-}
+  dialogVisible.value = true;
+};
 </script>
 
 <style lang="less" scoped>
@@ -56,7 +59,10 @@ const openDialog = () => {
   color: var(--td-text-color-secondary);
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
 
   &:hover {
     background-color: var(--td-bg-color-secondarycontainer);

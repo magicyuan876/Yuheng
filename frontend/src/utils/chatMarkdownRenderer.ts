@@ -1,6 +1,6 @@
-import { marked, type Renderer } from 'marked'
-import markedKatex from 'marked-katex-extension'
-import type { Tokens } from 'marked'
+import { marked, type Renderer } from "marked";
+import markedKatex from "marked-katex-extension";
+import type { Tokens } from "marked";
 
 import {
   collapseStandaloneCitationParagraphs,
@@ -11,85 +11,80 @@ import {
   restoreCitationTags,
   stripIncompleteCitationTag,
   type CitationKnowledgeRef,
-} from './citationMarkdown.ts'
+} from "./citationMarkdown.ts";
 
 const STREAMING_IMAGE_PLACEHOLDER =
-  '<span class="streaming-image-loading"><span class="streaming-image-loading__skeleton"></span></span>'
+  '<span class="streaming-image-loading"><span class="streaming-image-loading__skeleton"></span></span>';
 
-let markedConfigured = false
+let markedConfigured = false;
 
 export type ImageRendererArgs = {
-  href: string
-  title: string | null
-  text: string
-}
+  href: string;
+  title: string | null;
+  text: string;
+};
 
 export type ChatMarkdownRendererOptions = {
-  codeRenderer?: Renderer['code']
-  imageRenderer?: (args: ImageRendererArgs) => string
-  invalidImageHtml?: (href: string) => string
-  isValidImageUrl?: (href: string) => boolean
-}
+  codeRenderer?: Renderer["code"];
+  imageRenderer?: (args: ImageRendererArgs) => string;
+  invalidImageHtml?: (href: string) => string;
+  isValidImageUrl?: (href: string) => boolean;
+};
 
 export type RenderChatMarkdownOptions = {
-  renderer: Renderer
-  escapeMarkdown: (markdown: string) => string
-  sanitizeHtml: (html: string) => string
+  renderer: Renderer;
+  escapeMarkdown: (markdown: string) => string;
+  sanitizeHtml: (html: string) => string;
   /** The source is still growing and may end in ambiguous partial Markdown. */
-  streaming?: boolean
-  collapseStandaloneCitations?: boolean
-  knowledgeReferences?: CitationKnowledgeRef[] | null
-  cachedMermaidSvgHtml?: string | null
-  injectCachedMermaidSvg?: (html: string, cachedSvgHtml?: string | null) => string
-  prepareMarkdown?: (markdown: string, cachedSvgHtml?: string | null) => string
-}
+  streaming?: boolean;
+  collapseStandaloneCitations?: boolean;
+  knowledgeReferences?: CitationKnowledgeRef[] | null;
+  cachedMermaidSvgHtml?: string | null;
+  injectCachedMermaidSvg?: (html: string, cachedSvgHtml?: string | null) => string;
+  prepareMarkdown?: (markdown: string, cachedSvgHtml?: string | null) => string;
+};
 
 export function configureMarkedForChatMarkdown(): void {
-  if (markedConfigured) return
-  marked.use({ breaks: true, gfm: true })
-  marked.use(markedKatex({ throwOnError: false, nonStandard: true }))
-  markedConfigured = true
+  if (markedConfigured) return;
+  marked.use({ breaks: true, gfm: true });
+  marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
+  markedConfigured = true;
 }
 
 export function preprocessMathDelimiters(rawText: string): string {
-  if (!rawText || typeof rawText !== 'string') return ''
-  return rawText
-    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
-    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$')
+  if (!rawText || typeof rawText !== "string") return "";
+  return rawText.replace(/\\\[([\s\S]*?)\\\]/g, "$$$$$1$$$$").replace(/\\\(([\s\S]*?)\\\)/g, "$$$1$$");
 }
 
 export function replaceIncompleteImageWithPlaceholder(content: string): string {
-  if (!content) return ''
+  if (!content) return "";
 
-  const lastImgStart = content.lastIndexOf('![')
-  if (lastImgStart < 0) return content
+  const lastImgStart = content.lastIndexOf("![");
+  if (lastImgStart < 0) return content;
 
-  const tail = content.slice(lastImgStart)
-  const hasImageOpen = tail.startsWith('![')
-  const hasBracketClose = tail.includes(']')
-  const hasParenOpen = tail.includes('(')
-  const hasParenClose = tail.includes(')')
-  if (!hasImageOpen) return content
+  const tail = content.slice(lastImgStart);
+  const hasImageOpen = tail.startsWith("![");
+  const hasBracketClose = tail.includes("]");
+  const hasParenOpen = tail.includes("(");
+  const hasParenClose = tail.includes(")");
+  if (!hasImageOpen) return content;
 
   if (!hasBracketClose || (hasParenOpen && !hasParenClose)) {
-    return content.slice(0, lastImgStart) + STREAMING_IMAGE_PLACEHOLDER
+    return content.slice(0, lastImgStart) + STREAMING_IMAGE_PLACEHOLDER;
   }
 
-  return content
+  return content;
 }
 
-const LEGACY_IMAGE_BLOCK_RE = /<image\b([^>]*)>([\s\S]*?)<\/images?>/gi
-const LEGACY_IMAGES_WRAPPER_RE = /<\/?images\b[^>]*>/gi
-const LEGACY_IMAGE_ORIGINAL_RE = /<image_original>([\s\S]*?)<\/image_original>/i
-const LEGACY_IMAGE_CAPTION_RE = /<image_caption>([\s\S]*?)<\/image_caption>/i
-const LEGACY_IMAGE_OCR_RE = /<image_ocr>([\s\S]*?)<\/image_ocr>/i
-const COMPLETE_MARKDOWN_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g
-const IMAGE_URL_SCHEME = '(?:https?|resource|storage|local|minio|s3|cos|tos|oss|obs|ks3)'
-const FULLWIDTH_IMAGE_OPEN_RE = new RegExp(`(!\\[[^\\]\\n]*\\])（(?=${IMAGE_URL_SCHEME}://)`, 'gi')
-const FULLWIDTH_IMAGE_CLOSE_RE = new RegExp(
-  `(!\\[[^\\]\\n]*\\]\\(${IMAGE_URL_SCHEME}://[^）\\n]*?)）`,
-  'gi',
-)
+const LEGACY_IMAGE_BLOCK_RE = /<image\b([^>]*)>([\s\S]*?)<\/images?>/gi;
+const LEGACY_IMAGES_WRAPPER_RE = /<\/?images\b[^>]*>/gi;
+const LEGACY_IMAGE_ORIGINAL_RE = /<image_original>([\s\S]*?)<\/image_original>/i;
+const LEGACY_IMAGE_CAPTION_RE = /<image_caption>([\s\S]*?)<\/image_caption>/i;
+const LEGACY_IMAGE_OCR_RE = /<image_ocr>([\s\S]*?)<\/image_ocr>/i;
+const COMPLETE_MARKDOWN_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g;
+const IMAGE_URL_SCHEME = "(?:https?|resource|storage|local|minio|s3|cos|tos|oss|obs|ks3)";
+const FULLWIDTH_IMAGE_OPEN_RE = new RegExp(`(!\\[[^\\]\\n]*\\])（(?=${IMAGE_URL_SCHEME}://)`, "gi");
+const FULLWIDTH_IMAGE_CLOSE_RE = new RegExp(`(!\\[[^\\]\\n]*\\]\\(${IMAGE_URL_SCHEME}://[^）\\n]*?)）`, "gi");
 
 /**
  * Repair image Markdown when a model localizes its destination parentheses:
@@ -101,47 +96,47 @@ const FULLWIDTH_IMAGE_CLOSE_RE = new RegExp(
  * lets the existing incomplete-image skeleton suppress the unstable tail.
  */
 export function normalizeFullwidthMarkdownImageParentheses(content: string): string {
-  if (!content || (!content.includes('（') && !content.includes('）'))) return content
+  if (!content || (!content.includes("（") && !content.includes("）"))) return content;
 
-  const parts = content.split(COMPLETE_MARKDOWN_CODE_RE)
+  const parts = content.split(COMPLETE_MARKDOWN_CODE_RE);
   for (let i = 0; i < parts.length; i += 2) {
-    parts[i] = parts[i]
-      .replace(FULLWIDTH_IMAGE_OPEN_RE, '$1(')
-      .replace(FULLWIDTH_IMAGE_CLOSE_RE, '$1)')
+    parts[i] = parts[i].replace(FULLWIDTH_IMAGE_OPEN_RE, "$1(").replace(FULLWIDTH_IMAGE_CLOSE_RE, "$1)");
   }
-  return parts.join('')
+  return parts.join("");
 }
 
 function legacyImageField(body: string, pattern: RegExp): string {
-  const value = body.match(pattern)?.[1] || ''
-  return value.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  const value = body.match(pattern)?.[1] || "";
+  return value
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeMarkdownImageAlt(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/\[/g, '\\[').replace(/\]/g, '\\]')
+  return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
 }
 
 function legacyImageBlockToMarkdown(attributes: string, body: string): string {
-  const original = body.match(LEGACY_IMAGE_ORIGINAL_RE)?.[1]?.trim()
-  if (original) return original
+  const original = body.match(LEGACY_IMAGE_ORIGINAL_RE)?.[1]?.trim();
+  if (original) return original;
 
-  const urlMatch = attributes.match(/\burl\s*=\s*(["'])(.*?)\1/i)
-  const url = urlMatch?.[2]?.trim() || ''
-  const caption = legacyImageField(body, LEGACY_IMAGE_CAPTION_RE)
-  const ocr = legacyImageField(body, LEGACY_IMAGE_OCR_RE)
-  if (!url) return caption || ocr
+  const urlMatch = attributes.match(/\burl\s*=\s*(["'])(.*?)\1/i);
+  const url = urlMatch?.[2]?.trim() || "";
+  const caption = legacyImageField(body, LEGACY_IMAGE_CAPTION_RE);
+  const ocr = legacyImageField(body, LEGACY_IMAGE_OCR_RE);
+  if (!url) return caption || ocr;
 
-  const alt = escapeMarkdownImageAlt(caption || ocr || 'image')
-  return `![${alt}](${url})`
+  const alt = escapeMarkdownImageAlt(caption || ocr || "image");
+  return `![${alt}](${url})`;
 }
 
 function normalizeLegacyImageSegment(content: string): string {
   return content
-    .replace(
-      LEGACY_IMAGE_BLOCK_RE,
-      (_match, attributes: string, body: string) => legacyImageBlockToMarkdown(attributes, body),
+    .replace(LEGACY_IMAGE_BLOCK_RE, (_match, attributes: string, body: string) =>
+      legacyImageBlockToMarkdown(attributes, body),
     )
-    .replace(LEGACY_IMAGES_WRAPPER_RE, '')
+    .replace(LEGACY_IMAGES_WRAPPER_RE, "");
 }
 
 /**
@@ -155,32 +150,32 @@ function normalizeLegacyImageSegment(content: string): string {
  * skeleton so internal tags, captions, and OCR never flash as prose.
  */
 export function normalizeLegacyImageContextMarkup(content: string, streaming = false): string {
-  if (!content) return content
-  const hasLegacyImageTag = /<\/?images?\b/i.test(content)
-  const partialTagPattern = /(^|\n)[ \t]*<i(?:m(?:a(?:g(?:e(?:[ \t][^>\n]*)?)?)?)?)?$/i
-  const hasPartialStreamingTag = streaming && partialTagPattern.test(content)
-  if (!hasLegacyImageTag && !hasPartialStreamingTag) return content
+  if (!content) return content;
+  const hasLegacyImageTag = /<\/?images?\b/i.test(content);
+  const partialTagPattern = /(^|\n)[ \t]*<i(?:m(?:a(?:g(?:e(?:[ \t][^>\n]*)?)?)?)?)?$/i;
+  const hasPartialStreamingTag = streaming && partialTagPattern.test(content);
+  if (!hasLegacyImageTag && !hasPartialStreamingTag) return content;
 
-  const parts = content.split(COMPLETE_MARKDOWN_CODE_RE)
+  const parts = content.split(COMPLETE_MARKDOWN_CODE_RE);
   for (let i = 0; i < parts.length; i += 2) {
-    parts[i] = normalizeLegacyImageSegment(parts[i])
+    parts[i] = normalizeLegacyImageSegment(parts[i]);
   }
   if (streaming) {
     // The split always leaves normal Markdown in the final even-indexed part,
     // so code examples containing literal <image> tags stay untouched.
-    const tailIndex = parts.length - 1
-    let tail = parts[tailIndex]
-    const openingMatches = Array.from(tail.matchAll(/<image(?:\s|>)/gi))
-    const lastOpening = openingMatches[openingMatches.length - 1]
+    const tailIndex = parts.length - 1;
+    let tail = parts[tailIndex];
+    const openingMatches = Array.from(tail.matchAll(/<image(?:\s|>)/gi));
+    const lastOpening = openingMatches[openingMatches.length - 1];
     if (lastOpening?.index !== undefined) {
-      tail = tail.slice(0, lastOpening.index) + STREAMING_IMAGE_PLACEHOLDER
+      tail = tail.slice(0, lastOpening.index) + STREAMING_IMAGE_PLACEHOLDER;
     } else {
       // Also hide the few frames before the opening tag name itself is complete.
-      tail = tail.replace(partialTagPattern, `$1${STREAMING_IMAGE_PLACEHOLDER}`)
+      tail = tail.replace(partialTagPattern, `$1${STREAMING_IMAGE_PLACEHOLDER}`);
     }
-    parts[tailIndex] = tail
+    parts[tailIndex] = tail;
   }
-  return parts.join('')
+  return parts.join("");
 }
 
 /**
@@ -192,20 +187,17 @@ export function normalizeLegacyImageContextMarkup(content: string, streaming = f
  * still rendered because this guard is enabled only for an active stream.
  */
 export function stripTrailingStreamingHorizontalRule(content: string): string {
-  if (!content) return content
-  return content.replace(
-    /(^|\n)[ \t]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/,
-    '$1',
-  )
+  if (!content) return content;
+  return content.replace(/(^|\n)[ \t]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/, "$1");
 }
 
 function maskMatches(text: string, regex: RegExp): string {
-  return text.replace(regex, (match) => match.replace(/[^\n]/g, '\u0000'))
+  return text.replace(regex, (match) => match.replace(/[^\n]/g, "\u0000"));
 }
 
 function isOdd(text: string, marker: RegExp): boolean {
-  const matches = text.match(marker)
-  return matches ? matches.length % 2 === 1 : false
+  const matches = text.match(marker);
+  return matches ? matches.length % 2 === 1 : false;
 }
 
 /**
@@ -229,62 +221,62 @@ function isOdd(text: string, marker: RegExp): boolean {
  * untouched.
  */
 export function closeDanglingStreamingEmphasis(text: string): string {
-  if (!text || !/[*~`]/.test(text)) return text
+  if (!text || !/[*~`]/.test(text)) return text;
 
   // Mask code so markers inside it are never counted; \u0000 keeps offsets.
-  let masked = maskMatches(text, /```[\s\S]*?```/g)
+  let masked = maskMatches(text, /```[\s\S]*?```/g);
   if (isOdd(masked, /```/g)) {
-    const open = masked.lastIndexOf('```')
-    masked = masked.slice(0, open) + masked.slice(open).replace(/[^\n]/g, '\u0000')
+    const open = masked.lastIndexOf("```");
+    masked = masked.slice(0, open) + masked.slice(open).replace(/[^\n]/g, "\u0000");
   }
-  masked = maskMatches(masked, /`[^`\n]*`/g)
-  let appendInlineCode = false
+  masked = maskMatches(masked, /`[^`\n]*`/g);
+  let appendInlineCode = false;
   if (isOdd(masked, /`/g)) {
-    appendInlineCode = true
-    const open = masked.lastIndexOf('`')
-    masked = masked.slice(0, open) + masked.slice(open).replace(/[^\n]/g, '\u0000')
+    appendInlineCode = true;
+    const open = masked.lastIndexOf("`");
+    masked = masked.slice(0, open) + masked.slice(open).replace(/[^\n]/g, "\u0000");
   }
 
   // Drop a trailing emphasis-marker run with no content after it: ambiguous and
   // not yet renderable. Anchored to the current line so earlier text is intact.
-  let working = text
+  let working = text;
   if (!appendInlineCode) {
-    const trailing = masked.match(/[*~]+[ \t]*$/)
+    const trailing = masked.match(/[*~]+[ \t]*$/);
     if (trailing) {
-      working = text.slice(0, text.length - trailing[0].length)
-      masked = masked.slice(0, masked.length - trailing[0].length)
+      working = text.slice(0, text.length - trailing[0].length);
+      masked = masked.slice(0, masked.length - trailing[0].length);
     }
   }
 
   // Leading list/bullet markers are structure, not emphasis.
-  masked = masked.replace(/^(\s*)([*+-])(\s)/gm, (_m, p1, _p2, p3) => `${p1}\u0000${p3}`)
+  masked = masked.replace(/^(\s*)([*+-])(\s)/gm, (_m, p1, _p2, p3) => `${p1}\u0000${p3}`);
 
-  const needStrike = isOdd(masked, /~~/g)
-  const withoutBold = maskMatches(masked, /\*\*/g)
-  const needBold = isOdd(masked, /\*\*/g)
-  const needItalic = isOdd(withoutBold, /\*/g)
+  const needStrike = isOdd(masked, /~~/g);
+  const withoutBold = maskMatches(masked, /\*\*/g);
+  const needBold = isOdd(masked, /\*\*/g);
+  const needItalic = isOdd(withoutBold, /\*/g);
 
-  let closers = ''
-  if (appendInlineCode) closers += '`'
-  if (needItalic) closers += '*'
-  if (needBold) closers += '**'
-  if (needStrike) closers += '~~'
+  let closers = "";
+  if (appendInlineCode) closers += "`";
+  if (needItalic) closers += "*";
+  if (needBold) closers += "**";
+  if (needStrike) closers += "~~";
 
-  if (!closers) return working
+  if (!closers) return working;
 
   // A closing emphasis delimiter must not be preceded by whitespace (CommonMark
   // flanking rule), so insert the closers before any trailing whitespace. Bold
   // content with internal spaces (`**XBRL Reporting `) otherwise renders literal
   // (non-bold) on every frame that pauses on a space, flickering bold on/off.
-  const trailingWs = working.match(/\s+$/)
-  if (!trailingWs) return working + closers
-  const cut = working.length - trailingWs[0].length
-  return working.slice(0, cut) + closers + working.slice(cut)
+  const trailingWs = working.match(/\s+$/);
+  if (!trailingWs) return working + closers;
+  const cut = working.length - trailingWs[0].length;
+  return working.slice(0, cut) + closers + working.slice(cut);
 }
 
-const FLANKING_BOLD = /(?<!\*)\*\*(?=\S)([^*\n]*?\p{P})\*\*(?=[\p{L}\p{N}])/gu
-const FLANKING_STRIKE = /(?<!~)~~(?=\S)([^~\n]*?\p{P})~~(?=[\p{L}\p{N}])/gu
-const FLANKING_ITALIC = /(?<![*\p{L}\p{N}])\*(?=\S)([^*\n]*?\p{P})\*(?=[\p{L}\p{N}])/gu
+const FLANKING_BOLD = /(?<!\*)\*\*(?=\S)([^*\n]*?\p{P})\*\*(?=[\p{L}\p{N}])/gu;
+const FLANKING_STRIKE = /(?<!~)~~(?=\S)([^~\n]*?\p{P})~~(?=[\p{L}\p{N}])/gu;
+const FLANKING_ITALIC = /(?<![*\p{L}\p{N}])\*(?=\S)([^*\n]*?\p{P})\*(?=[\p{L}\p{N}])/gu;
 
 // Opening-delimiter variant of the rule above. CommonMark also refuses to *open*
 // emphasis when the run is preceded by a letter/number and immediately followed
@@ -292,16 +284,16 @@ const FLANKING_ITALIC = /(?<![*\p{L}\p{N}])\*(?=\S)([^*\n]*?\p{P})\*(?=[\p{L}\p{
 // closing `**` is fine. The `(?=\p{P})` guard keeps exponent/glob/math markers
 // like `x**2`, `2**3**4`, and `**/*.js` untouched (those are followed by a
 // number or slash-as-content, not an emphasis-opening punctuation run).
-const FLANKING_BOLD_OPEN = /(?<=[\p{L}\p{N}])\*\*(?=\p{P})([^*\n]+?)\*\*/gu
-const FLANKING_STRIKE_OPEN = /(?<=[\p{L}\p{N}])~~(?=\p{P})([^~\n]+?)~~/gu
+const FLANKING_BOLD_OPEN = /(?<=[\p{L}\p{N}])\*\*(?=\p{P})([^*\n]+?)\*\*/gu;
+const FLANKING_STRIKE_OPEN = /(?<=[\p{L}\p{N}])~~(?=\p{P})([^~\n]+?)~~/gu;
 
 function repairFlankingEmphasisSegment(segment: string): string {
   return segment
-    .replace(FLANKING_BOLD, '<strong>$1</strong>')
-    .replace(FLANKING_BOLD_OPEN, '<strong>$1</strong>')
-    .replace(FLANKING_STRIKE, '<del>$1</del>')
-    .replace(FLANKING_STRIKE_OPEN, '<del>$1</del>')
-    .replace(FLANKING_ITALIC, '<em>$1</em>')
+    .replace(FLANKING_BOLD, "<strong>$1</strong>")
+    .replace(FLANKING_BOLD_OPEN, "<strong>$1</strong>")
+    .replace(FLANKING_STRIKE, "<del>$1</del>")
+    .replace(FLANKING_STRIKE_OPEN, "<del>$1</del>")
+    .replace(FLANKING_ITALIC, "<em>$1</em>");
 }
 
 /**
@@ -317,12 +309,12 @@ function repairFlankingEmphasisSegment(segment: string): string {
  * reliably. Code spans/fences are skipped so their literal markers are untouched.
  */
 export function repairFlankingEmphasis(text: string): string {
-  if (!text || !/[*~]/.test(text)) return text
-  const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+  if (!text || !/[*~]/.test(text)) return text;
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/g);
   for (let i = 0; i < parts.length; i += 2) {
-    parts[i] = repairFlankingEmphasisSegment(parts[i])
+    parts[i] = repairFlankingEmphasisSegment(parts[i]);
   }
-  return parts.join('')
+  return parts.join("");
 }
 
 /**
@@ -342,11 +334,11 @@ export function repairFlankingEmphasis(text: string): string {
  * the number, in-sentence numbers (`值是 1`) are unaffected.
  */
 export function stripTrailingStreamingListMarker(text: string): string {
-  if (!text) return text
-  return text.replace(/(^|\n)[ \t]*(?:[-*+]|[-=]{2,}|\d{1,9}[.)]?)[ \t]*$/, '$1')
+  if (!text) return text;
+  return text.replace(/(^|\n)[ \t]*(?:[-*+]|[-=]{2,}|\d{1,9}[.)]?)[ \t]*$/, "$1");
 }
 
-const TAIL_TEXT_RE = />([^<>]+)</g
+const TAIL_TEXT_RE = />([^<>]+)</g;
 
 /**
  * Soften the most-recently streamed characters with a trailing fade.
@@ -358,68 +350,69 @@ const TAIL_TEXT_RE = />([^<>]+)</g
  * parser or sanitizer, and only the innermost last text run is wrapped.
  */
 export function applyStreamingTailFade(html: string, tailLength = 24): string {
-  if (!html) return html
+  if (!html) return html;
 
   // Track the last text run that actually has visible characters. Whitespace-only
   // runs (e.g. the `\n` marked emits between `</li>` and `</ol>`) are skipped so
   // they do not win the "last run" and suppress the fade.
-  let lastMatch: RegExpExecArray | null = null
-  let match: RegExpExecArray | null
-  TAIL_TEXT_RE.lastIndex = 0
+  let lastMatch: RegExpExecArray | null = null;
+  let match: RegExpExecArray | null;
+  TAIL_TEXT_RE.lastIndex = 0;
   while ((match = TAIL_TEXT_RE.exec(html)) !== null) {
-    if (match[1].trim()) lastMatch = match
+    if (match[1].trim()) lastMatch = match;
   }
-  if (!lastMatch) return html
+  if (!lastMatch) return html;
 
-  const text = lastMatch[1]
+  const text = lastMatch[1];
 
-  const textStart = lastMatch.index + 1
-  const textEnd = textStart + text.length
-  const chars = Array.from(text)
-  const tailChars = chars.slice(Math.max(0, chars.length - tailLength))
-  const tail = tailChars.join('')
+  const textStart = lastMatch.index + 1;
+  const textEnd = textStart + text.length;
+  const chars = Array.from(text);
+  const tailChars = chars.slice(Math.max(0, chars.length - tailLength));
+  const tail = tailChars.join("");
   // Fade only the trailing run, keeping any leading whitespace outside the span.
-  const tailTrimmed = tail.replace(/^\s+/, '')
-  if (!tailTrimmed) return html
-  const head = text.slice(0, text.length - tailTrimmed.length)
-  const wrapped = `${head}<span class="stream-fade-tail">${tailTrimmed}</span>`
-  return html.slice(0, textStart) + wrapped + html.slice(textEnd)
+  const tailTrimmed = tail.replace(/^\s+/, "");
+  if (!tailTrimmed) return html;
+  const head = text.slice(0, text.length - tailTrimmed.length);
+  const wrapped = `${head}<span class="stream-fade-tail">${tailTrimmed}</span>`;
+  return html.slice(0, textStart) + wrapped + html.slice(textEnd);
 }
 
 export function createChatMarkdownRenderer(options: ChatMarkdownRendererOptions = {}): Renderer {
-  const renderer = new marked.Renderer()
+  const renderer = new marked.Renderer();
 
   if (options.imageRenderer) {
     renderer.image = ({ href, title, text }: Tokens.Image) => {
-      const imageHref = href || ''
+      const imageHref = href || "";
       if (options.isValidImageUrl && !options.isValidImageUrl(imageHref)) {
-        return options.invalidImageHtml?.(imageHref) ?? ''
+        return options.invalidImageHtml?.(imageHref) ?? "";
       }
-      return options.imageRenderer?.({
-        href: imageHref,
-        title: title || null,
-        text: text || '',
-      }) ?? ''
-    }
+      return (
+        options.imageRenderer?.({
+          href: imageHref,
+          title: title || null,
+          text: text || "",
+        }) ?? ""
+      );
+    };
   }
 
   if (options.codeRenderer) {
-    renderer.code = options.codeRenderer
+    renderer.code = options.codeRenderer;
   }
 
-  return renderer
+  return renderer;
 }
 
 export function wrapChatMarkdownTables(html: string): string {
-  if (!html || !html.includes('<table')) return html
+  if (!html || !html.includes("<table")) return html;
   return html.replace(
     /<table\b[\s\S]*?<\/table>/gi,
     (tableHtml) => `<div class="chat-markdown-table">${tableHtml}</div>`,
-  )
+  );
 }
 
-const STANDALONE_STRONG_PARAGRAPH_RE =
-  /<p>\s*<strong>((?:(?!<\/strong>)[\s\S])*?)<\/strong>\s*<\/p>/g
+const STANDALONE_STRONG_PARAGRAPH_RE = /<p>\s*<strong>((?:(?!<\/strong>)[\s\S])*?)<\/strong>\s*<\/p>/g;
 
 /**
  * Tag paragraphs whose entire content is a single bold run (e.g. a model that
@@ -435,55 +428,51 @@ const STANDALONE_STRONG_PARAGRAPH_RE =
  * bold run truly is the entire paragraph.
  */
 export function markStandaloneStrongParagraphs(html: string): string {
-  if (!html || !html.includes('<strong>')) return html
-  return html.replace(
-    STANDALONE_STRONG_PARAGRAPH_RE,
-    (match: string, inner: string, offset: number, full: string) => {
-      // A `<p>` that is a list item's content is list text, not a standalone
-      // subtitle. Marking it adds a large margin that shifts sibling items when
-      // a streamed list flips from tight to loose, so leave list paragraphs to
-      // the list's own (zero) margins.
-      if (/<li>\s*$/.test(full.slice(0, offset))) return match
-      return `<p class="md-strong-title"><strong>${inner}</strong></p>`
-    },
-  )
+  if (!html || !html.includes("<strong>")) return html;
+  return html.replace(STANDALONE_STRONG_PARAGRAPH_RE, (match: string, inner: string, offset: number, full: string) => {
+    // A `<p>` that is a list item's content is list text, not a standalone
+    // subtitle. Marking it adds a large margin that shifts sibling items when
+    // a streamed list flips from tight to loose, so leave list paragraphs to
+    // the list's own (zero) margins.
+    if (/<li>\s*$/.test(full.slice(0, offset))) return match;
+    return `<p class="md-strong-title"><strong>${inner}</strong></p>`;
+  });
 }
 
 export function renderChatMarkdown(rawMarkdown: unknown, options: RenderChatMarkdownOptions): string {
-  const rawText = typeof rawMarkdown === 'string' ? rawMarkdown : String(rawMarkdown || '')
-  if (!rawText.trim()) return ''
+  const rawText = typeof rawMarkdown === "string" ? rawMarkdown : String(rawMarkdown || "");
+  if (!rawText.trim()) return "";
 
-  configureMarkedForChatMarkdown()
+  configureMarkedForChatMarkdown();
 
   const streamingSafeText = options.streaming
     ? stripTrailingStreamingListMarker(stripTrailingStreamingHorizontalRule(rawText))
-    : rawText
-  const imageContextSafeText = normalizeLegacyImageContextMarkup(
-    streamingSafeText,
-    Boolean(options.streaming),
-  )
-  const citationSafeText = stripIncompleteCitationTag(imageContextSafeText)
-  const { text: tagSafe, tags } = preserveCitationTags(citationSafeText)
-  const normalizedImageMarkdown = normalizeFullwidthMarkdownImageParentheses(tagSafe)
-  const imageSafe = replaceIncompleteImageWithPlaceholder(normalizedImageMarkdown)
-  const mathSafe = preprocessMathDelimiters(imageSafe)
-  const restoredTags = restoreCitationTags(mathSafe, tags)
-  const inlineTags = joinCitationTagsToPreviousLine(restoredTags)
+    : rawText;
+  const imageContextSafeText = normalizeLegacyImageContextMarkup(streamingSafeText, Boolean(options.streaming));
+  const citationSafeText = stripIncompleteCitationTag(imageContextSafeText);
+  const { text: tagSafe, tags } = preserveCitationTags(citationSafeText);
+  const normalizedImageMarkdown = normalizeFullwidthMarkdownImageParentheses(tagSafe);
+  const imageSafe = replaceIncompleteImageWithPlaceholder(normalizedImageMarkdown);
+  const mathSafe = preprocessMathDelimiters(imageSafe);
+  const restoredTags = restoreCitationTags(mathSafe, tags);
+  const inlineTags = joinCitationTagsToPreviousLine(restoredTags);
   // Run the list-marker guard again after emphasis balancing: closing/hiding a
   // dangling `*`/`**` (the first chars of the next bullet's bold) can re-expose a
   // bare `   - `, which would otherwise flash an empty nested item under the
   // previous line right as the next item starts streaming.
   const balancedInline = options.streaming
     ? stripTrailingStreamingListMarker(closeDanglingStreamingEmphasis(inlineTags))
-    : inlineTags
+    : inlineTags;
   const preparedMarkdown = options.prepareMarkdown
     ? options.prepareMarkdown(balancedInline, options.cachedMermaidSvgHtml)
-    : balancedInline
-  const flankingSafeMarkdown = repairFlankingEmphasis(preparedMarkdown)
+    : balancedInline;
+  const flankingSafeMarkdown = repairFlankingEmphasis(preparedMarkdown);
   // Convert <kb>/<web>/wiki tags to HTML placeholders before escapeMarkdown so
   // agent sanitizers (e.g. UUID stripping) cannot damage chunk_id attributes.
-  const { content: markdownWithPlaceholders, htmlSnippets } =
-    extractCitationHtmlPlaceholders(flankingSafeMarkdown, options.knowledgeReferences)
+  const { content: markdownWithPlaceholders, htmlSnippets } = extractCitationHtmlPlaceholders(
+    flankingSafeMarkdown,
+    options.knowledgeReferences,
+  );
   // Computed and then not used: the parse below takes the *unescaped* input.
   // The comment above describes an order — placeholders, then escapeMarkdown,
   // then parse — that this code does not follow, and in production the
@@ -492,21 +481,20 @@ export function renderChatMarkdown(rawMarkdown: unknown, options: RenderChatMark
   // should take this value is a rendering and sanitisation decision, not a
   // lint fix; it is left exactly as it was, and flagged.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
-  const escapedMarkdown = options.escapeMarkdown(markdownWithPlaceholders)
+  const escapedMarkdown = options.escapeMarkdown(markdownWithPlaceholders);
   const html = marked.parse(markdownWithPlaceholders, {
     renderer: options.renderer,
     breaks: true,
     async: false,
-  }) as string
-  const restoredHtml = restoreCitationHtmlPlaceholders(html, htmlSnippets)
-  const citationHtml = options.collapseStandaloneCitations === false
-    ? restoredHtml
-    : collapseStandaloneCitationParagraphs(restoredHtml)
-  const tableWrappedHtml = wrapChatMarkdownTables(citationHtml)
-  const strongTitleHtml = markStandaloneStrongParagraphs(tableWrappedHtml)
-  const sanitized = options.sanitizeHtml(strongTitleHtml)
+  }) as string;
+  const restoredHtml = restoreCitationHtmlPlaceholders(html, htmlSnippets);
+  const citationHtml =
+    options.collapseStandaloneCitations === false ? restoredHtml : collapseStandaloneCitationParagraphs(restoredHtml);
+  const tableWrappedHtml = wrapChatMarkdownTables(citationHtml);
+  const strongTitleHtml = markStandaloneStrongParagraphs(tableWrappedHtml);
+  const sanitized = options.sanitizeHtml(strongTitleHtml);
   const withMermaid = options.injectCachedMermaidSvg
     ? options.injectCachedMermaidSvg(sanitized, options.cachedMermaidSvgHtml)
-    : sanitized
-  return options.streaming ? applyStreamingTailFade(withMermaid) : withMermaid
+    : sanitized;
+  return options.streaming ? applyStreamingTailFade(withMermaid) : withMermaid;
 }

@@ -1,25 +1,21 @@
 <template>
   <div class="kb-parser-settings" :class="{ 'kb-parser-settings--embedded': embedded }">
     <div v-if="!embedded" class="section-header">
-      <h2>{{ $t('kbSettings.parser.title') }}</h2>
-      <p class="section-description">{{ $t('kbSettings.parser.description') }}</p>
+      <h2>{{ $t("kbSettings.parser.title") }}</h2>
+      <p class="section-description">{{ $t("kbSettings.parser.description") }}</p>
     </div>
 
     <div v-if="loading" class="loading-inline">
       <t-loading size="small" />
-      <span>{{ $t('kbSettings.parser.loading') }}</span>
+      <span>{{ $t("kbSettings.parser.loading") }}</span>
     </div>
 
     <div v-else-if="fileTypeGroups.length === 0" class="empty-hint">
-      <p>{{ $t('kbSettings.parser.noEngineAvailable') }}</p>
+      <p>{{ $t("kbSettings.parser.noEngineAvailable") }}</p>
     </div>
 
     <div v-else class="settings-group" :class="{ 'settings-group--embedded': embedded }">
-      <div
-        v-for="group in fileTypeGroups"
-        :key="group.key"
-        class="setting-row"
-      >
+      <div v-for="group in fileTypeGroups" :key="group.key" class="setting-row">
         <div class="setting-info">
           <label class="group-label">
             <t-icon v-if="!embedded" :name="group.icon" class="group-icon" />
@@ -53,10 +49,12 @@
               :checked="getXLSXFirstRowAsHeader(group.extensions)"
               @change="(checked: boolean) => handleXLSXFirstRowAsHeaderChange(group.extensions, checked)"
             >
-              {{ $t('kbSettings.parser.xlsxFirstRowAsHeader') }}
+              {{ $t("kbSettings.parser.xlsxFirstRowAsHeader") }}
             </t-checkbox>
             <div v-if="!hasAvailableEngine(group.extensions)" class="no-engine-warning">
-              <a v-if="canManageParser" class="go-settings" @click.prevent="goToParserSettings">{{ $t('kbSettings.parser.goConfig') }}</a>
+              <a v-if="canManageParser" class="go-settings" @click.prevent="goToParserSettings">{{
+                $t("kbSettings.parser.goConfig")
+              }}</a>
             </div>
           </div>
         </div>
@@ -66,174 +64,202 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { type ParserEngineInfo } from '@/api/system'
-import { useEditorResourcesStore } from '@/stores/editorResources'
-import { useUIStore } from '@/stores/ui'
-import { usePlatformInfraAccess } from '@/composables/usePlatformInfraAccess'
-import { storeToRefs } from 'pinia'
+import { ref, watch, computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { type ParserEngineInfo } from "@/api/system";
+import { useEditorResourcesStore } from "@/stores/editorResources";
+import { useUIStore } from "@/stores/ui";
+import { usePlatformInfraAccess } from "@/composables/usePlatformInfraAccess";
+import { storeToRefs } from "pinia";
 
-const { t } = useI18n()
-const editorResources = useEditorResourcesStore()
+const { t } = useI18n();
+const editorResources = useEditorResourcesStore();
 
 function getEngineDisplayName(engineName: string): string {
-  const key = `kbSettings.parser.engines.${engineName}.name`
-  const translated = t(key)
-  return translated !== key ? translated : engineName
+  const key = `kbSettings.parser.engines.${engineName}.name`;
+  const translated = t(key);
+  return translated !== key ? translated : engineName;
 }
 
 export interface ParserEngineRule {
-  file_types: string[]
-  engine: string
-  xlsx_first_row_as_header?: boolean
+  file_types: string[];
+  engine: string;
+  xlsx_first_row_as_header?: boolean;
 }
 
 interface EngineOption {
-  value: string
-  selectLabel: string
-  isDefault: boolean
+  value: string;
+  selectLabel: string;
+  isDefault: boolean;
 }
 
 function buildOptionLabel(name: string, isDefault: boolean): string {
-  const label = getEngineDisplayName(name)
-  return isDefault ? `${label} (${t('kbSettings.parser.default')})` : label
+  const label = getEngineDisplayName(name);
+  return isDefault ? `${label} (${t("kbSettings.parser.default")})` : label;
 }
 
 interface Props {
-  parserEngineRules?: ParserEngineRule[]
+  parserEngineRules?: ParserEngineRule[];
   /** Compact layout for upload-confirm dialog */
-  embedded?: boolean
+  embedded?: boolean;
   /** When set, only show file-type groups matching these extensions */
-  relevantExtensions?: string[]
+  relevantExtensions?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   parserEngineRules: () => [],
   embedded: false,
   relevantExtensions: () => [],
-})
+});
 
 const emit = defineEmits<{
-  'update:parserEngineRules': [value: ParserEngineRule[]]
-}>()
+  "update:parserEngineRules": [value: ParserEngineRule[]];
+}>();
 
-const uiStore = useUIStore()
-const canManageParser = usePlatformInfraAccess('parser')
-const localEngineRules = ref<ParserEngineRule[]>([...props.parserEngineRules])
-const parserEngines = ref<ParserEngineInfo[]>([])
-const loading = ref(true)
+const uiStore = useUIStore();
+const canManageParser = usePlatformInfraAccess("parser");
+const localEngineRules = ref<ParserEngineRule[]>([...props.parserEngineRules]);
+const parserEngines = ref<ParserEngineInfo[]>([]);
+const loading = ref(true);
 
 const allFileTypes = computed(() => {
-  const s = new Set<string>()
+  const s = new Set<string>();
   for (const engine of parserEngines.value) {
     for (const ft of engine.FileTypes || []) {
-      s.add(ft)
+      s.add(ft);
     }
   }
-  return s
-})
+  return s;
+});
 
 const fileTypeGroups = computed(() => {
-  const ft = allFileTypes.value
-  const groups: { key: string; label: string; icon: string; extensions: string[] }[] = []
+  const ft = allFileTypes.value;
+  const groups: { key: string; label: string; icon: string; extensions: string[] }[] = [];
 
-  const pdfExts = ['pdf'].filter(e => ft.has(e))
-  const officeExts = ['docx', 'doc'].filter(e => ft.has(e))
-  const pptExts = ['pptx', 'ppt'].filter(e => ft.has(e))
-  const excelExts = ['xlsx', 'xls'].filter(e => ft.has(e))
-  const ebookExts = ['epub'].filter(e => ft.has(e))
-  const webArchiveExts = ['mhtml'].filter(e => ft.has(e))
-  const csvExts = ['csv'].filter(e => ft.has(e))
-  const mdExts = ['md', 'markdown'].filter(e => ft.has(e))
-  const txtExts = ['txt'].filter(e => ft.has(e))
-  const jsonExts = ['json'].filter(e => ft.has(e))
-  const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp'].filter(e => ft.has(e))
-  const audioExts = ['mp3', 'wav', 'm4a', 'flac', 'ogg'].filter(e => ft.has(e))
-  const audiovisualExts = [...audioExts]
+  const pdfExts = ["pdf"].filter((e) => ft.has(e));
+  const officeExts = ["docx", "doc"].filter((e) => ft.has(e));
+  const pptExts = ["pptx", "ppt"].filter((e) => ft.has(e));
+  const excelExts = ["xlsx", "xls"].filter((e) => ft.has(e));
+  const ebookExts = ["epub"].filter((e) => ft.has(e));
+  const webArchiveExts = ["mhtml"].filter((e) => ft.has(e));
+  const csvExts = ["csv"].filter((e) => ft.has(e));
+  const mdExts = ["md", "markdown"].filter((e) => ft.has(e));
+  const txtExts = ["txt"].filter((e) => ft.has(e));
+  const jsonExts = ["json"].filter((e) => ft.has(e));
+  const imageExts = ["jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp"].filter((e) => ft.has(e));
+  const audioExts = ["mp3", "wav", "m4a", "flac", "ogg"].filter((e) => ft.has(e));
+  const audiovisualExts = [...audioExts];
 
-  if (pdfExts.length) groups.push({ key: 'pdf', label: t('kbSettings.parser.fileTypePdf'), icon: 'file-pdf', extensions: pdfExts })
-  if (officeExts.length) groups.push({ key: 'office', label: t('kbSettings.parser.fileTypeWord'), icon: 'file-word', extensions: officeExts })
-  if (pptExts.length) groups.push({ key: 'ppt', label: t('kbSettings.parser.fileTypePpt'), icon: 'file-powerpoint', extensions: pptExts })
-  if (excelExts.length) groups.push({ key: 'excel', label: t('kbSettings.parser.fileTypeExcel'), icon: 'file-excel', extensions: excelExts })
-  if (ebookExts.length) groups.push({ key: 'ebook', label: t('kbSettings.parser.fileTypeEbook'), icon: 'file', extensions: ebookExts })
-  if (webArchiveExts.length) groups.push({ key: 'webarchive', label: t('kbSettings.parser.fileTypeWebArchive'), icon: 'file', extensions: webArchiveExts })
-  if (csvExts.length) groups.push({ key: 'csv', label: t('kbSettings.parser.fileTypeCsv'), icon: 'file-excel', extensions: csvExts })
-  if (mdExts.length) groups.push({ key: 'markdown', label: 'Markdown', icon: 'file-code', extensions: mdExts })
-  if (txtExts.length) groups.push({ key: 'text', label: t('kbSettings.parser.fileTypeText'), icon: 'file', extensions: txtExts })
-  if (jsonExts.length) groups.push({ key: 'json', label: t('kbSettings.parser.fileTypeJson'), icon: 'file-code', extensions: jsonExts })
-  if (imageExts.length) groups.push({ key: 'image', label: t('kbSettings.parser.fileTypeImage'), icon: 'image', extensions: imageExts })
+  if (pdfExts.length)
+    groups.push({ key: "pdf", label: t("kbSettings.parser.fileTypePdf"), icon: "file-pdf", extensions: pdfExts });
+  if (officeExts.length)
+    groups.push({
+      key: "office",
+      label: t("kbSettings.parser.fileTypeWord"),
+      icon: "file-word",
+      extensions: officeExts,
+    });
+  if (pptExts.length)
+    groups.push({
+      key: "ppt",
+      label: t("kbSettings.parser.fileTypePpt"),
+      icon: "file-powerpoint",
+      extensions: pptExts,
+    });
+  if (excelExts.length)
+    groups.push({
+      key: "excel",
+      label: t("kbSettings.parser.fileTypeExcel"),
+      icon: "file-excel",
+      extensions: excelExts,
+    });
+  if (ebookExts.length)
+    groups.push({ key: "ebook", label: t("kbSettings.parser.fileTypeEbook"), icon: "file", extensions: ebookExts });
+  if (webArchiveExts.length)
+    groups.push({
+      key: "webarchive",
+      label: t("kbSettings.parser.fileTypeWebArchive"),
+      icon: "file",
+      extensions: webArchiveExts,
+    });
+  if (csvExts.length)
+    groups.push({ key: "csv", label: t("kbSettings.parser.fileTypeCsv"), icon: "file-excel", extensions: csvExts });
+  if (mdExts.length) groups.push({ key: "markdown", label: "Markdown", icon: "file-code", extensions: mdExts });
+  if (txtExts.length)
+    groups.push({ key: "text", label: t("kbSettings.parser.fileTypeText"), icon: "file", extensions: txtExts });
+  if (jsonExts.length)
+    groups.push({ key: "json", label: t("kbSettings.parser.fileTypeJson"), icon: "file-code", extensions: jsonExts });
+  if (imageExts.length)
+    groups.push({ key: "image", label: t("kbSettings.parser.fileTypeImage"), icon: "image", extensions: imageExts });
   if (audiovisualExts.length) {
     groups.push({
-      key: 'audiovisual',
-      label: t('kbSettings.parser.fileTypeAudiovisual'),
-      icon: 'sound',
+      key: "audiovisual",
+      label: t("kbSettings.parser.fileTypeAudiovisual"),
+      icon: "sound",
       extensions: audiovisualExts,
-    })
+    });
   }
 
   // Keep the UI driven by the backend registry. New parser plugins can expose
   // file types without requiring another frontend release; known families get
   // friendly labels above and everything else gets a compact dynamic row.
-  const grouped = new Set(groups.flatMap(group => group.extensions))
-  for (const ext of [...ft].filter(ext => !grouped.has(ext) && ext !== 'url').sort()) {
-    groups.push({ key: `dynamic-${ext}`, label: ext.toUpperCase(), icon: 'file-code', extensions: [ext] })
+  const grouped = new Set(groups.flatMap((group) => group.extensions));
+  for (const ext of [...ft].filter((ext) => !grouped.has(ext) && ext !== "url").sort()) {
+    groups.push({ key: `dynamic-${ext}`, label: ext.toUpperCase(), icon: "file-code", extensions: [ext] });
   }
 
-  const rel = props.relevantExtensions
-  if (!rel?.length) return groups
-  const relSet = new Set(rel)
-  const filtered = groups.filter(g => g.extensions.some(e => relSet.has(e)))
-  return filtered.length > 0 ? filtered : groups
-})
+  const rel = props.relevantExtensions;
+  if (!rel?.length) return groups;
+  const relSet = new Set(rel);
+  const filtered = groups.filter((g) => g.extensions.some((e) => relSet.has(e)));
+  return filtered.length > 0 ? filtered : groups;
+});
 
 function getEngineOptions(extensions: string[]): EngineOption[] {
-  const raw: { name: string; desc: string; fileTypes: string[]; available: boolean; reason: string }[] = []
+  const raw: { name: string; desc: string; fileTypes: string[]; available: boolean; reason: string }[] = [];
   for (const engine of parserEngines.value) {
-    const supports = extensions.some(ext => (engine.FileTypes || []).includes(ext))
+    const supports = extensions.some((ext) => (engine.FileTypes || []).includes(ext));
     if (supports) {
       raw.push({
         name: engine.Name,
         desc: engine.Description || engine.Name,
         fileTypes: engine.FileTypes || [],
         available: engine.Available !== false,
-        reason: engine.UnavailableReason || '',
-      })
+        reason: engine.UnavailableReason || "",
+      });
     }
   }
-  const defaultName = raw.find(e => e.available)?.name ?? ''
+  const defaultName = raw.find((e) => e.available)?.name ?? "";
   return raw
-    .filter(e => e.available)
-    .map(e => ({
+    .filter((e) => e.available)
+    .map((e) => ({
       value: e.name,
-      selectLabel: buildOptionLabel(e.name, defaultName !== '' && e.name === defaultName),
-      isDefault: defaultName !== '' && e.name === defaultName,
-    }))
+      selectLabel: buildOptionLabel(e.name, defaultName !== "" && e.name === defaultName),
+      isDefault: defaultName !== "" && e.name === defaultName,
+    }));
 }
 
 function hasAvailableEngine(extensions: string[]): boolean {
-  return getEngineOptions(extensions).length > 0
+  return getEngineOptions(extensions).length > 0;
 }
 
 function getDefaultEngine(extensions: string[]): string {
-  const opts = getEngineOptions(extensions)
-  return opts.find(o => o.isDefault)?.value ?? ''
+  const opts = getEngineOptions(extensions);
+  return opts.find((o) => o.isDefault)?.value ?? "";
 }
 
 function getEngineForGroup(extensions: string[]): string {
   for (const rule of localEngineRules.value) {
-    if (rule.file_types.some(ft => extensions.includes(ft))) {
-      return rule.engine
+    if (rule.file_types.some((ft) => extensions.includes(ft))) {
+      return rule.engine;
     }
   }
-  return getDefaultEngine(extensions)
+  return getDefaultEngine(extensions);
 }
 
 function handleEngineChange(extensions: string[], engine: string) {
-  const currentRule = getRuleForGroup(extensions)
-  const otherRules = localEngineRules.value.filter(
-    r => !r.file_types.some(ft => extensions.includes(ft))
-  )
+  const currentRule = getRuleForGroup(extensions);
+  const otherRules = localEngineRules.value.filter((r) => !r.file_types.some((ft) => extensions.includes(ft)));
   if (engine) {
     otherRules.push({
       file_types: [...extensions],
@@ -241,88 +267,90 @@ function handleEngineChange(extensions: string[], engine: string) {
       ...(currentRule?.xlsx_first_row_as_header !== undefined
         ? { xlsx_first_row_as_header: currentRule.xlsx_first_row_as_header }
         : {}),
-    })
+    });
   }
-  localEngineRules.value = otherRules
-  emit('update:parserEngineRules', buildCompleteRules())
+  localEngineRules.value = otherRules;
+  emit("update:parserEngineRules", buildCompleteRules());
 }
 
 function getRuleForGroup(extensions: string[]): ParserEngineRule | undefined {
-  return localEngineRules.value.find(
-    rule => rule.file_types.some(fileType => extensions.includes(fileType))
-  )
+  return localEngineRules.value.find((rule) => rule.file_types.some((fileType) => extensions.includes(fileType)));
 }
 
 function getXLSXFirstRowAsHeader(extensions: string[]): boolean {
-  return getRuleForGroup(extensions)?.xlsx_first_row_as_header === true
+  return getRuleForGroup(extensions)?.xlsx_first_row_as_header === true;
 }
 
 function handleXLSXFirstRowAsHeaderChange(extensions: string[], checked: boolean) {
-  const rules = buildCompleteRules()
-  const rule = rules.find(item => item.file_types.some(fileType => extensions.includes(fileType)))
-  if (!rule) return
+  const rules = buildCompleteRules();
+  const rule = rules.find((item) => item.file_types.some((fileType) => extensions.includes(fileType)));
+  if (!rule) return;
 
-  rule.xlsx_first_row_as_header = checked
-  localEngineRules.value = rules
-  emit('update:parserEngineRules', rules)
+  rule.xlsx_first_row_as_header = checked;
+  localEngineRules.value = rules;
+  emit("update:parserEngineRules", rules);
 }
 
 function buildCompleteRules(): ParserEngineRule[] {
-  const rules: ParserEngineRule[] = []
+  const rules: ParserEngineRule[] = [];
   for (const group of fileTypeGroups.value) {
-    const engine = getEngineForGroup(group.extensions)
+    const engine = getEngineForGroup(group.extensions);
     if (engine) {
-      const currentRule = getRuleForGroup(group.extensions)
+      const currentRule = getRuleForGroup(group.extensions);
       rules.push({
         file_types: [...group.extensions],
         engine,
         ...(currentRule?.xlsx_first_row_as_header !== undefined
           ? { xlsx_first_row_as_header: currentRule.xlsx_first_row_as_header }
           : {}),
-      })
+      });
     }
   }
-  return rules
+  return rules;
 }
 
 function goToParserSettings() {
-  uiStore.openSettings('parser')
+  uiStore.openSettings("parser");
 }
 
 async function loadEngines(force = false) {
-  loading.value = true
+  loading.value = true;
   try {
-    await editorResources.ensureParserEngines(force)
-    parserEngines.value = editorResources.parserEngines as ParserEngineInfo[]
+    await editorResources.ensureParserEngines(force);
+    parserEngines.value = editorResources.parserEngines as ParserEngineInfo[];
   } catch {
-    parserEngines.value = []
+    parserEngines.value = [];
   } finally {
-    loading.value = false
-    ensureCompleteRules()
+    loading.value = false;
+    ensureCompleteRules();
   }
 }
 
 function ensureCompleteRules() {
-  if (!parserEngines.value.length) return
-  const complete = buildCompleteRules()
+  if (!parserEngines.value.length) return;
+  const complete = buildCompleteRules();
   if (complete.length && complete.length > localEngineRules.value.length) {
-    localEngineRules.value = complete
-    emit('update:parserEngineRules', complete)
+    localEngineRules.value = complete;
+    emit("update:parserEngineRules", complete);
   }
 }
 
-onMounted(loadEngines)
+onMounted(loadEngines);
 
-const { showSettingsModal } = storeToRefs(uiStore)
+const { showSettingsModal } = storeToRefs(uiStore);
 watch(showSettingsModal, (open, wasOpen) => {
   if (wasOpen && !open) {
-    loadEngines(true)
+    loadEngines(true);
   }
-})
+});
 
-watch(() => props.parserEngineRules, (v) => {
-  localEngineRules.value = v?.length ? [...v] : []
-}, { deep: true })
+watch(
+  () => props.parserEngineRules,
+  (v) => {
+    localEngineRules.value = v?.length ? [...v] : [];
+  },
+  { deep: true },
+);
 </script>
 
 <style lang="less" scoped>

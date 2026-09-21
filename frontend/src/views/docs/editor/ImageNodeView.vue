@@ -52,87 +52,87 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { useAttachmentUrl } from './useAttachmentUrl'
+import { useAttachmentUrl } from "./useAttachmentUrl";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const MIN_WIDTH = 16
-const MAX_WIDTH = 8192
+const MIN_WIDTH = 16;
+const MAX_WIDTH = 8192;
 
 // TDesign names these after the axis of the bar in the glyph rather than the
 // direction of the alignment, so the horizontal-alignment icons are the
 // "vertical-align" ones. Verified against tdesign-icons-vue-next's exports.
 const alignments = [
-  { value: 'left', icon: 'format-vertical-align-left', label: 'docs.attachments.alignLeft' },
-  { value: 'center', icon: 'format-vertical-align-center', label: 'docs.attachments.alignCenter' },
-  { value: 'right', icon: 'format-vertical-align-right', label: 'docs.attachments.alignRight' },
-] as const
+  { value: "left", icon: "format-vertical-align-left", label: "docs.attachments.alignLeft" },
+  { value: "center", icon: "format-vertical-align-center", label: "docs.attachments.alignCenter" },
+  { value: "right", icon: "format-vertical-align-right", label: "docs.attachments.alignRight" },
+] as const;
 
-const align = computed(() => String(props.node.attrs.align ?? 'center'))
+const align = computed(() => String(props.node.attrs.align ?? "center"));
 
 /** Our own files are addressed by id and fetched with the token as a blob
  * URL, because a bare <img> cannot send Authorization; an external image
  * keeps its own URL. */
-const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
-const blobUrl = useAttachmentUrl(attachmentId)
-const src = computed(() => attachmentId.value ? blobUrl.value : String(props.node.attrs.src ?? ''))
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null);
+const blobUrl = useAttachmentUrl(attachmentId);
+const src = computed(() => (attachmentId.value ? blobUrl.value : String(props.node.attrs.src ?? "")));
 
 const frameStyle = computed(() => {
-  const width = Number(props.node.attrs.width ?? 0)
-  return width > 0 ? { width: `${width}px` } : {}
-})
+  const width = Number(props.node.attrs.width ?? 0);
+  return width > 0 ? { width: `${width}px` } : {};
+});
 
-function setAlign(value: 'left' | 'center' | 'right') {
-  props.updateAttributes({ align: value })
+function setAlign(value: "left" | "center" | "right") {
+  props.updateAttributes({ align: value });
 }
 
 function editAlt() {
-  const next = window.prompt(t('docs.attachments.imageAltPrompt'), String(props.node.attrs.alt ?? ''))
-  if (next === null) return
-  props.updateAttributes({ alt: next.trim() || null })
+  const next = window.prompt(t("docs.attachments.imageAltPrompt"), String(props.node.attrs.alt ?? ""));
+  if (next === null) return;
+  props.updateAttributes({ alt: next.trim() || null });
 }
 
 /** Records the natural size the first time the browser knows it, so the
  * srcset can stop offering renderings larger than the original. */
 function onLoad(event: Event) {
-  if (props.node.attrs.width) return
-  const img = event.target as HTMLImageElement
+  if (props.node.attrs.width) return;
+  const img = event.target as HTMLImageElement;
   if (img.naturalWidth > 0) {
-    props.updateAttributes({ width: img.naturalWidth, height: img.naturalHeight })
+    props.updateAttributes({ width: img.naturalWidth, height: img.naturalHeight });
   }
 }
 
-const resizing = ref(false)
+const resizing = ref(false);
 
 function startResize(event: PointerEvent) {
-  if (resizing.value) return
-  const frame = (event.currentTarget as HTMLElement).parentElement
-  if (!frame) return
-  resizing.value = true
-  const startX = event.clientX
-  const startWidth = frame.getBoundingClientRect().width
-  const ratio = Number(props.node.attrs.height ?? 0) / Number(props.node.attrs.width ?? 1)
+  if (resizing.value) return;
+  const frame = (event.currentTarget as HTMLElement).parentElement;
+  if (!frame) return;
+  resizing.value = true;
+  const startX = event.clientX;
+  const startWidth = frame.getBoundingClientRect().width;
+  const ratio = Number(props.node.attrs.height ?? 0) / Number(props.node.attrs.width ?? 1);
 
   const move = (e: PointerEvent) => {
-    const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))))
-    frame.style.width = `${width}px`
-  }
+    const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))));
+    frame.style.width = `${width}px`;
+  };
   const up = (e: PointerEvent) => {
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    resizing.value = false
-    const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))))
-    const height = ratio > 0 ? Math.round(width * ratio) : null
-    props.updateAttributes({ width, height })
-  }
-  window.addEventListener('pointermove', move)
-  window.addEventListener('pointerup', up)
-  event.preventDefault()
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    resizing.value = false;
+    const width = Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX))));
+    const height = ratio > 0 ? Math.round(width * ratio) : null;
+    props.updateAttributes({ width, height });
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  event.preventDefault();
 }
 </script>
 

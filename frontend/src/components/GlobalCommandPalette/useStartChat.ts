@@ -1,6 +1,6 @@
-import { useRouter } from 'vue-router'
-import { useMenuStore } from '@/stores/menu'
-import { useSettingsStore } from '@/stores/settings'
+import { useRouter } from "vue-router";
+import { useMenuStore } from "@/stores/menu";
+import { useSettingsStore } from "@/stores/settings";
 
 /**
  * Shared "start a new chat with query + KB/file preselected" helper.
@@ -13,9 +13,9 @@ import { useSettingsStore } from '@/stores/settings'
  * Mirrors the legacy behavior of KnowledgeSearch.vue#startChat.
  */
 export function useStartChat() {
-  const router = useRouter()
-  const menuStore = useMenuStore()
-  const settingsStore = useSettingsStore()
+  const router = useRouter();
+  const menuStore = useMenuStore();
+  const settingsStore = useSettingsStore();
 
   /**
    * @param query The user's query; it becomes the pre-filled first message
@@ -23,19 +23,19 @@ export function useStartChat() {
    * @param fileIds Specific knowledge/file ids to attach as context
    */
   const startChat = (query: string, kbIds: string[] = [], fileIds: string[] = []) => {
-    const q = (query || '').trim()
-    if (!q) return
+    const q = (query || "").trim();
+    if (!q) return;
 
     if (kbIds.length > 0) {
-      settingsStore.selectKnowledgeBases(kbIds)
+      settingsStore.selectKnowledgeBases(kbIds);
     }
     for (const fid of fileIds) {
-      settingsStore.addFile(fid)
+      settingsStore.addFile(fid);
     }
 
-    menuStore.setPrefillQuery(q)
-    router.push('/platform/creatChat')
-  }
+    menuStore.setPrefillQuery(q);
+    router.push("/platform/creatChat");
+  };
 
-  return { startChat }
+  return { startChat };
 }

@@ -1,7 +1,7 @@
 <template>
   <NodeViewWrapper class="docs-audio" :class="{ 'docs-audio--selected': selected }">
     <audio v-if="src" class="docs-audio-player" :src="src" controls preload="metadata" />
-    <p v-else class="docs-audio-missing">{{ t('docs.media.missing') }}</p>
+    <p v-else class="docs-audio-missing">{{ t("docs.media.missing") }}</p>
     <button
       v-if="editor.isEditable"
       type="button"
@@ -15,17 +15,17 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { useAttachmentUrl } from './useAttachmentUrl'
+import { useAttachmentUrl } from "./useAttachmentUrl";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
-const src = useAttachmentUrl(attachmentId)
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null);
+const src = useAttachmentUrl(attachmentId);
 </script>
 
 <style scoped lang="less">

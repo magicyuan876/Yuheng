@@ -8,236 +8,215 @@
       :overlay-inner-style="{ padding: 0 }"
     >
       <template #content>
-      <div class="kb-info-card">
-        <div class="kb-info-card-header">{{ t('knowledgeBase.infoCard.title') }}</div>
-        <div class="kb-info-card-body">
-          <section class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.basic') }}
-            </h4>
-            <div class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.type') }}</span>
-              <span class="kb-info-card-value">
-                {{ kbInfo.type === 'faq'
-                  ? t('knowledgeEditor.basic.typeFAQ')
-                  : t('knowledgeEditor.basic.typeDocument') }}
-              </span>
-            </div>
-            <div v-if="kbInfo.description" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.description') }}</span>
-              <span class="kb-info-card-value kb-info-card-value-block">{{ kbInfo.description }}</span>
-            </div>
-            <div v-if="kbInfo.created_at" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.createdAt') }}</span>
-              <span class="kb-info-card-value">{{ formatStringDate(new Date(kbInfo.created_at)) }}</span>
-            </div>
-            <div v-if="hasDistinctUpdate" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.accessInfo.lastUpdated') }}</span>
-              <span class="kb-info-card-value">{{ lastUpdatedLabel }}</span>
-            </div>
-            <div v-if="supportedFileTypesSorted.length" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.supportedFileTypes') }}</span>
-              <span class="kb-info-card-value">
-                <span
-                  v-for="ft in supportedFileTypesSorted"
-                  :key="ft"
-                  class="kb-info-card-ext"
-                >.{{ ft }}</span>
-              </span>
-            </div>
-          </section>
-          <section class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.access') }}
-            </h4>
-            <div class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.accessInfo.myRole') }}</span>
-              <span class="kb-info-card-value">
-                <t-tag size="small" :theme="roleTagTheme">
-                  {{ accessRoleLabel }}
-                </t-tag>
-                <span class="kb-info-card-hint">{{ accessPermissionSummary }}</span>
-              </span>
-            </div>
-            <div v-if="currentSharedKb" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.accessInfo.fromOrg') }}</span>
-              <span class="kb-info-card-value">
-                「{{ currentSharedKb.org_name }}」 · {{ t('knowledgeBase.accessInfo.sharedAt') }}
-                {{ formatStringDate(new Date(currentSharedKb.shared_at)) }}
-              </span>
-            </div>
-            <div v-else-if="effectiveKBPermission" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.source') }}</span>
-              <span class="kb-info-card-value">{{ t('knowledgeList.detail.sourceTypeAgent') }}</span>
-            </div>
-            <div v-if="(kbInfo.share_count ?? 0) > 0" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.sharedTo') }}</span>
-              <span class="kb-info-card-value">
-                {{ t('knowledgeList.sharedToOrgs', { count: kbInfo.share_count }) }}
-              </span>
-            </div>
-          </section>
-          <section v-if="capabilities.length" class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.capabilities') }}
-            </h4>
-            <div class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.enabled') }}</span>
-              <span class="kb-info-card-value">
-                <t-tag
-                  v-for="cap in capabilities"
-                  :key="cap.key"
-                  size="small"
-                  variant="light"
-                  :theme="cap.theme"
-                >
-                  {{ cap.label }}
-                </t-tag>
-              </span>
-            </div>
-          </section>
-          <section v-if="chunkingRows.length" class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.chunking') }}
-            </h4>
-            <div
-              v-for="row in chunkingRows"
-              :key="row.key"
-              class="kb-info-card-row"
+        <div class="kb-info-card">
+          <div class="kb-info-card-header">{{ t("knowledgeBase.infoCard.title") }}</div>
+          <div class="kb-info-card-body">
+            <section class="setting-drawer__section">
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.basic") }}
+              </h4>
+              <div class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.type") }}</span>
+                <span class="kb-info-card-value">
+                  {{
+                    kbInfo.type === "faq" ? t("knowledgeEditor.basic.typeFAQ") : t("knowledgeEditor.basic.typeDocument")
+                  }}
+                </span>
+              </div>
+              <div v-if="kbInfo.description" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.description") }}</span>
+                <span class="kb-info-card-value kb-info-card-value-block">{{ kbInfo.description }}</span>
+              </div>
+              <div v-if="kbInfo.created_at" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.createdAt") }}</span>
+                <span class="kb-info-card-value">{{ formatStringDate(new Date(kbInfo.created_at)) }}</span>
+              </div>
+              <div v-if="hasDistinctUpdate" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.accessInfo.lastUpdated") }}</span>
+                <span class="kb-info-card-value">{{ lastUpdatedLabel }}</span>
+              </div>
+              <div v-if="supportedFileTypesSorted.length" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.supportedFileTypes") }}</span>
+                <span class="kb-info-card-value">
+                  <span v-for="ft in supportedFileTypesSorted" :key="ft" class="kb-info-card-ext">.{{ ft }}</span>
+                </span>
+              </div>
+            </section>
+            <section class="setting-drawer__section">
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.access") }}
+              </h4>
+              <div class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.accessInfo.myRole") }}</span>
+                <span class="kb-info-card-value">
+                  <t-tag size="small" :theme="roleTagTheme">
+                    {{ accessRoleLabel }}
+                  </t-tag>
+                  <span class="kb-info-card-hint">{{ accessPermissionSummary }}</span>
+                </span>
+              </div>
+              <div v-if="currentSharedKb" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.accessInfo.fromOrg") }}</span>
+                <span class="kb-info-card-value">
+                  「{{ currentSharedKb.org_name }}」 · {{ t("knowledgeBase.accessInfo.sharedAt") }}
+                  {{ formatStringDate(new Date(currentSharedKb.shared_at)) }}
+                </span>
+              </div>
+              <div v-else-if="effectiveKBPermission" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.source") }}</span>
+                <span class="kb-info-card-value">{{ t("knowledgeList.detail.sourceTypeAgent") }}</span>
+              </div>
+              <div v-if="(kbInfo.share_count ?? 0) > 0" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.sharedTo") }}</span>
+                <span class="kb-info-card-value">
+                  {{ t("knowledgeList.sharedToOrgs", { count: kbInfo.share_count }) }}
+                </span>
+              </div>
+            </section>
+            <section v-if="capabilities.length" class="setting-drawer__section">
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.capabilities") }}
+              </h4>
+              <div class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.enabled") }}</span>
+                <span class="kb-info-card-value">
+                  <t-tag v-for="cap in capabilities" :key="cap.key" size="small" variant="light" :theme="cap.theme">
+                    {{ cap.label }}
+                  </t-tag>
+                </span>
+              </div>
+            </section>
+            <section v-if="chunkingRows.length" class="setting-drawer__section">
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.chunking") }}
+              </h4>
+              <div v-for="row in chunkingRows" :key="row.key" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ row.label }}</span>
+                <span class="kb-info-card-value">{{ row.value }}</span>
+              </div>
+            </section>
+            <section v-if="statRows.length" class="setting-drawer__section">
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.stats") }}
+              </h4>
+              <div v-for="stat in statRows" :key="stat.key" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ stat.label }}</span>
+                <span class="kb-info-card-value kb-info-card-value-number">{{ stat.value }}</span>
+              </div>
+            </section>
+            <section
+              v-if="kbInfo.vector_store_source || kbInfo.storage_provider_config?.provider"
+              class="setting-drawer__section"
             >
-              <span class="kb-info-card-label">{{ row.label }}</span>
-              <span class="kb-info-card-value">{{ row.value }}</span>
-            </div>
-          </section>
-          <section v-if="statRows.length" class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.stats') }}
-            </h4>
-            <div
-              v-for="stat in statRows"
-              :key="stat.key"
-              class="kb-info-card-row"
-            >
-              <span class="kb-info-card-label">{{ stat.label }}</span>
-              <span class="kb-info-card-value kb-info-card-value-number">{{ stat.value }}</span>
-            </div>
-          </section>
-          <section
-            v-if="kbInfo.vector_store_source || kbInfo.storage_provider_config?.provider"
-            class="setting-drawer__section"
-          >
-            <h4 class="setting-drawer__section-title">
-              {{ t('knowledgeBase.infoCard.binding') }}
-            </h4>
-            <div v-if="kbInfo.vector_store_source" class="kb-info-card-row">
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.vectorStore') }}</span>
-              <span class="kb-info-card-value">
-                <VectorStoreBadge
-                  :source="kbInfo.vector_store_source"
-                  :name="kbInfo.vector_store_name"
-                  :engine-type="kbInfo.vector_store_engine_type"
-                  :status="kbInfo.vector_store_status"
-                />
-              </span>
-            </div>
-            <div
-              v-if="kbInfo.storage_provider_config?.provider"
-              class="kb-info-card-row"
-            >
-              <span class="kb-info-card-label">{{ t('knowledgeBase.infoCard.fileStorage') }}</span>
-              <span class="kb-info-card-value kb-info-card-value-mono">
-                {{ kbInfo.storage_provider_config.provider }}
-              </span>
-            </div>
-          </section>
+              <h4 class="setting-drawer__section-title">
+                {{ t("knowledgeBase.infoCard.binding") }}
+              </h4>
+              <div v-if="kbInfo.vector_store_source" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.vectorStore") }}</span>
+                <span class="kb-info-card-value">
+                  <VectorStoreBadge
+                    :source="kbInfo.vector_store_source"
+                    :name="kbInfo.vector_store_name"
+                    :engine-type="kbInfo.vector_store_engine_type"
+                    :status="kbInfo.vector_store_status"
+                  />
+                </span>
+              </div>
+              <div v-if="kbInfo.storage_provider_config?.provider" class="kb-info-card-row">
+                <span class="kb-info-card-label">{{ t("knowledgeBase.infoCard.fileStorage") }}</span>
+                <span class="kb-info-card-value kb-info-card-value-mono">
+                  {{ kbInfo.storage_provider_config.provider }}
+                </span>
+              </div>
+            </section>
+          </div>
         </div>
-      </div>
-    </template>
-    <button
-      type="button"
-      class="kb-info-button"
-      :class="{ 'has-warning': kbInfo?.vector_store_status === 'unavailable' }"
-    >
-      <t-icon name="info-circle" size="16px" />
-    </button>
-  </t-popup>
+      </template>
+      <button
+        type="button"
+        class="kb-info-button"
+        :class="{ 'has-warning': kbInfo?.vector_store_status === 'unavailable' }"
+      >
+        <t-icon name="info-circle" size="16px" />
+      </button>
+    </t-popup>
   </t-tooltip>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import VectorStoreBadge from '@/components/VectorStoreBadge.vue'
-import { useOrganizationStore } from '@/stores/organization'
-import { useAuthStore } from '@/stores/auth'
-import { formatStringDate } from '@/utils'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import VectorStoreBadge from "@/components/VectorStoreBadge.vue";
+import { useOrganizationStore } from "@/stores/organization";
+import { useAuthStore } from "@/stores/auth";
+import { formatStringDate } from "@/utils";
 
 const props = defineProps<{
   // The KB detail / list object. Typed as any to avoid coupling to the
   // backend's exhaustive shape; the popover reads optional fields and
   // falls back gracefully when they are missing.
-  kbInfo: any
+  kbInfo: any;
   // Optional pre-computed list of supported file extensions (e.g.
   // ["pdf", "docx", …]). The popover does not fetch parser engines on
   // its own — call sites that already know which formats are reachable
   // pass them in; FAQ KBs simply omit the prop.
-  supportedFileTypes?: string[]
-}>()
+  supportedFileTypes?: string[];
+}>();
 
-const { t } = useI18n()
-const orgStore = useOrganizationStore()
-const authStore = useAuthStore()
+const { t } = useI18n();
+const orgStore = useOrganizationStore();
+const authStore = useAuthStore();
 
 // "Owner" here mirrors the per-page guards: the original creator
 // (creator_id) — not "in my tenant". creator_id is unset for legacy
 // KBs created before that gate existed; those fall through to the
 // role/share check.
 const isOwner = computed<boolean>(() => {
-  const kb = props.kbInfo
-  if (!kb) return false
-  const creatorId = kb.creator_id || ''
-  const userId = authStore.user?.id || ''
-  if (!creatorId) return false
-  return creatorId === userId
-})
+  const kb = props.kbInfo;
+  if (!kb) return false;
+  const creatorId = kb.creator_id || "";
+  const userId = authStore.user?.id || "";
+  if (!creatorId) return false;
+  return creatorId === userId;
+});
 
 const currentSharedKb = computed(() => {
-  const id = props.kbInfo?.id
-  if (!id) return null
-  return orgStore.sharedKnowledgeBases?.find?.((s: any) => s.knowledge_base?.id === id) ?? null
-})
+  const id = props.kbInfo?.id;
+  if (!id) return null;
+  return orgStore.sharedKnowledgeBases?.find?.((s: any) => s.knowledge_base?.id === id) ?? null;
+});
 
-const isViaShare = computed<boolean>(() => !!currentSharedKb.value)
+const isViaShare = computed<boolean>(() => !!currentSharedKb.value);
 
 const effectiveKBPermission = computed<string>(() => {
-  const id = props.kbInfo?.id || ''
-  return orgStore.getKBPermission?.(id) || props.kbInfo?.my_permission || ''
-})
+  const id = props.kbInfo?.id || "";
+  return orgStore.getKBPermission?.(id) || props.kbInfo?.my_permission || "";
+});
 
 const accessRoleLabel = computed<string>(() => {
-  if (!isViaShare.value && isOwner.value) return t('knowledgeBase.accessInfo.roleOwner')
-  const perm = effectiveKBPermission.value
-  if (perm) return t(`organization.role.${perm}`)
-  return '--'
-})
+  if (!isViaShare.value && isOwner.value) return t("knowledgeBase.accessInfo.roleOwner");
+  const perm = effectiveKBPermission.value;
+  if (perm) return t(`organization.role.${perm}`);
+  return "--";
+});
 
 const accessPermissionSummary = computed<string>(() => {
-  if (!isViaShare.value && isOwner.value) return t('knowledgeBase.accessInfo.permissionOwner')
-  const perm = effectiveKBPermission.value
-  if (perm === 'admin') return t('knowledgeBase.accessInfo.permissionAdmin')
-  if (perm === 'editor') return t('knowledgeBase.accessInfo.permissionEditor')
-  if (perm === 'viewer') return t('knowledgeBase.accessInfo.permissionViewer')
-  return '--'
-})
+  if (!isViaShare.value && isOwner.value) return t("knowledgeBase.accessInfo.permissionOwner");
+  const perm = effectiveKBPermission.value;
+  if (perm === "admin") return t("knowledgeBase.accessInfo.permissionAdmin");
+  if (perm === "editor") return t("knowledgeBase.accessInfo.permissionEditor");
+  if (perm === "viewer") return t("knowledgeBase.accessInfo.permissionViewer");
+  return "--";
+});
 
-type RoleTheme = 'success' | 'primary' | 'warning' | 'default'
+type RoleTheme = "success" | "primary" | "warning" | "default";
 const roleTagTheme = computed<RoleTheme>(() => {
-  if (!isViaShare.value && isOwner.value) return 'success'
-  const perm = effectiveKBPermission.value
-  if (perm === 'admin') return 'primary'
-  if (perm === 'editor') return 'warning'
-  return 'default'
-})
+  if (!isViaShare.value && isOwner.value) return "success";
+  const perm = effectiveKBPermission.value;
+  if (perm === "admin") return "primary";
+  if (perm === "editor") return "warning";
+  return "default";
+});
 
 // KB.UpdatedAt is auto-bumped by GORM only when the KB row itself is
 // touched (rename, config edit, …). For a freshly created KB whose
@@ -246,128 +225,128 @@ const roleTagTheme = computed<RoleTheme>(() => {
 // duplicated noise. Hide the row in that case and let it reappear
 // once the KB metadata is actually edited.
 const hasDistinctUpdate = computed<boolean>(() => {
-  const created = props.kbInfo?.created_at
-  const updated = props.kbInfo?.updated_at
-  if (!updated) return false
-  if (!created) return true
-  return new Date(updated).getTime() !== new Date(created).getTime()
-})
+  const created = props.kbInfo?.created_at;
+  const updated = props.kbInfo?.updated_at;
+  if (!updated) return false;
+  if (!created) return true;
+  return new Date(updated).getTime() !== new Date(created).getTime();
+});
 
 const lastUpdatedLabel = computed<string>(() => {
-  const raw = props.kbInfo?.updated_at
-  return raw ? formatStringDate(new Date(raw)) : ''
-})
+  const raw = props.kbInfo?.updated_at;
+  return raw ? formatStringDate(new Date(raw)) : "";
+});
 
 const supportedFileTypesSorted = computed<string[]>(() => {
-  if (!props.supportedFileTypes?.length) return []
-  return [...props.supportedFileTypes].sort()
-})
+  if (!props.supportedFileTypes?.length) return [];
+  return [...props.supportedFileTypes].sort();
+});
 
-type CapabilityTheme = 'primary' | 'success' | 'warning' | 'default'
+type CapabilityTheme = "primary" | "success" | "warning" | "default";
 const capabilities = computed<Array<{ key: string; label: string; theme: CapabilityTheme }>>(() => {
-  const kb: any = props.kbInfo
-  if (!kb) return []
-  const items: Array<{ key: string; label: string; theme: CapabilityTheme }> = []
+  const kb: any = props.kbInfo;
+  if (!kb) return [];
+  const items: Array<{ key: string; label: string; theme: CapabilityTheme }> = [];
   if (kb.vlm_config?.enabled) {
-    items.push({ key: 'vlm', label: 'VLM', theme: 'primary' })
+    items.push({ key: "vlm", label: "VLM", theme: "primary" });
   }
   if (kb.asr_config?.enabled) {
-    items.push({ key: 'asr', label: 'ASR', theme: 'primary' })
+    items.push({ key: "asr", label: "ASR", theme: "primary" });
   }
   if (kb.extract_config?.enabled) {
     items.push({
-      key: 'kg',
-      label: t('knowledgeList.features.knowledgeGraph'),
-      theme: 'success',
-    })
+      key: "kg",
+      label: t("knowledgeList.features.knowledgeGraph"),
+      theme: "success",
+    });
   }
   if (kb.indexing_strategy?.wiki_enabled) {
-    items.push({ key: 'wiki', label: 'Wiki', theme: 'warning' })
+    items.push({ key: "wiki", label: "Wiki", theme: "warning" });
   }
-  return items
-})
+  return items;
+});
 
 const chunkingStrategyLabel = computed<string>(() => {
-  const raw: string = (props.kbInfo?.chunking_config?.strategy || '').toLowerCase()
-  const key = (raw === '' || raw === 'recursive') ? 'legacy' : raw
-  const path = `knowledgeEditor.chunking.strategies.${key}.label`
-  const translated = t(path)
-  return translated === path ? raw : translated
-})
+  const raw: string = (props.kbInfo?.chunking_config?.strategy || "").toLowerCase();
+  const key = raw === "" || raw === "recursive" ? "legacy" : raw;
+  const path = `knowledgeEditor.chunking.strategies.${key}.label`;
+  const translated = t(path);
+  return translated === path ? raw : translated;
+});
 
 const chunkingRows = computed<Array<{ key: string; label: string; value: string }>>(() => {
-  const kb: any = props.kbInfo
-  if (!kb || kb.type === 'faq') return []
-  const cfg = kb.chunking_config
-  if (!cfg) return []
-  const rows: Array<{ key: string; label: string; value: string }> = []
+  const kb: any = props.kbInfo;
+  if (!kb || kb.type === "faq") return [];
+  const cfg = kb.chunking_config;
+  if (!cfg) return [];
+  const rows: Array<{ key: string; label: string; value: string }> = [];
   if (chunkingStrategyLabel.value) {
     rows.push({
-      key: 'strategy',
-      label: t('knowledgeEditor.chunking.strategyLabel'),
+      key: "strategy",
+      label: t("knowledgeEditor.chunking.strategyLabel"),
       value: chunkingStrategyLabel.value,
-    })
+    });
   }
-  const chars = t('knowledgeEditor.chunking.characters')
-  if (typeof cfg.chunk_size === 'number' && cfg.chunk_size > 0) {
+  const chars = t("knowledgeEditor.chunking.characters");
+  if (typeof cfg.chunk_size === "number" && cfg.chunk_size > 0) {
     rows.push({
-      key: 'size',
-      label: t('knowledgeEditor.chunking.sizeLabel'),
+      key: "size",
+      label: t("knowledgeEditor.chunking.sizeLabel"),
       value: `${cfg.chunk_size} ${chars}`,
-    })
+    });
   }
-  if (typeof cfg.chunk_overlap === 'number') {
+  if (typeof cfg.chunk_overlap === "number") {
     rows.push({
-      key: 'overlap',
-      label: t('knowledgeEditor.chunking.overlapLabel'),
+      key: "overlap",
+      label: t("knowledgeEditor.chunking.overlapLabel"),
       value: `${cfg.chunk_overlap} ${chars}`,
-    })
+    });
   }
   if (cfg.enable_parent_child) {
-    const parent = cfg.parent_chunk_size || 4096
-    const child = cfg.child_chunk_size || 384
+    const parent = cfg.parent_chunk_size || 4096;
+    const child = cfg.child_chunk_size || 384;
     rows.push({
-      key: 'parent-child',
-      label: t('knowledgeEditor.chunking.parentChildLabel'),
-      value: `${t('knowledgeBase.infoCard.parentShort')} ${parent} / ${t('knowledgeBase.infoCard.childShort')} ${child}`,
-    })
+      key: "parent-child",
+      label: t("knowledgeEditor.chunking.parentChildLabel"),
+      value: `${t("knowledgeBase.infoCard.parentShort")} ${parent} / ${t("knowledgeBase.infoCard.childShort")} ${child}`,
+    });
   }
-  if (typeof cfg.token_limit === 'number' && cfg.token_limit > 0) {
+  if (typeof cfg.token_limit === "number" && cfg.token_limit > 0) {
     rows.push({
-      key: 'token-limit',
-      label: t('knowledgeEditor.chunking.tokenLimitLabel'),
+      key: "token-limit",
+      label: t("knowledgeEditor.chunking.tokenLimitLabel"),
       value: String(cfg.token_limit),
-    })
+    });
   }
-  return rows
-})
+  return rows;
+});
 
 const statRows = computed<Array<{ key: string; label: string; value: number | string }>>(() => {
-  const kb: any = props.kbInfo
-  if (!kb) return []
-  const items: Array<{ key: string; label: string; value: number | string }> = []
+  const kb: any = props.kbInfo;
+  if (!kb) return [];
+  const items: Array<{ key: string; label: string; value: number | string }> = [];
   // FAQ KBs store every Q/A pair as a chunk, so chunk_count is the
   // user-facing entry total. Document KBs use knowledge_count for the
   // file-level total (chunk_count there counts internal splits and is
   // not meaningful to surface here). Mirrors the same branching used
   // by the list card.
-  if (kb.type === 'faq') {
-    if (typeof kb.chunk_count === 'number') {
+  if (kb.type === "faq") {
+    if (typeof kb.chunk_count === "number") {
       items.push({
-        key: 'faq',
-        label: t('knowledgeBase.infoCard.faqCount'),
+        key: "faq",
+        label: t("knowledgeBase.infoCard.faqCount"),
         value: kb.chunk_count,
-      })
+      });
     }
-  } else if (typeof kb.knowledge_count === 'number') {
+  } else if (typeof kb.knowledge_count === "number") {
     items.push({
-      key: 'knowledge',
-      label: t('knowledgeBase.infoCard.documentCount'),
+      key: "knowledge",
+      label: t("knowledgeBase.infoCard.documentCount"),
       value: kb.knowledge_count,
-    })
+    });
   }
-  return items
-})
+  return items;
+});
 </script>
 
 <style scoped lang="less">
@@ -389,7 +368,9 @@ const statRows = computed<Array<{ key: string; label: string; value: number | st
   justify-content: center;
   color: var(--td-text-color-placeholder);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
   padding: 0;
 
   &:hover:not(:disabled) {
@@ -407,7 +388,7 @@ const statRows = computed<Array<{ key: string; label: string; value: number | st
   }
 
   &.has-warning::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 2px;
     right: 2px;
@@ -488,7 +469,7 @@ const statRows = computed<Array<{ key: string; label: string; value: number | st
 }
 
 .kb-info-card-body .setting-drawer__section-title::before {
-  content: '';
+  content: "";
   width: 3px;
   height: 14px;
   background: var(--td-brand-color);

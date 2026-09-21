@@ -1,15 +1,29 @@
 <template>
   <teleport to="body">
-    <div v-if="drawerVisible && resizable" class="setting-drawer-resize-handle"
+    <div
+      v-if="drawerVisible && resizable"
+      class="setting-drawer-resize-handle"
       :class="{ 'setting-drawer-resize-handle--active': drawerResizing }"
       :style="{ right: `${drawerWidthPx}px`, '--setting-drawer-travel': `${drawerWidthPx}px` }"
-      role="separator" aria-orientation="vertical" @mousedown.prevent="onResizeStart">
+      role="separator"
+      aria-orientation="vertical"
+      @mousedown.prevent="onResizeStart"
+    >
       <div class="setting-drawer-resize-line" />
     </div>
   </teleport>
-  <t-drawer v-model:visible="drawerVisible" v-bind="drawerPassthroughAttrs" :size="effectiveWidth" :z-index="2500" placement="right"
-    attach="body" destroy-on-close :footer="!hideFooter"
-    :class="drawerClass" @before-close="blurActiveElementBeforeClose">
+  <t-drawer
+    v-model:visible="drawerVisible"
+    v-bind="drawerPassthroughAttrs"
+    :size="effectiveWidth"
+    :z-index="2500"
+    placement="right"
+    attach="body"
+    destroy-on-close
+    :footer="!hideFooter"
+    :class="drawerClass"
+    @before-close="blurActiveElementBeforeClose"
+  >
     <!--
       Custom header. We replace TDesign's default header so we can put a leading
       icon badge and an optional subtitle (description) right next to the title,
@@ -49,10 +63,10 @@
         <div class="setting-drawer__footer-right">
           <slot name="footer-right">
             <t-button theme="default" variant="outline" @click="handleCancel">
-              {{ cancelText || t('common.cancel') }}
+              {{ cancelText || t("common.cancel") }}
             </t-button>
             <t-button theme="primary" :loading="confirmLoading" :disabled="confirmDisabled" @click="handleConfirm">
-              {{ confirmText || t('common.save') }}
+              {{ confirmText || t("common.save") }}
             </t-button>
           </slot>
         </div>
@@ -62,203 +76,196 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useAttrs, onMounted, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref, computed, useAttrs, onMounted, onUnmounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 interface Props {
-  visible: boolean
-  title: string
-  description?: string
+  visible: boolean;
+  title: string;
+  description?: string;
   /** Optional TDesign icon name shown as a leading badge in the header. */
-  icon?: string
+  icon?: string;
   /**
    * Initial width when the user has no persisted preference. Accepts any
    * CSS length string (e.g. "560px", "40%").
    */
-  width?: string
+  width?: string;
   /**
    * Whether the drawer can be horizontally resized by dragging the visible
    * handle on its left edge (same affordance as doc-content drawer).
    */
-  resizable?: boolean
+  resizable?: boolean;
   /** Min/max bounds for the drag-resize, in px. */
-  minWidth?: number
-  maxWidth?: number
+  minWidth?: number;
+  maxWidth?: number;
   /**
    * localStorage key used to remember the user's chosen width. Set to '' to
    * disable persistence. Default key is namespaced per-consumer using the
    * drawer title.
    */
-  storageKey?: string
-  confirmLoading?: boolean
-  confirmDisabled?: boolean
-  confirmText?: string
-  cancelText?: string
-  hideFooter?: boolean
+  storageKey?: string;
+  confirmLoading?: boolean;
+  confirmDisabled?: boolean;
+  confirmText?: string;
+  cancelText?: string;
+  hideFooter?: boolean;
 }
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<Props>(), {
-  description: '',
-  icon: '',
-  width: '560px',
+  description: "",
+  icon: "",
+  width: "560px",
   resizable: true,
   minWidth: 480,
   maxWidth: 1200,
-  storageKey: '',
+  storageKey: "",
   confirmLoading: false,
   confirmDisabled: false,
-  confirmText: '',
-  cancelText: '',
-  hideFooter: false
-})
+  confirmText: "",
+  cancelText: "",
+  hideFooter: false,
+});
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-  (e: 'confirm'): void
-  (e: 'cancel'): void
-}>()
+  (e: "update:visible", value: boolean): void;
+  (e: "confirm"): void;
+  (e: "cancel"): void;
+}>();
 
-const { t } = useI18n()
-const attrs = useAttrs()
+const { t } = useI18n();
+const attrs = useAttrs();
 
 const drawerPassthroughAttrs = computed(() => {
-  const { class: _class, ...rest } = attrs
-  return rest
-})
+  const { class: _class, ...rest } = attrs;
+  return rest;
+});
 
 // ---------- visibility ----------
 const drawerVisible = computed({
   get: () => props.visible,
-  set: (val) => emit('update:visible', val)
-})
+  set: (val) => emit("update:visible", val),
+});
 
 // ---------- width state ----------
 // Storage key derives from the drawer title so different drawers (model
 // editor vs MCP service vs web search provider) get independent widths.
 // Callers can override via the `storageKey` prop when titles collide.
-const resolvedStorageKey = computed(
-  () => props.storageKey || `setting-drawer:width:${props.title || 'default'}`
-)
+const resolvedStorageKey = computed(() => props.storageKey || `setting-drawer:width:${props.title || "default"}`);
 
-const clampWidth = (n: number) =>
-  Math.max(props.minWidth, Math.min(props.maxWidth, Math.round(n)))
+const clampWidth = (n: number) => Math.max(props.minWidth, Math.min(props.maxWidth, Math.round(n)));
 
 const parseWidthToPx = (width: string) => {
-  const n = parseInt(width, 10)
-  return Number.isFinite(n) ? n : 560
-}
+  const n = parseInt(width, 10);
+  return Number.isFinite(n) ? n : 560;
+};
 
 const loadStoredWidth = (): number | null => {
-  if (typeof window === 'undefined') return null
+  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(resolvedStorageKey.value)
-    if (!raw) return null
-    const n = Number(raw)
-    if (!Number.isFinite(n)) return null
-    return clampWidth(n)
+    const raw = window.localStorage.getItem(resolvedStorageKey.value);
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return clampWidth(n);
   } catch {
-    return null
+    return null;
   }
-}
+};
 
 // User's persisted width (px) wins over the prop default.
-const userWidthPx = ref<number | null>(loadStoredWidth())
+const userWidthPx = ref<number | null>(loadStoredWidth());
 
-const effectiveWidth = computed(() =>
-  userWidthPx.value != null ? `${userWidthPx.value}px` : props.width
-)
+const effectiveWidth = computed(() => (userWidthPx.value != null ? `${userWidthPx.value}px` : props.width));
 
-const drawerWidthPx = computed(() =>
-  userWidthPx.value ?? parseWidthToPx(props.width)
-)
+const drawerWidthPx = computed(() => userWidthPx.value ?? parseWidthToPx(props.width));
 
 const persistWidth = (width: number) => {
-  const next = clampWidth(width)
-  userWidthPx.value = next
-  if (typeof window === 'undefined') return
+  const next = clampWidth(width);
+  userWidthPx.value = next;
+  if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(resolvedStorageKey.value, String(next))
+    window.localStorage.setItem(resolvedStorageKey.value, String(next));
   } catch {
     // localStorage can throw in private mode / quota errors.
   }
-}
+};
 
 // ---------- Custom drag-resize (visible handle, same as doc-content) ----------
-const drawerResizing = ref(false)
+const drawerResizing = ref(false);
 
 const drawerClass = computed(() => [
-  'setting-drawer',
+  "setting-drawer",
   attrs.class,
-  { 'setting-drawer--resizing': drawerResizing.value },
-])
+  { "setting-drawer--resizing": drawerResizing.value },
+]);
 
-let resizeStartX = 0
-let resizeStartWidth = 0
+let resizeStartX = 0;
+let resizeStartWidth = 0;
 
 function onResizeStart(e: MouseEvent) {
-  drawerResizing.value = true
-  resizeStartX = e.clientX
-  resizeStartWidth = drawerWidthPx.value
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
+  drawerResizing.value = true;
+  resizeStartX = e.clientX;
+  resizeStartWidth = drawerWidthPx.value;
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
 }
 
 function onResizeMove(e: MouseEvent) {
-  const delta = resizeStartX - e.clientX
-  userWidthPx.value = clampWidth(resizeStartWidth + delta)
+  const delta = resizeStartX - e.clientX;
+  userWidthPx.value = clampWidth(resizeStartWidth + delta);
 }
 
 function onResizeEnd() {
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  drawerResizing.value = false
-  persistWidth(drawerWidthPx.value)
+  document.removeEventListener("mousemove", onResizeMove);
+  document.removeEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  drawerResizing.value = false;
+  persistWidth(drawerWidthPx.value);
 }
 
 function cleanupResize() {
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  drawerResizing.value = false
+  document.removeEventListener("mousemove", onResizeMove);
+  document.removeEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  drawerResizing.value = false;
 }
 
 function onWindowResize() {
   if (userWidthPx.value != null) {
-    userWidthPx.value = clampWidth(userWidthPx.value)
+    userWidthPx.value = clampWidth(userWidthPx.value);
   }
 }
 
 onMounted(() => {
-  window.addEventListener('resize', onWindowResize, { passive: true })
-})
+  window.addEventListener("resize", onWindowResize, { passive: true });
+});
 
 onUnmounted(() => {
-  window.removeEventListener('resize', onWindowResize)
-  cleanupResize()
-})
+  window.removeEventListener("resize", onWindowResize);
+  cleanupResize();
+});
 
 function blurActiveElementBeforeClose() {
   // TDesign textarea autosize calls getComputedStyle on blur/resize; if the
   // drawer is already tearing down (destroy-on-close), that node may no longer
   // be an Element and the promise rejects uncaught.
   if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
+    document.activeElement.blur();
   }
 }
 
-const handleConfirm = () => emit('confirm')
+const handleConfirm = () => emit("confirm");
 const handleCancel = () => {
-  blurActiveElementBeforeClose()
-  emit('cancel')
-  emit('update:visible', false)
-}
+  blurActiveElementBeforeClose();
+  emit("cancel");
+  emit("update:visible", false);
+};
 </script>
 
 <style lang="less" scoped>
@@ -394,7 +401,7 @@ const handleCancel = () => {
      trick (which mangles Chinese). Gives the section title a consistent
      visual anchor without yelling at the user. */
   &::before {
-    content: '';
+    content: "";
     width: 3px;
     height: 14px;
     background: var(--td-brand-color);
@@ -485,7 +492,9 @@ const handleCancel = () => {
   border-radius: 1px;
   background: var(--td-component-border);
   opacity: 0.55;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .setting-drawer-resize-handle:hover .setting-drawer-resize-line,

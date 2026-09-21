@@ -1,16 +1,16 @@
 <template>
   <div class="kb-model-config">
     <div class="section-header">
-      <h2>{{ $t('knowledgeEditor.models.title') }}</h2>
-      <p class="section-description">{{ $t('knowledgeEditor.models.description') }}</p>
+      <h2>{{ $t("knowledgeEditor.models.title") }}</h2>
+      <p class="section-description">{{ $t("knowledgeEditor.models.description") }}</p>
     </div>
 
     <div class="settings-group">
       <!-- LLM 大语言模型 -->
       <div class="setting-row" data-guide="kb-create-llm">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.models.llmLabel') }} <span class="required">*</span></label>
-          <p class="desc">{{ $t('knowledgeEditor.models.llmDesc') }}</p>
+          <label>{{ $t("knowledgeEditor.models.llmLabel") }} <span class="required">*</span></label>
+          <p class="desc">{{ $t("knowledgeEditor.models.llmDesc") }}</p>
         </div>
         <div class="setting-control">
           <ModelSelector
@@ -29,20 +29,22 @@
       <div v-if="ragEnabled !== false || wikiEnabled" class="setting-row" data-guide="kb-create-embedding">
         <div class="setting-info">
           <label>
-            {{ $t('knowledgeEditor.models.embeddingLabel') }}
+            {{ $t("knowledgeEditor.models.embeddingLabel") }}
             <span v-if="ragEnabled" class="required">*</span>
-            <span v-else-if="wikiEnabled" class="optional">{{ $t('knowledgeEditor.models.embeddingOptional') }}</span>
+            <span v-else-if="wikiEnabled" class="optional">{{ $t("knowledgeEditor.models.embeddingOptional") }}</span>
           </label>
           <p class="desc">
-            {{ (wikiEnabled && ragEnabled === false)
-              ? $t('knowledgeEditor.models.embeddingWikiOptionalDesc')
-              : $t('knowledgeEditor.models.embeddingDesc') }}
+            {{
+              wikiEnabled && ragEnabled === false
+                ? $t("knowledgeEditor.models.embeddingWikiOptionalDesc")
+                : $t("knowledgeEditor.models.embeddingDesc")
+            }}
           </p>
           <t-alert
             v-if="ragEnabled && hasFiles"
             theme="warning"
             :message="$t('knowledgeEditor.models.embeddingLocked')"
-            style="margin-top: 8px;"
+            style="margin-top: 8px"
           />
         </div>
         <div class="setting-control">
@@ -63,8 +65,8 @@
       <!-- Wiki 合成模型 (仅当 Wiki 启用时显示) -->
       <div v-if="wikiEnabled" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.wiki.synthesisModelLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.wiki.synthesisModelTip') }}</p>
+          <label>{{ $t("knowledgeEditor.wiki.synthesisModelLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.wiki.synthesisModelTip") }}</p>
         </div>
         <div class="setting-control">
           <ModelSelector
@@ -78,66 +80,65 @@
           />
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useUIStore } from '@/stores/ui'
-import ModelSelector from '@/components/ModelSelector.vue'
+import { ref } from "vue";
+import { useUIStore } from "@/stores/ui";
+import ModelSelector from "@/components/ModelSelector.vue";
 
 interface ModelConfig {
-  llmModelId?: string
-  embeddingModelId?: string
-  vllmModelId?: string
-  wikiSynthesisModelId?: string
+  llmModelId?: string;
+  embeddingModelId?: string;
+  vllmModelId?: string;
+  wikiSynthesisModelId?: string;
 }
 
 interface Props {
-  config: ModelConfig
-  hasFiles: boolean
-  wikiEnabled?: boolean
-  ragEnabled?: boolean
-  allModels?: any[]
+  config: ModelConfig;
+  hasFiles: boolean;
+  wikiEnabled?: boolean;
+  ragEnabled?: boolean;
+  allModels?: any[];
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  'update:config': [value: ModelConfig]
-}>()
+  "update:config": [value: ModelConfig];
+}>();
 
-const uiStore = useUIStore()
+const uiStore = useUIStore();
 
-const llmSelectorRef = ref<InstanceType<typeof ModelSelector>>()
-const embeddingSelectorRef = ref<InstanceType<typeof ModelSelector>>()
+const llmSelectorRef = ref<InstanceType<typeof ModelSelector>>();
+const embeddingSelectorRef = ref<InstanceType<typeof ModelSelector>>();
 
 const handleLLMChange = (modelId: string) => {
-  emit('update:config', {
+  emit("update:config", {
     ...props.config,
-    llmModelId: modelId
-  })
-}
+    llmModelId: modelId,
+  });
+};
 
 const handleEmbeddingChange = (modelId: string) => {
-  emit('update:config', {
+  emit("update:config", {
     ...props.config,
-    embeddingModelId: modelId
-  })
-}
+    embeddingModelId: modelId,
+  });
+};
 
 const handleWikiModelChange = (modelId: string) => {
-  emit('update:config', {
+  emit("update:config", {
     ...props.config,
-    wikiSynthesisModelId: modelId
-  })
-}
+    wikiSynthesisModelId: modelId,
+  });
+};
 
 const handleAddModel = (subSection: string) => {
-  uiStore.openSettings('models', subSection)
-}
+  uiStore.openSettings("models", subSection);
+};
 </script>
 
 <style lang="less" scoped>
@@ -222,4 +223,3 @@ const handleAddModel = (subSection: string) => {
   align-items: flex-start;
 }
 </style>
-

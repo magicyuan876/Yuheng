@@ -1,28 +1,28 @@
 <template>
   <div class="general-settings">
     <div class="section-header">
-      <h2>{{ $t('general.title') }}</h2>
-      <p class="section-description">{{ $t('general.description') }}</p>
+      <h2>{{ $t("general.title") }}</h2>
+      <p class="section-description">{{ $t("general.description") }}</p>
     </div>
 
     <div class="settings-group">
       <!-- 语言选择 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('language.language') }}</label>
-          <p class="desc">{{ $t('language.languageDescription') }}</p>
+          <label>{{ $t("language.language") }}</label>
+          <p class="desc">{{ $t("language.languageDescription") }}</p>
         </div>
         <div class="setting-control">
           <t-select
             v-model="localLanguage"
             :placeholder="$t('language.selectLanguage')"
             @change="handleLanguageChange"
-            style="width: 280px;"
+            style="width: 280px"
           >
-            <t-option value="zh-CN" :label="$t('language.zhCN')">{{ $t('language.zhCN') }}</t-option>
-            <t-option value="en-US" :label="$t('language.enUS')">{{ $t('language.enUS') }}</t-option>
-            <t-option value="ru-RU" :label="$t('language.ruRU')">{{ $t('language.ruRU') }}</t-option>
-            <t-option value="ko-KR" :label="$t('language.koKR')">{{ $t('language.koKR') }}</t-option>
+            <t-option value="zh-CN" :label="$t('language.zhCN')">{{ $t("language.zhCN") }}</t-option>
+            <t-option value="en-US" :label="$t('language.enUS')">{{ $t("language.enUS") }}</t-option>
+            <t-option value="ru-RU" :label="$t('language.ruRU')">{{ $t("language.ruRU") }}</t-option>
+            <t-option value="ko-KR" :label="$t('language.koKR')">{{ $t("language.koKR") }}</t-option>
           </t-select>
         </div>
       </div>
@@ -30,19 +30,19 @@
       <!-- 主题设置 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('theme.theme') }}</label>
-          <p class="desc">{{ $t('theme.themeDescription') }}</p>
+          <label>{{ $t("theme.theme") }}</label>
+          <p class="desc">{{ $t("theme.themeDescription") }}</p>
         </div>
         <div class="setting-control">
           <t-select
             v-model="localTheme"
-            style="width: 280px;"
+            style="width: 280px"
             :placeholder="$t('theme.selectTheme')"
             @change="handleThemeChange"
           >
-            <t-option value="light" :label="$t('theme.light')">{{ $t('theme.light') }}</t-option>
-            <t-option value="dark" :label="$t('theme.dark')">{{ $t('theme.dark') }}</t-option>
-            <t-option value="system" :label="$t('theme.system')">{{ $t('theme.system') }}</t-option>
+            <t-option value="light" :label="$t('theme.light')">{{ $t("theme.light") }}</t-option>
+            <t-option value="dark" :label="$t('theme.dark')">{{ $t("theme.dark") }}</t-option>
+            <t-option value="system" :label="$t('theme.system')">{{ $t("theme.system") }}</t-option>
           </t-select>
         </div>
       </div>
@@ -50,27 +50,22 @@
       <!-- 界面字体 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('font.uiFont') }}</label>
-          <p class="desc">{{ $t('font.uiFontDescription') }}</p>
+          <label>{{ $t("font.uiFont") }}</label>
+          <p class="desc">{{ $t("font.uiFontDescription") }}</p>
         </div>
         <div class="setting-control setting-control--stacked">
           <t-select
             v-model="localSansFont"
-            style="width: 280px;"
+            style="width: 280px"
             :placeholder="$t('font.selectFont')"
             @change="handleSansFontChange"
           >
-            <t-option
-              v-for="opt in sansFontOptions"
-              :key="opt.value"
-              :value="opt.value"
-              :label="opt.label"
-            >
+            <t-option v-for="opt in sansFontOptions" :key="opt.value" :value="opt.value" :label="opt.label">
               <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
             </t-option>
           </t-select>
           <div class="font-preview" :style="{ fontFamily: currentSansStack }">
-            {{ $t('font.sansPreview') }}
+            {{ $t("font.sansPreview") }}
           </div>
         </div>
       </div>
@@ -78,27 +73,22 @@
       <!-- 代码字体 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('font.monoFont') }}</label>
-          <p class="desc">{{ $t('font.monoFontDescription') }}</p>
+          <label>{{ $t("font.monoFont") }}</label>
+          <p class="desc">{{ $t("font.monoFontDescription") }}</p>
         </div>
         <div class="setting-control setting-control--stacked">
           <t-select
             v-model="localMonoFont"
-            style="width: 280px;"
+            style="width: 280px"
             :placeholder="$t('font.selectFont')"
             @change="handleMonoFontChange"
           >
-            <t-option
-              v-for="opt in monoFontOptions"
-              :key="opt.value"
-              :value="opt.value"
-              :label="opt.label"
-            >
+            <t-option v-for="opt in monoFontOptions" :key="opt.value" :value="opt.value" :label="opt.label">
               <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
             </t-option>
           </t-select>
           <div class="font-preview font-preview--mono" :style="{ fontFamily: currentMonoStack }">
-            {{ $t('font.monoPreview') }}
+            {{ $t("font.monoPreview") }}
           </div>
         </div>
       </div>
@@ -106,31 +96,26 @@
       <!-- 字体大小 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('font.fontSize') }}</label>
-          <p class="desc">{{ $t('font.fontSizeDescription') }}</p>
+          <label>{{ $t("font.fontSize") }}</label>
+          <p class="desc">{{ $t("font.fontSizeDescription") }}</p>
         </div>
         <div class="setting-control">
-          <t-radio-group
-            v-model="localFontSize"
-            @change="handleFontSizeChange"
-          >
-            <t-radio-button value="small">{{ $t('font.size.small') }}</t-radio-button>
-            <t-radio-button value="normal">{{ $t('font.size.normal') }}</t-radio-button>
-            <t-radio-button value="large">{{ $t('font.size.large') }}</t-radio-button>
+          <t-radio-group v-model="localFontSize" @change="handleFontSizeChange">
+            <t-radio-button value="small">{{ $t("font.size.small") }}</t-radio-button>
+            <t-radio-button value="normal">{{ $t("font.size.normal") }}</t-radio-button>
+            <t-radio-button value="large">{{ $t("font.size.large") }}</t-radio-button>
           </t-radio-group>
         </div>
       </div>
-
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { useTheme, type ThemeMode } from '@/composables/useTheme'
+import { ref, onMounted, computed, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { useTheme, type ThemeMode } from "@/composables/useTheme";
 import {
   useFont,
   SANS_STACKS,
@@ -140,31 +125,32 @@ import {
   type FontKey,
   type MonoFontKey,
   type FontSizeKey,
-} from '@/composables/useFont'
+} from "@/composables/useFont";
 
-const { t, locale } = useI18n()
-const { currentTheme, setTheme } = useTheme()
-const {
-  currentSans,
-  currentMono,
-  currentSize,
-  setSansFont,
-  setMonoFont,
-  setFontSize,
-} = useFont()
+const { t, locale } = useI18n();
+const { currentTheme, setTheme } = useTheme();
+const { currentSans, currentMono, currentSize, setSansFont, setMonoFont, setFontSize } = useFont();
 
 // 本地状态
-const localLanguage = ref('zh-CN')
-const localTheme = ref<ThemeMode>(currentTheme.value)
-const localSansFont = ref<FontKey>(currentSans.value)
-const localMonoFont = ref<MonoFontKey>(currentMono.value)
-const localFontSize = ref<FontSizeKey>(currentSize.value)
+const localLanguage = ref("zh-CN");
+const localTheme = ref<ThemeMode>(currentTheme.value);
+const localSansFont = ref<FontKey>(currentSans.value);
+const localMonoFont = ref<MonoFontKey>(currentMono.value);
+const localFontSize = ref<FontSizeKey>(currentSize.value);
 
 // Keep the form in sync if preferences change externally (e.g. on user switch).
-watch(currentTheme, (val) => { localTheme.value = val })
-watch(currentSans, (val) => { localSansFont.value = val })
-watch(currentMono, (val) => { localMonoFont.value = val })
-watch(currentSize, (val) => { localFontSize.value = val })
+watch(currentTheme, (val) => {
+  localTheme.value = val;
+});
+watch(currentSans, (val) => {
+  localSansFont.value = val;
+});
+watch(currentMono, (val) => {
+  localMonoFont.value = val;
+});
+watch(currentSize, (val) => {
+  localFontSize.value = val;
+});
 
 const sansFontOptions = computed<{ value: FontKey; label: string; preview: string }[]>(() =>
   visibleSansKeys().map((key) => ({
@@ -172,7 +158,7 @@ const sansFontOptions = computed<{ value: FontKey; label: string; preview: strin
     label: t(`font.sans.${key}`),
     preview: SANS_STACKS[key],
   })),
-)
+);
 
 const monoFontOptions = computed<{ value: MonoFontKey; label: string; preview: string }[]>(() =>
   visibleMonoKeys().map((key) => ({
@@ -180,68 +166,68 @@ const monoFontOptions = computed<{ value: MonoFontKey; label: string; preview: s
     label: t(`font.mono.${key}`),
     preview: MONO_STACKS[key],
   })),
-)
+);
 
 // Live preview stacks, driven by the local form refs so the preview row
 // updates immediately on selection — even before handleSansFontChange
 // commits the choice to the global store and writes the CSS variable.
-const currentSansStack = computed(() => SANS_STACKS[localSansFont.value] ?? SANS_STACKS.system)
-const currentMonoStack = computed(() => MONO_STACKS[localMonoFont.value] ?? MONO_STACKS.system)
+const currentSansStack = computed(() => SANS_STACKS[localSansFont.value] ?? SANS_STACKS.system);
+const currentMonoStack = computed(() => MONO_STACKS[localMonoFont.value] ?? MONO_STACKS.system);
 
 // 初始化加载
 onMounted(() => {
   // 从 localStorage 加载语言设置
-  const savedLocale = localStorage.getItem('locale')
+  const savedLocale = localStorage.getItem("locale");
   if (savedLocale) {
-    localLanguage.value = savedLocale
-    locale.value = savedLocale
+    localLanguage.value = savedLocale;
+    locale.value = savedLocale;
   } else {
-    localLanguage.value = locale.value
+    localLanguage.value = locale.value;
   }
-})
+});
 
 // 处理语言变化
 const handleLanguageChange = () => {
-  locale.value = localLanguage.value
-  localStorage.setItem('locale', localLanguage.value)
-  MessagePlugin.success(t('language.languageSaved'))
-    }
+  locale.value = localLanguage.value;
+  localStorage.setItem("locale", localLanguage.value);
+  MessagePlugin.success(t("language.languageSaved"));
+};
 
 // 处理主题变化
 const handleThemeChange = (val: ThemeMode) => {
   if (!setTheme(val)) {
     // Setter rejected the value (validation guard); roll the form back to
     // the canonical state so the UI doesn't drift.
-    localTheme.value = currentTheme.value
-    return
+    localTheme.value = currentTheme.value;
+    return;
   }
-  MessagePlugin.success(t('common.success'))
-}
+  MessagePlugin.success(t("common.success"));
+};
 
 // 处理字体变化
 const handleSansFontChange = (val: FontKey) => {
   if (!setSansFont(val)) {
-    localSansFont.value = currentSans.value
-    return
+    localSansFont.value = currentSans.value;
+    return;
   }
-  MessagePlugin.success(t('common.success'))
-}
+  MessagePlugin.success(t("common.success"));
+};
 
 const handleMonoFontChange = (val: MonoFontKey) => {
   if (!setMonoFont(val)) {
-    localMonoFont.value = currentMono.value
-    return
+    localMonoFont.value = currentMono.value;
+    return;
   }
-  MessagePlugin.success(t('common.success'))
-}
+  MessagePlugin.success(t("common.success"));
+};
 
 const handleFontSizeChange = (val: FontSizeKey) => {
   if (!setFontSize(val)) {
-    localFontSize.value = currentSize.value
-    return
+    localFontSize.value = currentSize.value;
+    return;
   }
-  MessagePlugin.success(t('common.success'))
-}
+  MessagePlugin.success(t("common.success"));
+};
 </script>
 
 <style lang="less" scoped>

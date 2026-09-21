@@ -14,16 +14,16 @@
 // a toolbar is one tab stop, and the arrow keys move within it. That is the
 // pattern assistive technology expects of a role="toolbar", and it is
 // testable here rather than only in a browser.
-import type { EditorState } from '@tiptap/pm/state'
+import type { EditorState } from "@tiptap/pm/state";
 
 /** One button on the bar. */
 export interface ToolbarItem {
   /** Stable id, used as the key and in tests. */
-  id: string
+  id: string;
   /** The i18n key for the accessible name. */
-  labelKey: string
+  labelKey: string;
   /** A tdesign icon name. */
-  icon: string
+  icon: string;
   /**
    * A short word drawn in place of the icon.
    *
@@ -31,22 +31,22 @@ export interface ToolbarItem {
    * button leaves two entries on the bar looking identical. "H1" as text
    * names the level outright, and needs no translation.
    */
-  badge?: string
+  badge?: string;
   /** Buttons are drawn in groups with a divider between them. */
-  group: 'format' | 'block' | 'insert'
+  group: "format" | "block" | "insert";
   /** The mark or node this button reflects, for the pressed state. */
-  activeName?: string
+  activeName?: string;
   /** Attributes that must also match for the button to read as pressed. */
-  activeAttrs?: Record<string, unknown>
+  activeAttrs?: Record<string, unknown>;
   /** The keyboard shortcut to show in the tooltip, in the platform's notation. */
-  shortcut?: string
+  shortcut?: string;
   /**
    * True for an entry whose button opens a palette of its own instead of
    * running one command. There is one — the text colour — and the palette
    * it opens is drawn by the component, so the bar's own geometry in this
    * file stays unchanged.
    */
-  palette?: boolean
+  palette?: boolean;
   /**
    * True for an entry that only needs the right to comment.
    *
@@ -55,7 +55,7 @@ export interface ToolbarItem {
    * the only way to raise a point on a page would be to have write access to
    * it, which is precisely what this work package set out to avoid.
    */
-  commentOnly?: boolean
+  commentOnly?: boolean;
 }
 
 /**
@@ -64,9 +64,16 @@ export interface ToolbarItem {
  * the list is one named thing a test can hold this code to.
  */
 export const TEXT_COLORS: readonly string[] = [
-  '#e03131', '#e8590c', '#f08c00', '#2f9e44',
-  '#0b7285', '#1971c2', '#6741d9', '#ae3ec9', '#868e96',
-]
+  "#e03131",
+  "#e8590c",
+  "#f08c00",
+  "#2f9e44",
+  "#0b7285",
+  "#1971c2",
+  "#6741d9",
+  "#ae3ec9",
+  "#868e96",
+];
 
 /**
  * The bar's contents, in the order they are read and moved through.
@@ -76,33 +83,86 @@ export const TEXT_COLORS: readonly string[] = [
  * of text is selected, and the slash menu carries the rest.
  */
 export const TOOLBAR_ITEMS: readonly ToolbarItem[] = [
-  { id: 'bold', labelKey: 'docs.toolbar.bold', icon: 'textformat-bold', group: 'format', activeName: 'bold', shortcut: 'Mod+B' },
-  { id: 'italic', labelKey: 'docs.toolbar.italic', icon: 'textformat-italic', group: 'format', activeName: 'italic', shortcut: 'Mod+I' },
-  { id: 'underline', labelKey: 'docs.toolbar.underline', icon: 'textformat-underline', group: 'format', activeName: 'underline', shortcut: 'Mod+U' },
-  { id: 'strike', labelKey: 'docs.toolbar.strike', icon: 'textformat-strikethrough', group: 'format', activeName: 'strike', shortcut: 'Mod+Shift+S' },
-  { id: 'code', labelKey: 'docs.toolbar.code', icon: 'code', group: 'format', activeName: 'code', shortcut: 'Mod+E' },
-  { id: 'highlight', labelKey: 'docs.toolbar.highlight', icon: 'highlight', group: 'format', activeName: 'highlight' },
-  { id: 'textColor', labelKey: 'docs.toolbar.textColor', icon: 'fill-color', group: 'format', palette: true },
-
-  { id: 'heading1', labelKey: 'docs.toolbar.heading1', icon: 'textformat-bold', badge: 'H1', group: 'block', activeName: 'heading', activeAttrs: { level: 1 } },
-  { id: 'heading2', labelKey: 'docs.toolbar.heading2', icon: 'textformat-bold', badge: 'H2', group: 'block', activeName: 'heading', activeAttrs: { level: 2 } },
-  { id: 'bulletList', labelKey: 'docs.toolbar.bulletList', icon: 'order-list', group: 'block', activeName: 'bulletList' },
-  { id: 'blockquote', labelKey: 'docs.toolbar.blockquote', icon: 'quote', group: 'block', activeName: 'blockquote' },
-
-  { id: 'link', labelKey: 'docs.toolbar.link', icon: 'link', group: 'insert', activeName: 'link' },
-  { id: 'clearFormat', labelKey: 'docs.toolbar.clearFormat', icon: 'clear-formatting', group: 'insert' },
   {
-    id: 'comment', labelKey: 'docs.toolbar.comment', icon: 'chat-bubble',
-    group: 'insert', commentOnly: true,
+    id: "bold",
+    labelKey: "docs.toolbar.bold",
+    icon: "textformat-bold",
+    group: "format",
+    activeName: "bold",
+    shortcut: "Mod+B",
   },
-]
+  {
+    id: "italic",
+    labelKey: "docs.toolbar.italic",
+    icon: "textformat-italic",
+    group: "format",
+    activeName: "italic",
+    shortcut: "Mod+I",
+  },
+  {
+    id: "underline",
+    labelKey: "docs.toolbar.underline",
+    icon: "textformat-underline",
+    group: "format",
+    activeName: "underline",
+    shortcut: "Mod+U",
+  },
+  {
+    id: "strike",
+    labelKey: "docs.toolbar.strike",
+    icon: "textformat-strikethrough",
+    group: "format",
+    activeName: "strike",
+    shortcut: "Mod+Shift+S",
+  },
+  { id: "code", labelKey: "docs.toolbar.code", icon: "code", group: "format", activeName: "code", shortcut: "Mod+E" },
+  { id: "highlight", labelKey: "docs.toolbar.highlight", icon: "highlight", group: "format", activeName: "highlight" },
+  { id: "textColor", labelKey: "docs.toolbar.textColor", icon: "fill-color", group: "format", palette: true },
+
+  {
+    id: "heading1",
+    labelKey: "docs.toolbar.heading1",
+    icon: "textformat-bold",
+    badge: "H1",
+    group: "block",
+    activeName: "heading",
+    activeAttrs: { level: 1 },
+  },
+  {
+    id: "heading2",
+    labelKey: "docs.toolbar.heading2",
+    icon: "textformat-bold",
+    badge: "H2",
+    group: "block",
+    activeName: "heading",
+    activeAttrs: { level: 2 },
+  },
+  {
+    id: "bulletList",
+    labelKey: "docs.toolbar.bulletList",
+    icon: "order-list",
+    group: "block",
+    activeName: "bulletList",
+  },
+  { id: "blockquote", labelKey: "docs.toolbar.blockquote", icon: "quote", group: "block", activeName: "blockquote" },
+
+  { id: "link", labelKey: "docs.toolbar.link", icon: "link", group: "insert", activeName: "link" },
+  { id: "clearFormat", labelKey: "docs.toolbar.clearFormat", icon: "clear-formatting", group: "insert" },
+  {
+    id: "comment",
+    labelKey: "docs.toolbar.comment",
+    icon: "chat-bubble",
+    group: "insert",
+    commentOnly: true,
+  },
+];
 
 /** What this caller may do to the selection. */
 export interface ToolbarAbilities {
   /** Whether the page may be changed at all. */
-  editable: boolean
+  editable: boolean;
   /** Whether a comment may be left on it; true for a reader. */
-  canComment: boolean
+  canComment: boolean;
 }
 
 /**
@@ -116,15 +176,15 @@ export function visibleItems(
   items: readonly ToolbarItem[] = TOOLBAR_ITEMS,
 ): ToolbarItem[] {
   if (abilities.editable) {
-    return items.filter((item) => !item.commentOnly || abilities.canComment)
+    return items.filter((item) => !item.commentOnly || abilities.canComment);
   }
-  return abilities.canComment ? items.filter((item) => item.commentOnly) : []
+  return abilities.canComment ? items.filter((item) => item.commentOnly) : [];
 }
 
 /** The width the bar is laid out at, used to keep it on screen. */
-export const TOOLBAR_WIDTH = 380
+export const TOOLBAR_WIDTH = 380;
 /** The bar's height plus the gap it keeps from the text. */
-export const TOOLBAR_OFFSET = 46
+export const TOOLBAR_OFFSET = 46;
 
 /**
  * Whether the toolbar has anything to offer for the current selection.
@@ -138,36 +198,36 @@ export const TOOLBAR_OFFSET = 46
  * A caller who may only comment still gets the bar: see visibleItems.
  */
 export function shouldShow(state: EditorState, abilities: ToolbarAbilities): boolean {
-  if (!abilities.editable && !abilities.canComment) return false
-  const { selection } = state
-  if (selection.empty) return false
+  if (!abilities.editable && !abilities.canComment) return false;
+  const { selection } = state;
+  if (selection.empty) return false;
 
-  const from = selection.$from
+  const from = selection.$from;
   // A node selection of an atom: `node` is set and it has no text inside.
-  const node = (selection as { node?: { isAtom?: boolean } }).node
-  if (node?.isAtom) return false
+  const node = (selection as { node?: { isAtom?: boolean } }).node;
+  if (node?.isAtom) return false;
 
   for (let depth = from.depth; depth > 0; depth--) {
-    const parent = from.node(depth)
-    if (parent.type.spec.code) return false
+    const parent = from.node(depth);
+    if (parent.type.spec.code) return false;
   }
-  return true
+  return true;
 }
 
 /** A rectangle in viewport coordinates. */
 export interface Rect {
-  left: number
-  top: number
-  right: number
-  bottom: number
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
 }
 
 /** Where the bar should be drawn, in viewport coordinates. */
 export interface Placement {
-  left: number
-  top: number
+  left: number;
+  top: number;
   /** True when there was no room above and the bar sits under the selection. */
-  below: boolean
+  below: boolean;
 }
 
 /**
@@ -177,23 +237,19 @@ export interface Placement {
  * not about to keep selecting towards; when the selection starts near the top
  * of the window it flips underneath rather than being clipped.
  */
-export function toolbarPlacement(
-  rect: Rect,
-  viewport: { width: number; height: number },
-  margin = 8,
-): Placement {
-  const centre = (rect.left + rect.right) / 2
-  const left = clamp(centre - TOOLBAR_WIDTH / 2, margin, Math.max(margin, viewport.width - TOOLBAR_WIDTH - margin))
+export function toolbarPlacement(rect: Rect, viewport: { width: number; height: number }, margin = 8): Placement {
+  const centre = (rect.left + rect.right) / 2;
+  const left = clamp(centre - TOOLBAR_WIDTH / 2, margin, Math.max(margin, viewport.width - TOOLBAR_WIDTH - margin));
 
-  const above = rect.top - TOOLBAR_OFFSET
-  if (above >= margin) return { left, top: above, below: false }
+  const above = rect.top - TOOLBAR_OFFSET;
+  if (above >= margin) return { left, top: above, below: false };
 
-  const below = Math.min(rect.bottom + 8, viewport.height - TOOLBAR_OFFSET)
-  return { left, top: Math.max(margin, below), below: true }
+  const below = Math.min(rect.bottom + 8, viewport.height - TOOLBAR_OFFSET);
+  return { left, top: Math.max(margin, below), below: true };
 }
 
 function clamp(value: number, low: number, high: number): number {
-  return Math.min(high, Math.max(low, value))
+  return Math.min(high, Math.max(low, value));
 }
 
 /**
@@ -205,20 +261,20 @@ function clamp(value: number, low: number, high: number): number {
  * which is the only case with nowhere to go.
  */
 export function moveFocus(current: number, delta: number, length: number): number {
-  if (length <= 0) return 0
-  return ((current + delta) % length + length) % length
+  if (length <= 0) return 0;
+  return (((current + delta) % length) + length) % length;
 }
 
 /** The item ids, grouped in order, so the view can draw dividers. */
 export function toolbarGroups(items: readonly ToolbarItem[] = TOOLBAR_ITEMS): ToolbarItem[][] {
-  const groups: ToolbarItem[][] = []
-  let current: ToolbarItem['group'] | null = null
+  const groups: ToolbarItem[][] = [];
+  let current: ToolbarItem["group"] | null = null;
   for (const item of items) {
     if (item.group !== current) {
-      groups.push([])
-      current = item.group
+      groups.push([]);
+      current = item.group;
     }
-    groups[groups.length - 1]!.push(item)
+    groups[groups.length - 1]!.push(item);
   }
-  return groups
+  return groups;
 }

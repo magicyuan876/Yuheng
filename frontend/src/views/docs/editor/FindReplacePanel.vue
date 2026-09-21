@@ -1,11 +1,5 @@
 <template>
-  <div
-    v-if="open"
-    class="docs-find"
-    role="dialog"
-    :aria-label="t('docs.find.title')"
-    @keydown.esc.prevent.stop="close"
-  >
+  <div v-if="open" class="docs-find" role="dialog" :aria-label="t('docs.find.title')" @keydown.esc.prevent.stop="close">
     <div class="docs-find-row">
       <input
         ref="queryInput"
@@ -17,7 +11,7 @@
         @keydown.enter.prevent="step($event.shiftKey ? -1 : 1)"
       />
       <span class="docs-find-count" aria-live="polite">
-        {{ matches.length ? t('docs.find.count', { index: current + 1, total: matches.length }) : t('docs.find.none') }}
+        {{ matches.length ? t("docs.find.count", { index: current + 1, total: matches.length }) : t("docs.find.none") }}
       </span>
       <button type="button" class="docs-find-icon" :aria-label="t('docs.find.previous')" @click="step(-1)">
         <t-icon name="chevron-up" size="16px" />
@@ -40,60 +34,61 @@
         @keydown.enter.prevent="replaceCurrent"
       />
       <button type="button" class="docs-find-text" :disabled="!matches.length" @click="replaceCurrent">
-        {{ t('docs.find.replace') }}
+        {{ t("docs.find.replace") }}
       </button>
       <button type="button" class="docs-find-text" :disabled="!matches.length" @click="replaceEvery">
-        {{ t('docs.find.replaceAll') }}
+        {{ t("docs.find.replaceAll") }}
       </button>
     </div>
 
     <div class="docs-find-row docs-find-options">
-      <label><input v-model="caseSensitive" type="checkbox" /> {{ t('docs.find.caseSensitive') }}</label>
-      <label><input v-model="wholeWord" type="checkbox" /> {{ t('docs.find.wholeWord') }}</label>
-      <label><input v-model="regex" type="checkbox" /> {{ t('docs.find.regex') }}</label>
-      <span v-if="badPattern" class="docs-find-error">{{ t('docs.find.badPattern') }}</span>
+      <label><input v-model="caseSensitive" type="checkbox" /> {{ t("docs.find.caseSensitive") }}</label>
+      <label><input v-model="wholeWord" type="checkbox" /> {{ t("docs.find.wholeWord") }}</label>
+      <label><input v-model="regex" type="checkbox" /> {{ t("docs.find.regex") }}</label>
+      <span v-if="badPattern" class="docs-find-error">{{ t("docs.find.badPattern") }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Editor } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import type { Editor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { IdleScheduler } from './idleWork'
-import {
-  findKey, findMatches, matchAfter, replaceAll, replaceMatch, searchRegex, stepMatch,
-  type Match,
-} from './find'
+import { IdleScheduler } from "./idleWork";
+import { findKey, findMatches, matchAfter, replaceAll, replaceMatch, searchRegex, stepMatch, type Match } from "./find";
 
 const props = defineProps<{
-  open: boolean
-  editor: Editor | null
-  editable: boolean
+  open: boolean;
+  editor: Editor | null;
+  editable: boolean;
   /** Bumped when the document changed, so the matches are found again. */
-  revision: number
-}>()
+  revision: number;
+}>();
 
-const emit = defineEmits<{ close: [] }>()
-const { t } = useI18n()
+const emit = defineEmits<{ close: [] }>();
+const { t } = useI18n();
 
-const query = ref('')
-const replacement = ref('')
-const caseSensitive = ref(false)
-const wholeWord = ref(false)
-const regex = ref(false)
-const matches = ref<Match[]>([])
-const current = ref(0)
-const queryInput = ref<HTMLInputElement | null>(null)
+const query = ref("");
+const replacement = ref("");
+const caseSensitive = ref(false);
+const wholeWord = ref(false);
+const regex = ref(false);
+const matches = ref<Match[]>([]);
+const current = ref(0);
+const queryInput = ref<HTMLInputElement | null>(null);
 
 const options = computed(() => ({
-  caseSensitive: caseSensitive.value, wholeWord: wholeWord.value, regex: regex.value,
-}))
+  caseSensitive: caseSensitive.value,
+  wholeWord: wholeWord.value,
+  regex: regex.value,
+}));
 
 /** A pattern still being typed is not an error to report loudly, only a note. */
-const badPattern = computed(() => regex.value && query.value !== '' && searchRegex(query.value, options.value) === null)
+const badPattern = computed(
+  () => regex.value && query.value !== "" && searchRegex(query.value, options.value) === null,
+);
 
 /**
  * Recomputes the matches and tells the plugin to draw them.
@@ -103,75 +98,75 @@ const badPattern = computed(() => regex.value && query.value !== '' && searchReg
  * and any of them changing must also refresh the highlight.
  */
 function refresh(keepCurrent = true) {
-  const editor = props.editor
-  if (!editor || editor.isDestroyed) return
-  const found = props.open ? findMatches(editor.state.doc, query.value, options.value) : []
-  matches.value = found
+  const editor = props.editor;
+  if (!editor || editor.isDestroyed) return;
+  const found = props.open ? findMatches(editor.state.doc, query.value, options.value) : [];
+  matches.value = found;
 
-  if (found.length === 0) current.value = 0
+  if (found.length === 0) current.value = 0;
   else if (!keepCurrent || current.value >= found.length) {
-    current.value = Math.max(0, matchAfter(found, editor.state.selection.from))
+    current.value = Math.max(0, matchAfter(found, editor.state.selection.from));
   }
-  draw()
+  draw();
 }
 
 /** Hands the ranges to the plugin, which is the only thing that paints. */
 function draw() {
-  const editor = props.editor
-  if (!editor || editor.isDestroyed) return
+  const editor = props.editor;
+  if (!editor || editor.isDestroyed) return;
   const tr = editor.state.tr.setMeta(findKey, {
     matches: matches.value,
     current: matches.value.length ? current.value : -1,
-  })
+  });
   // Not an edit: nothing here should reach the undo stack or the other
   // people editing this page.
-  tr.setMeta('addToHistory', false)
-  editor.view.dispatch(tr)
+  tr.setMeta("addToHistory", false);
+  editor.view.dispatch(tr);
 }
 
 /** Moves to another match and scrolls it into view without taking focus. */
 function step(delta: -1 | 1) {
-  if (matches.value.length === 0) return
-  current.value = stepMatch(current.value, delta, matches.value.length)
-  reveal()
+  if (matches.value.length === 0) return;
+  current.value = stepMatch(current.value, delta, matches.value.length);
+  reveal();
 }
 
 function reveal() {
-  const editor = props.editor
-  const match = matches.value[current.value]
-  if (!editor || !match) return
+  const editor = props.editor;
+  const match = matches.value[current.value];
+  if (!editor || !match) return;
   const tr = editor.state.tr
     .setSelection(TextSelection.create(editor.state.doc, match.from, match.to))
-    .scrollIntoView()
-  tr.setMeta('addToHistory', false)
-  editor.view.dispatch(tr)
-  draw()
+    .scrollIntoView();
+  tr.setMeta("addToHistory", false);
+  editor.view.dispatch(tr);
+  draw();
 }
 
 function replaceCurrent() {
-  const editor = props.editor
-  const match = matches.value[current.value]
-  if (!editor || !match || !props.editable) return
-  editor.view.dispatch(replaceMatch(editor.state, match, replacement.value))
+  const editor = props.editor;
+  const match = matches.value[current.value];
+  if (!editor || !match || !props.editable) return;
+  editor.view.dispatch(replaceMatch(editor.state, match, replacement.value));
   // The document moved; the remaining matches are found again rather than
   // adjusted, which is both simpler and correct for a replacement of any
   // length. The one that was current is gone, so the next one takes its place.
-  void nextTick(() => refresh(false))
+  void nextTick(() => refresh(false));
 }
 
 function replaceEvery() {
-  const editor = props.editor
-  if (!editor || !props.editable || matches.value.length === 0) return
-  const tr = replaceAll(editor.state, matches.value, replacement.value)
-  if (tr) editor.view.dispatch(tr)
-  void nextTick(() => refresh(false))
+  const editor = props.editor;
+  if (!editor || !props.editable || matches.value.length === 0) return;
+  const tr = replaceAll(editor.state, matches.value, replacement.value);
+  if (tr) editor.view.dispatch(tr);
+  void nextTick(() => refresh(false));
 }
 
 function close() {
-  matches.value = []
-  draw()
-  emit('close')
-  props.editor?.commands.focus()
+  matches.value = [];
+  draw();
+  emit("close");
+  props.editor?.commands.focus();
 }
 
 /**
@@ -182,35 +177,41 @@ function close() {
  * between typing and waiting, and the answer is only ever a highlight — it can
  * arrive a moment late.
  */
-const rescan = new IdleScheduler(() => refresh())
+const rescan = new IdleScheduler(() => refresh());
 
-watch([query, options], () => refresh())
-watch(() => props.revision, () => rescan.schedule())
-onBeforeUnmount(() => rescan.cancel())
+watch([query, options], () => refresh());
+watch(
+  () => props.revision,
+  () => rescan.schedule(),
+);
+onBeforeUnmount(() => rescan.cancel());
 
-watch(() => props.open, (open) => {
-  if (open) {
-    // Opening with something selected searches for it, which is what every
-    // editor does and what somebody who selected a word then pressed Ctrl+F
-    // meant.
-    const selected = selectedText()
-    if (selected && !selected.includes('\n')) query.value = selected
-    void nextTick(() => {
-      queryInput.value?.focus()
-      queryInput.value?.select()
-      refresh(false)
-    })
-  } else {
-    matches.value = []
-    draw()
-  }
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (open) {
+      // Opening with something selected searches for it, which is what every
+      // editor does and what somebody who selected a word then pressed Ctrl+F
+      // meant.
+      const selected = selectedText();
+      if (selected && !selected.includes("\n")) query.value = selected;
+      void nextTick(() => {
+        queryInput.value?.focus();
+        queryInput.value?.select();
+        refresh(false);
+      });
+    } else {
+      matches.value = [];
+      draw();
+    }
+  },
+);
 
 function selectedText(): string {
-  const editor = props.editor
-  if (!editor || editor.state.selection.empty) return ''
-  const { from, to } = editor.state.selection
-  return editor.state.doc.textBetween(from, Math.min(to, from + 120), '\n')
+  const editor = props.editor;
+  if (!editor || editor.state.selection.empty) return "";
+  const { from, to } = editor.state.selection;
+  return editor.state.doc.textBetween(from, Math.min(to, from + 120), "\n");
 }
 </script>
 

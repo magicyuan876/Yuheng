@@ -13,11 +13,11 @@
         loading="lazy"
         allowfullscreen
       />
-      <p v-else-if="checking" class="docs-embed-note">{{ t('docs.media.embedChecking') }}</p>
+      <p v-else-if="checking" class="docs-embed-note">{{ t("docs.media.embedChecking") }}</p>
       <p v-else class="docs-embed-note docs-embed-note--refused">
         <t-icon name="error-circle" size="14px" />
-        <span>{{ t('docs.media.embedRefused') }}</span>
-        <a :href="url" target="_blank" rel="noopener noreferrer nofollow">{{ t('docs.media.openInTab') }}</a>
+        <span>{{ t("docs.media.embedRefused") }}</span>
+        <a :href="url" target="_blank" rel="noopener noreferrer nofollow">{{ t("docs.media.openInTab") }}</a>
       </p>
     </div>
 
@@ -31,20 +31,20 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed, inject } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed, inject } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { DOCS_EMBEDS, type EmbedResolverHandle } from './linkContext'
+import { DOCS_EMBEDS, type EmbedResolverHandle } from "./linkContext";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const resolver = inject<EmbedResolverHandle | null>(DOCS_EMBEDS, null)
+const resolver = inject<EmbedResolverHandle | null>(DOCS_EMBEDS, null);
 
-const provider = computed(() => String(props.node.attrs.provider ?? ''))
-const url = computed(() => String(props.node.attrs.url ?? ''))
-const align = computed(() => String(props.node.attrs.align ?? 'center'))
+const provider = computed(() => String(props.node.attrs.provider ?? ""));
+const url = computed(() => String(props.node.attrs.url ?? ""));
+const align = computed(() => String(props.node.attrs.align ?? "center"));
 
 /**
  * What to frame, decided by the server rather than by the document.
@@ -55,29 +55,29 @@ const align = computed(() => String(props.node.attrs.align ?? 'center'))
  * rather than at whatever point somebody next saves the page.
  */
 const answer = computed(() => {
-  void resolver?.revision.value
-  return resolver?.get(provider.value, url.value)
-})
+  void resolver?.revision.value;
+  return resolver?.get(provider.value, url.value);
+});
 
-const checking = computed(() => answer.value === undefined)
-const embedUrl = computed(() => answer.value?.embedUrl ?? '')
+const checking = computed(() => answer.value === undefined);
+const embedUrl = computed(() => answer.value?.embedUrl ?? "");
 
 const host = computed(() => {
   try {
-    return new URL(url.value).hostname
+    return new URL(url.value).hostname;
   } catch {
-    return url.value
+    return url.value;
   }
-})
+});
 
 const frameStyle = computed(() => {
-  const width = Number(props.node.attrs.width ?? 0)
-  const height = Number(props.node.attrs.height ?? 0)
+  const width = Number(props.node.attrs.width ?? 0);
+  const height = Number(props.node.attrs.height ?? 0);
   return {
     ...(width > 0 ? { width: `${width}px` } : {}),
     height: `${height > 0 ? height : 420}px`,
-  }
-})
+  };
+});
 </script>
 
 <style scoped lang="less">

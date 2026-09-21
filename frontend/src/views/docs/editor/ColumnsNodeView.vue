@@ -17,17 +17,17 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { MAX_COLUMNS, MIN_COLUMNS } from './figures'
+import { MAX_COLUMNS, MIN_COLUMNS } from "./figures";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const mode = computed(() => String(props.node.attrs.mode ?? 'normal'))
-const count = computed(() => props.node.childCount)
+const mode = computed(() => String(props.node.attrs.mode ?? "normal"));
+const count = computed(() => props.node.childCount);
 
 /**
  * Adding and removing a column are done as one transaction against the row's
@@ -36,23 +36,23 @@ const count = computed(() => props.node.childCount)
  * cannot be put into a bad shape even if they were clicked anyway.
  */
 function addColumn() {
-  if (count.value >= MAX_COLUMNS) return
-  const pos = props.getPos()
-  if (typeof pos !== 'number') return
-  const { state, view } = props.editor
-  const column = state.schema.nodes.column?.createAndFill()
-  if (!column) return
-  view.dispatch(state.tr.insert(pos + props.node.nodeSize - 1, column))
+  if (count.value >= MAX_COLUMNS) return;
+  const pos = props.getPos();
+  if (typeof pos !== "number") return;
+  const { state, view } = props.editor;
+  const column = state.schema.nodes.column?.createAndFill();
+  if (!column) return;
+  view.dispatch(state.tr.insert(pos + props.node.nodeSize - 1, column));
 }
 
 function removeColumn() {
-  if (count.value <= MIN_COLUMNS) return
-  const pos = props.getPos()
-  if (typeof pos !== 'number') return
-  const { state, view } = props.editor
-  const last = props.node.child(count.value - 1)
-  const end = pos + props.node.nodeSize - 1
-  view.dispatch(state.tr.delete(end - last.nodeSize, end))
+  if (count.value <= MIN_COLUMNS) return;
+  const pos = props.getPos();
+  if (typeof pos !== "number") return;
+  const { state, view } = props.editor;
+  const last = props.node.child(count.value - 1);
+  const end = pos + props.node.nodeSize - 1;
+  view.dispatch(state.tr.delete(end - last.nodeSize, end));
 }
 </script>
 

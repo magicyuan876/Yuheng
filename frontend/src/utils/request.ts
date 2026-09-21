@@ -2,14 +2,13 @@
 import axios from "axios";
 import { fileNameFromDisposition } from "./contentDisposition";
 import { generateRandomString, getMaxFileSizeMB } from "./index";
-import i18n from '@/i18n'
-import { getApiBaseUrl } from './api-base';
+import i18n from "@/i18n";
+import { getApiBaseUrl } from "./api-base";
 
-const t = (key: string) => i18n.global.t(key)
+const t = (key: string) => i18n.global.t(key);
 
 // API基础URL
 const BASE_URL = getApiBaseUrl();
-
 
 // 创建Axios实例
 const instance = axios.create({
@@ -23,27 +22,26 @@ const instance = axios.create({
 
 // 获取当前用户语言（用于 Accept-Language header）
 function getCurrentLanguage(): string {
-  return i18n.global.locale?.value || localStorage.getItem('locale') || 'zh-CN'
+  return i18n.global.locale?.value || localStorage.getItem("locale") || "zh-CN";
 }
-
 
 instance.interceptors.request.use(
   (config) => {
     const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;
-    const isEmbedAuth = typeof existingAuth === 'string' && existingAuth.startsWith('Embed ');
-    const isEmbedPath = typeof config.url === 'string' && config.url.includes('/api/v1/embed/');
+    const isEmbedAuth = typeof existingAuth === "string" && existingAuth.startsWith("Embed ");
+    const isEmbedPath = typeof config.url === "string" && config.url.includes("/api/v1/embed/");
 
     // 嵌入渠道使用 Embed token；勿用本地 JWT 覆盖（否则调试页会 401）
     if (!isEmbedAuth) {
-      const token = localStorage.getItem('yuheng_token');
+      const token = localStorage.getItem("yuheng_token");
       if (token) {
         config.headers["Authorization"] = `Bearer ${token}`;
       }
     }
-    
+
     // 添加用户语言偏好
     config.headers["Accept-Language"] = getCurrentLanguage();
-    
+
     // 添加跨空间访问请求头：只要 setSelectedTenant 写过激活空间，
     // 每个请求都要附 X-Tenant-ID。早期版本会 short-circuit
     // "selectedTenantId === defaultTenantId 时不附"以减少 header 体积，
@@ -54,18 +52,18 @@ instance.interceptors.request.use(
     // 后端 IsTenantAccessible 已经允许 header 指向 home 空间（自家），
     // 所以无脑附不会引入新风险。
     if (!isEmbedAuth && !isEmbedPath) {
-      const selectedTenantId = localStorage.getItem('yuheng_selected_tenant_id');
+      const selectedTenantId = localStorage.getItem("yuheng_selected_tenant_id");
       if (selectedTenantId) {
         config.headers["X-Tenant-ID"] = selectedTenantId;
       }
     }
-    
+
     config.headers["X-Request-ID"] = `${generateRandomString(12)}`;
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Token刷新标志，防止多个请求同时刷新token
@@ -79,11 +77,17 @@ let failedQueue: Array<{ resolve: (token: string | null) => void; reject: (reaso
 // must surface to the page (e.g. expired token), not trigger the
 // refresh-then-redirect-to-login flow (issue #1617). '/auth/register' already
 // covers '/auth/register-by-invite' via substring match.
-const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/oidc/', '/auth/invitations/lookup', '/api/v1/embed/'];
+const PUBLIC_AUTH_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/oidc/",
+  "/auth/invitations/lookup",
+  "/api/v1/embed/",
+];
 
 function isPublicAuthRequest(url?: string): boolean {
   if (!url) return false;
-  return PUBLIC_AUTH_PATHS.some(p => url.includes(p));
+  return PUBLIC_AUTH_PATHS.some((p) => url.includes(p));
 }
 
 // 处理队列中的请求
@@ -95,21 +99,21 @@ const processQueue = (error: any, token: string | null = null) => {
       resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
 function isEmbedPage(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.pathname.startsWith('/embed/');
+  if (typeof window === "undefined") return false;
+  return window.location.pathname.startsWith("/embed/");
 }
 
 function redirectToLogin() {
-  if (typeof window === 'undefined') return;
-  if (window.location.pathname === '/login') return;
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === "/login") return;
   // Embed 渠道用 Embed token 鉴权，匿名访问不应被踢到登录页
   if (isEmbedPage()) return;
-  window.location.href = '/login';
+  window.location.href = "/login";
 }
 
 instance.interceptors.response.use(
@@ -129,104 +133,112 @@ instance.interceptors.response.use(
   },
   async (error: any) => {
     const originalRequest = error.config;
-    
+
     if (!error.response) {
-      return Promise.reject({ message: t('error.networkError') });
+      return Promise.reject({ message: t("error.networkError") });
     }
-    
+
     // 公开接口（login / register / oidc）的 401 不走 refresh 逻辑，直接返回错误
     if ((error.response.status === 401 || error.response.status === 403) && isPublicAuthRequest(originalRequest?.url)) {
       const { status, data } = error.response;
-      const msg = typeof data === 'object'
-        ? (typeof data?.error === 'string' ? data.error : (data?.error?.message || data?.message))
-        : data;
-      return Promise.reject({ status, message: msg || t('error.invalidCredentials') });
+      const msg =
+        typeof data === "object"
+          ? typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || data?.message
+          : data;
+      return Promise.reject({ status, message: msg || t("error.invalidCredentials") });
     }
 
     // Embed 调试页/挂件：无 JWT 时直接拒绝，勿走 refresh → /login
     if (error.response.status === 401 && isEmbedPage()) {
       const { status, data } = error.response;
-      const msg = typeof data === 'object'
-        ? (typeof data?.error === 'string' ? data.error : (data?.error?.message || data?.message))
-        : data;
-      return Promise.reject({ status, message: msg || t('error.invalidCredentials') });
+      const msg =
+        typeof data === "object"
+          ? typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || data?.message
+          : data;
+      return Promise.reject({ status, message: msg || t("error.invalidCredentials") });
     }
 
     // 如果是401错误且不是刷新token的请求，尝试刷新token
-    if (error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
+    if (error.response.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/refresh")) {
       if (isRefreshing) {
         // 如果正在刷新token，将请求加入队列
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          return instance(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
-        });
+        })
+          .then((token) => {
+            originalRequest.headers["Authorization"] = "Bearer " + token;
+            return instance(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
       }
-      
+
       originalRequest._retry = true;
       isRefreshing = true;
-      
-      const refreshToken = localStorage.getItem('yuheng_refresh_token');
-      
+
+      const refreshToken = localStorage.getItem("yuheng_refresh_token");
+
       if (refreshToken) {
         try {
           // 动态导入refresh token API
-          const { refreshToken: refreshTokenAPI } = await import('../api/auth/index');
+          const { refreshToken: refreshTokenAPI } = await import("../api/auth/index");
           const response = await refreshTokenAPI(refreshToken);
-          
+
           if (response.success && response.data) {
             const { token, refreshToken: newRefreshToken } = response.data;
-            
+
             // 更新localStorage中的token
-            localStorage.setItem('yuheng_token', token);
-            localStorage.setItem('yuheng_refresh_token', newRefreshToken);
-            
+            localStorage.setItem("yuheng_token", token);
+            localStorage.setItem("yuheng_refresh_token", newRefreshToken);
+
             // 更新请求头
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            
+            originalRequest.headers["Authorization"] = "Bearer " + token;
+
             // 处理队列中的请求
             processQueue(null, token);
-            
+
             return instance(originalRequest);
           } else {
-            throw new Error(response.message || t('error.tokenRefreshFailed'));
+            throw new Error(response.message || t("error.tokenRefreshFailed"));
           }
         } catch (refreshError) {
           // 刷新失败，清除所有token并跳转到登录页
-          localStorage.removeItem('yuheng_token');
-          localStorage.removeItem('yuheng_refresh_token');
-          localStorage.removeItem('yuheng_user');
-          localStorage.removeItem('yuheng_tenant');
-          
+          localStorage.removeItem("yuheng_token");
+          localStorage.removeItem("yuheng_refresh_token");
+          localStorage.removeItem("yuheng_user");
+          localStorage.removeItem("yuheng_tenant");
+
           processQueue(refreshError, null);
-          
+
           redirectToLogin();
-          
+
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
         }
       } else {
         // 没有refresh token，直接跳转到登录页
-        localStorage.removeItem('yuheng_token');
-        localStorage.removeItem('yuheng_user');
-        localStorage.removeItem('yuheng_tenant');
-        
+        localStorage.removeItem("yuheng_token");
+        localStorage.removeItem("yuheng_user");
+        localStorage.removeItem("yuheng_tenant");
+
         redirectToLogin();
-        
-        return Promise.reject({ message: t('error.pleaseRelogin') });
+
+        return Promise.reject({ message: t("error.pleaseRelogin") });
       }
     }
-    
+
     // 处理 Nginx 413 Request Entity Too Large
     if (error.response.status === 413) {
-      return Promise.reject({ 
-        status: 413, 
-        message: i18n.global.t('error.fileSizeExceeded', { size: getMaxFileSizeMB() }),
-        success: false
+      return Promise.reject({
+        status: 413,
+        message: i18n.global.t("error.fileSizeExceeded", { size: getMaxFileSizeMB() }),
+        success: false,
       });
     }
 
@@ -235,23 +247,23 @@ instance.interceptors.response.use(
     // 后端返回格式: { success: false, error: { code, message, details } }
     // 提取 error.message 作为顶层 message，方便前端使用 error?.message 获取
     let errorMessage: string | undefined;
-    if (typeof data === 'object') {
-      if (typeof data?.error === 'string') {
+    if (typeof data === "object") {
+      if (typeof data?.error === "string") {
         errorMessage = data.error;
       } else if (data?.error?.message) {
         errorMessage = data.error.message;
       } else {
         errorMessage = data?.message;
       }
-    } else if (typeof data === 'string') {
+    } else if (typeof data === "string") {
       errorMessage = data;
     }
-    return Promise.reject({ 
-      status, 
+    return Promise.reject({
+      status,
       message: errorMessage,
-      ...(typeof data === 'object' ? data : {}) 
+      ...(typeof data === "object" ? data : {}),
     });
-  }
+  },
 );
 
 export function get<T = any>(url: string, config?: any): Promise<T> {
@@ -259,10 +271,10 @@ export function get<T = any>(url: string, config?: any): Promise<T> {
 }
 
 export async function getDown(url: string): Promise<Blob> {
-  const res = await instance.get<Blob>(url, {
+  const res = (await instance.get<Blob>(url, {
     responseType: "blob",
-  }) as unknown as Blob;
-  return res
+  })) as unknown as Blob;
+  return res;
 }
 
 /** A downloaded file: its bytes and the name the server asked us to use. */
@@ -280,11 +292,7 @@ export interface DownloadedFile {
  */
 export { fileNameFromDisposition };
 
-export async function postDownload(
-  url: string,
-  data = {},
-  fallbackName = "download",
-): Promise<DownloadedFile> {
+export async function postDownload(url: string, data = {}, fallbackName = "download"): Promise<DownloadedFile> {
   const res = (await instance.post(url, data, {
     responseType: "blob",
     rawResponse: true,

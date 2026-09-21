@@ -1,46 +1,46 @@
-import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import { getDeploymentCapabilities } from '@/api/system'
+import { ref } from "vue";
+import { defineStore } from "pinia";
+import { getDeploymentCapabilities } from "@/api/system";
 import {
   isDeploymentCapabilitySupported,
   type DeploymentCapabilityKey,
   type DeploymentCapabilityMap,
-} from '@/config/deploymentCapabilities'
+} from "@/config/deploymentCapabilities";
 
-export const useDeploymentCapabilitiesStore = defineStore('deploymentCapabilities', () => {
-  const capabilities = ref<DeploymentCapabilityMap>({})
-  const docsCollabUrl = ref('')
-  const loaded = ref(false)
-  const loadError = ref('')
-  let loadingPromise: Promise<void> | null = null
+export const useDeploymentCapabilitiesStore = defineStore("deploymentCapabilities", () => {
+  const capabilities = ref<DeploymentCapabilityMap>({});
+  const docsCollabUrl = ref("");
+  const loaded = ref(false);
+  const loadError = ref("");
+  let loadingPromise: Promise<void> | null = null;
 
   const ensureLoaded = async (force = false): Promise<void> => {
-    if (loaded.value && !force) return
-    if (loadingPromise) return loadingPromise
+    if (loaded.value && !force) return;
+    if (loadingPromise) return loadingPromise;
 
     loadingPromise = (async () => {
       try {
-        const response = await getDeploymentCapabilities()
-        capabilities.value = response.data?.capabilities || {}
-        docsCollabUrl.value = response.data?.docs_collab_url || ''
-        loadError.value = ''
+        const response = await getDeploymentCapabilities();
+        capabilities.value = response.data?.capabilities || {};
+        docsCollabUrl.value = response.data?.docs_collab_url || "";
+        loadError.value = "";
       } catch (error) {
         // 能力探测失败时保持 fail-open；权限仍由后端路由最终校验。
-        capabilities.value = {}
-        docsCollabUrl.value = ''
-        loadError.value = error instanceof Error ? error.message : String(error)
+        capabilities.value = {};
+        docsCollabUrl.value = "";
+        loadError.value = error instanceof Error ? error.message : String(error);
       } finally {
-        loaded.value = true
-        loadingPromise = null
+        loaded.value = true;
+        loadingPromise = null;
       }
-    })()
+    })();
 
-    return loadingPromise
-  }
+    return loadingPromise;
+  };
 
   const isSupported = (key?: DeploymentCapabilityKey) => {
-    return isDeploymentCapabilitySupported(capabilities.value, key)
-  }
+    return isDeploymentCapabilitySupported(capabilities.value, key);
+  };
 
   return {
     capabilities,
@@ -49,5 +49,5 @@ export const useDeploymentCapabilitiesStore = defineStore('deploymentCapabilitie
     loadError,
     ensureLoaded,
     isSupported,
-  }
-})
+  };
+});

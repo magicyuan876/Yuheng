@@ -1,29 +1,21 @@
 <template>
   <div class="graph-settings" :class="{ 'graph-settings--embedded': embedded }">
     <div v-if="!embedded" class="section-header">
-      <h2>{{ t('graphSettings.title') }}</h2>
-      <p class="section-description">{{ t('graphSettings.description') }}</p>
+      <h2>{{ t("graphSettings.title") }}</h2>
+      <p class="section-description">{{ t("graphSettings.description") }}</p>
 
-      <t-alert
-        v-if="!isGraphDatabaseEnabled"
-        theme="warning"
-        style="margin-top: 16px;"
-      >
+      <t-alert v-if="!isGraphDatabaseEnabled" theme="warning" style="margin-top: 16px">
         <template #message>
-          <div>{{ t('graphSettings.disabledWarning') }}</div>
+          <div>{{ t("graphSettings.disabledWarning") }}</div>
           <t-link class="graph-guide-link" theme="primary" @click="handleOpenGraphGuide">
-            {{ t('graphSettings.howToEnable') }}
+            {{ t("graphSettings.howToEnable") }}
           </t-link>
         </template>
       </t-alert>
     </div>
-    <t-alert
-      v-else-if="!isGraphDatabaseEnabled"
-      theme="warning"
-      class="embedded-graph-alert"
-    >
+    <t-alert v-else-if="!isGraphDatabaseEnabled" theme="warning" class="embedded-graph-alert">
       <template #message>
-        <div>{{ t('graphSettings.disabledWarning') }}</div>
+        <div>{{ t("graphSettings.disabledWarning") }}</div>
       </template>
     </t-alert>
 
@@ -31,21 +23,18 @@
       <!-- 启用实体关系提取 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ t('graphSettings.enableLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.enableDescription') }}</p>
+          <label>{{ t("graphSettings.enableLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.enableDescription") }}</p>
         </div>
         <div class="setting-control">
-          <t-switch
-            v-model="localGraphExtract.enabled"
-            @change="handleEnabledChange"
-          />
+          <t-switch v-model="localGraphExtract.enabled" @change="handleEnabledChange" />
         </div>
       </div>
 
       <div v-if="localGraphExtract.enabled" class="setting-row vertical">
         <div class="setting-info">
-          <label>{{ t('graphSettings.customInstructionsLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.customInstructionsDescription') }}</p>
+          <label>{{ t("graphSettings.customInstructionsLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.customInstructionsDescription") }}</p>
         </div>
         <div class="setting-control full-width">
           <t-textarea
@@ -61,8 +50,8 @@
       <!-- 关系类型配置 -->
       <div v-if="localGraphExtract.enabled" class="setting-row vertical">
         <div class="setting-info">
-          <label>{{ t('graphSettings.tagsLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.tagsDescription') }}</p>
+          <label>{{ t("graphSettings.tagsLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.tagsDescription") }}</p>
         </div>
         <div class="setting-control full-width">
           <div class="tags-control-group">
@@ -75,7 +64,7 @@
               @click="handleFabriTag"
               class="gen-tags-btn"
             >
-              {{ t('graphSettings.generateRandomTags') }}
+              {{ t("graphSettings.generateRandomTags") }}
             </t-button>
             <t-select
               v-model="localGraphExtract.tags"
@@ -85,12 +74,12 @@
               creatable
               filterable
               @change="handleTagsChange"
-              style="flex: 1; min-width: 400px;"
+              style="flex: 1; min-width: 400px"
             />
           </div>
           <div v-if="!modelStatus.llm.available" class="control-tip">
             <t-icon name="info-circle" class="tip-icon" />
-            <span>{{ t('graphSettings.completeModelConfig') }}</span>
+            <span>{{ t("graphSettings.completeModelConfig") }}</span>
           </div>
         </div>
       </div>
@@ -98,8 +87,8 @@
       <!-- 示例文本 -->
       <div v-if="localGraphExtract.enabled" class="setting-row vertical">
         <div class="setting-info">
-          <label>{{ t('graphSettings.sampleTextLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.sampleTextDescription') }}</p>
+          <label>{{ t("graphSettings.sampleTextLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.sampleTextDescription") }}</p>
         </div>
         <div class="setting-control full-width">
           <div class="text-control-group">
@@ -112,7 +101,7 @@
               @click="handleFabriText"
               class="gen-text-btn"
             >
-              {{ t('graphSettings.generateRandomText') }}
+              {{ t("graphSettings.generateRandomText") }}
             </t-button>
             <t-textarea
               v-model="localGraphExtract.text"
@@ -121,12 +110,12 @@
               show-word-limit
               maxlength="5000"
               @change="handleTextChange"
-              style="width: 100%;"
+              style="width: 100%"
             />
           </div>
           <div v-if="!modelStatus.llm.available" class="control-tip">
             <t-icon name="info-circle" class="tip-icon" />
-            <span>{{ t('graphSettings.completeModelConfig') }}</span>
+            <span>{{ t("graphSettings.completeModelConfig") }}</span>
           </div>
         </div>
       </div>
@@ -134,8 +123,8 @@
       <!-- 实体列表 -->
       <div v-if="localGraphExtract.enabled && localGraphExtract.nodes.length > 0" class="setting-row vertical">
         <div class="setting-info">
-          <label>{{ t('graphSettings.entityListLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.entityListDescription') }}</p>
+          <label>{{ t("graphSettings.entityListLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.entityListDescription") }}</p>
         </div>
         <div class="setting-control full-width">
           <div class="node-list">
@@ -148,11 +137,7 @@
                   @change="handleNodesChange"
                   class="node-name-input"
                 />
-                <t-button
-                  theme="default"
-                  size="small"
-                  @click="removeNode(nodeIndex)"
-                >
+                <t-button theme="default" size="small" @click="removeNode(nodeIndex)">
                   <t-icon name="delete" />
                 </t-button>
               </div>
@@ -164,21 +149,12 @@
                     @change="handleNodesChange"
                     class="attribute-input"
                   />
-                  <t-button
-                    theme="default"
-                    size="small"
-                    @click="removeAttribute(nodeIndex, attrIndex)"
-                  >
+                  <t-button theme="default" size="small" @click="removeAttribute(nodeIndex, attrIndex)">
                     <t-icon name="close" />
                   </t-button>
                 </div>
-                <t-button
-                  theme="default"
-                  size="small"
-                  @click="addAttribute(nodeIndex)"
-                  class="add-attr-btn"
-                >
-                  {{ t('graphSettings.addAttribute') }}
+                <t-button theme="default" size="small" @click="addAttribute(nodeIndex)" class="add-attr-btn">
+                  {{ t("graphSettings.addAttribute") }}
                 </t-button>
               </div>
             </div>
@@ -189,15 +165,12 @@
       <!-- 添加实体按钮 -->
       <div v-if="localGraphExtract.enabled" class="setting-row">
         <div class="setting-info">
-          <label>{{ t('graphSettings.manageEntitiesLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.manageEntitiesDescription') }}</p>
+          <label>{{ t("graphSettings.manageEntitiesLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.manageEntitiesDescription") }}</p>
         </div>
         <div class="setting-control">
-          <t-button
-            theme="primary"
-            @click="addNode"
-          >
-            {{ t('graphSettings.addEntity') }}
+          <t-button theme="primary" @click="addNode">
+            {{ t("graphSettings.addEntity") }}
           </t-button>
         </div>
       </div>
@@ -205,8 +178,8 @@
       <!-- 关系列表 -->
       <div v-if="localGraphExtract.enabled && localGraphExtract.relations.length > 0" class="setting-row vertical">
         <div class="setting-info">
-          <label>{{ t('graphSettings.relationListLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.relationListDescription') }}</p>
+          <label>{{ t("graphSettings.relationListLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.relationListDescription") }}</p>
         </div>
         <div class="setting-control full-width">
           <div class="relation-list">
@@ -234,12 +207,7 @@
                 @change="handleRelationsChange"
                 class="relation-select"
               >
-                <t-option
-                  v-for="tag in localGraphExtract.tags"
-                  :key="tag"
-                  :value="tag"
-                  :label="tag"
-                />
+                <t-option v-for="tag in localGraphExtract.tags" :key="tag" :value="tag" :label="tag" />
               </t-select>
               <t-icon name="arrow-right" class="relation-arrow" />
               <t-select
@@ -255,11 +223,7 @@
                   :label="node.name"
                 />
               </t-select>
-              <t-button
-                theme="default"
-                size="small"
-                @click="removeRelation(index)"
-              >
+              <t-button theme="default" size="small" @click="removeRelation(index)">
                 <t-icon name="delete" />
               </t-button>
             </div>
@@ -270,15 +234,12 @@
       <!-- 添加关系按钮 -->
       <div v-if="localGraphExtract.enabled" class="setting-row">
         <div class="setting-info">
-          <label>{{ t('graphSettings.manageRelationsLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.manageRelationsDescription') }}</p>
+          <label>{{ t("graphSettings.manageRelationsLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.manageRelationsDescription") }}</p>
         </div>
         <div class="setting-control">
-          <t-button
-            theme="primary"
-            @click="addRelation"
-          >
-            {{ t('graphSettings.addRelation') }}
+          <t-button theme="primary" @click="addRelation">
+            {{ t("graphSettings.addRelation") }}
           </t-button>
         </div>
       </div>
@@ -286,8 +247,8 @@
       <!-- 提取操作按钮 -->
       <div v-if="localGraphExtract.enabled" class="setting-row">
         <div class="setting-info">
-          <label>{{ t('graphSettings.extractActionsLabel') }}</label>
-          <p class="desc">{{ t('graphSettings.extractActionsDescription') }}</p>
+          <label>{{ t("graphSettings.extractActionsLabel") }}</label>
+          <p class="desc">{{ t("graphSettings.extractActionsDescription") }}</p>
         </div>
         <div class="setting-control">
           <div class="action-buttons">
@@ -298,19 +259,13 @@
               :loading="extracting"
               @click="handleExtract"
             >
-              {{ extracting ? t('graphSettings.extracting') : t('graphSettings.startExtraction') }}
+              {{ extracting ? t("graphSettings.extracting") : t("graphSettings.startExtraction") }}
             </t-button>
-            <t-button
-              theme="default"
-              @click="defaultExtractExample"
-            >
-              {{ t('graphSettings.defaultExample') }}
+            <t-button theme="default" @click="defaultExtractExample">
+              {{ t("graphSettings.defaultExample") }}
             </t-button>
-            <t-button
-              theme="default"
-              @click="clearExtractExample"
-            >
-              {{ t('graphSettings.clearExample') }}
+            <t-button theme="default" @click="clearExtractExample">
+              {{ t("graphSettings.clearExample") }}
             </t-button>
           </div>
         </div>
@@ -320,287 +275,299 @@
 </template>
 
 <script setup lang="ts">
-import { docsUrl } from '@/config/externalLinks'
-import { ref, watch, onMounted, computed } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { extractTextRelations, fabriText, fabriTag, type Node, type Relation } from '@/api/initialization'
-import { useEditorResourcesStore } from '@/stores/editorResources'
-import { useAuthStore } from '@/stores/auth'
+import { docsUrl } from "@/config/externalLinks";
+import { ref, watch, onMounted, computed } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { extractTextRelations, fabriText, fabriTag, type Node, type Relation } from "@/api/initialization";
+import { useEditorResourcesStore } from "@/stores/editorResources";
+import { useAuthStore } from "@/stores/auth";
 
-const { t } = useI18n()
-const authStore = useAuthStore()
+const { t } = useI18n();
+const authStore = useAuthStore();
 
 // canRunGraphExtract 对应后端 POST /initialization/extract/{fabri-tag,fabri-text,
 // text-relation} 的 g.Admin() 守卫——这三个都是会调用大模型 + 写库的 admin
 // 工具。Contributor 看到按钮点了只会撞 403。
-const canRunGraphExtract = computed(() => authStore.hasRole('admin'))
+const canRunGraphExtract = computed(() => authStore.hasRole("admin"));
 
 interface GraphExtractConfig {
-  enabled: boolean
-  text: string
-  tags: string[]
-  nodes: Node[]
-  relations: Relation[]
-  customInstructions?: string
+  enabled: boolean;
+  text: string;
+  tags: string[];
+  nodes: Node[];
+  relations: Relation[];
+  customInstructions?: string;
 }
 
 interface Props {
-  graphExtract: GraphExtractConfig
-  modelId: string
-  allModels?: any[]
-  embedded?: boolean
+  graphExtract: GraphExtractConfig;
+  modelId: string;
+  allModels?: any[];
+  embedded?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   embedded: false,
-})
+});
 
 const emit = defineEmits<{
-  'update:graphExtract': [value: GraphExtractConfig]
-}>()
+  "update:graphExtract": [value: GraphExtractConfig];
+}>();
 
 const modelStatus = computed(() => ({
   llm: {
-    available: !!props.modelId
-  }
-}))
+    available: !!props.modelId,
+  },
+}));
 
 // 本地状态
 const localGraphExtract = ref<GraphExtractConfig>({
   ...props.graphExtract,
   nodes: props.graphExtract.nodes || [],
   relations: props.graphExtract.relations || [],
-  customInstructions: props.graphExtract.customInstructions || ''
-})
+  customInstructions: props.graphExtract.customInstructions || "",
+});
 
 // 加载状态
-const tagFabring = ref(false)
-const textFabring = ref(false)
-const extracting = ref(false)
+const tagFabring = ref(false);
+const textFabring = ref(false);
+const extracting = ref(false);
 
 // 系统信息
-const systemInfo = ref<any>(null)
+const systemInfo = ref<any>(null);
 
 // 计算图数据库是否启用
 const isGraphDatabaseEnabled = computed(() => {
-  return systemInfo.value?.graph_database_engine && systemInfo.value.graph_database_engine !== 'Not Enabled'
-})
+  return systemInfo.value?.graph_database_engine && systemInfo.value.graph_database_engine !== "Not Enabled";
+});
 
 // Watch for prop changes
-watch(() => props.graphExtract, (newVal) => {
-  localGraphExtract.value = {
-    ...newVal,
-    nodes: newVal.nodes || [],
-    relations: newVal.relations || [],
-    customInstructions: newVal.customInstructions || ''
-  }
-}, { deep: true })
+watch(
+  () => props.graphExtract,
+  (newVal) => {
+    localGraphExtract.value = {
+      ...newVal,
+      nodes: newVal.nodes || [],
+      relations: newVal.relations || [],
+      customInstructions: newVal.customInstructions || "",
+    };
+  },
+  { deep: true },
+);
 
 // 处理配置变更
 const handleConfigChange = () => {
-  emit('update:graphExtract', localGraphExtract.value)
-}
+  emit("update:graphExtract", localGraphExtract.value);
+};
 
 // 处理启用/禁用切换
 const handleEnabledChange = () => {
   // 当关闭提取功能时，清空示例数据，但保留自定义指令以便再次启用时恢复。
   if (!localGraphExtract.value.enabled) {
-    localGraphExtract.value.text = ''
-    localGraphExtract.value.tags = []
-    localGraphExtract.value.nodes = []
-    localGraphExtract.value.relations = []
+    localGraphExtract.value.text = "";
+    localGraphExtract.value.tags = [];
+    localGraphExtract.value.nodes = [];
+    localGraphExtract.value.relations = [];
   }
-  handleConfigChange()
-}
+  handleConfigChange();
+};
 
 const handleTagsChange = () => {
-  handleConfigChange()
-}
+  handleConfigChange();
+};
 
 const handleTextChange = () => {
-  handleConfigChange()
-}
+  handleConfigChange();
+};
 
 const handleNodesChange = () => {
-  handleConfigChange()
-}
+  handleConfigChange();
+};
 
 const handleRelationsChange = () => {
-  handleConfigChange()
-}
+  handleConfigChange();
+};
 
 // 节点操作
 const addNode = () => {
   if (!localGraphExtract.value.nodes) {
-    localGraphExtract.value.nodes = []
+    localGraphExtract.value.nodes = [];
   }
   localGraphExtract.value.nodes.push({
-    name: '',
-    attributes: []
-  })
-  handleNodesChange()
-}
+    name: "",
+    attributes: [],
+  });
+  handleNodesChange();
+};
 
 const removeNode = (index: number) => {
-  localGraphExtract.value.nodes.splice(index, 1)
-  handleNodesChange()
-}
+  localGraphExtract.value.nodes.splice(index, 1);
+  handleNodesChange();
+};
 
 const addAttribute = (nodeIndex: number) => {
-  localGraphExtract.value.nodes[nodeIndex].attributes.push('')
-  handleNodesChange()
-}
+  localGraphExtract.value.nodes[nodeIndex].attributes.push("");
+  handleNodesChange();
+};
 
 const removeAttribute = (nodeIndex: number, attrIndex: number) => {
-  localGraphExtract.value.nodes[nodeIndex].attributes.splice(attrIndex, 1)
-  handleNodesChange()
-}
+  localGraphExtract.value.nodes[nodeIndex].attributes.splice(attrIndex, 1);
+  handleNodesChange();
+};
 
 // 关系操作
 const addRelation = () => {
   if (!localGraphExtract.value.relations) {
-    localGraphExtract.value.relations = []
+    localGraphExtract.value.relations = [];
   }
   localGraphExtract.value.relations.push({
-    node1: '',
-    node2: '',
-    type: ''
-  })
-  handleRelationsChange()
-}
+    node1: "",
+    node2: "",
+    type: "",
+  });
+  handleRelationsChange();
+};
 
 const removeRelation = (index: number) => {
-  localGraphExtract.value.relations.splice(index, 1)
-  handleRelationsChange()
-}
+  localGraphExtract.value.relations.splice(index, 1);
+  handleRelationsChange();
+};
 
 // 生成随机标签
 const handleFabriTag = async () => {
-  tagFabring.value = true
+  tagFabring.value = true;
   try {
-    const response = await fabriTag({})
-    localGraphExtract.value.tags = response.tags || []
-    handleTagsChange()
-    MessagePlugin.success(t('graphSettings.tagsGenerated'))
+    const response = await fabriTag({});
+    localGraphExtract.value.tags = response.tags || [];
+    handleTagsChange();
+    MessagePlugin.success(t("graphSettings.tagsGenerated"));
   } catch (error: any) {
-    console.error('Failed to generate tags:', error)
-    MessagePlugin.error(t('graphSettings.tagsGenerateFailed'))
+    console.error("Failed to generate tags:", error);
+    MessagePlugin.error(t("graphSettings.tagsGenerateFailed"));
   } finally {
-    tagFabring.value = false
+    tagFabring.value = false;
   }
-}
+};
 
 // 生成随机文本
 const handleFabriText = async () => {
   if (!props.modelId) {
-    MessagePlugin.warning(t('graphSettings.completeModelConfig'))
-    return
+    MessagePlugin.warning(t("graphSettings.completeModelConfig"));
+    return;
   }
-  
-  textFabring.value = true
+
+  textFabring.value = true;
   try {
     const response = await fabriText({
       tags: localGraphExtract.value.tags,
-      model_id: props.modelId
-    })
-    localGraphExtract.value.text = response.text || ''
-    handleTextChange()
-    MessagePlugin.success(t('graphSettings.textGenerated'))
+      model_id: props.modelId,
+    });
+    localGraphExtract.value.text = response.text || "";
+    handleTextChange();
+    MessagePlugin.success(t("graphSettings.textGenerated"));
   } catch (error: any) {
-    console.error('Failed to generate text:', error)
-    MessagePlugin.error(t('graphSettings.textGenerateFailed'))
+    console.error("Failed to generate text:", error);
+    MessagePlugin.error(t("graphSettings.textGenerateFailed"));
   } finally {
-    textFabring.value = false
+    textFabring.value = false;
   }
-}
+};
 
 // 提取实体关系
 const handleExtract = async () => {
   if (!props.modelId) {
-    MessagePlugin.warning(t('graphSettings.completeModelConfig'))
-    return
+    MessagePlugin.warning(t("graphSettings.completeModelConfig"));
+    return;
   }
-  
+
   if (!localGraphExtract.value.text) {
-    MessagePlugin.warning(t('graphSettings.pleaseInputText'))
-    return
+    MessagePlugin.warning(t("graphSettings.pleaseInputText"));
+    return;
   }
-  
-  extracting.value = true
+
+  extracting.value = true;
   try {
     const response = await extractTextRelations({
       text: localGraphExtract.value.text,
       tags: localGraphExtract.value.tags,
-      model_id: props.modelId
-    })
-    localGraphExtract.value.nodes = response.nodes || []
-    localGraphExtract.value.relations = response.relations || []
-    handleNodesChange()
-    MessagePlugin.success(t('graphSettings.extractSuccess'))
+      model_id: props.modelId,
+    });
+    localGraphExtract.value.nodes = response.nodes || [];
+    localGraphExtract.value.relations = response.relations || [];
+    handleNodesChange();
+    MessagePlugin.success(t("graphSettings.extractSuccess"));
   } catch (error: any) {
-    console.error('Failed to extract relations:', error)
-    MessagePlugin.error(t('graphSettings.extractFailed'))
+    console.error("Failed to extract relations:", error);
+    MessagePlugin.error(t("graphSettings.extractFailed"));
   } finally {
-    extracting.value = false
+    extracting.value = false;
   }
-}
+};
 
 // 默认示例
 const defaultExtractExample = () => {
-  localGraphExtract.value.text = `"Romeo and Juliet" is a tragedy written by William Shakespeare early in his career, and is one of the most frequently performed plays in world literature. The play follows two young lovers from feuding families in Verona, Italy — the Montagues and the Capulets. Written around 1594-1596, it was first published in quarto in 1597. The full title is "The Most Excellent and Lamentable Tragedy of Romeo and Juliet." The story has been adapted countless times for stage, film, and other media.`
-  localGraphExtract.value.tags = ['Author', 'Alias']
+  localGraphExtract.value.text = `"Romeo and Juliet" is a tragedy written by William Shakespeare early in his career, and is one of the most frequently performed plays in world literature. The play follows two young lovers from feuding families in Verona, Italy — the Montagues and the Capulets. Written around 1594-1596, it was first published in quarto in 1597. The full title is "The Most Excellent and Lamentable Tragedy of Romeo and Juliet." The story has been adapted countless times for stage, film, and other media.`;
+  localGraphExtract.value.tags = ["Author", "Alias"];
   localGraphExtract.value.nodes = [
-    {name: 'Romeo and Juliet', attributes: ['One of the most frequently performed plays', 'Written around 1594-1596', 'A tragedy']},
-    {name: 'The Most Excellent and Lamentable Tragedy of Romeo and Juliet', attributes: ['Full title of Romeo and Juliet']},
-    {name: 'William Shakespeare', attributes: ['English playwright', 'Author of Romeo and Juliet']},
-    {name: 'Verona', attributes: ['City in Italy', 'Setting of the play']}
-  ]
+    {
+      name: "Romeo and Juliet",
+      attributes: ["One of the most frequently performed plays", "Written around 1594-1596", "A tragedy"],
+    },
+    {
+      name: "The Most Excellent and Lamentable Tragedy of Romeo and Juliet",
+      attributes: ["Full title of Romeo and Juliet"],
+    },
+    { name: "William Shakespeare", attributes: ["English playwright", "Author of Romeo and Juliet"] },
+    { name: "Verona", attributes: ["City in Italy", "Setting of the play"] },
+  ];
   localGraphExtract.value.relations = [
-    {node1: 'Romeo and Juliet', node2: 'The Most Excellent and Lamentable Tragedy of Romeo and Juliet', type: 'Alias'},
-    {node1: 'Romeo and Juliet', node2: 'William Shakespeare', type: 'Author'},
-    {node1: 'Romeo and Juliet', node2: 'Verona', type: 'Setting'}
-  ]
-  handleNodesChange()
-  MessagePlugin.success(t('graphSettings.exampleLoaded'))
-}
+    {
+      node1: "Romeo and Juliet",
+      node2: "The Most Excellent and Lamentable Tragedy of Romeo and Juliet",
+      type: "Alias",
+    },
+    { node1: "Romeo and Juliet", node2: "William Shakespeare", type: "Author" },
+    { node1: "Romeo and Juliet", node2: "Verona", type: "Setting" },
+  ];
+  handleNodesChange();
+  MessagePlugin.success(t("graphSettings.exampleLoaded"));
+};
 
 // 清除示例
 const clearExtractExample = () => {
-  localGraphExtract.value.text = ''
-  localGraphExtract.value.tags = []
-  localGraphExtract.value.nodes = []
-  localGraphExtract.value.relations = []
-  handleNodesChange()
-  MessagePlugin.success(t('graphSettings.exampleCleared'))
-}
+  localGraphExtract.value.text = "";
+  localGraphExtract.value.tags = [];
+  localGraphExtract.value.nodes = [];
+  localGraphExtract.value.relations = [];
+  handleNodesChange();
+  MessagePlugin.success(t("graphSettings.exampleCleared"));
+};
 
-const editorResources = useEditorResourcesStore()
+const editorResources = useEditorResourcesStore();
 
 // 加载系统信息
 const loadSystemInfo = async (force = false) => {
   try {
-    await editorResources.ensureSystemInfo(force)
-    systemInfo.value = editorResources.systemInfo
+    await editorResources.ensureSystemInfo(force);
+    systemInfo.value = editorResources.systemInfo;
   } catch (error: any) {
-    console.error('Failed to load system info:', error)
+    console.error("Failed to load system info:", error);
   }
-}
+};
 
-const graphGuideUrl =
-  import.meta.env.VITE_KG_GUIDE_URL ||
-  docsUrl('KnowledgeGraph.md')
+const graphGuideUrl = import.meta.env.VITE_KG_GUIDE_URL || docsUrl("KnowledgeGraph.md");
 
 // Open guide documentation to show how to enable graph database
 const handleOpenGraphGuide = () => {
-  if (!graphGuideUrl) return
-  window.open(graphGuideUrl, '_blank', 'noopener')
-}
+  if (!graphGuideUrl) return;
+  window.open(graphGuideUrl, "_blank", "noopener");
+};
 
 // 初始化
 onMounted(async () => {
-  await loadSystemInfo()
-})
+  await loadSystemInfo();
+});
 </script>
 
 <style lang="less" scoped>

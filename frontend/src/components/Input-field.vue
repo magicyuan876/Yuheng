@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
-import { storeToRefs } from 'pinia';
-import { useRoute, useRouter } from 'vue-router';
-import { onBeforeRouteUpdate } from 'vue-router';
+import { storeToRefs } from "pinia";
+import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteUpdate } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
-import { useSettingsStore } from '@/stores/settings';
-import { useUIStore } from '@/stores/ui';
-import { useMenuStore } from '@/stores/menu';
-import { searchKnowledge, batchQueryKnowledge, listKnowledgeTags } from '@/api/knowledge-base';
-import { stopSession } from '@/api/chat';
-import { useOrganizationStore } from '@/stores/organization';
-import MentionSelector from './MentionSelector.vue';
-import { getCaretCoordinates } from '@/utils/caret';
-import { getRootZoom, rectToCssPx, cssViewportSize } from '@/utils/zoom';
-import { type ModelConfig } from '@/api/model';
-import { useChatResourcesStore } from '@/stores/chatResources';
-import { useI18n } from 'vue-i18n';
-import AttachmentUpload, { type AttachmentFile } from './AttachmentUpload.vue';
-import type { MentionItem, MentionItemType, MentionRequestItem } from '@/types/mention';
+import { useSettingsStore } from "@/stores/settings";
+import { useUIStore } from "@/stores/ui";
+import { useMenuStore } from "@/stores/menu";
+import { searchKnowledge, batchQueryKnowledge, listKnowledgeTags } from "@/api/knowledge-base";
+import { stopSession } from "@/api/chat";
+import { useOrganizationStore } from "@/stores/organization";
+import MentionSelector from "./MentionSelector.vue";
+import { getCaretCoordinates } from "@/utils/caret";
+import { getRootZoom, rectToCssPx, cssViewportSize } from "@/utils/zoom";
+import { type ModelConfig } from "@/api/model";
+import { useChatResourcesStore } from "@/stores/chatResources";
+import { useI18n } from "vue-i18n";
+import AttachmentUpload, { type AttachmentFile } from "./AttachmentUpload.vue";
+import type { MentionItem, MentionItemType, MentionRequestItem } from "@/types/mention";
 
 const route = useRoute();
 const router = useRouter();
@@ -26,9 +26,7 @@ const uiStore = useUIStore();
 const orgStore = useOrganizationStore();
 const menuStore = useMenuStore();
 const chatResources = useChatResourcesStore();
-const {
-  chatModels: availableModels,
-} = storeToRefs(chatResources);
+const { chatModels: availableModels } = storeToRefs(chatResources);
 const { t } = useI18n();
 
 const query = ref("");
@@ -40,21 +38,21 @@ const imageInputRef = ref<HTMLInputElement>();
 // Attachment upload state
 const attachmentUploadRef = ref<InstanceType<typeof AttachmentUpload>>();
 const uploadedAttachments = ref<AttachmentFile[]>([]);
-const CHAT_FILE_DROP_EVENT = 'yuheng:chat-file-drop';
+const CHAT_FILE_DROP_EVENT = "yuheng:chat-file-drop";
 
 const isImageFile = (file: File) => {
-  if (file.type.startsWith('image/')) {
+  if (file.type.startsWith("image/")) {
     return true;
   }
   const fileName = file.name.toLowerCase();
-  return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].some(ext => fileName.endsWith(ext));
+  return [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"].some((ext) => fileName.endsWith(ext));
 };
 
 const handleDroppedFiles = (files: File[]) => {
   if (!files.length) return;
 
   const imageFiles = files.filter(isImageFile);
-  const attachmentFiles = files.filter(file => !isImageFile(file));
+  const attachmentFiles = files.filter((file) => !isImageFile(file));
 
   if (imageFiles.length > 0) {
     addImageFiles(imageFiles);
@@ -76,23 +74,23 @@ const handleImageSelect = (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files) return;
   addImageFiles(Array.from(input.files));
-  input.value = '';
+  input.value = "";
 };
 
 const addImageFiles = (files: File[]) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
   const maxSize = 10 * 1024 * 1024;
   for (const file of files) {
     if (uploadedImages.value.length >= 5) {
-      MessagePlugin.warning(t('chat.imageTooMany'));
+      MessagePlugin.warning(t("chat.imageTooMany"));
       break;
     }
     if (!allowed.includes(file.type)) {
-      MessagePlugin.warning(t('chat.imageTypeSizeError'));
+      MessagePlugin.warning(t("chat.imageTypeSizeError"));
       continue;
     }
     if (file.size > maxSize) {
-      MessagePlugin.warning(t('chat.imageTypeSizeError'));
+      MessagePlugin.warning(t("chat.imageTypeSizeError"));
       continue;
     }
     uploadedImages.value.push({ file, preview: URL.createObjectURL(file) });
@@ -131,16 +129,16 @@ const MENTION_PAGE_SIZE = 20;
 const props = defineProps({
   isReplying: {
     type: Boolean,
-    required: false
+    required: false,
   },
   sessionId: {
     type: String,
-    required: false
+    required: false,
   },
   assistantMessageId: {
     type: String,
-    required: false
-  }
+    required: false,
+  },
 });
 
 const selectedKbIds = computed(() => settingsStore.settings.selectedKnowledgeBases || []);
@@ -153,19 +151,19 @@ const fileList = ref<Array<{ id: string; name: string }>>([]);
 
 // 选中的知识库：包含自己的 + 组织共享的（用于展示已选列表与 org 角标）
 const selectedKbs = computed(() => {
-  const own = knowledgeBases.value.filter(kb => selectedKbIds.value.includes(kb.id));
+  const own = knowledgeBases.value.filter((kb) => selectedKbIds.value.includes(kb.id));
   const sharedList = orgStore.sharedKnowledgeBases || [];
   const sharedMapped = sharedList
     .filter((s: any) => s.knowledge_base != null && selectedKbIds.value.includes(s.knowledge_base.id))
     .map((s: any) => ({
       id: s.knowledge_base.id,
       name: s.knowledge_base.name,
-      type: s.knowledge_base.type || 'document',
+      type: s.knowledge_base.type || "document",
       knowledge_count: s.knowledge_base.knowledge_count,
       chunk_count: s.knowledge_base.chunk_count,
-      org_name: s.org_name || ''
+      org_name: s.org_name || "",
     }));
-  const ownIds = new Set(own.map(kb => kb.id));
+  const ownIds = new Set(own.map((kb) => kb.id));
   const sharedOnly = sharedMapped.filter((kb: any) => !ownIds.has(kb.id));
   return [...own, ...sharedOnly];
 });
@@ -174,17 +172,17 @@ const selectedFiles = computed(() => {
   // If we have file details in fileList, use them.
   // Otherwise we might show ID or Loading...
   return selectedFileIds.value.map((id: string) => {
-    const found = fileList.value.find(f => f.id === id);
-    return found || { id, name: 'Loading...' };
+    const found = fileList.value.find((f) => f.id === id);
+    return found || { id, name: "Loading..." };
   });
 });
 
 // 合并所有选中项（用于输入框内显示）
 const allSelectedItems = computed(() => {
-  const allKbs = selectedKbs.value.map(kb => ({
+  const allKbs = selectedKbs.value.map((kb) => ({
     ...kb,
-    type: 'kb' as const,
-    kbType: kb.type
+    type: "kb" as const,
+    kbType: kb.type,
   }));
 
   // 用户选择的文件（根据 fileIdToKbId + 共享列表补全 org_name，用于角标）
@@ -196,21 +194,21 @@ const allSelectedItems = computed(() => {
   });
   const files = selectedFiles.value.map((f: { id: string; name: string }) => {
     const kbId = fileIdToKbId.value[f.id];
-    const org_name = kbId ? sharedKbOrgMap[String(kbId)] || '' : '';
+    const org_name = kbId ? sharedKbOrgMap[String(kbId)] || "" : "";
     return {
       ...f,
-      type: 'file' as const,
-      org_name
+      type: "file" as const,
+      org_name,
     };
   });
 
   const tags = selectedTags.value.map((tag: any) => ({
     id: tag.id,
     name: tag.name,
-    type: 'tag' as const,
+    type: "tag" as const,
     kbId: tag.kbId,
     kbName: tag.kbName,
-    description: tag.kbName || '',
+    description: tag.kbName || "",
   }));
 
   return [...allKbs, ...files, ...tags];
@@ -218,33 +216,36 @@ const allSelectedItems = computed(() => {
 
 // 移除选中项
 const removeSelectedItem = (item: MentionItem) => {
-  if (item.type === 'kb') {
+  if (item.type === "kb") {
     settingsStore.removeKnowledgeBase(item.id);
-  } else if (item.type === 'file') {
+  } else if (item.type === "file") {
     settingsStore.removeFile(item.id);
     delete fileIdToKbId.value[item.id];
-  } else if (item.type === 'tag') {
+  } else if (item.type === "tag") {
     settingsStore.removeTag(item.id, item.kbId);
   }
 };
 
 const getMentionIcon = (item: MentionItem) => {
   switch (item.type) {
-    case 'file': return 'file';
-    case 'tag': return 'tag';
-    default: return 'folder';
+    case "file":
+      return "file";
+    case "tag":
+      return "tag";
+    default:
+      return "folder";
   }
 };
 
 const getMentionChipClass = (item: MentionItem) => {
-  if (item.type === 'kb') return item.kbType === 'faq' ? 'mention-chip--faq' : 'mention-chip--kb';
+  if (item.type === "kb") return item.kbType === "faq" ? "mention-chip--faq" : "mention-chip--kb";
   return `mention-chip--${item.type}`;
 };
 
 // 使用 computed 从 store 读取，并通过 setter 同步回 store
 const selectedModelId = computed({
-  get: () => settingsStore.conversationModels.selectedChatModelId || '',
-  set: (val: string) => settingsStore.updateConversationModels({ selectedChatModelId: val })
+  get: () => settingsStore.conversationModels.selectedChatModelId || "",
+  set: (val: string) => settingsStore.updateConversationModels({ selectedChatModelId: val }),
 });
 const modelsLoading = ref(false);
 const showModelSelector = ref(false);
@@ -258,10 +259,10 @@ const inputPlaceholder = computed(() => {
   const hasKnowledge = allSelectedItems.value.length > 0;
   if (hasKnowledge) {
     // 有知识库 + 无网络搜索
-    return t('input.placeholderWithContext');
+    return t("input.placeholderWithContext");
   }
   // 无知识库（纯模型对话）
-  return t('input.placeholder');
+  return t("input.placeholder");
 });
 
 // 加载知识库列表（自己的 + 共享的，用于 @ 提及等）
@@ -272,18 +273,16 @@ const loadKnowledgeBases = async (force = false) => {
 
     const validKbIds = new Set(validKbs.map((kb: any) => kb.id));
     const sharedKbIds = new Set(
-      (orgStore.sharedKnowledgeBases || []).map((s: any) => s.knowledge_base?.id).filter(Boolean)
+      (orgStore.sharedKnowledgeBases || []).map((s: any) => s.knowledge_base?.id).filter(Boolean),
     );
     const currentSelectedIds = settingsStore.settings.selectedKnowledgeBases || [];
-    const validSelectedIds = currentSelectedIds.filter(
-      (id: string) => validKbIds.has(id) || sharedKbIds.has(id)
-    );
+    const validSelectedIds = currentSelectedIds.filter((id: string) => validKbIds.has(id) || sharedKbIds.has(id));
 
     if (validSelectedIds.length !== currentSelectedIds.length) {
       settingsStore.selectKnowledgeBases(validSelectedIds);
     }
   } catch (error) {
-    console.error('Failed to load knowledge bases:', error);
+    console.error("Failed to load knowledge bases:", error);
   }
 };
 
@@ -291,7 +290,7 @@ const loadFiles = async () => {
   const ids = selectedFileIds.value;
   if (ids.length === 0) return;
 
-  const missingIds = ids.filter((id: string) => !fileList.value.find(f => f.id === id));
+  const missingIds = ids.filter((id: string) => !fileList.value.find((f) => f.id === id));
   if (missingIds.length === 0) return;
 
   try {
@@ -311,7 +310,7 @@ const loadFiles = async () => {
     const allNewFiles: Array<{ id: string; name: string }> = [];
     const runBatch = async (batchIds: string[], kbId?: string) => {
       const query = new URLSearchParams();
-      batchIds.forEach((id: string) => query.append('ids', id));
+      batchIds.forEach((id: string) => query.append("ids", id));
       const res: any = await batchQueryKnowledge(query.toString(), kbId);
       if (res.data && Array.isArray(res.data)) {
         res.data.forEach((f: any) => allNewFiles.push({ id: f.id, name: f.title || f.file_name }));
@@ -332,9 +331,13 @@ const loadFiles = async () => {
   }
 };
 
-watch(selectedFileIds, () => {
-  loadFiles();
-}, { immediate: true });
+watch(
+  selectedFileIds,
+  () => {
+    loadFiles();
+  },
+  { immediate: true },
+);
 
 // LAST_CHAT_MODEL_KEY scopes the per-user "last selected chat model"
 // to localStorage. The previous implementation wrote this back to the
@@ -343,27 +346,27 @@ watch(selectedFileIds, () => {
 // chat input got a 403, and (b) silently overwrote the tenant default
 // for everyone else. localStorage is per-user-per-browser, which is
 // what "remember my last pick" actually wants.
-const LAST_CHAT_MODEL_KEY = 'yuheng_last_chat_model_id'
+const LAST_CHAT_MODEL_KEY = "yuheng_last_chat_model_id";
 
 const readLastChatModelID = (): string => {
   try {
-    return localStorage.getItem(LAST_CHAT_MODEL_KEY) || ''
+    return localStorage.getItem(LAST_CHAT_MODEL_KEY) || "";
   } catch {
-    return ''
+    return "";
   }
-}
+};
 
 const writeLastChatModelID = (id: string) => {
   try {
     if (id) {
-      localStorage.setItem(LAST_CHAT_MODEL_KEY, id)
+      localStorage.setItem(LAST_CHAT_MODEL_KEY, id);
     } else {
-      localStorage.removeItem(LAST_CHAT_MODEL_KEY)
+      localStorage.removeItem(LAST_CHAT_MODEL_KEY);
     }
   } catch {
     // localStorage may be disabled in incognito mode; ignore.
   }
-}
+};
 
 // Initial chat-model selection priority: per-user last pick
 // (localStorage) > current store value (e.g. carried over from
@@ -371,11 +374,11 @@ const writeLastChatModelID = (id: string) => {
 const initChatModelSelection = () => {
   const lastPick = readLastChatModelID();
   const currentSelectedModel = settingsStore.conversationModels.selectedChatModelId;
-  const initialSelection = lastPick || currentSelectedModel || '';
+  const initialSelection = lastPick || currentSelectedModel || "";
   settingsStore.updateConversationModels({
     summaryModelId: initialSelection,
     selectedChatModelId: initialSelection,
-    rerankModelId: '',
+    rerankModelId: "",
   });
   if (!selectedModelId.value) {
     selectedModelId.value = initialSelection;
@@ -390,8 +393,8 @@ const loadChatModels = async (force = false) => {
     await chatResources.ensureChatModels(force);
     ensureModelSelection();
   } catch (error) {
-    console.error('Failed to load chat models:', error);
-    chatResources.invalidate('models');
+    console.error("Failed to load chat models:", error);
+    chatResources.invalidate("models");
   } finally {
     modelsLoading.value = false;
   }
@@ -407,16 +410,16 @@ const ensureModelSelection = () => {
     return;
   }
   if (availableModels.value.length > 0) {
-    selectedModelId.value = availableModels.value[0].id || '';
+    selectedModelId.value = availableModels.value[0].id || "";
   }
 };
 
 const handleGoToConversationModels = () => {
   showModelSelector.value = false;
-  router.push('/platform/settings');
+  router.push("/platform/settings");
   setTimeout(() => {
-    const event = new CustomEvent('settings-nav', {
-      detail: { section: 'models', subsection: 'chat' },
+    const event = new CustomEvent("settings-nav", {
+      detail: { section: "models", subsection: "chat" },
     });
     window.dispatchEvent(event);
   }, 100);
@@ -424,13 +427,13 @@ const handleGoToConversationModels = () => {
 
 const handleModelChange = (value: string | number | Array<string | number> | undefined) => {
   const normalized = Array.isArray(value) ? value[0] : value;
-  const val = normalized !== undefined && normalized !== null ? String(normalized) : '';
+  const val = normalized !== undefined && normalized !== null ? String(normalized) : "";
 
   if (!val) {
-    selectedModelId.value = '';
+    selectedModelId.value = "";
     return;
   }
-  if (val === '__add_model__') {
+  if (val === "__add_model__") {
     selectedModelId.value = readLastChatModelID();
     handleGoToConversationModels();
     return;
@@ -445,18 +448,18 @@ const handleModelChange = (value: string | number | Array<string | number> | und
   settingsStore.updateConversationModels({
     summaryModelId: val,
     selectedChatModelId: val,
-    rerankModelId: '',
+    rerankModelId: "",
   });
 };
 
 const selectedModel = computed(() => {
-  return availableModels.value.find(model => model.id === selectedModelId.value);
+  return availableModels.value.find((model) => model.id === selectedModelId.value);
 });
 
 const selectedModelDisplayName = computed(() => {
   if (selectedModel.value) return modelDisplayName(selectedModel.value);
-  if (!selectedModelId.value) return t('input.notConfigured');
-  return t('input.notConfigured');
+  if (!selectedModelId.value) return t("input.notConfigured");
+  return t("input.notConfigured");
 });
 
 const modelDisplayName = (model: ModelConfig) => {
@@ -468,10 +471,10 @@ const updateModelDropdownPosition = () => {
   const anchor = modelButtonRef.value;
   if (!anchor) {
     modelDropdownStyle.value = {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
     };
     return;
   }
@@ -480,13 +483,13 @@ const updateModelDropdownPosition = () => {
   // the browser will render them under the root `zoom` (see utils/zoom.ts).
   const zoom = getRootZoom();
   const rect = rectToCssPx(anchor.getBoundingClientRect(), zoom);
-  console.log('[Model Dropdown] Button rect:', {
+  console.log("[Model Dropdown] Button rect:", {
     top: rect.top,
     bottom: rect.bottom,
     left: rect.left,
     right: rect.right,
     width: rect.width,
-    height: rect.height
+    height: rect.height,
   });
 
   const dropdownWidth = 280;
@@ -510,10 +513,10 @@ const updateModelDropdownPosition = () => {
   const spaceBelow = vh - rect.bottom; // 下方剩余空间
   const spaceAbove = rect.top; // 上方剩余空间
 
-  console.log('[Model Dropdown] Space check:', {
+  console.log("[Model Dropdown] Space check:", {
     spaceBelow,
     spaceAbove,
-    windowHeight: vh
+    windowHeight: vh,
   });
 
   let actualHeight: number;
@@ -524,7 +527,7 @@ const updateModelDropdownPosition = () => {
     // 下方有足够空间，向下弹出
     actualHeight = Math.min(preferredDropdownHeight, spaceBelow - offsetY - 16);
     shouldOpenBelow = true;
-    console.log('[Model Dropdown] Position: below button', { actualHeight });
+    console.log("[Model Dropdown] Position: below button", { actualHeight });
   } else {
     // 向上弹出，优先使用 preferredHeight，必要时才扩展到 maxHeight
     const availableHeight = spaceAbove - offsetY - topMargin;
@@ -536,47 +539,47 @@ const updateModelDropdownPosition = () => {
       actualHeight = Math.max(minDropdownHeight, availableHeight);
     }
     shouldOpenBelow = false;
-    console.log('[Model Dropdown] Position: above button', { actualHeight });
+    console.log("[Model Dropdown] Position: above button", { actualHeight });
   }
 
   // 根据弹出方向使用不同的定位方式
   if (shouldOpenBelow) {
     // 向下弹出：使用 top 定位，左对齐
     const top = Math.floor(rect.bottom + offsetY);
-    console.log('[Model Dropdown] Opening below, top:', top);
+    console.log("[Model Dropdown] Opening below, top:", top);
     modelDropdownStyle.value = {
-      position: 'fixed !important',
+      position: "fixed !important",
       width: `${dropdownWidth}px`,
       left: `${left}px`,
       top: `${top}px`,
       maxHeight: `${actualHeight}px`,
-      transform: 'none !important',
-      margin: '0 !important',
-      padding: '0 !important'
+      transform: "none !important",
+      margin: "0 !important",
+      padding: "0 !important",
     };
   } else {
     // 向上弹出：使用 bottom 定位，左对齐
     const bottom = vh - rect.top + offsetY;
-    console.log('[Model Dropdown] Opening above, bottom:', bottom);
+    console.log("[Model Dropdown] Opening above, bottom:", bottom);
     modelDropdownStyle.value = {
-      position: 'fixed !important',
+      position: "fixed !important",
       width: `${dropdownWidth}px`,
       left: `${left}px`,
       bottom: `${bottom}px`,
       maxHeight: `${actualHeight}px`,
-      transform: 'none !important',
-      margin: '0 !important',
-      padding: '0 !important'
+      transform: "none !important",
+      margin: "0 !important",
+      padding: "0 !important",
     };
   }
 
-  console.log('[Model Dropdown] Applied style:', modelDropdownStyle.value);
+  console.log("[Model Dropdown] Applied style:", modelDropdownStyle.value);
 };
 
 // Mention Logic
-let lastMentionQuery = '';
+let lastMentionQuery = "";
 const loadMentionItems = async (q: string, resetIndex = true, append = false) => {
-  console.log('[Mention] loadMentionItems called with query:', q, 'append:', append);
+  console.log("[Mention] loadMentionItems called with query:", q, "append:", append);
 
   if (!append) {
     mentionOffset.value = 0;
@@ -592,10 +595,10 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
       .map((s: any) => ({
         id: s.knowledge_base.id,
         name: s.knowledge_base.name,
-        type: s.knowledge_base.type || 'document',
+        type: s.knowledge_base.type || "document",
         knowledge_count: s.knowledge_base.knowledge_count,
         chunk_count: s.knowledge_base.chunk_count,
-        org_name: s.org_name || '',
+        org_name: s.org_name || "",
       }));
     const ownIds = new Set(availableKbs.map((kb: any) => kb.id));
     sharedKbsForMention.forEach((kb: any) => {
@@ -605,50 +608,50 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
       }
     });
 
-    const kbs = availableKbs.filter((kb: any) =>
-      !q || (kb.name && kb.name.toLowerCase().includes(q.toLowerCase()))
-    );
-    kbItems = await Promise.all(kbs.map(async (kb: any) => {
-      const kbType = kb.type || 'document';
-      let count = kbType === 'faq' ? Number(kb.chunk_count || 0) : Number(kb.knowledge_count || 0);
-      if (!count) {
-        const detail = await chatResources.fetchKnowledgeBaseById(kb.id);
-        if (detail) {
-          count = detail.type === 'faq'
-            ? Number(detail.chunk_count || 0)
-            : Number(detail.knowledge_count || 0);
+    const kbs = availableKbs.filter((kb: any) => !q || (kb.name && kb.name.toLowerCase().includes(q.toLowerCase())));
+    kbItems = await Promise.all(
+      kbs.map(async (kb: any) => {
+        const kbType = kb.type || "document";
+        let count = kbType === "faq" ? Number(kb.chunk_count || 0) : Number(kb.knowledge_count || 0);
+        if (!count) {
+          const detail = await chatResources.fetchKnowledgeBaseById(kb.id);
+          if (detail) {
+            count = detail.type === "faq" ? Number(detail.chunk_count || 0) : Number(detail.knowledge_count || 0);
+          }
         }
-      }
-      return {
-        id: kb.id,
-        name: kb.name,
-        type: 'kb' as const,
-        kbType: kbType === 'faq' ? 'faq' as const : 'document' as const,
-        count,
-        orgName: kb.org_name || undefined
-      };
-    }));
+        return {
+          id: kb.id,
+          name: kb.name,
+          type: "kb" as const,
+          kbType: kbType === "faq" ? ("faq" as const) : ("document" as const),
+          count,
+          orgName: kb.org_name || undefined,
+        };
+      }),
+    );
     mentionGroupCounts.value.kb = kbItems.length;
 
     const tagKeyword = q.trim();
     const tagSources = availableKbs;
     try {
-      const tagResults = await Promise.all(tagSources.map(async (kb: any) => {
-        const res: any = await listKnowledgeTags(kb.id, { page: 1, page_size: 20, keyword: tagKeyword || undefined });
-        const payload = res?.data ?? res;
-        const list = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
-        return list.map((tag: any) => ({
-          id: tag.id,
-          name: tag.name,
-          type: 'tag' as const,
-          kbId: kb.id,
-          kbName: kb.name,
-        }));
-      }));
+      const tagResults = await Promise.all(
+        tagSources.map(async (kb: any) => {
+          const res: any = await listKnowledgeTags(kb.id, { page: 1, page_size: 20, keyword: tagKeyword || undefined });
+          const payload = res?.data ?? res;
+          const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+          return list.map((tag: any) => ({
+            id: tag.id,
+            name: tag.name,
+            type: "tag" as const,
+            kbId: kb.id,
+            kbName: kb.name,
+          }));
+        }),
+      );
       tagItems = tagResults.flat();
       mentionGroupCounts.value.tag = tagItems.length;
     } catch (e) {
-      console.error('[Mention] listKnowledgeTags error:', e);
+      console.error("[Mention] listKnowledgeTags error:", e);
       tagItems = [];
     }
   }
@@ -660,16 +663,13 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
   const fileSearchKeyword = q.trim();
   mentionLoading.value = true;
   try {
-    const res: any = await searchKnowledge(
-      fileSearchKeyword,
-      mentionOffset.value,
-      MENTION_PAGE_SIZE,
-      { recent: !fileSearchKeyword }
-    );
-    console.log('[Mention] searchKnowledge response:', res);
+    const res: any = await searchKnowledge(fileSearchKeyword, mentionOffset.value, MENTION_PAGE_SIZE, {
+      recent: !fileSearchKeyword,
+    });
+    console.log("[Mention] searchKnowledge response:", res);
     if (res.data && Array.isArray(res.data)) {
       const files = res.data;
-      const rawTotal = typeof res.total === 'number' ? res.total : undefined;
+      const rawTotal = typeof res.total === "number" ? res.total : undefined;
       const apiPageSize = res.data.length;
       const sharedKbOrgMap: Record<string, string> = {};
       (orgStore.sharedKnowledgeBases || []).forEach((s: any) => {
@@ -679,15 +679,15 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
       });
       fileItems = files.map((f: any) => {
         const kbId = f.knowledge_base_id ?? f.kb_id;
-        const kbIdStr = kbId != null ? String(kbId) : '';
+        const kbIdStr = kbId != null ? String(kbId) : "";
         const fileOrgName = kbIdStr ? sharedKbOrgMap[kbIdStr] : undefined;
         return {
           id: f.id,
           name: f.title || f.file_name,
-          type: 'file' as const,
-          kbName: f.knowledge_base_name || '',
+          type: "file" as const,
+          kbName: f.knowledge_base_name || "",
           kbId: kbId || undefined,
-          orgName: fileOrgName || undefined
+          orgName: fileOrgName || undefined,
         };
       });
       if (!append) {
@@ -701,7 +701,7 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
     mentionHasMore.value = res.has_more || false;
     mentionOffset.value += fileItems.length;
   } catch (e) {
-    console.error('[Mention] searchKnowledge error:', e);
+    console.error("[Mention] searchKnowledge error:", e);
     mentionHasMore.value = false;
   } finally {
     mentionLoading.value = false;
@@ -713,7 +713,11 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
   } else {
     mentionItems.value = [...kbItems, ...tagItems, ...fileItems];
   }
-  console.log('[Mention] Total items:', mentionItems.value.length, { kbItems: kbItems.length, fileItems: fileItems.length, tagItems: tagItems.length });
+  console.log("[Mention] Total items:", mentionItems.value.length, {
+    kbItems: kbItems.length,
+    fileItems: fileItems.length,
+    tagItems: tagItems.length,
+  });
 
   // Only reset index if query changed or explicitly requested
   if (resetIndex || q !== lastMentionQuery) {
@@ -739,8 +743,8 @@ const getTextareaEl = () => {
   // If it's a component wrapper
   const el = textareaRef.value.$el || textareaRef.value;
   if (!el) return null;
-  if (el.tagName === 'TEXTAREA') return el as HTMLTextAreaElement;
-  return el.querySelector('textarea');
+  if (el.tagName === "TEXTAREA") return el as HTMLTextAreaElement;
+  return el.querySelector("textarea");
 };
 
 const onInput = (val: string | InputEvent) => {
@@ -748,23 +752,23 @@ const onInput = (val: string | InputEvent) => {
   if (isComposing.value) return;
 
   // TDesign t-textarea passes the value directly, not an event
-  const inputVal = typeof val === 'string' ? val : query.value;
+  const inputVal = typeof val === "string" ? val : query.value;
 
   const textarea = getTextareaEl();
   if (!textarea) {
-    console.warn('[Mention] Could not get textarea element');
+    console.warn("[Mention] Could not get textarea element");
     return;
   }
 
   const cursor = textarea.selectionStart;
   const textBeforeCursor = inputVal.slice(0, cursor);
 
-  console.log('[Mention] onInput called', { inputVal, cursor, textBeforeCursor, showMention: showMention.value });
+  console.log("[Mention] onInput called", { inputVal, cursor, textBeforeCursor, showMention: showMention.value });
 
   if (showMention.value) {
     // 如果不是按钮触发的，检查 @ 符号
     if (!isMentionTriggeredByButton.value) {
-      if (!inputVal || inputVal.length <= mentionStartPos.value || inputVal.charAt(mentionStartPos.value) !== '@') {
+      if (!inputVal || inputVal.length <= mentionStartPos.value || inputVal.charAt(mentionStartPos.value) !== "@") {
         showMention.value = false;
         return;
       }
@@ -782,7 +786,7 @@ const onInput = (val: string | InputEvent) => {
     const start = isMentionTriggeredByButton.value ? mentionStartPos.value : mentionStartPos.value + 1;
     const q = inputVal.slice(start, cursor);
 
-    if (q.includes(' ')) {
+    if (q.includes(" ")) {
       showMention.value = false;
       return;
     }
@@ -792,8 +796,8 @@ const onInput = (val: string | InputEvent) => {
       loadMentionItems(q, true); // Reset index when query changes
     }
   } else {
-    if (textBeforeCursor.endsWith('@')) {
-      console.log('[Mention] @ detected, opening menu');
+    if (textBeforeCursor.endsWith("@")) {
+      console.log("[Mention] @ detected, opening menu");
       isMentionTriggeredByButton.value = false;
       mentionStartPos.value = cursor - 1;
       showMention.value = true;
@@ -826,7 +830,7 @@ const onInput = (val: string | InputEvent) => {
         mentionStyle.value = {
           left: `${left}px`,
           bottom: `${bottom}px`,
-          top: 'auto'
+          top: "auto",
         };
       } else {
         // Show below cursor (using top positioning)
@@ -834,7 +838,7 @@ const onInput = (val: string | InputEvent) => {
         mentionStyle.value = {
           left: `${left}px`,
           top: `${top}px`,
-          bottom: 'auto'
+          bottom: "auto",
         };
       }
 
@@ -888,14 +892,14 @@ const triggerMention = () => {
     mentionStyle.value = {
       left: `${rect.left}px`,
       bottom: `${vh - rect.top + 8}px`, // 8px padding
-      top: 'auto'
+      top: "auto",
     };
   } else {
     // Show below textarea
     mentionStyle.value = {
       left: `${rect.left}px`,
       top: `${rect.bottom + 8}px`,
-      bottom: 'auto'
+      bottom: "auto",
     };
   }
 
@@ -903,19 +907,19 @@ const triggerMention = () => {
 };
 
 const onMentionSelect = (item: any) => {
-  if (item.type === 'kb') {
+  if (item.type === "kb") {
     settingsStore.addKnowledgeBase(item.id);
-  } else if (item.type === 'file') {
+  } else if (item.type === "file") {
     settingsStore.addFile(item.id);
     if (item.kbId) {
       fileIdToKbId.value[item.id] = item.kbId;
       settingsStore.setFileKbMap({ [item.id]: item.kbId });
     }
     // Add to local cache immediately
-    if (!fileList.value.find(f => f.id === item.id)) {
+    if (!fileList.value.find((f) => f.id === item.id)) {
       fileList.value.push({ id: item.id, name: item.name });
     }
-  } else if (item.type === 'tag') {
+  } else if (item.type === "tag") {
     if (item.kbId) {
       settingsStore.addTag({ id: item.id, name: item.name, kbId: item.kbId, kbName: item.kbName });
     }
@@ -985,7 +989,7 @@ const closeModelSelector = () => {
 const closeMentionSelector = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
   // 如果点击的是输入框区域，不关闭 Mention 列表（由光标逻辑控制）
-  if (target.closest('.rich-input-container')) {
+  if (target.closest(".rich-input-container")) {
     return;
   }
   showMention.value = false;
@@ -998,16 +1002,13 @@ let scrollHandler: (() => void) | null = null;
 onMounted(() => {
   // 并行拉取；若 platform 已预取且缓存未过期则直接复用
   initChatModelSelection();
-  void Promise.all([
-    loadKnowledgeBases(),
-    loadChatModels(),
-  ]);
+  void Promise.all([loadKnowledgeBases(), loadChatModels()]);
   window.addEventListener(CHAT_FILE_DROP_EVENT, handleChatFileDrop as EventListener);
 
   // 从持久化恢复 fileId -> kbId，刷新后共享知识库文件可带 kb_id 拉取（仅保留当前仍选中的文件）
   const persisted = settingsStore.settings.selectedFileKbMap;
   const ids = settingsStore.settings.selectedFiles || [];
-  if (persisted && typeof persisted === 'object' && ids.length > 0) {
+  if (persisted && typeof persisted === "object" && ids.length > 0) {
     const next: Record<string, string> = {};
     ids.forEach((id: string) => {
       if (persisted[id]) next[id] = persisted[id];
@@ -1031,8 +1032,8 @@ onMounted(() => {
   }
 
   // 监听点击外部关闭下拉菜单
-  document.addEventListener('click', closeModelSelector);
-  document.addEventListener('click', closeMentionSelector);
+  document.addEventListener("click", closeModelSelector);
+  document.addEventListener("click", closeMentionSelector);
 
   // 监听窗口大小变化和滚动，重新计算位置
   resizeHandler = () => {
@@ -1046,67 +1047,82 @@ onMounted(() => {
     }
   };
 
-  window.addEventListener('resize', resizeHandler, { passive: true });
-  window.addEventListener('scroll', scrollHandler, { passive: true, capture: true });
+  window.addEventListener("resize", resizeHandler, { passive: true });
+  window.addEventListener("scroll", scrollHandler, { passive: true, capture: true });
 });
 
 onUnmounted(() => {
   window.removeEventListener(CHAT_FILE_DROP_EVENT, handleChatFileDrop as EventListener);
-  document.removeEventListener('click', closeModelSelector);
-  document.removeEventListener('click', closeMentionSelector);
+  document.removeEventListener("click", closeModelSelector);
+  document.removeEventListener("click", closeMentionSelector);
   if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler);
+    window.removeEventListener("resize", resizeHandler);
   }
   if (scrollHandler) {
-    window.removeEventListener('scroll', scrollHandler, { capture: true });
+    window.removeEventListener("scroll", scrollHandler, { capture: true });
   }
 });
 
 // 监听路由变化
-watch(() => route.params.kbId, (newKbId) => {
-  if (newKbId && typeof newKbId === 'string' && !selectedKbIds.value.includes(newKbId)) {
-    settingsStore.addKnowledgeBase(newKbId);
-  }
-});
+watch(
+  () => route.params.kbId,
+  (newKbId) => {
+    if (newKbId && typeof newKbId === "string" && !selectedKbIds.value.includes(newKbId)) {
+      settingsStore.addKnowledgeBase(newKbId);
+    }
+  },
+);
 
-watch(() => uiStore.showSettingsModal, (visible, prevVisible) => {
-  if (prevVisible && !visible) {
-    loadChatModels(true);
-  }
-});
+watch(
+  () => uiStore.showSettingsModal,
+  (visible, prevVisible) => {
+    if (prevVisible && !visible) {
+      loadChatModels(true);
+    }
+  },
+);
 
-watch([selectedKbIds, selectedFileIds], ([kbIds, fileIds]) => {
-  if (!kbIds.length && !fileIds.length) {
-    closeModelSelector();
-  }
-}, { deep: true });
+watch(
+  [selectedKbIds, selectedFileIds],
+  ([kbIds, fileIds]) => {
+    if (!kbIds.length && !fileIds.length) {
+      closeModelSelector();
+    }
+  },
+  { deep: true },
+);
 
 const emit = defineEmits<{
-  (e: 'send-msg', query: string, modelId: string, mentionedItems: MentionRequestItem[], imageFiles: File[], attachmentFiles: AttachmentFile[]): void;
-  (e: 'stop-generation'): void;
+  (
+    e: "send-msg",
+    query: string,
+    modelId: string,
+    mentionedItems: MentionRequestItem[],
+    imageFiles: File[],
+    attachmentFiles: AttachmentFile[],
+  ): void;
+  (e: "stop-generation"): void;
 }>();
 
 const createSession = async (val: string) => {
   if (!val.trim()) {
-    MessagePlugin.info(t('input.messages.enterContent'));
+    MessagePlugin.info(t("input.messages.enterContent"));
     return;
   }
   if (props.isReplying) {
-    return MessagePlugin.error(t('input.messages.replying'));
+    return MessagePlugin.error(t("input.messages.replying"));
   }
   // Only block while the file is still uploading (no document ID yet). Once
   // uploaded, sending is allowed even if parsing is still in progress: the
   // backend shows a "parsing attachment" step on the timeline and waits.
-  const pendingAttachment = uploadedAttachments.value.find(item =>
-    item.status === 'uploading'
-  );
+  const pendingAttachment = uploadedAttachments.value.find((item) => item.status === "uploading");
   if (pendingAttachment) {
-    MessagePlugin.warning(t('chat.attachmentStillProcessing', { name: pendingAttachment.name }));
+    MessagePlugin.warning(t("chat.attachmentStillProcessing", { name: pendingAttachment.name }));
     return;
   }
-  const failedAttachment = uploadedAttachments.value.find(item => item.status === 'failed');
+  const failedAttachment = uploadedAttachments.value.find((item) => item.status === "failed");
   if (failedAttachment) {
-    MessagePlugin.error(failedAttachment.error || t('chat.attachmentParseFailed'));
+    MessagePlugin.error(failedAttachment.error || t("chat.attachmentParseFailed"));
     return;
   }
 
@@ -1116,27 +1132,26 @@ const createSession = async (val: string) => {
   // merged total here to avoid a late 400 after the files are already uploaded.
   const MAX_TOTAL_ATTACHMENTS = 5;
   const combinedAttachmentCount =
-    uploadedImages.value.length +
-    uploadedAttachments.value.filter(item => item.status !== 'failed').length;
+    uploadedImages.value.length + uploadedAttachments.value.filter((item) => item.status !== "failed").length;
   if (combinedAttachmentCount > MAX_TOTAL_ATTACHMENTS) {
-    MessagePlugin.warning(t('chat.attachmentTotalTooMany', { max: MAX_TOTAL_ATTACHMENTS }));
+    MessagePlugin.warning(t("chat.attachmentTotalTooMany", { max: MAX_TOTAL_ATTACHMENTS }));
     return;
   }
 
-  if (!chatResources.isFresh('models')) {
-    await loadChatModels()
+  if (!chatResources.isFresh("models")) {
+    await loadChatModels();
   }
 
   // 获取@提及的知识库和文件信息
-  const mentionedItems: MentionRequestItem[] = allSelectedItems.value.map(item => ({
+  const mentionedItems: MentionRequestItem[] = allSelectedItems.value.map((item) => ({
     id: item.id,
     name: item.name,
     type: item.type,
-    kb_type: item.type === 'kb' ? (item.kbType || 'document') : undefined,
+    kb_type: item.type === "kb" ? item.kbType || "document" : undefined,
     kb_id: item.kbId,
     kb_name: item.kbName,
   }));
-  const imageFiles = uploadedImages.value.map(img => img.file);
+  const imageFiles = uploadedImages.value.map((img) => img.file);
   const attachmentFiles = uploadedAttachments.value;
 
   // Blur the textarea BEFORE emitting, so that when the parent navigates away
@@ -1144,10 +1159,10 @@ const createSession = async (val: string) => {
   // detached DOM element (which causes getComputedStyle to throw).
   const textarea = getTextareaEl();
   if (textarea) textarea.blur();
-  emit('send-msg', val, selectedModelId.value, mentionedItems, imageFiles, attachmentFiles);
+  emit("send-msg", val, selectedModelId.value, mentionedItems, imageFiles, attachmentFiles);
 
   // Clean up image previews
-  uploadedImages.value.forEach(img => URL.revokeObjectURL(img.preview));
+  uploadedImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
   uploadedImages.value = [];
 
   // Clean up attachments
@@ -1155,44 +1170,51 @@ const createSession = async (val: string) => {
   uploadedAttachments.value = [];
 
   clearvalue();
-}
+};
 
 const clearvalue = () => {
   // Guard: only clear when the textarea DOM element is still mounted,
   // otherwise TDesign's autosize will call getComputedStyle on a non-Element.
   if (!getTextareaEl()) return;
   query.value = "";
-}
+};
 
 // Drop any pending images/attachments and stop their status polling. Used when
 // switching sessions: leftover documentIds belong to the previous session, so
 // keeping them would make polling 404 (falsely marking them failed) or send IDs
 // the new session does not own ("attachment ... not found in this session").
 const clearPendingUploads = () => {
-  uploadedImages.value.forEach(img => URL.revokeObjectURL(img.preview));
+  uploadedImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
   uploadedImages.value = [];
   attachmentUploadRef.value?.clear();
   uploadedAttachments.value = [];
-}
+};
 
-const onKeydown = (val: string, event: { e: { preventDefault(): unknown; keyCode: number; shiftKey: any; ctrlKey: any; }; }) => {
+const onKeydown = (
+  val: string,
+  event: { e: { preventDefault(): unknown; keyCode: number; shiftKey: any; ctrlKey: any } },
+) => {
   if (showMention.value) {
-    if (event.e.keyCode === 38) { // Up
+    if (event.e.keyCode === 38) {
+      // Up
       event.e.preventDefault();
       mentionSelectorRef.value?.moveActive(-1);
       return;
     }
-    if (event.e.keyCode === 40) { // Down
+    if (event.e.keyCode === 40) {
+      // Down
       event.e.preventDefault();
       mentionSelectorRef.value?.moveActive(1);
       return;
     }
-    if (event.e.keyCode === 13) { // Enter
+    if (event.e.keyCode === 13) {
+      // Enter
       event.e.preventDefault();
       mentionSelectorRef.value?.confirmActive();
       return;
     }
-    if (event.e.keyCode === 27) { // Esc
+    if (event.e.keyCode === 27) {
+      // Esc
       if (mentionSelectorRef.value?.leaveGroup()) {
         return;
       }
@@ -1202,9 +1224,10 @@ const onKeydown = (val: string, event: { e: { preventDefault(): unknown; keyCode
   }
 
   // 退格键：当输入框为空且有选中项时，删除最后一个选中项
-  if (event.e.keyCode === 8) { // Backspace
+  if (event.e.keyCode === 8) {
+    // Backspace
     const textarea = getTextareaEl();
-    if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0 && query.value === '') {
+    if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0 && query.value === "") {
       const items = allSelectedItems.value;
       if (items.length > 0) {
         event.e.preventDefault();
@@ -1220,16 +1243,16 @@ const onKeydown = (val: string, event: { e: { preventDefault(): unknown; keyCode
   }
   if (event.e.keyCode == 13) {
     event.e.preventDefault();
-    createSession(val)
+    createSession(val);
   }
-}
+};
 
 const onPaste = (e: ClipboardEvent) => {
   const items = e.clipboardData?.items;
   if (!items) return;
   const imageFiles: File[] = [];
   for (const item of items) {
-    if (item.type.startsWith('image/')) {
+    if (item.type.startsWith("image/")) {
       const file = item.getAsFile();
       if (file) imageFiles.push(file);
     }
@@ -1253,50 +1276,55 @@ const onDragOver = (e: DragEvent) => {
 
 const handleStop = async () => {
   if (!props.sessionId) {
-    MessagePlugin.warning(t('input.messages.sessionMissing'));
+    MessagePlugin.warning(t("input.messages.sessionMissing"));
     return;
   }
 
   if (!props.assistantMessageId) {
-    console.error('[Stop] Assistant message ID is empty');
-    MessagePlugin.warning(t('input.messages.messageMissing'));
+    console.error("[Stop] Assistant message ID is empty");
+    MessagePlugin.warning(t("input.messages.messageMissing"));
     return;
   }
 
-  console.log('[Stop] Stopping generation for message:', props.assistantMessageId);
+  console.log("[Stop] Stopping generation for message:", props.assistantMessageId);
 
   // 发送 stop 事件，通知父组件立即清除 loading 状态
-  emit('stop-generation');
+  emit("stop-generation");
 
   try {
     await stopSession(props.sessionId, props.assistantMessageId);
-    MessagePlugin.success(t('input.messages.stopSuccess'));
+    MessagePlugin.success(t("input.messages.stopSuccess"));
   } catch (error) {
-    console.error('Failed to stop session:', error);
-    MessagePlugin.error(t('input.messages.stopFailed'));
+    console.error("Failed to stop session:", error);
+    MessagePlugin.error(t("input.messages.stopFailed"));
   }
-}
+};
 
 onBeforeRouteUpdate((to, from, next) => {
-  clearvalue()
-  clearPendingUploads()
-  next()
-})
+  clearvalue();
+  clearPendingUploads();
+  next();
+});
 
 defineExpose({
   triggerSend(text: string) {
     if (!text.trim()) return;
     query.value = text;
     nextTick(() => createSession(text));
-  }
+  },
 });
-
 </script>
 <template>
   <div class="answers-input" @drop="onDrop" @dragover="onDragOver">
     <!-- Hidden file input for image upload -->
-    <input ref="imageInputRef" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple
-      style="display:none" @change="handleImageSelect" />
+    <input
+      ref="imageInputRef"
+      type="file"
+      accept="image/jpeg,image/png,image/gif,image/webp"
+      multiple
+      style="display: none"
+      @change="handleImageSelect"
+    />
     <!-- 富文本输入框容器 -->
     <div class="rich-input-container" data-guide="chat-input">
       <!-- 图片预览区域 -->
@@ -1308,75 +1336,118 @@ defineExpose({
       </div>
 
       <!-- 附件列表区域 (由 AttachmentUpload 组件渲染) -->
-      <AttachmentUpload ref="attachmentUploadRef" :max-files="5"
+      <AttachmentUpload
+        ref="attachmentUploadRef"
+        :max-files="5"
         :session-id="sessionId"
-        @update:files="uploadedAttachments = $event" />
+        @update:files="uploadedAttachments = $event"
+      />
 
       <!-- 选中的知识库和文件标签（显示在输入框内顶部） -->
       <div v-if="allSelectedItems.length > 0" class="selected-tags-inline">
-        <span v-for="item in allSelectedItems" :key="`${item.type}:${item.id}`" class="mention-chip" :class="[
-          getMentionChipClass(item)
-        ]">
+        <span
+          v-for="item in allSelectedItems"
+          :key="`${item.type}:${item.id}`"
+          class="mention-chip"
+          :class="[getMentionChipClass(item)]"
+        >
           <span class="mention-chip__icon-wrap" :class="{ 'has-org': item.org_name }">
             <span class="mention-chip__icon">
               <t-icon v-if="item.type === 'kb'" :name="item.kbType === 'faq' ? 'chat-bubble-help' : 'folder'" />
               <t-icon v-else :name="getMentionIcon(item)" />
             </span>
             <span v-if="item.org_name" class="mention-chip__org-badge">
-              <img :src="getImgSrc(item.type === 'file' ? 'organization-grey.svg' : 'organization-green.svg')"
-                class="mention-chip__org-img" alt="" aria-hidden="true" />
+              <img
+                :src="getImgSrc(item.type === 'file' ? 'organization-grey.svg' : 'organization-green.svg')"
+                class="mention-chip__org-img"
+                alt=""
+                aria-hidden="true"
+              />
             </span>
           </span>
           <span class="mention-chip__name" :title="item.name">{{ item.name }}</span>
-          <span class="mention-chip__remove" @click.stop="removeSelectedItem(item)"
-            :aria-label="$t('common.remove')">×</span>
+          <span class="mention-chip__remove" @click.stop="removeSelectedItem(item)" :aria-label="$t('common.remove')"
+            >×</span
+          >
         </span>
       </div>
 
       <!-- 实际输入框 -->
-      <t-textarea ref="textareaRef" v-model="query" :placeholder="inputPlaceholder" name="description" :autosize="true"
-        @keydown="onKeydown" @input="onInput" @compositionstart="onCompositionStart" @compositionend="onCompositionEnd"
-        @paste="onPaste" />
+      <t-textarea
+        ref="textareaRef"
+        v-model="query"
+        :placeholder="inputPlaceholder"
+        name="description"
+        :autosize="true"
+        @keydown="onKeydown"
+        @input="onInput"
+        @compositionstart="onCompositionStart"
+        @compositionend="onCompositionEnd"
+        @paste="onPaste"
+      />
 
       <!-- 控制栏（放在 rich-input-container 内，相对输入框边框定位） -->
       <div class="control-bar">
         <!-- 左侧控制按钮 -->
         <div class="control-left">
           <!-- @ 知识库/文件选择按钮 -->
-          <t-tooltip placement="top" theme="light"
-            :popupProps="{ overlayClassName: 'input-field-tooltip' }">
+          <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
             <template #content>
-              <span>{{ allSelectedItems.length > 0 ? $t('input.knowledgeBaseWithCount', {
-                count:
-                  allSelectedItems.length
-              }) : $t('input.knowledgeBase') }}</span>
+              <span>{{
+                allSelectedItems.length > 0
+                  ? $t("input.knowledgeBaseWithCount", {
+                      count: allSelectedItems.length,
+                    })
+                  : $t("input.knowledgeBase")
+              }}</span>
             </template>
-            <div ref="atButtonRef" class="control-btn kb-btn" data-guide="chat-kb-mention" :class="{
-              'active': allSelectedItems.length > 0
-            }" @click.stop @mousedown.prevent="triggerMention">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"
-                class="control-icon at-icon">
+            <div
+              ref="atButtonRef"
+              class="control-btn kb-btn"
+              data-guide="chat-kb-mention"
+              :class="{
+                active: allSelectedItems.length > 0,
+              }"
+              @click.stop
+              @mousedown.prevent="triggerMention"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                class="control-icon at-icon"
+              >
                 <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.8" />
                 <path
                   d="M13.5 10V11.5C13.5 12.163 13.7634 12.7989 14.2322 13.2678C14.7011 13.7366 15.337 14 16 14C16.663 14 17.2989 13.7366 17.7678 13.2678C18.2366 12.7989 18.5 12.163 18.5 11.5V10C18.5 7.74566 17.6045 5.58365 16.0104 3.98959C14.4163 2.39553 12.2543 1.5 10 1.5C7.74566 1.5 5.58365 2.39553 3.98959 3.98959C2.39553 5.58365 1.5 7.74566 1.5 10C1.5 12.2543 2.39553 14.4163 3.98959 16.0104C5.58365 17.6045 7.74566 18.5 10 18.5H12"
-                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
               <span v-if="allSelectedItems.length > 0" class="kb-count">{{ allSelectedItems.length }}</span>
             </div>
           </t-tooltip>
 
           <!-- 图片上传按钮 -->
-          <t-tooltip placement="top" theme="light"
-            :popupProps="{ overlayClassName: 'input-field-tooltip' }">
+          <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
             <template #content>
-              <span>{{ $t('chat.imageUploadTooltip') }}</span>
+              <span>{{ $t("chat.imageUploadTooltip") }}</span>
             </template>
-            <div class="control-btn image-upload-btn" :class="{
-              'active': uploadedImages.length > 0
-            }" @click.stop="triggerImageUpload()">
+            <div
+              class="control-btn image-upload-btn"
+              :class="{
+                active: uploadedImages.length > 0,
+              }"
+              @click.stop="triggerImageUpload()"
+            >
               <svg width="18" height="18" viewBox="0 0 1024 1024" fill="currentColor" class="control-icon">
                 <path
-                  d="M896 128H128c-35.3 0-64 28.7-64 64v640c0 35.3 28.7 64 64 64h768c35.3 0 64-28.7 64-64V192c0-35.3-28.7-64-64-64zM128 832V192h768l0.1 640H128z" />
+                  d="M896 128H128c-35.3 0-64 28.7-64 64v640c0 35.3 28.7 64 64 64h768c35.3 0 64-28.7 64-64V192c0-35.3-28.7-64-64-64zM128 832V192h768l0.1 640H128z"
+                />
                 <path d="M352 448a96 96 0 1 0 0-192 96 96 0 0 0 0 192z" />
                 <path d="M128 768l224-288 160 160 192-256L896 640v128H128z" />
               </svg>
@@ -1387,19 +1458,37 @@ defineExpose({
           <!-- 附件上传按钮 -->
           <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
             <template #content>
-              <span>{{ uploadedAttachments.length > 0 ? $t('chat.attachmentWithCount', {
-                count: uploadedAttachments.length
-              }) : $t('chat.attachmentUploadTooltip') }}</span>
+              <span>{{
+                uploadedAttachments.length > 0
+                  ? $t("chat.attachmentWithCount", {
+                      count: uploadedAttachments.length,
+                    })
+                  : $t("chat.attachmentUploadTooltip")
+              }}</span>
             </template>
-            <div class="control-btn attachment-upload-btn" :class="{ 'active': uploadedAttachments.length > 0 }"
-              @click.stop="attachmentUploadRef?.triggerFileSelect()">
+            <div
+              class="control-btn attachment-upload-btn"
+              :class="{ active: uploadedAttachments.length > 0 }"
+              @click.stop="attachmentUploadRef?.triggerFileSelect()"
+            >
               <!-- 回形针图标 -->
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                stroke-linecap="round" stroke-linejoin="round" class="control-icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="control-icon"
+              >
                 <path
-                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                />
               </svg>
-              <span v-if="uploadedAttachments.length > 0" class="attachment-count">{{ uploadedAttachments.length
+              <span v-if="uploadedAttachments.length > 0" class="attachment-count">{{
+                uploadedAttachments.length
               }}</span>
             </div>
           </t-tooltip>
@@ -1410,8 +1499,14 @@ defineExpose({
               <span class="model-selector-name">
                 {{ selectedModelDisplayName }}
               </span>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" class="model-dropdown-arrow"
-                :class="{ 'rotate': showModelSelector }">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="currentColor"
+                class="model-dropdown-arrow"
+                :class="{ rotate: showModelSelector }"
+              >
                 <path d="M2.5 4.5L6 8L9.5 4.5H2.5Z" />
               </svg>
             </div>
@@ -1422,15 +1517,20 @@ defineExpose({
           <div v-if="showModelSelector" class="model-selector-overlay" @click="closeModelSelector">
             <div class="model-selector-dropdown" :style="modelDropdownStyle" @click.stop>
               <div class="model-selector-header">
-                <span>{{ $t('conversationSettings.models.chatGroupLabel') }}</span>
+                <span>{{ $t("conversationSettings.models.chatGroupLabel") }}</span>
                 <button class="model-selector-add" type="button" @click="handleModelChange('__add_model__')">
                   <span class="add-icon">+</span>
-                  <span class="add-text">{{ $t('input.addModel') }}</span>
+                  <span class="add-text">{{ $t("input.addModel") }}</span>
                 </button>
               </div>
               <div class="model-selector-content">
-                <div v-for="model in availableModels" :key="model.id" class="model-option"
-                  :class="{ selected: model.id === selectedModelId }" @click="handleModelChange(model.id || '')">
+                <div
+                  v-for="model in availableModels"
+                  :key="model.id"
+                  class="model-option"
+                  :class="{ selected: model.id === selectedModelId }"
+                  @click="handleModelChange(model.id || '')"
+                >
                   <div class="model-option-left">
                     <div class="model-option-icon">
                       <t-icon name="chat" size="14px" />
@@ -1442,7 +1542,7 @@ defineExpose({
                   </div>
                 </div>
                 <div v-if="availableModels.length === 0" class="model-option empty">
-                  {{ $t('input.noModel') }}
+                  {{ $t("input.noModel") }}
                 </div>
               </div>
             </div>
@@ -1461,8 +1561,13 @@ defineExpose({
           </t-tooltip>
 
           <!-- 发送按钮 -->
-          <div v-if="!isReplying" @click="createSession(query)" class="control-btn send-btn" data-guide="chat-send"
-            :class="{ 'disabled': !query.length }">
+          <div
+            v-if="!isReplying"
+            @click="createSession(query)"
+            class="control-btn send-btn"
+            data-guide="chat-send"
+            :class="{ disabled: !query.length }"
+          >
             <img src="../assets/img/sending-aircraft.svg" :alt="$t('input.send')" />
           </div>
         </div>
@@ -1471,19 +1576,30 @@ defineExpose({
 
     <!-- Mention Selector -->
     <Teleport to="body">
-      <MentionSelector ref="mentionSelectorRef" :visible="showMention" :style="mentionStyle" :items="mentionItems" :hasMore="mentionHasMore"
-        :loading="mentionLoading" :emptyHint="''" :query="mentionQuery" :group-counts="mentionGroupCounts" v-model:activeIndex="mentionActiveIndex"
-        @select="onMentionSelect" @loadMore="loadMoreMentionItems" />
+      <MentionSelector
+        ref="mentionSelectorRef"
+        :visible="showMention"
+        :style="mentionStyle"
+        :items="mentionItems"
+        :hasMore="mentionHasMore"
+        :loading="mentionLoading"
+        :emptyHint="''"
+        :query="mentionQuery"
+        :group-counts="mentionGroupCounts"
+        v-model:activeIndex="mentionActiveIndex"
+        @select="onMentionSelect"
+        @loadMore="loadMoreMentionItems"
+      />
     </Teleport>
   </div>
 </template>
 <script lang="ts">
 const getImgSrc = (url: string) => {
   return new URL(`/src/assets/img/${url}`, import.meta.url).href;
-}
+};
 </script>
 <style scoped lang="less">
-@import './css/chat-resource-chips.less';
+@import "./css/chat-resource-chips.less";
 
 .answers-input {
   position: absolute;
@@ -1501,13 +1617,15 @@ const getImgSrc = (url: string) => {
   position: relative;
   width: 100%;
   max-width: 960px;
-  background: var(--td-bg-color-container, #FFF);
+  background: var(--td-bg-color-container, #fff);
   border-radius: 12px;
   border: 1px solid var(--td-component-stroke, #dcdcdc);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 8px 16px -4px rgba(0, 0, 0, 0.06);
 
   &:focus-within {
-    border-color: var(--td-brand-color, #07C05F);
+    border-color: var(--td-brand-color, #07c05f);
   }
 }
 
@@ -1537,7 +1655,9 @@ const getImgSrc = (url: string) => {
   font-size: 12px;
   font-weight: 500;
   cursor: default;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   line-height: 18px;
 
   &:hover {
@@ -1606,7 +1726,10 @@ const getImgSrc = (url: string) => {
   font-weight: 400;
   cursor: pointer;
   opacity: 0.5;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
   color: currentColor;
   flex-shrink: 0;
 }
@@ -1704,7 +1827,12 @@ const getImgSrc = (url: string) => {
   flex-wrap: wrap;
   max-height: 56px;
   z-index: 10;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, var(--td-bg-color-container, #fff) 40%, var(--td-bg-color-container, #fff) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    var(--td-bg-color-container, #fff) 40%,
+    var(--td-bg-color-container, #fff) 100%
+  );
   pointer-events: auto;
   padding-top: 8px;
 }
@@ -1727,7 +1855,9 @@ const getImgSrc = (url: string) => {
   border-radius: 6px;
   color: var(--td-text-color-secondary, #666);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
   user-select: none;
   flex-shrink: 0;
 
@@ -1807,14 +1937,14 @@ const getImgSrc = (url: string) => {
 
   &.active {
     background: rgba(16, 185, 129, 0.1);
-    color: #07C05F;
+    color: #07c05f;
   }
 
   .image-count {
     position: absolute;
     top: -2px;
     right: -2px;
-    background: #07C05F;
+    background: #07c05f;
     color: #fff;
     font-size: 10px;
     width: 14px;
@@ -1846,14 +1976,14 @@ const getImgSrc = (url: string) => {
 
   &.active {
     background: rgba(16, 185, 129, 0.1);
-    color: #07C05F;
+    color: #07c05f;
   }
 
   .attachment-count {
     position: absolute;
     top: -2px;
     right: -2px;
-    background: #07C05F;
+    background: #07c05f;
     color: #fff;
     font-size: 10px;
     width: 14px;
@@ -1912,7 +2042,7 @@ const getImgSrc = (url: string) => {
 :global(.input-field-tooltip) {
   .t-popup__content {
     box-shadow: var(--td-shadow-2);
-    border: .5px solid var(--td-component-border, #e7e7e7);
+    border: 0.5px solid var(--td-component-border, #e7e7e7);
   }
 }
 
@@ -1960,7 +2090,7 @@ const getImgSrc = (url: string) => {
   }
 
   &::before {
-    content: '';
+    content: "";
     width: 12px;
     height: 12px;
     background: var(--td-brand-color);
@@ -1971,7 +2101,6 @@ const getImgSrc = (url: string) => {
 }
 
 @keyframes stopBtnPulse {
-
   0%,
   100% {
     transform: scale(1);
@@ -2020,8 +2149,10 @@ const getImgSrc = (url: string) => {
   min-width: 100px;
   height: 22px;
   border-radius: 6px;
-  border: .5px solid var(--td-component-border, #e7e7e7);
-  transition: background 0.12s, border-color 0.12s;
+  border: 0.5px solid var(--td-component-border, #e7e7e7);
+  transition:
+    background 0.12s,
+    border-color 0.12s;
   cursor: pointer;
 
   &:hover {
@@ -2051,7 +2182,7 @@ const getImgSrc = (url: string) => {
   position: fixed !important;
   z-index: 10000;
   background: var(--td-bg-color-container);
-  border: .5px solid var(--td-component-border);
+  border: 0.5px solid var(--td-component-border);
   border-radius: 10px;
   box-shadow: var(--td-shadow-2);
   overflow: hidden;
@@ -2081,7 +2212,7 @@ const getImgSrc = (url: string) => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border-bottom: .5px solid var(--td-component-stroke);
+  border-bottom: 0.5px solid var(--td-component-stroke);
   background: var(--td-bg-color-container);
   font-size: 12px;
   font-weight: 500;
@@ -2104,7 +2235,7 @@ const getImgSrc = (url: string) => {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 6px;
-  border: .5px solid transparent;
+  border: 0.5px solid transparent;
   background: transparent;
   color: var(--td-brand-color);
   font-size: 12px;

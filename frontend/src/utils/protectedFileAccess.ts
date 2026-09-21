@@ -11,12 +11,12 @@
  * 这里把该决策收敛成单一真相源，渲染组件只需声明作用域，不再各自拼 URL。
  */
 
-export const PROVIDER_SCHEME_PATTERN = 'resource|local|minio|cos|tos|s3|oss|ks3|obs';
+export const PROVIDER_SCHEME_PATTERN = "resource|local|minio|cos|tos|s3|oss|ks3|obs";
 
-const PROVIDER_FILE_SCHEME_RE = new RegExp(`^(${PROVIDER_SCHEME_PATTERN}):\\/\\/\\S+$`, 'i');
+const PROVIDER_FILE_SCHEME_RE = new RegExp(`^(${PROVIDER_SCHEME_PATTERN}):\\/\\/\\S+$`, "i");
 const STORAGE_BACKEND_FILE_SCHEME_RE = new RegExp(
   `^storage:\\/\\/[0-9A-Za-z_-]+\\/(${PROVIDER_SCHEME_PATTERN}):\\/\\/\\S+$`,
-  'i',
+  "i",
 );
 
 const KB_FILE_PROXY_PATH_RE = /^\/api\/v1\/knowledge-bases\/[^/]+\/files$/;
@@ -25,20 +25,20 @@ const MESSAGE_FILE_PROXY_PATH_RE = /^\/api\/v1\/sessions\/[^/]+\/messages\/[^/]+
 
 export type ProtectedFileAccessContext =
   /** 登录态用户：Bearer + 选中租户。 */
-  | { mode: 'tenant' }
+  | { mode: "tenant" }
   /** 嵌入访客：只持有 Embed token，无 Bearer、无租户上下文。 */
-  | { mode: 'embed'; channelId: string; token: string }
+  | { mode: "embed"; channelId: string; token: string }
   /** 知识库作用域：登录态用户读取共享库中归属其他租户的对象。 */
-  | { mode: 'knowledgeBase'; kbId: string }
+  | { mode: "knowledgeBase"; kbId: string }
   /** 消息作用域：登录态用户读取共享智能体回复中的源空间资源。 */
-  | { mode: 'message'; sessionId: string; messageId: string };
+  | { mode: "message"; sessionId: string; messageId: string };
 
 export interface ProtectedFileRequest {
   url: string;
   headers: Record<string, string>;
 }
 
-const TENANT_ACCESS: ProtectedFileAccessContext = { mode: 'tenant' };
+const TENANT_ACCESS: ProtectedFileAccessContext = { mode: "tenant" };
 
 interface ProtectedFileAccessState {
   current: ProtectedFileAccessContext;
@@ -48,7 +48,7 @@ interface ProtectedFileAccessState {
 // 模块级变量会丢失嵌入应用启动时注册的上下文。
 const accessState: ProtectedFileAccessState = (() => {
   const fresh = (): ProtectedFileAccessState => ({ current: TENANT_ACCESS });
-  if (typeof window === 'undefined') return fresh();
+  if (typeof window === "undefined") return fresh();
   const scope = window as typeof window & {
     __yuhengProtectedFileAccessV1__?: ProtectedFileAccessState;
   };
@@ -60,9 +60,7 @@ const accessState: ProtectedFileAccessState = (() => {
  * 注册当前文档的默认访问上下文。由应用入口调用一次（嵌入应用在拿到
  * channelId/token 后注册），此后所有受保护文件请求自动走对应代理。
  */
-export function setDefaultProtectedFileAccess(
-  access: ProtectedFileAccessContext | null,
-): void {
+export function setDefaultProtectedFileAccess(access: ProtectedFileAccessContext | null): void {
   accessState.current = access ?? TENANT_ACCESS;
 }
 
@@ -77,14 +75,12 @@ export function getDefaultProtectedFileAccess(): ProtectedFileAccessContext {
  * 在同一平面内细化作用域。嵌入访客没有 Bearer，若让 `knowledgeBase` override
  * 覆盖 embed 平面，请求会落到需要登录态的代理上并返回 401。
  */
-export function resolveProtectedFileAccess(
-  override?: ProtectedFileAccessContext | null,
-): ProtectedFileAccessContext {
+export function resolveProtectedFileAccess(override?: ProtectedFileAccessContext | null): ProtectedFileAccessContext {
   const fallback = accessState.current;
-  if (fallback.mode === 'embed') return fallback;
+  if (fallback.mode === "embed") return fallback;
   if (!override) return fallback;
-  if (override.mode === 'knowledgeBase' && !override.kbId.trim()) return fallback;
-  if (override.mode === 'message' && (!override.sessionId.trim() || !override.messageId.trim())) {
+  if (override.mode === "knowledgeBase" && !override.kbId.trim()) return fallback;
+  if (override.mode === "message" && (!override.sessionId.trim() || !override.messageId.trim())) {
     return fallback;
   }
   return override;
@@ -99,22 +95,22 @@ export function isProviderFileURL(url: string): boolean {
 /** 是否为受保护文件代理之一的路径。 */
 export function isProtectedFileProxyPath(pathname: string): boolean {
   return (
-    pathname === '/files'
-    || KB_FILE_PROXY_PATH_RE.test(pathname)
-    || MESSAGE_FILE_PROXY_PATH_RE.test(pathname)
-    || EMBED_FILE_PROXY_PATH_RE.test(pathname)
+    pathname === "/files" ||
+    KB_FILE_PROXY_PATH_RE.test(pathname) ||
+    MESSAGE_FILE_PROXY_PATH_RE.test(pathname) ||
+    EMBED_FILE_PROXY_PATH_RE.test(pathname)
   );
 }
 
 function tenantRequestHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
   try {
-    const token = (localStorage.getItem('yuheng_token') || '').trim();
+    const token = (localStorage.getItem("yuheng_token") || "").trim();
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const selectedTenantId = (localStorage.getItem('yuheng_selected_tenant_id') || '').trim();
+    const selectedTenantId = (localStorage.getItem("yuheng_selected_tenant_id") || "").trim();
     if (selectedTenantId) {
       // Always attach when a selected tenant is set. Same rationale as
       // utils/request.ts / api/chat/streame.ts: the
@@ -122,7 +118,7 @@ function tenantRequestHeaders(): Record<string, string> {
       // silently drops the header whenever any code path writes the
       // active tenant into yuheng_tenant, leaving authenticated file
       // fetches landing on the home tenant.
-      headers['X-Tenant-ID'] = selectedTenantId;
+      headers["X-Tenant-ID"] = selectedTenantId;
     }
   } catch {
     // ignore localStorage read errors
@@ -143,7 +139,7 @@ export function buildProtectedFileRequest(
 
   const query = new URLSearchParams({ file_path: filePath }).toString();
 
-  if (access.mode === 'embed') {
+  if (access.mode === "embed") {
     const channelId = access.channelId.trim();
     const token = access.token.trim();
     // 嵌入访客只有 Embed token 这一种凭据；缺失时退回 /files 只会得到 401，
@@ -155,14 +151,14 @@ export function buildProtectedFileRequest(
     };
   }
 
-  if (access.mode === 'knowledgeBase') {
+  if (access.mode === "knowledgeBase") {
     return {
       url: `/api/v1/knowledge-bases/${encodeURIComponent(access.kbId.trim())}/files?${query}`,
       headers: tenantRequestHeaders(),
     };
   }
 
-  if (access.mode === 'message') {
+  if (access.mode === "message") {
     return {
       url: `/api/v1/sessions/${encodeURIComponent(access.sessionId.trim())}/messages/${encodeURIComponent(access.messageId.trim())}/files?${query}`,
       headers: tenantRequestHeaders(),

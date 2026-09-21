@@ -4,12 +4,7 @@
       <span class="cmdk-group__label">{{ label }}</span>
       <span v-if="count != null" class="cmdk-group__count">({{ count }})</span>
       <span v-if="action" class="cmdk-group__spacer" />
-      <button
-        v-if="action"
-        type="button"
-        class="cmdk-group__action"
-        @click="$emit('action')"
-      >
+      <button v-if="action" type="button" class="cmdk-group__action" @click="$emit('action')">
         {{ action }}
       </button>
     </div>
@@ -21,14 +16,14 @@
 
 <script setup lang="ts">
 defineProps<{
-  label: string
-  count?: number
-  action?: string
-}>()
+  label: string;
+  count?: number;
+  action?: string;
+}>();
 
 defineEmits<{
-  (e: 'action'): void
-}>()
+  (e: "action"): void;
+}>();
 </script>
 
 <style lang="less" scoped>

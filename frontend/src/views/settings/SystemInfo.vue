@@ -1,21 +1,21 @@
 <template>
   <div class="system-info">
     <div class="section-header">
-      <h2>{{ $t('system.title') }}</h2>
-      <p class="section-description">{{ $t('system.sectionDescription') }}</p>
+      <h2>{{ $t("system.title") }}</h2>
+      <p class="section-description">{{ $t("system.sectionDescription") }}</p>
     </div>
 
     <!-- Loading state -->
     <div v-if="loading" class="loading-inline">
       <t-loading size="small" />
-      <span>{{ $t('system.loadingInfo') }}</span>
+      <span>{{ $t("system.loadingInfo") }}</span>
     </div>
 
     <!-- Error state -->
     <div v-else-if="error" class="error-inline">
       <t-alert theme="error" :message="error">
         <template #operation>
-          <t-button size="small" @click="loadInfo">{{ $t('system.retry') }}</t-button>
+          <t-button size="small" @click="loadInfo">{{ $t("system.retry") }}</t-button>
         </template>
       </t-alert>
     </div>
@@ -25,15 +25,13 @@
       <!-- System version -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.versionLabel') }}</label>
-          <p class="desc">{{ $t('system.versionDescription') }}</p>
+          <label>{{ $t("system.versionLabel") }}</label>
+          <p class="desc">{{ $t("system.versionDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">
-              {{ systemInfo?.version || $t('system.unknown') }}
-              <span v-if="systemInfo?.commit_id" class="commit-info">
-                ({{ systemInfo.commit_id }})
-              </span>
+            {{ systemInfo?.version || $t("system.unknown") }}
+            <span v-if="systemInfo?.commit_id" class="commit-info"> ({{ systemInfo.commit_id }}) </span>
           </span>
         </div>
       </div>
@@ -41,19 +39,25 @@
       <!-- Frontend version -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.frontendVersionLabel') }}</label>
-          <p class="desc">{{ $t('system.frontendVersionDescription') }}</p>
+          <label>{{ $t("system.frontendVersionLabel") }}</label>
+          <p class="desc">{{ $t("system.frontendVersionDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">
             {{ frontendVersion }}
             <t-tag
-              v-if="systemInfo?.version && systemInfo.version !== 'unknown' && frontendVersion !== 'unknown' && systemInfo.version !== frontendVersion"
+              v-if="
+                systemInfo?.version &&
+                systemInfo.version !== 'unknown' &&
+                frontendVersion !== 'unknown' &&
+                systemInfo.version !== frontendVersion
+              "
               theme="warning"
               variant="light"
               size="small"
-              style="margin-left: 8px;"
-            >{{ $t('system.versionMismatch') }}</t-tag>
+              style="margin-left: 8px"
+              >{{ $t("system.versionMismatch") }}</t-tag
+            >
             <span v-if="frontendCommit && frontendCommit !== 'unknown'" class="commit-info">
               ({{ frontendCommit }})
             </span>
@@ -64,8 +68,8 @@
       <!-- Build time -->
       <div v-if="systemInfo?.build_time" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.buildTimeLabel') }}</label>
-          <p class="desc">{{ $t('system.buildTimeDescription') }}</p>
+          <label>{{ $t("system.buildTimeLabel") }}</label>
+          <p class="desc">{{ $t("system.buildTimeDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">{{ systemInfo.build_time }}</span>
@@ -75,8 +79,8 @@
       <!-- Go version -->
       <div v-if="systemInfo?.go_version" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.goVersionLabel') }}</label>
-          <p class="desc">{{ $t('system.goVersionDescription') }}</p>
+          <label>{{ $t("system.goVersionLabel") }}</label>
+          <p class="desc">{{ $t("system.goVersionDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">{{ systemInfo.go_version }}</span>
@@ -86,8 +90,8 @@
       <!-- Service started at -->
       <div v-if="systemInfo?.started_at" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.startedAtLabel') }}</label>
-          <p class="desc">{{ $t('system.startedAtDescription') }}</p>
+          <label>{{ $t("system.startedAtLabel") }}</label>
+          <p class="desc">{{ $t("system.startedAtDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">{{ formatStartedAt(systemInfo.started_at) }}</span>
@@ -97,8 +101,8 @@
       <!-- Service uptime -->
       <div v-if="displayUptimeSeconds != null" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.uptimeLabel') }}</label>
-          <p class="desc">{{ $t('system.uptimeDescription') }}</p>
+          <label>{{ $t("system.uptimeLabel") }}</label>
+          <p class="desc">{{ $t("system.uptimeDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">{{ formatUptime(displayUptimeSeconds) }}</span>
@@ -108,28 +112,29 @@
       <!-- DB Version -->
       <div v-if="systemInfo?.db_version || systemInfo?.db_migration_error" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.dbVersionLabel') }}</label>
-          <p class="desc">{{ $t('system.dbVersionDescription') }}</p>
+          <label>{{ $t("system.dbVersionLabel") }}</label>
+          <p class="desc">{{ $t("system.dbVersionDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">
-            {{ systemInfo?.db_version || $t('system.unknown') }}
+            {{ systemInfo?.db_version || $t("system.unknown") }}
             <t-tag
               v-if="systemInfo?.db_migration_error"
               theme="danger"
               variant="light"
               size="small"
-              style="margin-left: 8px;"
-            >{{ $t('system.dbMigrationFailedTag') }}</t-tag>
+              style="margin-left: 8px"
+              >{{ $t("system.dbMigrationFailedTag") }}</t-tag
+            >
           </span>
         </div>
       </div>
 
       <!-- DB migration error: full-width banner under the row -->
       <div v-if="systemInfo?.db_migration_error" class="setting-row migration-error-row">
-        <t-alert theme="error" :title="$t('system.dbMigrationFailedTitle')" style="width: 100%;">
+        <t-alert theme="error" :title="$t('system.dbMigrationFailedTitle')" style="width: 100%">
           <template #default>
-            <p class="migration-error-desc">{{ $t('system.dbMigrationFailedDesc') }}</p>
+            <p class="migration-error-desc">{{ $t("system.dbMigrationFailedDesc") }}</p>
             <pre class="migration-error-detail">{{ systemInfo.db_migration_error }}</pre>
             <div class="migration-error-actions">
               <t-link
@@ -138,7 +143,8 @@
                 :href="troubleshootingDocsURL"
                 target="_blank"
                 rel="noopener noreferrer"
-              >{{ $t('system.dbMigrationViewDocs') }}</t-link>
+                >{{ $t("system.dbMigrationViewDocs") }}</t-link
+              >
               <span v-if="troubleshootingDocsURL && reportIssueURL" class="migration-error-actions-sep">·</span>
               <t-link
                 v-if="reportIssueURL"
@@ -146,7 +152,8 @@
                 :href="reportIssueURL"
                 target="_blank"
                 rel="noopener noreferrer"
-              >{{ $t('system.dbMigrationReportIssue') }}</t-link>
+                >{{ $t("system.dbMigrationReportIssue") }}</t-link
+              >
             </div>
           </template>
         </t-alert>
@@ -155,159 +162,158 @@
       <!-- Keyword Index Engine -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.keywordIndexEngineLabel') }}</label>
-          <p class="desc">{{ $t('system.keywordIndexEngineDescription') }}</p>
+          <label>{{ $t("system.keywordIndexEngineLabel") }}</label>
+          <p class="desc">{{ $t("system.keywordIndexEngineDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.keyword_index_engine || $t('system.unknown') }}</span>
+          <span class="info-value">{{ systemInfo?.keyword_index_engine || $t("system.unknown") }}</span>
         </div>
       </div>
 
       <!-- Vector Store Engine -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.vectorStoreEngineLabel') }}</label>
-          <p class="desc">{{ $t('system.vectorStoreEngineDescription') }}</p>
+          <label>{{ $t("system.vectorStoreEngineLabel") }}</label>
+          <p class="desc">{{ $t("system.vectorStoreEngineDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.vector_store_engine || $t('system.unknown') }}</span>
+          <span class="info-value">{{ systemInfo?.vector_store_engine || $t("system.unknown") }}</span>
         </div>
       </div>
 
       <!-- Graph Database Engine -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('system.graphDatabaseEngineLabel') }}</label>
-          <p class="desc">{{ $t('system.graphDatabaseEngineDescription') }}</p>
+          <label>{{ $t("system.graphDatabaseEngineLabel") }}</label>
+          <p class="desc">{{ $t("system.graphDatabaseEngineDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.graph_database_engine || $t('system.unknown') }}</span>
+          <span class="info-value">{{ systemInfo?.graph_database_engine || $t("system.unknown") }}</span>
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ISSUE_TRACKER_URL, docsUrl } from '@/config/externalLinks'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { getSystemInfo, type SystemInfo } from '@/api/system'
-import { useI18n } from 'vue-i18n'
+import { ISSUE_TRACKER_URL, docsUrl } from "@/config/externalLinks";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { getSystemInfo, type SystemInfo } from "@/api/system";
+import { useI18n } from "vue-i18n";
 
-const { t, locale } = useI18n()
+const { t, locale } = useI18n();
 
 // Reactive state
-const systemInfo = ref<SystemInfo | null>(null)
-const loading = ref(true)
-const error = ref('')
-const frontendVersion = __FRONTEND_VERSION__
-const frontendCommit = __FRONTEND_COMMIT__
+const systemInfo = ref<SystemInfo | null>(null);
+const loading = ref(true);
+const error = ref("");
+const frontendVersion = __FRONTEND_VERSION__;
+const frontendCommit = __FRONTEND_COMMIT__;
 
-let uptimeTicker: ReturnType<typeof setInterval> | null = null
-const uptimeTick = ref(0)
+let uptimeTicker: ReturnType<typeof setInterval> | null = null;
+const uptimeTick = ref(0);
 
 const displayUptimeSeconds = computed(() => {
-  void uptimeTick.value
-  const info = systemInfo.value
+  void uptimeTick.value;
+  const info = systemInfo.value;
   if (info?.started_at) {
-    const boot = new Date(info.started_at).getTime()
+    const boot = new Date(info.started_at).getTime();
     if (!Number.isNaN(boot)) {
-      return Math.floor((Date.now() - boot) / 1000)
+      return Math.floor((Date.now() - boot) / 1000);
     }
   }
-  if (info?.uptime_seconds != null) return info.uptime_seconds
-  return null
-})
+  if (info?.uptime_seconds != null) return info.uptime_seconds;
+  return null;
+});
 
 function formatStartedAt(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString(locale.value)
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(locale.value);
 }
 
 function formatUptime(totalSeconds: number): string {
-  const sec = Math.max(0, Math.floor(totalSeconds))
-  const days = Math.floor(sec / 86400)
-  const hours = Math.floor((sec % 86400) / 3600)
-  const minutes = Math.floor((sec % 3600) / 60)
-  const seconds = sec % 60
-  const parts: string[] = []
-  if (days > 0) parts.push(t('system.uptimeDays', { n: days }))
-  if (hours > 0 || days > 0) parts.push(t('system.uptimeHours', { n: hours }))
-  if (minutes > 0 || hours > 0 || days > 0) parts.push(t('system.uptimeMinutes', { n: minutes }))
-  if (parts.length === 0) return t('system.uptimeSeconds', { n: seconds })
-  if (seconds > 0 && days === 0) parts.push(t('system.uptimeSeconds', { n: seconds }))
-  return parts.join(' ')
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(t("system.uptimeDays", { n: days }));
+  if (hours > 0 || days > 0) parts.push(t("system.uptimeHours", { n: hours }));
+  if (minutes > 0 || hours > 0 || days > 0) parts.push(t("system.uptimeMinutes", { n: minutes }));
+  if (parts.length === 0) return t("system.uptimeSeconds", { n: seconds });
+  if (seconds > 0 && days === 0) parts.push(t("system.uptimeSeconds", { n: seconds }));
+  return parts.join(" ");
 }
 
-const troubleshootingDocsURL = docsUrl('migration-troubleshooting.md')
+const troubleshootingDocsURL = docsUrl("migration-troubleshooting.md");
 
 // Pre-fills a new issue with the current migration error so users don't have to
 // paste it manually. Body is intentionally minimal — the bug template will fill
 // in the rest. Encode aggressively to survive newlines / quotes.
 const reportIssueURL = computed(() => {
   // 未配置内部工单地址时返回空串，模板据此隐藏「反馈问题」入口。
-  if (!ISSUE_TRACKER_URL) return ''
-  const base = ISSUE_TRACKER_URL
+  if (!ISSUE_TRACKER_URL) return "";
+  const base = ISSUE_TRACKER_URL;
   const params = new URLSearchParams({
-    template: 'bug_report.yml',
-    title: '[Bug]: Database migration failed at startup',
-    labels: 'bug',
-  })
-  const errMsg = systemInfo.value?.db_migration_error
+    template: "bug_report.yml",
+    title: "[Bug]: Database migration failed at startup",
+    labels: "bug",
+  });
+  const errMsg = systemInfo.value?.db_migration_error;
   if (errMsg) {
     const body = [
-      '### Environment',
-      `- Platform version: ${systemInfo.value?.version || 'unknown'}`,
-      `- Commit: ${systemInfo.value?.commit_id || 'unknown'}`,
+      "### Environment",
+      `- Platform version: ${systemInfo.value?.version || "unknown"}`,
+      `- Commit: ${systemInfo.value?.commit_id || "unknown"}`,
       `- Frontend version: ${frontendVersion} (${frontendCommit})`,
-      `- DB version reported: ${systemInfo.value?.db_version || 'unknown'}`,
-      '',
-      '### Migration error',
-      '```',
+      `- DB version reported: ${systemInfo.value?.db_version || "unknown"}`,
+      "",
+      "### Migration error",
+      "```",
       errMsg,
-      '```',
-    ].join('\n')
-    params.set('body', body)
+      "```",
+    ].join("\n");
+    params.set("body", body);
   }
-  return `${base}?${params.toString()}`
-})
+  return `${base}?${params.toString()}`;
+});
 
 // Methods
 const loadInfo = async () => {
   try {
-    loading.value = true
-    error.value = ''
-    
-    const systemResponse = await getSystemInfo()
-    
+    loading.value = true;
+    error.value = "";
+
+    const systemResponse = await getSystemInfo();
+
     if (systemResponse.data) {
-      systemInfo.value = systemResponse.data
+      systemInfo.value = systemResponse.data;
     } else {
-      error.value = t('system.messages.fetchFailed')
+      error.value = t("system.messages.fetchFailed");
     }
   } catch (err: any) {
-    error.value = err?.message || t('system.messages.networkError')
+    error.value = err?.message || t("system.messages.networkError");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // Lifecycle
 onMounted(() => {
-  loadInfo()
+  loadInfo();
   uptimeTicker = setInterval(() => {
-    uptimeTick.value++
-  }, 30_000)
-})
+    uptimeTick.value++;
+  }, 30_000);
+});
 
 onUnmounted(() => {
   if (uptimeTicker) {
-    clearInterval(uptimeTicker)
-    uptimeTicker = null
+    clearInterval(uptimeTicker);
+    uptimeTicker = null;
   }
-})
+});
 </script>
 
 <style lang="less" scoped>

@@ -1,6 +1,6 @@
-import { del, get, getDown, postUpload } from '@/utils/request';
+import { del, get, getDown, postUpload } from "@/utils/request";
 
-export type TemporaryAttachmentStatus = 'uploaded' | 'processing' | 'ready' | 'failed';
+export type TemporaryAttachmentStatus = "uploaded" | "processing" | "ready" | "failed";
 
 export interface TemporaryAttachment {
   id: string;
@@ -29,15 +29,11 @@ export function uploadTemporaryAttachment(
   onProgress?: (percent: number) => void,
 ): Promise<AttachmentResponse> {
   const form = new FormData();
-  form.append('file', file);
-  if (parserEngine) form.append('parser_engine', parserEngine);
-  return postUpload(
-    `/api/v1/sessions/${sessionId}/attachments`,
-    form,
-    (event) => {
-      if (event.total) onProgress?.(Math.round((event.loaded * 100) / event.total));
-    },
-  );
+  form.append("file", file);
+  if (parserEngine) form.append("parser_engine", parserEngine);
+  return postUpload(`/api/v1/sessions/${sessionId}/attachments`, form, (event) => {
+    if (event.total) onProgress?.(Math.round((event.loaded * 100) / event.total));
+  });
 }
 
 export function getTemporaryAttachment(sessionId: string, attachmentId: string): Promise<AttachmentResponse> {

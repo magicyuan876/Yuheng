@@ -1,7 +1,7 @@
-import { get, post, postUpload, put, del } from '../../utils/request';
-import i18n from '@/i18n'
+import { get, post, postUpload, put, del } from "../../utils/request";
+import i18n from "@/i18n";
 
-const t = (key: string) => i18n.global.t(key)
+const t = (key: string) => i18n.global.t(key);
 
 // 模型类型定义
 export interface ModelConfig {
@@ -9,8 +9,8 @@ export interface ModelConfig {
   tenant_id?: number;
   name: string;
   display_name?: string;
-  type: 'KnowledgeQA' | 'Embedding' | 'Rerank' | 'VLLM' | 'ASR';
-  source: 'local' | 'remote';
+  type: "KnowledgeQA" | "Embedding" | "Rerank" | "VLLM" | "ASR";
+  source: "local" | "remote";
   description?: string;
   parameters: {
     base_url?: string;
@@ -21,7 +21,7 @@ export interface ModelConfig {
       truncate_prompt_tokens?: number;
       supports_dimension_override?: boolean;
     };
-    interface_type?: 'ollama' | 'openai'; // VLLM专用
+    interface_type?: "ollama" | "openai"; // VLLM专用
     parameter_size?: string; // Ollama模型参数大小 (e.g., "7B", "13B", "70B")
     extra_config?: Record<string, string>; // Provider-specific configuration
     // 自定义 HTTP 请求头（类似 Python OpenAI SDK 的 extra_headers），
@@ -52,16 +52,16 @@ export interface ModelConfig {
 // 创建模型
 export function createModel(data: ModelConfig): Promise<ModelConfig> {
   return new Promise((resolve, reject) => {
-    post('/api/v1/models', data)
+    post("/api/v1/models", data)
       .then((response: any) => {
         if (response.success && response.data) {
           resolve(response.data);
         } else {
-          reject(new Error(response.message || t('error.model.createFailed')));
+          reject(new Error(response.message || t("error.model.createFailed")));
         }
       })
       .catch((error: any) => {
-        console.error('Failed to create model:', error);
+        console.error("Failed to create model:", error);
         reject(error);
       });
   });
@@ -83,7 +83,7 @@ export function listModels(type?: string): Promise<ModelConfig[]> {
         }
       })
       .catch((error: any) => {
-        console.error('Failed to list models:', error);
+        console.error("Failed to list models:", error);
         // 抛出而非吞掉：调用方（含缓存层）才能区分「真失败」与「成功但无模型」，
         // 避免把一次瞬时失败的空结果缓存下来。各 UI 调用点均已 try/catch 兜底。
         reject(error);
@@ -99,11 +99,11 @@ export function getModel(id: string): Promise<ModelConfig> {
         if (response.success && response.data) {
           resolve(response.data);
         } else {
-          reject(new Error(response.message || t('error.model.getFailed')));
+          reject(new Error(response.message || t("error.model.getFailed")));
         }
       })
       .catch((error: any) => {
-        console.error('Failed to get model:', error);
+        console.error("Failed to get model:", error);
         reject(error);
       });
   });
@@ -117,11 +117,11 @@ export function updateModel(id: string, data: Partial<ModelConfig>): Promise<Mod
         if (response.success && response.data) {
           resolve(response.data);
         } else {
-          reject(new Error(response.message || t('error.model.updateFailed')));
+          reject(new Error(response.message || t("error.model.updateFailed")));
         }
       })
       .catch((error: any) => {
-        console.error('Failed to update model:', error);
+        console.error("Failed to update model:", error);
         reject(error);
       });
   });
@@ -135,55 +135,50 @@ export function deleteModel(id: string): Promise<void> {
         if (response.success) {
           resolve();
         } else {
-          reject(new Error(response.message || t('error.model.deleteFailed')));
+          reject(new Error(response.message || t("error.model.deleteFailed")));
         }
       })
       .catch((error: any) => {
-        console.error('Failed to delete model:', error);
+        console.error("Failed to delete model:", error);
         reject(error);
       });
   });
 }
 
 export interface ModelDebugOptions {
-  system_prompt?: string
-  temperature?: number
-  top_p?: number
-  max_tokens?: number
-  thinking?: boolean
+  system_prompt?: string;
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  thinking?: boolean;
 }
 
 export interface ModelDebugResult {
-  ok: boolean
-  elapsed_ms: number
-  request: Record<string, unknown>
-  raw_response: unknown
-  observations: Record<string, unknown>
-  error?: string
+  ok: boolean;
+  elapsed_ms: number;
+  request: Record<string, unknown>;
+  raw_response: unknown;
+  observations: Record<string, unknown>;
+  error?: string;
 }
 
 export async function debugModel(
   id: string,
   data: {
-    input?: string
-    documents?: string[]
-    options?: ModelDebugOptions
-    file?: File | null
+    input?: string;
+    documents?: string[];
+    options?: ModelDebugOptions;
+    file?: File | null;
   },
 ): Promise<ModelDebugResult> {
-  const form = new FormData()
-  form.append('input', data.input || '')
-  form.append('documents', JSON.stringify(data.documents || []))
-  form.append('options', JSON.stringify(data.options || {}))
-  if (data.file) form.append('file', data.file)
-  const response: any = await postUpload(
-    `/api/v1/models/${id}/debug`,
-    form,
-    undefined,
-    { timeout: 300000 },
-  )
-  if (response?.success && response?.data) return response.data
-  throw new Error(response?.message || t('error.model.getFailed'))
+  const form = new FormData();
+  form.append("input", data.input || "");
+  form.append("documents", JSON.stringify(data.documents || []));
+  form.append("options", JSON.stringify(data.options || {}));
+  if (data.file) form.append("file", data.file);
+  const response: any = await postUpload(`/api/v1/models/${id}/debug`, form, undefined, { timeout: 300000 });
+  if (response?.success && response?.data) return response.data;
+  throw new Error(response?.message || t("error.model.getFailed"));
 }
 
 // ----------------------------------------------------------------------------
@@ -191,25 +186,22 @@ export async function debugModel(
 // shape and the design notes in internal/handler/dto/mcp.go.
 // ----------------------------------------------------------------------------
 
-export type ModelCredentialField = 'api_key' | 'app_secret'
+export type ModelCredentialField = "api_key" | "app_secret";
 
 export interface ModelCredentialsResponse {
-  fields: Record<ModelCredentialField, { configured: boolean }>
+  fields: Record<ModelCredentialField, { configured: boolean }>;
 }
 
 export async function putModelCredentials(
   id: string,
   body: Partial<Record<ModelCredentialField, string>>,
 ): Promise<ModelCredentialsResponse> {
-  const response: any = await put(`/api/v1/models/${id}/credentials`, body)
-  return (response.data ?? response) as ModelCredentialsResponse
+  const response: any = await put(`/api/v1/models/${id}/credentials`, body);
+  return (response.data ?? response) as ModelCredentialsResponse;
 }
 
-export async function deleteModelCredentialField(
-  id: string,
-  field: ModelCredentialField,
-): Promise<void> {
-  await del(`/api/v1/models/${id}/credentials/${field}`)
+export async function deleteModelCredentialField(id: string, field: ModelCredentialField): Promise<void> {
+  await del(`/api/v1/models/${id}/credentials/${field}`);
 }
 
 /**
@@ -222,6 +214,6 @@ export async function deleteModelCredentialField(
  * 取消共享时，若仍有任意空间的知识库或智能体绑定该模型，后端返回 400。
  */
 export async function setModelSharing(id: string, shared: boolean): Promise<ModelConfig> {
-  const response: any = await put(`/api/v1/models/${id}/sharing`, { shared })
-  return (response.data ?? response) as ModelConfig
+  const response: any = await put(`/api/v1/models/${id}/sharing`, { shared });
+  return (response.data ?? response) as ModelConfig;
 }

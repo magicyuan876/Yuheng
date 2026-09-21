@@ -2,18 +2,14 @@
   <div class="runtime-queues">
     <header class="section-header rq-header">
       <div class="rq-title-block">
-        <h2>{{ t('system.globalSettings.runtime.title') }}</h2>
-        <p class="section-description">{{ t('system.globalSettings.runtime.description') }}</p>
+        <h2>{{ t("system.globalSettings.runtime.title") }}</h2>
+        <p class="section-description">{{ t("system.globalSettings.runtime.description") }}</p>
       </div>
       <div class="rq-actions">
         <label class="rq-auto-refresh">
           <span class="rq-live-dot" :class="{ 'rq-live-dot--active': autoRefresh }" />
-          <span>{{ t('system.globalSettings.runtime.autoRefresh') }}</span>
-          <t-switch
-            v-model="autoRefresh"
-            size="small"
-            :aria-label="t('system.globalSettings.runtime.autoRefresh')"
-          />
+          <span>{{ t("system.globalSettings.runtime.autoRefresh") }}</span>
+          <t-switch v-model="autoRefresh" size="small" :aria-label="t('system.globalSettings.runtime.autoRefresh')" />
         </label>
         <button
           type="button"
@@ -23,10 +19,7 @@
           :aria-label="t('system.globalSettings.runtime.refresh')"
           @click="reload"
         >
-          <t-icon
-            :name="loading ? 'loading' : 'refresh'"
-            :class="{ 'rq-refresh-spin': loading }"
-          />
+          <t-icon :name="loading ? 'loading' : 'refresh'" :class="{ 'rq-refresh-spin': loading }" />
         </button>
       </div>
     </header>
@@ -37,7 +30,10 @@
           v-for="n in 4"
           :key="n"
           animation="gradient"
-          :row-col="[{ width: '42%', height: '28px' }, { width: '66%', height: '14px' }]"
+          :row-col="[
+            { width: '42%', height: '28px' },
+            { width: '66%', height: '14px' },
+          ]"
         />
       </div>
       <t-skeleton
@@ -54,230 +50,244 @@
     <div v-else-if="error" class="rq-state rq-state--error" role="alert">
       <div class="rq-state-icon"><t-icon name="error-circle" size="24px" /></div>
       <div class="rq-state-copy">
-        <strong>{{ t('system.globalSettings.runtime.errors.generic') }}</strong>
+        <strong>{{ t("system.globalSettings.runtime.errors.generic") }}</strong>
         <span>{{ error }}</span>
       </div>
       <t-button size="small" variant="outline" @click="reload">
-        {{ t('system.globalSettings.runtime.retry') }}
+        {{ t("system.globalSettings.runtime.retry") }}
       </t-button>
     </div>
 
     <div v-else-if="!available && !modelLimiterAvailable" class="rq-state">
       <div class="rq-state-icon"><t-icon name="info-circle" size="24px" /></div>
       <div class="rq-state-copy">
-        <strong>{{ t('system.globalSettings.runtime.unavailableTitle') }}</strong>
-        <span>{{ t('system.globalSettings.runtime.unavailable') }}</span>
+        <strong>{{ t("system.globalSettings.runtime.unavailableTitle") }}</strong>
+        <span>{{ t("system.globalSettings.runtime.unavailable") }}</span>
       </div>
     </div>
 
     <template v-else>
       <template v-if="available">
-      <section class="rq-overview" :aria-label="t('system.globalSettings.runtime.summary.title')">
-        <div class="rq-overview-title">
-          <span class="rq-overview-mark"><t-icon name="chart-line" /></span>
-          <span>{{ t('system.globalSettings.runtime.summary.title') }}</span>
-        </div>
-        <div class="rq-overview-metrics">
-          <div class="rq-metric rq-metric--active">
-            <span class="rq-metric-label">{{ t('system.globalSettings.runtime.summary.active') }}</span>
-            <strong class="rq-metric-value">{{ totalActive }}</strong>
+        <section class="rq-overview" :aria-label="t('system.globalSettings.runtime.summary.title')">
+          <div class="rq-overview-title">
+            <span class="rq-overview-mark"><t-icon name="chart-line" /></span>
+            <span>{{ t("system.globalSettings.runtime.summary.title") }}</span>
           </div>
-          <div class="rq-metric">
-            <span class="rq-metric-label">{{ t('system.globalSettings.runtime.summary.pending') }}</span>
-            <strong class="rq-metric-value">{{ totalPending }}</strong>
-          </div>
-          <div class="rq-metric" :class="{ 'rq-metric--warning': totalRetry > 0 }">
-            <span class="rq-metric-label">{{ t('system.globalSettings.runtime.summary.retry') }}</span>
-            <strong class="rq-metric-value">{{ totalRetry }}</strong>
-          </div>
-          <div class="rq-metric" :class="{ 'rq-metric--danger': totalArchived > 0 }">
-            <span class="rq-metric-label">{{ t('system.globalSettings.runtime.summary.archived') }}</span>
-            <strong class="rq-metric-value">{{ totalArchived }}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section class="rq-pools">
-        <div class="rq-pools-header">
-          <div>
-            <h3 class="rq-section-title">{{ t('system.globalSettings.runtime.poolsTitle') }}</h3>
-            <p>{{ t('system.globalSettings.runtime.poolsDescription') }}</p>
-          </div>
-          <span class="rq-pools-note">{{ t('system.globalSettings.runtime.perInstance') }}</span>
-        </div>
-        <div class="rq-pool-grid">
-          <div v-for="pool in pools" :key="pool.name" class="rq-pool-card">
-            <div class="rq-pool-topline">
-              <span class="rq-pool-name">{{ poolLabel(pool.name) }}</span>
-              <strong class="rq-pool-value">
-                {{ pool.instances > 0 ? `${pool.active}/${pool.cluster_capacity}` : pool.concurrency }}
-              </strong>
+          <div class="rq-overview-metrics">
+            <div class="rq-metric rq-metric--active">
+              <span class="rq-metric-label">{{ t("system.globalSettings.runtime.summary.active") }}</span>
+              <strong class="rq-metric-value">{{ totalActive }}</strong>
             </div>
-            <p class="rq-pool-desc">
-              {{ poolDescription(pool.name) }}
-              <span class="rq-pool-meta">
-                {{ t('system.globalSettings.runtime.poolConfigured', { value: pool.concurrency }) }}
-                <template v-if="pool.instances > 0">
-                  · {{ t('system.globalSettings.runtime.poolInstances', { value: pool.instances }) }}
-                  · {{ t('system.globalSettings.runtime.poolUtilization', { value: poolUtilization(pool) }) }}
-                </template>
-                · {{ t('system.globalSettings.runtime.queueCount', { value: pool.queue_count }) }}
-              </span>
-            </p>
+            <div class="rq-metric">
+              <span class="rq-metric-label">{{ t("system.globalSettings.runtime.summary.pending") }}</span>
+              <strong class="rq-metric-value">{{ totalPending }}</strong>
+            </div>
+            <div class="rq-metric" :class="{ 'rq-metric--warning': totalRetry > 0 }">
+              <span class="rq-metric-label">{{ t("system.globalSettings.runtime.summary.retry") }}</span>
+              <strong class="rq-metric-value">{{ totalRetry }}</strong>
+            </div>
+            <div class="rq-metric" :class="{ 'rq-metric--danger': totalArchived > 0 }">
+              <span class="rq-metric-label">{{ t("system.globalSettings.runtime.summary.archived") }}</span>
+              <strong class="rq-metric-value">{{ totalArchived }}</strong>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="rq-details">
-        <div class="rq-details-header">
-          <div>
-            <h3 class="rq-section-title">{{ t('system.globalSettings.runtime.detailsTitle') }}</h3>
-            <p>{{ t('system.globalSettings.runtime.detailsDescription') }}</p>
+        <section class="rq-pools">
+          <div class="rq-pools-header">
+            <div>
+              <h3 class="rq-section-title">{{ t("system.globalSettings.runtime.poolsTitle") }}</h3>
+              <p>{{ t("system.globalSettings.runtime.poolsDescription") }}</p>
+            </div>
+            <span class="rq-pools-note">{{ t("system.globalSettings.runtime.perInstance") }}</span>
           </div>
-          <span v-if="updatedAt" class="rq-updated-at">
-            <t-icon name="time" />
-            {{ t('system.globalSettings.runtime.updatedAt', { value: updatedAt }) }}
-          </span>
-        </div>
-
-        <div v-if="totalArchived > 0" class="rq-failed-notice" role="status">
-          <span class="rq-failed-notice__icon" aria-hidden="true">
-            <t-icon name="error-circle" />
-          </span>
-          <div class="rq-failed-notice__text">
-            <p class="rq-failed-notice__title">
-              {{ t('system.globalSettings.runtime.failedNotice.title', { count: totalArchived }) }}
-            </p>
-            <p class="rq-failed-notice__desc">
-              {{ t('system.globalSettings.runtime.failedNotice.description') }}
-            </p>
-          </div>
-        </div>
-
-        <div v-if="queues.length === 0" class="rq-empty">
-          <t-icon name="queue" size="28px" />
-          <span>{{ t('system.globalSettings.runtime.empty') }}</span>
-        </div>
-
-        <div v-else class="data-table-shell rq-table-shell">
-          <t-table
-            row-key="name"
-            :data="queues"
-            :columns="columns"
-            size="medium"
-            hover
-          >
-            <template #name="{ row }">
-              <div class="rq-queue-cell">
-                <span class="rq-queue-name">{{ queueLabel(row.name) }}</span>
-                <span class="rq-queue-meta">{{ queueMeta(row) }}</span>
+          <div class="rq-pool-grid">
+            <div v-for="pool in pools" :key="pool.name" class="rq-pool-card">
+              <div class="rq-pool-topline">
+                <span class="rq-pool-name">{{ poolLabel(pool.name) }}</span>
+                <strong class="rq-pool-value">
+                  {{ pool.instances > 0 ? `${pool.active}/${pool.cluster_capacity}` : pool.concurrency }}
+                </strong>
               </div>
-            </template>
-            <template #active="{ row }">
-              <t-button
-                v-if="row.active > 0"
-                variant="text"
-                size="small"
-                class="rq-task-count rq-task-count--active"
-                @click="openRuntimeTasks(row, 'active')"
-              >
-                {{ row.active }}<t-icon name="chevron-right" />
-              </t-button>
-              <span v-else class="rq-number">0</span>
-            </template>
-            <template #pending="{ row }">
-              <div class="rq-backlog">
+              <p class="rq-pool-desc">
+                {{ poolDescription(pool.name) }}
+                <span class="rq-pool-meta">
+                  {{ t("system.globalSettings.runtime.poolConfigured", { value: pool.concurrency }) }}
+                  <template v-if="pool.instances > 0">
+                    · {{ t("system.globalSettings.runtime.poolInstances", { value: pool.instances }) }} ·
+                    {{ t("system.globalSettings.runtime.poolUtilization", { value: poolUtilization(pool) }) }}
+                  </template>
+                  · {{ t("system.globalSettings.runtime.queueCount", { value: pool.queue_count }) }}
+                </span>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="rq-details">
+          <div class="rq-details-header">
+            <div>
+              <h3 class="rq-section-title">{{ t("system.globalSettings.runtime.detailsTitle") }}</h3>
+              <p>{{ t("system.globalSettings.runtime.detailsDescription") }}</p>
+            </div>
+            <span v-if="updatedAt" class="rq-updated-at">
+              <t-icon name="time" />
+              {{ t("system.globalSettings.runtime.updatedAt", { value: updatedAt }) }}
+            </span>
+          </div>
+
+          <div v-if="totalArchived > 0" class="rq-failed-notice" role="status">
+            <span class="rq-failed-notice__icon" aria-hidden="true">
+              <t-icon name="error-circle" />
+            </span>
+            <div class="rq-failed-notice__text">
+              <p class="rq-failed-notice__title">
+                {{ t("system.globalSettings.runtime.failedNotice.title", { count: totalArchived }) }}
+              </p>
+              <p class="rq-failed-notice__desc">
+                {{ t("system.globalSettings.runtime.failedNotice.description") }}
+              </p>
+            </div>
+          </div>
+
+          <div v-if="queues.length === 0" class="rq-empty">
+            <t-icon name="queue" size="28px" />
+            <span>{{ t("system.globalSettings.runtime.empty") }}</span>
+          </div>
+
+          <div v-else class="data-table-shell rq-table-shell">
+            <t-table row-key="name" :data="queues" :columns="columns" size="medium" hover>
+              <template #name="{ row }">
+                <div class="rq-queue-cell">
+                  <span class="rq-queue-name">{{ queueLabel(row.name) }}</span>
+                  <span class="rq-queue-meta">{{ queueMeta(row) }}</span>
+                </div>
+              </template>
+              <template #active="{ row }">
                 <t-button
-                  v-if="row.pending > 0"
+                  v-if="row.active > 0"
                   variant="text"
+                  size="small"
+                  class="rq-task-count rq-task-count--active"
+                  @click="openRuntimeTasks(row, 'active')"
+                >
+                  {{ row.active }}<t-icon name="chevron-right" />
+                </t-button>
+                <span v-else class="rq-number">0</span>
+              </template>
+              <template #pending="{ row }">
+                <div class="rq-backlog">
+                  <t-button
+                    v-if="row.pending > 0"
+                    variant="text"
+                    size="small"
+                    class="rq-task-count"
+                    @click="openRuntimeTasks(row, 'pending')"
+                    >{{ row.pending }}<t-icon name="chevron-right"
+                  /></t-button>
+                  <span v-else class="rq-number">0</span>
+                  <t-button
+                    v-if="row.scheduled > 0"
+                    variant="text"
+                    size="small"
+                    class="rq-scheduled-count"
+                    @click="openRuntimeTasks(row, 'scheduled')"
+                    >+{{ row.scheduled }} {{ t("system.globalSettings.runtime.columns.scheduled") }}</t-button
+                  >
+                </div>
+              </template>
+              <template #retry="{ row }">
+                <t-button
+                  v-if="row.retry > 0"
+                  variant="text"
+                  theme="warning"
                   size="small"
                   class="rq-task-count"
-                  @click="openRuntimeTasks(row, 'pending')"
-                >{{ row.pending }}<t-icon name="chevron-right" /></t-button>
+                  @click="openRuntimeTasks(row, 'retry')"
+                  >{{ row.retry }}<t-icon name="chevron-right"
+                /></t-button>
                 <span v-else class="rq-number">0</span>
+              </template>
+              <template #archived="{ row }">
                 <t-button
-                  v-if="row.scheduled > 0"
+                  v-if="row.archived > 0"
+                  variant="text"
+                  theme="danger"
+                  size="small"
+                  class="rq-task-count rq-failed-count"
+                  :aria-label="
+                    t('system.globalSettings.runtime.tasks.openAria', {
+                      state: taskStateLabel('archived'),
+                      queue: queueLabel(row.name),
+                      count: row.archived,
+                    })
+                  "
+                  @click="openRuntimeTasks(row, 'archived')"
+                >
+                  {{ row.archived }}<t-icon name="chevron-right" />
+                </t-button>
+                <span v-else class="rq-number">0</span>
+              </template>
+              <template #completed="{ row }">
+                <t-button
+                  v-if="row.completed > 0"
                   variant="text"
                   size="small"
-                  class="rq-scheduled-count"
-                  @click="openRuntimeTasks(row, 'scheduled')"
-                >+{{ row.scheduled }} {{ t('system.globalSettings.runtime.columns.scheduled') }}</t-button>
-              </div>
-            </template>
-            <template #retry="{ row }">
-              <t-button
-                v-if="row.retry > 0"
-                variant="text"
-                theme="warning"
-                size="small"
-                class="rq-task-count"
-                @click="openRuntimeTasks(row, 'retry')"
-              >{{ row.retry }}<t-icon name="chevron-right" /></t-button>
-              <span v-else class="rq-number">0</span>
-            </template>
-            <template #archived="{ row }">
-              <t-button
-                v-if="row.archived > 0"
-                variant="text"
-                theme="danger"
-                size="small"
-                class="rq-task-count rq-failed-count"
-                :aria-label="t('system.globalSettings.runtime.tasks.openAria', { state: taskStateLabel('archived'), queue: queueLabel(row.name), count: row.archived })"
-                @click="openRuntimeTasks(row, 'archived')"
-              >
-                {{ row.archived }}<t-icon name="chevron-right" />
-              </t-button>
-              <span v-else class="rq-number">0</span>
-            </template>
-            <template #completed="{ row }">
-              <t-button
-                v-if="row.completed > 0"
-                variant="text"
-                size="small"
-                class="rq-task-count rq-task-count--completed"
-                @click="openRuntimeTasks(row, 'completed')"
-              >{{ row.completed }}<t-icon name="chevron-right" /></t-button>
-              <span v-else class="rq-number">0</span>
-            </template>
-            <template #latency_ms="{ row }">
-              <span class="rq-latency">{{ formatLatency(row.latency_ms) }}</span>
-            </template>
-            <template #status="{ row }">
-              <span class="rq-status" :class="`rq-status--${queueState(row).tone}`">
-                <i />{{ queueState(row).label }}
-              </span>
-            </template>
-          </t-table>
-        </div>
-      </section>
+                  class="rq-task-count rq-task-count--completed"
+                  @click="openRuntimeTasks(row, 'completed')"
+                  >{{ row.completed }}<t-icon name="chevron-right"
+                /></t-button>
+                <span v-else class="rq-number">0</span>
+              </template>
+              <template #latency_ms="{ row }">
+                <span class="rq-latency">{{ formatLatency(row.latency_ms) }}</span>
+              </template>
+              <template #status="{ row }">
+                <span class="rq-status" :class="`rq-status--${queueState(row).tone}`">
+                  <i />{{ queueState(row).label }}
+                </span>
+              </template>
+            </t-table>
+          </div>
+        </section>
       </template>
 
       <section class="rq-details rq-models">
         <div class="rq-details-header">
           <div>
-            <h3 class="rq-section-title">{{ t('system.globalSettings.runtime.models.title') }}</h3>
-            <p>{{ t('system.globalSettings.runtime.models.description') }}</p>
+            <h3 class="rq-section-title">{{ t("system.globalSettings.runtime.models.title") }}</h3>
+            <p>{{ t("system.globalSettings.runtime.models.description") }}</p>
           </div>
-          <span class="rq-pools-note">{{ t('system.globalSettings.runtime.models.scope') }}</span>
+          <span class="rq-pools-note">{{ t("system.globalSettings.runtime.models.scope") }}</span>
         </div>
         <div v-if="!modelLimiterAvailable" class="rq-empty">
           <t-icon name="info-circle" size="28px" />
-          <span>{{ t('system.globalSettings.runtime.models.disabled') }}</span>
+          <span>{{ t("system.globalSettings.runtime.models.disabled") }}</span>
         </div>
         <div v-else-if="models.length === 0" class="rq-empty">
           <t-icon name="server" size="28px" />
-          <span>{{ t('system.globalSettings.runtime.models.empty') }}</span>
+          <span>{{ t("system.globalSettings.runtime.models.empty") }}</span>
         </div>
         <div v-else class="data-table-shell rq-table-shell">
           <t-table row-key="model_id" :data="models" :columns="modelColumns" size="medium" hover>
             <template #model_id="{ row }">
               <div class="rq-queue-cell">
                 <span class="rq-queue-name">{{ row.name || row.model_id }}</span>
-                <span class="rq-queue-meta">{{ row.name ? row.model_id : t('system.globalSettings.runtime.models.backgroundOnly') }}</span>
+                <span class="rq-queue-meta">{{
+                  row.name ? row.model_id : t("system.globalSettings.runtime.models.backgroundOnly")
+                }}</span>
               </div>
             </template>
-            <template #active="{ row }"><span class="rq-number" :class="{ 'rq-number--active': row.active > 0 }">{{ row.active }}</span></template>
-            <template #waiting="{ row }"><span class="rq-number" :class="{ 'rq-number--warning': row.waiting > 0 }">{{ row.waiting }}</span></template>
+            <template #active="{ row }"
+              ><span class="rq-number" :class="{ 'rq-number--active': row.active > 0 }">{{
+                row.active
+              }}</span></template
+            >
+            <template #waiting="{ row }"
+              ><span class="rq-number" :class="{ 'rq-number--warning': row.waiting > 0 }">{{
+                row.waiting
+              }}</span></template
+            >
             <template #usage="{ row }">
               <div class="rq-model-usage">
                 <t-progress :percentage="modelUsage(row)" size="small" :label="false" />
@@ -285,13 +295,15 @@
               </div>
             </template>
             <template #status="{ row }">
-              <span class="rq-status" :class="`rq-status--${modelState(row).tone}`"><i />{{ modelState(row).label }}</span>
+              <span class="rq-status" :class="`rq-status--${modelState(row).tone}`"
+                ><i />{{ modelState(row).label }}</span
+              >
             </template>
           </t-table>
         </div>
       </section>
 
-      <p class="rq-footnote">{{ t('system.globalSettings.runtime.footnote') }}</p>
+      <p class="rq-footnote">{{ t("system.globalSettings.runtime.footnote") }}</p>
     </template>
 
     <SettingDrawer
@@ -323,10 +335,7 @@
             @click="selectTaskState(state)"
           >
             <span class="rq-task-state-option__label">{{ taskStateLabel(state) }}</span>
-            <span
-              class="rq-task-state-option__count"
-              :class="{ 'has-value': taskStateCount(taskQueue, state) > 0 }"
-            >
+            <span class="rq-task-state-option__count" :class="{ 'has-value': taskStateCount(taskQueue, state) > 0 }">
               {{ taskStateCount(taskQueue, state) }}
             </span>
           </button>
@@ -337,24 +346,22 @@
       <section class="setting-drawer__section">
         <div class="rq-failed-section-head">
           <h4 class="setting-drawer__section-title">
-            {{ t('system.globalSettings.runtime.tasks.listTitle', { state: taskStateLabel(taskState) }) }}
+            {{ t("system.globalSettings.runtime.tasks.listTitle", { state: taskStateLabel(taskState) }) }}
           </h4>
           <div class="rq-failed-section-actions">
             <t-popconfirm
               v-if="taskState === 'archived' && tasks.length > 0"
               theme="danger"
-              :content="t('system.globalSettings.runtime.tasks.purgeArchivedConfirm', { count: taskStateCount(taskQueue, 'archived') })"
+              :content="
+                t('system.globalSettings.runtime.tasks.purgeArchivedConfirm', {
+                  count: taskStateCount(taskQueue, 'archived'),
+                })
+              "
               @confirm="purgeArchivedTasks"
             >
-              <t-button
-                variant="text"
-                size="small"
-                theme="danger"
-                :loading="purging"
-                :disabled="Boolean(taskActionID)"
-              >
+              <t-button variant="text" size="small" theme="danger" :loading="purging" :disabled="Boolean(taskActionID)">
                 <template #icon><t-icon name="clear" /></template>
-                {{ t('system.globalSettings.runtime.tasks.purgeArchived') }}
+                {{ t("system.globalSettings.runtime.tasks.purgeArchived") }}
               </t-button>
             </t-popconfirm>
             <t-button
@@ -364,19 +371,19 @@
               @click="reloadRuntimeTasks"
             >
               <template #icon><t-icon name="refresh" /></template>
-              {{ t('system.globalSettings.runtime.refresh') }}
+              {{ t("system.globalSettings.runtime.refresh") }}
             </t-button>
           </div>
         </div>
 
         <div v-if="tasksLoading && tasks.length === 0" class="rq-failed-loading">
           <t-loading size="small" />
-          <span>{{ t('system.globalSettings.runtime.loading') }}</span>
+          <span>{{ t("system.globalSettings.runtime.loading") }}</span>
         </div>
         <div v-else-if="tasksError" class="rq-failed-error-state">
           <span>{{ tasksError }}</span>
           <t-button size="small" variant="outline" @click="reloadRuntimeTasks">
-            {{ t('system.globalSettings.runtime.retry') }}
+            {{ t("system.globalSettings.runtime.retry") }}
           </t-button>
         </div>
         <t-empty
@@ -384,11 +391,7 @@
           :description="t('system.globalSettings.runtime.tasks.empty', { state: taskStateLabel(taskState) })"
         />
         <div v-else class="rq-failed-list-panel">
-          <article
-            v-for="task in tasks"
-            :key="task.id"
-            class="rq-failed-row"
-          >
+          <article v-for="task in tasks" :key="task.id" class="rq-failed-row">
             <div class="rq-failed-row-content">
               <div class="rq-failed-row-summary">
                 <span class="rq-failed-row-type">{{ runtimeTaskTypeLabel(task.type) }}</span>
@@ -398,7 +401,12 @@
                 </span>
                 <span class="rq-failed-row-sep" aria-hidden="true">·</span>
                 <span class="rq-failed-row-stat">
-                  {{ t('system.globalSettings.runtime.tasks.attempts', { current: task.retried + 1, max: task.max_retry + 1 }) }}
+                  {{
+                    t("system.globalSettings.runtime.tasks.attempts", {
+                      current: task.retried + 1,
+                      max: task.max_retry + 1,
+                    })
+                  }}
                 </span>
               </div>
               <dl v-if="runtimeTaskMeta(task).length > 0" class="rq-failed-row-refs">
@@ -408,7 +416,7 @@
                 </div>
               </dl>
               <p v-else class="rq-failed-row-unknown">
-                {{ t('system.globalSettings.runtime.tasks.unknownTarget') }}
+                {{ t("system.globalSettings.runtime.tasks.unknownTarget") }}
               </p>
               <p v-if="task.last_error" class="rq-failed-row-error">
                 {{ task.last_error }}
@@ -432,7 +440,8 @@
                   :aria-label="t('system.globalSettings.runtime.tasks.cancel')"
                   :loading="taskActionID === task.id && taskAction === 'cancel'"
                   :disabled="Boolean(taskActionID)"
-                ><t-icon name="close-circle" /></t-button>
+                  ><t-icon name="close-circle"
+                /></t-button>
               </t-popconfirm>
               <t-popconfirm
                 v-if="task.allowed_actions.includes('run_now')"
@@ -481,13 +490,13 @@
           <div class="rq-failed-list-footer">
             <span class="rq-failed-list-status">
               <template v-if="tasksLoadingMore">
-                {{ t('system.globalSettings.runtime.tasks.loadingMore') }}
+                {{ t("system.globalSettings.runtime.tasks.loadingMore") }}
               </template>
               <template v-else-if="!tasksHasMore">
-                {{ t('system.globalSettings.runtime.tasks.loadedAll', { count: tasks.length }) }}
+                {{ t("system.globalSettings.runtime.tasks.loadedAll", { count: tasks.length }) }}
               </template>
               <template v-else>
-                {{ t('system.globalSettings.runtime.tasks.loadedSummary', { count: tasks.length }) }}
+                {{ t("system.globalSettings.runtime.tasks.loadedSummary", { count: tasks.length }) }}
               </template>
             </span>
             <t-button
@@ -497,7 +506,7 @@
               :loading="tasksLoadingMore"
               @click="loadMoreRuntimeTasks"
             >
-              {{ t('system.globalSettings.runtime.tasks.loadMore') }}
+              {{ t("system.globalSettings.runtime.tasks.loadMore") }}
             </t-button>
           </div>
         </div>
@@ -507,11 +516,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import { mergeRuntimeTaskPage } from './runtimeTaskPagination'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { mergeRuntimeTaskPage } from "./runtimeTaskPagination";
 import {
   getRuntimeTasks,
   getRuntimeQueues,
@@ -523,452 +532,544 @@ import {
   type RuntimeTaskAction,
   type RuntimeTaskState,
   type RuntimeWorkerPool,
-} from '@/api/system'
+} from "@/api/system";
 
-const { t, te, locale } = useI18n()
+const { t, te, locale } = useI18n();
 
-const POLL_INTERVAL_MS = 5000
+const POLL_INTERVAL_MS = 5000;
 
-const queues = ref<QueueStat[]>([])
-const pools = ref<RuntimeWorkerPool[]>([])
-const models = ref<ModelRuntimeStat[]>([])
-const modelLimiterAvailable = ref(false)
-const available = ref(true)
-const loading = ref(false)
-const loadedOnce = ref(false)
-const error = ref('')
-const autoRefresh = ref(true)
-const updatedAt = ref('')
-const taskDrawerVisible = ref(false)
-const taskQueue = ref<QueueStat | null>(null)
-const taskState = ref<RuntimeTaskState>('archived')
-const tasks = ref<RuntimeTask[]>([])
-const tasksLoading = ref(false)
-const tasksLoadingMore = ref(false)
-const tasksError = ref('')
-const tasksCursor = ref('')
-const tasksHasMore = ref(false)
-const tasksSentinelRef = ref<HTMLElement | null>(null)
-const taskActionID = ref('')
-const taskAction = ref<RuntimeTaskAction | ''>('')
-const purging = ref(false)
+const queues = ref<QueueStat[]>([]);
+const pools = ref<RuntimeWorkerPool[]>([]);
+const models = ref<ModelRuntimeStat[]>([]);
+const modelLimiterAvailable = ref(false);
+const available = ref(true);
+const loading = ref(false);
+const loadedOnce = ref(false);
+const error = ref("");
+const autoRefresh = ref(true);
+const updatedAt = ref("");
+const taskDrawerVisible = ref(false);
+const taskQueue = ref<QueueStat | null>(null);
+const taskState = ref<RuntimeTaskState>("archived");
+const tasks = ref<RuntimeTask[]>([]);
+const tasksLoading = ref(false);
+const tasksLoadingMore = ref(false);
+const tasksError = ref("");
+const tasksCursor = ref("");
+const tasksHasMore = ref(false);
+const tasksSentinelRef = ref<HTMLElement | null>(null);
+const taskActionID = ref("");
+const taskAction = ref<RuntimeTaskAction | "">("");
+const purging = ref(false);
 
-const TASK_PAGE_SIZE = 20
-const taskStates: RuntimeTaskState[] = ['active', 'pending', 'scheduled', 'retry', 'archived', 'completed']
+const TASK_PAGE_SIZE = 20;
+const taskStates: RuntimeTaskState[] = ["active", "pending", "scheduled", "retry", "archived", "completed"];
 const runtimeTaskTypeKeys: Record<string, string> = {
-  'document:process': 'documentProcess',
-  'manual:process': 'manualProcess',
-	'temporary_document:process': 'temporaryDocumentProcess',
-  'knowledge:post_process': 'postProcess',
-  'summary:generation': 'summary',
-  'datatable:summary': 'tableSummary',
-  'question:generation': 'question',
-  'image:multimodal': 'multimodal',
-  'chunk:extract': 'graph',
-  'datasource:sync': 'sync',
-  'faq:import': 'faqImport',
-  'knowledge:list_reparse': 'batchReparse',
-  'knowledge:list_delete': 'batchDelete',
-  'knowledge:move': 'move',
-  'index:delete': 'indexDelete',
-  'kb:clone': 'kbClone',
-  'kb:delete': 'kbDelete',
-  'wiki:ingest': 'wikiIngest',
-  'wiki:finalize': 'wikiFinalize',
-}
+  "document:process": "documentProcess",
+  "manual:process": "manualProcess",
+  "temporary_document:process": "temporaryDocumentProcess",
+  "knowledge:post_process": "postProcess",
+  "summary:generation": "summary",
+  "datatable:summary": "tableSummary",
+  "question:generation": "question",
+  "image:multimodal": "multimodal",
+  "chunk:extract": "graph",
+  "datasource:sync": "sync",
+  "faq:import": "faqImport",
+  "knowledge:list_reparse": "batchReparse",
+  "knowledge:list_delete": "batchDelete",
+  "knowledge:move": "move",
+  "index:delete": "indexDelete",
+  "kb:clone": "kbClone",
+  "kb:delete": "kbDelete",
+  "wiki:ingest": "wikiIngest",
+  "wiki:finalize": "wikiFinalize",
+};
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
-let tasksScrollObserver: IntersectionObserver | null = null
-let tasksRequestID = 0
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+let tasksScrollObserver: IntersectionObserver | null = null;
+let tasksRequestID = 0;
 
 const columns = computed(() => [
-  { colKey: 'name', title: t('system.globalSettings.runtime.columns.queue'), minWidth: 188 },
-  { colKey: 'active', title: t('system.globalSettings.runtime.columns.active'), width: 74, align: 'center' as const },
-  { colKey: 'pending', title: t('system.globalSettings.runtime.columns.pending'), width: 84, align: 'center' as const },
-  { colKey: 'retry', title: t('system.globalSettings.runtime.columns.retry'), width: 68, align: 'center' as const },
-  { colKey: 'archived', title: t('system.globalSettings.runtime.columns.archived'), width: 96, align: 'center' as const },
-  { colKey: 'completed', title: t('system.globalSettings.runtime.columns.completed'), width: 84, align: 'center' as const },
-  { colKey: 'latency_ms', title: t('system.globalSettings.runtime.columns.latency'), width: 104, align: 'center' as const },
-  { colKey: 'status', title: t('system.globalSettings.runtime.columns.status'), width: 96 },
-])
+  { colKey: "name", title: t("system.globalSettings.runtime.columns.queue"), minWidth: 188 },
+  { colKey: "active", title: t("system.globalSettings.runtime.columns.active"), width: 74, align: "center" as const },
+  { colKey: "pending", title: t("system.globalSettings.runtime.columns.pending"), width: 84, align: "center" as const },
+  { colKey: "retry", title: t("system.globalSettings.runtime.columns.retry"), width: 68, align: "center" as const },
+  {
+    colKey: "archived",
+    title: t("system.globalSettings.runtime.columns.archived"),
+    width: 96,
+    align: "center" as const,
+  },
+  {
+    colKey: "completed",
+    title: t("system.globalSettings.runtime.columns.completed"),
+    width: 84,
+    align: "center" as const,
+  },
+  {
+    colKey: "latency_ms",
+    title: t("system.globalSettings.runtime.columns.latency"),
+    width: 104,
+    align: "center" as const,
+  },
+  { colKey: "status", title: t("system.globalSettings.runtime.columns.status"), width: 96 },
+]);
 const modelColumns = computed(() => [
-  { colKey: 'model_id', title: t('system.globalSettings.runtime.models.columns.model'), minWidth: 240 },
-  { colKey: 'active', title: t('system.globalSettings.runtime.models.columns.active'), width: 86, align: 'center' as const },
-  { colKey: 'waiting', title: t('system.globalSettings.runtime.models.columns.waiting'), width: 86, align: 'center' as const },
-  { colKey: 'usage', title: t('system.globalSettings.runtime.models.columns.usage'), width: 190 },
-  { colKey: 'status', title: t('system.globalSettings.runtime.columns.status'), width: 96 },
-])
+  { colKey: "model_id", title: t("system.globalSettings.runtime.models.columns.model"), minWidth: 240 },
+  {
+    colKey: "active",
+    title: t("system.globalSettings.runtime.models.columns.active"),
+    width: 86,
+    align: "center" as const,
+  },
+  {
+    colKey: "waiting",
+    title: t("system.globalSettings.runtime.models.columns.waiting"),
+    width: 86,
+    align: "center" as const,
+  },
+  { colKey: "usage", title: t("system.globalSettings.runtime.models.columns.usage"), width: 190 },
+  { colKey: "status", title: t("system.globalSettings.runtime.columns.status"), width: 96 },
+]);
 
 function modelUsage(row: ModelRuntimeStat): number {
-  return row.limit > 0 ? Math.min(100, Math.round(row.active / row.limit * 100)) : 0
+  return row.limit > 0 ? Math.min(100, Math.round((row.active / row.limit) * 100)) : 0;
 }
 
 function modelState(row: ModelRuntimeStat): { label: string; tone: string } {
-  if (row.waiting > 0) return { label: t('system.globalSettings.runtime.models.status.queued'), tone: 'attention' }
-  if (row.active >= row.limit) return { label: t('system.globalSettings.runtime.models.status.full'), tone: 'waiting' }
-  if (row.active > 0) return { label: t('system.globalSettings.runtime.status.working'), tone: 'working' }
-  return { label: t('system.globalSettings.runtime.status.idle'), tone: 'idle' }
+  if (row.waiting > 0) return { label: t("system.globalSettings.runtime.models.status.queued"), tone: "attention" };
+  if (row.active >= row.limit) return { label: t("system.globalSettings.runtime.models.status.full"), tone: "waiting" };
+  if (row.active > 0) return { label: t("system.globalSettings.runtime.status.working"), tone: "working" };
+  return { label: t("system.globalSettings.runtime.status.idle"), tone: "idle" };
 }
 
-const totalActive = computed(() => queues.value.reduce((s, q) => s + q.active, 0))
-const totalPending = computed(() => queues.value.reduce((s, q) => s + q.pending, 0))
-const totalRetry = computed(() => queues.value.reduce((s, q) => s + q.retry, 0))
-const totalArchived = computed(() => queues.value.reduce((s, q) => s + q.archived, 0))
-const taskQueueLabel = computed(() => taskQueue.value ? queueLabel(taskQueue.value.name) : '')
-const taskStateGuide = computed(() => t(`system.globalSettings.runtime.tasks.guides.${taskState.value}`))
+const totalActive = computed(() => queues.value.reduce((s, q) => s + q.active, 0));
+const totalPending = computed(() => queues.value.reduce((s, q) => s + q.pending, 0));
+const totalRetry = computed(() => queues.value.reduce((s, q) => s + q.retry, 0));
+const totalArchived = computed(() => queues.value.reduce((s, q) => s + q.archived, 0));
+const taskQueueLabel = computed(() => (taskQueue.value ? queueLabel(taskQueue.value.name) : ""));
+const taskStateGuide = computed(() => t(`system.globalSettings.runtime.tasks.guides.${taskState.value}`));
 
 // Friendly per-queue label lives in i18n; falls back to the raw queue
 // name so a queue added on the backend still renders before translations
 // catch up.
 function queueLabel(name: string): string {
-  const path = `system.globalSettings.runtime.queueNames.${name}`
-  return te(path) ? (t(path) as string) : name
+  const path = `system.globalSettings.runtime.queueNames.${name}`;
+  return te(path) ? (t(path) as string) : name;
 }
 
 function queueDescription(name: string): string {
-  const path = `system.globalSettings.runtime.queueDescriptions.${name}`
-  return te(path) ? (t(path) as string) : name
+  const path = `system.globalSettings.runtime.queueDescriptions.${name}`;
+  return te(path) ? (t(path) as string) : name;
 }
 
 function queueMeta(row: QueueStat): string {
-  const scope = queueDescription(row.name)
+  const scope = queueDescription(row.name);
   if (poolQueueCount(row.pool) > 1) {
-    return `${scope} · ${t('system.globalSettings.runtime.weightShort', { value: row.weight })}`
+    return `${scope} · ${t("system.globalSettings.runtime.weightShort", { value: row.weight })}`;
   }
-  return scope
+  return scope;
 }
 
 function runtimeTaskTypeLabel(type: string): string {
-  const key = runtimeTaskTypeKeys[type]
-  if (!key) return type
-  const path = `system.globalSettings.runtime.tasks.taskTypes.${key}`
-  return te(path) ? (t(path) as string) : type
+  const key = runtimeTaskTypeKeys[type];
+  if (!key) return type;
+  const path = `system.globalSettings.runtime.tasks.taskTypes.${key}`;
+  return te(path) ? (t(path) as string) : type;
 }
 
 interface RuntimeTaskMeta {
-  key: string
-  label: string
-  value: string
+  key: string;
+  label: string;
+  value: string;
 }
 
 function taskStateLabel(state: RuntimeTaskState): string {
-  return t(`system.globalSettings.runtime.tasks.states.${state}`)
+  return t(`system.globalSettings.runtime.tasks.states.${state}`);
 }
 
 function taskStateCount(row: QueueStat | null, state: RuntimeTaskState): number {
-  if (!row) return 0
-  return row[state] ?? 0
+  if (!row) return 0;
+  return row[state] ?? 0;
 }
 
 function formatTaskTime(value?: string): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString(locale.value, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
-  })
+  });
 }
 
 function runtimeTaskMeta(task: RuntimeTask): RuntimeTaskMeta[] {
-  const refs: RuntimeTaskMeta[] = []
+  const refs: RuntimeTaskMeta[] = [];
   if (task.knowledge_base_id) {
     refs.push({
-      key: 'kb',
-      label: t('system.globalSettings.runtime.tasks.knowledgeBaseLabel'),
+      key: "kb",
+      label: t("system.globalSettings.runtime.tasks.knowledgeBaseLabel"),
       value: task.knowledge_base_id,
-    })
+    });
   }
   if (task.knowledge_id) {
     refs.push({
-      key: 'knowledge',
-      label: t('system.globalSettings.runtime.tasks.knowledgeLabel'),
+      key: "knowledge",
+      label: t("system.globalSettings.runtime.tasks.knowledgeLabel"),
       value: task.knowledge_id,
-    })
+    });
   }
   if (task.task_id) {
     refs.push({
-      key: 'task',
-      label: t('system.globalSettings.runtime.tasks.taskIDLabel'),
+      key: "task",
+      label: t("system.globalSettings.runtime.tasks.taskIDLabel"),
       value: task.task_id,
-    })
+    });
   }
-  if (task.source_id) refs.push({ key: 'source', label: t('system.globalSettings.runtime.tasks.sourceLabel'), value: task.source_id })
-  if (task.target_id) refs.push({ key: 'target', label: t('system.globalSettings.runtime.tasks.targetLabel'), value: task.target_id })
-  if (task.source_kb_id) refs.push({ key: 'source-kb', label: t('system.globalSettings.runtime.tasks.sourceKBLabel'), value: task.source_kb_id })
-  if (task.target_kb_id) refs.push({ key: 'target-kb', label: t('system.globalSettings.runtime.tasks.targetKBLabel'), value: task.target_kb_id })
-  if (task.data_source_id) refs.push({ key: 'datasource', label: t('system.globalSettings.runtime.tasks.dataSourceLabel'), value: task.data_source_id })
-  if (task.sync_log_id) refs.push({ key: 'sync-log', label: t('system.globalSettings.runtime.tasks.syncLogLabel'), value: task.sync_log_id })
+  if (task.source_id)
+    refs.push({ key: "source", label: t("system.globalSettings.runtime.tasks.sourceLabel"), value: task.source_id });
+  if (task.target_id)
+    refs.push({ key: "target", label: t("system.globalSettings.runtime.tasks.targetLabel"), value: task.target_id });
+  if (task.source_kb_id)
+    refs.push({
+      key: "source-kb",
+      label: t("system.globalSettings.runtime.tasks.sourceKBLabel"),
+      value: task.source_kb_id,
+    });
+  if (task.target_kb_id)
+    refs.push({
+      key: "target-kb",
+      label: t("system.globalSettings.runtime.tasks.targetKBLabel"),
+      value: task.target_kb_id,
+    });
+  if (task.data_source_id)
+    refs.push({
+      key: "datasource",
+      label: t("system.globalSettings.runtime.tasks.dataSourceLabel"),
+      value: task.data_source_id,
+    });
+  if (task.sync_log_id)
+    refs.push({
+      key: "sync-log",
+      label: t("system.globalSettings.runtime.tasks.syncLogLabel"),
+      value: task.sync_log_id,
+    });
   if (task.knowledge_count) {
-    refs.push({ key: 'knowledge-count', label: t('system.globalSettings.runtime.tasks.knowledgeCountLabel'), value: String(task.knowledge_count) })
+    refs.push({
+      key: "knowledge-count",
+      label: t("system.globalSettings.runtime.tasks.knowledgeCountLabel"),
+      value: String(task.knowledge_count),
+    });
   }
   if (task.tenant_id) {
     refs.push({
-      key: 'tenant',
-      label: t('system.globalSettings.runtime.tasks.tenantLabel'),
+      key: "tenant",
+      label: t("system.globalSettings.runtime.tasks.tenantLabel"),
       value: String(task.tenant_id),
-    })
+    });
   }
-  if (task.enqueued_at) refs.push({ key: 'enqueued', label: t('system.globalSettings.runtime.tasks.enqueuedAt'), value: formatTaskTime(task.enqueued_at) })
-  if (task.started_at) refs.push({ key: 'started', label: t('system.globalSettings.runtime.tasks.startedAt'), value: formatTaskTime(task.started_at) })
-  if (task.next_process_at) refs.push({ key: 'next', label: t('system.globalSettings.runtime.tasks.nextProcessAt'), value: formatTaskTime(task.next_process_at) })
-  if (task.last_failed_at) refs.push({ key: 'failed', label: t('system.globalSettings.runtime.tasks.lastFailedAt'), value: formatTaskTime(task.last_failed_at) })
-  if (task.completed_at) refs.push({ key: 'completed', label: t('system.globalSettings.runtime.tasks.completedAt'), value: formatTaskTime(task.completed_at) })
-  if (task.deadline) refs.push({ key: 'deadline', label: t('system.globalSettings.runtime.tasks.deadline'), value: formatTaskTime(task.deadline) })
-  if (task.worker) refs.push({ key: 'worker', label: t('system.globalSettings.runtime.tasks.worker'), value: task.worker })
-  if (task.is_orphaned) refs.push({ key: 'orphaned', label: t('system.globalSettings.runtime.tasks.health'), value: t('system.globalSettings.runtime.tasks.orphaned') })
-  return refs
+  if (task.enqueued_at)
+    refs.push({
+      key: "enqueued",
+      label: t("system.globalSettings.runtime.tasks.enqueuedAt"),
+      value: formatTaskTime(task.enqueued_at),
+    });
+  if (task.started_at)
+    refs.push({
+      key: "started",
+      label: t("system.globalSettings.runtime.tasks.startedAt"),
+      value: formatTaskTime(task.started_at),
+    });
+  if (task.next_process_at)
+    refs.push({
+      key: "next",
+      label: t("system.globalSettings.runtime.tasks.nextProcessAt"),
+      value: formatTaskTime(task.next_process_at),
+    });
+  if (task.last_failed_at)
+    refs.push({
+      key: "failed",
+      label: t("system.globalSettings.runtime.tasks.lastFailedAt"),
+      value: formatTaskTime(task.last_failed_at),
+    });
+  if (task.completed_at)
+    refs.push({
+      key: "completed",
+      label: t("system.globalSettings.runtime.tasks.completedAt"),
+      value: formatTaskTime(task.completed_at),
+    });
+  if (task.deadline)
+    refs.push({
+      key: "deadline",
+      label: t("system.globalSettings.runtime.tasks.deadline"),
+      value: formatTaskTime(task.deadline),
+    });
+  if (task.worker)
+    refs.push({ key: "worker", label: t("system.globalSettings.runtime.tasks.worker"), value: task.worker });
+  if (task.is_orphaned)
+    refs.push({
+      key: "orphaned",
+      label: t("system.globalSettings.runtime.tasks.health"),
+      value: t("system.globalSettings.runtime.tasks.orphaned"),
+    });
+  return refs;
 }
 
 function poolLabel(pool: string): string {
-  const path = `system.globalSettings.runtime.pools.${pool}`
-  return te(path) ? (t(path) as string) : pool
+  const path = `system.globalSettings.runtime.pools.${pool}`;
+  return te(path) ? (t(path) as string) : pool;
 }
 
 function poolDescription(pool: string): string {
-  const path = `system.globalSettings.runtime.poolDescriptions.${pool}`
-  return te(path) ? (t(path) as string) : pool
+  const path = `system.globalSettings.runtime.poolDescriptions.${pool}`;
+  return te(path) ? (t(path) as string) : pool;
 }
 
 function poolQueueCount(pool: string): number {
-  return pools.value.find((item) => item.name === pool)?.queue_count ?? 0
+  return pools.value.find((item) => item.name === pool)?.queue_count ?? 0;
 }
 
 function poolUtilization(pool: RuntimeWorkerPool): number {
-  return Math.round(Math.max(0, Math.min(1, pool.utilization || 0)) * 100)
+  return Math.round(Math.max(0, Math.min(1, pool.utilization || 0)) * 100);
 }
 
 function formatLatency(ms: number): string {
-  if (!ms || ms <= 0) return '—'
-  if (ms < 1000) return `${ms} ms`
-  const s = ms / 1000
-  if (s < 60) return `${s.toFixed(1)} s`
-  const m = Math.floor(s / 60)
-  const rem = Math.round(s % 60)
-  return `${m}m ${rem}s`
+  if (!ms || ms <= 0) return "—";
+  if (ms < 1000) return `${ms} ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)} s`;
+  const m = Math.floor(s / 60);
+  const rem = Math.round(s % 60);
+  return `${m}m ${rem}s`;
 }
 
 function queueState(row: QueueStat): { label: string; tone: string } {
   if (row.paused) {
-    return { label: t('system.globalSettings.runtime.status.paused'), tone: 'paused' }
+    return { label: t("system.globalSettings.runtime.status.paused"), tone: "paused" };
   }
   if (row.archived > 0) {
-    return { label: t('system.globalSettings.runtime.status.actionRequired'), tone: 'danger' }
+    return { label: t("system.globalSettings.runtime.status.actionRequired"), tone: "danger" };
   }
   if (row.retry > 0) {
-    return { label: t('system.globalSettings.runtime.status.retrying'), tone: 'attention' }
+    return { label: t("system.globalSettings.runtime.status.retrying"), tone: "attention" };
   }
   if (row.active > 0) {
-    return { label: t('system.globalSettings.runtime.status.working'), tone: 'working' }
+    return { label: t("system.globalSettings.runtime.status.working"), tone: "working" };
   }
   if (row.pending > 0 || row.scheduled > 0) {
-    return { label: t('system.globalSettings.runtime.status.waiting'), tone: 'waiting' }
+    return { label: t("system.globalSettings.runtime.status.waiting"), tone: "waiting" };
   }
-  return { label: t('system.globalSettings.runtime.status.idle'), tone: 'idle' }
+  return { label: t("system.globalSettings.runtime.status.idle"), tone: "idle" };
 }
 
 async function fetchRuntimeTasks(reset: boolean) {
-  const queue = taskQueue.value?.name
-  if (!queue) return
-  if (!reset && (tasksLoadingMore.value || !tasksHasMore.value)) return
+  const queue = taskQueue.value?.name;
+  if (!queue) return;
+  if (!reset && (tasksLoadingMore.value || !tasksHasMore.value)) return;
 
-  const requestedState = taskState.value
-  const requestID = ++tasksRequestID
-  const cursor = reset ? '' : tasksCursor.value
+  const requestedState = taskState.value;
+  const requestID = ++tasksRequestID;
+  const cursor = reset ? "" : tasksCursor.value;
   if (reset) {
-    tasksCursor.value = ''
-    tasksHasMore.value = false
-    tasks.value = []
-    tasksLoading.value = true
+    tasksCursor.value = "";
+    tasksHasMore.value = false;
+    tasks.value = [];
+    tasksLoading.value = true;
   } else {
-    tasksLoadingMore.value = true
+    tasksLoadingMore.value = true;
   }
-  tasksError.value = ''
+  tasksError.value = "";
   try {
-    const response = await getRuntimeTasks(queue, requestedState, cursor, TASK_PAGE_SIZE)
-    if (requestID !== tasksRequestID || taskQueue.value?.name !== queue || taskState.value !== requestedState) return
+    const response = await getRuntimeTasks(queue, requestedState, cursor, TASK_PAGE_SIZE);
+    if (requestID !== tasksRequestID || taskQueue.value?.name !== queue || taskState.value !== requestedState) return;
     if (!response.available) {
-      tasksError.value = t('system.globalSettings.runtime.tasks.unavailable')
-      return
+      tasksError.value = t("system.globalSettings.runtime.tasks.unavailable");
+      return;
     }
-    tasks.value = reset ? response.tasks : mergeRuntimeTaskPage(tasks.value, response.tasks)
-    tasksCursor.value = response.next_cursor || ''
-    tasksHasMore.value = response.has_more && Boolean(response.next_cursor)
+    tasks.value = reset ? response.tasks : mergeRuntimeTaskPage(tasks.value, response.tasks);
+    tasksCursor.value = response.next_cursor || "";
+    tasksHasMore.value = response.has_more && Boolean(response.next_cursor);
   } catch (err: any) {
-    if (requestID !== tasksRequestID) return
-    if (!reset && err?.code === 'runtime_task_cursor_expired') {
-      tasksLoadingMore.value = false
-      await fetchRuntimeTasks(true)
-      return
+    if (requestID !== tasksRequestID) return;
+    if (!reset && err?.code === "runtime_task_cursor_expired") {
+      tasksLoadingMore.value = false;
+      await fetchRuntimeTasks(true);
+      return;
     }
-    tasksError.value = err?.message || t('system.globalSettings.runtime.tasks.loadError')
+    tasksError.value = err?.message || t("system.globalSettings.runtime.tasks.loadError");
   } finally {
-    if (requestID !== tasksRequestID) return
+    if (requestID !== tasksRequestID) return;
     if (reset) {
-      tasksLoading.value = false
+      tasksLoading.value = false;
     } else {
-      tasksLoadingMore.value = false
+      tasksLoadingMore.value = false;
     }
-    await nextTick()
-    attachTasksScrollObserver()
+    await nextTick();
+    attachTasksScrollObserver();
   }
 }
 
 function detachTasksScrollObserver() {
-  tasksScrollObserver?.disconnect()
-  tasksScrollObserver = null
+  tasksScrollObserver?.disconnect();
+  tasksScrollObserver = null;
 }
 
 function attachTasksScrollObserver() {
-  detachTasksScrollObserver()
-  const sentinel = tasksSentinelRef.value
-  if (!sentinel || !taskDrawerVisible.value || !tasksHasMore.value) return
-  const root = sentinel.closest('.t-drawer__body') as HTMLElement | null
-  if (!root) return
+  detachTasksScrollObserver();
+  const sentinel = tasksSentinelRef.value;
+  if (!sentinel || !taskDrawerVisible.value || !tasksHasMore.value) return;
+  const root = sentinel.closest(".t-drawer__body") as HTMLElement | null;
+  if (!root) return;
   tasksScrollObserver = new IntersectionObserver(
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
-        void loadMoreRuntimeTasks()
+        void loadMoreRuntimeTasks();
       }
     },
-    { root, rootMargin: '96px 0px', threshold: 0 },
-  )
-  tasksScrollObserver.observe(sentinel)
+    { root, rootMargin: "96px 0px", threshold: 0 },
+  );
+  tasksScrollObserver.observe(sentinel);
 }
 
 function openRuntimeTasks(row: QueueStat, state: RuntimeTaskState) {
-  taskQueue.value = row
-  taskState.value = state
-  taskDrawerVisible.value = true
-  void fetchRuntimeTasks(true)
+  taskQueue.value = row;
+  taskState.value = state;
+  taskDrawerVisible.value = true;
+  void fetchRuntimeTasks(true);
 }
 
 function selectTaskState(state: RuntimeTaskState) {
-  if (taskState.value === state) return
-  taskState.value = state
-  void fetchRuntimeTasks(true)
+  if (taskState.value === state) return;
+  taskState.value = state;
+  void fetchRuntimeTasks(true);
 }
 
 function reloadRuntimeTasks() {
-  return fetchRuntimeTasks(true)
+  return fetchRuntimeTasks(true);
 }
 
 function loadMoreRuntimeTasks() {
-  if (tasksLoading.value || tasksLoadingMore.value || !tasksHasMore.value) return
-  return fetchRuntimeTasks(false)
+  if (tasksLoading.value || tasksLoadingMore.value || !tasksHasMore.value) return;
+  return fetchRuntimeTasks(false);
 }
 
 async function runTaskAction(task: RuntimeTask, action: RuntimeTaskAction) {
-  const queue = taskQueue.value?.name
-  if (!queue) return
-  taskActionID.value = task.id
-  taskAction.value = action
+  const queue = taskQueue.value?.name;
+  if (!queue) return;
+  taskActionID.value = task.id;
+  taskAction.value = action;
   try {
-    await mutateRuntimeTask(queue, task.id, action)
-    MessagePlugin.success(t(`system.globalSettings.runtime.tasks.actionSuccess.${action}`))
-    await Promise.all([reloadRuntimeTasks(), load(false)])
-    taskQueue.value = queues.value.find((item) => item.name === queue) ?? taskQueue.value
+    await mutateRuntimeTask(queue, task.id, action);
+    MessagePlugin.success(t(`system.globalSettings.runtime.tasks.actionSuccess.${action}`));
+    await Promise.all([reloadRuntimeTasks(), load(false)]);
+    taskQueue.value = queues.value.find((item) => item.name === queue) ?? taskQueue.value;
   } catch (err: any) {
-    MessagePlugin.error(err?.message || t(`system.globalSettings.runtime.tasks.actionError.${action}`))
+    MessagePlugin.error(err?.message || t(`system.globalSettings.runtime.tasks.actionError.${action}`));
   } finally {
-    taskActionID.value = ''
-    taskAction.value = ''
+    taskActionID.value = "";
+    taskAction.value = "";
   }
 }
 
 async function purgeArchivedTasks() {
-  const queue = taskQueue.value?.name
-  if (!queue || purging.value) return
-  purging.value = true
+  const queue = taskQueue.value?.name;
+  if (!queue || purging.value) return;
+  purging.value = true;
   try {
-    const { deleted } = await purgeArchivedRuntimeTasks(queue)
-    MessagePlugin.success(t('system.globalSettings.runtime.tasks.purgeArchivedSuccess', { count: deleted }))
-    await Promise.all([reloadRuntimeTasks(), load(false)])
-    taskQueue.value = queues.value.find((item) => item.name === queue) ?? taskQueue.value
+    const { deleted } = await purgeArchivedRuntimeTasks(queue);
+    MessagePlugin.success(t("system.globalSettings.runtime.tasks.purgeArchivedSuccess", { count: deleted }));
+    await Promise.all([reloadRuntimeTasks(), load(false)]);
+    taskQueue.value = queues.value.find((item) => item.name === queue) ?? taskQueue.value;
   } catch (err: any) {
-    MessagePlugin.error(err?.message || t('system.globalSettings.runtime.tasks.purgeArchivedError'))
+    MessagePlugin.error(err?.message || t("system.globalSettings.runtime.tasks.purgeArchivedError"));
   } finally {
-    purging.value = false
+    purging.value = false;
   }
 }
 
 async function load(showSpinner: boolean) {
-  if (showSpinner) loading.value = true
+  if (showSpinner) loading.value = true;
   try {
-    const resp = await getRuntimeQueues()
-    available.value = resp.available
-    pools.value = resp.pools || []
-    queues.value = resp.queues || []
+    const resp = await getRuntimeQueues();
+    available.value = resp.available;
+    pools.value = resp.pools || [];
+    queues.value = resp.queues || [];
     if (taskQueue.value) {
-      taskQueue.value = queues.value.find((item) => item.name === taskQueue.value?.name) ?? taskQueue.value
+      taskQueue.value = queues.value.find((item) => item.name === taskQueue.value?.name) ?? taskQueue.value;
     }
-    models.value = resp.models || []
-    modelLimiterAvailable.value = Boolean(resp.model_limiter_available)
-    updatedAt.value = new Date((resp.timestamp || Date.now() / 1000) * 1000)
-      .toLocaleTimeString(locale.value, { hour12: false })
-    error.value = ''
-    loadedOnce.value = true
+    models.value = resp.models || [];
+    modelLimiterAvailable.value = Boolean(resp.model_limiter_available);
+    updatedAt.value = new Date((resp.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString(locale.value, {
+      hour12: false,
+    });
+    error.value = "";
+    loadedOnce.value = true;
   } catch (err: any) {
-    error.value = err?.message || t('system.globalSettings.runtime.errors.generic')
+    error.value = err?.message || t("system.globalSettings.runtime.errors.generic");
   } finally {
-    if (showSpinner) loading.value = false
+    if (showSpinner) loading.value = false;
   }
 }
 
 function reload() {
-  load(true)
+  load(true);
 }
 
 function startPolling() {
-  stopPolling()
-  if (!autoRefresh.value) return
+  stopPolling();
+  if (!autoRefresh.value) return;
   pollTimer = setInterval(() => {
     // Silent background refresh — no spinner so the table doesn't flash.
-    if (!loading.value) load(false)
-  }, POLL_INTERVAL_MS)
+    if (!loading.value) load(false);
+  }, POLL_INTERVAL_MS);
 }
 
 function stopPolling() {
   if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
+    clearInterval(pollTimer);
+    pollTimer = null;
   }
 }
 
 watch(autoRefresh, (on) => {
-  if (on) startPolling()
-  else stopPolling()
-})
+  if (on) startPolling();
+  else stopPolling();
+});
 
-watch(taskDrawerVisible, async (open) => {
-  if (!open) {
-    detachTasksScrollObserver()
-    return
-  }
-  await nextTick()
-  attachTasksScrollObserver()
-}, { flush: 'post' })
+watch(
+  taskDrawerVisible,
+  async (open) => {
+    if (!open) {
+      detachTasksScrollObserver();
+      return;
+    }
+    await nextTick();
+    attachTasksScrollObserver();
+  },
+  { flush: "post" },
+);
 
 watch(tasksHasMore, async () => {
-  if (!taskDrawerVisible.value) return
-  await nextTick()
-  attachTasksScrollObserver()
-})
+  if (!taskDrawerVisible.value) return;
+  await nextTick();
+  attachTasksScrollObserver();
+});
 
 onMounted(() => {
-  load(true)
-  startPolling()
-})
+  load(true);
+  startPolling();
+});
 
 onUnmounted(() => {
-  stopPolling()
-  detachTasksScrollObserver()
-})
+  stopPolling();
+  detachTasksScrollObserver();
+});
 </script>
 
 <style lang="less" scoped>
@@ -1037,7 +1138,9 @@ onUnmounted(() => {
   background: transparent;
   color: var(--td-text-color-placeholder);
   cursor: pointer;
-  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   :deep(.t-icon) {
     font-size: 12px;
@@ -1088,7 +1191,9 @@ onUnmounted(() => {
   height: 6px;
   border-radius: 50%;
   background: var(--td-text-color-placeholder);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &--active {
     background: var(--td-success-color);
@@ -1252,7 +1357,7 @@ onUnmounted(() => {
   user-select: none;
 
   &::before {
-    content: '';
+    content: "";
     flex-shrink: 0;
     width: 3px;
     height: 15px;
@@ -1467,7 +1572,7 @@ onUnmounted(() => {
     font-weight: 600;
 
     &::after {
-      content: '';
+      content: "";
       position: absolute;
       left: 8px;
       right: 8px;

@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import UploadConfirmDialog from '@/views/knowledge/components/UploadConfirmDialog.vue'
-import { useUploadConfirmStore } from '@/stores/uploadConfirm'
+import UploadConfirmDialog from "@/views/knowledge/components/UploadConfirmDialog.vue";
+import { useUploadConfirmStore } from "@/stores/uploadConfirm";
 
-const uploadConfirmStore = useUploadConfirmStore()
+const uploadConfirmStore = useUploadConfirmStore();
 
 const handleConfirm = (payload: Parameters<typeof uploadConfirmStore.resolveConfirm>[0]) => {
-  uploadConfirmStore.resolveConfirm(payload)
-}
+  uploadConfirmStore.resolveConfirm(payload);
+};
 
 const handleCancel = () => {
-  uploadConfirmStore.rejectConfirm()
-}
+  uploadConfirmStore.rejectConfirm();
+};
 </script>
 
 <template>

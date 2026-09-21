@@ -1,10 +1,5 @@
 <template>
-  <div 
-    ref="wrapperRef"
-    class="faq-tag-wrapper"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-  >
+  <div ref="wrapperRef" class="faq-tag-wrapper" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
     <slot />
     <Teleport to="body">
       <Transition name="fade">
@@ -23,117 +18,117 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { getRootZoom, rectToCssPx, cssViewportSize } from '@/utils/zoom'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
+import { getRootZoom, rectToCssPx, cssViewportSize } from "@/utils/zoom";
 
 const props = defineProps<{
-  content: string
-  placement?: 'top' | 'bottom' | 'left' | 'right'
-  type?: 'answer' | 'similar' | 'negative'
-}>()
+  content: string;
+  placement?: "top" | "bottom" | "left" | "right";
+  type?: "answer" | "similar" | "negative";
+}>();
 
-const showTooltip = ref(false)
-const tooltipRef = ref<HTMLElement | null>(null)
-const wrapperRef = ref<HTMLElement | null>(null)
-const tooltipStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
+const showTooltip = ref(false);
+const tooltipRef = ref<HTMLElement | null>(null);
+const wrapperRef = ref<HTMLElement | null>(null);
+const tooltipStyle = ref<{ top: string; left: string }>({ top: "0px", left: "0px" });
 
 const tooltipClass = computed(() => {
   return {
-    [`tooltip-${props.type || 'answer'}`]: true,
-    [`placement-${props.placement || 'top'}`]: true,
-  }
-})
+    [`tooltip-${props.type || "answer"}`]: true,
+    [`placement-${props.placement || "top"}`]: true,
+  };
+});
 
 const updatePosition = async () => {
-  if (!wrapperRef.value || !tooltipRef.value) return
-  
-  await nextTick()
-  
+  if (!wrapperRef.value || !tooltipRef.value) return;
+
+  await nextTick();
+
   // 再次检查，确保DOM已渲染
-  if (!tooltipRef.value) return
-  
+  if (!tooltipRef.value) return;
+
   // The tooltip is `position: fixed` and rendered under the root `zoom`.
   // Normalize the visual-pixel rects so subsequent arithmetic stays in CSS px.
-  const zoom = getRootZoom()
-  const rect = rectToCssPx(wrapperRef.value.getBoundingClientRect(), zoom)
-  const tooltipRect = rectToCssPx(tooltipRef.value.getBoundingClientRect(), zoom)
-  const { width: vw, height: vh } = cssViewportSize(zoom)
-  const placement = props.placement || 'top'
-  
-  let top = 0
-  let left = 0
-  
+  const zoom = getRootZoom();
+  const rect = rectToCssPx(wrapperRef.value.getBoundingClientRect(), zoom);
+  const tooltipRect = rectToCssPx(tooltipRef.value.getBoundingClientRect(), zoom);
+  const { width: vw, height: vh } = cssViewportSize(zoom);
+  const placement = props.placement || "top";
+
+  let top = 0;
+  let left = 0;
+
   switch (placement) {
-    case 'top':
-      top = rect.top - tooltipRect.height - 8
-      left = rect.left + (rect.width / 2) - (tooltipRect.width / 2)
-      break
-    case 'bottom':
-      top = rect.bottom + 8
-      left = rect.left + (rect.width / 2) - (tooltipRect.width / 2)
-      break
-    case 'left':
-      top = rect.top + (rect.height / 2) - (tooltipRect.height / 2)
-      left = rect.left - tooltipRect.width - 8
-      break
-    case 'right':
-      top = rect.top + (rect.height / 2) - (tooltipRect.height / 2)
-      left = rect.right + 8
-      break
+    case "top":
+      top = rect.top - tooltipRect.height - 8;
+      left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+      break;
+    case "bottom":
+      top = rect.bottom + 8;
+      left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+      break;
+    case "left":
+      top = rect.top + rect.height / 2 - tooltipRect.height / 2;
+      left = rect.left - tooltipRect.width - 8;
+      break;
+    case "right":
+      top = rect.top + rect.height / 2 - tooltipRect.height / 2;
+      left = rect.right + 8;
+      break;
   }
-  
+
   // 边界检测
-  const padding = 8
-  if (left < padding) left = padding
+  const padding = 8;
+  if (left < padding) left = padding;
   if (left + tooltipRect.width > vw - padding) {
-    left = vw - tooltipRect.width - padding
+    left = vw - tooltipRect.width - padding;
   }
   if (top < padding) {
     // 如果上方空间不足，改为下方显示
-    if (placement === 'top') {
-      top = rect.bottom + 8
+    if (placement === "top") {
+      top = rect.bottom + 8;
     } else {
-      top = padding
+      top = padding;
     }
   }
   if (top + tooltipRect.height > vh - padding) {
-    top = vh - tooltipRect.height - padding
+    top = vh - tooltipRect.height - padding;
   }
-  
+
   tooltipStyle.value = {
     top: `${top}px`,
     left: `${left}px`,
-  }
-}
+  };
+};
 
 const handleMouseEnter = () => {
-  showTooltip.value = true
+  showTooltip.value = true;
   nextTick(() => {
-    updatePosition()
-  })
-}
+    updatePosition();
+  });
+};
 
 const handleMouseLeave = () => {
-  showTooltip.value = false
-}
+  showTooltip.value = false;
+};
 
 onMounted(() => {
-  window.addEventListener('scroll', updatePosition, true)
-  window.addEventListener('resize', updatePosition)
-})
+  window.addEventListener("scroll", updatePosition, true);
+  window.addEventListener("resize", updatePosition);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', updatePosition, true)
-  window.removeEventListener('resize', updatePosition)
-})
+  window.removeEventListener("scroll", updatePosition, true);
+  window.removeEventListener("resize", updatePosition);
+});
 
 watch(showTooltip, (newVal) => {
   if (newVal) {
     nextTick(() => {
-      updatePosition()
-    })
+      updatePosition();
+    });
   }
-})
+});
 </script>
 
 <style scoped lang="less">
@@ -145,7 +140,7 @@ watch(showTooltip, (newVal) => {
   overflow: visible;
   flex-shrink: 1;
   flex: 0 1 auto;
-  
+
   // 确保内部的tag也能正确收缩
   :deep(.t-tag) {
     max-width: 100% !important;
@@ -153,7 +148,7 @@ watch(showTooltip, (newVal) => {
     width: auto !important;
     display: inline-flex !important;
   }
-  
+
   :deep(.t-tag span),
   :deep(.t-tag > span) {
     display: block !important;
@@ -184,7 +179,7 @@ watch(showTooltip, (newVal) => {
   pointer-events: none;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     width: 0;
     height: 0;
@@ -199,7 +194,7 @@ watch(showTooltip, (newVal) => {
   }
 
   &.placement-top::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: -9px;
     left: 50%;
@@ -218,7 +213,7 @@ watch(showTooltip, (newVal) => {
   }
 
   &.placement-bottom::after {
-    content: '';
+    content: "";
     position: absolute;
     top: -9px;
     left: 50%;
@@ -237,7 +232,7 @@ watch(showTooltip, (newVal) => {
   }
 
   &.placement-left::after {
-    content: '';
+    content: "";
     position: absolute;
     right: -9px;
     top: 50%;
@@ -256,7 +251,7 @@ watch(showTooltip, (newVal) => {
   }
 
   &.placement-right::after {
-    content: '';
+    content: "";
     position: absolute;
     left: -9px;
     top: 50%;
@@ -299,4 +294,3 @@ watch(showTooltip, (newVal) => {
   opacity: 0;
 }
 </style>
-

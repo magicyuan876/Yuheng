@@ -1,41 +1,41 @@
 <template>
   <div class="parser-engine-settings">
     <div class="section-header">
-      <h2>{{ $t('settings.parser.title') }}</h2>
+      <h2>{{ $t("settings.parser.title") }}</h2>
       <p class="section-description">
-        {{ $t('settings.parser.description') }}
+        {{ $t("settings.parser.description") }}
       </p>
       <!-- 作用域切换只对系统管理员出现。空间管理员没有"平台默认"这一档，
            他们看到的就是本空间的覆盖（集中管控开启时连整个入口都不会渲染）。 -->
       <div v-if="canEditPlatformScope" class="parser-scope">
         <t-radio-group v-model="scope" variant="default-filled" size="small" @change="onScopeChange">
-          <t-radio-button value="platform">{{ $t('settings.parser.scope.platform') }}</t-radio-button>
-          <t-radio-button value="workspace">{{ $t('settings.parser.scope.workspace') }}</t-radio-button>
+          <t-radio-button value="platform">{{ $t("settings.parser.scope.platform") }}</t-radio-button>
+          <t-radio-button value="workspace">{{ $t("settings.parser.scope.workspace") }}</t-radio-button>
         </t-radio-group>
         <p class="parser-scope__hint">
-          {{ scope === 'platform'
-            ? $t('settings.parser.scope.platformHint')
-            : $t('settings.parser.scope.workspaceHint') }}
+          {{
+            scope === "platform" ? $t("settings.parser.scope.platformHint") : $t("settings.parser.scope.workspaceHint")
+          }}
         </p>
       </div>
     </div>
 
     <div v-if="loading" class="loading-state">
       <t-loading size="small" />
-      <span>{{ $t('settings.parser.loading') }}</span>
+      <span>{{ $t("settings.parser.loading") }}</span>
     </div>
 
     <div v-else-if="error" class="error-inline">
       <t-alert theme="error" :message="error">
         <template #operation>
-          <t-button size="small" @click="loadAll">{{ $t('settings.parser.retry') }}</t-button>
+          <t-button size="small" @click="loadAll">{{ $t("settings.parser.retry") }}</t-button>
         </template>
       </t-alert>
     </div>
 
     <template v-else>
       <div v-if="engines.length === 0 && !hasBuiltinEngine" class="empty-state">
-        <p class="empty-text">{{ $t('settings.parser.noEngineDetected') }}</p>
+        <p class="empty-text">{{ $t("settings.parser.noEngineDetected") }}</p>
       </div>
 
       <!-- 与其它 settings 列表同形：左侧 monogram 徽章 + 标题 + 状态徽 + 两行描述。
@@ -49,19 +49,19 @@
           :class="{ 'engine-card--active': drawerVisible && currentEngine?.Name === 'builtin' }"
           @click="openDrawer({ Name: 'builtin' } as any)"
         >
-          <div class="engine-card__badge">{{ engineInitial('builtin') }}</div>
+          <div class="engine-card__badge">{{ engineInitial("builtin") }}</div>
           <div class="engine-card__body">
             <div class="engine-card__header">
-              <h3 class="engine-card__title">{{ getEngineDisplayName('builtin') }}</h3>
+              <h3 class="engine-card__title">{{ getEngineDisplayName("builtin") }}</h3>
               <span
                 class="engine-card__status"
                 :class="connected ? 'engine-card__status--on' : 'engine-card__status--err'"
               >
                 <span class="engine-card__status-dot" />
-                {{ connected ? $t('settings.parser.connected') : $t('settings.parser.disconnected') }}
+                {{ connected ? $t("settings.parser.connected") : $t("settings.parser.disconnected") }}
               </span>
             </div>
-            <p class="engine-card__desc">{{ $t('settings.parser.builtinDesc') }}</p>
+            <p class="engine-card__desc">{{ $t("settings.parser.builtinDesc") }}</p>
           </div>
         </button>
 
@@ -72,7 +72,7 @@
           class="engine-card"
           :class="[
             `engine-card--${engine.Name}`,
-            { 'engine-card--active': drawerVisible && currentEngine?.Name === engine.Name }
+            { 'engine-card--active': drawerVisible && currentEngine?.Name === engine.Name },
           ]"
           @click="openDrawer(engine)"
         >
@@ -82,35 +82,32 @@
               <h3 class="engine-card__title">{{ getEngineDisplayName(engine.Name) }}</h3>
               <span v-if="engine.Available" class="engine-card__status engine-card__status--on">
                 <span class="engine-card__status-dot" />
-                {{ $t('settings.parser.available') }}
+                {{ $t("settings.parser.available") }}
               </span>
-              <t-tooltip
-                v-else-if="engine.UnavailableReason"
-                :content="engine.UnavailableReason"
-                placement="top"
-              >
+              <t-tooltip v-else-if="engine.UnavailableReason" :content="engine.UnavailableReason" placement="top">
                 <span class="engine-card__status engine-card__status--err engine-card__status--help">
                   <span class="engine-card__status-dot" />
-                  {{ $t('settings.parser.unavailable') }}
+                  {{ $t("settings.parser.unavailable") }}
                 </span>
               </t-tooltip>
               <span v-else class="engine-card__status engine-card__status--err">
                 <span class="engine-card__status-dot" />
-                {{ $t('settings.parser.unavailable') }}
+                {{ $t("settings.parser.unavailable") }}
               </span>
             </div>
             <p class="engine-card__desc">{{ getEngineDisplayDesc(engine.Name, engine.Description) }}</p>
           </div>
         </button>
       </div>
-
     </template>
 
     <!-- 配置抽屉 — 用 SettingDrawer 包装，保持与 ModelEditorDialog 同款视觉/交互 -->
     <SettingDrawer
       v-model:visible="drawerVisible"
       :title="drawerTitle"
-      :class="currentEngine ? `parser-engine-drawer parser-engine-drawer--${currentEngine.Name}` : 'parser-engine-drawer'"
+      :class="
+        currentEngine ? `parser-engine-drawer parser-engine-drawer--${currentEngine.Name}` : 'parser-engine-drawer'
+      "
       :hide-footer="!authStore.hasRole('admin') && !needsTestButton"
       :confirm-loading="saving"
       @confirm="onSave"
@@ -150,14 +147,28 @@
       <template v-if="needsTestButton" #footer-left>
         <t-button variant="outline" :loading="checking" @click="onCheck">
           <template #icon>
-            <t-icon v-if="!checking && saveSuccess && checkMessage" name="check-circle-filled"
-              class="status-icon available" />
-            <t-icon v-else-if="!checking && checkMessage && !saveSuccess" name="close-circle-filled"
-              class="status-icon unavailable" />
+            <t-icon
+              v-if="!checking && saveSuccess && checkMessage"
+              name="check-circle-filled"
+              class="status-icon available"
+            />
+            <t-icon
+              v-else-if="!checking && checkMessage && !saveSuccess"
+              name="close-circle-filled"
+              class="status-icon unavailable"
+            />
           </template>
-          {{ checking ? $t('settings.parser.checking', $t('settings.parser.testConnection')) : $t('settings.parser.testConnection') }}
+          {{
+            checking
+              ? $t("settings.parser.checking", $t("settings.parser.testConnection"))
+              : $t("settings.parser.testConnection")
+          }}
         </t-button>
-        <span v-if="checkMessage" :class="['footer-test-message', saveSuccess ? 'success' : 'error']" :title="checkMessage">
+        <span
+          v-if="checkMessage"
+          :class="['footer-test-message', saveSuccess ? 'success' : 'error']"
+          :title="checkMessage"
+        >
           {{ checkMessage }}
         </span>
       </template>
@@ -167,11 +178,8 @@
           Section 1 — 支持文件类型。放在内容开头作为引擎"能干什么"的
           一目了然概览，对所有引擎都有意义；与状态/配置区分开。
         -->
-        <section
-          v-if="currentEngine.FileTypes && currentEngine.FileTypes.length"
-          class="setting-drawer__section"
-        >
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.supportedFileTypes', '支持文件类型') }}</h4>
+        <section v-if="currentEngine.FileTypes && currentEngine.FileTypes.length" class="setting-drawer__section">
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.supportedFileTypes", "支持文件类型") }}</h4>
           <div class="file-types">
             <span v-for="ft in currentEngine.FileTypes" :key="ft" class="file-type-chip">
               {{ ft }}
@@ -183,39 +191,35 @@
           Section 2 — 状态信息（DocReader 连接）
           只有有内容时才渲染，避免空 section 空底部分隔线。
         -->
-        <section
-          v-if="currentEngine.Name === 'builtin'"
-          class="setting-drawer__section"
-        >
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.statusSection', '状态信息') }}</h4>
+        <section v-if="currentEngine.Name === 'builtin'" class="setting-drawer__section">
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.statusSection", "状态信息") }}</h4>
 
           <!-- builtin: DocReader 连接信息 -->
           <div v-if="currentEngine.Name === 'builtin'" class="docreader-block">
             <div class="status-line">
               <t-tag v-if="connected" theme="success" variant="light" size="small">
-                {{ $t('settings.parser.connected') }}
+                {{ $t("settings.parser.connected") }}
               </t-tag>
               <t-tag v-else theme="danger" variant="light" size="small">
-                {{ $t('settings.parser.disconnected') }}
+                {{ $t("settings.parser.disconnected") }}
               </t-tag>
               <t-tag theme="default" variant="light" size="small">
-                {{ docreaderTransport === 'http' ? 'HTTP' : 'gRPC' }}
+                {{ docreaderTransport === "http" ? "HTTP" : "gRPC" }}
               </t-tag>
               <span v-if="docreaderAddrEnv" class="env-hint">
-                {{ $t('settings.parser.currentAddr') }}: {{ docreaderAddrEnv }}
+                {{ $t("settings.parser.currentAddr") }}: {{ docreaderAddrEnv }}
               </span>
             </div>
-            <p class="form-desc">{{ $t('settings.parser.envVarHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.envVarHint") }}</p>
           </div>
-
         </section>
 
         <!-- Section 3 — mineru 自建配置 -->
         <section v-if="currentEngine.Name === 'mineru'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.configSection', '配置') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.configSection", "配置") }}</h4>
 
           <div class="form-item">
-            <label class="form-label">{{ t('settings.parser.selfHostedEndpoint') }}</label>
+            <label class="form-label">{{ t("settings.parser.selfHostedEndpoint") }}</label>
             <t-input
               v-model="config.mineru_endpoint"
               :placeholder="$t('settings.parser.mineruEndpointPlaceholder')"
@@ -233,32 +237,34 @@
             </t-select>
           </div>
           <div class="form-item">
-            <label class="form-label">vLLM {{ $t('settings.parser.serverUrl') }}</label>
+            <label class="form-label">vLLM {{ $t("settings.parser.serverUrl") }}</label>
             <t-input
               v-model="config.mineru_vlm_server_url"
               :placeholder="$t('settings.parser.vlmServerUrlPlaceholder')"
               clearable
             />
-            <p class="form-desc">{{ $t('settings.parser.vlmServerUrlHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.vlmServerUrlHint") }}</p>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.parseMethodLabel') }}</label>
+            <label class="form-label">{{ $t("settings.parser.parseMethodLabel") }}</label>
             <t-select v-model="config.mineru_parse_method">
               <t-option value="auto" :label="$t('settings.parser.parseMethodAuto')" />
               <t-option value="ocr" :label="$t('settings.parser.parseMethodOCR')" />
               <t-option value="txt" :label="$t('settings.parser.parseMethodText')" />
             </t-select>
-            <p class="form-desc">{{ $t('settings.parser.parseMethodHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.parseMethodHint") }}</p>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.featuresLabel', '识别选项') }}</label>
+            <label class="form-label">{{ $t("settings.parser.featuresLabel", "识别选项") }}</label>
             <div class="form-toggles">
-              <t-checkbox v-model="config.mineru_enable_formula">{{ $t('settings.parser.formulaRecognition') }}</t-checkbox>
-              <t-checkbox v-model="config.mineru_enable_table">{{ $t('settings.parser.tableRecognition') }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_enable_formula">{{
+                $t("settings.parser.formulaRecognition")
+              }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_enable_table">{{ $t("settings.parser.tableRecognition") }}</t-checkbox>
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ t('settings.parser.language') }}</label>
+            <label class="form-label">{{ t("settings.parser.language") }}</label>
             <t-input
               v-model="config.mineru_language"
               :placeholder="$t('settings.parser.languagePlaceholder')"
@@ -269,7 +275,7 @@
 
         <!-- Section 3 — mineru_cloud 云 API 配置 -->
         <section v-if="currentEngine.Name === 'mineru_cloud'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.configSection', '配置') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.configSection", "配置") }}</h4>
 
           <div class="form-item">
             <label class="form-label required">API Key</label>
@@ -284,22 +290,30 @@
           </div>
           <div class="form-item">
             <label class="form-label">Model Version</label>
-            <t-select v-model="config.mineru_cloud_model" :placeholder="$t('settings.parser.defaultPipeline')" clearable>
+            <t-select
+              v-model="config.mineru_cloud_model"
+              :placeholder="$t('settings.parser.defaultPipeline')"
+              clearable
+            >
               <t-option value="pipeline" label="pipeline" />
               <t-option value="vlm" :label="$t('settings.parser.vlmLabel')" />
               <t-option value="MinerU-HTML" :label="$t('settings.parser.mineruHtmlLabel')" />
             </t-select>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.featuresLabel', '识别选项') }}</label>
+            <label class="form-label">{{ $t("settings.parser.featuresLabel", "识别选项") }}</label>
             <div class="form-toggles">
-              <t-checkbox v-model="config.mineru_cloud_enable_formula">{{ $t('settings.parser.formulaRecognition') }}</t-checkbox>
-              <t-checkbox v-model="config.mineru_cloud_enable_table">{{ $t('settings.parser.tableRecognition') }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_cloud_enable_formula">{{
+                $t("settings.parser.formulaRecognition")
+              }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_cloud_enable_table">{{
+                $t("settings.parser.tableRecognition")
+              }}</t-checkbox>
               <t-checkbox v-model="config.mineru_cloud_enable_ocr">OCR</t-checkbox>
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ t('settings.parser.language') }}</label>
+            <label class="form-label">{{ t("settings.parser.language") }}</label>
             <t-input
               v-model="config.mineru_cloud_language"
               :placeholder="$t('settings.parser.languagePlaceholder')"
@@ -310,16 +324,16 @@
 
         <!-- Section 3 — mineru_tianshu 天枢自建配置 -->
         <section v-if="currentEngine.Name === 'mineru_tianshu'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.configSection', '配置') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.configSection", "配置") }}</h4>
 
           <div class="form-item">
-            <label class="form-label required">{{ t('settings.parser.selfHostedEndpoint') }}</label>
+            <label class="form-label required">{{ t("settings.parser.selfHostedEndpoint") }}</label>
             <t-input
               v-model="config.mineru_tianshu_endpoint"
               :placeholder="$t('settings.parser.tianshuEndpointPlaceholder')"
               clearable
             />
-            <p class="form-desc">{{ $t('settings.parser.tianshuEndpointHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.tianshuEndpointHint") }}</p>
           </div>
           <div class="form-item">
             <label class="form-label">API Key</label>
@@ -331,11 +345,15 @@
             >
               <template #prefix-icon><t-icon name="lock-on" /></template>
             </t-input>
-            <p class="form-desc">{{ $t('settings.parser.tianshuApiKeyHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.tianshuApiKeyHint") }}</p>
           </div>
           <div class="form-item">
             <label class="form-label">Backend</label>
-            <t-select v-model="config.mineru_tianshu_backend" :placeholder="$t('settings.parser.tianshuServerDefault')" clearable>
+            <t-select
+              v-model="config.mineru_tianshu_backend"
+              :placeholder="$t('settings.parser.tianshuServerDefault')"
+              clearable
+            >
               <t-option value="pipeline" label="pipeline" />
               <t-option value="vlm-transformers" label="vlm-transformers" />
               <t-option value="vlm-vllm-engine" label="vlm-vllm-engine" />
@@ -343,22 +361,30 @@
             </t-select>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.parseMethodLabel') }}</label>
-            <t-select v-model="config.mineru_tianshu_parse_method" :placeholder="$t('settings.parser.tianshuServerDefault')" clearable>
+            <label class="form-label">{{ $t("settings.parser.parseMethodLabel") }}</label>
+            <t-select
+              v-model="config.mineru_tianshu_parse_method"
+              :placeholder="$t('settings.parser.tianshuServerDefault')"
+              clearable
+            >
               <t-option value="auto" :label="$t('settings.parser.parseMethodAuto')" />
               <t-option value="ocr" :label="$t('settings.parser.parseMethodOCR')" />
               <t-option value="txt" :label="$t('settings.parser.parseMethodText')" />
             </t-select>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.featuresLabel', '识别选项') }}</label>
+            <label class="form-label">{{ $t("settings.parser.featuresLabel", "识别选项") }}</label>
             <div class="form-toggles">
-              <t-checkbox v-model="config.mineru_tianshu_enable_formula">{{ $t('settings.parser.formulaRecognition') }}</t-checkbox>
-              <t-checkbox v-model="config.mineru_tianshu_enable_table">{{ $t('settings.parser.tableRecognition') }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_tianshu_enable_formula">{{
+                $t("settings.parser.formulaRecognition")
+              }}</t-checkbox>
+              <t-checkbox v-model="config.mineru_tianshu_enable_table">{{
+                $t("settings.parser.tableRecognition")
+              }}</t-checkbox>
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ t('settings.parser.language') }}</label>
+            <label class="form-label">{{ t("settings.parser.language") }}</label>
             <t-input
               v-model="config.mineru_tianshu_language"
               :placeholder="$t('settings.parser.languagePlaceholder')"
@@ -369,29 +395,33 @@
 
         <!-- Section 3 — paddleocr_vl 自建配置 -->
         <section v-if="currentEngine.Name === 'paddleocr_vl'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.configSection', '配置') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.configSection", "配置") }}</h4>
 
           <div class="form-item">
-            <label class="form-label required">{{ t('settings.parser.selfHostedEndpoint') }}</label>
+            <label class="form-label required">{{ t("settings.parser.selfHostedEndpoint") }}</label>
             <t-input
               v-model="config.paddleocr_vl_endpoint"
               :placeholder="$t('settings.parser.paddleocrVlEndpointPlaceholder')"
               clearable
             />
-            <p class="form-desc">{{ $t('settings.parser.paddleocrVlEndpointHint') }}</p>
+            <p class="form-desc">{{ $t("settings.parser.paddleocrVlEndpointHint") }}</p>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.featuresLabel', '识别选项') }}</label>
+            <label class="form-label">{{ $t("settings.parser.featuresLabel", "识别选项") }}</label>
             <div class="form-toggles">
-              <t-checkbox v-model="config.paddleocr_vl_use_seal_recognition">{{ $t('settings.parser.sealRecognition') }}</t-checkbox>
-              <t-checkbox v-model="config.paddleocr_vl_use_chart_recognition">{{ $t('settings.parser.chartRecognition') }}</t-checkbox>
+              <t-checkbox v-model="config.paddleocr_vl_use_seal_recognition">{{
+                $t("settings.parser.sealRecognition")
+              }}</t-checkbox>
+              <t-checkbox v-model="config.paddleocr_vl_use_chart_recognition">{{
+                $t("settings.parser.chartRecognition")
+              }}</t-checkbox>
             </div>
           </div>
         </section>
 
         <!-- Section 3 — paddleocr_vl_cloud 云 API 配置 -->
         <section v-if="currentEngine.Name === 'paddleocr_vl_cloud'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('settings.parser.configSection', '配置') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("settings.parser.configSection", "配置") }}</h4>
 
           <div class="form-item">
             <label class="form-label required">Token</label>
@@ -406,17 +436,17 @@
           </div>
           <div class="form-item">
             <label class="form-label">Model</label>
-            <t-input
-              v-model="config.paddleocr_vl_cloud_model"
-              placeholder="PaddleOCR-VL-1.6"
-              clearable
-            />
+            <t-input v-model="config.paddleocr_vl_cloud_model" placeholder="PaddleOCR-VL-1.6" clearable />
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('settings.parser.featuresLabel', '识别选项') }}</label>
+            <label class="form-label">{{ $t("settings.parser.featuresLabel", "识别选项") }}</label>
             <div class="form-toggles">
-              <t-checkbox v-model="config.paddleocr_vl_cloud_use_seal_recognition">{{ $t('settings.parser.sealRecognition') }}</t-checkbox>
-              <t-checkbox v-model="config.paddleocr_vl_cloud_use_chart_recognition">{{ $t('settings.parser.chartRecognition') }}</t-checkbox>
+              <t-checkbox v-model="config.paddleocr_vl_cloud_use_seal_recognition">{{
+                $t("settings.parser.sealRecognition")
+              }}</t-checkbox>
+              <t-checkbox v-model="config.paddleocr_vl_cloud_use_chart_recognition">{{
+                $t("settings.parser.chartRecognition")
+              }}</t-checkbox>
             </div>
           </div>
         </section>
@@ -426,10 +456,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
+import { ref, computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { useAuthStore } from "@/stores/auth";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import {
   getParserEngines,
   getParserEngineConfig,
@@ -439,78 +469,84 @@ import {
   checkParserEngines,
   type ParserEngineInfo,
   type ParserEngineConfig,
-} from '@/api/system'
+} from "@/api/system";
 
-const { t } = useI18n()
-const authStore = useAuthStore()
+const { t } = useI18n();
+const authStore = useAuthStore();
 
-const CONFIGURABLE_ENGINES = new Set(['mineru', 'mineru_cloud', 'mineru_tianshu', 'paddleocr_vl', 'paddleocr_vl_cloud'])
+const CONFIGURABLE_ENGINES = new Set([
+  "mineru",
+  "mineru_cloud",
+  "mineru_tianshu",
+  "paddleocr_vl",
+  "paddleocr_vl_cloud",
+]);
 
 /** 各解析引擎的项目/官方文档地址 */
 const ENGINE_DOC_LINKS: Record<string, string> = {
-  markitdown: 'https://github.com/microsoft/markitdown',
-  mineru: 'https://github.com/opendatalab/MinerU',
-  mineru_cloud: 'https://mineru.net/apiManage/docs',
-  paddleocr_vl: 'https://github.com/PaddlePaddle/PaddleOCR',
-  paddleocr_vl_cloud: 'https://aistudio.baidu.com/paddleocr',
-}
+  markitdown: "https://github.com/microsoft/markitdown",
+  mineru: "https://github.com/opendatalab/MinerU",
+  mineru_cloud: "https://mineru.net/apiManage/docs",
+  paddleocr_vl: "https://github.com/PaddlePaddle/PaddleOCR",
+  paddleocr_vl_cloud: "https://aistudio.baidu.com/paddleocr",
+};
 
 /** 解析引擎配置默认值（与 DocReader/Python 侧一致） */
 const DEFAULT_PARSER_CONFIG: ParserEngineConfig = {
-  docreader_addr: '',
-  docreader_transport: 'grpc',
-  mineru_endpoint: '',
-  mineru_api_key: '',
-  mineru_model: 'pipeline',
-  mineru_vlm_server_url: '',
+  docreader_addr: "",
+  docreader_transport: "grpc",
+  mineru_endpoint: "",
+  mineru_api_key: "",
+  mineru_model: "pipeline",
+  mineru_vlm_server_url: "",
   mineru_enable_formula: true,
   mineru_enable_table: true,
-  mineru_parse_method: 'auto',
+  mineru_parse_method: "auto",
   mineru_enable_ocr: true,
-  mineru_language: 'ch',
-  mineru_cloud_model: 'pipeline',
+  mineru_language: "ch",
+  mineru_cloud_model: "pipeline",
   mineru_cloud_enable_formula: true,
   mineru_cloud_enable_table: true,
   mineru_cloud_enable_ocr: true,
-  mineru_cloud_language: 'ch',
-  paddleocr_vl_endpoint: '',
+  mineru_cloud_language: "ch",
+  paddleocr_vl_endpoint: "",
   paddleocr_vl_use_seal_recognition: true,
   paddleocr_vl_use_chart_recognition: false,
-  paddleocr_vl_cloud_token: '',
-  paddleocr_vl_cloud_model: 'PaddleOCR-VL-1.6',
+  paddleocr_vl_cloud_token: "",
+  paddleocr_vl_cloud_model: "PaddleOCR-VL-1.6",
   paddleocr_vl_cloud_use_seal_recognition: true,
   paddleocr_vl_cloud_use_chart_recognition: false,
-  mineru_tianshu_endpoint: '',
-  mineru_tianshu_api_key: '',
-  mineru_tianshu_auth_header: '',
-  mineru_tianshu_backend: '',
-  mineru_tianshu_language: '',
-  mineru_tianshu_parse_method: '',
+  mineru_tianshu_endpoint: "",
+  mineru_tianshu_api_key: "",
+  mineru_tianshu_auth_header: "",
+  mineru_tianshu_backend: "",
+  mineru_tianshu_language: "",
+  mineru_tianshu_parse_method: "",
   mineru_tianshu_enable_formula: true,
   mineru_tianshu_enable_table: true,
-}
+};
 
-const engines = ref<ParserEngineInfo[]>([])
-const docreaderAddrEnv = ref('')
-const docreaderTransport = ref<'grpc' | 'http'>('grpc')
-const connected = ref(false)
-const loading = ref(true)
-const error = ref('')
+const engines = ref<ParserEngineInfo[]>([]);
+const docreaderAddrEnv = ref("");
+const docreaderTransport = ref<"grpc" | "http">("grpc");
+const connected = ref(false);
+const loading = ref(true);
+const error = ref("");
 
-const config = ref<ParserEngineConfig>({ ...DEFAULT_PARSER_CONFIG })
-const saving = ref(false)
-const saveMessage = ref('')
-const saveSuccess = ref(false)
-const checking = ref(false)
-const checkMessage = ref('')
+const config = ref<ParserEngineConfig>({ ...DEFAULT_PARSER_CONFIG });
+const saving = ref(false);
+const saveMessage = ref("");
+const saveSuccess = ref(false);
+const checking = ref(false);
+const checkMessage = ref("");
 
-const hasBuiltinEngine = computed(() => engines.value.some(e => e.Name === 'builtin'))
+const hasBuiltinEngine = computed(() => engines.value.some((e) => e.Name === "builtin"));
 
-const drawerVisible = ref(false)
-const currentEngine = ref<ParserEngineInfo | null>(null)
+const drawerVisible = ref(false);
+const currentEngine = ref<ParserEngineInfo | null>(null);
 const drawerTitle = computed(() => {
-  return currentEngine.value ? getEngineDisplayName(currentEngine.value.Name) : ''
-})
+  return currentEngine.value ? getEngineDisplayName(currentEngine.value.Name) : "";
+});
 
 // SettingDrawer 头部图标走 #headerIcon 槽（首字母 monogram + per-engine
 // 配色，与列表卡片完全一致），不再需要 t-icon name 兜底。
@@ -520,9 +556,9 @@ const drawerTitle = computed(() => {
 // status is the whole point of the drawer) skip the test affordance — for
 // e.g. simple/markitdown there's nothing to validate beyond presence.
 const needsTestButton = computed(() => {
-  if (!currentEngine.value) return false
-  return hasConfigFields(currentEngine.value.Name) || currentEngine.value.Name === 'builtin'
-})
+  if (!currentEngine.value) return false;
+  return hasConfigFields(currentEngine.value.Name) || currentEngine.value.Name === "builtin";
+});
 
 /** 固定展示顺序，未列出的引擎排在末尾按名称排序 */
 const ENGINE_ORDER: Record<string, number> = {
@@ -535,254 +571,265 @@ const ENGINE_ORDER: Record<string, number> = {
   mineru_tianshu: 7,
   paddleocr_vl: 8,
   paddleocr_vl_cloud: 9,
-}
+};
 
 /**
  * Engines hidden from the picker. An engine already bound to a knowledge base
  * keeps working server-side; it just cannot be newly selected here. Currently
  * empty — the mechanism is kept so retiring an engine needs no filter changes.
  */
-const HIDDEN_ENGINES = new Set<string>()
+const HIDDEN_ENGINES = new Set<string>();
 
 const sortedEngines = computed(() => {
-  return [...engines.value].filter(e => !HIDDEN_ENGINES.has(e.Name)).sort((a, b) => {
-    const oa = ENGINE_ORDER[a.Name] ?? 100
-    const ob = ENGINE_ORDER[b.Name] ?? 100
-    if (oa !== ob) return oa - ob
-    return a.Name.localeCompare(b.Name)
-  })
-})
+  return [...engines.value]
+    .filter((e) => !HIDDEN_ENGINES.has(e.Name))
+    .sort((a, b) => {
+      const oa = ENGINE_ORDER[a.Name] ?? 100;
+      const ob = ENGINE_ORDER[b.Name] ?? 100;
+      if (oa !== ob) return oa - ob;
+      return a.Name.localeCompare(b.Name);
+    });
+});
 
 function hasConfigFields(engineName: string): boolean {
-  return CONFIGURABLE_ENGINES.has(engineName)
+  return CONFIGURABLE_ENGINES.has(engineName);
 }
 
 function engineDocLink(name: string): string | undefined {
-  return ENGINE_DOC_LINKS[name]
+  return ENGINE_DOC_LINKS[name];
 }
 
 function engineDocLabel(_name: string): string {
-  return t('settings.parser.docs')
+  return t("settings.parser.docs");
 }
 
 // 卡片徽章首字母。优先用本地化名称的首字符（覆盖如「内置/简易」等中文场景），
 // 兜底回到 engine name；保证英文/中文都能显示一个稳定的可读 monogram。
 function engineInitial(engineName: string): string {
-  const display = getEngineDisplayName(engineName)
-  return (display.trim().charAt(0) || engineName.charAt(0) || '?').toUpperCase()
+  const display = getEngineDisplayName(engineName);
+  return (display.trim().charAt(0) || engineName.charAt(0) || "?").toUpperCase();
 }
 
 function getEngineDisplayName(engineName: string): string {
-  const key = `kbSettings.parser.engines.${engineName}.name`
-  const translated = t(key)
-  return translated !== key ? translated : engineName
+  const key = `kbSettings.parser.engines.${engineName}.name`;
+  const translated = t(key);
+  return translated !== key ? translated : engineName;
 }
 
 function getEngineDisplayDesc(engineName: string, fallback: string): string {
-  const key = `kbSettings.parser.engines.${engineName}.desc`
-  const translated = t(key)
-  return translated !== key ? translated : fallback
+  const key = `kbSettings.parser.engines.${engineName}.desc`;
+  const translated = t(key);
+  return translated !== key ? translated : fallback;
 }
 
 function openDrawer(engine: ParserEngineInfo) {
-  currentEngine.value = engine
-  drawerVisible.value = true
-  saveMessage.value = ''
-  checkMessage.value = ''
+  currentEngine.value = engine;
+  drawerVisible.value = true;
+  saveMessage.value = "";
+  checkMessage.value = "";
 }
 
 async function loadEngines() {
   try {
-    const res = await getParserEngines()
-    engines.value = res?.data ?? []
-    docreaderAddrEnv.value = res?.docreader_addr ?? ''
-    const transport = (res?.docreader_transport ?? 'grpc').toLowerCase()
-    docreaderTransport.value = transport === 'http' ? 'http' : 'grpc'
-    connected.value = res?.connected ?? (engines.value.length > 0)
+    const res = await getParserEngines();
+    engines.value = res?.data ?? [];
+    docreaderAddrEnv.value = res?.docreader_addr ?? "";
+    const transport = (res?.docreader_transport ?? "grpc").toLowerCase();
+    docreaderTransport.value = transport === "http" ? "http" : "grpc";
+    connected.value = res?.connected ?? engines.value.length > 0;
   } catch (e: any) {
-    error.value = e?.message || t('settings.parser.loadFailed')
-    engines.value = []
-    connected.value = false
+    error.value = e?.message || t("settings.parser.loadFailed");
+    engines.value = [];
+    connected.value = false;
   }
 }
 
 // 'platform' 编辑部署级默认，'workspace' 编辑本空间覆盖。非系统管理员固定在
 // workspace —— 他们根本拿不到平台端点（/system/admin/* 是系统管理员专属）。
-type ParserConfigScope = 'platform' | 'workspace'
-const scope = ref<ParserConfigScope>(
-  authStore.isSystemAdmin ? 'platform' : 'workspace',
-)
-const canEditPlatformScope = computed(() => authStore.isSystemAdmin)
+type ParserConfigScope = "platform" | "workspace";
+const scope = ref<ParserConfigScope>(authStore.isSystemAdmin ? "platform" : "workspace");
+const canEditPlatformScope = computed(() => authStore.isSystemAdmin);
 
 async function onScopeChange() {
-  saveMessage.value = ''
-  checkMessage.value = ''
-  await loadConfig()
+  saveMessage.value = "";
+  checkMessage.value = "";
+  await loadConfig();
 }
 
 async function loadConfig() {
   try {
-    const res = scope.value === 'platform'
-      ? await getPlatformParserEngineConfig()
-      : await getParserEngineConfig()
-    const data = res?.data
+    const res = scope.value === "platform" ? await getPlatformParserEngineConfig() : await getParserEngineConfig();
+    const data = res?.data;
     config.value = {
-      docreader_addr: data?.docreader_addr ?? DEFAULT_PARSER_CONFIG.docreader_addr ?? '',
-      docreader_transport: data?.docreader_transport ?? DEFAULT_PARSER_CONFIG.docreader_transport ?? 'grpc',
-      mineru_endpoint: data?.mineru_endpoint ?? DEFAULT_PARSER_CONFIG.mineru_endpoint ?? '',
-      mineru_api_key: data?.mineru_api_key ?? DEFAULT_PARSER_CONFIG.mineru_api_key ?? '',
-      mineru_model: data?.mineru_model ?? DEFAULT_PARSER_CONFIG.mineru_model ?? '',
-      mineru_vlm_server_url: data?.mineru_vlm_server_url ?? DEFAULT_PARSER_CONFIG.mineru_vlm_server_url ?? '',
+      docreader_addr: data?.docreader_addr ?? DEFAULT_PARSER_CONFIG.docreader_addr ?? "",
+      docreader_transport: data?.docreader_transport ?? DEFAULT_PARSER_CONFIG.docreader_transport ?? "grpc",
+      mineru_endpoint: data?.mineru_endpoint ?? DEFAULT_PARSER_CONFIG.mineru_endpoint ?? "",
+      mineru_api_key: data?.mineru_api_key ?? DEFAULT_PARSER_CONFIG.mineru_api_key ?? "",
+      mineru_model: data?.mineru_model ?? DEFAULT_PARSER_CONFIG.mineru_model ?? "",
+      mineru_vlm_server_url: data?.mineru_vlm_server_url ?? DEFAULT_PARSER_CONFIG.mineru_vlm_server_url ?? "",
       mineru_enable_formula: data?.mineru_enable_formula ?? DEFAULT_PARSER_CONFIG.mineru_enable_formula ?? true,
       mineru_enable_table: data?.mineru_enable_table ?? DEFAULT_PARSER_CONFIG.mineru_enable_table ?? true,
-      mineru_parse_method: data?.mineru_parse_method ?? (data?.mineru_enable_ocr === false ? 'txt' : 'auto'),
+      mineru_parse_method: data?.mineru_parse_method ?? (data?.mineru_enable_ocr === false ? "txt" : "auto"),
       mineru_enable_ocr: data?.mineru_enable_ocr ?? DEFAULT_PARSER_CONFIG.mineru_enable_ocr ?? true,
-      mineru_language: data?.mineru_language ?? DEFAULT_PARSER_CONFIG.mineru_language ?? 'ch',
-      mineru_cloud_model: data?.mineru_cloud_model ?? DEFAULT_PARSER_CONFIG.mineru_cloud_model ?? '',
-      mineru_cloud_enable_formula: data?.mineru_cloud_enable_formula ?? DEFAULT_PARSER_CONFIG.mineru_cloud_enable_formula ?? true,
-      mineru_cloud_enable_table: data?.mineru_cloud_enable_table ?? DEFAULT_PARSER_CONFIG.mineru_cloud_enable_table ?? true,
+      mineru_language: data?.mineru_language ?? DEFAULT_PARSER_CONFIG.mineru_language ?? "ch",
+      mineru_cloud_model: data?.mineru_cloud_model ?? DEFAULT_PARSER_CONFIG.mineru_cloud_model ?? "",
+      mineru_cloud_enable_formula:
+        data?.mineru_cloud_enable_formula ?? DEFAULT_PARSER_CONFIG.mineru_cloud_enable_formula ?? true,
+      mineru_cloud_enable_table:
+        data?.mineru_cloud_enable_table ?? DEFAULT_PARSER_CONFIG.mineru_cloud_enable_table ?? true,
       mineru_cloud_enable_ocr: data?.mineru_cloud_enable_ocr ?? DEFAULT_PARSER_CONFIG.mineru_cloud_enable_ocr ?? true,
-      mineru_cloud_language: data?.mineru_cloud_language ?? DEFAULT_PARSER_CONFIG.mineru_cloud_language ?? 'ch',
-      paddleocr_vl_endpoint: data?.paddleocr_vl_endpoint ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_endpoint ?? '',
-      paddleocr_vl_use_seal_recognition: data?.paddleocr_vl_use_seal_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_use_seal_recognition ?? true,
-      paddleocr_vl_use_chart_recognition: data?.paddleocr_vl_use_chart_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_use_chart_recognition ?? false,
-      paddleocr_vl_cloud_token: data?.paddleocr_vl_cloud_token ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_token ?? '',
-      paddleocr_vl_cloud_model: data?.paddleocr_vl_cloud_model ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_model ?? 'PaddleOCR-VL-1.6',
-      paddleocr_vl_cloud_use_seal_recognition: data?.paddleocr_vl_cloud_use_seal_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_use_seal_recognition ?? true,
-      paddleocr_vl_cloud_use_chart_recognition: data?.paddleocr_vl_cloud_use_chart_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_use_chart_recognition ?? false,
-      mineru_tianshu_endpoint: data?.mineru_tianshu_endpoint ?? '',
-      mineru_tianshu_api_key: data?.mineru_tianshu_api_key ?? '',
-      mineru_tianshu_auth_header: data?.mineru_tianshu_auth_header ?? '',
-      mineru_tianshu_backend: data?.mineru_tianshu_backend ?? '',
-      mineru_tianshu_language: data?.mineru_tianshu_language ?? '',
-      mineru_tianshu_parse_method: data?.mineru_tianshu_parse_method ?? '',
+      mineru_cloud_language: data?.mineru_cloud_language ?? DEFAULT_PARSER_CONFIG.mineru_cloud_language ?? "ch",
+      paddleocr_vl_endpoint: data?.paddleocr_vl_endpoint ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_endpoint ?? "",
+      paddleocr_vl_use_seal_recognition:
+        data?.paddleocr_vl_use_seal_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_use_seal_recognition ?? true,
+      paddleocr_vl_use_chart_recognition:
+        data?.paddleocr_vl_use_chart_recognition ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_use_chart_recognition ?? false,
+      paddleocr_vl_cloud_token: data?.paddleocr_vl_cloud_token ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_token ?? "",
+      paddleocr_vl_cloud_model:
+        data?.paddleocr_vl_cloud_model ?? DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_model ?? "PaddleOCR-VL-1.6",
+      paddleocr_vl_cloud_use_seal_recognition:
+        data?.paddleocr_vl_cloud_use_seal_recognition ??
+        DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_use_seal_recognition ??
+        true,
+      paddleocr_vl_cloud_use_chart_recognition:
+        data?.paddleocr_vl_cloud_use_chart_recognition ??
+        DEFAULT_PARSER_CONFIG.paddleocr_vl_cloud_use_chart_recognition ??
+        false,
+      mineru_tianshu_endpoint: data?.mineru_tianshu_endpoint ?? "",
+      mineru_tianshu_api_key: data?.mineru_tianshu_api_key ?? "",
+      mineru_tianshu_auth_header: data?.mineru_tianshu_auth_header ?? "",
+      mineru_tianshu_backend: data?.mineru_tianshu_backend ?? "",
+      mineru_tianshu_language: data?.mineru_tianshu_language ?? "",
+      mineru_tianshu_parse_method: data?.mineru_tianshu_parse_method ?? "",
       mineru_tianshu_enable_formula: data?.mineru_tianshu_enable_formula ?? true,
       mineru_tianshu_enable_table: data?.mineru_tianshu_enable_table ?? true,
-    }
+    };
   } catch {
-    config.value = { ...DEFAULT_PARSER_CONFIG }
+    config.value = { ...DEFAULT_PARSER_CONFIG };
   }
 }
 
 async function loadAll() {
-  loading.value = true
-  error.value = ''
-  await Promise.all([loadEngines(), loadConfig()])
-  loading.value = false
+  loading.value = true;
+  error.value = "";
+  await Promise.all([loadEngines(), loadConfig()]);
+  loading.value = false;
 }
 
 function buildConfigPayload(): ParserEngineConfig {
   return {
-    docreader_addr: config.value.docreader_addr?.trim() ?? '',
-    docreader_transport: (config.value.docreader_transport ?? 'grpc').trim() || 'grpc',
-    mineru_endpoint: config.value.mineru_endpoint?.trim() ?? '',
-    mineru_api_key: config.value.mineru_api_key?.trim() ?? '',
-    mineru_model: config.value.mineru_model?.trim() ?? '',
-    mineru_vlm_server_url: config.value.mineru_vlm_server_url?.trim() ?? '',
+    docreader_addr: config.value.docreader_addr?.trim() ?? "",
+    docreader_transport: (config.value.docreader_transport ?? "grpc").trim() || "grpc",
+    mineru_endpoint: config.value.mineru_endpoint?.trim() ?? "",
+    mineru_api_key: config.value.mineru_api_key?.trim() ?? "",
+    mineru_model: config.value.mineru_model?.trim() ?? "",
+    mineru_vlm_server_url: config.value.mineru_vlm_server_url?.trim() ?? "",
     mineru_enable_formula: config.value.mineru_enable_formula,
     mineru_enable_table: config.value.mineru_enable_table,
-    mineru_parse_method: config.value.mineru_parse_method ?? 'auto',
+    mineru_parse_method: config.value.mineru_parse_method ?? "auto",
     // Keep the legacy toggle during rolling upgrades. New servers prefer parse_method.
-    mineru_enable_ocr: config.value.mineru_parse_method !== 'txt',
-    mineru_language: config.value.mineru_language?.trim() ?? '',
-    mineru_cloud_model: config.value.mineru_cloud_model?.trim() ?? '',
+    mineru_enable_ocr: config.value.mineru_parse_method !== "txt",
+    mineru_language: config.value.mineru_language?.trim() ?? "",
+    mineru_cloud_model: config.value.mineru_cloud_model?.trim() ?? "",
     mineru_cloud_enable_formula: config.value.mineru_cloud_enable_formula,
     mineru_cloud_enable_table: config.value.mineru_cloud_enable_table,
     mineru_cloud_enable_ocr: config.value.mineru_cloud_enable_ocr,
-    mineru_cloud_language: config.value.mineru_cloud_language?.trim() ?? '',
-    paddleocr_vl_endpoint: config.value.paddleocr_vl_endpoint?.trim() ?? '',
+    mineru_cloud_language: config.value.mineru_cloud_language?.trim() ?? "",
+    paddleocr_vl_endpoint: config.value.paddleocr_vl_endpoint?.trim() ?? "",
     paddleocr_vl_use_seal_recognition: config.value.paddleocr_vl_use_seal_recognition,
     paddleocr_vl_use_chart_recognition: config.value.paddleocr_vl_use_chart_recognition,
-    paddleocr_vl_cloud_token: config.value.paddleocr_vl_cloud_token?.trim() ?? '',
-    paddleocr_vl_cloud_model: config.value.paddleocr_vl_cloud_model?.trim() ?? '',
+    paddleocr_vl_cloud_token: config.value.paddleocr_vl_cloud_token?.trim() ?? "",
+    paddleocr_vl_cloud_model: config.value.paddleocr_vl_cloud_model?.trim() ?? "",
     paddleocr_vl_cloud_use_seal_recognition: config.value.paddleocr_vl_cloud_use_seal_recognition,
     paddleocr_vl_cloud_use_chart_recognition: config.value.paddleocr_vl_cloud_use_chart_recognition,
-    mineru_tianshu_endpoint: config.value.mineru_tianshu_endpoint?.trim() ?? '',
-    mineru_tianshu_api_key: config.value.mineru_tianshu_api_key?.trim() ?? '',
-    mineru_tianshu_auth_header: config.value.mineru_tianshu_auth_header?.trim() ?? '',
-    mineru_tianshu_backend: config.value.mineru_tianshu_backend?.trim() ?? '',
-    mineru_tianshu_language: config.value.mineru_tianshu_language?.trim() ?? '',
-    mineru_tianshu_parse_method: config.value.mineru_tianshu_parse_method?.trim() ?? '',
+    mineru_tianshu_endpoint: config.value.mineru_tianshu_endpoint?.trim() ?? "",
+    mineru_tianshu_api_key: config.value.mineru_tianshu_api_key?.trim() ?? "",
+    mineru_tianshu_auth_header: config.value.mineru_tianshu_auth_header?.trim() ?? "",
+    mineru_tianshu_backend: config.value.mineru_tianshu_backend?.trim() ?? "",
+    mineru_tianshu_language: config.value.mineru_tianshu_language?.trim() ?? "",
+    mineru_tianshu_parse_method: config.value.mineru_tianshu_parse_method?.trim() ?? "",
     mineru_tianshu_enable_formula: config.value.mineru_tianshu_enable_formula,
     mineru_tianshu_enable_table: config.value.mineru_tianshu_enable_table,
-  }
+  };
 }
 
 async function onCheck() {
   // `.value`, not the ref: the ref object is always truthy, so the guard
   // below had never once fired.
   if (!connected.value) {
-    checkMessage.value = t('settings.parser.ensureDocreaderConnected')
-    return
+    checkMessage.value = t("settings.parser.ensureDocreaderConnected");
+    return;
   }
-  checking.value = true
-  checkMessage.value = ''
-  saveMessage.value = ''
+  checking.value = true;
+  checkMessage.value = "";
+  saveMessage.value = "";
   try {
-    const res = await checkParserEngines(buildConfigPayload())
-    engines.value = res?.data ?? []
+    const res = await checkParserEngines(buildConfigPayload());
+    engines.value = res?.data ?? [];
     if (res?.connected !== undefined) {
-      connected.value = res.connected
+      connected.value = res.connected;
     }
 
     if (currentEngine.value) {
-      if (currentEngine.value.Name === 'builtin') {
+      if (currentEngine.value.Name === "builtin") {
         if (connected.value) {
-          checkMessage.value = t('settings.parser.checkSuccess', '测试连接成功')
-          saveSuccess.value = true
+          checkMessage.value = t("settings.parser.checkSuccess", "测试连接成功");
+          saveSuccess.value = true;
         } else {
-          checkMessage.value = t('settings.parser.checkFailed', '测试连接失败')
-          saveSuccess.value = false
+          checkMessage.value = t("settings.parser.checkFailed", "测试连接失败");
+          saveSuccess.value = false;
         }
       } else {
-        const updatedEngine = engines.value.find(e => e.Name === currentEngine.value!.Name)
+        const updatedEngine = engines.value.find((e) => e.Name === currentEngine.value!.Name);
         if (updatedEngine) {
           if (updatedEngine.Available) {
-            checkMessage.value = t('settings.parser.checkSuccess', '测试连接成功')
-            saveSuccess.value = true
+            checkMessage.value = t("settings.parser.checkSuccess", "测试连接成功");
+            saveSuccess.value = true;
           } else {
-            checkMessage.value = updatedEngine.UnavailableReason || t('settings.parser.checkFailed', '测试连接失败')
-            saveSuccess.value = false
+            checkMessage.value = updatedEngine.UnavailableReason || t("settings.parser.checkFailed", "测试连接失败");
+            saveSuccess.value = false;
           }
         } else {
-          checkMessage.value = t('settings.parser.checkFailed', '引擎状态未知')
-          saveSuccess.value = false
+          checkMessage.value = t("settings.parser.checkFailed", "引擎状态未知");
+          saveSuccess.value = false;
         }
       }
     } else {
-      checkMessage.value = t('settings.parser.checkDoneStatusUpdated', '检测已完成，状态已更新')
-      saveSuccess.value = true
+      checkMessage.value = t("settings.parser.checkDoneStatusUpdated", "检测已完成，状态已更新");
+      saveSuccess.value = true;
     }
 
-    setTimeout(() => { checkMessage.value = '' }, 3000)
+    setTimeout(() => {
+      checkMessage.value = "";
+    }, 3000);
   } catch (e: any) {
-    checkMessage.value = e?.message || t('settings.parser.checkFailed', '测试连接失败')
-    saveSuccess.value = false
+    checkMessage.value = e?.message || t("settings.parser.checkFailed", "测试连接失败");
+    saveSuccess.value = false;
   } finally {
-    checking.value = false
+    checking.value = false;
   }
 }
 
 async function onSave() {
-  saving.value = true
-  saveMessage.value = ''
+  saving.value = true;
+  saveMessage.value = "";
   try {
-    await (scope.value === 'platform'
+    await (scope.value === "platform"
       ? updatePlatformParserEngineConfig(buildConfigPayload())
-      : updateParserEngineConfig(buildConfigPayload()))
-    saveSuccess.value = true
-    saveMessage.value = t('settings.parser.saveSuccess')
-    drawerVisible.value = false
-    loadEngines()
+      : updateParserEngineConfig(buildConfigPayload()));
+    saveSuccess.value = true;
+    saveMessage.value = t("settings.parser.saveSuccess");
+    drawerVisible.value = false;
+    loadEngines();
   } catch (e: any) {
-    saveSuccess.value = false
-    saveMessage.value = e?.message || t('settings.parser.saveFailed')
+    saveSuccess.value = false;
+    saveMessage.value = e?.message || t("settings.parser.saveFailed");
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
-onMounted(loadAll)
+onMounted(loadAll);
 </script>
 
 <style lang="less" scoped>
@@ -866,7 +913,10 @@ onMounted(loadAll)
   font: inherit;
   color: inherit;
   cursor: pointer;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
   min-width: 0;
 
   &:hover {
@@ -893,14 +943,14 @@ onMounted(loadAll)
   font-weight: 600;
   letter-spacing: 0.02em;
   background: rgba(0, 82, 217, 0.1);
-  color: #0052D9;
+  color: #0052d9;
 }
 
 // 解析引擎徽章配色 —— 内置/官方系绿，外部工具按性质各取一色。
 .engine-card--builtin .engine-card__badge,
 .engine-card--builtin-legacy .engine-card__badge {
   background: rgba(7, 192, 95, 0.12);
-  color: #07C05F;
+  color: #07c05f;
 }
 .engine-card--simple .engine-card__badge {
   background: rgba(70, 70, 70, 0.1);
@@ -908,14 +958,14 @@ onMounted(loadAll)
 }
 .engine-card--markitdown .engine-card__badge {
   background: rgba(0, 137, 255, 0.12);
-  color: #0089FF;
+  color: #0089ff;
 }
 .engine-card--mineru .engine-card__badge,
 .engine-card--mineru_cloud .engine-card__badge,
 .engine-card--paddleocr_vl .engine-card__badge,
 .engine-card--paddleocr_vl_cloud .engine-card__badge {
   background: rgba(98, 53, 187, 0.12);
-  color: #6235BB;
+  color: #6235bb;
 }
 
 .engine-card__body {
@@ -962,13 +1012,17 @@ onMounted(loadAll)
   &--on {
     color: var(--td-success-color-7, #118053);
 
-    .engine-card__status-dot { background: var(--td-success-color, #118053); }
+    .engine-card__status-dot {
+      background: var(--td-success-color, #118053);
+    }
   }
 
   &--err {
-    color: var(--td-error-color-7, #C93E3E);
+    color: var(--td-error-color-7, #c93e3e);
 
-    .engine-card__status-dot { background: var(--td-error-color, #C93E3E); }
+    .engine-card__status-dot {
+      background: var(--td-error-color, #c93e3e);
+    }
   }
 
   &--help {
@@ -1010,7 +1064,7 @@ onMounted(loadAll)
 
   // 与 ModelEditorDialog 一致：必填星号前置
   &.required::before {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     margin-right: 4px;
     font-weight: 500;
@@ -1150,8 +1204,12 @@ onMounted(loadAll)
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinning {
@@ -1249,7 +1307,7 @@ onMounted(loadAll)
 .parser-engine-drawer--builtin .setting-drawer__header-icon,
 .parser-engine-drawer--builtin-legacy .setting-drawer__header-icon {
   background: rgba(7, 192, 95, 0.12);
-  color: #07C05F;
+  color: #07c05f;
 }
 .parser-engine-drawer--simple .setting-drawer__header-icon {
   background: rgba(70, 70, 70, 0.1);
@@ -1257,13 +1315,13 @@ onMounted(loadAll)
 }
 .parser-engine-drawer--markitdown .setting-drawer__header-icon {
   background: rgba(0, 137, 255, 0.12);
-  color: #0089FF;
+  color: #0089ff;
 }
 .parser-engine-drawer--mineru .setting-drawer__header-icon,
 .parser-engine-drawer--mineru_cloud .setting-drawer__header-icon,
 .parser-engine-drawer--paddleocr_vl .setting-drawer__header-icon,
 .parser-engine-drawer--paddleocr_vl_cloud .setting-drawer__header-icon {
   background: rgba(98, 53, 187, 0.12);
-  color: #6235BB;
+  color: #6235bb;
 }
 </style>

@@ -4,6 +4,6 @@ export function getApiBaseUrl(): string {
   // this · axios hits `/api/v1/...` at LocalHub root · gets 404 "Cannot
   // POST". Strip trailing slash so axios doesn't produce `/app/yuheng//api/v1/...`.
   // See: plugins/yuheng/patches/api-base-baseurl.patch
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '');
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
   return base;
 }

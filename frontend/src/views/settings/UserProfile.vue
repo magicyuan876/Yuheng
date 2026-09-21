@@ -1,21 +1,21 @@
 <template>
   <div class="user-profile">
     <div class="section-header">
-      <h2>{{ $t('userProfile.title') }}</h2>
-      <p class="section-description">{{ $t('userProfile.description') }}</p>
+      <h2>{{ $t("userProfile.title") }}</h2>
+      <p class="section-description">{{ $t("userProfile.description") }}</p>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="loading-inline">
       <t-loading size="small" />
-      <span>{{ $t('tenant.loadingInfo') }}</span>
+      <span>{{ $t("tenant.loadingInfo") }}</span>
     </div>
 
     <!-- Error -->
     <div v-else-if="error" class="error-inline">
       <t-alert theme="error" :message="error">
         <template #operation>
-          <t-button size="small" @click="loadInfo">{{ $t('tenant.retry') }}</t-button>
+          <t-button size="small" @click="loadInfo">{{ $t("tenant.retry") }}</t-button>
         </template>
       </t-alert>
     </div>
@@ -25,41 +25,41 @@
       <!-- 用户 ID -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.userIdLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.userIdDescription') }}</p>
+          <label>{{ $t("tenant.api.userIdLabel") }}</label>
+          <p class="desc">{{ $t("tenant.api.userIdDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ userInfo?.id || '-' }}</span>
+          <span class="info-value">{{ userInfo?.id || "-" }}</span>
         </div>
       </div>
 
       <!-- 用户名 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.usernameLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.usernameDescription') }}</p>
+          <label>{{ $t("tenant.api.usernameLabel") }}</label>
+          <p class="desc">{{ $t("tenant.api.usernameDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ userInfo?.username || '-' }}</span>
+          <span class="info-value">{{ userInfo?.username || "-" }}</span>
         </div>
       </div>
 
       <!-- 邮箱 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.emailLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.emailDescription') }}</p>
+          <label>{{ $t("tenant.api.emailLabel") }}</label>
+          <p class="desc">{{ $t("tenant.api.emailDescription") }}</p>
         </div>
         <div class="setting-control">
-          <span class="info-value">{{ userInfo?.email || '-' }}</span>
+          <span class="info-value">{{ userInfo?.email || "-" }}</span>
         </div>
       </div>
 
       <!-- 注册时间 -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('tenant.api.createdAtLabel') }}</label>
-          <p class="desc">{{ $t('tenant.api.createdAtDescription') }}</p>
+          <label>{{ $t("tenant.api.createdAtLabel") }}</label>
+          <p class="desc">{{ $t("tenant.api.createdAtDescription") }}</p>
         </div>
         <div class="setting-control">
           <span class="info-value">{{ formatDate(userInfo?.created_at) }}</span>
@@ -69,11 +69,13 @@
       <!-- 修改密码：与其它 setting-row 同款只读行 + 编辑入口，表单进原地 popup -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('userProfile.changePassword.label') }}</label>
+          <label>{{ $t("userProfile.changePassword.label") }}</label>
           <p class="desc">
-            {{ oidcOnlyLogin
-              ? $t('userProfile.changePassword.oidcOnlyDescription')
-              : $t('userProfile.changePassword.description') }}
+            {{
+              oidcOnlyLogin
+                ? $t("userProfile.changePassword.oidcOnlyDescription")
+                : $t("userProfile.changePassword.description")
+            }}
           </p>
         </div>
         <div class="setting-control">
@@ -104,8 +106,8 @@
               </t-button>
               <template #content>
                 <div class="password-popup-inner" @click.stop>
-                  <div class="password-popup-title">{{ $t('userProfile.changePassword.label') }}</div>
-                  <p class="password-popup-hint">{{ $t('userProfile.changePassword.description') }}</p>
+                  <div class="password-popup-title">{{ $t("userProfile.changePassword.label") }}</div>
+                  <p class="password-popup-hint">{{ $t("userProfile.changePassword.description") }}</p>
                   <t-form
                     ref="passwordFormRef"
                     :data="passwordForm"
@@ -144,19 +146,11 @@
                     </t-form-item>
                   </t-form>
                   <div class="password-popup-footer">
-                    <t-button
-                      variant="outline"
-                      :disabled="passwordSubmitting"
-                      @click="closePasswordPopup"
-                    >
-                      {{ $t('common.cancel') }}
+                    <t-button variant="outline" :disabled="passwordSubmitting" @click="closePasswordPopup">
+                      {{ $t("common.cancel") }}
                     </t-button>
-                    <t-button
-                      theme="primary"
-                      :loading="passwordSubmitting"
-                      @click="submitPasswordChange"
-                    >
-                      {{ $t('userProfile.changePassword.submit') }}
+                    <t-button theme="primary" :loading="passwordSubmitting" @click="submitPasswordChange">
+                      {{ $t("userProfile.changePassword.submit") }}
                     </t-button>
                   </div>
                 </div>
@@ -170,157 +164,148 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { MessagePlugin } from 'tdesign-vue-next'
-import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next'
-import {
-  getCurrentUser,
-  changePassword,
-  logout as logoutApi,
-  type UserInfo,
-} from '@/api/auth'
-import { useAuthStore } from '@/stores/auth'
-import { useI18n } from 'vue-i18n'
+import { ref, reactive, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
+import { MessagePlugin } from "tdesign-vue-next";
+import type { FormInstanceFunctions, FormRule } from "tdesign-vue-next";
+import { getCurrentUser, changePassword, logout as logoutApi, type UserInfo } from "@/api/auth";
+import { useAuthStore } from "@/stores/auth";
+import { useI18n } from "vue-i18n";
 
-const { t, locale } = useI18n()
-const router = useRouter()
-const authStore = useAuthStore()
+const { t, locale } = useI18n();
+const router = useRouter();
+const authStore = useAuthStore();
 
-const userInfo = ref<UserInfo | null>(null)
-const loading = ref(true)
-const error = ref('')
+const userInfo = ref<UserInfo | null>(null);
+const loading = ref(true);
+const error = ref("");
 
-const passwordPopupVisible = ref(false)
-const passwordFormRef = ref<FormInstanceFunctions | null>(null)
-const passwordSubmitting = ref(false)
+const passwordPopupVisible = ref(false);
+const passwordFormRef = ref<FormInstanceFunctions | null>(null);
+const passwordSubmitting = ref(false);
 const passwordForm = reactive({
-  oldPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-})
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
 
-const oidcOnlyLogin = computed(
-  () => userInfo.value?.preferences?.oidc_only_login === true,
-)
+const oidcOnlyLogin = computed(() => userInfo.value?.preferences?.oidc_only_login === true);
 
 watch(passwordPopupVisible, (open) => {
   if (open) {
-    resetPasswordForm()
+    resetPasswordForm();
   }
-})
+});
 
 const passwordRules = computed<Record<string, FormRule[]>>(() => ({
-  oldPassword: [
-    { required: true, message: t('userProfile.changePassword.currentRequired'), type: 'error' },
-  ],
+  oldPassword: [{ required: true, message: t("userProfile.changePassword.currentRequired"), type: "error" }],
   newPassword: [
-    { required: true, message: t('auth.passwordRequired'), type: 'error' },
-    { min: 8, message: t('auth.passwordMinLength'), type: 'error' },
-    { max: 32, message: t('auth.passwordMaxLength'), type: 'error' },
-    { pattern: /[a-zA-Z]/, message: t('auth.passwordMustContainLetter'), type: 'error' },
-    { pattern: /\d/, message: t('auth.passwordMustContainNumber'), type: 'error' },
+    { required: true, message: t("auth.passwordRequired"), type: "error" },
+    { min: 8, message: t("auth.passwordMinLength"), type: "error" },
+    { max: 32, message: t("auth.passwordMaxLength"), type: "error" },
+    { pattern: /[a-zA-Z]/, message: t("auth.passwordMustContainLetter"), type: "error" },
+    { pattern: /\d/, message: t("auth.passwordMustContainNumber"), type: "error" },
     {
       validator: (val: string) => val !== passwordForm.oldPassword,
-      message: t('userProfile.changePassword.sameAsCurrent'),
-      type: 'error',
+      message: t("userProfile.changePassword.sameAsCurrent"),
+      type: "error",
     },
   ],
   confirmPassword: [
-    { required: true, message: t('auth.confirmPasswordRequired'), type: 'error' },
+    { required: true, message: t("auth.confirmPasswordRequired"), type: "error" },
     {
       validator: (val: string) => val === passwordForm.newPassword,
-      message: t('auth.passwordMismatch'),
-      type: 'error',
-      trigger: 'blur',
+      message: t("auth.passwordMismatch"),
+      type: "error",
+      trigger: "blur",
     },
   ],
-}))
+}));
 
 const loadInfo = async () => {
   try {
-    loading.value = true
-    error.value = ''
-    const resp = await getCurrentUser()
+    loading.value = true;
+    error.value = "";
+    const resp = await getCurrentUser();
     if ((resp as any).success && resp.data) {
-      userInfo.value = resp.data.user
+      userInfo.value = resp.data.user;
     } else {
-      error.value = resp.message || t('tenant.messages.fetchFailed')
+      error.value = resp.message || t("tenant.messages.fetchFailed");
     }
   } catch (err: any) {
-    error.value = err?.message || t('tenant.messages.networkError')
+    error.value = err?.message || t("tenant.messages.networkError");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const formatDate = (dateStr: string | undefined) => {
-  if (!dateStr) return t('tenant.unknown')
+  if (!dateStr) return t("tenant.unknown");
   try {
-    const d = new Date(dateStr)
-    const fmt = new Intl.DateTimeFormat(locale.value || 'zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    return fmt.format(d)
+    const d = new Date(dateStr);
+    const fmt = new Intl.DateTimeFormat(locale.value || "zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return fmt.format(d);
   } catch {
-    return t('tenant.formatError')
+    return t("tenant.formatError");
   }
-}
+};
 
 const resetPasswordForm = () => {
-  passwordForm.oldPassword = ''
-  passwordForm.newPassword = ''
-  passwordForm.confirmPassword = ''
-  passwordFormRef.value?.clearValidate?.()
-}
+  passwordForm.oldPassword = "";
+  passwordForm.newPassword = "";
+  passwordForm.confirmPassword = "";
+  passwordFormRef.value?.clearValidate?.();
+};
 
 const closePasswordPopup = () => {
-  if (passwordSubmitting.value) return
-  passwordPopupVisible.value = false
-  resetPasswordForm()
-}
+  if (passwordSubmitting.value) return;
+  passwordPopupVisible.value = false;
+  resetPasswordForm();
+};
 
 const submitPasswordChange = async () => {
-  if (passwordSubmitting.value) return
-  const result = await passwordFormRef.value?.validate?.()
-  if (result !== true) return
+  if (passwordSubmitting.value) return;
+  const result = await passwordFormRef.value?.validate?.();
+  if (result !== true) return;
 
-  passwordSubmitting.value = true
+  passwordSubmitting.value = true;
   try {
     const resp = await changePassword({
       old_password: passwordForm.oldPassword,
       new_password: passwordForm.newPassword,
-    })
+    });
     if (!resp.success) {
-      MessagePlugin.error(resp.message || t('userProfile.changePassword.failed'))
-      return
+      MessagePlugin.error(resp.message || t("userProfile.changePassword.failed"));
+      return;
     }
 
-    passwordPopupVisible.value = false
-    MessagePlugin.success(t('userProfile.changePassword.success'))
-    resetPasswordForm()
+    passwordPopupVisible.value = false;
+    MessagePlugin.success(t("userProfile.changePassword.success"));
+    resetPasswordForm();
 
     // Backend revokes all sessions on success; mirror that locally and
     // force a fresh login with the new credential.
     try {
-      await logoutApi()
+      await logoutApi();
     } catch {
       /* ignore — local cleanup still proceeds */
     }
-    authStore.logout()
-    router.push('/login')
+    authStore.logout();
+    router.push("/login");
   } catch (err: any) {
-    MessagePlugin.error(err?.message || t('userProfile.changePassword.failed'))
+    MessagePlugin.error(err?.message || t("userProfile.changePassword.failed"));
   } finally {
-    passwordSubmitting.value = false
+    passwordSubmitting.value = false;
   }
-}
+};
 
-onMounted(loadInfo)
+onMounted(loadInfo);
 </script>
 
 <style lang="less" scoped>
@@ -486,7 +471,7 @@ onMounted(loadInfo)
   }
 }
 
-:root[theme-mode='dark'] .user-profile-password-popup-overlay .t-popup__content {
+:root[theme-mode="dark"] .user-profile-password-popup-overlay .t-popup__content {
   background: rgba(36, 36, 36, 0.92) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   box-shadow:

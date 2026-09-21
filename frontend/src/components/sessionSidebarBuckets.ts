@@ -1,33 +1,33 @@
 // OpenAI-style sidebar: flat/date-grouped chats plus an admin-only API-key
 // folder; each bucket paginates independently via the API `source` param.
 
-import type { SessionForGrouping } from './sessionGrouping'
+import type { SessionForGrouping } from "./sessionGrouping";
 
-export const SIDEBAR_BUCKET_PAGE_SIZE = 30
+export const SIDEBAR_BUCKET_PAGE_SIZE = 30;
 
-export type SidebarBucketKind = 'web' | 'api'
+export type SidebarBucketKind = "web" | "api";
 
 export interface SidebarSessionBucket {
-  key: string
-  apiSource: string
-  label: string
-  kind: SidebarBucketKind
-  platform?: string
-  page: number
-  total: number
-  items: SessionForGrouping[]
-  loaded: boolean
-  loading: boolean
+  key: string;
+  apiSource: string;
+  label: string;
+  kind: SidebarBucketKind;
+  platform?: string;
+  page: number;
+  total: number;
+  items: SessionForGrouping[];
+  loaded: boolean;
+  loading: boolean;
   /** 已通过轻量 count 探测（page_size=1），用于隐藏无会话的渠道文件夹 */
-  countKnown: boolean
+  countKnown: boolean;
 }
 
 export interface BucketDefinition {
-  key: string
-  apiSource: string
-  label: string
-  kind: SidebarBucketKind
-  platform?: string
+  key: string;
+  apiSource: string;
+  label: string;
+  kind: SidebarBucketKind;
+  platform?: string;
 }
 
 export function createEmptyBucket(def: BucketDefinition): SidebarSessionBucket {
@@ -39,66 +39,63 @@ export function createEmptyBucket(def: BucketDefinition): SidebarSessionBucket {
     loaded: false,
     loading: false,
     countKnown: false,
-  }
+  };
 }
 
 export function bucketHasMore(bucket: SidebarSessionBucket): boolean {
-  return bucket.items.length < bucket.total
+  return bucket.items.length < bucket.total;
 }
 
 export function bucketVisible(bucket: SidebarSessionBucket): boolean {
-  if (!isChannelBucket(bucket)) return true
-  if (!bucket.countKnown) return false
-  return bucket.total > 0
+  if (!isChannelBucket(bucket)) return true;
+  if (!bucket.countKnown) return false;
+  return bucket.total > 0;
 }
 
-export function applyBucketCountProbe(
-  bucket: SidebarSessionBucket,
-  total: number,
-): SidebarSessionBucket {
-  return { ...bucket, total, countKnown: true }
+export function applyBucketCountProbe(bucket: SidebarSessionBucket, total: number): SidebarSessionBucket {
+  return { ...bucket, total, countKnown: true };
 }
 
 export function isChannelBucket(bucket: SidebarSessionBucket): boolean {
-  return bucket.kind === 'api'
+  return bucket.kind === "api";
 }
 
 export function isChannelBucketKey(key: string): boolean {
-  return key === API_SESSION_BUCKET_KEY
+  return key === API_SESSION_BUCKET_KEY;
 }
 
 // API_SESSION_BUCKET_KEY is the admin-only bucket that lists every API-key
 // session in the tenant. It is probed for a count first and only surfaced
 // when it has sessions.
-export const API_SESSION_BUCKET_KEY = 'api'
+export const API_SESSION_BUCKET_KEY = "api";
 
 export function buildBucketDefinitions(
   labels: {
-    web: string
-    api: string
+    web: string;
+    api: string;
   },
   options: { includeAdminChannelBuckets?: boolean } = {},
 ): BucketDefinition[] {
-  const includeChannels = options.includeAdminChannelBuckets ?? false
+  const includeChannels = options.includeAdminChannelBuckets ?? false;
   const apiDefs: BucketDefinition[] = includeChannels
     ? [
         {
           key: API_SESSION_BUCKET_KEY,
           apiSource: API_SESSION_BUCKET_KEY,
           label: labels.api,
-          kind: 'api' as const,
+          kind: "api" as const,
         },
       ]
-    : []
+    : [];
   return [
     ...apiDefs,
     {
-      key: 'web',
-      apiSource: 'web',
+      key: "web",
+      apiSource: "web",
       label: labels.web,
-      kind: 'web',
+      kind: "web",
     },
-  ]
+  ];
 }
 
 export function mergeBucketPage(
@@ -107,12 +104,12 @@ export function mergeBucketPage(
   total: number,
   page: number,
 ): SidebarSessionBucket {
-  const seen = new Set(bucket.items.map((s) => s.id))
-  const merged = [...bucket.items]
+  const seen = new Set(bucket.items.map((s) => s.id));
+  const merged = [...bucket.items];
   for (const row of rows) {
-    if (seen.has(row.id)) continue
-    seen.add(row.id)
-    merged.push(row)
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    merged.push(row);
   }
   return {
     ...bucket,
@@ -121,52 +118,52 @@ export function mergeBucketPage(
     items: merged,
     loaded: true,
     loading: false,
-  }
+  };
 }
 
 export function flattenBucketItems(
   buckets: Record<string, SidebarSessionBucket>,
   order: string[],
 ): SessionForGrouping[] {
-  const out: SessionForGrouping[] = []
-  const seen = new Set<string>()
+  const out: SessionForGrouping[] = [];
+  const seen = new Set<string>();
   for (const key of order) {
-    const bucket = buckets[key]
-    if (!bucket) continue
+    const bucket = buckets[key];
+    if (!bucket) continue;
     for (const item of bucket.items) {
-      if (seen.has(item.id)) continue
-      seen.add(item.id)
-      out.push(item)
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
     }
   }
-  return out
+  return out;
 }
 
 export function prependSessionToWebBucket(
   bucket: SidebarSessionBucket,
   session: SessionForGrouping,
 ): SidebarSessionBucket {
-  if (bucket.items.some((row) => row.id === session.id)) return bucket
+  if (bucket.items.some((row) => row.id === session.id)) return bucket;
   return {
     ...bucket,
     items: [session, ...bucket.items],
     total: bucket.total + 1,
     loaded: true,
-  }
+  };
 }
 
 export function removeSessionFromBuckets(
   buckets: Record<string, SidebarSessionBucket>,
   sessionId: string,
 ): Record<string, SidebarSessionBucket> {
-  const next: Record<string, SidebarSessionBucket> = {}
+  const next: Record<string, SidebarSessionBucket> = {};
   for (const [key, bucket] of Object.entries(buckets)) {
-    const items = bucket.items.filter((s) => s.id !== sessionId)
+    const items = bucket.items.filter((s) => s.id !== sessionId);
     next[key] = {
       ...bucket,
       items,
       total: Math.max(0, bucket.total - (items.length < bucket.items.length ? 1 : 0)),
-    }
+    };
   }
-  return next
+  return next;
 }

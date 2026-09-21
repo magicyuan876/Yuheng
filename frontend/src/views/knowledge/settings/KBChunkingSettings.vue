@@ -2,8 +2,8 @@
   <div class="kb-chunking-settings" :class="{ 'kb-chunking-settings--embedded': embedded }">
     <div v-if="!embedded" class="section-header">
       <div class="section-header-text">
-        <h2>{{ $t('knowledgeEditor.chunking.title') }}</h2>
-        <p class="section-description">{{ $t('knowledgeEditor.chunking.description') }}</p>
+        <h2>{{ $t("knowledgeEditor.chunking.title") }}</h2>
+        <p class="section-description">{{ $t("knowledgeEditor.chunking.description") }}</p>
       </div>
     </div>
 
@@ -11,8 +11,8 @@
       <!-- Strategy -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.strategyLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.strategyDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.strategyLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.strategyDescription") }}</p>
         </div>
         <div class="setting-control strategy-control">
           <t-select
@@ -41,8 +41,8 @@
       <!-- Chunk Size -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.sizeLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.sizeDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.sizeLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.sizeDescription") }}</p>
         </div>
         <div class="setting-control">
           <div class="slider-container">
@@ -55,7 +55,7 @@
               @change="handleChunkSizeChange"
               :style="sliderStyle"
             />
-            <span class="value-display">{{ localChunkSize }} {{ $t('knowledgeEditor.chunking.characters') }}</span>
+            <span class="value-display">{{ localChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
           </div>
         </div>
       </div>
@@ -63,9 +63,9 @@
       <!-- Chunk Overlap -->
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.overlapLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.overlapDescription') }}</p>
-          <p v-if="overlapTooHigh" class="warn">{{ $t('knowledgeEditor.chunking.overlapWarning') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.overlapLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.overlapDescription") }}</p>
+          <p v-if="overlapTooHigh" class="warn">{{ $t("knowledgeEditor.chunking.overlapWarning") }}</p>
         </div>
         <div class="setting-control">
           <div class="slider-container">
@@ -78,7 +78,7 @@
               @change="handleChunkOverlapChange"
               :style="sliderStyle"
             />
-            <span class="value-display">{{ localChunkOverlap }} {{ $t('knowledgeEditor.chunking.characters') }}</span>
+            <span class="value-display">{{ localChunkOverlap }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
           </div>
         </div>
       </div>
@@ -86,8 +86,8 @@
       <!-- Separators -->
       <div class="setting-row setting-row--separators">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.separatorsLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.separatorsDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.separatorsLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.separatorsDescription") }}</p>
         </div>
         <div class="setting-control">
           <t-select
@@ -106,22 +106,19 @@
       <!-- Parent-Child Chunking -->
       <div class="setting-row setting-row--toggle">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.parentChildLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.parentChildDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.parentChildLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.parentChildDescription") }}</p>
         </div>
         <div class="setting-control">
-          <t-switch
-            v-model="localEnableParentChild"
-            @change="handleParentChildChange"
-          />
+          <t-switch v-model="localEnableParentChild" @change="handleParentChildChange" />
         </div>
       </div>
 
       <!-- Parent Chunk Size -->
       <div v-if="localEnableParentChild" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.parentChunkSizeLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.parentChunkSizeDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.parentChunkSizeLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.parentChunkSizeDescription") }}</p>
         </div>
         <div class="setting-control">
           <div class="slider-container">
@@ -134,7 +131,9 @@
               @change="handleParentChunkSizeChange"
               :style="sliderStyle"
             />
-            <span class="value-display">{{ localParentChunkSize }} {{ $t('knowledgeEditor.chunking.characters') }}</span>
+            <span class="value-display"
+              >{{ localParentChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span
+            >
           </div>
         </div>
       </div>
@@ -142,8 +141,8 @@
       <!-- Child Chunk Size -->
       <div v-if="localEnableParentChild" class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.chunking.childChunkSizeLabel') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.chunking.childChunkSizeDescription') }}</p>
+          <label>{{ $t("knowledgeEditor.chunking.childChunkSizeLabel") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.chunking.childChunkSizeDescription") }}</p>
         </div>
         <div class="setting-control">
           <div class="slider-container">
@@ -156,7 +155,7 @@
               @change="handleChildChunkSizeChange"
               :style="sliderStyle"
             />
-            <span class="value-display">{{ localChildChunkSize }} {{ $t('knowledgeEditor.chunking.characters') }}</span>
+            <span class="value-display">{{ localChildChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
           </div>
         </div>
       </div>
@@ -164,15 +163,15 @@
       <!-- Advanced section toggle -->
       <button type="button" class="advanced-toggle" @click="advancedOpen = !advancedOpen">
         <chevron-right-icon class="toggle-arrow" :class="{ open: advancedOpen }" />
-        <span>{{ $t('knowledgeEditor.chunking.advancedLabel') }}</span>
+        <span>{{ $t("knowledgeEditor.chunking.advancedLabel") }}</span>
       </button>
 
       <div v-if="advancedOpen" class="advanced-section">
         <!-- Token Limit -->
         <div class="setting-row" :class="{ disabled: advancedDisabled }">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.chunking.tokenLimitLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.chunking.tokenLimitDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.chunking.tokenLimitLabel") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.chunking.tokenLimitDescription") }}</p>
           </div>
           <div class="setting-control">
             <t-input-number
@@ -182,7 +181,7 @@
               :step="64"
               :disabled="advancedDisabled"
               @change="handleTokenLimitChange"
-              style="width: 200px;"
+              style="width: 200px"
             />
           </div>
         </div>
@@ -190,8 +189,8 @@
         <!-- Languages -->
         <div class="setting-row" :class="{ disabled: advancedDisabled }">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.chunking.languagesLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.chunking.languagesDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.chunking.languagesLabel") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.chunking.languagesDescription") }}</p>
           </div>
           <div class="setting-control">
             <t-select
@@ -206,21 +205,20 @@
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { ChevronRightIcon } from 'tdesign-icons-vue-next'
-import KBChunkingDebug from './KBChunkingDebug.vue'
+import { ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { ChevronRightIcon } from "tdesign-icons-vue-next";
+import KBChunkingDebug from "./KBChunkingDebug.vue";
 
 interface ParserEngineRule {
-  file_types: string[]
-  engine: string
-  xlsx_first_row_as_header?: boolean
+  file_types: string[];
+  engine: string;
+  xlsx_first_row_as_header?: boolean;
 }
 
 // Slider ranges defined in this file (min/max props on t-slider) mirror
@@ -237,90 +235,90 @@ interface ParserEngineRule {
 //                   Set to 200 for MiniLM (256-tok limit), 400 for BGE/
 //                   Cohere (512-tok), leave at 0 for OpenAI/Voyage/Jina-v3.
 interface ChunkingConfig {
-  chunkSize: number
-  chunkOverlap: number
-  separators: string[]
-  parserEngineRules?: ParserEngineRule[]
-  enableParentChild: boolean
-  parentChunkSize: number
-  childChunkSize: number
+  chunkSize: number;
+  chunkOverlap: number;
+  separators: string[];
+  parserEngineRules?: ParserEngineRule[];
+  enableParentChild: boolean;
+  parentChunkSize: number;
+  childChunkSize: number;
   // Adaptive chunking strategy. Empty string = legacy / not set.
-  strategy?: string
+  strategy?: string;
   // Cap chunk size in approx tokens. 0 = char-based budget only.
-  tokenLimit?: number
+  tokenLimit?: number;
   // Language hints for heuristic patterns (de/en/zh).
-  languages?: string[]
+  languages?: string[];
 }
 
 interface Props {
-  config: ChunkingConfig
-  embedded?: boolean
+  config: ChunkingConfig;
+  embedded?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   embedded: false,
-})
+});
 
-const selectStyle = computed(() => (props.embedded ? { width: '100%' } : { width: '280px' }))
-const sliderStyle = computed(() => (props.embedded ? { width: '100%' } : { width: '200px' }))
+const selectStyle = computed(() => (props.embedded ? { width: "100%" } : { width: "280px" }));
+const sliderStyle = computed(() => (props.embedded ? { width: "100%" } : { width: "200px" }));
 
-const chunkSizeMarks = { 100: '100', 1000: '1000', 2000: '2000', 4000: '4000' }
-const chunkOverlapMarks = { 0: '0', 250: '250', 500: '500' }
-const parentChunkSizeMarks = { 512: '512', 2048: '2048', 4096: '4096', 8192: '8192' }
-const childChunkSizeMarks = { 64: '64', 384: '384', 1024: '1024', 2048: '2048' }
+const chunkSizeMarks = { 100: "100", 1000: "1000", 2000: "2000", 4000: "4000" };
+const chunkOverlapMarks = { 0: "0", 250: "250", 500: "500" };
+const parentChunkSizeMarks = { 512: "512", 2048: "2048", 4096: "4096", 8192: "8192" };
+const childChunkSizeMarks = { 64: "64", 384: "384", 1024: "1024", 2048: "2048" };
 
 const emit = defineEmits<{
-  'update:config': [value: ChunkingConfig]
-}>()
+  "update:config": [value: ChunkingConfig];
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const localChunkSize = ref(props.config.chunkSize)
-const localChunkOverlap = ref(props.config.chunkOverlap)
-const localSeparators = ref([...props.config.separators])
-const localEnableParentChild = ref(props.config.enableParentChild ?? false)
-const localParentChunkSize = ref(props.config.parentChunkSize || 4096)
-const localChildChunkSize = ref(props.config.childChunkSize || 384)
-const localStrategy = ref(props.config.strategy ?? '')
-const localTokenLimit = ref(props.config.tokenLimit ?? 0)
-const localLanguages = ref<string[]>([...(props.config.languages ?? [])])
-const advancedOpen = ref(false)
+const localChunkSize = ref(props.config.chunkSize);
+const localChunkOverlap = ref(props.config.chunkOverlap);
+const localSeparators = ref([...props.config.separators]);
+const localEnableParentChild = ref(props.config.enableParentChild ?? false);
+const localParentChunkSize = ref(props.config.parentChunkSize || 4096);
+const localChildChunkSize = ref(props.config.childChunkSize || 384);
+const localStrategy = ref(props.config.strategy ?? "");
+const localTokenLimit = ref(props.config.tokenLimit ?? 0);
+const localLanguages = ref<string[]>([...(props.config.languages ?? [])]);
+const advancedOpen = ref(false);
 
 const strategyOptions = computed(() => [
   {
-    label: t('knowledgeEditor.chunking.strategies.auto.label'),
-    value: 'auto',
-    tooltip: t('knowledgeEditor.chunking.strategies.auto.tooltip')
+    label: t("knowledgeEditor.chunking.strategies.auto.label"),
+    value: "auto",
+    tooltip: t("knowledgeEditor.chunking.strategies.auto.tooltip"),
   },
   {
-    label: t('knowledgeEditor.chunking.strategies.heading.label'),
-    value: 'heading',
-    tooltip: t('knowledgeEditor.chunking.strategies.heading.tooltip')
+    label: t("knowledgeEditor.chunking.strategies.heading.label"),
+    value: "heading",
+    tooltip: t("knowledgeEditor.chunking.strategies.heading.tooltip"),
   },
   {
-    label: t('knowledgeEditor.chunking.strategies.heuristic.label'),
-    value: 'heuristic',
-    tooltip: t('knowledgeEditor.chunking.strategies.heuristic.tooltip')
+    label: t("knowledgeEditor.chunking.strategies.heuristic.label"),
+    value: "heuristic",
+    tooltip: t("knowledgeEditor.chunking.strategies.heuristic.tooltip"),
   },
   {
-    label: t('knowledgeEditor.chunking.strategies.legacy.label'),
-    value: 'legacy',
-    tooltip: t('knowledgeEditor.chunking.strategies.legacy.tooltip')
-  }
-])
+    label: t("knowledgeEditor.chunking.strategies.legacy.label"),
+    value: "legacy",
+    tooltip: t("knowledgeEditor.chunking.strategies.legacy.tooltip"),
+  },
+]);
 
 const currentStrategyInfo = computed(() => {
   if (!localStrategy.value) {
-    return null
+    return null;
   }
-  return strategyOptions.value.find(o => o.value === localStrategy.value) ?? null
-})
+  return strategyOptions.value.find((o) => o.value === localStrategy.value) ?? null;
+});
 
-const advancedDisabled = computed(() => localStrategy.value === 'legacy')
+const advancedDisabled = computed(() => localStrategy.value === "legacy");
 
 const overlapTooHigh = computed(
-  () => localChunkOverlap.value > 0 && localChunkOverlap.value >= localChunkSize.value / 2
-)
+  () => localChunkOverlap.value > 0 && localChunkOverlap.value >= localChunkSize.value / 2,
+);
 
 // Live config snapshot for the debug panel — uses current local form values
 // so the panel reflects edits immediately without waiting for save.
@@ -333,53 +331,75 @@ const debugConfig = computed(() => ({
   childChunkSize: localChildChunkSize.value,
   strategy: localStrategy.value,
   tokenLimit: localTokenLimit.value,
-  languages: localLanguages.value
-}))
+  languages: localLanguages.value,
+}));
 
 const languageOptions = computed(() => [
-  { label: t('knowledgeEditor.chunking.languageOptions.de'), value: 'de' },
-  { label: t('knowledgeEditor.chunking.languageOptions.en'), value: 'en' },
-  { label: t('knowledgeEditor.chunking.languageOptions.zh'), value: 'zh' }
-])
+  { label: t("knowledgeEditor.chunking.languageOptions.de"), value: "de" },
+  { label: t("knowledgeEditor.chunking.languageOptions.en"), value: "en" },
+  { label: t("knowledgeEditor.chunking.languageOptions.zh"), value: "zh" },
+]);
 
 const separatorOptions = computed(() => [
-  { label: t('knowledgeEditor.chunking.separators.doubleNewline'), value: '\n\n' },
-  { label: t('knowledgeEditor.chunking.separators.singleNewline'), value: '\n' },
-  { label: t('knowledgeEditor.chunking.separators.periodCn'), value: '。' },
-  { label: t('knowledgeEditor.chunking.separators.exclamationCn'), value: '！' },
-  { label: t('knowledgeEditor.chunking.separators.questionCn'), value: '？' },
-  { label: t('knowledgeEditor.chunking.separators.semicolonCn'), value: '；' },
-  { label: t('knowledgeEditor.chunking.separators.semicolonEn'), value: ';' },
-  { label: t('knowledgeEditor.chunking.separators.space'), value: ' ' }
-])
+  { label: t("knowledgeEditor.chunking.separators.doubleNewline"), value: "\n\n" },
+  { label: t("knowledgeEditor.chunking.separators.singleNewline"), value: "\n" },
+  { label: t("knowledgeEditor.chunking.separators.periodCn"), value: "。" },
+  { label: t("knowledgeEditor.chunking.separators.exclamationCn"), value: "！" },
+  { label: t("knowledgeEditor.chunking.separators.questionCn"), value: "？" },
+  { label: t("knowledgeEditor.chunking.separators.semicolonCn"), value: "；" },
+  { label: t("knowledgeEditor.chunking.separators.semicolonEn"), value: ";" },
+  { label: t("knowledgeEditor.chunking.separators.space"), value: " " },
+]);
 
-watch(() => props.config, (newConfig) => {
-  localChunkSize.value = newConfig.chunkSize
-  localChunkOverlap.value = newConfig.chunkOverlap
-  localSeparators.value = [...newConfig.separators]
-  localEnableParentChild.value = newConfig.enableParentChild ?? false
-  localParentChunkSize.value = newConfig.parentChunkSize || 4096
-  localChildChunkSize.value = newConfig.childChunkSize || 384
-  localStrategy.value = newConfig.strategy ?? ''
-  localTokenLimit.value = newConfig.tokenLimit ?? 0
-  localLanguages.value = [...(newConfig.languages ?? [])]
-}, { deep: true })
+watch(
+  () => props.config,
+  (newConfig) => {
+    localChunkSize.value = newConfig.chunkSize;
+    localChunkOverlap.value = newConfig.chunkOverlap;
+    localSeparators.value = [...newConfig.separators];
+    localEnableParentChild.value = newConfig.enableParentChild ?? false;
+    localParentChunkSize.value = newConfig.parentChunkSize || 4096;
+    localChildChunkSize.value = newConfig.childChunkSize || 384;
+    localStrategy.value = newConfig.strategy ?? "";
+    localTokenLimit.value = newConfig.tokenLimit ?? 0;
+    localLanguages.value = [...(newConfig.languages ?? [])];
+  },
+  { deep: true },
+);
 
-const handleChunkSizeChange = () => { emitUpdate() }
-const handleChunkOverlapChange = () => { emitUpdate() }
-const handleSeparatorsChange = () => { emitUpdate() }
-const handleParentChildChange = () => { emitUpdate() }
-const handleParentChunkSizeChange = () => { emitUpdate() }
-const handleChildChunkSizeChange = () => { emitUpdate() }
-const handleStrategyChange = () => { emitUpdate() }
-const handleTokenLimitChange = () => { emitUpdate() }
-const handleLanguagesChange = () => { emitUpdate() }
+const handleChunkSizeChange = () => {
+  emitUpdate();
+};
+const handleChunkOverlapChange = () => {
+  emitUpdate();
+};
+const handleSeparatorsChange = () => {
+  emitUpdate();
+};
+const handleParentChildChange = () => {
+  emitUpdate();
+};
+const handleParentChunkSizeChange = () => {
+  emitUpdate();
+};
+const handleChildChunkSizeChange = () => {
+  emitUpdate();
+};
+const handleStrategyChange = () => {
+  emitUpdate();
+};
+const handleTokenLimitChange = () => {
+  emitUpdate();
+};
+const handleLanguagesChange = () => {
+  emitUpdate();
+};
 
 const emitUpdate = () => {
   // Spread arrays so the parent gets its own copy. Mutating the emitted
   // arrays from outside must not leak back into our reactive state and
   // cause two-way ref drift between the form and the editor model.
-  emit('update:config', {
+  emit("update:config", {
     chunkSize: localChunkSize.value,
     chunkOverlap: localChunkOverlap.value,
     separators: [...localSeparators.value],
@@ -389,9 +409,9 @@ const emitUpdate = () => {
     childChunkSize: localChildChunkSize.value,
     strategy: localStrategy.value,
     tokenLimit: localTokenLimit.value,
-    languages: [...localLanguages.value]
-  })
-}
+    languages: [...localLanguages.value],
+  });
+};
 </script>
 
 <style lang="less" scoped>

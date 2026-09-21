@@ -1,14 +1,57 @@
 const previewSupportedExtensions = new Set([
-  'pdf',
-  'docx', 'doc',
-  'pptx', 'ppt',
-  'xlsx', 'xls', 'csv',
-  'md', 'markdown',
-  'txt', 'json', 'xml', 'html', 'css', 'js', 'ts', 'py', 'java', 'go',
-  'cpp', 'c', 'h', 'sh', 'yaml', 'yml', 'ini', 'conf', 'log', 'sql', 'rs', 'rb', 'php',
-  'swift', 'kt', 'scala', 'r', 'lua', 'pl', 'toml',
-  'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'svg',
-  'mp3', 'wav', 'm4a', 'flac', 'ogg',
+  "pdf",
+  "docx",
+  "doc",
+  "pptx",
+  "ppt",
+  "xlsx",
+  "xls",
+  "csv",
+  "md",
+  "markdown",
+  "txt",
+  "json",
+  "xml",
+  "html",
+  "css",
+  "js",
+  "ts",
+  "py",
+  "java",
+  "go",
+  "cpp",
+  "c",
+  "h",
+  "sh",
+  "yaml",
+  "yml",
+  "ini",
+  "conf",
+  "log",
+  "sql",
+  "rs",
+  "rb",
+  "php",
+  "swift",
+  "kt",
+  "scala",
+  "r",
+  "lua",
+  "pl",
+  "toml",
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "bmp",
+  "webp",
+  "tiff",
+  "svg",
+  "mp3",
+  "wav",
+  "m4a",
+  "flac",
+  "ogg",
 ]);
 
 export type ChatAttachmentLike = {
@@ -18,15 +61,17 @@ export type ChatAttachmentLike = {
 };
 
 export function resolveAttachmentFileType(fileName?: string, fileType?: string): string {
-  const normalizedType = String(fileType || '')
+  const normalizedType = String(fileType || "")
     .trim()
-    .replace(/^\./, '')
+    .replace(/^\./, "")
     .toLowerCase();
   if (normalizedType) return normalizedType;
-  return String(fileName || '')
-    .split('.')
-    .pop()
-    ?.toLowerCase() || '';
+  return (
+    String(fileName || "")
+      .split(".")
+      .pop()
+      ?.toLowerCase() || ""
+  );
 }
 
 export function isPreviewableAttachment(attachment: ChatAttachmentLike | null | undefined): boolean {

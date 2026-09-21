@@ -3,8 +3,8 @@
     <div class="section-header">
       <div class="section-header__top">
         <div>
-          <h2>{{ t('settings.storage.title') }}</h2>
-          <p class="section-description">{{ t('settings.storageBackend.description') }}</p>
+          <h2>{{ t("settings.storage.title") }}</h2>
+          <p class="section-description">{{ t("settings.storageBackend.description") }}</p>
         </div>
       </div>
     </div>
@@ -19,10 +19,7 @@
           v-for="backend in backends"
           :key="backend.id"
           class="backend-card"
-          :class="[
-            `backend-card--${backend.provider}`,
-            { 'backend-card--clickable': canEdit(backend) },
-          ]"
+          :class="[`backend-card--${backend.provider}`, { 'backend-card--clickable': canEdit(backend) }]"
           :role="canEdit(backend) ? 'button' : undefined"
           :tabindex="canEdit(backend) ? 0 : undefined"
           @click="onCardClick($event, backend)"
@@ -45,14 +42,17 @@
           <div class="backend-card__body">
             <div class="backend-card__header">
               <h3 class="backend-card__title">{{ backend.name }}</h3>
-              <t-tag v-if="backend.id === defaultID" theme="primary" variant="light" size="small">{{ t('settings.storageBackend.defaultTag') }}</t-tag>
-                  <t-tag
-                    v-if="backend.is_builtin"
-                    theme="primary"
-                    variant="light-outline"
-                    size="small"
-                    :title="t('platformSharing.badgeHint')"
-                  >{{ t('platformSharing.badge') }}</t-tag>
+              <t-tag v-if="backend.id === defaultID" theme="primary" variant="light" size="small">{{
+                t("settings.storageBackend.defaultTag")
+              }}</t-tag>
+              <t-tag
+                v-if="backend.is_builtin"
+                theme="primary"
+                variant="light-outline"
+                size="small"
+                :title="t('platformSharing.badgeHint')"
+                >{{ t("platformSharing.badge") }}</t-tag
+              >
               <div v-if="hasActions(backend)" class="backend-card__actions" @click.stop>
                 <t-dropdown
                   :options="getBackendOptions(backend)"
@@ -86,7 +86,7 @@
           <span class="backend-card--add__icon" aria-hidden="true">
             <add-icon />
           </span>
-          <span class="backend-card--add__label">{{ t('settings.storageBackend.add') }}</span>
+          <span class="backend-card--add__label">{{ t("settings.storageBackend.add") }}</span>
         </button>
       </div>
     </t-loading>
@@ -106,26 +106,24 @@
           :alt="form.provider"
           class="header-icon__img"
         />
-        <span
-          v-else-if="currentLogo?.mode === 'mono'"
-          class="header-icon__mono"
-          :style="monoLogoStyle"
-        />
+        <span v-else-if="currentLogo?.mode === 'mono'" class="header-icon__mono" :style="monoLogoStyle" />
         <span v-else class="header-icon__text">{{ providerInitial(form.provider) }}</span>
       </template>
       <template #subtitle>
-        <span>{{ editing ? t('settings.storageBackend.editSubtitle') : t('settings.storageBackend.createSubtitle') }}</span>
+        <span>{{
+          editing ? t("settings.storageBackend.editSubtitle") : t("settings.storageBackend.createSubtitle")
+        }}</span>
       </template>
 
       <t-form :data="form" layout="vertical">
         <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t('settings.storageBackend.basicSection') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.basicSection") }}</h4>
           <div class="form-item">
-            <label class="form-label required">{{ t('settings.storageBackend.nameLabel') }}</label>
+            <label class="form-label required">{{ t("settings.storageBackend.nameLabel") }}</label>
             <t-input v-model="form.name" :placeholder="t('settings.storageBackend.namePlaceholder')" clearable />
           </div>
           <div class="form-item">
-            <label class="form-label required">{{ t('settings.storageBackend.providerLabel') }}</label>
+            <label class="form-label required">{{ t("settings.storageBackend.providerLabel") }}</label>
             <t-select v-model="form.provider" :disabled="!!editing" @change="resetConfig">
               <t-option
                 v-for="provider in providers"
@@ -136,7 +134,7 @@
             </t-select>
           </div>
           <div v-if="form.provider === 'minio'" class="form-item">
-            <label class="form-label">{{ t('settings.storageBackend.modeLabel') }}</label>
+            <label class="form-label">{{ t("settings.storageBackend.modeLabel") }}</label>
             <div class="source-options" role="radiogroup">
               <button
                 type="button"
@@ -146,7 +144,7 @@
                 @click="form.config.mode = 'remote'"
               >
                 <t-icon name="cloud" class="source-option__icon" />
-                <span class="source-option__label">{{ t('settings.storageBackend.modeRemote') }}</span>
+                <span class="source-option__label">{{ t("settings.storageBackend.modeRemote") }}</span>
               </button>
               <button
                 type="button"
@@ -156,14 +154,14 @@
                 @click="form.config.mode = 'docker'"
               >
                 <t-icon name="server" class="source-option__icon" />
-                <span class="source-option__label">{{ t('settings.storageBackend.modeEnv') }}</span>
+                <span class="source-option__label">{{ t("settings.storageBackend.modeEnv") }}</span>
               </button>
             </div>
           </div>
         </section>
 
         <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t('settings.storageBackend.connectionSection') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.connectionSection") }}</h4>
           <div v-if="needsEndpoint" class="form-item">
             <label class="form-label required">Endpoint</label>
             <t-input
@@ -197,42 +195,57 @@
           </div>
           <div v-if="form.provider === 'cos'" class="form-item">
             <label class="form-label">App ID</label>
-            <t-input v-model="form.config.app_id" :disabled="!!editing" :placeholder="t('settings.storageBackend.optionalPlaceholder')" clearable />
+            <t-input
+              v-model="form.config.app_id"
+              :disabled="!!editing"
+              :placeholder="t('settings.storageBackend.optionalPlaceholder')"
+              clearable
+            />
           </div>
         </section>
 
         <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t('settings.storageBackend.advancedSection') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.advancedSection") }}</h4>
           <div class="form-item">
-            <label class="form-label">{{ t('settings.storageBackend.pathPrefixLabel') }}</label>
+            <label class="form-label">{{ t("settings.storageBackend.pathPrefixLabel") }}</label>
             <t-input v-model="form.config.path_prefix" :disabled="!!editing" placeholder="yuheng/" clearable />
           </div>
           <div v-if="form.provider === 'minio'" class="form-item">
             <div class="vision-toggle">
               <t-switch v-model="form.config.use_ssl" />
-              <span class="form-desc form-desc--inline">{{ t('settings.storageBackend.useSslDesc') }}</span>
+              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.useSslDesc") }}</span>
             </div>
           </div>
           <div v-if="form.provider === 's3'" class="form-item">
             <div class="vision-toggle">
               <t-switch v-model="form.config.force_path_style" />
-              <span class="form-desc form-desc--inline">{{ t('settings.storageBackend.forcePathStyleDesc') }}</span>
+              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.forcePathStyleDesc") }}</span>
             </div>
           </div>
           <div v-if="form.provider === 'oss'" class="form-item">
             <div class="vision-toggle">
               <t-switch v-model="form.config.use_temp_bucket" />
-              <span class="form-desc form-desc--inline">{{ t('settings.storageBackend.useTempBucketDesc') }}</span>
+              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.useTempBucketDesc") }}</span>
             </div>
           </div>
-          <template v-if="['cos', 'tos'].includes(form.provider) || (form.provider === 'oss' && form.config.use_temp_bucket)">
+          <template
+            v-if="['cos', 'tos'].includes(form.provider) || (form.provider === 'oss' && form.config.use_temp_bucket)"
+          >
             <div class="form-item">
-              <label class="form-label">{{ t('settings.storageBackend.tempBucketLabel') }}</label>
-              <t-input v-model="form.config.temp_bucket_name" :placeholder="t('settings.storageBackend.tempBucketPlaceholder')" clearable />
+              <label class="form-label">{{ t("settings.storageBackend.tempBucketLabel") }}</label>
+              <t-input
+                v-model="form.config.temp_bucket_name"
+                :placeholder="t('settings.storageBackend.tempBucketPlaceholder')"
+                clearable
+              />
             </div>
             <div class="form-item">
-              <label class="form-label">{{ t('settings.storageBackend.tempRegionLabel') }}</label>
-              <t-input v-model="form.config.temp_region" :placeholder="t('settings.storageBackend.tempRegionPlaceholder')" clearable />
+              <label class="form-label">{{ t("settings.storageBackend.tempRegionLabel") }}</label>
+              <t-input
+                v-model="form.config.temp_region"
+                :placeholder="t('settings.storageBackend.tempRegionPlaceholder')"
+                clearable
+              />
             </div>
           </template>
         </section>
@@ -241,10 +254,18 @@
       <template #footer-left>
         <t-button variant="outline" :loading="testing" @click="testRaw">
           <template #icon>
-            <t-icon v-if="!testing && rawTestResult === 'ok'" name="check-circle-filled" class="status-icon available" />
-            <t-icon v-else-if="!testing && rawTestResult === 'error'" name="close-circle-filled" class="status-icon unavailable" />
+            <t-icon
+              v-if="!testing && rawTestResult === 'ok'"
+              name="check-circle-filled"
+              class="status-icon available"
+            />
+            <t-icon
+              v-else-if="!testing && rawTestResult === 'error'"
+              name="close-circle-filled"
+              class="status-icon unavailable"
+            />
           </template>
-          {{ t('settings.storageBackend.testConnection') }}
+          {{ t("settings.storageBackend.testConnection") }}
         </t-button>
       </template>
     </SettingDrawer>
@@ -252,167 +273,255 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
-import { AddIcon } from 'tdesign-icons-vue-next'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import { providerLogo } from './providerLogos'
+import { computed, onMounted, reactive, ref } from "vue";
+import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
+import { AddIcon } from "tdesign-icons-vue-next";
+import { useI18n } from "vue-i18n";
+import { useAuthStore } from "@/stores/auth";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { providerLogo } from "./providerLogos";
 import {
-  createStorageBackend, deleteStorageBackend, listStorageBackends, listStorageBackendTypes,
-  setDefaultStorageBackend, setStorageBackendSharing, testStorageBackend, testStorageBackendByID, updateStorageBackend,
-  type StorageBackend, type StorageBackendConfig,
-} from '@/api/storage-backend'
+  createStorageBackend,
+  deleteStorageBackend,
+  listStorageBackends,
+  listStorageBackendTypes,
+  setDefaultStorageBackend,
+  setStorageBackendSharing,
+  testStorageBackend,
+  testStorageBackendByID,
+  updateStorageBackend,
+  type StorageBackend,
+  type StorageBackendConfig,
+} from "@/api/storage-backend";
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const loading = ref(false), saving = ref(false), testing = ref(false), visible = ref(false)
-const backends = ref<StorageBackend[]>([]), providers = ref<string[]>([]), defaultID = ref('')
-const editing = ref<StorageBackend | null>(null)
-const rawTestResult = ref<'ok' | 'error' | null>(null)
-const blankConfig = (): StorageBackendConfig => ({ mode: 'remote', endpoint: '', region: '', access_key_id: '', secret_access_key: '', bucket_name: '', path_prefix: '', use_ssl: true })
-const form = reactive<{ name: string; provider: string; config: StorageBackendConfig }>({ name: '', provider: 'local', config: blankConfig() })
-const needsEndpoint = computed(() => !['local', 'cos'].includes(form.provider) && !(form.provider === 'minio' && form.config.mode === 'docker'))
-const needsRegion = computed(() => !['local', 'minio'].includes(form.provider))
-const needsCredentials = computed(() => form.provider !== 'local' && !(form.provider === 'minio' && form.config.mode === 'docker'))
+const { t } = useI18n();
+const authStore = useAuthStore();
+const loading = ref(false),
+  saving = ref(false),
+  testing = ref(false),
+  visible = ref(false);
+const backends = ref<StorageBackend[]>([]),
+  providers = ref<string[]>([]),
+  defaultID = ref("");
+const editing = ref<StorageBackend | null>(null);
+const rawTestResult = ref<"ok" | "error" | null>(null);
+const blankConfig = (): StorageBackendConfig => ({
+  mode: "remote",
+  endpoint: "",
+  region: "",
+  access_key_id: "",
+  secret_access_key: "",
+  bucket_name: "",
+  path_prefix: "",
+  use_ssl: true,
+});
+const form = reactive<{ name: string; provider: string; config: StorageBackendConfig }>({
+  name: "",
+  provider: "local",
+  config: blankConfig(),
+});
+const needsEndpoint = computed(
+  () => !["local", "cos"].includes(form.provider) && !(form.provider === "minio" && form.config.mode === "docker"),
+);
+const needsRegion = computed(() => !["local", "minio"].includes(form.provider));
+const needsCredentials = computed(
+  () => form.provider !== "local" && !(form.provider === "minio" && form.config.mode === "docker"),
+);
 
-const resolveLogo = (provider: string) => providerLogo('storage', provider)
-const providerInitial = (provider: string) => (provider || '?').trim().charAt(0).toUpperCase() || '?'
+const resolveLogo = (provider: string) => providerLogo("storage", provider);
+const providerInitial = (provider: string) => (provider || "?").trim().charAt(0).toUpperCase() || "?";
 const badgeClass = (provider: string) => {
-  const mode = resolveLogo(provider)?.mode
+  const mode = resolveLogo(provider)?.mode;
   return {
-    'backend-card__badge--logo': !!mode,
-    'backend-card__badge--color': mode === 'color',
-    'backend-card__badge--mono': mode === 'mono',
-  }
-}
+    "backend-card__badge--logo": !!mode,
+    "backend-card__badge--color": mode === "color",
+    "backend-card__badge--mono": mode === "mono",
+  };
+};
 const badgeStyle = (provider: string): Record<string, string> => {
-  const logo = resolveLogo(provider)
-  return logo?.mode === 'mono' ? { '--logo-url': `url("${logo.url}")` } : {}
-}
+  const logo = resolveLogo(provider);
+  return logo?.mode === "mono" ? { "--logo-url": `url("${logo.url}")` } : {};
+};
 
-const currentLogo = computed(() => providerLogo('storage', form.provider))
+const currentLogo = computed(() => providerLogo("storage", form.provider));
 const monoLogoStyle = computed((): Record<string, string> => {
-  const logo = currentLogo.value
-  if (!logo || logo.mode !== 'mono') return {}
-  return { '--logo-url': `url("${logo.url}")` }
-})
+  const logo = currentLogo.value;
+  if (!logo || logo.mode !== "mono") return {};
+  return { "--logo-url": `url("${logo.url}")` };
+});
 
 function backendMeta(backend: StorageBackend): string {
-  return backend.config.endpoint || backend.config.bucket_name || backend.config.path_prefix || t('settings.storageBackend.localStorage')
+  return (
+    backend.config.endpoint ||
+    backend.config.bucket_name ||
+    backend.config.path_prefix ||
+    t("settings.storageBackend.localStorage")
+  );
 }
 
 // 平台共享的实例只读：列出来是为了让空间在建库时能选，配置是平台的。
 const canEdit = (backend: StorageBackend) =>
-  backend.source !== 'env' &&
-  (backend.is_builtin ? authStore.isSystemAdmin : authStore.hasRole('admin'))
+  backend.source !== "env" && (backend.is_builtin ? authStore.isSystemAdmin : authStore.hasRole("admin"));
 // 共享中的实例必须先取消共享再删 —— 取消共享那一步才会做跨空间引用检查。
 const canDelete = (backend: StorageBackend) =>
-  authStore.hasRole('admin') && backend.source !== 'env' && !backend.legacy_alias && !backend.is_builtin
-const canShare = (backend: StorageBackend) =>
-  authStore.isSystemAdmin && backend.source !== 'env'
-const canSetDefault = (backend: StorageBackend) => backend.id !== defaultID.value && authStore.hasRole('admin')
+  authStore.hasRole("admin") && backend.source !== "env" && !backend.legacy_alias && !backend.is_builtin;
+const canShare = (backend: StorageBackend) => authStore.isSystemAdmin && backend.source !== "env";
+const canSetDefault = (backend: StorageBackend) => backend.id !== defaultID.value && authStore.hasRole("admin");
 // 测试连接对所有可见用户开放，因此每张卡至少有一个动作。
-const hasActions = (_backend: StorageBackend) => true
+const hasActions = (_backend: StorageBackend) => true;
 
 function getBackendOptions(backend: StorageBackend) {
-  const options: { content: string; value: string; theme?: string }[] = []
-  options.push({ content: t('settings.storageBackend.testConnection'), value: 'test' })
-  if (canSetDefault(backend)) options.push({ content: t('settings.storageBackend.setDefault'), value: 'default' })
-  if (canEdit(backend)) options.push({ content: t('settings.storageBackend.edit'), value: 'edit' })
+  const options: { content: string; value: string; theme?: string }[] = [];
+  options.push({ content: t("settings.storageBackend.testConnection"), value: "test" });
+  if (canSetDefault(backend)) options.push({ content: t("settings.storageBackend.setDefault"), value: "default" });
+  if (canEdit(backend)) options.push({ content: t("settings.storageBackend.edit"), value: "edit" });
   if (canShare(backend)) {
     options.push({
-      content: backend.is_builtin ? t('platformSharing.unshareAction') : t('platformSharing.shareAction'),
-      value: 'sharing',
-    })
+      content: backend.is_builtin ? t("platformSharing.unshareAction") : t("platformSharing.shareAction"),
+      value: "sharing",
+    });
   }
-  if (canDelete(backend)) options.push({ content: t('settings.storageBackend.delete'), value: 'delete', theme: 'error' })
-  return options
+  if (canDelete(backend))
+    options.push({ content: t("settings.storageBackend.delete"), value: "delete", theme: "error" });
+  return options;
 }
 
 function handleMenuAction(value: string, backend: StorageBackend) {
-  if (value === 'test') testSaved(backend)
-  else if (value === 'default') makeDefault(backend)
-  else if (value === 'edit') openEdit(backend)
-  else if (value === 'delete') remove(backend)
-  else if (value === 'sharing') confirmSharing(backend)
+  if (value === "test") testSaved(backend);
+  else if (value === "default") makeDefault(backend);
+  else if (value === "edit") openEdit(backend);
+  else if (value === "delete") remove(backend);
+  else if (value === "sharing") confirmSharing(backend);
 }
 
 // 切换平台共享。取消共享时后端会拒绝仍被其他空间（默认存储 / 知识库 / 活跃资源）
 // 绑定的实例，错误文案里带着引用数量，直接透传。
 function confirmSharing(backend: StorageBackend) {
-  const shared = !backend.is_builtin
+  const shared = !backend.is_builtin;
   const dialog = DialogPlugin.confirm({
-    header: shared ? t('platformSharing.shareAction') : t('platformSharing.unshareAction'),
+    header: shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction"),
     body: shared
-      ? t('platformSharing.confirmShare', { name: backend.name })
-      : t('platformSharing.confirmUnshare', { name: backend.name }),
-    confirmBtn: { content: t('common.confirm'), theme: shared ? 'primary' : 'danger' },
-    cancelBtn: { content: t('common.cancel') },
+      ? t("platformSharing.confirmShare", { name: backend.name })
+      : t("platformSharing.confirmUnshare", { name: backend.name }),
+    confirmBtn: { content: t("common.confirm"), theme: shared ? "primary" : "danger" },
+    cancelBtn: { content: t("common.cancel") },
     onConfirm: async () => {
-      dialog.destroy()
+      dialog.destroy();
       try {
-        await setStorageBackendSharing(backend.id, shared)
-        MessagePlugin.success(
-          shared ? t('platformSharing.sharedToast') : t('platformSharing.unsharedToast'),
-        )
-        await load()
+        await setStorageBackendSharing(backend.id, shared);
+        MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
+        await load();
       } catch (error: any) {
-        MessagePlugin.error(error?.message || t('platformSharing.failedToast'))
+        MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
       }
     },
-  })
+  });
 }
 
 function onCardClick(event: Event, backend: StorageBackend) {
-  if (!canEdit(backend)) return
-  const target = event.target as HTMLElement | null
-  if (target?.closest('.backend-card__actions')) return
-  openEdit(backend)
+  if (!canEdit(backend)) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest(".backend-card__actions")) return;
+  openEdit(backend);
 }
 
 async function load() {
-  loading.value = true
+  loading.value = true;
   try {
-    const [list, types] = await Promise.all([listStorageBackends(), listStorageBackendTypes()])
-    backends.value = list.data || []; defaultID.value = list.default_storage_backend_id || ''; providers.value = types.data || []
-  } finally { loading.value = false }
+    const [list, types] = await Promise.all([listStorageBackends(), listStorageBackendTypes()]);
+    backends.value = list.data || [];
+    defaultID.value = list.default_storage_backend_id || "";
+    providers.value = types.data || [];
+  } finally {
+    loading.value = false;
+  }
 }
-function resetConfig() { form.config = blankConfig(); rawTestResult.value = null }
-function openCreate() { editing.value = null; form.name = ''; form.provider = providers.value[0] || 'local'; form.config = blankConfig(); rawTestResult.value = null; visible.value = true }
-function openEdit(backend: StorageBackend) { editing.value = backend; form.name = backend.name; form.provider = backend.provider; form.config = { ...blankConfig(), ...backend.config }; rawTestResult.value = null; visible.value = true }
+function resetConfig() {
+  form.config = blankConfig();
+  rawTestResult.value = null;
+}
+function openCreate() {
+  editing.value = null;
+  form.name = "";
+  form.provider = providers.value[0] || "local";
+  form.config = blankConfig();
+  rawTestResult.value = null;
+  visible.value = true;
+}
+function openEdit(backend: StorageBackend) {
+  editing.value = backend;
+  form.name = backend.name;
+  form.provider = backend.provider;
+  form.config = { ...blankConfig(), ...backend.config };
+  rawTestResult.value = null;
+  visible.value = true;
+}
 async function testRaw() {
-  testing.value = true
-  rawTestResult.value = null
+  testing.value = true;
+  rawTestResult.value = null;
   try {
-    const r: any = editing.value ? await testStorageBackendByID(editing.value.id) : await testStorageBackend(form)
-    if (r.success) { rawTestResult.value = 'ok'; MessagePlugin.success(t('settings.storageBackend.testSuccess')) }
-    else { rawTestResult.value = 'error'; MessagePlugin.error(r.error || t('settings.storageBackend.testFailed')) }
-  } finally { testing.value = false }
+    const r: any = editing.value ? await testStorageBackendByID(editing.value.id) : await testStorageBackend(form);
+    if (r.success) {
+      rawTestResult.value = "ok";
+      MessagePlugin.success(t("settings.storageBackend.testSuccess"));
+    } else {
+      rawTestResult.value = "error";
+      MessagePlugin.error(r.error || t("settings.storageBackend.testFailed"));
+    }
+  } finally {
+    testing.value = false;
+  }
 }
 async function testSaved(backend: StorageBackend) {
-  const r: any = await testStorageBackendByID(backend.id)
+  const r: any = await testStorageBackendByID(backend.id);
   if (r.success) {
-    MessagePlugin.success(t('settings.storageBackend.testSuccess'))
+    MessagePlugin.success(t("settings.storageBackend.testSuccess"));
   } else {
-    MessagePlugin.error(r.error || t('settings.storageBackend.testFailed'))
+    MessagePlugin.error(r.error || t("settings.storageBackend.testFailed"));
   }
 }
 async function save() {
-  if (!form.name.trim()) { MessagePlugin.warning(t('settings.storageBackend.nameRequired')); return }
-  saving.value = true
+  if (!form.name.trim()) {
+    MessagePlugin.warning(t("settings.storageBackend.nameRequired"));
+    return;
+  }
+  saving.value = true;
   try {
-    const payload = { name: form.name.trim(), provider: form.provider, config: { ...form.config } }
-    if (editing.value) await updateStorageBackend(editing.value.id, payload); else await createStorageBackend(payload)
-    MessagePlugin.success(t('settings.storageBackend.saveSuccess')); visible.value = false; await load()
-  } catch (e: any) { MessagePlugin.error(e?.message || t('settings.storageBackend.saveFailed')) } finally { saving.value = false }
+    const payload = { name: form.name.trim(), provider: form.provider, config: { ...form.config } };
+    if (editing.value) await updateStorageBackend(editing.value.id, payload);
+    else await createStorageBackend(payload);
+    MessagePlugin.success(t("settings.storageBackend.saveSuccess"));
+    visible.value = false;
+    await load();
+  } catch (e: any) {
+    MessagePlugin.error(e?.message || t("settings.storageBackend.saveFailed"));
+  } finally {
+    saving.value = false;
+  }
 }
-async function makeDefault(backend: StorageBackend) { await setDefaultStorageBackend(backend.id); defaultID.value = backend.id; MessagePlugin.success(t('settings.storageBackend.defaultUpdated')) }
+async function makeDefault(backend: StorageBackend) {
+  await setDefaultStorageBackend(backend.id);
+  defaultID.value = backend.id;
+  MessagePlugin.success(t("settings.storageBackend.defaultUpdated"));
+}
 function remove(backend: StorageBackend) {
-  const dialog = DialogPlugin.confirm({ header: t('settings.storageBackend.deleteTitle'), body: t('settings.storageBackend.deleteConfirm', { name: backend.name }), onConfirm: async () => { dialog.destroy(); try { await deleteStorageBackend(backend.id); await load(); MessagePlugin.success(t('settings.storageBackend.deleted')) } catch (e: any) { MessagePlugin.error(e?.message || t('settings.storageBackend.deleteFailed')) } }, onCancel: () => dialog.destroy() })
+  const dialog = DialogPlugin.confirm({
+    header: t("settings.storageBackend.deleteTitle"),
+    body: t("settings.storageBackend.deleteConfirm", { name: backend.name }),
+    onConfirm: async () => {
+      dialog.destroy();
+      try {
+        await deleteStorageBackend(backend.id);
+        await load();
+        MessagePlugin.success(t("settings.storageBackend.deleted"));
+      } catch (e: any) {
+        MessagePlugin.error(e?.message || t("settings.storageBackend.deleteFailed"));
+      }
+    },
+    onCancel: () => dialog.destroy(),
+  });
 }
-onMounted(load)
+onMounted(load);
 </script>
 
 <style scoped lang="less">
@@ -469,7 +578,9 @@ onMounted(load)
   border: 1px solid var(--td-component-stroke);
   border-radius: 10px;
   background: var(--td-bg-color-container);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
   min-width: 0;
 
   &:hover {
@@ -545,7 +656,7 @@ onMounted(load)
   font-weight: 600;
   letter-spacing: 0.02em;
   background: rgba(0, 82, 217, 0.1);
-  color: #0052D9;
+  color: #0052d9;
 }
 
 .backend-card .backend-card__badge--logo {
@@ -554,7 +665,7 @@ onMounted(load)
 }
 
 .backend-card .backend-card__badge--mono::before {
-  content: '';
+  content: "";
   width: 22px;
   height: 22px;
   background-color: currentColor;
@@ -575,14 +686,38 @@ onMounted(load)
   display: block;
 }
 
-.backend-card--local .backend-card__badge { background: rgba(70, 70, 70, 0.1); color: #464646; }
-.backend-card--minio .backend-card__badge { background: rgba(225, 38, 38, 0.12); color: #C0382B; }
-.backend-card--cos .backend-card__badge { background: rgba(0, 82, 217, 0.1); color: #0052D9; }
-.backend-card--tos .backend-card__badge { background: rgba(0, 137, 255, 0.12); color: #0089FF; }
-.backend-card--s3 .backend-card__badge { background: rgba(255, 153, 0, 0.12); color: #D97706; }
-.backend-card--oss .backend-card__badge { background: rgba(255, 90, 0, 0.12); color: #E55A00; }
-.backend-card--ks3 .backend-card__badge { background: rgba(7, 192, 95, 0.12); color: #07A050; }
-.backend-card--obs .backend-card__badge { background: rgba(206, 17, 38, 0.1); color: #CE1126; }
+.backend-card--local .backend-card__badge {
+  background: rgba(70, 70, 70, 0.1);
+  color: #464646;
+}
+.backend-card--minio .backend-card__badge {
+  background: rgba(225, 38, 38, 0.12);
+  color: #c0382b;
+}
+.backend-card--cos .backend-card__badge {
+  background: rgba(0, 82, 217, 0.1);
+  color: #0052d9;
+}
+.backend-card--tos .backend-card__badge {
+  background: rgba(0, 137, 255, 0.12);
+  color: #0089ff;
+}
+.backend-card--s3 .backend-card__badge {
+  background: rgba(255, 153, 0, 0.12);
+  color: #d97706;
+}
+.backend-card--oss .backend-card__badge {
+  background: rgba(255, 90, 0, 0.12);
+  color: #e55a00;
+}
+.backend-card--ks3 .backend-card__badge {
+  background: rgba(7, 192, 95, 0.12);
+  color: #07a050;
+}
+.backend-card--obs .backend-card__badge {
+  background: rgba(206, 17, 38, 0.1);
+  color: #ce1126;
+}
 
 .backend-card__body {
   flex: 1;
@@ -704,7 +839,7 @@ onMounted(load)
   line-height: 1.4;
 
   &.required::before {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     margin-right: 4px;
     font-weight: 500;
@@ -815,12 +950,36 @@ onMounted(load)
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
 }
 
-.storage-backend-drawer--local .setting-drawer__header-icon { background: rgba(70, 70, 70, 0.1); color: #464646; }
-.storage-backend-drawer--minio .setting-drawer__header-icon { background: rgba(225, 38, 38, 0.12); color: #C0382B; }
-.storage-backend-drawer--cos .setting-drawer__header-icon { background: rgba(0, 82, 217, 0.1); color: #0052D9; }
-.storage-backend-drawer--tos .setting-drawer__header-icon { background: rgba(0, 137, 255, 0.12); color: #0089FF; }
-.storage-backend-drawer--s3 .setting-drawer__header-icon { background: rgba(255, 153, 0, 0.12); color: #D97706; }
-.storage-backend-drawer--oss .setting-drawer__header-icon { background: rgba(255, 90, 0, 0.12); color: #E55A00; }
-.storage-backend-drawer--ks3 .setting-drawer__header-icon { background: rgba(7, 192, 95, 0.12); color: #07A050; }
-.storage-backend-drawer--obs .setting-drawer__header-icon { background: rgba(206, 17, 38, 0.1); color: #CE1126; }
+.storage-backend-drawer--local .setting-drawer__header-icon {
+  background: rgba(70, 70, 70, 0.1);
+  color: #464646;
+}
+.storage-backend-drawer--minio .setting-drawer__header-icon {
+  background: rgba(225, 38, 38, 0.12);
+  color: #c0382b;
+}
+.storage-backend-drawer--cos .setting-drawer__header-icon {
+  background: rgba(0, 82, 217, 0.1);
+  color: #0052d9;
+}
+.storage-backend-drawer--tos .setting-drawer__header-icon {
+  background: rgba(0, 137, 255, 0.12);
+  color: #0089ff;
+}
+.storage-backend-drawer--s3 .setting-drawer__header-icon {
+  background: rgba(255, 153, 0, 0.12);
+  color: #d97706;
+}
+.storage-backend-drawer--oss .setting-drawer__header-icon {
+  background: rgba(255, 90, 0, 0.12);
+  color: #e55a00;
+}
+.storage-backend-drawer--ks3 .setting-drawer__header-icon {
+  background: rgba(7, 192, 95, 0.12);
+  color: #07a050;
+}
+.storage-backend-drawer--obs .setting-drawer__header-icon {
+  background: rgba(206, 17, 38, 0.1);
+  color: #ce1126;
+}
 </style>

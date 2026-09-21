@@ -5,35 +5,36 @@
       :class="[`docs-status--${color}`, { 'docs-status--selected': selected }]"
       :contenteditable="false"
       @click="edit"
-    >{{ text || t('docs.blocks.statusEmpty') }}</span>
+      >{{ text || t("docs.blocks.statusEmpty") }}</span
+    >
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { STATUS_COLORS, statusColor } from './figures'
+import { STATUS_COLORS, statusColor } from "./figures";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const text = computed(() => String(props.node.attrs.text ?? ''))
-const color = computed(() => statusColor(props.node.attrs.color))
+const text = computed(() => String(props.node.attrs.text ?? ""));
+const color = computed(() => statusColor(props.node.attrs.color));
 
 /** One click edits the text; holding shift steps the colour instead, which
  * keeps a chip to a single control rather than a popover. */
 function edit(event: MouseEvent) {
-  if (!props.editor.isEditable) return
+  if (!props.editor.isEditable) return;
   if (event.shiftKey) {
-    const next = STATUS_COLORS[(STATUS_COLORS.indexOf(color.value) + 1) % STATUS_COLORS.length]
-    props.updateAttributes({ color: next })
-    return
+    const next = STATUS_COLORS[(STATUS_COLORS.indexOf(color.value) + 1) % STATUS_COLORS.length];
+    props.updateAttributes({ color: next });
+    return;
   }
-  const value = window.prompt(t('docs.blocks.statusPrompt'), text.value)
-  if (value === null) return
-  props.updateAttributes({ text: value.trim().slice(0, 64) })
+  const value = window.prompt(t("docs.blocks.statusPrompt"), text.value);
+  if (value === null) return;
+  props.updateAttributes({ text: value.trim().slice(0, 64) });
 }
 </script>
 

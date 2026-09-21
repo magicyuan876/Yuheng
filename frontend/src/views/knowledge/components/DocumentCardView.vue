@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, nextTick, onBeforeUnmount, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { formatFileSize } from '@/utils/files';
-import { useTagChipsOverflow } from '@/composables/useTagChipsOverflow';
-import DocumentActionMenu from './DocumentActionMenu.vue';
-import FolderPickerMenu, { type FolderOption } from './FolderPickerMenu.vue';
-import KnowledgeProcessingTimeline from '@/components/knowledge-processing-timeline.vue';
+import { ref, nextTick, onBeforeUnmount, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { formatFileSize } from "@/utils/files";
+import { useTagChipsOverflow } from "@/composables/useTagChipsOverflow";
+import DocumentActionMenu from "./DocumentActionMenu.vue";
+import FolderPickerMenu, { type FolderOption } from "./FolderPickerMenu.vue";
+import KnowledgeProcessingTimeline from "@/components/knowledge-processing-timeline.vue";
 
 interface Tag {
   id: string;
@@ -56,37 +56,45 @@ const props = defineProps<{
    */
   showFolderPath?: boolean;
   // Move sub-flow state
-  moveMenuMode: 'normal' | 'targets' | 'confirm';
+  moveMenuMode: "normal" | "targets" | "confirm";
   moveTargetKbs: any[];
   moveTargetsLoading: boolean;
   moveSelectedTargetName: string;
-  moveMode: 'reuse_vectors' | 'reparse';
+  moveMode: "reuse_vectors" | "reparse";
   moveSubmitting: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'open', item: KnowledgeCard): void;
-  (e: 'toggle-checkbox', id: string, checked: boolean, ctx?: { e?: Event }): void;
-  (e: 'menu-visible-change', visible: boolean, item: KnowledgeCard): void;
-  (e: 'action', action: 'download' | 'edit' | 'view-trace' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'batch-manage' | 'delete', item: KnowledgeCard): void;
-  (e: 'tag-edit', item: KnowledgeCard): void;
-  (e: 'open-folder', path: string): void;
-  (e: 'move-to-folder', item: KnowledgeCard, folderPath: string): void;
+  (e: "open", item: KnowledgeCard): void;
+  (e: "toggle-checkbox", id: string, checked: boolean, ctx?: { e?: Event }): void;
+  (e: "menu-visible-change", visible: boolean, item: KnowledgeCard): void;
+  (
+    e: "action",
+    action:
+      | "download"
+      | "edit"
+      | "view-trace"
+      | "reparse"
+      | "cancel-parse"
+      | "move"
+      | "move-folder"
+      | "batch-manage"
+      | "delete",
+    item: KnowledgeCard,
+  ): void;
+  (e: "tag-edit", item: KnowledgeCard): void;
+  (e: "open-folder", path: string): void;
+  (e: "move-to-folder", item: KnowledgeCard, folderPath: string): void;
   // Move sub-flow emits
-  (e: 'move-select-target', kb: any): void;
-  (e: 'move-back'): void;
-  (e: 'move-confirm'): void;
-  (e: 'update:moveMode', mode: 'reuse_vectors' | 'reparse'): void;
+  (e: "move-select-target", kb: any): void;
+  (e: "move-back"): void;
+  (e: "move-confirm"): void;
+  (e: "update:moveMode", mode: "reuse_vectors" | "reparse"): void;
 }>();
 
 const { t } = useI18n();
 
-const {
-  setupTagChipsObserver,
-  getTagLimit,
-  hasTagOverflow,
-  getOverflowCount,
-} = useTagChipsOverflow('tagItemId');
+const { setupTagChipsObserver, getTagLimit, hasTagOverflow, getOverflowCount } = useTagChipsOverflow("tagItemId");
 
 // Which row's action popup is currently showing the folder picker. Kept local so
 // picking a folder stays inside the menu the user already opened, exactly like
@@ -103,13 +111,12 @@ const onMenuVisibleChange = (visible: boolean, item: KnowledgeCard) => {
     activeMenuIndex.value = -1;
     folderPickerItemId.value = null;
   }
-  emit('menu-visible-change', visible, item);
+  emit("menu-visible-change", visible, item);
 };
 
 // --- Parse status helpers ---
-const CANCELABLE_PARSE_STATUSES = new Set(['pending', 'processing', 'finalizing']);
-const isParseInFlight = (status?: string): boolean =>
-  CANCELABLE_PARSE_STATUSES.has(String(status ?? ''));
+const CANCELABLE_PARSE_STATUSES = new Set(["pending", "processing", "finalizing"]);
+const isParseInFlight = (status?: string): boolean => CANCELABLE_PARSE_STATUSES.has(String(status ?? ""));
 
 const isTraceMenuVisible = (item: KnowledgeCard): boolean => {
   if (!item?.id) return false;
@@ -118,61 +125,61 @@ const isTraceMenuVisible = (item: KnowledgeCard): boolean => {
 };
 
 const inFlightCardStatusText = (item: KnowledgeCard): string => {
-  if (item.parse_status === 'finalizing') {
-    if (item.summary_status === 'pending' || item.summary_status === 'processing') {
-      return t('knowledgeBase.generatingSummary');
+  if (item.parse_status === "finalizing") {
+    if (item.summary_status === "pending" || item.summary_status === "processing") {
+      return t("knowledgeBase.generatingSummary");
     }
-    return t('knowledgeBase.statusFinalizing');
+    return t("knowledgeBase.statusFinalizing");
   }
-  return t('knowledgeBase.parsingInProgress');
+  return t("knowledgeBase.parsingInProgress");
 };
 
 // --- Display helpers ---
 const formatDocTime = (time?: string) => {
-  if (!time) return '--';
+  if (!time) return "--";
   const d = new Date(time);
-  if (Number.isNaN(d.getTime())) return '--';
+  if (Number.isNaN(d.getTime())) return "--";
   const yy = String(d.getFullYear()).slice(2);
-  const MM = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
   return `${yy}-${MM}-${dd} ${hh}:${mm}`;
 };
 
 const getKnowledgeType = (item: KnowledgeCard) => {
-  if (item.type === 'url') return t('knowledgeBase.typeURL') || 'URL';
-  if (item.type === 'manual') return t('knowledgeBase.typeManual');
+  if (item.type === "url") return t("knowledgeBase.typeURL") || "URL";
+  if (item.type === "manual") return t("knowledgeBase.typeManual");
   if (item.file_type) return item.file_type.toUpperCase();
-  return '--';
+  return "--";
 };
 
 const channelLabelMap: Record<string, string> = {
-  web: 'knowledgeBase.channelWeb',
-  api: 'knowledgeBase.channelApi',
-  browser_extension: 'knowledgeBase.channelBrowserExtension',
-  wechat: 'knowledgeBase.channelWechat',
-  wecom: 'knowledgeBase.channelWecom',
-  feishu: 'knowledgeBase.channelFeishu',
-  gitlab: 'knowledgeBase.channelGitLab',
-  dingtalk: 'knowledgeBase.channelDingtalk',
-  slack: 'knowledgeBase.channelSlack',
-  im: 'knowledgeBase.channelIm',
-  ima: 'knowledgeBase.channelIma',
+  web: "knowledgeBase.channelWeb",
+  api: "knowledgeBase.channelApi",
+  browser_extension: "knowledgeBase.channelBrowserExtension",
+  wechat: "knowledgeBase.channelWechat",
+  wecom: "knowledgeBase.channelWecom",
+  feishu: "knowledgeBase.channelFeishu",
+  gitlab: "knowledgeBase.channelGitLab",
+  dingtalk: "knowledgeBase.channelDingtalk",
+  slack: "knowledgeBase.channelSlack",
+  im: "knowledgeBase.channelIm",
+  ima: "knowledgeBase.channelIma",
 };
 
 const getChannelLabel = (channel: string) => {
   const key = channelLabelMap[channel];
-  return key ? t(key) : t('knowledgeBase.channelUnknown');
+  return key ? t(key) : t("knowledgeBase.channelUnknown");
 };
 
 // --- Card click handler ---
 const onCardClick = (item: KnowledgeCard) => {
   if (props.batchMode) {
-    emit('toggle-checkbox', item.id, !props.selectedIds.has(item.id));
+    emit("toggle-checkbox", item.id, !props.selectedIds.has(item.id));
     return;
   }
-  emit('open', item);
+  emit("open", item);
 };
 
 // --- Hover popover ---
@@ -255,19 +262,19 @@ const onCardMouseEnter = (ev: MouseEvent, item: KnowledgeCard) => {
     clearTimeout(cardHoverTimer);
     cardHoverTimer = null;
   }
-  const cardElement = (ev.currentTarget as HTMLElement);
+  const cardElement = ev.currentTarget as HTMLElement;
   cardHoverTimer = setTimeout(() => {
     cardHoverTimer = null;
     // Folder navigation can replace the card list before this delayed callback
     // runs. A detached card has a zero rect, which used to place the teleported
     // popover at the top-left corner of the viewport.
-    if (!cardElement.isConnected || !props.items.some(candidate => candidate.id === item.id)) return;
+    if (!cardElement.isConnected || !props.items.some((candidate) => candidate.id === item.id)) return;
     hoveredCardItem.value = item;
     const pos = calculatePopoverPositionFromCard(cardElement);
     cardPopoverPos.value = pos;
     nextTick(() => {
       if (!cardElement.isConnected || hoveredCardItem.value?.id !== item.id) return;
-      cardPopoverElement = document.querySelector('.knowledge-card-hover-popover') as HTMLElement;
+      cardPopoverElement = document.querySelector(".knowledge-card-hover-popover") as HTMLElement;
       if (cardPopoverElement) {
         const refinedPos = calculatePopoverPositionFromCard(cardElement);
         cardPopoverPos.value = refinedPos;
@@ -287,29 +294,41 @@ onBeforeUnmount(dismissCardPopover);
 
 const onOpenFolder = (path: string) => {
   dismissCardPopover();
-  emit('open-folder', path);
+  emit("open-folder", path);
 };
 
 const onFolderPicked = (item: KnowledgeCard, path: string) => {
   folderPickerItemId.value = null;
   if (item.isMore !== undefined) item.isMore = false;
   activeMenuIndex.value = -1;
-  emit('move-to-folder', item, path);
+  emit("move-to-folder", item, path);
 };
 
 // --- Action handlers ---
-const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'batch-manage' | 'delete', item: KnowledgeCard) => {
+const handleAction = (
+  action:
+    | "download"
+    | "edit"
+    | "view-trace"
+    | "reparse"
+    | "cancel-parse"
+    | "move"
+    | "move-folder"
+    | "batch-manage"
+    | "delete",
+  item: KnowledgeCard,
+) => {
   // The folder picker opens inside this same popup, so keep the menu open.
-  if (action === 'move-folder') {
+  if (action === "move-folder") {
     folderPickerItemId.value = item.id;
     return;
   }
   // Don't close menu for move — it triggers the sub-flow
-  if (action !== 'move') {
+  if (action !== "move") {
     if (item.isMore !== undefined) item.isMore = false;
     activeMenuIndex.value = -1;
   }
-  emit('action', action, item);
+  emit("action", action, item);
 };
 </script>
 
@@ -331,224 +350,286 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
           <span class="folder-card__title">{{ folder.name }}</span>
         </div>
         <div class="folder-card__footer">
-          {{ t('knowledgeBase.folderTree.folderCardCount', { count: folder.total_count }) }}
+          {{ t("knowledgeBase.folderTree.folderCardCount", { count: folder.total_count }) }}
         </div>
       </div>
 
-    <div
-      class="knowledge-card"
-      :class="{ 'is-selected': selectedIds.has(item.id), 'batch-mode': batchMode }"
-      :data-select-id="item.id"
-      v-for="(item, index) in items"
-      :key="item.id"
-      @click="onCardClick(item)"
-      @mouseenter="onCardMouseEnter($event, item)"
-      @mouseleave="onCardMouseLeave"
-    >
-      <div class="card-content">
-        <div class="card-content-nav">
-          <div v-if="canEdit && batchMode" class="card-nav-check" @click.stop>
-            <t-checkbox
-              class="card-select-checkbox"
-              size="small"
-              :checked="selectedIds.has(item.id)"
-              :title="item.file_name"
-              @change="(checked: boolean, ctx?: { e?: Event }) => emit('toggle-checkbox', item.id, checked, ctx)"
-            />
-          </div>
-          <span class="card-content-title" :title="item.file_name">{{ item.file_name }}</span>
-          <t-popup
-            v-if="canEdit"
-            v-model="item.isMore"
-            overlayClassName="card-more"
-            :on-visible-change="(v: boolean) => onMenuVisibleChange(v, item)"
-            trigger="click"
-            destroy-on-close
-            placement="bottom-right"
-          >
-            <div
-              variant="outline"
-              class="more-wrap"
-              @click.stop="openMenu(index)"
-              :class="[activeMenuIndex === index ? 'active-more' : '']"
-            >
-              <img class="more-icon" src="@/assets/img/more.png" alt="" />
+      <div
+        class="knowledge-card"
+        :class="{ 'is-selected': selectedIds.has(item.id), 'batch-mode': batchMode }"
+        :data-select-id="item.id"
+        v-for="(item, index) in items"
+        :key="item.id"
+        @click="onCardClick(item)"
+        @mouseenter="onCardMouseEnter($event, item)"
+        @mouseleave="onCardMouseLeave"
+      >
+        <div class="card-content">
+          <div class="card-content-nav">
+            <div v-if="canEdit && batchMode" class="card-nav-check" @click.stop>
+              <t-checkbox
+                class="card-select-checkbox"
+                size="small"
+                :checked="selectedIds.has(item.id)"
+                :title="item.file_name"
+                @change="(checked: boolean, ctx?: { e?: Event }) => emit('toggle-checkbox', item.id, checked, ctx)"
+              />
             </div>
-            <template #content>
-              <!-- Move: folder picker (must win over the normal menu while open) -->
-              <div v-if="folderPickerItemId === item.id" class="card-menu move-menu">
-                <FolderPickerMenu
-                  :options="folderOptions || []"
-                  :current-path="item.folder_path || ''"
-                  show-back
-                  @back="folderPickerItemId = null"
-                  @confirm="(path: string) => onFolderPicked(item, path)"
-                />
+            <span class="card-content-title" :title="item.file_name">{{ item.file_name }}</span>
+            <t-popup
+              v-if="canEdit"
+              v-model="item.isMore"
+              overlayClassName="card-more"
+              :on-visible-change="(v: boolean) => onMenuVisibleChange(v, item)"
+              trigger="click"
+              destroy-on-close
+              placement="bottom-right"
+            >
+              <div
+                variant="outline"
+                class="more-wrap"
+                @click.stop="openMenu(index)"
+                :class="[activeMenuIndex === index ? 'active-more' : '']"
+              >
+                <img class="more-icon" src="@/assets/img/more.png" alt="" />
               </div>
+              <template #content>
+                <!-- Move: folder picker (must win over the normal menu while open) -->
+                <div v-if="folderPickerItemId === item.id" class="card-menu move-menu">
+                  <FolderPickerMenu
+                    :options="folderOptions || []"
+                    :current-path="item.folder_path || ''"
+                    show-back
+                    @back="folderPickerItemId = null"
+                    @confirm="(path: string) => onFolderPicked(item, path)"
+                  />
+                </div>
 
-              <!-- Normal menu -->
-              <div v-else-if="moveMenuMode === 'normal'" class="card-menu">
-                <DocumentActionMenu
-                  :item="item"
-                  :can-download="canDownload"
-                  :can-mutate-knowledge="canMutateKnowledge"
-                  :trace-visible="isTraceMenuVisible(item)"
-                  @download="handleAction('download', item)"
-                  @edit="handleAction('edit', item)"
-                  @view-trace="handleAction('view-trace', item)"
-                  @reparse="handleAction('reparse', item)"
-                  @cancel-parse="handleAction('cancel-parse', item)"
-                  @move="handleAction('move', item)"
-                  @move-folder="handleAction('move-folder', item)"
-                  @batch-manage="handleAction('batch-manage', item)"
-                  @delete="handleAction('delete', item)"
-                />
-              </div>
+                <!-- Normal menu -->
+                <div v-else-if="moveMenuMode === 'normal'" class="card-menu">
+                  <DocumentActionMenu
+                    :item="item"
+                    :can-download="canDownload"
+                    :can-mutate-knowledge="canMutateKnowledge"
+                    :trace-visible="isTraceMenuVisible(item)"
+                    @download="handleAction('download', item)"
+                    @edit="handleAction('edit', item)"
+                    @view-trace="handleAction('view-trace', item)"
+                    @reparse="handleAction('reparse', item)"
+                    @cancel-parse="handleAction('cancel-parse', item)"
+                    @move="handleAction('move', item)"
+                    @move-folder="handleAction('move-folder', item)"
+                    @batch-manage="handleAction('batch-manage', item)"
+                    @delete="handleAction('delete', item)"
+                  />
+                </div>
 
-              <!-- Move: target KB list -->
-              <div v-else-if="moveMenuMode === 'targets'" class="card-menu move-menu">
-                <div class="move-menu-header" @click.stop="emit('move-back')">
-                  <t-icon name="chevron-left" size="16px" />
-                  <span>{{ $t('knowledgeBase.moveToKnowledgeBase') }}</span>
+                <!-- Move: target KB list -->
+                <div v-else-if="moveMenuMode === 'targets'" class="card-menu move-menu">
+                  <div class="move-menu-header" @click.stop="emit('move-back')">
+                    <t-icon name="chevron-left" size="16px" />
+                    <span>{{ $t("knowledgeBase.moveToKnowledgeBase") }}</span>
+                  </div>
+                  <div v-if="moveTargetsLoading" class="move-menu-loading">
+                    <t-loading size="small" />
+                  </div>
+                  <div v-else-if="moveTargetKbs.length === 0" class="move-menu-empty">
+                    {{ $t("knowledgeBase.moveNoTargets") }}
+                  </div>
+                  <template v-else>
+                    <div
+                      v-for="kb in moveTargetKbs"
+                      :key="kb.id"
+                      class="card-menu-item"
+                      @click.stop="emit('move-select-target', kb)"
+                    >
+                      <t-icon class="icon" name="root-list" />
+                      <span class="move-target-name">{{ kb.name }}</span>
+                      <span v-if="kb.knowledge_count !== undefined" class="move-target-count">{{
+                        kb.knowledge_count
+                      }}</span>
+                    </div>
+                  </template>
                 </div>
-                <div v-if="moveTargetsLoading" class="move-menu-loading">
-                  <t-loading size="small" />
+
+                <!-- Move: confirm -->
+                <div v-else-if="moveMenuMode === 'confirm'" class="card-menu move-menu">
+                  <div class="move-menu-header" @click.stop="emit('move-back')">
+                    <t-icon name="chevron-left" size="16px" />
+                    <span>{{ $t("knowledgeBase.moveConfirmTitle") }}</span>
+                  </div>
+                  <div class="move-confirm-body">
+                    <div class="move-target-info">
+                      <t-icon name="arrow-right" size="14px" />
+                      <span>{{ moveSelectedTargetName }}</span>
+                    </div>
+                    <div
+                      class="move-mode-item"
+                      :class="{ active: moveMode === 'reuse_vectors' }"
+                      @click.stop="emit('update:moveMode', 'reuse_vectors')"
+                    >
+                      <t-radio :checked="moveMode === 'reuse_vectors'" />
+                      <div class="move-mode-text">
+                        <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReuseVectors") }}</span>
+                        <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReuseVectorsDesc") }}</span>
+                      </div>
+                    </div>
+                    <div
+                      class="move-mode-item"
+                      :class="{ active: moveMode === 'reparse' }"
+                      @click.stop="emit('update:moveMode', 'reparse')"
+                    >
+                      <t-radio :checked="moveMode === 'reparse'" />
+                      <div class="move-mode-text">
+                        <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReparse") }}</span>
+                        <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReparseDesc") }}</span>
+                      </div>
+                    </div>
+                    <div class="move-confirm-actions">
+                      <t-button size="small" variant="outline" @click.stop="emit('move-back')">{{
+                        $t("common.cancel")
+                      }}</t-button>
+                      <t-button
+                        size="small"
+                        theme="primary"
+                        :loading="moveSubmitting"
+                        @click.stop="emit('move-confirm')"
+                        >{{ $t("knowledgeBase.moveConfirm") }}</t-button
+                      >
+                    </div>
+                  </div>
                 </div>
-                <div v-else-if="moveTargetKbs.length === 0" class="move-menu-empty">
-                  {{ $t('knowledgeBase.moveNoTargets') }}
-                </div>
-                <template v-else>
-                  <div
-                    v-for="kb in moveTargetKbs"
-                    :key="kb.id"
-                    class="card-menu-item"
-                    @click.stop="emit('move-select-target', kb)"
+              </template>
+            </t-popup>
+          </div>
+
+          <!-- Parse status display -->
+          <div v-if="isParseInFlight(item.parse_status)" class="card-analyze card-analyze-trace">
+            <t-icon name="loading" class="card-analyze-loading"></t-icon>
+            <span
+              class="card-analyze-txt card-analyze-trace-link"
+              role="button"
+              tabindex="0"
+              :title="$t('knowledgeStages.viewTrace')"
+              @click.stop="handleAction('view-trace', item)"
+              @keydown.enter.stop="handleAction('view-trace', item)"
+              @keydown.space.prevent.stop="handleAction('view-trace', item)"
+              >{{ inFlightCardStatusText(item) }}</span
+            >
+            <button
+              type="button"
+              class="card-analyze-trace-btn"
+              :title="$t('knowledgeStages.viewTrace')"
+              :aria-label="$t('knowledgeStages.viewTrace')"
+              @click.stop="handleAction('view-trace', item)"
+            >
+              <t-icon name="chart-line" />
+            </button>
+          </div>
+          <div v-else-if="item.parse_status === 'failed'" class="card-analyze failure card-analyze-trace">
+            <t-icon name="close-circle" class="card-analyze-loading failure"></t-icon>
+            <span
+              class="card-analyze-txt failure card-analyze-trace-link"
+              role="button"
+              tabindex="0"
+              :title="$t('knowledgeStages.viewTrace')"
+              @click.stop="handleAction('view-trace', item)"
+              @keydown.enter.stop="handleAction('view-trace', item)"
+              @keydown.space.prevent.stop="handleAction('view-trace', item)"
+              >{{ $t("knowledgeBase.parsingFailed") }}</span
+            >
+            <button
+              type="button"
+              class="card-analyze-trace-btn"
+              :title="$t('knowledgeStages.viewTrace')"
+              :aria-label="$t('knowledgeStages.viewTrace')"
+              @click.stop="handleAction('view-trace', item)"
+            >
+              <t-icon name="chart-bar" />
+            </button>
+          </div>
+          <div v-else-if="item.parse_status === 'draft'" class="card-draft">
+            <t-tag size="small" theme="warning" variant="light-outline">{{ $t("knowledgeBase.draft") }}</t-tag>
+            <span class="card-draft-tip">{{ $t("knowledgeBase.draftTip") }}</span>
+          </div>
+          <div
+            v-else-if="
+              item.parse_status === 'completed' &&
+              (item.summary_status === 'pending' || item.summary_status === 'processing')
+            "
+            class="card-analyze"
+          >
+            <t-icon name="loading" class="card-analyze-loading"></t-icon>
+            <span class="card-analyze-txt">{{ $t("knowledgeBase.generatingSummary") }}</span>
+          </div>
+          <div v-else-if="item.parse_status === 'completed'" class="card-content-txt">
+            {{ item.description }}
+          </div>
+        </div>
+
+        <div class="card-bottom">
+          <button
+            v-if="showFolderPath && item.folder_path"
+            type="button"
+            class="card-folder"
+            :title="item.folder_path"
+            @click.stop="emit('open-folder', item.folder_path)"
+          >
+            <t-icon name="folder" />
+            <span>{{ item.folder_path }}</span>
+          </button>
+          <span v-else class="card-time">{{ formatDocTime(item.updated_at) }}</span>
+          <div class="card-bottom-right">
+            <div v-if="tagList.length" class="card-tag-selector" @click.stop>
+              <!-- Editable mode -->
+              <template v-if="canEdit">
+                <template v-if="(item.tags || []).length > 0">
+                  <t-tooltip
+                    v-if="hasTagOverflow(item.id, (item.tags || []).length)"
+                    :content="(item.tags || []).map((t: any) => t.name).join(', ')"
+                    placement="top"
                   >
-                    <t-icon class="icon" name="root-list" />
-                    <span class="move-target-name">{{ kb.name }}</span>
-                    <span v-if="kb.knowledge_count !== undefined" class="move-target-count">{{ kb.knowledge_count }}</span>
+                    <div
+                      class="card-tag-chips"
+                      :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
+                      @click="emit('tag-edit', item)"
+                    >
+                      <t-tag
+                        v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                        :key="tag.id"
+                        size="small"
+                        variant="light-outline"
+                        class="card-tag-chip"
+                      >
+                        <span class="tag-text">{{ tag.name }}</span>
+                      </t-tag>
+                      <span class="card-tag-overflow">+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span>
+                    </div>
+                  </t-tooltip>
+                  <div
+                    v-else
+                    class="card-tag-chips"
+                    :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
+                    @click="emit('tag-edit', item)"
+                  >
+                    <t-tag
+                      v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                      :key="tag.id"
+                      size="small"
+                      variant="light-outline"
+                      class="card-tag-chip"
+                    >
+                      <span class="tag-text">{{ tag.name }}</span>
+                    </t-tag>
                   </div>
                 </template>
-              </div>
-
-              <!-- Move: confirm -->
-              <div v-else-if="moveMenuMode === 'confirm'" class="card-menu move-menu">
-                <div class="move-menu-header" @click.stop="emit('move-back')">
-                  <t-icon name="chevron-left" size="16px" />
-                  <span>{{ $t('knowledgeBase.moveConfirmTitle') }}</span>
-                </div>
-                <div class="move-confirm-body">
-                  <div class="move-target-info">
-                    <t-icon name="arrow-right" size="14px" />
-                    <span>{{ moveSelectedTargetName }}</span>
-                  </div>
-                  <div
-                    class="move-mode-item"
-                    :class="{ active: moveMode === 'reuse_vectors' }"
-                    @click.stop="emit('update:moveMode', 'reuse_vectors')"
-                  >
-                    <t-radio :checked="moveMode === 'reuse_vectors'" />
-                    <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t('knowledgeBase.moveModeReuseVectors') }}</span>
-                      <span class="move-mode-desc">{{ $t('knowledgeBase.moveModeReuseVectorsDesc') }}</span>
-                    </div>
-                  </div>
-                  <div
-                    class="move-mode-item"
-                    :class="{ active: moveMode === 'reparse' }"
-                    @click.stop="emit('update:moveMode', 'reparse')"
-                  >
-                    <t-radio :checked="moveMode === 'reparse'" />
-                    <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t('knowledgeBase.moveModeReparse') }}</span>
-                      <span class="move-mode-desc">{{ $t('knowledgeBase.moveModeReparseDesc') }}</span>
-                    </div>
-                  </div>
-                  <div class="move-confirm-actions">
-                    <t-button size="small" variant="outline" @click.stop="emit('move-back')">{{
-                      $t('common.cancel')
-                    }}</t-button>
-                    <t-button size="small" theme="primary" :loading="moveSubmitting" @click.stop="emit('move-confirm')">{{
-                      $t('knowledgeBase.moveConfirm')
-                    }}</t-button>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </t-popup>
-        </div>
-
-        <!-- Parse status display -->
-        <div v-if="isParseInFlight(item.parse_status)" class="card-analyze card-analyze-trace">
-          <t-icon name="loading" class="card-analyze-loading"></t-icon>
-          <span
-            class="card-analyze-txt card-analyze-trace-link"
-            role="button"
-            tabindex="0"
-            :title="$t('knowledgeStages.viewTrace')"
-            @click.stop="handleAction('view-trace', item)"
-            @keydown.enter.stop="handleAction('view-trace', item)"
-            @keydown.space.prevent.stop="handleAction('view-trace', item)"
-          >{{ inFlightCardStatusText(item) }}</span>
-          <button
-            type="button"
-            class="card-analyze-trace-btn"
-            :title="$t('knowledgeStages.viewTrace')"
-            :aria-label="$t('knowledgeStages.viewTrace')"
-            @click.stop="handleAction('view-trace', item)"
-          >
-            <t-icon name="chart-line" />
-          </button>
-        </div>
-        <div v-else-if="item.parse_status === 'failed'" class="card-analyze failure card-analyze-trace">
-          <t-icon name="close-circle" class="card-analyze-loading failure"></t-icon>
-          <span
-            class="card-analyze-txt failure card-analyze-trace-link"
-            role="button"
-            tabindex="0"
-            :title="$t('knowledgeStages.viewTrace')"
-            @click.stop="handleAction('view-trace', item)"
-            @keydown.enter.stop="handleAction('view-trace', item)"
-            @keydown.space.prevent.stop="handleAction('view-trace', item)"
-          >{{ $t('knowledgeBase.parsingFailed') }}</span>
-          <button
-            type="button"
-            class="card-analyze-trace-btn"
-            :title="$t('knowledgeStages.viewTrace')"
-            :aria-label="$t('knowledgeStages.viewTrace')"
-            @click.stop="handleAction('view-trace', item)"
-          >
-            <t-icon name="chart-bar" />
-          </button>
-        </div>
-        <div v-else-if="item.parse_status === 'draft'" class="card-draft">
-          <t-tag size="small" theme="warning" variant="light-outline">{{ $t('knowledgeBase.draft') }}</t-tag>
-          <span class="card-draft-tip">{{ $t('knowledgeBase.draftTip') }}</span>
-        </div>
-        <div
-          v-else-if="item.parse_status === 'completed' && (item.summary_status === 'pending' || item.summary_status === 'processing')"
-          class="card-analyze"
-        >
-          <t-icon name="loading" class="card-analyze-loading"></t-icon>
-          <span class="card-analyze-txt">{{ $t('knowledgeBase.generatingSummary') }}</span>
-        </div>
-        <div v-else-if="item.parse_status === 'completed'" class="card-content-txt">
-          {{ item.description }}
-        </div>
-      </div>
-
-      <div class="card-bottom">
-        <button v-if="showFolderPath && item.folder_path" type="button" class="card-folder"
-          :title="item.folder_path" @click.stop="emit('open-folder', item.folder_path)">
-          <t-icon name="folder" />
-          <span>{{ item.folder_path }}</span>
-        </button>
-        <span v-else class="card-time">{{ formatDocTime(item.updated_at) }}</span>
-        <div class="card-bottom-right">
-          <div v-if="tagList.length" class="card-tag-selector" @click.stop>
-            <!-- Editable mode -->
-            <template v-if="canEdit">
-              <template v-if="(item.tags || []).length > 0">
+                <span v-else class="card-tag-add" @click="emit('tag-edit', item)">
+                  <t-icon name="add" size="12px" />
+                  <span>{{ $t("knowledgeBase.tagLabel") }}</span>
+                </span>
+              </template>
+              <!-- Read-only mode -->
+              <template v-else-if="(item.tags || []).length > 0">
                 <t-tooltip
                   v-if="hasTagOverflow(item.id, (item.tags || []).length)"
                   :content="(item.tags || []).map((t: any) => t.name).join(', ')"
@@ -557,9 +638,14 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
                   <div
                     class="card-tag-chips"
                     :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-                    @click="emit('tag-edit', item)"
                   >
-                    <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small" variant="light-outline" class="card-tag-chip">
+                    <t-tag
+                      v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                      :key="tag.id"
+                      size="small"
+                      variant="light-outline"
+                      class="card-tag-chip"
+                    >
                       <span class="tag-text">{{ tag.name }}</span>
                     </t-tag>
                     <span class="card-tag-overflow">+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span>
@@ -569,52 +655,25 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
                   v-else
                   class="card-tag-chips"
                   :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-                  @click="emit('tag-edit', item)"
                 >
-                  <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small" variant="light-outline" class="card-tag-chip">
+                  <t-tag
+                    v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                    :key="tag.id"
+                    size="small"
+                    variant="light-outline"
+                    class="card-tag-chip"
+                  >
                     <span class="tag-text">{{ tag.name }}</span>
                   </t-tag>
                 </div>
               </template>
-              <span v-else class="card-tag-add" @click="emit('tag-edit', item)">
-                <t-icon name="add" size="12px" />
-                <span>{{ $t('knowledgeBase.tagLabel') }}</span>
-              </span>
-            </template>
-            <!-- Read-only mode -->
-            <template v-else-if="(item.tags || []).length > 0">
-              <t-tooltip
-                v-if="hasTagOverflow(item.id, (item.tags || []).length)"
-                :content="(item.tags || []).map((t: any) => t.name).join(', ')"
-                placement="top"
-              >
-                <div
-                  class="card-tag-chips"
-                  :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-                >
-                  <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small" variant="light-outline" class="card-tag-chip">
-                    <span class="tag-text">{{ tag.name }}</span>
-                  </t-tag>
-                  <span class="card-tag-overflow">+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span>
-                </div>
-              </t-tooltip>
-              <div
-                v-else
-                class="card-tag-chips"
-                :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-              >
-                <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small" variant="light-outline" class="card-tag-chip">
-                  <span class="tag-text">{{ tag.name }}</span>
-                </t-tag>
-              </div>
-            </template>
-          </div>
-          <div class="card-type">
-            <span>{{ getKnowledgeType(item) }}</span>
+            </div>
+            <div class="card-type">
+              <span>{{ getKnowledgeType(item) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 
@@ -644,16 +703,20 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
           />
         </div>
         <div v-else-if="hoveredCardItem.parse_status === 'draft'" class="card-popover-status draft">
-          {{ $t('knowledgeBase.draft') }}
+          {{ $t("knowledgeBase.draft") }}
         </div>
         <template v-else>
           <div v-if="hoveredCardItem.description" class="card-popover-desc">{{ hoveredCardItem.description }}</div>
-          <div v-if="(hoveredCardItem as any).source" class="card-popover-source" :title="(hoveredCardItem as any).source">
+          <div
+            v-if="(hoveredCardItem as any).source"
+            class="card-popover-source"
+            :title="(hoveredCardItem as any).source"
+          >
             <t-icon name="link" size="12px" /> {{ (hoveredCardItem as any).source }}
           </div>
           <div class="card-popover-extra">
             <span v-if="(hoveredCardItem as any).created_at" class="card-popover-created">
-              {{ $t('knowledgeBase.createdAt') }}：{{ formatDocTime((hoveredCardItem as any).created_at) }}
+              {{ $t("knowledgeBase.createdAt") }}：{{ formatDocTime((hoveredCardItem as any).created_at) }}
             </span>
             <span v-if="formatFileSize((hoveredCardItem as any).file_size)" class="card-popover-size">
               {{ formatFileSize((hoveredCardItem as any).file_size) }}
@@ -661,12 +724,18 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
           </div>
         </template>
         <div class="card-popover-meta">
-          <span class="card-popover-time">{{ $t('knowledgeBase.updatedAt') }}：{{ formatDocTime(hoveredCardItem.updated_at) }}</span>
+          <span class="card-popover-time"
+            >{{ $t("knowledgeBase.updatedAt") }}：{{ formatDocTime(hoveredCardItem.updated_at) }}</span
+          >
           <span
             v-if="(hoveredCardItem as any).channel && (hoveredCardItem as any).channel !== 'web'"
             class="card-popover-channel"
-          >{{ getChannelLabel((hoveredCardItem as any).channel) }}</span>
-          <div v-if="(hoveredCardItem as any).tags && (hoveredCardItem as any).tags.length > 0" class="card-popover-tags">
+            >{{ getChannelLabel((hoveredCardItem as any).channel) }}</span
+          >
+          <div
+            v-if="(hoveredCardItem as any).tags && (hoveredCardItem as any).tags.length > 0"
+            class="card-popover-tags"
+          >
             <t-tag
               v-for="tag in (hoveredCardItem as any).tags"
               :key="tag.id"
@@ -679,7 +748,7 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
           </div>
           <span class="card-popover-type">{{ getKnowledgeType(hoveredCardItem) }}</span>
         </div>
-        <div class="card-popover-hint">{{ $t('knowledgeBase.clickToViewFull') }}</div>
+        <div class="card-popover-hint">{{ $t("knowledgeBase.clickToViewFull") }}</div>
       </template>
     </div>
   </Teleport>
@@ -687,8 +756,14 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
 
 <style scoped lang="less">
 @keyframes contentFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .doc-card-view {
@@ -720,7 +795,10 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
   background: var(--td-bg-color-container);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 
   &:hover {
     border-color: color-mix(in srgb, var(--td-component-stroke) 55%, var(--td-brand-color));
@@ -789,7 +867,10 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
   background: var(--td-bg-color-container);
   position: relative;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 
   &:hover {
     border-color: color-mix(in srgb, var(--td-component-stroke) 55%, var(--td-brand-color));
@@ -810,10 +891,22 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
       margin: 0;
       line-height: 0;
 
-      :deep(.t-checkbox) { align-items: center; }
-      :deep(.t-checkbox__label) { display: none !important; width: 0 !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; }
-      :deep(.t-checkbox__input) { margin: 0; }
-      :deep(.t-checkbox__input-wrapper) { margin: 0; }
+      :deep(.t-checkbox) {
+        align-items: center;
+      }
+      :deep(.t-checkbox__label) {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      :deep(.t-checkbox__input) {
+        margin: 0;
+      }
+      :deep(.t-checkbox__input-wrapper) {
+        margin: 0;
+      }
     }
   }
 
@@ -855,7 +948,9 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
 
   .card-analyze-trace-link {
     cursor: pointer;
-    &:hover { text-decoration: underline; }
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
   .card-analyze-trace-btn {
@@ -872,13 +967,21 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
     line-height: 1;
     border-radius: 4px;
 
-    :deep(.t-icon) { font-size: 14px; }
-    &:hover { background: var(--td-bg-color-component-hover); }
+    :deep(.t-icon) {
+      font-size: 14px;
+    }
+    &:hover {
+      background: var(--td-bg-color-component-hover);
+    }
   }
 
-  .card-analyze.failure .card-analyze-trace-btn { color: var(--td-error-color); }
+  .card-analyze.failure .card-analyze-trace-btn {
+    color: var(--td-error-color);
+  }
 
-  .failure { color: var(--td-error-color); }
+  .failure {
+    color: var(--td-error-color);
+  }
 
   .card-content-nav {
     flex-shrink: 0;
@@ -915,11 +1018,18 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
     border-radius: 5px;
     cursor: pointer;
 
-    &:hover { background: var(--td-component-stroke); }
+    &:hover {
+      background: var(--td-component-stroke);
+    }
   }
 
-  .more-icon { width: 14px; height: 14px; }
-  .active-more { background: var(--td-component-stroke); }
+  .more-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .active-more {
+    background: var(--td-component-stroke);
+  }
 
   .card-content-txt {
     flex: 1;
@@ -1104,7 +1214,9 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
     cursor: pointer;
     transition: all 0.2s ease;
 
-    .t-icon { font-size: 12px; }
+    .t-icon {
+      font-size: 12px;
+    }
 
     &:hover {
       border-color: var(--td-brand-color);
@@ -1152,9 +1264,15 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
     align-items: center;
     gap: 6px;
 
-    &.parsing { color: var(--td-brand-color); }
-    &.failure { color: var(--td-error-color); }
-    &.draft { color: var(--td-warning-color); }
+    &.parsing {
+      color: var(--td-brand-color);
+    }
+    &.failure {
+      color: var(--td-error-color);
+    }
+    &.draft {
+      color: var(--td-warning-color);
+    }
   }
 
   .card-popover-desc {
@@ -1193,7 +1311,9 @@ const handleAction = (action: 'download' | 'edit' | 'view-trace' | 'reparse' | '
   }
 
   .card-popover-created,
-  .card-popover-size { flex-shrink: 0; }
+  .card-popover-size {
+    flex-shrink: 0;
+  }
 
   .card-popover-meta {
     display: flex;

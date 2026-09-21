@@ -1,7 +1,7 @@
-import { computed, type ComputedRef } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useGovernanceStore } from '@/stores/governance'
-import { isPlatformManagedSection } from '@/config/settingsAccess'
+import { computed, type ComputedRef } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useGovernanceStore } from "@/stores/governance";
+import { isPlatformManagedSection } from "@/config/settingsAccess";
 
 /**
  * Whether this user can still reach a shared-infrastructure settings section.
@@ -19,15 +19,15 @@ import { isPlatformManagedSection } from '@/config/settingsAccess'
  * @param section settings section key, e.g. 'models' | 'parser' | 'storage'
  */
 export function usePlatformInfraAccess(section: string): ComputedRef<boolean> {
-  const authStore = useAuthStore()
-  const governance = useGovernanceStore()
+  const authStore = useAuthStore();
+  const governance = useGovernanceStore();
 
   return computed(() => {
     if (!isPlatformManagedSection(section, governance.centralizedInfra)) {
       // Not centralised (or not an infrastructure section): fall back to the
       // workspace role the settings page itself requires.
-      return authStore.hasRole('admin') || authStore.canAccessAllTenants
+      return authStore.hasRole("admin") || authStore.canAccessAllTenants;
     }
-    return authStore.isSystemAdmin || authStore.canAccessAllTenants
-  })
+    return authStore.isSystemAdmin || authStore.canAccessAllTenants;
+  });
 }

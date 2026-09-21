@@ -3,14 +3,14 @@
  * Skips elements that already declare autocomplete (e.g. login email).
  */
 function guardElement(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {
-  const explicit = el.getAttribute('autocomplete');
-  if (explicit !== null && explicit !== '') return;
-  if (el.closest('[data-allow-autofill]')) return;
+  const explicit = el.getAttribute("autocomplete");
+  if (explicit !== null && explicit !== "") return;
+  if (el.closest("[data-allow-autofill]")) return;
 
-  if (el instanceof HTMLInputElement && el.type === 'password') {
-    el.setAttribute('autocomplete', 'new-password');
+  if (el instanceof HTMLInputElement && el.type === "password") {
+    el.setAttribute("autocomplete", "new-password");
   } else {
-    el.setAttribute('autocomplete', 'off');
+    el.setAttribute("autocomplete", "off");
   }
 }
 
@@ -19,13 +19,13 @@ function guardTree(root: ParentNode) {
     guardElement(root);
   }
 
-  root.querySelectorAll?.('input, textarea, select').forEach((node) => {
+  root.querySelectorAll?.("input, textarea, select").forEach((node) => {
     guardElement(node as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement);
   });
 
-  root.querySelectorAll?.('form').forEach((form) => {
-    if (!form.hasAttribute('autocomplete')) {
-      form.setAttribute('autocomplete', 'off');
+  root.querySelectorAll?.("form").forEach((form) => {
+    if (!form.hasAttribute("autocomplete")) {
+      form.setAttribute("autocomplete", "off");
     }
   });
 }
@@ -33,7 +33,7 @@ function guardTree(root: ParentNode) {
 let installed = false;
 
 export function installAutofillGuard() {
-  if (installed || typeof document === 'undefined') return;
+  if (installed || typeof document === "undefined") return;
   installed = true;
 
   guardTree(document);

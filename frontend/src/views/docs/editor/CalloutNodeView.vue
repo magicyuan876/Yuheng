@@ -15,23 +15,23 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { CALLOUT_KINDS, calloutIcon, calloutKind } from './figures'
+import { CALLOUT_KINDS, calloutIcon, calloutKind } from "./figures";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const kind = computed(() => calloutKind(props.node.attrs.kind))
-const icon = computed(() => calloutIcon(props.node.attrs.kind, props.node.attrs.icon))
+const kind = computed(() => calloutKind(props.node.attrs.kind));
+const icon = computed(() => calloutIcon(props.node.attrs.kind, props.node.attrs.icon));
 
 /** Clicking the icon steps through the four kinds, which is quicker than a
  * menu for the one attribute a callout really has. */
 function cycleKind() {
-  const next = CALLOUT_KINDS[(CALLOUT_KINDS.indexOf(kind.value) + 1) % CALLOUT_KINDS.length]
-  props.updateAttributes({ kind: next })
+  const next = CALLOUT_KINDS[(CALLOUT_KINDS.indexOf(kind.value) + 1) % CALLOUT_KINDS.length];
+  props.updateAttributes({ kind: next });
 }
 </script>
 

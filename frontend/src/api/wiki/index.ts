@@ -70,7 +70,7 @@ export interface WikiFolderListResponse {
 }
 
 export interface WikiGraphMeta {
-  mode: 'overview' | 'ego' | string;
+  mode: "overview" | "ego" | string;
   total: number;
   returned: number;
   truncated: boolean;
@@ -111,27 +111,30 @@ export interface WikiPageIssue {
 }
 
 // Wiki API Functions
-export function listWikiPages(kbId: string, params?: {
-  page_type?: string;
-  status?: string;
-  query?: string;
-  category_path?: string;
-  category_depth?: number;
-  page?: number;
-  page_size?: number;
-  sort_by?: string;
-  sort_order?: string;
-}) {
+export function listWikiPages(
+  kbId: string,
+  params?: {
+    page_type?: string;
+    status?: string;
+    query?: string;
+    category_path?: string;
+    category_depth?: number;
+    page?: number;
+    page_size?: number;
+    sort_by?: string;
+    sort_order?: string;
+  },
+) {
   const query = new URLSearchParams();
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== '') {
+      if (value !== undefined && value !== "") {
         query.set(key, String(value));
       }
     });
   }
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/pages${qs ? '?' + qs : ''}`);
+  return get(`/api/v1/knowledgebase/${kbId}/wiki/pages${qs ? "?" + qs : ""}`);
 }
 
 // listWikiFolders returns the direct child folders of parentId ("" = root),
@@ -140,12 +143,12 @@ export function listWikiPages(kbId: string, params?: {
 // pageTypes scopes the view to a sidebar tab: only folders whose subtree holds
 // a page of those types (or are entirely empty) come back, and page_count is
 // counted within those types.
-export function listWikiFolders(kbId: string, parentId = '', pageTypes = '') {
+export function listWikiFolders(kbId: string, parentId = "", pageTypes = "") {
   const query = new URLSearchParams();
-  if (parentId) query.set('parent_id', parentId);
-  if (pageTypes) query.set('page_types', pageTypes);
+  if (parentId) query.set("parent_id", parentId);
+  if (pageTypes) query.set("page_types", pageTypes);
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/folders${qs ? '?' + qs : ''}`);
+  return get(`/api/v1/knowledgebase/${kbId}/wiki/folders${qs ? "?" + qs : ""}`);
 }
 
 // createWikiFolder creates a new empty folder under parentId ("" = root).
@@ -236,10 +239,10 @@ export interface WikiRevisionListResponse {
 // no revision row — it is the page itself.
 export function listWikiRevisions(kbId: string, slug: string, params?: { limit?: number; offset?: number }) {
   const query = new URLSearchParams();
-  if (params?.limit !== undefined) query.set('limit', String(params.limit));
-  if (params?.offset !== undefined) query.set('offset', String(params.offset));
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}${qs ? '?' + qs : ''}`);
+  return get(`/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}${qs ? "?" + qs : ""}`);
 }
 
 // getWikiRevision returns one snapshot with full content.
@@ -284,23 +287,20 @@ export interface WikiIndexResponse {
 // megabytes on every index open. Pass `types` to restrict which
 // page_type buckets come back; `limit` bounds the per-group window;
 // `cursor` resumes from a previous response.
-export function getWikiIndex(
-  kbId: string,
-  params?: { types?: string[]; limit?: number; cursor?: string },
-) {
+export function getWikiIndex(kbId: string, params?: { types?: string[]; limit?: number; cursor?: string }) {
   const query = new URLSearchParams();
   if (params) {
-    if (params.types && params.types.length > 0) query.set('types', params.types.join(','));
-    if (params.limit !== undefined) query.set('limit', String(params.limit));
-    if (params.cursor) query.set('cursor', params.cursor);
+    if (params.types && params.types.length > 0) query.set("types", params.types.join(","));
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    if (params.cursor) query.set("cursor", params.cursor);
   }
   const qs = query.toString();
-  const suffix = qs ? `?${qs}` : '';
+  const suffix = qs ? `?${qs}` : "";
   return get(`/api/v1/knowledgebase/${kbId}/wiki/index${suffix}`);
 }
 
 export interface WikiGraphQueryParams {
-  mode?: 'overview' | 'ego';
+  mode?: "overview" | "ego";
   center?: string;
   depth?: number;
   types?: string[];
@@ -315,16 +315,16 @@ export interface WikiGraphQueryParams {
 export function getWikiGraph(kbId: string, params?: WikiGraphQueryParams) {
   const query = new URLSearchParams();
   if (params) {
-    if (params.mode) query.set('mode', params.mode);
-    if (params.center) query.set('center', params.center);
-    if (params.depth !== undefined) query.set('depth', String(params.depth));
-    if (params.limit !== undefined) query.set('limit', String(params.limit));
+    if (params.mode) query.set("mode", params.mode);
+    if (params.center) query.set("center", params.center);
+    if (params.depth !== undefined) query.set("depth", String(params.depth));
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
     if (params.types && params.types.length > 0) {
-      query.set('types', params.types.join(','));
+      query.set("types", params.types.join(","));
     }
   }
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/graph${qs ? '?' + qs : ''}`);
+  return get(`/api/v1/knowledgebase/${kbId}/wiki/graph${qs ? "?" + qs : ""}`);
 }
 
 export function getWikiStats(kbId: string) {
@@ -333,14 +333,14 @@ export function getWikiStats(kbId: string) {
 
 export function searchWikiPages(kbId: string, q: string, limit?: number) {
   const params = new URLSearchParams({ q });
-  if (limit) params.set('limit', String(limit));
+  if (limit) params.set("limit", String(limit));
   return get(`/api/v1/knowledgebase/${kbId}/wiki/search?${params.toString()}`);
 }
 
 export function listWikiIssues(kbId: string, slug?: string, status?: string) {
   const params = new URLSearchParams();
-  if (slug) params.set('slug', slug);
-  if (status) params.set('status', status);
+  if (slug) params.set("slug", slug);
+  if (status) params.set("status", status);
   return get(`/api/v1/knowledgebase/${kbId}/wiki/issues?${params.toString()}`);
 }
 

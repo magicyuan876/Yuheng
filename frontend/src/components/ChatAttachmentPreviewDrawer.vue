@@ -1,37 +1,37 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import DocumentPreview from '@/components/document-preview.vue'
-import { useChatAttachmentPreviewDrawer } from '@/composables/useChatAttachmentPreviewDrawer'
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import DocumentPreview from "@/components/document-preview.vue";
+import { useChatAttachmentPreviewDrawer } from "@/composables/useChatAttachmentPreviewDrawer";
 
-const drawer = useChatAttachmentPreviewDrawer()
+const drawer = useChatAttachmentPreviewDrawer();
 
-const MAIN_DRAWER_WIDTH_KEY = 'yuheng-chat-attachment-drawer-width'
-const MAIN_DRAWER_DEFAULT_WIDTH = 654
-const MAIN_DRAWER_MIN_WIDTH = 480
+const MAIN_DRAWER_WIDTH_KEY = "yuheng-chat-attachment-drawer-width";
+const MAIN_DRAWER_DEFAULT_WIDTH = 654;
+const MAIN_DRAWER_MIN_WIDTH = 480;
 
-const mainDrawerWidth = ref(MAIN_DRAWER_DEFAULT_WIDTH)
-const mainDrawerResizing = ref(false)
+const mainDrawerWidth = ref(MAIN_DRAWER_DEFAULT_WIDTH);
+const mainDrawerResizing = ref(false);
 
-let mainResizeStartX = 0
-let mainResizeStartWidth = 0
+let mainResizeStartX = 0;
+let mainResizeStartWidth = 0;
 
-const visible = computed(() => drawer?.visible.value ?? false)
-const target = computed(() => drawer?.target.value ?? null)
+const visible = computed(() => drawer?.visible.value ?? false);
+const target = computed(() => drawer?.target.value ?? null);
 
 function mainDrawerMaxWidth() {
-  return Math.min(1600, Math.max(MAIN_DRAWER_MIN_WIDTH, Math.floor(window.innerWidth * 0.95)))
+  return Math.min(1600, Math.max(MAIN_DRAWER_MIN_WIDTH, Math.floor(window.innerWidth * 0.95)));
 }
 
 function clampMainDrawerWidth(width: number) {
-  return Math.max(MAIN_DRAWER_MIN_WIDTH, Math.min(mainDrawerMaxWidth(), width))
+  return Math.max(MAIN_DRAWER_MIN_WIDTH, Math.min(mainDrawerMaxWidth(), width));
 }
 
 function loadMainDrawerWidth() {
   try {
-    const raw = localStorage.getItem(MAIN_DRAWER_WIDTH_KEY)
-    const parsed = raw ? parseInt(raw, 10) : NaN
+    const raw = localStorage.getItem(MAIN_DRAWER_WIDTH_KEY);
+    const parsed = raw ? parseInt(raw, 10) : NaN;
     if (!Number.isNaN(parsed)) {
-      mainDrawerWidth.value = clampMainDrawerWidth(parsed)
+      mainDrawerWidth.value = clampMainDrawerWidth(parsed);
     }
   } catch {
     /* ignore */
@@ -39,67 +39,63 @@ function loadMainDrawerWidth() {
 }
 
 function onMainDrawerResizeStart(e: MouseEvent) {
-  mainDrawerResizing.value = true
-  mainResizeStartX = e.clientX
-  mainResizeStartWidth = mainDrawerWidth.value
-  document.addEventListener('mousemove', onMainDrawerResizeMove)
-  document.addEventListener('mouseup', onMainDrawerResizeEnd)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
+  mainDrawerResizing.value = true;
+  mainResizeStartX = e.clientX;
+  mainResizeStartWidth = mainDrawerWidth.value;
+  document.addEventListener("mousemove", onMainDrawerResizeMove);
+  document.addEventListener("mouseup", onMainDrawerResizeEnd);
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
 }
 
 function onMainDrawerResizeMove(e: MouseEvent) {
-  const delta = mainResizeStartX - e.clientX
-  mainDrawerWidth.value = clampMainDrawerWidth(mainResizeStartWidth + delta)
+  const delta = mainResizeStartX - e.clientX;
+  mainDrawerWidth.value = clampMainDrawerWidth(mainResizeStartWidth + delta);
 }
 
 function onMainDrawerResizeEnd() {
-  document.removeEventListener('mousemove', onMainDrawerResizeMove)
-  document.removeEventListener('mouseup', onMainDrawerResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  mainDrawerResizing.value = false
+  document.removeEventListener("mousemove", onMainDrawerResizeMove);
+  document.removeEventListener("mouseup", onMainDrawerResizeEnd);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  mainDrawerResizing.value = false;
   try {
-    localStorage.setItem(MAIN_DRAWER_WIDTH_KEY, String(mainDrawerWidth.value))
+    localStorage.setItem(MAIN_DRAWER_WIDTH_KEY, String(mainDrawerWidth.value));
   } catch {
     /* ignore */
   }
 }
 
 function cleanupMainDrawerResize() {
-  document.removeEventListener('mousemove', onMainDrawerResizeMove)
-  document.removeEventListener('mouseup', onMainDrawerResizeEnd)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  mainDrawerResizing.value = false
+  document.removeEventListener("mousemove", onMainDrawerResizeMove);
+  document.removeEventListener("mouseup", onMainDrawerResizeEnd);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+  mainDrawerResizing.value = false;
 }
 
 function onWindowResize() {
-  mainDrawerWidth.value = clampMainDrawerWidth(mainDrawerWidth.value)
+  mainDrawerWidth.value = clampMainDrawerWidth(mainDrawerWidth.value);
 }
 
 function close() {
-  drawer?.close()
+  drawer?.close();
 }
 
 onMounted(() => {
-  loadMainDrawerWidth()
-  window.addEventListener('resize', onWindowResize)
-})
+  loadMainDrawerWidth();
+  window.addEventListener("resize", onWindowResize);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('resize', onWindowResize)
-  cleanupMainDrawerResize()
-})
+  window.removeEventListener("resize", onWindowResize);
+  cleanupMainDrawerResize();
+});
 </script>
 
 <template>
   <teleport to="body">
-    <div
-      v-if="mainDrawerResizing"
-      class="chat-attachment-drawer-resize-overlay"
-      aria-hidden="true"
-    />
+    <div v-if="mainDrawerResizing" class="chat-attachment-drawer-resize-overlay" aria-hidden="true" />
     <div
       v-if="visible"
       class="chat-attachment-drawer-resize-handle"
@@ -129,7 +125,7 @@ onUnmounted(() => {
           <t-icon name="file" />
         </div>
         <div class="chat-attachment-drawer-header-text">
-          <div class="chat-attachment-drawer-header-title">{{ target?.fileName || '' }}</div>
+          <div class="chat-attachment-drawer-header-title">{{ target?.fileName || "" }}</div>
         </div>
       </div>
     </template>
@@ -222,7 +218,9 @@ onUnmounted(() => {
   border-radius: 1px;
   background: var(--td-component-border);
   opacity: 0.55;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .chat-attachment-drawer-resize-handle:hover .chat-attachment-drawer-resize-line,

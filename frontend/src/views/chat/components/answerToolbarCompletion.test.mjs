@@ -1,47 +1,38 @@
 // @vitest-environment node
-import assert from 'node:assert/strict'
-import { test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import assert from "node:assert/strict";
+import { test } from "vitest";
+import { readFileSync } from "node:fs";
 
-const botMessage = readFileSync(new URL('./botmsg.vue', import.meta.url), 'utf8')
-const chatView = readFileSync(new URL('../index.vue', import.meta.url), 'utf8')
-const sharedStyles = readFileSync(
-  new URL('../../../components/css/chat-message-shared.less', import.meta.url),
-  'utf8',
-)
+const botMessage = readFileSync(new URL("./botmsg.vue", import.meta.url), "utf8");
+const chatView = readFileSync(new URL("../index.vue", import.meta.url), "utf8");
+const sharedStyles = readFileSync(new URL("../../../components/css/chat-message-shared.less", import.meta.url), "utf8");
 
-test('answer actions wait for the typewriter buffer to finish', () => {
-  assert.match(botMessage, /const answerFullyRendered = computed/)
-  assert.match(botMessage, /typedAnswer\.value\.length >= answerText\.value\.length/)
-  assert.match(botMessage, /v-if="answerFullyRendered && \(content \|\| session\.content\)"/)
-})
+test("answer actions wait for the typewriter buffer to finish", () => {
+  assert.match(botMessage, /const answerFullyRendered = computed/);
+  assert.match(botMessage, /typedAnswer\.value\.length >= answerText\.value\.length/);
+  assert.match(botMessage, /v-if="answerFullyRendered && \(content \|\| session\.content\)"/);
+});
 
-test('follow-up loading is shown compactly inside the answer toolbar', () => {
-  assert.match(chatView, /:follow-up-loading="Boolean\(session\.suggestionLoading/)
-  assert.match(botMessage, /class="answer-toolbar__follow-up-loading"/)
-  assert.match(botMessage, /class="answer-toolbar__follow-up-label"/)
-  assert.match(botMessage, /transition name="follow-up-toolbar-loading"/)
-  assert.match(sharedStyles, /border-left: 1px solid/)
-  assert.match(sharedStyles, /font-size: 12px/)
-  assert.match(sharedStyles, /followUpToolbarShimmer 1\.5s linear infinite/)
-  assert.match(sharedStyles, /background-clip: text/)
-  assert.match(sharedStyles, /follow-up-toolbar-loading-leave-to/)
-})
+test("follow-up loading is shown compactly inside the answer toolbar", () => {
+  assert.match(chatView, /:follow-up-loading="Boolean\(session\.suggestionLoading/);
+  assert.match(botMessage, /class="answer-toolbar__follow-up-loading"/);
+  assert.match(botMessage, /class="answer-toolbar__follow-up-label"/);
+  assert.match(botMessage, /transition name="follow-up-toolbar-loading"/);
+  assert.match(sharedStyles, /border-left: 1px solid/);
+  assert.match(sharedStyles, /font-size: 12px/);
+  assert.match(sharedStyles, /followUpToolbarShimmer 1\.5s linear infinite/);
+  assert.match(sharedStyles, /background-clip: text/);
+  assert.match(sharedStyles, /follow-up-toolbar-loading-leave-to/);
+});
 
-test('conversation timestamps insert into the message flow instead of each bubble', () => {
-  assert.match(chatView, /shouldShowConversationTimestamp\(messagesList, index\)/)
-  assert.doesNotMatch(chatView, /align="end"/)
-  assert.doesNotMatch(chatView, /align="start"/)
-})
+test("conversation timestamps insert into the message flow instead of each bubble", () => {
+  assert.match(chatView, /shouldShowConversationTimestamp\(messagesList, index\)/);
+  assert.doesNotMatch(chatView, /align="end"/);
+  assert.doesNotMatch(chatView, /align="start"/);
+});
 
-test('follow-up suggestions wait until the answer is fully rendered', () => {
-  assert.match(
-    chatView,
-    /@render-complete-change="\(ready\) => handleAnswerRenderComplete\(session, ready\)"/,
-  )
-  assert.match(
-    chatView,
-    /<FollowUpSuggestions v-if="session\.answerFullyRendered && !session\.suggestionsDismissed"/,
-  )
-  assert.match(botMessage, /emit\('render-complete-change', ready\)/)
-})
+test("follow-up suggestions wait until the answer is fully rendered", () => {
+  assert.match(chatView, /@render-complete-change="\(ready\) => handleAnswerRenderComplete\(session, ready\)"/);
+  assert.match(chatView, /<FollowUpSuggestions v-if="session\.answerFullyRendered && !session\.suggestionsDismissed"/);
+  assert.match(botMessage, /emit\('render-complete-change', ready\)/);
+});

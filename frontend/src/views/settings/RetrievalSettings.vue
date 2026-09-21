@@ -1,19 +1,19 @@
 <template>
   <div class="retrieval-settings">
     <div class="section-header">
-      <h2>{{ t('retrievalSettings.title') }}</h2>
-      <p class="section-description">{{ t('retrievalSettings.description') }}</p>
+      <h2>{{ t("retrievalSettings.title") }}</h2>
+      <p class="section-description">{{ t("retrievalSettings.description") }}</p>
     </div>
 
     <div class="settings-group">
       <!-- Rerank Model -->
       <div class="setting-item">
         <div class="setting-label">
-          <span>{{ t('retrievalSettings.rerankModelLabel') }} <span class="required-mark">*</span></span>
+          <span>{{ t("retrievalSettings.rerankModelLabel") }} <span class="required-mark">*</span></span>
         </div>
-        <p class="setting-desc">{{ t('retrievalSettings.rerankModelDescription') }}</p>
+        <p class="setting-desc">{{ t("retrievalSettings.rerankModelDescription") }}</p>
         <p v-if="!localConfig.rerank_model_id" class="setting-desc warning-text">
-          {{ t('retrievalSettings.rerankModelRequired') }}
+          {{ t("retrievalSettings.rerankModelRequired") }}
         </p>
         <div class="setting-control-full">
           <ModelSelector
@@ -28,7 +28,7 @@
       <!-- Embedding Top K -->
       <div class="setting-item">
         <div class="setting-label-row">
-          <span>{{ t('retrievalSettings.embeddingTopKLabel') }}</span>
+          <span>{{ t("retrievalSettings.embeddingTopKLabel") }}</span>
           <span class="value-display">{{ localConfig.embedding_top_k }}</span>
         </div>
         <t-slider
@@ -44,7 +44,7 @@
       <!-- Vector Threshold -->
       <div class="setting-item">
         <div class="setting-label-row">
-          <span>{{ t('retrievalSettings.vectorThresholdLabel') }}</span>
+          <span>{{ t("retrievalSettings.vectorThresholdLabel") }}</span>
           <span class="value-display">{{ localConfig.vector_threshold.toFixed(2) }}</span>
         </div>
         <t-slider
@@ -60,7 +60,7 @@
       <!-- Keyword Threshold -->
       <div class="setting-item">
         <div class="setting-label-row">
-          <span>{{ t('retrievalSettings.keywordThresholdLabel') }}</span>
+          <span>{{ t("retrievalSettings.keywordThresholdLabel") }}</span>
           <span class="value-display">{{ localConfig.keyword_threshold.toFixed(2) }}</span>
         </div>
         <t-slider
@@ -76,7 +76,7 @@
       <!-- Rerank Top K -->
       <div class="setting-item">
         <div class="setting-label-row">
-          <span>{{ t('retrievalSettings.rerankTopKLabel') }}</span>
+          <span>{{ t("retrievalSettings.rerankTopKLabel") }}</span>
           <span class="value-display">{{ localConfig.rerank_top_k }}</span>
         </div>
         <t-slider
@@ -92,7 +92,7 @@
       <!-- Rerank Threshold -->
       <div class="setting-item">
         <div class="setting-label-row">
-          <span>{{ t('retrievalSettings.rerankThresholdLabel') }}</span>
+          <span>{{ t("retrievalSettings.rerankThresholdLabel") }}</span>
           <span class="value-display">{{ localConfig.rerank_threshold.toFixed(2) }}</span>
         </div>
         <t-slider
@@ -109,23 +109,19 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, nextTick } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import ModelSelector from '@/components/ModelSelector.vue'
-import {
-  getTenantRetrievalConfig,
-  updateTenantRetrievalConfig,
-  type RetrievalConfig,
-} from '@/api/retrieval'
-import { useAuthStore } from '@/stores/auth'
+import { reactive, computed, onMounted, nextTick } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import ModelSelector from "@/components/ModelSelector.vue";
+import { getTenantRetrievalConfig, updateTenantRetrievalConfig, type RetrievalConfig } from "@/api/retrieval";
+import { useAuthStore } from "@/stores/auth";
 
-const { t } = useI18n()
-const authStore = useAuthStore()
+const { t } = useI18n();
+const authStore = useAuthStore();
 // PUT /tenants/kv/retrieval-config requires Admin+ on the server. Hide the
 // banner + lock all controls for non-Admins so they can read the
 // configuration without tripping a 403 mid-edit.
-const canEdit = computed(() => authStore.hasRole('admin'))
+const canEdit = computed(() => authStore.hasRole("admin"));
 
 const defaultConfig: RetrievalConfig = {
   embedding_top_k: 50,
@@ -133,75 +129,77 @@ const defaultConfig: RetrievalConfig = {
   keyword_threshold: 0.3,
   rerank_top_k: 10,
   rerank_threshold: 0.2,
-  rerank_model_id: '',
-}
+  rerank_model_id: "",
+};
 
-const localConfig = reactive<RetrievalConfig>({ ...defaultConfig })
-let initialConfig: RetrievalConfig = { ...defaultConfig }
-let isInitializing = true
+const localConfig = reactive<RetrievalConfig>({ ...defaultConfig });
+let initialConfig: RetrievalConfig = { ...defaultConfig };
+let isInitializing = true;
 
 const loadConfig = async () => {
   try {
-    const response = await getTenantRetrievalConfig()
+    const response = await getTenantRetrievalConfig();
     if (response.data) {
-      const cfg = response.data
+      const cfg = response.data;
       Object.assign(localConfig, {
         embedding_top_k: cfg.embedding_top_k || defaultConfig.embedding_top_k,
         vector_threshold: cfg.vector_threshold || defaultConfig.vector_threshold,
         keyword_threshold: cfg.keyword_threshold || defaultConfig.keyword_threshold,
         rerank_top_k: cfg.rerank_top_k || defaultConfig.rerank_top_k,
         rerank_threshold: cfg.rerank_threshold ?? defaultConfig.rerank_threshold,
-        rerank_model_id: cfg.rerank_model_id || '',
-      })
-      initialConfig = { ...localConfig }
+        rerank_model_id: cfg.rerank_model_id || "",
+      });
+      initialConfig = { ...localConfig };
     }
   } catch (error: any) {
-    console.error('Failed to load retrieval config:', error)
+    console.error("Failed to load retrieval config:", error);
   } finally {
-    await nextTick()
-    await nextTick()
-    setTimeout(() => { isInitializing = false }, 100)
+    await nextTick();
+    await nextTick();
+    setTimeout(() => {
+      isInitializing = false;
+    }, 100);
   }
-}
+};
 
 const hasConfigChanged = (): boolean => {
-  return JSON.stringify(localConfig) !== JSON.stringify(initialConfig)
-}
+  return JSON.stringify(localConfig) !== JSON.stringify(initialConfig);
+};
 
 const saveConfig = async () => {
-  if (!hasConfigChanged()) return
+  if (!hasConfigChanged()) return;
   try {
-    const response = await updateTenantRetrievalConfig({ ...localConfig })
+    const response = await updateTenantRetrievalConfig({ ...localConfig });
     if (response.data) {
-      initialConfig = { ...localConfig }
+      initialConfig = { ...localConfig };
     }
-    MessagePlugin.success(t('retrievalSettings.toasts.saveSuccess'))
+    MessagePlugin.success(t("retrievalSettings.toasts.saveSuccess"));
   } catch (error: any) {
-    console.error('Failed to save retrieval config:', error)
-    const errorMessage = error?.message || 'Unknown error'
-    MessagePlugin.error(t('retrievalSettings.toasts.saveFailed', { message: errorMessage }))
+    console.error("Failed to save retrieval config:", error);
+    const errorMessage = error?.message || "Unknown error";
+    MessagePlugin.error(t("retrievalSettings.toasts.saveFailed", { message: errorMessage }));
   }
-}
+};
 
-let saveTimer: number | null = null
+let saveTimer: number | null = null;
 const debouncedSave = () => {
-  if (isInitializing) return
-  if (saveTimer) clearTimeout(saveTimer)
+  if (isInitializing) return;
+  if (saveTimer) clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
-    saveConfig().catch(() => {})
-  }, 500)
-}
+    saveConfig().catch(() => {});
+  }, 500);
+};
 
-const handleParamChange = () => debouncedSave()
+const handleParamChange = () => debouncedSave();
 const handleModelChange = (modelId: string) => {
-  localConfig.rerank_model_id = modelId
-  debouncedSave()
-}
+  localConfig.rerank_model_id = modelId;
+  debouncedSave();
+};
 
 onMounted(async () => {
-  isInitializing = true
-  await loadConfig()
-})
+  isInitializing = true;
+  await loadConfig();
+});
 </script>
 
 <style lang="less" scoped>

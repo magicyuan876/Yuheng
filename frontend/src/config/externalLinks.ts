@@ -10,19 +10,19 @@
  */
 
 /** 文档站根地址，例如 'https://kb-docs.internal.example.com'。留空则隐藏所有文档入口。 */
-export const DOCS_BASE_URL: string = ''
+export const DOCS_BASE_URL: string = "";
 
 /** 源码仓库地址。留空则隐藏「GitHub」类入口。 */
-export const REPO_URL: string = ''
+export const REPO_URL: string = "";
 
 /** 问题反馈地址（工单系统或 issue 页）。留空则隐藏「反馈问题」入口。 */
-export const ISSUE_TRACKER_URL: string = ''
+export const ISSUE_TRACKER_URL: string = "";
 
 /**
  * 拼出一篇文档的地址。`path` 用相对路径，例如 'RBAC.md' 或 'features/graph'。
  * DOCS_BASE_URL 为空时返回空串，调用方据此隐藏入口。
  */
 export function docsUrl(path: string): string {
-  if (!DOCS_BASE_URL) return ''
-  return `${DOCS_BASE_URL.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+  if (!DOCS_BASE_URL) return "";
+  return `${DOCS_BASE_URL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }

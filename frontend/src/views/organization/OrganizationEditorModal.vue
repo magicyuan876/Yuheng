@@ -6,7 +6,7 @@
           <!-- 关闭按钮 -->
           <button class="close-btn" @click="handleClose" :aria-label="$t('common.close')">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </button>
 
@@ -20,7 +20,7 @@
                 <div
                   v-for="(item, index) in navItems"
                   :key="index"
-                  :class="['nav-item', { 'active': currentSection === item.key }]"
+                  :class="['nav-item', { active: currentSection === item.key }]"
                   @click="currentSection = item.key"
                 >
                   <t-icon :name="item.icon" class="nav-icon" />
@@ -36,12 +36,12 @@
                 <div v-if="mode === 'create'" v-show="currentSection === 'basic'" class="section">
                   <div class="section-content">
                     <div class="section-header">
-                      <h3 class="section-title">{{ $t('organization.editor.basicTitle') }}</h3>
-                      <p class="section-desc">{{ $t('organization.editor.basicDesc') }}</p>
+                      <h3 class="section-title">{{ $t("organization.editor.basicTitle") }}</h3>
+                      <p class="section-desc">{{ $t("organization.editor.basicDesc") }}</p>
                     </div>
                     <div class="section-body">
                       <div class="form-item">
-                        <label class="form-label required">{{ $t('organization.name') }}</label>
+                        <label class="form-label required">{{ $t("organization.name") }}</label>
                         <div class="name-input-wrapper">
                           <SpaceAvatar :name="createForm.name || '?'" size="medium" />
                           <t-input
@@ -51,17 +51,17 @@
                             class="name-input"
                           />
                         </div>
-                        <p class="form-tip">{{ $t('organization.editor.nameTip') }}</p>
+                        <p class="form-tip">{{ $t("organization.editor.nameTip") }}</p>
                       </div>
                       <div class="form-item">
-                        <label class="form-label">{{ $t('organization.description') }}</label>
+                        <label class="form-label">{{ $t("organization.description") }}</label>
                         <t-textarea
                           v-model="createForm.description"
                           :placeholder="$t('organization.descriptionPlaceholder')"
                           :maxlength="500"
                           :autosize="{ minRows: 3, maxRows: 6 }"
                         />
-                        <p class="form-tip">{{ $t('organization.editor.descriptionTip') }}</p>
+                        <p class="form-tip">{{ $t("organization.editor.descriptionTip") }}</p>
                       </div>
                     </div>
                   </div>
@@ -71,8 +71,8 @@
                 <div v-if="mode === 'create'" v-show="currentSection === 'permissions'" class="section">
                   <div class="section-content">
                     <div class="section-header">
-                      <h3 class="section-title">{{ $t('organization.editor.permissionsTitle') }}</h3>
-                      <p class="section-desc">{{ $t('organization.editor.permissionsDesc') }}</p>
+                      <h3 class="section-title">{{ $t("organization.editor.permissionsTitle") }}</h3>
+                      <p class="section-desc">{{ $t("organization.editor.permissionsDesc") }}</p>
                     </div>
                     <div class="section-body">
                       <div class="permissions-info">
@@ -82,15 +82,23 @@
                               <t-icon name="user-safety" />
                             </div>
                             <div class="permission-title">
-                              <span class="role-name">{{ $t('organization.role.admin') }}</span>
-                              <t-tag size="small" theme="primary">{{ $t('organization.editor.fullAccess') }}</t-tag>
+                              <span class="role-name">{{ $t("organization.role.admin") }}</span>
+                              <t-tag size="small" theme="primary">{{ $t("organization.editor.fullAccess") }}</t-tag>
                             </div>
                           </div>
                           <ul class="permission-list">
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm1') }}</li>
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm2') }}</li>
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm3') }}</li>
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.adminPerm4') }}</li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm1") }}
+                            </li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm2") }}
+                            </li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm3") }}
+                            </li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm4") }}
+                            </li>
                           </ul>
                         </div>
                         <div class="permission-card">
@@ -99,15 +107,23 @@
                               <t-icon name="edit" />
                             </div>
                             <div class="permission-title">
-                              <span class="role-name">{{ $t('organization.role.editor') }}</span>
-                              <t-tag size="small" theme="warning">{{ $t('organization.editor.editAccess') }}</t-tag>
+                              <span class="role-name">{{ $t("organization.role.editor") }}</span>
+                              <t-tag size="small" theme="warning">{{ $t("organization.editor.editAccess") }}</t-tag>
                             </div>
                           </div>
                           <ul class="permission-list">
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm1') }}</li>
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.editorPerm2') }}</li>
-                            <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
-                            <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.editorPerm3') }}</li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm1") }}
+                            </li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm2") }}
+                            </li>
+                            <li>
+                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}
+                            </li>
+                            <li>
+                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.editorPerm3") }}
+                            </li>
                           </ul>
                         </div>
                         <div class="permission-card">
@@ -116,21 +132,29 @@
                               <t-icon name="browse" />
                             </div>
                             <div class="permission-title">
-                              <span class="role-name">{{ $t('organization.role.viewer') }}</span>
-                              <t-tag size="small">{{ $t('organization.editor.viewAccess') }}</t-tag>
+                              <span class="role-name">{{ $t("organization.role.viewer") }}</span>
+                              <t-tag size="small">{{ $t("organization.editor.viewAccess") }}</t-tag>
                             </div>
                           </div>
                           <ul class="permission-list">
-                            <li><t-icon name="check" class="check-icon" />{{ $t('organization.editor.viewerPerm1') }}</li>
-                            <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.shareKBPerm') }}</li>
-                            <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm2') }}</li>
-                            <li><t-icon name="close" class="close-icon" />{{ $t('organization.editor.viewerPerm3') }}</li>
+                            <li>
+                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.viewerPerm1") }}
+                            </li>
+                            <li>
+                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}
+                            </li>
+                            <li>
+                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm2") }}
+                            </li>
+                            <li>
+                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm3") }}
+                            </li>
                           </ul>
                         </div>
                       </div>
                       <div class="info-notice">
                         <t-icon name="info-circle" />
-                        <span>{{ $t('organization.editor.ownerNote') }}</span>
+                        <span>{{ $t("organization.editor.ownerNote") }}</span>
                       </div>
                     </div>
                   </div>
@@ -140,18 +164,18 @@
                 <div v-if="mode === 'join'" v-show="currentSection === 'join'" class="section">
                   <div class="section-content">
                     <div class="section-header">
-                      <h3 class="section-title">{{ $t('organization.editor.joinTitle') }}</h3>
-                      <p class="section-desc">{{ $t('organization.editor.joinDesc') }}</p>
+                      <h3 class="section-title">{{ $t("organization.editor.joinTitle") }}</h3>
+                      <p class="section-desc">{{ $t("organization.editor.joinDesc") }}</p>
                     </div>
                     <div class="section-body">
                       <div class="join-illustration">
                         <div class="illustration-icon">
                           <t-icon name="user-add" size="48px" />
                         </div>
-                        <p class="illustration-text">{{ $t('organization.editor.joinIllustration') }}</p>
+                        <p class="illustration-text">{{ $t("organization.editor.joinIllustration") }}</p>
                       </div>
                       <div class="form-item">
-                        <label class="form-label required">{{ $t('organization.inviteCode') }}</label>
+                        <label class="form-label required">{{ $t("organization.inviteCode") }}</label>
                         <t-input
                           v-model="joinForm.invite_code"
                           :placeholder="$t('organization.inviteCodePlaceholder')"
@@ -159,22 +183,22 @@
                           size="medium"
                           class="invite-code-input"
                         />
-                        <p class="form-tip">{{ $t('organization.editor.inviteCodeTip') }}</p>
+                        <p class="form-tip">{{ $t("organization.editor.inviteCodeTip") }}</p>
                       </div>
                       <div class="join-steps">
-                        <div class="step-title">{{ $t('organization.editor.howToGetCode') }}</div>
+                        <div class="step-title">{{ $t("organization.editor.howToGetCode") }}</div>
                         <div class="step-list">
                           <div class="step-item">
                             <span class="step-number">1</span>
-                            <span class="step-text">{{ $t('organization.editor.step1') }}</span>
+                            <span class="step-text">{{ $t("organization.editor.step1") }}</span>
                           </div>
                           <div class="step-item">
                             <span class="step-number">2</span>
-                            <span class="step-text">{{ $t('organization.editor.step2') }}</span>
+                            <span class="step-text">{{ $t("organization.editor.step2") }}</span>
                           </div>
                           <div class="step-item">
                             <span class="step-number">3</span>
-                            <span class="step-text">{{ $t('organization.editor.step3') }}</span>
+                            <span class="step-text">{{ $t("organization.editor.step3") }}</span>
                           </div>
                         </div>
                       </div>
@@ -186,10 +210,10 @@
               <!-- 底部按钮 -->
               <div class="settings-footer">
                 <t-button theme="default" variant="outline" @click="handleClose">
-                  {{ $t('common.cancel') }}
+                  {{ $t("common.cancel") }}
                 </t-button>
                 <t-button theme="primary" @click="handleSubmit" :loading="submitting">
-                  {{ mode === 'create' ? $t('common.create') : $t('organization.join.preview') }}
+                  {{ mode === "create" ? $t("common.create") : $t("organization.join.preview") }}
                 </t-button>
               </div>
             </div>
@@ -217,23 +241,23 @@
             </div>
             <div class="org-info">
               <h4 class="org-name">{{ previewInfo.name }}</h4>
-              <p class="org-desc">{{ previewInfo.description || $t('organization.noDescription') }}</p>
+              <p class="org-desc">{{ previewInfo.description || $t("organization.noDescription") }}</p>
             </div>
           </div>
           <div class="org-stats">
             <div class="stat-item">
               <t-icon name="user" />
-              <span>{{ $t('organization.join.memberCount', { count: previewInfo.member_count }) }}</span>
+              <span>{{ $t("organization.join.memberCount", { count: previewInfo.member_count }) }}</span>
             </div>
             <div class="stat-item">
               <t-icon name="folder" />
-              <span>{{ $t('organization.join.shareCount', { count: previewInfo.share_count }) }}</span>
+              <span>{{ $t("organization.join.shareCount", { count: previewInfo.share_count }) }}</span>
             </div>
           </div>
         </div>
         <div v-if="previewInfo.is_already_member" class="already-member-notice">
           <t-icon name="check-circle-filled" />
-          <span>{{ $t('organization.join.alreadyMember') }}</span>
+          <span>{{ $t("organization.join.alreadyMember") }}</span>
         </div>
       </div>
     </t-dialog>
@@ -241,168 +265,167 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useOrganizationStore } from '@/stores/organization'
-import { useI18n } from 'vue-i18n'
-import type { OrganizationPreview } from '@/api/organization'
-import SpaceAvatar from '@/components/SpaceAvatar.vue'
+import { ref, computed, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useOrganizationStore } from "@/stores/organization";
+import { useI18n } from "vue-i18n";
+import type { OrganizationPreview } from "@/api/organization";
+import SpaceAvatar from "@/components/SpaceAvatar.vue";
 
-const { t } = useI18n()
-const orgStore = useOrganizationStore()
+const { t } = useI18n();
+const orgStore = useOrganizationStore();
 
 // Props
 const props = defineProps<{
-  visible: boolean
-  mode: 'create' | 'join'
-}>()
+  visible: boolean;
+  mode: "create" | "join";
+}>();
 
 // Emits
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-  (e: 'success'): void
-}>()
+  (e: "update:visible", value: boolean): void;
+  (e: "success"): void;
+}>();
 
-const currentSection = ref<string>('basic')
-const submitting = ref(false)
-const showJoinConfirm = ref(false)
-const previewInfo = ref<OrganizationPreview | null>(null)
-const joining = ref(false)
+const currentSection = ref<string>("basic");
+const submitting = ref(false);
+const showJoinConfirm = ref(false);
+const previewInfo = ref<OrganizationPreview | null>(null);
+const joining = ref(false);
 
 const createForm = ref({
-  name: '',
-  description: ''
-})
+  name: "",
+  description: "",
+});
 
 const joinForm = ref({
-  invite_code: ''
-})
+  invite_code: "",
+});
 
 // 计算属性
 const modalTitle = computed(() => {
-  return props.mode === 'create' 
-    ? t('organization.createOrg') 
-    : t('organization.joinOrg')
-})
+  return props.mode === "create" ? t("organization.createOrg") : t("organization.joinOrg");
+});
 
 const navItems = computed(() => {
-  if (props.mode === 'create') {
+  if (props.mode === "create") {
     return [
-      { key: 'basic', icon: 'info-circle', label: t('organization.editor.navBasic') },
-      { key: 'permissions', icon: 'user-safety', label: t('organization.editor.navPermissions') }
-    ]
+      { key: "basic", icon: "info-circle", label: t("organization.editor.navBasic") },
+      { key: "permissions", icon: "user-safety", label: t("organization.editor.navPermissions") },
+    ];
   } else {
-    return [
-      { key: 'join', icon: 'user-add', label: t('organization.editor.navJoin') }
-    ]
+    return [{ key: "join", icon: "user-add", label: t("organization.editor.navJoin") }];
   }
-})
+});
 
 // 方法
 const resetForm = () => {
-  createForm.value = { name: '', description: '' }
-  joinForm.value = { invite_code: '' }
-  currentSection.value = props.mode === 'create' ? 'basic' : 'join'
-  showJoinConfirm.value = false
-  previewInfo.value = null
-}
+  createForm.value = { name: "", description: "" };
+  joinForm.value = { invite_code: "" };
+  currentSection.value = props.mode === "create" ? "basic" : "join";
+  showJoinConfirm.value = false;
+  previewInfo.value = null;
+};
 
 const handleClose = () => {
-  emit('update:visible', false)
-  setTimeout(resetForm, 300)
-}
+  emit("update:visible", false);
+  setTimeout(resetForm, 300);
+};
 
 const handleSubmit = async () => {
-  if (props.mode === 'create') {
-    await handleCreate()
+  if (props.mode === "create") {
+    await handleCreate();
   } else {
-    await handleJoin()
+    await handleJoin();
   }
-}
+};
 
 const handleCreate = async () => {
   if (!createForm.value.name.trim()) {
-    MessagePlugin.warning(t('organization.nameRequired'))
-    currentSection.value = 'basic'
-    return
+    MessagePlugin.warning(t("organization.nameRequired"));
+    currentSection.value = "basic";
+    return;
   }
 
-  submitting.value = true
+  submitting.value = true;
   try {
-    const result = await orgStore.create(
-      createForm.value.name.trim(),
-      createForm.value.description.trim()
-    )
+    const result = await orgStore.create(createForm.value.name.trim(), createForm.value.description.trim());
     if (result) {
-      MessagePlugin.success(t('organization.createSuccess'))
-      emit('success')
-      handleClose()
+      MessagePlugin.success(t("organization.createSuccess"));
+      emit("success");
+      handleClose();
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.createFailed'))
+      MessagePlugin.error(orgStore.error || t("organization.createFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.createFailed'))
+    MessagePlugin.error(error?.message || t("organization.createFailed"));
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
-}
+};
 
 const handleJoin = async () => {
   if (!joinForm.value.invite_code.trim()) {
-    MessagePlugin.warning(t('organization.inviteCodeRequired'))
-    return
+    MessagePlugin.warning(t("organization.inviteCodeRequired"));
+    return;
   }
 
-  submitting.value = true
+  submitting.value = true;
   try {
     // First preview the organization
-    const preview = await orgStore.preview(joinForm.value.invite_code.trim())
+    const preview = await orgStore.preview(joinForm.value.invite_code.trim());
     if (preview) {
-      previewInfo.value = preview
-      showJoinConfirm.value = true
+      previewInfo.value = preview;
+      showJoinConfirm.value = true;
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.join.invalidCode'))
+      MessagePlugin.error(orgStore.error || t("organization.join.invalidCode"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.join.invalidCode'))
+    MessagePlugin.error(error?.message || t("organization.join.invalidCode"));
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
-}
+};
 
 const confirmJoin = async () => {
   if (!joinForm.value.invite_code.trim()) {
-    return
+    return;
   }
 
-  joining.value = true
+  joining.value = true;
   try {
-    const result = await orgStore.join(joinForm.value.invite_code.trim())
+    const result = await orgStore.join(joinForm.value.invite_code.trim());
     if (result) {
-      MessagePlugin.success(t('organization.joinSuccess'))
-      showJoinConfirm.value = false
-      emit('success')
-      handleClose()
+      MessagePlugin.success(t("organization.joinSuccess"));
+      showJoinConfirm.value = false;
+      emit("success");
+      handleClose();
     } else {
-      MessagePlugin.error(orgStore.error || t('organization.joinFailed'))
+      MessagePlugin.error(orgStore.error || t("organization.joinFailed"));
     }
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('organization.joinFailed'))
+    MessagePlugin.error(error?.message || t("organization.joinFailed"));
   } finally {
-    joining.value = false
+    joining.value = false;
   }
-}
+};
 
 // 监听
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    resetForm()
-  }
-})
+watch(
+  () => props.visible,
+  (newVal) => {
+    if (newVal) {
+      resetForm();
+    }
+  },
+);
 
-watch(() => props.mode, () => {
-  currentSection.value = props.mode === 'create' ? 'basic' : 'join'
-})
+watch(
+  () => props.mode,
+  () => {
+    currentSection.value = props.mode === "create" ? "basic" : "join";
+  },
+);
 </script>
 
 <style scoped lang="less">
@@ -586,7 +609,7 @@ watch(() => props.mode, () => {
   color: var(--td-text-color-primary);
 
   &.required::after {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     margin-left: 4px;
   }
@@ -880,7 +903,6 @@ watch(() => props.mode, () => {
     font-size: 16px;
     color: var(--td-text-color-placeholder);
   }
-
 }
 
 .already-member-notice {

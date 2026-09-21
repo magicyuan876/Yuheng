@@ -4,16 +4,9 @@
          discover the test action exactly when they're thinking about which
          strategy to pick. Kept as a text-style button to match the project's
          secondary-action convention (no heavy outline / filled treatment). -->
-    <t-button
-      type="button"
-      theme="primary"
-      variant="text"
-      size="medium"
-      class="debug-trigger"
-      @click="open = true"
-    >
+    <t-button type="button" theme="primary" variant="text" size="medium" class="debug-trigger" @click="open = true">
       <template #icon><play-circle-icon /></template>
-      {{ $t('knowledgeEditor.chunking.debug.toggle') }}
+      {{ $t("knowledgeEditor.chunking.debug.toggle") }}
     </t-button>
 
     <t-drawer
@@ -31,9 +24,9 @@
         <!-- Input section -->
         <section class="drawer-section">
           <div class="section-title-row">
-            <div class="section-title">{{ $t('knowledgeEditor.chunking.debug.sampleLabel') }}</div>
+            <div class="section-title">{{ $t("knowledgeEditor.chunking.debug.sampleLabel") }}</div>
             <div class="sample-presets">
-              <span class="presets-label">{{ $t('knowledgeEditor.chunking.debug.presetLabel') }}</span>
+              <span class="presets-label">{{ $t("knowledgeEditor.chunking.debug.presetLabel") }}</span>
               <t-button
                 v-for="p in samples"
                 :key="p.id"
@@ -63,7 +56,7 @@
               @click.prevent.stop="runPreview"
             >
               <template #icon><play-circle-icon /></template>
-              {{ $t('knowledgeEditor.chunking.debug.runButton') }}
+              {{ $t("knowledgeEditor.chunking.debug.runButton") }}
             </t-button>
           </div>
         </section>
@@ -72,14 +65,14 @@
              even if the result block hasn't appeared yet. -->
         <div v-if="loading" class="debug-loading">
           <t-loading size="small" />
-          <span>{{ $t('knowledgeEditor.chunking.debug.loading') }}</span>
+          <span>{{ $t("knowledgeEditor.chunking.debug.loading") }}</span>
         </div>
 
         <!-- Error block: prominent so it can't be missed when an API call fails. -->
         <div v-else-if="error" class="debug-error">
           <error-circle-icon class="error-icon" />
           <div>
-            <strong>{{ $t('knowledgeEditor.chunking.debug.errorPrefix') }}</strong>
+            <strong>{{ $t("knowledgeEditor.chunking.debug.errorPrefix") }}</strong>
             <span>{{ error }}</span>
           </div>
         </div>
@@ -88,28 +81,18 @@
           <!-- Tier summary -->
           <div class="result-header">
             <div class="tier-row">
-              <span class="result-label">{{ $t('knowledgeEditor.chunking.debug.selectedTier') }}:</span>
-              <t-tag
-                :theme="tierTheme(result.selected_tier)"
-                variant="light-outline"
-                size="medium"
-              >
+              <span class="result-label">{{ $t("knowledgeEditor.chunking.debug.selectedTier") }}:</span>
+              <t-tag :theme="tierTheme(result.selected_tier)" variant="light-outline" size="medium">
                 {{ tierDisplay(result.selected_tier) }}
               </t-tag>
               <span v-if="fallbackWarning" class="fallback-warning">
-                {{ $t('knowledgeEditor.chunking.debug.fallbackWarning') }}
+                {{ $t("knowledgeEditor.chunking.debug.fallbackWarning") }}
               </span>
             </div>
             <div v-if="(result.rejected || []).length > 0" class="tier-row">
-              <span class="result-label">{{ $t('knowledgeEditor.chunking.debug.rejected') }}:</span>
+              <span class="result-label">{{ $t("knowledgeEditor.chunking.debug.rejected") }}:</span>
               <span class="rejection-list">
-                <t-tag
-                  v-for="r in (result.rejected || [])"
-                  :key="r.tier"
-                  theme="default"
-                  variant="light"
-                  size="small"
-                >
+                <t-tag v-for="r in result.rejected || []" :key="r.tier" theme="default" variant="light" size="small">
                   {{ tierDisplay(r.tier) }}: {{ r.reason }}
                 </t-tag>
               </span>
@@ -120,19 +103,19 @@
           <div class="profile-grid">
             <div class="profile-cell">
               <div class="cell-value">{{ result.profile.total_lines }}</div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.lines') }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.lines") }}</div>
             </div>
             <div class="profile-cell">
               <div class="cell-value">{{ result.profile.total_chars }}</div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.chars') }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.chars") }}</div>
             </div>
             <div class="profile-cell">
               <div class="cell-value">{{ result.profile.md_heading_total }}</div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.headings') }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.headings") }}</div>
             </div>
             <div class="profile-cell">
               <div class="cell-value">{{ result.profile.form_feed_count }}</div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.pageBreaks') }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.pageBreaks") }}</div>
             </div>
             <div class="profile-cell">
               <div class="cell-value">
@@ -142,11 +125,11 @@
                   result.profile.chinese_chapter_count
                 }}
               </div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.chapterMarkers') }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.chapterMarkers") }}</div>
             </div>
             <div class="profile-cell">
-              <div class="cell-value">{{ (result.profile.detected_langs || []).join(', ') || '—' }}</div>
-              <div class="cell-label">{{ $t('knowledgeEditor.chunking.debug.profile.languages') }}</div>
+              <div class="cell-value">{{ (result.profile.detected_langs || []).join(", ") || "—" }}</div>
+              <div class="cell-label">{{ $t("knowledgeEditor.chunking.debug.profile.languages") }}</div>
             </div>
           </div>
 
@@ -154,7 +137,7 @@
           <div class="chunk-stats">
             <span class="stats-count">
               <strong>{{ result.stats.count }}</strong>
-              {{ $t('knowledgeEditor.chunking.debug.stats.chunks') }}
+              {{ $t("knowledgeEditor.chunking.debug.stats.chunks") }}
             </span>
             <span class="stats-sep">·</span>
             <span>Ø {{ result.stats.avg_chars }}</span>
@@ -165,7 +148,7 @@
             <span class="stats-sep">·</span>
             <span>max {{ result.stats.max_chars }}</span>
             <span v-if="result.stats.truncated_to" class="truncation-hint">
-              {{ $t('knowledgeEditor.chunking.debug.stats.truncated', { total: result.stats.truncated_to }) }}
+              {{ $t("knowledgeEditor.chunking.debug.stats.truncated", { total: result.stats.truncated_to }) }}
             </span>
           </div>
 
@@ -186,7 +169,7 @@
               >
                 <span class="chunk-seq">#{{ c.seq }}</span>
                 <span class="chunk-size">
-                  {{ c.size_chars }} {{ $t('knowledgeEditor.chunking.characters') }}
+                  {{ c.size_chars }} {{ $t("knowledgeEditor.chunking.characters") }}
                   <span class="chunk-tokens">· ~{{ c.size_tokens_approx }} tok</span>
                 </span>
                 <span class="chunk-pos">{{ c.start }}–{{ c.end }}</span>
@@ -207,77 +190,73 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
-import {
-  ChevronDownIcon,
-  PlayCircleIcon,
-  ErrorCircleIcon,
-} from 'tdesign-icons-vue-next'
-import { previewChunking } from '@/api/chunker'
-import type { PreviewChunkingResponse, StrategyTier } from '@/types/chunker'
-import { CHUNKING_SAMPLES, DEFAULT_SAMPLE_ID } from './chunkingSamples'
+import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import { ChevronDownIcon, PlayCircleIcon, ErrorCircleIcon } from "tdesign-icons-vue-next";
+import { previewChunking } from "@/api/chunker";
+import type { PreviewChunkingResponse, StrategyTier } from "@/types/chunker";
+import { CHUNKING_SAMPLES, DEFAULT_SAMPLE_ID } from "./chunkingSamples";
 
 interface Props {
   config: {
-    chunkSize: number
-    chunkOverlap: number
-    separators: string[]
-    enableParentChild: boolean
-    parentChunkSize: number
-    childChunkSize: number
-    strategy?: string
-    tokenLimit?: number
-    languages?: string[]
-  }
+    chunkSize: number;
+    chunkOverlap: number;
+    separators: string[];
+    enableParentChild: boolean;
+    parentChunkSize: number;
+    childChunkSize: number;
+    strategy?: string;
+    tokenLimit?: number;
+    languages?: string[];
+  };
 }
 
-const props = defineProps<Props>()
-const { t } = useI18n()
+const props = defineProps<Props>();
+const { t } = useI18n();
 
 // Mirrors handler.previewMaxChars on the backend. Keep in sync.
-const MAX_CHARS = 64 * 1024
+const MAX_CHARS = 64 * 1024;
 
-const open = ref(false)
-const sample = ref('')
-const loading = ref(false)
-const error = ref('')
-const result = ref<PreviewChunkingResponse | null>(null)
-const expandedChunks = ref(new Set<number>())
+const open = ref(false);
+const sample = ref("");
+const loading = ref(false);
+const error = ref("");
+const result = ref<PreviewChunkingResponse | null>(null);
+const expandedChunks = ref(new Set<number>());
 
-const samples = CHUNKING_SAMPLES
+const samples = CHUNKING_SAMPLES;
 
 // Auto-load the default preset the first time the user opens the drawer with
 // an empty textarea. We don't overwrite their input on subsequent opens, and
 // we don't pre-load on component mount (zero cost when the drawer is unused).
 watch(open, (isOpen) => {
-  if (isOpen && sample.value.trim() === '') {
-    loadSample(DEFAULT_SAMPLE_ID)
+  if (isOpen && sample.value.trim() === "") {
+    loadSample(DEFAULT_SAMPLE_ID);
   }
-})
+});
 
 const loadSample = (id: string) => {
-  const preset = samples.find((s) => s.id === id)
-  if (!preset) return
-  sample.value = preset.text
+  const preset = samples.find((s) => s.id === id);
+  if (!preset) return;
+  sample.value = preset.text;
   // Clear any previous run so the user isn't looking at stale results
   // attributed to the old text.
-  result.value = null
-  error.value = ''
-  expandedChunks.value = new Set()
-}
+  result.value = null;
+  error.value = "";
+  expandedChunks.value = new Set();
+};
 
 const fallbackWarning = computed(() => {
-  if (!result.value) return false
-  return result.value.selected_tier === 'legacy' && (result.value.rejected || []).length > 0
-})
+  if (!result.value) return false;
+  return result.value.selected_tier === "legacy" && (result.value.rejected || []).length > 0;
+});
 
 const runPreview = async () => {
-  loading.value = true
-  error.value = ''
-  result.value = null
-  expandedChunks.value = new Set()
+  loading.value = true;
+  error.value = "";
+  result.value = null;
+  expandedChunks.value = new Set();
   try {
     // Send all fields explicitly (including empty / 0 / []) so the
     // preview faithfully reflects what would happen on save. Mirrors
@@ -291,73 +270,69 @@ const runPreview = async () => {
         enable_parent_child: props.config.enableParentChild,
         parent_chunk_size: props.config.parentChunkSize,
         child_chunk_size: props.config.childChunkSize,
-        strategy: props.config.strategy ?? '',
+        strategy: props.config.strategy ?? "",
         token_limit: props.config.tokenLimit ?? 0,
-        languages: props.config.languages ?? []
-      }
-    })
+        languages: props.config.languages ?? [],
+      },
+    });
     // The axios interceptor in utils/request.ts already unwraps the
     // outer envelope and returns the response body. So resp here is
     // { success: true, data: PreviewChunkingResponse } directly.
     // If the backend ever responds with 200 + { success: false, error },
     // surface that error instead of swallowing it under a generic message.
     if (!resp) {
-      throw new Error('empty response')
+      throw new Error("empty response");
     }
     if (resp.success !== true) {
-      throw new Error((resp as any).error || 'preview failed')
+      throw new Error((resp as any).error || "preview failed");
     }
     if (!resp.data) {
-      throw new Error('response missing data')
+      throw new Error("response missing data");
     }
-    result.value = resp.data
+    result.value = resp.data;
   } catch (e: any) {
     // Pull a useful message out of the error shapes our request layer
     // produces: rejected interceptor sends { status, message, ... }.
-    const msg =
-      e?.message ||
-      (typeof e === 'string' ? e : '') ||
-      'unknown error'
-    error.value = msg
+    const msg = e?.message || (typeof e === "string" ? e : "") || "unknown error";
+    error.value = msg;
     // Console log so users can debug from DevTools too.
-    console.error('[KBChunkingDebug] previewChunking failed:', e)
+    console.error("[KBChunkingDebug] previewChunking failed:", e);
     // Toast for visibility.
-    MessagePlugin.error(t('knowledgeEditor.chunking.debug.errorPrefix') + ': ' + msg)
+    MessagePlugin.error(t("knowledgeEditor.chunking.debug.errorPrefix") + ": " + msg);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const toggleChunk = (seq: number) => {
-  const next = new Set(expandedChunks.value)
-  if (next.has(seq)) next.delete(seq)
-  else next.add(seq)
-  expandedChunks.value = next
-}
+  const next = new Set(expandedChunks.value);
+  if (next.has(seq)) next.delete(seq);
+  else next.add(seq);
+  expandedChunks.value = next;
+};
 
 // `recursive` and `legacy` use the same SplitText path under the hood
 // (see internal/infrastructure/chunker/strategy.go); their distinction is
 // only a debugging hint about how the tier was reached. Surface them under
 // the user-facing legacy label to avoid implying two different splitters.
-const normalizeTier = (tier: StrategyTier): StrategyTier =>
-  tier === 'recursive' ? 'legacy' : tier
+const normalizeTier = (tier: StrategyTier): StrategyTier => (tier === "recursive" ? "legacy" : tier);
 
 const tierDisplay = (tier: StrategyTier) => {
-  return t(`knowledgeEditor.chunking.strategies.${normalizeTier(tier)}.label`)
-}
+  return t(`knowledgeEditor.chunking.strategies.${normalizeTier(tier)}.label`);
+};
 
 const tierTheme = (tier: StrategyTier) => {
   switch (normalizeTier(tier)) {
-    case 'heading':
-    case 'heuristic':
-      return 'success'
-    case 'recursive':
-      return 'primary'
-    case 'legacy':
+    case "heading":
+    case "heuristic":
+      return "success";
+    case "recursive":
+      return "primary";
+    case "legacy":
     default:
-      return 'default'
+      return "default";
   }
-}
+};
 </script>
 
 <style lang="less" scoped>
@@ -599,7 +574,9 @@ const tierTheme = (tier: StrategyTier) => {
   border-radius: 6px;
   background: var(--td-bg-color-container);
   overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 
   &.expanded {
     border-color: var(--td-brand-color-light-active);
@@ -710,15 +687,11 @@ const tierTheme = (tier: StrategyTier) => {
   position: relative;
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: auto 0 0 0;
     height: 28px;
-    background: linear-gradient(
-      to bottom,
-      transparent,
-      var(--td-bg-color-container)
-    );
+    background: linear-gradient(to bottom, transparent, var(--td-bg-color-container));
     pointer-events: none;
   }
 }

@@ -1,9 +1,9 @@
-import { onBeforeUnmount, reactive } from 'vue';
+import { onBeforeUnmount, reactive } from "vue";
 
 const TAG_EST_WIDTH = 82;
 const TAG_OVERFLOW_MIN = 32;
 
-export function useTagChipsOverflow(datasetKey: 'tagItemId' | 'listTagItemId') {
+export function useTagChipsOverflow(datasetKey: "tagItemId" | "listTagItemId") {
   const tagVisibleLimit = reactive<Record<string, number>>({});
   const tagItemTotalMap = new Map<string, number>();
   const observedElements = new WeakSet<Element>();

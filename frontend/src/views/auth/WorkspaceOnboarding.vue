@@ -4,37 +4,37 @@
       <div class="workspace-mark" aria-hidden="true">
         <t-icon name="system-sum" size="30px" />
       </div>
-      <h1 v-if="authStore.canCreateTenant">{{ $t('auth.workspaceOnboarding.title') }}</h1>
-      <h1 v-else>{{ $t('auth.workspaceOnboarding.inviteOnlyTitle') }}</h1>
+      <h1 v-if="authStore.canCreateTenant">{{ $t("auth.workspaceOnboarding.title") }}</h1>
+      <h1 v-else>{{ $t("auth.workspaceOnboarding.inviteOnlyTitle") }}</h1>
       <p v-if="authStore.canCreateTenant" class="workspace-description">
-        {{ $t('auth.workspaceOnboarding.description') }}
+        {{ $t("auth.workspaceOnboarding.description") }}
       </p>
       <p v-else class="workspace-description">
-        {{ $t('auth.workspaceOnboarding.inviteOnlyDescription') }}
+        {{ $t("auth.workspaceOnboarding.inviteOnlyDescription") }}
       </p>
 
       <div v-if="policyLoading" class="policy-loading">
         <t-loading size="small" />
-        <span>{{ $t('auth.workspaceOnboarding.loadingPolicy') }}</span>
+        <span>{{ $t("auth.workspaceOnboarding.loadingPolicy") }}</span>
       </div>
       <div v-else-if="policyLoadFailed" class="policy-error" role="alert">
         <t-icon name="error-circle" size="20px" aria-hidden="true" />
-        <span>{{ $t('auth.workspaceOnboarding.policyLoadFailed') }}</span>
+        <span>{{ $t("auth.workspaceOnboarding.policyLoadFailed") }}</span>
         <t-button size="small" variant="text" @click="loadPolicy">
-          {{ $t('auth.workspaceOnboarding.retry') }}
+          {{ $t("auth.workspaceOnboarding.retry") }}
         </t-button>
       </div>
 
       <template v-else>
         <div v-if="!authStore.canCreateTenant" class="invite-only-notice">
           <t-icon name="lock-on" size="20px" aria-hidden="true" />
-          <span>{{ $t('auth.workspaceOnboarding.inviteOnlyNotice') }}</span>
+          <span>{{ $t("auth.workspaceOnboarding.inviteOnlyNotice") }}</span>
         </div>
 
         <div class="workspace-actions" :class="{ 'workspace-actions--single': !authStore.canCreateTenant }">
           <t-button v-if="authStore.canCreateTenant" theme="primary" size="large" @click="createVisible = true">
             <template #icon><t-icon name="add" /></template>
-            {{ $t('auth.workspaceOnboarding.create') }}
+            {{ $t("auth.workspaceOnboarding.create") }}
           </t-button>
           <t-button
             :theme="authStore.canCreateTenant ? 'default' : 'primary'"
@@ -43,22 +43,20 @@
             @click="invitationsVisible = true"
           >
             <template #icon><t-icon name="mail" /></template>
-            {{ $t('auth.workspaceOnboarding.invitations') }}
-            <template v-if="authStore.pendingInvitationCount > 0">
-              ({{ authStore.pendingInvitationCount }})
-            </template>
+            {{ $t("auth.workspaceOnboarding.invitations") }}
+            <template v-if="authStore.pendingInvitationCount > 0"> ({{ authStore.pendingInvitationCount }}) </template>
           </t-button>
         </div>
       </template>
 
       <p v-if="!policyLoading && !policyLoadFailed && authStore.canCreateTenant" class="workspace-help">
-        {{ $t('auth.workspaceOnboarding.help') }}
+        {{ $t("auth.workspaceOnboarding.help") }}
       </p>
       <p v-else-if="!policyLoading && !policyLoadFailed" class="workspace-help">
-        {{ $t('auth.workspaceOnboarding.inviteOnlyHelp') }}
+        {{ $t("auth.workspaceOnboarding.inviteOnlyHelp") }}
       </p>
       <button class="logout-link" type="button" @click="handleLogout">
-        {{ $t('auth.logout') }}
+        {{ $t("auth.logout") }}
       </button>
     </section>
 
@@ -68,57 +66,57 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import CreateTenantDialog from '@/components/CreateTenantDialog.vue'
-import MyInvitationsDialog from '@/components/MyInvitationsDialog.vue'
-import { logout as logoutApi } from '@/api/auth'
-import type { TenantInfo } from '@/api/tenant'
-import { useAuthStore } from '@/stores/auth'
+import { onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import CreateTenantDialog from "@/components/CreateTenantDialog.vue";
+import MyInvitationsDialog from "@/components/MyInvitationsDialog.vue";
+import { logout as logoutApi } from "@/api/auth";
+import type { TenantInfo } from "@/api/tenant";
+import { useAuthStore } from "@/stores/auth";
 
-const router = useRouter()
-const authStore = useAuthStore()
-const createVisible = ref(false)
-const invitationsVisible = ref(false)
-const policyLoading = ref(true)
-const policyLoadFailed = ref(false)
+const router = useRouter();
+const authStore = useAuthStore();
+const createVisible = ref(false);
+const invitationsVisible = ref(false);
+const policyLoading = ref(true);
+const policyLoadFailed = ref(false);
 
 async function loadPolicy() {
-  policyLoading.value = true
-  policyLoadFailed.value = false
+  policyLoading.value = true;
+  policyLoadFailed.value = false;
   try {
-    const refreshed = await authStore.refreshFromAuthMe()
+    const refreshed = await authStore.refreshFromAuthMe();
     if (!refreshed) {
-      policyLoadFailed.value = true
-      return
+      policyLoadFailed.value = true;
+      return;
     }
-    await authStore.fetchPendingInvitationCount()
+    await authStore.fetchPendingInvitationCount();
   } finally {
-    policyLoading.value = false
+    policyLoading.value = false;
   }
 }
 
 onMounted(async () => {
-  await loadPolicy()
-})
+  await loadPolicy();
+});
 
 watch(
   () => authStore.hasValidTenant,
   (ready) => {
-    if (ready) router.replace('/platform/knowledge-bases')
+    if (ready) router.replace("/platform/knowledge-bases");
   },
-)
+);
 
 async function onTenantCreated(tenant: TenantInfo) {
-  await authStore.refreshFromAuthMe()
-  authStore.setSelectedTenant(tenant.id, tenant.name)
-  await router.replace('/platform/knowledge-bases')
+  await authStore.refreshFromAuthMe();
+  authStore.setSelectedTenant(tenant.id, tenant.name);
+  await router.replace("/platform/knowledge-bases");
 }
 
 async function handleLogout() {
-  await logoutApi()
-  authStore.logout()
-  await router.replace('/login')
+  await logoutApi();
+  authStore.logout();
+  await router.replace("/login");
 }
 </script>
 

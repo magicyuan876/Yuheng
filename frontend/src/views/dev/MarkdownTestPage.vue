@@ -2,9 +2,8 @@
   <div class="markdown-test-page">
     <h1 class="page-title">Markdown Rendering Test</h1>
     <p class="page-desc">
-      Dev-only page for visual regression testing of chat answer markdown
-      (same typography as botmsg).
-      Add new test cases or paste arbitrary markdown in the editor below.
+      Dev-only page for visual regression testing of chat answer markdown (same typography as botmsg). Add new test
+      cases or paste arbitrary markdown in the editor below.
     </p>
 
     <!-- Basic Text Styles (GPT markdown test doc alignment) -->
@@ -19,7 +18,9 @@
     <section class="test-section">
       <h2>LaTeX Formulas</h2>
       <div v-for="(tc, i) in latexCases" :key="'latex-' + i" class="test-case">
-        <div class="test-raw"><code>{{ tc.raw }}</code></div>
+        <div class="test-raw">
+          <code>{{ tc.raw }}</code>
+        </div>
         <div class="test-rendered markdown-content" v-html="tc.html"></div>
       </div>
     </section>
@@ -86,8 +87,8 @@
     <section class="test-section">
       <h2>Streaming Shimmer</h2>
       <p class="test-hint">
-        The "light sweep" applied to in-progress step titles in
-        RagPipelineProgress. Running steps shimmer; finished ones are static.
+        The "light sweep" applied to in-progress step titles in RagPipelineProgress. Running steps shimmer; finished
+        ones are static.
       </p>
       <div class="test-case shimmer-demo">
         <div class="action-card action-pending">
@@ -112,8 +113,12 @@
     <section class="test-section">
       <h2>Custom Input</h2>
       <p class="test-hint">Paste any markdown here to test rendering.</p>
-      <textarea v-model="customInput" class="custom-textarea" rows="8"
-        placeholder="Type or paste markdown here..."></textarea>
+      <textarea
+        v-model="customInput"
+        class="custom-textarea"
+        rows="8"
+        placeholder="Type or paste markdown here..."
+      ></textarea>
       <div v-if="customInput.trim()" class="test-case">
         <div ref="customContainer" class="test-rendered markdown-content" v-html="customHtml"></div>
       </div>
@@ -122,30 +127,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
-import 'katex/dist/katex.min.css';
-import { sanitizeMarkdownHTML } from '@/utils/security';
-import {
-  createChatMarkdownRenderer,
-  renderChatMarkdown,
-} from '@/utils/chatMarkdownRenderer';
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import "katex/dist/katex.min.css";
+import { sanitizeMarkdownHTML } from "@/utils/security";
+import { createChatMarkdownRenderer, renderChatMarkdown } from "@/utils/chatMarkdownRenderer";
 import {
   ensureMermaidInitialized,
   enhanceMarkdownContainer,
   renderMermaidToSvg,
   createMermaidCodeRenderer,
-} from '@/utils/mermaidShared';
+} from "@/utils/mermaidShared";
 import {
   replaceIncompleteMermaidWithPlaceholder,
   prepareStreamingMermaidMarkdown,
   extractFirstMermaidCode,
   injectCachedMermaidSvg,
-} from '@/utils/chatMessageShared';
+} from "@/utils/chatMessageShared";
 
 ensureMermaidInitialized();
 
 const mermaidRenderer = createChatMarkdownRenderer({
-  codeRenderer: createMermaidCodeRenderer('mermaid-test'),
+  codeRenderer: createMermaidCodeRenderer("mermaid-test"),
 });
 
 const mermaidContainer = ref<HTMLElement | null>(null);
@@ -153,7 +155,7 @@ const streamContainer = ref<HTMLElement | null>(null);
 const customContainer = ref<HTMLElement | null>(null);
 
 const render = (raw: string): string => {
-  if (!raw) return '';
+  if (!raw) return "";
   return renderChatMarkdown(raw, {
     renderer: mermaidRenderer,
     escapeMarkdown: (markdown) => markdown,
@@ -163,7 +165,7 @@ const render = (raw: string): string => {
 };
 
 const renderStreamMarkdown = (raw: string): string => {
-  if (!raw) return '';
+  if (!raw) return "";
   return renderChatMarkdown(raw, {
     renderer: mermaidRenderer,
     escapeMarkdown: (markdown) => markdown,
@@ -194,14 +196,14 @@ const basicTextSample = `这是一段普通文本，包含 **加粗**、*斜体*
 `;
 
 const latexCases = [
-  { raw: 'Inline math: $E = mc^2$ in the middle of text.' },
-  { raw: 'Block math:\n$$\\int_0^\\infty e^{-x}\\,dx = 1$$' },
-  { raw: 'Chemical formula: $\\mathrm{Mg}^{2+} + 2\\mathrm{OH}^{-} = \\mathrm{Mg(OH)}_{2}\\downarrow$' },
-  { raw: 'Chemical block:\n$$\\mathrm{Cu}^{2+} + 2\\mathrm{OH}^{-} \\rightarrow \\mathrm{Cu(OH)_2}\\downarrow$$' },
-  { raw: 'Summation: $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$' },
-  { raw: 'Matrix:\n$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$$' },
-  { raw: 'Escaped delimiters: \\(\\alpha + \\beta = \\gamma\\) and \\[\\int_a^b f(x)\\,dx\\]' },
-].map((tc) => ({ ...tc, html: '' }));
+  { raw: "Inline math: $E = mc^2$ in the middle of text." },
+  { raw: "Block math:\n$$\\int_0^\\infty e^{-x}\\,dx = 1$$" },
+  { raw: "Chemical formula: $\\mathrm{Mg}^{2+} + 2\\mathrm{OH}^{-} = \\mathrm{Mg(OH)}_{2}\\downarrow$" },
+  { raw: "Chemical block:\n$$\\mathrm{Cu}^{2+} + 2\\mathrm{OH}^{-} \\rightarrow \\mathrm{Cu(OH)_2}\\downarrow$$" },
+  { raw: "Summation: $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$" },
+  { raw: "Matrix:\n$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$$" },
+  { raw: "Escaped delimiters: \\(\\alpha + \\beta = \\gamma\\) and \\[\\int_a^b f(x)\\,dx\\]" },
+].map((tc) => ({ ...tc, html: "" }));
 
 const codeBlockSample = `Here is some Python:
 
@@ -412,11 +414,11 @@ sequenceDiagram
 
 Done.`;
 
-const streamBuffer = ref('');
+const streamBuffer = ref("");
 const isStreaming = ref(false);
 const streamSpeed = ref(30);
-const customInput = ref('');
-const streamMermaidSvgHtml = ref('');
+const customInput = ref("");
+const streamMermaidSvgHtml = ref("");
 let streamTimer: ReturnType<typeof setInterval> | null = null;
 let streamMermaidRenderId = 0;
 let streamMermaidRenderTask: Promise<void> | null = null;
@@ -470,8 +472,8 @@ const startStream = () => {
 
 const resetStream = () => {
   if (streamTimer) clearInterval(streamTimer);
-  streamBuffer.value = '';
-  streamMermaidSvgHtml.value = '';
+  streamBuffer.value = "";
+  streamMermaidSvgHtml.value = "";
   streamMermaidRenderTask = null;
   isStreaming.value = false;
 };
@@ -511,10 +513,10 @@ watch(customInput, () => {
 </script>
 
 <style lang="less" scoped>
-@import '../../components/css/chat-markdown.less';
-@import '../../components/css/chat-citations.less';
-@import '../../components/css/chat-message-shared.less';
-@import '../../components/css/chat-timeline-loading.less';
+@import "../../components/css/chat-markdown.less";
+@import "../../components/css/chat-citations.less";
+@import "../../components/css/chat-message-shared.less";
+@import "../../components/css/chat-timeline-loading.less";
 
 .markdown-test-page {
   max-width: 860px;

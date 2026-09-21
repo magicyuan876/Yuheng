@@ -16,21 +16,12 @@
             :class="{ active: item.id === currentKbId }"
             @click="handleSelect(item.id)"
           >
-            <t-icon
-              :name="iconFor(item.type)"
-              class="kb-switcher-row-icon"
-              size="16px"
-            />
+            <t-icon :name="iconFor(item.type)" class="kb-switcher-row-icon" size="16px" />
             <span class="kb-switcher-row-name" :title="item.name">{{ item.name }}</span>
-            <t-icon
-              v-if="item.id === currentKbId"
-              name="check"
-              class="kb-switcher-row-check"
-              size="14px"
-            />
+            <t-icon v-if="item.id === currentKbId" name="check" class="kb-switcher-row-check" size="14px" />
           </button>
           <div v-if="!sortedList.length" class="kb-switcher-empty">
-            {{ t('common.noData') }}
+            {{ t("common.noData") }}
           </div>
         </div>
       </div>
@@ -40,25 +31,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 interface KBEntry {
-  id: string
-  name: string
-  type?: string
+  id: string;
+  name: string;
+  type?: string;
 }
 
 const props = defineProps<{
-  kbList: KBEntry[]
-  currentKbId: string
-}>()
+  kbList: KBEntry[];
+  currentKbId: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'select', kbId: string): void
-}>()
+  (e: "select", kbId: string): void;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 // Sort the list with the current KB pinned to the top so users always
 // see "where they are" without scrolling. The rest preserves the
@@ -66,21 +57,21 @@ const { t } = useI18n()
 // re-sort alphabetically because that loses the recency / share-source
 // signal embedded in the input order.
 const sortedList = computed<KBEntry[]>(() => {
-  const all = props.kbList || []
-  const current = all.find((kb) => kb.id === props.currentKbId)
-  if (!current) return all
-  return [current, ...all.filter((kb) => kb.id !== props.currentKbId)]
-})
+  const all = props.kbList || [];
+  const current = all.find((kb) => kb.id === props.currentKbId);
+  if (!current) return all;
+  return [current, ...all.filter((kb) => kb.id !== props.currentKbId)];
+});
 
 const iconFor = (type?: string): string => {
-  if (type === 'faq') return 'chat-bubble-help'
-  return 'folder'
-}
+  if (type === "faq") return "chat-bubble-help";
+  return "folder";
+};
 
 const handleSelect = (id: string): void => {
-  if (id === props.currentKbId) return
-  emit('select', id)
-}
+  if (id === props.currentKbId) return;
+  emit("select", id);
+};
 </script>
 
 <style scoped lang="less">
@@ -116,7 +107,9 @@ const handleSelect = (id: string): void => {
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   text-align: left;
 
   &:hover {

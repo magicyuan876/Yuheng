@@ -6,10 +6,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Icon as TIcon } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
+import { computed } from "vue";
+import { Icon as TIcon } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { useAuthStore } from "@/stores/auth";
 
 /**
  * ResourceOriginBadge – a unified, compact label that explains *where* a
@@ -38,90 +38,90 @@ import { useAuthStore } from '@/stores/auth'
  */
 const props = withDefaults(
   defineProps<{
-    variant: 'mine' | 'tenant' | 'creator' | 'space' | 'shared'
+    variant: "mine" | "tenant" | "creator" | "space" | "shared";
     /** Used in `space` variant — the organization (space) display name. */
-    spaceName?: string
+    spaceName?: string;
     /** Optional creator display name, surfaces in tooltip for `tenant` variant. */
-    creatorName?: string
+    creatorName?: string;
     /** Optional source tenant name, surfaces in tooltip for cross-tenant. */
-    sourceTenantName?: string
+    sourceTenantName?: string;
   }>(),
-  { spaceName: '', creatorName: '', sourceTenantName: '' }
-)
+  { spaceName: "", creatorName: "", sourceTenantName: "" },
+);
 
-const { t } = useI18n()
-const authStore = useAuthStore()
+const { t } = useI18n();
+const authStore = useAuthStore();
 
 const iconName = computed(() => {
   switch (props.variant) {
-    case 'mine':
-      return 'user'
-    case 'tenant':
-      return 'usergroup'
-    case 'creator':
-      return 'user'
-    case 'space':
-      return 'building'
-    case 'shared':
-      return 'share'
+    case "mine":
+      return "user";
+    case "tenant":
+      return "usergroup";
+    case "creator":
+      return "user";
+    case "space":
+      return "building";
+    case "shared":
+      return "share";
     default:
-      return 'usergroup'
+      return "usergroup";
   }
-})
+});
 
-const variantClass = computed(() => `origin-${props.variant}`)
+const variantClass = computed(() => `origin-${props.variant}`);
 
 const displayText = computed(() => {
   switch (props.variant) {
-    case 'mine':
-      return t('resourceOrigin.mine')
-    case 'tenant':
+    case "mine":
+      return t("resourceOrigin.mine");
+    case "tenant":
       // Prefer the tenant name when known so the badge says where the
       // resource lives, not a vague "tenant" label. Falls back to i18n.
-      return authStore.currentTenantName || t('resourceOrigin.tenant')
-    case 'creator':
+      return authStore.currentTenantName || t("resourceOrigin.tenant");
+    case "creator":
       // Section header already provides the「本空间」context, so we just
       // show who created it. Fall back to a generic label when the user
       // can't be resolved (creator_name 缺失，例如已删除账号 / 老数据)。
-      return props.creatorName || t('resourceOrigin.tenant')
-    case 'space':
-      return props.spaceName || t('resourceOrigin.space')
-    case 'shared':
-      return props.sourceTenantName || t('resourceOrigin.shared')
+      return props.creatorName || t("resourceOrigin.tenant");
+    case "space":
+      return props.spaceName || t("resourceOrigin.space");
+    case "shared":
+      return props.sourceTenantName || t("resourceOrigin.shared");
     default:
-      return ''
+      return "";
   }
-})
+});
 
 const tooltipText = computed(() => {
   switch (props.variant) {
-    case 'mine':
-      return t('resourceOrigin.mineTooltip')
-    case 'tenant':
+    case "mine":
+      return t("resourceOrigin.mineTooltip");
+    case "tenant":
       if (props.creatorName) {
-        return t('resourceOrigin.tenantTooltipWithCreator', { creator: props.creatorName })
+        return t("resourceOrigin.tenantTooltipWithCreator", { creator: props.creatorName });
       }
-      return t('resourceOrigin.tenantTooltip')
-    case 'creator':
+      return t("resourceOrigin.tenantTooltip");
+    case "creator":
       // 卡片标签只露名字；tooltip 把完整含义补回来。
       if (props.creatorName) {
-        return t('resourceOrigin.tenantTooltipWithCreator', { creator: props.creatorName })
+        return t("resourceOrigin.tenantTooltipWithCreator", { creator: props.creatorName });
       }
-      return t('resourceOrigin.tenantTooltip')
-    case 'space':
+      return t("resourceOrigin.tenantTooltip");
+    case "space":
       if (props.sourceTenantName) {
-        return t('resourceOrigin.spaceTooltipWithTenant', {
+        return t("resourceOrigin.spaceTooltipWithTenant", {
           space: props.spaceName,
           tenant: props.sourceTenantName,
-        })
+        });
       }
-      return t('resourceOrigin.spaceTooltip', { space: props.spaceName })
-    case 'shared':
-      return t('resourceOrigin.sharedTooltip')
+      return t("resourceOrigin.spaceTooltip", { space: props.spaceName });
+    case "shared":
+      return t("resourceOrigin.sharedTooltip");
     default:
-      return ''
+      return "";
   }
-})
+});
 </script>
 
 <style scoped lang="less">

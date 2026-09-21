@@ -5,10 +5,10 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
 
-const props = defineProps<NodeViewProps>()
+const props = defineProps<NodeViewProps>();
 
 /**
  * A column with a declared width takes it; one without grows to fill what is
@@ -18,12 +18,12 @@ const props = defineProps<NodeViewProps>()
  * flight.
  */
 const width = computed(() => {
-  const raw = Number(props.node.attrs.width ?? Number.NaN)
-  return Number.isFinite(raw) ? Math.min(95, Math.max(5, raw)) : null
-})
+  const raw = Number(props.node.attrs.width ?? Number.NaN);
+  return Number.isFinite(raw) ? Math.min(95, Math.max(5, raw)) : null;
+});
 
-const basis = computed(() => (width.value === null ? '0' : `${width.value}%`))
-const grow = computed(() => (width.value === null ? 1 : 0))
+const basis = computed(() => (width.value === null ? "0" : `${width.value}%`));
+const grow = computed(() => (width.value === null ? 1 : 0));
 </script>
 
 <style scoped lang="less">

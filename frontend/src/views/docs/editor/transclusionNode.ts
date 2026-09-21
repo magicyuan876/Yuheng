@@ -12,9 +12,9 @@
 //
 // No Vue here, for the same reason as the other node files: the schema must
 // stay loadable in a plain Node test.
-import { mergeAttributes, Node } from '@tiptap/core'
+import { mergeAttributes, Node } from "@tiptap/core";
 
-declare module '@tiptap/core' {
+declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     docsTransclusion: {
       /** Replaces the range with a reference to a block of another page. */
@@ -22,8 +22,8 @@ declare module '@tiptap/core' {
         sourcePageId: string,
         sourceBlockId: string,
         range?: { from: number; to: number },
-      ) => ReturnType
-    }
+      ) => ReturnType;
+    };
   }
 }
 
@@ -32,14 +32,13 @@ function addressAttr(attribute: string, name: string) {
   return {
     default: null,
     parseHTML: (el: HTMLElement) => el.getAttribute(attribute),
-    renderHTML: (attrs: Record<string, unknown>) =>
-      attrs[name] ? { [attribute]: String(attrs[name]) } : {},
-  }
+    renderHTML: (attrs: Record<string, unknown>) => (attrs[name] ? { [attribute]: String(attrs[name]) } : {}),
+  };
 }
 
 export const Transclusion = Node.create({
-  name: 'transclusion',
-  group: 'block',
+  name: "transclusion",
+  group: "block",
   atom: true,
   selectable: true,
   // Nothing may be typed into it, and a cursor must not land inside: the
@@ -48,31 +47,31 @@ export const Transclusion = Node.create({
 
   addAttributes() {
     return {
-      sourcePageId: addressAttr('data-source-page-id', 'sourcePageId'),
-      sourceBlockId: addressAttr('data-source-block-id', 'sourceBlockId'),
-    }
+      sourcePageId: addressAttr("data-source-page-id", "sourcePageId"),
+      sourceBlockId: addressAttr("data-source-block-id", "sourceBlockId"),
+    };
   },
 
   parseHTML() {
-    return [{ tag: 'div[data-source-block-id]' }]
+    return [{ tag: "div[data-source-block-id]" }];
   },
 
   // The exported form carries the address and no text, exactly as the stored
   // form does. Whoever renders it resolves the block then, under their own
   // permissions rather than those of whoever wrote the reference.
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { class: 'transclusion' })]
+    return ["div", mergeAttributes(HTMLAttributes, { class: "transclusion" })];
   },
 
   addCommands() {
     return {
-      insertTransclusion: (sourcePageId, sourceBlockId, range) => ({ commands }) => {
-        if (!sourcePageId || !sourceBlockId) return false
-        const content = { type: this.name, attrs: { sourcePageId, sourceBlockId } }
-        return range
-          ? commands.insertContentAt(range, content)
-          : commands.insertContent(content)
-      },
-    }
+      insertTransclusion:
+        (sourcePageId, sourceBlockId, range) =>
+        ({ commands }) => {
+          if (!sourcePageId || !sourceBlockId) return false;
+          const content = { type: this.name, attrs: { sourcePageId, sourceBlockId } };
+          return range ? commands.insertContentAt(range, content) : commands.insertContent(content);
+        },
+    };
   },
-})
+});

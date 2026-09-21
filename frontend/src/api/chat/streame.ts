@@ -1,43 +1,60 @@
-import { fetchEventSource } from '@microsoft/fetch-event-source';
-import { ref, onUnmounted } from 'vue';
-import { generateRandomString } from '@/utils/index';
-import i18n from '@/i18n';
-import { getApiBaseUrl } from '@/utils/api-base';
-import {
-  sanitizeStreamRequestBody,
-  type StreamRequestMeta,
-} from '@/utils/chatRequestDebug';
-
-
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { ref, onUnmounted } from "vue";
+import { generateRandomString } from "@/utils/index";
+import i18n from "@/i18n";
+import { getApiBaseUrl } from "@/utils/api-base";
+import { sanitizeStreamRequestBody, type StreamRequestMeta } from "@/utils/chatRequestDebug";
 
 export function useStream() {
   // 响应式状态
-  const output = ref('')              // 显示内容
-  const isStreaming = ref(false)      // 流状态
-  const isLoading = ref(false)        // 初始加载
-  const error = ref<string | null>(null)// 错误信息
-  const lastStreamRequest = ref<StreamRequestMeta | null>(null)
-  let controller = new AbortController()
-  let streamGeneration = 0
+  const output = ref(""); // 显示内容
+  const isStreaming = ref(false); // 流状态
+  const isLoading = ref(false); // 初始加载
+  const error = ref<string | null>(null); // 错误信息
+  const lastStreamRequest = ref<StreamRequestMeta | null>(null);
+  let controller = new AbortController();
+  let streamGeneration = 0;
 
   // 流式渲染缓冲
-  const buffer: string[] = []
+  const buffer: string[] = [];
 
   // 启动流式请求
-  const startStream = async (params: { session_id: any; query: any; knowledge_base_ids?: string[]; knowledge_ids?: string[]; tag_ids?: string[]; web_search_enabled?: boolean; summary_model_id?: string; mentioned_items?: Array<{id: string; name: string; type: string; kb_type?: string; kb_id?: string; kb_name?: string}>; images?: Array<{data: string}>; attachment_uploads?: Array<{data: string; file_name: string; file_size: number}>; attachment_ids?: string[]; suggestion_attribution?: { suggestion_set_id: string; question_id: string }; method: string; url: string }) => {
-    const myGeneration = ++streamGeneration
+  const startStream = async (params: {
+    session_id: any;
+    query: any;
+    knowledge_base_ids?: string[];
+    knowledge_ids?: string[];
+    tag_ids?: string[];
+    web_search_enabled?: boolean;
+    summary_model_id?: string;
+    mentioned_items?: Array<{
+      id: string;
+      name: string;
+      type: string;
+      kb_type?: string;
+      kb_id?: string;
+      kb_name?: string;
+    }>;
+    images?: Array<{ data: string }>;
+    attachment_uploads?: Array<{ data: string; file_name: string; file_size: number }>;
+    attachment_ids?: string[];
+    suggestion_attribution?: { suggestion_set_id: string; question_id: string };
+    method: string;
+    url: string;
+  }) => {
+    const myGeneration = ++streamGeneration;
     // 重置状态
-    output.value = '';
+    output.value = "";
     error.value = null;
     isStreaming.value = true;
     isLoading.value = true;
 
     // 获取API配置
     const apiUrl = getApiBaseUrl();
-    
-    const token = localStorage.getItem('yuheng_token');
+
+    const token = localStorage.getItem("yuheng_token");
     if (!token) {
-      error.value = i18n.global.t('error.tokenNotFound');
+      error.value = i18n.global.t("error.tokenNotFound");
       stopStream();
       return;
     }
@@ -49,7 +66,7 @@ export function useStream() {
     // hydrate）都会让两者相等，使得后续流式请求悄悄丢 header、落到
     // home 空间上，导致 SSE 接口返回 404。直接附即可——后端
     // IsTenantAccessible 也允许 header 指向自家空间。
-    const selectedTenantId = localStorage.getItem('yuheng_selected_tenant_id');
+    const selectedTenantId = localStorage.getItem("yuheng_selected_tenant_id");
     const tenantIdHeader: string | null = selectedTenantId || null;
 
     // TTFB instrumentation: record the moment we kick off the request so
@@ -67,10 +84,10 @@ export function useStream() {
           ? `${apiUrl}${params.url}/${params.session_id}`
           : `${apiUrl}${params.url}/${params.session_id}?message_id=${params.query}`;
       console.log(`[TTFB] request:start request_id=${requestID} url=${url} sent_at=${Date.now()}`);
-      
+
       // Prepare POST body for knowledge-chat
       const postBody: any = {
-        query: params.query
+        query: params.query,
       };
       if (params.knowledge_base_ids !== undefined && params.knowledge_base_ids.length > 0) {
         postBody.knowledge_base_ids = params.knowledge_base_ids;
@@ -102,9 +119,9 @@ export function useStream() {
       if (params.attachment_uploads !== undefined && params.attachment_uploads.length > 0) {
         postBody.attachment_uploads = params.attachment_uploads;
       }
-	  if (params.attachment_ids !== undefined && params.attachment_ids.length > 0) {
-		postBody.attachment_ids = params.attachment_ids;
-	  }
+      if (params.attachment_ids !== undefined && params.attachment_ids.length > 0) {
+        postBody.attachment_ids = params.attachment_ids;
+      }
       if (params.suggestion_attribution) {
         postBody.suggestion_attribution = params.suggestion_attribution;
       }
@@ -114,41 +131,42 @@ export function useStream() {
         requestId: requestID,
         url,
         method: params.method,
-        body: params.method === 'POST' ? sanitizeStreamRequestBody(postBody) : null,
+        body: params.method === "POST" ? sanitizeStreamRequestBody(postBody) : null,
         sentAt: Date.now(),
       };
-      
+
       await fetchEventSource(url, {
         method: params.method,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          "Accept-Language": i18n.global.locale?.value || localStorage.getItem('locale') || 'zh-CN',
+          Authorization: `Bearer ${token}`,
+          "Accept-Language": i18n.global.locale?.value || localStorage.getItem("locale") || "zh-CN",
           "X-Request-ID": requestID,
           ...(tenantIdHeader ? { "X-Tenant-ID": tenantIdHeader } : {}),
         },
-        body:
-          params.method == "POST"
-            ? JSON.stringify(postBody)
-            : null,
+        body: params.method == "POST" ? JSON.stringify(postBody) : null,
         signal: controller.signal,
         openWhenHidden: true,
 
         onopen: async (res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          console.log(`[TTFB] response:headers request_id=${requestID} elapsed_ms=${(performance.now() - sentAt).toFixed(1)}`);
+          console.log(
+            `[TTFB] response:headers request_id=${requestID} elapsed_ms=${(performance.now() - sentAt).toFixed(1)}`,
+          );
           isLoading.value = false;
         },
 
         onmessage: (ev) => {
-          if (myGeneration !== streamGeneration) return
+          if (myGeneration !== streamGeneration) return;
           const parsed = JSON.parse(ev.data);
           // Log first answer chunk for end-to-end TTFB measurement.
           // Filter by event type so non-answer events (references, tool
           // calls, etc.) don't count as the "first token" arrival.
-          if (!firstAnswerLogged && (parsed?.response_type === 'answer' || parsed?.type === 'answer')) {
+          if (!firstAnswerLogged && (parsed?.response_type === "answer" || parsed?.type === "answer")) {
             firstAnswerLogged = true;
-            console.log(`[TTFB] response:first_answer request_id=${requestID} elapsed_ms=${(performance.now() - sentAt).toFixed(1)}`);
+            console.log(
+              `[TTFB] response:first_answer request_id=${requestID} elapsed_ms=${(performance.now() - sentAt).toFixed(1)}`,
+            );
           }
           buffer.push(parsed); // 数据存入缓冲
           // 执行自定义处理
@@ -158,7 +176,7 @@ export function useStream() {
         },
 
         onerror: (err) => {
-          throw new Error(`${i18n.global.t('error.streamFailed')}: ${err}`);
+          throw new Error(`${i18n.global.t("error.streamFailed")}: ${err}`);
         },
 
         onclose: () => {
@@ -166,38 +184,37 @@ export function useStream() {
         },
       });
     } catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
-      stopStream()
+      error.value = err instanceof Error ? err.message : String(err);
+      stopStream();
     }
-  }
+  };
 
-  let chunkHandler: ((data: any) => void) | null = null
+  let chunkHandler: ((data: any) => void) | null = null;
   // 注册块处理器
   const onChunk = (handler: (data: any) => void) => {
-    chunkHandler = handler
-  }
-
+    chunkHandler = handler;
+  };
 
   // 停止流
   const stopStream = () => {
-    streamGeneration++
+    streamGeneration++;
     controller.abort();
     controller = new AbortController(); // 重置控制器（如需重新发起）
     isStreaming.value = false;
     isLoading.value = false;
-  }
+  };
 
   // 组件卸载时自动清理
-  onUnmounted(stopStream)
+  onUnmounted(stopStream);
 
   return {
-    output,          // 显示内容
-    isStreaming,     // 是否在流式传输中
-    isLoading,       // 初始连接状态
+    output, // 显示内容
+    isStreaming, // 是否在流式传输中
+    isLoading, // 初始连接状态
     error,
     lastStreamRequest,
     onChunk,
-    startStream,     // 启动流
-    stopStream       // 手动停止
-  }
+    startStream, // 启动流
+    stopStream, // 手动停止
+  };
 }

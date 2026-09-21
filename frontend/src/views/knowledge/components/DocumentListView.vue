@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { formatFileSize, getFileIcon } from '@/utils/files';
-import { useTagChipsOverflow } from '@/composables/useTagChipsOverflow';
-import DocumentActionMenu from './DocumentActionMenu.vue';
-import FolderPickerMenu, { type FolderOption } from './FolderPickerMenu.vue';
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { formatFileSize, getFileIcon } from "@/utils/files";
+import { useTagChipsOverflow } from "@/composables/useTagChipsOverflow";
+import DocumentActionMenu from "./DocumentActionMenu.vue";
+import FolderPickerMenu, { type FolderOption } from "./FolderPickerMenu.vue";
 
 interface Tag {
   id: string;
@@ -49,82 +49,90 @@ const props = defineProps<{
    */
   showFolderPath?: boolean;
   // Move sub-flow state
-  moveMenuMode: 'normal' | 'targets' | 'confirm';
+  moveMenuMode: "normal" | "targets" | "confirm";
   moveTargetKbs: any[];
   moveTargetsLoading: boolean;
   moveSelectedTargetName: string;
-  moveMode: 'reuse_vectors' | 'reparse';
+  moveMode: "reuse_vectors" | "reparse";
   moveSubmitting: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'open', item: KnowledgeItem): void;
-  (e: 'toggle-row', id: string, checked: boolean, shiftKey: boolean): void;
-  (e: 'toggle-all', checked: boolean): void;
-  (e: 'action', action: 'download' | 'edit' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'delete' | 'view-trace' | 'batch-manage', item: KnowledgeItem): void;
-  (e: 'probe-trace', item: KnowledgeItem): void;
-  (e: 'tag-edit', item: KnowledgeItem): void;
-  (e: 'open-folder', path: string): void;
-  (e: 'move-to-folder', item: KnowledgeItem, folderPath: string): void;
+  (e: "open", item: KnowledgeItem): void;
+  (e: "toggle-row", id: string, checked: boolean, shiftKey: boolean): void;
+  (e: "toggle-all", checked: boolean): void;
+  (
+    e: "action",
+    action:
+      | "download"
+      | "edit"
+      | "reparse"
+      | "cancel-parse"
+      | "move"
+      | "move-folder"
+      | "delete"
+      | "view-trace"
+      | "batch-manage",
+    item: KnowledgeItem,
+  ): void;
+  (e: "probe-trace", item: KnowledgeItem): void;
+  (e: "tag-edit", item: KnowledgeItem): void;
+  (e: "open-folder", path: string): void;
+  (e: "move-to-folder", item: KnowledgeItem, folderPath: string): void;
   // Move sub-flow emits
-  (e: 'move-select-target', kb: any): void;
-  (e: 'move-back'): void;
-  (e: 'move-confirm'): void;
-  (e: 'update:moveMode', mode: 'reuse_vectors' | 'reparse'): void;
-  (e: 'reset-move-state'): void;
+  (e: "move-select-target", kb: any): void;
+  (e: "move-back"): void;
+  (e: "move-confirm"): void;
+  (e: "update:moveMode", mode: "reuse_vectors" | "reparse"): void;
+  (e: "reset-move-state"): void;
 }>();
 
 const { t } = useI18n();
 
-const {
-  setupTagChipsObserver,
-  getTagLimit,
-  hasTagOverflow,
-  getOverflowCount,
-} = useTagChipsOverflow('listTagItemId');
+const { setupTagChipsObserver, getTagLimit, hasTagOverflow, getOverflowCount } = useTagChipsOverflow("listTagItemId");
 
 const formatTime = (time?: string) => {
-  if (!time) return '--';
+  if (!time) return "--";
   const d = new Date(time);
-  if (Number.isNaN(d.getTime())) return '--';
+  if (Number.isNaN(d.getTime())) return "--";
   const yy = String(d.getFullYear()).slice(2);
-  const MM = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
   return `${yy}-${MM}-${dd} ${hh}:${mm}`;
 };
 
 const getSourceInfo = (item: KnowledgeItem): { icon: string; label: string } => {
   const ch = item.channel;
-  if (ch === 'feishu') return { icon: 'cloud-download', label: t('knowledgeBase.channelFeishu') };
+  if (ch === "feishu") return { icon: "cloud-download", label: t("knowledgeBase.channelFeishu") };
   // Drive (云盘) connectors use their own channel so Drive docs show
   // "飞书云盘" / "Lark 云盘", distinct from the wiki connector's "飞书".
-  if (ch === 'feishu_drive') return { icon: 'cloud-download', label: t('knowledgeBase.channelFeishuDrive') };
-  if (ch === 'lark_drive') return { icon: 'cloud-download', label: t('knowledgeBase.channelLarkDrive') };
-  if (ch === 'notion') return { icon: 'cloud-download', label: t('knowledgeBase.channelNotion') };
-  if (ch === 'yuque') return { icon: 'cloud-download', label: t('knowledgeBase.channelYuque') };
-  if (ch === 'gitlab') return { icon: 'cloud-download', label: t('knowledgeBase.channelGitLab') };
-  if (ch === 'ima') return { icon: 'cloud-download', label: t('knowledgeBase.channelIma') };
-  if (ch === 'wechat') return { icon: 'cloud-download', label: t('knowledgeBase.channelWechat') };
-  if (ch === 'wecom') return { icon: 'cloud-download', label: t('knowledgeBase.channelWecom') };
-  if (ch === 'dingtalk') return { icon: 'cloud-download', label: t('knowledgeBase.channelDingtalk') };
-  if (ch === 'slack') return { icon: 'cloud-download', label: t('knowledgeBase.channelSlack') };
-  if (ch === 'im') return { icon: 'cloud-download', label: t('knowledgeBase.channelIm') };
-  if (item.type === 'url') return { icon: 'link', label: t('knowledgeBase.channelUrl') };
-  if (item.type === 'manual') return { icon: 'edit', label: t('knowledgeBase.channelManual') };
-  return { icon: 'upload', label: t('knowledgeBase.channelUpload') };
+  if (ch === "feishu_drive") return { icon: "cloud-download", label: t("knowledgeBase.channelFeishuDrive") };
+  if (ch === "lark_drive") return { icon: "cloud-download", label: t("knowledgeBase.channelLarkDrive") };
+  if (ch === "notion") return { icon: "cloud-download", label: t("knowledgeBase.channelNotion") };
+  if (ch === "yuque") return { icon: "cloud-download", label: t("knowledgeBase.channelYuque") };
+  if (ch === "gitlab") return { icon: "cloud-download", label: t("knowledgeBase.channelGitLab") };
+  if (ch === "ima") return { icon: "cloud-download", label: t("knowledgeBase.channelIma") };
+  if (ch === "wechat") return { icon: "cloud-download", label: t("knowledgeBase.channelWechat") };
+  if (ch === "wecom") return { icon: "cloud-download", label: t("knowledgeBase.channelWecom") };
+  if (ch === "dingtalk") return { icon: "cloud-download", label: t("knowledgeBase.channelDingtalk") };
+  if (ch === "slack") return { icon: "cloud-download", label: t("knowledgeBase.channelSlack") };
+  if (ch === "im") return { icon: "cloud-download", label: t("knowledgeBase.channelIm") };
+  if (item.type === "url") return { icon: "link", label: t("knowledgeBase.channelUrl") };
+  if (item.type === "manual") return { icon: "edit", label: t("knowledgeBase.channelManual") };
+  return { icon: "upload", label: t("knowledgeBase.channelUpload") };
 };
 
 interface StatusInfo {
   label: string;
-  theme: 'success' | 'warning' | 'danger' | 'primary' | 'default';
+  theme: "success" | "warning" | "danger" | "primary" | "default";
   icon?: string;
   spin?: boolean;
 }
 const computeStatus = (item: KnowledgeItem): StatusInfo => {
-  if (item.parse_status === 'pending' || item.parse_status === 'processing') {
-    return { label: t('knowledgeBase.statusProcessing'), theme: 'primary', icon: 'loading', spin: true };
+  if (item.parse_status === "pending" || item.parse_status === "processing") {
+    return { label: t("knowledgeBase.statusProcessing"), theme: "primary", icon: "loading", spin: true };
   }
   // finalizing = primary parse done, enrichment subtasks still running.
   // While in this phase, prefer the specific "summary generating" copy
@@ -132,34 +140,34 @@ const computeStatus = (item: KnowledgeItem): StatusInfo => {
   // where this label was tied to completed+summary_pending). Otherwise
   // fall back to the generic "finalizing" label — covers question gen
   // and graph extract, which the user historically had no visibility on.
-  if (item.parse_status === 'finalizing') {
-    if (item.summary_status === 'pending' || item.summary_status === 'processing') {
-      return { label: t('knowledgeBase.generatingSummary'), theme: 'primary', icon: 'loading', spin: true };
+  if (item.parse_status === "finalizing") {
+    if (item.summary_status === "pending" || item.summary_status === "processing") {
+      return { label: t("knowledgeBase.generatingSummary"), theme: "primary", icon: "loading", spin: true };
     }
-    return { label: t('knowledgeBase.statusFinalizing'), theme: 'primary', icon: 'loading', spin: true };
+    return { label: t("knowledgeBase.statusFinalizing"), theme: "primary", icon: "loading", spin: true };
   }
-  if (item.parse_status === 'failed') {
-    return { label: t('knowledgeBase.statusFailed'), theme: 'danger', icon: 'close-circle' };
+  if (item.parse_status === "failed") {
+    return { label: t("knowledgeBase.statusFailed"), theme: "danger", icon: "close-circle" };
   }
-  if (item.parse_status === 'cancelled') {
-    return { label: t('knowledgeBase.statusCancelled'), theme: 'warning', icon: 'close-circle' };
+  if (item.parse_status === "cancelled") {
+    return { label: t("knowledgeBase.statusCancelled"), theme: "warning", icon: "close-circle" };
   }
-  if (item.parse_status === 'draft') {
-    return { label: t('knowledgeBase.statusDraft'), theme: 'warning' };
+  if (item.parse_status === "draft") {
+    return { label: t("knowledgeBase.statusDraft"), theme: "warning" };
   }
   // Legacy completed+summary_pending path: kept as a defensive fallback
   // for rows that bypassed finalizing (no enrichment configured, or
   // upgraded mid-flight from a pre-finalizing build).
   if (
-    item.parse_status === 'completed' &&
-    (item.summary_status === 'pending' || item.summary_status === 'processing')
+    item.parse_status === "completed" &&
+    (item.summary_status === "pending" || item.summary_status === "processing")
   ) {
-    return { label: t('knowledgeBase.generatingSummary'), theme: 'primary', icon: 'loading', spin: true };
+    return { label: t("knowledgeBase.generatingSummary"), theme: "primary", icon: "loading", spin: true };
   }
-  if (item.parse_status === 'completed') {
-    return { label: t('knowledgeBase.statusCompleted'), theme: 'success' };
+  if (item.parse_status === "completed") {
+    return { label: t("knowledgeBase.statusCompleted"), theme: "success" };
   }
-  return { label: '--', theme: 'default' };
+  return { label: "--", theme: "default" };
 };
 
 const statusByRow = computed(() => {
@@ -169,31 +177,31 @@ const statusByRow = computed(() => {
 });
 
 const allSelected = computed(() => {
-  return props.items.length > 0 && props.items.every(i => props.selectedIds.has(i.id));
+  return props.items.length > 0 && props.items.every((i) => props.selectedIds.has(i.id));
 });
 const someSelected = computed(() => {
-  return props.items.some(i => props.selectedIds.has(i.id)) && !allSelected.value;
+  return props.items.some((i) => props.selectedIds.has(i.id)) && !allSelected.value;
 });
 
 const onHeaderCheckboxChange = (checked: boolean) => {
-  emit('toggle-all', checked);
+  emit("toggle-all", checked);
 };
 
 const onRowCheckboxChange = (item: KnowledgeItem, checked: boolean, ctx?: { e?: Event }) => {
   const me = ctx?.e as MouseEvent | undefined;
-  emit('toggle-row', item.id, checked, !!me?.shiftKey);
+  emit("toggle-row", item.id, checked, !!me?.shiftKey);
 };
 
 const moreOpen = ref<string | null>(null);
 const onMoreVisible = (id: string, visible: boolean) => {
   moreOpen.value = visible ? id : null;
   if (visible) {
-    const it = props.items.find(i => i.id === id);
-    if (it) emit('probe-trace', it);
+    const it = props.items.find((i) => i.id === id);
+    if (it) emit("probe-trace", it);
   } else {
     folderPickerItemId.value = null;
     // Reset move state when popup closes naturally
-    emit('reset-move-state');
+    emit("reset-move-state");
   }
 };
 
@@ -202,7 +210,7 @@ const stickySentinel = ref<HTMLElement | null>(null);
 const headerStuck = ref(false);
 let stickyObserver: IntersectionObserver | null = null;
 onMounted(() => {
-  if (!stickySentinel.value || typeof IntersectionObserver === 'undefined') return;
+  if (!stickySentinel.value || typeof IntersectionObserver === "undefined") return;
   stickyObserver = new IntersectionObserver(
     (entries) => {
       headerStuck.value = !entries[0].isIntersecting;
@@ -225,23 +233,34 @@ const onFolderPicked = (item: KnowledgeItem, path: string) => {
   folderPickerItemId.value = null;
   moreOpen.value = null;
   item.isMore = false;
-  emit('move-to-folder', item, path);
+  emit("move-to-folder", item, path);
 };
 
-const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'delete' | 'view-trace' | 'batch-manage', item: KnowledgeItem) => {
+const handleAction = (
+  action:
+    | "download"
+    | "edit"
+    | "reparse"
+    | "cancel-parse"
+    | "move"
+    | "move-folder"
+    | "delete"
+    | "view-trace"
+    | "batch-manage",
+  item: KnowledgeItem,
+) => {
   // The folder picker opens inside this same popup, so keep the menu open.
-  if (action === 'move-folder') {
+  if (action === "move-folder") {
     folderPickerItemId.value = item.id;
     return;
   }
   // Don't close popup for move — it triggers the move sub-flow
-  if (action !== 'move') {
+  if (action !== "move") {
     moreOpen.value = null;
   }
   item.isMore = false;
-  emit('action', action, item);
+  emit("action", action, item);
 };
-
 </script>
 
 <template>
@@ -249,15 +268,22 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
     <div ref="stickySentinel" class="doc-list-sticky-sentinel" aria-hidden="true"></div>
     <div class="doc-list-header" :class="{ 'is-stuck': headerStuck }" role="row">
       <div class="cell cell-check" role="columnheader" @click.stop>
-        <t-checkbox class="doc-list-check" size="small" :checked="allSelected" :indeterminate="someSelected"
-          :disabled="!items.length" :title="t('knowledgeBase.selectAll')" @change="onHeaderCheckboxChange" />
+        <t-checkbox
+          class="doc-list-check"
+          size="small"
+          :checked="allSelected"
+          :indeterminate="someSelected"
+          :disabled="!items.length"
+          :title="t('knowledgeBase.selectAll')"
+          @change="onHeaderCheckboxChange"
+        />
       </div>
-      <div class="cell cell-name" role="columnheader">{{ t('knowledgeBase.columnName') }}</div>
-      <div class="cell cell-tag" role="columnheader">{{ t('knowledgeBase.columnTag') }}</div>
-      <div class="cell cell-source" role="columnheader">{{ t('knowledgeBase.columnSource') }}</div>
-      <div class="cell cell-size" role="columnheader">{{ t('knowledgeBase.columnSize') }}</div>
-      <div class="cell cell-status" role="columnheader">{{ t('knowledgeBase.columnStatus') }}</div>
-      <div class="cell cell-time" role="columnheader">{{ t('knowledgeBase.columnUpdatedAt') }}</div>
+      <div class="cell cell-name" role="columnheader">{{ t("knowledgeBase.columnName") }}</div>
+      <div class="cell cell-tag" role="columnheader">{{ t("knowledgeBase.columnTag") }}</div>
+      <div class="cell cell-source" role="columnheader">{{ t("knowledgeBase.columnSource") }}</div>
+      <div class="cell cell-size" role="columnheader">{{ t("knowledgeBase.columnSize") }}</div>
+      <div class="cell cell-status" role="columnheader">{{ t("knowledgeBase.columnStatus") }}</div>
+      <div class="cell cell-time" role="columnheader">{{ t("knowledgeBase.columnUpdatedAt") }}</div>
       <div class="cell cell-actions" role="columnheader" v-if="canEdit"></div>
     </div>
 
@@ -282,7 +308,7 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
         <div class="cell cell-tag"></div>
         <div class="cell cell-source">
           <span class="row-folder-meta">
-            {{ t('knowledgeBase.folderTree.folderCardCount', { count: folder.total_count }) }}
+            {{ t("knowledgeBase.folderTree.folderCardCount", { count: folder.total_count }) }}
           </span>
         </div>
         <div class="cell cell-size"></div>
@@ -291,12 +317,23 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
         <div v-if="canEdit" class="cell cell-actions" aria-hidden="true"></div>
       </div>
 
-      <div v-for="item in items" :key="item.id" class="doc-list-row"
-        :class="{ selected: selectedIds.has(item.id), 'menu-open': moreOpen === item.id }" :data-select-id="item.id"
-        role="row" @click="emit('open', item)">
+      <div
+        v-for="item in items"
+        :key="item.id"
+        class="doc-list-row"
+        :class="{ selected: selectedIds.has(item.id), 'menu-open': moreOpen === item.id }"
+        :data-select-id="item.id"
+        role="row"
+        @click="emit('open', item)"
+      >
         <div class="cell cell-check" @click.stop>
-          <t-checkbox class="doc-list-check" size="small" :checked="selectedIds.has(item.id)" :title="item.file_name"
-            @change="(c: boolean, ctx?: { e?: Event }) => onRowCheckboxChange(item, c, ctx)" />
+          <t-checkbox
+            class="doc-list-check"
+            size="small"
+            :checked="selectedIds.has(item.id)"
+            :title="item.file_name"
+            @change="(c: boolean, ctx?: { e?: Event }) => onRowCheckboxChange(item, c, ctx)"
+          />
         </div>
 
         <div class="cell cell-name">
@@ -305,8 +342,13 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
           </span>
           <div class="row-file-text">
             <span class="row-file-name" :title="item.file_name">{{ item.file_name }}</span>
-            <button v-if="showFolderPath && item.folder_path" type="button" class="row-file-folder"
-              :title="item.folder_path" @click.stop="emit('open-folder', item.folder_path)">
+            <button
+              v-if="showFolderPath && item.folder_path"
+              type="button"
+              class="row-file-folder"
+              :title="item.folder_path"
+              @click.stop="emit('open-folder', item.folder_path)"
+            >
               <t-icon name="folder" />
               <span>{{ item.folder_path }}</span>
             </button>
@@ -314,30 +356,51 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
           </div>
         </div>
 
-
         <div class="cell cell-tag">
           <template v-if="item.tags && item.tags.length > 0">
-            <t-tooltip v-if="hasTagOverflow(item.id, (item.tags || []).length)"
-              :content="(item.tags || []).map((t: any) => t.name).join(', ')" placement="top">
-              <div class="row-tag-chips" :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-                :class="{ 'is-clickable': canEdit }" @click.stop="canEdit && emit('tag-edit', item)">
-                <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small"
-                  variant="light-outline" class="row-tag">
+            <t-tooltip
+              v-if="hasTagOverflow(item.id, (item.tags || []).length)"
+              :content="(item.tags || []).map((t: any) => t.name).join(', ')"
+              placement="top"
+            >
+              <div
+                class="row-tag-chips"
+                :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
+                :class="{ 'is-clickable': canEdit }"
+                @click.stop="canEdit && emit('tag-edit', item)"
+              >
+                <t-tag
+                  v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                  :key="tag.id"
+                  size="small"
+                  variant="light-outline"
+                  class="row-tag"
+                >
                   {{ tag.name }}
                 </t-tag>
                 <span class="row-tag-overflow">+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span>
               </div>
             </t-tooltip>
-            <div v-else class="row-tag-chips" :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-              :class="{ 'is-clickable': canEdit }" @click.stop="canEdit && emit('tag-edit', item)">
-              <t-tag v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))" :key="tag.id" size="small"
-                variant="light-outline" class="row-tag">
+            <div
+              v-else
+              class="row-tag-chips"
+              :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
+              :class="{ 'is-clickable': canEdit }"
+              @click.stop="canEdit && emit('tag-edit', item)"
+            >
+              <t-tag
+                v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                :key="tag.id"
+                size="small"
+                variant="light-outline"
+                class="row-tag"
+              >
                 {{ tag.name }}
               </t-tag>
             </div>
           </template>
           <span v-else class="row-tag-chips is-clickable" @click.stop="canEdit && emit('tag-edit', item)">
-            <span class="row-tag-add">+ {{ t('knowledgeBase.tagLabel') }}</span>
+            <span class="row-tag-add">+ {{ t("knowledgeBase.tagLabel") }}</span>
           </span>
         </div>
 
@@ -347,16 +410,23 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
         </div>
 
         <div class="cell cell-size">
-          <span class="row-mono">{{ formatFileSize(item.file_size) || '--' }}</span>
+          <span class="row-mono">{{ formatFileSize(item.file_size) || "--" }}</span>
         </div>
 
         <div class="cell cell-status">
           <template v-if="statusByRow.get(item.id) as StatusInfo | undefined">
-            <t-tag v-if="statusByRow.get(item.id)!.label !== '--'" size="small" :theme="statusByRow.get(item.id)!.theme"
-              variant="light-outline" class="row-status-tag">
+            <t-tag
+              v-if="statusByRow.get(item.id)!.label !== '--'"
+              size="small"
+              :theme="statusByRow.get(item.id)!.theme"
+              variant="light-outline"
+              class="row-status-tag"
+            >
               <template v-if="statusByRow.get(item.id)!.icon" #icon>
-                <t-icon :name="statusByRow.get(item.id)!.icon!"
-                  :class="{ 'icon-spin': statusByRow.get(item.id)!.spin }" />
+                <t-icon
+                  :name="statusByRow.get(item.id)!.icon!"
+                  :class="{ 'icon-spin': statusByRow.get(item.id)!.spin }"
+                />
               </template>
               {{ statusByRow.get(item.id)!.label }}
             </t-tag>
@@ -369,10 +439,19 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
         </div>
 
         <div class="cell cell-actions" v-if="canEdit" @click.stop>
-          <t-popup placement="bottom-right" trigger="click" destroy-on-close overlay-class-name="card-more"
-            :on-visible-change="(v: boolean) => onMoreVisible(item.id, v)">
-            <button class="row-more-btn" :class="{ active: moreOpen === item.id }" type="button"
-              :aria-label="t('knowledgeBase.columnActions')">
+          <t-popup
+            placement="bottom-right"
+            trigger="click"
+            destroy-on-close
+            overlay-class-name="card-more"
+            :on-visible-change="(v: boolean) => onMoreVisible(item.id, v)"
+          >
+            <button
+              class="row-more-btn"
+              :class="{ active: moreOpen === item.id }"
+              type="button"
+              :aria-label="t('knowledgeBase.columnActions')"
+            >
               <t-icon name="more" size="16px" />
             </button>
             <template #content>
@@ -393,7 +472,12 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
                   :item="item"
                   :can-download="canDownload"
                   :can-mutate-knowledge="canMutateKnowledge"
-                  :trace-visible="!!traceVisibleIds[item.id] || (item.parse_status === 'pending' || item.parse_status === 'processing' || item.parse_status === 'finalizing')"
+                  :trace-visible="
+                    !!traceVisibleIds[item.id] ||
+                    item.parse_status === 'pending' ||
+                    item.parse_status === 'processing' ||
+                    item.parse_status === 'finalizing'
+                  "
                   @download="handleAction('download', item)"
                   @edit="handleAction('edit', item)"
                   @view-trace="handleAction('view-trace', item)"
@@ -410,20 +494,26 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
               <div v-else-if="moveMenuMode === 'targets'" class="card-menu move-menu">
                 <div class="move-menu-header" @click.stop="emit('move-back')">
                   <t-icon name="chevron-left" size="16px" />
-                  <span>{{ $t('knowledgeBase.moveToKnowledgeBase') }}</span>
+                  <span>{{ $t("knowledgeBase.moveToKnowledgeBase") }}</span>
                 </div>
                 <div v-if="moveTargetsLoading" class="move-menu-loading">
                   <t-loading size="small" />
                 </div>
                 <div v-else-if="moveTargetKbs.length === 0" class="move-menu-empty">
-                  {{ $t('knowledgeBase.moveNoTargets') }}
+                  {{ $t("knowledgeBase.moveNoTargets") }}
                 </div>
                 <template v-else>
-                  <div v-for="kb in moveTargetKbs" :key="kb.id" class="card-menu-item"
-                    @click.stop="emit('move-select-target', kb)">
+                  <div
+                    v-for="kb in moveTargetKbs"
+                    :key="kb.id"
+                    class="card-menu-item"
+                    @click.stop="emit('move-select-target', kb)"
+                  >
                     <t-icon class="icon" name="root-list" />
                     <span class="move-target-name">{{ kb.name }}</span>
-                    <span v-if="kb.knowledge_count !== undefined" class="move-target-count">{{ kb.knowledge_count }}</span>
+                    <span v-if="kb.knowledge_count !== undefined" class="move-target-count">{{
+                      kb.knowledge_count
+                    }}</span>
                   </div>
                 </template>
               </div>
@@ -432,35 +522,46 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
               <div v-else-if="moveMenuMode === 'confirm'" class="card-menu move-menu">
                 <div class="move-menu-header" @click.stop="emit('move-back')">
                   <t-icon name="chevron-left" size="16px" />
-                  <span>{{ $t('knowledgeBase.moveConfirmTitle') }}</span>
+                  <span>{{ $t("knowledgeBase.moveConfirmTitle") }}</span>
                 </div>
                 <div class="move-confirm-body">
                   <div class="move-target-info">
                     <t-icon name="arrow-right" size="14px" />
                     <span>{{ moveSelectedTargetName }}</span>
                   </div>
-                  <div class="move-mode-item" :class="{ active: moveMode === 'reuse_vectors' }"
-                    @click.stop="emit('update:moveMode', 'reuse_vectors')">
+                  <div
+                    class="move-mode-item"
+                    :class="{ active: moveMode === 'reuse_vectors' }"
+                    @click.stop="emit('update:moveMode', 'reuse_vectors')"
+                  >
                     <t-radio :checked="moveMode === 'reuse_vectors'" />
                     <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t('knowledgeBase.moveModeReuseVectors') }}</span>
-                      <span class="move-mode-desc">{{ $t('knowledgeBase.moveModeReuseVectorsDesc') }}</span>
+                      <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReuseVectors") }}</span>
+                      <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReuseVectorsDesc") }}</span>
                     </div>
                   </div>
-                  <div class="move-mode-item" :class="{ active: moveMode === 'reparse' }"
-                    @click.stop="emit('update:moveMode', 'reparse')">
+                  <div
+                    class="move-mode-item"
+                    :class="{ active: moveMode === 'reparse' }"
+                    @click.stop="emit('update:moveMode', 'reparse')"
+                  >
                     <t-radio :checked="moveMode === 'reparse'" />
                     <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t('knowledgeBase.moveModeReparse') }}</span>
-                      <span class="move-mode-desc">{{ $t('knowledgeBase.moveModeReparseDesc') }}</span>
+                      <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReparse") }}</span>
+                      <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReparseDesc") }}</span>
                     </div>
                   </div>
                   <div class="move-confirm-actions">
                     <t-button size="small" variant="outline" @click.stop="emit('move-back')">{{
-                      $t('common.cancel') }}</t-button>
-                    <t-button size="small" theme="primary" :loading="moveSubmitting"
-                      @click.stop="emit('move-confirm')">{{
-                        $t('knowledgeBase.moveConfirm') }}</t-button>
+                      $t("common.cancel")
+                    }}</t-button>
+                    <t-button
+                      size="small"
+                      theme="primary"
+                      :loading="moveSubmitting"
+                      @click.stop="emit('move-confirm')"
+                      >{{ $t("knowledgeBase.moveConfirm") }}</t-button
+                    >
                   </div>
                 </div>
               </div>
@@ -501,8 +602,7 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
 .doc-list-header,
 .doc-list-row {
   display: grid;
-  grid-template-columns:
-    44px // checkbox
+  grid-template-columns: 44px // checkbox
     minmax(260px, 2.6fr) // name
     minmax(100px, 0.9fr) // tag
     minmax(96px, 0.8fr) // source
@@ -536,7 +636,9 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
   border-bottom: 1px solid var(--td-component-stroke);
   border-radius: 8px 8px 0 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: border-radius 0.15s ease, box-shadow 0.2s ease;
+  transition:
+    border-radius 0.15s ease,
+    box-shadow 0.2s ease;
 
   &.is-stuck {
     border-radius: 0;
@@ -558,7 +660,10 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
   color: var(--td-text-color-primary);
   border-bottom: 1px solid var(--td-component-stroke);
   cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 
   &:last-child {
     border-bottom: 0;
@@ -847,7 +952,10 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
   color: var(--td-text-color-secondary);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     background: var(--td-component-stroke);
@@ -860,5 +968,4 @@ const handleAction = (action: 'download' | 'edit' | 'reparse' | 'cancel-parse' |
     color: var(--td-text-color-primary);
   }
 }
-
 </style>

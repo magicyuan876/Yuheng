@@ -12,39 +12,39 @@
       @input="autosize"
     />
     <div class="docs-composer-actions">
-      <span class="docs-composer-hint">{{ t('docs.comments.submitHint') }}</span>
+      <span class="docs-composer-hint">{{ t("docs.comments.submitHint") }}</span>
       <button type="button" class="docs-composer-cancel" :disabled="busy" @click="emit('cancel')">
-        {{ t('common.cancel') }}
+        {{ t("common.cancel") }}
       </button>
       <button type="submit" class="docs-composer-submit" :disabled="busy || !canSubmit">
-        {{ submitLabel ?? t('docs.comments.submit') }}
+        {{ submitLabel ?? t("docs.comments.submit") }}
       </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, nextTick, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { bodyFromText, textOf } from './composerBody'
+import { bodyFromText, textOf } from "./composerBody";
 
 const props = defineProps<{
   /** An existing body to edit; absent for a new comment. */
-  initial?: unknown
-  placeholder?: string
-  submitLabel?: string
-  busy?: boolean
-  autofocus?: boolean
-}>()
+  initial?: unknown;
+  placeholder?: string;
+  submitLabel?: string;
+  busy?: boolean;
+  autofocus?: boolean;
+}>();
 
-const emit = defineEmits<{ submit: [body: unknown]; cancel: [] }>()
-const { t } = useI18n()
+const emit = defineEmits<{ submit: [body: unknown]; cancel: [] }>();
+const { t } = useI18n();
 
-const input = ref<HTMLTextAreaElement | null>(null)
-const draft = ref(textOf(props.initial))
+const input = ref<HTMLTextAreaElement | null>(null);
+const draft = ref(textOf(props.initial));
 
-const canSubmit = computed(() => draft.value.trim() !== '')
+const canSubmit = computed(() => draft.value.trim() !== "");
 
 /**
  * The composer writes plain text; composerBody.ts turns it into a document
@@ -57,9 +57,9 @@ const canSubmit = computed(() => draft.value.trim() !== '')
  */
 
 function submit() {
-  if (!canSubmit.value || props.busy) return
-  emit('submit', bodyFromText(draft.value))
-  draft.value = ''
+  if (!canSubmit.value || props.busy) return;
+  emit("submit", bodyFromText(draft.value));
+  draft.value = "";
 }
 
 /**
@@ -70,28 +70,28 @@ function submit() {
  * convention nobody is told about is a surprise.
  */
 function onKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    emit('cancel')
-    return
+  if (event.key === "Escape") {
+    event.preventDefault();
+    emit("cancel");
+    return;
   }
-  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-    event.preventDefault()
-    submit()
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    submit();
   }
 }
 
 function autosize() {
-  const el = input.value
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${Math.min(el.scrollHeight, 240)}px`
+  const el = input.value;
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
 }
 
 onMounted(() => {
-  if (props.autofocus !== false) void nextTick(() => input.value?.focus())
-  autosize()
-})
+  if (props.autofocus !== false) void nextTick(() => input.value?.focus());
+  autosize();
+});
 </script>
 
 <style scoped lang="less">

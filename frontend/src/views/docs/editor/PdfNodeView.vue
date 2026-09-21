@@ -4,7 +4,7 @@
       <t-icon name="file-pdf" size="16px" />
       <span class="docs-pdf-name">{{ name }}</span>
       <a v-if="src" class="docs-pdf-open" :href="src" target="_blank" rel="noopener">
-        {{ t('docs.media.openInTab') }}
+        {{ t("docs.media.openInTab") }}
       </a>
       <button
         v-if="editor.isEditable"
@@ -29,27 +29,27 @@
       loading="lazy"
       referrerpolicy="no-referrer"
     />
-    <p v-else class="docs-pdf-missing">{{ t('docs.media.missing') }}</p>
+    <p v-else class="docs-pdf-missing">{{ t("docs.media.missing") }}</p>
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { useAttachmentUrl } from './useAttachmentUrl'
+import { useAttachmentUrl } from "./useAttachmentUrl";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const name = computed(() => String(props.node.attrs.name || t('docs.attachments.unnamed')))
-const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null)
-const src = useAttachmentUrl(attachmentId)
+const name = computed(() => String(props.node.attrs.name || t("docs.attachments.unnamed")));
+const attachmentId = computed(() => (props.node.attrs.attachmentId as string | null) ?? null);
+const src = useAttachmentUrl(attachmentId);
 const frameStyle = computed(() => {
-  const height = Number(props.node.attrs.height ?? 0)
-  return { height: `${height > 0 ? height : 520}px` }
-})
+  const height = Number(props.node.attrs.height ?? 0);
+  return { height: `${height > 0 ? height : 520}px` };
+});
 </script>
 
 <style scoped lang="less">

@@ -1,7 +1,5 @@
 import { get, post, put, del, postChat } from "../../utils/request";
 
-
-
 export async function createSessions(data = {}) {
   return post("/api/v1/sessions", data);
 }
@@ -30,13 +28,15 @@ export async function updateSession(session_id: string, data: { title: string; d
   return put(`/api/v1/sessions/${session_id}`, data);
 }
 
-export async function knowledgeChat(data: { session_id: string; query: string; }) {
+export async function knowledgeChat(data: { session_id: string; query: string }) {
   return postChat(`/api/v1/knowledge-chat/${data.session_id}`, { query: data.query, channel: "web" });
 }
 
-export async function getMessageList(data: { session_id: string; limit: number, created_at: string }) {
+export async function getMessageList(data: { session_id: string; limit: number; created_at: string }) {
   if (data.created_at) {
-    return get(`/api/v1/messages/${data.session_id}/load?before_time=${encodeURIComponent(data.created_at)}&limit=${data.limit}`);
+    return get(
+      `/api/v1/messages/${data.session_id}/load?before_time=${encodeURIComponent(data.created_at)}&limit=${data.limit}`,
+    );
   } else {
     return get(`/api/v1/messages/${data.session_id}/load?limit=${data.limit}`);
   }

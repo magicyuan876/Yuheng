@@ -1,15 +1,15 @@
 // Sidebar session list source filter: web chats default, optional IM / embed buckets.
 
-export const DEFAULT_SESSION_BUCKET_KEY = 'web'
+export const DEFAULT_SESSION_BUCKET_KEY = "web";
 
 export interface SessionSourceOption {
-  value: string
-  label: string
-  logo?: string
+  value: string;
+  label: string;
+  logo?: string;
 }
 
 export function shouldShowSessionSourceFilter(visibleChannelCount: number): boolean {
-  return visibleChannelCount > 0
+  return visibleChannelCount > 0;
 }
 
 export function buildSessionSourceOptions(
@@ -22,7 +22,7 @@ export function buildSessionSourceOptions(
       value: bucket.key,
       label: bucket.label,
     })),
-  ]
+  ];
 }
 
 export function findSessionBucketKey(
@@ -30,7 +30,7 @@ export function findSessionBucketKey(
   sessionId: string,
 ): string | null {
   for (const [key, bucket] of Object.entries(buckets)) {
-    if (bucket.items.some((row) => row.id === sessionId)) return key
+    if (bucket.items.some((row) => row.id === sessionId)) return key;
   }
-  return null
+  return null;
 }

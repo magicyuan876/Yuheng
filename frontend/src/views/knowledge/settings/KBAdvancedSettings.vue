@@ -1,68 +1,68 @@
 <template>
   <div class="kb-advanced-settings" :class="{ 'kb-advanced-settings--embedded': embedded }">
     <div v-if="!embedded" class="section-header">
-      <h2>{{ $t('knowledgeEditor.advanced.title') }}</h2>
-      <p class="section-description">{{ $t('knowledgeEditor.advanced.description') }}</p>
+      <h2>{{ $t("knowledgeEditor.advanced.title") }}</h2>
+      <p class="section-description">{{ $t("knowledgeEditor.advanced.description") }}</p>
     </div>
 
     <div class="settings-group">
       <!-- Question Generation feature (only useful for RAG indexing) -->
       <template v-if="ragEnabled !== false">
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.advanced.questionGeneration.label') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.advanced.questionGeneration.description') }}</p>
-        </div>
-        <div class="setting-control">
-          <t-switch
-            v-model="localQuestionGeneration.enabled"
-            @change="handleQuestionGenerationToggle"
-            size="medium"
-          />
-        </div>
-      </div>
-
-      <!-- Question Generation configuration -->
-      <div v-if="localQuestionGeneration.enabled" class="subsection">
         <div class="setting-row">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.advanced.questionGeneration.countLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.advanced.questionGeneration.countDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.advanced.questionGeneration.label") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.description") }}</p>
           </div>
           <div class="setting-control">
-            <t-input-number
-              v-model="localQuestionGeneration.questionCount"
-              :min="1"
-              :max="10"
-              :step="1"
-              theme="normal"
-              @change="handleQuestionGenerationChange"
-              style="width: 120px;"
+            <t-switch
+              v-model="localQuestionGeneration.enabled"
+              @change="handleQuestionGenerationToggle"
+              size="medium"
             />
           </div>
         </div>
-        <div class="setting-row setting-row-vertical">
-          <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.advanced.questionGeneration.instructionsLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.advanced.questionGeneration.instructionsDescription') }}</p>
+
+        <!-- Question Generation configuration -->
+        <div v-if="localQuestionGeneration.enabled" class="subsection">
+          <div class="setting-row">
+            <div class="setting-info">
+              <label>{{ $t("knowledgeEditor.advanced.questionGeneration.countLabel") }}</label>
+              <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.countDescription") }}</p>
+            </div>
+            <div class="setting-control">
+              <t-input-number
+                v-model="localQuestionGeneration.questionCount"
+                :min="1"
+                :max="10"
+                :step="1"
+                theme="normal"
+                @change="handleQuestionGenerationChange"
+                style="width: 120px"
+              />
+            </div>
           </div>
-          <div class="setting-control">
-            <t-textarea
-              v-model="localQuestionGeneration.customInstructions"
-              :placeholder="$t('knowledgeEditor.advanced.questionGeneration.instructionsPlaceholder')"
-              :maxlength="4000"
-              :autosize="{ minRows: 3, maxRows: 8 }"
-              @change="handleQuestionGenerationChange"
-            />
+          <div class="setting-row setting-row-vertical">
+            <div class="setting-info">
+              <label>{{ $t("knowledgeEditor.advanced.questionGeneration.instructionsLabel") }}</label>
+              <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.instructionsDescription") }}</p>
+            </div>
+            <div class="setting-control">
+              <t-textarea
+                v-model="localQuestionGeneration.customInstructions"
+                :placeholder="$t('knowledgeEditor.advanced.questionGeneration.instructionsPlaceholder')"
+                :maxlength="4000"
+                :autosize="{ minRows: 3, maxRows: 8 }"
+                @change="handleQuestionGenerationChange"
+              />
+            </div>
           </div>
         </div>
-      </div>
       </template>
 
       <div class="setting-row">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.advanced.autoTag.label') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.advanced.autoTag.description') }}</p>
+          <label>{{ $t("knowledgeEditor.advanced.autoTag.label") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.description") }}</p>
         </div>
         <div class="setting-control">
           <t-switch v-model="localAutoTag.enabled" size="medium" @change="emitAutoTag" />
@@ -72,8 +72,8 @@
       <div v-if="localAutoTag.enabled" class="subsection">
         <div class="setting-row setting-row-vertical">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.advanced.autoTag.modelLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.advanced.autoTag.modelDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.advanced.autoTag.modelLabel") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.modelDescription") }}</p>
           </div>
           <div class="setting-control">
             <ModelSelector
@@ -82,14 +82,19 @@
               :all-models="allModels"
               clearable
               :placeholder="$t('knowledgeEditor.advanced.autoTag.modelPlaceholder')"
-              @update:selected-model-id="(value: string) => { localAutoTag.modelId = value; emitAutoTag() }"
+              @update:selected-model-id="
+                (value: string) => {
+                  localAutoTag.modelId = value;
+                  emitAutoTag();
+                }
+              "
             />
           </div>
         </div>
         <div class="setting-row">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.advanced.autoTag.maxTagsLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.advanced.autoTag.maxTagsDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.advanced.autoTag.maxTagsLabel") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.maxTagsDescription") }}</p>
           </div>
           <div class="setting-control">
             <t-input-number
@@ -98,15 +103,15 @@
               :max="10"
               :step="1"
               theme="normal"
-              style="width: 120px;"
+              style="width: 120px"
               @change="emitAutoTag"
             />
           </div>
         </div>
         <div class="setting-row">
           <div class="setting-info">
-            <label>{{ $t('knowledgeEditor.advanced.autoTag.skipIfTaggedLabel') }}</label>
-            <p class="desc">{{ $t('knowledgeEditor.advanced.autoTag.skipIfTaggedDescription') }}</p>
+            <label>{{ $t("knowledgeEditor.advanced.autoTag.skipIfTaggedLabel") }}</label>
+            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.skipIfTaggedDescription") }}</p>
           </div>
           <div class="setting-control">
             <t-switch v-model="localAutoTag.skipIfTagged" size="medium" @change="emitAutoTag" />
@@ -116,8 +121,8 @@
 
       <div class="setting-row setting-row-vertical">
         <div class="setting-info">
-          <label>{{ $t('knowledgeEditor.advanced.tableMetadataInstructions.label') }}</label>
-          <p class="desc">{{ $t('knowledgeEditor.advanced.tableMetadataInstructions.description') }}</p>
+          <label>{{ $t("knowledgeEditor.advanced.tableMetadataInstructions.label") }}</label>
+          <p class="desc">{{ $t("knowledgeEditor.advanced.tableMetadataInstructions.description") }}</p>
         </div>
         <div class="setting-control">
           <t-textarea
@@ -129,83 +134,90 @@
           />
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import ModelSelector from '@/components/ModelSelector.vue'
+import { ref, watch } from "vue";
+import ModelSelector from "@/components/ModelSelector.vue";
 
 interface QuestionGenerationConfig {
-  enabled: boolean
-  questionCount: number
-  customInstructions?: string
+  enabled: boolean;
+  questionCount: number;
+  customInstructions?: string;
 }
 
 interface AutoTagConfig {
-  enabled: boolean
-  modelId: string
-  maxTags: number
-  skipIfTagged: boolean
+  enabled: boolean;
+  modelId: string;
+  maxTags: number;
+  skipIfTagged: boolean;
 }
 
 interface Props {
-  questionGeneration?: QuestionGenerationConfig
-  autoTag?: AutoTagConfig
-  ragEnabled?: boolean
-  allModels?: any[]
-  embedded?: boolean
-  tableMetadataInstructions?: string
+  questionGeneration?: QuestionGenerationConfig;
+  autoTag?: AutoTagConfig;
+  ragEnabled?: boolean;
+  allModels?: any[];
+  embedded?: boolean;
+  tableMetadataInstructions?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   embedded: false,
-})
+});
 
 const emit = defineEmits<{
-  'update:questionGeneration': [value: QuestionGenerationConfig]
-  'update:autoTag': [value: AutoTagConfig]
-  'update:tableMetadataInstructions': [value: string]
-}>()
+  "update:questionGeneration": [value: QuestionGenerationConfig];
+  "update:autoTag": [value: AutoTagConfig];
+  "update:tableMetadataInstructions": [value: string];
+}>();
 
 const localQuestionGeneration = ref<QuestionGenerationConfig>(
   props.questionGeneration
-    ? { ...props.questionGeneration, customInstructions: props.questionGeneration.customInstructions || '' }
-    : { enabled: false, questionCount: 3, customInstructions: '' }
-)
+    ? { ...props.questionGeneration, customInstructions: props.questionGeneration.customInstructions || "" }
+    : { enabled: false, questionCount: 3, customInstructions: "" },
+);
 
 const localAutoTag = ref<AutoTagConfig>(
-  props.autoTag ? { ...props.autoTag } : { enabled: false, modelId: '', maxTags: 3, skipIfTagged: true }
-)
+  props.autoTag ? { ...props.autoTag } : { enabled: false, modelId: "", maxTags: 3, skipIfTagged: true },
+);
 
-watch(() => props.questionGeneration, (newVal) => {
-  if (newVal) {
-    localQuestionGeneration.value = { customInstructions: '', ...newVal }
-  }
-}, { deep: true })
+watch(
+  () => props.questionGeneration,
+  (newVal) => {
+    if (newVal) {
+      localQuestionGeneration.value = { customInstructions: "", ...newVal };
+    }
+  },
+  { deep: true },
+);
 
-watch(() => props.autoTag, (newVal) => {
-  if (newVal) localAutoTag.value = { ...newVal }
-}, { deep: true })
+watch(
+  () => props.autoTag,
+  (newVal) => {
+    if (newVal) localAutoTag.value = { ...newVal };
+  },
+  { deep: true },
+);
 
 const emitAutoTag = () => {
-  if (!localAutoTag.value.maxTags) localAutoTag.value.maxTags = 3
-  localAutoTag.value.maxTags = Math.min(10, Math.max(1, Math.trunc(localAutoTag.value.maxTags)))
-  emit('update:autoTag', { ...localAutoTag.value })
-}
+  if (!localAutoTag.value.maxTags) localAutoTag.value.maxTags = 3;
+  localAutoTag.value.maxTags = Math.min(10, Math.max(1, Math.trunc(localAutoTag.value.maxTags)));
+  emit("update:autoTag", { ...localAutoTag.value });
+};
 
 const handleQuestionGenerationToggle = () => {
   if (!localQuestionGeneration.value.enabled) {
-    localQuestionGeneration.value.questionCount = 3
+    localQuestionGeneration.value.questionCount = 3;
   }
-  emit('update:questionGeneration', localQuestionGeneration.value)
-}
+  emit("update:questionGeneration", localQuestionGeneration.value);
+};
 
 const handleQuestionGenerationChange = () => {
-  emit('update:questionGeneration', localQuestionGeneration.value)
-}
+  emit("update:questionGeneration", localQuestionGeneration.value);
+};
 </script>
 
 <style lang="less" scoped>
@@ -363,5 +375,4 @@ const handleQuestionGenerationChange = () => {
     background: none;
   }
 }
-
 </style>

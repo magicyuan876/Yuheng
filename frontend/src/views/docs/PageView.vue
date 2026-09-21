@@ -5,30 +5,33 @@
       <button type="button" class="crumb" @click="goSpace">{{ space.name }}</button>
       <template v-for="a in ancestors" :key="a.id">
         <t-icon name="chevron-right" size="12px" class="crumb-sep" />
-        <button type="button" class="crumb" @click="goPage(a)">{{ a.title || t('docs.tree.untitled') }}</button>
+        <button type="button" class="crumb" @click="goPage(a)">{{ a.title || t("docs.tree.untitled") }}</button>
       </template>
       <template v-if="page">
         <t-icon name="chevron-right" size="12px" class="crumb-sep" />
-        <span class="crumb crumb--current">{{ page.title || t('docs.tree.untitled') }}</span>
+        <span class="crumb crumb--current">{{ page.title || t("docs.tree.untitled") }}</span>
       </template>
     </nav>
 
     <div v-if="loading" class="page-loading">
-      <t-skeleton animation="gradient" :row-col="[{ width: '50%', height: '32px' }, { width: '100%' }, { width: '90%' }]" />
+      <t-skeleton
+        animation="gradient"
+        :row-col="[{ width: '50%', height: '32px' }, { width: '100%' }, { width: '90%' }]"
+      />
     </div>
 
     <!-- In the trash -->
     <div v-else-if="gone" class="page-gone">
       <t-icon name="delete" size="32px" />
-      <h2>{{ t('docs.pages.gone') }}</h2>
-      <p>{{ t('docs.pages.goneHint', { time: formatDate(gone.deleted_at) }) }}</p>
-      <p v-if="!gone.restorable" class="gone-hint">{{ t('docs.pages.restoreNotAllowed') }}</p>
-      <t-button v-else theme="primary" :loading="restoring" @click="restore">{{ t('docs.pages.restore') }}</t-button>
+      <h2>{{ t("docs.pages.gone") }}</h2>
+      <p>{{ t("docs.pages.goneHint", { time: formatDate(gone.deleted_at) }) }}</p>
+      <p v-if="!gone.restorable" class="gone-hint">{{ t("docs.pages.restoreNotAllowed") }}</p>
+      <t-button v-else theme="primary" :loading="restoring" @click="restore">{{ t("docs.pages.restore") }}</t-button>
     </div>
 
     <div v-else-if="notFound" class="page-gone">
       <t-icon name="error-circle" size="32px" />
-      <h2>{{ t('docs.pages.notFound') }}</h2>
+      <h2>{{ t("docs.pages.notFound") }}</h2>
     </div>
 
     <article v-else-if="page" class="page-article">
@@ -38,24 +41,37 @@
              line so a long title wraps beneath it rather than dragging it
              down the middle. -->
         <div class="page-title-row">
-          <t-popup v-if="page.can_edit" trigger="click" placement="bottom-left" :visible="iconOpen"
-            @visible-change="(v: boolean) => (iconOpen = v)">
-            <button type="button" class="page-icon" :class="{ 'page-icon--empty': !page.icon }"
-              :aria-label="t('docs.pages.iconPlaceholder')">
+          <t-popup
+            v-if="page.can_edit"
+            trigger="click"
+            placement="bottom-left"
+            :visible="iconOpen"
+            @visible-change="(v: boolean) => (iconOpen = v)"
+          >
+            <button
+              type="button"
+              class="page-icon"
+              :class="{ 'page-icon--empty': !page.icon }"
+              :aria-label="t('docs.pages.iconPlaceholder')"
+            >
               <span v-if="page.icon">{{ page.icon }}</span>
               <t-icon v-else name="file" size="28px" />
             </button>
             <template #content>
               <div class="icon-picker">
-                <t-input v-model="iconDraft" :maxlength="8" :placeholder="t('docs.pages.iconPlaceholder')"
-                  @enter="saveIcon(iconDraft)" />
+                <t-input
+                  v-model="iconDraft"
+                  :maxlength="8"
+                  :placeholder="t('docs.pages.iconPlaceholder')"
+                  @enter="saveIcon(iconDraft)"
+                />
                 <div class="icon-picker-quick">
                   <button v-for="e in QUICK_ICONS" :key="e" type="button" class="icon-quick" @click="saveIcon(e)">
                     {{ e }}
                   </button>
                 </div>
                 <t-button v-if="page.icon" variant="text" size="small" theme="danger" @click="saveIcon('')">
-                  {{ t('docs.pages.removeIcon') }}
+                  {{ t("docs.pages.removeIcon") }}
                 </t-button>
               </div>
             </template>
@@ -64,20 +80,29 @@
             <span v-if="page.icon">{{ page.icon }}</span>
             <t-icon v-else name="file" size="28px" />
           </span>
-          <textarea v-if="page.can_edit" ref="titleInput" v-model="titleDraft" class="page-title page-title--input" rows="1"
-            :placeholder="t('docs.pages.titlePlaceholder')" maxlength="500" @input="autosize" @keydown.enter.prevent="commitTitle"
-            @blur="commitTitle" />
+          <textarea
+            v-if="page.can_edit"
+            ref="titleInput"
+            v-model="titleDraft"
+            class="page-title page-title--input"
+            rows="1"
+            :placeholder="t('docs.pages.titlePlaceholder')"
+            maxlength="500"
+            @input="autosize"
+            @keydown.enter.prevent="commitTitle"
+            @blur="commitTitle"
+          />
           <h1 v-else class="page-title" :class="{ 'page-title--untitled': !page.title }">
-            {{ page.title || t('docs.pages.titlePlaceholder') }}
+            {{ page.title || t("docs.pages.titlePlaceholder") }}
           </h1>
           <div class="page-badges">
-            <t-tag v-if="!page.can_edit" size="small" variant="light">{{ t('docs.pages.readOnly') }}</t-tag>
+            <t-tag v-if="!page.can_edit" size="small" variant="light">{{ t("docs.pages.readOnly") }}</t-tag>
             <t-tag v-if="page.is_locked" size="small" variant="light" theme="warning">
               <template #icon><t-icon name="lock-on" /></template>
-              {{ t('docs.pages.locked') }}
+              {{ t("docs.pages.locked") }}
             </t-tag>
             <t-tag v-if="page.restricted" size="small" variant="light" theme="primary">
-              {{ t('docs.pages.restricted') }}
+              {{ t("docs.pages.restricted") }}
             </t-tag>
           </div>
         </div>
@@ -85,19 +110,16 @@
           <!-- The live word count lives in the editor's own toolbar row;
                showing the persisted one here too would just disagree with
                it while someone is typing. -->
-          <span class="page-meta-time">{{ t('docs.pages.lastEdited', { time: formatDate(page.content_updated_at || page.updated_at) }) }}</span>
+          <span class="page-meta-time">{{
+            t("docs.pages.lastEdited", { time: formatDate(page.content_updated_at || page.updated_at) })
+          }}</span>
           <button type="button" class="page-action" @click="historyOpen = true">
             <t-icon name="history" size="14px" />
-            <span>{{ t('docs.history.title') }}</span>
+            <span>{{ t("docs.history.title") }}</span>
           </button>
-          <button
-            type="button"
-            class="page-action"
-            :aria-pressed="watchState.watched"
-            @click="toggleWatch"
-          >
+          <button type="button" class="page-action" :aria-pressed="watchState.watched" @click="toggleWatch">
             <t-icon :name="watchState.watched ? 'bookmark' : 'bookmark-add'" size="14px" />
-            <span>{{ watchState.watched ? t('docs.watch.watching') : t('docs.watch.watch') }}</span>
+            <span>{{ watchState.watched ? t("docs.watch.watching") : t("docs.watch.watch") }}</span>
           </button>
           <button
             v-if="watchState.watched"
@@ -107,33 +129,19 @@
             @click="toggleMute"
           >
             <t-icon :name="watchState.muted ? 'notification-off' : 'notification'" size="14px" />
-            <span>{{ watchState.muted ? t('docs.watch.muted') : t('docs.watch.mute') }}</span>
+            <span>{{ watchState.muted ? t("docs.watch.muted") : t("docs.watch.mute") }}</span>
           </button>
-          <button
-            type="button"
-            class="page-action"
-            :aria-pressed="favourite"
-            @click="toggleFavourite"
-          >
-            <t-icon :name="favourite ? 'star-filled' : 'star'" size="14px"
-              :class="{ 'star-on': favourite }" />
-            <span>{{ favourite ? t('docs.home.starred') : t('docs.home.star') }}</span>
+          <button type="button" class="page-action" :aria-pressed="favourite" @click="toggleFavourite">
+            <t-icon :name="favourite ? 'star-filled' : 'star'" size="14px" :class="{ 'star-on': favourite }" />
+            <span>{{ favourite ? t("docs.home.starred") : t("docs.home.star") }}</span>
           </button>
-          <button
-            type="button"
-            class="page-action"
-            @click="accessOpen = true"
-          >
+          <button type="button" class="page-action" @click="accessOpen = true">
             <t-icon :name="page.restricted ? 'lock-on' : 'usergroup'" size="14px" />
-            <span>{{ page.restricted ? t('docs.access.restricted') : t('docs.access.who') }}</span>
+            <span>{{ page.restricted ? t("docs.access.restricted") : t("docs.access.who") }}</span>
           </button>
-          <button
-            type="button"
-            class="page-action"
-            @click="shareOpen = true"
-          >
+          <button type="button" class="page-action" @click="shareOpen = true">
             <t-icon name="share" size="14px" />
-            <span>{{ t('docs.share.title') }}</span>
+            <span>{{ t("docs.share.title") }}</span>
           </button>
           <t-dropdown
             :options="exportOptions"
@@ -142,17 +150,12 @@
           >
             <button type="button" class="page-action" :disabled="exporting">
               <t-icon name="download" size="14px" />
-              <span>{{ t('docs.exportDoc.title') }}</span>
+              <span>{{ t("docs.exportDoc.title") }}</span>
             </button>
           </t-dropdown>
-          <button
-            v-if="page.can_edit"
-            type="button"
-            class="page-action"
-            @click="openSaveTemplate"
-          >
+          <button v-if="page.can_edit" type="button" class="page-action" @click="openSaveTemplate">
             <t-icon name="template" size="14px" />
-            <span>{{ t('docs.templates.saveAs') }}</span>
+            <span>{{ t("docs.templates.saveAs") }}</span>
           </button>
           <button
             v-if="page.role === 'admin'"
@@ -162,21 +165,23 @@
             @click="toggleLock"
           >
             <t-icon :name="page.is_locked ? 'lock-on' : 'lock-off'" size="14px" />
-            <span>{{ page.is_locked ? t('docs.lock.locked') : t('docs.lock.lock') }}</span>
+            <span>{{ page.is_locked ? t("docs.lock.locked") : t("docs.lock.lock") }}</span>
           </button>
-          <button
-            v-if="page.can_edit"
-            type="button"
-            class="page-action"
-            @click="toggleDraft"
-          >
+          <button v-if="page.can_edit" type="button" class="page-action" @click="toggleDraft">
             <t-icon :name="page.status === 'draft' ? 'edit-2' : 'check-circle'" size="14px" />
-            <span>{{ page.status === 'draft' ? t('docs.lock.draft') : t('docs.lock.published') }}</span>
+            <span>{{ page.status === "draft" ? t("docs.lock.draft") : t("docs.lock.published") }}</span>
           </button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
-        <PageLabels v-if="page.can_edit || labels.length" class="page-label-row" :page-id="page.id"
-          :space-id="page.space_id" :can-edit="page.can_edit" :labels="labels" @change="onLabelsChanged" />
+        <PageLabels
+          v-if="page.can_edit || labels.length"
+          class="page-label-row"
+          :page-id="page.id"
+          :space-id="page.space_id"
+          :can-edit="page.can_edit"
+          :labels="labels"
+          @change="onLabelsChanged"
+        />
       </header>
 
       <div class="page-body-row">
@@ -230,23 +235,29 @@
       <BacklinksPanel :entries="backlinks" :loading="backlinksLoading" />
 
       <section v-if="children.length" class="page-children">
-        <h3>{{ t('docs.pages.subpages') }}</h3>
+        <h3>{{ t("docs.pages.subpages") }}</h3>
         <ul>
           <li v-for="c in children" :key="c.id">
             <button type="button" class="child-link" @click="goPage(c)">
-              <span class="child-icon">{{ c.icon || '📄' }}</span>
-              <span>{{ c.title || t('docs.tree.untitled') }}</span>
+              <span class="child-icon">{{ c.icon || "📄" }}</span>
+              <span>{{ c.title || t("docs.tree.untitled") }}</span>
             </button>
           </li>
         </ul>
         <t-button v-if="page.can_edit" variant="text" size="small" @click="emit('createChild', page.id)">
           <template #icon><t-icon name="add" /></template>
-          {{ t('docs.tree.newSubpage') }}
+          {{ t("docs.tree.newSubpage") }}
         </t-button>
       </section>
-      <t-button v-else-if="page.can_edit" variant="text" size="small" class="add-child" @click="emit('createChild', page.id)">
+      <t-button
+        v-else-if="page.can_edit"
+        variant="text"
+        size="small"
+        class="add-child"
+        @click="emit('createChild', page.id)"
+      >
         <template #icon><t-icon name="add" /></template>
-        {{ t('docs.tree.newSubpage') }}
+        {{ t("docs.tree.newSubpage") }}
       </t-button>
     </article>
 
@@ -259,38 +270,56 @@
       @restored="onRestored"
     />
 
-    <t-dialog v-model:visible="templateOpen" :header="t('docs.templates.saveAs')" width="480px"
-      destroy-on-close :confirm-btn="{ content: t('common.save'), loading: savingTemplate }"
-      :cancel-btn="t('common.cancel')" @confirm="saveAsTemplate">
+    <t-dialog
+      v-model:visible="templateOpen"
+      :header="t('docs.templates.saveAs')"
+      width="480px"
+      destroy-on-close
+      :confirm-btn="{ content: t('common.save'), loading: savingTemplate }"
+      :cancel-btn="t('common.cancel')"
+      @confirm="saveAsTemplate"
+    >
       <div class="template-form">
         <t-input v-model="templateName" :maxlength="120" :placeholder="t('docs.templates.namePlaceholder')" />
-        <t-input v-model="templateCategory" :maxlength="64"
-          :placeholder="t('docs.templates.categoryPlaceholder')" />
-        <t-textarea v-model="templateDescription" :maxlength="500" :autosize="{ minRows: 2, maxRows: 4 }"
-          :placeholder="t('docs.templates.descriptionPlaceholder')" />
+        <t-input v-model="templateCategory" :maxlength="64" :placeholder="t('docs.templates.categoryPlaceholder')" />
+        <t-textarea
+          v-model="templateDescription"
+          :maxlength="500"
+          :autosize="{ minRows: 2, maxRows: 4 }"
+          :placeholder="t('docs.templates.descriptionPlaceholder')"
+        />
         <!-- Said before it happens, not discovered afterwards. -->
-        <p class="template-note">{{ t('docs.templates.stripNote') }}</p>
+        <p class="template-note">{{ t("docs.templates.stripNote") }}</p>
       </div>
     </t-dialog>
 
-    <t-dialog v-model:visible="shareOpen" :header="t('docs.share.title')" width="560px" destroy-on-close
-      :footer="false">
-      <SharePanel v-if="page" :page-id="page.id" :can-manage="page.can_edit"
-        :restricted="page.restricted" />
+    <t-dialog
+      v-model:visible="shareOpen"
+      :header="t('docs.share.title')"
+      width="560px"
+      destroy-on-close
+      :footer="false"
+    >
+      <SharePanel v-if="page" :page-id="page.id" :can-manage="page.can_edit" :restricted="page.restricted" />
     </t-dialog>
 
-    <t-dialog v-model:visible="accessOpen" :header="t('docs.access.title')" width="560px" destroy-on-close
-      :footer="false">
+    <t-dialog
+      v-model:visible="accessOpen"
+      :header="t('docs.access.title')"
+      width="560px"
+      destroy-on-close
+      :footer="false"
+    >
       <PageAccessPanel v-if="page" :page-id="page.id" @changed="onAccessChanged" />
     </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { MessagePlugin } from "tdesign-vue-next";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 
 import {
   createTemplate,
@@ -319,121 +348,121 @@ import {
   type PageView as PageViewDto,
   type TreeNode,
   type WatchView,
-} from '@/api/docs'
+} from "@/api/docs";
 
-import { useAuthStore } from '@/stores/auth'
-import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
+import { useAuthStore } from "@/stores/auth";
+import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
 
-import CommentComposer from './comments/CommentComposer.vue'
-import PageAccessPanel from './access/PageAccessPanel.vue'
-import SharePanel from './share/SharePanel.vue'
-import PageLabels from './labels/PageLabels.vue'
-import { browserStore, recordVisit } from './home/recentlyViewed'
-import NotificationCentre from './notifications/NotificationCentre.vue'
-import CommentsPanel from './comments/CommentsPanel.vue'
-import BacklinksPanel from './editor/BacklinksPanel.vue'
-import HistoryPanel from './history/HistoryPanel.vue'
-import DocEditor from './editor/DocEditor.vue'
-import type { TocEntry } from './editor/toc'
-import TocSidebar from './editor/TocSidebar.vue'
-import { pageSlug } from './tree/pageTree'
-import type { DocsEvent } from './useDocsEvents'
+import CommentComposer from "./comments/CommentComposer.vue";
+import PageAccessPanel from "./access/PageAccessPanel.vue";
+import SharePanel from "./share/SharePanel.vue";
+import PageLabels from "./labels/PageLabels.vue";
+import { browserStore, recordVisit } from "./home/recentlyViewed";
+import NotificationCentre from "./notifications/NotificationCentre.vue";
+import CommentsPanel from "./comments/CommentsPanel.vue";
+import BacklinksPanel from "./editor/BacklinksPanel.vue";
+import HistoryPanel from "./history/HistoryPanel.vue";
+import DocEditor from "./editor/DocEditor.vue";
+import type { TocEntry } from "./editor/toc";
+import TocSidebar from "./editor/TocSidebar.vue";
+import { pageSlug } from "./tree/pageTree";
+import type { DocsEvent } from "./useDocsEvents";
 
-const QUICK_ICONS = ['📄', '📘', '📗', '📙', '📝', '📌', '🚀', '💡', '🔧', '📊', '🗂️', '✅']
+const QUICK_ICONS = ["📄", "📘", "📗", "📙", "📝", "📌", "🚀", "💡", "🔧", "📊", "🗂️", "✅"];
 
 const props = defineProps<{
-  space: DocsSpace
-  shortId: string
-  lastEvent: DocsEvent | null
-}>()
+  space: DocsSpace;
+  shortId: string;
+  lastEvent: DocsEvent | null;
+}>();
 
 const emit = defineEmits<{
-  loaded: [page: PageViewDto]
-  renamed: [id: string, title: string]
-  restored: [page: PageViewDto]
-  createChild: [parentId: string]
-}>()
+  loaded: [page: PageViewDto];
+  renamed: [id: string, title: string];
+  restored: [page: PageViewDto];
+  createChild: [parentId: string];
+}>();
 
-const { t } = useI18n()
-const router = useRouter()
+const { t } = useI18n();
+const router = useRouter();
 
-const page = ref<PageViewDto | null>(null)
-const ancestors = ref<DocsPage[]>([])
-const children = ref<TreeNode[]>([])
-const loading = ref(false)
-const gone = ref<GonePage | null>(null)
-const notFound = ref(false)
-const titleDraft = ref('')
-const titleInput = ref<HTMLTextAreaElement | null>(null)
-const iconOpen = ref(false)
-const iconDraft = ref('')
+const page = ref<PageViewDto | null>(null);
+const ancestors = ref<DocsPage[]>([]);
+const children = ref<TreeNode[]>([]);
+const loading = ref(false);
+const gone = ref<GonePage | null>(null);
+const notFound = ref(false);
+const titleDraft = ref("");
+const titleInput = ref<HTMLTextAreaElement | null>(null);
+const iconOpen = ref(false);
+const iconDraft = ref("");
 
 // ---- collaborative editor wiring ------------------------------------------
-const authStore = useAuthStore()
-const capabilities = useDeploymentCapabilitiesStore()
-const docEditor = ref<InstanceType<typeof DocEditor> | null>(null)
-const historyOpen = ref(false)
-const accessOpen = ref(false)
-const shareOpen = ref(false)
-const templateOpen = ref(false)
-const savingTemplate = ref(false)
-const templateName = ref('')
-const templateCategory = ref('')
-const templateDescription = ref('')
+const authStore = useAuthStore();
+const capabilities = useDeploymentCapabilitiesStore();
+const docEditor = ref<InstanceType<typeof DocEditor> | null>(null);
+const historyOpen = ref(false);
+const accessOpen = ref(false);
+const shareOpen = ref(false);
+const templateOpen = ref(false);
+const savingTemplate = ref(false);
+const templateName = ref("");
+const templateCategory = ref("");
+const templateDescription = ref("");
 
 // Exporting this page. The file is built by the request and handed to the
 // browser's save dialog, so there is nothing to poll and nothing to clean up.
-const exporting = ref(false)
+const exporting = ref(false);
 const exportOptions = computed(() => [
-  { content: t('docs.exportDoc.markdown'), value: 'markdown' },
-  { content: t('docs.exportDoc.html'), value: 'html' },
-])
+  { content: t("docs.exportDoc.markdown"), value: "markdown" },
+  { content: t("docs.exportDoc.html"), value: "html" },
+]);
 
 async function runExport(format: ExportFormat) {
-  if (exporting.value || !page.value) return
-  exporting.value = true
+  if (exporting.value || !page.value) return;
+  exporting.value = true;
   try {
-    await exportPage(page.value.id, format)
+    await exportPage(page.value.id, format);
   } catch (err) {
-    void MessagePlugin.error(errorText(err, t('docs.exportDoc.failed')))
+    void MessagePlugin.error(errorText(err, t("docs.exportDoc.failed")));
   } finally {
-    exporting.value = false
+    exporting.value = false;
   }
 }
 
 function openSaveTemplate() {
-  templateName.value = page.value?.title ?? ''
-  templateCategory.value = ''
-  templateDescription.value = ''
-  templateOpen.value = true
+  templateName.value = page.value?.title ?? "";
+  templateCategory.value = "";
+  templateDescription.value = "";
+  templateOpen.value = true;
 }
 
 async function toggleLock() {
-  const current = page.value
-  if (!current) return
+  const current = page.value;
+  if (!current) return;
   try {
-    const next = await setPageLocked(current.id, !current.is_locked)
-    page.value = { ...current, ...next }
+    const next = await setPageLocked(current.id, !current.is_locked);
+    page.value = { ...current, ...next };
   } catch (err) {
-    void MessagePlugin.error(errorText(err, t('docs.lock.changeFailed')))
+    void MessagePlugin.error(errorText(err, t("docs.lock.changeFailed")));
   }
 }
 
 async function toggleDraft() {
-  const current = page.value
-  if (!current) return
+  const current = page.value;
+  if (!current) return;
   try {
-    const next = await setPageStatus(current.id, current.status === 'draft' ? 'published' : 'draft')
-    page.value = { ...current, ...next }
+    const next = await setPageStatus(current.id, current.status === "draft" ? "published" : "draft");
+    page.value = { ...current, ...next };
   } catch (err) {
-    void MessagePlugin.error(errorText(err, t('docs.lock.changeFailed')))
+    void MessagePlugin.error(errorText(err, t("docs.lock.changeFailed")));
   }
 }
 
 async function saveAsTemplate() {
-  const current = page.value
-  if (!current || !templateName.value.trim()) return
-  savingTemplate.value = true
+  const current = page.value;
+  if (!current || !templateName.value.trim()) return;
+  savingTemplate.value = true;
   try {
     await createTemplate({
       space_id: current.space_id,
@@ -441,19 +470,19 @@ async function saveAsTemplate() {
       category: templateCategory.value,
       description: templateDescription.value,
       from_page_id: current.id,
-    })
-    templateOpen.value = false
-    void MessagePlugin.success(t('docs.templates.saved'))
+    });
+    templateOpen.value = false;
+    void MessagePlugin.success(t("docs.templates.saved"));
   } catch (err) {
-    void MessagePlugin.error(errorText(err, t('docs.templates.saveFailed')))
+    void MessagePlugin.error(errorText(err, t("docs.templates.saveFailed")));
   } finally {
-    savingTemplate.value = false
+    savingTemplate.value = false;
   }
 }
 
 /** The badge in the header follows the panel without a refetch. */
 function onAccessChanged(next: PageAccessView) {
-  if (page.value) page.value = { ...page.value, restricted: next.restricted || next.inherited_from.length > 0 }
+  if (page.value) page.value = { ...page.value, restricted: next.restricted || next.inherited_from.length > 0 };
 }
 
 /**
@@ -462,84 +491,84 @@ function onAccessChanged(next: PageAccessView) {
  * Watching is a reader's right rather than an editor's: you can follow a page
  * you are not allowed to change, which is what makes review work.
  */
-const watchState = ref<WatchView>({ page_id: '', muted: false, watched: false })
+const watchState = ref<WatchView>({ page_id: "", muted: false, watched: false });
 /** Bumped when the event stream says a notification arrived, so the bell's
  * count is current without polling. */
-const notificationRevision = ref(0)
+const notificationRevision = ref(0);
 
 /** This page's labels, and whether this person starred it. Both arrive with
  * the page itself; neither costs a second request. */
-const labels = ref<LabelView[]>([])
-const favourite = ref(false)
+const labels = ref<LabelView[]>([]);
+const favourite = ref(false);
 
 /** Where this person has been, kept on this device only. */
-const visitStore = browserStore()
+const visitStore = browserStore();
 
 function onLabelsChanged(next: LabelView[]) {
-  labels.value = next
+  labels.value = next;
 }
 
 async function toggleFavourite() {
-  const current = page.value
-  if (!current) return
-  const next = !favourite.value
-  favourite.value = next
+  const current = page.value;
+  if (!current) return;
+  const next = !favourite.value;
+  favourite.value = next;
   try {
-    await setFavourite(current.id, next)
+    await setFavourite(current.id, next);
   } catch (err) {
-    favourite.value = !next
-    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+    favourite.value = !next;
+    void MessagePlugin.error((err as { message?: string })?.message ?? "");
   }
 }
 
 async function loadWatchState(pageId: string) {
   try {
-    watchState.value = await getWatchState(pageId)
+    watchState.value = await getWatchState(pageId);
   } catch {
     // Not knowing whether somebody follows a page is not worth an error over
     // the page itself; the button simply shows the unwatched state.
-    watchState.value = { page_id: pageId, muted: false, watched: false }
+    watchState.value = { page_id: pageId, muted: false, watched: false };
   }
 }
 
 async function toggleWatch() {
-  const current = page.value
-  if (!current) return
+  const current = page.value;
+  if (!current) return;
   try {
-    watchState.value = await setWatch(current.id, !watchState.value.watched)
+    watchState.value = await setWatch(current.id, !watchState.value.watched);
   } catch (err) {
-    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+    void MessagePlugin.error((err as { message?: string })?.message ?? "");
   }
 }
 
 async function toggleMute() {
-  const current = page.value
-  if (!current) return
+  const current = page.value;
+  if (!current) return;
   try {
-    watchState.value = await setMuted(current.id, !watchState.value.muted)
+    watchState.value = await setMuted(current.id, !watchState.value.muted);
   } catch (err) {
-    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+    void MessagePlugin.error((err as { message?: string })?.message ?? "");
   }
 }
 
 /** The editor owns the comment machinery; the panel is drawn here. */
-const comments = computed(() => docEditor.value?.comments ?? null)
+const comments = computed(() => docEditor.value?.comments ?? null);
 
 /**
  * Selecting a thread highlights it and brings its passage into view, which is
  * what somebody clicking a comment in the list is asking for.
  */
 function onSelectComment(commentId: string) {
-  const handle = comments.value
-  if (!handle) return
-  handle.select(commentId)
+  const handle = comments.value;
+  if (!handle) return;
+  handle.select(commentId);
 
-  const placement = handle.placementByID.value.get(commentId)
-  const editor = docEditor.value?.editor
-  if (!placement || placement.from === undefined || !editor) return
+  const placement = handle.placementByID.value.get(commentId);
+  const editor = docEditor.value?.editor;
+  if (!placement || placement.from === undefined || !editor) return;
   try {
-    const coords = editor.view.coordsAtPos(placement.from)
-    window.scrollTo({ top: window.scrollY + coords.top - 160, behavior: 'smooth' })
+    const coords = editor.view.coordsAtPos(placement.from);
+    window.scrollTo({ top: window.scrollY + coords.top - 160, behavior: "smooth" });
   } catch {
     // The position can be stale for a frame after a large remote change;
     // highlighting without scrolling is still useful.
@@ -547,10 +576,10 @@ function onSelectComment(commentId: string) {
 }
 
 function onShowResolved(value: boolean) {
-  const handle = comments.value
-  if (!handle) return
-  handle.showResolved.value = value
-  void handle.load()
+  const handle = comments.value;
+  if (!handle) return;
+  handle.showResolved.value = value;
+  void handle.load();
 }
 
 /**
@@ -562,302 +591,322 @@ function onShowResolved(value: boolean) {
  * straight to the stored body and the open editor knows nothing about it, so
  * it has to be built again from what is now on the server.
  */
-const restoreTick = ref(0)
+const restoreTick = ref(0);
 
 /**
  * A restore leaves the page's own row — its word count, its "last edited"
  * line — saying what it did before, so that is refreshed here.
  */
 async function onRestored() {
-  if (!collabUrl.value) restoreTick.value++
-  const sid = props.shortId
+  if (!collabUrl.value) restoreTick.value++;
+  const sid = props.shortId;
   try {
-    const fresh = await getPageByShortId(sid)
+    const fresh = await getPageByShortId(sid);
     // Refreshed in place rather than through load(): clearing the page would
     // unmount the editor, which is exactly what the collaborative case is
     // trying to avoid.
     if (props.shortId === sid && page.value?.id === fresh.id) {
-      page.value = { ...page.value, ...fresh }
+      page.value = { ...page.value, ...fresh };
     }
   } catch {
     // The page is still on screen and correct; a stale word count in the
     // header is not worth an error message about it.
   }
 }
-const headings = ref<TocEntry[]>([])
+const headings = ref<TocEntry[]>([]);
 
-const tenantId = computed(() => authStore.effectiveTenantId ?? '')
-const currentUser = computed(() => authStore.user)
+const tenantId = computed(() => authStore.effectiveTenantId ?? "");
+const currentUser = computed(() => authStore.user);
 /** The browser-facing collaboration WebSocket address, reported by
  * GET /system/capabilities; empty in a deployment without the service. */
-const collabUrl = computed(() => capabilities.docsCollabUrl)
-const getToken = () => localStorage.getItem('yuheng_token')
+const collabUrl = computed(() => capabilities.docsCollabUrl);
+const getToken = () => localStorage.getItem("yuheng_token");
 
 onMounted(() => {
   // Cheap when another view already loaded it: the store caches the answer.
-  void capabilities.ensureLoaded()
-})
+  void capabilities.ensureLoaded();
+});
 
 /** The editor is not mounted until the deployment capabilities have been
  * read, because an empty collaboration address means two different things
  * before and after: "not loaded yet" and "this deployment edits pages
  * exclusively". Mounting early would open the wrong transport and, in the
  * exclusive case, take a lease on a page the user is only looking at. */
-const editingModeKnown = computed(() => capabilities.loaded)
+const editingModeKnown = computed(() => capabilities.loaded);
 
 /** Remounts the editor when the page changes, and also if the collaboration
  * address itself changes, since the editor binds to one Y.Doc and one
  * transport for its lifetime. */
-const editorKey = computed(() => `${page.value?.id ?? ''}|${collabUrl.value}|${restoreTick.value}`)
+const editorKey = computed(() => `${page.value?.id ?? ""}|${collabUrl.value}|${restoreTick.value}`);
 
 const onHeadings = (entries: TocEntry[]) => {
-  headings.value = entries
-}
+  headings.value = entries;
+};
 
 // ---- backlinks --------------------------------------------------------------
-const backlinks = ref<PageRef[]>([])
-const backlinksLoading = ref(false)
+const backlinks = ref<PageRef[]>([]);
+const backlinksLoading = ref(false);
 
 async function loadBacklinks(id: string) {
-  backlinksLoading.value = true
+  backlinksLoading.value = true;
   try {
-    const rows = await listBacklinks(id)
-    if (page.value?.id === id) backlinks.value = rows
+    const rows = await listBacklinks(id);
+    if (page.value?.id === id) backlinks.value = rows;
   } catch {
-    if (page.value?.id === id) backlinks.value = []
+    if (page.value?.id === id) backlinks.value = [];
   } finally {
-    backlinksLoading.value = false
+    backlinksLoading.value = false;
   }
 }
 
 /** Puts the caret at the heading and lets the editor scroll it into view. */
 const scrollToHeading = (pos: number) => {
-  const editor = docEditor.value?.editor
-  if (!editor) return
-  editor.chain().setTextSelection(pos + 1).scrollIntoView().run()
-}
+  const editor = docEditor.value?.editor;
+  if (!editor) return;
+  editor
+    .chain()
+    .setTextSelection(pos + 1)
+    .scrollIntoView()
+    .run();
+};
 
 const formatDate = (iso: string | null | undefined) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
-}
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+};
 
 const errorText = (err: unknown, fallback: string) => {
-  const msg = (err as { message?: string } | null)?.message
-  return msg ? `${fallback}: ${msg}` : fallback
-}
+  const msg = (err as { message?: string } | null)?.message;
+  return msg ? `${fallback}: ${msg}` : fallback;
+};
 
 async function load() {
-  const sid = props.shortId
-  loading.value = true
-  gone.value = null
-  notFound.value = false
-  page.value = null
-  headings.value = []
-  backlinks.value = []
-  children.value = []
-  ancestors.value = []
+  const sid = props.shortId;
+  loading.value = true;
+  gone.value = null;
+  notFound.value = false;
+  page.value = null;
+  headings.value = [];
+  backlinks.value = [];
+  children.value = [];
+  ancestors.value = [];
   try {
-    const p = await getPageByShortId(sid)
-    if (props.shortId !== sid) return
-    page.value = p
-    titleDraft.value = p.title
-    labels.value = p.labels ?? []
-    favourite.value = p.favourite ?? false
+    const p = await getPageByShortId(sid);
+    if (props.shortId !== sid) return;
+    page.value = p;
+    titleDraft.value = p.title;
+    labels.value = p.labels ?? [];
+    favourite.value = p.favourite ?? false;
     recordVisit(visitStore, {
-      pageId: p.id, shortId: p.short_id, spaceSlug: props.space.slug,
-      title: p.title, icon: p.icon || undefined, at: Date.now(),
-    })
-    emit('loaded', p)
-    await Promise.all([
-      loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id), loadWatchState(p.id),
-    ])
-    await nextTick()
-    autosize()
+      pageId: p.id,
+      shortId: p.short_id,
+      spaceSlug: props.space.slug,
+      title: p.title,
+      icon: p.icon || undefined,
+      at: Date.now(),
+    });
+    emit("loaded", p);
+    await Promise.all([loadAncestors(p.id), loadChildren(p), loadBacklinks(p.id), loadWatchState(p.id)]);
+    await nextTick();
+    autosize();
   } catch (err: unknown) {
-    if (props.shortId !== sid) return
-    const g = gonePageFrom(err)
+    if (props.shortId !== sid) return;
+    const g = gonePageFrom(err);
     if (g) {
-      gone.value = g
+      gone.value = g;
     } else if (requestStatus(err) === 404) {
-      notFound.value = true
+      notFound.value = true;
     } else {
-      MessagePlugin.error(errorText(err, t('docs.pages.loadFailed')))
-      notFound.value = true
+      MessagePlugin.error(errorText(err, t("docs.pages.loadFailed")));
+      notFound.value = true;
     }
   } finally {
-    if (props.shortId === sid) loading.value = false
+    if (props.shortId === sid) loading.value = false;
   }
 }
 
 async function loadAncestors(id: string) {
   try {
-    ancestors.value = await getPageAncestors(id)
+    ancestors.value = await getPageAncestors(id);
   } catch {
-    ancestors.value = []
+    ancestors.value = [];
   }
 }
 
 async function loadChildren(p: PageViewDto) {
   if (!p.has_children) {
-    children.value = []
-    return
+    children.value = [];
+    return;
   }
   try {
-    const res = await getPageChildren(p.id, { limit: 200 })
-    if (page.value?.id === p.id) children.value = res.items
+    const res = await getPageChildren(p.id, { limit: 200 });
+    if (page.value?.id === p.id) children.value = res.items;
   } catch {
-    children.value = []
+    children.value = [];
   }
 }
 
 // ---- title & icon -------------------------------------------------------------------
 const autosize = () => {
-  const el = titleInput.value
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = `${el.scrollHeight}px`
-}
+  const el = titleInput.value;
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+};
 
-let savingTitle = false
+let savingTitle = false;
 async function commitTitle() {
-  const p = page.value
-  if (!p || savingTitle) return
-  const next = titleDraft.value.replace(/[\r\n]+/g, ' ').trim()
+  const p = page.value;
+  if (!p || savingTitle) return;
+  const next = titleDraft.value.replace(/[\r\n]+/g, " ").trim();
   if (next === p.title) {
-    titleDraft.value = p.title
-    return
+    titleDraft.value = p.title;
+    return;
   }
-  savingTitle = true
+  savingTitle = true;
   try {
-    const updated = await updatePage(p.id, { title: next })
-    page.value = { ...p, title: updated.title, updated_at: updated.updated_at }
-    titleDraft.value = updated.title
-    emit('renamed', p.id, updated.title)
+    const updated = await updatePage(p.id, { title: next });
+    page.value = { ...p, title: updated.title, updated_at: updated.updated_at };
+    titleDraft.value = updated.title;
+    emit("renamed", p.id, updated.title);
     router.replace({
-      name: 'docsSpace',
+      name: "docsSpace",
       params: { slug: props.space.slug, pageSlug: pageSlug(updated.title, updated.short_id) },
-    })
+    });
   } catch (err: unknown) {
-    titleDraft.value = p.title
-    MessagePlugin.error(errorText(err, t('docs.pages.renameFailed')))
+    titleDraft.value = p.title;
+    MessagePlugin.error(errorText(err, t("docs.pages.renameFailed")));
   } finally {
-    savingTitle = false
+    savingTitle = false;
   }
 }
 
 async function saveIcon(value: string) {
-  const p = page.value
-  if (!p) return
+  const p = page.value;
+  if (!p) return;
   try {
-    const updated = await updatePage(p.id, { icon: value.trim() })
-    page.value = { ...p, icon: updated.icon ?? null }
-    iconOpen.value = false
-    iconDraft.value = ''
-    emit('renamed', p.id, updated.title)
+    const updated = await updatePage(p.id, { icon: value.trim() });
+    page.value = { ...p, icon: updated.icon ?? null };
+    iconOpen.value = false;
+    iconDraft.value = "";
+    emit("renamed", p.id, updated.title);
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.pages.renameFailed')))
+    MessagePlugin.error(errorText(err, t("docs.pages.renameFailed")));
   }
 }
 
 async function restore() {
-  if (!gone.value) return
-  restoring.value = true
+  if (!gone.value) return;
+  restoring.value = true;
   try {
-    const restored = await restorePage(gone.value.page_id)
-    MessagePlugin.success(t('docs.pages.restoreSuccess'))
-    emit('restored', restored)
-    await load()
+    const restored = await restorePage(gone.value.page_id);
+    MessagePlugin.success(t("docs.pages.restoreSuccess"));
+    emit("restored", restored);
+    await load();
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.pages.restoreFailed')))
+    MessagePlugin.error(errorText(err, t("docs.pages.restoreFailed")));
   } finally {
-    restoring.value = false
+    restoring.value = false;
   }
 }
-const restoring = ref(false)
+const restoring = ref(false);
 
 // ---- navigation -----------------------------------------------------------------------
-const goSpace = () => router.push({ name: 'docsSpace', params: { slug: props.space.slug } })
-const goPage = (p: Pick<DocsPage, 'title' | 'short_id'>) => router.push({
-  name: 'docsSpace', params: { slug: props.space.slug, pageSlug: pageSlug(p.title, p.short_id) },
-})
+const goSpace = () => router.push({ name: "docsSpace", params: { slug: props.space.slug } });
+const goPage = (p: Pick<DocsPage, "title" | "short_id">) =>
+  router.push({
+    name: "docsSpace",
+    params: { slug: props.space.slug, pageSlug: pageSlug(p.title, p.short_id) },
+  });
 
 // ---- live updates ----------------------------------------------------------------------
-watch(() => props.lastEvent, (ev) => {
-  const p = page.value
-  if (!ev || !p) return
-  const payload = ev.payload ?? {}
+watch(
+  () => props.lastEvent,
+  (ev) => {
+    const p = page.value;
+    if (!ev || !p) return;
+    const payload = ev.payload ?? {};
 
-  // Renaming any page changes what every link to it should read as, wherever
-  // that link is. The title is cached in the editor rather than stored in the
-  // document, so forgetting the entry is the whole of the update.
-  if (ev.type === 'docs.page.meta_updated' && ev.page_id && ev.page_id !== p.id) {
-    docEditor.value?.forgetTitle(ev.page_id)
-  }
-  // Another page's body changed, and this one may quote a block of it. What
-  // is shown here is cached, not stored, so forgetting the entries is the
-  // whole of the update — the same shape as the title cache above.
-  if (ev.page_id && ev.page_id !== p.id
-    && (ev.type === 'docs.page.content_updated' || ev.type === 'docs.page.content_replaced'
-      || ev.type === 'docs.page.deleted' || ev.type === 'docs.page.purged')) {
-    docEditor.value?.forgetBlockRefs(ev.page_id)
-  }
-  // Another page's body may have gained or lost a link to this one; the rows
-  // are rebuilt whenever a page is saved.
-  if (ev.page_id !== p.id
-    && (ev.type === 'docs.page.content_updated' || ev.type === 'docs.page.content_replaced'
-      || ev.type === 'docs.page.deleted' || ev.type === 'docs.page.purged')) {
-    void loadBacklinks(p.id)
-  }
-
-  // Somebody else commented, replied, resolved or deleted on this page.
-  if (ev.type === 'docs.comment.changed' && ev.page_id === p.id) {
-    void comments.value?.load()
-  }
-
-  // A notification was written for somebody; the bell re-reads its own count
-  // rather than trusting the event, since the event does not say whose.
-  if (ev.type === 'docs.notification.created') {
-    notificationRevision.value++
-  }
-
-  if (ev.page_id === p.id) {
-    switch (ev.type) {
-      case 'docs.page.meta_updated':
-        if ('title' in payload && !savingTitle) {
-          page.value = { ...p, title: String(payload.title ?? '') }
-          titleDraft.value = String(payload.title ?? '')
-        }
-        if ('icon' in payload) page.value = { ...page.value!, icon: (payload.icon as string | null) ?? null }
-        break
-      case 'docs.page.content_updated':
-      case 'docs.page.content_replaced':
-        // A body that just changed may have gained or lost a link to this
-        // page, and the backlink rows are rebuilt on save.
-        void loadBacklinks(p.id)
-        // Nothing to refetch: the body is the Yjs document the editor is
-        // already connected to, and the collaboration service pushes both
-        // a peer's edits and a server-side replace straight into it.
-        break
-      case 'docs.page.deleted':
-      case 'docs.page.moved':
-      case 'docs.page.purged':
-        void load()
-        break
-      default:
-        break
+    // Renaming any page changes what every link to it should read as, wherever
+    // that link is. The title is cached in the editor rather than stored in the
+    // document, so forgetting the entry is the whole of the update.
+    if (ev.type === "docs.page.meta_updated" && ev.page_id && ev.page_id !== p.id) {
+      docEditor.value?.forgetTitle(ev.page_id);
     }
-    return
-  }
-  // A child was added, removed or renamed: refresh the subpage list.
-  const parentId = payload.parent_id as string | null | undefined
-  if (parentId === p.id || children.value.some((c) => c.id === ev.page_id)) {
-    void loadChildren({ ...p, has_children: true })
-  }
-})
+    // Another page's body changed, and this one may quote a block of it. What
+    // is shown here is cached, not stored, so forgetting the entries is the
+    // whole of the update — the same shape as the title cache above.
+    if (
+      ev.page_id &&
+      ev.page_id !== p.id &&
+      (ev.type === "docs.page.content_updated" ||
+        ev.type === "docs.page.content_replaced" ||
+        ev.type === "docs.page.deleted" ||
+        ev.type === "docs.page.purged")
+    ) {
+      docEditor.value?.forgetBlockRefs(ev.page_id);
+    }
+    // Another page's body may have gained or lost a link to this one; the rows
+    // are rebuilt whenever a page is saved.
+    if (
+      ev.page_id !== p.id &&
+      (ev.type === "docs.page.content_updated" ||
+        ev.type === "docs.page.content_replaced" ||
+        ev.type === "docs.page.deleted" ||
+        ev.type === "docs.page.purged")
+    ) {
+      void loadBacklinks(p.id);
+    }
 
-watch(() => props.shortId, load, { immediate: true })
+    // Somebody else commented, replied, resolved or deleted on this page.
+    if (ev.type === "docs.comment.changed" && ev.page_id === p.id) {
+      void comments.value?.load();
+    }
+
+    // A notification was written for somebody; the bell re-reads its own count
+    // rather than trusting the event, since the event does not say whose.
+    if (ev.type === "docs.notification.created") {
+      notificationRevision.value++;
+    }
+
+    if (ev.page_id === p.id) {
+      switch (ev.type) {
+        case "docs.page.meta_updated":
+          if ("title" in payload && !savingTitle) {
+            page.value = { ...p, title: String(payload.title ?? "") };
+            titleDraft.value = String(payload.title ?? "");
+          }
+          if ("icon" in payload) page.value = { ...page.value!, icon: (payload.icon as string | null) ?? null };
+          break;
+        case "docs.page.content_updated":
+        case "docs.page.content_replaced":
+          // A body that just changed may have gained or lost a link to this
+          // page, and the backlink rows are rebuilt on save.
+          void loadBacklinks(p.id);
+          // Nothing to refetch: the body is the Yjs document the editor is
+          // already connected to, and the collaboration service pushes both
+          // a peer's edits and a server-side replace straight into it.
+          break;
+        case "docs.page.deleted":
+        case "docs.page.moved":
+        case "docs.page.purged":
+          void load();
+          break;
+        default:
+          break;
+      }
+      return;
+    }
+    // A child was added, removed or renamed: refresh the subpage list.
+    const parentId = payload.parent_id as string | null | undefined;
+    if (parentId === p.id || children.value.some((c) => c.id === ev.page_id)) {
+      void loadChildren({ ...p, has_children: true });
+    }
+  },
+);
+
+watch(() => props.shortId, load, { immediate: true });
 </script>
 
 <style scoped lang="less">

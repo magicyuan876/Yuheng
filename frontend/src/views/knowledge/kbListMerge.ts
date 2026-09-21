@@ -52,14 +52,12 @@ export type MergedSharedKnowledgeBase = Record<string, unknown> & {
   share_id: string;
   org_name?: string;
 };
-export type MergedKnowledgeBase =
-  | MergedOwnedKnowledgeBase
-  | MergedSharedKnowledgeBase;
+export type MergedKnowledgeBase = MergedOwnedKnowledgeBase | MergedSharedKnowledgeBase;
 
 // Permissions that grant write access. Mirrors EDITABLE_PERMS in
 // KnowledgeBaseList.vue — kept local so this module stays free of any
 // component/store imports and remains trivially unit-testable.
-const EDITABLE_PERMS = new Set(['admin', 'editor']);
+const EDITABLE_PERMS = new Set(["admin", "editor"]);
 
 export function isSharedKbEditable(perm: string | undefined): boolean {
   return !!perm && EDITABLE_PERMS.has(perm);

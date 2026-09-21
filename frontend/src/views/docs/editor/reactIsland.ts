@@ -16,12 +16,12 @@
 
 /** The part of React's root API this island uses. */
 export interface IslandRoot {
-  render: (element: unknown) => void
-  unmount: () => void
+  render: (element: unknown) => void;
+  unmount: () => void;
 }
 
 /** Creates a root on an element; React's createRoot has this shape. */
-export type RootFactory = (container: Element) => IslandRoot
+export type RootFactory = (container: Element) => IslandRoot;
 
 /**
  * One React subtree living inside a Vue component.
@@ -32,15 +32,15 @@ export type RootFactory = (container: Element) => IslandRoot
  * async import is still in flight.
  */
 export class ReactIsland {
-  private root: IslandRoot | null = null
-  private container: Element | null = null
-  private destroyed = false
+  private root: IslandRoot | null = null;
+  private container: Element | null = null;
+  private destroyed = false;
 
   constructor(private readonly createRoot: RootFactory) {}
 
   /** True while a subtree is mounted. */
   get mounted(): boolean {
-    return this.root !== null
+    return this.root !== null;
   }
 
   /**
@@ -51,27 +51,27 @@ export class ReactIsland {
    * unmounted first rather than left behind.
    */
   render(container: Element, element: unknown): void {
-    if (this.destroyed) return
+    if (this.destroyed) return;
     if (this.root && this.container !== container) {
-      this.unmount()
+      this.unmount();
     }
     if (!this.root) {
-      this.root = this.createRoot(container)
-      this.container = container
+      this.root = this.createRoot(container);
+      this.container = container;
     }
-    this.root.render(element)
+    this.root.render(element);
   }
 
   /** Tears the subtree down. Safe to call when nothing is mounted. */
   unmount(): void {
-    const root = this.root
+    const root = this.root;
     // Cleared before unmounting, so a re-entrant call from a component's own
     // teardown cannot unmount the same root twice.
-    this.root = null
-    this.container = null
-    if (!root) return
+    this.root = null;
+    this.container = null;
+    if (!root) return;
     try {
-      root.unmount()
+      root.unmount();
     } catch {
       // React throws when asked to unmount during its own render. The root is
       // already forgotten here, so the tree is collectable either way and
@@ -85,12 +85,12 @@ export class ReactIsland {
    * harmless rather than a leak.
    */
   destroy(): void {
-    this.unmount()
-    this.destroyed = true
+    this.unmount();
+    this.destroyed = true;
   }
 
   /** True once destroy has been called. */
   get isDestroyed(): boolean {
-    return this.destroyed
+    return this.destroyed;
   }
 }

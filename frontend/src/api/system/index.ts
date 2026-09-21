@@ -1,69 +1,69 @@
-import { get, post, put, del } from '@/utils/request'
-import { setUploadLimits } from '@/utils'
-import type { CreatedTenantAPIKey, TenantAPIKey, TenantAPIKeyCapability } from '@/api/tenant'
+import { get, post, put, del } from "@/utils/request";
+import { setUploadLimits } from "@/utils";
+import type { CreatedTenantAPIKey, TenantAPIKey, TenantAPIKeyCapability } from "@/api/tenant";
 
 export interface CreatePlatformAPIKeyPayload {
-  name: string
-  capabilities: TenantAPIKeyCapability[]
-  expires_at_unix?: number
+  name: string;
+  capabilities: TenantAPIKeyCapability[];
+  expires_at_unix?: number;
 }
 
 export async function listPlatformAPIKeys(): Promise<{ success: boolean; data?: TenantAPIKey[] }> {
-  return await get('/api/v1/system/admin/api-keys') as unknown as { success: boolean; data?: TenantAPIKey[] }
+  return (await get("/api/v1/system/admin/api-keys")) as unknown as { success: boolean; data?: TenantAPIKey[] };
 }
 
 export async function createPlatformAPIKey(
   payload: CreatePlatformAPIKeyPayload,
 ): Promise<{ success: boolean; data?: CreatedTenantAPIKey }> {
-  return await post('/api/v1/system/admin/api-keys', payload) as unknown as {
-    success: boolean
-    data?: CreatedTenantAPIKey
-  }
+  return (await post("/api/v1/system/admin/api-keys", payload)) as unknown as {
+    success: boolean;
+    data?: CreatedTenantAPIKey;
+  };
 }
 
 export async function deletePlatformAPIKey(keyId: number): Promise<{ success: boolean }> {
-  return await del(`/api/v1/system/admin/api-keys/${keyId}`) as unknown as { success: boolean }
+  return (await del(`/api/v1/system/admin/api-keys/${keyId}`)) as unknown as { success: boolean };
 }
 
 export interface SystemInfo {
-  version: string
-  commit_id?: string
-  build_time?: string
-  go_version?: string
-  keyword_index_engine?: string
-  vector_store_engine?: string
-  graph_database_engine?: string
-  minio_enabled?: boolean
-  db_version?: string
+  version: string;
+  commit_id?: string;
+  build_time?: string;
+  go_version?: string;
+  keyword_index_engine?: string;
+  vector_store_engine?: string;
+  graph_database_engine?: string;
+  minio_enabled?: boolean;
+  db_version?: string;
   /** Human-readable error message when the startup migration failed.
    *  When non-empty, the system info view should surface a troubleshooting
    *  banner (see docs/migration-troubleshooting.md). */
-  db_migration_error?: string
+  db_migration_error?: string;
   /** Server process boot time (RFC3339, UTC). */
-  started_at?: string
+  started_at?: string;
   /** Seconds since process start. */
-  uptime_seconds?: number
+  uptime_seconds?: number;
 }
 
 export interface DeploymentCapability {
-  supported: boolean
-  reason?: string
+  supported: boolean;
+  reason?: string;
 }
 
 export interface DeploymentCapabilitiesResponse {
-  capabilities: Record<string, DeploymentCapability>
+  capabilities: Record<string, DeploymentCapability>;
   /** Browser-facing WebSocket address of the docs collaboration service; absent when the docs module is off or no collaboration service is configured. */
-  docs_collab_url?: string
+  docs_collab_url?: string;
 }
 
 export function getDeploymentCapabilities(): Promise<{ data: DeploymentCapabilitiesResponse }> {
-  return get('/api/v1/system/capabilities')
+  return get("/api/v1/system/capabilities");
 }
 
 export interface GovernanceResponse {
   /** 集中管控基础设施：模型、MCP、解析引擎、向量库、存储、沙箱、网络搜索等
    *  配置归系统管理员，空间管理员仅保留只读（建库时仍可选用平台资源）。 */
-  centralized_infra: boolean
+  centralized_infra: boolean;
 }
 
 /**
@@ -72,12 +72,12 @@ export interface GovernanceResponse {
  * 系统管理员专属，而最需要这个答案的恰恰是被它影响导航的非管理员。
  */
 export function getGovernance(): Promise<{ data: GovernanceResponse }> {
-  return get('/api/v1/system/governance')
+  return get("/api/v1/system/governance");
 }
 
 export interface UploadLimitsResponse {
-  max_file_size_mb: number
-  max_video_file_size_mb: number
+  max_file_size_mb: number;
+  max_video_file_size_mb: number;
 }
 
 /**
@@ -87,128 +87,128 @@ export interface UploadLimitsResponse {
  */
 export async function refreshUploadLimits(): Promise<void> {
   try {
-    const res: { data?: UploadLimitsResponse } = await get('/api/v1/system/upload-limits')
-    setUploadLimits(res?.data?.max_file_size_mb, res?.data?.max_video_file_size_mb)
+    const res: { data?: UploadLimitsResponse } = await get("/api/v1/system/upload-limits");
+    setUploadLimits(res?.data?.max_file_size_mb, res?.data?.max_video_file_size_mb);
   } catch {
     // keep the static snapshot
   }
 }
 
 export interface PlaceholderDefinition {
-  name: string
-  label: string
-  description: string
+  name: string;
+  label: string;
+  description: string;
 }
 
 export interface PromptTemplate {
-  id: string
-  name: string
-  description: string
-  content: string
-  user?: string
-  has_knowledge_base?: boolean
-  has_web_search?: boolean
-  default?: boolean
-  mode?: string
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  user?: string;
+  has_knowledge_base?: boolean;
+  has_web_search?: boolean;
+  default?: boolean;
+  mode?: string;
 }
 
 export interface PromptTemplatesConfig {
-  system_prompt: PromptTemplate[]
-  context_template: PromptTemplate[]
+  system_prompt: PromptTemplate[];
+  context_template: PromptTemplate[];
   // Rewrite templates — each template contains both content (system) + user fields
-  rewrite: PromptTemplate[]
+  rewrite: PromptTemplate[];
   // Fallback templates — fixed responses + model fallback prompts (mode: "model")
-  fallback: PromptTemplate[]
+  fallback: PromptTemplate[];
 
-  generate_session_title?: PromptTemplate[]
-  generate_summary?: PromptTemplate[]
-  keywords_extraction?: PromptTemplate[]
-  chat_summary?: PromptTemplate[]
-  agent_system_prompt?: PromptTemplate[]
-  intent_prompts?: PromptTemplate[]
+  generate_session_title?: PromptTemplate[];
+  generate_summary?: PromptTemplate[];
+  keywords_extraction?: PromptTemplate[];
+  chat_summary?: PromptTemplate[];
+  agent_system_prompt?: PromptTemplate[];
+  intent_prompts?: PromptTemplate[];
 }
 
 export function getSystemInfo(): Promise<{ data: SystemInfo }> {
-  return get('/api/v1/system/info')
+  return get("/api/v1/system/info");
 }
 
 export function getPromptTemplates(): Promise<{ data: PromptTemplatesConfig }> {
-  return get('/api/v1/tenants/kv/prompt-templates')
+  return get("/api/v1/tenants/kv/prompt-templates");
 }
 
 export interface ParserEngineInfo {
-  Name: string
-  Description: string
-  FileTypes: string[]
-  Available?: boolean
-  UnavailableReason?: string
+  Name: string;
+  Description: string;
+  FileTypes: string[];
+  Available?: boolean;
+  UnavailableReason?: string;
 }
 
 /** 解析引擎配置（引擎连接参数存空间；聊天附件解析策略在智能体中配置） */
-export type MinerUParseMethod = 'auto' | 'ocr' | 'txt'
+export type MinerUParseMethod = "auto" | "ocr" | "txt";
 
 export interface ParserEngineConfig {
-  docreader_addr?: string
-  docreader_transport?: string
-  mineru_endpoint?: string
-  mineru_api_key?: string
+  docreader_addr?: string;
+  docreader_transport?: string;
+  mineru_endpoint?: string;
+  mineru_api_key?: string;
   // MinerU 自建参数
-  mineru_model?: string
-  mineru_vlm_server_url?: string
-  mineru_enable_formula?: boolean | null
-  mineru_enable_table?: boolean | null
-  mineru_parse_method?: MinerUParseMethod
-  mineru_enable_ocr?: boolean | null
-  mineru_language?: string
+  mineru_model?: string;
+  mineru_vlm_server_url?: string;
+  mineru_enable_formula?: boolean | null;
+  mineru_enable_table?: boolean | null;
+  mineru_parse_method?: MinerUParseMethod;
+  mineru_enable_ocr?: boolean | null;
+  mineru_language?: string;
   // MinerU 云 API 参数
-  mineru_cloud_model?: string
-  mineru_cloud_enable_formula?: boolean | null
-  mineru_cloud_enable_table?: boolean | null
-  mineru_cloud_enable_ocr?: boolean | null
-  mineru_cloud_language?: string
+  mineru_cloud_model?: string;
+  mineru_cloud_enable_formula?: boolean | null;
+  mineru_cloud_enable_table?: boolean | null;
+  mineru_cloud_enable_ocr?: boolean | null;
+  mineru_cloud_language?: string;
   // PaddleOCR-VL 自建参数
-  paddleocr_vl_endpoint?: string
-  paddleocr_vl_use_seal_recognition?: boolean | null
-  paddleocr_vl_use_chart_recognition?: boolean | null
+  paddleocr_vl_endpoint?: string;
+  paddleocr_vl_use_seal_recognition?: boolean | null;
+  paddleocr_vl_use_chart_recognition?: boolean | null;
   // PaddleOCR-VL 云 API 参数
-  paddleocr_vl_cloud_token?: string
-  paddleocr_vl_cloud_model?: string
-  paddleocr_vl_cloud_use_seal_recognition?: boolean | null
-  paddleocr_vl_cloud_use_chart_recognition?: boolean | null
+  paddleocr_vl_cloud_token?: string;
+  paddleocr_vl_cloud_model?: string;
+  paddleocr_vl_cloud_use_seal_recognition?: boolean | null;
+  paddleocr_vl_cloud_use_chart_recognition?: boolean | null;
   // MinerU 天枢（自建异步任务队列服务）参数
-  mineru_tianshu_endpoint?: string
-  mineru_tianshu_api_key?: string
-  mineru_tianshu_auth_header?: string
-  mineru_tianshu_backend?: string
-  mineru_tianshu_language?: string
-  mineru_tianshu_parse_method?: string
-  mineru_tianshu_enable_formula?: boolean | null
-  mineru_tianshu_enable_table?: boolean | null
+  mineru_tianshu_endpoint?: string;
+  mineru_tianshu_api_key?: string;
+  mineru_tianshu_auth_header?: string;
+  mineru_tianshu_backend?: string;
+  mineru_tianshu_language?: string;
+  mineru_tianshu_parse_method?: string;
+  mineru_tianshu_enable_formula?: boolean | null;
+  mineru_tianshu_enable_table?: boolean | null;
 }
 
 export interface ParserEnginesResponse {
-  data: ParserEngineInfo[]
-  docreader_addr?: string
+  data: ParserEngineInfo[];
+  docreader_addr?: string;
   /** 连接方式：grpc | http，由服务端环境/配置决定 */
-  docreader_transport?: string
-  connected?: boolean
+  docreader_transport?: string;
+  connected?: boolean;
 }
 
 export function getParserEngines(): Promise<ParserEnginesResponse> {
-  return get('/api/v1/system/parser-engines')
+  return get("/api/v1/system/parser-engines");
 }
 
 /** 使用当前填写的参数检测引擎可用性（不保存），用于填写新参数后即时测试 */
 export function checkParserEngines(config: ParserEngineConfig): Promise<ParserEnginesResponse> {
-  return post('/api/v1/system/parser-engines/check', config)
+  return post("/api/v1/system/parser-engines/check", config);
 }
 
 export function getParserEngineConfig(): Promise<{ data: ParserEngineConfig }> {
-  return get('/api/v1/tenants/kv/parser-engine-config')
+  return get("/api/v1/tenants/kv/parser-engine-config");
 }
 
 export function updateParserEngineConfig(config: ParserEngineConfig): Promise<{ data: ParserEngineConfig }> {
-  return put('/api/v1/tenants/kv/parser-engine-config', config)
+  return put("/api/v1/tenants/kv/parser-engine-config", config);
 }
 
 /**
@@ -218,148 +218,154 @@ export function updateParserEngineConfig(config: ParserEngineConfig): Promise<{ 
  * 这里是 /system/admin/*（作用于整个部署）。凭据字段返回掩码占位符，原样回传即表示不修改。
  */
 export function getPlatformParserEngineConfig(): Promise<{ data: ParserEngineConfig }> {
-  return get('/api/v1/system/admin/parser-engine-config')
+  return get("/api/v1/system/admin/parser-engine-config");
 }
 
-export function updatePlatformParserEngineConfig(
-  config: ParserEngineConfig,
-): Promise<{ data: ParserEngineConfig }> {
-  return put('/api/v1/system/admin/parser-engine-config', config)
+export function updatePlatformParserEngineConfig(config: ParserEngineConfig): Promise<{ data: ParserEngineConfig }> {
+  return put("/api/v1/system/admin/parser-engine-config", config);
 }
 
 export function reconnectDocReader(addr: string): Promise<ParserEnginesResponse & { msg?: string }> {
-  return post('/api/v1/system/docreader/reconnect', { addr })
+  return post("/api/v1/system/docreader/reconnect", { addr });
 }
 
 // ---- 存储引擎配置（空间级，供文档/图片存储与 docreader 使用） ----
 
 export interface StorageEngineConfig {
-  default_provider: string // "local" | "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
-  local: { path_prefix: string }
-  minio: { mode: string; endpoint: string; access_key_id: string; secret_access_key: string; bucket_name: string; use_ssl: boolean; path_prefix: string }
+  default_provider: string; // "local" | "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
+  local: { path_prefix: string };
+  minio: {
+    mode: string;
+    endpoint: string;
+    access_key_id: string;
+    secret_access_key: string;
+    bucket_name: string;
+    use_ssl: boolean;
+    path_prefix: string;
+  };
   cos: {
-    secret_id: string
-    secret_key: string
-    region: string
-    bucket_name: string
-    app_id: string
-    path_prefix: string
-  }
+    secret_id: string;
+    secret_key: string;
+    region: string;
+    bucket_name: string;
+    app_id: string;
+    path_prefix: string;
+  };
   tos: {
-    endpoint: string
-    region: string
-    access_key: string
-    secret_key: string
-    bucket_name: string
-    path_prefix: string
-  }
+    endpoint: string;
+    region: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+    path_prefix: string;
+  };
   s3: {
-    endpoint: string // optional for standard AWS S3
-    region: string
-    access_key: string // both keys empty => AWS default credential chain
-    secret_key: string
-    bucket_name: string
-    path_prefix: string
-  }
+    endpoint: string; // optional for standard AWS S3
+    region: string;
+    access_key: string; // both keys empty => AWS default credential chain
+    secret_key: string;
+    bucket_name: string;
+    path_prefix: string;
+  };
   oss: {
-    endpoint: string
-    region: string
-    access_key: string
-    secret_key: string
-    bucket_name: string
-    path_prefix: string
-    use_temp_bucket: boolean
-    temp_bucket_name: string
-    temp_region: string
-  }
+    endpoint: string;
+    region: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+    path_prefix: string;
+    use_temp_bucket: boolean;
+    temp_bucket_name: string;
+    temp_region: string;
+  };
   ks3: {
-    endpoint: string
-    region: string
-    access_key: string
-    secret_key: string
-    bucket_name: string
-    path_prefix: string
-  }
+    endpoint: string;
+    region: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+    path_prefix: string;
+  };
   obs: {
-    endpoint: string
-    region: string
-    access_key: string
-    secret_key: string
-    bucket_name: string
-    path_prefix: string
-  }
+    endpoint: string;
+    region: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+    path_prefix: string;
+  };
 }
 
 export interface StorageEngineStatusItem {
-  name: string
-  allowed?: boolean
-  available: boolean
-  description: string
+  name: string;
+  allowed?: boolean;
+  available: boolean;
+  description: string;
 }
 
 export interface GetStorageEngineStatusResponse {
-  engines: StorageEngineStatusItem[]
-  allowed_providers?: string[]
-  minio_env_available: boolean
+  engines: StorageEngineStatusItem[];
+  allowed_providers?: string[];
+  minio_env_available: boolean;
 }
 
 export function getStorageEngineConfig(): Promise<{ data: StorageEngineConfig }> {
-  return get('/api/v1/tenants/kv/storage-engine-config')
+  return get("/api/v1/tenants/kv/storage-engine-config");
 }
 
 export function updateStorageEngineConfig(config: StorageEngineConfig): Promise<{ data: StorageEngineConfig }> {
-  return put('/api/v1/tenants/kv/storage-engine-config', config)
+  return put("/api/v1/tenants/kv/storage-engine-config", config);
 }
 
 export function getStorageEngineStatus(): Promise<{ data: GetStorageEngineStatusResponse }> {
-  return get('/api/v1/system/storage-engine-status')
+  return get("/api/v1/system/storage-engine-status");
 }
 
 export interface StorageCheckRequest {
-  provider: string // "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
-  minio?: StorageEngineConfig['minio']
-  cos?: StorageEngineConfig['cos']
-  tos?: StorageEngineConfig['tos']
-  s3?: StorageEngineConfig['s3']
-  oss?: StorageEngineConfig['oss']
-  ks3?: StorageEngineConfig['ks3']
-  obs?: StorageEngineConfig['obs']
+  provider: string; // "minio" | "cos" | "tos" | "s3" | "oss" | "ks3" | "obs"
+  minio?: StorageEngineConfig["minio"];
+  cos?: StorageEngineConfig["cos"];
+  tos?: StorageEngineConfig["tos"];
+  s3?: StorageEngineConfig["s3"];
+  oss?: StorageEngineConfig["oss"];
+  ks3?: StorageEngineConfig["ks3"];
+  obs?: StorageEngineConfig["obs"];
 }
 
 export interface StorageCheckResponse {
-  ok: boolean
-  message: string
-  bucket_created?: boolean
+  ok: boolean;
+  message: string;
+  bucket_created?: boolean;
 }
 
 export function checkStorageEngine(req: StorageCheckRequest): Promise<{ data: StorageCheckResponse }> {
-  return post('/api/v1/system/storage-engine-check', req)
+  return post("/api/v1/system/storage-engine-check", req);
 }
 
 // ---- System Admin Management ----
 
 export interface SystemAdminUser {
-  id: string
-  username: string
-  email: string
-  avatar?: string
-  is_active: boolean
-  is_system_admin: boolean
-  created_at: string
-  updated_at: string
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  is_active: boolean;
+  is_system_admin: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PromoteUserRequest {
-  user_id: string
+  user_id: string;
 }
 
 export interface RevokeSystemAdminRequest {
-  user_id: string
+  user_id: string;
 }
 
 export interface ListSystemAdminsResponse {
-  total: number
-  admins: SystemAdminUser[]
+  total: number;
+  admins: SystemAdminUser[];
 }
 
 /**
@@ -382,16 +388,14 @@ export interface ListSystemAdminsResponse {
  */
 export interface PromoteUserToSystemAdminRequest {
   /** UUID of the user to promote. Optional; supply this OR `email`. */
-  user_id?: string
+  user_id?: string;
   /** Email address of the user to promote. Optional; supply this OR `user_id`. */
-  email?: string
+  email?: string;
 }
 
-export async function promoteUserToSystemAdmin(
-  req: PromoteUserToSystemAdminRequest,
-): Promise<SystemAdminUser> {
-  const response = await post('/api/v1/system/admin/promote', req)
-  return response as unknown as SystemAdminUser
+export async function promoteUserToSystemAdmin(req: PromoteUserToSystemAdminRequest): Promise<SystemAdminUser> {
+  const response = await post("/api/v1/system/admin/promote", req);
+  return response as unknown as SystemAdminUser;
 }
 
 /**
@@ -399,31 +403,32 @@ export async function promoteUserToSystemAdmin(
  * Same wrapping convention as promoteUserToSystemAdmin.
  */
 export async function revokeSystemAdmin(userId: string): Promise<SystemAdminUser> {
-  const response = await post('/api/v1/system/admin/revoke', { user_id: userId })
-  return response as unknown as SystemAdminUser
+  const response = await post("/api/v1/system/admin/revoke", { user_id: userId });
+  return response as unknown as SystemAdminUser;
 }
 
 /**
  * List all system administrators (paginated).
  * Returns {total, admins[]} directly — no {data: ...} wrapping.
  */
-export async function listSystemAdmins(
-  params?: { offset?: number; limit?: number },
-): Promise<ListSystemAdminsResponse> {
+export async function listSystemAdmins(params?: {
+  offset?: number;
+  limit?: number;
+}): Promise<ListSystemAdminsResponse> {
   // The shared `get` helper doesn't accept a config object, so we
   // assemble the query string manually. Both params are optional;
   // the server applies sane defaults (offset=0, limit=50, max=200).
-  const qs = new URLSearchParams()
-  if (params?.offset != null) qs.set('offset', String(params.offset))
-  if (params?.limit != null) qs.set('limit', String(params.limit))
-  const suffix = qs.toString() ? `?${qs.toString()}` : ''
-  const response = await get(`/api/v1/system/admin/list${suffix}`)
-  return response as unknown as ListSystemAdminsResponse
+  const qs = new URLSearchParams();
+  if (params?.offset != null) qs.set("offset", String(params.offset));
+  if (params?.limit != null) qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await get(`/api/v1/system/admin/list${suffix}`);
+  return response as unknown as ListSystemAdminsResponse;
 }
 
 export interface ResetUserPasswordRequest {
-  email: string
-  new_password: string
+  email: string;
+  new_password: string;
 }
 
 /**
@@ -432,32 +437,32 @@ export interface ResetUserPasswordRequest {
  * to reset the caller's own password.
  */
 export async function resetUserPassword(req: ResetUserPasswordRequest): Promise<{ message: string }> {
-  const response = await post('/api/v1/system/admin/users/reset-password', req)
-  return response as unknown as { message: string }
+  const response = await post("/api/v1/system/admin/users/reset-password", req);
+  return response as unknown as { message: string };
 }
 
 export interface CreateSystemUserRequest {
   /** 2-50 characters. */
-  username: string
+  username: string;
   /** Must be a valid email address. */
-  email: string
+  email: string;
   /**
    * Optional. Omit the key (or send null) to have the server generate a
    * random password, returned exactly once in `generated_password`.
    * Any provided value (including empty string) is subject to the
    * password policy and can be rejected.
    */
-  password?: string
+  password?: string;
 }
 
 export interface CreateSystemUserResponse {
-  user: SystemAdminUser
+  user: SystemAdminUser;
   /**
    * Present only when the request omitted `password` (or sent null): the
    * server-minted plaintext password, returned exactly once and could not
    * be fetched again.
    */
-  generated_password?: string
+  generated_password?: string;
 }
 
 /**
@@ -466,8 +471,8 @@ export interface CreateSystemUserResponse {
  * Responses 201 on success.
  */
 export async function createSystemUser(req: CreateSystemUserRequest): Promise<CreateSystemUserResponse> {
-  const response = await post('/api/v1/system/admin/users/create', req)
-  return response as unknown as CreateSystemUserResponse
+  const response = await post("/api/v1/system/admin/users/create", req);
+  return response as unknown as CreateSystemUserResponse;
 }
 
 // ---- System Settings (P1) ----
@@ -484,33 +489,33 @@ export async function createSystemUser(req: CreateSystemUserRequest): Promise<Cr
  * via the value_type field (`'int' | 'string' | 'bool'`).
  */
 export interface SystemSettingItem {
-  id: number
-  key: string
+  id: number;
+  key: string;
   /** Raw JSON value — narrow via value_type before rendering. */
-  value: unknown
-  value_type: 'int' | 'string' | 'bool' | 'string_list'
-  category: string
-  description: string
+  value: unknown;
+  value_type: "int" | "string" | "bool" | "string_list";
+  category: string;
+  description: string;
   /** P3+ — currently always false. UI may surface a "redacted" state when true. */
-  is_secret: boolean
+  is_secret: boolean;
   /** P3+ — currently always false. UI may show "needs restart to take effect" badge when true. */
-  requires_restart: boolean
-  last_modified_by: string
+  requires_restart: boolean;
+  last_modified_by: string;
   /**
    * Display label resolved from last_modified_by (UUID) on the server —
    * username when known, email as a fallback. Empty/undefined for
    * virtual rows that were never persisted; UI then falls back to the
    * UUID prefix.
    */
-   last_modified_by_name?: string
-  created_at: string
-  updated_at: string
+  last_modified_by_name?: string;
+  created_at: string;
+  updated_at: string;
   /**
    * Allowed values for `value` when this setting is constrained. Populated by
    * the service from the in-code registry; absent/empty means "free-form".
    * Frontend renders a t-select instead of t-input when this is non-empty.
    */
-  enum?: string[]
+  enum?: string[];
 }
 
 /**
@@ -519,8 +524,8 @@ export interface SystemSettingItem {
  * the project-wide axios contract (see utils/request.ts:97).
  */
 export async function listSystemSettings(): Promise<SystemSettingItem[]> {
-  const response = await get('/api/v1/system/admin/settings')
-  return response as unknown as SystemSettingItem[]
+  const response = await get("/api/v1/system/admin/settings");
+  return response as unknown as SystemSettingItem[];
 }
 
 /**
@@ -528,8 +533,8 @@ export async function listSystemSettings(): Promise<SystemSettingItem[]> {
  * if the key is unknown to the registry, or if the row is not yet persisted.
  */
 export async function getSystemSetting(key: string): Promise<SystemSettingItem> {
-  const response = await get(`/api/v1/system/admin/settings/${encodeURIComponent(key)}`)
-  return response as unknown as SystemSettingItem
+  const response = await get(`/api/v1/system/admin/settings/${encodeURIComponent(key)}`);
+  return response as unknown as SystemSettingItem;
 }
 
 /**
@@ -540,15 +545,9 @@ export async function getSystemSetting(key: string): Promise<SystemSettingItem> 
  * Successful updates emit an audit row (action=system.setting_changed)
  * carrying old/new values for forensics.
  */
-export async function updateSystemSetting(
-  key: string,
-  value: unknown,
-): Promise<SystemSettingItem> {
-  const response = await put(
-    `/api/v1/system/admin/settings/${encodeURIComponent(key)}`,
-    { value },
-  )
-  return response as unknown as SystemSettingItem
+export async function updateSystemSetting(key: string, value: unknown): Promise<SystemSettingItem> {
+  const response = await put(`/api/v1/system/admin/settings/${encodeURIComponent(key)}`, { value });
+  return response as unknown as SystemSettingItem;
 }
 
 /**
@@ -557,7 +556,7 @@ export async function updateSystemSetting(
  * persisted resolves successfully.
  */
 export async function resetSystemSetting(key: string): Promise<void> {
-  await del(`/api/v1/system/admin/settings/${encodeURIComponent(key)}`)
+  await del(`/api/v1/system/admin/settings/${encodeURIComponent(key)}`);
 }
 
 /**
@@ -566,9 +565,9 @@ export async function resetSystemSetting(key: string): Promise<void> {
  * overwritten; `quota_bytes` is the value written.
  */
 export interface ApplyDefaultStorageQuotaResult {
-  affected: number
-  quota_bytes: number
-  quota_gb: number
+  affected: number;
+  quota_bytes: number;
+  quota_gb: number;
 }
 
 /**
@@ -579,8 +578,8 @@ export interface ApplyDefaultStorageQuotaResult {
  * Idempotent: running twice with the same setting has the same effect.
  */
 export async function applyDefaultStorageQuotaToAllTenants(): Promise<ApplyDefaultStorageQuotaResult> {
-  const response = await post('/api/v1/system/admin/tenants/apply-default-storage-quota')
-  return response as unknown as ApplyDefaultStorageQuotaResult
+  const response = await post("/api/v1/system/admin/tenants/apply-default-storage-quota");
+  return response as unknown as ApplyDefaultStorageQuotaResult;
 }
 
 // ---- Platform Audit Log (system-scope) ----
@@ -596,9 +595,9 @@ export type {
   AuditOutcome,
   ListAuditLogParams,
   ListAuditLogResponse,
-} from '@/api/tenant/audit-log'
+} from "@/api/tenant/audit-log";
 
-import type { ListAuditLogParams, ListAuditLogResponse } from '@/api/tenant/audit-log'
+import type { ListAuditLogParams, ListAuditLogResponse } from "@/api/tenant/audit-log";
 
 /**
  * List the platform-wide audit log (system-scope, tenant_id=0).
@@ -611,18 +610,16 @@ import type { ListAuditLogParams, ListAuditLogResponse } from '@/api/tenant/audi
  * cursor, each subsequent page should pass `after_id =
  * previousResponse.next_cursor` until next_cursor comes back as 0.
  */
-export async function listSystemAuditLog(
-  params: ListAuditLogParams = {},
-): Promise<ListAuditLogResponse> {
-  const qs = new URLSearchParams()
-  if (params.after_id) qs.append('after_id', String(params.after_id))
-  if (params.limit) qs.append('limit', String(params.limit))
-  if (params.action) qs.append('action', params.action)
-  if (params.outcome) qs.append('outcome', params.outcome)
-  if (params.actor) qs.append('actor', params.actor)
-  const tail = qs.toString()
-  const url = `/api/v1/system/admin/audit-log${tail ? '?' + tail : ''}`
-  return (await get(url)) as unknown as ListAuditLogResponse
+export async function listSystemAuditLog(params: ListAuditLogParams = {}): Promise<ListAuditLogResponse> {
+  const qs = new URLSearchParams();
+  if (params.after_id) qs.append("after_id", String(params.after_id));
+  if (params.limit) qs.append("limit", String(params.limit));
+  if (params.action) qs.append("action", params.action);
+  if (params.outcome) qs.append("outcome", params.outcome);
+  if (params.actor) qs.append("actor", params.actor);
+  const tail = qs.toString();
+  const url = `/api/v1/system/admin/audit-log${tail ? "?" + tail : ""}`;
+  return (await get(url)) as unknown as ListAuditLogResponse;
 }
 
 // ---- Runtime queue observability (system-scope) ----
@@ -636,39 +633,39 @@ export async function listSystemAuditLog(
  * `pending` is the backlog waiting to be picked up.
  */
 export interface QueueStat {
-  name: string
-  pool: string
-  weight: number
-  size: number
-  pending: number
-  active: number
-  scheduled: number
-  retry: number
-  archived: number
-  completed: number
-  processed: number
-  failed: number
-  paused: boolean
-  latency_ms: number
-  memory_usage_bytes: number
+  name: string;
+  pool: string;
+  weight: number;
+  size: number;
+  pending: number;
+  active: number;
+  scheduled: number;
+  retry: number;
+  archived: number;
+  completed: number;
+  processed: number;
+  failed: number;
+  paused: boolean;
+  latency_ms: number;
+  memory_usage_bytes: number;
 }
 
 export interface RuntimeWorkerPool {
-  name: string
-  concurrency: number
-  queue_count: number
-  instances: number
-  cluster_capacity: number
-  active: number
-  utilization: number
+  name: string;
+  concurrency: number;
+  queue_count: number;
+  instances: number;
+  cluster_capacity: number;
+  active: number;
+  utilization: number;
 }
 
 export interface ModelRuntimeStat {
-  model_id: string
-  name: string
-  active: number
-  waiting: number
-  limit: number
+  model_id: string;
+  name: string;
+  active: number;
+  waiting: number;
+  limit: number;
 }
 
 /**
@@ -679,56 +676,56 @@ export interface ModelRuntimeStat {
  * server heartbeats.
  */
 export interface RuntimeQueuesResponse {
-  available: boolean
-  upstream_concurrency: number
-  parse_concurrency: number
-  wiki_concurrency: number
-  pools: RuntimeWorkerPool[]
-  queues: QueueStat[]
-  model_limiter_available: boolean
-  models: ModelRuntimeStat[]
-  timestamp: number
+  available: boolean;
+  upstream_concurrency: number;
+  parse_concurrency: number;
+  wiki_concurrency: number;
+  pools: RuntimeWorkerPool[];
+  queues: QueueStat[];
+  model_limiter_available: boolean;
+  models: ModelRuntimeStat[];
+  timestamp: number;
 }
 
-export type RuntimeTaskState = 'pending' | 'active' | 'scheduled' | 'retry' | 'archived' | 'completed'
-export type RuntimeTaskAction = 'cancel' | 'run_now' | 'delete'
+export type RuntimeTaskState = "pending" | "active" | "scheduled" | "retry" | "archived" | "completed";
+export type RuntimeTaskAction = "cancel" | "run_now" | "delete";
 
 export interface RuntimeTask {
-  id: string
-  queue: string
-  type: string
-  state: RuntimeTaskState
-  allowed_actions: RuntimeTaskAction[]
-  last_error?: string
-  last_failed_at?: string
-  next_process_at?: string
-  started_at?: string
-  completed_at?: string
-  deadline?: string
-  enqueued_at?: string
-  retried: number
-  max_retry: number
-  is_orphaned?: boolean
-  worker?: string
-  tenant_id?: number
-  knowledge_base_id?: string
-  knowledge_id?: string
-  task_id?: string
-  source_id?: string
-  target_id?: string
-  source_kb_id?: string
-  target_kb_id?: string
-  data_source_id?: string
-  sync_log_id?: string
-  knowledge_count?: number
+  id: string;
+  queue: string;
+  type: string;
+  state: RuntimeTaskState;
+  allowed_actions: RuntimeTaskAction[];
+  last_error?: string;
+  last_failed_at?: string;
+  next_process_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  deadline?: string;
+  enqueued_at?: string;
+  retried: number;
+  max_retry: number;
+  is_orphaned?: boolean;
+  worker?: string;
+  tenant_id?: number;
+  knowledge_base_id?: string;
+  knowledge_id?: string;
+  task_id?: string;
+  source_id?: string;
+  target_id?: string;
+  source_kb_id?: string;
+  target_kb_id?: string;
+  data_source_id?: string;
+  sync_log_id?: string;
+  knowledge_count?: number;
 }
 
 export interface RuntimeTasksResponse {
-  available: boolean
-  tasks: RuntimeTask[]
-  page_size: number
-  has_more: boolean
-  next_cursor?: string
+  available: boolean;
+  tasks: RuntimeTask[];
+  page_size: number;
+  has_more: boolean;
+  next_cursor?: string;
 }
 
 /**
@@ -738,29 +735,25 @@ export interface RuntimeTasksResponse {
  * utils/request.ts interceptor).
  */
 export async function getRuntimeQueues(): Promise<RuntimeQueuesResponse> {
-  const response = await get('/api/v1/system/admin/runtime/queues')
-  return response as unknown as RuntimeQueuesResponse
+  const response = await get("/api/v1/system/admin/runtime/queues");
+  return response as unknown as RuntimeQueuesResponse;
 }
 
 export async function getRuntimeTasks(
   queue: string,
   state: RuntimeTaskState,
-  cursor = '',
+  cursor = "",
   pageSize = 20,
 ): Promise<RuntimeTasksResponse> {
   return get(`/api/v1/system/admin/runtime/queues/${encodeURIComponent(queue)}/tasks`, {
     params: { state, ...(cursor ? { cursor } : {}), page_size: pageSize },
-  })
+  });
 }
 
-export async function mutateRuntimeTask(
-  queue: string,
-  taskID: string,
-  action: RuntimeTaskAction,
-): Promise<void> {
+export async function mutateRuntimeTask(queue: string, taskID: string, action: RuntimeTaskAction): Promise<void> {
   await post(
     `/api/v1/system/admin/runtime/queues/${encodeURIComponent(queue)}/tasks/${encodeURIComponent(taskID)}/actions/${encodeURIComponent(action)}`,
-  )
+  );
 }
 
 /**
@@ -769,11 +762,7 @@ export async function mutateRuntimeTask(
  * Backend: DELETE /api/v1/system/admin/runtime/queues/{queue}/archived.
  * Returns the object directly (no {data: ...} wrapping, see request.ts).
  */
-export async function purgeArchivedRuntimeTasks(
-  queue: string,
-): Promise<{ success: boolean; deleted: number }> {
-  const response = await del(
-    `/api/v1/system/admin/runtime/queues/${encodeURIComponent(queue)}/archived`,
-  )
-  return response as unknown as { success: boolean; deleted: number }
+export async function purgeArchivedRuntimeTasks(queue: string): Promise<{ success: boolean; deleted: number }> {
+  const response = await del(`/api/v1/system/admin/runtime/queues/${encodeURIComponent(queue)}/archived`);
+  return response as unknown as { success: boolean; deleted: number };
 }

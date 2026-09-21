@@ -1,15 +1,15 @@
 <template>
   <div class="platform-api-keys">
     <header class="section-header">
-      <h2>{{ t('platformApiKeys.title') }}</h2>
-      <p class="section-description">{{ t('platformApiKeys.description') }}</p>
+      <h2>{{ t("platformApiKeys.title") }}</h2>
+      <p class="section-description">{{ t("platformApiKeys.description") }}</p>
     </header>
 
     <t-alert theme="warning" :message="t('platformApiKeys.securityNotice')" class="security-alert">
       <template #operation>
         <t-button size="small" variant="outline" @click="openCreate">
           <template #icon><t-icon name="add" /></template>
-          {{ t('platformApiKeys.create') }}
+          {{ t("platformApiKeys.create") }}
         </t-button>
       </template>
     </t-alert>
@@ -17,25 +17,25 @@
     <section class="keys-section">
       <div v-if="loading" class="keys-state">
         <t-loading size="small" />
-        <span>{{ t('platformApiKeys.loading') }}</span>
+        <span>{{ t("platformApiKeys.loading") }}</span>
       </div>
       <div v-else-if="keys.length === 0" class="keys-state keys-state--empty">
-        <span>{{ t('platformApiKeys.empty') }}</span>
+        <span>{{ t("platformApiKeys.empty") }}</span>
         <t-button size="small" variant="outline" @click="openCreate">
           <template #icon><t-icon name="add" /></template>
-          {{ t('platformApiKeys.create') }}
+          {{ t("platformApiKeys.create") }}
         </t-button>
       </div>
       <div v-else class="api-key-table-wrap">
         <table class="api-key-table">
           <thead>
             <tr>
-              <th>{{ t('platformApiKeys.name') }}</th>
-              <th>{{ t('platformApiKeys.key') }}</th>
-              <th>{{ t('platformApiKeys.capability') }}</th>
-              <th>{{ t('platformApiKeys.lastUsed') }}</th>
-              <th>{{ t('platformApiKeys.createdAt') }}</th>
-              <th class="api-key-table__actions-heading">{{ t('platformApiKeys.actions') }}</th>
+              <th>{{ t("platformApiKeys.name") }}</th>
+              <th>{{ t("platformApiKeys.key") }}</th>
+              <th>{{ t("platformApiKeys.capability") }}</th>
+              <th>{{ t("platformApiKeys.lastUsed") }}</th>
+              <th>{{ t("platformApiKeys.createdAt") }}</th>
+              <th class="api-key-table__actions-heading">{{ t("platformApiKeys.actions") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -48,11 +48,7 @@
               </td>
               <td class="api-key-table__capability-cell">
                 <div class="api-key-capability-inline">
-                  <span
-                    v-for="chip in visibleCapabilityChips(key)"
-                    :key="chip.id"
-                    class="api-key-capability-chip"
-                  >
+                  <span v-for="chip in visibleCapabilityChips(key)" :key="chip.id" class="api-key-capability-chip">
                     {{ chip.label }}
                   </span>
                   <t-popup
@@ -67,11 +63,11 @@
                       class="api-key-capability-chip api-key-capability-chip--more"
                       :aria-label="t('platformApiKeys.viewAllCapabilities')"
                     >
-                      {{ t('platformApiKeys.capabilityMore', { count: hiddenCapabilityCount(key) }) }}
+                      {{ t("platformApiKeys.capabilityMore", { count: hiddenCapabilityCount(key) }) }}
                     </button>
                     <template #content>
                       <div class="api-key-capability-popup">
-                        <div class="api-key-capability-popup__title">{{ t('platformApiKeys.capability') }}</div>
+                        <div class="api-key-capability-popup__title">{{ t("platformApiKeys.capability") }}</div>
                         <div
                           v-for="group in capabilityGroupsForKey(key)"
                           :key="group.key"
@@ -79,11 +75,7 @@
                         >
                           <div class="api-key-capability-block__title">{{ group.label }}</div>
                           <div class="api-key-capability-block__chips">
-                            <span
-                              v-for="label in group.labels"
-                              :key="label"
-                              class="api-key-capability-chip"
-                            >
+                            <span v-for="label in group.labels" :key="label" class="api-key-capability-chip">
                               {{ label }}
                             </span>
                           </div>
@@ -108,13 +100,7 @@
                     placement="bottom-right"
                     @confirm="deleteKey(key)"
                   >
-                    <t-button
-                      shape="square"
-                      variant="text"
-                      theme="danger"
-                      :title="t('common.delete')"
-                      @click.stop
-                    >
+                    <t-button shape="square" variant="text" theme="danger" :title="t('common.delete')" @click.stop>
                       <t-icon name="delete" />
                     </t-button>
                   </t-popconfirm>
@@ -145,42 +131,34 @@
       <div class="api-key-dialog">
         <div class="api-key-dialog-row">
           <div class="api-key-dialog-row__label">
-            <label>{{ t('platformApiKeys.name') }}</label>
+            <label>{{ t("platformApiKeys.name") }}</label>
           </div>
           <t-input v-model="form.name" :placeholder="t('platformApiKeys.namePlaceholder')" />
         </div>
 
         <div class="api-key-dialog-row">
           <div class="api-key-dialog-row__label">
-            <label>{{ t('platformApiKeys.capability') }}</label>
+            <label>{{ t("platformApiKeys.capability") }}</label>
           </div>
-          <p class="scope-hint">{{ t('platformApiKeys.capabilityHint') }}</p>
+          <p class="scope-hint">{{ t("platformApiKeys.capabilityHint") }}</p>
           <div class="api-key-capability-list">
-            <div
-              v-for="group in PLATFORM_API_KEY_CAPABILITY_GROUPS"
-              :key="group.key"
-              class="api-key-capability-group"
-            >
+            <div v-for="group in PLATFORM_API_KEY_CAPABILITY_GROUPS" :key="group.key" class="api-key-capability-group">
               <div class="api-key-capability-group__header">
                 <span>{{ t(group.labelKey) }}</span>
                 <t-button
                   size="small"
                   variant="text"
-                  @click="toggleGroup(group.capabilities.map(item => item.value))"
+                  @click="toggleGroup(group.capabilities.map((item) => item.value))"
                 >
                   {{
-                    groupSelected(group.capabilities.map(item => item.value))
-                      ? t('integrations.api.apiKeyCapabilityClearGroup')
-                      : t('integrations.api.apiKeyCapabilitySelectGroup')
+                    groupSelected(group.capabilities.map((item) => item.value))
+                      ? t("integrations.api.apiKeyCapabilityClearGroup")
+                      : t("integrations.api.apiKeyCapabilitySelectGroup")
                   }}
                 </t-button>
               </div>
               <div class="api-key-capability-group__items">
-                <div
-                  v-for="item in group.capabilities"
-                  :key="item.value"
-                  class="api-key-capability-item"
-                >
+                <div v-for="item in group.capabilities" :key="item.value" class="api-key-capability-item">
                   <t-checkbox v-model="selected[item.value]">{{ t(item.labelKey) }}</t-checkbox>
                   <p class="scope-hint">{{ t(item.hintKey) }}</p>
                 </div>
@@ -199,160 +177,165 @@
       :close-on-overlay-click="false"
       @confirm="copyToken"
     >
-      <p>{{ t('platformApiKeys.createdDescription') }}</p>
+      <p>{{ t("platformApiKeys.createdDescription") }}</p>
       <t-textarea :value="createdToken" readonly autosize />
     </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { copyWithToast } from '@/utils/clipboard'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import type { TenantAPIKey, TenantAPIKeyCapability } from '@/api/tenant'
-import { createPlatformAPIKey, deletePlatformAPIKey, listPlatformAPIKeys } from '@/api/system'
+import { onMounted, reactive, ref } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { copyWithToast } from "@/utils/clipboard";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import type { TenantAPIKey, TenantAPIKeyCapability } from "@/api/tenant";
+import { createPlatformAPIKey, deletePlatformAPIKey, listPlatformAPIKeys } from "@/api/system";
 import {
   PLATFORM_API_KEY_CAPABILITY_GROUPS,
   SYSTEM_API_KEY_CAPABILITIES,
   TENANT_API_KEY_CAPABILITIES,
-} from '@/config/apiKeyCapabilities'
+} from "@/config/apiKeyCapabilities";
 
-const { t } = useI18n()
-const allCapabilities = [...SYSTEM_API_KEY_CAPABILITIES, ...TENANT_API_KEY_CAPABILITIES]
-const keys = ref<TenantAPIKey[]>([])
-const loading = ref(false)
-const creating = ref(false)
-const drawerVisible = ref(false)
-const tokenVisible = ref(false)
-const createdToken = ref('')
-const form = reactive({ name: '' })
+const { t } = useI18n();
+const allCapabilities = [...SYSTEM_API_KEY_CAPABILITIES, ...TENANT_API_KEY_CAPABILITIES];
+const keys = ref<TenantAPIKey[]>([]);
+const loading = ref(false);
+const creating = ref(false);
+const drawerVisible = ref(false);
+const tokenVisible = ref(false);
+const createdToken = ref("");
+const form = reactive({ name: "" });
 const selected = reactive<Record<TenantAPIKeyCapability, boolean>>(
-  allCapabilities.reduce((result, capability) => {
-    result[capability] = false
-    return result
-  }, {} as Record<TenantAPIKeyCapability, boolean>),
-)
+  allCapabilities.reduce(
+    (result, capability) => {
+      result[capability] = false;
+      return result;
+    },
+    {} as Record<TenantAPIKeyCapability, boolean>,
+  ),
+);
 
-const VISIBLE_CAPABILITY_CHIP_COUNT = 4
+const VISIBLE_CAPABILITY_CHIP_COUNT = 4;
 
 type CapabilityChipView = {
-  id: TenantAPIKeyCapability
-  label: string
-}
+  id: TenantAPIKeyCapability;
+  label: string;
+};
 
 function capabilityChipsForKey(key: TenantAPIKey): CapabilityChipView[] {
-  const chips: CapabilityChipView[] = []
+  const chips: CapabilityChipView[] = [];
   for (const group of PLATFORM_API_KEY_CAPABILITY_GROUPS) {
     for (const item of group.capabilities) {
       if (key.capabilities?.includes(item.value)) {
-        chips.push({ id: item.value, label: t(item.labelKey) })
+        chips.push({ id: item.value, label: t(item.labelKey) });
       }
     }
   }
-  return chips
+  return chips;
 }
 
 function visibleCapabilityChips(key: TenantAPIKey) {
-  return capabilityChipsForKey(key).slice(0, VISIBLE_CAPABILITY_CHIP_COUNT)
+  return capabilityChipsForKey(key).slice(0, VISIBLE_CAPABILITY_CHIP_COUNT);
 }
 
 function hiddenCapabilityCount(key: TenantAPIKey) {
-  const total = capabilityChipsForKey(key).length
-  return Math.max(0, total - VISIBLE_CAPABILITY_CHIP_COUNT)
+  const total = capabilityChipsForKey(key).length;
+  return Math.max(0, total - VISIBLE_CAPABILITY_CHIP_COUNT);
 }
 
 function capabilityGroupsForKey(key: TenantAPIKey) {
-  return PLATFORM_API_KEY_CAPABILITY_GROUPS
-    .map(group => {
-      const labels = group.capabilities
-        .filter(item => key.capabilities?.includes(item.value))
-        .map(item => t(item.labelKey))
-      if (labels.length === 0) return null
-      return { key: group.key, label: t(group.labelKey), labels }
-    })
-    .filter((group): group is { key: string; label: string; labels: string[] } => group !== null)
+  return PLATFORM_API_KEY_CAPABILITY_GROUPS.map((group) => {
+    const labels = group.capabilities
+      .filter((item) => key.capabilities?.includes(item.value))
+      .map((item) => t(item.labelKey));
+    if (labels.length === 0) return null;
+    return { key: group.key, label: t(group.labelKey), labels };
+  }).filter((group): group is { key: string; label: string; labels: string[] } => group !== null);
 }
 
 function formatDate(value?: string) {
-  if (!value) return t('platformApiKeys.never')
-  const date = new Date(value)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  if (!value) return t("platformApiKeys.never");
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function resetForm() {
-  form.name = ''
-  allCapabilities.forEach(capability => { selected[capability] = false })
+  form.name = "";
+  allCapabilities.forEach((capability) => {
+    selected[capability] = false;
+  });
 }
 
 function openCreate() {
-  resetForm()
-  drawerVisible.value = true
+  resetForm();
+  drawerVisible.value = true;
 }
 
 function groupSelected(capabilities: TenantAPIKeyCapability[]) {
-  return capabilities.every(capability => selected[capability])
+  return capabilities.every((capability) => selected[capability]);
 }
 
 function toggleGroup(capabilities: TenantAPIKeyCapability[]) {
-  const next = !groupSelected(capabilities)
-  capabilities.forEach(capability => { selected[capability] = next })
+  const next = !groupSelected(capabilities);
+  capabilities.forEach((capability) => {
+    selected[capability] = next;
+  });
 }
 
 async function reload() {
-  loading.value = true
+  loading.value = true;
   try {
-    const response = await listPlatformAPIKeys()
-    keys.value = response.data ?? []
+    const response = await listPlatformAPIKeys();
+    keys.value = response.data ?? [];
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('platformApiKeys.loadFailed'))
+    MessagePlugin.error(error?.message || t("platformApiKeys.loadFailed"));
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function createKey() {
-  const capabilities = allCapabilities.filter(capability => selected[capability])
+  const capabilities = allCapabilities.filter((capability) => selected[capability]);
   if (!form.name.trim()) {
-    MessagePlugin.warning(t('platformApiKeys.nameRequired'))
-    return
+    MessagePlugin.warning(t("platformApiKeys.nameRequired"));
+    return;
   }
   if (capabilities.length === 0) {
-    MessagePlugin.warning(t('platformApiKeys.capabilityRequired'))
-    return
+    MessagePlugin.warning(t("platformApiKeys.capabilityRequired"));
+    return;
   }
-  creating.value = true
+  creating.value = true;
   try {
-    const response = await createPlatformAPIKey({ name: form.name.trim(), capabilities })
-    createdToken.value = response.data?.token ?? ''
-    drawerVisible.value = false
-    tokenVisible.value = true
-    await reload()
+    const response = await createPlatformAPIKey({ name: form.name.trim(), capabilities });
+    createdToken.value = response.data?.token ?? "";
+    drawerVisible.value = false;
+    tokenVisible.value = true;
+    await reload();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('platformApiKeys.createFailed'))
+    MessagePlugin.error(error?.message || t("platformApiKeys.createFailed"));
   } finally {
-    creating.value = false
+    creating.value = false;
   }
 }
 
 async function deleteKey(key: TenantAPIKey) {
   try {
-    await deletePlatformAPIKey(key.id)
-    MessagePlugin.success(t('platformApiKeys.deleteSuccess'))
-    await reload()
+    await deletePlatformAPIKey(key.id);
+    MessagePlugin.success(t("platformApiKeys.deleteSuccess"));
+    await reload();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('platformApiKeys.deleteFailed'))
+    MessagePlugin.error(error?.message || t("platformApiKeys.deleteFailed"));
   }
 }
 
 async function copyToken() {
-  const ok = await copyWithToast(createdToken.value, 'platformApiKeys.copySuccess')
-  if (ok) tokenVisible.value = false
+  const ok = await copyWithToast(createdToken.value, "platformApiKeys.copySuccess");
+  if (ok) tokenVisible.value = false;
 }
 
-onMounted(reload)
+onMounted(reload);
 </script>
 
 <style scoped>
@@ -624,7 +607,7 @@ onMounted(reload)
 }
 
 .api-key-dialog-row__label label::before {
-  content: '';
+  content: "";
   flex-shrink: 0;
   width: 3px;
   height: 14px;

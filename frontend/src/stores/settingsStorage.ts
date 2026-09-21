@@ -7,9 +7,7 @@ export function cloneSettings<T>(settings: T): T {
   return JSON.parse(JSON.stringify(settings));
 }
 
-export function isStoredSettingsRecord(
-  value: unknown,
-): value is Record<string, unknown> {
+export function isStoredSettingsRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -24,22 +22,14 @@ function reconcileLoadedSettings<T extends ReconcilableSettings>(loaded: T): T {
   return loaded;
 }
 
-function resetStoredSettings<T extends ReconcilableSettings>(
-  defaultSettings: T,
-  reason: unknown,
-): T {
-  console.error(
-    "[settings] Failed to parse Yuheng_settings from localStorage, resetting to defaults:",
-    reason,
-  );
+function resetStoredSettings<T extends ReconcilableSettings>(defaultSettings: T, reason: unknown): T {
+  console.error("[settings] Failed to parse Yuheng_settings from localStorage, resetting to defaults:", reason);
   safeRemoveItem(SETTINGS_STORAGE_KEY);
   return reconcileLoadedSettings(cloneSettings(defaultSettings));
 }
 
 /** Load settings from localStorage, fall back on corruption. */
-export function loadAndReconcileSettings<T extends ReconcilableSettings>(
-  defaultSettings: T,
-): T {
+export function loadAndReconcileSettings<T extends ReconcilableSettings>(defaultSettings: T): T {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
@@ -47,10 +37,7 @@ export function loadAndReconcileSettings<T extends ReconcilableSettings>(
     }
     const parsed: unknown = JSON.parse(raw);
     if (!isStoredSettingsRecord(parsed)) {
-      return resetStoredSettings(
-        defaultSettings,
-        new Error("stored value is not a settings object"),
-      );
+      return resetStoredSettings(defaultSettings, new Error("stored value is not a settings object"));
     }
     return reconcileLoadedSettings(parsed as T);
   } catch (e) {

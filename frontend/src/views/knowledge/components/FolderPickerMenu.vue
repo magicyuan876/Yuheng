@@ -2,7 +2,7 @@
   <div class="folder-picker">
     <div v-if="showBack" class="folder-picker__header" @click.stop="emit('back')">
       <t-icon name="chevron-left" size="16px" />
-      <span>{{ t('knowledgeBase.moveToFolder.action') }}</span>
+      <span>{{ t("knowledgeBase.moveToFolder.action") }}</span>
     </div>
 
     <div ref="listRef" class="folder-picker__list">
@@ -21,12 +21,16 @@
           <button
             type="button"
             class="folder-picker__add"
-            :title="row.isRoot
-              ? t('knowledgeBase.moveToFolder.newFolderAddRoot')
-              : t('knowledgeBase.moveToFolder.newFolderAddUnder', { folder: row.label })"
-            :aria-label="row.isRoot
-              ? t('knowledgeBase.moveToFolder.newFolderAddRoot')
-              : t('knowledgeBase.moveToFolder.newFolderAddUnder', { folder: row.label })"
+            :title="
+              row.isRoot
+                ? t('knowledgeBase.moveToFolder.newFolderAddRoot')
+                : t('knowledgeBase.moveToFolder.newFolderAddUnder', { folder: row.label })
+            "
+            :aria-label="
+              row.isRoot
+                ? t('knowledgeBase.moveToFolder.newFolderAddRoot')
+                : t('knowledgeBase.moveToFolder.newFolderAddUnder', { folder: row.label })
+            "
             @click.stop="startCreatingUnder(row.path)"
           >
             <t-icon name="folder-add" />
@@ -56,183 +60,185 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { folderOptionFromPath, joinFolderPath, normalizeFolderPath, sortFolderOptions } from '../folderTree'
+import { computed, nextTick, ref, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { folderOptionFromPath, joinFolderPath, normalizeFolderPath, sortFolderOptions } from "../folderTree";
 
-export type FolderOption = { path: string; name: string; depth: number }
+export type FolderOption = { path: string; name: string; depth: number };
 
 type FolderRow = {
-  kind: 'folder'
-  key: string
-  path: string
-  label: string
-  depth: number
-  isRoot?: boolean
-}
+  kind: "folder";
+  key: string;
+  path: string;
+  label: string;
+  depth: number;
+  isRoot?: boolean;
+};
 
 type CreateRow = {
-  kind: 'create'
-  key: string
-  parentPath: string
-  depth: number
-}
+  kind: "create";
+  key: string;
+  parentPath: string;
+  depth: number;
+};
 
-type RenderRow = FolderRow | CreateRow
+type RenderRow = FolderRow | CreateRow;
 
-const props = withDefaults(defineProps<{
-  options: FolderOption[]
-  currentPath?: string
-  showBack?: boolean
-  allowReselect?: boolean
-}>(), {
-  currentPath: '',
-  showBack: false,
-  allowReselect: false,
-})
+const props = withDefaults(
+  defineProps<{
+    options: FolderOption[];
+    currentPath?: string;
+    showBack?: boolean;
+    allowReselect?: boolean;
+  }>(),
+  {
+    currentPath: "",
+    showBack: false,
+    allowReselect: false,
+  },
+);
 
 const emit = defineEmits<{
-  back: []
-  confirm: [folderPath: string]
-  create: [folderPath: string]
-}>()
+  back: [];
+  confirm: [folderPath: string];
+  create: [folderPath: string];
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const creatingUnder = ref<string | null>(null)
-const newFolderName = ref('')
-const newFolderInputRef = ref<HTMLInputElement | null>(null)
-const listRef = ref<HTMLElement | null>(null)
-const localCreatedPaths = ref<string[]>([])
-const selectedPath = ref<string | null>(null)
+const creatingUnder = ref<string | null>(null);
+const newFolderName = ref("");
+const newFolderInputRef = ref<HTMLInputElement | null>(null);
+const listRef = ref<HTMLElement | null>(null);
+const localCreatedPaths = ref<string[]>([]);
+const selectedPath = ref<string | null>(null);
 
 const effectiveCurrentPath = computed(() =>
-  selectedPath.value !== null ? selectedPath.value : (props.currentPath ?? ''),
-)
+  selectedPath.value !== null ? selectedPath.value : (props.currentPath ?? ""),
+);
 
 const displayOptions = computed(() => {
-  const byPath = new Map<string, FolderOption>()
-  props.options.forEach((option) => byPath.set(option.path, option))
+  const byPath = new Map<string, FolderOption>();
+  props.options.forEach((option) => byPath.set(option.path, option));
   localCreatedPaths.value.forEach((path) => {
-    if (!byPath.has(path)) byPath.set(path, folderOptionFromPath(path))
-  })
-  return sortFolderOptions([...byPath.values()])
-})
+    if (!byPath.has(path)) byPath.set(path, folderOptionFromPath(path));
+  });
+  return sortFolderOptions([...byPath.values()]);
+});
 
 const renderRows = computed<RenderRow[]>(() => {
-  const rows: RenderRow[] = [{
-    kind: 'folder',
-    key: 'root',
-    path: '',
-    label: t('knowledgeBase.folderTree.rootRow'),
-    depth: 0,
-    isRoot: true,
-  }]
+  const rows: RenderRow[] = [
+    {
+      kind: "folder",
+      key: "root",
+      path: "",
+      label: t("knowledgeBase.folderTree.rootRow"),
+      depth: 0,
+      isRoot: true,
+    },
+  ];
 
-  if (creatingUnder.value === '') {
+  if (creatingUnder.value === "") {
     rows.push({
-      kind: 'create',
-      key: 'create-root',
-      parentPath: '',
-      depth: childCreateDepth(''),
-    })
+      kind: "create",
+      key: "create-root",
+      parentPath: "",
+      depth: childCreateDepth(""),
+    });
   }
 
   displayOptions.value.forEach((option) => {
     rows.push({
-      kind: 'folder',
+      kind: "folder",
       key: option.path,
       path: option.path,
       label: option.name,
       depth: option.depth,
-    })
+    });
     if (creatingUnder.value === option.path) {
       rows.push({
-        kind: 'create',
+        kind: "create",
         key: `create-${option.path}`,
         parentPath: option.path,
         depth: childCreateDepth(option.path),
-      })
+      });
     }
-  })
+  });
 
-  return rows
-})
+  return rows;
+});
 
-watch(
-  creatingUnder,
-  async (value) => {
-    if (value === null) return
-    await nextTick()
-    newFolderInputRef.value?.focus()
-  },
-)
+watch(creatingUnder, async (value) => {
+  if (value === null) return;
+  await nextTick();
+  newFolderInputRef.value?.focus();
+});
 
 watch(
   () => props.options,
   (options) => {
-    const existing = new Set(options.map((option) => option.path))
-    localCreatedPaths.value = localCreatedPaths.value.filter((path) => !existing.has(path))
+    const existing = new Set(options.map((option) => option.path));
+    localCreatedPaths.value = localCreatedPaths.value.filter((path) => !existing.has(path));
   },
   { deep: true },
-)
+);
 
 watch(
   () => props.currentPath,
   () => {
-    selectedPath.value = null
+    selectedPath.value = null;
   },
-)
+);
 
 function childCreateDepth(parentPath: string): number {
-  return parentPath.split('/').filter(Boolean).length
+  return parentPath.split("/").filter(Boolean).length;
 }
 
 const choose = (path: string) => {
-  if (path === effectiveCurrentPath.value && !props.allowReselect) return
-  selectedPath.value = path
-  emit('confirm', path)
-}
+  if (path === effectiveCurrentPath.value && !props.allowReselect) return;
+  selectedPath.value = path;
+  emit("confirm", path);
+};
 
 const startCreatingUnder = (parentPath: string) => {
   if (creatingUnder.value === parentPath) {
-    cancelCreating()
-    return
+    cancelCreating();
+    return;
   }
-  creatingUnder.value = parentPath
-  newFolderName.value = ''
-}
+  creatingUnder.value = parentPath;
+  newFolderName.value = "";
+};
 
 const cancelCreating = () => {
-  creatingUnder.value = null
-  newFolderName.value = ''
-}
+  creatingUnder.value = null;
+  newFolderName.value = "";
+};
 
 const scrollToFolder = async (path: string) => {
-  await nextTick()
-  const row = listRef.value?.querySelector(`[data-folder-path="${CSS.escape(path)}"]`)
-  row?.scrollIntoView({ block: 'nearest' })
-}
+  await nextTick();
+  const row = listRef.value?.querySelector(`[data-folder-path="${CSS.escape(path)}"]`);
+  row?.scrollIntoView({ block: "nearest" });
+};
 
 const commitNewFolder = async () => {
-  if (creatingUnder.value === null) return
-  const name = normalizeFolderPath(newFolderName.value)
-  if (!name) return
-  const path = joinFolderPath(creatingUnder.value, name)
+  if (creatingUnder.value === null) return;
+  const name = normalizeFolderPath(newFolderName.value);
+  if (!name) return;
+  const path = joinFolderPath(creatingUnder.value, name);
   if (displayOptions.value.some((option) => option.path === path)) {
-    MessagePlugin.warning(t('knowledgeBase.moveToFolder.duplicate'))
-    return
+    MessagePlugin.warning(t("knowledgeBase.moveToFolder.duplicate"));
+    return;
   }
 
   if (!localCreatedPaths.value.includes(path)) {
-    localCreatedPaths.value = [...localCreatedPaths.value, path]
+    localCreatedPaths.value = [...localCreatedPaths.value, path];
   }
-  creatingUnder.value = null
-  newFolderName.value = ''
-  emit('create', path)
-  await scrollToFolder(path)
-}
+  creatingUnder.value = null;
+  newFolderName.value = "";
+  emit("create", path);
+  await scrollToFolder(path);
+};
 </script>
 
 <style scoped lang="less">
@@ -348,7 +354,10 @@ const commitNewFolder = async () => {
   opacity: 0;
   pointer-events: none;
   cursor: pointer;
-  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 
   &:hover {
     color: var(--td-brand-color);

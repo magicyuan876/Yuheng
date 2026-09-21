@@ -1,6 +1,6 @@
-import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import { getGovernance } from '@/api/system'
+import { ref } from "vue";
+import { defineStore } from "pinia";
+import { getGovernance } from "@/api/system";
 
 /**
  * 平台治理模式。
@@ -16,37 +16,37 @@ import { getGovernance } from '@/api/system'
  * 把管理员锁在自己的基础设施外面。真正的权限判定始终在后端路由守卫
  * （middleware.RequirePlatformManaged），前端这里只决定入口渲不渲染。
  */
-export const useGovernanceStore = defineStore('governance', () => {
-  const centralizedInfra = ref(false)
-  const loaded = ref(false)
-  const loadError = ref('')
-  let loadingPromise: Promise<void> | null = null
+export const useGovernanceStore = defineStore("governance", () => {
+  const centralizedInfra = ref(false);
+  const loaded = ref(false);
+  const loadError = ref("");
+  let loadingPromise: Promise<void> | null = null;
 
   const ensureLoaded = async (force = false): Promise<void> => {
-    if (loaded.value && !force) return
-    if (loadingPromise) return loadingPromise
+    if (loaded.value && !force) return;
+    if (loadingPromise) return loadingPromise;
 
     loadingPromise = (async () => {
       try {
-        const response = await getGovernance()
-        centralizedInfra.value = response.data?.centralized_infra === true
-        loadError.value = ''
+        const response = await getGovernance();
+        centralizedInfra.value = response.data?.centralized_infra === true;
+        loadError.value = "";
       } catch (error) {
-        centralizedInfra.value = false
-        loadError.value = error instanceof Error ? error.message : String(error)
+        centralizedInfra.value = false;
+        loadError.value = error instanceof Error ? error.message : String(error);
       } finally {
-        loaded.value = true
-        loadingPromise = null
+        loaded.value = true;
+        loadingPromise = null;
       }
-    })()
+    })();
 
-    return loadingPromise
-  }
+    return loadingPromise;
+  };
 
   return {
     centralizedInfra,
     loaded,
     loadError,
     ensureLoaded,
-  }
-})
+  };
+});

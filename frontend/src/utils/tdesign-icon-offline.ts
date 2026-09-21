@@ -42,19 +42,13 @@ export function installTDesignIconOfflineGuard(): void {
 
   const body = document.body;
   if (!body) {
-    document.addEventListener(
-      "DOMContentLoaded",
-      () => installTDesignIconOfflineGuard(),
-      { once: true },
-    );
+    document.addEventListener("DOMContentLoaded", () => installTDesignIconOfflineGuard(), { once: true });
     installed = false;
     return;
   }
 
   BLOCKED_SCRIPT_URLS.forEach((src) => {
-    const exists = document.querySelector(
-      `script.${SVG_SCRIPT_CLASS}[src="${src}"]`,
-    );
+    const exists = document.querySelector(`script.${SVG_SCRIPT_CLASS}[src="${src}"]`);
     if (exists) return;
     const stub = document.createElement("script");
     stub.setAttribute("class", SVG_SCRIPT_CLASS);
@@ -66,9 +60,7 @@ export function installTDesignIconOfflineGuard(): void {
   });
 
   BLOCKED_LINK_URLS.forEach((href) => {
-    const exists = document.querySelector(
-      `link.${ICONFONT_LINK_CLASS}[href="${href}"]`,
-    );
+    const exists = document.querySelector(`link.${ICONFONT_LINK_CLASS}[href="${href}"]`);
     if (exists) return;
     const stub = document.createElement("link");
     stub.setAttribute("class", ICONFONT_LINK_CLASS);

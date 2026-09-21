@@ -2,14 +2,11 @@
 // chunker over a sample text without touching DB or embeddings. Used by
 // the KB editor debug panel.
 
-import { post } from '../../utils/request'
-import type {
-  PreviewChunkingRequest,
-  PreviewChunkingResponse
-} from '../../types/chunker'
+import { post } from "../../utils/request";
+import type { PreviewChunkingRequest, PreviewChunkingResponse } from "../../types/chunker";
 
 export function previewChunking(
-  body: PreviewChunkingRequest
+  body: PreviewChunkingRequest,
 ): Promise<{ success: boolean; data: PreviewChunkingResponse }> {
-  return post('/api/v1/chunker/preview', body)
+  return post("/api/v1/chunker/preview", body);
 }

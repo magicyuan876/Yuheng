@@ -1,34 +1,31 @@
-import assert from 'node:assert/strict'
-import { test } from 'vitest'
+import assert from "node:assert/strict";
+import { test } from "vitest";
 import {
   DEFAULT_SESSION_BUCKET_KEY,
   buildSessionSourceOptions,
   findSessionBucketKey,
   shouldShowSessionSourceFilter,
-} from './sessionSidebarSourceFilter.ts'
+} from "./sessionSidebarSourceFilter.ts";
 
-test('shouldShowSessionSourceFilter hides when no channel buckets', () => {
-  assert.equal(shouldShowSessionSourceFilter(0), false)
-  assert.equal(shouldShowSessionSourceFilter(1), true)
-})
+test("shouldShowSessionSourceFilter hides when no channel buckets", () => {
+  assert.equal(shouldShowSessionSourceFilter(0), false);
+  assert.equal(shouldShowSessionSourceFilter(1), true);
+});
 
-test('buildSessionSourceOptions puts web first then channels', () => {
-  const options = buildSessionSourceOptions(
-    'My chats',
-    [{ key: 'api', label: 'API' }],
-  )
-  assert.equal(options.length, 2)
-  assert.equal(options[0].value, DEFAULT_SESSION_BUCKET_KEY)
-  assert.equal(options[1].value, 'api')
-})
+test("buildSessionSourceOptions puts web first then channels", () => {
+  const options = buildSessionSourceOptions("My chats", [{ key: "api", label: "API" }]);
+  assert.equal(options.length, 2);
+  assert.equal(options[0].value, DEFAULT_SESSION_BUCKET_KEY);
+  assert.equal(options[1].value, "api");
+});
 
-test('findSessionBucketKey locates session bucket', () => {
+test("findSessionBucketKey locates session bucket", () => {
   const key = findSessionBucketKey(
     {
-      web: { items: [{ id: 'a' }] },
-      api: { items: [{ id: 'b' }] },
+      web: { items: [{ id: "a" }] },
+      api: { items: [{ id: "b" }] },
     },
-    'b',
-  )
-  assert.equal(key, 'api')
-})
+    "b",
+  );
+  assert.equal(key, "api");
+});

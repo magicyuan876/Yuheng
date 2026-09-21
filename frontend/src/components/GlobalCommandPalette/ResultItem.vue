@@ -43,27 +43,27 @@
  * `selected` prop and emits hover/primary events.
  */
 defineProps<{
-  index: number
-  selected?: boolean
-  iconName?: string
-  title?: string
-  subtitle?: string
-  badge?: string
-  badgeVariant?: 'vector' | 'keyword' | 'default'
-  score?: number
+  index: number;
+  selected?: boolean;
+  iconName?: string;
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  badgeVariant?: "vector" | "keyword" | "default";
+  score?: number;
   /** Visible hint for the ⌘N shortcut that triggers this row (N: 1-9). */
-  shortcut?: number | string
-}>()
+  shortcut?: number | string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'primary'): void
-  (e: 'hover', index: number): void
-}>()
+  (e: "primary"): void;
+  (e: "hover", index: number): void;
+}>();
 
 const onHover = (e: MouseEvent) => {
-  const idx = Number((e.currentTarget as HTMLElement).dataset.cmdkIndex)
-  if (!Number.isNaN(idx)) emit('hover', idx)
-}
+  const idx = Number((e.currentTarget as HTMLElement).dataset.cmdkIndex);
+  if (!Number.isNaN(idx)) emit("hover", idx);
+};
 </script>
 
 <style lang="less" scoped>

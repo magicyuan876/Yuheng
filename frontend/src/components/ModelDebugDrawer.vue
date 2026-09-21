@@ -17,13 +17,13 @@
     <template v-if="result" #footer-left>
       <t-button variant="outline" @click="copyResult">
         <template #icon><t-icon name="file-copy" /></template>
-        {{ $t('modelSettings.debug.copyResult') }}
+        {{ $t("modelSettings.debug.copyResult") }}
       </t-button>
     </template>
 
     <div class="model-debug">
       <section class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ $t('modelSettings.debug.groupModel') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupModel") }}</h4>
         <div v-if="availableModelTypes.length > 1" class="form-item">
           <div class="model-type-options" role="radiogroup" :aria-label="$t('modelSettings.debug.modelType')">
             <button
@@ -42,7 +42,7 @@
           </div>
         </div>
         <div class="form-item">
-          <label class="form-label">{{ $t('modelSettings.debug.model') }}</label>
+          <label class="form-label">{{ $t("modelSettings.debug.model") }}</label>
           <t-select
             v-model="selectedModelId"
             filterable
@@ -50,12 +50,7 @@
             :disabled="filteredModels.length === 0"
             @change="resetResult"
           >
-            <t-option
-              v-for="model in filteredModels"
-              :key="model.id"
-              :value="model.id!"
-              :label="modelLabel(model)"
-            >
+            <t-option v-for="model in filteredModels" :key="model.id" :value="model.id!" :label="modelLabel(model)">
               <div class="model-option">
                 <span class="model-option__name">{{ modelLabel(model) }}</span>
                 <span class="model-option__meta">{{ vendorLabel(model) }}</span>
@@ -63,31 +58,27 @@
             </t-option>
           </t-select>
           <p v-if="filteredModels.length === 0" class="form-desc">
-            {{ $t('modelSettings.debug.noModelsForType') }}
+            {{ $t("modelSettings.debug.noModelsForType") }}
           </p>
         </div>
       </section>
 
       <template v-if="selectedModel">
         <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('modelSettings.debug.groupInput') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupInput") }}</h4>
           <div v-if="selectedModel.type !== 'ASR'" class="form-item">
             <label class="form-label">{{ inputLabel }}</label>
-            <t-textarea
-              v-model="input"
-              :placeholder="inputPlaceholder"
-              :autosize="{ minRows: 4, maxRows: 8 }"
-            />
+            <t-textarea v-model="input" :placeholder="inputPlaceholder" :autosize="{ minRows: 4, maxRows: 8 }" />
           </div>
 
           <div v-if="selectedModel.type === 'Rerank'" class="form-item">
-            <label class="form-label">{{ $t('modelSettings.debug.documents') }}</label>
+            <label class="form-label">{{ $t("modelSettings.debug.documents") }}</label>
             <t-textarea
               v-model="documentsText"
               :placeholder="$t('modelSettings.debug.documentsPlaceholder')"
               :autosize="{ minRows: 4, maxRows: 8 }"
             />
-            <p class="form-desc">{{ $t('modelSettings.debug.documentsHint') }}</p>
+            <p class="form-desc">{{ $t("modelSettings.debug.documentsHint") }}</p>
           </div>
 
           <div v-if="needsFile" class="form-item">
@@ -99,10 +90,10 @@
                 type="file"
                 :accept="selectedModel.type === 'VLLM' ? 'image/*' : 'audio/*'"
                 @change="onNativeFileChange"
-              >
+              />
               <t-button variant="outline" size="small" @click="fileInputRef?.click()">
                 <template #icon><t-icon name="upload" /></template>
-                {{ $t('modelSettings.debug.chooseFile') }}
+                {{ $t("modelSettings.debug.chooseFile") }}
               </t-button>
             </div>
             <p v-if="file" class="form-desc">{{ file.name }} · {{ formatBytes(file.size) }}</p>
@@ -110,7 +101,7 @@
         </section>
 
         <section v-if="isChat" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('modelSettings.debug.parameters') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.parameters") }}</h4>
           <div class="parameter-grid">
             <div class="form-item">
               <label class="form-label">Temperature</label>
@@ -126,7 +117,7 @@
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">{{ $t('modelSettings.debug.systemPrompt') }}</label>
+            <label class="form-label">{{ $t("modelSettings.debug.systemPrompt") }}</label>
             <t-textarea
               v-model="systemPrompt"
               :placeholder="$t('modelSettings.debug.systemPromptPlaceholder')"
@@ -134,19 +125,19 @@
             />
           </div>
           <div v-if="supportsThinking" class="form-item">
-            <label class="form-label">{{ $t('modelSettings.debug.thinking') }}</label>
+            <label class="form-label">{{ $t("modelSettings.debug.thinking") }}</label>
             <div class="switch-field">
               <t-switch v-model="thinking" />
-              <span class="form-desc form-desc--inline">{{ $t('modelSettings.debug.thinkingDesc') }}</span>
+              <span class="form-desc form-desc--inline">{{ $t("modelSettings.debug.thinkingDesc") }}</span>
             </div>
           </div>
         </section>
 
         <section v-if="result || history.length > 0" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t('modelSettings.debug.groupResult') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupResult") }}</h4>
 
           <div v-if="history.length > 1" class="form-item">
-            <label class="form-label">{{ $t('modelSettings.debug.history') }}</label>
+            <label class="form-label">{{ $t("modelSettings.debug.history") }}</label>
             <div class="history-list">
               <button
                 v-for="run in history"
@@ -166,7 +157,7 @@
             <div class="result-banner" :class="result.ok ? 'result-banner--ok' : 'result-banner--error'">
               <t-icon :name="result.ok ? 'check-circle-filled' : 'close-circle-filled'" />
               <div class="result-banner__text">
-                <strong>{{ result.ok ? $t('modelSettings.debug.success') : $t('modelSettings.debug.failed') }}</strong>
+                <strong>{{ result.ok ? $t("modelSettings.debug.success") : $t("modelSettings.debug.failed") }}</strong>
                 <span>{{ result.elapsed_ms }} ms</span>
               </div>
             </div>
@@ -192,271 +183,283 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
-import { copyWithToast } from '@/utils/clipboard'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import { debugModel, type ModelConfig, type ModelDebugResult } from '@/api/model'
-import { fileSizeVerification } from '@/utils'
-import { modelSupportsThinking } from '@/utils/thinkingControl'
+import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
+import { copyWithToast } from "@/utils/clipboard";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { debugModel, type ModelConfig, type ModelDebugResult } from "@/api/model";
+import { fileSizeVerification } from "@/utils";
+import { modelSupportsThinking } from "@/utils/thinkingControl";
 
 const props = defineProps<{
-  visible: boolean
-  models: ModelConfig[]
-}>()
+  visible: boolean;
+  models: ModelConfig[];
+}>();
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void
-}>()
+  (e: "update:visible", value: boolean): void;
+}>();
 
-const { t, te } = useI18n()
+const { t, te } = useI18n();
 const drawerVisible = computed({
   get: () => props.visible,
-  set: value => emit('update:visible', value),
-})
+  set: (value) => emit("update:visible", value),
+});
 
-type DebugModelType = ModelConfig['type']
+type DebugModelType = ModelConfig["type"];
 
-const selectedModelType = ref<DebugModelType>('KnowledgeQA')
-const selectedModelId = ref('')
-const input = ref('')
-const documentsText = ref('')
-const file = ref<File | null>(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const thinking = ref(false)
-const temperature = ref(0.7)
-const topP = ref(1)
-const maxTokens = ref(1024)
-const systemPrompt = ref('')
-const running = ref(false)
-const result = ref<ModelDebugResult | null>(null)
-const resultTab = ref<'response' | 'request'>('response')
-const history = ref<Array<{
-  id: number
-  label: string
-  result: ModelDebugResult
-}>>([])
-let runSequence = 0
+const selectedModelType = ref<DebugModelType>("KnowledgeQA");
+const selectedModelId = ref("");
+const input = ref("");
+const documentsText = ref("");
+const file = ref<File | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const thinking = ref(false);
+const temperature = ref(0.7);
+const topP = ref(1);
+const maxTokens = ref(1024);
+const systemPrompt = ref("");
+const running = ref(false);
+const result = ref<ModelDebugResult | null>(null);
+const resultTab = ref<"response" | "request">("response");
+const history = ref<
+  Array<{
+    id: number;
+    label: string;
+    result: ModelDebugResult;
+  }>
+>([]);
+let runSequence = 0;
 
-const selectedModel = computed(() => props.models.find(model => model.id === selectedModelId.value))
-const filteredModels = computed(() => props.models.filter(model => model.type === selectedModelType.value))
-const isChat = computed(() => selectedModel.value?.type === 'KnowledgeQA')
-const supportsThinking = computed(() => selectedModel.value ? modelSupportsThinking(selectedModel.value) : false)
-const needsFile = computed(() => ['VLLM', 'ASR'].includes(selectedModel.value?.type || ''))
-const documents = computed(() => documentsText.value.split('\n').map(item => item.trim()).filter(Boolean))
+const selectedModel = computed(() => props.models.find((model) => model.id === selectedModelId.value));
+const filteredModels = computed(() => props.models.filter((model) => model.type === selectedModelType.value));
+const isChat = computed(() => selectedModel.value?.type === "KnowledgeQA");
+const supportsThinking = computed(() => (selectedModel.value ? modelSupportsThinking(selectedModel.value) : false));
+const needsFile = computed(() => ["VLLM", "ASR"].includes(selectedModel.value?.type || ""));
+const documents = computed(() =>
+  documentsText.value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean),
+);
 const canRun = computed(() => {
-  if (!selectedModel.value) return false
-  if (needsFile.value && !file.value) return false
-  if (selectedModel.value.type === 'ASR') return true
-  if (selectedModel.value.type === 'Rerank') return !!input.value.trim() && documents.value.length > 0
-  return !!input.value.trim()
-})
+  if (!selectedModel.value) return false;
+  if (needsFile.value && !file.value) return false;
+  if (selectedModel.value.type === "ASR") return true;
+  if (selectedModel.value.type === "Rerank") return !!input.value.trim() && documents.value.length > 0;
+  return !!input.value.trim();
+});
 
 const allModelTypeOptions = computed(() => {
   const keys: Record<DebugModelType, { short: string; icon: string }> = {
-    KnowledgeQA: { short: 'chat', icon: 'chat' },
-    Embedding: { short: 'embedding', icon: 'chart-bubble' },
-    Rerank: { short: 'rerank', icon: 'filter-sort' },
-    VLLM: { short: 'vllm', icon: 'image' },
-    ASR: { short: 'asr', icon: 'sound' },
-  }
-  return (Object.keys(keys) as DebugModelType[]).map(value => ({
+    KnowledgeQA: { short: "chat", icon: "chat" },
+    Embedding: { short: "embedding", icon: "chart-bubble" },
+    Rerank: { short: "rerank", icon: "filter-sort" },
+    VLLM: { short: "vllm", icon: "image" },
+    ASR: { short: "asr", icon: "sound" },
+  };
+  return (Object.keys(keys) as DebugModelType[]).map((value) => ({
     value,
     label: t(`modelSettings.typeShort.${keys[value].short}`),
     icon: keys[value].icon,
-  }))
-})
+  }));
+});
 
-const modelCount = (type: DebugModelType) => props.models.filter(model => model.type === type).length
+const modelCount = (type: DebugModelType) => props.models.filter((model) => model.type === type).length;
 
-const availableModelTypes = computed(() =>
-  allModelTypeOptions.value.filter(option => modelCount(option.value) > 0),
-)
+const availableModelTypes = computed(() => allModelTypeOptions.value.filter((option) => modelCount(option.value) > 0));
 
-const modelLabel = (model: ModelConfig) => model.display_name?.trim() || model.name
+const modelLabel = (model: ModelConfig) => model.display_name?.trim() || model.name;
 
 const vendorLabel = (model: ModelConfig) => {
-  const provider = model.parameters.provider || ''
-  if (model.source === 'local') return 'Ollama'
-  if (provider === 'generic') return t('modelSettings.source.custom')
-  const key = `model.editor.providers.${provider}.label`
-  return te(key) ? t(key) : provider || model.source
-}
+  const provider = model.parameters.provider || "";
+  if (model.source === "local") return "Ollama";
+  if (provider === "generic") return t("modelSettings.source.custom");
+  const key = `model.editor.providers.${provider}.label`;
+  return te(key) ? t(key) : provider || model.source;
+};
 
 const inputLabel = computed(() => {
-  if (selectedModel.value?.type === 'Embedding') return t('modelSettings.debug.embeddingInput')
-  if (selectedModel.value?.type === 'VLLM') return t('modelSettings.debug.vlmPrompt')
-  if (selectedModel.value?.type === 'Rerank') return t('modelSettings.debug.query')
-  return t('modelSettings.debug.query')
-})
+  if (selectedModel.value?.type === "Embedding") return t("modelSettings.debug.embeddingInput");
+  if (selectedModel.value?.type === "VLLM") return t("modelSettings.debug.vlmPrompt");
+  if (selectedModel.value?.type === "Rerank") return t("modelSettings.debug.query");
+  return t("modelSettings.debug.query");
+});
 
 const inputPlaceholder = computed(() => {
-  if (selectedModel.value?.type === 'Embedding') return t('modelSettings.debug.embeddingPlaceholder')
-  if (selectedModel.value?.type === 'VLLM') return t('modelSettings.debug.vlmPromptPlaceholder')
-  return t('modelSettings.debug.queryPlaceholder')
-})
+  if (selectedModel.value?.type === "Embedding") return t("modelSettings.debug.embeddingPlaceholder");
+  if (selectedModel.value?.type === "VLLM") return t("modelSettings.debug.vlmPromptPlaceholder");
+  return t("modelSettings.debug.queryPlaceholder");
+});
 
 const fileLabel = computed(() =>
-  selectedModel.value?.type === 'VLLM'
-    ? t('modelSettings.debug.imageFile')
-    : t('modelSettings.debug.audioFile'),
-)
+  selectedModel.value?.type === "VLLM" ? t("modelSettings.debug.imageFile") : t("modelSettings.debug.audioFile"),
+);
 
 const formattedResult = computed(() => {
-  if (!result.value) return ''
-  const value = resultTab.value === 'response'
-    ? result.value.raw_response
-    : result.value.request
-  return JSON.stringify(value, null, 2)
-})
+  if (!result.value) return "";
+  const value = resultTab.value === "response" ? result.value.raw_response : result.value.request;
+  return JSON.stringify(value, null, 2);
+});
 
 const OBSERVATION_LABELS: Record<string, string> = {
-  dimension: 'modelSettings.debug.metrics.dimension',
-  result_count: 'modelSettings.debug.metrics.resultCount',
-  answer_characters: 'modelSettings.debug.metrics.answerChars',
-  reasoning_characters: 'modelSettings.debug.metrics.reasoningChars',
-  reasoning_returned: 'modelSettings.debug.metrics.reasoningReturned',
-  text_characters: 'modelSettings.debug.metrics.textChars',
-  segment_count: 'modelSettings.debug.metrics.segmentCount',
-}
+  dimension: "modelSettings.debug.metrics.dimension",
+  result_count: "modelSettings.debug.metrics.resultCount",
+  answer_characters: "modelSettings.debug.metrics.answerChars",
+  reasoning_characters: "modelSettings.debug.metrics.reasoningChars",
+  reasoning_returned: "modelSettings.debug.metrics.reasoningReturned",
+  text_characters: "modelSettings.debug.metrics.textChars",
+  segment_count: "modelSettings.debug.metrics.segmentCount",
+};
 
 const resultMetrics = computed(() => {
-  if (!result.value?.observations) return []
-  const obs = result.value.observations
-  const keys = Object.keys(OBSERVATION_LABELS).filter(key => obs[key] !== undefined && obs[key] !== null)
-  return keys.map(key => ({
+  if (!result.value?.observations) return [];
+  const obs = result.value.observations;
+  const keys = Object.keys(OBSERVATION_LABELS).filter((key) => obs[key] !== undefined && obs[key] !== null);
+  return keys.map((key) => ({
     key,
     label: t(OBSERVATION_LABELS[key]),
     value: formatMetricValue(key, obs[key]),
-  }))
-})
+  }));
+});
 
 const formatMetricValue = (key: string, value: unknown) => {
-  if (typeof value === 'boolean') {
-    return value ? t('common.yes') : t('common.no')
+  if (typeof value === "boolean") {
+    return value ? t("common.yes") : t("common.no");
   }
-  return String(value)
-}
+  return String(value);
+};
 
 const ensureDefaultSelection = () => {
-  const types = availableModelTypes.value
+  const types = availableModelTypes.value;
   if (types.length === 0) {
-    selectedModelId.value = ''
-    return
+    selectedModelId.value = "";
+    return;
   }
-  if (!types.some(option => option.value === selectedModelType.value)) {
-    selectedModelType.value = types[0].value
+  if (!types.some((option) => option.value === selectedModelType.value)) {
+    selectedModelType.value = types[0].value;
   }
-  const models = filteredModels.value
-  if (!models.some(model => model.id === selectedModelId.value)) {
-    selectedModelId.value = models[0]?.id || ''
+  const models = filteredModels.value;
+  if (!models.some((model) => model.id === selectedModelId.value)) {
+    selectedModelId.value = models[0]?.id || "";
   }
-}
+};
 
-watch(() => props.visible, visible => {
-  if (visible) ensureDefaultSelection()
-})
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) ensureDefaultSelection();
+  },
+);
 
 watch(availableModelTypes, () => {
-  if (props.visible) ensureDefaultSelection()
-})
+  if (props.visible) ensureDefaultSelection();
+});
 
-watch(() => selectedModel.value?.id, () => {
-  if (!supportsThinking.value) thinking.value = false
-})
+watch(
+  () => selectedModel.value?.id,
+  () => {
+    if (!supportsThinking.value) thinking.value = false;
+  },
+);
 
-watch(() => selectedModel.value?.type, () => {
-  file.value = null
-  result.value = null
-  history.value = []
-  resultTab.value = 'response'
-})
+watch(
+  () => selectedModel.value?.type,
+  () => {
+    file.value = null;
+    result.value = null;
+    history.value = [];
+    resultTab.value = "response";
+  },
+);
 
 const resetResult = () => {
-  result.value = null
-  history.value = []
-  resultTab.value = 'response'
-}
+  result.value = null;
+  history.value = [];
+  resultTab.value = "response";
+};
 
 const selectModelType = (type: DebugModelType) => {
-  if (selectedModelType.value === type) return
-  selectedModelType.value = type
-  selectedModelId.value = filteredModels.value[0]?.id || ''
-  input.value = ''
-  documentsText.value = ''
-  file.value = null
-  resetResult()
-}
+  if (selectedModelType.value === type) return;
+  selectedModelType.value = type;
+  selectedModelId.value = filteredModels.value[0]?.id || "";
+  input.value = "";
+  documentsText.value = "";
+  file.value = null;
+  resetResult();
+};
 
 const onNativeFileChange = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const selectedFile = target.files?.[0] || null
+  const target = event.target as HTMLInputElement;
+  const selectedFile = target.files?.[0] || null;
   if (selectedFile && fileSizeVerification(selectedFile)) {
-    target.value = ''
-    file.value = null
-    resetResult()
-    return
+    target.value = "";
+    file.value = null;
+    resetResult();
+    return;
   }
-  file.value = selectedFile
-  resetResult()
-}
+  file.value = selectedFile;
+  resetResult();
+};
 
 const formatBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 const historyLabel = (thinkingValue: boolean) => {
   if (supportsThinking.value) {
-    return thinkingValue ? t('modelSettings.debug.thinkOn') : t('modelSettings.debug.thinkOff')
+    return thinkingValue ? t("modelSettings.debug.thinkOn") : t("modelSettings.debug.thinkOff");
   }
-  return t('modelSettings.debug.runLabel', { n: runSequence })
-}
+  return t("modelSettings.debug.runLabel", { n: runSequence });
+};
 
 const runDebug = async () => {
-  if (!selectedModel.value?.id || !canRun.value || running.value) return
-  running.value = true
+  if (!selectedModel.value?.id || !canRun.value || running.value) return;
+  running.value = true;
   try {
-    const thinkingValue = supportsThinking.value ? thinking.value : false
+    const thinkingValue = supportsThinking.value ? thinking.value : false;
     const nextResult = await debugModel(selectedModel.value.id, {
       input: input.value.trim(),
       documents: documents.value,
       file: file.value,
-      options: isChat.value ? {
-        system_prompt: systemPrompt.value.trim() || undefined,
-        temperature: temperature.value,
-        top_p: topP.value,
-        max_tokens: maxTokens.value,
-        thinking: thinkingValue,
-      } : {},
-    })
-    result.value = nextResult
+      options: isChat.value
+        ? {
+            system_prompt: systemPrompt.value.trim() || undefined,
+            temperature: temperature.value,
+            top_p: topP.value,
+            max_tokens: maxTokens.value,
+            thinking: thinkingValue,
+          }
+        : {},
+    });
+    result.value = nextResult;
     history.value.unshift({
       id: ++runSequence,
       label: historyLabel(thinkingValue),
       result: nextResult,
-    })
-    history.value = history.value.slice(0, 6)
-    resultTab.value = 'response'
+    });
+    history.value = history.value.slice(0, 6);
+    resultTab.value = "response";
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('modelSettings.debug.requestFailed'))
+    MessagePlugin.error(error?.message || t("modelSettings.debug.requestFailed"));
   } finally {
-    running.value = false
+    running.value = false;
   }
-}
+};
 
 const copyResult = async () => {
-  if (!result.value) return
-  await copyWithToast(JSON.stringify(result.value, null, 2), 'common.copied')
-}
+  if (!result.value) return;
+  await copyWithToast(JSON.stringify(result.value, null, 2), "common.copied");
+};
 
 onBeforeUnmount(() => {
   if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
+    document.activeElement.blur();
   }
-})
+});
 </script>
 
 <style scoped lang="less">
@@ -503,7 +506,10 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 
   &__icon {
     font-size: 15px;
@@ -694,7 +700,13 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: var(--td-bg-color-secondarycontainer);
   color: var(--td-text-color-primary);
-  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font:
+    12px/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }

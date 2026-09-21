@@ -1,58 +1,58 @@
-import { kbFileTypeVerification } from '@/utils'
+import { kbFileTypeVerification } from "@/utils";
 
 export function getUploadFileKey(file: File): string {
-  const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || ''
-  return `${path || file.name}\0${file.size}`
+  const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || "";
+  return `${path || file.name}\0${file.size}`;
 }
 
 export interface FilterUploadFilesOptions {
-  supportedFileTypes?: Set<string> | string[]
-  fromFolder?: boolean
-  multiFile?: boolean
+  supportedFileTypes?: Set<string> | string[];
+  fromFolder?: boolean;
+  multiFile?: boolean;
 }
 
 export interface FilterUploadFilesResult {
-  validFiles: File[]
-  skippedCount: number
-  hiddenFileCount: number
+  validFiles: File[];
+  skippedCount: number;
+  hiddenFileCount: number;
 }
 
 export function filterUploadFiles(
   files: FileList | File[],
   options: FilterUploadFilesOptions = {},
 ): FilterUploadFilesResult {
-  const list = Array.from(files)
+  const list = Array.from(files);
   const dynamicTypesRaw = options.supportedFileTypes
     ? options.supportedFileTypes instanceof Set
       ? options.supportedFileTypes
       : new Set(options.supportedFileTypes)
-    : undefined
+    : undefined;
   // An empty set means the parser-engine list hasn't loaded yet (race with the
   // async fetch on mount). Treat it as "unknown" and fall back to the default
   // whitelist instead of rejecting every file as unsupported.
-  const dynamicTypes = dynamicTypesRaw && dynamicTypesRaw.size > 0 ? dynamicTypesRaw : undefined
+  const dynamicTypes = dynamicTypesRaw && dynamicTypesRaw.size > 0 ? dynamicTypesRaw : undefined;
 
-  const validFiles: File[] = []
-  let skippedCount = 0
-  let hiddenFileCount = 0
-  const multiFile = options.multiFile ?? list.length > 1
+  const validFiles: File[] = [];
+  let skippedCount = 0;
+  let hiddenFileCount = 0;
+  const multiFile = options.multiFile ?? list.length > 1;
 
   for (const file of list) {
     if (options.fromFolder) {
-      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
-      if (relativePath.split('/').some(part => part.startsWith('.'))) {
-        hiddenFileCount++
-        continue
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      if (relativePath.split("/").some((part) => part.startsWith("."))) {
+        hiddenFileCount++;
+        continue;
       }
     }
 
     if (kbFileTypeVerification(file, multiFile, dynamicTypes)) {
-      skippedCount++
-      continue
+      skippedCount++;
+      continue;
     }
 
-    validFiles.push(file)
+    validFiles.push(file);
   }
 
-  return { validFiles, skippedCount, hiddenFileCount }
+  return { validFiles, skippedCount, hiddenFileCount };
 }

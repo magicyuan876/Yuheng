@@ -1,14 +1,9 @@
 <template>
   <NodeViewWrapper class="docs-mermaid" :class="{ 'docs-mermaid--selected': selected }">
     <div class="docs-mermaid-bar">
-      <button
-        v-if="editor.isEditable"
-        type="button"
-        class="docs-mermaid-toggle"
-        @click="showSource = !showSource"
-      >
+      <button v-if="editor.isEditable" type="button" class="docs-mermaid-toggle" @click="showSource = !showSource">
         <t-icon :name="showSource ? 'chart' : 'code'" size="13px" />
-        <span>{{ showSource ? t('docs.blocks.mermaidPreview') : t('docs.blocks.mermaidSource') }}</span>
+        <span>{{ showSource ? t("docs.blocks.mermaidPreview") : t("docs.blocks.mermaidSource") }}</span>
       </button>
     </div>
 
@@ -26,38 +21,42 @@
 
     <p v-else-if="error" class="docs-mermaid-error" :contenteditable="false">
       <t-icon name="error-circle" size="14px" />
-      <span>{{ t('docs.blocks.mermaidBroken') }}</span>
+      <span>{{ t("docs.blocks.mermaidBroken") }}</span>
     </p>
 
-    <p v-else class="docs-mermaid-empty" :contenteditable="false">{{ t('docs.blocks.mermaidEmpty') }}</p>
+    <p v-else class="docs-mermaid-empty" :contenteditable="false">{{ t("docs.blocks.mermaidEmpty") }}</p>
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { renderMermaidToSvg } from '@/utils/mermaidShared'
+import { renderMermaidToSvg } from "@/utils/mermaidShared";
 
-import { mermaidId } from './figures'
+import { mermaidId } from "./figures";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const source = computed(() => String(props.node.attrs.source ?? ''))
-const showSource = ref(false)
-const draft = ref(source.value)
-const svg = ref('')
-const error = ref(false)
+const source = computed(() => String(props.node.attrs.source ?? ""));
+const showSource = ref(false);
+const draft = ref(source.value);
+const svg = ref("");
+const error = ref(false);
 
-let seq = 0
-let disposed = false
+let seq = 0;
+let disposed = false;
 
-watch(source, (value) => {
-  if (!showSource.value) draft.value = value
-  void render(value)
-}, { immediate: true })
+watch(
+  source,
+  (value) => {
+    if (!showSource.value) draft.value = value;
+    void render(value);
+  },
+  { immediate: true },
+);
 
 /**
  * Renders the diagram, and treats a failure as this block's problem alone.
@@ -69,32 +68,32 @@ watch(source, (value) => {
  * lifecycle, where Vue would tear down the whole editor subtree.
  */
 async function render(code: string): Promise<void> {
-  const ticket = ++seq
+  const ticket = ++seq;
   if (!code.trim()) {
-    svg.value = ''
-    error.value = false
-    return
+    svg.value = "";
+    error.value = false;
+    return;
   }
-  let rendered: string | null = null
+  let rendered: string | null = null;
   try {
-    rendered = await renderMermaidToSvg(code, mermaidId(props.node.attrs.id, ticket))
+    rendered = await renderMermaidToSvg(code, mermaidId(props.node.attrs.id, ticket));
   } catch {
-    rendered = null
+    rendered = null;
   }
   // A later edit already started rendering; its answer is the current one.
-  if (disposed || ticket !== seq) return
-  svg.value = rendered ?? ''
-  error.value = rendered === null
+  if (disposed || ticket !== seq) return;
+  svg.value = rendered ?? "";
+  error.value = rendered === null;
 }
 
 function commit() {
-  if (draft.value === source.value) return
-  props.updateAttributes({ source: draft.value })
+  if (draft.value === source.value) return;
+  props.updateAttributes({ source: draft.value });
 }
 
 onBeforeUnmount(() => {
-  disposed = true
-})
+  disposed = true;
+});
 </script>
 
 <style scoped lang="less">

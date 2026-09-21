@@ -8,27 +8,27 @@
 // position through every edit made while the upload is in flight — so typing
 // above the insertion point moves the placeholder with the text, and the
 // finished image lands exactly where the file was dropped.
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-import type { EditorState, Transaction } from '@tiptap/pm/state'
-import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 /** Identifies the placeholder plugin's state. */
-export const uploadPlaceholderKey = new PluginKey<DecorationSet>('yuhengUploadPlaceholder')
+export const uploadPlaceholderKey = new PluginKey<DecorationSet>("yuhengUploadPlaceholder");
 
 /** What a transaction asks the plugin to do. */
 interface PlaceholderAction {
-  add?: { key: string; pos: number }
-  remove?: string
+  add?: { key: string; pos: number };
+  remove?: string;
 }
 
 /** Marks a transaction as adding a placeholder at pos. */
 export function addPlaceholder(tr: Transaction, key: string, pos: number): Transaction {
-  return tr.setMeta(uploadPlaceholderKey, { add: { key, pos } } satisfies PlaceholderAction)
+  return tr.setMeta(uploadPlaceholderKey, { add: { key, pos } } satisfies PlaceholderAction);
 }
 
 /** Marks a transaction as removing a placeholder. */
 export function removePlaceholder(tr: Transaction, key: string): Transaction {
-  return tr.setMeta(uploadPlaceholderKey, { remove: key } satisfies PlaceholderAction)
+  return tr.setMeta(uploadPlaceholderKey, { remove: key } satisfies PlaceholderAction);
 }
 
 /**
@@ -37,17 +37,17 @@ export function removePlaceholder(tr: Transaction, key: string): Transaction {
  * file was still travelling.
  */
 export function placeholderPos(state: EditorState, key: string): number | null {
-  const set = uploadPlaceholderKey.getState(state)
-  if (!set) return null
-  const found = set.find(undefined, undefined, (spec) => spec.uploadKey === key)
-  return found.length > 0 ? found[0]!.from : null
+  const set = uploadPlaceholderKey.getState(state);
+  if (!set) return null;
+  const found = set.find(undefined, undefined, (spec) => spec.uploadKey === key);
+  return found.length > 0 ? found[0]!.from : null;
 }
 
 /** Every placeholder currently in the document, in document order. */
 export function placeholderKeys(state: EditorState): string[] {
-  const set = uploadPlaceholderKey.getState(state)
-  if (!set) return []
-  return set.find().map((d) => (d.spec as { uploadKey: string }).uploadKey)
+  const set = uploadPlaceholderKey.getState(state);
+  if (!set) return [];
+  return set.find().map((d) => (d.spec as { uploadKey: string }).uploadKey);
 }
 
 /**
@@ -62,27 +62,26 @@ export function uploadPlaceholderPlugin(render: (key: string) => HTMLElement): P
       apply(tr, set) {
         // Mapping first: an edit elsewhere in the document must move the
         // placeholder rather than strand it.
-        let next = set.map(tr.mapping, tr.doc)
-        const action = tr.getMeta(uploadPlaceholderKey) as PlaceholderAction | undefined
+        let next = set.map(tr.mapping, tr.doc);
+        const action = tr.getMeta(uploadPlaceholderKey) as PlaceholderAction | undefined;
         if (action?.add) {
-          const widget = Decoration.widget(
-            action.add.pos,
-            () => render(action.add!.key),
-            { uploadKey: action.add.key, side: 1 },
-          )
-          next = next.add(tr.doc, [widget])
+          const widget = Decoration.widget(action.add.pos, () => render(action.add!.key), {
+            uploadKey: action.add.key,
+            side: 1,
+          });
+          next = next.add(tr.doc, [widget]);
         }
         if (action?.remove) {
-          const doomed = next.find(undefined, undefined, (spec) => spec.uploadKey === action.remove)
-          if (doomed.length > 0) next = next.remove(doomed)
+          const doomed = next.find(undefined, undefined, (spec) => spec.uploadKey === action.remove);
+          if (doomed.length > 0) next = next.remove(doomed);
         }
-        return next
+        return next;
       },
     },
     props: {
       decorations(state) {
-        return uploadPlaceholderKey.getState(state)
+        return uploadPlaceholderKey.getState(state);
       },
     },
-  })
+  });
 }

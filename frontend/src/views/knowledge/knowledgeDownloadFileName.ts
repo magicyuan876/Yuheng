@@ -8,7 +8,7 @@ export interface KnowledgeDownloadItem {
 
 export function resolveKnowledgeDownloadFileName(item: KnowledgeDownloadItem): string {
   const baseName = item.original_file_name || item.file_name || item.title || item.id;
-  if (item.type === 'manual' && !baseName.toLowerCase().endsWith('.md')) {
+  if (item.type === "manual" && !baseName.toLowerCase().endsWith(".md")) {
     return `${baseName}.md`;
   }
   return baseName;

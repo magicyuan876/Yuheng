@@ -55,28 +55,33 @@
         >
           <template v-if="pendingRemove[field.key]">
             <t-icon name="error-circle-filled" class="status-icon warn" />
-            <span class="credential-faux-text danger">{{ t('credential.confirmRemovePrompt') }}</span>
+            <span class="credential-faux-text danger">{{ t("credential.confirmRemovePrompt") }}</span>
             <div class="credential-actions">
               <t-button size="small" variant="text" @click="cancelPendingRemove(field.key)">
-                {{ t('common.cancel') }}
+                {{ t("common.cancel") }}
               </t-button>
               <span class="action-divider"></span>
-              <t-button size="small" variant="text" theme="danger" :loading="busy[field.key] === 'remove'"
-                @click="confirmRemove(field)">
-                {{ t('credential.confirmRemove') }}
+              <t-button
+                size="small"
+                variant="text"
+                theme="danger"
+                :loading="busy[field.key] === 'remove'"
+                @click="confirmRemove(field)"
+              >
+                {{ t("credential.confirmRemove") }}
               </t-button>
             </div>
           </template>
           <template v-else>
             <t-icon name="check-circle-filled" class="status-icon success" />
-            <span class="credential-faux-text">{{ t('credential.configured') }}</span>
+            <span class="credential-faux-text">{{ t("credential.configured") }}</span>
             <div class="credential-actions">
               <t-button size="small" variant="text" @click="enterEdit(field.key)">
-                {{ t('credential.update') }}
+                {{ t("credential.update") }}
               </t-button>
               <span class="action-divider"></span>
               <t-button size="small" variant="text" theme="danger" @click="requestRemove(field.key)">
-                {{ t('credential.remove') }}
+                {{ t("credential.remove") }}
               </t-button>
             </div>
           </template>
@@ -99,14 +104,14 @@
           -->
           <template v-if="inlineToast[field.key]?.kind === 'removed'">
             <t-icon name="check-circle-filled" class="status-icon success" />
-            <span class="credential-faux-text">{{ t('credential.removedToast') }}</span>
+            <span class="credential-faux-text">{{ t("credential.removedToast") }}</span>
           </template>
           <template v-else>
             <t-icon name="lock-on" class="status-icon muted" />
-            <span class="credential-faux-text muted">{{ t('credential.unconfigured') }}</span>
+            <span class="credential-faux-text muted">{{ t("credential.unconfigured") }}</span>
             <div class="credential-actions">
               <t-button size="small" variant="text" theme="primary" @click.stop="enterEdit(field.key)">
-                {{ t('credential.configure') }}
+                {{ t("credential.configure") }}
               </t-button>
             </div>
           </template>
@@ -116,18 +121,28 @@
       <!-- Editing: real input + tiny action row beneath -->
       <template v-else>
         <div class="credential-edit">
-          <t-input v-model="drafts[field.key]" type="password"
-            :placeholder="field.placeholder ?? t('credential.inputPlaceholder')" :autocomplete="'new-password'"
-            class="credential-edit-input" @enter="onSave(field)">
+          <t-input
+            v-model="drafts[field.key]"
+            type="password"
+            :placeholder="field.placeholder ?? t('credential.inputPlaceholder')"
+            :autocomplete="'new-password'"
+            class="credential-edit-input"
+            @enter="onSave(field)"
+          >
             <template #prefix-icon><t-icon name="lock-on" /></template>
           </t-input>
           <div class="credential-edit-actions">
             <t-button size="small" variant="text" @click="cancelEdit(field.key)">
-              {{ t('common.cancel') }}
+              {{ t("common.cancel") }}
             </t-button>
-            <t-button size="small" theme="primary" :loading="busy[field.key] === 'save'" :disabled="!drafts[field.key]"
-              @click="onSave(field)">
-              {{ t('common.save') }}
+            <t-button
+              size="small"
+              theme="primary"
+              :loading="busy[field.key] === 'save'"
+              :disabled="!drafts[field.key]"
+              @click="onSave(field)"
+            >
+              {{ t("common.save") }}
             </t-button>
           </div>
         </div>
@@ -137,85 +152,85 @@
 </template>
 
 <script setup lang="ts" generic="K extends string">
-import { onBeforeUnmount, reactive, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
+import { onBeforeUnmount, reactive, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
 
 export interface CredentialFieldDef<K extends string = string> {
-  key: K
-  label: string
+  key: K;
+  label: string;
   // Optional connector-specific placeholder shown only when the input is
   // visible (e.g. "ntn_xxxx" for Notion). Defaults to a generic "Enter value".
-  placeholder?: string
+  placeholder?: string;
 }
 
 export interface CredentialResourceApi<K extends string = string> {
   // PUT /credentials — body keyed by field name, value is the new secret.
   // Returns the updated per-field configured map.
-  save: (patch: Partial<Record<K, string>>) => Promise<Record<K, { configured: boolean }>>
+  save: (patch: Partial<Record<K, string>>) => Promise<Record<K, { configured: boolean }>>;
   // DELETE /credentials/:field
-  remove: (field: K) => Promise<void>
+  remove: (field: K) => Promise<void>;
 }
 
 interface Props {
-  fields: CredentialFieldDef<K>[]
-  api: CredentialResourceApi<K>
+  fields: CredentialFieldDef<K>[];
+  api: CredentialResourceApi<K>;
   // Initial per-field "configured?" map, sourced from the parent resource's
   // main GET response. The component reads it on first render and after
   // every reset; subsequent state transitions are tracked locally.
-  meta: Record<K, { configured: boolean }>
+  meta: Record<K, { configured: boolean }>;
 }
 
 interface Emits {
   // Fires after every successful save or remove so the parent can refresh
   // any derived view (e.g. badges that depend on credential state) or just
   // reload the main resource to keep `meta` in sync.
-  (e: 'changed'): void
+  (e: "changed"): void;
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
-const { t } = useI18n()
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+const { t } = useI18n();
 
-type State = 'configured' | 'unconfigured' | 'editing'
+type State = "configured" | "unconfigured" | "editing";
 // Local view state per field. Source of truth is props.meta, but we track
 // the editing state and any locally-applied save/remove transitions here so
 // the UI doesn't snap back when the parent re-renders before re-fetching.
-const states = reactive<Record<string, State>>({})
-const drafts = reactive<Record<string, string>>({})
-const busy = reactive<Record<string, 'save' | 'remove' | null>>({})
+const states = reactive<Record<string, State>>({});
+const drafts = reactive<Record<string, string>>({});
+const busy = reactive<Record<string, "save" | "remove" | null>>({});
 
 // Per-field "did the user just press Remove" flag. While true, the
 // configured row swaps to an inline confirm prompt instead of immediately
 // deleting. Cleared on cancel, on the actual DELETE request firing, and
 // any time the field leaves the configured state for any other reason.
-const pendingRemove = reactive<Record<string, boolean>>({})
+const pendingRemove = reactive<Record<string, boolean>>({});
 
 // Inline per-field flash message used as an anchored "toast" instead of the
 // global MessagePlugin one for actions whose effect happens at this exact
 // row (currently: remove). Cleared after a short delay so the row reverts
 // to its normal placeholder. Keyed by field.key.
-type InlineToastKind = 'removed'
-const inlineToast = reactive<Record<string, { kind: InlineToastKind } | null>>({})
-const inlineToastTimers: Record<string, ReturnType<typeof setTimeout> | null> = {}
+type InlineToastKind = "removed";
+const inlineToast = reactive<Record<string, { kind: InlineToastKind } | null>>({});
+const inlineToastTimers: Record<string, ReturnType<typeof setTimeout> | null> = {};
 
 function flashInlineToast(key: string, kind: InlineToastKind, ms = 2400) {
-  inlineToast[key] = { kind }
+  inlineToast[key] = { kind };
   if (inlineToastTimers[key]) {
-    clearTimeout(inlineToastTimers[key]!)
+    clearTimeout(inlineToastTimers[key]!);
   }
   inlineToastTimers[key] = setTimeout(() => {
-    inlineToast[key] = null
-    inlineToastTimers[key] = null
-  }, ms)
+    inlineToast[key] = null;
+    inlineToastTimers[key] = null;
+  }, ms);
 }
 
 function deriveStatesFromMeta(meta: Record<string, { configured: boolean }>) {
   for (const f of props.fields) {
     // Preserve in-progress edits across parent re-renders — `meta` describes
     // server state, the editing flag is user intent.
-    if (states[f.key] === 'editing') continue
-    states[f.key] = meta[f.key]?.configured ? 'configured' : 'unconfigured'
+    if (states[f.key] === "editing") continue;
+    states[f.key] = meta[f.key]?.configured ? "configured" : "unconfigured";
   }
 }
 
@@ -226,27 +241,30 @@ watch(
   () => props.meta,
   (m) => deriveStatesFromMeta(m ?? ({} as Record<K, { configured: boolean }>)),
   { immediate: true, deep: true },
-)
+);
 
 // If the parent swaps the api (e.g. user opens a different resource), drop
 // transient state. props.meta will follow and re-init via the watch above.
-watch(() => props.api, () => {
-  for (const k of Object.keys(states)) delete states[k]
-  for (const k of Object.keys(drafts)) delete drafts[k]
-  for (const k of Object.keys(pendingRemove)) delete pendingRemove[k]
-})
+watch(
+  () => props.api,
+  () => {
+    for (const k of Object.keys(states)) delete states[k];
+    for (const k of Object.keys(drafts)) delete drafts[k];
+    for (const k of Object.keys(pendingRemove)) delete pendingRemove[k];
+  },
+);
 
 function stateOf(key: string): State {
-  return states[key] ?? 'unconfigured'
+  return states[key] ?? "unconfigured";
 }
 
 function enterEdit(key: string) {
-  drafts[key] = ''
-  states[key] = 'editing'
+  drafts[key] = "";
+  states[key] = "editing";
   // If the user was mid-confirm and changed their mind ("update" instead
   // of "remove"), drop the pending flag so we don't bounce back into the
   // confirm UI when they cancel the edit.
-  pendingRemove[key] = false
+  pendingRemove[key] = false;
 }
 
 // Cancel returns directly to whatever the parent told us via props.meta —
@@ -254,32 +272,32 @@ function enterEdit(key: string) {
 // because the previous implementation's refresh was a no-op when state
 // was already 'editing'.
 function cancelEdit(key: string) {
-  drafts[key] = ''
-  states[key] = props.meta?.[key as K]?.configured ? 'configured' : 'unconfigured'
+  drafts[key] = "";
+  states[key] = props.meta?.[key as K]?.configured ? "configured" : "unconfigured";
 }
 
 async function onSave(field: CredentialFieldDef) {
-  const value = drafts[field.key]
-  if (!value) return
-  busy[field.key] = 'save'
+  const value = drafts[field.key];
+  if (!value) return;
+  busy[field.key] = "save";
   try {
     // Apply the save's returned metadata locally so the card flips to
     // 'configured' immediately. Skip the editing-preserve guard since this
     // particular field just finished editing.
-    const updated = await props.api.save({ [field.key]: value } as Partial<Record<K, string>>)
+    const updated = await props.api.save({ [field.key]: value } as Partial<Record<K, string>>);
     for (const f of props.fields) {
-      if (f.key === field.key) continue
-      if (states[f.key] === 'editing') continue
-      states[f.key] = updated[f.key as K]?.configured ? 'configured' : 'unconfigured'
+      if (f.key === field.key) continue;
+      if (states[f.key] === "editing") continue;
+      states[f.key] = updated[f.key as K]?.configured ? "configured" : "unconfigured";
     }
-    states[field.key] = updated[field.key as K]?.configured ? 'configured' : 'unconfigured'
-    drafts[field.key] = ''
-    MessagePlugin.success(t('credential.savedToast'))
-    emit('changed')
+    states[field.key] = updated[field.key as K]?.configured ? "configured" : "unconfigured";
+    drafts[field.key] = "";
+    MessagePlugin.success(t("credential.savedToast"));
+    emit("changed");
   } catch (err: any) {
-    MessagePlugin.error(err?.message || t('credential.saveFailed'))
+    MessagePlugin.error(err?.message || t("credential.saveFailed"));
   } finally {
-    busy[field.key] = null
+    busy[field.key] = null;
   }
 }
 
@@ -292,25 +310,25 @@ async function onSave(field: CredentialFieldDef) {
 //
 // Errors still surface via global MessagePlugin so the user can't miss them.
 function requestRemove(key: string) {
-  pendingRemove[key] = true
+  pendingRemove[key] = true;
 }
 
 function cancelPendingRemove(key: string) {
-  pendingRemove[key] = false
+  pendingRemove[key] = false;
 }
 
 async function confirmRemove(field: CredentialFieldDef) {
-  busy[field.key] = 'remove'
+  busy[field.key] = "remove";
   try {
-    await props.api.remove(field.key as K)
-    states[field.key] = 'unconfigured'
-    pendingRemove[field.key] = false
-    flashInlineToast(field.key, 'removed')
-    emit('changed')
+    await props.api.remove(field.key as K);
+    states[field.key] = "unconfigured";
+    pendingRemove[field.key] = false;
+    flashInlineToast(field.key, "removed");
+    emit("changed");
   } catch (err: any) {
-    MessagePlugin.error(err?.message || t('credential.removeFailed'))
+    MessagePlugin.error(err?.message || t("credential.removeFailed"));
   } finally {
-    busy[field.key] = null
+    busy[field.key] = null;
   }
 }
 
@@ -319,11 +337,11 @@ async function confirmRemove(field: CredentialFieldDef) {
 onBeforeUnmount(() => {
   for (const k of Object.keys(inlineToastTimers)) {
     if (inlineToastTimers[k]) {
-      clearTimeout(inlineToastTimers[k]!)
-      inlineToastTimers[k] = null
+      clearTimeout(inlineToastTimers[k]!);
+      inlineToastTimers[k] = null;
     }
   }
-})
+});
 </script>
 
 <style scoped lang="less">
@@ -366,7 +384,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--td-component-border);
   border-radius: 6px;
   font-size: 13px;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 
   &:hover {
     border-color: var(--td-brand-color-hover);

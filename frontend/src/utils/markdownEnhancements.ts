@@ -1,12 +1,12 @@
-import i18n from '@/i18n';
-import hljs from 'highlight.js';
-import { openMermaidFullscreen } from '@/utils/mermaidViewer';
-import { copyToClipboard } from '@/utils/clipboard';
+import i18n from "@/i18n";
+import hljs from "highlight.js";
+import { openMermaidFullscreen } from "@/utils/mermaidViewer";
+import { copyToClipboard } from "@/utils/clipboard";
 
-const ENHANCE_FLAG = 'data-markdown-enhancements';
+const ENHANCE_FLAG = "data-markdown-enhancements";
 const boundMarkdownRoots = new WeakSet<HTMLElement>();
 
-const MERMAID_DIAGRAM_SVG_SELECTOR = '.chat-mermaid-block__canvas svg, pre.mermaid svg';
+const MERMAID_DIAGRAM_SVG_SELECTOR = ".chat-mermaid-block__canvas svg, pre.mermaid svg";
 
 function getMermaidDiagramSvg(block: Element | null | undefined): SVGElement | null {
   if (!block) return null;
@@ -21,74 +21,68 @@ function openMermaidFromBlock(block: Element | null | undefined): void {
 
 export function syncMermaidExpandButtons(root: HTMLElement | null | undefined): void {
   if (!root) return;
-  root.querySelectorAll<HTMLElement>('.chat-mermaid-block').forEach((block) => {
-    const expandBtn = block.querySelector<HTMLButtonElement>('.chat-mermaid-block__expand');
+  root.querySelectorAll<HTMLElement>(".chat-mermaid-block").forEach((block) => {
+    const expandBtn = block.querySelector<HTMLButtonElement>(".chat-mermaid-block__expand");
     if (!expandBtn) return;
     const hasSvg = !!getMermaidDiagramSvg(block);
     expandBtn.disabled = !hasSvg;
-    expandBtn.classList.toggle('is-disabled', !hasSvg);
+    expandBtn.classList.toggle("is-disabled", !hasSvg);
   });
 }
 
-const COPY_ICON = '<svg class="chat-code-block__copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const COPY_ICON =
+  '<svg class="chat-code-block__copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
-const EXPAND_ICON = '<svg class="chat-mermaid-block__expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+const EXPAND_ICON =
+  '<svg class="chat-mermaid-block__expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
 
 const LANG_LABELS: Record<string, string> = {
-  js: 'JavaScript',
-  javascript: 'JavaScript',
-  ts: 'TypeScript',
-  typescript: 'TypeScript',
-  py: 'Python',
-  python: 'Python',
-  go: 'Go',
-  rust: 'Rust',
-  java: 'Java',
-  kotlin: 'Kotlin',
-  swift: 'Swift',
-  rb: 'Ruby',
-  ruby: 'Ruby',
-  php: 'PHP',
-  cs: 'C#',
-  cpp: 'C++',
-  c: 'C',
-  sql: 'SQL',
-  bash: 'Bash',
-  sh: 'Shell',
-  shell: 'Shell',
-  json: 'JSON',
-  yaml: 'YAML',
-  yml: 'YAML',
-  xml: 'XML',
-  html: 'HTML',
-  css: 'CSS',
-  markdown: 'Markdown',
-  md: 'Markdown',
+  js: "JavaScript",
+  javascript: "JavaScript",
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  py: "Python",
+  python: "Python",
+  go: "Go",
+  rust: "Rust",
+  java: "Java",
+  kotlin: "Kotlin",
+  swift: "Swift",
+  rb: "Ruby",
+  ruby: "Ruby",
+  php: "PHP",
+  cs: "C#",
+  cpp: "C++",
+  c: "C",
+  sql: "SQL",
+  bash: "Bash",
+  sh: "Shell",
+  shell: "Shell",
+  json: "JSON",
+  yaml: "YAML",
+  yml: "YAML",
+  xml: "XML",
+  html: "HTML",
+  css: "CSS",
+  markdown: "Markdown",
+  md: "Markdown",
 };
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 export function formatCodeLang(lang: string): string {
-  const normalized = (lang || 'Code').trim();
-  if (!normalized) return 'Code';
+  const normalized = (lang || "Code").trim();
+  if (!normalized) return "Code";
   const key = normalized.toLowerCase();
   return LANG_LABELS[key] || normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
-export function buildCodeBlockHtml(
-  lang: string,
-  highlighted: string,
-  highlightLang: string,
-): string {
+export function buildCodeBlockHtml(lang: string, highlighted: string, highlightLang: string): string {
   const displayLang = escapeHtml(formatCodeLang(lang));
-  const copyLabel = escapeHtml(i18n.global.t('embedPublish.copyCode'));
-  const safeLang = escapeHtml(highlightLang || lang || 'text');
+  const copyLabel = escapeHtml(i18n.global.t("embedPublish.copyCode"));
+  const safeLang = escapeHtml(highlightLang || lang || "text");
   return `<div class="chat-code-block">
     <div class="chat-code-block__header">
       <span class="chat-code-block__lang">${displayLang}</span>
@@ -102,10 +96,10 @@ export function buildCodeBlockHtml(
   </div>`;
 }
 
-export function buildMermaidBlockHtml(innerHtml: string, preAttrs = ''): string {
-  const label = escapeHtml(i18n.global.t('mermaid.diagram'));
-  const expandLabel = escapeHtml(i18n.global.t('mermaid.expand'));
-  const attrs = preAttrs ? ` ${preAttrs}` : '';
+export function buildMermaidBlockHtml(innerHtml: string, preAttrs = ""): string {
+  const label = escapeHtml(i18n.global.t("mermaid.diagram"));
+  const expandLabel = escapeHtml(i18n.global.t("mermaid.expand"));
+  const attrs = preAttrs ? ` ${preAttrs}` : "";
   return `<div class="chat-mermaid-block">
     <div class="chat-mermaid-block__header">
       <span class="chat-mermaid-block__badge">${label}</span>
@@ -118,7 +112,7 @@ export function buildMermaidBlockHtml(innerHtml: string, preAttrs = ''): string 
 }
 
 export function buildMermaidLoadingHtml(): string {
-  const label = escapeHtml(i18n.global.t('mermaid.diagram'));
+  const label = escapeHtml(i18n.global.t("mermaid.diagram"));
   return `<div class="chat-mermaid-block chat-mermaid-block--loading">
     <div class="chat-mermaid-block__header">
       <span class="chat-mermaid-block__badge">${label}</span>
@@ -128,39 +122,37 @@ export function buildMermaidLoadingHtml(): string {
 }
 
 async function handleCodeCopy(btn: HTMLButtonElement): Promise<void> {
-  const code = btn.closest('.chat-code-block')?.querySelector('code')?.textContent ?? '';
+  const code = btn.closest(".chat-code-block")?.querySelector("code")?.textContent ?? "";
   if (!code) return;
 
-  const textEl = btn.querySelector<HTMLElement>('.chat-code-block__copy-text');
-  const copiedLabel = i18n.global.t('common.copied');
-  const defaultLabel = i18n.global.t('embedPublish.copyCode');
+  const textEl = btn.querySelector<HTMLElement>(".chat-code-block__copy-text");
+  const copiedLabel = i18n.global.t("common.copied");
+  const defaultLabel = i18n.global.t("embedPublish.copyCode");
 
   const ok = await copyToClipboard(code);
   if (ok) {
-    btn.classList.add('is-copied');
+    btn.classList.add("is-copied");
     if (textEl) textEl.textContent = copiedLabel;
     window.setTimeout(() => {
-      btn.classList.remove('is-copied');
+      btn.classList.remove("is-copied");
       if (textEl) textEl.textContent = defaultLabel;
     }, 1600);
   } else {
-    btn.classList.add('is-error');
-    window.setTimeout(() => btn.classList.remove('is-error'), 1600);
+    btn.classList.add("is-error");
+    window.setTimeout(() => btn.classList.remove("is-error"), 1600);
   }
 }
 
 export function highlightCodeBlocksInContainer(root: HTMLElement | null | undefined): void {
   if (!root) return;
 
-  root.querySelectorAll<HTMLElement>('.chat-code-block__pre code').forEach((codeEl) => {
+  root.querySelectorAll<HTMLElement>(".chat-code-block__pre code").forEach((codeEl) => {
     if (codeEl.querySelector('span[class^="hljs-"], span.hljs')) return;
-    const language = [...codeEl.classList]
-      .find((cls) => cls.startsWith('language-'))
-      ?.slice('language-'.length);
+    const language = [...codeEl.classList].find((cls) => cls.startsWith("language-"))?.slice("language-".length);
     if (language && hljs.getLanguage(language)) {
       try {
-        codeEl.innerHTML = hljs.highlight(codeEl.textContent || '', { language }).value;
-        codeEl.classList.add('hljs');
+        codeEl.innerHTML = hljs.highlight(codeEl.textContent || "", { language }).value;
+        codeEl.classList.add("hljs");
         return;
       } catch {
         // fall through
@@ -176,17 +168,15 @@ export function refreshMarkdownEnhancements(root: HTMLElement | null | undefined
   syncMermaidExpandButtons(root);
 }
 
-export function attachMarkdownEnhancementListeners(
-  root: HTMLElement | null | undefined,
-): void {
+export function attachMarkdownEnhancementListeners(root: HTMLElement | null | undefined): void {
   if (!root || boundMarkdownRoots.has(root)) return;
   boundMarkdownRoots.add(root);
-  root.setAttribute(ENHANCE_FLAG, 'true');
+  root.setAttribute(ENHANCE_FLAG, "true");
 
   const onClick = (event: Event) => {
     const target = event.target as HTMLElement;
 
-    const copyBtn = target.closest<HTMLButtonElement>('.chat-code-block__copy');
+    const copyBtn = target.closest<HTMLButtonElement>(".chat-code-block__copy");
     if (copyBtn) {
       event.preventDefault();
       event.stopPropagation();
@@ -194,20 +184,20 @@ export function attachMarkdownEnhancementListeners(
       return;
     }
 
-    const expandBtn = target.closest<HTMLButtonElement>('.chat-mermaid-block__expand');
+    const expandBtn = target.closest<HTMLButtonElement>(".chat-mermaid-block__expand");
     if (expandBtn) {
       event.preventDefault();
       event.stopPropagation();
       if (expandBtn.disabled) return;
-      openMermaidFromBlock(expandBtn.closest('.chat-mermaid-block'));
+      openMermaidFromBlock(expandBtn.closest(".chat-mermaid-block"));
       return;
     }
 
     const canvas = target.closest<HTMLElement>(
       '.chat-mermaid-block__canvas[data-mermaid="true"], .chat-mermaid-block__canvas[data-mermaid="cached"], pre.mermaid[data-mermaid="true"], pre.mermaid[data-mermaid="cached"]',
     );
-    if (canvas && !target.closest('button')) {
-      const svg = canvas.querySelector('svg');
+    if (canvas && !target.closest("button")) {
+      const svg = canvas.querySelector("svg");
       if (svg) {
         event.preventDefault();
         event.stopPropagation();
@@ -216,6 +206,6 @@ export function attachMarkdownEnhancementListeners(
     }
   };
 
-  root.addEventListener('click', onClick, true);
+  root.addEventListener("click", onClick, true);
   syncMermaidExpandButtons(root);
 }

@@ -12,7 +12,7 @@
     :hide-footer="true"
   >
     <section class="setting-drawer__section">
-      <h4 class="setting-drawer__section-title">{{ $t('knowledgeBase.tagManageListSection') }}</h4>
+      <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.tagManageListSection") }}</h4>
 
       <div class="tag-manage-toolbar">
         <div class="tag-manage-search-wrap">
@@ -153,8 +153,8 @@
                     <span class="tag-tile__count">
                       {{
                         isFaq
-                          ? $t('knowledgeBase.tagManageFaqCount', { count: tag.chunk_count || 0 })
-                          : $t('knowledgeBase.tagManageDocCount', { count: tag.knowledge_count || 0 })
+                          ? $t("knowledgeBase.tagManageFaqCount", { count: tag.chunk_count || 0 })
+                          : $t("knowledgeBase.tagManageDocCount", { count: tag.knowledge_count || 0 })
                       }}
                     </span>
                   </span>
@@ -197,7 +197,7 @@
 
         <div v-if="hasMore && tags.length" class="tag-load-more">
           <t-button variant="text" size="small" :loading="loadingMore" @click="loadTags(false)">
-            {{ $t('tenant.loadMore') }}
+            {{ $t("tenant.loadMore") }}
           </t-button>
         </div>
       </t-loading>
@@ -206,16 +206,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, type ComponentPublicInstance } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { MessagePlugin } from 'tdesign-vue-next';
-import SettingDrawer from '@/components/settings/SettingDrawer.vue';
+import { ref, watch, nextTick, computed, type ComponentPublicInstance } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import {
   listKnowledgeTags,
   createKnowledgeBaseTag,
   updateKnowledgeBaseTag,
   deleteKnowledgeBaseTag,
-} from '@/api/knowledge-base/index';
+} from "@/api/knowledge-base/index";
 
 type TagRow = {
   id: string;
@@ -236,7 +236,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:visible': [boolean];
+  "update:visible": [boolean];
   changed: [payload?: { deletedTagId?: string }];
 }>();
 
@@ -244,7 +244,7 @@ const { t } = useI18n();
 
 const drawerVisible = computed({
   get: () => props.visible,
-  set: (value: boolean) => emit('update:visible', value),
+  set: (value: boolean) => emit("update:visible", value),
 });
 
 const tags = ref<TagRow[]>([]);
@@ -253,16 +253,16 @@ const loadingMore = ref(false);
 const page = ref(1);
 const hasMore = ref(false);
 const total = ref(0);
-const searchQuery = ref('');
+const searchQuery = ref("");
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const creatingTag = ref(false);
 const creatingTagLoading = ref(false);
-const newTagName = ref('');
+const newTagName = ref("");
 const newTagInputRef = ref<TagInputInstance | null>(null);
 
 const editingTagId = ref<string | null>(null);
-const editingTagName = ref('');
+const editingTagName = ref("");
 const editingTagSubmitting = ref(false);
 const editingTagInputRefs = new Map<string, TagInputInstance | null>();
 
@@ -275,10 +275,10 @@ const setEditingTagInputRef = (el: TagInputInstance | null, tagId: string) => {
 };
 
 const getDeleteConfirmContent = (tag: { name: string }) =>
-  t(props.isFaq ? 'knowledgeBase.tagDeleteDesc' : 'knowledgeBase.tagDeleteDescDoc', { name: tag.name });
+  t(props.isFaq ? "knowledgeBase.tagDeleteDesc" : "knowledgeBase.tagDeleteDescDoc", { name: tag.name });
 
 const onEditKeydown = (ctx: { e?: KeyboardEvent } | undefined, cancel: () => void) => {
-  if (ctx?.e?.key === 'Escape') {
+  if (ctx?.e?.key === "Escape") {
     ctx.e.stopPropagation();
     ctx.e.preventDefault();
     cancel();
@@ -288,7 +288,7 @@ const onEditKeydown = (ctx: { e?: KeyboardEvent } | undefined, cancel: () => voi
 const resetLocalState = () => {
   cancelCreateTag();
   cancelEditTag();
-  searchQuery.value = '';
+  searchQuery.value = "";
 };
 
 const loadTags = async (reset = false) => {
@@ -336,7 +336,7 @@ const loadTags = async (reset = false) => {
       page.value = currentPage + 1;
     }
   } catch (error) {
-    console.error('Failed to load tags', error);
+    console.error("Failed to load tags", error);
   } finally {
     loading.value = false;
     loadingMore.value = false;
@@ -355,25 +355,25 @@ const startCreateTag = () => {
 
 const cancelCreateTag = () => {
   creatingTag.value = false;
-  newTagName.value = '';
+  newTagName.value = "";
 };
 
 const submitCreateTag = async () => {
   if (!props.kbId) return;
   const name = newTagName.value.trim();
   if (!name) {
-    MessagePlugin.warning(t('knowledgeBase.tagNameRequired'));
+    MessagePlugin.warning(t("knowledgeBase.tagNameRequired"));
     return;
   }
   creatingTagLoading.value = true;
   try {
     await createKnowledgeBaseTag(props.kbId, { name });
-    MessagePlugin.success(t('knowledgeBase.tagCreateSuccess'));
+    MessagePlugin.success(t("knowledgeBase.tagCreateSuccess"));
     cancelCreateTag();
     await loadTags(true);
-    emit('changed');
+    emit("changed");
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
     creatingTagLoading.value = false;
   }
@@ -391,14 +391,14 @@ const startEditTag = (tag: TagRow) => {
 
 const cancelEditTag = () => {
   editingTagId.value = null;
-  editingTagName.value = '';
+  editingTagName.value = "";
 };
 
 const submitEditTag = async () => {
   if (!props.kbId || !editingTagId.value) return;
   const name = editingTagName.value.trim();
   if (!name) {
-    MessagePlugin.warning(t('knowledgeBase.tagNameRequired'));
+    MessagePlugin.warning(t("knowledgeBase.tagNameRequired"));
     return;
   }
   const current = tags.value.find((tag) => tag.id === editingTagId.value);
@@ -409,12 +409,12 @@ const submitEditTag = async () => {
   editingTagSubmitting.value = true;
   try {
     await updateKnowledgeBaseTag(props.kbId, editingTagId.value, { name });
-    MessagePlugin.success(t('knowledgeBase.tagEditSuccess'));
+    MessagePlugin.success(t("knowledgeBase.tagEditSuccess"));
     cancelEditTag();
     await loadTags(true);
-    emit('changed');
+    emit("changed");
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
     editingTagSubmitting.value = false;
   }
@@ -426,15 +426,15 @@ const deleteTag = async (tag: TagRow) => {
   cancelEditTag();
   try {
     await deleteKnowledgeBaseTag(props.kbId, tag.seq_id, { force: true });
-    MessagePlugin.success(t('knowledgeBase.tagDeleteSuccess'));
+    MessagePlugin.success(t("knowledgeBase.tagDeleteSuccess"));
     await loadTags(true);
-    emit('changed', { deletedTagId: tag.id });
+    emit("changed", { deletedTagId: tag.id });
     void (async () => {
       await new Promise((resolve) => setTimeout(resolve, 800));
-      emit('changed', { deletedTagId: tag.id });
+      emit("changed", { deletedTagId: tag.id });
     })();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   }
 };
 
@@ -549,7 +549,9 @@ watch(searchQuery, (newVal, oldVal) => {
   border-radius: 6px;
   background: var(--td-bg-color-container);
   box-sizing: border-box;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 
   &:hover:not(.tag-tile--editing):not(.tag-tile--skeleton) {
     border-color: var(--td-component-border);

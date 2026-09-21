@@ -4,7 +4,7 @@ export function sanitizeStreamRequestBody(body: Record<string, unknown>): Record
   if (Array.isArray(out.images)) {
     out.images = out.images.map((img: { data?: string }, i: number) => ({
       _placeholder: `image[${i}]`,
-      bytes: typeof img?.data === 'string' ? img.data.length : 0,
+      bytes: typeof img?.data === "string" ? img.data.length : 0,
     }));
   }
   if (Array.isArray(out.attachment_uploads)) {
@@ -13,11 +13,11 @@ export function sanitizeStreamRequestBody(body: Record<string, unknown>): Record
         file_name: att.file_name,
         file_size: att.file_size,
         _placeholder: `attachment[${i}]`,
-        bytes: typeof att?.data === 'string' ? att.data.length : 0,
+        bytes: typeof att?.data === "string" ? att.data.length : 0,
       }),
     );
   }
-  if (typeof out.query === 'string' && out.query.length > 500) {
+  if (typeof out.query === "string" && out.query.length > 500) {
     out.query = `${out.query.slice(0, 500)}… (${out.query.length} chars)`;
   }
   return out;

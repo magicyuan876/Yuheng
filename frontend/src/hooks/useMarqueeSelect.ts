@@ -1,26 +1,26 @@
-import { computed, onBeforeUnmount, ref, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 type Rect = { left: number; top: number; right: number; bottom: number };
 /** iOS Photos select-mode marquee: add or subtract for the whole gesture. */
-type MarqueeMode = 'add' | 'subtract';
+type MarqueeMode = "add" | "subtract";
 
 const IGNORE_TARGET_SELECTOR = [
-  'button',
-  'a',
-  'input',
-  'textarea',
-  'select',
-  'label',
-  '.t-checkbox',
-  '.more-wrap',
-  '.card-menu',
-  '.card-menu-item',
-  '.card-tag-selector',
-  '.row-more-btn',
-  '.row-menu',
-  '.row-menu-item',
-  '.doc-list-header',
-].join(', ');
+  "button",
+  "a",
+  "input",
+  "textarea",
+  "select",
+  "label",
+  ".t-checkbox",
+  ".more-wrap",
+  ".card-menu",
+  ".card-menu-item",
+  ".card-tag-selector",
+  ".row-more-btn",
+  ".row-menu",
+  ".row-menu-item",
+  ".doc-list-header",
+].join(", ");
 
 const DEFAULT_MIN_DRAG_PX = 6;
 
@@ -54,12 +54,12 @@ function resolveMarqueeModeFromStart(
   selectedIds: Set<string>,
 ): MarqueeMode {
   const target = e.target;
-  if (!(target instanceof Element)) return 'add';
+  if (!(target instanceof Element)) return "add";
   const itemEl = target.closest<HTMLElement>(itemSelector);
-  if (!itemEl) return 'add';
+  if (!itemEl) return "add";
   const id = getItemId(itemEl);
-  if (!id) return 'add';
-  return selectedIds.has(id) ? 'subtract' : 'add';
+  if (!id) return "add";
+  return selectedIds.has(id) ? "subtract" : "add";
 }
 
 export interface UseMarqueeSelectOptions {
@@ -87,14 +87,14 @@ export function useMarqueeSelect(options: UseMarqueeSelectOptions) {
   const boxVisible = ref(false);
   const boxStyle = ref<Record<string, string>>({});
   const suppressClickUntil = ref(0);
-  const marqueeMode = ref<MarqueeMode>('add');
+  const marqueeMode = ref<MarqueeMode>("add");
 
   let startClientX = 0;
   let startClientY = 0;
   let currentClientX = 0;
   let currentClientY = 0;
   let baseSelection = new Set<string>();
-  let dragMode: MarqueeMode = 'add';
+  let dragMode: MarqueeMode = "add";
 
   const updateBoxStyle = () => {
     const container = containerRef.value;
@@ -128,7 +128,7 @@ export function useMarqueeSelect(options: UseMarqueeSelectOptions) {
   const applyMarqueeSelection = () => {
     const hit = collectIntersectingIds();
     const next = new Set(baseSelection);
-    if (dragMode === 'subtract') {
+    if (dragMode === "subtract") {
       hit.forEach((id) => next.delete(id));
     } else {
       hit.forEach((id) => next.add(id));
@@ -140,10 +140,10 @@ export function useMarqueeSelect(options: UseMarqueeSelectOptions) {
     if (!isActive.value) return;
     isActive.value = false;
     boxVisible.value = false;
-    marqueeMode.value = 'add';
-    document.body.style.removeProperty('user-select');
-    document.removeEventListener('mousemove', onDocumentMouseMove);
-    document.removeEventListener('mouseup', onDocumentMouseUp);
+    marqueeMode.value = "add";
+    document.body.style.removeProperty("user-select");
+    document.removeEventListener("mousemove", onDocumentMouseMove);
+    document.removeEventListener("mouseup", onDocumentMouseUp);
     if (Math.hypot(currentClientX - startClientX, currentClientY - startClientY) >= minDragDistance) {
       suppressClickUntil.value = Date.now() + 150;
     }
@@ -188,9 +188,9 @@ export function useMarqueeSelect(options: UseMarqueeSelectOptions) {
     boxVisible.value = false;
     boxStyle.value = {};
 
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onDocumentMouseMove);
-    document.addEventListener('mouseup', onDocumentMouseUp);
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onDocumentMouseMove);
+    document.addEventListener("mouseup", onDocumentMouseUp);
   };
 
   const shouldSuppressClick = () => Date.now() < suppressClickUntil.value;

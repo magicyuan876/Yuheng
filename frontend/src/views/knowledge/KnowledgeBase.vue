@@ -2,18 +2,18 @@
 import { ref, onMounted, onUnmounted, watch, reactive, computed, nextTick } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import DocContent from "@/components/doc-content.vue";
-import useKnowledgeBase from '@/hooks/useKnowledgeBase';
-import { useRoute, useRouter } from 'vue-router';
-import EmptyKnowledge from '@/components/empty-knowledge.vue';
-import ContextualGuide from '@/components/ContextualGuide.vue';
-import KBInfoPopover from '@/components/KBInfoPopover.vue';
-import KBSwitcherDropdown from '@/components/KBSwitcherDropdown.vue';
-import { useUIStore } from '@/stores/ui';
-import { useOrganizationStore } from '@/stores/organization';
-import { useAuthStore } from '@/stores/auth';
-import { useChatResourcesStore } from '@/stores/chatResources';
-import { useEditorResourcesStore } from '@/stores/editorResources';
-import KnowledgeBaseEditorModal from './KnowledgeBaseEditorModal.vue';
+import useKnowledgeBase from "@/hooks/useKnowledgeBase";
+import { useRoute, useRouter } from "vue-router";
+import EmptyKnowledge from "@/components/empty-knowledge.vue";
+import ContextualGuide from "@/components/ContextualGuide.vue";
+import KBInfoPopover from "@/components/KBInfoPopover.vue";
+import KBSwitcherDropdown from "@/components/KBSwitcherDropdown.vue";
+import { useUIStore } from "@/stores/ui";
+import { useOrganizationStore } from "@/stores/organization";
+import { useAuthStore } from "@/stores/auth";
+import { useChatResourcesStore } from "@/stores/chatResources";
+import { useEditorResourcesStore } from "@/stores/editorResources";
+import KnowledgeBaseEditorModal from "./KnowledgeBaseEditorModal.vue";
 const uiStore = useUIStore();
 const orgStore = useOrganizationStore();
 const authStore = useAuthStore();
@@ -38,27 +38,27 @@ import {
   downKnowledgeDetails,
   type KnowledgeFolderTree,
 } from "@/api/knowledge-base/index";
-import { knowledgeSpansPayloadHasTrace } from '@/utils/knowledgeTrace';
-import FAQEntryManager from './components/FAQEntryManager.vue';
-import DocumentListView from './components/DocumentListView.vue';
-import DocumentCardView from './components/DocumentCardView.vue';
-import DocumentBatchBar from './components/DocumentBatchBar.vue';
-import KbUploadSourceDropdown from './components/KbUploadSourceDropdown.vue';
-import KbFolderTree from './components/KbFolderTree.vue';
-import TagEditDialog from './components/TagEditDialog.vue';
-import BatchTagDialog from './components/BatchTagDialog.vue';
-import KbTagManageDrawer from './components/KbTagManageDrawer.vue';
-import type { KnowledgeProcessOverrides } from '@/types/knowledgeProcess';
-import { useUploadConfirmStore, type UploadConfirmResult } from '@/stores/uploadConfirm';
-import WikiBrowser from './wiki/WikiBrowser.vue';
-import { getWikiStats } from '@/api/wiki';
+import { knowledgeSpansPayloadHasTrace } from "@/utils/knowledgeTrace";
+import FAQEntryManager from "./components/FAQEntryManager.vue";
+import DocumentListView from "./components/DocumentListView.vue";
+import DocumentCardView from "./components/DocumentCardView.vue";
+import DocumentBatchBar from "./components/DocumentBatchBar.vue";
+import KbUploadSourceDropdown from "./components/KbUploadSourceDropdown.vue";
+import KbFolderTree from "./components/KbFolderTree.vue";
+import TagEditDialog from "./components/TagEditDialog.vue";
+import BatchTagDialog from "./components/BatchTagDialog.vue";
+import KbTagManageDrawer from "./components/KbTagManageDrawer.vue";
+import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
+import { useUploadConfirmStore, type UploadConfirmResult } from "@/stores/uploadConfirm";
+import WikiBrowser from "./wiki/WikiBrowser.vue";
+import { getWikiStats } from "@/api/wiki";
 import {
   isKnowledgeParseInFlight,
   knowledgeNeedsStatusPolling,
   shouldRefreshWikiStatusAfterKnowledgePoll,
-} from './wikiStatusRefresh';
-import { listMoveTargets, moveKnowledge, getKnowledgeMoveProgress } from '@/api/knowledge-base';
-import { resolveKnowledgeDownloadFileName } from './knowledgeDownloadFileName';
+} from "./wikiStatusRefresh";
+import { listMoveTargets, moveKnowledge, getKnowledgeMoveProgress } from "@/api/knowledge-base";
+import { resolveKnowledgeDownloadFileName } from "./knowledgeDownloadFileName";
 import {
   buildUploadFileName,
   canMoveFolderTo,
@@ -68,22 +68,22 @@ import {
   isFilteringDocuments,
   isFolderUpload,
   ROOT_FOLDER_PATH,
-} from './folderTree';
-import { useI18n } from 'vue-i18n';
-import { useMarqueeSelect } from '@/hooks/useMarqueeSelect';
-import type { ParserEngineInfo } from '@/api/system';
+} from "./folderTree";
+import { useI18n } from "vue-i18n";
+import { useMarqueeSelect } from "@/hooks/useMarqueeSelect";
+import type { ParserEngineInfo } from "@/api/system";
 const route = useRoute();
 const { t } = useI18n();
-const kbId = computed(() => (route.params as any).kbId as string || '');
+const kbId = computed(() => ((route.params as any).kbId as string) || "");
 const kbInfo = ref<any>(null);
 const uploadSourceRef = ref<InstanceType<typeof KbUploadSourceDropdown> | null>(null);
 const kbLoading = ref(false);
 const docListLoading = ref(true);
-const isFAQ = computed(() => (kbInfo.value?.type || '') === 'faq');
+const isFAQ = computed(() => (kbInfo.value?.type || "") === "faq");
 const isWiki = computed(() => !!kbInfo.value?.indexing_strategy?.wiki_enabled);
-const validTabs = ['documents', 'wiki', 'graph'] as const
-type KbTab = typeof validTabs[number]
-const initTab = validTabs.includes(route.query.tab as any) ? (route.query.tab as KbTab) : 'documents'
+const validTabs = ["documents", "wiki", "graph"] as const;
+type KbTab = (typeof validTabs)[number];
+const initTab = validTabs.includes(route.query.tab as any) ? (route.query.tab as KbTab) : "documents";
 const activeKbTab = ref<KbTab>(initTab);
 
 // Wiki 状态用于面包屑上的索引中指示。父组件自行拉取，避免依赖 WikiBrowser 挂载状态
@@ -92,145 +92,148 @@ const wikiStatus = ref<{ pendingTasks: number; isActive: boolean; pendingIssues:
   pendingTasks: 0,
   isActive: false,
   pendingIssues: 0,
-})
-const wikiIsIndexing = computed(() => wikiStatus.value.isActive || wikiStatus.value.pendingTasks > 0)
+});
+const wikiIsIndexing = computed(() => wikiStatus.value.isActive || wikiStatus.value.pendingTasks > 0);
 const wikiIndexingTip = computed(() => {
-  if (!wikiIsIndexing.value) return ''
-  return t('knowledgeEditor.wikiBrowser.queueStatus', { count: wikiStatus.value.pendingTasks || 0 })
-})
+  if (!wikiIsIndexing.value) return "";
+  return t("knowledgeEditor.wikiBrowser.queueStatus", { count: wikiStatus.value.pendingTasks || 0 });
+});
 const onWikiStatusChange = (payload: { pendingTasks: number; isActive: boolean; pendingIssues: number }) => {
-  wikiStatus.value = payload
-}
+  wikiStatus.value = payload;
+};
 const onViewWikiInGraph = async (slug: string) => {
   // Write tab+slug first so the activeKbTab watcher's later replace
   // (which spreads route.query) preserves slug instead of clobbering it.
-  await router.replace({ query: { ...route.query, tab: 'graph', slug } })
-  activeKbTab.value = 'graph'
-}
+  await router.replace({ query: { ...route.query, tab: "graph", slug } });
+  activeKbTab.value = "graph";
+};
 
-let wikiStatusTimer: ReturnType<typeof setInterval> | null = null
-let wikiStatusProbeTimers: Array<ReturnType<typeof setTimeout>> = []
+let wikiStatusTimer: ReturnType<typeof setInterval> | null = null;
+let wikiStatusProbeTimers: Array<ReturnType<typeof setTimeout>> = [];
 const stopWikiStatusPolling = () => {
   if (wikiStatusTimer) {
-    clearInterval(wikiStatusTimer)
-    wikiStatusTimer = null
+    clearInterval(wikiStatusTimer);
+    wikiStatusTimer = null;
   }
-}
+};
 const clearWikiStatusProbes = () => {
-  wikiStatusProbeTimers.forEach(t => clearTimeout(t))
-  wikiStatusProbeTimers = []
-}
+  wikiStatusProbeTimers.forEach((t) => clearTimeout(t));
+  wikiStatusProbeTimers = [];
+};
 const fetchWikiStatusOnce = async () => {
-  if (!kbId.value || !isWiki.value) return
+  if (!kbId.value || !isWiki.value) return;
   try {
-    const res: any = await getWikiStats(kbId.value)
-    const data = res?.data || res
-    if (!data) return
+    const res: any = await getWikiStats(kbId.value);
+    const data = res?.data || res;
+    if (!data) return;
     wikiStatus.value = {
       pendingTasks: data.pending_tasks || 0,
       isActive: !!data.is_active,
       pendingIssues: data.pending_issues || 0,
-    }
+    };
     // 活跃时轮询，空闲时停掉定时器，避免无谓请求
     if (wikiIsIndexing.value) {
       if (!wikiStatusTimer) {
-        wikiStatusTimer = setInterval(fetchWikiStatusOnce, 5000)
+        wikiStatusTimer = setInterval(fetchWikiStatusOnce, 5000);
       }
     } else {
-      stopWikiStatusPolling()
+      stopWikiStatusPolling();
     }
-  } catch (_) { /* ignore */ }
-}
+  } catch (_) {
+    /* ignore */
+  }
+};
 // 用户刚触发了一个上传 / reparse / URL 导入之类的动作后，后台通常要过
 // 一小段时间才会把 wiki 任务真正塞进队列；如果这时空闲轮询刚好停了，
 // 面包屑的"索引中"会延迟很久才亮起。所以这里安排几次退避重试，
 // 主动把面包屑的 loading 尽快点亮，一旦探测到任务就会走正常的 5s 轮询。
 const scheduleWikiStatusProbes = () => {
-  if (!kbId.value || !isWiki.value) return
-  clearWikiStatusProbes()
-  const delays = [500, 2000, 5000, 10000]
-  delays.forEach(delay => {
-    const timer = setTimeout(() => { fetchWikiStatusOnce() }, delay)
-    wikiStatusProbeTimers.push(timer)
-  })
-}
-watch([kbId, isWiki], ([newKbId, newIsWiki]) => {
-  stopWikiStatusPolling()
-  clearWikiStatusProbes()
-  wikiStatus.value = { pendingTasks: 0, isActive: false, pendingIssues: 0 }
-  if (newKbId && newIsWiki) {
-    fetchWikiStatusOnce()
-  }
-}, { immediate: true })
+  if (!kbId.value || !isWiki.value) return;
+  clearWikiStatusProbes();
+  const delays = [500, 2000, 5000, 10000];
+  delays.forEach((delay) => {
+    const timer = setTimeout(() => {
+      fetchWikiStatusOnce();
+    }, delay);
+    wikiStatusProbeTimers.push(timer);
+  });
+};
+watch(
+  [kbId, isWiki],
+  ([newKbId, newIsWiki]) => {
+    stopWikiStatusPolling();
+    clearWikiStatusProbes();
+    wikiStatus.value = { pendingTasks: 0, isActive: false, pendingIssues: 0 };
+    if (newKbId && newIsWiki) {
+      fetchWikiStatusOnce();
+    }
+  },
+  { immediate: true },
+);
 onUnmounted(() => {
-  stopWikiStatusPolling()
-  clearWikiStatusProbes()
-})
+  stopWikiStatusPolling();
+  clearWikiStatusProbes();
+});
 const missingStorageEngine = computed(() => {
-  if (!kbInfo.value || isFAQ.value) return false
+  if (!kbInfo.value || isFAQ.value) return false;
   // storage_backend_id is authoritative; storage_provider_config.provider is a
   // compatibility projection for older clients. Either being present means the
   // KB has a bound storage instance and uploads should not be blocked.
-  if (kbInfo.value.storage_backend_id) return false
-  const spc = kbInfo.value.storage_provider_config
-  return !spc || !spc.provider
-})
+  if (kbInfo.value.storage_backend_id) return false;
+  const spc = kbInfo.value.storage_provider_config;
+  return !spc || !spc.provider;
+});
 const parserEngines = computed<ParserEngineInfo[]>(() => editorResources.parserEngines);
 
 const supportedFileTypes = computed<Set<string>>(() => {
-  const engines = parserEngines.value
-  if (!engines.length) return new Set<string>()
+  const engines = parserEngines.value;
+  if (!engines.length) return new Set<string>();
 
-  const rules: { file_types: string[]; engine: string }[] =
-    kbInfo.value?.chunking_config?.parser_engine_rules || []
+  const rules: { file_types: string[]; engine: string }[] = kbInfo.value?.chunking_config?.parser_engine_rules || [];
 
-  const ruleMap = new Map<string, string>()
+  const ruleMap = new Map<string, string>();
   for (const r of rules) {
-    for (const ft of r.file_types) ruleMap.set(ft, r.engine)
+    for (const ft of r.file_types) ruleMap.set(ft, r.engine);
   }
 
-  const available = new Set<string>()
-  const availableEngineNames = new Set(
-    engines.filter(e => e.Available !== false).map(e => e.Name)
-  )
+  const available = new Set<string>();
+  const availableEngineNames = new Set(engines.filter((e) => e.Available !== false).map((e) => e.Name));
 
   for (const engine of engines) {
     for (const ft of engine.FileTypes || []) {
-      if (available.has(ft)) continue
+      if (available.has(ft)) continue;
 
-      const explicitEngine = ruleMap.get(ft)
+      const explicitEngine = ruleMap.get(ft);
       if (explicitEngine) {
-        if (availableEngineNames.has(explicitEngine)) available.add(ft)
+        if (availableEngineNames.has(explicitEngine)) available.add(ft);
       } else {
-        if (engine.Available !== false) available.add(ft)
+        if (engine.Available !== false) available.add(ft);
       }
     }
   }
-  return available
-})
+  return available;
+});
 
-const acceptFileTypes = computed(() =>
-  [...supportedFileTypes.value].map(t => '.' + t).join(',')
-)
+const acceptFileTypes = computed(() => [...supportedFileTypes.value].map((t) => "." + t).join(","));
 
 const unsupportedFileTypes = computed<string[]>(() => {
-  const engines = parserEngines.value
-  if (!engines.length) return []
+  const engines = parserEngines.value;
+  if (!engines.length) return [];
 
-  const allTypes = new Set<string>()
+  const allTypes = new Set<string>();
   for (const engine of engines) {
-    for (const ft of engine.FileTypes || []) allTypes.add(ft)
+    for (const ft of engine.FileTypes || []) allTypes.add(ft);
   }
 
-  const supported = supportedFileTypes.value
-  return [...allTypes].filter(ft => !supported.has(ft)).sort()
-})
+  const supported = supportedFileTypes.value;
+  return [...allTypes].filter((ft) => !supported.has(ft)).sort();
+});
 
 const goToParserSettings = () => {
   if (kbId.value) {
-    uiStore.openKBSettings(kbId.value, 'parser')
+    uiStore.openKBSettings(kbId.value, "parser");
   }
-}
+};
 
 // Permission control: check if current user owns this KB or has edit/manage permission
 //
@@ -243,8 +246,8 @@ const goToParserSettings = () => {
 // non-creator may edit / manage.
 const isOwner = computed(() => {
   if (!kbInfo.value) return false;
-  const creatorId = (kbInfo.value as any).creator_id || '';
-  const userId = authStore.user?.id || '';
+  const creatorId = (kbInfo.value as any).creator_id || "";
+  const userId = authStore.user?.id || "";
   // creator_id may be empty for legacy KBs created before PR 5; treat
   // those as tenant-owned so the role gate applies (Admin+ can manage,
   // Viewer cannot).
@@ -253,8 +256,8 @@ const isOwner = computed(() => {
 });
 
 // Current KB's shared record (when accessed via organization share)
-const currentSharedKb = computed(() =>
-  orgStore.sharedKnowledgeBases.find((s) => s.knowledge_base?.id === kbId.value) ?? null,
+const currentSharedKb = computed(
+  () => orgStore.sharedKnowledgeBases.find((s) => s.knowledge_base?.id === kbId.value) ?? null,
 );
 
 // Accessed via organization share: when the KB shows up in our
@@ -282,7 +285,7 @@ const isViaShare = computed(() => !!currentSharedKb.value);
 const canEdit = computed(() => {
   if (isViaShare.value) return orgStore.canEditKB(kbId.value, false);
   if (isOwner.value) return true;
-  if (authStore.hasRole('admin')) return true;
+  if (authStore.hasRole("admin")) return true;
   return orgStore.canEditKB(kbId.value, false);
 });
 
@@ -292,7 +295,7 @@ const canEdit = computed(() => {
 const canManage = computed(() => {
   if (isViaShare.value) return orgStore.canManageKB(kbId.value, false);
   if (isOwner.value) return true;
-  if (authStore.hasRole('admin')) return true;
+  if (authStore.hasRole("admin")) return true;
   return orgStore.canManageKB(kbId.value, false);
 });
 
@@ -310,38 +313,44 @@ const canMutateKnowledge = computed(() => {
   if (!canEdit.value) return false;
   if (isViaShare.value) return true;
   if (isOwner.value) return true;
-  if (authStore.hasRole('admin')) return true;
-  return authStore.hasRole('contributor');
+  if (authStore.hasRole("admin")) return true;
+  return authStore.hasRole("contributor");
 });
 
 // Effective permission: from direct org share list or from GET /knowledge-bases/:id
-const effectiveKBPermission = computed(() => orgStore.getKBPermission(kbId.value) || kbInfo.value?.my_permission || '');
+const effectiveKBPermission = computed(() => orgStore.getKBPermission(kbId.value) || kbInfo.value?.my_permission || "");
 
 // Downloading returns the original source file, which is intentionally more
 // restrictive than viewing parsed content or using the preview tab. A tenant
 // Viewer can never download; for cross-tenant KBs the effective share
 // permission must additionally be Editor or Admin.
 const canDownloadKnowledge = computed(() => {
-  if (!authStore.hasRole('contributor')) return false;
+  if (!authStore.hasRole("contributor")) return false;
   const permission = effectiveKBPermission.value;
-  return !permission || permission === 'owner' || permission === 'admin' || permission === 'editor';
+  return !permission || permission === "owner" || permission === "admin" || permission === "editor";
 });
 
 const knowledgeList = ref<Array<{ id: string; name: string; type?: string }>>([]);
-const { cardList, total, moreIndex, details, getKnowled, delKnowledge, onVisibleChange: _onVisibleChange, getCardDetails, getfDetails } = useKnowledgeBase(kbId.value)
+const {
+  cardList,
+  total,
+  moreIndex,
+  details,
+  getKnowled,
+  delKnowledge,
+  onVisibleChange: _onVisibleChange,
+  getCardDetails,
+  getfDetails,
+} = useKnowledgeBase(kbId.value);
 
 const showKbDetailContextualGuide = computed(() => {
-  return Boolean(kbId.value)
-    && !isFAQ.value
-    && canEdit.value
-    && !docListLoading.value
-    && cardList.value.length === 0;
+  return Boolean(kbId.value) && !isFAQ.value && canEdit.value && !docListLoading.value && cardList.value.length === 0;
 });
 
 const onVisibleChange = (visible: boolean) => {
   _onVisibleChange(visible);
   if (!visible) {
-    moveMenuMode.value = 'normal';
+    moveMenuMode.value = "normal";
   }
 };
 
@@ -390,34 +399,43 @@ const onCardMoreVisibleChange = (visible: boolean, item: KnowledgeCard) => {
 };
 const isCardDetails = ref(false);
 let timeout: ReturnType<typeof setTimeout> | null = null;
-const knowledgeScroll = ref()
+const knowledgeScroll = ref();
 let page = 1;
 let pageSize = 35;
 let scrollLoading = false;
-const resetPage = () => { page = 1; scrollLoading = false; };
+const resetPage = () => {
+  page = 1;
+  scrollLoading = false;
+};
 
 // Move state — inline in card menu
-const moveMenuMode = ref<'normal' | 'targets' | 'confirm'>('normal');
-const moveKnowledgeId = ref('');
+const moveMenuMode = ref<"normal" | "targets" | "confirm">("normal");
+const moveKnowledgeId = ref("");
 const moveTargetKbs = ref<any[]>([]);
 const moveTargetsLoading = ref(false);
-const moveSelectedTargetId = ref('');
-const moveSelectedTargetName = ref('');
-const moveMode = ref<'reuse_vectors' | 'reparse'>('reuse_vectors');
+const moveSelectedTargetId = ref("");
+const moveSelectedTargetName = ref("");
+const moveMode = ref<"reuse_vectors" | "reparse">("reuse_vectors");
 const moveSubmitting = ref(false);
 let movePollTimer: ReturnType<typeof setInterval> | null = null;
 
 // View mode (grid / list) — persisted per browser
-type DocViewMode = 'grid' | 'list';
-const VIEW_MODE_KEY = 'yuheng.kb.docs.viewMode';
+type DocViewMode = "grid" | "list";
+const VIEW_MODE_KEY = "yuheng.kb.docs.viewMode";
 const initViewMode = (): DocViewMode => {
   try {
-    return localStorage.getItem(VIEW_MODE_KEY) === 'list' ? 'list' : 'grid';
-  } catch { return 'grid'; }
+    return localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
 };
 const viewMode = ref<DocViewMode>(initViewMode());
 watch(viewMode, (v) => {
-  try { localStorage.setItem(VIEW_MODE_KEY, v); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, v);
+  } catch {
+    /* ignore */
+  }
 });
 
 // Multi-select state — shared between grid and list views.
@@ -431,9 +449,7 @@ const batchTagDialogVisible = ref(false);
 const batchTagPreSelectedIds = computed(() => {
   const ids = Array.from(selectedIds.value);
   if (ids.length === 0) return [];
-  const cards = ids
-    .map((id) => cardList.value.find((c) => c.id === id))
-    .filter((c): c is KnowledgeCard => Boolean(c));
+  const cards = ids.map((id) => cardList.value.find((c) => c.id === id)).filter((c): c is KnowledgeCard => Boolean(c));
   if (cards.length === 0) return [];
   const firstTagIds = new Set((cards[0].tags || []).map((t) => t.id));
   for (let i = 1; i < cards.length; i++) {
@@ -452,9 +468,9 @@ const applyOptimisticBatchReparse = (ids: string[]) => {
   for (const card of cardList.value) {
     if (!idSet.has(card.id)) continue;
     pendingReparseAck.value.add(card.id);
-    card.parse_status = 'pending';
+    card.parse_status = "pending";
     card.summary_status = undefined;
-    card.description = '';
+    card.description = "";
     delete traceAvailableById[card.id];
     traceAvailableById[card.id] = true;
   }
@@ -491,27 +507,27 @@ const confirmBatchReparse = async () => {
   });
   const skipped = allIds.length - ids.length;
   if (ids.length === 0) {
-    MessagePlugin.info(t('knowledgeBase.rebuildInProgress'));
+    MessagePlugin.info(t("knowledgeBase.rebuildInProgress"));
     return;
   }
   if (skipped > 0) {
-    MessagePlugin.warning(t('knowledgeBase.batchReparseSkippedInFlight', { count: skipped }));
+    MessagePlugin.warning(t("knowledgeBase.batchReparseSkippedInFlight", { count: skipped }));
   }
   batchReparsing.value = true;
   try {
     const res: any = await batchReparseKnowledge(kbId.value, ids);
     if (res?.success) {
-      MessagePlugin.success(t('knowledgeBase.batchReparseSuccess', { count: ids.length }));
+      MessagePlugin.success(t("knowledgeBase.batchReparseSuccess", { count: ids.length }));
       applyOptimisticBatchReparse(ids);
       clearSelection();
       batchMode.value = false;
       scheduleWikiStatusProbes();
       void awaitBatchReparseReflection(ids);
     } else {
-      MessagePlugin.error(res?.message || t('knowledgeBase.batchReparseFailed'));
+      MessagePlugin.error(res?.message || t("knowledgeBase.batchReparseFailed"));
     }
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeBase.batchReparseFailed'));
+    MessagePlugin.error(e?.message || t("knowledgeBase.batchReparseFailed"));
   } finally {
     batchReparsing.value = false;
   }
@@ -522,18 +538,14 @@ const tagFilterTriggerHover = ref(false);
 const tagFilterCleared = ref(false);
 const tagManageDrawerVisible = ref(false);
 
-const showTagFilterClear = computed(
-  () => selectedTagIds.value.length > 0 && tagFilterTriggerHover.value,
-);
+const showTagFilterClear = computed(() => selectedTagIds.value.length > 0 && tagFilterTriggerHover.value);
 
-const isTagFilterPlaceholder = computed(
-  () => selectedTagIds.value.length === 0 && tagFilterCleared.value,
-);
+const isTagFilterPlaceholder = computed(() => selectedTagIds.value.length === 0 && tagFilterCleared.value);
 
 const selectedTagIds = ref<string[]>([]);
 const tagList = ref<any[]>([]);
 const tagLoading = ref(false);
-const tagSearchQuery = ref('');
+const tagSearchQuery = ref("");
 const TAG_PAGE_SIZE = 50;
 const tagPage = ref(1);
 const tagHasMore = ref(false);
@@ -541,59 +553,59 @@ const tagLoadingMore = ref(false);
 const tagTotal = ref(0);
 let tagSearchDebounce: number | null = null;
 let docSearchDebounce: number | null = null;
-const docSearchKeyword = ref('');
-const selectedFileType = ref('');
+const docSearchKeyword = ref("");
+const selectedFileType = ref("");
 const fileTypeOptions = computed(() => [
-  { label: t('knowledgeBase.allFileTypes'), value: '' },
-  { label: 'PDF', value: 'pdf' },
-  { label: 'DOCX', value: 'docx' },
-  { label: 'DOC', value: 'doc' },
-  { label: 'PPTX', value: 'pptx' },
-  { label: 'PPT', value: 'ppt' },
-  { label: 'EPUB', value: 'epub' },
-  { label: 'MHTML', value: 'mhtml' },
-  { label: 'TXT', value: 'txt' },
-  { label: 'MD', value: 'md' },
-  { label: 'URL', value: 'url' },
-  { label: t('knowledgeBase.typeManual'), value: 'manual' },
-  { label: 'MP3', value: 'mp3' },
-  { label: 'WAV', value: 'wav' },
-  { label: 'M4A', value: 'm4a' },
-  { label: 'FLAC', value: 'flac' },
-  { label: 'OGG', value: 'ogg' },
+  { label: t("knowledgeBase.allFileTypes"), value: "" },
+  { label: "PDF", value: "pdf" },
+  { label: "DOCX", value: "docx" },
+  { label: "DOC", value: "doc" },
+  { label: "PPTX", value: "pptx" },
+  { label: "PPT", value: "ppt" },
+  { label: "EPUB", value: "epub" },
+  { label: "MHTML", value: "mhtml" },
+  { label: "TXT", value: "txt" },
+  { label: "MD", value: "md" },
+  { label: "URL", value: "url" },
+  { label: t("knowledgeBase.typeManual"), value: "manual" },
+  { label: "MP3", value: "mp3" },
+  { label: "WAV", value: "wav" },
+  { label: "M4A", value: "m4a" },
+  { label: "FLAC", value: "flac" },
+  { label: "OGG", value: "ogg" },
 ]);
-const selectedParseStatus = ref('');
+const selectedParseStatus = ref("");
 const parseStatusOptions = computed(() => [
-  { label: t('knowledgeBase.allParseStatuses'), value: '' },
-  { label: t('knowledgeBase.parseStatusPending'), value: 'pending' },
-  { label: t('knowledgeBase.parseStatusProcessing'), value: 'processing' },
-  { label: t('knowledgeBase.parseStatusCompleted'), value: 'completed' },
-  { label: t('knowledgeBase.parseStatusFailed'), value: 'failed' },
-  { label: t('knowledgeBase.parseStatusCancelled'), value: 'cancelled' },
-  { label: t('knowledgeBase.parseStatusFinalizing'), value: 'finalizing' },
-  { label: t('knowledgeBase.parseStatusDraft'), value: 'draft' },
+  { label: t("knowledgeBase.allParseStatuses"), value: "" },
+  { label: t("knowledgeBase.parseStatusPending"), value: "pending" },
+  { label: t("knowledgeBase.parseStatusProcessing"), value: "processing" },
+  { label: t("knowledgeBase.parseStatusCompleted"), value: "completed" },
+  { label: t("knowledgeBase.parseStatusFailed"), value: "failed" },
+  { label: t("knowledgeBase.parseStatusCancelled"), value: "cancelled" },
+  { label: t("knowledgeBase.parseStatusFinalizing"), value: "finalizing" },
+  { label: t("knowledgeBase.parseStatusDraft"), value: "draft" },
 ]);
-const selectedSource = ref('');
+const selectedSource = ref("");
 // Source filter combines ingestion channels and the "manual"/"url" virtual
 // sources that the backend routes onto the `type` column.
 const sourceOptions = computed(() => [
-  { label: t('knowledgeBase.allSources'), value: '' },
-  { label: t('knowledgeBase.sourceUpload'), value: 'web' },
-  { label: t('knowledgeBase.sourceUrl'), value: 'url' },
-  { label: t('knowledgeBase.sourceManual'), value: 'manual' },
-  { label: t('knowledgeBase.sourceApi'), value: 'api' },
-  { label: t('knowledgeBase.sourceBrowserExtension'), value: 'browser_extension' },
-  { label: t('knowledgeBase.channelFeishu'), value: 'feishu' },
-  { label: t('knowledgeBase.channelFeishuDrive'), value: 'feishu_drive' },
-  { label: t('knowledgeBase.channelNotion'), value: 'notion' },
-  { label: t('knowledgeBase.channelYuque'), value: 'yuque' },
-  { label: t('knowledgeBase.channelGitLab'), value: 'gitlab' },
-  { label: t('knowledgeBase.channelIma'), value: 'ima' },
-  { label: t('knowledgeBase.channelWechat'), value: 'wechat' },
-  { label: t('knowledgeBase.channelWecom'), value: 'wecom' },
-  { label: t('knowledgeBase.channelDingtalk'), value: 'dingtalk' },
-  { label: t('knowledgeBase.channelSlack'), value: 'slack' },
-  { label: t('knowledgeBase.channelIm'), value: 'im' },
+  { label: t("knowledgeBase.allSources"), value: "" },
+  { label: t("knowledgeBase.sourceUpload"), value: "web" },
+  { label: t("knowledgeBase.sourceUrl"), value: "url" },
+  { label: t("knowledgeBase.sourceManual"), value: "manual" },
+  { label: t("knowledgeBase.sourceApi"), value: "api" },
+  { label: t("knowledgeBase.sourceBrowserExtension"), value: "browser_extension" },
+  { label: t("knowledgeBase.channelFeishu"), value: "feishu" },
+  { label: t("knowledgeBase.channelFeishuDrive"), value: "feishu_drive" },
+  { label: t("knowledgeBase.channelNotion"), value: "notion" },
+  { label: t("knowledgeBase.channelYuque"), value: "yuque" },
+  { label: t("knowledgeBase.channelGitLab"), value: "gitlab" },
+  { label: t("knowledgeBase.channelIma"), value: "ima" },
+  { label: t("knowledgeBase.channelWechat"), value: "wechat" },
+  { label: t("knowledgeBase.channelWecom"), value: "wecom" },
+  { label: t("knowledgeBase.channelDingtalk"), value: "dingtalk" },
+  { label: t("knowledgeBase.channelSlack"), value: "slack" },
+  { label: t("knowledgeBase.channelIm"), value: "im" },
 ]);
 // Date range as [start, end] in "YYYY-MM-DD" form (t-date-range-picker default).
 const updatedTimeRange = ref<string[]>([]);
@@ -601,11 +613,11 @@ const updatedTimeRange = ref<string[]>([]);
 const disableFutureDate = { after: new Date(new Date().setHours(23, 59, 59, 999)) };
 
 // ── Folder tree (documents uploaded as a folder keep their relative path) ──
-const FOLDER_TREE_COLLAPSED_KEY = 'yuheng.kbFolderTreeCollapsed';
+const FOLDER_TREE_COLLAPSED_KEY = "yuheng.kbFolderTreeCollapsed";
 const readStoredFlag = (key: string, fallback = false) => {
   try {
     const raw = localStorage.getItem(key);
-    return raw === null ? fallback : raw === 'true';
+    return raw === null ? fallback : raw === "true";
   } catch {
     return fallback;
   }
@@ -654,7 +666,7 @@ const folderBreadcrumbs = computed(() => buildFolderBreadcrumbs(selectedFolderPa
 const filterParams = computed(() => {
   const [start, end] = updatedTimeRange.value || [];
   return {
-    tag_ids: selectedTagIds.value.length > 0 ? selectedTagIds.value.join(',') : undefined,
+    tag_ids: selectedTagIds.value.length > 0 ? selectedTagIds.value.join(",") : undefined,
     keyword: docSearchKeyword.value ? docSearchKeyword.value.trim() : undefined,
     file_type: selectedFileType.value || undefined,
     parse_status: selectedParseStatus.value || undefined,
@@ -693,25 +705,21 @@ const sidebarTags = computed(() => {
 
 const activeTagFilterLabel = computed(() => {
   if (selectedTagIds.value.length === 0) {
-    return tagFilterCleared.value
-      ? t('knowledgeBase.tagFilterPlaceholder')
-      : t('knowledgeBase.allTags');
+    return tagFilterCleared.value ? t("knowledgeBase.tagFilterPlaceholder") : t("knowledgeBase.allTags");
   }
   if (selectedTagIds.value.length === 1) {
     const id = selectedTagIds.value[0];
-    return tagMap.value[id]?.name || t('knowledgeBase.allTags');
+    return tagMap.value[id]?.name || t("knowledgeBase.allTags");
   }
-  return t('knowledgeBase.tagFilterMulti', { count: selectedTagIds.value.length });
+  return t("knowledgeBase.tagFilterMulti", { count: selectedTagIds.value.length });
 });
 
 const activeTagFilterTitle = computed(() => {
   if (selectedTagIds.value.length === 0) {
-    return t('knowledgeBase.tagFilterTitle');
+    return t("knowledgeBase.tagFilterTitle");
   }
-  const names = selectedTagIds.value
-    .map((id) => tagMap.value[id]?.name)
-    .filter(Boolean);
-  return names.length > 0 ? names.join('、') : t('knowledgeBase.tagFilterTitle');
+  const names = selectedTagIds.value.map((id) => tagMap.value[id]?.name).filter(Boolean);
+  return names.length > 0 ? names.join("、") : t("knowledgeBase.tagFilterTitle");
 });
 
 const isTagFilterActive = (tagId: string) => selectedTagIds.value.includes(tagId);
@@ -735,8 +743,8 @@ const getPageSize = () => {
   const itemHeight = 148;
   const itemsInView = Math.floor(viewportHeight / itemHeight) * 5;
   pageSize = Math.max(35, itemsInView);
-}
-getPageSize()
+};
+getPageSize();
 // 直接调用 API 获取知识库文件列表
 
 const loadKnowledgeFiles = (kbIdValue: string): Promise<void> => {
@@ -777,7 +785,7 @@ const loadFolderTree = async (kbIdValue: string) => {
     }
   } catch (error) {
     if (!isCurrentKb(kbIdValue)) return;
-    console.error('Failed to load knowledge folders', error);
+    console.error("Failed to load knowledge folders", error);
     folderTree.value = null;
   } finally {
     if (isCurrentKb(kbIdValue)) {
@@ -798,7 +806,7 @@ const handleFolderSelect = (path: string) => {
 // Flat folder list shared by every "move to folder" picker.
 const folderOptions = computed(() => {
   const result: Array<{ path: string; name: string; depth: number }> = [];
-  const walk = (nodes: KnowledgeFolderTree['folders'], depth: number) => {
+  const walk = (nodes: KnowledgeFolderTree["folders"], depth: number) => {
     nodes.forEach((node) => {
       result.push({ path: node.path, name: node.name, depth });
       walk(node.children || [], depth + 1);
@@ -812,32 +820,32 @@ const moveKnowledgeIntoFolder = async (ids: string[], folderPath: string) => {
   if (!kbId.value || ids.length === 0) return;
   try {
     await moveKnowledgeToFolder(kbId.value, ids, folderPath);
-    MessagePlugin.success(t('knowledgeBase.moveToFolder.success', { count: ids.length }));
+    MessagePlugin.success(t("knowledgeBase.moveToFolder.success", { count: ids.length }));
     clearSelection();
     batchMode.value = false;
     resetPage();
     await loadKnowledgeFiles(kbId.value);
     await loadFolderTree(kbId.value);
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('knowledgeBase.moveToFolder.failed'));
+    MessagePlugin.error(error?.message || t("knowledgeBase.moveToFolder.failed"));
   }
 };
 
 const handleFolderRename = async ({ from, to }: { from: string; to: string }) => {
   if (!kbId.value || !to || from === to) return;
   if (!canMoveFolderTo(from, to)) {
-    MessagePlugin.warning(t('knowledgeBase.folderTree.renameInvalid'));
+    MessagePlugin.warning(t("knowledgeBase.folderTree.renameInvalid"));
     return;
   }
   try {
     const res: any = await renameKnowledgeFolder(kbId.value, from, to);
     const movedCount = res?.data?.moved_count ?? 0;
     if (movedCount === 0) {
-      MessagePlugin.warning(t('knowledgeBase.folderTree.renameFailed'));
+      MessagePlugin.warning(t("knowledgeBase.folderTree.renameFailed"));
       await loadFolderTree(kbId.value);
       return;
     }
-    MessagePlugin.success(t('knowledgeBase.folderTree.renameSuccess'));
+    MessagePlugin.success(t("knowledgeBase.folderTree.renameSuccess"));
     // Follow the folder to its new path so the user stays where they were.
     if (selectedFolderPath.value === from) {
       selectedFolderPath.value = to;
@@ -848,7 +856,7 @@ const handleFolderRename = async ({ from, to }: { from: string; to: string }) =>
     await loadKnowledgeFiles(kbId.value);
     await loadFolderTree(kbId.value);
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('knowledgeBase.folderTree.renameFailed'));
+    MessagePlugin.error(error?.message || t("knowledgeBase.folderTree.renameFailed"));
   }
 };
 
@@ -909,7 +917,7 @@ const loadTags = async (kbIdValue: string, reset = false) => {
     }
   } catch (error) {
     if (!isCurrentKb(kbIdValue)) return;
-    console.error('Failed to load tags', error);
+    console.error("Failed to load tags", error);
   } finally {
     if (isCurrentKb(kbIdValue)) {
       tagLoading.value = false;
@@ -922,7 +930,7 @@ const handleTagFilterChange = (tagIds: string[]) => {
   selectedTagIds.value = tagIds;
   // 同步更新 store 中的 selectedTagIds，供 menu.vue 上传时使用
   uiStore.clearSelectedTagIds();
-  tagIds.forEach(id => uiStore.toggleSelectedTagId(id));
+  tagIds.forEach((id) => uiStore.toggleSelectedTagId(id));
   resetPage();
 };
 
@@ -986,12 +994,12 @@ const onTagManageChanged = (payload?: { deletedTagId?: string }) => {
 const handleKnowledgeTagChange = async (knowledgeId: string, tagIds: string[]) => {
   try {
     await updateKnowledgeTagBatch({ updates: { [knowledgeId]: tagIds } });
-    MessagePlugin.success(t('knowledgeBase.tagUpdateSuccess'));
+    MessagePlugin.success(t("knowledgeBase.tagUpdateSuccess"));
     resetPage(); // Reset page counter to 1 when reloading files after tag change
     loadKnowledgeFiles(kbId.value);
     loadTags(kbId.value, true);
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   }
 };
 
@@ -1025,7 +1033,7 @@ const loadKnowledgeBaseInfo = async (targetKbId: string, force = false) => {
   } catch (error) {
     if (!isCurrentKb(targetKbId)) return;
 
-    console.error('Failed to load knowledge base info:', error);
+    console.error("Failed to load knowledge base info:", error);
     kbInfo.value = null;
     cardList.value = [];
     total.value = 0;
@@ -1042,70 +1050,78 @@ const loadKnowledgeList = async () => {
     const myKbs = chatResources.rawKnowledgeBases.map((item: any) => ({
       id: String(item.id),
       name: item.name,
-      type: item.type || 'document',
+      type: item.type || "document",
     }));
 
     // Also include shared knowledge bases from orgStore
     const sharedKbs = (orgStore.sharedKnowledgeBases || [])
-      .filter(s => s.knowledge_base != null)
-      .map(s => ({
+      .filter((s) => s.knowledge_base != null)
+      .map((s) => ({
         id: String(s.knowledge_base.id),
         name: s.knowledge_base.name,
-        type: s.knowledge_base.type || 'document',
+        type: s.knowledge_base.type || "document",
       }));
 
     // Merge and deduplicate by id (my KBs take precedence)
-    const myKbIds = new Set(myKbs.map(kb => kb.id));
-    const uniqueSharedKbs = sharedKbs.filter(kb => !myKbIds.has(kb.id));
+    const myKbIds = new Set(myKbs.map((kb) => kb.id));
+    const uniqueSharedKbs = sharedKbs.filter((kb) => !myKbIds.has(kb.id));
 
     knowledgeList.value = [...myKbs, ...uniqueSharedKbs];
   } catch (error) {
-    console.error('Failed to load knowledge list:', error);
+    console.error("Failed to load knowledge list:", error);
   }
 };
 
 // 监听路由参数变化，重新获取知识库内容
 // Sync activeKbTab to URL query so it survives page refresh
 watch(activeKbTab, (tab) => {
-  const query = { ...route.query }
-  if (tab === 'documents') {
-    delete query.tab
+  const query = { ...route.query };
+  if (tab === "documents") {
+    delete query.tab;
   } else {
-    query.tab = tab
+    query.tab = tab;
   }
-  router.replace({ query })
-})
+  router.replace({ query });
+});
 
-watch(() => kbId.value, (newKbId, oldKbId) => {
-  if (!newKbId) {
-    kbInfo.value = null;
-    cardList.value = [];
-    total.value = 0;
-    return;
-  }
-  if (newKbId === oldKbId && kbInfo.value) return;
+watch(
+  () => kbId.value,
+  (newKbId, oldKbId) => {
+    if (!newKbId) {
+      kbInfo.value = null;
+      cardList.value = [];
+      total.value = 0;
+      return;
+    }
+    if (newKbId === oldKbId && kbInfo.value) return;
 
-  if (newKbId !== oldKbId) {
-    clearTraceAvailabilityCache();
-    cardList.value = [];
-    total.value = 0;
-    docListLoading.value = true;
-    resetPage();
-    tagSearchQuery.value = '';
-    tagPage.value = 1;
-    uiStore.clearSelectedTagIds();
-    folderTree.value = null;
-    selectedFolderPath.value = ROOT_FOLDER_PATH;
-  }
-  loadKnowledgeBaseInfo(newKbId);
-}, { immediate: true });
+    if (newKbId !== oldKbId) {
+      clearTraceAvailabilityCache();
+      cardList.value = [];
+      total.value = 0;
+      docListLoading.value = true;
+      resetPage();
+      tagSearchQuery.value = "";
+      tagPage.value = 1;
+      uiStore.clearSelectedTagIds();
+      folderTree.value = null;
+      selectedFolderPath.value = ROOT_FOLDER_PATH;
+    }
+    loadKnowledgeBaseInfo(newKbId);
+  },
+  { immediate: true },
+);
 
-watch(selectedTagIds, (newVal, oldVal) => {
-  if (oldVal === undefined) return;
-  if (kbId.value) {
-    loadKnowledgeFiles(kbId.value);
-  }
-}, { deep: true });
+watch(
+  selectedTagIds,
+  (newVal, oldVal) => {
+    if (oldVal === undefined) return;
+    if (kbId.value) {
+      loadKnowledgeFiles(kbId.value);
+    }
+  },
+  { deep: true },
+);
 
 watch(tagSearchQuery, (newVal, oldVal) => {
   if (newVal === oldVal) return;
@@ -1143,12 +1159,16 @@ watch(selectedFileType, (newVal, oldVal) => {
 });
 
 // 监听解析状态/来源/更新时间范围筛选变化（与文件类型行为一致）
-watch([selectedParseStatus, selectedSource, updatedTimeRange], () => {
-  if (kbId.value) {
-    resetPage();
-    loadKnowledgeFiles(kbId.value);
-  }
-}, { deep: true });
+watch(
+  [selectedParseStatus, selectedSource, updatedTimeRange],
+  () => {
+    if (kbId.value) {
+      resetPage();
+      loadKnowledgeFiles(kbId.value);
+    }
+  },
+  { deep: true },
+);
 
 // 切换目录只改变列表范围，行为与其他筛选一致。浏览态与筛选态之间的切换由各筛选项
 // 自身的 watcher 触发刷新，这里不重复请求。
@@ -1162,9 +1182,9 @@ watch(selectedFolderPath, () => {
 // 监听文件上传事件
 const handleFileUploaded = (event: CustomEvent) => {
   const uploadedKbId = event.detail.kbId;
-  console.log('接收到文件上传事件，上传的知识库ID:', uploadedKbId, '当前知识库ID:', kbId.value);
+  console.log("接收到文件上传事件，上传的知识库ID:", uploadedKbId, "当前知识库ID:", kbId.value);
   if (uploadedKbId && uploadedKbId === kbId.value && !isFAQ.value) {
-    console.log('匹配当前知识库，开始刷新文件列表');
+    console.log("匹配当前知识库，开始刷新文件列表");
     // 如果上传的文件属于当前知识库，使用 loadKnowledgeFiles 刷新文件列表
     resetPage(); // Reset page counter when reloading files after upload
     loadKnowledgeFiles(uploadedKbId);
@@ -1175,11 +1195,10 @@ const handleFileUploaded = (event: CustomEvent) => {
   }
 };
 
-
 // 监听从菜单触发的URL导入事件
 const handleOpenURLImportDialog = (event: CustomEvent) => {
   const eventKbId = event.detail.kbId;
-  console.log('接收到URL导入对话框打开事件，知识库ID:', eventKbId, '当前知识库ID:', kbId.value);
+  console.log("接收到URL导入对话框打开事件，知识库ID:", eventKbId, "当前知识库ID:", kbId.value);
   if (eventKbId && eventKbId === kbId.value && !isFAQ.value) {
     if (ensureDocumentKbReady()) {
       uploadSourceRef.value?.openUrlDialog();
@@ -1203,15 +1222,13 @@ const handleKnowledgeFileDrop = (event: CustomEvent) => {
 // changes the query without re-mounting the component — in that case kbId is
 // the same and cardList may already be populated, so relying solely on the
 // cardList watcher misses the trigger.
-const pendingKnowledgeId = ref<string | null>(
-  (route.query.knowledge_id as string) || null
-);
+const pendingKnowledgeId = ref<string | null>((route.query.knowledge_id as string) || null);
 
 // Video deep-link: ?t=<ms> jumps the embedded player to a cited playback
 // position once the document drawer opens (set alongside knowledge_id by
 // chat reference timestamp badges).
 const parseVideoSeekParam = (value: unknown): number | null => {
-  const ms = Number(typeof value === 'string' ? value : '');
+  const ms = Number(typeof value === "string" ? value : "");
   return Number.isFinite(ms) && ms >= 0 ? ms : null;
 };
 const pendingVideoSeekMs = ref<number | null>(parseVideoSeekParam(route.query.t));
@@ -1234,14 +1251,14 @@ const tryAutoOpenDocument = async () => {
     const response: any = await getKnowledgeDetails(targetId);
     if (request !== autoOpenRequest) return;
     const detail = response?.data || response;
-    if (detail && typeof detail === 'object') {
+    if (detail && typeof detail === "object") {
       target = { ...target, ...detail, id: targetId } as KnowledgeCard;
       selectedFolderPath.value = detail.folder_path || ROOT_FOLDER_PATH;
     }
   } catch (error) {
     // Keep the previous ID-only fallback: getCardDetails will surface the
     // normal detail loading error, while links to root-level files still work.
-    console.error('Failed to resolve referenced document folder', error);
+    console.error("Failed to resolve referenced document folder", error);
   }
 
   if (request !== autoOpenRequest) return;
@@ -1253,7 +1270,7 @@ const tryAutoOpenDocument = async () => {
 watch(
   () => route.query.knowledge_id,
   (newId) => {
-    if (typeof newId !== 'string' || !newId) return;
+    if (typeof newId !== "string" || !newId) return;
     pendingKnowledgeId.value = newId;
     pendingVideoSeekMs.value = parseVideoSeekParam(route.query.t);
     tryAutoOpenDocument();
@@ -1275,44 +1292,47 @@ onMounted(() => {
   loadKnowledgeList();
   editorResources.ensureParserEngines();
 
-  window.addEventListener('knowledgeFileUploaded', handleFileUploaded as EventListener);
-  window.addEventListener('openURLImportDialog', handleOpenURLImportDialog as EventListener);
-  window.addEventListener('yuheng:knowledge-file-drop', handleKnowledgeFileDrop as EventListener);
-  window.addEventListener('yuheng:open-knowledge', handleOpenKnowledgeEvent as EventListener);
+  window.addEventListener("knowledgeFileUploaded", handleFileUploaded as EventListener);
+  window.addEventListener("openURLImportDialog", handleOpenURLImportDialog as EventListener);
+  window.addEventListener("yuheng:knowledge-file-drop", handleKnowledgeFileDrop as EventListener);
+  window.addEventListener("yuheng:open-knowledge", handleOpenKnowledgeEvent as EventListener);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('knowledgeFileUploaded', handleFileUploaded as EventListener);
-  window.removeEventListener('openURLImportDialog', handleOpenURLImportDialog as EventListener);
-  window.removeEventListener('yuheng:knowledge-file-drop', handleKnowledgeFileDrop as EventListener);
-  window.removeEventListener('yuheng:open-knowledge', handleOpenKnowledgeEvent as EventListener);
+  window.removeEventListener("knowledgeFileUploaded", handleFileUploaded as EventListener);
+  window.removeEventListener("openURLImportDialog", handleOpenURLImportDialog as EventListener);
+  window.removeEventListener("yuheng:knowledge-file-drop", handleKnowledgeFileDrop as EventListener);
+  window.removeEventListener("yuheng:open-knowledge", handleOpenKnowledgeEvent as EventListener);
   stopMovePoll();
   if (timeout !== null) {
     clearTimeout(timeout);
     timeout = null;
   }
 });
-watch(() => cardList.value, (newValue) => {
-  if (isFAQ.value) return;
-  docListLoading.value = false;
+watch(
+  () => cardList.value,
+  (newValue) => {
+    if (isFAQ.value) return;
+    docListLoading.value = false;
 
-  // Auto-open document if navigated with ?knowledge_id=xxx.
-  if (pendingKnowledgeId.value) {
-    tryAutoOpenDocument();
-  }
+    // Auto-open document if navigated with ?knowledge_id=xxx.
+    if (pendingKnowledgeId.value) {
+      tryAutoOpenDocument();
+    }
 
-  let analyzeList = [];
-  // Filter items that need polling: parsing in progress OR summary generation in progress
-  analyzeList = newValue.filter(needsStatusPolling);
-  if (timeout !== null) {
-    clearTimeout(timeout);
-    timeout = null;
-  }
-  if (analyzeList.length) {
-    updateStatus(analyzeList)
-  }
-
-}, { deep: true })
+    let analyzeList = [];
+    // Filter items that need polling: parsing in progress OR summary generation in progress
+    analyzeList = newValue.filter(needsStatusPolling);
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+    if (analyzeList.length) {
+      updateStatus(analyzeList);
+    }
+  },
+  { deep: true },
+);
 type KnowledgeCard = {
   id: string;
   knowledge_base_id?: string;
@@ -1353,58 +1373,61 @@ const updateStatus = (analyzeList: KnowledgeCard[]) => {
     query += `ids=${analyzeList[i].id}&`;
   }
   timeout = setTimeout(() => {
-    batchQueryKnowledge(query).then((result: any) => {
-      let shouldRefreshWikiStatus = false;
-      if (result.success && result.data) {
-        (result.data as KnowledgeCard[]).forEach((item: KnowledgeCard) => {
-          const index = cardList.value.findIndex(card => card.id == item.id);
-          if (index == -1) return;
+    batchQueryKnowledge(query)
+      .then((result: any) => {
+        let shouldRefreshWikiStatus = false;
+        if (result.success && result.data) {
+          (result.data as KnowledgeCard[]).forEach((item: KnowledgeCard) => {
+            const index = cardList.value.findIndex((card) => card.id == item.id);
+            if (index == -1) return;
 
-          let parseStatus = item.parse_status;
-          if (pendingReparseAck.value.has(item.id)) {
-            if (isParseInFlight(item.parse_status)) {
-              pendingReparseAck.value.delete(item.id);
-            } else {
-              parseStatus = 'pending';
+            let parseStatus = item.parse_status;
+            if (pendingReparseAck.value.has(item.id)) {
+              if (isParseInFlight(item.parse_status)) {
+                pendingReparseAck.value.delete(item.id);
+              } else {
+                parseStatus = "pending";
+              }
             }
-          }
 
-          if (cardList.value[index].parse_status !== parseStatus ||
-            cardList.value[index].summary_status !== item.summary_status ||
-            cardList.value[index].description !== item.description) {
-            shouldRefreshWikiStatus ||= shouldRefreshWikiStatusAfterKnowledgePoll(
-              cardList.value[index],
-              { ...item, parse_status: parseStatus },
-            );
+            if (
+              cardList.value[index].parse_status !== parseStatus ||
+              cardList.value[index].summary_status !== item.summary_status ||
+              cardList.value[index].description !== item.description
+            ) {
+              shouldRefreshWikiStatus ||= shouldRefreshWikiStatusAfterKnowledgePoll(cardList.value[index], {
+                ...item,
+                parse_status: parseStatus,
+              });
 
-            // Always update the card data
-            cardList.value[index].parse_status = parseStatus;
-            cardList.value[index].summary_status = item.summary_status;
-            cardList.value[index].description = item.description;
-            delete traceAvailableById[item.id];
-          }
-        });
-      }
-      if (shouldRefreshWikiStatus) {
-        void fetchWikiStatusOnce();
-      }
-      // If there are no changes, the watch won't trigger, so we must manually poll again
-      // Even if there are changes, we can manually poll again just to be safe.
-      // The watch will clear this timeout if it triggers.
-      const stillPending = cardList.value.filter(needsStatusPolling);
-      if (stillPending.length > 0) {
-        updateStatus(stillPending);
-      }
-    }).catch((_err) => {
-      // 错误处理
-      const stillPending = cardList.value.filter(needsStatusPolling);
-      if (stillPending.length > 0) {
-        updateStatus(stillPending);
-      }
-    });
+              // Always update the card data
+              cardList.value[index].parse_status = parseStatus;
+              cardList.value[index].summary_status = item.summary_status;
+              cardList.value[index].description = item.description;
+              delete traceAvailableById[item.id];
+            }
+          });
+        }
+        if (shouldRefreshWikiStatus) {
+          void fetchWikiStatusOnce();
+        }
+        // If there are no changes, the watch won't trigger, so we must manually poll again
+        // Even if there are changes, we can manually poll again just to be safe.
+        // The watch will clear this timeout if it triggers.
+        const stillPending = cardList.value.filter(needsStatusPolling);
+        if (stillPending.length > 0) {
+          updateStatus(stillPending);
+        }
+      })
+      .catch((_err) => {
+        // 错误处理
+        const stillPending = cardList.value.filter(needsStatusPolling);
+        if (stillPending.length > 0) {
+          updateStatus(stillPending);
+        }
+      });
   }, 1500);
 };
-
 
 // 恢复文档处理状态（用于刷新后恢复）
 
@@ -1449,13 +1472,13 @@ const confirmDeleteKnowledge = (index: number, item: KnowledgeCard) => {
 
 const onReparseMenuClick = (index: number, item: KnowledgeCard) => {
   if (isParseInFlight(item.parse_status)) {
-    MessagePlugin.info(t('knowledgeBase.rebuildInProgress'));
+    MessagePlugin.info(t("knowledgeBase.rebuildInProgress"));
   }
 };
 
 const handleMoveKnowledge = async (item: KnowledgeCard) => {
   moveKnowledgeId.value = item.id;
-  moveMenuMode.value = 'targets';
+  moveMenuMode.value = "targets";
   moveTargetsLoading.value = true;
   moveTargetKbs.value = [];
   try {
@@ -1471,15 +1494,15 @@ const handleMoveKnowledge = async (item: KnowledgeCard) => {
 const handleMoveSelectTarget = (kb: any) => {
   moveSelectedTargetId.value = kb.id;
   moveSelectedTargetName.value = kb.name;
-  moveMode.value = 'reuse_vectors';
-  moveMenuMode.value = 'confirm';
+  moveMode.value = "reuse_vectors";
+  moveMenuMode.value = "confirm";
 };
 
 const handleMoveBack = () => {
-  if (moveMenuMode.value === 'confirm') {
-    moveMenuMode.value = 'targets';
+  if (moveMenuMode.value === "confirm") {
+    moveMenuMode.value = "targets";
   } else {
-    moveMenuMode.value = 'normal';
+    moveMenuMode.value = "normal";
   }
 };
 
@@ -1494,10 +1517,12 @@ const handleMoveConfirm = async () => {
       mode: moveMode.value,
     });
     const taskId = res.data?.task_id;
-    MessagePlugin.info(t('knowledgeBase.moveStarted'));
+    MessagePlugin.info(t("knowledgeBase.moveStarted"));
     // Close the card menu
-    moveMenuMode.value = 'normal';
-    cardList.value.forEach(c => { c.isMore = false; });
+    moveMenuMode.value = "normal";
+    cardList.value.forEach((c) => {
+      c.isMore = false;
+    });
 
     if (taskId) {
       startMovePoll(taskId);
@@ -1508,7 +1533,7 @@ const handleMoveConfirm = async () => {
       void loadFolderTree(kbId.value);
     }
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeBase.moveFailed'));
+    MessagePlugin.error(e?.message || t("knowledgeBase.moveFailed"));
     moveSubmitting.value = false;
   }
 };
@@ -1520,22 +1545,24 @@ const startMovePoll = (taskId: string) => {
       const res: any = await getKnowledgeMoveProgress(taskId);
       const data = res.data;
       if (!data) return;
-      if (data.status === 'completed') {
+      if (data.status === "completed") {
         stopMovePoll();
         moveSubmitting.value = false;
         const failed = data.failed || 0;
         if (failed > 0) {
-          MessagePlugin.warning(t('knowledgeBase.moveCompletedWithErrors', { success: (data.processed || 0) - failed, failed }));
+          MessagePlugin.warning(
+            t("knowledgeBase.moveCompletedWithErrors", { success: (data.processed || 0) - failed, failed }),
+          );
         } else {
-          MessagePlugin.success(t('knowledgeBase.moveCompleted'));
+          MessagePlugin.success(t("knowledgeBase.moveCompleted"));
         }
         resetPage(); // Reset page counter when reloading files after move completion
         loadKnowledgeFiles(kbId.value);
         void loadFolderTree(kbId.value);
-      } else if (data.status === 'failed') {
+      } else if (data.status === "failed") {
         stopMovePoll();
         moveSubmitting.value = false;
-        MessagePlugin.error(t('knowledgeBase.moveFailed'));
+        MessagePlugin.error(t("knowledgeBase.moveFailed"));
       }
     } catch {
       // ignore poll errors
@@ -1550,7 +1577,13 @@ const stopMovePoll = () => {
   }
 };
 
-const manualEditorSuccess = ({ kbId: savedKbId }: { kbId: string; knowledgeId: string; status: 'draft' | 'publish' }) => {
+const manualEditorSuccess = ({
+  kbId: savedKbId,
+}: {
+  kbId: string;
+  knowledgeId: string;
+  status: "draft" | "publish";
+}) => {
   if (savedKbId === kbId.value && !isFAQ.value) {
     resetPage(); // Reset page counter when reloading files after manual edit
     loadKnowledgeFiles(savedKbId);
@@ -1560,67 +1593,65 @@ const manualEditorSuccess = ({ kbId: savedKbId }: { kbId: string; knowledgeId: s
 
 const ensureDocumentKbReady = () => {
   if (isFAQ.value) {
-    MessagePlugin.warning(t('knowledgeBase.operationNotSupportedForType'));
+    MessagePlugin.warning(t("knowledgeBase.operationNotSupportedForType"));
     return false;
   }
   if (!kbId.value) {
-    MessagePlugin.warning(t('knowledgeEditor.messages.missingId'));
+    MessagePlugin.warning(t("knowledgeEditor.messages.missingId"));
     return false;
   }
   if (!kbInfo.value || !kbInfo.value.summary_model_id) {
-    MessagePlugin.warning(t('knowledgeBase.notInitialized'));
+    MessagePlugin.warning(t("knowledgeBase.notInitialized"));
     return false;
   }
   // Embedding model only required when RAG indexing is enabled
-  const strategy = (kbInfo.value as any).indexing_strategy
-  const needsEmbedding = !strategy || strategy.vector_enabled || strategy.keyword_enabled
+  const strategy = (kbInfo.value as any).indexing_strategy;
+  const needsEmbedding = !strategy || strategy.vector_enabled || strategy.keyword_enabled;
   if (needsEmbedding && !kbInfo.value.embedding_model_id) {
-    MessagePlugin.warning(t('knowledgeBase.notInitialized'));
+    MessagePlugin.warning(t("knowledgeBase.notInitialized"));
     return false;
   }
   if (missingStorageEngine.value) {
-    MessagePlugin.warning(t('knowledgeBase.missingStorageEngineUpload'));
+    MessagePlugin.warning(t("knowledgeBase.missingStorageEngineUpload"));
     return false;
   }
   return true;
 };
 
-
 const uploadConfirmStore = useUploadConfirmStore();
 
-const getFolderUploadFileName = (file: File, targetFolder: string) =>
-  buildUploadFileName(file, targetFolder);
+const getFolderUploadFileName = (file: File, targetFolder: string) => buildUploadFileName(file, targetFolder);
 
 const showUploadResultMessages = (
   successCount: number,
   failCount: number,
   totalCount: number,
-  mode: 'document' | 'folder',
+  mode: "document" | "folder",
 ) => {
-  if (mode === 'folder') {
+  if (mode === "folder") {
     if (failCount === 0) {
-      MessagePlugin.success(t('knowledgeBase.uploadAllSuccess', { count: successCount }));
+      MessagePlugin.success(t("knowledgeBase.uploadAllSuccess", { count: successCount }));
     } else if (successCount > 0) {
-      MessagePlugin.warning(t('knowledgeBase.uploadPartialSuccess', { success: successCount, fail: failCount }));
+      MessagePlugin.warning(t("knowledgeBase.uploadPartialSuccess", { success: successCount, fail: failCount }));
     } else {
-      MessagePlugin.error(t('knowledgeBase.uploadAllFailed'));
+      MessagePlugin.error(t("knowledgeBase.uploadAllFailed"));
     }
     return;
   }
 
   if (totalCount === 1) {
     if (successCount === 1) {
-      MessagePlugin.success(t('knowledgeBase.uploadSuccess'));
+      MessagePlugin.success(t("knowledgeBase.uploadSuccess"));
     }
     return;
   }
 
   if (failCount === 0) {
-    MessagePlugin.success(t('knowledgeBase.allUploadSuccess', { count: successCount }));
+    MessagePlugin.success(t("knowledgeBase.allUploadSuccess", { count: successCount }));
   } else if (successCount > 0) {
-    MessagePlugin.warning(t('knowledgeBase.partialUploadSuccess', { success: successCount, fail: failCount }));
+    MessagePlugin.warning(t("knowledgeBase.partialUploadSuccess", { success: successCount, fail: failCount }));
   } else {
-    MessagePlugin.error(t('knowledgeBase.allUploadFailed', { count: failCount }));
+    MessagePlugin.error(t("knowledgeBase.allUploadFailed", { count: failCount }));
   }
 };
 
@@ -1638,9 +1669,7 @@ const executeUploadBatch = async (
     return { successCount: 0, failCount: files.length };
   }
 
-  const tagIdsToUpload = options.tagIds && options.tagIds.length > 0
-    ? [...options.tagIds]
-    : undefined;
+  const tagIdsToUpload = options.tagIds && options.tagIds.length > 0 ? [...options.tagIds] : undefined;
   let successCount = 0;
   let failCount = 0;
   const totalCount = files.length;
@@ -1649,10 +1678,10 @@ const executeUploadBatch = async (
   for (const file of files) {
     try {
       const uploadData: {
-        file: File
-        tag_ids?: string[]
-        fileName?: string
-        process_config?: KnowledgeProcessOverrides
+        file: File;
+        tag_ids?: string[];
+        fileName?: string;
+        process_config?: KnowledgeProcessOverrides;
       } = { file, tag_ids: tagIdsToUpload };
 
       const fileName = getFolderUploadFileName(file, options.targetFolder || ROOT_FOLDER_PATH);
@@ -1662,20 +1691,24 @@ const executeUploadBatch = async (
       }
 
       const responseData: any = await uploadKnowledgeFile(targetKbId, uploadData);
-      const isSuccess = responseData?.success || responseData?.code === 200 || responseData?.status === 'success' || (!responseData?.error && responseData);
+      const isSuccess =
+        responseData?.success ||
+        responseData?.code === 200 ||
+        responseData?.status === "success" ||
+        (!responseData?.error && responseData);
       if (isSuccess) {
         successCount++;
       } else {
         failCount++;
         if (totalCount === 1) {
-          let errorMessage = t('knowledgeBase.uploadFailed');
+          let errorMessage = t("knowledgeBase.uploadFailed");
           if (responseData?.error?.message) {
             errorMessage = responseData.error.message;
           } else if (responseData?.message) {
             errorMessage = responseData.message;
           }
-          if (responseData?.code === 'duplicate_file' || responseData?.error?.code === 'duplicate_file') {
-            errorMessage = t('knowledgeBase.fileExists');
+          if (responseData?.code === "duplicate_file" || responseData?.error?.code === "duplicate_file") {
+            errorMessage = t("knowledgeBase.fileExists");
           }
           MessagePlugin.error(errorMessage);
         }
@@ -1683,9 +1716,9 @@ const executeUploadBatch = async (
     } catch (error: any) {
       failCount++;
       if (totalCount === 1) {
-        let errorMessage = error?.error?.message || error?.message || t('knowledgeBase.uploadFailed');
-        if (error?.code === 'duplicate_file') {
-          errorMessage = t('knowledgeBase.fileExists');
+        let errorMessage = error?.error?.message || error?.message || t("knowledgeBase.uploadFailed");
+        if (error?.code === "duplicate_file") {
+          errorMessage = t("knowledgeBase.fileExists");
         }
         MessagePlugin.error(errorMessage);
       }
@@ -1693,23 +1726,21 @@ const executeUploadBatch = async (
   }
 
   if (successCount > 0) {
-    window.dispatchEvent(new CustomEvent('knowledgeFileUploaded', {
-      detail: { kbId: targetKbId },
-    }));
+    window.dispatchEvent(
+      new CustomEvent("knowledgeFileUploaded", {
+        detail: { kbId: targetKbId },
+      }),
+    );
   }
 
-  showUploadResultMessages(successCount, failCount, totalCount, hasFolderPaths ? 'folder' : 'document');
+  showUploadResultMessages(successCount, failCount, totalCount, hasFolderPaths ? "folder" : "document");
   return { successCount, failCount };
 };
 
-const executeUrlImport = async (
-  url: string,
-  processConfig?: KnowledgeProcessOverrides,
-  tagIds?: string[],
-) => {
+const executeUrlImport = async (url: string, processConfig?: KnowledgeProcessOverrides, tagIds?: string[]) => {
   const targetKbId = kbId.value;
   if (!targetKbId) {
-    MessagePlugin.error(t('error.missingKbId'));
+    MessagePlugin.error(t("error.missingKbId"));
     return;
   }
 
@@ -1720,35 +1751,41 @@ const executeUrlImport = async (
       tag_ids: tagIdsToUpload,
       process_config: processConfig,
     });
-    window.dispatchEvent(new CustomEvent('knowledgeFileUploaded', {
-      detail: { kbId: targetKbId },
-    }));
-    const isSuccess = responseData?.success || responseData?.code === 200 || responseData?.status === 'success' || (!responseData?.error && responseData);
+    window.dispatchEvent(
+      new CustomEvent("knowledgeFileUploaded", {
+        detail: { kbId: targetKbId },
+      }),
+    );
+    const isSuccess =
+      responseData?.success ||
+      responseData?.code === 200 ||
+      responseData?.status === "success" ||
+      (!responseData?.error && responseData);
     if (isSuccess) {
-      MessagePlugin.success(t('knowledgeBase.urlImportSuccess'));
+      MessagePlugin.success(t("knowledgeBase.urlImportSuccess"));
     } else {
-      let errorMessage = t('knowledgeBase.urlImportFailed');
+      let errorMessage = t("knowledgeBase.urlImportFailed");
       if (responseData?.error?.message) {
         errorMessage = responseData.error.message;
       } else if (responseData?.message) {
         errorMessage = responseData.message;
       }
-      if (responseData?.code === 'duplicate_url' || responseData?.error?.code === 'duplicate_url') {
-        errorMessage = t('knowledgeBase.urlExists');
+      if (responseData?.code === "duplicate_url" || responseData?.error?.code === "duplicate_url") {
+        errorMessage = t("knowledgeBase.urlExists");
       }
       MessagePlugin.error(errorMessage);
     }
   } catch (error: any) {
-    let errorMessage = error?.error?.message || error?.message || t('knowledgeBase.urlImportFailed');
-    if (error?.code === 'duplicate_url') {
-      errorMessage = t('knowledgeBase.urlExists');
+    let errorMessage = error?.error?.message || error?.message || t("knowledgeBase.urlImportFailed");
+    if (error?.code === "duplicate_url") {
+      errorMessage = t("knowledgeBase.urlExists");
     }
     MessagePlugin.error(errorMessage);
   }
 };
 
 const handleUploadConfirmResult = async (result: UploadConfirmResult) => {
-  if (result.mode === 'manual') {
+  if (result.mode === "manual") {
     return;
   }
 
@@ -1760,7 +1797,7 @@ const handleUploadConfirmResult = async (result: UploadConfirmResult) => {
   if (files.length > 0) {
     const hasFolderPaths = files.some(isFolderUpload);
     if (hasFolderPaths) {
-      MessagePlugin.info(t('knowledgeBase.uploadingFolder', { total: files.length }));
+      MessagePlugin.info(t("knowledgeBase.uploadingFolder", { total: files.length }));
     }
     await executeUploadBatch(files, {
       processConfig,
@@ -1779,7 +1816,7 @@ const openUploadConfirmDialog = async (files: File[], urls: string[] = []) => {
   if (files.length === 0 && urls.length === 0) return;
   try {
     const result = await uploadConfirmStore.open({
-      mode: 'file',
+      mode: "file",
       kbInfo: kbInfo.value,
       tagIds: [...selectedTagIds.value],
       files,
@@ -1811,23 +1848,23 @@ const handleUploadSourceUrl = (url: string) => {
 const handleManualCreate = () => {
   if (!ensureDocumentKbReady()) return;
   uiStore.openManualEditor({
-    mode: 'create',
+    mode: "create",
     kbId: kbId.value,
-    status: 'draft',
+    status: "draft",
     onSuccess: manualEditorSuccess,
   });
 };
 
 const handleOpenKBSettings = () => {
   if (!kbId.value) {
-    MessagePlugin.warning(t('knowledgeEditor.messages.missingId'));
+    MessagePlugin.warning(t("knowledgeEditor.messages.missingId"));
     return;
   }
   uiStore.openKBSettings(kbId.value);
 };
 
 const handleNavigateToKbList = () => {
-  router.push('/platform/knowledge-bases');
+  router.push("/platform/knowledge-bases");
 };
 
 const handleNavigateToCurrentKB = () => {
@@ -1847,7 +1884,7 @@ const handleManualEdit = (index: number, item: KnowledgeCard) => {
     cardList.value[index].isMore = false;
   }
   uiStore.openManualEditor({
-    mode: 'edit',
+    mode: "edit",
     kbId: item.knowledge_base_id || kbId.value,
     knowledgeId: item.id,
     onSuccess: manualEditorSuccess,
@@ -1880,11 +1917,11 @@ const confirmRebuildKnowledge = async (index: number, item: KnowledgeCard) => {
   if (isFAQ.value) return;
   if (!canEdit.value) return;
   if (!item?.id) {
-    MessagePlugin.warning(t('knowledgeEditor.messages.missingId'));
+    MessagePlugin.warning(t("knowledgeEditor.messages.missingId"));
     return;
   }
   if (isParseInFlight(item.parse_status)) {
-    MessagePlugin.info(t('knowledgeBase.rebuildInProgress'));
+    MessagePlugin.info(t("knowledgeBase.rebuildInProgress"));
     return;
   }
   closeCardMoreMenu(index);
@@ -1898,8 +1935,8 @@ const confirmRebuildKnowledge = async (index: number, item: KnowledgeCard) => {
 
   // Prefill the confirm dialog with the overrides this doc was last parsed with.
   let processOverrides: KnowledgeProcessOverrides | null = item.metadata?.process_overrides ?? null;
-  let fileName = item.file_name || item.title || '';
-  let fileType = item.file_type || '';
+  let fileName = item.file_name || item.title || "";
+  let fileType = item.file_type || "";
   try {
     const detail: any = await getKnowledgeDetails(item.id);
     if (detail?.success && detail.data) {
@@ -1913,11 +1950,11 @@ const confirmRebuildKnowledge = async (index: number, item: KnowledgeCard) => {
 
   try {
     const result = await uploadConfirmStore.open({
-      mode: 'reparse',
+      mode: "reparse",
       kbInfo: kbInfo.value,
       reparse: { knowledgeId: item.id, fileName, fileType, processOverrides },
     });
-    if (result.mode === 'reparse' && result.reparse) {
+    if (result.mode === "reparse" && result.reparse) {
       await submitReparse(result.reparse.knowledgeId, result.processConfig);
     }
   } catch {
@@ -1930,12 +1967,12 @@ const submitReparse = async (id: string, processConfig?: KnowledgeProcessOverrid
     await reparseKnowledge(id, processConfig ? { process_config: processConfig } : undefined);
     delete traceAvailableById[id];
     traceAvailableById[id] = true;
-    MessagePlugin.success(t('knowledgeBase.rebuildSubmitted'));
+    MessagePlugin.success(t("knowledgeBase.rebuildSubmitted"));
     resetPage();
     loadKnowledgeFiles(kbId.value);
     scheduleWikiStatusProbes();
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('knowledgeBase.rebuildFailed'));
+    MessagePlugin.error(error?.message || t("knowledgeBase.rebuildFailed"));
   }
 };
 
@@ -1947,7 +1984,7 @@ const handleScroll = () => {
   if (!currentKbId) return;
   const element = knowledgeScroll.value;
   if (element) {
-    const pageNum = Math.ceil(total.value / pageSize)
+    const pageNum = Math.ceil(total.value / pageSize);
     const { scrollTop, scrollHeight, clientHeight } = element;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
       if (cardList.value.length < total.value && page < pageNum) {
@@ -1963,17 +2000,17 @@ const handleScroll = () => {
   }
 };
 const getDoc = (page: number) => {
-  getfDetails(details.id, page)
+  getfDetails(details.id, page);
 };
 
 const syncDocumentSummaryState = (state: { id?: string; summary_status?: string; description?: string }) => {
   if (!state?.id) return;
   const card = cardList.value.find((item: KnowledgeCard) => item.id === state.id);
   if (!card) return;
-  if (typeof state.summary_status === 'string' && state.summary_status) {
+  if (typeof state.summary_status === "string" && state.summary_status) {
     card.summary_status = state.summary_status;
   }
-  if (typeof state.description === 'string') {
+  if (typeof state.description === "string") {
     card.description = state.description;
   }
 };
@@ -1982,9 +2019,7 @@ const toggleSelectRow = (id: string, checked: boolean, shiftKey?: boolean) => {
   const items = cardList.value || [];
   const idx = items.findIndex((i: KnowledgeCard) => i.id === id);
   if (shiftKey && lastSelectedIndex >= 0 && idx >= 0) {
-    const [s, e] = idx < lastSelectedIndex
-      ? [idx, lastSelectedIndex]
-      : [lastSelectedIndex, idx];
+    const [s, e] = idx < lastSelectedIndex ? [idx, lastSelectedIndex] : [lastSelectedIndex, idx];
     for (let i = s; i <= e; i++) {
       if (checked) selectedIds.value.add(items[i].id);
       else selectedIds.value.delete(items[i].id);
@@ -2026,7 +2061,7 @@ const handleBatchCancel = () => {
 // 切到卡片视图时，如果列表视图里已经勾选过文档，需要自动开启批量管理模式，
 // 否则卡片视图默认不渲染 checkbox，会看不到勾选态。
 watch(viewMode, (mode) => {
-  if (mode === 'grid' && selectedIds.value.size > 0) {
+  if (mode === "grid" && selectedIds.value.size > 0) {
     batchMode.value = true;
   }
 });
@@ -2046,7 +2081,7 @@ const {
   shouldSuppressClick: shouldSuppressDocClick,
 } = useMarqueeSelect({
   containerRef: knowledgeScroll,
-  itemSelector: '.knowledge-card[data-select-id], .doc-list-row[data-select-id]',
+  itemSelector: ".knowledge-card[data-select-id], .doc-list-row[data-select-id]",
   selectedIds,
   getItemId: (el) => el.dataset.selectId || null,
   enabled: computed(() => canEdit.value && !isFAQ.value && cardList.value.length > 0),
@@ -2055,8 +2090,7 @@ const {
   },
 });
 
-const isManualDraftKnowledge = (item: KnowledgeCard) =>
-  item.type === 'manual' && item.parse_status === 'draft';
+const isManualDraftKnowledge = (item: KnowledgeCard) => item.type === "manual" && item.parse_status === "draft";
 
 const openKnowledgeItem = (item: KnowledgeCard) => {
   if (shouldSuppressDocClick()) return;
@@ -2078,7 +2112,7 @@ const confirmBatchDelete = async () => {
   try {
     const res: any = await batchDeleteKnowledge(kbId.value, ids);
     if (res?.success) {
-      MessagePlugin.success(t('knowledgeBase.batchDeleteSuccess', { count: ids.length }));
+      MessagePlugin.success(t("knowledgeBase.batchDeleteSuccess", { count: ids.length }));
       clearSelection();
       batchMode.value = false;
       resetPage();
@@ -2094,10 +2128,10 @@ const confirmBatchDelete = async () => {
       loadTags(kbId.value, true);
       void loadFolderTree(kbId.value);
     } else {
-      MessagePlugin.error(res?.message || t('knowledgeBase.batchDeleteFailed'));
+      MessagePlugin.error(res?.message || t("knowledgeBase.batchDeleteFailed"));
     }
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeBase.batchDeleteFailed'));
+    MessagePlugin.error(e?.message || t("knowledgeBase.batchDeleteFailed"));
   } finally {
     batchDeleting.value = false;
   }
@@ -2118,7 +2152,7 @@ const onBatchTagConfirm = async (tagIds: string[]) => {
   batchTagging.value = true;
   try {
     await updateKnowledgeTagBatch({ updates: updateMap });
-    MessagePlugin.success(t('knowledgeBase.batchTagSuccess', { count: ids.length }));
+    MessagePlugin.success(t("knowledgeBase.batchTagSuccess", { count: ids.length }));
     batchTagDialogVisible.value = false;
     clearSelection();
     batchMode.value = false;
@@ -2126,7 +2160,7 @@ const onBatchTagConfirm = async (tagIds: string[]) => {
     loadKnowledgeFiles(kbId.value);
     loadTags(kbId.value, true);
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeBase.batchTagFailed'));
+    MessagePlugin.error(e?.message || t("knowledgeBase.batchTagFailed"));
   } finally {
     batchTagging.value = false;
   }
@@ -2136,10 +2170,10 @@ const confirmCancelParseKnowledge = async (item: KnowledgeCard) => {
   if (!item?.id) return;
   try {
     await cancelKnowledgeParse(item.id);
-    MessagePlugin.success(t('knowledgeBase.cancelParseSubmitted'));
+    MessagePlugin.success(t("knowledgeBase.cancelParseSubmitted"));
     loadKnowledgeFiles(kbId.value);
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('knowledgeBase.cancelParseFailed'));
+    MessagePlugin.error(error?.message || t("knowledgeBase.cancelParseFailed"));
   }
 };
 
@@ -2148,9 +2182,9 @@ const downloadKnowledge = async (item: KnowledgeCard) => {
   try {
     const file = await downKnowledgeDetails(item.id);
     const objectUrl = URL.createObjectURL(file);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     const fileName = resolveKnowledgeDownloadFileName(item);
-    link.style.display = 'none';
+    link.style.display = "none";
     link.href = objectUrl;
     link.download = fileName;
     document.body.appendChild(link);
@@ -2160,43 +2194,61 @@ const downloadKnowledge = async (item: KnowledgeCard) => {
       URL.revokeObjectURL(objectUrl);
     });
   } catch {
-    MessagePlugin.error(t('file.downloadFailed'));
+    MessagePlugin.error(t("file.downloadFailed"));
   }
 };
 
 // Bridge card-view actions back to existing per-card handlers.
 const handleCardAction = (
-  action: 'download' | 'edit' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'delete' | 'view-trace' | 'batch-manage',
+  action:
+    | "download"
+    | "edit"
+    | "reparse"
+    | "cancel-parse"
+    | "move"
+    | "move-folder"
+    | "delete"
+    | "view-trace"
+    | "batch-manage",
   item: KnowledgeCard,
 ) => {
   const idx = (cardList.value || []).findIndex((i: KnowledgeCard) => i.id === item.id);
-  if (action === 'download') return downloadKnowledge(item);
-  if (action === 'edit') return handleManualEdit(idx, item);
-  if (action === 'reparse') {
+  if (action === "download") return downloadKnowledge(item);
+  if (action === "edit") return handleManualEdit(idx, item);
+  if (action === "reparse") {
     if (isParseInFlight(item.parse_status)) return onReparseMenuClick(idx, item);
     return confirmRebuildKnowledge(idx, item);
   }
-  if (action === 'cancel-parse') return confirmCancelParseKnowledge(item);
-  if (action === 'move') return handleMoveKnowledge(item);
-  if (action === 'delete') return confirmDeleteKnowledge(idx, item);
-  if (action === 'view-trace') return handleViewTrace(idx, item);
-  if (action === 'batch-manage') return handleEnterBatchFromCard(item);
+  if (action === "cancel-parse") return confirmCancelParseKnowledge(item);
+  if (action === "move") return handleMoveKnowledge(item);
+  if (action === "delete") return confirmDeleteKnowledge(idx, item);
+  if (action === "view-trace") return handleViewTrace(idx, item);
+  if (action === "batch-manage") return handleEnterBatchFromCard(item);
 };
 
 // Bridge list-view actions back to existing per-card handlers.
 const handleListAction = (
-  action: 'download' | 'edit' | 'reparse' | 'cancel-parse' | 'move' | 'move-folder' | 'delete' | 'view-trace' | 'batch-manage',
+  action:
+    | "download"
+    | "edit"
+    | "reparse"
+    | "cancel-parse"
+    | "move"
+    | "move-folder"
+    | "delete"
+    | "view-trace"
+    | "batch-manage",
   item: KnowledgeCard,
 ) => {
   const idx = (cardList.value || []).findIndex((i: KnowledgeCard) => i.id === item.id);
-  if (action === 'download') return downloadKnowledge(item);
-  if (action === 'edit') return handleManualEdit(idx, item);
-  if (action === 'reparse') return confirmRebuildKnowledge(idx, item);
-  if (action === 'cancel-parse') return confirmCancelParseKnowledge(item);
-  if (action === 'move') return handleMoveKnowledge(item);
-  if (action === 'delete') return confirmDeleteKnowledge(idx, item);
-  if (action === 'view-trace') return handleViewTrace(idx, item);
-  if (action === 'batch-manage') return handleEnterBatchFromCard(item);
+  if (action === "download") return downloadKnowledge(item);
+  if (action === "edit") return handleManualEdit(idx, item);
+  if (action === "reparse") return confirmRebuildKnowledge(idx, item);
+  if (action === "cancel-parse") return confirmCancelParseKnowledge(item);
+  if (action === "move") return handleMoveKnowledge(item);
+  if (action === "delete") return confirmDeleteKnowledge(idx, item);
+  if (action === "view-trace") return handleViewTrace(idx, item);
+  if (action === "batch-manage") return handleEnterBatchFromCard(item);
 };
 
 // Clear selection on filter/tag/kb change to avoid acting on hidden items.
@@ -2208,32 +2260,35 @@ watch(
 );
 
 // After cardList reloads: stable keys rely on correct indices for shift-range; clamp anchor index.
-watch(cardList, () => {
-  const items = cardList.value || [];
-  const n = items.length;
-  if (lastSelectedIndex >= n) {
-    lastSelectedIndex = n > 0 ? n - 1 : -1;
-  }
-  if (moreIndex.value >= n) {
-    moreIndex.value = -1;
-  }
-  if (selectedIds.value.size === 0) return;
-  const visible = new Set(items.map((i: KnowledgeCard) => i.id));
-  for (const id of selectedIds.value) {
-    if (!visible.has(id)) selectedIds.value.delete(id);
-  }
-}, { deep: false });
+watch(
+  cardList,
+  () => {
+    const items = cardList.value || [];
+    const n = items.length;
+    if (lastSelectedIndex >= n) {
+      lastSelectedIndex = n > 0 ? n - 1 : -1;
+    }
+    if (moreIndex.value >= n) {
+      moreIndex.value = -1;
+    }
+    if (selectedIds.value.size === 0) return;
+    const visible = new Set(items.map((i: KnowledgeCard) => i.id));
+    for (const id of selectedIds.value) {
+      if (!visible.has(id)) selectedIds.value.delete(id);
+    }
+  },
+  { deep: false },
+);
 
 // 处理知识库编辑成功后的回调
 const handleKBEditorSuccess = (kbIdValue: string) => {
   chatResources.invalidateKnowledgeBaseDetail(kbIdValue);
-  chatResources.invalidate('knowledgeBases');
+  chatResources.invalidate("knowledgeBases");
   loadKnowledgeList();
   if (kbIdValue === kbId.value) {
     loadKnowledgeBaseInfo(kbIdValue, true);
   }
 };
-
 </script>
 
 <template>
@@ -2244,11 +2299,15 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
           <div class="document-title-row">
             <h2 class="document-breadcrumb">
               <button type="button" class="breadcrumb-link" @click="handleNavigateToKbList">
-                {{ $t('menu.knowledgeBase') }}
+                {{ $t("menu.knowledgeBase") }}
               </button>
               <t-icon name="chevron-right" class="breadcrumb-separator" />
-              <KBSwitcherDropdown v-if="knowledgeList.length" :kb-list="knowledgeList" :current-kb-id="kbId"
-                @select="(id) => handleKnowledgeDropdownSelect({ value: id })">
+              <KBSwitcherDropdown
+                v-if="knowledgeList.length"
+                :kb-list="knowledgeList"
+                :current-kb-id="kbId"
+                @select="(id) => handleKnowledgeDropdownSelect({ value: id })"
+              >
                 <button type="button" class="breadcrumb-link dropdown" :disabled="!kbId">
                   <template v-if="!kbInfo">
                     <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
@@ -2269,11 +2328,16 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
               </button>
               <t-icon name="chevron-right" class="breadcrumb-separator" />
               <template v-if="isWiki">
-                <span :class="['breadcrumb-tab', { active: activeKbTab === 'documents' }]"
-                  @click="activeKbTab = 'documents'">{{ $t('knowledgeEditor.wikiBrowser.tabDocuments') }}</span>
+                <span
+                  :class="['breadcrumb-tab', { active: activeKbTab === 'documents' }]"
+                  @click="activeKbTab = 'documents'"
+                  >{{ $t("knowledgeEditor.wikiBrowser.tabDocuments") }}</span
+                >
                 <span class="breadcrumb-tab-sep">/</span>
-                <span :class="['breadcrumb-tab', { active: activeKbTab === 'wiki', indexing: wikiIsIndexing }]"
-                  @click="activeKbTab = 'wiki'">
+                <span
+                  :class="['breadcrumb-tab', { active: activeKbTab === 'wiki', indexing: wikiIsIndexing }]"
+                  @click="activeKbTab = 'wiki'"
+                >
                   Wiki
                   <t-tooltip v-if="wikiIsIndexing" :content="wikiIndexingTip" placement="bottom">
                     <t-loading size="small" class="breadcrumb-tab-indicator" />
@@ -2281,21 +2345,22 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                 </span>
                 <span class="breadcrumb-tab-sep">/</span>
                 <t-tooltip :content="$t('knowledgeEditor.wikiBrowser.tabGraphTip')" placement="bottom">
-                  <span :class="['breadcrumb-tab', { active: activeKbTab === 'graph', indexing: wikiIsIndexing }]"
-                    @click="activeKbTab = 'graph'">
-                    {{ $t('knowledgeEditor.wikiBrowser.tabGraph') }}
+                  <span
+                    :class="['breadcrumb-tab', { active: activeKbTab === 'graph', indexing: wikiIsIndexing }]"
+                    @click="activeKbTab = 'graph'"
+                  >
+                    {{ $t("knowledgeEditor.wikiBrowser.tabGraph") }}
                     <t-tooltip v-if="wikiIsIndexing" :content="wikiIndexingTip" placement="bottom">
                       <t-loading size="small" class="breadcrumb-tab-indicator" />
                     </t-tooltip>
                   </span>
                 </t-tooltip>
               </template>
-              <span v-else class="breadcrumb-current">{{ $t('knowledgeEditor.document.title') }}</span>
+              <span v-else class="breadcrumb-current">{{ $t("knowledgeEditor.document.title") }}</span>
             </h2>
             <!-- 标题行右侧的动作锚点：聚拢"信息"和"设置"两个圆形按钮。 -->
             <div class="kb-title-actions">
-              <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo"
-                :supported-file-types="[...supportedFileTypes]" />
+              <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo" :supported-file-types="[...supportedFileTypes]" />
               <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">
                 <button type="button" class="kb-settings-button" :disabled="!kbId" @click="handleOpenKBSettings">
                   <t-icon name="setting" size="16px" />
@@ -2303,53 +2368,67 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
               </t-tooltip>
             </div>
           </div>
-          <p class="document-subtitle">{{ $t('knowledgeEditor.document.subtitle') }}</p>
+          <p class="document-subtitle">{{ $t("knowledgeEditor.document.subtitle") }}</p>
           <p v-if="unsupportedFileTypes.length" class="parser-hint" @click="goToParserSettings">
             <t-icon name="info-circle" class="parser-hint-icon" />
-            <span>{{$t('knowledgeBase.unsupportedTypesHint', {
-              types: unsupportedFileTypes.map(t => '.' + t).join('、')
-            })
-              }}</span>
-            <span class="parser-hint-link">{{ $t('knowledgeBase.goToParserSettings') }} →</span>
+            <span>{{
+              $t("knowledgeBase.unsupportedTypesHint", {
+                types: unsupportedFileTypes.map((t) => "." + t).join("、"),
+              })
+            }}</span>
+            <span class="parser-hint-link">{{ $t("knowledgeBase.goToParserSettings") }} →</span>
           </p>
           <p v-if="missingStorageEngine" class="storage-engine-warning" @click="handleOpenKBSettings">
             <t-icon name="info-circle" class="warning-icon" />
-            <span>{{ $t('knowledgeBase.missingStorageEngine') }}</span>
-            <span class="warning-link">{{ $t('knowledgeBase.goToStorageSettings') }} →</span>
+            <span>{{ $t("knowledgeBase.missingStorageEngine") }}</span>
+            <span class="warning-link">{{ $t("knowledgeBase.goToStorageSettings") }} →</span>
           </p>
         </div>
       </div>
 
       <!-- Wiki Browser / Graph (shown when wiki or graph tab is active) -->
       <div v-if="isWiki && (activeKbTab === 'wiki' || activeKbTab === 'graph')" class="wiki-main-area">
-        <WikiBrowser v-if="kbId" :knowledge-base-id="kbId" :view="activeKbTab === 'graph' ? 'graph' : 'browser'"
-          :can-edit="canEdit" @open-source-doc="openSourceDoc" @status-change="onWikiStatusChange"
-          @view-graph="onViewWikiInGraph" />
+        <WikiBrowser
+          v-if="kbId"
+          :knowledge-base-id="kbId"
+          :view="activeKbTab === 'graph' ? 'graph' : 'browser'"
+          :can-edit="canEdit"
+          @open-source-doc="openSourceDoc"
+          @status-change="onWikiStatusChange"
+          @view-graph="onViewWikiInGraph"
+        />
       </div>
 
       <template v-if="activeKbTab === 'documents' || !isWiki">
         <div class="knowledge-main">
-          <KbFolderTree v-if="showFolderTree && !folderTreeCollapsed" :tree="folderTree" :selected-path="selectedFolderPath"
-            :loading="folderTreeLoading" :can-edit="canEdit"
-            @select="handleFolderSelect" @update:collapsed="handleFolderTreeCollapsedChange"
-            @rename="handleFolderRename" />
+          <KbFolderTree
+            v-if="showFolderTree && !folderTreeCollapsed"
+            :tree="folderTree"
+            :selected-path="selectedFolderPath"
+            :loading="folderTreeLoading"
+            :can-edit="canEdit"
+            @select="handleFolderSelect"
+            @update:collapsed="handleFolderTreeCollapsedChange"
+            @rename="handleFolderRename"
+          />
           <div class="tag-content">
             <div class="doc-card-area">
-              <nav v-if="showFolderTree" class="doc-folder-path"
-                :aria-label="$t('knowledgeBase.folderTree.title')">
+              <nav v-if="showFolderTree" class="doc-folder-path" :aria-label="$t('knowledgeBase.folderTree.title')">
                 <t-tooltip v-if="folderTreeCollapsed" :content="$t('knowledgeBase.folderTree.expand')" placement="top">
-                  <button type="button" class="doc-folder-path__tree-toggle"
+                  <button
+                    type="button"
+                    class="doc-folder-path__tree-toggle"
                     :aria-label="$t('knowledgeBase.folderTree.expand')"
-                    @click="handleFolderTreeCollapsedChange(false)">
+                    @click="handleFolderTreeCollapsedChange(false)"
+                  >
                     <t-icon name="folder" size="14px" />
                   </button>
                 </t-tooltip>
                 <span v-if="!folderBreadcrumbs.length" class="doc-folder-path__crumb is-current">
-                  {{ $t('knowledgeBase.folderTree.rootRow') }}
+                  {{ $t("knowledgeBase.folderTree.rootRow") }}
                 </span>
-                <button v-else type="button" class="doc-folder-path__crumb"
-                  @click="handleFolderSelect('')">
-                  {{ $t('knowledgeBase.folderTree.rootRow') }}
+                <button v-else type="button" class="doc-folder-path__crumb" @click="handleFolderSelect('')">
+                  {{ $t("knowledgeBase.folderTree.rootRow") }}
                 </button>
                 <template v-for="(crumb, index) in folderBreadcrumbs" :key="crumb.path">
                   <t-icon name="chevron-right" class="doc-folder-path__sep" />
@@ -2362,201 +2441,283 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                 </template>
                 <!-- Filtering silently widens the scope to sub-folders, so say so. -->
                 <span v-if="isFiltering" class="doc-folder-path__scope">
-                  {{ $t('knowledgeBase.folderTree.searchingSubtree') }}
+                  {{ $t("knowledgeBase.folderTree.searchingSubtree") }}
                 </span>
               </nav>
               <div class="doc-filter-bar">
-                <t-input v-model.trim="docSearchKeyword" :placeholder="$t('knowledgeBase.docSearchPlaceholder')"
-                  clearable class="doc-search-input" @clear="loadKnowledgeFiles(kbId)"
-                  @enter="loadKnowledgeFiles(kbId)">
+                <t-input
+                  v-model.trim="docSearchKeyword"
+                  :placeholder="$t('knowledgeBase.docSearchPlaceholder')"
+                  clearable
+                  class="doc-search-input"
+                  @clear="loadKnowledgeFiles(kbId)"
+                  @enter="loadKnowledgeFiles(kbId)"
+                >
                   <template #prefix-icon>
                     <t-icon name="search" size="16px" />
                   </template>
                 </t-input>
                 <div class="doc-filter-bar__filters">
-                <t-popup v-model:visible="tagFilterPanelVisible" trigger="click" placement="bottom-left"
-                  overlay-class-name="tag-filter-popup" :overlay-inner-style="{ padding: 0 }">
-                  <template #content>
-                    <div class="tag-filter-panel" @click.stop>
-                      <div class="tag-filter-panel__header">
-                        <div class="tag-filter-panel__title">
-                          <span>{{ $t('knowledgeBase.tagFilterTitle') }}</span>
-                          <span class="tag-filter-panel__count">({{ sidebarCategoryCount }})</span>
+                  <t-popup
+                    v-model:visible="tagFilterPanelVisible"
+                    trigger="click"
+                    placement="bottom-left"
+                    overlay-class-name="tag-filter-popup"
+                    :overlay-inner-style="{ padding: 0 }"
+                  >
+                    <template #content>
+                      <div class="tag-filter-panel" @click.stop>
+                        <div class="tag-filter-panel__header">
+                          <div class="tag-filter-panel__title">
+                            <span>{{ $t("knowledgeBase.tagFilterTitle") }}</span>
+                            <span class="tag-filter-panel__count">({{ sidebarCategoryCount }})</span>
+                          </div>
+                        </div>
+                        <div class="tag-search-bar">
+                          <t-input
+                            v-model.trim="tagSearchQuery"
+                            size="small"
+                            :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
+                            clearable
+                          >
+                            <template #prefix-icon>
+                              <t-icon name="search" size="14px" />
+                            </template>
+                          </t-input>
+                        </div>
+                        <div class="tag-filter-panel__body">
+                          <template v-if="tagLoading && !sidebarTags.length">
+                            <div class="tag-filter-chips">
+                              <div v-for="n in 8" :key="'skel-tag-' + n" class="tag-filter-chip-skeleton">
+                                <t-skeleton
+                                  animation="gradient"
+                                  :row-col="[{ width: '56px', height: '24px', type: 'rect' }]"
+                                />
+                              </div>
+                            </div>
+                          </template>
+                          <template v-else>
+                            <div class="tag-filter-chips">
+                              <button
+                                v-for="tag in sidebarTags"
+                                :key="tag.id"
+                                type="button"
+                                class="tag-filter-chip"
+                                :class="{ active: isTagFilterActive(tag.id) }"
+                                :title="`${tag.name} (${tag.knowledge_count || 0})`"
+                                @click="handleTagRowClick(tag.id)"
+                              >
+                                <span class="tag-filter-chip__label">{{ tag.name }}</span>
+                                <span class="tag-filter-chip__count">{{ tag.knowledge_count || 0 }}</span>
+                              </button>
+                            </div>
+                            <div v-if="!sidebarTags.length" class="tag-empty-state">
+                              {{ $t("knowledgeBase.tagEmptyResult") }}
+                            </div>
+                            <div v-if="tagHasMore" class="tag-load-more">
+                              <t-button
+                                variant="text"
+                                size="small"
+                                :loading="tagLoadingMore"
+                                @click.stop="kbId && loadTags(kbId)"
+                              >
+                                {{ $t("tenant.loadMore") }}
+                              </t-button>
+                            </div>
+                          </template>
+                        </div>
+                        <div v-if="canEdit" class="tag-filter-panel__footer">
+                          <t-button variant="text" size="small" class="tag-manage-link" @click="openTagManageDrawer">
+                            {{ $t("knowledgeBase.tagManageLink") }}
+                          </t-button>
                         </div>
                       </div>
-                      <div class="tag-search-bar">
-                        <t-input v-model.trim="tagSearchQuery" size="small"
-                          :placeholder="$t('knowledgeBase.tagSearchPlaceholder')" clearable>
-                          <template #prefix-icon>
-                            <t-icon name="search" size="14px" />
-                          </template>
-                        </t-input>
-                      </div>
-                      <div class="tag-filter-panel__body">
-                        <template v-if="tagLoading && !sidebarTags.length">
-                          <div class="tag-filter-chips">
-                            <div v-for="n in 8" :key="'skel-tag-' + n" class="tag-filter-chip-skeleton">
-                              <t-skeleton animation="gradient"
-                                :row-col="[{ width: '56px', height: '24px', type: 'rect' }]" />
-                            </div>
-                          </div>
-                        </template>
-                        <template v-else>
-                          <div class="tag-filter-chips">
-                            <button
-                              v-for="tag in sidebarTags"
-                              :key="tag.id"
-                              type="button"
-                              class="tag-filter-chip"
-                              :class="{ active: isTagFilterActive(tag.id) }"
-                              :title="`${tag.name} (${tag.knowledge_count || 0})`"
-                              @click="handleTagRowClick(tag.id)"
-                            >
-                              <span class="tag-filter-chip__label">{{ tag.name }}</span>
-                              <span class="tag-filter-chip__count">{{ tag.knowledge_count || 0 }}</span>
-                            </button>
-                          </div>
-                          <div v-if="!sidebarTags.length" class="tag-empty-state">
-                            {{ $t('knowledgeBase.tagEmptyResult') }}
-                          </div>
-                          <div v-if="tagHasMore" class="tag-load-more">
-                            <t-button variant="text" size="small" :loading="tagLoadingMore"
-                              @click.stop="kbId && loadTags(kbId)">
-                              {{ $t('tenant.loadMore') }}
-                            </t-button>
-                          </div>
-                        </template>
-                      </div>
-                      <div v-if="canEdit" class="tag-filter-panel__footer">
-                        <t-button variant="text" size="small" class="tag-manage-link" @click="openTagManageDrawer">
-                          {{ $t('knowledgeBase.tagManageLink') }}
-                        </t-button>
-                      </div>
-                    </div>
-                  </template>
-                  <div class="doc-filter-field">
-                    <button type="button" class="doc-tag-filter-trigger doc-filter-field__control"
-                      :class="{ open: tagFilterPanelVisible, 'is-placeholder': isTagFilterPlaceholder }"
-                      :aria-label="$t('knowledgeBase.tagFilterTitle')"
-                      :title="activeTagFilterTitle"
-                      @mouseenter="tagFilterTriggerHover = true"
-                      @mouseleave="tagFilterTriggerHover = false">
-                      <span class="doc-tag-filter-trigger__prefix" aria-hidden="true">
-                        <t-icon name="discount" size="16px" />
-                      </span>
-                      <span class="doc-tag-filter-trigger__label">{{ activeTagFilterLabel }}</span>
-                      <span class="doc-tag-filter-trigger__suffix">
-                        <span
-                          v-if="showTagFilterClear"
-                          class="t-input__suffix t-input__suffix-icon t-input__clear"
-                          :aria-label="$t('common.clear')"
-                          @click.stop="clearTagFilter"
-                          @mousedown.stop
-                        >
-                          <t-icon name="close-circle-filled" class="t-input__suffix-clear" />
+                    </template>
+                    <div class="doc-filter-field">
+                      <button
+                        type="button"
+                        class="doc-tag-filter-trigger doc-filter-field__control"
+                        :class="{ open: tagFilterPanelVisible, 'is-placeholder': isTagFilterPlaceholder }"
+                        :aria-label="$t('knowledgeBase.tagFilterTitle')"
+                        :title="activeTagFilterTitle"
+                        @mouseenter="tagFilterTriggerHover = true"
+                        @mouseleave="tagFilterTriggerHover = false"
+                      >
+                        <span class="doc-tag-filter-trigger__prefix" aria-hidden="true">
+                          <t-icon name="discount" size="16px" />
                         </span>
-                        <t-icon
-                          v-else
-                          name="chevron-down"
-                          size="16px"
-                          class="doc-tag-filter-trigger__caret"
-                          :class="{ open: tagFilterPanelVisible }"
-                        />
-                      </span>
-                    </button>
+                        <span class="doc-tag-filter-trigger__label">{{ activeTagFilterLabel }}</span>
+                        <span class="doc-tag-filter-trigger__suffix">
+                          <span
+                            v-if="showTagFilterClear"
+                            class="t-input__suffix t-input__suffix-icon t-input__clear"
+                            :aria-label="$t('common.clear')"
+                            @click.stop="clearTagFilter"
+                            @mousedown.stop
+                          >
+                            <t-icon name="close-circle-filled" class="t-input__suffix-clear" />
+                          </span>
+                          <t-icon
+                            v-else
+                            name="chevron-down"
+                            size="16px"
+                            class="doc-tag-filter-trigger__caret"
+                            :class="{ open: tagFilterPanelVisible }"
+                          />
+                        </span>
+                      </button>
+                    </div>
+                  </t-popup>
+                  <div class="doc-filter-field">
+                    <t-select
+                      v-model="selectedFileType"
+                      :options="fileTypeOptions"
+                      :placeholder="$t('knowledgeBase.fileTypeFilter')"
+                      class="doc-type-select doc-filter-field__control"
+                      clearable
+                    >
+                      <template #prefixIcon>
+                        <t-icon name="file" size="16px" />
+                      </template>
+                    </t-select>
                   </div>
-                </t-popup>
-                <div class="doc-filter-field">
-                  <t-select v-model="selectedFileType" :options="fileTypeOptions"
-                    :placeholder="$t('knowledgeBase.fileTypeFilter')" class="doc-type-select doc-filter-field__control"
-                    clearable>
-                    <template #prefixIcon>
-                      <t-icon name="file" size="16px" />
-                    </template>
-                  </t-select>
-                </div>
-                <div class="doc-filter-field">
-                  <t-select v-model="selectedParseStatus" :options="parseStatusOptions"
-                    :placeholder="$t('knowledgeBase.parseStatusFilter')" class="doc-type-select doc-filter-field__control"
-                    clearable>
-                    <template #prefixIcon>
-                      <t-icon name="check-circle" size="16px" />
-                    </template>
-                  </t-select>
-                </div>
-                <div class="doc-filter-field">
-                  <t-select v-model="selectedSource" :options="sourceOptions"
-                    :placeholder="$t('knowledgeBase.sourceFilter')" class="doc-type-select doc-filter-field__control"
-                    clearable>
-                    <template #prefixIcon>
-                      <t-icon name="link" size="16px" />
-                    </template>
-                  </t-select>
-                </div>
-                <div class="doc-filter-field doc-filter-field--wide">
-                  <t-date-range-picker v-model="updatedTimeRange"
-                    :placeholder="[$t('knowledgeBase.updatedTimeFrom'), $t('knowledgeBase.updatedTimeTo')]"
-                    :disable-date="disableFutureDate" class="doc-date-range doc-filter-field__control" clearable
-                    allow-input>
-                    <template #prefixIcon>
-                      <t-icon name="time" size="16px" />
-                    </template>
-                  </t-date-range-picker>
-                </div>
+                  <div class="doc-filter-field">
+                    <t-select
+                      v-model="selectedParseStatus"
+                      :options="parseStatusOptions"
+                      :placeholder="$t('knowledgeBase.parseStatusFilter')"
+                      class="doc-type-select doc-filter-field__control"
+                      clearable
+                    >
+                      <template #prefixIcon>
+                        <t-icon name="check-circle" size="16px" />
+                      </template>
+                    </t-select>
+                  </div>
+                  <div class="doc-filter-field">
+                    <t-select
+                      v-model="selectedSource"
+                      :options="sourceOptions"
+                      :placeholder="$t('knowledgeBase.sourceFilter')"
+                      class="doc-type-select doc-filter-field__control"
+                      clearable
+                    >
+                      <template #prefixIcon>
+                        <t-icon name="link" size="16px" />
+                      </template>
+                    </t-select>
+                  </div>
+                  <div class="doc-filter-field doc-filter-field--wide">
+                    <t-date-range-picker
+                      v-model="updatedTimeRange"
+                      :placeholder="[$t('knowledgeBase.updatedTimeFrom'), $t('knowledgeBase.updatedTimeTo')]"
+                      :disable-date="disableFutureDate"
+                      class="doc-date-range doc-filter-field__control"
+                      clearable
+                      allow-input
+                    >
+                      <template #prefixIcon>
+                        <t-icon name="time" size="16px" />
+                      </template>
+                    </t-date-range-picker>
+                  </div>
                 </div>
                 <div class="doc-filter-bar__trailing">
                   <div class="doc-view-toggle" role="group" :aria-label="$t('knowledgeBase.viewModeToggle')">
                     <t-tooltip :content="$t('knowledgeBase.viewModeGrid')" placement="top">
-                      <button type="button" class="doc-view-toggle-btn" :class="{ active: viewMode === 'grid' }"
-                        @click="viewMode = 'grid'" :aria-pressed="viewMode === 'grid'">
+                      <button
+                        type="button"
+                        class="doc-view-toggle-btn"
+                        :class="{ active: viewMode === 'grid' }"
+                        @click="viewMode = 'grid'"
+                        :aria-pressed="viewMode === 'grid'"
+                      >
                         <t-icon name="view-module" size="16px" />
                       </button>
                     </t-tooltip>
                     <t-tooltip :content="$t('knowledgeBase.viewModeList')" placement="top">
-                      <button type="button" class="doc-view-toggle-btn" :class="{ active: viewMode === 'list' }"
-                        @click="viewMode = 'list'" :aria-pressed="viewMode === 'list'">
+                      <button
+                        type="button"
+                        class="doc-view-toggle-btn"
+                        :class="{ active: viewMode === 'list' }"
+                        @click="viewMode = 'list'"
+                        :aria-pressed="viewMode === 'list'"
+                      >
                         <t-icon name="view-list" size="16px" />
                       </button>
                     </t-tooltip>
                   </div>
                   <div v-if="canEdit" class="doc-filter-actions">
-                    <KbUploadSourceDropdown ref="uploadSourceRef" :accept-file-types="acceptFileTypes"
-                      :supported-file-types="[...supportedFileTypes]" include-manual trigger-icon="file-add"
-                      trigger-class="content-bar-icon-btn" data-guide="kb-detail-add-doc"
-                      :tooltip="t('knowledgeBase.addDocument')" placement="bottom-right" @files="handleUploadSourceFiles"
-                      @url="handleUploadSourceUrl" @manual="handleManualCreate" />
+                    <KbUploadSourceDropdown
+                      ref="uploadSourceRef"
+                      :accept-file-types="acceptFileTypes"
+                      :supported-file-types="[...supportedFileTypes]"
+                      include-manual
+                      trigger-icon="file-add"
+                      trigger-class="content-bar-icon-btn"
+                      data-guide="kb-detail-add-doc"
+                      :tooltip="t('knowledgeBase.addDocument')"
+                      placement="bottom-right"
+                      @files="handleUploadSourceFiles"
+                      @url="handleUploadSourceUrl"
+                      @manual="handleManualCreate"
+                    />
                   </div>
                 </div>
               </div>
-              <div class="doc-scroll-container"
+              <div
+                class="doc-scroll-container"
                 :class="{
                   'is-empty': !cardList.length && !currentChildFolders.length && !docListLoading,
                   'is-marquee-active': docMarqueeVisible,
                 }"
-                ref="knowledgeScroll" @scroll="handleScroll" @mousedown="onDocMarqueeMouseDown">
-                <div v-if="docMarqueeVisible" class="doc-marquee-box"
+                ref="knowledgeScroll"
+                @scroll="handleScroll"
+                @mousedown="onDocMarqueeMouseDown"
+              >
+                <div
+                  v-if="docMarqueeVisible"
+                  class="doc-marquee-box"
                   :class="{ 'is-add': docMarqueeMode === 'add', 'is-subtract': docMarqueeMode === 'subtract' }"
-                  :style="docMarqueeBoxStyle" aria-hidden="true" />
+                  :style="docMarqueeBoxStyle"
+                  aria-hidden="true"
+                />
                 <!-- 文档骨架屏 -->
-                <div v-if="docListLoading && cardList.length === 0 && !currentChildFolders.length" class="doc-card-list doc-card-list-animated">
+                <div
+                  v-if="docListLoading && cardList.length === 0 && !currentChildFolders.length"
+                  class="doc-card-list doc-card-list-animated"
+                >
                   <div v-for="n in 8" :key="'doc-skel-' + n" class="knowledge-card knowledge-card-skeleton">
                     <div class="card-content">
                       <div class="card-content-nav">
                         <t-skeleton animation="gradient" :row-col="[{ width: '70%', height: '18px' }]" />
                       </div>
-                      <t-skeleton animation="gradient"
-                        :row-col="[{ width: '100%', height: '14px' }, { width: '60%', height: '14px' }]" />
+                      <t-skeleton
+                        animation="gradient"
+                        :row-col="[
+                          { width: '100%', height: '14px' },
+                          { width: '60%', height: '14px' },
+                        ]"
+                      />
                     </div>
                     <div class="card-bottom">
-                      <t-skeleton animation="gradient"
-                        :row-col="[[{ width: '80px', height: '14px' }, { width: '40px', height: '18px', type: 'rect' }]]" />
+                      <t-skeleton
+                        animation="gradient"
+                        :row-col="[
+                          [
+                            { width: '80px', height: '14px' },
+                            { width: '40px', height: '18px', type: 'rect' },
+                          ],
+                        ]"
+                      />
                     </div>
                   </div>
                 </div>
                 <template v-else-if="(cardList.length || currentChildFolders.length) && viewMode === 'grid'">
                   <DocumentCardView
                     :items="cardList"
-                    :folders="currentChildFolders" :folder-options="folderOptions"
+                    :folders="currentChildFolders"
+                    :folder-options="folderOptions"
                     :selected-ids="selectedIds"
                     :batch-mode="batchMode"
                     :can-edit="canEdit"
@@ -2581,13 +2742,19 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                     @move-select-target="(kb: any) => handleMoveSelectTarget(kb)"
                     @move-back="handleMoveBack"
                     @move-confirm="handleMoveConfirm"
-                    @update:move-mode="(mode: any) => moveMode = mode"
+                    @update:move-mode="(mode: any) => (moveMode = mode)"
                   />
                 </template>
                 <template v-else-if="(cardList.length || currentChildFolders.length) && viewMode === 'list'">
-                  <DocumentListView :items="cardList" :folders="currentChildFolders" :folder-options="folderOptions"
-                    :selected-ids="selectedIds" :tag-list="tagList"
-                    :can-edit="canEdit" :can-download="canDownloadKnowledge" :can-mutate-knowledge="canMutateKnowledge"
+                  <DocumentListView
+                    :items="cardList"
+                    :folders="currentChildFolders"
+                    :folder-options="folderOptions"
+                    :selected-ids="selectedIds"
+                    :tag-list="tagList"
+                    :can-edit="canEdit"
+                    :can-download="canDownloadKnowledge"
+                    :can-mutate-knowledge="canMutateKnowledge"
                     :trace-visible-ids="traceAvailableById"
                     :move-menu-mode="moveMenuMode"
                     :move-target-kbs="moveTargetKbs"
@@ -2598,34 +2765,47 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                     :show-folder-path="showDocumentFolderPath"
                     @open-folder="handleFolderSelect"
                     @move-to-folder="(item: any, path: string) => moveKnowledgeIntoFolder([item.id], path)"
-                    @open="(item: any) => openKnowledgeItem(item)" @toggle-row="toggleSelectRow"
-                    @toggle-all="toggleSelectAll" @action="(action: any, item: any) => handleListAction(action, item)"
+                    @open="(item: any) => openKnowledgeItem(item)"
+                    @toggle-row="toggleSelectRow"
+                    @toggle-all="toggleSelectAll"
+                    @action="(action: any, item: any) => handleListAction(action, item)"
                     @probe-trace="(item: any) => probeTraceAvailable(item)"
                     @tag-edit="(item: any) => openTagEditDialog(item)"
                     @move-select-target="(kb: any) => handleMoveSelectTarget(kb)"
                     @move-back="handleMoveBack"
                     @move-confirm="handleMoveConfirm"
-                    @update:move-mode="(mode: any) => moveMode = mode"
-                    @reset-move-state="moveMenuMode = 'normal'" />
+                    @update:move-mode="(mode: any) => (moveMode = mode)"
+                    @reset-move-state="moveMenuMode = 'normal'"
+                  />
                 </template>
                 <template v-else-if="!docListLoading">
                   <div class="doc-empty-state">
                     <p v-if="selectedFolderPath || isFiltering" class="doc-empty-folder">
-                      {{ isFiltering
-                        ? $t('knowledgeBase.folderTree.emptySearch')
-                        : $t('knowledgeBase.folderTree.emptyFolder') }}
+                      {{
+                        isFiltering
+                          ? $t("knowledgeBase.folderTree.emptySearch")
+                          : $t("knowledgeBase.folderTree.emptyFolder")
+                      }}
                     </p>
                     <EmptyKnowledge v-else />
                   </div>
                 </template>
               </div>
               <div class="doc-batch-bar-anchor" v-show="batchMode || selectedIds.size > 0">
-                <DocumentBatchBar :count="selectedIds.size" :delete-loading="batchDeleting"
-                  :reparse-loading="batchReparsing" :tag-loading="batchTagging" :visible="batchMode || selectedIds.size > 0"
-                  :show-move-to-folder="canEdit" :folder-options="folderOptions"
-                  @cancel="handleBatchCancel" @delete="confirmBatchDelete" @reparse="confirmBatchReparse"
+                <DocumentBatchBar
+                  :count="selectedIds.size"
+                  :delete-loading="batchDeleting"
+                  :reparse-loading="batchReparsing"
+                  :tag-loading="batchTagging"
+                  :visible="batchMode || selectedIds.size > 0"
+                  :show-move-to-folder="canEdit"
+                  :folder-options="folderOptions"
+                  @cancel="handleBatchCancel"
+                  @delete="confirmBatchDelete"
+                  @reparse="confirmBatchReparse"
                   @batch-tag="handleBatchTag"
-                  @move-to-folder="(path: string) => moveKnowledgeIntoFolder(Array.from(selectedIds), path)" />
+                  @move-to-folder="(path: string) => moveKnowledgeIntoFolder(Array.from(selectedIds), path)"
+                />
               </div>
             </div>
           </div>
@@ -2633,9 +2813,18 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
       </template>
 
       <!-- DocContent drawer (shared by documents tab and wiki source refs) -->
-      <DocContent ref="docContentRef" :visible="isCardDetails" :details="details" :canEditKB="canEdit"
-        :canDownloadKB="canDownloadKnowledge" :kbId="kbId" :seekMs="pendingVideoSeekMs"
-        @closeDoc="closeDoc" @getDoc="getDoc" @summaryStateChange="syncDocumentSummaryState">
+      <DocContent
+        ref="docContentRef"
+        :visible="isCardDetails"
+        :details="details"
+        :canEditKB="canEdit"
+        :canDownloadKB="canDownloadKnowledge"
+        :kbId="kbId"
+        :seekMs="pendingVideoSeekMs"
+        @closeDoc="closeDoc"
+        @getDoc="getDoc"
+        @summaryStateChange="syncDocumentSummaryState"
+      >
       </DocContent>
     </div>
   </template>
@@ -2646,26 +2835,45 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   </template>
 
   <!-- 知识库编辑器（创建/编辑统一组件） -->
-  <KnowledgeBaseEditorModal :visible="uiStore.showKBEditorModal" :mode="uiStore.kbEditorMode"
-    :kb-id="uiStore.currentKBId || undefined" :initial-type="uiStore.kbEditorType"
-    @update:visible="(val) => val ? null : uiStore.closeKBEditor()" @success="handleKBEditorSuccess" />
+  <KnowledgeBaseEditorModal
+    :visible="uiStore.showKBEditorModal"
+    :mode="uiStore.kbEditorMode"
+    :kb-id="uiStore.currentKBId || undefined"
+    :initial-type="uiStore.kbEditorType"
+    @update:visible="(val) => (val ? null : uiStore.closeKBEditor())"
+    @success="handleKBEditorSuccess"
+  />
 
   <ContextualGuide tour="kbDetail" :when="showKbDetailContextualGuide" />
 
   <!-- 标签编辑弹窗 -->
-  <TagEditDialog :visible="tagEditDialogVisible"
+  <TagEditDialog
+    :visible="tagEditDialogVisible"
     :knowledge-name="tagEditTarget?.display_name || tagEditTarget?.file_name || tagEditTarget?.title || ''"
-    :kb-id="kbId" :tag-list="tagList" :selected-tags="tagEditTarget?.tags || []" :can-manage="canEdit"
-    @update:visible="tagEditDialogVisible = $event" @confirm="onTagEditConfirm" @tag-created="loadTags(kbId, true)"
-    @open-manage="openTagManageFromEditDialog" />
+    :kb-id="kbId"
+    :tag-list="tagList"
+    :selected-tags="tagEditTarget?.tags || []"
+    :can-manage="canEdit"
+    @update:visible="tagEditDialogVisible = $event"
+    @confirm="onTagEditConfirm"
+    @tag-created="loadTags(kbId, true)"
+    @open-manage="openTagManageFromEditDialog"
+  />
 
   <!-- 批量打标签弹窗 -->
-  <BatchTagDialog :visible="batchTagDialogVisible"
-    :count="selectedIds.size" :kb-id="kbId" :tag-list="tagList"
-    :pre-selected-tag-ids="batchTagPreSelectedIds" :can-manage="canEdit"
+  <BatchTagDialog
+    :visible="batchTagDialogVisible"
+    :count="selectedIds.size"
+    :kb-id="kbId"
+    :tag-list="tagList"
+    :pre-selected-tag-ids="batchTagPreSelectedIds"
+    :can-manage="canEdit"
     :confirm-loading="batchTagging"
-    @update:visible="batchTagDialogVisible = $event" @confirm="onBatchTagConfirm"
-    @tag-created="loadTags(kbId, true)" @open-manage="openTagManageFromBatchDialog" />
+    @update:visible="batchTagDialogVisible = $event"
+    @confirm="onBatchTagConfirm"
+    @tag-created="loadTags(kbId, true)"
+    @open-manage="openTagManageFromBatchDialog"
+  />
 
   <KbTagManageDrawer
     v-if="!isFAQ"
@@ -2900,7 +3108,10 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     line-height: 24px;
     cursor: pointer;
     outline: none;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
     -webkit-font-smoothing: antialiased;
 
     &:hover:not(.active) {
@@ -2945,7 +3156,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     color: var(--td-text-color-placeholder);
 
     &::before {
-      content: '·';
+      content: "·";
       margin-right: 2px;
       opacity: 0.65;
     }
@@ -3046,7 +3257,10 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     background: var(--td-bg-color-container);
     color: var(--td-text-color-secondary);
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease,
+      background 0.15s ease;
 
     &:hover {
       border-color: var(--td-brand-color);
@@ -3069,7 +3283,9 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
 
     &:hover {
       color: var(--td-brand-color);
@@ -3101,8 +3317,8 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas:
-    'search trailing'
-    'filters filters';
+    "search trailing"
+    "filters filters";
   gap: 8px 12px;
   align-items: center;
 
@@ -3187,7 +3403,9 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     font-size: 14px;
     line-height: 1;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
 
     &:hover,
     &.open {
@@ -3234,7 +3452,9 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     &__caret {
       flex-shrink: 0;
       color: var(--td-text-color-placeholder);
-      transition: transform 0.2s ease, color 0.2s ease;
+      transition:
+        transform 0.2s ease,
+        color 0.2s ease;
 
       &.open {
         color: var(--td-brand-color);
@@ -3285,7 +3505,9 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
       border-radius: 4px;
       color: var(--td-text-color-secondary, #888);
       cursor: pointer;
-      transition: background-color 0.12s ease, color 0.12s ease;
+      transition:
+        background-color 0.12s ease,
+        color 0.12s ease;
 
       &:hover {
         color: var(--td-text-color-primary, #232323);
@@ -3399,7 +3621,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   padding: 0 16px;
   pointer-events: none;
 
-  &>* {
+  & > * {
     pointer-events: auto;
   }
 }
@@ -3575,7 +3797,6 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   }
 }
 
-
 .document-upload-input {
   display: none;
 }
@@ -3710,7 +3931,6 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   }
 }
 
-
 .card-bottom-right {
   flex: 1 1 auto;
   min-width: 0;
@@ -3834,7 +4054,6 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   min-height: 100%;
 }
 
-
 .card-menu {
   display: flex;
   flex-direction: column;
@@ -3879,7 +4098,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     position: relative;
 
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       top: -3px;
       left: 8px;
@@ -4042,7 +4261,10 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   background: var(--td-bg-color-container);
   position: relative;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 
   /* 仅在批量管理模式下渲染 checkbox，常态下不占位，避免标题在 hover 时右滑 */
   .card-nav-check {

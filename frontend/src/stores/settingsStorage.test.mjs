@@ -30,10 +30,7 @@ function loadAndReconcileSettings(defaultSettings) {
     }
     const parsed = JSON.parse(raw);
     if (!isStoredSettingsRecord(parsed)) {
-      return resetStoredSettings(
-        defaultSettings,
-        new Error("stored value is not a settings object"),
-      );
+      return resetStoredSettings(defaultSettings, new Error("stored value is not a settings object"));
     }
     return reconcileLoadedSettings(parsed);
   } catch (e) {

@@ -1,26 +1,56 @@
 <template>
-  <div class="session-source-filter" :class="{
-    'session-source-filter--inline': inline,
-    'session-source-filter--emphasized': emphasized,
-  }">
-    <button ref="triggerRef" type="button" class="session-source-filter__trigger" :aria-expanded="open"
-      aria-haspopup="listbox" @click.stop="toggleOpen">
+  <div
+    class="session-source-filter"
+    :class="{
+      'session-source-filter--inline': inline,
+      'session-source-filter--emphasized': emphasized,
+    }"
+  >
+    <button
+      ref="triggerRef"
+      type="button"
+      class="session-source-filter__trigger"
+      :aria-expanded="open"
+      aria-haspopup="listbox"
+      @click.stop="toggleOpen"
+    >
       <span class="session-source-filter__leading">
-        <img v-if="currentOption?.logo" :src="currentOption.logo" :alt="currentOption.label"
-          class="session-source-filter__logo" />
+        <img
+          v-if="currentOption?.logo"
+          :src="currentOption.logo"
+          :alt="currentOption.label"
+          class="session-source-filter__logo"
+        />
         <t-icon v-else :name="iconFor(currentOption)" class="session-source-filter__icon" size="14px" />
         <span class="session-source-filter__label" :title="currentOption?.label">{{ currentOption?.label }}</span>
       </span>
-      <t-icon v-if="inline" name="chevron-down" class="session-source-filter__chevron"
-        :class="{ 'session-source-filter__chevron--open': open }" size="10px" />
-      <t-icon v-else name="chevron-down" class="session-source-filter__chevron"
-        :class="{ 'session-source-filter__chevron--open': open }" size="12px" />
+      <t-icon
+        v-if="inline"
+        name="chevron-down"
+        class="session-source-filter__chevron"
+        :class="{ 'session-source-filter__chevron--open': open }"
+        size="10px"
+      />
+      <t-icon
+        v-else
+        name="chevron-down"
+        class="session-source-filter__chevron"
+        :class="{ 'session-source-filter__chevron--open': open }"
+        size="12px"
+      />
     </button>
     <Teleport to="body">
       <div v-if="open" class="session-source-filter__panel" role="listbox" :style="panelStyle" @click.stop>
-        <button v-for="item in sources" :key="item.value" type="button" class="session-source-filter__option"
-          :class="{ 'session-source-filter__option--active': item.value === current }" role="option"
-          :aria-selected="item.value === current" @click="handleSelect(item.value)">
+        <button
+          v-for="item in sources"
+          :key="item.value"
+          type="button"
+          class="session-source-filter__option"
+          :class="{ 'session-source-filter__option--active': item.value === current }"
+          role="option"
+          :aria-selected="item.value === current"
+          @click="handleSelect(item.value)"
+        >
           <span class="session-source-filter__option-leading">
             <img v-if="item.logo" :src="item.logo" :alt="item.label" class="session-source-filter__logo" />
             <t-icon v-else :name="iconFor(item)" class="session-source-filter__icon" size="14px" />
@@ -39,109 +69,101 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
-import { DEFAULT_SESSION_BUCKET_KEY } from './sessionSidebarSourceFilter'
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { DEFAULT_SESSION_BUCKET_KEY } from "./sessionSidebarSourceFilter";
 
 interface SourceItem {
-  value: string
-  label: string
-  logo?: string
+  value: string;
+  label: string;
+  logo?: string;
 }
 
 const props = defineProps<{
-  sources: SourceItem[]
-  current: string
+  sources: SourceItem[];
+  current: string;
   /** 列表顶部的轻量文字触发器（无图标，右对齐） */
-  inline?: boolean
+  inline?: boolean;
   /** 非默认来源时始终显示（便于切回网页对话） */
-  emphasized?: boolean
-}>()
+  emphasized?: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'select', value: string): void
-}>()
+  (e: "select", value: string): void;
+}>();
 
-const PANEL_GAP = 4
-const VIEWPORT_MARGIN = 8
+const PANEL_GAP = 4;
+const VIEWPORT_MARGIN = 8;
 
-const open = ref(false)
-const triggerRef = ref<HTMLButtonElement | null>(null)
-const panelStyle = ref<Record<string, string>>({})
+const open = ref(false);
+const triggerRef = ref<HTMLButtonElement | null>(null);
+const panelStyle = ref<Record<string, string>>({});
 
-const currentOption = computed(() =>
-  props.sources.find((item) => item.value === props.current) ?? props.sources[0],
-)
+const currentOption = computed(() => props.sources.find((item) => item.value === props.current) ?? props.sources[0]);
 
 const iconFor = (item: SourceItem | undefined): string => {
-  if (!item) return 'chat'
-  if (item.value === DEFAULT_SESSION_BUCKET_KEY) return 'chat'
-  if (item.value === 'api') return 'server'
-  if (item.value.startsWith('embed:')) return 'code'
-  return 'link'
-}
+  if (!item) return "chat";
+  if (item.value === DEFAULT_SESSION_BUCKET_KEY) return "chat";
+  if (item.value === "api") return "server";
+  if (item.value.startsWith("embed:")) return "code";
+  return "link";
+};
 
 const updatePanelPosition = (): void => {
-  const trigger = triggerRef.value
-  if (!trigger) return
-  const rect = trigger.getBoundingClientRect()
+  const trigger = triggerRef.value;
+  if (!trigger) return;
+  const rect = trigger.getBoundingClientRect();
   if (props.inline) {
     panelStyle.value = {
       top: `${rect.bottom + PANEL_GAP}px`,
       right: `${Math.max(VIEWPORT_MARGIN, window.innerWidth - rect.right)}px`,
-      left: 'auto',
-    }
-    return
+      left: "auto",
+    };
+    return;
   }
-  const panelWidth = Math.min(
-    Math.max(rect.width, 108),
-    window.innerWidth - VIEWPORT_MARGIN * 2,
-  )
-  const left = Math.max(
-    VIEWPORT_MARGIN,
-    Math.min(rect.left, window.innerWidth - panelWidth - VIEWPORT_MARGIN),
-  )
+  const panelWidth = Math.min(Math.max(rect.width, 108), window.innerWidth - VIEWPORT_MARGIN * 2);
+  const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.left, window.innerWidth - panelWidth - VIEWPORT_MARGIN));
   panelStyle.value = {
     top: `${rect.bottom + PANEL_GAP}px`,
     left: `${left}px`,
-    right: 'auto',
+    right: "auto",
     minWidth: `${panelWidth}px`,
-  }
-}
+  };
+};
 
 const removeListeners = (): void => {
-  document.removeEventListener('click', close)
-  window.removeEventListener('resize', close)
-  window.removeEventListener('scroll', close, true)
-}
+  document.removeEventListener("click", close);
+  window.removeEventListener("resize", close);
+  window.removeEventListener("scroll", close, true);
+};
 
 const close = (): void => {
-  open.value = false
-  removeListeners()
-}
+  open.value = false;
+  removeListeners();
+};
 
 const toggleOpen = (): void => {
   if (open.value) {
-    close()
-    return
+    close();
+    return;
   }
-  updatePanelPosition()
-  open.value = true
+  updatePanelPosition();
+  open.value = true;
   nextTick(() => {
-    document.addEventListener('click', close)
-    window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
-  })
-}
+    document.addEventListener("click", close);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+  });
+};
 
 const handleSelect = (value: string): void => {
-  close()
-  if (value === props.current) return
-  emit('select', value)
-}
+  close();
+  if (value === props.current) return;
+  emit("select", value);
+};
 
 onBeforeUnmount(() => {
-  removeListeners()
-})
+  removeListeners();
+});
 </script>
 
 <style scoped lang="less">
@@ -173,12 +195,14 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--td-text-color-secondary);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   font-family: var(--app-font-family);
   text-align: left;
 
   &:hover,
-  &[aria-expanded='true'] {
+  &[aria-expanded="true"] {
     background: var(--td-bg-color-container-hover);
     color: var(--td-text-color-primary);
   }
@@ -194,7 +218,7 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
 
     &:hover,
-    &[aria-expanded='true'] {
+    &[aria-expanded="true"] {
       background: transparent;
       color: var(--td-text-color-placeholder);
     }
@@ -255,7 +279,9 @@ onBeforeUnmount(() => {
 .session-source-filter__chevron {
   flex: 0 0 auto;
   color: var(--td-text-color-placeholder);
-  transition: transform 0.18s ease, color 0.15s ease;
+  transition:
+    transform 0.18s ease,
+    color 0.15s ease;
 
   &--open {
     transform: rotate(180deg);
@@ -279,7 +305,9 @@ onBeforeUnmount(() => {
   border: 1px solid var(--td-component-stroke);
   border-radius: 7px;
   background: var(--td-bg-color-sidebar, var(--td-bg-color-container));
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.05),
+    0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .session-source-filter__option {
@@ -295,7 +323,9 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--td-text-color-primary);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   font-family: var(--app-font-family);
   text-align: left;
   white-space: nowrap;

@@ -6,7 +6,7 @@
 // Y.Doc/HocuspocusProvider and Vue refs.
 
 /** Mirrors HocuspocusProviderWebsocket's WebSocketStatus values by name. */
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
+export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
 /**
  * What the collaboration server has told this connection it may do.
@@ -14,19 +14,19 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
  * `authenticated`/`yuheng.access` message; treated the same as `readonly`
  * by `isEditable` so nothing is briefly, wrongly editable while unproven.
  */
-export type CollabAccess = 'read-write' | 'readonly' | 'unknown'
+export type CollabAccess = "read-write" | "readonly" | "unknown";
 
 export interface EditableInput {
   /** From the page's REST payload (`can_edit`): the ACL resolver's answer,
    * fetched before the collaboration socket even opens. */
-  canEditPage: boolean
-  connectionStatus: ConnectionStatus
+  canEditPage: boolean;
+  connectionStatus: ConnectionStatus;
   /** From the editing transport itself. With a collaboration service it is
    * the `onAuthenticated` scope, narrowed live if the server's periodic
    * recheck downgrades it (`yuheng.access`). In exclusive-edit mode it is
    * whether this client currently holds the page's lease. Never widens
    * without a fresh connection. */
-  collabAccess: CollabAccess
+  collabAccess: CollabAccess;
 }
 
 /** What `deriveBanner` needs on top of the editability inputs. Both extra
@@ -34,11 +34,11 @@ export interface EditableInput {
 export interface BannerInput extends EditableInput {
   /** The display name of whoever else holds the page's lease; empty when
    * nobody does, or when this client holds it. */
-  leaseHolder?: string
+  leaseHolder?: string;
   /** True once this client lost the page mid-edit. */
-  superseded?: boolean
+  superseded?: boolean;
   /** True when the server offers no editing transport at all. */
-  unavailable?: boolean
+  unavailable?: boolean;
 }
 
 /**
@@ -59,25 +59,25 @@ export interface BannerInput extends EditableInput {
  *     a reconnect re-syncs it.
  */
 export function isEditable(input: EditableInput): boolean {
-  return input.canEditPage && input.collabAccess === 'read-write' && input.connectionStatus === 'connected'
+  return input.canEditPage && input.collabAccess === "read-write" && input.connectionStatus === "connected";
 }
 
 export type Banner =
-  | { kind: 'none' }
-  | { kind: 'connecting' }
-  | { kind: 'offline' }
-  | { kind: 'read-only' }
-  | { kind: 'permission-narrowed' }
+  | { kind: "none" }
+  | { kind: "connecting" }
+  | { kind: "offline" }
+  | { kind: "read-only" }
+  | { kind: "permission-narrowed" }
   /** Exclusive-edit mode: somebody else holds the page's lease. Named, so
    * the reader knows who to ask rather than waiting on an anonymous lock. */
-  | { kind: 'lease-held'; holder: string }
+  | { kind: "lease-held"; holder: string }
   /** Exclusive-edit mode: this client was writing and lost the page, so its
    * local document is no longer a continuation of the stored one. */
-  | { kind: 'superseded' }
+  | { kind: "superseded" }
   /** No editing transport works here at all: no collaboration service, and
    * the server does not hand out leases either. Distinct from `offline` so
    * the banner does not read as a transient, about-to-reconnect problem. */
-  | { kind: 'unavailable' }
+  | { kind: "unavailable" };
 
 /**
  * What to tell the user about why they cannot (or temporarily cannot) edit.
@@ -91,28 +91,28 @@ export type Banner =
  * state get a say.
  */
 export function deriveBanner(input: BannerInput): Banner {
-  if (!input.canEditPage) return { kind: 'read-only' }
-  if (input.unavailable) return { kind: 'unavailable' }
-  if (input.superseded) return { kind: 'superseded' }
-  if (input.leaseHolder) return { kind: 'lease-held', holder: input.leaseHolder }
-  if (input.collabAccess === 'readonly') return { kind: 'permission-narrowed' }
-  if (input.connectionStatus === 'connecting') return { kind: 'connecting' }
-  if (input.connectionStatus === 'disconnected') return { kind: 'offline' }
-  return { kind: 'none' }
+  if (!input.canEditPage) return { kind: "read-only" };
+  if (input.unavailable) return { kind: "unavailable" };
+  if (input.superseded) return { kind: "superseded" };
+  if (input.leaseHolder) return { kind: "lease-held", holder: input.leaseHolder };
+  if (input.collabAccess === "readonly") return { kind: "permission-narrowed" };
+  if (input.connectionStatus === "connecting") return { kind: "connecting" };
+  if (input.connectionStatus === "disconnected") return { kind: "offline" };
+  return { kind: "none" };
 }
 
 export interface AwarenessUser {
-  id: string
-  name: string
-  avatar: string
-  color: string
+  id: string;
+  name: string;
+  avatar: string;
+  color: string;
 }
 
 export interface UserLike {
-  id: string
-  username?: string
-  email?: string
-  avatar?: string
+  id: string;
+  username?: string;
+  email?: string;
+  avatar?: string;
 }
 
 /** The `user` awareness field this client publishes about itself, and the
@@ -121,9 +121,9 @@ export function awarenessUser(user: UserLike): AwarenessUser {
   return {
     id: user.id,
     name: user.username?.trim() || user.email?.trim() || user.id,
-    avatar: user.avatar ?? '',
+    avatar: user.avatar ?? "",
     color: colorForId(user.id),
-  }
+  };
 }
 
 /**
@@ -133,12 +133,12 @@ export function awarenessUser(user: UserLike): AwarenessUser {
  * across the hue wheel.
  */
 export function colorForId(id: string): string {
-  let hash = 0
+  let hash = 0;
   for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.codePointAt(i)!) >>> 0
+    hash = (hash * 31 + id.codePointAt(i)!) >>> 0;
   }
-  const hue = hash % 360
-  return `hsl(${hue}, 65%, 45%)`
+  const hue = hash % 360;
+  return `hsl(${hue}, 65%, 45%)`;
 }
 
 /**
@@ -151,16 +151,16 @@ export function colorForId(id: string): string {
 export function dedupeOnlineUsers(
   raw: readonly { clientId: number; user?: Partial<AwarenessUser> }[],
 ): AwarenessUser[] {
-  const seen = new Map<string, AwarenessUser>()
+  const seen = new Map<string, AwarenessUser>();
   for (const entry of raw) {
-    const id = entry.user?.id ?? `peer-${entry.clientId}`
-    if (seen.has(id)) continue
+    const id = entry.user?.id ?? `peer-${entry.clientId}`;
+    if (seen.has(id)) continue;
     seen.set(id, {
       id,
       name: entry.user?.name || id,
-      avatar: entry.user?.avatar ?? '',
+      avatar: entry.user?.avatar ?? "",
       color: entry.user?.color ?? colorForId(id),
-    })
+    });
   }
-  return [...seen.values()]
+  return [...seen.values()];
 }

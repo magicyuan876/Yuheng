@@ -1,32 +1,35 @@
 <script setup lang="ts">
-import { datasourceIconMap } from './datasourceIcons'
+import { datasourceIconMap } from "./datasourceIcons";
 
-withDefaults(defineProps<{
-  type: string
-  size?: number
-  /** inline: 类型选择等小尺寸场景；badge: 嵌入 ds-card__badge 等父级徽章容器 */
-  variant?: 'inline' | 'badge'
-}>(), {
-  size: 20,
-  variant: 'inline',
-})
+withDefaults(
+  defineProps<{
+    type: string;
+    size?: number;
+    /** inline: 类型选择等小尺寸场景；badge: 嵌入 ds-card__badge 等父级徽章容器 */
+    variant?: "inline" | "badge";
+  }>(),
+  {
+    size: 20,
+    variant: "inline",
+  },
+);
 
-const iconMap = datasourceIconMap
+const iconMap = datasourceIconMap;
 
 function fallbackText(type: string) {
   switch (type) {
-    case 'feishu':
-      return 'F'
-    case 'lark':
-      return 'L'
-    case 'notion':
-      return 'N'
-    case 'yuque':
-      return 'Y'
-    case 'ima':
-      return 'I'
+    case "feishu":
+      return "F";
+    case "lark":
+      return "L";
+    case "notion":
+      return "N";
+    case "yuque":
+      return "Y";
+    case "ima":
+      return "I";
     default:
-      return type.slice(0, 1).toUpperCase() || '?'
+      return type.slice(0, 1).toUpperCase() || "?";
   }
 }
 </script>
@@ -43,7 +46,7 @@ function fallbackText(type: string) {
       :alt="type"
       class="ds-type-icon__img"
       :style="variant === 'inline' ? { width: `${size}px`, height: `${size}px` } : undefined"
-    >
+    />
     <span v-else class="ds-type-icon-fallback">{{ fallbackText(type) }}</span>
   </span>
 </template>

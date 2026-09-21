@@ -5,9 +5,9 @@
 // diagram-source loading in useDocMedia.ts and the knowledge-base previews in
 // doc-content.vue.
 
-import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
+import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 
-import { authHeaders } from './useDocMedia'
+import { authHeaders } from "./useDocMedia";
 
 /**
  * Resolves an attachment id to a blob URL. While the fetch is in flight, and
@@ -16,41 +16,45 @@ import { authHeaders } from './useDocMedia'
  * unmounts.
  */
 export function useAttachmentUrl(id: Ref<string | null>): Ref<string | null> {
-  const url = ref<string | null>(null)
-  let objectUrl: string | null = null
-  let seq = 0
+  const url = ref<string | null>(null);
+  let objectUrl: string | null = null;
+  let seq = 0;
 
   const revoke = () => {
     if (objectUrl) {
-      URL.revokeObjectURL(objectUrl)
-      objectUrl = null
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
     }
-    url.value = null
-  }
+    url.value = null;
+  };
 
-  watch(id, async (value) => {
-    const mySeq = ++seq
-    revoke()
-    if (!value) return
-    try {
-      const res = await fetch(`/api/v1/docs/attachments/${encodeURIComponent(value)}`, {
-        headers: authHeaders(),
-      })
-      if (!res.ok) throw new Error(`attachment ${value} could not be read`)
-      const blob = await res.blob()
-      if (mySeq !== seq) return
-      objectUrl = URL.createObjectURL(blob)
-      url.value = objectUrl
-    } catch {
-      // A reader sees the node's empty state; a 404 here means the attachment
-      // was deleted, and a network error is retried by re-rendering the page.
-    }
-  }, { immediate: true })
+  watch(
+    id,
+    async (value) => {
+      const mySeq = ++seq;
+      revoke();
+      if (!value) return;
+      try {
+        const res = await fetch(`/api/v1/docs/attachments/${encodeURIComponent(value)}`, {
+          headers: authHeaders(),
+        });
+        if (!res.ok) throw new Error(`attachment ${value} could not be read`);
+        const blob = await res.blob();
+        if (mySeq !== seq) return;
+        objectUrl = URL.createObjectURL(blob);
+        url.value = objectUrl;
+      } catch {
+        // A reader sees the node's empty state; a 404 here means the attachment
+        // was deleted, and a network error is retried by re-rendering the page.
+      }
+    },
+    { immediate: true },
+  );
 
   onBeforeUnmount(() => {
-    seq += 1
-    revoke()
-  })
+    seq += 1;
+    revoke();
+  });
 
-  return url
+  return url;
 }

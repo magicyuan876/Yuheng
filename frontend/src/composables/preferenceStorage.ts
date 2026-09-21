@@ -14,63 +14,58 @@
  *     adopted and cleared, so the next user to log in cannot inherit it.
  */
 
-const PREFERENCE_SUFFIXES = [
-  'theme',
-  'font_sans',
-  'font_mono',
-  'font_size',
-] as const
+const PREFERENCE_SUFFIXES = ["theme", "font_sans", "font_mono", "font_size"] as const;
 
 export function readUserId(): string {
   try {
-    const raw = localStorage.getItem('yuheng_user')
-    if (!raw) return 'anon'
-    const parsed = JSON.parse(raw)
-    return parsed?.id ? String(parsed.id) : 'anon'
+    const raw = localStorage.getItem("yuheng_user");
+    if (!raw) return "anon";
+    const parsed = JSON.parse(raw);
+    return parsed?.id ? String(parsed.id) : "anon";
   } catch {
-    return 'anon'
+    return "anon";
   }
 }
 
 export function safeGetItem(key: string): string | null {
   try {
-    return localStorage.getItem(key)
+    return localStorage.getItem(key);
   } catch {
-    return null
+    return null;
   }
 }
 
 export function safeSetItem(key: string, value: string): void {
   try {
-    localStorage.setItem(key, value)
+    localStorage.setItem(key, value);
   } catch (err) {
     // Quota exceeded, disabled storage, private mode — surface in DevTools
     // so the issue is at least diagnosable, but don't break the UI.
-    console.warn(`[Yuheng] failed to persist preference "${key}":`, err)
+    console.warn(`[Yuheng] failed to persist preference "${key}":`, err);
   }
 }
 
 export function safeRemoveItem(key: string): void {
   try {
-    localStorage.removeItem(key)
+    localStorage.removeItem(key);
   } catch {
     // Same conditions as setItem; silent best-effort.
   }
 }
 
 export function userKey(suffix: string): string {
-  return `Yuheng_${readUserId()}_${suffix}`
+  return `Yuheng_${readUserId()}_${suffix}`;
 }
 
 export function loadPreference(suffix: string): string | null {
-  return safeGetItem(userKey(suffix))
+  return safeGetItem(userKey(suffix));
 }
 
 export function savePreference(suffix: string, value: string): void {
-  safeSetItem(userKey(suffix), value)
+  safeSetItem(userKey(suffix), value);
 }
 
-let migratedForUser: string | null = null
+let migratedForUser: string | null = null;
 
 /**
  * Adopt legacy and anon preferences into the current user's namespace, then
@@ -79,41 +74,41 @@ let migratedForUser: string | null = null
  * (it returns early when userId === "anon").
  */
 export function migratePreferencesIntoUser(): void {
-  const userId = readUserId()
-  if (userId === 'anon') return
-  if (migratedForUser === userId) return
-  migratedForUser = userId
+  const userId = readUserId();
+  if (userId === "anon") return;
+  if (migratedForUser === userId) return;
+  migratedForUser = userId;
 
   for (const suffix of PREFERENCE_SUFFIXES) {
-    const target = `Yuheng_${userId}_${suffix}`
-    const targetExists = safeGetItem(target) !== null
+    const target = `Yuheng_${userId}_${suffix}`;
+    const targetExists = safeGetItem(target) !== null;
 
-    const anonKey = `Yuheng_anon_${suffix}`
-    const legacyKey = `Yuheng_${suffix}`
+    const anonKey = `Yuheng_anon_${suffix}`;
+    const legacyKey = `Yuheng_${suffix}`;
 
     if (!targetExists) {
-      const anonValue = safeGetItem(anonKey)
+      const anonValue = safeGetItem(anonKey);
       if (anonValue !== null) {
-        safeSetItem(target, anonValue)
+        safeSetItem(target, anonValue);
       } else {
-        const legacyValue = safeGetItem(legacyKey)
+        const legacyValue = safeGetItem(legacyKey);
         if (legacyValue !== null) {
-          safeSetItem(target, legacyValue)
+          safeSetItem(target, legacyValue);
         }
       }
     }
 
     // Always clean up source keys so subsequent users cannot inherit them.
-    safeRemoveItem(anonKey)
-    safeRemoveItem(legacyKey)
+    safeRemoveItem(anonKey);
+    safeRemoveItem(legacyKey);
   }
 }
 
 /** Resets the per-session migration latch (used when the active user changes). */
 export function resetMigrationLatch(): void {
-  migratedForUser = null
+  migratedForUser = null;
 }
 
 // Run migration once at module load so the composables that read from
 // storage see post-migration values when initialising their refs.
-migratePreferencesIntoUser()
+migratePreferencesIntoUser();

@@ -19,21 +19,21 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed, inject } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed, inject } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 
-import { pageSlug } from '../tree/pageTree'
+import { pageSlug } from "../tree/pageTree";
 
-import { DOCS_TITLE_CACHE, type TitleCacheHandle } from './linkContext'
+import { DOCS_TITLE_CACHE, type TitleCacheHandle } from "./linkContext";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
-const router = useRouter()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
+const router = useRouter();
 
-const cache = inject<TitleCacheHandle | null>(DOCS_TITLE_CACHE, null)
-const pageId = computed(() => String(props.node.attrs.pageId ?? ''))
+const cache = inject<TitleCacheHandle | null>(DOCS_TITLE_CACHE, null);
+const pageId = computed(() => String(props.node.attrs.pageId ?? ""));
 
 /**
  * The link's text is never stored in the document, only looked up. That is
@@ -42,28 +42,28 @@ const pageId = computed(() => String(props.node.attrs.pageId ?? ''))
  */
 const page = computed(() => {
   // Touching the revision makes this recompute when an answer arrives.
-  void cache?.revision.value
-  return cache?.get(pageId.value)
-})
+  void cache?.revision.value;
+  return cache?.get(pageId.value);
+});
 
-const resolved = computed(() => (page.value === undefined ? undefined : page.value.resolved))
+const resolved = computed(() => (page.value === undefined ? undefined : page.value.resolved));
 
 const label = computed(() => {
-  if (page.value === undefined) return t('docs.links.loading')
-  if (!page.value.resolved) return t('docs.links.broken')
-  return page.value.title || t('docs.tree.untitled')
-})
+  if (page.value === undefined) return t("docs.links.loading");
+  if (!page.value.resolved) return t("docs.links.broken");
+  return page.value.title || t("docs.tree.untitled");
+});
 
 const href = computed(() => {
-  const p = page.value
-  if (!p?.resolved || !p.spaceId || !p.shortId) return '#'
-  return `/docs/spaces/${p.spaceId}/${pageSlug(p.title, p.shortId)}`
-})
+  const p = page.value;
+  if (!p?.resolved || !p.spaceId || !p.shortId) return "#";
+  return `/docs/spaces/${p.spaceId}/${pageSlug(p.title, p.shortId)}`;
+});
 
 function open() {
-  const p = page.value
-  if (!p?.resolved || !p.spaceId || !p.shortId) return
-  void router.push(href.value)
+  const p = page.value;
+  if (!p?.resolved || !p.spaceId || !p.shortId) return;
+  void router.push(href.value);
 }
 </script>
 

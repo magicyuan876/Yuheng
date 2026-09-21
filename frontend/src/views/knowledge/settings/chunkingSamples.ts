@@ -4,10 +4,10 @@
 // content without preparing their own sample.
 
 export interface ChunkingSample {
-  id: string
+  id: string;
   // i18n key under knowledgeEditor.chunking.debug.samples.<id>
-  labelKey: string
-  text: string
+  labelKey: string;
+  text: string;
 }
 
 const MARKDOWN_SAMPLE = `# Yuheng 知识库
@@ -107,7 +107,7 @@ Agent 引擎执行经典 ReAct 循环：
 - API 文档：\`docs/api/README.md\`
 - 配置项清单：\`config/config.yaml\` 与 \`.env.example\`
 - 故障排查：\`docs/QA.md\`
-- 路线图：\`docs/ROADMAP.md\``
+- 路线图：\`docs/ROADMAP.md\``;
 
 const FAQ_SAMPLE = `# Yuheng 知识库部署与使用 FAQ
 
@@ -190,7 +190,7 @@ docreader 是 CPU 密集型，建议横向扩容：在 docker-compose 中调高 
 切换到本地 Ollama + GPU 加速，或用商用 API 的批量端点（如 OpenAI 的 batch API）。设置 \`EMBED_BATCH_SIZE=64\` 显著提升吞吐。
 
 ### Q18: 数据库慢查询
-启用 \`pg_stat_statements\`，定位慢 SQL；常见瓶颈是 chunks 表的元数据 JSONB 查询，可针对热点字段加索引。`
+启用 \`pg_stat_statements\`，定位慢 SQL；常见瓶颈是 chunks 表的元数据 JSONB 查询，可针对热点字段加索引。`;
 
 const CHAPTER_SAMPLE = `第 1 章 引言
 
@@ -269,7 +269,7 @@ PG 全量每日备份 + WAL 增量；MinIO/对象存储依赖云端版本管理�
 
 4.3 故障排查
 
-按"网关 → 业务 → 存储 → 模型"四个维度逐层排查。每层都有健康检查接口与 Langfuse trace 入口，组合起来可在 5 分钟内定位 80% 问题。`
+按"网关 → 业务 → 存储 → 模型"四个维度逐层排查。每层都有健康检查接口与 Langfuse trace 入口，组合起来可在 5 分钟内定位 80% 问题。`;
 
 const PLAIN_SAMPLE = `知识库的检索质量受多个因素影响，最直接的是切分策略与嵌入模型的匹配度。切分过粗会导致单段语义混杂、相关度被稀释；切分过细则丢失上下文，单独检索某一段无法回答跨段问题。一般建议切分大小落在嵌入模型推荐窗口的 50%–80%，既保证语义完整又留出余量。常见嵌入模型如 BGE、Cohere 的 embed-v3 推荐窗口为 512 tokens，对应字符大致在 300–800 之间，因为中文一个字约 0.5–1.2 个 token，英文一个词约 1.3 个 token。
 
@@ -279,7 +279,7 @@ const PLAIN_SAMPLE = `知识库的检索质量受多个因素影响，最直接�
 
 嵌入模型的选择往往被低估。开源里 BGE-large 系列在中文 benchmark 上稳定领先，BGE-M3 同时支持稠密、稀疏、ColBERT 多向量；商用 OpenAI text-embedding-3-large 通用性强、成本不算高，Voyage-3-large 在英文上略胜一筹但中文一般。对长文档场景，注意嵌入模型的最大输入长度——OpenAI 是 8191 tokens，BGE 默认 512，超长输入会被截断或分段嵌入再平均，效果都不好。
 
-最后，别忽视后处理。重排（rerank）几乎在所有场景都能提升 5%–15% 的端到端效果，代价是每次查询多 100–300ms 延迟。常见 reranker 包括 BGE-Reranker、Cohere Rerank，前者开源、后者付费但效果略好。如果你的检索路径包含关键词召回，强烈建议用 reranker 做第二层过滤，不然 BM25 的纯字面命中会污染上下文。`
+最后，别忽视后处理。重排（rerank）几乎在所有场景都能提升 5%–15% 的端到端效果，代价是每次查询多 100–300ms 延迟。常见 reranker 包括 BGE-Reranker、Cohere Rerank，前者开源、后者付费但效果略好。如果你的检索路径包含关键词召回，强烈建议用 reranker 做第二层过滤，不然 BM25 的纯字面命中会污染上下文。`;
 
 export const CHUNKING_SAMPLES: ChunkingSample[] = [
   { id: "markdown", labelKey: "samples.markdown", text: MARKDOWN_SAMPLE },

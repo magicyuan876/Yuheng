@@ -17,25 +17,10 @@
             :class="{ active: item.value === current }"
             @click="handleSelect(item.value)"
           >
-            <img
-              v-if="item.logo"
-              :src="item.logo"
-              :alt="item.label"
-              class="source-switcher-row-logo"
-            />
-            <t-icon
-              v-else
-              name="user"
-              class="source-switcher-row-icon"
-              size="16px"
-            />
+            <img v-if="item.logo" :src="item.logo" :alt="item.label" class="source-switcher-row-logo" />
+            <t-icon v-else name="user" class="source-switcher-row-icon" size="16px" />
             <span class="source-switcher-row-name" :title="item.label">{{ item.label }}</span>
-            <t-icon
-              v-if="item.value === current"
-              name="check"
-              class="source-switcher-row-check"
-              size="14px"
-            />
+            <t-icon v-if="item.value === current" name="check" class="source-switcher-row-check" size="14px" />
           </button>
         </div>
       </div>
@@ -45,45 +30,45 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref } from "vue";
 
 // A dumb scope switcher mirroring KBSwitcherDropdown's visual grammar. Logos are
 // pre-resolved by the caller; web (no logo) falls back to a generic icon.
 interface SourceItem {
-  value: string
-  label: string
-  logo?: string
+  value: string;
+  label: string;
+  logo?: string;
 }
 
 const props = defineProps<{
-  sources: SourceItem[]
-  current: string
-}>()
+  sources: SourceItem[];
+  current: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'select', value: string): void
-}>()
+  (e: "select", value: string): void;
+}>();
 
 // t-popup only closes on outside click; selecting an item must close it
 // explicitly, otherwise the panel lingers and overlays the list below
 // (switching source reloads in place, so nothing else dismisses it).
-const visible = ref(false)
+const visible = ref(false);
 
 // Pin the current source to the top so users always see "where they are" without
 // scrolling — same as KBSwitcherDropdown. The rest keeps the caller's order
 // (web first, then configured platforms).
 const sortedList = computed<SourceItem[]>(() => {
-  const all = props.sources || []
-  const current = all.find((s) => s.value === props.current)
-  if (!current) return all
-  return [current, ...all.filter((s) => s.value !== props.current)]
-})
+  const all = props.sources || [];
+  const current = all.find((s) => s.value === props.current);
+  if (!current) return all;
+  return [current, ...all.filter((s) => s.value !== props.current)];
+});
 
 const handleSelect = (value: string): void => {
-  visible.value = false
-  if (value === props.current) return
-  emit('select', value)
-}
+  visible.value = false;
+  if (value === props.current) return;
+  emit("select", value);
+};
 </script>
 
 <style scoped lang="less">
@@ -118,7 +103,9 @@ const handleSelect = (value: string): void => {
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   text-align: left;
 
   &:hover {

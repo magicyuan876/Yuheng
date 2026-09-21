@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, type Ref } from 'vue'
+import { onMounted, onUnmounted, type Ref } from "vue";
 
 /**
  * Keep a chat pinned to the bottom when asynchronously rendered content grows.
@@ -13,32 +13,32 @@ export function useStickyBottomOnResize(
   userHasScrolledUp: Ref<boolean>,
   scrollToBottom: () => void,
 ): void {
-  let resizeObserver: ResizeObserver | null = null
-  let scrollFrame: number | null = null
+  let resizeObserver: ResizeObserver | null = null;
+  let scrollFrame: number | null = null;
 
   const scheduleFollow = () => {
-    if (userHasScrolledUp.value || scrollFrame !== null) return
+    if (userHasScrolledUp.value || scrollFrame !== null) return;
 
     scrollFrame = requestAnimationFrame(() => {
-      scrollFrame = null
-      if (!userHasScrolledUp.value) scrollToBottom()
-    })
-  }
+      scrollFrame = null;
+      if (!userHasScrolledUp.value) scrollToBottom();
+    });
+  };
 
   onMounted(() => {
-    const messageList = scrollContainer.value?.firstElementChild
-    if (!messageList || typeof ResizeObserver === 'undefined') return
+    const messageList = scrollContainer.value?.firstElementChild;
+    if (!messageList || typeof ResizeObserver === "undefined") return;
 
-    resizeObserver = new ResizeObserver(scheduleFollow)
-    resizeObserver.observe(messageList)
-  })
+    resizeObserver = new ResizeObserver(scheduleFollow);
+    resizeObserver.observe(messageList);
+  });
 
   onUnmounted(() => {
-    resizeObserver?.disconnect()
-    resizeObserver = null
+    resizeObserver?.disconnect();
+    resizeObserver = null;
     if (scrollFrame !== null) {
-      cancelAnimationFrame(scrollFrame)
-      scrollFrame = null
+      cancelAnimationFrame(scrollFrame);
+      scrollFrame = null;
     }
-  })
+  });
 }

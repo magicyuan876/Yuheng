@@ -1,6 +1,6 @@
 import { get, post, put, del, postUpload, getDown } from "../../utils/request";
-import type { KnowledgeProcessOverrides } from '@/types/knowledgeProcess';
-import type { AuditLog, AuditOutcome, ListAuditLogResponse } from '@/api/tenant/audit-log';
+import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
+import type { AuditLog, AuditOutcome, ListAuditLogResponse } from "@/api/tenant/audit-log";
 
 export type KnowledgeBaseActivity = AuditLog;
 
@@ -17,13 +17,13 @@ export async function listKnowledgeBaseActivity(
   params: ListKnowledgeBaseActivityParams = {},
 ): Promise<ListAuditLogResponse> {
   const query = new URLSearchParams();
-  if (params.after_id) query.set('after_id', String(params.after_id));
-  if (params.limit) query.set('limit', String(params.limit));
-  if (params.action) query.set('action', params.action);
-  if (params.outcome) query.set('outcome', params.outcome);
-  if (params.actor) query.set('actor', params.actor);
+  if (params.after_id) query.set("after_id", String(params.after_id));
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.action) query.set("action", params.action);
+  if (params.outcome) query.set("outcome", params.outcome);
+  if (params.actor) query.set("actor", params.actor);
   const qs = query.toString();
-  return (await get(`/api/v1/knowledge-bases/${id}/activity${qs ? `?${qs}` : ''}`)) as unknown as ListAuditLogResponse;
+  return (await get(`/api/v1/knowledge-bases/${id}/activity${qs ? `?${qs}` : ""}`)) as unknown as ListAuditLogResponse;
 }
 
 // 知识库管理 API（列表、创建、获取、更新、删除、复制）
@@ -36,12 +36,12 @@ export function listKnowledgeBases(params?: {
    * KBs predating the RBAC backfill (creator_id="") never match
    * mine/others — they fall out of both views by design.
    */
-  creator?: 'all' | 'mine' | 'others';
+  creator?: "all" | "mine" | "others";
 }) {
   const query = new URLSearchParams();
-  if (params?.creator && params.creator !== 'all') query.set('creator', params.creator);
+  if (params?.creator && params.creator !== "all") query.set("creator", params.creator);
   const qs = query.toString();
-  return get(qs ? `/api/v1/knowledge-bases?${qs}` : '/api/v1/knowledge-bases');
+  return get(qs ? `/api/v1/knowledge-bases?${qs}` : "/api/v1/knowledge-bases");
 }
 
 // Read-only vector-store binding metadata enriched onto every KB
@@ -65,8 +65,8 @@ export function listKnowledgeBases(params?: {
 //                       (deleted row, registry miss, transient infra
 //                       failure). Operators recover via the global
 //                       Vector Stores settings page.
-export type VectorStoreSource = 'env' | 'user' | 'shared' | 'unavailable';
-export type VectorStoreStatus = 'available' | 'unavailable';
+export type VectorStoreSource = "env" | "user" | "shared" | "unavailable";
+export type VectorStoreStatus = "available" | "unavailable";
 
 export interface KnowledgeBaseStoreView {
   vector_store_id?: string | null;
@@ -79,7 +79,7 @@ export interface KnowledgeBaseStoreView {
 export function createKnowledgeBase(data: {
   name: string;
   description?: string;
-  type?: 'document' | 'faq';
+  type?: "document" | "faq";
   chunking_config?: any;
   embedding_model_id?: string;
   summary_model_id?: string;
@@ -110,7 +110,7 @@ export function createKnowledgeBase(data: {
   wiki_config?: {
     synthesis_model_id?: string;
     max_pages_per_ingest?: number;
-    extraction_granularity?: 'focused' | 'standard' | 'exhaustive';
+    extraction_granularity?: "focused" | "standard" | "exhaustive";
     content_instructions?: string;
     extraction_instructions?: string;
   };
@@ -128,29 +128,32 @@ export function getKnowledgeBaseById(id: string) {
   return get(`/api/v1/knowledge-bases/${id}`);
 }
 
-export function updateKnowledgeBase(id: string, data: {
-  name: string;
-  description?: string;
-  config?: {
-    chunking_config?: any;
-    image_processing_config?: any;
-    faq_config?: any;
-    wiki_config?: {
-      synthesis_model_id?: string;
-      max_pages_per_ingest?: number;
-      extraction_granularity?: 'focused' | 'standard' | 'exhaustive';
-      content_instructions?: string;
-      extraction_instructions?: string;
+export function updateKnowledgeBase(
+  id: string,
+  data: {
+    name: string;
+    description?: string;
+    config?: {
+      chunking_config?: any;
+      image_processing_config?: any;
+      faq_config?: any;
+      wiki_config?: {
+        synthesis_model_id?: string;
+        max_pages_per_ingest?: number;
+        extraction_granularity?: "focused" | "standard" | "exhaustive";
+        content_instructions?: string;
+        extraction_instructions?: string;
+      };
+      auto_tag_config?: { enabled: boolean; model_id?: string; max_tags?: number; skip_if_tagged?: boolean };
+      indexing_strategy?: {
+        vector_enabled: boolean;
+        keyword_enabled: boolean;
+        wiki_enabled: boolean;
+        graph_enabled: boolean;
+      };
     };
-    auto_tag_config?: { enabled: boolean; model_id?: string; max_tags?: number; skip_if_tagged?: boolean };
-    indexing_strategy?: {
-      vector_enabled: boolean;
-      keyword_enabled: boolean;
-      wiki_enabled: boolean;
-      graph_enabled: boolean;
-    };
-  }
-}) {
+  },
+) {
   return put(`/api/v1/knowledge-bases/${id}`, data);
 }
 
@@ -180,9 +183,9 @@ export function moveKnowledge(data: {
   knowledge_ids: string[];
   source_kb_id: string;
   target_kb_id: string;
-  mode: 'reuse_vectors' | 'reparse';
+  mode: "reuse_vectors" | "reparse";
 }) {
-  return post('/api/v1/knowledge/move', data);
+  return post("/api/v1/knowledge/move", data);
 }
 
 // 获取知识移动进度
@@ -199,21 +202,21 @@ export function togglePinKnowledgeBase(id: string) {
 export function uploadKnowledgeFile(
   kbId: string,
   data: {
-    file: File
-    tag_ids?: string[]
-    fileName?: string
-    process_config?: KnowledgeProcessOverrides | string
-    [key: string]: any
-  } = { file: new File([], '') },
+    file: File;
+    tag_ids?: string[];
+    fileName?: string;
+    process_config?: KnowledgeProcessOverrides | string;
+    [key: string]: any;
+  } = { file: new File([], "") },
   onProgress?: (progressEvent: any) => void,
 ) {
   const formData = new FormData();
-  Object.keys(data).forEach(key => {
+  Object.keys(data).forEach((key) => {
     const value = data[key];
     if (value === undefined) return;
-    if (key === 'tag_ids' && Array.isArray(value)) {
-      formData.append(key, value.join(','));
-    } else if (key === 'process_config' && value && typeof value !== 'string') {
+    if (key === "tag_ids" && Array.isArray(value)) {
+      formData.append(key, value.join(","));
+    } else if (key === "process_config" && value && typeof value !== "string") {
       formData.append(key, JSON.stringify(value));
     } else {
       formData.append(key, value);
@@ -236,11 +239,11 @@ export function createKnowledgeFromURL(
 export function createManualKnowledge(
   kbId: string,
   data: {
-    title: string
-    content: string
-    status: string
-    tag_ids?: string[]
-    process_config?: KnowledgeProcessOverrides
+    title: string;
+    content: string;
+    status: string;
+    tag_ids?: string[];
+    process_config?: KnowledgeProcessOverrides;
   },
 ) {
   return post(`/api/v1/knowledge-bases/${kbId}/knowledge/manual`, data);
@@ -269,18 +272,18 @@ export function listKnowledgeFiles(
   },
 ) {
   const query = new URLSearchParams();
-  query.append('page', String(params.page));
-  query.append('page_size', String(params.page_size));
-  if (params.tag_ids) query.append('tag_ids', params.tag_ids);
-  if (params.keyword) query.append('keyword', params.keyword);
-  if (params.file_type) query.append('file_type', params.file_type);
-  if (params.parse_status) query.append('parse_status', params.parse_status);
-  if (params.source) query.append('source', params.source);
-  if (params.start_time) query.append('start_time', params.start_time);
-  if (params.end_time) query.append('end_time', params.end_time);
+  query.append("page", String(params.page));
+  query.append("page_size", String(params.page_size));
+  if (params.tag_ids) query.append("tag_ids", params.tag_ids);
+  if (params.keyword) query.append("keyword", params.keyword);
+  if (params.file_type) query.append("file_type", params.file_type);
+  if (params.parse_status) query.append("parse_status", params.parse_status);
+  if (params.source) query.append("source", params.source);
+  if (params.start_time) query.append("start_time", params.start_time);
+  if (params.end_time) query.append("end_time", params.end_time);
   if (params.folder_path !== undefined) {
-    query.append('folder_path', params.folder_path);
-    if (params.folder_recursive) query.append('folder_recursive', 'true');
+    query.append("folder_path", params.folder_path);
+    if (params.folder_recursive) query.append("folder_recursive", "true");
   }
   const qs = query.toString();
   return get(`/api/v1/knowledge-bases/${kbId}/knowledge?${qs}`);
@@ -317,7 +320,7 @@ export function listKnowledgeFolders(kbId: string) {
  * created by this call. Only the grouping changes; documents are not re-parsed.
  */
 export function moveKnowledgeToFolder(kbId: string, ids: string[], folderPath: string) {
-  return post('/api/v1/knowledge/folder', {
+  return post("/api/v1/knowledge/folder", {
     kb_id: kbId,
     knowledge_ids: ids,
     folder_path: folderPath,
@@ -349,7 +352,7 @@ export function cancelKnowledgeParse(id: string) {
 }
 
 export function getKnowledgeSpans(id: string, attempt?: number) {
-  const qs = attempt ? `?attempt=${attempt}` : '';
+  const qs = attempt ? `?attempt=${attempt}` : "";
   return get(`/api/v1/knowledge/${id}/spans${qs}`);
 }
 
@@ -428,7 +431,7 @@ export function deleteGeneratedQuestion(chunkId: string, questionId: string) {
 
 export function upsertGeneratedQuestion(chunkId: string, question: string, questionId?: string) {
   return put(`/api/v1/chunks/by-id/${chunkId}/questions`, {
-    question_id: questionId || '',
+    question_id: questionId || "",
     question,
   });
 }
@@ -437,18 +440,12 @@ export function regenerateGeneratedQuestions(chunkId: string) {
   return post(`/api/v1/chunks/by-id/${chunkId}/questions/regenerate`, {});
 }
 
-export function listKnowledgeTags(
-  kbId: string,
-  params?: { page?: number; page_size?: number; keyword?: string },
-) {
+export function listKnowledgeTags(kbId: string, params?: { page?: number; page_size?: number; keyword?: string }) {
   const query = buildQuery(params);
   return get(`/api/v1/knowledge-bases/${kbId}/tags${query}`);
 }
 
-export function createKnowledgeBaseTag(
-  kbId: string,
-  data: { name: string; color?: string; sort_order?: number },
-) {
+export function createKnowledgeBaseTag(kbId: string, data: { name: string; color?: string; sort_order?: number }) {
   return post(`/api/v1/knowledge-bases/${kbId}/tags`, data);
 }
 
@@ -461,7 +458,7 @@ export function updateKnowledgeBaseTag(
 }
 
 export function deleteKnowledgeBaseTag(kbId: string, tagSeqId: number, params?: { force?: boolean }) {
-  const forceQuery = params?.force ? '?force=true' : '';
+  const forceQuery = params?.force ? "?force=true" : "";
   return del(`/api/v1/knowledge-bases/${kbId}/tags/${tagSeqId}${forceQuery}`);
 }
 
@@ -474,14 +471,14 @@ export function updateFAQEntryTagBatch(kbId: string, data: { updates: Record<num
 }
 
 const buildQuery = (params?: Record<string, any>) => {
-  if (!params) return '';
+  if (!params) return "";
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return;
+    if (value === undefined || value === null || value === "") return;
     query.append(key, String(value));
   });
   const queryString = query.toString();
-  return queryString ? `?${queryString}` : '';
+  return queryString ? `?${queryString}` : "";
 };
 
 export function listFAQEntries(
@@ -492,7 +489,7 @@ export function listFAQEntries(
   return get(`/api/v1/knowledge-bases/${kbId}/faq/entries${query}`);
 }
 
-export function upsertFAQEntries(kbId: string, data: { entries: any[]; mode: 'append' | 'replace' }) {
+export function upsertFAQEntries(kbId: string, data: { entries: any[]; mode: "append" | "replace" }) {
   return post(`/api/v1/knowledge-bases/${kbId}/faq/entries`, data);
 }
 
@@ -509,15 +506,15 @@ export function updateFAQEntry(kbId: string, entryId: number, data: any) {
 // 1. By entry ID: use by_id field
 // 2. By Tag: use by_tag field to apply the same update to all entries under a tag
 export interface FAQEntryFieldsUpdate {
-  is_enabled?: boolean
-  is_recommended?: boolean
-  tag_id?: number | null
+  is_enabled?: boolean;
+  is_recommended?: boolean;
+  tag_id?: number | null;
 }
 
 export interface FAQEntryFieldsBatchRequest {
-  by_id?: Record<number, FAQEntryFieldsUpdate>
-  by_tag?: Record<number, FAQEntryFieldsUpdate>
-  exclude_ids?: number[]
+  by_id?: Record<number, FAQEntryFieldsUpdate>;
+  by_tag?: Record<number, FAQEntryFieldsUpdate>;
+  exclude_ids?: number[];
 }
 
 export function updateFAQEntryFieldsBatch(kbId: string, data: FAQEntryFieldsBatchRequest) {
@@ -531,76 +528,71 @@ export function deleteFAQEntries(kbId: string, ids: number[]) {
 export function searchFAQEntries(
   kbId: string,
   data: {
-    query_text: string
-    vector_threshold?: number
-    match_count?: number
-  }
+    query_text: string;
+    vector_threshold?: number;
+    match_count?: number;
+  },
 ) {
   return post(`/api/v1/knowledge-bases/${kbId}/faq/search`, data);
 }
 
 // Export FAQ entries as CSV or JSON file
-export async function exportFAQEntries(kbId: string, format: 'csv' | 'json' = 'csv'): Promise<Blob> {
-  const suffix = format === 'json' ? '?format=json' : ''
-  const response = await getDown(`/api/v1/knowledge-bases/${kbId}/faq/entries/export${suffix}`)
-  return response as unknown as Blob
+export async function exportFAQEntries(kbId: string, format: "csv" | "json" = "csv"): Promise<Blob> {
+  const suffix = format === "json" ? "?format=json" : "";
+  const response = await getDown(`/api/v1/knowledge-bases/${kbId}/faq/entries/export${suffix}`);
+  return response as unknown as Blob;
 }
 
 // FAQ Import Progress API
 export interface FAQBlockedEntry {
-  index: number
-  standard_question: string
-  reason: string
+  index: number;
+  standard_question: string;
+  reason: string;
 }
 
 export interface FAQSuccessEntry {
-  index: number
-  seq_id: number
-  tag_id?: number
-  tag_name?: string
-  standard_question: string
+  index: number;
+  seq_id: number;
+  tag_id?: number;
+  tag_name?: string;
+  standard_question: string;
 }
 
 export interface FAQImportProgress {
-  task_id: string
-  kb_id: string
-  knowledge_id: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  progress: number
-  total: number
-  processed: number
-  blocked: number
-  blocked_entries?: FAQBlockedEntry[]
-  success_entries?: FAQSuccessEntry[]
-  message: string
-  error: string
-  created_at: number
-  updated_at: number
+  task_id: string;
+  kb_id: string;
+  knowledge_id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress: number;
+  total: number;
+  processed: number;
+  blocked: number;
+  blocked_entries?: FAQBlockedEntry[];
+  success_entries?: FAQSuccessEntry[];
+  message: string;
+  error: string;
+  created_at: number;
+  updated_at: number;
 }
 
 export function getFAQImportProgress(taskId: string) {
   return get(`/api/v1/faq/import/progress/${taskId}`);
 }
 
-export function updateFAQImportResultDisplayStatus(knowledgeBaseId: string, displayStatus: 'open' | 'close') {
+export function updateFAQImportResultDisplayStatus(knowledgeBaseId: string, displayStatus: "open" | "close") {
   return put(`/api/v1/knowledge-bases/${knowledgeBaseId}/faq/import/last-result/display`, {
-    display_status: displayStatus
+    display_status: displayStatus,
   });
 }
 
-export function searchKnowledge(
-  keyword: string,
-  offset = 0,
-  limit = 20,
-  options?: { recent?: boolean }
-) {
+export function searchKnowledge(keyword: string, offset = 0, limit = 20, options?: { recent?: boolean }) {
   const query = new URLSearchParams();
   if (keyword) {
-    query.set('keyword', keyword);
+    query.set("keyword", keyword);
   }
-  query.set('offset', String(offset));
-  query.set('limit', String(limit));
-  if (options?.recent) query.set('recent', 'true');
+  query.set("offset", String(offset));
+  query.set("limit", String(limit));
+  if (options?.recent) query.set("recent", "true");
   return get(`/api/v1/knowledge/search?${query.toString()}`);
 }
 
@@ -609,7 +601,7 @@ export function knowledgeSemanticSearch(data: {
   knowledge_base_ids?: string[];
   knowledge_ids?: string[];
 }) {
-  return post('/api/v1/knowledge-search', data);
+  return post("/api/v1/knowledge-search", data);
 }
 
 export function batchReparseKnowledge(kbId: string, ids: string[], processConfig?: KnowledgeProcessOverrides) {

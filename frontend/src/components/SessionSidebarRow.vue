@@ -17,12 +17,7 @@
       @click.stop
       @change="emit('toggle-select')"
     />
-    <form
-      v-if="titleEditing"
-      class="session-title-edit"
-      @submit.prevent="submitTitleEdit"
-      @click.stop
-    >
+    <form v-if="titleEditing" class="session-title-edit" @submit.prevent="submitTitleEdit" @click.stop>
       <input
         ref="titleInputRef"
         v-model="titleDraft"
@@ -45,34 +40,21 @@
         placement="bottom-right"
         @visible-change="onMenuVisibleChange"
       >
-        <button
-          type="button"
-          class="menu-more-wrap"
-          aria-haspopup="menu"
-          :aria-expanded="menuOpen"
-          @click.stop
-        >
+        <button type="button" class="menu-more-wrap" aria-haspopup="menu" :aria-expanded="menuOpen" @click.stop>
           <t-icon name="ellipsis" class="menu-more" />
         </button>
         <template #content>
           <div class="session-action-menu" @click.stop>
             <template v-if="menuMode === 'menu'">
               <template v-for="(option, index) in menuOptions" :key="option.value">
-                <div
-                  v-if="shouldShowDividerBefore(option.value, index)"
-                  class="session-action-menu__divider"
-                />
+                <div v-if="shouldShowDividerBefore(option.value, index)" class="session-action-menu__divider" />
                 <button
                   type="button"
                   class="session-action-menu__item"
                   :class="{ 'is-danger': option.theme === 'error' }"
                   @click="handleMenuClick(option)"
                 >
-                  <component
-                    :is="option.prefixIcon"
-                    v-if="option.prefixIcon"
-                    class="session-action-menu__icon"
-                  />
+                  <component :is="option.prefixIcon" v-if="option.prefixIcon" class="session-action-menu__icon" />
                   <span>{{ option.content }}</span>
                 </button>
               </template>
@@ -80,21 +62,17 @@
 
             <div v-else class="session-action-confirm">
               <div class="session-action-confirm__title">
-                {{ menuMode === 'clear' ? t('chatHeader.clearConfirmTitle') : t('chatHeader.deleteConfirmTitle') }}
+                {{ menuMode === "clear" ? t("chatHeader.clearConfirmTitle") : t("chatHeader.deleteConfirmTitle") }}
               </div>
               <div class="session-action-confirm__body">
-                {{ menuMode === 'clear' ? t('chatHeader.clearConfirmBody') : t('chatHeader.deleteConfirmBody') }}
+                {{ menuMode === "clear" ? t("chatHeader.clearConfirmBody") : t("chatHeader.deleteConfirmBody") }}
               </div>
               <div class="session-action-confirm__footer">
                 <button type="button" class="session-action-confirm__btn" @click="backToMenu">
-                  {{ t('common.cancel') }}
+                  {{ t("common.cancel") }}
                 </button>
-                <button
-                  type="button"
-                  class="session-action-confirm__btn is-danger"
-                  @click="confirmDangerAction"
-                >
-                  {{ menuMode === 'clear' ? t('common.clear') : t('common.delete') }}
+                <button type="button" class="session-action-confirm__btn is-danger" @click="confirmDangerAction">
+                  {{ menuMode === "clear" ? t("common.clear") : t("common.delete") }}
                 </button>
               </div>
             </div>
@@ -106,116 +84,114 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { normalizeSessionTitleDraft, SESSION_TITLE_MAX_LENGTH } from './sessionTitleEdit'
+import { computed, nextTick, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { normalizeSessionTitleDraft, SESSION_TITLE_MAX_LENGTH } from "./sessionTitleEdit";
 
 interface SessionMenuOption {
-  content: string
-  value: string
-  theme?: 'default' | 'success' | 'warning' | 'error' | 'primary'
-  prefixIcon?: any
+  content: string;
+  value: string;
+  theme?: "default" | "success" | "warning" | "error" | "primary";
+  prefixIcon?: any;
 }
 
-type MenuMode = 'menu' | 'clear' | 'delete'
+type MenuMode = "menu" | "clear" | "delete";
 
 const props = defineProps<{
-  item: { id: string; path: string; title: string; is_pinned?: boolean }
-  batchMode: boolean
-  activePath: string
-  selectedIds: string[]
-  menuOptions: SessionMenuOption[]
+  item: { id: string; path: string; title: string; is_pinned?: boolean };
+  batchMode: boolean;
+  activePath: string;
+  selectedIds: string[];
+  menuOptions: SessionMenuOption[];
   /** 渠道文件夹下的会话（样式与聊天区会话共用文案列对齐） */
-  nested?: boolean
-}>()
+  nested?: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'navigate'): void
-  (e: 'toggle-select'): void
-  (e: 'menu-click', data: { value: string }): void
-  (e: 'rename-submit', data: { title: string }): void
-  (e: 'hover-in'): void
-  (e: 'hover-out'): void
-}>()
+  (e: "navigate"): void;
+  (e: "toggle-select"): void;
+  (e: "menu-click", data: { value: string }): void;
+  (e: "rename-submit", data: { title: string }): void;
+  (e: "hover-in"): void;
+  (e: "hover-out"): void;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const menuOpen = ref(false)
-const menuMode = ref<MenuMode>('menu')
-const titleEditing = ref(false)
-const titleDraft = ref('')
-const titleInputRef = ref<HTMLInputElement | null>(null)
+const menuOpen = ref(false);
+const menuMode = ref<MenuMode>("menu");
+const titleEditing = ref(false);
+const titleDraft = ref("");
+const titleInputRef = ref<HTMLInputElement | null>(null);
 
-const menuOverlayClass = computed(() => (
-  menuMode.value === 'menu'
-    ? 'session-action-menu-popup'
-    : 'session-action-menu-popup is-confirm'
-))
+const menuOverlayClass = computed(() =>
+  menuMode.value === "menu" ? "session-action-menu-popup" : "session-action-menu-popup is-confirm",
+);
 
 const onMenuVisibleChange = (visible: boolean): void => {
-  if (!visible) menuMode.value = 'menu'
-}
+  if (!visible) menuMode.value = "menu";
+};
 
 const backToMenu = (): void => {
-  menuMode.value = 'menu'
-}
+  menuMode.value = "menu";
+};
 
 const shouldShowDividerBefore = (value: string, index: number): boolean => {
-  if (index === 0) return false
-  return value === 'clearMessages' || value === 'delete'
-}
+  if (index === 0) return false;
+  return value === "clearMessages" || value === "delete";
+};
 
 const startTitleEdit = (): void => {
-  menuOpen.value = false
-  menuMode.value = 'menu'
-  titleDraft.value = props.item.title || ''
-  titleEditing.value = true
+  menuOpen.value = false;
+  menuMode.value = "menu";
+  titleDraft.value = props.item.title || "";
+  titleEditing.value = true;
   nextTick(() => {
-    titleInputRef.value?.focus()
-    titleInputRef.value?.select()
-  })
-}
+    titleInputRef.value?.focus();
+    titleInputRef.value?.select();
+  });
+};
 
 const cancelTitleEdit = (): void => {
-  titleEditing.value = false
-  titleDraft.value = ''
-}
+  titleEditing.value = false;
+  titleDraft.value = "";
+};
 
 const submitTitleEdit = (): void => {
   // Enter 会先触发 form submit，随后 input blur 再进一次；必须同步退出编辑态防重入。
-  if (!titleEditing.value) return
-  const nextTitle = normalizeSessionTitleDraft(titleDraft.value)
-  const currentTitle = normalizeSessionTitleDraft(props.item.title || '')
-  titleEditing.value = false
-  titleDraft.value = ''
-  if (!nextTitle || nextTitle === currentTitle) return
-  emit('rename-submit', { title: nextTitle })
-}
+  if (!titleEditing.value) return;
+  const nextTitle = normalizeSessionTitleDraft(titleDraft.value);
+  const currentTitle = normalizeSessionTitleDraft(props.item.title || "");
+  titleEditing.value = false;
+  titleDraft.value = "";
+  if (!nextTitle || nextTitle === currentTitle) return;
+  emit("rename-submit", { title: nextTitle });
+};
 
 const handleMenuClick = (option: SessionMenuOption): void => {
-  if (option.value === 'rename') {
-    startTitleEdit()
-    return
+  if (option.value === "rename") {
+    startTitleEdit();
+    return;
   }
-  if (option.value === 'clearMessages') {
-    menuMode.value = 'clear'
-    return
+  if (option.value === "clearMessages") {
+    menuMode.value = "clear";
+    return;
   }
-  if (option.value === 'delete') {
-    menuMode.value = 'delete'
-    return
+  if (option.value === "delete") {
+    menuMode.value = "delete";
+    return;
   }
-  menuOpen.value = false
-  menuMode.value = 'menu'
-  emit('menu-click', { value: option.value })
-}
+  menuOpen.value = false;
+  menuMode.value = "menu";
+  emit("menu-click", { value: option.value });
+};
 
 const confirmDangerAction = (): void => {
-  const value = menuMode.value === 'clear' ? 'clearMessages' : 'delete'
-  menuOpen.value = false
-  menuMode.value = 'menu'
-  emit('menu-click', { value })
-}
+  const value = menuMode.value === "clear" ? "clearMessages" : "delete";
+  menuOpen.value = false;
+  menuMode.value = "menu";
+  emit("menu-click", { value });
+};
 </script>
 
 <style scoped lang="less">
@@ -259,7 +235,9 @@ const confirmDangerAction = (): void => {
   color: inherit;
   background: transparent;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     background: var(--td-bg-color-container-hover);
@@ -390,7 +368,10 @@ const confirmDangerAction = (): void => {
   font-size: 14px;
   line-height: 28px;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 
   &:hover:not(:disabled) {
     background: var(--td-bg-color-container-hover);
@@ -407,7 +388,7 @@ const confirmDangerAction = (): void => {
   }
 }
 
-:root[theme-mode='dark'] .session-action-menu-popup .t-popup__content {
+:root[theme-mode="dark"] .session-action-menu-popup .t-popup__content {
   background: rgba(36, 36, 36, 0.92) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   box-shadow:

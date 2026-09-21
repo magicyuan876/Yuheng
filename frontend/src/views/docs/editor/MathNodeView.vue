@@ -30,25 +30,25 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed, nextTick, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { renderMath } from './figures'
+import { renderMath } from "./figures";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const inline = computed(() => props.node.type.name === 'mathInline')
-const latex = computed(() => String(props.node.attrs.latex ?? ''))
+const inline = computed(() => props.node.type.name === "mathInline");
+const latex = computed(() => String(props.node.attrs.latex ?? ""));
 
-const editing = ref(false)
-const draft = ref(latex.value)
-const input = ref<HTMLTextAreaElement | null>(null)
+const editing = ref(false);
+const draft = ref(latex.value);
+const input = ref<HTMLTextAreaElement | null>(null);
 
 watch(latex, (value) => {
-  if (!editing.value) draft.value = value
-})
+  if (!editing.value) draft.value = value;
+});
 
 /**
  * KaTeX output is inserted as HTML, which is safe here for a specific reason:
@@ -56,36 +56,36 @@ watch(latex, (value) => {
  * KaTeX is configured with trust disabled so it emits no link, image or script
  * of its own. The document only ever stores the LaTeX.
  */
-const result = computed(() => renderMath(latex.value, !inline.value))
-const preview = computed(() => renderMath(draft.value, !inline.value))
+const result = computed(() => renderMath(latex.value, !inline.value));
+const preview = computed(() => renderMath(draft.value, !inline.value));
 
 const display = computed(() => {
-  if (result.value.error) return escapeText(latex.value || t('docs.blocks.mathEmpty'))
-  return result.value.html || escapeText(t('docs.blocks.mathEmpty'))
-})
+  if (result.value.error) return escapeText(latex.value || t("docs.blocks.mathEmpty"));
+  return result.value.html || escapeText(t("docs.blocks.mathEmpty"));
+});
 
 function escapeText(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function startEditing() {
-  if (!props.editor.isEditable) return
-  draft.value = latex.value
-  editing.value = true
-  void nextTick(() => input.value?.focus())
+  if (!props.editor.isEditable) return;
+  draft.value = latex.value;
+  editing.value = true;
+  void nextTick(() => input.value?.focus());
 }
 
 function stopEditing() {
-  if (!editing.value) return
-  editing.value = false
-  if (draft.value !== latex.value) props.updateAttributes({ latex: draft.value })
+  if (!editing.value) return;
+  editing.value = false;
+  if (draft.value !== latex.value) props.updateAttributes({ latex: draft.value });
 }
 
 /** Enter commits an inline formula; a block one keeps the newline. */
 function onEnter(event: KeyboardEvent) {
-  if (!inline.value) return
-  event.preventDefault()
-  stopEditing()
+  if (!inline.value) return;
+  event.preventDefault();
+  stopEditing();
 }
 </script>
 

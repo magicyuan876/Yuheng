@@ -4,72 +4,68 @@
       <div class="join-icon">
         <t-icon name="user-add" size="48px" />
       </div>
-      <h2 class="join-title">{{ $t('organization.join.title') }}</h2>
-      <p v-if="loading" class="join-message">{{ $t('organization.join.joining') }}</p>
+      <h2 class="join-title">{{ $t("organization.join.title") }}</h2>
+      <p v-if="loading" class="join-message">{{ $t("organization.join.joining") }}</p>
       <p v-else-if="error" class="join-message error">{{ error }}</p>
-      <p v-else class="join-message success">{{ $t('organization.join.success') }}</p>
-      
-      <t-button 
-        v-if="!loading" 
-        theme="primary" 
-        @click="goToOrganizations"
-      >
-        {{ $t('organization.join.goToOrganizations') }}
+      <p v-else class="join-message success">{{ $t("organization.join.success") }}</p>
+
+      <t-button v-if="!loading" theme="primary" @click="goToOrganizations">
+        {{ $t("organization.join.goToOrganizations") }}
       </t-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useOrganizationStore } from '@/stores/organization'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useOrganizationStore } from "@/stores/organization";
+import { useAuthStore } from "@/stores/auth";
 
-const route = useRoute()
-const router = useRouter()
-const { t } = useI18n()
-const orgStore = useOrganizationStore()
-const authStore = useAuthStore()
+const route = useRoute();
+const router = useRouter();
+const { t } = useI18n();
+const orgStore = useOrganizationStore();
+const authStore = useAuthStore();
 
-const loading = ref(true)
-const error = ref('')
+const loading = ref(true);
+const error = ref("");
 
 onMounted(async () => {
-  const code = route.query.code as string
-  
+  const code = route.query.code as string;
+
   if (!code) {
-    error.value = t('organization.join.noCode')
-    loading.value = false
-    return
+    error.value = t("organization.join.noCode");
+    loading.value = false;
+    return;
   }
 
   // 后端 POST /organizations/join 要求当前空间角色 ≥ admin，先在前端拦截以给出友好提示
-  if (!authStore.hasRole('admin') && !authStore.canAccessAllTenants) {
-    error.value = t('organization.rbac.cannotJoin')
-    loading.value = false
-    return
+  if (!authStore.hasRole("admin") && !authStore.canAccessAllTenants) {
+    error.value = t("organization.rbac.cannotJoin");
+    loading.value = false;
+    return;
   }
 
   try {
-    const result = await orgStore.join(code)
+    const result = await orgStore.join(code);
     if (result) {
-      MessagePlugin.success(t('organization.join.success'))
+      MessagePlugin.success(t("organization.join.success"));
     } else {
-      error.value = orgStore.error || t('organization.join.failed')
+      error.value = orgStore.error || t("organization.join.failed");
     }
   } catch (e: any) {
-    error.value = e?.message || t('organization.join.failed')
+    error.value = e?.message || t("organization.join.failed");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-})
+});
 
 const goToOrganizations = () => {
-  router.push('/platform/organizations')
-}
+  router.push("/platform/organizations");
+};
 </script>
 
 <style scoped lang="less">
@@ -115,11 +111,11 @@ const goToOrganizations = () => {
   font-size: 14px;
   color: var(--td-text-color-secondary);
   margin: 0 0 24px;
-  
+
   &.error {
     color: var(--td-error-color);
   }
-  
+
   &.success {
     color: var(--td-success-color);
   }

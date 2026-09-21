@@ -1,5 +1,5 @@
-import { MessagePlugin } from 'tdesign-vue-next'
-import i18n from '@/i18n'
+import { MessagePlugin } from "tdesign-vue-next";
+import i18n from "@/i18n";
 
 /**
  * Copy text to the clipboard, falling back to a hidden textarea +
@@ -12,13 +12,13 @@ import i18n from '@/i18n'
  * state) or none at all.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
-  if (!text) return false
+  if (!text) return false;
 
   // Prefer the async Clipboard API where available (HTTPS / localhost).
-  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
     try {
-      await navigator.clipboard.writeText(text)
-      return true
+      await navigator.clipboard.writeText(text);
+      return true;
     } catch {
       // Fall through to the legacy path (e.g. permission denied).
     }
@@ -26,20 +26,20 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 
   // Legacy fallback that also works on non-secure (HTTP) origins.
   try {
-    const textArea = document.createElement('textarea')
-    textArea.value = text
-    textArea.style.position = 'fixed'
-    textArea.style.top = '0'
-    textArea.style.left = '0'
-    textArea.style.opacity = '0'
-    document.body.appendChild(textArea)
-    textArea.focus()
-    textArea.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(textArea)
-    return ok
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textArea);
+    return ok;
   } catch {
-    return false
+    return false;
   }
 }
 
@@ -54,14 +54,14 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 export async function copyWithToast(
   text: string | null | undefined,
   successKey: string,
-  failureKey: string = 'common.copyFailed',
+  failureKey: string = "common.copyFailed",
 ): Promise<boolean> {
-  if (!text) return false
-  const ok = await copyToClipboard(text)
+  if (!text) return false;
+  const ok = await copyToClipboard(text);
   if (ok) {
-    MessagePlugin.success(i18n.global.t(successKey))
+    MessagePlugin.success(i18n.global.t(successKey));
   } else {
-    MessagePlugin.error(i18n.global.t(failureKey))
+    MessagePlugin.error(i18n.global.t(failureKey));
   }
-  return ok
+  return ok;
 }

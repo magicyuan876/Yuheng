@@ -1,11 +1,18 @@
 <template>
-  <t-dialog :visible="visible" :footer="false" width="400px" dialog-class-name="tag-edit-dialog"
-    :close-on-overlay-click="false" destroy-on-close @close="handleClose">
+  <t-dialog
+    :visible="visible"
+    :footer="false"
+    width="400px"
+    dialog-class-name="tag-edit-dialog"
+    :close-on-overlay-click="false"
+    destroy-on-close
+    @close="handleClose"
+  >
     <template #header>
       <div class="tag-edit-heading">
         <div class="tag-edit-heading-row">
           <t-icon name="discount" size="16px" class="tag-edit-heading-icon" aria-hidden="true" />
-          <span class="tag-edit-title">{{ $t('knowledgeBase.tagEditDialogHeading') }}</span>
+          <span class="tag-edit-title">{{ $t("knowledgeBase.tagEditDialogHeading") }}</span>
         </div>
         <p class="tag-edit-document-name" :title="knowledgeName">{{ knowledgeName }}</p>
       </div>
@@ -14,23 +21,29 @@
     <div class="tag-edit-body">
       <section class="setting-drawer__section">
         <div class="tag-edit-section-head">
-          <h4 class="setting-drawer__section-title">{{ $t('knowledgeBase.tagEditSelectedSection') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.tagEditSelectedSection") }}</h4>
           <t-button v-if="selectedSet.size > 0" variant="text" size="small" theme="default" @click="clearAll">
-            {{ $t('knowledgeBase.tagClearAction') }}
+            {{ $t("knowledgeBase.tagClearAction") }}
           </t-button>
         </div>
         <div v-if="selectedTagsList.length > 0" class="tag-edit-chips">
-          <button v-for="tag in selectedTagsList" :key="tag.id" type="button" class="tag-edit-chip is-selected"
-            :title="tag.name" @click="toggleTag(tag.id)">
+          <button
+            v-for="tag in selectedTagsList"
+            :key="tag.id"
+            type="button"
+            class="tag-edit-chip is-selected"
+            :title="tag.name"
+            @click="toggleTag(tag.id)"
+          >
             {{ tag.name }}
           </button>
         </div>
-        <p v-else class="tag-edit-section-empty">{{ $t('knowledgeBase.tagEditNoSelected') }}</p>
+        <p v-else class="tag-edit-section-empty">{{ $t("knowledgeBase.tagEditNoSelected") }}</p>
       </section>
 
       <section class="setting-drawer__section">
         <div class="tag-edit-section-head">
-          <h4 class="setting-drawer__section-title">{{ $t('knowledgeBase.tagEditAvailableSection') }}</h4>
+          <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.tagEditAvailableSection") }}</h4>
           <t-button
             v-if="canManage"
             variant="text"
@@ -39,7 +52,7 @@
             class="tag-edit-manage-link"
             @click="handleOpenManage"
           >
-            {{ $t('knowledgeBase.tagManageLink') }}
+            {{ $t("knowledgeBase.tagManageLink") }}
           </t-button>
         </div>
         <div class="tag-edit-search-bar">
@@ -50,36 +63,53 @@
           </t-input>
         </div>
         <div v-if="availableTagsList.length > 0" class="tag-edit-chips">
-          <button v-for="tag in availableTagsList" :key="tag.id" type="button" class="tag-edit-chip"
+          <button
+            v-for="tag in availableTagsList"
+            :key="tag.id"
+            type="button"
+            class="tag-edit-chip"
             :title="tag.knowledge_count !== undefined ? `${tag.name} (${tag.knowledge_count})` : tag.name"
-            @click="toggleTag(tag.id)">
+            @click="toggleTag(tag.id)"
+          >
             {{ tag.name }}
           </button>
         </div>
         <div v-else class="tag-edit-section-empty tag-edit-section-empty--row">
-          <span>{{ searchQuery.trim() ? $t('knowledgeBase.tagEmptyResult') : $t('knowledgeBase.noTags') }}</span>
-          <t-button v-if="searchQuery.trim()" variant="text" theme="default" size="small" :loading="creatingTag"
-            @click="handleCreateTag">
-            {{ $t('knowledgeBase.tagCreateAction') }} “{{ searchQuery.trim() }}”
+          <span>{{ searchQuery.trim() ? $t("knowledgeBase.tagEmptyResult") : $t("knowledgeBase.noTags") }}</span>
+          <t-button
+            v-if="searchQuery.trim()"
+            variant="text"
+            theme="default"
+            size="small"
+            :loading="creatingTag"
+            @click="handleCreateTag"
+          >
+            {{ $t("knowledgeBase.tagCreateAction") }} “{{ searchQuery.trim() }}”
           </t-button>
         </div>
         <div class="tag-edit-create-row">
-          <t-input v-model="newTagName" :placeholder="$t('knowledgeBase.tagNewPlaceholder')" size="small"
-            :maxlength="40" :disabled="creatingTag" @enter="handleAddNewTag" />
+          <t-input
+            v-model="newTagName"
+            :placeholder="$t('knowledgeBase.tagNewPlaceholder')"
+            size="small"
+            :maxlength="40"
+            :disabled="creatingTag"
+            @enter="handleAddNewTag"
+          />
         </div>
       </section>
     </div>
 
     <div class="tag-edit-footer">
       <span class="tag-edit-selected-count">
-        {{ $t('knowledgeBase.tagSelectedCount', { count: selectedSet.size }) }}
+        {{ $t("knowledgeBase.tagSelectedCount", { count: selectedSet.size }) }}
       </span>
       <div class="tag-edit-footer-right">
         <t-button variant="outline" size="small" @click="handleClose">
-          {{ $t('common.cancel') }}
+          {{ $t("common.cancel") }}
         </t-button>
         <t-button theme="primary" size="small" :loading="saving" @click="handleConfirm">
-          {{ $t('common.confirm') }}
+          {{ $t("common.confirm") }}
         </t-button>
       </div>
     </div>
@@ -87,10 +117,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { MessagePlugin } from 'tdesign-vue-next';
-import { createKnowledgeBaseTag } from '@/api/knowledge-base';
+import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import { createKnowledgeBaseTag } from "@/api/knowledge-base";
 
 interface Tag {
   id: string;
@@ -109,27 +139,27 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void;
-  (e: 'confirm', tagIds: string[]): void;
-  (e: 'tag-created'): void;
-  (e: 'open-manage'): void;
+  (e: "update:visible", value: boolean): void;
+  (e: "confirm", tagIds: string[]): void;
+  (e: "tag-created"): void;
+  (e: "open-manage"): void;
 }>();
 
 const { t } = useI18n();
 
-const searchQuery = ref('');
+const searchQuery = ref("");
 const selectedSet = ref<Set<string>>(new Set());
 const creatingTag = ref(false);
 const saving = ref(false);
-const newTagName = ref('');
+const newTagName = ref("");
 
 watch(
   () => props.visible,
   (val) => {
     if (val) {
       selectedSet.value = new Set(props.selectedTags.map((t) => t.id));
-      searchQuery.value = '';
-      newTagName.value = '';
+      searchQuery.value = "";
+      newTagName.value = "";
     }
   },
 );
@@ -146,7 +176,7 @@ const availableTagsList = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   return props.tagList.filter((tag) => {
     if (selectedSet.value.has(tag.id)) return false;
-    if (query && !(tag.name || '').toLowerCase().includes(query)) return false;
+    if (query && !(tag.name || "").toLowerCase().includes(query)) return false;
     return true;
   });
 });
@@ -175,11 +205,11 @@ async function handleCreateTag() {
     const next = new Set(selectedSet.value);
     next.add(newTag.id);
     selectedSet.value = next;
-    searchQuery.value = '';
-    emit('tag-created');
-    MessagePlugin.success(t('knowledgeBase.tagCreateSuccess'));
+    searchQuery.value = "";
+    emit("tag-created");
+    MessagePlugin.success(t("knowledgeBase.tagCreateSuccess"));
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
     creatingTag.value = false;
   }
@@ -193,7 +223,7 @@ async function handleAddNewTag() {
     const next = new Set(selectedSet.value);
     next.add(exists.id);
     selectedSet.value = next;
-    newTagName.value = '';
+    newTagName.value = "";
     return;
   }
   creatingTag.value = true;
@@ -203,11 +233,11 @@ async function handleAddNewTag() {
     const next = new Set(selectedSet.value);
     next.add(newTag.id);
     selectedSet.value = next;
-    newTagName.value = '';
-    emit('tag-created');
-    MessagePlugin.success(t('knowledgeBase.tagCreateSuccess'));
+    newTagName.value = "";
+    emit("tag-created");
+    MessagePlugin.success(t("knowledgeBase.tagCreateSuccess"));
   } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'));
+    MessagePlugin.error(error?.message || t("common.operationFailed"));
   } finally {
     creatingTag.value = false;
   }
@@ -216,20 +246,20 @@ async function handleAddNewTag() {
 async function handleConfirm() {
   saving.value = true;
   try {
-    emit('confirm', Array.from(selectedSet.value));
-    emit('update:visible', false);
+    emit("confirm", Array.from(selectedSet.value));
+    emit("update:visible", false);
   } finally {
     saving.value = false;
   }
 }
 
 function handleClose() {
-  emit('update:visible', false);
+  emit("update:visible", false);
 }
 
 function handleOpenManage() {
-  emit('update:visible', false);
-  emit('open-manage');
+  emit("update:visible", false);
+  emit("open-manage");
 }
 </script>
 
@@ -347,7 +377,7 @@ function handleOpenManage() {
 }
 
 .tag-edit-body .setting-drawer__section-title::before {
-  content: '';
+  content: "";
   width: 3px;
   height: 14px;
   background: var(--td-brand-color);
@@ -445,7 +475,10 @@ function handleOpenManage() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
   -webkit-font-smoothing: antialiased;
 }
 

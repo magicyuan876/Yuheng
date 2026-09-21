@@ -1,12 +1,12 @@
-import { get, post, put, del } from '@/utils/request'
+import { get, post, put, del } from "@/utils/request";
 
 // Organization types
 export interface Organization {
-  id: string
-  name: string
-  description: string
-  avatar?: string
-  owner_id: string
+  id: string;
+  name: string;
+  description: string;
+  avatar?: string;
+  owner_id: string;
   /**
    * Persisted owner tenant of the organization (Plan 3, migration 000046).
    * After Plan 3, member ownership is tenant-keyed: identifying the
@@ -15,22 +15,22 @@ export interface Organization {
    * May be 0 on pre-000046 legacy rows; in that case fall back to
    * owner_id for display only.
    */
-  owner_tenant_id: number
-  invite_code?: string
-  invite_code_expires_at?: string | null
-  invite_code_validity_days?: number
-  require_approval?: boolean
-  searchable?: boolean
+  owner_tenant_id: number;
+  invite_code?: string;
+  invite_code_expires_at?: string | null;
+  invite_code_validity_days?: number;
+  require_approval?: boolean;
+  searchable?: boolean;
   /** Max members; 0 = unlimited */
-  member_limit?: number
-  member_count?: number
-  share_count?: number
-  pending_join_request_count?: number
-  is_owner?: boolean
-  my_role?: string
-  has_pending_upgrade?: boolean
-  created_at: string
-  updated_at: string
+  member_limit?: number;
+  member_count?: number;
+  share_count?: number;
+  pending_join_request_count?: number;
+  is_owner?: boolean;
+  my_role?: string;
+  has_pending_upgrade?: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -47,189 +47,189 @@ export interface Organization {
  *   the tenant in.
  */
 export interface OrganizationMember {
-  id: string
-  user_id: string
-  representative_user_id?: string
-  username: string
-  email: string
-  avatar?: string
-  role: 'admin' | 'editor' | 'viewer'
-  tenant_id: number
-  tenant_name?: string
-  joined_at: string
+  id: string;
+  user_id: string;
+  representative_user_id?: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  role: "admin" | "editor" | "viewer";
+  tenant_id: number;
+  tenant_name?: string;
+  joined_at: string;
 }
 
 export interface KnowledgeBaseShare {
-  id: string
-  knowledge_base_id: string
-  knowledge_base_name?: string
-  knowledge_base_type?: string
-  knowledge_count?: number
-  chunk_count?: number
-  organization_id: string
-  organization_name?: string
-  shared_by_user_id: string
-  shared_by_username?: string
-  source_tenant_id: number
+  id: string;
+  knowledge_base_id: string;
+  knowledge_base_name?: string;
+  knowledge_base_type?: string;
+  knowledge_count?: number;
+  chunk_count?: number;
+  organization_id: string;
+  organization_name?: string;
+  shared_by_user_id: string;
+  shared_by_username?: string;
+  source_tenant_id: number;
   /** Share permission: what the space was granted (viewer/editor) */
-  permission: 'admin' | 'editor' | 'viewer'
+  permission: "admin" | "editor" | "viewer";
   /** Current user's role in this organization (admin/editor/viewer) */
-  my_role_in_org?: 'admin' | 'editor' | 'viewer'
+  my_role_in_org?: "admin" | "editor" | "viewer";
   /** Effective permission for current user = min(permission, my_role_in_org) */
-  my_permission?: 'admin' | 'editor' | 'viewer'
-  created_at: string
+  my_permission?: "admin" | "editor" | "viewer";
+  created_at: string;
 }
 
 export interface SharedKnowledgeBase {
   knowledge_base: {
-    id: string
-    name: string
-    description: string
-    type: string
-    knowledge_count?: number
-    chunk_count?: number
-  }
-  share_id: string
-  organization_id: string
-  org_name: string
-  permission: 'admin' | 'editor' | 'viewer'
-  source_tenant_id: number
-  shared_at: string
+    id: string;
+    name: string;
+    description: string;
+    type: string;
+    knowledge_count?: number;
+    chunk_count?: number;
+  };
+  share_id: string;
+  organization_id: string;
+  org_name: string;
+  permission: "admin" | "editor" | "viewer";
+  source_tenant_id: number;
+  shared_at: string;
 }
 
 /** When set, this KB is visible in the space via a shared agent (read-only, no direct KB share) */
 export interface SourceFromAgentInfo {
-  agent_id: string
-  agent_name: string
+  agent_id: string;
+  agent_name: string;
   /** "all" | "selected" | "none" — for showing agent's KB strategy in the drawer */
-  kb_selection_mode?: string
+  kb_selection_mode?: string;
 }
 
 /** Item from GET /organizations/:id/shared-knowledge-bases (space-scoped list including mine and agent-carried) */
 export type OrganizationSharedKnowledgeBaseItem = SharedKnowledgeBase & {
-  is_mine: boolean
+  is_mine: boolean;
   /** Present when the KB is from a shared agent's config (not directly shared to the space) */
-  source_from_agent?: SourceFromAgentInfo
-}
+  source_from_agent?: SourceFromAgentInfo;
+};
 
 export interface OrganizationPreview {
-  id: string
-  name: string
-  description: string
-  avatar?: string
-  member_count: number
-  share_count: number
-  is_already_member: boolean
-  require_approval: boolean
-  created_at: string
+  id: string;
+  name: string;
+  description: string;
+  avatar?: string;
+  member_count: number;
+  share_count: number;
+  is_already_member: boolean;
+  require_approval: boolean;
+  created_at: string;
 }
 
 /** Searchable (discoverable) organization item for join flow */
 export interface SearchableOrganizationItem {
-  id: string
-  name: string
-  description: string
-  avatar?: string
-  member_count: number
-  member_limit: number // 0 = unlimited
-  share_count: number
-  is_already_member: boolean
-  require_approval: boolean
+  id: string;
+  name: string;
+  description: string;
+  avatar?: string;
+  member_count: number;
+  member_limit: number; // 0 = unlimited
+  share_count: number;
+  is_already_member: boolean;
+  require_approval: boolean;
 }
 
 // Request types
 export interface CreateOrganizationRequest {
-  name: string
-  description?: string
-  avatar?: string
-  invite_code_validity_days?: number // 0=never, 1, 7, 30; default 7
-  member_limit?: number // 0=unlimited; default 50
+  name: string;
+  description?: string;
+  avatar?: string;
+  invite_code_validity_days?: number; // 0=never, 1, 7, 30; default 7
+  member_limit?: number; // 0=unlimited; default 50
 }
 
 export interface UpdateOrganizationRequest {
-  name?: string
-  description?: string
-  avatar?: string
-  require_approval?: boolean
-  searchable?: boolean
-  invite_code_validity_days?: number // 0=never, 1, 7, 30
-  member_limit?: number // 0=unlimited
+  name?: string;
+  description?: string;
+  avatar?: string;
+  require_approval?: boolean;
+  searchable?: boolean;
+  invite_code_validity_days?: number; // 0=never, 1, 7, 30
+  member_limit?: number; // 0=unlimited
 }
 
 export interface UpdateMemberRoleRequest {
-  role: 'admin' | 'editor' | 'viewer'
+  role: "admin" | "editor" | "viewer";
 }
 
 export interface JoinOrganizationRequest {
-  invite_code: string
+  invite_code: string;
 }
 
 export interface ShareKnowledgeBaseRequest {
-  organization_id: string
-  permission: 'admin' | 'editor' | 'viewer'
+  organization_id: string;
+  permission: "admin" | "editor" | "viewer";
 }
 
 export interface UpdateSharePermissionRequest {
-  permission: 'admin' | 'editor' | 'viewer'
+  permission: "admin" | "editor" | "viewer";
 }
 
 // Response types
 export interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  message?: string
+  success: boolean;
+  data?: T;
+  message?: string;
 }
 
 /** Per-org resource counts (included in list my organizations to avoid extra GET /me/resource-counts) */
 export interface ResourceCountsByOrg {
-  knowledge_bases: { by_organization: Record<string, number> }
+  knowledge_bases: { by_organization: Record<string, number> };
 }
 
 export interface ListOrganizationsResponse {
-  organizations: Organization[]
-  total: number
-  resource_counts?: ResourceCountsByOrg
+  organizations: Organization[];
+  total: number;
+  resource_counts?: ResourceCountsByOrg;
 }
 
 export interface ListMembersResponse {
-  members: OrganizationMember[]
-  total: number
+  members: OrganizationMember[];
+  total: number;
 }
 
 export interface JoinRequestResponse {
-  id: string
-  user_id: string
-  username: string
-  email: string
-  message: string
-  request_type: 'join' | 'upgrade' // 'join' for new member, 'upgrade' for role upgrade
-  prev_role?: string // Previous role (only for upgrade requests)
-  requested_role: string // Role applicant requested: admin, editor, viewer
-  status: string
-  created_at: string
-  reviewed_at?: string
+  id: string;
+  user_id: string;
+  username: string;
+  email: string;
+  message: string;
+  request_type: "join" | "upgrade"; // 'join' for new member, 'upgrade' for role upgrade
+  prev_role?: string; // Previous role (only for upgrade requests)
+  requested_role: string; // Role applicant requested: admin, editor, viewer
+  status: string;
+  created_at: string;
+  reviewed_at?: string;
 }
 
 export interface ListJoinRequestsResponse {
-  requests: JoinRequestResponse[]
-  total: number
+  requests: JoinRequestResponse[];
+  total: number;
 }
 
 export interface SubmitJoinRequestRequest {
-  invite_code: string
-  message?: string
-  role?: 'admin' | 'editor' | 'viewer' // Optional: role applicant requests; default viewer
+  invite_code: string;
+  message?: string;
+  role?: "admin" | "editor" | "viewer"; // Optional: role applicant requests; default viewer
 }
 
 export interface ReviewJoinRequestRequest {
-  approved: boolean
-  message?: string
-  role?: 'admin' | 'editor' | 'viewer' // Optional: role to assign when approving; overrides applicant's requested role
+  approved: boolean;
+  message?: string;
+  role?: "admin" | "editor" | "viewer"; // Optional: role to assign when approving; overrides applicant's requested role
 }
 
 export interface RequestRoleUpgradeRequest {
-  requested_role: 'admin' | 'editor' | 'viewer' // The role user wants to upgrade to
-  message?: string // Optional message explaining the reason
+  requested_role: "admin" | "editor" | "viewer"; // The role user wants to upgrade to
+  message?: string; // Optional message explaining the reason
 }
 
 /**
@@ -241,17 +241,17 @@ export interface RequestRoleUpgradeRequest {
  *   (the server resolves the user's tenant if `tenant_id` is unset).
  */
 export interface InviteMemberRequest {
-  tenant_id?: number
-  representative_user_id?: string
-  user_id?: string
-  role: 'admin' | 'editor' | 'viewer'
+  tenant_id?: number;
+  representative_user_id?: string;
+  user_id?: string;
+  role: "admin" | "editor" | "viewer";
 }
 
 export interface UserSearchResult {
-  id: string
-  username: string
-  email: string
-  avatar?: string
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
 }
 
 /**
@@ -260,17 +260,17 @@ export interface UserSearchResult {
  * user that caused the tenant to appear in the search (for display only).
  */
 export interface TenantInviteCandidate {
-  tenant_id: number
-  tenant_name: string
-  representative_user_id: string
-  representative_username: string
-  representative_email: string
-  representative_avatar?: string
+  tenant_id: number;
+  tenant_name: string;
+  representative_user_id: string;
+  representative_username: string;
+  representative_email: string;
+  representative_avatar?: string;
 }
 
 export interface ListSharesResponse {
-  shares: KnowledgeBaseShare[]
-  total: number
+  shares: KnowledgeBaseShare[];
+  total: number;
 }
 
 // Organization API functions
@@ -280,10 +280,10 @@ export interface ListSharesResponse {
  */
 export async function createOrganization(req: CreateOrganizationRequest): Promise<ApiResponse<Organization>> {
   try {
-    const response = await post('/api/v1/organizations', req)
-    return response as unknown as ApiResponse<Organization>
+    const response = await post("/api/v1/organizations", req);
+    return response as unknown as ApiResponse<Organization>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to create organization' }
+    return { success: false, message: error.message || "Failed to create organization" };
   }
 }
 
@@ -292,10 +292,10 @@ export async function createOrganization(req: CreateOrganizationRequest): Promis
  */
 export async function getOrganization(id: string): Promise<ApiResponse<Organization>> {
   try {
-    const response = await get(`/api/v1/organizations/${id}`)
-    return response as unknown as ApiResponse<Organization>
+    const response = await get(`/api/v1/organizations/${id}`);
+    return response as unknown as ApiResponse<Organization>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to get organization' }
+    return { success: false, message: error.message || "Failed to get organization" };
   }
 }
 
@@ -304,22 +304,25 @@ export async function getOrganization(id: string): Promise<ApiResponse<Organizat
  */
 export async function listMyOrganizations(): Promise<ApiResponse<ListOrganizationsResponse>> {
   try {
-    const response = await get('/api/v1/organizations')
-    return response as unknown as ApiResponse<ListOrganizationsResponse>
+    const response = await get("/api/v1/organizations");
+    return response as unknown as ApiResponse<ListOrganizationsResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list organizations' }
+    return { success: false, message: error.message || "Failed to list organizations" };
   }
 }
 
 /**
  * Update organization
  */
-export async function updateOrganization(id: string, req: UpdateOrganizationRequest): Promise<ApiResponse<Organization>> {
+export async function updateOrganization(
+  id: string,
+  req: UpdateOrganizationRequest,
+): Promise<ApiResponse<Organization>> {
   try {
-    const response = await put(`/api/v1/organizations/${id}`, req)
-    return response as unknown as ApiResponse<Organization>
+    const response = await put(`/api/v1/organizations/${id}`, req);
+    return response as unknown as ApiResponse<Organization>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to update organization' }
+    return { success: false, message: error.message || "Failed to update organization" };
   }
 }
 
@@ -328,10 +331,10 @@ export async function updateOrganization(id: string, req: UpdateOrganizationRequ
  */
 export async function deleteOrganization(id: string): Promise<ApiResponse<void>> {
   try {
-    const response = await del(`/api/v1/organizations/${id}`)
-    return response as unknown as ApiResponse<void>
+    const response = await del(`/api/v1/organizations/${id}`);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to delete organization' }
+    return { success: false, message: error.message || "Failed to delete organization" };
   }
 }
 
@@ -340,10 +343,10 @@ export async function deleteOrganization(id: string): Promise<ApiResponse<void>>
  */
 export async function joinOrganization(req: JoinOrganizationRequest): Promise<ApiResponse<Organization>> {
   try {
-    const response = await post('/api/v1/organizations/join', req)
-    return response as unknown as ApiResponse<Organization>
+    const response = await post("/api/v1/organizations/join", req);
+    return response as unknown as ApiResponse<Organization>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to join organization' }
+    return { success: false, message: error.message || "Failed to join organization" };
   }
 }
 
@@ -353,10 +356,10 @@ export async function joinOrganization(req: JoinOrganizationRequest): Promise<Ap
  */
 export async function submitJoinRequest(req: SubmitJoinRequestRequest): Promise<ApiResponse<void>> {
   try {
-    const response = await post('/api/v1/organizations/join-request', req)
-    return response as unknown as ApiResponse<void>
+    const response = await post("/api/v1/organizations/join-request", req);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to submit join request' }
+    return { success: false, message: error.message || "Failed to submit join request" };
   }
 }
 
@@ -365,10 +368,10 @@ export async function submitJoinRequest(req: SubmitJoinRequestRequest): Promise<
  */
 export async function previewOrganization(inviteCode: string): Promise<ApiResponse<OrganizationPreview>> {
   try {
-    const response = await get(`/api/v1/organizations/preview/${inviteCode}`)
-    return response as unknown as ApiResponse<OrganizationPreview>
+    const response = await get(`/api/v1/organizations/preview/${inviteCode}`);
+    return response as unknown as ApiResponse<OrganizationPreview>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to preview organization' }
+    return { success: false, message: error.message || "Failed to preview organization" };
   }
 }
 
@@ -376,22 +379,27 @@ export async function previewOrganization(inviteCode: string): Promise<ApiRespon
  * Search searchable (discoverable) organizations
  */
 export async function searchSearchableOrganizations(
-  q: string = '',
-  limit: number = 20
+  q: string = "",
+  limit: number = 20,
 ): Promise<ApiResponse<{ data: SearchableOrganizationItem[]; total: number }>> {
   try {
-    const params = new URLSearchParams()
-    if (q) params.set('q', q)
-    params.set('limit', String(limit))
-    const response = await get(`/api/v1/organizations/search?${params.toString()}`)
-    const res = response as unknown as { success: boolean; data?: SearchableOrganizationItem[]; total?: number; message?: string }
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    params.set("limit", String(limit));
+    const response = await get(`/api/v1/organizations/search?${params.toString()}`);
+    const res = response as unknown as {
+      success: boolean;
+      data?: SearchableOrganizationItem[];
+      total?: number;
+      message?: string;
+    };
     return {
       success: res.success,
       data: res.success ? { data: res.data || [], total: res.total ?? 0 } : undefined,
       message: res.message,
-    }
+    };
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to search organizations' }
+    return { success: false, message: error.message || "Failed to search organizations" };
   }
 }
 
@@ -401,16 +409,16 @@ export async function searchSearchableOrganizations(
 export async function joinOrganizationById(
   organizationId: string,
   message?: string,
-  role?: 'admin' | 'editor' | 'viewer'
+  role?: "admin" | "editor" | "viewer",
 ): Promise<ApiResponse<Organization>> {
   try {
-    const body: { organization_id: string; message?: string; role?: string } = { organization_id: organizationId }
-    if (message) body.message = message
-    if (role) body.role = role
-    const response = await post('/api/v1/organizations/join-by-id', body)
-    return response as unknown as ApiResponse<Organization>
+    const body: { organization_id: string; message?: string; role?: string } = { organization_id: organizationId };
+    if (message) body.message = message;
+    if (role) body.role = role;
+    const response = await post("/api/v1/organizations/join-by-id", body);
+    return response as unknown as ApiResponse<Organization>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to join organization' }
+    return { success: false, message: error.message || "Failed to join organization" };
   }
 }
 
@@ -419,10 +427,10 @@ export async function joinOrganizationById(
  */
 export async function leaveOrganization(id: string): Promise<ApiResponse<void>> {
   try {
-    const response = await post(`/api/v1/organizations/${id}/leave`, {})
-    return response as unknown as ApiResponse<void>
+    const response = await post(`/api/v1/organizations/${id}/leave`, {});
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to leave organization' }
+    return { success: false, message: error.message || "Failed to leave organization" };
   }
 }
 
@@ -431,13 +439,13 @@ export async function leaveOrganization(id: string): Promise<ApiResponse<void>> 
  */
 export async function requestRoleUpgrade(
   orgId: string,
-  request: RequestRoleUpgradeRequest
+  request: RequestRoleUpgradeRequest,
 ): Promise<ApiResponse<JoinRequestResponse>> {
   try {
-    const response = await post(`/api/v1/organizations/${orgId}/request-upgrade`, request)
-    return response as unknown as ApiResponse<JoinRequestResponse>
+    const response = await post(`/api/v1/organizations/${orgId}/request-upgrade`, request);
+    return response as unknown as ApiResponse<JoinRequestResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to submit upgrade request' }
+    return { success: false, message: error.message || "Failed to submit upgrade request" };
   }
 }
 
@@ -446,10 +454,10 @@ export async function requestRoleUpgrade(
  */
 export async function generateInviteCode(id: string): Promise<ApiResponse<{ invite_code: string }>> {
   try {
-    const response = await post(`/api/v1/organizations/${id}/invite-code`, {})
-    return response as unknown as ApiResponse<{ invite_code: string }>
+    const response = await post(`/api/v1/organizations/${id}/invite-code`, {});
+    return response as unknown as ApiResponse<{ invite_code: string }>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to generate invite code' }
+    return { success: false, message: error.message || "Failed to generate invite code" };
   }
 }
 
@@ -460,22 +468,26 @@ export async function generateInviteCode(id: string): Promise<ApiResponse<{ invi
  */
 export async function listMembers(orgId: string): Promise<ApiResponse<ListMembersResponse>> {
   try {
-    const response = await get(`/api/v1/organizations/${orgId}/members`)
-    return response as unknown as ApiResponse<ListMembersResponse>
+    const response = await get(`/api/v1/organizations/${orgId}/members`);
+    return response as unknown as ApiResponse<ListMembersResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list members' }
+    return { success: false, message: error.message || "Failed to list members" };
   }
 }
 
 /**
  * Update member role (member is identified by tenant_id)
  */
-export async function updateMemberRole(orgId: string, tenantId: number, req: UpdateMemberRoleRequest): Promise<ApiResponse<void>> {
+export async function updateMemberRole(
+  orgId: string,
+  tenantId: number,
+  req: UpdateMemberRoleRequest,
+): Promise<ApiResponse<void>> {
   try {
-    const response = await put(`/api/v1/organizations/${orgId}/members/${tenantId}`, req)
-    return response as unknown as ApiResponse<void>
+    const response = await put(`/api/v1/organizations/${orgId}/members/${tenantId}`, req);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to update member role' }
+    return { success: false, message: error.message || "Failed to update member role" };
   }
 }
 
@@ -484,10 +496,10 @@ export async function updateMemberRole(orgId: string, tenantId: number, req: Upd
  */
 export async function removeMember(orgId: string, tenantId: number): Promise<ApiResponse<void>> {
   try {
-    const response = await del(`/api/v1/organizations/${orgId}/members/${tenantId}`)
-    return response as unknown as ApiResponse<void>
+    const response = await del(`/api/v1/organizations/${orgId}/members/${tenantId}`);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to remove member' }
+    return { success: false, message: error.message || "Failed to remove member" };
   }
 }
 
@@ -496,22 +508,26 @@ export async function removeMember(orgId: string, tenantId: number): Promise<Api
  */
 export async function listJoinRequests(orgId: string): Promise<ApiResponse<ListJoinRequestsResponse>> {
   try {
-    const response = await get(`/api/v1/organizations/${orgId}/join-requests`)
-    return response as unknown as ApiResponse<ListJoinRequestsResponse>
+    const response = await get(`/api/v1/organizations/${orgId}/join-requests`);
+    return response as unknown as ApiResponse<ListJoinRequestsResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list join requests' }
+    return { success: false, message: error.message || "Failed to list join requests" };
   }
 }
 
 /**
  * Review join request (approve or reject) - admin only
  */
-export async function reviewJoinRequest(orgId: string, requestId: string, req: ReviewJoinRequestRequest): Promise<ApiResponse<void>> {
+export async function reviewJoinRequest(
+  orgId: string,
+  requestId: string,
+  req: ReviewJoinRequestRequest,
+): Promise<ApiResponse<void>> {
   try {
-    const response = await put(`/api/v1/organizations/${orgId}/join-requests/${requestId}/review`, req)
-    return response as unknown as ApiResponse<void>
+    const response = await put(`/api/v1/organizations/${orgId}/join-requests/${requestId}/review`, req);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to review join request' }
+    return { success: false, message: error.message || "Failed to review join request" };
   }
 }
 
@@ -520,12 +536,15 @@ export async function reviewJoinRequest(orgId: string, requestId: string, req: R
 /**
  * Share knowledge base to organization
  */
-export async function shareKnowledgeBase(kbId: string, req: ShareKnowledgeBaseRequest): Promise<ApiResponse<KnowledgeBaseShare>> {
+export async function shareKnowledgeBase(
+  kbId: string,
+  req: ShareKnowledgeBaseRequest,
+): Promise<ApiResponse<KnowledgeBaseShare>> {
   try {
-    const response = await post(`/api/v1/knowledge-bases/${kbId}/shares`, req)
-    return response as unknown as ApiResponse<KnowledgeBaseShare>
+    const response = await post(`/api/v1/knowledge-bases/${kbId}/shares`, req);
+    return response as unknown as ApiResponse<KnowledgeBaseShare>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to share knowledge base' }
+    return { success: false, message: error.message || "Failed to share knowledge base" };
   }
 }
 
@@ -534,22 +553,26 @@ export async function shareKnowledgeBase(kbId: string, req: ShareKnowledgeBaseRe
  */
 export async function listKBShares(kbId: string): Promise<ApiResponse<ListSharesResponse>> {
   try {
-    const response = await get(`/api/v1/knowledge-bases/${kbId}/shares`)
-    return response as unknown as ApiResponse<ListSharesResponse>
+    const response = await get(`/api/v1/knowledge-bases/${kbId}/shares`);
+    return response as unknown as ApiResponse<ListSharesResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list shares' }
+    return { success: false, message: error.message || "Failed to list shares" };
   }
 }
 
 /**
  * Update share permission
  */
-export async function updateSharePermission(kbId: string, shareId: string, req: UpdateSharePermissionRequest): Promise<ApiResponse<void>> {
+export async function updateSharePermission(
+  kbId: string,
+  shareId: string,
+  req: UpdateSharePermissionRequest,
+): Promise<ApiResponse<void>> {
   try {
-    const response = await put(`/api/v1/knowledge-bases/${kbId}/shares/${shareId}`, req)
-    return response as unknown as ApiResponse<void>
+    const response = await put(`/api/v1/knowledge-bases/${kbId}/shares/${shareId}`, req);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to update share permission' }
+    return { success: false, message: error.message || "Failed to update share permission" };
   }
 }
 
@@ -558,10 +581,10 @@ export async function updateSharePermission(kbId: string, shareId: string, req: 
  */
 export async function removeShare(kbId: string, shareId: string): Promise<ApiResponse<void>> {
   try {
-    const response = await del(`/api/v1/knowledge-bases/${kbId}/shares/${shareId}`)
-    return response as unknown as ApiResponse<void>
+    const response = await del(`/api/v1/knowledge-bases/${kbId}/shares/${shareId}`);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to remove share' }
+    return { success: false, message: error.message || "Failed to remove share" };
   }
 }
 
@@ -570,22 +593,24 @@ export async function removeShare(kbId: string, shareId: string): Promise<ApiRes
  */
 export async function listSharedKnowledgeBases(): Promise<ApiResponse<SharedKnowledgeBase[]>> {
   try {
-    const response = await get('/api/v1/shared-knowledge-bases')
-    return response as unknown as ApiResponse<SharedKnowledgeBase[]>
+    const response = await get("/api/v1/shared-knowledge-bases");
+    return response as unknown as ApiResponse<SharedKnowledgeBase[]>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list shared knowledge bases' }
+    return { success: false, message: error.message || "Failed to list shared knowledge bases" };
   }
 }
 
 /**
  * List all knowledge bases in an organization (including those shared by current tenant), for list page when a space is selected.
  */
-export async function listOrganizationSharedKnowledgeBases(orgId: string): Promise<ApiResponse<OrganizationSharedKnowledgeBaseItem[]>> {
+export async function listOrganizationSharedKnowledgeBases(
+  orgId: string,
+): Promise<ApiResponse<OrganizationSharedKnowledgeBaseItem[]>> {
   try {
-    const response = await get(`/api/v1/organizations/${orgId}/shared-knowledge-bases`)
-    return response as unknown as ApiResponse<OrganizationSharedKnowledgeBaseItem[]>
+    const response = await get(`/api/v1/organizations/${orgId}/shared-knowledge-bases`);
+    return response as unknown as ApiResponse<OrganizationSharedKnowledgeBaseItem[]>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list organization shared knowledge bases' }
+    return { success: false, message: error.message || "Failed to list organization shared knowledge bases" };
   }
 }
 
@@ -594,10 +619,10 @@ export async function listOrganizationSharedKnowledgeBases(orgId: string): Promi
  */
 export async function listOrgShares(orgId: string): Promise<ApiResponse<ListSharesResponse>> {
   try {
-    const response = await get(`/api/v1/organizations/${orgId}/shares`)
-    return response as unknown as ApiResponse<ListSharesResponse>
+    const response = await get(`/api/v1/organizations/${orgId}/shares`);
+    return response as unknown as ApiResponse<ListSharesResponse>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to list organization shares' }
+    return { success: false, message: error.message || "Failed to list organization shares" };
   }
 }
 
@@ -609,13 +634,15 @@ export async function listOrgShares(orgId: string): Promise<ApiResponse<ListShar
 export async function searchTenantsForInvite(
   orgId: string,
   query: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<ApiResponse<TenantInviteCandidate[]>> {
   try {
-    const response = await get(`/api/v1/organizations/${orgId}/search-tenants?q=${encodeURIComponent(query)}&limit=${limit}`)
-    return response as unknown as ApiResponse<TenantInviteCandidate[]>
+    const response = await get(
+      `/api/v1/organizations/${orgId}/search-tenants?q=${encodeURIComponent(query)}&limit=${limit}`,
+    );
+    return response as unknown as ApiResponse<TenantInviteCandidate[]>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to search tenants' }
+    return { success: false, message: error.message || "Failed to search tenants" };
   }
 }
 
@@ -627,22 +654,19 @@ export async function searchTenantsForInvite(
 export async function searchUsersForInvite(
   orgId: string,
   query: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<ApiResponse<TenantInviteCandidate[]>> {
-  return searchTenantsForInvite(orgId, query, limit)
+  return searchTenantsForInvite(orgId, query, limit);
 }
 
 /**
  * Invite a user to organization directly (admin only)
  */
-export async function inviteMember(
-  orgId: string,
-  req: InviteMemberRequest
-): Promise<ApiResponse<void>> {
+export async function inviteMember(orgId: string, req: InviteMemberRequest): Promise<ApiResponse<void>> {
   try {
-    const response = await post(`/api/v1/organizations/${orgId}/invite`, req)
-    return response as unknown as ApiResponse<void>
+    const response = await post(`/api/v1/organizations/${orgId}/invite`, req);
+    return response as unknown as ApiResponse<void>;
   } catch (error: any) {
-    return { success: false, message: error.message || 'Failed to invite member' }
+    return { success: false, message: error.message || "Failed to invite member" };
   }
 }

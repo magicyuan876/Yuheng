@@ -1,11 +1,22 @@
 <template>
   <Teleport to="body">
-    <div v-if="float.visible" class="chat-citation-float" :style="{ top: `${float.top}px`, left: `${float.left}px` }"
-      @mouseenter="onEnter?.()" @mouseleave="onLeave?.()">
+    <div
+      v-if="float.visible"
+      class="chat-citation-float"
+      :style="{ top: `${float.top}px`, left: `${float.left}px` }"
+      @mouseenter="onEnter?.()"
+      @mouseleave="onLeave?.()"
+    >
       <template v-if="float.type === 'web'">
         <div class="chat-citation-float__title">{{ float.title || float.url }}</div>
-        <a v-if="float.url" class="chat-citation-float__link" :href="float.url" target="_blank"
-          rel="noopener noreferrer">{{ float.url }}</a>
+        <a
+          v-if="float.url"
+          class="chat-citation-float__link"
+          :href="float.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ float.url }}</a
+        >
       </template>
       <template v-else>
         <div class="chat-citation-float__title">{{ float.title }}</div>
@@ -18,19 +29,19 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import type { CitationFloatState } from '@/composables/useChatCitationPopover'
+import { useI18n } from "vue-i18n";
+import type { CitationFloatState } from "@/composables/useChatCitationPopover";
 
 defineProps<{
-  float: CitationFloatState
-  onEnter?: () => void
-  onLeave?: () => void
-}>()
+  float: CitationFloatState;
+  onEnter?: () => void;
+  onLeave?: () => void;
+}>();
 
-const { t } = useI18n()
-const loadingText = t('common.loading')
+const { t } = useI18n();
+const loadingText = t("common.loading");
 </script>
 
 <style lang="less">
-@import './css/chat-citations.less';
+@import "./css/chat-citations.less";
 </style>

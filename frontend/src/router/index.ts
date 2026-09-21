@@ -1,27 +1,27 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
-import { useGovernanceStore } from '@/stores/governance'
-import { getCurrentUser, userInfoFromApi } from '@/api/auth'
-import type { DeploymentCapabilityKey } from '@/config/deploymentCapabilities'
-import { MessagePlugin } from 'tdesign-vue-next'
-import i18n from '@/i18n'
-import { normalizeSettingsSection } from '@/config/settingsRoute'
-import { refreshUploadLimits } from '@/api/system'
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
+import { useGovernanceStore } from "@/stores/governance";
+import { getCurrentUser, userInfoFromApi } from "@/api/auth";
+import type { DeploymentCapabilityKey } from "@/config/deploymentCapabilities";
+import { MessagePlugin } from "tdesign-vue-next";
+import i18n from "@/i18n";
+import { normalizeSettingsSection } from "@/config/settingsRoute";
+import { refreshUploadLimits } from "@/api/system";
 
 // 上传上限是可动态调整的系统设置；每个会话在首次通过认证守卫时刷新一次
 // （fire-and-forget，失败静默保留 config.js 的静态快照）。
-let uploadLimitsRequested = false
+let uploadLimitsRequested = false;
 function ensureUploadLimitsFresh() {
-  if (uploadLimitsRequested) return
-  uploadLimitsRequested = true
-  void refreshUploadLimits()
+  if (uploadLimitsRequested) return;
+  uploadLimitsRequested = true;
+  void refreshUploadLimits();
 }
 
 function hasPendingOIDCCallback() {
-  if (typeof window === 'undefined') return false
-  const hash = window.location.hash || ''
-  return hash.includes('oidc_result=') || hash.includes('oidc_error=')
+  if (typeof window === "undefined") return false;
+  const hash = window.location.hash || "";
+  return hash.includes("oidc_result=") || hash.includes("oidc_error=");
 }
 
 const router = createRouter({
@@ -35,7 +35,7 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: () => import("../views/auth/Login.vue"),
-      meta: { requiresAuth: false, requiresInit: false }
+      meta: { requiresAuth: false, requiresInit: false },
     },
     {
       path: "/register",
@@ -46,7 +46,7 @@ const router = createRouter({
       // that would duplicate the OIDC / language-switch / styling
       // surface for one extra field.
       component: () => import("../views/auth/Login.vue"),
-      meta: { requiresAuth: false, requiresInit: false }
+      meta: { requiresAuth: false, requiresInit: false },
     },
     // Anonymous document routes. No authentication, no workspace, no init
     // check: a visitor following a shared URL has none of those and must not
@@ -56,44 +56,44 @@ const router = createRouter({
       path: "/d/:key",
       name: "docsPublicLink",
       component: () => import("../views/docs/public/PublicDoc.vue"),
-      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false },
     },
     {
       path: "/s/:spaceId",
       name: "docsPublicSpace",
       component: () => import("../views/docs/public/PublicSpace.vue"),
-      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false },
     },
     {
       path: "/s/:spaceId/:short",
       name: "docsPublicSpacePage",
       component: () => import("../views/docs/public/PublicDoc.vue"),
-      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false }
+      meta: { requiresAuth: false, requiresInit: false, requiresTenant: false },
     },
     {
       path: "/onboarding/workspace",
       name: "workspaceOnboarding",
       component: () => import("../views/auth/WorkspaceOnboarding.vue"),
-      meta: { requiresAuth: true, requiresInit: false, requiresTenant: false }
+      meta: { requiresAuth: true, requiresInit: false, requiresTenant: false },
     },
     {
       path: "/join",
       name: "joinOrganization",
       // 重定向到组织列表页，并将 code 参数转换为 invite_code
       redirect: (to) => {
-        const code = to.query.code as string
+        const code = to.query.code as string;
         return {
-          path: '/platform/organizations',
-          query: code ? { invite_code: code } : {}
-        }
+          path: "/platform/organizations",
+          query: code ? { invite_code: code } : {},
+        };
       },
-      meta: { requiresInit: true, requiresAuth: true }
+      meta: { requiresInit: true, requiresAuth: true },
     },
     {
       path: "/knowledgeBase",
       name: "home",
       component: () => import("../views/knowledge/KnowledgeBase.vue"),
-      meta: { requiresInit: true, requiresAuth: true }
+      meta: { requiresInit: true, requiresAuth: true },
     },
     {
       path: "/platform",
@@ -104,77 +104,77 @@ const router = createRouter({
       children: [
         {
           path: "tenant",
-          redirect: "/platform/settings"
+          redirect: "/platform/settings",
         },
         {
           path: "settings",
           name: "settings",
           component: () => import("../views/settings/Settings.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "knowledge-bases",
           name: "knowledgeBaseList",
           component: () => import("../views/knowledge/KnowledgeBaseList.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "knowledge-bases/:kbId",
           name: "knowledgeBaseDetail",
           component: () => import("../views/knowledge/KnowledgeBase.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "knowledge-search",
           // 旧路径保留为重定向，打开全局命令面板（⌘K），带上可选的 q 参数
           redirect: (to) => {
-            const q = to.query.q
+            const q = to.query.q;
             return {
-              path: '/platform/knowledge-bases',
-              query: typeof q === 'string' ? { cmdk: q } : { cmdk: '' },
-            }
+              path: "/platform/knowledge-bases",
+              query: typeof q === "string" ? { cmdk: q } : { cmdk: "" },
+            };
           },
         },
         {
           path: "integrations",
           redirect: (to) => {
-            const tab = typeof to.query.tab === 'string' ? to.query.tab : undefined
-            const incoming = typeof to.query.section === 'string' ? to.query.section : 'integrations'
-            const rest = { ...to.query }
-            delete rest.tab
+            const tab = typeof to.query.tab === "string" ? to.query.tab : undefined;
+            const incoming = typeof to.query.section === "string" ? to.query.section : "integrations";
+            const rest = { ...to.query };
+            delete rest.tab;
             return {
-              path: '/platform/settings',
+              path: "/platform/settings",
               query: {
                 ...rest,
                 section: normalizeSettingsSection(incoming, tab),
               },
-            }
+            };
           },
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "creatChat",
           name: "globalCreatChat",
           component: () => import("../views/creatChat/creatChat.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "knowledge-bases/:kbId/creatChat",
           name: "kbCreatChat",
           component: () => import("../views/creatChat/creatChat.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "chat/:chatid",
           name: "chat",
           component: () => import("../views/chat/index.vue"),
-          meta: { requiresInit: true, requiresAuth: true }
+          meta: { requiresInit: true, requiresAuth: true },
         },
         {
           path: "organizations",
           name: "organizationList",
           component: () => import("../views/organization/OrganizationList.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'organizations' }
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: "organizations" },
         },
         // Online documents (docs module). Registered only when the backend
         // reports the `docs` capability; see internal/docs.
@@ -182,13 +182,13 @@ const router = createRouter({
           path: "docs",
           name: "docsSpaceList",
           component: () => import("../views/docs/SpaceList.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: "docs" },
         },
         {
           path: "docs/spaces/:slug/settings",
           name: "docsSpaceSettings",
           component: () => import("../views/docs/SpaceSettings.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: "docs" },
         },
         {
           // One record for the space home and its pages so the tree keeps
@@ -196,7 +196,7 @@ const router = createRouter({
           path: "docs/spaces/:slug/:pageSlug?",
           name: "docsSpace",
           component: () => import("../views/docs/SpaceHome.vue"),
-          meta: { requiresInit: true, requiresAuth: true, requiredCapability: 'docs' }
+          meta: { requiresInit: true, requiresAuth: true, requiredCapability: "docs" },
         },
         // Compatibility redirects for /platform/system/* URLs. System
         // administration surfaces live as dedicated sections inside the
@@ -228,43 +228,47 @@ const router = createRouter({
       ],
     },
     // Dev-only markdown rendering test page
-    ...(import.meta.env.DEV ? [{
-      path: '/platform/dev/markdown',
-      name: 'markdownTest',
-      component: () => import('../views/dev/MarkdownTestPage.vue'),
-      meta: { requiresAuth: false, requiresInit: false }
-    }] : []),
+    ...(import.meta.env.DEV
+      ? [
+          {
+            path: "/platform/dev/markdown",
+            name: "markdownTest",
+            component: () => import("../views/dev/MarkdownTestPage.vue"),
+            meta: { requiresAuth: false, requiresInit: false },
+          },
+        ]
+      : []),
   ],
 });
 
 async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore>) {
-  const token = localStorage.getItem('yuheng_token')
-  if (!token) return false
+  const token = localStorage.getItem("yuheng_token");
+  if (!token) return false;
 
   if (!authStore.token) {
-    authStore.setToken(token)
+    authStore.setToken(token);
   }
 
-  const storedRefreshToken = localStorage.getItem('yuheng_refresh_token')
+  const storedRefreshToken = localStorage.getItem("yuheng_refresh_token");
   if (storedRefreshToken && !authStore.refreshToken) {
-    authStore.setRefreshToken(storedRefreshToken)
+    authStore.setRefreshToken(storedRefreshToken);
   }
 
   try {
-    const response = await getCurrentUser()
-    const user = response.data?.user
+    const response = await getCurrentUser();
+    const user = response.data?.user;
     if (!response.success || !user) {
-      return false
+      return false;
     }
 
-    authStore.setUser(userInfoFromApi(user, response.data?.tenant?.id))
+    authStore.setUser(userInfoFromApi(user, response.data?.tenant?.id));
 
-    const tenant = response.data?.tenant
+    const tenant = response.data?.tenant;
     if (tenant) {
       authStore.setTenant({
-        id: String(tenant.id) || '',
-        name: tenant.name || '',
-        owner_id: tenant.owner_id || user.id || '',
+        id: String(tenant.id) || "",
+        name: tenant.name || "",
+        owner_id: tenant.owner_id || user.id || "",
         description: tenant.description,
         status: tenant.status,
         business: tenant.business,
@@ -272,9 +276,9 @@ async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore
         storage_used: tenant.storage_used,
         created_at: tenant.created_at || new Date().toISOString(),
         updated_at: tenant.updated_at || new Date().toISOString(),
-      })
+      });
     } else {
-      authStore.setTenant(null)
+      authStore.setTenant(null);
     }
 
     // Refresh memberships on every page load — same reason as
@@ -282,104 +286,97 @@ async function hydrateSessionFromToken(authStore: ReturnType<typeof useAuthStore
     // would only ever see the snapshot from the original /auth/login
     // call, so role changes (and tenant-switch role lookups) would
     // be silently stale until the user logged out and back in.
-    const memberships = response.data?.memberships
+    const memberships = response.data?.memberships;
     if (Array.isArray(memberships)) {
-      authStore.setMemberships(memberships)
+      authStore.setMemberships(memberships);
     }
 
-    const canCreateTenant = response.data?.capabilities?.can_create_tenant
-    if (typeof canCreateTenant === 'boolean') {
-      authStore.setCanCreateTenant(canCreateTenant)
+    const canCreateTenant = response.data?.capabilities?.can_create_tenant;
+    if (typeof canCreateTenant === "boolean") {
+      authStore.setCanCreateTenant(canCreateTenant);
     }
 
-    authStore.setAutoAcceptInvitation(
-      response.data?.capabilities?.auto_accept_invitation === true,
-    )
+    authStore.setAutoAcceptInvitation(response.data?.capabilities?.auto_accept_invitation === true);
 
-    return true
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
-
 // 路由守卫：检查认证状态和系统初始化状态
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
 
   // OIDC 回跳登录结果依赖 App.vue 在挂载后消费 URL hash。
   // 如果这里先按“未登录”拦截到 /login，会导致回调结果没有机会落盘。
   if (hasPendingOIDCCallback()) {
-    next()
-    return
+    next();
+    return;
   }
 
   // Tenantless onboarding still requires a valid user token even though it
   // deliberately skips the normal tenant/system-initialization gates.
-  if (to.path === '/onboarding/workspace') {
+  if (to.path === "/onboarding/workspace") {
     if (!authStore.isLoggedIn) {
-      const restored = await hydrateSessionFromToken(authStore)
+      const restored = await hydrateSessionFromToken(authStore);
       if (!restored) {
-        next('/login')
-        return
+        next("/login");
+        return;
       }
     }
     if (authStore.hasValidTenant) {
-      next('/platform/knowledge-bases')
+      next("/platform/knowledge-bases");
     } else {
-      next()
+      next();
     }
-    return
+    return;
   }
 
   // 如果访问的是登录页面或初始化页面，直接放行
   if (to.meta.requiresAuth === false || to.meta.requiresInit === false) {
     // 如果已登录用户访问登录页面，重定向到知识库列表页面
-    if (to.path === '/login' && authStore.isLoggedIn) {
-      next(authStore.hasValidTenant ? '/platform/knowledge-bases' : '/onboarding/workspace')
-      return
+    if (to.path === "/login" && authStore.isLoggedIn) {
+      next(authStore.hasValidTenant ? "/platform/knowledge-bases" : "/onboarding/workspace");
+      return;
     }
-    next()
-    return
+    next();
+    return;
   }
 
   // 检查用户认证状态
   if (to.meta.requiresAuth !== false) {
     if (!authStore.isLoggedIn) {
-      const restored = await hydrateSessionFromToken(authStore)
+      const restored = await hydrateSessionFromToken(authStore);
       if (restored) {
-        next(
-          !authStore.hasValidTenant && to.meta.requiresTenant !== false
-            ? '/onboarding/workspace'
-            : to.fullPath,
-        )
-        return
+        next(!authStore.hasValidTenant && to.meta.requiresTenant !== false ? "/onboarding/workspace" : to.fullPath);
+        return;
       }
 
-      next('/login')
-      return
+      next("/login");
+      return;
     }
   }
 
   if (to.meta.requiresTenant !== false && !authStore.hasValidTenant) {
-    next('/onboarding/workspace')
-    return
+    next("/onboarding/workspace");
+    return;
   }
 
   // 部署能力只描述“后端是否提供该功能”，不反映服务健康或是否已配置。
   // 探测失败时 Store 会 fail-open，真正的权限和可用性仍由后端接口校验。
-  const deploymentCapabilities = useDeploymentCapabilitiesStore()
+  const deploymentCapabilities = useDeploymentCapabilitiesStore();
   // 顺带把上传上限刷新为系统设置的实时值（fire-and-forget，只在首次导航真正发请求）。
-  ensureUploadLimitsFresh()
+  ensureUploadLimitsFresh();
   // 治理模式决定设置页要不要渲染基础设施入口。和能力探测一起 await，避免菜单先
   // 按非集中管控渲染、拿到结果后再抽掉几项造成闪烁。探测失败同样 fail-open。
-  const governance = useGovernanceStore()
-  await Promise.all([deploymentCapabilities.ensureLoaded(), governance.ensureLoaded()])
-  const requiredCapability = to.meta.requiredCapability as DeploymentCapabilityKey | undefined
+  const governance = useGovernanceStore();
+  await Promise.all([deploymentCapabilities.ensureLoaded(), governance.ensureLoaded()]);
+  const requiredCapability = to.meta.requiredCapability as DeploymentCapabilityKey | undefined;
   if (requiredCapability && !deploymentCapabilities.isSupported(requiredCapability)) {
-    MessagePlugin.warning(i18n.global.t('settings.capabilityUnavailable'))
-    next('/platform/knowledge-bases')
-    return
+    MessagePlugin.warning(i18n.global.t("settings.capabilityUnavailable"));
+    next("/platform/knowledge-bases");
+    return;
   }
 
   // SystemAdmin gate — checked AFTER auth so a non-admin who's logged
@@ -388,12 +385,12 @@ router.beforeEach(async (to, from, next) => {
   // the bounce. This is UI-only; the server enforces the real check.
   if (to.meta.requiresSystemAdmin === true) {
     if (!authStore.isSystemAdmin) {
-      next('/platform/knowledge-bases')
-      return
+      next("/platform/knowledge-bases");
+      return;
     }
   }
 
-  next()
-})
+  next();
+});
 
-export default router
+export default router;

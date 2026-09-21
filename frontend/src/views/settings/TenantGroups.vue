@@ -2,30 +2,37 @@
   <div class="tenant-groups">
     <div class="section-header">
       <div class="section-header-row">
-        <h2>{{ t('docs.groups.title') }}</h2>
+        <h2>{{ t("docs.groups.title") }}</h2>
         <t-button v-if="canManage" size="small" theme="primary" @click="openCreate">
           <template #icon><t-icon name="add" /></template>
-          {{ t('docs.groups.create') }}
+          {{ t("docs.groups.create") }}
         </t-button>
       </div>
-      <p class="section-description">{{ t('docs.groups.subtitle') }}</p>
+      <p class="section-description">{{ t("docs.groups.subtitle") }}</p>
     </div>
 
-    <t-table :data="groups" :columns="columns" row-key="id" :loading="loading" size="small" hover
-      :empty="t('docs.groups.empty')">
+    <t-table
+      :data="groups"
+      :columns="columns"
+      row-key="id"
+      :loading="loading"
+      size="small"
+      hover
+      :empty="t('docs.groups.empty')"
+    >
       <template #name="{ row }">
         <div class="group-name">
           <t-icon name="usergroup" size="16px" class="group-icon" />
           <span>{{ row.name }}</span>
-          <t-tag v-if="row.is_default" size="small" variant="outline">{{ t('docs.groups.defaultBadge') }}</t-tag>
+          <t-tag v-if="row.is_default" size="small" variant="outline">{{ t("docs.groups.defaultBadge") }}</t-tag>
         </div>
       </template>
       <template #description="{ row }">
-        <span class="group-desc">{{ row.is_default ? t('docs.groups.defaultHint') : (row.description || '—') }}</span>
+        <span class="group-desc">{{ row.is_default ? t("docs.groups.defaultHint") : row.description || "—" }}</span>
       </template>
       <template #members="{ row }">
         <t-link theme="primary" hover="color" @click="openMembers(row)">
-          {{ t('docs.groups.memberCount', { count: row.member_count }) }}
+          {{ t("docs.groups.memberCount", { count: row.member_count }) }}
         </t-link>
       </template>
       <template #actions="{ row }">
@@ -40,8 +47,12 @@
               <template #icon><t-icon name="edit" /></template>
             </t-button>
           </t-tooltip>
-          <t-popconfirm v-if="canManage && !row.is_default" theme="danger"
-            :content="t('docs.groups.deleteConfirm', { name: row.name })" @confirm="remove(row)">
+          <t-popconfirm
+            v-if="canManage && !row.is_default"
+            theme="danger"
+            :content="t('docs.groups.deleteConfirm', { name: row.name })"
+            @confirm="remove(row)"
+          >
             <t-button variant="text" size="small" theme="danger">
               <template #icon><t-icon name="delete" /></template>
             </t-button>
@@ -51,17 +62,31 @@
     </t-table>
 
     <!-- Create / edit dialog -->
-    <t-dialog v-model:visible="editVisible" :header="editing ? t('docs.groups.editTitle') : t('docs.groups.createTitle')"
-      width="480px" destroy-on-close :cancel-btn="t('common.cancel')"
-      :confirm-btn="{ content: t('common.save'), loading: saving, disabled: !form.name.trim() }" @confirm="submitEdit">
+    <t-dialog
+      v-model:visible="editVisible"
+      :header="editing ? t('docs.groups.editTitle') : t('docs.groups.createTitle')"
+      width="480px"
+      destroy-on-close
+      :cancel-btn="t('common.cancel')"
+      :confirm-btn="{ content: t('common.save'), loading: saving, disabled: !form.name.trim() }"
+      @confirm="submitEdit"
+    >
       <t-form label-align="top" @submit.prevent>
         <t-form-item :label="t('docs.groups.name')">
-          <t-input v-model="form.name" :maxlength="100" :disabled="editing?.is_default"
-            :placeholder="t('docs.groups.namePlaceholder')" />
+          <t-input
+            v-model="form.name"
+            :maxlength="100"
+            :disabled="editing?.is_default"
+            :placeholder="t('docs.groups.namePlaceholder')"
+          />
         </t-form-item>
         <t-form-item :label="t('docs.groups.description')">
-          <t-textarea v-model="form.description" :maxlength="4000" :autosize="{ minRows: 2, maxRows: 5 }"
-            :placeholder="t('docs.groups.descriptionPlaceholder')" />
+          <t-textarea
+            v-model="form.description"
+            :maxlength="4000"
+            :autosize="{ minRows: 2, maxRows: 5 }"
+            :placeholder="t('docs.groups.descriptionPlaceholder')"
+          />
         </t-form-item>
       </t-form>
     </t-dialog>
@@ -70,23 +95,51 @@
     <t-dialog v-model:visible="membersVisible" :header="membersTitle" width="640px" :footer="false" destroy-on-close>
       <div class="members-dialog">
         <div class="members-toolbar">
-          <t-input v-model="memberQuery" clearable :placeholder="t('docs.groups.searchPlaceholder')" class="member-search"
-            @change="() => reloadMembers(1)" @clear="() => reloadMembers(1)" @enter="() => reloadMembers(1)">
+          <t-input
+            v-model="memberQuery"
+            clearable
+            :placeholder="t('docs.groups.searchPlaceholder')"
+            class="member-search"
+            @change="() => reloadMembers(1)"
+            @clear="() => reloadMembers(1)"
+            @enter="() => reloadMembers(1)"
+          >
             <template #prefix-icon><t-icon name="search" /></template>
           </t-input>
           <div v-if="canManage && activeGroup && !activeGroup.is_default" class="member-add">
-            <t-select v-model="pendingUserIds" multiple filterable :filter="() => true" :loading="memberSearch.loading.value"
-              :options="addableOptions" :placeholder="t('docs.groups.addMembersPlaceholder')" :min-collapsed-num="2"
-              class="member-add-select" @search="memberSearch.search" />
-            <t-button theme="primary" size="small" :disabled="!pendingUserIds.length" :loading="addingMembers"
-              @click="addMembers">
-              {{ t('docs.groups.addMembers') }}
+            <t-select
+              v-model="pendingUserIds"
+              multiple
+              filterable
+              :filter="() => true"
+              :loading="memberSearch.loading.value"
+              :options="addableOptions"
+              :placeholder="t('docs.groups.addMembersPlaceholder')"
+              :min-collapsed-num="2"
+              class="member-add-select"
+              @search="memberSearch.search"
+            />
+            <t-button
+              theme="primary"
+              size="small"
+              :disabled="!pendingUserIds.length"
+              :loading="addingMembers"
+              @click="addMembers"
+            >
+              {{ t("docs.groups.addMembers") }}
             </t-button>
           </div>
         </div>
-        <p v-if="activeGroup?.is_default" class="section-description">{{ t('docs.groups.defaultHint') }}</p>
-        <t-table :data="memberPage.members" :columns="memberColumns" row-key="user_id" size="small"
-          :loading="membersLoading" :empty="t('docs.groups.noMembers')" hover>
+        <p v-if="activeGroup?.is_default" class="section-description">{{ t("docs.groups.defaultHint") }}</p>
+        <t-table
+          :data="memberPage.members"
+          :columns="memberColumns"
+          row-key="user_id"
+          size="small"
+          :loading="membersLoading"
+          :empty="t('docs.groups.noMembers')"
+          hover
+        >
           <template #user="{ row }">
             <div class="member-cell">
               <div class="member-avatar">
@@ -107,18 +160,25 @@
             </t-popconfirm>
           </template>
         </t-table>
-        <t-pagination v-if="memberPage.total > memberPage.page_size" :total="memberPage.total"
-          :current="memberPage.page" :page-size="memberPage.page_size" size="small" :show-page-size="false"
-          class="members-pagination" @current-change="(p: number) => reloadMembers(p)" />
+        <t-pagination
+          v-if="memberPage.total > memberPage.page_size"
+          :total="memberPage.total"
+          :current="memberPage.page"
+          :page-size="memberPage.page_size"
+          size="small"
+          :show-page-size="false"
+          class="members-pagination"
+          @current-change="(p: number) => reloadMembers(p)"
+        />
       </div>
     </t-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { MessagePlugin } from "tdesign-vue-next";
+import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import {
   addGroupMembers,
@@ -131,178 +191,180 @@ import {
   type GroupMemberPage,
   type GroupMemberRow,
   type TenantGroup,
-} from '@/api/docs'
-import { useAuthStore } from '@/stores/auth'
-import { useMemberSearch } from '@/views/docs/useMemberSearch'
+} from "@/api/docs";
+import { useAuthStore } from "@/stores/auth";
+import { useMemberSearch } from "@/views/docs/useMemberSearch";
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const canManage = computed(() => authStore.hasRole('admin'))
+const { t } = useI18n();
+const authStore = useAuthStore();
+const canManage = computed(() => authStore.hasRole("admin"));
 
 const errorText = (err: unknown, fallback: string): string => {
-  const msg = (err as { message?: string } | null)?.message
-  return msg ? `${fallback}: ${msg}` : fallback
-}
+  const msg = (err as { message?: string } | null)?.message;
+  return msg ? `${fallback}: ${msg}` : fallback;
+};
 
 // ---- list ---------------------------------------------------------------------------
-const groups = ref<TenantGroup[]>([])
-const loading = ref(false)
+const groups = ref<TenantGroup[]>([]);
+const loading = ref(false);
 
 const load = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    groups.value = await listGroups()
+    groups.value = await listGroups();
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.groups.loadFailed')))
+    MessagePlugin.error(errorText(err, t("docs.groups.loadFailed")));
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const columns = computed(() => [
-  { colKey: 'name', title: t('docs.groups.columns.name'), minWidth: 180, ellipsis: true },
-  { colKey: 'description', title: t('docs.groups.columns.description'), ellipsis: true },
-  { colKey: 'members', title: t('docs.groups.columns.members'), width: 120 },
-  { colKey: 'actions', title: t('docs.groups.columns.actions'), width: 132 },
-])
+  { colKey: "name", title: t("docs.groups.columns.name"), minWidth: 180, ellipsis: true },
+  { colKey: "description", title: t("docs.groups.columns.description"), ellipsis: true },
+  { colKey: "members", title: t("docs.groups.columns.members"), width: 120 },
+  { colKey: "actions", title: t("docs.groups.columns.actions"), width: 132 },
+]);
 
 // ---- create / edit ------------------------------------------------------------------
-const editVisible = ref(false)
-const editing = ref<TenantGroup | null>(null)
-const saving = ref(false)
-const form = ref({ name: '', description: '' })
+const editVisible = ref(false);
+const editing = ref<TenantGroup | null>(null);
+const saving = ref(false);
+const form = ref({ name: "", description: "" });
 
 const openCreate = () => {
-  editing.value = null
-  form.value = { name: '', description: '' }
-  editVisible.value = true
-}
+  editing.value = null;
+  form.value = { name: "", description: "" };
+  editVisible.value = true;
+};
 
 const openEdit = (g: TenantGroup) => {
-  editing.value = g
-  form.value = { name: g.name, description: g.description }
-  editVisible.value = true
-}
+  editing.value = g;
+  form.value = { name: g.name, description: g.description };
+  editVisible.value = true;
+};
 
 const submitEdit = async () => {
-  saving.value = true
+  saving.value = true;
   try {
     if (editing.value) {
-      const body: { name?: string; description?: string } = { description: form.value.description.trim() }
-      if (!editing.value.is_default) body.name = form.value.name.trim()
-      const updated = await updateGroup(editing.value.id, body)
-      groups.value = groups.value.map((g) => (g.id === updated.id ? updated : g))
-      MessagePlugin.success(t('docs.groups.updateSuccess'))
+      const body: { name?: string; description?: string } = { description: form.value.description.trim() };
+      if (!editing.value.is_default) body.name = form.value.name.trim();
+      const updated = await updateGroup(editing.value.id, body);
+      groups.value = groups.value.map((g) => (g.id === updated.id ? updated : g));
+      MessagePlugin.success(t("docs.groups.updateSuccess"));
     } else {
-      const created = await createGroup({ name: form.value.name.trim(), description: form.value.description.trim() })
-      groups.value = [...groups.value, created]
-      MessagePlugin.success(t('docs.groups.createSuccess'))
+      const created = await createGroup({ name: form.value.name.trim(), description: form.value.description.trim() });
+      groups.value = [...groups.value, created];
+      MessagePlugin.success(t("docs.groups.createSuccess"));
     }
-    editVisible.value = false
+    editVisible.value = false;
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, editing.value ? t('docs.groups.updateFailed') : t('docs.groups.createFailed')))
+    MessagePlugin.error(errorText(err, editing.value ? t("docs.groups.updateFailed") : t("docs.groups.createFailed")));
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
 const remove = async (g: TenantGroup) => {
   try {
-    await deleteGroup(g.id)
-    groups.value = groups.value.filter((x) => x.id !== g.id)
-    MessagePlugin.success(t('docs.groups.deleteSuccess'))
+    await deleteGroup(g.id);
+    groups.value = groups.value.filter((x) => x.id !== g.id);
+    MessagePlugin.success(t("docs.groups.deleteSuccess"));
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.groups.deleteFailed')))
+    MessagePlugin.error(errorText(err, t("docs.groups.deleteFailed")));
   }
-}
+};
 
 // ---- members -------------------------------------------------------------------------
-const membersVisible = ref(false)
-const activeGroup = ref<TenantGroup | null>(null)
-const memberQuery = ref('')
-const membersLoading = ref(false)
-const memberPage = ref<GroupMemberPage>({ members: [], total: 0, page: 1, page_size: 20 })
-const removingUserId = ref('')
-const pendingUserIds = ref<string[]>([])
-const addingMembers = ref(false)
-const memberSearch = useMemberSearch()
+const membersVisible = ref(false);
+const activeGroup = ref<TenantGroup | null>(null);
+const memberQuery = ref("");
+const membersLoading = ref(false);
+const memberPage = ref<GroupMemberPage>({ members: [], total: 0, page: 1, page_size: 20 });
+const removingUserId = ref("");
+const pendingUserIds = ref<string[]>([]);
+const addingMembers = ref(false);
+const memberSearch = useMemberSearch();
 
-const membersTitle = computed(() => activeGroup.value
-  ? `${t('docs.groups.membersTitle')} · ${activeGroup.value.name}`
-  : t('docs.groups.membersTitle'))
+const membersTitle = computed(() =>
+  activeGroup.value ? `${t("docs.groups.membersTitle")} · ${activeGroup.value.name}` : t("docs.groups.membersTitle"),
+);
 
 const memberColumns = computed(() => {
-  const cols = [{ colKey: 'user', title: t('docs.members.columns.member'), ellipsis: true }]
+  const cols = [{ colKey: "user", title: t("docs.members.columns.member"), ellipsis: true }];
   if (canManage.value && activeGroup.value && !activeGroup.value.is_default) {
-    cols.push({ colKey: 'actions', title: t('docs.groups.columns.actions'), ellipsis: false, width: 72 } as never)
+    cols.push({ colKey: "actions", title: t("docs.groups.columns.actions"), ellipsis: false, width: 72 } as never);
   }
-  return cols
-})
+  return cols;
+});
 
 const addableOptions = computed(() => {
-  const present = new Set(memberPage.value.members.map((m) => m.user_id))
-  return memberSearch.options.value.map((o) => ({ ...o, disabled: present.has(o.value) }))
-})
+  const present = new Set(memberPage.value.members.map((m) => m.user_id));
+  return memberSearch.options.value.map((o) => ({ ...o, disabled: present.has(o.value) }));
+});
 
 const openMembers = async (g: TenantGroup) => {
-  activeGroup.value = g
-  memberQuery.value = ''
-  pendingUserIds.value = []
-  membersVisible.value = true
-  void memberSearch.load('')
-  await reloadMembers(1)
-}
+  activeGroup.value = g;
+  memberQuery.value = "";
+  pendingUserIds.value = [];
+  membersVisible.value = true;
+  void memberSearch.load("");
+  await reloadMembers(1);
+};
 
 const reloadMembers = async (page: number) => {
-  if (!activeGroup.value) return
-  membersLoading.value = true
+  if (!activeGroup.value) return;
+  membersLoading.value = true;
   try {
     memberPage.value = await listGroupMembers(activeGroup.value.id, {
-      q: memberQuery.value, page, page_size: memberPage.value.page_size,
-    })
+      q: memberQuery.value,
+      page,
+      page_size: memberPage.value.page_size,
+    });
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.groups.membersLoadFailed')))
+    MessagePlugin.error(errorText(err, t("docs.groups.membersLoadFailed")));
   } finally {
-    membersLoading.value = false
+    membersLoading.value = false;
   }
-}
+};
 
 const refreshCount = (updated: TenantGroup) => {
-  groups.value = groups.value.map((g) => (g.id === updated.id ? updated : g))
-  activeGroup.value = updated
-}
+  groups.value = groups.value.map((g) => (g.id === updated.id ? updated : g));
+  activeGroup.value = updated;
+};
 
 const addMembers = async () => {
-  if (!activeGroup.value || !pendingUserIds.value.length) return
-  addingMembers.value = true
+  if (!activeGroup.value || !pendingUserIds.value.length) return;
+  addingMembers.value = true;
   try {
-    refreshCount(await addGroupMembers(activeGroup.value.id, pendingUserIds.value))
-    pendingUserIds.value = []
-    MessagePlugin.success(t('docs.groups.addSuccess'))
-    await reloadMembers(memberPage.value.page)
+    refreshCount(await addGroupMembers(activeGroup.value.id, pendingUserIds.value));
+    pendingUserIds.value = [];
+    MessagePlugin.success(t("docs.groups.addSuccess"));
+    await reloadMembers(memberPage.value.page);
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.groups.addFailed')))
+    MessagePlugin.error(errorText(err, t("docs.groups.addFailed")));
   } finally {
-    addingMembers.value = false
+    addingMembers.value = false;
   }
-}
+};
 
 const removeMember = async (row: GroupMemberRow) => {
-  if (!activeGroup.value) return
-  removingUserId.value = row.user_id
+  if (!activeGroup.value) return;
+  removingUserId.value = row.user_id;
   try {
-    await removeGroupMember(activeGroup.value.id, row.user_id)
-    MessagePlugin.success(t('docs.groups.removeSuccess'))
-    refreshCount({ ...activeGroup.value, member_count: Math.max(0, activeGroup.value.member_count - 1) })
-    await reloadMembers(memberPage.value.page)
+    await removeGroupMember(activeGroup.value.id, row.user_id);
+    MessagePlugin.success(t("docs.groups.removeSuccess"));
+    refreshCount({ ...activeGroup.value, member_count: Math.max(0, activeGroup.value.member_count - 1) });
+    await reloadMembers(memberPage.value.page);
   } catch (err: unknown) {
-    MessagePlugin.error(errorText(err, t('docs.groups.removeFailed')))
+    MessagePlugin.error(errorText(err, t("docs.groups.removeFailed")));
   } finally {
-    removingUserId.value = ''
+    removingUserId.value = "";
   }
-}
+};
 
-onMounted(load)
+onMounted(load);
 </script>
 
 <style scoped lang="less">

@@ -1,13 +1,13 @@
 <template>
   <section v-if="entries.length || loading" class="docs-backlinks">
-    <h3 class="docs-backlinks-title">{{ t('docs.links.backlinks') }}</h3>
-    <p v-if="loading && !entries.length" class="docs-backlinks-note">{{ t('docs.links.searching') }}</p>
+    <h3 class="docs-backlinks-title">{{ t("docs.links.backlinks") }}</h3>
+    <p v-if="loading && !entries.length" class="docs-backlinks-note">{{ t("docs.links.searching") }}</p>
     <ul v-else class="docs-backlinks-list">
       <li v-for="entry in entries" :key="entry.page_id">
         <RouterLink :to="linkTo(entry)">
           <span v-if="entry.icon" class="docs-backlinks-icon">{{ entry.icon }}</span>
           <t-icon v-else name="file" size="14px" />
-          <span>{{ entry.title || t('docs.tree.untitled') }}</span>
+          <span>{{ entry.title || t("docs.tree.untitled") }}</span>
         </RouterLink>
       </li>
     </ul>
@@ -15,18 +15,18 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import { useI18n } from "vue-i18n";
 
-import type { PageRef } from '@/api/docs'
+import type { PageRef } from "@/api/docs";
 
-import { pageSlug } from '../tree/pageTree'
+import { pageSlug } from "../tree/pageTree";
 
-defineProps<{ entries: PageRef[]; loading: boolean }>()
-const { t } = useI18n()
+defineProps<{ entries: PageRef[]; loading: boolean }>();
+const { t } = useI18n();
 
 function linkTo(entry: PageRef): string {
-  if (!entry.space_id || !entry.short_id) return '#'
-  return `/docs/spaces/${entry.space_id}/${pageSlug(entry.title, entry.short_id)}`
+  if (!entry.space_id || !entry.short_id) return "#";
+  return `/docs/spaces/${entry.space_id}/${pageSlug(entry.title, entry.short_id)}`;
 }
 </script>
 

@@ -20,26 +20,26 @@
 // resolver, so all three can be tested without a browser, a Yjs document or a
 // collaboration service.
 
-import type { Node as PMNode } from '@tiptap/pm/model'
+import type { Node as PMNode } from "@tiptap/pm/model";
 
 /** What a comment carries about where it points. */
 export interface CommentAnchorInput {
-  id: string
+  id: string;
   /** The stored relative position; absent for a page-level comment. */
-  anchor?: unknown
+  anchor?: unknown;
   /** What the range covered when the comment was made. */
-  quotedText?: string
+  quotedText?: string;
 }
 
 /** How a comment was placed. */
-export type PlacementKind = 'page' | 'anchored' | 'quoted' | 'orphaned'
+export type PlacementKind = "page" | "anchored" | "quoted" | "orphaned";
 
 export interface Placement {
-  id: string
-  kind: PlacementKind
+  id: string;
+  kind: PlacementKind;
   /** The range to highlight; absent for 'page' and 'orphaned'. */
-  from?: number
-  to?: number
+  from?: number;
+  to?: number;
 }
 
 /**
@@ -49,10 +49,10 @@ export interface Placement {
  * neither of which belongs in a decision about what to highlight. Returns
  * null when the position no longer resolves.
  */
-export type ResolveAnchor = (anchor: unknown) => { from: number; to: number } | null
+export type ResolveAnchor = (anchor: unknown) => { from: number; to: number } | null;
 
 /** The shortest quotation worth searching for. */
-export const MIN_QUOTE_LENGTH = 4
+export const MIN_QUOTE_LENGTH = 4;
 
 /**
  * Decides where one comment points.
@@ -63,25 +63,21 @@ export const MIN_QUOTE_LENGTH = 4
  * cross-check — a comment does not move because somebody made the text it
  * points at match another passage.
  */
-export function placeComment(
-  doc: PMNode,
-  comment: CommentAnchorInput,
-  resolve: ResolveAnchor,
-): Placement {
+export function placeComment(doc: PMNode, comment: CommentAnchorInput, resolve: ResolveAnchor): Placement {
   if (comment.anchor === undefined || comment.anchor === null) {
-    return { id: comment.id, kind: 'page' }
+    return { id: comment.id, kind: "page" };
   }
 
-  const resolved = safeResolve(resolve, comment.anchor)
+  const resolved = safeResolve(resolve, comment.anchor);
   if (resolved && isSaneRange(doc, resolved)) {
-    return { id: comment.id, kind: 'anchored', from: resolved.from, to: resolved.to }
+    return { id: comment.id, kind: "anchored", from: resolved.from, to: resolved.to };
   }
 
-  const found = findQuotation(doc, comment.quotedText ?? '')
+  const found = findQuotation(doc, comment.quotedText ?? "");
   if (found) {
-    return { id: comment.id, kind: 'quoted', from: found.from, to: found.to }
+    return { id: comment.id, kind: "quoted", from: found.from, to: found.to };
   }
-  return { id: comment.id, kind: 'orphaned' }
+  return { id: comment.id, kind: "orphaned" };
 }
 
 /** Places every comment in one pass. */
@@ -90,7 +86,7 @@ export function placeComments(
   comments: readonly CommentAnchorInput[],
   resolve: ResolveAnchor,
 ): Placement[] {
-  return comments.map((comment) => placeComment(doc, comment, resolve))
+  return comments.map((comment) => placeComment(doc, comment, resolve));
 }
 
 /**
@@ -102,19 +98,19 @@ export function placeComments(
  */
 function safeResolve(resolve: ResolveAnchor, anchor: unknown) {
   try {
-    return resolve(anchor)
+    return resolve(anchor);
   } catch {
-    return null
+    return null;
   }
 }
 
 /** Whether a resolved range is one this document actually has. */
 function isSaneRange(doc: PMNode, range: { from: number; to: number }): boolean {
-  if (!Number.isFinite(range.from) || !Number.isFinite(range.to)) return false
-  if (range.from < 0 || range.to > doc.content.size) return false
+  if (!Number.isFinite(range.from) || !Number.isFinite(range.to)) return false;
+  if (range.from < 0 || range.to > doc.content.size) return false;
   // A range that collapsed to nothing no longer covers a passage: the text it
   // was about has been deleted, and the quotation is the better answer.
-  return range.to > range.from
+  return range.to > range.from;
 }
 
 /**
@@ -127,31 +123,31 @@ function isSaneRange(doc: PMNode, range: { from: number; to: number }): boolean 
  * text it was never about, with nothing to suggest anything went wrong.
  */
 export function findQuotation(doc: PMNode, quote: string): { from: number; to: number } | null {
-  const needle = normalise(quote)
-  if (needle.length < MIN_QUOTE_LENGTH) return null
+  const needle = normalise(quote);
+  if (needle.length < MIN_QUOTE_LENGTH) return null;
 
-  let found: { from: number; to: number } | null = null
-  let ambiguous = false
+  let found: { from: number; to: number } | null = null;
+  let ambiguous = false;
 
   doc.descendants((node, pos) => {
-    if (ambiguous) return false
-    if (!node.isTextblock) return true
+    if (ambiguous) return false;
+    if (!node.isTextblock) return true;
 
-    const text = normalise(node.textBetween(0, node.content.size, undefined, ' '))
-    let at = text.indexOf(needle)
+    const text = normalise(node.textBetween(0, node.content.size, undefined, " "));
+    let at = text.indexOf(needle);
     while (at !== -1) {
       if (found) {
-        ambiguous = true
-        return false
+        ambiguous = true;
+        return false;
       }
       // +1 for the position inside the block, which is where its text starts.
-      found = { from: pos + 1 + at, to: pos + 1 + at + needle.length }
-      at = text.indexOf(needle, at + 1)
+      found = { from: pos + 1 + at, to: pos + 1 + at + needle.length };
+      at = text.indexOf(needle, at + 1);
     }
-    return true
-  })
+    return true;
+  });
 
-  return ambiguous ? null : found
+  return ambiguous ? null : found;
 }
 
 /**
@@ -163,12 +159,12 @@ export function findQuotation(doc: PMNode, quote: string): { from: number; to: n
  * why the server's CleanQuotedText and this function are written to match.
  */
 export function normalise(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
+  return text.replace(/\s+/g, " ").trim();
 }
 
 /** Whether a placement puts the comment somewhere in the text. */
 export function isInline(placement: Placement): boolean {
-  return placement.kind === 'anchored' || placement.kind === 'quoted'
+  return placement.kind === "anchored" || placement.kind === "quoted";
 }
 
 /**
@@ -176,19 +172,19 @@ export function isInline(placement: Placement): boolean {
  * place together rather than scattered among the rest.
  */
 export function partitionPlacements(placements: readonly Placement[]): {
-  inline: Placement[]
-  page: Placement[]
-  orphaned: Placement[]
+  inline: Placement[];
+  page: Placement[];
+  orphaned: Placement[];
 } {
-  const inline: Placement[] = []
-  const page: Placement[] = []
-  const orphaned: Placement[] = []
+  const inline: Placement[] = [];
+  const page: Placement[] = [];
+  const orphaned: Placement[] = [];
   for (const placement of placements) {
-    if (placement.kind === 'orphaned') orphaned.push(placement)
-    else if (placement.kind === 'page') page.push(placement)
-    else inline.push(placement)
+    if (placement.kind === "orphaned") orphaned.push(placement);
+    else if (placement.kind === "page") page.push(placement);
+    else inline.push(placement);
   }
   // Inline comments read top to bottom, as the passages they are about do.
-  inline.sort((a, b) => (a.from ?? 0) - (b.from ?? 0))
-  return { inline, page, orphaned }
+  inline.sort((a, b) => (a.from ?? 0) - (b.from ?? 0));
+  return { inline, page, orphaned };
 }

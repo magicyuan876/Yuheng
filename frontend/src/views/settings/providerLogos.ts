@@ -9,22 +9,22 @@
 // 调用方传入 (category, id) 拿到 { mode, url }；找不到时返回 undefined，
 // 卡片会回落到原有的首字母 monogram。
 
-const colorModules = import.meta.glob('@/assets/img/providers/color/*/*.svg', {
+const colorModules = import.meta.glob("@/assets/img/providers/color/*/*.svg", {
   eager: true,
-  query: '?url',
-  import: 'default',
+  query: "?url",
+  import: "default",
 }) as Record<string, string>;
 
-const monoModules = import.meta.glob('@/assets/img/providers/mono/*/*.svg', {
+const monoModules = import.meta.glob("@/assets/img/providers/mono/*/*.svg", {
   eager: true,
-  query: '?url',
-  import: 'default',
+  query: "?url",
+  import: "default",
 }) as Record<string, string>;
 
-export type ProviderCategory = 'vectorstore' | 'storage' | 'websearch' | 'parser' | 'sandbox';
+export type ProviderCategory = "vectorstore" | "storage" | "websearch" | "parser" | "sandbox";
 
 export type LogoMatch = {
-  mode: 'color' | 'mono';
+  mode: "color" | "mono";
   url: string;
 };
 
@@ -41,18 +41,15 @@ const buildLookup = (modules: Record<string, string>, segment: string) => {
   return map;
 };
 
-const colorLookup = buildLookup(colorModules, 'color');
-const monoLookup = buildLookup(monoModules, 'mono');
+const colorLookup = buildLookup(colorModules, "color");
+const monoLookup = buildLookup(monoModules, "mono");
 
-export function providerLogo(
-  category: ProviderCategory,
-  id: string | undefined | null,
-): LogoMatch | undefined {
+export function providerLogo(category: ProviderCategory, id: string | undefined | null): LogoMatch | undefined {
   if (!id) return undefined;
   const key = id.toLowerCase();
   const colorUrl = colorLookup[category]?.[key];
-  if (colorUrl) return { mode: 'color', url: colorUrl };
+  if (colorUrl) return { mode: "color", url: colorUrl };
   const monoUrl = monoLookup[category]?.[key];
-  if (monoUrl) return { mode: 'mono', url: monoUrl };
+  if (monoUrl) return { mode: "mono", url: monoUrl };
   return undefined;
 }

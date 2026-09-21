@@ -4,12 +4,12 @@
       <div class="follow-ups__header">
         <span class="follow-ups__title">
           <t-icon name="lightbulb" />
-          <span>{{ t('chat.followUpQuestions') }}</span>
+          <span>{{ t("chat.followUpQuestions") }}</span>
         </span>
         <div class="follow-ups__actions">
           <button v-if="allowRegenerate" type="button" :disabled="loading" @click="emit('regenerate')">
             <t-icon :name="loading ? 'loading' : 'refresh'" :class="{ 'is-spinning': loading }" />
-            <span>{{ t('chat.refreshSuggestedQuestions') }}</span>
+            <span>{{ t("chat.refreshSuggestedQuestions") }}</span>
           </button>
           <button type="button" :aria-label="t('common.close')" @click="dismiss">
             <t-icon name="close" />
@@ -17,8 +17,13 @@
         </div>
       </div>
       <div class="follow-ups__list">
-        <button v-for="item in suggestionSet?.questions || []" :key="item.id" type="button"
-          class="follow-ups__item" @click="emit('select', item)">
+        <button
+          v-for="item in suggestionSet?.questions || []"
+          :key="item.id"
+          type="button"
+          class="follow-ups__item"
+          @click="emit('select', item)"
+        >
           <span>{{ item.text }}</span>
           <t-icon name="arrow-up-right" />
         </button>
@@ -28,42 +33,42 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { MessageSuggestionItem, MessageSuggestionSet } from '@/api/message-suggestion'
+import { watch } from "vue";
+import { useI18n } from "vue-i18n";
+import type { MessageSuggestionItem, MessageSuggestionSet } from "@/api/message-suggestion";
 
 const props = defineProps<{
-  suggestionSet?: MessageSuggestionSet | null
-  loading?: boolean
-  allowRegenerate?: boolean
-}>()
+  suggestionSet?: MessageSuggestionSet | null;
+  loading?: boolean;
+  allowRegenerate?: boolean;
+}>();
 const emit = defineEmits<{
-  (event: 'select', item: MessageSuggestionItem): void
-  (event: 'regenerate'): void
-  (event: 'impression', set: MessageSuggestionSet): void
-  (event: 'dismiss', set: MessageSuggestionSet): void
-}>()
-const { t } = useI18n()
-const impressed = new Set<string>()
+  (event: "select", item: MessageSuggestionItem): void;
+  (event: "regenerate"): void;
+  (event: "impression", set: MessageSuggestionSet): void;
+  (event: "dismiss", set: MessageSuggestionSet): void;
+}>();
+const { t } = useI18n();
+const impressed = new Set<string>();
 
 watch(
   () => props.suggestionSet,
   (set) => {
-    if (set?.status === 'ready' && set.questions.length > 0 && !impressed.has(set.id)) {
-      impressed.add(set.id)
-      emit('impression', set)
+    if (set?.status === "ready" && set.questions.length > 0 && !impressed.has(set.id)) {
+      impressed.add(set.id);
+      emit("impression", set);
     }
   },
   { immediate: true },
-)
+);
 
 const dismiss = () => {
-  if (props.suggestionSet) emit('dismiss', props.suggestionSet)
-}
+  if (props.suggestionSet) emit("dismiss", props.suggestionSet);
+};
 </script>
 
 <style scoped lang="less">
-@import (reference) '../css/suggested-questions.less';
+@import (reference) "../css/suggested-questions.less";
 
 .follow-ups {
   width: 100%;
@@ -95,7 +100,10 @@ const dismiss = () => {
   color: var(--td-text-color-placeholder);
   font-size: 14px;
 }
-.follow-ups__actions { display: flex; gap: 4px; }
+.follow-ups__actions {
+  display: flex;
+  gap: 4px;
+}
 .follow-ups__actions button {
   display: inline-flex;
   align-items: center;
@@ -106,17 +114,23 @@ const dismiss = () => {
   background: transparent;
   color: var(--td-text-color-secondary);
   cursor: pointer;
-  transition: background-color .2s, color .2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 .follow-ups__actions button:hover:not(:disabled) {
-  background: var(--td-bg-color-container-hover, rgba(0, 0, 0, .06));
+  background: var(--td-bg-color-container-hover, rgba(0, 0, 0, 0.06));
   color: var(--td-brand-color);
 }
 .follow-ups__actions button:disabled {
   cursor: not-allowed;
-  opacity: .6;
+  opacity: 0.6;
 }
-.follow-ups__list { display: flex; flex-direction: column; gap: 6px; }
+.follow-ups__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .follow-ups__item {
   display: flex;
   align-items: center;
@@ -131,26 +145,37 @@ const dismiss = () => {
   text-align: left;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 .follow-ups__item:hover {
   .suggestion-chip-hover();
 }
-.follow-ups__item:hover .t-icon { color: var(--td-text-color-secondary); }
-.is-spinning { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.follow-ups__item:hover .t-icon {
+  color: var(--td-text-color-secondary);
+}
+.is-spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .follow-up-card-enter-active {
   transform-origin: left top;
   transition:
-    opacity .22s ease .04s,
-    transform .28s cubic-bezier(.22, .61, .36, 1) .04s,
-    clip-path .28s cubic-bezier(.22, .61, .36, 1) .04s;
+    opacity 0.22s ease 0.04s,
+    transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) 0.04s,
+    clip-path 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) 0.04s;
   will-change: opacity, transform, clip-path;
 }
 .follow-up-card-enter-from {
   opacity: 0;
-  transform: translateY(-7px) scale(.985);
+  transform: translateY(-7px) scale(0.985);
   clip-path: inset(0 0 55% 0 round 12px);
 }
 .follow-up-card-enter-to {
@@ -160,6 +185,8 @@ const dismiss = () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .follow-up-card-enter-active { transition: none; }
+  .follow-up-card-enter-active {
+    transition: none;
+  }
 }
 </style>

@@ -1,17 +1,28 @@
 <template>
-  <SettingDrawer v-model:visible="drawerVisible" class="wiki-revision-drawer" :title="drawerTitle" icon="history"
-    width="760px" :min-width="560" :max-width="1280" storage-key="setting-drawer:width:wiki-revision-history"
-    hide-footer>
+  <SettingDrawer
+    v-model:visible="drawerVisible"
+    class="wiki-revision-drawer"
+    :title="drawerTitle"
+    icon="history"
+    width="760px"
+    :min-width="560"
+    :max-width="1280"
+    storage-key="setting-drawer:width:wiki-revision-history"
+    hide-footer
+  >
     <div class="wiki-rev-layout">
       <!-- Version list -->
       <aside class="wiki-rev-list">
         <div class="wiki-rev-list-items">
-          <div v-if="currentPage" class="wiki-rev-item"
+          <div
+            v-if="currentPage"
+            class="wiki-rev-item"
             :class="{ 'wiki-rev-item--active': selectedVersion === currentPage.version }"
-            @click="selectCurrent">
+            @click="selectCurrent"
+          >
             <div class="wiki-rev-item-primary">
               <span class="wiki-rev-version">v{{ currentPage.version }}</span>
-              <span class="wiki-rev-current-label">{{ t('knowledgeEditor.wikiBrowser.revisionCurrent') }}</span>
+              <span class="wiki-rev-current-label">{{ t("knowledgeEditor.wikiBrowser.revisionCurrent") }}</span>
             </div>
             <div class="wiki-rev-item-secondary">
               <span>{{ sourceLabel(currentPage.last_edit_source) }}</span>
@@ -19,8 +30,13 @@
             </div>
           </div>
 
-          <div v-for="rev in revisions" :key="rev.id" class="wiki-rev-item"
-            :class="{ 'wiki-rev-item--active': selectedVersion === rev.version }" @click="selectRevision(rev)">
+          <div
+            v-for="rev in revisions"
+            :key="rev.id"
+            class="wiki-rev-item"
+            :class="{ 'wiki-rev-item--active': selectedVersion === rev.version }"
+            @click="selectRevision(rev)"
+          >
             <div class="wiki-rev-item-primary">
               <span class="wiki-rev-version">v{{ rev.version }}</span>
             </div>
@@ -32,12 +48,12 @@
 
           <div v-if="revisions.length < total" class="wiki-rev-load-more">
             <t-button size="small" variant="outline" theme="default" :loading="loadingList" block @click="loadMore">
-              {{ t('knowledgeEditor.wikiBrowser.loadMoreShort') }}
+              {{ t("knowledgeEditor.wikiBrowser.loadMoreShort") }}
             </t-button>
           </div>
         </div>
         <div v-if="!loadingList && revisions.length === 0" class="wiki-rev-empty">
-          {{ t('knowledgeEditor.wikiBrowser.revisionEmpty') }}
+          {{ t("knowledgeEditor.wikiBrowser.revisionEmpty") }}
         </div>
       </aside>
 
@@ -50,20 +66,33 @@
               <div v-if="contextHint" class="wiki-rev-detail-sub">{{ contextHint }}</div>
             </div>
             <div class="wiki-rev-detail-controls">
-              <div v-if="viewModeOptions.length > 1" class="wiki-rev-view-switch" role="tablist"
-                :aria-label="t('knowledgeEditor.wikiBrowser.revisionViewModeLabel')">
-                <button v-for="option in viewModeOptions" :key="option.value" type="button"
-                  class="wiki-rev-view-switch-btn" role="tab" :aria-selected="viewMode === option.value"
-                  :class="{ active: viewMode === option.value }" @click="viewMode = option.value">
+              <div
+                v-if="viewModeOptions.length > 1"
+                class="wiki-rev-view-switch"
+                role="tablist"
+                :aria-label="t('knowledgeEditor.wikiBrowser.revisionViewModeLabel')"
+              >
+                <button
+                  v-for="option in viewModeOptions"
+                  :key="option.value"
+                  type="button"
+                  class="wiki-rev-view-switch-btn"
+                  role="tab"
+                  :aria-selected="viewMode === option.value"
+                  :class="{ active: viewMode === option.value }"
+                  @click="viewMode = option.value"
+                >
                   {{ option.label }}
                 </button>
               </div>
-              <t-popconfirm v-if="canEdit && selectedRevision"
+              <t-popconfirm
+                v-if="canEdit && selectedRevision"
                 :content="t('knowledgeEditor.wikiBrowser.revertConfirm', { ver: selectedRevision.version })"
-                @confirm="doRevert">
+                @confirm="doRevert"
+              >
                 <t-button size="small" variant="text" theme="warning" :loading="reverting">
                   <template #icon><t-icon name="rollback" /></template>
-                  {{ t('knowledgeEditor.wikiBrowser.revertBtn') }}
+                  {{ t("knowledgeEditor.wikiBrowser.revertBtn") }}
                 </t-button>
               </t-popconfirm>
             </div>
@@ -71,12 +100,12 @@
 
           <div v-if="loadingDetail || diffLoading" class="wiki-rev-detail-loading">
             <t-loading size="small" />
-            <span>{{ t('knowledgeEditor.wikiBrowser.loading') }}</span>
+            <span>{{ t("knowledgeEditor.wikiBrowser.loading") }}</span>
           </div>
 
           <div v-else-if="viewMode !== 'raw'" class="wiki-rev-diff">
             <div v-if="diffSections.length === 0" class="wiki-rev-empty-diff">
-              {{ t('knowledgeEditor.wikiBrowser.revisionDiffEmpty') }}
+              {{ t("knowledgeEditor.wikiBrowser.revisionDiffEmpty") }}
             </div>
             <template v-for="section in diffSections" :key="section.field">
               <div class="wiki-rev-diff-block">
@@ -94,408 +123,404 @@
           </div>
         </template>
 
-        <div v-else class="wiki-rev-detail-hint">{{ t('knowledgeEditor.wikiBrowser.revisionSelectHint') }}</div>
+        <div v-else class="wiki-rev-detail-hint">{{ t("knowledgeEditor.wikiBrowser.revisionSelectHint") }}</div>
       </div>
     </div>
   </SettingDrawer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import {
-  listWikiRevisions,
-  getWikiRevision,
-  revertWikiPage,
-  type WikiPage,
-  type WikiPageRevision,
-} from '@/api/wiki'
-import { diffWikiRevision, type WikiRevisionDiffField, type WikiRevisionSnapshot } from '@/utils/wikiRevisionDiff'
+import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { listWikiRevisions, getWikiRevision, revertWikiPage, type WikiPage, type WikiPageRevision } from "@/api/wiki";
+import { diffWikiRevision, type WikiRevisionDiffField, type WikiRevisionSnapshot } from "@/utils/wikiRevisionDiff";
 
-type ViewMode = 'incremental' | 'cumulative' | 'raw'
+type ViewMode = "incremental" | "cumulative" | "raw";
 
 interface DiffPair {
-  fromVersion: number
-  toVersion: number
-  from: WikiRevisionSnapshot
-  to: WikiRevisionSnapshot
+  fromVersion: number;
+  toVersion: number;
+  from: WikiRevisionSnapshot;
+  to: WikiRevisionSnapshot;
 }
 
 const props = defineProps<{
-  visible: boolean
-  kbId: string
-  slug: string
-  currentPage: WikiPage | null
-  canEdit?: boolean
-}>()
+  visible: boolean;
+  kbId: string;
+  slug: string;
+  currentPage: WikiPage | null;
+  canEdit?: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'update:visible', visible: boolean): void
-  (e: 'reverted', page: WikiPage): void
-}>()
+  (e: "update:visible", visible: boolean): void;
+  (e: "reverted", page: WikiPage): void;
+}>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 const drawerVisible = computed({
   get: () => props.visible,
-  set: (val) => emit('update:visible', val),
-})
+  set: (val) => emit("update:visible", val),
+});
 
 const drawerTitle = computed(() =>
-  t('knowledgeEditor.wikiBrowser.historyTitle', { title: props.currentPage?.title || props.slug }),
-)
+  t("knowledgeEditor.wikiBrowser.historyTitle", { title: props.currentPage?.title || props.slug }),
+);
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 50;
 
-const revisions = ref<WikiPageRevision[]>([])
-const total = ref(0)
-const loadingList = ref(false)
+const revisions = ref<WikiPageRevision[]>([]);
+const total = ref(0);
+const loadingList = ref(false);
 
-const selectedVersion = ref<number | null>(null)
-const selectedRevision = ref<WikiPageRevision | null>(null)
-const detailContent = ref('')
-const loadingDetail = ref(false)
-const viewMode = ref<ViewMode>('incremental')
-const reverting = ref(false)
-const diffLoading = ref(false)
-const diffPair = ref<DiffPair | null>(null)
+const selectedVersion = ref<number | null>(null);
+const selectedRevision = ref<WikiPageRevision | null>(null);
+const detailContent = ref("");
+const loadingDetail = ref(false);
+const viewMode = ref<ViewMode>("incremental");
+const reverting = ref(false);
+const diffLoading = ref(false);
+const diffPair = ref<DiffPair | null>(null);
 
-const snapshotCache = new Map<number, WikiRevisionSnapshot>()
+const snapshotCache = new Map<number, WikiRevisionSnapshot>();
 
-const currentVersion = computed(() => props.currentPage?.version ?? null)
+const currentVersion = computed(() => props.currentPage?.version ?? null);
 
-const isCurrentSelected = computed(() =>
-  currentVersion.value !== null && selectedVersion.value === currentVersion.value,
-)
+const isCurrentSelected = computed(
+  () => currentVersion.value !== null && selectedVersion.value === currentVersion.value,
+);
 
 const canShowDiff = computed(() => {
-  if (selectedVersion.value === null || !props.currentPage) return false
-  if (viewMode.value === 'raw') return true
-  if (viewMode.value === 'cumulative') {
-    return !isCurrentSelected.value && selectedVersion.value! < currentVersion.value!
+  if (selectedVersion.value === null || !props.currentPage) return false;
+  if (viewMode.value === "raw") return true;
+  if (viewMode.value === "cumulative") {
+    return !isCurrentSelected.value && selectedVersion.value! < currentVersion.value!;
   }
   // incremental: v1 diffs from empty; later versions diff from the previous one
-  return selectedVersion.value! >= 1
-})
+  return selectedVersion.value! >= 1;
+});
 
 const viewModeOptions = computed(() => {
-  if (isCurrentSelected.value) return []
-  const ver = selectedVersion.value!
-  const cur = currentVersion.value!
-  const options: Array<{ value: ViewMode; label: string }> = []
-  options.push({ value: 'incremental', label: t('knowledgeEditor.wikiBrowser.revisionDiffIncremental') })
+  if (isCurrentSelected.value) return [];
+  const ver = selectedVersion.value!;
+  const cur = currentVersion.value!;
+  const options: Array<{ value: ViewMode; label: string }> = [];
+  options.push({ value: "incremental", label: t("knowledgeEditor.wikiBrowser.revisionDiffIncremental") });
   if (ver < cur) {
-    options.push({ value: 'cumulative', label: t('knowledgeEditor.wikiBrowser.revisionDiffCumulative') })
+    options.push({ value: "cumulative", label: t("knowledgeEditor.wikiBrowser.revisionDiffCumulative") });
   }
-  options.push({ value: 'raw', label: t('knowledgeEditor.wikiBrowser.revisionRaw') })
-  return options
-})
+  options.push({ value: "raw", label: t("knowledgeEditor.wikiBrowser.revisionRaw") });
+  return options;
+});
 
 const versionRangeLabel = computed(() => {
-  if (viewMode.value === 'raw') {
-    return selectedRevision.value ? `v${selectedRevision.value.version}` : ''
+  if (viewMode.value === "raw") {
+    return selectedRevision.value ? `v${selectedRevision.value.version}` : "";
   }
-  if (!diffPair.value) return ''
+  if (!diffPair.value) return "";
   if (diffPair.value.fromVersion < 1) {
-    return t('knowledgeEditor.wikiBrowser.revisionInitialRange', { ver: diffPair.value.toVersion })
+    return t("knowledgeEditor.wikiBrowser.revisionInitialRange", { ver: diffPair.value.toVersion });
   }
-  return `v${diffPair.value.fromVersion} → v${diffPair.value.toVersion}`
-})
+  return `v${diffPair.value.fromVersion} → v${diffPair.value.toVersion}`;
+});
 
 const contextHint = computed(() => {
-  if (viewMode.value === 'raw' && selectedRevision.value) {
-    return [
-      sourceLabel(selectedRevision.value.edit_source),
-      formatShortTime(selectedRevision.value.edited_at),
-    ].filter(Boolean).join(' · ')
+  if (viewMode.value === "raw" && selectedRevision.value) {
+    return [sourceLabel(selectedRevision.value.edit_source), formatShortTime(selectedRevision.value.edited_at)]
+      .filter(Boolean)
+      .join(" · ");
   }
-  if (viewMode.value === 'incremental') {
-    if ((isCurrentSelected.value && (currentVersion.value ?? 0) <= 1)
-      || selectedVersion.value === 1) {
-      return t('knowledgeEditor.wikiBrowser.revisionInitialCreationHint')
+  if (viewMode.value === "incremental") {
+    if ((isCurrentSelected.value && (currentVersion.value ?? 0) <= 1) || selectedVersion.value === 1) {
+      return t("knowledgeEditor.wikiBrowser.revisionInitialCreationHint");
     }
     return isCurrentSelected.value
-      ? t('knowledgeEditor.wikiBrowser.revisionLatestChangeHint')
-      : t('knowledgeEditor.wikiBrowser.revisionIncrementalHint', { ver: selectedVersion.value ?? 0 })
+      ? t("knowledgeEditor.wikiBrowser.revisionLatestChangeHint")
+      : t("knowledgeEditor.wikiBrowser.revisionIncrementalHint", { ver: selectedVersion.value ?? 0 });
   }
-  if (viewMode.value === 'cumulative') {
-    return t('knowledgeEditor.wikiBrowser.revisionCumulativeHint')
+  if (viewMode.value === "cumulative") {
+    return t("knowledgeEditor.wikiBrowser.revisionCumulativeHint");
   }
-  return ''
-})
+  return "";
+});
 
 const rawRevisionText = computed(() => {
-  if (!selectedRevision.value) return detailContent.value
-  const parts: string[] = []
-  if (selectedRevision.value.title) parts.push(selectedRevision.value.title)
+  if (!selectedRevision.value) return detailContent.value;
+  const parts: string[] = [];
+  if (selectedRevision.value.title) parts.push(selectedRevision.value.title);
   if (selectedRevision.value.summary) {
-    if (parts.length) parts.push('')
-    parts.push(selectedRevision.value.summary)
+    if (parts.length) parts.push("");
+    parts.push(selectedRevision.value.summary);
   }
   if (detailContent.value) {
-    if (parts.length) parts.push('')
-    parts.push(detailContent.value)
+    if (parts.length) parts.push("");
+    parts.push(detailContent.value);
   }
-  return parts.join('\n')
-})
+  return parts.join("\n");
+});
 
 const diffSections = computed(() => {
-  if (!diffPair.value || viewMode.value === 'raw') return []
-  return diffWikiRevision(diffPair.value.from, diffPair.value.to)
-})
+  if (!diffPair.value || viewMode.value === "raw") return [];
+  return diffWikiRevision(diffPair.value.from, diffPair.value.to);
+});
 
 watch(
   () => [props.visible, props.slug] as const,
   ([visible]) => {
     if (visible && props.slug) {
-      resetAndLoad()
+      resetAndLoad();
     }
   },
-)
+);
 
 watch(
   () => viewModeOptions.value,
   (options) => {
-    if (options.length === 0) return
+    if (options.length === 0) return;
     if (!options.some((option) => option.value === viewMode.value)) {
-      viewMode.value = options[0].value
+      viewMode.value = options[0].value;
     }
   },
-)
+);
 
 watch(
-  () => [selectedVersion.value, viewMode.value, props.currentPage?.version, props.currentPage?.content,
-    props.currentPage?.title, props.currentPage?.summary] as const,
+  () =>
+    [
+      selectedVersion.value,
+      viewMode.value,
+      props.currentPage?.version,
+      props.currentPage?.content,
+      props.currentPage?.title,
+      props.currentPage?.summary,
+    ] as const,
   () => {
-    if (props.visible && viewMode.value !== 'raw') {
-      void loadDiffPair()
+    if (props.visible && viewMode.value !== "raw") {
+      void loadDiffPair();
     }
   },
-)
+);
 
 function snapshotFromPage(page: WikiPage): WikiRevisionSnapshot {
   return {
-    title: page.title || '',
-    summary: page.summary || '',
-    content: page.content || '',
-  }
+    title: page.title || "",
+    summary: page.summary || "",
+    content: page.content || "",
+  };
 }
 
 function snapshotFromRevisionData(data: WikiPageRevision, content: string): WikiRevisionSnapshot {
   return {
-    title: data.title || '',
-    summary: data.summary || '',
+    title: data.title || "",
+    summary: data.summary || "",
     content,
-  }
+  };
 }
 
 async function loadVersionSnapshot(version: number): Promise<WikiRevisionSnapshot> {
   if (!props.currentPage) {
-    return { title: '', summary: '', content: '' }
+    return { title: "", summary: "", content: "" };
   }
   if (version === props.currentPage.version) {
-    return snapshotFromPage(props.currentPage)
+    return snapshotFromPage(props.currentPage);
   }
-  const cached = snapshotCache.get(version)
-  if (cached) return cached
-  const res = await getWikiRevision(props.kbId, props.slug, version)
-  const data = (res as any).data || (res as any)
-  const snap = snapshotFromRevisionData(data, data.content || '')
-  snapshotCache.set(version, snap)
-  return snap
+  const cached = snapshotCache.get(version);
+  if (cached) return cached;
+  const res = await getWikiRevision(props.kbId, props.slug, version);
+  const data = (res as any).data || (res as any);
+  const snap = snapshotFromRevisionData(data, data.content || "");
+  snapshotCache.set(version, snap);
+  return snap;
 }
 
-let diffRequestSeq = 0
+let diffRequestSeq = 0;
 
 async function loadDiffPair() {
-  const seq = ++diffRequestSeq
+  const seq = ++diffRequestSeq;
   if (!props.currentPage || selectedVersion.value === null || !canShowDiff.value) {
-    diffPair.value = null
-    diffLoading.value = false
-    return
+    diffPair.value = null;
+    diffLoading.value = false;
+    return;
   }
 
-  const currentVer = props.currentPage.version
-  let fromVer = 0
-  let toVer = 0
+  const currentVer = props.currentPage.version;
+  let fromVer = 0;
+  let toVer = 0;
 
-  if (viewMode.value === 'incremental') {
-    toVer = isCurrentSelected.value ? currentVer : selectedVersion.value!
-    fromVer = toVer - 1
+  if (viewMode.value === "incremental") {
+    toVer = isCurrentSelected.value ? currentVer : selectedVersion.value!;
+    fromVer = toVer - 1;
   } else {
-    fromVer = selectedVersion.value!
-    toVer = currentVer
+    fromVer = selectedVersion.value!;
+    toVer = currentVer;
   }
 
   if (fromVer < 0 || toVer < 1 || fromVer >= toVer) {
-    diffPair.value = null
-    diffLoading.value = false
-    return
+    diffPair.value = null;
+    diffLoading.value = false;
+    return;
   }
 
-  diffLoading.value = true
+  diffLoading.value = true;
   try {
-    const from = fromVer < 1
-      ? { title: '', summary: '', content: '' }
-      : await loadVersionSnapshot(fromVer)
-    if (seq !== diffRequestSeq) return
-    const to = await loadVersionSnapshot(toVer)
-    if (seq !== diffRequestSeq) return
-    diffPair.value = { fromVersion: fromVer, toVersion: toVer, from, to }
+    const from = fromVer < 1 ? { title: "", summary: "", content: "" } : await loadVersionSnapshot(fromVer);
+    if (seq !== diffRequestSeq) return;
+    const to = await loadVersionSnapshot(toVer);
+    if (seq !== diffRequestSeq) return;
+    diffPair.value = { fromVersion: fromVer, toVersion: toVer, from, to };
   } catch (e: any) {
-    if (seq !== diffRequestSeq) return
-    diffPair.value = null
-    MessagePlugin.error(e?.message || t('knowledgeEditor.wikiBrowser.revisionLoadFailed'))
+    if (seq !== diffRequestSeq) return;
+    diffPair.value = null;
+    MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revisionLoadFailed"));
   } finally {
-    if (seq === diffRequestSeq) diffLoading.value = false
+    if (seq === diffRequestSeq) diffLoading.value = false;
   }
 }
 
 function resetAndLoad() {
-  detailRequestSeq++
-  diffRequestSeq++
-  snapshotCache.clear()
-  revisions.value = []
-  total.value = 0
-  selectedVersion.value = props.currentPage?.version ?? null
-  selectedRevision.value = null
-  detailContent.value = ''
-  loadingDetail.value = false
-  diffPair.value = null
-  diffLoading.value = false
-  viewMode.value = 'incremental'
-  loadList(0)
-  void loadDiffPair()
+  detailRequestSeq++;
+  diffRequestSeq++;
+  snapshotCache.clear();
+  revisions.value = [];
+  total.value = 0;
+  selectedVersion.value = props.currentPage?.version ?? null;
+  selectedRevision.value = null;
+  detailContent.value = "";
+  loadingDetail.value = false;
+  diffPair.value = null;
+  diffLoading.value = false;
+  viewMode.value = "incremental";
+  loadList(0);
+  void loadDiffPair();
 }
 
 async function loadList(offset: number) {
-  loadingList.value = true
+  loadingList.value = true;
   try {
-    const res = await listWikiRevisions(props.kbId, props.slug, { limit: PAGE_SIZE, offset })
-    const data = (res as any).data || (res as any)
-    const items: WikiPageRevision[] = data.revisions || []
+    const res = await listWikiRevisions(props.kbId, props.slug, { limit: PAGE_SIZE, offset });
+    const data = (res as any).data || (res as any);
+    const items: WikiPageRevision[] = data.revisions || [];
     if (offset === 0) {
-      revisions.value = items
+      revisions.value = items;
     } else {
       // Snapshots are created while the user pages through, which shifts the
       // newest-first window. Drop versions we already hold so an overlapping
       // page cannot produce duplicate rows (and duplicate :key values).
-      const seen = new Set(revisions.value.map((r) => r.version))
-      revisions.value = [...revisions.value, ...items.filter((r) => !seen.has(r.version))]
+      const seen = new Set(revisions.value.map((r) => r.version));
+      revisions.value = [...revisions.value, ...items.filter((r) => !seen.has(r.version))];
     }
-    total.value = data.total ?? revisions.value.length
+    total.value = data.total ?? revisions.value.length;
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeEditor.wikiBrowser.revisionLoadFailed'))
+    MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revisionLoadFailed"));
   } finally {
-    loadingList.value = false
+    loadingList.value = false;
   }
 }
 
 function loadMore() {
-  if (loadingList.value) return
-  loadList(revisions.value.length)
+  if (loadingList.value) return;
+  loadList(revisions.value.length);
 }
 
 function selectCurrent() {
-  detailRequestSeq++
-  selectedVersion.value = props.currentPage?.version ?? null
-  selectedRevision.value = null
-  detailContent.value = ''
-  loadingDetail.value = false
-  viewMode.value = 'incremental'
+  detailRequestSeq++;
+  selectedVersion.value = props.currentPage?.version ?? null;
+  selectedRevision.value = null;
+  detailContent.value = "";
+  loadingDetail.value = false;
+  viewMode.value = "incremental";
 }
 
 // Monotonic token guarding the detail fetch: clicking through the list fires
 // overlapping requests, and a slow earlier one must not overwrite the body of
 // the revision the user is actually looking at.
-let detailRequestSeq = 0
+let detailRequestSeq = 0;
 
 async function selectRevision(rev: WikiPageRevision) {
-  const seq = ++detailRequestSeq
-  selectedVersion.value = rev.version
-  selectedRevision.value = rev
-  detailContent.value = ''
-  viewMode.value = 'incremental'
-  loadingDetail.value = true
+  const seq = ++detailRequestSeq;
+  selectedVersion.value = rev.version;
+  selectedRevision.value = rev;
+  detailContent.value = "";
+  viewMode.value = "incremental";
+  loadingDetail.value = true;
   try {
-    const res = await getWikiRevision(props.kbId, props.slug, rev.version)
-    if (seq !== detailRequestSeq) return
-    const data = (res as any).data || (res as any)
-    selectedRevision.value = { ...rev, ...data }
-    detailContent.value = data.content || ''
-    snapshotCache.set(rev.version, snapshotFromRevisionData(data, data.content || ''))
+    const res = await getWikiRevision(props.kbId, props.slug, rev.version);
+    if (seq !== detailRequestSeq) return;
+    const data = (res as any).data || (res as any);
+    selectedRevision.value = { ...rev, ...data };
+    detailContent.value = data.content || "";
+    snapshotCache.set(rev.version, snapshotFromRevisionData(data, data.content || ""));
   } catch (e: any) {
-    if (seq !== detailRequestSeq) return
-    MessagePlugin.error(e?.message || t('knowledgeEditor.wikiBrowser.revisionLoadFailed'))
+    if (seq !== detailRequestSeq) return;
+    MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revisionLoadFailed"));
   } finally {
-    if (seq === detailRequestSeq) loadingDetail.value = false
+    if (seq === detailRequestSeq) loadingDetail.value = false;
   }
 }
 
 async function doRevert() {
-  if (!selectedRevision.value) return
-  reverting.value = true
+  if (!selectedRevision.value) return;
+  reverting.value = true;
   try {
-    const res = await revertWikiPage(props.kbId, props.slug, selectedRevision.value.version)
-    const updated = ((res as any).data || (res as any)) as WikiPage
-    MessagePlugin.success(t('knowledgeEditor.wikiBrowser.revertSuccess', { ver: selectedRevision.value.version }))
-    emit('reverted', updated)
+    const res = await revertWikiPage(props.kbId, props.slug, selectedRevision.value.version);
+    const updated = ((res as any).data || (res as any)) as WikiPage;
+    MessagePlugin.success(t("knowledgeEditor.wikiBrowser.revertSuccess", { ver: selectedRevision.value.version }));
+    emit("reverted", updated);
     // Stay open: reload so the just-created snapshot of the pre-revert
     // version shows up and the "current" entry reflects the new version.
-    resetAndLoad()
+    resetAndLoad();
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('knowledgeEditor.wikiBrowser.revertFailed'))
+    MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revertFailed"));
   } finally {
-    reverting.value = false
+    reverting.value = false;
   }
 }
 
-function diffPrefix(type: 'same' | 'add' | 'del'): string {
-  return type === 'add' ? '+ ' : type === 'del' ? '- ' : '  '
+function diffPrefix(type: "same" | "add" | "del"): string {
+  return type === "add" ? "+ " : type === "del" ? "- " : "  ";
 }
 
 function revisionDiffFieldLabel(field: WikiRevisionDiffField): string {
   switch (field) {
-    case 'title':
-      return t('knowledgeEditor.wikiBrowser.revisionDiffTitle')
-    case 'summary':
-      return t('knowledgeEditor.wikiBrowser.revisionDiffSummary')
+    case "title":
+      return t("knowledgeEditor.wikiBrowser.revisionDiffTitle");
+    case "summary":
+      return t("knowledgeEditor.wikiBrowser.revisionDiffSummary");
     default:
-      return t('knowledgeEditor.wikiBrowser.revisionDiffContent')
+      return t("knowledgeEditor.wikiBrowser.revisionDiffContent");
   }
 }
 
 function sourceLabel(source?: string): string {
   switch (source) {
-    case 'user':
-      return t('knowledgeEditor.wikiBrowser.editSourceUser')
-    case 'agent':
-      return t('knowledgeEditor.wikiBrowser.editSourceAgent')
-    case 'revert':
-      return t('knowledgeEditor.wikiBrowser.editSourceRevert')
+    case "user":
+      return t("knowledgeEditor.wikiBrowser.editSourceUser");
+    case "agent":
+      return t("knowledgeEditor.wikiBrowser.editSourceAgent");
+    case "revert":
+      return t("knowledgeEditor.wikiBrowser.editSourceRevert");
     default:
-      return t('knowledgeEditor.wikiBrowser.editSourcePipeline')
+      return t("knowledgeEditor.wikiBrowser.editSourcePipeline");
   }
 }
 
 function formatShortTime(iso?: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const now = new Date()
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   }
   return d.toLocaleString(undefined, {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
-
 </script>
 
 <style scoped>
@@ -531,7 +556,9 @@ function formatShortTime(iso?: string): string {
   border-radius: 6px;
   padding: 6px 10px 6px 14px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .wiki-rev-item:hover,
@@ -669,7 +696,9 @@ function formatShortTime(iso?: string): string {
   line-height: 1.4;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .wiki-rev-view-switch-btn:hover {

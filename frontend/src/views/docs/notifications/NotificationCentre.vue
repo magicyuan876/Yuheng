@@ -1,41 +1,26 @@
 <template>
-  <t-popup
-    v-model:visible="open"
-    trigger="click"
-    placement="bottom-right"
-    :overlay-style="{ padding: 0 }"
-  >
-    <button
-      type="button"
-      class="docs-bell"
-      :aria-label="t('docs.notifications.title')"
-      @click="onOpen"
-    >
+  <t-popup v-model:visible="open" trigger="click" placement="bottom-right" :overlay-style="{ padding: 0 }">
+    <button type="button" class="docs-bell" :aria-label="t('docs.notifications.title')" @click="onOpen">
       <t-icon name="notification" size="18px" />
-      <span v-if="unread > 0" class="docs-bell-badge">{{ unread > 99 ? '99+' : unread }}</span>
+      <span v-if="unread > 0" class="docs-bell-badge">{{ unread > 99 ? "99+" : unread }}</span>
     </button>
 
     <template #content>
       <section class="docs-notify" role="dialog" :aria-label="t('docs.notifications.title')">
         <header class="docs-notify-head">
-          <h3>{{ t('docs.notifications.title') }}</h3>
+          <h3>{{ t("docs.notifications.title") }}</h3>
           <label class="docs-notify-filter">
             <input v-model="unreadOnly" type="checkbox" @change="reload" />
-            {{ t('docs.notifications.unreadOnly') }}
+            {{ t("docs.notifications.unreadOnly") }}
           </label>
-          <button
-            type="button"
-            class="docs-notify-action"
-            :disabled="unread === 0"
-            @click="markAllRead"
-          >
-            {{ t('docs.notifications.markAllRead') }}
+          <button type="button" class="docs-notify-action" :disabled="unread === 0" @click="markAllRead">
+            {{ t("docs.notifications.markAllRead") }}
           </button>
         </header>
 
         <div ref="scroller" class="docs-notify-body" @scroll="onScroll">
-          <p v-if="loading && !items.length" class="docs-notify-note">{{ t('common.loading') }}</p>
-          <p v-else-if="!items.length" class="docs-notify-note">{{ t('docs.notifications.empty') }}</p>
+          <p v-if="loading && !items.length" class="docs-notify-note">{{ t("common.loading") }}</p>
+          <p v-else-if="!items.length" class="docs-notify-note">{{ t("docs.notifications.empty") }}</p>
 
           <template v-for="group in groups" :key="group.key">
             <h4 class="docs-notify-day">{{ t(`docs.notifications.day.${group.label}`) }}</h4>
@@ -58,7 +43,7 @@
             </button>
           </template>
 
-          <p v-if="loadingMore" class="docs-notify-note">{{ t('common.loading') }}</p>
+          <p v-if="loadingMore" class="docs-notify-note">{{ t("common.loading") }}</p>
         </div>
       </section>
     </template>
@@ -66,86 +51,83 @@
 </template>
 
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { MessagePlugin } from "tdesign-vue-next";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 
-import {
-  getPageByShortId, listNotifications, markNotificationsRead,
-  type NotificationView,
-} from '@/api/docs'
+import { getPageByShortId, listNotifications, markNotificationsRead, type NotificationView } from "@/api/docs";
 
-import { pageSlug } from '../tree/pageTree'
+import { pageSlug } from "../tree/pageTree";
 
-import { describe, groupByDay, type NotificationLike } from './describe'
+import { describe, groupByDay, type NotificationLike } from "./describe";
 
 const props = defineProps<{
   /** Bumped by the page's event stream when something new arrives, so the
    * badge is current without polling. */
-  revision?: number
-}>()
+  revision?: number;
+}>();
 
-const { t, locale } = useI18n()
-const router = useRouter()
+const { t, locale } = useI18n();
+const router = useRouter();
 
-const open = ref(false)
-const items = ref<NotificationView[]>([])
-const unread = ref(0)
-const loading = ref(false)
-const loadingMore = ref(false)
-const unreadOnly = ref(false)
-const cursor = ref('')
-const exhausted = ref(false)
-const scroller = ref<HTMLElement | null>(null)
+const open = ref(false);
+const items = ref<NotificationView[]>([]);
+const unread = ref(0);
+const loading = ref(false);
+const loadingMore = ref(false);
+const unreadOnly = ref(false);
+const cursor = ref("");
+const exhausted = ref(false);
+const scroller = ref<HTMLElement | null>(null);
 
-const groups = computed(() => groupByDay(items.value))
+const groups = computed(() => groupByDay(items.value));
 
 /** Memoised per render pass; describe is cheap but called several times per row. */
 function described(row: NotificationView) {
-  return describe(row as NotificationLike, t as (key: string, values?: Record<string, unknown>) => string)
+  return describe(row as NotificationLike, t as (key: string, values?: Record<string, unknown>) => string);
 }
 
 function when(row: NotificationView): string {
-  const at = new Date(row.created_at)
-  if (Number.isNaN(at.getTime())) return ''
-  return at.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
+  const at = new Date(row.created_at);
+  if (Number.isNaN(at.getTime())) return "";
+  return at.toLocaleTimeString(locale.value, { hour: "2-digit", minute: "2-digit" });
 }
 
 async function load(more = false) {
-  if (more && (exhausted.value || loadingMore.value)) return
-  const target = more ? loadingMore : loading
-  target.value = true
+  if (more && (exhausted.value || loadingMore.value)) return;
+  const target = more ? loadingMore : loading;
+  target.value = true;
   try {
     const page = await listNotifications({
       unread: unreadOnly.value,
       cursor: more ? cursor.value : undefined,
-    })
-    items.value = more ? [...items.value, ...page.items] : page.items
-    unread.value = page.unread
-    cursor.value = page.next_cursor ?? ''
-    exhausted.value = !page.next_cursor
+    });
+    items.value = more ? [...items.value, ...page.items] : page.items;
+    unread.value = page.unread;
+    cursor.value = page.next_cursor ?? "";
+    exhausted.value = !page.next_cursor;
   } catch {
     // A bell that cannot load is not worth an error dialogue over the page
     // somebody is reading; the count simply stays as it was.
   } finally {
-    target.value = false
+    target.value = false;
   }
 }
 
 function reload() {
-  cursor.value = ''
-  exhausted.value = false
-  void load()
+  cursor.value = "";
+  exhausted.value = false;
+  void load();
 }
 
 function onOpen() {
-  if (!open.value) reload()
+  if (!open.value) reload();
 }
 
 function onScroll(event: Event) {
-  const el = event.target as HTMLElement
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) void load(true)
+  const el = event.target as HTMLElement;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) void load(true);
 }
 
 /**
@@ -157,55 +139,58 @@ function onScroll(event: Event) {
  */
 async function openRow(row: NotificationView) {
   if (!row.read_at) {
-    row.read_at = new Date().toISOString()
-    unread.value = Math.max(0, unread.value - 1)
-    void markNotificationsRead([row.id]).catch(() => {})
+    row.read_at = new Date().toISOString();
+    unread.value = Math.max(0, unread.value - 1);
+    void markNotificationsRead([row.id]).catch(() => {});
   }
-  open.value = false
+  open.value = false;
 
   // The address comes from the payload, written when the notification was.
   // The page itself is then fetched, which is what answers "still there, and
   // still yours" — and gives the current title, since a page renamed since
   // should be opened under the name it has now.
-  const shortId = String(row.payload?.short_id ?? '')
-  const slug = String(row.payload?.space_slug ?? '')
-  if (!shortId || !slug) return
+  const shortId = String(row.payload?.short_id ?? "");
+  const slug = String(row.payload?.space_slug ?? "");
+  if (!shortId || !slug) return;
   try {
-    const page = await getPageByShortId(shortId)
+    const page = await getPageByShortId(shortId);
     await router.push({
-      name: 'docsSpace',
+      name: "docsSpace",
       params: { slug, pageSlug: pageSlug(page.title, page.short_id) },
-    })
+    });
   } catch {
     // The notification stays: it is still a true record of what happened,
     // even though the page is no longer reachable.
-    void MessagePlugin.info(t('docs.notifications.pageGone'))
+    void MessagePlugin.info(t("docs.notifications.pageGone"));
   }
 }
 
 async function markAllRead() {
   try {
-    await markNotificationsRead([])
-    for (const row of items.value) row.read_at = row.read_at ?? new Date().toISOString()
-    unread.value = 0
-    if (unreadOnly.value) reload()
+    await markNotificationsRead([]);
+    for (const row of items.value) row.read_at = row.read_at ?? new Date().toISOString();
+    unread.value = 0;
+    if (unreadOnly.value) reload();
   } catch (err) {
-    void MessagePlugin.error((err as { message?: string })?.message ?? '')
+    void MessagePlugin.error((err as { message?: string })?.message ?? "");
   }
 }
 
 // The count is loaded once on mount so the badge is right before anybody
 // opens the panel, and again whenever the event stream says something
 // arrived.
-onMounted(() => void load())
-watch(() => props.revision, () => {
-  if (open.value) reload()
-  else void load()
-})
+onMounted(() => void load());
+watch(
+  () => props.revision,
+  () => {
+    if (open.value) reload();
+    else void load();
+  },
+);
 
 onBeforeUnmount(() => {
-  open.value = false
-})
+  open.value = false;
+});
 </script>
 
 <style scoped lang="less">

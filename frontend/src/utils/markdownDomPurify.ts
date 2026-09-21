@@ -1,5 +1,5 @@
-export const domPurifyForbidTags = ['script', 'style', 'object', 'embed', 'form', 'input'] as const;
-export const domPurifyForbidAttr = ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'] as const;
+export const domPurifyForbidTags = ["script", "style", "object", "embed", "form", "input"] as const;
+export const domPurifyForbidAttr = ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur"] as const;
 
 export const domPurifyAllowedUriRegexp =
   /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|blob):|data:image\/|(?:resource|storage|local|minio|cos|tos|s3|oss|ks3|obs):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
@@ -21,9 +21,9 @@ export const domPurifySecurityOptions = {
 /** Shared DOMPurify hooks: strip scripts/event attrs; noopener links; alt on images. */
 export const domPurifySecurityHooks = {
   beforeSanitizeElements: (currentNode: Node) => {
-    if (!('tagName' in currentNode) || !('hasAttribute' in currentNode)) return;
+    if (!("tagName" in currentNode) || !("hasAttribute" in currentNode)) return;
     const element = currentNode as Element;
-    if (element.tagName === 'SCRIPT') {
+    if (element.tagName === "SCRIPT") {
       element.remove();
       return;
     }
@@ -34,17 +34,17 @@ export const domPurifySecurityHooks = {
     });
   },
   afterSanitizeElements: (currentNode: Node) => {
-    if (!('tagName' in currentNode) || !('getAttribute' in currentNode)) return;
+    if (!("tagName" in currentNode) || !("getAttribute" in currentNode)) return;
     const element = currentNode as Element;
-    if (element.tagName === 'A') {
-      const href = element.getAttribute('href');
-      if (href && href.startsWith('http')) {
-        element.setAttribute('rel', 'noopener noreferrer');
-        element.setAttribute('target', '_blank');
+    if (element.tagName === "A") {
+      const href = element.getAttribute("href");
+      if (href && href.startsWith("http")) {
+        element.setAttribute("rel", "noopener noreferrer");
+        element.setAttribute("target", "_blank");
       }
     }
-    if (element.tagName === 'IMG' && !element.getAttribute('alt')) {
-      element.setAttribute('alt', '');
+    if (element.tagName === "IMG" && !element.getAttribute("alt")) {
+      element.setAttribute("alt", "");
     }
   },
 };
@@ -54,11 +54,11 @@ export const markdownDomPurifySecurityHooks = {
   ...domPurifySecurityHooks,
   afterSanitizeElements: (currentNode: Node) => {
     domPurifySecurityHooks.afterSanitizeElements(currentNode);
-    if (!('tagName' in currentNode) || !('getAttribute' in currentNode)) return;
+    if (!("tagName" in currentNode) || !("getAttribute" in currentNode)) return;
     const element = currentNode as Element;
-    if (element.tagName === 'A' && element.getAttribute('href')) {
-      element.setAttribute('rel', 'noopener noreferrer');
-      element.setAttribute('target', '_blank');
+    if (element.tagName === "A" && element.getAttribute("href")) {
+      element.setAttribute("rel", "noopener noreferrer");
+      element.setAttribute("target", "_blank");
     }
   },
 };
@@ -66,34 +66,176 @@ export const markdownDomPurifySecurityHooks = {
 /** Shared DOMPurify config for chat / dev markdown (KaTeX + Mermaid SVG). */
 export const markdownDomPurifyConfig = {
   ALLOWED_TAGS: [
-    'p', 'br', 'strong', 'em', 'u', 'code', 'pre', 'ul', 'ol', 'li', 'blockquote',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'span', 'table', 'thead', 'tbody',
-    'tr', 'th', 'td', 'img', 'figure', 'figcaption', 'div',
-    'svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polygon',
-    'polyline', 'text', 'tspan', 'defs', 'marker', 'filter', 'use',
-    'clippath', 'lineargradient', 'radialgradient', 'stop', 'pattern',
-    'image', 'foreignobject', 'desc', 'title', 'switch', 'symbol', 'mask',
-    'math', 'annotation', 'semantics', 'mo', 'mi', 'mn', 'msup', 'mrow', 'mfrac', 'msqrt', 'mroot', 'mstyle',
-    'button',
+    "p",
+    "br",
+    "strong",
+    "em",
+    "u",
+    "code",
+    "pre",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "a",
+    "span",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "img",
+    "figure",
+    "figcaption",
+    "div",
+    "svg",
+    "g",
+    "path",
+    "rect",
+    "circle",
+    "ellipse",
+    "line",
+    "polygon",
+    "polyline",
+    "text",
+    "tspan",
+    "defs",
+    "marker",
+    "filter",
+    "use",
+    "clippath",
+    "lineargradient",
+    "radialgradient",
+    "stop",
+    "pattern",
+    "image",
+    "foreignobject",
+    "desc",
+    "title",
+    "switch",
+    "symbol",
+    "mask",
+    "math",
+    "annotation",
+    "semantics",
+    "mo",
+    "mi",
+    "mn",
+    "msup",
+    "mrow",
+    "mfrac",
+    "msqrt",
+    "mroot",
+    "mstyle",
+    "button",
   ],
   ALLOWED_ATTR: [
-    'href', 'title', 'target', 'rel', 'data-tooltip', 'data-url', 'data-kb-id',
-    'data-chunk-id', 'data-doc', 'data-slug', 'class', 'role', 'tabindex', 'src', 'alt', 'data-protected-src', 'data-img-loading',
-    'width', 'height', 'style', 'id', 'type', 'aria-label', 'data-mermaid', 'disabled',
-    'd', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
-    'stroke-dasharray', 'stroke-dashoffset', 'stroke-miterlimit', 'stroke-opacity',
-    'fill-opacity', 'opacity', 'transform', 'viewbox', 'preserveaspectratio',
-    'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'rx', 'ry', 'r',
-    'dx', 'dy', 'text-anchor', 'dominant-baseline', 'font-family', 'font-size',
-    'font-weight', 'font-style', 'letter-spacing', 'word-spacing',
-    'marker-start', 'marker-mid', 'marker-end', 'markerunits', 'markerwidth',
-    'markerheight', 'refx', 'refy', 'orient', 'points', 'offset',
-    'gradientunits', 'gradienttransform', 'spreadmethod', 'stop-color', 'stop-opacity',
-    'patternunits', 'patterntransform', 'clippathunits', 'maskunits',
-    'filterunits', 'primitiveunits', 'xmlns', 'xmlns:xlink', 'xlink:href',
-    'version', 'baseprofile', 'enable-background', 'overflow', 'visibility',
-    'display', 'pointer-events', 'cursor', 'data-emit', 'direction',
-    'mathvariant', 'encoding', 'aria-hidden',
+    "href",
+    "title",
+    "target",
+    "rel",
+    "data-tooltip",
+    "data-url",
+    "data-kb-id",
+    "data-chunk-id",
+    "data-doc",
+    "data-slug",
+    "class",
+    "role",
+    "tabindex",
+    "src",
+    "alt",
+    "data-protected-src",
+    "data-img-loading",
+    "width",
+    "height",
+    "style",
+    "id",
+    "type",
+    "aria-label",
+    "data-mermaid",
+    "disabled",
+    "d",
+    "fill",
+    "stroke",
+    "stroke-width",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "stroke-miterlimit",
+    "stroke-opacity",
+    "fill-opacity",
+    "opacity",
+    "transform",
+    "viewbox",
+    "preserveaspectratio",
+    "x",
+    "y",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "cx",
+    "cy",
+    "rx",
+    "ry",
+    "r",
+    "dx",
+    "dy",
+    "text-anchor",
+    "dominant-baseline",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "letter-spacing",
+    "word-spacing",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+    "markerunits",
+    "markerwidth",
+    "markerheight",
+    "refx",
+    "refy",
+    "orient",
+    "points",
+    "offset",
+    "gradientunits",
+    "gradienttransform",
+    "spreadmethod",
+    "stop-color",
+    "stop-opacity",
+    "patternunits",
+    "patterntransform",
+    "clippathunits",
+    "maskunits",
+    "filterunits",
+    "primitiveunits",
+    "xmlns",
+    "xmlns:xlink",
+    "xlink:href",
+    "version",
+    "baseprofile",
+    "enable-background",
+    "overflow",
+    "visibility",
+    "display",
+    "pointer-events",
+    "cursor",
+    "data-emit",
+    "direction",
+    "mathvariant",
+    "encoding",
+    "aria-hidden",
   ],
   USE_PROFILES: { html: true, svg: true, mathMl: true },
   ...domPurifySecurityOptions,

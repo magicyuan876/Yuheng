@@ -29,27 +29,27 @@
 
 <script setup lang="ts">
 interface DropdownOption {
-  content: string
-  value: string
-  theme?: 'default' | 'success' | 'warning' | 'error' | 'primary'
+  content: string;
+  value: string;
+  theme?: "default" | "success" | "warning" | "error" | "primary";
 }
 
 interface Props {
-  title: string
-  description?: string
-  disabled?: boolean
-  actions?: DropdownOption[]
+  title: string;
+  description?: string;
+  disabled?: boolean;
+  actions?: DropdownOption[];
 }
 
 withDefaults(defineProps<Props>(), {
-  description: '',
+  description: "",
   disabled: false,
-  actions: () => []
-})
+  actions: () => [],
+});
 
 const emit = defineEmits<{
-  (e: 'action', value: string): void
-}>()
+  (e: "action", value: string): void;
+}>();
 </script>
 
 <style lang="less" scoped>
@@ -61,7 +61,10 @@ const emit = defineEmits<{
   border: 1px solid var(--td-component-stroke);
   border-radius: 8px;
   background: var(--td-bg-color-container);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
   min-width: 0;
 
   &:hover {

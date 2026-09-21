@@ -1,6 +1,6 @@
 <template>
   <nav v-if="entries.length" class="toc-sidebar" :aria-label="t('docs.pages.toc')">
-    <div class="toc-title">{{ t('docs.pages.toc') }}</div>
+    <div class="toc-title">{{ t("docs.pages.toc") }}</div>
     <ul class="toc-list">
       <li
         v-for="entry in entries"
@@ -9,7 +9,7 @@
         :style="{ paddingLeft: (entry.level - 1) * 12 + 'px' }"
       >
         <button type="button" class="toc-link" @click="emit('select', entry.pos)">
-          {{ entry.text || t('docs.tree.untitled') }}
+          {{ entry.text || t("docs.tree.untitled") }}
         </button>
       </li>
     </ul>
@@ -17,14 +17,14 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import { useI18n } from "vue-i18n";
 
-import type { TocEntry } from './toc'
+import type { TocEntry } from "./toc";
 
-defineProps<{ entries: TocEntry[] }>()
-const emit = defineEmits<{ select: [pos: number] }>()
+defineProps<{ entries: TocEntry[] }>();
+const emit = defineEmits<{ select: [pos: number] }>();
 
-const { t } = useI18n()
+const { t } = useI18n();
 </script>
 
 <style scoped lang="less">

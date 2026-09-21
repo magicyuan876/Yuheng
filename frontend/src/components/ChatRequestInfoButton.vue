@@ -8,18 +8,13 @@
     overlay-class-name="chat-request-info-popup"
     :overlay-inner-style="{ padding: 0 }"
   >
-    <t-button
-      size="small"
-      variant="outline"
-      shape="round"
-      :title="$t('chat.requestInfoTitle')"
-    >
+    <t-button size="small" variant="outline" shape="round" :title="$t('chat.requestInfoTitle')">
       <t-icon name="info-circle" />
     </t-button>
     <template #content>
       <div class="chat-request-card" @click.stop>
         <div class="chat-request-card-header">
-          <span class="chat-request-card-title">{{ $t('chat.requestInfoTitle') }}</span>
+          <span class="chat-request-card-title">{{ $t("chat.requestInfoTitle") }}</span>
           <t-button
             v-if="rows.length > 0"
             size="small"
@@ -32,7 +27,7 @@
           </t-button>
         </div>
         <div v-if="rows.length === 0" class="chat-request-empty">
-          {{ $t('chat.requestInfoEmpty') }}
+          {{ $t("chat.requestInfoEmpty") }}
         </div>
         <div v-else class="chat-request-card-body">
           <div v-for="row in rows" :key="row.key" class="chat-request-row">
@@ -46,13 +41,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import {
-  buildChatRequestDebugPayload,
-  type ChatRequestDebugInfo,
-} from '@/utils/chatRequestDebug';
-import { copyWithToast } from '@/utils/clipboard';
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { buildChatRequestDebugPayload, type ChatRequestDebugInfo } from "@/utils/chatRequestDebug";
+import { copyWithToast } from "@/utils/clipboard";
 
 const props = defineProps<{
   session: Record<string, unknown>;
@@ -83,20 +75,20 @@ const rows = computed(() => {
     if (!val) return;
     list.push({ key, label: t(labelKey), value: val });
   };
-  add('requestId', 'chat.requestInfoRequestId', info.requestId);
-  add('messageId', 'chat.requestInfoMessageId', info.messageId);
-  add('sessionId', 'chat.requestInfoSessionId', info.sessionId);
+  add("requestId", "chat.requestInfoRequestId", info.requestId);
+  add("messageId", "chat.requestInfoMessageId", info.messageId);
+  add("sessionId", "chat.requestInfoSessionId", info.sessionId);
   if (info.method && info.url) {
-    list.push({ key: 'url', label: t('chat.requestInfoUrl'), value: `${info.method} ${info.url}` });
+    list.push({ key: "url", label: t("chat.requestInfoUrl"), value: `${info.method} ${info.url}` });
   }
   if (info.sentAt) {
-    add('sentAt', 'chat.requestInfoSentAt', new Date(info.sentAt).toLocaleString());
+    add("sentAt", "chat.requestInfoSentAt", new Date(info.sentAt).toLocaleString());
   }
   return list;
 });
 
 const copyAll = async () => {
-  const ok = await copyWithToast(buildChatRequestDebugPayload(debugInfo.value), 'common.copied');
+  const ok = await copyWithToast(buildChatRequestDebugPayload(debugInfo.value), "common.copied");
   if (ok) visible.value = false;
 };
 </script>
@@ -166,5 +158,4 @@ const copyAll = async () => {
   color: var(--td-text-color-placeholder);
   padding: 4px 0 8px;
 }
-
 </style>

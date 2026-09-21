@@ -19,12 +19,7 @@
             @click="handleSelect(item.value)"
           >
             <span class="session-group-row-name">{{ item.label }}</span>
-            <t-icon
-              v-if="item.value === current"
-              name="check"
-              class="session-group-row-check"
-              size="14px"
-            />
+            <t-icon v-if="item.value === current" name="check" class="session-group-row-check" size="14px" />
           </button>
         </div>
       </div>
@@ -34,30 +29,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { SessionGroupMode } from './sessionGrouping'
+import { ref } from "vue";
+import type { SessionGroupMode } from "./sessionGrouping";
 
 interface GroupModeItem {
-  value: SessionGroupMode
-  label: string
+  value: SessionGroupMode;
+  label: string;
 }
 
 defineProps<{
-  modes: GroupModeItem[]
-  current: SessionGroupMode
-  headerLabel: string
-}>()
+  modes: GroupModeItem[];
+  current: SessionGroupMode;
+  headerLabel: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'select', value: SessionGroupMode): void
-}>()
+  (e: "select", value: SessionGroupMode): void;
+}>();
 
-const visible = ref(false)
+const visible = ref(false);
 
 const handleSelect = (value: SessionGroupMode): void => {
-  visible.value = false
-  emit('select', value)
-}
+  visible.value = false;
+  emit("select", value);
+};
 </script>
 
 <style scoped lang="less">
@@ -98,7 +93,9 @@ const handleSelect = (value: SessionGroupMode): void => {
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   text-align: left;
   width: 100%;
 

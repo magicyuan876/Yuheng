@@ -8,8 +8,8 @@
 
 /** One piece of an excerpt, marked or not. */
 export interface Segment {
-  text: string
-  match: boolean
+  text: string;
+  match: boolean;
 }
 
 /**
@@ -20,46 +20,46 @@ export interface Segment {
  * than nested, because a segment cannot be inside another one.
  */
 export function highlight(text: string, query: string): Segment[] {
-  if (!text) return []
-  const terms = splitTerms(query)
-  if (terms.length === 0) return [{ text, match: false }]
+  if (!text) return [];
+  const terms = splitTerms(query);
+  if (terms.length === 0) return [{ text, match: false }];
 
-  const lower = text.toLowerCase()
+  const lower = text.toLowerCase();
   // Collect every match of every term, then merge, so that searching
   // "quota limit" marks both words wherever they appear.
-  const ranges: Array<[number, number]> = []
+  const ranges: Array<[number, number]> = [];
   for (const term of terms) {
-    const needle = term.toLowerCase()
-    let from = 0
+    const needle = term.toLowerCase();
+    let from = 0;
     for (;;) {
-      const at = lower.indexOf(needle, from)
-      if (at < 0) break
-      ranges.push([at, at + needle.length])
-      from = at + needle.length
+      const at = lower.indexOf(needle, from);
+      if (at < 0) break;
+      ranges.push([at, at + needle.length]);
+      from = at + needle.length;
     }
   }
-  if (ranges.length === 0) return [{ text, match: false }]
+  if (ranges.length === 0) return [{ text, match: false }];
 
-  ranges.sort((a, b) => a[0] - b[0])
-  const merged: Array<[number, number]> = []
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged: Array<[number, number]> = [];
   for (const range of ranges) {
-    const last = merged[merged.length - 1]
+    const last = merged[merged.length - 1];
     if (last && range[0] <= last[1]) {
-      last[1] = Math.max(last[1], range[1])
-      continue
+      last[1] = Math.max(last[1], range[1]);
+      continue;
     }
-    merged.push([range[0], range[1]])
+    merged.push([range[0], range[1]]);
   }
 
-  const out: Segment[] = []
-  let cursor = 0
+  const out: Segment[] = [];
+  let cursor = 0;
   for (const [start, end] of merged) {
-    if (start > cursor) out.push({ text: text.slice(cursor, start), match: false })
-    out.push({ text: text.slice(start, end), match: true })
-    cursor = end
+    if (start > cursor) out.push({ text: text.slice(cursor, start), match: false });
+    out.push({ text: text.slice(start, end), match: true });
+    cursor = end;
   }
-  if (cursor < text.length) out.push({ text: text.slice(cursor), match: false })
-  return out
+  if (cursor < text.length) out.push({ text: text.slice(cursor), match: false });
+  return out;
 }
 
 /**
@@ -73,5 +73,5 @@ export function splitTerms(query: string): string[] {
   return query
     .trim()
     .split(/\s+/)
-    .filter((term) => term.length > 0)
+    .filter((term) => term.length > 0);
 }

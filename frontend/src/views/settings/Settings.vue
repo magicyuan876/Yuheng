@@ -14,42 +14,74 @@
             <!-- 左侧导航 -->
             <div class="settings-sidebar">
               <div class="sidebar-header">
-                <h2 class="sidebar-title">{{ $t('general.settings') }}</h2>
+                <h2 class="sidebar-title">{{ $t("general.settings") }}</h2>
               </div>
               <div class="settings-nav">
                 <template v-for="group in navGroups" :key="group.key">
                   <div class="nav-group-title">{{ group.label }}</div>
                   <template v-for="item in group.items" :key="item.key">
-                    <div :class="['nav-item', {
-                      'active': currentSection === item.key,
-                      'has-submenu': item.children && item.children.length > 0,
-                      'expanded': expandedMenus.includes(item.key)
-                    }]" @click="handleNavClick(item)">
+                    <div
+                      :class="[
+                        'nav-item',
+                        {
+                          active: currentSection === item.key,
+                          'has-submenu': item.children && item.children.length > 0,
+                          expanded: expandedMenus.includes(item.key),
+                        },
+                      ]"
+                      @click="handleNavClick(item)"
+                    >
                       <!-- 网络搜索使用自定义 SVG 图标 -->
-                      <svg v-if="item.key === 'websearch'" width="17" height="17" viewBox="0 0 18 18" fill="none"
-                        xmlns="http://www.w3.org/2000/svg" class="nav-icon">
+                      <svg
+                        v-if="item.key === 'websearch'"
+                        width="17"
+                        height="17"
+                        viewBox="0 0 18 18"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="nav-icon"
+                      >
                         <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.2" fill="none" />
                         <path d="M 9 2 A 3.5 7 0 0 0 9 16" stroke="currentColor" stroke-width="1.2" fill="none" />
                         <path d="M 9 2 A 3.5 7 0 0 1 9 16" stroke="currentColor" stroke-width="1.2" fill="none" />
-                        <line x1="2.94" y1="5.5" x2="15.06" y2="5.5" stroke="currentColor" stroke-width="1.2"
-                          stroke-linecap="round" />
-                        <line x1="2.94" y1="12.5" x2="15.06" y2="12.5" stroke="currentColor" stroke-width="1.2"
-                          stroke-linecap="round" />
+                        <line
+                          x1="2.94"
+                          y1="5.5"
+                          x2="15.06"
+                          y2="5.5"
+                          stroke="currentColor"
+                          stroke-width="1.2"
+                          stroke-linecap="round"
+                        />
+                        <line
+                          x1="2.94"
+                          y1="12.5"
+                          x2="15.06"
+                          y2="12.5"
+                          stroke="currentColor"
+                          stroke-width="1.2"
+                          stroke-linecap="round"
+                        />
                       </svg>
                       <span v-else-if="item.emoji" class="nav-icon nav-icon-emoji">{{ item.emoji }}</span>
                       <t-icon v-else :name="item.icon" class="nav-icon" />
                       <span class="nav-label">{{ item.label }}</span>
-                      <t-icon v-if="item.children && item.children.length > 0"
+                      <t-icon
+                        v-if="item.children && item.children.length > 0"
                         :name="expandedMenus.includes(item.key) ? 'chevron-down' : 'chevron-right'"
-                        class="expand-icon" />
+                        class="expand-icon"
+                      />
                     </div>
 
                     <!-- 子菜单 -->
                     <Transition name="submenu">
                       <div v-if="item.children && expandedMenus.includes(item.key)" class="submenu">
-                        <div v-for="(child, childIndex) in item.children" :key="childIndex"
-                          :class="['submenu-item', { 'active': currentSubSection === child.key }]"
-                          @click.stop="handleSubMenuClick(item.key, child.key)">
+                        <div
+                          v-for="(child, childIndex) in item.children"
+                          :key="childIndex"
+                          :class="['submenu-item', { active: currentSubSection === child.key }]"
+                          @click.stop="handleSubMenuClick(item.key, child.key)"
+                        >
                           <span class="submenu-label">{{ child.label }}</span>
                         </div>
                       </div>
@@ -61,10 +93,13 @@
 
             <!-- 右侧内容区域 -->
             <div class="settings-content">
-              <div class="content-wrapper" :class="{
-                'content-wrapper--wide': currentSection === 'members',
-                'content-wrapper--full': SYSTEM_ADMIN_SECTIONS.has(currentSection),
-              }">
+              <div
+                class="content-wrapper"
+                :class="{
+                  'content-wrapper--wide': currentSection === 'members',
+                  'content-wrapper--full': SYSTEM_ADMIN_SECTIONS.has(currentSection),
+                }"
+              >
                 <!-- 角色不允许访问当前 section（deep-link 进来 / 跨空间切换后角色降级）—— 优先于具体 section 渲染。
                      正常导航走 navItems filter 不会到这里，但 watch(navItems) 的 fallback 会在角色降级
                      的瞬间触发；这一段做兜底兼容旧 URL。 -->
@@ -72,8 +107,8 @@
                   <div class="role-denied-icon">
                     <t-icon name="lock-on" size="48px" />
                   </div>
-                  <div class="role-denied-title">{{ $t('settings.roleDenied.title') }}</div>
-                  <div class="role-denied-desc">{{ $t('settings.roleDenied.desc') }}</div>
+                  <div class="role-denied-title">{{ $t("settings.roleDenied.title") }}</div>
+                  <div class="role-denied-desc">{{ $t("settings.roleDenied.desc") }}</div>
                 </div>
                 <template v-else>
                   <!-- 常规设置 -->
@@ -85,7 +120,6 @@
                   <div v-if="currentSection === 'ollama'" class="section">
                     <OllamaSettings />
                   </div>
-
 
                   <!-- 模型配置 -->
                   <div v-if="currentSection === 'models'" class="section">
@@ -171,69 +205,69 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import type { LocationQueryRaw } from 'vue-router'
-import { useUIStore } from '@/stores/ui'
-import { useAuthStore } from '@/stores/auth'
-import { useDeploymentCapabilitiesStore } from '@/stores/deploymentCapabilities'
-import { useGovernanceStore } from '@/stores/governance'
-import { useI18n } from 'vue-i18n'
-import { MessagePlugin } from 'tdesign-vue-next'
-import SystemInfo from './SystemInfo.vue'
-import TenantInfo from './TenantInfo.vue'
-import UserProfile from './UserProfile.vue'
-import GeneralSettings from './GeneralSettings.vue'
-import ModelSettings from './ModelSettings.vue'
-import OllamaSettings from './OllamaSettings.vue'
-import WebSearchSettings from './WebSearchSettings.vue'
-import ChatHistorySettings from './ChatHistorySettings.vue'
-import VectorStoreSettings from './VectorStoreSettings.vue'
-import ParserEngineSettings from './ParserEngineSettings.vue'
-import StorageEngineSettings from './StorageBackendSettings.vue'
-import TenantMembers from './TenantMembers.vue'
-import TenantGroups from './TenantGroups.vue'
-import SystemSettings from '@/views/system/SystemSettings.vue'
-import RuntimeQueues from '@/views/system/RuntimeQueues.vue'
-import PlatformAPIKeys from '@/views/system/PlatformAPIKeys.vue'
-import SystemAuditLog from '@/views/system/SystemAuditLog.vue'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { LocationQueryRaw } from "vue-router";
+import { useUIStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
+import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
+import { useGovernanceStore } from "@/stores/governance";
+import { useI18n } from "vue-i18n";
+import { MessagePlugin } from "tdesign-vue-next";
+import SystemInfo from "./SystemInfo.vue";
+import TenantInfo from "./TenantInfo.vue";
+import UserProfile from "./UserProfile.vue";
+import GeneralSettings from "./GeneralSettings.vue";
+import ModelSettings from "./ModelSettings.vue";
+import OllamaSettings from "./OllamaSettings.vue";
+import WebSearchSettings from "./WebSearchSettings.vue";
+import ChatHistorySettings from "./ChatHistorySettings.vue";
+import VectorStoreSettings from "./VectorStoreSettings.vue";
+import ParserEngineSettings from "./ParserEngineSettings.vue";
+import StorageEngineSettings from "./StorageBackendSettings.vue";
+import TenantMembers from "./TenantMembers.vue";
+import TenantGroups from "./TenantGroups.vue";
+import SystemSettings from "@/views/system/SystemSettings.vue";
+import RuntimeQueues from "@/views/system/RuntimeQueues.vue";
+import PlatformAPIKeys from "@/views/system/PlatformAPIKeys.vue";
+import SystemAuditLog from "@/views/system/SystemAuditLog.vue";
 import {
   SETTINGS_SECTION_MIN_ROLE,
   SYSTEM_ADMIN_SETTINGS_SECTIONS,
   isPlatformManagedSection,
-} from '@/config/settingsAccess'
-import { SETTINGS_SECTION_CAPABILITY } from '@/config/deploymentCapabilities'
+} from "@/config/settingsAccess";
+import { SETTINGS_SECTION_CAPABILITY } from "@/config/deploymentCapabilities";
 import {
   buildSettingsRouteQuery,
   normalizeSettingsSection as normalizeSettingsSectionFromQuery,
   settingsQueryUnchanged,
-} from '@/config/settingsRoute'
+} from "@/config/settingsRoute";
 
-const route = useRoute()
-const router = useRouter()
-const uiStore = useUIStore()
-const authStore = useAuthStore()
-const deploymentCapabilities = useDeploymentCapabilitiesStore()
-const governance = useGovernanceStore()
-const { t } = useI18n()
+const route = useRoute();
+const router = useRouter();
+const uiStore = useUIStore();
+const authStore = useAuthStore();
+const deploymentCapabilities = useDeploymentCapabilitiesStore();
+const governance = useGovernanceStore();
+const { t } = useI18n();
 
-const currentSection = ref<string>('general')
-const currentSubSection = ref<string>('')
-const expandedMenus = ref<string[]>([])
+const currentSection = ref<string>("general");
+const currentSubSection = ref<string>("");
+const expandedMenus = ref<string[]>([]);
 
 type NavItem = {
-  key: string
-  icon: string
-  label: string
-  emoji?: string
-  children?: Array<{ key: string; label: string }>
-}
+  key: string;
+  icon: string;
+  label: string;
+  emoji?: string;
+  children?: Array<{ key: string; label: string }>;
+};
 
 type NavGroup = {
-  key: string
-  label: string
-  items: NavItem[]
-}
+  key: string;
+  label: string;
+  items: NavItem[];
+};
 
 // 设置二级导航的最低可见角色来自 settingsAccess.ts，和
 // internal/router/router.go 的守卫矩阵对齐。
@@ -250,29 +284,29 @@ type NavGroup = {
 // - models 列表 viewer 可读，页面内的「+ 添加模型 / 编辑 / 删除」按钮在
 //   ModelSettings.vue 里另用 hasRole('admin') 自己 gate，所以入口保留
 //   viewer 是合理的（contributor 也能浏览模型列表）。
-const SYSTEM_ADMIN_SECTIONS = SYSTEM_ADMIN_SETTINGS_SECTIONS
+const SYSTEM_ADMIN_SECTIONS = SYSTEM_ADMIN_SETTINGS_SECTIONS;
 
 const normalizeSettingsSection = (section: string) => {
-  return normalizeSettingsSectionFromQuery(section, route.query.tab as string | undefined)
-}
+  return normalizeSettingsSectionFromQuery(section, route.query.tab as string | undefined);
+};
 
 const syncSettingsRoute = (sectionKey: string) => {
-  if (route.path !== '/platform/settings') return
-  const query = buildSettingsRouteQuery(sectionKey, route.query)
-  if (settingsQueryUnchanged(route.query, query)) return
+  if (route.path !== "/platform/settings") return;
+  const query = buildSettingsRouteQuery(sectionKey, route.query);
+  if (settingsQueryUnchanged(route.query, query)) return;
   void router.replace({
-    path: '/platform/settings',
+    path: "/platform/settings",
     query: query as LocationQueryRaw,
-  })
-}
+  });
+};
 
 const isSectionSupported = (key: string): boolean => {
-  return deploymentCapabilities.isSupported(SETTINGS_SECTION_CAPABILITY[key])
-}
+  return deploymentCapabilities.isSupported(SETTINGS_SECTION_CAPABILITY[key]);
+};
 
 const canSeeSection = (key: string): boolean => {
   if (SYSTEM_ADMIN_SECTIONS.has(key)) {
-    return authStore.isSystemAdmin
+    return authStore.isSystemAdmin;
   }
   // 集中管控模式下，共享基础设施（模型/解析/向量库/存储/网络搜索/Ollama）
   // 的配置权归系统管理员。这里不能靠抬高 SETTINGS_SECTION_MIN_ROLE 实现 —— 每个
@@ -283,268 +317,272 @@ const canSeeSection = (key: string): boolean => {
     // canAccessAllTenants 与后端 RequirePlatformManaged 的 IsCrossTenantSuperuser
     // 分支保持一致：跨空间超管管理的是自己并非成员的空间，挡在这里会让他们够不到
     // 只有自己能配的基础设施。
-    return authStore.isSystemAdmin || authStore.canAccessAllTenants
+    return authStore.isSystemAdmin || authStore.canAccessAllTenants;
   }
-  const min = SETTINGS_SECTION_MIN_ROLE[key] ?? 'viewer'
+  const min = SETTINGS_SECTION_MIN_ROLE[key] ?? "viewer";
   // canAccessAllTenants（superuser）和路由层一样必须 bypass，否则 cross-tenant
   // 管理员看不到自己有权操作的入口（参考 TenantMembers.vue 的 canManage）。
-  if (authStore.canAccessAllTenants) return true
-  return authStore.hasRole(min)
-}
+  if (authStore.canAccessAllTenants) return true;
+  return authStore.hasRole(min);
+};
 
 const navItems = computed(() => {
   // 一律走 SETTINGS_SECTION_MIN_ROLE 表，避免 ad-hoc isAdmin/isOwner 散落在多处。
   // 服务端在每条路由上仍以 g.Viewer/Admin/Owner 为准，这里只决定 UI 是
   // 否露入口；改动入口规则请同步更新 settingsAccess.ts 和对应后端路由。
   const all: NavItem[] = [
-    { key: 'general', icon: 'setting', label: t('general.title') },
-    { key: 'ollama', icon: 'server', label: 'Ollama' },
-    { key: 'models', icon: 'control-platform', label: t('settings.modelManagement') },
-    { key: 'websearch', icon: 'search', label: t('settings.webSearchConfig') },
-    { key: 'chathistory', icon: 'chat', label: t('chatHistorySettings.title') },
-    { key: 'vectorstore', icon: 'data-base', label: t('settings.vectorStoreEngine') },
-    { key: 'parser', icon: 'file-search', label: t('settings.parserEngine') },
-    { key: 'storage', icon: 'cloud', label: t('settings.storageEngine') },
-    { key: 'system', icon: 'info-circle', label: t('settings.versionInfo') },
-    { key: 'system-global', icon: 'server', label: t('settings.system') },
-    { key: 'runtime-queues', icon: 'queue', label: t('settings.taskQueue') },
-    { key: 'platform-api-keys', icon: 'secured', label: t('platformApiKeys.title') },
-    { key: 'system-audit-log', icon: 'history', label: t('system.globalSettings.audit.tabLabel') },
-    { key: 'userprofile', icon: 'user', label: t('userProfile.title') },
-    { key: 'tenant', icon: 'user-circle', label: t('settings.tenantInfo') },
-    { key: 'members', icon: 'usergroup', label: t('tenantMember.title') },
-    { key: 'groups', icon: 'view-list', label: t('docs.groups.title') },
-  ]
+    { key: "general", icon: "setting", label: t("general.title") },
+    { key: "ollama", icon: "server", label: "Ollama" },
+    { key: "models", icon: "control-platform", label: t("settings.modelManagement") },
+    { key: "websearch", icon: "search", label: t("settings.webSearchConfig") },
+    { key: "chathistory", icon: "chat", label: t("chatHistorySettings.title") },
+    { key: "vectorstore", icon: "data-base", label: t("settings.vectorStoreEngine") },
+    { key: "parser", icon: "file-search", label: t("settings.parserEngine") },
+    { key: "storage", icon: "cloud", label: t("settings.storageEngine") },
+    { key: "system", icon: "info-circle", label: t("settings.versionInfo") },
+    { key: "system-global", icon: "server", label: t("settings.system") },
+    { key: "runtime-queues", icon: "queue", label: t("settings.taskQueue") },
+    { key: "platform-api-keys", icon: "secured", label: t("platformApiKeys.title") },
+    { key: "system-audit-log", icon: "history", label: t("system.globalSettings.audit.tabLabel") },
+    { key: "userprofile", icon: "user", label: t("userProfile.title") },
+    { key: "tenant", icon: "user-circle", label: t("settings.tenantInfo") },
+    { key: "members", icon: "usergroup", label: t("tenantMember.title") },
+    { key: "groups", icon: "view-list", label: t("docs.groups.title") },
+  ];
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
   // viewer 入口然后角色一返回又消失，先卡住不渲染更稳，跟原先 members
   // 入口的策略一致。
   if (!authStore.currentTenantRole && !authStore.canAccessAllTenants) {
-    return [] as NavItem[]
+    return [] as NavItem[];
   }
-  return all.filter((it) => canSeeSection(it.key) && isSectionSupported(it.key))
-})
+  return all.filter((it) => canSeeSection(it.key) && isSectionSupported(it.key));
+});
 
 const navGroups = computed<NavGroup[]>(() => {
-  const itemMap = new Map(navItems.value.map((item) => [item.key, item]))
-  const pickItems = (keys: string[]) => keys.map((key) => itemMap.get(key)).filter(Boolean) as NavItem[]
+  const itemMap = new Map(navItems.value.map((item) => [item.key, item]));
+  const pickItems = (keys: string[]) => keys.map((key) => itemMap.get(key)).filter(Boolean) as NavItem[];
   // 分组：账户 → 空间 → 模型 → 数据与扩展 → 系统管理 → 平台
   // 关键调整：把个人偏好(general)和用户信息收进「账户」；
   // 把空间内功能开关(chathistory)从「平台」挪到「空间」；
   // 把检索引擎和外部集成合并为「数据与扩展」，避免两个 2~3 项的窄分组。
   return [
     {
-      key: 'account',
-      label: t('settings.navGroups.account'),
-      items: pickItems(['general', 'userprofile']),
+      key: "account",
+      label: t("settings.navGroups.account"),
+      items: pickItems(["general", "userprofile"]),
     },
     {
-      key: 'workspace',
-      label: t('settings.navGroups.workspace'),
-      items: pickItems(['tenant', 'members', 'groups', 'chathistory']),
+      key: "workspace",
+      label: t("settings.navGroups.workspace"),
+      items: pickItems(["tenant", "members", "groups", "chathistory"]),
     },
     {
-      key: 'models_runtime',
-      label: t('settings.navGroups.modelsRuntime'),
-      items: pickItems(['models', 'ollama']),
+      key: "models_runtime",
+      label: t("settings.navGroups.modelsRuntime"),
+      items: pickItems(["models", "ollama"]),
     },
     {
-      key: 'data_extensions',
-      label: t('settings.navGroups.dataExtensions'),
-      items: pickItems([
-        'vectorstore',
-        'parser',
-        'storage',
-        'websearch',
-      ]),
+      key: "data_extensions",
+      label: t("settings.navGroups.dataExtensions"),
+      items: pickItems(["vectorstore", "parser", "storage", "websearch"]),
     },
     {
-      key: 'system_administration',
-      label: t('settings.navGroups.systemAdministration'),
-      items: pickItems(['system-global', 'runtime-queues', 'platform-api-keys', 'system-audit-log']),
+      key: "system_administration",
+      label: t("settings.navGroups.systemAdministration"),
+      items: pickItems(["system-global", "runtime-queues", "platform-api-keys", "system-audit-log"]),
     },
     {
-      key: 'platform',
-      label: t('settings.navGroups.platform'),
-      items: pickItems(['system']),
+      key: "platform",
+      label: t("settings.navGroups.platform"),
+      items: pickItems(["system"]),
     },
-  ].filter((group) => group.items.length > 0)
-})
+  ].filter((group) => group.items.length > 0);
+});
 
 // 导航项点击处理
 const handleNavClick = (item: any) => {
   if (item.children && item.children.length > 0) {
     // 有子菜单，切换展开状态
-    const index = expandedMenus.value.indexOf(item.key)
+    const index = expandedMenus.value.indexOf(item.key);
     if (index > -1) {
-      expandedMenus.value.splice(index, 1)
+      expandedMenus.value.splice(index, 1);
     } else {
-      expandedMenus.value.push(item.key)
+      expandedMenus.value.push(item.key);
     }
-    currentSubSection.value = item.children[0].key
+    currentSubSection.value = item.children[0].key;
   } else {
-    currentSubSection.value = ''
+    currentSubSection.value = "";
   }
 
   // 切换到对应页面，并同步 URL 为 ?section=<navKey>。
   // 否则从其它 section 点进来时 query 不变，路由监听会把内容拉回去。
-  currentSection.value = item.key
-  syncSettingsRoute(item.key)
-}
+  currentSection.value = item.key;
+  syncSettingsRoute(item.key);
+};
 
 // 子菜单点击处理
 const handleSubMenuClick = (parentKey: string, childKey: string) => {
-  currentSection.value = parentKey
-  currentSubSection.value = childKey
+  currentSection.value = parentKey;
+  currentSubSection.value = childKey;
 
   // 滚动到对应的模型类型区域
   setTimeout(() => {
-    const element = document.querySelector(`[data-model-type="${childKey}"]`)
+    const element = document.querySelector(`[data-model-type="${childKey}"]`);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, 100)
-}
+  }, 100);
+};
 
 // 控制弹窗显示
 const visible = computed(() => {
-  return route.path === '/platform/settings' || uiStore.showSettingsModal
-})
+  return route.path === "/platform/settings" || uiStore.showSettingsModal;
+});
 
 // 关闭弹窗
 const handleClose = () => {
   // Blur before unmount so TDesign textarea autosize won't run on a detached node.
   if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
+    document.activeElement.blur();
   }
-  uiStore.closeSettings()
+  uiStore.closeSettings();
   // 如果当前路由是设置页，返回上一页
-  if (route.path === '/platform/settings') {
-    const sec = route.query.section
-    if (sec === 'system-global' || sec === 'runtime-queues' || sec === 'platform-api-keys' || sec === 'system-audit-log') {
-      router.push('/platform/knowledge-bases')
+  if (route.path === "/platform/settings") {
+    const sec = route.query.section;
+    if (
+      sec === "system-global" ||
+      sec === "runtime-queues" ||
+      sec === "platform-api-keys" ||
+      sec === "system-audit-log"
+    ) {
+      router.push("/platform/knowledge-bases");
     } else {
-      router.back()
+      router.back();
     }
   }
-}
+};
 
 // 监听初始导航设置
-watch(() => uiStore.settingsInitialSection, (section) => {
-  if (section && visible.value) {
-    const normalizedSection = normalizeSettingsSection(section)
-    if (deploymentCapabilities.loaded && !isSectionSupported(normalizedSection)) {
-      MessagePlugin.warning(t('settings.capabilityUnavailable'))
-      currentSection.value = navItems.value[0]?.key || 'general'
-      currentSubSection.value = ''
-      return
-    }
-    currentSection.value = normalizedSection
-    syncSettingsRoute(normalizedSection)
-    const navItem = (navItems.value as any[]).find((item) => item.key === normalizedSection)
-    if (navItem && navItem.children && navItem.children.length > 0) {
-      if (!expandedMenus.value.includes(section)) {
-        expandedMenus.value.push(section)
+watch(
+  () => uiStore.settingsInitialSection,
+  (section) => {
+    if (section && visible.value) {
+      const normalizedSection = normalizeSettingsSection(section);
+      if (deploymentCapabilities.loaded && !isSectionSupported(normalizedSection)) {
+        MessagePlugin.warning(t("settings.capabilityUnavailable"));
+        currentSection.value = navItems.value[0]?.key || "general";
+        currentSubSection.value = "";
+        return;
       }
-      currentSubSection.value = uiStore.settingsInitialSubSection || navItem.children[0].key
-      if (uiStore.settingsInitialSubSection) {
-        setTimeout(() => {
-          const element = document.querySelector(`[data-model-type="${uiStore.settingsInitialSubSection}"]`)
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }
-        }, 300)
+      currentSection.value = normalizedSection;
+      syncSettingsRoute(normalizedSection);
+      const navItem = (navItems.value as any[]).find((item) => item.key === normalizedSection);
+      if (navItem && navItem.children && navItem.children.length > 0) {
+        if (!expandedMenus.value.includes(section)) {
+          expandedMenus.value.push(section);
+        }
+        currentSubSection.value = uiStore.settingsInitialSubSection || navItem.children[0].key;
+        if (uiStore.settingsInitialSubSection) {
+          setTimeout(() => {
+            const element = document.querySelector(`[data-model-type="${uiStore.settingsInitialSubSection}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 300);
+        }
+      } else {
+        currentSubSection.value = "";
       }
-    } else {
-      currentSubSection.value = ''
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+);
 
 watch(
   () => [visible.value, route.path, route.query.section, deploymentCapabilities.loaded] as const,
   ([isVisible, path, section, capabilitiesLoaded]) => {
-    if (!isVisible || path !== '/platform/settings') return
-    if (typeof section !== 'string') {
-      syncSettingsRoute(currentSection.value || 'general')
-      return
+    if (!isVisible || path !== "/platform/settings") return;
+    if (typeof section !== "string") {
+      syncSettingsRoute(currentSection.value || "general");
+      return;
     }
     const normalizedSection = normalizeSettingsSectionFromQuery(
       section,
-      typeof route.query.tab === 'string' ? route.query.tab : undefined,
-    )
+      typeof route.query.tab === "string" ? route.query.tab : undefined,
+    );
     if (capabilitiesLoaded && !isSectionSupported(normalizedSection)) {
-      MessagePlugin.warning(t('settings.capabilityUnavailable'))
-      const fallback = navItems.value[0]?.key || 'general'
-      currentSection.value = fallback
-      currentSubSection.value = ''
-      syncSettingsRoute(fallback)
-      return
+      MessagePlugin.warning(t("settings.capabilityUnavailable"));
+      const fallback = navItems.value[0]?.key || "general";
+      currentSection.value = fallback;
+      currentSubSection.value = "";
+      syncSettingsRoute(fallback);
+      return;
     }
-    currentSection.value = normalizedSection
-    currentSubSection.value = ''
-    syncSettingsRoute(normalizedSection)
+    currentSection.value = normalizedSection;
+    currentSubSection.value = "";
+    syncSettingsRoute(normalizedSection);
   },
   { immediate: true },
-)
+);
 
 // 切换空间后角色可能变化，原本可见的 admin-only 面板可能消失。
 // 如果 currentSection 落到了不再显示的 key 上，就回退到第一个可见项。
 watch(navItems, (items) => {
   if (!items.some((item) => item.key === currentSection.value)) {
-    const fallback = items[0]?.key || 'general'
-    currentSection.value = fallback
-    currentSubSection.value = ''
-    syncSettingsRoute(fallback)
+    const fallback = items[0]?.key || "general";
+    currentSection.value = fallback;
+    currentSubSection.value = "";
+    syncSettingsRoute(fallback);
   }
-})
+});
 
 // ESC 键关闭
 const handleEscape = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && visible.value) {
-    handleClose()
+  if (e.key === "Escape" && visible.value) {
+    handleClose();
   }
-}
+};
 
 // 处理快捷导航事件
 const handleSettingsNav = (e: CustomEvent) => {
-  const { section, subsection } = e.detail
+  const { section, subsection } = e.detail;
   if (section) {
-    const normalizedSection = normalizeSettingsSection(section)
+    const normalizedSection = normalizeSettingsSection(section);
     if (deploymentCapabilities.loaded && !isSectionSupported(normalizedSection)) {
-      MessagePlugin.warning(t('settings.capabilityUnavailable'))
-      currentSection.value = navItems.value[0]?.key || 'general'
-      currentSubSection.value = ''
-      return
+      MessagePlugin.warning(t("settings.capabilityUnavailable"));
+      currentSection.value = navItems.value[0]?.key || "general";
+      currentSubSection.value = "";
+      return;
     }
-    currentSection.value = normalizedSection
-    syncSettingsRoute(normalizedSection)
+    currentSection.value = normalizedSection;
+    syncSettingsRoute(normalizedSection);
     // 如果有子菜单，自动展开
-    const navItem = (navItems.value as any[]).find((item: any) => item.key === normalizedSection)
+    const navItem = (navItems.value as any[]).find((item: any) => item.key === normalizedSection);
     if (navItem && navItem.children && navItem.children.length > 0) {
       if (!expandedMenus.value.includes(section)) {
-        expandedMenus.value.push(section)
+        expandedMenus.value.push(section);
       }
       // 如果有 subsection，选中对应的子菜单项
-      currentSubSection.value = subsection || navItem.children[0].key
+      currentSubSection.value = subsection || navItem.children[0].key;
     }
   }
-}
+};
 
 onMounted(() => {
-  window.addEventListener('keydown', handleEscape)
-  window.addEventListener('settings-nav', handleSettingsNav as EventListener)
-})
+  window.addEventListener("keydown", handleEscape);
+  window.addEventListener("settings-nav", handleSettingsNav as EventListener);
+});
 
 watch(currentSection, () => {
   if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur()
+    document.activeElement.blur();
   }
-})
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleEscape)
-  window.removeEventListener('settings-nav', handleSettingsNav as EventListener)
-})
+  window.removeEventListener("keydown", handleEscape);
+  window.removeEventListener("settings-nav", handleSettingsNav as EventListener);
+});
 </script>
 
 <style lang="less" scoped>
@@ -816,7 +854,9 @@ onUnmounted(() => {
 
 .modal-enter-active .settings-modal,
 .modal-leave-active .settings-modal {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .modal-enter-from,

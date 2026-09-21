@@ -30,13 +30,13 @@
   }
 
   :deep(.citation-icon--book) {
-    mask-image: url('@/assets/img/ziliao.svg');
-    -webkit-mask-image: url('@/assets/img/ziliao.svg');
+    mask-image: url("@/assets/img/ziliao.svg");
+    -webkit-mask-image: url("@/assets/img/ziliao.svg");
   }
 
   :deep(.citation-icon--web) {
-    mask-image: url('@/assets/img/websearch-globe.svg');
-    -webkit-mask-image: url('@/assets/img/websearch-globe.svg');
+    mask-image: url("@/assets/img/websearch-globe.svg");
+    -webkit-mask-image: url("@/assets/img/websearch-globe.svg");
   }
 
   :deep(.citation-text),
@@ -55,7 +55,10 @@
     cursor: pointer;
     white-space: nowrap;
     position: relative;
-    transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      box-shadow 0.15s ease,
+      color 0.15s ease;
   }
 
   :deep(.citation-kb:hover) {
@@ -73,7 +76,10 @@
     white-space: nowrap;
     position: relative;
     text-decoration: none;
-    transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      box-shadow 0.15s ease,
+      color 0.15s ease;
   }
 
   :deep(.citation-web:hover) {

@@ -9,23 +9,23 @@
 
 /** The parts of the Excalidraw module this integration uses. */
 export interface ExcalidrawModule {
-  Excalidraw: unknown
+  Excalidraw: unknown;
   exportToSvg: (options: {
-    elements: readonly unknown[]
-    appState: Record<string, unknown>
-    files: unknown
-    exportPadding?: number
-  }) => Promise<SVGSVGElement>
+    elements: readonly unknown[];
+    appState: Record<string, unknown>;
+    files: unknown;
+    exportPadding?: number;
+  }) => Promise<SVGSVGElement>;
 }
 
 /** One drawing, as Excalidraw stores it. */
 export interface ExcalidrawScene {
-  type: 'excalidraw'
-  version: number
-  source: string
-  elements: unknown[]
-  appState: Record<string, unknown>
-  files: Record<string, unknown>
+  type: "excalidraw";
+  version: number;
+  source: string;
+  elements: unknown[];
+  appState: Record<string, unknown>;
+  files: Record<string, unknown>;
 }
 
 /**
@@ -55,20 +55,20 @@ export interface ExcalidrawScene {
 export const DEFAULT_ITEM_STYLE: Record<string, unknown> = {
   currentItemRoughness: 0, // ROUGHNESS.architect
   currentItemFontFamily: 9, // FONT_FAMILY["Liberation Sans"]
-  currentItemArrowType: 'elbow',
+  currentItemArrowType: "elbow",
   objectsSnapModeEnabled: true,
-}
+};
 
 /** The scene a new drawing starts from. */
 export function emptyScene(): ExcalidrawScene {
   return {
-    type: 'excalidraw',
+    type: "excalidraw",
     version: 2,
-    source: 'yuheng',
+    source: "yuheng",
     elements: [],
     appState: {},
     files: {},
-  }
+  };
 }
 
 /**
@@ -80,16 +80,16 @@ export function emptyScene(): ExcalidrawScene {
  */
 export function parseScene(raw: string): ExcalidrawScene {
   try {
-    const parsed = JSON.parse(raw) as Partial<ExcalidrawScene> | null
-    if (!parsed || typeof parsed !== 'object') return emptyScene()
+    const parsed = JSON.parse(raw) as Partial<ExcalidrawScene> | null;
+    if (!parsed || typeof parsed !== "object") return emptyScene();
     return {
       ...emptyScene(),
       elements: Array.isArray(parsed.elements) ? parsed.elements : [],
       appState: isRecord(parsed.appState) ? sanitiseAppState(parsed.appState) : {},
       files: isRecord(parsed.files) ? parsed.files : {},
-    }
+    };
   } catch {
-    return emptyScene()
+    return emptyScene();
   }
 }
 
@@ -104,7 +104,7 @@ export function serialiseScene(
     elements: [...elements],
     appState: sanitiseAppState(appState),
     files,
-  })
+  });
 }
 
 /**
@@ -122,26 +122,41 @@ export function serialiseScene(
  */
 export function sanitiseAppState(appState: Record<string, unknown>): Record<string, unknown> {
   const keep = [
-    'gridSize', 'viewBackgroundColor', 'exportBackground', 'exportWithDarkMode',
-    'exportEmbedScene', 'exportScale', 'frameRendering',
+    "gridSize",
+    "viewBackgroundColor",
+    "exportBackground",
+    "exportWithDarkMode",
+    "exportEmbedScene",
+    "exportScale",
+    "frameRendering",
     // What the next element will look like.
-    'currentItemStrokeColor', 'currentItemBackgroundColor', 'currentItemFillStyle',
-    'currentItemStrokeWidth', 'currentItemStrokeStyle', 'currentItemRoughness',
-    'currentItemOpacity', 'currentItemFontFamily', 'currentItemFontSize',
-    'currentItemTextAlign', 'currentItemStartArrowhead', 'currentItemEndArrowhead',
-    'currentItemRoundness', 'currentItemArrowType',
+    "currentItemStrokeColor",
+    "currentItemBackgroundColor",
+    "currentItemFillStyle",
+    "currentItemStrokeWidth",
+    "currentItemStrokeStyle",
+    "currentItemRoughness",
+    "currentItemOpacity",
+    "currentItemFontFamily",
+    "currentItemFontSize",
+    "currentItemTextAlign",
+    "currentItemStartArrowhead",
+    "currentItemEndArrowhead",
+    "currentItemRoundness",
+    "currentItemArrowType",
     // Drawing aids, which should still be on when the diagram is reopened.
-    'objectsSnapModeEnabled', 'gridModeEnabled',
-  ]
-  const out: Record<string, unknown> = {}
+    "objectsSnapModeEnabled",
+    "gridModeEnabled",
+  ];
+  const out: Record<string, unknown> = {};
   for (const key of keep) {
-    if (key in appState) out[key] = appState[key]
+    if (key in appState) out[key] = appState[key];
   }
-  return out
+  return out;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
@@ -152,21 +167,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * the scene, and it alone is what the read-only view, the export and the share
  * page load.
  */
-export async function renderSceneToSVG(
-  module: ExcalidrawModule,
-  scene: ExcalidrawScene,
-): Promise<string> {
+export async function renderSceneToSVG(module: ExcalidrawModule, scene: ExcalidrawScene): Promise<string> {
   const svg = await module.exportToSvg({
     elements: scene.elements,
     appState: { ...scene.appState, exportBackground: false },
     files: scene.files,
     exportPadding: 8,
-  })
-  return new XMLSerializer().serializeToString(svg)
+  });
+  return new XMLSerializer().serializeToString(svg);
 }
 
 /** Caches the dynamic import so opening a second drawing is instant. */
-let loading: Promise<ExcalidrawModule> | null = null
+let loading: Promise<ExcalidrawModule> | null = null;
 
 /**
  * Loads the editor.
@@ -179,14 +191,14 @@ export function loadExcalidraw(): Promise<ExcalidrawModule> {
   if (!loading) {
     loading = (async () => {
       const [module] = await Promise.all([
-        import('@excalidraw/excalidraw'),
-        import('@excalidraw/excalidraw/index.css'),
-      ])
-      return module as unknown as ExcalidrawModule
+        import("@excalidraw/excalidraw"),
+        import("@excalidraw/excalidraw/index.css"),
+      ]);
+      return module as unknown as ExcalidrawModule;
     })().catch((err) => {
-      loading = null
-      throw err
-    })
+      loading = null;
+      throw err;
+    });
   }
-  return loading
+  return loading;
 }

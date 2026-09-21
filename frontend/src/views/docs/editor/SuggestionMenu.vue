@@ -6,16 +6,12 @@
     :style="{ left: `${position.left}px`, top: `${position.top}px` }"
     role="listbox"
   >
-    <p v-if="loading" class="docs-suggest-note">{{ t('docs.links.searching') }}</p>
+    <p v-if="loading" class="docs-suggest-note">{{ t("docs.links.searching") }}</p>
     <p v-else-if="!items.length" class="docs-suggest-note">
-      {{ kind === 'command' ? t('docs.commands.noMatches') : t('docs.links.noMatches') }}
+      {{ kind === "command" ? t("docs.commands.noMatches") : t("docs.links.noMatches") }}
     </p>
     <template v-for="(item, index) in items" :key="item.key">
-      <p
-        v-if="item.group && item.group !== items[index - 1]?.group"
-        class="docs-suggest-group"
-        aria-hidden="true"
-      >
+      <p v-if="item.group && item.group !== items[index - 1]?.group" class="docs-suggest-group" aria-hidden="true">
         {{ item.group }}
       </p>
       <button
@@ -41,52 +37,55 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 /** One row of the menu, already shaped by whoever fetched it. */
 export interface SuggestionItem {
-  key: string
-  title: string
-  hint?: string
+  key: string;
+  title: string;
+  hint?: string;
   /**
    * A section heading shown above this row when it differs from the row
    * before it. Only the command menu groups its rows; already translated,
    * like everything else the row carries.
    */
-  group?: string
+  group?: string;
   /** An emoji chosen for the page itself, shown in preference to an icon. */
-  icon?: string
+  icon?: string;
   /** A tdesign icon name, used when the entry has no emoji of its own. */
-  iconName?: string
+  iconName?: string;
 }
 
 const props = defineProps<{
-  open: boolean
-  loading: boolean
-  items: SuggestionItem[]
-  selected: number
-  kind: 'page' | 'mention' | 'command' | 'emoji'
-  position: { left: number; top: number }
-}>()
+  open: boolean;
+  loading: boolean;
+  items: SuggestionItem[];
+  selected: number;
+  kind: "page" | "mention" | "command" | "emoji";
+  position: { left: number; top: number };
+}>();
 
-const emit = defineEmits<{ choose: [index: number]; hover: [index: number] }>()
-const { t } = useI18n()
+const emit = defineEmits<{ choose: [index: number]; hover: [index: number] }>();
+const { t } = useI18n();
 
-const menu = ref<HTMLElement | null>(null)
+const menu = ref<HTMLElement | null>(null);
 
 /** What to draw for an entry that brought no icon of its own. */
-const fallbackIcon = computed(() => (props.kind === 'mention' ? 'user' : 'file'))
+const fallbackIcon = computed(() => (props.kind === "mention" ? "user" : "file"));
 
 /**
  * The list outgrows the popup and only the first rows are visible, so an
  * arrow-key move has to bring the active row to the eye: nearest keeps a
  * move by one from scrolling the whole list when the row is already there.
  */
-watch(() => props.selected, async () => {
-  await nextTick()
-  menu.value?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' })
-})
+watch(
+  () => props.selected,
+  async () => {
+    await nextTick();
+    menu.value?.querySelector(".is-active")?.scrollIntoView({ block: "nearest" });
+  },
+);
 </script>
 
 <style scoped lang="less">

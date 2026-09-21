@@ -14,26 +14,17 @@
               {{ panelTitle }}<span v-if="totalCount" class="chat-references-panel__count"> · {{ totalCount }}</span>
             </h3>
           </div>
-          <button
-            type="button"
-            class="chat-references-panel__close"
-            :aria-label="t('common.close')"
-            @click="close"
-          >
+          <button type="button" class="chat-references-panel__close" :aria-label="t('common.close')" @click="close">
             <t-icon name="close" size="20px" />
           </button>
         </header>
 
         <div ref="listElement" class="chat-references-panel__body">
           <div v-if="sections.length === 0" class="chat-references-panel__empty">
-            {{ t('chat.referencesDrawerEmpty') }}
+            {{ t("chat.referencesDrawerEmpty") }}
           </div>
 
-          <section
-            v-for="section in sections"
-            :key="section.id"
-            class="chat-references-panel__section"
-          >
+          <section v-for="section in sections" :key="section.id" class="chat-references-panel__section">
             <h4 v-if="sections.length > 1" class="chat-references-panel__section-title">
               {{ sectionTitle(section.id) }}
             </h4>
@@ -60,9 +51,15 @@
                 :role="item.kind === 'document' && hasMoreContent(item) ? 'button' : undefined"
                 :tabindex="item.kind === 'document' && hasMoreContent(item) ? 0 : undefined"
                 @mousedown="trackContentPointerDown"
-                @click="item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item, $event) : undefined"
-                @keydown.enter="item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item) : undefined"
-                @keydown.space.prevent="item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item) : undefined"
+                @click="
+                  item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item, $event) : undefined
+                "
+                @keydown.enter="
+                  item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item) : undefined
+                "
+                @keydown.space.prevent="
+                  item.kind === 'document' && hasMoreContent(item) ? toggleDocumentSnippet(item) : undefined
+                "
               >
                 <template v-if="item.kind === 'document'">
                   <div class="reference-item__document">
@@ -125,7 +122,10 @@
 
                   <h5 v-if="shouldShowItemTitle(item)" class="reference-item__title">{{ item.title }}</h5>
 
-                  <p v-if="item.kind !== 'tool' && item.snippet && !expandedKeys.has(item.key)" class="reference-item__snippet">
+                  <p
+                    v-if="item.kind !== 'tool' && item.snippet && !expandedKeys.has(item.key)"
+                    class="reference-item__snippet"
+                  >
                     {{ formatReferenceSnippet(item.snippet) }}
                   </p>
                   <div v-if="item.kind === 'tool' && item.content" class="reference-item__content">
@@ -141,206 +141,200 @@
   </Teleport>
 
   <Transition name="references-backdrop">
-    <div
-      v-if="visible && useOverlay"
-      class="chat-references-panel__backdrop"
-      @click="close"
-    />
+    <div v-if="visible && useOverlay" class="chat-references-panel__backdrop" @click="close" />
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
-import { useChatReferencesDrawer } from '@/composables/useChatReferencesDrawer'
+import { computed, nextTick, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
+import { useChatReferencesDrawer } from "@/composables/useChatReferencesDrawer";
 import {
   buildReferenceSections,
   formatReferenceSnippet,
   formatVideoTimestamp,
   resolveReferenceHighlightKey,
   type ReferenceListItem,
-} from '@/utils/referenceSources'
+} from "@/utils/referenceSources";
 
 const props = defineProps<{
-  embeddedMode?: boolean
-  overlayBreakpoint?: number
-}>()
+  embeddedMode?: boolean;
+  overlayBreakpoint?: number;
+}>();
 
-const { t } = useI18n()
-const router = useRouter()
-const drawer = useChatReferencesDrawer()
+const { t } = useI18n();
+const router = useRouter();
+const drawer = useChatReferencesDrawer();
 
-const listElement = ref<HTMLElement | null>(null)
-const itemElements = new Map<string, HTMLElement>()
-const expandedKeys = reactive(new Set<string>())
-const pointerDownSelectionText = ref('')
-const panelEntered = ref(false)
+const listElement = ref<HTMLElement | null>(null);
+const itemElements = new Map<string, HTMLElement>();
+const expandedKeys = reactive(new Set<string>());
+const pointerDownSelectionText = ref("");
+const panelEntered = ref(false);
 
-const visible = computed(() => drawer?.visible.value ?? false)
-const references = computed(() => drawer?.references.value ?? [])
-const highlight = computed(() => drawer?.highlight.value ?? null)
+const visible = computed(() => drawer?.visible.value ?? false);
+const references = computed(() => drawer?.references.value ?? []);
+const highlight = computed(() => drawer?.highlight.value ?? null);
 
 const useOverlay = computed(() => {
-  if (props.embeddedMode) return true
-  if (typeof window === 'undefined') return false
-  return window.innerWidth < (props.overlayBreakpoint ?? 960)
-})
+  if (props.embeddedMode) return true;
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < (props.overlayBreakpoint ?? 960);
+});
 
-const sections = computed(() => buildReferenceSections(references.value))
-const totalCount = computed(() => sections.value.reduce((sum, section) => sum + section.items.length, 0))
+const sections = computed(() => buildReferenceSections(references.value));
+const totalCount = computed(() => sections.value.reduce((sum, section) => sum + section.items.length, 0));
 
-const activeHighlightKey = computed(() =>
-  resolveReferenceHighlightKey(references.value, highlight.value),
-)
+const activeHighlightKey = computed(() => resolveReferenceHighlightKey(references.value, highlight.value));
 
 const panelTitle = computed(() => {
-  const webCount = sections.value.find((section) => section.id === 'web')?.items.length ?? 0
-  const docCount = sections.value.find((section) => section.id === 'documents')?.items.length ?? 0
-  const toolCount = sections.value.find((section) => section.id === 'tools')?.items.length ?? 0
+  const webCount = sections.value.find((section) => section.id === "web")?.items.length ?? 0;
+  const docCount = sections.value.find((section) => section.id === "documents")?.items.length ?? 0;
+  const toolCount = sections.value.find((section) => section.id === "tools")?.items.length ?? 0;
   if (toolCount > 0 && webCount === 0 && docCount === 0) {
-    return t('chat.referencesDrawerTitleTools')
+    return t("chat.referencesDrawerTitleTools");
   }
   if ([webCount, docCount, toolCount].filter((count) => count > 0).length > 1) {
-    return t('chat.referencesDrawerTitleMixed')
+    return t("chat.referencesDrawerTitleMixed");
   }
   if (webCount > 0) {
-    return t('chat.referencesDrawerTitleWeb')
+    return t("chat.referencesDrawerTitleWeb");
   }
   if (docCount > 0) {
-    return t('chat.referencesDrawerTitleDocs')
+    return t("chat.referencesDrawerTitleDocs");
   }
-  return t('chat.referencesDrawerTitle')
-})
+  return t("chat.referencesDrawerTitle");
+});
 
-function sectionTitle(id: 'web' | 'documents' | 'tools') {
-  if (id === 'web') return t('chat.referencesDrawerWebSection')
-  if (id === 'tools') return t('chat.referencesDrawerToolsSection')
-  return t('chat.referencesDrawerDocsSection')
+function sectionTitle(id: "web" | "documents" | "tools") {
+  if (id === "web") return t("chat.referencesDrawerWebSection");
+  if (id === "tools") return t("chat.referencesDrawerToolsSection");
+  return t("chat.referencesDrawerDocsSection");
 }
 
 function close() {
-  drawer?.close()
+  drawer?.close();
 }
 
 function setItemRef(key: string, el: HTMLElement | null) {
   if (!el) {
-    itemElements.delete(key)
-    return
+    itemElements.delete(key);
+    return;
   }
-  itemElements.set(key, el)
+  itemElements.set(key, el);
 }
 
 function onFaviconError(event: Event) {
-  const img = event.target as HTMLImageElement | null
-  if (img) img.style.display = 'none'
+  const img = event.target as HTMLImageElement | null;
+  if (img) img.style.display = "none";
 }
 
 function hasMoreContent(item: ReferenceListItem) {
-  const content = String(item.content || '').trim()
-  const snippet = String(item.snippet || '').replace(/…$/, '').trim()
-  if (!content) return false
-  if (!snippet) return true
-  return content.length > snippet.length && !content.startsWith(snippet)
-    ? true
-    : content.length > snippet.length + 8
+  const content = String(item.content || "").trim();
+  const snippet = String(item.snippet || "")
+    .replace(/…$/, "")
+    .trim();
+  if (!content) return false;
+  if (!snippet) return true;
+  return content.length > snippet.length && !content.startsWith(snippet) ? true : content.length > snippet.length + 8;
 }
 
 function getSelectedText() {
-  if (typeof window === 'undefined') return ''
-  return window.getSelection()?.toString().trim() || ''
+  if (typeof window === "undefined") return "";
+  return window.getSelection()?.toString().trim() || "";
 }
 
 function trackContentPointerDown() {
-  pointerDownSelectionText.value = getSelectedText()
+  pointerDownSelectionText.value = getSelectedText();
 }
 
 function shouldIgnoreContentToggle(event?: MouseEvent) {
-  if (!event) return false
-  const selectedText = getSelectedText()
+  if (!event) return false;
+  const selectedText = getSelectedText();
   if (selectedText || pointerDownSelectionText.value) {
-    pointerDownSelectionText.value = ''
-    return true
+    pointerDownSelectionText.value = "";
+    return true;
   }
-  pointerDownSelectionText.value = ''
-  return false
+  pointerDownSelectionText.value = "";
+  return false;
 }
 
 function toggleDocumentSnippet(item: ReferenceListItem, event?: MouseEvent) {
-  if (shouldIgnoreContentToggle(event)) return
+  if (shouldIgnoreContentToggle(event)) return;
   if (expandedKeys.has(item.key)) {
-    expandedKeys.delete(item.key)
-    return
+    expandedKeys.delete(item.key);
+    return;
   }
-  expandedKeys.add(item.key)
+  expandedKeys.add(item.key);
 }
 
 function getDocumentHref(item: ReferenceListItem, videoTimestampMs?: number) {
-  if (!item.knowledgeBaseId) return ''
-  const query: Record<string, string> = {}
-  if (item.knowledgeId) query.knowledge_id = item.knowledgeId
-  if (videoTimestampMs != null) query.t = String(videoTimestampMs)
+  if (!item.knowledgeBaseId) return "";
+  const query: Record<string, string> = {};
+  if (item.knowledgeId) query.knowledge_id = item.knowledgeId;
+  if (videoTimestampMs != null) query.t = String(videoTimestampMs);
   return router.resolve({
     path: `/platform/knowledge-bases/${item.knowledgeBaseId}`,
     query,
-  }).href
+  }).href;
 }
 
 function shouldShowItemTitle(item: ReferenceListItem) {
-  if (item.kind !== 'web') return true
-  const title = item.title?.trim()
-  const domain = item.domain?.trim()
-  return Boolean(title && title !== domain)
+  if (item.kind !== "web") return true;
+  const title = item.title?.trim();
+  const domain = item.domain?.trim();
+  return Boolean(title && title !== domain);
 }
 
 async function scrollToHighlight() {
-  if (!panelEntered.value) return
-  const key = activeHighlightKey.value
-  if (!key) return
-  await nextTick()
-  const el = itemElements.get(key)
-  const container = listElement.value
-  if (!el || !container) return
+  if (!panelEntered.value) return;
+  const key = activeHighlightKey.value;
+  if (!key) return;
+  await nextTick();
+  const el = itemElements.get(key);
+  const container = listElement.value;
+  if (!el || !container) return;
 
   // Keep citation positioning inside the drawer. Native element scrolling may
   // also adjust the outer chat viewport while the fixed panel is still
   // entering, which makes the conversation column visibly jump sideways.
-  const itemRect = el.getBoundingClientRect()
-  const containerRect = container.getBoundingClientRect()
-  let nextTop: number | null = null
+  const itemRect = el.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  let nextTop: number | null = null;
   if (itemRect.top < containerRect.top) {
-    nextTop = container.scrollTop + itemRect.top - containerRect.top - 8
+    nextTop = container.scrollTop + itemRect.top - containerRect.top - 8;
   } else if (itemRect.bottom > containerRect.bottom) {
-    nextTop = container.scrollTop + itemRect.bottom - containerRect.bottom + 8
+    nextTop = container.scrollTop + itemRect.bottom - containerRect.bottom + 8;
   }
   if (nextTop !== null) {
-    container.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+    container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
   }
 }
 
 function handlePanelAfterEnter() {
-  panelEntered.value = true
-  void scrollToHighlight()
+  panelEntered.value = true;
+  void scrollToHighlight();
 }
 
 watch(activeHighlightKey, () => {
-  void scrollToHighlight()
-})
+  void scrollToHighlight();
+});
 
 // A user may click the same citation again after manually scrolling the drawer
 // away from its card. The resolved key does not change in that case, but the
 // highlight target object does, so replay the scroll for every activation.
 watch(highlight, () => {
-  void scrollToHighlight()
-})
+  void scrollToHighlight();
+});
 
 watch(visible, (open) => {
   if (!open) {
-    panelEntered.value = false
-    expandedKeys.clear()
-    return
+    panelEntered.value = false;
+    expandedKeys.clear();
+    return;
   }
-})
+});
 </script>
 
 <style scoped lang="less">
@@ -410,7 +404,9 @@ watch(visible, (open) => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 
   :deep(.t-icon) {
     font-size: 20px;
@@ -554,7 +550,9 @@ watch(visible, (open) => {
   color: var(--td-text-color-placeholder);
   line-height: 1;
   opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 
 .reference-item:hover .reference-item__open,

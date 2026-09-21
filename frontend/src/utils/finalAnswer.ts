@@ -16,14 +16,11 @@
 // authored markdown that happens to contain the word "Final Answer:" or an
 // XML-style tag in the middle of a sentence.
 
-const ANSWER_TAG_RE =
-  /^\s*<(answer|final_answer|final-answer)\b[^>]*>([\s\S]*?)<\/\1>\s*$/i;
+const ANSWER_TAG_RE = /^\s*<(answer|final_answer|final-answer)\b[^>]*>([\s\S]*?)<\/\1>\s*$/i;
 
-const FENCED_ANSWER_RE =
-  /^\s*```(?:final_answer|answer)\s*\n?([\s\S]*?)\n?```\s*$/i;
+const FENCED_ANSWER_RE = /^\s*```(?:final_answer|answer)\s*\n?([\s\S]*?)\n?```\s*$/i;
 
-const ANSWER_PREFIX_RE =
-  /^\s*(?:final\s*answer|最终答案|答案|答)\s*[:：]\s*/i;
+const ANSWER_PREFIX_RE = /^\s*(?:final\s*answer|最终答案|答案|答)\s*[:：]\s*/i;
 
 /**
  * Remove common "final answer" wrappers that some models wrap their
@@ -36,8 +33,8 @@ const ANSWER_PREFIX_RE =
  *  - Leading `Final Answer:` / `最终答案：` / `答：` prefix
  */
 export function unwrapFinalAnswerWrappers(content: string): string {
-  if (!content || typeof content !== 'string') {
-    return content ?? '';
+  if (!content || typeof content !== "string") {
+    return content ?? "";
   }
 
   let result = content;
@@ -81,10 +78,10 @@ const THINK_BLOCK_RE = /<think\b[^>]*>[\s\S]*?<\/think>/gi;
  * streaming thinking chunks and once as a final answer event).
  */
 export function normaliseForComparison(content: string): string {
-  if (!content || typeof content !== 'string') return '';
-  const stripped = content.replace(THINK_BLOCK_RE, '');
+  if (!content || typeof content !== "string") return "";
+  const stripped = content.replace(THINK_BLOCK_RE, "");
   const unwrapped = unwrapFinalAnswerWrappers(stripped);
-  return unwrapped.replace(/\s+/g, ' ').trim();
+  return unwrapped.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -107,8 +104,5 @@ export function thinkingEqualsAnswer(thinking: string, answer: string): boolean 
 
   const head = 50;
   const tail = 50;
-  return (
-    a.slice(0, head) === b.slice(0, head) &&
-    a.slice(-tail) === b.slice(-tail)
-  );
+  return a.slice(0, head) === b.slice(0, head) && a.slice(-tail) === b.slice(-tail);
 }

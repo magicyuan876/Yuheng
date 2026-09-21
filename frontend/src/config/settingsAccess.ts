@@ -1,4 +1,4 @@
-export type SettingsRoleKey = 'viewer' | 'contributor' | 'admin' | 'owner'
+export type SettingsRoleKey = "viewer" | "contributor" | "admin" | "owner";
 
 /**
  * Workspace-scoped settings access policy.
@@ -8,36 +8,36 @@ export type SettingsRoleKey = 'viewer' | 'contributor' | 'admin' | 'owner'
  * guards remain authoritative.
  */
 export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
-  general: 'viewer',
-  ollama: 'admin',
-  models: 'viewer',
-  websearch: 'admin',
-  chathistory: 'admin',
-  vectorstore: 'admin',
-  parser: 'admin',
-  storage: 'admin',
-  system: 'viewer',
-  userprofile: 'viewer',
-  tenant: 'viewer',
-  members: 'viewer',
-  groups: 'viewer',
-}
+  general: "viewer",
+  ollama: "admin",
+  models: "viewer",
+  websearch: "admin",
+  chathistory: "admin",
+  vectorstore: "admin",
+  parser: "admin",
+  storage: "admin",
+  system: "viewer",
+  userprofile: "viewer",
+  tenant: "viewer",
+  members: "viewer",
+  groups: "viewer",
+};
 
 /**
  * A management-labelled avatar shortcut has a stricter threshold than the
  * corresponding read-only Settings page.
  */
 export const SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE = {
-  members: 'owner',
-  models: 'admin',
-} as const satisfies Record<string, SettingsRoleKey>
+  members: "owner",
+  models: "admin",
+} as const satisfies Record<string, SettingsRoleKey>;
 
 export const SYSTEM_ADMIN_SETTINGS_SECTIONS = new Set([
-  'system-global',
-  'runtime-queues',
-  'platform-api-keys',
-  'system-audit-log',
-])
+  "system-global",
+  "runtime-queues",
+  "platform-api-keys",
+  "system-audit-log",
+]);
 
 /**
  * Sections whose ownership moves to the platform when the
@@ -60,13 +60,13 @@ export const SYSTEM_ADMIN_SETTINGS_SECTIONS = new Set([
  * decides whether the navigation entry is rendered.
  */
 export const PLATFORM_MANAGED_SETTINGS_SECTIONS = new Set([
-  'models',
-  'ollama',
-  'websearch',
-  'vectorstore',
-  'parser',
-  'storage',
-])
+  "models",
+  "ollama",
+  "websearch",
+  "vectorstore",
+  "parser",
+  "storage",
+]);
 
 /**
  * Whether a settings section should be hidden from this caller.
@@ -74,9 +74,6 @@ export const PLATFORM_MANAGED_SETTINGS_SECTIONS = new Set([
  * `centralizedInfra` comes from the governance store; it is false while the
  * probe is in flight or has failed, which fails open to today's behaviour.
  */
-export function isPlatformManagedSection(
-  key: string,
-  centralizedInfra: boolean,
-): boolean {
-  return centralizedInfra && PLATFORM_MANAGED_SETTINGS_SECTIONS.has(key)
+export function isPlatformManagedSection(key: string, centralizedInfra: boolean): boolean {
+  return centralizedInfra && PLATFORM_MANAGED_SETTINGS_SECTIONS.has(key);
 }

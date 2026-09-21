@@ -1,4 +1,4 @@
-@import './chat-hljs.less';
+@import "./chat-hljs.less";
 
 // Single source of truth for chat answer Markdown typography and block styles.
 // Used by botmsg, AgentStreamDisplay, embed chat, and the dev Markdown test page.
@@ -21,14 +21,8 @@
   // a soft "just typed" reveal that settles once streaming stops and the wrap
   // is no longer emitted.
   :deep(.stream-fade-tail) {
-    -webkit-mask-image: linear-gradient(to right,
-        rgba(0, 0, 0, 1) 0%,
-        rgba(0, 0, 0, 0.7) 30%,
-        rgba(0, 0, 0, 0) 100%);
-    mask-image: linear-gradient(to right,
-        rgba(0, 0, 0, 1) 0%,
-        rgba(0, 0, 0, 0.7) 30%,
-        rgba(0, 0, 0, 0) 100%);
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0) 100%);
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0) 100%);
   }
 
   :deep(p) {
@@ -182,7 +176,10 @@
     font-weight: 500;
     line-height: 1;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
 
     &:hover {
       background: color-mix(in srgb, var(--td-text-color-primary) 6%, var(--td-bg-color-secondarycontainer));
@@ -267,7 +264,10 @@
     background: transparent;
     color: var(--td-text-color-secondary);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
 
     &:hover:not(:disabled) {
       background: color-mix(in srgb, var(--td-text-color-primary) 6%, var(--td-bg-color-secondarycontainer));
@@ -400,7 +400,7 @@
     margin-bottom: 0;
   }
 
-  :deep(li:has(> input[type='checkbox'])) {
+  :deep(li:has(> input[type="checkbox"])) {
     list-style: none;
     margin-left: -1.625em;
     padding-left: 0;
@@ -409,7 +409,7 @@
       content: none;
     }
 
-    input[type='checkbox'] {
+    input[type="checkbox"] {
       margin: 0 0.5em 0 0;
       vertical-align: middle;
       accent-color: var(--td-brand-color);
@@ -570,13 +570,13 @@
     border-bottom: 0;
   }
 
-  :deep(table th[align='center']),
-  :deep(table td[align='center']) {
+  :deep(table th[align="center"]),
+  :deep(table td[align="center"]) {
     text-align: center;
   }
 
-  :deep(table th[align='right']),
-  :deep(table td[align='right']) {
+  :deep(table th[align="right"]),
+  :deep(table td[align="right"]) {
     text-align: right;
   }
 
@@ -603,7 +603,7 @@
   // already the 1x1 placeholder; matching src prevents that frame becoming a
   // tall, one-pixel vertical line in Chromium.
   :deep(img[data-img-loading]),
-  :deep(img[data-protected-src][src^='data:image/gif;base64']) {
+  :deep(img[data-protected-src][src^="data:image/gif;base64"]) {
     width: 260px;
     height: 180px;
     min-width: min(260px, 80%);
@@ -622,8 +622,12 @@
   }
 
   @keyframes chat-img-skeleton {
-    0% { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
   }
 
   :deep(p:has(> img:only-child)) {

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="docs-drawio" role="dialog" :aria-label="t('docs.media.diagramEdit')">
       <div class="docs-drawio-bar">
-        <span>{{ t('docs.media.diagramEdit') }}</span>
+        <span>{{ t("docs.media.diagramEdit") }}</span>
         <button type="button" @click="emit('close')">
           <t-icon name="close" size="16px" />
         </button>
@@ -19,29 +19,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
-import {
-  drawioFrameURL, DrawioSession, isFromEditor, originOf, parseMessage,
-} from './drawio'
-import { DOCS_DIAGRAMS, type DiagramHost } from './linkContext'
+import { drawioFrameURL, DrawioSession, isFromEditor, originOf, parseMessage } from "./drawio";
+import { DOCS_DIAGRAMS, type DiagramHost } from "./linkContext";
 
-const props = defineProps<{ source: string }>()
-const emit = defineEmits<{ save: [payload: { xml: string; svg: string }]; close: [] }>()
-const { t } = useI18n()
+const props = defineProps<{ source: string }>();
+const emit = defineEmits<{ save: [payload: { xml: string; svg: string }]; close: [] }>();
+const { t } = useI18n();
 
-const host = inject<DiagramHost | null>(DOCS_DIAGRAMS, null)
-const frame = ref<HTMLIFrameElement | null>(null)
-const session = new DrawioSession(props.source)
+const host = inject<DiagramHost | null>(DOCS_DIAGRAMS, null);
+const frame = ref<HTMLIFrameElement | null>(null);
+const session = new DrawioSession(props.source);
 
-const base = computed(() => host?.drawioURL.value ?? '')
-const frameSrc = computed(() => (base.value ? drawioFrameURL(base.value, isDark()) : 'about:blank'))
-const expectedOrigin = computed(() => originOf(base.value))
+const base = computed(() => host?.drawioURL.value ?? "");
+const frameSrc = computed(() => (base.value ? drawioFrameURL(base.value, isDark()) : "about:blank"));
+const expectedOrigin = computed(() => originOf(base.value));
 
 function isDark(): boolean {
-  return document.documentElement.getAttribute('theme-mode') === 'dark'
-    || document.documentElement.classList.contains('dark')
+  return (
+    document.documentElement.getAttribute("theme-mode") === "dark" ||
+    document.documentElement.classList.contains("dark")
+  );
 }
 
 /**
@@ -54,44 +54,44 @@ function isDark(): boolean {
  * posting to the window is ordinary rather than an attack.
  */
 function onMessage(event: MessageEvent) {
-  if (!isFromEditor(event, expectedOrigin.value, frame.value)) return
-  const message = parseMessage(event.data)
-  if (!message) return
+  if (!isFromEditor(event, expectedOrigin.value, frame.value)) return;
+  const message = parseMessage(event.data);
+  if (!message) return;
 
-  const action = session.receive(message)
+  const action = session.receive(message);
   switch (action.kind) {
-    case 'load':
-    case 'export': {
-      const request = DrawioSession.request(action)
-      if (request) frame.value?.contentWindow?.postMessage(request, expectedOrigin.value)
-      break
+    case "load":
+    case "export": {
+      const request = DrawioSession.request(action);
+      if (request) frame.value?.contentWindow?.postMessage(request, expectedOrigin.value);
+      break;
     }
-    case 'save':
-      emit('save', { xml: action.xml, svg: action.svg })
-      break
-    case 'close':
-      emit('close')
-      break
+    case "save":
+      emit("save", { xml: action.xml, svg: action.svg });
+      break;
+    case "close":
+      emit("close");
+      break;
     default:
-      break
+      break;
   }
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') emit('close')
+  if (event.key === "Escape") emit("close");
 }
 
 onMounted(() => {
-  window.addEventListener('message', onMessage)
-  window.addEventListener('keydown', onKey)
-})
+  window.addEventListener("message", onMessage);
+  window.addEventListener("keydown", onKey);
+});
 
 // Both listeners are removed with the dialog. The iframe goes with the
 // element, so nothing of the editor outlives this component.
 onBeforeUnmount(() => {
-  window.removeEventListener('message', onMessage)
-  window.removeEventListener('keydown', onKey)
-})
+  window.removeEventListener("message", onMessage);
+  window.removeEventListener("keydown", onKey);
+});
 </script>
 
 <style scoped lang="less">

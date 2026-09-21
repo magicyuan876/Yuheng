@@ -1,14 +1,18 @@
 <script setup lang="ts">
-
-defineProps(['reviewImg', 'reviewUrl'])
-const emit = defineEmits(['closePreImg'])
+defineProps(["reviewImg", "reviewUrl"]);
+const emit = defineEmits(["closePreImg"]);
 const close = () => {
-    emit('closePreImg')
-}
+  emit("closePreImg");
+};
 </script>
 <template>
-    <t-image-viewer :visible="reviewImg" closeOnOverlay closeOnEscKeydown @close="close"
-        :images="reviewUrl ? [reviewUrl] : []">
-    </t-image-viewer>
+  <t-image-viewer
+    :visible="reviewImg"
+    closeOnOverlay
+    closeOnEscKeydown
+    @close="close"
+    :images="reviewUrl ? [reviewUrl] : []"
+  >
+  </t-image-viewer>
 </template>
 <style scoped lang="less"></style>

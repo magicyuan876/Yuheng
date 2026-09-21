@@ -22,13 +22,13 @@
  * unset, computed as a non-finite value, or in environments without a DOM.
  */
 export function getRootZoom(): number {
-  if (typeof document === 'undefined') return 1
-  const root = document.documentElement
-  if (!root) return 1
-  const raw = getComputedStyle(root).zoom
-  const zoom = Number.parseFloat(raw || '1')
-  if (!Number.isFinite(zoom) || zoom <= 0) return 1
-  return zoom
+  if (typeof document === "undefined") return 1;
+  const root = document.documentElement;
+  if (!root) return 1;
+  const raw = getComputedStyle(root).zoom;
+  const zoom = Number.parseFloat(raw || "1");
+  if (!Number.isFinite(zoom) || zoom <= 0) return 1;
+  return zoom;
 }
 
 /**
@@ -39,7 +39,7 @@ export function getRootZoom(): number {
  * avoid re-reading computed style multiple times.
  */
 export function toCssPx(visualPx: number, zoom: number = getRootZoom()): number {
-  return visualPx / zoom
+  return visualPx / zoom;
 }
 
 /**
@@ -58,7 +58,7 @@ export function rectToCssPx(
     bottom: rect.bottom / zoom,
     width: rect.width / zoom,
     height: rect.height / zoom,
-  }
+  };
 }
 
 /**
@@ -67,9 +67,9 @@ export function rectToCssPx(
  * pixels, so divide by zoom.
  */
 export function cssViewportSize(zoom: number = getRootZoom()): { width: number; height: number } {
-  if (typeof window === 'undefined') return { width: 0, height: 0 }
+  if (typeof window === "undefined") return { width: 0, height: 0 };
   return {
     width: window.innerWidth / zoom,
     height: window.innerHeight / zoom,
-  }
+  };
 }

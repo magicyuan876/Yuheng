@@ -2,10 +2,10 @@
   <Teleport to="body">
     <div class="docs-excalidraw" role="dialog" :aria-label="t('docs.media.diagramEdit')">
       <div class="docs-excalidraw-bar">
-        <span>{{ t('docs.media.diagramEdit') }}</span>
+        <span>{{ t("docs.media.diagramEdit") }}</span>
         <span class="docs-excalidraw-spacer" />
         <t-button size="small" theme="primary" :loading="saving" @click="save">
-          {{ t('common.save') }}
+          {{ t("common.save") }}
         </t-button>
         <button
           type="button"
@@ -19,9 +19,9 @@
 
       <div class="docs-excalidraw-body">
         <div ref="mount" class="docs-excalidraw-mount" />
-        <p v-if="status === 'loading'" class="docs-excalidraw-note">{{ t('docs.media.diagramLoading') }}</p>
+        <p v-if="status === 'loading'" class="docs-excalidraw-note">{{ t("docs.media.diagramLoading") }}</p>
         <p v-else-if="status === 'failed'" class="docs-excalidraw-note docs-excalidraw-note--error">
-          {{ t('docs.media.diagramEditorFailed') }}
+          {{ t("docs.media.diagramEditorFailed") }}
         </p>
       </div>
     </div>
@@ -29,23 +29,28 @@
 </template>
 
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { MessagePlugin } from "tdesign-vue-next";
+import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { useI18n } from "vue-i18n";
 
 import {
-  DEFAULT_ITEM_STYLE, loadExcalidraw, parseScene, renderSceneToSVG, serialiseScene,
-  type ExcalidrawModule, type ExcalidrawScene,
-} from './excalidraw'
-import { ReactIsland } from './reactIsland'
+  DEFAULT_ITEM_STYLE,
+  loadExcalidraw,
+  parseScene,
+  renderSceneToSVG,
+  serialiseScene,
+  type ExcalidrawModule,
+  type ExcalidrawScene,
+} from "./excalidraw";
+import { ReactIsland } from "./reactIsland";
 
-const props = defineProps<{ source: string }>()
-const emit = defineEmits<{ save: [payload: { scene: string; svg: string }]; close: [] }>()
-const { t } = useI18n()
+const props = defineProps<{ source: string }>();
+const emit = defineEmits<{ save: [payload: { scene: string; svg: string }]; close: [] }>();
+const { t } = useI18n();
 
-const mount = ref<HTMLElement | null>(null)
-const status = ref<'loading' | 'ready' | 'failed'>('loading')
-const saving = ref(false)
+const mount = ref<HTMLElement | null>(null);
+const status = ref<"loading" | "ready" | "failed">("loading");
+const saving = ref(false);
 
 /**
  * The React subtree, and the editor's own handle onto its canvas.
@@ -54,64 +59,67 @@ const saving = ref(false)
  * tree reactive would have Vue walk a very large structure on every change for
  * no benefit, and would fight React for ownership of it.
  */
-const island = shallowRef<ReactIsland | null>(null)
-const module = shallowRef<ExcalidrawModule | null>(null)
+const island = shallowRef<ReactIsland | null>(null);
+const module = shallowRef<ExcalidrawModule | null>(null);
 const api = shallowRef<{
-  getSceneElements: () => readonly unknown[]
-  getAppState: () => Record<string, unknown>
-  getFiles: () => Record<string, unknown>
-} | null>(null)
+  getSceneElements: () => readonly unknown[];
+  getAppState: () => Record<string, unknown>;
+  getFiles: () => Record<string, unknown>;
+} | null>(null);
 
-const initial: ExcalidrawScene = parseScene(props.source)
+const initial: ExcalidrawScene = parseScene(props.source);
 
 onMounted(async () => {
-  let loaded: ExcalidrawModule
-  let react: { createElement: (t: unknown, p: unknown) => unknown }
-  let client: { createRoot: (el: Element) => { render: (e: unknown) => void; unmount: () => void } }
+  let loaded: ExcalidrawModule;
+  let react: { createElement: (t: unknown, p: unknown) => unknown };
+  let client: { createRoot: (el: Element) => { render: (e: unknown) => void; unmount: () => void } };
   try {
     // Imported here and nowhere else: this is the largest module in the
     // application and most readers of most pages never open a drawing.
-    ;[loaded, react, client] = await Promise.all([
+    [loaded, react, client] = await Promise.all([
       loadExcalidraw(),
-      import('react') as unknown as Promise<{ createElement: (t: unknown, p: unknown) => unknown }>,
-      import('react-dom/client') as unknown as Promise<{
-        createRoot: (el: Element) => { render: (e: unknown) => void; unmount: () => void }
+      import("react") as unknown as Promise<{ createElement: (t: unknown, p: unknown) => unknown }>,
+      import("react-dom/client") as unknown as Promise<{
+        createRoot: (el: Element) => { render: (e: unknown) => void; unmount: () => void };
       }>,
-    ])
+    ]);
   } catch {
-    status.value = 'failed'
-    return
+    status.value = "failed";
+    return;
   }
 
   // The component may already be gone: the import takes as long as it takes,
   // and nothing stops somebody closing the dialogue meanwhile.
   if (!mount.value) {
-    status.value = 'failed'
-    return
+    status.value = "failed";
+    return;
   }
 
-  module.value = loaded
-  const created = new ReactIsland((container) => client.createRoot(container))
-  island.value = created
-  created.render(mount.value, react.createElement(loaded.Excalidraw, {
-    initialData: {
-      elements: initial.elements,
-      // The drawing wins where it has an opinion: one that was saved in its
-      // own style reopens in that style, and only what it is silent about
-      // falls back to the clean defaults. A new drawing is silent about all
-      // of it, which is how it starts out looking like a diagram rather than
-      // a doodle.
-      appState: { ...DEFAULT_ITEM_STYLE, ...initial.appState },
-      files: initial.files,
-    },
-    excalidrawAPI: (instance: typeof api.value) => {
-      api.value = instance
-    },
-    langCode: navigator.language?.startsWith('zh') ? 'zh-CN' : 'en',
-    theme: isDark() ? 'dark' : 'light',
-  }))
-  status.value = 'ready'
-})
+  module.value = loaded;
+  const created = new ReactIsland((container) => client.createRoot(container));
+  island.value = created;
+  created.render(
+    mount.value,
+    react.createElement(loaded.Excalidraw, {
+      initialData: {
+        elements: initial.elements,
+        // The drawing wins where it has an opinion: one that was saved in its
+        // own style reopens in that style, and only what it is silent about
+        // falls back to the clean defaults. A new drawing is silent about all
+        // of it, which is how it starts out looking like a diagram rather than
+        // a doodle.
+        appState: { ...DEFAULT_ITEM_STYLE, ...initial.appState },
+        files: initial.files,
+      },
+      excalidrawAPI: (instance: typeof api.value) => {
+        api.value = instance;
+      },
+      langCode: navigator.language?.startsWith("zh") ? "zh-CN" : "en",
+      theme: isDark() ? "dark" : "light",
+    }),
+  );
+  status.value = "ready";
+});
 
 /**
  * Tears the React subtree down with the dialogue.
@@ -122,37 +130,41 @@ onMounted(async () => {
  * harmless: if the module resolves after this ran, nothing is mounted.
  */
 onBeforeUnmount(() => {
-  island.value?.destroy()
-  island.value = null
-  api.value = null
-  module.value = null
-})
+  island.value?.destroy();
+  island.value = null;
+  api.value = null;
+  module.value = null;
+});
 
 function isDark(): boolean {
-  return document.documentElement.getAttribute('theme-mode') === 'dark'
-    || document.documentElement.classList.contains('dark')
+  return (
+    document.documentElement.getAttribute("theme-mode") === "dark" ||
+    document.documentElement.classList.contains("dark")
+  );
 }
 
 async function save() {
-  const editor = api.value
-  const loaded = module.value
-  if (!editor || !loaded || saving.value) return
-  saving.value = true
+  const editor = api.value;
+  const loaded = module.value;
+  if (!editor || !loaded || saving.value) return;
+  saving.value = true;
   try {
-    const elements = editor.getSceneElements()
-    const appState = editor.getAppState()
-    const files = editor.getFiles()
-    const scene = serialiseScene(elements, appState, files)
+    const elements = editor.getSceneElements();
+    const appState = editor.getAppState();
+    const files = editor.getFiles();
+    const scene = serialiseScene(elements, appState, files);
     // The rendering is produced by the editor itself, so it looks exactly like
     // what was being drawn, and it is the only thing a reader ever loads.
     const svg = await renderSceneToSVG(loaded, {
-      ...parseScene(scene), elements: [...elements], files,
-    })
-    emit('save', { scene, svg })
+      ...parseScene(scene),
+      elements: [...elements],
+      files,
+    });
+    emit("save", { scene, svg });
   } catch (err) {
-    void MessagePlugin.error((err as { message?: string })?.message || t('docs.media.diagramSaveFailed'))
+    void MessagePlugin.error((err as { message?: string })?.message || t("docs.media.diagramSaveFailed"));
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 </script>

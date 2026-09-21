@@ -1,10 +1,10 @@
 export interface WikiDirectoryState {
-  collapsed: Set<string>
-  touched: Set<string>
+  collapsed: Set<string>;
+  touched: Set<string>;
 }
 
 function directoryPathKey(type: string, parts: string[]): string {
-  return `${type}:${parts.join('/')}`
+  return `${type}:${parts.join("/")}`;
 }
 
 /**
@@ -18,16 +18,16 @@ export function expandWikiDirectoryPath(
   collapsed: ReadonlySet<string>,
   touched: ReadonlySet<string>,
 ): WikiDirectoryState {
-  const nextCollapsed = new Set(collapsed)
-  const nextTouched = new Set(touched)
+  const nextCollapsed = new Set(collapsed);
+  const nextTouched = new Set(touched);
 
   for (let depth = 1; depth <= path.length; depth++) {
-    const key = directoryPathKey(type, path.slice(0, depth))
-    nextCollapsed.delete(key)
-    nextTouched.add(key)
+    const key = directoryPathKey(type, path.slice(0, depth));
+    nextCollapsed.delete(key);
+    nextTouched.add(key);
   }
 
-  return { collapsed: nextCollapsed, touched: nextTouched }
+  return { collapsed: nextCollapsed, touched: nextTouched };
 }
 
 /** Return expanded, user-touched paths in parent-first order for reloading. */
@@ -36,10 +36,10 @@ export function expandedWikiDirectoryPaths(
   collapsed: ReadonlySet<string>,
   touched: ReadonlySet<string>,
 ): string[][] {
-  const prefix = `${type}:`
+  const prefix = `${type}:`;
   return [...touched]
-    .filter(key => key.startsWith(prefix) && !collapsed.has(key))
-    .map(key => key.slice(prefix.length).split('/').filter(Boolean))
-    .filter(path => path.length > 0)
-    .sort((left, right) => left.length - right.length)
+    .filter((key) => key.startsWith(prefix) && !collapsed.has(key))
+    .map((key) => key.slice(prefix.length).split("/").filter(Boolean))
+    .filter((path) => path.length > 0)
+    .sort((left, right) => left.length - right.length);
 }

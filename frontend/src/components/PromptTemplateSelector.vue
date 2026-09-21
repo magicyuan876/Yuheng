@@ -10,7 +10,7 @@
         @click="handleResetToDefault"
       >
         <t-icon name="rollback" />
-        <span>{{ $t('promptTemplate.resetDefault') }}</span>
+        <span>{{ $t("promptTemplate.resetDefault") }}</span>
       </t-button>
       <!-- 选择模板按钮 -->
       <t-popup
@@ -23,13 +23,13 @@
         <template #content>
           <div class="template-popup">
             <div class="template-header">
-              <span class="template-title">{{ $t('promptTemplate.selectTemplate') }}</span>
+              <span class="template-title">{{ $t("promptTemplate.selectTemplate") }}</span>
             </div>
             <div v-if="loading" class="template-loading">
               <t-loading size="small" />
             </div>
             <div v-else-if="templates.length === 0" class="template-empty">
-              {{ $t('promptTemplate.noTemplates') }}
+              {{ $t("promptTemplate.noTemplates") }}
             </div>
             <div v-else class="template-list">
               <div
@@ -41,15 +41,15 @@
                 <div class="template-item-header">
                   <span class="template-name">{{ template.name }}</span>
                   <span v-if="template.default" class="template-tag default-tag">
-                    {{ $t('promptTemplate.default') }}
+                    {{ $t("promptTemplate.default") }}
                   </span>
                   <span v-if="template.has_knowledge_base" class="template-tag kb-tag">
                     <t-icon name="folder" size="12px" />
-                    {{ $t('promptTemplate.withKnowledgeBase') }}
+                    {{ $t("promptTemplate.withKnowledgeBase") }}
                   </span>
                   <span v-if="template.has_web_search" class="template-tag web-tag">
                     <t-icon name="internet" size="12px" />
-                    {{ $t('promptTemplate.withWebSearch') }}
+                    {{ $t("promptTemplate.withWebSearch") }}
                   </span>
                 </div>
                 <p class="template-desc">{{ template.description }}</p>
@@ -57,14 +57,9 @@
             </div>
           </div>
         </template>
-        <t-button
-          variant="outline"
-          size="small"
-          class="template-trigger-btn"
-          :loading="loading"
-        >
+        <t-button variant="outline" size="small" class="template-trigger-btn" :loading="loading">
           <t-icon name="view-module" />
-          <span>{{ $t('promptTemplate.useTemplate') }}</span>
+          <span>{{ $t("promptTemplate.useTemplate") }}</span>
         </t-button>
       </t-popup>
     </div>
@@ -72,27 +67,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { getPromptTemplates, type PromptTemplate, type PromptTemplatesConfig } from '@/api/system';
+import { ref, computed, onMounted } from "vue";
+import { getPromptTemplates, type PromptTemplate, type PromptTemplatesConfig } from "@/api/system";
 
-
-const props = withDefaults(defineProps<{
-  type: 'systemPrompt' | 'contextTemplate' | 'rewrite' | 'fallback' | 'agentSystemPrompt' | 'intentPrompt';
-  hasKnowledgeBase?: boolean;
-  position?: 'inline' | 'corner';  // inline: 行内显示, corner: 输入框右下角
-  /** 用于 fallback 场景：区分固定回复和模型 prompt */
-  fallbackMode?: 'fixed' | 'model';
-  /** intent 场景：当前选中的 intent id（对应 template.id） */
-  intentId?: string;
-  /** 为 false 时只显示「恢复默认」，不显示「使用模板」 */
-  showTemplatePicker?: boolean;
-}>(), {
-  showTemplatePicker: true,
-});
+const props = withDefaults(
+  defineProps<{
+    type: "systemPrompt" | "contextTemplate" | "rewrite" | "fallback" | "agentSystemPrompt" | "intentPrompt";
+    hasKnowledgeBase?: boolean;
+    position?: "inline" | "corner"; // inline: 行内显示, corner: 输入框右下角
+    /** 用于 fallback 场景：区分固定回复和模型 prompt */
+    fallbackMode?: "fixed" | "model";
+    /** intent 场景：当前选中的 intent id（对应 template.id） */
+    intentId?: string;
+    /** 为 false 时只显示「恢复默认」，不显示「使用模板」 */
+    showTemplatePicker?: boolean;
+  }>(),
+  {
+    showTemplatePicker: true,
+  },
+);
 
 const emit = defineEmits<{
-  (e: 'select', template: PromptTemplate): void;
-  (e: 'reset-default', template: PromptTemplate): void;
+  (e: "select", template: PromptTemplate): void;
+  (e: "reset-default", template: PromptTemplate): void;
 }>();
 
 const popupVisible = ref(false);
@@ -115,7 +112,7 @@ const loadTemplates = async () => {
     const response = await getPromptTemplates();
     templatesConfig.value = response.data;
   } catch (error) {
-    console.error('Failed to load prompt templates:', error);
+    console.error("Failed to load prompt templates:", error);
   } finally {
     loading.value = false;
   }
@@ -124,31 +121,31 @@ const loadTemplates = async () => {
 // 根据类型获取对应的模板列表
 const templates = computed<PromptTemplate[]>(() => {
   if (!templatesConfig.value) return [];
-  
+
   let list: PromptTemplate[] = [];
   switch (props.type) {
-    case 'systemPrompt':
+    case "systemPrompt":
       list = templatesConfig.value.system_prompt || [];
       break;
-    case 'contextTemplate':
+    case "contextTemplate":
       list = templatesConfig.value.context_template || [];
       break;
-    case 'rewrite':
+    case "rewrite":
       list = templatesConfig.value.rewrite || [];
       break;
-    case 'fallback':
+    case "fallback":
       list = templatesConfig.value.fallback || [];
       // Filter by fallbackMode: "model" mode shows only mode:"model" templates, otherwise shows non-model templates
-      if (props.fallbackMode === 'model') {
-        list = list.filter(t => t.mode === 'model');
-      } else if (props.fallbackMode === 'fixed') {
-        list = list.filter(t => !t.mode || t.mode !== 'model');
+      if (props.fallbackMode === "model") {
+        list = list.filter((t) => t.mode === "model");
+      } else if (props.fallbackMode === "fixed") {
+        list = list.filter((t) => !t.mode || t.mode !== "model");
       }
       break;
-    case 'agentSystemPrompt':
+    case "agentSystemPrompt":
       list = templatesConfig.value.agent_system_prompt || [];
       break;
-    case 'intentPrompt':
+    case "intentPrompt":
       list = templatesConfig.value.intent_prompts || [];
       break;
     default:
@@ -158,20 +155,20 @@ const templates = computed<PromptTemplate[]>(() => {
 });
 
 const selectTemplate = (template: PromptTemplate) => {
-  emit('select', template);
+  emit("select", template);
   popupVisible.value = false;
 };
 
 // Find the default template (marked with default: true, or the first one)
 const findDefaultTemplate = (list: PromptTemplate[]): PromptTemplate | null => {
   if (!list || list.length === 0) return null;
-  const defaultItem = list.find(t => t.default);
+  const defaultItem = list.find((t) => t.default);
   return defaultItem || list[0];
 };
 
 const resolveResetTemplate = (): PromptTemplate | null => {
   const list = templates.value;
-  if (props.type === 'intentPrompt') {
+  if (props.type === "intentPrompt") {
     if (!props.intentId) return null;
     return list.find((t) => t.id === props.intentId) ?? null;
   }
@@ -186,7 +183,7 @@ const handleResetToDefault = async () => {
       const response = await getPromptTemplates();
       templatesConfig.value = response.data;
     } catch (error) {
-      console.error('Failed to load prompt templates:', error);
+      console.error("Failed to load prompt templates:", error);
       return;
     } finally {
       resettingDefault.value = false;
@@ -195,7 +192,7 @@ const handleResetToDefault = async () => {
 
   const defaultTpl = resolveResetTemplate();
   if (defaultTpl) {
-    emit('reset-default', defaultTpl);
+    emit("reset-default", defaultTpl);
   }
 };
 
@@ -209,7 +206,7 @@ onMounted(() => {
 <style scoped lang="less">
 .prompt-template-selector {
   display: inline-flex;
-  
+
   &.position-corner {
     position: absolute;
     right: 8px;
@@ -236,13 +233,13 @@ onMounted(() => {
   &:hover {
     color: var(--td-brand-color);
   }
-  
+
   :deep(.t-button__text) {
     display: inline-flex;
     align-items: center;
     gap: 3px;
   }
-  
+
   :deep(.t-icon) {
     font-size: 14px;
     vertical-align: middle;
@@ -266,13 +263,13 @@ onMounted(() => {
     border-color: var(--td-brand-color);
     background: var(--td-bg-color-secondarycontainer);
   }
-  
+
   :deep(.t-button__text) {
     display: inline-flex;
     align-items: center;
     gap: 4px;
   }
-  
+
   :deep(.t-icon) {
     vertical-align: middle;
     line-height: 1;
@@ -319,11 +316,11 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 4px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
-  
+
   &:hover {
     background: var(--td-bg-color-secondarycontainer);
   }
@@ -350,12 +347,12 @@ onMounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
-  
+
   &.kb-tag {
     background: var(--td-brand-color-light);
     color: var(--td-brand-color);
   }
-  
+
   &.web-tag {
     background: var(--td-success-color-light);
     color: var(--td-brand-color);

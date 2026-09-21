@@ -1,8 +1,8 @@
 export type TimelineStatusInput = {
-  parseStatus?: string
-  traceStatus?: string
-  isLatestAttempt: boolean
-}
+  parseStatus?: string;
+  traceStatus?: string;
+  isLatestAttempt: boolean;
+};
 
 /**
  * Convert the knowledge-level parse status to the span status vocabulary used
@@ -10,12 +10,12 @@ export type TimelineStatusInput = {
  */
 export function parseStatusToTimelineStatus(status?: string): string {
   switch (status) {
-    case 'completed':
-      return 'done'
-    case 'processing':
-      return 'running'
+    case "completed":
+      return "done";
+    case "processing":
+      return "running";
     default:
-      return status || ''
+      return status || "";
   }
 }
 
@@ -28,7 +28,7 @@ export function parseStatusToTimelineStatus(status?: string): string {
  */
 export function resolveTimelineHeaderStatus(input: TimelineStatusInput): string {
   if (input.isLatestAttempt) {
-    return parseStatusToTimelineStatus(input.parseStatus) || input.traceStatus || ''
+    return parseStatusToTimelineStatus(input.parseStatus) || input.traceStatus || "";
   }
-  return input.traceStatus || parseStatusToTimelineStatus(input.parseStatus)
+  return input.traceStatus || parseStatusToTimelineStatus(input.parseStatus);
 }

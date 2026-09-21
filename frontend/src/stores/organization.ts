@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { defineStore } from "pinia";
+import { ref, computed } from "vue";
 import type {
   Organization,
   OrganizationMember,
@@ -14,8 +14,8 @@ import type {
   ReviewJoinRequestRequest,
   RequestRoleUpgradeRequest,
   ApiResponse,
-  KnowledgeBaseShare
-} from '@/api/organization'
+  KnowledgeBaseShare,
+} from "@/api/organization";
 import {
   listMyOrganizations,
   createOrganization,
@@ -36,55 +36,43 @@ import {
   updateSharePermission as updateSharePermissionApi,
   inviteMember as inviteMemberApi,
   reviewJoinRequest as reviewJoinRequestApi,
-  requestRoleUpgrade as requestRoleUpgradeApi
-} from '@/api/organization'
-import { createVersionedRequestCoordinator } from './versionedRequest'
-import {
-  applyOrganizationResourceDelta,
-  upsertById,
-  mergeById,
-  reviewMemberCountDelta
-} from './organizationState'
+  requestRoleUpgrade as requestRoleUpgradeApi,
+} from "@/api/organization";
+import { createVersionedRequestCoordinator } from "./versionedRequest";
+import { applyOrganizationResourceDelta, upsertById, mergeById, reviewMemberCountDelta } from "./organizationState";
 
-export const useOrganizationStore = defineStore('organization', () => {
+export const useOrganizationStore = defineStore("organization", () => {
   // State
-  const organizations = ref<Organization[]>([])
-  const currentOrganization = ref<Organization | null>(null)
-  const currentMembers = ref<OrganizationMember[]>([])
-  const sharedKnowledgeBases = ref<SharedKnowledgeBase[]>([])
-  const searchableOrganizations = ref<SearchableOrganizationItem[]>([])
-  const previewData = ref<OrganizationPreview | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const organizations = ref<Organization[]>([]);
+  const currentOrganization = ref<Organization | null>(null);
+  const currentMembers = ref<OrganizationMember[]>([]);
+  const sharedKnowledgeBases = ref<SharedKnowledgeBase[]>([]);
+  const searchableOrganizations = ref<SearchableOrganizationItem[]>([]);
+  const previewData = ref<OrganizationPreview | null>(null);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
   /** 各空间内知识库数量（由 GET /organizations 的 resource_counts 填充，供列表侧栏使用） */
-  const resourceCounts = ref<ResourceCountsByOrg | null>(null)
+  const resourceCounts = ref<ResourceCountsByOrg | null>(null);
   /** 用于去重：同一时刻只允许一次 GET /organizations 请求 */
-  let organizationsLoadedAt = 0
+  let organizationsLoadedAt = 0;
   /** 共享资源缓存 TTL，与 chatResources 对齐 */
-  const SHARED_RESOURCE_TTL_MS = 60_000
-  const SEARCHABLE_ORGANIZATION_TTL_MS = 5 * 60_000
-  let sharedKbLoadedAt = 0
-  let searchableOrganizationsQuery = ''
-  const searchableOrganizationCache = new Map<
-    string,
-    { data: SearchableOrganizationItem[]; loadedAt: number }
-  >()
+  const SHARED_RESOURCE_TTL_MS = 60_000;
+  const SEARCHABLE_ORGANIZATION_TTL_MS = 5 * 60_000;
+  let sharedKbLoadedAt = 0;
+  let searchableOrganizationsQuery = "";
+  const searchableOrganizationCache = new Map<string, { data: SearchableOrganizationItem[]; loadedAt: number }>();
 
   // Computed
-  const myOrganizations = computed(() => organizations.value)
-  
-  const ownedOrganizations = computed(() => 
-    organizations.value.filter(org => org.is_owner)
-  )
+  const myOrganizations = computed(() => organizations.value);
 
-  const joinedOrganizations = computed(() => 
-    organizations.value.filter(org => !org.is_owner)
-  )
+  const ownedOrganizations = computed(() => organizations.value.filter((org) => org.is_owner));
+
+  const joinedOrganizations = computed(() => organizations.value.filter((org) => !org.is_owner));
 
   /** 当前用户作为管理员/创建者可见的待审批加入申请总数（用于侧栏提醒） */
   const totalPendingJoinRequestCount = computed(() =>
-    organizations.value.reduce((sum, org) => sum + (org.pending_join_request_count ?? 0), 0)
-  )
+    organizations.value.reduce((sum, org) => sum + (org.pending_join_request_count ?? 0), 0),
+  );
 
   // Actions
 
@@ -94,55 +82,49 @@ export const useOrganizationStore = defineStore('organization', () => {
    */
   const organizationsRequest = createVersionedRequestCoordinator(
     async () => {
-      loading.value = true
-      error.value = null
+      loading.value = true;
+      error.value = null;
       try {
-        return await listMyOrganizations()
+        return await listMyOrganizations();
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     },
     (response) => {
       if (response.success && response.data) {
-        organizations.value = response.data.organizations
-        resourceCounts.value = response.data.resource_counts ?? null
-        organizationsLoadedAt = Date.now()
+        organizations.value = response.data.organizations;
+        resourceCounts.value = response.data.resource_counts ?? null;
+        organizationsLoadedAt = Date.now();
       } else {
-        resourceCounts.value = null
-        error.value = response.message || 'Failed to fetch organizations'
+        resourceCounts.value = null;
+        error.value = response.message || "Failed to fetch organizations";
       }
-    }
-  )
+    },
+  );
 
   async function fetchOrganizations(options?: { force?: boolean }) {
-    const force = options?.force ?? false
-    if (
-      !force &&
-      organizationsLoadedAt > 0 &&
-      Date.now() - organizationsLoadedAt < SHARED_RESOURCE_TTL_MS
-    ) {
-      return
+    const force = options?.force ?? false;
+    if (!force && organizationsLoadedAt > 0 && Date.now() - organizationsLoadedAt < SHARED_RESOURCE_TTL_MS) {
+      return;
     }
-    return organizationsRequest.fetch(force)
+    return organizationsRequest.fetch(force);
   }
 
   function patchOrganization(id: string, patch: Partial<Organization>) {
-    organizationsRequest.invalidate()
-    organizationsLoadedAt = 0
-    organizations.value = organizations.value.map(org =>
-      org.id === id ? { ...org, ...patch } : org
-    )
+    organizationsRequest.invalidate();
+    organizationsLoadedAt = 0;
+    organizations.value = organizations.value.map((org) => (org.id === id ? { ...org, ...patch } : org));
     if (currentOrganization.value?.id === id) {
-      currentOrganization.value = { ...currentOrganization.value, ...patch }
+      currentOrganization.value = { ...currentOrganization.value, ...patch };
     }
   }
 
   function upsertOrganization(organization: Organization) {
-    organizationsRequest.invalidate()
-    organizationsLoadedAt = 0
-    organizations.value = upsertById(organizations.value, organization)
+    organizationsRequest.invalidate();
+    organizationsLoadedAt = 0;
+    organizations.value = upsertById(organizations.value, organization);
     if (currentOrganization.value?.id === organization.id) {
-      currentOrganization.value = organization
+      currentOrganization.value = organization;
     }
   }
 
@@ -151,33 +133,28 @@ export const useOrganizationStore = defineStore('organization', () => {
    * existing card instead of replacing it, so badges like share_count survive.
    */
   function mergeOrganizationDetail(organization: Organization) {
-    organizationsRequest.invalidate()
-    organizationsLoadedAt = 0
-    const next = mergeById(organizations.value, organization)
-    organizations.value = next
-    currentOrganization.value =
-      next.find(org => org.id === organization.id) ?? organization
+    organizationsRequest.invalidate();
+    organizationsLoadedAt = 0;
+    const next = mergeById(organizations.value, organization);
+    organizations.value = next;
+    currentOrganization.value = next.find((org) => org.id === organization.id) ?? organization;
   }
 
-  function adjustOrganizationResourceCount(
-    organizationId: string,
-    resource: 'knowledge_bases',
-    delta: number
-  ) {
-    organizationsRequest.invalidate()
-    organizationsLoadedAt = 0
+  function adjustOrganizationResourceCount(organizationId: string, resource: "knowledge_bases", delta: number) {
+    organizationsRequest.invalidate();
+    organizationsLoadedAt = 0;
     const result = applyOrganizationResourceDelta(
       organizations.value,
       resourceCounts.value,
       organizationId,
       resource,
-      delta
-    )
-    organizations.value = result.organizations
-    resourceCounts.value = result.resourceCounts
+      delta,
+    );
+    organizations.value = result.organizations;
+    resourceCounts.value = result.resourceCounts;
     if (currentOrganization.value?.id === organizationId) {
       currentOrganization.value =
-        result.organizations.find(org => org.id === organizationId) ?? currentOrganization.value
+        result.organizations.find((org) => org.id === organizationId) ?? currentOrganization.value;
     }
   }
 
@@ -185,26 +162,26 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Create a new organization
    */
   async function create(name: string, description?: string, avatar?: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await createOrganization({ name, description, avatar })
+      const response = await createOrganization({ name, description, avatar });
       if (response.success && response.data) {
-        upsertOrganization(response.data)
+        upsertOrganization(response.data);
         // 创建成功后重置缓存时间戳，确保后续 fetchOrganizations() 不会被 TTL 缓存跳过，
         // 从而刷新 resource_counts 等创建接口不返回的聚合字段。
-        organizationsLoadedAt = 0
-        void fetchOrganizations({ force: true })
-        return response.data
+        organizationsLoadedAt = 0;
+        void fetchOrganizations({ force: true });
+        return response.data;
       } else {
-        error.value = response.message || 'Failed to create organization'
-        return null
+        error.value = response.message || "Failed to create organization";
+        return null;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to create organization'
-      return null
+      error.value = e.message || "Failed to create organization";
+      return null;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -212,55 +189,55 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Update an organization
    */
   async function updateOrganization(id: string, updates: UpdateOrganizationRequest) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await updateOrganizationApi(id, updates)
+      const response = await updateOrganizationApi(id, updates);
       if (response.success && response.data) {
-        upsertOrganization(response.data)
-        void fetchOrganizations({ force: true })
-        return response.data
+        upsertOrganization(response.data);
+        void fetchOrganizations({ force: true });
+        return response.data;
       } else {
-        error.value = response.message || 'Failed to update organization'
-        return null
+        error.value = response.message || "Failed to update organization";
+        return null;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to update organization'
-      return null
+      error.value = e.message || "Failed to update organization";
+      return null;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
   async function update(id: string, name?: string, description?: string) {
-    return updateOrganization(id, { name, description })
+    return updateOrganization(id, { name, description });
   }
 
   /**
    * Delete an organization
    */
   async function remove(id: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await deleteOrganization(id)
+      const response = await deleteOrganization(id);
       if (response.success) {
-        organizationsRequest.invalidate()
-        organizationsLoadedAt = 0
-        organizations.value = organizations.value.filter(o => o.id !== id)
+        organizationsRequest.invalidate();
+        organizationsLoadedAt = 0;
+        organizations.value = organizations.value.filter((o) => o.id !== id);
         if (currentOrganization.value?.id === id) {
-          currentOrganization.value = null
+          currentOrganization.value = null;
         }
-        return true
+        return true;
       } else {
-        error.value = response.message || 'Failed to delete organization'
-        return false
+        error.value = response.message || "Failed to delete organization";
+        return false;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to delete organization'
-      return false
+      error.value = e.message || "Failed to delete organization";
+      return false;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -268,23 +245,23 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Preview an organization by invite code (without joining)
    */
   async function preview(inviteCode: string) {
-    loading.value = true
-    error.value = null
-    previewData.value = null
+    loading.value = true;
+    error.value = null;
+    previewData.value = null;
     try {
-      const response = await previewOrganization(inviteCode)
+      const response = await previewOrganization(inviteCode);
       if (response.success && response.data) {
-        previewData.value = response.data
-        return response.data
+        previewData.value = response.data;
+        return response.data;
       } else {
-        error.value = response.message || 'Failed to preview organization'
-        return null
+        error.value = response.message || "Failed to preview organization";
+        return null;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to preview organization'
-      return null
+      error.value = e.message || "Failed to preview organization";
+      return null;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -292,24 +269,24 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Join an organization by invite code
    */
   async function join(inviteCode: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await joinOrganizationApi({ invite_code: inviteCode })
+      const response = await joinOrganizationApi({ invite_code: inviteCode });
       if (response.success && response.data) {
-        upsertOrganization(response.data)
-        invalidateSearchableOrganizations(response.data.id)
-        void fetchOrganizations({ force: true })
-        return response.data
+        upsertOrganization(response.data);
+        invalidateSearchableOrganizations(response.data.id);
+        void fetchOrganizations({ force: true });
+        return response.data;
       } else {
-        error.value = response.message || 'Failed to join organization'
-        return null
+        error.value = response.message || "Failed to join organization";
+        return null;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to join organization'
-      return null
+      error.value = e.message || "Failed to join organization";
+      return null;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -317,27 +294,27 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Leave an organization
    */
   async function leave(id: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await leaveOrganization(id)
+      const response = await leaveOrganization(id);
       if (response.success) {
-        organizationsRequest.invalidate()
-        organizationsLoadedAt = 0
-        organizations.value = organizations.value.filter(o => o.id !== id)
+        organizationsRequest.invalidate();
+        organizationsLoadedAt = 0;
+        organizations.value = organizations.value.filter((o) => o.id !== id);
         if (currentOrganization.value?.id === id) {
-          currentOrganization.value = null
+          currentOrganization.value = null;
         }
-        return true
+        return true;
       } else {
-        error.value = response.message || 'Failed to leave organization'
-        return false
+        error.value = response.message || "Failed to leave organization";
+        return false;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to leave organization'
-      return false
+      error.value = e.message || "Failed to leave organization";
+      return false;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -345,23 +322,23 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Generate a new invite code
    */
   async function refreshInviteCode(id: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await generateInviteCode(id)
+      const response = await generateInviteCode(id);
       if (response.success && response.data) {
-        patchOrganization(id, { invite_code: response.data.invite_code })
-        void fetchOrganizations({ force: true })
-        return response.data.invite_code
+        patchOrganization(id, { invite_code: response.data.invite_code });
+        void fetchOrganizations({ force: true });
+        return response.data.invite_code;
       } else {
-        error.value = response.message || 'Failed to generate invite code'
-        return null
+        error.value = response.message || "Failed to generate invite code";
+        return null;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to generate invite code'
-      return null
+      error.value = e.message || "Failed to generate invite code";
+      return null;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -369,48 +346,48 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Fetch members of an organization
    */
   async function fetchMembers(orgId: string) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await listMembers(orgId)
+      const response = await listMembers(orgId);
       if (response.success && response.data) {
-        currentMembers.value = response.data.members
-        return response.data.members
+        currentMembers.value = response.data.members;
+        return response.data.members;
       } else {
-        error.value = response.message || 'Failed to fetch members'
-        return []
+        error.value = response.message || "Failed to fetch members";
+        return [];
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to fetch members'
-      return []
+      error.value = e.message || "Failed to fetch members";
+      return [];
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
   /**
    * Update a member's role (member identified by tenant_id)
    */
-  async function changeMemberRole(orgId: string, tenantId: number, role: 'admin' | 'editor' | 'viewer') {
-    loading.value = true
-    error.value = null
+  async function changeMemberRole(orgId: string, tenantId: number, role: "admin" | "editor" | "viewer") {
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await updateMemberRole(orgId, tenantId, { role })
+      const response = await updateMemberRole(orgId, tenantId, { role });
       if (response.success) {
-        const member = currentMembers.value.find(m => m.tenant_id === tenantId)
+        const member = currentMembers.value.find((m) => m.tenant_id === tenantId);
         if (member) {
-          member.role = role
+          member.role = role;
         }
-        return true
+        return true;
       } else {
-        error.value = response.message || 'Failed to update member role'
-        return false
+        error.value = response.message || "Failed to update member role";
+        return false;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to update member role'
-      return false
+      error.value = e.message || "Failed to update member role";
+      return false;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -418,27 +395,27 @@ export const useOrganizationStore = defineStore('organization', () => {
    * Remove a member from organization (member identified by tenant_id)
    */
   async function kickMember(orgId: string, tenantId: number) {
-    loading.value = true
-    error.value = null
+    loading.value = true;
+    error.value = null;
     try {
-      const response = await removeMember(orgId, tenantId)
+      const response = await removeMember(orgId, tenantId);
       if (response.success) {
-        currentMembers.value = currentMembers.value.filter(m => m.tenant_id !== tenantId)
-        const organization = organizations.value.find(org => org.id === orgId)
+        currentMembers.value = currentMembers.value.filter((m) => m.tenant_id !== tenantId);
+        const organization = organizations.value.find((org) => org.id === orgId);
         patchOrganization(orgId, {
-          member_count: Math.max(0, (organization?.member_count ?? 0) - 1)
-        })
-        void fetchOrganizations({ force: true })
-        return true
+          member_count: Math.max(0, (organization?.member_count ?? 0) - 1),
+        });
+        void fetchOrganizations({ force: true });
+        return true;
       } else {
-        error.value = response.message || 'Failed to remove member'
-        return false
+        error.value = response.message || "Failed to remove member";
+        return false;
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to remove member'
-      return false
+      error.value = e.message || "Failed to remove member";
+      return false;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
 
@@ -448,217 +425,193 @@ export const useOrganizationStore = defineStore('organization', () => {
    */
   const sharedKnowledgeBasesRequest = createVersionedRequestCoordinator(
     async () => {
-      loading.value = true
-      error.value = null
+      loading.value = true;
+      error.value = null;
       try {
-        return await listSharedKnowledgeBases()
+        return await listSharedKnowledgeBases();
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     },
     (response) => {
       if (response.success && response.data) {
-        sharedKnowledgeBases.value = response.data.filter(s => s.knowledge_base != null)
-        sharedKbLoadedAt = Date.now()
+        sharedKnowledgeBases.value = response.data.filter((s) => s.knowledge_base != null);
+        sharedKbLoadedAt = Date.now();
       } else {
-        error.value = response.message || 'Failed to fetch shared knowledge bases'
+        error.value = response.message || "Failed to fetch shared knowledge bases";
       }
-    }
-  )
+    },
+  );
 
   async function fetchSharedKnowledgeBases(options?: { force?: boolean }) {
-    const force = options?.force ?? false
-    if (
-      !force &&
-      sharedKbLoadedAt > 0 &&
-      Date.now() - sharedKbLoadedAt < SHARED_RESOURCE_TTL_MS
-    ) {
-      return sharedKnowledgeBases.value
+    const force = options?.force ?? false;
+    if (!force && sharedKbLoadedAt > 0 && Date.now() - sharedKbLoadedAt < SHARED_RESOURCE_TTL_MS) {
+      return sharedKnowledgeBases.value;
     }
-    await sharedKnowledgeBasesRequest.fetch(force)
-    return sharedKnowledgeBases.value
+    await sharedKnowledgeBasesRequest.fetch(force);
+    return sharedKnowledgeBases.value;
   }
 
   interface InvalidateOrganizationDataOptions {
-    organizations?: boolean
-    sharedKnowledgeBases?: boolean
-    searchableOrganizations?: boolean
-    excludeSearchableOrganizationId?: string
+    organizations?: boolean;
+    sharedKnowledgeBases?: boolean;
+    searchableOrganizations?: boolean;
+    excludeSearchableOrganizationId?: string;
   }
 
   function invalidateSearchableOrganizations(organizationId?: string) {
-    searchableOrganizationCache.clear()
+    searchableOrganizationCache.clear();
     if (organizationId) {
       searchableOrganizations.value = searchableOrganizations.value.filter(
-        organization => organization.id !== organizationId
-      )
+        (organization) => organization.id !== organizationId,
+      );
     }
   }
 
   function invalidateOrganizationData(options: InvalidateOrganizationDataOptions) {
     if (options.organizations) {
-      organizationsRequest.invalidate()
-      organizationsLoadedAt = 0
+      organizationsRequest.invalidate();
+      organizationsLoadedAt = 0;
     }
     if (options.sharedKnowledgeBases) {
-      sharedKnowledgeBasesRequest.invalidate()
-      sharedKbLoadedAt = 0
+      sharedKnowledgeBasesRequest.invalidate();
+      sharedKbLoadedAt = 0;
     }
     if (options.searchableOrganizations) {
-      invalidateSearchableOrganizations(options.excludeSearchableOrganizationId)
+      invalidateSearchableOrganizations(options.excludeSearchableOrganizationId);
     }
   }
 
-  async function fetchSearchableOrganizations(
-    query: string,
-    options?: { force?: boolean; limit?: number }
-  ) {
-    const normalizedQuery = query.trim()
-    searchableOrganizationsQuery = normalizedQuery
-    const cached = searchableOrganizationCache.get(normalizedQuery)
-    if (
-      !options?.force &&
-      cached &&
-      Date.now() - cached.loadedAt < SEARCHABLE_ORGANIZATION_TTL_MS
-    ) {
-      searchableOrganizations.value = cached.data
-      return cached.data
+  async function fetchSearchableOrganizations(query: string, options?: { force?: boolean; limit?: number }) {
+    const normalizedQuery = query.trim();
+    searchableOrganizationsQuery = normalizedQuery;
+    const cached = searchableOrganizationCache.get(normalizedQuery);
+    if (!options?.force && cached && Date.now() - cached.loadedAt < SEARCHABLE_ORGANIZATION_TTL_MS) {
+      searchableOrganizations.value = cached.data;
+      return cached.data;
     }
 
-    const response = await searchSearchableOrganizations(normalizedQuery, options?.limit ?? 20)
+    const response = await searchSearchableOrganizations(normalizedQuery, options?.limit ?? 20);
     if (response.success && response.data) {
-      const data = response.data.data.filter(organization => !organization.is_already_member)
-      searchableOrganizationCache.set(normalizedQuery, { data, loadedAt: Date.now() })
+      const data = response.data.data.filter((organization) => !organization.is_already_member);
+      searchableOrganizationCache.set(normalizedQuery, { data, loadedAt: Date.now() });
       if (searchableOrganizationsQuery === normalizedQuery) {
-        searchableOrganizations.value = data
+        searchableOrganizations.value = data;
       }
-      return data
+      return data;
     }
     if (searchableOrganizationsQuery === normalizedQuery) {
-      searchableOrganizations.value = []
+      searchableOrganizations.value = [];
     }
-    return []
+    return [];
   }
 
   function clearSearchableOrganizations() {
-    searchableOrganizationsQuery = ''
-    searchableOrganizations.value = []
+    searchableOrganizationsQuery = "";
+    searchableOrganizations.value = [];
   }
 
   async function joinById(
     organizationId: string,
     message?: string,
-    role?: 'admin' | 'editor' | 'viewer',
-    options?: { requiresApproval?: boolean }
+    role?: "admin" | "editor" | "viewer",
+    options?: { requiresApproval?: boolean },
   ) {
-    const response = await joinOrganizationByIdApi(organizationId, message, role)
+    const response = await joinOrganizationByIdApi(organizationId, message, role);
     if (response.success) {
       invalidateOrganizationData({
         searchableOrganizations: true,
-        excludeSearchableOrganizationId: organizationId
-      })
+        excludeSearchableOrganizationId: organizationId,
+      });
       if (!options?.requiresApproval && response.data) {
-        upsertOrganization(response.data)
-        void fetchOrganizations({ force: true })
+        upsertOrganization(response.data);
+        void fetchOrganizations({ force: true });
       }
     }
-    return response
+    return response;
   }
 
   async function shareKnowledgeBase(
     knowledgeBaseId: string,
-    request: ShareKnowledgeBaseRequest
+    request: ShareKnowledgeBaseRequest,
   ): Promise<ApiResponse<KnowledgeBaseShare>> {
-    const response = await shareKnowledgeBaseApi(knowledgeBaseId, request)
+    const response = await shareKnowledgeBaseApi(knowledgeBaseId, request);
     if (response.success) {
-      adjustOrganizationResourceCount(request.organization_id, 'knowledge_bases', 1)
-      invalidateOrganizationData({ sharedKnowledgeBases: true })
-      void Promise.all([
-        fetchOrganizations({ force: true }),
-        fetchSharedKnowledgeBases({ force: true })
-      ])
+      adjustOrganizationResourceCount(request.organization_id, "knowledge_bases", 1);
+      invalidateOrganizationData({ sharedKnowledgeBases: true });
+      void Promise.all([fetchOrganizations({ force: true }), fetchSharedKnowledgeBases({ force: true })]);
     }
-    return response
+    return response;
   }
 
   async function unshareKnowledgeBase(
     knowledgeBaseId: string,
     shareId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<ApiResponse<void>> {
-    const response = await removeShareApi(knowledgeBaseId, shareId)
+    const response = await removeShareApi(knowledgeBaseId, shareId);
     if (response.success) {
-      adjustOrganizationResourceCount(organizationId, 'knowledge_bases', -1)
-      invalidateOrganizationData({ sharedKnowledgeBases: true })
-      void Promise.all([
-        fetchOrganizations({ force: true }),
-        fetchSharedKnowledgeBases({ force: true })
-      ])
+      adjustOrganizationResourceCount(organizationId, "knowledge_bases", -1);
+      invalidateOrganizationData({ sharedKnowledgeBases: true });
+      void Promise.all([fetchOrganizations({ force: true }), fetchSharedKnowledgeBases({ force: true })]);
     }
-    return response
+    return response;
   }
 
   async function changeKnowledgeBaseSharePermission(
     knowledgeBaseId: string,
     shareId: string,
-    request: UpdateSharePermissionRequest
+    request: UpdateSharePermissionRequest,
   ): Promise<ApiResponse<void>> {
-    const response = await updateSharePermissionApi(knowledgeBaseId, shareId, request)
+    const response = await updateSharePermissionApi(knowledgeBaseId, shareId, request);
     if (response.success) {
-      invalidateOrganizationData({ sharedKnowledgeBases: true })
-      void fetchSharedKnowledgeBases({ force: true })
+      invalidateOrganizationData({ sharedKnowledgeBases: true });
+      void fetchSharedKnowledgeBases({ force: true });
     }
-    return response
+    return response;
   }
 
   async function inviteOrganizationMember(
     organizationId: string,
-    request: InviteMemberRequest
+    request: InviteMemberRequest,
   ): Promise<ApiResponse<void>> {
-    const response = await inviteMemberApi(organizationId, request)
+    const response = await inviteMemberApi(organizationId, request);
     if (response.success) {
-      const organization = organizations.value.find(org => org.id === organizationId)
+      const organization = organizations.value.find((org) => org.id === organizationId);
       patchOrganization(organizationId, {
-        member_count: (organization?.member_count ?? 0) + 1
-      })
-      void fetchOrganizations({ force: true })
+        member_count: (organization?.member_count ?? 0) + 1,
+      });
+      void fetchOrganizations({ force: true });
     }
-    return response
+    return response;
   }
 
   async function reviewOrganizationJoinRequest(
     organizationId: string,
     requestId: string,
     request: ReviewJoinRequestRequest,
-    options?: { requestType?: 'join' | 'upgrade' }
+    options?: { requestType?: "join" | "upgrade" },
   ): Promise<ApiResponse<void>> {
-    const response = await reviewJoinRequestApi(organizationId, requestId, request)
+    const response = await reviewJoinRequestApi(organizationId, requestId, request);
     if (response.success) {
-      const organization = organizations.value.find(org => org.id === organizationId)
+      const organization = organizations.value.find((org) => org.id === organizationId);
       patchOrganization(organizationId, {
         member_count:
-          (organization?.member_count ?? 0) +
-          reviewMemberCountDelta(request.approved, options?.requestType),
-        pending_join_request_count: Math.max(
-          0,
-          (organization?.pending_join_request_count ?? 0) - 1
-        )
-      })
-      void fetchOrganizations({ force: true })
+          (organization?.member_count ?? 0) + reviewMemberCountDelta(request.approved, options?.requestType),
+        pending_join_request_count: Math.max(0, (organization?.pending_join_request_count ?? 0) - 1),
+      });
+      void fetchOrganizations({ force: true });
     }
-    return response
+    return response;
   }
 
-  async function requestOrganizationRoleUpgrade(
-    organizationId: string,
-    request: RequestRoleUpgradeRequest
-  ) {
-    const response = await requestRoleUpgradeApi(organizationId, request)
+  async function requestOrganizationRoleUpgrade(organizationId: string, request: RequestRoleUpgradeRequest) {
+    const response = await requestRoleUpgradeApi(organizationId, request);
     if (response.success) {
-      patchOrganization(organizationId, { has_pending_upgrade: true })
-      void fetchOrganizations({ force: true })
+      patchOrganization(organizationId, { has_pending_upgrade: true });
+      void fetchOrganizations({ force: true });
     }
-    return response
+    return response;
   }
 
   /**
@@ -666,65 +619,63 @@ export const useOrganizationStore = defineStore('organization', () => {
    */
   function setCurrentOrganization(org: Organization | null) {
     if (org) {
-      mergeOrganizationDetail(org)
-      void fetchOrganizations({ force: true })
+      mergeOrganizationDetail(org);
+      void fetchOrganizations({ force: true });
     } else {
-      currentOrganization.value = null
+      currentOrganization.value = null;
     }
   }
 
   function clearCurrentOrganizationContext() {
-    currentOrganization.value = null
-    currentMembers.value = []
+    currentOrganization.value = null;
+    currentMembers.value = [];
   }
 
   /**
    * Get user's permission for a specific knowledge base
    * Returns 'owner' if user owns the KB, or the share permission ('admin' | 'editor' | 'viewer'), or null if no access
    */
-  function getKBPermission(kbId: string): 'owner' | 'admin' | 'editor' | 'viewer' | null {
-    const shared = sharedKnowledgeBases.value.find(
-      s => s.knowledge_base?.id === kbId
-    )
-    return shared?.permission || null
+  function getKBPermission(kbId: string): "owner" | "admin" | "editor" | "viewer" | null {
+    const shared = sharedKnowledgeBases.value.find((s) => s.knowledge_base?.id === kbId);
+    return shared?.permission || null;
   }
 
   /**
    * Check if user can edit a knowledge base (owner, admin, or editor)
    */
   function canEditKB(kbId: string, isOwner: boolean): boolean {
-    if (isOwner) return true
-    const permission = getKBPermission(kbId)
-    return permission === 'admin' || permission === 'editor'
+    if (isOwner) return true;
+    const permission = getKBPermission(kbId);
+    return permission === "admin" || permission === "editor";
   }
 
   /**
    * Check if user can delete/manage a knowledge base (owner or admin only)
    */
   function canManageKB(kbId: string, isOwner: boolean): boolean {
-    if (isOwner) return true
-    const permission = getKBPermission(kbId)
-    return permission === 'admin'
+    if (isOwner) return true;
+    const permission = getKBPermission(kbId);
+    return permission === "admin";
   }
 
   /**
    * Clear all state
    */
   function clearState() {
-    organizations.value = []
-    currentOrganization.value = null
-    currentMembers.value = []
-    sharedKnowledgeBases.value = []
-    searchableOrganizations.value = []
-    resourceCounts.value = null
-    previewData.value = null
-    error.value = null
-    sharedKbLoadedAt = 0
-    organizationsLoadedAt = 0
-    searchableOrganizationsQuery = ''
-    searchableOrganizationCache.clear()
-    organizationsRequest.invalidate()
-    sharedKnowledgeBasesRequest.invalidate()
+    organizations.value = [];
+    currentOrganization.value = null;
+    currentMembers.value = [];
+    sharedKnowledgeBases.value = [];
+    searchableOrganizations.value = [];
+    resourceCounts.value = null;
+    previewData.value = null;
+    error.value = null;
+    sharedKbLoadedAt = 0;
+    organizationsLoadedAt = 0;
+    searchableOrganizationsQuery = "";
+    searchableOrganizationCache.clear();
+    organizationsRequest.invalidate();
+    sharedKnowledgeBasesRequest.invalidate();
   }
 
   return {
@@ -774,6 +725,6 @@ export const useOrganizationStore = defineStore('organization', () => {
     getKBPermission,
     canEditKB,
     canManageKB,
-    clearState
-  }
-})
+    clearState,
+  };
+});

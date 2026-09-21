@@ -14,45 +14,45 @@
 
 /** One notification, as the server returns it. */
 export interface NotificationLike {
-  id: string
-  kind: string
-  page_id?: string
-  comment_id?: string
-  actor?: { username?: string; email?: string }
-  payload?: Record<string, unknown>
-  read_at?: string
-  created_at: string
+  id: string;
+  kind: string;
+  page_id?: string;
+  comment_id?: string;
+  actor?: { username?: string; email?: string };
+  payload?: Record<string, unknown>;
+  read_at?: string;
+  created_at: string;
 }
 
 /** What the list needs to draw one row. */
 export interface Described {
   /** The sentence: who did what. */
-  title: string
+  title: string;
   /** A line of the comment, when there is one. */
-  excerpt: string
+  excerpt: string;
   /** A tdesign icon name. */
-  icon: string
+  icon: string;
   /** Where clicking it goes, or empty when the row is not a link. */
-  pageId: string
-  unread: boolean
+  pageId: string;
+  unread: boolean;
 }
 
 /** One day's worth of notifications. Generic so grouping does not narrow the
  * rows to the shape this module happens to need. */
 export interface DayGroup<T extends NotificationLike = NotificationLike> {
-  key: string
-  label: 'today' | 'yesterday' | 'earlier'
-  date: string
-  items: T[]
+  key: string;
+  label: "today" | "yesterday" | "earlier";
+  date: string;
+  items: T[];
 }
 
 /** The icon for each kind; an unknown kind gets a neutral one. */
 const ICONS: Record<string, string> = {
-  comment: 'chat-bubble',
-  mention: 'user-arrow-right',
-  page_updated: 'edit',
-  access_granted: 'usergroup',
-}
+  comment: "chat-bubble",
+  mention: "user-arrow-right",
+  page_updated: "edit",
+  access_granted: "usergroup",
+};
 
 /**
  * Describes one notification.
@@ -64,17 +64,17 @@ export function describe(
   row: NotificationLike,
   t: (key: string, values?: Record<string, unknown>) => string,
 ): Described {
-  const actor = actorName(row, t)
-  const title = String(row.payload?.title ?? '').trim() || t('docs.tree.untitled')
+  const actor = actorName(row, t);
+  const title = String(row.payload?.title ?? "").trim() || t("docs.tree.untitled");
 
-  const key = ICONS[row.kind] ? `docs.notifications.kind.${row.kind}` : 'docs.notifications.kind.other'
+  const key = ICONS[row.kind] ? `docs.notifications.kind.${row.kind}` : "docs.notifications.kind.other";
   return {
     title: t(key, { actor, title }),
     excerpt: excerptOf(row),
-    icon: ICONS[row.kind] ?? 'notification',
-    pageId: row.page_id ?? '',
+    icon: ICONS[row.kind] ?? "notification",
+    pageId: row.page_id ?? "",
     unread: !row.read_at,
-  }
+  };
 }
 
 /**
@@ -84,22 +84,19 @@ export function describe(
  * field, still has to read as a sentence — so there is a word for "somebody"
  * rather than a blank where a name goes.
  */
-function actorName(
-  row: NotificationLike,
-  t: (key: string, values?: Record<string, unknown>) => string,
-): string {
-  return row.actor?.username || row.actor?.email || t('docs.links.someone')
+function actorName(row: NotificationLike, t: (key: string, values?: Record<string, unknown>) => string): string {
+  return row.actor?.username || row.actor?.email || t("docs.links.someone");
 }
 
 /** How much of a comment a row shows. */
-export const MAX_EXCERPT = 120
+export const MAX_EXCERPT = 120;
 
 function excerptOf(row: NotificationLike): string {
-  const raw = row.payload?.excerpt
-  if (typeof raw !== 'string') return ''
-  const collapsed = raw.replace(/\s+/g, ' ').trim()
-  if (collapsed.length <= MAX_EXCERPT) return collapsed
-  return `${collapsed.slice(0, MAX_EXCERPT)}…`
+  const raw = row.payload?.excerpt;
+  if (typeof raw !== "string") return "";
+  const collapsed = raw.replace(/\s+/g, " ").trim();
+  if (collapsed.length <= MAX_EXCERPT) return collapsed;
+  return `${collapsed.slice(0, MAX_EXCERPT)}…`;
 }
 
 /**
@@ -109,37 +106,34 @@ function excerptOf(row: NotificationLike): string {
  * Returns the days in the order they arrived, which is newest first, and the
  * rows within each day likewise.
  */
-export function groupByDay<T extends NotificationLike>(
-  rows: readonly T[],
-  now = new Date(),
-): DayGroup<T>[] {
-  const out: DayGroup<T>[] = []
-  const byKey = new Map<string, number>()
+export function groupByDay<T extends NotificationLike>(rows: readonly T[], now = new Date()): DayGroup<T>[] {
+  const out: DayGroup<T>[] = [];
+  const byKey = new Map<string, number>();
 
   for (const row of rows) {
-    const at = new Date(row.created_at)
-    const key = Number.isNaN(at.getTime()) ? 'unknown' : dayKey(at)
-    let index = byKey.get(key)
+    const at = new Date(row.created_at);
+    const key = Number.isNaN(at.getTime()) ? "unknown" : dayKey(at);
+    let index = byKey.get(key);
     if (index === undefined) {
-      index = out.length
-      byKey.set(key, index)
-      out.push({ key, label: labelFor(key, now), date: key, items: [] })
+      index = out.length;
+      byKey.set(key, index);
+      out.push({ key, label: labelFor(key, now), date: key, items: [] });
     }
-    out[index]!.items.push(row)
+    out[index]!.items.push(row);
   }
-  return out
+  return out;
 }
 
 function dayKey(at: Date): string {
-  const month = `${at.getMonth() + 1}`.padStart(2, '0')
-  const day = `${at.getDate()}`.padStart(2, '0')
-  return `${at.getFullYear()}-${month}-${day}`
+  const month = `${at.getMonth() + 1}`.padStart(2, "0");
+  const day = `${at.getDate()}`.padStart(2, "0");
+  return `${at.getFullYear()}-${month}-${day}`;
 }
 
-function labelFor(key: string, now: Date): 'today' | 'yesterday' | 'earlier' {
-  if (key === dayKey(now)) return 'today'
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  if (key === dayKey(yesterday)) return 'yesterday'
-  return 'earlier'
+function labelFor(key: string, now: Date): "today" | "yesterday" | "earlier" {
+  if (key === dayKey(now)) return "today";
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (key === dayKey(yesterday)) return "yesterday";
+  return "earlier";
 }

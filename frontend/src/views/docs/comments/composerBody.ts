@@ -15,31 +15,31 @@
 // everything downstream already takes a document.
 
 /** A blank line starts a new paragraph; a single newline is a line break. */
-const PARAGRAPH_SPLIT = /\n{2,}/
+const PARAGRAPH_SPLIT = /\n{2,}/;
 
 /** Builds a comment body from typed text. */
-export function bodyFromText(text: string): { type: 'doc'; content: unknown[] } {
+export function bodyFromText(text: string): { type: "doc"; content: unknown[] } {
   const paragraphs = text
     .split(PARAGRAPH_SPLIT)
-    .map((block) => block.replace(/[ \t]+$/gm, ''))
-    .filter((block) => block.trim() !== '')
+    .map((block) => block.replace(/[ \t]+$/gm, ""))
+    .filter((block) => block.trim() !== "");
 
   return {
-    type: 'doc',
+    type: "doc",
     content: paragraphs.map((block) => ({
-      type: 'paragraph',
-      content: inlineFromLines(block.split('\n')),
+      type: "paragraph",
+      content: inlineFromLines(block.split("\n")),
     })),
-  }
+  };
 }
 
 function inlineFromLines(lines: readonly string[]): unknown[] {
-  const out: unknown[] = []
+  const out: unknown[] = [];
   lines.forEach((line, index) => {
-    if (index > 0) out.push({ type: 'hardBreak' })
-    if (line !== '') out.push({ type: 'text', text: line })
-  })
-  return out
+    if (index > 0) out.push({ type: "hardBreak" });
+    if (line !== "") out.push({ type: "text", text: line });
+  });
+  return out;
 }
 
 /**
@@ -52,39 +52,41 @@ function inlineFromLines(lines: readonly string[]): unknown[] {
  * surprise than one that quietly shed half its content.
  */
 export function textOf(body: unknown): string {
-  const blocks = (body as { content?: unknown[] } | null)?.content
-  if (!Array.isArray(blocks)) return ''
+  const blocks = (body as { content?: unknown[] } | null)?.content;
+  if (!Array.isArray(blocks)) return "";
 
   return blocks
     .map((block) => textOfBlock(block))
-    .filter((text, index, all) => text !== '' || index < all.length - 1)
-    .join('\n\n')
-    .trim()
+    .filter((text, index, all) => text !== "" || index < all.length - 1)
+    .join("\n\n")
+    .trim();
 }
 
 function textOfBlock(block: unknown): string {
-  const node = block as { type?: string; content?: unknown[] }
-  if (!Array.isArray(node.content)) return ''
+  const node = block as { type?: string; content?: unknown[] };
+  if (!Array.isArray(node.content)) return "";
 
-  return node.content.map((child) => {
-    const typed = child as {
-      type?: string
-      text?: string
-      attrs?: { label?: string | null; userId?: string }
-      content?: unknown[]
-    }
-    switch (typed.type) {
-      case 'text':
-        return typed.text ?? ''
-      case 'hardBreak':
-        return '\n'
-      case 'mention':
-        // The label if there is one; otherwise nothing rather than a raw id,
-        // which would be worse than losing the mention.
-        return typed.attrs?.label ? `@${typed.attrs.label}` : ''
-      default:
-        // A nested block (a list item, a quote) contributes its own text.
-        return Array.isArray(typed.content) ? textOfBlock(typed) : ''
-    }
-  }).join('')
+  return node.content
+    .map((child) => {
+      const typed = child as {
+        type?: string;
+        text?: string;
+        attrs?: { label?: string | null; userId?: string };
+        content?: unknown[];
+      };
+      switch (typed.type) {
+        case "text":
+          return typed.text ?? "";
+        case "hardBreak":
+          return "\n";
+        case "mention":
+          // The label if there is one; otherwise nothing rather than a raw id,
+          // which would be worse than losing the mention.
+          return typed.attrs?.label ? `@${typed.attrs.label}` : "";
+        default:
+          // A nested block (a list item, a quote) contributes its own text.
+          return Array.isArray(typed.content) ? textOfBlock(typed) : "";
+      }
+    })
+    .join("");
 }

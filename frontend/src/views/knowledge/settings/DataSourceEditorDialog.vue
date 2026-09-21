@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { useI18n } from 'vue-i18n'
+import { ref, computed, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { useI18n } from "vue-i18n";
 import {
   createDataSource,
   updateDataSource,
@@ -15,45 +15,45 @@ import {
   deleteDataSourceCredentials,
   type DataSource,
   type Resource,
-} from '@/api/datasource'
-import SettingDrawer from '@/components/settings/SettingDrawer.vue'
-import DataSourceTypeIcon from './DataSourceTypeIcon.vue'
-import { getDatasourceIconUrl } from './datasourceIcons'
+} from "@/api/datasource";
+import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import DataSourceTypeIcon from "./DataSourceTypeIcon.vue";
+import { getDatasourceIconUrl } from "./datasourceIcons";
 
 const props = defineProps<{
-  kbId: string
-  dataSource: DataSource | null
-}>()
+  kbId: string;
+  dataSource: DataSource | null;
+}>();
 
-const visible = defineModel<boolean>('visible', { default: false })
-const emit = defineEmits<{ saved: [] }>()
-const { t } = useI18n()
+const visible = defineModel<boolean>("visible", { default: false });
+const emit = defineEmits<{ saved: [] }>();
+const { t } = useI18n();
 
-const isEdit = computed(() => !!props.dataSource)
-const step = ref(0)
-const submitting = ref(false)
+const isEdit = computed(() => !!props.dataSource);
+const step = ref(0);
+const submitting = ref(false);
 
 // In edit mode the credential "configured?" flag travels on the main
 // DataSource response (DataSource.credentials.credentials.configured —
 // server-side dto.DataSourceResponse.Credentials). True iff a credential
 // map is currently stored server-side.
-const credentialsConfigured = ref(false)
+const credentialsConfigured = ref(false);
 
 // "Replace credentials" mode toggle in edit. Defaults to false: a configured
 // connector shows a small "Credentials configured ✓" line with Replace /
 // Remove actions. Toggling Replace reveals the credential inputs so the
 // user can type a new set. Untoggling discards anything typed.
-const replaceCredentialsMode = ref(false)
+const replaceCredentialsMode = ref(false);
 
 // Whether the credential input section is interactive right now. In create
 // mode it's always shown; in edit mode only when the user opted in to
 // Replace, OR when nothing is configured yet (degenerate case where the
 // data source row exists with no credentials stored).
 const credentialsInputVisible = computed(() => {
-  if (!isEdit.value) return true
-  if (!credentialsConfigured.value) return true
-  return replaceCredentialsMode.value
-})
+  if (!isEdit.value) return true;
+  if (!credentialsConfigured.value) return true;
+  return replaceCredentialsMode.value;
+});
 
 function refreshCredentialsStatus() {
   // Re-derive from whatever the parent passed in props.dataSource. Called
@@ -61,74 +61,73 @@ function refreshCredentialsStatus() {
   // expected to re-fetch the data source list after credential mutations
   // so the new metadata flows in here automatically.
   if (!isEdit.value || !props.dataSource) {
-    credentialsConfigured.value = false
-    return
+    credentialsConfigured.value = false;
+    return;
   }
-  credentialsConfigured.value =
-    props.dataSource.credentials?.credentials?.configured === true
+  credentialsConfigured.value = props.dataSource.credentials?.credentials?.configured === true;
 }
 
 // Single-click remove with toast feedback. Mirrors the CredentialResource
 // component's UX: the secret is irrecoverable client-side either way, so a
 // modal confirm just adds friction. The danger-themed button is the deterrent.
-const pendingRemoveCredentials = ref(false)
-const removingCredentials = ref(false)
+const pendingRemoveCredentials = ref(false);
+const removingCredentials = ref(false);
 
 function requestRemoveCredentials() {
-  pendingRemoveCredentials.value = true
+  pendingRemoveCredentials.value = true;
 }
 
 function cancelPendingRemoveCredentials() {
-  pendingRemoveCredentials.value = false
+  pendingRemoveCredentials.value = false;
 }
 
 async function confirmRemoveCredentials() {
-  if (!props.dataSource?.id) return
-  removingCredentials.value = true
+  if (!props.dataSource?.id) return;
+  removingCredentials.value = true;
   try {
-    await deleteDataSourceCredentials(props.dataSource.id)
-    credentialsConfigured.value = false
-    replaceCredentialsMode.value = false
-    pendingRemoveCredentials.value = false
-    form.value.config.credentials = {}
-    MessagePlugin.success(t('credential.removedToast'))
+    await deleteDataSourceCredentials(props.dataSource.id);
+    credentialsConfigured.value = false;
+    replaceCredentialsMode.value = false;
+    pendingRemoveCredentials.value = false;
+    form.value.config.credentials = {};
+    MessagePlugin.success(t("credential.removedToast"));
   } catch (e: any) {
-    MessagePlugin.error(e?.message || t('credential.removeFailed'))
+    MessagePlugin.error(e?.message || t("credential.removeFailed"));
   } finally {
-    removingCredentials.value = false
+    removingCredentials.value = false;
   }
 }
 
 function cancelReplaceCredentials() {
-  replaceCredentialsMode.value = false
-  pendingRemoveCredentials.value = false
-  form.value.config.credentials = {}
-  rssAuthHeaders.value = []
-  testResult.value = credentialsConfigured.value ? 'success' : ''
-  testErrorMsg.value = ''
+  replaceCredentialsMode.value = false;
+  pendingRemoveCredentials.value = false;
+  form.value.config.credentials = {};
+  rssAuthHeaders.value = [];
+  testResult.value = credentialsConfigured.value ? "success" : "";
+  testErrorMsg.value = "";
 }
 
 interface CustomHeaderItem {
-  key: string
-  value: string
+  key: string;
+  value: string;
 }
 
-const rssAuthHeaders = ref<CustomHeaderItem[]>([])
+const rssAuthHeaders = ref<CustomHeaderItem[]>([]);
 
 function serializeAuthHeaders(items: CustomHeaderItem[]): string {
   return items
-    .filter(h => h.key.trim())
-    .map(h => `${h.key.trim()}: ${h.value}`)
-    .join('\n')
+    .filter((h) => h.key.trim())
+    .map((h) => `${h.key.trim()}: ${h.value}`)
+    .join("\n");
 }
 
 function syncRssAuthHeadersToCredentials() {
-  if (form.value.type !== 'rss') return
-  const serialized = serializeAuthHeaders(rssAuthHeaders.value)
+  if (form.value.type !== "rss") return;
+  const serialized = serializeAuthHeaders(rssAuthHeaders.value);
   if (serialized) {
-    form.value.config.credentials.auth_headers = serialized
+    form.value.config.credentials.auth_headers = serialized;
   } else {
-    delete form.value.config.credentials.auth_headers
+    delete form.value.config.credentials.auth_headers;
   }
 }
 
@@ -136,104 +135,107 @@ function syncRssAuthHeadersToCredentials() {
 // API). The backend copies them into settings on read; fall back to the
 // selected feed resource IDs when settings are still empty.
 function hydrateRssFeedUrlsFromConfig(config: { settings?: Record<string, any>; resource_ids?: string[] }) {
-  const settings = config.settings || {}
-  if (String(settings.feed_urls || '').trim()) {
-    return { ...settings }
+  const settings = config.settings || {};
+  if (String(settings.feed_urls || "").trim()) {
+    return { ...settings };
   }
-  const ids = config.resource_ids || []
+  const ids = config.resource_ids || [];
   if (ids.length === 0) {
-    return { ...settings }
+    return { ...settings };
   }
-  return { ...settings, feed_urls: ids.join('\n') }
+  return { ...settings, feed_urls: ids.join("\n") };
 }
 
 function addRssAuthHeader() {
-  rssAuthHeaders.value.push({ key: '', value: '' })
+  rssAuthHeaders.value.push({ key: "", value: "" });
 }
 
 function removeRssAuthHeader(idx: number) {
-  rssAuthHeaders.value.splice(idx, 1)
+  rssAuthHeaders.value.splice(idx, 1);
 }
 
 function needsConnectionTest(): boolean {
-  return !(isEdit.value && credentialsConfigured.value && !replaceCredentialsMode.value)
+  return !(isEdit.value && credentialsConfigured.value && !replaceCredentialsMode.value);
 }
 
 function enterReplaceCredentials() {
-  pendingRemoveCredentials.value = false
-  replaceCredentialsMode.value = true
-  testResult.value = ''
-  testErrorMsg.value = ''
+  pendingRemoveCredentials.value = false;
+  replaceCredentialsMode.value = true;
+  testResult.value = "";
+  testErrorMsg.value = "";
 }
 
 // Form data
 const form = ref({
-  name: '',
-  type: '',
+  name: "",
+  type: "",
   config: {
     credentials: {} as Record<string, any>,
     resource_ids: [] as string[],
     settings: {} as Record<string, any>,
   },
-  sync_schedule: '0 0 */6 * * *',
-  sync_mode: 'incremental' as 'incremental' | 'full',
-  conflict_strategy: 'overwrite' as 'overwrite' | 'skip',
+  sync_schedule: "0 0 */6 * * *",
+  sync_mode: "incremental" as "incremental" | "full",
+  conflict_strategy: "overwrite" as "overwrite" | "skip",
   sync_deletions: true,
-})
+});
 
 // Step 2: Resources
-const resources = ref<Resource[]>([])
-const loadingResources = ref(false)
-const selectedResourceIds = ref<string[]>([])
-const expandedResourceIds = ref(new Set<string>())
+const resources = ref<Resource[]>([]);
+const loadingResources = ref(false);
+const selectedResourceIds = ref<string[]>([]);
+const expandedResourceIds = ref(new Set<string>());
 // Lazy loading: parents whose children have already been fetched, and parents
 // currently being fetched. Used to load hierarchical sources (e.g. Feishu wiki)
 // one level at a time instead of traversing the whole tree up front (#1672).
-const loadedChildrenIds = ref(new Set<string>())
-const loadingChildrenIds = ref(new Set<string>())
+const loadedChildrenIds = ref(new Set<string>());
+const loadingChildrenIds = ref(new Set<string>());
 // True when the initial listing already returned the whole tree (connectors like
 // Notion populate parent_id on the first call). In that case expanding a node
 // never needs an extra request.
-const treeFullyLoaded = ref(false)
+const treeFullyLoaded = ref(false);
 
 // Drive (云盘) root input: the Drive connectors have no "list spaces" API, so
 // the user must supply a root folder_token. We collect it here, write it into
 // form.config.resource_ids as the single root, then loadResources lists its
 // children. See 飞书云盘数据源设计.md §5.2 / ADR-0004.
-const driveFolderToken = ref('')
+const driveFolderToken = ref("");
 // 必填校验的内联错误文案：非空时输入框显示 error 状态 + 下方 tips,
 // 替代全局 MessagePlugin,与表单字段的就地校验风格一致。
-const driveFolderTokenError = ref('')
-const driveRootLoaded = ref(false)
-const isDriveConnector = (type: string) => type === 'feishu_drive' || type === 'lark_drive'
-const isWikiConnector = (type: string) => type === 'feishu' || type === 'lark'
+const driveFolderTokenError = ref("");
+const driveRootLoaded = ref(false);
+const isDriveConnector = (type: string) => type === "feishu_drive" || type === "lark_drive";
+const isWikiConnector = (type: string) => type === "feishu" || type === "lark";
 
 // Pasted wiki doc links. Personal document libraries (个人文档库) are hidden
 // wiki spaces that the space listing never returns, so docs living there can
 // only be added by URL. Stored in resource_ids as "node:<node_token>"; the
 // backend resolves the owning space via get_node at sync time.
-interface ManualWikiDoc { id: string; name: string }
-const manualWikiDocs = ref<ManualWikiDoc[]>([])
-const wikiDocInput = ref('')
-const wikiDocError = ref('')
-const addingWikiDoc = ref(false)
-const WIKI_NODE_ID_PREFIX = 'node:'
+interface ManualWikiDoc {
+  id: string;
+  name: string;
+}
+const manualWikiDocs = ref<ManualWikiDoc[]>([]);
+const wikiDocInput = ref("");
+const wikiDocError = ref("");
+const addingWikiDoc = ref(false);
+const WIKI_NODE_ID_PREFIX = "node:";
 
 // extractWikiNodeToken accepts a bare node token or a wiki doc URL
 // (https://xxx.feishu.cn/wiki/<token>, dedicated domains included) and returns
 // the token. Returns "" when nothing usable is found.
 function extractWikiNodeToken(input: string): string {
-  const raw = (input || '').trim()
-  if (!raw) return ''
-  if (!raw.includes('://') && !raw.includes('/')) return raw
-  const match = raw.match(/\/(?:wiki|docx|docs)\/([^/?#]+)/)
-  if (match && match[1]) return match[1]
+  const raw = (input || "").trim();
+  if (!raw) return "";
+  if (!raw.includes("://") && !raw.includes("/")) return raw;
+  const match = raw.match(/\/(?:wiki|docx|docs)\/([^/?#]+)/);
+  if (match && match[1]) return match[1];
   try {
-    const u = new URL(raw)
-    const segs = u.pathname.split('/').filter(Boolean)
-    return segs[segs.length - 1] || ''
+    const u = new URL(raw);
+    const segs = u.pathname.split("/").filter(Boolean);
+    return segs[segs.length - 1] || "";
   } catch {
-    return ''
+    return "";
   }
 }
 
@@ -242,86 +244,103 @@ function extractWikiNodeToken(input: string): string {
 // the doc's real title in the tag and an early permission error instead of a
 // silent sync failure.
 async function addWikiDocByUrl() {
-  const token = extractWikiNodeToken(wikiDocInput.value)
+  const token = extractWikiNodeToken(wikiDocInput.value);
   if (!token) {
-    wikiDocError.value = t('datasource.wikiDoc.invalid')
-    return
+    wikiDocError.value = t("datasource.wikiDoc.invalid");
+    return;
   }
-  const id = WIKI_NODE_ID_PREFIX + token
-  if (manualWikiDocs.value.some(d => d.id === id)) {
-    wikiDocInput.value = ''
-    return
+  const id = WIKI_NODE_ID_PREFIX + token;
+  if (manualWikiDocs.value.some((d) => d.id === id)) {
+    wikiDocInput.value = "";
+    return;
   }
-  wikiDocError.value = ''
-  addingWikiDoc.value = true
+  wikiDocError.value = "";
+  addingWikiDoc.value = true;
   try {
     if (!tempDsId.value) {
       const res = await createDataSource({
         ...form.value,
         knowledge_base_id: props.kbId,
-        status: 'paused',
-      } as any)
-      const created = res?.data || res
-      tempDsId.value = created.id
+        status: "paused",
+      } as any);
+      const created = res?.data || res;
+      tempDsId.value = created.id;
     }
-    const res = await listResources(tempDsId.value, id)
-    const list = res?.data || res || []
-    manualWikiDocs.value.push({ id, name: list[0]?.name || token })
-    wikiDocInput.value = ''
+    const res = await listResources(tempDsId.value, id);
+    const list = res?.data || res || [];
+    manualWikiDocs.value.push({ id, name: list[0]?.name || token });
+    wikiDocInput.value = "";
   } catch (e: any) {
-    wikiDocError.value = e?.message || e?.error || t('datasource.wikiDoc.loadFailed')
+    wikiDocError.value = e?.message || e?.error || t("datasource.wikiDoc.loadFailed");
   }
-  addingWikiDoc.value = false
+  addingWikiDoc.value = false;
 }
 
 function removeManualWikiDoc(index: number) {
-  manualWikiDocs.value.splice(index, 1)
+  manualWikiDocs.value.splice(index, 1);
 }
 
 // Feishu-family connectors support syncing embedded/drive video files into
 // the video ingestion pipeline (timeline transcription + keyframe captions).
 const isFeishuFamily = (type: string) =>
-  type === 'feishu' || type === 'lark' || type === 'feishu_drive' || type === 'lark_drive'
+  type === "feishu" || type === "lark" || type === "feishu_drive" || type === "lark_drive";
 
-const DEFAULT_VIDEO_MAX_MB = 2048
+const DEFAULT_VIDEO_MAX_MB = 2048;
 
 // settings.sync_video_attachments defaults to true when absent.
 const videoSyncEnabled = computed({
   get: () => form.value.config.settings.sync_video_attachments !== false,
-  set: (v: boolean) => { form.value.config.settings.sync_video_attachments = v },
-})
+  set: (v: boolean) => {
+    form.value.config.settings.sync_video_attachments = v;
+  },
+});
 
 const videoMaxMB = computed({
   get: () => {
-    const n = Number(form.value.config.settings.video_max_mb)
-    return Number.isFinite(n) && n > 0 ? n : DEFAULT_VIDEO_MAX_MB
+    const n = Number(form.value.config.settings.video_max_mb);
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_VIDEO_MAX_MB;
   },
   set: (v: number) => {
-    form.value.config.settings.video_max_mb = Number.isFinite(v) && v > 0 ? v : DEFAULT_VIDEO_MAX_MB
+    form.value.config.settings.video_max_mb = Number.isFinite(v) && v > 0 ? v : DEFAULT_VIDEO_MAX_MB;
   },
-})
+});
 
 // settings.sync_linked_pages defaults to false when absent: link-heavy docs
 // would otherwise trigger mass web crawling the user never asked for.
 const linkedPagesEnabled = computed({
   get: () => form.value.config.settings.sync_linked_pages === true,
-  set: (v: boolean) => { form.value.config.settings.sync_linked_pages = v },
-})
-const isGitLabConnector = (type: string) => type === 'gitlab'
+  set: (v: boolean) => {
+    form.value.config.settings.sync_linked_pages = v;
+  },
+});
+const isGitLabConnector = (type: string) => type === "gitlab";
 
-interface GitLabProjectInput { project_id: string; ref: string; pathsText: string }
-const gitlabProjects = ref<GitLabProjectInput[]>([])
-function syncGitLabProjectsToSettings() {
-  if (!isGitLabConnector(form.value.type)) return
-  form.value.config.settings.projects = gitlabProjects.value
-    .filter(project => project.project_id.trim())
-    .map(project => ({
-      project_id: project.project_id.trim(), ref: project.ref.trim(),
-      paths: project.pathsText.split(/[\n,]/).map(path => path.trim()).filter(Boolean),
-    }))
+interface GitLabProjectInput {
+  project_id: string;
+  ref: string;
+  pathsText: string;
 }
-function addGitLabProject() { gitlabProjects.value.push({ project_id: '', ref: '', pathsText: '' }) }
-function removeGitLabProject(index: number) { gitlabProjects.value.splice(index, 1); syncGitLabProjectsToSettings() }
+const gitlabProjects = ref<GitLabProjectInput[]>([]);
+function syncGitLabProjectsToSettings() {
+  if (!isGitLabConnector(form.value.type)) return;
+  form.value.config.settings.projects = gitlabProjects.value
+    .filter((project) => project.project_id.trim())
+    .map((project) => ({
+      project_id: project.project_id.trim(),
+      ref: project.ref.trim(),
+      paths: project.pathsText
+        .split(/[\n,]/)
+        .map((path) => path.trim())
+        .filter(Boolean),
+    }));
+}
+function addGitLabProject() {
+  gitlabProjects.value.push({ project_id: "", ref: "", pathsText: "" });
+}
+function removeGitLabProject(index: number) {
+  gitlabProjects.value.splice(index, 1);
+  syncGitLabProjectsToSettings();
+}
 
 // extractDriveFolderToken accepts either a bare folder_token or a Drive folder
 // URL (https://xxx.feishu.cn/drive/folder/<token> or the Lark equivalent
@@ -329,20 +348,20 @@ function removeGitLabProject(index: number) { gitlabProjects.value.splice(index,
 // Matching is path-based, host-agnostic. Trims surrounding whitespace.
 // Returns "" when nothing usable is found.
 function extractDriveFolderToken(input: string): string {
-  const raw = (input || '').trim()
-  if (!raw) return ''
+  const raw = (input || "").trim();
+  if (!raw) return "";
   // Bare token: no scheme, no slash - use as-is.
-  if (!raw.includes('://') && !raw.includes('/')) return raw
+  if (!raw.includes("://") && !raw.includes("/")) return raw;
   // URL form: extract the segment after /drive/folder/.
-  const match = raw.match(/\/drive\/folder\/([^/?#]+)/)
-  if (match && match[1]) return match[1]
+  const match = raw.match(/\/drive\/folder\/([^/?#]+)/);
+  if (match && match[1]) return match[1];
   // Fallback: last path segment of a URL, or the raw string.
   try {
-    const u = new URL(raw)
-    const segs = u.pathname.split('/').filter(Boolean)
-    return segs[segs.length - 1] || raw
+    const u = new URL(raw);
+    const segs = u.pathname.split("/").filter(Boolean);
+    return segs[segs.length - 1] || raw;
   } catch {
-    return raw
+    return raw;
   }
 }
 
@@ -352,26 +371,26 @@ function extractDriveFolderToken(input: string): string {
 // user gets an actionable hint (e.g. share the folder with the app) instead of
 // a raw Feishu error body.
 async function loadDriveRoot() {
-  const token = extractDriveFolderToken(driveFolderToken.value)
+  const token = extractDriveFolderToken(driveFolderToken.value);
   if (!token) {
-    driveFolderTokenError.value = t('datasource.drive.folderTokenRequired')
-    return
+    driveFolderTokenError.value = t("datasource.drive.folderTokenRequired");
+    return;
   }
-  driveFolderTokenError.value = ''
+  driveFolderTokenError.value = "";
   // Normalize the input so the user sees the extracted token, not the full URL.
-  driveFolderToken.value = token
-  form.value.config.resource_ids = [token]
-  driveRootLoaded.value = false
-  loadingResources.value = true
+  driveFolderToken.value = token;
+  form.value.config.resource_ids = [token];
+  driveRootLoaded.value = false;
+  loadingResources.value = true;
   try {
     if (!tempDsId.value) {
       const res = await createDataSource({
         ...form.value,
         knowledge_base_id: props.kbId,
-        status: 'paused',
-      } as any)
-      const created = res?.data || res
-      tempDsId.value = created.id
+        status: "paused",
+      } as any);
+      const created = res?.data || res;
+      tempDsId.value = created.id;
     } else {
       // Edit mode OR a previously-created temp row: persist the new folder_token
       // so listResources sees the updated config. Previously this branch skipped
@@ -379,40 +398,40 @@ async function loadDriveRoot() {
       await updateDataSource(tempDsId.value, {
         ...form.value,
         knowledge_base_id: props.kbId,
-      } as any)
+      } as any);
     }
 
-    const res = await listResources(tempDsId.value)
-    resources.value = res?.data || res || []
+    const res = await listResources(tempDsId.value);
+    resources.value = res?.data || res || [];
     if (resources.value.length > 0) {
       // Mirror loadResources' tree initialization: index parents that already
       // arrived with children and auto-expand them.
-      const parentsWithChildren = new Set<string>()
+      const parentsWithChildren = new Set<string>();
       for (const r of resources.value) {
-        if (r.parent_id) parentsWithChildren.add(r.parent_id)
+        if (r.parent_id) parentsWithChildren.add(r.parent_id);
       }
-      loadedChildrenIds.value = parentsWithChildren
-      loadingChildrenIds.value = new Set<string>()
-      treeFullyLoaded.value = parentsWithChildren.size > 0
+      loadedChildrenIds.value = parentsWithChildren;
+      loadingChildrenIds.value = new Set<string>();
+      treeFullyLoaded.value = parentsWithChildren.size > 0;
       expandedResourceIds.value = new Set(
         resources.value
-          .filter(r => !r.parent_id && r.has_children && parentsWithChildren.has(r.external_id))
-          .map(r => r.external_id),
-      )
-      driveRootLoaded.value = true
+          .filter((r) => !r.parent_id && r.has_children && parentsWithChildren.has(r.external_id))
+          .map((r) => r.external_id),
+      );
+      driveRootLoaded.value = true;
       // In edit mode, reveal pre-existing selections that live below the
       // (not-yet-expanded) tree so they are visible and checked - mirrors
       // loadResources' behavior for non-Drive connectors.
       if (isEdit.value && !treeFullyLoaded.value) {
-        const loaded = new Set(resources.value.map(r => r.external_id))
-        const hidden = selectedResourceIds.value.filter(id => !loaded.has(id))
-        if (hidden.length > 0) void revealExistingSelections(hidden)
+        const loaded = new Set(resources.value.map((r) => r.external_id));
+        const hidden = selectedResourceIds.value.filter((id) => !loaded.has(id));
+        if (hidden.length > 0) void revealExistingSelections(hidden);
       }
     }
   } catch (e: any) {
-    MessagePlugin.error(classifyDriveLoadError(e))
+    MessagePlugin.error(classifyDriveLoadError(e));
   }
-  loadingResources.value = false
+  loadingResources.value = false;
 }
 
 // classifyDriveLoadError turns a raw Drive list error into an actionable i18n
@@ -420,710 +439,772 @@ async function loadDriveRoot() {
 // not been shared the target folder; without this the user sees "forbidden"
 // and has no idea what to do.
 function classifyDriveLoadError(e: any): string {
-  const raw = String(e?.message || e?.error || '')
-  const lower = raw.toLowerCase()
+  const raw = String(e?.message || e?.error || "");
+  const lower = raw.toLowerCase();
   // 403 / forbidden / 1061004 -> the app lacks access to this specific folder;
   // the user must share it with the app's group in Feishu Drive.
   if (
-    lower.includes('status=403') ||
-    lower.includes('forbidden') ||
+    lower.includes("status=403") ||
+    lower.includes("forbidden") ||
     lower.includes('"code":1061004') ||
-    lower.includes('code=1061004')
+    lower.includes("code=1061004")
   ) {
-    return t('datasource.drive.loadForbiddenHint')
+    return t("datasource.drive.loadForbiddenHint");
   }
   // 401 / auth -> app credentials wrong or app lacks the drive scopes.
-  if (lower.includes('status=401') || lower.includes('auth') || lower.includes('1061005')) {
-    return t('datasource.drive.loadAuthHint')
+  if (lower.includes("status=401") || lower.includes("auth") || lower.includes("1061005")) {
+    return t("datasource.drive.loadAuthHint");
   }
   // Invalid / not-found folder_token.
-  if (lower.includes('1061003') || lower.includes('not found')) {
-    return t('datasource.drive.loadNotFoundHint')
+  if (lower.includes("1061003") || lower.includes("not found")) {
+    return t("datasource.drive.loadNotFoundHint");
   }
-  return raw || t('datasource.resourceLoadFailed')
+  return raw || t("datasource.resourceLoadFailed");
 }
 
 // Shared children/parent indexes — used by tree rendering and selection logic
 const childrenMap = computed(() => {
-  const map = new Map<string, Resource[]>()
+  const map = new Map<string, Resource[]>();
   for (const r of resources.value) {
     if (r.parent_id) {
-      const siblings = map.get(r.parent_id)
-      if (siblings) siblings.push(r)
-      else map.set(r.parent_id, [r])
+      const siblings = map.get(r.parent_id);
+      if (siblings) siblings.push(r);
+      else map.set(r.parent_id, [r]);
     }
   }
-  return map
-})
+  return map;
+});
 
 const parentMap = computed(() => {
-  const map = new Map<string, string>()
+  const map = new Map<string, string>();
   for (const r of resources.value) {
-    if (r.parent_id) map.set(r.external_id, r.parent_id)
+    if (r.parent_id) map.set(r.external_id, r.parent_id);
   }
-  return map
-})
+  return map;
+});
 
 // `selectedResourceIds` is a MINIMAL COVER SET: only the roots of fully-selected
 // subtrees. Sending this to the backend gives "sync these IDs and all descendants"
 // semantics — including any pages added later under a selected parent.
-type CheckState = 'checked' | 'indeterminate' | 'unchecked'
+type CheckState = "checked" | "indeterminate" | "unchecked";
 
 const checkStates = computed(() => {
-  const states = new Map<string, CheckState>()
-  const cover = new Set(selectedResourceIds.value)
+  const states = new Map<string, CheckState>();
+  const cover = new Set(selectedResourceIds.value);
 
   // Single post-order walk: a node is `checked` if itself or any ancestor is
   // in the cover set; otherwise `indeterminate` if any descendant is checked;
   // otherwise `unchecked`. Returns whether the subtree contains a checked node.
   function walk(node: Resource, ancestorChecked: boolean): boolean {
-    const selfChecked = ancestorChecked || cover.has(node.external_id)
-    let descendantChecked = false
+    const selfChecked = ancestorChecked || cover.has(node.external_id);
+    let descendantChecked = false;
     for (const c of childrenMap.value.get(node.external_id) || []) {
-      if (walk(c, selfChecked)) descendantChecked = true
+      if (walk(c, selfChecked)) descendantChecked = true;
     }
-    if (selfChecked) states.set(node.external_id, 'checked')
-    else states.set(node.external_id, descendantChecked ? 'indeterminate' : 'unchecked')
-    return selfChecked || descendantChecked
+    if (selfChecked) states.set(node.external_id, "checked");
+    else states.set(node.external_id, descendantChecked ? "indeterminate" : "unchecked");
+    return selfChecked || descendantChecked;
   }
   for (const r of resources.value) {
-    if (!r.parent_id) walk(r, false)
+    if (!r.parent_id) walk(r, false);
   }
-  return states
-})
+  return states;
+});
 
 function toggleExpand(id: string) {
-  const next = new Set(expandedResourceIds.value)
+  const next = new Set(expandedResourceIds.value);
   if (next.has(id)) {
-    next.delete(id)
-    expandedResourceIds.value = next
-    return
+    next.delete(id);
+    expandedResourceIds.value = next;
+    return;
   }
-  next.add(id)
-  expandedResourceIds.value = next
-  void ensureChildrenLoaded(id)
+  next.add(id);
+  expandedResourceIds.value = next;
+  void ensureChildrenLoaded(id);
 }
 
 // ensureChildrenLoaded fetches the direct children of a node on demand. It is a
 // no-op when the connector already delivered the whole tree in one call (e.g.
 // Notion) or when this node's children have already been fetched.
 async function ensureChildrenLoaded(id: string) {
-  if (!tempDsId.value) return
-  if (loadedChildrenIds.value.has(id) || loadingChildrenIds.value.has(id)) return
+  if (!tempDsId.value) return;
+  if (loadedChildrenIds.value.has(id) || loadingChildrenIds.value.has(id)) return;
   if (treeFullyLoaded.value) {
-    loadedChildrenIds.value = new Set(loadedChildrenIds.value).add(id)
-    return
+    loadedChildrenIds.value = new Set(loadedChildrenIds.value).add(id);
+    return;
   }
 
-  loadingChildrenIds.value = new Set(loadingChildrenIds.value).add(id)
+  loadingChildrenIds.value = new Set(loadingChildrenIds.value).add(id);
   try {
-    const res = await listResources(tempDsId.value, id)
-    const children: Resource[] = res?.data || res || []
+    const res = await listResources(tempDsId.value, id);
+    const children: Resource[] = res?.data || res || [];
     if (children.length > 0) {
-      const existing = new Set(resources.value.map(r => r.external_id))
-      const merged = resources.value.slice()
+      const existing = new Set(resources.value.map((r) => r.external_id));
+      const merged = resources.value.slice();
       for (const c of children) {
-        if (!existing.has(c.external_id)) merged.push(c)
+        if (!existing.has(c.external_id)) merged.push(c);
       }
-      resources.value = merged
+      resources.value = merged;
     }
-    loadedChildrenIds.value = new Set(loadedChildrenIds.value).add(id)
+    loadedChildrenIds.value = new Set(loadedChildrenIds.value).add(id);
   } catch (e: any) {
-    MessagePlugin.error(e?.message || e?.error || t('datasource.resourceLoadFailed'))
+    MessagePlugin.error(e?.message || e?.error || t("datasource.resourceLoadFailed"));
     // Collapse again so the user can retry the expand.
-    const next = new Set(expandedResourceIds.value)
-    next.delete(id)
-    expandedResourceIds.value = next
+    const next = new Set(expandedResourceIds.value);
+    next.delete(id);
+    expandedResourceIds.value = next;
   } finally {
-    const s = new Set(loadingChildrenIds.value)
-    s.delete(id)
-    loadingChildrenIds.value = s
+    const s = new Set(loadingChildrenIds.value);
+    s.delete(id);
+    loadingChildrenIds.value = s;
   }
 }
 
 const visibleTree = computed(() => {
-  const roots = resources.value.filter(r => !r.parent_id)
-  const result: { resource: Resource; depth: number }[] = []
+  const roots = resources.value.filter((r) => !r.parent_id);
+  const result: { resource: Resource; depth: number }[] = [];
   function walk(items: Resource[], depth: number) {
     for (const r of items) {
-      result.push({ resource: r, depth })
+      result.push({ resource: r, depth });
       if (r.has_children && expandedResourceIds.value.has(r.external_id)) {
-        walk(childrenMap.value.get(r.external_id) || [], depth + 1)
+        walk(childrenMap.value.get(r.external_id) || [], depth + 1);
       }
     }
   }
-  walk(roots, 0)
-  return result
-})
+  walk(roots, 0);
+  return result;
+});
 
 // Connection test
-const testing = ref(false)
-const testResult = ref<'success' | 'error' | ''>('')
-const testErrorMsg = ref('')
+const testing = ref(false);
+const testResult = ref<"success" | "error" | "">("");
+const testErrorMsg = ref("");
 
 // Collapsible prereq in Step 1
-const prereqExpanded = ref(false)
-
+const prereqExpanded = ref(false);
 
 // Temp data source for resource listing
-const tempDsId = ref('')
+const tempDsId = ref("");
 
 // Schedule presets
 const schedulePresets = computed(() => [
-  { label: t('datasource.schedule30min'), value: '0 */30 * * * *' },
-  { label: t('datasource.schedule1h'), value: '0 0 * * * *' },
-  { label: t('datasource.schedule6h'), value: '0 0 */6 * * *' },
-  { label: t('datasource.schedule12h'), value: '0 0 */12 * * *' },
-  { label: t('datasource.schedule24h'), value: '0 0 2 * * *' },
-])
+  { label: t("datasource.schedule30min"), value: "0 */30 * * * *" },
+  { label: t("datasource.schedule1h"), value: "0 0 * * * *" },
+  { label: t("datasource.schedule6h"), value: "0 0 */6 * * *" },
+  { label: t("datasource.schedule12h"), value: "0 0 */12 * * *" },
+  { label: t("datasource.schedule24h"), value: "0 0 2 * * *" },
+]);
 
 // --- Connector definitions ---
 interface ConnectorDef {
-  type: string
-  available: boolean
-  docUrl: string
-  permissionDocUrl: string
-  permissionPageUrl: string
-  requiredPermissions: string[]
+  type: string;
+  available: boolean;
+  docUrl: string;
+  permissionDocUrl: string;
+  permissionPageUrl: string;
+  requiredPermissions: string[];
   fields: {
-    key: string
-    labelKey: string
-    placeholder: string
-    secret?: boolean
-    optional?: boolean
-    hintKey?: string
-    multiline?: boolean
-    fieldType?: 'custom_headers'
-  }[]
+    key: string;
+    labelKey: string;
+    placeholder: string;
+    secret?: boolean;
+    optional?: boolean;
+    hintKey?: string;
+    multiline?: boolean;
+    fieldType?: "custom_headers";
+  }[];
 }
 
 const connectorDefs = computed<ConnectorDef[]>(() => [
   {
-    type: 'feishu',
+    type: "feishu",
     available: true,
-    docUrl: 'https://open.feishu.cn/app',
-    permissionDocUrl: 'https://open.feishu.cn/document/server-docs/docs/wiki-v2/wiki-overview',
-    permissionPageUrl: 'https://open.feishu.cn/app',
+    docUrl: "https://open.feishu.cn/app",
+    permissionDocUrl: "https://open.feishu.cn/document/server-docs/docs/wiki-v2/wiki-overview",
+    permissionPageUrl: "https://open.feishu.cn/app",
     requiredPermissions: [
-      'wiki:wiki:readonly',
-      'drive:drive:readonly',
-      'drive:export:readonly',
-      'docx:document:readonly',
+      "wiki:wiki:readonly",
+      "drive:drive:readonly",
+      "drive:export:readonly",
+      "docx:document:readonly",
     ],
     fields: [
-      { key: 'app_id', labelKey: 'datasource.field.appId', placeholder: 'cli_xxxx' },
-      { key: 'app_secret', labelKey: 'datasource.field.appSecret', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://open.feishu.cn', optional: true, hintKey: 'datasource.field.baseUrlHint' },
-      { key: 'web_base_url', labelKey: 'datasource.field.webBaseUrl', placeholder: 'https://feishu.cn', optional: true, hintKey: 'datasource.field.webBaseUrlHint' },
+      { key: "app_id", labelKey: "datasource.field.appId", placeholder: "cli_xxxx" },
+      { key: "app_secret", labelKey: "datasource.field.appSecret", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://open.feishu.cn",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
+      {
+        key: "web_base_url",
+        labelKey: "datasource.field.webBaseUrl",
+        placeholder: "https://feishu.cn",
+        optional: true,
+        hintKey: "datasource.field.webBaseUrlHint",
+      },
     ],
   },
   {
     // Lark is Feishu's international cloud. Same wiki/docx/drive APIs and the
     // same scope identifiers, but a separate console, tenant and app — an app
     // created on open.feishu.cn cannot read a Lark wiki.
-    type: 'lark',
+    type: "lark",
     available: true,
-    docUrl: 'https://open.larksuite.com/app',
-    permissionDocUrl: 'https://open.larksuite.com/document/server-docs/docs/wiki-v2/wiki-overview',
-    permissionPageUrl: 'https://open.larksuite.com/app',
+    docUrl: "https://open.larksuite.com/app",
+    permissionDocUrl: "https://open.larksuite.com/document/server-docs/docs/wiki-v2/wiki-overview",
+    permissionPageUrl: "https://open.larksuite.com/app",
     requiredPermissions: [
-      'wiki:wiki:readonly',
-      'drive:drive:readonly',
-      'drive:export:readonly',
-      'docx:document:readonly',
+      "wiki:wiki:readonly",
+      "drive:drive:readonly",
+      "drive:export:readonly",
+      "docx:document:readonly",
     ],
     fields: [
-      { key: 'app_id', labelKey: 'datasource.field.appId', placeholder: 'cli_xxxx' },
-      { key: 'app_secret', labelKey: 'datasource.field.appSecret', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://open.larksuite.com', optional: true, hintKey: 'datasource.field.baseUrlHint' },
-      { key: 'web_base_url', labelKey: 'datasource.field.webBaseUrl', placeholder: 'https://larksuite.com', optional: true, hintKey: 'datasource.field.webBaseUrlHint' },
+      { key: "app_id", labelKey: "datasource.field.appId", placeholder: "cli_xxxx" },
+      { key: "app_secret", labelKey: "datasource.field.appSecret", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://open.larksuite.com",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
+      {
+        key: "web_base_url",
+        labelKey: "datasource.field.webBaseUrl",
+        placeholder: "https://larksuite.com",
+        optional: true,
+        hintKey: "datasource.field.webBaseUrlHint",
+      },
     ],
   },
   {
     // Feishu Drive (云盘) mode: sync documents/files under a user-supplied Drive
     // folder_token. Same auth as the wiki connector but no wiki:wiki:readonly
     // scope - Drive only needs drive + export + docx.
-    type: 'feishu_drive',
+    type: "feishu_drive",
     available: true,
-    docUrl: 'https://open.feishu.cn/app',
-    permissionDocUrl: 'https://open.feishu.cn/document/server-docs/docs/drive-v1/file/list',
-    permissionPageUrl: 'https://open.feishu.cn/app',
-    requiredPermissions: [
-      'drive:drive:readonly',
-      'drive:export:readonly',
-      'docx:document:readonly',
-    ],
+    docUrl: "https://open.feishu.cn/app",
+    permissionDocUrl: "https://open.feishu.cn/document/server-docs/docs/drive-v1/file/list",
+    permissionPageUrl: "https://open.feishu.cn/app",
+    requiredPermissions: ["drive:drive:readonly", "drive:export:readonly", "docx:document:readonly"],
     fields: [
-      { key: 'app_id', labelKey: 'datasource.field.appId', placeholder: 'cli_xxxx' },
-      { key: 'app_secret', labelKey: 'datasource.field.appSecret', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://open.feishu.cn', optional: true, hintKey: 'datasource.field.baseUrlHint' },
-      { key: 'web_base_url', labelKey: 'datasource.field.webBaseUrl', placeholder: 'https://feishu.cn', optional: true, hintKey: 'datasource.field.webBaseUrlHint' },
+      { key: "app_id", labelKey: "datasource.field.appId", placeholder: "cli_xxxx" },
+      { key: "app_secret", labelKey: "datasource.field.appSecret", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://open.feishu.cn",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
+      {
+        key: "web_base_url",
+        labelKey: "datasource.field.webBaseUrl",
+        placeholder: "https://feishu.cn",
+        optional: true,
+        hintKey: "datasource.field.webBaseUrlHint",
+      },
     ],
   },
   {
     // Lark Drive: international counterpart of feishu_drive.
-    type: 'lark_drive',
+    type: "lark_drive",
     available: true,
-    docUrl: 'https://open.larksuite.com/app',
-    permissionDocUrl: 'https://open.larksuite.com/document/server-docs/docs/drive-v1/file/list',
-    permissionPageUrl: 'https://open.larksuite.com/app',
-    requiredPermissions: [
-      'drive:drive:readonly',
-      'drive:export:readonly',
-      'docx:document:readonly',
-    ],
+    docUrl: "https://open.larksuite.com/app",
+    permissionDocUrl: "https://open.larksuite.com/document/server-docs/docs/drive-v1/file/list",
+    permissionPageUrl: "https://open.larksuite.com/app",
+    requiredPermissions: ["drive:drive:readonly", "drive:export:readonly", "docx:document:readonly"],
     fields: [
-      { key: 'app_id', labelKey: 'datasource.field.appId', placeholder: 'cli_xxxx' },
-      { key: 'app_secret', labelKey: 'datasource.field.appSecret', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://open.larksuite.com', optional: true, hintKey: 'datasource.field.baseUrlHint' },
-      { key: 'web_base_url', labelKey: 'datasource.field.webBaseUrl', placeholder: 'https://larksuite.com', optional: true, hintKey: 'datasource.field.webBaseUrlHint' },
+      { key: "app_id", labelKey: "datasource.field.appId", placeholder: "cli_xxxx" },
+      { key: "app_secret", labelKey: "datasource.field.appSecret", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://open.larksuite.com",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
+      {
+        key: "web_base_url",
+        labelKey: "datasource.field.webBaseUrl",
+        placeholder: "https://larksuite.com",
+        optional: true,
+        hintKey: "datasource.field.webBaseUrlHint",
+      },
     ],
   },
   {
-    type: 'notion',
+    type: "notion",
     available: true,
-    docUrl: 'https://www.notion.so/my-integrations',
-    permissionDocUrl: '',
-    permissionPageUrl: '',
+    docUrl: "https://www.notion.so/my-integrations",
+    permissionDocUrl: "",
+    permissionPageUrl: "",
     requiredPermissions: [],
-    fields: [
-      { key: 'api_key', labelKey: 'datasource.field.integrationToken', placeholder: 'ntn_xxxx', secret: true },
-    ],
+    fields: [{ key: "api_key", labelKey: "datasource.field.integrationToken", placeholder: "ntn_xxxx", secret: true }],
   },
   {
-    type: 'yuque',
+    type: "yuque",
     available: true,
-    docUrl: 'https://www.yuque.com/yuque/developer/api',
-    permissionDocUrl: 'https://www.yuque.com/yuque/developer/api',
-    permissionPageUrl: 'https://www.yuque.com/settings/tokens',
-    requiredPermissions: [
-      'repo:read',
-      'doc:read',
-    ],
+    docUrl: "https://www.yuque.com/yuque/developer/api",
+    permissionDocUrl: "https://www.yuque.com/yuque/developer/api",
+    permissionPageUrl: "https://www.yuque.com/settings/tokens",
+    requiredPermissions: ["repo:read", "doc:read"],
     fields: [
-      { key: 'api_token', labelKey: 'datasource.field.apiToken', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://www.yuque.com', optional: true, hintKey: 'datasource.field.baseUrlHint' },
+      { key: "api_token", labelKey: "datasource.field.apiToken", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://www.yuque.com",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
     ],
   },
   {
     // Tencent IMA (ima.qq.com). Uses the OpenAPI at /openapi/wiki/v1 with two
     // static headers (ima-openapi-clientid + ima-openapi-apikey); no OAuth.
-    type: 'ima',
+    type: "ima",
     available: true,
-    docUrl: 'https://ima.qq.com/agent-interface',
-    permissionDocUrl: 'https://ima.qq.com/agent-interface',
-    permissionPageUrl: 'https://ima.qq.com/agent-interface',
+    docUrl: "https://ima.qq.com/agent-interface",
+    permissionDocUrl: "https://ima.qq.com/agent-interface",
+    permissionPageUrl: "https://ima.qq.com/agent-interface",
     requiredPermissions: [],
     fields: [
-      { key: 'client_id', labelKey: 'datasource.field.imaClientId', placeholder: '', secret: true },
-      { key: 'api_key', labelKey: 'datasource.field.imaApiKey', placeholder: '', secret: true },
-      { key: 'base_url', labelKey: 'datasource.field.baseUrl', placeholder: 'https://ima.qq.com', optional: true, hintKey: 'datasource.field.baseUrlHint' },
+      { key: "client_id", labelKey: "datasource.field.imaClientId", placeholder: "", secret: true },
+      { key: "api_key", labelKey: "datasource.field.imaApiKey", placeholder: "", secret: true },
+      {
+        key: "base_url",
+        labelKey: "datasource.field.baseUrl",
+        placeholder: "https://ima.qq.com",
+        optional: true,
+        hintKey: "datasource.field.baseUrlHint",
+      },
     ],
   },
   {
-    type: 'rss',
+    type: "rss",
     available: true,
-    docUrl: '',
-    permissionDocUrl: '',
-    permissionPageUrl: '',
+    docUrl: "",
+    permissionDocUrl: "",
+    permissionPageUrl: "",
     requiredPermissions: [],
     fields: [
-      { key: 'auth_headers', labelKey: 'datasource.field.authHeaders', placeholder: '', optional: true, hintKey: 'datasource.field.authHeadersHint', fieldType: 'custom_headers' },
+      {
+        key: "auth_headers",
+        labelKey: "datasource.field.authHeaders",
+        placeholder: "",
+        optional: true,
+        hintKey: "datasource.field.authHeadersHint",
+        fieldType: "custom_headers",
+      },
     ],
   },
   {
-    type: 'gitlab', available: true, docUrl: '', permissionDocUrl: '', permissionPageUrl: '', requiredPermissions: [],
+    type: "gitlab",
+    available: true,
+    docUrl: "",
+    permissionDocUrl: "",
+    permissionPageUrl: "",
+    requiredPermissions: [],
     fields: [
-      { key: 'base_url', labelKey: 'datasource.gitlab.baseUrl', placeholder: 'https://gitlab.example.com' },
-      { key: 'access_token', labelKey: 'datasource.gitlab.accessToken', placeholder: '', secret: true },
+      { key: "base_url", labelKey: "datasource.gitlab.baseUrl", placeholder: "https://gitlab.example.com" },
+      { key: "access_token", labelKey: "datasource.gitlab.accessToken", placeholder: "", secret: true },
     ],
   },
-])
+]);
 
-
-const currentDef = computed(() => connectorDefs.value.find(d => d.type === form.value.type))
+const currentDef = computed(() => connectorDefs.value.find((d) => d.type === form.value.type));
 
 // --- Drawer lifecycle ---
 watch(visible, async (v) => {
   if (!v) {
     if (!isEdit.value && tempDsId.value) {
       try {
-        await deleteDataSource(tempDsId.value)
+        await deleteDataSource(tempDsId.value);
       } catch {
         // Ignore cleanup errors
       }
-      tempDsId.value = ''
+      tempDsId.value = "";
     }
-    return
+    return;
   }
-  step.value = isEdit.value ? 1 : 0
-  testResult.value = ''
-  testErrorMsg.value = ''
-  tempDsId.value = ''
-  prereqExpanded.value = false
-  pendingRemoveCredentials.value = false
-  resources.value = []
-  selectedResourceIds.value = []
-  expandedResourceIds.value = new Set()
-  loadedChildrenIds.value = new Set()
-  loadingChildrenIds.value = new Set()
-  treeFullyLoaded.value = false
-  driveFolderToken.value = ''
-  driveFolderTokenError.value = ''
-  driveRootLoaded.value = false
-  manualWikiDocs.value = []
-  wikiDocInput.value = ''
-  wikiDocError.value = ''
-  rssAuthHeaders.value = []
-  gitlabProjects.value = []
+  step.value = isEdit.value ? 1 : 0;
+  testResult.value = "";
+  testErrorMsg.value = "";
+  tempDsId.value = "";
+  prereqExpanded.value = false;
+  pendingRemoveCredentials.value = false;
+  resources.value = [];
+  selectedResourceIds.value = [];
+  expandedResourceIds.value = new Set();
+  loadedChildrenIds.value = new Set();
+  loadingChildrenIds.value = new Set();
+  treeFullyLoaded.value = false;
+  driveFolderToken.value = "";
+  driveFolderTokenError.value = "";
+  driveRootLoaded.value = false;
+  manualWikiDocs.value = [];
+  wikiDocInput.value = "";
+  wikiDocError.value = "";
+  rssAuthHeaders.value = [];
+  gitlabProjects.value = [];
 
   if (isEdit.value && props.dataSource) {
     // Reset edit/replace toggle every open so an aborted replace doesn't
     // carry over. credentialsConfigured will be refreshed from the
     // /credentials subresource (run separately below).
-    replaceCredentialsMode.value = false
-    credentialsConfigured.value = false
-    refreshCredentialsStatus()
-    testResult.value = credentialsConfigured.value ? 'success' : ''
-    const editConfig = props.dataSource.config || {}
+    replaceCredentialsMode.value = false;
+    credentialsConfigured.value = false;
+    refreshCredentialsStatus();
+    testResult.value = credentialsConfigured.value ? "success" : "";
+    const editConfig = props.dataSource.config || {};
     form.value = {
       name: props.dataSource.name,
       type: props.dataSource.type,
       config: {
         credentials: {},
         resource_ids: editConfig.resource_ids || [],
-        settings: props.dataSource.type === 'rss'
-          ? hydrateRssFeedUrlsFromConfig(editConfig)
-          : (editConfig.settings || {}),
+        settings:
+          props.dataSource.type === "rss" ? hydrateRssFeedUrlsFromConfig(editConfig) : editConfig.settings || {},
       },
       sync_schedule: props.dataSource.sync_schedule,
       sync_mode: props.dataSource.sync_mode,
       conflict_strategy: props.dataSource.conflict_strategy,
       sync_deletions: props.dataSource.sync_deletions,
-    }
+    };
     // Pasted-doc IDs ("node:<token>") are managed as tags, not tree selections;
     // keeping them out of selectedResourceIds stops the tree reveal logic from
     // trying to surface nodes that are not part of the browsable space tree.
-    const savedIds: string[] = form.value.config?.resource_ids || []
+    const savedIds: string[] = form.value.config?.resource_ids || [];
     manualWikiDocs.value = savedIds
-      .filter(id => id.startsWith(WIKI_NODE_ID_PREFIX))
-      .map(id => ({ id, name: id.slice(WIKI_NODE_ID_PREFIX.length) }))
-    selectedResourceIds.value = savedIds.filter(id => !id.startsWith(WIKI_NODE_ID_PREFIX))
+      .filter((id) => id.startsWith(WIKI_NODE_ID_PREFIX))
+      .map((id) => ({ id, name: id.slice(WIKI_NODE_ID_PREFIX.length) }));
+    selectedResourceIds.value = savedIds.filter((id) => !id.startsWith(WIKI_NODE_ID_PREFIX));
     if (isGitLabConnector(form.value.type)) {
-      const savedProjects = Array.isArray(form.value.config.settings.projects) ? form.value.config.settings.projects : []
+      const savedProjects = Array.isArray(form.value.config.settings.projects)
+        ? form.value.config.settings.projects
+        : [];
       gitlabProjects.value = savedProjects.map((project: any) => ({
-        project_id: String(project.project_id || ''), ref: String(project.ref || ''),
-        pathsText: Array.isArray(project.paths) ? project.paths.join('\n') : '',
-      }))
+        project_id: String(project.project_id || ""),
+        ref: String(project.ref || ""),
+        pathsText: Array.isArray(project.paths) ? project.paths.join("\n") : "",
+      }));
     }
     // Pre-fill the Drive root folder_token from the saved resource_ids so the
     // user sees what they previously entered. driveRootLoaded stays false: the
     // tree has not been listed yet, and clicking "load" triggers listResources
     // + revealExistingSelections so pre-existing selections are revealed.
     if (isDriveConnector(form.value.type)) {
-      const rids = form.value.config?.resource_ids || []
+      const rids = form.value.config?.resource_ids || [];
       if (rids.length > 0) {
         // resource_id is "folderToken" or "folderToken:fileToken"; the root is
         // the first segment.
-        driveFolderToken.value = rids[0].split(':')[0]
+        driveFolderToken.value = rids[0].split(":")[0];
       }
     }
-    tempDsId.value = props.dataSource.id
+    tempDsId.value = props.dataSource.id;
   } else {
-    replaceCredentialsMode.value = false
-    credentialsConfigured.value = false
+    replaceCredentialsMode.value = false;
+    credentialsConfigured.value = false;
     form.value = {
-      name: '',
-      type: '',
+      name: "",
+      type: "",
       config: { credentials: {}, resource_ids: [], settings: {} },
-      sync_schedule: '0 0 */6 * * *',
-      sync_mode: 'incremental',
-      conflict_strategy: 'overwrite',
+      sync_schedule: "0 0 */6 * * *",
+      sync_mode: "incremental",
+      conflict_strategy: "overwrite",
       sync_deletions: true,
-    }
+    };
   }
-})
+});
 
 watch(
   () => form.value.config.credentials,
   () => {
     if (needsConnectionTest()) {
-      testResult.value = ''
-      testErrorMsg.value = ''
+      testResult.value = "";
+      testErrorMsg.value = "";
     }
   },
   { deep: true },
-)
+);
 
 watch(
   rssAuthHeaders,
   () => {
-    syncRssAuthHeadersToCredentials()
+    syncRssAuthHeadersToCredentials();
     if (needsConnectionTest()) {
-      testResult.value = ''
-      testErrorMsg.value = ''
+      testResult.value = "";
+      testErrorMsg.value = "";
     }
   },
   { deep: true },
-)
+);
 
 watch(
   () => form.value.config.settings.feed_urls,
   () => {
     if (needsConnectionTest()) {
-      testResult.value = ''
-      testErrorMsg.value = ''
+      testResult.value = "";
+      testErrorMsg.value = "";
     }
   },
-)
+);
 
 function selectType(def: ConnectorDef) {
-  if (!def.available) return
-  form.value.type = def.type
-  form.value.name = t(`datasource.connector.${def.type}`)
-  form.value.config.credentials = {}
-  if (isGitLabConnector(def.type)) addGitLabProject()
-  rssAuthHeaders.value = []
-  step.value = 1
+  if (!def.available) return;
+  form.value.type = def.type;
+  form.value.name = t(`datasource.connector.${def.type}`);
+  form.value.config.credentials = {};
+  if (isGitLabConnector(def.type)) addGitLabProject();
+  rssAuthHeaders.value = [];
+  step.value = 1;
 }
 
 // --- Test connection (stateless, no DB write) ---
 async function testConnection() {
-  syncRssAuthHeadersToCredentials()
-  if (!validateRssFeedUrls()) return
+  syncRssAuthHeadersToCredentials();
+  if (!validateRssFeedUrls()) return;
   if (!isEdit.value || !credentialsConfigured.value || replaceCredentialsMode.value) {
-    const fields = currentDef.value?.fields || []
+    const fields = currentDef.value?.fields || [];
     for (const f of fields) {
-      if (f.optional || f.fieldType === 'custom_headers') continue
+      if (f.optional || f.fieldType === "custom_headers") continue;
       if (!form.value.config.credentials[f.key]) {
-        MessagePlugin.warning(`${t(f.labelKey)} ${t('datasource.isRequired')}`)
-        return
+        MessagePlugin.warning(`${t(f.labelKey)} ${t("datasource.isRequired")}`);
+        return;
       }
     }
   }
 
-  testing.value = true
-  testResult.value = ''
-  testErrorMsg.value = ''
+  testing.value = true;
+  testResult.value = "";
+  testErrorMsg.value = "";
   try {
     if (isEdit.value && tempDsId.value) {
       await updateDataSource(tempDsId.value, {
         ...form.value,
         knowledge_base_id: props.kbId,
-      } as any)
-      await validateConnection(tempDsId.value)
+      } as any);
+      await validateConnection(tempDsId.value);
     } else {
-      const creds = { ...form.value.config.credentials }
-      if (form.value.type === 'rss') {
+      const creds = { ...form.value.config.credentials };
+      if (form.value.type === "rss") {
         // validate-credentials is credentials-only; feed URLs live in settings.
-        creds.feed_urls = form.value.config.settings.feed_urls
+        creds.feed_urls = form.value.config.settings.feed_urls;
       }
-      await validateCredentials(form.value.type, creds)
+      await validateCredentials(form.value.type, creds);
     }
-    testResult.value = 'success'
-    MessagePlugin.success(t('datasource.testSuccess'))
+    testResult.value = "success";
+    MessagePlugin.success(t("datasource.testSuccess"));
   } catch (e: any) {
-    testResult.value = 'error'
-    testErrorMsg.value = e?.message || e?.error || ''
-    MessagePlugin.error(t('datasource.testFailed'))
+    testResult.value = "error";
+    testErrorMsg.value = e?.message || e?.error || "";
+    MessagePlugin.error(t("datasource.testFailed"));
   }
-  testing.value = false
+  testing.value = false;
 }
 
 // --- Load resources ---
 async function loadResources() {
-  loadingResources.value = true
+  loadingResources.value = true;
   try {
     if (!tempDsId.value) {
       const res = await createDataSource({
         ...form.value,
         knowledge_base_id: props.kbId,
-        status: 'paused',
-      } as any)
-      const created = res?.data || res
-      tempDsId.value = created.id
+        status: "paused",
+      } as any);
+      const created = res?.data || res;
+      tempDsId.value = created.id;
     } else if (!isEdit.value) {
       await updateDataSource(tempDsId.value, {
         ...form.value,
         knowledge_base_id: props.kbId,
-      } as any)
+      } as any);
     }
 
-    const res = await listResources(tempDsId.value)
-    resources.value = res?.data || res || []
+    const res = await listResources(tempDsId.value);
+    resources.value = res?.data || res || [];
     // Any parent that already arrived with children (connectors returning the
     // full tree, e.g. Notion) needs no further lazy fetch.
-    const parentsWithChildren = new Set<string>()
+    const parentsWithChildren = new Set<string>();
     for (const r of resources.value) {
-      if (r.parent_id) parentsWithChildren.add(r.parent_id)
+      if (r.parent_id) parentsWithChildren.add(r.parent_id);
     }
-    loadedChildrenIds.value = parentsWithChildren
-    loadingChildrenIds.value = new Set<string>()
+    loadedChildrenIds.value = parentsWithChildren;
+    loadingChildrenIds.value = new Set<string>();
     // If any resource already has a parent, the connector returned the whole tree
     // up front, so per-node lazy fetching is unnecessary.
-    treeFullyLoaded.value = parentsWithChildren.size > 0
+    treeFullyLoaded.value = parentsWithChildren.size > 0;
     // Auto-expand top-level nodes whose children are already loaded; lazy nodes
     // (children not yet fetched) stay collapsed until the user expands them.
     expandedResourceIds.value = new Set(
       resources.value
-        .filter(r => !r.parent_id && r.has_children && parentsWithChildren.has(r.external_id))
-        .map(r => r.external_id),
-    )
+        .filter((r) => !r.parent_id && r.has_children && parentsWithChildren.has(r.external_id))
+        .map((r) => r.external_id),
+    );
     // When editing a lazily-loaded source, reveal pre-existing selections that
     // live below the (not-yet-loaded) tree so they are visible and checked.
     if (isEdit.value && !treeFullyLoaded.value) {
-      const loaded = new Set(resources.value.map(r => r.external_id))
-      const hidden = selectedResourceIds.value.filter(id => !loaded.has(id))
-      if (hidden.length > 0) void revealExistingSelections(hidden)
+      const loaded = new Set(resources.value.map((r) => r.external_id));
+      const hidden = selectedResourceIds.value.filter((id) => !loaded.has(id));
+      if (hidden.length > 0) void revealExistingSelections(hidden);
     }
   } catch (e: any) {
-    MessagePlugin.error(e?.message || e?.error || t('datasource.resourceLoadFailed'))
+    MessagePlugin.error(e?.message || e?.error || t("datasource.resourceLoadFailed"));
   }
-  loadingResources.value = false
+  loadingResources.value = false;
 }
 
 // revealExistingSelections asks the backend which ancestors must be expanded to
 // surface the current (possibly deeply nested) selection, then loads each level
 // so the saved selection becomes visible and correctly checked in the tree.
 async function revealExistingSelections(hiddenIds: string[]) {
-  if (!tempDsId.value || hiddenIds.length === 0) return
+  if (!tempDsId.value || hiddenIds.length === 0) return;
   try {
-    const res = await resolveResourceAncestors(tempDsId.value, hiddenIds)
-    const ancestors: string[] = res?.data?.ancestors || res?.ancestors || []
-    if (ancestors.length === 0) return
-    const expanded = new Set(expandedResourceIds.value)
-    for (const id of ancestors) expanded.add(id)
-    expandedResourceIds.value = expanded
+    const res = await resolveResourceAncestors(tempDsId.value, hiddenIds);
+    const ancestors: string[] = res?.data?.ancestors || res?.ancestors || [];
+    if (ancestors.length === 0) return;
+    const expanded = new Set(expandedResourceIds.value);
+    for (const id of ancestors) expanded.add(id);
+    expandedResourceIds.value = expanded;
     // Load each ancestor level (children include the next ancestor / the
     // selection itself); calls are independent and dedup on merge.
-    await Promise.all(ancestors.map(id => ensureChildrenLoaded(id)))
+    await Promise.all(ancestors.map((id) => ensureChildrenLoaded(id)));
   } catch (e: any) {
-    MessagePlugin.error(e?.message || e?.error || t('datasource.resourceLoadFailed'))
+    MessagePlugin.error(e?.message || e?.error || t("datasource.resourceLoadFailed"));
   }
 }
 
 function getDescendantIds(id: string): string[] {
-  const ids: string[] = []
-  const children = childrenMap.value.get(id) || []
+  const ids: string[] = [];
+  const children = childrenMap.value.get(id) || [];
   for (const c of children) {
-    ids.push(c.external_id)
-    ids.push(...getDescendantIds(c.external_id))
+    ids.push(c.external_id);
+    ids.push(...getDescendantIds(c.external_id));
   }
-  return ids
+  return ids;
 }
 
 function getAncestorChain(id: string): string[] {
-  const chain = [id]
+  const chain = [id];
   for (let p = parentMap.value.get(id); p; p = parentMap.value.get(p)) {
-    chain.push(p)
+    chain.push(p);
   }
-  return chain
+  return chain;
 }
 
 function isCovered(id: string, cover: Set<string>): boolean {
   for (let cur: string | undefined = id; cur; cur = parentMap.value.get(cur)) {
-    if (cover.has(cur)) return true
+    if (cover.has(cur)) return true;
   }
-  return false
+  return false;
 }
 
 function checkResource(id: string, cover: Set<string>) {
-  if (isCovered(id, cover)) return
-  const descendants = new Set(getDescendantIds(id))
+  if (isCovered(id, cover)) return;
+  const descendants = new Set(getDescendantIds(id));
   for (const d of [...cover]) {
-    if (descendants.has(d)) cover.delete(d)
+    if (descendants.has(d)) cover.delete(d);
   }
-  cover.add(id)
+  cover.add(id);
 }
 
 // Removes id from the cover set. If id is covered transitively (an ancestor is
 // in the cover set), the ancestor is replaced with explicit entries for each
 // sibling along the path so the rest of the subtree stays selected.
 function uncheckResource(id: string, cover: Set<string>) {
-  const chain = getAncestorChain(id) // [id, parent, ..., root]
-  let highestIdx = -1
+  const chain = getAncestorChain(id); // [id, parent, ..., root]
+  let highestIdx = -1;
   for (let i = chain.length - 1; i >= 0; i--) {
-    if (cover.has(chain[i])) { highestIdx = i; break }
+    if (cover.has(chain[i])) {
+      highestIdx = i;
+      break;
+    }
   }
   if (highestIdx > 0) {
-    cover.delete(chain[highestIdx])
+    cover.delete(chain[highestIdx]);
     for (let i = highestIdx; i > 0; i--) {
-      const parent = chain[i]
-      const next = chain[i - 1]
+      const parent = chain[i];
+      const next = chain[i - 1];
       for (const sib of childrenMap.value.get(parent) || []) {
-        if (sib.external_id !== next) cover.add(sib.external_id)
+        if (sib.external_id !== next) cover.add(sib.external_id);
       }
     }
   }
-  cover.delete(id)
-  const descendants = new Set(getDescendantIds(id))
+  cover.delete(id);
+  const descendants = new Set(getDescendantIds(id));
   for (const d of [...cover]) {
-    if (descendants.has(d)) cover.delete(d)
+    if (descendants.has(d)) cover.delete(d);
   }
 }
 
 function toggleResource(id: string) {
-  const cover = new Set(selectedResourceIds.value)
-  if ((checkStates.value.get(id) || 'unchecked') === 'unchecked') {
-    checkResource(id, cover)
+  const cover = new Set(selectedResourceIds.value);
+  if ((checkStates.value.get(id) || "unchecked") === "unchecked") {
+    checkResource(id, cover);
   } else {
-    uncheckResource(id, cover)
+    uncheckResource(id, cover);
   }
-  selectedResourceIds.value = [...cover]
+  selectedResourceIds.value = [...cover];
 }
 
 function validateRssFeedUrls(): boolean {
-  if (form.value.type !== 'rss') return true
-  if (!String(form.value.config.settings.feed_urls || '').trim()) {
-    MessagePlugin.warning(`${t('datasource.field.feedUrls')} ${t('datasource.isRequired')}`)
-    return false
+  if (form.value.type !== "rss") return true;
+  if (!String(form.value.config.settings.feed_urls || "").trim()) {
+    MessagePlugin.warning(`${t("datasource.field.feedUrls")} ${t("datasource.isRequired")}`);
+    return false;
   }
-  return true
+  return true;
 }
 
 function validateStep1Fields(): boolean {
-  syncRssAuthHeadersToCredentials()
-  if (!validateRssFeedUrls()) return false
+  syncRssAuthHeadersToCredentials();
+  if (!validateRssFeedUrls()) return false;
   if (isEdit.value && credentialsConfigured.value && !replaceCredentialsMode.value) {
-    return true
+    return true;
   }
 
-  const fields = currentDef.value?.fields || []
+  const fields = currentDef.value?.fields || [];
   for (const f of fields) {
-    if (f.optional || f.fieldType === 'custom_headers') continue
+    if (f.optional || f.fieldType === "custom_headers") continue;
     if (!form.value.config.credentials[f.key]) {
-      MessagePlugin.warning(`${t(f.labelKey)} ${t('datasource.isRequired')}`)
-      return false
+      MessagePlugin.warning(`${t(f.labelKey)} ${t("datasource.isRequired")}`);
+      return false;
     }
   }
-  return true
+  return true;
 }
 
 async function nextStep() {
   if (step.value === 1) {
-    if (!validateStep1Fields()) return
-    if (needsConnectionTest() && testResult.value !== 'success') {
-      await testConnection()
-      if ((testResult.value as string) !== 'success') return
+    if (!validateStep1Fields()) return;
+    if (needsConnectionTest() && testResult.value !== "success") {
+      await testConnection();
+      if ((testResult.value as string) !== "success") return;
     }
   }
   if (step.value === 2 && isDriveConnector(form.value.type)) {
     // folder_token 是 Drive 连接器的必填项：为空就地标错并留在本步,
     // 不允许带着空 token 进入同步策略。
     if (!driveFolderToken.value.trim()) {
-      driveFolderTokenError.value = t('datasource.drive.folderTokenRequired')
-      return
+      driveFolderTokenError.value = t("datasource.drive.folderTokenRequired");
+      return;
     }
-    driveFolderTokenError.value = ''
+    driveFolderTokenError.value = "";
   }
   if (step.value === 2 && isGitLabConnector(form.value.type)) {
-    syncGitLabProjectsToSettings()
-    if (!gitlabProjects.value.some(project => project.project_id.trim())) {
-      MessagePlugin.warning(t('datasource.gitlab.projectRequired'))
-      return
+    syncGitLabProjectsToSettings();
+    if (!gitlabProjects.value.some((project) => project.project_id.trim())) {
+      MessagePlugin.warning(t("datasource.gitlab.projectRequired"));
+      return;
     }
   }
-  step.value++
+  step.value++;
   if (step.value === 2) {
     // Drive connectors need a user-supplied folder_token before listing.
     // In edit mode with a saved folder_token, auto-load so the saved tree
@@ -1131,17 +1212,17 @@ async function nextStep() {
     // In create mode (no folder_token yet), just show the placeholder.
     if (isDriveConnector(form.value.type)) {
       if (!driveRootLoaded.value && driveFolderToken.value.trim()) {
-        void loadDriveRoot()
+        void loadDriveRoot();
       }
-      return
+      return;
     }
-    if (isGitLabConnector(form.value.type)) return
-    loadResources()
+    if (isGitLabConnector(form.value.type)) return;
+    loadResources();
   }
 }
 
 function prevStep() {
-  step.value--
+  step.value--;
 }
 
 // Build the config payload for Create / Update requests.
@@ -1154,186 +1235,181 @@ function prevStep() {
 // commitCredentialsIfNeeded). Sending an empty map keeps the backend
 // validator happy.
 function buildConfigPayload(): Record<string, unknown> {
-  syncGitLabProjectsToSettings()
+  syncGitLabProjectsToSettings();
   return {
     credentials: isEdit.value ? {} : { ...form.value.config.credentials },
     resource_ids: form.value.config.resource_ids,
     settings: form.value.config.settings,
-  }
+  };
 }
 
 // In edit mode, when the user opted in to Replace credentials and typed at
 // least one value, commit it to /credentials before the main PUT. Aborts
 // the whole submit on failure so we don't leave the row partially saved.
 async function commitCredentialsIfNeeded(dsId: string): Promise<boolean> {
-  if (!isEdit.value || !replaceCredentialsMode.value) return true
-  syncRssAuthHeadersToCredentials()
-  const filled = Object.entries(form.value.config.credentials).filter(
-    ([, v]) => typeof v === 'string' ? v !== '' : v != null,
-  )
-  if (filled.length === 0) return true
+  if (!isEdit.value || !replaceCredentialsMode.value) return true;
+  syncRssAuthHeadersToCredentials();
+  const filled = Object.entries(form.value.config.credentials).filter(([, v]) =>
+    typeof v === "string" ? v !== "" : v != null,
+  );
+  if (filled.length === 0) return true;
   try {
-    await putDataSourceCredentials(dsId, Object.fromEntries(filled))
-    credentialsConfigured.value = true
-    replaceCredentialsMode.value = false
-    form.value.config.credentials = {}
-    rssAuthHeaders.value = []
-    return true
+    await putDataSourceCredentials(dsId, Object.fromEntries(filled));
+    credentialsConfigured.value = true;
+    replaceCredentialsMode.value = false;
+    form.value.config.credentials = {};
+    rssAuthHeaders.value = [];
+    return true;
   } catch (e: any) {
-    MessagePlugin.error(e?.message || e?.error || t('credential.saveFailed'))
-    return false
+    MessagePlugin.error(e?.message || e?.error || t("credential.saveFailed"));
+    return false;
   }
 }
 
 // --- Final submit ---
 async function handleSubmit() {
-  form.value.config.resource_ids = [
-    ...selectedResourceIds.value,
-    ...manualWikiDocs.value.map(d => d.id),
-  ]
-  submitting.value = true
+  form.value.config.resource_ids = [...selectedResourceIds.value, ...manualWikiDocs.value.map((d) => d.id)];
+  submitting.value = true;
   try {
-    let dataSourceId = tempDsId.value
+    let dataSourceId = tempDsId.value;
 
     if (tempDsId.value) {
       // Commit credential replacement BEFORE the main PUT so a validation
       // failure on credentials doesn't leave us with an updated row that
       // still points at the old broken token.
-      const credsOk = await commitCredentialsIfNeeded(tempDsId.value)
+      const credsOk = await commitCredentialsIfNeeded(tempDsId.value);
       if (!credsOk) {
-        submitting.value = false
-        return
+        submitting.value = false;
+        return;
       }
       await updateDataSource(tempDsId.value, {
         ...form.value,
         config: buildConfigPayload(),
         knowledge_base_id: props.kbId,
-        status: 'active',
-      } as any)
+        status: "active",
+      } as any);
     } else {
       const res = await createDataSource({
         ...form.value,
         config: buildConfigPayload(),
         knowledge_base_id: props.kbId,
-        status: 'active',
-      } as any)
-      const created = res?.data || res
-      dataSourceId = created.id
-      tempDsId.value = created.id
+        status: "active",
+      } as any);
+      const created = res?.data || res;
+      dataSourceId = created.id;
+      tempDsId.value = created.id;
     }
 
     if (isEdit.value) {
-      MessagePlugin.warning(t('datasource.updateSuccessSyncHint'))
+      MessagePlugin.warning(t("datasource.updateSuccessSyncHint"));
     } else {
       try {
-        await triggerSync(dataSourceId)
-        MessagePlugin.success(t('datasource.createAndSyncSuccess'))
+        await triggerSync(dataSourceId);
+        MessagePlugin.success(t("datasource.createAndSyncSuccess"));
       } catch (e: any) {
-        MessagePlugin.warning(e?.message || e?.error || t('datasource.createButSyncFailed'))
+        MessagePlugin.warning(e?.message || e?.error || t("datasource.createButSyncFailed"));
       }
     }
 
-    emit('saved')
+    emit("saved");
     // Clear before close — otherwise the visible watcher treats the just-saved
     // row as an abandoned temp draft and DELETEs it (loadResources creates the
     // row early at step 2 with tempDsId).
-    tempDsId.value = ''
-    visible.value = false
+    tempDsId.value = "";
+    visible.value = false;
   } catch (e: any) {
-    MessagePlugin.error(e?.message || e?.error || t('datasource.saveFailed'))
+    MessagePlugin.error(e?.message || e?.error || t("datasource.saveFailed"));
   }
-  submitting.value = false
+  submitting.value = false;
 }
 
 function handleClose() {
-  visible.value = false
+  visible.value = false;
 }
 
 async function handleDrawerConfirm() {
   if (step.value === 1 || step.value === 2) {
-    await nextStep()
+    await nextStep();
   } else if (step.value === 3) {
-    handleSubmit()
+    handleSubmit();
   }
 }
 
 const selectedResourceCount = computed(() => {
-  let count = 0
+  let count = 0;
   for (const state of checkStates.value.values()) {
-    if (state === 'checked') count++
+    if (state === "checked") count++;
   }
-  return count
-})
+  return count;
+});
 
-const hasExpandableNodes = computed(() => resources.value.some(r => r.has_children))
+const hasExpandableNodes = computed(() => resources.value.some((r) => r.has_children));
 
 function resourceIconName(r: Resource): string {
-  if (r.has_children) return 'folder'
+  if (r.has_children) return "folder";
   switch (r.type) {
-    case 'wiki_space':
-      return 'root-list'
-    case 'book':
-      return 'book'
-    case 'doc_category':
-      return 'folder-open'
+    case "wiki_space":
+      return "root-list";
+    case "book":
+      return "book";
+    case "doc_category":
+      return "folder-open";
     default:
-      return 'file'
+      return "file";
   }
 }
 
 function expandAllNodes() {
-  const expandable = resources.value.filter(r => r.has_children)
-  expandedResourceIds.value = new Set(expandable.map(r => r.external_id))
+  const expandable = resources.value.filter((r) => r.has_children);
+  expandedResourceIds.value = new Set(expandable.map((r) => r.external_id));
   // Lazily load children of any expanded node that hasn't been fetched yet.
   for (const r of expandable) {
-    void ensureChildrenLoaded(r.external_id)
+    void ensureChildrenLoaded(r.external_id);
   }
 }
 
 function collapseAllNodes() {
-  expandedResourceIds.value = new Set()
+  expandedResourceIds.value = new Set();
 }
 
 const resourceTypeLabelMap: Record<string, string> = {
-  wiki_space: 'datasource.resourceType.wikiSpace',
-  doc_category: 'datasource.resourceType.docCategory',
-  book: 'datasource.resourceType.book',
-}
+  wiki_space: "datasource.resourceType.wikiSpace",
+  doc_category: "datasource.resourceType.docCategory",
+  book: "datasource.resourceType.book",
+};
 
 function resourceTypeLabel(type: string): string {
-  const key = resourceTypeLabelMap[type]
-  if (key) return t(key)
-  return ''
+  const key = resourceTypeLabelMap[type];
+  if (key) return t(key);
+  return "";
 }
 
 function shouldShowResourceType(type: string): boolean {
-  return !!resourceTypeLabelMap[type]
+  return !!resourceTypeLabelMap[type];
 }
 
 function resourceRowState(id: string): CheckState {
-  return checkStates.value.get(id) || 'unchecked'
+  return checkStates.value.get(id) || "unchecked";
 }
 
 const stepTitles = computed(() => [
-  t('datasource.step.selectType'),
-  t('datasource.step.credentials'),
-  t('datasource.step.resources'),
-  t('datasource.step.strategy'),
-])
+  t("datasource.step.selectType"),
+  t("datasource.step.credentials"),
+  t("datasource.step.resources"),
+  t("datasource.step.strategy"),
+]);
 
-const drawerTitle = computed(() =>
-  isEdit.value ? t('datasource.editTitle') : t('datasource.createTitle'),
-)
+const drawerTitle = computed(() => (isEdit.value ? t("datasource.editTitle") : t("datasource.createTitle")));
 
-const drawerDescription = computed(() => stepTitles.value[step.value] ?? '')
+const drawerDescription = computed(() => stepTitles.value[step.value] ?? "");
 
 const drawerConfirmText = computed(() => {
   if (step.value === 3) {
-    return isEdit.value ? t('datasource.save') : t('datasource.createAndSync')
+    return isEdit.value ? t("datasource.save") : t("datasource.createAndSync");
   }
-  if (step.value >= 1) return t('datasource.next')
-  return t('common.save')
-})
+  if (step.value >= 1) return t("datasource.next");
+  return t("common.save");
+});
 </script>
 
 <template>
@@ -1341,7 +1417,10 @@ const drawerConfirmText = computed(() => {
     v-model:visible="visible"
     :title="drawerTitle"
     :description="drawerDescription"
-    :class="[form.type ? `datasource-editor-drawer datasource-editor-drawer--${form.type}` : 'datasource-editor-drawer', { 'ds-fixed-step': step === 2 && !isGitLabConnector(form.type) }]"
+    :class="[
+      form.type ? `datasource-editor-drawer datasource-editor-drawer--${form.type}` : 'datasource-editor-drawer',
+      { 'ds-fixed-step': step === 2 && !isGitLabConnector(form.type) },
+    ]"
     :hide-footer="step === 0"
     :confirm-text="drawerConfirmText"
     :confirm-loading="submitting || (step === 1 && testing)"
@@ -1351,16 +1430,12 @@ const drawerConfirmText = computed(() => {
     @cancel="handleClose"
   >
     <template v-if="form.type && getDatasourceIconUrl(form.type)" #headerIcon>
-      <img
-        :src="getDatasourceIconUrl(form.type)"
-        :alt="form.type"
-        class="datasource-header-icon__img"
-      >
+      <img :src="getDatasourceIconUrl(form.type)" :alt="form.type" class="datasource-header-icon__img" />
     </template>
 
     <template v-if="step === 1" #footer-left>
       <t-button v-if="!isEdit" variant="outline" @click="step = 0">
-        {{ t('datasource.back') }}
+        {{ t("datasource.back") }}
       </t-button>
       <t-button variant="outline" :loading="testing" @click="testConnection">
         <template #icon>
@@ -1375,34 +1450,26 @@ const drawerConfirmText = computed(() => {
             class="status-icon unavailable"
           />
         </template>
-        {{ testing ? t('model.editor.testing') : t('datasource.testConnection') }}
+        {{ testing ? t("model.editor.testing") : t("datasource.testConnection") }}
       </t-button>
       <span
         v-if="testResult"
         :class="['footer-test-message', testResult === 'success' ? 'success' : 'error']"
         :title="testResult === 'error' ? testErrorMsg : t('datasource.connected')"
       >
-        {{
-          testResult === 'success'
-            ? t('datasource.connected')
-            : (testErrorMsg || t('datasource.connectionFailed'))
-        }}
+        {{ testResult === "success" ? t("datasource.connected") : testErrorMsg || t("datasource.connectionFailed") }}
       </span>
     </template>
 
     <template v-else-if="step === 2 || step === 3" #footer-left>
       <t-button variant="outline" @click="prevStep">
-        {{ t('datasource.back') }}
+        {{ t("datasource.back") }}
       </t-button>
     </template>
 
     <!-- Step indicator -->
     <div class="ds-steps">
-      <div
-        v-for="(title, i) in stepTitles"
-        :key="i"
-        :class="['ds-step', { active: step === i, done: step > i }]"
-      >
+      <div v-for="(title, i) in stepTitles" :key="i" :class="['ds-step', { active: step === i, done: step > i }]">
         <span class="ds-step-num">
           <t-icon v-if="step > i" name="check" class="ds-step-check" />
           <template v-else>{{ i + 1 }}</template>
@@ -1413,7 +1480,7 @@ const drawerConfirmText = computed(() => {
 
     <!-- Step 0: Select connector type -->
     <section v-if="step === 0" class="setting-drawer__section">
-      <h4 class="setting-drawer__section-title">{{ t('datasource.step.selectType') }}</h4>
+      <h4 class="setting-drawer__section-title">{{ t("datasource.step.selectType") }}</h4>
       <div class="ds-type-grid">
         <button
           v-for="def in connectorDefs"
@@ -1426,7 +1493,7 @@ const drawerConfirmText = computed(() => {
           <div class="ds-type-header">
             <DataSourceTypeIcon :type="def.type" :size="20" />
             <span class="ds-type-name">{{ t(`datasource.connector.${def.type}`) }}</span>
-            <span v-if="!def.available" class="ds-type-soon">{{ t('datasource.comingSoon') }}</span>
+            <span v-if="!def.available" class="ds-type-soon">{{ t("datasource.comingSoon") }}</span>
           </div>
           <div class="ds-type-desc">{{ t(`datasource.connectorDesc.${def.type}`) }}</div>
         </button>
@@ -1447,41 +1514,38 @@ const drawerConfirmText = computed(() => {
         >
           <t-icon name="info-circle-filled" size="15px" class="ds-setup-guide__icon" />
           <span class="ds-setup-guide__summary">
-            {{ t(`datasource.prereqBarText_${form.type}`, t('datasource.prereqBarText')) }}
+            {{ t(`datasource.prereqBarText_${form.type}`, t("datasource.prereqBarText")) }}
           </span>
-          <t-icon
-            :name="prereqExpanded ? 'chevron-up' : 'chevron-down'"
-            size="14px"
-            class="ds-setup-guide__chevron"
-          />
+          <t-icon :name="prereqExpanded ? 'chevron-up' : 'chevron-down'" size="14px" class="ds-setup-guide__chevron" />
         </button>
         <div v-if="prereqExpanded" class="ds-setup-guide__body">
           <ol class="ds-setup-steps">
             <li class="ds-setup-step">
-              <span class="ds-setup-step__title">{{ t(`datasource.prereqStep1Brief_${form.type}`,
-                t('datasource.prereqBotBrief')) }}</span>
-              <span class="ds-setup-step__desc">{{ t(`datasource.prereqStep1Desc_${form.type}`,
-                t('datasource.prereqBotDesc')) }}</span>
+              <span class="ds-setup-step__title">{{
+                t(`datasource.prereqStep1Brief_${form.type}`, t("datasource.prereqBotBrief"))
+              }}</span>
+              <span class="ds-setup-step__desc">{{
+                t(`datasource.prereqStep1Desc_${form.type}`, t("datasource.prereqBotDesc"))
+              }}</span>
             </li>
             <li class="ds-setup-step">
-              <span class="ds-setup-step__title">{{ t(`datasource.prereqStep2Brief_${form.type}`,
-                t('datasource.prereqPermBrief')) }}</span>
+              <span class="ds-setup-step__title">{{
+                t(`datasource.prereqStep2Brief_${form.type}`, t("datasource.prereqPermBrief"))
+              }}</span>
               <span class="ds-setup-step__desc">
                 <template v-if="!t(`datasource.prereqStep2Desc_${form.type}`)">
-                  <code
-                    v-for="perm in currentDef.requiredPermissions"
-                    :key="perm"
-                    class="ds-perm-tag"
-                  >{{ perm }}</code>
+                  <code v-for="perm in currentDef.requiredPermissions" :key="perm" class="ds-perm-tag">{{ perm }}</code>
                 </template>
                 <template v-else>{{ t(`datasource.prereqStep2Desc_${form.type}`) }}</template>
               </span>
             </li>
             <li class="ds-setup-step">
-              <span class="ds-setup-step__title">{{ t(`datasource.prereqStep3Brief_${form.type}`,
-                t('datasource.prereqMemberBrief')) }}</span>
-              <span class="ds-setup-step__desc">{{ t(`datasource.prereqStep3Desc_${form.type}`,
-                t('datasource.prereqMemberDesc')) }}</span>
+              <span class="ds-setup-step__title">{{
+                t(`datasource.prereqStep3Brief_${form.type}`, t("datasource.prereqMemberBrief"))
+              }}</span>
+              <span class="ds-setup-step__desc">{{
+                t(`datasource.prereqStep3Desc_${form.type}`, t("datasource.prereqMemberDesc"))
+              }}</span>
             </li>
           </ol>
           <a
@@ -1491,74 +1555,69 @@ const drawerConfirmText = computed(() => {
             rel="noopener"
             class="doc-link ds-setup-guide__link"
           >
-            {{ t(`datasource.prereqOpenConsole_${form.type}`, t('datasource.prereqOpenConsole')) }}
+            {{ t(`datasource.prereqOpenConsole_${form.type}`, t("datasource.prereqOpenConsole")) }}
             <t-icon name="link" class="link-icon" />
           </a>
         </div>
       </div>
 
       <section class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.sectionBasic') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.sectionBasic") }}</h4>
 
         <div v-if="currentDef?.docUrl" class="inline-alert">
           <t-icon name="info-circle-filled" class="inline-alert__icon" />
-          <span class="inline-alert__text">{{ t('datasource.docHint') }}</span>
-          <a
-            :href="currentDef.docUrl"
-            target="_blank"
-            rel="noopener"
-            class="inline-alert__action doc-link"
-          >
-            {{ t('datasource.openDoc') }}
+          <span class="inline-alert__text">{{ t("datasource.docHint") }}</span>
+          <a :href="currentDef.docUrl" target="_blank" rel="noopener" class="inline-alert__action doc-link">
+            {{ t("datasource.openDoc") }}
             <t-icon name="link" class="link-icon" />
           </a>
         </div>
 
         <div class="form-item">
-          <label class="form-label required">{{ t('datasource.nameLabel') }}</label>
+          <label class="form-label required">{{ t("datasource.nameLabel") }}</label>
           <t-input v-model="form.name" :placeholder="t('datasource.namePlaceholder')" />
         </div>
       </section>
 
       <section v-if="isFeishuFamily(form.type)" class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.videoSync.title') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.videoSync.title") }}</h4>
         <div class="form-item">
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px">
             <t-switch v-model="videoSyncEnabled" size="small" />
-            <span class="form-label" style="margin: 0;">{{ t('datasource.videoSync.enable') }}</span>
+            <span class="form-label" style="margin: 0">{{ t("datasource.videoSync.enable") }}</span>
           </div>
-          <p class="form-desc">{{ t('datasource.videoSync.enableHint') }}</p>
+          <p class="form-desc">{{ t("datasource.videoSync.enableHint") }}</p>
         </div>
         <div v-if="videoSyncEnabled" class="form-item">
-          <label class="form-label">{{ t('datasource.videoSync.maxSize') }}</label>
+          <label class="form-label">{{ t("datasource.videoSync.maxSize") }}</label>
           <t-input-number
             v-model="videoMaxMB"
             :min="1"
             :max="10240"
             :step="256"
             theme="normal"
-            style="width: 220px;"
+            style="width: 220px"
             suffix="MB"
           />
-          <p class="form-desc">{{ t('datasource.videoSync.maxSizeHint') }}</p>
+          <p class="form-desc">{{ t("datasource.videoSync.maxSizeHint") }}</p>
         </div>
       </section>
 
       <section v-if="isFeishuFamily(form.type)" class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.linkedPages.title') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.linkedPages.title") }}</h4>
         <div class="form-item">
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px">
             <t-switch v-model="linkedPagesEnabled" size="small" />
-            <span class="form-label" style="margin: 0;">{{ t('datasource.linkedPages.enable') }}</span>
+            <span class="form-label" style="margin: 0">{{ t("datasource.linkedPages.enable") }}</span>
           </div>
-          <p class="form-desc">{{ t('datasource.linkedPages.enableHint') }}</p>
+          <p class="form-desc">{{ t("datasource.linkedPages.enableHint") }}</p>
         </div>
       </section>
 
       <section v-if="form.type === 'rss'" class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.field.feedUrls') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.field.feedUrls") }}</h4>
         <div class="form-item">
-          <label class="form-label required">{{ t('datasource.field.feedUrls') }}</label>
+          <label class="form-label required">{{ t("datasource.field.feedUrls") }}</label>
           <t-textarea
             v-model="form.config.settings.feed_urls"
             placeholder="https://example.com/feed.xml"
@@ -1566,12 +1625,12 @@ const drawerConfirmText = computed(() => {
             autocomplete="off"
             spellcheck="false"
           />
-          <p class="form-desc">{{ t('datasource.field.feedUrlsHint') }}</p>
+          <p class="form-desc">{{ t("datasource.field.feedUrlsHint") }}</p>
         </div>
       </section>
 
       <section class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.credentialsLabel') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.credentialsLabel") }}</h4>
 
         <div v-if="isEdit && credentialsConfigured && !replaceCredentialsMode" class="form-item">
           <div
@@ -1581,10 +1640,10 @@ const drawerConfirmText = computed(() => {
           >
             <template v-if="pendingRemoveCredentials">
               <t-icon name="error-circle-filled" class="credential-status-icon warn" />
-              <span class="credential-faux-text danger">{{ t('credential.confirmRemovePrompt') }}</span>
+              <span class="credential-faux-text danger">{{ t("credential.confirmRemovePrompt") }}</span>
               <div class="credential-actions">
                 <t-button size="small" variant="text" @click="cancelPendingRemoveCredentials">
-                  {{ t('common.cancel') }}
+                  {{ t("common.cancel") }}
                 </t-button>
                 <span class="action-divider" />
                 <t-button
@@ -1594,56 +1653,46 @@ const drawerConfirmText = computed(() => {
                   :loading="removingCredentials"
                   @click="confirmRemoveCredentials"
                 >
-                  {{ t('credential.confirmRemove') }}
+                  {{ t("credential.confirmRemove") }}
                 </t-button>
               </div>
             </template>
             <template v-else>
               <t-icon name="check-circle-filled" class="credential-status-icon success" />
-              <span class="credential-faux-text">{{ t('credential.configured') }}</span>
+              <span class="credential-faux-text">{{ t("credential.configured") }}</span>
               <div class="credential-actions">
                 <t-button size="small" variant="text" @click="enterReplaceCredentials">
-                  {{ t('credential.update') }}
+                  {{ t("credential.update") }}
                 </t-button>
                 <span class="action-divider" />
                 <t-button size="small" variant="text" theme="danger" @click="requestRemoveCredentials">
-                  {{ t('credential.remove') }}
+                  {{ t("credential.remove") }}
                 </t-button>
               </div>
             </template>
           </div>
         </div>
 
-        <div
-          v-else-if="isEdit && !credentialsConfigured && !replaceCredentialsMode"
-          class="form-item"
-        >
-          <div
-            class="credential-faux-input is-empty"
-            @click="enterReplaceCredentials"
-          >
+        <div v-else-if="isEdit && !credentialsConfigured && !replaceCredentialsMode" class="form-item">
+          <div class="credential-faux-input is-empty" @click="enterReplaceCredentials">
             <t-icon name="lock-on" class="credential-status-icon muted" />
-            <span class="credential-faux-text muted">{{ t('credential.unconfigured') }}</span>
+            <span class="credential-faux-text muted">{{ t("credential.unconfigured") }}</span>
             <div class="credential-actions">
               <t-button size="small" variant="text" theme="primary" @click.stop="enterReplaceCredentials">
-                {{ t('credential.configure') }}
+                {{ t("credential.configure") }}
               </t-button>
             </div>
           </div>
         </div>
 
         <template v-else-if="credentialsInputVisible">
-          <div
-            v-for="field in currentDef?.fields || []"
-            :key="field.key"
-            class="form-item"
-          >
+          <div v-for="field in currentDef?.fields || []" :key="field.key" class="form-item">
             <template v-if="field.fieldType === 'custom_headers'">
               <div class="custom-headers-header">
-                <label class="form-label" style="margin-bottom: 0;">{{ t(field.labelKey) }}</label>
+                <label class="form-label" style="margin-bottom: 0">{{ t(field.labelKey) }}</label>
                 <t-button variant="text" size="small" theme="primary" @click="addRssAuthHeader">
                   <template #icon><t-icon name="add" /></template>
-                  {{ t('model.editor.customHeadersAdd') }}
+                  {{ t("model.editor.customHeadersAdd") }}
                 </t-button>
               </div>
               <p v-if="field.hintKey" class="form-desc custom-headers-desc">{{ t(field.hintKey) }}</p>
@@ -1703,7 +1752,7 @@ const drawerConfirmText = computed(() => {
           </div>
           <div v-if="isEdit && replaceCredentialsMode" class="credential-edit-actions">
             <t-button size="small" variant="text" @click="cancelReplaceCredentials">
-              {{ t('common.cancel') }}
+              {{ t("common.cancel") }}
             </t-button>
           </div>
         </template>
@@ -1713,231 +1762,243 @@ const drawerConfirmText = computed(() => {
     <!-- Step 2: Select resources -->
     <section v-if="step === 2" class="setting-drawer__section ds-resource-section">
       <template v-if="isGitLabConnector(form.type)">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.gitlab.projects') }}</h4>
-        <p class="ds-resource-hint">{{ t('datasource.gitlab.projectsHint') }}</p>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.gitlab.projects") }}</h4>
+        <p class="ds-resource-hint">{{ t("datasource.gitlab.projectsHint") }}</p>
         <div class="gitlab-project-list">
           <div v-for="(project, index) in gitlabProjects" :key="index" class="gitlab-project-row">
             <div class="gitlab-project-row__header">
-              <strong>{{ t('datasource.gitlab.project') }} {{ index + 1 }}</strong>
-              <t-button variant="text" size="small" theme="danger" @click="removeGitLabProject(index)"><t-icon name="delete" /></t-button>
+              <strong>{{ t("datasource.gitlab.project") }} {{ index + 1 }}</strong>
+              <t-button variant="text" size="small" theme="danger" @click="removeGitLabProject(index)"
+                ><t-icon name="delete"
+              /></t-button>
             </div>
-            <label class="form-label required">{{ t('datasource.gitlab.projectId') }}</label>
+            <label class="form-label required">{{ t("datasource.gitlab.projectId") }}</label>
             <t-input v-model="project.project_id" :placeholder="t('datasource.gitlab.projectIdPlaceholder')" />
-            <label class="form-label">{{ t('datasource.gitlab.ref') }}</label>
+            <label class="form-label">{{ t("datasource.gitlab.ref") }}</label>
             <t-input v-model="project.ref" :placeholder="t('datasource.gitlab.refPlaceholder')" />
-            <label class="form-label">{{ t('datasource.gitlab.paths') }}</label>
-            <t-textarea v-model="project.pathsText" :placeholder="t('datasource.gitlab.pathsPlaceholder')" :autosize="{ minRows: 2, maxRows: 5 }" />
+            <label class="form-label">{{ t("datasource.gitlab.paths") }}</label>
+            <t-textarea
+              v-model="project.pathsText"
+              :placeholder="t('datasource.gitlab.pathsPlaceholder')"
+              :autosize="{ minRows: 2, maxRows: 5 }"
+            />
           </div>
-          <t-button variant="outline" @click="addGitLabProject"><template #icon><t-icon name="add" /></template>{{ t('datasource.gitlab.addProject') }}</t-button>
+          <t-button variant="outline" @click="addGitLabProject"
+            ><template #icon><t-icon name="add" /></template>{{ t("datasource.gitlab.addProject") }}</t-button
+          >
         </div>
       </template>
       <template v-else>
-      <h4 class="setting-drawer__section-title">{{ t('datasource.step.resources') }}</h4>
-      <p class="ds-resource-hint">{{ t('datasource.resourceHint') }}</p>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.step.resources") }}</h4>
+        <p class="ds-resource-hint">{{ t("datasource.resourceHint") }}</p>
 
-      <!-- Wiki doc-by-URL input: personal document libraries are hidden wiki
+        <!-- Wiki doc-by-URL input: personal document libraries are hidden wiki
            spaces that never appear in the space tree below, so docs there can
            only be added by pasting their link. -->
-      <div v-if="isWikiConnector(form.type)" class="wiki-doc-input">
-        <label class="form-label">{{ t('datasource.wikiDoc.label') }}</label>
-        <div class="drive-folder-input__row">
-          <t-input
-            v-model="wikiDocInput"
-            :placeholder="t('datasource.wikiDoc.placeholder')"
-            :status="wikiDocError ? 'error' : 'default'"
-            :tips="wikiDocError || t('datasource.wikiDoc.hint')"
-            clearable
-            @enter="addWikiDocByUrl"
-            @input="wikiDocError = ''"
-          />
-          <t-button theme="primary" :loading="addingWikiDoc" @click="addWikiDocByUrl">
-            {{ t('datasource.wikiDoc.add') }}
-          </t-button>
+        <div v-if="isWikiConnector(form.type)" class="wiki-doc-input">
+          <label class="form-label">{{ t("datasource.wikiDoc.label") }}</label>
+          <div class="drive-folder-input__row">
+            <t-input
+              v-model="wikiDocInput"
+              :placeholder="t('datasource.wikiDoc.placeholder')"
+              :status="wikiDocError ? 'error' : 'default'"
+              :tips="wikiDocError || t('datasource.wikiDoc.hint')"
+              clearable
+              @enter="addWikiDocByUrl"
+              @input="wikiDocError = ''"
+            />
+            <t-button theme="primary" :loading="addingWikiDoc" @click="addWikiDocByUrl">
+              {{ t("datasource.wikiDoc.add") }}
+            </t-button>
+          </div>
+          <div v-if="manualWikiDocs.length" class="wiki-doc-tags">
+            <t-tag
+              v-for="(doc, index) in manualWikiDocs"
+              :key="doc.id"
+              theme="primary"
+              variant="light"
+              closable
+              @close="removeManualWikiDoc(index)"
+              >{{ doc.name }}</t-tag
+            >
+          </div>
         </div>
-        <div v-if="manualWikiDocs.length" class="wiki-doc-tags">
-          <t-tag
-            v-for="(doc, index) in manualWikiDocs"
-            :key="doc.id"
-            theme="primary"
-            variant="light"
-            closable
-            @close="removeManualWikiDoc(index)"
-          >{{ doc.name }}</t-tag>
-        </div>
-      </div>
 
-      <!-- Drive (云盘) root input: shown alongside the tree (not as a switch).
+        <!-- Drive (云盘) root input: shown alongside the tree (not as a switch).
            The user supplies a folder_token (or a Drive folder URL) and clicks
            "load"; the tree below stays as a placeholder until load succeeds.
            Other connectors skip this and go straight to the tree. -->
-      <div v-if="isDriveConnector(form.type)" class="drive-folder-input">
-        <label class="drive-folder-input__label required">
-          {{ t('datasource.drive.folderTokenLabel') }}
-          <t-tooltip :content="t('datasource.drive.rootNotSupportedHint')" placement="top">
-            <t-icon name="help-circle" class="drive-folder-input__help" />
-          </t-tooltip>
-        </label>
-        <div class="drive-folder-input__row">
-          <t-input
-            v-model="driveFolderToken"
-            :placeholder="t('datasource.drive.folderTokenPlaceholder')"
-            :status="driveFolderTokenError ? 'error' : 'default'"
-            :tips="driveFolderTokenError ? driveFolderTokenError : t('datasource.drive.shareHint')"
-            clearable
-            @enter="loadDriveRoot"
-            @input="driveFolderTokenError = ''"
-          />
-          <t-button theme="primary" :loading="loadingResources" @click="loadDriveRoot">
-            {{ t('datasource.drive.load') }}
-          </t-button>
-        </div>
-      </div>
-
-      <!-- Drive placeholder before the first load: the tree cannot render until
-           a folder_token is supplied and loaded. Non-Drive connectors never hit
-           this branch. -->
-      <div
-        v-if="isDriveConnector(form.type) && !driveRootLoaded && !loadingResources"
-        class="ds-resource-empty ds-drive-placeholder"
-      >
-        <p class="ds-empty-title">{{ t('datasource.drive.placeholderTitle') }}</p>
-        <p class="ds-empty-desc">{{ t('datasource.drive.placeholderDesc') }}</p>
-      </div>
-
-      <div v-else-if="loadingResources" class="ds-loading-center"><t-loading /></div>
-      <div v-else-if="resources.length > 0" class="resource-picker">
-        <div class="resource-picker__toolbar">
-          <span class="resource-picker__count">
-            {{ t('knowledgeBase.selectedCount', { count: selectedResourceCount }) }}
-          </span>
-          <div v-if="hasExpandableNodes" class="resource-picker__actions">
-            <button type="button" class="resource-picker__action" @click="expandAllNodes">
-              {{ t('knowledgeStages.expandBranch') }}
-            </button>
-            <span class="resource-picker__action-sep" aria-hidden="true">·</span>
-            <button type="button" class="resource-picker__action" @click="collapseAllNodes">
-              {{ t('knowledgeStages.collapseBranch') }}
-            </button>
+        <div v-if="isDriveConnector(form.type)" class="drive-folder-input">
+          <label class="drive-folder-input__label required">
+            {{ t("datasource.drive.folderTokenLabel") }}
+            <t-tooltip :content="t('datasource.drive.rootNotSupportedHint')" placement="top">
+              <t-icon name="help-circle" class="drive-folder-input__help" />
+            </t-tooltip>
+          </label>
+          <div class="drive-folder-input__row">
+            <t-input
+              v-model="driveFolderToken"
+              :placeholder="t('datasource.drive.folderTokenPlaceholder')"
+              :status="driveFolderTokenError ? 'error' : 'default'"
+              :tips="driveFolderTokenError ? driveFolderTokenError : t('datasource.drive.shareHint')"
+              clearable
+              @enter="loadDriveRoot"
+              @input="driveFolderTokenError = ''"
+            />
+            <t-button theme="primary" :loading="loadingResources" @click="loadDriveRoot">
+              {{ t("datasource.drive.load") }}
+            </t-button>
           </div>
         </div>
-        <div class="resource-picker__list" role="tree">
-          <div
-            v-for="{ resource: r, depth } in visibleTree"
-            :key="r.external_id"
-            class="resource-picker__row"
-            :class="{
-              'is-checked': resourceRowState(r.external_id) === 'checked',
-              'is-indeterminate': resourceRowState(r.external_id) === 'indeterminate',
-            }"
-            :style="{ '--depth': depth }"
-            role="treeitem"
-            :aria-expanded="r.has_children ? expandedResourceIds.has(r.external_id) : undefined"
-            @click="toggleResource(r.external_id)"
-          >
-            <button
-              v-if="r.has_children"
-              type="button"
-              class="resource-picker__expand"
-              :aria-label="expandedResourceIds.has(r.external_id)
-                ? t('knowledgeStages.collapseBranch')
-                : t('knowledgeStages.expandBranch')"
-              @click.stop="toggleExpand(r.external_id)"
-            >
-              <t-loading v-if="loadingChildrenIds.has(r.external_id)" size="12px" />
-              <t-icon
-                v-else
-                :name="expandedResourceIds.has(r.external_id) ? 'chevron-down' : 'chevron-right'"
-                size="12px"
-              />
-            </button>
-            <span v-else class="resource-picker__expand-spacer" aria-hidden="true" />
-            <span
-              class="resource-picker__check"
+
+        <!-- Drive placeholder before the first load: the tree cannot render until
+           a folder_token is supplied and loaded. Non-Drive connectors never hit
+           this branch. -->
+        <div
+          v-if="isDriveConnector(form.type) && !driveRootLoaded && !loadingResources"
+          class="ds-resource-empty ds-drive-placeholder"
+        >
+          <p class="ds-empty-title">{{ t("datasource.drive.placeholderTitle") }}</p>
+          <p class="ds-empty-desc">{{ t("datasource.drive.placeholderDesc") }}</p>
+        </div>
+
+        <div v-else-if="loadingResources" class="ds-loading-center"><t-loading /></div>
+        <div v-else-if="resources.length > 0" class="resource-picker">
+          <div class="resource-picker__toolbar">
+            <span class="resource-picker__count">
+              {{ t("knowledgeBase.selectedCount", { count: selectedResourceCount }) }}
+            </span>
+            <div v-if="hasExpandableNodes" class="resource-picker__actions">
+              <button type="button" class="resource-picker__action" @click="expandAllNodes">
+                {{ t("knowledgeStages.expandBranch") }}
+              </button>
+              <span class="resource-picker__action-sep" aria-hidden="true">·</span>
+              <button type="button" class="resource-picker__action" @click="collapseAllNodes">
+                {{ t("knowledgeStages.collapseBranch") }}
+              </button>
+            </div>
+          </div>
+          <div class="resource-picker__list" role="tree">
+            <div
+              v-for="{ resource: r, depth } in visibleTree"
+              :key="r.external_id"
+              class="resource-picker__row"
               :class="{
                 'is-checked': resourceRowState(r.external_id) === 'checked',
                 'is-indeterminate': resourceRowState(r.external_id) === 'indeterminate',
               }"
-              aria-hidden="true"
+              :style="{ '--depth': depth }"
+              role="treeitem"
+              :aria-expanded="r.has_children ? expandedResourceIds.has(r.external_id) : undefined"
+              @click="toggleResource(r.external_id)"
             >
-              <svg
-                v-if="resourceRowState(r.external_id) === 'checked'"
-                width="10"
-                height="10"
-                viewBox="0 0 12 12"
-                fill="none"
+              <button
+                v-if="r.has_children"
+                type="button"
+                class="resource-picker__expand"
+                :aria-label="
+                  expandedResourceIds.has(r.external_id)
+                    ? t('knowledgeStages.collapseBranch')
+                    : t('knowledgeStages.expandBranch')
+                "
+                @click.stop="toggleExpand(r.external_id)"
               >
-                <path
-                  d="M10 3L4.5 8.5L2 6"
-                  stroke="#fff"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+                <t-loading v-if="loadingChildrenIds.has(r.external_id)" size="12px" />
+                <t-icon
+                  v-else
+                  :name="expandedResourceIds.has(r.external_id) ? 'chevron-down' : 'chevron-right'"
+                  size="12px"
                 />
-              </svg>
-            </span>
-            <span class="resource-picker__icon" aria-hidden="true">
-              <t-icon :name="resourceIconName(r)" size="16px" />
-            </span>
-            <span class="resource-picker__label">
-              <span class="resource-picker__name" :title="r.name || t('datasource.untitled')">
-                {{ r.name || t('datasource.untitled') }}
-              </span>
+              </button>
+              <span v-else class="resource-picker__expand-spacer" aria-hidden="true" />
               <span
-                v-if="shouldShowResourceType(r.type)"
-                class="resource-picker__type"
-              >{{ resourceTypeLabel(r.type) }}</span>
-            </span>
+                class="resource-picker__check"
+                :class="{
+                  'is-checked': resourceRowState(r.external_id) === 'checked',
+                  'is-indeterminate': resourceRowState(r.external_id) === 'indeterminate',
+                }"
+                aria-hidden="true"
+              >
+                <svg
+                  v-if="resourceRowState(r.external_id) === 'checked'"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                >
+                  <path
+                    d="M10 3L4.5 8.5L2 6"
+                    stroke="#fff"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="resource-picker__icon" aria-hidden="true">
+                <t-icon :name="resourceIconName(r)" size="16px" />
+              </span>
+              <span class="resource-picker__label">
+                <span class="resource-picker__name" :title="r.name || t('datasource.untitled')">
+                  {{ r.name || t("datasource.untitled") }}
+                </span>
+                <span v-if="shouldShowResourceType(r.type)" class="resource-picker__type">{{
+                  resourceTypeLabel(r.type)
+                }}</span>
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-      <div v-else class="ds-resource-empty">
-        <t-icon name="info-circle" size="32px" style="color: var(--td-warning-color); margin-bottom: 8px;" />
-        <p class="ds-empty-title">{{ t('datasource.noResources') }}</p>
-        <p class="ds-empty-desc">{{ t(`datasource.noResourcesDesc_${form.type}`, t('datasource.noResourcesDesc')) }}</p>
-        <div class="ds-guide-steps">
-          <div class="ds-guide-step">
-            <span class="ds-guide-num">1</span>
-            <span>{{ t(`datasource.guideStep1_${form.type}`, t('datasource.guideStep1')) }}</span>
+        <div v-else class="ds-resource-empty">
+          <t-icon name="info-circle" size="32px" style="color: var(--td-warning-color); margin-bottom: 8px" />
+          <p class="ds-empty-title">{{ t("datasource.noResources") }}</p>
+          <p class="ds-empty-desc">
+            {{ t(`datasource.noResourcesDesc_${form.type}`, t("datasource.noResourcesDesc")) }}
+          </p>
+          <div class="ds-guide-steps">
+            <div class="ds-guide-step">
+              <span class="ds-guide-num">1</span>
+              <span>{{ t(`datasource.guideStep1_${form.type}`, t("datasource.guideStep1")) }}</span>
+            </div>
+            <div class="ds-guide-step">
+              <span class="ds-guide-num">2</span>
+              <span>{{ t(`datasource.guideStep2_${form.type}`, t("datasource.guideStep2")) }}</span>
+            </div>
+            <div class="ds-guide-step">
+              <span class="ds-guide-num">3</span>
+              <span>{{ t(`datasource.guideStep3_${form.type}`, t("datasource.guideStep3")) }}</span>
+            </div>
           </div>
-          <div class="ds-guide-step">
-            <span class="ds-guide-num">2</span>
-            <span>{{ t(`datasource.guideStep2_${form.type}`, t('datasource.guideStep2')) }}</span>
-          </div>
-          <div class="ds-guide-step">
-            <span class="ds-guide-num">3</span>
-            <span>{{ t(`datasource.guideStep3_${form.type}`, t('datasource.guideStep3')) }}</span>
+          <div class="ds-empty-actions">
+            <button type="button" class="ds-empty-retry" @click="loadResources">
+              {{ t("datasource.retryLoadResources") }}
+            </button>
+            <a
+              v-if="currentDef?.permissionDocUrl"
+              :href="currentDef.permissionDocUrl"
+              target="_blank"
+              rel="noopener"
+              class="doc-link"
+            >
+              {{ t("datasource.permissionDocLink") }}
+              <t-icon name="link" class="link-icon" />
+            </a>
           </div>
         </div>
-        <div class="ds-empty-actions">
-          <button type="button" class="ds-empty-retry" @click="loadResources">
-            {{ t('datasource.retryLoadResources') }}
-          </button>
-          <a
-            v-if="currentDef?.permissionDocUrl"
-            :href="currentDef.permissionDocUrl"
-            target="_blank"
-            rel="noopener"
-            class="doc-link"
-          >
-            {{ t('datasource.permissionDocLink') }}
-            <t-icon name="link" class="link-icon" />
-          </a>
-        </div>
-      </div>
       </template>
     </section>
 
     <!-- Step 3: Sync strategy -->
     <template v-if="step === 3">
       <section class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.syncScheduleLabel') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.syncScheduleLabel") }}</h4>
         <t-select v-model="form.sync_schedule">
           <t-option v-for="p in schedulePresets" :key="p.value" :value="p.value" :label="p.label" />
         </t-select>
       </section>
 
       <section class="setting-drawer__section">
-        <h4 class="setting-drawer__section-title">{{ t('datasource.syncModeLabel') }}</h4>
+        <h4 class="setting-drawer__section-title">{{ t("datasource.syncModeLabel") }}</h4>
         <div class="form-item form-item--flat">
           <div class="option-group" role="radiogroup" :aria-label="t('datasource.syncModeLabel')">
             <button
@@ -1948,7 +2009,7 @@ const drawerConfirmText = computed(() => {
               :aria-checked="form.sync_mode === 'incremental'"
               @click="form.sync_mode = 'incremental'"
             >
-              {{ t('datasource.syncMode.incremental') }}
+              {{ t("datasource.syncMode.incremental") }}
             </button>
             <button
               type="button"
@@ -1958,13 +2019,13 @@ const drawerConfirmText = computed(() => {
               :aria-checked="form.sync_mode === 'full'"
               @click="form.sync_mode = 'full'"
             >
-              {{ t('datasource.syncMode.full') }}
+              {{ t("datasource.syncMode.full") }}
             </button>
           </div>
         </div>
 
         <div class="form-item form-item--flat">
-          <label class="form-label">{{ t('datasource.conflictLabel') }}</label>
+          <label class="form-label">{{ t("datasource.conflictLabel") }}</label>
           <div class="option-group" role="radiogroup" :aria-label="t('datasource.conflictLabel')">
             <button
               type="button"
@@ -1974,7 +2035,7 @@ const drawerConfirmText = computed(() => {
               :aria-checked="form.conflict_strategy === 'overwrite'"
               @click="form.conflict_strategy = 'overwrite'"
             >
-              {{ t('datasource.conflict.overwrite') }}
+              {{ t("datasource.conflict.overwrite") }}
             </button>
             <button
               type="button"
@@ -1984,14 +2045,14 @@ const drawerConfirmText = computed(() => {
               :aria-checked="form.conflict_strategy === 'skip'"
               @click="form.conflict_strategy = 'skip'"
             >
-              {{ t('datasource.conflict.skip') }}
+              {{ t("datasource.conflict.skip") }}
             </button>
           </div>
-          <p class="form-desc">{{ t('datasource.conflictHint') }}</p>
+          <p class="form-desc">{{ t("datasource.conflictHint") }}</p>
         </div>
 
         <div class="form-item form-item--flat">
-          <t-checkbox v-model="form.sync_deletions">{{ t('datasource.syncDeletions') }}</t-checkbox>
+          <t-checkbox v-model="form.sync_deletions">{{ t("datasource.syncDeletions") }}</t-checkbox>
         </div>
       </section>
     </template>
@@ -1999,7 +2060,7 @@ const drawerConfirmText = computed(() => {
 </template>
 
 <style scoped lang="less">
-@import './datasource-surface.less';
+@import "./datasource-surface.less";
 .ds-steps {
   display: flex;
   gap: 8px;
@@ -2261,7 +2322,9 @@ const drawerConfirmText = computed(() => {
   border: 1px solid var(--td-component-border, var(--td-component-stroke));
   border-radius: 6px;
   font-size: 13px;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .credential-faux-input:hover {
@@ -2371,7 +2434,7 @@ const drawerConfirmText = computed(() => {
   line-height: 1.4;
 
   &.required::before {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     margin-right: 4px;
     font-weight: 500;
@@ -2476,7 +2539,7 @@ const drawerConfirmText = computed(() => {
 
   /* 与 .form-label.required 一致的红星必填标记 */
   &.required::before {
-    content: '*';
+    content: "*";
     color: var(--td-error-color);
     font-weight: 500;
     line-height: 1;
@@ -2497,7 +2560,7 @@ const drawerConfirmText = computed(() => {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding-bottom: 20px
+  padding-bottom: 20px;
 }
 
 /* Drive tree placeholder: shown before the first successful load. */
@@ -2630,7 +2693,9 @@ const drawerConfirmText = computed(() => {
   background: transparent;
   color: var(--td-text-color-placeholder);
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .resource-picker__expand:hover,
@@ -2650,7 +2715,9 @@ const drawerConfirmText = computed(() => {
   justify-content: center;
   flex-shrink: 0;
   box-sizing: border-box;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .resource-picker__check.is-checked,
@@ -2660,7 +2727,7 @@ const drawerConfirmText = computed(() => {
 }
 
 .resource-picker__check.is-indeterminate::after {
-  content: '';
+  content: "";
   width: 8px;
   height: 2px;
   border-radius: 1px;
@@ -2859,7 +2926,10 @@ const drawerConfirmText = computed(() => {
   color: var(--td-text-color-secondary);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .option-pill:hover {

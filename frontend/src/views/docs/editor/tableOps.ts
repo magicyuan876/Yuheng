@@ -17,30 +17,30 @@
 // and a table editor that quietly corrupts a merged table is worse than one
 // that greys the button out. `canMoveRow`/`canMoveColumn` report that, so
 // the toolbar can disable rather than fail.
-import { Fragment } from '@tiptap/pm/model'
-import type { Node as PMNode } from '@tiptap/pm/model'
-import type { EditorState, Transaction } from '@tiptap/pm/state'
+import { Fragment } from "@tiptap/pm/model";
+import type { Node as PMNode } from "@tiptap/pm/model";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
 
 /** Where the selection sits inside a table. */
 export interface TableContext {
   /** Document position of the table node. */
-  pos: number
+  pos: number;
   /** The table node itself. */
-  table: PMNode
+  table: PMNode;
   /** Index of the row holding the selection. */
-  row: number
+  row: number;
   /** Index of the column holding the selection, by cell count. */
-  col: number
+  col: number;
   /** Number of rows. */
-  rows: number
+  rows: number;
   /** Number of columns in the first row. */
-  cols: number
+  cols: number;
   /** True when any cell anywhere in the table spans more than one slot. */
-  merged: boolean
+  merged: boolean;
 }
 
 function isCell(node: PMNode): boolean {
-  return node.type.name === 'tableCell' || node.type.name === 'tableHeader'
+  return node.type.name === "tableCell" || node.type.name === "tableHeader";
 }
 
 /**
@@ -51,27 +51,27 @@ function isCell(node: PMNode): boolean {
  * innermost one the cursor is actually in.
  */
 export function tableContext(state: EditorState): TableContext | null {
-  const $from = state.selection.$from
+  const $from = state.selection.$from;
   for (let depth = $from.depth; depth > 0; depth--) {
-    if ($from.node(depth).type.name !== 'table') continue
-    const table = $from.node(depth)
-    const pos = $from.before(depth)
+    if ($from.node(depth).type.name !== "table") continue;
+    const table = $from.node(depth);
+    const pos = $from.before(depth);
 
     // depth + 1 is the row, depth + 2 the cell; a selection deeper inside a
     // cell still resolves to the same indices.
-    if ($from.depth < depth + 2) return null
-    const row = $from.index(depth)
-    const col = $from.index(depth + 1)
+    if ($from.depth < depth + 2) return null;
+    const row = $from.index(depth);
+    const col = $from.index(depth + 1);
 
-    let merged = false
+    let merged = false;
     table.forEach((rowNode) => {
       rowNode.forEach((cell) => {
-        if (!isCell(cell)) return
-        const colspan = Number(cell.attrs.colspan ?? 1)
-        const rowspan = Number(cell.attrs.rowspan ?? 1)
-        if (colspan > 1 || rowspan > 1) merged = true
-      })
-    })
+        if (!isCell(cell)) return;
+        const colspan = Number(cell.attrs.colspan ?? 1);
+        const rowspan = Number(cell.attrs.rowspan ?? 1);
+        if (colspan > 1 || rowspan > 1) merged = true;
+      });
+    });
 
     return {
       pos,
@@ -81,77 +81,73 @@ export function tableContext(state: EditorState): TableContext | null {
       rows: table.childCount,
       cols: table.firstChild?.childCount ?? 0,
       merged,
-    }
+    };
   }
-  return null
+  return null;
 }
 
 /** Whether the row holding the selection can move by `delta`. */
 export function canMoveRow(ctx: TableContext | null, delta: -1 | 1): boolean {
-  if (!ctx || ctx.merged) return false
-  const to = ctx.row + delta
-  return to >= 0 && to < ctx.rows
+  if (!ctx || ctx.merged) return false;
+  const to = ctx.row + delta;
+  return to >= 0 && to < ctx.rows;
 }
 
 /** Whether the column holding the selection can move by `delta`. */
 export function canMoveColumn(ctx: TableContext | null, delta: -1 | 1): boolean {
-  if (!ctx || ctx.merged) return false
-  const to = ctx.col + delta
-  if (to < 0 || to >= ctx.cols) return false
+  if (!ctx || ctx.merged) return false;
+  const to = ctx.col + delta;
+  if (to < 0 || to >= ctx.cols) return false;
   // A ragged table — rows of differing lengths — has no column to speak of at
   // the index in question. fixTables normally prevents this; refusing is
   // cheaper than guessing which cell was meant.
-  let even = true
+  let even = true;
   ctx.table.forEach((row) => {
-    if (row.childCount !== ctx.cols) even = false
-  })
-  return even
+    if (row.childCount !== ctx.cols) even = false;
+  });
+  return even;
 }
 
 function rowsOf(table: PMNode): PMNode[] {
-  const rows: PMNode[] = []
-  table.forEach((row) => rows.push(row))
-  return rows
+  const rows: PMNode[] = [];
+  table.forEach((row) => rows.push(row));
+  return rows;
 }
 
 /** Replaces the table with `rows`, keeping its type, attributes and marks. */
-function rebuild(
-  state: EditorState,
-  ctx: TableContext,
-  rows: PMNode[],
-): Transaction {
-  const table = ctx.table.type.create(ctx.table.attrs, Fragment.fromArray(rows), ctx.table.marks)
-  return state.tr.replaceWith(ctx.pos, ctx.pos + ctx.table.nodeSize, table)
+function rebuild(state: EditorState, ctx: TableContext, rows: PMNode[]): Transaction {
+  const table = ctx.table.type.create(ctx.table.attrs, Fragment.fromArray(rows), ctx.table.marks);
+  return state.tr.replaceWith(ctx.pos, ctx.pos + ctx.table.nodeSize, table);
 }
 
 /** Moves the row holding the selection up (-1) or down (1). */
 export function moveRow(state: EditorState, delta: -1 | 1): Transaction | null {
-  const ctx = tableContext(state)
-  if (!canMoveRow(ctx, delta)) return null
-  const rows = rowsOf(ctx!.table)
-  const from = ctx!.row
-  const to = from + delta
-  const moved = rows[from]!
-  rows[from] = rows[to]!
-  rows[to] = moved
-  return rebuild(state, ctx!, rows)
+  const ctx = tableContext(state);
+  if (!canMoveRow(ctx, delta)) return null;
+  const rows = rowsOf(ctx!.table);
+  const from = ctx!.row;
+  const to = from + delta;
+  const moved = rows[from]!;
+  rows[from] = rows[to]!;
+  rows[to] = moved;
+  return rebuild(state, ctx!, rows);
 }
 
 /** Moves the column holding the selection left (-1) or right (1). */
 export function moveColumn(state: EditorState, delta: -1 | 1): Transaction | null {
-  const ctx = tableContext(state)
-  if (!canMoveColumn(ctx, delta)) return null
-  const from = ctx!.col
-  const to = from + delta
+  const ctx = tableContext(state);
+  if (!canMoveColumn(ctx, delta)) return null;
+  const from = ctx!.col;
+  const to = from + delta;
   const rows = rowsOf(ctx!.table).map((row) => {
-    const cells: PMNode[] = []
-    row.forEach((cell) => cells.push(cell))
-    const moved = cells[from]!
-    cells[from] = cells[to]!
-    cells[to] = moved
-    return row.type.create(row.attrs, Fragment.fromArray(cells), row.marks)
-  })
-  return rebuild(state, ctx!, rows)
+    const cells: PMNode[] = [];
+    row.forEach((cell) => cells.push(cell));
+    const moved = cells[from]!;
+    cells[from] = cells[to]!;
+    cells[to] = moved;
+    return row.type.create(row.attrs, Fragment.fromArray(cells), row.marks);
+  });
+  return rebuild(state, ctx!, rows);
 }
 
 /**
@@ -165,21 +161,21 @@ export function moveColumn(state: EditorState, delta: -1 | 1): Transaction | nul
  * is what the schema already calls the default.
  */
 export function distributeColumns(state: EditorState): Transaction | null {
-  const ctx = tableContext(state)
-  if (!ctx) return null
-  let touched = false
+  const ctx = tableContext(state);
+  if (!ctx) return null;
+  let touched = false;
   const rows = rowsOf(ctx.table).map((row) => {
-    const cells: PMNode[] = []
+    const cells: PMNode[] = [];
     row.forEach((cell) => {
       if (isCell(cell) && cell.attrs.colwidth != null) {
-        touched = true
-        cells.push(cell.type.create({ ...cell.attrs, colwidth: null }, cell.content, cell.marks))
+        touched = true;
+        cells.push(cell.type.create({ ...cell.attrs, colwidth: null }, cell.content, cell.marks));
       } else {
-        cells.push(cell)
+        cells.push(cell);
       }
-    })
-    return row.type.create(row.attrs, Fragment.fromArray(cells), row.marks)
-  })
-  if (!touched) return null
-  return rebuild(state, ctx, rows)
+    });
+    return row.type.create(row.attrs, Fragment.fromArray(cells), row.marks);
+  });
+  if (!touched) return null;
+  return rebuild(state, ctx, rows);
 }

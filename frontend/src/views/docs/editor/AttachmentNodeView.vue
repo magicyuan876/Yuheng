@@ -24,46 +24,46 @@
 </template>
 
 <script setup lang="ts">
-import { NodeViewWrapper, type NodeViewProps } from '@tiptap/vue-3'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { attachmentSrc, formatBytes } from './attachments'
+import { attachmentSrc, formatBytes } from "./attachments";
 
-const props = defineProps<NodeViewProps>()
-const { t } = useI18n()
+const props = defineProps<NodeViewProps>();
+const { t } = useI18n();
 
-const name = computed(() => String(props.node.attrs.name || t('docs.attachments.unnamed')))
+const name = computed(() => String(props.node.attrs.name || t("docs.attachments.unnamed")));
 
 const href = computed(() => {
-  const id = props.node.attrs.attachmentId as string | null
-  return id ? attachmentSrc(id) : '#'
-})
+  const id = props.node.attrs.attachmentId as string | null;
+  return id ? attachmentSrc(id) : "#";
+});
 
 const meta = computed(() => {
-  const size = Number(props.node.attrs.size ?? 0)
-  const parts = [formatBytes(size), shortType.value].filter(Boolean)
-  return parts.join(' · ')
-})
+  const size = Number(props.node.attrs.size ?? 0);
+  const parts = [formatBytes(size), shortType.value].filter(Boolean);
+  return parts.join(" · ");
+});
 
 /** The tail of the media type, which reads better than the whole of it. */
 const shortType = computed(() => {
-  const mime = String(props.node.attrs.mime ?? '')
-  if (!mime) return ''
-  const sub = mime.split('/')[1] ?? mime
-  return sub.split(/[.+]/).pop()?.toUpperCase() ?? ''
-})
+  const mime = String(props.node.attrs.mime ?? "");
+  if (!mime) return "";
+  const sub = mime.split("/")[1] ?? mime;
+  return sub.split(/[.+]/).pop()?.toUpperCase() ?? "";
+});
 
 const icon = computed(() => {
-  const mime = String(props.node.attrs.mime ?? '')
-  if (mime.startsWith('video/')) return 'play-circle'
-  if (mime.startsWith('audio/')) return 'sound'
-  if (mime === 'application/pdf') return 'file-pdf'
-  if (mime.includes('spreadsheet') || mime.includes('excel') || mime === 'text/csv') return 'file-excel'
-  if (mime.includes('word')) return 'file-word'
-  if (mime.includes('zip') || mime.includes('compressed')) return 'folder-zip'
-  return 'file'
-})
+  const mime = String(props.node.attrs.mime ?? "");
+  if (mime.startsWith("video/")) return "play-circle";
+  if (mime.startsWith("audio/")) return "sound";
+  if (mime === "application/pdf") return "file-pdf";
+  if (mime.includes("spreadsheet") || mime.includes("excel") || mime === "text/csv") return "file-excel";
+  if (mime.includes("word")) return "file-word";
+  if (mime.includes("zip") || mime.includes("compressed")) return "folder-zip";
+  return "file";
+});
 </script>
 
 <style scoped lang="less">

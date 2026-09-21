@@ -5,34 +5,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { providerLogo } from '@/views/settings/providerLogos'
+import { computed } from "vue";
+import { providerLogo } from "@/views/settings/providerLogos";
 
 // The sandbox list and the config drawer must show the same mark for a backend,
 // so both render this badge instead of each mapping types to icons themselves.
 // Vendors we ship a logo for (Docker) win over the generic TDesign glyphs.
-const props = withDefaults(defineProps<{
-  type: string
-  size?: 'sm' | 'md'
-}>(), { size: 'md' })
+const props = withDefaults(
+  defineProps<{
+    type: string;
+    size?: "sm" | "md";
+  }>(),
+  { size: "md" },
+);
 
-const logo = computed(() => providerLogo('sandbox', props.type))
+const logo = computed(() => providerLogo("sandbox", props.type));
 
 const iconName = computed(() => {
-  if (props.type === 'cube' || props.type === 'local') return 'server'
-  if (props.type === 'disabled') return 'minus-circle'
-  return 'cloud'
-})
+  if (props.type === "cube" || props.type === "local") return "server";
+  if (props.type === "disabled") return "minus-circle";
+  return "cloud";
+});
 
 const badgeClass = computed(() => [
   `sandbox-badge--${props.type}`,
   `sandbox-badge--${props.size}`,
-  { 'sandbox-badge--mono': logo.value?.mode === 'mono' },
-])
+  { "sandbox-badge--mono": logo.value?.mode === "mono" },
+]);
 
-const badgeStyle = computed((): Record<string, string> => (
-  logo.value?.mode === 'mono' ? { '--logo-url': `url("${logo.value.url}")` } : {}
-))
+const badgeStyle = computed((): Record<string, string> =>
+  logo.value?.mode === "mono" ? { "--logo-url": `url("${logo.value.url}")` } : {},
+);
 </script>
 
 <style lang="less" scoped>
@@ -75,7 +78,7 @@ const badgeStyle = computed((): Record<string, string> => (
 }
 
 .sandbox-badge--mono::before {
-  content: '';
+  content: "";
   background-color: currentColor;
   -webkit-mask-image: var(--logo-url);
   -webkit-mask-position: center;
