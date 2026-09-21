@@ -294,8 +294,13 @@ services:
       - SSRF_WHITELIST=${SSRF_WHITELIST:-}
       # Docker Desktop 会把宿主机代理注入容器；内网模型服务和 compose 内部服务都不能走
       # 公司代理（否则 gRPC/HTTP 被 UTM 拦截，出现 403 / EOF），全部加入 NO_PROXY 绕过。
-      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,10.52.3.178,app,frontend,docreader,odl-hybrid,postgres,redis,searxng,minio,neo4j,qdrant,milvus,weaviate,doris-fe,doris-be,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp}
-      - no_proxy=${NO_PROXY:-localhost,127.0.0.1,10.52.3.178,app,frontend,docreader,odl-hybrid,postgres,redis,searxng,minio,neo4j,qdrant,milvus,weaviate,doris-fe,doris-be,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp}
+      #
+      # 兄弟服务名是写死的，不是默认值：以前写成 ${NO_PROXY:-<完整列表>}，而装了
+      # 公司代理的机器上 shell 里往往已经有一个 NO_PROXY=localhost,127.0.0.1 —— 它会
+      # 把整份列表顶掉，app 于是连 collab、docreader、postgres 都要走代理，全部 403。
+      # 现在环境变量里的值是追加上来的，只能加不能减。
+      - NO_PROXY=localhost,127.0.0.1,10.52.3.178,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,minio,neo4j,qdrant,milvus,weaviate,doris-fe,doris-be,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,10.52.3.178,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,minio,neo4j,qdrant,milvus,weaviate,doris-fe,doris-be,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
       # 保留原始 URL 的图片域名白名单（逗号分隔，不替换为 provider://）
       - IMAGE_HOST_KEEP_URL=${IMAGE_HOST_KEEP_URL:-}
       # Always allow the optional searxng sidecar, bundled vector stores, and
