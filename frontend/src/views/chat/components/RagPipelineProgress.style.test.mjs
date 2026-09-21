@@ -29,8 +29,8 @@ test("rag pipeline persists and collapses after the answer arrives", () => {
 test("rag pipeline toggles expand and collapse from the root header", () => {
   assert.match(source, /class="tree-root-expand"/);
   assert.match(source, /@click="toggleExpanded"/);
-  assert.match(source, /showExpandedTimeline \? 'chevron-down' : 'chevron-right'/);
-  assert.doesNotMatch(source, /refsExpanded \? 'chevron/);
+  assert.match(source, /showExpandedTimeline \? ["']chevron-down["'] : ["']chevron-right["']/);
+  assert.doesNotMatch(source, /refsExpanded \? ["']chevron/);
   assert.doesNotMatch(source, /tree-collapse-bar/);
 });
 
@@ -49,11 +49,11 @@ test("rag pipeline opens references from search steps and the drawer composable"
 
 test("rag pipeline uses a native pending step and lets the thinking title shimmer while pending", () => {
   assert.match(source, /showPrePipelineWait/);
-  assert.match(source, /<div v-if="showPrePipelineWait"[\s\S]*class="tool-event"/);
+  assert.match(source, /<div\s+v-if="showPrePipelineWait"[\s\S]*class="tool-event"/);
   assert.match(source, /class="action-card action-pending"/);
-  assert.match(source, /t\('chat\.preparingAnswer'\)/);
+  assert.match(source, /t\(["']chat\.preparingAnswer["']\)/);
   assert.match(source, /showThinkingStep/);
-  assert.match(source, /'action-pending': thinkingPending/);
+  assert.match(source, /["']action-pending["']: thinkingPending/);
   assert.match(source, /hasThinkingEvent/);
   assert.doesNotMatch(source, /thinking-loading/);
   assert.doesNotMatch(source, /showActivityIndicator/);
@@ -63,10 +63,10 @@ test("rag pipeline shows a pending model-answer step after retrieval completes",
   assert.match(source, /showWaitStep/);
   assert.match(source, /getRagPipelineWaitKind/);
   assert.match(source, /createRagWaitController/);
-  assert.match(source, /t\('chat\.connectingModelAndGeneratingAnswer'\)/);
-  assert.match(source, /t\('chat\.modelStillResponding'\)/);
+  assert.match(source, /t\(["']chat\.connectingModelAndGeneratingAnswer["']\)/);
+  assert.match(source, /t\(["']chat\.modelStillResponding["']\)/);
   assert.match(source, /rag-model-wait-step/);
-  assert.match(source, /'action-pending': !waitStepStalled/);
+  assert.match(source, /["']action-pending["']: !waitStepStalled/);
   assert.match(source, /waitController\.dispose\(\)/);
 });
 
@@ -99,7 +99,7 @@ test("clickable timeline headers use pointer cursor", () => {
 });
 
 test("collapsed summary uses compact spacing before the answer", () => {
-  assert.match(source, /\.tree-container \{\s*margin: 0 0 8px;/);
+  assert.match(source, /\.tree-container \{;?\s*margin: 0 0 8px;/);
   assert.match(source, /\.rag-pipeline-progress \{[\s\S]*margin: 0;/);
 });
 

@@ -16,13 +16,13 @@ test("reference document links open in a new tab", () => {
 test("citation highlighting waits for drawer entry and only scrolls its own body", () => {
   assert.match(referenceDrawer, /@after-enter="handlePanelAfterEnter"/);
   assert.match(referenceDrawer, /if \(!panelEntered\.value\) return/);
-  assert.match(referenceDrawer, /container\.scrollTo\(\{ top: Math\.max\(0, nextTop\), behavior: 'smooth' \}\)/);
+  assert.match(referenceDrawer, /container\.scrollTo\(\{ top: Math\.max\(0, nextTop\), behavior: ["']smooth["'] \}\)/);
   assert.doesNotMatch(referenceDrawer, /el\.scrollIntoView\(/);
 });
 
 test("references drawer smoothly shifts the chat area while opening", () => {
   assert.match(referenceDrawer, /\.chat-references-panel \{[\s\S]*?position: fixed;/);
-  assert.match(chatView, /'has-references-panel': referencesDrawerVisible/);
+  assert.match(chatView, /["']has-references-panel["']: referencesDrawerVisible/);
   assert.match(chatView, /transition: padding-right 0\.3s cubic-bezier\(0\.22, 0\.61, 0\.36, 1\)/);
-  assert.match(chatView, /&\.has-references-panel \{[\s\S]*?padding-right:\s*420px/);
+  assert.match(chatView, /&\.has-references-panel \{[\s\S]*?padding-right:;?\s*420px/);
 });

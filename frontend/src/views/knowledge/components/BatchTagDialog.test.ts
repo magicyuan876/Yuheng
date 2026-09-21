@@ -12,7 +12,7 @@ const ruRU = readFileSync(new URL("../../../i18n/locales/ru-RU.ts", import.meta.
 test("uses a compact flat dialog with selected and available sections", () => {
   assert.match(component, /dialog-class-name="batch-tag-dialog"/);
   assert.match(component, /width="420px"/);
-  assert.match(component, /<template #header>/);
+  assert.match(component, /<template\s+#header>/);
   assert.match(component, /class="batch-tag-heading-icon"/);
   assert.match(component, /name="discount"/);
   assert.match(component, /class="setting-drawer__section"/);
@@ -31,7 +31,7 @@ test("uses a compact flat dialog with selected and available sections", () => {
   assert.match(component, /class="batch-tag-footer"/);
   assert.match(
     component,
-    /function handleConfirm\(\) {\s*if \(props\.confirmLoading\) return;\s*emit\('confirm', Array.from\(selectedSet\.value\)\);\s*}/,
+    /function handleConfirm\(\) {;?\s*if \(props\.confirmLoading\) return;;?\s*emit\(["']confirm["'], Array.from\(selectedSet\.value\)\);;?\s*}/,
   );
 });
 

@@ -29,8 +29,8 @@ function assertNotClearable(tag: string): void {
 
 test("ModelSelector 清空时向父组件回传空字符串，默认仍不可清空", () => {
   assert.match(selector, /:clearable="clearable"/);
-  assert.match(selector, /clearable:\s*false/);
-  assert.match(selector, /emit\('update:selectedModelId', value \|\| ''\)/);
+  assert.match(selector, /clearable:;?\s*false/);
+  assert.match(selector, /emit\(["']update:selectedModelId["'], value \|\| ["']["']\)/);
 });
 
 test("知识库仅在模型确实可选时允许恢复为空", () => {

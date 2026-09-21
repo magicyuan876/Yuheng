@@ -33,6 +33,9 @@ test("conversation timestamps insert into the message flow instead of each bubbl
 
 test("follow-up suggestions wait until the answer is fully rendered", () => {
   assert.match(chatView, /@render-complete-change="\(ready\) => handleAnswerRenderComplete\(session, ready\)"/);
-  assert.match(chatView, /<FollowUpSuggestions v-if="session\.answerFullyRendered && !session\.suggestionsDismissed"/);
-  assert.match(botMessage, /emit\('render-complete-change', ready\)/);
+  assert.match(
+    chatView,
+    /<FollowUpSuggestions\s+v-if="session\.answerFullyRendered && !session\.suggestionsDismissed"/,
+  );
+  assert.match(botMessage, /emit\(["']render-complete-change["'], ready\)/);
 });

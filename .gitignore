@@ -6,6 +6,7 @@
 !.github/
 # Tool config that has to travel with the repo, not stay on one machine.
 !frontend/.prettierignore
+!.git-blame-ignore-revs
 
 # 敏感文件
 *.pem

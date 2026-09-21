@@ -6,11 +6,13 @@ import { test } from "vitest";
 const source = readFileSync(new URL("./KnowledgeBaseEditorModal.vue", import.meta.url), "utf8");
 
 test("editing a knowledge base closes the editor after a successful save", () => {
-  assert.match(source, /emit\('success', kbId\)\s*handleClose\(\)/);
+  assert.match(source, /emit\(["']success["'], kbId\);?\s*handleClose\(\)/);
 });
 
 test("the first successful create stays open for follow-up configuration", () => {
-  const createBranch = source.match(/if \(editorMode\.value === 'create'\) \{([\s\S]*?)^\s{4}\} else \{/m)?.[1];
+  const createBranch = source.match(
+    /^\s{4}if \(editorMode\.value === ["']create["']\) \{([\s\S]*?)^\s{4}\} else \{/m,
+  )?.[1];
 
   assert.ok(createBranch, "expected to find the create branch");
   assert.doesNotMatch(createBranch, /handleClose\(\)/);
@@ -20,7 +22,7 @@ test("the first successful create stays open for follow-up configuration", () =>
 test("save button labels distinguish create from save-and-close", () => {
   assert.match(
     source,
-    /const saveButtonLabel = computed\(\(\) =>\s*editorMode\.value === 'create'\s*\? t\('knowledgeEditor\.buttons\.create'\)\s*: t\('knowledgeEditor\.buttons\.saveAndClose'\)\s*\)/,
+    /const saveButtonLabel = computed\(\(\) =>;?\s*editorMode\.value === ["']create["'];?\s*\? t\(["']knowledgeEditor\.buttons\.create["']\);?\s*: t\(["']knowledgeEditor\.buttons\.saveAndClose["']\)[,;]?;?\s*\)/,
   );
 });
 

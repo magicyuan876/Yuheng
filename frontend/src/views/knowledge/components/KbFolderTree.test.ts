@@ -13,12 +13,12 @@ const listView = readFileSync(new URL("./DocumentListView.vue", import.meta.url)
 // Two independent guards keep that from coming back.
 test("the rename sentinel cannot collide with the root folder path", () => {
   assert.match(tree, /const renamingPath = ref<string \| null>\(null\)/);
-  assert.doesNotMatch(tree, /const renamingPath = ref\(''\)/);
-  assert.match(tree, /row\.kind === 'folder' && renamingPath\.value === row\.path/);
+  assert.doesNotMatch(tree, /const renamingPath = ref\(["']["']\)/);
+  assert.match(tree, /row\.kind === ["']folder["'] && renamingPath\.value === row\.path/);
 });
 
 test("only real folders expose a rename affordance", () => {
-  assert.match(tree, /v-if="canEdit && row\.kind === 'folder'"/);
+  assert.match(tree, /v-if="canEdit && row\.kind === ["']folder["']"/);
   assert.match(tree, /popup-menu-item/);
   assert.match(tree, /onFolderMenuRename/);
 });
@@ -52,7 +52,7 @@ test("folder navigation cancels stale card hover popovers", () => {
   assert.match(cardView, /watch\(\(\) => props\.items, dismissCardPopover\)/);
   assert.match(
     cardView,
-    /const onOpenFolder = \(path: string\)[\s\S]*?dismissCardPopover\(\)[\s\S]*?emit\('open-folder', path\)/,
+    /const onOpenFolder = \(path: string\)[\s\S]*?dismissCardPopover\(\)[\s\S]*?emit\(["']open-folder["'], path\)/,
   );
   assert.match(cardView, /@click="onOpenFolder\(folder\.path\)"/);
 });

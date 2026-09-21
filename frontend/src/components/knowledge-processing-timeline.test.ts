@@ -13,7 +13,7 @@ test("counts skipped stages when determining the current stage", () => {
     source.indexOf("function formatDuration"),
   );
 
-  assert.match(currentStageIndex, /status === 'done' \|\| s\.status === 'skipped'/);
+  assert.match(currentStageIndex, /status === ["']done["'] \|\| s\.status === ["']skipped["']/);
   assert.match(currentStageIndex, /Math\.min\(traversed \+ 1, stages\.value\.length\)/);
 });
 
@@ -23,6 +23,6 @@ test("counts skipped stages in the completed stage total", () => {
     source.indexOf("const postprocessTaskStats"),
   );
 
-  assert.match(stagesStatDisplay, /status === 'done' \|\| s\.status === 'skipped'/);
+  assert.match(stagesStatDisplay, /status === ["']done["'] \|\| s\.status === ["']skipped["']/);
   assert.match(stagesStatDisplay, /value: `\$\{completedCount\}\/\$\{total\}`/);
 });
