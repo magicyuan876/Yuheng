@@ -365,6 +365,9 @@ const suggestions = useDocSuggestions({
   allow: () => ({
     embeds: media.policy.value.providers.length > 0,
     drawings: true,
+    // Only where this deployment runs a draw.io: without one the entry would
+    // insert a diagram nobody can open.
+    drawio: !!media.policy.value.drawio_url,
     // Offered only on a page that has an id to point at.
     copyBlockRef: props.pageId ? copyCurrentBlockRef : undefined,
   }),

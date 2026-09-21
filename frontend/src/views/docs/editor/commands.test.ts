@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import enUS from '../../../i18n/locales/en-US'
+import koKR from '../../../i18n/locales/ko-KR'
+import ruRU from '../../../i18n/locales/ru-RU'
+import zhCN from '../../../i18n/locales/zh-CN'
 import { blockCommands, matchCommands, type BlockCommand, type CommandTarget } from './commands'
 
 /** Labels stand in for translations; the last segment of the key will do. */
@@ -29,8 +33,67 @@ test('an entry can be found by a word in either language', () => {
 test('turning a feature off takes it out of the menu', () => {
   const none = blockCommands({ embeds: false, drawings: false }).map((c) => c.id)
   assert.ok(!none.includes('embed'))
-  assert.ok(!none.includes('excalidraw'))
+  assert.ok(!none.includes('whiteboard'))
   assert.ok(none.includes('table'), 'the rest of the menu is unaffected')
+})
+
+// draw.io is a separate service a deployment may not run, so its entry stays
+// out of the menu until there is one. Inserting it without one would leave a
+// diagram nobody can open.
+test('the diagram editor is offered only where one is configured', () => {
+  assert.ok(!blockCommands().some((c) => c.id === 'diagram'), 'not offered by default')
+  assert.ok(!blockCommands({ drawings: true }).some((c) => c.id === 'diagram'),
+    'and not merely because the whiteboard is on')
+  assert.ok(blockCommands({ drawio: true }).some((c) => c.id === 'diagram'))
+})
+
+// The two are different tools for different jobs, not two skins on one, so
+// both stay reachable where both are available — and each has to insert its
+// own kind of drawing.
+// Two entries reading the same word is the bug this menu already had once:
+// a Mermaid block and a draw.io diagram both came out as "Diagram", and in
+// Chinese both as "流程图". Distinct ids and distinct keys do not catch it —
+// only the translated words do, which is why this reads the locales.
+test('no two entries in the menu read the same in any language', () => {
+  const locales: Array<[string, unknown]> = [
+    ['en-US', enUS], ['zh-CN', zhCN], ['ko-KR', koKR], ['ru-RU', ruRU],
+  ]
+  // Everything switched on, so no entry escapes the check.
+  const all = blockCommands({ embeds: true, drawings: true, drawio: true, copyBlockRef: () => {} })
+
+  for (const [name, bundle] of locales) {
+    const seen = new Map<string, string>()
+    for (const command of all) {
+      const text = command.labelKey.split('.').reduce<unknown>(
+        (node, key) => (node as Record<string, unknown> | undefined)?.[key], bundle)
+      assert.equal(typeof text, 'string', `${name} has no ${command.labelKey}`)
+
+      const clash = seen.get(text as string)
+      assert.equal(clash, undefined,
+        `${name}: "${text as string}" labels both ${clash} and ${command.id}`)
+      seen.set(text as string, command.id)
+    }
+  }
+})
+
+test('the whiteboard and the diagram editor each insert their own node', () => {
+  const inserted = (id: string) => {
+    const calls: string[] = []
+    const chain: Record<string, unknown> = new Proxy({}, {
+      get: (_t, name: string) => () => {
+        calls.push(name)
+        return chain
+      },
+    })
+    blockCommands({ drawings: true, drawio: true }).find((c) => c.id === id)!
+      .run({ chain: () => chain as never }, { from: 0, to: 3 })
+    return calls
+  }
+
+  assert.ok(inserted('whiteboard').includes('insertExcalidraw'))
+  assert.ok(!inserted('whiteboard').includes('insertDrawio'))
+  assert.ok(inserted('diagram').includes('insertDrawio'))
+  assert.ok(!inserted('diagram').includes('insertExcalidraw'))
 })
 
 // Offered only when the caller supplied the action, because a page with no id

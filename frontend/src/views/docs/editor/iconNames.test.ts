@@ -38,7 +38,9 @@ test('every selection toolbar icon exists', () => {
 
 test('every slash menu icon exists', () => {
   // Built with everything switched on, so no entry is left out of the check.
-  const commands = blockCommands({ embeds: true, drawings: true, copyBlockRef: () => {} })
+  const commands = blockCommands({
+    embeds: true, drawings: true, drawio: true, copyBlockRef: () => {},
+  })
   assertIcons('the slash menu', commands.map((c) => c.icon))
 })
 

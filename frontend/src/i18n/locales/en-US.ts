@@ -5281,9 +5281,10 @@ export default {
       status: 'Status',
       mathBlock: 'Equation',
       mathInline: 'Inline equation',
-      mermaid: 'Diagram',
+      mermaid: 'Mermaid',
       embed: 'Embed',
-      excalidraw: 'Drawing',
+      whiteboard: 'Whiteboard',
+      diagram: 'Diagram',
       noMatches: 'No matching block',
       copyBlockRef: 'Copy block reference',
       group: {

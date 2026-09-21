@@ -5276,9 +5276,10 @@ export default {
       status: '状态标签',
       mathBlock: '公式',
       mathInline: '行内公式',
-      mermaid: '流程图',
+      mermaid: 'Mermaid',
       embed: '嵌入内容',
-      excalidraw: '手绘白板',
+      whiteboard: '白板',
+      diagram: '流程图',
       noMatches: '没有匹配的块',
       copyBlockRef: '复制块引用链接',
       group: {

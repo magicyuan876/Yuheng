@@ -1074,6 +1074,22 @@ services:
     profiles:
       - docs
 
+  drawio:
+    image: jgraph/drawio:${DRAWIO_VERSION:-31.4.6}
+    container_name: Yuheng-drawio
+    # 这个端口是给浏览器用的，不是给 app 用的：draw.io 以 iframe 的形式嵌在
+    # 编辑器里，地址由浏览器直接加载。所以它必须映射到宿主机，而且
+    # YUHENG_DOCS_DRAWIO_URL 要填用户浏览器能访问到的地址，不能填 http://drawio:8080。
+    ports:
+      - "${DRAWIO_PORT:-8087}:8080"
+    # 没有 depends_on：编辑器是独立的，app 没起来时它照样能开，只是保存会失败。
+    # 反过来 app 也不该因为画图编辑器没起来就不启动。
+    networks:
+      - Yuheng-network
+    restart: unless-stopped
+    profiles:
+      - docs
+
   mcp:
     build:
       context: ./mcp-server

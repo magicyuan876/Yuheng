@@ -5278,9 +5278,10 @@ export default {
       status: '상태',
       mathBlock: '수식',
       mathInline: '인라인 수식',
-      mermaid: '다이어그램',
+      mermaid: 'Mermaid',
       embed: '임베드',
-      excalidraw: '그림',
+      whiteboard: '화이트보드',
+      diagram: '다이어그램',
       noMatches: '일치하는 블록이 없습니다',
       copyBlockRef: '블록 참조 링크 복사',
       group: {

@@ -64,6 +64,16 @@ export interface BlockCommandOptions {
   embeds?: boolean
   drawings?: boolean
   /**
+   * Offers the draw.io diagram editor alongside the whiteboard.
+   *
+   * Off unless the caller says otherwise, which is the opposite of
+   * `drawings`: the whiteboard ships with the application and is always
+   * there, while draw.io is a separate service a deployment may not run.
+   * Offering it without one would insert a diagram that cannot then be
+   * opened — the node view could only say so after the fact.
+   */
+  drawio?: boolean
+  /**
    * Copies this page's current block as a reference link.
    *
    * Passed in rather than built here because it needs the page's id and the
@@ -177,10 +187,25 @@ export function blockCommands(opts: BlockCommandOptions = {}): BlockCommand[] {
       },
     })
   }
+  // Two entries, named for the job rather than for the editor behind them.
+  //
+  // They are not two skins on one tool. The whiteboard is built around
+  // freehand — smoothed, pressure-aware strokes — and opens instantly
+  // because it is part of this application. The diagram editor is a
+  // shapes-and-connectors tool with the stencil libraries that go with it,
+  // and it is a service of its own. Somebody sketching an idea and somebody
+  // drawing a swimlane want different things, and neither tool is a good
+  // answer to the other's question, so the menu asks which job rather than
+  // which vendor.
   if (opts.drawings !== false) {
-    list.push(cmd('excalidraw', 'docs.commands.excalidraw', 'edit', 'media',
-      ['draw', 'sketch', 'whiteboard', '白板', '手绘'],
+    list.push(cmd('whiteboard', 'docs.commands.whiteboard', 'palette', 'media',
+      ['draw', 'sketch', 'whiteboard', 'freehand', '白板', '手绘', '涂鸦'],
       (c) => (c.insertExcalidraw as (a: unknown, b: unknown) => Chain)('', null)))
+  }
+  if (opts.drawio) {
+    list.push(cmd('diagram', 'docs.commands.diagram', 'sitemap', 'media',
+      ['diagram', 'flowchart', 'uml', 'drawio', '流程图', '架构图', '图表'],
+      (c) => (c.insertDrawio as (a: unknown, b: unknown) => Chain)('', null)))
   }
   return list
 }

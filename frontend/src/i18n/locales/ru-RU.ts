@@ -5280,9 +5280,10 @@ export default {
       status: 'Статус',
       mathBlock: 'Формула',
       mathInline: 'Формула в строке',
-      mermaid: 'Диаграмма',
+      mermaid: 'Mermaid',
       embed: 'Встраивание',
-      excalidraw: 'Рисунок',
+      whiteboard: 'Доска',
+      diagram: 'Диаграмма',
       noMatches: 'Нет подходящего блока',
       copyBlockRef: 'Скопировать ссылку на блок',
       group: {
