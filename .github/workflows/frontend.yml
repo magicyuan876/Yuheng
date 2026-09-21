@@ -24,6 +24,14 @@ permissions:
 env:
   NODE_VERSION: "24"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Node sizes its own heap from how much memory it thinks the machine has,
+  # and on a runner that lands at about 2 GB — which this build no longer
+  # fits into. It was never far under: minifying the editor's larger vendor
+  # chunks is what costs the memory, and the build has been within a few
+  # per cent of the ceiling for a while, passing or failing on which runner
+  # it happened to get rather than on anything in the commit. Saying the
+  # number out loud takes the runner's guess out of it.
+  NODE_OPTIONS: "--max-old-space-size=4096"
 
 jobs:
   verify:

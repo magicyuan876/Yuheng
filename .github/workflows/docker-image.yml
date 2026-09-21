@@ -15,6 +15,10 @@ concurrency:
 env:
   NODE_VERSION: "24"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # The frontend build needs more heap than Node gives itself on a runner.
+  # See the same note in frontend.yml — this workflow runs that build too,
+  # and a release is the worst moment to discover it.
+  NODE_OPTIONS: "--max-old-space-size=4096"
 
 jobs:
   build-ui:
