@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { emptyScene, parseScene, sanitiseAppState, serialiseScene } from './excalidraw'
+import {
+  DEFAULT_ITEM_STYLE, emptyScene, parseScene, sanitiseAppState, serialiseScene,
+} from './excalidraw'
 
 test('a new drawing starts from a scene the editor can open', () => {
   const scene = emptyScene()
@@ -75,6 +77,48 @@ test('saving the same drawing twice produces the same file', () => {
   const first = serialiseScene(elements, { gridSize: 20, scrollX: 10 }, {})
   const second = serialiseScene(elements, { gridSize: 20, scrollX: 999 }, {})
   assert.equal(first, second, 'a different scroll position is not a different diagram')
+})
+
+// The editor's own defaults draw a sketch. A diagram sitting in a document
+// should not, so the defaults a drawing starts from are ours.
+test('a drawing starts from clean strokes rather than the editor’s sketch', () => {
+  assert.equal(DEFAULT_ITEM_STYLE.currentItemRoughness, 0, 'ROUGHNESS.architect, not artist')
+  assert.notEqual(DEFAULT_ITEM_STYLE.currentItemFontFamily, 5, 'not the handwriting face')
+  assert.equal(DEFAULT_ITEM_STYLE.objectsSnapModeEnabled, true)
+})
+
+// Every key in the defaults has to survive a save, or the drawing would come
+// back styled by whatever the editor felt like once the defaults stopped
+// being applied on top.
+test('every default style is one that can be stored', () => {
+  const stored = sanitiseAppState({ ...DEFAULT_ITEM_STYLE })
+  assert.deepEqual(stored, DEFAULT_ITEM_STYLE)
+})
+
+// Somebody who restyled a diagram and comes back to add one more box expects
+// that box to match the ones already there.
+test('the style a drawing was saved in is part of the drawing', () => {
+  const raw = serialiseScene([{ id: 'a', type: 'rectangle' }], {
+    currentItemRoughness: 2,
+    currentItemStrokeColor: '#e03131',
+    currentItemFontFamily: 5,
+    currentItemArrowType: 'sharp',
+    gridModeEnabled: true,
+    // Still this session's view, and still not stored.
+    scrollX: 240,
+  }, {})
+
+  const reopened = parseScene(raw)
+  assert.equal(reopened.appState.currentItemRoughness, 2)
+  assert.equal(reopened.appState.currentItemStrokeColor, '#e03131')
+  assert.equal(reopened.appState.currentItemArrowType, 'sharp')
+  assert.equal(reopened.appState.gridModeEnabled, true)
+  assert.ok(!('scrollX' in reopened.appState))
+
+  // Which is what lets the stored style win over the defaults on reopening.
+  const applied = { ...DEFAULT_ITEM_STYLE, ...reopened.appState }
+  assert.equal(applied.currentItemRoughness, 2, 'the drawing’s own style, not ours')
+  assert.equal(applied.objectsSnapModeEnabled, true, 'and ours where it has none')
 })
 
 test('an empty drawing serialises to something that parses back', () => {

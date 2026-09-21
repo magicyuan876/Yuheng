@@ -34,7 +34,7 @@ import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
-  loadExcalidraw, parseScene, renderSceneToSVG, serialiseScene,
+  DEFAULT_ITEM_STYLE, loadExcalidraw, parseScene, renderSceneToSVG, serialiseScene,
   type ExcalidrawModule, type ExcalidrawScene,
 } from './excalidraw'
 import { ReactIsland } from './reactIsland'
@@ -94,7 +94,16 @@ onMounted(async () => {
   const created = new ReactIsland((container) => client.createRoot(container))
   island.value = created
   created.render(mount.value, react.createElement(loaded.Excalidraw, {
-    initialData: { elements: initial.elements, appState: initial.appState, files: initial.files },
+    initialData: {
+      elements: initial.elements,
+      // The drawing wins where it has an opinion: one that was saved in its
+      // own style reopens in that style, and only what it is silent about
+      // falls back to the clean defaults. A new drawing is silent about all
+      // of it, which is how it starts out looking like a diagram rather than
+      // a doodle.
+      appState: { ...DEFAULT_ITEM_STYLE, ...initial.appState },
+      files: initial.files,
+    },
     excalidrawAPI: (instance: typeof api.value) => {
       api.value = instance
     },
