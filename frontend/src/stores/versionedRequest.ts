@@ -1,4 +1,4 @@
-export interface VersionedRequestCoordinator<T> {
+export interface VersionedRequestCoordinator {
   fetch: (force?: boolean) => Promise<void>
   invalidate: () => void
   hasInFlightRequest: () => boolean
@@ -14,7 +14,7 @@ export interface VersionedRequestCoordinator<T> {
 export function createVersionedRequestCoordinator<T>(
   request: () => Promise<T>,
   apply: (value: T) => void
-): VersionedRequestCoordinator<T> {
+): VersionedRequestCoordinator {
   let revision = 0
   let startedSequence = 0
   let completedSequence = 0

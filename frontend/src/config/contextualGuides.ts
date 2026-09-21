@@ -16,14 +16,6 @@ export type ContextualGuideTourId =
   | 'chat'
   | 'tenantModels'
 
-const focusKbEditorSection = (section: string) => {
-  window.dispatchEvent(
-    new CustomEvent(KB_EDITOR_FOCUS_SECTION_EVENT, { detail: { section } }),
-  )
-}
-
-const focusKbEditorBasic = () => focusKbEditorSection('basic')
-
 export interface ContextualGuideTourConfig {
   storageKey: string
   stepI18nPrefix: string

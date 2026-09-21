@@ -792,9 +792,8 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useMenuStore } from '@/stores/menu'
-import { useSettingsStore } from '@/stores/settings'
 import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -837,10 +836,8 @@ import {
   type WikiIndexEntryDTO,
 } from '@/api/wiki'
 
-const router = useRouter()
 const route = useRoute()
 const menuStore = useMenuStore()
-const settingsStore = useSettingsStore()
 
 const { t } = useI18n()
 
@@ -1150,7 +1147,6 @@ const navFromSystemView = ref<'' | 'index'>('')
 // typeOrder drives the order of groups in the sidebar. Keep in sync
 // with WIKI_PAGE_TYPES on the backend; unknown types fall through to
 // the "other" bucket at the bottom of groupedPages.
-const typeOrder = ['summary', 'entity', 'concept', 'synthesis', 'comparison']
 
 // Entity and concept pages look and behave alike, so the sidebar merges all
 // non-summary content types under a single "knowledge" tab and distinguishes
@@ -1524,7 +1520,7 @@ watch(graphDrawerContent, async () => {
 
 function renderMarkdown(content: string): string {
   // Pre-process wiki links [[slug|name]] to custom HTML tags
-  let preprocessed = content.replace(/\[\[([^\]]+)\]\]/g, (_, inner: string) => {
+  const preprocessed = content.replace(/\[\[([^\]]+)\]\]/g, (_, inner: string) => {
     const pipeIdx = inner.indexOf('|')
     const slug = pipeIdx > 0 ? inner.substring(0, pipeIdx).trim() : inner.trim()
     const display = pipeIdx > 0 ? inner.substring(pipeIdx + 1).trim() : slugDisplayName(slug)
@@ -3103,19 +3099,6 @@ function editSourceIcon(source?: string): string {
       return 'rollback'
     default:
       return 'file-code'
-  }
-}
-
-function editSourceTheme(source?: string): 'primary' | 'success' | 'warning' | 'default' {
-  switch (source) {
-    case 'user':
-      return 'success'
-    case 'agent':
-      return 'primary'
-    case 'revert':
-      return 'warning'
-    default:
-      return 'default'
   }
 }
 

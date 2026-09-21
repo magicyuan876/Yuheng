@@ -27,17 +27,15 @@ const orgStore = useOrganizationStore();
 const menuStore = useMenuStore();
 const chatResources = useChatResourcesStore();
 const {
-  allModels,
   chatModels: availableModels,
 } = storeToRefs(chatResources);
 const { t } = useI18n();
 
-let query = ref("");
+const query = ref("");
 
 // Image upload state
 const uploadedImages = ref<Array<{ file: File; preview: string }>>([]);
 const imageInputRef = ref<HTMLInputElement>();
-const imageUploading = ref(false);
 
 // Attachment upload state
 const attachmentUploadRef = ref<InstanceType<typeof AttachmentUpload>>();
@@ -254,8 +252,6 @@ const modelButtonRef = ref<HTMLElement>();
 const modelDropdownStyle = ref<Record<string, string>>({});
 
 // 显示的知识库标签（最多显示2个）
-const displayedKbs = computed(() => selectedKbs.value.slice(0, 2));
-const remainingCount = computed(() => Math.max(0, selectedKbs.value.length - 2));
 
 // 根据不同状态组合计算输入框的 placeholder
 const inputPlaceholder = computed(() => {
@@ -589,7 +585,7 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
   let kbItems: any[] = [];
   let tagItems: MentionItem[] = [];
   if (!append) {
-    let availableKbs: any[] = [...knowledgeBases.value];
+    const availableKbs: any[] = [...knowledgeBases.value];
     const sharedList = orgStore.sharedKnowledgeBases || [];
     const sharedKbsForMention = sharedList
       .filter((s: any) => s.knowledge_base != null)
@@ -672,7 +668,7 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
     );
     console.log('[Mention] searchKnowledge response:', res);
     if (res.data && Array.isArray(res.data)) {
-      let files = res.data;
+      const files = res.data;
       const rawTotal = typeof res.total === 'number' ? res.total : undefined;
       const apiPageSize = res.data.length;
       const sharedKbOrgMap: Record<string, string> = {};

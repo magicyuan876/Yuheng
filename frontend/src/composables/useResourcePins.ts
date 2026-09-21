@@ -190,7 +190,7 @@ export function useResourcePins(): UseResourcePinsResult {
   })
 
   const recents = computed<PinEntry[]>(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const _ = recentsRevision.value
     return readRecents().sort((a, b) => b.ts - a.ts)
   })

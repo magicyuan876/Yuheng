@@ -8,15 +8,12 @@ import EmptyKnowledge from '@/components/empty-knowledge.vue';
 import ContextualGuide from '@/components/ContextualGuide.vue';
 import KBInfoPopover from '@/components/KBInfoPopover.vue';
 import KBSwitcherDropdown from '@/components/KBSwitcherDropdown.vue';
-import { getSessionsList, createSessions, generateSessionsTitle } from "@/api/chat/index";
-import { useMenuStore } from '@/stores/menu';
 import { useUIStore } from '@/stores/ui';
 import { useOrganizationStore } from '@/stores/organization';
 import { useAuthStore } from '@/stores/auth';
 import { useChatResourcesStore } from '@/stores/chatResources';
 import { useEditorResourcesStore } from '@/stores/editorResources';
 import KnowledgeBaseEditorModal from './KnowledgeBaseEditorModal.vue';
-const usemenuStore = useMenuStore();
 const uiStore = useUIStore();
 const orgStore = useOrganizationStore();
 const authStore = useAuthStore();
@@ -80,7 +77,6 @@ const { t } = useI18n();
 const kbId = computed(() => (route.params as any).kbId as string || '');
 const kbInfo = ref<any>(null);
 const uploadSourceRef = ref<InstanceType<typeof KbUploadSourceDropdown> | null>(null);
-const uploading = ref(false);
 const kbLoading = ref(false);
 const docListLoading = ref(true);
 const isFAQ = computed(() => (kbInfo.value?.type || '') === 'faq');
@@ -332,7 +328,7 @@ const canDownloadKnowledge = computed(() => {
 });
 
 const knowledgeList = ref<Array<{ id: string; name: string; type?: string }>>([]);
-let { cardList, total, moreIndex, details, getKnowled, delKnowledge, openMore, onVisibleChange: _onVisibleChange, getCardDetails, getfDetails } = useKnowledgeBase(kbId.value)
+const { cardList, total, moreIndex, details, getKnowled, delKnowledge, onVisibleChange: _onVisibleChange, getCardDetails, getfDetails } = useKnowledgeBase(kbId.value)
 
 const showKbDetailContextualGuide = computed(() => {
   return Boolean(kbId.value)
@@ -367,14 +363,6 @@ function isParseInFlight(status?: string): boolean {
   return isKnowledgeParseInFlight(status);
 }
 
-function isTraceMenuVisible(item: KnowledgeCard): boolean {
-  if (!item?.id) return false;
-  if (isParseInFlight(item.parse_status)) {
-    return true;
-  }
-  return traceAvailableById[item.id] === true;
-}
-
 async function probeTraceAvailable(item: KnowledgeCard) {
   const id = item.id;
   if (!id || traceProbeInflight.has(id)) return;
@@ -400,9 +388,9 @@ const onCardMoreVisibleChange = (visible: boolean, item: KnowledgeCard) => {
     probeTraceAvailable(item);
   }
 };
-let isCardDetails = ref(false);
+const isCardDetails = ref(false);
 let timeout: ReturnType<typeof setTimeout> | null = null;
-let knowledgeScroll = ref()
+const knowledgeScroll = ref()
 let page = 1;
 let pageSize = 35;
 let scrollLoading = false;
@@ -745,16 +733,11 @@ function onTagEditConfirm(tagIds: string[]) {
 const getPageSize = () => {
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
   const itemHeight = 148;
-  let itemsInView = Math.floor(viewportHeight / itemHeight) * 5;
+  const itemsInView = Math.floor(viewportHeight / itemHeight) * 5;
   pageSize = Math.max(35, itemsInView);
 }
 getPageSize()
 // 直接调用 API 获取知识库文件列表
-const getTagName = (tagId?: string | number) => {
-  if (!tagId && tagId !== 0) return '';
-  const key = String(tagId);
-  return tagMap.value[key]?.name || '';
-};
 
 const loadKnowledgeFiles = (kbIdValue: string): Promise<void> => {
   if (!kbIdValue) return Promise.resolve();
@@ -1371,7 +1354,6 @@ const updateStatus = (analyzeList: KnowledgeCard[]) => {
   }
   timeout = setTimeout(() => {
     batchQueryKnowledge(query).then((result: any) => {
-      let hasChanges = false;
       let shouldRefreshWikiStatus = false;
       if (result.success && result.data) {
         (result.data as KnowledgeCard[]).forEach((item: KnowledgeCard) => {
@@ -1400,7 +1382,6 @@ const updateStatus = (analyzeList: KnowledgeCard[]) => {
             cardList.value[index].summary_status = item.summary_status;
             cardList.value[index].description = item.description;
             delete traceAvailableById[item.id];
-            hasChanges = true;
           }
         });
       }
@@ -1577,13 +1558,6 @@ const manualEditorSuccess = ({ kbId: savedKbId }: { kbId: string; knowledgeId: s
   }
 };
 
-const documentTitle = computed(() => {
-  if (kbInfo.value?.name) {
-    return `${kbInfo.value.name} · ${t('knowledgeEditor.document.title')}`;
-  }
-  return t('knowledgeEditor.document.title');
-});
-
 const ensureDocumentKbReady = () => {
   if (isFAQ.value) {
     MessagePlugin.warning(t('knowledgeBase.operationNotSupportedForType'));
@@ -1611,9 +1585,6 @@ const ensureDocumentKbReady = () => {
   return true;
 };
 
-
-const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-const AUDIO_EXTENSIONS = ['mp3', 'wav', 'm4a', 'flac', 'ogg'];
 
 const uploadConfirmStore = useUploadConfirmStore();
 
@@ -1976,7 +1947,7 @@ const handleScroll = () => {
   if (!currentKbId) return;
   const element = knowledgeScroll.value;
   if (element) {
-    let pageNum = Math.ceil(total.value / pageSize)
+    const pageNum = Math.ceil(total.value / pageSize)
     const { scrollTop, scrollHeight, clientHeight } = element;
     if (scrollTop + clientHeight >= scrollHeight - 10) {
       if (cardList.value.length < total.value && page < pageNum) {
@@ -2047,10 +2018,6 @@ const clearSelection = () => {
 // no checkbox is rendered so the title doesn't jitter on hover; while on,
 // checkboxes are persistent and clicking a card toggles its selection.
 const batchMode = ref(false);
-const toggleBatchMode = () => {
-  batchMode.value = !batchMode.value;
-  if (!batchMode.value) clearSelection();
-};
 // "取消选择" / 退出批量管理：清空选择，并退出 grid 视图下的批量模式。
 const handleBatchCancel = () => {
   clearSelection();
@@ -2267,36 +2234,6 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   }
 };
 
-const getTitle = (session_id: string, value: string) => {
-  const now = new Date().toISOString();
-  let obj = {
-    title: t('knowledgeBase.newSession'),
-    path: `chat/${session_id}`,
-    id: session_id,
-    isMore: false,
-    isNoTitle: true,
-    created_at: now,
-    updated_at: now
-  };
-  usemenuStore.updataMenuChildren(obj);
-  usemenuStore.changeIsFirstSession(true);
-  usemenuStore.changeFirstQuery(value);
-  router.push(`/platform/chat/${session_id}`);
-};
-
-async function createNewSession(value: string): Promise<void> {
-  // Session 不再和知识库绑定，直接创建 Session
-  createSessions({}).then(res => {
-    if (res.data && res.data.id) {
-      getTitle(res.data.id, value);
-    } else {
-      // 错误处理
-      console.error(t('knowledgeBase.createSessionFailed'));
-    }
-  }).catch(error => {
-    console.error(t('knowledgeBase.createSessionError'), error);
-  });
-}
 </script>
 
 <template>

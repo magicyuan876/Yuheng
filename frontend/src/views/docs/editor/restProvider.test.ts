@@ -23,10 +23,6 @@ function pmDoc(text: string) {
   }
 }
 
-function lease(over: Partial<LeaseResponse> = {}): LeaseResponse {
-  return { held: true, held_by_me: true, ydoc_version: 0, ...over }
-}
-
 interface SavedCall {
   base_version: number
   ydoc: string

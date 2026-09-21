@@ -558,8 +558,10 @@ export function fabriText(request: FabriTextRequest): Promise<FabriTextResponse>
     });
 }
 
-export interface FabriTagRequest {
-}
+// The endpoint takes no fields yet. `object` rather than an empty interface:
+// an empty interface accepts `0` and `""` too, which is not what "a request
+// with no fields" means.
+export type FabriTagRequest = object;
 
 export interface FabriTagResponse {
     tags: string[];

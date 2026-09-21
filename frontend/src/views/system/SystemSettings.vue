@@ -501,7 +501,7 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 const currentUserId = computed(() => authStore.currentUserId)
 
-const { t, tm, te, locale } = useI18n()
+const { t, te } = useI18n()
 
 // Friendly labels per key live in i18n (system.globalSettings.keyLabels.*).
 // Adding a new entry there must accompany every new key registered in

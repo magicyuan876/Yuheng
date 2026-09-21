@@ -1,5 +1,10 @@
 <script setup lang="ts">
-// @ts-nocheck
+/* eslint-disable vue/no-mutating-props -- inherited from upstream: the component writes
+   summary state back onto its `details` prop in three places. The right fix is an emit
+   the parent applies, and that belongs to this component's rewrite on the new stack,
+   not to a patch here. */
+// @ts-nocheck -- inherited from upstream and typed loosely throughout (66 explicit anys);
+// it gets checked properly when it is rewritten, not repaired a line at a time.
 import { marked } from "marked";
 import markedKatex from 'marked-katex-extension';
 import 'katex/dist/katex.min.css';
@@ -533,13 +538,13 @@ let pendingChunkPage: number | null = null;
 const isChunkPageTransition = computed(
   () => Boolean(props.details?.chunkLoading) && chunkPage.value !== loadedChunkPage.value,
 );
-let mdContentWrap = ref()
+const mdContentWrap = ref()
 // Drawer uses attach="body", so markdown nodes live outside mdContentWrap in the DOM.
 const docMarkdownRoot = ref<HTMLElement | null>(null)
 
 const getMarkdownRenderRoot = (): ParentNode | null =>
   docMarkdownRoot.value ?? (mdContentWrap.value as ParentNode | null) ?? null
-let url = ref('')
+const url = ref('')
 // 视图模式：chunks / merged / preview
 // file 类型默认「预览」，URL / 手动创建 默认「全文」
 const viewMode = ref<'chunks' | 'merged' | 'preview'>('merged');
@@ -787,17 +792,6 @@ watch(() => props.details?.id, (newId) => {
   }
 });
 
-const isTextFile = (fileType?: string): boolean => {
-  if (!fileType) return false;
-  const textTypes = ['txt', 'md', 'markdown', 'json', 'xml', 'html', 'css', 'js', 'ts', 'py', 'java', 'go', 'cpp', 'c', 'h', 'sh', 'yaml', 'yml', 'ini', 'conf', 'log'];
-  return textTypes.includes(fileType.toLowerCase());
-};
-const isMarkdownFile = (fileType?: string): boolean => {
-  if (!fileType) return false;
-  const markdownTypes = ['md', 'markdown'];
-  return markdownTypes.includes(fileType.toLowerCase());
-};
-
 // 音频文件判断与播放器状态
 const audioExtensions = new Set(['mp3', 'wav', 'm4a', 'flac', 'ogg']);
 const isAudioFile = (fileType?: string): boolean => {
@@ -1032,7 +1026,7 @@ const processMarkdown = (markdownText) => {
   html = html.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 
   // 最终安全清理
-  let result = sanitizeHTML(html);
+  const result = sanitizeHTML(html);
 
   return result;
 };

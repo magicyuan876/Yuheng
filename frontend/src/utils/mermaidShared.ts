@@ -1,7 +1,6 @@
 import type { Tokens } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
-import { openMermaidFullscreen } from '@/utils/mermaidViewer.ts'
 import {
   buildCodeBlockHtml,
   buildMermaidBlockHtml,
@@ -158,14 +157,6 @@ async function getMermaid() {
     mermaidMod = await import('mermaid')
   }
   return mermaidMod.default
-}
-
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 function highlightCode(text: string, lang?: string | null) {

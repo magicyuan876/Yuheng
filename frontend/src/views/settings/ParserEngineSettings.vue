@@ -426,11 +426,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
-import { MessagePlugin } from 'tdesign-vue-next'
 import SettingDrawer from '@/components/settings/SettingDrawer.vue'
 import {
   getParserEngines,
@@ -444,7 +442,6 @@ import {
 } from '@/api/system'
 
 const { t } = useI18n()
-const uiStore = useUIStore()
 const authStore = useAuthStore()
 
 const CONFIGURABLE_ENGINES = new Set(['mineru', 'mineru_cloud', 'mineru_tianshu', 'paddleocr_vl', 'paddleocr_vl_cloud'])
@@ -712,7 +709,9 @@ function buildConfigPayload(): ParserEngineConfig {
 }
 
 async function onCheck() {
-  if (!connected) {
+  // `.value`, not the ref: the ref object is always truthy, so the guard
+  // below had never once fired.
+  if (!connected.value) {
     checkMessage.value = t('settings.parser.ensureDocreaderConnected')
     return
   }

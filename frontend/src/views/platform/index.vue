@@ -37,7 +37,7 @@ import { collectDroppedFiles } from './collectDroppedFiles'
 const route = useRoute();
 const router = useRouter();
 const commandPaletteStore = useCommandPaletteStore();
-let ismask = ref(false)
+const ismask = ref(false)
 const { t } = useI18n();
 
 const isRouterAlive = ref(true)

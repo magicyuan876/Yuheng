@@ -83,16 +83,6 @@ const {
   getOverflowCount,
 } = useTagChipsOverflow('listTagItemId');
 
-const tagMap = computed(() => {
-  const map: Record<string, Tag> = {};
-  for (const tag of props.tagList) map[String(tag.id)] = tag;
-  return map;
-});
-const getTagName = (tagId?: string | number) => {
-  if (!tagId && tagId !== 0) return '';
-  return tagMap.value[String(tagId)]?.name || '';
-};
-
 const formatTime = (time?: string) => {
   if (!time) return '--';
   const d = new Date(time);

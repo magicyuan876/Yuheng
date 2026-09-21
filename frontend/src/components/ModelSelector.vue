@@ -96,11 +96,6 @@ watch(() => [props.allModels, props.modelType] as const, ([newModels]) => {
   }
 }, { immediate: true })
 
-const selectedModel = computed(() => {
-  if (!props.selectedModelId) return null
-  return models.value.find(m => m.id === props.selectedModelId)
-})
-
 // 加载模型列表（仅在未提供 allModels 时调用）
 const loadModels = async () => {
   // 如果外部提供了 allModels，则不需要加载

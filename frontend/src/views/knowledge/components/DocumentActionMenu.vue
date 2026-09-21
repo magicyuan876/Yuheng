@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 interface KnowledgeItem {
   id: string;
@@ -31,7 +30,6 @@ const emit = defineEmits<{
   (e: 'delete'): void;
 }>();
 
-const { t } = useI18n();
 
 const CANCELABLE_PARSE_STATUSES = new Set(['pending', 'processing', 'finalizing']);
 

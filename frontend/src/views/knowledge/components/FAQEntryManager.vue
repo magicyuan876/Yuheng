@@ -863,7 +863,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed, nextTick, onUnmounted, h } from 'vue'
-import { MessagePlugin, DialogPlugin, Icon as TIcon } from 'tdesign-vue-next'
+import { MessagePlugin, Icon as TIcon } from 'tdesign-vue-next'
 import type { FormRules, FormInstanceFunctions } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -1034,7 +1034,6 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const entries = ref<FAQEntry[]>([])
 const entryStatusLoading = reactive<Record<number, boolean>>({})
-const entryRecommendedLoading = reactive<Record<number, boolean>>({})
 const selectedRowKeys = ref<number[]>([])
 const batchDeleteLoading = ref(false)
 const batchTagLoading = ref(false)
@@ -1513,32 +1512,6 @@ const handleEntryStatusChange = async (entry: FAQEntry, value: boolean) => {
   }
 }
 
-const handleEntryRecommendedChange = async (entry: FAQEntry, value: boolean) => {
-  if (entryRecommendedLoading[entry.id]) {
-    return
-  }
-  const entryIndex = entries.value.findIndex(e => e.id === entry.id)
-  if (entryIndex === -1) {
-    return
-  }
-  const actualEntry = entries.value[entryIndex]
-  const previous = actualEntry.is_recommended
-  if (previous === value) {
-    return
-  }
-  actualEntry.is_recommended = value
-  entryRecommendedLoading[entry.id] = true
-  try {
-    await updateFAQEntryFieldsBatch(props.kbId, { by_id: { [entry.id]: { is_recommended: value } } })
-    MessagePlugin.success(t(value ? 'knowledgeEditor.faq.recommendedEnableSuccess' : 'knowledgeEditor.faq.recommendedDisableSuccess'))
-  } catch (error: any) {
-    actualEntry.is_recommended = previous
-    MessagePlugin.error(error?.message || t('knowledgeEditor.faq.recommendedUpdateFailed'))
-  } finally {
-    entryRecommendedLoading[entry.id] = false
-  }
-}
-
 const editorRules: FormRules<FAQEntryPayload> = {
   standard_question: [
     { required: true, message: t('knowledgeEditor.messages.nameRequired') },
@@ -1847,22 +1820,6 @@ const handleBatchStatusChange = async (isEnabled: boolean) => {
     MessagePlugin.error(error?.message || t('common.operationFailed'))
   } finally {
     batchStatusAction.value = null
-  }
-}
-
-const handleBatchRecommendedChange = async (isRecommended: boolean) => {
-  if (!selectedRowKeys.value.length || !props.kbId) return
-  try {
-    const by_id: Record<number, { is_recommended: boolean }> = {}
-    selectedRowKeys.value.forEach(id => {
-      by_id[id] = { is_recommended: isRecommended }
-    })
-    await updateFAQEntryFieldsBatch(props.kbId, { by_id })
-    MessagePlugin.success(t(isRecommended ? 'knowledgeEditor.faq.recommendedEnableSuccess' : 'knowledgeEditor.faq.recommendedDisableSuccess'))
-    selectedRowKeys.value = []
-    await loadEntries()
-  } catch (error: any) {
-    MessagePlugin.error(error?.message || t('common.operationFailed'))
   }
 }
 
@@ -2677,17 +2634,6 @@ const handleSearch = async () => {
   } finally {
     searching.value = false
   }
-}
-
-const getMatchTypeLabel = (matchType?: string) => {
-  if (!matchType) return ''
-  if (matchType === 'embedding') {
-    return t('knowledgeEditor.faq.matchTypeEmbedding')
-  }
-  if (matchType === 'keywords') {
-    return t('knowledgeEditor.faq.matchTypeKeywords')
-  }
-  return matchType
 }
 
 const toggleResult = (result: FAQEntry) => {

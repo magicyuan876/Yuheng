@@ -195,7 +195,7 @@ const loading = ref(false);
 const historyLoading = ref(true);
 const historyLoadingMore = ref(false);
 const hasMoreHistory = ref(true);
-let fullContent = ref('')
+const fullContent = ref('')
 const scrollContainer = ref(null)
 const userHasScrolledUp = ref(false)
 const SCROLL_BOTTOM_THRESHOLD = 80
@@ -293,7 +293,7 @@ watch([() => route.params], async (newvalue) => {
         useSettingsStoreInstance.restoreDefaultsIfSnapshotted();
 
         await loadSessionAndHydrate(session_id.value);
-        let data = {
+        const data = {
             session_id: session_id.value,
             created_at: '',
             limit: limit.value
@@ -332,7 +332,7 @@ const onChatScrollTop = () => {
     const { scrollTop, scrollHeight } = scrollContainer.value;
     isFirstEnter.value = false
     if (scrollTop <= 0) {
-        let data = {
+        const data = {
             session_id: session_id.value,
             created_at: created_at.value,
             limit: limit.value
@@ -363,7 +363,6 @@ const handleScroll = () => {
 const fetchMessageList = (data) => getMessageList(data);
 
 const {
-    findLastMessage,
     shouldShowGlobalTypingIndicator,
     handleMsgList,
     processStreamChunk,
@@ -484,8 +483,8 @@ const sendMsg = async (value, modelId = '', mentionedItems = [], imageFiles = []
     // documents (understood in the background by the VLM) and are sent as
     // attachment_ids. A base64 fallback is used per-image if the async upload
     // fails.
-    let imageAttachments = [];
-    let userImages = [];
+    const imageAttachments = [];
+    const userImages = [];
     const imageAttachmentIds = [];
     if (imageFiles && imageFiles.length > 0) {
         for (const file of imageFiles) {
@@ -668,7 +667,7 @@ onMounted(async () => {
         scrollLock.value = false;
         hasMoreHistory.value = true;
         historyLoadingMore.value = false;
-        let data = {
+        const data = {
             session_id: session_id.value,
             created_at: '',
             limit: limit.value

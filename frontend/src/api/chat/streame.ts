@@ -10,17 +10,6 @@ import {
 
 
 
-interface StreamOptions {
-  // 请求方法 (默认POST)
-  method?: 'GET' | 'POST'
-  // 请求头
-  headers?: Record<string, string>
-  // 请求体自动序列化
-  body?: Record<string, any>
-  // 流式渲染间隔 (ms)
-  chunkInterval?: number
-}
-
 export function useStream() {
   // 响应式状态
   const output = ref('')              // 显示内容
@@ -32,8 +21,7 @@ export function useStream() {
   let streamGeneration = 0
 
   // 流式渲染缓冲
-  let buffer: string[] = []
-  let renderTimer: number | null = null
+  const buffer: string[] = []
 
   // 启动流式请求
   const startStream = async (params: { session_id: any; query: any; knowledge_base_ids?: string[]; knowledge_ids?: string[]; tag_ids?: string[]; web_search_enabled?: boolean; summary_model_id?: string; mentioned_items?: Array<{id: string; name: string; type: string; kb_type?: string; kb_id?: string; kb_name?: string}>; images?: Array<{data: string}>; attachment_uploads?: Array<{data: string; file_name: string; file_size: number}>; attachment_ids?: string[]; suggestion_attribution?: { suggestion_set_id: string; question_id: string }; method: string; url: string }) => {
@@ -74,7 +62,7 @@ export function useStream() {
     let firstAnswerLogged = false;
 
     try {
-      let url =
+      const url =
         params.method == "POST"
           ? `${apiUrl}${params.url}/${params.session_id}`
           : `${apiUrl}${params.url}/${params.session_id}?message_id=${params.query}`;

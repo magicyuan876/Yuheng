@@ -906,11 +906,6 @@ const spaceSelectionOrgId = computed(() => {
 })
 
 // 当前空间下共享给我的知识库（旧：仅他人共享；保留用于兼容）
-const sharedKbsByOrg = computed(() => {
-  const orgId = spaceSelection.value
-  if (orgId === 'all' || orgId === 'mine') return []
-  return sharedKbs.value.filter(s => s.organization_id === orgId)
-})
 
 // 空间视角：该空间内全部知识库（含我共享的），选中空间时请求新接口
 const spaceKbsList = ref<OrganizationSharedKnowledgeBaseItem[]>([])
@@ -1458,14 +1453,6 @@ const duplicateKB = async (id: string) => {
   } catch (e: any) {
     MessagePlugin.error(e?.message || t('knowledgeList.messages.duplicateFailed'))
   }
-}
-
-const handleShare = (kb: KB) => {
-  // 手动关闭弹窗
-  kb.showMore = false
-  sharingKbId.value = kb.id
-  sharingKbName.value = kb.name
-  shareDialogVisible.value = true
 }
 
 const handleShareSuccess = () => {

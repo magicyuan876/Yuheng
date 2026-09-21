@@ -108,14 +108,14 @@ const mentionTagIcon = (item) => {
 const emit = defineEmits(['scroll-bottom', 'render-complete-change'])
 const { t } = useI18n()
 const uiStore = useUIStore();
-let parentMd = ref()
+const parentMd = ref()
 const { float: citationFloat, rebind: rebindCitations, cancelClose: cancelCitationClose, scheduleClose: scheduleCitationClose } = useChatCitationPopover(parentMd, {
     getKnowledgeReferences: () => props.session?.knowledge_references,
     sessionId: () => props.sessionId,
 });
-let reviewUrl = ref('')
-let reviewImg = ref(false)
-let isImgLoading = ref(false);
+const reviewUrl = ref('')
+const reviewImg = ref(false)
+const isImgLoading = ref(false);
 const props = defineProps({
     // 必填项
     content: {
@@ -243,7 +243,6 @@ const handleAddToKnowledge = () => {
     const question = (props.userQuery || '').trim();
     const manualContent = buildManualMarkdown(question, content);
     const manualTitle = formatManualTitle(question);
-    ``
     uiStore.openManualEditor({
         mode: 'create',
         title: manualTitle,

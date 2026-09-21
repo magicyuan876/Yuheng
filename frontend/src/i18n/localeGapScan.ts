@@ -23,21 +23,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-function flattenMessages(root: unknown, path = ''): Set<string> {
-  const keys = new Set<string>()
-  if (typeof root === 'string') {
-    if (path) keys.add(path)
-    return keys
-  }
-  if (!root || typeof root !== 'object') return keys
-  for (const [key, value] of Object.entries(root as Record<string, unknown>)) {
-    const nextPath = path ? `${path}.${key}` : key
-    if (typeof value === 'string') keys.add(nextPath)
-    else for (const child of flattenMessages(value, nextPath)) keys.add(child)
-  }
-  return keys
-}
-
 const TEMPLATE_RE = /(?:\$t|(?<![.\w])t|i18n\.global\.t|globalSettingsText)\(\s*`([^`]+)`/g
 const CONCAT_RE = /(?:\$t|(?<![.\w])t)\(\s*['"]([a-zA-Z][\w.]*\.)['"]\s*\+/g
 const TM_ROOT_RE = /tm\(\s*['"]([^'"]+)['"]\s*\)/g

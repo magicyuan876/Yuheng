@@ -1,4 +1,4 @@
-import { get, post, put, del, patch, postUpload } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 import { setUploadLimits } from '@/utils'
 import type { CreatedTenantAPIKey, TenantAPIKey, TenantAPIKeyCapability } from '@/api/tenant'
 

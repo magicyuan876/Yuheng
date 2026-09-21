@@ -1,4 +1,4 @@
-import { get, post, put, del, postChat, getDown } from "../../utils/request";
+import { get, post, put, del, postChat } from "../../utils/request";
 
 
 

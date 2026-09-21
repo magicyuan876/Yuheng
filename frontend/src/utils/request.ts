@@ -70,7 +70,9 @@ instance.interceptors.request.use(
 
 // Token刷新标志，防止多个请求同时刷新token
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: Function; reject: Function }> = [];
+// Each entry is the pair from a request's own Promise executor, parked until
+// the refresh settles: it is handed the new token, or the refresh's error.
+let failedQueue: Array<{ resolve: (token: string | null) => void; reject: (reason?: unknown) => void }> = [];
 
 // Share-link endpoints (/auth/invitations/lookup, /auth/register-by-invite)
 // are reachable by anonymous users opening an invite link. A 401 from these

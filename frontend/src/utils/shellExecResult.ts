@@ -88,7 +88,7 @@ export function buildShellExecView(
   const parsedStderr = stderrFromData ? '' : extractFencedSection(rawOutput, 'Stderr')
 
   let stdout = stdoutFromData || parsedStdout
-  let stderr = stderrFromData || parsedStderr
+  const stderr = stderrFromData || parsedStderr
   if (!stdout && !stderr && rawOutput) {
     stdout = stripLegacyShellHeader(rawOutput)
   }

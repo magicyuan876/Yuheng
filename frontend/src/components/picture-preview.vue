@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { watch } from "vue"
 
-const props = defineProps(['reviewImg', 'reviewUrl'])
+defineProps(['reviewImg', 'reviewUrl'])
 const emit = defineEmits(['closePreImg'])
 const close = () => {
     emit('closePreImg')

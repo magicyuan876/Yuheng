@@ -251,7 +251,6 @@ import { MessagePlugin, DialogPlugin, Icon as TIcon } from "tdesign-vue-next";
 import UserMenu from '@/components/UserMenu.vue';
 import TenantSelector from '@/components/TenantSelector.vue';
 import { useI18n } from 'vue-i18n';
-import { getSystemInfo } from '@/api/system';
 
 const chatResources = useChatResourcesStore();
 
@@ -306,7 +305,7 @@ const hasAnySession = computed(() =>
 );
 type MenuItem = { title: string; icon: string; path: string; childrenPath?: string; children?: any[] };
 const { menuArr, visibleMenuArr } = storeToRefs(usemenuStore);
-let activeSubmenu = ref<string>('');
+const activeSubmenu = ref<string>('');
 
 // 批量管理状态
 const batchMode = ref(false)
@@ -342,20 +341,12 @@ const isInKnowledgeBase = computed<boolean>(() => {
 });
 
 // 是否在知识库列表页面
-const isInKnowledgeBaseList = computed<boolean>(() => {
-    return route.name === 'knowledgeBaseList';
-});
 
 // 是否在创建聊天页面
-const isInCreatChat = computed<boolean>(() => {
-    return route.name === 'globalCreatChat' || route.name === 'kbCreatChat';
-});
 
 // 是否在对话详情页
-const isInChatDetail = computed<boolean>(() => route.name === 'chat');
 
 // 是否在组织列表页面
-const isInOrganizationList = computed<boolean>(() => route.name === 'organizationList');
 
 // 统一的菜单项激活状态判断
 const isMenuItemActive = (itemPath: string): boolean => {
@@ -401,16 +392,6 @@ const topMenuItems = computed<MenuItem[]>(() => {
         item.path === 'knowledge-bases' || item.path === 'docs'
         || item.path === 'organizations' || item.path === 'creatChat'
     );
-});
-
-const bottomMenuItems = computed<MenuItem[]>(() => {
-    return (visibleMenuArr.value as unknown as MenuItem[]).filter((item: MenuItem) => {
-        if (item.path === 'knowledge-bases' || item.path === 'docs'
-            || item.path === 'organizations' || item.path === 'creatChat') {
-            return false;
-        }
-        return true;
-    });
 });
 
 // 当前知识库信息
@@ -967,13 +948,13 @@ watch([() => route.name, () => route.params], (newvalue, oldvalue) => {
         loadCurrentKbInfo((newvalue[1] as any)?.kbId as string);
     }
 });
-let knowledgeIcon = ref('zhishiku-green.svg');
-let prefixIcon = ref('prefixIcon.svg');
-let logoutIcon = ref('logout.svg');
-let settingIcon = ref('setting.svg');
-let docsIcon = ref('docs.svg');
-let organizationIcon = ref('organization.svg');
-let pathPrefix = ref(route.name)
+const knowledgeIcon = ref('zhishiku-green.svg');
+const prefixIcon = ref('prefixIcon.svg');
+const logoutIcon = ref('logout.svg');
+const settingIcon = ref('setting.svg');
+const docsIcon = ref('docs.svg');
+const organizationIcon = ref('organization.svg');
+const pathPrefix = ref(route.name)
 const getIcon = (path: string) => {
     // 根据当前路由状态更新所有图标
     const kbActiveState = getIconActiveState('knowledge-bases');
@@ -1026,9 +1007,6 @@ const handleMenuClick = async (path: string) => {
 }
 
 // 处理退出登录确认
-const handleLogout = () => {
-    gotopage('logout')
-}
 
 const getCurrentKbId = async (): Promise<string | null> => {
     const kbId = (route.params as any)?.kbId as string

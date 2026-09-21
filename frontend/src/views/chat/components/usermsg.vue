@@ -50,11 +50,9 @@
 import { computed, ref, watch, onMounted, nextTick } from "vue";
 import { hydrateProtectedFileImages } from '@/utils/security';
 import picturePreview from '@/components/picture-preview.vue';
-import { useI18n } from 'vue-i18n';
 import { useChatAttachmentPreviewDrawer } from '@/composables/useChatAttachmentPreviewDrawer';
 import { isPreviewableAttachment, resolveAttachmentFileType } from '@/utils/attachmentPreview';
 
-const { t } = useI18n();
 
 const mentionTagClass = (item) => {
     if (item.type === 'kb') return item.kb_type === 'faq' ? 'faq-tag' : 'kb-tag';
@@ -105,34 +103,9 @@ const props = defineProps({
 
 const attachmentPreviewDrawer = useChatAttachmentPreviewDrawer();
 
-const channelLabelMap = {
-    web: () => t('chat.channelWeb'),
-    api: () => t('chat.channelApi'),
-    im: () => t('chat.channelIm'),
-};
-
-const channelLabel = computed(() => {
-    if (!props.channel) return '';
-    const label = channelLabelMap[props.channel];
-    return typeof label === 'function' ? label() : (label || props.channel);
-});
-
-const channelClass = computed(() => props.channel ? `channel-${props.channel}` : '');
-
 const containerRef = ref(null);
 const hasImages = computed(() => props.images && props.images.length > 0);
 const hasAttachments = computed(() => props.attachments && props.attachments.length > 0);
-
-const getAttachmentIcon = (fileNameOrType) => {
-    const ext = (fileNameOrType || '').split('.').pop()?.toLowerCase();
-    if (['pdf'].includes(ext)) return 'file-pdf';
-    if (['doc', 'docx'].includes(ext)) return 'file-word';
-    if (['xls', 'xlsx'].includes(ext)) return 'file-excel';
-    if (['ppt', 'pptx'].includes(ext)) return 'file-powerpoint';
-    if (['txt', 'md'].includes(ext)) return 'file';
-    if (['mp3', 'wav', 'm4a', 'flac', 'ogg', 'aac'].includes(ext)) return 'sound';
-    return 'file';
-};
 
 const getFileExt = (fileName) => {
     return (fileName || '').split('.').pop()?.toUpperCase() || 'FILE';

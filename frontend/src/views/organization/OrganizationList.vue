@@ -743,13 +743,6 @@ const emptyStateDesc = computed(() => {
 })
 
 // Methods
-function getRoleTheme(role: string) {
-  switch (role) {
-    case 'admin': return 'primary'
-    case 'editor': return 'warning'
-    default: return 'default'
-  }
-}
 
 const onVisibleChange = (visible: boolean, org: OrgWithUI) => {
   if (!visible) {
@@ -1011,11 +1004,6 @@ function previewSearchableOrg(org: SearchableOrganizationItem) {
 }
 
 // 查看搜索到的空间（已是成员时，打开空间设置；不关闭加入弹窗，关闭设置后仍回到搜索）
-function viewSearchableOrg(org: SearchableOrganizationItem) {
-  settingsOrgId.value = org.id
-  settingsMode.value = 'edit'
-  showSettingsModal.value = true
-}
 
 // 从预览弹框中查看空间（已是成员时；不关闭加入弹窗，关闭设置后仍回到搜索）
 function viewOrganizationFromPreview() {

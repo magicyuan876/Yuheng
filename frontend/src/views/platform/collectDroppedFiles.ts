@@ -20,7 +20,7 @@ export const setRelativePath = (file: File, relativePath: string): void => {
   }
 }
 
-const readAllDirEntries = (reader: { readEntries: Function }): Promise<any[]> => {
+const readAllDirEntries = (reader: FileSystemDirectoryReader): Promise<any[]> => {
   return new Promise((resolve) => {
     const collected: any[] = []
     const readBatch = () => {

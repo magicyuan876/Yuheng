@@ -1,4 +1,4 @@
-import { safeRemoveItem, safeSetItem } from "@/composables/preferenceStorage";
+import { safeRemoveItem } from "@/composables/preferenceStorage";
 
 export const SETTINGS_STORAGE_KEY = "Yuheng_settings";
 

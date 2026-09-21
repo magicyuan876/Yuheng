@@ -45,7 +45,7 @@ export async function renameSession(
 }
 
 export async function setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
-  const response = ensureSuccess(pinned ? await pinSession(sessionId) : await unpinSession(sessionId))
+  ensureSuccess(pinned ? await pinSession(sessionId) : await unpinSession(sessionId))
   notifySessionMutation({
     sessionId,
     patch: {

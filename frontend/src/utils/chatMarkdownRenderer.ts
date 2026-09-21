@@ -484,6 +484,14 @@ export function renderChatMarkdown(rawMarkdown: unknown, options: RenderChatMark
   // agent sanitizers (e.g. UUID stripping) cannot damage chunk_id attributes.
   const { content: markdownWithPlaceholders, htmlSnippets } =
     extractCitationHtmlPlaceholders(flankingSafeMarkdown, options.knowledgeReferences)
+  // Computed and then not used: the parse below takes the *unescaped* input.
+  // The comment above describes an order — placeholders, then escapeMarkdown,
+  // then parse — that this code does not follow, and in production the
+  // escaper is `safeMarkdownToHTML` (botmsg.vue), while every test passes an
+  // identity function and so cannot see the difference. Whether the parse
+  // should take this value is a rendering and sanitisation decision, not a
+  // lint fix; it is left exactly as it was, and flagged.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
   const escapedMarkdown = options.escapeMarkdown(markdownWithPlaceholders)
   const html = marked.parse(markdownWithPlaceholders, {
     renderer: options.renderer,

@@ -130,8 +130,6 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { useI18n } from 'vue-i18n'
-import { useSettingsStore } from '@/stores/settings'
-import { useAuthStore } from '@/stores/auth'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import {
   useFont,
@@ -145,8 +143,6 @@ import {
 } from '@/composables/useFont'
 
 const { t, locale } = useI18n()
-const settingsStore = useSettingsStore()
-const authStore = useAuthStore()
 const { currentTheme, setTheme } = useTheme()
 const {
   currentSans,

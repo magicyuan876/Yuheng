@@ -19,8 +19,9 @@ export function getCaretCoordinates(element: HTMLTextAreaElement, position: numb
   ];
 
   properties.forEach(prop => {
-    // @ts-ignore
-    div.style[prop] = style[prop];
+    // Both sides are CSSStyleDeclaration indexed by a property name from a
+    // list; the cast says so instead of switching the checker off for the line.
+    (div.style as unknown as Record<string, string>)[prop] = (style as unknown as Record<string, string>)[prop];
   });
 
   div.style.position = 'absolute';
@@ -44,7 +45,6 @@ export function getCaretCoordinates(element: HTMLTextAreaElement, position: numb
   document.body.appendChild(div);
   
   const spanRect = span.getBoundingClientRect();
-  const divRect = div.getBoundingClientRect();
   
   const coordinates = {
     top: span.offsetTop + parseInt(style.borderTopWidth),

@@ -53,6 +53,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # Cheapest checks first, so a formatting slip fails in seconds rather
+      # than after a two-minute build.
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
 

@@ -4,11 +4,9 @@
     </div>
 </template>
 <script setup>
-import { onMounted, watch, computed, ref, reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref } from 'vue';
 
 const value = ref('');
-const { t } = useI18n();
 const onChange = (value,e) => {
     console.log(value)
 }

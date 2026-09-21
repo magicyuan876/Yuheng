@@ -94,7 +94,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useUIStore } from '@/stores/ui'
 import { usePlatformInfraAccess } from '@/composables/usePlatformInfraAccess'
 import { listVectorStores, type VectorStoreEntity } from '@/api/vector-store'
@@ -116,7 +115,6 @@ const emit = defineEmits<{
   (e: 'update:vectorStoreId', id: string): void
 }>()
 
-const { t } = useI18n()
 const uiStore = useUIStore()
 const canManageVectorStore = usePlatformInfraAccess('vectorstore')
 
