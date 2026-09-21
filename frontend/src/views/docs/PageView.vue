@@ -1,90 +1,105 @@
 <template>
-  <div class="docs-page-view">
+  <div class="min-h-0 flex-1 overflow-y-auto px-12 pt-4 pb-16">
     <!-- Breadcrumbs -->
-    <nav class="page-crumbs" aria-label="breadcrumb">
-      <button type="button" class="crumb" @click="goSpace">{{ space.name }}</button>
+    <nav class="mb-5 flex flex-wrap items-center gap-0.5 text-[13px] text-muted-foreground" aria-label="breadcrumb">
+      <Button variant="ghost" size="xs" class="max-w-[24ch] truncate font-normal text-[13px]" @click="goSpace">
+        {{ space.name }}
+      </Button>
       <template v-for="a in ancestors" :key="a.id">
-        <t-icon name="chevron-right" size="12px" class="crumb-sep" />
-        <button type="button" class="crumb" @click="goPage(a)">{{ a.title || t("docs.tree.untitled") }}</button>
+        <ChevronRightIcon class="size-3 shrink-0 text-placeholder" />
+        <Button variant="ghost" size="xs" class="max-w-[24ch] truncate font-normal text-[13px]" @click="goPage(a)">
+          {{ a.title || t("docs.tree.untitled") }}
+        </Button>
       </template>
       <template v-if="page">
-        <t-icon name="chevron-right" size="12px" class="crumb-sep" />
-        <span class="crumb crumb--current">{{ page.title || t("docs.tree.untitled") }}</span>
+        <ChevronRightIcon class="size-3 shrink-0 text-placeholder" />
+        <span class="max-w-[24ch] truncate px-1.5 text-foreground">{{ page.title || t("docs.tree.untitled") }}</span>
       </template>
     </nav>
 
-    <div v-if="loading" class="page-loading">
-      <t-skeleton
-        animation="gradient"
-        :row-col="[{ width: '50%', height: '32px' }, { width: '100%' }, { width: '90%' }]"
-      />
+    <div v-if="loading" class="mx-auto my-6 max-w-[820px] space-y-3">
+      <Skeleton class="h-8 w-1/2" />
+      <Skeleton class="h-4 w-full" />
+      <Skeleton class="h-4 w-[90%]" />
     </div>
 
     <!-- In the trash -->
-    <div v-else-if="gone" class="page-gone">
-      <t-icon name="delete" size="32px" />
-      <h2>{{ t("docs.pages.gone") }}</h2>
-      <p>{{ t("docs.pages.goneHint", { time: formatDate(gone.deleted_at) }) }}</p>
-      <p v-if="!gone.restorable" class="gone-hint">{{ t("docs.pages.restoreNotAllowed") }}</p>
-      <t-button v-else theme="primary" :loading="restoring" @click="restore">{{ t("docs.pages.restore") }}</t-button>
+    <div v-else-if="gone" class="mx-auto my-20 max-w-[520px] text-center text-muted-foreground">
+      <Trash2Icon class="mx-auto size-8" />
+      <h2 class="mt-3 mb-2 text-lg text-foreground">{{ t("docs.pages.gone") }}</h2>
+      <p class="mb-3">{{ t("docs.pages.goneHint", { time: formatDate(gone.deleted_at) }) }}</p>
+      <p v-if="!gone.restorable" class="text-[13px] text-placeholder">{{ t("docs.pages.restoreNotAllowed") }}</p>
+      <Button v-else :disabled="restoring" @click="restore">
+        <Loader2Icon v-if="restoring" class="animate-spin" />
+        {{ t("docs.pages.restore") }}
+      </Button>
     </div>
 
-    <div v-else-if="notFound" class="page-gone">
-      <t-icon name="error-circle" size="32px" />
-      <h2>{{ t("docs.pages.notFound") }}</h2>
+    <div v-else-if="notFound" class="mx-auto my-20 max-w-[520px] text-center text-muted-foreground">
+      <CircleAlertIcon class="mx-auto size-8" />
+      <h2 class="mt-3 mb-2 text-lg text-foreground">{{ t("docs.pages.notFound") }}</h2>
     </div>
 
-    <article v-else-if="page" class="page-article">
-      <header class="page-header">
+    <article v-else-if="page" class="mx-auto max-w-[820px]">
+      <header>
         <!-- Icon, title and status on one line, the way a document names
-             itself everywhere else. The icon is sized to the title's first
-             line so a long title wraps beneath it rather than dragging it
-             down the middle. -->
-        <div class="page-title-row">
-          <t-popup
-            v-if="page.can_edit"
-            trigger="click"
-            placement="bottom-left"
-            :visible="iconOpen"
-            @visible-change="(v: boolean) => (iconOpen = v)"
-          >
-            <button
-              type="button"
-              class="page-icon"
-              :class="{ 'page-icon--empty': !page.icon }"
-              :aria-label="t('docs.pages.iconPlaceholder')"
-            >
-              <span v-if="page.icon">{{ page.icon }}</span>
-              <t-icon v-else name="file" size="28px" />
-            </button>
-            <template #content>
-              <div class="icon-picker">
-                <t-input
-                  v-model="iconDraft"
-                  :maxlength="8"
-                  :placeholder="t('docs.pages.iconPlaceholder')"
-                  @enter="saveIcon(iconDraft)"
-                />
-                <div class="icon-picker-quick">
-                  <button v-for="e in QUICK_ICONS" :key="e" type="button" class="icon-quick" @click="saveIcon(e)">
-                    {{ e }}
-                  </button>
-                </div>
-                <t-button v-if="page.icon" variant="text" size="small" theme="danger" @click="saveIcon('')">
-                  {{ t("docs.pages.removeIcon") }}
-                </t-button>
+             itself everywhere else. Top-aligned, and the icon sized to the
+             title's first line (32px × 1.25 = 40px), so a long title wraps
+             beneath it rather than dragging it down the middle. -->
+        <div class="flex items-start gap-2.5">
+          <Popover v-if="page.can_edit" v-model:open="iconOpen">
+            <PopoverTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="size-10 rounded-lg text-[30px] leading-none text-muted-foreground"
+                :aria-label="t('docs.pages.iconPlaceholder')"
+              >
+                <span v-if="page.icon">{{ page.icon }}</span>
+                <FileIcon v-else class="size-7" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" class="flex w-[260px] flex-col gap-2 p-2">
+              <Input
+                :model-value="iconDraft"
+                maxlength="8"
+                :placeholder="t('docs.pages.iconPlaceholder')"
+                @update:model-value="(v) => (iconDraft = String(v))"
+                @keydown.enter="saveIcon(iconDraft)"
+              />
+              <div class="grid grid-cols-6 gap-1">
+                <Button
+                  v-for="e in QUICK_ICONS"
+                  :key="e"
+                  variant="ghost"
+                  size="icon-sm"
+                  class="text-xl leading-none"
+                  @click="saveIcon(e)"
+                >
+                  {{ e }}
+                </Button>
               </div>
-            </template>
-          </t-popup>
-          <span v-else class="page-icon page-icon--static">
+              <Button v-if="page.icon" variant="destructive" size="xs" class="self-start" @click="saveIcon('')">
+                {{ t("docs.pages.removeIcon") }}
+              </Button>
+            </PopoverContent>
+          </Popover>
+          <span
+            v-else
+            class="flex size-10 shrink-0 items-center justify-center text-[30px] leading-none text-muted-foreground"
+          >
             <span v-if="page.icon">{{ page.icon }}</span>
-            <t-icon v-else name="file" size="28px" />
+            <FileIcon v-else class="size-7" />
           </span>
+
+          <!-- data-slot opts the bare textarea into the same element reset the
+               new components get, so no browser chrome has to be undone by hand. -->
           <textarea
             v-if="page.can_edit"
             ref="titleInput"
             v-model="titleDraft"
-            class="page-title page-title--input"
+            data-slot="page-title"
+            class="min-w-0 flex-1 resize-none overflow-hidden text-[32px] leading-[1.25] font-bold text-foreground outline-none [font-family:var(--app-font-family)] placeholder:text-placeholder"
             rows="1"
             :placeholder="t('docs.pages.titlePlaceholder')"
             maxlength="500"
@@ -92,90 +107,111 @@
             @keydown.enter.prevent="commitTitle"
             @blur="commitTitle"
           />
-          <h1 v-else class="page-title" :class="{ 'page-title--untitled': !page.title }">
+          <h1
+            v-else
+            class="m-0 min-w-0 flex-1 text-[32px] leading-[1.25] font-bold [font-family:var(--app-font-family)]"
+            :class="page.title ? 'text-foreground' : 'text-placeholder'"
+          >
             {{ page.title || t("docs.pages.titlePlaceholder") }}
           </h1>
-          <div class="page-badges">
-            <t-tag v-if="!page.can_edit" size="small" variant="light">{{ t("docs.pages.readOnly") }}</t-tag>
-            <t-tag v-if="page.is_locked" size="small" variant="light" theme="warning">
-              <template #icon><t-icon name="lock-on" /></template>
+
+          <!-- Centred on the title's first line, like the icon on the other side. -->
+          <div v-if="!page.can_edit || page.is_locked || page.restricted" class="mt-[9px] flex shrink-0 gap-1.5">
+            <Badge v-if="!page.can_edit" variant="secondary">{{ t("docs.pages.readOnly") }}</Badge>
+            <Badge v-if="page.is_locked" variant="outline" class="border-warning/40 text-warning">
+              <LockIcon />
               {{ t("docs.pages.locked") }}
-            </t-tag>
-            <t-tag v-if="page.restricted" size="small" variant="light" theme="primary">
+            </Badge>
+            <Badge v-if="page.restricted" variant="outline" class="border-primary/40 text-primary">
               {{ t("docs.pages.restricted") }}
-            </t-tag>
+            </Badge>
           </div>
         </div>
-        <div class="page-meta">
+
+        <!-- The page's actions share a row with the timestamp, so each has to
+             be quiet on its own: text-coloured, no border, a background only
+             under the pointer. A toggled state (watching, starred, muted,
+             locked) keeps the brand colour, so it reads as a state rather
+             than as one more button. -->
+        <div class="mt-1.5 flex flex-wrap items-center gap-0.5 text-xs text-placeholder">
           <!-- The live word count lives in the editor's own toolbar row;
                showing the persisted one here too would just disagree with
                it while someone is typing. -->
-          <span class="page-meta-time">{{
+          <span class="mr-2 whitespace-nowrap">{{
             t("docs.pages.lastEdited", { time: formatDate(page.content_updated_at || page.updated_at) })
           }}</span>
-          <button type="button" class="page-action" @click="historyOpen = true">
-            <t-icon name="history" size="14px" />
-            <span>{{ t("docs.history.title") }}</span>
-          </button>
-          <button type="button" class="page-action" :aria-pressed="watchState.watched" @click="toggleWatch">
-            <t-icon :name="watchState.watched ? 'bookmark' : 'bookmark-add'" size="14px" />
-            <span>{{ watchState.watched ? t("docs.watch.watching") : t("docs.watch.watch") }}</span>
-          </button>
-          <button
+          <Button variant="ghost" size="xs" class="page-action" @click="historyOpen = true">
+            <HistoryIcon />
+            {{ t("docs.history.title") }}
+          </Button>
+          <Button variant="ghost" size="xs" class="page-action" :aria-pressed="watchState.watched" @click="toggleWatch">
+            <BookmarkIcon v-if="watchState.watched" />
+            <BookmarkPlusIcon v-else />
+            {{ watchState.watched ? t("docs.watch.watching") : t("docs.watch.watch") }}
+          </Button>
+          <Button
             v-if="watchState.watched"
-            type="button"
+            variant="ghost"
+            size="xs"
             class="page-action"
             :aria-pressed="watchState.muted"
             @click="toggleMute"
           >
-            <t-icon :name="watchState.muted ? 'notification-off' : 'notification'" size="14px" />
-            <span>{{ watchState.muted ? t("docs.watch.muted") : t("docs.watch.mute") }}</span>
-          </button>
-          <button type="button" class="page-action" :aria-pressed="favourite" @click="toggleFavourite">
-            <t-icon :name="favourite ? 'star-filled' : 'star'" size="14px" :class="{ 'star-on': favourite }" />
-            <span>{{ favourite ? t("docs.home.starred") : t("docs.home.star") }}</span>
-          </button>
-          <button type="button" class="page-action" @click="accessOpen = true">
-            <t-icon :name="page.restricted ? 'lock-on' : 'usergroup'" size="14px" />
-            <span>{{ page.restricted ? t("docs.access.restricted") : t("docs.access.who") }}</span>
-          </button>
-          <button type="button" class="page-action" @click="shareOpen = true">
-            <t-icon name="share" size="14px" />
-            <span>{{ t("docs.share.title") }}</span>
-          </button>
-          <t-dropdown
-            :options="exportOptions"
-            trigger="click"
-            @click="(item: { value: string }) => runExport(item.value as ExportFormat)"
-          >
-            <button type="button" class="page-action" :disabled="exporting">
-              <t-icon name="download" size="14px" />
-              <span>{{ t("docs.exportDoc.title") }}</span>
-            </button>
-          </t-dropdown>
-          <button v-if="page.can_edit" type="button" class="page-action" @click="openSaveTemplate">
-            <t-icon name="template" size="14px" />
-            <span>{{ t("docs.templates.saveAs") }}</span>
-          </button>
-          <button
+            <BellOffIcon v-if="watchState.muted" />
+            <BellIcon v-else />
+            {{ watchState.muted ? t("docs.watch.muted") : t("docs.watch.mute") }}
+          </Button>
+          <Button variant="ghost" size="xs" class="page-action" :aria-pressed="favourite" @click="toggleFavourite">
+            <StarIcon :class="favourite ? 'fill-current text-warning' : ''" />
+            {{ favourite ? t("docs.home.starred") : t("docs.home.star") }}
+          </Button>
+          <Button variant="ghost" size="xs" class="page-action" @click="accessOpen = true">
+            <LockIcon v-if="page.restricted" />
+            <UsersIcon v-else />
+            {{ page.restricted ? t("docs.access.restricted") : t("docs.access.who") }}
+          </Button>
+          <Button variant="ghost" size="xs" class="page-action" @click="shareOpen = true">
+            <Share2Icon />
+            {{ t("docs.share.title") }}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="ghost" size="xs" class="page-action" :disabled="exporting">
+                <DownloadIcon />
+                {{ t("docs.exportDoc.title") }}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem @select="runExport('markdown')">{{ t("docs.exportDoc.markdown") }}</DropdownMenuItem>
+              <DropdownMenuItem @select="runExport('html')">{{ t("docs.exportDoc.html") }}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button v-if="page.can_edit" variant="ghost" size="xs" class="page-action" @click="openSaveTemplate">
+            <LayoutTemplateIcon />
+            {{ t("docs.templates.saveAs") }}
+          </Button>
+          <Button
             v-if="page.role === 'admin'"
-            type="button"
+            variant="ghost"
+            size="xs"
             class="page-action"
             :aria-pressed="page.is_locked"
             @click="toggleLock"
           >
-            <t-icon :name="page.is_locked ? 'lock-on' : 'lock-off'" size="14px" />
-            <span>{{ page.is_locked ? t("docs.lock.locked") : t("docs.lock.lock") }}</span>
-          </button>
-          <button v-if="page.can_edit" type="button" class="page-action" @click="toggleDraft">
-            <t-icon :name="page.status === 'draft' ? 'edit-2' : 'check-circle'" size="14px" />
-            <span>{{ page.status === "draft" ? t("docs.lock.draft") : t("docs.lock.published") }}</span>
-          </button>
+            <LockIcon v-if="page.is_locked" />
+            <LockOpenIcon v-else />
+            {{ page.is_locked ? t("docs.lock.locked") : t("docs.lock.lock") }}
+          </Button>
+          <Button v-if="page.can_edit" variant="ghost" size="xs" class="page-action" @click="toggleDraft">
+            <PencilIcon v-if="page.status === 'draft'" />
+            <CircleCheckIcon v-else />
+            {{ page.status === "draft" ? t("docs.lock.draft") : t("docs.lock.published") }}
+          </Button>
           <NotificationCentre :revision="notificationRevision" />
         </div>
         <PageLabels
           v-if="page.can_edit || labels.length"
-          class="page-label-row"
+          class="mt-2.5"
           :page-id="page.id"
           :space-id="page.space_id"
           :can-edit="page.can_edit"
@@ -184,12 +220,12 @@
         />
       </header>
 
-      <div class="page-body-row">
+      <div class="mt-4 flex items-start gap-6">
         <DocEditor
           v-if="editingModeKnown"
           ref="docEditor"
           :key="editorKey"
-          class="page-body"
+          class="page-body min-w-0 flex-1 text-[15px] leading-[1.75] text-foreground"
           :page-id="page.id"
           :space-id="page.space_id"
           :tenant-id="tenantId"
@@ -204,7 +240,6 @@
 
       <CommentsPanel
         v-if="comments"
-        class="page-comments"
         :threads="comments.threads.value"
         :grouped="comments.grouped.value"
         :open="comments.open.value"
@@ -226,7 +261,6 @@
            the very words it is about. -->
       <CommentComposer
         v-if="docEditor?.drafting"
-        class="page-comment-draft"
         :placeholder="t('docs.comments.placeholder')"
         @submit="(body) => docEditor?.submitComment(body)"
         @cancel="() => docEditor?.cancelComment()"
@@ -234,31 +268,39 @@
 
       <BacklinksPanel :entries="backlinks" :loading="backlinksLoading" />
 
-      <section v-if="children.length" class="page-children">
-        <h3>{{ t("docs.pages.subpages") }}</h3>
-        <ul>
+      <section v-if="children.length" class="mt-10 border-t border-border pt-4">
+        <h3 class="mb-2 text-[13px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+          {{ t("docs.pages.subpages") }}
+        </h3>
+        <ul class="mb-2 list-none">
           <li v-for="c in children" :key="c.id">
-            <button type="button" class="child-link" @click="goPage(c)">
-              <span class="child-icon">{{ c.icon || "📄" }}</span>
-              <span>{{ c.title || t("docs.tree.untitled") }}</span>
-            </button>
+            <Button variant="ghost" size="sm" class="h-auto px-2 py-1.5 text-sm font-normal" @click="goPage(c)">
+              <span class="w-5 text-center">{{ c.icon || "📄" }}</span>
+              {{ c.title || t("docs.tree.untitled") }}
+            </Button>
           </li>
         </ul>
-        <t-button v-if="page.can_edit" variant="text" size="small" @click="emit('createChild', page.id)">
-          <template #icon><t-icon name="add" /></template>
+        <Button
+          v-if="page.can_edit"
+          variant="ghost"
+          size="sm"
+          class="text-muted-foreground"
+          @click="emit('createChild', page.id)"
+        >
+          <PlusIcon />
           {{ t("docs.tree.newSubpage") }}
-        </t-button>
+        </Button>
       </section>
-      <t-button
+      <Button
         v-else-if="page.can_edit"
-        variant="text"
-        size="small"
-        class="add-child"
+        variant="ghost"
+        size="sm"
+        class="mt-8 text-muted-foreground"
         @click="emit('createChild', page.id)"
       >
-        <template #icon><t-icon name="add" /></template>
+        <PlusIcon />
         {{ t("docs.tree.newSubpage") }}
-      </t-button>
+      </Button>
     </article>
 
     <HistoryPanel
@@ -270,48 +312,65 @@
       @restored="onRestored"
     />
 
-    <t-dialog
-      v-model:visible="templateOpen"
-      :header="t('docs.templates.saveAs')"
-      width="480px"
-      destroy-on-close
-      :confirm-btn="{ content: t('common.save'), loading: savingTemplate }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="saveAsTemplate"
-    >
-      <div class="template-form">
-        <t-input v-model="templateName" :maxlength="120" :placeholder="t('docs.templates.namePlaceholder')" />
-        <t-input v-model="templateCategory" :maxlength="64" :placeholder="t('docs.templates.categoryPlaceholder')" />
-        <t-textarea
-          v-model="templateDescription"
-          :maxlength="500"
-          :autosize="{ minRows: 2, maxRows: 4 }"
-          :placeholder="t('docs.templates.descriptionPlaceholder')"
-        />
-        <!-- Said before it happens, not discovered afterwards. -->
-        <p class="template-note">{{ t("docs.templates.stripNote") }}</p>
-      </div>
-    </t-dialog>
+    <Dialog v-model:open="templateOpen">
+      <DialogContent class="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.templates.saveAs") }}</DialogTitle>
+          <!-- Said before it happens, not discovered afterwards. -->
+          <DialogDescription>{{ t("docs.templates.stripNote") }}</DialogDescription>
+        </DialogHeader>
+        <div class="flex flex-col gap-2.5">
+          <Input
+            :model-value="templateName"
+            maxlength="120"
+            :placeholder="t('docs.templates.namePlaceholder')"
+            @update:model-value="(v) => (templateName = String(v))"
+          />
+          <Input
+            :model-value="templateCategory"
+            maxlength="64"
+            :placeholder="t('docs.templates.categoryPlaceholder')"
+            @update:model-value="(v) => (templateCategory = String(v))"
+          />
+          <Textarea
+            :model-value="templateDescription"
+            maxlength="500"
+            rows="3"
+            :placeholder="t('docs.templates.descriptionPlaceholder')"
+            @update:model-value="(v) => (templateDescription = String(v))"
+          />
+        </div>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button :disabled="savingTemplate || !templateName.trim()" @click="saveAsTemplate">
+            <Loader2Icon v-if="savingTemplate" class="animate-spin" />
+            {{ t("common.save") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-    <t-dialog
-      v-model:visible="shareOpen"
-      :header="t('docs.share.title')"
-      width="560px"
-      destroy-on-close
-      :footer="false"
-    >
-      <SharePanel v-if="page" :page-id="page.id" :can-manage="page.can_edit" :restricted="page.restricted" />
-    </t-dialog>
+    <!-- The panels below carry their own explanatory text, so the dialog has
+         no description of its own; saying so keeps the a11y check quiet. -->
+    <Dialog v-model:open="shareOpen">
+      <DialogContent class="sm:max-w-[560px]" :aria-describedby="undefined">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.share.title") }}</DialogTitle>
+        </DialogHeader>
+        <SharePanel v-if="page" :page-id="page.id" :can-manage="page.can_edit" :restricted="page.restricted" />
+      </DialogContent>
+    </Dialog>
 
-    <t-dialog
-      v-model:visible="accessOpen"
-      :header="t('docs.access.title')"
-      width="560px"
-      destroy-on-close
-      :footer="false"
-    >
-      <PageAccessPanel v-if="page" :page-id="page.id" @changed="onAccessChanged" />
-    </t-dialog>
+    <Dialog v-model:open="accessOpen">
+      <DialogContent class="sm:max-w-[560px]" :aria-describedby="undefined">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.access.title") }}</DialogTitle>
+        </DialogHeader>
+        <PageAccessPanel v-if="page" :page-id="page.id" @changed="onAccessChanged" />
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -368,6 +427,50 @@ import TocSidebar from "./editor/TocSidebar.vue";
 import { pageSlug } from "./tree/pageTree";
 import type { DocsEvent } from "./useDocsEvents";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  BellIcon,
+  BellOffIcon,
+  BookmarkIcon,
+  BookmarkPlusIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  DownloadIcon,
+  FileIcon,
+  HistoryIcon,
+  LayoutTemplateIcon,
+  Loader2Icon,
+  LockIcon,
+  LockOpenIcon,
+  PencilIcon,
+  PlusIcon,
+  Share2Icon,
+  StarIcon,
+  Trash2Icon,
+  UsersIcon,
+} from "@lucide/vue";
+
 const QUICK_ICONS = ["📄", "📘", "📗", "📙", "📝", "📌", "🚀", "💡", "🔧", "📊", "🗂️", "✅"];
 
 const props = defineProps<{
@@ -413,11 +516,6 @@ const templateDescription = ref("");
 // Exporting this page. The file is built by the request and handed to the
 // browser's save dialog, so there is nothing to poll and nothing to clean up.
 const exporting = ref(false);
-const exportOptions = computed(() => [
-  { content: t("docs.exportDoc.markdown"), value: "markdown" },
-  { content: t("docs.exportDoc.html"), value: "html" },
-]);
-
 async function runExport(format: ExportFormat) {
   if (exporting.value || !page.value) return;
   exporting.value = true;
@@ -909,386 +1007,88 @@ watch(
 watch(() => props.shortId, load, { immediate: true });
 </script>
 
-<style scoped lang="less">
-.docs-page-view {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px 48px 64px;
+<style scoped>
+/*
+ * Everything on this screen is styled with utility classes except this: the
+ * document body is rendered by the editor, not by this component, so its
+ * headings, lists, code and tables cannot carry classes of ours. They are
+ * styled as descendants of the editor's root. The colours are TDesign's
+ * tokens, the same ones the utilities resolve to.
+ */
+.page-body :deep(h1),
+.page-body :deep(h2),
+.page-body :deep(h3) {
+  margin: 1.4em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
-.page-crumbs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: 20px;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
+.page-body :deep(p) {
+  margin: 0.5em 0;
 }
 
-.crumb {
-  border: none;
-  background: transparent;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  font-size: inherit;
-  max-width: 24ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &--current {
-    color: var(--td-text-color-primary);
-    cursor: default;
-
-    &:hover {
-      background: transparent;
-    }
-  }
-}
-
-.crumb-sep {
-  color: var(--td-text-color-placeholder);
-}
-
-.page-article {
-  max-width: 820px;
-  margin: 0 auto;
-}
-
-.page-title-row {
-  display: flex;
-  // Top-aligned, not centred: the icon and the badges sit on the title's
-  // first line, and stay there when the title runs to a second.
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.page-icon {
-  // The title's line box is 32px × 1.25 = 40px; matching it is what puts
-  // the icon on the first line rather than roughly near it.
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
+.page-body :deep(pre) {
+  padding: 12px 14px;
   border-radius: 8px;
-  background: transparent;
-  font-size: 30px;
-  line-height: 1;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &--static {
-    cursor: default;
-
-    &:hover {
-      background: transparent;
-    }
-  }
-}
-
-.page-badges {
-  display: inline-flex;
-  gap: 6px;
-  flex-shrink: 0;
-  // Centred on the title's first line, like the icon on the other side.
-  align-self: flex-start;
-  margin-top: 9px;
-
-  &:empty {
-    display: none;
-  }
-}
-
-.icon-picker {
-  width: 260px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.icon-picker-quick {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
-}
-
-.icon-quick {
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  font-size: 20px;
-  padding: 4px 0;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.page-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  outline: none;
-  resize: none;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.25;
-  overflow: hidden;
-
-  &--input::placeholder,
-  &--untitled {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.page-meta {
-  margin-top: 6px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  // Tight: each action carries its own padding, and a visible gap between
-  // nine of them would read as nine separate controls rather than one row.
-  gap: 2px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.page-meta-time {
-  // Plain text, set apart from the actions that follow it.
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-// The page's actions. Nine of them share a row with the timestamp, so each
-// has to be quiet on its own: text-coloured, no border, a background only
-// under the pointer. The browser's default button — bordered, its own font,
-// its own padding — is what these were rendering as until this existed.
-.page-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  font: inherit;
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.5;
-  }
-
-  // Watching, favourited, muted, locked: a state, and it should read as one
-  // rather than as one more button — so it takes the brand colour and keeps
-  // it, where the others only colour up under the pointer.
-  &[aria-pressed="true"] {
-    color: var(--td-brand-color);
-  }
-}
-
-.page-label-row {
-  margin-top: 10px;
-}
-
-.template-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.template-note {
-  margin: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.star-on {
-  color: var(--td-warning-color);
-}
-
-.page-body-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  margin-top: 16px;
-}
-
-.page-body {
-  flex: 1;
-  min-width: 0;
-  font-size: 15px;
-  line-height: 1.75;
-  color: var(--td-text-color-primary);
-
-  :deep(h1),
-  :deep(h2),
-  :deep(h3) {
-    margin: 1.4em 0 0.5em;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  :deep(p) {
-    margin: 0.5em 0;
-  }
-
-  :deep(pre) {
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    overflow-x: auto;
-    font-size: 13px;
-  }
-
-  :deep(code) {
-    font-family: var(--td-font-family-mono, ui-monospace, monospace);
-  }
-
-  :deep(blockquote) {
-    margin: 0.8em 0;
-    padding: 4px 14px;
-    border-left: 3px solid var(--td-brand-color);
-    color: var(--td-text-color-secondary);
-  }
-
-  :deep(table) {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 1em 0;
-  }
-
-  :deep(th),
-  :deep(td) {
-    border: 1px solid var(--td-component-stroke);
-    padding: 6px 10px;
-    text-align: left;
-  }
-
-  :deep(img) {
-    max-width: 100%;
-    border-radius: 6px;
-  }
-
-  :deep(a) {
-    color: var(--td-brand-color);
-  }
-
-  :deep(ul),
-  :deep(ol) {
-    padding-left: 1.6em;
-  }
-}
-
-.page-empty {
-  margin-top: 24px;
-  color: var(--td-text-color-placeholder);
-}
-
-.page-children {
-  margin-top: 40px;
-  padding-top: 16px;
-  border-top: 1px solid var(--td-component-stroke);
-
-  h3 {
-    margin: 0 0 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--td-text-color-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  ul {
-    list-style: none;
-    margin: 0 0 8px;
-    padding: 0;
-  }
-}
-
-.child-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.child-icon {
-  width: 20px;
-  text-align: center;
-}
-
-.add-child {
-  margin-top: 32px;
-}
-
-.page-loading {
-  max-width: 820px;
-  margin: 24px auto;
-}
-
-.page-gone {
-  max-width: 520px;
-  margin: 80px auto;
-  text-align: center;
-  color: var(--td-text-color-secondary);
-
-  h2 {
-    margin: 12px 0 8px;
-    color: var(--td-text-color-primary);
-    font-size: 18px;
-  }
-
-  p {
-    margin: 0 0 12px;
-  }
-}
-
-.gone-hint {
-  color: var(--td-text-color-placeholder);
+  background: var(--td-bg-color-secondarycontainer);
+  overflow-x: auto;
   font-size: 13px;
+}
+
+.page-body :deep(code) {
+  font-family: var(--td-font-family-mono, ui-monospace, monospace);
+}
+
+.page-body :deep(blockquote) {
+  margin: 0.8em 0;
+  padding: 4px 14px;
+  border-left: 3px solid var(--td-brand-color);
+  color: var(--td-text-color-secondary);
+}
+
+.page-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.page-body :deep(th),
+.page-body :deep(td) {
+  border: 1px solid var(--td-component-stroke);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.page-body :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.page-body :deep(a) {
+  color: var(--td-brand-color);
+}
+
+.page-body :deep(ul),
+.page-body :deep(ol) {
+  padding-left: 1.6em;
+}
+
+/*
+ * The action row. `page-action` is the one class the template shares across
+ * nine buttons, and it exists so the toggled state can be expressed once:
+ * a button with aria-pressed="true" is a state, and keeps the brand colour
+ * where the others only colour up under the pointer.
+ */
+.page-action {
+  font-weight: 400;
+  color: var(--td-text-color-secondary);
+}
+
+.page-action:hover:not(:disabled) {
+  color: var(--td-text-color-primary);
+}
+
+.page-action[aria-pressed="true"] {
+  color: var(--td-brand-color);
 }
 </style>
