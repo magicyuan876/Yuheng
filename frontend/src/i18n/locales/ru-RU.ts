@@ -5090,6 +5090,12 @@ export default {
       titlePlaceholder: "Без названия",
       renameFailed: "Не удалось сохранить",
       readOnly: "Только чтение",
+      pageWidth: {
+        title: "Ширина страницы",
+        standard: "Стандартная",
+        wide: "Широкая",
+        full: "Во всю ширину",
+      },
       locked: "Заблокирована",
       restricted: "Ограниченный доступ",
       editorConnecting: "Подключение к серверу совместного редактирования…",

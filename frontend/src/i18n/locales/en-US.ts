@@ -5078,6 +5078,12 @@ export default {
       titlePlaceholder: "Untitled",
       renameFailed: "Failed to save",
       readOnly: "Read only",
+      pageWidth: {
+        title: "Page width",
+        standard: "Standard",
+        wide: "Wide",
+        full: "Full width",
+      },
       locked: "Locked",
       restricted: "Restricted",
       editorConnecting: "Connecting to the collaboration service...",

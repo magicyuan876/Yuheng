@@ -4932,6 +4932,12 @@ export default {
       titlePlaceholder: "无标题",
       renameFailed: "保存失败",
       readOnly: "只读",
+      pageWidth: {
+        title: "页面宽度",
+        standard: "标准",
+        wide: "宽",
+        full: "全宽",
+      },
       locked: "已锁定",
       restricted: "受限",
       editorConnecting: "正在连接协同编辑服务…",

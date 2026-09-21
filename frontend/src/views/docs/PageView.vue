@@ -17,7 +17,7 @@
       </template>
     </nav>
 
-    <div v-if="loading" class="mx-auto my-6 max-w-[820px] space-y-3">
+    <div v-if="loading" class="mx-auto my-6 space-y-3" :class="widthClass">
       <Skeleton class="h-8 w-1/2" />
       <Skeleton class="h-4 w-full" />
       <Skeleton class="h-4 w-[90%]" />
@@ -40,7 +40,10 @@
       <h2 class="mt-3 mb-2 text-lg text-foreground">{{ t("docs.pages.notFound") }}</h2>
     </div>
 
-    <article v-else-if="page" class="mx-auto max-w-[820px]">
+    <!-- The column's width is the reader's choice (see usePageWidth); the
+         same class is applied to the loading skeleton above so nothing jumps
+         when the page arrives. -->
+    <article v-else-if="page" class="mx-auto" :class="widthClass">
       <header>
         <!-- Icon, title and status on one line, the way a document names
              itself everywhere else. Top-aligned, and the icon sized to the
@@ -207,6 +210,21 @@
             <CircleCheckIcon v-else />
             {{ page.status === "draft" ? t("docs.lock.draft") : t("docs.lock.published") }}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="ghost" size="icon-xs" class="page-action" :aria-label="t('docs.pages.pageWidth.title')">
+                <MoveHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{{ t("docs.pages.pageWidth.title") }}</DropdownMenuLabel>
+              <DropdownMenuRadioGroup v-model="pageWidth">
+                <DropdownMenuRadioItem v-for="w in pageWidthOptions" :key="w" :value="w">
+                  {{ t(`docs.pages.pageWidth.${w}`) }}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <NotificationCentre :revision="notificationRevision" />
         </div>
         <PageLabels
@@ -426,6 +444,7 @@ import type { TocEntry } from "./editor/toc";
 import TocSidebar from "./editor/TocSidebar.vue";
 import { pageSlug } from "./tree/pageTree";
 import type { DocsEvent } from "./useDocsEvents";
+import { usePageWidth } from "./usePageWidth";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -442,6 +461,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -463,6 +485,7 @@ import {
   Loader2Icon,
   LockIcon,
   LockOpenIcon,
+  MoveHorizontalIcon,
   PencilIcon,
   PlusIcon,
   Share2Icon,
@@ -488,6 +511,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const router = useRouter();
+const { width: pageWidth, widthClass, options: pageWidthOptions } = usePageWidth();
 
 const page = ref<PageViewDto | null>(null);
 const ancestors = ref<DocsPage[]>([]);

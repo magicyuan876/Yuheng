@@ -5029,6 +5029,12 @@ export default {
       titlePlaceholder: "제목 없음",
       renameFailed: "저장하지 못했습니다",
       readOnly: "읽기 전용",
+      pageWidth: {
+        title: "페이지 너비",
+        standard: "표준",
+        wide: "넓게",
+        full: "전체 너비",
+      },
       locked: "잠김",
       restricted: "제한됨",
       editorConnecting: "협업 서비스에 연결하는 중입니다…",
