@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 
 import {
   API_EXTERNAL_USER_SESSION_OWNER_PREFIX,

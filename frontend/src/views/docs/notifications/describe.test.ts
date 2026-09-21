@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 import { describe, groupByDay, MAX_EXCERPT, type NotificationLike } from './describe'
 

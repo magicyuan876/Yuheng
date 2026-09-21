@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 
 import enUS from './en-US.ts'
 import koKR from './ko-KR.ts'

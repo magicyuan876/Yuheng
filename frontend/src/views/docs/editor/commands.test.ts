@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 import enUS from '../../../i18n/locales/en-US'
 import koKR from '../../../i18n/locales/ko-KR'

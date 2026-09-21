@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 import {
   CELL_COLORS, CELL_COLORS_SOFT, CELL_COLORS_STRONG, TABLE_ACTIONS,

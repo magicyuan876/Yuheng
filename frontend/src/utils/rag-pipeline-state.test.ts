@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 import {
   RAG_WAIT_REVEAL_DELAY_MS,
   RAG_WAIT_STALL_DELAY_MS,

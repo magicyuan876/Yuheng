@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { before, test } from 'node:test'
+import { beforeAll, test } from 'vitest'
 
 import { findAuditActionDefaultRegistryMismatches } from './auditActionLocaleDefaults.ts'
 import { REGISTERED_AUDIT_ACTION_ENTRIES, KB_ACTIVITY_DETAIL_VALUES, KB_ACTIVITY_I18N_ROOTS, KB_ACTIVITY_OUTCOMES } from './auditActionRegistry.ts'
@@ -23,7 +23,7 @@ const REFERENCE_LOCALE: LocaleName = 'en-US'
 let localeKeysByName: Record<LocaleName, Set<string>>
 let referencedKeys: Set<string>
 
-before(() => {
+beforeAll(() => {
   const usage = collectI18nUsageFromSources()
   localeKeysByName = Object.fromEntries(
     Object.entries(LOCALE_BUNDLES).map(([name, bundle]) => [name, collectLocaleKeys(bundle)]),

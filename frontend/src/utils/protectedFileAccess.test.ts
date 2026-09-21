@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { afterEach, test } from 'vitest'
 
 import {
   buildProtectedFileRequest,
@@ -12,7 +12,7 @@ import {
 
 const RESOURCE = 'resource://AbCdEfGhIjKlMnOpQrStUv'
 
-test.afterEach(() => {
+afterEach(() => {
   setDefaultProtectedFileAccess(null)
 })
 

@@ -1,5 +1,6 @@
+// @vitest-environment node
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 const component = readFileSync(new URL('./BatchTagDialog.vue', import.meta.url), 'utf8')

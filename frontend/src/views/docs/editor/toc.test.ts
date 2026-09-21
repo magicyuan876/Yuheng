@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 import { getSchema } from '@tiptap/core'
 import { Node as PMNode } from '@tiptap/pm/model'

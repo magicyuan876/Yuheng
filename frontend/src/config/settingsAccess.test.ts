@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import { test } from 'vitest'
 
 import {
   PLATFORM_MANAGED_SETTINGS_SECTIONS,

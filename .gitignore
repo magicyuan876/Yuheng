@@ -4,6 +4,8 @@
 !.env.example
 !.gitignore
 !.github/
+# Tool config that has to travel with the repo, not stay on one machine.
+!frontend/.prettierignore
 
 # 敏感文件
 *.pem

@@ -1,6 +1,7 @@
+// @vitest-environment node
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import test from 'node:test'
+import { test } from 'vitest'
 
 const listSource = readFileSync(new URL('./OrganizationList.vue', import.meta.url), 'utf8')
 const settingsSource = readFileSync(new URL('./OrganizationSettingsModal.vue', import.meta.url), 'utf8')

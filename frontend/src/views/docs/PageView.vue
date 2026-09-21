@@ -33,7 +33,11 @@
 
     <article v-else-if="page" class="page-article">
       <header class="page-header">
-        <div class="page-icon-row">
+        <!-- Icon, title and status on one line, the way a document names
+             itself everywhere else. The icon is sized to the title's first
+             line so a long title wraps beneath it rather than dragging it
+             down the middle. -->
+        <div class="page-title-row">
           <t-popup v-if="page.can_edit" trigger="click" placement="bottom-left" :visible="iconOpen"
             @visible-change="(v: boolean) => (iconOpen = v)">
             <button type="button" class="page-icon" :class="{ 'page-icon--empty': !page.icon }"
@@ -60,6 +64,12 @@
             <span v-if="page.icon">{{ page.icon }}</span>
             <t-icon v-else name="file" size="28px" />
           </span>
+          <textarea v-if="page.can_edit" ref="titleInput" v-model="titleDraft" class="page-title page-title--input" rows="1"
+            :placeholder="t('docs.pages.titlePlaceholder')" maxlength="500" @input="autosize" @keydown.enter.prevent="commitTitle"
+            @blur="commitTitle" />
+          <h1 v-else class="page-title" :class="{ 'page-title--untitled': !page.title }">
+            {{ page.title || t('docs.pages.titlePlaceholder') }}
+          </h1>
           <div class="page-badges">
             <t-tag v-if="!page.can_edit" size="small" variant="light">{{ t('docs.pages.readOnly') }}</t-tag>
             <t-tag v-if="page.is_locked" size="small" variant="light" theme="warning">
@@ -71,24 +81,18 @@
             </t-tag>
           </div>
         </div>
-        <textarea v-if="page.can_edit" ref="titleInput" v-model="titleDraft" class="page-title page-title--input" rows="1"
-          :placeholder="t('docs.pages.titlePlaceholder')" maxlength="500" @input="autosize" @keydown.enter.prevent="commitTitle"
-          @blur="commitTitle" />
-        <h1 v-else class="page-title" :class="{ 'page-title--untitled': !page.title }">
-          {{ page.title || t('docs.pages.titlePlaceholder') }}
-        </h1>
         <div class="page-meta">
           <!-- The live word count lives in the editor's own toolbar row;
                showing the persisted one here too would just disagree with
                it while someone is typing. -->
-          <span>{{ t('docs.pages.lastEdited', { time: formatDate(page.content_updated_at || page.updated_at) }) }}</span>
-          <button type="button" class="page-history-link" @click="historyOpen = true">
+          <span class="page-meta-time">{{ t('docs.pages.lastEdited', { time: formatDate(page.content_updated_at || page.updated_at) }) }}</span>
+          <button type="button" class="page-action" @click="historyOpen = true">
             <t-icon name="history" size="14px" />
             <span>{{ t('docs.history.title') }}</span>
           </button>
           <button
             type="button"
-            class="page-history-link"
+            class="page-action"
             :aria-pressed="watchState.watched"
             @click="toggleWatch"
           >
@@ -98,7 +102,7 @@
           <button
             v-if="watchState.watched"
             type="button"
-            class="page-history-link"
+            class="page-action"
             :aria-pressed="watchState.muted"
             @click="toggleMute"
           >
@@ -107,7 +111,7 @@
           </button>
           <button
             type="button"
-            class="page-history-link"
+            class="page-action"
             :aria-pressed="favourite"
             @click="toggleFavourite"
           >
@@ -117,7 +121,7 @@
           </button>
           <button
             type="button"
-            class="page-history-link"
+            class="page-action"
             @click="accessOpen = true"
           >
             <t-icon :name="page.restricted ? 'lock-on' : 'usergroup'" size="14px" />
@@ -125,7 +129,7 @@
           </button>
           <button
             type="button"
-            class="page-history-link"
+            class="page-action"
             @click="shareOpen = true"
           >
             <t-icon name="share" size="14px" />
@@ -136,7 +140,7 @@
             trigger="click"
             @click="(item: { value: string }) => runExport(item.value as ExportFormat)"
           >
-            <button type="button" class="page-history-link" :disabled="exporting">
+            <button type="button" class="page-action" :disabled="exporting">
               <t-icon name="download" size="14px" />
               <span>{{ t('docs.exportDoc.title') }}</span>
             </button>
@@ -144,7 +148,7 @@
           <button
             v-if="page.can_edit"
             type="button"
-            class="page-history-link"
+            class="page-action"
             @click="openSaveTemplate"
           >
             <t-icon name="template" size="14px" />
@@ -153,7 +157,7 @@
           <button
             v-if="page.role === 'admin'"
             type="button"
-            class="page-history-link"
+            class="page-action"
             :aria-pressed="page.is_locked"
             @click="toggleLock"
           >
@@ -163,7 +167,7 @@
           <button
             v-if="page.can_edit"
             type="button"
-            class="page-history-link"
+            class="page-action"
             @click="toggleDraft"
           >
             <t-icon :name="page.status === 'draft' ? 'edit-2' : 'check-circle'" size="14px" />
@@ -911,16 +915,20 @@ watch(() => props.shortId, load, { immediate: true })
   margin: 0 auto;
 }
 
-.page-icon-row {
+.page-title-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  // Top-aligned, not centred: the icon and the badges sit on the title's
+  // first line, and stay there when the title runs to a second.
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .page-icon {
-  width: 44px;
-  height: 44px;
+  // The title's line box is 32px × 1.25 = 40px; matching it is what puts
+  // the icon on the first line rather than roughly near it.
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -948,6 +956,14 @@ watch(() => props.shortId, load, { immediate: true })
 .page-badges {
   display: inline-flex;
   gap: 6px;
+  flex-shrink: 0;
+  // Centred on the title's first line, like the icon on the other side.
+  align-self: flex-start;
+  margin-top: 9px;
+
+  &:empty {
+    display: none;
+  }
 }
 
 .icon-picker {
@@ -978,7 +994,8 @@ watch(() => props.shortId, load, { immediate: true })
 }
 
 .page-title {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: none;
@@ -999,13 +1016,58 @@ watch(() => props.shortId, load, { immediate: true })
 }
 
 .page-meta {
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  // Tight: each action carries its own padding, and a visible gap between
+  // nine of them would read as nine separate controls rather than one row.
+  gap: 2px;
   font-size: 12px;
   color: var(--td-text-color-placeholder);
+}
+
+.page-meta-time {
+  // Plain text, set apart from the actions that follow it.
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+// The page's actions. Nine of them share a row with the timestamp, so each
+// has to be quiet on its own: text-coloured, no border, a background only
+// under the pointer. The browser's default button — bordered, its own font,
+// its own padding — is what these were rendering as until this existed.
+.page-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--td-text-color-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--td-bg-color-container-hover);
+    color: var(--td-text-color-primary);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  // Watching, favourited, muted, locked: a state, and it should read as one
+  // rather than as one more button — so it takes the brand colour and keeps
+  // it, where the others only colour up under the pointer.
+  &[aria-pressed="true"] {
+    color: var(--td-brand-color);
+  }
 }
 
 .page-label-row {

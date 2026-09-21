@@ -15,3 +15,8 @@ cli/acceptance/testdata/**/*.json text eol=lf
 # picking either side (task state lives in task.json, not index.md). See
 # .trellis/spec/cli/backend/directory-structure.md for details.
 .trellis/workspace/*/journal-*.md merge=union
+
+# The frontend toolchain (Prettier, ESLint, Vite) assumes LF, and Prettier's
+# check fails on a CRLF working copy. Check the tree out as LF on every OS;
+# text=auto still leaves binaries (fonts, images) alone.
+frontend/** text=auto eol=lf
