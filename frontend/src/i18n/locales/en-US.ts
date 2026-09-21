@@ -5034,6 +5034,8 @@ export default {
       noMembers: "This group has no members yet",
     },
     tree: {
+      collapseSidebar: "Collapse page tree",
+      expandSidebar: "Expand page tree",
       newPage: "New page",
       newSubpage: "New subpage",
       untitled: "Untitled",

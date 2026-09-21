@@ -4889,6 +4889,8 @@ export default {
       noMembers: "该组还没有成员",
     },
     tree: {
+      collapseSidebar: "收起目录",
+      expandSidebar: "展开目录",
       newPage: "新建页面",
       newSubpage: "新建子页面",
       untitled: "无标题",

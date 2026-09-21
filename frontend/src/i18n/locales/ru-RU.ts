@@ -5046,6 +5046,8 @@ export default {
       noMembers: "В этой группе пока нет участников",
     },
     tree: {
+      collapseSidebar: "Свернуть дерево страниц",
+      expandSidebar: "Развернуть дерево страниц",
       newPage: "Новая страница",
       newSubpage: "Новая подстраница",
       untitled: "Без названия",

@@ -1,6 +1,6 @@
 <template>
   <div class="docs-space-home">
-    <aside class="space-sidebar">
+    <aside class="space-sidebar" :class="{ 'space-sidebar--collapsed': sidebar.collapsed.value }">
       <div class="sidebar-top">
         <t-button variant="text" size="small" class="back-btn" @click="router.push({ name: 'docsSpaceList' })">
           <template #icon><t-icon name="chevron-left" /></template>
@@ -85,6 +85,7 @@
     </aside>
 
     <main class="space-main">
+      <SidebarToggle />
       <PageView
         v-if="space && shortId"
         :space="space"
@@ -231,6 +232,8 @@ import SearchPanel from "./search/SearchPanel.vue";
 import TemplatePicker from "./templates/TemplatePicker.vue";
 import type { Visit } from "./home/recentlyViewed";
 import PageView from "./PageView.vue";
+import SidebarToggle from "./SidebarToggle.vue";
+import { useDocsSidebar } from "./useDocsSidebar";
 import PageTree, { type TreeAction } from "./tree/PageTree.vue";
 import { PageTreeModel, pageSlug, shortIdFromSlug, type MoveTarget, type TreeNodeData } from "./tree/pageTree";
 import TrashPanel from "./TrashPanel.vue";
@@ -623,6 +626,10 @@ useDocsEvents(spaceId, (ev) => {
   if (changed) bump();
 });
 
+// Whether the tree is folded away; the toggle that changes it sits in the
+// main column (SidebarToggle) and shares this state.
+const sidebar = useDocsSidebar();
+
 watch(slug, loadSpace, { immediate: true });
 watch(shortId, (id) => {
   if (!id) activePageId.value = undefined;
@@ -649,6 +656,13 @@ onBeforeUnmount(() => {
   border-right: 1px solid var(--td-component-stroke);
   background: var(--td-bg-color-secondarycontainer, var(--td-bg-color-container));
   padding: 12px 8px 8px 8px;
+}
+
+// Folded away by SidebarToggle in the main column. Hidden outright rather
+// than narrowed: a width transition would wrap the tree's rows on the way
+// down, and there is nothing to see in the tree while it is closing.
+.space-sidebar--collapsed {
+  display: none;
 }
 
 .sidebar-top {
@@ -686,6 +700,8 @@ onBeforeUnmount(() => {
 }
 
 .space-main {
+  // The toggle is positioned against this column's top-left corner.
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;

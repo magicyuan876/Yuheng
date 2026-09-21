@@ -4985,6 +4985,8 @@ export default {
       noMembers: "이 그룹에는 아직 구성원이 없습니다",
     },
     tree: {
+      collapseSidebar: "페이지 트리 접기",
+      expandSidebar: "페이지 트리 펼치기",
       newPage: "새 페이지",
       newSubpage: "새 하위 페이지",
       untitled: "제목 없음",
