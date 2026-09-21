@@ -1,10 +1,17 @@
+// First, before anything that brings a stylesheet with it: this file declares
+// the cascade-layer order, and a layer's position is fixed by the first
+// statement that names it. See src/assets/tailwind.css.
+import "@/assets/tailwind.css";
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
 import TDesign from "tdesign-vue-next";
-// 引入组件库的少量全局样式变量
-import "tdesign-vue-next/dist/tdesign.css";
+// TDesign's design tokens (--td-*), and only those. Each component imports
+// its own styles when it is imported, so the full dist/tdesign.css that used
+// to be loaded here repeated every one of them — half a megabyte of CSS the
+// page already had — for the sake of the variables this file carries alone.
+import "tdesign-vue-next/es/style/index.css";
 import "@/assets/theme/theme.css";
 import "@/assets/dropdown-menu.less";
 import "@/components/css/chat-hljs-dark.less";

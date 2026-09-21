@@ -3,9 +3,10 @@ import { resolve, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vueJsx from "@vitejs/plugin-vue-jsx";
+import tailwindcss from "@tailwindcss/vite";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -28,6 +29,40 @@ function resolveFrontendCommit(): string {
 }
 
 const FRONTEND_COMMIT = resolveFrontendCommit();
+
+/**
+ * Wraps every TDesign stylesheet (components and icons) in the `tdesign`
+ * cascade layer.
+ *
+ * TDesign's components each import their own CSS as a side effect, so the
+ * library's styles reach the bundle through JavaScript imports that no CSS
+ * file of ours can put inside a layer. Unlayered CSS beats layered CSS
+ * regardless of load order, which would leave TDesign overriding every
+ * Tailwind utility on the same element. This puts those stylesheets into a
+ * layer at the point they are loaded.
+ *
+ * Each wrapped sheet is preceded by the full layer order. A layer's place
+ * is fixed by the first statement that names it, and a TDesign component's
+ * CSS can be the first thing in a chunk to do so; repeating the order here
+ * means it does not matter which file loads first. The order itself, and
+ * why `tdesign` sits where it does, is explained in src/assets/tailwind.css.
+ */
+const LAYER_ORDER = "@layer theme, base, tdesign, components, utilities;";
+
+function tdesignInLayer(): Plugin {
+  return {
+    name: "yuheng:tdesign-in-layer",
+    enforce: "pre",
+    transform(code, id) {
+      const [file] = id.split("?");
+      if (!file.endsWith(".css") || !/[\\/]node_modules[\\/]tdesign-(?:vue-next|icons-vue-next)[\\/]/.test(file))
+        return;
+      // @charset is only valid at the very top of a stylesheet, never inside a block.
+      const body = code.replace(/^\s*@charset[^;]*;\s*/i, "");
+      return { code: `${LAYER_ORDER}\n@layer tdesign {\n${body}\n}`, map: null };
+    },
+  };
+}
 
 const DEV_PROXY_TARGET =
   process.env.VITE_DEV_PROXY_TARGET || process.env.FRONTEND_BACKEND_URL || "http://localhost:8080";
@@ -85,7 +120,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [vue(), vueJsx()],
+  plugins: [tdesignInLayer(), vue(), vueJsx(), tailwindcss()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

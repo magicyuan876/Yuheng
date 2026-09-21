@@ -1,0 +1,151 @@
+/*
+ * The styling entry for the new stack, and the seam between it and TDesign.
+ *
+ * Two component systems share the page while the old one is retired
+ * screen by screen, so this file has to decide how they coexist. It does
+ * so with cascade layers. Every TDesign stylesheet lives in a layer of its
+ * own, and where that layer sits is the whole arrangement:
+ *
+ *  - below `utilities`, so a Tailwind class on a TDesign element wins.
+ *    Unlayered CSS beats layered CSS whatever order the files load in, so
+ *    without this `mt-4` on a TDesign component would silently do nothing;
+ *  - above `base`, so the element resets at the bottom of this file never
+ *    reach a TDesign component — including one nested inside a new
+ *    component, where the reset's descendant selector would otherwise find
+ *    it and take its borders away.
+ *
+ * The order is declared here and is repeated by the `tdesignInLayer` Vite
+ * plugin (vite.config.ts) at the top of every TDesign stylesheet it wraps,
+ * because a layer's position is fixed by the first statement that names
+ * it, and TDesign's components import their CSS themselves as a side
+ * effect — a CSS file cannot reach an import made from JavaScript, nor be
+ * sure of loading before it.
+ */
+@layer theme, base, tdesign, components, utilities;
+
+/*
+ * Tailwind without preflight. Preflight restyles every element on the page
+ * — heading sizes, list bullets, paragraph margins, link underlines — and
+ * the chat and document views render Markdown that relies on exactly those
+ * browser defaults. Turning it on globally would strip them. The handful of
+ * resets the new components need is applied below, to those components
+ * only. Preflight can replace it the day TDesign is gone.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The enter/exit animations the overlay components (dialog, popover, menu) use. */
+@import "tw-animate-css";
+
+/*
+ * shadcn-vue's own utilities and variants (scroll fades, shimmer, the
+ * `data-open:` family). Components added later assume these exist; Tailwind
+ * emits a utility only where it is used, so importing them costs nothing
+ * until then.
+ */
+@import "shadcn-vue/tailwind.css";
+
+/*
+ * Dark mode follows the application's own switch. useTheme puts
+ * theme-mode="dark" on <html>, and TDesign's tokens flip on that same
+ * attribute, so `dark:` utilities and the bridged colours below change in
+ * step with the rest of the page.
+ */
+@custom-variant dark (&:where([theme-mode="dark"], [theme-mode="dark"] *));
+
+/*
+ * The design tokens, bridged rather than redefined. Every semantic colour
+ * the new components use resolves to the TDesign variable the rest of the
+ * application already uses, so a new button and an old one are the same
+ * brand colour, on the same surfaces, in both themes, and a change to the
+ * theme in one place changes both. `inline` writes the reference into each
+ * utility directly.
+ */
+@theme inline {
+  --color-background: var(--td-bg-color-page);
+  --color-foreground: var(--td-text-color-primary);
+
+  --color-card: var(--td-bg-color-container);
+  --color-card-foreground: var(--td-text-color-primary);
+  --color-popover: var(--td-bg-color-container);
+  --color-popover-foreground: var(--td-text-color-primary);
+
+  --color-primary: var(--td-brand-color);
+  --color-primary-foreground: var(--td-text-color-anti);
+  --color-secondary: var(--td-bg-color-secondarycontainer);
+  --color-secondary-foreground: var(--td-text-color-primary);
+  --color-muted: var(--td-bg-color-secondarycontainer);
+  --color-muted-foreground: var(--td-text-color-secondary);
+  --color-accent: var(--td-bg-color-container-hover);
+  --color-accent-foreground: var(--td-text-color-primary);
+  --color-destructive: var(--td-error-color);
+  --color-warning: var(--td-warning-color);
+  --color-success: var(--td-success-color);
+
+  --color-border: var(--td-component-border);
+  --color-input: var(--td-component-border);
+  --color-ring: var(--td-brand-color-focus);
+  --color-placeholder: var(--td-text-color-placeholder);
+
+  --radius-sm: var(--td-radius-small);
+  --radius-md: var(--td-radius-medium);
+  --radius-lg: var(--td-radius-large);
+  --radius-xl: var(--td-radius-extraLarge);
+
+  --font-sans: var(--td-font-family);
+  --font-heading: var(--font-sans);
+}
+
+/*
+ * The resets the new components would otherwise get from preflight, scoped
+ * to them. shadcn-vue marks every element it renders with data-slot, which
+ * makes that the scope — and makes it hold for content teleported to
+ * <body>, which no wrapper class on a page could reach. Descendants of a
+ * component get the box model and border reset; form controls additionally
+ * inherit the font and lose their browser chrome, because a <button> with
+ * no border rule is a browser-default button, which is the very thing the
+ * page was showing before any of this.
+ */
+@layer base {
+  :where([data-slot], [data-slot] *, [data-slot]::before, [data-slot]::after) {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--color-border);
+  }
+
+  :where(button[data-slot], input[data-slot], select[data-slot], textarea[data-slot]),
+  :where([data-slot]) :where(button, input, select, textarea) {
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background-color: transparent;
+    background-image: none;
+  }
+
+  :where(button[data-slot], [role="button"][data-slot]),
+  :where([data-slot]) :where(button, [role="button"]) {
+    cursor: pointer;
+  }
+
+  :where(button[data-slot]:disabled),
+  :where([data-slot]) :where(button:disabled) {
+    cursor: default;
+  }
+
+  :where([data-slot]) :where(img, svg, video) {
+    display: block;
+    vertical-align: middle;
+  }
+
+  :where(textarea[data-slot]) {
+    resize: vertical;
+  }
+
+  :where(input[data-slot], textarea[data-slot])::placeholder {
+    color: var(--color-placeholder);
+    opacity: 1;
+  }
+}
