@@ -53,10 +53,9 @@ frontend/chrome-extension/
 Yuheng-Chrome-Extension
 packages/protoc-3.19.4-linux-x86_64.zip
 
-# AI 编程工具自身生成的文件（kimi code / claude code 等开发时产物）
+# AI 编程工具自身生成的文件（kimi code / claude code 等开发时产物）。
+# CLAUDE.md 不在此列：它是仓库维护的协作说明，随代码一起提交。
 /AGENTS.md
-CLAUDE.md
-Claude.md
 GEMINI.md
 .cursorignore
 .aider*
