@@ -90,6 +90,13 @@ CI (`.github/workflows/frontend.yml`) runs format → lint → test → type-che
 - Unused variables and imports are errors (imports auto-fix with `--fix`).
   Unused function *parameters* are not checked.
 - `@ts-ignore` is banned; `@ts-expect-error` needs a description.
+- A template that uses a component it never imported is a **type error**
+  (`vueCompilerOptions.checkUnknownComponents`). Vue would otherwise render
+  the tag as nothing and log a warning nobody reads — that bug shipped once.
+  TDesign's globally installed `<t-*>` components are made known to the
+  checker by `src/types/tdesign-global.d.ts`, deliberately as `any`; the
+  header of that file says when and how to replace it with TDesign's real
+  types.
 
 ## Backend (`internal/`, Go 1.26)
 
