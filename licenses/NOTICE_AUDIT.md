@@ -212,7 +212,7 @@ recording because both would have produced a wrong blocking list:
 **Not covered by this audit:**
 
 * Transitive licenses of the base container images (`debian:12.12-slim`,
-  `paradedb/paradedb`, `redis`, `minio`, `qdrant`, …). Those are separately
+  `paradedb/paradedb`, `redis`, `minio`, …). Those are separately
   licensed artifacts, not part of this source tree.
 * The npm trees under `website-docs/`, `packages/dsh-yuheng/` and `miniprogram/`
   — not installed on the audit machine.

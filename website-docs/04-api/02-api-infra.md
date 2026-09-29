@@ -29,7 +29,7 @@ curl $BASE/api/v1/vector-stores/types -H "Authorization: Bearer $TOKEN"
 
 ```bash
 curl -X POST $BASE/api/v1/vector-stores/test -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"engine_type":"qdrant","connection_config":{"addr":"qdrant:6334"}}'
+  -H 'Content-Type: application/json' -d '{"engine_type":"example_engine","connection_config":{"addr":"store.example:1234"}}'
 ```
 
 ### POST /api/v1/vector-stores
@@ -40,7 +40,7 @@ curl -X POST $BASE/api/v1/vector-stores/test -H "Authorization: Bearer $TOKEN" \
 
 ```bash
 curl -X POST $BASE/api/v1/vector-stores -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"qdrant-main","engine_type":"qdrant","connection_config":{"addr":"qdrant:6334"}}'
+  -H 'Content-Type: application/json' -d '{"name":"example-main","engine_type":"example_engine","connection_config":{"addr":"store.example:1234"}}'
 ```
 
 ### GET /api/v1/vector-stores
@@ -71,7 +71,7 @@ curl $BASE/api/v1/vector-stores/vs-1 -H "Authorization: Bearer $TOKEN"
 
 ```bash
 curl -X PUT $BASE/api/v1/vector-stores/vs-1 -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"qdrant-prod"}'
+  -H 'Content-Type: application/json' -d '{"name":"example-prod"}'
 ```
 
 ### DELETE /api/v1/vector-stores/:id

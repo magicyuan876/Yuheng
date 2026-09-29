@@ -17,7 +17,7 @@ flowchart TB
         APP1 --> PG1[("postgres :5432")]
         APP1 --> RD1[("redis :6379")]
         APP1 --> DR1["docreader :50051"]
-        APP1 -. "profile 可选" .-> OPT1["qdrant / milvus / neo4j / minio / searxng / langfuse / mcp ..."]
+        APP1 -. "profile 可选" .-> OPT1["neo4j / minio / searxng / langfuse / mcp ..."]
     end
     subgraph dev["开发模式 (make dev-start)"]
         LOCALAPP["宿主机 go run app :8080"] --> PG2[("postgres 容器")]
@@ -29,7 +29,7 @@ flowchart TB
 
 ## 硬件与依赖要求
 
-- **标准 Docker 部署**：Docker 20.10+ 与 Docker Compose v2（v1 `docker-compose` 也兼容，`scripts/start_all.sh` 会自动探测）；建议 4 核 CPU / 8GB 内存起步（docreader 含 LibreOffice、Playwright，较吃内存），磁盘按知识库规模预留（Postgres 卷 + `/data/files` 文件卷）。启用 Milvus / OpenSearch / Langfuse 等可选组件需相应增加内存。
+- **标准 Docker 部署**：Docker 20.10+ 与 Docker Compose v2（v1 `docker-compose` 也兼容，`scripts/start_all.sh` 会自动探测）；建议 4 核 CPU / 8GB 内存起步（docreader 含 LibreOffice、Playwright，较吃内存），磁盘按知识库规模预留（Postgres 卷 + `/data/files` 文件卷）。启用 Langfuse 等可选组件需相应增加内存。
 - **模型服务**：本地推理需 [Ollama](https://ollama.com)（默认地址 `http://host.docker.internal:11434`，`OLLAMA_OPTIONAL=true` 时不可用仅告警不阻断）；或任意 OpenAI 兼容 API（DeepSeek、通义、智谱、硅基流动等）。
 - **源码编译**：Go 1.26（见 `docker/Dockerfile.app` builder 阶段 `golang:1.26-bookworm`）、CGO（DuckDB 绑定需要 C 工具链）、Node.js + npm（前端）、Python 3.10 + uv（docreader）。
 - **Kubernetes**：>= 1.25.0（`helm/Chart.yaml`）。
@@ -78,6 +78,8 @@ docker compose up -d
 
 ### 可选服务与 profiles
 
+检索引擎是 PostgreSQL 本身（ParadeDB 的 `pg_search` 做 BM25，pgvector 做向量），不需要单独的向量库服务。服务启动时会检查所连 PostgreSQL 是否装有 `vector` 与 `pg_search` 两个扩展，缺任何一个都拒绝启动并说明原因。因此要么使用 `docker-compose.yml` 里的 ParadeDB 镜像，要么在自有 PostgreSQL 上自行安装这两个扩展；云厂商托管的 PostgreSQL 通常无法安装 `pg_search`，不适用。
+
 按需以 `docker compose --profile <name> up -d` 启用：
 
 | profile | 服务 | 端口 | 用途 |
@@ -85,10 +87,6 @@ docker compose up -d
 | `searxng`（含 `full`） | `searxng-init` + `searxng` | `127.0.0.1:8888`（`SEARXNG_BIND`/`SEARXNG_PORT`） | 自建 Web 搜索；默认仅绑定回环，公开前必须轮换 `SEARXNG_SECRET` |
 | `minio`（含 `full`） | `minio` | 9000（S3）/ 9001（控制台） | S3 兼容对象存储（`STORAGE_TYPE=minio`），默认账号 `minioadmin/minioadmin` |
 | `neo4j`（含 `full`） | `neo4j` | 7474 / 7687 | 知识图谱（`NEO4J_ENABLE=true`），默认 `neo4j/password` |
-| `qdrant`（含 `full`） | `qdrant` | 6333（REST）/ 6334（gRPC） | 向量库（`RETRIEVE_DRIVER=qdrant`） |
-| `milvus` | `milvus` | 19530 / 9091 | 向量库（standalone，内嵌 etcd） |
-| `weaviate` | `weaviate` | 9035（HTTP）/ 50052（gRPC） | 向量库 |
-| `doris` | `doris-fe` + `doris-be` | 8030（FE HTTP）/ 9030（FE MySQL）/ 8040（BE） | Apache Doris 4.1 检索引擎（需 >= 3.0，HNSW ANN） |
 | `dex`（含 `full`） | `dex` | 5556 | OIDC 测试用 IdP（配置在 `misc/dex-config.yaml`） |
 | `langfuse`（含 `full`） | `langfuse-db-init`、`langfuse-clickhouse`、`langfuse-minio`、`langfuse-worker`、`langfuse-web` | 3000（UI）/ 9100/9101（专用 MinIO） | 自建 Langfuse 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
 | `odl-hybrid` | `odl-hybrid` | expose 5002 | OpenDataLoader/Docling PDF 混合解析后端（仅本地构建，配 `DOCREADER_ODL_HYBRID` 使用） |
@@ -101,7 +99,7 @@ app 容器的 `environment` 段落是全量环境变量清单（数据库、向�
 开发编排只把**基础设施**放进容器（postgres、redis、docreader 端口全部映射到宿主机），app 与 frontend 在宿主机上以热更新方式运行：
 
 ```bash
-make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --minio / --qdrant / --neo4j / --dex / --full
+make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --minio / --neo4j / --dex / --full
 make dev-app            # 宿主机启动 Go 后端（自动把 DB_HOST/REDIS_ADDR 指到 localhost）
 make dev-frontend       # 宿主机启动 Vue 前端 dev server
 make dev-logs / dev-status / dev-stop / dev-restart
@@ -110,7 +108,6 @@ make dev-logs / dev-status / dev-stop / dev-restart
 与生产编排的差异：
 
 - postgres（`5432`）、redis（`6379`）、docreader（`50051`）都发布到宿主机端口，便于本地进程直连；
-- 额外提供 `opensearch`（9200）与 `opensearch-dashboards`（5601，profile `opensearch-ui`）单节点开发环境（security 插件关闭）；
 - `dev.sh` 会加载 `.env` 与 `.env.local`（后者覆盖前者），并支持 `DEV_REMOTE_HOST` 指向远程基础设施。
 
 ## 三、镜像构建（docker/ 目录）
@@ -172,7 +169,7 @@ app:
   replicaCount: 1
   env:
     GIN_MODE: release
-    RETRIEVE_DRIVER: postgres      # postgres / elasticsearch_v7 / elasticsearch_v8 / qdrant ...
+    RETRIEVE_DRIVER: postgres      # 社区版只支持 postgres（ParadeDB + pgvector）
     STORAGE_TYPE: local            # local / minio / cos / tos / s3
     STREAM_MANAGER_TYPE: redis
 postgresql:

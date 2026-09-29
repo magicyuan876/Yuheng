@@ -54,8 +54,8 @@ Wiki content over REST and MCP.
   history, custom metadata
 
 **🔎 Retrieval & Q&A**
-- Pluggable retrieval engines: pgvector (default), Elasticsearch, OpenSearch,
-  Milvus, Weaviate, Qdrant, Doris, Tencent VectorDB
+- One retrieval engine, done thoroughly: PostgreSQL with ParadeDB (BM25
+  full-text) and pgvector (vectors) — no separate search cluster to run
 - Hybrid retrieval (vector + BM25/full-text), rerank, query rewrite & expansion
 - FAQ entries with bulk import and dedup; knowledge graph (Neo4j, optional);
   built-in web search (9 providers + self-hosted SearXNG)
@@ -88,8 +88,8 @@ Wiki content over REST and MCP.
 └─────────────┘                        │              ▼
                                ┌───────┴───────┐  ┌────────────┐
                                │  docreader    │  │ PostgreSQL │
-                               │  (Python)     │  │ + pgvector │  pluggable:
-                               └───────────────┘  └────────────┘  ES/Milvus/…
+                               │  (Python)     │  │ + pgvector │
+                               └───────────────┘  └────────────┘
 ```
 
 For the full picture see the [architecture docs](./website-docs/02-architecture/01-overview.md).

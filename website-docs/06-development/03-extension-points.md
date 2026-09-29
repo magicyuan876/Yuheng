@@ -28,7 +28,7 @@ graph LR
     CT -.->|"注册"| P6
 ```
 
-Go 侧绝大多数扩展点的**注册中枢**是 `internal/container/container.go`（依赖注入容器）：检索引擎 `initRetrieveEngineRegistry()`、联网搜索 `registerWebSearchProviders()`、数据源连接器 `initConnectorRegistry()`。
+Go 侧绝大多数扩展点的**注册中枢**是 `internal/container/container.go`（依赖注入容器）：检索引擎 `EngineDescriptor`（经 `retrieve_engines` 值组）与 `initRetrieveEngineRegistry()`、联网搜索 `registerWebSearchProviders()`、数据源连接器 `initConnectorRegistry()`。
 
 ---
 
@@ -227,47 +227,26 @@ type RetrieveEngineRegistry interface {
 }
 ```
 
-引擎类型枚举在 `internal/types/retriever.go`：
+引擎类型在 `internal/types/retriever.go` 中声明。社区版只内置一个：
 
 ```go
 // internal/types/retriever.go
-const (
-    PostgresRetrieverEngineType        RetrieverEngineType = "postgres"
-    ElasticsearchRetrieverEngineType   RetrieverEngineType = "elasticsearch"
-    InfinityRetrieverEngineType        RetrieverEngineType = "infinity"
-    ElasticFaissRetrieverEngineType    RetrieverEngineType = "elasticfaiss"
-    QdrantRetrieverEngineType          RetrieverEngineType = "qdrant"
-    MilvusRetrieverEngineType          RetrieverEngineType = "milvus"
-    WeaviateRetrieverEngineType        RetrieverEngineType = "weaviate"
-    DorisRetrieverEngineType           RetrieverEngineType = "doris"
-    TencentVectorDBRetrieverEngineType RetrieverEngineType = "tencent_vectordb"
-    OpenSearchRetrieverEngineType      RetrieverEngineType = "opensearch"
-)
+const PostgresRetrieverEngineType RetrieverEngineType = "postgres"
 ```
 
 ### 现有实现
 
-均在 `internal/application/repository/retriever/` 下：`postgres/`（pgvector + BM25/ParadeDB）、`elasticsearch/v7/`、`elasticsearch/v8/`、`qdrant/`、`milvus/`、`weaviate/`、`doris/`、`tencentvectordb/`、`opensearch/`。
+社区版只有 `internal/application/repository/retriever/postgres/`（pgvector + ParadeDB `pg_search` BM25），以及知识图谱用的 `neo4j/`。Elasticsearch、OpenSearch、Milvus、Weaviate、Qdrant、Doris、腾讯云 VectorDB 的实现已从社区版移除。服务启动时若 `RETRIEVE_DRIVER` 含 `postgres`，会检查数据库是否装有 `vector` 与 `pg_search` 扩展，缺失则拒绝启动。
 
 ### 新增步骤
 
+引擎的全部信息收拢在一个 `EngineDescriptor` 里（`internal/application/service/retriever/catalog.go`）：构造函数、连接测试、SSRF 地址策略、分数量纲、设置页表单字段、`RETRIEVE_DRIVER` 里的驱动名等。这样加引擎不必再去改十几处 `switch`，漏改一处也不会静默失败。
+
 1. 在 `internal/types/retriever.go` 增加 `RetrieverEngineType` 常量；
-2. 在 `internal/application/repository/retriever/myengine/` 新建包，实现 `RetrieveEngineRepository` 接口（可参考 `qdrant/`）；
-3. **注册点：`internal/container/container.go` 的 `initRetrieveEngineRegistry()`** — 按 `RETRIEVE_DRIVER` 环境变量（逗号分隔）条件注册：
-
-```go
-// internal/container/container.go（节选）
-retrieveDriver := strings.Split(os.Getenv("RETRIEVE_DRIVER"), ",")
-if slices.Contains(retrieveDriver, "postgres") {
-    postgresRepo := postgresRepo.NewPostgresRetrieveEngineRepository(db)
-    if err := registry.Register(
-        retriever.NewKVHybridRetrieveEngine(postgresRepo, types.PostgresRetrieverEngineType),
-    ); err != nil { ... }
-}
-```
-
-   仿照上例为新引擎加分支，用 `retriever.NewKVHybridRetrieveEngine(repo, 引擎类型)` 包装后注册；
-4. 若引擎需要独立部署，在 `docker-compose.dev.yml` 加一个带 profile 的服务（参考 `qdrant`/`opensearch`），并在 `.env.example` 补连接变量。
+2. 新建包实现 `RetrieveEngineRepository` 接口，并用 `retriever.NewKVHybridRetrieveEngine(repo, 引擎类型)` 包装；
+3. 写一个 `EngineDescriptor`，把它提供进 dig 值组 `retriever.EngineGroup`（`"retrieve_engines"`）。描述符在 `NewEngineCatalog` 构建目录时被收集；描述符不合格（缺类型、缺驱动名、可注册却没有连接测试等）会在注册时报错。目录必须在扩展钩子（`internal/extension`）执行之后才能构建，所以由扩展提供的引擎也会进入目录；
+4. 若引擎允许工作空间自行注册（`Registrable: true`），需提供 `ConnectionFields` / `IndexFields`、`DialAddresses` 与 `TestConnection`；它才会出现在 `GET /vector-stores/types` 与设置页。社区版没有可注册的引擎，该列表为空；
+5. 若引擎需要独立部署，在 `docker-compose.dev.yml` 加一个带 profile 的服务，并在 `.env.example` 补连接变量。
 
 ---
 
@@ -553,7 +532,7 @@ default:
 | --- | --- | --- | --- |
 | 文档解析器 | `BaseParser.parse_into_text` | `docreader/parser/base_parser.py` | `docreader/parser/registry.py` `_build_default_registry()` |
 | 分块策略 | tier 函数 `func(text, cfg, profile) []Chunk` | `internal/infrastructure/chunker/strategy.go` | 同文件 `runTier()` + 策略常量 |
-| 检索引擎 | `RetrieveEngineRepository` | `internal/types/interfaces/retriever.go` | `container.go` `initRetrieveEngineRegistry()`（`RETRIEVE_DRIVER` 门控） |
+| 检索引擎 | `RetrieveEngineRepository` | `internal/types/interfaces/retriever.go` | `EngineDescriptor` → `retrieve_engines` 值组；`engine_factory.go` `initRetrieveEngineRegistry()`（`RETRIEVE_DRIVER` 门控） |
 | 模型 Provider | `Provider` / `providerAdapter` / `Embedder` / `Reranker` | `internal/models/provider/provider.go` 等 | `provider.Register()` + `internal/models/chat/provider.go` |
 | 联网搜索 | `WebSearchProvider` | `internal/types/interfaces/web_search.go` | `container.go` `registerWebSearchProviders()` |
 | 数据源连接器 | `Connector` / `StreamingConnector` | `internal/datasource/connector.go` | `container.go` `initConnectorRegistry()` + `ConnectorMetadataRegistry` |

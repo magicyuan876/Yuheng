@@ -229,7 +229,6 @@ These map to docker-compose profiles:
 |-----------|-------------|---------|
 | `minio.enabled` | Enable MinIO storage | `false` |
 | `neo4j.enabled` | Enable Neo4j (GraphRAG) | `false` |
-| `qdrant.enabled` | Enable Qdrant vector DB | `false` |
 | `docs.enabled` | Enable online documents | `false` |
 | `collab.enabled` | Enable collaborative editing for online documents | `false` |
 

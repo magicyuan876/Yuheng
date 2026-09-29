@@ -112,11 +112,8 @@ flowchart TB
 | app（后端） | Go / Gin | `cmd/server`、`internal/` | 8080 | REST API、检索问答、异步任务（Asynq） |
 | frontend（前端） | Vue 3 + Nginx | `frontend/` | 80 | Web 控制台，Nginx 反代 `/api` 到 app |
 | docreader | Python / gRPC | `docreader/` | 50051（仅容器网络内） | 文档解析、OCR、网页抓取、图片提取 |
-| postgres | ParadeDB（PostgreSQL 17 + BM25/向量扩展） | 镜像 `paradedb/paradedb` | 5432 | 主数据库 + 默认混合检索引擎（`RETRIEVE_DRIVER=postgres`） |
+| postgres | ParadeDB（PostgreSQL 17 + BM25/向量扩展） | 镜像 `paradedb/paradedb` | 5432 | 主数据库 + 唯一的检索引擎（`RETRIEVE_DRIVER=postgres`，需 `vector` 与 `pg_search` 扩展） |
 | redis | Redis 7 | — | 6379 | 流管理（SSE 恢复）、Asynq 任务队列 |
-| 可选：qdrant / milvus / weaviate / doris | — | `docker-compose.yml` profiles | 6334 / 19530 / 9035 / 9030 | 替代或叠加的向量检索引擎（`RETRIEVE_DRIVER`） |
-| 可选：opensearch | — | 仅 `docker-compose.dev.yml` | 9200 | 开发环境用；生产需自备集群 |
-| 可选：elasticsearch / tencent_vectordb | — | 不随 compose 提供 | — | 代码支持，但需自行部署后用 `RETRIEVE_DRIVER` 接入 |
 | 可选：neo4j | Neo4j | profile `neo4j` | 7474 / 7687 | 知识图谱存储（GraphRAG） |
 | 可选：minio | MinIO | profile `minio` | 9000 / 9001 | S3 兼容对象存储（`STORAGE_TYPE=minio`） |
 | 可选：searxng | SearXNG | profile `searxng` | 8888 | 自建 Web 搜索引擎 |
@@ -132,7 +129,6 @@ flowchart LR
     APP -- "gRPC :50051" --> DR["docreader (Python 文档解析)"]
     APP --> PG[("ParadeDB / PostgreSQL :5432 元数据 + 混合检索")]
     APP --> RD[("Redis :6379 流管理 + Asynq 队列")]
-    APP -. "可选" .-> VDB[("Qdrant / Milvus / ES / OpenSearch / Doris ...")]
     APP -. "可选" .-> NEO[("Neo4j 知识图谱")]
     APP -. "可选" .-> OSS[("MinIO / COS / S3 / OSS / OBS / TOS 对象存储")]
     APP -. "可选" .-> SX["SearXNG Web 搜索 :8888"]

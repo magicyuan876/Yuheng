@@ -63,7 +63,7 @@ curl --location 'http://localhost:8080/api/v1/system/info' \
         "build_time": "2025-08-12T08:00:00Z",
         "go_version": "go1.21.5",
         "keyword_index_engine": "bleve",
-        "vector_store_engine": "milvus",
+        "vector_store_engine": "postgres",
         "graph_database_engine": "neo4j",
         "minio_enabled": true,
         "db_version": "20250810_001"

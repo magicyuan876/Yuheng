@@ -247,7 +247,6 @@ deps:
 	go mod download
 
 # Build for production
-# google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn for qdrant milvus proto conflict
 # GO_BUILD_TAGS adds optional build tags, e.g. GO_BUILD_TAGS=anydoc to link the
 # in-process office document parser (run `make anydoc-lib` first).
 build-prod:
@@ -258,7 +257,7 @@ build-prod:
 	CGO_LDFLAGS="$$(if [ "$$(uname)" = 'Darwin' ]; then echo '-Wl,-no_warn_duplicate_libraries'; fi)" \
 	BUILD_TIME=$${BUILD_TIME:-unknown}; \
 	GO_VERSION=$${GO_VERSION:-unknown}; \
-	LDFLAGS="-X 'github.com/magicyuan876/yuheng/internal/handler.Version=$$VERSION' -X 'github.com/magicyuan876/yuheng/internal/handler.CommitID=$$COMMIT_ID' -X 'github.com/magicyuan876/yuheng/internal/handler.BuildTime=$$BUILD_TIME' -X 'github.com/magicyuan876/yuheng/internal/handler.GoVersion=$$GO_VERSION' -X 'google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn'"; \
+	LDFLAGS="-X 'github.com/magicyuan876/yuheng/internal/handler.Version=$$VERSION' -X 'github.com/magicyuan876/yuheng/internal/handler.CommitID=$$COMMIT_ID' -X 'github.com/magicyuan876/yuheng/internal/handler.BuildTime=$$BUILD_TIME' -X 'github.com/magicyuan876/yuheng/internal/handler.GoVersion=$$GO_VERSION'"; \
 	go build -tags "$(GO_BUILD_TAGS)" -ldflags="-w -s $$LDFLAGS" -o $(BINARY_NAME) $(MAIN_PATH)
 
 download_spatial:

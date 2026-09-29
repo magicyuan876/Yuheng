@@ -2,7 +2,7 @@
 
 [返回目录](./README.md)
 
-向量存储（VectorStore）API 用于管理空间的向量数据库连接配置，支持 Elasticsearch、PostgreSQL、Qdrant、Milvus、Weaviate、Tencent VectorDB 等引擎。接口同时管理用户在 DB 中创建的配置（`source: "user"`）以及通过 `RETRIEVE_DRIVER` 环境变量配置的虚拟存储（`source: "env"`，只读）。
+向量存储（VectorStore）API 用于管理空间的向量数据库连接配置，是一套通用的注册机制。**社区版只支持 PostgreSQL（ParadeDB + pgvector），它由 `RETRIEVE_DRIVER=postgres` 提供，以只读的环境变量存储出现；社区版没有可通过本接口注册的引擎**（`GET /vector-stores/types` 返回空列表），下文的 `POST` / `PUT` / `DELETE` 示例使用占位引擎 `example_engine`，仅用于说明请求与响应的形状。接口同时管理用户在 DB 中创建的配置（`source: "user"`）以及通过 `RETRIEVE_DRIVER` 环境变量配置的虚拟存储（`source: "env"`，只读）。
 
 | 方法   | 路径                         | 描述                             |
 | ------ | ---------------------------- | -------------------------------- |
@@ -26,43 +26,20 @@ curl --location 'http://localhost:8080/api/v1/vector-stores/types' \
 --header 'X-API-Key: sk-xxxxx'
 ```
 
-**响应**:
+**响应**（社区版）:
 
 ```json
 {
     "success": true,
-    "data": [
-        {
-            "type": "elasticsearch",
-            "display_name": "Elasticsearch (Keywords + Vector)",
-            "connection_fields": [
-                { "name": "addr", "type": "string", "required": true, "description": "Elasticsearch URL (e.g., http://localhost:9200)" },
-                { "name": "username", "type": "string", "required": false },
-                { "name": "password", "type": "string", "required": false, "sensitive": true }
-            ],
-            "index_fields": [
-                { "name": "index_name", "type": "string", "required": false, "default": "xwrag_default" },
-                { "name": "number_of_shards", "type": "number", "required": false },
-                { "name": "number_of_replicas", "type": "number", "required": false }
-            ]
-        },
-        {
-            "type": "postgres",
-            "display_name": "PostgreSQL (Keywords + Vector)",
-            "connection_fields": [
-                { "name": "use_default_connection", "type": "boolean", "required": false, "default": true, "description": "Use the application's default database connection" },
-                { "name": "addr", "type": "string", "required": false, "description": "PostgreSQL connection string (required if use_default_connection is false)" },
-                { "name": "username", "type": "string", "required": false },
-                { "name": "password", "type": "string", "required": false, "sensitive": true }
-            ]
-        }
-    ]
+    "data": []
 }
 ```
 
+`data` 中每个元素形如 `{"type", "display_name", "connection_fields": [...], "index_fields": [...]}`，前端据此生成连接表单；列表为空时，设置页不提供「添加向量库」入口。
+
 ## POST `/vector-stores/test` - 使用原始凭据测试连接
 
-用前端表单中尚未保存的凭据执行一次连通性测试，不会写入数据库。成功时返回自动检测到的服务器版本（如 ES 版本号）；某些引擎（如 Milvus）无法检测版本，`version` 会返回空字符串。
+用前端表单中尚未保存的凭据执行一次连通性测试，不会写入数据库。成功时返回自动检测到的服务器版本；某些引擎无法检测版本时，`version` 会返回空字符串。
 
 **参数说明（请求体）**:
 
@@ -78,10 +55,10 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/test'
 --header 'X-API-Key: sk-xxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
-    "engine_type": "elasticsearch",
+    "engine_type": "example_engine",
     "connection_config": {
-        "addr": "http://es:9200",
-        "username": "elastic",
+        "addr": "http://store.example:9200",
+        "username": "admin",
         "password": "changeme"
     }
 }'
@@ -92,7 +69,7 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/test'
 ```json
 {
     "success": true,
-    "version": "7.10.1"
+    "version": "1.0.0"
 }
 ```
 
@@ -101,7 +78,7 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/test'
 ```json
 {
     "success": false,
-    "error": "failed to connect to elasticsearch: connection refused or authentication failed"
+    "error": "failed to connect to example_engine: connection refused or authentication failed"
 }
 ```
 
@@ -120,8 +97,6 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/test'
 | connection_config | object | 是   | 连接配置（与所选引擎的 `connection_fields` 对应）                |
 | index_config      | object | 否   | 索引配置（与所选引擎的 `index_fields` 对应）                     |
 
-> Tencent VectorDB 使用 `engine_type: "tencent_vectordb"`。`connection_config` 中 `addr`、`username`、`api_key` 必填，`database` 可选；`index_config.collection_name` 表示集合名前缀，实际集合会按向量维度追加后缀（例如 `yuheng_embeddings_768`）；`index_config.replica_number` 表示创建集合时使用的副本数。该适配器同时支持向量检索和基于 BM25 sparse vector 的关键词检索；旧版本已创建且没有 `sparse_vector` 索引的集合需要重建并重新导入数据后才能启用关键词检索。
-
 **请求**:
 
 ```curl
@@ -129,37 +104,15 @@ curl --location 'http://localhost:8080/api/v1/vector-stores' \
 --header 'X-API-Key: sk-xxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
-    "name": "elasticsearch-hot",
-    "engine_type": "elasticsearch",
+    "name": "example-store",
+    "engine_type": "example_engine",
     "connection_config": {
-        "addr": "http://es-hot:9200",
-        "username": "elastic",
+        "addr": "http://store.example:9200",
+        "username": "admin",
         "password": "changeme"
     },
     "index_config": {
         "index_name": "my_index"
-    }
-}'
-```
-
-**Tencent VectorDB 请求示例**:
-
-```curl
-curl --location 'http://localhost:8080/api/v1/vector-stores' \
---header 'X-API-Key: sk-xxxxx' \
---header 'Content-Type: application/json' \
---data '{
-    "name": "tencent-vectordb",
-    "engine_type": "tencent_vectordb",
-    "connection_config": {
-        "addr": "http://your-instance.tencentvectordb.com",
-        "username": "root",
-        "api_key": "your_api_key",
-        "database": "yuheng"
-    },
-    "index_config": {
-        "collection_name": "yuheng_embeddings",
-        "replica_number": 1
     }
 }'
 ```
@@ -171,11 +124,11 @@ curl --location 'http://localhost:8080/api/v1/vector-stores' \
     "success": true,
     "data": {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "elasticsearch-hot",
-        "engine_type": "elasticsearch",
+        "name": "example-store",
+        "engine_type": "example_engine",
         "connection_config": {
-            "addr": "http://es-hot:9200",
-            "username": "elastic",
+            "addr": "http://store.example:9200",
+            "username": "admin",
             "password": "***"
         },
         "index_config": {
@@ -220,11 +173,11 @@ curl --location 'http://localhost:8080/api/v1/vector-stores' \
         },
         {
             "id": "550e8400-e29b-41d4-a716-446655440000",
-            "name": "elasticsearch-hot",
-            "engine_type": "elasticsearch",
+            "name": "example-store",
+            "engine_type": "example_engine",
             "connection_config": {
-                "addr": "http://es-hot:9200",
-                "username": "elastic",
+                "addr": "http://store.example:9200",
+                "username": "admin",
                 "password": "***"
             },
             "source": "user",
@@ -258,13 +211,13 @@ curl --location 'http://localhost:8080/api/v1/vector-stores/550e8400-e29b-41d4-a
     "success": true,
     "data": {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "elasticsearch-hot",
-        "engine_type": "elasticsearch",
+        "name": "example-store",
+        "engine_type": "example_engine",
         "connection_config": {
-            "addr": "http://es-hot:9200",
-            "username": "elastic",
+            "addr": "http://store.example:9200",
+            "username": "admin",
             "password": "***",
-            "version": "7.10.1"
+            "version": "1.0.0"
         },
         "index_config": {
             "index_name": "my_index"
@@ -300,7 +253,7 @@ curl --location --request PUT 'http://localhost:8080/api/v1/vector-stores/550e84
 --header 'X-API-Key: sk-xxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
-    "name": "elasticsearch-hot-renamed"
+    "name": "example-store-renamed"
 }'
 ```
 
@@ -311,11 +264,11 @@ curl --location --request PUT 'http://localhost:8080/api/v1/vector-stores/550e84
     "success": true,
     "data": {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "elasticsearch-hot-renamed",
-        "engine_type": "elasticsearch",
+        "name": "example-store-renamed",
+        "engine_type": "example_engine",
         "connection_config": {
-            "addr": "http://es-hot:9200",
-            "username": "elastic",
+            "addr": "http://store.example:9200",
+            "username": "admin",
             "password": "***"
         },
         "index_config": {
@@ -394,7 +347,7 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/550e8
 ```json
 {
     "success": true,
-    "version": "7.10.1"
+    "version": "1.0.0"
 }
 ```
 
@@ -403,7 +356,7 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/550e8
 ```json
 {
     "success": false,
-    "error": "failed to connect to elasticsearch: connection refused or authentication failed"
+    "error": "failed to connect to example_engine: connection refused or authentication failed"
 }
 ```
 
@@ -413,14 +366,12 @@ curl --location --request POST 'http://localhost:8080/api/v1/vector-stores/550e8
 
 通过 `RETRIEVE_DRIVER` 环境变量配置的向量存储以虚拟条目形式出现在列表和详情中。这些条目的特征：
 
-- **ID 格式**：`__env_{driver}__`（如 `__env_postgres__`、`__env_elasticsearch_v8__`）
+- **ID 格式**：`__env_{driver}__`（社区版只有 `__env_postgres__`）
 - **source**：`"env"`
 - **readonly**：`true`
 - **不可修改/删除**：`PUT` 和 `DELETE` 返回 `400`
 - **可测试连通性**：`POST /vector-stores/:id/test` 正常工作
 - **被知识库绑定时**：未指定 `vector_store_id` 创建的知识库默认使用环境变量存储；这种知识库在响应中显示为 `vector_store_name="System default"` + `vector_store_source="env"`。
-
-Tencent VectorDB 环境变量存储可通过 `TENCENT_VECTORDB_REPLICA_NUMBER` 覆盖默认集合副本数。默认值为 `1`；单节点 QA 环境可设为 `0`，生产环境可按 Tencent VectorDB 集群规模调整。
 
 ## 错误码
 

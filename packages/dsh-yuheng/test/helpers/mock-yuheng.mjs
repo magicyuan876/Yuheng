@@ -27,7 +27,7 @@ const DOCUMENTS = [
     description: '单机与 Kubernetes 部署方式，以及可选的向量库后端。',
     chunks: [
       'Yuheng 支持 docker compose 单机部署，也提供 Helm chart 用于 Kubernetes。',
-      '向量库可以选择 pgvector、Milvus、Qdrant、Weaviate、OpenSearch 等后端。',
+      '检索引擎使用 PostgreSQL（ParadeDB 全文检索加 pgvector 向量检索）。',
     ],
   },
   {

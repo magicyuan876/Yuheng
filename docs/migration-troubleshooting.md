@@ -55,12 +55,17 @@ ERROR: function ... does not exist
 -- Connect as a superuser (typically `postgres`):
 \c your_yuheng_database
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS vector;       -- if RETRIEVE_DRIVER includes pgvector
-CREATE EXTENSION IF NOT EXISTS pg_search;    -- only on ParadeDB
+CREATE EXTENSION IF NOT EXISTS vector;       -- required while RETRIEVE_DRIVER includes postgres
+CREATE EXTENSION IF NOT EXISTS pg_search;    -- likewise; only available on ParadeDB or a self-installed build
 
 -- Verify they are actually loaded:
 SELECT extname, extversion FROM pg_extension WHERE extname IN ('pg_trgm','vector','pg_search');
 ```
+
+Both `vector` and `pg_search` are also checked at startup: the server refuses to
+start when either is missing. Managed PostgreSQL services usually cannot install
+`pg_search`; use the ParadeDB image from `docker-compose.yml` or install
+pgvector and pg_search yourself.
 
 Then restart Yuheng. The next startup will pick up where the failing
 migration left off.

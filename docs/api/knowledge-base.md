@@ -188,10 +188,10 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases' \
         "knowledge_count": 0,
         "chunk_count": 0,
         "processing_count": 0,
-        "vector_store_id": "550e8400-e29b-41d4-a716-446655440000",
-        "vector_store_name": "elasticsearch-hot",
-        "vector_store_source": "user",
-        "vector_store_engine_type": "elasticsearch",
+        "vector_store_id": "__env_postgres__",
+        "vector_store_name": "System default",
+        "vector_store_source": "env",
+        "vector_store_engine_type": "postgres",
         "vector_store_status": "available",
         "created_at": "2025-08-12T11:30:09.206238645+08:00",
         "updated_at": "2025-08-12T11:30:09.206238854+08:00",
@@ -223,7 +223,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases' \
 | `vector_store_id`          | string | 绑定的向量存储 ID（创建时未指定时为 `null`，从响应中省略）                                                  |
 | `vector_store_name`        | string | 绑定存储的展示名。未绑定时返回 `"System default"`；跨空间共享 KB 视图中被隐藏                              |
 | `vector_store_source`      | string | `"user"`（DB 中创建的存储）/ `"env"`（环境变量虚拟存储）/ `"shared"`（跨空间共享 KB）/ `"unavailable"`（绑定的存储已不可解析） |
-| `vector_store_engine_type` | string | 引擎类型（`elasticsearch` / `qdrant` / `milvus` 等）。`shared` / `unavailable` 时为空                       |
+| `vector_store_engine_type` | string | 引擎类型（社区版没有可注册的引擎，通常为空；引擎名由注册的向量库决定）。`shared` / `unavailable` 时为空                       |
 | `vector_store_status`      | string | `"available"` / `"unavailable"`。`unavailable` 表示绑定的存储已被删除或不在内存注册表中，UI 可据此提示用户重新绑定 |
 
 **错误码（Phase 2 新增）**:

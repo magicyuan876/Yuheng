@@ -169,14 +169,7 @@ flowchart LR
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `RETRIEVE_DRIVER` | postgres | 检索引擎：`postgres` / `elasticsearch_v7` / `elasticsearch_v8` / `qdrant` / `milvus` / `weaviate` / `opensearch` / `doris` / `tencent_vectordb`；可逗号分隔多引擎并行 |
-| `ELASTICSEARCH_ADDR/USERNAME/PASSWORD/INDEX` | 空 | Elasticsearch |
-| `QDRANT_HOST/PORT/COLLECTION/API_KEY/USE_TLS` | qdrant / 6334 / yuheng_embeddings / 空 / false | Qdrant |
-| `MILVUS_ADDRESS/COLLECTION/METRIC_TYPE/...` | milvus:19530 / yuheng_embeddings / IP | Milvus |
-| `OPENSEARCH_ADDR/USERNAME/PASSWORD/INDEX/INSECURE_SKIP_VERIFY` | 空 | OpenSearch |
-| `WEAVIATE_HOST/GRPC_ADDRESS/SCHEME/AUTH_ENABLED/API_KEY` | 空 | Weaviate |
-| `DORIS_ADDR/HTTP_PORT/DATABASE/USERNAME/PASSWORD/TABLE_PREFIX/COMPAT_MODE` | 空 | Apache Doris 4.1+ |
-| `TENCENT_VECTORDB_ADDR/USERNAME/API_KEY/DATABASE/COLLECTION/REPLICA_NUMBER` | 空 | 腾讯云 VectorDB |
+| `RETRIEVE_DRIVER` | postgres | 检索引擎。社区版只支持 `postgres`（ParadeDB `pg_search` BM25 + pgvector）；服务器启动时若所连 PostgreSQL 缺少 `vector` 或 `pg_search` 扩展会拒绝启动。请使用 `docker-compose.yml` 的 ParadeDB 镜像，或在自有 PostgreSQL 上自行安装这两个扩展（托管 PostgreSQL 通常无法安装 `pg_search`） |
 | `MULTI_STORE_RETRIEVE_TIMEOUT_SEC` | 空 | 多引擎并行检索超时 |
 | `NEO4J_ENABLE` / `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` | 空 / bolt://neo4j:7687 / neo4j / password | 知识图谱唯一开关（`ENABLE_GRAPH_RAG` 已废弃） |
 
@@ -222,7 +215,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `YUHENG_AUDIT_RETENTION_DAYS` | 90 | 审计日志保留天数 |
 | `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` | 空 | 引导第一个系统管理员。**不会创建用户**：该邮箱需先自行注册，下次启动时若部署内还没有任何系统管理员，才把它提升；已有管理员后本变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md) |
 | `OIDC_AUTH_ENABLE` 及 `OIDC_AUTH_*` / `OIDC_USER_INFO_MAPPING_*` | false / 空 | OIDC 单点登录全套配置 |
-| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,qdrant,milvus,weaviate,doris-fe,doris-be` | 出站请求 SSRF 白名单（app 与 docreader 共用） |
+| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,minio` | 出站请求 SSRF 白名单（app 与 docreader 共用） |
 | `IMAGE_HOST_KEEP_URL` | 空 | 保留原始 URL 的图片域名白名单 |
 
 ### Docreader 解析（docreader 容器）

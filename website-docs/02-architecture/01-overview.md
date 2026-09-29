@@ -13,7 +13,7 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | `app` | `magicyuan876/yuheng-app`（`docker/Dockerfile.app`，Go） | `8080` | 主后端：REST API、RAG 检索、异步任务 worker。健康检查 `GET /health` |
 | `frontend` | `magicyuan876/yuheng-ui`（`frontend/`，NGINX + Vue3 静态产物） | `80` | Web UI；NGINX 同时充当反向代理，将 `/api` 转发到 `app`（`APP_HOST`/`APP_BACKEND_PORT`/`APP_SCHEME` 可指向远端后端） |
 | `docreader` | `magicyuan876/yuheng-docreader`（`docker/Dockerfile.docreader`，Python） | `50051`（仅 compose 网络内 expose，不映射宿主机） | 文档解析微服务：gRPC 服务端，PDF/DOCX/Excel/EPUB/网页等 25+ 格式解析与页面渲染。健康检查 `grpc_health_probe` |
-| `postgres` | `paradedb/paradedb:v0.22.2-pg17` | `5432`（网络内） | 主数据库。ParadeDB 发行版自带 BM25 全文检索与 pgvector 向量能力，因此**默认部署无需独立向量库**（`RETRIEVE_DRIVER=postgres`） |
+| `postgres` | `paradedb/paradedb:v0.22.2-pg17` | `5432`（网络内） | 主数据库。ParadeDB 发行版自带 BM25 全文检索与 pgvector 向量能力，因此**无需独立向量库**（`RETRIEVE_DRIVER=postgres`）；服务启动时会检查 `vector` 与 `pg_search` 两个扩展，缺失即拒绝启动，自建 PostgreSQL 需自行安装（托管服务通常装不了 `pg_search`） |
 | `redis` | `redis:7.0-alpine`（`appendonly` + `requirepass`） | `6379`（网络内） | Asynq 任务队列、SSE 流管理（跨实例）、system_settings 发布订阅、限流与分布式模型并发闸门 |
 
 `app` 与 `docreader` 之间还通过共享卷 `docreader-tmp`（挂载于 `/tmp/docreader`）传递解析产物图片；`app` 的本地文件存储卷为 `data-files`（`/data/files`）。
@@ -25,13 +25,11 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | `searxng`（+ 一次性 `searxng-init`） | `searxng` / `full` | 自托管元搜索引擎，为知识问答提供 Web Search（默认绑定 `127.0.0.1:8888`） |
 | `neo4j` | `neo4j` / `full` | 知识图谱存储（GraphRAG），开关为 `NEO4J_ENABLE`，Bolt 协议 `7687` |
 | `minio` | `minio` / `full` | 对象存储（`STORAGE_TYPE=minio`） |
-| `qdrant` / `milvus` / `weaviate` | 各自同名 profile | 独立向量库（`RETRIEVE_DRIVER` 切换） |
-| `doris-fe` + `doris-be` | `doris` | Apache Doris 4.1 检索引擎（FE MySQL 9030 / FE HTTP 8030 Stream Load / BE 8040） |
 | `odl-hybrid` | `odl-hybrid` | OpenDataLoader PDF 混合解析后端（docreader 通过 HTTP `:5002` 调用） |
 | `dex` | `dex` / `full` | OIDC 测试用 IdP（配合 `OIDC_AUTH_ENABLE`） |
 | `langfuse-*`（web/worker/clickhouse/minio/db-init） | `langfuse` | 自建 LLM 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
 
-此外，Go 后端还可直连未在 compose 内的外部引擎：Elasticsearch v7/v8、OpenSearch、腾讯云 VectorDB、火山 VikingDB，以及 8 种对象存储（local/MinIO/COS/TOS/S3/OSS/KS3/OBS）。
+检索引擎只有 postgres 一种（`RETRIEVE_DRIVER=postgres`），没有独立的向量库服务；此外，Go 后端还可直连未在 compose 内的 8 种对象存储（local/MinIO/COS/TOS/S3/OSS/KS3/OBS）。
 
 ### 1.3 部署形态
 
@@ -45,7 +43,7 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | --- | --- | --- |
 | 后端语言 | Go | `go.mod` 声明 `go 1.26.0` |
 | Web 框架 | `github.com/gin-gonic/gin` | v1.12.0 |
-| ORM | `gorm.io/gorm` + postgres driver（mysql 用于 Doris） | v1.31.1 |
+| ORM | `gorm.io/gorm` + postgres driver | v1.31.1 |
 | 依赖注入 | `go.uber.org/dig` | v1.19.0（构造函数注入，见后端设计篇） |
 | 异步任务 | `github.com/hibiken/asynq` | v0.26.0（基于 Redis，6 个 worker 池） |
 | 缓存/队列 | `github.com/redis/go-redis/v9` | v9.14.1 |
@@ -56,7 +54,7 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | 可观测 | OpenTelemetry + Langfuse（`internal/tracing/langfuse`） | LLM 调用级 trace |
 | gRPC | `google.golang.org/grpc` v1.81.0 | 调用 docreader |
 | LLM 接入 | `sashabaranov/go-openai`、Ollama、腾讯云 LKE 等 | 18+ 模型提供商（OpenAI 兼容 / Ollama / 云厂商 SDK） |
-| 向量/检索 | pgvector、ES v7/v8、OpenSearch、Qdrant、Milvus、Weaviate、Doris、腾讯 VectorDB | 由 `RETRIEVE_DRIVER` 与 `vector_stores` 表动态装配 |
+| 向量/检索 | pgvector + ParadeDB `pg_search` | 由 `RETRIEVE_DRIVER` 与 `vector_stores` 表装配；缺扩展则启动失败 |
 | 知识图谱 | `neo4j-go-driver/v6` | 可选 |
 | 表格摘要引擎 | DuckDB（`duckdb-go/v2`）、`pg_query_go` SQL 校验 | 入库时对 CSV/Excel 表格生成摘要与列描述 |
 | 协程池 | `panjf2000/ants/v2` | 文档处理并发池（`CONCURRENCY_POOL_SIZE`） |
@@ -74,8 +72,8 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | `app` → `postgres` | PostgreSQL wire（GORM/pgx） | 业务数据 + BM25 + pgvector |
 | `app` ↔ `redis` | RESP（支持 TLS） | ① Asynq 任务队列（文档解析/富化/Wiki 等 19 类任务）；② SSE 流断线续传的 Stream Manager（`STREAM_MANAGER_TYPE`）；③ `system_settings` 变更 Pub/Sub；④ 分布式 per-model 并发信号量 |
 | `app` → `neo4j` | Bolt（`bolt://neo4j:7687`） | GraphRAG 实体/关系存取 |
-| `app` → `searxng` / Web 搜索 provider | HTTP | SSRF 白名单校验（`SSRF_WHITELIST_EXTRA` 默认放行 compose 内 `searxng,qdrant,milvus,weaviate,doris-fe,doris-be`） |
-| `app` → 向量库/对象存储/LLM 提供商 | 各自 SDK（HTTP/gRPC/MySQL 协议） | Doris 走 MySQL 协议 + Stream Load HTTP |
+| `app` → `searxng` / Web 搜索 provider | HTTP | SSRF 白名单校验（`SSRF_WHITELIST_EXTRA` 默认放行 compose 内 `searxng,minio`） |
+| `app` → 对象存储/LLM 提供商 | 各自 SDK（HTTP/gRPC） | 检索走 `app` → `postgres`，不经过独立向量库 |
 
 ## 4. 总体架构图
 
@@ -96,13 +94,12 @@ graph LR
         subgraph Optional["可选 profile"]
             SX["searxng (联网搜索)"]
             NEO[("neo4j (知识图谱)")]
-            VDB[("qdrant / milvus / weaviate / doris")]
             MINIO[("minio (对象存储)")]
             LF["langfuse 可观测栈"]
         end
     end
 
-    EXT["外部服务: LLM API / Elasticsearch / OpenSearch / COS / S3 / OSS ..."]
+    EXT["外部服务: LLM API / COS / S3 / OSS ..."]
 
     Browser -->|"HTTP / SSE"| FE
     Mini -->|"HTTP"| APP
@@ -136,7 +133,7 @@ sequenceDiagram
     participant W as "Asynq Worker (app 进程内)"
     participant D as "docreader (gRPC)"
     participant E as "Embedding 模型 (LLM Provider)"
-    participant V as "向量库 (pgvector / qdrant ...)"
+    participant V as "向量库 (pgvector)"
     participant P as "PostgreSQL"
 
     U->>N: POST /api/v1/knowledge-bases/:id/knowledge/file

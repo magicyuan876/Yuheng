@@ -11,7 +11,7 @@
 | Router / Middleware | `internal/router/`、`internal/middleware/` | 路由注册、认证、RBAC、限流、日志、错误信封 |
 | Handler | `internal/handler/`（会话相关在 `internal/handler/session/`） | 解析请求参数（DTO 在 `internal/handler/dto/`）、调用 Service、写响应；不含业务逻辑 |
 | Service | `internal/application/service/`（约 160+ 文件） | 业务编排：知识库/知识/分块、会话与 `chat_pipeline/` 流水线、租户与成员、模型、数据源同步、Wiki、审计等 |
-| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,elasticsearch,qdrant,milvus,weaviate,doris,opensearch,tencentvectordb,neo4j}` |
+| Repository | `internal/application/repository/`（约 60 文件） | 数据访问，统一使用 **GORM**（`type knowledgeRepository struct { db *gorm.DB }`，操作走 `r.db.WithContext(ctx)`）；检索引擎的仓储实现按引擎分包于 `repository/retriever/{postgres,neo4j}`（社区版只有 PostgreSQL 一种检索引擎） |
 | 领域模型 | `internal/types/` | GORM 实体、枚举、context key、接口定义（`types/interfaces`） |
 | 基础设施 | `internal/infrastructure/`（docparser gRPC 客户端、web_search）、`internal/models/`（chat/embedding/rerank 模型适配）、`internal/stream/` | 外部系统适配 |
 
@@ -23,7 +23,7 @@ graph TD
     S --> R["Repository 层 (internal/application/repository)<br/>GORM 数据访问"]
     S --> Q["TaskEnqueuer (Asynq / SyncTaskExecutor)"]
     R --> DB[("PostgreSQL (GORM)")]
-    R --> VS[("检索引擎仓储 repository/retriever/*<br/>pgvector / ES / Qdrant / Milvus / Doris ...")]
+    R --> VS[("检索引擎仓储 repository/retriever/*<br/>pgvector + pg_search")]
     S --> INF["基础设施适配<br/>docparser(gRPC) / models(LLM) / stream"]
     Q --> W["Asynq Worker (同进程, 6 个池)"]
     W --> S
@@ -96,7 +96,7 @@ if redisAvailable {
 ### 2.3 资源清理与工厂
 
 - `ResourceCleaner`（`internal/container/cleanup.go`）：各组件通过 `RegisterWithName(name, cleanupFunc)` 注册析构（ants 池、Langfuse flush、数据源调度器、Housekeeping 等），退出时统一 `Cleanup(ctx)`；
-- `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行运行时创建检索引擎实例（`createQdrantEngine` / `createMilvusEngine` / `createDorisEngine` / `createOpenSearchEngine` ...），而非启动期静态绑定单一引擎；
+- `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行运行时创建检索引擎实例：按行的 `engine_type` 到引擎目录（`retriever.Catalog`，由各引擎的 `EngineDescriptor` 构成）里查描述符并调用其 `New`，而非启动期静态绑定单一引擎。社区版目录里只有 postgres 且不可由工作空间注册，因此这条路径在社区版不会创建新引擎；
 - `initDatabase` 除建连外还负责：golang-migrate 自动迁移（`AUTO_MIGRATE`，失败仅告警不阻断）、`__pending_env__` 存储 provider 回填、遗留 StorageBackend 迁移、序列同步、pending 任务复位、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
 
 ## 3. cmd/server 启动流程

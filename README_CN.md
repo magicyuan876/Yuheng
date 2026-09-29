@@ -48,8 +48,8 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 - 树形文件夹、多标签、批量操作、分块级编辑与版本历史、自定义元数据
 
 **🔎 检索与问答**
-- 可插拔检索引擎：pgvector（默认）、Elasticsearch、OpenSearch、Milvus、
-  Weaviate、Qdrant、Doris、腾讯 VectorDB
+- 只用一个检索引擎并把它做扎实：PostgreSQL + ParadeDB（BM25 全文）+ pgvector（向量），
+  无需另外部署搜索集群
 - 混合检索（向量 + BM25/全文）、Rerank、查询改写与扩展
 - FAQ 条目（批量导入、去重）；知识图谱（Neo4j，可选）；内置联网搜索
   （9 家提供商 + 自托管 SearXNG）
@@ -81,8 +81,8 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 └─────────────┘                        │              ▼
                                ┌───────┴───────┐  ┌────────────┐
                                │  docreader    │  │ PostgreSQL │
-                               │  （Python）   │  │ + pgvector │  可插拔：
-                               └───────────────┘  └────────────┘  ES/Milvus/…
+                               │  （Python）   │  │ + pgvector │
+                               └───────────────┘  └────────────┘
 ```
 
 完整架构见[架构文档](./website-docs/02-architecture/01-overview.md)。

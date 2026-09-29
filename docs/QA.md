@@ -73,7 +73,7 @@ INIT_RERANK_MODEL_API_KEY=your_rerank_model_api_key
 # 启动 MinIO 服务
 docker-compose --profile minio up -d
 
-# 或者启动完整服务（包括 MinIO、Neo4j、Qdrant）
+# 或者启动完整服务（包括 MinIO、Neo4j）
 docker-compose --profile full up -d
 ```
 
@@ -221,12 +221,14 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 - **时间线一直显示「更新中」但无数据**：通常是轮询请求静默失败（网络 / 反向代理截断 SSE）。0.6.1 会显式暴露轮询失败，刷新页面或检查 Nginx 是否缓冲了响应即可。
 - **升级后没有时间线数据**：确认数据库迁移 `000055_knowledge_processing_spans`、`000056_knowledge_pending_subtasks` 已执行（服务启动会自动迁移）。
 
-## 14. 如何启用 OpenSearch 作为向量库？
+## 14. 能否改用 Elasticsearch / OpenSearch / Milvus / Qdrant 等外部向量库？
 
-0.6.1 新增了 OpenSearch 向量库驱动（k-NN）。在 **设置 → 向量库** 中新增 OpenSearch 引擎并填写连接地址、凭据即可；KB 可绑定该向量库。注意：
+社区版只支持一种检索引擎：带 ParadeDB（`pg_search`，BM25）与 pgvector 的 PostgreSQL，即 `RETRIEVE_DRIVER=postgres`。Elasticsearch、OpenSearch、Milvus、Weaviate、Qdrant、Doris、腾讯云 VectorDB 的驱动已从社区版移除，`docker-compose.yml` 也不再带对应服务与环境变量；「设置 → 向量库」的注册机制仍在，但社区版没有可注册的引擎。
 
-- 连接地址会经过 SSRF 策略校验，内网 / 回环地址需符合放行规则；可用「测试连接」先行校验。
-- 集成测试与索引映射细节见 [`docs/dev/opensearch-integration-test.md`](./dev/opensearch-integration-test.md)。
+如果启动时报错，提示 PostgreSQL 缺少 `vector` 或 `pg_search` 扩展，说明所连数据库不是 `docker-compose.yml` 使用的 ParadeDB 镜像。处理办法二选一：
+
+- 直接使用 `docker-compose.yml` 中的 ParadeDB 镜像（已内置两个扩展）；
+- 在自有 PostgreSQL 上自行安装 pgvector 与 pg_search。注意云厂商托管的 PostgreSQL 通常无法安装 `pg_search`，此时不能使用托管库。
 
 ## 15. 内置模型（builtin models）如何用 YAML 声明式管理？
 

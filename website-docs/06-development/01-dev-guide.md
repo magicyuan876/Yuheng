@@ -41,7 +41,7 @@ cp .env.example .env
 
 # 2. 启动基础设施（ParadeDB/Postgres + Redis + docreader，默认还带 Langfuse）
 make dev-start                      # 等价 ./scripts/dev.sh start
-make dev-start DEV_ARGS=--qdrant    # 附加可选 profile
+make dev-start DEV_ARGS=--neo4j     # 附加可选 profile
 
 # 3. 另开终端：本地跑后端（内部执行 go run -ldflags=... ./cmd/server）
 make dev-app                        # 等价 ./scripts/dev.sh app
@@ -69,16 +69,12 @@ make dev-restart  # 重启
 | `docreader` | 本地构建 `docker/Dockerfile.docreader` | `50051`（gRPC） | 默认启动 |
 | `searxng`（+`searxng-init`） | `searxng/searxng:latest` | `127.0.0.1:8888` | `--searxng` / `--full`（compose profile `searxng`） |
 | `minio` | `minio/minio:latest` | `9000` / 控制台 `9001` | `--minio` / `--full` |
-| `qdrant` | `qdrant/qdrant:v1.16.2` | `6333` / `6334` | `--qdrant` / `--full` |
-| `opensearch` | `opensearchproject/opensearch:3.3.2`（关闭 security，纯 HTTP） | `9200` | profile `opensearch` / `full` |
-| `opensearch-dashboards` | `opensearchproject/opensearch-dashboards:3.3.0` | `5601` | profile `opensearch-ui`（按需单独启动） |
-| `milvus` | `milvusdb/milvus:v2.6.11`（standalone，内嵌 etcd） | `19530` / `9091` | profile `milvus` / `full` |
 | `neo4j` | `neo4j:latest`（APOC 插件） | `7474` / `7687` | `--neo4j` / `--full` |
 | `dex` | `dexidp/dex:latest`（OIDC 测试身份源，配置 `misc/dex-config.yaml`） | `5556` | `--dex` / `--full` |
 | `langfuse-web` / `langfuse-worker` / `langfuse-clickhouse` / `langfuse-minio` / `langfuse-db-init` | Langfuse v3 自建栈，复用 dev 的 postgres（独立 `langfuse` 库）与 redis（DB 1） | web `3000`、minio `9100/9101` | `--langfuse`（`dev.sh` 默认开启，`--no-langfuse` 关闭） |
 | `odl-hybrid` | 本地构建 `docker/Dockerfile.odl-hybrid`（Docling PDF 后端） | `5002` | `--odl-hybrid`（镜像较大，按需） |
 
-`dev.sh start` 的可选参数：`--minio`、`--qdrant`、`--neo4j`、`--dex`、`--langfuse`（默认开）、`--no-langfuse`、`--odl-hybrid`、`--full`（全部可选服务，不含 odl-hybrid）。通过 Makefile 传参：`make dev-start DEV_ARGS=--odl-hybrid`。
+`dev.sh start` 的可选参数：`--minio`、`--neo4j`、`--dex`、`--langfuse`（默认开）、`--no-langfuse`、`--odl-hybrid`、`--full`（全部可选服务，不含 odl-hybrid）。通过 Makefile 传参：`make dev-start DEV_ARGS=--odl-hybrid`。
 
 ### 2.2 本地单独跑 docreader
 
@@ -104,7 +100,7 @@ docreader 的大量调优参数（PDF 渲染 DPI、扫描件判定、SSRF 白名
 | `run` | 先 `build` 再运行 `./Yuheng` |
 | `test` | `go test -v ./...` |
 | `clean` | `go clean` 并删除二进制 |
-| `build-prod` | 生产构建：CGO_ENABLED=1，`-ldflags "-w -s"` 注入 Version/CommitID/BuildTime/GoVersion（`internal/handler` 包变量），并设置 protobuf `conflictPolicy=warn`（规避 qdrant/milvus proto 冲突） |
+| `build-prod` | 生产构建：CGO_ENABLED=1，`-ldflags "-w -s"` 注入 Version/CommitID/BuildTime/GoVersion（`internal/handler` 包变量） |
 | `fmt` | `go fmt ./...` |
 | `lint` | `golangci-lint run` |
 | `deps` | `go mod download` |
