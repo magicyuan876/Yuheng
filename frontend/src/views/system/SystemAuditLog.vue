@@ -1,95 +1,168 @@
 <template>
-  <div class="system-audit-log">
-    <header class="section-header audit-page-header">
-      <div class="audit-page-header__title">
-        <h2>{{ t("system.globalSettings.audit.tabLabel") }}</h2>
-        <p class="section-description">{{ t("system.globalSettings.audit.description") }}</p>
+  <div class="flex min-h-0 w-full flex-col">
+    <header class="mb-5 flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-foreground m-0 mb-2 text-xl font-semibold">
+          {{ t("system.globalSettings.audit.tabLabel") }}
+        </h2>
+        <p class="text-muted-foreground m-0 text-sm leading-[1.5]">
+          {{ t("system.globalSettings.audit.description") }}
+        </p>
       </div>
       <button
         type="button"
-        class="rq-refresh"
+        data-slot="icon-button"
+        class="text-placeholder hover:enabled:bg-secondary hover:enabled:text-primary grid size-5 shrink-0 cursor-pointer place-items-center rounded-md transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] disabled:cursor-default disabled:opacity-70"
         :disabled="auditLoading"
         :title="t('system.globalSettings.audit.refresh')"
         :aria-label="t('system.globalSettings.audit.refresh')"
         @click="reloadAuditLog"
       >
-        <t-icon :name="auditLoading ? 'loading' : 'refresh'" :class="{ 'rq-refresh-spin': auditLoading }" />
+        <Loader2Icon v-if="auditLoading" class="size-3 animate-spin" />
+        <RefreshCwIcon v-else class="size-3" />
       </button>
     </header>
 
-    <div class="audit-page-body">
-      <div v-if="auditError" class="audit-page-branch audit-page-branch--error">
-        <t-alert theme="error" :message="auditError">
-          <template #operation>
-            <t-button size="small" @click="reloadAuditLog">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div v-if="auditError" class="flex min-h-0 flex-1 flex-col justify-start">
+        <Alert class="border-transparent bg-[var(--td-error-color-light)]">
+          <CircleAlertIcon class="text-destructive" />
+          <AlertDescription class="text-foreground">{{ auditError }}</AlertDescription>
+          <AlertAction>
+            <Button size="sm" variant="outline" @click="reloadAuditLog">
               {{ t("system.globalSettings.audit.retry") }}
-            </t-button>
-          </template>
-        </t-alert>
+            </Button>
+          </AlertAction>
+        </Alert>
       </div>
 
-      <div v-else-if="!auditLoading && auditEntries.length === 0" class="audit-page-branch audit-page-branch--empty">
-        <t-empty :description="t('system.globalSettings.audit.empty')" />
+      <div
+        v-else-if="!auditLoading && auditEntries.length === 0"
+        class="flex min-h-[280px] flex-1 flex-col items-center justify-center"
+      >
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <InboxIcon />
+            </EmptyMedia>
+          </EmptyHeader>
+          <EmptyDescription>{{ t("system.globalSettings.audit.empty") }}</EmptyDescription>
+        </Empty>
       </div>
 
-      <div v-else class="audit-scroll-area narrow-scrollbar audit-page-branch" ref="auditScrollRoot">
-        <div class="data-table-shell audit-table-shell">
-          <t-table
-            row-key="id"
-            :data="auditEntries"
-            :columns="auditColumns"
-            size="medium"
-            hover
-            @row-click="openAuditDetail"
-          >
-            <template #created_at="{ row }">
-              <div class="audit-time">
-                <span class="audit-time-date">{{ formatAuditDatePart(row.created_at) }}</span>
-                <span class="audit-time-clock">{{ formatAuditTimePart(row.created_at) }}</span>
-              </div>
-            </template>
-            <template #actor="{ row }">
-              <div class="audit-actor">
-                <span class="audit-actor-name">
-                  {{
-                    row.actor_user_id
-                      ? auditActorLabel(row.actor_user_id)
-                      : t("system.globalSettings.audit.systemActor")
-                  }}
-                </span>
-                <span v-if="row.actor_role" class="audit-actor-role">
-                  {{ auditActorRoleLabel(row.actor_role) }}
-                </span>
-              </div>
-            </template>
-            <template #action="{ row }">
-              <t-tag :theme="auditActionTheme(row.action)" size="small" variant="light-outline">
-                {{ formatAuditAction(row.action) }}
-              </t-tag>
-            </template>
-            <template #target="{ row }">
-              <div class="audit-target">
-                <span v-if="auditTargetKey(row)" class="audit-target-key">{{ auditTargetKey(row) }}</span>
-                <span v-if="auditTargetDiff(row)" class="audit-target-diff">{{ auditTargetDiff(row) }}</span>
-                <span v-else-if="!auditTargetKey(row)" class="audit-target-empty">—</span>
-              </div>
-            </template>
-            <template #outcome="{ row }">
-              <t-tag :theme="auditOutcomeTheme(row.outcome)" size="small" variant="light">
-                {{ t("system.globalSettings.audit.outcome." + row.outcome) }}
-              </t-tag>
-            </template>
-          </t-table>
+      <div
+        v-else
+        ref="auditScrollRoot"
+        class="max-h-[calc(100vh-260px)] min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+      >
+        <div class="border-border bg-card overflow-x-auto rounded-[10px] border">
+          <Table class="table-fixed">
+            <TableHeader>
+              <TableRow class="hover:bg-transparent">
+                <TableHead
+                  class="bg-secondary text-placeholder sticky top-0 z-[2] h-auto w-[120px] px-4 py-3.5 text-[13px] font-semibold whitespace-normal shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+                >
+                  {{ t("system.globalSettings.audit.columns.time") }}
+                </TableHead>
+                <TableHead
+                  class="bg-secondary text-placeholder sticky top-0 z-[2] h-auto w-[180px] px-4 py-3.5 text-[13px] font-semibold whitespace-normal shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+                >
+                  {{ t("system.globalSettings.audit.columns.actor") }}
+                </TableHead>
+                <TableHead
+                  class="bg-secondary text-placeholder sticky top-0 z-[2] h-auto w-[150px] px-4 py-3.5 text-[13px] font-semibold whitespace-normal shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+                >
+                  {{ t("system.globalSettings.audit.columns.action") }}
+                </TableHead>
+                <TableHead
+                  class="bg-secondary text-placeholder sticky top-0 z-[2] h-auto min-w-[240px] px-4 py-3.5 text-[13px] font-semibold whitespace-normal shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+                >
+                  {{ t("system.globalSettings.audit.columns.target") }}
+                </TableHead>
+                <TableHead
+                  class="bg-secondary text-placeholder sticky top-0 z-[2] h-auto w-[80px] px-4 py-3.5 text-center text-[13px] font-semibold whitespace-normal shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+                >
+                  {{ t("system.globalSettings.audit.columns.outcome") }}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="row in auditEntries"
+                :key="row.id"
+                class="hover:bg-accent cursor-pointer"
+                @click="openAuditDetail({ row })"
+              >
+                <TableCell class="px-4 py-3.5 align-middle whitespace-normal">
+                  <div class="flex flex-col gap-0.5 leading-[1.3]">
+                    <span class="text-muted-foreground text-xs">{{ formatAuditDatePart(row.created_at) }}</span>
+                    <span class="text-foreground text-[13px] font-medium tabular-nums">
+                      {{ formatAuditTimePart(row.created_at) }}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle whitespace-normal">
+                  <div class="flex min-w-0 flex-col gap-0.5 leading-[1.3]">
+                    <span
+                      class="text-foreground overflow-hidden text-[13px] font-medium text-ellipsis whitespace-nowrap"
+                    >
+                      {{
+                        row.actor_user_id
+                          ? auditActorLabel(row.actor_user_id)
+                          : t("system.globalSettings.audit.systemActor")
+                      }}
+                    </span>
+                    <span v-if="row.actor_role" class="text-muted-foreground text-xs">
+                      {{ auditActorRoleLabel(row.actor_role) }}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle whitespace-normal">
+                  <Badge class="rounded-sm" :class="auditActionBadgeClass(row.action)">
+                    {{ formatAuditAction(row.action) }}
+                  </Badge>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle whitespace-normal">
+                  <div class="flex min-w-0 flex-col gap-1 py-0.5 leading-[1.35]">
+                    <span
+                      v-if="auditTargetKey(row)"
+                      class="text-foreground font-mono text-[13px] font-medium break-all"
+                    >
+                      {{ auditTargetKey(row) }}
+                    </span>
+                    <span
+                      v-if="auditTargetDiff(row)"
+                      class="text-muted-foreground font-mono text-xs leading-[1.4] break-all"
+                    >
+                      {{ auditTargetDiff(row) }}
+                    </span>
+                    <span v-else-if="!auditTargetKey(row)" class="text-placeholder">—</span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 text-center align-middle whitespace-normal">
+                  <Badge class="rounded-sm" :class="auditOutcomeBadgeClass(row.outcome)">
+                    {{ t("system.globalSettings.audit.outcome." + row.outcome) }}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
 
-        <div ref="auditLoadSentinelEl" class="audit-load-sentinel" aria-hidden="true" />
+        <div ref="auditLoadSentinelEl" class="pointer-events-none h-px w-full" aria-hidden="true" />
 
-        <div v-if="auditLoading && auditEntries.length > 0" class="audit-loading-more">
-          <t-loading size="small" />
+        <div
+          v-if="auditLoading && auditEntries.length > 0"
+          class="text-muted-foreground flex items-center justify-center gap-2.5 p-3 text-xs"
+        >
+          <Loader2Icon class="size-3.5 animate-spin" />
           <span>{{ t("system.globalSettings.audit.loading") }}</span>
         </div>
 
-        <p v-if="!auditHasMore && auditEntries.length > 0 && !auditLoading" class="audit-end-hint">
+        <p
+          v-if="!auditHasMore && auditEntries.length > 0 && !auditLoading"
+          class="m-0 pt-2 pb-3.5 text-center text-xs text-[var(--td-text-color-disabled)]"
+        >
           {{ t("system.globalSettings.audit.end") }}
         </p>
       </div>
@@ -97,10 +170,9 @@
 
     <SettingDrawer
       v-model:visible="auditDetailVisible"
-      class="audit-detail-drawer"
       :title="auditDetailTitle"
       :description="auditDetailDescription"
-      icon="file-paste"
+      :icon="ClipboardPasteIcon"
       width="640px"
       :min-width="480"
       :max-width="960"
@@ -108,47 +180,81 @@
       hide-footer
     >
       <template v-if="selectedAuditEntry">
-        <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section class="border-border flex flex-col gap-3.5 border-b pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0">
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:rounded-[2px] before:content-['']"
+          >
             {{ t("system.globalSettings.audit.drawer.sectionSummary") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in auditSummaryFields(selectedAuditEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in auditSummaryFields(selectedAuditEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd class="text-foreground m-0 text-[13px] leading-[1.55] break-all" :title="field.value">
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section v-if="auditIdentifierFields(selectedAuditEntry).length > 0" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section
+          v-if="auditIdentifierFields(selectedAuditEntry).length > 0"
+          class="border-border flex flex-col gap-3.5 border-b pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0"
+        >
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:rounded-[2px] before:content-['']"
+          >
             {{ t("system.globalSettings.audit.drawer.sectionIdentifiers") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in auditIdentifierFields(selectedAuditEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd class="mono" :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in auditIdentifierFields(selectedAuditEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd class="text-foreground m-0 font-mono text-[13px] leading-[1.55] break-all" :title="field.value">
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section v-if="auditRequestFields(selectedAuditEntry).length > 0" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section
+          v-if="auditRequestFields(selectedAuditEntry).length > 0"
+          class="border-border flex flex-col gap-3.5 border-b pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0"
+        >
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:rounded-[2px] before:content-['']"
+          >
             {{ t("system.globalSettings.audit.drawer.sectionRequest") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in auditRequestFields(selectedAuditEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd class="mono" :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in auditRequestFields(selectedAuditEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd class="text-foreground m-0 font-mono text-[13px] leading-[1.55] break-all" :title="field.value">
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section class="border-border flex flex-col gap-3.5 border-b pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0">
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:rounded-[2px] before:content-['']"
+          >
             {{ t("system.globalSettings.audit.expanded.details") }}
           </h4>
-          <pre class="audit-detail-json mono">{{ auditDetailsJSON(selectedAuditEntry) }}</pre>
+          <pre
+            class="border-border bg-card text-foreground m-0 max-h-[min(420px,50vh)] overflow-auto rounded-[8px] border px-3.5 py-3 font-mono text-xs leading-[1.55] break-all whitespace-pre-wrap"
+            >{{ auditDetailsJSON(selectedAuditEntry) }}</pre>
         </section>
       </template>
     </SettingDrawer>
@@ -163,6 +269,13 @@ import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import { AUDIT_ACTION_I18N_ROOTS } from "@/i18n/auditActionRegistry";
 import { auditActionLabel } from "@/i18n/auditActionLabel";
 import { useAuthStore } from "@/stores/auth";
+
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CircleAlertIcon, ClipboardPasteIcon, InboxIcon, Loader2Icon, RefreshCwIcon } from "@lucide/vue";
 
 interface AuditDetailField {
   key: string;
@@ -187,17 +300,36 @@ let auditScrollObserver: IntersectionObserver | null = null;
 const auditDetailVisible = ref(false);
 const selectedAuditEntry = ref<AuditLog | null>(null);
 
-const auditColumns = computed(() => [
-  { colKey: "created_at", title: t("system.globalSettings.audit.columns.time"), width: 120 },
-  { colKey: "actor", title: t("system.globalSettings.audit.columns.actor"), width: 180 },
-  { colKey: "action", title: t("system.globalSettings.audit.columns.action"), width: 150 },
-  {
-    colKey: "target",
-    title: t("system.globalSettings.audit.columns.target"),
-    minWidth: 240,
-  },
-  { colKey: "outcome", title: t("system.globalSettings.audit.columns.outcome"), width: 80, align: "center" as const },
-]);
+/**
+ * Tinted-badge colours matching the old t-tag themes. The action tag was
+ * "light-outline" (tint plus a border in the same hue); the outcome tag was
+ * plain "light", so only the action map carries a border colour.
+ */
+function auditActionBadgeClass(action: AuditAction): string {
+  switch (auditActionTheme(action)) {
+    case "success":
+      return "border-success/40 bg-success/10 text-success";
+    case "warning":
+      return "border-warning/40 bg-warning/10 text-warning";
+    case "danger":
+      return "border-destructive/40 bg-destructive/10 text-destructive";
+    case "primary":
+      return "border-primary/40 bg-primary/10 text-primary";
+    default:
+      return "border-border bg-muted text-muted-foreground";
+  }
+}
+
+function auditOutcomeBadgeClass(outcome: AuditOutcome): string {
+  switch (auditOutcomeTheme(outcome)) {
+    case "success":
+      return "bg-success/10 text-success";
+    case "danger":
+      return "bg-destructive/10 text-destructive";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
 
 function formatAuditDatePart(s: string | undefined): string {
   if (!s) return "-";
@@ -593,300 +725,3 @@ onUnmounted(() => {
   detachAuditInfiniteScroll();
 });
 </script>
-
-<style lang="less" scoped>
-.system-audit-log {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.section-header {
-  margin-bottom: 20px;
-}
-
-.audit-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.audit-page-header h2 {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.section-description {
-  margin: 0;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.rq-refresh {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  transition:
-    color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-  :deep(.t-icon) {
-    font-size: 12px;
-  }
-
-  &:hover:not(:disabled) {
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &:active:not(:disabled) {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.7;
-  }
-}
-
-.rq-refresh-spin {
-  animation: rq-refresh-rotate 0.8s linear infinite;
-}
-
-@keyframes rq-refresh-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.audit-page-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.audit-page-branch {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.audit-page-branch--error {
-  justify-content: flex-start;
-}
-
-.audit-page-branch--empty {
-  justify-content: center;
-  align-items: center;
-  min-height: 280px;
-}
-
-.audit-scroll-area {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: calc(100vh - 260px);
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.audit-load-sentinel {
-  height: 1px;
-  width: 100%;
-  pointer-events: none;
-}
-
-.audit-loading-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.audit-end-hint {
-  text-align: center;
-  font-size: 12px;
-  color: var(--td-text-color-disabled);
-  padding: 8px 0 14px;
-  margin: 0;
-}
-
-.audit-time {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
-
-  .audit-time-date {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .audit-time-clock {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.audit-actor {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
-  min-width: 0;
-
-  .audit-actor-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .audit-actor-role {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.audit-target {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  line-height: 1.35;
-  min-width: 0;
-  padding: 2px 0;
-
-  .audit-target-key {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    word-break: break-all;
-    font-family: var(--td-font-family-mono, monospace);
-  }
-
-  .audit-target-diff {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    font-family: var(--td-font-family-mono, monospace);
-    word-break: break-all;
-    line-height: 1.4;
-  }
-
-  .audit-target-empty {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.audit-detail-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-}
-
-.audit-detail-field {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 12px;
-  align-items: baseline;
-  margin: 0;
-
-  dt {
-    margin: 0;
-    color: var(--td-text-color-placeholder);
-    font-size: 12px;
-    line-height: 1.45;
-    white-space: nowrap;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-size: 13px;
-    line-height: 1.55;
-    word-break: break-all;
-  }
-}
-
-.audit-detail-json {
-  margin: 0;
-  padding: 12px 14px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: min(420px, 50vh);
-  overflow: auto;
-}
-
-.mono {
-  font-family: var(--td-font-family-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-}
-
-.data-table-shell {
-  overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid var(--td-component-stroke);
-  background-color: var(--td-bg-color-container);
-
-  &:deep(thead th) {
-    font-weight: 600;
-    font-size: 13px;
-    background-color: var(--td-bg-color-secondarycontainer) !important;
-  }
-
-  &:deep(.t-table td),
-  &:deep(.t-table th) {
-    padding-top: 14px;
-    padding-bottom: 14px;
-    vertical-align: middle;
-  }
-}
-
-.audit-table-shell {
-  &:deep(thead th) {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    box-shadow: inset 0 -1px 0 var(--td-component-stroke);
-  }
-
-  &:deep(.t-table tbody tr) {
-    cursor: pointer;
-  }
-
-  &:deep(.t-table tbody tr:hover > td) {
-    background-color: var(--td-bg-color-container-hover);
-  }
-}
-</style>

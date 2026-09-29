@@ -1,177 +1,367 @@
 <template>
-  <div class="tenant-groups">
-    <div class="section-header">
-      <div class="section-header-row">
-        <h2>{{ t("docs.groups.title") }}</h2>
-        <t-button v-if="canManage" size="small" theme="primary" @click="openCreate">
-          <template #icon><t-icon name="add" /></template>
+  <div class="flex flex-col gap-4">
+    <div>
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-foreground m-0 text-lg leading-[26px] font-semibold">{{ t("docs.groups.title") }}</h2>
+        <Button v-if="canManage" size="sm" @click="openCreate">
+          <PlusIcon />
           {{ t("docs.groups.create") }}
-        </t-button>
+        </Button>
       </div>
-      <p class="section-description">{{ t("docs.groups.subtitle") }}</p>
+      <p class="text-muted-foreground mt-1.5 mb-0 text-[13px] leading-5">{{ t("docs.groups.subtitle") }}</p>
     </div>
 
-    <t-table
-      :data="groups"
-      :columns="columns"
-      row-key="id"
-      :loading="loading"
-      size="small"
-      hover
-      :empty="t('docs.groups.empty')"
-    >
-      <template #name="{ row }">
-        <div class="group-name">
-          <t-icon name="usergroup" size="16px" class="group-icon" />
-          <span>{{ row.name }}</span>
-          <t-tag v-if="row.is_default" size="small" variant="outline">{{ t("docs.groups.defaultBadge") }}</t-tag>
-        </div>
-      </template>
-      <template #description="{ row }">
-        <span class="group-desc">{{ row.is_default ? t("docs.groups.defaultHint") : row.description || "—" }}</span>
-      </template>
-      <template #members="{ row }">
-        <t-link theme="primary" hover="color" @click="openMembers(row)">
-          {{ t("docs.groups.memberCount", { count: row.member_count }) }}
-        </t-link>
-      </template>
-      <template #actions="{ row }">
-        <div class="row-actions">
-          <t-tooltip :content="t('docs.groups.manageMembers')">
-            <t-button variant="text" size="small" @click="openMembers(row)">
-              <template #icon><t-icon name="user-list" /></template>
-            </t-button>
-          </t-tooltip>
-          <t-tooltip v-if="canManage" :content="t('common.edit')">
-            <t-button variant="text" size="small" @click="openEdit(row)">
-              <template #icon><t-icon name="edit" /></template>
-            </t-button>
-          </t-tooltip>
-          <t-popconfirm
-            v-if="canManage && !row.is_default"
-            theme="danger"
-            :content="t('docs.groups.deleteConfirm', { name: row.name })"
-            @confirm="remove(row)"
-          >
-            <t-button variant="text" size="small" theme="danger">
-              <template #icon><t-icon name="delete" /></template>
-            </t-button>
-          </t-popconfirm>
-        </div>
-      </template>
-    </t-table>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead :style="{ minWidth: '180px' }">{{ columns[0].title }}</TableHead>
+          <TableHead>{{ columns[1].title }}</TableHead>
+          <TableHead :style="{ width: '120px' }">{{ columns[2].title }}</TableHead>
+          <TableHead :style="{ width: '132px' }">{{ columns[3].title }}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <template v-if="loading">
+          <TableRow v-for="i in 3" :key="i">
+            <TableCell v-for="c in columns" :key="c.colKey"><Skeleton class="h-4 w-full" /></TableCell>
+          </TableRow>
+        </template>
+        <template v-else>
+          <TableRow v-for="row in groups" :key="row.id">
+            <TableCell>
+              <div class="text-foreground inline-flex items-center gap-2">
+                <UsersIcon class="text-primary size-4" />
+                <span>{{ row.name }}</span>
+                <Badge v-if="row.is_default" variant="outline">{{ t("docs.groups.defaultBadge") }}</Badge>
+              </div>
+            </TableCell>
+            <TableCell>
+              <span class="text-muted-foreground">
+                {{ row.is_default ? t("docs.groups.defaultHint") : row.description || "—" }}
+              </span>
+            </TableCell>
+            <TableCell>
+              <button
+                type="button"
+                data-slot="link-button"
+                class="text-primary cursor-pointer text-sm hover:underline"
+                @click="openMembers(row)"
+              >
+                {{ t("docs.groups.memberCount", { count: row.member_count }) }}
+              </button>
+            </TableCell>
+            <TableCell>
+              <div class="flex gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :aria-label="t('docs.groups.manageMembers')"
+                      @click="openMembers(row)"
+                    >
+                      <UsersRoundIcon />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ t("docs.groups.manageMembers") }}</TooltipContent>
+                </Tooltip>
+                <Tooltip v-if="canManage">
+                  <TooltipTrigger as-child>
+                    <Button variant="ghost" size="icon-sm" :aria-label="t('common.edit')" @click="openEdit(row)">
+                      <PencilIcon />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ t("common.edit") }}</TooltipContent>
+                </Tooltip>
+                <Popover
+                  v-if="canManage && !row.is_default"
+                  :open="deleteConfirmId === row.id"
+                  @update:open="(v: boolean) => (deleteConfirmId = v ? row.id : null)"
+                >
+                  <PopoverTrigger as-child>
+                    <Button variant="ghost" size="icon-sm" class="text-destructive">
+                      <Trash2Icon />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" class="w-64">
+                    <p class="text-foreground m-0 mb-3 text-sm">
+                      {{ t("docs.groups.deleteConfirm", { name: row.name }) }}
+                    </p>
+                    <div class="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" @click="deleteConfirmId = null">
+                        {{ t("common.cancel") }}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        @click="
+                          deleteConfirmId = null;
+                          remove(row);
+                        "
+                      >
+                        {{ t("common.confirm") }}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </TableCell>
+          </TableRow>
+          <TableRow v-if="!groups.length">
+            <TableCell :colspan="columns.length">
+              <Empty>
+                <EmptyDescription>{{ t("docs.groups.empty") }}</EmptyDescription>
+              </Empty>
+            </TableCell>
+          </TableRow>
+        </template>
+      </TableBody>
+    </Table>
 
     <!-- Create / edit dialog -->
-    <t-dialog
-      v-model:visible="editVisible"
-      :header="editing ? t('docs.groups.editTitle') : t('docs.groups.createTitle')"
-      width="480px"
-      destroy-on-close
-      :cancel-btn="t('common.cancel')"
-      :confirm-btn="{ content: t('common.save'), loading: saving, disabled: !form.name.trim() }"
-      @confirm="submitEdit"
-    >
-      <t-form label-align="top" @submit.prevent>
-        <t-form-item :label="t('docs.groups.name')">
-          <t-input
-            v-model="form.name"
-            :maxlength="100"
-            :disabled="editing?.is_default"
-            :placeholder="t('docs.groups.namePlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('docs.groups.description')">
-          <t-textarea
-            v-model="form.description"
-            :maxlength="4000"
-            :autosize="{ minRows: 2, maxRows: 5 }"
-            :placeholder="t('docs.groups.descriptionPlaceholder')"
-          />
-        </t-form-item>
-      </t-form>
-    </t-dialog>
+    <Dialog v-model:open="editVisible">
+      <DialogContent class="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{{ editing ? t("docs.groups.editTitle") : t("docs.groups.createTitle") }}</DialogTitle>
+        </DialogHeader>
+        <form class="flex flex-col gap-3" @submit.prevent>
+          <div class="flex flex-col gap-1.5">
+            <Label for="group-name-input" class="text-sm font-medium">{{ t("docs.groups.name") }}</Label>
+            <Input
+              id="group-name-input"
+              v-model="form.name"
+              :maxlength="100"
+              :disabled="editing?.is_default"
+              :placeholder="t('docs.groups.namePlaceholder')"
+            />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <Label for="group-description-input" class="text-sm font-medium">{{ t("docs.groups.description") }}</Label>
+            <Textarea
+              id="group-description-input"
+              v-model="form.description"
+              :maxlength="4000"
+              rows="2"
+              class="max-h-[116px]"
+              :placeholder="t('docs.groups.descriptionPlaceholder')"
+            />
+          </div>
+        </form>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button :disabled="saving || !form.name.trim()" @click="submitEdit">
+            <Loader2Icon v-if="saving" class="animate-spin" />
+            {{ t("common.save") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Members dialog -->
-    <t-dialog v-model:visible="membersVisible" :header="membersTitle" width="640px" :footer="false" destroy-on-close>
-      <div class="members-dialog">
-        <div class="members-toolbar">
-          <t-input
-            v-model="memberQuery"
-            clearable
-            :placeholder="t('docs.groups.searchPlaceholder')"
-            class="member-search"
-            @change="() => reloadMembers(1)"
-            @clear="() => reloadMembers(1)"
-            @enter="() => reloadMembers(1)"
-          >
-            <template #prefix-icon><t-icon name="search" /></template>
-          </t-input>
-          <div v-if="canManage && activeGroup && !activeGroup.is_default" class="member-add">
-            <t-select
-              v-model="pendingUserIds"
-              multiple
-              filterable
-              :filter="() => true"
-              :loading="memberSearch.loading.value"
-              :options="addableOptions"
-              :placeholder="t('docs.groups.addMembersPlaceholder')"
-              :min-collapsed-num="2"
-              class="member-add-select"
-              @search="memberSearch.search"
-            />
-            <t-button
-              theme="primary"
-              size="small"
-              :disabled="!pendingUserIds.length"
-              :loading="addingMembers"
-              @click="addMembers"
+    <Dialog v-model:open="membersVisible">
+      <DialogContent class="sm:max-w-[640px]">
+        <DialogHeader>
+          <DialogTitle>{{ membersTitle }}</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <!-- The Input has no prefix slot, so the search icon sits over it and
+                 the clear button replaces TDesign's `clearable`. The list reloads
+                 on every keystroke, as the old input's change event did. -->
+            <div class="relative w-[220px]">
+              <SearchIcon
+                class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+              />
+              <Input
+                :model-value="memberQuery"
+                :placeholder="t('docs.groups.searchPlaceholder')"
+                class="pr-8 pl-8"
+                @update:model-value="onMemberQueryInput"
+                @keydown.enter="() => reloadMembers(1)"
+              />
+              <button
+                v-if="memberQuery"
+                type="button"
+                data-slot="input-clear"
+                class="text-placeholder hover:text-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center"
+                :aria-label="t('common.clear')"
+                @click="onMemberQueryInput('')"
+              >
+                <XIcon class="size-3.5" />
+              </button>
+            </div>
+            <div
+              v-if="canManage && activeGroup && !activeGroup.is_default"
+              class="flex min-w-[260px] flex-1 items-center justify-end gap-2"
             >
-              {{ t("docs.groups.addMembers") }}
-            </t-button>
+              <!-- Remote-search multi picker stands in for the old filterable
+                   t-select: a popover with a search box and checkbox rows. -->
+              <Popover>
+                <PopoverTrigger as-child>
+                  <Button variant="outline" size="sm" class="max-w-[320px] flex-1 justify-between font-normal">
+                    <!-- Like the old multi-select, the trigger lists the picked
+                         people, collapsing everything past the second into "+N". -->
+                    <span v-if="pendingUserIds.length" class="text-foreground truncate">{{ pendingSummary }}</span>
+                    <span v-else class="text-placeholder truncate">{{ t("docs.groups.addMembersPlaceholder") }}</span>
+                    <ChevronDownIcon />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" class="w-[280px] p-2">
+                  <div class="relative mb-2">
+                    <SearchIcon
+                      class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                    />
+                    <Input
+                      :model-value="memberAddQuery"
+                      :placeholder="t('docs.groups.searchPlaceholder')"
+                      class="pl-8"
+                      @update:model-value="onMemberAddSearch"
+                    />
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <div
+                      v-if="memberSearch.loading.value"
+                      class="text-muted-foreground flex items-center gap-2 px-1 py-2 text-xs"
+                    >
+                      <Loader2Icon class="animate-spin" />
+                    </div>
+                    <label
+                      v-for="opt in addableOptions"
+                      :key="opt.value"
+                      class="hover:bg-accent flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
+                    >
+                      <Checkbox
+                        :model-value="pendingUserIds.includes(opt.value)"
+                        :disabled="opt.disabled"
+                        @update:model-value="
+                          (v: boolean | 'indeterminate') => togglePendingUser(opt.value, opt.label, v === true)
+                        "
+                      />
+                      <span class="truncate">{{ opt.label }}</span>
+                    </label>
+                    <p
+                      v-if="!memberSearch.loading.value && !addableOptions.length"
+                      class="text-placeholder m-0 px-1 py-2 text-xs"
+                    >
+                      {{ t("docs.groups.noMembers") }}
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button size="sm" :disabled="!pendingUserIds.length || addingMembers" @click="addMembers">
+                <Loader2Icon v-if="addingMembers" class="animate-spin" />
+                {{ t("docs.groups.addMembers") }}
+              </Button>
+            </div>
+          </div>
+          <p v-if="activeGroup?.is_default" class="text-muted-foreground mt-1.5 mb-0 text-[13px] leading-5">
+            {{ t("docs.groups.defaultHint") }}
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{{ memberColumns[0].title }}</TableHead>
+                <TableHead v-if="memberColumns.length > 1" :style="{ width: '72px' }">
+                  {{ memberColumns[1].title }}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <template v-if="membersLoading">
+                <TableRow v-for="i in 3" :key="i">
+                  <TableCell v-for="c in memberColumns" :key="c.colKey"><Skeleton class="h-4 w-full" /></TableCell>
+                </TableRow>
+              </template>
+              <template v-else>
+                <TableRow v-for="row in memberPage.members" :key="row.user_id">
+                  <TableCell>
+                    <div class="flex min-w-0 items-center gap-2.5">
+                      <div
+                        class="bg-secondary text-muted-foreground flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                      >
+                        <img v-if="row.avatar" :src="row.avatar" alt="" class="size-full object-cover" />
+                        <UserRoundIcon v-else class="size-3.5" />
+                      </div>
+                      <div class="flex min-w-0 flex-col">
+                        <span class="text-foreground text-sm leading-5">{{ row.username || row.user_id }}</span>
+                        <span class="text-placeholder text-xs leading-4">{{ row.email }}</span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell v-if="memberColumns.length > 1">
+                    <Popover
+                      :open="removeConfirmId === row.user_id"
+                      @update:open="(v: boolean) => (removeConfirmId = v ? row.user_id : null)"
+                    >
+                      <PopoverTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          class="text-destructive"
+                          :disabled="removingUserId === row.user_id"
+                        >
+                          <Loader2Icon v-if="removingUserId === row.user_id" class="animate-spin" />
+                          <Trash2Icon v-else />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" class="w-64">
+                        <p class="text-foreground m-0 mb-3 text-sm">{{ t("docs.groups.removeMemberConfirm") }}</p>
+                        <div class="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" @click="removeConfirmId = null">
+                            {{ t("common.cancel") }}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            @click="
+                              removeConfirmId = null;
+                              removeMember(row);
+                            "
+                          >
+                            {{ t("common.confirm") }}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                </TableRow>
+                <TableRow v-if="!memberPage.members.length">
+                  <TableCell :colspan="memberColumns.length">
+                    <Empty>
+                      <EmptyDescription>{{ t("docs.groups.noMembers") }}</EmptyDescription>
+                    </Empty>
+                  </TableCell>
+                </TableRow>
+              </template>
+            </TableBody>
+          </Table>
+          <div
+            v-if="memberPage.total > memberPage.page_size"
+            class="text-muted-foreground flex items-center gap-2 self-end text-xs"
+          >
+            <span>{{ memberPage.page }} / {{ totalMemberPages }}</span>
+            <Button
+              variant="outline"
+              size="icon-xs"
+              :disabled="memberPage.page <= 1"
+              @click="reloadMembers(memberPage.page - 1)"
+            >
+              <ChevronLeftIcon />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-xs"
+              :disabled="memberPage.page >= totalMemberPages"
+              @click="reloadMembers(memberPage.page + 1)"
+            >
+              <ChevronRightIcon />
+            </Button>
           </div>
         </div>
-        <p v-if="activeGroup?.is_default" class="section-description">{{ t("docs.groups.defaultHint") }}</p>
-        <t-table
-          :data="memberPage.members"
-          :columns="memberColumns"
-          row-key="user_id"
-          size="small"
-          :loading="membersLoading"
-          :empty="t('docs.groups.noMembers')"
-          hover
-        >
-          <template #user="{ row }">
-            <div class="member-cell">
-              <div class="member-avatar">
-                <img v-if="row.avatar" :src="row.avatar" alt="" />
-                <t-icon v-else name="user" size="14px" />
-              </div>
-              <div class="member-text">
-                <span class="member-name">{{ row.username || row.user_id }}</span>
-                <span class="member-sub">{{ row.email }}</span>
-              </div>
-            </div>
-          </template>
-          <template #actions="{ row }">
-            <t-popconfirm theme="danger" :content="t('docs.groups.removeMemberConfirm')" @confirm="removeMember(row)">
-              <t-button variant="text" size="small" theme="danger" :loading="removingUserId === row.user_id">
-                <template #icon><t-icon name="delete" /></template>
-              </t-button>
-            </t-popconfirm>
-          </template>
-        </t-table>
-        <t-pagination
-          v-if="memberPage.total > memberPage.page_size"
-          :total="memberPage.total"
-          :current="memberPage.page"
-          :page-size="memberPage.page_size"
-          size="small"
-          :show-page-size="false"
-          class="members-pagination"
-          @current-change="(p: number) => reloadMembers(p)"
-        />
-      </div>
-    </t-dialog>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -194,6 +384,33 @@ import {
 } from "@/api/docs";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberSearch } from "@/views/docs/useMemberSearch";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  Trash2Icon,
+  UserRoundIcon,
+  UsersIcon,
+  UsersRoundIcon,
+  XIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -283,8 +500,12 @@ const memberQuery = ref("");
 const membersLoading = ref(false);
 const memberPage = ref<GroupMemberPage>({ members: [], total: 0, page: 1, page_size: 20 });
 const removingUserId = ref("");
+// Which row's delete confirmation popover is open (null = none).
+const deleteConfirmId = ref<string | null>(null);
+const removeConfirmId = ref<string | null>(null);
 const pendingUserIds = ref<string[]>([]);
 const addingMembers = ref(false);
+const memberAddQuery = ref("");
 const memberSearch = useMemberSearch();
 
 const membersTitle = computed(() =>
@@ -304,9 +525,41 @@ const addableOptions = computed(() => {
   return memberSearch.options.value.map((o) => ({ ...o, disabled: present.has(o.value) }));
 });
 
+const totalMemberPages = computed(() => Math.max(1, Math.ceil(memberPage.value.total / memberPage.value.page_size)));
+
+// Labels of the picked users, remembered at pick time: the option list is
+// replaced by every remote search, and the trigger must still name them.
+const pendingLabels = ref<Record<string, string>>({});
+
+const pendingSummary = computed(() => {
+  const names = pendingUserIds.value.map((id) => pendingLabels.value[id] ?? id);
+  if (names.length <= 2) return names.join(", ");
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+});
+
+const togglePendingUser = (userId: string, label: string, checked: boolean) => {
+  if (checked) {
+    pendingLabels.value = { ...pendingLabels.value, [userId]: label };
+    if (!pendingUserIds.value.includes(userId)) pendingUserIds.value = [...pendingUserIds.value, userId];
+  } else {
+    pendingUserIds.value = pendingUserIds.value.filter((id) => id !== userId);
+  }
+};
+
+const onMemberQueryInput = (value: string | number) => {
+  memberQuery.value = String(value);
+  void reloadMembers(1);
+};
+
+const onMemberAddSearch = (value: string | number) => {
+  memberAddQuery.value = String(value);
+  memberSearch.search(memberAddQuery.value);
+};
+
 const openMembers = async (g: TenantGroup) => {
   activeGroup.value = g;
   memberQuery.value = "";
+  memberAddQuery.value = "";
   pendingUserIds.value = [];
   membersVisible.value = true;
   void memberSearch.load("");
@@ -366,133 +619,3 @@ const removeMember = async (row: GroupMemberRow) => {
 
 onMounted(load);
 </script>
-
-<style scoped lang="less">
-.tenant-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.section-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  h2 {
-    margin: 0;
-    font-size: 18px;
-    line-height: 26px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.section-description {
-  margin: 6px 0 0;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.group-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--td-text-color-primary);
-}
-
-.group-icon {
-  color: var(--td-brand-color);
-}
-
-.group-desc {
-  color: var(--td-text-color-secondary);
-}
-
-.row-actions {
-  display: flex;
-  gap: 2px;
-}
-
-.members-dialog {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.members-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.member-search {
-  width: 220px;
-}
-
-.member-add {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 260px;
-  justify-content: flex-end;
-}
-
-.member-add-select {
-  flex: 1;
-  max-width: 320px;
-}
-
-.member-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.member-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  overflow: hidden;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.member-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.member-name {
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.member-sub {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.members-pagination {
-  align-self: flex-end;
-}
-</style>

@@ -1,205 +1,282 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="settings-overlay" @click.self="handleClose">
-        <div class="settings-modal" :class="{ 'join-mode': mode === 'join' }">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="handleClose"
+      >
+        <div
+          class="modal-panel bg-card relative flex h-[80vh] w-[90vw] flex-col overflow-hidden rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+          :class="mode === 'join' ? 'max-h-[580px] max-w-[700px]' : 'max-h-[650px] max-w-[900px]'"
+        >
           <!-- 关闭按钮 -->
-          <button class="close-btn" @click="handleClose" :aria-label="$t('common.close')">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
+          <button
+            data-slot="modal-close"
+            type="button"
+            class="bg-secondary text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md transition-all duration-200"
+            @click="handleClose"
+            :aria-label="$t('common.close')"
+          >
+            <XIcon class="size-5" />
           </button>
 
-          <div class="settings-container">
+          <div class="flex h-full overflow-hidden">
             <!-- 左侧导航 -->
-            <div class="settings-sidebar">
-              <div class="sidebar-header">
-                <h2 class="sidebar-title">{{ modalTitle }}</h2>
+            <div class="bg-secondary border-border flex w-[200px] shrink-0 flex-col border-r">
+              <div class="border-border border-b px-5 py-6">
+                <h2 class="text-foreground m-0 font-[family-name:var(--app-font-family)] text-lg font-semibold">
+                  {{ modalTitle }}
+                </h2>
               </div>
-              <div class="settings-nav">
+              <div class="flex-1 overflow-y-auto px-2 py-3">
                 <div
                   v-for="(item, index) in navItems"
                   :key="index"
-                  :class="['nav-item', { active: currentSection === item.key }]"
+                  class="mb-1 flex cursor-pointer items-center rounded-md px-3 py-2.5 text-sm transition-all duration-200"
+                  :class="
+                    currentSection === item.key
+                      ? 'bg-secondary text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  "
                   @click="currentSection = item.key"
                 >
-                  <t-icon :name="item.icon" class="nav-icon" />
-                  <span class="nav-label">{{ item.label }}</span>
+                  <component :is="item.icon" class="mr-2 size-[18px] shrink-0" />
+                  <span class="flex-1">{{ item.label }}</span>
                 </div>
               </div>
             </div>
 
             <!-- 右侧内容区域 -->
-            <div class="settings-content">
-              <div class="content-wrapper">
+            <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <div class="flex-1 overflow-y-auto px-8 py-6">
                 <!-- 创建组织 - 基本信息 -->
-                <div v-if="mode === 'create'" v-show="currentSection === 'basic'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h3 class="section-title">{{ $t("organization.editor.basicTitle") }}</h3>
-                      <p class="section-desc">{{ $t("organization.editor.basicDesc") }}</p>
-                    </div>
-                    <div class="section-body">
-                      <div class="form-item">
-                        <label class="form-label required">{{ $t("organization.name") }}</label>
-                        <div class="name-input-wrapper">
-                          <SpaceAvatar :name="createForm.name || '?'" size="medium" />
-                          <t-input
-                            v-model="createForm.name"
-                            :placeholder="$t('organization.namePlaceholder')"
-                            :maxlength="100"
-                            class="name-input"
-                          />
-                        </div>
-                        <p class="form-tip">{{ $t("organization.editor.nameTip") }}</p>
-                      </div>
-                      <div class="form-item">
-                        <label class="form-label">{{ $t("organization.description") }}</label>
-                        <t-textarea
-                          v-model="createForm.description"
-                          :placeholder="$t('organization.descriptionPlaceholder')"
-                          :maxlength="500"
-                          :autosize="{ minRows: 3, maxRows: 6 }"
+                <div v-if="mode === 'create'" v-show="currentSection === 'basic'" class="mb-8">
+                  <div class="mb-6">
+                    <h3
+                      class="text-foreground m-0 mb-2 font-[family-name:var(--app-font-family)] text-base font-semibold"
+                    >
+                      {{ $t("organization.editor.basicTitle") }}
+                    </h3>
+                    <p class="text-placeholder m-0 font-[family-name:var(--app-font-family)] text-sm leading-[22px]">
+                      {{ $t("organization.editor.basicDesc") }}
+                    </p>
+                  </div>
+                  <div>
+                    <div class="mb-6 last:mb-0">
+                      <label
+                        class="text-foreground after:text-destructive mb-2 block font-[family-name:var(--app-font-family)] text-sm font-medium after:ml-1 after:content-['*']"
+                      >
+                        {{ $t("organization.name") }}
+                      </label>
+                      <div class="flex items-center gap-3">
+                        <SpaceAvatar :name="createForm.name || '?'" size="medium" />
+                        <Input
+                          v-model="createForm.name"
+                          :placeholder="$t('organization.namePlaceholder')"
+                          :maxlength="100"
+                          class="min-w-0 flex-1"
                         />
-                        <p class="form-tip">{{ $t("organization.editor.descriptionTip") }}</p>
                       </div>
+                      <p class="text-placeholder mt-2 text-xs leading-[18px]">
+                        {{ $t("organization.editor.nameTip") }}
+                      </p>
+                    </div>
+                    <div class="mb-6 last:mb-0">
+                      <label
+                        class="text-foreground mb-2 block font-[family-name:var(--app-font-family)] text-sm font-medium"
+                      >
+                        {{ $t("organization.description") }}
+                      </label>
+                      <Textarea
+                        v-model="createForm.description"
+                        :placeholder="$t('organization.descriptionPlaceholder')"
+                        :maxlength="500"
+                        rows="3"
+                        class="max-h-[138px] min-h-[78px]"
+                      />
+                      <p class="text-placeholder mt-2 text-xs leading-[18px]">
+                        {{ $t("organization.editor.descriptionTip") }}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 <!-- 创建组织 - 权限说明 -->
-                <div v-if="mode === 'create'" v-show="currentSection === 'permissions'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h3 class="section-title">{{ $t("organization.editor.permissionsTitle") }}</h3>
-                      <p class="section-desc">{{ $t("organization.editor.permissionsDesc") }}</p>
+                <div v-if="mode === 'create'" v-show="currentSection === 'permissions'" class="mb-8">
+                  <div class="mb-6">
+                    <h3
+                      class="text-foreground m-0 mb-2 font-[family-name:var(--app-font-family)] text-base font-semibold"
+                    >
+                      {{ $t("organization.editor.permissionsTitle") }}
+                    </h3>
+                    <p class="text-placeholder m-0 font-[family-name:var(--app-font-family)] text-sm leading-[22px]">
+                      {{ $t("organization.editor.permissionsDesc") }}
+                    </p>
+                  </div>
+                  <div>
+                    <div class="flex flex-col gap-4">
+                      <div class="bg-secondary border-border rounded-lg border p-4">
+                        <div class="mb-3 flex items-center gap-3">
+                          <div
+                            class="text-primary-foreground flex size-10 items-center justify-center rounded-lg bg-[linear-gradient(135deg,var(--td-brand-color),var(--td-brand-color-active))]"
+                          >
+                            <ShieldCheckIcon class="size-[1em]" />
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-foreground text-[15px] font-semibold">{{
+                              $t("organization.role.admin")
+                            }}</span>
+                            <Badge>{{ $t("organization.editor.fullAccess") }}</Badge>
+                          </div>
+                        </div>
+                        <ul class="m-0 list-none p-0">
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.adminPerm1") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.adminPerm2") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.adminPerm3") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.adminPerm4") }}
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="bg-secondary border-border rounded-lg border p-4">
+                        <div class="mb-3 flex items-center gap-3">
+                          <div
+                            class="text-primary-foreground flex size-10 items-center justify-center rounded-lg bg-[linear-gradient(135deg,var(--td-warning-color),var(--td-warning-color-active))]"
+                          >
+                            <PencilIcon class="size-[1em]" />
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-foreground text-[15px] font-semibold">{{
+                              $t("organization.role.editor")
+                            }}</span>
+                            <Badge class="bg-warning text-primary-foreground">
+                              {{ $t("organization.editor.editAccess") }}
+                            </Badge>
+                          </div>
+                        </div>
+                        <ul class="m-0 list-none p-0">
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.editorPerm1") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.editorPerm2") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <XIcon class="text-destructive size-3.5" />{{ $t("organization.editor.shareKBPerm") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <XIcon class="text-destructive size-3.5" />{{ $t("organization.editor.editorPerm3") }}
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="bg-secondary border-border rounded-lg border p-4">
+                        <div class="mb-3 flex items-center gap-3">
+                          <div
+                            class="text-primary-foreground flex size-10 items-center justify-center rounded-lg bg-[var(--td-bg-color-component-disabled)]"
+                          >
+                            <EyeIcon class="size-[1em]" />
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-foreground text-[15px] font-semibold">{{
+                              $t("organization.role.viewer")
+                            }}</span>
+                            <Badge variant="secondary">{{ $t("organization.editor.viewAccess") }}</Badge>
+                          </div>
+                        </div>
+                        <ul class="m-0 list-none p-0">
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <CheckIcon class="text-primary size-3.5" />{{ $t("organization.editor.viewerPerm1") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <XIcon class="text-destructive size-3.5" />{{ $t("organization.editor.shareKBPerm") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <XIcon class="text-destructive size-3.5" />{{ $t("organization.editor.viewerPerm2") }}
+                          </li>
+                          <li class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]">
+                            <XIcon class="text-destructive size-3.5" />{{ $t("organization.editor.viewerPerm3") }}
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-                    <div class="section-body">
-                      <div class="permissions-info">
-                        <div class="permission-card">
-                          <div class="permission-header">
-                            <div class="permission-icon admin">
-                              <t-icon name="user-safety" />
-                            </div>
-                            <div class="permission-title">
-                              <span class="role-name">{{ $t("organization.role.admin") }}</span>
-                              <t-tag size="small" theme="primary">{{ $t("organization.editor.fullAccess") }}</t-tag>
-                            </div>
-                          </div>
-                          <ul class="permission-list">
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm1") }}
-                            </li>
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm2") }}
-                            </li>
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm3") }}
-                            </li>
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm4") }}
-                            </li>
-                          </ul>
-                        </div>
-                        <div class="permission-card">
-                          <div class="permission-header">
-                            <div class="permission-icon editor">
-                              <t-icon name="edit" />
-                            </div>
-                            <div class="permission-title">
-                              <span class="role-name">{{ $t("organization.role.editor") }}</span>
-                              <t-tag size="small" theme="warning">{{ $t("organization.editor.editAccess") }}</t-tag>
-                            </div>
-                          </div>
-                          <ul class="permission-list">
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm1") }}
-                            </li>
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm2") }}
-                            </li>
-                            <li>
-                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}
-                            </li>
-                            <li>
-                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.editorPerm3") }}
-                            </li>
-                          </ul>
-                        </div>
-                        <div class="permission-card">
-                          <div class="permission-header">
-                            <div class="permission-icon viewer">
-                              <t-icon name="browse" />
-                            </div>
-                            <div class="permission-title">
-                              <span class="role-name">{{ $t("organization.role.viewer") }}</span>
-                              <t-tag size="small">{{ $t("organization.editor.viewAccess") }}</t-tag>
-                            </div>
-                          </div>
-                          <ul class="permission-list">
-                            <li>
-                              <t-icon name="check" class="check-icon" />{{ $t("organization.editor.viewerPerm1") }}
-                            </li>
-                            <li>
-                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}
-                            </li>
-                            <li>
-                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm2") }}
-                            </li>
-                            <li>
-                              <t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm3") }}
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                      <div class="info-notice">
-                        <t-icon name="info-circle" />
-                        <span>{{ $t("organization.editor.ownerNote") }}</span>
-                      </div>
+                    <div
+                      class="text-primary mt-5 flex items-start gap-2 rounded-lg bg-[var(--td-brand-color-light)] px-4 py-3 text-[13px] leading-5"
+                    >
+                      <InfoIcon class="mt-0.5 size-[1em] shrink-0" />
+                      <span>{{ $t("organization.editor.ownerNote") }}</span>
                     </div>
                   </div>
                 </div>
 
                 <!-- 加入组织 -->
-                <div v-if="mode === 'join'" v-show="currentSection === 'join'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h3 class="section-title">{{ $t("organization.editor.joinTitle") }}</h3>
-                      <p class="section-desc">{{ $t("organization.editor.joinDesc") }}</p>
+                <div v-if="mode === 'join'" v-show="currentSection === 'join'" class="mb-8">
+                  <div class="mb-6">
+                    <h3
+                      class="text-foreground m-0 mb-2 font-[family-name:var(--app-font-family)] text-base font-semibold"
+                    >
+                      {{ $t("organization.editor.joinTitle") }}
+                    </h3>
+                    <p class="text-placeholder m-0 font-[family-name:var(--app-font-family)] text-sm leading-[22px]">
+                      {{ $t("organization.editor.joinDesc") }}
+                    </p>
+                  </div>
+                  <div>
+                    <div class="px-0 pt-6 pb-8 text-center">
+                      <div
+                        class="text-primary mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--td-brand-color-light),#07c05f0d)]"
+                      >
+                        <UserPlusIcon class="size-12" />
+                      </div>
+                      <p class="text-placeholder m-0 text-sm">{{ $t("organization.editor.joinIllustration") }}</p>
                     </div>
-                    <div class="section-body">
-                      <div class="join-illustration">
-                        <div class="illustration-icon">
-                          <t-icon name="user-add" size="48px" />
+                    <div class="mb-6 last:mb-0">
+                      <label
+                        class="text-foreground after:text-destructive mb-2 block font-[family-name:var(--app-font-family)] text-sm font-medium after:ml-1 after:content-['*']"
+                      >
+                        {{ $t("organization.inviteCode") }}
+                      </label>
+                      <Input
+                        v-model="joinForm.invite_code"
+                        :placeholder="$t('organization.inviteCodePlaceholder')"
+                        :maxlength="32"
+                        class="text-center text-base tracking-[1px] md:text-base"
+                      />
+                      <p class="text-placeholder mt-2 text-xs leading-[18px]">
+                        {{ $t("organization.editor.inviteCodeTip") }}
+                      </p>
+                    </div>
+                    <div class="bg-secondary mt-8 rounded-lg p-5">
+                      <div class="text-foreground mb-4 text-sm font-medium">
+                        {{ $t("organization.editor.howToGetCode") }}
+                      </div>
+                      <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-3">
+                          <span
+                            class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                            >1</span
+                          >
+                          <span class="text-muted-foreground text-[13px]">{{ $t("organization.editor.step1") }}</span>
                         </div>
-                        <p class="illustration-text">{{ $t("organization.editor.joinIllustration") }}</p>
-                      </div>
-                      <div class="form-item">
-                        <label class="form-label required">{{ $t("organization.inviteCode") }}</label>
-                        <t-input
-                          v-model="joinForm.invite_code"
-                          :placeholder="$t('organization.inviteCodePlaceholder')"
-                          :maxlength="32"
-                          size="medium"
-                          class="invite-code-input"
-                        />
-                        <p class="form-tip">{{ $t("organization.editor.inviteCodeTip") }}</p>
-                      </div>
-                      <div class="join-steps">
-                        <div class="step-title">{{ $t("organization.editor.howToGetCode") }}</div>
-                        <div class="step-list">
-                          <div class="step-item">
-                            <span class="step-number">1</span>
-                            <span class="step-text">{{ $t("organization.editor.step1") }}</span>
-                          </div>
-                          <div class="step-item">
-                            <span class="step-number">2</span>
-                            <span class="step-text">{{ $t("organization.editor.step2") }}</span>
-                          </div>
-                          <div class="step-item">
-                            <span class="step-number">3</span>
-                            <span class="step-text">{{ $t("organization.editor.step3") }}</span>
-                          </div>
+                        <div class="flex items-center gap-3">
+                          <span
+                            class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                            >2</span
+                          >
+                          <span class="text-muted-foreground text-[13px]">{{ $t("organization.editor.step2") }}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span
+                            class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                            >3</span
+                          >
+                          <span class="text-muted-foreground text-[13px]">{{ $t("organization.editor.step3") }}</span>
                         </div>
                       </div>
                     </div>
@@ -208,13 +285,14 @@
               </div>
 
               <!-- 底部按钮 -->
-              <div class="settings-footer">
-                <t-button theme="default" variant="outline" @click="handleClose">
+              <div class="border-border flex shrink-0 justify-end gap-3 border-t px-8 py-4">
+                <Button variant="outline" @click="handleClose">
                   {{ $t("common.cancel") }}
-                </t-button>
-                <t-button theme="primary" @click="handleSubmit" :loading="submitting">
+                </Button>
+                <Button :disabled="submitting" @click="handleSubmit">
+                  <Loader2Icon v-if="submitting" class="animate-spin" />
                   {{ mode === "create" ? $t("common.create") : $t("organization.join.preview") }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
@@ -223,44 +301,70 @@
     </Transition>
 
     <!-- 加入确认弹窗 -->
-    <t-dialog
-      v-model:visible="showJoinConfirm"
-      :header="$t('organization.join.confirmTitle')"
-      :confirm-btn="previewInfo?.is_already_member ? $t('common.close') : $t('organization.join.confirm')"
-      :cancel-btn="previewInfo?.is_already_member ? null : $t('common.cancel')"
-      :confirm-on-enter="!previewInfo?.is_already_member"
-      @confirm="previewInfo?.is_already_member ? (showJoinConfirm = false) : confirmJoin()"
-      @cancel="showJoinConfirm = false"
-      :confirm-loading="joining"
-    >
-      <div v-if="previewInfo" class="join-confirm-content">
-        <div class="org-preview-card">
-          <div class="org-preview-header">
-            <div class="org-avatar">
-              <t-icon name="usergroup" size="24px" />
+    <!-- The confirmation opens on top of the editor modal above, which sits at
+         z-index 1000; the dialog's own z-50 would put it underneath, so the
+         content is lifted over it. (Its overlay stays at z-50 and so dims only
+         the page, not the editor; ui/dialog offers no way to raise it.) -->
+    <Dialog v-model:open="showJoinConfirm">
+      <DialogContent
+        class="z-[1001] sm:max-w-[480px]"
+        @keydown.enter="!previewInfo?.is_already_member && !joining && confirmJoin()"
+      >
+        <DialogHeader>
+          <DialogTitle>{{ $t("organization.join.confirmTitle") }}</DialogTitle>
+        </DialogHeader>
+        <div v-if="previewInfo" class="py-2">
+          <div class="bg-secondary border-border rounded-lg border p-4">
+            <div class="mb-4 flex gap-3">
+              <div
+                class="text-primary-foreground flex size-12 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(135deg,var(--td-brand-color),var(--td-brand-color-active))]"
+              >
+                <UsersIcon class="size-6" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <h4 class="text-foreground m-0 mb-1 text-base font-semibold">{{ previewInfo.name }}</h4>
+                <p class="text-placeholder m-0 line-clamp-2 overflow-hidden text-[13px] leading-5 text-ellipsis">
+                  {{ previewInfo.description || $t("organization.noDescription") }}
+                </p>
+              </div>
             </div>
-            <div class="org-info">
-              <h4 class="org-name">{{ previewInfo.name }}</h4>
-              <p class="org-desc">{{ previewInfo.description || $t("organization.noDescription") }}</p>
+            <div class="border-border flex gap-6 border-t pt-3">
+              <div class="text-muted-foreground flex items-center gap-1.5 text-[13px]">
+                <UserIcon class="text-placeholder size-4" />
+                <span>{{ $t("organization.join.memberCount", { count: previewInfo.member_count }) }}</span>
+              </div>
+              <div class="text-muted-foreground flex items-center gap-1.5 text-[13px]">
+                <FolderIcon class="text-placeholder size-4" />
+                <span>{{ $t("organization.join.shareCount", { count: previewInfo.share_count }) }}</span>
+              </div>
             </div>
           </div>
-          <div class="org-stats">
-            <div class="stat-item">
-              <t-icon name="user" />
-              <span>{{ $t("organization.join.memberCount", { count: previewInfo.member_count }) }}</span>
-            </div>
-            <div class="stat-item">
-              <t-icon name="folder" />
-              <span>{{ $t("organization.join.shareCount", { count: previewInfo.share_count }) }}</span>
-            </div>
+          <div
+            v-if="previewInfo.is_already_member"
+            class="text-primary mt-4 flex items-center gap-2 rounded-lg bg-[var(--td-brand-color-light)] px-4 py-3 text-sm"
+          >
+            <CircleCheckIcon class="size-[18px]" />
+            <span>{{ $t("organization.join.alreadyMember") }}</span>
           </div>
         </div>
-        <div v-if="previewInfo.is_already_member" class="already-member-notice">
-          <t-icon name="check-circle-filled" />
-          <span>{{ $t("organization.join.alreadyMember") }}</span>
-        </div>
-      </div>
-    </t-dialog>
+        <DialogFooter>
+          <template v-if="previewInfo?.is_already_member">
+            <DialogClose as-child>
+              <Button>{{ $t("common.close") }}</Button>
+            </DialogClose>
+          </template>
+          <template v-else>
+            <DialogClose as-child>
+              <Button variant="outline">{{ $t("common.cancel") }}</Button>
+            </DialogClose>
+            <Button :disabled="joining" @click="confirmJoin">
+              <Loader2Icon v-if="joining" class="animate-spin" />
+              {{ $t("organization.join.confirm") }}
+            </Button>
+          </template>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </Teleport>
 </template>
 
@@ -271,6 +375,27 @@ import { useOrganizationStore } from "@/stores/organization";
 import { useI18n } from "vue-i18n";
 import type { OrganizationPreview } from "@/api/organization";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  CheckIcon,
+  CircleCheckIcon,
+  EyeIcon,
+  FolderIcon,
+  InfoIcon,
+  Loader2Icon,
+  PencilIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  UserPlusIcon,
+  UsersIcon,
+  XIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const orgStore = useOrganizationStore();
@@ -307,14 +432,14 @@ const modalTitle = computed(() => {
   return props.mode === "create" ? t("organization.createOrg") : t("organization.joinOrg");
 });
 
-const navItems = computed(() => {
+const navItems = computed<{ key: string; icon: LucideIcon; label: string }[]>(() => {
   if (props.mode === "create") {
     return [
-      { key: "basic", icon: "info-circle", label: t("organization.editor.navBasic") },
-      { key: "permissions", icon: "user-safety", label: t("organization.editor.navPermissions") },
+      { key: "basic", icon: InfoIcon, label: t("organization.editor.navBasic") },
+      { key: "permissions", icon: ShieldCheckIcon, label: t("organization.editor.navPermissions") },
     ];
   } else {
-    return [{ key: "join", icon: "user-add", label: t("organization.editor.navJoin") }];
+    return [{ key: "join", icon: UserPlusIcon, label: t("organization.editor.navJoin") }];
   }
 });
 
@@ -428,395 +553,9 @@ watch(
 );
 </script>
 
-<style scoped lang="less">
-.settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.settings-modal {
-  position: relative;
-  width: 90vw;
-  max-width: 900px;
-  height: 80vh;
-  max-height: 650px;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-
-  &.join-mode {
-    max-width: 700px;
-    max-height: 580px;
-  }
-}
-
-.close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  transition: all 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.settings-container {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-
-.settings-sidebar {
-  width: 200px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-right: 1px solid var(--td-component-stroke);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.sidebar-header {
-  padding: 24px 20px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.sidebar-title {
-  margin: 0;
-  font-family: var(--app-font-family);
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.settings-nav {
-  flex: 1;
-  padding: 12px 8px;
-  overflow-y: auto;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  color: var(--td-text-color-secondary);
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.nav-icon {
-  margin-right: 8px;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.nav-label {
-  flex: 1;
-}
-
-.settings-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.content-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 32px;
-}
-
-.section {
-  margin-bottom: 32px;
-}
-
-.section-content {
-  .section-header {
-    margin-bottom: 24px;
-  }
-
-  .section-title {
-    margin: 0 0 8px 0;
-    font-family: var(--app-font-family);
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .section-desc {
-    margin: 0;
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    line-height: 22px;
-  }
-}
-
-.form-item {
-  margin-bottom: 24px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 8px;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-
-  &.required::after {
-    content: "*";
-    color: var(--td-error-color);
-    margin-left: 4px;
-  }
-}
-
-.form-tip {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  line-height: 18px;
-}
-
-.name-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.name-input-wrapper .name-input {
-  flex: 1;
-  min-width: 0;
-}
-
-// 权限说明样式
-.permissions-info {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.permission-card {
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--td-component-stroke);
-}
-
-.permission-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.permission-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-anti);
-
-  &.admin {
-    background: linear-gradient(135deg, var(--td-brand-color), var(--td-brand-color-active));
-  }
-
-  &.editor {
-    background: linear-gradient(135deg, var(--td-warning-color), var(--td-warning-color-active));
-  }
-
-  &.viewer {
-    background: var(--td-bg-color-component-disabled);
-  }
-}
-
-.permission-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .role-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.permission-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 0;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .check-icon {
-    color: var(--td-brand-color);
-    font-size: 14px;
-  }
-
-  .close-icon {
-    color: var(--td-error-color);
-    font-size: 14px;
-  }
-}
-
-.info-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 20px;
-  padding: 12px 16px;
-  background: var(--td-brand-color-light);
-  border-radius: 8px;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  line-height: 20px;
-
-  .t-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-}
-
-// 加入组织样式
-.join-illustration {
-  text-align: center;
-  padding: 24px 0 32px;
-
-  .illustration-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 16px;
-    background: linear-gradient(135deg, var(--td-brand-color-light), #07c05f0d);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--td-brand-color);
-  }
-
-  .illustration-text {
-    margin: 0;
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.invite-code-input {
-  :deep(.t-input__inner) {
-    font-size: 16px;
-    letter-spacing: 1px;
-    text-align: center;
-  }
-}
-
-.join-steps {
-  margin-top: 32px;
-  padding: 20px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-
-  .step-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    margin-bottom: 16px;
-  }
-
-  .step-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .step-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .step-number {
-    width: 24px;
-    height: 24px;
-    background: var(--td-brand-color);
-    color: var(--td-text-color-anti);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .step-text {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.settings-footer {
-  padding: 16px 32px;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-// 过渡动画
+<style scoped>
+/* The modal transition predates the utility stack and cannot be expressed
+   with utility classes; it is the one rule kept as CSS. */
 .modal-enter-active,
 .modal-leave-active {
   transition: all 0.3s ease;
@@ -825,100 +564,10 @@ watch(
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
-
-  .settings-modal {
-    transform: scale(0.95);
-  }
 }
 
-// 加入确认弹窗样式
-.join-confirm-content {
-  padding: 8px 0;
-}
-
-.org-preview-card {
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--td-component-stroke);
-}
-
-.org-preview-header {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.org-avatar {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, var(--td-brand-color), var(--td-brand-color-active));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-anti);
-  flex-shrink: 0;
-}
-
-.org-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.org-name {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.org-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-  line-height: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.org-stats {
-  display: flex;
-  gap: 24px;
-  padding-top: 12px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-
-  .t-icon {
-    font-size: 16px;
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.already-member-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 12px 16px;
-  background: var(--td-brand-color-light);
-  border-radius: 8px;
-  color: var(--td-brand-color);
-  font-size: 14px;
-
-  .t-icon {
-    font-size: 18px;
-    color: var(--td-brand-color);
-  }
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  transform: scale(0.95);
 }
 </style>

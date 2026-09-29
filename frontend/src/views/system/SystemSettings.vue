@@ -5,94 +5,113 @@
     the route also has meta.requiresSystemAdmin so non-admins never
     reach this component (see frontend/src/router/index.ts).
 
-    Visual contract: matches the canonical Settings-modal pane skeleton
-    (`.section-header` + `.settings-group` + `.setting-row` /
-    `.setting-info` / `.setting-control`) used by GeneralSettings,
-    OllamaSettings, etc. Avoid bespoke layout here; the modal already
-    constrains width and padding via `.content-wrapper--full`.
-
     UI principle: every control auto-persists, no Save button. The
     commit signal differs by control type so the user isn't surprised
     by writes while they're still composing:
 
-      - Switch / Select (single-pick)         → @change. Selecting an
-                                                 option IS the commit
-                                                 signal; there's no
-                                                 "in-progress" state.
-      - Input / InputNumber                   → @blur (not @change —
-                                                 t-input-number fires
-                                                 @change on every digit).
-      - SSRF whitelist (string_list)          → controlled tag-input +
-                                                 per-tag inline popconfirm.
-      - System admins                         → tag-input @change with
+      - Switch / Select (single-pick)         → commit on pick.
+      - Input (int / string)                  → commit on blur.
+      - SSRF whitelist (string_list)          → controlled tags input +
+                                                 per-tag inline confirm.
+      - System admins                         → tags input with
                                                  inline popconfirm per delta.
 
     auth.registration_mode triggers an
-    inline t-popconfirm (same as Reset / bulk-apply) before persisting;
+    inline confirm (same as Reset / bulk-apply) before persisting;
     cancelling rolls the in-progress edit back to the canonical value.
   -->
-  <div class="system-settings">
-    <div class="section-header">
-      <h2>{{ t("system.globalSettings.title") }}</h2>
-      <p class="section-description">
+  <div class="w-full">
+    <div class="mb-6">
+      <h2 class="text-foreground m-0 mb-2 text-xl font-semibold">{{ t("system.globalSettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-[1.5]">
         {{ t("system.globalSettings.description") }}
       </p>
     </div>
 
-    <div v-if="loading && settings.length === 0" class="loading-state">
-      <t-loading :text="t('system.globalSettings.loading')" />
+    <div
+      v-if="loading && settings.length === 0"
+      class="text-placeholder flex items-center justify-center gap-2 py-[60px] text-[13px]"
+    >
+      <Loader2Icon class="size-4 animate-spin" />
+      <span>{{ t("system.globalSettings.loading") }}</span>
     </div>
 
-    <div v-else-if="settings.length === 0" class="empty-state">
-      <t-icon name="info-circle" size="24px" />
+    <div
+      v-else-if="settings.length === 0"
+      class="text-placeholder flex items-center justify-center gap-2 py-[60px] text-[13px]"
+    >
+      <InfoIcon class="size-6" />
       <span>{{ t("system.globalSettings.empty") }}</span>
     </div>
 
     <template v-else>
-      <div class="settings-intro-panel">
-        <div class="priority-hint-title">
-          <t-icon name="info-circle" />
+      <div class="border-border bg-secondary mb-[18px] rounded-md border px-3.5 py-3">
+        <div class="text-muted-foreground mb-2 flex items-center gap-[7px] text-[13px] font-medium">
+          <InfoIcon class="text-primary size-4" />
           <span>{{ t("system.globalSettings.priorityHint.disclosure") }}</span>
         </div>
-        <ul class="priority-hint-list">
+        <ul class="text-foreground m-0 list-disc pl-5 text-[13px] leading-[1.65] [&>li+li]:mt-1">
           <li>{{ t("system.globalSettings.priorityHint.tier1") }}</li>
           <li>{{ t("system.globalSettings.priorityHint.tier2") }}</li>
           <li>{{ t("system.globalSettings.priorityHint.tier3") }}</li>
         </ul>
       </div>
 
-      <t-tabs v-model="activeSettingsSection" class="settings-section-tabs">
-        <t-tab-panel value="access" :label="sectionTabLabel('access')" />
-        <t-tab-panel value="tenant" :label="sectionTabLabel('tenant')" />
-        <t-tab-panel value="file" :label="sectionTabLabel('file')" />
-        <t-tab-panel value="runtime" :label="sectionTabLabel('runtime')" />
-        <t-tab-panel value="security" :label="sectionTabLabel('security')" />
-        <t-tab-panel v-if="hasUnknownSettings" value="other" :label="sectionTabLabel('other')" />
-      </t-tabs>
+      <Tabs v-model="activeSettingsSection" class="w-full">
+        <TabsList
+          variant="line"
+          class="bg-card sticky top-0 z-[3] mb-[18px] w-full justify-start gap-0 p-0 shadow-[0_1px_0_var(--td-component-stroke)] group-data-horizontal/tabs:h-12"
+        >
+          <TabsTrigger
+            v-for="section in visibleSections"
+            :key="section"
+            :value="section"
+            class="text-muted-foreground data-active:text-primary dark:data-active:text-primary after:bg-primary h-full flex-none rounded-none px-4 group-data-horizontal/tabs:after:bottom-0"
+          >
+            {{ sectionTabLabel(section) }}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <section class="settings-section-panel" :aria-labelledby="`settings-section-${activeSettingsSection}`">
+      <section class="min-w-0" :aria-labelledby="`settings-section-${activeSettingsSection}`">
         <div
-          class="settings-section-intro"
-          :class="{ 'settings-section-intro--runtime': activeSettingsSection === 'runtime' }"
+          class="flex items-start justify-between gap-4 pb-3 max-[860px]:flex-col"
+          :class="activeSettingsSection === 'runtime' ? 'border-b-0' : 'border-border border-b'"
         >
           <div>
-            <h3 :id="`settings-section-${activeSettingsSection}`">{{ activeSectionTitle }}</h3>
-            <p>{{ activeSectionDescription }}</p>
+            <h3
+              :id="`settings-section-${activeSettingsSection}`"
+              class="text-foreground m-0 mb-1 text-base leading-[1.4] font-bold"
+            >
+              {{ activeSectionTitle }}
+            </h3>
+            <p class="text-muted-foreground m-0 text-[13px] leading-[1.5]">{{ activeSectionDescription }}</p>
           </div>
-          <t-tag v-if="activeSettingsSection === 'runtime'" theme="warning" variant="light" size="small">
+          <Badge v-if="activeSettingsSection === 'runtime'" class="shrink-0" :class="settingTagClass('warning')">
             {{ t("system.globalSettings.sections.runtime.restartHint") }}
-          </t-tag>
+          </Badge>
         </div>
 
-        <div v-if="activeSettingsSection === 'runtime'" class="runtime-table-header" aria-hidden="true">
+        <div
+          v-if="activeSettingsSection === 'runtime'"
+          class="border-border bg-secondary text-muted-foreground grid grid-cols-[minmax(0,1fr)_280px] gap-6 rounded-t-lg border border-b-0 px-4 py-2.5 text-xs font-medium max-[860px]:hidden"
+          aria-hidden="true"
+        >
           <span>{{ t("system.globalSettings.runtimeTable.setting") }}</span>
-          <span>{{ t("system.globalSettings.runtimeTable.value") }}</span>
+          <span class="text-right">{{ t("system.globalSettings.runtimeTable.value") }}</span>
         </div>
 
-        <div class="settings-group" :class="{ 'settings-group--runtime': activeSettingsSection === 'runtime' }">
+        <div
+          class="flex flex-col"
+          :class="
+            activeSettingsSection === 'runtime'
+              ? 'border-border overflow-hidden rounded-b-lg border max-[860px]:rounded-lg'
+              : ''
+          "
+        >
           <!--
         System-admins management. Visually identical to SSRF whitelist
-        (a tag-input with one entry per email). NOT a system_setting
+        (a tags input with one entry per email). NOT a system_setting
         row — it's backed by the user table via promote/revoke APIs.
         We sit it at the top because changing who can edit this page
         is structurally more important than tweaking any value below.
@@ -100,222 +119,337 @@
         tags (they can't revoke themselves anyway, and showing a tag
         that can't be removed is worse than not showing it).
       -->
-          <div v-if="activeSettingsSection === 'access'" class="setting-row setting-row--admin">
-            <div class="setting-info">
-              <div class="setting-label">
+          <div
+            v-if="activeSettingsSection === 'access'"
+            class="border-border flex items-start justify-between border-b py-5 last:border-b-0 max-[860px]:flex-col max-[860px]:gap-3"
+          >
+            <div class="max-w-[65%] flex-1 pr-6 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:pr-0">
+              <div
+                class="text-foreground mb-1 flex flex-wrap items-center gap-1.5 text-[15px] leading-[1.4] font-medium"
+              >
                 <span>{{ t("system.globalSettings.admins.label") }}</span>
-                <t-tag theme="danger" variant="light" size="small" class="setting-badge">
-                  {{ t("system.globalSettings.badgeHighRisk") }}
-                </t-tag>
+                <Badge :class="settingTagClass('danger')">{{ t("system.globalSettings.badgeHighRisk") }}</Badge>
               </div>
-              <p class="desc">{{ t("system.globalSettings.admins.description") }}</p>
+              <p class="text-muted-foreground m-0 max-w-[480px] text-[13px] leading-[1.5]">
+                {{ t("system.globalSettings.admins.description") }}
+              </p>
             </div>
-            <div class="setting-control">
-              <div class="setting-control-row">
-                <t-popconfirm
-                  v-model:visible="adminPopconfirm.visible"
-                  :content="adminPopconfirm.content"
-                  :theme="adminPopconfirm.theme"
-                  :confirm-btn="adminPopconfirm.confirmBtn"
-                  :cancel-btn="t('system.globalSettings.confirm.cancelBtn')"
-                  :popup-props="PROGRAMMATIC_POPCONFIRM_PROPS"
-                  placement="left"
-                  @confirm="adminPopconfirm.finish(true)"
-                  @cancel="adminPopconfirm.finish(false)"
-                  @visible-change="adminPopconfirm.onVisibleChange"
+            <div
+              class="flex min-w-[280px] shrink-0 flex-col items-end gap-1.5 max-[860px]:w-full max-[860px]:items-start"
+            >
+              <div class="flex items-center justify-end gap-2 max-[860px]:w-full max-[860px]:justify-start">
+                <Popover :open="adminPopconfirm.visible" @update:open="onAdminPopoverOpen">
+                  <PopoverAnchor as-child>
+                    <div class="min-w-0 flex-1">
+                      <TagsFieldInput
+                        v-model="adminEmails"
+                        class="w-[320px] max-[860px]:w-full"
+                        :placeholder="t('system.globalSettings.admins.placeholder')"
+                        :aria-label="t('system.globalSettings.admins.label')"
+                        :disabled="adminBusy"
+                        @change="onAdminsChange"
+                      />
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent side="left" class="w-72">
+                    <p class="mb-3 text-[13px] leading-[1.5]">{{ adminPopconfirm.content }}</p>
+                    <div class="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" @click="adminPopconfirm.finish(false)">
+                        {{ t("system.globalSettings.confirm.cancelBtn") }}
+                      </Button>
+                      <Button
+                        size="sm"
+                        :class="confirmBtnClass(adminPopconfirm.confirmBtn.theme)"
+                        @click="adminPopconfirm.finish(true)"
+                      >
+                        {{ adminPopconfirm.confirmBtn.content }}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <div
+                  v-if="adminBusy"
+                  class="text-muted-foreground inline-flex min-w-[52px] shrink-0 items-center gap-[5px] text-xs"
+                  role="status"
                 >
-                  <div class="setting-control-anchor">
-                    <t-tag-input
-                      v-model="adminEmails"
-                      :placeholder="t('system.globalSettings.admins.placeholder')"
-                      :aria-label="t('system.globalSettings.admins.label')"
-                      :disabled="adminBusy"
-                      class="setting-input setting-input--wide"
-                      clearable
-                      @change="onAdminsChange"
-                    />
-                  </div>
-                </t-popconfirm>
-                <div v-if="adminBusy" class="setting-save-state" role="status">
-                  <t-loading size="small" />
+                  <Loader2Icon class="size-3.5 animate-spin" />
                   <span>{{ t("system.globalSettings.saving") }}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-if="activeSettingsSection === 'access'" class="setting-row setting-row--password-reset">
-            <div class="setting-info">
-              <div class="setting-label">
+          <div
+            v-if="activeSettingsSection === 'access'"
+            class="border-border flex items-start justify-between border-b py-5 last:border-b-0 max-[860px]:flex-col max-[860px]:gap-3"
+          >
+            <div class="max-w-[65%] flex-1 pr-6 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:pr-0">
+              <div
+                class="text-foreground mb-1 flex flex-wrap items-center gap-1.5 text-[15px] leading-[1.4] font-medium"
+              >
                 <span>{{ t("system.globalSettings.passwordReset.label") }}</span>
-                <t-tag theme="danger" variant="light" size="small" class="setting-badge">
-                  {{ t("system.globalSettings.badgeHighRisk") }}
-                </t-tag>
+                <Badge :class="settingTagClass('danger')">{{ t("system.globalSettings.badgeHighRisk") }}</Badge>
               </div>
-              <p class="desc">{{ t("system.globalSettings.passwordReset.description") }}</p>
+              <p class="text-muted-foreground m-0 max-w-[480px] text-[13px] leading-[1.5]">
+                {{ t("system.globalSettings.passwordReset.description") }}
+              </p>
             </div>
-            <div class="setting-control">
-              <t-button theme="danger" variant="text" class="password-reset-trigger" @click="openPasswordResetDialog">
-                <template #icon><t-icon name="lock-on" /></template>
+            <div
+              class="flex min-w-[280px] shrink-0 flex-col items-end gap-1.5 max-[860px]:w-full max-[860px]:items-start"
+            >
+              <Button
+                variant="destructive"
+                class="hover:border-destructive/40 min-w-28 rounded-md px-3"
+                @click="openPasswordResetDialog"
+              >
+                <LockIcon />
                 {{ t("system.globalSettings.passwordReset.action") }}
-              </t-button>
+              </Button>
             </div>
           </div>
 
-          <div v-for="item in activeSectionSettings" :key="item.key" class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">
+          <div
+            v-for="item in activeSectionSettings"
+            :key="item.key"
+            class="border-border items-start justify-between border-b last:border-b-0"
+            :class="
+              activeSettingsSection === 'runtime'
+                ? 'grid grid-cols-[minmax(0,1fr)_280px] gap-6 px-4 py-3.5 max-[860px]:flex max-[860px]:flex-col max-[860px]:gap-3'
+                : 'flex py-5 max-[860px]:flex-col max-[860px]:gap-3'
+            "
+          >
+            <div
+              :class="
+                activeSettingsSection === 'runtime'
+                  ? 'max-w-none pr-0 max-[860px]:w-full'
+                  : 'max-w-[65%] flex-1 pr-6 max-[860px]:w-full max-[860px]:max-w-none max-[860px]:pr-0'
+              "
+            >
+              <div
+                class="text-foreground flex flex-wrap items-center gap-1.5 font-medium"
+                :class="
+                  activeSettingsSection === 'runtime' ? 'mb-1 text-sm leading-[1.4]' : 'mb-1 text-[15px] leading-[1.4]'
+                "
+              >
                 <span>{{ keyLabel(item.key) }}</span>
-                <t-tag
-                  v-if="item.requires_restart"
-                  theme="warning"
-                  variant="light"
-                  size="small"
-                  class="setting-badge"
-                  >{{ t("system.globalSettings.badgeRequiresRestart") }}</t-tag
-                >
-                <t-tag v-if="item.is_secret" theme="primary" variant="light" size="small" class="setting-badge">{{
-                  t("system.globalSettings.badgeSecret")
-                }}</t-tag>
-                <t-tag
-                  v-if="isHighImpactKey(item.key)"
-                  theme="danger"
-                  variant="light"
-                  size="small"
-                  class="setting-badge"
-                  >{{ t("system.globalSettings.badgeHighRisk") }}</t-tag
-                >
-                <t-tag
+                <Badge v-if="item.requires_restart" :class="settingTagClass('warning')">
+                  {{ t("system.globalSettings.badgeRequiresRestart") }}
+                </Badge>
+                <Badge v-if="item.is_secret" :class="settingTagClass('primary')">
+                  {{ t("system.globalSettings.badgeSecret") }}
+                </Badge>
+                <Badge v-if="isHighImpactKey(item.key)" :class="settingTagClass('danger')">
+                  {{ t("system.globalSettings.badgeHighRisk") }}
+                </Badge>
+                <Badge
                   v-if="hasOverride(item)"
-                  theme="success"
-                  variant="light"
-                  size="small"
-                  class="setting-badge"
+                  :class="settingTagClass('success')"
                   :title="t('system.globalSettings.badgeOverrideTooltip')"
-                  >{{ t("system.globalSettings.badgeOverride") }}</t-tag
                 >
+                  {{ t("system.globalSettings.badgeOverride") }}
+                </Badge>
               </div>
-              <p v-if="settingDescription(item)" class="desc">{{ settingDescription(item) }}</p>
-              <div v-if="modifiedMeta(item)" class="setting-meta">
+              <p
+                v-if="settingDescription(item)"
+                class="text-muted-foreground m-0 leading-[1.5] max-[860px]:max-w-none"
+                :class="activeSettingsSection === 'runtime' ? 'max-w-[620px] text-xs' : 'max-w-[480px] text-[13px]'"
+              >
+                {{ settingDescription(item) }}
+              </p>
+              <div v-if="modifiedMeta(item)" class="text-placeholder mt-1.5 text-xs">
                 {{ t("system.globalSettings.modifiedAt", { value: modifiedMeta(item) }) }}
               </div>
             </div>
 
-            <div class="setting-control">
+            <div
+              class="flex shrink-0 flex-col gap-1.5"
+              :class="
+                activeSettingsSection === 'runtime'
+                  ? 'min-w-0 items-end max-[860px]:w-full max-[860px]:items-start'
+                  : 'min-w-[280px] items-end max-[860px]:w-full max-[860px]:items-start'
+              "
+            >
               <!--
             Two-row layout: input + spinner on top, secondary actions
             (currently just Reset) on a second row below, right-aligned
-            under the input. We tried inlining the reset button on the
-            same row as the input but the cluster of input + spinner +
-            text-button read as visual noise; pushing reset down keeps
-            the primary control visually clean while still placing the
-            action close to the value it affects.
+            under the input.
           -->
-              <div class="setting-control-row">
-                <t-popconfirm
+              <div class="flex items-center justify-end gap-2 max-[860px]:w-full max-[860px]:justify-start">
+                <Popover
                   v-if="hasEnum(item) && isHighRiskKey(item.key)"
-                  v-model:visible="highRiskPopconfirm.visible"
-                  :content="highRiskPopconfirm.content"
-                  :theme="highRiskPopconfirm.theme"
-                  :confirm-btn="highRiskPopconfirm.confirmBtn"
-                  :cancel-btn="t('system.globalSettings.confirm.cancelBtn')"
-                  :popup-props="PROGRAMMATIC_POPCONFIRM_PROPS"
-                  placement="left"
-                  @confirm="highRiskPopconfirm.finish(true)"
-                  @cancel="highRiskPopconfirm.finish(false)"
-                  @visible-change="highRiskPopconfirm.onVisibleChange"
+                  :open="highRiskPopconfirm.visible"
+                  @update:open="onHighRiskPopoverOpen"
                 >
-                  <div class="setting-control-anchor">
-                    <t-select
-                      v-model="editValues[item.key]"
-                      :options="enumOptions(item)"
-                      :aria-label="keyLabel(item.key)"
-                      :disabled="savingKey === item.key"
-                      class="setting-input"
-                      @change="onHighRiskSelectChange(item)"
-                    />
-                  </div>
-                </t-popconfirm>
-                <t-select
-                  v-else-if="hasEnum(item)"
-                  v-model="editValues[item.key]"
-                  :options="enumOptions(item)"
-                  :aria-label="keyLabel(item.key)"
+                  <PopoverAnchor as-child>
+                    <div class="min-w-0">
+                      <Select
+                        :model-value="editValues[item.key] as string"
+                        :disabled="savingKey === item.key"
+                        @update:model-value="onHighRiskSelectInput(item, $event)"
+                      >
+                        <SelectTrigger class="w-[240px] max-[860px]:w-full" :aria-label="keyLabel(item.key)">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem v-for="opt in enumOptions(item)" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent side="left" class="w-72">
+                    <p class="mb-3 text-[13px] leading-[1.5]">{{ highRiskPopconfirm.content }}</p>
+                    <div class="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" @click="highRiskPopconfirm.finish(false)">
+                        {{ t("system.globalSettings.confirm.cancelBtn") }}
+                      </Button>
+                      <Button
+                        size="sm"
+                        :class="confirmBtnClass(highRiskPopconfirm.confirmBtn.theme)"
+                        @click="highRiskPopconfirm.finish(true)"
+                      >
+                        {{ highRiskPopconfirm.confirmBtn.content }}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Select
+                  v-if="hasEnum(item) && !isHighRiskKey(item.key)"
+                  :model-value="editValues[item.key] as string"
                   :disabled="savingKey === item.key"
-                  class="setting-input"
-                  @change="onChange(item)"
-                />
-                <t-switch
+                  @update:model-value="onSelectInput(item, $event)"
+                >
+                  <SelectTrigger
+                    class="max-[860px]:w-full"
+                    :class="activeSettingsSection === 'runtime' ? 'w-[210px] max-[860px]:flex-1' : 'w-[240px]'"
+                    :aria-label="keyLabel(item.key)"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="opt in enumOptions(item)" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Switch
                   v-else-if="item.value_type === 'bool'"
-                  v-model="editValues[item.key]"
-                  :aria-label="keyLabel(item.key)"
+                  :model-value="editValues[item.key] as boolean"
                   :disabled="savingKey === item.key"
-                  @change="onChange(item)"
+                  :aria-label="keyLabel(item.key)"
+                  @update:model-value="onSwitchInput(item, $event)"
                 />
-                <t-input-number
+
+                <Input
                   v-else-if="item.value_type === 'int'"
-                  v-model="editValues[item.key]"
-                  :placeholder="placeholderFor(item)"
-                  :aria-label="keyLabel(item.key)"
-                  :disabled="savingKey === item.key"
-                  theme="normal"
-                  :step="1"
+                  type="number"
                   :min="minimumFor(item)"
-                  class="setting-input"
-                  @blur="onChange(item)"
-                />
-                <t-popconfirm
-                  v-else-if="item.value_type === 'string_list' && item.key === 'ssrf.whitelist'"
-                  v-model:visible="ssrfPopconfirm.visible"
-                  :content="ssrfPopconfirm.content"
-                  :theme="ssrfPopconfirm.theme"
-                  :confirm-btn="ssrfPopconfirm.confirmBtn"
-                  :cancel-btn="t('system.globalSettings.confirm.cancelBtn')"
-                  :popup-props="PROGRAMMATIC_POPCONFIRM_PROPS"
-                  placement="left"
-                  @confirm="ssrfPopconfirm.finish(true)"
-                  @cancel="ssrfPopconfirm.finish(false)"
-                  @visible-change="ssrfPopconfirm.onVisibleChange"
-                >
-                  <div class="setting-control-anchor">
-                    <t-tag-input
-                      :key="`ssrf-tag-${ssrfTagInputKey()}`"
-                      :model-value="ssrfWhitelistModelValue()"
-                      :placeholder="emptyListPlaceholder"
-                      :aria-label="keyLabel(item.key)"
-                      :disabled="savingKey === item.key"
-                      class="setting-input setting-input--wide"
-                      clearable
-                      @update:model-value="onSsrfWhitelistModelUpdate"
-                    />
-                  </div>
-                </t-popconfirm>
-                <t-input
-                  v-else
-                  v-model="editValues[item.key]"
+                  :step="1"
+                  :model-value="intModel(item)"
                   :placeholder="placeholderFor(item)"
                   :aria-label="keyLabel(item.key)"
                   :disabled="savingKey === item.key"
-                  class="setting-input"
-                  clearable
+                  class="max-[860px]:w-full"
+                  :class="activeSettingsSection === 'runtime' ? 'w-[210px] max-[860px]:flex-1' : 'w-[240px]'"
+                  @update:model-value="setIntModel(item, $event)"
                   @blur="onChange(item)"
                 />
+
+                <Popover
+                  v-if="item.value_type === 'string_list' && item.key === 'ssrf.whitelist'"
+                  :open="ssrfPopconfirm.visible"
+                  @update:open="onSsrfPopoverOpen"
+                >
+                  <PopoverAnchor as-child>
+                    <div class="min-w-0">
+                      <TagsFieldInput
+                        :key="`ssrf-tag-${ssrfTagInputKey()}`"
+                        :model-value="ssrfWhitelistModelValue()"
+                        class="w-[320px] max-[860px]:w-full"
+                        :placeholder="emptyListPlaceholder"
+                        :aria-label="keyLabel(item.key)"
+                        :disabled="savingKey === item.key"
+                        @update:model-value="onSsrfWhitelistModelUpdate"
+                      />
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent side="left" class="w-72">
+                    <p class="mb-3 text-[13px] leading-[1.5]">{{ ssrfPopconfirm.content }}</p>
+                    <div class="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" @click="ssrfPopconfirm.finish(false)">
+                        {{ t("system.globalSettings.confirm.cancelBtn") }}
+                      </Button>
+                      <Button
+                        size="sm"
+                        :class="confirmBtnClass(ssrfPopconfirm.confirmBtn.theme)"
+                        @click="ssrfPopconfirm.finish(true)"
+                      >
+                        {{ ssrfPopconfirm.confirmBtn.content }}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <div
+                  v-if="
+                    item.value_type !== 'bool' &&
+                    item.value_type !== 'int' &&
+                    !hasEnum(item) &&
+                    !(item.value_type === 'string_list' && item.key === 'ssrf.whitelist')
+                  "
+                  class="relative"
+                  :class="
+                    activeSettingsSection === 'runtime' ? 'max-[860px]:flex-1' : 'max-[860px]:w-full max-[860px]:flex-1'
+                  "
+                >
+                  <Input
+                    :model-value="editValues[item.key] as string"
+                    :placeholder="placeholderFor(item)"
+                    :aria-label="keyLabel(item.key)"
+                    :disabled="savingKey === item.key"
+                    class="pr-7"
+                    :class="
+                      activeSettingsSection === 'runtime'
+                        ? 'w-[210px] max-[860px]:w-full'
+                        : 'w-[240px] max-[860px]:w-full'
+                    "
+                    @update:model-value="(v) => (editValues[item.key] = v)"
+                    @blur="onChange(item)"
+                  />
+                  <button
+                    v-if="String(editValues[item.key] ?? '') !== '' && savingKey !== item.key"
+                    type="button"
+                    data-slot="input-clear"
+                    class="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 -translate-y-1/2 cursor-pointer"
+                    :aria-label="t('common.clear')"
+                    @click="editValues[item.key] = ''"
+                  >
+                    <XIcon class="size-3.5" />
+                  </button>
+                </div>
 
                 <!--
             Per-row saving spinner. Appears next to the control while
             a PUT is in flight; the controls stay disabled (see
             :disabled bindings above) so concurrent edits can't race.
           -->
-                <div v-if="savingKey === item.key" class="setting-save-state" role="status">
-                  <t-loading size="small" />
+                <div
+                  v-if="savingKey === item.key"
+                  class="text-muted-foreground inline-flex min-w-[52px] shrink-0 items-center gap-[5px] text-xs"
+                  role="status"
+                >
+                  <Loader2Icon class="size-3.5 animate-spin" />
                   <span>{{ t("system.globalSettings.saving") }}</span>
                 </div>
                 <div
                   v-else-if="savedKey === item.key"
-                  class="setting-save-state setting-save-state--success"
+                  class="text-success inline-flex min-w-[52px] shrink-0 items-center gap-[5px] text-xs"
                   role="status"
                 >
-                  <t-icon name="check-circle-filled" />
+                  <CircleCheckIcon class="size-3.5" />
                   <span>{{ t("system.globalSettings.saved") }}</span>
                 </div>
               </div>
@@ -324,61 +458,69 @@
             Reset-to-default lives on the row below the input, right-
             aligned under it. Hidden entirely for virtual (ENV / default)
             rows so the layout collapses to a single row in the common
-            case — the "已覆盖" badge is already the cue that an
-            override exists, so the button only appears where it can do
-            something.
+            case.
           -->
-              <div v-if="hasOverride(item) || hasBulkAction(item)" class="setting-control-actions">
-                <!--
-              Per-key bulk action. Currently only one key
-              (tenant.default_storage_quota_gb) carries one — clicking
-              writes the current setting value onto every existing
-              tenant. We do this as a separate explicit action rather
-              than auto-cascade on save so a SystemAdmin who tweaks the
-              default while triaging a single new-tenant question
-              doesn't accidentally rewrite production quotas. Hidden
-              when the row is dirty because applying a not-yet-saved
-              value would confuse "what just happened".
-            -->
-                <t-popconfirm
-                  v-if="hasBulkAction(item)"
-                  :content="bulkActionConfirmBody(item)"
-                  :confirm-btn="{ content: t('system.globalSettings.bulkApply.confirmBtn'), theme: 'primary' }"
-                  :cancel-btn="{ content: t('system.globalSettings.confirm.cancelBtn') }"
-                  placement="left"
-                  @confirm="runBulkAction(item)"
-                >
-                  <t-button
-                    variant="text"
-                    size="small"
-                    :disabled="savingKey === item.key || isDirty(item)"
-                    :title="t('system.globalSettings.bulkApply.tooltip')"
-                    class="setting-bulk-btn"
-                  >
-                    <template #icon><t-icon name="usergroup" /></template>
-                    {{ t("system.globalSettings.bulkApply.label") }}
-                  </t-button>
-                </t-popconfirm>
+              <div
+                v-if="hasOverride(item) || hasBulkAction(item)"
+                class="flex justify-end max-[860px]:w-full max-[860px]:justify-start"
+              >
+                <Popover v-if="hasBulkAction(item)">
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      class="shrink-0"
+                      :disabled="savingKey === item.key || isDirty(item)"
+                      :title="t('system.globalSettings.bulkApply.tooltip')"
+                    >
+                      <UsersIcon />
+                      {{ t("system.globalSettings.bulkApply.label") }}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="left" class="w-80">
+                    <p class="mb-3 text-[13px] leading-[1.5]">{{ bulkActionConfirmBody(item) }}</p>
+                    <div class="flex justify-end gap-2">
+                      <PopoverClose as-child>
+                        <Button size="sm" variant="outline">{{ t("system.globalSettings.confirm.cancelBtn") }}</Button>
+                      </PopoverClose>
+                      <PopoverClose as-child>
+                        <Button size="sm" @click="runBulkAction(item)">
+                          {{ t("system.globalSettings.bulkApply.confirmBtn") }}
+                        </Button>
+                      </PopoverClose>
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
-                <t-popconfirm
-                  v-if="hasOverride(item)"
-                  :content="t('system.globalSettings.reset.confirmBody', { label: keyLabel(item.key) })"
-                  :confirm-btn="{ content: t('system.globalSettings.reset.confirmBtn'), theme: 'warning' }"
-                  :cancel-btn="{ content: t('system.globalSettings.confirm.cancelBtn') }"
-                  placement="left"
-                  @confirm="resetSetting(item)"
-                >
-                  <t-button
-                    variant="text"
-                    size="small"
-                    :disabled="savingKey === item.key"
-                    :title="t('system.globalSettings.reset.tooltip')"
-                    class="setting-reset-btn"
-                  >
-                    <template #icon><t-icon name="refresh" /></template>
-                    {{ t("system.globalSettings.reset.label") }}
-                  </t-button>
-                </t-popconfirm>
+                <Popover v-if="hasOverride(item)">
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      class="shrink-0"
+                      :disabled="savingKey === item.key"
+                      :title="t('system.globalSettings.reset.tooltip')"
+                    >
+                      <RotateCwIcon />
+                      {{ t("system.globalSettings.reset.label") }}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="left" class="w-72">
+                    <p class="mb-3 text-[13px] leading-[1.5]">
+                      {{ t("system.globalSettings.reset.confirmBody", { label: keyLabel(item.key) }) }}
+                    </p>
+                    <div class="flex justify-end gap-2">
+                      <PopoverClose as-child>
+                        <Button size="sm" variant="outline">{{ t("system.globalSettings.confirm.cancelBtn") }}</Button>
+                      </PopoverClose>
+                      <PopoverClose as-child>
+                        <Button size="sm" :class="confirmBtnClass('warning')" @click="resetSetting(item)">
+                          {{ t("system.globalSettings.reset.confirmBtn") }}
+                        </Button>
+                      </PopoverClose>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -386,73 +528,138 @@
       </section>
       <div class="sr-only" role="status" aria-live="polite">{{ saveAnnouncement }}</div>
     </template>
-    <t-dialog
-      v-model:visible="passwordResetVisible"
-      :header="t('system.globalSettings.passwordReset.dialogTitle')"
-      width="440px"
-      placement="center"
-      dialog-class-name="password-reset-dialog"
-      :confirm-btn="{
-        content: t('system.globalSettings.passwordReset.confirmBtn'),
-        theme: 'danger',
-        loading: passwordResetSubmitting,
-      }"
-      :cancel-btn="{
-        content: t('system.globalSettings.confirm.cancelBtn'),
-        variant: 'outline',
-      }"
-      :close-on-overlay-click="!passwordResetSubmitting"
-      :close-btn="!passwordResetSubmitting"
-      @confirm="submitPasswordReset"
-      @close="resetPasswordResetForm"
-    >
-      <t-alert
-        theme="warning"
-        :message="t('system.globalSettings.passwordReset.warning')"
-        class="password-reset-warning"
-      />
-      <t-form
-        ref="passwordResetFormRef"
-        :data="passwordResetForm"
-        :rules="passwordResetRules"
-        label-align="top"
-        class="password-reset-form"
+
+    <!--
+      The shell reproduces the old password-reset-dialog overrides: a 64px
+      header and a footer, both ruled off, 24px side padding, 12px radius,
+      and a tighter layout under 480px.
+    -->
+    <Dialog :open="passwordResetVisible" @update:open="onPasswordResetOpenChange">
+      <DialogContent
+        :show-close-button="false"
+        class="border-border gap-0 overflow-hidden rounded-xl border p-0 shadow-[0_12px_32px_rgba(15,23,42,0.12),0_2px_8px_rgba(15,23,42,0.08)] ring-0 max-[480px]:max-w-[calc(100vw-24px)] sm:max-w-[440px]"
+        @interact-outside="onPasswordResetInteractOutside"
       >
-        <t-form-item :label="t('system.globalSettings.passwordReset.emailLabel')" name="email">
-          <t-input
-            v-model="passwordResetForm.email"
-            type="text"
-            clearable
-            autocomplete="off"
+        <DialogHeader
+          class="border-border min-h-16 flex-row items-center justify-between gap-3 border-b px-6 max-[480px]:min-h-14 max-[480px]:px-5"
+        >
+          <DialogTitle class="text-lg leading-[26px] font-semibold max-[480px]:text-[17px]">
+            {{ t("system.globalSettings.passwordReset.dialogTitle") }}
+          </DialogTitle>
+          <DialogClose v-if="!passwordResetSubmitting" as-child>
+            <Button variant="ghost" size="icon-sm" class="rounded-md" :aria-label="t('common.close')">
+              <XIcon />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+        <div class="px-6 pt-5 pb-1 max-[480px]:px-5 max-[480px]:pt-4">
+          <Alert class="mb-5 rounded-lg border-0 bg-[var(--td-warning-color-focus)] px-3.5 py-3">
+            <CircleAlertIcon class="text-warning" />
+            <AlertTitle class="text-foreground text-[13px] leading-5 font-normal">
+              {{ t("system.globalSettings.passwordReset.warning") }}
+            </AlertTitle>
+          </Alert>
+          <div class="mb-4 grid">
+            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-email">
+              {{ t("system.globalSettings.passwordReset.emailLabel") }}
+            </Label>
+            <div class="relative">
+              <Input
+                id="password-reset-email"
+                v-model="passwordResetForm.email"
+                type="text"
+                autocomplete="off"
+                class="rounded-md pr-8"
+                :aria-invalid="passwordErrors.email ? true : undefined"
+                :disabled="passwordResetSubmitting"
+                :placeholder="t('system.globalSettings.passwordReset.emailPlaceholder')"
+                @input="passwordErrors.email = ''"
+                @blur="validateEmailField"
+              />
+              <button
+                v-if="passwordResetForm.email && !passwordResetSubmitting"
+                type="button"
+                data-slot="input-clear"
+                class="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 cursor-pointer"
+                :aria-label="t('common.clear')"
+                @mousedown.prevent
+                @click="passwordResetForm.email = ''"
+              >
+                <XIcon class="size-3.5" />
+              </button>
+            </div>
+            <p v-if="passwordErrors.email" class="text-destructive m-0 mt-1 text-xs">{{ passwordErrors.email }}</p>
+          </div>
+          <div class="mb-4 grid">
+            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-new">
+              {{ t("system.globalSettings.passwordReset.newPasswordLabel") }}
+            </Label>
+            <div class="relative">
+              <LockIcon class="text-placeholder absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+              <Input
+                id="password-reset-new"
+                v-model="passwordResetForm.newPassword"
+                type="password"
+                autocomplete="new-password"
+                :aria-invalid="passwordErrors.newPassword ? true : undefined"
+                :disabled="passwordResetSubmitting"
+                :placeholder="t('system.globalSettings.passwordReset.newPasswordPlaceholder')"
+                class="rounded-md pl-8"
+                @input="passwordErrors.newPassword = ''"
+                @blur="validateNewPasswordField"
+              />
+            </div>
+            <p v-if="passwordErrors.newPassword" class="text-destructive m-0 mt-1 text-xs">
+              {{ passwordErrors.newPassword }}
+            </p>
+          </div>
+          <div class="mb-4 grid">
+            <Label class="min-h-7 text-sm leading-[22px]" for="password-reset-confirm">
+              {{ t("system.globalSettings.passwordReset.confirmPasswordLabel") }}
+            </Label>
+            <div class="relative">
+              <LockIcon class="text-placeholder absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+              <Input
+                id="password-reset-confirm"
+                v-model="passwordResetForm.confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                :aria-invalid="passwordErrors.confirmPassword ? true : undefined"
+                :disabled="passwordResetSubmitting"
+                :placeholder="t('system.globalSettings.passwordReset.confirmPasswordPlaceholder')"
+                class="rounded-md pl-8"
+                @keydown.enter="submitPasswordReset"
+                @input="passwordErrors.confirmPassword = ''"
+                @blur="validateConfirmPasswordField"
+              />
+            </div>
+            <p v-if="passwordErrors.confirmPassword" class="text-destructive m-0 mt-1 text-xs">
+              {{ passwordErrors.confirmPassword }}
+            </p>
+          </div>
+        </div>
+        <DialogFooter
+          class="border-border m-0 rounded-none bg-transparent px-6 pt-4 pb-5 max-[480px]:px-5 max-[480px]:pt-3.5 max-[480px]:pb-[18px]"
+        >
+          <Button
+            variant="outline"
+            class="min-w-[88px] rounded-md"
             :disabled="passwordResetSubmitting"
-            :placeholder="t('system.globalSettings.passwordReset.emailPlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('system.globalSettings.passwordReset.newPasswordLabel')" name="newPassword">
-          <t-input
-            v-model="passwordResetForm.newPassword"
-            type="password"
-            autocomplete="new-password"
-            :disabled="passwordResetSubmitting"
-            :placeholder="t('system.globalSettings.passwordReset.newPasswordPlaceholder')"
+            @click="onPasswordResetOpenChange(false)"
           >
-            <template #prefix-icon><t-icon name="lock-on" /></template>
-          </t-input>
-        </t-form-item>
-        <t-form-item :label="t('system.globalSettings.passwordReset.confirmPasswordLabel')" name="confirmPassword">
-          <t-input
-            v-model="passwordResetForm.confirmPassword"
-            type="password"
-            autocomplete="new-password"
+            {{ t("system.globalSettings.confirm.cancelBtn") }}
+          </Button>
+          <Button
+            class="bg-destructive text-primary-foreground hover:bg-destructive/80 min-w-[88px] rounded-md"
             :disabled="passwordResetSubmitting"
-            :placeholder="t('system.globalSettings.passwordReset.confirmPasswordPlaceholder')"
-            @enter="submitPasswordReset"
+            @click="submitPasswordReset"
           >
-            <template #prefix-icon><t-icon name="lock-on" /></template>
-          </t-input>
-        </t-form-item>
-      </t-form>
-    </t-dialog>
+            <Loader2Icon v-if="passwordResetSubmitting" class="animate-spin" />
+            {{ t("system.globalSettings.passwordReset.confirmBtn") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -460,7 +667,6 @@
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
-import type { FormInstanceFunctions, FormRule } from "tdesign-vue-next";
 import {
   listSystemSettings,
   updateSystemSetting,
@@ -473,6 +679,28 @@ import {
   type SystemSettingItem,
 } from "@/api/system";
 import { useAuthStore } from "@/stores/auth";
+import TagsFieldInput from "@/components/settings/TagsFieldInput.vue";
+
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverAnchor, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  LockIcon,
+  RotateCwIcon,
+  UsersIcon,
+  XIcon,
+} from "@lucide/vue";
 
 const authStore = useAuthStore();
 const currentUserId = computed(() => authStore.currentUserId);
@@ -496,7 +724,7 @@ function settingDescription(item: { key: string; description?: string }): string
   return item.description ?? "";
 }
 
-// Enum keys whose change triggers a whole-value inline popconfirm before
+// Enum keys whose change triggers a whole-value inline confirm before
 // PUT. ssrf.whitelist is not here — it uses per-tag confirm instead.
 const HIGH_RISK_KEYS = new Set<string>(["auth.registration_mode"]);
 
@@ -520,12 +748,7 @@ function isHighImpactKey(key: string): boolean {
 
 type PopconfirmBtn = { content: string; theme?: "primary" | "danger" | "warning" };
 
-// TDesign popconfirm defaults to trigger:click on its inner Popup. Inputs
-// wrapped for programmatic confirm must override that, otherwise focus /
-// click on the field opens an empty bubble before the user commits a change.
-const PROGRAMMATIC_POPCONFIRM_PROPS = { trigger: "context-menu" as const };
-
-// Shared inline t-popconfirm controller (anchored to the control row,
+// Shared inline confirm controller (anchored to the control row,
 // same interaction model as Reset / bulk-apply). Replaces modal dialogs.
 // State must be reactive (not nested refs) so template bindings unwrap.
 function createInlinePopconfirm() {
@@ -572,6 +795,16 @@ function createInlinePopconfirm() {
 const ssrfPopconfirm = createInlinePopconfirm();
 const adminPopconfirm = createInlinePopconfirm();
 const highRiskPopconfirm = createInlinePopconfirm();
+
+function onSsrfPopoverOpen(v: boolean) {
+  ssrfPopconfirm.onVisibleChange(v);
+}
+function onAdminPopoverOpen(v: boolean) {
+  adminPopconfirm.onVisibleChange(v);
+}
+function onHighRiskPopoverOpen(v: boolean) {
+  highRiskPopconfirm.onVisibleChange(v);
+}
 
 // Friendly labels for enum options live in i18n
 // (system.globalSettings.enumLabels.<key>.<value>). Falls back to the
@@ -623,6 +856,11 @@ const knownSettingKeys = new Set(Object.values(SETTINGS_SECTION_KEYS).flat());
 const settingsByKey = computed(() => new Map(settings.value.map((item) => [item.key, item])));
 const unknownSettings = computed(() => settings.value.filter((item) => !knownSettingKeys.has(item.key)));
 const hasUnknownSettings = computed(() => unknownSettings.value.length > 0);
+const visibleSections = computed<SettingsSection[]>(() =>
+  hasUnknownSettings.value
+    ? ["access", "tenant", "file", "runtime", "security", "other"]
+    : ["access", "tenant", "file", "runtime", "security"],
+);
 
 watch(hasUnknownSettings, (hasUnknown) => {
   if (!hasUnknown && activeSettingsSection.value === "other") {
@@ -664,70 +902,134 @@ function markSettingSaved(item: SystemSettingItem) {
 }
 
 // Admin management state. We keep two parallel structures:
-//   - adminEmails: the v-model bound to the t-tag-input (excludes
+//   - adminEmails: the v-model bound to the tags input (excludes
 //     current user; that's the visible source of truth).
 //   - adminEmailToId: email → user UUID, populated from the list
 //     endpoint. Needed because revoke takes a UUID, not an email.
 // Both reset on every reload to avoid stale entries persisting after
 // a peer SystemAdmin makes a change. adminBusy disables the input and
 // shows the row spinner only while promote/revoke API calls are in
-// flight — not while the inline popconfirm is waiting for a click.
+// flight — not while the inline confirm is waiting for a click.
 const adminEmails = ref<string[]>([]);
 const adminEmailToId = ref<Record<string, string>>({});
 const adminBusy = ref(false);
 
 const passwordResetVisible = ref(false);
 const passwordResetSubmitting = ref(false);
-const passwordResetFormRef = ref<FormInstanceFunctions>();
 const passwordResetForm = reactive({
   email: "",
   newPassword: "",
   confirmPassword: "",
 });
-const passwordResetRules: Record<string, FormRule[]> = {
-  email: [
-    { required: true, message: t("system.globalSettings.passwordReset.validation.emailRequired"), trigger: "blur" },
-    { email: true, message: t("system.globalSettings.passwordReset.validation.emailInvalid"), trigger: "blur" },
-  ],
-  newPassword: [
-    { required: true, message: t("system.globalSettings.passwordReset.validation.passwordRequired"), trigger: "blur" },
-    { min: 8, message: t("system.globalSettings.passwordReset.validation.passwordLength"), trigger: "blur" },
-    { max: 32, message: t("system.globalSettings.passwordReset.validation.passwordLength"), trigger: "blur" },
-    {
-      pattern: /[a-zA-Z]/,
-      message: t("system.globalSettings.passwordReset.validation.passwordLetter"),
-      trigger: "blur",
-    },
-    { pattern: /\d/, message: t("system.globalSettings.passwordReset.validation.passwordNumber"), trigger: "blur" },
-  ],
-  confirmPassword: [
-    { required: true, message: t("system.globalSettings.passwordReset.validation.confirmRequired"), trigger: "blur" },
-    {
-      validator: (value: string) => value === passwordResetForm.newPassword,
-      message: t("system.globalSettings.passwordReset.validation.passwordMismatch"),
-      trigger: "blur",
-    },
-  ],
-};
+const passwordErrors = reactive({ email: "", newPassword: "", confirmPassword: "" });
+
+function clearPasswordErrors() {
+  passwordErrors.email = "";
+  passwordErrors.newPassword = "";
+  passwordErrors.confirmPassword = "";
+}
+
+// One validator per field, ported from the old t-form rules. The rules
+// fired on blur as well as on submit, so each field's @blur runs its own
+// validator and submit runs all three; the first failing rule's message
+// wins, as it did in TDesign.
+function validateEmailField(): boolean {
+  const email = passwordResetForm.email.trim();
+  if (!email) {
+    passwordErrors.email = t("system.globalSettings.passwordReset.validation.emailRequired");
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    passwordErrors.email = t("system.globalSettings.passwordReset.validation.emailInvalid");
+  } else {
+    passwordErrors.email = "";
+  }
+  return !passwordErrors.email;
+}
+
+function validateNewPasswordField(): boolean {
+  const pwd = passwordResetForm.newPassword;
+  if (!pwd) {
+    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordRequired");
+  } else if (pwd.length < 8 || pwd.length > 32) {
+    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordLength");
+  } else if (!/[a-zA-Z]/.test(pwd)) {
+    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordLetter");
+  } else if (!/\d/.test(pwd)) {
+    passwordErrors.newPassword = t("system.globalSettings.passwordReset.validation.passwordNumber");
+  } else {
+    passwordErrors.newPassword = "";
+  }
+  return !passwordErrors.newPassword;
+}
+
+function validateConfirmPasswordField(): boolean {
+  if (!passwordResetForm.confirmPassword) {
+    passwordErrors.confirmPassword = t("system.globalSettings.passwordReset.validation.confirmRequired");
+  } else if (passwordResetForm.confirmPassword !== passwordResetForm.newPassword) {
+    passwordErrors.confirmPassword = t("system.globalSettings.passwordReset.validation.passwordMismatch");
+  } else {
+    passwordErrors.confirmPassword = "";
+  }
+  return !passwordErrors.confirmPassword;
+}
+
+function validatePasswordResetForm(): boolean {
+  // Run every validator (no short-circuit) so all failing fields show
+  // their message at once, as t-form's validate() did.
+  const results = [validateEmailField(), validateNewPasswordField(), validateConfirmPasswordField()];
+  return results.every(Boolean);
+}
+
+// The dialog could not be dismissed by the overlay or the close button
+// while the reset request was in flight (close-on-overlay-click /
+// close-btn were bound to !passwordResetSubmitting); Esc still closed it.
+function onPasswordResetOpenChange(open: boolean) {
+  passwordResetVisible.value = open;
+  if (!open) resetPasswordResetForm();
+}
+
+function onPasswordResetInteractOutside(event: Event) {
+  if (passwordResetSubmitting.value) event.preventDefault();
+}
+
+// Tag classes matching the old small light t-tag: 20px high, 4px side
+// padding, 3px radius, regular weight, the theme's "-light" tint.
+function settingTagClass(theme: "warning" | "primary" | "danger" | "success"): string {
+  const base = "h-5 rounded-[3px] px-1 font-normal";
+  switch (theme) {
+    case "warning":
+      return `${base} bg-[var(--td-warning-color-light)] text-warning`;
+    case "primary":
+      return `${base} bg-[var(--td-brand-color-light)] text-primary`;
+    case "danger":
+      return `${base} bg-[var(--td-error-color-light)] text-destructive`;
+    default:
+      return `${base} bg-[var(--td-success-color-light)] text-success`;
+  }
+}
+
+// Solid confirm button colours for the inline confirms: TDesign's
+// confirm-btn theme painted a filled danger / warning / primary button.
+function confirmBtnClass(theme: PopconfirmBtn["theme"]): string {
+  if (theme === "danger") return "bg-destructive text-primary-foreground hover:bg-destructive/80";
+  if (theme === "warning") return "bg-warning text-primary-foreground hover:bg-warning/80";
+  return "";
+}
 
 function resetPasswordResetForm() {
   passwordResetForm.email = "";
   passwordResetForm.newPassword = "";
   passwordResetForm.confirmPassword = "";
-  passwordResetFormRef.value?.clearValidate?.();
+  clearPasswordErrors();
 }
 
 async function openPasswordResetDialog() {
   resetPasswordResetForm();
   passwordResetVisible.value = true;
-  await nextTick();
-  passwordResetFormRef.value?.clearValidate?.();
 }
 
 async function submitPasswordReset() {
   if (passwordResetSubmitting.value) return;
-  const valid = await passwordResetFormRef.value?.validate?.();
-  if (valid !== true) return;
+  if (!validatePasswordResetForm()) return;
 
   passwordResetSubmitting.value = true;
   try {
@@ -750,11 +1052,11 @@ async function submitPasswordReset() {
 // Guards ssrf.whitelist while an async confirm roundtrip is in flight.
 const listConfirmBusyKey = ref<string | null>(null);
 
-// Bumped when the SSRF tag-input is snapped back to the saved list so
-// Vue remounts the control and clears TDesign's internal tag state.
+// Bumped when the SSRF tags input is snapped back to the saved list so
+// Vue remounts the control and clears its internal draft state.
 const ssrfTagInputKeys = reactive<Record<string, number>>({});
 
-// Briefly blocks model updates while the SSRF tag-input remount settles.
+// Briefly blocks model updates while the SSRF tags input remount settles.
 const ssrfSnapLocked = ref(false);
 
 // Reactive map of in-progress edits, keyed by setting key. We don't
@@ -771,6 +1073,35 @@ function hasEnum(item: SystemSettingItem): boolean {
 function enumOptions(item: SystemSettingItem): { label: string; value: string }[] {
   const opts = item.enum ?? [];
   return opts.map((v) => ({ label: enumLabel(item.key, v), value: v }));
+}
+
+function onSelectInput(item: SystemSettingItem, value: unknown) {
+  editValues[item.key] = value;
+  onChange(item);
+}
+
+function onHighRiskSelectInput(item: SystemSettingItem, value: unknown) {
+  editValues[item.key] = value;
+  onHighRiskSelectChange(item);
+}
+
+function onSwitchInput(item: SystemSettingItem, value: boolean) {
+  editValues[item.key] = value;
+  onChange(item);
+}
+
+// t-input-number equivalent: commit numeric edits into editValues on
+// input (the actual save still happens on blur via onChange).
+function intModel(item: SystemSettingItem): string {
+  const v = editValues[item.key];
+  return typeof v === "number" ? String(v) : "";
+}
+
+function setIntModel(item: SystemSettingItem, value: string | number) {
+  const s = String(value);
+  if (s === "") return;
+  const n = Number(s);
+  if (Number.isFinite(n)) editValues[item.key] = n;
 }
 
 // hasOverride reports whether the row carries a real DB override (vs a
@@ -822,7 +1153,7 @@ function globalSettingsText(path: string, params?: Record<string, string>): stri
   return typeof msg === "string" ? msg : path;
 }
 
-// Controlled SSRF tag-input: we commit editValues so a declined delta
+// Controlled SSRF tags input: we commit editValues so a declined delta
 // can be rolled back without the component re-applying a removal.
 function onSsrfWhitelistModelUpdate(next: string[]) {
   if (listConfirmBusyKey.value === SSRF_WHITELIST_KEY || ssrfSnapLocked.value) return;
@@ -894,7 +1225,7 @@ async function loadSettings() {
     // partial drafts survive a refresh, which avoids the "I came back
     // and my unsaved edits look saved" trap.
     for (const item of list) {
-      // Defensive copy for arrays so the t-tag-input doesn't mutate
+      // Defensive copy for arrays so the tags input doesn't mutate
       // the canonical settings entry through the v-model binding.
       editValues[item.key] = Array.isArray(item.value) ? [...(item.value as unknown[])] : item.value;
     }
@@ -907,12 +1238,12 @@ async function loadSettings() {
 }
 
 // onChange persists non-SSRF settings. SSRF whitelist and system admins
-// have dedicated handlers with inline popconfirm.
+// have dedicated handlers with inline confirm.
 async function onChange(item: SystemSettingItem) {
   if (!isDirty(item)) return;
 
   // SSRF whitelist gets the per-entry confirm flow — same shape as the
-  // admin tag-input above. Adding or removing each host/CIDR is its
+  // admin tags input above. Adding or removing each host/CIDR is its
   // own privileged change (a single bad CIDR can punch a hole through
   // the egress firewall), so we ask once per delta instead of once
   // per "save". This matches the operator's mental model: every tag
@@ -925,7 +1256,7 @@ async function onHighRiskSelectChange(item: SystemSettingItem) {
   if (newValue === item.value) return;
 
   // Revert the select immediately so cancel leaves the saved value
-  // visible; re-apply only after the inline popconfirm is confirmed.
+  // visible; re-apply only after the inline confirm is confirmed.
   editValues[item.key] = item.value;
 
   const ok = await highRiskPopconfirm.ask({
@@ -1128,7 +1459,7 @@ async function persistSetting(item: SystemSettingItem) {
   }
 }
 
-// loadAdmins refreshes the admin tag list + the email→id lookup
+// loadAdmins refreshes the admin tags list + the email→id lookup
 // table. We exclude the current user from the visible list so the
 // "you can't revoke yourself" rule has nothing to enforce in the UI
 // (the backend rejects it too, but hiding the tag is friendlier).
@@ -1202,7 +1533,7 @@ async function onAdminsChange(next: string[]) {
   if (added.length === 0 && removed.length === 0) return;
 
   // Confirm before any privilege change (no loading spinner yet — the
-  // popconfirm is the only UI; adminBusy is reserved for API roundtrips).
+  // inline confirm is the only UI; adminBusy is reserved for API roundtrips).
   for (const email of added) {
     const ok = await confirmAdminChange("promote", email);
     if (!ok) {
@@ -1257,488 +1588,3 @@ onUnmounted(() => {
   if (savedKeyTimer) clearTimeout(savedKeyTimer);
 });
 </script>
-
-<style lang="less" scoped>
-.system-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 24px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-intro-panel {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.priority-hint-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-
-  .t-icon {
-    color: var(--td-brand-color);
-  }
-}
-
-.priority-hint-list {
-  margin: 0;
-  padding: 0 0 0 20px;
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--td-text-color-primary);
-  list-style: disc;
-
-  li + li {
-    margin-top: 4px;
-  }
-}
-
-.settings-section-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  margin: 0 0 18px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 1px 0 var(--td-component-stroke);
-
-  &:deep(.t-tabs__nav-item) {
-    font-weight: 500;
-  }
-}
-
-.settings-section-panel {
-  min-width: 0;
-}
-
-.settings-section-intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  h3 {
-    margin: 0 0 4px;
-    font-size: 16px;
-    line-height: 1.4;
-    color: var(--td-text-color-primary);
-  }
-
-  p {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.settings-section-intro--runtime {
-  border-bottom: none;
-}
-
-.runtime-table-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 24px;
-  padding: 10px 16px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-
-  span:last-child {
-    text-align: right;
-  }
-}
-
-.settings-group--runtime {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 0 0 8px 8px;
-  overflow: hidden;
-
-  .setting-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 24px;
-    padding: 14px 16px;
-  }
-
-  .setting-info {
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .setting-label {
-    font-size: 14px;
-  }
-
-  .desc {
-    max-width: 620px;
-    font-size: 12px;
-  }
-
-  .setting-control {
-    min-width: 0;
-  }
-
-  .setting-input {
-    width: 210px;
-  }
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.setting-save-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  min-width: 52px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.setting-save-state--success {
-  color: var(--td-success-color);
-}
-
-.setting-reset-btn {
-  // Sit flush with the input on the right; size="small" gives it the
-  // right footprint to read as secondary action next to the primary
-  // edit control.
-  flex-shrink: 0;
-}
-
-// Anchor wrapper for inline t-popconfirm on inputs (SSRF / admins /
-// high-risk select). Popconfirm attaches to this box so the bubble
-// appears beside the control, not a full-screen modal.
-.setting-control-anchor {
-  flex: 1;
-  min-width: 0;
-}
-
-.loading-state,
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 60px 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-// Skeleton mirrors GeneralSettings.vue 1:1 so the two panes feel like
-// they came from the same hand. Values that diverge intentionally:
-//   - .setting-label is a flex container (vs General's plain <label>)
-//     because we render badges inline with the title; identical font /
-//     spacing otherwise.
-//   - .desc has a max-width so long backend descriptions don't push
-//     the control off the canvas in narrow viewports.
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-}
-
-.setting-label {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  margin-bottom: 4px;
-  line-height: 1.4;
-}
-
-.setting-badge {
-  vertical-align: middle;
-}
-
-.desc {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  margin: 0;
-  line-height: 1.5;
-  max-width: 480px;
-}
-
-.setting-meta {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.setting-control-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.setting-control-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.setting-saving {
-  // Pin width so the row layout doesn't reflow when the spinner
-  // appears / disappears mid-save.
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.setting-input {
-  width: 240px;
-}
-
-.setting-input--wide {
-  width: 320px;
-}
-
-.password-reset-trigger {
-  min-width: 112px;
-  height: 32px;
-  padding: 0 12px;
-  color: var(--td-error-color);
-  background: var(--td-error-color-light);
-  border: 1px solid transparent;
-  border-radius: 6px;
-
-  &:hover {
-    color: var(--td-error-color-hover);
-    background: var(--td-error-color-light-hover);
-    border-color: var(--td-error-color-focus);
-  }
-
-  &:active {
-    color: var(--td-error-color-active);
-    background: var(--td-error-color-focus);
-  }
-}
-
-.password-reset-warning {
-  margin-bottom: 20px;
-}
-
-@media (max-width: 860px) {
-  .settings-section-intro {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .runtime-table-header {
-    display: none;
-  }
-
-  .settings-group--runtime {
-    border-radius: 8px;
-
-    .setting-row {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .setting-input {
-      width: 100%;
-    }
-  }
-
-  .setting-row {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .setting-info {
-    width: 100%;
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .setting-control {
-    width: 100%;
-    align-items: flex-start;
-  }
-
-  .setting-control-row {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .setting-control-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .setting-input,
-  .setting-input--wide {
-    width: 100%;
-    flex: 1;
-  }
-
-  .desc {
-    max-width: none;
-  }
-}
-</style>
-
-<style lang="less">
-/* The dialog is teleported to body, so its visual shell cannot be
-   styled from the scoped block above. Keep this class specific to the
-   password-reset flow instead of changing every TDesign dialog. */
-.password-reset-dialog {
-  padding: 0;
-  overflow: hidden;
-  border-color: var(--td-component-stroke);
-  border-radius: 12px;
-  box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.12),
-    0 2px 8px rgba(15, 23, 42, 0.08);
-
-  .t-dialog__header {
-    min-height: 64px;
-    padding: 0 24px;
-    font-size: 18px;
-    line-height: 26px;
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .t-dialog__close {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 6px;
-  }
-
-  .t-dialog__body {
-    padding: 20px 24px 4px;
-  }
-
-  .password-reset-warning {
-    padding: 12px 14px;
-    border-radius: 8px;
-
-    .t-alert__content {
-      font-size: 13px;
-      line-height: 20px;
-    }
-  }
-
-  .password-reset-form {
-    .t-form__item {
-      margin-bottom: 16px;
-    }
-
-    .t-form__label--top {
-      min-height: 28px;
-      padding: 0;
-      font-size: 14px;
-      line-height: 22px;
-    }
-
-    .t-input {
-      border-radius: 6px;
-    }
-  }
-
-  .t-dialog__footer {
-    box-sizing: border-box;
-    padding: 16px 24px 20px;
-    border-top: 1px solid var(--td-component-stroke);
-
-    .t-button {
-      min-width: 88px;
-      border-radius: 6px;
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .password-reset-dialog {
-    width: calc(100vw - 24px) !important;
-
-    .t-dialog__header {
-      min-height: 56px;
-      padding: 0 20px;
-      font-size: 17px;
-    }
-
-    .t-dialog__body {
-      padding: 16px 20px 4px;
-    }
-
-    .t-dialog__footer {
-      padding: 14px 20px 18px;
-    }
-  }
-}
-</style>

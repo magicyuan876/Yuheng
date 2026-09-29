@@ -1,17 +1,19 @@
 <template>
-  <div class="join-page">
-    <div class="join-card">
-      <div class="join-icon">
-        <t-icon name="user-add" size="48px" />
+  <div class="bg-card flex min-h-full items-center justify-center p-5">
+    <div class="bg-card w-full max-w-[400px] rounded-[16px] p-12 text-center shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+      <div
+        class="text-success mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[var(--td-success-color-light)]"
+      >
+        <UserPlusIcon class="size-12" />
       </div>
-      <h2 class="join-title">{{ $t("organization.join.title") }}</h2>
-      <p v-if="loading" class="join-message">{{ $t("organization.join.joining") }}</p>
-      <p v-else-if="error" class="join-message error">{{ error }}</p>
-      <p v-else class="join-message success">{{ $t("organization.join.success") }}</p>
+      <h2 class="text-foreground mt-0 mb-4 text-xl font-semibold">{{ $t("organization.join.title") }}</h2>
+      <p v-if="loading" class="text-muted-foreground mt-0 mb-6 text-sm">{{ $t("organization.join.joining") }}</p>
+      <p v-else-if="error" class="text-destructive mt-0 mb-6 text-sm">{{ error }}</p>
+      <p v-else class="text-success mt-0 mb-6 text-sm">{{ $t("organization.join.success") }}</p>
 
-      <t-button v-if="!loading" theme="primary" @click="goToOrganizations">
+      <Button v-if="!loading" @click="goToOrganizations">
         {{ $t("organization.join.goToOrganizations") }}
-      </t-button>
+      </Button>
     </div>
   </div>
 </template>
@@ -23,6 +25,9 @@ import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useOrganizationStore } from "@/stores/organization";
 import { useAuthStore } from "@/stores/auth";
+
+import { Button } from "@/components/ui/button";
+import { UserPlusIcon } from "@lucide/vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -67,57 +72,3 @@ const goToOrganizations = () => {
   router.push("/platform/organizations");
 };
 </script>
-
-<style scoped lang="less">
-.join-page {
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--td-bg-color-container);
-  padding: 20px;
-}
-
-.join-card {
-  background: var(--td-bg-color-container);
-  border-radius: 16px;
-  padding: 48px;
-  text-align: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  max-width: 400px;
-  width: 100%;
-}
-
-.join-icon {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 24px;
-  border-radius: 50%;
-  background: var(--td-success-color-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-success-color);
-}
-
-.join-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 16px;
-}
-
-.join-message {
-  font-size: 14px;
-  color: var(--td-text-color-secondary);
-  margin: 0 0 24px;
-
-  &.error {
-    color: var(--td-error-color);
-  }
-
-  &.success {
-    color: var(--td-success-color);
-  }
-}
-</style>

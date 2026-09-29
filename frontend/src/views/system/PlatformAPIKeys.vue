@@ -1,123 +1,182 @@
 <template>
-  <div class="platform-api-keys">
-    <header class="section-header">
-      <h2>{{ t("platformApiKeys.title") }}</h2>
-      <p class="section-description">{{ t("platformApiKeys.description") }}</p>
+  <div class="w-full">
+    <header class="mb-5">
+      <h2 class="text-foreground m-0 mb-2 text-xl font-semibold">{{ t("platformApiKeys.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-[1.5]">{{ t("platformApiKeys.description") }}</p>
     </header>
 
-    <t-alert theme="warning" :message="t('platformApiKeys.securityNotice')" class="security-alert">
-      <template #operation>
-        <t-button size="small" variant="outline" @click="openCreate">
-          <template #icon><t-icon name="add" /></template>
+    <Alert class="mb-5 border-transparent bg-[var(--td-warning-color-light)]">
+      <TriangleAlertIcon class="text-warning" />
+      <AlertTitle class="text-foreground font-normal">{{ t("platformApiKeys.securityNotice") }}</AlertTitle>
+      <AlertAction>
+        <Button size="sm" variant="outline" @click="openCreate">
+          <PlusIcon />
           {{ t("platformApiKeys.create") }}
-        </t-button>
-      </template>
-    </t-alert>
+        </Button>
+      </AlertAction>
+    </Alert>
 
-    <section class="keys-section">
-      <div v-if="loading" class="keys-state">
-        <t-loading size="small" />
+    <section class="border-border bg-card overflow-hidden rounded-[10px] border">
+      <div
+        v-if="loading"
+        class="text-muted-foreground flex min-h-[120px] items-center justify-center gap-2 text-[13px]"
+      >
+        <Loader2Icon class="size-4 animate-spin" />
         <span>{{ t("platformApiKeys.loading") }}</span>
       </div>
-      <div v-else-if="keys.length === 0" class="keys-state keys-state--empty">
+      <div
+        v-else-if="keys.length === 0"
+        class="text-muted-foreground flex min-h-[120px] flex-col items-center justify-center gap-3 text-[13px]"
+      >
         <span>{{ t("platformApiKeys.empty") }}</span>
-        <t-button size="small" variant="outline" @click="openCreate">
-          <template #icon><t-icon name="add" /></template>
+        <Button size="sm" variant="outline" @click="openCreate">
+          <PlusIcon />
           {{ t("platformApiKeys.create") }}
-        </t-button>
+        </Button>
       </div>
-      <div v-else class="api-key-table-wrap">
-        <table class="api-key-table">
-          <thead>
-            <tr>
-              <th>{{ t("platformApiKeys.name") }}</th>
-              <th>{{ t("platformApiKeys.key") }}</th>
-              <th>{{ t("platformApiKeys.capability") }}</th>
-              <th>{{ t("platformApiKeys.lastUsed") }}</th>
-              <th>{{ t("platformApiKeys.createdAt") }}</th>
-              <th class="api-key-table__actions-heading">{{ t("platformApiKeys.actions") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="key in keys" :key="key.id">
-              <td>
-                <span class="api-key-name">{{ key.name }}</span>
-              </td>
-              <td>
-                <code class="api-key-fingerprint">{{ key.api_key }}</code>
-              </td>
-              <td class="api-key-table__capability-cell">
-                <div class="api-key-capability-inline">
-                  <span v-for="chip in visibleCapabilityChips(key)" :key="chip.id" class="api-key-capability-chip">
+      <div v-else class="w-full overflow-x-auto">
+        <Table class="w-full table-fixed">
+          <TableHeader>
+            <TableRow class="hover:bg-transparent">
+              <TableHead class="bg-secondary text-placeholder w-[11%] p-[13px_14px] text-xs font-medium">
+                {{ t("platformApiKeys.name") }}
+              </TableHead>
+              <TableHead class="bg-secondary text-placeholder w-[17%] p-[13px_14px] text-xs font-medium">
+                {{ t("platformApiKeys.key") }}
+              </TableHead>
+              <TableHead class="bg-secondary text-placeholder p-[13px_14px] text-xs font-medium">
+                {{ t("platformApiKeys.capability") }}
+              </TableHead>
+              <TableHead class="bg-secondary text-placeholder w-20 p-[13px_14px] text-xs font-medium">
+                {{ t("platformApiKeys.lastUsed") }}
+              </TableHead>
+              <TableHead class="bg-secondary text-placeholder w-32 p-[13px_14px] text-xs font-medium">
+                {{ t("platformApiKeys.createdAt") }}
+              </TableHead>
+              <TableHead class="bg-secondary text-placeholder w-[52px] p-[13px_14px] text-right text-xs font-medium">
+                {{ t("platformApiKeys.actions") }}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="key in keys" :key="key.id" class="last:border-b-0 hover:bg-transparent">
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <span
+                  class="text-foreground block min-w-0 overflow-hidden text-[13px] font-semibold text-ellipsis whitespace-nowrap"
+                >
+                  {{ key.name }}
+                </span>
+              </TableCell>
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <code
+                  class="inline-block max-w-full overflow-hidden align-top font-mono text-xs leading-[1.5] text-ellipsis whitespace-nowrap"
+                >
+                  {{ key.api_key }}
+                </code>
+              </TableCell>
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <div class="flex flex-wrap items-center gap-[5px]">
+                  <span
+                    v-for="chip in visibleCapabilityChips(key)"
+                    :key="chip.id"
+                    class="bg-success/10 text-success inline-flex h-[22px] items-center rounded-md px-2 text-xs font-medium whitespace-nowrap"
+                  >
                     {{ chip.label }}
                   </span>
-                  <t-popup
-                    v-if="hiddenCapabilityCount(key) > 0"
-                    trigger="click"
-                    placement="bottom-left"
-                    destroy-on-close
-                    overlay-class-name="platform-api-key-capability-popup-overlay"
-                  >
-                    <button
-                      type="button"
-                      class="api-key-capability-chip api-key-capability-chip--more"
-                      :aria-label="t('platformApiKeys.viewAllCapabilities')"
+                  <Popover v-if="hiddenCapabilityCount(key) > 0">
+                    <PopoverTrigger as-child>
+                      <button
+                        type="button"
+                        class="border-success/35 text-success inline-flex h-[22px] cursor-pointer items-center rounded-md border border-dashed bg-transparent px-2 text-xs font-medium"
+                        :aria-label="t('platformApiKeys.viewAllCapabilities')"
+                      >
+                        {{ t("platformApiKeys.capabilityMore", { count: hiddenCapabilityCount(key) }) }}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      class="max-h-[360px] w-[320px] max-w-[min(360px,88vw)] overflow-auto px-3.5 py-3"
                     >
-                      {{ t("platformApiKeys.capabilityMore", { count: hiddenCapabilityCount(key) }) }}
-                    </button>
-                    <template #content>
-                      <div class="api-key-capability-popup">
-                        <div class="api-key-capability-popup__title">{{ t("platformApiKeys.capability") }}</div>
-                        <div
-                          v-for="group in capabilityGroupsForKey(key)"
-                          :key="group.key"
-                          class="api-key-capability-block"
-                        >
-                          <div class="api-key-capability-block__title">{{ group.label }}</div>
-                          <div class="api-key-capability-block__chips">
-                            <span v-for="label in group.labels" :key="label" class="api-key-capability-chip">
-                              {{ label }}
-                            </span>
-                          </div>
+                      <div class="text-foreground mb-2.5 text-[13px] leading-[1.4] font-semibold">
+                        {{ t("platformApiKeys.capability") }}
+                      </div>
+                      <div
+                        v-for="group in capabilityGroupsForKey(key)"
+                        :key="group.key"
+                        class="border-border mt-2.5 border-t border-dashed pt-2.5 first:mt-0 first:border-t-0 first:pt-0"
+                      >
+                        <div class="text-foreground mb-1.5 text-xs leading-[1.4] font-semibold">{{ group.label }}</div>
+                        <div class="flex flex-wrap gap-[5px]">
+                          <span
+                            v-for="label in group.labels"
+                            :key="label"
+                            class="bg-success/10 text-success inline-flex h-[22px] items-center rounded-md px-2 text-xs font-medium whitespace-nowrap"
+                          >
+                            {{ label }}
+                          </span>
                         </div>
                       </div>
-                    </template>
-                  </t-popup>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </td>
-              <td>
-                <span class="api-key-meta">{{ formatDate(key.last_used_at) }}</span>
-              </td>
-              <td>
-                <time class="api-key-date" :datetime="key.created_at">{{ formatDate(key.created_at) }}</time>
-              </td>
-              <td>
-                <div class="api-key-table__actions">
-                  <t-popconfirm
-                    :content="t('platformApiKeys.deleteConfirm', { name: key.name })"
-                    :confirm-btn="{ content: t('common.delete'), theme: 'danger' }"
-                    :cancel-btn="{ content: t('common.cancel') }"
-                    placement="bottom-right"
-                    @confirm="deleteKey(key)"
-                  >
-                    <t-button shape="square" variant="text" theme="danger" :title="t('common.delete')" @click.stop>
-                      <t-icon name="delete" />
-                    </t-button>
-                  </t-popconfirm>
+              </TableCell>
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <span class="block min-w-0 text-xs leading-[1.4] whitespace-nowrap">{{
+                  formatDate(key.last_used_at)
+                }}</span>
+              </TableCell>
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <time class="block font-mono text-xs leading-[1.4] whitespace-nowrap" :datetime="key.created_at">
+                  {{ formatDate(key.created_at) }}
+                </time>
+              </TableCell>
+              <TableCell class="text-muted-foreground p-[13px_14px] align-middle text-[13px] leading-[1.45]">
+                <div class="flex items-center justify-end">
+                  <Popover v-model:open="deleteConfirmOpen[key.id]">
+                    <PopoverTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        class="text-destructive hover:text-destructive"
+                        :title="t('common.delete')"
+                        :aria-label="t('common.delete')"
+                        @click.stop
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" class="w-64">
+                      <p class="text-foreground mb-3 text-[13px] leading-[1.5]">
+                        {{ t("platformApiKeys.deleteConfirm", { name: key.name }) }}
+                      </p>
+                      <div class="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" @click="deleteConfirmOpen[key.id] = false">
+                          {{ t("common.cancel") }}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          class="bg-destructive text-primary-foreground hover:bg-destructive/80"
+                          @click="confirmDelete(key)"
+                        >
+                          {{ t("common.delete") }}
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     </section>
 
     <SettingDrawer
       :visible="drawerVisible"
-      class="api-key-create-drawer"
       :title="t('platformApiKeys.create')"
       :description="t('platformApiKeys.createDescription')"
-      icon="secured"
+      :icon="ShieldCheckIcon"
       width="560px"
       :min-width="480"
       :max-width="920"
@@ -128,39 +187,56 @@
       @update:visible="drawerVisible = $event"
       @confirm="createKey"
     >
-      <div class="api-key-dialog">
-        <div class="api-key-dialog-row">
-          <div class="api-key-dialog-row__label">
-            <label>{{ t("platformApiKeys.name") }}</label>
+      <div class="border-border flex flex-col border-b">
+        <div class="border-border flex flex-col gap-2 border-b pt-0 pb-4">
+          <div>
+            <label
+              class="text-foreground before:bg-primary flex items-center gap-2 text-sm leading-[1.45] font-semibold before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-[2px] before:content-['']"
+            >
+              {{ t("platformApiKeys.name") }}
+            </label>
           </div>
-          <t-input v-model="form.name" :placeholder="t('platformApiKeys.namePlaceholder')" />
+          <Input
+            v-model="form.name"
+            :placeholder="t('platformApiKeys.namePlaceholder')"
+            class="bg-secondary hover:border-border hover:bg-card focus-visible:border-border focus-visible:bg-card rounded border-transparent focus-visible:ring-0"
+          />
         </div>
 
-        <div class="api-key-dialog-row">
-          <div class="api-key-dialog-row__label">
-            <label>{{ t("platformApiKeys.capability") }}</label>
+        <div class="border-border flex flex-col gap-2 pt-[14px] pb-4">
+          <div>
+            <label
+              class="text-foreground before:bg-primary flex items-center gap-2 text-sm leading-[1.45] font-semibold before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-[2px] before:content-['']"
+            >
+              {{ t("platformApiKeys.capability") }}
+            </label>
           </div>
-          <p class="scope-hint">{{ t("platformApiKeys.capabilityHint") }}</p>
-          <div class="api-key-capability-list">
-            <div v-for="group in PLATFORM_API_KEY_CAPABILITY_GROUPS" :key="group.key" class="api-key-capability-group">
-              <div class="api-key-capability-group__header">
+          <p class="text-placeholder m-0 text-xs leading-[18px]">{{ t("platformApiKeys.capabilityHint") }}</p>
+          <div class="flex flex-col gap-3">
+            <div
+              v-for="group in PLATFORM_API_KEY_CAPABILITY_GROUPS"
+              :key="group.key"
+              class="border-border flex flex-col gap-2 border-t pt-2.5 pb-0.5 first:border-t-0 first:pt-[10px]"
+            >
+              <div class="text-foreground flex min-h-6 items-center justify-between gap-3 text-[13px] font-semibold">
                 <span>{{ t(group.labelKey) }}</span>
-                <t-button
-                  size="small"
-                  variant="text"
-                  @click="toggleGroup(group.capabilities.map((item) => item.value))"
-                >
+                <Button variant="ghost" size="sm" @click="toggleGroup(group.capabilities.map((item) => item.value))">
                   {{
                     groupSelected(group.capabilities.map((item) => item.value))
                       ? t("integrations.api.apiKeyCapabilityClearGroup")
                       : t("integrations.api.apiKeyCapabilitySelectGroup")
                   }}
-                </t-button>
+                </Button>
               </div>
-              <div class="api-key-capability-group__items">
-                <div v-for="item in group.capabilities" :key="item.value" class="api-key-capability-item">
-                  <t-checkbox v-model="selected[item.value]">{{ t(item.labelKey) }}</t-checkbox>
-                  <p class="scope-hint">{{ t(item.hintKey) }}</p>
+              <div class="flex flex-col gap-2.5">
+                <div v-for="item in group.capabilities" :key="item.value" class="flex flex-col">
+                  <div class="flex items-center gap-2">
+                    <Checkbox :id="`capability-${item.value}`" v-model="selected[item.value]" />
+                    <Label :for="`capability-${item.value}`" class="cursor-pointer text-[13px] font-normal">
+                      {{ t(item.labelKey) }}
+                    </Label>
+                  </div>
+                  <p class="text-placeholder m-0 mt-0.5 ml-6 text-xs leading-[18px]">{{ t(item.hintKey) }}</p>
                 </div>
               </div>
             </div>
@@ -169,17 +245,21 @@
       </div>
     </SettingDrawer>
 
-    <t-dialog
-      v-model:visible="tokenVisible"
-      :header="t('platformApiKeys.createdTitle')"
-      :confirm-btn="{ content: t('platformApiKeys.copy'), theme: 'primary' }"
-      :cancel-btn="null"
-      :close-on-overlay-click="false"
-      @confirm="copyToken"
-    >
-      <p>{{ t("platformApiKeys.createdDescription") }}</p>
-      <t-textarea :value="createdToken" readonly autosize />
-    </t-dialog>
+    <Dialog v-model:open="tokenVisible">
+      <DialogContent class="sm:max-w-[480px]" @interact-outside.prevent>
+        <DialogHeader>
+          <DialogTitle>{{ t("platformApiKeys.createdTitle") }}</DialogTitle>
+          <DialogDescription>{{ t("platformApiKeys.createdDescription") }}</DialogDescription>
+        </DialogHeader>
+        <Textarea :model-value="createdToken" readonly />
+        <DialogFooter>
+          <Button @click="copyToken">
+            <CopyIcon />
+            {{ t("platformApiKeys.copy") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -197,6 +277,24 @@ import {
   TENANT_API_KEY_CAPABILITIES,
 } from "@/config/apiKeyCapabilities";
 
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { CopyIcon, Loader2Icon, PlusIcon, ShieldCheckIcon, Trash2Icon, TriangleAlertIcon } from "@lucide/vue";
+
 const { t } = useI18n();
 const allCapabilities = [...SYSTEM_API_KEY_CAPABILITIES, ...TENANT_API_KEY_CAPABILITIES];
 const keys = ref<TenantAPIKey[]>([]);
@@ -205,6 +303,7 @@ const creating = ref(false);
 const drawerVisible = ref(false);
 const tokenVisible = ref(false);
 const createdToken = ref("");
+const deleteConfirmOpen = reactive<Record<string, boolean>>({});
 const form = reactive({ name: "" });
 const selected = reactive<Record<TenantAPIKeyCapability, boolean>>(
   allCapabilities.reduce(
@@ -320,6 +419,11 @@ async function createKey() {
   }
 }
 
+async function confirmDelete(key: TenantAPIKey) {
+  deleteConfirmOpen[key.id] = false;
+  await deleteKey(key);
+}
+
 async function deleteKey(key: TenantAPIKey) {
   try {
     await deletePlatformAPIKey(key.id);
@@ -337,339 +441,3 @@ async function copyToken() {
 
 onMounted(reload);
 </script>
-
-<style scoped>
-.platform-api-keys {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 20px;
-}
-
-.section-header h2 {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.section-description {
-  margin: 0;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.security-alert {
-  margin-bottom: 20px;
-}
-
-.keys-section {
-  border: 1px solid var(--td-component-border);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  overflow: hidden;
-}
-
-.keys-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 120px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-}
-
-.keys-state--empty {
-  flex-direction: column;
-  gap: 12px;
-}
-
-.api-key-table-wrap {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.api-key-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.api-key-table th,
-.api-key-table td {
-  padding: 13px 14px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.api-key-table th {
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.api-key-table td {
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.api-key-table th:nth-child(1),
-.api-key-table td:nth-child(1) {
-  width: 11%;
-}
-
-.api-key-table th:nth-child(2),
-.api-key-table td:nth-child(2) {
-  width: 17%;
-}
-
-.api-key-table th:nth-child(3),
-.api-key-table td:nth-child(3) {
-  width: auto;
-}
-
-.api-key-table th:nth-child(4),
-.api-key-table td:nth-child(4) {
-  width: 80px;
-}
-
-.api-key-table th:nth-child(5),
-.api-key-table td:nth-child(5) {
-  width: 128px;
-}
-
-.api-key-table th:nth-child(6),
-.api-key-table td:nth-child(6) {
-  width: 52px;
-}
-
-.api-key-table__capability-cell {
-  vertical-align: middle;
-}
-
-.api-key-capability-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-}
-
-.api-key-capability-chip--more {
-  border: 1px dashed color-mix(in srgb, var(--td-success-color) 35%, transparent);
-  background: transparent;
-  cursor: pointer;
-}
-
-.api-key-capability-popup {
-  width: 320px;
-  max-width: min(360px, 88vw);
-  max-height: 360px;
-  overflow: auto;
-  padding: 12px 14px;
-}
-
-.api-key-capability-popup__title {
-  margin-bottom: 10px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.api-key-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.api-key-table__actions-heading {
-  text-align: right !important;
-}
-
-.api-key-table__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.api-key-capability-block + .api-key-capability-block {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--td-component-stroke);
-}
-
-.api-key-capability-block__title {
-  margin-bottom: 6px;
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.api-key-capability-block__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.api-key-capability-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--td-success-color) 10%, var(--td-bg-color-container));
-  color: var(--td-success-color);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
-}
-
-.api-key-name {
-  display: block;
-  min-width: 0;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.api-key-fingerprint {
-  display: inline-block;
-  max-width: 100%;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: top;
-  white-space: nowrap;
-}
-
-.api-key-meta {
-  display: block;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.api-key-date {
-  display: block;
-  font-family: var(--app-font-family-mono);
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-  color: var(--td-text-color-secondary);
-}
-
-.api-key-dialog {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.api-key-dialog-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 0 16px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.api-key-dialog-row:first-child {
-  padding-top: 0;
-}
-
-.api-key-dialog-row:last-child {
-  border-bottom: none;
-}
-
-.api-key-dialog-row__label label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.45;
-}
-
-.api-key-dialog-row__label label::before {
-  content: "";
-  flex-shrink: 0;
-  width: 3px;
-  height: 14px;
-  border-radius: 2px;
-  background: var(--td-brand-color);
-}
-
-.api-key-dialog-row :deep(.t-input) {
-  border-radius: 4px;
-  background-color: var(--td-bg-color-secondarycontainer);
-  border-color: transparent;
-  box-shadow: none !important;
-}
-
-.api-key-dialog-row :deep(.t-input:hover),
-.api-key-dialog-row :deep(.t-input.t-is-focused) {
-  border-color: var(--td-component-border);
-  background-color: var(--td-bg-color-container);
-}
-
-.scope-hint {
-  margin: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.api-key-capability-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.api-key-capability-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 0 2px;
-}
-
-.api-key-capability-group + .api-key-capability-group {
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.api-key-capability-group__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 24px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.api-key-capability-group__items {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.api-key-capability-item .scope-hint {
-  margin: 2px 0 0 24px;
-}
-</style>

@@ -1,64 +1,72 @@
 <template>
-  <div class="system-info">
-    <div class="section-header">
-      <h2>{{ $t("system.title") }}</h2>
-      <p class="section-description">{{ $t("system.sectionDescription") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("system.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("system.sectionDescription") }}</p>
     </div>
 
     <!-- Loading state -->
-    <div v-if="loading" class="loading-inline">
-      <t-loading size="small" />
+    <div v-if="loading" class="text-muted-foreground flex items-center justify-center gap-3 py-10 text-sm">
+      <Loader2Icon class="animate-spin" />
       <span>{{ $t("system.loadingInfo") }}</span>
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="error-inline">
-      <t-alert theme="error" :message="error">
-        <template #operation>
-          <t-button size="small" @click="loadInfo">{{ $t("system.retry") }}</t-button>
-        </template>
-      </t-alert>
+    <div v-else-if="error" class="py-5">
+      <!-- TDesign's error alert sat on the pale error tint with no border and
+           dark text; only its icon was red. -->
+      <Alert variant="destructive" class="text-foreground border-transparent bg-[var(--td-error-color-1)]">
+        <CircleAlertIcon class="text-destructive!" />
+        <AlertTitle>{{ error }}</AlertTitle>
+        <AlertAction>
+          <Button variant="outline" size="sm" @click="loadInfo">{{ $t("system.retry") }}</Button>
+        </AlertAction>
+      </Alert>
     </div>
 
     <!-- Content -->
-    <div v-else class="settings-group">
+    <div v-else class="flex flex-col">
       <!-- System version -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.versionLabel") }}</label>
-          <p class="desc">{{ $t("system.versionDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.versionLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.versionDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
             {{ systemInfo?.version || $t("system.unknown") }}
-            <span v-if="systemInfo?.commit_id" class="commit-info"> ({{ systemInfo.commit_id }}) </span>
+            <span v-if="systemInfo?.commit_id" class="text-placeholder ml-1.5 text-xs">
+              ({{ systemInfo.commit_id }})
+            </span>
           </span>
         </div>
       </div>
 
       <!-- Frontend version -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.frontendVersionLabel") }}</label>
-          <p class="desc">{{ $t("system.frontendVersionDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("system.frontendVersionLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("system.frontendVersionDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
             {{ frontendVersion }}
-            <t-tag
+            <Badge
               v-if="
                 systemInfo?.version &&
                 systemInfo.version !== 'unknown' &&
                 frontendVersion !== 'unknown' &&
                 systemInfo.version !== frontendVersion
               "
-              theme="warning"
-              variant="light"
-              size="small"
-              style="margin-left: 8px"
-              >{{ $t("system.versionMismatch") }}</t-tag
+              variant="secondary"
+              class="bg-warning/10 text-warning ml-2"
+              >{{ $t("system.versionMismatch") }}</Badge
             >
-            <span v-if="frontendCommit && frontendCommit !== 'unknown'" class="commit-info">
+            <span v-if="frontendCommit && frontendCommit !== 'unknown'" class="text-placeholder ml-1.5 text-xs">
               ({{ frontendCommit }})
             </span>
           </span>
@@ -66,129 +74,167 @@
       </div>
 
       <!-- Build time -->
-      <div v-if="systemInfo?.build_time" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.buildTimeLabel") }}</label>
-          <p class="desc">{{ $t("system.buildTimeDescription") }}</p>
+      <div
+        v-if="systemInfo?.build_time"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.buildTimeLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.buildTimeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ systemInfo.build_time }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ systemInfo.build_time }}</span>
         </div>
       </div>
 
       <!-- Go version -->
-      <div v-if="systemInfo?.go_version" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.goVersionLabel") }}</label>
-          <p class="desc">{{ $t("system.goVersionDescription") }}</p>
+      <div
+        v-if="systemInfo?.go_version"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.goVersionLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.goVersionDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ systemInfo.go_version }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ systemInfo.go_version }}</span>
         </div>
       </div>
 
       <!-- Service started at -->
-      <div v-if="systemInfo?.started_at" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.startedAtLabel") }}</label>
-          <p class="desc">{{ $t("system.startedAtDescription") }}</p>
+      <div
+        v-if="systemInfo?.started_at"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.startedAtLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.startedAtDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ formatStartedAt(systemInfo.started_at) }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{
+            formatStartedAt(systemInfo.started_at)
+          }}</span>
         </div>
       </div>
 
       <!-- Service uptime -->
-      <div v-if="displayUptimeSeconds != null" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.uptimeLabel") }}</label>
-          <p class="desc">{{ $t("system.uptimeDescription") }}</p>
+      <div
+        v-if="displayUptimeSeconds != null"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.uptimeLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.uptimeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ formatUptime(displayUptimeSeconds) }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ formatUptime(displayUptimeSeconds) }}</span>
         </div>
       </div>
 
       <!-- DB Version -->
-      <div v-if="systemInfo?.db_version || systemInfo?.db_migration_error" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.dbVersionLabel") }}</label>
-          <p class="desc">{{ $t("system.dbVersionDescription") }}</p>
+      <div
+        v-if="systemInfo?.db_version || systemInfo?.db_migration_error"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("system.dbVersionLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("system.dbVersionDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
             {{ systemInfo?.db_version || $t("system.unknown") }}
-            <t-tag
-              v-if="systemInfo?.db_migration_error"
-              theme="danger"
-              variant="light"
-              size="small"
-              style="margin-left: 8px"
-              >{{ $t("system.dbMigrationFailedTag") }}</t-tag
-            >
+            <Badge v-if="systemInfo?.db_migration_error" variant="destructive" class="ml-2">
+              {{ $t("system.dbMigrationFailedTag") }}
+            </Badge>
           </span>
         </div>
       </div>
 
       <!-- DB migration error: full-width banner under the row -->
-      <div v-if="systemInfo?.db_migration_error" class="setting-row migration-error-row">
-        <t-alert theme="error" :title="$t('system.dbMigrationFailedTitle')" style="width: 100%">
-          <template #default>
-            <p class="migration-error-desc">{{ $t("system.dbMigrationFailedDesc") }}</p>
-            <pre class="migration-error-detail">{{ systemInfo.db_migration_error }}</pre>
-            <div class="migration-error-actions">
-              <t-link
+      <div v-if="systemInfo?.db_migration_error" class="border-border block py-0 pb-5 [&:not(:last-child)]:border-b">
+        <Alert variant="destructive" class="text-foreground w-full border-transparent bg-[var(--td-error-color-1)]">
+          <CircleAlertIcon class="text-destructive!" />
+          <AlertTitle>{{ $t("system.dbMigrationFailedTitle") }}</AlertTitle>
+          <!-- A plain body rather than AlertDescription: that part underlines links
+               and spaces paragraphs 16px apart, and the old alert did neither. -->
+          <div class="col-start-2 text-sm">
+            <p class="text-foreground m-0 mb-2 text-[13px] leading-normal">
+              {{ $t("system.dbMigrationFailedDesc") }}
+            </p>
+            <pre
+              class="bg-accent text-muted-foreground m-0 mb-3 max-h-[200px] overflow-auto rounded px-3 py-2 text-xs leading-normal break-words whitespace-pre-wrap"
+              >{{ systemInfo.db_migration_error }}</pre>
+            <div class="text-muted-foreground flex items-center gap-2 text-[13px]">
+              <a
                 v-if="troubleshootingDocsURL"
-                theme="primary"
+                class="text-primary hover:underline"
                 :href="troubleshootingDocsURL"
                 target="_blank"
                 rel="noopener noreferrer"
-                >{{ $t("system.dbMigrationViewDocs") }}</t-link
+                >{{ $t("system.dbMigrationViewDocs") }}</a
               >
-              <span v-if="troubleshootingDocsURL && reportIssueURL" class="migration-error-actions-sep">·</span>
-              <t-link
+              <span v-if="troubleshootingDocsURL && reportIssueURL" class="text-placeholder">·</span>
+              <a
                 v-if="reportIssueURL"
-                theme="primary"
+                class="text-primary hover:underline"
                 :href="reportIssueURL"
                 target="_blank"
                 rel="noopener noreferrer"
-                >{{ $t("system.dbMigrationReportIssue") }}</t-link
+                >{{ $t("system.dbMigrationReportIssue") }}</a
               >
             </div>
-          </template>
-        </t-alert>
+          </div>
+        </Alert>
       </div>
 
       <!-- Keyword Index Engine -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.keywordIndexEngineLabel") }}</label>
-          <p class="desc">{{ $t("system.keywordIndexEngineDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("system.keywordIndexEngineLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("system.keywordIndexEngineDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.keyword_index_engine || $t("system.unknown") }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
+            {{ systemInfo?.keyword_index_engine || $t("system.unknown") }}
+          </span>
         </div>
       </div>
 
       <!-- Vector Store Engine -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.vectorStoreEngineLabel") }}</label>
-          <p class="desc">{{ $t("system.vectorStoreEngineDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("system.vectorStoreEngineLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("system.vectorStoreEngineDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.vector_store_engine || $t("system.unknown") }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
+            {{ systemInfo?.vector_store_engine || $t("system.unknown") }}
+          </span>
         </div>
       </div>
 
       <!-- Graph Database Engine -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("system.graphDatabaseEngineLabel") }}</label>
-          <p class="desc">{{ $t("system.graphDatabaseEngineDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("system.graphDatabaseEngineLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("system.graphDatabaseEngineDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ systemInfo?.graph_database_engine || $t("system.unknown") }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">
+            {{ systemInfo?.graph_database_engine || $t("system.unknown") }}
+          </span>
         </div>
       </div>
     </div>
@@ -200,6 +246,11 @@ import { ISSUE_TRACKER_URL, docsUrl } from "@/config/externalLinks";
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { getSystemInfo, type SystemInfo } from "@/api/system";
 import { useI18n } from "vue-i18n";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CircleAlertIcon, Loader2Icon } from "@lucide/vue";
 
 const { t, locale } = useI18n();
 
@@ -315,139 +366,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style lang="less" scoped>
-.system-info {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 40px 0;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-}
-
-.error-inline {
-  padding: 20px 0;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.migration-error-row {
-  display: block;
-  padding: 0 0 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.migration-error-desc {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-primary);
-}
-
-.migration-error-detail {
-  margin: 0 0 12px 0;
-  padding: 8px 12px;
-  background: var(--td-bg-color-container-hover);
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 200px;
-  overflow: auto;
-  color: var(--td-text-color-secondary);
-}
-
-.migration-error-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-
-  .migration-error-actions-sep {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-
-  .info-value {
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    text-align: right;
-    word-break: break-word;
-
-    .commit-info {
-      color: var(--td-text-color-placeholder);
-      font-size: 12px;
-      margin-left: 6px;
-    }
-  }
-}
-</style>

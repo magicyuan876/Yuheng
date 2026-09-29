@@ -1,35 +1,41 @@
 <template>
-  <div class="vectorstore-settings">
-    <div class="section-header">
-      <h2>{{ t("vectorStoreSettings.title") }}</h2>
-      <p class="section-description">{{ t("vectorStoreSettings.description") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ t("vectorStoreSettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ t("vectorStoreSettings.description") }}</p>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="loading-container">
-      <t-loading size="small" />
+    <div v-if="loading" class="flex justify-center py-12">
+      <Loader2Icon class="animate-spin" />
     </div>
 
     <template v-else>
-      <div class="settings-group">
-        <h3 class="list-section-title">{{ t("vectorStoreSettings.storesTitle") }}</h3>
+      <div class="flex flex-col">
+        <h3 class="text-foreground m-0 mb-4 text-base font-semibold">{{ t("vectorStoreSettings.storesTitle") }}</h3>
 
         <!-- 与其它 settings 列表同形：左侧 engine 徽章 + 标题 + env pill + 副标题 + 测试动作。
              env 来源是只读的 (engine_type / connection_config 由 .env 写入），所以没有更多菜单；
              user 来源沿用三点菜单的编辑 / 删除入口；测试结果作为卡片底部的彩色条出现。 -->
-        <div v-if="stores.length === 0 && !authStore.hasRole('admin')" class="empty-stores">
-          <t-empty :description="t('vectorStoreSettings.emptyDesc')" />
+        <div v-if="stores.length === 0 && !authStore.hasRole('admin')" class="py-16 text-center">
+          <Empty>
+            <EmptyDescription class="text-placeholder mb-4 text-sm">{{
+              t("vectorStoreSettings.emptyDesc")
+            }}</EmptyDescription>
+          </Empty>
         </div>
-        <div v-else class="store-grid">
+        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
           <div
             v-for="store in [...envStores, ...userStores]"
             :key="store.id"
-            class="store-card"
+            class="store-card border-border min-w-0 rounded-[10px] border py-3.5 pr-3.5 pl-3 transition-[border-color,box-shadow] duration-[180ms] ease-out"
             :class="[
               `store-card--${store.engine_type}`,
               {
-                'store-card--env': store.source === 'env',
-                'store-card--clickable': isStoreCardClickable(store),
+                'bg-secondary': store.source === 'env',
+                'bg-card': store.source !== 'env',
+                'cursor-pointer hover:border-[var(--td-brand-color-3,var(--td-brand-color))] hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--td-brand-color)]':
+                  isStoreCardClickable(store),
               },
             ]"
             :role="isStoreCardClickable(store) ? 'button' : undefined"
@@ -37,9 +43,9 @@
             @click="onStoreCardClick($event, store)"
             @keydown.enter="onStoreCardClick($event, store)"
           >
-            <div class="store-card__main">
+            <div class="flex min-w-0 items-start gap-3">
               <div
-                class="store-card__badge"
+                class="store-card__badge mt-px flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-[rgba(0,82,217,0.1)] text-[15px] font-semibold tracking-[0.02em] text-[#0052d9]"
                 :class="badgeClass(store.engine_type)"
                 :style="badgeStyle(store.engine_type)"
                 :aria-label="store.engine_type"
@@ -48,53 +54,73 @@
                   v-if="resolveLogo(store.engine_type)?.mode === 'color'"
                   :src="resolveLogo(store.engine_type)!.url"
                   :alt="store.engine_type"
-                  class="store-card__badge-img"
+                  class="block size-6 object-contain"
                 />
                 <template v-else-if="!resolveLogo(store.engine_type)">{{ engineInitial(store.engine_type) }}</template>
               </div>
-              <div class="store-card__body">
-                <div class="store-card__header">
-                  <h3 class="store-card__title" :title="store.name">{{ store.name }}</h3>
-                  <span v-if="store.source === 'env'" class="store-card__pill">
+              <div class="flex min-w-0 flex-1 flex-col gap-1">
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <h3
+                    class="text-foreground m-0 min-w-0 flex-1 truncate text-sm leading-[1.4] font-semibold"
+                    :title="store.name"
+                  >
+                    {{ store.name }}
+                  </h3>
+                  <span
+                    v-if="store.source === 'env'"
+                    class="shrink-0 rounded-[3px] bg-[var(--td-warning-color-1,#fef3e6)] px-1.5 py-px text-[11px] leading-4 font-medium text-[var(--td-warning-color-7,#b85c00)]"
+                  >
                     {{ t("vectorStoreSettings.envTag") }}
                   </span>
-                  <t-tag
+                  <Badge
                     v-if="store.is_builtin"
-                    theme="primary"
-                    variant="light-outline"
-                    size="small"
+                    variant="outline"
+                    class="border-primary/40 bg-primary/10 text-primary"
                     :title="t('platformSharing.badgeHint')"
-                    >{{ t("platformSharing.badge") }}</t-tag
+                    >{{ t("platformSharing.badge") }}</Badge
                   >
                   <!--
                     测试连接已挪到编辑抽屉的 footer，外层菜单不再有"测试"入口。
                     env 来源（.env 写入）也不需要 dropdown — 没有可执行的动作。
                   -->
+                  <!-- `store-card__actions` is a hook: onStoreCardClick ignores keys pressed inside it. -->
                   <div
                     v-if="authStore.hasRole('admin') && storeActionsFor(store).length > 0"
-                    class="store-card__actions"
+                    class="store-card__actions shrink-0"
                     @click.stop
                   >
-                    <t-dropdown
-                      :options="storeActionsFor(store)"
-                      placement="bottom-right"
-                      attach="body"
-                      trigger="click"
-                      @click="(action: any) => handleAction(action, store)"
-                    >
-                      <t-button variant="text" shape="square" size="small" class="store-card__more">
-                        <t-icon name="ellipsis" />
-                      </t-button>
-                    </t-dropdown>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          class="store-card__more text-placeholder hover:text-foreground focus-visible:text-foreground shrink-0 p-0.5 opacity-0 transition-opacity duration-150 hover:bg-[var(--td-bg-color-secondarycontainer)] focus-visible:bg-[var(--td-bg-color-secondarycontainer)]"
+                          :aria-label="t('docs.tree.moreActions')"
+                        >
+                          <EllipsisIcon />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          v-for="action in storeActionsFor(store)"
+                          :key="action.value"
+                          @select="handleAction(action, store)"
+                        >
+                          <span :class="action.theme === 'error' ? 'text-destructive' : ''">{{ action.content }}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                <div class="store-card__subtitle">
-                  <span class="store-card__type">{{ store.engine_type }}</span>
+                <div class="text-muted-foreground flex min-w-0 flex-wrap items-center gap-1 text-xs leading-[1.4]">
+                  <span class="font-medium">{{ store.engine_type }}</span>
                   <template v-if="getStoreEndpoint(store)">
-                    <span class="store-card__sep">·</span>
-                    <span class="store-card__endpoint" :title="getStoreEndpoint(store)">{{
-                      getStoreEndpoint(store)
-                    }}</span>
+                    <span class="text-placeholder">·</span>
+                    <span
+                      class="text-placeholder min-w-0 truncate font-[ui-monospace,SFMono-Regular,'SF_Mono',Menlo,Consolas,monospace] text-[11px] whitespace-nowrap"
+                      :title="getStoreEndpoint(store)"
+                      >{{ getStoreEndpoint(store) }}</span
+                    >
                   </template>
                 </div>
               </div>
@@ -103,13 +129,17 @@
           <button
             v-if="authStore.hasRole('admin')"
             type="button"
-            class="store-card store-card--add"
+            data-slot="add-store-card"
+            class="border-border text-placeholder hover:border-primary hover:text-primary hover:bg-primary/6 focus-visible:border-primary focus-visible:text-primary focus-visible:bg-primary/6 focus-visible:outline-primary flex h-full min-h-[68px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed bg-transparent text-center transition-all duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2"
             @click="openAddDialog"
           >
-            <span class="store-card--add__icon" aria-hidden="true">
-              <add-icon />
+            <span
+              class="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg"
+              aria-hidden="true"
+            >
+              <PlusIcon class="size-[18px]" />
             </span>
-            <span class="store-card--add__label">{{ t("vectorStoreSettings.addStore") }}</span>
+            <span class="text-[13px] leading-[1.4] font-medium">{{ t("vectorStoreSettings.addStore") }}</span>
           </button>
         </div>
       </div>
@@ -133,10 +163,14 @@
           v-if="drawerLogo?.mode === 'color'"
           :src="drawerLogo.url"
           :alt="form.engine_type"
-          class="header-icon__img"
+          class="block size-6 object-contain"
         />
-        <span v-else-if="drawerLogo?.mode === 'mono'" class="header-icon__mono" :style="drawerLogoStyle" />
-        <span v-else class="header-icon__text">{{ engineInitial(form.engine_type) }}</span>
+        <span
+          v-else-if="drawerLogo?.mode === 'mono'"
+          class="header-icon__mono inline-block size-[22px]"
+          :style="drawerLogoStyle"
+        />
+        <span v-else class="text-[15px] font-semibold tracking-[0.02em]">{{ engineInitial(form.engine_type) }}</span>
       </template>
 
       <!-- 副标题：engine display_name -->
@@ -150,49 +184,71 @@
         始终显示按钮，由 canTestConnection 控制 disabled。
       -->
       <template #footer-left>
-        <t-button variant="outline" :loading="testing" :disabled="!canTestConnection" @click="onDrawerTest">
-          <template #icon>
-            <t-icon v-if="!testing && lastTestOk === true" name="check-circle-filled" class="status-icon available" />
-            <t-icon
-              v-else-if="!testing && lastTestOk === false"
-              name="close-circle-filled"
-              class="status-icon unavailable"
-            />
-          </template>
+        <Button variant="outline" :disabled="testing || !canTestConnection" @click="onDrawerTest">
+          <CircleCheckIcon v-if="!testing && lastTestOk === true" class="text-primary size-4 shrink-0" />
+          <CircleXIcon v-else-if="!testing && lastTestOk === false" class="text-destructive size-4 shrink-0" />
+          <Loader2Icon v-if="testing" class="animate-spin" />
           {{ testing ? t("vectorStoreSettings.testing") : t("vectorStoreSettings.testConnection") }}
-        </t-button>
+        </Button>
       </template>
 
-      <t-form ref="formRef" :data="form" :rules="formRules" label-align="top" class="store-form">
+      <!-- `setting-drawer__section` / `__section-title` are styled by SettingDrawer
+           (spacing, dividers, the brand bar before each title); the fields sit
+           directly in the section, which spaces them. -->
+      <div>
         <!--
           Edit 模式特殊提示：engine_type / connection_config / index_config
           创建后不可改，仅 name 可编辑。用 inline-alert 而不是大块 banner，
           视觉与其他抽屉的提示一致。
         -->
         <section v-if="editingStore" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t("vectorStoreSettings.basicSection", "基本信息") }}</h4>
+          <h4 class="setting-drawer__section-title">
+            {{ t("vectorStoreSettings.basicSection", "基本信息") }}
+          </h4>
 
-          <div class="inline-alert inline-alert--info">
-            <t-icon name="info-circle-filled" class="inline-alert__icon" />
-            <span class="inline-alert__text">{{ t("vectorStoreSettings.immutableNotice") }}</span>
+          <div class="text-foreground flex flex-wrap items-center gap-2 text-[13px] leading-normal whitespace-pre-line">
+            <InfoIcon class="text-primary size-[15px] shrink-0" />
+            <span class="min-w-0 flex-1">{{ t("vectorStoreSettings.immutableNotice") }}</span>
           </div>
 
-          <div class="form-item">
-            <label class="form-label required">{{ t("vectorStoreSettings.nameLabel") }}</label>
-            <t-input v-model="form.name" :placeholder="t('vectorStoreSettings.namePlaceholder')" />
+          <div>
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("vectorStoreSettings.nameLabel") }}
+            </label>
+            <SettingsInput
+              v-model="form.name"
+              :placeholder="t('vectorStoreSettings.namePlaceholder')"
+              input-class="text-[13px] md:text-[13px]"
+            />
+            <p v-if="fieldErrors.name" class="text-destructive m-0 mt-1 text-xs">{{ fieldErrors.name }}</p>
           </div>
 
           <!-- 只读字段以 inline list 展示（轻量 readonly 行） -->
-          <div class="readonly-fields">
-            <div class="readonly-row">
-              <span class="readonly-label">{{ t("vectorStoreSettings.engineTypeLabel") }}</span>
-              <span class="readonly-value">{{ selectedType?.display_name || editingStore.engine_type }}</span>
+          <div class="bg-secondary rounded-lg px-3 py-2.5">
+            <div class="border-border flex items-baseline gap-2 border-b py-1 text-xs leading-[1.4] last:border-b-0">
+              <span class="text-placeholder min-w-[80px] text-[11px] whitespace-nowrap">{{
+                t("vectorStoreSettings.engineTypeLabel")
+              }}</span>
+              <span
+                class="text-foreground font-[ui-monospace,SFMono-Regular,'SF_Mono',Menlo,Consolas,monospace] break-all"
+              >
+                {{ selectedType?.display_name || editingStore.engine_type }}
+              </span>
             </div>
             <template v-if="selectedType">
               <template v-for="field in selectedType.connection_fields" :key="field.name">
-                <div v-if="field.sensitive || form.connection_config[field.name]" class="readonly-row">
-                  <span class="readonly-label">{{ fieldLabel(field.name) }}</span>
-                  <span class="readonly-value">
+                <div
+                  v-if="field.sensitive || form.connection_config[field.name]"
+                  class="border-border flex items-baseline gap-2 border-b py-1 text-xs leading-[1.4] last:border-b-0"
+                >
+                  <span class="text-placeholder min-w-[80px] text-[11px] whitespace-nowrap">{{
+                    fieldLabel(field.name)
+                  }}</span>
+                  <span
+                    class="text-foreground font-[ui-monospace,SFMono-Regular,'SF_Mono',Menlo,Consolas,monospace] break-all"
+                  >
                     {{ field.sensitive ? "********" : form.connection_config[field.name] }}
                   </span>
                 </div>
@@ -200,9 +256,18 @@
             </template>
             <template v-if="selectedType?.index_fields?.length">
               <template v-for="field in selectedType.index_fields" :key="field.name">
-                <div v-if="form.index_config[field.name]" class="readonly-row">
-                  <span class="readonly-label">{{ fieldLabel(field.name) }}</span>
-                  <span class="readonly-value">{{ form.index_config[field.name] }}</span>
+                <div
+                  v-if="form.index_config[field.name]"
+                  class="border-border flex items-baseline gap-2 border-b py-1 text-xs leading-[1.4] last:border-b-0"
+                >
+                  <span class="text-placeholder min-w-[80px] text-[11px] whitespace-nowrap">{{
+                    fieldLabel(field.name)
+                  }}</span>
+                  <span
+                    class="text-foreground font-[ui-monospace,SFMono-Regular,'SF_Mono',Menlo,Consolas,monospace] break-all"
+                  >
+                    {{ form.index_config[field.name] }}
+                  </span>
                 </div>
               </template>
             </template>
@@ -213,18 +278,43 @@
         <template v-else>
           <!-- Section 1 — 基本信息：engine 类型 + 名称 -->
           <section class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">{{ t("vectorStoreSettings.basicSection", "基本信息") }}</h4>
+            <h4 class="setting-drawer__section-title">
+              {{ t("vectorStoreSettings.basicSection", "基本信息") }}
+            </h4>
 
-            <div class="form-item">
-              <label class="form-label required">{{ t("vectorStoreSettings.engineTypeLabel") }}</label>
-              <t-select v-model="form.engine_type" @change="onEngineTypeChange">
-                <t-option v-for="st in storeTypes" :key="st.type" :value="st.type" :label="st.display_name" />
-              </t-select>
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+              >
+                {{ t("vectorStoreSettings.engineTypeLabel") }}
+              </label>
+              <Select v-model="form.engine_type" @update:model-value="onEngineTypeChange">
+                <SelectTrigger class="w-full text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="st in storeTypes" :key="st.type" :value="st.type">
+                    {{ st.display_name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p v-if="fieldErrors.engine_type" class="text-destructive m-0 mt-1 text-xs">
+                {{ fieldErrors.engine_type }}
+              </p>
             </div>
 
-            <div class="form-item">
-              <label class="form-label required">{{ t("vectorStoreSettings.nameLabel") }}</label>
-              <t-input v-model="form.name" :placeholder="t('vectorStoreSettings.namePlaceholder')" />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+              >
+                {{ t("vectorStoreSettings.nameLabel") }}
+              </label>
+              <SettingsInput
+                v-model="form.name"
+                :placeholder="t('vectorStoreSettings.namePlaceholder')"
+                input-class="text-[13px] md:text-[13px]"
+              />
+              <p v-if="fieldErrors.name" class="text-destructive m-0 mt-1 text-xs">{{ fieldErrors.name }}</p>
             </div>
           </section>
 
@@ -232,105 +322,190 @@
           <section v-if="selectedType" class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ t("vectorStoreSettings.connectionInfo") }}</h4>
 
-            <div v-for="field in selectedType.connection_fields" :key="field.name" class="form-item">
-              <label class="form-label" :class="{ required: field.required }">{{ fieldLabel(field.name) }}</label>
+            <div v-for="field in selectedType.connection_fields" :key="field.name">
+              <label
+                class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium"
+                :class="{
+                  'before:text-destructive before:mr-1 before:leading-none before:font-medium before:content-[\'*\']':
+                    field.required,
+                }"
+                >{{ fieldLabel(field.name) }}</label
+              >
 
               <!-- boolean 字段：switch + 行内描述 / TLS 警告 -->
               <template v-if="field.type === 'boolean'">
-                <div class="vision-toggle">
-                  <t-switch v-model="form.connection_config[field.name]" />
+                <div class="flex items-center gap-2">
+                  <Switch
+                    :model-value="!!form.connection_config[field.name]"
+                    @update:model-value="(v: boolean) => setConnectionField(field.name, v)"
+                  />
                 </div>
                 <p
                   v-if="field.name === 'insecure_skip_verify' && form.connection_config[field.name]"
-                  class="form-desc form-desc--warn"
+                  class="text-destructive m-0 mt-1 text-xs leading-normal"
                 >
                   {{ t("vectorStoreSettings.insecureSkipVerifyWarning") }}
                 </p>
               </template>
 
               <!-- 敏感字段（password / api key 等）：lock prefix + password -->
-              <t-input
+              <SettingsInput
                 v-else-if="field.type === 'string' && field.sensitive"
                 v-model="form.connection_config[field.name]"
                 type="password"
                 placeholder="********"
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
 
-              <!-- 数字字段：用 t-input + type=number，与 MCP 高级配置同款；无单位提示 -->
-              <t-input
+              <!-- 数字字段：用 number input，与 MCP 高级配置同款；无单位提示 -->
+              <Input
                 v-else-if="field.type === 'number'"
                 v-model="connectionNumberTextProxy[field.name].value"
                 type="number"
                 :placeholder="field.default != null ? String(field.default) : ' '"
-                class="number-input"
+                class="number-input text-[13px] md:text-[13px]"
               />
 
               <!-- 普通字符串 -->
-              <t-input
+              <Input
                 v-else
                 v-model="form.connection_config[field.name]"
                 :placeholder="field.default?.toString() || ''"
+                class="text-[13px] md:text-[13px]"
               />
+              <p v-if="fieldErrors[`connection_config.${field.name}`]" class="text-destructive m-0 mt-1 text-xs">
+                {{ fieldErrors[`connection_config.${field.name}`] }}
+              </p>
             </div>
           </section>
 
           <!-- Section 3 — 高级索引（仅 selectedType 有 index_fields 时显示） -->
           <section v-if="selectedType?.index_fields?.length" class="setting-drawer__section">
-            <h4 class="setting-drawer__section-title">{{ t("vectorStoreSettings.advancedIndexConfig") }}</h4>
+            <h4 class="setting-drawer__section-title">
+              {{ t("vectorStoreSettings.advancedIndexConfig") }}
+            </h4>
 
             <!-- 折叠/展开开关：保留之前的可选展示行为，但样式更轻量 -->
-            <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
-              <t-icon :name="showAdvanced ? 'chevron-down' : 'chevron-right'" />
+            <button
+              type="button"
+              data-slot="advanced-toggle"
+              class="text-muted-foreground hover:text-primary inline-flex cursor-pointer items-center gap-1 self-start bg-transparent px-0 py-1 text-[13px] select-none"
+              @click="showAdvanced = !showAdvanced"
+            >
+              <ChevronDownIcon v-if="showAdvanced" class="size-3.5" />
+              <ChevronRightIcon v-else class="size-3.5" />
               <span>{{ showAdvanced ? t("common.collapse", "收起") : t("common.expand", "展开") }}</span>
             </button>
 
             <template v-if="showAdvanced">
-              <div v-for="field in selectedType.index_fields" :key="field.name" class="form-item">
-                <label class="form-label">{{ fieldLabel(field.name) }}</label>
+              <div v-for="field in selectedType.index_fields" :key="field.name">
+                <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+                  {{ fieldLabel(field.name) }}
+                </label>
 
                 <!-- 枚举 → 下拉 -->
-                <t-select
-                  v-if="field.enum && field.enum.length"
-                  v-model="form.index_config[field.name]"
-                  :placeholder="field.default?.toString() || ''"
-                >
-                  <t-option v-for="opt in field.enum" :key="opt" :value="opt" :label="opt" />
-                </t-select>
+                <Select v-if="field.enum && field.enum.length" v-model="form.index_config[field.name]">
+                  <SelectTrigger class="w-full text-[13px]">
+                    <SelectValue :placeholder="field.default?.toString() || ''" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="opt in field.enum" :key="opt" :value="opt">{{ opt }}</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 <!-- 数字 → number input -->
-                <t-input
+                <Input
                   v-else-if="field.type === 'number'"
                   v-model="indexNumberTextProxy[field.name].value"
                   type="number"
                   :placeholder="field.default?.toString()"
                   :min="field.min ?? 1"
                   :max="field.max ?? (isReplicaField(field.name) ? 10 : 64)"
-                  class="number-input"
+                  class="number-input text-[13px] md:text-[13px]"
                 />
 
                 <!-- 字符串 -->
-                <t-input
+                <Input
                   v-else
                   v-model="form.index_config[field.name]"
                   :placeholder="field.default?.toString() || ''"
                   :maxlength="128"
+                  class="text-[13px] md:text-[13px]"
                 />
+                <p v-if="fieldErrors[`index_config.${field.name}`]" class="text-destructive m-0 mt-1 text-xs">
+                  {{ fieldErrors[`index_config.${field.name}`] }}
+                </p>
               </div>
             </template>
           </section>
         </template>
-      </t-form>
+      </div>
     </SettingDrawer>
+
+    <!-- 平台共享 / 取消共享确认 -->
+    <Dialog v-model:open="sharingDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>
+            {{ sharingDialog.shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction") }}
+          </DialogTitle>
+          <DialogDescription>
+            {{
+              sharingDialog.store
+                ? sharingDialog.shared
+                  ? t("platformSharing.confirmShare", { name: sharingDialog.store.name })
+                  : t("platformSharing.confirmUnshare", { name: sharingDialog.store.name })
+                : ""
+            }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            :variant="sharingDialog.shared ? 'default' : 'destructive'"
+            :class="
+              sharingDialog.shared
+                ? ''
+                : 'bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive'
+            "
+            :disabled="sharingDialog.pending"
+            @click="doToggleSharing"
+          >
+            <Loader2Icon v-if="sharingDialog.pending" class="animate-spin" />
+            {{ t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 删除确认 -->
+    <Dialog v-model:open="deleteDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("vectorStoreSettings.deleteConfirm") }}</DialogTitle>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <!-- The old DialogPlugin.confirm used its default (primary) confirm button here. -->
+          <Button :disabled="deleteDialogPending" @click="doDelete">
+            <Loader2Icon v-if="deleteDialogPending" class="animate-spin" />
+            {{ t("common.delete") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, type WritableComputedRef } from "vue";
-import { MessagePlugin, DialogPlugin } from "tdesign-vue-next";
+import { ref, computed, onMounted, watch, reactive, type WritableComputedRef } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
-import { AddIcon } from "tdesign-icons-vue-next";
 import {
   listVectorStores,
   listVectorStoreTypes,
@@ -345,6 +520,40 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { providerLogo } from "./providerLogos";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import SettingsInput from "./SettingsInput.vue";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  EllipsisIcon,
+  InfoIcon,
+  Loader2Icon,
+  LockIcon,
+  PlusIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -358,7 +567,6 @@ const editingStore = ref<VectorStoreEntity | null>(null);
 const testing = ref(false);
 const saving = ref(false);
 const showAdvanced = ref(false);
-const formRef = ref<any>();
 
 const form = ref<{
   name: string;
@@ -385,6 +593,55 @@ watch(
   },
   { deep: true },
 );
+
+// Per-field validation messages, replacing the old t-form rules display.
+const fieldErrors = reactive<Record<string, string>>({});
+
+const clearFieldErrors = () => {
+  for (const k of Object.keys(fieldErrors)) delete fieldErrors[k];
+};
+
+// The same checks the t-form rules enforced: name/engine required, required
+// connection fields, index string fields match the name pattern (empty OK).
+function validateForm(): boolean {
+  clearFieldErrors();
+  let ok = true;
+  const fail = (key: string, message: string) => {
+    fieldErrors[key] = message;
+    ok = false;
+  };
+
+  if (!form.value.name.trim()) {
+    fail("name", t("vectorStoreSettings.validation.nameRequired"));
+  }
+
+  if (!editingStore.value) {
+    if (!form.value.engine_type) {
+      fail("engine_type", t("vectorStoreSettings.validation.engineTypeRequired"));
+    }
+    const st = selectedType.value;
+    if (st) {
+      for (const field of st.connection_fields) {
+        if (!field.required) continue;
+        const v = form.value.connection_config[field.name];
+        if (v == null || v === "" || (typeof v === "string" && v.trim() === "")) {
+          fail(
+            `connection_config.${field.name}`,
+            t("vectorStoreSettings.validation.fieldRequired", { field: fieldLabel(field.name) }),
+          );
+        }
+      }
+      for (const field of st.index_fields || []) {
+        if (field.type !== "string") continue;
+        const val = form.value.index_config[field.name];
+        if (val && !indexNamePattern.test(String(val))) {
+          fail(`index_config.${field.name}`, t("vectorStoreSettings.validation.indexNamePattern"));
+        }
+      }
+    }
+  }
+  return ok;
+}
 
 // ===== Computed =====
 const envStores = computed(() => stores.value.filter((s) => s.source === "env"));
@@ -449,40 +706,6 @@ const storeActionsFor = (store: VectorStoreEntity) => {
   return actions;
 };
 
-const formRules = computed(() => {
-  const rules: Record<string, any[]> = {
-    name: [{ required: true, message: t("vectorStoreSettings.validation.nameRequired") }],
-  };
-  if (!editingStore.value) {
-    rules.engine_type = [{ required: true, message: t("vectorStoreSettings.validation.engineTypeRequired") }];
-    if (selectedType.value) {
-      for (const field of selectedType.value.connection_fields) {
-        if (field.required) {
-          rules[`connection_config.${field.name}`] = [
-            {
-              required: true,
-              message: t("vectorStoreSettings.validation.fieldRequired", { field: fieldLabel(field.name) }),
-            },
-          ];
-        }
-      }
-      // Index name/collection string fields: pattern validation (optional — empty is allowed)
-      for (const field of selectedType.value.index_fields || []) {
-        if (field.type === "string") {
-          rules[`index_config.${field.name}`] = [
-            {
-              validator: (val: string) => !val || indexNamePattern.test(val),
-              message: t("vectorStoreSettings.validation.indexNamePattern"),
-              trigger: "blur",
-            },
-          ];
-        }
-      }
-    }
-  }
-  return rules;
-});
-
 // Index/collection name pattern: must start with letter, alphanumeric + _ + - only, max 128
 const indexNamePattern = /^[a-zA-Z][a-zA-Z0-9_-]{0,127}$/;
 
@@ -527,10 +750,16 @@ const badgeStyle = (engineType: string): Record<string, string> => {
   return logo?.mode === "mono" ? { "--logo-url": `url("${logo.url}")` } : {};
 };
 
+// boolean 连接字段的回写：the Switch reports its new value through update:modelValue.
+const setConnectionField = (name: string, value: boolean) => {
+  form.value.connection_config[name] = value;
+};
+
 const onEngineTypeChange = () => {
   form.value.connection_config = {};
   form.value.index_config = {};
   showAdvanced.value = false;
+  clearFieldErrors();
   // Drop cached number-text proxies so a switch to a different engine
   // doesn't keep stale entries pointing at the old field set.
   for (const k of Object.keys(connectionNumberText)) delete connectionNumberText[k];
@@ -601,6 +830,7 @@ const loadStoreTypes = async () => {
 const openAddDialog = () => {
   editingStore.value = null;
   showAdvanced.value = false;
+  clearFieldErrors();
   form.value = {
     name: "",
     engine_type: storeTypes.value[0]?.type || "",
@@ -632,6 +862,7 @@ const editStore = (store: VectorStoreEntity) => {
   }
   editingStore.value = store;
   showAdvanced.value = false;
+  clearFieldErrors();
   form.value = {
     name: store.name,
     engine_type: store.engine_type,
@@ -645,16 +876,8 @@ const editStore = (store: VectorStoreEntity) => {
 // SettingDrawer 的"保存"按钮触发：手动校验后写后端。
 // edit 模式只能改 name；create 模式提交完整 connection / index 配置。
 const onDrawerConfirm = async () => {
-  const result = await formRef.value?.validate();
-  if (result !== true && result !== undefined) {
-    // 取第一条错误展示
-    const firstError =
-      typeof result === "object"
-        ? Object.values(result)
-            .map((errs: any) => (Array.isArray(errs) ? errs[0]?.message : ""))
-            .find(Boolean)
-        : "";
-    MessagePlugin.warning(firstError || (t("vectorStoreSettings.toasts.errorGeneric") as string));
+  if (!validateForm()) {
+    MessagePlugin.warning(t("vectorStoreSettings.toasts.errorGeneric") as string);
     return;
   }
 
@@ -700,46 +923,62 @@ const handleAction = (action: { value: string }, store: VectorStoreEntity) => {
 
 // 切换平台共享。取消共享时后端会拒绝仍被其他空间知识库绑定的向量库，
 // 错误文案里带着引用数量，直接透传比一句泛化的失败提示有用。
+const sharingDialogVisible = ref(false);
+const sharingDialog = reactive<{ store: VectorStoreEntity | null; shared: boolean; pending: boolean }>({
+  store: null,
+  shared: false,
+  pending: false,
+});
+
 const confirmSharing = (store: VectorStoreEntity) => {
-  const shared = !store.is_builtin;
-  const dialog = DialogPlugin.confirm({
-    header: shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction"),
-    body: shared
-      ? t("platformSharing.confirmShare", { name: store.name })
-      : t("platformSharing.confirmUnshare", { name: store.name }),
-    confirmBtn: { content: t("common.confirm"), theme: shared ? "primary" : "danger" },
-    cancelBtn: { content: t("common.cancel") },
-    onConfirm: async () => {
-      dialog.destroy();
-      try {
-        await setVectorStoreSharing(store.id!, shared);
-        MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
-        await loadStores();
-      } catch (error: any) {
-        MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
-      }
-    },
-  });
+  sharingDialog.store = store;
+  sharingDialog.shared = !store.is_builtin;
+  sharingDialog.pending = false;
+  sharingDialogVisible.value = true;
 };
 
+async function doToggleSharing() {
+  const store = sharingDialog.store;
+  if (!store || sharingDialog.pending) return;
+  const shared = sharingDialog.shared;
+  sharingDialog.pending = true;
+  try {
+    await setVectorStoreSharing(store.id!, shared);
+    MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
+    sharingDialogVisible.value = false;
+    await loadStores();
+  } catch (error: any) {
+    MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
+  } finally {
+    sharingDialog.pending = false;
+  }
+}
+
+const deleteDialogVisible = ref(false);
+const deleteDialogPending = ref(false);
+const deleteTarget = ref<VectorStoreEntity | null>(null);
+
 const confirmDelete = (store: VectorStoreEntity) => {
-  const dialog = DialogPlugin.confirm({
-    header: t("vectorStoreSettings.deleteConfirm"),
-    confirmBtn: t("common.delete"),
-    cancelBtn: t("common.cancel"),
-    theme: "warning",
-    onConfirm: async () => {
-      try {
-        await deleteVectorStoreAPI(store.id!);
-        MessagePlugin.success(t("vectorStoreSettings.toasts.storeDeleted"));
-        await loadStores();
-      } catch (error: any) {
-        MessagePlugin.error(error?.message || t("vectorStoreSettings.toasts.errorGeneric"));
-      }
-      dialog.destroy();
-    },
-  });
+  deleteTarget.value = store;
+  deleteDialogPending.value = false;
+  deleteDialogVisible.value = true;
 };
+
+async function doDelete() {
+  const store = deleteTarget.value;
+  if (!store || deleteDialogPending.value) return;
+  deleteDialogPending.value = true;
+  try {
+    await deleteVectorStoreAPI(store.id!);
+    MessagePlugin.success(t("vectorStoreSettings.toasts.storeDeleted"));
+    deleteDialogVisible.value = false;
+    await loadStores();
+  } catch (error: any) {
+    MessagePlugin.error(error?.message || t("vectorStoreSettings.toasts.errorGeneric"));
+  } finally {
+    deleteDialogPending.value = false;
+  }
+}
 
 // 测试连接（在抽屉内触发）。create 模式下用当前表单数据，调
 // /test/raw 端点。edit 模式按钮 disabled，所以这里只处理 create 路径。
@@ -777,172 +1016,27 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="less" scoped>
-.vectorstore-settings {
-  width: 100%;
+<style scoped>
+/*
+ * Utilities cover layout; these rules reach into generated markup or repeat
+ * per-engine tints that are clearer as CSS:
+ *  - mono logos are CSS-masked icons driven by a per-card --logo-url;
+ *  - the per-engine badge tints (11 vector backends);
+ *  - the "more" button fading in on hover / keyboard focus;
+ *  - hiding the native number-input spinners.
+ */
+.header-icon__mono {
+  background-color: currentColor;
+  -webkit-mask-image: var(--logo-url);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-image: var(--logo-url);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: 48px 0;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.list-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 16px 0;
-}
-
-.store-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-
-  .store-card--add {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-// 与 Parser / Storage / Model 等同形：徽章 + 三段式。env 来源走 secondaryContainer
-// 底色暗示只读；test 按钮做成 text 模式，避免在标题行抢眼。
-.store-card {
-  display: flex;
-  flex-direction: column;
-  padding: 14px 14px 14px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-  min-width: 0;
-
-  &--env {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &--clickable {
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--td-brand-color-3, var(--td-brand-color));
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-  }
-
-  &--env:not(.store-card--clickable):hover {
-    border-color: var(--td-component-stroke);
-    box-shadow: none;
-  }
-
-  &--add {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 68px;
-    border-style: dashed;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    font: inherit;
-    text-align: center;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-brand-color);
-      border-color: var(--td-brand-color);
-      background: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-      box-shadow: none;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-
-    &__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-      color: var(--td-brand-color);
-      font-size: 18px;
-    }
-
-    &__label {
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.4;
-    }
-  }
-}
-
-.store-card__actions {
-  flex-shrink: 0;
-}
-
-.store-card__main {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-
-.store-card__badge {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-
-// 真实品牌 logo 的渲染：保留每个 engine 类的 color 作为品牌色，
-// 把背景换成中性白 + 细边框；用 ::before mask-image 把单色 SVG 染成 currentColor。
-// 选择器叠了一层 .store-card 是为了胜过 `.store-card--<engine> .store-card__badge`
-// 那条更具体的品牌底色规则。
 .store-card .store-card__badge--logo {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
@@ -963,14 +1057,7 @@ onMounted(async () => {
   mask-size: contain;
 }
 
-.store-card__badge-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-// 各 vector engine 配色（覆盖 11 类常见后端，未列出的回落到默认蓝）
+/* 各 vector engine 配色（覆盖 11 类常见后端，未列出的回落到默认蓝） */
 .store-card--qdrant .store-card__badge {
   background: rgba(225, 38, 38, 0.12);
   color: #e12626;
@@ -1013,320 +1100,36 @@ onMounted(async () => {
   color: #464646;
 }
 
-.store-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.store-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.store-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.store-card__pill {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
-  border-radius: 3px;
-  color: var(--td-warning-color-7, #b85c00);
-  background: var(--td-warning-color-1, #fef3e6);
-}
-
-.store-card__more {
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder);
-  padding: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
 .store-card:hover .store-card__more,
 .store-card:focus-within .store-card__more,
 .store-card__actions:focus-within .store-card__more {
   opacity: 1;
 }
 
-.store-card__subtitle {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--td-text-color-secondary);
-  min-width: 0;
+/* `number-input` sits on the <input> itself (the Input's root element). */
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
 }
 
-.store-card__type {
-  font-weight: 500;
-}
-
-.store-card__sep {
-  color: var(--td-text-color-placeholder);
-}
-
-.store-card__endpoint {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.empty-stores {
-  padding: 64px 0;
-  text-align: center;
-
-  :deep(.t-empty__description) {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    margin-bottom: 16px;
-  }
-}
-
-// ---- 抽屉内容 — 与 ModelEditorDialog 同款约定 ----
-.form-item {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-
-  &.required::before {
-    content: "*";
-    color: var(--td-error-color);
-    margin-right: 4px;
-    font-weight: 500;
-    line-height: 1;
-  }
-}
-
-.form-desc {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--inline {
-    margin: 0;
-  }
-
-  // TLS 警告等"危险确认"用红字
-  &--warn {
-    color: var(--td-error-color);
-  }
-}
-
-:deep(.t-input),
-:deep(.t-select),
-:deep(.t-textarea) {
-  width: 100%;
-  font-size: 13px;
-}
-
-// 隐藏 t-form 默认 form-item 容器 — 走自定义 .form-item / .form-label
-:deep(.t-form) .t-form-item {
-  display: none;
-}
-
-.vision-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// ---- inline alert（替代之前的 .immutable-notice 大块横幅） ----
-.inline-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  flex-wrap: wrap;
-
-  white-space: pre-line;
-
-  &__icon {
-    font-size: 15px;
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-  }
-
-  &__text {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  &--info {
-    color: var(--td-text-color-primary);
-
-    .inline-alert__icon {
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-// ---- 编辑模式只读字段列表（保持原有视觉，但去掉外框，紧贴 alert 下方）----
-.readonly-fields {
-  padding: 10px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-}
-
-.readonly-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 12px;
-  line-height: 1.4;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.readonly-label {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  white-space: nowrap;
-  min-width: 80px;
-}
-
-.readonly-value {
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  word-break: break-all;
-}
-
-// ---- 高级索引展开/收起按钮 ----
-.advanced-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  background: transparent;
-  border: none;
-  font-family: inherit;
-  cursor: pointer;
-  user-select: none;
-  align-self: flex-start;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-
-  .t-icon {
-    font-size: 14px;
-  }
-}
-
-// ---- Number input：去原生 spinner（与 MCP 高级配置同款）----
-.number-input {
-  :deep(input::-webkit-outer-spin-button),
-  :deep(input::-webkit-inner-spin-button) {
-    -webkit-appearance: none;
-    appearance: none;
-    margin: 0;
-  }
-
-  :deep(input[type="number"]) {
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
-}
-
-// ---- Header 图标徽章 ----
-.header-icon__img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-.header-icon__mono {
-  display: inline-block;
-  width: 22px;
-  height: 22px;
-  background-color: currentColor;
-  -webkit-mask-image: var(--logo-url);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-image: var(--logo-url);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-}
-
-.header-icon__text {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-// ---- footer-left 测试按钮的状态 icon ----
-.status-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-
-  &.available {
-    color: var(--td-brand-color);
-  }
-  &.unavailable {
-    color: var(--td-error-color);
-  }
+.number-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 </style>
 
 <!--
   Non-scoped block: per-engine header-icon coloring + color-logo background
   tweak. Same pattern as Storage/Parser/WebSearch drawers — these rules
-  must be global so they reach the t-drawer panel even if its scoped
-  data-attribute is dropped in some builds. Each rule mirrors the matching
-  .store-card--{engine} .store-card__badge from the scoped block above so
-  list-card → drawer hand-off stays visually continuous.
+  must be global so they reach the teleported drawer panel even if its
+  scoped data-attribute is dropped in some builds. Each rule mirrors the
+  matching .store-card--{engine} .store-card__badge from the scoped block
+  above so list-card → drawer hand-off stays visually continuous.
 -->
-<style lang="less">
-// 彩色 logo 时给 header-icon 容器一个白底 + 1px 边
+<style>
+/* 彩色 logo 时给 header-icon 容器一个白底 + 1px 边 */
 .vectorstore-drawer .setting-drawer__header-icon:has(.header-icon__img) {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);

@@ -1,32 +1,43 @@
 <template>
-  <div class="chat-history-settings">
-    <div class="section-header">
-      <h2>{{ t("chatHistorySettings.title") }}</h2>
-      <p class="section-description">{{ t("chatHistorySettings.description") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ t("chatHistorySettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ t("chatHistorySettings.description") }}</p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- 启用开关 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("chatHistorySettings.enableLabel") }}</label>
-          <p class="desc">{{ t("chatHistorySettings.enableDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ t("chatHistorySettings.enableLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("chatHistorySettings.enableDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch v-model="localEnabled" @change="handleEnabledChange" />
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <Switch :model-value="localEnabled" @update:model-value="onEnabledChange" />
         </div>
       </div>
 
       <!-- Embedding 模型选择 -->
-      <div v-if="localEnabled" class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("chatHistorySettings.embeddingModelLabel") }}</label>
-          <p class="desc">{{ t("chatHistorySettings.embeddingModelDescription") }}</p>
-          <p v-if="modelLocked" class="desc warning-text">
+      <div
+        v-if="localEnabled"
+        class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ t("chatHistorySettings.embeddingModelLabel") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("chatHistorySettings.embeddingModelDescription") }}
+          </p>
+          <p v-if="modelLocked" class="text-warning mt-1 mb-0 text-[13px] leading-normal">
             {{ t("chatHistorySettings.embeddingModelLocked") }}
           </p>
         </div>
-        <div class="setting-control" style="min-width: 280px">
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
           <ModelSelector
             model-type="Embedding"
             :selected-model-id="localEmbeddingModelId"
@@ -38,17 +49,19 @@
     </div>
 
     <!-- 统计信息 -->
-    <div class="stats-section">
-      <h3 class="stats-title">{{ t("chatHistorySettings.statsTitle") }}</h3>
-      <div v-if="stats && stats.enabled && stats.knowledge_base_id" class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value">{{ stats.indexed_message_count }}</div>
-          <div class="stat-label">{{ t("chatHistorySettings.statsIndexedMessages") }}</div>
+    <div class="border-border mt-8 border-t pt-6">
+      <h3 class="text-foreground mt-0 mb-4 text-base font-semibold">{{ t("chatHistorySettings.statsTitle") }}</h3>
+      <div v-if="stats && stats.enabled && stats.knowledge_base_id" class="grid grid-cols-2 gap-4">
+        <div class="bg-secondary rounded-lg p-5 text-center">
+          <div class="text-primary mb-1 text-[28px] font-bold">{{ stats.indexed_message_count }}</div>
+          <div class="text-muted-foreground text-[13px]">{{ t("chatHistorySettings.statsIndexedMessages") }}</div>
         </div>
       </div>
-      <div v-else class="stats-empty">
-        <p class="stats-empty-title">{{ t("chatHistorySettings.statsNotConfigured") }}</p>
-        <p class="stats-empty-desc">{{ t("chatHistorySettings.statsNotConfiguredDesc") }}</p>
+      <div v-else class="bg-secondary rounded-lg p-6 text-center">
+        <p class="text-muted-foreground m-0 mb-1 text-sm font-medium">
+          {{ t("chatHistorySettings.statsNotConfigured") }}
+        </p>
+        <p class="text-placeholder m-0 text-[13px]">{{ t("chatHistorySettings.statsNotConfiguredDesc") }}</p>
       </div>
     </div>
   </div>
@@ -66,6 +79,8 @@ import {
   type ChatHistoryConfig,
   type ChatHistoryKBStats,
 } from "@/api/chat-history";
+
+import { Switch } from "@/components/ui/switch";
 
 const { t } = useI18n();
 
@@ -190,6 +205,12 @@ const debouncedSave = () => {
 
 // Handlers
 const handleEnabledChange = () => debouncedSave();
+// The Switch reports its new value through `update:modelValue`; the wrapper
+// stores it and then runs the old change handler, which only schedules a save.
+const onEnabledChange = (value: boolean) => {
+  localEnabled.value = value;
+  handleEnabledChange();
+};
 const handleModelChange = (modelId: string) => {
   localEmbeddingModelId.value = modelId;
   debouncedSave();
@@ -202,138 +223,3 @@ onMounted(async () => {
   await loadStats();
 });
 </script>
-
-<style lang="less" scoped>
-.chat-history-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.warning-text {
-  color: var(--td-warning-color) !important;
-  margin-top: 4px !important;
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-// Stats section
-.stats-section {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.stats-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 16px 0;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--td-brand-color);
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-}
-
-.stats-empty {
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  padding: 24px;
-  text-align: center;
-}
-
-.stats-empty-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-  margin: 0 0 4px 0;
-}
-
-.stats-empty-desc {
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-  margin: 0;
-}
-</style>

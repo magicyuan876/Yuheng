@@ -1,10 +1,10 @@
 <template>
-  <div class="main" ref="dropzone">
+  <div class="bg-card flex h-full min-h-0 w-full min-w-[600px] items-stretch" ref="dropzone">
     <Menu></Menu>
-    <div v-if="isRouterAlive" class="platform-route-outlet">
+    <div v-if="isRouterAlive" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <RouterView />
     </div>
-    <div class="upload-mask" v-show="ismask">
+    <div class="fixed inset-0 z-[999] flex items-center justify-center bg-white/80" v-show="ismask">
       <UploadMask></UploadMask>
     </div>
     <!-- 全局设置模态框，供所有 platform 子路由使用 -->
@@ -205,44 +205,15 @@ onUnmounted(() => {
   dragCounter = 0;
 });
 </script>
-<style lang="less">
-.main {
-  display: flex;
-  align-items: stretch;
-  width: 100%;
-  height: 100%;
-  min-width: 600px;
-  min-height: 0;
-  /* 统一整页背景，让左侧菜单与右侧内容区视觉连贯 */
-  background: var(--td-bg-color-container);
-}
-
-/* 右侧路由区：占满剩余宽度与整列高度，并把 min-height:0 传给子页面以便内部 flex 滚动 */
-.platform-route-outlet {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.upload-mask {
-  background-color: rgba(255, 255, 255, 0.8);
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  z-index: 999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
+<style>
+/*
+ * No utility exists for the non-standard user-drag property, and the rule has
+ * to reach every <img> rendered in the routed outlet, not just images this
+ * template owns. (-khtml/-moz/-o prefixed copies in the old block were no-ops
+ * in every supported browser; -webkit- is the only one that matters.)
+ */
 img {
   -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  -o-user-drag: none;
   user-drag: none;
 }
 </style>

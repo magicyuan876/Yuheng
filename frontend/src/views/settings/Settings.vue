@@ -1,33 +1,45 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="settings-overlay">
-        <div class="settings-modal">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm"
+      >
+        <div
+          class="modal-panel bg-card relative flex h-[780px] max-h-[calc(100vh-40px)] w-full max-w-[1080px] flex-col overflow-hidden rounded-xl shadow-[0_6px_28px_rgba(15,23,42,0.08)]"
+        >
           <!-- 关闭按钮 -->
-          <button class="close-btn" @click="handleClose" :aria-label="$t('general.close')">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
+          <button
+            type="button"
+            data-slot="close-button"
+            class="text-muted-foreground hover:bg-accent hover:text-foreground absolute top-4 right-4 z-10 flex size-8 cursor-pointer items-center justify-center rounded-md transition-all duration-200"
+            @click="handleClose"
+            :aria-label="$t('general.close')"
+          >
+            <XIcon class="size-5" />
           </button>
 
-          <div class="settings-container">
+          <div class="flex h-full w-full overflow-hidden">
             <!-- 左侧导航 -->
-            <div class="settings-sidebar">
-              <div class="sidebar-header">
-                <h2 class="sidebar-title">{{ $t("general.settings") }}</h2>
+            <div
+              class="border-border flex w-[208px] shrink-0 flex-col overflow-hidden border-r bg-[var(--td-bg-color-settings-modal)]"
+            >
+              <div class="border-border shrink-0 border-b px-3.5 pt-4 pb-3">
+                <h2 class="text-foreground m-0 text-base font-semibold">{{ $t("general.settings") }}</h2>
               </div>
-              <div class="settings-nav">
+              <div class="settings-nav min-h-0 flex-1 overflow-y-auto p-2 pb-3">
                 <template v-for="group in navGroups" :key="group.key">
-                  <div class="nav-group-title">{{ group.label }}</div>
+                  <div class="text-placeholder px-3.5 pt-2.25 pb-1 text-xs font-semibold tracking-[0.02em]">
+                    {{ group.label }}
+                  </div>
                   <template v-for="item in group.items" :key="item.key">
                     <div
                       :class="[
-                        'nav-item',
-                        {
-                          active: currentSection === item.key,
-                          'has-submenu': item.children && item.children.length > 0,
-                          expanded: expandedMenus.includes(item.key),
-                        },
+                        'mb-0.5 flex cursor-pointer items-center rounded-md px-3 py-1.5 text-sm transition-all duration-200 select-none',
+                        // Exclusive sets: the active item keeps its tint on hover, as it did.
+                        currentSection === item.key
+                          ? 'bg-secondary text-primary font-medium'
+                          : 'text-foreground hover:bg-[var(--td-bg-color-container-hover)]',
                       ]"
                       @click="handleNavClick(item)"
                     >
@@ -39,7 +51,7 @@
                         viewBox="0 0 18 18"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
-                        class="nav-icon"
+                        class="mr-[9px] flex shrink-0 items-center justify-center"
                       >
                         <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.2" fill="none" />
                         <path d="M 9 2 A 3.5 7 0 0 0 9 16" stroke="currentColor" stroke-width="1.2" fill="none" />
@@ -63,26 +75,43 @@
                           stroke-linecap="round"
                         />
                       </svg>
-                      <span v-else-if="item.emoji" class="nav-icon nav-icon-emoji">{{ item.emoji }}</span>
-                      <t-icon v-else :name="item.icon" class="nav-icon" />
-                      <span class="nav-label">{{ item.label }}</span>
-                      <t-icon
+                      <span
+                        v-else-if="item.emoji"
+                        class="mr-[9px] flex shrink-0 items-center justify-center text-sm leading-none"
+                      >
+                        {{ item.emoji }}
+                      </span>
+                      <component
+                        :is="item.icon"
+                        v-else
+                        class="mr-[9px] flex size-4 shrink-0 items-center justify-center"
+                      />
+                      <span class="flex-1">{{ item.label }}</span>
+                      <component
+                        :is="expandedMenus.includes(item.key) ? ChevronDownIcon : ChevronRightIcon"
                         v-if="item.children && item.children.length > 0"
-                        :name="expandedMenus.includes(item.key) ? 'chevron-down' : 'chevron-right'"
-                        class="expand-icon"
+                        class="ml-1 size-3.5 transition-transform duration-200"
                       />
                     </div>
 
                     <!-- 子菜单 -->
                     <Transition name="submenu">
-                      <div v-if="item.children && expandedMenus.includes(item.key)" class="submenu">
+                      <div
+                        v-if="item.children && expandedMenus.includes(item.key)"
+                        class="mb-0.75 ml-7 overflow-hidden"
+                      >
                         <div
                           v-for="(child, childIndex) in item.children"
                           :key="childIndex"
-                          :class="['submenu-item', { active: currentSubSection === child.key }]"
+                          class="mb-0.5 cursor-pointer rounded px-3 py-1.25 text-[13px] transition-all duration-200 select-none"
+                          :class="
+                            currentSubSection === child.key
+                              ? 'bg-secondary text-primary font-medium'
+                              : 'text-foreground hover:bg-[var(--td-bg-color-container-hover)]'
+                          "
                           @click.stop="handleSubMenuClick(item.key, child.key)"
                         >
-                          <span class="submenu-label">{{ child.label }}</span>
+                          <span class="block">{{ child.label }}</span>
                         </div>
                       </div>
                     </Transition>
@@ -92,23 +121,30 @@
             </div>
 
             <!-- 右侧内容区域 -->
-            <div class="settings-content">
+            <div class="bg-card settings-content flex-1 overflow-y-auto">
               <div
-                class="content-wrapper"
-                :class="{
-                  'content-wrapper--wide': currentSection === 'members',
-                  'content-wrapper--full': SYSTEM_ADMIN_SECTIONS.has(currentSection),
-                }"
+                :class="
+                  currentSection === 'members'
+                    ? 'box-border w-full px-9 pt-8 pb-10'
+                    : SYSTEM_ADMIN_SECTIONS.has(currentSection)
+                      ? 'box-border w-full px-[34px] pt-[30px] pb-10'
+                      : 'max-w-[760px] px-12 py-10'
+                "
               >
                 <!-- 角色不允许访问当前 section（deep-link 进来 / 跨空间切换后角色降级）—— 优先于具体 section 渲染。
                      正常导航走 navItems filter 不会到这里，但 watch(navItems) 的 fallback 会在角色降级
                      的瞬间触发；这一段做兜底兼容旧 URL。 -->
-                <div v-if="!canSeeSection(currentSection)" class="section role-denied">
-                  <div class="role-denied-icon">
-                    <t-icon name="lock-on" size="48px" />
+                <div
+                  v-if="!canSeeSection(currentSection)"
+                  class="section flex min-h-[240px] flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+                >
+                  <div class="text-placeholder">
+                    <LockIcon class="size-12" />
                   </div>
-                  <div class="role-denied-title">{{ $t("settings.roleDenied.title") }}</div>
-                  <div class="role-denied-desc">{{ $t("settings.roleDenied.desc") }}</div>
+                  <div class="text-foreground text-base font-semibold">{{ $t("settings.roleDenied.title") }}</div>
+                  <div class="text-muted-foreground max-w-[360px] text-[13px] leading-normal">
+                    {{ $t("settings.roleDenied.desc") }}
+                  </div>
                 </div>
                 <template v-else>
                   <!-- 常规设置 -->
@@ -243,6 +279,30 @@ import {
   settingsQueryUnchanged,
 } from "@/config/settingsRoute";
 
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleUserRoundIcon,
+  CircuitBoardIcon,
+  CloudIcon,
+  DatabaseIcon,
+  FileSearchIcon,
+  HistoryIcon,
+  InfoIcon,
+  ListIcon,
+  ListTodoIcon,
+  LockIcon,
+  MessageSquareIcon,
+  SearchIcon,
+  ServerIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  UsersIcon,
+  XIcon,
+  type LucideIcon,
+} from "@lucide/vue";
+
 const route = useRoute();
 const router = useRouter();
 const uiStore = useUIStore();
@@ -257,7 +317,7 @@ const expandedMenus = ref<string[]>([]);
 
 type NavItem = {
   key: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   emoji?: string;
   children?: Array<{ key: string; label: string }>;
@@ -331,23 +391,23 @@ const navItems = computed(() => {
   // 服务端在每条路由上仍以 g.Viewer/Admin/Owner 为准，这里只决定 UI 是
   // 否露入口；改动入口规则请同步更新 settingsAccess.ts 和对应后端路由。
   const all: NavItem[] = [
-    { key: "general", icon: "setting", label: t("general.title") },
-    { key: "ollama", icon: "server", label: "Ollama" },
-    { key: "models", icon: "control-platform", label: t("settings.modelManagement") },
-    { key: "websearch", icon: "search", label: t("settings.webSearchConfig") },
-    { key: "chathistory", icon: "chat", label: t("chatHistorySettings.title") },
-    { key: "vectorstore", icon: "data-base", label: t("settings.vectorStoreEngine") },
-    { key: "parser", icon: "file-search", label: t("settings.parserEngine") },
-    { key: "storage", icon: "cloud", label: t("settings.storageEngine") },
-    { key: "system", icon: "info-circle", label: t("settings.versionInfo") },
-    { key: "system-global", icon: "server", label: t("settings.system") },
-    { key: "runtime-queues", icon: "queue", label: t("settings.taskQueue") },
-    { key: "platform-api-keys", icon: "secured", label: t("platformApiKeys.title") },
-    { key: "system-audit-log", icon: "history", label: t("system.globalSettings.audit.tabLabel") },
-    { key: "userprofile", icon: "user", label: t("userProfile.title") },
-    { key: "tenant", icon: "user-circle", label: t("settings.tenantInfo") },
-    { key: "members", icon: "usergroup", label: t("tenantMember.title") },
-    { key: "groups", icon: "view-list", label: t("docs.groups.title") },
+    { key: "general", icon: SettingsIcon, label: t("general.title") },
+    { key: "ollama", icon: ServerIcon, label: "Ollama" },
+    { key: "models", icon: CircuitBoardIcon, label: t("settings.modelManagement") },
+    { key: "websearch", icon: SearchIcon, label: t("settings.webSearchConfig") },
+    { key: "chathistory", icon: MessageSquareIcon, label: t("chatHistorySettings.title") },
+    { key: "vectorstore", icon: DatabaseIcon, label: t("settings.vectorStoreEngine") },
+    { key: "parser", icon: FileSearchIcon, label: t("settings.parserEngine") },
+    { key: "storage", icon: CloudIcon, label: t("settings.storageEngine") },
+    { key: "system", icon: InfoIcon, label: t("settings.versionInfo") },
+    { key: "system-global", icon: ServerIcon, label: t("settings.system") },
+    { key: "runtime-queues", icon: ListTodoIcon, label: t("settings.taskQueue") },
+    { key: "platform-api-keys", icon: ShieldCheckIcon, label: t("platformApiKeys.title") },
+    { key: "system-audit-log", icon: HistoryIcon, label: t("system.globalSettings.audit.tabLabel") },
+    { key: "userprofile", icon: UserIcon, label: t("userProfile.title") },
+    { key: "tenant", icon: CircleUserRoundIcon, label: t("settings.tenantInfo") },
+    { key: "members", icon: UsersIcon, label: t("tenantMember.title") },
+    { key: "groups", icon: ListIcon, label: t("docs.groups.title") },
   ];
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
   // viewer 入口然后角色一返回又消失，先卡住不渲染更稳，跟原先 members
@@ -585,193 +645,12 @@ onUnmounted(() => {
 });
 </script>
 
-<style lang="less" scoped>
-/* 遮罩层 */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-/* 弹窗容器 */
-.settings-modal {
-  position: relative;
-  width: 100%;
-  // 1080×780 trades a touch of small-screen real estate for noticeably
-  // less cramped tables (member list, system settings rows). Outer
-  // padding is 20px so 1080 + 40 = 1120, comfortably within typical
-  // laptops (1280+). Below 1100px viewport the `width: 100%` kicks in
-  // and the modal shrinks to fit minus the 20px padding.
-  max-width: 1080px;
-  height: 780px;
-  max-height: calc(100vh - 40px);
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 关闭按钮 */
-.close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.settings-container {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-/* 左侧导航栏：略紧凑于最初版，字号与留白适中 */
-.settings-sidebar {
-  width: 208px;
-  background-color: var(--td-bg-color-settings-modal);
-  border-right: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sidebar-header {
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0;
-}
-
-.settings-nav {
-  padding: 8px 8px 12px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.nav-group-title {
-  padding: 9px 14px 4px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 6px 12px;
-  margin-bottom: 2px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  transition: all 0.2s ease;
-  user-select: none;
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.nav-icon {
-  margin-right: 9px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: inherit;
-}
-
-.nav-icon-emoji {
-  font-size: 14px;
-  line-height: 1;
-}
-
-.nav-label {
-  flex: 1;
-}
-
-.expand-icon {
-  margin-left: 4px;
-  font-size: 14px;
-  transition: transform 0.2s ease;
-}
-
-/* 子菜单 */
-.submenu {
-  margin-left: 28px;
-  margin-bottom: 3px;
-  overflow: hidden;
-}
-
-.submenu-item {
-  padding: 5px 12px;
-  margin-bottom: 2px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  transition: all 0.2s ease;
-  user-select: none;
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.submenu-label {
-  display: block;
-}
-
-/* 子菜单动画 */
+<style scoped>
+/*
+ * What utilities cannot say: the enter/exit transitions for the modal, its
+ * submenu accordion, the section fade-in, and the slim scrollbars both
+ * columns have always had. Everything structural is utility classes now.
+ */
 .submenu-enter-active,
 .submenu-leave-active {
   transition: all 0.2s ease;
@@ -797,39 +676,6 @@ onUnmounted(() => {
   max-height: 0;
 }
 
-/* 右侧内容区域 */
-.settings-content {
-  flex: 1;
-  overflow-y: auto;
-  background-color: var(--td-bg-color-container);
-}
-
-.content-wrapper {
-  // Bumped from 600 to 760 when the modal grew from 900→1080 (see
-  // .settings-modal). Without this, single-column panes (General,
-  // Tenant, API key, …) leave a wide right-hand gutter inside the
-  // wider modal. 760 keeps comfortable reading-width on long
-  // descriptions without the form fields stretching to the full
-  // panel width — which would look stranger than a small gutter.
-  max-width: 760px;
-  padding: 40px 48px;
-
-  /* 成员 / 审计表格列多，600px 会把操作列挤到贴边；铺满右侧内容列更稳。 */
-  &--wide {
-    max-width: none;
-    width: 100%;
-    padding: 32px 36px 40px;
-    box-sizing: border-box;
-  }
-
-  &--full {
-    max-width: none;
-    width: 100%;
-    padding: 30px 34px 40px;
-    box-sizing: border-box;
-  }
-}
-
 .section {
   animation: fadeIn 0.3s ease;
 }
@@ -846,14 +692,13 @@ onUnmounted(() => {
   }
 }
 
-/* 弹窗动画 */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.2s ease;
 }
 
-.modal-enter-active .settings-modal,
-.modal-leave-active .settings-modal {
+.modal-enter-active .modal-panel,
+.modal-leave-active .modal-panel {
   transition:
     transform 0.2s ease,
     opacity 0.2s ease;
@@ -864,13 +709,12 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.modal-enter-from .settings-modal,
-.modal-leave-to .settings-modal {
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
   transform: scale(0.95);
   opacity: 0;
 }
 
-/* 滚动条样式 */
 .settings-nav::-webkit-scrollbar,
 .settings-content::-webkit-scrollbar {
   width: 6px;
@@ -900,33 +744,5 @@ onUnmounted(() => {
 
 .settings-content::-webkit-scrollbar-thumb:hover {
   background: var(--td-gray-color-6);
-}
-
-.role-denied {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 64px 24px;
-  gap: 12px;
-  min-height: 240px;
-
-  .role-denied-icon {
-    color: var(--td-text-color-placeholder);
-  }
-
-  .role-denied-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .role-denied-desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    max-width: 360px;
-    line-height: 1.6;
-  }
 }
 </style>

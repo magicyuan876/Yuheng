@@ -1,31 +1,42 @@
 <template>
-  <div class="websearch-settings">
-    <div class="section-header">
-      <h2>{{ t("webSearchSettings.title") }}</h2>
-      <p class="section-description">{{ t("webSearchSettings.description") }}</p>
+  <div class="w-full">
+    <div class="mb-7">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ t("webSearchSettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-[1.6]">{{ t("webSearchSettings.description") }}</p>
     </div>
 
-    <h3 class="list-section-title">{{ t("webSearchSettings.providersTitle") }}</h3>
+    <h3 class="text-foreground m-0 mb-4 text-base font-semibold">{{ t("webSearchSettings.providersTitle") }}</h3>
 
     <!-- Provider List —— 与 ModelSettings 的卡片同形：左侧标识徽章 + 标题 / 副标题 / proxy URL 三段式。
          不复用 SettingCard 的原因和 Models 一样：每页有微妙不同的右上侧栏需求（这里没有控件，
          Mcp 有开关），SettingCard 仍服务于其它消费者。 -->
-    <div v-if="providerEntities.length === 0 && !authStore.hasRole('admin')" class="empty-state">
-      <t-empty :description="t('webSearchSettings.noProvidersDesc')" />
+    <div v-if="providerEntities.length === 0 && !authStore.hasRole('admin')" class="py-16 text-center">
+      <Empty>
+        <EmptyDescription class="text-placeholder mb-4 text-sm">{{
+          t("webSearchSettings.noProvidersDesc")
+        }}</EmptyDescription>
+      </Empty>
     </div>
-    <div v-else class="provider-grid">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
       <div
         v-for="entity in providerEntities"
         :key="entity.id"
-        class="provider-card"
-        :class="[`provider-card--${entity.provider}`, { 'provider-card--clickable': isProviderCardClickable() }]"
+        class="provider-card bg-card border-border relative flex min-w-0 items-start gap-3 rounded-[10px] border py-3.5 pr-3.5 pl-3 transition-[border-color,box-shadow] duration-[180ms] ease-out"
+        :class="[
+          `provider-card--${entity.provider}`,
+          {
+            'focus-visible:outline-primary cursor-pointer hover:border-[var(--td-brand-color-3,var(--td-brand-color))] hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)] focus-visible:outline-2 focus-visible:outline-offset-2':
+              isProviderCardClickable(),
+          },
+        ]"
         :role="isProviderCardClickable() ? 'button' : undefined"
         :tabindex="isProviderCardClickable() ? 0 : undefined"
         @click="onProviderCardClick($event, entity)"
         @keydown.enter="onProviderCardClick($event, entity)"
       >
+        <!-- Tinted per provider by the scoped rules below. -->
         <div
-          class="provider-card__badge"
+          class="provider-card__badge mt-px flex size-9 shrink-0 items-center justify-center rounded-[9px] text-[15px] font-semibold tracking-[0.02em]"
           :class="badgeClass(entity.provider)"
           :style="badgeStyle(entity.provider)"
           :aria-label="entity.provider"
@@ -34,45 +45,64 @@
             v-if="resolveLogo(entity.provider)?.mode === 'color'"
             :src="resolveLogo(entity.provider)!.url"
             :alt="entity.provider"
-            class="provider-card__badge-img"
+            class="block size-6 object-contain"
           />
           <template v-else-if="!resolveLogo(entity.provider)">
             {{ providerInitial(entity.provider) }}
           </template>
         </div>
-        <div class="provider-card__body">
-          <div class="provider-card__header">
-            <h3 class="provider-card__title" :title="entity.name">{{ entity.name }}</h3>
-            <t-tag
-              v-if="entity.is_builtin"
-              theme="primary"
-              variant="light-outline"
-              size="small"
-              :title="t('platformSharing.badgeHint')"
-              >{{ t("platformSharing.badge") }}</t-tag
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <div class="flex min-w-0 items-center gap-1.5">
+            <h3
+              class="text-foreground m-0 min-w-0 flex-1 truncate text-sm leading-[1.4] font-semibold"
+              :title="entity.name"
             >
-            <div v-if="getProviderOptions(entity).length > 0" class="provider-card__actions" @click.stop>
-              <t-dropdown
-                :options="getProviderOptions(entity)"
-                placement="bottom-right"
-                attach="body"
-                trigger="click"
-                @click="(data: any) => handleMenuAction({ value: data.value }, entity)"
-              >
-                <t-button variant="text" shape="square" size="small" class="provider-card__more">
-                  <t-icon name="ellipsis" />
-                </t-button>
-              </t-dropdown>
+              {{ entity.name }}
+            </h3>
+            <Badge
+              v-if="entity.is_builtin"
+              variant="outline"
+              class="border-primary/40 bg-primary/10 text-primary"
+              :title="t('platformSharing.badgeHint')"
+              >{{ t("platformSharing.badge") }}</Badge
+            >
+            <!-- `provider-card__actions` is a hook: onProviderCardClick ignores keys pressed inside it. -->
+            <div v-if="getProviderOptions(entity).length > 0" class="provider-card__actions shrink-0" @click.stop>
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    class="provider-card__more text-placeholder hover:text-foreground focus-visible:text-foreground shrink-0 p-0.5 opacity-0 transition-opacity duration-150 hover:bg-[var(--td-bg-color-secondarycontainer)] focus-visible:bg-[var(--td-bg-color-secondarycontainer)]"
+                    :aria-label="t('docs.tree.moreActions')"
+                  >
+                    <EllipsisIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    v-for="opt in getProviderOptions(entity)"
+                    :key="opt.value"
+                    @select="handleMenuAction({ value: opt.value }, entity)"
+                  >
+                    <span :class="opt.theme === 'error' ? 'text-destructive' : ''">{{ opt.content }}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-          <div class="provider-card__subtitle">
-            <span class="provider-card__type">{{ providerTypeLabel(entity.provider) }}</span>
+          <div class="text-muted-foreground flex min-w-0 flex-wrap items-center gap-1 text-xs leading-[1.4]">
+            <span class="font-medium">{{ providerTypeLabel(entity.provider) }}</span>
             <template v-if="entity.description">
-              <span class="provider-card__sep">·</span>
-              <span class="provider-card__desc" :title="entity.description">{{ entity.description }}</span>
+              <span class="text-placeholder">·</span>
+              <span class="min-w-0 truncate" :title="entity.description">{{ entity.description }}</span>
             </template>
           </div>
-          <div v-if="entity.parameters?.proxy_url" class="provider-card__url" :title="entity.parameters.proxy_url">
+          <div
+            v-if="entity.parameters?.proxy_url"
+            class="text-placeholder min-w-0 truncate font-[ui-monospace,SFMono-Regular,'SF_Mono',Menlo,Consolas,monospace] text-[11px] leading-[1.4] whitespace-nowrap"
+            :title="entity.parameters.proxy_url"
+          >
             {{ entity.parameters.proxy_url }}
           </div>
         </div>
@@ -80,13 +110,14 @@
       <button
         v-if="authStore.hasRole('admin')"
         type="button"
-        class="provider-card provider-card--add"
+        data-slot="add-provider-card"
+        class="border-border text-placeholder hover:border-primary hover:text-primary hover:bg-primary/6 focus-visible:border-primary focus-visible:text-primary focus-visible:bg-primary/6 focus-visible:outline-primary flex h-full min-h-[68px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed bg-transparent text-center transition-all duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2"
         @click="openAddDialog"
       >
-        <span class="provider-card--add__icon" aria-hidden="true">
-          <add-icon />
+        <span class="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg" aria-hidden="true">
+          <PlusIcon class="size-[18px]" />
         </span>
-        <span class="provider-card--add__label">{{ t("webSearchSettings.addProvider") }}</span>
+        <span class="text-[13px] leading-[1.4] font-medium">{{ t("webSearchSettings.addProvider") }}</span>
       </button>
     </div>
 
@@ -109,10 +140,16 @@
           v-if="drawerLogo?.mode === 'color'"
           :src="drawerLogo.url"
           :alt="selectedProviderType.id"
-          class="header-icon__img"
+          class="block size-6 object-contain"
         />
-        <span v-else-if="drawerLogo?.mode === 'mono'" class="header-icon__mono" :style="drawerLogoStyle" />
-        <span v-else class="header-icon__text">{{ providerInitial(selectedProviderType.id) }}</span>
+        <span
+          v-else-if="drawerLogo?.mode === 'mono'"
+          class="header-icon__mono inline-block size-[22px]"
+          :style="drawerLogoStyle"
+        />
+        <span v-else class="text-[15px] font-semibold tracking-[0.02em]">{{
+          providerInitial(selectedProviderType.id)
+        }}</span>
       </template>
 
       <!--
@@ -125,10 +162,10 @@
           :href="selectedProviderType.docs_url"
           target="_blank"
           rel="noopener noreferrer"
-          class="doc-link doc-link--inline"
+          class="text-primary ml-1.5 inline-flex items-center gap-1 align-baseline text-xs font-medium no-underline transition-colors duration-150 hover:text-[var(--td-brand-color-active)]"
         >
           {{ t("webSearchSettings.viewDocs") }}
-          <t-icon name="link" class="link-icon" />
+          <LinkIcon class="size-3" />
         </a>
       </template>
 
@@ -142,49 +179,73 @@
         统一控制，缺哪个必填字段就置灰。
       -->
       <template v-if="selectedProviderType" #footer-left>
-        <t-button variant="outline" :loading="testing" :disabled="!canTestConnection" @click="testConnection">
-          <template #icon>
-            <t-icon v-if="!testing && lastTestOk === true" name="check-circle-filled" class="status-icon available" />
-            <t-icon
-              v-else-if="!testing && lastTestOk === false"
-              name="close-circle-filled"
-              class="status-icon unavailable"
-            />
-          </template>
+        <Button variant="outline" :disabled="testing || !canTestConnection" @click="testConnection">
+          <CircleCheckIcon v-if="!testing && lastTestOk === true" class="text-primary size-4 shrink-0" />
+          <CircleXIcon v-else-if="!testing && lastTestOk === false" class="text-destructive size-4 shrink-0" />
+          <Loader2Icon v-if="testing" class="animate-spin" />
           {{ testing ? t("webSearchSettings.testing") : t("webSearchSettings.testConnection") }}
-        </t-button>
+        </Button>
       </template>
 
-      <t-form ref="formRef" :data="providerForm" label-align="top" class="provider-form">
+      <!-- `setting-drawer__section` / `__section-title` are styled by SettingDrawer
+           (spacing, dividers, the brand bar before each title); the fields sit
+           directly in the section, which spaces them. -->
+      <form ref="formRef" @submit.prevent>
         <!-- Section 1 — 基本信息 -->
         <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t("webSearchSettings.basicSection", "基本信息") }}</h4>
+          <h4 class="setting-drawer__section-title">
+            {{ t("webSearchSettings.basicSection", "基本信息") }}
+          </h4>
 
           <!-- providerType 选择器：仅在新建时可改 -->
-          <div class="form-item">
-            <label class="form-label required">{{ t("webSearchSettings.providerTypeLabel") }}</label>
-            <t-select v-model="providerForm.provider" :disabled="!!editingProvider" @change="onProviderTypeChange">
-              <!--
-                Just provider name in each option — we used to append a "免费"
-                t-tag for providers that don't take an api_key, but the
-                "免费"分类对用户决策没什么帮助（DuckDuckGo / SearXNG 也都
-                需要可用的网络/自托管实例），反而占视觉空间。
-              -->
-              <t-option v-for="pt in providerTypes" :key="pt.id" :value="pt.id" :label="pt.name" />
-            </t-select>
+          <div>
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("webSearchSettings.providerTypeLabel") }}
+            </label>
+            <!--
+              Just provider name in each option — we used to append a "免费"
+              t-tag for providers that don't take an api_key, but the
+              "免费"分类对用户决策没什么帮助（DuckDuckGo / SearXNG 也都
+              需要可用的网络/自托管实例），反而占视觉空间。
+            -->
+            <Select
+              :model-value="providerForm.provider"
+              :disabled="!!editingProvider"
+              @update:model-value="onProviderTypeChange"
+            >
+              <SelectTrigger class="w-full text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="pt in providerTypes" :key="pt.id" :value="pt.id">
+                  {{ pt.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div class="form-item">
-            <label class="form-label">{{ t("webSearchSettings.providerNameLabel") }}</label>
-            <t-input
+          <div>
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("webSearchSettings.providerNameLabel") }}
+            </label>
+            <SettingsInput
               v-model="providerForm.name"
               :placeholder="selectedProviderType?.name || t('webSearchSettings.providerNamePlaceholder')"
+              input-class="text-[13px] md:text-[13px]"
             />
           </div>
 
-          <div class="form-item">
-            <label class="form-label">{{ t("webSearchSettings.providerDescLabel") }}</label>
-            <t-input v-model="providerForm.description" :placeholder="t('webSearchSettings.providerDescPlaceholder')" />
+          <div>
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("webSearchSettings.providerDescLabel") }}
+            </label>
+            <SettingsInput
+              v-model="providerForm.description"
+              :placeholder="t('webSearchSettings.providerDescPlaceholder')"
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
         </section>
 
@@ -199,13 +260,20 @@
           "
           class="setting-drawer__section"
         >
-          <h4 class="setting-drawer__section-title">{{ t("webSearchSettings.credentialsSection", "连接配置") }}</h4>
+          <h4 class="setting-drawer__section-title">
+            {{ t("webSearchSettings.credentialsSection", "连接配置") }}
+          </h4>
 
-          <div v-if="selectedProviderType?.requires_base_url" class="form-item">
-            <label class="form-label required">{{ t("webSearchSettings.baseUrlLabel") }}</label>
-            <t-input
+          <div v-if="selectedProviderType?.requires_base_url">
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("webSearchSettings.baseUrlLabel") }}
+            </label>
+            <SettingsInput
               v-model="providerForm.parameters.base_url"
               :placeholder="t('webSearchSettings.baseUrlPlaceholder')"
+              input-class="text-[13px] md:text-[13px]"
             />
           </div>
 
@@ -214,11 +282,14 @@
             子资源调用），不与本表单 submit 耦合；Create 模式下用 plain
             password input + lock prefix-icon，与 ModelEditorDialog 一致。
           -->
-          <div
-            v-if="selectedProviderType?.requires_api_key || selectedProviderType?.supports_optional_api_key"
-            class="form-item"
-          >
-            <label class="form-label" :class="{ required: selectedProviderType?.requires_api_key }">
+          <div v-if="selectedProviderType?.requires_api_key || selectedProviderType?.supports_optional_api_key">
+            <label
+              class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium"
+              :class="{
+                'before:text-destructive before:mr-1 before:leading-none before:font-medium before:content-[\'*\']':
+                  selectedProviderType?.requires_api_key,
+              }"
+            >
               {{
                 selectedProviderType?.supports_optional_api_key && !selectedProviderType?.requires_api_key
                   ? t("webSearchSettings.apiKeyOptionalLabel", "API Key（可选）")
@@ -231,29 +302,54 @@
               :fields="credentialFields"
               :meta="credentialMeta"
             />
-            <t-input v-else v-model="providerForm.parameters.api_key" type="password" :placeholder="apiKeyPlaceholder">
-              <template #prefix-icon><t-icon name="lock-on" /></template>
-            </t-input>
+            <SettingsInput
+              v-else
+              v-model="providerForm.parameters.api_key"
+              type="password"
+              :placeholder="apiKeyPlaceholder"
+              :prefix-icon="LockIcon"
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
 
-          <div v-if="selectedProviderType?.requires_engine_id" class="form-item">
-            <label class="form-label required">{{ t("webSearchSettings.engineIdLabel") }}</label>
-            <t-input v-model="providerForm.parameters.engine_id" :placeholder="t('webSearchSettings.engineIdLabel')" />
+          <div v-if="selectedProviderType?.requires_engine_id">
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("webSearchSettings.engineIdLabel") }}
+            </label>
+            <SettingsInput
+              v-model="providerForm.parameters.engine_id"
+              :placeholder="t('webSearchSettings.engineIdLabel')"
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
 
-          <div v-for="field in selectedProviderType?.config_fields || []" :key="field.key" class="form-item">
-            <label class="form-label" :class="{ required: field.required }">
+          <div v-for="field in selectedProviderType?.config_fields || []" :key="field.key">
+            <label
+              class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium"
+              :class="{
+                'before:text-destructive before:mr-1 before:leading-none before:font-medium before:content-[\'*\']':
+                  field.required,
+              }"
+            >
               {{ configFieldText(field.label_key, field.label) }}
             </label>
-            <t-select v-if="field.type === 'select'" v-model="providerForm.parameters.extra_config[field.key]">
-              <t-option
-                v-for="option in field.options || []"
-                :key="option.value"
-                :value="option.value"
-                :label="configFieldText(option.label_key, option.label)"
-              />
-            </t-select>
-            <p v-if="field.description" class="form-desc">
+            <Select
+              v-if="field.type === 'select'"
+              :model-value="providerForm.parameters.extra_config[field.key]"
+              @update:model-value="(v: unknown) => setExtraConfig(field.key, v)"
+            >
+              <SelectTrigger class="w-full text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="option in field.options || []" :key="option.value" :value="option.value">
+                  {{ configFieldText(option.label_key, option.label) }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="field.description" class="text-placeholder m-0 mt-1 text-xs leading-normal">
               {{ configFieldText(field.description_key, field.description) }}
             </p>
           </div>
@@ -261,35 +357,84 @@
 
         <!-- Section 3 — 选项（代理 / 默认） -->
         <section v-if="selectedProviderType?.supports_proxy || selectedProviderType" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ t("webSearchSettings.optionsSection", "选项") }}</h4>
+          <h4 class="setting-drawer__section-title">
+            {{ t("webSearchSettings.optionsSection", "选项") }}
+          </h4>
 
-          <div v-if="selectedProviderType?.supports_proxy" class="form-item">
-            <label class="form-label">{{ t("webSearchSettings.proxyUrlLabel") }}</label>
-            <t-input
+          <div v-if="selectedProviderType?.supports_proxy">
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("webSearchSettings.proxyUrlLabel") }}
+            </label>
+            <SettingsInput
               v-model="providerForm.parameters.proxy_url"
               :placeholder="t('webSearchSettings.proxyUrlPlaceholder')"
+              input-class="text-[13px] md:text-[13px]"
             />
-            <p class="form-desc">{{ t("webSearchSettings.proxyUrlHelp") }}</p>
+            <p class="text-placeholder m-0 mt-1 text-xs leading-normal">{{ t("webSearchSettings.proxyUrlHelp") }}</p>
           </div>
 
-          <div class="form-item">
-            <label class="form-label">{{ t("webSearchSettings.setAsDefault") }}</label>
-            <div class="vision-toggle">
-              <t-switch v-model="providerForm.is_default" />
-              <span class="form-desc form-desc--inline">{{ t("webSearchSettings.setAsDefaultDesc") }}</span>
+          <div>
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("webSearchSettings.setAsDefault") }}
+            </label>
+            <div class="flex items-center gap-2">
+              <Switch
+                :model-value="providerForm.is_default"
+                @update:model-value="(v: boolean) => (providerForm.is_default = v)"
+              />
+              <span class="text-placeholder m-0 text-xs leading-normal">{{
+                t("webSearchSettings.setAsDefaultDesc")
+              }}</span>
             </div>
           </div>
         </section>
-      </t-form>
+      </form>
     </SettingDrawer>
+
+    <!-- 平台共享 / 取消共享确认 -->
+    <Dialog v-model:open="sharingDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>
+            {{ sharingDialog.shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction") }}
+          </DialogTitle>
+          <DialogDescription>
+            {{
+              sharingDialog.entity
+                ? sharingDialog.shared
+                  ? t("platformSharing.confirmShare", { name: sharingDialog.entity.name })
+                  : t("platformSharing.confirmUnshare", { name: sharingDialog.entity.name })
+                : ""
+            }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            :variant="sharingDialog.shared ? 'default' : 'destructive'"
+            :class="
+              sharingDialog.shared
+                ? ''
+                : 'bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive'
+            "
+            :disabled="sharingDialog.pending"
+            @click="doToggleSharing"
+          >
+            <Loader2Icon v-if="sharingDialog.pending" class="animate-spin" />
+            {{ t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
+import { ref, computed, onMounted, watch, reactive } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
-import { AddIcon } from "tdesign-icons-vue-next";
 import {
   listWebSearchProviders,
   listWebSearchProviderTypes,
@@ -305,6 +450,7 @@ import {
   type WebSearchCredentialField,
 } from "@/api/web-search-provider";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import SettingsInput from "./SettingsInput.vue";
 import CredentialResource, {
   type CredentialFieldDef,
   type CredentialResourceApi,
@@ -312,6 +458,28 @@ import CredentialResource, {
 import { useConfirmDelete } from "@/components/settings/useConfirmDelete";
 import { useAuthStore } from "@/stores/auth";
 import { providerLogo } from "./providerLogos";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { CircleCheckIcon, CircleXIcon, EllipsisIcon, LinkIcon, Loader2Icon, LockIcon, PlusIcon } from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -353,10 +521,8 @@ const providerForm = ref<{
 });
 
 // Invalidate the cached test result whenever the user edits a connection
-// field. Set up after providerForm is declared so the watch's source
-// function — which dereferences providerForm.value on first run — doesn't
-// hit a TDZ ReferenceError. proxy_url is excluded because the upstream
-// call doesn't actually use it for credential validation.
+// field. proxy_url is excluded because the upstream call doesn't actually
+// use it for credential validation.
 watch(
   () => [
     providerForm.value.provider,
@@ -481,11 +647,17 @@ const providerConfigDefaults = (providerId: string) => {
 };
 
 // ===== Methods =====
-const onProviderTypeChange = () => {
+const onProviderTypeChange = (value: unknown) => {
+  providerForm.value.provider = String(value);
   providerForm.value.parameters = {
     extra_config: providerConfigDefaults(providerForm.value.provider),
   };
   lastTestOk.value = null;
+};
+
+// 动态配置字段的下拉值回写。
+const setExtraConfig = (key: string, value: unknown) => {
+  providerForm.value.parameters.extra_config[key] = String(value);
 };
 
 const loadProviderEntities = async () => {
@@ -547,13 +719,6 @@ const editProvider = (entity: WebSearchProviderEntity) => {
 };
 
 const saveProvider = async () => {
-  const validateResult = await formRef.value?.validate();
-  if (validateResult !== true && validateResult !== undefined) {
-    const firstError = typeof validateResult === "object" ? Object.values(validateResult)[0] : "";
-    MessagePlugin.warning(typeof firstError === "string" ? firstError : "Please check the form fields");
-    return;
-  }
-
   saving.value = true;
   try {
     // Build the parameters payload. api_key only flows in on initial
@@ -708,27 +873,36 @@ const handleMenuAction = (data: { value: string }, entity: WebSearchProviderEnti
 
 // 切换平台共享。Provider 没有引用守卫 —— 空间是按次选用 Provider 的，失去访问
 // 退化为「网络搜索不可用」，不会像模型那样留下悬空的向量索引。
+const sharingDialogVisible = ref(false);
+const sharingDialog = reactive<{ entity: WebSearchProviderEntity | null; shared: boolean; pending: boolean }>({
+  entity: null,
+  shared: false,
+  pending: false,
+});
+
 const confirmSharing = (entity: WebSearchProviderEntity) => {
-  const shared = !entity.is_builtin;
-  const dialog = DialogPlugin.confirm({
-    header: shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction"),
-    body: shared
-      ? t("platformSharing.confirmShare", { name: entity.name })
-      : t("platformSharing.confirmUnshare", { name: entity.name }),
-    confirmBtn: { content: t("common.confirm"), theme: shared ? "primary" : "danger" },
-    cancelBtn: { content: t("common.cancel") },
-    onConfirm: async () => {
-      dialog.destroy();
-      try {
-        await setWebSearchProviderSharing(entity.id!, shared);
-        MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
-        await loadProviderEntities();
-      } catch (error: any) {
-        MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
-      }
-    },
-  });
+  sharingDialog.entity = entity;
+  sharingDialog.shared = !entity.is_builtin;
+  sharingDialog.pending = false;
+  sharingDialogVisible.value = true;
 };
+
+async function doToggleSharing() {
+  const entity = sharingDialog.entity;
+  if (!entity || sharingDialog.pending) return;
+  const shared = sharingDialog.shared;
+  sharingDialog.pending = true;
+  try {
+    await setWebSearchProviderSharing(entity.id!, shared);
+    MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
+    sharingDialogVisible.value = false;
+    await loadProviderEntities();
+  } catch (error: any) {
+    MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
+  } finally {
+    sharingDialog.pending = false;
+  }
+}
 
 // ===== Init =====
 onMounted(async () => {
@@ -736,146 +910,32 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="less" scoped>
-.websearch-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 28px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.6;
-  }
-}
-
-.list-section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 16px 0;
-}
-
-.provider-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-
-  .provider-card--add {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-// 卡片视觉与 ModelSettings 的 model-card 同构（徽章 + 标题 / 副标题 / url 三段式）。
-// 现阶段两份样式各自维护避免过度抽象；如果后续 Mcp / 第四个消费者出现，
-// 再把共用片段抽到 components/settings/ 下的基类。
-.provider-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 14px 14px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-  min-width: 0;
-
-  &--clickable {
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--td-brand-color-3, var(--td-brand-color));
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-  }
-
-  &--add {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 68px;
-    border-style: dashed;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    font: inherit;
-    text-align: center;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-brand-color);
-      border-color: var(--td-brand-color);
-      background: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-      box-shadow: none;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-
-    &__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-      color: var(--td-brand-color);
-      font-size: 18px;
-    }
-
-    &__label {
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.4;
-    }
-  }
-}
-
-.provider-card__actions {
-  flex-shrink: 0;
+<style scoped>
+/*
+ * Utilities cover the layout; these rules reach into generated markup or
+ * repeat per-provider tints that are clearer as CSS:
+ *  - mono logos are CSS-masked icons driven by a per-card --logo-url;
+ *  - the per-provider badge tints (9 search sources);
+ *  - the "more" button fades in on card hover / keyboard focus.
+ */
+.header-icon__mono {
+  background-color: currentColor;
+  -webkit-mask-image: var(--logo-url);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-image: var(--logo-url);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
 .provider-card__badge {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  // 默认色，被 provider 修饰覆盖
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
 }
 
-// 真实品牌 logo：白底 + 细边，logo 用 mask-image 染成 currentColor（沿用品牌色）。
-// 多套一层 .provider-card 以胜过 `.provider-card--<id> .provider-card__badge` 的具体规则。
+/* One more .provider-card so logo badges outrank the per-provider tints. */
 .provider-card .provider-card__badge--logo {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
@@ -896,14 +956,6 @@ onMounted(async () => {
   mask-size: contain;
 }
 
-.provider-card__badge-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-// 各搜索源的徽章配色 —— 不强求与官方 logo 一致，挑同色系低饱和版即可。
 .provider-card--duckduckgo .provider-card__badge {
   background: rgba(222, 88, 51, 0.12);
   color: #de5833;
@@ -921,8 +973,8 @@ onMounted(async () => {
   color: #6235bb;
 }
 .provider-card--baidu .provider-card__badge {
-  // 百度官方主色（搜索框 du 标识那个蓝），#2932E1。低饱和版用 12% alpha
-  // 浅底，跟其他 provider 一致。之前误填红色（混淆了百度地图等子产品）。
+  /* 百度官方主色（搜索框 du 标识那个蓝），#2932E1。低饱和版用 12% alpha
+     浅底，跟其他 provider 一致。之前误填红色（混淆了百度地图等子产品）。 */
   background: rgba(41, 50, 225, 0.12);
   color: #2932e1;
 }
@@ -943,246 +995,24 @@ onMounted(async () => {
   color: #2563eb;
 }
 
-.provider-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.provider-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.provider-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.provider-card__more {
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder);
-  padding: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
 .provider-card:hover .provider-card__more,
 .provider-card:focus-within .provider-card__more,
 .provider-card__actions:focus-within .provider-card__more {
   opacity: 1;
-}
-
-.provider-card__subtitle {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--td-text-color-secondary);
-  min-width: 0;
-}
-
-.provider-card__type {
-  font-weight: 500;
-}
-
-.provider-card__sep {
-  color: var(--td-text-color-placeholder);
-}
-
-.provider-card__desc {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.provider-card__url {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--td-text-color-placeholder);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.empty-state {
-  padding: 64px 0;
-  text-align: center;
-
-  :deep(.t-empty__description) {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    margin-bottom: 16px;
-  }
-}
-
-.provider-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-// ---- 抽屉内容 — 与 ModelEditorDialog 同款约定 ----
-.form-item {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-
-  &.required::before {
-    content: "*";
-    color: var(--td-error-color);
-    margin-right: 4px;
-    font-weight: 500;
-    line-height: 1;
-  }
-}
-
-.form-desc {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--inline {
-    margin: 0;
-  }
-}
-
-:deep(.t-input),
-:deep(.t-select),
-:deep(.t-textarea),
-:deep(.t-input-number) {
-  width: 100%;
-  font-size: 13px;
-}
-
-// 隐藏 t-form 默认的 form-item 容器 — 我们走自定义 .form-item / .form-label。
-:deep(.t-form) .t-form-item {
-  display: none;
-}
-
-.vision-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// ---- footer-left 测试按钮的状态 icon（与 ModelEditorDialog/MCP 同款） ----
-.status-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-
-  &.available {
-    color: var(--td-brand-color);
-  }
-
-  &.unavailable {
-    color: var(--td-error-color);
-  }
-}
-
-// ---- Header 图标徽章 ----
-.header-icon__img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-.header-icon__mono {
-  display: inline-block;
-  width: 22px;
-  height: 22px;
-  background-color: currentColor;
-  -webkit-mask-image: var(--logo-url);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-image: var(--logo-url);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-}
-
-.header-icon__text {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.doc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-brand-color);
-  text-decoration: none;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color-active);
-  }
-
-  .link-icon {
-    font-size: 14px;
-  }
-
-  &--inline {
-    margin-left: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    vertical-align: baseline;
-
-    .link-icon {
-      font-size: 12px;
-    }
-  }
 }
 </style>
 
 <!--
   Non-scoped block: per-provider header-icon coloring + color-logo
   background tweak. Same pattern as Storage/Parser drawers — these rules
-  must be global so they always reach the t-drawer panel even if its
-  scoped data-attribute is dropped in some builds. Each rule mirrors the
-  matching .provider-card--{id} .provider-card__badge from the scoped
-  block above so list-card → drawer hand-off stays visually continuous.
+  must be global so they always reach the teleported drawer panel. Each
+  rule mirrors the matching .provider-card--{id} .provider-card__badge
+  from the scoped block above so list-card → drawer hand-off stays
+  visually continuous.
 -->
-<style lang="less">
-// 彩色 logo 时给 header-icon 容器一个白底 + 1px 边，避免品牌色浅底压在
-// 彩色图标上影响对比度。
+<style>
+/* 彩色 logo 时给 header-icon 容器一个白底 + 1px 边，避免品牌色浅底压在
+   彩色图标上影响对比度。 */
 .websearch-drawer .setting-drawer__header-icon:has(.header-icon__img) {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);

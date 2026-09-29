@@ -1,28 +1,30 @@
 <template>
-  <div class="model-settings">
-    <div class="section-header">
-      <div class="section-header__top">
+  <div class="w-full">
+    <div class="mb-7">
+      <div class="flex items-center justify-between gap-5">
         <div>
-          <h2>{{ $t("modelSettings.title") }}</h2>
-          <p class="section-description">{{ $t("modelSettings.description") }}</p>
+          <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("modelSettings.title") }}</h2>
+          <p class="text-muted-foreground m-0 text-sm leading-[1.6]">{{ $t("modelSettings.description") }}</p>
         </div>
-        <t-button
+        <!-- The old text button: brand colour, no hover background and no
+             underline; only the colour deepens on hover and press. -->
+        <Button
           v-if="authStore.hasRole('admin')"
           type="button"
-          theme="primary"
-          variant="text"
-          size="medium"
-          class="model-test-trigger"
+          variant="link"
+          class="shrink-0 px-0 font-semibold hover:text-[var(--td-brand-color-hover)] hover:no-underline active:text-[var(--td-brand-color-active)]"
           @click="showDebugDrawer = true"
         >
-          <template #icon><play-circle-icon /></template>
+          <PlayCircleIcon />
           {{ $t("modelSettings.actions.debugModel") }}
-        </t-button>
+        </Button>
       </div>
 
-      <div class="builtin-models-hint" role="note">
-        <p class="builtin-hint-label">{{ $t("modelSettings.builtinModels.title") }}</p>
-        <p class="builtin-hint-text">
+      <div class="bg-secondary border-border mt-3 rounded-md border px-3 py-2.5" role="note">
+        <p class="text-placeholder m-0 mb-1 text-xs font-medium tracking-[0.02em]">
+          {{ $t("modelSettings.builtinModels.title") }}
+        </p>
+        <p class="text-muted-foreground m-0 mb-1.5 text-[13px] leading-[1.55]">
           {{
             $t(
               authStore.isSystemAdmin
@@ -33,43 +35,59 @@
         </p>
         <a
           v-if="docsUrl('BUILTIN_MODELS.md')"
-          class="doc-link"
+          class="text-primary inline-flex items-center gap-0.5 text-[13px] hover:underline"
           :href="docsUrl('BUILTIN_MODELS.md')"
           target="_blank"
           rel="noopener noreferrer"
         >
           {{ $t("modelSettings.builtinModels.viewGuide") }}
-          <t-icon name="link" class="link-icon" />
+          <LinkIcon class="size-3.5" />
         </a>
       </div>
     </div>
 
-    <t-tabs v-model="activeTypeFilter" class="model-type-tabs" data-guide="settings-models">
-      <t-tab-panel value="all" :label="`${$t('common.all')}(${allLegacyModels.length})`" />
-      <t-tab-panel value="chat" :label="`${$t('modelSettings.typeShort.chat')}(${countByType('chat')})`" />
-      <t-tab-panel
-        value="embedding"
-        :label="`${$t('modelSettings.typeShort.embedding')}(${countByType('embedding')})`"
-      />
-      <t-tab-panel value="rerank" :label="`${$t('modelSettings.typeShort.rerank')}(${countByType('rerank')})`" />
-      <t-tab-panel value="vllm" :label="`${$t('modelSettings.typeShort.vllm')}(${countByType('vllm')})`" />
-      <t-tab-panel value="asr" :label="`${$t('modelSettings.typeShort.asr')}(${countByType('asr')})`" />
-    </t-tabs>
+    <!-- TDesign's line tabs: a full-width bottom rule, the active tab in the
+         brand colour with a brand underline, scrolling sideways (scrollbar
+         hidden) when the counts make the row too wide. -->
+    <Tabs v-model="activeTypeFilter" class="mb-4" data-guide="settings-models">
+      <TabsList
+        variant="line"
+        class="border-border h-auto w-full [scrollbar-width:none] justify-start gap-0 overflow-x-auto overflow-y-hidden rounded-none border-b p-0 [&::-webkit-scrollbar]:hidden"
+      >
+        <TabsTrigger
+          v-for="tab in typeTabs"
+          :key="tab.value"
+          :value="tab.value"
+          class="data-active:text-primary hover:text-primary after:bg-primary h-10 flex-none px-3 text-[13px] font-normal group-data-horizontal/tabs:after:bottom-0"
+        >
+          {{ tab.label }}
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
 
-    <t-loading :loading="loading" size="small" class="model-list-loading">
-      <div v-if="!loading && filteredModels.length === 0 && !authStore.hasRole('admin')" class="empty-state">
-        <t-empty :description="emptyHint" />
+    <div class="min-h-[120px]">
+      <div v-if="!loading && filteredModels.length === 0 && !authStore.hasRole('admin')" class="py-16 text-center">
+        <Empty>
+          <EmptyDescription class="text-placeholder mb-4 text-sm">{{ emptyHint }}</EmptyDescription>
+        </Empty>
       </div>
-      <div v-else-if="!loading" class="model-grid">
+      <div v-else-if="!loading" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
         <div
           v-for="model in filteredModels"
           :key="`${model._modelType}-${model.id}`"
-          class="model-card"
+          class="model-card border-border relative flex min-w-0 items-start gap-3 rounded-[10px] border px-4 py-3.5 transition-[border-color,box-shadow,transform] duration-[180ms] ease-out"
           :class="[
             `model-card--${model._modelType}`,
+            // Built-in cards are muted and do not lift on hover — unless the
+            // viewer may edit them, where the clickable hover wins, as it did.
+            model.isBuiltin && !isModelCardClickable(model)
+              ? 'bg-secondary'
+              : model.isBuiltin
+                ? 'bg-secondary hover:border-[var(--td-brand-color-3,var(--td-brand-color))] hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]'
+                : 'bg-card hover:border-[var(--td-brand-color-3,var(--td-brand-color))] hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]',
             {
-              'model-card--builtin': model.isBuiltin,
-              'model-card--clickable': isModelCardClickable(model),
+              'focus-visible:outline-primary cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2':
+                isModelCardClickable(model),
             },
           ]"
           :role="isModelCardClickable(model) ? 'button' : undefined"
@@ -77,69 +95,112 @@
           @click="onModelCardClick($event, model._modelType, model)"
           @keydown.enter="onModelCardClick($event, model._modelType, model)"
         >
-          <div class="model-card__badge" :aria-label="typeLabel(model._modelType)">
-            <t-icon :name="typeIcon(model._modelType)" size="18px" />
+          <!-- Tinted per model type by the scoped rules below. -->
+          <div
+            class="model-card__badge mt-px flex size-9 shrink-0 items-center justify-center rounded-[9px]"
+            :aria-label="typeLabel(model._modelType)"
+          >
+            <component :is="typeIcon(model._modelType)" class="size-[18px]" />
           </div>
-          <div class="model-card__body">
-            <div class="model-card__header">
-              <h3 class="model-card__title">{{ modelDisplayName(model) }}</h3>
+          <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <h3 class="text-foreground m-0 min-w-0 flex-1 truncate text-sm leading-[1.4] font-semibold">
+                {{ modelDisplayName(model) }}
+              </h3>
               <span
                 v-if="model.isBuiltin"
-                class="model-card__lock"
+                class="text-placeholder model-card__lock inline-flex size-[18px] shrink-0 items-center justify-center opacity-60 transition-[color,opacity] duration-150"
                 :title="$t('modelSettings.builtinTag')"
                 :aria-label="$t('modelSettings.builtinTag')"
               >
-                <t-icon :name="authStore.isSystemAdmin ? 'edit-1' : 'lock-on'" />
+                <component :is="authStore.isSystemAdmin ? PencilIcon : LockIcon" class="size-[13px]" />
               </span>
-              <div v-if="canManageModel(model)" class="model-card__actions" @click.stop>
-                <t-dropdown
-                  :options="getModelOptions(model._modelType, model)"
-                  placement="bottom-right"
-                  attach="body"
-                  trigger="click"
-                  @click="(data: any) => handleMenuAction({ value: data.value }, model._modelType, model)"
-                >
-                  <t-button variant="text" shape="square" size="small" class="model-card__action-btn model-card__more">
-                    <t-icon name="ellipsis" />
-                  </t-button>
-                </t-dropdown>
-                <t-popconfirm
-                  v-if="canDeleteModel(model)"
-                  :content="$t('modelSettings.confirmDelete', { name: modelDisplayName(model) })"
-                  :confirm-btn="{ content: $t('common.delete'), theme: 'danger' }"
-                  :cancel-btn="{ content: $t('common.cancel') }"
-                  placement="bottom-right"
-                  @confirm="deleteModel(model._modelType, model.id)"
-                >
-                  <t-tooltip :content="$t('common.delete')" placement="top">
-                    <t-button
-                      theme="danger"
-                      shape="square"
-                      variant="text"
-                      size="small"
-                      class="model-card__action-btn model-card__delete"
-                      @click.stop
+              <!-- `model-card__actions` is a hook: onModelCardClick ignores keys pressed inside it. -->
+              <div
+                v-if="canManageModel(model)"
+                class="model-card__actions flex shrink-0 items-center gap-0.5"
+                @click.stop
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      class="model-card__action-btn text-placeholder hover:text-foreground focus-visible:text-foreground shrink-0 p-0.5 opacity-0 transition-opacity duration-150 hover:bg-[var(--td-bg-color-secondarycontainer)] focus-visible:bg-[var(--td-bg-color-secondarycontainer)]"
+                      :aria-label="$t('docs.tree.moreActions')"
                     >
-                      <template #icon><t-icon name="delete" /></template>
-                    </t-button>
-                  </t-tooltip>
-                </t-popconfirm>
+                      <EllipsisIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      v-for="opt in getModelOptions(model._modelType, model)"
+                      :key="opt.value"
+                      @select="handleMenuAction({ value: opt.value }, model._modelType, model)"
+                    >
+                      {{ opt.content }}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Popover
+                  v-if="canDeleteModel(model)"
+                  :open="deleteConfirmId === `${model._modelType}-${model.id}`"
+                  @update:open="(v: boolean) => (deleteConfirmId = v ? `${model._modelType}-${model.id}` : null)"
+                >
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <PopoverTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          class="model-card__action-btn text-destructive shrink-0 p-0.5 opacity-0 transition-opacity duration-150"
+                          :aria-label="$t('common.delete')"
+                          @click.stop
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ $t("common.delete") }}</TooltipContent>
+                  </Tooltip>
+                  <PopoverContent align="end" class="w-64">
+                    <p class="text-foreground m-0 mb-3 text-sm">
+                      {{ $t("modelSettings.confirmDelete", { name: modelDisplayName(model) }) }}
+                    </p>
+                    <div class="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" @click="deleteConfirmId = null">
+                        {{ $t("common.cancel") }}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        class="bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive"
+                        @click="
+                          deleteConfirmId = null;
+                          deleteModel(model._modelType, model.id);
+                        "
+                      >
+                        {{ $t("common.delete") }}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
-            <p class="model-card__subtitle">
+            <p class="text-muted-foreground m-0 mt-0.5 truncate text-xs leading-normal">
               <span>{{ vendorLabel(model) }}</span>
               <template v-if="model._modelType === 'embedding' && model.dimension">
-                <span class="model-card__sep">·</span>
+                <span class="text-placeholder mx-1">·</span>
                 <span>{{ $t("model.editor.dimensionLabel") }} {{ model.dimension }}</span>
               </template>
               <template v-if="model._modelType === 'chat' && model.supportsVision">
-                <span class="model-card__sep">·</span>
+                <span class="text-placeholder mx-1">·</span>
                 <span
-                  class="model-card__vision"
+                  class="inline-flex items-center gap-0.75"
                   :title="$t('model.editor.supportsVisionLabel')"
                   :aria-label="$t('model.editor.supportsVisionLabel')"
                 >
-                  <t-icon name="image" size="12px" />
+                  <ImageIcon class="size-3" />
                 </span>
               </template>
             </p>
@@ -148,17 +209,24 @@
         <button
           v-if="authStore.hasRole('admin')"
           type="button"
-          class="model-card model-card--add"
+          data-slot="add-model-card"
+          class="border-border text-placeholder hover:border-primary hover:text-primary hover:bg-primary/6 focus-visible:border-primary focus-visible:text-primary focus-visible:bg-primary/6 focus-visible:outline-primary flex h-full min-h-[68px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed bg-transparent text-center transition-all duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2"
           data-guide="settings-add-model"
           @click="openAddDialog"
         >
-          <span class="model-card--add__icon" aria-hidden="true">
-            <add-icon />
+          <span
+            class="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg"
+            aria-hidden="true"
+          >
+            <PlusIcon class="size-[18px]" />
           </span>
-          <span class="model-card--add__label">{{ $t("modelSettings.actions.addModel") }}</span>
+          <span class="text-[13px] leading-[1.4] font-medium">{{ $t("modelSettings.actions.addModel") }}</span>
         </button>
       </div>
-    </t-loading>
+      <div v-else class="flex justify-center py-10">
+        <Loader2Icon class="animate-spin" />
+      </div>
+    </div>
 
     <!-- 模型编辑器抽屉 -->
     <ModelEditorDialog
@@ -168,14 +236,43 @@
       @confirm="handleModelSave"
     />
     <ModelDebugDrawer v-model:visible="showDebugDrawer" :models="allModels" />
+
+    <!-- 平台共享 / 取消共享确认 -->
+    <Dialog v-model:open="sharingDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{
+            sharingDialog.shared ? $t("modelSettings.sharing.shareAction") : $t("modelSettings.sharing.unshareAction")
+          }}</DialogTitle>
+          <DialogDescription class="whitespace-pre-line">{{ sharingDialog.body }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ $t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            :variant="sharingDialog.shared ? 'default' : 'destructive'"
+            :class="
+              sharingDialog.shared
+                ? ''
+                : 'bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive'
+            "
+            :disabled="sharingDialog.pending"
+            @click="doApplySharing"
+          >
+            <Loader2Icon v-if="sharingDialog.pending" class="animate-spin" />
+            {{ $t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { docsUrl } from "@/config/externalLinks";
 import { ref, computed, onMounted, watch } from "vue";
-import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
-import { AddIcon, PlayCircleIcon } from "tdesign-icons-vue-next";
+import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import ModelEditorDialog from "@/components/ModelEditorDialog.vue";
 import ModelDebugDrawer from "@/components/ModelDebugDrawer.vue";
@@ -189,6 +286,43 @@ import {
 } from "@/api/model";
 import { useAuthStore } from "@/stores/auth";
 import { useUIStore } from "@/stores/ui";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  BubblesIcon,
+  MessageSquareIcon,
+  EllipsisIcon,
+  FilterIcon,
+  ImageIcon,
+  LinkIcon,
+  Loader2Icon,
+  LockIcon,
+  PencilIcon,
+  PlayCircleIcon,
+  PlusIcon,
+  Trash2Icon,
+  Volume2Icon,
+  type LucideIcon,
+} from "@lucide/vue";
 
 const { t, te } = useI18n();
 const authStore = useAuthStore();
@@ -268,14 +402,26 @@ const filteredModels = computed(() => {
 
 const countByType = (type: ModelType) => allLegacyModels.value.filter((m) => m._modelType === type).length;
 
-// 类型徽章图标。沿用 TDesign 自带 icon name，避免再引第三方图标包。
-const typeIcon = (type: ModelType): string => {
-  const map: Record<ModelType, string> = {
-    chat: "chat",
-    embedding: "chart-bubble",
-    rerank: "filter-sort",
-    vllm: "image",
-    asr: "sound",
+const typeTabs = computed(() => [
+  { value: "all" as FilterType, label: `${t("common.all")}(${allLegacyModels.value.length})` },
+  { value: "chat" as FilterType, label: `${t("modelSettings.typeShort.chat")}(${countByType("chat")})` },
+  {
+    value: "embedding" as FilterType,
+    label: `${t("modelSettings.typeShort.embedding")}(${countByType("embedding")})`,
+  },
+  { value: "rerank" as FilterType, label: `${t("modelSettings.typeShort.rerank")}(${countByType("rerank")})` },
+  { value: "vllm" as FilterType, label: `${t("modelSettings.typeShort.vllm")}(${countByType("vllm")})` },
+  { value: "asr" as FilterType, label: `${t("modelSettings.typeShort.asr")}(${countByType("asr")})` },
+]);
+
+// 类型徽章图标。
+const typeIcon = (type: ModelType): LucideIcon => {
+  const map: Record<ModelType, LucideIcon> = {
+    chat: MessageSquareIcon,
+    embedding: BubblesIcon,
+    rerank: FilterIcon,
+    vllm: ImageIcon,
+    asr: Volume2Icon,
   };
   return map[type];
 };
@@ -379,6 +525,9 @@ const canManageModel = (model: any) => canEditModel(model);
 // YAML 托管的行（删了也会在下次启动被 reconciler 重新写回）以及仍被任意空间
 // 引用的模型。
 const canDeleteModel = (model: any) => (model.isBuiltin ? authStore.isSystemAdmin : authStore.hasRole("admin"));
+
+// 哪张卡片的删除确认 popover 开着。
+const deleteConfirmId = ref<string | null>(null);
 
 const onModelCardClick = (event: Event, type: ModelType, model: any) => {
   if (!isModelCardClickable(model)) return;
@@ -614,6 +763,14 @@ const handleMenuAction = (data: { value: string }, type: ModelType, model: any) 
 
 // 切换平台共享。Embedding 单独提示：改动它意味着已建知识库的向量全部失效，
 // 需要重建索引，比其他类型危险得多。
+const sharingDialogVisible = ref(false);
+const sharingDialog = ref<{ model: any; shared: boolean; body: string; pending: boolean }>({
+  model: null,
+  shared: false,
+  body: "",
+  pending: false,
+});
+
 const confirmModelSharing = (model: any, shared: boolean) => {
   const name = modelDisplayName(model);
   const body = shared
@@ -626,19 +783,20 @@ const confirmModelSharing = (model: any, shared: boolean) => {
 ${t("modelSettings.sharing.embeddingWarning")}`
       : "";
 
-  const dialog = DialogPlugin.confirm({
-    header: shared ? t("modelSettings.sharing.shareAction") : t("modelSettings.sharing.unshareAction"),
-    body: `${body}${embeddingWarning}`,
-    confirmBtn: {
-      content: t("common.confirm"),
-      theme: shared ? "primary" : "danger",
-    },
-    cancelBtn: { content: t("common.cancel") },
-    onConfirm: async () => {
-      dialog.destroy();
-      await applyModelSharing(model, shared);
-    },
-  });
+  sharingDialog.value = { model, shared, body: `${body}${embeddingWarning}`, pending: false };
+  sharingDialogVisible.value = true;
+};
+
+const doApplySharing = async () => {
+  const { model, shared } = sharingDialog.value;
+  if (!model || sharingDialog.value.pending) return;
+  sharingDialog.value.pending = true;
+  try {
+    await applyModelSharing(model, shared);
+    sharingDialogVisible.value = false;
+  } finally {
+    sharingDialog.value.pending = false;
+  }
 };
 
 const applyModelSharing = async (model: any, shared: boolean) => {
@@ -714,233 +872,19 @@ onMounted(() => {
 });
 </script>
 
-<style lang="less" scoped>
-.model-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 28px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.6;
-  }
-}
-
-.section-header__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.model-test-trigger {
-  --td-bg-color-container-hover: transparent;
-  flex-shrink: 0;
-  padding-left: 0;
-  padding-right: 0;
-  font-weight: 600;
-
-  &:hover,
-  &:focus,
-  &.t-is-active,
-  &:active {
-    background-color: transparent !important;
-    color: var(--td-brand-color-hover);
-  }
-
-  &:active {
-    color: var(--td-brand-color-active);
-  }
-}
-
-.builtin-models-hint {
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-}
-
-.builtin-hint-label {
-  margin: 0 0 4px 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-placeholder);
-  letter-spacing: 0.02em;
-}
-
-.builtin-hint-text {
-  margin: 0 0 6px 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--td-text-color-secondary);
-}
-
-.builtin-models-hint .doc-link {
-  font-size: 13px;
-}
-
-.model-list-loading {
-  min-height: 120px;
-}
-
-.model-type-tabs {
-  margin-bottom: 16px;
-
-  :deep(.t-tabs__nav-item) {
-    font-size: 13px;
-  }
-
-  :deep(.t-tabs__nav-item-wrapper) {
-    padding: 0 12px;
-    margin: 0;
-  }
-
-  :deep(.t-tabs__operations) {
-    display: none;
-  }
-
-  :deep(.t-tabs__nav-scroll) {
-    overflow-x: auto;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-
-  :deep(.t-tabs__content) {
-    display: none;
-  }
-}
-
-.model-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-
-  .model-card--add {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-// 模型卡片 —— 可选类型徽章（仅「全部」Tab）+ 标题 + 一行副标题
-.model-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
-  min-width: 0;
-
-  &:hover {
-    border-color: var(--td-brand-color-3, var(--td-brand-color));
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-  }
-
-  &--add {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 68px;
-    border-style: dashed;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    font: inherit;
-    text-align: center;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-brand-color);
-      border-color: var(--td-brand-color);
-      background: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-      box-shadow: none;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-
-    &__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-      color: var(--td-brand-color);
-      font-size: 18px;
-    }
-
-    &__label {
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.4;
-    }
-  }
-
-  &--builtin {
-    background: var(--td-bg-color-secondarycontainer);
-
-    &:hover {
-      box-shadow: none;
-      border-color: var(--td-component-stroke);
-    }
-  }
-
-  &--clickable {
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--td-brand-color-3, var(--td-brand-color));
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-  }
-}
-
+<style scoped>
+/*
+ * Kept as CSS because selectors reach into generated markup or repeat
+ * per-type colours that are clearer as rules than as long utility strings:
+ *  - the per-type badge tints (5 model types);
+ *  - the built-in lock icon lighting up on card hover;
+ *  - the action buttons fading in on hover / keyboard focus.
+ */
 .model-card__badge {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  // 默认底色，被 type 修饰覆盖
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
 }
 
-// 5 种类型的徽章配色 —— 比原 tag 配色饱和度低一档，避免炫光
 .model-card--chat .model-card__badge {
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
@@ -966,125 +910,14 @@ onMounted(() => {
   color: #118053;
 }
 
-.model-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-}
-
-.model-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.model-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/*
-  Built-in lock indicator. Most cards in a typical install ARE built-in,
-  so loud styling everywhere becomes noise — instead the lock is muted
-  and small by default, and lights up on hover. The signal that matters
-  to users is "which models did I add" → user-added cards stand out by
-  the absence of the lock.
-*/
-.model-card__lock {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  color: var(--td-text-color-placeholder);
-  opacity: 0.6;
-  transition:
-    color 0.15s ease,
-    opacity 0.15s ease;
-
-  .t-icon {
-    font-size: 13px;
-  }
-}
-
 .model-card:hover .model-card__lock {
   opacity: 1;
   color: var(--td-text-color-secondary);
 }
 
-.model-card__subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.model-card__sep {
-  margin: 0 4px;
-  color: var(--td-text-color-placeholder);
-}
-
-.model-card__vision {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.model-card__actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.model-card__action-btn {
-  flex-shrink: 0;
-  padding: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.model-card__more {
-  color: var(--td-text-color-placeholder);
-
-  &:hover,
-  &:focus-visible {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-// Hover / 键盘焦点 时显示操作按钮，避免静态卡片上有"杂物"。
 .model-card:hover .model-card__action-btn,
 .model-card:focus-within .model-card__action-btn,
 .model-card__actions:focus-within .model-card__action-btn {
   opacity: 1;
-}
-
-.empty-state {
-  padding: 64px 0;
-  text-align: center;
-
-  :deep(.t-empty__description) {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    margin-bottom: 16px;
-  }
 }
 </style>

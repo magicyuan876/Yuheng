@@ -1,76 +1,88 @@
 <template>
-  <div class="user-profile">
-    <div class="section-header">
-      <h2>{{ $t("userProfile.title") }}</h2>
-      <p class="section-description">{{ $t("userProfile.description") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("userProfile.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("userProfile.description") }}</p>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="loading-inline">
-      <t-loading size="small" />
+    <div v-if="loading" class="text-muted-foreground flex items-center justify-center gap-3 py-10 text-sm">
+      <Loader2Icon class="animate-spin" />
       <span>{{ $t("tenant.loadingInfo") }}</span>
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="error-inline">
-      <t-alert theme="error" :message="error">
-        <template #operation>
-          <t-button size="small" @click="loadInfo">{{ $t("tenant.retry") }}</t-button>
-        </template>
-      </t-alert>
+    <div v-else-if="error" class="py-5">
+      <!-- TDesign's error alert sat on the pale error tint with no border and
+           dark text; only its icon was red. -->
+      <Alert variant="destructive" class="text-foreground border-transparent bg-[var(--td-error-color-1)]">
+        <CircleAlertIcon class="text-destructive!" />
+        <AlertTitle>{{ error }}</AlertTitle>
+        <AlertAction>
+          <Button variant="outline" size="sm" @click="loadInfo">{{ $t("tenant.retry") }}</Button>
+        </AlertAction>
+      </Alert>
     </div>
 
     <!-- Content -->
-    <div v-else class="settings-group">
+    <div v-else class="flex flex-col">
       <!-- 用户 ID -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("tenant.api.userIdLabel") }}</label>
-          <p class="desc">{{ $t("tenant.api.userIdDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("tenant.api.userIdLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("tenant.api.userIdDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ userInfo?.id || "-" }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ userInfo?.id || "-" }}</span>
         </div>
       </div>
 
       <!-- 用户名 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("tenant.api.usernameLabel") }}</label>
-          <p class="desc">{{ $t("tenant.api.usernameDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("tenant.api.usernameLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("tenant.api.usernameDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ userInfo?.username || "-" }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ userInfo?.username || "-" }}</span>
         </div>
       </div>
 
       <!-- 邮箱 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("tenant.api.emailLabel") }}</label>
-          <p class="desc">{{ $t("tenant.api.emailDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("tenant.api.emailLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("tenant.api.emailDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ userInfo?.email || "-" }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ userInfo?.email || "-" }}</span>
         </div>
       </div>
 
       <!-- 注册时间 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("tenant.api.createdAtLabel") }}</label>
-          <p class="desc">{{ $t("tenant.api.createdAtDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("tenant.api.createdAtLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("tenant.api.createdAtDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <span class="info-value">{{ formatDate(userInfo?.created_at) }}</span>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <span class="text-foreground text-right text-sm break-words">{{ formatDate(userInfo?.created_at) }}</span>
         </div>
       </div>
 
       <!-- 修改密码：与其它 setting-row 同款只读行 + 编辑入口，表单进原地 popup -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("userProfile.changePassword.label") }}</label>
-          <p class="desc">
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("userProfile.changePassword.label") }}
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
             {{
               oidcOnlyLogin
                 ? $t("userProfile.changePassword.oidcOnlyDescription")
@@ -78,84 +90,104 @@
             }}
           </p>
         </div>
-        <div class="setting-control">
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end gap-2">
           <template v-if="oidcOnlyLogin">
-            <span class="info-value info-value--muted">—</span>
+            <span class="text-placeholder text-right text-sm break-words">—</span>
           </template>
           <template v-else>
-            <span class="info-value password-mask" aria-hidden="true">••••••••</span>
-            <t-popup
-              v-model="passwordPopupVisible"
-              trigger="click"
-              placement="bottom-end"
-              destroy-on-close
-              overlay-class-name="user-profile-password-popup-overlay"
-            >
-              <t-button
-                theme="default"
-                variant="text"
-                shape="square"
-                size="small"
-                class="edit-btn"
-                :title="$t('userProfile.changePassword.label')"
-                :aria-label="$t('userProfile.changePassword.label')"
+            <span class="text-muted-foreground text-right text-sm tracking-[0.12em] break-words" aria-hidden="true">
+              ••••••••
+            </span>
+            <Popover v-model:open="passwordPopupVisible">
+              <PopoverTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="shrink-0"
+                  :title="$t('userProfile.changePassword.label')"
+                  :aria-label="$t('userProfile.changePassword.label')"
+                >
+                  <PencilIcon />
+                </Button>
+              </PopoverTrigger>
+              <!-- The popover layer (z 5500) already clears the settings overlay, which
+                   the old popup needed a 3050 z-index for. The frosted surface, hairline
+                   border and layered shadow (lighter in dark mode) are the old
+                   overlay's, carried over from its global stylesheet. -->
+              <PopoverContent
+                align="end"
+                class="border-border w-[min(392px,calc(100vw-24px))] min-w-[300px] rounded-xl border-[0.5px] px-4 py-3.5 shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)] ring-0 backdrop-blur-[20px] backdrop-saturate-[1.8] dark:border-white/8 dark:bg-[rgba(36,36,36,0.92)] dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.05),0_2px_4px_rgba(0,0,0,0.12),0_8px_32px_rgba(0,0,0,0.28)]"
               >
-                <template #icon>
-                  <t-icon name="edit" />
-                </template>
-              </t-button>
-              <template #content>
-                <div class="password-popup-inner" @click.stop>
-                  <div class="password-popup-title">{{ $t("userProfile.changePassword.label") }}</div>
-                  <p class="password-popup-hint">{{ $t("userProfile.changePassword.description") }}</p>
-                  <t-form
-                    ref="passwordFormRef"
-                    :data="passwordForm"
-                    :rules="passwordRules"
-                    label-align="top"
-                    class="password-popup-form"
-                    @submit.prevent
-                  >
-                    <t-form-item :label="$t('userProfile.changePassword.currentLabel')" name="oldPassword">
-                      <t-input
+                <div @click.stop>
+                  <div class="text-foreground mb-2 text-[15px] leading-snug font-semibold">
+                    {{ $t("userProfile.changePassword.label") }}
+                  </div>
+                  <p class="text-muted-foreground m-0 mb-3 text-[13px] leading-normal">
+                    {{ $t("userProfile.changePassword.description") }}
+                  </p>
+                  <form class="flex flex-col" @submit.prevent>
+                    <div class="mb-3.5 flex flex-col gap-1.5">
+                      <Label for="user-profile-old-password" class="text-sm font-medium">
+                        {{ $t("userProfile.changePassword.currentLabel") }}
+                      </Label>
+                      <Input
+                        id="user-profile-old-password"
                         v-model="passwordForm.oldPassword"
                         type="password"
                         autocomplete="current-password"
                         :disabled="passwordSubmitting"
                         :placeholder="$t('userProfile.changePassword.currentPlaceholder')"
                       />
-                    </t-form-item>
-                    <t-form-item :label="$t('userProfile.changePassword.newLabel')" name="newPassword">
-                      <t-input
+                      <p v-if="passwordErrors.oldPassword" class="text-destructive m-0 text-xs">
+                        {{ passwordErrors.oldPassword }}
+                      </p>
+                    </div>
+                    <div class="mb-3.5 flex flex-col gap-1.5">
+                      <Label for="user-profile-new-password" class="text-sm font-medium">
+                        {{ $t("userProfile.changePassword.newLabel") }}
+                      </Label>
+                      <Input
+                        id="user-profile-new-password"
                         v-model="passwordForm.newPassword"
                         type="password"
                         autocomplete="new-password"
                         :disabled="passwordSubmitting"
                         :placeholder="$t('userProfile.changePassword.newPlaceholder')"
                       />
-                    </t-form-item>
-                    <t-form-item :label="$t('userProfile.changePassword.confirmLabel')" name="confirmPassword">
-                      <t-input
+                      <p v-if="passwordErrors.newPassword" class="text-destructive m-0 text-xs">
+                        {{ passwordErrors.newPassword }}
+                      </p>
+                    </div>
+                    <div class="mb-1 flex flex-col gap-1.5">
+                      <Label for="user-profile-confirm-password" class="text-sm font-medium">
+                        {{ $t("userProfile.changePassword.confirmLabel") }}
+                      </Label>
+                      <Input
+                        id="user-profile-confirm-password"
                         v-model="passwordForm.confirmPassword"
                         type="password"
                         autocomplete="new-password"
                         :disabled="passwordSubmitting"
                         :placeholder="$t('userProfile.changePassword.confirmPlaceholder')"
-                        @enter="submitPasswordChange"
+                        @keydown.enter="submitPasswordChange"
                       />
-                    </t-form-item>
-                  </t-form>
-                  <div class="password-popup-footer">
-                    <t-button variant="outline" :disabled="passwordSubmitting" @click="closePasswordPopup">
+                      <p v-if="passwordErrors.confirmPassword" class="text-destructive m-0 text-xs">
+                        {{ passwordErrors.confirmPassword }}
+                      </p>
+                    </div>
+                  </form>
+                  <div class="mt-4 flex justify-end gap-2">
+                    <Button variant="outline" :disabled="passwordSubmitting" @click="closePasswordPopup">
                       {{ $t("common.cancel") }}
-                    </t-button>
-                    <t-button theme="primary" :loading="passwordSubmitting" @click="submitPasswordChange">
+                    </Button>
+                    <Button :disabled="passwordSubmitting" @click="submitPasswordChange">
+                      <Loader2Icon v-if="passwordSubmitting" class="animate-spin" />
                       {{ $t("userProfile.changePassword.submit") }}
-                    </t-button>
+                    </Button>
                   </div>
                 </div>
-              </template>
-            </t-popup>
+              </PopoverContent>
+            </Popover>
           </template>
         </div>
       </div>
@@ -167,10 +199,16 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
-import type { FormInstanceFunctions, FormRule } from "tdesign-vue-next";
 import { getCurrentUser, changePassword, logout as logoutApi, type UserInfo } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useI18n } from "vue-i18n";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CircleAlertIcon, Loader2Icon, PencilIcon } from "@lucide/vue";
 
 const { t, locale } = useI18n();
 const router = useRouter();
@@ -181,9 +219,16 @@ const loading = ref(true);
 const error = ref("");
 
 const passwordPopupVisible = ref(false);
-const passwordFormRef = ref<FormInstanceFunctions | null>(null);
 const passwordSubmitting = ref(false);
 const passwordForm = reactive({
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
+
+// The old t-form reported rule failures per field; the same messages are
+// kept, now held in a plain reactive map cleared on open and on submit.
+const passwordErrors = reactive({
   oldPassword: "",
   newPassword: "",
   confirmPassword: "",
@@ -197,30 +242,53 @@ watch(passwordPopupVisible, (open) => {
   }
 });
 
-const passwordRules = computed<Record<string, FormRule[]>>(() => ({
-  oldPassword: [{ required: true, message: t("userProfile.changePassword.currentRequired"), type: "error" }],
-  newPassword: [
-    { required: true, message: t("auth.passwordRequired"), type: "error" },
-    { min: 8, message: t("auth.passwordMinLength"), type: "error" },
-    { max: 32, message: t("auth.passwordMaxLength"), type: "error" },
-    { pattern: /[a-zA-Z]/, message: t("auth.passwordMustContainLetter"), type: "error" },
-    { pattern: /\d/, message: t("auth.passwordMustContainNumber"), type: "error" },
-    {
-      validator: (val: string) => val !== passwordForm.oldPassword,
-      message: t("userProfile.changePassword.sameAsCurrent"),
-      type: "error",
-    },
-  ],
-  confirmPassword: [
-    { required: true, message: t("auth.confirmPasswordRequired"), type: "error" },
-    {
-      validator: (val: string) => val === passwordForm.newPassword,
-      message: t("auth.passwordMismatch"),
-      type: "error",
-      trigger: "blur",
-    },
-  ],
-}));
+const clearPasswordErrors = () => {
+  passwordErrors.oldPassword = "";
+  passwordErrors.newPassword = "";
+  passwordErrors.confirmPassword = "";
+};
+
+// Same rules the t-form enforced, in the same order; the first failure per
+// field wins, matching TDesign's error display.
+const validatePasswordForm = (): boolean => {
+  clearPasswordErrors();
+  let ok = true;
+
+  if (!passwordForm.oldPassword) {
+    passwordErrors.oldPassword = t("userProfile.changePassword.currentRequired");
+    ok = false;
+  }
+
+  if (!passwordForm.newPassword) {
+    passwordErrors.newPassword = t("auth.passwordRequired");
+    ok = false;
+  } else if (passwordForm.newPassword.length < 8) {
+    passwordErrors.newPassword = t("auth.passwordMinLength");
+    ok = false;
+  } else if (passwordForm.newPassword.length > 32) {
+    passwordErrors.newPassword = t("auth.passwordMaxLength");
+    ok = false;
+  } else if (!/[a-zA-Z]/.test(passwordForm.newPassword)) {
+    passwordErrors.newPassword = t("auth.passwordMustContainLetter");
+    ok = false;
+  } else if (!/\d/.test(passwordForm.newPassword)) {
+    passwordErrors.newPassword = t("auth.passwordMustContainNumber");
+    ok = false;
+  } else if (passwordForm.newPassword === passwordForm.oldPassword) {
+    passwordErrors.newPassword = t("userProfile.changePassword.sameAsCurrent");
+    ok = false;
+  }
+
+  if (!passwordForm.confirmPassword) {
+    passwordErrors.confirmPassword = t("auth.confirmPasswordRequired");
+    ok = false;
+  } else if (passwordForm.confirmPassword !== passwordForm.newPassword) {
+    passwordErrors.confirmPassword = t("auth.passwordMismatch");
+    ok = false;
+  }
+
+  return ok;
+};
 
 const loadInfo = async () => {
   try {
@@ -260,7 +328,7 @@ const resetPasswordForm = () => {
   passwordForm.oldPassword = "";
   passwordForm.newPassword = "";
   passwordForm.confirmPassword = "";
-  passwordFormRef.value?.clearValidate?.();
+  clearPasswordErrors();
 };
 
 const closePasswordPopup = () => {
@@ -271,8 +339,7 @@ const closePasswordPopup = () => {
 
 const submitPasswordChange = async () => {
   if (passwordSubmitting.value) return;
-  const result = await passwordFormRef.value?.validate?.();
-  if (result !== true) return;
+  if (!validatePasswordForm()) return;
 
   passwordSubmitting.value = true;
   try {
@@ -307,176 +374,3 @@ const submitPasswordChange = async () => {
 
 onMounted(loadInfo);
 </script>
-
-<style lang="less" scoped>
-.user-profile {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 40px 0;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-}
-
-.error-inline {
-  padding: 20px 0;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-
-  .info-value {
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    text-align: right;
-    word-break: break-word;
-  }
-
-  .info-value--muted {
-    color: var(--td-text-color-placeholder);
-  }
-
-  .edit-btn {
-    flex-shrink: 0;
-  }
-}
-
-.password-mask {
-  letter-spacing: 0.12em;
-  color: var(--td-text-color-secondary);
-}
-
-.password-popup-inner {
-  max-width: 100%;
-}
-
-.password-popup-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 8px;
-  line-height: 1.35;
-}
-
-.password-popup-hint {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--td-text-color-secondary);
-}
-
-.password-popup-form {
-  :deep(.t-form__item) {
-    margin-bottom: 14px;
-
-    &:last-child {
-      margin-bottom: 4px;
-    }
-  }
-}
-
-.password-popup-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-</style>
-
-<style lang="less">
-/* t-popup 挂到 body，需全局样式；z-index 需高于设置全屏遮罩（2000）。 */
-.user-profile-password-popup-overlay {
-  z-index: 3050 !important;
-
-  .t-popup__content {
-    padding: 14px 16px !important;
-    min-width: 300px;
-    max-width: min(392px, calc(100vw - 24px));
-    border-radius: 12px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  }
-}
-
-:root[theme-mode="dark"] .user-profile-password-popup-overlay .t-popup__content {
-  background: rgba(36, 36, 36, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.28) !important;
-}
-</style>

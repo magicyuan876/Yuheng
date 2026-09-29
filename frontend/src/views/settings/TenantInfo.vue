@@ -1,301 +1,414 @@
 <template>
-  <div class="tenant-info">
-    <div class="section-header">
-      <h2>{{ $t("tenant.title") }}</h2>
-      <p class="section-description">{{ $t("tenant.sectionDescription") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("tenant.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("tenant.sectionDescription") }}</p>
     </div>
 
     <!-- Loading state -->
-    <div v-if="loading" class="loading-inline">
-      <t-loading size="small" />
+    <div v-if="loading" class="text-muted-foreground flex items-center justify-center gap-3 py-10 text-sm">
+      <Loader2Icon class="animate-spin" />
       <span>{{ $t("tenant.loadingInfo") }}</span>
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error" class="error-inline">
-      <t-alert theme="error" :message="error">
-        <template #operation>
-          <t-button size="small" @click="loadInfo">{{ $t("tenant.retry") }}</t-button>
-        </template>
-      </t-alert>
+    <div v-else-if="error" class="py-5">
+      <!-- TDesign's error alert sat on the pale error tint with no border and
+           dark text; only its icon was red. -->
+      <Alert variant="destructive" class="text-foreground border-transparent bg-[var(--td-error-color-1)]">
+        <CircleAlertIcon class="text-destructive!" />
+        <AlertTitle>{{ error }}</AlertTitle>
+        <AlertAction>
+          <Button variant="outline" size="sm" @click="loadInfo">{{ $t("tenant.retry") }}</Button>
+        </AlertAction>
+      </Alert>
     </div>
 
     <!-- Content：信息列表 + 危险操作分区，避免与 setting-row 底边线混用虚线 -->
-    <div v-else class="tenant-info-body">
-      <div class="settings-group">
+    <div v-else class="flex flex-col">
+      <div class="flex flex-col">
         <!-- Tenant ID -->
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.idLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.idDescription") }}</p>
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("tenant.details.idLabel") }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("tenant.details.idDescription") }}</p>
           </div>
-          <div class="setting-control">
-            <span class="info-value">{{ tenantInfo?.id || "-" }}</span>
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+              {{ tenantInfo?.id || "-" }}
+            </span>
           </div>
         </div>
 
         <!-- Tenant name -->
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.nameLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.nameDescription") }}</p>
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("tenant.details.nameLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.details.nameDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
             <!-- 只读态：显示名称 + 编辑按钮（owner 才看得见编辑入口）。
                原地编辑取代弹窗：少一层视觉打断，与其它行的展示节奏一致。 -->
             <template v-if="!editing">
-              <span class="info-value">{{ tenantInfo?.name || "-" }}</span>
-              <t-button
+              <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+                {{ tenantInfo?.name || "-" }}
+              </span>
+              <Button
                 v-if="canEditTenant"
-                theme="default"
-                variant="text"
-                shape="square"
-                size="small"
-                class="edit-btn"
+                variant="ghost"
+                size="icon-sm"
+                class="shrink-0"
                 :title="$t('tenant.details.editName')"
                 :aria-label="$t('tenant.details.editName')"
                 @click="startEditName"
               >
-                <template #icon>
-                  <t-icon name="edit" />
-                </template>
-              </t-button>
+                <PencilIcon />
+              </Button>
             </template>
             <!-- 编辑态：输入框 + 保存/取消。回车保存，Esc 取消。 -->
-            <div v-else class="inline-edit">
-              <t-input
+            <div v-else ref="nameEditRow" class="flex w-full items-center justify-end gap-2">
+              <Input
                 v-model="editName"
                 :placeholder="$t('tenant.details.editNamePlaceholder')"
                 :maxlength="64"
                 :disabled="saving"
-                autofocus
-                class="inline-edit-input"
-                @enter="saveTenantName"
+                class="max-w-[220px] flex-1"
+                @keydown.enter="saveTenantName"
                 @keydown="onEditKeydown"
               />
-              <t-button theme="primary" size="small" :loading="saving" :disabled="!canSubmit" @click="saveTenantName">
+              <Button size="sm" :disabled="!canSubmit" @click="saveTenantName">
+                <Loader2Icon v-if="saving" class="animate-spin" />
                 {{ $t("tenant.details.editNameConfirm") }}
-              </t-button>
-              <t-button theme="default" variant="outline" size="small" :disabled="saving" @click="cancelEditName">
+              </Button>
+              <Button variant="outline" size="sm" :disabled="saving" @click="cancelEditName">
                 {{ $t("tenant.details.editNameCancel") }}
-              </t-button>
+              </Button>
             </div>
           </div>
         </div>
 
         <!-- Tenant description -->
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.descriptionLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.descriptionDescription") }}</p>
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">
+              {{ $t("tenant.details.descriptionLabel") }}
+            </label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.details.descriptionDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
             <!-- 只读态：显示描述（空时给占位）+ 编辑按钮（owner 才看得见编辑入口）。
                与名称同款"原地编辑"模式，少一层弹窗打断。 -->
             <template v-if="!editingDescription">
-              <span class="info-value description-value" :class="{ 'is-empty': !tenantInfo?.description }">
+              <!-- Multi-line, wrapping anywhere; an empty description shows the
+                   placeholder text in the placeholder colour, inviting an edit. -->
+              <span
+                class="min-w-0 text-right text-sm break-words wrap-anywhere whitespace-pre-wrap"
+                :class="tenantInfo?.description ? 'text-foreground' : 'text-placeholder'"
+              >
                 {{ tenantInfo?.description || $t("tenant.details.descriptionEmptyPlaceholder") }}
               </span>
-              <t-button
+              <Button
                 v-if="canEditTenant"
-                theme="default"
-                variant="text"
-                shape="square"
-                size="small"
-                class="edit-btn"
+                variant="ghost"
+                size="icon-sm"
+                class="shrink-0"
                 :title="$t('tenant.details.editDescription')"
                 :aria-label="$t('tenant.details.editDescription')"
                 @click="startEditDescription"
               >
-                <template #icon>
-                  <t-icon name="edit" />
-                </template>
-              </t-button>
+                <PencilIcon />
+              </Button>
             </template>
             <!-- 编辑态：textarea + 保存/取消。Esc 取消、Ctrl/⌘+Enter 保存；
                textarea 上 Enter 默认换行更顺手，不接管 Enter 提交。 -->
-            <div v-else class="inline-edit inline-edit-description">
-              <t-textarea
+            <div
+              v-else
+              ref="descriptionEditRow"
+              class="flex w-full max-w-[360px] flex-col items-stretch justify-end gap-2"
+            >
+              <Textarea
                 v-model="editDescription"
                 :placeholder="$t('tenant.details.editDescriptionPlaceholder')"
                 :maxlength="512"
-                :autosize="{ minRows: 2, maxRows: 6 }"
+                rows="2"
                 :disabled="savingDescription"
-                autofocus
-                class="inline-edit-textarea"
+                class="max-h-[140px] w-full"
                 @keydown="onEditDescriptionKeydown"
               />
-              <div class="inline-edit-actions">
-                <t-button
-                  theme="primary"
-                  size="small"
-                  :loading="savingDescription"
-                  :disabled="!canSubmitDescription"
-                  @click="saveTenantDescription"
-                >
+              <div class="flex justify-end gap-2">
+                <Button size="sm" :disabled="!canSubmitDescription" @click="saveTenantDescription">
+                  <Loader2Icon v-if="savingDescription" class="animate-spin" />
                   {{ $t("tenant.details.editNameConfirm") }}
-                </t-button>
-                <t-button
-                  theme="default"
-                  variant="outline"
-                  size="small"
-                  :disabled="savingDescription"
-                  @click="cancelEditDescription"
-                >
+                </Button>
+                <Button variant="outline" size="sm" :disabled="savingDescription" @click="cancelEditDescription">
                   {{ $t("tenant.details.editNameCancel") }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Tenant business -->
-        <div v-if="tenantInfo?.business" class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.businessLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.businessDescription") }}</p>
+        <div
+          v-if="tenantInfo?.business"
+          class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+        >
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">
+              {{ $t("tenant.details.businessLabel") }}
+            </label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.details.businessDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <span class="info-value">{{ tenantInfo.business }}</span>
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+              {{ tenantInfo.business }}
+            </span>
           </div>
         </div>
 
         <!-- Tenant status -->
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.statusLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.statusDescription") }}</p>
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("tenant.details.statusLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.details.statusDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <t-tag :theme="getStatusTheme(tenantInfo?.status)" variant="light" size="small">
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <Badge variant="secondary" :class="getStatusClass(tenantInfo?.status)">
               {{ getStatusText(tenantInfo?.status) }}
-            </t-tag>
+            </Badge>
           </div>
         </div>
 
         <!-- Tenant creation time -->
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.details.createdAtLabel") }}</label>
-            <p class="desc">{{ $t("tenant.details.createdAtDescription") }}</p>
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">
+              {{ $t("tenant.details.createdAtLabel") }}
+            </label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.details.createdAtDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <span class="info-value">{{ formatDate(tenantInfo?.created_at) }}</span>
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+              {{ formatDate(tenantInfo?.created_at) }}
+            </span>
           </div>
         </div>
 
         <!-- Storage quota -->
-        <div v-if="tenantInfo?.storage_quota !== undefined" class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.storage.quotaLabel") }}</label>
-            <p class="desc">{{ $t("tenant.storage.quotaDescription") }}</p>
+        <div
+          v-if="tenantInfo?.storage_quota !== undefined"
+          class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+        >
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("tenant.storage.quotaLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.storage.quotaDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <span class="info-value">{{ formatBytes(tenantInfo.storage_quota) }}</span>
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+              {{ formatBytes(tenantInfo.storage_quota) }}
+            </span>
           </div>
         </div>
 
         <!-- Used storage -->
-        <div v-if="tenantInfo?.storage_quota !== undefined" class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.storage.usedLabel") }}</label>
-            <p class="desc">{{ $t("tenant.storage.usedDescription") }}</p>
+        <div
+          v-if="tenantInfo?.storage_quota !== undefined"
+          class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+        >
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("tenant.storage.usedLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.storage.usedDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <span class="info-value">{{ formatBytes(tenantInfo.storage_used || 0) }}</span>
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <span class="text-foreground min-w-0 text-right text-sm wrap-anywhere">
+              {{ formatBytes(tenantInfo.storage_used || 0) }}
+            </span>
           </div>
         </div>
 
         <!-- Storage usage -->
-        <div v-if="tenantInfo?.storage_quota !== undefined" class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("tenant.storage.usageLabel") }}</label>
-            <p class="desc">{{ $t("tenant.storage.usageDescription") }}</p>
+        <div
+          v-if="tenantInfo?.storage_quota !== undefined"
+          class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b"
+        >
+          <div class="w-max max-w-[40%] min-w-[140px] flex-none pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("tenant.storage.usageLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("tenant.storage.usageDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <div class="usage-control">
-              <span class="usage-text">{{ getUsagePercentage() }}%</span>
-              <!-- t-progress: theme = 形态（line/plump/circle）；颜色用 status -->
-              <t-progress
-                :percentage="getUsagePercentage()"
-                :show-info="false"
-                size="small"
-                :status="getUsagePercentage() > 80 ? 'warning' : 'success'"
-                style="flex: 1"
-              />
+          <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <div class="flex flex-1 items-center justify-end gap-3">
+              <span class="text-foreground min-w-[50px] text-right text-sm font-medium">
+                {{ getUsagePercentage() }}%
+              </span>
+              <!-- 形态与颜色沿用原 t-progress 的语义：超过 80% 转 warning -->
+              <div
+                class="h-1.5 max-w-[240px] flex-1 overflow-hidden rounded-full bg-[var(--td-bg-color-secondarycontainer)]"
+              >
+                <div
+                  class="h-full rounded-full transition-all"
+                  :class="getUsagePercentage() > 80 ? 'bg-warning' : 'bg-success'"
+                  :style="{ width: `${getUsagePercentage()}%` }"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <aside v-if="showLeaveDangerZone" class="leave-space-panel" :aria-label="$t('tenant.leaveDangerZone.title')">
-        <div class="leave-space-panel-inner">
-          <div class="leave-space-panel-text">
-            <div class="leave-space-panel-title">{{ $t("tenant.leaveDangerZone.title") }}</div>
-            <p class="leave-space-panel-desc">{{ $t("tenant.leaveDangerZone.desc") }}</p>
+      <aside v-if="showLeaveDangerZone" class="mt-1" :aria-label="$t('tenant.leaveDangerZone.title')">
+        <div
+          class="border-border bg-secondary box-border flex flex-row items-center justify-between gap-5 rounded-[10px] border px-[18px] py-4 max-[560px]:flex-col max-[560px]:items-stretch"
+        >
+          <div class="max-w-[min(65%,28rem)] min-w-0 flex-1 pr-2 max-[560px]:max-w-none max-[560px]:pr-0">
+            <div class="text-foreground mb-1 text-[15px] leading-[1.4] font-medium">
+              {{ $t("tenant.leaveDangerZone.title") }}
+            </div>
+            <p class="text-muted-foreground m-0 text-[13px] leading-[1.55]">{{ $t("tenant.leaveDangerZone.desc") }}</p>
           </div>
-          <div class="leave-space-panel-action">
-            <t-button theme="danger" variant="outline" size="medium" @click="confirmLeaveTenant">
+          <div class="shrink-0 max-[560px]:flex max-[560px]:justify-end">
+            <Button
+              variant="outline"
+              class="border-destructive text-destructive hover:bg-destructive/10"
+              @click="confirmLeaveTenant"
+            >
               {{ $t("tenant.leaveDangerZone.button") }}
-            </t-button>
+            </Button>
           </div>
         </div>
       </aside>
 
-      <aside
-        v-if="showDeleteDangerZone"
-        class="leave-space-panel delete-space-panel"
-        :aria-label="$t('tenant.deleteDangerZone.title')"
-      >
-        <div class="leave-space-panel-inner">
-          <div class="leave-space-panel-text">
-            <div class="leave-space-panel-title">{{ $t("tenant.deleteDangerZone.title") }}</div>
-            <p class="leave-space-panel-desc">{{ $t("tenant.deleteDangerZone.desc") }}</p>
+      <aside v-if="showDeleteDangerZone" class="mt-3" :aria-label="$t('tenant.deleteDangerZone.title')">
+        <div
+          class="border-border bg-secondary box-border flex flex-row items-center justify-between gap-5 rounded-[10px] border px-[18px] py-4 max-[560px]:flex-col max-[560px]:items-stretch"
+        >
+          <div class="max-w-[min(65%,28rem)] min-w-0 flex-1 pr-2 max-[560px]:max-w-none max-[560px]:pr-0">
+            <div class="text-foreground mb-1 text-[15px] leading-[1.4] font-medium">
+              {{ $t("tenant.deleteDangerZone.title") }}
+            </div>
+            <p class="text-muted-foreground m-0 text-[13px] leading-[1.55]">{{ $t("tenant.deleteDangerZone.desc") }}</p>
           </div>
-          <div class="leave-space-panel-action">
-            <t-button theme="danger" size="medium" @click="confirmDeleteTenant">
+          <div class="shrink-0 max-[560px]:flex max-[560px]:justify-end">
+            <Button
+              variant="destructive"
+              class="bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive"
+              @click="confirmDeleteTenant"
+            >
               {{ $t("tenant.deleteDangerZone.button") }}
-            </t-button>
+            </Button>
           </div>
         </div>
       </aside>
     </div>
 
-    <t-dialog
-      v-model:visible="deleteTenantVisible"
-      :header="$t('tenant.deleteDangerZone.confirmTitle')"
-      :confirm-btn="{
-        content: $t('tenant.deleteDangerZone.confirm'),
-        theme: 'danger',
-        disabled: deleteConfirmName.trim() !== (tenantInfo?.name || ''),
-        loading: deletingTenant,
-      }"
-      :cancel-btn="$t('common.cancel')"
-      :close-on-overlay-click="!deletingTenant"
-      :close-btn="!deletingTenant"
-      @confirm="deleteCurrentTenant"
-    >
-      <div class="delete-tenant-confirm">
-        <p class="delete-tenant-confirm-body">
-          {{ $t("tenant.deleteDangerZone.confirmBody", { name: tenantInfo?.name || "" }) }}
-        </p>
-        <p class="delete-tenant-confirm-hint">
-          {{ $t("tenant.deleteDangerZone.confirmHint", { name: tenantInfo?.name || "" }) }}
-        </p>
-        <t-input
-          v-model="deleteConfirmName"
-          :placeholder="tenantInfo?.name || ''"
-          :disabled="deletingTenant"
-          clearable
-        />
-      </div>
-    </t-dialog>
+    <!-- 退出空间确认 -->
+    <Dialog v-model:open="leaveConfirmVisible">
+      <DialogContent class="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{{ $t("tenantMember.leave.confirmTitle") }}</DialogTitle>
+          <DialogDescription>{{ $t("tenantMember.leave.confirmBody") }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ $t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            class="bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive"
+            :disabled="leavingTenant"
+            @click="doLeaveTenant"
+          >
+            <Loader2Icon v-if="leavingTenant" class="animate-spin" />
+            {{ $t("tenantMember.leave.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 删除空间确认 -->
+    <Dialog v-model:open="deleteTenantVisible">
+      <DialogContent
+        class="sm:max-w-[480px]"
+        :class="{ '[&>button]:hidden': deletingTenant }"
+        @interact-outside="onDeleteInteractOutside"
+      >
+        <DialogHeader>
+          <DialogTitle>{{ $t("tenant.deleteDangerZone.confirmTitle") }}</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-3">
+          <p class="text-foreground m-0 leading-[1.6]">
+            {{ $t("tenant.deleteDangerZone.confirmBody", { name: tenantInfo?.name || "" }) }}
+          </p>
+          <p class="text-muted-foreground m-0 text-sm leading-normal">
+            {{ $t("tenant.deleteDangerZone.confirmHint", { name: tenantInfo?.name || "" }) }}
+          </p>
+          <div class="relative">
+            <Input
+              v-model="deleteConfirmName"
+              :placeholder="tenantInfo?.name || ''"
+              :disabled="deletingTenant"
+              class="pr-8"
+            />
+            <!-- Stands in for TDesign's \`clearable\`. -->
+            <button
+              v-if="deleteConfirmName && !deletingTenant"
+              type="button"
+              data-slot="input-clear"
+              class="text-placeholder hover:text-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center"
+              :aria-label="$t('common.clear')"
+              @click="deleteConfirmName = ''"
+            >
+              <XIcon class="size-3.5" />
+            </button>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline" :disabled="deletingTenant">{{ $t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            variant="destructive"
+            class="bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive"
+            :disabled="deleteConfirmName.trim() !== (tenantInfo?.name || '') || deletingTenant"
+            @click="deleteCurrentTenant"
+          >
+            <Loader2Icon v-if="deletingTenant" class="animate-spin" />
+            {{ $t("tenant.deleteDangerZone.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
+import { ref, computed, nextTick, onMounted, watch } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { getCurrentUser, type TenantInfo } from "@/api/auth";
 import { deleteTenant as deleteTenantApi, updateTenant as updateTenantApi } from "@/api/tenant";
 import { leaveTenant, fetchAllTenantMembers, type TenantMember, type TenantRole } from "@/api/tenant/members";
@@ -307,6 +420,22 @@ import {
   persistLastActiveTenantPreference,
   stashTenantSwitchToast,
 } from "@/utils/tenantSwitch";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { CircleAlertIcon, Loader2Icon, PencilIcon, XIcon } from "@lucide/vue";
 
 const { t, locale } = useI18n();
 const { formatRole } = useRoleLabel();
@@ -383,38 +512,39 @@ async function evaluateLeaveGate(): Promise<void> {
   }
 }
 
+const leaveConfirmVisible = ref(false);
+const leavingTenant = ref(false);
+
 function confirmLeaveTenant() {
   const tid = Number(tenantInfo.value?.id ?? 0);
   if (!tid) return;
+  leaveConfirmVisible.value = true;
+}
 
-  const dlg = DialogPlugin.confirm({
-    header: t("tenantMember.leave.confirmTitle"),
-    body: t("tenantMember.leave.confirmBody"),
-    confirmBtn: { content: t("tenantMember.leave.confirm"), theme: "danger" },
-    cancelBtn: t("common.cancel"),
-    onConfirm: async () => {
-      try {
-        const resp = await leaveTenant(tid);
-        if (resp.success) {
-          MessagePlugin.success(t("tenantMember.leave.success"));
-          authStore.logout();
-          window.location.href = "/login";
-        } else {
-          MessagePlugin.error(resp.message || t("tenantMember.errors.generic"));
-        }
-      } catch (err: any) {
-        const status = err?.status;
-        if (status === 409) {
-          MessagePlugin.error(t("tenantMember.errors.lastOwner"));
-        } else {
-          MessagePlugin.error(err?.message || t("tenantMember.errors.generic"));
-        }
-      } finally {
-        dlg.destroy();
-      }
-    },
-    onClose: () => dlg.destroy(),
-  });
+async function doLeaveTenant() {
+  const tid = Number(tenantInfo.value?.id ?? 0);
+  if (!tid || leavingTenant.value) return;
+  leavingTenant.value = true;
+  try {
+    const resp = await leaveTenant(tid);
+    if (resp.success) {
+      MessagePlugin.success(t("tenantMember.leave.success"));
+      authStore.logout();
+      window.location.href = "/login";
+    } else {
+      MessagePlugin.error(resp.message || t("tenantMember.errors.generic"));
+    }
+  } catch (err: any) {
+    const status = err?.status;
+    if (status === 409) {
+      MessagePlugin.error(t("tenantMember.errors.lastOwner"));
+    } else {
+      MessagePlugin.error(err?.message || t("tenantMember.errors.generic"));
+    }
+  } finally {
+    leavingTenant.value = false;
+    leaveConfirmVisible.value = false;
+  }
 }
 
 function confirmDeleteTenant() {
@@ -423,6 +553,11 @@ function confirmDeleteTenant() {
   if (!tid || !tenantName) return;
   deleteConfirmName.value = "";
   deleteTenantVisible.value = true;
+}
+
+// 删除进行中屏蔽遮罩点击关闭，与原 close-on-overlay-click=false 一致。
+function onDeleteInteractOutside(e: Event) {
+  if (deletingTenant.value) e.preventDefault();
 }
 
 async function deleteCurrentTenant() {
@@ -491,9 +626,16 @@ const canSubmit = computed(
   () => !saving.value && !!editNameTrimmed.value && editNameTrimmed.value !== tenantInfo.value?.name,
 );
 
+// TDesign's \`autofocus\` prop focused the field itself; the native attribute
+// does nothing on an element inserted after page load, so the editors are
+// focused by hand once they have rendered.
+const nameEditRow = ref<HTMLElement | null>(null);
+const descriptionEditRow = ref<HTMLElement | null>(null);
+
 const startEditName = () => {
   editName.value = tenantInfo.value?.name || "";
   editing.value = true;
+  void nextTick(() => nameEditRow.value?.querySelector("input")?.focus());
 };
 
 const cancelEditName = () => {
@@ -502,9 +644,9 @@ const cancelEditName = () => {
   editName.value = "";
 };
 
-// t-input 自身不冒泡 esc，这里手动处理（与 enter 的体验对称）。
-const onEditKeydown = (_value: any, ctx: { e: KeyboardEvent }) => {
-  if (ctx?.e?.key === "Escape") {
+// 输入框自身不冒泡 esc，这里手动处理（与 enter 的体验对称）。
+const onEditKeydown = (e: KeyboardEvent) => {
+  if (e?.key === "Escape") {
     cancelEditName();
   }
 };
@@ -522,6 +664,7 @@ const canSubmitDescription = computed(
 const startEditDescription = () => {
   editDescription.value = tenantInfo.value?.description || "";
   editingDescription.value = true;
+  void nextTick(() => descriptionEditRow.value?.querySelector("textarea")?.focus());
 };
 
 const cancelEditDescription = () => {
@@ -531,8 +674,7 @@ const cancelEditDescription = () => {
 };
 
 // textarea 上 Enter 默认走换行，提交走 Ctrl/⌘+Enter；Esc 取消。
-const onEditDescriptionKeydown = (_value: any, ctx: { e: KeyboardEvent }) => {
-  const e = ctx?.e;
+const onEditDescriptionKeydown = (e: KeyboardEvent) => {
   if (!e) return;
   if (e.key === "Escape") {
     cancelEditDescription();
@@ -655,16 +797,18 @@ const getStatusText = (status: string | undefined) => {
   }
 };
 
-const getStatusTheme = (status: string | undefined) => {
+// The old light-variant tag: a pale tint of the status colour behind text in
+// that colour; unknown statuses keep the neutral grey.
+const getStatusClass = (status: string | undefined) => {
   switch (status) {
     case "active":
-      return "success";
+      return "bg-success/10 text-success";
     case "inactive":
-      return "warning";
+      return "bg-warning/10 text-warning";
     case "suspended":
-      return "danger";
+      return "bg-destructive/10 text-destructive";
     default:
-      return "default";
+      return "";
   }
 };
 
@@ -711,251 +855,3 @@ onMounted(() => {
   loadInfo();
 });
 </script>
-
-<style lang="less" scoped>
-.tenant-info {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 40px 0;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-}
-
-.error-inline {
-  padding: 20px 0;
-}
-
-.tenant-info-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  /* 不再 flex:1：标签列固定到 max-content 的合理范围内（CJK label 一般 4~6 字，
-     再加 desc 文案撑宽），不参与剩余空间分配，避免被长内容挤到单字纵向换行。
-     min-width 兜底，desc 字数稍多时也不会被压缩到一字一行。 */
-  flex: 0 0 auto;
-  width: max-content;
-  min-width: 140px;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  /* 反过来：内容列吃掉剩余空间，并允许收缩 + 内部换行，长字符串不会再撑爆行。
-     去掉原先的 min-width:280px 硬约束（短内容也不需要那么宽的展示槽）。 */
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-
-  .info-value {
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    text-align: right;
-    /* anywhere 比 break-word 激进：连无空格的长串（"WorkspaceDefault..." 这种）
-       也能强制断行，避免单条内容把整行撑出。 */
-    overflow-wrap: anywhere;
-    min-width: 0;
-  }
-
-  .edit-btn {
-    flex-shrink: 0;
-  }
-}
-
-.inline-edit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  justify-content: flex-end;
-}
-
-.inline-edit-input {
-  /* 行内编辑场景下输入框不能撑满整行，否则右侧两个按钮会贴边；
-     给一个合理上限即可，超出走 t-input 自己的省略。 */
-  max-width: 220px;
-  flex: 1;
-}
-
-/* 描述行的原地编辑：textarea 自身可换行展开，按钮换到下方右对齐，
-   避免名称行那样横向把按钮挤窄。 */
-.inline-edit-description {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  width: 100%;
-  max-width: 360px;
-}
-
-.inline-edit-textarea {
-  width: 100%;
-}
-
-.inline-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-/* 只读态的描述：多行可换行；空描述用占位色提示用户可点编辑写入。 */
-.description-value {
-  white-space: pre-wrap;
-  word-break: break-word;
-
-  &.is-empty {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.leave-space-panel {
-  margin-top: 4px;
-}
-
-.delete-space-panel {
-  margin-top: 12px;
-}
-
-.leave-space-panel-inner {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--td-component-stroke);
-  background-color: var(--td-bg-color-secondarycontainer);
-  box-sizing: border-box;
-}
-
-.leave-space-panel-text {
-  flex: 1;
-  min-width: 0;
-  max-width: min(65%, 28rem);
-  padding-right: 8px;
-}
-
-.leave-space-panel-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-  margin-bottom: 4px;
-}
-
-.leave-space-panel-desc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--td-text-color-secondary);
-}
-
-.leave-space-panel-action {
-  flex-shrink: 0;
-}
-
-@media (max-width: 560px) {
-  .leave-space-panel-inner {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .leave-space-panel-text {
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .leave-space-panel-action {
-    display: flex;
-    justify-content: flex-end;
-  }
-}
-
-.usage-control {
-  //   width: 100%;
-  //   display: flex;
-  //   align-items: center;
-  //   gap: 12px;
-
-  .usage-text {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    min-width: 50px;
-    text-align: right;
-  }
-}
-
-.delete-tenant-confirm-body {
-  margin: 0 0 10px;
-  color: var(--td-text-color-primary);
-  line-height: 1.6;
-}
-
-.delete-tenant-confirm-hint {
-  margin: 0 0 12px;
-  color: var(--td-text-color-secondary);
-  line-height: 1.5;
-}
-</style>

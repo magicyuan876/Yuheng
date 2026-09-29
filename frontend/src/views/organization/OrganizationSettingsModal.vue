@@ -1,35 +1,65 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="settings-overlay" @click.self="handleClose">
-        <div class="settings-modal">
+      <!--
+        A hand-built overlay rather than the Dialog component: the screen locks
+        the page scroll itself (see lockBackgroundScroll), keeps one inner
+        scroller that it resets on navigation, and closes on an overlay click
+        but not on Esc. Every floating part opened from inside it (popovers,
+        selects, tooltips) is raised to z-[3050], above this overlay's 2000.
+      -->
+      <div
+        v-if="visible"
+        class="settings-overlay fixed inset-0 z-[2000] flex items-center justify-center overscroll-none bg-black/50 backdrop-blur-[4px]"
+        @click.self="handleClose"
+      >
+        <div
+          class="settings-modal bg-card relative flex h-[85vh] max-h-[750px] w-[90vw] max-w-[1100px] flex-col overflow-hidden rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+        >
           <!-- 关闭按钮 -->
-          <button class="close-btn" @click="handleClose" :aria-label="$t('common.close')">
+          <button
+            type="button"
+            data-slot="close-button"
+            class="text-muted-foreground hover:bg-accent hover:text-foreground absolute top-4 right-4 z-10 flex size-8 items-center justify-center rounded-md transition-all duration-200"
+            :aria-label="$t('common.close')"
+            @click="handleClose"
+          >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </button>
 
-          <div class="settings-container">
+          <div class="flex h-full overflow-hidden">
             <!-- 左侧导航 -->
-            <div class="settings-sidebar">
-              <div class="sidebar-header">
-                <h2 class="sidebar-title">{{ modalTitle }}</h2>
+            <div
+              class="border-border flex w-52 shrink-0 flex-col overflow-hidden border-r bg-[var(--td-bg-color-settings-modal)]"
+            >
+              <div class="border-border shrink-0 border-b px-3.5 pt-4 pb-3">
+                <h2 class="text-foreground m-0 text-base font-semibold">{{ modalTitle }}</h2>
               </div>
-              <div class="settings-nav">
+              <div class="settings-nav min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-3">
                 <template v-for="group in navGroups" :key="group.key">
-                  <div class="nav-group-title">{{ group.label }}</div>
+                  <div
+                    class="text-placeholder px-3.5 pt-1.5 pb-0.5 text-xs font-semibold tracking-[0.02em] not-first:pt-2 first:pt-0.5"
+                  >
+                    {{ group.label }}
+                  </div>
                   <div
                     v-for="item in group.items"
                     :key="item.key"
-                    :class="['nav-item', { active: currentSection === item.key }]"
+                    class="mb-0.5 flex cursor-pointer items-center rounded-md px-3 py-1.5 text-sm transition-all duration-200 select-none"
+                    :class="{
+                      'bg-muted text-primary font-medium': currentSection === item.key,
+                      'text-foreground hover:bg-accent': currentSection !== item.key,
+                    }"
                     @click="currentSection = item.key"
                   >
-                    <t-icon :name="item.icon" class="nav-icon" />
-                    <span class="nav-label">{{ item.label }}</span>
+                    <component :is="item.icon" class="mr-[9px] size-4 shrink-0" />
+                    <span class="flex-1">{{ item.label }}</span>
                     <span
                       v-if="item.badge != null && (item.key === 'sharedKb' ? true : item.badge > 0)"
-                      :class="['nav-badge', { 'nav-badge-count': item.key === 'sharedKb' }]"
+                      class="bg-muted text-muted-foreground ml-0.5 shrink-0 rounded-lg px-1.5 text-center text-[11px] leading-4 font-medium"
+                      :class="{ 'min-w-5': item.key === 'sharedKb' }"
                       >{{ item.badge }}</span
                     >
                   </div>
@@ -38,217 +68,284 @@
             </div>
 
             <!-- 右侧内容区域 -->
-            <div class="settings-content">
-              <div ref="contentWrapperRef" class="content-wrapper">
+            <div class="bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <div
+                ref="contentWrapperRef"
+                class="content-wrapper min-h-0 flex-1 scroll-pb-6 overflow-y-auto overscroll-contain px-10 pt-7 pb-12"
+              >
                 <!-- 组织管理员但空间角色不足，给出只读提示 -->
-                <div v-if="showTenantRoleHint" class="tenant-role-hint">
-                  <t-icon name="info-circle" size="16px" />
+                <div
+                  v-if="showTenantRoleHint"
+                  class="mb-4 flex items-start gap-2 rounded-lg border border-[var(--td-warning-color-focus)] bg-[var(--td-warning-color-light)] px-3 py-2.5 text-[13px] leading-normal text-[var(--td-warning-color-active)]"
+                >
+                  <InfoIcon class="mt-0.5 size-4 shrink-0" />
                   <span>{{ $t("organization.rbac.needTenantAdminTip") }}</span>
                 </div>
                 <!-- 基本信息 -->
-                <div v-show="currentSection === 'basic'" class="section">
-                  <div class="section-header">
-                    <h2>{{ $t("organization.editor.basicTitle") }}</h2>
-                    <p class="section-description">{{ $t("organization.editor.basicDesc") }}</p>
+                <div v-show="currentSection === 'basic'" class="section w-full">
+                  <div class="mb-5 w-full min-w-0">
+                    <h2 :class="sectionTitleClass">{{ $t("organization.editor.basicTitle") }}</h2>
+                    <p :class="sectionDescriptionClass">{{ $t("organization.editor.basicDesc") }}</p>
                   </div>
 
-                  <div class="settings-group">
+                  <div class="flex flex-col">
                     <!-- 空间名称与头像：一行展示，头像点击弹出 Emoji 选择 -->
-                    <div class="setting-row">
-                      <div class="setting-info">
-                        <label>{{ $t("organization.name") }} <span class="required">*</span></label>
-                        <p class="desc">{{ $t("organization.editor.nameTip") }}</p>
+                    <div :class="settingRowClass">
+                      <div :class="settingInfoClass">
+                        <label :class="settingLabelClass"
+                          >{{ $t("organization.name") }} <span class="text-destructive ml-0.5">*</span></label
+                        >
+                        <p :class="settingDescClass">{{ $t("organization.editor.nameTip") }}</p>
                       </div>
-                      <div class="setting-control">
-                        <div class="name-input-wrapper">
-                          <t-popup
-                            v-model="avatarPopoverVisible"
-                            trigger="click"
-                            placement="bottom-left"
-                            :disabled="!isAdmin"
-                            overlay-class-name="avatar-emoji-popover"
+                      <div :class="settingControlClass">
+                        <div class="flex w-full items-center gap-3">
+                          <Popover
+                            :open="avatarPopoverVisible"
+                            @update:open="(v: boolean) => (avatarPopoverVisible = isAdmin && v)"
                           >
-                            <div class="avatar-trigger-wrap">
-                              <SpaceAvatar :name="formData.name || '?'" :avatar="formData.avatar" size="medium" />
-                              <span v-if="isAdmin" class="avatar-change-hint">{{ $t("organization.avatar") }}</span>
-                            </div>
-                            <template #content>
-                              <div class="avatar-popover-content" @click.stop>
-                                <p class="avatar-popover-title">{{ $t("organization.avatarPickerHint") }}</p>
-                                <div class="avatar-emoji-grid">
-                                  <button
-                                    v-for="emoji in avatarEmojiOptions"
-                                    :key="emoji"
-                                    type="button"
-                                    class="avatar-emoji-btn"
-                                    :class="{ 'is-selected': formData.avatar === 'emoji:' + emoji }"
-                                    @click="selectAvatarEmoji(emoji)"
-                                  >
-                                    {{ emoji }}
-                                  </button>
-                                </div>
-                                <t-button
-                                  v-if="formData.avatar"
-                                  variant="text"
-                                  size="small"
-                                  class="avatar-clear-btn"
-                                  @click="clearAvatarEmoji"
-                                >
-                                  {{ $t("organization.avatarClear") }}
-                                </t-button>
+                            <PopoverTrigger as-child>
+                              <div
+                                class="hover:bg-accent flex shrink-0 cursor-pointer flex-col items-center gap-1 rounded-xl p-1 transition-colors duration-200"
+                              >
+                                <SpaceAvatar :name="formData.name || '?'" :avatar="formData.avatar" size="medium" />
+                                <span v-if="isAdmin" class="text-placeholder text-[11px] leading-[1.2]">{{
+                                  $t("organization.avatar")
+                                }}</span>
                               </div>
-                            </template>
-                          </t-popup>
-                          <t-input
+                            </PopoverTrigger>
+                            <PopoverContent align="start" class="z-[3050] w-auto min-w-[260px] gap-0 p-3">
+                              <p class="text-muted-foreground m-0 mb-2.5 text-xs leading-[1.4]">
+                                {{ $t("organization.avatarPickerHint") }}
+                              </p>
+                              <div class="flex max-w-[280px] flex-wrap gap-1.5">
+                                <button
+                                  v-for="emoji in avatarEmojiOptions"
+                                  :key="emoji"
+                                  type="button"
+                                  data-slot="emoji-button"
+                                  class="bg-card flex size-9 items-center justify-center rounded-lg border text-lg transition-colors duration-200"
+                                  :class="{
+                                    'border-primary bg-primary/12': formData.avatar === 'emoji:' + emoji,
+                                    'border-border hover:border-primary hover:bg-primary/6':
+                                      formData.avatar !== 'emoji:' + emoji,
+                                  }"
+                                  @click="selectAvatarEmoji(emoji)"
+                                >
+                                  {{ emoji }}
+                                </button>
+                              </div>
+                              <Button
+                                v-if="formData.avatar"
+                                variant="ghost"
+                                size="sm"
+                                class="text-muted-foreground mt-2.5 self-start text-xs hover:text-[var(--td-brand-color-active)]"
+                                @click="clearAvatarEmoji"
+                              >
+                                {{ $t("organization.avatarClear") }}
+                              </Button>
+                            </PopoverContent>
+                          </Popover>
+                          <Input
                             v-model="formData.name"
                             :placeholder="$t('organization.namePlaceholder')"
                             :disabled="!isAdmin"
-                            class="name-input"
+                            class="min-w-0 flex-1"
                           />
                         </div>
                       </div>
                     </div>
 
                     <!-- 空间描述 -->
-                    <div class="setting-row">
-                      <div class="setting-info">
-                        <label>{{ $t("organization.description") }}</label>
-                        <p class="desc">{{ $t("organization.editor.descriptionTip") }}</p>
+                    <div :class="settingRowClass">
+                      <div :class="settingInfoClass">
+                        <label :class="settingLabelClass">{{ $t("organization.description") }}</label>
+                        <p :class="settingDescClass">{{ $t("organization.editor.descriptionTip") }}</p>
                       </div>
-                      <div class="setting-control">
-                        <t-textarea
+                      <div :class="settingControlClass">
+                        <!-- Grows with its content between three and six rows, as the old autosize did. -->
+                        <Textarea
                           v-model="formData.description"
                           :placeholder="$t('organization.descriptionPlaceholder')"
-                          :autosize="{ minRows: 3, maxRows: 6 }"
                           :maxlength="500"
                           :disabled="!isAdmin"
+                          class="max-h-[8.5rem] min-h-[4.75rem]"
                         />
                       </div>
                     </div>
 
                     <!-- 邀请成员 (仅管理员可见) -->
-                    <div v-if="isAdmin && orgId" class="setting-row setting-row-vertical">
-                      <div class="setting-info full-width">
-                        <label>{{ $t("organization.settings.inviteMembers") }}</label>
-                        <p class="desc">{{ $t("organization.settings.inviteMembersDesc") }}</p>
+                    <div v-if="isAdmin && orgId" :class="cn(settingRowClass, 'flex-col gap-3')">
+                      <div class="w-full min-w-0">
+                        <label :class="settingLabelClass">{{ $t("organization.settings.inviteMembers") }}</label>
+                        <p :class="settingDescClass">{{ $t("organization.settings.inviteMembersDesc") }}</p>
                       </div>
-                      <div class="setting-control full-width">
-                        <div class="invite-card">
+                      <div class="flex w-full min-w-0 items-start justify-start">
+                        <div class="bg-muted border-border w-full rounded-[10px] border p-4">
                           <!-- 邀请码 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="qrcode" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t("organization.inviteCode") }}</span>
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <QrCodeIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{ $t("organization.inviteCode") }}</span>
                             </div>
-                            <div class="invite-code-box">
-                              <span class="invite-code-value">{{ inviteCode }}</span>
-                              <div class="invite-code-actions">
-                                <t-tooltip :content="$t('common.copy')">
-                                  <t-button variant="text" size="small" @click="copyInviteCode">
-                                    <t-icon name="file-copy" />
-                                  </t-button>
-                                </t-tooltip>
-                                <t-tooltip :content="$t('organization.refreshInviteCode')">
-                                  <t-button
-                                    variant="text"
-                                    size="small"
-                                    @click="refreshInviteCode"
-                                    :loading="refreshingCode"
-                                  >
-                                    <t-icon name="refresh" />
-                                  </t-button>
-                                </t-tooltip>
+                            <div
+                              class="bg-card border-border flex items-center justify-between rounded-lg border px-3.5 py-2.5"
+                            >
+                              <span
+                                class="text-primary font-(family-name:--app-font-family-mono) text-base font-semibold tracking-[2px]"
+                                >{{ inviteCode }}</span
+                              >
+                              <div class="flex gap-1">
+                                <Tooltip>
+                                  <TooltipTrigger as-child>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      :aria-label="$t('common.copy')"
+                                      @click="copyInviteCode"
+                                    >
+                                      <CopyIcon />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent class="z-[3050]">{{ $t("common.copy") }}</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger as-child>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      :disabled="refreshingCode"
+                                      :aria-label="$t('organization.refreshInviteCode')"
+                                      @click="refreshInviteCode"
+                                    >
+                                      <Loader2Icon v-if="refreshingCode" class="animate-spin" />
+                                      <RefreshCwIcon v-else />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent class="z-[3050]">{{
+                                    $t("organization.refreshInviteCode")
+                                  }}</TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
-                            <p v-if="inviteCode" class="invite-remaining">{{ remainingValidityText }}</p>
+                            <p v-if="inviteCode" class="text-muted-foreground m-0 mt-2 text-xs">
+                              {{ remainingValidityText }}
+                            </p>
                           </div>
 
-                          <div class="invite-divider"></div>
+                          <div :class="inviteDividerClass"></div>
 
                           <!-- 邀请链接有效期 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="time" class="invite-icon" />
-                              <span class="invite-method-title">{{
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <ClockIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{
                                 $t("organization.settings.inviteLinkValidity")
                               }}</span>
                             </div>
-                            <p class="invite-validity-desc">{{ $t("organization.settings.inviteLinkValidityDesc") }}</p>
-                            <t-select
-                              v-model="formData.invite_code_validity_days"
-                              :options="inviteValidityOptions"
-                              size="small"
-                              class="invite-validity-select"
+                            <p :class="inviteDescClass">{{ $t("organization.settings.inviteLinkValidityDesc") }}</p>
+                            <Select
+                              :model-value="String(formData.invite_code_validity_days)"
                               :disabled="!isAdmin"
-                              @change="handleValidityChange"
-                            />
+                              @update:model-value="onValiditySelect"
+                            >
+                              <SelectTrigger size="sm" class="min-w-[140px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent class="z-[3050]">
+                                <SelectItem
+                                  v-for="opt in inviteValidityOptions"
+                                  :key="opt.value"
+                                  :value="String(opt.value)"
+                                >
+                                  {{ opt.label }}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
-                          <div class="invite-divider"></div>
+                          <div :class="inviteDividerClass"></div>
 
                           <!-- 邀请链接 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="link" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t("organization.settings.inviteLink") }}</span>
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <LinkIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{ $t("organization.settings.inviteLink") }}</span>
                             </div>
-                            <div class="invite-link-box">
-                              <span class="invite-link-value">{{ inviteLink }}</span>
-                              <t-tooltip :content="$t('common.copy')">
-                                <t-button variant="text" size="small" @click="copyInviteLink">
-                                  <t-icon name="file-copy" />
-                                </t-button>
-                              </t-tooltip>
+                            <div
+                              class="bg-card border-border flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5"
+                            >
+                              <span class="text-muted-foreground flex-1 text-xs leading-[1.4] break-all">{{
+                                inviteLink
+                              }}</span>
+                              <Tooltip>
+                                <TooltipTrigger as-child>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    :aria-label="$t('common.copy')"
+                                    @click="copyInviteLink"
+                                  >
+                                    <CopyIcon />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent class="z-[3050]">{{ $t("common.copy") }}</TooltipContent>
+                              </Tooltip>
                             </div>
                           </div>
 
-                          <div class="invite-divider"></div>
+                          <div :class="inviteDividerClass"></div>
 
                           <!-- 需要审核开关 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="check-circle" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t("organization.settings.requireApproval") }}</span>
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <CircleCheckIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{ $t("organization.settings.requireApproval") }}</span>
                             </div>
-                            <div class="approval-toggle">
-                              <t-switch v-model="formData.require_approval" @change="handleApprovalToggle" />
-                              <span class="approval-desc">{{ $t("organization.settings.requireApprovalDesc") }}</span>
+                            <div class="flex items-center gap-3">
+                              <Switch v-model="formData.require_approval" @update:model-value="handleApprovalToggle" />
+                              <span class="text-placeholder text-[13px]">{{
+                                $t("organization.settings.requireApprovalDesc")
+                              }}</span>
                             </div>
                           </div>
 
-                          <div class="invite-divider"></div>
+                          <div :class="inviteDividerClass"></div>
 
                           <!-- 开放可被搜索 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="search" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t("organization.settings.searchable") }}</span>
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <SearchIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{ $t("organization.settings.searchable") }}</span>
                             </div>
-                            <div class="approval-toggle">
-                              <t-switch v-model="formData.searchable" @change="handleSearchableToggle" />
-                              <span class="approval-desc">{{ $t("organization.settings.searchableDesc") }}</span>
+                            <div class="flex items-center gap-3">
+                              <Switch v-model="formData.searchable" @update:model-value="handleSearchableToggle" />
+                              <span class="text-placeholder text-[13px]">{{
+                                $t("organization.settings.searchableDesc")
+                              }}</span>
                             </div>
                           </div>
 
-                          <div class="invite-divider"></div>
+                          <div :class="inviteDividerClass"></div>
 
                           <!-- 成员人数上限 -->
-                          <div class="invite-method">
-                            <div class="invite-method-header">
-                              <t-icon name="user-add" class="invite-icon" />
-                              <span class="invite-method-title">{{ $t("organization.settings.memberLimit") }}</span>
+                          <div>
+                            <div :class="inviteHeaderClass">
+                              <UserPlusIcon :class="inviteIconClass" />
+                              <span :class="inviteTitleClass">{{ $t("organization.settings.memberLimit") }}</span>
                             </div>
-                            <p class="invite-validity-desc">{{ $t("organization.settings.memberLimitDesc") }}</p>
-                            <div class="member-limit-input-row">
-                              <t-input-number
-                                v-model="formData.member_limit"
+                            <p :class="inviteDescClass">{{ $t("organization.settings.memberLimitDesc") }}</p>
+                            <div class="mt-2 flex items-center gap-3">
+                              <Input
+                                type="number"
+                                :model-value="formData.member_limit"
                                 :min="0"
                                 :max="10000"
                                 :placeholder="$t('organization.settings.memberLimitPlaceholder')"
-                                theme="normal"
-                                style="width: 140px"
+                                class="w-[140px]"
+                                @update:model-value="onMemberLimitInput"
+                                @blur="clampMemberLimit"
                               />
-                              <span class="member-limit-hint">{{
+                              <span class="text-muted-foreground text-xs">{{
                                 $t("organization.settings.memberLimitHint", {
                                   count: orgInfo?.member_count ?? 0,
                                 })
@@ -262,682 +359,923 @@
                 </div>
 
                 <!-- 创建空间 - 权限说明 -->
-                <div v-if="isCreateMode" v-show="currentSection === 'permissions'" class="section">
-                  <div class="section-header">
-                    <h2>{{ $t("organization.editor.permissionsTitle") }}</h2>
-                    <p class="section-description">{{ $t("organization.editor.permissionsDesc") }}</p>
+                <div v-if="isCreateMode" v-show="currentSection === 'permissions'" class="section w-full">
+                  <div class="mb-5 w-full min-w-0">
+                    <h2 :class="sectionTitleClass">{{ $t("organization.editor.permissionsTitle") }}</h2>
+                    <p :class="sectionDescriptionClass">{{ $t("organization.editor.permissionsDesc") }}</p>
                   </div>
 
-                  <div class="permissions-info">
-                    <div class="permission-card">
-                      <div class="permission-header">
-                        <div class="permission-icon admin">
-                          <t-icon name="user-safety" />
+                  <div class="flex flex-col gap-4">
+                    <div
+                      v-for="card in permissionCards"
+                      :key="card.role"
+                      class="bg-muted border-border rounded-lg border p-4"
+                    >
+                      <div class="mb-3 flex items-center gap-3">
+                        <div
+                          class="text-primary-foreground flex size-10 items-center justify-center rounded-lg"
+                          :class="{
+                            'bg-linear-135 from-(--td-brand-color) to-(--td-brand-color-active)': card.role === 'admin',
+                            'bg-linear-135 from-(--td-warning-color) to-(--td-warning-color-active)':
+                              card.role === 'editor',
+                            'bg-[var(--td-bg-color-component-disabled)]': card.role === 'viewer',
+                          }"
+                        >
+                          <component :is="orgRoleIcon(card.role)" class="size-4" />
                         </div>
-                        <div class="permission-title">
-                          <span class="role-name">{{ $t("organization.role.admin") }}</span>
-                          <t-tag size="small" theme="primary">{{ $t("organization.editor.fullAccess") }}</t-tag>
-                        </div>
-                      </div>
-                      <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm1") }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm2") }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm3") }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.adminPerm4") }}</li>
-                      </ul>
-                    </div>
-                    <div class="permission-card">
-                      <div class="permission-header">
-                        <div class="permission-icon editor">
-                          <t-icon name="edit" />
-                        </div>
-                        <div class="permission-title">
-                          <span class="role-name">{{ $t("organization.role.editor") }}</span>
-                          <t-tag size="small" theme="warning">{{ $t("organization.editor.editAccess") }}</t-tag>
+                        <div class="flex items-center gap-2">
+                          <span class="text-foreground text-[15px] font-semibold">{{
+                            $t(`organization.role.${card.role}`)
+                          }}</span>
+                          <span :class="tagClass(card.tone, 'dark')">{{ $t(card.access) }}</span>
                         </div>
                       </div>
-                      <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm1") }}</li>
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.editorPerm2") }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.editorPerm3") }}</li>
-                      </ul>
-                    </div>
-                    <div class="permission-card">
-                      <div class="permission-header">
-                        <div class="permission-icon viewer">
-                          <t-icon name="browse" />
-                        </div>
-                        <div class="permission-title">
-                          <span class="role-name">{{ $t("organization.role.viewer") }}</span>
-                          <t-tag size="small">{{ $t("organization.editor.viewAccess") }}</t-tag>
-                        </div>
-                      </div>
-                      <ul class="permission-list">
-                        <li><t-icon name="check" class="check-icon" />{{ $t("organization.editor.viewerPerm1") }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.shareKBPerm") }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm2") }}</li>
-                        <li><t-icon name="close" class="close-icon" />{{ $t("organization.editor.viewerPerm3") }}</li>
+                      <ul class="m-0 list-none p-0">
+                        <li
+                          v-for="perm in card.perms"
+                          :key="perm.key"
+                          class="text-muted-foreground flex items-center gap-2 py-1.5 text-[13px]"
+                        >
+                          <CheckIcon v-if="perm.has" class="text-primary size-3.5 shrink-0" />
+                          <XIcon v-else class="text-destructive size-3.5 shrink-0" />{{
+                            $t(`organization.editor.${perm.key}`)
+                          }}
+                        </li>
                       </ul>
                     </div>
                   </div>
-                  <div class="info-notice">
-                    <t-icon name="info-circle" />
+                  <div
+                    class="text-primary mt-5 flex items-start gap-2 rounded-lg bg-[var(--td-brand-color-light)] px-4 py-3 text-[13px] leading-5"
+                  >
+                    <InfoIcon class="mt-0.5 size-4 shrink-0" />
                     <span>{{ $t("organization.editor.ownerNote") }}</span>
                   </div>
                 </div>
 
                 <!-- 成员管理 -->
-                <div v-show="currentSection === 'members'" class="section">
-                  <div class="section-header">
-                    <div class="section-header-row">
-                      <div class="section-header-titlewrap">
-                        <h2>{{ $t("organization.manageMembers") }}</h2>
-                        <t-popup
-                          placement="bottom-start"
-                          trigger="hover"
-                          overlay-class-name="org-permissions-popup-overlay"
-                          :overlay-inner-style="permissionsPopupInnerStyle"
-                        >
-                          <button
-                            type="button"
-                            class="permissions-trigger-btn"
-                            :aria-label="$t('organization.editor.permissionsTitle')"
-                            :title="$t('organization.settings.permissionsIconHint')"
+                <div v-show="currentSection === 'members'" class="section w-full">
+                  <div class="mb-5 w-full min-w-0">
+                    <div :class="sectionHeaderRowClass">
+                      <div :class="sectionTitleWrapClass">
+                        <h2 :class="[sectionTitleClass, 'leading-tight whitespace-nowrap']">
+                          {{ $t("organization.manageMembers") }}
+                        </h2>
+                        <Popover v-model:open="membersPermHint.open">
+                          <PopoverTrigger as-child>
+                            <button
+                              type="button"
+                              data-slot="hint-trigger"
+                              :class="hintTriggerClass"
+                              :aria-label="$t('organization.editor.permissionsTitle')"
+                              :title="$t('organization.settings.permissionsIconHint')"
+                              @mouseenter="membersPermHint.show"
+                              @mouseleave="membersPermHint.hide"
+                            >
+                              <InfoIcon class="size-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            :class="[
+                              hintPopoverClass,
+                              'max-h-[min(400px,65vh)] w-[min(520px,calc(100vw-24px))] max-w-[min(520px,calc(100vw-24px))]',
+                            ]"
+                            @open-auto-focus.prevent
+                            @mouseenter="membersPermHint.show"
+                            @mouseleave="membersPermHint.hide"
                           >
-                            <t-icon name="info-circle" size="16px" />
-                          </button>
-                          <template #content>
-                            <div class="permissions-compact permissions-compact--popover">
-                              <div class="permissions-compact-header">
-                                <span class="permissions-compact-title">{{
+                            <div
+                              class="max-h-[min(392px,calc(65vh-8px))] overflow-x-hidden overflow-y-auto px-3.5 py-3"
+                            >
+                              <div class="mb-2.5 flex flex-col gap-0.5">
+                                <span class="text-foreground text-[13px] font-semibold">{{
                                   $t("organization.editor.permissionsTitle")
                                 }}</span>
-                                <span class="permissions-compact-desc">{{
+                                <span class="text-muted-foreground text-xs leading-[1.45]">{{
                                   $t("organization.editor.permissionsDesc")
                                 }}</span>
                               </div>
-                              <div class="permissions-compact-grid">
+                              <div class="grid grid-cols-2 gap-2 max-[480px]:grid-cols-1">
                                 <div
                                   v-for="role in orgRoleMatrixOrder"
                                   :key="role"
-                                  :class="['perm-role-block', role, { 'is-me': orgInfo?.my_role === role }]"
+                                  class="rounded-md border px-2.5 py-2"
+                                  :class="{
+                                    'border-primary bg-[var(--td-brand-color-light)]': orgInfo?.my_role === role,
+                                    'border-border bg-card': orgInfo?.my_role !== role,
+                                  }"
                                 >
-                                  <div class="perm-role-tag">
-                                    <t-icon :name="orgRoleIcon(role)" size="12px" />
+                                  <div class="text-foreground mb-1.5 flex items-center gap-1 text-xs font-semibold">
+                                    <component :is="orgRoleIcon(role)" class="size-3" />
                                     <span>{{ $t(`organization.role.${role}`) }}</span>
-                                    <span v-if="orgInfo?.my_role === role" class="me-badge">{{ $t("common.me") }}</span>
+                                    <span
+                                      v-if="orgInfo?.my_role === role"
+                                      class="text-primary ml-auto rounded-sm bg-[var(--td-brand-color-light)] px-[5px] py-px text-[10px] font-medium"
+                                      >{{ $t("common.me") }}</span
+                                    >
                                   </div>
-                                  <div class="perm-items">
+                                  <div class="flex flex-col gap-[3px]">
                                     <span
                                       v-for="(perm, idx) in orgRoleMatrix[role]"
                                       :key="idx"
-                                      :class="['perm-item', perm.has ? 'has' : 'no']"
+                                      class="flex items-start gap-1 text-[11px] leading-[1.35]"
+                                      :class="{
+                                        'text-muted-foreground': perm.has,
+                                        'text-[var(--td-text-color-disabled)]': !perm.has,
+                                      }"
                                     >
-                                      <t-icon :name="perm.has ? 'check' : 'close'" size="12px" />
+                                      <CheckIcon v-if="perm.has" class="text-primary mt-px size-3 shrink-0" />
+                                      <XIcon v-else class="mt-px size-3 shrink-0" />
                                       {{ $t(`organization.editor.${perm.key}`) }}
                                     </span>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </template>
-                        </t-popup>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
-                    <p class="section-description">{{ $t("organization.settings.membersDesc") }}</p>
+                    <p :class="sectionDescriptionClass">{{ $t("organization.settings.membersDesc") }}</p>
                   </div>
 
-                  <div class="members-list-wrap">
-                    <div class="members-list-header">
-                      <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t("organization.members.listTitle") }}</span>
-                        <span class="members-list-count-badge">{{ filteredMembers.length }}</span>
+                  <div class="flex flex-col gap-2.5">
+                    <div :class="listHeaderClass">
+                      <div :class="listTitleWrapClass">
+                        <span :class="listTitleClass">{{ $t("organization.members.listTitle") }}</span>
+                        <span :class="countBadgeClass">{{ filteredMembers.length }}</span>
                       </div>
-                      <div class="members-list-actions">
-                        <div class="members-list-search">
-                          <t-input
+                      <div :class="listActionsClass">
+                        <div :class="listSearchClass">
+                          <SearchIcon :class="searchIconClass" />
+                          <Input
                             v-model="memberSearchQuery"
-                            size="small"
                             :placeholder="$t('organization.members.searchPlaceholder')"
-                            clearable
+                            :class="searchInputClass"
+                          />
+                          <button
+                            v-if="memberSearchQuery"
+                            type="button"
+                            data-slot="clear-button"
+                            :class="clearButtonClass"
+                            :aria-label="$t('common.clear')"
+                            @click="memberSearchQuery = ''"
                           >
-                            <template #prefix-icon>
-                              <t-icon name="search" />
-                            </template>
-                          </t-input>
+                            <CircleXIcon class="size-3.5" />
+                          </button>
                         </div>
-                        <t-popup
-                          v-if="canRequestUpgrade"
-                          v-model="upgradePopupVisible"
-                          trigger="click"
-                          placement="bottom-end"
-                          destroy-on-close
-                          overlay-class-name="org-upgrade-popup-overlay"
-                        >
-                          <t-button
-                            variant="outline"
-                            shape="square"
-                            size="small"
-                            class="members-list-upgrade-btn"
-                            :disabled="hasPendingUpgrade"
-                            :title="
-                              hasPendingUpgrade
-                                ? $t('organization.upgrade.pending')
-                                : $t('organization.upgrade.requestUpgrade')
-                            "
-                            :aria-label="
-                              hasPendingUpgrade
-                                ? $t('organization.upgrade.pending')
-                                : $t('organization.upgrade.requestUpgrade')
-                            "
-                          >
-                            <template #icon><t-icon name="arrow-up" /></template>
-                          </t-button>
-                          <template #content>
-                            <div class="org-upgrade-popup-inner" @click.stop>
-                              <div class="member-invite-popup-title">{{ $t("organization.upgrade.dialogTitle") }}</div>
-                              <p class="add-member-tip">{{ $t("organization.upgrade.dialogDesc") }}</p>
+                        <Popover v-if="canRequestUpgrade" v-model:open="upgradePopupVisible">
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              class="shrink-0"
+                              :disabled="hasPendingUpgrade"
+                              :title="
+                                hasPendingUpgrade
+                                  ? $t('organization.upgrade.pending')
+                                  : $t('organization.upgrade.requestUpgrade')
+                              "
+                              :aria-label="
+                                hasPendingUpgrade
+                                  ? $t('organization.upgrade.pending')
+                                  : $t('organization.upgrade.requestUpgrade')
+                              "
+                            >
+                              <ArrowUpIcon />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" :class="[actionPopoverClass, 'w-[min(360px,calc(100vw-32px))]']">
+                            <div :class="cn(popupTitleClass, 'mb-2.5')">
+                              {{ $t("organization.upgrade.dialogTitle") }}
+                            </div>
+                            <p :class="cn(popupTipClass, 'mb-3')">{{ $t("organization.upgrade.dialogDesc") }}</p>
 
-                              <div class="upgrade-current-role-bar">
-                                <span class="upgrade-current-role-label">{{
-                                  $t("organization.upgrade.currentRole")
-                                }}</span>
-                                <t-tag size="small" :theme="getRoleTheme(orgInfo?.my_role || 'viewer')" variant="light">
-                                  {{ $t(`organization.role.${orgInfo?.my_role || "viewer"}`) }}
-                                </t-tag>
+                            <div
+                              class="bg-muted border-border mb-3.5 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
+                            >
+                              <span class="text-muted-foreground text-[13px]">{{
+                                $t("organization.upgrade.currentRole")
+                              }}</span>
+                              <span :class="tagClass(roleTone(orgInfo?.my_role || 'viewer'), 'light')">
+                                {{ $t(`organization.role.${orgInfo?.my_role || "viewer"}`) }}
+                              </span>
+                            </div>
+
+                            <div class="flex flex-col gap-3.5">
+                              <div :class="popupFieldClass">
+                                <label :class="popupFieldLabelClass">{{ $t("organization.upgrade.selectRole") }}</label>
+                                <div class="flex w-full flex-wrap gap-2">
+                                  <button
+                                    v-for="opt in upgradeRoleOptions"
+                                    :key="opt.value"
+                                    type="button"
+                                    data-slot="role-pill"
+                                    class="hover:text-primary focus-visible:text-primary inline-flex items-center rounded-md px-3.5 py-1.5 text-[13px] leading-[1.4] transition-colors duration-150 outline-none"
+                                    :class="{
+                                      'bg-primary/12 text-primary font-medium':
+                                        upgradeForm.requested_role === opt.value,
+                                      'bg-muted text-muted-foreground hover:bg-[color-mix(in_srgb,var(--td-brand-color)_8%,var(--td-bg-color-secondarycontainer))] focus-visible:bg-[color-mix(in_srgb,var(--td-brand-color)_8%,var(--td-bg-color-secondarycontainer))]':
+                                        upgradeForm.requested_role !== opt.value,
+                                    }"
+                                    @click="upgradeForm.requested_role = opt.value as 'editor' | 'admin'"
+                                  >
+                                    {{ opt.label }}
+                                  </button>
+                                </div>
                               </div>
+                              <div :class="popupFieldClass">
+                                <label :class="popupFieldLabelClass">{{ $t("organization.upgrade.reason") }}</label>
+                                <!-- Grows between two and four rows, as the old autosize did. -->
+                                <Textarea
+                                  v-model="upgradeForm.message"
+                                  :placeholder="$t('organization.upgrade.reasonPlaceholder')"
+                                  :maxlength="500"
+                                  class="max-h-24 min-h-14"
+                                />
+                              </div>
+                            </div>
 
-                              <div class="org-upgrade-fields">
-                                <div class="org-upgrade-field">
-                                  <label class="org-upgrade-field-label">{{
-                                    $t("organization.upgrade.selectRole")
-                                  }}</label>
-                                  <div class="upgrade-role-pills">
+                            <div :class="popupFooterClass">
+                              <Button
+                                variant="outline"
+                                :disabled="upgradeSubmitting"
+                                @click="upgradePopupVisible = false"
+                              >
+                                {{ $t("common.cancel") }}
+                              </Button>
+                              <Button :disabled="upgradeSubmitting" @click="handleSubmitUpgrade">
+                                <Loader2Icon v-if="upgradeSubmitting" class="animate-spin" />
+                                {{ $t("organization.upgrade.submitBtn") }}
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover v-if="isAdmin" v-model:open="addMemberPopupVisible">
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              class="border-primary text-primary hover:text-primary shrink-0"
+                              :title="$t('organization.addMember.button')"
+                              :aria-label="$t('organization.addMember.button')"
+                            >
+                              <UserPlusIcon />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" :class="[actionPopoverClass, 'w-[min(400px,calc(100vw-32px))]']">
+                            <div :class="cn(popupTitleClass, 'mb-3')">
+                              {{ $t("organization.addMember.dialogTitle") }}
+                            </div>
+                            <p :class="cn(popupTipClass, 'mb-3.5')">{{ $t("organization.addMember.tipTenant") }}</p>
+                            <form class="flex flex-col" @submit.prevent>
+                              <div class="mb-3.5 flex flex-col">
+                                <Label class="pb-1.5">{{ $t("organization.addMember.searchTenant") }}</Label>
+                                <div class="w-full min-w-0">
+                                  <!--
+                                    A search-as-you-type picker, standing in for TDesign's
+                                    remote-filterable select: the query goes to the server
+                                    (debounced by handleTenantSearch), so the list is not
+                                    filtered locally.
+                                  -->
+                                  <div class="relative">
+                                    <Popover v-model:open="tenantPickerOpen">
+                                      <PopoverTrigger as-child>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          class="w-full justify-between pr-2 font-normal"
+                                          :class="{ 'pr-8': selectedTenantId != null }"
+                                        >
+                                          <span
+                                            class="truncate"
+                                            :class="{ 'text-placeholder': selectedTenantId == null }"
+                                          >
+                                            {{
+                                              selectedTenantId != null
+                                                ? selectedTenantLabel
+                                                : $t("organization.addMember.searchTenantPlaceholder")
+                                            }}
+                                          </span>
+                                          <ChevronDownIcon
+                                            v-if="selectedTenantId == null"
+                                            class="text-muted-foreground"
+                                          />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent
+                                        align="start"
+                                        class="z-[3060] w-(--reka-popover-trigger-width) gap-1 p-1"
+                                      >
+                                        <div class="relative p-1">
+                                          <SearchIcon
+                                            class="text-placeholder absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2"
+                                          />
+                                          <Input
+                                            v-model="tenantQuery"
+                                            autofocus
+                                            :placeholder="$t('organization.addMember.searchTenantPlaceholder')"
+                                            class="pl-7"
+                                            @update:model-value="(v) => handleTenantSearch(String(v))"
+                                          />
+                                        </div>
+                                        <div v-if="tenantSearchLoading" class="flex items-center justify-center py-3">
+                                          <Loader2Icon class="text-muted-foreground size-4 animate-spin" />
+                                        </div>
+                                        <div
+                                          v-else-if="tenantSearchOptions.length === 0"
+                                          class="text-muted-foreground px-2 py-3 text-center text-xs"
+                                        >
+                                          {{ $t("organization.addMember.searchTenantHint") }}
+                                        </div>
+                                        <div v-else role="listbox" class="max-h-60 overflow-y-auto">
+                                          <button
+                                            v-for="opt in tenantSearchOptions"
+                                            :key="opt.value"
+                                            type="button"
+                                            role="option"
+                                            data-slot="tenant-option"
+                                            :aria-selected="selectedTenantId === opt.value"
+                                            class="hover:bg-accent flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+                                            :class="{ 'text-primary': selectedTenantId === opt.value }"
+                                            @click="selectTenant(opt)"
+                                          >
+                                            <span class="truncate">{{ opt.label }}</span>
+                                            <CheckIcon v-if="selectedTenantId === opt.value" class="size-4 shrink-0" />
+                                          </button>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
                                     <button
-                                      v-for="opt in upgradeRoleOptions"
-                                      :key="opt.value"
+                                      v-if="selectedTenantId != null"
                                       type="button"
-                                      :class="[
-                                        'upgrade-role-pill',
-                                        { active: upgradeForm.requested_role === opt.value },
-                                      ]"
-                                      @click="upgradeForm.requested_role = opt.value as 'editor' | 'admin'"
+                                      data-slot="clear-button"
+                                      class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center"
+                                      :aria-label="$t('common.clear')"
+                                      @click="clearSelectedTenant"
                                     >
-                                      {{ opt.label }}
+                                      <CircleXIcon class="size-4" />
                                     </button>
                                   </div>
-                                </div>
-                                <div class="org-upgrade-field org-upgrade-field--last">
-                                  <label class="org-upgrade-field-label">{{ $t("organization.upgrade.reason") }}</label>
-                                  <t-textarea
-                                    v-model="upgradeForm.message"
-                                    size="medium"
-                                    :placeholder="$t('organization.upgrade.reasonPlaceholder')"
-                                    :autosize="{ minRows: 2, maxRows: 4 }"
-                                    :maxlength="500"
-                                  />
+                                  <p class="text-placeholder m-0 mt-1.5 text-xs leading-[1.45]">
+                                    {{ $t("organization.addMember.searchTenantHint") }}
+                                  </p>
                                 </div>
                               </div>
-
-                              <div class="invite-popup-footer">
-                                <t-button
-                                  variant="outline"
-                                  :disabled="upgradeSubmitting"
-                                  @click="upgradePopupVisible = false"
+                              <div class="mb-1 flex flex-col">
+                                <Label class="pb-1.5">{{ $t("organization.addMember.selectRole") }}</Label>
+                                <Select
+                                  :model-value="addMemberRole"
+                                  @update:model-value="(v) => (addMemberRole = normalizeJoinRequestRole(String(v)))"
                                 >
-                                  {{ $t("common.cancel") }}
-                                </t-button>
-                                <t-button theme="primary" :loading="upgradeSubmitting" @click="handleSubmitUpgrade">
-                                  {{ $t("organization.upgrade.submitBtn") }}
-                                </t-button>
+                                  <SelectTrigger class="w-full">
+                                    <SelectValue :placeholder="$t('organization.addMember.selectRole')" />
+                                  </SelectTrigger>
+                                  <SelectContent class="z-[3060]">
+                                    <SelectItem v-for="opt in addMemberRoleOptions" :key="opt.value" :value="opt.value">
+                                      {{ opt.label }}
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
+                            </form>
+                            <div :class="popupFooterClass">
+                              <Button
+                                variant="outline"
+                                :disabled="addMemberSubmitting"
+                                @click="addMemberPopupVisible = false"
+                              >
+                                {{ $t("common.cancel") }}
+                              </Button>
+                              <Button
+                                :disabled="addMemberSubmitting || selectedTenantId == null"
+                                @click="handleAddMember"
+                              >
+                                <Loader2Icon v-if="addMemberSubmitting" class="animate-spin" />
+                                {{ $t("organization.addMember.confirmBtn") }}
+                              </Button>
                             </div>
-                          </template>
-                        </t-popup>
-                        <t-popup
-                          v-if="isAdmin"
-                          v-model="addMemberPopupVisible"
-                          trigger="click"
-                          placement="bottom-end"
-                          destroy-on-close
-                          overlay-class-name="org-add-member-popup-overlay"
-                        >
-                          <t-button
-                            theme="primary"
-                            variant="outline"
-                            shape="square"
-                            size="small"
-                            class="members-list-add-btn"
-                            :title="$t('organization.addMember.button')"
-                            :aria-label="$t('organization.addMember.button')"
-                          >
-                            <template #icon><t-icon name="user-add" /></template>
-                          </t-button>
-                          <template #content>
-                            <div class="member-invite-popup-inner" @click.stop>
-                              <div class="member-invite-popup-title">
-                                {{ $t("organization.addMember.dialogTitle") }}
-                              </div>
-                              <p class="add-member-tip">{{ $t("organization.addMember.tipTenant") }}</p>
-                              <t-form layout="vertical" class="member-invite-form">
-                                <t-form-item :label="$t('organization.addMember.searchTenant')">
-                                  <div class="member-form-control">
-                                    <t-select
-                                      v-model="selectedTenantId"
-                                      :placeholder="$t('organization.addMember.searchTenantPlaceholder')"
-                                      filterable
-                                      :filter="() => true"
-                                      :loading="tenantSearchLoading"
-                                      @search="handleTenantSearch"
-                                      clearable
-                                      :options="tenantSearchOptions"
-                                    />
-                                    <p class="field-hint">{{ $t("organization.addMember.searchTenantHint") }}</p>
-                                  </div>
-                                </t-form-item>
-                                <t-form-item :label="$t('organization.addMember.selectRole')">
-                                  <t-select
-                                    v-model="addMemberRole"
-                                    :options="addMemberRoleOptions"
-                                    :placeholder="$t('organization.addMember.selectRole')"
-                                  />
-                                </t-form-item>
-                              </t-form>
-                              <div class="invite-popup-footer">
-                                <t-button
-                                  variant="outline"
-                                  :disabled="addMemberSubmitting"
-                                  @click="addMemberPopupVisible = false"
-                                >
-                                  {{ $t("common.cancel") }}
-                                </t-button>
-                                <t-button
-                                  theme="primary"
-                                  :loading="addMemberSubmitting"
-                                  :disabled="selectedTenantId == null"
-                                  @click="handleAddMember"
-                                >
-                                  {{ $t("organization.addMember.confirmBtn") }}
-                                </t-button>
-                              </div>
-                            </div>
-                          </template>
-                        </t-popup>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
 
-                    <div v-if="membersLoading && members.length === 0" class="loading-inline">
-                      <t-loading size="small" />
+                    <div v-if="membersLoading && members.length === 0" :class="loadingInlineClass">
+                      <Loader2Icon class="text-primary size-4 animate-spin" />
                       <span>{{ $t("organization.members.loading") }}</span>
                     </div>
-                    <div v-else-if="filteredMembers.length === 0" class="empty-state">
-                      <t-empty
-                        :description="
+                    <Empty v-else-if="filteredMembers.length === 0" :class="emptyClass">
+                      <EmptyMedia>
+                        <InboxIcon :class="emptyIconClass" :stroke-width="1.25" />
+                      </EmptyMedia>
+                      <EmptyDescription>
+                        {{
                           memberSearchQuery.trim()
-                            ? $t('organization.members.emptySearch', { q: memberSearchQuery })
-                            : $t('organization.noMembers')
-                        "
-                      />
-                    </div>
-                    <div v-else class="data-table-shell members-table-shell">
-                      <t-table
-                        row-key="id"
-                        :data="filteredMembers"
-                        :columns="memberColumns"
-                        size="medium"
-                        hover
-                        stripe
-                        :loading="membersLoading"
-                      >
-                        <template #member="{ row }">
-                          <div class="member-cell">
-                            <span class="member-name">
-                              {{ memberPrimaryLabel(row) }}
-                              <span v-if="isOwnerMember(row)" class="owner-tag">{{ $t("organization.owner") }}</span>
-                              <span v-if="row.user_id === authStore.currentUserId" class="me-tag">{{
-                                $t("common.me")
-                              }}</span>
-                            </span>
-                            <span v-if="memberSecondaryLabel(row)" class="member-email">{{
-                              memberSecondaryLabel(row)
-                            }}</span>
-                          </div>
-                        </template>
-                        <template #role="{ row }">
-                          <div class="role-cell">
-                            <t-select
-                              v-if="isAdmin && !isOwnerMember(row)"
-                              :model-value="row.role"
-                              class="member-role-select"
-                              size="small"
-                              :options="roleOptions"
-                              @change="(val: string) => handleRoleChange(row, val)"
-                            />
-                            <t-tag v-else size="small" :theme="getRoleTheme(row.role)">
-                              {{ $t(`organization.role.${row.role}`) }}
-                            </t-tag>
-                          </div>
-                        </template>
-                        <template #joined_at="{ row }">{{ formatDate(row.joined_at) }}</template>
-                        <template #actions="{ row }">
-                          <t-popconfirm
-                            v-if="isAdmin && !isOwnerMember(row)"
-                            :content="$t('organization.detail.removeMemberConfirm', { name: memberPrimaryLabel(row) })"
-                            :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
-                            :cancel-btn="{ content: $t('common.cancel') }"
-                            placement="left"
-                            @confirm="confirmRemoveMember(row)"
-                          >
-                            <t-tooltip :content="$t('organization.detail.removeMember')" placement="top">
-                              <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
-                                <template #icon><t-icon name="user-clear" /></template>
-                              </t-button>
-                            </t-tooltip>
-                          </t-popconfirm>
-                        </template>
-                      </t-table>
+                            ? $t("organization.members.emptySearch", { q: memberSearchQuery })
+                            : $t("organization.noMembers")
+                        }}
+                      </EmptyDescription>
+                    </Empty>
+                    <!--
+                      The tables use a fixed layout so long names truncate, as the old
+                      columns' ellipsis did; the minimum width is the sum of the old
+                      column widths and minimum widths, below which the shell scrolls
+                      sideways rather than squeezing the flexible columns to nothing.
+                    -->
+                    <div v-else :class="tableShellClass">
+                      <Table class="min-w-[534px] table-fixed">
+                        <TableHeader>
+                          <TableRow :class="headRowClass">
+                            <TableHead :class="[headCellClass, 'min-w-[160px]']">
+                              {{ $t("organization.members.columns.member") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[132px]']">
+                              {{ $t("organization.members.columns.role") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[154px]']">
+                              {{ $t("organization.members.columns.joinedAt") }}
+                            </TableHead>
+                            <TableHead v-if="isAdmin" :class="[headCellClass, 'w-[88px]']">
+                              {{ $t("organization.members.columns.operations") }}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow v-for="row in filteredMembers" :key="row.id" :class="bodyRowClass">
+                            <TableCell :class="bodyCellClass">
+                              <div class="flex min-w-0 flex-col gap-0.5 py-0.5">
+                                <span
+                                  class="text-foreground inline-flex max-w-full items-center gap-1.5 overflow-hidden text-sm font-medium text-ellipsis whitespace-nowrap"
+                                >
+                                  {{ memberPrimaryLabel(row) }}
+                                  <span
+                                    v-if="isOwnerMember(row)"
+                                    class="text-primary inline-flex h-4 shrink-0 items-center rounded-[3px] bg-[var(--td-brand-color-light)] px-[5px] text-[10px] font-medium"
+                                    >{{ $t("organization.owner") }}</span
+                                  >
+                                  <span
+                                    v-if="row.user_id === authStore.currentUserId"
+                                    class="bg-primary text-primary-foreground inline-flex h-4 shrink-0 items-center rounded-[3px] px-[5px] text-[10px] font-medium"
+                                    >{{ $t("common.me") }}</span
+                                  >
+                                </span>
+                                <span
+                                  v-if="memberSecondaryLabel(row)"
+                                  class="text-muted-foreground truncate text-xs leading-[1.35]"
+                                  >{{ memberSecondaryLabel(row) }}</span
+                                >
+                              </div>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <div class="flex min-w-0 items-center">
+                                <Select
+                                  v-if="isAdmin && !isOwnerMember(row)"
+                                  :model-value="row.role"
+                                  @update:model-value="(val) => handleRoleChange(row, String(val))"
+                                >
+                                  <SelectTrigger size="sm" class="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent class="z-[3050]">
+                                    <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                                      {{ opt.label }}
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <span v-else :class="tagClass(roleTone(row.role), 'dark')">
+                                  {{ $t(`organization.role.${row.role}`) }}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">{{ formatDate(row.joined_at) }}</TableCell>
+                            <TableCell v-if="isAdmin" :class="bodyCellClass">
+                              <OrgConfirmPopover
+                                v-if="!isOwnerMember(row)"
+                                :content="
+                                  $t('organization.detail.removeMemberConfirm', { name: memberPrimaryLabel(row) })
+                                "
+                                :tooltip="$t('organization.detail.removeMember')"
+                                :confirm-text="$t('common.confirm')"
+                                :cancel-text="$t('common.cancel')"
+                                @confirm="confirmRemoveMember(row)"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  :class="dangerIconButtonClass"
+                                  :aria-label="$t('organization.detail.removeMember')"
+                                >
+                                  <UserXIcon />
+                                </Button>
+                              </OrgConfirmPopover>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                      <div v-if="membersLoading" :class="tableLoadingClass">
+                        <Loader2Icon class="text-primary size-5 animate-spin" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- 加入申请（待审核） -->
-                <div v-show="currentSection === 'joinRequests'" class="section">
-                  <div class="section-header">
-                    <h2>{{ $t("organization.settings.joinRequests") }}</h2>
-                    <p class="section-description">{{ $t("organization.settings.joinRequestsDesc") }}</p>
+                <div v-show="currentSection === 'joinRequests'" class="section w-full">
+                  <div class="mb-5 w-full min-w-0">
+                    <h2 :class="sectionTitleClass">{{ $t("organization.settings.joinRequests") }}</h2>
+                    <p :class="sectionDescriptionClass">{{ $t("organization.settings.joinRequestsDesc") }}</p>
                   </div>
 
-                  <div class="members-list-wrap join-requests-wrap">
-                    <div class="members-list-header">
-                      <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t("organization.joinRequests.listTitle") }}</span>
-                        <span class="members-list-count-badge">{{ filteredJoinRequests.length }}</span>
+                  <div class="flex flex-col gap-2.5">
+                    <div :class="listHeaderClass">
+                      <div :class="listTitleWrapClass">
+                        <span :class="listTitleClass">{{ $t("organization.joinRequests.listTitle") }}</span>
+                        <span :class="countBadgeClass">{{ filteredJoinRequests.length }}</span>
                       </div>
-                      <div class="members-list-actions">
-                        <div class="members-list-search">
-                          <t-input
+                      <div :class="listActionsClass">
+                        <div :class="listSearchClass">
+                          <SearchIcon :class="searchIconClass" />
+                          <Input
                             v-model="joinRequestSearchQuery"
-                            size="small"
                             :placeholder="$t('organization.joinRequests.searchPlaceholder')"
-                            clearable
+                            :class="searchInputClass"
+                          />
+                          <button
+                            v-if="joinRequestSearchQuery"
+                            type="button"
+                            data-slot="clear-button"
+                            :class="clearButtonClass"
+                            :aria-label="$t('common.clear')"
+                            @click="joinRequestSearchQuery = ''"
                           >
-                            <template #prefix-icon>
-                              <t-icon name="search" />
-                            </template>
-                          </t-input>
+                            <CircleXIcon class="size-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    <div v-if="joinRequestsLoading && joinRequests.length === 0" class="loading-inline">
-                      <t-loading size="small" />
+                    <div v-if="joinRequestsLoading && joinRequests.length === 0" :class="loadingInlineClass">
+                      <Loader2Icon class="text-primary size-4 animate-spin" />
                       <span>{{ $t("organization.joinRequests.loading") }}</span>
                     </div>
-                    <div v-else-if="filteredJoinRequests.length === 0" class="empty-state">
-                      <t-empty
-                        :description="
+                    <Empty v-else-if="filteredJoinRequests.length === 0" :class="emptyClass">
+                      <EmptyMedia>
+                        <InboxIcon :class="emptyIconClass" :stroke-width="1.25" />
+                      </EmptyMedia>
+                      <EmptyDescription>
+                        {{
                           joinRequestSearchQuery.trim()
-                            ? $t('organization.joinRequests.emptySearch', { q: joinRequestSearchQuery })
-                            : $t('organization.settings.noPendingRequests')
-                        "
-                      />
-                    </div>
-                    <div v-else class="data-table-shell join-requests-table">
-                      <t-table
-                        row-key="id"
-                        :data="filteredJoinRequests"
-                        :columns="joinRequestColumns"
-                        size="medium"
-                        hover
-                        stripe
-                        :loading="joinRequestsLoading"
-                      >
-                        <template #applicant="{ row }">
-                          <div class="member-cell">
-                            <span class="member-name">{{ joinRequestApplicantLabel(row) }}</span>
-                            <span v-if="joinRequestApplicantSecondary(row)" class="member-email">
-                              {{ joinRequestApplicantSecondary(row) }}
-                            </span>
-                          </div>
-                        </template>
-                        <template #request_type="{ row }">
-                          <t-tag
-                            size="small"
-                            :theme="row.request_type === 'upgrade' ? 'warning' : 'primary'"
-                            variant="light"
-                          >
-                            {{
-                              row.request_type === "upgrade"
-                                ? $t("organization.joinRequests.typeUpgrade")
-                                : $t("organization.joinRequests.typeJoin")
-                            }}
-                          </t-tag>
-                        </template>
-                        <template #requested_role="{ row }">
-                          <span v-if="row.request_type === 'upgrade' && row.prev_role" class="join-request-role-change">
-                            {{ roleLabel(row.prev_role) }}
-                            <t-icon name="arrow-right" size="12px" />
-                            {{ roleLabel(row.requested_role) }}
-                          </span>
-                          <t-tag v-else size="small" :theme="getRoleTheme(row.requested_role)" variant="light">
-                            {{ roleLabel(row.requested_role) }}
-                          </t-tag>
-                        </template>
-                        <template #message="{ row }">
-                          <span class="join-request-message" :title="row.message || undefined">
-                            {{ row.message || "—" }}
-                          </span>
-                        </template>
-                        <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
-                        <template #actions="{ row }">
-                          <div class="join-request-actions">
-                            <t-popup
-                              :visible="approvePopupRequestId === row.id"
-                              placement="left-start"
-                              destroy-on-close
-                              overlay-class-name="org-approve-request-popup-overlay"
-                              @visible-change="(visible: boolean) => handleApprovePopupVisibleChange(visible, row)"
-                            >
-                              <t-tooltip :content="$t('organization.settings.approve')" placement="top">
-                                <t-button
-                                  theme="primary"
-                                  variant="text"
-                                  shape="square"
-                                  size="small"
-                                  :loading="reviewingRequestId === row.id"
-                                  @click.stop="openApprovePopup(row)"
+                            ? $t("organization.joinRequests.emptySearch", { q: joinRequestSearchQuery })
+                            : $t("organization.settings.noPendingRequests")
+                        }}
+                      </EmptyDescription>
+                    </Empty>
+                    <div v-else :class="tableShellClass">
+                      <Table class="min-w-[750px] table-fixed">
+                        <TableHeader>
+                          <TableRow :class="headRowClass">
+                            <TableHead :class="[headCellClass, 'min-w-[160px]']">
+                              {{ $t("organization.joinRequests.columns.applicant") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[88px]']">
+                              {{ $t("organization.joinRequests.columns.type") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[140px]']">
+                              {{ $t("organization.joinRequests.columns.requestedRole") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'min-w-[120px]']">
+                              {{ $t("organization.joinRequests.columns.message") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[154px]']">
+                              {{ $t("organization.joinRequests.columns.appliedAt") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[88px]']">
+                              {{ $t("organization.members.columns.operations") }}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow v-for="row in filteredJoinRequests" :key="row.id" :class="bodyRowClass">
+                            <TableCell :class="bodyCellClass">
+                              <div class="flex min-w-0 flex-col gap-0.5 py-0.5">
+                                <span class="text-foreground truncate text-sm font-medium">{{
+                                  joinRequestApplicantLabel(row)
+                                }}</span>
+                                <span
+                                  v-if="joinRequestApplicantSecondary(row)"
+                                  class="text-muted-foreground truncate text-xs leading-[1.35]"
                                 >
-                                  <template #icon><t-icon name="check" /></template>
-                                </t-button>
-                              </t-tooltip>
-                              <template #content>
-                                <div class="org-approve-request-popup-inner" @click.stop>
-                                  <div class="member-invite-popup-title">
-                                    {{ $t("organization.joinRequests.approveTitle") }}
-                                  </div>
-                                  <p class="add-member-tip">
-                                    {{
-                                      $t("organization.joinRequests.approveDesc", {
-                                        name: joinRequestApplicantLabel(row),
-                                      })
-                                    }}
-                                  </p>
-                                  <div class="org-upgrade-field org-upgrade-field--last">
-                                    <label class="org-upgrade-field-label">{{
-                                      $t("organization.settings.assignRole")
-                                    }}</label>
-                                    <t-select v-model="approveAssignRole" size="medium" :options="orgRoleOptions" />
-                                  </div>
-                                  <div class="invite-popup-footer">
-                                    <t-button
-                                      variant="outline"
-                                      :disabled="reviewingRequestId === row.id"
-                                      @click="closeApprovePopup"
-                                    >
-                                      {{ $t("common.cancel") }}
-                                    </t-button>
-                                    <t-button
-                                      theme="primary"
-                                      :loading="reviewingRequestId === row.id"
-                                      @click="confirmApproveRequest(row)"
-                                    >
-                                      {{ $t("organization.settings.approve") }}
-                                    </t-button>
-                                  </div>
-                                </div>
-                              </template>
-                            </t-popup>
-                            <t-popconfirm
-                              :content="$t('organization.joinRequests.rejectConfirm')"
-                              :confirm-btn="{ content: $t('organization.settings.reject'), theme: 'danger' }"
-                              :cancel-btn="{ content: $t('common.cancel') }"
-                              placement="left"
-                              @confirm="handleRejectRequest(row)"
-                            >
-                              <t-tooltip :content="$t('organization.settings.reject')" placement="top">
-                                <t-button
-                                  theme="danger"
-                                  variant="text"
-                                  shape="square"
-                                  size="small"
-                                  :loading="reviewingRequestId === row.id"
-                                  @click.stop
+                                  {{ joinRequestApplicantSecondary(row) }}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span :class="tagClass(row.request_type === 'upgrade' ? 'warning' : 'primary', 'light')">
+                                {{
+                                  row.request_type === "upgrade"
+                                    ? $t("organization.joinRequests.typeUpgrade")
+                                    : $t("organization.joinRequests.typeJoin")
+                                }}
+                              </span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span
+                                v-if="row.request_type === 'upgrade' && row.prev_role"
+                                class="text-muted-foreground inline-flex items-center gap-1 text-[13px]"
+                              >
+                                {{ roleLabel(row.prev_role) }}
+                                <ArrowRightIcon class="text-placeholder size-3 shrink-0" />
+                                {{ roleLabel(row.requested_role) }}
+                              </span>
+                              <span v-else :class="tagClass(roleTone(row.requested_role), 'light')">
+                                {{ roleLabel(row.requested_role) }}
+                              </span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span
+                                class="text-muted-foreground block max-w-[220px] truncate text-[13px]"
+                                :title="row.message || undefined"
+                              >
+                                {{ row.message || "—" }}
+                              </span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">{{ formatDate(row.created_at) }}</TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <div class="inline-flex items-center gap-0.5">
+                                <Popover
+                                  :open="approvePopupRequestId === row.id"
+                                  @update:open="(v: boolean) => handleApprovePopupVisibleChange(v, row)"
                                 >
-                                  <template #icon><t-icon name="close" /></template>
-                                </t-button>
-                              </t-tooltip>
-                            </t-popconfirm>
-                          </div>
-                        </template>
-                      </t-table>
+                                  <Tooltip>
+                                    <TooltipTrigger as-child>
+                                      <PopoverTrigger as-child>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon-sm"
+                                          class="text-primary hover:text-primary hover:bg-primary/10"
+                                          :disabled="reviewingRequestId === row.id"
+                                          :aria-label="$t('organization.settings.approve')"
+                                        >
+                                          <Loader2Icon v-if="reviewingRequestId === row.id" class="animate-spin" />
+                                          <CheckIcon v-else />
+                                        </Button>
+                                      </PopoverTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="z-[3050]">{{
+                                      $t("organization.settings.approve")
+                                    }}</TooltipContent>
+                                  </Tooltip>
+                                  <PopoverContent
+                                    side="left"
+                                    align="start"
+                                    :class="[actionPopoverClass, 'w-[min(360px,calc(100vw-32px))]']"
+                                  >
+                                    <div :class="cn(popupTitleClass, 'mb-2.5')">
+                                      {{ $t("organization.joinRequests.approveTitle") }}
+                                    </div>
+                                    <p :class="cn(popupTipClass, 'mb-3')">
+                                      {{
+                                        $t("organization.joinRequests.approveDesc", {
+                                          name: joinRequestApplicantLabel(row),
+                                        })
+                                      }}
+                                    </p>
+                                    <div :class="popupFieldClass">
+                                      <label :class="popupFieldLabelClass">{{
+                                        $t("organization.settings.assignRole")
+                                      }}</label>
+                                      <Select
+                                        :model-value="approveAssignRole"
+                                        @update:model-value="
+                                          (v) => (approveAssignRole = normalizeJoinRequestRole(String(v)))
+                                        "
+                                      >
+                                        <SelectTrigger class="w-full">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent class="z-[3060]">
+                                          <SelectItem v-for="opt in orgRoleOptions" :key="opt.value" :value="opt.value">
+                                            {{ opt.label }}
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div :class="popupFooterClass">
+                                      <Button
+                                        variant="outline"
+                                        :disabled="reviewingRequestId === row.id"
+                                        @click="closeApprovePopup"
+                                      >
+                                        {{ $t("common.cancel") }}
+                                      </Button>
+                                      <Button
+                                        :disabled="reviewingRequestId === row.id"
+                                        @click="confirmApproveRequest(row)"
+                                      >
+                                        <Loader2Icon v-if="reviewingRequestId === row.id" class="animate-spin" />
+                                        {{ $t("organization.settings.approve") }}
+                                      </Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                                <OrgConfirmPopover
+                                  :content="$t('organization.joinRequests.rejectConfirm')"
+                                  :tooltip="$t('organization.settings.reject')"
+                                  :confirm-text="$t('organization.settings.reject')"
+                                  :cancel-text="$t('common.cancel')"
+                                  @confirm="handleRejectRequest(row)"
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    :class="dangerIconButtonClass"
+                                    :disabled="reviewingRequestId === row.id"
+                                    :aria-label="$t('organization.settings.reject')"
+                                  >
+                                    <Loader2Icon v-if="reviewingRequestId === row.id" class="animate-spin" />
+                                    <XIcon v-else />
+                                  </Button>
+                                </OrgConfirmPopover>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                      <div v-if="joinRequestsLoading" :class="tableLoadingClass">
+                        <Loader2Icon class="text-primary size-5 animate-spin" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- 共享知识库 -->
-                <div v-show="currentSection === 'sharedKb'" class="section">
-                  <div class="section-header">
-                    <div class="section-header-row">
-                      <div class="section-header-titlewrap">
-                        <h2>{{ $t("organization.share.sharedKnowledgeBase") }}</h2>
-                        <t-popup
-                          placement="bottom-start"
-                          trigger="hover"
-                          overlay-class-name="org-permissions-popup-overlay"
-                          :overlay-inner-style="permissionsHintPopupInnerStyle"
-                        >
-                          <button
-                            type="button"
-                            class="permissions-trigger-btn"
-                            :aria-label="$t('organization.settings.permissionCalcFormula')"
-                            :title="$t('organization.settings.permissionCalcFormula')"
+                <div v-show="currentSection === 'sharedKb'" class="section w-full">
+                  <div class="mb-5 w-full min-w-0">
+                    <div :class="sectionHeaderRowClass">
+                      <div :class="sectionTitleWrapClass">
+                        <h2 :class="[sectionTitleClass, 'leading-tight whitespace-nowrap']">
+                          {{ $t("organization.share.sharedKnowledgeBase") }}
+                        </h2>
+                        <Popover v-model:open="shareCalcHint.open">
+                          <PopoverTrigger as-child>
+                            <button
+                              type="button"
+                              data-slot="hint-trigger"
+                              :class="hintTriggerClass"
+                              :aria-label="$t('organization.settings.permissionCalcFormula')"
+                              :title="$t('organization.settings.permissionCalcFormula')"
+                              @mouseenter="shareCalcHint.show"
+                              @mouseleave="shareCalcHint.hide"
+                            >
+                              <InfoIcon class="size-4" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            :class="[
+                              hintPopoverClass,
+                              'max-h-[min(280px,65vh)] w-[min(400px,calc(100vw-24px))] max-w-[min(400px,calc(100vw-24px))]',
+                            ]"
+                            @open-auto-focus.prevent
+                            @mouseenter="shareCalcHint.show"
+                            @mouseleave="shareCalcHint.hide"
                           >
-                            <t-icon name="info-circle" size="16px" />
-                          </button>
-                          <template #content>
-                            <div class="permission-hint-popover">
-                              <p class="permission-hint-title">
+                            <div class="max-w-[360px] px-4 py-3.5">
+                              <p class="text-foreground m-0 mb-1.5 text-sm leading-[1.35] font-semibold">
                                 {{ $t("organization.settings.sharePermissionLabel") }}
                               </p>
-                              <p class="permission-hint-desc">{{ $t("organization.settings.permissionCalcTip") }}</p>
+                              <p class="text-muted-foreground m-0 text-[13px] leading-[1.55]">
+                                {{ $t("organization.settings.permissionCalcTip") }}
+                              </p>
                             </div>
-                          </template>
-                        </t-popup>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
-                    <p class="section-description">{{ $t("organization.settings.sharedDesc") }}</p>
+                    <p :class="sectionDescriptionClass">{{ $t("organization.settings.sharedDesc") }}</p>
                   </div>
 
-                  <div class="shared-resources-wrap">
-                    <div class="members-list-header">
-                      <div class="members-list-titlewrap">
-                        <span class="members-list-title">{{ $t("organization.sharedResources.kbListTitle") }}</span>
-                        <span class="members-list-count-badge">{{ sharedKnowledgeBases.length }}</span>
+                  <div class="flex flex-col gap-2.5">
+                    <div :class="listHeaderClass">
+                      <div :class="listTitleWrapClass">
+                        <span :class="listTitleClass">{{ $t("organization.sharedResources.kbListTitle") }}</span>
+                        <span :class="countBadgeClass">{{ sharedKnowledgeBases.length }}</span>
                       </div>
                     </div>
 
-                    <div v-if="sharesLoading && sharedKnowledgeBases.length === 0" class="loading-inline">
-                      <t-loading size="small" />
+                    <div v-if="sharesLoading && sharedKnowledgeBases.length === 0" :class="loadingInlineClass">
+                      <Loader2Icon class="text-primary size-4 animate-spin" />
                       <span>{{ $t("organization.sharedResources.loading") }}</span>
                     </div>
-                    <div v-else-if="sharedKnowledgeBases.length === 0" class="empty-state">
-                      <t-empty>
-                        <template #description>
-                          <p class="empty-state-title">{{ $t("organization.settings.noSharedKB") }}</p>
-                          <p class="empty-state-desc">{{ $t("organization.settings.noSharedKBTip") }}</p>
-                        </template>
-                      </t-empty>
-                    </div>
-                    <div v-else class="data-table-shell shared-resources-table">
-                      <t-table
-                        row-key="id"
-                        :data="sharedKnowledgeBases"
-                        :columns="sharedKbColumns"
-                        size="medium"
-                        hover
-                        stripe
-                        :loading="sharesLoading"
-                        class="shared-kb-table"
-                      >
-                        <template #name="{ row }">
-                          <span class="resource-name" :title="row.knowledge_base_name">{{
-                            row.knowledge_base_name
-                          }}</span>
-                        </template>
-                        <template #shared_by="{ row }">
-                          <span class="resource-meta">{{ row.shared_by_username || "—" }}</span>
-                        </template>
-                        <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
-                        <template #space_permission="{ row }">
-                          <t-tag size="small" :theme="getPermissionTheme(row.permission)" variant="light">
-                            {{ sharePermissionLabel(row.permission) }}
-                          </t-tag>
-                        </template>
-                        <template #my_permission="{ row }">
-                          <t-tag
-                            size="small"
-                            :theme="getPermissionTheme(row.my_permission ?? row.permission)"
-                            variant="light"
-                          >
-                            {{ sharePermissionLabel(row.my_permission ?? row.permission) }}
-                          </t-tag>
-                        </template>
-                        <template #actions="{ row }">
-                          <div class="resource-row-actions">
-                            <t-tooltip :content="$t('knowledgeList.detail.goToKb')" placement="top">
-                              <t-button
-                                theme="primary"
-                                shape="square"
-                                variant="text"
-                                size="small"
-                                :aria-label="$t('knowledgeList.detail.goToKb')"
-                                @click.stop="handleShareClick(row)"
+                    <Empty v-else-if="sharedKnowledgeBases.length === 0" :class="emptyClass">
+                      <EmptyMedia>
+                        <InboxIcon :class="emptyIconClass" :stroke-width="1.25" />
+                      </EmptyMedia>
+                      <div>
+                        <p class="text-foreground m-0 mb-1 text-sm font-medium">
+                          {{ $t("organization.settings.noSharedKB") }}
+                        </p>
+                        <p class="text-muted-foreground m-0 text-[13px]">
+                          {{ $t("organization.settings.noSharedKBTip") }}
+                        </p>
+                      </div>
+                    </Empty>
+                    <div v-else :class="tableShellClass">
+                      <Table class="min-w-[754px] table-fixed">
+                        <TableHeader>
+                          <TableRow :class="headRowClass">
+                            <TableHead :class="[headCellClass, 'min-w-[180px]']">
+                              {{ $t("organization.sharedResources.columns.name") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[120px]']">
+                              {{ $t("organization.sharedResources.columns.sharedBy") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[154px]']">
+                              {{ $t("organization.sharedResources.columns.sharedAt") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[108px]']">
+                              {{ $t("organization.settings.sharePermissionLabel") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, 'w-[96px]']">
+                              {{ $t("organization.settings.myPermissionLabel") }}
+                            </TableHead>
+                            <TableHead :class="[headCellClass, isAdmin ? 'w-[96px]' : 'w-16']">
+                              {{ $t("organization.members.columns.operations") }}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow v-for="row in sharedKnowledgeBases" :key="row.id" :class="bodyRowClass">
+                            <TableCell :class="bodyCellClass">
+                              <span
+                                class="text-foreground block truncate text-sm font-medium"
+                                :title="row.knowledge_base_name"
+                                >{{ row.knowledge_base_name }}</span
                               >
-                                <template #icon><t-icon name="browse" /></template>
-                              </t-button>
-                            </t-tooltip>
-                            <t-popconfirm
-                              v-if="isAdmin"
-                              :content="
-                                $t('organization.settings.removeShareConfirm', {
-                                  name: row.knowledge_base_name || row.knowledge_base_id,
-                                })
-                              "
-                              :confirm-btn="{ content: $t('common.confirm'), theme: 'danger' }"
-                              :cancel-btn="{ content: $t('common.cancel') }"
-                              placement="left"
-                              @confirm="handleRemoveShare(row)"
-                            >
-                              <t-tooltip :content="$t('organization.settings.removeShareFromOrg')" placement="top">
-                                <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
-                                  <template #icon><t-icon name="delete" /></template>
-                                </t-button>
-                              </t-tooltip>
-                            </t-popconfirm>
-                          </div>
-                        </template>
-                      </t-table>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span class="text-muted-foreground block truncate text-[13px]">{{
+                                row.shared_by_username || "—"
+                              }}</span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">{{ formatDate(row.created_at) }}</TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span :class="tagClass(roleTone(row.permission), 'light')">
+                                {{ sharePermissionLabel(row.permission) }}
+                              </span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <span :class="tagClass(roleTone(row.my_permission ?? row.permission), 'light')">
+                                {{ sharePermissionLabel(row.my_permission ?? row.permission) }}
+                              </span>
+                            </TableCell>
+                            <TableCell :class="bodyCellClass">
+                              <div class="inline-flex items-center gap-0.5">
+                                <Tooltip>
+                                  <TooltipTrigger as-child>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      class="text-primary hover:text-primary hover:bg-primary/10"
+                                      :aria-label="$t('knowledgeList.detail.goToKb')"
+                                      @click.stop="handleShareClick(row)"
+                                    >
+                                      <EyeIcon />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" class="z-[3050]">{{
+                                    $t("knowledgeList.detail.goToKb")
+                                  }}</TooltipContent>
+                                </Tooltip>
+                                <OrgConfirmPopover
+                                  v-if="isAdmin"
+                                  :content="
+                                    $t('organization.settings.removeShareConfirm', {
+                                      name: row.knowledge_base_name || row.knowledge_base_id,
+                                    })
+                                  "
+                                  :tooltip="$t('organization.settings.removeShareFromOrg')"
+                                  :confirm-text="$t('common.confirm')"
+                                  :cancel-text="$t('common.cancel')"
+                                  @confirm="handleRemoveShare(row)"
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    :class="dangerIconButtonClass"
+                                    :aria-label="$t('organization.settings.removeShareFromOrg')"
+                                  >
+                                    <Trash2Icon />
+                                  </Button>
+                                </OrgConfirmPopover>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                      <div v-if="sharesLoading" :class="tableLoadingClass">
+                        <Loader2Icon class="text-primary size-5 animate-spin" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -946,11 +1284,12 @@
               </div>
 
               <!-- 底部操作按钮 -->
-              <div class="settings-footer">
-                <t-button variant="outline" @click="handleClose">{{ $t("common.cancel") }}</t-button>
-                <t-button v-if="isAdmin" theme="primary" :loading="submitting" @click="handleSave">
+              <div class="border-border bg-card flex shrink-0 justify-end gap-3 border-t px-10 py-3">
+                <Button variant="outline" @click="handleClose">{{ $t("common.cancel") }}</Button>
+                <Button v-if="isAdmin" :disabled="submitting" @click="handleSave">
+                  <Loader2Icon v-if="submitting" class="animate-spin" />
                   {{ isCreateMode ? $t("common.create") : $t("common.save") }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
@@ -961,8 +1300,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
+import { ref, computed, reactive, watch, nextTick, onBeforeUnmount, type Component } from "vue";
 import { useRouter } from "vue-router";
+import {
+  ArrowRightIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  ClockIcon,
+  CopyIcon,
+  EyeIcon,
+  FolderOpenIcon,
+  InboxIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  PencilIcon,
+  QrCodeIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  ShieldUserIcon,
+  Trash2Icon,
+  UserIcon,
+  UserPlusIcon,
+  UserXIcon,
+  XIcon,
+} from "@lucide/vue";
+import type { AcceptableValue } from "reka-ui";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { copyWithToast } from "@/utils/clipboard";
@@ -979,6 +1345,18 @@ import {
 import { useOrganizationStore } from "@/stores/organization";
 import { useAuthStore } from "@/stores/auth";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import OrgConfirmPopover from "./OrgConfirmPopover.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -1153,27 +1531,27 @@ const modalTitle = computed(() => {
 });
 
 const navItems = computed(() => {
-  const items: { key: string; icon: string; label: string; badge?: number }[] = [
-    { key: "basic", icon: "info-circle", label: t("organization.editor.navBasic") },
+  const items: { key: string; icon: Component; label: string; badge?: number }[] = [
+    { key: "basic", icon: InfoIcon, label: t("organization.editor.navBasic") },
   ];
   if (isCreateMode.value) {
-    items.push({ key: "permissions", icon: "user-safety", label: t("organization.editor.navPermissions") });
+    items.push({ key: "permissions", icon: ShieldUserIcon, label: t("organization.editor.navPermissions") });
   }
   // 只有在编辑已有组织时才显示成员管理、加入申请（仅管理员）、共享知识库
   if (props.orgId && !isCreateMode.value) {
-    items.push({ key: "members", icon: "user", label: t("organization.manageMembers") });
+    items.push({ key: "members", icon: UserIcon, label: t("organization.manageMembers") });
     if (isAdmin.value) {
       const pendingCount = orgInfo.value?.pending_join_request_count ?? 0;
       items.push({
         key: "joinRequests",
-        icon: "user-add",
+        icon: UserPlusIcon,
         label: t("organization.settings.joinRequests"),
         badge: pendingCount > 0 ? pendingCount : undefined,
       });
     }
     items.push({
       key: "sharedKb",
-      icon: "folder-open",
+      icon: FolderOpenIcon,
       label: t("organization.share.sharedKnowledgeBase"),
       badge: sharedKnowledgeBases.value.length,
     });
@@ -1218,24 +1596,6 @@ const roleOptions = computed(() => [
   { label: t("organization.role.viewer"), value: "viewer" },
 ]);
 
-const permissionsPopupInnerStyle = {
-  boxSizing: "border-box" as const,
-  padding: "0",
-  width: "min(520px, calc(100vw - 24px))",
-  maxWidth: "min(520px, calc(100vw - 24px))",
-  maxHeight: "min(400px, 65vh)",
-  overflow: "hidden",
-};
-
-const permissionsHintPopupInnerStyle = {
-  boxSizing: "border-box" as const,
-  padding: "0",
-  width: "min(400px, calc(100vw - 24px))",
-  maxWidth: "min(400px, calc(100vw - 24px))",
-  maxHeight: "min(280px, 65vh)",
-  overflow: "hidden",
-};
-
 type OrgRole = "admin" | "editor" | "viewer";
 type OrgRolePerm = { key: string; has: boolean };
 
@@ -1262,33 +1622,59 @@ const orgRoleMatrix: Record<OrgRole, OrgRolePerm[]> = {
   ],
 };
 
-function orgRoleIcon(role: OrgRole): string {
+function orgRoleIcon(role: OrgRole): Component {
   switch (role) {
     case "admin":
-      return "user-safety";
+      return ShieldUserIcon;
     case "editor":
-      return "edit";
+      return PencilIcon;
     default:
-      return "browse";
+      return EyeIcon;
   }
 }
 
-const memberColumns = computed(() => {
-  const cols = [
-    { colKey: "member", title: t("organization.members.columns.member"), ellipsis: true, minWidth: 160 },
-    { colKey: "role", title: t("organization.members.columns.role"), width: 132 },
-    { colKey: "joined_at", title: t("organization.members.columns.joinedAt"), width: 154 },
-  ];
-  if (isAdmin.value) {
-    cols.push({
-      colKey: "actions",
-      title: t("organization.members.columns.operations"),
-      width: 88,
-      align: "left",
-    } as (typeof cols)[number]);
-  }
-  return cols;
-});
+// The three role cards shown while creating a space. Each lists what the
+// role can (true) and cannot (false) do, in the order the old markup did.
+const permissionCards: {
+  role: OrgRole;
+  tone: TagTone;
+  access: string;
+  perms: OrgRolePerm[];
+}[] = [
+  {
+    role: "admin",
+    tone: "primary",
+    access: "organization.editor.fullAccess",
+    perms: [
+      { key: "adminPerm1", has: true },
+      { key: "adminPerm2", has: true },
+      { key: "adminPerm3", has: true },
+      { key: "adminPerm4", has: true },
+    ],
+  },
+  {
+    role: "editor",
+    tone: "warning",
+    access: "organization.editor.editAccess",
+    perms: [
+      { key: "editorPerm1", has: true },
+      { key: "editorPerm2", has: true },
+      { key: "shareKBPerm", has: false },
+      { key: "editorPerm3", has: false },
+    ],
+  },
+  {
+    role: "viewer",
+    tone: "default",
+    access: "organization.editor.viewAccess",
+    perms: [
+      { key: "viewerPerm1", has: true },
+      { key: "shareKBPerm", has: false },
+      { key: "viewerPerm2", has: false },
+      { key: "viewerPerm3", has: false },
+    ],
+  },
+];
 
 function sharePermissionLabel(permission: string): string {
   if (permission === "editor" || permission === "admin") {
@@ -1296,35 +1682,6 @@ function sharePermissionLabel(permission: string): string {
   }
   return t("organization.share.permissionReadonly");
 }
-
-const joinRequestColumns = computed(() => {
-  const cols = [
-    { colKey: "applicant", title: t("organization.joinRequests.columns.applicant"), ellipsis: true, minWidth: 160 },
-    { colKey: "request_type", title: t("organization.joinRequests.columns.type"), width: 88 },
-    { colKey: "requested_role", title: t("organization.joinRequests.columns.requestedRole"), width: 140 },
-    { colKey: "message", title: t("organization.joinRequests.columns.message"), ellipsis: true, minWidth: 120 },
-    { colKey: "created_at", title: t("organization.joinRequests.columns.appliedAt"), width: 154 },
-    { colKey: "actions", title: t("organization.members.columns.operations"), width: 88, align: "left" },
-  ];
-  return cols;
-});
-
-const sharedKbColumns = computed(() => {
-  const cols = [
-    { colKey: "name", title: t("organization.sharedResources.columns.name"), ellipsis: true, minWidth: 180 },
-    { colKey: "shared_by", title: t("organization.sharedResources.columns.sharedBy"), width: 120, ellipsis: true },
-    { colKey: "created_at", title: t("organization.sharedResources.columns.sharedAt"), width: 154 },
-    { colKey: "space_permission", title: t("organization.settings.sharePermissionLabel"), width: 108 },
-    { colKey: "my_permission", title: t("organization.settings.myPermissionLabel"), width: 96 },
-    {
-      colKey: "actions",
-      title: t("organization.members.columns.operations"),
-      width: isAdmin.value ? 96 : 64,
-      align: "left",
-    },
-  ];
-  return cols;
-});
 
 const filteredMembers = computed(() => {
   const query = memberSearchQuery.value.toLowerCase();
@@ -1411,7 +1768,7 @@ const remainingValidityText = computed(() => {
 
 // Methods
 const handleClose = () => {
-  // Blur before unmount so TDesign textarea autosize won't run on a detached node.
+  // Blur before unmount so focus is not left on a node that is about to be detached.
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur();
   }
@@ -1769,9 +2126,29 @@ const handleAddMember = async () => {
   }
 };
 
+// The tenant picker's own state: whether its list is open, the query typed
+// into it, and the label of the chosen tenant. The label is kept apart from
+// the search results so it survives a later search that no longer lists it.
+const tenantPickerOpen = ref(false);
+const tenantQuery = ref("");
+const selectedTenantLabel = ref("");
+
+const selectTenant = (opt: { label: string; value: number }) => {
+  selectedTenantId.value = opt.value;
+  selectedTenantLabel.value = opt.label;
+  tenantPickerOpen.value = false;
+};
+
+const clearSelectedTenant = () => {
+  selectedTenantId.value = null;
+  selectedTenantLabel.value = "";
+};
+
 // 重置添加成员弹窗
 const resetAddMemberDialog = () => {
   selectedTenantId.value = null;
+  selectedTenantLabel.value = "";
+  tenantQuery.value = "";
   addMemberRole.value = "viewer";
   tenantSearchResults.value = [];
 };
@@ -1801,6 +2178,27 @@ const refreshInviteCode = async () => {
   } finally {
     refreshingCode.value = false;
   }
+};
+
+// The select speaks strings; the setting is a number of days.
+const onValiditySelect = (value: AcceptableValue) => {
+  const days = Number(value);
+  formData.value.invite_code_validity_days = days;
+  void handleValidityChange(days);
+};
+
+// The member limit input. An empty field leaves the last number in place
+// (a cleared field is mid-edit, not a request for "unlimited", which is 0),
+// and leaving the field clamps the value to the range t-input-number enforced.
+const onMemberLimitInput = (value: string | number) => {
+  if (value === "") return;
+  const n = Number(value);
+  if (Number.isFinite(n)) formData.value.member_limit = n;
+};
+
+const clampMemberLimit = () => {
+  const n = Math.round(formData.value.member_limit);
+  formData.value.member_limit = Math.min(10000, Math.max(0, Number.isFinite(n) ? n : 0));
 };
 
 const handleValidityChange = async (value: number) => {
@@ -1890,31 +2288,126 @@ const formatDate = (dateStr: string) => {
   return `${year}-${month}-${day}`;
 };
 
-const getRoleTheme = (role: string) => {
+// Tag colours. The tone follows the old getRoleTheme / getPermissionTheme
+// mapping (admin primary, editor warning, the rest neutral); the variant
+// matches the TDesign tag it replaces — "dark" is TDesign's default solid
+// fill, "light" its tinted `variant="light"`.
+type TagTone = "primary" | "warning" | "default";
+
+const roleTone = (role: string): TagTone => {
   switch (role) {
     case "admin":
       return "primary";
     case "editor":
       return "warning";
-    case "viewer":
-      return "default";
     default:
       return "default";
   }
 };
 
-const getPermissionTheme = (permission: string) => {
-  switch (permission) {
-    case "admin":
-      return "primary";
-    case "editor":
-      return "warning";
-    case "viewer":
-      return "default";
-    default:
-      return "default";
+const TAG_BASE = "inline-flex h-[22px] shrink-0 items-center rounded-[3px] px-2 text-xs leading-none whitespace-nowrap";
+
+const tagClass = (tone: TagTone, variant: "dark" | "light"): string => {
+  if (variant === "dark") {
+    if (tone === "primary") return `${TAG_BASE} bg-primary text-primary-foreground`;
+    if (tone === "warning") return `${TAG_BASE} bg-warning text-primary-foreground`;
+    return `${TAG_BASE} bg-[var(--td-bg-color-component)] text-foreground`;
   }
+  if (tone === "primary") return `${TAG_BASE} bg-[var(--td-brand-color-light)] text-primary`;
+  if (tone === "warning") return `${TAG_BASE} bg-[var(--td-warning-color-light)] text-warning`;
+  return `${TAG_BASE} bg-muted text-foreground`;
 };
+
+// Class strings shared by several parts of the template. They are named
+// here once rather than repeated, because the three list sections (members,
+// join requests, shared knowledge bases) are built from the same pieces.
+const sectionTitleClass = "text-foreground m-0 font-(family-name:--app-font-family) text-xl font-semibold";
+const sectionDescriptionClass =
+  "text-muted-foreground m-0 mt-2 font-(family-name:--app-font-family) text-sm leading-normal";
+const sectionHeaderRowClass = "flex w-full min-w-0 flex-wrap items-center justify-between gap-3";
+const sectionTitleWrapClass = "inline-flex min-w-0 flex-auto items-center gap-1";
+const hintTriggerClass =
+  "text-muted-foreground hover:bg-muted hover:text-primary focus-visible:outline-ring inline-flex size-[22px] shrink-0 items-center justify-center rounded-md leading-none transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-1";
+// The hint popovers keep the old overlay's frosted look in both themes.
+const hintPopoverClass =
+  "z-[3050] gap-0 overflow-hidden rounded-xl border-[0.5px] border-border bg-card p-0 ring-0 shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)] backdrop-blur-[20px] backdrop-saturate-[180%] dark:border-white/8 dark:bg-[rgba(36,36,36,0.92)] dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.05),0_2px_4px_rgba(0,0,0,0.12),0_8px_32px_rgba(0,0,0,0.28)]";
+
+const settingRowClass =
+  "flex min-w-0 items-start justify-between gap-6 border-b border-border py-4 first:pt-0 last:border-b-0";
+const settingInfoClass = "min-w-0 max-w-[42%] flex-[0_0_42%]";
+const settingLabelClass = "text-foreground mb-1 block text-[15px] font-medium";
+const settingDescClass = "text-muted-foreground m-0 text-[13px] leading-normal";
+const settingControlClass = "flex min-w-0 max-w-[58%] flex-[1_1_58%] items-start justify-end";
+
+const inviteHeaderClass = "mb-2.5 flex items-center gap-2";
+const inviteIconClass = "text-primary size-4";
+const inviteTitleClass = "text-foreground text-[13px] font-semibold";
+const inviteDescClass = "text-muted-foreground m-0 mt-1 mb-2.5 text-xs leading-[1.4]";
+const inviteDividerClass = "bg-muted my-3 h-px";
+
+const listHeaderClass = "flex flex-wrap items-center justify-between gap-3 px-0.5";
+const listTitleWrapClass = "inline-flex min-w-0 items-center gap-2";
+const listTitleClass = "text-foreground text-sm font-semibold";
+const countBadgeClass =
+  "bg-muted text-foreground inline-flex h-5 min-w-[22px] items-center justify-center rounded-[10px] px-[7px] text-xs leading-none font-semibold";
+const listActionsClass =
+  "inline-flex min-w-0 flex-[0_1_auto] items-center gap-2 max-[560px]:w-full max-[560px]:justify-start";
+const listSearchClass = "relative w-56 min-w-0 flex-[0_0_14rem] max-[560px]:w-auto max-[560px]:flex-auto";
+const searchIconClass = "text-placeholder pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2";
+const searchInputClass = "h-7 pr-7 pl-7 text-[13px] md:text-[13px]";
+const clearButtonClass =
+  "text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center";
+
+const loadingInlineClass = "flex items-center gap-2 pt-5 pb-2";
+const emptyClass = "gap-2 p-0 pt-2 pb-4";
+const emptyIconClass = "text-placeholder size-12";
+const tableShellClass = "border-border bg-card relative overflow-hidden rounded-[10px] border";
+const tableLoadingClass = "bg-card/60 absolute inset-0 z-10 flex items-center justify-center";
+const headRowClass = "bg-muted hover:bg-muted";
+const headCellClass = "h-auto px-3 py-3 text-[13px] font-semibold";
+const bodyRowClass = "even:bg-muted/50 hover:bg-accent";
+const bodyCellClass = "overflow-hidden px-3 py-3 text-ellipsis";
+const dangerIconButtonClass = "text-destructive hover:text-destructive hover:bg-destructive/10";
+
+// The member / upgrade / approve popovers share one frame.
+const actionPopoverClass =
+  "z-[3050] max-w-full gap-0 rounded-[10px] border border-border p-4 ring-0 shadow-[var(--td-shadow-2),0_8px_24px_rgba(15,23,42,0.08)]";
+const popupTitleClass = "text-foreground m-0 text-[15px] leading-[1.35] font-semibold";
+const popupTipClass =
+  "bg-muted border-border text-muted-foreground m-0 rounded-lg border px-3 py-2.5 text-[13px] leading-normal";
+const popupFieldClass = "flex w-full min-w-0 flex-col gap-2";
+const popupFieldLabelClass = "text-foreground m-0 block text-sm leading-[1.4] font-medium";
+const popupFooterClass = "border-border mt-4 flex justify-end gap-2 border-t pt-3";
+
+// The two info icons in the section headers open their popover on hover,
+// as the old t-popup trigger="hover" did; a click toggles it too, so the
+// hint is also reachable without a mouse. The short close delay lets the
+// pointer travel from the icon into the popover without it closing.
+function useHoverPopover() {
+  const open = ref(false);
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  const show = () => {
+    cancel();
+    open.value = true;
+  };
+  const hide = () => {
+    cancel();
+    timer = setTimeout(() => {
+      open.value = false;
+    }, 120);
+  };
+  return { open, show, hide };
+}
+
+// reactive() unwraps `open`, so the template can bind it with v-model directly.
+const membersPermHint = reactive(useHoverPopover());
+const shareCalcHint = reactive(useHoverPopover());
 
 const scrollContentToTop = async () => {
   await nextTick();
@@ -2008,257 +2501,16 @@ watch(addMemberPopupVisible, (visible) => {
 });
 </script>
 
-<style scoped lang="less">
-@primary-color: var(--td-brand-color);
-@primary-light: var(--td-brand-color-light);
-@primary-lighter: var(--td-component-stroke);
-@primary-hover: var(--td-brand-color-active);
-
-.settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  backdrop-filter: blur(4px);
-  overscroll-behavior: none;
-}
-
-.settings-modal {
-  position: relative;
-  width: 90vw;
-  max-width: 1100px;
-  height: 85vh;
-  max-height: 750px;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  transition: all 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.settings-container {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-
-.settings-sidebar {
-  width: 208px;
-  background-color: var(--td-bg-color-settings-modal);
-  border-right: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sidebar-header {
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.settings-nav {
-  flex: 1;
-  padding: 8px 8px 12px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.nav-group-title {
-  padding: 6px 14px 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-
-  .settings-nav > &:first-child {
-    padding-top: 2px;
-  }
-
-  .settings-nav > &:not(:first-child) {
-    padding-top: 8px;
-  }
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 6px 12px;
-  margin-bottom: 2px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-  user-select: none;
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.nav-icon {
-  margin-right: 9px;
-  font-size: 16px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-
-  &.nav-icon-img {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.nav-label {
-  flex: 1;
-}
-
-.nav-badge {
-  flex-shrink: 0;
-  margin-left: 2px;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 500;
-  text-align: center;
-
-  &.nav-badge-count {
-    min-width: 20px;
-  }
-}
-
-.settings-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background-color: var(--td-bg-color-container);
-}
-
-.content-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 28px 40px 48px;
-  box-sizing: border-box;
-  scroll-padding-bottom: 24px;
-  overscroll-behavior: contain;
-}
-
-.tenant-role-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 10px 12px;
-  background: var(--td-warning-color-light);
-  border: 1px solid var(--td-warning-color-focus);
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-warning-color-active);
-
-  .t-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-}
-
+<style scoped>
+/*
+ * What stays CSS here is what utilities cannot express: the section fade-in
+ * keyframes (a scoped @keyframes name is rewritten per component, so a
+ * utility could not reference it), the <Transition name="modal"> classes,
+ * whose leave state also reaches into the child modal, and the scrollbar
+ * pseudo-elements of the two scrolling columns.
+ */
 .section {
-  width: 100%;
   animation: sectionFadeIn 0.25s ease;
-
-  .section-header {
-    margin-bottom: 20px;
-    width: 100%;
-    min-width: 0;
-
-    h2 {
-      margin: 0;
-      font-family: var(--app-font-family);
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-    }
-
-    .section-header-titlewrap h2 {
-      line-height: 1.25;
-    }
-
-    .section-description {
-      margin: 8px 0 0;
-      font-family: var(--app-font-family);
-      font-size: 14px;
-      color: var(--td-text-color-secondary);
-      line-height: 1.5;
-    }
-
-    .permission-calc-hint {
-      margin-top: 6px;
-
-      .hint-inner {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        cursor: help;
-        color: var(--td-text-color-secondary);
-        font-size: 13px;
-      }
-    }
-  }
 }
 
 @keyframes sectionFadeIn {
@@ -2273,905 +2525,19 @@ watch(addMemberPopupVisible, (visible) => {
   }
 }
 
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
 }
 
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-  min-width: 0;
-
-  &:first-child {
-    padding-top: 0;
-  }
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  .setting-info {
-    flex: 0 0 42%;
-    max-width: 42%;
-    min-width: 0;
-    padding-right: 0;
-
-    &.full-width {
-      max-width: 100%;
-      padding-right: 0;
-    }
-
-    label {
-      display: block;
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--td-text-color-primary);
-      margin-bottom: 4px;
-
-      .required {
-        color: var(--td-error-color);
-        margin-left: 2px;
-      }
-    }
-
-    .desc {
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-      margin: 0;
-      line-height: 1.5;
-    }
-  }
-
-  .setting-control {
-    flex: 1 1 58%;
-    min-width: 0;
-    max-width: 58%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-start;
-    overflow: hidden;
-
-    &.full-width {
-      max-width: 100%;
-      justify-content: flex-start;
-    }
-
-    :deep(.t-select),
-    :deep(.t-input),
-    :deep(.t-textarea) {
-      width: 100%;
-      min-width: 0;
-    }
-  }
-
-  &.setting-row-vertical {
-    flex-direction: column;
-    gap: 12px;
-
-    .setting-info {
-      max-width: 100%;
-      padding-right: 0;
-    }
-
-    .setting-control {
-      max-width: 100%;
-      justify-content: flex-start;
-    }
-  }
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 
-.avatar-trigger-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  flex-shrink: 0;
-  padding: 4px;
-  border-radius: 12px;
-  transition: background 0.2s ease;
-}
-
-.avatar-trigger-wrap:hover {
-  background: var(--td-bg-color-container-hover);
-}
-
-.avatar-change-hint {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  line-height: 1.2;
-}
-
-.name-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-
-  .name-input {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-// 创建模式权限说明卡片
-.permissions-info {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.permission-card {
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid var(--td-component-stroke);
-}
-
-.permission-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.permission-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-anti);
-
-  &.admin {
-    background: linear-gradient(135deg, var(--td-brand-color), var(--td-brand-color-active));
-  }
-
-  &.editor {
-    background: linear-gradient(135deg, var(--td-warning-color), var(--td-warning-color-active));
-  }
-
-  &.viewer {
-    background: var(--td-bg-color-component-disabled);
-  }
-}
-
-.permission-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  .role-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.permission-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 0;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .check-icon {
-    color: var(--td-brand-color);
-    font-size: 14px;
-  }
-
-  .close-icon {
-    color: var(--td-error-color);
-    font-size: 14px;
-  }
-}
-
-.info-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 20px;
-  padding: 12px 16px;
-  background: var(--td-brand-color-light);
-  border-radius: 8px;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  line-height: 20px;
-
-  .t-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-}
-
-/* 头像 Emoji 弹层内容 */
-.avatar-popover-content {
-  padding: 12px;
-  min-width: 260px;
-}
-
-.avatar-popover-title {
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  line-height: 1.4;
-}
-
-.avatar-popover-content .avatar-emoji-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-width: 280px;
-}
-
-.avatar-popover-content .avatar-emoji-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  font-size: 18px;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.avatar-popover-content .avatar-emoji-btn:hover {
-  border-color: var(--td-brand-color);
-  background: rgba(7, 192, 95, 0.06);
-}
-
-.avatar-popover-content .avatar-emoji-btn.is-selected {
-  border-color: var(--td-brand-color);
-  background: rgba(7, 192, 95, 0.12);
-}
-
-.avatar-popover-content .avatar-clear-btn {
-  margin-top: 10px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-}
-
-.avatar-popover-content .avatar-clear-btn:hover {
-  color: var(--td-brand-color-active);
-}
-
-// 邀请卡片样式
-.invite-card {
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  padding: 16px;
-
-  .invite-method {
-    .invite-method-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-
-      .invite-icon {
-        font-size: 16px;
-        color: @primary-color;
-      }
-
-      .invite-method-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--td-text-color-primary);
-      }
-    }
-  }
-
-  .invite-code-box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--td-bg-color-container);
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    padding: 10px 14px;
-
-    .invite-code-value {
-      font-family: var(--app-font-family-mono);
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      color: @primary-color;
-    }
-
-    .invite-code-actions {
-      display: flex;
-      gap: 4px;
-    }
-  }
-
-  .invite-remaining {
-    margin: 8px 0 0;
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .invite-validity-desc {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    margin: 4px 0 10px;
-    line-height: 1.4;
-  }
-
-  .invite-validity-select {
-    min-width: 140px;
-  }
-
-  .member-limit-input-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-
-    .member-limit-hint {
-      font-size: 12px;
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  .invite-divider {
-    height: 1px;
-    background: var(--td-bg-color-secondarycontainer);
-    margin: 12px 0;
-  }
-
-  .invite-link-box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--td-bg-color-container);
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    padding: 10px 14px;
-    gap: 12px;
-
-    .invite-link-value {
-      flex: 1;
-      font-size: 12px;
-      color: var(--td-text-color-secondary);
-      word-break: break-all;
-      line-height: 1.4;
-    }
-  }
-
-  .approval-toggle {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    .approval-desc {
-      font-size: 13px;
-      color: var(--td-text-color-placeholder);
-    }
-  }
-}
-
-// 成员管理（对齐 TenantMembers 列表 + 权限弹层）
-.section-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  width: 100%;
-  min-width: 0;
-}
-
-.section-header-titlewrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1 1 auto;
-
-  h2 {
-    margin: 0;
-    line-height: 1.25;
-    white-space: nowrap;
-  }
-}
-
-.permissions-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  line-height: 0;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-
-  :deep(.t-icon) {
-    display: block;
-  }
-
-  &:hover {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color-focus);
-    outline-offset: 1px;
-  }
-}
-
-.members-list-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.members-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 2px;
-  flex-wrap: wrap;
-}
-
-.members-list-titlewrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.members-list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.members-list-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 10px;
-  background-color: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.members-list-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.members-list-search {
-  flex: 0 0 14rem;
-  width: 14rem;
-  min-width: 0;
-
-  :deep(.t-input) {
-    width: 100%;
-  }
-}
-
-.members-list-add-btn {
-  flex-shrink: 0;
-}
-
-.members-list-upgrade-btn {
-  flex-shrink: 0;
-}
-
-.loading-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 0 8px;
-}
-
-.empty-state {
-  padding: 8px 0 16px;
-}
-
-.empty-state-title {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.empty-state-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-}
-
-.permission-hint-popover {
-  padding: 14px 16px;
-  max-width: 360px;
-
-  .permission-hint-title {
-    margin: 0 0 6px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .permission-hint-desc {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.shared-resources-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.resource-row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.resource-name {
-  display: block;
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resource-meta {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-}
-
-.member-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px 0;
-
-  .member-name {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-  }
-
-  .member-email {
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--td-text-color-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .me-tag,
-  .owner-tag {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 5px;
-    height: 16px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 500;
-    flex-shrink: 0;
-  }
-
-  .me-tag {
-    background: @primary-color;
-    color: var(--td-text-color-anti);
-  }
-
-  .owner-tag {
-    background: var(--td-brand-color-light);
-    color: @primary-color;
-  }
-}
-
-.data-table-shell {
-  overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid var(--td-component-stroke);
-  background-color: var(--td-bg-color-container);
-
-  :deep(thead th) {
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  :deep(.t-table td),
-  :deep(.t-table th) {
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-
-  :deep(.role-cell) {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  :deep(.member-role-select.t-select) {
-    width: 100%;
-  }
-}
-
-.members-table-shell {
-  overflow: visible;
-  max-height: none;
-
-  :deep(.t-table__content) {
-    overflow: visible !important;
-    max-height: none !important;
-  }
-}
-
-.permissions-compact {
-  padding: 8px;
-
-  .permissions-compact-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 16px;
-
-    .permissions-compact-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-    }
-
-    .permissions-compact-desc {
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  .permissions-compact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-  }
-
-  .perm-role-block {
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    padding: 14px 16px;
-    background: var(--td-bg-color-container);
-    transition: all 0.2s ease;
-
-    &.is-me {
-      border-color: var(--td-brand-color);
-      background: var(--td-brand-color-light);
-    }
-
-    .perm-role-tag {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-      margin-bottom: 12px;
-
-      .me-badge {
-        margin-left: auto;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--td-brand-color);
-        padding: 2px 8px;
-        background: var(--td-brand-color-light);
-        border-radius: 4px;
-      }
-    }
-
-    .perm-items {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-
-      .perm-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 6px;
-        font-size: 13px;
-        line-height: 1.5;
-
-        .t-icon {
-          margin-top: 2px;
-          flex-shrink: 0;
-        }
-
-        &.has {
-          color: var(--td-text-color-secondary);
-
-          .t-icon {
-            color: var(--td-brand-color);
-          }
-        }
-
-        &.no {
-          color: var(--td-text-color-disabled);
-
-          .t-icon {
-            color: var(--td-text-color-disabled);
-          }
-        }
-      }
-    }
-  }
-
-  &.permissions-compact--popover {
-    padding: 10px 12px;
-    margin: 0;
-    max-height: min(392px, calc(65vh - 8px));
-    overflow-x: hidden;
-    overflow-y: auto;
-
-    .permissions-compact-header {
-      gap: 2px;
-      margin-bottom: 10px;
-
-      .permissions-compact-title {
-        font-size: 13px;
-      }
-
-      .permissions-compact-desc {
-        font-size: 11px;
-        line-height: 1.4;
-      }
-    }
-
-    .permissions-compact-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .perm-role-block {
-      padding: 8px 10px;
-      border-radius: 6px;
-
-      .perm-role-tag {
-        font-size: 12px;
-        margin-bottom: 6px;
-        gap: 4px;
-
-        .me-badge {
-          font-size: 10px;
-          padding: 1px 5px;
-        }
-      }
-
-      .perm-items {
-        gap: 3px;
-
-        .perm-item {
-          font-size: 11px;
-          line-height: 1.35;
-          gap: 4px;
-
-          .t-icon {
-            margin-top: 1px;
-          }
-        }
-      }
-    }
-  }
-
-  @media (max-width: 480px) {
-    &.permissions-compact--popover .permissions-compact-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-}
-
-@media (max-width: 560px) {
-  .members-list-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .members-list-search {
-    flex: 1 1 auto;
-    width: auto;
-    max-width: none;
-  }
-}
-
-// Join requests table
-.join-requests-wrap {
-  .join-request-message {
-    display: block;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .join-request-role-change {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-
-    .t-icon {
-      flex-shrink: 0;
-      color: var(--td-text-color-placeholder);
-    }
-  }
-
-  .join-request-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-  }
-}
-
-.settings-footer {
-  padding: 12px 40px;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-  background-color: var(--td-bg-color-container);
+.modal-enter-from .settings-modal,
+.modal-leave-to .settings-modal {
+  transform: scale(0.95);
 }
 
 .settings-nav::-webkit-scrollbar,
@@ -3183,399 +2549,18 @@ watch(addMemberPopupVisible, (visible) => {
   background: var(--td-bg-color-secondarycontainer);
 }
 
-.settings-nav::-webkit-scrollbar-thumb {
-  background: var(--td-gray-color-5);
-  border-radius: 3px;
-}
-
-.settings-nav::-webkit-scrollbar-thumb:hover {
-  background: var(--td-gray-color-6);
-}
-
-.content-wrapper::-webkit-scrollbar-track {
-  background: var(--td-bg-color-container);
-}
-
+.settings-nav::-webkit-scrollbar-thumb,
 .content-wrapper::-webkit-scrollbar-thumb {
   background: var(--td-gray-color-5);
   border-radius: 3px;
 }
 
+.settings-nav::-webkit-scrollbar-thumb:hover,
 .content-wrapper::-webkit-scrollbar-thumb:hover {
   background: var(--td-gray-color-6);
 }
 
-// Transitions
-.modal-enter-active,
-.modal-leave-active {
-  transition: all 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-
-  .settings-modal {
-    transform: scale(0.95);
-  }
-}
-
-// 权限升级申请弹出层（对齐添加成员 popup）
-
-.add-member-tip {
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  line-height: 1.5;
-}
-
-.member-invite-popup-inner {
-  width: min(400px, calc(100vw - 32px));
-  max-width: 100%;
-}
-
-.member-invite-popup-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 12px;
-  line-height: 1.35;
-}
-
-.member-invite-form {
-  :deep(.t-form__item) {
-    margin-bottom: 14px;
-
-    &:last-child {
-      margin-bottom: 4px;
-    }
-  }
-
-  :deep(.t-form__label) {
-    font-weight: 500;
-    padding-bottom: 6px;
-  }
-
-  :deep(.t-select) {
-    width: 100%;
-  }
-
-  :deep(.t-textarea) {
-    width: 100%;
-  }
-
-  .member-form-control {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .field-hint {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    line-height: 1.45;
-  }
-}
-
-.invite-popup-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-</style>
-
-<style lang="less">
-/* 权限说明 / 提示弹出层（t-popup 挂到 body，须全局样式） */
-.org-permissions-popup-overlay {
-  z-index: 3050 !important;
-
-  .t-popup__content {
-    padding: 0 !important;
-    border-radius: 12px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-    overflow: hidden;
-  }
-
-  .permission-hint-popover {
-    padding: 14px 16px;
-
-    .permission-hint-title {
-      margin: 0 0 6px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-      line-height: 1.35;
-    }
-
-    .permission-hint-desc {
-      margin: 0;
-      font-size: 13px;
-      line-height: 1.55;
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  .permissions-compact.permissions-compact--popover {
-    padding: 12px 14px;
-    margin: 0;
-    max-height: min(392px, calc(65vh - 8px));
-    overflow-x: hidden;
-    overflow-y: auto;
-
-    .permissions-compact-header {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 10px;
-
-      .permissions-compact-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--td-text-color-primary);
-      }
-
-      .permissions-compact-desc {
-        font-size: 12px;
-        line-height: 1.45;
-        color: var(--td-text-color-secondary);
-      }
-    }
-
-    .permissions-compact-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .perm-role-block {
-      border: 1px solid var(--td-component-stroke);
-      border-radius: 6px;
-      padding: 8px 10px;
-      background: var(--td-bg-color-container);
-
-      &.is-me {
-        border-color: var(--td-brand-color);
-        background: var(--td-brand-color-light);
-      }
-
-      .perm-role-tag {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--td-text-color-primary);
-        margin-bottom: 6px;
-
-        .me-badge {
-          margin-left: auto;
-          font-size: 10px;
-          font-weight: 500;
-          color: var(--td-brand-color);
-          padding: 1px 5px;
-          background: var(--td-brand-color-light);
-          border-radius: 4px;
-        }
-      }
-
-      .perm-items {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-
-        .perm-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 4px;
-          font-size: 11px;
-          line-height: 1.35;
-          color: var(--td-text-color-secondary);
-
-          .t-icon {
-            margin-top: 1px;
-            flex-shrink: 0;
-          }
-
-          &.has .t-icon {
-            color: var(--td-brand-color);
-          }
-
-          &.no {
-            color: var(--td-text-color-disabled);
-
-            .t-icon {
-              color: var(--td-text-color-disabled);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-:root[theme-mode="dark"] .org-permissions-popup-overlay .t-popup__content {
-  background: rgba(36, 36, 36, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.28) !important;
-}
-
-@media (max-width: 480px) {
-  .org-permissions-popup-overlay .permissions-compact.permissions-compact--popover .permissions-compact-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 添加成员 / 权限升级弹出层（与空间成员管理邀请弹层一致） */
-.org-add-member-popup-overlay,
-.org-upgrade-popup-overlay,
-.org-approve-request-popup-overlay {
-  z-index: 3050 !important;
-
-  .t-popup__content {
-    padding: 16px;
-    border-radius: 10px;
-    border: 1px solid var(--td-component-stroke);
-    box-shadow:
-      var(--td-shadow-2),
-      0 8px 24px rgba(15, 23, 42, 0.08);
-  }
-}
-
-.org-upgrade-popup-overlay,
-.org-approve-request-popup-overlay {
-  .org-upgrade-popup-inner,
-  .org-approve-request-popup-inner {
-    width: min(360px, calc(100vw - 32px));
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .member-invite-popup-title {
-    margin: 0 0 10px;
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1.35;
-    color: var(--td-text-color-primary);
-  }
-
-  .add-member-tip {
-    margin: 0 0 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    border: 1px solid var(--td-component-stroke);
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    line-height: 1.5;
-  }
-
-  .upgrade-current-role-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    border: 1px solid var(--td-component-stroke);
-  }
-
-  .upgrade-current-role-label {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .org-upgrade-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .org-upgrade-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .org-upgrade-field-label {
-    display: block;
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.4;
-    color: var(--td-text-color-primary);
-  }
-
-  .upgrade-role-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .upgrade-role-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 14px;
-    border: none;
-    border-radius: 6px;
-    background: var(--td-bg-color-secondarycontainer);
-    font: inherit;
-    font-size: 13px;
-    line-height: 1.4;
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    transition:
-      color 0.15s ease,
-      background 0.15s ease;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-brand-color);
-      background: color-mix(in srgb, var(--td-brand-color) 8%, var(--td-bg-color-secondarycontainer));
-      outline: none;
-    }
-
-    &.active {
-      background: color-mix(in srgb, var(--td-brand-color) 12%, transparent);
-      color: var(--td-brand-color);
-      font-weight: 500;
-    }
-  }
-
-  .org-upgrade-field .t-textarea,
-  .org-upgrade-field .t-select {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .invite-popup-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--td-component-stroke);
-  }
+.content-wrapper::-webkit-scrollbar-track {
+  background: var(--td-bg-color-container);
 }
 </style>

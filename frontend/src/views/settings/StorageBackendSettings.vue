@@ -1,32 +1,40 @@
 <template>
-  <div class="storage-backend-settings">
-    <div class="section-header">
-      <div class="section-header__top">
+  <div class="w-full">
+    <div class="mb-7">
+      <div class="flex items-center justify-between gap-5">
         <div>
-          <h2>{{ t("settings.storage.title") }}</h2>
-          <p class="section-description">{{ t("settings.storageBackend.description") }}</p>
+          <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ t("settings.storage.title") }}</h2>
+          <p class="text-muted-foreground m-0 text-sm leading-[1.6]">
+            {{ t("settings.storageBackend.description") }}
+          </p>
         </div>
       </div>
     </div>
 
-    <t-loading :loading="loading" size="small" class="backend-list-loading">
-      <t-empty
-        v-if="!loading && backends.length === 0 && !authStore.hasRole('admin')"
-        :description="t('settings.storageBackend.empty')"
-      />
-      <div v-else-if="!loading" class="backend-grid">
+    <div class="min-h-[120px]">
+      <Empty v-if="!loading && backends.length === 0 && !authStore.hasRole('admin')">
+        <EmptyDescription>{{ t("settings.storageBackend.empty") }}</EmptyDescription>
+      </Empty>
+      <div v-else-if="!loading" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
         <div
           v-for="backend in backends"
           :key="backend.id"
-          class="backend-card"
-          :class="[`backend-card--${backend.provider}`, { 'backend-card--clickable': canEdit(backend) }]"
+          class="backend-card bg-card border-border relative flex min-w-0 items-start gap-3 rounded-[10px] border px-4 py-3.5 transition-[border-color,box-shadow] duration-[180ms] ease-out hover:border-[var(--td-brand-color-3,var(--td-brand-color))] hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
+          :class="[
+            `backend-card--${backend.provider}`,
+            {
+              'focus-visible:outline-primary cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2':
+                canEdit(backend),
+            },
+          ]"
           :role="canEdit(backend) ? 'button' : undefined"
           :tabindex="canEdit(backend) ? 0 : undefined"
           @click="onCardClick($event, backend)"
           @keydown.enter="onCardClick($event, backend)"
         >
+          <!-- Tinted per provider by the scoped rules below. -->
           <div
-            class="backend-card__badge"
+            class="backend-card__badge mt-px flex size-9 shrink-0 items-center justify-center rounded-[9px] text-[15px] font-semibold tracking-[0.02em]"
             :class="badgeClass(backend.provider)"
             :style="badgeStyle(backend.provider)"
             :aria-label="backend.provider"
@@ -35,43 +43,55 @@
               v-if="resolveLogo(backend.provider)?.mode === 'color'"
               :src="resolveLogo(backend.provider)!.url"
               :alt="backend.provider"
-              class="backend-card__badge-img"
+              class="block size-6 object-contain"
             />
             <template v-else-if="!resolveLogo(backend.provider)">{{ providerInitial(backend.provider) }}</template>
           </div>
-          <div class="backend-card__body">
-            <div class="backend-card__header">
-              <h3 class="backend-card__title">{{ backend.name }}</h3>
-              <t-tag v-if="backend.id === defaultID" theme="primary" variant="light" size="small">{{
+          <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <h3 class="text-foreground m-0 min-w-0 flex-1 truncate text-sm leading-[1.4] font-semibold">
+                {{ backend.name }}
+              </h3>
+              <Badge v-if="backend.id === defaultID" class="bg-primary/10 text-primary">{{
                 t("settings.storageBackend.defaultTag")
-              }}</t-tag>
-              <t-tag
+              }}</Badge>
+              <Badge
                 v-if="backend.is_builtin"
-                theme="primary"
-                variant="light-outline"
-                size="small"
+                variant="outline"
+                class="border-primary/40 bg-primary/10 text-primary"
                 :title="t('platformSharing.badgeHint')"
-                >{{ t("platformSharing.badge") }}</t-tag
+                >{{ t("platformSharing.badge") }}</Badge
               >
-              <div v-if="hasActions(backend)" class="backend-card__actions" @click.stop>
-                <t-dropdown
-                  :options="getBackendOptions(backend)"
-                  placement="bottom-right"
-                  attach="body"
-                  trigger="click"
-                  @click="(data: any) => handleMenuAction(data.value, backend)"
-                >
-                  <t-button variant="text" shape="square" size="small" class="backend-card__action-btn">
-                    <t-icon name="ellipsis" />
-                  </t-button>
-                </t-dropdown>
+              <!-- `backend-card__actions` is a hook: onCardClick ignores clicks and keys inside it. -->
+              <div v-if="hasActions(backend)" class="backend-card__actions flex shrink-0 items-center" @click.stop>
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      class="backend-card__action-btn text-placeholder hover:text-foreground focus-visible:text-foreground shrink-0 p-0.5 opacity-0 transition-opacity duration-150 hover:bg-[var(--td-bg-color-secondarycontainer)] focus-visible:bg-[var(--td-bg-color-secondarycontainer)]"
+                      :aria-label="t('docs.tree.moreActions')"
+                    >
+                      <EllipsisIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      v-for="opt in getBackendOptions(backend)"
+                      :key="opt.value"
+                      @select="handleMenuAction(opt.value, backend)"
+                    >
+                      <span :class="opt.theme === 'error' ? 'text-destructive' : ''">{{ opt.content }}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-            <p class="backend-card__subtitle">
+            <p class="text-muted-foreground m-0 mt-0.5 flex min-w-0 items-center text-xs leading-normal">
               <span>{{ backend.provider.toUpperCase() }}</span>
               <template v-if="backendMeta(backend)">
-                <span class="backend-card__sep">·</span>
-                <span class="backend-card__meta">{{ backendMeta(backend) }}</span>
+                <span class="text-placeholder mx-1.5 shrink-0">·</span>
+                <span class="min-w-0 truncate">{{ backendMeta(backend) }}</span>
               </template>
             </p>
           </div>
@@ -80,16 +100,23 @@
         <button
           v-if="authStore.hasRole('admin')"
           type="button"
-          class="backend-card backend-card--add"
+          data-slot="add-backend-card"
+          class="border-border text-placeholder hover:border-primary hover:text-primary hover:bg-primary/6 focus-visible:border-primary focus-visible:text-primary focus-visible:bg-primary/6 focus-visible:outline-primary flex h-full min-h-[68px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed bg-transparent text-center transition-all duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2"
           @click="openCreate"
         >
-          <span class="backend-card--add__icon" aria-hidden="true">
-            <add-icon />
+          <span
+            class="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg"
+            aria-hidden="true"
+          >
+            <PlusIcon class="size-[18px]" />
           </span>
-          <span class="backend-card--add__label">{{ t("settings.storageBackend.add") }}</span>
+          <span class="text-[13px] leading-[1.4] font-medium">{{ t("settings.storageBackend.add") }}</span>
         </button>
       </div>
-    </t-loading>
+      <div v-else class="flex justify-center py-10">
+        <Loader2Icon class="animate-spin" />
+      </div>
+    </div>
 
     <SettingDrawer
       v-model:visible="visible"
@@ -104,10 +131,14 @@
           v-if="currentLogo?.mode === 'color'"
           :src="currentLogo.url"
           :alt="form.provider"
-          class="header-icon__img"
+          class="block size-6 object-contain"
         />
-        <span v-else-if="currentLogo?.mode === 'mono'" class="header-icon__mono" :style="monoLogoStyle" />
-        <span v-else class="header-icon__text">{{ providerInitial(form.provider) }}</span>
+        <span
+          v-else-if="currentLogo?.mode === 'mono'"
+          class="header-icon__mono inline-block size-[22px]"
+          :style="monoLogoStyle"
+        />
+        <span v-else class="text-[15px] font-semibold tracking-[0.02em]">{{ providerInitial(form.provider) }}</span>
       </template>
       <template #subtitle>
         <span>{{
@@ -115,46 +146,79 @@
         }}</span>
       </template>
 
-      <t-form :data="form" layout="vertical">
+      <!-- `setting-drawer__section` / `__section-title` are styled by SettingDrawer
+           (spacing, dividers, the brand bar before each title); the fields sit
+           directly in the section, which spaces them. -->
+      <form @submit.prevent>
         <section class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.basicSection") }}</h4>
-          <div class="form-item">
-            <label class="form-label required">{{ t("settings.storageBackend.nameLabel") }}</label>
-            <t-input v-model="form.name" :placeholder="t('settings.storageBackend.namePlaceholder')" clearable />
+          <div>
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("settings.storageBackend.nameLabel") }}
+            </label>
+            <SettingsInput
+              v-model="form.name"
+              :placeholder="t('settings.storageBackend.namePlaceholder')"
+              clearable
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
-          <div class="form-item">
-            <label class="form-label required">{{ t("settings.storageBackend.providerLabel") }}</label>
-            <t-select v-model="form.provider" :disabled="!!editing" @change="resetConfig">
-              <t-option
-                v-for="provider in providers"
-                :key="provider"
-                :value="provider"
-                :label="provider.toUpperCase()"
-              />
-            </t-select>
+          <div>
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+            >
+              {{ t("settings.storageBackend.providerLabel") }}
+            </label>
+            <Select :model-value="form.provider" :disabled="!!editing" @update:model-value="onProviderChange">
+              <SelectTrigger class="w-full text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="provider in providers" :key="provider" :value="provider">
+                  {{ provider.toUpperCase() }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div v-if="form.provider === 'minio'" class="form-item">
-            <label class="form-label">{{ t("settings.storageBackend.modeLabel") }}</label>
-            <div class="source-options" role="radiogroup">
+          <div v-if="form.provider === 'minio'">
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("settings.storageBackend.modeLabel") }}
+            </label>
+            <div
+              class="border-border inline-flex items-center gap-1 rounded-lg border bg-[var(--td-bg-color-component)] p-[3px]"
+              role="radiogroup"
+            >
               <button
                 type="button"
-                class="source-option"
-                :class="{ 'is-active': form.config.mode !== 'docker' }"
+                data-slot="segment"
+                class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+                :class="
+                  form.config.mode !== 'docker'
+                    ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
+                    : 'text-muted-foreground not-disabled:hover:text-foreground border-transparent bg-transparent not-disabled:hover:bg-[var(--td-bg-color-container-hover)]'
+                "
                 :disabled="!!editing"
                 @click="form.config.mode = 'remote'"
               >
-                <t-icon name="cloud" class="source-option__icon" />
-                <span class="source-option__label">{{ t("settings.storageBackend.modeRemote") }}</span>
+                <CloudIcon class="size-3.5 shrink-0" />
+                <span class="whitespace-nowrap">{{ t("settings.storageBackend.modeRemote") }}</span>
               </button>
               <button
                 type="button"
-                class="source-option"
-                :class="{ 'is-active': form.config.mode === 'docker' }"
+                data-slot="segment"
+                class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+                :class="
+                  form.config.mode === 'docker'
+                    ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
+                    : 'text-muted-foreground not-disabled:hover:text-foreground border-transparent bg-transparent not-disabled:hover:bg-[var(--td-bg-color-container-hover)]'
+                "
                 :disabled="!!editing"
                 @click="form.config.mode = 'docker'"
               >
-                <t-icon name="server" class="source-option__icon" />
-                <span class="source-option__label">{{ t("settings.storageBackend.modeEnv") }}</span>
+                <ServerIcon class="size-3.5 shrink-0" />
+                <span class="whitespace-nowrap">{{ t("settings.storageBackend.modeEnv") }}</span>
               </button>
             </div>
           </div>
@@ -162,123 +226,239 @@
 
         <section class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.connectionSection") }}</h4>
-          <div v-if="needsEndpoint" class="form-item">
-            <label class="form-label required">Endpoint</label>
-            <t-input
+          <div v-if="needsEndpoint">
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+              >Endpoint</label
+            >
+            <SettingsInput
               v-model="form.config.endpoint"
               :disabled="!!editing"
               :placeholder="form.provider === 'minio' ? 'storage.example.com:9000' : 'https://storage.example.com'"
               clearable
+              input-class="text-[13px] md:text-[13px]"
             />
           </div>
-          <div v-if="needsRegion" class="form-item">
-            <label class="form-label required">Region</label>
-            <t-input v-model="form.config.region" :disabled="!!editing" clearable />
+          <div v-if="needsRegion">
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+              >Region</label
+            >
+            <SettingsInput
+              v-model="form.config.region"
+              :disabled="!!editing"
+              clearable
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
           <template v-if="needsCredentials">
-            <div class="form-item">
-              <label class="form-label required">Access Key / Secret ID</label>
-              <t-input v-model="form.config.access_key_id" placeholder="***" clearable>
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key / Secret ID</label
+              >
+              <SettingsInput
+                v-model="form.config.access_key_id"
+                placeholder="***"
+                clearable
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input v-model="form.config.secret_access_key" type="password" placeholder="***" clearable>
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
+                v-model="form.config.secret_access_key"
+                type="password"
+                placeholder="***"
+                clearable
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </template>
-          <div v-if="form.provider !== 'local'" class="form-item">
-            <label class="form-label required">Bucket</label>
-            <t-input v-model="form.config.bucket_name" :disabled="!!editing" clearable />
+          <div v-if="form.provider !== 'local'">
+            <label
+              class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+              >Bucket</label
+            >
+            <SettingsInput
+              v-model="form.config.bucket_name"
+              :disabled="!!editing"
+              clearable
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
-          <div v-if="form.provider === 'cos'" class="form-item">
-            <label class="form-label">App ID</label>
-            <t-input
+          <div v-if="form.provider === 'cos'">
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">App ID</label>
+            <SettingsInput
               v-model="form.config.app_id"
               :disabled="!!editing"
               :placeholder="t('settings.storageBackend.optionalPlaceholder')"
               clearable
+              input-class="text-[13px] md:text-[13px]"
             />
           </div>
         </section>
 
         <section class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.advancedSection") }}</h4>
-          <div class="form-item">
-            <label class="form-label">{{ t("settings.storageBackend.pathPrefixLabel") }}</label>
-            <t-input v-model="form.config.path_prefix" :disabled="!!editing" placeholder="yuheng/" clearable />
+          <div>
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("settings.storageBackend.pathPrefixLabel") }}
+            </label>
+            <SettingsInput
+              v-model="form.config.path_prefix"
+              :disabled="!!editing"
+              placeholder="yuheng/"
+              clearable
+              input-class="text-[13px] md:text-[13px]"
+            />
           </div>
-          <div v-if="form.provider === 'minio'" class="form-item">
-            <div class="vision-toggle">
-              <t-switch v-model="form.config.use_ssl" />
-              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.useSslDesc") }}</span>
+          <div v-if="form.provider === 'minio'">
+            <div class="flex items-center gap-2">
+              <Switch
+                :model-value="form.config.use_ssl"
+                @update:model-value="(v: boolean) => (form.config.use_ssl = v)"
+              />
+              <span class="text-placeholder m-0 text-xs leading-normal">{{
+                t("settings.storageBackend.useSslDesc")
+              }}</span>
             </div>
           </div>
-          <div v-if="form.provider === 's3'" class="form-item">
-            <div class="vision-toggle">
-              <t-switch v-model="form.config.force_path_style" />
-              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.forcePathStyleDesc") }}</span>
+          <div v-if="form.provider === 's3'">
+            <div class="flex items-center gap-2">
+              <Switch
+                :model-value="form.config.force_path_style"
+                @update:model-value="(v: boolean) => (form.config.force_path_style = v)"
+              />
+              <span class="text-placeholder m-0 text-xs leading-normal">
+                {{ t("settings.storageBackend.forcePathStyleDesc") }}
+              </span>
             </div>
           </div>
-          <div v-if="form.provider === 'oss'" class="form-item">
-            <div class="vision-toggle">
-              <t-switch v-model="form.config.use_temp_bucket" />
-              <span class="form-desc form-desc--inline">{{ t("settings.storageBackend.useTempBucketDesc") }}</span>
+          <div v-if="form.provider === 'oss'">
+            <div class="flex items-center gap-2">
+              <Switch
+                :model-value="form.config.use_temp_bucket"
+                @update:model-value="(v: boolean) => (form.config.use_temp_bucket = v)"
+              />
+              <span class="text-placeholder m-0 text-xs leading-normal">
+                {{ t("settings.storageBackend.useTempBucketDesc") }}
+              </span>
             </div>
           </div>
           <template
             v-if="['cos', 'tos'].includes(form.provider) || (form.provider === 'oss' && form.config.use_temp_bucket)"
           >
-            <div class="form-item">
-              <label class="form-label">{{ t("settings.storageBackend.tempBucketLabel") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+                {{ t("settings.storageBackend.tempBucketLabel") }}
+              </label>
+              <SettingsInput
                 v-model="form.config.temp_bucket_name"
                 :placeholder="t('settings.storageBackend.tempBucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ t("settings.storageBackend.tempRegionLabel") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+                {{ t("settings.storageBackend.tempRegionLabel") }}
+              </label>
+              <SettingsInput
                 v-model="form.config.temp_region"
                 :placeholder="t('settings.storageBackend.tempRegionPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </template>
         </section>
-      </t-form>
+      </form>
 
       <template #footer-left>
-        <t-button variant="outline" :loading="testing" @click="testRaw">
-          <template #icon>
-            <t-icon
-              v-if="!testing && rawTestResult === 'ok'"
-              name="check-circle-filled"
-              class="status-icon available"
-            />
-            <t-icon
-              v-else-if="!testing && rawTestResult === 'error'"
-              name="close-circle-filled"
-              class="status-icon unavailable"
-            />
-          </template>
+        <Button variant="outline" :disabled="testing" @click="testRaw">
+          <CircleCheckIcon v-if="!testing && rawTestResult === 'ok'" class="text-primary size-4 shrink-0" />
+          <CircleXIcon v-else-if="!testing && rawTestResult === 'error'" class="text-destructive size-4 shrink-0" />
+          <Loader2Icon v-if="testing" class="animate-spin" />
           {{ t("settings.storageBackend.testConnection") }}
-        </t-button>
+        </Button>
       </template>
     </SettingDrawer>
+
+    <!-- 平台共享 / 取消共享确认 -->
+    <Dialog v-model:open="sharingDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{
+            sharingDialog.shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction")
+          }}</DialogTitle>
+          <DialogDescription>
+            {{
+              sharingDialog.backend
+                ? sharingDialog.shared
+                  ? t("platformSharing.confirmShare", { name: sharingDialog.backend.name })
+                  : t("platformSharing.confirmUnshare", { name: sharingDialog.backend.name })
+                : ""
+            }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button
+            :variant="sharingDialog.shared ? 'default' : 'destructive'"
+            :class="
+              sharingDialog.shared
+                ? ''
+                : 'bg-destructive text-primary-foreground hover:bg-destructive/90 dark:bg-destructive'
+            "
+            :disabled="sharingDialog.pending"
+            @click="doToggleSharing"
+          >
+            <Loader2Icon v-if="sharingDialog.pending" class="animate-spin" />
+            {{ t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 删除确认 -->
+    <Dialog v-model:open="deleteDialogVisible">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("settings.storageBackend.deleteTitle") }}</DialogTitle>
+          <DialogDescription>
+            {{ deleteTarget ? t("settings.storageBackend.deleteConfirm", { name: deleteTarget.name }) : "" }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <!-- The old DialogPlugin.confirm used its default (primary) confirm button here. -->
+          <Button :disabled="deleteDialogPending" @click="doDelete">
+            <Loader2Icon v-if="deleteDialogPending" class="animate-spin" />
+            {{ t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
-import { AddIcon } from "tdesign-icons-vue-next";
+import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import SettingsInput from "./SettingsInput.vue";
 import { providerLogo } from "./providerLogos";
 import {
   createStorageBackend,
@@ -293,6 +473,37 @@ import {
   type StorageBackend,
   type StorageBackendConfig,
 } from "@/api/storage-backend";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  CircleCheckIcon,
+  CircleXIcon,
+  CloudIcon,
+  EllipsisIcon,
+  Loader2Icon,
+  LockIcon,
+  PlusIcon,
+  ServerIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -330,6 +541,7 @@ const needsCredentials = computed(
 
 const resolveLogo = (provider: string) => providerLogo("storage", provider);
 const providerInitial = (provider: string) => (provider || "?").trim().charAt(0).toUpperCase() || "?";
+// 徽标配色按 provider 走卡片修饰类（见下方非 scoped style 块）。
 const badgeClass = (provider: string) => {
   const mode = resolveLogo(provider)?.mode;
   return {
@@ -394,28 +606,43 @@ function handleMenuAction(value: string, backend: StorageBackend) {
   else if (value === "sharing") confirmSharing(backend);
 }
 
+// reka 的 Select 用 `update:model-value` 回值，包一层保持原 resetConfig 语义。
+function onProviderChange(value: unknown) {
+  form.provider = String(value);
+  resetConfig();
+}
+
 // 切换平台共享。取消共享时后端会拒绝仍被其他空间（默认存储 / 知识库 / 活跃资源）
 // 绑定的实例，错误文案里带着引用数量，直接透传。
+const sharingDialogVisible = ref(false);
+const sharingDialog = reactive<{ backend: StorageBackend | null; shared: boolean; pending: boolean }>({
+  backend: null,
+  shared: false,
+  pending: false,
+});
+
 function confirmSharing(backend: StorageBackend) {
-  const shared = !backend.is_builtin;
-  const dialog = DialogPlugin.confirm({
-    header: shared ? t("platformSharing.shareAction") : t("platformSharing.unshareAction"),
-    body: shared
-      ? t("platformSharing.confirmShare", { name: backend.name })
-      : t("platformSharing.confirmUnshare", { name: backend.name }),
-    confirmBtn: { content: t("common.confirm"), theme: shared ? "primary" : "danger" },
-    cancelBtn: { content: t("common.cancel") },
-    onConfirm: async () => {
-      dialog.destroy();
-      try {
-        await setStorageBackendSharing(backend.id, shared);
-        MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
-        await load();
-      } catch (error: any) {
-        MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
-      }
-    },
-  });
+  sharingDialog.backend = backend;
+  sharingDialog.shared = !backend.is_builtin;
+  sharingDialog.pending = false;
+  sharingDialogVisible.value = true;
+}
+
+async function doToggleSharing() {
+  const backend = sharingDialog.backend;
+  if (!backend || sharingDialog.pending) return;
+  const shared = sharingDialog.shared;
+  sharingDialog.pending = true;
+  try {
+    await setStorageBackendSharing(backend.id, shared);
+    MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
+    sharingDialogVisible.value = false;
+    await load();
+  } catch (error: any) {
+    MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
+  } finally {
+    sharingDialog.pending = false;
+  }
 }
 
 function onCardClick(event: Event, backend: StorageBackend) {
@@ -504,170 +731,46 @@ async function makeDefault(backend: StorageBackend) {
   defaultID.value = backend.id;
   MessagePlugin.success(t("settings.storageBackend.defaultUpdated"));
 }
+
+const deleteDialogVisible = ref(false);
+const deleteDialogPending = ref(false);
+const deleteTarget = ref<StorageBackend | null>(null);
+
 function remove(backend: StorageBackend) {
-  const dialog = DialogPlugin.confirm({
-    header: t("settings.storageBackend.deleteTitle"),
-    body: t("settings.storageBackend.deleteConfirm", { name: backend.name }),
-    onConfirm: async () => {
-      dialog.destroy();
-      try {
-        await deleteStorageBackend(backend.id);
-        await load();
-        MessagePlugin.success(t("settings.storageBackend.deleted"));
-      } catch (e: any) {
-        MessagePlugin.error(e?.message || t("settings.storageBackend.deleteFailed"));
-      }
-    },
-    onCancel: () => dialog.destroy(),
-  });
+  deleteTarget.value = backend;
+  deleteDialogPending.value = false;
+  deleteDialogVisible.value = true;
 }
+
+async function doDelete() {
+  const backend = deleteTarget.value;
+  if (!backend || deleteDialogPending.value) return;
+  deleteDialogPending.value = true;
+  try {
+    await deleteStorageBackend(backend.id);
+    deleteDialogVisible.value = false;
+    await load();
+    MessagePlugin.success(t("settings.storageBackend.deleted"));
+  } catch (e: any) {
+    MessagePlugin.error(e?.message || t("settings.storageBackend.deleteFailed"));
+  } finally {
+    deleteDialogPending.value = false;
+  }
+}
+
 onMounted(load);
 </script>
 
-<style scoped lang="less">
-.storage-backend-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 28px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.6;
-  }
-}
-
-.section-header__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.backend-list-loading {
-  min-height: 120px;
-}
-
-.backend-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-
-  .backend-card--add {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-.backend-card {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-  min-width: 0;
-
-  &:hover {
-    border-color: var(--td-brand-color-3, var(--td-brand-color));
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-  }
-
-  &--clickable {
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-  }
-
-  &--add {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 68px;
-    border-style: dashed;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    font: inherit;
-    text-align: center;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-brand-color);
-      border-color: var(--td-brand-color);
-      background: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-      box-shadow: none;
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--td-brand-color);
-      outline-offset: 2px;
-    }
-
-    &__icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-      color: var(--td-brand-color);
-      font-size: 18px;
-    }
-
-    &__label {
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1.4;
-    }
-  }
-}
-
-.backend-card__badge {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-
-.backend-card .backend-card__badge--logo {
-  background: var(--td-bg-color-container, #fff);
-  box-shadow: inset 0 0 0 1px var(--td-component-stroke);
-}
-
-.backend-card .backend-card__badge--mono::before {
-  content: "";
-  width: 22px;
-  height: 22px;
+<style scoped>
+/*
+ * Only what utilities cannot express:
+ *  - mono provider logos are CSS-masked icons driven by a per-card --logo-url;
+ *  - the card action button fades in on card hover/focus (group-* could do it,
+ *    but the drawer-teleported markup keeps these three tiny rules clearer);
+ *  - the per-provider badge colours (8 providers), mirrored onto the
+ *    teleported drawer header by the non-scoped block below.
+ */
+.header-icon__mono {
   background-color: currentColor;
   -webkit-mask-image: var(--logo-url);
   -webkit-mask-position: center;
@@ -679,11 +782,9 @@ onMounted(load);
   mask-size: contain;
 }
 
-.backend-card__badge-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
+.backend-card__badge {
+  background: rgba(0, 82, 217, 0.1);
+  color: #0052d9;
 }
 
 .backend-card--local .backend-card__badge {
@@ -719,93 +820,14 @@ onMounted(load);
   color: #ce1126;
 }
 
-.backend-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+/* Logo badges sit on a white tile; this must outrank the provider tints above. */
+.backend-card .backend-card__badge--logo {
+  background: var(--td-bg-color-container, #fff);
+  box-shadow: inset 0 0 0 1px var(--td-component-stroke);
 }
 
-.backend-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.backend-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.backend-card__subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.backend-card__sep {
-  margin: 0 6px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
-}
-
-.backend-card__meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.backend-card__actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.backend-card__action-btn {
-  flex-shrink: 0;
-  padding: 2px;
-  color: var(--td-text-color-placeholder);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.backend-card:hover .backend-card__action-btn,
-.backend-card:focus-within .backend-card__action-btn {
-  opacity: 1;
-}
-
-// ---- 抽屉头部图标 ----
-.header-icon__img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-.header-icon__mono {
-  display: inline-block;
+.backend-card .backend-card__badge--mono::before {
+  content: "";
   width: 22px;
   height: 22px;
   background-color: currentColor;
@@ -819,132 +841,19 @@ onMounted(load);
   mask-size: contain;
 }
 
-.header-icon__text {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-// ---- 抽屉表单 ----
-.form-item {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-
-  &.required::before {
-    content: "*";
-    color: var(--td-error-color);
-    margin-right: 4px;
-    font-weight: 500;
-    line-height: 1;
-  }
-}
-
-.form-desc {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--inline {
-    margin: 0;
-  }
-}
-
-:deep(.t-input),
-:deep(.t-select),
-:deep(.t-textarea) {
-  width: 100%;
-  font-size: 13px;
-}
-
-.vision-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// ---- MinIO 部署模式 pill segmented ----
-.source-options {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  background: var(--td-bg-color-component);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-}
-
-.source-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  height: 28px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  line-height: 1;
-  transition: all 0.15s ease;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  &:hover:not(.is-active):not(:disabled) {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-active {
-    background: var(--td-bg-color-container);
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-    font-weight: 500;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  }
-}
-
-.source-option__icon {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.source-option__label {
-  white-space: nowrap;
-}
-
-.status-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-
-  &.available {
-    color: var(--td-brand-color);
-  }
-
-  &.unavailable {
-    color: var(--td-error-color);
-  }
+.backend-card:hover .backend-card__action-btn,
+.backend-card:focus-within .backend-card__action-btn {
+  opacity: 1;
 }
 </style>
 
 <!--
   Non-scoped: drawer header icon coloring per provider, mirroring the list
-  card badge colors. Namespaced under .storage-backend-drawer--{id}.
+  card badge colors. Namespaced under .storage-backend-drawer--{id}. The
+  drawer teleports to <body>, so the hook has to live outside the scoped
+  styles; the colours match the card badges above.
 -->
-<style lang="less">
+<style>
 .storage-backend-drawer .setting-drawer__header-icon:has(.header-icon__img) {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);

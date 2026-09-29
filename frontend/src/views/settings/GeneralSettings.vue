@@ -1,110 +1,129 @@
 <template>
-  <div class="general-settings">
-    <div class="section-header">
-      <h2>{{ $t("general.title") }}</h2>
-      <p class="section-description">{{ $t("general.description") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("general.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("general.description") }}</p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- 语言选择 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("language.language") }}</label>
-          <p class="desc">{{ $t("language.languageDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("language.language") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("language.languageDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <t-select
-            v-model="localLanguage"
-            :placeholder="$t('language.selectLanguage')"
-            @change="handleLanguageChange"
-            style="width: 280px"
-          >
-            <t-option value="zh-CN" :label="$t('language.zhCN')">{{ $t("language.zhCN") }}</t-option>
-            <t-option value="en-US" :label="$t('language.enUS')">{{ $t("language.enUS") }}</t-option>
-            <t-option value="ru-RU" :label="$t('language.ruRU')">{{ $t("language.ruRU") }}</t-option>
-            <t-option value="ko-KR" :label="$t('language.koKR')">{{ $t("language.koKR") }}</t-option>
-          </t-select>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <Select v-model="localLanguage" @update:model-value="handleLanguageChange">
+            <SelectTrigger class="w-[280px]">
+              <SelectValue :placeholder="$t('language.selectLanguage')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="zh-CN">{{ $t("language.zhCN") }}</SelectItem>
+              <SelectItem value="en-US">{{ $t("language.enUS") }}</SelectItem>
+              <SelectItem value="ru-RU">{{ $t("language.ruRU") }}</SelectItem>
+              <SelectItem value="ko-KR">{{ $t("language.koKR") }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <!-- 主题设置 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("theme.theme") }}</label>
-          <p class="desc">{{ $t("theme.themeDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("theme.theme") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("theme.themeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <t-select
-            v-model="localTheme"
-            style="width: 280px"
-            :placeholder="$t('theme.selectTheme')"
-            @change="handleThemeChange"
-          >
-            <t-option value="light" :label="$t('theme.light')">{{ $t("theme.light") }}</t-option>
-            <t-option value="dark" :label="$t('theme.dark')">{{ $t("theme.dark") }}</t-option>
-            <t-option value="system" :label="$t('theme.system')">{{ $t("theme.system") }}</t-option>
-          </t-select>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <Select v-model="localTheme" @update:model-value="(v) => handleThemeChange(v as ThemeMode)">
+            <SelectTrigger class="w-[280px]">
+              <SelectValue :placeholder="$t('theme.selectTheme')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="light">{{ $t("theme.light") }}</SelectItem>
+              <SelectItem value="dark">{{ $t("theme.dark") }}</SelectItem>
+              <SelectItem value="system">{{ $t("theme.system") }}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <!-- 界面字体 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("font.uiFont") }}</label>
-          <p class="desc">{{ $t("font.uiFontDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("font.uiFont") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("font.uiFontDescription") }}</p>
         </div>
-        <div class="setting-control setting-control--stacked">
-          <t-select
-            v-model="localSansFont"
-            style="width: 280px"
-            :placeholder="$t('font.selectFont')"
-            @change="handleSansFontChange"
+        <div class="flex min-w-[280px] shrink-0 flex-col items-end justify-end gap-2">
+          <Select v-model="localSansFont" @update:model-value="(v) => handleSansFontChange(v as FontKey)">
+            <SelectTrigger class="w-[280px]">
+              <SelectValue :placeholder="$t('font.selectFont')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in sansFontOptions" :key="opt.value" :value="opt.value">
+                <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <div
+            class="border-border bg-card text-foreground box-border w-[280px] rounded-md border px-3 py-2 text-left text-sm leading-snug"
+            :style="{ fontFamily: currentSansStack }"
           >
-            <t-option v-for="opt in sansFontOptions" :key="opt.value" :value="opt.value" :label="opt.label">
-              <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
-            </t-option>
-          </t-select>
-          <div class="font-preview" :style="{ fontFamily: currentSansStack }">
             {{ $t("font.sansPreview") }}
           </div>
         </div>
       </div>
 
       <!-- 代码字体 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("font.monoFont") }}</label>
-          <p class="desc">{{ $t("font.monoFontDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("font.monoFont") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("font.monoFontDescription") }}</p>
         </div>
-        <div class="setting-control setting-control--stacked">
-          <t-select
-            v-model="localMonoFont"
-            style="width: 280px"
-            :placeholder="$t('font.selectFont')"
-            @change="handleMonoFontChange"
+        <div class="flex min-w-[280px] shrink-0 flex-col items-end justify-end gap-2">
+          <Select v-model="localMonoFont" @update:model-value="(v) => handleMonoFontChange(v as MonoFontKey)">
+            <SelectTrigger class="w-[280px]">
+              <SelectValue :placeholder="$t('font.selectFont')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in monoFontOptions" :key="opt.value" :value="opt.value">
+                <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <!-- The mono preview never wraps: long monospace samples are cut with an ellipsis. -->
+          <div
+            class="border-border bg-card text-foreground box-border w-[280px] overflow-hidden rounded-md border px-3 py-2 text-left text-sm leading-snug text-ellipsis whitespace-nowrap"
+            :style="{ fontFamily: currentMonoStack }"
           >
-            <t-option v-for="opt in monoFontOptions" :key="opt.value" :value="opt.value" :label="opt.label">
-              <span :style="{ fontFamily: opt.preview }">{{ opt.label }}</span>
-            </t-option>
-          </t-select>
-          <div class="font-preview font-preview--mono" :style="{ fontFamily: currentMonoStack }">
             {{ $t("font.monoPreview") }}
           </div>
         </div>
       </div>
 
       <!-- 字体大小 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("font.fontSize") }}</label>
-          <p class="desc">{{ $t("font.fontSizeDescription") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ $t("font.fontSize") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("font.fontSizeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <t-radio-group v-model="localFontSize" @change="handleFontSizeChange">
-            <t-radio-button value="small">{{ $t("font.size.small") }}</t-radio-button>
-            <t-radio-button value="normal">{{ $t("font.size.normal") }}</t-radio-button>
-            <t-radio-button value="large">{{ $t("font.size.large") }}</t-radio-button>
-          </t-radio-group>
+        <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+          <!-- A segmented control stands in for the old radio-button group:
+               one button per size, the active one keeping the brand colour. -->
+          <div class="border-border inline-flex rounded-md border">
+            <Button
+              v-for="size in fontSizeOptions"
+              :key="size.value"
+              type="button"
+              variant="ghost"
+              size="sm"
+              :aria-pressed="localFontSize === size.value"
+              class="not-first:border-border rounded-none border-0 not-first:border-l"
+              :class="localFontSize === size.value ? 'text-primary bg-secondary' : 'text-muted-foreground'"
+              @click="selectFontSize(size.value)"
+            >
+              {{ size.label }}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -126,6 +145,9 @@ import {
   type MonoFontKey,
   type FontSizeKey,
 } from "@/composables/useFont";
+
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const { t, locale } = useI18n();
 const { currentTheme, setTheme } = useTheme();
@@ -167,6 +189,12 @@ const monoFontOptions = computed<{ value: MonoFontKey; label: string; preview: s
     preview: MONO_STACKS[key],
   })),
 );
+
+const fontSizeOptions = computed<{ value: FontSizeKey; label: string }[]>(() => [
+  { value: "small", label: t("font.size.small") },
+  { value: "normal", label: t("font.size.normal") },
+  { value: "large", label: t("font.size.large") },
+]);
 
 // Live preview stacks, driven by the local form refs so the preview row
 // updates immediately on selection — even before handleSansFontChange
@@ -221,6 +249,15 @@ const handleMonoFontChange = (val: MonoFontKey) => {
   MessagePlugin.success(t("common.success"));
 };
 
+// The old radio group fired its change event only when the value actually
+// changed; clicking the size that is already active must stay a no-op here
+// too, rather than re-applying it and showing a second success toast.
+const selectFontSize = (val: FontSizeKey) => {
+  if (localFontSize.value === val) return;
+  localFontSize.value = val;
+  handleFontSizeChange(val);
+};
+
 const handleFontSizeChange = (val: FontSizeKey) => {
   if (!setFontSize(val)) {
     localFontSize.value = currentSize.value;
@@ -229,103 +266,3 @@ const handleFontSizeChange = (val: FontSizeKey) => {
   MessagePlugin.success(t("common.success"));
 };
 </script>
-
-<style lang="less" scoped>
-.general-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-// When a font picker is rendered, stack the select on top of a live
-// preview line so the user can verify their choice without hunting for
-// an API Info page or a code block.
-.setting-control--stacked {
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.font-preview {
-  width: 280px;
-  padding: 8px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  line-height: 1.4;
-  text-align: left;
-  box-sizing: border-box;
-
-  &--mono {
-    // Harden the preview against wrap-around for long monospace samples.
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-</style>

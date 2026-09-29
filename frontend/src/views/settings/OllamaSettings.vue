@@ -1,148 +1,167 @@
 <template>
-  <div class="ollama-settings">
-    <div class="section-header">
-      <h2>{{ $t("ollamaSettings.title") }}</h2>
-      <p class="section-description">{{ $t("ollamaSettings.description") }}</p>
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("ollamaSettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("ollamaSettings.description") }}</p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- Ollama 服务状态 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("ollamaSettings.status.label") }}</label>
-          <p class="desc">{{ $t("ollamaSettings.status.desc") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="min-w-0 flex-1 pr-8">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("ollamaSettings.status.label")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-[1.6]">{{ $t("ollamaSettings.status.desc") }}</p>
         </div>
-        <div class="setting-control">
-          <div class="status-display">
-            <t-tag v-if="testing" theme="default" variant="light">
-              <t-icon name="loading" class="status-icon spinning" />
+        <div class="flex w-[360px] max-w-[360px] shrink-0 flex-col items-end">
+          <div class="flex items-center gap-3">
+            <Badge v-if="testing" variant="secondary">
+              <Loader2Icon class="animate-spin" />
               {{ $t("ollamaSettings.status.testing") }}
-            </t-tag>
-            <t-tag v-else-if="connectionStatus === true" theme="success" variant="light">
-              <t-icon name="check-circle-filled" />
+            </Badge>
+            <Badge v-else-if="connectionStatus === true" variant="secondary" class="bg-success/10 text-success">
+              <CircleCheckIcon />
               {{ $t("ollamaSettings.status.available") }}
-            </t-tag>
-            <t-tag v-else-if="connectionStatus === false" theme="danger" variant="light">
-              <t-icon name="close-circle-filled" />
+            </Badge>
+            <Badge v-else-if="connectionStatus === false" variant="destructive">
+              <CircleXIcon />
               {{ $t("ollamaSettings.status.unavailable") }}
-            </t-tag>
-            <t-tag v-else theme="default" variant="light">
-              <t-icon name="help-circle" />
+            </Badge>
+            <Badge v-else variant="secondary">
+              <CircleHelpIcon />
               {{ $t("ollamaSettings.status.untested") }}
-            </t-tag>
-            <t-button size="small" variant="text" :loading="testing" @click="testConnection">
-              <template #icon>
-                <t-icon name="refresh" />
-              </template>
+            </Badge>
+            <Button variant="ghost" size="sm" :disabled="testing" @click="testConnection">
+              <Loader2Icon v-if="testing" class="animate-spin" />
+              <RefreshCwIcon v-else />
               {{ $t("ollamaSettings.status.retest") }}
-            </t-button>
+            </Button>
           </div>
         </div>
       </div>
 
       <!-- Ollama 服务地址 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("ollamaSettings.address.label") }}</label>
-          <p class="desc">{{ $t("ollamaSettings.address.desc") }}</p>
+      <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+        <div class="min-w-0 flex-1 pr-8">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("ollamaSettings.address.label")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-[1.6]">{{ $t("ollamaSettings.address.desc") }}</p>
         </div>
-        <div class="setting-control">
-          <div class="url-control-group">
-            <t-input
+        <div class="flex w-[360px] max-w-[360px] shrink-0 flex-col items-end">
+          <div class="flex w-full items-center gap-2">
+            <Input
               v-model="localBaseUrl"
               :placeholder="$t('ollamaSettings.address.placeholder')"
               disabled
-              style="flex: 1"
+              class="flex-1"
             />
           </div>
-          <t-alert
+          <!-- TDesign's warning alert: pale warning tint, no border, dark text,
+               only the icon in the warning colour. -->
+          <Alert
             v-if="connectionStatus === false"
-            theme="warning"
-            :message="$t('ollamaSettings.address.failed')"
-            style="margin-top: 8px"
-          />
+            class="mt-2 w-full border-transparent bg-[var(--td-warning-color-1)]"
+          >
+            <CircleAlertIcon class="text-warning!" />
+            <AlertDescription class="text-foreground">{{ $t("ollamaSettings.address.failed") }}</AlertDescription>
+          </Alert>
         </div>
       </div>
     </div>
 
     <!-- 下载新模型 -->
-    <div v-if="connectionStatus === true" class="model-category-section">
-      <div class="category-header">
-        <div class="header-info">
-          <h3>{{ $t("ollamaSettings.download.title") }}</h3>
-          <p>
+    <div v-if="connectionStatus === true" class="border-border mt-8 mb-8 border-t pt-8 last:mb-0">
+      <div class="mb-6 flex items-start justify-between">
+        <div class="flex-1">
+          <h3 class="text-foreground mt-0 mb-1.5 text-[17px] font-semibold">
+            {{ $t("ollamaSettings.download.title") }}
+          </h3>
+          <p class="text-placeholder m-0 text-[13px] leading-normal">
             {{ $t("ollamaSettings.download.descPrefix") }}
-            <a href="https://ollama.com/search" target="_blank" rel="noopener noreferrer" class="doc-link">
+            <a
+              href="https://ollama.com/search"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary inline-flex items-center gap-0.5 hover:underline"
+            >
               {{ $t("ollamaSettings.download.browse") }}
-              <t-icon name="link" class="link-icon" />
+              <LinkIcon class="size-3.5" />
             </a>
           </p>
         </div>
       </div>
 
-      <div class="download-content">
-        <div class="input-group">
-          <t-input
-            v-model="downloadModelName"
-            :placeholder="$t('ollamaSettings.download.placeholder')"
-            style="flex: 1"
-          />
-          <t-button
-            variant="base"
-            theme="default"
-            size="small"
-            class="download-btn"
-            :loading="downloading"
-            :disabled="!downloadModelName.trim()"
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <Input v-model="downloadModelName" :placeholder="$t('ollamaSettings.download.placeholder')" class="flex-1" />
+          <Button
+            variant="secondary"
+            size="sm"
+            class="h-8 shrink-0"
+            :disabled="downloading || !downloadModelName.trim()"
             @click="downloadModel"
           >
-            <template #icon><t-icon name="download" /></template>
+            <Loader2Icon v-if="downloading" class="animate-spin" />
+            <DownloadIcon v-else />
             {{ $t("ollamaSettings.download.download") }}
-          </t-button>
+          </Button>
         </div>
 
-        <div v-if="downloadProgress > 0" class="download-progress">
-          <div class="progress-info">
+        <div v-if="downloadProgress > 0" class="bg-secondary border-border rounded-lg border p-4">
+          <div class="text-foreground mb-2.5 flex justify-between text-[13px] font-medium">
             <span>{{ $t("ollamaSettings.download.downloading", { name: downloadModelName }) }}</span>
             <span>{{ downloadProgress.toFixed(2) }}%</span>
           </div>
-          <t-progress :percentage="downloadProgress" size="small" />
+          <!-- A plain filled bar stands in for t-progress; the track and fill
+               use the same brand colour pair. -->
+          <div class="bg-background h-1.5 overflow-hidden rounded-full">
+            <div class="bg-primary h-full rounded-full transition-all" :style="{ width: `${downloadProgress}%` }" />
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 已下载的模型 -->
-    <div v-if="connectionStatus === true" class="model-category-section">
-      <div class="category-header">
-        <div class="header-info">
-          <h3>{{ $t("ollamaSettings.installed.title") }}</h3>
-          <p>{{ $t("ollamaSettings.installed.desc") }}</p>
+    <div v-if="connectionStatus === true" class="border-border mt-8 mb-8 border-t pt-8 last:mb-0">
+      <div class="mb-6 flex items-start justify-between">
+        <div class="flex-1">
+          <h3 class="text-foreground mt-0 mb-1.5 text-[17px] font-semibold">
+            {{ $t("ollamaSettings.installed.title") }}
+          </h3>
+          <p class="text-placeholder m-0 text-[13px] leading-normal">{{ $t("ollamaSettings.installed.desc") }}</p>
         </div>
-        <t-button size="small" variant="text" :loading="loadingModels" @click="refreshModels">
-          <template #icon>
-            <t-icon name="refresh" />
-          </template>
+        <Button variant="ghost" size="sm" :disabled="loadingModels" @click="refreshModels">
+          <Loader2Icon v-if="loadingModels" class="animate-spin" />
+          <RefreshCwIcon v-else />
           {{ $t("common.refresh") }}
-        </t-button>
+        </Button>
       </div>
 
-      <div v-if="loadingModels" class="loading-state">
-        <t-loading size="small" />
+      <div v-if="loadingModels" class="text-placeholder flex items-center justify-center gap-2 py-12 text-sm">
+        <Loader2Icon class="animate-spin" />
         <span>{{ $t("common.loading") }}</span>
       </div>
-      <div v-else-if="downloadedModels.length > 0" class="model-list-container">
-        <div v-for="model in downloadedModels" :key="model.name" class="model-card">
-          <div class="model-info">
-            <div class="model-name">{{ model.name }}</div>
-            <div class="model-meta">
-              <span class="model-size">{{ formatSize(model.size) }}</span>
-              <span class="model-modified">{{ formatDate(model.modified_at) }}</span>
+      <div v-else-if="downloadedModels.length > 0" class="grid grid-cols-2 gap-3 max-md:grid-cols-1">
+        <div
+          v-for="model in downloadedModels"
+          :key="model.name"
+          class="border-border bg-secondary hover:border-primary hover:bg-card flex items-center justify-between rounded-md border px-3 py-2.5 transition-all"
+        >
+          <div class="min-w-0 flex-1">
+            <div class="text-foreground mb-1 font-[family-name:var(--app-font-family-mono)] text-sm font-medium">
+              {{ model.name }}
+            </div>
+            <div class="text-muted-foreground flex gap-3 text-xs">
+              <span>{{ formatSize(model.size) }}</span>
+              <span>{{ formatDate(model.modified_at) }}</span>
             </div>
           </div>
         </div>
       </div>
-      <div v-else class="empty-state">
-        <p class="empty-text">{{ $t("ollamaSettings.installed.empty") }}</p>
+      <div v-else class="py-12 text-center">
+        <p class="text-placeholder m-0 text-sm">{{ $t("ollamaSettings.installed.empty") }}</p>
       </div>
     </div>
   </div>
@@ -160,6 +179,21 @@ import {
   getDownloadProgress,
   type OllamaModelInfo,
 } from "@/api/initialization";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleHelpIcon,
+  CircleXIcon,
+  DownloadIcon,
+  LinkIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+} from "@lucide/vue";
 
 const settingsStore = useSettingsStore();
 const { t } = useI18n();
@@ -344,241 +378,3 @@ onMounted(async () => {
   await initOllamaBaseUrl();
 });
 </script>
-
-<style lang="less" scoped>
-.ollama-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  padding-right: 32px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.6;
-  }
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 360px;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.status-display {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .status-icon.spinning {
-    animation: spin 1s linear infinite;
-  }
-}
-
-.url-control-group {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.model-category-section {
-  margin-top: 32px;
-  margin-bottom: 32px;
-  padding-top: 32px;
-  border-top: 1px solid var(--td-component-stroke);
-
-  &:first-of-type {
-    margin-top: 24px;
-    padding-top: 24px;
-  }
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.category-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-
-  .header-info {
-    flex: 1;
-
-    h3 {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-      margin: 0 0 6px 0;
-    }
-
-    p {
-      font-size: 13px;
-      color: var(--td-text-color-placeholder);
-      margin: 0;
-      line-height: 1.5;
-    }
-  }
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 48px 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 14px;
-}
-
-.model-list-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.model-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    background: var(--td-bg-color-container);
-  }
-}
-
-.model-info {
-  flex: 1;
-  min-width: 0;
-
-  .model-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    margin-bottom: 4px;
-    font-family: var(--app-font-family-mono);
-  }
-
-  .model-meta {
-    display: flex;
-    gap: 12px;
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.download-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-
-  .input-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-
-    .download-btn {
-      flex-shrink: 0;
-      height: 32px;
-    }
-  }
-
-  .download-progress {
-    padding: 16px;
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 8px;
-    border: 1px solid var(--td-component-stroke);
-
-    .progress-info {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 13px;
-      color: var(--td-text-color-primary);
-      font-weight: 500;
-    }
-  }
-}
-
-.empty-state {
-  padding: 48px 0;
-  text-align: center;
-
-  .empty-text {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    margin: 0;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>

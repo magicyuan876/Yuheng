@@ -1,5 +1,5 @@
 <template>
-  <div class="org-list-container">
+  <div class="relative mr-4 box-border flex h-full min-h-0 flex-1">
     <ListSpaceSidebar
       mode="organization"
       v-model="spaceSelection"
@@ -7,102 +7,101 @@
       :count-created="createdCount"
       :count-joined="joinedCount"
     />
-    <div class="org-list-content">
-      <div class="header">
-        <div class="header-title">
-          <div class="title-row">
-            <h2>{{ $t("organization.title") }}</h2>
-            <div class="header-actions">
-              <t-tooltip :content="canManageOrg ? $t('organization.joinOrg') : noPermissionTip" placement="bottom">
-                <t-button
-                  variant="text"
-                  theme="default"
-                  size="small"
-                  class="header-action-btn"
-                  :disabled="!canManageOrg"
-                  @click="handleJoinOrganization"
-                >
-                  <template #icon><t-icon name="enter" size="16px" /></template>
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="canManageOrg ? $t('organization.createOrg') : noPermissionTip" placement="bottom">
-                <t-button
-                  variant="text"
-                  theme="default"
-                  size="small"
-                  class="header-action-btn"
-                  :disabled="!canManageOrg"
-                  @click="handleCreateOrganization"
-                >
-                  <template #icon
-                    ><img src="@/assets/img/organization-green.svg" class="org-create-icon" alt="" aria-hidden="true"
-                  /></template>
-                </t-button>
-              </t-tooltip>
+    <div class="flex min-w-0 flex-1 flex-col px-7 pt-5">
+      <div class="mb-4 flex shrink-0 items-center justify-between">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <h2
+              class="text-foreground m-0 font-[family-name:var(--app-font-family)] text-[24px] leading-8 font-semibold"
+            >
+              {{ $t("organization.title") }}
+            </h2>
+            <div class="flex shrink-0 items-center gap-2">
+              <!-- A disabled button swallows pointer events, so the tooltip hangs on a wrapper. -->
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :class="headerActionButtonClass"
+                      :disabled="!canManageOrg"
+                      :aria-label="$t('organization.joinOrg')"
+                      @click="handleJoinOrganization"
+                    >
+                      <LogInIcon class="text-primary size-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{{
+                  canManageOrg ? $t("organization.joinOrg") : noPermissionTip
+                }}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :class="headerActionButtonClass"
+                      :disabled="!canManageOrg"
+                      :aria-label="$t('organization.createOrg')"
+                      @click="handleCreateOrganization"
+                    >
+                      <img src="@/assets/img/organization-green.svg" class="size-4" alt="" aria-hidden="true" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{{
+                  canManageOrg ? $t("organization.createOrg") : noPermissionTip
+                }}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
-          <p class="header-subtitle">{{ $t("organization.subtitle") }}</p>
+          <p class="text-muted-foreground m-0 font-[family-name:var(--app-font-family)] text-[14px] leading-5">
+            {{ $t("organization.subtitle") }}
+          </p>
         </div>
       </div>
-      <div class="org-list-main">
+      <div class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-2">
         <!-- 骨架屏占位 -->
-        <div v-if="loading && filteredOrganizations.length === 0" class="org-card-wrap">
-          <div v-for="n in 4" :key="'skel-' + n" class="org-card org-card-skeleton">
-            <div class="card-header">
-              <t-skeleton
-                animation="gradient"
-                :row-col="[
-                  [
-                    { width: '36px', height: '36px', type: 'circle' },
-                    { width: '50%', height: '20px' },
-                  ],
-                ]"
-              />
+        <div v-if="loading && filteredOrganizations.length === 0" :class="cardGridClass">
+          <div v-for="n in 4" :key="'skel-' + n" :class="[cardBaseClass, 'cursor-default']">
+            <div class="flex items-center gap-4">
+              <Skeleton class="size-9 rounded-full" />
+              <Skeleton class="h-5 w-1/2" />
             </div>
-            <div style="flex: 1; margin-top: 12px">
-              <t-skeleton
-                animation="gradient"
-                :row-col="[
-                  { width: '100%', height: '14px' },
-                  { width: '70%', height: '14px' },
-                ]"
-              />
+            <div class="mt-3 flex flex-1 flex-col gap-3">
+              <Skeleton class="h-3.5 w-full" />
+              <Skeleton class="h-3.5 w-[70%]" />
             </div>
-            <div style="margin-top: auto">
-              <t-skeleton
-                animation="gradient"
-                :row-col="[
-                  [
-                    { width: '60px', height: '22px', type: 'rect' },
-                    { width: '60px', height: '22px', type: 'rect' },
-                  ],
-                ]"
-              />
+            <div class="mt-auto flex gap-4">
+              <Skeleton class="h-[22px] w-[60px] rounded-sm" />
+              <Skeleton class="h-[22px] w-[60px] rounded-sm" />
             </div>
           </div>
         </div>
 
         <!-- 卡片网格 -->
-        <div v-if="filteredOrganizations.length > 0" class="org-card-wrap">
+        <div v-if="filteredOrganizations.length > 0" :class="cardGridClass">
           <template v-for="(org, index) in filteredOrganizations" :key="org.id">
             <!-- 我创建的：仅在 all 视图下出现；created/joined 子视图自身已经
                  隐含了语义，再加标题反而冗余。-->
             <div
               v-if="spaceSelection === 'all' && org.is_owner && index === 0"
-              class="org-section-header"
+              :class="sectionHeaderClass"
               role="button"
               tabindex="0"
               @click="toggleOrgSection('created')"
               @keydown.enter.prevent="toggleOrgSection('created')"
               @keydown.space.prevent="toggleOrgSection('created')"
             >
-              <t-icon name="user" size="14px" />
+              <UserIcon class="size-3.5" />
               <span>{{ $t("organization.createdByMe") }}</span>
-              <span class="org-section-count">{{ orgSectionCounts.created }}</span>
-              <t-icon
-                class="org-section-toggle"
-                :name="isOrgSectionCollapsed('created') ? 'chevron-right' : 'chevron-down'"
-                size="14px"
+              <span :class="sectionCountClass">{{ orgSectionCounts.created }}</span>
+              <component
+                :is="isOrgSectionCollapsed('created') ? ChevronRightIcon : ChevronDownIcon"
+                :class="sectionToggleClass"
               />
             </div>
             <!-- 我加入的：第一张非 owner 卡片前打标题（all 视图下） -->
@@ -110,32 +109,44 @@
               v-if="
                 spaceSelection === 'all' && !org.is_owner && (index === 0 || filteredOrganizations[index - 1].is_owner)
               "
-              class="org-section-header"
+              :class="sectionHeaderClass"
               role="button"
               tabindex="0"
               @click="toggleOrgSection('joined')"
               @keydown.enter.prevent="toggleOrgSection('joined')"
               @keydown.space.prevent="toggleOrgSection('joined')"
             >
-              <t-icon name="usergroup" size="14px" />
+              <UsersIcon class="size-3.5" />
               <span>{{ $t("organization.joinedByMe") }}</span>
-              <span class="org-section-count">{{ orgSectionCounts.joined }}</span>
-              <t-icon
-                class="org-section-toggle"
-                :name="isOrgSectionCollapsed('joined') ? 'chevron-right' : 'chevron-down'"
-                size="14px"
+              <span :class="sectionCountClass">{{ orgSectionCounts.joined }}</span>
+              <component
+                :is="isOrgSectionCollapsed('joined') ? ChevronRightIcon : ChevronDownIcon"
+                :class="sectionToggleClass"
               />
             </div>
+            <!--
+              与知识库 / 智能体列表统一：紧凑 + 1px 描边。The ::before glow in the
+              top-right corner is drawn with before: utilities; a joined space
+              lights up a little less on hover than one you own.
+            -->
             <div
               v-show="!isOrgRowHidden(org)"
-              class="org-card"
-              :class="{ 'joined-org': !org.is_owner }"
+              :class="[
+                cardBaseClass,
+                'group cursor-pointer transition-[border-color,box-shadow,transform] duration-250 ease-in-out',
+                cardGlowClass,
+                org.is_owner
+                  ? 'hover:border-[rgba(7,192,95,0.5)] hover:shadow-[0_6px_20px_rgba(7,192,95,0.12)]'
+                  : 'hover:border-[rgba(7,192,95,0.4)] hover:shadow-[0_4px_16px_rgba(7,192,95,0.08)]',
+              ]"
               @click="handleCardClick(org)"
             >
               <!-- 装饰：协作网络感图形 -->
-              <div class="card-decoration">
+              <div
+                class="pointer-events-none absolute top-2 right-3.5 z-0 flex items-start justify-end text-[rgba(7,192,95,0.35)] transition-colors duration-300 group-hover:text-[rgba(7,192,95,0.55)]"
+              >
                 <svg
-                  class="card-deco-svg"
+                  class="block h-10 w-14"
                   width="56"
                   height="40"
                   viewBox="0 0 56 40"
@@ -165,86 +176,125 @@
               </div>
 
               <!-- 卡片头部 -->
-              <div class="card-header">
-                <div class="card-header-left">
-                  <div class="org-avatar">
+              <div class="relative z-[2] mb-1.5 flex items-center justify-between">
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                  <div class="flex shrink-0 items-center justify-center">
                     <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
                   </div>
-                  <div class="card-title-block">
-                    <span class="card-title" :title="org.name">{{ org.name }}</span>
+                  <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span
+                      class="text-foreground truncate font-[family-name:var(--app-font-family)] text-[15px] leading-[22px] font-semibold tracking-[0.01em]"
+                      :title="org.name"
+                      >{{ org.name }}</span
+                    >
                   </div>
                 </div>
-                <t-popup
-                  v-model="organizationMenuVisibility[org.id]"
-                  overlayClassName="card-more-popup"
-                  :on-visible-change="(visible: boolean) => onVisibleChange(visible, org)"
-                  trigger="click"
-                  destroy-on-close
-                  placement="bottom-right"
+                <DropdownMenu
+                  :open="!!organizationMenuVisibility[org.id]"
+                  @update:open="(open: boolean) => onOrgMenuOpenChange(org, open)"
                 >
-                  <div class="more-wrap" @click.stop :class="{ 'active-more': organizationMenuVisibility[org.id] }">
-                    <img class="more-icon" src="@/assets/img/more.png" alt="" />
-                  </div>
-                  <template #content>
-                    <div class="popup-menu" @click.stop>
-                      <div class="popup-menu-item" @click.stop="handleSettings(org)">
-                        <t-icon class="menu-icon" name="setting" />
-                        <span>{{ $t("organization.settings.editTitle") }}</span>
-                      </div>
-                      <div v-if="!org.is_owner" class="popup-menu-item delete" @click.stop="handleLeave(org)">
-                        <t-icon class="menu-icon" name="logout" />
-                        <span>{{ $t("organization.leave") }}</span>
-                      </div>
-                      <div
-                        v-if="org.is_owner && canManageOrg"
-                        class="popup-menu-item delete"
-                        @click.stop="handleDelete(org)"
-                      >
-                        <t-icon class="menu-icon" name="delete" />
-                        <span>{{ $t("common.delete") }}</span>
-                      </div>
-                    </div>
-                  </template>
-                </t-popup>
+                  <DropdownMenuTrigger as-child>
+                    <!-- Hidden until the card is hovered, and held visible while its menu is open. -->
+                    <button
+                      type="button"
+                      data-slot="org-card-more"
+                      class="hover:bg-accent flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-all duration-200 hover:opacity-100!"
+                      :class="
+                        organizationMenuVisibility[org.id]
+                          ? 'bg-accent opacity-100'
+                          : 'opacity-0 group-hover:opacity-60'
+                      "
+                      :aria-label="$t('docs.tree.moreActions')"
+                      @click.stop
+                    >
+                      <img class="size-4" src="@/assets/img/more.png" alt="" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" :class="cardMenuClass" @click.stop>
+                    <DropdownMenuItem :class="cardMenuItemClass" @select="handleSettings(org)">
+                      <SettingsIcon class="text-muted-foreground" />
+                      <span>{{ $t("organization.settings.editTitle") }}</span>
+                    </DropdownMenuItem>
+                    <template v-if="!org.is_owner || canManageOrg">
+                      <DropdownMenuSeparator class="mx-2" />
+                    </template>
+                    <DropdownMenuItem
+                      v-if="!org.is_owner"
+                      variant="destructive"
+                      :class="cardMenuItemClass"
+                      @select="handleLeave(org)"
+                    >
+                      <LogOutIcon />
+                      <span>{{ $t("organization.leave") }}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      v-if="org.is_owner && canManageOrg"
+                      variant="destructive"
+                      :class="cardMenuItemClass"
+                      @select="handleDelete(org)"
+                    >
+                      <Trash2Icon />
+                      <span>{{ $t("common.delete") }}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <!-- 卡片内容 -->
-              <div class="card-content">
-                <div class="card-description">
+              <div class="relative z-[1] mb-1.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                <!-- 三个列表卡片统一：描述字体 -->
+                <div
+                  class="text-muted-foreground line-clamp-2 font-[family-name:var(--app-font-family)] text-[12px] leading-[17px]"
+                >
                   {{ org.description || $t("organization.noDescription") }}
                 </div>
               </div>
 
               <!-- 卡片底部（与知识库卡片风格统一：小标签、无日期、智能体用主题色） -->
-              <div class="card-bottom">
-                <div class="bottom-left">
-                  <div class="feature-badges">
-                    <t-tooltip :content="$t('organization.memberCount')" placement="top">
-                      <div class="feature-badge stat-member">
-                        <t-icon name="user" size="14px" />
-                        <span class="badge-count">{{ org.member_count || 0 }}</span>
-                      </div>
-                    </t-tooltip>
-                    <t-tooltip :content="$t('organization.invite.knowledgeBases')" placement="top">
-                      <div class="feature-badge stat-kb">
-                        <t-icon name="folder" size="14px" />
-                        <span class="badge-count">{{ org.share_count ?? 0 }}</span>
-                      </div>
-                    </t-tooltip>
+              <div
+                class="border-border relative z-[1] mt-auto flex items-center justify-between border-t-[0.5px] pt-1.5"
+              >
+                <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                  <div class="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div :class="[featureBadgeClass, featureBadgeMemberClass]">
+                          <UserIcon class="size-3.5 shrink-0" />
+                          <span class="leading-none">{{ org.member_count || 0 }}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{{ $t("organization.memberCount") }}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <div :class="[featureBadgeClass, featureBadgeKbClass]">
+                          <FolderIcon class="size-3.5 shrink-0" />
+                          <span class="leading-none">{{ org.share_count ?? 0 }}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{{ $t("organization.invite.knowledgeBases") }}</TooltipContent>
+                    </Tooltip>
                   </div>
-                  <t-tooltip
-                    v-if="(org.pending_join_request_count ?? 0) > 0"
-                    :content="$t('organization.settings.pendingJoinRequestsBadge')"
-                    placement="top"
-                  >
-                    <span class="pending-requests-badge"
-                      >{{ org.pending_join_request_count }} {{ $t("organization.settings.pendingReview") }}</span
-                    >
-                  </t-tooltip>
+                  <!-- 待审核角标：与 feature-badge 同高 -->
+                  <Tooltip v-if="(org.pending_join_request_count ?? 0) > 0">
+                    <TooltipTrigger as-child>
+                      <span
+                        class="text-warning inline-flex h-[22px] items-center rounded-md bg-[rgba(250,173,20,0.12)] px-1.5 text-[12px] font-medium whitespace-nowrap"
+                        >{{ org.pending_join_request_count }} {{ $t("organization.settings.pendingReview") }}</span
+                      >
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{{
+                      $t("organization.settings.pendingJoinRequestsBadge")
+                    }}</TooltipContent>
+                  </Tooltip>
                 </div>
-                <div v-if="showOrgRelationTag(org)" class="bottom-right">
-                  <div class="relation-role-tag" :class="org.is_owner ? 'owner' : org.my_role || ''">
-                    <t-icon :name="org.is_owner ? 'usergroup-add' : 'usergroup'" size="14px" />
+                <!-- 右下角：创建者/角色 合并标签（带图标） -->
+                <div v-if="showOrgRelationTag(org)" class="flex shrink-0 items-center">
+                  <div
+                    class="inline-flex h-[22px] items-center gap-1 rounded-md px-1.5 font-[family-name:var(--app-font-family)] text-[12px] font-medium"
+                    :class="relationTagClass(org)"
+                  >
+                    <component :is="org.is_owner ? UserPlusIcon : UsersIcon" class="size-3.5 shrink-0" />
                     <span>{{
                       org.is_owner
                         ? $t("organization.owner")
@@ -260,31 +310,53 @@
         </div>
 
         <!-- 空状态（按筛选显示不同文案） -->
-        <div v-else-if="!loading" class="empty-state">
-          <img class="empty-img" src="@/assets/img/upload.svg" alt="" />
-          <span class="empty-txt">{{ emptyStateTitle }}</span>
-          <span class="empty-desc">{{ emptyStateDesc }}</span>
-          <div class="empty-state-actions">
-            <t-tooltip :content="noPermissionTip" placement="top" :disabled="canManageOrg">
-              <t-button
-                theme="default"
-                variant="outline"
-                class="org-join-btn"
-                :disabled="!canManageOrg"
-                @click="handleJoinOrganization"
-              >
-                <template #icon><t-icon name="enter" /></template>
-                {{ $t("organization.joinOrg") }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="noPermissionTip" placement="top" :disabled="canManageOrg">
-              <t-button class="org-create-btn" :disabled="!canManageOrg" @click="handleCreateOrganization">
-                <template #icon
-                  ><img src="@/assets/img/organization-green.svg" class="org-create-icon" alt="" aria-hidden="true"
-                /></template>
-                {{ $t("organization.createOrg") }}
-              </t-button>
-            </t-tooltip>
+        <div v-else-if="!loading" class="flex flex-1 flex-col items-center justify-center px-5 py-[60px]">
+          <img class="mb-5 size-[162px]" src="@/assets/img/upload.svg" alt="" />
+          <span
+            class="text-placeholder mb-2 font-[family-name:var(--app-font-family)] text-[16px] leading-[26px] font-semibold"
+            >{{ emptyStateTitle }}</span
+          >
+          <span
+            class="mb-0 font-[family-name:var(--app-font-family)] text-[14px] leading-[22px] text-[var(--td-text-color-disabled)]"
+            >{{ emptyStateDesc }}</span
+          >
+          <div class="mt-5 flex items-center gap-3">
+            <Tooltip :disabled="canManageOrg">
+              <TooltipTrigger as-child>
+                <span class="inline-flex">
+                  <Button
+                    variant="outline"
+                    class="text-primary hover:border-primary hover:text-primary border-[rgba(7,192,95,0.5)] font-medium transition-all duration-200 hover:bg-[rgba(7,192,95,0.08)]"
+                    :disabled="!canManageOrg"
+                    @click="handleJoinOrganization"
+                  >
+                    <LogInIcon />
+                    {{ $t("organization.joinOrg") }}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">{{ noPermissionTip }}</TooltipContent>
+            </Tooltip>
+            <Tooltip :disabled="canManageOrg">
+              <TooltipTrigger as-child>
+                <span class="inline-flex">
+                  <Button
+                    class="hover:bg-primary font-medium shadow-[0_2px_8px_rgba(7,192,95,0.25)] transition-all duration-250 hover:shadow-[0_4px_14px_rgba(7,192,95,0.35)]"
+                    :disabled="!canManageOrg"
+                    @click="handleCreateOrganization"
+                  >
+                    <img
+                      src="@/assets/img/organization-green.svg"
+                      class="size-4 brightness-0 invert"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    {{ $t("organization.createOrg") }}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">{{ noPermissionTip }}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -299,100 +371,141 @@
     />
 
     <!-- Delete Confirm Dialog -->
-    <t-dialog
-      v-model:visible="deleteVisible"
-      dialogClassName="del-org-dialog"
-      :closeBtn="false"
-      :cancelBtn="null"
-      :confirmBtn="null"
-    >
-      <div class="circle-wrap">
-        <div class="dialog-header">
-          <img class="circle-img" src="@/assets/img/circle.png" alt="" />
-          <span class="circle-title">{{ $t("organization.deleteConfirmTitle") }}</span>
+    <Dialog :open="deleteVisible" @update:open="(open: boolean) => (deleteVisible = open)">
+      <DialogContent :show-close-button="false" :class="confirmDialogClass">
+        <div class="mb-2 flex items-center">
+          <img class="mr-2 size-5" src="@/assets/img/circle.png" alt="" />
+          <DialogTitle :class="confirmDialogTitleClass">{{ $t("organization.deleteConfirmTitle") }}</DialogTitle>
         </div>
-        <span class="del-circle-txt">
+        <DialogDescription :class="confirmDialogTextClass">
           {{ $t("organization.deleteConfirmMessage", { name: deletingOrg?.name ?? "" }) }}
-        </span>
-        <div class="circle-btn">
-          <span class="circle-btn-txt" @click="deleteVisible = false">{{ $t("common.cancel") }}</span>
-          <span class="circle-btn-txt confirm" @click="confirmDelete">{{ $t("common.delete") }}</span>
+        </DialogDescription>
+        <div class="flex h-[22px] w-full justify-end">
+          <button
+            type="button"
+            data-slot="confirm-cancel"
+            :class="confirmDialogActionClass"
+            @click="deleteVisible = false"
+          >
+            {{ $t("common.cancel") }}
+          </button>
+          <button
+            type="button"
+            data-slot="confirm-delete"
+            :class="[confirmDialogActionClass, 'text-destructive ml-10']"
+            @click="confirmDelete"
+          >
+            {{ $t("common.delete") }}
+          </button>
         </div>
-      </div>
-    </t-dialog>
+      </DialogContent>
+    </Dialog>
 
     <!-- Leave Confirm Dialog -->
-    <t-dialog
-      v-model:visible="leaveVisible"
-      dialogClassName="del-org-dialog"
-      :closeBtn="false"
-      :cancelBtn="null"
-      :confirmBtn="null"
-    >
-      <div class="circle-wrap">
-        <div class="dialog-header">
-          <img class="circle-img" src="@/assets/img/circle.png" alt="" />
-          <span class="circle-title">{{ $t("organization.leaveConfirmTitle") }}</span>
+    <Dialog :open="leaveVisible" @update:open="(open: boolean) => (leaveVisible = open)">
+      <DialogContent :show-close-button="false" :class="confirmDialogClass">
+        <div class="mb-2 flex items-center">
+          <img class="mr-2 size-5" src="@/assets/img/circle.png" alt="" />
+          <DialogTitle :class="confirmDialogTitleClass">{{ $t("organization.leaveConfirmTitle") }}</DialogTitle>
         </div>
-        <span class="del-circle-txt">
+        <DialogDescription :class="confirmDialogTextClass">
           {{ $t("organization.leaveConfirmMessage", { name: leavingOrg?.name ?? "" }) }}
-        </span>
-        <div class="circle-btn">
-          <span class="circle-btn-txt" @click="leaveVisible = false">{{ $t("common.cancel") }}</span>
-          <span class="circle-btn-txt confirm" @click="confirmLeave">{{ $t("organization.leave") }}</span>
+        </DialogDescription>
+        <div class="flex h-[22px] w-full justify-end">
+          <button
+            type="button"
+            data-slot="confirm-cancel"
+            :class="confirmDialogActionClass"
+            @click="leaveVisible = false"
+          >
+            {{ $t("common.cancel") }}
+          </button>
+          <button
+            type="button"
+            data-slot="confirm-leave"
+            :class="[confirmDialogActionClass, 'text-destructive ml-10']"
+            @click="confirmLeave"
+          >
+            {{ $t("organization.leave") }}
+          </button>
         </div>
-      </div>
-    </t-dialog>
+      </DialogContent>
+    </Dialog>
 
     <!-- 加入组织 / 邀请预览弹框（菜单与邀请链接共用同一弹框） -->
     <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="showInvitePreview" class="invite-preview-overlay" @click.self="closeInvitePreview">
+      <!-- The overlay fades; the panel inside scales up from 95% as it does. -->
+      <Transition
+        enter-active-class="transition-all duration-300 ease-in-out"
+        leave-active-class="transition-all duration-300 ease-in-out"
+        enter-from-class="opacity-0 [&>div]:scale-95"
+        leave-to-class="opacity-0 [&>div]:scale-95"
+      >
+        <!--
+          data-slot opts the hand-written buttons in this modal into the
+          element resets of tailwind.css. z-[2000] keeps it above the page;
+          every popup opened from inside it therefore carries z-[2100].
+        -->
+        <div
+          v-if="showInvitePreview"
+          data-slot="invite-preview-overlay"
+          class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-5 backdrop-blur-[4px]"
+          @click.self="closeInvitePreview"
+        >
           <div
-            class="invite-preview-modal"
-            :class="{
-              'is-wide': !invitePreviewData && !invitePreviewLoading && joinStep === 'search',
-            }"
+            class="bg-card relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out"
+            :class="
+              !invitePreviewData && !invitePreviewLoading && joinStep === 'search' ? 'max-w-[560px]' : 'max-w-[480px]'
+            "
           >
-            <div class="invite-preview-header">
+            <div
+              class="border-border bg-card flex shrink-0 items-center justify-between gap-3 border-b py-4 pr-12 pl-5"
+            >
               <!-- 预览详情且来自搜索时显示返回按钮 -->
               <button
                 v-if="invitePreviewData && !inviteCode"
-                class="invite-preview-back"
+                type="button"
+                :class="[modalIconButtonClass, 'hover:text-primary']"
                 @click="backFromPreview"
                 :aria-label="$t('organization.join.backToSearch')"
               >
-                <t-icon name="chevron-left" />
+                <ChevronLeftIcon class="size-4" />
               </button>
-              <h2 class="invite-preview-title">
+              <h2 class="text-foreground m-0 min-w-0 flex-1 text-[16px] font-semibold">
                 {{ invitePreviewData ? $t("organization.invite.previewTitle") : $t("organization.joinOrg") }}
               </h2>
-              <button class="invite-preview-close" @click="closeInvitePreview" :aria-label="$t('common.close')">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
+              <button
+                type="button"
+                :class="[modalIconButtonClass, 'hover:text-foreground absolute top-4 right-4 z-10']"
+                @click="closeInvitePreview"
+                :aria-label="$t('common.close')"
+              >
+                <XIcon class="size-5" />
               </button>
             </div>
 
             <!-- 步骤1/2/Loading 共用高度过渡容器 -->
-            <div class="invite-preview-body-wrap" :style="inviteBodyWrapStyle">
-              <div ref="inviteBodyInnerRef" class="invite-body-inner">
+            <div
+              class="h-auto flex-[0_0_auto] overflow-hidden transition-[min-height,max-height] duration-350 ease-[cubic-bezier(0.4,0,0.2,1)]"
+              :style="inviteBodyWrapStyle"
+            >
+              <div ref="inviteBodyInnerRef" class="block">
                 <!-- 步骤1：输入邀请码 或 搜索空间 -->
                 <div
                   v-if="!invitePreviewLoading && !invitePreviewData"
-                  class="invite-preview-body invite-preview-input"
+                  :class="[modalBodyClass, scrollbarClass, 'px-6 pt-5']"
                 >
-                  <div class="join-mode-pills">
+                  <div class="mb-5 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      :class="['join-mode-pill', { active: joinStep === 'invite' }]"
+                      :class="joinModePillClass(joinStep === 'invite')"
                       @click="joinStep = 'invite'"
                     >
                       {{ $t("organization.join.byInviteCode") }}
                     </button>
                     <button
                       type="button"
-                      :class="['join-mode-pill', { active: joinStep === 'search' }]"
+                      :class="joinModePillClass(joinStep === 'search')"
                       @click="handleSearchTabClick"
                     >
                       {{ $t("organization.join.searchSpaces") }}
@@ -400,247 +513,345 @@
                   </div>
 
                   <!-- Tab 内容容器 - 平滑高度过渡 -->
-                  <div ref="tabContentWrapperRef" class="join-tab-content-wrapper">
+                  <div
+                    ref="tabContentWrapperRef"
+                    class="overflow-hidden transition-[height] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                  >
                     <!-- 输入邀请码 -->
-                    <div v-if="joinStep === 'invite'" class="join-tab-content">
+                    <div v-if="joinStep === 'invite'" class="w-full">
                       <template v-if="!invitePreviewError">
-                        <div class="join-form-item">
-                          <label class="join-form-label">{{ $t("organization.inviteCode") }}</label>
-                          <p class="join-form-desc">{{ $t("organization.invite.inputDesc") }}</p>
-                          <t-input
-                            v-model="joinInputCode"
-                            :placeholder="$t('organization.inviteCodePlaceholder')"
-                            size="medium"
-                            :maxlength="32"
-                            clearable
-                            @keyup.enter="doPreviewFromInput"
-                          />
-                          <p class="join-form-tip">{{ $t("organization.editor.inviteCodeTip") }}</p>
+                        <div class="mb-5">
+                          <label for="org-join-invite-code" :class="joinFormLabelClass">{{
+                            $t("organization.inviteCode")
+                          }}</label>
+                          <p :class="joinFormDescClass">{{ $t("organization.invite.inputDesc") }}</p>
+                          <div class="relative">
+                            <Input
+                              id="org-join-invite-code"
+                              v-model="joinInputCode"
+                              :placeholder="$t('organization.inviteCodePlaceholder')"
+                              :maxlength="32"
+                              class="pr-8"
+                              @keyup.enter="doPreviewFromInput"
+                            />
+                            <button
+                              v-if="joinInputCode"
+                              type="button"
+                              :class="inputClearButtonClass"
+                              :aria-label="$t('common.clear')"
+                              @click="joinInputCode = ''"
+                            >
+                              <CircleXIcon class="size-3.5" />
+                            </button>
+                          </div>
+                          <p class="text-placeholder mt-2 mb-0 text-[12px] leading-[1.45]">
+                            {{ $t("organization.editor.inviteCodeTip") }}
+                          </p>
                         </div>
                       </template>
                       <template v-else>
-                        <div class="invite-preview-error-inline">
-                          <t-icon name="error-circle" size="20px" />
+                        <div
+                          class="text-destructive mb-3 flex items-center gap-2 rounded-lg bg-[var(--td-error-color-light)] px-3 py-2.5 text-[13px]"
+                        >
+                          <CircleAlertIcon class="size-5 shrink-0" />
                           <span>{{ invitePreviewError }}</span>
                         </div>
-                        <div class="join-form-item">
-                          <label class="join-form-label">{{ $t("organization.inviteCode") }}</label>
-                          <t-input
-                            v-model="joinInputCode"
-                            :placeholder="$t('organization.inviteCodePlaceholder')"
-                            size="medium"
-                            :maxlength="32"
-                            clearable
-                            @keyup.enter="doPreviewFromInput"
-                          />
+                        <div class="mb-5">
+                          <label for="org-join-invite-code-retry" :class="joinFormLabelClass">{{
+                            $t("organization.inviteCode")
+                          }}</label>
+                          <div class="relative">
+                            <Input
+                              id="org-join-invite-code-retry"
+                              v-model="joinInputCode"
+                              :placeholder="$t('organization.inviteCodePlaceholder')"
+                              :maxlength="32"
+                              class="pr-8"
+                              @keyup.enter="doPreviewFromInput"
+                            />
+                            <button
+                              v-if="joinInputCode"
+                              type="button"
+                              :class="inputClearButtonClass"
+                              :aria-label="$t('common.clear')"
+                              @click="joinInputCode = ''"
+                            >
+                              <CircleXIcon class="size-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </template>
-                      <div class="invite-preview-footer invite-preview-footer-single">
-                        <t-button theme="default" variant="outline" size="medium" @click="closeInvitePreview">
+                      <div :class="[modalFooterClass, 'mt-1 px-0 pt-4']">
+                        <Button variant="outline" @click="closeInvitePreview">
                           {{ $t("common.cancel") }}
-                        </t-button>
-                        <t-button
-                          theme="primary"
-                          size="medium"
-                          :loading="invitePreviewLoading"
-                          @click="doPreviewFromInput"
-                        >
+                        </Button>
+                        <Button :disabled="invitePreviewLoading" @click="doPreviewFromInput">
+                          <Loader2Icon v-if="invitePreviewLoading" class="animate-spin" />
                           {{ $t("organization.invite.previewAction") }}
-                        </t-button>
+                        </Button>
                       </div>
                     </div>
 
                     <!-- 搜索可加入空间 -->
-                    <div v-else-if="joinStep === 'search'" class="join-tab-content join-tab-search">
-                      <div class="join-form-item join-form-item--compact">
-                        <label class="join-form-label">{{ $t("organization.join.searchSpaces") }}</label>
-                        <p class="join-form-desc">{{ $t("organization.join.searchSpacesDesc") }}</p>
-                        <t-input
-                          v-model="searchQuery"
-                          :placeholder="$t('organization.join.searchSpacesPlaceholder')"
-                          size="medium"
-                          clearable
-                          @input="doSearchSearchableDebounced"
-                          @keyup.enter="doSearchSearchable"
-                        >
-                          <template #prefix-icon>
-                            <t-icon name="search" />
-                          </template>
-                        </t-input>
+                    <div v-else-if="joinStep === 'search'" class="w-full">
+                      <div class="mb-3">
+                        <label for="org-join-search" :class="joinFormLabelClass">{{
+                          $t("organization.join.searchSpaces")
+                        }}</label>
+                        <p :class="joinFormDescClass">{{ $t("organization.join.searchSpacesDesc") }}</p>
+                        <div class="relative">
+                          <SearchIcon
+                            class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                          />
+                          <Input
+                            id="org-join-search"
+                            v-model="searchQuery"
+                            :placeholder="$t('organization.join.searchSpacesPlaceholder')"
+                            class="pr-8 pl-8"
+                            @input="doSearchSearchableDebounced"
+                            @keyup.enter="doSearchSearchable"
+                          />
+                          <button
+                            v-if="searchQuery"
+                            type="button"
+                            :class="inputClearButtonClass"
+                            :aria-label="$t('common.clear')"
+                            @click="clearSearchQuery"
+                          >
+                            <CircleXIcon class="size-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <div class="searchable-list-wrap">
-                        <t-loading :loading="searchLoading">
-                          <div v-if="searchableList.length === 0 && !searchLoading" class="searchable-empty">
-                            <t-empty
-                              :description="
-                                searchQuery
-                                  ? $t('organization.join.noSearchResult')
-                                  : $t('organization.join.noSearchableSpaces')
-                              "
-                            />
-                          </div>
-                          <div v-else class="searchable-list">
-                            <div
-                              v-for="org in searchableList"
-                              :key="org.id"
-                              class="searchable-row"
-                              :class="{ 'is-full': isOrgFull(org) }"
-                              @click="!isOrgFull(org) && previewSearchableOrg(org)"
-                            >
-                              <div class="searchable-row-main">
-                                <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
-                                <div class="searchable-row-info">
-                                  <span class="searchable-row-title" :title="org.name">{{ org.name }}</span>
-                                  <span class="searchable-row-desc">{{
-                                    org.description || $t("organization.noDescription")
-                                  }}</span>
-                                </div>
-                              </div>
-                              <div class="searchable-row-meta">
-                                <span class="searchable-meta-item">
-                                  <t-icon name="user" size="12px" />
-                                  <template v-if="org.member_limit > 0"
-                                    >{{ org.member_count }}/{{ org.member_limit }}</template
-                                  >
-                                  <template v-else>{{ org.member_count }}</template>
-                                </span>
-                                <t-tag v-if="org.require_approval" size="small" variant="light" theme="warning">
-                                  {{ $t("organization.invite.needApproval") }}
-                                </t-tag>
-                                <t-tag v-if="isOrgFull(org)" size="small" variant="light">
-                                  {{ $t("organization.join.memberLimitReached") }}
-                                </t-tag>
-                                <t-button
-                                  v-if="!isOrgFull(org)"
-                                  theme="primary"
-                                  variant="outline"
-                                  size="small"
-                                  @click.stop="previewSearchableOrg(org)"
-                                >
-                                  {{ $t("organization.invite.previewAction") }}
-                                </t-button>
+                      <!-- 搜索空间列表容器（与主列表一致：卡片间距） -->
+                      <div
+                        :class="[
+                          scrollbarClass,
+                          'border-border bg-card relative mb-4 max-h-[320px] min-h-[120px] overflow-y-auto rounded-[10px] border',
+                        ]"
+                      >
+                        <div v-if="searchableList.length === 0 && !searchLoading" class="px-4 py-6">
+                          <Empty class="p-0">
+                            <EmptyDescription>{{
+                              searchQuery
+                                ? $t("organization.join.noSearchResult")
+                                : $t("organization.join.noSearchableSpaces")
+                            }}</EmptyDescription>
+                          </Empty>
+                        </div>
+                        <div v-else class="flex flex-col">
+                          <div
+                            v-for="org in searchableList"
+                            :key="org.id"
+                            class="border-border flex items-center justify-between gap-3 border-b px-3.5 py-3 transition-colors duration-150 last:border-b-0"
+                            :class="isOrgFull(org) ? 'cursor-default opacity-72' : 'hover:bg-accent cursor-pointer'"
+                            @click="!isOrgFull(org) && previewSearchableOrg(org)"
+                          >
+                            <div class="flex min-w-0 flex-1 items-center gap-2.5">
+                              <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
+                              <div class="flex min-w-0 flex-col gap-0.5">
+                                <span class="text-foreground truncate text-[14px] font-medium" :title="org.name">{{
+                                  org.name
+                                }}</span>
+                                <span class="text-muted-foreground truncate text-[12px]">{{
+                                  org.description || $t("organization.noDescription")
+                                }}</span>
                               </div>
                             </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                              <span class="text-muted-foreground inline-flex items-center gap-1 text-[12px]">
+                                <UserIcon class="size-3" />
+                                <template v-if="org.member_limit > 0"
+                                  >{{ org.member_count }}/{{ org.member_limit }}</template
+                                >
+                                <template v-else>{{ org.member_count }}</template>
+                              </span>
+                              <span v-if="org.require_approval" :class="[lightTagClass, lightTagWarningClass]">
+                                {{ $t("organization.invite.needApproval") }}
+                              </span>
+                              <span v-if="isOrgFull(org)" :class="[lightTagClass, 'bg-secondary text-foreground']">
+                                {{ $t("organization.join.memberLimitReached") }}
+                              </span>
+                              <Button
+                                v-if="!isOrgFull(org)"
+                                variant="outline"
+                                size="sm"
+                                class="border-primary text-primary hover:text-primary"
+                                @click.stop="previewSearchableOrg(org)"
+                              >
+                                {{ $t("organization.invite.previewAction") }}
+                              </Button>
+                            </div>
                           </div>
-                        </t-loading>
+                        </div>
+                        <!-- The old t-loading wrapper: a veil with a spinner over whatever the list shows. -->
+                        <div
+                          v-if="searchLoading"
+                          class="bg-card/60 absolute inset-0 flex items-center justify-center"
+                          aria-busy="true"
+                        >
+                          <Loader2Icon class="text-primary size-5 animate-spin" />
+                        </div>
                       </div>
-                      <div class="invite-preview-footer invite-preview-footer-single">
-                        <t-button theme="default" variant="outline" size="medium" @click="closeInvitePreview">
+                      <div :class="[modalFooterClass, 'mt-1 px-0 pt-4']">
+                        <Button variant="outline" @click="closeInvitePreview">
                           {{ $t("common.cancel") }}
-                        </t-button>
+                        </Button>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Loading -->
-                <div v-else-if="invitePreviewLoading" class="invite-preview-body invite-preview-loading">
-                  <t-loading size="medium" />
-                  <span class="invite-preview-loading-text">{{ $t("organization.invite.loading") }}</span>
+                <div
+                  v-else-if="invitePreviewLoading"
+                  :class="[
+                    modalBodyClass,
+                    scrollbarClass,
+                    'flex flex-col items-center justify-center gap-5 px-7 py-16',
+                  ]"
+                >
+                  <Loader2Icon class="text-primary size-8 animate-spin" />
+                  <span class="text-muted-foreground font-[family-name:var(--app-font-family)] text-[14px]">{{
+                    $t("organization.invite.loading")
+                  }}</span>
                 </div>
 
                 <!-- 步骤2：空间详情预览 -->
-                <div v-else-if="invitePreviewData" class="invite-preview-body invite-preview-body-preview">
-                  <div class="preview-space-hero">
-                    <div class="preview-space-avatar-wrap">
+                <div v-else-if="invitePreviewData" :class="[modalBodyClass, scrollbarClass, 'px-6 pt-2']">
+                  <div class="flex flex-col items-center pt-2 pb-5 text-center">
+                    <div class="mb-3">
                       <SpaceAvatar :name="invitePreviewData.name" :avatar="invitePreviewData.avatar" size="large" />
                     </div>
-                    <h3 class="preview-space-name">{{ invitePreviewData.name }}</h3>
-                    <p class="preview-space-desc">
+                    <h3 class="text-foreground m-0 mb-1.5 max-w-full truncate text-[18px] leading-[1.35] font-semibold">
+                      {{ invitePreviewData.name }}
+                    </h3>
+                    <p class="text-muted-foreground m-0 mb-3.5 line-clamp-2 max-w-[360px] text-[13px] leading-normal">
                       {{ invitePreviewData.description || $t("organization.noDescription") }}
                     </p>
-                    <div class="feature-badges preview-space-badges">
-                      <t-tooltip :content="$t('organization.memberCount')" placement="top">
-                        <div class="feature-badge stat-member">
-                          <t-icon name="user" size="14px" />
-                          <span class="badge-count">{{ invitePreviewData.member_count }}</span>
-                        </div>
-                      </t-tooltip>
-                      <t-tooltip :content="$t('organization.invite.knowledgeBases')" placement="top">
-                        <div class="feature-badge stat-kb">
-                          <t-icon name="folder" size="14px" />
-                          <span class="badge-count">{{ invitePreviewData.share_count }}</span>
-                        </div>
-                      </t-tooltip>
+                    <div class="mb-3 flex items-center justify-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div :class="[featureBadgeClass, featureBadgeMemberClass]">
+                            <UserIcon class="size-3.5 shrink-0" />
+                            <span class="leading-none">{{ invitePreviewData.member_count }}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" class="z-[2100]">{{
+                          $t("organization.memberCount")
+                        }}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div :class="[featureBadgeClass, featureBadgeKbClass]">
+                            <FolderIcon class="size-3.5 shrink-0" />
+                            <span class="leading-none">{{ invitePreviewData.share_count }}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" class="z-[2100]">{{
+                          $t("organization.invite.knowledgeBases")
+                        }}</TooltipContent>
+                      </Tooltip>
                     </div>
-                    <button type="button" class="preview-space-id-chip" @click="copyPreviewSpaceId">
-                      <span class="preview-space-id-label">{{ $t("organization.join.spaceId") }}</span>
-                      <code>{{ shortPreviewSpaceId }}</code>
-                      <t-icon name="file-copy" size="14px" />
+                    <button
+                      type="button"
+                      class="group/id bg-secondary text-placeholder hover:text-muted-foreground inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--td-brand-color)_8%,var(--td-bg-color-secondarycontainer))]"
+                      @click="copyPreviewSpaceId"
+                    >
+                      <span>{{ $t("organization.join.spaceId") }}</span>
+                      <code
+                        class="text-muted-foreground group-hover/id:text-primary bg-transparent p-0 font-[family-name:var(--app-font-family-mono)] text-[11px]"
+                        >{{ shortPreviewSpaceId }}</code
+                      >
+                      <CopyIcon class="text-placeholder group-hover/id:text-primary size-3.5 shrink-0" />
                     </button>
                   </div>
 
-                  <div v-if="invitePreviewData.is_already_member" class="preview-member-status">
-                    <t-icon name="check-circle" size="18px" />
+                  <div
+                    v-if="invitePreviewData.is_already_member"
+                    class="text-primary flex items-center justify-center gap-2 pt-3 pb-1 text-[14px] font-medium"
+                  >
+                    <CircleCheckIcon class="size-[18px]" />
                     <span>{{ $t("organization.invite.alreadyMember") }}</span>
                   </div>
 
-                  <div v-else class="preview-join-summary">
-                    <div class="preview-info-row">
-                      <span class="preview-info-label">{{ $t("organization.invite.approvalLabel") }}</span>
-                      <t-tag
-                        size="small"
-                        :theme="invitePreviewData.require_approval ? 'warning' : 'success'"
-                        variant="light"
+                  <div v-else class="border-border border-t pt-4">
+                    <div class="flex min-h-7 items-center justify-between gap-3">
+                      <span class="text-foreground text-[14px] font-medium">{{
+                        $t("organization.invite.approvalLabel")
+                      }}</span>
+                      <span
+                        :class="[
+                          lightTagClass,
+                          invitePreviewData.require_approval ? lightTagWarningClass : lightTagSuccessClass,
+                        ]"
                       >
                         {{
                           invitePreviewData.require_approval
                             ? $t("organization.invite.needApproval")
                             : $t("organization.invite.noApproval")
                         }}
-                      </t-tag>
+                      </span>
                     </div>
-                    <p v-if="!invitePreviewData.require_approval" class="preview-info-desc">
+                    <p
+                      v-if="!invitePreviewData.require_approval"
+                      class="text-muted-foreground mt-2 mb-0 text-[13px] leading-normal"
+                    >
                       {{ $t("organization.invite.defaultRoleAfterJoin", { role: $t("organization.role.viewer") }) }}
                     </p>
                     <template v-else>
-                      <p class="preview-info-desc preview-info-desc--warning">
+                      <p class="mt-2 mb-0 text-[13px] leading-normal text-[var(--td-warning-color-active)]">
                         {{ $t("organization.invite.requireApprovalTip") }}
                       </p>
-                      <div class="preview-join-fields">
-                        <div class="join-form-item join-form-item--compact">
-                          <label class="join-form-label">{{ $t("organization.invite.requestRole") }}</label>
-                          <t-select
-                            v-model="inviteRequestRole"
-                            size="medium"
-                            :placeholder="$t('organization.invite.selectRole')"
-                            :options="orgRoleOptions"
-                          />
+                      <div class="border-border mt-3.5 flex flex-col gap-3 border-t border-dashed pt-3.5">
+                        <div class="mb-3 last:mb-0">
+                          <label :class="joinFormLabelClass">{{ $t("organization.invite.requestRole") }}</label>
+                          <Select :model-value="inviteRequestRole" @update:model-value="setInviteRequestRole">
+                            <SelectTrigger class="w-full">
+                              <SelectValue :placeholder="$t('organization.invite.selectRole')" />
+                            </SelectTrigger>
+                            <SelectContent position="popper" class="z-[2100]">
+                              <SelectItem v-for="opt in orgRoleOptions" :key="opt.value" :value="opt.value">
+                                {{ opt.label }}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div class="join-form-item join-form-item--compact">
-                          <label class="join-form-label">{{ $t("organization.invite.applicationNote") }}</label>
-                          <t-textarea
+                        <div class="mb-3 last:mb-0">
+                          <label for="org-join-request-message" :class="joinFormLabelClass">{{
+                            $t("organization.invite.applicationNote")
+                          }}</label>
+                          <!-- Grows with its content between two and four lines, as the old autosize did. -->
+                          <Textarea
+                            id="org-join-request-message"
                             v-model="inviteRequestMessage"
-                            size="medium"
                             :placeholder="$t('organization.invite.messagePlaceholder')"
                             :maxlength="500"
-                            :autosize="{ minRows: 2, maxRows: 4 }"
+                            class="max-h-[104px] min-h-[60px] resize-none overflow-y-auto"
                           />
                         </div>
                       </div>
                     </template>
                   </div>
 
-                  <div class="invite-preview-footer">
-                    <t-button theme="default" variant="outline" size="medium" @click="backFromPreview">
+                  <div :class="[modalFooterClass, '-mx-6 mt-4 px-6 pt-3']">
+                    <Button variant="outline" @click="backFromPreview">
                       {{ !inviteCode ? $t("organization.join.backToSearch") : $t("common.cancel") }}
-                    </t-button>
-                    <t-button
+                    </Button>
+                    <Button
                       v-if="!invitePreviewData.is_already_member"
-                      theme="primary"
-                      size="medium"
-                      :loading="inviteJoining"
+                      :disabled="inviteJoining"
                       @click="confirmJoinOrganization"
                     >
+                      <Loader2Icon v-if="inviteJoining" class="animate-spin" />
                       {{
                         invitePreviewData.require_approval
                           ? $t("organization.invite.submitRequest")
                           : $t("organization.invite.primaryJoin")
                       }}
-                    </t-button>
-                    <t-button v-else theme="primary" size="medium" @click="viewOrganizationFromPreview">
+                    </Button>
+                    <Button v-else @click="viewOrganizationFromPreview">
                       {{ $t("organization.invite.viewOrganization") }}
-                    </t-button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -666,6 +877,41 @@ import OrganizationSettingsModal from "./OrganizationSettingsModal.vue";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
 import ListSpaceSidebar from "@/components/ListSpaceSidebar.vue";
 import { shouldShowOrgRelationTag } from "@/utils/card-list-badge";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  CopyIcon,
+  FolderIcon,
+  Loader2Icon,
+  LogInIcon,
+  LogOutIcon,
+  SearchIcon,
+  SettingsIcon,
+  Trash2Icon,
+  UserIcon,
+  UserPlusIcon,
+  UsersIcon,
+  XIcon,
+} from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type OrgWithUI = Organization;
 
@@ -686,8 +932,107 @@ const orgRoleOptions = [
   { label: t("organization.role.editor"), value: "editor" },
   { label: t("organization.role.admin"), value: "admin" },
 ];
-const inviteRequestRole = ref<"viewer" | "editor" | "admin">("viewer");
+type OrgRequestRole = "viewer" | "editor" | "admin";
+const inviteRequestRole = ref<OrgRequestRole>("viewer");
 const inviteRequestMessage = ref("");
+
+// The select reports an untyped value; only the three offered roles are accepted.
+function setInviteRequestRole(value: unknown) {
+  const match = orgRoleOptions.find((o) => o.value === value);
+  if (match) inviteRequestRole.value = match.value as OrgRequestRole;
+}
+
+// ---- Shared class strings ------------------------------------------------
+// Pieces of the look that the template repeats — the card grid, the card
+// shell, the badges, the modal chrome — named once so the copies agree.
+
+// One column, then more as the page widens, at the breakpoints the list
+// always used. The grid fades up into place when it first renders.
+const cardGridClass =
+  "grid grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-1.5 duration-320 ease-out " +
+  "min-[900px]:grid-cols-2 min-[1250px]:grid-cols-3 min-[1600px]:grid-cols-4 min-[1900px]:grid-cols-5 " +
+  "min-[2200px]:grid-cols-6";
+const cardBaseClass =
+  "relative box-border flex h-[136px] min-h-[136px] flex-col overflow-hidden rounded-lg border border-border " +
+  "bg-card px-3.5 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]";
+// A faint brand-coloured glow in the card's top-right corner.
+const cardGlowClass =
+  "before:pointer-events-none before:absolute before:top-0 before:right-0 before:z-0 before:h-20 before:w-[120px] " +
+  "before:bg-[radial-gradient(ellipse_60%_50%_at_100%_0%,rgba(7,192,95,0.06)_0%,transparent_70%)] before:content-['']";
+// 共享空间分组标题——与 KB / Agent 列表口径完全一致（图标 + 名称 + 数量 + 折叠 chevron）。
+// The row itself only paints the sticky background; clicks land through its
+// children, so a click in the blank space right of the title does not fold it.
+const sectionHeaderClass =
+  "group/section pointer-events-none sticky top-0 z-[5] col-span-full flex cursor-pointer items-center gap-1.5 " +
+  "bg-card py-1.5 pr-1 pl-0 font-[family-name:var(--app-font-family)] text-[13px] leading-5 font-semibold " +
+  "text-muted-foreground outline-none select-none hover:text-foreground *:pointer-events-auto " +
+  "shadow-[0_-8px_0_0_var(--td-bg-color-container),0_4px_0_0_var(--td-bg-color-container)] " +
+  "focus-visible:shadow-[0_0_0_2px_var(--td-brand-color-focus)]";
+const sectionCountClass =
+  "ml-0.5 rounded-lg bg-secondary px-1.5 text-[11px] leading-4 font-medium text-muted-foreground";
+const sectionToggleClass = "ml-1 size-3.5 opacity-70 transition-opacity duration-150 group-hover/section:opacity-100";
+// 与知识库卡片统一的底部标签：小尺寸、统一圆角
+const featureBadgeClass =
+  "inline-flex h-5 cursor-default items-center justify-center gap-[3px] rounded-[5px] px-[5px] " +
+  "font-[family-name:var(--app-font-family)] text-[11px] font-medium transition-colors duration-200";
+const featureBadgeMemberClass = "bg-[rgba(100,116,139,0.08)] text-muted-foreground hover:bg-[rgba(100,116,139,0.12)]";
+const featureBadgeKbClass = "bg-[rgba(7,192,95,0.08)] text-primary hover:bg-[rgba(7,192,95,0.12)]";
+const headerActionButtonClass =
+  "size-7 rounded-md border border-border bg-secondary text-muted-foreground " +
+  "shadow-[inset_0_1px_0_color-mix(in_srgb,var(--td-bg-color-container)_72%,transparent)] " +
+  "hover:bg-secondary hover:text-foreground dark:hover:bg-secondary";
+const cardMenuClass =
+  "w-auto min-w-[148px] rounded-[10px] border-[0.5px] border-border p-1 ring-0 backdrop-blur-[20px] " +
+  "backdrop-saturate-[180%] shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)]";
+const cardMenuItemClass = "cursor-pointer gap-2.5 px-3 py-2 text-[14px] leading-5";
+// 删除/离开确认对话框：a compact card with no header bar or footer.
+const confirmDialogClass = "gap-0 rounded-md p-4 sm:max-w-[464px]";
+const confirmDialogTitleClass =
+  "m-0 font-[family-name:var(--app-font-family)] text-[16px] leading-6 font-semibold text-foreground";
+const confirmDialogTextClass =
+  "mb-[21px] ml-[29px] inline-block font-[family-name:var(--app-font-family)] text-[14px] leading-[22px] text-placeholder";
+const confirmDialogActionClass =
+  "cursor-pointer font-[family-name:var(--app-font-family)] text-[14px] leading-[22px] text-foreground hover:opacity-80";
+// The join / preview modal.
+const modalIconButtonClass =
+  "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground " +
+  "transition-colors duration-200 hover:bg-secondary";
+const modalBodyClass = "min-h-0 flex-1 overflow-x-hidden overflow-y-auto max-h-[calc(90vh-120px)]";
+const modalFooterClass = "flex shrink-0 justify-end gap-3 border-t border-border bg-card px-6 pt-3 pb-5";
+// A thin scrollbar whose thumb turns brand-coloured under the pointer.
+const scrollbarClass =
+  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:rounded-[3px] [&::-webkit-scrollbar-track]:bg-secondary " +
+  "[&::-webkit-scrollbar-thumb]:rounded-[3px] [&::-webkit-scrollbar-thumb]:bg-[var(--td-bg-color-component-disabled)] " +
+  "[&::-webkit-scrollbar-thumb:hover]:bg-primary";
+const joinFormLabelClass = "mb-1 block text-[14px] font-medium text-foreground";
+const joinFormDescClass = "m-0 mb-2.5 text-[13px] leading-normal text-muted-foreground";
+const inputClearButtonClass =
+  "absolute top-1/2 right-2.5 flex -translate-y-1/2 cursor-pointer text-placeholder hover:text-muted-foreground";
+/** TDesign's small light tag. */
+const lightTagClass =
+  "inline-flex h-5 items-center rounded-[var(--td-radius-small)] px-1.5 text-[12px] whitespace-nowrap";
+const lightTagWarningClass = "bg-[var(--td-warning-color-light)] text-warning";
+const lightTagSuccessClass = "bg-[var(--td-success-color-light)] text-success";
+
+function joinModePillClass(active: boolean): string {
+  const base =
+    "inline-flex cursor-pointer items-center rounded-md px-3.5 py-1.5 text-[13px] leading-[1.4] outline-none " +
+    "transition-colors duration-150";
+  return active
+    ? `${base} bg-primary/12 font-medium text-primary`
+    : `${base} bg-secondary text-muted-foreground hover:text-primary focus-visible:text-primary ` +
+        "hover:bg-[color-mix(in_srgb,var(--td-brand-color)_8%,var(--td-bg-color-secondarycontainer))] " +
+        "focus-visible:bg-[color-mix(in_srgb,var(--td-brand-color)_8%,var(--td-bg-color-secondarycontainer))]";
+}
+
+// 右下角：创建者/角色 合并标签 — owner, admin and editor read in the brand
+// colour on different tints; viewer (and an unknown role) stays grey.
+function relationTagClass(org: { is_owner?: boolean; my_role?: string }): string {
+  if (org.is_owner) return "bg-[rgba(124,77,255,0.1)] text-primary";
+  if (org.my_role === "admin") return "bg-[rgba(7,192,95,0.12)] text-primary";
+  if (org.my_role === "editor") return "bg-[rgba(7,192,95,0.08)] text-primary";
+  return "bg-[rgba(107,114,128,0.08)] text-muted-foreground";
+}
 
 // State
 const showSettingsModal = ref(false);
@@ -945,6 +1290,14 @@ const onVisibleChange = (visible: boolean, org: OrgWithUI) => {
   }
 };
 
+// The card menu is controlled through organizationMenuVisibility, which
+// handleCardClick reads so that a click meant to dismiss the menu does not
+// also open the space's settings.
+function onOrgMenuOpenChange(org: OrgWithUI, open: boolean) {
+  organizationMenuVisibility[org.id] = open;
+  onVisibleChange(open, org);
+}
+
 // 创建组织
 function handleCreateOrganization() {
   if (!canManageOrg.value) {
@@ -1175,6 +1528,13 @@ function doSearchSearchableDebounced() {
   searchDebounceTimer = setTimeout(() => doSearchSearchable(), 300);
 }
 
+// The clear button empties the query and lists every searchable space again,
+// the way typing the query away would.
+function clearSearchQuery() {
+  searchQuery.value = "";
+  doSearchSearchableDebounced();
+}
+
 // 空间是否已满（超过成员上限无法加入）
 function isOrgFull(org: SearchableOrganizationItem): boolean {
   return org.member_limit > 0 && org.member_count >= org.member_limit;
@@ -1283,1401 +1643,3 @@ onUnmounted(() => {
   teardownInviteBodyResizeObserver();
 });
 </script>
-
-<style scoped lang="less">
-.org-list-container {
-  margin: 0 16px 0 0;
-  height: 100%;
-  box-sizing: border-box;
-  flex: 1;
-  display: flex;
-  position: relative;
-  min-height: 0;
-}
-
-.org-list-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 20px 28px 0 28px;
-}
-
-.org-list-main {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 8px 0;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  flex-shrink: 0;
-
-  .header-title {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  h2 {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 24px;
-    font-weight: 600;
-    line-height: 32px;
-  }
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.org-join-btn {
-  border-color: rgba(7, 192, 95, 0.5);
-  color: var(--td-brand-color);
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  .t-icon {
-    color: var(--td-brand-color);
-  }
-
-  &:hover {
-    background: rgba(7, 192, 95, 0.08);
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-.org-create-btn {
-  background: var(--td-brand-color);
-  border: none;
-  color: var(--td-text-color-anti);
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(7, 192, 95, 0.25);
-  transition: all 0.25s ease;
-
-  &:hover {
-    background: var(--td-brand-color);
-    box-shadow: 0 4px 14px rgba(7, 192, 95, 0.35);
-  }
-
-  .org-create-icon {
-    width: 16px;
-    height: 16px;
-    filter: brightness(0) invert(1);
-  }
-}
-
-.header-subtitle {
-  margin: 0;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
-}
-
-.header-action-btn {
-  padding: 0 !important;
-  min-width: 28px !important;
-  width: 28px !important;
-  height: 28px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: var(--td-bg-color-secondarycontainer) !important;
-  border: 1px solid var(--td-component-stroke) !important;
-  border-radius: 6px !important;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--td-bg-color-container) 72%, transparent);
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    color 0.2s;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer) !important;
-    border-color: var(--td-component-stroke) !important;
-    color: var(--td-text-color-primary);
-  }
-
-  :deep(.t-icon),
-  :deep(.btn-icon-wrapper),
-  :deep(.org-create-icon) {
-    color: var(--td-brand-color);
-  }
-
-  :deep(.org-create-icon) {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-// Tab 切换样式（下划线式，与整体协作感一致）
-.org-tabs {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  margin-bottom: 24px;
-
-  .tab-item {
-    padding: 12px 0;
-    cursor: pointer;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    user-select: none;
-    position: relative;
-    transition: color 0.2s ease;
-
-    &:hover {
-      color: var(--td-text-color-secondary);
-    }
-
-    &.active {
-      color: var(--td-brand-color);
-      font-weight: 500;
-
-      &::after {
-        content: "";
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: var(--td-brand-color);
-        border-radius: 1px;
-      }
-    }
-  }
-}
-
-@keyframes contentFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.org-card-wrap {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;
-  animation: contentFadeIn 0.32s ease-out;
-}
-
-// 共享空间分组标题——与 KB / Agent 列表口径完全一致（图标 + 名称 + 数量 + 折叠 chevron）。
-.org-section-header {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  // 整行只用来铺背景；点击靠子元素冒泡，避免点到标题右侧空白误折叠。
-  pointer-events: none;
-
-  & > * {
-    pointer-events: auto;
-  }
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--td-bg-color-container);
-  box-shadow:
-    0 -8px 0 0 var(--td-bg-color-container),
-    0 4px 0 0 var(--td-bg-color-container);
-  padding: 6px 4px 6px 0;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-  cursor: pointer;
-  user-select: none;
-  outline: none;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-  }
-
-  &:focus-visible {
-    box-shadow: 0 0 0 2px var(--td-brand-color-focus, rgba(0, 82, 217, 0.2));
-  }
-
-  .t-icon {
-    color: inherit;
-  }
-
-  .org-section-toggle {
-    margin-left: 4px;
-    opacity: 0.7;
-    transition: opacity 0.15s ease;
-  }
-
-  .org-section-count {
-    margin-left: 2px;
-    padding: 0 6px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-secondary);
-    font-size: 11px;
-    line-height: 16px;
-    font-weight: 500;
-  }
-
-  &:hover .org-section-toggle {
-    opacity: 1;
-  }
-}
-
-.org-card-skeleton {
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  height: 136px;
-  min-height: 136px;
-}
-
-/* 与知识库 / 智能体列表统一：紧凑 + 1px 描边 */
-.org-card {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  overflow: hidden;
-  box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  background: var(--td-bg-color-container);
-  position: relative;
-  cursor: pointer;
-  transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    transform 0.2s ease;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  height: 136px;
-  min-height: 136px;
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 120px;
-    height: 80px;
-    background: radial-gradient(ellipse 60% 50% at 100% 0%, rgba(7, 192, 95, 0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  &.joined-org {
-    &:hover {
-      border-color: rgba(7, 192, 95, 0.4);
-      box-shadow: 0 4px 16px rgba(7, 192, 95, 0.08);
-    }
-  }
-
-  &:hover {
-    border-color: rgba(7, 192, 95, 0.5);
-    box-shadow: 0 6px 20px rgba(7, 192, 95, 0.12);
-  }
-
-  .card-decoration {
-    color: rgba(7, 192, 95, 0.35);
-  }
-
-  &:hover .card-decoration {
-    color: rgba(7, 192, 95, 0.55);
-  }
-
-  .card-header {
-    position: relative;
-    z-index: 2;
-    margin-bottom: 6px;
-  }
-
-  .card-title {
-    font-size: 15px;
-    line-height: 22px;
-  }
-
-  .card-content {
-    position: relative;
-    z-index: 1;
-    margin-bottom: 6px;
-  }
-
-  .card-bottom {
-    position: relative;
-    z-index: 1;
-    padding-top: 6px;
-  }
-
-  .card-description {
-    font-size: 12px;
-    line-height: 17px;
-  }
-
-  .more-wrap {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-
-    .more-icon {
-      width: 16px;
-      height: 16px;
-    }
-  }
-}
-
-// 卡片装饰：协作网络图形
-.card-decoration {
-  position: absolute;
-  top: 8px;
-  right: 14px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  pointer-events: none;
-  z-index: 0;
-  transition: color 0.3s ease;
-
-  .card-deco-svg {
-    display: block;
-    width: 56px;
-    height: 40px;
-  }
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  position: relative;
-  z-index: 2;
-}
-
-.card-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-// 空间头像容器（SpaceAvatar 自带样式）
-.org-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.card-title-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.card-title {
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 22px;
-  letter-spacing: 0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.more-wrap {
-  display: flex;
-  width: 28px;
-  height: 28px;
-  justify-content: center;
-  align-items: center;
-  border-radius: 8px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-  opacity: 0;
-
-  .org-card:hover & {
-    opacity: 0.6;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    opacity: 1 !important;
-  }
-
-  &.active-more {
-    background: var(--td-bg-color-container-hover);
-    opacity: 1 !important;
-  }
-
-  .more-icon {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-/* 与知识库卡片内容区一致 */
-.card-content {
-  flex: 1;
-  min-height: 0;
-  margin-bottom: 8px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* 三个列表卡片统一：描述字体 */
-.card-description {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 18px;
-}
-
-.card-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 0.5px solid var(--td-component-stroke);
-}
-
-.bottom-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-// 与知识库卡片统一的底部标签：小尺寸、统一圆角
-.feature-badges {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.feature-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: var(--app-font-family);
-  cursor: default;
-  transition: background 0.2s ease;
-
-  .t-icon {
-    flex-shrink: 0;
-  }
-
-  .badge-count {
-    line-height: 1;
-  }
-
-  &.stat-member {
-    background: rgba(100, 116, 139, 0.08);
-    color: var(--td-text-color-secondary);
-
-    .t-icon {
-      color: var(--td-text-color-secondary);
-    }
-
-    &:hover {
-      background: rgba(100, 116, 139, 0.12);
-    }
-  }
-
-  &.stat-kb {
-    background: rgba(7, 192, 95, 0.08);
-    color: var(--td-brand-color);
-
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-
-    &:hover {
-      background: rgba(7, 192, 95, 0.12);
-    }
-  }
-}
-
-// 待审核角标：与 feature-badge 同高
-.pending-requests-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  background: rgba(250, 173, 20, 0.12);
-  color: var(--td-warning-color);
-  white-space: nowrap;
-}
-
-// 右下角：创建者/角色 合并标签（带图标）
-.bottom-right {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.relation-role-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--app-font-family);
-  background: rgba(107, 114, 128, 0.08);
-  color: var(--td-text-color-secondary);
-
-  .t-icon {
-    flex-shrink: 0;
-    color: var(--td-text-color-secondary);
-  }
-
-  &.owner {
-    background: rgba(124, 77, 255, 0.1);
-    color: var(--td-brand-color);
-
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-  }
-
-  &.admin {
-    background: rgba(7, 192, 95, 0.12);
-    color: var(--td-brand-color);
-
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-  }
-
-  &.editor {
-    background: rgba(7, 192, 95, 0.08);
-    color: var(--td-brand-color);
-
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-  }
-
-  &.viewer {
-    background: rgba(107, 114, 128, 0.08);
-    color: var(--td-text-color-secondary);
-
-    .t-icon {
-      color: var(--td-text-color-secondary);
-    }
-  }
-}
-
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 60px 20px;
-
-  .empty-img {
-    width: 162px;
-    height: 162px;
-    margin-bottom: 20px;
-  }
-
-  .empty-txt {
-    color: var(--td-text-color-placeholder);
-    font-family: var(--app-font-family);
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 26px;
-    margin-bottom: 8px;
-  }
-
-  .empty-desc {
-    color: var(--td-text-color-disabled);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 22px;
-    margin-bottom: 0;
-  }
-
-  .empty-state-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 20px;
-  }
-}
-
-// 响应式布局
-@media (min-width: 900px) {
-  .org-card-wrap {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1250px) {
-  .org-card-wrap {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1600px) {
-  .org-card-wrap {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1900px) {
-  .org-card-wrap {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-@media (min-width: 2200px) {
-  .org-card-wrap {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-// 删除/离开确认对话框样式
-:deep(.del-org-dialog) {
-  padding: 0px !important;
-  border-radius: 6px !important;
-
-  .t-dialog__header {
-    display: none;
-  }
-
-  .t-dialog__body {
-    padding: 16px;
-  }
-
-  .t-dialog__footer {
-    padding: 0;
-  }
-}
-
-:deep(.t-dialog__position.t-dialog--top) {
-  padding-top: 40vh !important;
-}
-
-.circle-wrap {
-  .dialog-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .circle-img {
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
-  }
-
-  .circle-title {
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 24px;
-  }
-
-  .del-circle-txt {
-    color: var(--td-text-color-placeholder);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 22px;
-    display: inline-block;
-    margin-left: 29px;
-    margin-bottom: 21px;
-  }
-
-  .circle-btn {
-    height: 22px;
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .circle-btn-txt {
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 22px;
-    cursor: pointer;
-
-    &:hover {
-      opacity: 0.8;
-    }
-  }
-
-  .confirm {
-    color: var(--td-error-color);
-    margin-left: 40px;
-
-    &:hover {
-      opacity: 0.8;
-    }
-  }
-}
-</style>
-
-<style lang="less">
-/* 下拉菜单样式已统一至 @/assets/dropdown-menu.less */
-
-// 创建对话框样式优化
-.create-org-dialog,
-.join-org-dialog {
-  .t-form-item__label {
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-  }
-
-  .t-input,
-  .t-textarea {
-    font-family: var(--app-font-family);
-  }
-}
-
-// 邀请预览弹框 - 参考 FAQ 导入弹窗风格，更紧凑
-.invite-preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.invite-preview-modal {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  &.is-wide {
-    max-width: 560px;
-  }
-}
-
-.invite-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 48px 16px 20px;
-  background: var(--td-bg-color-container);
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-  gap: 12px;
-}
-
-.invite-preview-back {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-  }
-}
-
-.invite-preview-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  flex: 1;
-  min-width: 0;
-}
-
-.invite-preview-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-
-  &:active {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-// 加入弹框 body 外层：高度过渡动画（输入邀请码 ↔ 搜索空间 ↔ 查看详情）
-.invite-preview-body-wrap {
-  flex: 0 0 auto;
-  overflow: hidden;
-  height: auto;
-  transition:
-    min-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.invite-body-inner {
-  display: block;
-}
-
-.invite-preview-body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 20px 24px 0;
-  min-height: 0;
-  max-height: calc(90vh - 120px);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--td-bg-color-component-disabled);
-    border-radius: 3px;
-    transition: background 0.2s;
-
-    &:hover {
-      background: var(--td-brand-color);
-    }
-  }
-}
-
-.join-mode-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.join-mode-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  font: inherit;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--td-brand-color);
-    background: color-mix(in srgb, var(--td-brand-color) 8%, var(--td-bg-color-secondarycontainer));
-    outline: none;
-  }
-
-  &.active {
-    background: color-mix(in srgb, var(--td-brand-color) 12%, transparent);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.join-form-item {
-  margin-bottom: 20px;
-
-  &--compact {
-    margin-bottom: 12px;
-  }
-
-  .join-form-label {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-  }
-
-  .join-form-desc {
-    margin: 0 0 10px;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    line-height: 1.5;
-  }
-
-  .join-form-tip {
-    margin: 8px 0 0;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    line-height: 1.45;
-  }
-
-  :deep(.t-input),
-  :deep(.t-select),
-  :deep(.t-textarea) {
-    width: 100%;
-  }
-}
-
-// Tab 内容容器 - 平滑高度过渡
-.join-tab-content-wrapper {
-  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-}
-
-.join-tab-content {
-  width: 100%;
-}
-
-.search-input-wrap {
-  margin-bottom: 16px;
-}
-
-// 搜索空间列表容器（与主列表一致：无外框，卡片间距）
-.searchable-list-wrap {
-  max-height: 320px;
-  min-height: 120px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--td-bg-color-component-disabled);
-    border-radius: 3px;
-    transition: background 0.2s;
-
-    &:hover {
-      background: var(--td-brand-color);
-    }
-  }
-}
-
-.searchable-empty {
-  padding: 24px 16px;
-}
-
-.searchable-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.searchable-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover:not(.is-full) {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-full {
-    cursor: default;
-    opacity: 0.72;
-  }
-}
-
-.searchable-row-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-}
-
-.searchable-row-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.searchable-row-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.searchable-row-desc {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.searchable-row-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.searchable-meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.invite-preview-input {
-  .invite-preview-error-inline {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--td-error-color-light);
-    color: var(--td-error-color);
-    font-size: 13px;
-  }
-
-  .invite-preview-footer-single {
-    margin-top: 4px;
-    padding: 16px 0 20px;
-    border-top: 1px solid var(--td-component-stroke);
-  }
-}
-
-.invite-preview-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 28px;
-  gap: 20px;
-
-  .invite-preview-loading-text {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-  }
-}
-
-.invite-preview-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 40px 28px;
-
-  .invite-preview-error-icon {
-    color: var(--td-error-color);
-    margin-bottom: 20px;
-  }
-
-  .invite-preview-error-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px;
-    font-family: var(--app-font-family);
-  }
-
-  .invite-preview-error-desc {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0 0 24px;
-    line-height: 1.5;
-    font-family: var(--app-font-family);
-  }
-}
-
-.invite-preview-body-preview {
-  padding: 8px 24px 0;
-
-  > .invite-preview-footer {
-    margin: 16px -24px 0;
-  }
-}
-
-.preview-space-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 8px 0 20px;
-}
-
-.preview-space-avatar-wrap {
-  margin-bottom: 12px;
-}
-
-.preview-space-name {
-  margin: 0 0 6px;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--td-text-color-primary);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.preview-space-desc {
-  margin: 0 0 14px;
-  max-width: 360px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
-
-.preview-space-badges {
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.preview-space-id-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 4px 10px;
-  border: none;
-  border-radius: 999px;
-  background: var(--td-bg-color-secondarycontainer);
-  font: inherit;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-
-  code {
-    font-family: var(--app-font-family-mono);
-    font-size: 11px;
-    color: var(--td-text-color-secondary);
-    background: transparent;
-    border: none;
-    padding: 0;
-  }
-
-  .t-icon {
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-  }
-
-  &:hover {
-    background: color-mix(in srgb, var(--td-brand-color) 8%, var(--td-bg-color-secondarycontainer));
-    color: var(--td-text-color-secondary);
-
-    code,
-    .t-icon {
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-.preview-member-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 0 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-brand-color);
-}
-
-.preview-join-summary {
-  padding-top: 16px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.preview-info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 28px;
-}
-
-.preview-info-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.preview-info-desc {
-  margin: 8px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-
-  &--warning {
-    color: var(--td-warning-color-active);
-  }
-}
-
-.preview-join-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed var(--td-component-stroke);
-
-  .t-select,
-  .t-textarea {
-    width: 100%;
-  }
-
-  .join-form-item--compact:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.invite-preview-footer {
-  padding: 12px 24px 20px;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-  background: var(--td-bg-color-container);
-}
-
-.modal-enter-active,
-.modal-leave-active {
-  transition: all 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-
-  .invite-preview-modal {
-    transform: scale(0.95);
-  }
-}
-</style>

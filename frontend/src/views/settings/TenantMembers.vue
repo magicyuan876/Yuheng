@@ -1,67 +1,101 @@
 <template>
-  <div class="tenant-members">
+  <div class="w-full">
     <!-- Section header. The (i) permission speed-look popover lives
          next to the title so it reads as meta-info about *this
          section*. The audit-log entry sits on the right of the header
          row — secondary navigation that opens the audit drawer; gated
          to Admin+ so non-managers don't see a button they can't use. -->
-    <div class="section-header">
-      <div class="section-header-row">
-        <div class="section-header-titlewrap">
-          <h2>{{ $t("tenantMember.title") }}</h2>
-          <t-popup
-            placement="bottom-start"
-            trigger="hover"
-            overlay-class-name="permissions-popup-overlay"
-            :overlay-inner-style="permissionsPopupInnerStyle"
-          >
-            <button
-              type="button"
-              class="permissions-trigger-btn"
-              :aria-label="$t('tenantMember.permissions.title')"
-              :title="$t('tenantMember.permissions.iconHint')"
+    <div class="mb-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="inline-flex min-w-0 items-center gap-0.5">
+          <h2 class="text-foreground m-0 text-[20px] leading-[1.25] font-semibold tracking-[-0.02em]">
+            {{ $t("tenantMember.title") }}
+          </h2>
+          <!--
+            t-popup opened this on hover; Reka's popover opens on click only,
+            so hover is wired by hand with a short grace period that lets the
+            pointer travel from the icon into the panel.
+          -->
+          <Popover :open="permissionsPopupOpen" @update:open="onPermissionsPopupOpenChange">
+            <PopoverTrigger as-child>
+              <button
+                type="button"
+                data-slot="permissions-trigger"
+                class="text-muted-foreground hover:bg-secondary hover:text-primary focus-visible:outline-ring inline-flex size-[22px] shrink-0 items-center justify-center rounded-md leading-none transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-1"
+                :aria-label="$t('tenantMember.permissions.title')"
+                :title="$t('tenantMember.permissions.iconHint')"
+                @mouseenter="openPermissionsPopup"
+                @mouseleave="schedulePermissionsPopupClose"
+              >
+                <InfoIcon class="size-4" />
+              </button>
+            </PopoverTrigger>
+            <!-- z-index above the settings modal (1100), as the old overlay had. -->
+            <PopoverContent
+              align="start"
+              :class="[
+                popupSurfaceClass,
+                'max-h-[min(400px,65vh)] w-[min(520px,calc(100vw-24px))] max-w-[min(520px,calc(100vw-24px))] overflow-hidden p-0',
+              ]"
+              @mouseenter="openPermissionsPopup"
+              @mouseleave="schedulePermissionsPopupClose"
+              @open-auto-focus.prevent
             >
-              <t-icon name="info-circle" size="16px" />
-            </button>
-            <template #content>
-              <div class="permissions-compact permissions-compact--popover">
-                <div class="permissions-compact-header">
-                  <span class="permissions-compact-title">{{ $t("tenantMember.permissions.title") }}</span>
-                  <span class="permissions-compact-desc">{{ $t("tenantMember.permissions.desc") }}</span>
+              <div class="m-0 max-h-[min(392px,calc(65vh-8px))] overflow-x-hidden overflow-y-auto px-3.5 py-3">
+                <div class="mb-2.5 flex flex-col gap-0.5">
+                  <span class="text-foreground text-[13px] font-semibold">{{
+                    $t("tenantMember.permissions.title")
+                  }}</span>
+                  <span class="text-muted-foreground text-[12px] leading-[1.45]">{{
+                    $t("tenantMember.permissions.desc")
+                  }}</span>
                 </div>
-                <div class="permissions-compact-grid">
+                <div class="grid grid-cols-2 gap-2 max-[480px]:grid-cols-1">
                   <div
                     v-for="r in roleMatrixOrder"
                     :key="r"
-                    :class="['perm-role-block', r, { 'is-me': currentRole === r }]"
+                    class="rounded-md border px-2.5 py-2"
+                    :class="
+                      currentRole === r ? 'border-primary bg-[var(--td-brand-color-light)]' : 'border-border bg-card'
+                    "
                   >
-                    <div class="perm-role-tag">
-                      <t-icon :name="roleMatrixIcon(r)" size="12px" />
+                    <div class="text-foreground mb-1.5 flex items-center gap-1 text-[12px] font-semibold">
+                      <component :is="roleMatrixIcon(r)" class="size-3" />
                       <span>{{ $t("tenantMember.role." + r) }}</span>
-                      <span v-if="currentRole === r" class="me-badge">{{ $t("common.me") }}</span>
+                      <span
+                        v-if="currentRole === r"
+                        class="text-primary ml-auto rounded-[4px] bg-[var(--td-brand-color-light)] px-[5px] py-px text-[10px] font-medium"
+                        >{{ $t("common.me") }}</span
+                      >
                     </div>
-                    <div class="perm-items">
-                      <span v-for="(perm, i) in roleMatrix[r]" :key="i" :class="['perm-item', perm.has ? 'has' : 'no']">
-                        <t-icon :name="perm.has ? 'check' : 'close'" size="12px" />
+                    <div class="flex flex-col gap-[3px]">
+                      <span
+                        v-for="(perm, i) in roleMatrix[r]"
+                        :key="i"
+                        class="flex items-start gap-1 text-[11px] leading-[1.35]"
+                        :class="perm.has ? 'text-muted-foreground' : 'text-[var(--td-text-color-disabled)]'"
+                      >
+                        <CheckIcon v-if="perm.has" class="text-primary mt-px size-3 shrink-0" />
+                        <XIcon v-else class="mt-px size-3 shrink-0" />
                         {{ $t("tenantMember.permissions." + perm.key) }}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
-            </template>
-          </t-popup>
+            </PopoverContent>
+          </Popover>
           <!-- Audit log entry sits inline with the title: title (i)
                [审计日志]. Keeping all section-level affordances on the
                left edge avoids the "lonely right-aligned button"
                pattern in narrow settings panels. -->
-          <t-button v-if="canViewAudit" variant="text" size="small" class="header-audit-btn" @click="openAuditDrawer">
-            <template #icon><t-icon name="history" /></template>
+          <Button v-if="canViewAudit" variant="ghost" size="sm" class="shrink-0" @click="openAuditDrawer">
+            <HistoryIcon />
             {{ $t("tenantMember.audit.tabLabel") }}
-          </t-button>
+          </Button>
         </div>
       </div>
-      <p class="section-description">
+      <p class="text-muted-foreground mt-2 mb-0 max-w-[52rem] text-[13px] leading-[1.55]">
         {{ $t("tenantMember.sectionDescription") }}
         <a
           class="doc-link"
@@ -71,12 +105,12 @@
           rel="noopener noreferrer"
         >
           {{ $t("tenantMember.learnRbacGuide") }}
-          <t-icon name="link" class="link-icon" />
+          <LinkIcon class="link-icon size-[1em]" />
         </a>
       </p>
     </div>
 
-    <div class="members-tab-layout">
+    <div class="flex flex-col">
       <!-- Toolbar 已被并入「空间成员」列表头：搜索框紧贴列表头右
            侧，邀请按钮再往右一个图标位，所有「针对这张列表」的控
            件聚到同一行，独立 toolbar 不复存在。 -->
@@ -86,134 +120,183 @@
                here. Even when empty we still render the header so
                operators get a stable "is there anything pending?"
                affordance after they hit "Send invitation". -->
-      <div v-if="canManage" class="pending-invitations-section">
-        <div class="pending-invitations-header">
-          <div class="pending-invitations-titlewrap">
-            <span class="pending-invitations-title">
+      <div v-if="canManage" class="mb-6 flex flex-col gap-2.5">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span class="text-foreground text-[14px] font-semibold">
               {{ $t("tenantInvitation.pendingSectionTitle") }}
             </span>
             <!-- Same count-badge style as the «空间成员» list header
                  so the two list titles read at parity. -->
-            <span class="members-list-count-badge">{{ invitationsTotal }}</span>
+            <span :class="countBadgeClass">{{ invitationsTotal }}</span>
           </div>
-          <span class="pending-invitations-desc">
+          <span class="text-muted-foreground text-[12px]">
             {{ $t("tenantInvitation.pendingSectionDesc", { days: INVITATION_TTL_DAYS }) }}
           </span>
         </div>
-        <div v-if="invitationsLoading" class="loading-inline">
-          <t-loading size="small" />
+        <div v-if="invitationsLoading" class="flex items-center gap-2 pt-5 pb-2">
+          <Loader2Icon class="text-primary size-4 animate-spin" />
           <span>{{ $t("tenantMember.loading") }}</span>
         </div>
-        <div v-else-if="invitationsError" class="error-inline">
-          <t-alert theme="error" :message="invitationsError">
-            <template #operation>
-              <t-button size="small" @click="loadInvitations">{{ $t("tenantMember.retry") }}</t-button>
-            </template>
-          </t-alert>
+        <div v-else-if="invitationsError" class="flex items-center gap-2 pt-5 pb-2">
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertDescription>{{ invitationsError }}</AlertDescription>
+            <AlertAction>
+              <Button size="sm" variant="outline" @click="loadInvitations">{{ $t("tenantMember.retry") }}</Button>
+            </AlertAction>
+          </Alert>
         </div>
-        <div v-else-if="invitationsTotal === 0" class="pending-invitations-empty">
+        <div
+          v-else-if="invitationsTotal === 0"
+          class="border-border bg-card text-muted-foreground rounded-lg border border-dashed px-3 py-2.5 text-[13px]"
+        >
           {{ $t("tenantInvitation.pendingEmpty") }}
         </div>
-        <div v-else class="data-table-shell data-table-shell--with-footer pending-invitations-table">
-          <div class="data-table-shell__scroll">
-            <t-table row-key="id" :data="invitations" :columns="invitationColumns" size="medium" hover>
-              <template #invitee="{ row }">
-                <div class="member-cell">
-                  <template v-if="row.is_share_link">
-                    <span class="member-name share-link-title">
-                      <t-icon name="link" size="14px" />
-                      {{ $t("tenantInvitation.shareLink.cellTitle") }}
-                    </span>
-                    <span class="member-email">
-                      {{
-                        (row.accepted_count ?? 0) > 0
-                          ? $t("tenantInvitation.shareLink.cellAccepted", { count: row.accepted_count })
-                          : $t("tenantInvitation.shareLink.cellEmpty")
-                      }}
-                    </span>
-                  </template>
-                  <template v-else>
-                    <span class="member-name">{{ inviteePrimary(row) }}</span>
-                    <span v-if="row.invitee_email && row.invitee_name" class="member-email">{{
-                      row.invitee_email
-                    }}</span>
-                  </template>
-                </div>
-              </template>
-              <template #role="{ row }">
-                <t-tag :theme="roleTagTheme(row.role)" size="small">
-                  {{ $t("tenantMember.role." + row.role) }}
-                </t-tag>
-              </template>
-              <template #inviter="{ row }">
-                <span>{{ inviterPrimary(row) }}</span>
-              </template>
-              <template #expires_at="{ row }">{{ formatDate(row.expires_at) }}</template>
-              <template #status="{ row }">
-                <t-tag :theme="invitationStatusTheme(row.status)" size="small">
-                  {{
-                    row.is_share_link && row.status === "pending"
-                      ? $t("tenantInvitation.status.shareLinkActive")
-                      : $t("tenantInvitation.status." + row.status)
-                  }}
-                </t-tag>
-              </template>
-              <template #actions="{ row }">
-                <!-- Per-row "copy link" for active share-link rows.
-                     Icon-only with tooltip so two actions ("copy" +
-                     "revoke") fit inside the actions column without
-                     clipping; the full label was too wide. -->
-                <t-tooltip
-                  v-if="row.status === 'pending' && row.invite_url"
-                  :content="$t('tenantInvitation.copyLink')"
-                  placement="top"
-                >
-                  <t-button
-                    shape="square"
-                    variant="text"
-                    size="small"
-                    @click="copyText(absoluteInviteURL(row.invite_url))"
-                  >
-                    <template #icon><t-icon name="copy" /></template>
-                  </t-button>
-                </t-tooltip>
-                <!-- Inline popconfirm anchored to the revoke button.
-                       Avoids spawning a top-level modal for a simple
-                       yes/no decision; the popover stays inside the
-                       table cell so the user keeps spatial context. -->
-                <t-popconfirm
-                  v-if="row.status === 'pending'"
-                  theme="warning"
-                  :content="
-                    row.is_share_link
-                      ? $t('tenantInvitation.shareLink.revokeConfirm')
-                      : $t('tenantInvitation.revoke.confirmBody', {
-                          email: row.invitee_email || row.invitee_user_id,
-                        })
-                  "
-                  :confirm-btn="{ content: $t('tenantInvitation.revoke.confirm'), theme: 'danger' }"
-                  :cancel-btn="$t('common.cancel')"
-                  placement="left"
-                  @confirm="doRevokeInvitation(row)"
-                >
-                  <t-tooltip :content="$t('tenantInvitation.revoke.button')" placement="top">
-                    <t-button theme="danger" shape="square" variant="text" size="small">
-                      <template #icon><t-icon name="close" /></template>
-                    </t-button>
-                  </t-tooltip>
-                </t-popconfirm>
-              </template>
-            </t-table>
-          </div>
-          <div v-if="invitationsTotal > 0" class="data-table-shell__pager">
-            <t-pagination
-              v-model="invitationsPage"
+        <!-- Visually distinguish from members table so the eye doesn't fuse
+             "pending" rows with "actual member" rows. -->
+        <div v-else :class="[tableShellClass, 'bg-secondary']">
+          <Table class="min-w-[790px] table-fixed">
+            <TableHeader>
+              <TableRow :class="tableHeadRowClass">
+                <TableHead :class="[tableHeadClass, 'min-w-[160px]']">
+                  {{ $t("tenantInvitation.columns.invitee") }}
+                </TableHead>
+                <TableHead :class="[tableHeadClass, 'w-[110px]']">{{ $t("tenantInvitation.columns.role") }}</TableHead>
+                <TableHead :class="[tableHeadClass, 'min-w-[140px]']">
+                  {{ $t("tenantInvitation.columns.inviter") }}
+                </TableHead>
+                <TableHead :class="[tableHeadClass, 'w-[160px]']">
+                  {{ $t("tenantInvitation.columns.expiresAt") }}
+                </TableHead>
+                <TableHead :class="[tableHeadClass, 'w-[100px]']">
+                  {{ $t("tenantInvitation.columns.status") }}
+                </TableHead>
+                <TableHead v-if="canManage" :class="[tableHeadClass, 'w-[120px]']">
+                  {{ $t("tenantInvitation.columns.operations") }}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="row in invitations" :key="row.id" class="hover:bg-accent">
+                <TableCell :class="tableCellClass">
+                  <div :class="memberCellClass">
+                    <template v-if="row.is_share_link">
+                      <span :class="[memberNameClass, 'text-primary inline-flex items-center gap-1']">
+                        <LinkIcon class="size-3.5 shrink-0" />
+                        {{ $t("tenantInvitation.shareLink.cellTitle") }}
+                      </span>
+                      <span :class="memberEmailClass">
+                        {{
+                          (row.accepted_count ?? 0) > 0
+                            ? $t("tenantInvitation.shareLink.cellAccepted", { count: row.accepted_count })
+                            : $t("tenantInvitation.shareLink.cellEmpty")
+                        }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span :class="[memberNameClass, 'text-foreground']">{{ inviteePrimary(row) }}</span>
+                      <span v-if="row.invitee_email && row.invitee_name" :class="memberEmailClass">{{
+                        row.invitee_email
+                      }}</span>
+                    </template>
+                  </div>
+                </TableCell>
+                <TableCell :class="tableCellClass">
+                  <span :class="[tagBaseClass, roleTagClass(row.role)]">
+                    {{ $t("tenantMember.role." + row.role) }}
+                  </span>
+                </TableCell>
+                <TableCell :class="[tableCellClass, 'truncate']">{{ inviterPrimary(row) }}</TableCell>
+                <TableCell :class="tableCellClass">{{ formatDate(row.expires_at) }}</TableCell>
+                <TableCell :class="tableCellClass">
+                  <span :class="[tagBaseClass, invitationStatusClass(row.status)]">
+                    {{
+                      row.is_share_link && row.status === "pending"
+                        ? $t("tenantInvitation.status.shareLinkActive")
+                        : $t("tenantInvitation.status." + row.status)
+                    }}
+                  </span>
+                </TableCell>
+                <TableCell v-if="canManage" :class="tableCellClass">
+                  <div class="flex items-center">
+                    <!-- Per-row "copy link" for active share-link rows.
+                         Icon-only with tooltip so two actions ("copy" +
+                         "revoke") fit inside the actions column without
+                         clipping; the full label was too wide. -->
+                    <Tooltip v-if="row.status === 'pending' && row.invite_url">
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          :aria-label="$t('tenantInvitation.copyLink')"
+                          @click="copyText(absoluteInviteURL(row.invite_url))"
+                        >
+                          <CopyIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" :class="tooltipLayerClass">{{
+                        $t("tenantInvitation.copyLink")
+                      }}</TooltipContent>
+                    </Tooltip>
+                    <!-- Inline popconfirm anchored to the revoke button.
+                           Avoids spawning a top-level modal for a simple
+                           yes/no decision; the popover stays inside the
+                           table cell so the user keeps spatial context. -->
+                    <Popover v-if="row.status === 'pending'">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              :class="dangerIconButtonClass"
+                              :aria-label="$t('tenantInvitation.revoke.button')"
+                            >
+                              <XIcon />
+                            </Button>
+                          </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" :class="tooltipLayerClass">{{
+                          $t("tenantInvitation.revoke.button")
+                        }}</TooltipContent>
+                      </Tooltip>
+                      <PopoverContent side="left" :class="popconfirmClass">
+                        <div class="flex items-start gap-2">
+                          <CircleAlertIcon class="text-warning mt-0.5 size-4 shrink-0" />
+                          <p class="text-foreground m-0 text-[14px] leading-[1.5]">
+                            {{
+                              row.is_share_link
+                                ? $t("tenantInvitation.shareLink.revokeConfirm")
+                                : $t("tenantInvitation.revoke.confirmBody", {
+                                    email: row.invitee_email || row.invitee_user_id,
+                                  })
+                            }}
+                          </p>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                          <PopoverClose as-child>
+                            <Button variant="outline" size="sm">{{ $t("common.cancel") }}</Button>
+                          </PopoverClose>
+                          <PopoverClose as-child>
+                            <Button size="sm" :class="dangerSolidButtonClass" @click="doRevokeInvitation(row)">
+                              {{ $t("tenantInvitation.revoke.confirm") }}
+                            </Button>
+                          </PopoverClose>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <!-- 待接受区块整体为浅底色，分页条与表格区同色阶、仅靠顶部分割线与表格区分 -->
+          <div v-if="invitationsTotal > 0" :class="pagerBarClass">
+            <TenantMembersPager
+              v-model:page="invitationsPage"
               v-model:page-size="invitationsPageSize"
               :total="invitationsTotal"
-              size="small"
-              show-jumper
-              show-page-number
-              show-page-size
               :page-size-options="INVITATIONS_PAGE_SIZE_OPTIONS"
               @change="onInvitationsPageChange"
             />
@@ -224,66 +307,102 @@
       <!-- Member list. 列表头（标题 / 计数 / 搜索框 / 邀请按钮）始终
            渲染，loading / error / empty / 表格作为下方的内容状态切换。
            这样搜索时输入框不会被卸载，避免焦点丢失与页面抖动。 -->
-      <div class="members-list-wrap">
-        <div class="members-list-header">
-          <div class="members-list-titlewrap">
-            <span class="members-list-title">{{ $t("tenantMember.listTitle") }}</span>
-            <span class="members-list-count-badge">{{ membersTotal }}</span>
+      <div class="flex flex-col gap-2.5">
+        <!-- 列表上方的标题行：「空间成员 [N]」 左侧；右侧
+             是「搜索 + 邀请按钮」一组。视觉级别与「待接受邀请」一致。 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 px-0.5">
+          <div class="inline-flex min-w-0 items-center gap-2">
+            <span class="text-foreground text-[14px] font-semibold">{{ $t("tenantMember.listTitle") }}</span>
+            <span :class="countBadgeClass">{{ membersTotal }}</span>
           </div>
-          <div class="members-list-actions">
-            <div class="members-list-search">
-              <t-input v-model="searchQuery" size="small" :placeholder="$t('tenantMember.searchPlaceholder')" clearable>
-                <template #prefix-icon><t-icon name="search" /></template>
-              </t-input>
-            </div>
-            <t-popup
-              v-if="canManage"
-              v-model="invitePopupVisible"
-              trigger="click"
-              placement="bottom-end"
-              destroy-on-close
-              overlay-class-name="member-invite-popup-overlay"
-            >
-              <t-button
-                theme="primary"
-                variant="outline"
-                shape="square"
-                size="small"
-                class="members-list-add-btn"
-                :title="$t('tenantMember.add.button')"
-                :aria-label="$t('tenantMember.add.button')"
+          <div
+            class="inline-flex min-w-0 flex-[0_1_auto] items-center gap-2 max-[560px]:w-full max-[560px]:justify-start"
+          >
+            <!-- An explicit width keeps the row from shifting when the clear
+                 button appears; on narrow screens the box takes the row. -->
+            <div class="relative w-56 min-w-0 flex-[0_0_14rem] max-[560px]:w-auto max-[560px]:flex-[1_1_auto]">
+              <SearchIcon
+                class="text-placeholder pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2"
+              />
+              <Input
+                v-model="searchQuery"
+                :placeholder="$t('tenantMember.searchPlaceholder')"
+                class="h-7 pr-7 pl-7 text-[13px] md:text-[13px]"
+              />
+              <button
+                v-if="searchQuery"
+                type="button"
+                data-slot="search-clear"
+                class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 flex -translate-y-1/2"
+                :aria-label="$t('common.clear')"
+                @click="searchQuery = ''"
               >
-                <template #icon><t-icon name="user-add" /></template>
-              </t-button>
-              <template #content>
-                <div class="member-invite-popup-inner" @click.stop>
-                  <div class="member-invite-popup-title">
+                <CircleXIcon class="size-3.5" />
+              </button>
+            </div>
+            <Popover v-if="canManage" v-model:open="invitePopupVisible">
+              <PopoverTrigger as-child>
+                <!-- outline + primary: an icon button with enough weight to read as the list's main action. -->
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  class="border-primary text-primary hover:text-primary shrink-0"
+                  :title="$t('tenantMember.add.button')"
+                  :aria-label="$t('tenantMember.add.button')"
+                >
+                  <UserPlusIcon />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" :class="[popupSurfaceClass, invitePopupClass]">
+                <div class="max-w-full" @click.stop>
+                  <div class="text-foreground m-0 mb-3 text-[15px] leading-[1.35] font-semibold">
                     {{
                       addDialogStep === "form"
                         ? $t("tenantMember.add.dialogTitle")
                         : $t("tenantInvitation.confirmInviteTitle")
                     }}
                   </div>
-                  <t-form
-                    v-if="addDialogStep === 'form'"
-                    ref="addFormRef"
-                    :data="addForm"
-                    :rules="addFormRules"
-                    :label-width="80"
-                    class="member-invite-form"
-                  >
-                    <t-form-item :label="$t('tenantMember.add.emailLabel')" name="email">
-                      <t-input
-                        v-model="addForm.email"
-                        :placeholder="$t('tenantMember.add.emailPlaceholder')"
-                        clearable
-                      />
-                    </t-form-item>
-                    <t-form-item :label="$t('tenantMember.add.roleLabel')" name="role">
-                      <t-select v-model="addForm.role" :options="roleOptions" :popup-props="roleSelectPopupProps" />
-                    </t-form-item>
-                  </t-form>
-                  <div v-else class="invite-confirm-body">
+                  <form v-if="addDialogStep === 'form'" class="flex flex-col" @submit.prevent="submitAdd">
+                    <div :class="formItemClass">
+                      <Label for="tenant-member-invite-email" :class="formLabelClass">
+                        {{ $t("tenantMember.add.emailLabel") }}
+                      </Label>
+                      <div class="min-w-0">
+                        <Input
+                          id="tenant-member-invite-email"
+                          v-model="addForm.email"
+                          :placeholder="$t('tenantMember.add.emailPlaceholder')"
+                          :aria-invalid="addFormErrors.email ? true : undefined"
+                          @blur="validateAddEmail"
+                        />
+                        <p v-if="addFormErrors.email" class="text-destructive m-0 mt-1 text-xs">
+                          {{ addFormErrors.email }}
+                        </p>
+                      </div>
+                    </div>
+                    <div :class="[formItemClass, 'mb-1']">
+                      <Label :class="formLabelClass">{{ $t("tenantMember.add.roleLabel") }}</Label>
+                      <div class="min-w-0">
+                        <Select
+                          :model-value="addForm.role"
+                          @update:model-value="(v) => onAddRoleChange(String(v ?? ''))"
+                        >
+                          <SelectTrigger class="w-full" :aria-invalid="addFormErrors.role ? true : undefined">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent position="popper" :class="selectLayerClass">
+                            <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                              {{ opt.label }}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p v-if="addFormErrors.role" class="text-destructive m-0 mt-1 text-xs">
+                          {{ addFormErrors.role }}
+                        </p>
+                      </div>
+                    </div>
+                  </form>
+                  <div v-else :class="inviteBodyClass">
                     {{
                       $t("tenantInvitation.confirmInviteBody", {
                         email: addConfirmEmail,
@@ -291,195 +410,242 @@
                       })
                     }}
                   </div>
-                  <div class="invite-popup-footer">
-                    <t-button
+                  <div class="mt-4 flex justify-end gap-2">
+                    <Button
                       v-if="addDialogStep === 'form'"
                       variant="outline"
                       :disabled="adding"
                       @click="invitePopupVisible = false"
                     >
                       {{ $t("common.cancel") }}
-                    </t-button>
-                    <t-button v-else variant="outline" :disabled="adding" @click="goBackToForm">
+                    </Button>
+                    <Button v-else variant="outline" :disabled="adding" @click="goBackToForm">
                       {{ $t("common.back") }}
-                    </t-button>
-                    <t-button theme="primary" :loading="adding" @click="submitAdd">
+                    </Button>
+                    <Button :disabled="adding" @click="submitAdd">
+                      <Loader2Icon v-if="adding" class="animate-spin" />
                       {{ dialogConfirmLabel }}
-                    </t-button>
+                    </Button>
                   </div>
                 </div>
-              </template>
-            </t-popup>
+              </PopoverContent>
+            </Popover>
             <!-- Share-link generator. Sits next to the invite-by-email
                  popup so the two flows live side-by-side: "I know who"
                  (email input) vs "I don't" (one link, group chat). -->
-            <t-popup
-              v-if="canManage"
-              v-model="shareLinkPopupVisible"
-              trigger="click"
-              placement="bottom-end"
-              destroy-on-close
-              overlay-class-name="member-invite-popup-overlay"
-            >
-              <t-button
-                theme="default"
-                variant="outline"
-                shape="square"
-                size="small"
-                class="members-list-add-btn"
-                :title="$t('tenantInvitation.shareLink.button')"
-                :aria-label="$t('tenantInvitation.shareLink.button')"
-              >
-                <template #icon><t-icon name="link" /></template>
-              </t-button>
-              <template #content>
-                <div class="member-invite-popup-inner" @click.stop>
-                  <div class="member-invite-popup-title">
+            <Popover v-if="canManage" v-model:open="shareLinkPopupVisible">
+              <PopoverTrigger as-child>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  class="shrink-0"
+                  :title="$t('tenantInvitation.shareLink.button')"
+                  :aria-label="$t('tenantInvitation.shareLink.button')"
+                >
+                  <LinkIcon />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" :class="[popupSurfaceClass, invitePopupClass]">
+                <div class="max-w-full" @click.stop>
+                  <div class="text-foreground m-0 mb-3 text-[15px] leading-[1.35] font-semibold">
                     {{
                       shareLinkResult
                         ? $t("tenantInvitation.shareLink.resultTitle")
                         : $t("tenantInvitation.shareLink.dialogTitle")
                     }}
                   </div>
-                  <div v-if="!shareLinkResult" class="member-invite-form">
-                    <p class="invite-confirm-body">
+                  <div v-if="!shareLinkResult" class="flex flex-col">
+                    <p :class="[inviteBodyClass, 'm-0']">
                       {{ $t("tenantInvitation.shareLink.description", { days: INVITATION_TTL_DAYS }) }}
                     </p>
-                    <t-form :data="shareLinkForm" :label-width="80">
-                      <t-form-item :label="$t('tenantMember.add.roleLabel')" name="role">
-                        <t-select
-                          v-model="shareLinkForm.role"
-                          :options="roleOptions"
-                          :popup-props="roleSelectPopupProps"
-                        />
-                      </t-form-item>
-                    </t-form>
+                    <div :class="[formItemClass, 'mb-1']">
+                      <Label :class="formLabelClass">{{ $t("tenantMember.add.roleLabel") }}</Label>
+                      <Select
+                        :model-value="shareLinkForm.role"
+                        @update:model-value="(v) => (shareLinkForm.role = String(v ?? '') as TenantRole)"
+                      >
+                        <SelectTrigger class="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper" :class="selectLayerClass">
+                          <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div v-else class="share-link-result">
-                    <p class="invite-confirm-body">
+                  <!-- Share-link result panel — single-row layout: input field stretches,
+                       copy button stays fixed-width. -->
+                  <div v-else class="pt-1">
+                    <p :class="[inviteBodyClass, 'm-0']">
                       {{ $t("tenantInvitation.shareLink.resultBody") }}
                     </p>
-                    <div class="share-link-row">
+                    <div class="mt-2 flex items-center gap-2">
                       <input
-                        class="share-link-row__input"
+                        data-slot="share-link-input"
+                        class="border-border bg-background text-foreground focus:border-primary min-w-0 flex-auto rounded-md border px-2.5 py-[7px] font-mono text-[12px] outline-none"
                         :value="absoluteInviteURL(shareLinkResult.invite_url || '')"
                         readonly
                         @click="($event.target as HTMLInputElement).select()"
                       />
-                      <t-button
-                        size="small"
-                        theme="primary"
+                      <Button
+                        size="sm"
                         variant="outline"
+                        class="border-primary text-primary hover:text-primary"
                         @click="copyText(absoluteInviteURL(shareLinkResult.invite_url || ''))"
                       >
-                        <template #icon><t-icon name="copy" /></template>
+                        <CopyIcon />
                         {{ $t("tenantInvitation.copyLink") }}
-                      </t-button>
+                      </Button>
                     </div>
                   </div>
-                  <div class="invite-popup-footer">
-                    <t-button
+                  <div class="mt-4 flex justify-end gap-2">
+                    <Button
                       v-if="!shareLinkResult"
                       variant="outline"
                       :disabled="creatingShareLink"
                       @click="shareLinkPopupVisible = false"
                     >
                       {{ $t("common.cancel") }}
-                    </t-button>
-                    <t-button v-else variant="outline" @click="shareLinkPopupVisible = false">
+                    </Button>
+                    <Button v-else variant="outline" @click="shareLinkPopupVisible = false">
                       {{ $t("common.close") }}
-                    </t-button>
-                    <t-button
-                      v-if="!shareLinkResult"
-                      theme="primary"
-                      :loading="creatingShareLink"
-                      @click="submitShareLink"
-                    >
+                    </Button>
+                    <Button v-if="!shareLinkResult" :disabled="creatingShareLink" @click="submitShareLink">
+                      <Loader2Icon v-if="creatingShareLink" class="animate-spin" />
                       {{ $t("tenantInvitation.shareLink.generate") }}
-                    </t-button>
+                    </Button>
                   </div>
                 </div>
-              </template>
-            </t-popup>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-        <div v-if="loading && members.length === 0" class="loading-inline">
-          <t-loading size="small" />
+        <div v-if="loading && members.length === 0" class="flex items-center gap-2 pt-5 pb-2">
+          <Loader2Icon class="text-primary size-4 animate-spin" />
           <span>{{ $t("tenantMember.loading") }}</span>
         </div>
-        <div v-else-if="error" class="error-inline">
-          <t-alert theme="error" :message="error">
-            <template #operation>
-              <t-button size="small" @click="loadMembers">{{ $t("tenantMember.retry") }}</t-button>
-            </template>
-          </t-alert>
+        <div v-else-if="error" class="flex items-center gap-2 pt-5 pb-2">
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertDescription>{{ error }}</AlertDescription>
+            <AlertAction>
+              <Button size="sm" variant="outline" @click="loadMembers">{{ $t("tenantMember.retry") }}</Button>
+            </AlertAction>
+          </Alert>
         </div>
-        <div v-else-if="membersTotal === 0" class="empty-state">
-          <t-empty
-            :description="
-              searchQuery.trim() ? $t('tenantMember.emptySearch', { q: searchQuery }) : $t('tenantMember.empty')
-            "
-          />
+        <div v-else-if="membersTotal === 0" class="flex justify-center pt-10 pb-4">
+          <Empty class="p-0">
+            <EmptyDescription>{{
+              searchQuery.trim() ? $t("tenantMember.emptySearch", { q: searchQuery }) : $t("tenantMember.empty")
+            }}</EmptyDescription>
+          </Empty>
         </div>
-        <div v-else class="data-table-shell data-table-shell--with-footer">
-          <div class="data-table-shell__scroll">
-            <t-table row-key="user_id" :data="members" :columns="columns" size="medium" hover stripe :loading="loading">
-              <template #member="{ row }">
-                <div class="member-cell">
-                  <span class="member-name">{{ memberPrimary(row) }}</span>
-                  <span v-if="memberSecondary(row)" class="member-email">{{ memberSecondary(row) }}</span>
-                </div>
-              </template>
-              <template #role="{ row }">
-                <div class="role-cell">
-                  <t-select
-                    v-if="canManage && row.user_id !== currentUserId"
-                    :model-value="row.role"
-                    class="member-role-select"
-                    size="small"
-                    :popup-props="roleSelectPopupProps"
-                    @change="(val: string) => onRoleChange(row, val)"
-                  >
-                    <t-option v-for="opt in roleOptions" :key="opt.value" :value="opt.value" :label="opt.label">
-                      <span class="role-option">
-                        <t-icon :name="roleIcon(opt.value)" class="role-option-icon" />
-                        <span>{{ opt.label }}</span>
+        <div v-else :class="[tableShellClass, 'bg-card']">
+          <div class="relative">
+            <Table class="min-w-[502px] table-fixed">
+              <TableHeader>
+                <TableRow :class="tableHeadRowClass">
+                  <TableHead :class="[tableHeadClass, 'min-w-[132px]']">
+                    {{ $t("tenantMember.columns.member") }}
+                  </TableHead>
+                  <TableHead :class="[tableHeadClass, 'w-[128px]']">{{ $t("tenantMember.columns.role") }}</TableHead>
+                  <TableHead :class="[tableHeadClass, 'w-[154px]']">
+                    {{ $t("tenantMember.columns.joinedAt") }}
+                  </TableHead>
+                  <TableHead :class="[tableHeadClass, 'w-[88px]']">
+                    {{ $t("tenantMember.columns.operations") }}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in members" :key="row.user_id" class="even:bg-secondary hover:bg-accent">
+                  <TableCell :class="tableCellClass">
+                    <div :class="memberCellClass">
+                      <span :class="[memberNameClass, 'text-foreground']">{{ memberPrimary(row) }}</span>
+                      <span v-if="memberSecondary(row)" :class="memberEmailClass">{{ memberSecondary(row) }}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell :class="tableCellClass">
+                    <!-- 角色列：下拉收缩到格宽以内，与其他列对齐。 -->
+                    <div class="box-border flex min-w-0 items-center">
+                      <Select
+                        v-if="canManage && row.user_id !== currentUserId"
+                        :model-value="row.role"
+                        @update:model-value="(v) => onRoleChange(row, String(v ?? ''))"
+                      >
+                        <SelectTrigger size="sm" class="w-full text-[13px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper" :class="selectLayerClass">
+                          <SelectItem v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+                            <span class="inline-flex items-center gap-2">
+                              <component :is="roleIcon(opt.value)" class="text-muted-foreground size-3.5" />
+                              <span>{{ opt.label }}</span>
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span v-else :class="[tagBaseClass, roleTagClass(row.role)]">
+                        {{ $t("tenantMember.role." + row.role) }}
                       </span>
-                    </t-option>
-                  </t-select>
-                  <t-tag v-else :theme="roleTagTheme(row.role)" size="small">
-                    {{ $t("tenantMember.role." + row.role) }}
-                  </t-tag>
-                </div>
-              </template>
-              <template #joined_at="{ row }">{{ formatDate(row.joined_at) }}</template>
-              <template #actions="{ row }">
-                <t-popconfirm
-                  v-if="canManage && row.user_id !== currentUserId"
-                  :content="$t('tenantMember.remove.confirmBody', { name: row.username || row.email })"
-                  :confirm-btn="{ content: $t('tenantMember.remove.confirm'), theme: 'danger' }"
-                  :cancel-btn="{ content: $t('common.cancel') }"
-                  placement="left"
-                  @confirm="removeRow(row)"
-                >
-                  <t-tooltip :content="$t('tenantMember.remove.button')" placement="top">
-                    <t-button theme="danger" shape="square" variant="text" size="small" @click.stop>
-                      <template #icon><t-icon name="user-clear" /></template>
-                    </t-button>
-                  </t-tooltip>
-                </t-popconfirm>
-              </template>
-            </t-table>
+                    </div>
+                  </TableCell>
+                  <TableCell :class="tableCellClass">{{ formatDate(row.joined_at) }}</TableCell>
+                  <TableCell :class="tableCellClass">
+                    <Popover v-if="canManage && row.user_id !== currentUserId">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              :class="dangerIconButtonClass"
+                              :aria-label="$t('tenantMember.remove.button')"
+                              @click.stop
+                            >
+                              <UserXIcon />
+                            </Button>
+                          </PopoverTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" :class="tooltipLayerClass">{{
+                          $t("tenantMember.remove.button")
+                        }}</TooltipContent>
+                      </Tooltip>
+                      <PopoverContent side="left" :class="popconfirmClass">
+                        <div class="flex items-start gap-2">
+                          <InfoIcon class="text-primary mt-0.5 size-4 shrink-0" />
+                          <p class="text-foreground m-0 text-[14px] leading-[1.5]">
+                            {{ $t("tenantMember.remove.confirmBody", { name: row.username || row.email }) }}
+                          </p>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                          <PopoverClose as-child>
+                            <Button variant="outline" size="sm">{{ $t("common.cancel") }}</Button>
+                          </PopoverClose>
+                          <PopoverClose as-child>
+                            <Button size="sm" :class="dangerSolidButtonClass" @click="removeRow(row)">
+                              {{ $t("tenantMember.remove.confirm") }}
+                            </Button>
+                          </PopoverClose>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            <!-- A reload over rows already on screen dims them instead of blanking the table. -->
+            <div v-if="loading" class="bg-card/60 absolute inset-0 flex items-center justify-center">
+              <Loader2Icon class="text-primary size-5 animate-spin" />
+            </div>
           </div>
-          <div v-if="membersTotal > 0" class="data-table-shell__pager">
-            <t-pagination
-              v-model="membersPage"
+          <div v-if="membersTotal > 0" :class="[pagerBarClass, 'bg-card']">
+            <TenantMembersPager
+              v-model:page="membersPage"
               v-model:page-size="membersPageSize"
               :total="membersTotal"
-              size="small"
-              show-jumper
-              show-page-number
-              show-page-size
               :page-size-options="MEMBERS_PAGE_SIZE_OPTIONS"
               @change="onMembersPageChange"
             />
@@ -491,156 +657,254 @@
     <!-- Audit log drawer. Only rendered for Admin+ because the backend
          route is g.Admin()-gated; rendering it for lower roles would
          just produce an unhelpful 403. Lazy-loaded on first open. -->
-    <t-drawer
+    <Drawer
       v-if="canViewAudit"
-      v-model:visible="auditDrawerVisible"
-      :header="$t('tenantMember.audit.tabLabel')"
-      drawer-class-name="tenant-members-audit-drawer"
-      size="880px"
-      :footer="false"
-      placement="right"
-      destroy-on-close
+      :open="auditDrawerVisible"
+      swipe-direction="right"
+      @update:open="(v: boolean) => (auditDrawerVisible = v)"
     >
-      <div class="audit-drawer-inner audit-panel audit-panel--drawer">
-        <div class="audit-header">
-          <span class="audit-desc">{{ $t("tenantMember.audit.description") }}</span>
-          <t-button
-            variant="text"
-            size="small"
-            class="audit-refresh-btn"
-            :loading="auditLoading"
-            :disabled="auditLoading"
-            @click="reloadAuditLog"
-          >
-            <template #icon><t-icon name="refresh" /></template>
-            {{ $t("tenantMember.audit.refresh") }}
-          </t-button>
-        </div>
+      <!--
+        z-[2500] lifts the panel over the settings modal (z 1100) that hosts
+        this page; the ui drawer's own z-50 would sit underneath it. The width is set through the same data-[swipe-direction=right] variants
+        the ui drawer uses for its default 3/4 width, so that they replace it
+        rather than lose to its higher specificity.
+      -->
+      <DrawerContent
+        class="z-[2500] data-[swipe-direction=right]:w-[880px] data-[swipe-direction=right]:max-w-[100vw] data-[swipe-direction=right]:rounded-l-none data-[swipe-direction=right]:sm:max-w-[100vw]"
+      >
+        <header class="border-border flex items-center gap-2.5 border-b px-[18px] py-3.5">
+          <div class="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-[9px]">
+            <HistoryIcon class="size-4" />
+          </div>
+          <DrawerTitle class="text-foreground m-0 min-w-0 flex-1 truncate text-[15px] leading-[1.4] font-semibold">
+            {{ $t("tenantMember.audit.tabLabel") }}
+          </DrawerTitle>
+          <DrawerClose as-child>
+            <Button variant="ghost" size="icon-sm" :aria-label="$t('common.close')">
+              <XIcon />
+            </Button>
+          </DrawerClose>
+        </header>
 
-        <div class="audit-drawer-fill">
-          <div v-if="auditError" class="audit-drawer-branch audit-drawer-branch--error">
-            <div class="error-inline">
-              <t-alert theme="error" :message="auditError">
-                <template #operation>
-                  <t-button size="small" @click="reloadAuditLog">
-                    {{ $t("tenantMember.retry") }}
-                  </t-button>
-                </template>
-              </t-alert>
+        <div class="box-border flex min-h-0 w-full flex-auto flex-col gap-3.5 px-[18px] py-4">
+          <div class="bg-secondary flex items-center justify-between gap-3 rounded-lg px-4 py-3">
+            <span class="text-muted-foreground min-w-0 flex-1 text-[13px]">{{
+              $t("tenantMember.audit.description")
+            }}</span>
+            <Button variant="ghost" size="sm" class="shrink-0" :disabled="auditLoading" @click="reloadAuditLog">
+              <Loader2Icon v-if="auditLoading" class="animate-spin" />
+              <RefreshCwIcon v-else />
+              {{ $t("tenantMember.audit.refresh") }}
+            </Button>
+          </div>
+
+          <div class="flex min-h-0 flex-auto flex-col">
+            <div v-if="auditError" class="flex min-h-0 flex-auto flex-col justify-center">
+              <div class="flex w-full items-center gap-2 pt-5 pb-2">
+                <Alert variant="destructive">
+                  <CircleAlertIcon />
+                  <AlertDescription>{{ auditError }}</AlertDescription>
+                  <AlertAction>
+                    <Button size="sm" variant="outline" @click="reloadAuditLog">
+                      {{ $t("tenantMember.retry") }}
+                    </Button>
+                  </AlertAction>
+                </Alert>
+              </div>
             </div>
-          </div>
 
-          <div
-            v-else-if="!auditLoading && auditEntries.length === 0"
-            class="audit-drawer-branch audit-drawer-branch--empty empty-state empty-state--audit"
-          >
-            <t-empty :description="$t('tenantMember.audit.empty')" />
-          </div>
+            <div
+              v-else-if="!auditLoading && auditEntries.length === 0"
+              class="flex min-h-0 flex-auto flex-col items-center justify-center px-3 py-6"
+            >
+              <Empty class="p-0">
+                <EmptyDescription>{{ $t("tenantMember.audit.empty") }}</EmptyDescription>
+              </Empty>
+            </div>
 
-          <div v-else class="audit-scroll-area narrow-scrollbar audit-drawer-branch" ref="auditScrollRoot">
-            <div class="data-table-shell audit-table-shell">
-              <t-table
-                row-key="id"
-                :data="auditEntries"
-                :columns="auditColumns"
-                size="medium"
-                hover
-                expand-on-row-click
-                :expanded-row-keys="auditExpandedRowKeys"
-                @expand-change="onAuditExpandChange"
+            <!--
+              This area is the vertical scroller: the IntersectionObserver
+              uses it as root, and the sticky header pins to it. The table
+              is a bare <table> rather than ui/Table because that wrapper is
+              a scroll container of its own, which would capture the sticky
+              header.
+            -->
+            <div v-else ref="auditScrollRoot" class="flex min-h-0 flex-auto flex-col overflow-auto">
+              <div :class="[tableShellClass, 'bg-card shrink-0 overflow-clip']">
+                <table data-slot="table" class="w-full min-w-[906px] table-fixed caption-bottom text-sm">
+                  <TableHeader>
+                    <TableRow class="hover:bg-transparent">
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'w-9']" />
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'w-[120px]']">
+                        {{ $t("tenantMember.audit.columns.time") }}
+                      </TableHead>
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'w-[180px]']">
+                        {{ $t("tenantMember.audit.columns.actor") }}
+                      </TableHead>
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'w-[130px]']">
+                        {{ $t("tenantMember.audit.columns.action") }}
+                      </TableHead>
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'min-w-[200px]']">
+                        {{ $t("tenantMember.audit.columns.target") }}
+                      </TableHead>
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'min-w-[160px]']">
+                        {{ $t("tenantMember.audit.columns.path") }}
+                      </TableHead>
+                      <TableHead :class="[tableHeadClass, auditStickyHeadClass, 'w-[80px] text-center']">
+                        {{ $t("tenantMember.audit.columns.outcome") }}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <template v-for="row in auditEntries" :key="row.id">
+                      <!-- The whole row toggles its detail panel, as expand-on-row-click did. -->
+                      <TableRow
+                        class="hover:bg-accent cursor-pointer"
+                        :aria-expanded="auditExpandedRowKeys.includes(row.id)"
+                        @click="toggleAuditRow(row.id)"
+                      >
+                        <TableCell :class="[auditCellClass, 'px-2 text-center']">
+                          <ChevronRightIcon
+                            class="text-muted-foreground inline size-4 transition-transform duration-200"
+                            :class="{ 'rotate-90': auditExpandedRowKeys.includes(row.id) }"
+                          />
+                        </TableCell>
+                        <TableCell :class="auditCellClass">
+                          <!-- Stacked "date / time": fifty events in one minute stay distinguishable. -->
+                          <div class="flex flex-col gap-0.5 leading-[1.3]">
+                            <span class="text-muted-foreground text-[12px]">{{
+                              formatAuditDatePart(row.created_at)
+                            }}</span>
+                            <span class="text-foreground text-[13px] font-medium tabular-nums">{{
+                              formatAuditTimePart(row.created_at)
+                            }}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell :class="auditCellClass">
+                          <div class="flex min-w-0 flex-col gap-0.5 leading-[1.3]">
+                            <span class="text-foreground truncate text-[13px] font-medium">
+                              {{
+                                row.actor_user_id
+                                  ? actorDisplayName(row.actor_user_id)
+                                  : $t("tenantMember.audit.systemActor")
+                              }}
+                            </span>
+                            <span v-if="row.actor_role" class="text-muted-foreground text-[12px]">
+                              {{ $t("tenantMember.role." + row.actor_role) }}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell :class="auditCellClass">
+                          <span :class="[tagBaseClass, 'border', auditActionClass(row.action)]">
+                            {{ formatAuditAction(row.action) }}
+                          </span>
+                        </TableCell>
+                        <TableCell :class="[auditCellClass, 'whitespace-normal']">
+                          <div class="flex min-w-0 flex-col gap-1 py-0.5 leading-[1.35]">
+                            <span v-if="auditTargetSubject(row)" class="text-foreground text-[13px] break-all">{{
+                              auditTargetSubject(row)
+                            }}</span>
+                            <span
+                              v-if="auditTargetDiff(row)"
+                              class="text-muted-foreground font-[family-name:var(--td-font-family-mono,monospace)] text-[12px] leading-[1.4] break-all"
+                              >{{ auditTargetDiff(row) }}</span
+                            >
+                            <span v-else-if="!auditTargetSubject(row)" class="text-placeholder">—</span>
+                          </div>
+                        </TableCell>
+                        <TableCell :class="[auditCellClass, 'whitespace-normal']">
+                          <span
+                            v-if="row.request_path"
+                            class="text-muted-foreground font-[family-name:var(--td-font-family-mono,monospace)] text-[12px] break-all"
+                          >
+                            <span v-if="row.request_method" class="text-foreground mr-1 inline-block font-semibold">{{
+                              row.request_method
+                            }}</span>
+                            {{ row.request_path }}
+                          </span>
+                          <span v-else class="text-placeholder">—</span>
+                        </TableCell>
+                        <TableCell :class="[auditCellClass, 'text-center']">
+                          <span :class="[tagBaseClass, auditOutcomeClass(row.outcome)]">
+                            {{ $t("tenantMember.audit.outcome." + row.outcome) }}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                      <!-- Expandable row body. Background steps off-card so the nested
+                           context is clearly distinct from the row strip above it. -->
+                      <TableRow v-if="auditExpandedRowKeys.includes(row.id)" class="hover:bg-transparent">
+                        <TableCell colspan="7" class="p-0 whitespace-normal">
+                          <div class="bg-accent flex flex-col gap-3 px-4 py-3">
+                            <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-[18px] gap-y-2.5">
+                              <div class="flex min-w-0 flex-col gap-0.5">
+                                <span :class="auditExpandedLabelClass">{{
+                                  $t("tenantMember.audit.expanded.actorId")
+                                }}</span>
+                                <span :class="auditExpandedValueClass">{{ row.actor_user_id || "—" }}</span>
+                              </div>
+                              <div v-if="row.target_user_id" class="flex min-w-0 flex-col gap-0.5">
+                                <span :class="auditExpandedLabelClass">{{
+                                  $t("tenantMember.audit.expanded.targetUserId")
+                                }}</span>
+                                <span :class="auditExpandedValueClass">{{ row.target_user_id }}</span>
+                              </div>
+                              <div v-if="row.target_type" class="flex min-w-0 flex-col gap-0.5">
+                                <span :class="auditExpandedLabelClass">{{
+                                  $t("tenantMember.audit.expanded.targetType")
+                                }}</span>
+                                <span :class="auditExpandedValueClass">{{ row.target_type }}</span>
+                              </div>
+                              <div v-if="row.target_id" class="flex min-w-0 flex-col gap-0.5">
+                                <span :class="auditExpandedLabelClass">{{
+                                  $t("tenantMember.audit.expanded.targetId")
+                                }}</span>
+                                <span :class="auditExpandedValueClass">{{ row.target_id }}</span>
+                              </div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                              <span :class="auditExpandedLabelClass">{{
+                                $t("tenantMember.audit.expanded.details")
+                              }}</span>
+                              <pre
+                                class="border-border bg-card text-foreground m-0 max-h-[280px] overflow-auto rounded-md border px-3 py-2.5 font-[family-name:var(--td-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace)] text-[12px] leading-[1.55] break-all whitespace-pre-wrap"
+                                >{{ auditDetailsJSON(row) }}</pre>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </template>
+                  </TableBody>
+                </table>
+              </div>
+
+              <!-- 触底 sentinel：IntersectionObserver root 指向滚动区 -->
+              <div ref="auditLoadSentinelEl" class="pointer-events-none h-px w-full shrink-0" aria-hidden="true" />
+
+              <div
+                v-if="auditLoading && auditEntries.length > 0"
+                class="text-muted-foreground flex items-center justify-center gap-2.5 p-3 text-[12px]"
               >
-                <template #created_at="{ row }">
-                  <div class="audit-time">
-                    <span class="audit-time-date">{{ formatAuditDatePart(row.created_at) }}</span>
-                    <span class="audit-time-clock">{{ formatAuditTimePart(row.created_at) }}</span>
-                  </div>
-                </template>
-                <template #actor="{ row }">
-                  <div class="audit-actor">
-                    <span class="audit-actor-name">
-                      {{
-                        row.actor_user_id ? actorDisplayName(row.actor_user_id) : $t("tenantMember.audit.systemActor")
-                      }}
-                    </span>
-                    <span v-if="row.actor_role" class="audit-actor-role">
-                      {{ $t("tenantMember.role." + row.actor_role) }}
-                    </span>
-                  </div>
-                </template>
-                <template #action="{ row }">
-                  <t-tag :theme="auditActionTheme(row.action)" size="small" variant="light-outline">
-                    {{ formatAuditAction(row.action) }}
-                  </t-tag>
-                </template>
-                <template #target="{ row }">
-                  <div class="audit-target">
-                    <span v-if="auditTargetSubject(row)" class="audit-target-key">{{ auditTargetSubject(row) }}</span>
-                    <span v-if="auditTargetDiff(row)" class="audit-target-diff">{{ auditTargetDiff(row) }}</span>
-                    <span v-else-if="!auditTargetSubject(row)" class="audit-target-empty">—</span>
-                  </div>
-                </template>
-                <template #request_path="{ row }">
-                  <span v-if="row.request_path" class="audit-path">
-                    <span v-if="row.request_method" class="audit-method">{{ row.request_method }}</span>
-                    {{ row.request_path }}
-                  </span>
-                  <span v-else class="audit-target-empty">—</span>
-                </template>
-                <template #outcome="{ row }">
-                  <t-tag :theme="auditOutcomeTheme(row.outcome)" size="small" variant="light">
-                    {{ $t("tenantMember.audit.outcome." + row.outcome) }}
-                  </t-tag>
-                </template>
-                <template #expandedRow="{ row }">
-                  <div class="audit-expanded">
-                    <div class="audit-expanded-grid">
-                      <div class="audit-expanded-cell">
-                        <span class="audit-expanded-label">{{ $t("tenantMember.audit.expanded.actorId") }}</span>
-                        <span class="audit-expanded-value mono">{{ row.actor_user_id || "—" }}</span>
-                      </div>
-                      <div v-if="row.target_user_id" class="audit-expanded-cell">
-                        <span class="audit-expanded-label">{{ $t("tenantMember.audit.expanded.targetUserId") }}</span>
-                        <span class="audit-expanded-value mono">{{ row.target_user_id }}</span>
-                      </div>
-                      <div v-if="row.target_type" class="audit-expanded-cell">
-                        <span class="audit-expanded-label">{{ $t("tenantMember.audit.expanded.targetType") }}</span>
-                        <span class="audit-expanded-value mono">{{ row.target_type }}</span>
-                      </div>
-                      <div v-if="row.target_id" class="audit-expanded-cell">
-                        <span class="audit-expanded-label">{{ $t("tenantMember.audit.expanded.targetId") }}</span>
-                        <span class="audit-expanded-value mono">{{ row.target_id }}</span>
-                      </div>
-                    </div>
-                    <div class="audit-expanded-details">
-                      <span class="audit-expanded-label">{{ $t("tenantMember.audit.expanded.details") }}</span>
-                      <pre class="audit-expanded-json mono">{{ auditDetailsJSON(row) }}</pre>
-                    </div>
-                  </div>
-                </template>
-              </t-table>
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("tenantMember.loading") }}</span>
+              </div>
+
+              <p
+                v-if="!auditHasMore && auditEntries.length > 0 && !auditLoading"
+                class="m-0 pt-2 pb-3.5 text-center text-[12px] text-[var(--td-text-color-disabled)]"
+              >
+                {{ $t("tenantMember.audit.end") }}
+              </p>
             </div>
-
-            <!-- 触底 sentinel：IntersectionObserver root 指向 audit-scroll-area -->
-            <div ref="auditLoadSentinelEl" class="audit-load-sentinel" aria-hidden="true" />
-
-            <div v-if="auditLoading && auditEntries.length > 0" class="audit-loading-more">
-              <t-loading size="small" />
-              <span>{{ $t("tenantMember.loading") }}</span>
-            </div>
-
-            <p v-if="!auditHasMore && auditEntries.length > 0 && !auditLoading" class="audit-end-hint">
-              {{ $t("tenantMember.audit.end") }}
-            </p>
           </div>
         </div>
-      </div>
-    </t-drawer>
+      </DrawerContent>
+    </Drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { docsUrl } from "@/config/externalLinks";
-import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, reactive, ref, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 import { copyWithToast } from "@/utils/clipboard";
@@ -656,19 +920,124 @@ import {
   type TenantInvitation,
 } from "@/api/tenant/invitations";
 import { listAuditLog, type AuditLog, type AuditAction, type AuditOutcome } from "@/api/tenant/audit-log";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleXIcon,
+  CopyIcon,
+  CrownIcon,
+  EyeIcon,
+  HistoryIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  PencilIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  UserPlusIcon,
+  UserXIcon,
+  XIcon,
+} from "@lucide/vue";
+import { PopoverClose } from "reka-ui";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import TenantMembersPager from "./TenantMembersPager.vue";
 
 const { t, tm, locale } = useI18n();
 const authStore = useAuthStore();
 
-/** 悬停层限制在视口内，内容由内部滚动 */
-const permissionsPopupInnerStyle = {
-  boxSizing: "border-box" as const,
-  padding: "0",
-  width: "min(520px, calc(100vw - 24px))",
-  maxWidth: "min(520px, calc(100vw - 24px))",
-  maxHeight: "min(400px, 65vh)",
-  overflow: "hidden",
-};
+// ---- Shared class strings ------------------------------------------------
+// The two tables, their pagers and the floating panels repeat the same
+// look several times over; naming each once keeps the template readable
+// and the copies from drifting apart.
+
+/**
+ * The floating panels (permission matrix, invite, share link) sit above the
+ * settings modal (z 1100) and its full-screen overlays, as the old overlay
+ * classes did with z-index 3050. The glassy card surface is theirs too, with
+ * a darker translucent ground in dark mode.
+ */
+const popupSurfaceClass =
+  "z-[3050] rounded-xl bg-card ring-0 border-[0.5px] border-border backdrop-blur-[20px] backdrop-saturate-[180%] " +
+  "shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)] " +
+  "dark:border-white/8 dark:bg-[rgba(36,36,36,0.92)] " +
+  "dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.05),0_2px_4px_rgba(0,0,0,0.12),0_8px_32px_rgba(0,0,0,0.28)]";
+const invitePopupClass = "w-auto min-w-[300px] max-w-[min(392px,calc(100vw-24px))] px-4 py-3.5";
+/** Inline confirmations anchored to a row action (the old t-popconfirm). */
+const popconfirmClass = "z-[3050] w-[min(320px,calc(100vw-24px))] gap-3 p-3";
+/** Select menus open from inside the invite popovers, so they must clear those too. */
+const selectLayerClass = "z-[6200]";
+const tooltipLayerClass = "z-[3100]";
+
+const countBadgeClass =
+  "inline-flex h-5 min-w-[22px] items-center justify-center rounded-[10px] bg-secondary px-[7px] text-[12px] leading-none font-semibold text-foreground";
+const tableShellClass = "flex flex-col overflow-hidden rounded-[10px] border border-border";
+const tableHeadRowClass = "bg-secondary hover:bg-secondary";
+const tableHeadClass = "px-4 py-3 text-[13px] font-semibold text-muted-foreground";
+const tableCellClass = "px-4 py-3 text-[14px] text-foreground";
+const auditCellClass = "px-4 py-3.5 align-middle text-[14px] text-foreground";
+// Sticky thead so the column labels survive long scrolls; the inset
+// shadow replaces the row separator that would otherwise scroll away.
+const auditStickyHeadClass = "sticky top-0 z-[2] bg-secondary shadow-[inset_0_-1px_0_var(--td-component-stroke)]";
+const pagerBarClass =
+  "flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border px-3.5 py-2.5";
+const memberCellClass = "flex min-w-0 flex-col gap-0.5 py-0.5";
+const memberNameClass = "truncate text-[14px] font-medium";
+const memberEmailClass = "truncate text-[12px] leading-[1.35] text-muted-foreground";
+const auditExpandedLabelClass = "text-[11px] font-semibold tracking-[0.04em] text-muted-foreground uppercase";
+const auditExpandedValueClass =
+  "font-[family-name:var(--td-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace)] text-[12px] break-all text-foreground";
+const dangerIconButtonClass = "text-destructive hover:bg-destructive/10 hover:text-destructive";
+const dangerSolidButtonClass = "bg-destructive text-primary-foreground hover:bg-destructive/90";
+const inviteBodyClass = "pt-1 pb-2 text-[14px] leading-[1.6] text-foreground";
+// The invite form used a fixed 80px label column beside each control.
+const formItemClass = "mb-3.5 grid grid-cols-[80px_minmax(0,1fr)] items-start gap-x-3";
+const formLabelClass = "min-h-8 text-[14px] leading-8 font-normal text-foreground";
+/** The small TDesign tag every chip in these tables was drawn with. */
+const tagBaseClass =
+  "inline-flex h-5 items-center rounded-[var(--td-radius-small)] px-1.5 text-[12px] leading-none whitespace-nowrap";
+
+// The permission matrix opened on hover under TDesign. Reka's popover is
+// click-driven, so the hover is added here: entering the icon or the panel
+// opens it, and leaving either closes it after a short grace period long
+// enough for the pointer to cross the gap between the two.
+const permissionsPopupOpen = ref(false);
+let permissionsPopupCloseTimer: number | undefined;
+
+// Whether the pointer is over the icon or the panel. While it is, a close
+// request from the popover itself is ignored: that is a click on the icon,
+// which toggles a Reka popover but never closed the hover-driven t-popup.
+let permissionsPopupHovered = false;
+
+function openPermissionsPopup() {
+  permissionsPopupHovered = true;
+  window.clearTimeout(permissionsPopupCloseTimer);
+  permissionsPopupOpen.value = true;
+}
+
+function schedulePermissionsPopupClose() {
+  permissionsPopupHovered = false;
+  window.clearTimeout(permissionsPopupCloseTimer);
+  permissionsPopupCloseTimer = window.setTimeout(() => {
+    permissionsPopupOpen.value = false;
+  }, 150);
+}
+
+function onPermissionsPopupOpenChange(open: boolean) {
+  if (!open && permissionsPopupHovered) return;
+  permissionsPopupOpen.value = open;
+}
 
 // State
 const members = ref<TenantMember[]>([]);
@@ -687,7 +1056,6 @@ const shareLinkResult = ref<TenantInvitation | null>(null);
 // Two-step invite inside the popup: 'form' renders the email/role inputs;
 // 'confirm' swaps the body for an in-place summary; primary CTA toggles label.
 const addDialogStep = ref<"form" | "confirm">("form");
-const addFormRef = ref<any>(null);
 const searchQuery = ref("");
 /** 已应用到服务端筛选的检索词（相对输入框防抖） */
 const memberSearchQ = ref("");
@@ -784,12 +1152,6 @@ const roleOptions = computed(() => [
   { label: t("tenantMember.role.viewer"), value: "viewer" },
 ]);
 
-/** 下拉层须高于邀请浮层（3050）与组织设置全屏遮罩，否则会被压住 */
-const roleSelectPopupProps = {
-  zIndex: 6200,
-  overlayClassName: "tenant-members-role-select-popup",
-};
-
 // Static role-permissions matrix. The keys reference i18n strings under
 // `tenantMember.permissions.*` so each locale can rephrase per culture.
 // Keep this aligned with the design-doc §4.3 matrix and the actual
@@ -828,25 +1190,18 @@ const roleMatrix: Record<TenantRole, RolePerm[]> = {
   ],
 };
 
-function roleMatrixIcon(role: TenantRole): string {
+function roleMatrixIcon(role: TenantRole): Component {
   switch (role) {
     case "owner":
-      return "user-vip-filled";
+      return CrownIcon;
     case "admin":
-      return "user-safety";
+      return ShieldCheckIcon;
     case "contributor":
-      return "edit";
+      return PencilIcon;
     default:
-      return "browse";
+      return EyeIcon;
   }
 }
-
-const columns = computed(() => [
-  { colKey: "member", title: t("tenantMember.columns.member"), ellipsis: true, minWidth: 132 },
-  { colKey: "role", title: t("tenantMember.columns.role"), width: 128 },
-  { colKey: "joined_at", title: t("tenantMember.columns.joinedAt"), width: 154 },
-  { colKey: "actions", title: t("tenantMember.columns.operations"), width: 88, align: "left" },
-]);
 
 function memberPrimary(row: { username?: string; email?: string }) {
   return row.username?.trim() || row.email?.trim() || "—";
@@ -859,35 +1214,61 @@ function memberSecondary(row: { username?: string; email?: string }) {
   return "";
 }
 
-const addFormRules = {
-  email: [
-    { required: true, message: t("tenantMember.errors.emailRequired"), trigger: "blur" },
-    { email: true, message: t("tenantMember.errors.emailFormat"), trigger: "blur" },
-  ],
-  role: [{ required: true, message: t("tenantMember.errors.roleRequired"), trigger: "change" }],
-};
+// The invite form's validation, ported from the t-form rules: the email is
+// required and must look like an address (checked on blur and on submit),
+// and a role must be chosen (checked on change and on submit). The messages
+// are the ones the rules carried.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const addFormErrors = reactive<{ email: string; role: string }>({ email: "", role: "" });
+
+function validateAddEmail(): boolean {
+  const value = addForm.email.trim();
+  if (!value) addFormErrors.email = t("tenantMember.errors.emailRequired");
+  else if (!EMAIL_PATTERN.test(value)) addFormErrors.email = t("tenantMember.errors.emailFormat");
+  else addFormErrors.email = "";
+  return !addFormErrors.email;
+}
+
+function validateAddRole(): boolean {
+  addFormErrors.role = addForm.role ? "" : t("tenantMember.errors.roleRequired");
+  return !addFormErrors.role;
+}
+
+function validateAddForm(): boolean {
+  // Both run so that both messages show at once, as t-form's validate() did.
+  const emailOk = validateAddEmail();
+  const roleOk = validateAddRole();
+  return emailOk && roleOk;
+}
+
+function onAddRoleChange(value: string) {
+  addForm.role = value as TenantRole;
+  validateAddRole();
+}
 
 // Pretty role tag colour: Owner stands out, Admin is warning, the rest
-// stay neutral so the table doesn't become a confetti cannon.
-function roleTagTheme(role: TenantRole): "primary" | "warning" | "success" | "default" {
+// stay neutral so the table doesn't become a confetti cannon. These are
+// TDesign's solid ("dark") small tags, the variant t-tag defaulted to.
+// utils/workspaceNotifyContent.ts mirrors this owner/admin/contributor map.
+function roleTagClass(role: TenantRole): string {
   switch (role) {
     case "owner":
-      return "primary";
+      return "bg-primary text-primary-foreground";
     case "admin":
-      return "warning";
+      return "bg-warning text-primary-foreground";
     case "contributor":
-      return "success";
+      return "bg-success text-primary-foreground";
     default:
-      return "default";
+      return "bg-[var(--td-bg-color-component)] text-foreground";
   }
 }
 
-/** 成员表/下拉与权限矩阵共用图标（crown 不在 tdesign-icons-vue-next 中）。 */
-function roleIcon(role: TenantRole | string): string {
+/** 成员表/下拉与权限矩阵共用图标。 */
+function roleIcon(role: TenantRole | string): Component {
   if (role === "owner" || role === "admin" || role === "contributor" || role === "viewer") {
     return roleMatrixIcon(role as TenantRole);
   }
-  return "user";
+  return UserIcon;
 }
 
 function formatDate(s: string | undefined): string {
@@ -970,32 +1351,21 @@ watch(searchQuery, () => {
 
 // ---- Pending invitations ------------------------------------------------
 
-const invitationColumns = computed(() => [
-  { colKey: "invitee", title: t("tenantInvitation.columns.invitee"), ellipsis: true, minWidth: 160 },
-  { colKey: "role", title: t("tenantInvitation.columns.role"), width: 110 },
-  { colKey: "inviter", title: t("tenantInvitation.columns.inviter"), ellipsis: true, minWidth: 140 },
-  { colKey: "expires_at", title: t("tenantInvitation.columns.expiresAt"), width: 160 },
-  { colKey: "status", title: t("tenantInvitation.columns.status"), width: 100 },
-  ...(canManage.value
-    ? [{ colKey: "actions", title: t("tenantInvitation.columns.operations"), width: 120, align: "left" as const }]
-    : []),
-]);
-
-function invitationStatusTheme(
-  s: TenantInvitation["status"],
-): "primary" | "success" | "warning" | "danger" | "default" {
+// Status chips, solid like the role tags: pending is the brand colour,
+// accepted green, declined/revoked orange, expired red.
+function invitationStatusClass(s: TenantInvitation["status"]): string {
   switch (s) {
     case "pending":
-      return "primary";
+      return "bg-primary text-primary-foreground";
     case "accepted":
-      return "success";
+      return "bg-success text-primary-foreground";
     case "declined":
     case "revoked":
-      return "warning";
+      return "bg-warning text-primary-foreground";
     case "expired":
-      return "danger";
+      return "bg-destructive text-primary-foreground";
     default:
-      return "default";
+      return "bg-[var(--td-bg-color-component)] text-foreground";
   }
 }
 
@@ -1060,8 +1430,8 @@ function onInvitationsPageChange() {
   void loadInvitations();
 }
 
-// doRevokeInvitation is wired to the t-popconfirm @confirm event in
-// the table template. The popconfirm itself owns the yes/no surface,
+// doRevokeInvitation is wired to the confirm button of the inline
+// confirmation popover in the table template. The popconfirm itself owns the yes/no surface,
 // so this function is the post-confirmation action only — no nested
 // modal. Errors surface as toasts and the row stays in place for retry.
 async function doRevokeInvitation(row: TenantInvitation) {
@@ -1091,26 +1461,10 @@ async function doRevokeInvitation(row: TenantInvitation) {
 // 50 events fall in the same minute, ellipsing a flat string makes them
 // indistinguishable; splitting on two lines keeps the seconds visible
 // without eating horizontal budget the diff column needs.
-
-const auditColumns = computed(() => [
-  { colKey: "created_at", title: t("tenantMember.audit.columns.time"), width: 120 },
-  { colKey: "actor", title: t("tenantMember.audit.columns.actor"), width: 180 },
-  { colKey: "action", title: t("tenantMember.audit.columns.action"), width: 130 },
-  {
-    colKey: "target",
-    title: t("tenantMember.audit.columns.target"),
-    // No fixed width / no ellipsis: this is where the role-diff and
-    // denied-action context live. Wrap rather than clip — losing the
-    // "Owner → Admin" half of a role change defeats the point.
-    minWidth: 200,
-  },
-  {
-    colKey: "request_path",
-    title: t("tenantMember.audit.columns.path"),
-    minWidth: 160,
-  },
-  { colKey: "outcome", title: t("tenantMember.audit.columns.outcome"), width: 80, align: "center" as const },
-]);
+//
+// The target column has no fixed width and no ellipsis: this is where the
+// role-diff and denied-action context live. Wrap rather than clip — losing
+// the "Owner → Admin" half of a role change defeats the point.
 
 function formatAuditDatePart(s: string | undefined): string {
   if (!s) return "-";
@@ -1144,25 +1498,27 @@ function formatAuditTimePart(s: string | undefined): string {
 // member adds are reassuring green; removals/role changes warning
 // orange because they're worth a second look but aren't intrinsically
 // suspicious.
-function auditActionTheme(action: AuditAction): "success" | "warning" | "danger" | "primary" | "default" {
+// (Drawn as TDesign's light-outline tags: tinted ground, coloured border.)
+function auditActionClass(action: AuditAction): string {
   switch (action) {
     case "rbac.access_denied":
-      return "danger";
+      return "border-destructive/40 bg-[var(--td-error-color-light)] text-destructive";
     case "rbac.member_added":
-      return "success";
+      return "border-success/40 bg-[var(--td-success-color-light)] text-success";
     case "rbac.member_removed":
     case "rbac.member_left":
     case "rbac.member_role_changed":
-      return "warning";
+      return "border-warning/40 bg-[var(--td-warning-color-light)] text-warning";
     default:
-      return "default";
+      return "border-border bg-secondary text-foreground";
   }
 }
 
-function auditOutcomeTheme(o: AuditOutcome): "success" | "danger" | "default" {
-  if (o === "denied") return "danger";
-  if (o === "success") return "success";
-  return "default";
+// Outcome chips are TDesign's light tags: tinted ground, no border.
+function auditOutcomeClass(o: AuditOutcome): string {
+  if (o === "denied") return "bg-[var(--td-error-color-light)] text-destructive";
+  if (o === "success") return "bg-[var(--td-success-color-light)] text-success";
+  return "bg-secondary text-foreground";
 }
 
 // i18n 键名含点号（rbac.member_added）。用 t(path) 会按路径拆开解析，
@@ -1229,6 +1585,12 @@ function onAuditExpandChange(value: (string | number)[]) {
   auditExpandedRowKeys.value = value
     .map((v) => (typeof v === "number" ? v : Number(v)))
     .filter((v) => Number.isFinite(v));
+}
+
+// A click anywhere on an audit row opens or closes its detail panel.
+function toggleAuditRow(id: number) {
+  const open = auditExpandedRowKeys.value.includes(id);
+  onAuditExpandChange(open ? auditExpandedRowKeys.value.filter((k) => k !== id) : [...auditExpandedRowKeys.value, id]);
 }
 
 function auditDetailsJSON(row: AuditLog): string {
@@ -1350,12 +1712,17 @@ watch(
   { flush: "post" },
 );
 
-onUnmounted(() => detachAuditInfiniteScroll());
+onUnmounted(() => {
+  detachAuditInfiniteScroll();
+  window.clearTimeout(permissionsPopupCloseTimer);
+});
 
 watch(invitePopupVisible, (open) => {
   if (!open) return;
   addForm.email = "";
   addForm.role = "contributor";
+  addFormErrors.email = "";
+  addFormErrors.role = "";
   addDialogStep.value = "form";
 });
 
@@ -1412,8 +1779,7 @@ const addConfirmRoleLabel = computed(() => t("tenantMember.role." + addForm.role
 // confirm step entirely and fire the API right after validation.
 async function submitAdd() {
   if (addDialogStep.value === "form") {
-    const valid = await addFormRef.value?.validate?.();
-    if (valid !== true) return;
+    if (!validateAddForm()) return;
     if (authStore.autoAcceptInvitation) {
       await sendInvitation(addForm.email.trim(), addForm.role);
       return;
@@ -1490,13 +1856,11 @@ async function onRoleChange(row: TenantMember, newRole: string) {
     if (resp.success) {
       // Mutate the row by replacing it in `members.value` instead of
       // assigning `row.role = next` in place. The `row` argument here
-      // is the row object handed in by t-table's slot scope, which in
-      // some TDesign versions is a shallow copy that doesn't share
-      // reactivity with the `members` array — assigning `row.role`
-      // updates the local handle but not the rendered cell, so the
-      // select keeps showing the previous value until a refresh.
-      // Splicing a fresh object into the source array guarantees the
-      // table re-renders.
+      // was once the row object handed in by t-table's slot scope, which
+      // in some TDesign versions was a shallow copy that didn't share
+      // reactivity with the `members` array. Splicing a fresh object into
+      // the source array keeps working now that the rows are rendered
+      // straight from `members`, and guarantees the table re-renders.
       const idx = members.value.findIndex((m) => m.user_id === row.user_id);
       if (idx >= 0) {
         const merged = { ...members.value[idx], role: next };
@@ -1518,7 +1882,7 @@ async function onRoleChange(row: TenantMember, newRole: string) {
     } else {
       MessagePlugin.error(err?.message || t("tenantMember.errors.generic"));
     }
-    // The t-select is bound via :model-value (one-way), so its rendered
+    // The select is bound via :model-value (one-way), so its rendered
     // value stays at `prev` automatically — no DOM hack needed.
   }
 }
@@ -1571,1065 +1935,3 @@ watch(
   { immediate: true },
 );
 </script>
-
-<style lang="less" scoped>
-.tenant-members {
-  width: 100%;
-}
-
-.member-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 2px 0;
-
-  .member-name {
-    font-weight: 500;
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .member-email {
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--td-text-color-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.section-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0;
-    letter-spacing: -0.02em;
-  }
-
-  .section-description {
-    color: var(--td-text-color-secondary);
-    font-size: 13px;
-    line-height: 1.55;
-    margin: 8px 0 0;
-    max-width: 52rem;
-  }
-}
-
-.section-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.section-header-titlewrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-
-  h2 {
-    margin: 0;
-    line-height: 1.25;
-  }
-}
-
-/* 顶部右侧的「审计日志」入口。t-button variant="text" 自带颜色
-   交互；这里只调 flex 行为，避免在 wrap 时被挤压。 */
-.header-audit-btn {
-  flex-shrink: 0;
-}
-
-.members-tab-layout {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 带子分页的卡片：仅在表格主体上横向滚动，页脚不参与滚动，避免分页条被卷入或对齐错位。
-   双类选择器用于盖过根上 .data-table-shell 的 overflow-x: auto */
-.data-table-shell.data-table-shell--with-footer {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-
-  > .data-table-shell__scroll {
-    overflow-x: auto;
-    min-width: 0;
-  }
-
-  > .data-table-shell__pager {
-    flex-shrink: 0;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    padding: 10px 14px;
-    border-top: 1px solid var(--td-component-stroke);
-    background-color: var(--td-bg-color-container);
-
-    :deep(.t-pagination) {
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      row-gap: 8px;
-    }
-  }
-}
-
-/* 待接受区块整体为浅底色，分页条与表格区同色阶、仅靠顶部分割线与表格区分 */
-.pending-invitations-table.data-table-shell.data-table-shell--with-footer > .data-table-shell__pager {
-  background-color: transparent;
-}
-
-.permissions-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  line-height: 0;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-
-  :deep(.t-icon) {
-    display: block;
-  }
-
-  &:hover {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color-focus);
-    outline-offset: 1px;
-  }
-}
-
-/* 列表上方的标题行：「空间成员 [N] · 筛选出 K」 左侧；右侧
-   是「搜索 + 邀请按钮」一组。视觉级别与「待接受邀请」一致。 */
-.members-list-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.members-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 2px;
-  flex-wrap: wrap;
-}
-
-.members-list-titlewrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.members-list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-/* 数字外面套一个浅底圆角徽章，避免裸露的「成员 1」读起来像
-   排版残留。色阶与 td-tag default+light 看齐。 */
-.members-list-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 10px;
-  background-color: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.members-list-filter-hint {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.members-list-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.members-list-search {
-  /* 用显式 width 锁定外层尺寸，避免 inline-flex 父容器下子项跟随
-     内容宽度变化（TDesign t-input 在 hover/focus 时会显示 clearable
-     的 × 图标、边框态切换），导致整行横向抖动。 */
-  flex: 0 0 14rem;
-  width: 14rem;
-  min-width: 0;
-
-  :deep(.t-input) {
-    width: 100%;
-  }
-}
-
-/* 列表头的邀请按钮：outline + primary，自带外框，比裸 icon
-   有分量；shape="square" 让它仍然是个紧凑的图标按钮。 */
-.members-list-add-btn {
-  flex-shrink: 0;
-}
-
-@media (max-width: 560px) {
-  .members-list-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .members-list-search {
-    flex: 1 1 auto;
-    width: auto;
-    max-width: none;
-  }
-}
-
-.data-table-shell {
-  overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid var(--td-component-stroke);
-  background-color: var(--td-bg-color-container);
-
-  &:deep(thead th) {
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  &:deep(.t-table td),
-  &:deep(.t-table th) {
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-
-  /* 角色列：下拉收缩到内容宽度，不再撑满整格。原先 100% 在窄角色
-     名（如"Owner"）下显得空荡且与其他列对不齐。 */
-  &:deep(.role-cell) {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  &:deep(.member-role-select.t-select) {
-    width: 100%;
-  }
-}
-
-/* Audit drawer's data-table-shell variant: only used inside the audit
-   drawer, so members-list specific tweaks (role-cell, role-select)
-   from the base block don't kick in. The selector is more specific
-   than `.data-table-shell` alone so the per-cell overrides win. */
-.audit-table-shell {
-  &:deep(.t-table td),
-  &:deep(.t-table th) {
-    /* See SystemSettings audit table: middle keeps the row weight
-       unified across single-line tag cells and multi-line diff cells. */
-    vertical-align: middle;
-    padding-top: 14px;
-    padding-bottom: 14px;
-  }
-
-  /* Sticky thead so the column labels survive long scrolls. The drawer's
-     `.audit-scroll-area` is the scroll container; top:0 pins the
-     headers there. z-index sits above hover/expand backgrounds, and
-     the inset shadow replaces the row separator that would otherwise
-     scroll out of frame. */
-  &:deep(thead th) {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background-color: var(--td-bg-color-secondarycontainer) !important;
-    box-shadow: inset 0 -1px 0 var(--td-component-stroke);
-  }
-
-  &:deep(.t-table tbody tr:hover > td) {
-    background-color: var(--td-bg-color-container-hover);
-  }
-
-  &:deep(.t-table tbody tr.t-table__expanded-row > td) {
-    padding: 0 !important;
-    background-color: transparent;
-  }
-
-  &:deep(.t-table__expandable-icon-cell) {
-    width: 36px;
-  }
-}
-
-.permissions-compact {
-  padding: 8px;
-
-  .permissions-compact-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 16px;
-
-    .permissions-compact-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-    }
-
-    .permissions-compact-desc {
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  .permissions-compact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-  }
-
-  .perm-role-block {
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    padding: 14px 16px;
-    background: var(--td-bg-color-container);
-    transition: all 0.2s ease;
-
-    &.is-me {
-      border-color: var(--td-brand-color);
-      background: var(--td-brand-color-light);
-    }
-
-    .perm-role-tag {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-      margin-bottom: 12px;
-
-      .me-badge {
-        margin-left: auto;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--td-brand-color);
-        padding: 2px 8px;
-        background: var(--td-brand-color-light);
-        border-radius: 4px;
-      }
-    }
-
-    .perm-items {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-
-      .perm-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 6px;
-        font-size: 13px;
-        line-height: 1.5;
-
-        .t-icon {
-          margin-top: 2px;
-          flex-shrink: 0;
-        }
-
-        &.has {
-          color: var(--td-text-color-secondary);
-
-          .t-icon {
-            color: var(--td-brand-color);
-          }
-        }
-
-        &.no {
-          color: var(--td-text-color-disabled);
-
-          .t-icon {
-            color: var(--td-text-color-disabled);
-          }
-        }
-      }
-    }
-  }
-
-  /* Hover 弹出层：压扁占位 + 2×2 角色块 + 内部滚动 */
-  &.permissions-compact--popover {
-    padding: 10px 12px;
-    margin: 0;
-    max-height: min(392px, calc(65vh - 8px));
-    overflow-x: hidden;
-    overflow-y: auto;
-
-    .permissions-compact-header {
-      gap: 2px;
-      margin-bottom: 10px;
-
-      .permissions-compact-title {
-        font-size: 13px;
-      }
-
-      .permissions-compact-desc {
-        font-size: 11px;
-        line-height: 1.4;
-      }
-    }
-
-    .permissions-compact-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .perm-role-block {
-      padding: 8px 10px;
-      border-radius: 6px;
-
-      .perm-role-tag {
-        font-size: 12px;
-        margin-bottom: 6px;
-        gap: 4px;
-
-        .me-badge {
-          font-size: 10px;
-          padding: 1px 5px;
-        }
-      }
-
-      .perm-items {
-        gap: 3px;
-
-        .perm-item {
-          font-size: 11px;
-          line-height: 1.35;
-          gap: 4px;
-
-          .t-icon {
-            margin-top: 1px;
-            flex-shrink: 0;
-          }
-        }
-      }
-    }
-  }
-
-  @media (max-width: 480px) {
-    &.permissions-compact--popover .permissions-compact-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-}
-
-.loading-inline,
-.error-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 0 8px;
-}
-
-/* Invite popup: confirm copy + footer actions (anchored beside +). */
-.member-invite-popup-inner {
-  max-width: 100%;
-}
-
-.member-invite-popup-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 12px;
-  line-height: 1.35;
-}
-
-.member-invite-form {
-  &:deep(.t-form__item) {
-    margin-bottom: 14px;
-
-    &:last-child {
-      margin-bottom: 4px;
-    }
-  }
-}
-
-.invite-confirm-body {
-  padding: 4px 0 8px;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.invite-popup-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-/* Share-link result panel — single-row layout: input field stretches,
- * copy button stays fixed-width. Mirrors the rounded card style of
- * the surrounding popup. */
-.share-link-result {
-  padding: 4px 0 0;
-}
-
-.share-link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.share-link-row__input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 7px 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-page);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  outline: none;
-}
-
-.share-link-row__input:focus {
-  border-color: var(--td-brand-color);
-}
-
-/* Inline tag for share-link rows in the pending invitations list,
- * so they read as "this row is a share link" instead of looking like
- * a malformed per-user invitation with a missing email. */
-.share-link-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--td-brand-color);
-  font-weight: 500;
-}
-
-.pending-invitations-section {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  .pending-invitations-header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .pending-invitations-titlewrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .pending-invitations-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .pending-invitations-desc {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .pending-invitations-empty {
-    padding: 10px 12px;
-    border: 1px dashed var(--td-component-stroke);
-    border-radius: 8px;
-    color: var(--td-text-color-secondary);
-    font-size: 13px;
-    background: var(--td-bg-color-container);
-  }
-
-  /* Visually distinguish from members table so the eye doesn't fuse
-     "pending" rows with "actual member" rows. */
-  .pending-invitations-table {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.empty-state {
-  padding: 40px 0 16px;
-  display: flex;
-  justify-content: center;
-}
-
-.audit-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding-top: 8px;
-}
-
-/* Inside the drawer the t-drawer body already gives us padding, so
-   drop the top offset; otherwise the audit-header floats away from
-   the drawer title with no visual anchor. */
-.audit-panel--drawer {
-  padding-top: 0;
-}
-
-.audit-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--td-bg-color-secondarycontainer);
-  padding: 12px 16px;
-  border-radius: 8px;
-  gap: 12px;
-
-  .audit-desc {
-    flex: 1;
-    min-width: 0;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .audit-refresh-btn {
-    flex-shrink: 0;
-  }
-}
-
-.audit-drawer-inner {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  gap: 14px;
-  min-height: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.audit-drawer-fill {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.audit-drawer-branch {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.audit-drawer-branch--error {
-  justify-content: center;
-
-  .error-inline {
-    width: 100%;
-  }
-}
-
-.audit-drawer-branch--empty.empty-state--audit {
-  flex: 1 1 auto;
-  justify-content: center;
-  align-items: center;
-  padding: 24px 12px;
-  min-height: 0;
-}
-
-.audit-scroll-area {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.audit-load-sentinel {
-  height: 1px;
-  width: 100%;
-  pointer-events: none;
-}
-
-.audit-loading-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.audit-end-hint {
-  text-align: center;
-  font-size: 12px;
-  color: var(--td-text-color-disabled);
-  padding: 8px 0 14px;
-  margin: 0;
-}
-
-.audit-time {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
-
-  .audit-time-date {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .audit-time-clock {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.audit-actor {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
-  min-width: 0;
-
-  .audit-actor-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .audit-actor-role {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.audit-target {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  line-height: 1.35;
-  min-width: 0;
-  padding: 2px 0;
-
-  .audit-target-key {
-    font-size: 13px;
-    color: var(--td-text-color-primary);
-    word-break: break-all;
-  }
-
-  .audit-target-diff {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    font-family: var(--td-font-family-mono, monospace);
-    word-break: break-all;
-    line-height: 1.4;
-  }
-
-  .audit-target-empty {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.audit-path {
-  font-family: var(--td-font-family-mono, monospace);
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  word-break: break-all;
-
-  .audit-method {
-    display: inline-block;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin-right: 4px;
-  }
-}
-
-/* Expandable row body. Background steps off-card so the nested
-   context is clearly distinct from the row strip above it. Mirrors
-   the platform audit drawer in SystemSettings.vue. */
-.audit-expanded {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--td-bg-color-container-hover);
-}
-
-.audit-expanded-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px 18px;
-}
-
-.audit-expanded-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.audit-expanded-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--td-text-color-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.audit-expanded-value {
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  word-break: break-all;
-}
-
-.audit-expanded-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.audit-expanded-json {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 280px;
-  overflow: auto;
-}
-
-.mono {
-  font-family: var(--td-font-family-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-}
-</style>
-
-<style lang="less">
-/* 权限说明弹出层（t-popup 挂到 body，须全局样式） */
-.permissions-popup-overlay {
-  z-index: 3050 !important;
-
-  .t-popup__content {
-    padding: 0 !important;
-    border-radius: 12px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-    overflow: hidden;
-  }
-
-  .permissions-compact.permissions-compact--popover {
-    padding: 12px 14px;
-    margin: 0;
-    max-height: min(392px, calc(65vh - 8px));
-    overflow-x: hidden;
-    overflow-y: auto;
-
-    .permissions-compact-header {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 10px;
-
-      .permissions-compact-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--td-text-color-primary);
-      }
-
-      .permissions-compact-desc {
-        font-size: 12px;
-        line-height: 1.45;
-        color: var(--td-text-color-secondary);
-      }
-    }
-
-    .permissions-compact-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .perm-role-block {
-      border: 1px solid var(--td-component-stroke);
-      border-radius: 6px;
-      padding: 8px 10px;
-      background: var(--td-bg-color-container);
-
-      &.is-me {
-        border-color: var(--td-brand-color);
-        background: var(--td-brand-color-light);
-      }
-
-      .perm-role-tag {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--td-text-color-primary);
-        margin-bottom: 6px;
-
-        .me-badge {
-          margin-left: auto;
-          font-size: 10px;
-          font-weight: 500;
-          color: var(--td-brand-color);
-          padding: 1px 5px;
-          background: var(--td-brand-color-light);
-          border-radius: 4px;
-        }
-      }
-
-      .perm-items {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-
-        .perm-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 4px;
-          font-size: 11px;
-          line-height: 1.35;
-          color: var(--td-text-color-secondary);
-
-          .t-icon {
-            margin-top: 1px;
-            flex-shrink: 0;
-          }
-
-          &.has .t-icon {
-            color: var(--td-brand-color);
-          }
-
-          &.no {
-            color: var(--td-text-color-disabled);
-
-            .t-icon {
-              color: var(--td-text-color-disabled);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-:root[theme-mode="dark"] .permissions-popup-overlay .t-popup__content {
-  background: rgba(36, 36, 36, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.28) !important;
-}
-
-@media (max-width: 480px) {
-  .permissions-popup-overlay .permissions-compact.permissions-compact--popover .permissions-compact-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* t-popup 挂到 body，需全局样式；z-index 需高于设置全屏遮罩（2000）。 */
-.member-invite-popup-overlay {
-  z-index: 3050 !important;
-
-  .t-popup__content {
-    padding: 14px 16px !important;
-    min-width: 300px;
-    max-width: min(392px, calc(100vw - 24px));
-    border-radius: 12px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  }
-}
-
-:root[theme-mode="dark"] .member-invite-popup-overlay .t-popup__content {
-  background: rgba(36, 36, 36, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.28) !important;
-}
-
-/* 角色下拉挂到 body 时可能被邀请 Popup / 设置遮罩盖住，类名挂在 t-popup 根节点 */
-.tenant-members-role-select-popup {
-  z-index: 6200 !important;
-
-  .role-option {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .role-option-icon {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-/* 成员页审计抽屉 teleport 到 body，须全局样式才能把 body 高度链拉满以便内层滚动 */
-.t-drawer.tenant-members-audit-drawer.t-drawer--right .t-drawer__content-wrapper--right {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  max-height: 100vh;
-  height: 100%;
-}
-
-.t-drawer.tenant-members-audit-drawer .t-drawer__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  overflow: hidden !important;
-}
-</style>

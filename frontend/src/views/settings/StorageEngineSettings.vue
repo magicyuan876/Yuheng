@@ -1,52 +1,59 @@
 <template>
-  <div class="storage-engine-settings">
-    <div class="section-header">
-      <h2>{{ $t("settings.storage.title") }}</h2>
-      <p class="section-description">
+  <div class="w-full">
+    <div class="mb-8">
+      <h2 class="text-foreground mt-0 mb-2 text-xl font-semibold">{{ $t("settings.storage.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">
         {{ $t("settings.storage.description") }}
       </p>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      <t-loading size="small" />
+    <div v-if="loading" class="text-placeholder flex items-center justify-center gap-2 py-12 text-sm">
+      <Loader2Icon class="animate-spin" />
       <span>{{ $t("settings.storage.loading") }}</span>
     </div>
 
-    <div v-else-if="error" class="error-inline">
-      <t-alert theme="error" :message="error">
-        <template #operation>
-          <t-button size="small" @click="loadAll">{{ $t("settings.storage.retry") }}</t-button>
-        </template>
-      </t-alert>
+    <div v-else-if="error" class="py-4">
+      <!-- TDesign's error alert sat on the pale error tint with no border and
+           dark text; only its icon was red. -->
+      <Alert variant="destructive" class="text-foreground border-transparent bg-[var(--td-error-color-1)]">
+        <CircleAlertIcon class="text-destructive!" />
+        <AlertTitle>{{ error }}</AlertTitle>
+        <AlertAction>
+          <Button variant="outline" size="sm" @click="loadAll">{{ $t("settings.storage.retry") }}</Button>
+        </AlertAction>
+      </Alert>
     </div>
 
     <template v-else>
-      <div class="settings-group">
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("settings.storage.defaultEngine") }}</label>
-            <p class="desc">{{ $t("settings.storage.defaultEngineDesc") }}</p>
+      <div class="flex flex-col">
+        <div class="border-border flex items-start justify-between py-5 [&:not(:last-child)]:border-b">
+          <div class="max-w-[65%] min-w-0 flex-1 pr-6">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">
+              {{ $t("settings.storage.defaultEngine") }}
+            </label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("settings.storage.defaultEngineDesc") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <t-select
-              v-model="config.default_provider"
-              style="width: 280px"
-              :placeholder="$t('settings.storage.defaultEngine')"
+          <div class="flex min-w-[280px] shrink-0 items-center justify-end">
+            <Select
+              :model-value="config.default_provider"
               :disabled="!hasAllowedProviders"
-              @change="onSaveDefaultEngine"
+              @update:model-value="onDefaultEngineChange"
             >
-              <t-option
-                v-for="opt in providerOptions"
-                :key="opt.value"
-                :value="opt.value"
-                :label="opt.label"
-                :disabled="!opt.allowed"
-              />
-            </t-select>
+              <SelectTrigger class="w-[280px]">
+                <SelectValue :placeholder="$t('settings.storage.defaultEngine')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in providerOptions" :key="opt.value" :value="opt.value" :disabled="!opt.allowed">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <span
               v-if="saveMessage && !drawerVisible"
-              :class="['save-msg', saveSuccess ? 'success' : 'error']"
-              style="margin-left: 12px"
+              class="ml-3 text-[13px]"
+              :class="saveSuccess ? 'text-success' : 'text-destructive'"
             >
               {{ saveMessage }}
             </span>
@@ -58,21 +65,25 @@
            整张卡是一个 button，单击打开配置抽屉；当前抽屉对应的卡获得品牌色描边。
            原本 8 张手写卡片由统一的 STORAGE_PROVIDERS 数组驱动，把状态判定收敛到
            providerStatus()，新增 provider 时只需在数组里加一项 + 翻译键即可。 -->
-      <div class="engine-cards">
+      <div class="mt-6 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-3">
         <button
           v-for="provider in STORAGE_PROVIDERS"
           v-show="isProviderAllowed(provider.id)"
           :key="provider.id"
           type="button"
-          class="engine-card"
+          data-slot="engine-card"
+          class="engine-card flex min-w-0 cursor-pointer items-start gap-3 rounded-[10px] border py-3.5 pr-3.5 pl-3 text-left transition-[border-color,box-shadow,background-color] duration-[180ms] ease-out hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]"
           :class="[
             `engine-card--${provider.id}`,
-            { 'engine-card--active': drawerVisible && currentEngine === provider.id },
+            // The card whose drawer is open keeps a brand outline and tint.
+            drawerVisible && currentEngine === provider.id
+              ? 'border-primary bg-[var(--td-brand-color-1,rgba(7,192,95,0.06))]'
+              : 'bg-card border-border hover:border-[var(--td-brand-color-3,var(--td-brand-color))]',
           ]"
           @click="openDrawer(provider.id)"
         >
           <div
-            class="engine-card__badge"
+            class="engine-card__badge mt-px flex size-9 shrink-0 items-center justify-center rounded-[9px] text-[15px] font-semibold tracking-[0.02em]"
             :class="badgeClass(provider.id)"
             :style="badgeStyle(provider.id)"
             :aria-label="provider.id"
@@ -81,19 +92,37 @@
               v-if="resolveLogo(provider.id)?.mode === 'color'"
               :src="resolveLogo(provider.id)!.url"
               :alt="provider.id"
-              class="engine-card__badge-img"
+              class="block size-6 object-contain"
             />
             <template v-else-if="!resolveLogo(provider.id)">{{ providerInitial(provider.id) }}</template>
           </div>
-          <div class="engine-card__body">
-            <div class="engine-card__header">
-              <h3 class="engine-card__title">{{ providerTitle(provider.id) }}</h3>
-              <span class="engine-card__status" :class="`engine-card__status--${providerStatus(provider.id).kind}`">
-                <span class="engine-card__status-dot" />
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <h3 class="text-foreground m-0 min-w-0 flex-1 truncate text-sm leading-[1.4] font-semibold">
+                {{ providerTitle(provider.id) }}
+              </h3>
+              <span
+                class="bg-secondary inline-flex shrink-0 items-center gap-[5px] rounded-[10px] py-px pr-2 pl-1.5 text-[11px] leading-4 font-medium"
+                :class="
+                  providerStatus(provider.id).kind === 'on'
+                    ? 'text-[var(--td-success-color-7,#118053)]'
+                    : 'text-placeholder'
+                "
+              >
+                <span
+                  class="size-1.5 rounded-full"
+                  :class="
+                    providerStatus(provider.id).kind === 'on'
+                      ? 'bg-[var(--td-success-color,#118053)]'
+                      : 'bg-[var(--td-gray-color-5)]'
+                  "
+                />
                 {{ providerStatus(provider.id).label }}
               </span>
             </div>
-            <p class="engine-card__desc">{{ $t(`settings.storage.${provider.id}Desc`) }}</p>
+            <p class="text-muted-foreground m-0 line-clamp-2 text-xs leading-normal">
+              {{ $t(`settings.storage.${provider.id}Desc`) }}
+            </p>
           </div>
         </button>
       </div>
@@ -113,7 +142,7 @@
         Header icon — 复用列表卡片同款 logo / 配色徽章。
         - color logo（如 MinIO/AWS）: 直接 <img>，保留品牌彩色
         - mono logo（mask-image）: 通过 ::before + currentColor 染色，颜色由
-          .storage-engine-drawer--{id} :deep(.setting-drawer__header-icon) 决定
+          .storage-engine-drawer--{id} .setting-drawer__header-icon 决定
         - 无 logo: 渲染首字母作为 monogram
       -->
       <template v-if="currentEngine" #headerIcon>
@@ -121,67 +150,81 @@
           v-if="currentLogo?.mode === 'color'"
           :src="currentLogo.url"
           :alt="currentEngine"
-          class="header-icon__img"
+          class="block size-6 object-contain"
         />
-        <span v-else-if="currentLogo?.mode === 'mono'" class="header-icon__mono" :style="monoLogoStyle" />
-        <span v-else class="header-icon__text">{{ providerInitial(currentEngine as StorageProviderId) }}</span>
+        <span
+          v-else-if="currentLogo?.mode === 'mono'"
+          class="header-icon__mono inline-block size-[22px]"
+          :style="monoLogoStyle"
+        />
+        <span v-else class="text-[15px] font-semibold tracking-[0.02em]">{{
+          providerInitial(currentEngine as StorageProviderId)
+        }}</span>
       </template>
 
       <!-- 副标题：引擎描述 + inline 控制台/文档外链（若有） -->
       <template v-if="currentEngine" #subtitle>
         <span>{{ engineDescText }}</span>
         <template v-for="link in engineLinks" :key="link.url">
-          <a :href="link.url" target="_blank" rel="noopener" class="doc-link doc-link--inline">
+          <a
+            :href="link.url"
+            target="_blank"
+            rel="noopener"
+            class="text-primary ml-1.5 inline-flex items-center gap-1 align-baseline text-xs font-medium no-underline transition-colors duration-150 hover:text-[var(--td-brand-color-active)]"
+          >
             {{ link.label }}
-            <t-icon name="link" class="link-icon" />
+            <LinkIcon class="size-3" />
           </a>
         </template>
       </template>
 
       <!-- 测试连接挪到 footer-left（local 不需要） -->
       <template v-if="needsTestButton" #footer-left>
-        <t-button variant="outline" :loading="currentCheckState.loading" @click="currentCheckState.onCheck">
-          <template #icon>
-            <t-icon
-              v-if="!currentCheckState.loading && currentCheckState.result?.ok"
-              name="check-circle-filled"
-              class="status-icon available"
-            />
-            <t-icon
-              v-else-if="!currentCheckState.loading && currentCheckState.result && !currentCheckState.result.ok"
-              name="close-circle-filled"
-              class="status-icon unavailable"
-            />
-          </template>
+        <Button variant="outline" :disabled="currentCheckState.loading" @click="currentCheckState.onCheck">
+          <CircleCheckIcon
+            v-if="!currentCheckState.loading && currentCheckState.result?.ok"
+            class="text-primary size-4 shrink-0"
+          />
+          <CircleXIcon
+            v-else-if="!currentCheckState.loading && currentCheckState.result && !currentCheckState.result.ok"
+            class="text-destructive size-4 shrink-0"
+          />
+          <Loader2Icon v-if="currentCheckState.loading" class="animate-spin" />
           {{ $t("settings.storage.testConnection") }}
-        </t-button>
+        </Button>
         <span
           v-if="currentCheckState.result"
-          :class="[
-            'footer-test-message',
+          class="min-w-0 flex-1 truncate text-xs leading-[1.4]"
+          :class="
             currentCheckState.result.ok
               ? (currentCheckState.result as { bucket_created?: boolean }).bucket_created
-                ? 'created'
-                : 'success'
-              : 'error',
-          ]"
+                ? 'text-[var(--td-warning-color,#f97316)]'
+                : 'text-[var(--td-brand-color-active)]'
+              : 'text-destructive'
+          "
           :title="currentCheckState.result.message"
         >
           {{ currentCheckState.result.message }}
         </span>
       </template>
 
+      <!-- `setting-drawer__section` / `__section-title` are styled by SettingDrawer
+           (spacing, dividers, the brand bar before each title); the fields sit
+           directly in the section, which spaces them. -->
       <div v-if="currentEngine">
         <!-- ===== local ===== -->
         <template v-if="currentEngine === 'local'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.basicSection", "基本配置") }}</h4>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.local.path_prefix"
                 :placeholder="$t('settings.storage.pathPrefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -192,39 +235,50 @@
           <!-- Section 1 — 部署模式（Docker / 远程） -->
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.modeSection", "部署模式") }}</h4>
-            <div class="form-item">
-              <div class="source-options" role="radiogroup">
+            <div>
+              <div
+                class="border-border inline-flex items-center gap-1 rounded-lg border bg-[var(--td-bg-color-component)] p-[3px]"
+                role="radiogroup"
+              >
                 <button
                   type="button"
-                  class="source-option"
-                  :class="{ 'is-active': config.minio.mode !== 'remote' }"
+                  data-slot="segment"
+                  class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150"
+                  :class="
+                    config.minio.mode !== 'remote'
+                      ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
+                      : 'text-muted-foreground hover:text-foreground border-transparent bg-transparent hover:bg-[var(--td-bg-color-container-hover)]'
+                  "
                   @click="config.minio.mode = 'docker'"
                 >
-                  <t-icon name="server" class="source-option__icon" />
-                  <span class="source-option__label">{{ $t("settings.storage.minioDocker") }}</span>
+                  <ServerIcon class="size-3.5 shrink-0" />
+                  <span class="whitespace-nowrap">{{ $t("settings.storage.minioDocker") }}</span>
                 </button>
                 <button
                   type="button"
-                  class="source-option"
-                  :class="{ 'is-active': config.minio.mode === 'remote' }"
+                  data-slot="segment"
+                  class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150"
+                  :class="
+                    config.minio.mode === 'remote'
+                      ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
+                      : 'text-muted-foreground hover:text-foreground border-transparent bg-transparent hover:bg-[var(--td-bg-color-container-hover)]'
+                  "
                   @click="config.minio.mode = 'remote'"
                 >
-                  <t-icon name="cloud" class="source-option__icon" />
-                  <span class="source-option__label">{{ $t("settings.storage.minioRemote") }}</span>
+                  <CloudIcon class="size-3.5 shrink-0" />
+                  <span class="whitespace-nowrap">{{ $t("settings.storage.minioRemote") }}</span>
                 </button>
               </div>
 
               <!-- Docker 模式状态提示 inline-alert -->
               <div
                 v-if="config.minio.mode !== 'remote'"
-                class="inline-alert"
-                :class="minioEnvAvailable ? 'inline-alert--ok' : 'inline-alert--warn'"
+                class="mt-2.5 flex flex-wrap items-center gap-2 text-[13px] leading-normal"
+                :class="minioEnvAvailable ? 'text-muted-foreground' : 'text-foreground'"
               >
-                <t-icon
-                  :name="minioEnvAvailable ? 'check-circle-filled' : 'error-circle-filled'"
-                  class="inline-alert__icon"
-                />
-                <span class="inline-alert__text">
+                <CircleCheckIcon v-if="minioEnvAvailable" class="text-success size-[15px] shrink-0" />
+                <CircleAlertIcon v-else class="size-[15px] shrink-0 text-[var(--td-warning-color,#f97316)]" />
+                <span class="min-w-0 flex-auto">
                   {{
                     minioEnvAvailable
                       ? $t("settings.storage.minioDockerDetected")
@@ -233,9 +287,12 @@
                 </span>
               </div>
 
-              <div v-else class="inline-alert">
-                <t-icon name="info-circle-filled" class="inline-alert__icon" />
-                <span class="inline-alert__text">{{ $t("settings.storage.minioRemoteHint") }}</span>
+              <div
+                v-else
+                class="text-muted-foreground mt-2.5 flex flex-wrap items-center gap-2 text-[13px] leading-normal"
+              >
+                <InfoIcon class="text-placeholder size-[15px] shrink-0" />
+                <span class="min-w-0 flex-auto">{{ $t("settings.storage.minioRemoteHint") }}</span>
               </div>
             </div>
           </section>
@@ -243,54 +300,82 @@
           <!-- Section 2 — 远程模式凭证（仅 remote） -->
           <section v-if="config.minio.mode === 'remote'" class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Endpoint</label>
-              <t-input v-model="config.minio.endpoint" placeholder="e.g. minio.example.com:9000" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Endpoint</label
+              >
+              <SettingsInput
+                v-model="config.minio.endpoint"
+                placeholder="e.g. minio.example.com:9000"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Access Key ID</label>
-              <t-input v-model="config.minio.access_key_id" placeholder="MinIO Access Key" clearable>
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key ID</label
+              >
+              <SettingsInput
+                v-model="config.minio.access_key_id"
+                placeholder="MinIO Access Key"
+                clearable
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Access Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Access Key</label
+              >
+              <SettingsInput
                 v-model="config.minio.secret_access_key"
                 type="password"
                 placeholder="MinIO Secret Key"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
 
           <!-- Section 3 — Bucket 与选项 -->
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.minio.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 :disabled="config.minio.mode !== 'remote' && !minioEnvAvailable"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.minio.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">SSL</label>
-              <div class="vision-toggle">
-                <t-switch v-model="config.minio.use_ssl" />
-                <span class="form-desc form-desc--inline">{{
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">SSL</label>
+              <div class="flex items-center gap-2">
+                <Switch
+                  :model-value="config.minio.use_ssl"
+                  @update:model-value="(v: boolean) => (config.minio.use_ssl = v)"
+                />
+                <span class="text-placeholder m-0 text-xs leading-normal">{{
                   $t("settings.storage.useSslDesc", "通过 HTTPS 访问 MinIO")
                 }}</span>
               </div>
@@ -302,56 +387,81 @@
         <template v-else-if="currentEngine === 'cos'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Secret ID</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret ID</label
+              >
+              <SettingsInput
                 v-model="config.cos.secret_id"
                 :placeholder="$t('settings.storage.cosSecretIdPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
                 v-model="config.cos.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.cosSecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">App ID</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >App ID</label
+              >
+              <SettingsInput
                 v-model="config.cos.app_id"
                 :placeholder="$t('settings.storage.cosAppIdPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input v-model="config.cos.region" placeholder="e.g. ap-guangzhou" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
+                v-model="config.cos.region"
+                placeholder="e.g. ap-guangzhou"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.cos.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.cos.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -361,52 +471,81 @@
         <template v-else-if="currentEngine === 'tos'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Access Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key</label
+              >
+              <SettingsInput
                 v-model="config.tos.access_key"
                 :placeholder="$t('settings.storage.tosAccessKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
                 v-model="config.tos.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.tosSecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Endpoint</label>
-              <t-input v-model="config.tos.endpoint" placeholder="e.g. https://tos-cn-beijing.volces.com" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Endpoint</label
+              >
+              <SettingsInput
+                v-model="config.tos.endpoint"
+                placeholder="e.g. https://tos-cn-beijing.volces.com"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input v-model="config.tos.region" placeholder="e.g. cn-beijing" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
+                v-model="config.tos.region"
+                placeholder="e.g. cn-beijing"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.tos.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.tos.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -416,57 +555,75 @@
         <template v-else-if="currentEngine === 's3'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <p class="form-desc">{{ $t("settings.storage.s3DefaultCredentialsHint") }}</p>
-            <div class="form-item">
-              <label class="form-label">Access Key</label>
-              <t-input
+            <p class="text-placeholder m-0 text-xs leading-normal">
+              {{ $t("settings.storage.s3DefaultCredentialsHint") }}
+            </p>
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">Access Key</label>
+              <SettingsInput
                 v-model="config.s3.access_key"
                 :placeholder="$t('settings.storage.s3AccessKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label">Secret Key</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">Secret Key</label>
+              <SettingsInput
                 v-model="config.s3.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.s3SecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label">Endpoint</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">Endpoint</label>
+              <SettingsInput
                 v-model="config.s3.endpoint"
                 :placeholder="$t('settings.storage.s3EndpointPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input v-model="config.s3.region" placeholder="e.g. us-east-1" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
+                v-model="config.s3.region"
+                placeholder="e.g. us-east-1"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.s3.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.s3.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -476,56 +633,81 @@
         <template v-else-if="currentEngine === 'oss'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Access Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key</label
+              >
+              <SettingsInput
                 v-model="config.oss.access_key"
                 :placeholder="$t('settings.storage.ossAccessKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
                 v-model="config.oss.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.ossSecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Endpoint</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Endpoint</label
+              >
+              <SettingsInput
                 v-model="config.oss.endpoint"
                 placeholder="e.g. https://oss-cn-hangzhou.aliyuncs.com"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input v-model="config.oss.region" placeholder="e.g. cn-hangzhou" clearable />
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
+                v-model="config.oss.region"
+                placeholder="e.g. cn-hangzhou"
+                clearable
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.oss.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.oss.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -535,60 +717,81 @@
         <template v-else-if="currentEngine === 'ks3'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Access Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key</label
+              >
+              <SettingsInput
                 v-model="config.ks3.access_key"
                 :placeholder="$t('settings.storage.ks3AccessKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
                 v-model="config.ks3.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.ks3SecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Endpoint</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Endpoint</label
+              >
+              <SettingsInput
                 v-model="config.ks3.endpoint"
                 :placeholder="$t('settings.storage.ks3EndpointPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
                 v-model="config.ks3.region"
                 :placeholder="$t('settings.storage.ks3RegionPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.ks3.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.ks3.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -598,60 +801,81 @@
         <template v-else-if="currentEngine === 'obs'">
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.credentialsSection", "凭证") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Access Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Access Key</label
+              >
+              <SettingsInput
                 v-model="config.obs.access_key"
                 :placeholder="$t('settings.storage.obsAccessKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Secret Key</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Secret Key</label
+              >
+              <SettingsInput
                 v-model="config.obs.secret_key"
                 type="password"
                 :placeholder="$t('settings.storage.obsSecretKeyPlaceholder')"
                 clearable
-              >
-                <template #prefix-icon><t-icon name="lock-on" /></template>
-              </t-input>
+                :prefix-icon="LockIcon"
+                input-class="text-[13px] md:text-[13px]"
+              />
             </div>
           </section>
           <section class="setting-drawer__section">
             <h4 class="setting-drawer__section-title">{{ $t("settings.storage.bucketSection", "Bucket") }}</h4>
-            <div class="form-item">
-              <label class="form-label required">Endpoint</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Endpoint</label
+              >
+              <SettingsInput
                 v-model="config.obs.endpoint"
                 :placeholder="$t('settings.storage.obsEndpointPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">Region</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >Region</label
+              >
+              <SettingsInput
                 v-model="config.obs.region"
                 :placeholder="$t('settings.storage.obsRegionPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label required">{{ $t("settings.storage.bucketName") }}</label>
-              <t-input
+            <div>
+              <label
+                class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
+                >{{ $t("settings.storage.bucketName") }}</label
+              >
+              <SettingsInput
                 v-model="config.obs.bucket_name"
                 :placeholder="$t('settings.storage.bucketPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
-            <div class="form-item">
-              <label class="form-label">{{ $t("settings.storage.pathPrefix") }}</label>
-              <t-input
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">{{
+                $t("settings.storage.pathPrefix")
+              }}</label>
+              <SettingsInput
                 v-model="config.obs.path_prefix"
                 :placeholder="$t('settings.storage.prefixPlaceholder')"
                 clearable
+                input-class="text-[13px] md:text-[13px]"
               />
             </div>
           </section>
@@ -674,6 +898,23 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { providerLogo } from "./providerLogos";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import SettingsInput from "./SettingsInput.vue";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  CloudIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  LockIcon,
+  ServerIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -1158,7 +1399,9 @@ async function onSave() {
   }
 }
 
-async function onSaveDefaultEngine() {
+// reka 的 Select 用 update:model-value 回值，包一层保持原 onSave 语义。
+async function onDefaultEngineChange(value: unknown) {
+  config.value.default_provider = String(value);
   await onSave();
 }
 
@@ -1266,146 +1509,32 @@ async function onCheckObs() {
 onMounted(loadAll);
 </script>
 
-<style lang="less" scoped>
-.storage-engine-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 32px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 8px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 48px 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 14px;
-}
-
-.error-inline {
-  padding: 16px 0;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.engine-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
-  margin-top: 24px;
-}
-
-// 与 Parser / Model / WebSearch / Mcp 一致的卡片样式 —— 整张是 button，
-// 单击打开抽屉；active 是「当前正在编辑」的语义而不是「默认引擎」。
-.engine-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 14px 14px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background-color 0.18s ease;
-  min-width: 0;
-
-  &:hover {
-    border-color: var(--td-brand-color-3, var(--td-brand-color));
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-  }
-
-  &--active {
-    border-color: var(--td-brand-color);
-    background: var(--td-brand-color-1, rgba(7, 192, 95, 0.06));
-  }
+<style scoped>
+/*
+ * Utilities cover layout; these rules reach into generated markup or repeat
+ * per-provider tints that are clearer as CSS:
+ *  - mono logos are CSS-masked icons driven by a per-card --logo-url;
+ *  - the per-provider badge tints (8 storage providers), mirrored onto the
+ *    teleported drawer header by the non-scoped block below.
+ */
+.header-icon__mono {
+  background-color: currentColor;
+  -webkit-mask-image: var(--logo-url);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-image: var(--logo-url);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
 }
 
 .engine-card__badge {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
 }
 
-// 真实品牌 logo：白底 + 细边，logo 用 mask-image 染成 currentColor（沿用品牌色）。
-// 多套一层 .engine-card 以胜过 `.engine-card--<id> .engine-card__badge` 的具体规则。
+/* One more .engine-card so logo badges outrank the per-provider tints. */
 .engine-card .engine-card__badge--logo {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
@@ -1426,14 +1555,7 @@ onMounted(loadAll);
   mask-size: contain;
 }
 
-.engine-card__badge-img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-// 各对象存储徽章配色 —— 和 LOGO 主色对齐，但走低饱和版以维持 settings 整体调性。
+/* 各对象存储徽章配色 —— 和 LOGO 主色对齐，但走低饱和版以维持 settings 整体调性。 */
 .engine-card--local .engine-card__badge {
   background: rgba(70, 70, 70, 0.1);
   color: #464646;
@@ -1466,349 +1588,29 @@ onMounted(loadAll);
   background: rgba(206, 17, 38, 0.1);
   color: #ce1126;
 }
-
-.engine-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.engine-card__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.engine-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.engine-card__status {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 1px 8px 1px 6px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
-  border-radius: 10px;
-  background: var(--td-bg-color-secondarycontainer);
-
-  &--on {
-    color: var(--td-success-color-7, #118053);
-
-    .engine-card__status-dot {
-      background: var(--td-success-color, #118053);
-    }
-  }
-
-  &--off {
-    color: var(--td-text-color-placeholder);
-
-    .engine-card__status-dot {
-      background: var(--td-gray-color-5);
-    }
-  }
-}
-
-.engine-card__status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.engine-card__desc {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  margin: 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-// ---- 抽屉内容 — 与 ModelEditorDialog 同款约定 ----
-
-// color logo 容器内部的图片
-.header-icon__img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  display: block;
-}
-
-// mono logo（用 mask-image 渲染，颜色由 currentColor 决定）
-.header-icon__mono {
-  display: inline-block;
-  width: 22px;
-  height: 22px;
-  background-color: currentColor;
-  -webkit-mask-image: var(--logo-url);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-image: var(--logo-url);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-}
-
-// fallback：首字母 monogram
-.header-icon__text {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.form-item {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-
-  // 必填星号前置（与 ModelEditorDialog 一致）
-  &.required::before {
-    content: "*";
-    color: var(--td-error-color);
-    margin-right: 4px;
-    font-weight: 500;
-    line-height: 1;
-  }
-}
-
-.form-desc {
-  margin: 4px 0 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--inline {
-    margin: 0;
-  }
-}
-
-:deep(.t-input),
-:deep(.t-select),
-:deep(.t-textarea),
-:deep(.t-input-number) {
-  width: 100%;
-  font-size: 13px;
-}
-
-// ---- MinIO 部署模式：紧凑 pill segmented（与 ModelEditorDialog 来源切换同款）----
-.source-options {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  background: var(--td-bg-color-component);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-}
-
-.source-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  height: 28px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  line-height: 1;
-  transition: all 0.15s ease;
-
-  &:hover:not(.is-active) {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-active {
-    background: var(--td-bg-color-container);
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-    font-weight: 500;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  }
-}
-
-.source-option__icon {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.source-option__label {
-  white-space: nowrap;
-}
-
-// ---- inline-alert（与 ParserEngineSettings 同款，瘦身的状态行） ----
-.inline-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  flex-wrap: wrap;
-}
-
-.inline-alert__icon {
-  font-size: 15px;
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder);
-}
-
-.inline-alert--ok .inline-alert__icon {
-  color: var(--td-success-color);
-}
-
-.inline-alert--warn {
-  color: var(--td-text-color-primary);
-
-  .inline-alert__icon {
-    color: var(--td-warning-color, #f97316);
-  }
-}
-
-.inline-alert__text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-// ---- vision-toggle（switch + 行内描述）----
-.vision-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// ---- footer-left 测试连接消息（与 ModelEditorDialog 同款） ----
-.footer-test-message {
-  font-size: 12px;
-  line-height: 1.4;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &.success {
-    color: var(--td-brand-color-active);
-  }
-
-  &.error {
-    color: var(--td-error-color);
-  }
-
-  &.created {
-    color: var(--td-warning-color, #f97316);
-  }
-}
-
-.status-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-
-  &.available {
-    color: var(--td-brand-color);
-  }
-
-  &.unavailable {
-    color: var(--td-error-color);
-  }
-}
-
-// ---- 文档外链 ----
-.doc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-brand-color);
-  text-decoration: none;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color-active);
-  }
-
-  .link-icon {
-    font-size: 14px;
-  }
-
-  &--inline {
-    margin-left: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    vertical-align: baseline;
-
-    .link-icon {
-      font-size: 12px;
-    }
-  }
-}
-
-.save-msg {
-  font-size: 13px;
-
-  &.success {
-    color: var(--td-success-color);
-  }
-
-  &.error {
-    color: var(--td-error-color);
-  }
-}
 </style>
 
 <!--
   Non-scoped block: per-engine header icon coloring. The drawer panel is
-  rendered into the component tree (no teleport since attach is unset),
-  but TDesign's t-drawer can in some builds reuse a shared root that
-  drops scoped data attributes — keep these rules global so the mapping
-  always lands. Namespaced under .storage-engine-drawer--{id} so it
-  cannot bleed into other consumers of SettingDrawer.
+  teleported by the underlying drawer component, so scoped styles cannot
+  reach it — keep these rules global. Namespaced under
+  .storage-engine-drawer--{id} so it cannot bleed into other consumers of
+  SettingDrawer.
 
   Each rule mirrors the matching .engine-card--{id} .engine-card__badge
   background + color pair from the scoped block above, so the list-card
   → drawer hand-off is visually continuous.
 -->
-<style lang="less">
-// 当抽屉里渲染了彩色 logo（如 MinIO/AWS）时，给 header-icon 容器一个白底
-// + 细边，避免品牌色浅底盖在彩色图标上影响对比度。
+<style>
+/* 当抽屉里渲染了彩色 logo（如 MinIO/AWS）时，给 header-icon 容器一个白底
+   + 细边，避免品牌色浅底盖在彩色图标上影响对比度。 */
 .storage-engine-drawer .setting-drawer__header-icon:has(.header-icon__img) {
   background: var(--td-bg-color-container, #fff);
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
 }
 
-// 单色 logo / 首字母 fallback 的徽章配色 — 与列表卡片 .engine-card--{id}
-// .engine-card__badge 完全一致。
+/* 单色 logo / 首字母 fallback 的徽章配色 — 与列表卡片 .engine-card--{id}
+   .engine-card__badge 完全一致。 */
 .storage-engine-drawer--local .setting-drawer__header-icon {
   background: rgba(70, 70, 70, 0.1);
   color: #464646;
