@@ -9,6 +9,10 @@ declare global {
       MAX_FILE_SIZE_MB?: number;
       MAX_VIDEO_FILE_SIZE_MB?: number;
       DEFAULT_LOCALE?: string;
+      // Base URL of the page describing the Enterprise edition; empty hides every "learn more" link.
+      ENTERPRISE_INFO_URL?: string;
+      // When true the public build stops promoting the Enterprise edition.
+      HIDE_ENTERPRISE_PROMOTION?: boolean;
     };
   }
 }

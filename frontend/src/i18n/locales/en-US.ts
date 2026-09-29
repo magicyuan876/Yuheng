@@ -4892,6 +4892,51 @@ export default {
     loadFailed: "Failed to load platform API keys",
     createFailed: "Failed to create platform API key",
   },
+  // Teasers for the closed-source Enterprise edition. Wording stays factual: a feature
+  // that is not released says so, and nothing here promises availability.
+  enterprise: {
+    title: "Enterprise",
+    badge: "Enterprise",
+    intro:
+      "The Yuheng Enterprise edition adds optional capabilities for larger organizations on top of the community edition, such as permission-aware retrieval, single sign-on and audit export. The community edition stays free and open source under the MIT license.",
+    introPlanned:
+      "The capabilities below are still planned and have not been released. This page describes the direction only; none of them can be used yet.",
+    learnEdition: "Learn about the Enterprise edition",
+    learnMore: "Learn more",
+    listLabel: "Enterprise features",
+    stage: {
+      planned: "Planned",
+      available: "Available",
+      enabled: "Enabled",
+    },
+    askAdmin: "Ask your administrator",
+    openLicense: "Open license management",
+    reason: {
+      licenseRequired: "This feature requires a valid Enterprise license.",
+      licenseExpiredForBuild: "The current license has expired and cannot be used with this version. Please renew it.",
+      licenseExpired: "The current license has expired. Please renew it.",
+      licenseInvalid: "The current license is not valid. Please check it.",
+      generic: "This feature is not available in this deployment.",
+    },
+    features: {
+      aclRetrieval: {
+        title: "Permission-aware retrieval",
+        description:
+          "Access control at the level of individual entries: restricted knowledge is only ever answered to people who are allowed to see it.",
+      },
+      saml: {
+        title: "SAML single sign-on",
+        description:
+          "Sign in through your identity provider with SAML 2.0, with a local emergency administrator login so a provider outage cannot lock you out.",
+      },
+      auditExport: {
+        title: "Audit log export",
+        description:
+          "Export the audit log to files, or forward it to syslog or a webhook, for integration with SIEM and other security tooling.",
+      },
+      license: { title: "License management", description: "View and update the Enterprise license." },
+    },
+  },
   docs: {
     title: "Documents",
     subtitle: "Organise team documents by space; members, permissions and knowledge base bindings live in the space.",

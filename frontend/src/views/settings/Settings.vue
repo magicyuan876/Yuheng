@@ -230,6 +230,11 @@
                   <div v-if="currentSection === 'groups'" class="section">
                     <TenantGroups />
                   </div>
+
+                  <!-- 企业版介绍（可由运营方用 HIDE_ENTERPRISE_PROMOTION 关闭） -->
+                  <div v-if="currentSection === 'enterprise'" class="section">
+                    <EnterpriseSettings />
+                  </div>
                 </template>
               </div>
             </div>
@@ -263,6 +268,7 @@ import ParserEngineSettings from "./ParserEngineSettings.vue";
 import StorageEngineSettings from "./StorageBackendSettings.vue";
 import TenantMembers from "./TenantMembers.vue";
 import TenantGroups from "./TenantGroups.vue";
+import EnterpriseSettings from "./EnterpriseSettings.vue";
 import SystemSettings from "@/views/system/SystemSettings.vue";
 import RuntimeQueues from "@/views/system/RuntimeQueues.vue";
 import PlatformAPIKeys from "@/views/system/PlatformAPIKeys.vue";
@@ -271,8 +277,10 @@ import {
   SETTINGS_SECTION_MIN_ROLE,
   SYSTEM_ADMIN_SETTINGS_SECTIONS,
   isPlatformManagedSection,
+  isPromotionSection,
 } from "@/config/settingsAccess";
 import { SETTINGS_SECTION_CAPABILITY } from "@/config/deploymentCapabilities";
+import { isEnterprisePromotionHidden } from "@/config/enterprisePromotion";
 import {
   buildSettingsRouteQuery,
   normalizeSettingsSection as normalizeSettingsSectionFromQuery,
@@ -297,6 +305,7 @@ import {
   ServerIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   UserIcon,
   UsersIcon,
   XIcon,
@@ -365,6 +374,8 @@ const isSectionSupported = (key: string): boolean => {
 };
 
 const canSeeSection = (key: string): boolean => {
+  // Promotion-only sections vanish for everyone when the operator opts out.
+  if (isPromotionSection(key, isEnterprisePromotionHidden())) return false;
   if (SYSTEM_ADMIN_SECTIONS.has(key)) {
     return authStore.isSystemAdmin;
   }
@@ -408,6 +419,7 @@ const navItems = computed(() => {
     { key: "tenant", icon: CircleUserRoundIcon, label: t("settings.tenantInfo") },
     { key: "members", icon: UsersIcon, label: t("tenantMember.title") },
     { key: "groups", icon: ListIcon, label: t("docs.groups.title") },
+    { key: "enterprise", icon: SparklesIcon, label: t("enterprise.title") },
   ];
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
   // viewer 入口然后角色一返回又消失，先卡住不渲染更稳，跟原先 members
@@ -454,7 +466,7 @@ const navGroups = computed<NavGroup[]>(() => {
     {
       key: "platform",
       label: t("settings.navGroups.platform"),
-      items: pickItems(["system"]),
+      items: pickItems(["system", "enterprise"]),
     },
   ].filter((group) => group.items.length > 0);
 });

@@ -73,3 +73,24 @@ test("a refresh replaces what the previous answer said, so a switched-off featur
   assert.equal(store.isExtensionSupported("acme.on"), false);
   assert.equal(store.extensionReason("acme.on"), "switched_off");
 });
+
+test("the store reports enabled, locked and unavailable states, and unavailable after a failed probe", async () => {
+  getDeploymentCapabilities.mockResolvedValueOnce({
+    data: {
+      extensions: {
+        "acme.on": { supported: true },
+        "acme.off": { supported: false, reason: "license_expired_for_build" },
+      },
+    },
+  });
+  const store = useDeploymentCapabilitiesStore();
+  await store.ensureLoaded();
+  assert.equal(store.extensionState("acme.on"), "enabled");
+  assert.equal(store.extensionState("acme.off"), "locked");
+  assert.equal(store.extensionReason("acme.off"), "license_expired_for_build");
+  assert.equal(store.extensionState("acme.other"), "unavailable");
+
+  getDeploymentCapabilities.mockRejectedValueOnce(new Error("down"));
+  await store.ensureLoaded(true);
+  assert.equal(store.extensionState("acme.on"), "unavailable");
+});

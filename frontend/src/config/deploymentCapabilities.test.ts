@@ -3,6 +3,7 @@ import { test } from "vitest";
 
 import {
   SETTINGS_SECTION_CAPABILITY,
+  extensionState,
   extensionUnavailableReason,
   isDeploymentCapabilitySupported,
   isExtensionEnabled,
@@ -51,4 +52,20 @@ test("an extension feature explains why it is unavailable only when the backend 
   assert.equal(extensionUnavailableReason(extensions, "acme.on"), undefined);
   assert.equal(extensionUnavailableReason(extensions, "acme.bare"), undefined);
   assert.equal(extensionUnavailableReason(extensions, "acme.unknown"), undefined);
+});
+
+test("an extension feature is enabled, locked or unavailable", () => {
+  const extensions: ExtensionCapabilityMap = {
+    "acme.on": { supported: true },
+    "acme.locked": { supported: false, reason: "license_required" },
+    "acme.locked_no_reason": { supported: false },
+  };
+  assert.equal(extensionState(extensions, "acme.on"), "enabled");
+  assert.equal(extensionState(extensions, "acme.locked"), "locked");
+  assert.equal(extensionState(extensions, "acme.locked_no_reason"), "locked");
+  // A community build, an old backend and a failed probe all look like this.
+  assert.equal(extensionState(extensions, "acme.absent"), "unavailable");
+  assert.equal(extensionState({}, "acme.on"), "unavailable");
+  // The fail-closed check is untouched: only "enabled" passes.
+  assert.equal(isExtensionEnabled(extensions, "acme.locked"), false);
 });

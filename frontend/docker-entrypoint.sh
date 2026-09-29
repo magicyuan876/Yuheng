@@ -6,12 +6,32 @@ case "${DEFAULT_LOCALE:-}" in
   zh-CN|en-US|ru-RU|ko-KR) RUNTIME_DEFAULT_LOCALE="${DEFAULT_LOCALE}" ;;
 esac
 
+# ENTERPRISE_INFO_URL ends up inside a JS string literal, so accept only an absolute
+# http(s) URL made of plain URL characters (no quotes, backslashes, spaces, or shell
+# and HTML metacharacters). Anything else is dropped rather than escaped.
+RUNTIME_ENTERPRISE_INFO_URL=""
+case "${ENTERPRISE_INFO_URL:-}" in
+  http://*|https://*)
+    if printf '%s' "${ENTERPRISE_INFO_URL}" | grep -Eq '^[A-Za-z0-9._~:/?#@!&()*+,;=%-]+$'; then
+      RUNTIME_ENTERPRISE_INFO_URL="${ENTERPRISE_INFO_URL}"
+    fi
+    ;;
+esac
+
+# Emitted as a JS boolean literal, never as raw text from the environment.
+RUNTIME_HIDE_ENTERPRISE_PROMOTION="false"
+case "${HIDE_ENTERPRISE_PROMOTION:-}" in
+  true|TRUE|True|1) RUNTIME_HIDE_ENTERPRISE_PROMOTION="true" ;;
+esac
+
 # 生成运行时配置文件，注入环境变量到前端
 cat > /usr/share/nginx/html/config.js << EOF
 window.__RUNTIME_CONFIG__ = {
   MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50},
   MAX_VIDEO_FILE_SIZE_MB: ${MAX_VIDEO_FILE_SIZE_MB:-2048},
-  DEFAULT_LOCALE: "${RUNTIME_DEFAULT_LOCALE}"
+  DEFAULT_LOCALE: "${RUNTIME_DEFAULT_LOCALE}",
+  ENTERPRISE_INFO_URL: "${RUNTIME_ENTERPRISE_INFO_URL}",
+  HIDE_ENTERPRISE_PROMOTION: ${RUNTIME_HIDE_ENTERPRISE_PROMOTION}
 };
 EOF
 

@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import { getDeploymentCapabilities } from "@/api/system";
 import {
+  extensionState as resolveExtensionState,
   extensionUnavailableReason,
   isDeploymentCapabilitySupported,
   isExtensionEnabled,
@@ -51,6 +52,7 @@ export const useDeploymentCapabilitiesStore = defineStore("deploymentCapabilitie
   };
 
   const isExtensionSupported = (key: string) => isExtensionEnabled(extensions.value, key);
+  const extensionState = (key: string) => resolveExtensionState(extensions.value, key);
   const extensionReason = (key: string) => extensionUnavailableReason(extensions.value, key);
 
   return {
@@ -62,6 +64,7 @@ export const useDeploymentCapabilitiesStore = defineStore("deploymentCapabilitie
     ensureLoaded,
     isSupported,
     isExtensionSupported,
+    extensionState,
     extensionReason,
   };
 });

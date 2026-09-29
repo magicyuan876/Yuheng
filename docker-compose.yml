@@ -12,6 +12,8 @@ services:
       # 视频上传独立上限（默认 2048MB）。nginx client_max_body_size 取两者较大值。
       - MAX_VIDEO_FILE_SIZE_MB=${MAX_VIDEO_FILE_SIZE_MB:-2048}
       - DEFAULT_LOCALE=${DEFAULT_LOCALE:-}
+      - ENTERPRISE_INFO_URL=${ENTERPRISE_INFO_URL:-}
+      - HIDE_ENTERPRISE_PROMOTION=${HIDE_ENTERPRISE_PROMOTION:-}
       - APP_HOST=${APP_HOST:-app}
       # APP_BACKEND_PORT: the port NGINX proxies to (default 8080).
       # For local deployment this is the App container's listening port, independent of host-mapped APP_PORT.

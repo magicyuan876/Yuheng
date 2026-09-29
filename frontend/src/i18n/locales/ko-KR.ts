@@ -4844,6 +4844,49 @@ export default {
     apiChats: "API 세션",
     noSessions: "대화가 없습니다",
   },
+  // Teasers for the closed-source Enterprise edition. Wording stays factual: a feature
+  // that is not released says so, and nothing here promises availability.
+  enterprise: {
+    title: "엔터프라이즈",
+    badge: "엔터프라이즈",
+    intro:
+      "Yuheng 엔터프라이즈 에디션은 커뮤니티 에디션 위에 권한 인식 검색, 싱글 사인온, 감사 로그 내보내기와 같은 대규모 조직용 선택 기능을 추가합니다. 커뮤니티 에디션은 계속 무료이며 MIT 라이선스로 공개됩니다.",
+    introPlanned:
+      "아래 기능은 아직 계획 단계이며 출시되지 않았습니다. 이 페이지는 방향만 설명하며 현재는 사용할 수 없습니다.",
+    learnEdition: "엔터프라이즈 에디션 알아보기",
+    learnMore: "자세히 보기",
+    listLabel: "엔터프라이즈 기능",
+    stage: {
+      planned: "계획 중",
+      available: "사용 가능",
+      enabled: "사용 중",
+    },
+    askAdmin: "관리자에게 문의하세요",
+    openLicense: "라이선스 관리로 이동",
+    reason: {
+      licenseRequired: "이 기능을 사용하려면 유효한 엔터프라이즈 라이선스가 필요합니다.",
+      licenseExpiredForBuild: "현재 라이선스가 만료되어 이 버전에서 사용할 수 없습니다. 라이선스를 갱신해 주세요.",
+      licenseExpired: "현재 라이선스가 만료되었습니다. 라이선스를 갱신해 주세요.",
+      licenseInvalid: "현재 라이선스가 유효하지 않습니다. 라이선스를 확인해 주세요.",
+      generic: "이 기능은 현재 배포 환경에서 사용할 수 없습니다.",
+    },
+    features: {
+      aclRetrieval: {
+        title: "권한 인식 검색",
+        description: "항목 단위로 접근을 제어합니다. 제한된 지식은 열람 권한이 있는 사람에게만 답변됩니다.",
+      },
+      saml: {
+        title: "SAML 싱글 사인온",
+        description:
+          "SAML 2.0으로 ID 공급자를 통해 로그인하며, 공급자 장애 시에도 접속할 수 있도록 로컬 비상 관리자 로그인을 유지합니다.",
+      },
+      auditExport: {
+        title: "감사 로그 내보내기",
+        description: "감사 로그를 파일로 내보내거나 syslog, 웹훅으로 전달하여 SIEM 등 보안 도구와 연동합니다.",
+      },
+      license: { title: "라이선스 관리", description: "엔터프라이즈 라이선스를 확인하고 갱신합니다." },
+    },
+  },
   docs: {
     title: "온라인 문서",
     subtitle: "공간 단위로 팀 문서를 정리합니다. 구성원, 권한, 지식 베이스 연결은 공간 안에서 관리합니다.",

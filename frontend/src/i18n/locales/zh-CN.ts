@@ -4749,6 +4749,47 @@ export default {
     apiChats: "API 会话",
     noSessions: "暂无对话",
   },
+  // Teasers for the closed-source Enterprise edition. Wording stays factual: a feature
+  // that is not released says so, and nothing here promises availability.
+  enterprise: {
+    title: "企业版",
+    badge: "企业版",
+    intro:
+      "玉衡企业版在社区版之上提供面向大型组织的可选能力，例如权限感知检索、单点登录和审计导出。社区版保持免费，并继续以 MIT 协议开源。",
+    introPlanned: "下列能力仍在规划中，尚未发布。这里只说明方向，并不表示现在可以使用。",
+    learnEdition: "了解企业版",
+    learnMore: "了解更多",
+    listLabel: "企业版功能",
+    stage: {
+      planned: "规划中",
+      available: "可用",
+      enabled: "已启用",
+    },
+    askAdmin: "请联系管理员",
+    openLicense: "前往许可证管理",
+    reason: {
+      licenseRequired: "此功能需要有效的企业版许可证。",
+      licenseExpiredForBuild: "当前许可证已过期，不能用于这个版本，请更新许可证。",
+      licenseExpired: "当前许可证已过期，请更新许可证。",
+      licenseInvalid: "当前许可证无效，请检查许可证。",
+      generic: "此功能在当前部署中不可用。",
+    },
+    features: {
+      aclRetrieval: {
+        title: "权限感知检索",
+        description: "在条目级别控制检索结果：受限的知识只会回答给有权查看的人。",
+      },
+      saml: {
+        title: "SAML 单点登录",
+        description: "通过 SAML 2.0 接入企业身份提供方，并保留本地应急管理员登录，以免身份服务故障时无法进入系统。",
+      },
+      auditExport: {
+        title: "审计日志导出",
+        description: "把审计日志导出为文件，或转发到 syslog 与 Webhook，便于接入 SIEM 等安全审计系统。",
+      },
+      license: { title: "许可证管理", description: "查看并更新企业版许可证。" },
+    },
+  },
   docs: {
     title: "在线文档",
     subtitle: "按空间组织团队文档，成员、权限与知识库绑定都在空间内管理。",

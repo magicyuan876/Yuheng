@@ -21,6 +21,8 @@ export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
   tenant: "viewer",
   members: "viewer",
   groups: "viewer",
+  // A read-only description of the Enterprise edition; nothing on it can change state.
+  enterprise: "viewer",
 };
 
 /**
@@ -76,4 +78,15 @@ export const PLATFORM_MANAGED_SETTINGS_SECTIONS = new Set([
  */
 export function isPlatformManagedSection(key: string, centralizedInfra: boolean): boolean {
   return centralizedInfra && PLATFORM_MANAGED_SETTINGS_SECTIONS.has(key);
+}
+
+/**
+ * Sections that exist only to promote something. The operator can switch them
+ * off (HIDE_ENTERPRISE_PROMOTION), and unlike every other section they are
+ * then hidden for everybody, whatever their role.
+ */
+export const PROMOTION_SETTINGS_SECTIONS = new Set(["enterprise"]);
+
+export function isPromotionSection(key: string, promotionHidden: boolean): boolean {
+  return promotionHidden && PROMOTION_SETTINGS_SECTIONS.has(key);
 }

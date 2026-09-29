@@ -7,6 +7,7 @@ import {
   SETTINGS_SECTION_MIN_ROLE,
   SYSTEM_ADMIN_SETTINGS_SECTIONS,
   isPlatformManagedSection,
+  isPromotionSection,
 } from "./settingsAccess";
 
 test("management shortcuts are stricter than read-only settings pages", () => {
@@ -81,4 +82,12 @@ test("the two access sets are disjoint", () => {
   for (const key of PLATFORM_MANAGED_SETTINGS_SECTIONS) {
     assert.equal(SYSTEM_ADMIN_SETTINGS_SECTIONS.has(key), false, `${key} is classified in both access sets`);
   }
+});
+
+test("the Enterprise section is readable by everyone and disappears with the promotion switch", () => {
+  assert.equal(SETTINGS_SECTION_MIN_ROLE.enterprise, "viewer");
+  assert.equal(isPromotionSection("enterprise", false), false);
+  assert.equal(isPromotionSection("enterprise", true), true);
+  // Only promotion sections are affected.
+  assert.equal(isPromotionSection("general", true), false);
 });

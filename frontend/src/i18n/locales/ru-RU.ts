@@ -4901,6 +4901,51 @@ export default {
     apiChats: "Сессии API",
     noSessions: "Пока нет диалогов",
   },
+  // Teasers for the closed-source Enterprise edition. Wording stays factual: a feature
+  // that is not released says so, and nothing here promises availability.
+  enterprise: {
+    title: "Enterprise",
+    badge: "Enterprise",
+    intro:
+      "Редакция Yuheng Enterprise добавляет к редакции Community необязательные возможности для крупных организаций, например поиск с учётом прав доступа, единый вход и экспорт журнала аудита. Редакция Community остаётся бесплатной и открытой по лицензии MIT.",
+    introPlanned:
+      "Перечисленные ниже возможности пока только планируются и ещё не выпущены. Здесь описано лишь направление развития, использовать их сейчас нельзя.",
+    learnEdition: "Узнать о редакции Enterprise",
+    learnMore: "Подробнее",
+    listLabel: "Возможности Enterprise",
+    stage: {
+      planned: "Запланировано",
+      available: "Доступно",
+      enabled: "Включено",
+    },
+    askAdmin: "Обратитесь к администратору",
+    openLicense: "Открыть управление лицензией",
+    reason: {
+      licenseRequired: "Для этой функции нужна действующая лицензия Enterprise.",
+      licenseExpiredForBuild: "Срок действия лицензии истёк, и она не подходит для этой версии. Обновите лицензию.",
+      licenseExpired: "Срок действия лицензии истёк. Обновите лицензию.",
+      licenseInvalid: "Текущая лицензия недействительна. Проверьте лицензию.",
+      generic: "Эта функция недоступна в данном развёртывании.",
+    },
+    features: {
+      aclRetrieval: {
+        title: "Поиск с учётом прав доступа",
+        description:
+          "Контроль доступа на уровне отдельных записей: ограниченные знания получают в ответах только те, кому разрешено их видеть.",
+      },
+      saml: {
+        title: "Единый вход SAML",
+        description:
+          "Вход через поставщика удостоверений по SAML 2.0 с локальным аварийным входом администратора, чтобы сбой поставщика не закрыл доступ к системе.",
+      },
+      auditExport: {
+        title: "Экспорт журнала аудита",
+        description:
+          "Экспорт журнала аудита в файлы или отправка в syslog и вебхук для интеграции с SIEM и другими средствами безопасности.",
+      },
+      license: { title: "Управление лицензией", description: "Просмотр и обновление лицензии Enterprise." },
+    },
+  },
   docs: {
     title: "Документы",
     subtitle:

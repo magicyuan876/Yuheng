@@ -52,6 +52,24 @@ export function extensionUnavailableReason(extensions: ExtensionCapabilityMap, k
   return entry && !entry.supported ? entry.reason : undefined;
 }
 
+/**
+ * What the backend says about an extension feature, in three words:
+ *  - "enabled": listed and supported. The only state in which the real feature
+ *    UI may render.
+ *  - "locked": listed but not supported, usually with a reason such as
+ *    `license_required` or `license_expired_for_build`. The extension is
+ *    installed; something (a license) is missing.
+ *  - "unavailable": not listed. A community build, an old backend or a failed
+ *    probe, which the client cannot tell apart and should not try to.
+ */
+export type ExtensionState = "enabled" | "locked" | "unavailable";
+
+export function extensionState(extensions: ExtensionCapabilityMap, key: string): ExtensionState {
+  const entry = extensions[key];
+  if (!entry) return "unavailable";
+  return entry.supported === true ? "enabled" : "locked";
+}
+
 export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapabilityKey>> = {
   websearch: "settings.websearch",
   vectorstore: "settings.vectorstore",
