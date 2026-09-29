@@ -15,11 +15,12 @@
 // experience; it is the leak the entire page-permission layer exists to
 // prevent, arriving by a side door.
 //
-// So a page is indexed only when it is visible to its whole space. The ACL
-// snapshot is still computed and stored with the entry (acl.PageSubjects),
-// because the day retrieval learns to filter by subject is the day this rule
-// can be relaxed, and the data will already be there. Until then the rule is
-// the simple one, because a simple rule is one an auditor can check.
+// So a page is indexed only when it is visible to its whole space. Who a page
+// is visible to can be worked out (acl.PageSubjects), but nothing stores it
+// with the entry, because nothing yet reads it: the day retrieval learns to
+// filter by subject is the day it has to be stored, and this rule can be
+// relaxed. Until then the rule is the simple one, because a simple rule is one
+// an auditor can check.
 //
 // ---- decision: drafts and the trash are not indexed either
 //
