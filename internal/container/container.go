@@ -59,6 +59,7 @@ import (
 	yuqueConnector "github.com/magicyuan876/yuheng/internal/datasource/connector/yuque"
 	"github.com/magicyuan876/yuheng/internal/docs"
 	"github.com/magicyuan876/yuheng/internal/event"
+	"github.com/magicyuan876/yuheng/internal/extension"
 	"github.com/magicyuan876/yuheng/internal/handler"
 	"github.com/magicyuan876/yuheng/internal/handler/session"
 	"github.com/magicyuan876/yuheng/internal/infrastructure/docparser"
@@ -339,6 +340,14 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	// local:// images that live under a tenant's configured storage PathPrefix
 	// (which is not encoded in the local:// URL).
 	must(container.Invoke(registerChatLocalImageResolver))
+
+	// Extensions. The core provides a default for what an extension may add, then
+	// lets registered hooks add providers and decorate those defaults. This has to
+	// come after every provider is registered (a hook may decorate any of them)
+	// and before the first Invoke that resolves them, which is the router below.
+	logger.Debugf(ctx, "[Container] Applying extensions...")
+	must(container.Provide(extension.NewFeatures))
+	must(extension.ApplyHooks(container))
 
 	// Router configuration
 	logger.Debugf(ctx, "[Container] Registering router and starting task server...")

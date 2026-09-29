@@ -15,6 +15,7 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/docs"
+	"github.com/magicyuan876/yuheng/internal/extension"
 	"github.com/magicyuan876/yuheng/internal/handler"
 	"github.com/magicyuan876/yuheng/internal/handler/session"
 	"github.com/magicyuan876/yuheng/internal/logger"
@@ -60,6 +61,7 @@ type RouterParams struct {
 	AuthHandler                  *handler.AuthHandler
 	InitializationHandler        *handler.InitializationHandler
 	SystemHandler                *handler.SystemHandler
+	Features                     extension.Features
 	SystemSettingService         interfaces.SystemSettingService
 	WebSearchHandler             *handler.WebSearchHandler
 	WebSearchProviderHandler     *handler.WebSearchProviderHandler
@@ -236,6 +238,7 @@ func NewRouter(params RouterParams) *gin.Engine {
 		params.SystemHandler.BindDeploymentCapabilities(handler.BuildDeploymentCapabilities(
 			deploymentCapabilitiesFromRouter(params),
 		))
+		params.SystemHandler.BindExtensionFeatures(params.Features)
 		RegisterSystemRoutes(v1, params.SystemHandler, rbacGuards)
 		RegisterSystemAdminRoutes(v1, params.SystemHandler, params.AuditLogHandler, rbacGuards)
 		RegisterWebSearchRoutes(v1, params.WebSearchHandler, rbacGuards)

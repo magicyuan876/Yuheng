@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/magicyuan876/yuheng/internal/extension"
 )
 
 // DeploymentCapabilityKeys is the canonical capability key list shared with
@@ -32,6 +34,11 @@ type DeploymentCapabilitiesData struct {
 	// editor then has no realtime provider and falls back to exclusive
 	// editing under a lease (see internal/docs/service/lease.go).
 	DocsCollabURL string `json:"docs_collab_url,omitempty"`
+	// Extensions reports the features that extensions have added, keyed by the
+	// names the extensions chose. Unlike Capabilities, a key that is absent
+	// means the feature does not exist here, so clients must treat absence as
+	// "not available". Empty (and omitted) when no extension is installed.
+	Extensions map[string]DeploymentCapability `json:"extensions,omitempty"`
 }
 
 // DeploymentFeatureAvailability mirrors injected backend handlers/services.
@@ -78,6 +85,31 @@ func (h *SystemHandler) BindDeploymentCapabilities(data DeploymentCapabilitiesDa
 	h.deploymentCapabilities = data
 }
 
+// BindExtensionFeatures sets the registry GetDeploymentCapabilities consults for
+// extension features. Optional: without it the response carries none.
+func (h *SystemHandler) BindExtensionFeatures(features extension.Features) {
+	h.extensionFeatures = features
+}
+
+// extensionCapabilities projects the extension registry onto the response.
+// Unlike the rest of the capability list it is read on every request: what an
+// extension reports can change while the server runs, and a snapshot taken at
+// start-up would go on showing a feature that has since been switched off.
+func extensionCapabilities(features extension.Features) map[string]DeploymentCapability {
+	if features == nil {
+		return nil
+	}
+	all := features.All()
+	if len(all) == 0 {
+		return nil
+	}
+	out := make(map[string]DeploymentCapability, len(all))
+	for name, status := range all {
+		out[string(name)] = DeploymentCapability{Supported: status.Enabled, Reason: status.Reason}
+	}
+	return out
+}
+
 // GetDeploymentCapabilities godoc
 // @Summary      获取部署能力清单
 // @Description  返回当前部署版本及实际注册的后端路由所对应的功能能力；仅 supported=false 表示入口应隐藏
@@ -86,9 +118,11 @@ func (h *SystemHandler) BindDeploymentCapabilities(data DeploymentCapabilitiesDa
 // @Success      200  {object}  map[string]interface{}  "标准 code/msg/data 包装，data 为 DeploymentCapabilitiesData"
 // @Router       /system/capabilities [get]
 func (h *SystemHandler) GetDeploymentCapabilities(c *gin.Context) {
+	data := h.deploymentCapabilities
+	data.Extensions = extensionCapabilities(h.extensionFeatures)
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"msg":  "success",
-		"data": h.deploymentCapabilities,
+		"data": data,
 	})
 }

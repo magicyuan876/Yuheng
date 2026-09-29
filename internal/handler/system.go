@@ -22,6 +22,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/database"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/extension"
 	"github.com/magicyuan876/yuheng/internal/infrastructure/docparser"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	modellimiter "github.com/magicyuan876/yuheng/internal/models/limiter"
@@ -70,6 +71,9 @@ type SystemHandler struct {
 	parserResolver interfaces.ParserEngineResolver
 	// startup snapshot for GET /system/capabilities; bound in router.NewRouter.
 	deploymentCapabilities DeploymentCapabilitiesData
+	// extensionFeatures is consulted on every GET /system/capabilities, since
+	// what extensions report can change at runtime. Optional; nil reports none.
+	extensionFeatures extension.Features
 }
 
 // NewSystemHandler creates a new system handler
