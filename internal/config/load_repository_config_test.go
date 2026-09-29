@@ -41,7 +41,8 @@ func TestRepositoryConfigLoadsForEveryRegistrationSetting(t *testing.T) {
 }
 
 func TestValidateConfigAcceptsEveryRegistrationModeAndRejectsATypo(t *testing.T) {
-	for _, mode := range []string{"", AuthRegistrationModeAuto, AuthRegistrationModeSelfServe, AuthRegistrationModeInviteOnly} {
+	modes := []string{"", AuthRegistrationModeAuto, AuthRegistrationModeSelfServe, AuthRegistrationModeInviteOnly}
+	for _, mode := range modes {
 		cfg := &Config{Auth: &AuthConfig{RegistrationMode: mode}, Server: &ServerConfig{Port: 8080}}
 		if err := ValidateConfig(cfg); err != nil {
 			t.Errorf("mode %q rejected: %v", mode, err)
