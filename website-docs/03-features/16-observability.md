@@ -249,7 +249,7 @@ r.GET("/health", func(c *gin.Context) {
 
 该文件提供的是**模型引用（usage-by-reference）查询**，即回答"哪些资源正在使用某个模型"，用于删除模型前的依赖保护，而非 token 用量计费：
 
-- `scopeKnowledgeBasesByModelID`：匹配 `knowledge_bases` 中任一模型绑定字段 —— `embedding_model_id`、`summary_model_id`、`image_processing_config.model_id`、`vlm_config.model_id`、`asr_config.model_id`、`wiki_config.synthesis_model_id`（Postgres 用 `->>` JSON 操作符，SQLite 用 `json_extract`，双方言等价）。
+- `scopeKnowledgeBasesByModelID`：匹配 `knowledge_bases` 中任一模型绑定字段 —— `embedding_model_id`、`summary_model_id`、`image_processing_config.model_id`、`vlm_config.model_id`、`asr_config.model_id`、`wiki_config.synthesis_model_id`（用 Postgres 的 `->>` JSON 操作符取值）。
 - 消费方：`knowledgebase.go` 仓储的 `CountByModelID`，被 `internal/application/service/model.go` 的删除守卫调用（KB 引用计数 > 0 时阻止删除模型）。
 
 token 级别的模型用量则由 Langfuse Generation 的 `usage_details`（`TokenUsage`：input/output/total/cache_*）上报，在 Langfuse UI 中按模型 / 用户（`tenant:<id>`）/ 会话聚合查看。

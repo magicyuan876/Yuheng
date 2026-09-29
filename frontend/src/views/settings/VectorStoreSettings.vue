@@ -1095,10 +1095,6 @@ onMounted(async () => {
   background: rgba(255, 90, 0, 0.12);
   color: #e55a00;
 }
-.store-card--sqlite .store-card__badge {
-  background: rgba(70, 70, 70, 0.1);
-  color: #464646;
-}
 
 .store-card:hover .store-card__more,
 .store-card:focus-within .store-card__more,
@@ -1171,9 +1167,5 @@ onMounted(async () => {
 .vectorstore-drawer--doris .setting-drawer__header-icon {
   background: rgba(255, 90, 0, 0.12);
   color: #e55a00;
-}
-.vectorstore-drawer--sqlite .setting-drawer__header-icon {
-  background: rgba(70, 70, 70, 0.1);
-  color: #464646;
 }
 </style>
