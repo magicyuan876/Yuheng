@@ -63,6 +63,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # The images (docreader carries LibreOffice, ffmpeg and a browser) together
+      # with their build layers do not fit next to what a stock runner ships: the
+      # first run died with "No space left on device" while building. Toolchains
+      # this job never uses are removed first, with plain commands rather than a
+      # third-party action.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force
+          df -h /
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
