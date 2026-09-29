@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -19,6 +20,10 @@ type fakeKnowledge struct {
 	entries map[string]knowledgeEntry
 	// failUpdate makes the next update report the entry as gone.
 	failUpdate bool
+	// failDelete makes every delete fail, leaving the entry where it is.
+	failDelete bool
+	// updates counts rewrites, each of which costs an embedding run.
+	updates int
 }
 
 type knowledgeEntry struct {
@@ -48,12 +53,23 @@ func (f *fakeKnowledge) UpdateKnowledgeContent(_ context.Context, id, title, bod
 		return false, nil
 	}
 	f.entries[id] = knowledgeEntry{kbID: f.entries[id].kbID, title: title, body: body}
+	f.updates++
 	return true, nil
+}
+
+func (f *fakeKnowledge) KnowledgeBaseOf(_ context.Context, id string) (string, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e, ok := f.entries[id]
+	return e.kbID, ok, nil
 }
 
 func (f *fakeKnowledge) DeleteKnowledge(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failDelete {
+		return errors.New("knowledge base unavailable")
+	}
 	delete(f.entries, id)
 	return nil
 }
@@ -362,4 +378,210 @@ func TestARebuildReportsPerPageReasons(t *testing.T) {
 	assert.Empty(t, reasons[good.Page.ID])
 	assert.Equal(t, index.ReasonRestricted, reasons[secret.Page.ID])
 	assert.Equal(t, 1, kb.count(), "only the unrestricted one")
+}
+
+// ---- the pages below a page that changed ---------------------------------------
+
+// indexAll gives every page an entry, as an earlier rebuild would have.
+func (p *pageEnv) indexAll(t *testing.T, ids ...string) {
+	t.Helper()
+	for _, id := range ids {
+		_, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, id)
+		require.NoError(t, err)
+	}
+}
+
+// A restriction is inherited. Re-syncing only the restricted page left the
+// pages below it in the knowledge base, searchable by people the restriction
+// was meant to keep out.
+func TestRestrictingAPageRemovesTheEntriesBelowIt(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	parent := p.create(t, p.alice, nil, "机密目录")
+	child := p.create(t, p.alice, &parent.ID, "子页面")
+	grandchild := p.create(t, p.alice, &child.ID, "孙页面")
+	sibling := p.create(t, p.alice, nil, "无关页面")
+	for _, pg := range []*PageView{parent, child, grandchild, sibling} {
+		p.write(t, p.alice, pg.ID, "足够长的正文内容在这里："+pg.Title)
+	}
+	p.indexAll(t, parent.ID, child.ID, grandchild.ID, sibling.ID)
+	require.Equal(t, 4, kb.count())
+
+	p.cut(t, p.alice, parent.ID)
+	_, err := p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, kb.count(), "only the page outside the restricted subtree remains")
+	assert.False(t, p.indexed(t, child.ID))
+	assert.False(t, p.indexed(t, grandchild.ID))
+	assert.True(t, p.indexed(t, sibling.ID))
+}
+
+func TestTrashingAPageRemovesTheEntriesBelowItAndRestoringBringsThemBack(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	parent := p.create(t, p.alice, nil, "目录")
+	child := p.create(t, p.alice, &parent.ID, "子页面")
+	for _, pg := range []*PageView{parent, child} {
+		p.write(t, p.alice, pg.ID, "足够长的正文内容在这里："+pg.Title)
+	}
+	p.indexAll(t, parent.ID, child.ID)
+	require.Equal(t, 2, kb.count())
+
+	_, err := p.svc.Pages.Delete(ctx(), p.alice, p.decision(t, p.alice, parent.ID))
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, kb.count(), "nothing of a trashed subtree stays searchable")
+
+	_, err = p.svc.Pages.Restore(ctx(), p.alice, parent.ID)
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, kb.count(), "and it all comes back")
+}
+
+// Visiting a whole subtree must not re-embed the pages that did not change.
+func TestASubtreeSyncLeavesUnchangedEntriesAlone(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	parent := p.create(t, p.alice, nil, "目录")
+	child := p.create(t, p.alice, &parent.ID, "子页面")
+	for _, pg := range []*PageView{parent, child} {
+		p.write(t, p.alice, pg.ID, "足够长的正文内容在这里："+pg.Title)
+	}
+	p.indexAll(t, parent.ID, child.ID)
+
+	_, err := p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	require.NoError(t, err)
+
+	// The page named by the event is rewritten; the ones below are not.
+	assert.Equal(t, 1, kb.updates)
+	assert.Equal(t, 2, kb.count())
+}
+
+// A page below the one that changed that has no entry, and should, gets one.
+func TestASubtreeSyncIndexesPagesThatShouldNowBeThere(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	parent := p.create(t, p.alice, nil, "目录")
+	child := p.create(t, p.alice, &parent.ID, "子页面")
+	p.write(t, p.alice, parent.ID, "足够长的正文内容在这里：目录")
+	p.write(t, p.alice, child.ID, "足够长的正文内容在这里：子页面")
+	p.cut(t, p.alice, parent.ID)
+	p.indexAll(t, parent.ID, child.ID)
+	require.Equal(t, 0, kb.count())
+
+	// Lifting the restriction makes both eligible.
+	p.access(t, p.alice, parent.ID)
+	_, err := p.svc.Pages.SetPageRestricted(ctx(), p.alice, p.decision(t, p.alice, parent.ID), false)
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, kb.count())
+}
+
+// ---- an entry lives in the knowledge base its space is bound to ----------------
+
+// newTwoKBEnv binds the fixture's space to kb-1 and makes kb-2 available.
+func newTwoKBEnv(t *testing.T) (*pageEnv, *fakeKnowledge) {
+	t.Helper()
+	kb := newFakeKnowledge()
+	p := newPageEnvWith(t, func(d *Deps) {
+		d.Knowledge = kb
+		d.KnowledgeBases = fakeKBs{"kb-1": 1, "kb-2": 1}
+	})
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-1"), nil)
+	require.NoError(t, err)
+	fresh, err := p.repos.Spaces.Get(ctx(), 1, p.space.ID)
+	require.NoError(t, err)
+	p.space = fresh
+	return p, kb
+}
+
+func (f *fakeKnowledge) inKB(kbID string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, e := range f.entries {
+		if e.kbID == kbID {
+			n++
+		}
+	}
+	return n
+}
+
+// Updating in place would leave the page in the old knowledge base, answerable
+// to that base's audience rather than that of the space it now belongs to.
+func TestAPageMovedToASpaceWithAnotherKnowledgeBaseFollowsIt(t *testing.T) {
+	p, kb := newTwoKBEnv(t)
+	target, err := p.svc.Spaces.Create(ctx(), p.alice, CreateSpaceInput{Name: "Target"})
+	require.NoError(t, err)
+	_, err = p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, target.Space, strPtr("kb-2"), nil)
+	require.NoError(t, err)
+
+	page := p.create(t, p.alice, nil, "会搬家的页面")
+	p.write(t, p.alice, page.ID, "足够长的正文内容在这里。")
+	p.indexAll(t, page.ID)
+	require.Equal(t, 1, kb.inKB("kb-1"))
+
+	_, err = p.svc.Pages.Move(ctx(), p.alice, p.decision(t, p.alice, page.ID),
+		MovePageInput{SpaceID: target.ID})
+	require.NoError(t, err)
+	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, page.ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, kb.inKB("kb-1"), "gone from the old knowledge base")
+	assert.Equal(t, 1, kb.inKB("kb-2"), "and present in the new one")
+	assert.Equal(t, 1, kb.count(), "never in both")
+}
+
+func TestReBindingASpaceMovesItsEntriesOnTheNextSync(t *testing.T) {
+	p, kb := newTwoKBEnv(t)
+	page := p.create(t, p.alice, nil, "页面")
+	p.write(t, p.alice, page.ID, "足够长的正文内容在这里。")
+	p.indexAll(t, page.ID)
+
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-2"), nil)
+	require.NoError(t, err)
+	_, _, err = p.svc.Pages.SyncSpaceToKnowledge(ctx(), p.alice, p.space, model.RoleAdmin, "", 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, kb.inKB("kb-1"))
+	assert.Equal(t, 1, kb.inKB("kb-2"))
+}
+
+// If the stray entry cannot be removed, a second copy must not be made beside
+// it: the page would be searchable in both places.
+func TestAStrayEntryThatCannotBeRemovedIsNotDuplicated(t *testing.T) {
+	p, kb := newTwoKBEnv(t)
+	page := p.create(t, p.alice, nil, "页面")
+	p.write(t, p.alice, page.ID, "足够长的正文内容在这里。")
+	p.indexAll(t, page.ID)
+
+	_, err := p.svc.Spaces.BindKnowledgeBase(ctx(), p.alice, p.space, strPtr("kb-2"), nil)
+	require.NoError(t, err)
+	kb.failDelete = true
+	_, err = p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)
+
+	require.Error(t, err)
+	assert.Equal(t, 1, kb.count())
+	assert.Equal(t, 1, kb.inKB("kb-1"))
+}
+
+// A restricted page whose entry cannot be deleted is still searchable. The
+// failure must surface, with the pointer kept, so a later attempt finds it.
+func TestAFailedRemovalIsReportedAndRemembered(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	page := p.create(t, p.alice, nil, "先公开后收回")
+	p.write(t, p.alice, page.ID, "一开始所有人都能看到的内容。")
+	p.indexAll(t, page.ID)
+
+	p.cut(t, p.alice, page.ID)
+	kb.failDelete = true
+	_, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)
+	require.Error(t, err)
+	assert.True(t, p.indexed(t, page.ID), "the pointer stays so the removal is retried")
+
+	kb.failDelete = false
+	res, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)
+	require.NoError(t, err)
+	assert.True(t, res.Removed)
+	assert.Equal(t, 0, kb.count())
 }

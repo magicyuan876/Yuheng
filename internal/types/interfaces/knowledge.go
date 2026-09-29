@@ -2,12 +2,19 @@ package interfaces
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime/multipart"
 
 	"github.com/hibiken/asynq"
 	"github.com/magicyuan876/yuheng/internal/types"
 )
+
+// ErrKnowledgeNotFound is what a lookup of one knowledge entry returns when
+// there is no such entry. It lives here, beside the interfaces that return it,
+// so a caller that only knows the interfaces (the docs module's adapter) can
+// tell "absent" from "the lookup failed" without importing the repository.
+var ErrKnowledgeNotFound = errors.New("knowledge not found")
 
 // KnowledgeService defines the interface for knowledge services.
 type KnowledgeService interface {

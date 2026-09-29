@@ -123,6 +123,9 @@ type Pending struct {
 type Queue struct {
 	debounce time.Duration
 	pending  map[string]time.Time
+	// urgent marks pages that are due at once and stay so: a later Touch must
+	// not push them back out.
+	urgent map[string]struct{}
 }
 
 // NewQueue builds a queue. A debounce of 0 uses DefaultDebounce; a negative
@@ -131,7 +134,7 @@ func NewQueue(debounce time.Duration) *Queue {
 	if debounce == 0 {
 		debounce = DefaultDebounce
 	}
-	return &Queue{debounce: debounce, pending: map[string]time.Time{}}
+	return &Queue{debounce: debounce, pending: map[string]time.Time{}, urgent: map[string]struct{}{}}
 }
 
 // Touch notes that a page changed.
@@ -145,7 +148,26 @@ func (q *Queue) Touch(pageID string, now time.Time) {
 	if q == nil || pageID == "" {
 		return
 	}
+	if _, ok := q.urgent[pageID]; ok {
+		return
+	}
 	q.pending[pageID] = now.Add(q.debounce)
+}
+
+// Urgent makes a page due immediately, and keeps it so until it is drained.
+//
+// Debouncing suits edits, where waiting spares an embedding run per keystroke.
+// It does not suit a change that takes content away from readers — a page
+// restricted, moved out of a space, or trashed — because every second of delay
+// is a second in which people who may no longer see it can still find it. Such
+// a page is therefore not held back, and an edit arriving afterwards does not
+// hold it back either.
+func (q *Queue) Urgent(pageID string, now time.Time) {
+	if q == nil || pageID == "" {
+		return
+	}
+	q.urgent[pageID] = struct{}{}
+	q.pending[pageID] = now
 }
 
 // Forget drops a page, for one that has been deleted.
@@ -154,6 +176,7 @@ func (q *Queue) Forget(pageID string) {
 		return
 	}
 	delete(q.pending, pageID)
+	delete(q.urgent, pageID)
 }
 
 // Due returns the pages whose debounce has expired, and removes them.
@@ -166,6 +189,7 @@ func (q *Queue) Due(now time.Time) []string {
 		if !now.Before(due) {
 			out = append(out, pageID)
 			delete(q.pending, pageID)
+			delete(q.urgent, pageID)
 		}
 	}
 	return out

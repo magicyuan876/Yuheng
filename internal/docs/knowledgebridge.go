@@ -78,6 +78,18 @@ func (b *knowledgeBridge) UpdateKnowledgeContent(ctx context.Context, knowledgeI
 	return true, nil
 }
 
+// KnowledgeBaseOf reports the knowledge base holding an entry.
+func (b *knowledgeBridge) KnowledgeBaseOf(ctx context.Context, knowledgeID string) (string, bool, error) {
+	k, err := b.svc.GetKnowledgeByIDOnly(ctx, knowledgeID)
+	if err != nil {
+		if errors.Is(err, interfaces.ErrKnowledgeNotFound) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return k.KnowledgeBaseID, true, nil
+}
+
 // DeleteKnowledge removes a mirrored document.
 func (b *knowledgeBridge) DeleteKnowledge(ctx context.Context, knowledgeID string) error {
 	return b.svc.DeleteKnowledge(ctx, knowledgeID)

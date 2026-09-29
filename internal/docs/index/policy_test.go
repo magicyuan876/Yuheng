@@ -160,3 +160,40 @@ func TestAnEmptyPageIDIsIgnored(t *testing.T) {
 	q.Touch("", time.Now())
 	require.Equal(t, 0, q.Len())
 }
+
+// A page taken away from readers is not held back by the debounce.
+func TestAnUrgentPageIsDueAtOnce(t *testing.T) {
+	q := NewQueue(time.Minute)
+	now := time.Now()
+	q.Urgent("page-1", now)
+	assert.Equal(t, []string{"page-1"}, q.Due(now))
+}
+
+// An edit arriving after a restriction must not postpone the restriction.
+func TestALaterEditDoesNotPostponeAnUrgentPage(t *testing.T) {
+	q := NewQueue(time.Minute)
+	now := time.Now()
+	q.Urgent("page-1", now)
+	q.Touch("page-1", now.Add(time.Second))
+	assert.Equal(t, []string{"page-1"}, q.Due(now.Add(time.Second)))
+}
+
+// Once drained, a page is ordinary again.
+func TestAnUrgentPageIsOrdinaryOnceDrained(t *testing.T) {
+	q := NewQueue(time.Minute)
+	now := time.Now()
+	q.Urgent("page-1", now)
+	q.Due(now)
+	q.Touch("page-1", now)
+	assert.Empty(t, q.Due(now))
+	assert.Equal(t, 1, q.Len())
+}
+
+func TestForgettingAPageForgetsItsUrgency(t *testing.T) {
+	q := NewQueue(time.Minute)
+	now := time.Now()
+	q.Urgent("page-1", now)
+	q.Forget("page-1")
+	q.Touch("page-1", now)
+	assert.Empty(t, q.Due(now))
+}

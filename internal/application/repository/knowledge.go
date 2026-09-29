@@ -11,7 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrKnowledgeNotFound = errors.New("knowledge not found")
+// ErrKnowledgeNotFound is the interfaces package's value, so errors.Is matches
+// whichever name a caller uses.
+var ErrKnowledgeNotFound = interfaces.ErrKnowledgeNotFound
 
 // likeEscapeChar is the SQL ESCAPE character paired with escapeLikeKeyword.
 const likeEscapeChar = `\`
