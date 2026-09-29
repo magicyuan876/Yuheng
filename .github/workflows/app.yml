@@ -64,8 +64,33 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: true
-          # v6 defaults to go.mod for the cache key (more stable than go.sum).
+          # Not setup-go's cache: its key is derived from go.mod alone, so every
+          # workflow that sets up Go for this module shares one key. Whichever
+          # finishes first saves under it — DocReader, with a handful of
+          # compiled packages — keys are immutable, and this job then restored
+          # that and recompiled the whole test graph on every run (~8 of its
+          # ~13 minutes). The caches below are this job's own.
+          cache: false
+
+      - name: Locate Go caches
+        id: go-cache
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      # The key ends in the run, so each push to main saves a fresh cache (a
+      # build cache is only as useful as it is recent); a run restores the
+      # newest one for the same go.sum, else the newest for this Go version.
+      - name: Restore Go caches
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: app-go-${{ runner.os }}-${{ env.GO_VERSION }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            app-go-${{ runner.os }}-${{ env.GO_VERSION }}-${{ hashFiles('go.sum') }}-
+            app-go-${{ runner.os }}-${{ env.GO_VERSION }}-
 
       - name: Download modules
         run: go mod download
@@ -104,3 +129,15 @@ jobs:
 
       - name: Build server
         run: go build ./cmd/server
+
+      # Saved from main only: a pull request's cache is visible to that pull
+      # request alone. Saved when tests fail too — the compiled packages are
+      # just as reusable — but not for a cancelled run.
+      - name: Save Go caches
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build }}
+            ${{ steps.go-cache.outputs.mod }}
+          key: app-go-${{ runner.os }}-${{ env.GO_VERSION }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}-${{ github.run_attempt }}
