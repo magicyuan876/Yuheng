@@ -3,6 +3,7 @@ package docs
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -24,25 +25,54 @@ import (
 const DocsChannel = "docs"
 
 type knowledgeBridge struct {
-	svc interfaces.KnowledgeService
+	svc     interfaces.KnowledgeService
+	tenants interfaces.TenantRepository
 }
 
 // NewKnowledgeBridge adapts Yuheng's knowledge service for the docs module.
-// A nil service yields nil, which leaves every space unindexed.
-func NewKnowledgeBridge(svc interfaces.KnowledgeService) service.Knowledge {
-	if svc == nil {
+// Without the knowledge service, or without the tenant repository the bridge
+// needs to act on behalf of a tenant, it yields nil, which leaves every space
+// unindexed.
+func NewKnowledgeBridge(svc interfaces.KnowledgeService, tenants interfaces.TenantRepository) service.Knowledge {
+	if svc == nil || tenants == nil {
 		return nil
 	}
-	return &knowledgeBridge{svc: svc}
+	return &knowledgeBridge{svc: svc, tenants: tenants}
+}
+
+// asTenant returns a context the knowledge service will accept.
+//
+// The knowledge service reads the tenant, and the tenant's record, out of the
+// context of a request and assumes it is there. The indexing workers call it
+// from no request at all, and without this it would fail on a missing value
+// instead of working. The record is loaded the way the data-source sync, the
+// other background writer of knowledge, does.
+func (b *knowledgeBridge) asTenant(ctx context.Context, tenantID uint64) (context.Context, error) {
+	ctx = context.WithValue(ctx, types.TenantIDContextKey, tenantID)
+	tenant, err := b.tenants.GetTenantByID(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("docs: loading tenant %d for the knowledge base: %w", tenantID, err)
+	}
+	return context.WithValue(ctx, types.TenantInfoContextKey, tenant), nil
 }
 
 // CreateKnowledgeFromText adds a page's Markdown as a knowledge document.
-func (b *knowledgeBridge) CreateKnowledgeFromText(ctx context.Context, kbID, title, markdown string) (
-	string, error,
-) {
+//
+// Published, not saved as a draft: the knowledge service only chunks and embeds
+// a manual document that is published, and a draft is stored and never becomes
+// searchable, which would leave the mirror looking complete and answering
+// nothing.
+func (b *knowledgeBridge) CreateKnowledgeFromText(ctx context.Context, tenantID uint64, kbID, title,
+	markdown string,
+) (string, error) {
+	ctx, err := b.asTenant(ctx, tenantID)
+	if err != nil {
+		return "", err
+	}
 	created, err := b.svc.CreateKnowledgeFromManual(ctx, kbID, &types.ManualKnowledgePayload{
 		Title:   title,
 		Content: markdown,
+		Status:  types.ManualKnowledgeStatusPublish,
 		Channel: DocsChannel,
 	}, DocsChannel)
 	if err != nil {
@@ -60,12 +90,17 @@ func (b *knowledgeBridge) CreateKnowledgeFromText(ctx context.Context, kbID, tit
 // can make a new one instead of leaving the page unindexed for ever — a
 // knowledge base somebody emptied by hand is an ordinary situation, not a
 // failure.
-func (b *knowledgeBridge) UpdateKnowledgeContent(ctx context.Context, knowledgeID, title,
+func (b *knowledgeBridge) UpdateKnowledgeContent(ctx context.Context, tenantID uint64, knowledgeID, title,
 	markdown string,
 ) (bool, error) {
+	ctx, err := b.asTenant(ctx, tenantID)
+	if err != nil {
+		return false, err
+	}
 	updated, err := b.svc.UpdateManualKnowledge(ctx, knowledgeID, &types.ManualKnowledgePayload{
 		Title:   title,
 		Content: markdown,
+		Status:  types.ManualKnowledgeStatusPublish,
 		Channel: DocsChannel,
 	})
 	if err != nil || updated == nil {
@@ -91,6 +126,10 @@ func (b *knowledgeBridge) KnowledgeBaseOf(ctx context.Context, knowledgeID strin
 }
 
 // DeleteKnowledge removes a mirrored document.
-func (b *knowledgeBridge) DeleteKnowledge(ctx context.Context, knowledgeID string) error {
+func (b *knowledgeBridge) DeleteKnowledge(ctx context.Context, tenantID uint64, knowledgeID string) error {
+	ctx, err := b.asTenant(ctx, tenantID)
+	if err != nil {
+		return err
+	}
 	return b.svc.DeleteKnowledge(ctx, knowledgeID)
 }

@@ -27,6 +27,8 @@ type fakeKnowledge struct {
 	failCreate bool
 	// updates counts rewrites, each of which costs an embedding run.
 	updates int
+	// tenants records the tenant each write was made for.
+	tenants []uint64
 }
 
 type knowledgeEntry struct {
@@ -37,9 +39,12 @@ func newFakeKnowledge() *fakeKnowledge {
 	return &fakeKnowledge{entries: map[string]knowledgeEntry{}}
 }
 
-func (f *fakeKnowledge) CreateKnowledgeFromText(_ context.Context, kbID, title, body string) (string, error) {
+func (f *fakeKnowledge) CreateKnowledgeFromText(
+	_ context.Context, tenantID uint64, kbID, title, body string,
+) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.tenants = append(f.tenants, tenantID)
 	if f.failCreate {
 		return "", errors.New("embedding service unavailable")
 	}
@@ -49,9 +54,12 @@ func (f *fakeKnowledge) CreateKnowledgeFromText(_ context.Context, kbID, title, 
 	return id, nil
 }
 
-func (f *fakeKnowledge) UpdateKnowledgeContent(_ context.Context, id, title, body string) (bool, error) {
+func (f *fakeKnowledge) UpdateKnowledgeContent(
+	_ context.Context, tenantID uint64, id, title, body string,
+) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.tenants = append(f.tenants, tenantID)
 	if f.failUpdate {
 		return false, nil
 	}
@@ -70,9 +78,10 @@ func (f *fakeKnowledge) KnowledgeBaseOf(_ context.Context, id string) (string, b
 	return e.kbID, ok, nil
 }
 
-func (f *fakeKnowledge) DeleteKnowledge(_ context.Context, id string) error {
+func (f *fakeKnowledge) DeleteKnowledge(_ context.Context, tenantID uint64, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.tenants = append(f.tenants, tenantID)
 	if f.failDelete {
 		return errors.New("knowledge base unavailable")
 	}
@@ -297,7 +306,7 @@ func TestAnEntryThatVanishedIsRecreated(t *testing.T) {
 
 	// Somebody emptied the knowledge base.
 	for id := range kb.entries {
-		require.NoError(t, kb.DeleteKnowledge(ctx(), id))
+		require.NoError(t, kb.DeleteKnowledge(ctx(), 1, id))
 	}
 	require.Equal(t, 0, kb.count())
 
@@ -611,4 +620,22 @@ func TestAFailedRemovalIsReportedAndRemembered(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, res.Removed)
 	assert.Equal(t, 0, kb.count())
+}
+
+// The workers run outside any request, so each write has to say whose knowledge
+// base it is for.
+func TestEveryKnowledgeWriteNamesThePagesTenant(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	page := p.create(t, p.alice, nil, "配额说明")
+	p.write(t, p.alice, page.ID, "第一版的内容在这里。")
+	p.indexAll(t, page.ID)
+	p.write(t, p.alice, page.ID, "第二版的内容完全不同。")
+	p.indexAll(t, page.ID)
+	p.cut(t, p.alice, page.ID)
+	p.indexAll(t, page.ID) // create, update, delete
+
+	require.Len(t, kb.tenants, 3)
+	for _, tenant := range kb.tenants {
+		assert.EqualValues(t, 1, tenant)
+	}
 }

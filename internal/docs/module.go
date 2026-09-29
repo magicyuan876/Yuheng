@@ -146,7 +146,7 @@ func NewModule(p Params) *Module {
 		deps.Favourites = p.Favourites
 	}
 	if p.KnowledgeService != nil {
-		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService)
+		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService, p.Tenants)
 	}
 	deps.Drafter = NewDraftBridge(p.KnowledgeService, p.KnowledgeBaseService, p.ModelService)
 	if p.UserService != nil {

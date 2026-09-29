@@ -213,7 +213,7 @@ func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page,
 			return "", fmt.Errorf("docs: locating the entry of page %s: %w", page.ID, err)
 		}
 		if found && entryKB != kbID {
-			if err := s.d.Knowledge.DeleteKnowledge(ctx, *page.KnowledgeID); err != nil {
+			if err := s.d.Knowledge.DeleteKnowledge(ctx, page.TenantID, *page.KnowledgeID); err != nil {
 				// Making a new entry while this one stays would leave the page
 				// searchable in both places.
 				return "", fmt.Errorf("docs: removing the entry of page %s from knowledge base %s: %w",
@@ -225,7 +225,7 @@ func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page,
 			return hash, nil
 		}
 		if found {
-			updated, err := s.d.Knowledge.UpdateKnowledgeContent(ctx, *page.KnowledgeID, title, body)
+			updated, err := s.d.Knowledge.UpdateKnowledgeContent(ctx, page.TenantID, *page.KnowledgeID, title, body)
 			if err == nil && updated {
 				return hash, nil
 			}
@@ -260,7 +260,7 @@ func contentHash(title, body string) string {
 
 // createKnowledgeEntry makes the entry for a page and records it.
 func (s *PageService) createKnowledgeEntry(ctx context.Context, page *model.Page, kbID, title, body string) error {
-	created, err := s.d.Knowledge.CreateKnowledgeFromText(ctx, kbID, title, body)
+	created, err := s.d.Knowledge.CreateKnowledgeFromText(ctx, page.TenantID, kbID, title, body)
 	if err != nil {
 		return fmt.Errorf("docs: indexing page %s: %w", page.ID, err)
 	}
@@ -272,7 +272,7 @@ func (s *PageService) dropKnowledgeEntry(ctx context.Context, page *model.Page) 
 	if page.KnowledgeID == nil || *page.KnowledgeID == "" {
 		return false, nil
 	}
-	if err := s.d.Knowledge.DeleteKnowledge(ctx, *page.KnowledgeID); err != nil {
+	if err := s.d.Knowledge.DeleteKnowledge(ctx, page.TenantID, *page.KnowledgeID); err != nil {
 		// A failed delete is harmless when the entry is already gone, and
 		// clearing the pointer is then the right thing. When it is still there
 		// the page has been dropped for a reason (restricted, trashed) and is
@@ -346,17 +346,21 @@ func (s *PageService) SyncSpaceToKnowledge(ctx context.Context, actor *acl.Ident
 
 // Knowledge is the slice of Yuheng's knowledge service this module needs.
 //
+// Every call that writes says whose knowledge base it is: the workers that make
+// these calls run outside any request, so there is no caller to take the tenant
+// from.
+//
 // Narrow on purpose: the module writes documents into a knowledge base and
 // removes them, and nothing here should be able to do more than that.
 type Knowledge interface {
 	// CreateKnowledgeFromText adds a Markdown document and returns its id.
-	CreateKnowledgeFromText(ctx context.Context, kbID, title, markdown string) (string, error)
+	CreateKnowledgeFromText(ctx context.Context, tenantID uint64, kbID, title, markdown string) (string, error)
 	// UpdateKnowledgeContent replaces a document, reporting false when the
 	// entry no longer exists.
-	UpdateKnowledgeContent(ctx context.Context, knowledgeID, title, markdown string) (bool, error)
+	UpdateKnowledgeContent(ctx context.Context, tenantID uint64, knowledgeID, title, markdown string) (bool, error)
 	// KnowledgeBaseOf says which knowledge base holds a document, and false when
 	// there is no such document.
 	KnowledgeBaseOf(ctx context.Context, knowledgeID string) (kbID string, found bool, err error)
 	// DeleteKnowledge removes a document.
-	DeleteKnowledge(ctx context.Context, knowledgeID string) error
+	DeleteKnowledge(ctx context.Context, tenantID uint64, knowledgeID string) error
 }
