@@ -1,6 +1,6 @@
 # 扩展点指南
 
-Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、IM 渠道、Agent 工具、对象存储九个层面都预留了清晰的扩展点。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
+Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、IM 渠道、Agent 工具、对象存储九个层面都预留了清晰的扩展点，并为独立扩展包提供 `internal/extension` 接缝（第 8 节）。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
 
 ## 0. 扩展点总览
 
@@ -522,6 +522,87 @@ default:
 
 ---
 
+## 8. 扩展包（internal/extension）：特性、路由与迁移
+
+前面几节是「往核心里加一个实现」。`internal/extension` 解决另一件事：一个**独立的扩展包**如何在不修改核心的前提下挂进服务。核心只定义接缝，绝不按名字判断某个扩展是否存在——没注册的特性就是不存在。
+
+### 接入方式
+
+扩展在自己包的 `init()` 里注册一个钩子，再由某个 `main` 包空导入（`import _ "…/acme"`）。钩子在核心注册完所有 provider 之后、任何值被解析之前运行，因此既能新增 provider，也能 `Decorate` 核心提供的默认值：
+
+```go
+// internal/extension/extension.go
+func RegisterHook(name string, h Hook) // 名称为空、hook 为 nil、重名都会 panic（启动即失败）
+type Hook func(c *dig.Container) error
+```
+
+### 现有接缝
+
+| 接缝 | 作用 | 位置 |
+| --- | --- | --- |
+| 特性注册表 `Features` | 扩展声明自己带来的特性及其当前状态（`Enabled` + 机器可读的 `Reason`）；核心只转发给客户端。状态可在运行期变化，调用方每次重新查询 | `internal/extension/extension.go`；默认实现 `NewFeatures()` 无任何特性，扩展用 `Decorate` 替换；`StaticFeatures` 供固定集合与测试 |
+| 检索引擎 | 提供 `EngineDescriptor` 进值组 `retrieve_engines`（见第 3 节） | `internal/application/service/retriever/catalog.go` |
+| 路由注册器 `RouteRegistrar` | 在核心路由**之后**向 `/api/v1` 增加路由；值组 `route_registrars` | `internal/extension/routes.go`，装配点 `internal/router/routes_extension.go` |
+| `RequireFeature(features, f)` | 路由中间件：特性未启用时返回 403，且不调用处理函数 | `internal/extension/routes.go` |
+| 迁移源 | `database.RegisterMigrationSource(name, fsys, table)`：扩展自带一套迁移和独立的版本表（不得与核心的 `schema_migrations` 或其他扩展重名），无需改 `migrations/versioned` | `internal/database/migration.go` |
+| 检索主体 `RetrieveParams.Subjects` | 调用者的权限主体，供支持 ACL 的引擎过滤（见下方「尚未强制」） | `internal/types/retriever.go` |
+
+### 路由注册器
+
+```go
+// internal/extension/routes.go
+type RouteRegistrar interface {
+    Register(r Routes) error // 返回错误则服务拒绝启动
+}
+
+type Routes interface {
+    Group() *gin.RouterGroup                  // 已认证的 /api/v1；API Key 一律 403
+    APIKeys(policy APIKeyPolicy) APIKeyRoutes // 同一分组，但为每条路由声明 API Key 策略
+    Viewer() / Contributor() / Admin() / Owner() gin.HandlerFunc // 与核心相同的角色守卫
+}
+```
+
+注册方式与其他值组一致：
+
+```go
+c.Provide(newAcmeRoutes, dig.Group(extension.RouteRegistrarGroup)) // newAcmeRoutes 返回 extension.RouteRegistrar
+```
+
+语义与核心路由完全一致，扩展**无法**绕开：
+
+- 路由挂在认证中间件之后，未登录返回 401；
+- API Key 网关对未声明的路由默认拒绝（403）。通过 `Group()` 注册的路由对 API Key 关闭；需要开放的走 `APIKeys(...)`，策略只有三种：`APIKeyAnyKey()`（任何有效 Key，只用于无害的只读路由）、`APIKeyFullAccess()`（仅完全访问 Key）、`APIKeyCapabilities(...)`（完全访问 Key 或带其中任一 capability 的 Key）。零值 `APIKeyPolicy{}` 什么都不声明，等同关闭；
+- 路由在核心之后注册，与核心路径冲突时 gin 直接 panic，启动失败，扩展**不能覆盖**核心路由；
+- 启动自检 `assertAPIKeyPoliciesMatchRoutes` 同样覆盖扩展声明的策略；
+- 扩展不能在 `/api/v1` 之外、认证之前注册路由，也无法声明平台级（`PlatformOnly`）策略。
+
+特性开关这样接入，未启用时响应体稳定（客户端可按 `error.code` 匹配，`details.reason` 即 `FeatureStatus.Reason`）：
+
+```go
+r.APIKeys(extension.APIKeyFullAccess()).GET("/acme/report", extension.RequireFeature(features, "acme"), r.Viewer(), h)
+// 403  {"success":false,"error":{"code":"feature_disabled","message":"…","details":{"feature":"acme","reason":"license_expired"}}}
+```
+
+建议把 `RequireFeature` 放在认证与角色守卫之后，避免匿名调用者探测部署内容。
+
+### 尚未强制：条目级权限
+
+`RetrieveParams.Subjects` 已存在并随检索请求传递；nil 或空表示调用者只能看到不受限制的条目。内置 PostgreSQL 引擎在 `EngineCapabilities.SupportsACL` 上声明了支持，但 `embeddings` 表没有存储条目主体、检索也不读取该字段——**目前不会过滤任何结果**（有测试固定了这一点）。在某个引擎真正实现过滤之前，不要把 `SupportsACL` 当作访问控制依据。
+
+### 目前扩展做不到的事（路线图缺口）
+
+以下能力还没有接缝，扩展要实现只能改核心代码：
+
+- **认证提供方**：登录方式（LDAP、SAML、自定义 OIDC 之外的来源）无法插入；
+- **审计输出**：审计日志只写数据库，无法增加外部汇（SIEM、Kafka 等）；
+- **配额与计量**：没有用量上报与限额的钩子；
+- **异步任务处理器**：无法向任务队列注册新的任务类型与处理器；
+- **前端注册表**：前端没有让扩展新增页面、菜单、设置项的机制，服务端返回的特性状态只能由前端已有代码消费；
+- 条目级权限的强制（见上）；
+- 分块策略、模型 Provider、联网搜索、数据源连接器、存储后端仍按第 2、4～7 节的方式在核心内注册，尚未接入 `internal/extension`。
+
+---
+
 ## 附：扩展点速查表
 
 | 扩展点 | 核心接口 | 接口文件 | 注册点 |
@@ -533,3 +614,6 @@ default:
 | 联网搜索 | `WebSearchProvider` | `internal/types/interfaces/web_search.go` | `container.go` `registerWebSearchProviders()` |
 | 数据源连接器 | `Connector` / `StreamingConnector` | `internal/datasource/connector.go` | `container.go` `initConnectorRegistry()` + `ConnectorMetadataRegistry` |
 | 存储后端 | `FileService` | `internal/types/interfaces/file.go` | `internal/application/service/file/factory.go` switch |
+| 扩展包路由 | `extension.RouteRegistrar` | `internal/extension/routes.go` | 值组 `route_registrars`（`extension.RouteRegistrarGroup`） |
+| 特性注册表 | `extension.Features` | `internal/extension/extension.go` | `extension.RegisterHook` + `Decorate` |
+| 扩展迁移 | `fs.FS` + 独立版本表 | `internal/database/migration.go` | `database.RegisterMigrationSource()` |

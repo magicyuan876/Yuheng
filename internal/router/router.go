@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -83,6 +82,10 @@ type RouterParams struct {
 	DataSourceCredentialsHandler *handler.DataSourceCredentialsHandler
 	WikiPageHandler              *handler.WikiPageHandler
 	DocsModule                   *docs.Module `optional:"true"`
+
+	// RouteRegistrars are the routes extensions add (see the extension
+	// package). The group is empty in a build without extensions.
+	RouteRegistrars []extension.RouteRegistrar `group:"route_registrars"`
 }
 
 // NewRouter 创建新的路由
@@ -100,20 +103,11 @@ func NewRouter(params RouterParams) *gin.Engine {
 		logger.Errorf(context.Background(), "[Router] failed to set trusted proxies: %v", err)
 	}
 
-	// CORS 中间件应放在最前面。
-	// 注意：通配符 AllowOrigins 下浏览器会拒绝一切带凭据（cookie）的跨域
-	// 请求（CORS 规范禁止 "*" 与 credentials 组合），因此 AllowCredentials
-	// 实际只对未来改为回显具体 Origin 时才生效；当前认证全部走显式的
-	// Authorization / X-API-Key 头，不依赖 ambient 凭据。若引入 cookie
-	// 认证，必须先把 AllowOrigins 换成受控清单。
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-API-Key", "X-Request-ID", "X-Tenant-ID", "X-Embed-Session", "X-External-User-ID", "X-External-User-Token"},
-		ExposeHeaders:    []string{"Content-Length", "Access-Control-Allow-Origin"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// CORS 中间件应放在最前面。策略见 corsConfig：认证全部走显式的
+	// Authorization / X-API-Key 头，不依赖 cookie 等 ambient 凭据，所以默认
+	// 允许任意来源（且不声明 credentials）；YUHENG_CORS_ALLOWED_ORIGINS 可收紧为
+	// 受控清单。
+	r.Use(cors.New(corsConfig()))
 
 	// Failed-login counters and the per-IP auth budgets are shared between
 	// instances when Redis is there, and per process otherwise.
@@ -266,6 +260,14 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterDataSourceRoutes(v1, params.DataSourceHandler, params.DataSourceCredentialsHandler, rbacGuards)
 		RegisterWikiPageRoutes(v1, params.WikiPageHandler, rbacGuards)
 		RegisterChunkerDebugRoutes(v1, rbacGuards)
+
+		// Extension routes come last: a path a core route already owns is then
+		// a startup failure rather than a silent takeover, and the self-check
+		// below covers what they declare. A registrar that fails stops the
+		// server, like the self-check itself.
+		if err := RegisterExtensionRoutes(v1, params.RouteRegistrars, rbacGuards); err != nil {
+			panic("extension routes: " + err.Error())
+		}
 
 		// Fail fast if any declared API-key policy points at a route
 		// template that does not actually exist (typo / path drift). A

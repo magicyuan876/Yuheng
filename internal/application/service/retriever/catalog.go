@@ -49,9 +49,13 @@ type EngineCapabilities struct {
 	Retrievers []types.RetrieverType
 	// ScoreScale is the range of the similarity scores it reports.
 	ScoreScale ScoreScale
-	// SupportsACL says the engine can filter by item-level permissions
-	// (RetrieveParams.Subjects). A knowledge base may only use entry-level
-	// permissions when its engine says so.
+	// SupportsACL says the engine is meant to filter by item-level permissions
+	// (RetrieveParams.Subjects). The parameter exists and travels with the
+	// query, but nothing enforces it yet: the built-in PostgreSQL engine
+	// declares support, stores no per-entry subjects and ignores Subjects, so
+	// today every engine returns the same results whatever the caller's
+	// subjects. Do not rely on this flag for access control until an engine's
+	// retrieval actually filters; that is not yet enforced.
 	SupportsACL bool
 }
 

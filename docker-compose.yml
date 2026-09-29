@@ -111,6 +111,8 @@ services:
       # gin 信任的代理 CIDR（逗号分隔）；显式设为空字符串则禁用代理信任。
       # 默认信任 loopback + 私网段（容器网络内 nginx 已覆盖）
       # - YUHENG_TRUSTED_PROXIES=${YUHENG_TRUSTED_PROXIES:-}
+      # 浏览器跨域允许的来源（逗号分隔）；留空 = 任意来源（不带 credentials）
+      - YUHENG_CORS_ALLOWED_ORIGINS=${YUHENG_CORS_ALLOWED_ORIGINS:-}
       # 启动时自动执行数据库迁移；设为 false 禁用，默认启用
       - AUTO_MIGRATE=${AUTO_MIGRATE:-true}
       # 迁移失败时拒绝启动（默认 true）。设为 false 仅适用于在带外自行迁移的运维方式：

@@ -29,7 +29,9 @@ func PostgresDescriptor() EngineDescriptor {
 			Retrievers: []types.RetrieverType{types.KeywordsRetrieverType, types.VectorRetrieverType},
 			// pgvector reports (1 - cosine distance), which stays in [0, 1]
 			// for the L2-normalised embeddings retrieval models produce.
-			ScoreScale:  ScoreUnit,
+			ScoreScale: ScoreUnit,
+			// Declared, not yet enforced: the embeddings table carries no
+			// subjects and the repository ignores RetrieveParams.Subjects.
 			SupportsACL: true,
 		},
 		DefaultIndexName: "embeddings",

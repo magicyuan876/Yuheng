@@ -44,6 +44,12 @@ type RetrieveParams struct {
 	AdditionalParams map[string]interface{}
 	// Retriever type
 	RetrieverType RetrieverType // Retriever type
+	// Subjects are the permission subjects of the caller. Nil or empty means the
+	// caller may see only unrestricted entries. An engine that declares
+	// SupportsACL filters by it; every other engine ignores it. The built-in
+	// PostgreSQL engine declares the capability but does not filter yet (see
+	// EngineCapabilities.SupportsACL), so setting it changes no result today.
+	Subjects []string
 }
 
 // RetrieverEngineParams represents the parameters for retriever engine

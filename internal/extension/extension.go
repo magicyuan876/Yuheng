@@ -27,6 +27,18 @@
 // Hooks run once, in registration order, after the core has registered every
 // provider and before anything is resolved (see ApplyHooks), so a hook may both
 // add providers and decorate what the core provided.
+//
+// # What an extension can provide
+//
+//   - Features: a registry of named capabilities and their status (Features).
+//   - Routes: RouteRegistrar values in the RouteRegistrarGroup dig group add
+//     routes under /api/v1 with the core's authentication and API-key rules
+//     (see routes.go); RequireFeature gates them on a feature.
+//   - Retrieval engines: descriptors in the retriever package's engine group.
+//   - Schema: database.RegisterMigrationSource.
+//
+// Auth providers, audit sinks, quotas, task handlers and a frontend registry
+// have no seam yet.
 package extension
 
 import (
