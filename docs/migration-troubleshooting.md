@@ -11,21 +11,42 @@ If none of these match your situation, jump to
 
 ## What "migration failed" means
 
-Yuheng auto-runs `golang-migrate` migrations on every startup. When a
-migration fails, the application **still finishes starting up** (so the UI
-remains reachable to help you diagnose the problem), but:
+Yuheng applies its `golang-migrate` migrations on every startup (the SQL files
+are embedded in the binary, so this does not depend on the working directory).
+When a migration fails, **the server stops with an error and does not start**
+(`MIGRATION_FAIL_FAST`, default `true`). Starting against a half-migrated
+schema would serve requests that hit columns and tables that do not exist yet.
+The container exits (or restarts in a loop under `restart: unless-stopped`);
+read the reason with:
 
-- The failing migration is rolled back, leaving the database at the previous
-  version. Any tables / indexes introduced by that migration **are not
-  created**.
-- Downstream features depending on those tables (Wiki ingest, knowledge graph,
-  task queues, …) may silently produce nothing.
-- The system info page shows the partial DB version + a red "Migration failed"
-  tag and the captured error.
+```bash
+docker compose logs app | grep -i migrat
+```
 
-The cached error message you see in the UI is the same one logged at startup
-under `Database migration failed: ...`. Recent container logs are the
-authoritative source — copy them before doing anything destructive.
+What the failure leaves behind:
+
+- Migrations are **not** wrapped in a transaction by the runner. A migration
+  that fails on statement 3 of 5 has already applied statements 1 and 2, and
+  the database is marked **dirty** at that version (see
+  [Dirty migration state](#2-dirty-migration-state)).
+- Extension migrations (schema registered by an extension through
+  `database.RegisterMigrationSource`) run after the core ones, each with its
+  own version table; the error names the source.
+- `/ready` returns 503 whenever the recorded migration state is failed or
+  dirty, and `/health` keeps saying only that the process is alive.
+
+If you migrate the schema yourself (`scripts/migrate.sh up` from CI, a
+separate job, a DBA) and want the server to start regardless, set
+`MIGRATION_FAIL_FAST=false` (or `AUTO_MIGRATE=false` to skip migrations
+entirely). With `MIGRATION_FAIL_FAST=false` a failure is logged as a warning,
+the server starts, the system info page shows the partial DB version with a red
+"Migration failed" tag and the captured error, and `/ready` stays at 503.
+
+The error message is the same one logged at startup. Recent container logs are
+the authoritative source; copy them before doing anything destructive.
+
+**Take a backup before repairing anything by hand**
+(see `website-docs/01-getting-started/05-backup-and-upgrade.md`).
 
 ---
 
@@ -68,7 +89,8 @@ start when either is missing. Managed PostgreSQL services usually cannot install
 pgvector and pg_search yourself.
 
 Then restart Yuheng. The next startup will pick up where the failing
-migration left off.
+migration left off (if it left the database dirty, repair that first: see
+section 2).
 
 If `CREATE EXTENSION` itself errors with **"could not open extension control
 file"** or **"permission denied"**, the extension is not installed on your
@@ -78,32 +100,46 @@ preinstalled, then retry.
 
 ### 2. Dirty migration state
 
-If a migration crashed partway through (OOM, container kill, network blip)
-`golang-migrate` marks the schema as "dirty" at the failing version. By
-default, Yuheng's startup tries to auto-recover; if you disabled that with
-`AUTO_RECOVER_DIRTY=false` you'll see:
+If a migration crashed or failed partway through (OOM, container kill, a
+statement error) `golang-migrate` marks the schema "dirty" at the failing
+version, and the next start refuses to continue:
 
 ```
-database is in dirty state at version N. ...
+database is in a dirty state at version N ...
 ```
 
-**Fix** — use the bundled helpers:
+Yuheng does **not** guess how to continue by default: some of the migration's
+statements were applied and some were not, and only you can tell which. To
+repair it by hand:
 
-```bash
-# Check the recorded version
-make migrate-version
+1. Read the error of the failing migration (in the log of the run that failed)
+   and open `migrations/versioned/<N>_*.up.sql`. Which statements were applied?
+2. Undo or finish those statements yourself with `psql`, or restore the backup
+   you took before upgrading.
+3. Set the version table to the last migration that fully applied (usually
+   `N - 1`), then re-run:
 
-# Force the version to the last successful migration (N - 1 in the message)
-make migrate-force version=<N-1>
+   ```bash
+   make migrate-version            # confirm what is recorded
+   make migrate-force version=<N-1>
+   make migrate-up                 # optional: apply pending migrations now
+   ```
 
-# Re-run pending migrations
-make migrate-up
-```
+   In the app container: `docker exec Yuheng-app ./scripts/migrate.sh force <N-1>`
+   (the script reads `DB_*` from the container environment).
+4. Restart Yuheng.
 
-After that, restart Yuheng.
+**`AUTO_RECOVER_DIRTY=true`** (default `false`) makes the server do step 3 by
+itself and retry the migration. Only enable it when you know the interrupted
+migration can be run twice without harm: every statement guarded
+(`IF NOT EXISTS`, `IF EXISTS`, `ON CONFLICT DO NOTHING`) or a pure no-op on a
+second pass. An unguarded `ALTER TABLE ... ADD COLUMN` fails again and leaves
+the database dirty once more; a non-idempotent data rewrite silently applies
+twice. Many migrations in this repository are guarded, but not all of them, and
+that is why it is off by default.
 
-Or set `AUTO_RECOVER_DIRTY=true` (the default in recent versions) and just
-restart — startup will perform the same `force` + retry automatically.
+Extension sources have their own version table; pass its name to the migrate
+CLI (`x-migrations-table=<table>` in the database URL) when repairing one.
 
 ### 3. Insufficient privileges on the database role
 
@@ -153,11 +189,12 @@ migration's `*.up.sql` and then re-run pending migrations.
    error will be far more specific than the migration wrapper's.
 4. **Fix the underlying cause** (install extension, fix privileges, free
    disk, …), then either:
-   - Restart Yuheng and let auto-recovery retry; **or**
+   - Restart Yuheng (the migration is retried on start-up; if the database is
+     dirty, repair it first as described above); **or**
    - Run `make migrate-up` from a checkout to apply migrations outside the
      server process.
-5. **Verify**: the system info page should now show the DB version without
-   the "Migration failed" tag, and the previously broken feature (Wiki, KG,
+5. **Verify**: `curl localhost:8080/ready` returns 200, the system info page
+   shows the DB version without the "Migration failed" tag, and the previously broken feature (Wiki, KG,
    …) should start producing output.
 
 ---
@@ -179,8 +216,8 @@ Include:
   ```sql
   SELECT extname, extversion FROM pg_extension;
   ```
-- Any non-default values of `RETRIEVE_DRIVER`, `AUTO_MIGRATE`, and
-  `AUTO_RECOVER_DIRTY`.
+- Any non-default values of `RETRIEVE_DRIVER`, `AUTO_MIGRATE`,
+  `MIGRATION_FAIL_FAST` and `AUTO_RECOVER_DIRTY`.
 
 The "Report issue" link on the system info page pre-fills a body with the
 captured error for you — clicking it is the fastest path.

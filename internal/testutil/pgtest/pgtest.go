@@ -35,8 +35,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,14 +43,16 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // migrate's postgres:// driver
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // migrate's file:// source
-	_ "github.com/jackc/pgx/v5/stdlib"                         // database/sql "pgx" driver
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+	_ "github.com/jackc/pgx/v5/stdlib" // database/sql "pgx" driver
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/magicyuan876/yuheng/migrations"
 )
 
 // DefaultImage is the image docker-compose.yml runs the database on. Keep the
@@ -96,6 +96,45 @@ func NewSQL(t testing.TB) (*sql.DB, *gorm.DB) {
 		t.Fatalf("pgtest: database %s: %v", name, err)
 	}
 	return sqlDB, db
+}
+
+// NewEmpty returns the golang-migrate URL of a fresh database with no schema
+// at all, and a *sql.DB on it, for tests of the migration runner itself. The
+// URL carries app.skip_embedding=false, as the server's own does when the
+// built-in engine is in use. settings are further session settings for the
+// migrator's connections, each "name=value" (for example a GUC a migration
+// checks before it does something destructive). The database is dropped when
+// the test ends.
+func NewEmpty(t testing.TB, settings ...string) (migrateURL string, db *sql.DB) {
+	t.Helper()
+	setupOnce.Do(func() { shared, setupErr = start() })
+	if setupErr != nil {
+		t.Fatalf("pgtest: no test database: %v", setupErr)
+	}
+	name := fmt.Sprintf("e_%d_%d", os.Getpid(), dbSeq.Add(1))
+	if err := shared.exec(fmt.Sprintf(`CREATE DATABASE %q TEMPLATE template0`, name)); err != nil {
+		t.Fatalf("pgtest: create database: %v", err)
+	}
+	target := *shared.admin
+	target.Path = "/" + name
+	q := target.Query()
+	q.Set("sslmode", "disable")
+	options := "-c app.skip_embedding=false"
+	for _, setting := range settings {
+		options += " -c " + setting
+	}
+	q.Set("options", options)
+	target.RawQuery = q.Encode()
+
+	db, err := sql.Open("pgx", shared.dsn(name))
+	if err != nil {
+		t.Fatalf("pgtest: open database %s: %v", name, err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+		_ = shared.execUnlocked(fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+	})
+	return target.String(), db
 }
 
 func open(t testing.TB) (*gorm.DB, string) {
@@ -183,7 +222,10 @@ func startContainer(ctx context.Context) (string, error) {
 // does at startup (internal/database.RunMigrations), with embeddings on so
 // the vector tables exist for the retriever tests.
 func (s *server) migrate() error {
-	src := "file://" + filepath.ToSlash(migrationsDir())
+	src, err := iofs.New(migrations.Core(), ".")
+	if err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
 	target := *s.admin
 	target.Path = "/" + s.template
 	q := target.Query()
@@ -191,7 +233,7 @@ func (s *server) migrate() error {
 	q.Set("options", "-c app.skip_embedding=false")
 	target.RawQuery = q.Encode()
 
-	m, err := migrate.New(src, target.String())
+	m, err := migrate.NewWithSourceInstance("iofs", src, target.String())
 	if err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
@@ -243,11 +285,4 @@ func image() string {
 		return img
 	}
 	return DefaultImage
-}
-
-// migrationsDir is migrations/versioned at the repository root, found from
-// this file's location so it holds whichever package the test runs in.
-func migrationsDir() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "migrations", "versioned")
 }

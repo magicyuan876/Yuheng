@@ -30,6 +30,7 @@ spec:
     spec:
       {{- include "yuheng.imagePullSecrets" . | nindent 6 }}
       serviceAccountName: {{ include "yuheng.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.app.terminationGracePeriodSeconds | default 45 }}
       {{- with .Values.app.podSecurityContext | default .Values.global.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -184,6 +185,10 @@ spec:
               mountPath: /data/files
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
+          {{- with .Values.app.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.app.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

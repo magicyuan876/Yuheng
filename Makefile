@@ -48,7 +48,7 @@ help:
 	@echo "环境检查:"
 	@echo "  check-env         检查环境配置"
 	@echo "  list-containers   列出运行中的容器"
-	@echo "  pull-images       拉取最新镜像"
+	@echo "  pull-images       拉取第三方基础镜像（Yuheng 自身镜像在本机构建）"
 	@echo "  show-platform     显示当前构建平台"
 	@echo ""
 	@echo "开发模式（推荐）:"

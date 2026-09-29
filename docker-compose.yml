@@ -39,8 +39,18 @@ services:
         - GOPROXY_ARG=${GOPROXY_ARG:-}
         - WITH_ANYDOC=${WITH_ANYDOC:-1}
     container_name: Yuheng-app
+    # Published on loopback by default. The browser reaches the API through the
+    # frontend's nginx (/api, /files, /r, and /collab for the collaboration
+    # service), and every other container uses the Yuheng-network name, so nothing
+    # in this stack needs the port from another host. To call the API directly from
+    # elsewhere (scripts, a remote MCP client, an external reverse proxy on another
+    # machine) set APP_BIND=0.0.0.0 in .env, ideally behind TLS.
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    # Longer than the server's own drain window (server.shutdown_timeout in
+    # config/config.yaml, 30s by default) so in-flight chat streams and ingestion tasks can finish before
+    # Docker's SIGKILL, which the 10s default would send first.
+    stop_grace_period: 45s
     volumes:
       - data-files:/data/files
       - docreader-tmp:/tmp/docreader:ro
@@ -49,8 +59,12 @@ services:
       # to config/builtin_models.yaml, edit it for your deployment, then
       # uncomment the line below. See docs/BUILTIN_MODELS.md.
       # - ./config/builtin_models.yaml:/app/config/builtin_models.yaml:ro
+    # /ready, not /health: the frontend and collab wait on this check, and they
+    # should wait for a database that answers and a clean migration state, not
+    # merely a process that is listening. (/health stays the liveness signal for
+    # anything that restarts the container; Kubernetes uses both, see helm/.)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -99,6 +113,14 @@ services:
       # - YUHENG_TRUSTED_PROXIES=${YUHENG_TRUSTED_PROXIES:-}
       # 启动时自动执行数据库迁移；设为 false 禁用，默认启用
       - AUTO_MIGRATE=${AUTO_MIGRATE:-true}
+      # 迁移失败时拒绝启动（默认 true）。设为 false 仅适用于在带外自行迁移的运维方式：
+      # 服务照常启动，但 /ready 会一直返回 503，直到迁移状态恢复正常。
+      - MIGRATION_FAIL_FAST=${MIGRATION_FAIL_FAST:-true}
+      # 数据库连接池（须小于 postgres 的 max_connections，默认 100；同一个 postgres
+      # 还供 langfuse 等使用，所以留出余量。多副本时每个副本各占一份）
+      - DB_MAX_OPEN_CONNS=${DB_MAX_OPEN_CONNS:-50}
+      - DB_MAX_IDLE_CONNS=${DB_MAX_IDLE_CONNS:-10}
+      - DB_CONN_MAX_LIFETIME_MINUTES=${DB_CONN_MAX_LIFETIME_MINUTES:-10}
       # IM 渠道图片/文件外链的外部可达 URL。IM 显示知识库图片需二选一：
       # 存储后端公网可达（如 S3_ENDPOINT 设为公网），或设本变量走 <APP_EXTERNAL_URL>/r/<token>（需 nginx 代理 /r/）。
       # 默认内网对象存储部署 / local 后端需设本变量。
@@ -108,7 +130,8 @@ services:
 
       # 认证 / 空间 / RBAC / 审计
       # 禁止新用户注册（生产建议 true）
-      - DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-false}
+      # 留空 = auto：只在还没有任何用户时开放注册（第一个账号成为管理员），之后关闭。
+      - DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-}
       # 公开注册后的默认空间策略：create_personal（默认，自动创建个人空间）/ tenantless
       - YUHENG_AUTH_DEFAULT_TENANT_MODE=${YUHENG_AUTH_DEFAULT_TENANT_MODE:-create_personal}
       # 是否允许普通用户登录后主动创建空间（默认 true；false 仅能邀请加入，超管不受影响）
@@ -165,7 +188,9 @@ services:
       - LOCAL_STORAGE_BASE_DIR=${LOCAL_STORAGE_BASE_DIR:-/data/files}
       # 本地存储路径前缀（legacy 回填用，一般留空）
       - LOCAL_STORAGE_PATH_PREFIX=${LOCAL_STORAGE_PATH_PREFIX:-}
-      - AUTO_RECOVER_DIRTY=${AUTO_RECOVER_DIRTY:-true}
+      # 迁移中断留下 dirty 状态时，自动回退一个版本并重跑（默认 false）。只有被中断的
+      # 迁移可以安全地重复执行时才能开；否则请按 docs/migration-troubleshooting.md 手动修复。
+      - AUTO_RECOVER_DIRTY=${AUTO_RECOVER_DIRTY:-false}
       # ----- S3 兼容对象存储（STORAGE_TYPE=s3）：RustFS / MinIO / AWS S3 / 各云的 S3 端点 -----
       - S3_ENDPOINT=${S3_ENDPOINT:-http://rustfs:9000}
       - S3_REGION=${S3_REGION:-us-east-1}
@@ -234,7 +259,9 @@ services:
       # DB host would skip the 5432 port block.)
       - SSRF_WHITELIST_EXTRA=${SSRF_WHITELIST_EXTRA:-searxng,rustfs}
       - CONCURRENCY_POOL_SIZE=${CONCURRENCY_POOL_SIZE:-5}
+      # 服务拒绝在 JWT_SECRET / SYSTEM_AES_KEY 为空、为示例值或长度不对时启动（见 .env.example F1）。
       - JWT_SECRET=${JWT_SECRET:-}
+      - YUHENG_INSECURE_DEV=${YUHENG_INSECURE_DEV:-}
       # File size limit (in MB)
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
       # 视频上传独立上限（默认 2048MB）。视频不走 gRPC 字节传输：
@@ -287,7 +314,7 @@ services:
       - FEISHU_DOCX_PARSE_MODE=${FEISHU_DOCX_PARSE_MODE:-export}
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       postgres:
         condition: service_healthy
       docreader:
@@ -309,6 +336,10 @@ services:
         - APT_MIRROR=${APT_MIRROR:-}
         - PIP_INDEX_URL=${PIP_INDEX_URL:-}
     container_name: Yuheng-docreader
+    # Parsing runs LibreOffice, ffmpeg and a headless browser on user-supplied
+    # files; one pathological document must not take the whole host down with it.
+    # Raise it for very large PDFs or long videos.
+    mem_limit: ${DOCREADER_MEM_LIMIT:-4g}
     # docreader gRPC ships without auth/TLS and is only consumed by the app
     # container over the Yuheng-network (DOCREADER_ADDR defaults to
     # docreader:50051), so we don't publish 50051 to the host. `expose` keeps
@@ -506,6 +537,20 @@ services:
     image: redis:7.0-alpine
     container_name: Yuheng-redis
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    # redis-cli reads the password from REDISCLI_AUTH, so it never appears in the
+    # process list or the healthcheck output.
+    environment:
+      - REDISCLI_AUTH=${REDIS_PASSWORD:-}
+    # The append-only file lives here: without a volume every `docker compose
+    # down` (or image update) dropped the task queue and the caches with it.
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     restart: always
     networks:
       - Yuheng-network
@@ -570,6 +615,12 @@ services:
   # of writing) and a floating tag could change the on-disk format underneath the
   # data. The published ports stay on the loopback interface: the default
   # credentials are for a first run, not for a network.
+  #
+  # If you set RUSTFS_BIND to anything but 127.0.0.1 you MUST also set your own
+  # RUSTFS_ACCESS_KEY / RUSTFS_SECRET_KEY: compose cannot check that for you, and
+  # the defaults (rustfsadmin / rustfsadmin) give anyone who can reach the port
+  # full control of every uploaded document. The same applies to the S3_* keys
+  # the app uses, which default to the same values.
   rustfs:
     image: rustfs/rustfs:latest@sha256:b7014e0ce2bc703c1316b3ef760e29dfae61fe4a50d1a66fa89638e0f8ea211f
     container_name: Yuheng-rustfs
@@ -603,9 +654,11 @@ services:
       - NEO4J_apoc_import_file_enabled=true
       - NEO4J_apoc_import_file_use__neo4j__config=true
       - NEO4JLABS_PLUGINS=["apoc"]
+    # Loopback by default (NEO4J_BIND=0.0.0.0 to expose). The app reaches it as
+    # bolt://neo4j:7687 over the compose network; the ports are for the browser UI.
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "${NEO4J_BIND:-127.0.0.1}:${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BIND:-127.0.0.1}:${NEO4J_BOLT_PORT:-7687}:7687"
     restart: always
     networks:
       - Yuheng-network
@@ -616,8 +669,10 @@ services:
   dex:
     image: dexidp/dex:latest
     container_name: dex
+    # A test identity provider with static passwords (misc/dex-config.yaml):
+    # loopback only, and not something to run in production.
     ports:
-      - "5556:5556"
+      - "${DEX_BIND:-127.0.0.1}:5556:5556"
     volumes:
       - ./misc/dex-config.yaml:/etc/dex/config.yaml
     command: ["dex", "serve", "/etc/dex/config.yaml"]
@@ -713,10 +768,13 @@ services:
       MINIO_ROOT_USER: ${LANGFUSE_MINIO_USER:-langfuseminio}
       MINIO_ROOT_PASSWORD: ${LANGFUSE_MINIO_PASSWORD:-langfuseminiosecret}
     ports:
-      # 9100：S3 API（浏览器上传媒体时会直连此端口，必须对外暴露）
-      - "${LANGFUSE_MINIO_S3_PORT:-9100}:9000"
+      # 9100：S3 API。浏览器上传媒体时会直连此端口，所以浏览器所在的机器必须够得着它：
+      # 默认只绑本机回环（Langfuse 和浏览器都在这台机器上时够用）；Langfuse 给远程用户
+      # 用时，设 LANGFUSE_MINIO_BIND=0.0.0.0 并把 LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT
+      # 改成他们能访问的地址，同时务必换掉 LANGFUSE_MINIO_USER / _PASSWORD 默认值。
+      - "${LANGFUSE_MINIO_BIND:-127.0.0.1}:${LANGFUSE_MINIO_S3_PORT:-9100}:9000"
       # 9101：MinIO 控制台（可选，方便排障）
-      - "${LANGFUSE_MINIO_CONSOLE_PORT:-9101}:9001"
+      - "${LANGFUSE_MINIO_BIND:-127.0.0.1}:${LANGFUSE_MINIO_CONSOLE_PORT:-9101}:9001"
     volumes:
       - langfuse_minio_data:/data
     healthcheck:
@@ -808,7 +866,7 @@ services:
     restart: unless-stopped
     depends_on: *langfuse-depends-on
     ports:
-      - "${LANGFUSE_WEB_PORT:-3000}:3000"
+      - "${LANGFUSE_WEB_BIND:-127.0.0.1}:${LANGFUSE_WEB_PORT:-3000}:3000"
     # 同样走 wrapper entrypoint，末尾写死 web 的原始启动命令（见镜像 Dockerfile 的 CMD）
     entrypoint:
       - /bin/sh
@@ -861,8 +919,13 @@ services:
       context: .
       dockerfile: collab/Dockerfile
     container_name: Yuheng-collab
+    # Loopback by default: browsers connect through the frontend's nginx at
+    # /collab (see frontend/nginx.conf), and the app calls it by container name
+    # (YUHENG_COLLAB_INTERNAL_URL). COLLAB_BIND=0.0.0.0 only if you point
+    # YUHENG_COLLAB_URL straight at this port from other hosts.
     ports:
-      - "${COLLAB_PORT:-1234}:1234"
+      - "${COLLAB_BIND:-127.0.0.1}:${COLLAB_PORT:-1234}:1234"
+    stop_grace_period: 30s
     environment:
       # app 的内网地址。协同服务用它做鉴权、取文档、写回文档。
       - COLLAB_BACKEND_URL=${COLLAB_BACKEND_URL:-http://app:8080}
@@ -880,6 +943,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - Yuheng-network
     restart: unless-stopped
@@ -892,8 +957,11 @@ services:
     # 这个端口是给浏览器用的，不是给 app 用的：draw.io 以 iframe 的形式嵌在
     # 编辑器里，地址由浏览器直接加载。所以它必须映射到宿主机，而且
     # YUHENG_DOCS_DRAWIO_URL 要填用户浏览器能访问到的地址，不能填 http://drawio:8080。
+    # 默认只绑本机回环：编辑器和浏览器在同一台机器时够用。给远程用户用时，设
+    # DRAWIO_BIND=0.0.0.0（或放到反向代理后面），并把 YUHENG_DOCS_DRAWIO_URL
+    # 改成用户浏览器实际能访问的地址。
     ports:
-      - "${DRAWIO_PORT:-8087}:8080"
+      - "${DRAWIO_BIND:-127.0.0.1}:${DRAWIO_PORT:-8087}:8080"
     # 没有 depends_on：编辑器是独立的，app 没起来时它照样能开，只是保存会失败。
     # 反过来 app 也不该因为画图编辑器没起来就不启动。
     networks:
@@ -907,7 +975,7 @@ services:
       context: ./mcp-server
     container_name: Yuheng-mcp
     ports:
-      - "${MCP_PORT:-8082}:8000"
+      - "${MCP_BIND:-127.0.0.1}:${MCP_PORT:-8082}:8000"
     environment:
       - YUHENG_BASE_URL=http://app:8080/api/v1
       - YUHENG_API_KEY=${YUHENG_API_KEY:-}
@@ -948,6 +1016,7 @@ volumes:
   data-files:
   docreader-tmp:
   rustfs_data:
+  redis-data:
   neo4j-data:
   langfuse_clickhouse_data:
   langfuse_clickhouse_logs:

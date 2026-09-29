@@ -115,6 +115,9 @@ COPY --from=builder /app/yanyiwu/ /go/pkg/mod/github.com/yanyiwu/
 # Copy the binary from the builder stage
 COPY --from=builder /app/config ./config
 COPY --from=builder /app/scripts ./scripts
+# The server embeds its migrations (migrations/embed.go) and no longer reads this
+# directory. It stays for `docker exec Yuheng-app ./scripts/migrate.sh ...`, which
+# drives the migrate CLI (copied above) against the SQL files.
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/dataset/samples ./dataset/samples
 COPY --from=builder /root/.duckdb /home/appuser/.duckdb

@@ -12,6 +12,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/dig"
+	"gorm.io/gorm"
 
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/config"
@@ -77,6 +78,7 @@ type RouterParams struct {
 	UserFavoriteHandler          *handler.UserResourceFavoriteHandler
 	OrganizationHandler          *handler.OrganizationHandler
 	RedisClient                  *redis.Client
+	DB                           *gorm.DB
 	DataSourceHandler            *handler.DataSourceHandler
 	DataSourceCredentialsHandler *handler.DataSourceCredentialsHandler
 	WikiPageHandler              *handler.WikiPageHandler
@@ -124,6 +126,9 @@ func NewRouter(params RouterParams) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	// 就绪检查（不需要认证）：数据库、Redis（如已配置）与迁移状态都正常才返回 200
+	r.GET("/ready", readyHandler(params.DB, params.RedisClient, defaultMigrationReady))
 
 	// Swagger API 文档（仅在非生产环境下启用）
 	// 通过 GIN_MODE 环境变量判断：release 模式下禁用 Swagger

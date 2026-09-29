@@ -507,6 +507,23 @@ func initRedisClient() (*redis.Client, error) {
 	return client, nil
 }
 
+// migrationStartupError wraps a migration failure with what the operator can do
+// about it. The message goes to the fatal log line that ends the process, so it
+// has to stand on its own.
+func migrationStartupError(err error) error {
+	where := "no version was recorded"
+	if v, dirty, ok := database.CachedMigrationVersion(); ok {
+		where = fmt.Sprintf("the database is at version %d (dirty: %v)", v, dirty)
+	}
+	return fmt.Errorf(
+		"database migration failed, refusing to start against a half-migrated schema (%s): %w\n\n"+
+			"Next steps: run ./scripts/migrate.sh version to see the state, fix the failing migration "+
+			"(or restore your pre-upgrade backup) and start again. See docs/migration-troubleshooting.md.\n"+
+			"If you migrate out of band and want the server to start anyway, set MIGRATION_FAIL_FAST=false "+
+			"(or AUTO_MIGRATE=false to skip migrations entirely)",
+		where, err)
+}
+
 // initDatabase initializes database connection
 // Creates and configures database connection based on environment configuration
 // Supports multiple database backends (PostgreSQL)
@@ -590,10 +607,19 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 				"(the application has no code path for any other dialect)", name)
 	}
 
+	pool, poolWarning, err := database.PoolConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if poolWarning != "" {
+		logger.Warnf(context.Background(), "%s", poolWarning)
+	}
+	logger.Infof(context.Background(), "DB pool: max_open=%d max_idle=%d conn_max_lifetime=%s",
+		pool.MaxOpenConns, pool.MaxIdleConns, pool.ConnMaxLifetime)
+
 	// The embeddings migration creates the extensions the built-in engine
 	// needs, and a server without them fails it with an error that says nothing
-	// about what to do. Migration failures are only logged (see below), so the
-	// application would start with search broken; refuse to start instead.
+	// about what to do; refuse to start with a message that does.
 	if builtinRetrieval {
 		if err := requireRetrievalExtensions(context.Background(), db); err != nil {
 			return nil, err
@@ -601,25 +627,33 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	// Run database migrations automatically (optional, can be disabled via env var)
-	// To disable auto-migration, set AUTO_MIGRATE=false
-	// To enable auto-recovery from dirty state, set AUTO_RECOVER_DIRTY=true
+	// To disable auto-migration, set AUTO_MIGRATE=false (migrate externally with
+	// scripts/migrate.sh). A failed migration stops start-up unless
+	// MIGRATION_FAIL_FAST=false. AUTO_RECOVER_DIRTY=true opts in to retrying an
+	// interrupted migration automatically; see database.MigrationOptions for why
+	// that is off by default.
 	if os.Getenv("AUTO_MIGRATE") != "false" {
 		logger.Infof(context.Background(), "Running database migrations...")
 
-		autoRecover := os.Getenv("AUTO_RECOVER_DIRTY") != "false"
 		migrationOpts := database.MigrationOptions{
-			AutoRecoverDirty: autoRecover,
+			AutoRecoverDirty: os.Getenv("AUTO_RECOVER_DIRTY") == "true",
 		}
 
-		// Run base migrations (all versioned migrations including embeddings)
-		// The embeddings migration will be conditionally executed based on skip_embedding parameter in DSN
+		// Run base migrations (all versioned migrations including embeddings), then any
+		// extension sources. The embeddings migration will be conditionally executed based
+		// on skip_embedding parameter in DSN
 		if err := database.RunMigrationsWithOptions(migrateDSN, migrationOpts); err != nil {
-			// Log warning but don't fail startup - migrations might be handled externally
-			logger.Warnf(context.Background(), "Database migration failed: %v", err)
-			logger.Warnf(
-				context.Background(),
-				"Continuing with application startup. Please run migrations manually if needed.",
-			)
+			if os.Getenv("MIGRATION_FAIL_FAST") == "false" {
+				// The operator migrates the schema out of band and accepts a server that
+				// starts against whatever state that left. /ready stays 503 while the
+				// failure is on record, so an orchestrator will not route traffic here.
+				logger.Warnf(context.Background(), "Database migration failed: %v", err)
+				logger.Warnf(context.Background(),
+					"Continuing with application startup because MIGRATION_FAIL_FAST=false. "+
+						"Run ./scripts/migrate.sh up to migrate manually.")
+			} else {
+				return nil, migrationStartupError(err)
+			}
 		}
 
 		// Post-migration: resolve __pending_env__ storage provider markers for historical KBs.
@@ -642,9 +676,10 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Configure connection pool parameters
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetConnMaxLifetime(time.Duration(10) * time.Minute)
+	// Configure connection pool parameters (DB_MAX_OPEN_CONNS et al., validated above).
+	sqlDB.SetMaxOpenConns(pool.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(pool.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(pool.ConnMaxLifetime)
 
 	return db, nil
 }

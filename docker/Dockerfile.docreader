@@ -156,6 +156,7 @@ RUN apt-get update && apt-get install -y \
     libreoffice \
     ffmpeg \
     curl \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 grpc_health_probe
@@ -190,17 +191,38 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # 安装 Playwright 浏览器（网页解析）
-RUN python -m playwright install webkit
+# 浏览器装到所有用户可读的固定目录，而不是 root 的 ~/.cache：服务下面以非 root
+# 用户运行，运行期靠同一个环境变量找到它。网页解析用的是 WebKit（不是
+# Chromium），docreader/parser/web_parser.py 直接 p.webkit.launch()，不涉及
+# Chromium 的 --no-sandbox 问题。
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN python -m playwright install webkit && chmod -R a+rX /opt/ms-playwright
 RUN python -m playwright install-deps webkit
 
 COPY docreader/pyproject.toml docreader/uv.lock ./
 COPY --from=builder /app/docreader docreader
 
-# 创建共享临时图片目录
-RUN mkdir -p /tmp/docreader
+# 非 root 运行。解析的是不可信的用户文档（LibreOffice、ffmpeg、WebKit、PDF 解析），
+# 它们出漏洞时不该拿到 root。用户需要有可写的 HOME：LibreOffice 把配置写在
+# ~/.config，uv 把缓存写在 ~/.cache。
+RUN useradd -m -u 10001 -s /bin/bash docreader
+
+# 创建共享临时图片目录（compose 里以命名卷 docreader-tmp 挂在这里，app 只读使用）
+RUN mkdir -p /tmp/docreader && chown docreader:docreader /tmp/docreader
+
+# 代码和依赖保持 root 所有、只读：服务只需要读它们。UV_NO_SYNC 让 `uv run` 直接用
+# 构建时装好的 .venv，不在运行期检查/改写 /app 下的环境和 uv.lock（不可写）。
+ENV UV_NO_SYNC=1
+
+# 入口以 root 启动，只做一件事：修正共享卷的属主，然后降权。已存在的旧卷是 root
+# 属主（之前容器以 root 写的），光靠镜像里的 chown 改不了它，非 root 进程就会因
+# 写不进去而让所有带图片的解析失败。app 镜像的入口脚本用的是同一个做法。
+COPY docker/docreader-entrypoint.sh /usr/local/bin/docreader-entrypoint.sh
+RUN chmod +x /usr/local/bin/docreader-entrypoint.sh
 
 # 暴露 gRPC 端口
 EXPOSE 50051
 
+ENTRYPOINT ["/usr/local/bin/docreader-entrypoint.sh"]
 # 直接运行 Python 服务（日志输出到 stdout/stderr）
 CMD ["uv", "run", "-m", "docreader.main"]

@@ -29,8 +29,8 @@ show_help() {
     echo "  -c, --check    检查环境并诊断问题"
     echo "  -r, --restart  重新构建并重启指定容器"
     echo "  -l, --list     列出所有正在运行的容器"
-    echo "  -p, --pull     拉取最新的Docker镜像"
-    echo "  --no-pull      启动时不拉取镜像（默认会拉取）"
+    echo "  -p, --pull     先拉取Docker镜像（当前版本不发布镜像，通常不需要）"
+    echo "  --no-pull      启动时不拉取镜像，在本机构建（默认；当前版本不发布镜像）"
     echo "  -v, --version  显示版本信息"
     exit 0
 }
@@ -573,7 +573,7 @@ CHECK_ENVIRONMENT=false
 LIST_CONTAINERS=false
 RESTART_CONTAINER=false
 PULL_IMAGES=false
-NO_PULL=false
+NO_PULL=true
 CONTAINER_NAME=""
 
 # 没有参数时默认启动所有服务

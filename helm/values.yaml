@@ -94,7 +94,9 @@ app:
     # -- Storage type: local, or s3 for any S3-compatible object storage (see the S3_* variables in .env.example)
     STORAGE_TYPE: local
     LOCAL_STORAGE_BASE_DIR: /data/files
-    AUTO_RECOVER_DIRTY: "true"
+    # -- Retry an interrupted migration automatically. Off by default: it is only safe
+    # when the failed migration can run twice. See docs/migration-troubleshooting.md.
+    AUTO_RECOVER_DIRTY: "false"
     STREAM_MANAGER_TYPE: redis
     CONCURRENCY_POOL_SIZE: "5"
     TZ: UTC
@@ -109,7 +111,24 @@ app:
     type: ClusterIP
     port: 8080
 
-  # -- Liveness probe configuration
+  # -- Seconds Kubernetes waits between SIGTERM and SIGKILL. Must exceed the server's
+  # own drain window (server.shutdown_timeout, 30s by default) so in-flight chat
+  # streams and ingestion tasks can finish.
+  terminationGracePeriodSeconds: 45
+
+  # -- Startup probe. The server applies database migrations before it listens, so a
+  # slow migration would otherwise be killed by the liveness probe halfway through.
+  # 5 minutes by default (30 x 10s); raise failureThreshold for very large databases.
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 30
+
+  # -- Liveness probe configuration. /health only says the process is up; it does not
+  # look at the database, so a database outage does not restart the pods.
   livenessProbe:
     httpGet:
       path: /health
@@ -119,10 +138,12 @@ app:
     timeoutSeconds: 5
     failureThreshold: 3
 
-  # -- Readiness probe configuration
+  # -- Readiness probe configuration. /ready answers 200 only when the database (and
+  # Redis, if configured) respond and the migration state is clean; otherwise 503
+  # and the pod is taken out of the Service without being restarted.
   readinessProbe:
     httpGet:
-      path: /health
+      path: /ready
       port: http
     initialDelaySeconds: 10
     periodSeconds: 5

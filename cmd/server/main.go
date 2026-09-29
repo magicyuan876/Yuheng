@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/container"
@@ -57,6 +58,16 @@ func main() {
 	// Build dependency injection container
 	c := container.BuildContainer(runtime.GetContainer())
 
+	// Build the database now, before anything else asks for it. A constructor
+	// that fails is not cached by dig, so without this every bootstrap step
+	// below (each of which needs the database, and each of which only warns on
+	// error) would run the migrations again and log the same failure. A failed
+	// migration is fatal by default (MIGRATION_FAIL_FAST); stop here with its
+	// message instead of a server that limps along.
+	if err := c.Invoke(func(*gorm.DB) {}); err != nil {
+		logger.Fatalf(context.Background(), "Failed to initialise the database: %v", err)
+	}
+
 	// One-shot bootstrap hooks (e.g. promote env-named user to system
 	// admin). Best-effort: never aborts startup — see bootstrap.go.
 	runStartupBootstrap(c)
@@ -69,8 +80,18 @@ func main() {
 		systemSettingSvc interfaces.SystemSettingService,
 	) error {
 		// Create HTTP server
+		// Timeouts guard against slow-header and idle-connection exhaustion
+		// (Slowloris) without cutting off legitimate long requests, so
+		// ReadTimeout and WriteTimeout are deliberately left unset: a
+		// whole-request read deadline would abort large uploads (video files
+		// go up to MAX_VIDEO_FILE_SIZE_MB), and a write deadline would kill
+		// SSE chat streams that run for minutes. Per-request limits belong in
+		// the handlers, which know what each endpoint may take.
 		server := &http.Server{
-			Handler: router,
+			Handler:           router,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       120 * time.Second,
+			MaxHeaderBytes:    1 << 20,
 		}
 
 		addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

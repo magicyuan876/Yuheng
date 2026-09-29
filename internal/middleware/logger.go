@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,43 +82,98 @@ func sanitizeQuery(raw string) string {
 	return values.Encode()
 }
 
-// readRequestBody 读取请求体（限制大小用于日志，但完整读取用于重置）
-func readRequestBody(c *gin.Context) string {
-	if c.Request.Body == nil {
-		return ""
-	}
+// requestCaptureLimit is how much of a request body is kept for the access log.
+// It is larger than maxBodySize (what is finally logged) on purpose: secrets are
+// masked in the captured text first and the result is cut afterwards, so a
+// credential that straddles the logged prefix's end is masked, not half-printed.
+const requestCaptureLimit = 64 * 1024
 
-	// 检查Content-Type，只记录JSON类型
-	contentType := c.GetHeader("Content-Type")
-	if !strings.Contains(contentType, "application/json") &&
-		!strings.Contains(contentType, "application/x-www-form-urlencoded") &&
-		!strings.Contains(contentType, "text/") {
+// bodyCapture wraps a request body and remembers the first requestCaptureLimit
+// bytes that pass through it. It is a tee, not a buffer: the handler reads the
+// original stream at its own pace and sees every byte, whatever its size, and
+// memory use is bounded by the limit no matter how large the upload is.
+// Reads may happen on a goroutine the handler spawned, hence the mutex.
+type bodyCapture struct {
+	rc    io.ReadCloser
+	limit int
+
+	mu    sync.Mutex
+	buf   []byte
+	total int64
+}
+
+func (b *bodyCapture) Read(p []byte) (int, error) {
+	n, err := b.rc.Read(p)
+	if n > 0 {
+		b.mu.Lock()
+		if room := b.limit - len(b.buf); room > 0 {
+			b.buf = append(b.buf, p[:min(n, room)]...)
+		}
+		b.total += int64(n)
+		b.mu.Unlock()
+	}
+	return n, err
+}
+
+func (b *bodyCapture) Close() error { return b.rc.Close() }
+
+// captured returns what was read so far and whether more than that passed through.
+func (b *bodyCapture) captured() (string, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return string(b.buf), b.total > int64(len(b.buf))
+}
+
+// isLoggableBody reports whether a request body of this Content-Type is text
+// worth logging. Everything else (multipart uploads, binary) is not captured at
+// all, so those streams are not touched.
+func isLoggableBody(contentType string) bool {
+	return strings.Contains(contentType, "application/json") ||
+		strings.Contains(contentType, "application/x-www-form-urlencoded") ||
+		strings.Contains(contentType, "text/")
+}
+
+// captureRequestBody installs a tee on the request body when it is loggable and
+// returns it, or nil when nothing is to be captured. The body is not read here:
+// the log line is written after the handler ran, from whatever it consumed.
+func captureRequestBody(c *gin.Context) *bodyCapture {
+	if c.Request.Body == nil || c.Request.Body == http.NoBody || !isLoggableBody(c.GetHeader("Content-Type")) {
+		return nil
+	}
+	capture := &bodyCapture{rc: c.Request.Body, limit: requestCaptureLimit}
+	c.Request.Body = capture
+	return capture
+}
+
+// unterminatedSecretRegex matches a sensitive field whose value was cut off by
+// the capture limit, so it has no closing quote for sensitiveFieldRegex to find.
+var unterminatedSecretRegex = regexp.MustCompile(
+	`(?i)("(?:new[_-]?password|old[_-]?password|password|passwd|token|access[_-]?token|` +
+		`refresh[_-]?token|id[_-]?token|authorization|auth[_-]?token|api[_-]?key|` +
+		`api[_-]?secret|secret[_-]?key|client[_-]?secret|private[_-]?key|secret)")\s*:\s*"[^"]*$`,
+)
+
+// formatRequestBody turns captured bytes into the text that is logged.
+func formatRequestBody(captured *bodyCapture) string {
+	if captured == nil {
 		return "[非文本类型，已跳过]"
 	}
-
-	// 完整读取body内容（不限制大小），因为需要完整重置给后续handler使用
-	bodyBytes, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return "[读取请求体失败]"
+	body, more := captured.captured()
+	if body == "" {
+		return ""
 	}
-
-	// 重置request body，使用完整内容，确保后续handler能读取到完整数据
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-	// 用于日志的body（限制大小）
-	var logBodyBytes []byte
-	if len(bodyBytes) > maxBodySize {
-		logBodyBytes = bodyBytes[:maxBodySize]
-	} else {
-		logBodyBytes = bodyBytes
+	body = sanitizeBody(body)
+	if more {
+		body = unterminatedSecretRegex.ReplaceAllString(body, `$1:"***"`)
 	}
-
-	bodyStr := string(logBodyBytes)
-	if len(bodyBytes) > maxBodySize {
-		bodyStr += "... [内容过长，已截断]"
+	if len(body) > maxBodySize {
+		body = body[:maxBodySize]
+		more = true
 	}
-
-	return sanitizeBody(bodyStr)
+	if more {
+		body += "... [内容过长，已截断]"
+	}
+	return body
 }
 
 // RequestID middleware adds a unique request ID to the context
@@ -164,10 +221,12 @@ func Logger() gin.HandlerFunc {
 			return
 		}
 
-		// 读取请求体（在Next之前读取，因为Next会消费body）
-		var requestBody string
-		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
-			requestBody = readRequestBody(c)
+		// 请求体只做旁路捕获（tee）：handler 照常流式读取完整内容，日志只留前
+		// requestCaptureLimit 字节，不再在鉴权之前把整个 body 读进内存。
+		var requestCapture *bodyCapture
+		hasBody := c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH"
+		if hasBody {
+			requestCapture = captureRequestBody(c)
 		}
 
 		// 创建响应体捕获器
@@ -235,7 +294,11 @@ func Logger() gin.HandlerFunc {
 			"client_ip":   secutils.SanitizeForLog(clientIP),
 		})
 
-		// 添加请求体（如果有）
+		// 添加请求体（如果有）；非文本请求体没有被捕获，直接标注跳过
+		var requestBody string
+		if hasBody && c.Request.ContentLength != 0 {
+			requestBody = formatRequestBody(requestCapture)
+		}
 		if requestBody != "" {
 			logMsg = logMsg.WithField("request_body", secutils.SanitizeForLog(requestBody))
 		}
