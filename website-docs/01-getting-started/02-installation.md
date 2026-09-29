@@ -46,7 +46,7 @@ git clone https://github.com/magicyuan876/Yuheng.git && cd Yuheng
 cp .env.example .env
 ```
 
-编辑 `.env`，必须替换的项：`JWT_SECRET`、`SYSTEM_AES_KEY`（示例值是公开的，值为空或仍是示例值时服务拒绝启动），并建议同时修改 `DB_PASSWORD`、`REDIS_PASSWORD`：
+编辑 `.env`，必须替换的项：`JWT_SECRET`、`SYSTEM_AES_KEY`（默认为空，为空、长度不够或仍是旧示例值时服务拒绝启动），并建议同时修改 `DB_PASSWORD`、`REDIS_PASSWORD`：
 
 ```bash
 openssl rand -hex 32     # -> JWT_SECRET
@@ -69,7 +69,7 @@ docker compose ps                 # 等所有服务变成 healthy/running
 
 停止用 `docker compose down`（加 `-v` 会连数据卷一起删，慎用）。`make start-all`（`scripts/start_all.sh`）是另一种入口，会额外做 Ollama 检查与 `.env` 兜底，但它的默认行为是拉取镜像，本版本请直接用上面的命令。
 
-启动后在浏览器打开 `http://localhost` 就是前端（端口由 `FRONTEND_PORT` 决定，默认 80）。**全新部署没有默认账号：你注册的第一个账号自动成为系统管理员，之后公开注册关闭**（`DISABLE_REGISTRATION=false` 可让注册一直开放，详见[快速上手](./03-quickstart.md)）。前端 Nginx 把 `/api/` 反代到后端，所以接口调用同样走 `http://localhost/api/v1`；后端端口（`APP_PORT`，默认 8080）也映射到宿主机，`curl http://localhost:8080/health` 可用于确认后端就绪。
+启动后在浏览器打开 `http://localhost` 就是前端（端口由 `FRONTEND_PORT` 决定，默认 80）。**全新部署没有默认账号：你注册的第一个账号自动成为系统管理员，之后公开注册关闭**（`DISABLE_REGISTRATION=false` 可让注册一直开放，详见[快速上手](./03-quickstart.md)）。前端 Nginx 把 `/api/` 反代到后端，所以接口调用同样走 `http://localhost/api/v1`；后端端口（`APP_PORT`，默认 8080）只映射到宿主机的 127.0.0.1，`curl http://localhost:8080/ready` 可确认后端、数据库和迁移都已就绪。
 
 默认情况下，除前端外，发布到宿主机的端口都只绑定在本机回环地址。要对局域网或公网提供服务，请在前端前面放一个带 TLS 的反向代理，并先换掉 `.env` 里的默认口令与 RustFS 的默认账号。
 

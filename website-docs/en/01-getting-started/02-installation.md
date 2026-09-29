@@ -49,7 +49,7 @@ git clone https://github.com/magicyuan876/Yuheng.git && cd Yuheng
 cp .env.example .env
 ```
 
-Edit `.env`. You must replace `JWT_SECRET` and `SYSTEM_AES_KEY`: the example values are public, and the server refuses to start if either is empty or still an example value. Also change `DB_PASSWORD` and `REDIS_PASSWORD`.
+Edit `.env`. You must fill in `JWT_SECRET` and `SYSTEM_AES_KEY`: they are empty, and the server refuses to start while either is empty, too short or an old published example value. Also change `DB_PASSWORD` and `REDIS_PASSWORD`.
 
 ```bash
 openssl rand -hex 32     # -> JWT_SECRET
@@ -58,7 +58,7 @@ openssl rand -hex 16     # -> SYSTEM_AES_KEY: exactly 32 bytes; 32 hex character
 
 `SYSTEM_AES_KEY` encrypts API keys and other credentials stored in the database. If you lose it, that data cannot be recovered, so keep it safe.
 
-`.env.example` ships `APK_MIRROR_ARG=mirrors.tencent.com` and `TZ=Asia/Shanghai`. These are defaults for mainland China. Outside China, empty the first one and set `TZ` to your own time zone.
+Inside mainland China, set `APK_MIRROR_ARG=mirrors.tencent.com` in `.env` for faster image builds. `TZ` defaults to UTC.
 
 Then build the frontend, build the images and start everything:
 
@@ -72,7 +72,7 @@ For collaborative documents (collab + draw.io) add the `docs` profile: `docker c
 
 Stop with `docker compose down` (adding `-v` also deletes the data volumes; be careful). `make start-all` (`scripts/start_all.sh`) is another entry point that also checks Ollama and creates a fallback `.env`, but by default it pulls images, so for this release use the commands above.
 
-Once it is up, open `http://localhost` in a browser. That is the frontend (the port is `FRONTEND_PORT`, 80 by default). **A fresh deployment has no default account: the first account you register becomes the system administrator, and public registration closes after that** (set `DISABLE_REGISTRATION=false` to keep it open; see the [quick start](./03-quickstart.md)). The frontend's Nginx proxies `/api/` to the backend, so API calls also work at `http://localhost/api/v1`. The backend port (`APP_PORT`, 8080 by default) is published to the host too; `curl http://localhost:8080/health` confirms the backend is ready.
+Once it is up, open `http://localhost` in a browser. That is the frontend (the port is `FRONTEND_PORT`, 80 by default). **A fresh deployment has no default account: the first account you register becomes the system administrator, and public registration closes after that** (set `DISABLE_REGISTRATION=false` to keep it open; see the [quick start](./03-quickstart.md)). The frontend's Nginx proxies `/api/` to the backend, so API calls also work at `http://localhost/api/v1`. The backend port (`APP_PORT`, 8080 by default) is published on 127.0.0.1 only; `curl http://localhost:8080/ready` confirms the backend, its database and migrations are ready.
 
 By default, every published port except the frontend's is bound to the loopback address only. To serve anyone beyond the local machine, put a reverse proxy with TLS in front of the frontend, and first replace the default passwords in `.env` and RustFS's default account.
 

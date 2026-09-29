@@ -120,9 +120,9 @@ cd Yuheng
 cp .env.example .env
 ```
 
-Edit `.env` before the first start. The example values for `JWT_SECRET` and
-`SYSTEM_AES_KEY` are public, so replace them. The server refuses to start with
-an empty or example value:
+Edit `.env` before the first start: `JWT_SECRET` and `SYSTEM_AES_KEY` are
+empty and must be filled in. The server refuses to start while either is empty,
+too short, or an old published example value:
 
 ```bash
 openssl rand -hex 32     # -> JWT_SECRET
@@ -150,9 +150,8 @@ documents service and draw.io (see section K of `.env.example` for the extra
 settings it needs), and `--profile full` starts everything optional (Neo4j,
 Langfuse, SearXNG, the MCP server, a test OIDC provider).
 
-`.env.example` ships `APK_MIRROR_ARG=mirrors.tencent.com` (an Alpine package
-mirror inside mainland China) and `TZ=Asia/Shanghai`. Outside China, empty
-the first one and set `TZ` to your own time zone.
+Inside mainland China, the image builds are faster with a package mirror: set
+`APK_MIRROR_ARG=mirrors.tencent.com` in `.env`. `TZ` defaults to UTC.
 
 ### First run
 

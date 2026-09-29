@@ -107,8 +107,8 @@ cd Yuheng
 cp .env.example .env
 ```
 
-首次启动前先编辑 `.env`。`JWT_SECRET` 与 `SYSTEM_AES_KEY` 的示例值是公开的，必须
-替换；值为空或仍是示例值时，服务会拒绝启动：
+首次启动前先编辑 `.env`：`JWT_SECRET` 与 `SYSTEM_AES_KEY` 默认为空，必须填写；
+为空、长度不够或仍是旧的公开示例值时，服务会拒绝启动：
 
 ```bash
 openssl rand -hex 32     # -> JWT_SECRET
@@ -133,8 +133,8 @@ docker compose ps                     # 等服务都变成 healthy
 （还需要的配置见 `.env.example` 的 K 节），`--profile full` 启动全部可选组件
 （Neo4j、Langfuse、SearXNG、MCP 服务、测试用 OIDC 等）。
 
-`.env.example` 里的 `APK_MIRROR_ARG=mirrors.tencent.com`（国内 Alpine 镜像源）和
-`TZ=Asia/Shanghai` 是面向国内的默认值，在国外部署时请清空前者并把 `TZ` 改成自己的时区。
+在中国大陆构建镜像时，可以在 `.env` 里设 `APK_MIRROR_ARG=mirrors.tencent.com`（Alpine 镜像源）加速；
+`TZ` 默认为 UTC，可改为 `Asia/Shanghai` 等。
 
 ### 首次使用
 
