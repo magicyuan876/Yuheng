@@ -935,7 +935,7 @@ func (h *KnowledgeBaseHandler) CopyKnowledgeBase(c *gin.Context) {
 			return
 		}
 		// Pre-flight defense 3: compare concrete instance IDs, not just the
-		// provider type (COS-A and COS-B are different physical stores).
+		// provider type (two S3 backends are different physical stores).
 		if tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant); tenant != nil {
 			defaultID, defaultProvider := "", ""
 			if tenant.DefaultStorageBackendID != nil {

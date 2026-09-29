@@ -75,17 +75,6 @@ type ParserEngineInfo struct {
 
 // --- Internal types used by chunking pipeline ---
 
-type DocParserStorageConfig struct {
-	Provider        string
-	Region          string
-	BucketName      string
-	AccessKeyID     string
-	SecretAccessKey string
-	AppID           string
-	PathPrefix      string
-	Endpoint        string
-}
-
 type DocParserVLMConfig struct {
 	ModelName     string
 	BaseURL       string

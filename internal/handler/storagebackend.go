@@ -274,7 +274,7 @@ func (h *StorageBackendHandler) TestByID(c *gin.Context) {
 
 // Types godoc
 // @Summary      List allowed storage provider types
-// @Description  Return the storage provider types allowed by STORAGE_ALLOW_LIST for UI form generation (e.g. local, minio, cos, tos, s3, oss, ks3, obs).
+// @Description  Return the storage provider types allowed by STORAGE_ALLOW_LIST for UI form generation (local, s3).
 // @Tags         StorageBackend
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}   "List of allowed storage provider types"

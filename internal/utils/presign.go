@@ -161,9 +161,7 @@ func unwrapStorageBackendPath(filePath string) string {
 }
 
 // storagePathHasExportsScope reports whether tenantID appears next to an
-// exports segment in either canonical layout:
-//   - {tenant}/exports/...  (local, minio, s3, most cloud backends)
-//   - exports/{tenant}/...  (OSS temp-bucket layout)
+// exports segment: {tenant}/exports/... (local and s3).
 func storagePathHasExportsScope(filePath string, tenantID uint64) bool {
 	_, rest, ok := strings.Cut(unwrapStorageBackendPath(filePath), "://")
 	if !ok {
@@ -178,9 +176,6 @@ func storagePathHasExportsScope(filePath string, tenantID uint64) bool {
 		if i+1 < len(parts) && parts[i+1] == kbScopedExportsSegment {
 			return true
 		}
-		if i > 0 && parts[i-1] == kbScopedExportsSegment {
-			return true
-		}
 	}
 	return false
 }
@@ -189,8 +184,8 @@ func storagePathHasExportsScope(filePath string, tenantID uint64) bool {
 // Storage paths follow the convention: {scheme}://.../{tenantID}/...
 // Returns 0 if the path does not contain a valid tenant ID.
 //
-// NOTE: For cloud providers whose paths embed numeric bucket or region names
-// before the tenant segment, the first numeric segment may not be the tenant.
+// NOTE: For buckets or prefixes whose names are numeric and precede the tenant
+// segment, the first numeric segment may not be the tenant.
 // Callers that have an authoritative resource-owner tenant ID available
 // should pass it directly to SignFileURL instead of relying on this parser.
 func ParseTenantIDFromStoragePath(filePath string) uint64 {
@@ -205,11 +200,7 @@ func ParseTenantIDFromStoragePath(filePath string) uint64 {
 
 	// Storage path layouts vary by provider:
 	//   local://TENANT_ID/...
-	//   minio://bucket/TENANT_ID/...
 	//   s3://bucket/prefix/TENANT_ID/...
-	//   cos://bucket/region/prefix/TENANT_ID/...
-	//   tos://bucket/TENANT_ID/...
-	//   oss://bucket/prefix/TENANT_ID/...
 	// We try each slash-separated segment until we find a numeric tenant ID.
 	parts := strings.Split(rest, "/")
 	for _, part := range parts {

@@ -16,7 +16,6 @@ type SystemInfo struct {
 	KeywordIndexEngine  string `json:"keyword_index_engine,omitempty"`
 	VectorStoreEngine   string `json:"vector_store_engine,omitempty"`
 	GraphDatabaseEngine string `json:"graph_database_engine,omitempty"`
-	MinioEnabled        bool   `json:"minio_enabled,omitempty"`
 	DBVersion           string `json:"db_version,omitempty"`
 	DBMigrationError    string `json:"db_migration_error,omitempty"`
 	StartedAt           string `json:"started_at,omitempty"`
@@ -41,26 +40,20 @@ type StorageEngineStatusItem struct {
 
 // StorageEngineStatusResponse is the response for storage engine status
 type StorageEngineStatusResponse struct {
-	Engines           []StorageEngineStatusItem `json:"engines"`
-	AllowedProviders  []string                  `json:"allowed_providers"`
-	MinioEnvAvailable bool                      `json:"minio_env_available"`
+	Engines          []StorageEngineStatusItem `json:"engines"`
+	AllowedProviders []string                  `json:"allowed_providers"`
 }
 
 // StorageCheckRequest is the body for storage engine connectivity check
 type StorageCheckRequest struct {
 	Provider string          `json:"provider"`
-	MinIO    json.RawMessage `json:"minio,omitempty"`
-	COS      json.RawMessage `json:"cos,omitempty"`
-	TOS      json.RawMessage `json:"tos,omitempty"`
 	S3       json.RawMessage `json:"s3,omitempty"`
-	OBS      json.RawMessage `json:"obs,omitempty"`
 }
 
 // StorageCheckResponse is the response for storage engine check
 type StorageCheckResponse struct {
-	OK            bool   `json:"ok"`
-	Message       string `json:"message"`
-	BucketCreated bool   `json:"bucket_created,omitempty"`
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
 }
 
 // DeploymentCapability describes whether a deployment exposes a feature route.

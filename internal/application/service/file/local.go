@@ -162,7 +162,7 @@ func (s *localFileService) CopyFile(ctx context.Context,
 	srcPath string, tenantID uint64, knowledgeID string,
 ) (string, error) {
 	// Only local paths are accepted. A provider scheme other than local://
-	// (e.g. s3://, minio://) means a cross-backend copy, which this service
+	// (e.g. s3://) means a cross-backend copy, which this service
 	// does not support. Legacy bare/absolute paths have no scheme and pass.
 	if i := strings.Index(srcPath, "://"); i >= 0 && srcPath[:i+3] != localScheme {
 		return "", fmt.Errorf("local file service cannot copy %q: %w", srcPath, ErrCrossBackendCopy)

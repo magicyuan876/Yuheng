@@ -15,106 +15,125 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/magicyuan876/yuheng/internal/utils"
 )
 
-// s3FileService AWS S3 file service implementation
+// s3FileService is the S3-compatible file service implementation.
 type s3FileService struct {
 	client     *s3.Client
 	bucketName string
 	pathPrefix string
 }
 
+// S3Options is everything needed to reach one S3-compatible bucket.
+type S3Options struct {
+	// Endpoint is empty for AWS S3 itself. A value without a scheme gets one
+	// from UseSSL so operators can write "rustfs:9000" the way MinIO clients do.
+	Endpoint   string
+	Region     string
+	AccessKey  string
+	SecretKey  string
+	BucketName string
+	PathPrefix string
+	UseSSL     bool
+	// AddressingStyle is "", "auto", "path" or "virtual"; see resolveS3PathStyle.
+	AddressingStyle string
+}
+
+// resolveS3PathStyle maps an endpoint and a configured addressing style to the
+// SDK's UsePathStyle switch.
+//
+// "auto" mirrors what each family of services needs: AWS (or no endpoint at
+// all, which the SDK resolves to AWS) works best virtual-hosted, while any
+// other custom endpoint, such as MinIO or RustFS, is normally reached by an
+// IP or a single hostname with no wildcard DNS and therefore needs path-style.
+// Providers that reject path-style (Aliyun OSS, Tencent COS, Volcengine TOS,
+// Huawei OBS) must be configured with "virtual" explicitly.
+func resolveS3PathStyle(endpoint, style string) (bool, error) {
+	if err := types.ValidateS3AddressingStyle(style); err != nil {
+		return false, err
+	}
+	switch style {
+	case types.S3AddressingPath:
+		return true, nil
+	case types.S3AddressingVirtual:
+		return false, nil
+	default:
+		return endpoint != "" && !strings.Contains(endpoint, "amazonaws.com"), nil
+	}
+}
+
+// S3EndpointURL returns the endpoint with an explicit scheme, or "" for AWS.
+func S3EndpointURL(endpoint string, useSSL bool) string {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" || strings.Contains(endpoint, "://") {
+		return endpoint
+	}
+	if useSSL {
+		return "https://" + endpoint
+	}
+	return "http://" + endpoint
+}
+
 // newS3Client creates a bare s3FileService with just the SDK client initialised.
-func newS3Client(endpoint, accessKey, secretKey, bucketName, region, pathPrefix string, forcePathStyle bool) (*s3FileService, error) {
+func newS3Client(opts S3Options) (*s3FileService, error) {
+	endpoint := S3EndpointURL(opts.Endpoint, opts.UseSSL)
 	if err := utils.ValidateURLForSSRF(endpoint); err != nil {
 		return nil, fmt.Errorf("unsafe S3 endpoint: %w", err)
 	}
-	var cfg aws.Config
-	var err error
+	usePathStyle, err := resolveS3PathStyle(endpoint, opts.AddressingStyle)
+	if err != nil {
+		return nil, err
+	}
 
 	// With no explicit AK/SK, keep the AWS default credential chain intact. This
 	// supports IAM roles for EC2/ECS/EKS (IRSA), web identity, shared config, and
 	// environment credentials without persisting long-lived keys in Yuheng.
-	loadOptions := []func(*config.LoadOptions) error{config.WithRegion(region)}
-	if accessKey != "" || secretKey != "" {
-		if accessKey == "" || secretKey == "" {
+	loadOptions := []func(*config.LoadOptions) error{config.WithRegion(opts.Region)}
+	if opts.AccessKey != "" || opts.SecretKey != "" {
+		if opts.AccessKey == "" || opts.SecretKey == "" {
 			return nil, fmt.Errorf("S3 access key and secret key must be provided together")
 		}
 		loadOptions = append(loadOptions, config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
+			credentials.NewStaticCredentialsProvider(opts.AccessKey, opts.SecretKey, ""),
 		))
 	}
-	cfg, err = config.LoadDefaultConfig(context.Background(), loadOptions...)
-
+	cfg, err := config.LoadDefaultConfig(context.Background(), loadOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	// Create S3 client with custom endpoint if provided.
-	// For S3-compatible services (non-AWS), use path-style addressing
-	// (endpoint/bucket/key) instead of virtual-hosted style (bucket.endpoint/key).
 	httpClient := utils.NewSSRFSafeHTTPClient(utils.DefaultSSRFSafeHTTPClientConfig())
-	var client *s3.Client
-	if endpoint != "" {
-		usePathStyle := forcePathStyle || !strings.Contains(endpoint, "amazonaws.com")
-		client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpoint != "" {
 			o.BaseEndpoint = aws.String(endpoint)
-			o.UsePathStyle = usePathStyle
-			o.HTTPClient = httpClient
-		})
-	} else {
-		// Standard AWS S3
-		client = s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.HTTPClient = httpClient
-		})
-	}
+		}
+		o.UsePathStyle = usePathStyle
+		o.HTTPClient = httpClient
+	})
 
 	// Normalize pathPrefix: ensure it ends with '/' if not empty
+	pathPrefix := opts.PathPrefix
 	if pathPrefix != "" && !strings.HasSuffix(pathPrefix, "/") {
 		pathPrefix += "/"
 	}
 
 	return &s3FileService{
 		client:     client,
-		bucketName: bucketName,
+		bucketName: opts.BucketName,
 		pathPrefix: pathPrefix,
 	}, nil
 }
 
-// NewS3FileService creates an AWS S3 file service.
+// NewS3FileService creates an S3-compatible file service.
 // It verifies that the bucket exists and creates it if missing.
-func NewS3FileService(endpoint,
-	accessKey, secretKey, bucketName, region, pathPrefix string,
-) (interfaces.FileService, error) {
-	svc, err := newS3Client(endpoint, accessKey, secretKey, bucketName, region, pathPrefix, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if bucket exists
-	exists, err := svc.bucketExists(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to check bucket: %w", err)
-	}
-
-	if !exists {
-		if err = svc.createBucket(context.Background()); err != nil {
-			return nil, fmt.Errorf("failed to create bucket: %w", err)
-		}
-	}
-
-	return svc, nil
-}
-
-// NewS3FileServiceWithOptions is the instance-aware S3 constructor. Existing
-// callers keep the historical endpoint-based path-style inference.
-func NewS3FileServiceWithOptions(endpoint, accessKey, secretKey, bucketName, region, pathPrefix string, forcePathStyle bool) (interfaces.FileService, error) {
-	svc, err := newS3Client(endpoint, accessKey, secretKey, bucketName, region, pathPrefix, forcePathStyle)
+func NewS3FileService(opts S3Options) (interfaces.FileService, error) {
+	svc, err := newS3Client(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +156,7 @@ func (s *s3FileService) bucketExists(ctx context.Context) (bool, error) {
 	})
 	if err != nil {
 		// Check if the error is a NotFound error
-		var notFound *types.NotFound
+		var notFound *s3types.NotFound
 		if errors.As(err, &notFound) {
 			return false, nil
 		}
@@ -176,14 +195,11 @@ func (s *s3FileService) CheckConnectivity(ctx context.Context) error {
 	return err
 }
 
-// CheckS3Connectivity tests S3 connectivity using the provided credentials.
+// CheckS3Connectivity tests S3 connectivity using the provided settings.
 // It creates a temporary service instance internally and delegates to CheckConnectivity.
-func CheckS3Connectivity(ctx context.Context, endpoint, accessKey, secretKey, bucketName, region string) error {
-	return CheckS3ConnectivityWithOptions(ctx, endpoint, accessKey, secretKey, bucketName, region, false)
-}
-
-func CheckS3ConnectivityWithOptions(ctx context.Context, endpoint, accessKey, secretKey, bucketName, region string, forcePathStyle bool) error {
-	svc, err := newS3Client(endpoint, accessKey, secretKey, bucketName, region, "", forcePathStyle)
+func CheckS3Connectivity(ctx context.Context, opts S3Options) error {
+	opts.PathPrefix = ""
+	svc, err := newS3Client(opts)
 	if err != nil {
 		return err
 	}

@@ -130,14 +130,14 @@ func TestBuildVideoMarkdownAndParsedChunks(t *testing.T) {
 
 	stored := []docparser.StoredImage{{
 		OriginalRef: "video_frames/vframe_5000.jpg",
-		ServingURL:  "minio://bucket/abc.jpg",
+		ServingURL:  "s3://bucket/abc.jpg",
 		TimestampMs: 5000,
 	}}
 	chunks := buildVideoParsedChunks(windows, stored)
 	require.Len(t, chunks, 2)
 
 	// Frame refs replaced with serving URLs so multimodal chunk matching works.
-	assert.Contains(t, chunks[0].Content, "minio://bucket/abc.jpg")
+	assert.Contains(t, chunks[0].Content, "s3://bucket/abc.jpg")
 	assert.NotContains(t, chunks[0].Content, "video_frames/vframe_5000.jpg")
 
 	// Metadata carries the window's time range.
@@ -381,7 +381,7 @@ func TestDocreaderSharedFilePath(t *testing.T) {
 	// Traversal attempts are neutralised, non-local schemes are refused.
 	assert.Equal(t, "/data/files/etc/passwd",
 		svc.docreaderSharedFilePath(ctx, "local://../../etc/passwd"))
-	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "minio://bucket/a.mp4"))
+	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "s3://bucket/a.mp4"))
 	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "local://"))
 
 	// Stable resource references resolve through the catalog (the shape every
@@ -394,8 +394,8 @@ func TestDocreaderSharedFilePath(t *testing.T) {
 		svc.docreaderSharedFilePath(ctx, "resource://worYS6H5gNcTguFDE6XOlw"))
 
 	svc.resourceCatalog = &videoTestResourceCatalog{resource: &types.StoredResource{
-		Provider:     "minio",
-		PhysicalPath: "storage://backend-2/minio://bucket/k1/v.mp4",
+		Provider:     "s3",
+		PhysicalPath: "storage://backend-2/s3://bucket/k1/v.mp4",
 	}}
 	assert.Equal(t, "", svc.docreaderSharedFilePath(ctx, "resource://worYS6H5gNcTguFDE6XOlw"))
 

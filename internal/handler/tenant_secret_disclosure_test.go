@@ -141,8 +141,8 @@ func secretTenantFixture() *types.Tenant {
 			MinerUAPIKey: "parser-secret-123",
 		},
 		StorageEngineConfig: &types.StorageEngineConfig{
-			MinIO: &types.MinIOEngineConfig{
-				SecretAccessKey: "minio-secret-789",
+			S3: &types.S3EngineConfig{
+				SecretKey: "s3-secret-789",
 			},
 		},
 	}

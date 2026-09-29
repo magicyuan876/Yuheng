@@ -219,7 +219,7 @@ func TestResourceGrantServesShortPublicURL(t *testing.T) {
 
 func TestServeFilesDoesNotFallbackWhenProviderDoesNotMatchGlobalStorage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("STORAGE_TYPE", "minio")
+	t.Setenv("STORAGE_TYPE", "s3")
 
 	engine := gin.New()
 	serveFiles(engine, &stubFileService{

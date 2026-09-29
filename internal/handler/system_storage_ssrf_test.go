@@ -14,7 +14,7 @@ func TestStorageEndpointHost(t *testing.T) {
 		{"127.0.0.1:9000", "127.0.0.1"},
 		{"http://127.0.0.1:9000", "127.0.0.1"},
 		{"https://127.0.0.1:9000", "127.0.0.1"},
-		{"minio.internal:9000", "minio.internal"},
+		{"rustfs.internal:9000", "rustfs.internal"},
 		{"https://s3.amazonaws.com", "s3.amazonaws.com"},
 	}
 	for _, tt := range tests {

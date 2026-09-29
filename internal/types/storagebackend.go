@@ -74,11 +74,11 @@ func (b *StorageBackend) Validate() error {
 		return errors.NewValidationError("name is required")
 	}
 	b.Provider = strings.ToLower(strings.TrimSpace(b.Provider))
+	if !storageallowlist.IsSupported(b.Provider) {
+		return errors.NewValidationError(fmt.Sprintf("unsupported storage provider: %s", b.Provider))
+	}
 	if !storageallowlist.IsAllowed(b.Provider) {
 		return errors.NewValidationError(fmt.Sprintf("storage provider %q is not allowed", b.Provider))
-	}
-	if !isSupportedStorageBackendProvider(b.Provider) {
-		return errors.NewValidationError(fmt.Sprintf("unsupported storage provider: %s", b.Provider))
 	}
 	if b.Status == "" {
 		b.Status = StorageBackendStatusActive
@@ -89,32 +89,19 @@ func (b *StorageBackend) Validate() error {
 	return b.Config.ValidateForProvider(b.Provider)
 }
 
-func isSupportedStorageBackendProvider(provider string) bool {
-	for _, candidate := range storageallowlist.Supported() {
-		if provider == candidate {
-			return true
-		}
-	}
-	return false
-}
-
 // StorageBackendConfig is the normalized union of provider-specific storage
-// settings. AccessKeyID/SecretAccessKey map to COS SecretID/SecretKey and to
-// the access/secret key pair used by S3-compatible providers.
+// settings. AccessKeyID/SecretAccessKey are the access/secret key pair of the
+// S3-compatible provider; both empty means the AWS default credential chain.
 type StorageBackendConfig struct {
-	Mode            string `json:"mode,omitempty"`
 	Endpoint        string `json:"endpoint,omitempty"`
 	Region          string `json:"region,omitempty"`
 	AccessKeyID     string `json:"access_key_id,omitempty"`
 	SecretAccessKey string `json:"secret_access_key,omitempty"`
 	BucketName      string `json:"bucket_name,omitempty"`
 	PathPrefix      string `json:"path_prefix,omitempty"`
-	AppID           string `json:"app_id,omitempty"`
 	UseSSL          bool   `json:"use_ssl,omitempty"`
-	ForcePathStyle  bool   `json:"force_path_style,omitempty"`
-	UseTempBucket   bool   `json:"use_temp_bucket,omitempty"`
-	TempBucketName  string `json:"temp_bucket_name,omitempty"`
-	TempRegion      string `json:"temp_region,omitempty"`
+	// AddressingStyle is "", "auto", "path" or "virtual"; see S3EngineConfig.
+	AddressingStyle string `json:"addressing_style,omitempty"`
 }
 
 func (c StorageBackendConfig) Value() (driver.Value, error) {
@@ -180,52 +167,39 @@ func (c StorageBackendConfig) ValidateForProvider(provider string) error {
 	if strings.HasPrefix(prefix, "/") || cleanPrefix == ".." || strings.HasPrefix(cleanPrefix, "../") {
 		return errors.NewValidationError("path_prefix must be a relative path without parent traversal")
 	}
-	required := func(name, value string) error {
-		if strings.TrimSpace(value) == "" {
-			return errors.NewValidationError(name + " is required")
-		}
-		return nil
-	}
 	switch provider {
-	case "local":
+	case StorageProviderLocal:
 		return nil
-	case "minio":
-		if c.Mode == "" {
-			c.Mode = "remote"
-		}
-		if c.Mode != "docker" {
-			for name, value := range map[string]string{"endpoint": c.Endpoint, "access_key_id": c.AccessKeyID, "secret_access_key": c.SecretAccessKey} {
-				if err := required(name, value); err != nil {
-					return err
-				}
+	case StorageProviderS3:
+		for name, value := range map[string]string{"region": c.Region, "bucket_name": c.BucketName} {
+			if strings.TrimSpace(value) == "" {
+				return errors.NewValidationError(name + " is required")
 			}
 		}
-		return required("bucket_name", c.BucketName)
-	case "cos":
-		for name, value := range map[string]string{"region": c.Region, "access_key_id": c.AccessKeyID, "secret_access_key": c.SecretAccessKey, "bucket_name": c.BucketName} {
-			if err := required(name, value); err != nil {
-				return err
-			}
+		// Empty keys mean the AWS default credential chain; a lone key can
+		// never authenticate, so reject it here instead of at first upload.
+		if (strings.TrimSpace(c.AccessKeyID) == "") != (strings.TrimSpace(c.SecretAccessKey) == "") {
+			return errors.NewValidationError("access_key_id and secret_access_key must be provided together")
+		}
+		if err := ValidateS3AddressingStyle(c.AddressingStyle); err != nil {
+			return errors.NewValidationError(err.Error())
 		}
 		return nil
 	default:
-		for name, value := range map[string]string{"endpoint": c.Endpoint, "region": c.Region, "access_key_id": c.AccessKeyID, "secret_access_key": c.SecretAccessKey, "bucket_name": c.BucketName} {
-			if err := required(name, value); err != nil {
-				return err
-			}
-		}
-		return nil
+		return errors.NewValidationError(fmt.Sprintf("unsupported storage provider: %s", provider))
 	}
 }
 
 // LocationKey identifies the physical destination. Credentials deliberately do
 // not participate so they can be rotated without changing object identity.
 func (c StorageBackendConfig) LocationKey(provider string) string {
-	mode := strings.TrimSpace(c.Mode)
-	if provider == "minio" && mode == "" {
-		mode = "remote"
-	}
-	return strings.Join([]string{provider, mode, strings.TrimSpace(c.Endpoint), strings.TrimSpace(c.Region), strings.TrimSpace(c.BucketName), strings.Trim(strings.TrimSpace(c.PathPrefix), "/")}, "|")
+	return strings.Join([]string{
+		provider,
+		strings.TrimSpace(c.Endpoint),
+		strings.TrimSpace(c.Region),
+		strings.TrimSpace(c.BucketName),
+		strings.Trim(strings.TrimSpace(c.PathPrefix), "/"),
+	}, "|")
 }
 
 // ToStorageEngineConfig adapts the instance model to the existing provider
@@ -234,26 +208,13 @@ func (b StorageBackend) ToStorageEngineConfig() *StorageEngineConfig {
 	c := b.Config
 	result := &StorageEngineConfig{DefaultProvider: b.Provider}
 	switch b.Provider {
-	case "local":
+	case StorageProviderLocal:
 		result.Local = &LocalEngineConfig{PathPrefix: c.PathPrefix}
-	case "minio":
-		mode := c.Mode
-		if mode == "" {
-			mode = "remote"
+	case StorageProviderS3:
+		result.S3 = &S3EngineConfig{
+			Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey,
+			BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
 		}
-		result.MinIO = &MinIOEngineConfig{Mode: mode, Endpoint: c.Endpoint, AccessKeyID: c.AccessKeyID, SecretAccessKey: c.SecretAccessKey, BucketName: c.BucketName, UseSSL: c.UseSSL, PathPrefix: c.PathPrefix}
-	case "cos":
-		result.COS = &COSEngineConfig{SecretID: c.AccessKeyID, SecretKey: c.SecretAccessKey, Region: c.Region, BucketName: c.BucketName, AppID: c.AppID, PathPrefix: c.PathPrefix, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "tos":
-		result.TOS = &TOSEngineConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "s3":
-		result.S3 = &S3EngineConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, ForcePathStyle: c.ForcePathStyle}
-	case "oss":
-		result.OSS = &OSSEngineConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseTempBucket: c.UseTempBucket, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "ks3":
-		result.KS3 = &KS3EngineConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix}
-	case "obs":
-		result.OBS = &OBSEngineConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL}
 	}
 	return result
 }
@@ -290,60 +251,21 @@ func StorageBackendFromLegacy(tenantID uint64, provider string, legacy *StorageE
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	b := &StorageBackend{TenantID: tenantID, Provider: provider, Source: StorageBackendSourceUser, Status: StorageBackendStatusActive, LegacyAlias: true}
 	switch provider {
-	case "local":
+	case StorageProviderLocal:
 		if legacy.Local == nil {
 			return nil
 		}
 		b.Name, b.Config.PathPrefix = "Local", legacy.Local.PathPrefix
-	case "minio":
-		if legacy.MinIO == nil {
-			return nil
-		}
-		c := legacy.MinIO
-		b.Name = "MinIO"
-		b.Config = StorageBackendConfig{Mode: c.Mode, Endpoint: c.Endpoint, AccessKeyID: c.AccessKeyID, SecretAccessKey: c.SecretAccessKey, BucketName: c.BucketName, UseSSL: c.UseSSL, PathPrefix: c.PathPrefix}
-	case "cos":
-		if legacy.COS == nil {
-			return nil
-		}
-		c := legacy.COS
-		b.Name = "COS"
-		b.Config = StorageBackendConfig{Region: c.Region, AccessKeyID: c.SecretID, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, AppID: c.AppID, PathPrefix: c.PathPrefix, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "tos":
-		if legacy.TOS == nil {
-			return nil
-		}
-		c := legacy.TOS
-		b.Name = "TOS"
-		b.Config = StorageBackendConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "s3":
+	case StorageProviderS3:
 		if legacy.S3 == nil {
 			return nil
 		}
 		c := legacy.S3
 		b.Name = "S3"
-		b.Config = StorageBackendConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, ForcePathStyle: c.ForcePathStyle}
-	case "oss":
-		if legacy.OSS == nil {
-			return nil
+		b.Config = StorageBackendConfig{
+			Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey,
+			BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
 		}
-		c := legacy.OSS
-		b.Name = "OSS"
-		b.Config = StorageBackendConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseTempBucket: c.UseTempBucket, TempBucketName: c.TempBucketName, TempRegion: c.TempRegion}
-	case "ks3":
-		if legacy.KS3 == nil {
-			return nil
-		}
-		c := legacy.KS3
-		b.Name = "KS3"
-		b.Config = StorageBackendConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix}
-	case "obs":
-		if legacy.OBS == nil {
-			return nil
-		}
-		c := legacy.OBS
-		b.Name = "OBS"
-		b.Config = StorageBackendConfig{Endpoint: c.Endpoint, Region: c.Region, AccessKeyID: c.AccessKey, SecretAccessKey: c.SecretKey, BucketName: c.BucketName, PathPrefix: c.PathPrefix, UseSSL: c.UseSSL}
 	default:
 		return nil
 	}
@@ -363,20 +285,16 @@ func StorageBackendFromEnvironment(tenantID uint64) *StorageBackend {
 		Source: StorageBackendSourceEnv, Status: StorageBackendStatusActive, LegacyAlias: true,
 	}
 	switch provider {
-	case "local":
+	case StorageProviderLocal:
 		b.Config.PathPrefix = strings.TrimSpace(os.Getenv("LOCAL_STORAGE_PATH_PREFIX"))
-	case "minio":
-		b.Config = StorageBackendConfig{Mode: "remote", Endpoint: os.Getenv("MINIO_ENDPOINT"), AccessKeyID: os.Getenv("MINIO_ACCESS_KEY_ID"), SecretAccessKey: os.Getenv("MINIO_SECRET_ACCESS_KEY"), BucketName: os.Getenv("MINIO_BUCKET_NAME"), PathPrefix: os.Getenv("MINIO_PATH_PREFIX"), UseSSL: strings.EqualFold(os.Getenv("MINIO_USE_SSL"), "true")}
-	case "cos":
-		b.Config = StorageBackendConfig{Region: os.Getenv("COS_REGION"), AccessKeyID: os.Getenv("COS_SECRET_ID"), SecretAccessKey: os.Getenv("COS_SECRET_KEY"), BucketName: os.Getenv("COS_BUCKET_NAME"), AppID: os.Getenv("COS_APP_ID"), PathPrefix: os.Getenv("COS_PATH_PREFIX"), TempBucketName: os.Getenv("COS_TEMP_BUCKET_NAME"), TempRegion: os.Getenv("COS_TEMP_REGION")}
-	case "tos":
-		b.Config = StorageBackendConfig{Endpoint: os.Getenv("TOS_ENDPOINT"), Region: os.Getenv("TOS_REGION"), AccessKeyID: os.Getenv("TOS_ACCESS_KEY"), SecretAccessKey: os.Getenv("TOS_SECRET_KEY"), BucketName: os.Getenv("TOS_BUCKET_NAME"), PathPrefix: os.Getenv("TOS_PATH_PREFIX"), TempBucketName: os.Getenv("TOS_TEMP_BUCKET_NAME"), TempRegion: os.Getenv("TOS_TEMP_REGION")}
-	case "s3":
-		b.Config = StorageBackendConfig{Endpoint: os.Getenv("S3_ENDPOINT"), Region: os.Getenv("S3_REGION"), AccessKeyID: os.Getenv("S3_ACCESS_KEY"), SecretAccessKey: os.Getenv("S3_SECRET_KEY"), BucketName: os.Getenv("S3_BUCKET_NAME"), PathPrefix: os.Getenv("S3_PATH_PREFIX"), UseSSL: !strings.EqualFold(os.Getenv("S3_USE_SSL"), "false"), ForcePathStyle: strings.EqualFold(os.Getenv("S3_FORCE_PATH_STYLE"), "true")}
-	case "oss":
-		b.Config = StorageBackendConfig{Endpoint: os.Getenv("OSS_ENDPOINT"), Region: os.Getenv("OSS_REGION"), AccessKeyID: os.Getenv("OSS_ACCESS_KEY"), SecretAccessKey: os.Getenv("OSS_SECRET_KEY"), BucketName: os.Getenv("OSS_BUCKET_NAME"), PathPrefix: os.Getenv("OSS_PATH_PREFIX"), UseTempBucket: os.Getenv("OSS_TEMP_BUCKET_NAME") != "", TempBucketName: os.Getenv("OSS_TEMP_BUCKET_NAME"), TempRegion: os.Getenv("OSS_TEMP_REGION")}
-	case "obs":
-		b.Config = StorageBackendConfig{Endpoint: os.Getenv("OBS_ENDPOINT"), Region: os.Getenv("OBS_REGION"), AccessKeyID: os.Getenv("OBS_ACCESS_KEY"), SecretAccessKey: os.Getenv("OBS_SECRET_KEY"), BucketName: os.Getenv("OBS_BUCKET_NAME"), PathPrefix: os.Getenv("OBS_PATH_PREFIX"), UseSSL: !strings.EqualFold(os.Getenv("OBS_USE_SSL"), "false")}
+	case StorageProviderS3:
+		b.Config = StorageBackendConfig{
+			Endpoint: os.Getenv("S3_ENDPOINT"), Region: os.Getenv("S3_REGION"),
+			AccessKeyID: os.Getenv("S3_ACCESS_KEY"), SecretAccessKey: os.Getenv("S3_SECRET_KEY"),
+			BucketName: os.Getenv("S3_BUCKET_NAME"), PathPrefix: os.Getenv("S3_PATH_PREFIX"),
+			UseSSL:          !strings.EqualFold(os.Getenv("S3_USE_SSL"), "false"),
+			AddressingStyle: strings.ToLower(strings.TrimSpace(os.Getenv("S3_ADDRESSING_STYLE"))),
+		}
 	default:
 		return nil
 	}

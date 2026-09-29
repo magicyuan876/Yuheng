@@ -65,12 +65,12 @@ func TestCollectImageURLs(t *testing.T) {
 			name: "mixed providers",
 			imageInfos: []string{
 				`[{"url":"s3://bucket/img1.png"}]`,
-				`[{"url":"minio://bucket/img2.jpg"}]`,
+				`[{"url":"s3://bucket/img2.jpg"}]`,
 				`[{"url":"local://data/img3.webp"}]`,
 			},
 			wantURLs: []string{
 				"s3://bucket/img1.png",
-				"minio://bucket/img2.jpg",
+				"s3://bucket/img2.jpg",
 				"local://data/img3.webp",
 			},
 		},

@@ -35,7 +35,7 @@ func NewFileServiceFromStorageConfig(
 	}
 
 	switch p {
-	case "local":
+	case types.StorageProviderLocal:
 		baseDir := localBaseDir
 		if sec != nil && sec.Local != nil {
 			rawPrefix := strings.TrimSpace(sec.Local.PathPrefix)
@@ -50,48 +50,7 @@ func NewFileServiceFromStorageConfig(
 		externalURL := strings.TrimSpace(os.Getenv("APP_EXTERNAL_URL"))
 		return NewLocalFileService(baseDir, externalURL), p, nil
 
-	case "minio":
-		if sec == nil || sec.MinIO == nil {
-			return nil, p, fmt.Errorf("missing minio config")
-		}
-		var endpoint, accessKeyID, secretAccessKey string
-		if sec.MinIO.Mode == "remote" {
-			endpoint = strings.TrimSpace(sec.MinIO.Endpoint)
-			accessKeyID = strings.TrimSpace(sec.MinIO.AccessKeyID)
-			secretAccessKey = strings.TrimSpace(sec.MinIO.SecretAccessKey)
-		} else {
-			endpoint = strings.TrimSpace(os.Getenv("MINIO_ENDPOINT"))
-			accessKeyID = strings.TrimSpace(os.Getenv("MINIO_ACCESS_KEY_ID"))
-			secretAccessKey = strings.TrimSpace(os.Getenv("MINIO_SECRET_ACCESS_KEY"))
-		}
-		bucketName := strings.TrimSpace(sec.MinIO.BucketName)
-		if bucketName == "" {
-			bucketName = strings.TrimSpace(os.Getenv("MINIO_BUCKET_NAME"))
-		}
-		if endpoint == "" || accessKeyID == "" || secretAccessKey == "" || bucketName == "" {
-			return nil, p, fmt.Errorf("incomplete minio config")
-		}
-		svc, err := NewMinioFileService(endpoint, accessKeyID, secretAccessKey, bucketName, sec.MinIO.UseSSL)
-		return svc, p, err
-
-	case "cos":
-		if sec == nil || sec.COS == nil || sec.COS.SecretID == "" || sec.COS.SecretKey == "" || sec.COS.BucketName == "" || sec.COS.Region == "" {
-			return nil, p, fmt.Errorf("incomplete cos config")
-		}
-		pathPrefix := strings.TrimSpace(sec.COS.PathPrefix)
-		if pathPrefix == "" {
-			pathPrefix = "yuheng"
-		}
-		svc, err := NewCosFileServiceWithTempBucket(sec.COS.BucketName, sec.COS.Region, sec.COS.SecretID, sec.COS.SecretKey, pathPrefix, sec.COS.TempBucketName, sec.COS.TempRegion)
-		return svc, p, err
-
-	case "tos":
-		if sec == nil || sec.TOS == nil || sec.TOS.Endpoint == "" || sec.TOS.Region == "" || sec.TOS.AccessKey == "" || sec.TOS.SecretKey == "" || sec.TOS.BucketName == "" {
-			return nil, p, fmt.Errorf("incomplete tos config")
-		}
-		svc, err := NewTosFileServiceWithTempBucket(sec.TOS.Endpoint, sec.TOS.Region, sec.TOS.AccessKey, sec.TOS.SecretKey, sec.TOS.BucketName, sec.TOS.PathPrefix, sec.TOS.TempBucketName, sec.TOS.TempRegion)
-		return svc, p, err
-	case "s3":
+	case types.StorageProviderS3:
 		if sec == nil || sec.S3 == nil || sec.S3.Region == "" || sec.S3.BucketName == "" || (sec.S3.AccessKey == "") != (sec.S3.SecretKey == "") {
 			return nil, p, fmt.Errorf("incomplete s3 config")
 		}
@@ -99,86 +58,14 @@ func NewFileServiceFromStorageConfig(
 		if pathPrefix == "" {
 			pathPrefix = "yuheng/"
 		}
-		svc, err := NewS3FileServiceWithOptions(sec.S3.Endpoint, sec.S3.AccessKey, sec.S3.SecretKey, sec.S3.BucketName, sec.S3.Region, pathPrefix, sec.S3.ForcePathStyle)
-		return svc, p, err
-
-	case "obs":
-		obsEndpoint, obsRegion, obsAccessKey := "", "", ""
-		obsSecretKey, obsBucketName, obsPathPrefix := "", "", ""
-		if sec != nil && sec.OBS != nil {
-			obsEndpoint = strings.TrimSpace(sec.OBS.Endpoint)
-			obsRegion = strings.TrimSpace(sec.OBS.Region)
-			obsAccessKey = strings.TrimSpace(sec.OBS.AccessKey)
-			obsSecretKey = strings.TrimSpace(sec.OBS.SecretKey)
-			obsBucketName = strings.TrimSpace(sec.OBS.BucketName)
-			obsPathPrefix = strings.TrimSpace(sec.OBS.PathPrefix)
-		}
-		if obsEndpoint == "" {
-			obsEndpoint = strings.TrimSpace(os.Getenv("OBS_ENDPOINT"))
-		}
-		if obsRegion == "" {
-			obsRegion = strings.TrimSpace(os.Getenv("OBS_REGION"))
-		}
-		if obsAccessKey == "" {
-			obsAccessKey = strings.TrimSpace(os.Getenv("OBS_ACCESS_KEY"))
-		}
-		if obsSecretKey == "" {
-			obsSecretKey = strings.TrimSpace(os.Getenv("OBS_SECRET_KEY"))
-		}
-		if obsBucketName == "" {
-			obsBucketName = strings.TrimSpace(os.Getenv("OBS_BUCKET_NAME"))
-		}
-		if obsPathPrefix == "" {
-			obsPathPrefix = strings.TrimSpace(os.Getenv("OBS_PATH_PREFIX"))
-		}
-		if obsPathPrefix == "" {
-			obsPathPrefix = "yuheng/"
-		}
-		if obsEndpoint == "" || obsAccessKey == "" || obsSecretKey == "" || obsBucketName == "" {
-			return nil, p, fmt.Errorf("incomplete obs config")
-		}
-		if obsRegion == "" {
-			obsRegion = "cn-north-4"
-		}
-		svc, err := NewObsFileService(obsEndpoint, obsRegion, obsAccessKey, obsSecretKey, obsBucketName, obsPathPrefix)
-		return svc, p, err
-
-	case "oss":
-		if sec == nil || sec.OSS == nil || sec.OSS.Endpoint == "" || sec.OSS.Region == "" || sec.OSS.AccessKey == "" || sec.OSS.SecretKey == "" || sec.OSS.BucketName == "" {
-			return nil, p, fmt.Errorf("incomplete oss config")
-		}
-		pathPrefix := strings.TrimSpace(sec.OSS.PathPrefix)
-		if pathPrefix == "" {
-			pathPrefix = "yuheng/"
-		}
-		var svc interfaces.FileService
-		var err error
-		if sec.OSS.UseTempBucket && sec.OSS.TempBucketName != "" {
-			svc, err = NewOssFileServiceWithTempBucket(
-				sec.OSS.Endpoint, sec.OSS.Region, sec.OSS.AccessKey, sec.OSS.SecretKey,
-				sec.OSS.BucketName, pathPrefix,
-				sec.OSS.TempBucketName, sec.OSS.TempRegion,
-			)
-		} else {
-			svc, err = NewOssFileService(
-				sec.OSS.Endpoint, sec.OSS.Region, sec.OSS.AccessKey, sec.OSS.SecretKey,
-				sec.OSS.BucketName, pathPrefix,
-			)
-		}
-		return svc, p, err
-
-	case "ks3":
-		if sec == nil || sec.KS3 == nil || sec.KS3.Endpoint == "" || sec.KS3.Region == "" || sec.KS3.AccessKey == "" || sec.KS3.SecretKey == "" || sec.KS3.BucketName == "" {
-			return nil, p, fmt.Errorf("incomplete ks3 config")
-		}
-		pathPrefix := strings.TrimSpace(sec.KS3.PathPrefix)
-		if pathPrefix == "" {
-			pathPrefix = "yuheng/"
-		}
-		svc, err := NewKS3FileService(sec.KS3.Endpoint, sec.KS3.Region, sec.KS3.AccessKey, sec.KS3.SecretKey, sec.KS3.BucketName, pathPrefix)
+		svc, err := NewS3FileService(S3Options{
+			Endpoint: sec.S3.Endpoint, Region: sec.S3.Region, AccessKey: sec.S3.AccessKey, SecretKey: sec.S3.SecretKey,
+			BucketName: sec.S3.BucketName, PathPrefix: pathPrefix, UseSSL: sec.S3.UseSSL,
+			AddressingStyle: sec.S3.AddressingStyle,
+		})
 		return svc, p, err
 
 	default:
-		return nil, p, fmt.Errorf("unsupported provider %q", p)
+		return nil, p, fmt.Errorf("unsupported storage provider %q (supported: local, s3)", p)
 	}
 }

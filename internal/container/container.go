@@ -812,7 +812,7 @@ func syncSequences(db *gorm.DB) {
 
 // initFileService initializes file storage service
 // Creates the appropriate file storage service based on configuration
-// Supports multiple storage backends (MinIO, COS, local filesystem)
+// Supports the local filesystem and any S3-compatible object storage.
 // Parameters:
 //   - cfg: Application configuration
 //
@@ -833,56 +833,7 @@ func initRawFileService(_ *config.Config) (interfaces.FileService, error) {
 		storageType = "local"
 	}
 	switch storageType {
-	case "minio":
-		if os.Getenv("MINIO_ENDPOINT") == "" ||
-			os.Getenv("MINIO_ACCESS_KEY_ID") == "" ||
-			os.Getenv("MINIO_SECRET_ACCESS_KEY") == "" ||
-			os.Getenv("MINIO_BUCKET_NAME") == "" {
-			return nil, fmt.Errorf("missing MinIO configuration")
-		}
-		return file.NewMinioFileService(
-			os.Getenv("MINIO_ENDPOINT"),
-			os.Getenv("MINIO_ACCESS_KEY_ID"),
-			os.Getenv("MINIO_SECRET_ACCESS_KEY"),
-			os.Getenv("MINIO_BUCKET_NAME"),
-			strings.EqualFold(os.Getenv("MINIO_USE_SSL"), "true"),
-		)
-	case "cos":
-		if os.Getenv("COS_BUCKET_NAME") == "" ||
-			os.Getenv("COS_REGION") == "" ||
-			os.Getenv("COS_SECRET_ID") == "" ||
-			os.Getenv("COS_SECRET_KEY") == "" ||
-			os.Getenv("COS_PATH_PREFIX") == "" {
-			return nil, fmt.Errorf("missing COS configuration")
-		}
-		return file.NewCosFileServiceWithTempBucket(
-			os.Getenv("COS_BUCKET_NAME"),
-			os.Getenv("COS_REGION"),
-			os.Getenv("COS_SECRET_ID"),
-			os.Getenv("COS_SECRET_KEY"),
-			os.Getenv("COS_PATH_PREFIX"),
-			os.Getenv("COS_TEMP_BUCKET_NAME"),
-			os.Getenv("COS_TEMP_REGION"),
-		)
-	case "tos":
-		if os.Getenv("TOS_ENDPOINT") == "" ||
-			os.Getenv("TOS_REGION") == "" ||
-			os.Getenv("TOS_ACCESS_KEY") == "" ||
-			os.Getenv("TOS_SECRET_KEY") == "" ||
-			os.Getenv("TOS_BUCKET_NAME") == "" {
-			return nil, fmt.Errorf("missing TOS configuration")
-		}
-		return file.NewTosFileServiceWithTempBucket(
-			os.Getenv("TOS_ENDPOINT"),
-			os.Getenv("TOS_REGION"),
-			os.Getenv("TOS_ACCESS_KEY"),
-			os.Getenv("TOS_SECRET_KEY"),
-			os.Getenv("TOS_BUCKET_NAME"),
-			os.Getenv("TOS_PATH_PREFIX"),
-			os.Getenv("TOS_TEMP_BUCKET_NAME"), // 可选：临时桶名称（桶需配置生命周期规则自动过期）
-			os.Getenv("TOS_TEMP_REGION"),      // 可选：临时桶 region，默认与主桶相同
-		)
-	case "s3":
+	case types.StorageProviderS3:
 		accessKey, secretKey := os.Getenv("S3_ACCESS_KEY"), os.Getenv("S3_SECRET_KEY")
 		if os.Getenv("S3_REGION") == "" ||
 			os.Getenv("S3_BUCKET_NAME") == "" ||
@@ -893,57 +844,17 @@ func initRawFileService(_ *config.Config) (interfaces.FileService, error) {
 		if pathPrefix == "" {
 			pathPrefix = "yuheng/"
 		}
-		return file.NewS3FileService(
-			os.Getenv("S3_ENDPOINT"),
-			accessKey,
-			secretKey,
-			os.Getenv("S3_BUCKET_NAME"),
-			os.Getenv("S3_REGION"),
-			pathPrefix,
-		)
-	case "obs":
-		if os.Getenv("OBS_ENDPOINT") == "" ||
-			os.Getenv("OBS_ACCESS_KEY") == "" ||
-			os.Getenv("OBS_SECRET_KEY") == "" ||
-			os.Getenv("OBS_BUCKET_NAME") == "" {
-			return nil, fmt.Errorf("missing OBS configuration")
-		}
-		obsRegion := os.Getenv("OBS_REGION")
-		obsPathPrefix := os.Getenv("OBS_PATH_PREFIX")
-		if obsPathPrefix == "" {
-			obsPathPrefix = "yuheng/"
-		}
-		return file.NewObsFileService(
-			os.Getenv("OBS_ENDPOINT"),
-			obsRegion,
-			os.Getenv("OBS_ACCESS_KEY"),
-			os.Getenv("OBS_SECRET_KEY"),
-			os.Getenv("OBS_BUCKET_NAME"),
-			obsPathPrefix,
-		)
-	case "oss":
-		if os.Getenv("OSS_ENDPOINT") == "" ||
-			os.Getenv("OSS_REGION") == "" ||
-			os.Getenv("OSS_ACCESS_KEY") == "" ||
-			os.Getenv("OSS_SECRET_KEY") == "" ||
-			os.Getenv("OSS_BUCKET_NAME") == "" {
-			return nil, fmt.Errorf("missing OSS configuration")
-		}
-		pathPrefix := os.Getenv("OSS_PATH_PREFIX")
-		if pathPrefix == "" {
-			pathPrefix = "yuheng/"
-		}
-		return file.NewOssFileServiceWithTempBucket(
-			os.Getenv("OSS_ENDPOINT"),
-			os.Getenv("OSS_REGION"),
-			os.Getenv("OSS_ACCESS_KEY"),
-			os.Getenv("OSS_SECRET_KEY"),
-			os.Getenv("OSS_BUCKET_NAME"),
-			pathPrefix,
-			os.Getenv("OSS_TEMP_BUCKET_NAME"),
-			os.Getenv("OSS_TEMP_REGION"),
-		)
-	case "local":
+		return file.NewS3FileService(file.S3Options{
+			Endpoint:        os.Getenv("S3_ENDPOINT"),
+			Region:          os.Getenv("S3_REGION"),
+			AccessKey:       accessKey,
+			SecretKey:       secretKey,
+			BucketName:      os.Getenv("S3_BUCKET_NAME"),
+			PathPrefix:      pathPrefix,
+			UseSSL:          !strings.EqualFold(os.Getenv("S3_USE_SSL"), "false"),
+			AddressingStyle: strings.ToLower(strings.TrimSpace(os.Getenv("S3_ADDRESSING_STYLE"))),
+		})
+	case types.StorageProviderLocal:
 		baseDir := os.Getenv("LOCAL_STORAGE_BASE_DIR")
 		if baseDir == "" {
 			baseDir = "/data/files"

@@ -58,7 +58,7 @@ func isIconImage(data []byte) bool {
 // StoredImage describes an image that has been saved to storage.
 type StoredImage struct {
 	OriginalRef string // reference in the original markdown
-	ServingURL  string // provider:// URL (e.g. local://images/xxx.png, minio://bucket/key)
+	ServingURL  string // provider:// URL (e.g. local://images/xxx.png, s3://bucket/key)
 	MimeType    string
 	// TimestampMs is the frame's position in the source media for video
 	// keyframes (0 for ordinary document images), copied from the ImageRef.
@@ -241,9 +241,9 @@ func extFromMime(mime string) string {
 	}
 }
 
-// isProviderScheme checks if the path uses a provider:// scheme (local://, minio://, cos://, tos://).
+// isProviderScheme checks if the path uses a provider:// scheme (local://, s3://).
 func isProviderScheme(p string) bool {
-	for _, prefix := range []string{"local://", "minio://", "cos://", "tos://", "s3://", "obs://"} {
+	for _, prefix := range []string{"local://", "s3://"} {
 		if strings.HasPrefix(p, prefix) {
 			return true
 		}

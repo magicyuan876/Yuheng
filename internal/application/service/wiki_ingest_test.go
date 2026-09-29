@@ -211,7 +211,7 @@ func TestHasSufficientTextContent(t *testing.T) {
 }
 
 func TestMaskImageURLs(t *testing.T) {
-	const urlA = "minio://kb/10000/exports/4135-aaaa-bbbb-cccc/page_1.jpg"
+	const urlA = "s3://kb/10000/exports/4135-aaaa-bbbb-cccc/page_1.jpg"
 	const urlB = "local://kb/10000/exports/9999-dddd-eeee-ffff/page_2.png"
 
 	t.Run("single markdown image round trips exact URL", func(t *testing.T) {
@@ -289,11 +289,11 @@ func TestMaskImageURLs(t *testing.T) {
 }
 
 func TestUnmaskImageURLsDropsUnknownPlaceholders(t *testing.T) {
-	urlMap := map[string]string{"wkimg:0001": "minio://kb/exports/real.jpg"}
+	urlMap := map[string]string{"wkimg:0001": "s3://kb/exports/real.jpg"}
 	input := `{"details":"keep ![ok](wkimg:0001) drop ![bad](wkimg:001) and wkimg:9999"}`
 	got := unmaskImageURLs(input, urlMap)
 
-	if !strings.Contains(got, "![ok](minio://kb/exports/real.jpg)") {
+	if !strings.Contains(got, "![ok](s3://kb/exports/real.jpg)") {
 		t.Fatalf("known placeholder was not restored: %q", got)
 	}
 	if strings.Contains(got, "wkimg:") || strings.Contains(got, "![bad]") {
@@ -302,7 +302,7 @@ func TestUnmaskImageURLsDropsUnknownPlaceholders(t *testing.T) {
 }
 
 func TestGenerateWithTemplateMasksImageURLsBeforeLLM(t *testing.T) {
-	const realURL = "minio://kb/10000/exports/4135-aaaa-bbbb-cccc/page_1.jpg"
+	const realURL = "s3://kb/10000/exports/4135-aaaa-bbbb-cccc/page_1.jpg"
 	model := &templateCaptureChatModel{
 		response: `{"details":"Model kept ![caption](wkimg:0001)"}`,
 	}

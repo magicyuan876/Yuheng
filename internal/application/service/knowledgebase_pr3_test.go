@@ -171,30 +171,30 @@ func TestCreateKnowledgeBase_DefaultStorageProviderFromTenant(t *testing.T) {
 	repo := newFakeKBRepo()
 	svc := newPR3KBService(repo, &fakeRegistry{registered: map[string]struct{}{}}, &fakeOwnership{})
 
-	kb, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "minio"), &types.KnowledgeBase{Name: "kb"})
+	kb, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "s3"), &types.KnowledgeBase{Name: "kb"})
 	require.NoError(t, err)
-	assert.Equal(t, "minio", kb.GetStorageProvider())
+	assert.Equal(t, "s3", kb.GetStorageProvider())
 
-	kbExplicit, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "minio"), &types.KnowledgeBase{
+	kbExplicit, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "s3"), &types.KnowledgeBase{
 		Name:                  "kb2",
-		StorageProviderConfig: &types.StorageProviderConfig{Provider: "cos"},
+		StorageProviderConfig: &types.StorageProviderConfig{Provider: "local"},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "cos", kbExplicit.GetStorageProvider())
+	assert.Equal(t, "local", kbExplicit.GetStorageProvider())
 }
 
 func TestCreateKnowledgeBase_DefaultStorageProviderRespectsAllowList(t *testing.T) {
-	t.Setenv(storageallowlist.AllowListEnv, "minio")
+	t.Setenv(storageallowlist.AllowListEnv, "s3")
 	repo := newFakeKBRepo()
 	svc := newPR3KBService(repo, &fakeRegistry{registered: map[string]struct{}{}}, &fakeOwnership{})
 
 	kb, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, ""), &types.KnowledgeBase{Name: "kb"})
 	require.NoError(t, err)
-	assert.Equal(t, "minio", kb.GetStorageProvider())
+	assert.Equal(t, "s3", kb.GetStorageProvider())
 
 	kbDisallowedDefault, err := svc.CreateKnowledgeBase(ctxWithTenantStorage(1, "local"), &types.KnowledgeBase{Name: "kb2"})
 	require.NoError(t, err)
-	assert.Equal(t, "minio", kbDisallowedDefault.GetStorageProvider())
+	assert.Equal(t, "s3", kbDisallowedDefault.GetStorageProvider())
 }
 
 // ---------------------------------------------------------------------------

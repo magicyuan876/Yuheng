@@ -85,7 +85,7 @@ func (f ChunkFlags) ToggleFlag(flag ChunkFlags) ChunkFlags {
 
 // ImageInfo 表示与 Chunk 关联的图片信息
 type ImageInfo struct {
-	// 图片URL（COS）
+	// 图片URL（provider:// 存储路径）
 	URL string `json:"url"          gorm:"type:text"`
 	// 原始图片URL
 	OriginalURL string `json:"original_url" gorm:"type:text"`

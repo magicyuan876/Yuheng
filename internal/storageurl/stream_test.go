@@ -38,7 +38,7 @@ func TestFindIncompleteRef(t *testing.T) {
 		},
 		{
 			"just scheme at end",
-			"text minio://",
+			"text s3://",
 			5,
 		},
 		{
@@ -77,12 +77,12 @@ func TestFindIncompleteMarkdownImage(t *testing.T) {
 	}{
 		{"complete image", "![img](local://1/a.png)", -1},
 		{"complete then text", "![img](local://1/a.png) trailing", -1},
-		{"truncated provider URL in image", `![知识助理"知识库"管理视图界面](minio://wizard-test/10000/exports/c91cf852`, 0},
+		{"truncated provider URL in image", `![知识助理"知识库"管理视图界面](s3://wizard-test/10000/exports/c91cf852`, 0},
 		{"open paren only", "text ![alt](", 5},
-		{"bare provider suffix without markdown", "text minio://wizard-test/10000/exp", -1},
+		{"bare provider suffix without markdown", "text s3://wizard-test/10000/exp", -1},
 		{"two images complete", "![a](local://1/a.png) ![b](local://1/b.png)", -1},
-		{"first complete second incomplete", "![a](local://1/a.png) ![b](minio://part", 22},
-		{"bracket inside alt text", "![a[b]](minio://wizard-test/10000/part", 0},
+		{"first complete second incomplete", "![a](local://1/a.png) ![b](s3://part", 22},
+		{"bracket inside alt text", "![a[b]](s3://wizard-test/10000/part", 0},
 		{"destination with whitespace is prose, not a link", "![alt](see the figure below", -1},
 		{
 			"destination too long to be a link",
@@ -217,7 +217,7 @@ func TestStreamRewriter_ConcurrentPushIsSafe(t *testing.T) {
 			for j := 0; j < 20; j++ {
 				// A distinct reference per push so every call really reaches the
 				// resolver instead of hitting the memo.
-				ref := "minio://bucket/10000/" + strconv.Itoa(i) + "-" + strconv.Itoa(j) + ".png"
+				ref := "s3://bucket/10000/" + strconv.Itoa(i) + "-" + strconv.Itoa(j) + ".png"
 				sr.Push(ctx, key, "![x]("+ref+") ", false, nil)
 			}
 		}(i)

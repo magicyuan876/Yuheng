@@ -93,8 +93,8 @@ type ImageMultimodalService struct {
 	redisClient    *redis.Client
 	// fileSvc is the globally configured default FileService used as a fallback
 	// when the tenant-scoped storage config cannot produce a usable service
-	// (e.g. images were saved using the global MINIO_* env vars while the
-	// tenant's StorageEngineConfig.MinIO is empty). Mirrors the write-side
+	// (e.g. images were saved using the global S3_* env vars while the
+	// tenant's StorageEngineConfig.S3 is empty). Mirrors the write-side
 	// fallback in knowledgeService.resolveFileService.
 	fileSvc         interfaces.FileService
 	storageResolver interfaces.StorageBackendResolver
@@ -579,8 +579,8 @@ func (s *ImageMultimodalService) resolveVLM(ctx context.Context, kbID, knowledge
 // Falls back to the globally configured default FileService when the tenant's
 // StorageEngineConfig does not carry a usable configuration for the URL's provider.
 // This mirrors the write-side fallback in knowledgeService.resolveFileService
-// and is required because images can be saved using global STORAGE_TYPE/MINIO_*
-// env vars while tenant.StorageEngineConfig.MinIO is left empty (issue #1282).
+// and is required because images can be saved using global STORAGE_TYPE/S3_*
+// env vars while tenant.StorageEngineConfig.S3 is left empty (issue #1282).
 func (s *ImageMultimodalService) resolveFileServiceForPayload(ctx context.Context, payload types.ImageMultimodalPayload) interfaces.FileService {
 	tenant, err := s.tenantRepo.GetTenantByID(ctx, payload.TenantID)
 	if err != nil || tenant == nil {
@@ -631,7 +631,7 @@ func (s *ImageMultimodalService) resolveFileServiceForPayload(ctx context.Contex
 }
 
 // readImageBytes loads the image bytes for a multimodal payload.
-//   - For provider:// URLs (local://, minio://, s3://, cos://, ...) it reads via
+//   - For provider:// URLs (local://, s3://) it reads via
 //     the resolved FileService and NEVER falls back to HTTP — handing a
 //     provider:// URL to the HTTP downloader is what caused issue #1282.
 //   - For legacy in-flight payloads with ImageLocalPath set, it tries the local

@@ -449,9 +449,9 @@ func (t *DataAnalysisTool) LoadFromKnowledge(ctx context.Context, knowledge *typ
 // semantics. It returns the temp path and a cleanup closure that removes the
 // temp file; the closure is always safe to call and is a no-op on failure.
 //
-// This hides storage-backend-specific URL schemes (local://, oss://, s3://,
-// minio://, cos://, …) behind the FileService.GetFile abstraction, so the
-// Data Analysis tool works identically across all deployments.
+// This hides storage-backend-specific URL schemes (local://, s3://, …) behind
+// the FileService.GetFile abstraction, so the Data Analysis tool works
+// identically across all deployments.
 func (t *DataAnalysisTool) materializeKnowledgeFile(ctx context.Context, knowledge *types.Knowledge) (string, func(), error) {
 	noop := func() {}
 

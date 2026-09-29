@@ -324,28 +324,11 @@ func (s *StorageBackendService) Test(ctx context.Context, backend *types.Storage
 			return err
 		}
 		return fileService.CheckConnectivity(ctx)
-	case "minio":
-		if c.Mode == "docker" {
-			c.Endpoint = os.Getenv("MINIO_ENDPOINT")
-			c.AccessKeyID = os.Getenv("MINIO_ACCESS_KEY_ID")
-			c.SecretAccessKey = os.Getenv("MINIO_SECRET_ACCESS_KEY")
-			if c.BucketName == "" {
-				c.BucketName = os.Getenv("MINIO_BUCKET_NAME")
-			}
-		}
-		return filesvc.CheckMinioConnectivity(ctx, c.Endpoint, c.AccessKeyID, c.SecretAccessKey, c.BucketName, c.UseSSL)
-	case "cos":
-		return filesvc.CheckCosConnectivity(ctx, c.BucketName, c.Region, c.AccessKeyID, c.SecretAccessKey)
-	case "tos":
-		return filesvc.CheckTosConnectivity(ctx, c.Endpoint, c.Region, c.AccessKeyID, c.SecretAccessKey, c.BucketName)
-	case "s3":
-		return filesvc.CheckS3ConnectivityWithOptions(ctx, c.Endpoint, c.AccessKeyID, c.SecretAccessKey, c.BucketName, c.Region, c.ForcePathStyle)
-	case "oss":
-		return filesvc.CheckOssConnectivity(ctx, c.Endpoint, c.Region, c.AccessKeyID, c.SecretAccessKey, c.BucketName)
-	case "ks3":
-		return filesvc.CheckKS3Connectivity(ctx, c.Endpoint, c.Region, c.AccessKeyID, c.SecretAccessKey, c.BucketName)
-	case "obs":
-		return filesvc.CheckObsConnectivity(ctx, c.Endpoint, c.Region, c.AccessKeyID, c.SecretAccessKey, c.BucketName)
+	case types.StorageProviderS3:
+		return filesvc.CheckS3Connectivity(ctx, filesvc.S3Options{
+			Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey,
+			BucketName: c.BucketName, UseSSL: c.UseSSL, AddressingStyle: c.AddressingStyle,
+		})
 	default:
 		return fmt.Errorf("unsupported storage provider: %s", backend.Provider)
 	}
@@ -463,19 +446,12 @@ func (s *StorageBackendService) ResolveFileService(ctx context.Context, tenant *
 }
 
 func validateStorageBackendEndpoint(backend *types.StorageBackend) error {
-	if backend.Provider == "local" || (backend.Provider == "minio" && backend.Config.Mode == "docker") {
+	if backend.Provider == types.StorageProviderLocal {
 		return nil
 	}
-	endpoint := strings.TrimSpace(backend.Config.Endpoint)
-	if backend.Provider == "cos" || endpoint == "" {
+	endpoint := filesvc.S3EndpointURL(backend.Config.Endpoint, backend.Config.UseSSL)
+	if endpoint == "" {
 		return nil
-	}
-	if !strings.Contains(endpoint, "://") {
-		scheme := "https://"
-		if backend.Provider == "minio" && !backend.Config.UseSSL {
-			scheme = "http://"
-		}
-		endpoint = scheme + endpoint
 	}
 	if err := secutils.ValidateURLForSSRF(endpoint); err != nil {
 		return apperrors.NewBadRequestError("storage endpoint failed SSRF validation").WithDetails(err.Error())

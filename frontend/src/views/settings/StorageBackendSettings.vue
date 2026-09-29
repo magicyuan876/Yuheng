@@ -182,50 +182,30 @@
               </SelectContent>
             </Select>
           </div>
-          <div v-if="form.provider === 'minio'">
-            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
-              {{ t("settings.storageBackend.modeLabel") }}
-            </label>
-            <div
-              class="border-border inline-flex items-center gap-1 rounded-lg border bg-[var(--td-bg-color-component)] p-[3px]"
-              role="radiogroup"
-            >
-              <button
-                type="button"
-                data-slot="segment"
-                class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
-                :class="
-                  form.config.mode !== 'docker'
-                    ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
-                    : 'text-muted-foreground not-disabled:hover:text-foreground border-transparent bg-transparent not-disabled:hover:bg-[var(--td-bg-color-container-hover)]'
-                "
-                :disabled="!!editing"
-                @click="form.config.mode = 'remote'"
-              >
-                <CloudIcon class="size-3.5 shrink-0" />
-                <span class="whitespace-nowrap">{{ t("settings.storageBackend.modeRemote") }}</span>
-              </button>
-              <button
-                type="button"
-                data-slot="segment"
-                class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-3 py-[5px] text-[13px] leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
-                :class="
-                  form.config.mode === 'docker'
-                    ? 'bg-card text-primary border-primary font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
-                    : 'text-muted-foreground not-disabled:hover:text-foreground border-transparent bg-transparent not-disabled:hover:bg-[var(--td-bg-color-container-hover)]'
-                "
-                :disabled="!!editing"
-                @click="form.config.mode = 'docker'"
-              >
-                <ServerIcon class="size-3.5 shrink-0" />
-                <span class="whitespace-nowrap">{{ t("settings.storageBackend.modeEnv") }}</span>
-              </button>
-            </div>
-          </div>
         </section>
 
         <section class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ t("settings.storageBackend.connectionSection") }}</h4>
+          <div v-if="form.provider === 's3' && !editing">
+            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+              {{ t("settings.storageBackend.presetLabel") }}
+            </label>
+            <div class="flex flex-wrap gap-1.5">
+              <Button
+                v-for="preset in S3_PRESETS"
+                :key="preset.id"
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="applyPreset(preset)"
+              >
+                {{ preset.label }}
+              </Button>
+            </div>
+            <p class="text-placeholder m-0 mt-1.5 text-xs leading-normal">
+              {{ t("settings.storageBackend.presetDesc") }}
+            </p>
+          </div>
           <div v-if="needsEndpoint">
             <label
               class="text-foreground before:text-destructive mb-1.5 block text-[13px] leading-[1.4] font-medium before:mr-1 before:leading-none before:font-medium before:content-['*']"
@@ -234,7 +214,7 @@
             <SettingsInput
               v-model="form.config.endpoint"
               :disabled="!!editing"
-              :placeholder="form.provider === 'minio' ? 'storage.example.com:9000' : 'https://storage.example.com'"
+              placeholder="https://s3.example.com"
               clearable
               input-class="text-[13px] md:text-[13px]"
             />
@@ -292,16 +272,6 @@
               input-class="text-[13px] md:text-[13px]"
             />
           </div>
-          <div v-if="form.provider === 'cos'">
-            <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">App ID</label>
-            <SettingsInput
-              v-model="form.config.app_id"
-              :disabled="!!editing"
-              :placeholder="t('settings.storageBackend.optionalPlaceholder')"
-              clearable
-              input-class="text-[13px] md:text-[13px]"
-            />
-          </div>
         </section>
 
         <section class="setting-drawer__section">
@@ -318,7 +288,28 @@
               input-class="text-[13px] md:text-[13px]"
             />
           </div>
-          <div v-if="form.provider === 'minio'">
+          <template v-if="form.provider === 's3'">
+            <div>
+              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
+                {{ t("settings.storageBackend.addressingStyleLabel") }}
+              </label>
+              <Select
+                :model-value="form.config.addressing_style || 'auto'"
+                @update:model-value="(v: unknown) => (form.config.addressing_style = v as S3AddressingStyle)"
+              >
+                <SelectTrigger class="w-full text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{{ t("settings.storageBackend.addressingAuto") }}</SelectItem>
+                  <SelectItem value="path">{{ t("settings.storageBackend.addressingPath") }}</SelectItem>
+                  <SelectItem value="virtual">{{ t("settings.storageBackend.addressingVirtual") }}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p class="text-placeholder m-0 mt-1.5 text-xs leading-normal">
+                {{ t("settings.storageBackend.addressingStyleDesc") }}
+              </p>
+            </div>
             <div class="flex items-center gap-2">
               <Switch
                 :model-value="form.config.use_ssl"
@@ -327,54 +318,6 @@
               <span class="text-placeholder m-0 text-xs leading-normal">{{
                 t("settings.storageBackend.useSslDesc")
               }}</span>
-            </div>
-          </div>
-          <div v-if="form.provider === 's3'">
-            <div class="flex items-center gap-2">
-              <Switch
-                :model-value="form.config.force_path_style"
-                @update:model-value="(v: boolean) => (form.config.force_path_style = v)"
-              />
-              <span class="text-placeholder m-0 text-xs leading-normal">
-                {{ t("settings.storageBackend.forcePathStyleDesc") }}
-              </span>
-            </div>
-          </div>
-          <div v-if="form.provider === 'oss'">
-            <div class="flex items-center gap-2">
-              <Switch
-                :model-value="form.config.use_temp_bucket"
-                @update:model-value="(v: boolean) => (form.config.use_temp_bucket = v)"
-              />
-              <span class="text-placeholder m-0 text-xs leading-normal">
-                {{ t("settings.storageBackend.useTempBucketDesc") }}
-              </span>
-            </div>
-          </div>
-          <template
-            v-if="['cos', 'tos'].includes(form.provider) || (form.provider === 'oss' && form.config.use_temp_bucket)"
-          >
-            <div>
-              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
-                {{ t("settings.storageBackend.tempBucketLabel") }}
-              </label>
-              <SettingsInput
-                v-model="form.config.temp_bucket_name"
-                :placeholder="t('settings.storageBackend.tempBucketPlaceholder')"
-                clearable
-                input-class="text-[13px] md:text-[13px]"
-              />
-            </div>
-            <div>
-              <label class="text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium">
-                {{ t("settings.storageBackend.tempRegionLabel") }}
-              </label>
-              <SettingsInput
-                v-model="form.config.temp_region"
-                :placeholder="t('settings.storageBackend.tempRegionPlaceholder')"
-                clearable
-                input-class="text-[13px] md:text-[13px]"
-              />
             </div>
           </template>
         </section>
@@ -460,6 +403,8 @@ import { useAuthStore } from "@/stores/auth";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import SettingsInput from "./SettingsInput.vue";
 import { providerLogo } from "./providerLogos";
+import { S3_PRESETS, applyS3Preset, type S3Preset } from "./s3Presets";
+import type { S3AddressingStyle } from "@/api/system";
 import {
   createStorageBackend,
   deleteStorageBackend,
@@ -494,16 +439,7 @@ import {
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  CircleCheckIcon,
-  CircleXIcon,
-  CloudIcon,
-  EllipsisIcon,
-  Loader2Icon,
-  LockIcon,
-  PlusIcon,
-  ServerIcon,
-} from "@lucide/vue";
+import { CircleCheckIcon, CircleXIcon, EllipsisIcon, Loader2Icon, LockIcon, PlusIcon } from "@lucide/vue";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -517,7 +453,6 @@ const backends = ref<StorageBackend[]>([]),
 const editing = ref<StorageBackend | null>(null);
 const rawTestResult = ref<"ok" | "error" | null>(null);
 const blankConfig = (): StorageBackendConfig => ({
-  mode: "remote",
   endpoint: "",
   region: "",
   access_key_id: "",
@@ -525,19 +460,23 @@ const blankConfig = (): StorageBackendConfig => ({
   bucket_name: "",
   path_prefix: "",
   use_ssl: true,
+  addressing_style: "auto",
 });
 const form = reactive<{ name: string; provider: string; config: StorageBackendConfig }>({
   name: "",
   provider: "local",
   config: blankConfig(),
 });
-const needsEndpoint = computed(
-  () => !["local", "cos"].includes(form.provider) && !(form.provider === "minio" && form.config.mode === "docker"),
-);
-const needsRegion = computed(() => !["local", "minio"].includes(form.provider));
-const needsCredentials = computed(
-  () => form.provider !== "local" && !(form.provider === "minio" && form.config.mode === "docker"),
-);
+// Only S3 has connection settings; local storage is just a path prefix.
+const needsEndpoint = computed(() => form.provider === "s3");
+const needsRegion = computed(() => form.provider === "s3");
+const needsCredentials = computed(() => form.provider === "s3");
+
+// A preset only prefills endpoint/region/TLS/addressing; credentials, bucket and prefix stay as typed.
+function applyPreset(preset: S3Preset) {
+  const fields = applyS3Preset(preset, form.config.region);
+  form.config = { ...form.config, ...fields };
+}
 
 const resolveLogo = (provider: string) => providerLogo("storage", provider);
 const providerInitial = (provider: string) => (provider || "?").trim().charAt(0).toUpperCase() || "?";
@@ -767,7 +706,7 @@ onMounted(load);
  *  - mono provider logos are CSS-masked icons driven by a per-card --logo-url;
  *  - the card action button fades in on card hover/focus (group-* could do it,
  *    but the drawer-teleported markup keeps these three tiny rules clearer);
- *  - the per-provider badge colours (8 providers), mirrored onto the
+ *  - the per-provider badge colours (2 providers), mirrored onto the
  *    teleported drawer header by the non-scoped block below.
  */
 .header-icon__mono {
@@ -791,33 +730,9 @@ onMounted(load);
   background: rgba(70, 70, 70, 0.1);
   color: #464646;
 }
-.backend-card--minio .backend-card__badge {
-  background: rgba(225, 38, 38, 0.12);
-  color: #c0382b;
-}
-.backend-card--cos .backend-card__badge {
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-.backend-card--tos .backend-card__badge {
-  background: rgba(0, 137, 255, 0.12);
-  color: #0089ff;
-}
 .backend-card--s3 .backend-card__badge {
   background: rgba(255, 153, 0, 0.12);
   color: #d97706;
-}
-.backend-card--oss .backend-card__badge {
-  background: rgba(255, 90, 0, 0.12);
-  color: #e55a00;
-}
-.backend-card--ks3 .backend-card__badge {
-  background: rgba(7, 192, 95, 0.12);
-  color: #07a050;
-}
-.backend-card--obs .backend-card__badge {
-  background: rgba(206, 17, 38, 0.1);
-  color: #ce1126;
 }
 
 /* Logo badges sit on a white tile; this must outrank the provider tints above. */
@@ -863,32 +778,8 @@ onMounted(load);
   background: rgba(70, 70, 70, 0.1);
   color: #464646;
 }
-.storage-backend-drawer--minio .setting-drawer__header-icon {
-  background: rgba(225, 38, 38, 0.12);
-  color: #c0382b;
-}
-.storage-backend-drawer--cos .setting-drawer__header-icon {
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-.storage-backend-drawer--tos .setting-drawer__header-icon {
-  background: rgba(0, 137, 255, 0.12);
-  color: #0089ff;
-}
 .storage-backend-drawer--s3 .setting-drawer__header-icon {
   background: rgba(255, 153, 0, 0.12);
   color: #d97706;
-}
-.storage-backend-drawer--oss .setting-drawer__header-icon {
-  background: rgba(255, 90, 0, 0.12);
-  color: #e55a00;
-}
-.storage-backend-drawer--ks3 .setting-drawer__header-icon {
-  background: rgba(7, 192, 95, 0.12);
-  color: #07a050;
-}
-.storage-backend-drawer--obs .setting-drawer__header-icon {
-  background: rgba(206, 17, 38, 0.1);
-  color: #ce1126;
 }
 </style>

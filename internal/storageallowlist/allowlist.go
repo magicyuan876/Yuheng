@@ -7,13 +7,24 @@ import (
 
 const AllowListEnv = "STORAGE_ALLOW_LIST"
 
-var supported = []string{"local", "minio", "cos", "tos", "s3", "oss", "ks3", "obs"}
+var supported = []string{"local", "s3"}
 
 // Supported returns the canonical storage provider names in display order.
 func Supported() []string {
 	providers := make([]string, len(supported))
 	copy(providers, supported)
 	return providers
+}
+
+// IsSupported reports whether provider is one of the canonical provider names,
+// regardless of STORAGE_ALLOW_LIST.
+func IsSupported(provider string) bool {
+	for _, name := range supported {
+		if provider == name {
+			return true
+		}
+	}
+	return false
 }
 
 // AllowedMap returns which providers are permitted by STORAGE_ALLOW_LIST.

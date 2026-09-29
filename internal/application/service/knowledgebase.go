@@ -1150,7 +1150,7 @@ func (s *knowledgeBaseService) CopyKnowledgeBase(ctx context.Context,
 		}
 
 		// Defense 3: the concrete storage instance must match. Comparing only
-		// provider names would incorrectly allow COS-A -> COS-B clones.
+		// provider names would incorrectly allow S3-A -> S3-B clones.
 		if tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant); tenant != nil {
 			defaultID, defaultProvider := "", ""
 			if tenant.DefaultStorageBackendID != nil {

@@ -92,12 +92,9 @@ var startupEnvVars = []envVarSpec{
 	{name: "REDIS_TLS_SERVER_NAME"},
 	// Object storage
 	{name: "STORAGE_TYPE"},
-	{name: "MINIO_ENDPOINT"},
-	{name: "MINIO_BUCKET_NAME"},
-	{name: "MINIO_SECRET_ACCESS_KEY", sensitive: true},
-	{name: "TOS_ENDPOINT"},
-	{name: "TOS_BUCKET_NAME"},
-	{name: "TOS_SECRET_KEY", sensitive: true},
+	{name: "S3_ENDPOINT"},
+	{name: "S3_BUCKET_NAME"},
+	{name: "S3_SECRET_KEY", sensitive: true},
 	// External services
 	{name: "DOCREADER_ADDR"},
 	{name: "RETRIEVE_DRIVER"},

@@ -73,31 +73,6 @@ func TestMergeParserEngineConfigForUpdate_PreservesLegacyChatParserRules(t *test
 	assert.Equal(t, "mineru", merged.ChatParserEngineRules[0].Engine)
 }
 
-func TestMergeStorageEngineConfigForUpdate_PreservesRedactedSecrets(t *testing.T) {
-	existing := &StorageEngineConfig{
-		DefaultProvider: "minio",
-		MinIO: &MinIOEngineConfig{
-			AccessKeyID:     "access-id",
-			SecretAccessKey: "secret-key",
-			BucketName:      "bucket",
-		},
-	}
-	incoming := &StorageEngineConfig{
-		DefaultProvider: "minio",
-		MinIO: &MinIOEngineConfig{
-			AccessKeyID:     RedactedSecretPlaceholder,
-			SecretAccessKey: RedactedSecretPlaceholder,
-			BucketName:      "bucket-new",
-		},
-	}
-	merged := MergeStorageEngineConfigForUpdate(incoming, existing)
-	require.NotNil(t, merged)
-	require.NotNil(t, merged.MinIO)
-	assert.Equal(t, "access-id", merged.MinIO.AccessKeyID)
-	assert.Equal(t, "secret-key", merged.MinIO.SecretAccessKey)
-	assert.Equal(t, "bucket-new", merged.MinIO.BucketName)
-}
-
 func TestMergeStorageEngineConfigForUpdate_ClearsS3Credentials(t *testing.T) {
 	existing := &StorageEngineConfig{
 		DefaultProvider: "s3",
@@ -150,4 +125,20 @@ func TestParserEngineConfigForResponse_NilSafe(t *testing.T) {
 
 func TestStorageEngineConfigForResponse_NilSafe(t *testing.T) {
 	assert.Nil(t, StorageEngineConfigForResponse(nil, true))
+}
+
+func TestStorageEngineConfigForResponse_RedactsS3Credentials(t *testing.T) {
+	cfg := &StorageEngineConfig{
+		DefaultProvider: "s3",
+		S3: &S3EngineConfig{
+			AccessKey: "ak", SecretKey: "sk", BucketName: "bucket", AddressingStyle: "virtual",
+		},
+	}
+	masked := StorageEngineConfigForResponse(cfg, true)
+	require.NotNil(t, masked.S3)
+	assert.Equal(t, RedactedSecretPlaceholder, masked.S3.AccessKey)
+	assert.Equal(t, RedactedSecretPlaceholder, masked.S3.SecretKey)
+	assert.Equal(t, "bucket", masked.S3.BucketName)
+	assert.Equal(t, "virtual", masked.S3.AddressingStyle)
+	assert.Equal(t, "ak", cfg.S3.AccessKey, "masking must not mutate the stored config")
 }

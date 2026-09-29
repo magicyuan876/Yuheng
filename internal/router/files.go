@@ -67,7 +67,7 @@ func localStorageAbsDir() string {
 
 // parseStorageTarget splits a stored file path into its optional storage
 // backend ID and provider scheme (e.g. "backend://3/local://7/x.png" ->
-// ("3", "local"); "cos://7/x.png" -> ("", "cos")).
+// ("3", "local"); "s3://7/x.png" -> ("", "s3")).
 func parseStorageTarget(filePath string) (backendID, provider string) {
 	backendID, providerPath, scoped := types.ParseStorageBackendPath(filePath)
 	if !scoped {

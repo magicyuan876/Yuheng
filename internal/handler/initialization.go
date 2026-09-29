@@ -124,7 +124,7 @@ type KBModelConfigRequest struct {
 		Enabled bool `json:"enabled"`
 	} `json:"multimodal"`
 
-	// 存储引擎选择（"local" | "minio" | "cos"），影响文档上传与文档内图片存储，参数从全局设置读取
+	// 存储引擎选择（"local" | "s3"），影响文档上传与文档内图片存储，参数从全局设置读取
 	StorageProvider  string `json:"storageProvider"`
 	StorageBackendID string `json:"storageBackendId"`
 
@@ -179,18 +179,6 @@ type InitializationRequest struct {
 			InterfaceType string `json:"interfaceType"` // "ollama" or "openai"
 		} `json:"vlm,omitempty"`
 		StorageType string `json:"storageType"`
-		COS         *struct {
-			SecretID   string `json:"secretId"`
-			SecretKey  string `json:"secretKey"`
-			Region     string `json:"region"`
-			BucketName string `json:"bucketName"`
-			AppID      string `json:"appId"`
-			PathPrefix string `json:"pathPrefix"`
-		} `json:"cos,omitempty"`
-		Minio *struct {
-			BucketName string `json:"bucketName"`
-			PathPrefix string `json:"pathPrefix"`
-		} `json:"minio,omitempty"`
 	} `json:"multimodal"`
 
 	DocumentSplitting struct {
@@ -613,7 +601,6 @@ func (h *InitializationHandler) validateMultimodalConfig(ctx context.Context, re
 		return nil
 	}
 
-	storageType := strings.ToLower(req.Multimodal.StorageType)
 	if req.Multimodal.VLM == nil {
 		logger.Error(ctx, "Multimodal enabled but missing VLM configuration")
 		return errors.NewBadRequestError("启用多模态时需要配置VLM信息")
@@ -626,20 +613,11 @@ func (h *InitializationHandler) validateMultimodalConfig(ctx context.Context, re
 		return errors.NewBadRequestError("VLM配置不完整")
 	}
 
-	switch storageType {
-	case "cos":
-		if req.Multimodal.COS == nil || req.Multimodal.COS.SecretID == "" || req.Multimodal.COS.SecretKey == "" ||
-			req.Multimodal.COS.Region == "" || req.Multimodal.COS.BucketName == "" ||
-			req.Multimodal.COS.AppID == "" {
-			logger.Error(ctx, "COS configuration incomplete")
-			return errors.NewBadRequestError("COS配置不完整")
-		}
-	case "minio":
-		if req.Multimodal.Minio == nil || req.Multimodal.Minio.BucketName == "" ||
-			os.Getenv("MINIO_ACCESS_KEY_ID") == "" || os.Getenv("MINIO_SECRET_ACCESS_KEY") == "" {
-			logger.Error(ctx, "MinIO configuration incomplete")
-			return errors.NewBadRequestError("MinIO配置不完整")
-		}
+	switch strings.ToLower(req.Multimodal.StorageType) {
+	case "", types.StorageProviderLocal, types.StorageProviderS3:
+	default:
+		logger.Errorf(ctx, "Unsupported multimodal storage type: %s", utils.SanitizeForLog(req.Multimodal.StorageType))
+		return errors.NewBadRequestError("无效的存储类型")
 	}
 	return nil
 }
@@ -844,33 +822,8 @@ func (h *InitializationHandler) applyKnowledgeBaseInitialization(
 			Enabled: req.Multimodal.Enabled,
 			ModelID: vlmModelID,
 		}
-		switch req.Multimodal.StorageType {
-		case "cos":
-			if req.Multimodal.COS != nil {
-				kb.SetStorageProvider("cos")
-				// Legacy: also write to cos_config for backward compat with old code paths
-				kb.StorageConfig = types.StorageConfig{
-					Provider:   req.Multimodal.StorageType,
-					BucketName: req.Multimodal.COS.BucketName,
-					AppID:      req.Multimodal.COS.AppID,
-					PathPrefix: req.Multimodal.COS.PathPrefix,
-					SecretID:   req.Multimodal.COS.SecretID,
-					SecretKey:  req.Multimodal.COS.SecretKey,
-					Region:     req.Multimodal.COS.Region,
-				}
-			}
-		case "minio":
-			if req.Multimodal.Minio != nil {
-				kb.SetStorageProvider("minio")
-				// Legacy: also write to cos_config for backward compat with old code paths
-				kb.StorageConfig = types.StorageConfig{
-					Provider:   req.Multimodal.StorageType,
-					BucketName: req.Multimodal.Minio.BucketName,
-					PathPrefix: req.Multimodal.Minio.PathPrefix,
-					SecretID:   os.Getenv("MINIO_ACCESS_KEY_ID"),
-					SecretKey:  os.Getenv("MINIO_SECRET_ACCESS_KEY"),
-				}
-			}
+		if strings.EqualFold(req.Multimodal.StorageType, types.StorageProviderS3) {
+			kb.SetStorageProvider(types.StorageProviderS3)
 		}
 	} else {
 		kb.VLMConfig = types.VLMConfig{}
@@ -1489,9 +1442,8 @@ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models 
 
 	// 判断多模态是否启用：有VLM模型ID或有存储配置（兼容新旧字段）
 	storageProvider := kb.GetStorageProvider()
-	hasMultimodal := (kb.VLMConfig.IsEnabled() ||
-		kb.StorageConfig.SecretID != "" || kb.StorageConfig.BucketName != "" ||
-		(storageProvider != "" && storageProvider != "local"))
+	hasMultimodal := kb.VLMConfig.IsEnabled() ||
+		(storageProvider != "" && storageProvider != types.StorageProviderLocal)
 	if config["multimodal"] == nil {
 		config["multimodal"] = map[string]interface{}{
 			"enabled": hasMultimodal,
@@ -1547,34 +1499,15 @@ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models 
 		}
 		config["documentSplitting"] = ds
 
-		// 添加多模态的存储配置信息（优先读新字段，兼容旧 cos_config）
+		// 添加多模态的存储配置信息
 		effectiveProvider := kb.GetStorageProvider()
-		if kb.StorageConfig.SecretID != "" || (effectiveProvider != "" && effectiveProvider != "local") {
+		if effectiveProvider != "" && effectiveProvider != types.StorageProviderLocal {
 			if config["multimodal"] == nil {
 				config["multimodal"] = map[string]interface{}{
 					"enabled": true,
 				}
 			}
-			multimodal := config["multimodal"].(map[string]interface{})
-			multimodal["storageType"] = effectiveProvider
-			switch effectiveProvider {
-			case "cos":
-				multimodal["cos"] = map[string]interface{}{
-					"region":     kb.StorageConfig.Region,
-					"bucketName": kb.StorageConfig.BucketName,
-					"appId":      kb.StorageConfig.AppID,
-					"pathPrefix": kb.StorageConfig.PathPrefix,
-					"credentials": map[string]bool{
-						"secretId":  kb.StorageConfig.SecretID != "",
-						"secretKey": kb.StorageConfig.SecretKey != "",
-					},
-				}
-			case "minio":
-				multimodal["minio"] = map[string]interface{}{
-					"bucketName": kb.StorageConfig.BucketName,
-					"pathPrefix": kb.StorageConfig.PathPrefix,
-				}
-			}
+			config["multimodal"].(map[string]interface{})["storageType"] = effectiveProvider
 		}
 	}
 
@@ -2136,18 +2069,6 @@ type testMultimodalForm struct {
 
 	StorageType string `form:"storage_type"`
 
-	// COS 配置
-	COSSecretID   string `form:"cos_secret_id"`
-	COSSecretKey  string `form:"cos_secret_key"`
-	COSRegion     string `form:"cos_region"`
-	COSBucketName string `form:"cos_bucket_name"`
-	COSAppID      string `form:"cos_app_id"`
-	COSPathPrefix string `form:"cos_path_prefix"`
-
-	// MinIO 配置（当存储为 minio 时）
-	MinioBucketName string `form:"minio_bucket_name"`
-	MinioPathPrefix string `form:"minio_path_prefix"`
-
 	// 文档切分配置（字符串后续自行解析，以避免类型绑定失败）
 	ChunkSize     string `form:"chunk_size"`
 	ChunkOverlap  string `form:"chunk_overlap"`
@@ -2165,7 +2086,7 @@ type testMultimodalForm struct {
 // @Param        vlm_base_url      formData  string  true   "VLM Base URL"
 // @Param        vlm_api_key       formData  string  false  "VLM API Key"
 // @Param        vlm_interface_type formData string  false  "VLM接口类型"
-// @Param        storage_type      formData  string  true   "存储类型(cos/minio)"
+// @Param        storage_type      formData  string  true   "存储类型(local/s3)"
 // @Success      200               {object}  map[string]interface{}  "测试结果"
 // @Failure      400               {object}  errors.AppError         "请求参数错误"
 // @Security     Bearer
@@ -2202,23 +2123,7 @@ func (h *InitializationHandler) TestMultimodalFunction(c *gin.Context) {
 		return
 	}
 
-	switch req.StorageType {
-	case "cos":
-		// 必填：SecretID/SecretKey/Region/BucketName/AppID；PathPrefix 可选
-		if req.COSSecretID == "" || req.COSSecretKey == "" ||
-			req.COSRegion == "" || req.COSBucketName == "" ||
-			req.COSAppID == "" {
-			logger.Error(ctx, "COS configuration is required")
-			c.Error(errors.NewBadRequestError("COS配置信息不能为空"))
-			return
-		}
-	case "minio":
-		if req.MinioBucketName == "" {
-			logger.Error(ctx, "MinIO configuration is required")
-			c.Error(errors.NewBadRequestError("MinIO配置信息不能为空"))
-			return
-		}
-	default:
+	if req.StorageType != types.StorageProviderLocal && req.StorageType != types.StorageProviderS3 {
 		logger.Error(ctx, "Invalid storage type")
 		c.Error(errors.NewBadRequestError("无效的存储类型"))
 		return

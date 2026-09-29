@@ -12,9 +12,8 @@ func TestParseProviderScheme(t *testing.T) {
 		want  string
 	}{
 		{"local://tenant/file.pdf", "local"},
-		{"minio://bucket/key", "minio"},
-		{"cos://bucket/key", "cos"},
-		{"tos://bucket/key", "tos"},
+		{"minio://bucket/key", ""},
+		{"cos://bucket/key", ""},
 		{"s3://bucket/key", "s3"},
 		{"s3://my-bucket/yuheng/123/exports/abc.png", "s3"},
 		{"https://example.com/img.png", ""},
@@ -39,11 +38,9 @@ func TestInferStorageFromFilePath(t *testing.T) {
 		want  string
 	}{
 		{"local://tenant/file.pdf", "local"},
-		{"minio://bucket/key", "minio"},
-		{"cos://bucket/key", "cos"},
-		{"tos://bucket/key", "tos"},
+		{"minio://bucket/key", ""},
 		{"s3://bucket/key", "s3"},
-		{"https://my-bucket.cos.ap-guangzhou.myqcloud.com/key", "cos"},
+		{"https://my-bucket.cos.ap-guangzhou.myqcloud.com/key", ""},
 		{"https://example.com/img.png", ""},
 		{"", ""},
 	}
@@ -134,7 +131,7 @@ func TestKnowledgeBase_UnmarshalJSON_WithVectorStoreID(t *testing.T) {
 	// Legacy cos_config + new vector_store_id in the same payload: both must map correctly.
 	body := `{
 		"id": "kb-1",
-		"cos_config": {"provider": "cos", "bucket_name": "legacy-bucket"},
+		"cos_config": {"provider": "s3", "bucket_name": "legacy-bucket"},
 		"vector_store_id": "store-uuid"
 	}`
 
@@ -146,10 +143,10 @@ func TestKnowledgeBase_UnmarshalJSON_WithVectorStoreID(t *testing.T) {
 	if kb.VectorStoreID == nil || *kb.VectorStoreID != "store-uuid" {
 		t.Errorf("expected VectorStoreID = &\"store-uuid\", got %v", kb.VectorStoreID)
 	}
-	if kb.StorageConfig.Provider != "cos" {
-		t.Errorf("expected legacy StorageConfig.Provider = cos, got %q", kb.StorageConfig.Provider)
+	if kb.StorageConfig.Provider != "s3" {
+		t.Errorf("expected legacy StorageConfig.Provider = s3, got %q", kb.StorageConfig.Provider)
 	}
-	if kb.StorageProviderConfig == nil || kb.StorageProviderConfig.Provider != "cos" {
+	if kb.StorageProviderConfig == nil || kb.StorageProviderConfig.Provider != "s3" {
 		t.Errorf("expected StorageProviderConfig.Provider auto-populated from cos_config, got %v", kb.StorageProviderConfig)
 	}
 
@@ -275,10 +272,10 @@ func TestEffectiveStorageProvider(t *testing.T) {
 		tenantDefault string
 		want          string
 	}{
-		{"kb pins provider", "minio", "cos", "minio"},
-		{"kb empty falls back to tenant default", "", "cos", "cos"},
+		{"kb pins provider", "local", "s3", "local"},
+		{"kb empty falls back to tenant default", "", "s3", "s3"},
 		{"both empty", "", "", ""},
-		{"tenant default cased", "", "  COS ", "cos"},
+		{"tenant default cased", "", "  S3 ", "s3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -298,9 +295,9 @@ func TestEffectiveStorageProvider(t *testing.T) {
 // clone preflight performs: a mismatch is only flagged when both effective
 // providers are non-empty and differ.
 func TestEffectiveStorageProvider_CrossBackendDetection(t *testing.T) {
-	tenantDefault := "minio"
-	src := &KnowledgeBase{} // inherits tenant default -> minio
-	dst := &KnowledgeBase{StorageProviderConfig: &StorageProviderConfig{Provider: "cos"}}
+	tenantDefault := "local"
+	src := &KnowledgeBase{} // inherits tenant default -> local
+	dst := &KnowledgeBase{StorageProviderConfig: &StorageProviderConfig{Provider: "s3"}}
 
 	sp := src.EffectiveStorageProvider(tenantDefault)
 	dp := dst.EffectiveStorageProvider(tenantDefault)

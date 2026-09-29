@@ -10,6 +10,10 @@ func getAllowedStorageProviders() map[string]bool {
 	return storageallowlist.AllowedMap()
 }
 
+func isStorageProviderSupported(provider string) bool {
+	return storageallowlist.IsSupported(provider)
+}
+
 func isStorageProviderAllowed(provider string) bool {
 	return storageallowlist.IsAllowed(provider)
 }

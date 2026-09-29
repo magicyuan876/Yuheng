@@ -15,26 +15,34 @@ func TestAllowedMap_DefaultAllowsAll(t *testing.T) {
 	}
 }
 
+func TestSupported(t *testing.T) {
+	assert.Equal(t, []string{"local", "s3"}, Supported())
+}
+
 func TestAllowedMap_RespectsEnv(t *testing.T) {
-	t.Setenv(AllowListEnv, "minio,cos")
+	t.Setenv(AllowListEnv, "s3")
 	allowed := AllowedMap()
-	assert.True(t, allowed["minio"])
-	assert.True(t, allowed["cos"])
+	assert.True(t, allowed["s3"])
 	assert.False(t, allowed["local"])
-	assert.False(t, allowed["obs"])
+}
+
+func TestAllowedMap_IgnoresRemovedProviders(t *testing.T) {
+	t.Setenv(AllowListEnv, "minio,cos,oss,local")
+	assert.Equal(t, []string{"local"}, AllowedList())
+	assert.False(t, IsAllowed("minio"))
 }
 
 func TestFirstAllowed(t *testing.T) {
-	t.Setenv(AllowListEnv, "minio")
-	assert.Equal(t, "minio", FirstAllowed())
+	t.Setenv(AllowListEnv, "s3")
+	assert.Equal(t, "s3", FirstAllowed())
 }
 
 func TestAllowedList(t *testing.T) {
-	t.Setenv(AllowListEnv, "obs,minio")
-	assert.Equal(t, []string{"minio", "obs"}, AllowedList())
+	t.Setenv(AllowListEnv, "s3,local")
+	assert.Equal(t, []string{"local", "s3"}, AllowedList())
 }
 
 func TestIsAllowed_EmptyProvider(t *testing.T) {
-	t.Setenv(AllowListEnv, "minio")
+	t.Setenv(AllowListEnv, "s3")
 	require.True(t, IsAllowed(""))
 }

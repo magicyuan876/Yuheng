@@ -28,7 +28,7 @@
   <Drawer :open="visible" swipe-direction="right" @update:open="onOpenChange">
     <!--
       Attributes the consumer puts on <SettingDrawer> (a class such as
-      `storage-engine-drawer--minio`, data attributes, listeners) land on the
+      `storage-engine-drawer--s3`, data attributes, listeners) land on the
       panel itself. Several settings screens colour the header badge through
       global rules keyed on that class, and DataSourceEditorDialog reaches the
       body through it, so the panel is the element they have to be on.

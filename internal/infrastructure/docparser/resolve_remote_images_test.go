@@ -137,7 +137,7 @@ func TestResolveRemoteImages_NonImageContentType(t *testing.T) {
 }
 
 func TestResolveRemoteImages_ProviderSchemeSkipped(t *testing.T) {
-	markdown := "![already](local://images/abc.png)\n![also](minio://bucket/key.jpg)"
+	markdown := "![already](local://images/abc.png)\n![also](s3://bucket/key.jpg)"
 
 	resolver := NewImageResolver()
 	fSvc := &mockFileService{}

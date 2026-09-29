@@ -92,7 +92,7 @@ type KnowledgeBase struct {
 	// StorageBackendID binds this KB to one concrete storage instance. The
 	// legacy provider field remains readable during migration only.
 	StorageBackendID *string `yaml:"storage_backend_id" json:"storage_backend_id,omitempty" gorm:"column:storage_backend_id;type:varchar(36);default:null"`
-	// Deprecated: legacy COS config column. Kept for backward compatibility with old data.
+	// Deprecated: legacy storage config column. Kept for backward compatibility with old data.
 	StorageConfig StorageConfig `yaml:"-" json:"storage_config" gorm:"column:cos_config;type:json"`
 	// VectorStoreID references the VectorStore this knowledge base is bound to.
 	// When nil, the KB falls back to the workspace's effective engines derived from
@@ -311,7 +311,7 @@ func normalizeParserFileType(fileType string) string {
 // StorageProviderConfig stores the KB-level storage provider selection.
 // Credentials are managed at the tenant level (StorageEngineConfig).
 type StorageProviderConfig struct {
-	Provider string `yaml:"provider" json:"provider"` // "local", "minio", "cos", "tos", "s3", "oss", "ks3", "obs"
+	Provider string `yaml:"provider" json:"provider"` // "local" or "s3"
 }
 
 func (c StorageProviderConfig) Value() (driver.Value, error) {
@@ -329,29 +329,27 @@ func (c *StorageProviderConfig) Scan(value interface{}) error {
 	return json.Unmarshal(b, c)
 }
 
-// Deprecated: StorageConfig is the legacy COS configuration stored in the cos_config column.
+// Deprecated: StorageConfig is the legacy storage configuration stored in the cos_config column.
 // New code should use StorageProviderConfig. Kept for backward compatibility with old data.
 type StorageConfig struct {
-	// Secret ID (COS) / Access Key ID (S3, MinIO)
+	// Access Key ID
 	SecretID string `yaml:"secret_id"   json:"secret_id"`
-	// Secret Key (COS) / Secret Access Key (S3, MinIO)
+	// Secret Access Key
 	SecretKey string `yaml:"secret_key"  json:"secret_key"`
 	// Region
 	Region string `yaml:"region"      json:"region"`
 	// Bucket Name
 	BucketName string `yaml:"bucket_name" json:"bucket_name"`
-	// App ID (COS specific)
+	// App ID (legacy, unused by the current providers)
 	AppID string `yaml:"app_id"      json:"app_id"`
 	// Path Prefix
 	PathPrefix string `yaml:"path_prefix" json:"path_prefix"`
-	// Provider: "cos", "minio", "s3"
+	// Provider: "local" or "s3"
 	Provider string `yaml:"provider"    json:"provider"`
-	// Endpoint (S3 specific) - e.g., s3.amazonaws.com, oss-cn-hangzhou.aliyuncs.com
+	// Endpoint (S3 specific)
 	Endpoint string `yaml:"endpoint"    json:"endpoint,omitempty"`
 	// UseSSL (S3 specific) - whether to use HTTPS
 	UseSSL bool `yaml:"use_ssl"     json:"use_ssl,omitempty"`
-	// ForcePathStyle (S3 specific) - whether to use path-style URLs
-	ForcePathStyle bool `yaml:"force_path_style" json:"force_path_style,omitempty"`
 }
 
 func (c StorageConfig) Value() (driver.Value, error) {
@@ -450,30 +448,19 @@ func (kb *KnowledgeBase) SharesStorageBackendWith(other *KnowledgeBase, defaultB
 
 // InferStorageFromFilePath deduces the storage provider from a file path format.
 // Used as a safety fallback when the KB's configured provider doesn't match the data.
-// Supports provider:// scheme (local://, minio://, cos://, tos://),
-// unified /files/{provider}/... format, and legacy formats.
+// Only the provider:// scheme (local://, s3://) is recognised.
 func InferStorageFromFilePath(filePath string) string {
-	// Provider scheme format: provider://...
-	if p := ParseProviderScheme(filePath); p != "" {
-		return p
-	}
-	// Legacy formats
-	switch {
-	case strings.HasPrefix(filePath, "https://") && strings.Contains(filePath, ".cos."):
-		return "cos"
-	default:
-		return ""
-	}
+	return ParseProviderScheme(filePath)
 }
 
 // ParseProviderScheme extracts the provider from a provider:// scheme path.
-// e.g. "minio://bucket/key" → "minio", "local://tenant/file.pdf" → "local"
+// e.g. "s3://bucket/key" → "s3", "local://tenant/file.pdf" → "local"
 // Returns "" if the path does not use a known provider scheme.
 func ParseProviderScheme(filePath string) string {
 	if _, inner, ok := ParseStorageBackendPath(filePath); ok {
 		filePath = inner
 	}
-	for _, provider := range []string{"local", "minio", "cos", "tos", "s3", "oss", "ks3", "obs", "dummy"} {
+	for _, provider := range []string{"local", "s3", "dummy"} {
 		if strings.HasPrefix(filePath, provider+"://") {
 			return provider
 		}

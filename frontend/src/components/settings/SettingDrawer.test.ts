@@ -47,10 +47,10 @@ function bodyButton(label: string): HTMLButtonElement | undefined {
 }
 
 test("a class on the drawer lands on the panel, next to the setting-drawer hook class", async () => {
-  await mountDrawer({}, { class: "storage-engine-drawer storage-engine-drawer--minio", "data-test": "x" });
+  await mountDrawer({}, { class: "storage-engine-drawer storage-engine-drawer--s3", "data-test": "x" });
   const el = panel();
   assert.ok(el.classList.contains("setting-drawer"));
-  assert.ok(el.classList.contains("storage-engine-drawer--minio"));
+  assert.ok(el.classList.contains("storage-engine-drawer--s3"));
   assert.equal(el.getAttribute("data-test"), "x");
 });
 
@@ -82,10 +82,10 @@ test("an unknown icon name renders no badge instead of an empty one", async () =
 });
 
 test("the headerIcon and subtitle slots replace the defaults", async () => {
-  await mountDrawer({}, {}, { headerIcon: () => h("img", { class: "header-icon__img" }), subtitle: () => "MinIO" });
+  await mountDrawer({}, {}, { headerIcon: () => h("img", { class: "header-icon__img" }), subtitle: () => "S3" });
   const el = panel();
   assert.ok(el.querySelector(".setting-drawer__header-icon .header-icon__img"));
-  assert.match(el.textContent ?? "", /MinIO/);
+  assert.match(el.textContent ?? "", /S3/);
 });
 
 test("the default footer confirms, and cancels by closing", async () => {

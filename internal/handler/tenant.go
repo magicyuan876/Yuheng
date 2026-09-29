@@ -1554,7 +1554,7 @@ func (h *TenantHandler) updateTenantParserEngineConfigInternal(c *gin.Context) {
 	})
 }
 
-// GetTenantStorageEngineConfig returns the tenant's storage engine config (Local, MinIO, COS parameters).
+// GetTenantStorageEngineConfig returns the tenant's storage engine config (Local and S3 parameters).
 func (h *TenantHandler) GetTenantStorageEngineConfig(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenant, _ := types.TenantInfoFromContext(ctx)
@@ -1590,8 +1590,16 @@ func (h *TenantHandler) updateTenantStorageEngineConfigInternal(c *gin.Context) 
 		c.Error(errors.NewBadRequestError("No storage provider is allowed by STORAGE_ALLOW_LIST"))
 		return
 	}
+	if !isStorageProviderSupported(provider) {
+		_ = c.Error(errors.NewBadRequestError("Unsupported storage provider: " + provider))
+		return
+	}
 	if !isStorageProviderAllowed(provider) {
 		c.Error(errors.NewBadRequestError("Storage provider is not allowed by STORAGE_ALLOW_LIST"))
+		return
+	}
+	if err := cfg.Validate(); err != nil {
+		_ = c.Error(errors.NewValidationError("Invalid storage engine config").WithDetails(err.Error()))
 		return
 	}
 	cfg.DefaultProvider = provider

@@ -6748,7 +6748,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "存储类型(cos/minio)",
+                        "description": "存储类型(local/s3)",
                         "name": "storage_type",
                         "in": "formData",
                         "required": true
@@ -14276,7 +14276,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Return the storage provider types allowed by STORAGE_ALLOW_LIST for UI form generation (e.g. local, minio, cos, tos, s3, oss, ks3, obs).",
+                "description": "Return the storage provider types allowed by STORAGE_ALLOW_LIST for UI form generation (local, s3).",
                 "produces": [
                     "application/json"
                 ],
@@ -15617,7 +15617,7 @@ const docTemplate = `{
         },
         "/system/storage-engine-check": {
             "post": {
-                "description": "使用当前填写的参数测试 MinIO/COS 连通性，不保存配置",
+                "description": "使用当前填写的参数测试 S3 兼容存储的连通性，不保存配置",
                 "consumes": [
                     "application/json"
                 ],
@@ -15651,7 +15651,7 @@ const docTemplate = `{
         },
         "/system/storage-engine-status": {
             "get": {
-                "description": "返回 Local、MinIO、COS 各存储引擎的可用状态及说明，供全局设置与知识库选择使用",
+                "description": "返回 Local、S3 各存储引擎的可用状态及说明，供全局设置与知识库选择使用",
                 "produces": [
                     "application/json"
                 ],
@@ -18348,35 +18348,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_magicyuan876_yuheng_internal_types.COSEngineConfig": {
-            "type": "object",
-            "properties": {
-                "app_id": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_id": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                },
-                "temp_bucket_name": {
-                    "type": "string"
-                },
-                "temp_region": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.ChatHistoryConfig": {
             "type": "object",
             "properties": {
@@ -19064,29 +19035,6 @@ const docTemplate = `{
                 "KBCloneStatusFailed"
             ]
         },
-        "github_com_magicyuan876_yuheng_internal_types.KS3EngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.KnowledgeBase": {
             "type": "object",
             "properties": {
@@ -19227,7 +19175,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "storage_config": {
-                    "description": "Deprecated: legacy COS config column. Kept for backward compatibility with old data.",
+                    "description": "Deprecated: legacy storage config column. Kept for backward compatibility with old data.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageConfig"
@@ -19863,33 +19811,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_magicyuan876_yuheng_internal_types.MinIOEngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key_id": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "mode": {
-                    "description": "\"docker\" or \"remote\"",
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "secret_access_key": {
-                    "type": "string"
-                },
-                "use_ssl": {
-                    "type": "boolean"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.ModelParameters": {
             "type": "object",
             "properties": {
@@ -20059,32 +19980,6 @@ const docTemplate = `{
                 "ModelTypeASR"
             ]
         },
-        "github_com_magicyuan876_yuheng_internal_types.OBSEngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                },
-                "use_ssl": {
-                    "type": "boolean"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.OIDCAuthURLResponse": {
             "type": "object",
             "properties": {
@@ -20112,38 +20007,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.OSSEngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                },
-                "temp_bucket_name": {
-                    "type": "string"
-                },
-                "temp_region": {
-                    "type": "string"
-                },
-                "use_temp_bucket": {
                     "type": "boolean"
                 }
             }
@@ -20873,14 +20736,15 @@ const docTemplate = `{
                 "access_key": {
                     "type": "string"
                 },
+                "addressing_style": {
+                    "description": "AddressingStyle selects how the bucket appears in request URLs:\n\"path\" is endpoint/bucket/key, \"virtual\" is bucket.endpoint/key (Aliyun\nOSS, Tencent COS, Volcengine TOS and Huawei OBS only accept this one),\nand \"\"/\"auto\" picks virtual-hosted for AWS endpoints and path-style for\nany other custom endpoint, which is what MinIO and RustFS need.",
+                    "type": "string"
+                },
                 "bucket_name": {
                     "type": "string"
                 },
                 "endpoint": {
                     "type": "string"
-                },
-                "force_path_style": {
-                    "type": "boolean"
                 },
                 "path_prefix": {
                     "type": "string"
@@ -21175,19 +21039,14 @@ const docTemplate = `{
                 "access_key_id": {
                     "type": "string"
                 },
-                "app_id": {
+                "addressing_style": {
+                    "description": "AddressingStyle is \"\", \"auto\", \"path\" or \"virtual\"; see S3EngineConfig.",
                     "type": "string"
                 },
                 "bucket_name": {
                     "type": "string"
                 },
                 "endpoint": {
-                    "type": "string"
-                },
-                "force_path_style": {
-                    "type": "boolean"
-                },
-                "mode": {
                     "type": "string"
                 },
                 "path_prefix": {
@@ -21199,16 +21058,7 @@ const docTemplate = `{
                 "secret_access_key": {
                     "type": "string"
                 },
-                "temp_bucket_name": {
-                    "type": "string"
-                },
-                "temp_region": {
-                    "type": "string"
-                },
                 "use_ssl": {
-                    "type": "boolean"
-                },
-                "use_temp_bucket": {
                     "type": "boolean"
                 }
             }
@@ -21217,7 +21067,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "app_id": {
-                    "description": "App ID (COS specific)",
+                    "description": "App ID (legacy, unused by the current providers)",
                     "type": "string"
                 },
                 "bucket_name": {
@@ -21225,19 +21075,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "endpoint": {
-                    "description": "Endpoint (S3 specific) - e.g., s3.amazonaws.com, oss-cn-hangzhou.aliyuncs.com",
+                    "description": "Endpoint (S3 specific)",
                     "type": "string"
-                },
-                "force_path_style": {
-                    "description": "ForcePathStyle (S3 specific) - whether to use path-style URLs",
-                    "type": "boolean"
                 },
                 "path_prefix": {
                     "description": "Path Prefix",
                     "type": "string"
                 },
                 "provider": {
-                    "description": "Provider: \"cos\", \"minio\", \"s3\"",
+                    "description": "Provider: \"local\" or \"s3\"",
                     "type": "string"
                 },
                 "region": {
@@ -21245,11 +21091,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "secret_id": {
-                    "description": "Secret ID (COS) / Access Key ID (S3, MinIO)",
+                    "description": "Access Key ID",
                     "type": "string"
                 },
                 "secret_key": {
-                    "description": "Secret Key (COS) / Secret Access Key (S3, MinIO)",
+                    "description": "Secret Access Key",
                     "type": "string"
                 },
                 "use_ssl": {
@@ -21261,33 +21107,15 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig": {
             "type": "object",
             "properties": {
-                "cos": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.COSEngineConfig"
-                },
                 "default_provider": {
-                    "description": "\"local\", \"minio\", \"cos\", \"tos\", \"s3\", \"oss\", \"ks3\", \"obs\"",
+                    "description": "\"local\" or \"s3\"",
                     "type": "string"
-                },
-                "ks3": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.KS3EngineConfig"
                 },
                 "local": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.LocalEngineConfig"
                 },
-                "minio": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.MinIOEngineConfig"
-                },
-                "obs": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.OBSEngineConfig"
-                },
-                "oss": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.OSSEngineConfig"
-                },
                 "s3": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig"
-                },
-                "tos": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TOSEngineConfig"
                 }
             }
         },
@@ -21295,7 +21123,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "provider": {
-                    "description": "\"local\", \"minio\", \"cos\", \"tos\", \"s3\", \"oss\", \"ks3\", \"obs\"",
+                    "description": "\"local\" or \"s3\"",
                     "type": "string"
                 }
             }
@@ -21464,35 +21292,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_magicyuan876_yuheng_internal_types.TOSEngineConfig": {
-            "type": "object",
-            "properties": {
-                "access_key": {
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "type": "string"
-                },
-                "endpoint": {
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "type": "string"
-                },
-                "region": {
-                    "type": "string"
-                },
-                "secret_key": {
-                    "type": "string"
-                },
-                "temp_bucket_name": {
-                    "type": "string"
-                },
-                "temp_region": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_magicyuan876_yuheng_internal_types.Tenant": {
             "type": "object",
             "properties": {
@@ -21581,7 +21380,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "storage_engine_config": {
-                    "description": "Storage engine config: parameters for Local, MinIO, COS. Used for document/file storage and docreader.",
+                    "description": "Storage engine config: parameters for Local and S3. Used for document/file storage and docreader.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig"
@@ -23618,9 +23417,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/internal_handler.StorageEngineStatusItem"
                     }
-                },
-                "minio_env_available": {
-                    "type": "boolean"
                 }
             }
         },
@@ -23648,9 +23444,6 @@ const docTemplate = `{
                 },
                 "keyword_index_engine": {
                     "type": "string"
-                },
-                "minio_enabled": {
-                    "type": "boolean"
                 },
                 "started_at": {
                     "description": "StartedAt is the server process boot time (RFC3339, UTC).",
@@ -23750,42 +23543,8 @@ const docTemplate = `{
                 "multimodal": {
                     "type": "object",
                     "properties": {
-                        "cos": {
-                            "type": "object",
-                            "properties": {
-                                "appId": {
-                                    "type": "string"
-                                },
-                                "bucketName": {
-                                    "type": "string"
-                                },
-                                "pathPrefix": {
-                                    "type": "string"
-                                },
-                                "region": {
-                                    "type": "string"
-                                },
-                                "secretId": {
-                                    "type": "string"
-                                },
-                                "secretKey": {
-                                    "type": "string"
-                                }
-                            }
-                        },
                         "enabled": {
                             "type": "boolean"
-                        },
-                        "minio": {
-                            "type": "object",
-                            "properties": {
-                                "bucketName": {
-                                    "type": "string"
-                                },
-                                "pathPrefix": {
-                                    "type": "string"
-                                }
-                            }
                         },
                         "storageType": {
                             "type": "string"
@@ -24017,7 +23776,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "storageProvider": {
-                    "description": "存储引擎选择（\"local\" | \"minio\" | \"cos\"），影响文档上传与文档内图片存储，参数从全局设置读取",
+                    "description": "存储引擎选择（\"local\" | \"s3\"），影响文档上传与文档内图片存储，参数从全局设置读取",
                     "type": "string"
                 },
                 "vlm_config": {
@@ -24540,39 +24299,18 @@ const docTemplate = `{
         "internal_handler.StorageCheckRequest": {
             "type": "object",
             "properties": {
-                "cos": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.COSEngineConfig"
-                },
-                "ks3": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.KS3EngineConfig"
-                },
-                "minio": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.MinIOEngineConfig"
-                },
-                "obs": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.OBSEngineConfig"
-                },
-                "oss": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.OSSEngineConfig"
-                },
                 "provider": {
-                    "description": "\"minio\", \"cos\", \"tos\", \"s3\", \"oss\", \"ks3\", \"obs\"",
+                    "description": "\"local\" or \"s3\"",
                     "type": "string"
                 },
                 "s3": {
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.S3EngineConfig"
-                },
-                "tos": {
-                    "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.TOSEngineConfig"
                 }
             }
         },
         "internal_handler.StorageCheckResponse": {
             "type": "object",
             "properties": {
-                "bucket_created": {
-                    "type": "boolean"
-                },
                 "message": {
                     "type": "string"
                 },
@@ -24596,7 +24334,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
-                    "description": "\"local\", \"minio\", \"cos\", \"tos\", \"s3\", \"oss\", \"ks3\", \"obs\"",
+                    "description": "\"local\" or \"s3\"",
                     "type": "string"
                 }
             }

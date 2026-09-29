@@ -142,7 +142,7 @@ func SafeFileName(fileName string) (string, error) {
 	return base, nil
 }
 
-// SafeObjectKey 校验对象存储的 key（如 COS/MinIO objectName），禁止包含 ".." 等路径遍历
+// SafeObjectKey 校验对象存储的 key（如 S3 objectName），禁止包含 ".." 等路径遍历
 func SafeObjectKey(objectKey string) error {
 	if objectKey == "" {
 		return fmt.Errorf("object key cannot be empty")
@@ -165,11 +165,8 @@ func IsValidURL(url string) bool {
 	}
 
 	// Internal resource references are resolved through authenticated file
-	// proxies; provider schemes remain supported for legacy stored content.
-	allowedProtocols := []string{
-		"http://", "https://", "resource://", "storage://", "local://", "minio://",
-		"cos://", "tos://", "s3://", "oss://", "ks3://", "obs://",
-	}
+	// proxies; the provider schemes are the ones stored content is written with.
+	allowedProtocols := []string{"http://", "https://", "resource://", "storage://", "local://", "s3://"}
 	isAllowed := false
 	for _, protocol := range allowedProtocols {
 		if strings.HasPrefix(strings.ToLower(url), protocol) {
