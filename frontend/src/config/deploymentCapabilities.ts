@@ -28,6 +28,30 @@ export function isDeploymentCapabilitySupported(
   return capabilities[key]?.supported !== false;
 }
 
+/**
+ * Features that extensions add, as the backend reports them (`extensions` in the
+ * capabilities response). The keys belong to the extensions, so they are plain
+ * strings here rather than a fixed union.
+ */
+export type ExtensionCapabilityMap = Record<string, DeploymentCapability>;
+
+/**
+ * Extension features are the reverse of the built-in ones: the built-ins stay
+ * visible unless the backend says no, because the backend refuses anyway and a
+ * failed probe should not empty the menu. An extension feature does not exist
+ * until the backend lists it as supported, so an absent key, a failed probe and
+ * an old backend all mean "not available".
+ */
+export function isExtensionEnabled(extensions: ExtensionCapabilityMap, key: string): boolean {
+  return extensions[key]?.supported === true;
+}
+
+/** Why the backend says an extension feature is unavailable, when it says. */
+export function extensionUnavailableReason(extensions: ExtensionCapabilityMap, key: string): string | undefined {
+  const entry = extensions[key];
+  return entry && !entry.supported ? entry.reason : undefined;
+}
+
 export const SETTINGS_SECTION_CAPABILITY: Partial<Record<string, DeploymentCapabilityKey>> = {
   websearch: "settings.websearch",
   vectorstore: "settings.vectorstore",

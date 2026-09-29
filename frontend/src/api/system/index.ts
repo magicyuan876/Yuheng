@@ -54,6 +54,8 @@ export interface DeploymentCapabilitiesResponse {
   capabilities: Record<string, DeploymentCapability>;
   /** Browser-facing WebSocket address of the docs collaboration service; absent when the docs module is off or no collaboration service is configured. */
   docs_collab_url?: string;
+  /** Features added by extensions, keyed by the names the extensions chose. Absent means the deployment has none. */
+  extensions?: Record<string, DeploymentCapability>;
 }
 
 export function getDeploymentCapabilities(): Promise<{ data: DeploymentCapabilitiesResponse }> {
