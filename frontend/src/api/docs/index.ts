@@ -251,8 +251,6 @@ export async function removeGroupMember(id: string, userId: string): Promise<voi
 
 // ---- pages ----------------------------------------------------------------
 
-export type PageStatus = "draft" | "published";
-
 /** A page row as the tree and page endpoints return it (content excluded). */
 export interface DocsPage {
   id: string;
@@ -265,7 +263,8 @@ export interface DocsPage {
   icon?: string | null;
   cover?: string | null;
   ydoc_version: number;
-  status: PageStatus;
+  /** Kept out of the space's knowledge base, and so out of AI answers. Not a permission. */
+  exclude_from_knowledge: boolean;
   is_locked: boolean;
   template_id?: string | null;
   source_refs: string[];
@@ -762,13 +761,11 @@ export async function setPageLocked(pageId: string, locked: boolean): Promise<Pa
 }
 
 /**
- * Backend: PUT /api/v1/docs/pages/:pid/status (page writer).
- *
- * A draft is a label rather than a permission: everybody who could read the
- * page still can.
+ * Backend: PUT /api/v1/docs/pages/:pid/knowledge (page writer). Excluding a page keeps it out of AI
+ * answers; everyone who can read the page still can.
  */
-export async function setPageStatus(pageId: string, status: "draft" | "published"): Promise<PageView> {
-  return unwrap<PageView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/status`, { status }));
+export async function setPageKnowledgeExcluded(pageId: string, excluded: boolean): Promise<PageView> {
+  return unwrap<PageView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/knowledge`, { excluded }));
 }
 
 // ---- templates ---------------------------------------------------------------

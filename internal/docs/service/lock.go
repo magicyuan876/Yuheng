@@ -13,7 +13,7 @@ import (
 // Locking a page, and its publication state.
 //
 // Both of these were half-built before T4.4's contract audit found them: the
-// page row has carried is_locked and status since T0.2, the permission
+// page row has carried is_locked since T0.2, the permission
 // resolver has capped a locked page at reader since T0.3, and the audit
 // vocabulary has had the four action names since T0.5 — but nothing could
 // ever set either field. A permission rule that no code path can trigger is
@@ -63,16 +63,17 @@ func (s *PageService) SetLocked(ctx context.Context, actor *acl.Identity, d acl.
 	return s.resolve(ctx, actor, d.Page.ID)
 }
 
-// SetPageStatus moves a page between draft and published.
+// SetKnowledgeExcluded keeps a page out of its space's knowledge base, or lets it
+// take part again.
 //
-// A draft is a page whose author is not finished with it. It is not a
-// permission: everybody who could read the page can still read it, and this
-// is deliberate — a documentation tool where "draft" hides things becomes a
-// tool where nobody can find what they half-remember seeing. What the flag
-// does is let clients mark it, sort by it, and leave it out of the places
-// that are meant to show finished work.
-func (s *PageService) SetPageStatus(ctx context.Context, actor *acl.Identity, d acl.Decision,
-	status model.PageStatus,
+// This is not a permission: everybody who could read the page can still read it,
+// and this is deliberate. It decides only whether the page may be quoted in AI
+// answers, which is a different question from who may read it: meeting notes and
+// scratch pages are readable and still should not answer somebody's question.
+// The restriction of a page is the other way to keep it out, and stronger: a
+// restricted page never reaches the knowledge base whatever this says.
+func (s *PageService) SetKnowledgeExcluded(ctx context.Context, actor *acl.Identity, d acl.Decision,
+	excluded bool,
 ) (*PageView, error) {
 	if err := requireRole(d, model.RoleWriter); err != nil {
 		return nil, err
@@ -80,26 +81,18 @@ func (s *PageService) SetPageStatus(ctx context.Context, actor *acl.Identity, d 
 	if !canEdit(d.Role, d.Page) {
 		return nil, forbidden("the page is locked")
 	}
-	switch status {
-	case model.PageDraft, model.PagePublished:
-	default:
-		return nil, invalid("status must be draft or published")
-	}
-	if d.Page.Status == status {
+	if d.Page.ExcludeFromKnowledge == excluded {
 		return s.view(ctx, d)
 	}
 	if err := s.d.Repos.Pages.UpdateMeta(ctx, actor.TenantID, d.Page.ID,
-		map[string]any{"status": string(status)}); err != nil {
+		map[string]any{"exclude_from_knowledge": excluded}); err != nil {
 		return nil, err
 	}
-	if status == model.PagePublished {
-		s.recordPageMeta(ctx, actor, d.Page, audit.PagePublished, "status", string(status))
-	} else {
-		// There is no "unpublished" action in the vocabulary, and inventing
-		// one here would put a name in the audit log that no reader of
-		// audit/actions.go could look up. The meta event carries it instead.
-		s.publishPageMeta(ctx, actor, d.Page, "status", string(status))
+	action := audit.PageKnowledgeIncluded
+	if excluded {
+		action = audit.PageKnowledgeExcluded
 	}
+	s.recordPageMeta(ctx, actor, d.Page, action, "exclude_from_knowledge", excluded)
 	return s.resolve(ctx, actor, d.Page.ID)
 }
 

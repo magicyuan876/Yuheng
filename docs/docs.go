@@ -3439,6 +3439,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/pages/{pid}/knowledge": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "开启后，这个页面不会被 AI 问答引用，页面本身对有权限的人照常可见。\n它**不是**权限：能读这个页面的人照样能读。受限页面无论如何都不会进入知识库",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "让页面不参与（或重新参与）知识库检索",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "excluded=true 表示不参与",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.KnowledgeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/pages/{pid}/labels": {
             "put": {
                 "security": [
@@ -4169,53 +4216,6 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/handler.ShareUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/docs/pages/{pid}/status": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "草稿**不是**权限：能读这个页面的人照样能读。它只是一个标记，\n让客户端可以排序、筛选，或者把未完成的内容排除在「成品」列表之外",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "在线文档"
-                ],
-                "summary": "标记页面为草稿或已发布",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "页面 ID",
-                        "name": "pid",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "draft 或 published",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.StatusRequest"
                         }
                     }
                 ],
@@ -22795,6 +22795,15 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.KnowledgeRequest": {
+            "type": "object",
+            "properties": {
+                "excluded": {
+                    "description": "Excluded keeps the page out of the knowledge base; false lets it take part.",
+                    "type": "boolean"
+                }
+            }
+        },
         "handler.LabelRequest": {
             "type": "object",
             "properties": {
@@ -23065,14 +23074,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.StatusRequest": {
-            "type": "object",
-            "properties": {
-                "status": {
                     "type": "string"
                 }
             }

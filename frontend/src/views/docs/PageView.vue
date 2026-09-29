@@ -205,10 +205,18 @@
             <LockOpenIcon v-else />
             {{ page.is_locked ? t("docs.lock.locked") : t("docs.lock.lock") }}
           </Button>
-          <Button v-if="page.can_edit" variant="ghost" size="xs" class="page-action" @click="toggleDraft">
-            <PencilIcon v-if="page.status === 'draft'" />
-            <CircleCheckIcon v-else />
-            {{ page.status === "draft" ? t("docs.lock.draft") : t("docs.lock.published") }}
+          <Button
+            v-if="page.can_edit && space.knowledge_base_id"
+            variant="ghost"
+            size="xs"
+            class="page-action"
+            :title="page.exclude_from_knowledge ? t('docs.lock.knowledgeOffHint') : t('docs.lock.knowledgeOnHint')"
+            :aria-pressed="page.exclude_from_knowledge"
+            @click="toggleKnowledge"
+          >
+            <BotOffIcon v-if="page.exclude_from_knowledge" />
+            <BotIcon v-else />
+            {{ page.exclude_from_knowledge ? t("docs.lock.knowledgeOff") : t("docs.lock.knowledgeOn") }}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
@@ -402,7 +410,7 @@ import {
   createTemplate,
   exportPage,
   setPageLocked,
-  setPageStatus,
+  setPageKnowledgeExcluded,
   getPageAncestors,
   getPageByShortId,
   getPageChildren,
@@ -473,11 +481,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BellIcon,
   BellOffIcon,
+  BotIcon,
+  BotOffIcon,
   BookmarkIcon,
   BookmarkPlusIcon,
   ChevronRightIcon,
   CircleAlertIcon,
-  CircleCheckIcon,
   DownloadIcon,
   FileIcon,
   HistoryIcon,
@@ -486,7 +495,6 @@ import {
   LockIcon,
   LockOpenIcon,
   MoveHorizontalIcon,
-  PencilIcon,
   PlusIcon,
   Share2Icon,
   StarIcon,
@@ -570,11 +578,11 @@ async function toggleLock() {
   }
 }
 
-async function toggleDraft() {
+async function toggleKnowledge() {
   const current = page.value;
   if (!current) return;
   try {
-    const next = await setPageStatus(current.id, current.status === "draft" ? "published" : "draft");
+    const next = await setPageKnowledgeExcluded(current.id, !current.exclude_from_knowledge);
     page.value = { ...current, ...next };
   } catch (err) {
     void MessagePlugin.error(errorText(err, t("docs.lock.changeFailed")));

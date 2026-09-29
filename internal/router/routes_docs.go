@@ -259,14 +259,15 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	admin.POST("/maintenance/orphan-attachments", g.Admin(), guard.RequireMember(), pg.SweepOrphans)
 	admin.POST("/maintenance/expired-trash", g.Admin(), guard.RequireMember(), pg.SweepTrash)
 
-	// Locking and publication state. Locking needs admin on the page: the
-	// resolver caps everybody else at reader on a locked page, so an admin is
-	// the only one who could undo it anyway. Marking a draft is a writer's
-	// act, because a draft is a label rather than a permission.
+	// Locking, and whether the page takes part in the knowledge base. Locking
+	// needs admin on the page: the resolver caps everybody else at reader on a
+	// locked page, so an admin is the only one who could undo it anyway.
+	// Excluding a page from the knowledge base is a writer's act, because it is a
+	// label about AI answers rather than a permission.
 	admin.PUT("/pages/:pid/lock", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleAdmin), idem, pg.SetLocked)
-	write.PUT("/pages/:pid/status", g.Contributor(),
-		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageStatus)
+	write.PUT("/pages/:pid/knowledge", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetKnowledgeExcluded)
 
 	// Public links. Listing them needs only read access, because "this page
 	// is published on the internet" is something every reader of it should be

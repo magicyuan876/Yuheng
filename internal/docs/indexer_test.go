@@ -77,15 +77,28 @@ func TestEditsAreQueuedWithTheDebounce(t *testing.T) {
 	q := &fakeQueue{}
 	ix := newTestIndexer(q)
 
-	for _, typ := range []events.Type{events.PageContent, events.PageMeta, events.PageReplaced} {
+	for _, typ := range []events.Type{events.PageContent, events.PageReplaced} {
 		ix.onEvent(events.Event{Type: typ, TenantID: 1, PageID: "page-" + string(typ)})
 	}
 
-	require.Len(t, q.queued, 3)
+	require.Len(t, q.queued, 2)
 	for _, got := range q.queued {
 		assert.False(t, got.subtree, got.pageID)
 		assert.Equal(t, time.Minute, got.delay, got.pageID)
 	}
+}
+
+// Excluding a page takes it out of AI answers, so it is not left to wait, and
+// concerns that page alone.
+func TestAMetadataChangeIsQueuedAtOnceForThatPage(t *testing.T) {
+	q := &fakeQueue{}
+	ix := newTestIndexer(q)
+
+	ix.onEvent(events.Event{Type: events.PageMeta, TenantID: 1, PageID: "page-1"})
+
+	require.Len(t, q.queued, 1)
+	assert.False(t, q.queued[0].subtree)
+	assert.Zero(t, q.queued[0].delay)
 }
 
 // Moving, restricting or trashing a page changes what everything below it may

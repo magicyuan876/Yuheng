@@ -5,23 +5,26 @@ import "time"
 // Page is a node in a space's page tree. Content is the ProseMirror JSON
 // projection; YDoc is the Yjs state and the collaboration truth source.
 type Page struct {
-	ID          string     `json:"id"                gorm:"type:varchar(36);primaryKey"`
-	ShortID     string     `json:"short_id"          gorm:"type:varchar(12);not null"`
-	TenantID    uint64     `json:"tenant_id"         gorm:"not null"`
-	SpaceID     string     `json:"space_id"          gorm:"type:varchar(36);not null"`
-	ParentID    *string    `json:"parent_id"         gorm:"type:varchar(36)"`
-	Position    string     `json:"position"          gorm:"type:varchar(64);not null;default:''"`
-	Title       string     `json:"title"             gorm:"type:varchar(512);not null;default:''"`
-	Icon        *string    `json:"icon,omitempty"    gorm:"type:varchar(64)"`
-	Cover       *string    `json:"cover,omitempty"   gorm:"type:varchar(1024)"`
-	Content     JSON       `json:"content,omitempty" gorm:"type:json"`
-	YDoc        []byte     `json:"-"                 gorm:"column:ydoc;type:bytes"`
-	YDocVersion int64      `json:"ydoc_version"      gorm:"column:ydoc_version;not null;default:0"`
-	TextContent string     `json:"-"                 gorm:"type:text;not null;default:''"`
-	Status      PageStatus `json:"status"            gorm:"type:varchar(16);not null;default:'published'"`
-	IsLocked    bool       `json:"is_locked"         gorm:"not null;default:false"`
-	TemplateID  *string    `json:"template_id,omitempty" gorm:"type:varchar(36)"`
-	SourceRefs  StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
+	ID          string  `json:"id"                gorm:"type:varchar(36);primaryKey"`
+	ShortID     string  `json:"short_id"          gorm:"type:varchar(12);not null"`
+	TenantID    uint64  `json:"tenant_id"         gorm:"not null"`
+	SpaceID     string  `json:"space_id"          gorm:"type:varchar(36);not null"`
+	ParentID    *string `json:"parent_id"         gorm:"type:varchar(36)"`
+	Position    string  `json:"position"          gorm:"type:varchar(64);not null;default:''"`
+	Title       string  `json:"title"             gorm:"type:varchar(512);not null;default:''"`
+	Icon        *string `json:"icon,omitempty"    gorm:"type:varchar(64)"`
+	Cover       *string `json:"cover,omitempty"   gorm:"type:varchar(1024)"`
+	Content     JSON    `json:"content,omitempty" gorm:"type:json"`
+	YDoc        []byte  `json:"-"                 gorm:"column:ydoc;type:bytes"`
+	YDocVersion int64   `json:"ydoc_version"      gorm:"column:ydoc_version;not null;default:0"`
+	TextContent string  `json:"-"                 gorm:"type:text;not null;default:''"`
+	// ExcludeFromKnowledge keeps the page out of its space's knowledge base, and so
+	// out of AI answers. It is not a permission: everybody who may read the page
+	// still can.
+	ExcludeFromKnowledge bool       `json:"exclude_from_knowledge" gorm:"not null;default:false"`
+	IsLocked             bool       `json:"is_locked"         gorm:"not null;default:false"`
+	TemplateID           *string    `json:"template_id,omitempty" gorm:"type:varchar(36)"`
+	SourceRefs           StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
 	// KnowledgeID is the knowledge-base entry mirroring this page, when its
 	// space is bound to one and the page is eligible. nil means not indexed.
 	KnowledgeID      *string    `json:"knowledge_id,omitempty" gorm:"type:varchar(36)"`
@@ -47,7 +50,7 @@ func (p *Page) IsDeleted() bool { return p.DeletedAt != nil }
 // large columns (content, ydoc) are only loaded when a page is opened.
 var PageSummaryColumns = []string{
 	"id", "short_id", "tenant_id", "space_id", "parent_id", "position", "title", "icon", "cover",
-	"ydoc_version", "status", "is_locked", "template_id", "source_refs", "contributor_ids",
+	"ydoc_version", "exclude_from_knowledge", "is_locked", "template_id", "source_refs", "contributor_ids",
 	"creator_id", "last_editor_id", "deleted_by", "word_count", "attachment_bytes",
 	"created_at", "updated_at", "content_updated_at", "deleted_at",
 }

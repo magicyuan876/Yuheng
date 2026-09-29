@@ -413,7 +413,7 @@ func (s *PageService) Create(ctx context.Context, actor *acl.Identity, in Create
 	uid := actor.UserID
 	page := &model.Page{
 		TenantID: actor.TenantID, SpaceID: space.ID, ParentID: in.ParentID, Title: title, Icon: icon,
-		Content: b.content, TextContent: b.text, WordCount: b.words, Status: model.PagePublished,
+		Content: b.content, TextContent: b.text, WordCount: b.words,
 		CreatorID: &uid, LastEditorID: &uid, ContributorIDs: model.StringList{uid},
 		SourceRefs: model.StringList{},
 	}
@@ -1405,7 +1405,7 @@ func (s *PageService) Duplicate(ctx context.Context, actor *acl.Identity, d acl.
 		c := &model.Page{
 			ID: idMap[p.ID], ShortID: shortID, TenantID: p.TenantID, SpaceID: targetSpace.ID,
 			Position: p.Position, Title: p.Title, Icon: p.Icon, Cover: p.Cover, Content: content,
-			TextContent: p.TextContent, Status: p.Status, TemplateID: p.TemplateID,
+			TextContent: p.TextContent, ExcludeFromKnowledge: p.ExcludeFromKnowledge, TemplateID: p.TemplateID,
 			SourceRefs: append(model.StringList{}, p.SourceRefs...), ContributorIDs: model.StringList{uid},
 			CreatorID: &uid, LastEditorID: &uid, WordCount: p.WordCount,
 		}

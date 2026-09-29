@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/magicyuan876/yuheng/internal/docs/model"
 )
 
 // Locking a page and marking it draft or published.
@@ -13,9 +12,10 @@ type LockRequest struct {
 	Locked bool `json:"locked"`
 }
 
-// StatusRequest is the body of PUT /docs/pages/:pid/status.
-type StatusRequest struct {
-	Status string `json:"status"`
+// KnowledgeRequest is the body of PUT /docs/pages/:pid/knowledge.
+type KnowledgeRequest struct {
+	// Excluded keeps the page out of the knowledge base; false lets it take part.
+	Excluded bool `json:"excluded"`
 }
 
 // SetLocked godoc
@@ -51,19 +51,19 @@ func (h *PageHandler) SetLocked(c *gin.Context) {
 	ok(c, view)
 }
 
-// SetPageStatus godoc
-// @Summary      标记页面为草稿或已发布
-// @Description  草稿**不是**权限：能读这个页面的人照样能读。它只是一个标记，
-// @Description  让客户端可以排序、筛选，或者把未完成的内容排除在「成品」列表之外
+// SetKnowledgeExcluded godoc
+// @Summary      让页面不参与（或重新参与）知识库检索
+// @Description  开启后，这个页面不会被 AI 问答引用，页面本身对有权限的人照常可见。
+// @Description  它**不是**权限：能读这个页面的人照样能读。受限页面无论如何都不会进入知识库
 // @Tags         在线文档
 // @Accept       json
 // @Produce      json
-// @Param        pid      path  string         true  "页面 ID"
-// @Param        request  body  StatusRequest  true  "draft 或 published"
+// @Param        pid      path  string            true  "页面 ID"
+// @Param        request  body  KnowledgeRequest  true  "excluded=true 表示不参与"
 // @Success      200  {object}  map[string]interface{}
 // @Security     Bearer
-// @Router       /docs/pages/{pid}/status [put]
-func (h *PageHandler) SetPageStatus(c *gin.Context) {
+// @Router       /docs/pages/{pid}/knowledge [put]
+func (h *PageHandler) SetKnowledgeExcluded(c *gin.Context) {
 	if !h.ready(c) {
 		return
 	}
@@ -71,12 +71,12 @@ func (h *PageHandler) SetPageStatus(c *gin.Context) {
 	if !found {
 		return
 	}
-	var req StatusRequest
+	var req KnowledgeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		badRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	view, err := h.svc.SetPageStatus(c.Request.Context(), actor, d, model.PageStatus(req.Status))
+	view, err := h.svc.SetKnowledgeExcluded(c.Request.Context(), actor, d, req.Excluded)
 	if err != nil {
 		fail(c, err)
 		return

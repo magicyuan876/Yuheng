@@ -3887,6 +3887,13 @@ definitions:
       role:
         type: string
     type: object
+  handler.KnowledgeRequest:
+    properties:
+      excluded:
+        description: Excluded keeps the page out of the knowledge base; false lets
+          it take part.
+        type: boolean
+    type: object
   handler.LabelRequest:
     properties:
       color:
@@ -4068,11 +4075,6 @@ definitions:
     - principal_id
     - principal_type
     - role
-    type: object
-  handler.StatusRequest:
-    properties:
-      status:
-        type: string
     type: object
   handler.TemplateRequest:
     properties:
@@ -7645,6 +7647,38 @@ paths:
       summary: 移除一条授权
       tags:
       - 在线文档
+  /docs/pages/{pid}/knowledge:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        开启后，这个页面不会被 AI 问答引用，页面本身对有权限的人照常可见。
+        它**不是**权限：能读这个页面的人照样能读。受限页面无论如何都不会进入知识库
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: excluded=true 表示不参与
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.KnowledgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 让页面不参与（或重新参与）知识库检索
+      tags:
+      - 在线文档
   /docs/pages/{pid}/labels:
     put:
       consumes:
@@ -8128,38 +8162,6 @@ paths:
       security:
       - Bearer: []
       summary: 修改公开链接的设置
-      tags:
-      - 在线文档
-  /docs/pages/{pid}/status:
-    put:
-      consumes:
-      - application/json
-      description: |-
-        草稿**不是**权限：能读这个页面的人照样能读。它只是一个标记，
-        让客户端可以排序、筛选，或者把未完成的内容排除在「成品」列表之外
-      parameters:
-      - description: 页面 ID
-        in: path
-        name: pid
-        required: true
-        type: string
-      - description: draft 或 published
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.StatusRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: 标记页面为草稿或已发布
       tags:
       - 在线文档
   /docs/pages/{pid}/watch:

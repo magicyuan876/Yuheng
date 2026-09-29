@@ -5349,12 +5349,15 @@ export default {
       saved: "Saved as a template",
       saveFailed: "Could not save the template",
     },
-    // Locking a page, and marking it draft or published.
+    // Locking a page, and whether it takes part in the knowledge base.
     lock: {
       lock: "Lock",
       locked: "Locked",
-      draft: "Draft",
-      published: "Published",
+      knowledgeOn: "In knowledge base",
+      knowledgeOff: "Not in knowledge base",
+      knowledgeOnHint: "AI answers may quote this page. Click to keep it out of the knowledge base.",
+      knowledgeOffHint:
+        "AI answers never quote this page; everyone who can read it still can. Click to let it take part again.",
       changeFailed: "Could not change the page state",
     },
     // Export. A whole space is an asynchronous job, and the archive holds

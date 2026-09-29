@@ -166,14 +166,14 @@ func (s *PageService) indexDecision(ctx context.Context, page *model.Page) (
 	}
 
 	candidate := index.Candidate{
-		BoundKB: boundKB,
-		Trashed: page.DeletedAt != nil,
-		Draft:   page.Status == model.PageDraft,
-		Text:    page.TextContent,
+		BoundKB:  boundKB,
+		Trashed:  page.DeletedAt != nil,
+		Excluded: page.ExcludeFromKnowledge,
+		Text:     page.TextContent,
 	}
 	// Only asked when it could change the answer: the restriction lookup is
 	// two queries and most pages fail an earlier rule.
-	if boundKB != "" && !candidate.Trashed && !candidate.Draft {
+	if boundKB != "" && !candidate.Trashed && !candidate.Excluded {
 		candidate.Restricted = s.anyRestricted(ctx, page.TenantID, page)
 	}
 	return index.Decide(candidate), boundKB, nil

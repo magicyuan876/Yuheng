@@ -55,9 +55,6 @@ func (r *pageRepository) CreateBatch(ctx context.Context, pages []*model.Page) e
 		if p.ID == "" {
 			p.ID = NewID()
 		}
-		if p.Status == "" {
-			p.Status = model.PagePublished
-		}
 		if p.SourceRefs == nil {
 			p.SourceRefs = model.StringList{}
 		}

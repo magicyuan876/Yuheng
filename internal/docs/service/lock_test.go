@@ -95,62 +95,59 @@ func TestALockedPageRefusesEdits(t *testing.T) {
 	require.Error(t, err)
 }
 
-// A draft is a label, not a permission: everybody who could read the page
-// can still read it.
-func TestADraftIsStillReadable(t *testing.T) {
+// Excluding a page from the knowledge base is a label, not a permission:
+// everybody who could read the page can still read it.
+func TestAnExcludedPageIsStillReadable(t *testing.T) {
 	p := newPageEnv(t)
-	page := p.create(t, p.alice, nil, "Half written")
-	d := p.decision(t, p.alice, page.Page.ID)
+	page := p.create(t, p.alice, nil, "Meeting notes")
+	d := p.decision(t, p.alice, page.ID)
 
-	view, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, model.PageDraft)
+	view, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.alice, d, true)
 	require.NoError(t, err)
-	assert.Equal(t, model.PageDraft, view.Page.Status)
+	assert.True(t, view.ExcludeFromKnowledge)
 
-	assert.Equal(t, model.RoleReader, p.decision(t, p.carol, page.Page.ID).Role,
+	assert.Equal(t, model.RoleReader, p.decision(t, p.carol, page.ID).Role,
 		"a reader still reads it")
 }
 
-func TestPublishingIsAudited(t *testing.T) {
+func TestExcludingAndIncludingArePairedAndAudited(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
-	d := p.decision(t, p.alice, page.Page.ID)
 
-	_, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, model.PageDraft)
+	_, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.alice, p.decision(t, p.alice, page.ID), true)
 	require.NoError(t, err)
-	_, err = p.svc.Pages.SetPageStatus(ctx(), p.alice,
-		p.decision(t, p.alice, page.Page.ID), model.PagePublished)
+	assert.True(t, p.audit.has(audit.PageKnowledgeExcluded))
+	view, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.alice, p.decision(t, p.alice, page.ID), false)
 	require.NoError(t, err)
 
-	assert.True(t, p.audit.has(audit.PagePublished))
+	assert.False(t, view.ExcludeFromKnowledge)
+	assert.True(t, p.audit.has(audit.PageKnowledgeIncluded))
 }
 
-func TestAStatusThatIsNotAStatusIsRefused(t *testing.T) {
+func TestARepeatedExclusionChangesNothing(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
-	d := p.decision(t, p.alice, page.Page.ID)
 
-	for _, status := range []model.PageStatus{"", "archived", "Draft"} {
-		_, err := p.svc.Pages.SetPageStatus(ctx(), p.alice, d, status)
-		require.Error(t, err, "status %q", status)
-	}
+	_, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.alice, p.decision(t, p.alice, page.ID), false)
+	require.NoError(t, err)
+
+	assert.False(t, p.audit.has(audit.PageKnowledgeIncluded), "already included: nothing to record")
 }
 
-func TestAReaderMayNotChangeTheStatus(t *testing.T) {
+func TestAReaderMayNotExcludeAPage(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
 
-	_, err := p.svc.Pages.SetPageStatus(ctx(), p.carol,
-		p.decision(t, p.carol, page.Page.ID), model.PageDraft)
+	_, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.carol, p.decision(t, p.carol, page.ID), true)
 	require.Error(t, err)
 }
 
-func TestALockedPageRefusesAStatusChange(t *testing.T) {
+func TestALockedPageRefusesToChangeItsExclusion(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
-	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.Page.ID), true)
+	_, err := p.svc.Pages.SetLocked(ctx(), p.alice, p.decision(t, p.alice, page.ID), true)
 	require.NoError(t, err)
 
-	_, err = p.svc.Pages.SetPageStatus(ctx(), p.bob,
-		p.decision(t, p.bob, page.Page.ID), model.PageDraft)
+	_, err = p.svc.Pages.SetKnowledgeExcluded(ctx(), p.bob, p.decision(t, p.bob, page.ID), true)
 	require.Error(t, err)
 }

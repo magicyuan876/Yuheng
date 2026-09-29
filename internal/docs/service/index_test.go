@@ -247,18 +247,22 @@ func TestATrashedPageIsRemovedFromTheKnowledgeBase(t *testing.T) {
 	assert.Equal(t, 0, kb.count())
 }
 
-// A draft is somebody's unfinished thought.
-func TestADraftIsNotIndexed(t *testing.T) {
+// A page its authors excluded stays out of the knowledge base, and leaves it if
+// it was already there.
+func TestAnExcludedPageIsNotIndexedAndLeavesIfItWas(t *testing.T) {
 	p, kb := newIndexEnv(t)
-	page := p.create(t, p.alice, nil, "草稿页面")
-	p.write(t, p.alice, page.Page.ID, "还没写完的内容在这里。")
-	_, err := p.svc.Pages.SetPageStatus(ctx(), p.alice,
-		p.decision(t, p.alice, page.Page.ID), model.PageDraft)
-	require.NoError(t, err)
+	page := p.create(t, p.alice, nil, "会议纪要")
+	p.write(t, p.alice, page.ID, "不应该回答别人问题的内容。")
+	p.indexAll(t, page.ID)
+	require.Equal(t, 1, kb.count())
 
-	res, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.Page.ID)
+	_, err := p.svc.Pages.SetKnowledgeExcluded(ctx(), p.alice, p.decision(t, p.alice, page.ID), true)
 	require.NoError(t, err)
-	assert.Equal(t, index.ReasonDraft, res.Reason)
+	res, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)
+
+	require.NoError(t, err)
+	assert.Equal(t, index.ReasonExcluded, res.Reason)
+	assert.True(t, res.Removed)
 	assert.Equal(t, 0, kb.count())
 }
 

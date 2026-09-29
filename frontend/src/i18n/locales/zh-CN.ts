@@ -5196,12 +5196,14 @@ export default {
       saved: "已存为模板",
       saveFailed: "模板保存失败",
     },
-    // 锁定页面，以及标记草稿/已发布。
+    // 锁定页面，以及页面是否参与知识库检索。
     lock: {
       lock: "锁定",
       locked: "已锁定",
-      draft: "草稿",
-      published: "已发布",
+      knowledgeOn: "参与知识库检索",
+      knowledgeOff: "不参与知识库检索",
+      knowledgeOnHint: "AI 问答可以引用这个页面。点击后让它不参与知识库检索。",
+      knowledgeOffHint: "AI 问答不会引用这个页面，能读它的人照常可以读。点击后让它重新参与。",
       changeFailed: "页面状态修改失败",
     },
     // 导出。整个空间是异步作业，导出包里只有发起人当时能读的页面。

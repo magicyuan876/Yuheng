@@ -22,11 +22,12 @@
 // relaxed. Until then the rule is the simple one, because a simple rule is one
 // an auditor can check.
 //
-// ---- decision: drafts and the trash are not indexed either
+// ---- decision: excluded pages and the trash are not indexed either
 //
-// A draft is somebody's unfinished thought, and the trash is a decision to
-// remove something. Neither belongs in an answer given to a colleague who
-// asked a question, and both are cheap to exclude.
+// A page whose authors excluded it (meeting notes, scratch work, something not
+// meant to answer questions) and the trash, which is a decision to remove
+// something, do not belong in an answer given to a colleague who asked a
+// question, and both are cheap to exclude.
 package index
 
 import (
@@ -47,7 +48,7 @@ type Decision struct {
 const (
 	ReasonRestricted = "restricted"
 	ReasonTrashed    = "trashed"
-	ReasonDraft      = "draft"
+	ReasonExcluded   = "excluded"
 	ReasonEmpty      = "empty"
 	ReasonNoBinding  = "no-knowledge-base"
 )
@@ -59,8 +60,8 @@ type Candidate struct {
 	Restricted bool
 	// Trashed is true for a page in the bin.
 	Trashed bool
-	// Draft is true for a page its author has not published.
-	Draft bool
+	// Excluded is true for a page its authors keep out of the knowledge base.
+	Excluded bool
 	// Text is the page's plain-text content.
 	Text string
 	// BoundKB is the knowledge base the space is bound to; empty means the
@@ -88,8 +89,8 @@ func Decide(c Candidate) Decision {
 	if c.Restricted {
 		return Decision{Reason: ReasonRestricted}
 	}
-	if c.Draft {
-		return Decision{Reason: ReasonDraft}
+	if c.Excluded {
+		return Decision{Reason: ReasonExcluded}
 	}
 	if len([]rune(strings.TrimSpace(c.Text))) < MinIndexableRunes {
 		return Decision{Reason: ReasonEmpty}

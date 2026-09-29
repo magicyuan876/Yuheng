@@ -51,14 +51,14 @@ func TestTrashOutranksTheOtherRules(t *testing.T) {
 	c := indexable()
 	c.Trashed = true
 	c.Restricted = true
-	c.Draft = true
+	c.Excluded = true
 	assert.Equal(t, ReasonTrashed, Decide(c).Reason)
 }
 
-func TestADraftIsNotIndexed(t *testing.T) {
+func TestAnExcludedPageIsNotIndexed(t *testing.T) {
 	c := indexable()
-	c.Draft = true
-	assert.Equal(t, ReasonDraft, Decide(c).Reason)
+	c.Excluded = true
+	assert.Equal(t, ReasonExcluded, Decide(c).Reason)
 }
 
 func TestAnEmptyPageIsNotIndexed(t *testing.T) {

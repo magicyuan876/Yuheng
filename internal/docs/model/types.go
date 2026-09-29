@@ -200,15 +200,6 @@ func UserPrincipal(id string) Principal { return Principal{Type: PrincipalUser, 
 // GroupPrincipal builds a group principal.
 func GroupPrincipal(id string) Principal { return Principal{Type: PrincipalGroup, ID: id} }
 
-// PageStatus is the publication state of a page.
-type PageStatus string
-
-// Page statuses.
-const (
-	PageDraft     PageStatus = "draft"
-	PagePublished PageStatus = "published"
-)
-
 // RevisionReason records why a snapshot was taken.
 type RevisionReason string
 

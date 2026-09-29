@@ -29,8 +29,8 @@ import (
 // Which events matter, and why each one:
 //
 //   - PageContent: the body changed, so the mirror is stale.
-//   - PageMeta: the title, the draft flag or the lock changed. A title is
-//     indexed, and a page becoming a draft has to LEAVE the knowledge base.
+//   - PageMeta: the title, the exclusion flag or the lock changed. A title is
+//     indexed, and a page being excluded has to LEAVE the knowledge base.
 //   - PageReplaced: the body was replaced wholesale (a restored revision).
 //   - PageAccess: somebody restricted or unrestricted a page. This is the
 //     one that must not be missed — restricting an indexed page has to
@@ -148,8 +148,13 @@ func (ix *Indexer) onEvent(ev events.Event) {
 	var subtree bool
 	delay := ix.debounce
 	switch ev.Type {
-	case events.PageContent, events.PageMeta, events.PageReplaced:
+	case events.PageContent, events.PageReplaced:
 		// Look again, after the author has stopped typing.
+	case events.PageMeta:
+		// A page excluded from the knowledge base is taking content away from
+		// readers of AI answers, so a metadata change is not left to wait; the
+		// other changes it carries (a title, a lock) cost one cheap look.
+		delay = 0
 	case events.PageAccess, events.PageMoved, events.PageDeleted:
 		// Look again, now, and at everything below.
 		subtree, delay = true, 0

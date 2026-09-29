@@ -81,7 +81,7 @@ type PageRepository interface {
 	// its entry removed, and the pointer has to be cleared with it or the
 	// page is treated as indexed for ever.
 	SetKnowledgeID(ctx context.Context, tenantID uint64, pageID string, knowledgeID *string) error
-	// UpdateMeta writes non-content columns (title, icon, cover, status,
+	// UpdateMeta writes non-content columns (title, icon, cover, exclude_from_knowledge,
 	// is_locked, template_id, source_refs, position).
 	UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error
 	// SuggestByTitle returns live pages of the given spaces matching a title
@@ -134,9 +134,6 @@ type pageRepository struct{ db *gorm.DB }
 func (r *pageRepository) Create(ctx context.Context, page *model.Page) error {
 	if page.ID == "" {
 		page.ID = NewID()
-	}
-	if page.Status == "" {
-		page.Status = model.PagePublished
 	}
 	if page.SourceRefs == nil {
 		page.SourceRefs = model.StringList{}
@@ -377,7 +374,7 @@ func (r *pageRepository) Move(ctx context.Context, tenantID uint64, id string, t
 }
 
 var pageMetaColumns = map[string]bool{
-	"title": true, "icon": true, "cover": true, "status": true, "is_locked": true, "template_id": true,
+	"title": true, "icon": true, "cover": true, "exclude_from_knowledge": true, "is_locked": true, "template_id": true,
 	"source_refs": true, "position": true, "attachment_bytes": true, "knowledge_id": true,
 }
 
