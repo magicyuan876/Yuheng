@@ -50,7 +50,17 @@ export APP_SCHEME=${APP_SCHEME:-http}
 # 不会卡在连接中。
 export COLLAB_HOST=${COLLAB_HOST:-collab}
 export COLLAB_PORT=${COLLAB_PORT:-1234}
-envsubst '${MAX_FILE_SIZE} ${APP_HOST} ${APP_PORT} ${APP_SCHEME} ${COLLAB_HOST} ${COLLAB_PORT}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+# 运行时解析 /collab 上游用的 DNS 服务器（见 nginx.conf）。默认取容器自己的
+# resolv.conf：Docker 里是内置的 127.0.0.11，Kubernetes 里是集群 DNS。
+if [ -z "${DNS_RESOLVER:-}" ]; then
+  DNS_RESOLVER=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null)
+fi
+DNS_RESOLVER=${DNS_RESOLVER:-127.0.0.11}
+case "${DNS_RESOLVER}" in
+  *:*) DNS_RESOLVER="[${DNS_RESOLVER}]" ;; # IPv6 地址在 nginx 里要加方括号
+esac
+export DNS_RESOLVER
+envsubst '${MAX_FILE_SIZE} ${APP_HOST} ${APP_PORT} ${APP_SCHEME} ${COLLAB_HOST} ${COLLAB_PORT} ${DNS_RESOLVER}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # 启动 nginx
 exec nginx -g 'daemon off;'
