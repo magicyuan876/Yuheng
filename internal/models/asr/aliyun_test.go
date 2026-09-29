@@ -40,6 +40,12 @@ func TestDashScopeEndpointFromBaseURL(t *testing.T) {
 }
 
 func TestNewASRRoutesAliyunToDashScope(t *testing.T) {
+	// Only routing is under test, so the SSRF check must not depend on what the
+	// network's resolver says. Validating a public hostname resolves it, and a
+	// resolver that answers with a tunnelling or private address (some networks
+	// rewrite DNS answers) makes an unrelated test fail.
+	withASRSSRFWhitelist(t, "dashscope.aliyuncs.com,api.openai.com")
+
 	// The UI stores the vendor in Parameters.Provider while Source stays
 	// "remote"; older hand-configured models may carry only the BaseURL.
 	// All three shapes must route to the DashScope adapter.
