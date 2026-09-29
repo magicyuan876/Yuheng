@@ -30,11 +30,18 @@ func NewWikiPageRepository(db *gorm.DB) interfaces.WikiPageRepository {
 	return &wikiPageRepository{db: db}
 }
 
+// wikiCategoryRankOrder sorts pages that sit in a directory before loose root
+// pages. category_path is not always an array: a page written with a nil
+// path (moved to the root, or created without one) stores the JSON scalar
+// null, and jsonb_array_length raises on a scalar — which used to fail the
+// whole listing. The type is therefore tested first; CASE evaluates its
+// branches in order, so the length is only taken of an array.
 func (r *wikiPageRepository) wikiCategoryRankOrder() string {
 	if r.db != nil && r.db.Dialector != nil && r.db.Dialector.Name() == "sqlite" {
 		return "CASE WHEN COALESCE(json_array_length(category_path), 0) > 0 THEN 0 ELSE 1 END ASC"
 	}
-	return "CASE WHEN COALESCE(jsonb_array_length(category_path), 0) > 0 THEN 0 ELSE 1 END ASC"
+	return "CASE WHEN jsonb_typeof(category_path) IS DISTINCT FROM 'array' THEN 1 " +
+		"WHEN jsonb_array_length(category_path) > 0 THEN 0 ELSE 1 END ASC"
 }
 
 func (r *wikiPageRepository) wikiEmptyInLinksPredicate() string {
