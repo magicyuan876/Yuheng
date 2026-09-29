@@ -85,7 +85,6 @@ Yuheng `docker-compose.yml` 大量服务是 **profile 限定**，本镜像只默
 
 | profile | 用途 |
 |---|---|
-| `rustfs` | S3 兼容对象存储，替代本地文件（配合 `STORAGE_TYPE=s3`） |
 | `neo4j` | GraphRAG 知识图谱 |
 | `langfuse` | 自建 Langfuse 可观测平台 |
 | `dex` | OIDC 登录 |

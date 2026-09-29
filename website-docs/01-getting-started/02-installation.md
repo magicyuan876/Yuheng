@@ -85,7 +85,7 @@ docker compose up -d
 | profile | 服务 | 端口 | 用途 |
 | --- | --- | --- | --- |
 | `searxng`（含 `full`） | `searxng-init` + `searxng` | `127.0.0.1:8888`（`SEARXNG_BIND`/`SEARXNG_PORT`） | 自建 Web 搜索；默认仅绑定回环，公开前必须轮换 `SEARXNG_SECRET` |
-| `rustfs`（含 `full`） | `rustfs` | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | S3 兼容对象存储（`STORAGE_TYPE=s3`），默认账号 `rustfsadmin/rustfsadmin`，详见下文「对象存储」 |
+| `rustfs`（默认启动） | `rustfs` | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | S3 兼容对象存储（`STORAGE_TYPE=s3`），默认账号 `rustfsadmin/rustfsadmin`，详见下文「对象存储」 |
 | `neo4j`（含 `full`） | `neo4j` | 7474 / 7687 | 知识图谱（`NEO4J_ENABLE=true`），默认 `neo4j/password` |
 | `dex`（含 `full`） | `dex` | 5556 | OIDC 测试用 IdP（配置在 `misc/dex-config.yaml`） |
 | `langfuse`（含 `full`） | `langfuse-db-init`、`langfuse-clickhouse`、`langfuse-minio`、`langfuse-worker`、`langfuse-web` | 3000（UI）/ 9100/9101（专用 MinIO） | 自建 Langfuse 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
@@ -96,7 +96,7 @@ app 容器的 `environment` 段落是全量环境变量清单（数据库、向�
 
 ### 对象存储（S3 兼容）
 
-文件存储只有两种：`local`（默认，写入本地目录）与 `s3`（任何 S3 兼容服务）。MinIO、RustFS、AWS S3，以及阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS，都通过 `s3` 及其 S3 兼容 endpoint 接入，没有各厂商的专用 provider。
+文件存储只有两种：`s3`（默认，任何 S3 兼容服务，compose 自带的 RustFS 开箱即用）与 `local`（写入本地目录）。MinIO、RustFS、AWS S3，以及阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS，都通过 `s3` 及其 S3 兼容 endpoint 接入，没有各厂商的专用 provider。
 
 通用步骤只有一套：在 `.env` 中设置
 
@@ -129,23 +129,9 @@ S3_ADDRESSING_STYLE=auto          # auto | path | virtual
 
 私有网络里的 endpoint（如 `rustfs:9000`、内网 MinIO）会被 SSRF 校验拦截，需要写进 `SSRF_WHITELIST` 或 `SSRF_WHITELIST_EXTRA`；compose 已默认放行 `rustfs` 服务名。
 
-**使用自带的 RustFS**
+**使用自带的 RustFS（默认）**
 
-```bash
-docker compose --profile rustfs up -d
-```
-
-然后在 `.env` 中：
-
-```bash
-STORAGE_TYPE=s3
-S3_ENDPOINT=http://rustfs:9000
-S3_REGION=us-east-1
-S3_BUCKET_NAME=yuheng
-S3_ACCESS_KEY=rustfsadmin      # 与 RUSTFS_ACCESS_KEY 相同
-S3_SECRET_KEY=rustfsadmin      # 与 RUSTFS_SECRET_KEY 相同
-S3_ADDRESSING_STYLE=path
-```
+`docker compose up -d` 会一并启动 RustFS，应用默认连接它：端点 `http://rustfs:9000`、区域 `us-east-1`、桶 `yuheng`（首次使用时自动创建），凭证取自 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`。不需要在 `.env` 里另外配置存储。改用本机目录时设 `STORAGE_TYPE=local`；改用外部服务时设置 `S3_*`。
 
 RustFS 服务的端口默认只绑定 `127.0.0.1`（`RUSTFS_BIND`、`RUSTFS_PORT`、`RUSTFS_CONSOLE_PORT` 可调），默认账号密码 `rustfsadmin/rustfsadmin` 只适合首次试用，上线前请通过 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` 更换。
 
@@ -158,7 +144,7 @@ RustFS 服务的端口默认只绑定 `127.0.0.1`（`RUSTFS_BIND`、`RUSTFS_PORT
 开发编排只把**基础设施**放进容器（postgres、redis、docreader 端口全部映射到宿主机），app 与 frontend 在宿主机上以热更新方式运行：
 
 ```bash
-make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --rustfs / --neo4j / --dex / --full
+make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --neo4j / --dex / --full
 make dev-app            # 宿主机启动 Go 后端（自动把 DB_HOST/REDIS_ADDR 指到 localhost）
 make dev-frontend       # 宿主机启动 Vue 前端 dev server
 make dev-logs / dev-status / dev-stop / dev-restart

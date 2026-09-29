@@ -101,9 +101,7 @@ services:
       start_period: 30s
     networks:
       - Yuheng-network-dev
-    profiles:
-      - rustfs
-      - full
+    restart: unless-stopped
 
   neo4j:
     image: neo4j:latest

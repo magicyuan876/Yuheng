@@ -65,7 +65,6 @@ show_help() {
     echo "  help       显示此帮助信息"
     echo ""
     echo "可选 Profile（用于 start 命令）:"
-    echo "  --rustfs      启动 RustFS（S3 兼容对象存储）"
     echo "  --docs        启动在线文档的协同编辑服务（不开则为独占编辑）"
     echo "  --neo4j       启动 Neo4j 图数据库"
     echo "  --dex         启动 Dex（OIDC 身份认证）"
@@ -209,15 +208,11 @@ start_services() {
     # 解析 profile 参数
     shift  # 移除 "start" 命令本身
     # 默认启动基础设施（postgres / redis / docreader）+ langfuse，
-    # 其余可选服务通过 --rustfs / --neo4j / --dex / --full 按需开启。
+    # 其余可选服务通过 --neo4j / --dex / --full 按需开启。
     PROFILES="--profile langfuse"
-    ENABLED_SERVICES="langfuse"
+    ENABLED_SERVICES="langfuse rustfs"
     while [ $# -gt 0 ]; do
         case "$1" in
-            --rustfs)
-                PROFILES="$PROFILES --profile rustfs"
-                ENABLED_SERVICES="$ENABLED_SERVICES rustfs"
-                ;;
             --neo4j)
                 PROFILES="$PROFILES --profile neo4j"
                 ENABLED_SERVICES="$ENABLED_SERVICES neo4j"
@@ -245,7 +240,7 @@ start_services() {
                 ;;
             --full)
                 PROFILES="--profile full"
-                ENABLED_SERVICES="rustfs neo4j dex"
+                ENABLED_SERVICES="neo4j dex"
                 break
                 ;;
             *)
@@ -480,6 +475,11 @@ start_app() {
         export REDIS_ADDR=127.0.0.1:6379
         export NEO4J_URI=bolt://127.0.0.1:7687
     fi
+    # The bundled RustFS, which the default STORAGE_TYPE=s3 uses; same defaults as docker-compose.yml.
+    export S3_REGION="${S3_REGION:-us-east-1}"
+    export S3_BUCKET_NAME="${S3_BUCKET_NAME:-yuheng}"
+    export S3_ACCESS_KEY="${S3_ACCESS_KEY:-${RUSTFS_ACCESS_KEY:-rustfsadmin}}"
+    export S3_SECRET_KEY="${S3_SECRET_KEY:-${RUSTFS_SECRET_KEY:-rustfsadmin}}"
     export DOCREADER_TRANSPORT="${DOCREADER_TRANSPORT:-grpc}"
 
     if ! check_remote_dev_connectivity; then

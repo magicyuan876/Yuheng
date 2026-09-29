@@ -67,15 +67,7 @@ INIT_RERANK_MODEL_API_KEY=your_rerank_model_api_key
 
 ### 2. 确认对象存储可用
 
-图片由对象存储保存。默认的 `STORAGE_TYPE=local` 不需要额外服务；如果配置的是 `STORAGE_TYPE=s3`，请确认 S3 兼容服务可达。使用 compose 自带的 RustFS 时：
-
-```bash
-# 启动 RustFS（默认只绑定 127.0.0.1）
-docker compose --profile rustfs up -d
-
-# 或者启动完整服务（包括 RustFS、Neo4j 等）
-docker compose --profile full up -d
-```
+图片由对象存储保存。默认的 `STORAGE_TYPE=s3` 使用 compose 自带的 RustFS，`docker compose up -d` 会一并启动它（默认只绑定 127.0.0.1），无需额外配置。如果改用外部 S3 兼容服务，请确认它可达；设为 `STORAGE_TYPE=local` 则存到本机目录。
 
 对应的 `.env` 配置：
 

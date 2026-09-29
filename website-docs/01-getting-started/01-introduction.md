@@ -115,7 +115,7 @@ flowchart TB
 | postgres | ParadeDB（PostgreSQL 17 + BM25/向量扩展） | 镜像 `paradedb/paradedb` | 5432 | 主数据库 + 唯一的检索引擎（`RETRIEVE_DRIVER=postgres`，需 `vector` 与 `pg_search` 扩展） |
 | redis | Redis 7 | — | 6379 | 流管理（SSE 恢复）、Asynq 任务队列 |
 | 可选：neo4j | Neo4j | profile `neo4j` | 7474 / 7687 | 知识图谱存储（GraphRAG） |
-| 可选：rustfs | RustFS | profile `rustfs` | 9000 / 9001（默认仅绑定 127.0.0.1） | S3 兼容对象存储（`STORAGE_TYPE=s3`） |
+| rustfs | RustFS | 默认启动 | 9000 / 9001（默认仅绑定 127.0.0.1） | S3 兼容对象存储，默认的文件存储（`STORAGE_TYPE=s3`） |
 | 可选：searxng | SearXNG | profile `searxng` | 8888 | 自建 Web 搜索引擎 |
 | 可选：langfuse 栈 | Langfuse 3 + ClickHouse + MinIO | profile `langfuse` | 3000 | LLM 可观测性 |
 | 可选：mcp | Python | `mcp-server/`，profile `full` | 8082 | 将 Yuheng API 封装为 MCP Server |

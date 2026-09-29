@@ -68,7 +68,7 @@ make dev-restart  # 重启
 | `redis` | `redis:7.0-alpine`（`--requirepass`） | `6379` | 默认启动 |
 | `docreader` | 本地构建 `docker/Dockerfile.docreader` | `50051`（gRPC） | 默认启动 |
 | `searxng`（+`searxng-init`） | `searxng/searxng:latest` | `127.0.0.1:8888` | `--searxng` / `--full`（compose profile `searxng`） |
-| `rustfs` | `rustfs/rustfs`（按 digest 固定） | `9000` / 控制台 `9001` | `--rustfs` / `--full` |
+| `rustfs` | `rustfs/rustfs`（按 digest 固定） | `9000` / 控制台 `9001` | 默认启动 |
 | `neo4j` | `neo4j:latest`（APOC 插件） | `7474` / `7687` | `--neo4j` / `--full` |
 | `dex` | `dexidp/dex:latest`（OIDC 测试身份源，配置 `misc/dex-config.yaml`） | `5556` | `--dex` / `--full` |
 | `langfuse-web` / `langfuse-worker` / `langfuse-clickhouse` / `langfuse-minio` / `langfuse-db-init` | Langfuse v3 自建栈，复用 dev 的 postgres（独立 `langfuse` 库）与 redis（DB 1） | web `3000`、minio `9100/9101` | `--langfuse`（`dev.sh` 默认开启，`--no-langfuse` 关闭） |
