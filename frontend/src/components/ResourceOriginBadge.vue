@@ -1,14 +1,20 @@
 <template>
-  <span class="resource-origin-badge" :class="variantClass" :title="tooltipText">
-    <t-icon :name="iconName" size="12px" class="badge-icon" />
-    <span class="badge-text">{{ displayText }}</span>
+  <span
+    class="inline-flex max-w-[140px] items-center gap-[3px] rounded-[8px] px-1.5 py-px text-[11px] leading-[1.4] font-medium"
+    :class="variantClass"
+    :title="tooltipText"
+  >
+    <component :is="iconComponent" class="size-3 shrink-0" />
+    <span class="truncate">{{ displayText }}</span>
   </span>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { Icon as TIcon } from "tdesign-vue-next";
+import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { Building2Icon, Share2Icon, UserRoundIcon, UsersRoundIcon } from "@lucide/vue";
+
 import { useAuthStore } from "@/stores/auth";
 
 /**
@@ -52,24 +58,27 @@ const props = withDefaults(
 const { t } = useI18n();
 const authStore = useAuthStore();
 
-const iconName = computed(() => {
-  switch (props.variant) {
-    case "mine":
-      return "user";
-    case "tenant":
-      return "usergroup";
-    case "creator":
-      return "user";
-    case "space":
-      return "building";
-    case "shared":
-      return "share";
-    default:
-      return "usergroup";
-  }
-});
+const ICONS: Record<typeof props.variant | "default", Component> = {
+  mine: UserRoundIcon,
+  tenant: UsersRoundIcon,
+  creator: UserRoundIcon,
+  space: Building2Icon,
+  shared: Share2Icon,
+  default: UsersRoundIcon,
+};
 
-const variantClass = computed(() => `origin-${props.variant}`);
+const iconComponent = computed(() => ICONS[props.variant] ?? ICONS.default);
+
+/** Tint per variant; the closed set the old less block carried. */
+const VARIANT_CLASS: Record<typeof props.variant, string> = {
+  mine: "bg-[var(--td-success-color-light)] text-primary",
+  tenant: "bg-secondary text-muted-foreground",
+  creator: "bg-secondary text-muted-foreground",
+  space: "bg-[var(--td-warning-color-1,#fff7e6)] text-[var(--td-warning-color-7,#b86e02)]",
+  shared: "bg-secondary text-muted-foreground",
+};
+
+const variantClass = computed(() => VARIANT_CLASS[props.variant]);
 
 const displayText = computed(() => {
   switch (props.variant) {
@@ -123,52 +132,3 @@ const tooltipText = computed(() => {
   }
 });
 </script>
-
-<style scoped lang="less">
-.resource-origin-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 500;
-  max-width: 140px;
-
-  .badge-icon {
-    flex-shrink: 0;
-  }
-
-  .badge-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &.origin-mine {
-    color: var(--td-brand-color);
-    background: var(--td-success-color-light);
-  }
-
-  &.origin-tenant {
-    color: var(--td-text-color-secondary);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.origin-creator {
-    color: var(--td-text-color-secondary);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.origin-space {
-    color: var(--td-warning-color-7, #b86e02);
-    background: var(--td-warning-color-1, #fff7e6);
-  }
-
-  &.origin-shared {
-    color: var(--td-text-color-secondary);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-</style>

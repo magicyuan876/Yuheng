@@ -1,37 +1,73 @@
 <template>
-  <div class="tenant-selector" ref="selectorRef">
-    <div class="tenant-trigger" @click="toggleDropdown">
-      <div class="tenant-info">
-        <div class="tenant-label">{{ $t("tenant.currentTenant") }}</div>
-        <div class="tenant-name-row">
-          <span class="tenant-name">{{ currentTenantName }}</span>
-          <t-icon name="swap" class="tenant-switch-icon" />
+  <div ref="selectorRef" data-slot="tenant-selector" class="relative mb-3">
+    <!--
+      data-slot opts the hand-written search input and buttons into the
+      element resets of tailwind.css, so they render without browser chrome.
+    -->
+    <div
+      class="border-border bg-secondary hover:bg-accent flex cursor-pointer items-center rounded-lg border-[0.5px] px-3 py-2.5 transition-all duration-200"
+      @click="toggleDropdown"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="text-placeholder mb-0.5 text-[11px] font-medium">{{ $t("tenant.currentTenant") }}</div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-foreground flex-1 truncate text-[14px] font-semibold">{{ currentTenantName }}</span>
+          <ArrowLeftRightIcon class="text-primary size-3.5 shrink-0" />
         </div>
       </div>
     </div>
 
-    <Transition name="dropdown">
-      <div v-if="showDropdown" class="tenant-dropdown" @click.stop>
-        <div class="dropdown-header">
-          <span class="dropdown-title">{{ $t("tenant.switchTenant") }}</span>
-          <div class="search-box">
-            <t-icon name="search" class="search-icon" />
+    <Transition
+      enter-active-class="transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      leave-active-class="transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      enter-from-class="opacity-0 -translate-y-1.5"
+      leave-to-class="opacity-0 -translate-y-1.5"
+    >
+      <div
+        v-if="showDropdown"
+        class="border-border bg-popover absolute top-[calc(100%+4px)] right-0 left-0 z-[1000] overflow-hidden rounded-[10px] border-[0.5px] shadow-[0_6px_24px_rgba(0,0,0,0.12)]"
+        @click.stop
+      >
+        <div class="border-border border-b-[0.5px] p-3">
+          <span class="text-muted-foreground mb-2 block text-[12px] font-semibold">{{
+            $t("tenant.switchTenant")
+          }}</span>
+          <div
+            class="bg-secondary focus-within:border-primary focus-within:bg-card flex items-center gap-1.5 rounded-md border-[0.5px] border-transparent px-2.5 py-[7px] transition-all duration-200 focus-within:shadow-[0_0_0_2px_rgba(7,192,95,0.1)]"
+          >
+            <SearchIcon class="text-placeholder size-3.5 shrink-0" />
             <input
               ref="searchInput"
               v-model="searchQuery"
               type="text"
               :placeholder="$t('tenant.searchPlaceholder')"
-              class="search-input"
+              class="text-foreground min-w-0 flex-1 border-none text-[13px] outline-none"
               @keydown.esc="closeDropdown"
               @input="handleSearchInput"
             />
-            <t-icon v-if="searchQuery" name="close-circle-filled" class="clear-icon" @click="clearSearch" />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="text-placeholder hover:text-muted-foreground flex shrink-0 transition-colors duration-200"
+              :aria-label="$t('common.clear')"
+              @click="clearSearch"
+            >
+              <CircleXIcon class="size-3.5" />
+            </button>
           </div>
         </div>
 
-        <div class="tenant-list" ref="tenantListRef" @scroll="handleScroll">
-          <div v-if="loading && tenants.length === 0" class="tenant-loading">
-            <t-loading size="small" />
+        <!-- The thin scrollbar is drawn with arbitrary variants on the WebKit pseudo-elements. -->
+        <div
+          ref="tenantListRef"
+          class="[&::-webkit-scrollbar-thumb]:bg-secondary max-h-[280px] overflow-y-auto p-1.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-thumb:hover]:bg-[var(--td-bg-color-component-disabled)] [&::-webkit-scrollbar-track]:bg-transparent"
+          @scroll="handleScroll"
+        >
+          <div
+            v-if="loading && tenants.length === 0"
+            class="text-placeholder flex flex-col items-center justify-center gap-2 px-3 py-6 text-[13px]"
+          >
+            <Loader2Icon class="text-primary size-4 animate-spin" />
             <span>{{ $t("tenant.loading") }}</span>
           </div>
 
@@ -39,41 +75,57 @@
             <div
               v-for="tenant in tenants"
               :key="tenant.id"
-              :class="['tenant-item', { selected: isSelected(tenant.id) }]"
+              class="mb-0.5 flex cursor-pointer items-center justify-between rounded-md px-2.5 py-2 transition-all duration-150 last:mb-0"
+              :class="isSelected(tenant.id) ? 'bg-[rgba(7,192,95,0.08)]' : 'hover:bg-secondary'"
               @click="selectTenant(tenant.id)"
             >
-              <div class="tenant-item-content">
-                <div class="tenant-item-avatar" :class="{ active: isSelected(tenant.id) }">
+              <div class="flex min-w-0 flex-1 items-center gap-2.5">
+                <div
+                  class="flex size-8 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold transition-all duration-200"
+                  :class="
+                    isSelected(tenant.id)
+                      ? 'text-primary-foreground bg-[linear-gradient(135deg,var(--td-brand-color)_0%,var(--td-brand-color-active)_100%)]'
+                      : 'bg-secondary text-muted-foreground'
+                  "
+                >
                   {{ tenant.name.charAt(0).toUpperCase() }}
                 </div>
-                <div class="tenant-item-info">
-                  <span class="tenant-item-name">{{ tenant.name }}</span>
-                  <span class="tenant-item-id">ID: {{ tenant.id }}</span>
+                <div class="flex min-w-0 flex-1 flex-col gap-px">
+                  <span
+                    class="truncate text-[13px]"
+                    :class="isSelected(tenant.id) ? 'text-primary font-medium' : 'text-foreground'"
+                    >{{ tenant.name }}</span
+                  >
+                  <span class="text-placeholder text-[11px]">ID: {{ tenant.id }}</span>
                 </div>
               </div>
-              <t-icon v-if="isSelected(tenant.id)" name="check" size="16px" class="check-icon" />
+              <CheckIcon v-if="isSelected(tenant.id)" class="text-primary size-4 shrink-0" />
             </div>
           </template>
 
-          <div v-else class="tenant-empty">
+          <div v-else class="text-placeholder flex flex-col items-center justify-center gap-2 px-3 py-6 text-[13px]">
             <span>{{ $t("tenant.noMatch") }}</span>
           </div>
 
-          <div v-if="loading && tenants.length > 0" class="tenant-loading-more">
-            <t-loading size="small" />
+          <div v-if="loading && tenants.length > 0" class="flex justify-center p-2">
+            <Loader2Icon class="text-primary size-4 animate-spin" />
           </div>
         </div>
 
         <!-- 自助创建入口与 /auth/me 返回的后端能力保持一致。 -->
-        <div v-if="authStore.canCreateTenant" class="tenant-create-action" @click="openCreateDialog">
-          <t-icon name="add" class="tenant-create-icon" />
-          <span class="tenant-create-label">{{ $t("tenant.create.action") }}</span>
+        <div
+          v-if="authStore.canCreateTenant"
+          class="border-border text-primary mx-1.5 mt-1 mb-1.5 flex cursor-pointer items-center gap-2 rounded-md border-t-[0.5px] px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 hover:bg-[rgba(7,192,95,0.08)]"
+          @click="openCreateDialog"
+        >
+          <PlusIcon class="size-3.5 shrink-0" />
+          <span class="flex-1 truncate">{{ $t("tenant.create.action") }}</span>
         </div>
       </div>
     </Transition>
 
     <!-- 遮罩层 -->
-    <div v-if="showDropdown" class="tenant-overlay" @click="closeDropdown"></div>
+    <div v-if="showDropdown" class="fixed inset-0 z-[999]" @click="closeDropdown"></div>
 
     <!-- 创建工作区弹窗：复用共享组件，TenantSelector 与 UserMenu 都用它 -->
     <CreateTenantDialog v-model:visible="createDialogVisible" @created="onTenantCreated" />
@@ -86,6 +138,7 @@ import { useAuthStore } from "@/stores/auth";
 import { searchTenants, type TenantInfo } from "@/api/tenant";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
+import { ArrowLeftRightIcon, CheckIcon, CircleXIcon, Loader2Icon, PlusIcon, SearchIcon } from "@lucide/vue";
 import {
   navigateAfterTenantSwitch,
   persistLastActiveTenantPreference,
@@ -313,317 +366,3 @@ onUnmounted(() => {
   }
 });
 </script>
-
-<style scoped lang="less">
-.tenant-selector {
-  position: relative;
-  margin: 0 0 12px;
-}
-
-.tenant-trigger {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 0.5px solid var(--td-component-stroke);
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    border-color: var(--td-component-border);
-  }
-}
-
-.tenant-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.tenant-label {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  margin-bottom: 2px;
-  font-weight: 500;
-}
-
-.tenant-name-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.tenant-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
-.tenant-switch-icon {
-  font-size: 14px;
-  color: var(--td-brand-color);
-  flex-shrink: 0;
-}
-
-.tenant-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
-}
-
-.tenant-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--td-bg-color-container);
-  border: 0.5px solid var(--td-component-stroke);
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
-  z-index: 1000;
-  overflow: hidden;
-}
-
-.dropdown-header {
-  padding: 12px;
-  border-bottom: 0.5px solid var(--td-component-stroke);
-}
-
-.dropdown-title {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--td-text-color-secondary);
-  margin-bottom: 8px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 6px;
-  border: 0.5px solid transparent;
-  transition: all 0.2s;
-
-  &:focus-within {
-    background: var(--td-bg-color-container);
-    border-color: var(--td-brand-color);
-    box-shadow: 0 0 0 2px rgba(7, 192, 95, 0.1);
-  }
-}
-
-.search-icon {
-  font-size: 14px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
-}
-
-.search-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  min-width: 0;
-
-  &::placeholder {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.clear-icon {
-  font-size: 14px;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: color 0.2s;
-
-  &:hover {
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.tenant-list {
-  max-height: 280px;
-  overflow-y: auto;
-  padding: 6px;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 2px;
-
-    &:hover {
-      background: var(--td-bg-color-component-disabled);
-    }
-  }
-}
-
-.tenant-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-bottom: 2px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.selected {
-    background: rgba(7, 192, 95, 0.08);
-
-    .tenant-item-name {
-      color: var(--td-brand-color);
-      font-weight: 500;
-    }
-  }
-}
-
-.tenant-item-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.tenant-item-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--td-text-color-secondary);
-  flex-shrink: 0;
-  transition: all 0.2s;
-
-  &.active {
-    background: linear-gradient(135deg, var(--td-brand-color) 0%, var(--td-brand-color-active) 100%);
-    color: var(--td-text-color-anti);
-  }
-}
-
-.tenant-item-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.tenant-item-name {
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tenant-item-id {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.check-icon {
-  color: var(--td-brand-color);
-  flex-shrink: 0;
-}
-
-.tenant-loading,
-.tenant-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 12px;
-  gap: 8px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.tenant-loading-more {
-  display: flex;
-  justify-content: center;
-  padding: 8px;
-}
-
-.tenant-create-action {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  margin: 4px 6px 6px;
-  border-top: 0.5px solid var(--td-component-stroke);
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  font-weight: 500;
-  transition: background 0.15s;
-
-  &:hover {
-    background: rgba(7, 192, 95, 0.08);
-  }
-}
-
-.tenant-create-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.tenant-create-label {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-// 下拉动画
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.dropdown-enter-to,
-.dropdown-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-</style>

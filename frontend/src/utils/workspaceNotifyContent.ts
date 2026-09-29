@@ -22,23 +22,23 @@
 // optionally `{role}` placeholders. Anything around them is rendered
 // verbatim so translators can reorder the sentence per locale.
 
-import { h, type VNode } from "vue";
-import { Tag as TTag, Icon as TIcon } from "tdesign-vue-next";
+import { h, type Component, type VNode } from "vue";
 
-// Mirror TenantMembers.roleTagTheme() so the "owner is blue, admin is
-// orange, ..." identity stays consistent across surfaces. If that map
-// changes there, change it here too (or, longer term, lift both into
-// useRoleLabel).
-type TagTheme = "primary" | "warning" | "success" | "default";
-
-const ROLE_THEME: Record<string, TagTheme> = {
-  owner: "primary",
-  admin: "warning",
-  contributor: "success",
+// Mirrors TenantMembers.roleTagClass() so the "owner is blue, admin is
+// orange, ..." identity stays consistent across surfaces; if that map changes
+// there, change it here too. The notification body is rendered by TDesign's
+// NotifyPlugin, but it is our own markup, so it is styled like any other new
+// component: utilities over the bridged tokens. These are the light tints of
+// the small tag TDesign drew here before (variant "light").
+const ROLE_TAG_CLASS: Record<string, string> = {
+  owner: "bg-primary/10 text-primary",
+  admin: "bg-warning/10 text-warning",
+  contributor: "bg-success/10 text-success",
 };
+const DEFAULT_ROLE_TAG_CLASS = "bg-secondary text-foreground";
 
-function roleTagTheme(roleEnum: string | undefined): TagTheme {
-  return (roleEnum && ROLE_THEME[roleEnum]) || "default";
+function roleTagClass(roleEnum: string | undefined): string {
+  return (roleEnum && ROLE_TAG_CLASS[roleEnum]) || DEFAULT_ROLE_TAG_CLASS;
 }
 
 export interface WorkspaceNotifyContentOptions {
@@ -54,20 +54,19 @@ export interface WorkspaceNotifyContentOptions {
   name: string;
   /** Human-readable role label, e.g. "所有者" / "Owner". Omit for the no-role variant. */
   roleLabel?: string;
-  /** Raw role enum value, e.g. "owner". Drives the tag theme colour. */
+  /** Raw role enum value, e.g. "owner". Drives the tag colour. */
   roleEnum?: string;
   /**
-   * Icon name (TDesign icon) for the role chip. Pass from
-   * `useRoleLabel().roleIcon(roleEnum)`. Empty / undefined renders the
-   * tag without a leading icon.
+   * Icon for the role chip — pass `useRoleLabel().roleIcon(roleEnum)`.
+   * Omitted renders the chip without a leading icon.
    */
-  roleIconName?: string;
+  roleIcon?: Component;
 }
 
 /**
  * Build a NotifyPlugin `content` factory rendering the workspace name
- * in bold and the role as a TDesign Tag. Returns a `() => VNode` so
- * TDesign re-invokes it per render, matching the plugin's TNode
+ * in bold and the role as a small tinted tag. Returns a `() => VNode` so
+ * TDesign's NotifyPlugin re-invokes it per render, matching its TNode
  * contract.
  */
 export function renderWorkspaceNotifyContent(opts: WorkspaceNotifyContentOptions): () => VNode {
@@ -76,25 +75,19 @@ export function renderWorkspaceNotifyContent(opts: WorkspaceNotifyContentOptions
     const parts: VNode[] = [];
     for (const tok of tokens) {
       if (tok === "{name}") {
-        parts.push(h("strong", { style: { fontWeight: "600", color: "var(--td-text-color-primary)" } }, opts.name));
+        parts.push(h("strong", { class: "text-foreground font-semibold" }, opts.name));
       } else if (tok === "{role}") {
         if (opts.roleLabel) {
-          const slots: Record<string, () => VNode | string | undefined> = {
-            default: () => opts.roleLabel,
-          };
-          if (opts.roleIconName) {
-            slots.icon = () => h(TIcon, { name: opts.roleIconName, size: "12px" });
-          }
           parts.push(
             h(
-              TTag,
+              "span",
               {
-                theme: roleTagTheme(opts.roleEnum),
-                size: "small",
-                variant: "light",
-                style: { verticalAlign: "middle", marginInline: "2px" },
+                class: [
+                  "mx-0.5 inline-flex h-[22px] items-center gap-1 rounded-[3px] px-2 align-middle text-xs leading-none",
+                  roleTagClass(opts.roleEnum),
+                ],
               },
-              slots,
+              [opts.roleIcon ? h(opts.roleIcon, { class: "size-3 shrink-0" }) : null, opts.roleLabel],
             ),
           );
         }
@@ -106,6 +99,6 @@ export function renderWorkspaceNotifyContent(opts: WorkspaceNotifyContentOptions
         parts.push(h("span", tok));
       }
     }
-    return h("span", { style: { lineHeight: "1.6", color: "var(--td-text-color-secondary)" } }, parts);
+    return h("span", { class: "text-muted-foreground leading-[1.6]" }, parts);
   };
 }

@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+
+import { useI18n } from "vue-i18n";
+
+import { FileIcon, XIcon } from "@lucide/vue";
+
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import DocumentPreview from "@/components/document-preview.vue";
 import { useChatAttachmentPreviewDrawer } from "@/composables/useChatAttachmentPreviewDrawer";
 
 const drawer = useChatAttachmentPreviewDrawer();
+const { t } = useI18n();
 
 const MAIN_DRAWER_WIDTH_KEY = "yuheng-chat-attachment-drawer-width";
 const MAIN_DRAWER_DEFAULT_WIDTH = 654;
@@ -82,6 +89,19 @@ function close() {
   drawer?.close();
 }
 
+// A press on the resize handle (or its drag overlay) is not a press outside the
+// drawer: both are teleported next to the panel, not into it, and a modal drawer
+// would otherwise close the moment the user grabbed its edge.
+function onDrawerPointerDownOutside(event: CustomEvent<{ originalEvent: PointerEvent }>) {
+  const target = event.detail?.originalEvent?.target;
+  if (
+    target instanceof Element &&
+    target.closest(".chat-attachment-drawer-resize-handle, .chat-attachment-drawer-resize-overlay")
+  ) {
+    event.preventDefault();
+  }
+}
+
 onMounted(() => {
   loadMainDrawerWidth();
   window.addEventListener("resize", onWindowResize);
@@ -95,175 +115,77 @@ onUnmounted(() => {
 
 <template>
   <teleport to="body">
-    <div v-if="mainDrawerResizing" class="chat-attachment-drawer-resize-overlay" aria-hidden="true" />
+    <!-- The handle and its drag overlay sit outside the drawer panel, and a modal Reka drawer turns
+         pointer events off on everything outside its panel, so both opt back in; the panel also
+         treats a press on the handle as inside (onDrawerPointerDownOutside). -->
+    <div
+      v-if="mainDrawerResizing"
+      class="chat-attachment-drawer-resize-overlay pointer-events-auto fixed inset-0 z-[2001] cursor-col-resize"
+      aria-hidden="true"
+    />
     <div
       v-if="visible"
-      class="chat-attachment-drawer-resize-handle"
-      :class="{ 'chat-attachment-drawer-resize-handle--active': mainDrawerResizing }"
+      class="chat-attachment-drawer-resize-handle group pointer-events-auto fixed top-0 bottom-0 z-[2002] -ml-1.5 flex w-3 cursor-col-resize items-center justify-center"
       :style="{ right: `${mainDrawerWidth}px` }"
       role="separator"
       aria-orientation="vertical"
       @mousedown.prevent="onMainDrawerResizeStart"
     >
-      <div class="chat-attachment-drawer-resize-line" />
+      <div
+        class="h-12 w-0.5 rounded-full transition-[opacity,background-color] duration-150"
+        :class="
+          mainDrawerResizing
+            ? 'bg-primary opacity-100'
+            : 'bg-border group-hover:bg-primary opacity-55 group-hover:opacity-100'
+        "
+      />
     </div>
   </teleport>
 
-  <t-drawer
-    :visible="visible"
-    :z-index="2000"
-    :size="`${mainDrawerWidth}px`"
-    attach="body"
-    :close-btn="true"
-    :footer="false"
-    :class="['chat-attachment-preview-drawer', { 'chat-attachment-preview-drawer--resizing': mainDrawerResizing }]"
-    @close="close"
-  >
-    <template #header>
-      <div class="chat-attachment-drawer-header">
-        <div class="chat-attachment-drawer-header-icon">
-          <t-icon name="file" />
+  <Drawer :open="visible" swipe-direction="right" @update:open="(v: boolean) => !v && close()">
+    <!-- z-[2000] is the old t-drawer's z-index: above page chrome such as the invitation bell,
+         below the resize handle and its overlay. -->
+    <DrawerContent
+      class="z-[2000] max-w-none rounded-none border-0 sm:max-w-none"
+      :class="
+        mainDrawerResizing
+          ? '[&_*]:select-none [&_.document-preview]:pointer-events-none [&_iframe]:pointer-events-none'
+          : ''
+      "
+      :style="{ width: `${mainDrawerWidth}px`, maxWidth: '95vw', transition: mainDrawerResizing ? 'none' : undefined }"
+      @pointer-down-outside="onDrawerPointerDownOutside"
+    >
+      <DrawerHeader
+        class="border-border relative flex shrink-0 flex-row items-center gap-2.5 border-b px-[18px] py-3.5"
+      >
+        <div
+          class="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-base"
+        >
+          <FileIcon class="size-4" />
         </div>
-        <div class="chat-attachment-drawer-header-text">
-          <div class="chat-attachment-drawer-header-title">{{ target?.fileName || "" }}</div>
+        <div class="min-w-0 flex-1 pr-8">
+          <DrawerTitle class="text-foreground truncate text-[15px] leading-[1.4] font-semibold">
+            {{ target?.fileName || "" }}
+          </DrawerTitle>
         </div>
-      </div>
-    </template>
+        <DrawerClose
+          class="text-muted-foreground hover:bg-accent hover:text-foreground absolute top-4 right-4 inline-flex size-6 cursor-pointer items-center justify-center rounded-md"
+          :aria-label="t('common.close')"
+        >
+          <XIcon class="size-4" />
+        </DrawerClose>
+      </DrawerHeader>
 
-    <section v-if="target" class="chat-attachment-drawer-body">
-      <DocumentPreview
-        :session-id="target.sessionId"
-        :attachment-id="target.attachmentId"
-        :file-type="target.fileType"
-        :file-name="target.fileName"
-        :active="visible"
-        fill-height
-      />
-    </section>
-  </t-drawer>
+      <section v-if="target" class="flex min-h-0 flex-1 flex-col overflow-hidden p-[12px_16px_16px]">
+        <DocumentPreview
+          :session-id="target.sessionId"
+          :attachment-id="target.attachmentId"
+          :file-type="target.fileType"
+          :file-name="target.fileName"
+          :active="visible"
+          fill-height
+        />
+      </section>
+    </DrawerContent>
+  </Drawer>
 </template>
-
-<style scoped lang="less">
-:deep(.t-drawer__header) {
-  font-weight: normal;
-}
-
-.chat-attachment-drawer-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  width: 100%;
-  padding-right: 32px;
-}
-
-.chat-attachment-drawer-header-icon {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(7, 192, 95, 0.1);
-  color: var(--td-brand-color);
-  font-size: 16px;
-}
-
-.chat-attachment-drawer-header-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.chat-attachment-drawer-header-title {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-attachment-drawer-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-attachment-drawer-resize-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2001;
-  cursor: col-resize;
-}
-
-.chat-attachment-drawer-resize-handle {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  margin-left: -6px;
-  z-index: 2002;
-  cursor: col-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chat-attachment-drawer-resize-line {
-  width: 2px;
-  height: 48px;
-  border-radius: 1px;
-  background: var(--td-component-border);
-  opacity: 0.55;
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease;
-}
-
-.chat-attachment-drawer-resize-handle:hover .chat-attachment-drawer-resize-line,
-.chat-attachment-drawer-resize-handle--active .chat-attachment-drawer-resize-line {
-  opacity: 1;
-  background: var(--td-brand-color);
-}
-</style>
-
-<style lang="less">
-.t-drawer.chat-attachment-preview-drawer {
-  .t-drawer__content-wrapper,
-  .t-drawer__content {
-    height: 100%;
-  }
-
-  .t-drawer__header {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--td-component-stroke);
-    flex-shrink: 0;
-  }
-
-  .t-drawer__body {
-    flex: 1;
-    min-height: 0;
-    padding: 12px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-}
-
-.t-drawer.chat-attachment-preview-drawer--resizing .t-drawer__content {
-  transition: none !important;
-}
-
-.t-drawer.chat-attachment-preview-drawer--resizing {
-  .chat-attachment-drawer-body,
-  .document-preview,
-  iframe,
-  .pdf-iframe {
-    pointer-events: none;
-    user-select: none;
-  }
-}
-</style>

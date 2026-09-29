@@ -1,159 +1,188 @@
 <template>
-  <div class="login-layout">
-    <div class="animated-bg">
-      <div class="knowledge-node node-1">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-2">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-3">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-4">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <ellipse cx="12" cy="5" rx="9" ry="3" />
-          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-5">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-6">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path
-            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-          />
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-          <line x1="12" y1="22.08" x2="12" y2="12" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-7">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-8">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-9">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-10">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3" />
-          <path
-            d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"
-          />
-        </svg>
-      </div>
-      <div class="knowledge-node node-11">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 11l3 3L22 4" />
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-        </svg>
-      </div>
-      <div class="knowledge-node node-12">
-        <svg class="node-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon
-            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-          />
+  <div
+    class="relative flex min-h-full w-full overflow-hidden bg-[linear-gradient(225deg,#022c22_0%,#064e3b_15%,#065f46_25%,#047857_38%,#059669_50%,#07c05f_65%,#10b981_78%,#34d399_90%,#6ee7b7_100%)] max-[768px]:flex-col dark:bg-[linear-gradient(225deg,#011a14_0%,#032e22_15%,#043a2c_25%,#05503d_38%,#046647_50%,#038a56_65%,#049b60_78%,#06a06a_90%,#07b074_100%)]"
+  >
+    <div
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,255,255,0.06)_0%,transparent_50%),radial-gradient(circle_at_80%_50%,rgba(255,255,255,0.04)_0%,transparent_50%)]"
+    />
+
+    <!-- Animated knowledge-graph background -->
+    <div
+      class="pointer-events-none absolute inset-0 z-[1] overflow-hidden [contain:strict] motion-reduce:hidden max-[480px]:hidden"
+    >
+      <div
+        v-for="node in KNOWLEDGE_NODES"
+        :key="node.n"
+        class="absolute flex size-10 animate-[login-node-pulse_5s_ease-in-out_infinite] items-center justify-center rounded-full border-2 border-white/30 bg-white/15 shadow-[0_0_15px_rgba(255,255,255,0.35),0_0_30px_rgba(16,185,129,0.2),inset_0_0_8px_rgba(255,255,255,0.1)] will-change-[transform,opacity] motion-reduce:animate-none motion-reduce:opacity-[0.65] dark:border-white/20 dark:bg-white/10 dark:shadow-[0_0_8px_rgba(255,255,255,0.15)]"
+        :class="node.responsiveHide ? 'max-[768px]:hidden' : ''"
+        :style="node.style"
+      >
+        <svg class="size-5 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <template v-if="node.icon === 'book'">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </template>
+          <template v-else-if="node.icon === 'folder'">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </template>
+          <template v-else-if="node.icon === 'layers'">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
+          </template>
+          <template v-else-if="node.icon === 'database'">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          </template>
+          <template v-else-if="node.icon === 'search'">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </template>
+          <template v-else-if="node.icon === 'box'">
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </template>
+          <template v-else-if="node.icon === 'file'">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </template>
+          <template v-else-if="node.icon === 'users'">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </template>
+          <template v-else-if="node.icon === 'message'">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </template>
+          <template v-else-if="node.icon === 'settings'">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"
+            />
+          </template>
+          <template v-else-if="node.icon === 'check'">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </template>
+          <template v-else>
+            <polygon
+              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+            />
+          </template>
         </svg>
       </div>
 
-      <svg class="knowledge-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line class="connection-line line-1" x1="20" y1="15" x2="35" y2="25" />
-        <line class="connection-line line-2" x1="35" y1="25" x2="55" y2="20" />
-        <line class="connection-line line-3" x1="55" y1="20" x2="85" y2="12" />
-        <line class="connection-line line-4" x1="8" y1="35" x2="25" y2="45" />
-        <line class="connection-line line-5" x1="25" y1="45" x2="65" y2="48" />
-        <line class="connection-line line-6" x1="20" y1="60" x2="60" y2="75" />
-        <line class="connection-line line-7" x1="20" y1="15" x2="20" y2="60" />
-        <line class="connection-line line-8" x1="55" y1="20" x2="45" y2="50" />
-        <line class="connection-line line-9" x1="65" y1="48" x2="90" y2="38" />
-        <line class="connection-line line-10" x1="40" y1="70" x2="75" y2="80" />
-        <line class="connection-line line-11" x1="35" y1="25" x2="25" y2="45" />
-        <line class="connection-line line-12" x1="75" y1="30" x2="65" y2="48" />
+      <svg class="absolute inset-0 h-full w-full opacity-[0.35]" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line
+          v-for="line in KNOWLEDGE_LINES"
+          :key="line.n"
+          :x1="line.x1"
+          :y1="line.y1"
+          :x2="line.x2"
+          :y2="line.y2"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-dasharray="6 3"
+          class="animate-[login-line-flow_10s_linear_infinite] stroke-white/50 will-change-[stroke-dashoffset] motion-reduce:animate-none dark:stroke-white/25"
+          :class="line.responsiveHide ? 'max-[768px]:hidden' : ''"
+          :style="{ animationDelay: line.delay }"
+        />
       </svg>
     </div>
 
     <!-- Logo - Top Left -->
-    <div class="header-logo">
-      <span class="logo-image">Yuheng</span>
+    <div
+      class="fixed top-8 left-[50px] z-[100] cursor-pointer max-[1024px]:top-[26px] max-[1024px]:left-10 max-[768px]:top-[22px] max-[768px]:left-[30px] max-[480px]:top-[18px] max-[480px]:left-5"
+    >
+      <span
+        class="text-foreground inline-block text-[22px] leading-[1.2] font-bold tracking-[-0.01em] whitespace-nowrap select-none max-[1024px]:text-[19px] max-[768px]:text-[17px] max-[480px]:text-[15px] dark:[filter:invert(1)_hue-rotate(180deg)_brightness(1.1)]"
+        >Yuheng</span
+      >
     </div>
 
     <!-- Header Links - Top Right -->
-    <div class="header-links">
-      <div class="language-switch">
-        <button @click="toggleLanguageMenu" class="header-link" :title="currentLangOption?.label">
-          <span class="lang-flag-icon">{{ currentLangOption?.flag }}</span>
-          <span class="link-text">{{ currentLangOption?.shortLabel }}</span>
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+    <div
+      class="fixed top-7 right-7 z-[100] flex items-center gap-2.5 max-[1024px]:top-[22px] max-[1024px]:right-[22px] max-[1024px]:gap-2 max-[768px]:top-[18px] max-[768px]:right-[18px] max-[480px]:top-3.5 max-[480px]:right-3.5 max-[480px]:flex-wrap max-[480px]:gap-1.5"
+    >
+      <div ref="languageSwitchRef" class="relative">
+        <button
+          type="button"
+          data-slot="language-switch"
+          class="relative flex cursor-pointer items-center gap-[7px] rounded-[20px] border border-white/25 bg-white/20 px-[15px] py-[9px] text-[13px] font-semibold tracking-[0.2px] text-white hover:border-white/40 hover:bg-white/30 max-[1024px]:gap-0 max-[1024px]:p-2.5 max-[768px]:px-3 max-[768px]:py-2 max-[768px]:text-xs max-[480px]:px-2.5 max-[480px]:py-[7px] max-[480px]:text-[11px] dark:border-white/[0.15] dark:bg-white/[0.12] dark:hover:bg-white/20"
+          :title="currentLangOption?.label"
+          @click="toggleLanguageMenu"
+        >
+          <span class="shrink-0 text-base leading-none">{{ currentLangOption?.flag }}</span>
+          <span class="leading-none max-[1024px]:hidden max-[768px]:inline">{{ currentLangOption?.shortLabel }}</span>
+          <ChevronDownIcon class="ml-0.5 size-3 shrink-0" stroke-width="2.5" />
         </button>
 
         <!-- Language Dropdown -->
-        <div v-if="showLanguageMenu" class="language-dropdown">
+        <div
+          v-if="showLanguageMenu"
+          class="border-border absolute top-[calc(100%+8px)] right-0 z-[1000] min-w-40 overflow-hidden rounded-lg border bg-white/[0.97] shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:bg-[rgba(36,36,36,0.97)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+        >
           <div
             v-for="lang in languageOptions"
             :key="lang.value"
+            class="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-[13px]"
+            :class="
+              currentLanguage === lang.value
+                ? 'bg-[var(--td-success-color-light)] text-[var(--td-brand-color-active)]'
+                : 'text-foreground hover:bg-secondary'
+            "
             @click="selectLanguage(lang.value)"
-            class="language-option"
-            :class="{ active: currentLanguage === lang.value }"
           >
-            <span class="lang-flag">{{ lang.flag }}</span>
-            <span class="lang-label">{{ lang.label }}</span>
-            <span v-if="currentLanguage === lang.value" class="check-icon">✓</span>
+            <span class="shrink-0 text-base">{{ lang.flag }}</span>
+            <span class="flex-1">{{ lang.label }}</span>
+            <span v-if="currentLanguage === lang.value" class="text-success shrink-0 text-sm font-bold">✓</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Left Showcase Section -->
-    <div class="showcase-section">
-      <div class="showcase-content">
-        <p class="showcase-subtitle">{{ $t("platform.subtitle") }}</p>
-        <p class="showcase-description">{{ $t("platform.description") }}</p>
+    <div
+      class="relative box-border flex flex-[0_0_52%] items-end pt-[100px] pr-[30px] pb-[100px] pl-[50px] max-[768px]:min-h-[50vh] max-[768px]:flex-none max-[768px]:items-end max-[768px]:p-10 max-[768px]:px-6 max-[480px]:items-end max-[480px]:p-8 max-[480px]:px-5"
+    >
+      <div class="relative z-[2] mb-[60px] flex w-full max-w-[600px] flex-col max-[768px]:max-w-full">
+        <p
+          class="m-0 mb-2 text-[22px] leading-[1.4] font-medium text-white/95 max-[1024px]:text-lg max-[768px]:mb-6 max-[768px]:text-base max-[480px]:text-sm"
+        >
+          {{ $t("platform.subtitle") }}
+        </p>
+        <p class="m-0 mb-7 text-[15px] leading-[1.5] text-white/80">{{ $t("platform.description") }}</p>
 
-        <div class="feature-tags">
-          <span class="tag">{{ $t("platform.rag") }}</span>
-          <span class="tag">{{ $t("platform.agent") }}</span>
-          <span class="tag">{{ $t("platform.wiki") }}</span>
-          <span class="tag">{{ $t("platform.hybridSearch") }}</span>
+        <div class="mb-10 flex flex-wrap gap-3 max-[768px]:mb-6">
+          <span
+            class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
+          >
+            {{ $t("platform.rag") }}
+          </span>
+          <span
+            class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
+          >
+            {{ $t("platform.agent") }}
+          </span>
+          <span
+            class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
+          >
+            {{ $t("platform.wiki") }}
+          </span>
+          <span
+            class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
+          >
+            {{ $t("platform.hybridSearch") }}
+          </span>
         </div>
 
         <!-- Swiper Carousel -->
-        <div class="carousel-container">
+        <div class="mt-12 w-full max-[768px]:mt-6">
           <swiper
             :modules="modules"
             :slides-per-view="1"
@@ -166,11 +195,11 @@
             :fade-effect="{ crossFade: true }"
             :pagination="{ clickable: true, dynamicBullets: false }"
             :speed="800"
-            class="screenshot-swiper"
+            class="screenshot-swiper w-full overflow-hidden rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
           >
             <swiper-slide v-for="(slide, index) in slides" :key="index">
-              <div class="slide-content">
-                <img :src="slide.image" :alt="slide.title" class="slide-image" />
+              <div class="bg-card flex h-full w-full items-center justify-center overflow-hidden rounded-2xl">
+                <img :src="slide.image" :alt="slide.title" class="block h-full w-full object-contain" />
               </div>
             </swiper-slide>
           </swiper>
@@ -179,115 +208,162 @@
     </div>
 
     <!-- Right Form Section -->
-    <div class="form-section">
-      <div class="form-panel">
+    <div
+      class="relative box-border flex flex-[0_0_48%] items-end justify-center pt-10 pr-[50px] pb-[100px] pl-[30px] max-[768px]:flex-none max-[768px]:items-end max-[768px]:p-6 max-[480px]:p-5"
+    >
+      <div class="relative z-[2] mb-[60px] w-full max-w-[480px]">
         <!-- Login Card -->
-        <div class="form-card" v-if="!isRegisterMode">
+        <div
+          v-if="!isRegisterMode"
+          class="box-border w-full rounded-2xl border-0 bg-white/[0.97] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.15)] max-[768px]:p-[32px_24px] max-[480px]:p-[28px_20px] dark:bg-[rgba(36,36,36,0.97)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+        >
           <!-- invite_only 模式下共享链接停在登录卡，同样需要邀请上下文。 -->
-          <div v-if="inviteLookup" class="invite-banner">
-            <t-icon name="link" class="invite-banner__icon" />
-            <div class="invite-banner__text">
-              <div class="invite-banner__title">
+          <div
+            v-if="inviteLookup"
+            class="border-border bg-accent text-foreground mb-5 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3"
+          >
+            <LinkIcon class="text-muted-foreground mt-0.5 size-[18px] shrink-0" />
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <div class="text-foreground text-sm leading-[1.4] font-semibold">
                 {{ $t("inviteRegister.bannerTitle", { tenant: inviteLookup.tenant_name || "" }) }}
               </div>
-              <div class="invite-banner__hint">
+              <div class="text-muted-foreground text-xs leading-[1.5]">
                 {{ $t("inviteRegister.bannerHintLogin") }}
               </div>
             </div>
           </div>
-          <div v-else-if="inviteLookupError" class="invite-banner invite-banner--error">
+          <div
+            v-else-if="inviteLookupError"
+            class="text-destructive mb-5 flex items-start gap-2.5 rounded-[10px] border border-[var(--td-error-color-3)] bg-[var(--td-error-color-1)] px-3.5 py-3 text-[13px]"
+          >
             {{ inviteLookupError }}
           </div>
-          <div class="form-header">
-            <h2 class="form-title">{{ $t("auth.login") }}</h2>
-            <p class="form-welcome">{{ $t("auth.subtitle") }}</p>
-            <p v-if="registrationEnabled" class="form-hint">{{ $t("auth.loginHint") }}</p>
+          <div class="mb-8 text-center max-[480px]:mb-6">
+            <h2 class="text-foreground m-0 mb-1.5 text-2xl font-semibold max-[768px]:text-[22px]">
+              {{ $t("auth.login") }}
+            </h2>
+            <p class="text-muted-foreground m-0 text-[13px]">{{ $t("auth.subtitle") }}</p>
+            <p
+              v-if="registrationEnabled"
+              class="m-0 mt-2.5 rounded-lg bg-[var(--td-success-color-light)] px-3 py-2 text-[12.5px] leading-[1.5] text-[var(--td-brand-color-active)]"
+            >
+              {{ $t("auth.loginHint") }}
+            </p>
           </div>
 
-          <div class="form-content">
-            <t-form
-              ref="formRef"
-              :data="formData"
-              :rules="formRules"
-              @submit="handleLogin"
-              layout="vertical"
-              label-align="top"
-            >
-              <t-form-item :label="$t('auth.email')" name="email">
-                <t-input
-                  v-model="formData.email"
-                  :placeholder="$t('auth.emailPlaceholder')"
-                  type="text"
-                  autocomplete="email"
-                  size="large"
-                  :disabled="loading"
-                />
-              </t-form-item>
-
-              <t-form-item :label="$t('auth.password')" name="password">
-                <t-input
-                  v-model="formData.password"
-                  :placeholder="$t('auth.passwordPlaceholder')"
-                  type="password"
-                  autocomplete="current-password"
-                  size="large"
-                  :disabled="loading"
-                  @enter="handleLogin"
-                />
-              </t-form-item>
-
-              <t-button type="submit" theme="primary" size="large" block :loading="loading" class="submit-button">
-                {{ loading ? $t("auth.loggingIn") : $t("auth.login") }}
-              </t-button>
-
-              <div class="register-cta" v-if="registrationEnabled">
-                <div class="register-cta__divider">
-                  <span>{{ $t("auth.firstTime") }}</span>
+          <div>
+            <form @submit.prevent="handleLogin">
+              <div class="mb-6">
+                <Label for="login-email" :class="FIELD_LABEL_CLASS">{{ $t("auth.email") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="login-email"
+                    v-model="formData.email"
+                    :placeholder="$t('auth.emailPlaceholder')"
+                    type="text"
+                    autocomplete="email"
+                    :disabled="loading"
+                    :aria-invalid="loginErrors.email ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(loginErrors, 'email', v)"
+                  />
+                  <p v-if="loginErrors.email" :class="FIELD_ERROR_CLASS">{{ $t(loginErrors.email) }}</p>
                 </div>
-                <t-button
-                  theme="default"
+              </div>
+              <div :class="registrationEnabled || oidcEnabled ? 'mb-6' : 'mb-0'">
+                <Label for="login-password" :class="FIELD_LABEL_CLASS">{{ $t("auth.password") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="login-password"
+                    v-model="formData.password"
+                    :placeholder="$t('auth.passwordPlaceholder')"
+                    type="password"
+                    autocomplete="current-password"
+                    :disabled="loading"
+                    :aria-invalid="loginErrors.password ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(loginErrors, 'password', v)"
+                    @keydown.enter.prevent="handleLogin"
+                  />
+                  <p v-if="loginErrors.password" :class="FIELD_ERROR_CLASS">{{ $t(loginErrors.password) }}</p>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                :disabled="loading"
+                class="my-5 mb-4 h-[46px] w-full rounded-lg text-base font-medium"
+              >
+                <Loader2Icon v-if="loading" class="animate-spin" />
+                {{ loading ? $t("auth.loggingIn") : $t("auth.login") }}
+              </Button>
+
+              <div v-if="registrationEnabled" class="mt-2">
+                <div
+                  class="text-muted-foreground before:border-border relative my-1 mb-3.5 text-center text-[13px] before:absolute before:inset-x-0 before:top-1/2 before:border-t"
+                >
+                  <span class="relative z-[1] bg-white/[0.97] px-3 dark:bg-[rgba(36,36,36,0.97)]">
+                    {{ $t("auth.firstTime") }}
+                  </span>
+                </div>
+                <Button
+                  type="button"
                   variant="outline"
-                  size="large"
-                  block
-                  class="register-cta__button"
+                  size="lg"
                   :disabled="loading"
+                  class="border-primary text-primary dark:border-primary h-[46px] w-full rounded-lg bg-transparent text-[15px] font-medium hover:border-[var(--td-brand-color-active)] hover:bg-[var(--td-success-color-light)] hover:text-[var(--td-brand-color-active)] dark:bg-transparent dark:hover:bg-[var(--td-success-color-light)]"
                   @click="toggleMode"
                 >
                   {{ $t("auth.createAccount") }}
-                </t-button>
+                </Button>
               </div>
 
-              <div v-if="oidcEnabled" class="oidc-divider">
-                <span>{{ $t("auth.orContinueWith") }}</span>
-              </div>
-
-              <t-button
+              <div
                 v-if="oidcEnabled"
-                theme="default"
-                size="large"
-                block
-                :loading="oidcLoading"
-                :disabled="loading"
-                class="oidc-button"
+                class="text-placeholder before:border-border relative my-1 mb-1.5 text-center text-xs before:absolute before:inset-x-0 before:top-1/2 before:border-t"
+              >
+                <span class="relative z-[1] bg-white/[0.95] px-3 dark:bg-[rgba(36,36,36,0.97)]">
+                  {{ $t("auth.orContinueWith") }}
+                </span>
+              </div>
+
+              <Button
+                v-if="oidcEnabled"
+                type="button"
+                variant="secondary"
+                size="lg"
+                :disabled="loading || oidcLoading"
+                class="text-foreground h-[46px] w-full rounded-lg border-[var(--td-bg-color-component)] bg-[var(--td-bg-color-component)] text-[15px] font-medium hover:border-[var(--td-bg-color-component-hover)] hover:bg-[var(--td-bg-color-component-hover)] disabled:border-[var(--td-bg-color-component-disabled)] disabled:bg-[var(--td-bg-color-component-disabled)] disabled:opacity-100"
                 @click="handleOIDCLogin"
               >
+                <Loader2Icon v-if="oidcLoading" class="animate-spin" />
                 {{ oidcLoading ? $t("auth.redirectingToOIDC") : oidcLoginText }}
-              </t-button>
-            </t-form>
+              </Button>
+            </form>
 
             <!-- Features list -->
-            <div class="login-features">
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.multimodalParsing") }}</span>
+            <div class="mt-5 p-0">
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.multimodalParsing") }}</span>
               </div>
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.hybridSearchEngine") }}</span>
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.hybridSearchEngine") }}</span>
               </div>
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.ragQandA") }}</span>
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.ragQandA") }}</span>
               </div>
             </div>
           </div>
@@ -297,107 +373,157 @@
              AND either self-service registration is enabled OR they
              arrived with a valid share-link token (which bypasses the
              invite_only gate). -->
-        <div class="form-card" v-if="isRegisterMode && (registrationEnabled || inviteLookup)">
+        <div
+          v-if="isRegisterMode && (registrationEnabled || inviteLookup)"
+          class="box-border w-full rounded-2xl border-0 bg-white/[0.97] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.15)] max-[768px]:p-[32px_24px] max-[480px]:p-[28px_20px] dark:bg-[rgba(36,36,36,0.97)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+        >
           <!-- Share-link banner: shown only when ?token= resolved to a
                real invitation row. Sits above the form header so the
                invitee instantly sees who invited them and into which
                workspace, without bumping the existing register UX. -->
-          <div v-if="inviteLookup" class="invite-banner">
-            <t-icon name="link" class="invite-banner__icon" />
-            <div class="invite-banner__text">
-              <div class="invite-banner__title">
+          <div
+            v-if="inviteLookup"
+            class="border-border bg-accent text-foreground mb-5 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3"
+          >
+            <LinkIcon class="text-muted-foreground mt-0.5 size-[18px] shrink-0" />
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <div class="text-foreground text-sm leading-[1.4] font-semibold">
                 {{ $t("inviteRegister.bannerTitle", { tenant: inviteLookup.tenant_name || "" }) }}
               </div>
-              <div class="invite-banner__hint">
-                {{ $t("inviteRegister.bannerHint") }}
-              </div>
+              <div class="text-muted-foreground text-xs leading-[1.5]">{{ $t("inviteRegister.bannerHint") }}</div>
             </div>
           </div>
-          <div v-else-if="inviteLookupError" class="invite-banner invite-banner--error">
+          <div
+            v-else-if="inviteLookupError"
+            class="text-destructive mb-5 flex items-start gap-2.5 rounded-[10px] border border-[var(--td-error-color-3)] bg-[var(--td-error-color-1)] px-3.5 py-3 text-[13px]"
+          >
             {{ inviteLookupError }}
           </div>
-          <div class="form-header">
-            <h2 class="form-title">{{ $t("auth.createAccount") }}</h2>
-            <p class="form-subtitle">{{ $t("auth.registerSubtitle") }}</p>
+          <div class="mb-8 text-center max-[480px]:mb-6">
+            <h2 class="text-foreground m-0 mb-1.5 text-2xl font-semibold max-[768px]:text-[22px]">
+              {{ $t("auth.createAccount") }}
+            </h2>
+            <p class="text-muted-foreground m-0 text-[13px]">{{ $t("auth.registerSubtitle") }}</p>
           </div>
 
-          <div class="form-content">
-            <t-form
-              ref="registerFormRef"
-              :data="registerData"
-              :rules="registerRules"
-              @submit="handleRegister"
-              layout="vertical"
-              label-align="top"
-            >
-              <t-form-item :label="$t('auth.username')" name="username">
-                <t-input
-                  v-model="registerData.username"
-                  :placeholder="$t('auth.usernamePlaceholder')"
-                  size="large"
-                  :disabled="loading"
-                />
-              </t-form-item>
+          <div>
+            <form @submit.prevent="handleRegister">
+              <div class="mb-6">
+                <Label for="register-username" :class="FIELD_LABEL_CLASS">{{ $t("auth.username") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="register-username"
+                    v-model="registerData.username"
+                    :placeholder="$t('auth.usernamePlaceholder')"
+                    :disabled="loading"
+                    :aria-invalid="registerErrors.username ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(registerErrors, 'username', v)"
+                  />
+                  <p v-if="registerErrors.username" :class="FIELD_ERROR_CLASS">{{ $t(registerErrors.username) }}</p>
+                </div>
+              </div>
+              <div class="mb-6">
+                <Label for="register-email" :class="FIELD_LABEL_CLASS">{{ $t("auth.email") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="register-email"
+                    v-model="registerData.email"
+                    :placeholder="$t('auth.emailPlaceholder')"
+                    type="text"
+                    autocomplete="email"
+                    :disabled="loading"
+                    :aria-invalid="registerErrors.email ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(registerErrors, 'email', v)"
+                  />
+                  <p v-if="registerErrors.email" :class="FIELD_ERROR_CLASS">{{ $t(registerErrors.email) }}</p>
+                </div>
+              </div>
+              <div class="mb-6">
+                <Label for="register-password" :class="FIELD_LABEL_CLASS">{{ $t("auth.password") }}</Label>
+                <div class="relative">
+                  <Input
+                    id="register-password"
+                    v-model="registerData.password"
+                    :placeholder="$t('auth.passwordPlaceholder')"
+                    type="password"
+                    autocomplete="new-password"
+                    :disabled="loading"
+                    :aria-invalid="registerErrors.password ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(registerErrors, 'password', v)"
+                  />
+                  <p v-if="registerErrors.password" :class="FIELD_ERROR_CLASS">{{ $t(registerErrors.password) }}</p>
+                </div>
+              </div>
+              <div class="mb-0">
+                <Label for="register-confirmPassword" :class="FIELD_LABEL_CLASS">{{
+                  $t("auth.confirmPassword")
+                }}</Label>
+                <div class="relative">
+                  <Input
+                    id="register-confirmPassword"
+                    v-model="registerData.confirmPassword"
+                    :placeholder="$t('auth.confirmPasswordPlaceholder')"
+                    type="password"
+                    autocomplete="new-password"
+                    :disabled="loading"
+                    :aria-invalid="registerErrors.confirmPassword ? true : undefined"
+                    :class="FIELD_INPUT_CLASS"
+                    @update:model-value="(v) => validateField(registerErrors, 'confirmPassword', v)"
+                    @keydown.enter.prevent="handleRegister"
+                  />
+                  <p v-if="registerErrors.confirmPassword" :class="FIELD_ERROR_CLASS">
+                    {{ $t(registerErrors.confirmPassword) }}
+                  </p>
+                </div>
+              </div>
 
-              <t-form-item :label="$t('auth.email')" name="email">
-                <t-input
-                  v-model="registerData.email"
-                  :placeholder="$t('auth.emailPlaceholder')"
-                  type="text"
-                  autocomplete="email"
-                  size="large"
-                  :disabled="loading"
-                />
-              </t-form-item>
-
-              <t-form-item :label="$t('auth.password')" name="password">
-                <t-input
-                  v-model="registerData.password"
-                  :placeholder="$t('auth.passwordPlaceholder')"
-                  type="password"
-                  autocomplete="new-password"
-                  size="large"
-                  :disabled="loading"
-                />
-              </t-form-item>
-
-              <t-form-item :label="$t('auth.confirmPassword')" name="confirmPassword">
-                <t-input
-                  v-model="registerData.confirmPassword"
-                  :placeholder="$t('auth.confirmPasswordPlaceholder')"
-                  type="password"
-                  autocomplete="new-password"
-                  size="large"
-                  :disabled="loading"
-                  @enter="handleRegister"
-                />
-              </t-form-item>
-
-              <t-button type="submit" theme="primary" size="large" block :loading="loading" class="submit-button">
+              <Button
+                type="submit"
+                size="lg"
+                :disabled="loading"
+                class="my-5 mb-4 h-[46px] w-full rounded-lg text-base font-medium"
+              >
+                <Loader2Icon v-if="loading" class="animate-spin" />
                 {{ loading ? $t("auth.registering") : $t("auth.register") }}
-              </t-button>
-            </t-form>
+              </Button>
+            </form>
 
-            <div class="form-footer">
+            <div class="border-border text-muted-foreground mt-4 border-b pb-4 text-center text-sm">
               <span>{{ $t("auth.haveAccount") }}</span>
-              <a href="#" @click.prevent="toggleMode" class="link-button">
+              <a
+                href="#"
+                class="text-primary ml-1 font-medium no-underline transition-all duration-200 hover:underline"
+                @click.prevent="toggleMode"
+              >
                 {{ $t("auth.backToLogin") }}
               </a>
             </div>
 
             <!-- Features list for register -->
-            <div class="login-features">
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.independentTenant") }}</span>
+            <div class="mt-5 p-0">
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.independentTenant") }}</span>
               </div>
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.fullApiAccess") }}</span>
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.fullApiAccess") }}</span>
               </div>
-              <div class="feature-item">
-                <span class="feature-icon">✓</span>
-                <span class="feature-text">{{ $t("platform.knowledgeBaseManagement") }}</span>
+              <div class="text-muted-foreground mb-3 flex items-center text-[13px] last:mb-0">
+                <span
+                  class="mr-2.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--td-success-color-light)] text-xs font-bold text-[var(--td-brand-color-active)] dark:bg-[rgba(6,176,77,0.15)]"
+                  >✓</span
+                >
+                <span class="leading-[1.4]">{{ $t("platform.knowledgeBaseManagement") }}</span>
               </div>
             </div>
           </div>
@@ -411,6 +537,10 @@
 import { ref, reactive, nextTick, onMounted, onBeforeUnmount, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
+import { ChevronDownIcon, LinkIcon, Loader2Icon } from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRoleLabel } from "@/composables/useRoleLabel";
 import { notifyLoginSuccess } from "@/utils/loginNotify";
 import { Swiper, SwiperSlide } from "swiper/vue";
@@ -471,9 +601,60 @@ const slides = [
   },
 ];
 
-// Form references
-const formRef = ref();
-const registerFormRef = ref();
+// The animated knowledge-graph backdrop. Each node carries its own position
+// and pulse offset; positions are percentages of the backdrop so the graph
+// scales with the window. The last four nodes and lines drop out below 768px,
+// where the showcase shrinks to half the viewport and a full graph crowds it.
+type NodeIcon =
+  | "book"
+  | "folder"
+  | "layers"
+  | "database"
+  | "search"
+  | "box"
+  | "file"
+  | "users"
+  | "message"
+  | "settings"
+  | "check"
+  | "star";
+
+const KNOWLEDGE_NODES: {
+  n: number;
+  icon: NodeIcon;
+  style: Record<string, string>;
+  responsiveHide: boolean;
+}[] = [
+  { n: 1, icon: "book", style: { top: "15%", left: "20%", animationDelay: "0s" }, responsiveHide: false },
+  { n: 2, icon: "folder", style: { top: "25%", left: "35%", animationDelay: "0.5s" }, responsiveHide: false },
+  { n: 3, icon: "layers", style: { top: "20%", left: "55%", animationDelay: "1s" }, responsiveHide: false },
+  { n: 4, icon: "database", style: { top: "30%", left: "75%", animationDelay: "1.5s" }, responsiveHide: false },
+  { n: 5, icon: "search", style: { top: "45%", left: "25%", animationDelay: "2s" }, responsiveHide: false },
+  { n: 6, icon: "box", style: { top: "50%", left: "45%", animationDelay: "2.5s" }, responsiveHide: false },
+  { n: 7, icon: "file", style: { top: "48%", left: "65%", animationDelay: "3s" }, responsiveHide: false },
+  { n: 8, icon: "users", style: { top: "60%", left: "20%", animationDelay: "0.3s" }, responsiveHide: false },
+  { n: 9, icon: "message", style: { top: "12%", right: "15%", animationDelay: "1.8s" }, responsiveHide: true },
+  { n: 10, icon: "settings", style: { top: "38%", right: "10%", animationDelay: "2.3s" }, responsiveHide: true },
+  { n: 11, icon: "check", style: { top: "70%", left: "40%", animationDelay: "0.8s" }, responsiveHide: true },
+  { n: 12, icon: "star", style: { top: "65%", left: "80%", animationDelay: "1.3s" }, responsiveHide: true },
+];
+
+const KNOWLEDGE_LINES = [
+  { n: 1, x1: 20, y1: 15, x2: 35, y2: 25, delay: "0s", responsiveHide: false },
+  { n: 2, x1: 35, y1: 25, x2: 55, y2: 20, delay: "0.5s", responsiveHide: false },
+  { n: 3, x1: 55, y1: 20, x2: 85, y2: 12, delay: "1s", responsiveHide: false },
+  { n: 4, x1: 8, y1: 35, x2: 25, y2: 45, delay: "0.3s", responsiveHide: false },
+  { n: 5, x1: 25, y1: 45, x2: 65, y2: 48, delay: "0.8s", responsiveHide: false },
+  { n: 6, x1: 20, y1: 60, x2: 60, y2: 75, delay: "1.3s", responsiveHide: false },
+  { n: 7, x1: 20, y1: 15, x2: 20, y2: 60, delay: "1.8s", responsiveHide: false },
+  { n: 8, x1: 55, y1: 20, x2: 45, y2: 50, delay: "2.3s", responsiveHide: false },
+  { n: 9, x1: 65, y1: 48, x2: 90, y2: 38, delay: "0.2s", responsiveHide: true },
+  { n: 10, x1: 40, y1: 70, x2: 75, y2: 80, delay: "0.7s", responsiveHide: true },
+  { n: 11, x1: 35, y1: 25, x2: 25, y2: 45, delay: "0.9s", responsiveHide: true },
+  { n: 12, x1: 75, y1: 30, x2: 65, y2: 48, delay: "1.5s", responsiveHide: true },
+];
+
+const languageSwitchRef = ref<HTMLElement | null>(null);
 
 // State management
 const loading = ref(false);
@@ -529,53 +710,113 @@ const registerData = reactive<{ [key: string]: any }>({
   confirmPassword: "",
 });
 
-// Login form validation rules
-const formRules = computed(() => ({
-  email: [
-    { required: true, message: t("auth.emailRequired"), type: "error" },
-    { email: true, message: t("auth.emailInvalid"), type: "error" },
-  ],
-  password: [
-    { required: true, message: t("auth.passwordRequired"), type: "error" },
-    { min: 8, message: t("auth.passwordMinLength"), type: "error" },
-    { max: 32, message: t("auth.passwordMaxLength"), type: "error" },
-    { pattern: /[a-zA-Z]/, message: t("auth.passwordMustContainLetter"), type: "error" },
-    { pattern: /\d/, message: t("auth.passwordMustContainNumber"), type: "error" },
-  ],
-}));
+// Field errors, shown under each input. The forms used to be TDesign forms
+// driven by rule tables; the checks below are the same rules, run in the same
+// order, and the first one that fails is the message shown. Each error is
+// kept as its i18n key rather than as translated text, so a message already
+// on screen follows a language switch the way TDesign's computed rules did.
+type FieldErrors<K extends string> = Record<K, string>;
+type LoginField = "email" | "password";
+type RegisterField = "username" | "email" | "password" | "confirmPassword";
 
-// Register form validation rules
-const registerRules = computed(() => ({
-  username: [
-    { required: true, message: t("auth.usernameRequired"), type: "error" },
-    { min: 2, message: t("auth.usernameMinLength"), type: "error" },
-    { max: 20, message: t("auth.usernameMaxLength"), type: "error" },
-    {
-      pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/,
-      message: t("auth.usernameInvalid"),
-      type: "error",
-    },
-  ],
-  email: [
-    { required: true, message: t("auth.emailRequired"), type: "error" },
-    { email: true, message: t("auth.emailInvalid"), type: "error" },
-  ],
-  password: [
-    { required: true, message: t("auth.passwordRequired"), type: "error" },
-    { min: 8, message: t("auth.passwordMinLength"), type: "error" },
-    { max: 32, message: t("auth.passwordMaxLength"), type: "error" },
-    { pattern: /[a-zA-Z]/, message: t("auth.passwordMustContainLetter"), type: "error" },
-    { pattern: /\d/, message: t("auth.passwordMustContainNumber"), type: "error" },
-  ],
-  confirmPassword: [
-    { required: true, message: t("auth.confirmPasswordRequired"), type: "error" },
-    {
-      validator: (val: string) => val === registerData.password,
-      message: t("auth.passwordMismatch"),
-      type: "error",
-    },
-  ],
-}));
+const loginErrors = reactive<FieldErrors<LoginField>>({ email: "", password: "" });
+const registerErrors = reactive<FieldErrors<RegisterField>>({
+  username: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+});
+
+// The look TDesign gave these fields: a top label on a 32px line, a large
+// (40px) input with the page's own border, hover and focus colours, and the
+// error line hung absolutely below the input so it never pushes the form
+// down. `md:text-[15px]` is needed because the Input's own `md:text-sm`
+// would otherwise win from 768px up.
+const FIELD_LABEL_CLASS = "text-foreground block min-h-8 text-sm leading-8 font-normal";
+const FIELD_INPUT_CLASS =
+  "border-border bg-card h-10 rounded-lg px-3 text-[15px] transition-all duration-200 md:text-[15px] " +
+  "hover:border-primary focus-visible:border-primary focus-visible:ring-primary/10 " +
+  "dark:bg-background dark:border-white/10 dark:hover:border-primary dark:focus-visible:border-primary " +
+  "aria-invalid:ring-0 aria-invalid:focus-visible:ring-3";
+const FIELD_ERROR_CLASS = "text-destructive absolute top-full left-0 m-0 max-w-full truncate text-xs leading-5";
+
+// TDesign's `email: true` rule is validator.js's isEmail. This is a close
+// equivalent without the dependency: no whitespace, one @, and a domain of
+// dot-separated labels ending in a top-level domain of two letters or more.
+const EMAIL_PATTERN = /^[^\s@]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z\u00a1-\uffff]{2,}$/i;
+
+// TDesign's `min`/`max` rules measure strings with getCharacterLength, which
+// counts every non-ASCII character as two. A Chinese username of one
+// character therefore passes `min: 2`, and ten is the most `max: 20` allows.
+const characterLength = (value: string): number => {
+  let length = 0;
+  for (let i = 0; i < value.length; i++) length += value.charCodeAt(i) > 127 ? 2 : 1;
+  return length;
+};
+
+const emailError = (value: string): string => {
+  if (!value) return "auth.emailRequired";
+  if (!EMAIL_PATTERN.test(value)) return "auth.emailInvalid";
+  return "";
+};
+
+const passwordError = (value: string): string => {
+  if (!value) return "auth.passwordRequired";
+  if (characterLength(value) < 8) return "auth.passwordMinLength";
+  if (characterLength(value) > 32) return "auth.passwordMaxLength";
+  if (!/[a-zA-Z]/.test(value)) return "auth.passwordMustContainLetter";
+  if (!/\d/.test(value)) return "auth.passwordMustContainNumber";
+  return "";
+};
+
+const usernameError = (value: string): string => {
+  if (!value) return "auth.usernameRequired";
+  if (characterLength(value) < 2) return "auth.usernameMinLength";
+  if (characterLength(value) > 20) return "auth.usernameMaxLength";
+  if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(value)) return "auth.usernameInvalid";
+  return "";
+};
+
+// Only the confirmation's own changes re-check it, as in TDesign: editing the
+// password afterwards leaves an existing mismatch message where it is.
+const confirmPasswordError = (value: string): string => {
+  if (!value) return "auth.confirmPasswordRequired";
+  if (value !== registerData.password) return "auth.passwordMismatch";
+  return "";
+};
+
+const FIELD_CHECKS: Record<LoginField | RegisterField, (value: string) => string> = {
+  username: usernameError,
+  email: emailError,
+  password: passwordError,
+  confirmPassword: confirmPasswordError,
+};
+
+// TDesign re-validated a field on every change of its value (the rules'
+// default `change` trigger), so an error appears and clears as the user types.
+const validateField = (errors: Record<string, string>, field: LoginField | RegisterField, value: string | number) => {
+  errors[field] = FIELD_CHECKS[field](String(value ?? ""));
+};
+
+const validateLogin = (): boolean => {
+  loginErrors.email = emailError(formData.email);
+  loginErrors.password = passwordError(formData.password);
+  return !loginErrors.email && !loginErrors.password;
+};
+
+const validateRegister = (): boolean => {
+  registerErrors.username = usernameError(registerData.username);
+  registerErrors.email = emailError(registerData.email);
+  registerErrors.password = passwordError(registerData.password);
+  registerErrors.confirmPassword = confirmPasswordError(registerData.confirmPassword);
+  return Object.values(registerErrors).every((message) => !message);
+};
+
+const clearErrors = (errors: Record<string, string>) => {
+  Object.keys(errors).forEach((key) => {
+    errors[key] = "";
+  });
+};
 
 // Toggle login/register mode
 const toggleMode = () => {
@@ -584,6 +825,8 @@ const toggleMode = () => {
   Object.keys(registerData).forEach((key) => {
     (registerData as any)[key] = "";
   });
+  clearErrors(loginErrors);
+  clearErrors(registerErrors);
 };
 
 // Toggle language menu
@@ -601,8 +844,7 @@ const selectLanguage = (lang: string) => {
 
 // Close language menu when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as HTMLElement;
-  if (!target.closest(".language-switch")) {
+  if (!languageSwitchRef.value?.contains(event.target as Node)) {
     showLanguageMenu.value = false;
   }
 };
@@ -742,8 +984,7 @@ const acceptAndEnter = async (token: string) => {
 // Handle login
 const handleLogin = async () => {
   try {
-    const valid = await formRef.value?.validate();
-    if (valid !== true) return;
+    if (!validateLogin()) return;
 
     loading.value = true;
 
@@ -778,8 +1019,7 @@ const handleLogin = async () => {
 // (drops back to the login form for the user to sign in).
 const handleRegister = async () => {
   try {
-    const valid = await registerFormRef.value?.validate();
-    if (valid !== true) return;
+    if (!validateRegister()) return;
 
     loading.value = true;
 
@@ -889,1091 +1129,80 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="less" scoped>
-.login-layout {
-  display: flex;
-  width: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  position: relative;
-  background: linear-gradient(
-    225deg,
-    #022c22 0%,
-    #064e3b 15%,
-    #065f46 25%,
-    #047857 38%,
-    #059669 50%,
-    #07c05f 65%,
-    #10b981 78%,
-    #34d399 90%,
-    #6ee7b7 100%
-  );
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background:
-      radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
-      radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
-    pointer-events: none;
-  }
+<style scoped>
+/*
+ * Kept as CSS: the carousel's pagination bullets are Swiper's own markup,
+ * which this template cannot put classes on.
+ */
+/*
+ * Swiper's own stylesheet is unlayered and sets `.swiper { padding: 0 }`,
+ * which beats any (layered) utility; this scoped rule is more specific.
+ */
+.screenshot-swiper {
+  padding-bottom: 40px;
 }
 
-.animated-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-  contain: strict;
+.screenshot-swiper :deep(.swiper-wrapper) {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.knowledge-node {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow:
-    0 0 15px rgba(255, 255, 255, 0.35),
-    0 0 30px rgba(16, 185, 129, 0.2),
-    inset 0 0 8px rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: nodePulse 5s infinite ease-in-out;
-  will-change: transform, opacity;
+.screenshot-swiper :deep(.swiper-pagination) {
+  bottom: 15px !important;
+  z-index: 10;
 }
 
-.node-icon {
-  width: 20px;
-  height: 20px;
-  color: rgba(255, 255, 255, 0.9);
+.screenshot-swiper :deep(.swiper-pagination-bullet) {
+  width: 10px;
+  height: 10px;
+  margin: 0 6px !important;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+  transition: all 0.3s ease;
 }
 
-.node-1 {
-  top: 15%;
-  left: 20%;
-  animation-delay: 0s;
+.screenshot-swiper :deep(.swiper-pagination-bullet-active) {
+  width: 28px;
+  border-radius: 5px;
+  background: var(--td-bg-color-container);
 }
 
-.node-2 {
-  top: 25%;
-  left: 35%;
-  animation-delay: 0.5s;
+/*
+ * Not `:global(html[…]) .screenshot-swiper`: Vue replaces a whole selector
+ * that contains :global() with the :global argument alone, which painted the
+ * entire <html> in the bullet colour in dark mode. A plain ancestor selector
+ * keeps the scope attribute on `.screenshot-swiper`.
+ */
+html[theme-mode="dark"] .screenshot-swiper :deep(.swiper-pagination-bullet-active) {
+  background: rgba(255, 255, 255, 0.9);
 }
+</style>
 
-.node-3 {
-  top: 20%;
-  left: 55%;
-  animation-delay: 1s;
-}
-
-.node-4 {
-  top: 30%;
-  left: 75%;
-  animation-delay: 1.5s;
-}
-
-.node-5 {
-  top: 45%;
-  left: 25%;
-  animation-delay: 2s;
-}
-
-.node-6 {
-  top: 50%;
-  left: 45%;
-  animation-delay: 2.5s;
-}
-
-.node-7 {
-  top: 48%;
-  left: 65%;
-  animation-delay: 3s;
-}
-
-.node-8 {
-  top: 60%;
-  left: 20%;
-  animation-delay: 0.3s;
-}
-
-.node-9 {
-  top: 12%;
-  right: 15%;
-  animation-delay: 1.8s;
-}
-
-.node-10 {
-  top: 38%;
-  right: 10%;
-  animation-delay: 2.3s;
-}
-
-.node-11 {
-  top: 70%;
-  left: 40%;
-  animation-delay: 0.8s;
-}
-
-.node-12 {
-  top: 65%;
-  left: 80%;
-  animation-delay: 1.3s;
-}
-
-@keyframes nodePulse {
+<style>
+/*
+ * The backdrop's keyframes, unscoped on purpose: a scoped block renames its
+ * keyframes with a hash and only rewrites `animation` declarations in that
+ * same block, so the `animate-[…]` utilities in the template would name a
+ * keyframe that does not exist and the backdrop would never move. The
+ * `login-` prefix keeps the global names from colliding.
+ */
+@keyframes login-node-pulse {
   0%,
   100% {
     transform: scale(1);
     opacity: 0.65;
   }
-
   50% {
     transform: scale(1.08);
     opacity: 0.9;
   }
 }
 
-.knowledge-lines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.35;
-}
-
-.connection-line {
-  stroke: rgba(255, 255, 255, 0.5);
-  stroke-width: 1.5;
-  stroke-dasharray: 6, 3;
-  stroke-linecap: round;
-  animation: lineFlow 10s infinite linear;
-  will-change: stroke-dashoffset;
-}
-
-.line-1 {
-  animation-delay: 0s;
-}
-
-.line-2 {
-  animation-delay: 0.5s;
-}
-
-.line-3 {
-  animation-delay: 1s;
-}
-
-.line-4 {
-  animation-delay: 0.3s;
-}
-
-.line-5 {
-  animation-delay: 0.8s;
-}
-
-.line-6 {
-  animation-delay: 1.3s;
-}
-
-.line-7 {
-  animation-delay: 1.8s;
-}
-
-.line-8 {
-  animation-delay: 2.3s;
-}
-
-.line-9 {
-  animation-delay: 0.2s;
-}
-
-.line-10 {
-  animation-delay: 0.7s;
-}
-
-.line-11 {
-  animation-delay: 0.9s;
-}
-
-.line-12 {
-  animation-delay: 1.5s;
-}
-
-@keyframes lineFlow {
-  0% {
+@keyframes login-line-flow {
+  from {
     stroke-dashoffset: 0;
   }
-
-  100% {
+  to {
     stroke-dashoffset: 18;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .knowledge-node {
-    animation: none;
-    opacity: 0.65;
-  }
-
-  .connection-line {
-    animation: none;
-  }
-}
-
-/* Left Showcase Section */
-.showcase-section {
-  flex: 0 0 52%;
-  display: flex;
-  align-items: flex-end;
-  padding: 100px 30px 100px 50px;
-  box-sizing: border-box;
-  position: relative;
-}
-
-.showcase-content {
-  width: 100%;
-  max-width: 600px;
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 60px;
-}
-
-.showcase-subtitle {
-  margin-top: 0;
-  font-size: 22px;
-  color: rgba(255, 255, 255, 0.95);
-  margin: 0 0 8px 0;
-  font-family: var(--app-font-family);
-  line-height: 1.4;
-  font-weight: 500;
-}
-
-.showcase-description {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0 0 28px 0;
-  font-family: var(--app-font-family);
-  line-height: 1.5;
-}
-
-.feature-tags {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 40px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  display: inline-block;
-  padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  color: var(--td-text-color-anti);
-  font-size: 14px;
-  font-weight: 500;
-  font-family: var(--app-font-family);
-}
-
-/* Carousel */
-.carousel-container {
-  width: 100%;
-  margin-top: 48px;
-}
-
-.screenshot-swiper {
-  width: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  padding-bottom: 40px;
-
-  :deep(.swiper-wrapper) {
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  :deep(.swiper-pagination) {
-    bottom: 15px !important;
-    z-index: 10;
-  }
-
-  :deep(.swiper-pagination-bullet) {
-    width: 10px;
-    height: 10px;
-    background: rgba(255, 255, 255, 0.5);
-    opacity: 1;
-    transition: all 0.3s ease;
-    margin: 0 6px !important;
-  }
-
-  :deep(.swiper-pagination-bullet-active) {
-    background: var(--td-bg-color-container);
-    width: 28px;
-    border-radius: 5px;
-  }
-}
-
-.slide-content {
-  width: 100%;
-  height: 100%;
-  background: var(--td-bg-color-container);
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.slide-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-}
-
-/* Right Form Section */
-.form-section {
-  flex: 0 0 48%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 40px 50px 100px 30px;
-  box-sizing: border-box;
-  position: relative;
-}
-
-.form-panel {
-  width: 100%;
-  max-width: 480px;
-  margin-bottom: 60px;
-  position: relative;
-  z-index: 2;
-}
-
-.header-logo {
-  position: fixed;
-  top: 32px;
-  left: 50px;
-  z-index: 100;
-  cursor: pointer;
-
-  .logo-image {
-    display: inline-block;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    color: var(--td-text-color-primary, #1a1a1a);
-    white-space: nowrap;
-    user-select: none;
-  }
-}
-
-.header-links {
-  position: fixed;
-  top: 28px;
-  right: 28px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  z-index: 100;
-}
-
-.header-link {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 15px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: var(--td-text-color-anti);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--app-font-family);
-  letter-spacing: 0.2px;
-  cursor: pointer;
-  position: relative;
-
-  svg {
-    flex-shrink: 0;
-  }
-
-  .link-text {
-    line-height: 1;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.4);
-    color: var(--td-text-color-anti);
-  }
-}
-
-.language-switch {
-  position: relative;
-
-  button {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: var(--td-text-color-anti);
-
-    .lang-flag-icon {
-      font-size: 16px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.3);
-      border-color: rgba(255, 255, 255, 0.4);
-    }
-
-    svg:last-child {
-      margin-left: 2px;
-      flex-shrink: 0;
-    }
-  }
-}
-
-.language-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 160px;
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-  z-index: 1000;
-}
-
-.language-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: var(--app-font-family);
-  color: var(--td-text-color-primary);
-
-  .lang-flag {
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .lang-label {
-    flex: 1;
-  }
-
-  .check-icon {
-    color: var(--td-success-color);
-    font-weight: 700;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.active {
-    background: var(--td-success-color-light);
-    color: var(--td-brand-color-active);
-  }
-}
-
-.form-card {
-  background: rgba(255, 255, 255, 0.97);
-  border-radius: 16px;
-  padding: 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  box-sizing: border-box;
-  border: none;
-  width: 100%;
-}
-
-/* Share-link invitation banner. Sits above the register form when the
- * user arrived via /register?token=xxx; gives them confirmation of who
- * invited them before they fill anything in. Subtle, neutral card —
- * the page background is heavily brand-coloured already, so a loud
- * tinted banner clashes; we lean on the form's own surface tokens. */
-.invite-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 20px;
-  border-radius: 10px;
-  background: var(--td-bg-color-container-hover, rgba(0, 0, 0, 0.03));
-  border: 1px solid var(--td-component-stroke);
-  color: var(--td-text-color-primary);
-}
-
-.invite-banner__icon {
-  margin-top: 2px;
-  font-size: 18px;
-  flex-shrink: 0;
-  color: var(--td-text-color-secondary);
-}
-
-.invite-banner__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.invite-banner__title {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-}
-
-.invite-banner__hint {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  line-height: 1.5;
-}
-
-.invite-banner--error {
-  background: var(--td-error-color-1, rgba(220, 38, 38, 0.06));
-  border-color: var(--td-error-color-3, rgba(220, 38, 38, 0.2));
-  color: var(--td-error-color, #b91c1c);
-  font-size: 13px;
-}
-
-.form-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.form-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 6px 0;
-  font-family: var(--app-font-family);
-}
-
-.form-welcome {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  margin: 0;
-  font-family: var(--app-font-family);
-}
-
-.form-hint {
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--td-success-color-light, rgba(7, 192, 95, 0.08));
-  color: var(--td-brand-color-active);
-  font-size: 12.5px;
-  line-height: 1.5;
-  font-family: var(--app-font-family);
-}
-
-/* 注册入口：从底部小字链接升级为带分隔线的醒目次级按钮，
-   让首次访客一眼就能找到「创建账户」。 */
-.register-cta {
-  margin-top: 8px;
-
-  &__divider {
-    position: relative;
-    text-align: center;
-    margin: 4px 0 14px;
-    color: var(--td-text-color-secondary);
-    font-size: 13px;
-    font-family: var(--app-font-family);
-
-    span {
-      position: relative;
-      z-index: 1;
-      padding: 0 12px;
-      background: rgba(255, 255, 255, 0.97);
-    }
-
-    &::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 50%;
-      border-top: 1px solid var(--td-component-stroke);
-    }
-  }
-
-  &__button {
-    height: 46px;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 500;
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-
-    &:hover {
-      border-color: var(--td-brand-color-active);
-      color: var(--td-brand-color-active);
-      background: var(--td-success-color-light, rgba(7, 192, 95, 0.08));
-    }
-  }
-}
-
-.form-subtitle {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  margin: 0;
-  font-family: var(--app-font-family);
-}
-
-.form-content {
-  :deep(.t-form-item__label) {
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    font-weight: 500;
-    margin-bottom: 8px;
-    font-family: var(--app-font-family);
-    display: block;
-    text-align: left;
-  }
-
-  :deep(.t-input) {
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    background: var(--td-bg-color-container);
-    transition: all 0.2s;
-
-    &:focus-within {
-      border-color: var(--td-brand-color);
-      box-shadow: 0 0 0 3px rgba(7, 192, 95, 0.1);
-    }
-
-    &:hover {
-      border-color: var(--td-brand-color);
-    }
-
-    .t-input__inner {
-      border: none !important;
-      box-shadow: none !important;
-      outline: none !important;
-      background: transparent;
-      font-size: 15px;
-      font-family: var(--app-font-family);
-
-      &:focus {
-        border: none !important;
-        box-shadow: none !important;
-        outline: none !important;
-      }
-    }
-
-    .t-input__wrap {
-      border: none !important;
-      box-shadow: none !important;
-    }
-  }
-
-  :deep(.t-form-item) {
-    margin-bottom: 18px;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  :deep(.t-form-item__control) {
-    width: 100%;
-  }
-}
-
-.submit-button {
-  height: 46px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 500;
-  font-family: var(--app-font-family);
-  margin: 20px 0 16px 0;
-}
-
-.oidc-divider {
-  position: relative;
-  margin: 4px 0 6px;
-  text-align: center;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-
-  span {
-    position: relative;
-    z-index: 1;
-    padding: 0 12px;
-    background: rgba(255, 255, 255, 0.95);
-  }
-
-  &::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    border-top: 1px solid var(--td-component-stroke);
-  }
-}
-
-.oidc-button {
-  height: 46px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.form-footer {
-  text-align: center;
-  font-size: 14px;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  margin-top: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  .link-button {
-    color: var(--td-brand-color);
-    text-decoration: none;
-    margin-left: 4px;
-    font-weight: 500;
-    transition: all 0.2s;
-
-    &:hover {
-      color: var(--td-brand-color);
-      text-decoration: underline;
-    }
-  }
-}
-
-.login-form-footer {
-  border-bottom: none;
-  padding-bottom: 8px;
-  margin-top: 12px;
-}
-
-.login-features {
-  margin-top: 20px;
-  padding: 0;
-
-  .feature-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    .feature-icon {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--td-success-color-light);
-      color: var(--td-brand-color-active);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-      margin-right: 10px;
-      flex-shrink: 0;
-    }
-
-    .feature-text {
-      line-height: 1.4;
-    }
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .knowledge-node:nth-of-type(n + 13) {
-    display: none;
-  }
-
-  .connection-line:nth-of-type(n + 13) {
-    display: none;
-  }
-
-  .showcase-subtitle {
-    font-size: 18px;
-  }
-
-  .header-logo {
-    top: 26px;
-    left: 40px;
-
-    .logo-image {
-      font-size: 19px;
-    }
-  }
-
-  .header-links {
-    top: 22px;
-    right: 22px;
-    gap: 8px;
-
-    .link-text {
-      display: none;
-    }
-
-    .header-link {
-      padding: 10px;
-      gap: 0;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .login-layout {
-    flex-direction: column;
-  }
-
-  .knowledge-node:nth-of-type(n + 9) {
-    display: none;
-  }
-
-  .connection-line:nth-of-type(n + 9) {
-    display: none;
-  }
-
-  .showcase-section {
-    flex: 0 0 auto;
-    min-height: 50vh;
-    padding: 40px 24px;
-  }
-
-  .showcase-content {
-    max-width: 100%;
-  }
-
-  .header-logo {
-    top: 22px;
-    left: 30px;
-
-    .logo-image {
-      font-size: 17px;
-    }
-  }
-
-  .showcase-subtitle {
-    font-size: 16px;
-    margin-bottom: 24px;
-  }
-
-  .feature-tags {
-    margin-bottom: 24px;
-  }
-
-  .carousel-container {
-    margin-top: 24px;
-  }
-
-  .form-section {
-    flex: 0 0 auto;
-    padding: 24px;
-  }
-
-  .header-links {
-    top: 18px;
-    right: 18px;
-    gap: 8px;
-
-    .link-text {
-      display: inline;
-    }
-
-    .header-link {
-      padding: 8px 12px;
-      font-size: 12px;
-    }
-  }
-
-  .form-card {
-    padding: 32px 24px;
-  }
-
-  .form-title {
-    font-size: 22px;
-  }
-}
-
-@media (max-width: 480px) {
-  .animated-bg {
-    display: none;
-  }
-
-  .showcase-section {
-    padding: 32px 20px;
-  }
-
-  .header-logo {
-    top: 18px;
-    left: 20px;
-
-    .logo-image {
-      font-size: 15px;
-    }
-  }
-
-  .showcase-subtitle {
-    font-size: 14px;
-  }
-
-  .tag {
-    font-size: 12px;
-    padding: 6px 16px;
-  }
-
-  .form-section {
-    padding: 20px;
-  }
-
-  .header-links {
-    top: 14px;
-    right: 14px;
-    gap: 6px;
-    flex-wrap: wrap;
-
-    .header-link {
-      padding: 7px 10px;
-      font-size: 11px;
-    }
-  }
-
-  .form-card {
-    padding: 28px 20px;
-  }
-
-  .form-header {
-    margin-bottom: 24px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .knowledge-node,
-  .connection-line {
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .animated-bg {
-    display: none;
-  }
-}
-</style>
-
-<style lang="less">
-html[theme-mode="dark"] {
-  .login-layout {
-    background: linear-gradient(
-      225deg,
-      #011a14 0%,
-      #032e22 15%,
-      #043a2c 25%,
-      #05503d 38%,
-      #046647 50%,
-      #038a56 65%,
-      #049b60 78%,
-      #06a06a 90%,
-      #07b074 100%
-    );
-  }
-
-  .knowledge-node {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
-  }
-
-  .connection-line {
-    stroke: rgba(255, 255, 255, 0.25);
-  }
-
-  .header-logo .logo-image {
-    filter: invert(1) hue-rotate(180deg) brightness(1.1);
-  }
-
-  .header-link {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.15);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-  }
-
-  .language-switch button {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.15);
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-  }
-
-  .language-dropdown {
-    background: rgba(36, 36, 36, 0.97) !important;
-    border-color: var(--td-component-stroke) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
-  }
-
-  .tag {
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  .form-card {
-    background: rgba(36, 36, 36, 0.97) !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
-  }
-
-  .register-cta__divider span {
-    background: rgba(36, 36, 36, 0.97);
-  }
-
-  .form-content .t-input {
-    background: var(--td-bg-color-page) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-
-    &:hover {
-      border-color: var(--td-brand-color) !important;
-    }
-
-    &:focus-within {
-      border-color: var(--td-brand-color) !important;
-    }
-  }
-
-  .screenshot-swiper .swiper-pagination-bullet-active {
-    background: rgba(255, 255, 255, 0.9) !important;
-  }
-
-  .login-features .feature-icon {
-    background: rgba(6, 176, 77, 0.15);
   }
 }
 </style>

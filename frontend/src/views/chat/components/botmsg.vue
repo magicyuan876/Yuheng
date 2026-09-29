@@ -1,12 +1,14 @@
 <template>
-  <div class="bot_msg">
-    <div style="display: flex; flex-direction: column; gap: 8px">
+  <div class="text-foreground mr-auto box-border max-w-full rounded text-base">
+    <div class="flex flex-col gap-2">
       <!-- 显示@的知识库和文件 -->
-      <div v-if="mentionedItems && mentionedItems.length > 0" class="mentioned_items">
-        <span v-for="item in mentionedItems" :key="item.id" class="mentioned_tag" :class="[mentionTagClass(item)]">
+      <div v-if="mentionedItems && mentionedItems.length > 0" class="chat-mentioned-items">
+        <span v-for="item in mentionedItems" :key="item.id" class="chat-mentioned-tag" :class="[mentionTagClass(item)]">
           <span class="tag_icon">
-            <t-icon v-if="item.type === 'kb'" :name="item.kb_type === 'faq' ? 'chat-bubble-help' : 'folder'" />
-            <t-icon v-else :name="mentionTagIcon(item)" />
+            <FolderIcon v-if="item.type === 'kb' && item.kb_type !== 'faq'" class="h-3.5 w-3.5" />
+            <MessageCircleQuestionIcon v-else-if="item.type === 'kb'" class="h-3.5 w-3.5" />
+            <TagIcon v-else-if="item.type === 'tag'" class="h-3.5 w-3.5" />
+            <FileIcon v-else class="h-3.5 w-3.5" />
           </span>
           <span class="tag_name">{{ item.name }}</span>
         </span>
@@ -19,39 +21,64 @@
     <div ref="parentMd">
       <!-- 直接渲染完整内容，避免切分导致的问题，样式与 thinking 一致 -->
       <!-- 只有当有实际内容时才显示包围框 -->
-      <div class="content-wrapper" v-if="hasActualContent">
-        <div class="ai-markdown-template markdown-content" v-stable-html="renderedHTML"></div>
+      <div v-if="hasActualContent" class="py-[2px]">
+        <div
+          class="ai-markdown-template markdown-content chat-markdown-typography chat-citation-pills"
+          v-stable-html="renderedHTML"
+        ></div>
       </div>
       <!-- 复制和添加到知识库按钮 -->
       <div v-if="answerFullyRendered && (content || session.content)" class="answer-toolbar">
-        <t-button size="small" variant="outline" shape="round" @click.stop="handleCopyAnswer" :title="$t('agent.copy')">
-          <t-icon name="copy" />
-        </t-button>
-        <t-button
-          size="small"
-          variant="outline"
-          shape="round"
-          @click.stop="handleAddToKnowledge"
-          :title="$t('agent.addToKnowledgeBase')"
+        <!-- The toolbar's buttons wear the look the toolbar gave TDesign buttons: a 30px square,
+             transparent, borderless, muted, with thin-stroke 16px glyphs. ChatRequestInfoButton
+             beside them carries the same classes. -->
+        <button
+          type="button"
+          data-slot="answer-toolbar-button"
+          class="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-[30px] shrink-0 items-center justify-center rounded-[8px] transition-[background-color,color] duration-150 ease-in-out active:bg-[var(--td-bg-color-container-active)]"
+          :title="$t('agent.copy')"
+          :aria-label="$t('agent.copy')"
+          @click.stop="handleCopyAnswer"
         >
-          <t-icon name="bookmark-add" />
-        </t-button>
-        <!-- Fallback 提示图标 -->
-        <t-tooltip v-if="session.is_fallback" :content="$t('chat.fallbackHint')" placement="top">
-          <t-button size="small" variant="outline" shape="round" class="fallback-icon-btn">
-            <t-icon name="info-circle" />
-          </t-button>
-        </t-tooltip>
+          <CopyIcon class="size-4 stroke-[1.2]" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          data-slot="answer-toolbar-button"
+          class="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-[30px] shrink-0 items-center justify-center rounded-[8px] transition-[background-color,color] duration-150 ease-in-out active:bg-[var(--td-bg-color-container-active)]"
+          :title="$t('agent.addToKnowledgeBase')"
+          :aria-label="$t('agent.addToKnowledgeBase')"
+          @click.stop="handleAddToKnowledge"
+        >
+          <BookmarkPlusIcon class="size-4 stroke-[1.2]" aria-hidden="true" />
+        </button>
+        <!-- Fallback 提示图标: dimmer than its neighbours, it only explains, it does nothing. -->
+        <Tooltip v-if="session.is_fallback">
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              data-slot="answer-toolbar-button"
+              class="hover:bg-accent hover:text-placeholder inline-flex size-[30px] shrink-0 items-center justify-center rounded-[8px] text-[var(--td-text-color-disabled)] transition-[background-color,color] duration-150 ease-in-out active:bg-[var(--td-bg-color-container-active)]"
+              :aria-label="$t('chat.fallbackHint')"
+            >
+              <InfoIcon class="size-4 stroke-[1.2]" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{{ $t("chat.fallbackHint") }}</TooltipContent>
+        </Tooltip>
         <ChatRequestInfoButton v-if="showRequestInfo" :session="session" :session-id="sessionId" />
         <transition name="follow-up-toolbar-loading">
           <span v-if="followUpLoading" class="answer-toolbar__follow-up-loading" role="status" aria-live="polite">
-            <t-icon name="lightbulb" />
+            <LightbulbIcon class="h-3.5 w-3.5" />
             <span class="answer-toolbar__follow-up-label">{{ t("chat.followUpQuestionsLoading") }}</span>
           </span>
         </transition>
       </div>
-      <div v-if="isImgLoading" class="img_loading">
-        <t-loading size="small"></t-loading><span>{{ $t("common.loading") }}</span>
+      <div
+        v-if="isImgLoading"
+        class="bg-accent text-placeholder ml-4 flex h-[230px] w-[230px] flex-col items-center justify-center gap-1 rounded-lg text-xs"
+      >
+        <Loader2Icon class="h-4 w-4 animate-spin" /><span>{{ $t("common.loading") }}</span>
       </div>
     </div>
     <picturePreview :reviewImg="reviewImg" :reviewUrl="reviewUrl" @closePreImg="closePreImg"></picturePreview>
@@ -63,6 +90,18 @@
 <script setup>
 import { onMounted, onBeforeUnmount, watch, computed, ref, nextTick, onUpdated } from "vue";
 import "katex/dist/katex.min.css";
+import {
+  BookmarkPlusIcon,
+  CopyIcon,
+  FileIcon,
+  FolderIcon,
+  InfoIcon,
+  Loader2Icon,
+  LightbulbIcon,
+  MessageCircleQuestionIcon,
+  TagIcon,
+} from "@lucide/vue";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import deepThink from "./deepThink.vue";
 import RagPipelineProgress from "./RagPipelineProgress.vue";
 import ChatRequestInfoButton from "@/components/ChatRequestInfoButton.vue";
@@ -91,17 +130,16 @@ import { refreshMarkdownEnhancements } from "@/utils/markdownEnhancements";
 import { useChatCitationPopover } from "@/composables/useChatCitationPopover";
 import { useTypewriter } from "@/composables/useTypewriter";
 import { vStableHtml } from "@/directives/stableHtml";
+import "@/components/css/chat-markdown.css";
+import "@/components/css/chat-message-shared.css";
+import "@/components/css/chat-citations.css";
+import "@/components/css/chat-resource-chips.css";
 
 ensureMermaidInitialized();
 
 const mentionTagClass = (item) => {
   if (item.type === "kb") return item.kb_type === "faq" ? "faq-tag" : "kb-tag";
   return `${item.type || "file"}-tag`;
-};
-
-const mentionTagIcon = (item) => {
-  if (item.type === "tag") return "tag";
-  return "file";
 };
 
 const emit = defineEmits(["scroll-bottom", "render-complete-change"]);
@@ -305,108 +343,3 @@ onBeforeUnmount(() => {
   }
 });
 </script>
-<style lang="less" scoped>
-@import "../../../components/css/chat-markdown.less";
-@import "../../../components/css/chat-message-shared.less";
-@import "../../../components/css/chat-citations.less";
-
-.rag-answer-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-// 内容包装器
-.content-wrapper {
-  padding: 2px 0;
-}
-
-.markdown-content {
-  // Chat Markdown visual styles are centralized in chat-markdown.less.
-  // Do not add element-level Markdown rules here; update the shared mixin.
-  .chat-markdown-typography();
-  .chat-citation-pills();
-}
-
-.mentioned_items {
-  .chat-mentioned-items();
-}
-
-.mentioned_tag {
-  .chat-mentioned-tag();
-}
-
-.fallback-icon-btn {
-  color: var(--td-text-color-disabled) !important;
-  border-color: var(--td-component-stroke) !important;
-
-  &:hover {
-    color: var(--td-text-color-placeholder) !important;
-    border-color: var(--td-component-border) !important;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ai-markdown-img {
-  max-width: 80%;
-  max-height: 300px;
-  width: auto;
-  height: auto;
-  border-radius: 8px;
-  display: block;
-  cursor: pointer;
-  object-fit: contain;
-  margin: 8px 0 8px 16px;
-  border: 0.5px solid var(--td-component-stroke);
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.02);
-  }
-}
-
-.bot_msg {
-  border-radius: 4px;
-  color: var(--td-text-color-primary);
-  font-size: 16px;
-  margin-right: auto;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.botanswer_laoding_gif {
-  width: 24px;
-  height: 18px;
-  margin-left: 16px;
-}
-
-.img_loading {
-  background: var(--td-bg-color-container-hover);
-  height: 230px;
-  width: 230px;
-  color: var(--td-text-color-placeholder);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  font-size: 12px;
-  gap: 4px;
-  margin-left: 16px;
-  border-radius: 8px;
-}
-
-:deep(.t-loading__gradient-conic) {
-  background: conic-gradient(from 90deg at 50% 50%, #fff 0deg, #676767 360deg) !important;
-}
-</style>

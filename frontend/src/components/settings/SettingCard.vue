@@ -1,33 +1,67 @@
 <template>
-  <div class="setting-card" :class="{ 'setting-card--disabled': disabled }">
-    <div class="setting-card__header">
-      <h3 class="setting-card__title" :title="title">{{ title }}</h3>
-      <div class="setting-card__header-right">
+  <div
+    class="flex min-w-0 flex-col gap-2 rounded-[8px] border border-[var(--td-component-stroke)] p-4 transition-[border-color,box-shadow,background-color] duration-200"
+    :class="
+      disabled
+        ? 'bg-secondary hover:border-[var(--td-brand-color-light)] hover:shadow-none'
+        : 'bg-card hover:border-primary hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)]'
+    "
+  >
+    <div class="flex min-w-0 items-center justify-between gap-2">
+      <h3
+        class="m-0 min-w-0 flex-1 truncate text-[15px] leading-[1.4] font-semibold"
+        :class="disabled ? 'text-muted-foreground' : 'text-foreground'"
+        :title="title"
+      >
+        {{ title }}
+      </h3>
+      <div class="flex shrink-0 items-center gap-1">
         <slot name="controls" />
-        <t-dropdown
-          v-if="actions && actions.length > 0"
-          :options="actions"
-          placement="bottom-right"
-          attach="body"
-          @click="(data: any) => emit('action', data.value)"
-        >
-          <t-button variant="text" shape="square" size="small" class="setting-card__more">
-            <t-icon name="more" />
-          </t-button>
-        </t-dropdown>
+        <DropdownMenu v-if="actions && actions.length > 0">
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="icon-xs" class="text-placeholder hover:text-foreground hover:bg-secondary">
+              <EllipsisVerticalIcon class="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              v-for="action in actions"
+              :key="action.value"
+              :class="action.theme === 'error' ? 'text-destructive focus:text-destructive' : ''"
+              @select="emit('action', action.value)"
+            >
+              {{ action.content }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
-    <div v-if="$slots.tags" class="setting-card__tags">
+    <div v-if="$slots.tags" class="flex min-h-5 flex-wrap items-center gap-1.5">
       <slot name="tags" />
     </div>
-    <p v-if="description" class="setting-card__desc">{{ description }}</p>
-    <div v-if="$slots.meta" class="setting-card__meta">
+    <p
+      v-if="description"
+      class="text-muted-foreground m-0 [display:-webkit-box] overflow-hidden text-[13px] leading-normal break-all [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+    >
+      {{ description }}
+    </p>
+    <div v-if="$slots.meta" class="text-placeholder flex flex-wrap items-center gap-3 text-xs">
       <slot name="meta" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { EllipsisVerticalIcon } from "@lucide/vue";
+
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 interface DropdownOption {
   content: string;
   value: string;
@@ -51,105 +85,3 @@ const emit = defineEmits<{
   (e: "action", value: string): void;
 }>();
 </script>
-
-<style lang="less" scoped>
-.setting-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  min-width: 0;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
-
-  &--disabled {
-    background: var(--td-bg-color-secondarycontainer);
-
-    .setting-card__title {
-      color: var(--td-text-color-secondary);
-    }
-
-    &:hover {
-      border-color: var(--td-brand-color-light);
-      box-shadow: none;
-    }
-  }
-}
-
-.setting-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
-.setting-card__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.setting-card__header-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.setting-card__more {
-  color: var(--td-text-color-placeholder);
-  padding: 4px;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.setting-card__tags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: 20px;
-}
-
-.setting-card__desc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-all;
-}
-
-.setting-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

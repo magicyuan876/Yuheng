@@ -120,6 +120,15 @@ export default {
     },
   },
   tenantMember: {
+    pager: {
+      total: "共 {total} 条数据",
+      pageSize: "{size} 条/页",
+      pageSizeLabel: "每页条数",
+      jumpTo: "跳至",
+      jumpToSuffix: "页",
+      previous: "上一页",
+      next: "下一页",
+    },
     title: "成员管理",
     sectionDescription: "邀请伙伴加入当前空间并分配角色。只有 Owner 可以新增或移除成员。",
     learnRbacGuide: "了解 RBAC",
@@ -4449,6 +4458,7 @@ export default {
       collapse: "收起目录",
       expand: "展开目录",
       expandFolder: "展开该文件夹",
+      collapseFolder: "收起该文件夹",
       rename: "重命名",
       renamePlaceholder: "输入文件夹名称",
       renameSuccess: "文件夹已重命名",

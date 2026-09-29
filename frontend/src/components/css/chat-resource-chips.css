@@ -1,0 +1,83 @@
+@reference "../../assets/tailwind.css";
+
+/*
+ * Mentioned-resource chips shown above a chat message (KB / FAQ / file /
+ * tag / MCP / skill / tool). Converted from Less: the chip-surface and
+ * chip-hover mixins were inlined into their single consumer (Input-field),
+ * the remaining mixins became the classes below, applied from the
+ * botmsg/usermsg templates.
+ */
+@layer components {
+  /* Layout for the row of mentioned-resource chips. */
+  .chat-mentioned-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+    max-width: 100%;
+    margin-bottom: 2px;
+  }
+
+  /* Surface + contents of a single mentioned-resource chip. */
+  .chat-mentioned-tag {
+    @apply bg-muted text-foreground;
+
+    border: 1px solid var(--td-component-stroke);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--td-bg-color-container) 72%, transparent);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 26px;
+    max-width: 200px;
+    padding: 3px 8px;
+    border-radius: var(--td-radius-medium, 6px);
+    box-sizing: border-box;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+    cursor: default;
+
+    &.kb-tag .tag_icon {
+      @apply text-primary;
+    }
+
+    &.faq-tag .tag_icon {
+      color: var(--yuheng-faq-color, #0052d9);
+    }
+
+    &.file-tag .tag_icon {
+      @apply text-muted-foreground;
+    }
+
+    &.tag-tag .tag_icon {
+      color: #9f7aea;
+    }
+
+    &.mcp-tag .tag_icon {
+      color: #0f766e;
+    }
+
+    &.skill-tag .tag_icon {
+      color: #7c3aed;
+    }
+
+    &.tool-tag .tag_icon {
+      color: #b7791f;
+    }
+
+    .tag_icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .tag_name {
+      overflow: hidden;
+      color: currentColor;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

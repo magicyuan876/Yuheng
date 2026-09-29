@@ -1,38 +1,50 @@
 <template>
-  <t-popup
-    trigger="click"
-    placement="bottom-left"
-    :overlay-style="{ padding: 0 }"
-    :overlay-inner-style="{ padding: 0 }"
-  >
-    <template #content>
-      <div class="kb-switcher-card">
-        <div class="kb-switcher-list">
-          <button
-            v-for="item in sortedList"
-            :key="item.id"
-            type="button"
-            class="kb-switcher-row"
-            :class="{ active: item.id === currentKbId }"
-            @click="handleSelect(item.id)"
-          >
-            <t-icon :name="iconFor(item.type)" class="kb-switcher-row-icon" size="16px" />
-            <span class="kb-switcher-row-name" :title="item.name">{{ item.name }}</span>
-            <t-icon v-if="item.id === currentKbId" name="check" class="kb-switcher-row-check" size="14px" />
-          </button>
-          <div v-if="!sortedList.length" class="kb-switcher-empty">
-            {{ t("common.noData") }}
-          </div>
+  <Popover>
+    <PopoverTrigger as-child>
+      <slot />
+    </PopoverTrigger>
+    <!-- The max-height mirrors the info popover's cap so both header surfaces stay inside the
+         viewport on shorter laptops. -->
+    <PopoverContent
+      class="block max-h-[min(60vh,420px)] w-auto max-w-[320px] min-w-[220px] overflow-hidden p-1.5"
+      align="start"
+    >
+      <div class="flex max-h-[calc(min(60vh,420px)-12px)] flex-col gap-px overflow-y-auto">
+        <button
+          v-for="item in sortedList"
+          :key="item.id"
+          type="button"
+          class="flex cursor-pointer items-center gap-2 rounded-md border-0 px-2.5 py-1.5 text-left text-[13px] leading-[1.4] transition-[background,color] duration-150"
+          :class="
+            item.id === currentKbId
+              ? 'text-primary bg-[var(--td-brand-color-light)] font-medium'
+              : 'text-foreground hover:bg-secondary'
+          "
+          @click="handleSelect(item.id)"
+        >
+          <component
+            :is="iconFor(item.type)"
+            class="size-4 flex-none"
+            :class="item.id === currentKbId ? 'text-primary' : 'text-placeholder'"
+          />
+          <span class="min-w-0 flex-1 truncate" :title="item.name">{{ item.name }}</span>
+          <CheckIcon v-if="item.id === currentKbId" class="text-primary size-3.5 flex-none" />
+        </button>
+        <div v-if="!sortedList.length" class="text-placeholder p-4 text-center text-xs">
+          {{ t("common.noData") }}
         </div>
       </div>
-    </template>
-    <slot />
-  </t-popup>
+    </PopoverContent>
+  </Popover>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { CheckIcon, FolderIcon, MessageCircleQuestionMarkIcon } from "@lucide/vue";
+
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface KBEntry {
   id: string;
@@ -63,9 +75,9 @@ const sortedList = computed<KBEntry[]>(() => {
   return [current, ...all.filter((kb) => kb.id !== props.currentKbId)];
 });
 
-const iconFor = (type?: string): string => {
-  if (type === "faq") return "chat-bubble-help";
-  return "folder";
+const iconFor = (type?: string): Component => {
+  if (type === "faq") return MessageCircleQuestionMarkIcon;
+  return FolderIcon;
 };
 
 const handleSelect = (id: string): void => {
@@ -73,81 +85,3 @@ const handleSelect = (id: string): void => {
   emit("select", id);
 };
 </script>
-
-<style scoped lang="less">
-.kb-switcher-card {
-  min-width: 220px;
-  max-width: 320px;
-  /* Mirror the info popover's cap so both header surfaces stay inside
-     the viewport on shorter laptops. */
-  max-height: min(60vh, 420px);
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  overflow: hidden;
-}
-
-.kb-switcher-list {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.kb-switcher-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  line-height: 1.4;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  text-align: left;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.active {
-    background: var(--td-brand-color-light, rgba(0, 82, 217, 0.08));
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.kb-switcher-row-icon {
-  flex: 0 0 auto;
-  color: var(--td-text-color-placeholder);
-
-  .kb-switcher-row.active & {
-    color: var(--td-brand-color);
-  }
-}
-
-.kb-switcher-row-name {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kb-switcher-row-check {
-  flex: 0 0 auto;
-  color: var(--td-brand-color);
-}
-
-.kb-switcher-empty {
-  padding: 16px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

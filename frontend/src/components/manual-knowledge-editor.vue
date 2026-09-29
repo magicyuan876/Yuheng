@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from "vue";
+import { ref, reactive, computed, watch, nextTick, onBeforeUnmount, type Component } from "vue";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
 import { marked } from "marked";
 import { MessagePlugin } from "tdesign-vue-next";
@@ -16,6 +16,32 @@ import { useOrganizationStore } from "@/stores/organization";
 import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
 import { sanitizeHTML, safeMarkdownToHTML } from "@/utils/security";
 import { useI18n } from "vue-i18n";
+import {
+  BoldIcon,
+  CodeIcon,
+  EyeIcon,
+  Heading1Icon,
+  Heading2Icon,
+  Heading3Icon,
+  ImageIcon,
+  ItalicIcon,
+  LinkIcon,
+  ListIcon,
+  ListOrderedIcon,
+  Loader2Icon,
+  MinusIcon,
+  QuoteIcon,
+  SquareCheckIcon,
+  SquareCodeIcon,
+  SquarePenIcon,
+  StrikethroughIcon,
+  TableIcon,
+} from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface KnowledgeBaseOption {
   label: string;
@@ -93,6 +119,11 @@ const selectionEvents = ["select", "keyup", "click", "mouseup", "input"];
 const resolveTextareaElement = (): HTMLTextAreaElement | null => {
   const component = textareaComponent.value as any;
   if (!component) return null;
+  // The ui Textarea renders the <textarea> as its root element, so the
+  // component's $el is the element itself.
+  if (component.$el instanceof HTMLTextAreaElement) {
+    return component.$el;
+  }
   if (component.textareaRef) {
     return component.textareaRef as HTMLTextAreaElement;
   }
@@ -320,7 +351,7 @@ type ToolbarButton = {
   key: string;
   tooltip: string;
   action: ToolbarAction;
-  icon: string;
+  icon: Component;
 };
 type ToolbarGroup = {
   key: string;
@@ -333,25 +364,25 @@ const toolbarGroups = computed<ToolbarGroup[]>(() => [
     buttons: [
       {
         key: "bold",
-        icon: "textformat-bold",
+        icon: BoldIcon,
         tooltip: t("manualEditor.toolbar.bold"),
         action: () => wrapSelection("**", "**", t("manualEditor.placeholders.bold")),
       },
       {
         key: "italic",
-        icon: "textformat-italic",
+        icon: ItalicIcon,
         tooltip: t("manualEditor.toolbar.italic"),
         action: () => wrapSelection("*", "*", t("manualEditor.placeholders.italic")),
       },
       {
         key: "strike",
-        icon: "textformat-strikethrough",
+        icon: StrikethroughIcon,
         tooltip: t("manualEditor.toolbar.strike"),
         action: () => wrapSelection("~~", "~~", t("manualEditor.placeholders.strike")),
       },
       {
         key: "inline-code",
-        icon: "code",
+        icon: CodeIcon,
         tooltip: t("manualEditor.toolbar.inlineCode"),
         action: () => wrapSelection("`", "`", t("manualEditor.placeholders.inlineCode")),
       },
@@ -360,30 +391,30 @@ const toolbarGroups = computed<ToolbarGroup[]>(() => [
   {
     key: "heading",
     buttons: [
-      { key: "h1", icon: "numbers-1", tooltip: t("manualEditor.toolbar.heading1"), action: () => applyHeading(1) },
-      { key: "h2", icon: "numbers-2", tooltip: t("manualEditor.toolbar.heading2"), action: () => applyHeading(2) },
-      { key: "h3", icon: "numbers-3", tooltip: t("manualEditor.toolbar.heading3"), action: () => applyHeading(3) },
+      { key: "h1", icon: Heading1Icon, tooltip: t("manualEditor.toolbar.heading1"), action: () => applyHeading(1) },
+      { key: "h2", icon: Heading2Icon, tooltip: t("manualEditor.toolbar.heading2"), action: () => applyHeading(2) },
+      { key: "h3", icon: Heading3Icon, tooltip: t("manualEditor.toolbar.heading3"), action: () => applyHeading(3) },
     ],
   },
   {
     key: "list",
     buttons: [
-      { key: "ul", icon: "view-list", tooltip: t("manualEditor.toolbar.bulletList"), action: applyBulletList },
-      { key: "ol", icon: "list-numbered", tooltip: t("manualEditor.toolbar.orderedList"), action: applyOrderedList },
-      { key: "task", icon: "check-rectangle", tooltip: t("manualEditor.toolbar.taskList"), action: applyTaskList },
-      { key: "quote", icon: "quote", tooltip: t("manualEditor.toolbar.blockquote"), action: applyBlockquote },
+      { key: "ul", icon: ListIcon, tooltip: t("manualEditor.toolbar.bulletList"), action: applyBulletList },
+      { key: "ol", icon: ListOrderedIcon, tooltip: t("manualEditor.toolbar.orderedList"), action: applyOrderedList },
+      { key: "task", icon: SquareCheckIcon, tooltip: t("manualEditor.toolbar.taskList"), action: applyTaskList },
+      { key: "quote", icon: QuoteIcon, tooltip: t("manualEditor.toolbar.blockquote"), action: applyBlockquote },
     ],
   },
   {
     key: "insert",
     buttons: [
-      { key: "codeblock", icon: "code-1", tooltip: t("manualEditor.toolbar.codeBlock"), action: insertCodeBlock },
-      { key: "link", icon: "link", tooltip: t("manualEditor.toolbar.link"), action: insertLink },
-      { key: "image", icon: "image", tooltip: t("manualEditor.toolbar.image"), action: insertImage },
-      { key: "table", icon: "table", tooltip: t("manualEditor.toolbar.table"), action: insertTable },
+      { key: "codeblock", icon: SquareCodeIcon, tooltip: t("manualEditor.toolbar.codeBlock"), action: insertCodeBlock },
+      { key: "link", icon: LinkIcon, tooltip: t("manualEditor.toolbar.link"), action: insertLink },
+      { key: "image", icon: ImageIcon, tooltip: t("manualEditor.toolbar.image"), action: insertImage },
+      { key: "table", icon: TableIcon, tooltip: t("manualEditor.toolbar.table"), action: insertTable },
       {
         key: "hr",
-        icon: "component-divider-horizontal",
+        icon: MinusIcon,
         tooltip: t("manualEditor.toolbar.horizontalRule"),
         action: insertHorizontalRule,
       },
@@ -392,7 +423,7 @@ const toolbarGroups = computed<ToolbarGroup[]>(() => [
 ]);
 
 const isPreviewMode = computed(() => activeTab.value === "preview");
-const viewToggleIcon = computed(() => (isPreviewMode.value ? "edit-1" : "browse"));
+const viewToggleIcon = computed<Component>(() => (isPreviewMode.value ? SquarePenIcon : EyeIcon));
 const viewToggleLabel = computed(() =>
   isPreviewMode.value ? t("manualEditor.view.editLabel") : t("manualEditor.view.previewLabel"),
 );
@@ -753,499 +784,249 @@ onBeforeUnmount(() => {
     "
   >
     <template #footer-left>
-      <div class="manual-editor-footer-meta">
-        <t-tag size="small" theme="warning" variant="light" v-if="form.status === 'draft'">
+      <div class="text-placeholder flex min-w-0 items-center gap-2">
+        <span
+          v-if="form.status === 'draft'"
+          class="text-warning inline-flex h-5 items-center rounded-(--td-radius-default) bg-(--td-warning-color-light) px-1.5 text-xs leading-none whitespace-nowrap"
+        >
           {{ $t("manualEditor.status.draftTag") }}
-        </t-tag>
-        <t-tag size="small" theme="success" variant="light" v-else>
+        </span>
+        <span
+          v-else
+          class="text-success inline-flex h-5 items-center rounded-(--td-radius-default) bg-(--td-success-color-light) px-1.5 text-xs leading-none whitespace-nowrap"
+        >
           {{ $t("manualEditor.status.publishedTag") }}
-        </t-tag>
+        </span>
       </div>
     </template>
 
     <template #footer-right>
-      <div class="manual-editor-footer-actions">
-        <t-button
-          theme="default"
-          variant="outline"
-          class="manual-editor-cancel-btn"
+      <div class="flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          class="bg-muted text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground min-w-[88px] border-transparent transition-colors duration-200"
           :disabled="saving"
           @click="handleClose"
         >
           {{ $t("manualEditor.actions.cancel") }}
-        </t-button>
-        <t-button
-          variant="outline"
-          theme="default"
-          @click="handleSave('draft')"
-          :loading="saving && savingAction === 'draft'"
-          :disabled="saving && savingAction !== 'draft'"
-        >
+        </Button>
+        <Button variant="outline" class="min-w-[88px]" :disabled="saving" @click="handleSave('draft')">
+          <Loader2Icon v-if="saving && savingAction === 'draft'" class="animate-spin" />
           {{ $t("manualEditor.actions.saveDraft") }}
-        </t-button>
-        <t-button
-          theme="primary"
-          @click="handleSave('publish')"
-          :loading="saving && savingAction === 'publish'"
-          :disabled="saving && savingAction !== 'publish'"
-        >
+        </Button>
+        <Button class="min-w-[88px]" :disabled="saving" @click="handleSave('publish')">
+          <Loader2Icon v-if="saving && savingAction === 'publish'" class="animate-spin" />
           {{ $t("manualEditor.actions.publish") }}
-        </t-button>
+        </Button>
       </div>
     </template>
 
-    <div class="manual-editor" v-if="initialLoaded">
+    <!-- The section / section-title classes are SettingDrawer's styling
+         contract for the groups inside its body. -->
+    <div v-if="initialLoaded" class="flex flex-col">
       <section class="setting-drawer__section">
         <h4 class="setting-drawer__section-title">{{ $t("manualEditor.section.basic") }}</h4>
 
-        <div class="form-item">
-          <label class="form-label required">{{ $t("manualEditor.form.titleLabel") }}</label>
-          <t-input
-            v-model="form.title"
-            maxlength="100"
-            :placeholder="$t('manualEditor.form.titlePlaceholder')"
-            showLimitNumber
-          />
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="manual-editor-title"
+            class="text-foreground after:text-destructive text-[13px] font-medium after:ml-1 after:content-['*']"
+            >{{ $t("manualEditor.form.titleLabel") }}</label
+          >
+          <!-- The character counter TDesign drew inside the input (showLimitNumber). -->
+          <div class="relative">
+            <Input
+              id="manual-editor-title"
+              :model-value="form.title"
+              maxlength="100"
+              class="pr-16"
+              :placeholder="$t('manualEditor.form.titlePlaceholder')"
+              @update:model-value="(v) => (form.title = String(v))"
+            />
+            <span
+              class="text-placeholder pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs tabular-nums"
+              >{{ form.title.length }}/100</span
+            >
+          </div>
         </div>
 
-        <div class="form-item">
-          <label class="form-label required">{{ $t("manualEditor.form.knowledgeBaseLabel") }}</label>
-          <div class="kb-row">
-            <t-select
-              v-model="form.kbId"
+        <div class="flex flex-col gap-1.5">
+          <label
+            class="text-foreground after:text-destructive text-[13px] font-medium after:ml-1 after:content-['*']"
+            >{{ $t("manualEditor.form.knowledgeBaseLabel") }}</label
+          >
+          <div class="flex items-center gap-3">
+            <!-- The select's popup is portalled to <body>; z-[5500] puts it
+                 above the drawer's z-[2500] layer, as TDesign's popups were. -->
+            <Select
+              :model-value="form.kbId || undefined"
               :disabled="kbDisabled"
-              :loading="kbLoading"
-              :options="kbOptions"
-              :placeholder="$t('manualEditor.form.knowledgeBasePlaceholder')"
-              :popup-props="{ attach: 'body', zIndex: 2600 }"
+              @update:model-value="(v) => (form.kbId = String(v ?? ''))"
             >
-              <template #empty>
-                <div style="padding: 20px; text-align: center; color: var(--td-text-color-placeholder)">
+              <SelectTrigger class="w-full min-w-0 flex-1">
+                <Loader2Icon v-if="kbLoading" class="text-muted-foreground size-3.5 animate-spin" />
+                <SelectValue :placeholder="$t('manualEditor.form.knowledgeBasePlaceholder')" />
+              </SelectTrigger>
+              <SelectContent position="popper" class="z-[5500]">
+                <SelectItem v-for="opt in kbOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+                <div v-if="kbOptions.length === 0" class="text-placeholder p-5 text-center text-sm">
                   {{ $t("manualEditor.noDocumentKnowledgeBases") }}
                 </div>
-              </template>
-            </t-select>
-            <div class="status-row" v-if="mode === 'edit'">
-              <t-tag size="small" theme="warning" variant="light" v-if="form.status === 'draft'">
+              </SelectContent>
+            </Select>
+            <div v-if="mode === 'edit'" class="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+              <span
+                v-if="form.status === 'draft'"
+                class="text-warning inline-flex h-5 items-center rounded-(--td-radius-default) bg-(--td-warning-color-light) px-1.5 text-xs leading-none"
+              >
                 {{ $t("manualEditor.status.draftTag") }}
-              </t-tag>
-              <t-tag size="small" theme="success" variant="light" v-else>
+              </span>
+              <span
+                v-else
+                class="text-success inline-flex h-5 items-center rounded-(--td-radius-default) bg-(--td-success-color-light) px-1.5 text-xs leading-none"
+              >
                 {{ $t("manualEditor.status.publishedTag") }}
-              </t-tag>
+              </span>
             </div>
           </div>
-          <p v-if="lastUpdatedText" class="form-desc">{{ lastUpdatedText }}</p>
+          <p v-if="lastUpdatedText" class="text-placeholder mx-0 mt-0.5 mb-0 text-xs">{{ lastUpdatedText }}</p>
         </div>
       </section>
 
-      <section class="setting-drawer__section editor-section">
+      <!-- The content section takes the remaining room. -->
+      <section class="setting-drawer__section min-h-0 flex-1">
         <h4 class="setting-drawer__section-title">{{ $t("manualEditor.section.content") }}</h4>
 
-        <div class="editor-area">
-          <div class="editor-toolbar">
-            <div class="editor-toolbar__format">
+        <!-- The drawer is full-height: subtracting the rough height of the
+             header, footer and basic-info section lets the editor fill what is
+             left without depending on the parent flex chain. -->
+        <div
+          class="border-border bg-card focus-within:border-primary flex h-[calc(100vh-360px)] min-h-[280px] flex-col overflow-hidden rounded-lg border border-solid transition-[border-color,box-shadow] duration-200 focus-within:shadow-[0_0_0_2px_rgba(7,192,95,0.1)]"
+        >
+          <div
+            class="border-border bg-muted flex shrink-0 flex-nowrap items-center justify-between gap-3 overflow-hidden border-0 border-b border-solid px-2 py-1.5"
+          >
+            <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:h-0">
               <template v-for="(group, groupIndex) in toolbarGroups" :key="group.key">
-                <div class="toolbar-group">
-                  <template v-for="btn in group.buttons" :key="btn.key">
-                    <t-tooltip :content="btn.tooltip" placement="top">
+                <div class="flex items-center gap-0.5">
+                  <Tooltip v-for="btn in group.buttons" :key="btn.key">
+                    <TooltipTrigger as-child>
                       <button
                         type="button"
-                        class="toolbar-btn"
-                        :class="`btn-${btn.key}`"
+                        data-slot="toolbar-button"
+                        class="text-muted-foreground hover:text-primary flex size-7 items-center justify-center rounded-md transition-all duration-200 hover:bg-[rgba(7,192,95,0.08)] focus-visible:shadow-[0_0_0_2px_rgba(7,192,95,0.25)] focus-visible:outline-none active:translate-y-[0.5px] active:bg-[rgba(7,192,95,0.15)]"
+                        :aria-label="btn.tooltip"
                         @mousedown.prevent
                         @click="handleToolbarAction(btn.action)"
                       >
-                        <t-icon :name="btn.icon" size="18px" />
+                        <component :is="btn.icon" class="size-4" />
                       </button>
-                    </t-tooltip>
-                  </template>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" class="z-[5500]">{{ btn.tooltip }}</TooltipContent>
+                  </Tooltip>
                 </div>
-                <div v-if="groupIndex < toolbarGroups.length - 1" class="toolbar-divider"></div>
+                <div v-if="groupIndex < toolbarGroups.length - 1" class="bg-border mx-1 h-[18px] w-px shrink-0"></div>
               </template>
             </div>
-            <div class="editor-toolbar__view">
-              <t-button
-                variant="text"
-                theme="primary"
-                size="small"
-                :class="['toggle-view-btn', { 'is-preview': isPreviewMode }]"
+            <div class="border-border flex shrink-0 items-center border-0 border-l border-solid pl-2">
+              <button
+                type="button"
+                data-slot="view-toggle"
+                class="hover:text-primary inline-flex h-[30px] min-w-[92px] items-center justify-center gap-[5px] rounded-[7px] border border-solid px-2.5 text-xs font-medium shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,color,box-shadow] duration-200 hover:border-[rgba(7,192,95,0.45)] hover:bg-[rgba(7,192,95,0.06)] hover:shadow-[0_2px_6px_rgba(7,192,95,0.1)] active:translate-y-px active:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                :class="
+                  isPreviewMode
+                    ? 'text-primary border-[rgba(7,192,95,0.5)] bg-[rgba(7,192,95,0.1)]'
+                    : 'border-border bg-card text-muted-foreground'
+                "
                 :disabled="saving"
                 @click="toggleEditorView"
               >
-                <template #icon><t-icon :name="viewToggleIcon" /></template>
+                <component :is="viewToggleIcon" class="size-[15px]" />
                 {{ viewToggleLabel }}
-              </t-button>
+              </button>
             </div>
           </div>
 
-          <div class="editor-pane" v-show="activeTab === 'edit'">
-            <t-textarea
-              ref="textareaComponent"
+          <div v-show="activeTab === 'edit'" class="bg-card flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Textarea
               v-if="!contentLoading"
-              v-model="form.content"
+              ref="textareaComponent"
+              :model-value="form.content"
               :placeholder="$t('manualEditor.form.contentPlaceholder')"
-              class="editor-textarea"
+              class="bg-card dark:bg-card field-sizing-fixed h-full min-h-0 flex-1 resize-none rounded-none border-0 px-4 py-3.5 font-(family-name:--app-font-family-mono) text-sm leading-[1.7] focus-visible:ring-0 md:text-sm"
+              @update:model-value="(v) => (form.content = String(v))"
             />
-            <div v-else class="loading-placeholder">
-              <t-loading size="small" :text="$t('manualEditor.loading.content')" />
+            <div
+              v-else
+              class="text-muted-foreground flex min-h-[280px] flex-1 items-center justify-center gap-2 p-5 text-sm"
+            >
+              <Loader2Icon class="text-primary size-4 animate-spin" />
+              <span>{{ $t("manualEditor.loading.content") }}</span>
             </div>
           </div>
-          <div class="editor-pane editor-pane--preview" v-show="activeTab === 'preview'">
-            <div class="preview-container" v-html="previewHTML" />
+          <div v-show="activeTab === 'preview'" class="bg-card flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div
+              class="manual-editor-preview bg-card text-foreground min-h-0 flex-1 overflow-y-auto p-4 text-sm leading-[1.7]"
+              v-html="previewHTML"
+            />
           </div>
         </div>
       </section>
     </div>
-    <div v-else class="loading-wrapper">
-      <t-loading size="medium" :text="$t('manualEditor.loading.preparing')" />
+    <div v-else class="text-muted-foreground flex min-h-[280px] flex-1 items-center justify-center gap-2 p-5 text-sm">
+      <Loader2Icon class="text-primary size-6 animate-spin" />
+      <span>{{ $t("manualEditor.loading.preparing") }}</span>
     </div>
   </SettingDrawer>
 </template>
 
-<style scoped lang="less">
-/* 复用模型管理同款 SettingDrawer：分组 section / header 图标 / footer 按钮 / 拖拽调宽。
-   这里只负责本编辑器特有的内容样式。内容内联渲染（无 teleport），scoped 生效。 */
-.manual-editor {
-  display: flex;
-  flex-direction: column;
+<style scoped>
+/*
+ * Stays CSS: the preview is rendered Markdown (v-html), markup this template
+ * cannot put classes on, so it is styled through :deep().
+ */
+.manual-editor-preview :deep(h1),
+.manual-editor-preview :deep(h2),
+.manual-editor-preview :deep(h3),
+.manual-editor-preview :deep(h4) {
+  margin-top: 16px;
+  margin-bottom: 8px;
 }
 
-.manual-editor-footer-meta {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--td-text-color-placeholder);
+.manual-editor-preview :deep(code) {
+  background: var(--td-bg-color-container-hover);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: var(--app-font-family-mono);
 }
 
-.manual-editor-footer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-
-  :deep(.t-button) {
-    min-width: 88px;
-  }
-}
-
-.manual-editor-cancel-btn {
-  border-color: transparent;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-
-  &:hover {
-    border-color: var(--td-component-stroke);
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.form-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-
-  &.required::after {
-    content: "*";
-    margin-left: 4px;
-    color: var(--td-error-color);
-  }
-}
-
-.form-desc {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kb-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  :deep(.t-select) {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.status-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-/* 内容分组：让编辑区占满，无需依赖父级 flex 链路，直接用视口高度，稳健 */
-.editor-section {
-  flex: 1;
-  min-height: 0;
-}
-
-.editor-toolbar {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-bottom: 1px solid var(--td-component-stroke);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.editor-toolbar__format {
-  min-width: 0;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-
-  &::-webkit-scrollbar {
-    height: 0;
-  }
-}
-
-.editor-toolbar__view {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding-left: 8px;
-  border-left: 1px solid var(--td-component-stroke);
-}
-
-.toggle-view-btn {
-  min-width: 92px;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 7px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-secondary);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    box-shadow 0.18s ease;
-
-  &:hover {
-    border-color: rgba(7, 192, 95, 0.45);
-    background: rgba(7, 192, 95, 0.06);
-    color: var(--td-brand-color);
-    box-shadow: 0 2px 6px rgba(7, 192, 95, 0.1);
-  }
-
-  &.is-preview {
-    border-color: rgba(7, 192, 95, 0.5);
-    background: rgba(7, 192, 95, 0.1);
-    color: var(--td-brand-color);
-  }
-
-  &:active {
-    transform: translateY(1px);
-    box-shadow: none;
-  }
-
-  :deep(.t-button__icon) {
-    margin-right: 5px;
-    font-size: 15px;
-  }
-}
-
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--td-component-stroke);
-  margin: 0 4px;
-}
-
-.toolbar-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
+.manual-editor-preview :deep(pre) {
+  background: var(--td-bg-color-container-hover);
+  padding: 12px;
   border-radius: 6px;
+  overflow: auto;
+}
+
+.manual-editor-preview :deep(blockquote) {
+  border-left: 4px solid var(--td-brand-color);
+  padding-left: 12px;
   color: var(--td-text-color-secondary);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  .t-icon {
-    color: var(--td-text-color-secondary);
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.toolbar-btn:hover {
+  margin: 16px 0;
   background: rgba(7, 192, 95, 0.08);
+}
+
+.manual-editor-preview :deep(a) {
   color: var(--td-brand-color);
-
-  .t-icon {
-    color: var(--td-brand-color);
-  }
 }
 
-.toolbar-btn.active {
-  background: rgba(7, 192, 95, 0.12);
-  color: var(--td-brand-color);
-
-  .t-icon {
-    color: var(--td-brand-color);
-  }
-}
-
-.toolbar-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(7, 192, 95, 0.25);
-}
-
-.toolbar-btn:active {
-  background: rgba(7, 192, 95, 0.15);
-  transform: translateY(0.5px);
-}
-
-.editor-area {
-  /* 抽屉为整屏高，减去 header/footer/基本信息分组的大致高度，
-     让编辑区占据剩余空间且不必撑满父级 flex 链路。 */
-  height: calc(100vh - 360px);
-  min-height: 280px;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--td-bg-color-container);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-
-  &:focus-within {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 0 0 2px rgba(7, 192, 95, 0.1);
-  }
-}
-
-.editor-pane {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--td-bg-color-container);
-}
-
-:deep(.editor-textarea) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-
-  .t-textarea__inner {
-    flex: 1;
-    height: 100% !important;
-    resize: none;
-    border: none;
-    border-radius: 0;
-    padding: 14px 16px;
-    font-family: var(--app-font-family-mono);
-    font-size: 14px;
-    line-height: 1.7;
-    background: var(--td-bg-color-container);
-
-    &:focus {
-      box-shadow: none;
-    }
-  }
-}
-
-.editor-pane--preview {
-  background: var(--td-bg-color-container);
-}
-
-.preview-container {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px;
-  background: var(--td-bg-color-container);
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--td-text-color-primary);
-
-  :deep(h1),
-  :deep(h2),
-  :deep(h3),
-  :deep(h4) {
-    margin-top: 16px;
-    margin-bottom: 8px;
-  }
-
-  :deep(code) {
-    background: var(--td-bg-color-container-hover);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: var(--app-font-family-mono);
-  }
-
-  :deep(pre) {
-    background: var(--td-bg-color-container-hover);
-    padding: 12px;
-    border-radius: 6px;
-    overflow: auto;
-  }
-
-  :deep(blockquote) {
-    border-left: 4px solid var(--td-brand-color);
-    padding-left: 12px;
-    color: var(--td-text-color-secondary);
-    margin: 16px 0;
-    background: rgba(7, 192, 95, 0.08);
-  }
-
-  :deep(a) {
-    color: var(--td-brand-color);
-  }
-}
-
-.loading-wrapper,
-.loading-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 280px;
-  padding: 20px;
-}
-
-.empty-preview {
+/*
+ * The empty-state paragraph previewHTML emits. The old scoped `.empty-preview`
+ * rule never reached it — v-html content carries no scope attribute — so
+ * it is styled through :deep() now, as it was meant to be.
+ */
+.manual-editor-preview :deep(.empty-preview) {
   color: var(--td-text-color-placeholder);
 }
 </style>

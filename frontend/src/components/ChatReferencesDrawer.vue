@@ -3,29 +3,40 @@
     <Transition name="references-panel" @after-enter="handlePanelAfterEnter">
       <aside
         v-if="visible"
-        class="chat-references-panel"
-        :class="{ 'is-overlay': useOverlay, 'is-embedded': embeddedMode }"
+        class="chat-references-panel bg-popover fixed top-0 right-0 bottom-0 z-[1201] flex w-[min(420px,100vw)] flex-col border-l border-[var(--td-component-stroke)]"
+        :class="useOverlay ? 'shadow-[-12px_0_32px_rgba(0,0,0,0.12)]' : 'shadow-[-8px_0_24px_rgba(0,0,0,0.06)]'"
         role="complementary"
         :aria-label="panelTitle"
       >
-        <header class="chat-references-panel__header">
-          <div class="chat-references-panel__heading">
-            <h3 class="chat-references-panel__title">
-              {{ panelTitle }}<span v-if="totalCount" class="chat-references-panel__count"> · {{ totalCount }}</span>
+        <header
+          class="flex items-center justify-between gap-3 border-b border-[var(--td-component-stroke)] px-4 pt-4 pb-3"
+        >
+          <div class="flex min-w-0 items-center gap-2.5">
+            <h3 class="text-muted-foreground m-0 text-sm leading-[1.4] font-medium">
+              {{ panelTitle }}<span v-if="totalCount" class="text-placeholder font-medium"> · {{ totalCount }}</span>
             </h3>
           </div>
-          <button type="button" class="chat-references-panel__close" :aria-label="t('common.close')" @click="close">
-            <t-icon name="close" size="20px" />
+          <button
+            type="button"
+            data-slot="references-close"
+            class="bg-secondary text-muted-foreground hover:text-foreground flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-0 transition-[background,color] duration-150 hover:bg-[color-mix(in_srgb,var(--td-text-color-primary)_8%,var(--td-bg-color-secondarycontainer))]"
+            :aria-label="t('common.close')"
+            @click="close"
+          >
+            <XIcon class="size-5" />
           </button>
         </header>
 
-        <div ref="listElement" class="chat-references-panel__body">
-          <div v-if="sections.length === 0" class="chat-references-panel__empty">
+        <div ref="listElement" class="min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-6">
+          <div v-if="sections.length === 0" class="text-placeholder px-2 py-6 text-center text-[13px]">
             {{ t("chat.referencesDrawerEmpty") }}
           </div>
 
-          <section v-for="section in sections" :key="section.id" class="chat-references-panel__section">
-            <h4 v-if="sections.length > 1" class="chat-references-panel__section-title">
+          <section v-for="section in sections" :key="section.id" class="mt-4 flex flex-col gap-1.5 first:mt-0">
+            <h4
+              v-if="sections.length > 1"
+              class="text-placeholder m-0 mb-2 px-1 text-xs font-semibold tracking-[0.04em] uppercase"
+            >
               {{ sectionTitle(section.id) }}
             </h4>
 
@@ -33,18 +44,13 @@
               v-for="item in section.items"
               :key="item.key"
               :ref="(el) => setItemRef(item.key, el as HTMLElement | null)"
-              class="reference-item"
-              :class="{
-                'reference-item--web': item.kind === 'web',
-                'reference-item--document': item.kind === 'document',
-                'reference-item--tool': item.kind === 'tool',
-                'is-highlighted': item.key === activeHighlightKey,
-              }"
+              class="group rounded-xl transition-[background-color] duration-150"
+              :class="[item.key === activeHighlightKey ? 'bg-secondary' : 'hover:bg-foreground/[0.04]']"
             >
               <component
                 :is="item.kind === 'web' ? 'a' : 'div'"
-                class="reference-item__body"
-                :class="{ 'is-expandable': item.kind === 'document' && hasMoreContent(item) }"
+                class="block px-3 py-2.5 text-inherit no-underline"
+                :class="{ 'cursor-pointer': item.kind === 'document' && hasMoreContent(item) }"
                 :href="item.kind === 'web' ? item.url : undefined"
                 :target="item.kind === 'web' ? '_blank' : undefined"
                 :rel="item.kind === 'web' ? 'noopener noreferrer' : undefined"
@@ -62,73 +68,92 @@
                 "
               >
                 <template v-if="item.kind === 'document'">
-                  <div class="reference-item__document">
-                    <t-icon name="file" class="reference-item__doc-icon" />
-                    <div class="reference-item__document-main">
-                      <div class="reference-item__title-row">
-                        <h5 class="reference-item__title">{{ item.title }}</h5>
+                  <div class="flex min-w-0 items-start gap-2.5">
+                    <FileIcon class="text-foreground mt-[3px] h-4 w-[18px] shrink-0" />
+                    <div class="min-w-0 flex-1">
+                      <div class="flex min-w-0 items-start gap-2">
+                        <h5
+                          class="text-foreground m-0 [display:-webkit-box] min-w-0 flex-1 overflow-hidden text-[15px] leading-[1.4] font-semibold break-words [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+                        >
+                          {{ item.title }}
+                        </h5>
                         <a
                           v-if="item.knowledgeBaseId && !embeddedMode"
-                          class="reference-item__open"
+                          class="text-placeholder hover:text-foreground mt-[3px] shrink-0 leading-none transition-[opacity,color] duration-150"
+                          :class="item.key === activeHighlightKey ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                           :href="getDocumentHref(item)"
                           target="_blank"
                           rel="noopener noreferrer"
                           :aria-label="t('chat.navigateToDocument')"
                           @click.stop
                         >
-                          <t-icon name="jump" size="14px" />
+                          <ExternalLinkIcon class="size-3.5" />
                         </a>
                       </div>
-                      <div v-if="item.videoTimestampsMs?.length" class="reference-item__timestamps">
+                      <div v-if="item.videoTimestampsMs?.length" class="mt-1 flex flex-wrap gap-1.5">
                         <a
                           v-for="ts in item.videoTimestampsMs"
                           :key="ts"
-                          class="reference-item__timestamp"
+                          class="text-primary inline-flex items-center gap-[3px] rounded-[10px] bg-[var(--td-brand-color-light)] px-2 py-px text-xs no-underline hover:bg-[var(--td-brand-color-focus)]"
                           :href="embeddedMode ? undefined : getDocumentHref(item, ts)"
                           :target="embeddedMode ? undefined : '_blank'"
                           rel="noopener noreferrer"
                           :aria-label="t('chat.jumpToVideoTime')"
                           @click.stop
                         >
-                          <t-icon name="play-circle" size="12px" />
+                          <CirclePlayIcon class="size-3" />
                           {{ formatVideoTimestamp(ts) }}
                         </a>
                       </div>
-                      <p v-if="item.snippet && !expandedKeys.has(item.key)" class="reference-item__snippet">
+                      <p
+                        v-if="item.snippet && !expandedKeys.has(item.key)"
+                        class="text-muted-foreground mt-1 mb-0 [display:-webkit-box] overflow-hidden text-[13px] leading-normal [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+                      >
                         {{ formatReferenceSnippet(item.snippet) }}
                       </p>
-                      <div v-if="expandedKeys.has(item.key)" class="reference-item__content">
+                      <div
+                        v-if="expandedKeys.has(item.key)"
+                        class="text-muted-foreground mt-1 mb-0 max-h-[360px] overflow-y-auto text-[13px] leading-[1.55] break-words whitespace-pre-wrap"
+                      >
                         {{ formatReferenceSnippet(item.content) }}
                       </div>
                     </div>
                   </div>
                 </template>
                 <template v-else>
-                  <div v-if="item.kind === 'web' && item.domain" class="reference-item__source">
+                  <div v-if="item.kind === 'web' && item.domain" class="mb-1.5 flex min-w-0 items-center gap-2">
                     <img
                       v-if="item.faviconUrl"
-                      class="reference-item__source-mark"
+                      class="h-4 w-4 shrink-0 rounded-full object-cover"
                       :src="item.faviconUrl"
                       alt=""
                       loading="lazy"
                       @error="onFaviconError"
                     />
-                    <span class="reference-item__domain">{{ item.domain }}</span>
+                    <span class="text-placeholder truncate text-[13px] leading-[1.35]">{{ item.domain }}</span>
                   </div>
-                  <div v-else-if="item.kind === 'tool' && item.domain" class="reference-item__source">
-                    <t-icon name="tools" class="reference-item__source-mark" />
-                    <span class="reference-item__domain">{{ item.domain }}</span>
+                  <div v-else-if="item.kind === 'tool' && item.domain" class="mb-1.5 flex min-w-0 items-center gap-2">
+                    <WrenchIcon class="text-placeholder size-3.5 shrink-0" />
+                    <span class="text-placeholder truncate text-[13px] leading-[1.35]">{{ item.domain }}</span>
                   </div>
 
-                  <h5 v-if="shouldShowItemTitle(item)" class="reference-item__title">{{ item.title }}</h5>
+                  <h5
+                    v-if="shouldShowItemTitle(item)"
+                    class="text-foreground m-0 [display:-webkit-box] overflow-hidden text-[15px] leading-[1.4] font-semibold break-words [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+                  >
+                    {{ item.title }}
+                  </h5>
 
                   <p
                     v-if="item.kind !== 'tool' && item.snippet && !expandedKeys.has(item.key)"
-                    class="reference-item__snippet"
+                    class="text-muted-foreground mt-1 mb-0 [display:-webkit-box] overflow-hidden text-[13px] leading-normal [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
                   >
                     {{ formatReferenceSnippet(item.snippet) }}
                   </p>
-                  <div v-if="item.kind === 'tool' && item.content" class="reference-item__content">
+                  <div
+                    v-if="item.kind === 'tool' && item.content"
+                    class="text-muted-foreground mt-1 mb-0 text-[13px] leading-[1.55] break-words whitespace-pre-wrap"
+                  >
                     {{ formatReferenceSnippet(item.content) }}
                   </div>
                 </template>
@@ -141,7 +166,7 @@
   </Teleport>
 
   <Transition name="references-backdrop">
-    <div v-if="visible && useOverlay" class="chat-references-panel__backdrop" @click="close" />
+    <div v-if="visible && useOverlay" class="fixed inset-0 z-[1200] bg-black/28" @click="close" />
   </Transition>
 </template>
 
@@ -149,6 +174,9 @@
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+
+import { CirclePlayIcon, ExternalLinkIcon, FileIcon, WrenchIcon, XIcon } from "@lucide/vue";
+
 import { useChatReferencesDrawer } from "@/composables/useChatReferencesDrawer";
 import {
   buildReferenceSections,
@@ -337,278 +365,8 @@ watch(visible, (open) => {
 });
 </script>
 
-<style scoped lang="less">
-.chat-references-panel__backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.28);
-  z-index: 1200;
-}
-
-.chat-references-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(420px, 100vw);
-  z-index: 1201;
-  display: flex;
-  flex-direction: column;
-  background: var(--td-bg-color-container);
-  border-left: 1px solid var(--td-component-stroke);
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
-
-  &.is-overlay {
-    box-shadow: -12px 0 32px rgba(0, 0, 0, 0.12);
-  }
-}
-
-.chat-references-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.chat-references-panel__heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.chat-references-panel__title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-  line-height: 1.4;
-}
-
-.chat-references-panel__count {
-  color: var(--td-text-color-placeholder);
-  font-weight: 500;
-}
-
-.chat-references-panel__close {
-  border: 0;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-
-  :deep(.t-icon) {
-    font-size: 20px;
-  }
-
-  &:hover {
-    background: color-mix(in srgb, var(--td-text-color-primary) 8%, var(--td-bg-color-secondarycontainer));
-    color: var(--td-text-color-primary);
-  }
-}
-
-.chat-references-panel__body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 12px 24px;
-}
-
-.chat-references-panel__empty {
-  padding: 24px 8px;
-  text-align: center;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.chat-references-panel__section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.chat-references-panel__section + .chat-references-panel__section {
-  margin-top: 16px;
-}
-
-.chat-references-panel__section-title {
-  margin: 0 0 8px;
-  padding: 0 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--td-text-color-placeholder);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.reference-item {
-  border-radius: 12px;
-  transition: background-color 0.15s ease;
-
-  &:hover:not(.is-highlighted) {
-    background: color-mix(in srgb, var(--td-text-color-primary) 4%, transparent);
-  }
-
-  &.is-highlighted {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.reference-item__body {
-  display: block;
-  padding: 10px 12px;
-  color: inherit;
-  text-decoration: none;
-
-  &.is-expandable {
-    cursor: pointer;
-  }
-}
-
-.reference-item__document {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.reference-item__doc-icon {
-  flex-shrink: 0;
-  width: 18px;
-  margin-top: 3px;
-  font-size: 16px;
-  color: var(--td-text-color-primary);
-}
-
-.reference-item__document-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.reference-item__source {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  margin-bottom: 6px;
-}
-
-.reference-item__source-mark {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  object-fit: cover;
-  font-size: 14px;
-  color: var(--td-text-color-placeholder);
-}
-
-.reference-item__domain {
-  font-size: 13px;
-  line-height: 1.35;
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reference-item__title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.reference-item__title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-.reference-item__open {
-  flex-shrink: 0;
-  margin-top: 3px;
-  color: var(--td-text-color-placeholder);
-  line-height: 1;
-  opacity: 0;
-  transition:
-    opacity 0.15s ease,
-    color 0.15s ease;
-}
-
-.reference-item:hover .reference-item__open,
-.reference-item.is-highlighted .reference-item__open {
-  opacity: 1;
-}
-
-.reference-item__open:hover {
-  color: var(--td-text-color-primary);
-}
-
-.reference-item__timestamps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.reference-item__timestamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  text-decoration: none;
-  color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
-}
-
-.reference-item__timestamp:hover {
-  background: var(--td-brand-color-focus);
-}
-
-.reference-item__snippet {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.reference-item__content {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--td-text-color-secondary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 360px;
-  overflow-y: auto;
-}
-
+<style scoped>
+/* The open/close transitions; named Transition classes have no utility form. */
 .references-panel-enter-active {
   transition:
     transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1),

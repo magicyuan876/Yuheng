@@ -121,6 +121,15 @@ export default {
     },
   },
   tenantMember: {
+    pager: {
+      total: "총 {total}개 항목",
+      pageSize: "{size}개 / 페이지",
+      pageSizeLabel: "페이지당 항목 수",
+      jumpTo: "이동",
+      jumpToSuffix: "페이지",
+      previous: "이전 페이지",
+      next: "다음 페이지",
+    },
     title: "멤버 관리",
     sectionDescription:
       "워크스페이스에 동료를 초대하고 역할을 관리합니다. 소유자만 멤버를 추가하거나 제거할 수 있습니다.",
@@ -4544,6 +4553,7 @@ export default {
       collapse: "폴더 접기",
       expand: "폴더 펼치기",
       expandFolder: "이 폴더 펼치기",
+      collapseFolder: "이 폴더 접기",
       rename: "이름 변경",
       renamePlaceholder: "폴더 이름",
       renameSuccess: "폴더 이름을 변경했습니다",

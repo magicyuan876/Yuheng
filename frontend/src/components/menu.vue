@@ -1,23 +1,64 @@
 <template>
-  <div class="aside_box" :class="{ 'aside_box--collapsed': uiStore.sidebarCollapsed }">
+  <!--
+    The sidebar's horizontal grid: 14px left inset, an 18px icon slot and an
+    8px gap, so the menu titles, the session group headers and the session
+    rows all start on the same column. The rows below spell those numbers
+    out (pl-[14px], w-[18px], mr-2).
+
+    Height is 100% rather than 100vh because <html> carries a `zoom`
+    multiplier for font-size control; 100vh is evaluated against the
+    unscaled viewport and then scaled, so at "large" the sidebar would
+    extend past the window. The ancestor chain (html/body/#app/.main) is
+    already height: 100%.
+  -->
+  <div
+    class="border-border relative box-border flex h-full flex-col border-r bg-[var(--td-bg-color-sidebar)] pt-2 pb-1.5 shadow-[1px_0_0_rgba(0,0,0,0.02)] transition-[width,min-width] duration-[250ms] ease-in-out"
+    :class="
+      uiStore.sidebarCollapsed
+        ? 'w-[60px] min-w-[60px] overflow-visible px-[3px]'
+        : 'w-[260px] min-w-[260px] overflow-hidden px-1.5'
+    "
+  >
     <!-- 展开时：Logo + 搜索/折叠按钮同行 -->
-    <div class="logo_row" v-if="!uiStore.sidebarCollapsed">
-      <div class="logo_box" @click="router.push('/platform/knowledge-bases')" style="cursor: pointer">
-        <span class="logo">Yuheng</span>
+    <div class="flex h-[50px] shrink-0 items-center justify-between pr-2.5 pl-[14px]" v-if="!uiStore.sidebarCollapsed">
+      <div
+        class="flex min-w-0 flex-1 cursor-pointer items-center overflow-hidden"
+        @click="router.push('/platform/knowledge-bases')"
+      >
+        <span
+          class="text-foreground inline-block max-w-[128px] truncate text-[19px] leading-[1.2] font-bold tracking-[-0.01em] select-none"
+          >Yuheng</span
+        >
       </div>
-      <div class="logo_actions">
-        <t-tooltip placement="bottom">
-          <template #content>
-            <span class="cmdk-tip">
-              <span class="cmdk-tip-label">{{ t("menu.search") }}</span>
-              <span class="cmdk-tip-keys">{{ cmdModKeyLabel }}K</span>
+      <!-- 顶部 logo 行右侧的图标按钮组（搜索 + 折叠），与折叠按钮风格一致 -->
+      <div class="flex shrink-0 items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div
+              class="group text-muted-foreground hover:bg-accent box-border flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors duration-200"
+              @click="commandPaletteStore.openPalette('')"
+              :aria-label="t('menu.search')"
+            >
+              <!-- The icon is an <img>, so currentColor cannot reach it; dark mode inverts it instead. -->
+              <img
+                class="block size-[18px] dark:opacity-55 dark:invert dark:group-hover:opacity-90"
+                :src="getImgSrc('search.svg')"
+                alt=""
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <span :class="cmdkTipClass">
+              <span class="text-[13px]">{{ t("menu.search") }}</span>
+              <span class="text-[13px] tracking-[0.5px] opacity-60">{{ cmdModKeyLabel }}K</span>
             </span>
-          </template>
-          <div class="header-icon-btn" @click="commandPaletteStore.openPalette('')" :aria-label="t('menu.search')">
-            <img class="header-icon-img" :src="getImgSrc('search.svg')" alt="" />
-          </div>
-        </t-tooltip>
-        <div class="sidebar-toggle" @click="uiStore.toggleSidebar" :title="t('menu.collapseSidebar')">
+          </TooltipContent>
+        </Tooltip>
+        <div
+          class="text-muted-foreground hover:bg-accent hover:text-foreground box-border flex size-[18px] shrink-0 cursor-pointer items-center justify-center rounded-[4px] transition-colors duration-200"
+          @click="uiStore.toggleSidebar"
+          :title="t('menu.collapseSidebar')"
+        >
           <svg viewBox="0 0 20 20" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.2" />
             <line x1="7.5" y1="1.5" x2="7.5" y2="18.5" stroke="currentColor" stroke-width="1.2" />
@@ -27,112 +68,153 @@
       </div>
     </div>
     <!-- 折叠时：展开按钮 -->
-    <t-tooltip v-else :content="t('menu.expandSidebar')" placement="right">
-      <div class="menu_item sidebar-toggle-item" @click="uiStore.toggleSidebar">
-        <div class="menu_item-box">
-          <div class="menu_icon">
-            <svg class="icon" viewBox="0 0 20 20" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.2" />
-              <line x1="7.5" y1="1.5" x2="7.5" y2="18.5" stroke="currentColor" stroke-width="1.2" />
-              <line x1="5" y1="10" x2="3" y2="8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-              <line x1="5" y1="10" x2="3" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-            </svg>
+    <Tooltip v-else>
+      <TooltipTrigger as-child>
+        <div :class="menuItemClass('')" @click="uiStore.toggleSidebar">
+          <div :class="menuItemBoxClass">
+            <div :class="menuIconClass">
+              <svg
+                class="size-[18px] overflow-hidden"
+                viewBox="0 0 20 20"
+                width="20"
+                height="20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect x="1.5" y="1.5" width="17" height="17" rx="3" stroke="currentColor" stroke-width="1.2" />
+                <line x1="7.5" y1="1.5" x2="7.5" y2="18.5" stroke="currentColor" stroke-width="1.2" />
+                <line x1="5" y1="10" x2="3" y2="8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+                <line x1="5" y1="10" x2="3" y2="12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+              </svg>
+            </div>
           </div>
         </div>
-      </div>
-    </t-tooltip>
+      </TooltipTrigger>
+      <TooltipContent side="right">{{ t("menu.expandSidebar") }}</TooltipContent>
+    </Tooltip>
 
     <!-- 空间选择器：仅在用户可切换空间时显示 -->
     <TenantSelector v-if="canAccessAllTenants && !uiStore.sidebarCollapsed" />
 
     <!-- 折叠时右侧拖拽展开手柄 -->
-    <div v-if="uiStore.sidebarCollapsed" class="sidebar-drag-handle" @mousedown="onDragHandleMouseDown" />
+    <div
+      v-if="uiStore.sidebarCollapsed"
+      class="absolute top-0 -right-[3px] z-10 h-full w-1.5 cursor-ew-resize hover:bg-[var(--td-brand-color-light)]"
+      @mousedown="onDragHandleMouseDown"
+    />
 
     <!-- 上半部分：新对话吸顶 + 知识库/智能体/共享空间/历史会话随滚动一起滚走 -->
-    <div class="menu_top" ref="scrollContainer" @scroll="handleScroll">
-      <!-- 全局搜索入口：点击打开命令面板（⌘K）。展开态移至顶部 logo_row 的图标按钮；
+    <!--
+      Expanded, the negative right margin pulls the scrollbar out to the
+      panel's edge and the equal padding puts the list text back where it
+      was. `menu_top` is the hook the scrollbar styles below hang on.
+    -->
+    <div
+      class="menu_top flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+      :class="uiStore.sidebarCollapsed ? 'mr-0 pr-0' : '-mr-1 pr-1'"
+      ref="scrollContainer"
+      @scroll="handleScroll"
+    >
+      <!-- 全局搜索入口：点击打开命令面板（⌘K）。展开态移至顶部 logo 行的图标按钮；
                  折叠态在此处保留为图标项 + 深色 tooltip。 -->
-      <div class="menu_box menu_box--cmdk" v-if="uiStore.sidebarCollapsed">
-        <t-tooltip placement="right">
-          <template #content>
-            <span class="cmdk-tip">
-              <span class="cmdk-tip-label">{{ t("menu.search") }}</span>
-              <span class="cmdk-tip-keys">{{ cmdModKeyLabel }}K</span>
-            </span>
-          </template>
-          <div class="menu_item menu_item--cmdk" @click="commandPaletteStore.openPalette('')">
-            <div class="menu_item-box">
-              <div class="menu_icon">
-                <img class="icon" :src="getImgSrc('search.svg')" alt="" />
+      <div class="relative flex flex-col" v-if="uiStore.sidebarCollapsed">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div :class="menuItemClass('')" @click="commandPaletteStore.openPalette('')">
+              <div :class="menuItemBoxClass">
+                <div :class="menuIconClass">
+                  <img :class="menuImgClass('')" :src="getImgSrc('search.svg')" alt="" />
+                </div>
               </div>
             </div>
-          </div>
-        </t-tooltip>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <span :class="cmdkTipClass">
+              <span class="text-[13px]">{{ t("menu.search") }}</span>
+              <span class="text-[13px] tracking-[0.5px] opacity-60">{{ cmdModKeyLabel }}K</span>
+            </span>
+          </TooltipContent>
+        </Tooltip>
       </div>
+      <!--
+        「新对话」吸顶：作为滚动容器的直接子级，滚动时钉在顶部，知识库/智能体/
+        共享空间及历史列表一起从其下方滚走。背景遮挡滚动内容。
+      -->
       <div
-        class="menu_box"
-        :class="{ 'menu_box--sticky': item.children && !uiStore.sidebarCollapsed }"
+        class="relative flex flex-col"
+        :class="{ 'sticky top-0 z-[2] bg-[var(--td-bg-color-sidebar)]': item.children && !uiStore.sidebarCollapsed }"
         v-for="(item, index) in topMenuItems"
         :key="index"
       >
-        <t-tooltip :content="item.title" placement="right" :disabled="!uiStore.sidebarCollapsed">
-          <div
-            @click="handleMenuClick(item.path)"
-            @mouseenter="mouseenteMenu(item.path)"
-            @mouseleave="mouseleaveMenu(item.path)"
-            :data-guide="`nav-${item.path}`"
-            :class="[
-              'menu_item',
-              item.childrenPath && item.childrenPath == currentpath
-                ? 'menu_item_c_active'
-                : isMenuItemActive(item.path)
-                  ? 'menu_item_active'
-                  : '',
-            ]"
-          >
-            <div class="menu_item-box">
-              <div class="menu_icon">
-                <img
-                  class="icon"
-                  :src="
-                    getImgSrc(
-                      item.icon == 'zhishiku'
-                        ? knowledgeIcon
-                        : item.icon == 'docs'
-                          ? docsIcon
-                          : item.icon == 'organization'
-                            ? organizationIcon
-                            : item.icon == 'logout'
-                              ? logoutIcon
-                              : item.icon == 'setting'
-                                ? settingIcon
-                                : prefixIcon,
-                    )
-                  "
-                  alt=""
-                />
+        <Tooltip :disabled="!uiStore.sidebarCollapsed">
+          <TooltipTrigger as-child>
+            <div
+              @click="handleMenuClick(item.path)"
+              @mouseenter="mouseenteMenu(item.path)"
+              @mouseleave="mouseleaveMenu(item.path)"
+              :data-guide="`nav-${item.path}`"
+              :class="menuItemClass(menuItemState(item))"
+            >
+              <div :class="menuItemBoxClass">
+                <div :class="menuIconClass">
+                  <img
+                    :class="menuImgClass(menuItemState(item))"
+                    :src="
+                      getImgSrc(
+                        item.icon == 'zhishiku'
+                          ? knowledgeIcon
+                          : item.icon == 'docs'
+                            ? docsIcon
+                            : item.icon == 'organization'
+                              ? organizationIcon
+                              : item.icon == 'logout'
+                                ? logoutIcon
+                                : item.icon == 'setting'
+                                  ? settingIcon
+                                  : prefixIcon,
+                      )
+                    "
+                    alt=""
+                  />
+                </div>
+                <template v-if="!uiStore.sidebarCollapsed">
+                  <span
+                    class="max-w-[120px] flex-1 truncate font-[family-name:var(--app-font-family)] text-sm leading-5 font-semibold"
+                    :class="menuItemState(item) === 'active' ? 'text-primary' : 'text-foreground'"
+                    :title="item.title"
+                    >{{ item.title }}</span
+                  >
+                  <span
+                    v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
+                    class="text-warning ml-1.5 h-[18px] min-w-[18px] shrink-0 rounded-[9px] bg-[rgba(250,173,20,0.2)] px-[5px] text-center text-xs leading-[18px] font-semibold"
+                    :title="t('organization.settings.pendingJoinRequestsBadge')"
+                    >{{ orgStore.totalPendingJoinRequestCount }}</span
+                  >
+                </template>
               </div>
-              <template v-if="!uiStore.sidebarCollapsed">
-                <span class="menu_title" :title="item.title">{{ item.title }}</span>
-                <span
-                  v-if="item.path === 'organizations' && orgStore.totalPendingJoinRequestCount > 0"
-                  class="menu-pending-badge"
-                  :title="t('organization.settings.pendingJoinRequestsBadge')"
-                  >{{ orgStore.totalPendingJoinRequestCount }}</span
-                >
-              </template>
             </div>
-          </div>
-        </t-tooltip>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ item.title }}</TooltipContent>
+        </Tooltip>
       </div>
 
       <!-- 历史会话：按来源筛选后统一按日期分组展示 -->
-      <div class="submenu" v-if="!uiStore.sidebarCollapsed">
+      <div
+        class="session-submenu relative min-w-0 pt-[3px] font-[family-name:var(--app-font-family)] text-sm"
+        v-if="!uiStore.sidebarCollapsed"
+      >
         <!-- Stable, always-mounted source filter: reserving its row here
                      (instead of embedding it in the first date group, which
                      appears/disappears while a bucket loads) prevents the
-                     top-right control from jumping when switching session type. -->
-        <div v-if="showSessionSourceFilter && !batchMode" class="session-list-scope-header">
+                     top-right control from jumping when switching session type.
+                     It is absolutely pinned to the list's top-right so it
+                     visually sits on the first row (e.g. beside "近30天") and
+                     overlays the empty right side of that header row, so it
+                     needs no reserved height. -->
+        <div
+          v-if="showSessionSourceFilter && !batchMode"
+          class="session-list-scope-header absolute top-1 right-2.5 z-[2] flex max-w-[calc(100%-24px)] justify-end"
+        >
           <SessionSourceFilter
             inline
             :emphasized="sessionScopeFilterPinned"
@@ -142,50 +224,58 @@
           />
         </div>
         <template v-if="sessionListBooting && !hasAnySession">
-          <div v-for="n in 4" :key="'skel-' + n" class="submenu_item_p session-chat-row">
-            <div class="session-list-row session-list-row--flat">
-              <t-skeleton
-                animation="gradient"
-                class="session-list-row__body"
-                :row-col="[{ width: '100%', height: '14px' }]"
-              />
+          <div v-for="n in 4" :key="'skel-' + n" class="min-w-0 overflow-hidden p-0">
+            <div :class="sessionRowClass">
+              <Skeleton class="my-2 h-3.5 w-full flex-auto" />
             </div>
           </div>
         </template>
 
-        <div v-else class="session-filtered-list">
+        <div v-else>
           <template v-if="activeBucket?.loading && !activeBucket.loaded && filteredGroupedSessions.length === 0">
-            <div v-for="n in 4" :key="'bucket-skel-' + n" class="submenu_item_p session-chat-row">
-              <div class="session-list-row session-list-row--flat">
-                <t-skeleton
-                  animation="gradient"
-                  class="session-list-row__body"
-                  :row-col="[{ width: '100%', height: '14px' }]"
-                />
+            <div v-for="n in 4" :key="'bucket-skel-' + n" class="min-w-0 overflow-hidden p-0">
+              <div :class="sessionRowClass">
+                <Skeleton class="my-2 h-3.5 w-full flex-auto" />
               </div>
             </div>
           </template>
           <template v-else-if="activeBucket?.loaded && filteredGroupedSessions.length === 0">
-            <div class="submenu_empty">{{ t("menu.noSessions") }}</div>
+            <div class="text-placeholder px-3.5 py-6 text-center text-xs select-none">{{ t("menu.noSessions") }}</div>
           </template>
           <template v-else>
             <template v-for="group in filteredGroupedSessions" :key="group.key">
-              <div v-if="group.label" class="timeline_header session-list-row session-list-row--flat">
-                <span class="session-list-row__body">
-                  <span class="timeline_header-label">{{ group.label }}</span>
+              <div
+                v-if="group.label"
+                :class="sessionRowClass"
+                class="mt-0 pt-1 pb-px font-[family-name:var(--app-font-family)] text-[11px] leading-4 font-semibold text-[var(--td-text-color-disabled)] select-none"
+              >
+                <span class="min-w-0 flex-auto overflow-hidden">
+                  <span class="whitespace-nowrap">{{ group.label }}</span>
                 </span>
               </div>
+              <!--
+                session-chat-row and its --active modifier are hook classes:
+                the row's hover and active states restyle SessionSidebarRow's
+                own hook classes in the style block below.
+              -->
               <div
                 v-for="subitem in group.items"
                 :key="subitem.id"
-                class="submenu_item_p session-chat-row"
-                :class="{
-                  'session-chat-row--active': !batchMode && subitem.path === currentSecondpath,
-                  'session-chat-row--selected': batchMode && batchSelectedIds.includes(subitem.id),
-                }"
+                class="session-chat-row group/row min-w-0 overflow-hidden p-0"
+                :class="{ 'session-chat-row--active': !batchMode && subitem.path === currentSecondpath }"
               >
-                <div class="session-list-row session-list-row--flat">
-                  <div class="session-list-row__body">
+                <div
+                  :class="[
+                    sessionRowClass,
+                    'min-h-[30px] rounded-md transition-[background,color] duration-150 ease-in-out',
+                    batchMode && batchSelectedIds.includes(subitem.id)
+                      ? 'bg-[rgba(7,192,95,0.05)]'
+                      : !batchMode && subitem.path === currentSecondpath
+                        ? 'bg-accent'
+                        : 'group-hover/row:bg-accent',
+                  ]"
+                >
+                  <div class="min-w-0 flex-auto overflow-hidden">
                     <SessionSidebarRow
                       :item="subitem"
                       :batch-mode="batchMode"
@@ -205,10 +295,11 @@
             </template>
             <div
               v-if="activeBucket?.loading && filteredGroupedSessions.length > 0"
-              class="session-list-loading session-list-row session-list-row--flat"
+              :class="sessionRowClass"
+              class="text-placeholder min-h-[26px]"
             >
-              <span class="session-list-row__body">
-                <t-loading size="small" />
+              <span class="min-w-0 flex-auto overflow-hidden">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
               </span>
             </div>
           </template>
@@ -217,31 +308,42 @@
     </div>
 
     <!-- 批量管理底部操作条：固定在侧栏底部、用户头像上方 -->
-    <div v-if="batchMode && !uiStore.sidebarCollapsed" class="batch-inline-footer">
-      <div class="batch-footer-left">
-        <t-checkbox :checked="isAllBatchSelected" :indeterminate="isBatchIndeterminate" @change="toggleBatchSelectAll">
-          {{ t("batchManage.selectAll") }}
-        </t-checkbox>
+    <div
+      v-if="batchMode && !uiStore.sidebarCollapsed"
+      class="border-border bg-card flex shrink-0 items-center justify-between border-t px-3 py-1.5"
+    >
+      <div class="text-placeholder flex items-center text-[13px]">
+        <label class="flex cursor-pointer items-center gap-2">
+          <Checkbox
+            class="data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
+            :model-value="isBatchIndeterminate ? 'indeterminate' : isAllBatchSelected"
+            @update:model-value="(v) => toggleBatchSelectAll(v === true)"
+          >
+            <MinusIcon v-if="isBatchIndeterminate" />
+            <CheckIcon v-else />
+          </Checkbox>
+          <span class="text-foreground">{{ t("batchManage.selectAll") }}</span>
+        </label>
       </div>
-      <div class="batch-footer-right">
-        <t-button size="small" variant="text" @click="exitBatchMode">
+      <div class="flex items-center gap-1.5">
+        <Button size="sm" variant="ghost" @click="exitBatchMode">
           {{ t("batchManage.cancel") }}
-        </t-button>
-        <t-button
-          size="small"
-          theme="danger"
-          variant="base"
-          :disabled="batchSelectedIds.length === 0"
-          :loading="batchDeleting"
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          class="bg-destructive hover:bg-destructive/90 dark:bg-destructive dark:hover:bg-destructive/90 text-white"
+          :disabled="batchSelectedIds.length === 0 || batchDeleting"
           @click="handleInlineBatchDelete"
         >
+          <Loader2Icon v-if="batchDeleting" class="animate-spin" />
           {{ t("batchManage.delete") }}{{ batchSelectedIds.length > 0 ? `(${batchDisplayCount})` : "" }}
-        </t-button>
+        </Button>
       </div>
     </div>
 
     <!-- 下半部分：用户菜单 -->
-    <div class="menu_bottom">
+    <div class="flex shrink-0 flex-col" :class="{ 'items-center': uiStore.sidebarCollapsed }">
       <UserMenu />
     </div>
   </div>
@@ -299,9 +401,23 @@ import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities"
 import { useOrganizationStore } from "@/stores/organization";
 import { useUIStore } from "@/stores/ui";
 import { useCommandPaletteStore } from "@/stores/commandPalette";
-import { MessagePlugin, DialogPlugin, Icon as TIcon } from "tdesign-vue-next";
+import { MessagePlugin, DialogPlugin } from "tdesign-vue-next";
 import UserMenu from "@/components/UserMenu.vue";
 import TenantSelector from "@/components/TenantSelector.vue";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  CheckIcon,
+  EraserIcon,
+  ListChecksIcon,
+  Loader2Icon,
+  MinusIcon,
+  PencilLineIcon,
+  PinIcon,
+  Trash2Icon,
+} from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 
 const chatResources = useChatResourcesStore();
@@ -413,6 +529,56 @@ const isMenuItemActive = (itemPath: string): boolean => {
       return itemPath === currentpath.value;
   }
 };
+
+// ---------- Row styles ----------
+// A top menu entry is in one of three states. "active" is the page it leads
+// to; "childActive" is an entry whose child route is open, drawn in the
+// plain text colour; "" is everything else.
+type MenuItemState = "active" | "childActive" | "";
+
+const menuItemState = (item: MenuItem): MenuItemState => {
+  if (item.childrenPath && item.childrenPath == currentpath.value) return "childActive";
+  return isMenuItemActive(item.path) ? "active" : "";
+};
+
+// Collapsed, the rail centres each icon and drops the title column's
+// padding; expanded, the row starts on the sidebar's 14px inset. The active
+// row keeps its background on hover.
+const menuItemClass = (state: MenuItemState): string =>
+  [
+    "group mb-0.5 box-border flex h-[38px] cursor-pointer items-center rounded-[4px] transition-colors duration-200",
+    uiStore.sidebarCollapsed ? "justify-center px-0 py-[9px]" : "justify-between py-2 pr-2.5 pl-[14px]",
+    state === "active" ? "bg-secondary" : "hover:bg-accent",
+  ].join(" ");
+
+const menuItemBoxClass = computed(() =>
+  uiStore.sidebarCollapsed ? "relative flex w-auto items-center justify-center" : "relative flex w-full items-center",
+);
+
+const menuIconClass = computed(() =>
+  [
+    "text-muted-foreground group-hover:text-foreground flex w-[18px] flex-[0_0_18px]",
+    uiStore.sidebarCollapsed ? "mr-0" : "mr-2",
+  ].join(" "),
+);
+
+// The menu icons are SVG files loaded through <img>, so currentColor cannot
+// reach them. In dark mode they are inverted to read as text instead —
+// dimmed at rest, brighter on hover or when the entry's child is open —
+// except the active entry, whose icon is already the green variant.
+const menuImgClass = (state: MenuItemState): string => {
+  const base = "size-[18px] overflow-hidden";
+  if (state === "active") return base;
+  if (state === "childActive") return `${base} dark:opacity-90 dark:invert`;
+  return `${base} dark:opacity-55 dark:invert dark:group-hover:opacity-90`;
+};
+
+// The ⌘K tooltip: the label, then the shortcut in a lighter grey.
+const cmdkTipClass = "inline-flex items-center gap-2 whitespace-nowrap";
+
+// Session list rows sit flat on the sidebar's 14px inset, aligned with the
+// chat section's title rather than reserving an icon slot.
+const sessionRowClass = "box-border flex min-w-0 items-center gap-0 pr-2.5 pl-[14px]";
 
 // 统一的图标激活状态判断
 const getIconActiveState = (itemPath: string) => {
@@ -602,32 +768,32 @@ const buildSessionMenuOptions = (item: any) => {
     options.push({
       content: t("menu.unpin"),
       value: "unpin",
-      prefixIcon: () => h(TIcon, { name: "pin-filled", size: "16px" }),
+      prefixIcon: () => h(PinIcon, { class: "size-4 fill-current" }),
     });
   } else {
     options.push({
       content: t("menu.pin"),
       value: "pin",
-      prefixIcon: () => h(TIcon, { name: "pin", size: "16px" }),
+      prefixIcon: () => h(PinIcon, { class: "size-4" }),
     });
   }
   options.push(
-    { content: t("menu.renameSession"), value: "rename", prefixIcon: () => h(TIcon, { name: "edit-1", size: "16px" }) },
+    { content: t("menu.renameSession"), value: "rename", prefixIcon: () => h(PencilLineIcon, { class: "size-4" }) },
     {
       content: t("menu.clearMessages"),
       value: "clearMessages",
-      prefixIcon: () => h(TIcon, { name: "clear", size: "16px" }),
+      prefixIcon: () => h(EraserIcon, { class: "size-4" }),
     },
     {
       content: t("menu.batchManage"),
       value: "batchManage",
-      prefixIcon: () => h(TIcon, { name: "queue", size: "16px" }),
+      prefixIcon: () => h(ListChecksIcon, { class: "size-4" }),
     },
     {
       content: t("upload.deleteRecord"),
       value: "delete",
       theme: "error",
-      prefixIcon: () => h(TIcon, { name: "delete", size: "16px" }),
+      prefixIcon: () => h(Trash2Icon, { class: "size-4" }),
     },
   );
   return options;
@@ -1141,830 +1307,154 @@ const onDragHandleMouseDown = (e: MouseEvent) => {
   document.addEventListener("mouseup", onMouseUp);
 };
 </script>
-<style lang="less" scoped>
-.aside_box {
-  // 侧栏水平栅格：图标列与文案列统一对齐（Logo / 菜单 / 会话分组 / 会话行）
-  --sidebar-inset-x: 14px;
-  --sidebar-icon-size: 18px;
-  --sidebar-channel-icon: 14px;
-  --sidebar-icon-gap: 8px;
-  --sidebar-text-inset: calc(var(--sidebar-inset-x) + var(--sidebar-icon-size) + var(--sidebar-icon-gap)); // 40px
-
-  min-width: 260px;
-  width: 260px;
-  padding: 8px 6px 6px;
-  background: var(--td-bg-color-sidebar);
-  box-sizing: border-box;
-  /* Avoid 100vh because <html> carries a `zoom` multiplier for font-size
-       control; 100vh is evaluated against the unscaled viewport and then
-       scaled, so at "large" the sidebar would extend past the window. The
-       ancestor chain (html/body/#app/.main) is already height: 100%. */
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--td-component-stroke);
-  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.02);
-  transition:
-    width 0.25s ease,
-    min-width 0.25s ease;
-  position: relative;
-
-  &--collapsed {
-    min-width: 60px;
-    width: 60px;
-    padding: 8px 3px 6px;
-    overflow: visible;
-
-    .menu_item {
-      justify-content: center;
-      padding: 9px 0;
-
-      .menu_item-box {
-        justify-content: center;
-        width: auto;
-      }
-
-      .menu_icon {
-        margin-right: 0;
-      }
-    }
-
-    .menu_bottom {
-      align-items: center;
-    }
-
-    .menu_top {
-      margin-right: 0;
-      padding-right: 0;
-    }
-  }
-
-  .logo_row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 50px;
-    flex-shrink: 0;
-    padding: 0 10px 0 var(--sidebar-inset-x);
-  }
-
-  .sidebar-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    cursor: pointer;
-    color: var(--td-text-color-secondary);
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-    box-sizing: border-box;
-
-    &:hover {
-      background: var(--td-bg-color-container-hover);
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  .sidebar-drag-handle {
-    position: absolute;
-    top: 0;
-    right: -3px;
-    width: 6px;
-    height: 100%;
-    cursor: ew-resize;
-    z-index: 10;
-
-    &:hover {
-      background: var(--td-brand-color-light);
-    }
-  }
-
-  .logo_box {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-
-    .logo {
-      display: inline-block;
-      max-width: 128px;
-      font-size: 19px;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: -0.01em;
-      color: var(--td-text-color-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      user-select: none;
-    }
-
-    .lite-badge {
-      margin-left: 2px;
-      align-self: flex-start;
-      margin-top: 2px;
-      font-size: 9px;
-      font-weight: 600;
-      color: var(--td-text-color-placeholder);
-      user-select: none;
-      white-space: nowrap;
-    }
-  }
-
-  .logo_img {
-    margin-left: 24px;
-    width: 30px;
-    height: 30px;
-    margin-right: 7.25px;
-  }
-
-  .logo_txt {
-    transform: rotate(0.049deg);
-    color: var(--td-text-color-primary);
-    font-family: inherit;
-    font-size: 24.12px;
-    font-style: normal;
-    font-weight: W7;
-    line-height: 21.7px;
-  }
-
-  .menu_top {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
-    // 抵消 .aside_box 的右内边距，让滚动条贴近面板右缘；
-    // 等量 padding 补回，保证列表文字位置不变。
-    margin-right: -4px;
-    padding-right: 4px;
-
-    // Claude 风格细滚动条：默认透明，悬浮时显示一条圆角细灰条
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.2s ease;
-
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background-color: transparent;
-      border-radius: 6px;
-      transition: background-color 0.2s ease;
-    }
-
-    &:hover {
-      scrollbar-color: var(--td-scrollbar-color, rgba(0, 0, 0, 0.18)) transparent;
-
-      &::-webkit-scrollbar-thumb {
-        background-color: var(--td-scrollbar-color, rgba(0, 0, 0, 0.18));
-      }
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background-color: var(--td-scrollbar-hover-color, rgba(0, 0, 0, 0.32));
-    }
-  }
-
-  .menu_bottom {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .menu_box {
-    display: flex;
-    flex-direction: column;
-
-    // 「新对话」吸顶：作为滚动容器(.menu_top)的直接子级，滚动时钉在顶部，
-    // 知识库/智能体/共享空间及历史列表一起从其下方滚走。背景遮挡滚动内容。
-    &--sticky {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: var(--td-bg-color-sidebar);
-    }
-  }
-
-  .upload-file-wrap {
-    padding: 6px;
-    border-radius: 3px;
-    height: 32px;
-    width: 32px;
-    box-sizing: border-box;
-  }
-
-  .upload-file-wrap:hover {
-    background-color: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-
-  .upload-file-icon {
-    width: 20px;
-    height: 20px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .active-upload {
-    color: var(--td-brand-color);
-  }
-
-  .menu_item_active {
-    border-radius: 4px;
-    background: var(--td-bg-color-secondarycontainer) !important;
-
-    .menu_icon,
-    .menu_title {
-      color: var(--td-brand-color) !important;
-    }
-  }
-
-  .menu_item_c_active {
-    .menu_icon,
-    .menu_title {
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  .menu_p {
-    height: 46px;
-    padding: 3px 0;
-    box-sizing: border-box;
-  }
-
-  .menu_item {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
-    padding: 8px 10px 8px var(--sidebar-inset-x);
-    box-sizing: border-box;
-    margin-bottom: 2px;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-
-    .menu_item-box {
-      display: flex;
-      align-items: center;
-    }
-
-    &:hover {
-      border-radius: 4px;
-      background: var(--td-bg-color-container-hover);
-
-      .menu_icon,
-      .menu_title {
-        color: var(--td-text-color-primary);
-      }
-    }
-  }
-
-  .menu_icon {
-    display: flex;
-    flex: 0 0 var(--sidebar-icon-size);
-    width: var(--sidebar-icon-size);
-    margin-right: var(--sidebar-icon-gap);
-    color: var(--td-text-color-secondary);
-
-    .icon {
-      width: 18px;
-      height: 18px;
-      overflow: hidden;
-    }
-  }
-
-  .menu_title {
-    color: var(--td-text-color-primary);
-    text-overflow: ellipsis;
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-style: normal;
-    font-weight: 600;
-    line-height: 20px;
-    overflow: hidden;
-    white-space: nowrap;
-    max-width: 120px;
-    flex: 1;
-  }
-
-  .submenu {
-    position: relative;
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-style: normal;
-    min-width: 0;
-    padding-top: 3px;
-  }
-
-  :deep(.submenu_pin_icon) {
-    color: inherit;
-    font-size: 12px;
-    margin-right: 4px;
-    vertical-align: middle;
-    flex-shrink: 0;
-  }
-
-  .submenu_source_icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 0px;
-    vertical-align: middle;
-    object-fit: contain;
-    flex-shrink: 0;
-    // 默认淡化处理，避免未选中状态下彩色图标与灰色标题不协调；
-    // 悬浮或选中时恢复彩色，交互时才引人注意。
-    filter: grayscale(1);
-    opacity: 0.55;
-    transition:
-      filter 0.15s ease,
-      opacity 0.15s ease;
-  }
-
-  :deep(.submenu_item:hover .submenu_source_icon),
-  :deep(.submenu_item_active .submenu_source_icon) {
-    filter: none;
-    opacity: 1;
-  }
-
-  // 列表行统一栅格：左缘 inset-x + 图标槽 18px + 间距 8px → 文案列与主菜单文字对齐
-  .session-list-row {
-    display: flex;
-    align-items: center;
-    gap: var(--sidebar-icon-gap);
-    padding: 0 10px 0 var(--sidebar-inset-x);
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  .session-list-row__icon {
-    flex: 0 0 var(--sidebar-icon-size);
-    width: var(--sidebar-icon-size);
-    height: var(--sidebar-icon-size);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .session-list-row__body {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  // 聊天区分组标题 / 会话行：与「聊天」节标题同列左对齐，不再预留图标槽
-  .session-list-row--flat {
-    padding-left: var(--sidebar-inset-x);
-    gap: 0;
-  }
-
-  .session-list-loading {
-    display: flex;
-    align-items: center;
-    min-height: 26px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .timeline_header {
-    font-family: var(--app-font-family);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--td-text-color-disabled);
-    padding-top: 4px;
-    padding-bottom: 1px;
-    margin-top: 0;
-    line-height: 16px;
-    user-select: none;
-  }
-
-  .timeline_header-label {
-    white-space: nowrap;
-  }
-
-  // Stable filter control: always mounted and absolutely pinned to the list's
-  // top-right so it visually sits on the first row (e.g. beside "近30天") and
-  // never jumps when switching session type reloads a bucket. It overlays the
-  // empty right side of the first header row, so it needs no reserved height.
-  .session-list-scope-header {
-    position: absolute;
-    top: 4px;
-    right: 10px;
-    z-index: 2;
-    display: flex;
-    justify-content: flex-end;
-    max-width: calc(100% - var(--sidebar-inset-x) - 10px);
-
-    :deep(.session-source-filter--inline) {
-      flex: 0 1 auto;
-      min-width: 0;
-      max-width: 100%;
-      opacity: 0;
-      transition: opacity 0.15s ease;
-    }
-  }
-
-  .submenu:hover .session-list-scope-header :deep(.session-source-filter--inline),
-  .session-list-scope-header:hover :deep(.session-source-filter--inline),
-  .session-list-scope-header:focus-within :deep(.session-source-filter--inline),
-  .session-list-scope-header :deep(.session-source-filter--inline.session-source-filter--emphasized) {
-    opacity: 1;
-  }
-
-  .submenu_item_p {
-    padding: 0;
-    box-sizing: border-box;
-    min-width: 0;
-    overflow: hidden;
-
-    &.session-chat-row .session-list-row {
-      min-height: 30px;
-      border-radius: 6px;
-      transition:
-        background 0.15s ease,
-        color 0.15s ease;
-    }
-
-    &.session-chat-row:hover .session-list-row {
-      background: var(--td-bg-color-container-hover);
-
-      :deep(.menu-more) {
-        color: var(--td-text-color-primary);
-      }
-
-      :deep(.menu-more-wrap) {
-        opacity: 1;
-      }
-    }
-
-    &.session-chat-row--active .session-list-row {
-      background: var(--td-bg-color-container-hover);
-
-      :deep(.submenu_item) {
-        color: var(--td-brand-color);
-      }
-
-      :deep(.menu-more) {
-        color: var(--td-text-color-primary);
-      }
-
-      :deep(.menu-more-wrap) {
-        opacity: 1;
-      }
-    }
-
-    &.session-chat-row--selected .session-list-row {
-      background: rgba(7, 192, 95, 0.05);
-    }
-  }
-
-  // SessionSidebarRow 为子组件，需 :deep 才能让标题省略号生效
-  :deep(.submenu_item) {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    color: var(--td-text-color-primary);
-    font-weight: 400;
-    font-size: 14px;
-    line-height: 20px;
-    height: 100%;
-    width: 100%;
-    padding: 6px 0;
-    position: relative;
-    min-width: 0;
-    background: transparent;
-
-    .submenu_title {
-      display: flex;
-      align-items: center;
-      flex: 1 1 auto;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .submenu_title-text {
-      flex: 1 1 auto;
-      min-width: 0;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    .menu-more-wrap {
-      opacity: 0;
-      transition: opacity 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .menu-more {
-      display: inline-block;
-      font-weight: bold;
-      color: var(--td-brand-color);
-    }
-
-    .submenu_title--batch {
-      margin-left: 4px;
-    }
-
-    &.submenu_item_batch {
-      padding-left: 0;
-    }
-  }
-
-  :deep(.submenu_item_batch) {
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .batch-checkbox {
-    flex-shrink: 0;
-  }
+<style scoped>
+/*
+ * Two things here are beyond utilities.
+ *
+ * The session list's scrollbar: thin and invisible until the list is
+ * hovered, then a rounded grey bar (brighter in dark mode, where the grey
+ * would vanish). That is scrollbar pseudo-elements and scrollbar-color,
+ * keyed on the container's hover.
+ *
+ * SessionSidebarRow and SessionSourceFilter leave parts of their look to
+ * the sidebar and expose hook classes for it (their templates say so). The
+ * rules reach into those child components, and the "more" button's reveal
+ * depends on this component's row state, so they are :deep() selectors.
+ */
+.menu_top {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
 }
 
-.batch-inline-footer {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  border-top: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-
-  .batch-footer-left {
-    display: flex;
-    align-items: center;
-    font-size: 13px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .batch-footer-right {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
+.menu_top::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* 知识库下拉菜单样式 */
-.kb-dropdown-icon {
-  margin-left: auto;
-  color: var(--td-text-color-secondary);
-  transition:
-    transform 0.3s ease,
-    color 0.2s ease;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-
-  &.rotate-180 {
-    transform: rotate(180deg);
-  }
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-
-  &.active {
-    color: var(--td-brand-color);
-  }
-
-  &.active:hover {
-    color: var(--td-brand-color-active);
-  }
-
-  svg {
-    width: 12px;
-    height: 12px;
-    transition: inherit;
-  }
+.menu_top::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.kb-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
+.menu_top::-webkit-scrollbar-thumb {
+  background-color: transparent;
   border-radius: 6px;
-  box-shadow: var(--td-shadow-2);
-  z-index: 1000;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.kb-dropdown-item {
-  padding: 8px 16px;
-  cursor: pointer;
   transition: background-color 0.2s ease;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-  }
-
-  &.active {
-    background-color: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-
-  &:first-child {
-    border-radius: 6px 6px 0 0;
-  }
-
-  &:last-child {
-    border-radius: 0 0 6px 6px;
-  }
 }
 
-.menu_item-box {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  position: relative;
+.menu_top:hover {
+  scrollbar-color: var(--td-scrollbar-color, rgba(0, 0, 0, 0.18)) transparent;
 }
 
-/* Empty state when there are no sessions. */
-.submenu_empty {
-  padding: 24px 14px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  user-select: none;
+.menu_top:hover::-webkit-scrollbar-thumb {
+  background-color: var(--td-scrollbar-color, rgba(0, 0, 0, 0.18));
 }
 
-// 顶部 logo_row 右侧的图标按钮组（搜索 + 折叠），与折叠按钮风格一致
-.logo_actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+.menu_top::-webkit-scrollbar-thumb:hover {
+  background-color: var(--td-scrollbar-hover-color, rgba(0, 0, 0, 0.32));
 }
 
-.header-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  flex-shrink: 0;
-  cursor: pointer;
-  border-radius: 6px;
-  color: var(--td-text-color-secondary);
-  transition: background-color 0.2s ease;
-  box-sizing: border-box;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  .header-icon-img {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-}
-
-// 深色 tooltip 内容：标签 + 浅灰快捷键内联
-.cmdk-tip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-
-  .cmdk-tip-label {
-    font-size: 13px;
-  }
-
-  .cmdk-tip-keys {
-    font-size: 13px;
-    opacity: 0.6;
-    letter-spacing: 0.5px;
-  }
-}
-
-.menu-pending-badge {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  margin-left: 6px;
-  border-radius: 9px;
-  background: rgba(250, 173, 20, 0.2);
-  color: var(--td-warning-color);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.menu_box {
-  position: relative;
-}
-</style>
-<style lang="less">
-// Dark mode: 滚动条在深色背景下需要更亮的颜色才看得见
-html[theme-mode="dark"] .aside_box .menu_top:hover {
+html[theme-mode="dark"] .menu_top:hover {
   scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
-html[theme-mode="dark"] .aside_box .menu_top:hover::-webkit-scrollbar-thumb {
+html[theme-mode="dark"] .menu_top:hover::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.22);
 }
 
-html[theme-mode="dark"] .aside_box .menu_top::-webkit-scrollbar-thumb:hover {
+html[theme-mode="dark"] .menu_top::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.38);
 }
 
-// Dark mode: invert the top search icon button image to match text color
-html[theme-mode="dark"] .aside_box .header-icon-img {
-  filter: invert(1);
-  opacity: 0.55;
+/* The source filter stays out of the way until the list is hovered or focused, or a source is picked. */
+.session-list-scope-header :deep(.session-source-filter--inline) {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-html[theme-mode="dark"] .aside_box .header-icon-btn:hover .header-icon-img {
-  opacity: 0.9;
-}
-
-// Dark mode: make SVG icons match text color (loaded via <img>, currentColor won't work)
-html[theme-mode="dark"] .aside_box .menu_icon img.icon {
-  filter: invert(1);
-  opacity: 0.55;
-}
-
-// Hover state: brighter icon like text
-html[theme-mode="dark"] .aside_box .menu_item:hover .menu_icon img.icon {
-  opacity: 0.9;
-}
-
-// menu_item_c_active: text is primary, so icon should match
-html[theme-mode="dark"] .aside_box .menu_item_c_active .menu_icon img.icon {
-  opacity: 0.9;
-}
-
-// Active (green) icons should not be inverted
-html[theme-mode="dark"] .aside_box .menu_item_active .menu_icon img.icon {
-  filter: none;
+.session-submenu:hover .session-list-scope-header :deep(.session-source-filter--inline),
+.session-list-scope-header:hover :deep(.session-source-filter--inline),
+.session-list-scope-header:focus-within :deep(.session-source-filter--inline),
+.session-list-scope-header :deep(.session-source-filter--inline.session-source-filter--emphasized) {
   opacity: 1;
 }
 
-// 下拉菜单样式已统一至 @/assets/dropdown-menu.less
+/* SessionSidebarRow's row, with the title truncating inside it. */
+.session-chat-row :deep(.submenu_item) {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: var(--td-text-color-primary);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  height: 100%;
+  width: 100%;
+  padding: 6px 0;
+  position: relative;
+  min-width: 0;
+  background: transparent;
+}
 
-// 退出登录确认框样式
-:deep(.t-popconfirm) {
-  .t-popconfirm__content {
-    background: var(--td-bg-color-container);
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 6px;
-    box-shadow: var(--td-shadow-3);
-    padding: 12px 16px;
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    max-width: 200px;
-  }
+.session-chat-row :deep(.submenu_item_batch) {
+  padding-left: 0;
+  cursor: pointer;
+  user-select: none;
+}
 
-  .t-popconfirm__arrow {
-    border-bottom-color: var(--td-component-stroke);
-  }
+.session-chat-row :deep(.submenu_title) {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
 
-  .t-popconfirm__arrow::after {
-    border-bottom-color: var(--td-bg-color-container);
-  }
+.session-chat-row :deep(.submenu_title--batch) {
+  margin-left: 4px;
+}
 
-  .t-popconfirm__buttons {
-    margin-top: 8px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
+.session-chat-row :deep(.submenu_title-text) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
-  .t-button--variant-outline {
-    border-color: var(--td-component-border);
-    color: var(--td-text-color-secondary);
-  }
+.session-chat-row :deep(.submenu_pin_icon) {
+  color: inherit;
+  margin-right: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 
-  .t-button--theme-danger {
-    background-color: var(--td-error-color);
-    border-color: var(--td-error-color);
-  }
+.session-chat-row :deep(.menu-more-wrap) {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
 
-  .t-button--theme-danger:hover {
-    background-color: var(--td-error-color);
-    border-color: var(--td-error-color);
-  }
+.session-chat-row :deep(.menu-more) {
+  display: inline-block;
+  font-weight: bold;
+  color: var(--td-brand-color);
+}
+
+/* A hovered or active row shows its "more" button and darkens the glyph; the active row's title is brand-coloured. */
+.session-chat-row:hover :deep(.menu-more-wrap),
+.session-chat-row--active :deep(.menu-more-wrap) {
+  opacity: 1;
+}
+
+.session-chat-row:hover :deep(.menu-more),
+.session-chat-row--active :deep(.menu-more) {
+  color: var(--td-text-color-primary);
+}
+
+.session-chat-row--active :deep(.submenu_item) {
+  color: var(--td-brand-color);
 }
 </style>

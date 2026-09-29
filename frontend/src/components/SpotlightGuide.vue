@@ -3,15 +3,15 @@
     <Transition name="guide-fade">
       <div
         v-if="active"
-        class="guide"
+        ref="rootRef"
+        class="pointer-events-none fixed inset-0 z-5000 outline-none"
         role="dialog"
         aria-modal="true"
         :aria-label="stepTitle"
+        tabindex="-1"
         @keydown.esc.prevent="dismiss"
         @keydown.left.prevent="prev"
         @keydown.right.prevent="next"
-        tabindex="-1"
-        ref="rootRef"
       >
         <template v-if="hole">
           <div class="guide__spot" :style="spotStyle" aria-hidden="true" />
@@ -26,39 +26,65 @@
 
         <div v-if="hole" class="guide__ring" :style="ringStyle" aria-hidden="true" />
 
-        <div ref="cardRef" class="guide__card" :class="{ 'guide__card--center': !hole }" :style="cardStyle">
-          <button type="button" class="guide__close" :aria-label="t(`${labelsPrefix}.skip`)" @click="dismiss">
-            <t-icon name="close" size="18px" />
+        <div
+          ref="cardRef"
+          class="guide__card bg-popover text-foreground pointer-events-auto fixed z-1 flex max-h-[calc(100vh-32px)] flex-col gap-2 overflow-y-auto rounded-[14px] border border-[var(--td-component-stroke)] p-[18px_18px_14px] shadow-[0_20px_48px_rgba(0,0,0,0.18)]"
+          :class="!hole ? 'max-w-[calc(100vw-32px)]' : ''"
+          :style="cardStyle"
+        >
+          <button
+            type="button"
+            data-slot="guide-close"
+            class="text-muted-foreground hover:bg-accent hover:text-foreground absolute top-2.5 right-2.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] border-0 p-0"
+            :aria-label="t(`${labelsPrefix}.skip`)"
+            @click="dismiss"
+          >
+            <XIcon class="size-[18px]" />
           </button>
 
-          <div class="guide__progress">
+          <div class="flex gap-[5px]">
             <span
               v-for="(s, i) in steps"
               :key="s.key"
-              class="guide__dot"
-              :class="{ 'is-active': i === index, 'is-done': i < index }"
+              class="h-1.5 rounded-full transition-[width,background] duration-200"
+              :class="
+                i === index
+                  ? 'bg-primary w-4'
+                  : i < index
+                    ? 'bg-primary/40 w-1.5'
+                    : 'w-1.5 bg-[var(--td-bg-color-component)]'
+              "
             />
           </div>
 
-          <p class="guide__step-label">
+          <p class="text-placeholder mt-1.5 mb-0 text-xs">
             {{ t(`${labelsPrefix}.stepOf`, { current: index + 1, total: steps.length }) }}
           </p>
-          <h3 class="guide__title">{{ stepTitle }}</h3>
-          <p class="guide__desc">{{ stepDesc }}</p>
-          <p v-if="step.interact" class="guide__interact-hint">{{ t(`${labelsPrefix}.interactHint`) }}</p>
+          <h3 class="m-0 pr-6 text-lg leading-[26px] font-semibold">{{ stepTitle }}</h3>
+          <p class="text-muted-foreground m-0 text-sm leading-[22px]">{{ stepDesc }}</p>
+          <p v-if="step.interact" class="text-primary m-0 text-[13px] leading-5 font-medium">
+            {{ t(`${labelsPrefix}.interactHint`) }}
+          </p>
 
-          <div class="guide__actions">
-            <button type="button" class="guide__skip" @click="dismiss">{{ t(`${labelsPrefix}.skip`) }}</button>
-            <div v-if="!step.interact" class="guide__actions-main">
-              <t-button v-if="index > 0" size="small" variant="outline" @click="prev">
+          <div class="mt-1 flex items-center justify-between gap-2 border-t border-[var(--td-component-stroke)] pt-2.5">
+            <button
+              type="button"
+              data-slot="guide-skip"
+              class="text-placeholder hover:text-muted-foreground cursor-pointer border-0 bg-transparent p-0 text-[13px]"
+              @click="dismiss"
+            >
+              {{ t(`${labelsPrefix}.skip`) }}
+            </button>
+            <div v-if="!step.interact" class="flex gap-2">
+              <Button v-if="index > 0" size="xs" variant="outline" @click="prev">
                 {{ t(`${labelsPrefix}.prev`) }}
-              </t-button>
-              <t-button v-if="!isLast" size="small" theme="primary" @click="next">
+              </Button>
+              <Button v-if="!isLast" size="xs" @click="next">
                 {{ t(`${labelsPrefix}.next`) }}
-              </t-button>
-              <t-button v-else size="small" theme="primary" @click="finish">
+              </Button>
+              <Button v-else size="xs" @click="finish">
                 {{ t(`${labelsPrefix}.done`) }}
-              </t-button>
+              </Button>
             </div>
           </div>
         </div>
@@ -70,6 +96,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { XIcon } from "@lucide/vue";
+
+import { Button } from "@/components/ui/button";
+
 import type { SpotlightGuideStep } from "@/types/spotlightGuide";
 
 const CARD_WIDTH = 340;
@@ -418,15 +449,9 @@ watch(
 defineExpose({ open, close });
 </script>
 
-<style lang="less" scoped>
-.guide {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  outline: none;
-  pointer-events: none;
-}
-
+<style scoped>
+/* The spotlight backdrop and its hole move by geometry (top/left/width/height),
+   so the transitions and the mobile override stay in CSS. */
 .guide__backdrop {
   position: fixed;
   pointer-events: auto;
@@ -436,14 +461,14 @@ defineExpose({ open, close });
     left 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  &--full {
-    inset: 0;
-  }
+.guide__backdrop--full {
+  inset: 0;
+}
 
-  &--hit {
-    background: transparent;
-  }
+.guide__backdrop--hit {
+  background: transparent;
 }
 
 .guide__spot {
@@ -473,131 +498,9 @@ defineExpose({ open, close });
 }
 
 .guide__card {
-  position: fixed;
-  z-index: 1;
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 18px 18px 14px;
-  border-radius: 14px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.18);
-  color: var(--td-text-color-primary);
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
   transition:
     top 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &--center {
-    max-width: calc(100vw - 32px);
-  }
-}
-
-.guide__close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.guide__progress {
-  display: flex;
-  gap: 5px;
-}
-
-.guide__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--td-bg-color-component);
-  transition:
-    width 0.2s ease,
-    background 0.2s ease;
-
-  &.is-active {
-    width: 16px;
-    border-radius: 999px;
-    background: var(--td-brand-color);
-  }
-
-  &.is-done {
-    background: rgba(7, 192, 95, 0.4);
-  }
-}
-
-.guide__step-label {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.guide__title {
-  margin: 0;
-  padding-right: 24px;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 26px;
-}
-
-.guide__desc {
-  margin: 0;
-  font-size: 14px;
-  line-height: 22px;
-  color: var(--td-text-color-secondary);
-}
-
-.guide__interact-hint {
-  margin: 0;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--td-brand-color);
-  font-weight: 500;
-}
-
-.guide__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.guide__skip {
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.guide__actions-main {
-  display: flex;
-  gap: 8px;
 }
 
 .guide-fade-enter-active,

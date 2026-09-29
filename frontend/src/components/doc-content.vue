@@ -44,6 +44,53 @@ import { diffWikiLines, type WikiDiffLine } from "@/utils/wikiLineDiff";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 import DocumentPreview from "@/components/document-preview.vue";
+import {
+  ChartLineIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  CircleAlertIcon,
+  CircleHelpIcon,
+  CirclePlayIcon,
+  CircleStopIcon,
+  DownloadIcon,
+  EllipsisIcon,
+  ExternalLinkIcon,
+  FileIcon,
+  FileQuestionMarkIcon,
+  GitBranchIcon,
+  HistoryIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  MessageCircleQuestionMarkIcon,
+  PencilIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  Undo2Icon,
+  XIcon,
+} from "@lucide/vue";
+import {
+  PaginationEllipsis,
+  PaginationList,
+  PaginationListItem,
+  PaginationNext,
+  PaginationPrev,
+  PaginationRoot,
+} from "reka-ui";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+// The `.md-content` Markdown styles. The sheet is global (it was imported
+// into this component's scoped Less before), so it is loaded from here.
+import "./css/markdown.css";
 import KnowledgeProcessingTimeline from "@/components/knowledge-processing-timeline.vue";
 import { resolveKnowledgeDownloadFileName } from "@/views/knowledge/knowledgeDownloadFileName";
 
@@ -588,7 +635,8 @@ const isChunkPageTransition = computed(
   () => Boolean(props.details?.chunkLoading) && chunkPage.value !== loadedChunkPage.value,
 );
 const mdContentWrap = ref();
-// Drawer uses attach="body", so markdown nodes live outside mdContentWrap in the DOM.
+// The drawer is portalled to <body>, so markdown nodes live outside mdContentWrap in the DOM.
+// docMarkdownRoot is the drawer's scrolling body, which holds all of them.
 const docMarkdownRoot = ref<HTMLElement | null>(null);
 
 const getMarkdownRenderRoot = (): ParentNode | null =>
@@ -1148,8 +1196,8 @@ const processMarkdown = (markdownText) => {
 };
 const handleClose = () => {
   emit("closeDoc", false);
-  const scrollEl = document.querySelector(".doc-main-drawer .t-drawer__body") as HTMLElement | null;
-  if (scrollEl) scrollEl.scrollTop = 0;
+  // The drawer body is the scroll container; reopen the next document at its top.
+  if (docMarkdownRoot.value) docMarkdownRoot.value.scrollTop = 0;
   viewMode.value = "merged";
 };
 
@@ -1781,1001 +1829,1364 @@ const handleChunkPageChange = (pageInfo: { current: number }) => {
   pendingChunkPage = pageInfo.current;
   emit("getDoc", pageInfo.current);
 };
+
+// ── Chunk pager ──
+// Stands in for t-pagination with show-jumper and show-page-number: a
+// total, numbered pages and a "go to page" box. Like the TDesign pager's
+// v-model + @change pair, the page ref moves first and the change handler
+// runs after it, so handleChunkPageChange sees the same sequence as before.
+const chunkPageCount = computed(() => Math.max(1, Math.ceil((props.details?.total || 0) / CHUNK_PAGE_SIZE)));
+const chunkJumpValue = ref<string | number>("");
+
+const goToChunkPage = (next: number) => {
+  if (props.details?.chunkLoading || next === chunkPage.value) return;
+  chunkPage.value = next;
+  handleChunkPageChange({ current: next });
+};
+
+const commitChunkJump = () => {
+  const raw = Number(chunkJumpValue.value);
+  chunkJumpValue.value = "";
+  if (!Number.isFinite(raw) || raw <= 0) return;
+  goToChunkPage(Math.min(chunkPageCount.value, Math.max(1, Math.floor(raw))));
+};
+
+// Enter commits the inline editors, as t-input's @enter did. An Enter that
+// confirms an IME composition is not a submit.
+const isSubmitEnter = (e: KeyboardEvent) => !e.isComposing && e.keyCode !== 229;
+
+// Focuses the element it is put on when it mounts. The native autofocus
+// attribute is honoured only once per page load, and these editors mount
+// long after that, when the user opens them.
+const vFocus = {
+  mounted: (el: HTMLElement) => nextTick(() => el.focus()),
+};
+
+// ── Template class strings ──
+// Kept here rather than repeated on every element: the drawer has a dozen
+// icon buttons and six sections that must look the same.
+
+// The square 28px icon button of the section and chunk toolbars. It turns
+// brand-coloured on hover and while the popover it opens is showing
+// (aria-expanded, which Reka's PopoverTrigger sets). The dark: variants
+// override the ghost variant's own dark hover background.
+const ICON_BTN =
+  "size-7 min-w-7 rounded-[4px] p-0 text-muted-foreground hover:bg-[color:var(--td-brand-color-light)] hover:text-primary dark:hover:bg-[color:var(--td-brand-color-light)] aria-expanded:bg-[color:var(--td-brand-color-light)] aria-expanded:text-primary";
+const ICON_BTN_ACTIVE = "bg-[color:var(--td-brand-color-light)] text-primary";
+// The destructive flavour: remove a metadata row, delete a question.
+const ICON_BTN_DANGER_HOVER =
+  "hover:bg-[color:var(--td-error-color-light)] hover:text-destructive dark:hover:bg-[color:var(--td-error-color-light)]";
+
+const SECTION =
+  "flex flex-col border-b border-solid border-[color:var(--td-component-stroke)] pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0";
+// The section heading, with the short brand-coloured bar in front of it.
+const SECTION_TITLE =
+  "m-0 flex items-center gap-2 text-[13px] font-semibold text-foreground select-none before:h-[14px] before:w-[3px] before:shrink-0 before:rounded-[2px] before:bg-primary before:content-['']";
+
+// A small light tag, the look of the TDesign small light tag it replaces.
+const TAG = "inline-flex h-5 items-center rounded-[3px] px-1.5 text-xs leading-5 whitespace-nowrap";
+const TAG_THEME: Record<string, string> = {
+  primary: "bg-[color:var(--td-brand-color-light)] text-primary",
+  success: "bg-[color:var(--td-success-color-light)] text-success",
+  warning: "bg-[color:var(--td-warning-color-light)] text-warning",
+  default: "bg-muted text-foreground",
+};
+
+// The header's type badge icon, by headerIconName.
+const HEADER_ICONS = { link: LinkIcon, edit: PencilIcon, file: FileIcon };
+
+// The trace button takes the colour of the processing status. The old
+// t-button asked for the same through its theme, but the scoped
+// `.header-action-btn` colour outranked it once TDesign moved into a
+// cascade layer, so the status colour had stopped showing.
+const TRACE_ENTRY_CLASS: Record<string, string> = {
+  success: "text-success hover:text-success",
+  danger: "text-destructive hover:text-destructive",
+  warning: "text-warning hover:text-warning",
+  default: "text-muted-foreground hover:text-foreground",
+};
+
+// The value column of a detail row; each use adds its own gap.
+const DETAIL_VALUE =
+  "inline-flex min-w-0 flex-1 flex-wrap items-center text-[13px] [word-break:break-word] text-foreground";
+// The bare "add field" buttons under the metadata display and editor.
+const METADATA_LINK_BTN =
+  "flex min-h-7 w-fit items-center justify-start gap-[5px] rounded-[4px] bg-transparent px-1 text-xs text-muted-foreground hover:bg-[color:var(--td-brand-color-light)] hover:text-primary";
+const PLAYER_LOADING = "flex items-center gap-2 py-1 text-[13px] text-placeholder";
+const PAGE_LOADING = "flex min-h-[120px] items-center justify-center gap-2 text-muted-foreground";
+const NO_CONTENT = "mt-3 p-4 text-center text-[13px] text-[color:var(--td-text-color-disabled)]";
+// `md-content` is the hook css/markdown.css styles the rendered Markdown by.
+const MD_CONTENT = "md-content leading-[1.6] [word-break:break-word] text-foreground";
+
+// The chunk toolbar popovers: the panel draws its own box, so the popover
+// content is only a frame with no padding of its own.
+const POPUP_CONTENT = "w-auto gap-0 overflow-hidden rounded-[6px] p-0";
+const POPUP_PANEL = "overflow-hidden rounded-[6px] bg-card";
+const POPUP_HEAD =
+  "flex min-h-[38px] items-center justify-between border-b border-solid border-[color:var(--td-component-stroke)] py-1 pr-2 pl-3";
+const POPUP_TITLE = "flex items-center text-[13px] font-semibold text-foreground";
+const POPUP_STATE = "flex min-h-[120px] items-center justify-center gap-2 text-xs text-placeholder";
+const HISTORY_STATE = "flex min-h-[100px] items-center justify-center gap-2 text-xs text-placeholder";
+// The small confirm popovers that replace t-popconfirm.
+const CONFIRM_CONTENT = "w-auto max-w-[280px] gap-3 p-3 text-[13px]";
+const CONFIRM_MESSAGE = "m-0 flex items-start gap-2 text-foreground";
+
+const DIFF_LINE_CLASS: Record<ChunkDiffLine["type"], string> = {
+  add: "bg-[color:var(--td-success-color-light)] text-[color:var(--td-success-color-active)]",
+  del: "bg-[color:var(--td-error-color-light)] text-[color:var(--td-error-color-active)]",
+  same: "text-muted-foreground",
+  skip: "text-placeholder",
+};
+
+// A press on a resize handle is not a press outside the drawer: the handles
+// are teleported next to the panels, not into them, and a modal drawer would
+// otherwise close the moment the user grabbed its edge.
+const onDrawerPointerDownOutside = (event: CustomEvent<{ originalEvent: PointerEvent }>) => {
+  const target = event.detail?.originalEvent?.target;
+  if (target instanceof Element && target.closest(".doc-drawer-resize-handle, .trace-drawer-resize-handle")) {
+    event.preventDefault();
+  }
+};
 </script>
 <template>
-  <div class="doc_content" ref="mdContentWrap">
+  <div ref="mdContentWrap">
     <teleport to="body">
+      <!--
+        The resize handles sit outside the drawer panels, and a modal Reka
+        drawer turns pointer events off on everything outside its panel, so
+        they opt back in with pointer-events-auto; each drawer also treats a
+        press on its handle as inside (onDrawerPointerDownOutside). The main
+        handle stands down while the trace drawer is open: it would
+        otherwise float over that panel, which the old z-order hid it under.
+      -->
       <div
-        v-if="visible"
-        class="doc-drawer-resize-handle"
+        v-if="visible && !timelineDrawerVisible"
+        class="doc-drawer-resize-handle group pointer-events-auto fixed top-0 bottom-0 z-[2001] -ml-1.5 flex w-3 cursor-col-resize items-center justify-center"
         :style="{ right: `${mainDrawerWidth}px` }"
         role="separator"
         aria-orientation="vertical"
         @mousedown.prevent="onMainDrawerResizeStart"
       >
-        <div class="doc-drawer-resize-line" />
+        <div
+          class="bg-border group-hover:bg-primary h-12 w-0.5 rounded-[1px] opacity-55 transition-[opacity,background-color] duration-150 group-hover:opacity-100"
+          :class="{ 'bg-primary opacity-100': mainDrawerResizing }"
+        />
       </div>
     </teleport>
-    <t-drawer
-      :visible="visible"
-      :zIndex="2000"
-      :size="`${mainDrawerWidth}px`"
-      attach="body"
-      :closeBtn="true"
-      :footer="false"
-      :class="['doc-main-drawer', { 'doc-main-drawer--resizing': mainDrawerResizing }]"
-      @close="handleClose"
-    >
-      <template #header>
-        <div class="doc-drawer-header">
-          <div class="doc-drawer-header-icon">
-            <t-icon :name="headerIconName" />
+    <Drawer :open="visible" swipe-direction="right" @update:open="(open: boolean) => !open && handleClose()">
+      <DrawerContent
+        class="max-w-none gap-0 rounded-none border-0 sm:max-w-none"
+        :style="{ width: `${mainDrawerWidth}px`, transition: mainDrawerResizing ? 'none' : undefined }"
+        @pointer-down-outside="onDrawerPointerDownOutside"
+      >
+        <header
+          class="flex w-full min-w-0 shrink-0 items-center gap-2.5 border-b border-solid border-[color:var(--td-component-stroke)] px-[18px] py-3.5 font-normal"
+        >
+          <div
+            class="text-primary flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-[rgba(7,192,95,0.1)] text-base"
+          >
+            <component :is="HEADER_ICONS[headerIconName]" class="size-4" />
           </div>
-          <div class="doc-drawer-header-text">
-            <div class="doc-drawer-header-title">{{ getDisplayTitle() }}</div>
+          <div class="min-w-0 flex-auto">
+            <DrawerTitle class="text-foreground truncate text-[15px] leading-[1.4] font-semibold">
+              {{ getDisplayTitle() }}
+            </DrawerTitle>
           </div>
-          <div class="header-actions">
-            <t-button
+          <div class="flex shrink-0 grow-0 items-center gap-0.5">
+            <Button
               v-if="canDownloadKB && (details.type === 'file' || details.type === 'manual')"
-              class="header-action-btn"
-              size="small"
-              variant="text"
-              shape="square"
-              theme="default"
+              variant="ghost"
+              size="icon-sm"
+              class="text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent size-7 min-w-7 shrink-0 rounded-[4px] p-0 transition-colors duration-150"
               :title="$t('common.download') || 'Download'"
               @click="downloadFile()"
             >
-              <template #icon>
-                <t-icon name="download" size="16px" />
-              </template>
-            </t-button>
-            <t-button
+              <DownloadIcon class="size-4" />
+            </Button>
+            <Button
               v-if="details.id && hasTimelineSpans"
-              class="header-action-btn trace-entry-btn"
-              size="small"
-              variant="text"
-              shape="square"
-              :theme="traceEntryTheme"
+              variant="ghost"
+              size="icon-sm"
+              class="hover:bg-accent dark:hover:bg-accent size-7 min-w-7 shrink-0 rounded-[4px] p-0 transition-colors duration-150"
+              :class="TRACE_ENTRY_CLASS[traceEntryTheme]"
               :title="traceEntryTitle"
               @click="openTimeline"
             >
-              <template #icon>
-                <t-icon name="chart-line" size="16px" />
-              </template>
-            </t-button>
+              <ChartLineIcon class="size-4" />
+            </Button>
+            <!-- The close button t-drawer drew in its header. -->
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent ml-1 size-7 min-w-7 shrink-0 rounded-[4px] p-0"
+              :aria-label="$t('common.close')"
+              @click="handleClose"
+            >
+              <XIcon class="size-4" />
+            </Button>
           </div>
-        </div>
-      </template>
+        </header>
 
-      <!-- Hidden mount: keeps the timeline fetching data so the header
-           link's status dot / duration stays live even before the user
-           opens the secondary drawer. -->
-      <div class="kp-trigger-shadow" aria-hidden="true">
-        <KnowledgeProcessingTimeline
-          v-if="details.id"
-          :knowledge-id="details.id"
-          :parse-status="details.parse_status"
-          :compact="true"
-          :grace-poll="false"
-          @update:has-spans="hasTimelineSpans = $event"
-          @update:summary="timelineSummary = $event"
-        />
-      </div>
-
-      <!-- 二级抽屉：完整 Langfuse-style waterfall -->
-      <teleport to="body">
-        <div
-          v-if="timelineDrawerVisible"
-          class="trace-drawer-resize-handle"
-          :style="{ right: `${timelineDrawerWidth}px` }"
-          role="separator"
-          aria-orientation="vertical"
-          :aria-label="$t('knowledgeStages.resizeDrawer')"
-          :title="$t('knowledgeStages.resizeDrawer')"
-          @mousedown.prevent="onTraceDrawerResizeStart"
-        >
-          <div class="trace-drawer-resize-line" />
-        </div>
-      </teleport>
-      <t-drawer
-        :visible="timelineDrawerVisible"
-        :zIndex="2100"
-        :size="`${timelineDrawerWidth}px`"
-        attach="body"
-        :closeBtn="false"
-        :footer="false"
-        :header="false"
-        :showOverlay="true"
-        :closeOnOverlayClick="true"
-        placement="right"
-        :class="['kp-secondary-drawer', { 'kp-secondary-drawer--resizing': timelineDrawerResizing }]"
-        @close="closeTimeline"
-      >
-        <div class="kp-drawer-shell" :class="{ 'kp-drawer-shell--resizing': timelineDrawerResizing }">
+        <!-- Hidden mount: keeps the timeline fetching data so the header
+             link's status dot / duration stays live even before the user
+             opens the secondary drawer. -->
+        <div class="hidden" aria-hidden="true">
           <KnowledgeProcessingTimeline
-            v-if="details.id && timelineDrawerVisible"
+            v-if="details.id"
             :knowledge-id="details.id"
             :parse-status="details.parse_status"
-            :doc-title="details.title"
-            show-close
-            @close="closeTimeline"
+            :compact="true"
+            :grace-poll="false"
+            @update:has-spans="hasTimelineSpans = $event"
+            @update:summary="timelineSummary = $event"
           />
         </div>
-      </t-drawer>
 
-      <div ref="docMarkdownRoot" class="doc-markdown-root doc-drawer-body setting-drawer__body">
-        <section v-if="details.id" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.detailSectionMeta") }}</h4>
-          <div class="doc-detail-rows">
-            <div v-if="details.time" class="doc-detail-row">
-              <span class="doc-detail-label">{{ getTimeLabel() }}</span>
-              <span class="doc-detail-value">{{ details.time }}</span>
-            </div>
-            <div v-if="details.type" class="doc-detail-row">
-              <span class="doc-detail-label">{{ $t("knowledgeBase.infoCard.type") }}</span>
-              <span class="doc-detail-value">
-                <t-tag size="small" :theme="getTypeTheme()" variant="light">{{ getTypeLabel() }}</t-tag>
-              </span>
-            </div>
-            <div v-if="details.channel && details.channel !== 'web'" class="doc-detail-row">
-              <span class="doc-detail-label">{{ $t("knowledgeBase.infoCard.source") }}</span>
-              <span class="doc-detail-value">
-                <t-tag size="small" variant="light" theme="warning">{{ getChannelLabel(details.channel) }}</t-tag>
-              </span>
-            </div>
-            <div v-if="detailTags.length > 0" class="doc-detail-row">
-              <span class="doc-detail-label">{{ $t("knowledgeBase.tagLabel") }}</span>
-              <span class="doc-detail-value doc-tag-chips">
-                <t-tag
-                  v-for="tag in detailTags"
-                  :key="tag.id"
-                  size="small"
-                  variant="light-outline"
-                  class="doc-tag-chip"
-                >
-                  <span class="tag-text">{{ tag.name }}</span>
-                </t-tag>
-              </span>
-            </div>
+        <!-- 二级抽屉：完整 Langfuse-style waterfall -->
+        <teleport to="body">
+          <div
+            v-if="timelineDrawerVisible"
+            class="trace-drawer-resize-handle group pointer-events-auto fixed top-0 bottom-0 z-[2101] -ml-1.5 flex w-3 cursor-col-resize items-center justify-center"
+            :style="{ right: `${timelineDrawerWidth}px` }"
+            role="separator"
+            aria-orientation="vertical"
+            :aria-label="$t('knowledgeStages.resizeDrawer')"
+            :title="$t('knowledgeStages.resizeDrawer')"
+            @mousedown.prevent="onTraceDrawerResizeStart"
+          >
+            <div
+              class="bg-border group-hover:bg-primary h-12 w-0.5 rounded-[1px] opacity-55 transition-[opacity,background-color] duration-150 group-hover:opacity-100"
+              :class="{ 'bg-primary opacity-100': timelineDrawerResizing }"
+            />
           </div>
-        </section>
+        </teleport>
+        <Drawer
+          :open="timelineDrawerVisible"
+          swipe-direction="right"
+          @update:open="(open: boolean) => !open && closeTimeline()"
+        >
+          <DrawerContent
+            class="bg-card max-w-none gap-0 rounded-none border-0 p-0 sm:max-w-none"
+            :style="{ width: `${timelineDrawerWidth}px`, transition: timelineDrawerResizing ? 'none' : undefined }"
+            @pointer-down-outside="onDrawerPointerDownOutside"
+          >
+            <DrawerTitle class="sr-only">{{ $t("knowledgeStages.viewTrace") }}</DrawerTitle>
+            <div class="kp-drawer-shell bg-card relative flex size-full min-w-0 flex-col overflow-hidden">
+              <KnowledgeProcessingTimeline
+                v-if="details.id && timelineDrawerVisible"
+                :knowledge-id="details.id"
+                :parse-status="details.parse_status"
+                :doc-title="details.title"
+                show-close
+                @close="closeTimeline"
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
 
-        <section v-if="details.id" class="setting-drawer__section metadata-section">
-          <div class="section-title-actions">
-            <h4 class="setting-drawer__section-title">
-              <span>{{ $t("knowledgeBase.customMetadata") }}</span>
-              <t-tooltip :content="$t('knowledgeBase.metadataCapabilityHint')" placement="top">
-                <t-icon name="info-circle" size="14px" class="metadata-capability-icon" />
-              </t-tooltip>
-              <span v-if="Object.keys(details.custom_metadata || {}).length" class="metadata-count">
-                {{ Object.keys(details.custom_metadata || {}).length }}/20
-              </span>
-            </h4>
-            <t-tooltip v-if="canEditContent && !metadataEditing" :content="$t('common.edit')" placement="top">
-              <t-button class="icon-action-btn" size="small" variant="text" shape="square" @click="startMetadataEdit">
-                <template #icon><t-icon name="edit" size="15px" /></template>
-              </t-button>
-            </t-tooltip>
-          </div>
-
-          <div v-if="!metadataEditing" class="metadata-display">
-            <div v-if="Object.keys(details.custom_metadata || {}).length" class="metadata-grid">
-              <div v-for="(value, key) in details.custom_metadata || {}" :key="key" class="metadata-item">
-                <span class="metadata-item-key">{{ key }}</span>
-                <span class="metadata-item-value">{{ formatMetadataValue(value) }}</span>
+        <div ref="docMarkdownRoot" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-[18px] py-4">
+          <section v-if="details.id" :class="[SECTION, 'gap-[14px]']">
+            <h4 :class="[SECTION_TITLE, 'mb-1']">{{ $t("knowledgeBase.detailSectionMeta") }}</h4>
+            <div class="flex flex-col gap-2.5">
+              <div v-if="details.time" class="flex items-start gap-3 leading-[1.6]">
+                <span class="text-muted-foreground flex-[0_0_72px] text-xs">{{ getTimeLabel() }}</span>
+                <span :class="[DETAIL_VALUE, 'gap-1.5']">{{ details.time }}</span>
+              </div>
+              <div v-if="details.type" class="flex items-start gap-3 leading-[1.6]">
+                <span class="text-muted-foreground flex-[0_0_72px] text-xs">{{
+                  $t("knowledgeBase.infoCard.type")
+                }}</span>
+                <span :class="[DETAIL_VALUE, 'gap-1.5']">
+                  <span :class="[TAG, TAG_THEME[getTypeTheme()]]">{{ getTypeLabel() }}</span>
+                </span>
+              </div>
+              <div v-if="details.channel && details.channel !== 'web'" class="flex items-start gap-3 leading-[1.6]">
+                <span class="text-muted-foreground flex-[0_0_72px] text-xs">{{
+                  $t("knowledgeBase.infoCard.source")
+                }}</span>
+                <span :class="[DETAIL_VALUE, 'gap-1.5']">
+                  <span :class="[TAG, TAG_THEME.warning]">{{ getChannelLabel(details.channel) }}</span>
+                </span>
+              </div>
+              <div v-if="detailTags.length > 0" class="flex items-start gap-3 leading-[1.6]">
+                <span class="text-muted-foreground flex-[0_0_72px] text-xs">{{ $t("knowledgeBase.tagLabel") }}</span>
+                <span :class="[DETAIL_VALUE, 'gap-1']">
+                  <span
+                    v-for="tag in detailTags"
+                    :key="tag.id"
+                    class="text-muted-foreground inline-flex h-5 max-w-[140px] items-center rounded-full border border-solid border-[color:var(--td-component-stroke)] bg-transparent px-2 leading-5 whitespace-nowrap"
+                  >
+                    <span class="inline-block max-w-[100px] truncate align-middle text-[11px]">{{ tag.name }}</span>
+                  </span>
+                </span>
               </div>
             </div>
-            <button v-else-if="canEditContent" type="button" class="metadata-empty-action" @click="startMetadataEdit">
-              <t-icon name="add" size="15px" />
-              <span>{{ $t("knowledgeBase.addMetadataField") }}</span>
-            </button>
-            <span v-else class="metadata-empty">{{ $t("knowledgeBase.noCustomMetadata") }}</span>
-          </div>
+          </section>
 
-          <div v-else class="metadata-editor">
-            <div v-for="row in metadataDraft" :key="row.id" class="metadata-editor-row">
-              <t-input
-                v-model="row.key"
-                class="metadata-key-input"
-                :placeholder="$t('knowledgeBase.metadataKeyPlaceholder')"
-              />
-              <t-select v-model="row.type" class="metadata-type-select" :options="metadataTypeOptions" />
-              <t-select
-                v-if="row.type === 'boolean'"
-                v-model="row.value"
-                class="metadata-value-input"
-                :options="[
-                  { label: 'true', value: 'true' },
-                  { label: 'false', value: 'false' },
-                ]"
-              />
-              <t-input
-                v-else-if="row.type !== 'null'"
-                v-model="row.value"
-                class="metadata-value-input"
-                :placeholder="$t('knowledgeBase.metadataValuePlaceholder')"
-              />
-              <div v-else class="metadata-null-value">null</div>
-              <t-tooltip :content="$t('common.delete')" placement="top">
-                <t-button
-                  class="icon-action-btn metadata-remove-btn"
-                  size="small"
-                  variant="text"
-                  shape="square"
-                  @click="removeMetadataRow(row.id)"
+          <section v-if="details.id" :class="[SECTION, 'gap-[14px]']">
+            <div class="flex items-center justify-between gap-2">
+              <h4 :class="[SECTION_TITLE, 'mb-1']">
+                <span>{{ $t("knowledgeBase.customMetadata") }}</span>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <InfoIcon class="text-placeholder size-3.5 shrink-0 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("knowledgeBase.metadataCapabilityHint") }}</TooltipContent>
+                </Tooltip>
+                <span
+                  v-if="Object.keys(details.custom_metadata || {}).length"
+                  class="text-placeholder text-[11px] font-normal"
                 >
-                  <template #icon><t-icon name="delete" size="15px" /></template>
-                </t-button>
-              </t-tooltip>
+                  {{ Object.keys(details.custom_metadata || {}).length }}/20
+                </span>
+              </h4>
+              <Tooltip v-if="canEditContent && !metadataEditing">
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    :class="ICON_BTN"
+                    :aria-label="$t('common.edit')"
+                    @click="startMetadataEdit"
+                  >
+                    <PencilIcon class="size-[15px]" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("common.edit") }}</TooltipContent>
+              </Tooltip>
             </div>
-            <button v-if="metadataDraft.length < 20" type="button" class="metadata-add-row" @click="addMetadataRow">
-              <t-icon name="add" size="15px" />
-              <span>{{ $t("knowledgeBase.addMetadataField") }}</span>
-            </button>
-            <div class="metadata-actions">
-              <t-button
-                size="small"
-                variant="outline"
-                :disabled="metadataSaving"
-                @click="
-                  metadataEditing = false;
-                  syncMetadataDraft();
-                "
+
+            <div v-if="!metadataEditing" class="min-w-0">
+              <div
+                v-if="Object.keys(details.custom_metadata || {}).length"
+                class="flex flex-wrap items-center gap-x-[18px] gap-y-[7px]"
               >
-                {{ $t("common.cancel") }}
-              </t-button>
-              <t-button size="small" theme="primary" :loading="metadataSaving" @click="saveMetadata">
-                {{ $t("common.save") }}
-              </t-button>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="details.type === 'url'" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.urlSource") }}</h4>
-          <div class="url_link_box">
-            <a
-              :href="isValidURL(details.source) ? details.source : 'javascript:void(0)'"
-              :target="isValidURL(details.source) ? '_blank' : undefined"
-              class="url_link"
-            >
-              <t-icon name="link" size="14px" />
-              <span class="url_text">{{ details.source }}</span>
-              <t-icon name="jump" size="14px" class="jump-icon" />
-            </a>
-          </div>
-        </section>
-
-        <section v-if="showSummarySection" class="setting-drawer__section summary-section">
-          <div class="section-title-actions">
-            <div class="summary-section-heading">
-              <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.documentSummary") }}</h4>
-              <span v-if="details.description && summaryStatusRefreshing" class="summary-refreshing-indicator">
-                <t-loading size="small" />
-                <span>{{ $t("knowledgeBase.generatingSummary") }}</span>
-              </span>
-            </div>
-            <div v-if="canEditContent && !summaryEditing" class="summary-title-actions">
-              <t-tooltip v-if="canEditSummary" :content="$t('common.edit')" placement="top">
-                <t-button class="icon-action-btn" size="small" variant="text" shape="square" @click="startSummaryEdit">
-                  <template #icon><t-icon name="edit" size="15px" /></template>
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="$t('knowledgeBase.regenerateSummary')" placement="top">
-                <t-button
-                  class="icon-action-btn"
-                  size="small"
-                  variant="text"
-                  shape="square"
-                  :loading="summaryRefreshing"
-                  @click="refreshSummary"
+                <div
+                  v-for="(value, key) in details.custom_metadata || {}"
+                  :key="key"
+                  class="inline-flex min-w-0 items-baseline gap-[5px]"
                 >
-                  <template #icon><t-icon name="refresh" size="15px" /></template>
-                </t-button>
-              </t-tooltip>
+                  <span class="text-placeholder block truncate text-xs after:content-[':']">{{ key }}</span>
+                  <span class="text-foreground block truncate text-[13px]">{{ formatMetadataValue(value) }}</span>
+                </div>
+              </div>
+              <button
+                v-else-if="canEditContent"
+                type="button"
+                data-slot="metadata-empty-action"
+                :class="METADATA_LINK_BTN"
+                @click="startMetadataEdit"
+              >
+                <PlusIcon class="size-[15px]" />
+                <span>{{ $t("knowledgeBase.addMetadataField") }}</span>
+              </button>
+              <span v-else class="text-placeholder">{{ $t("knowledgeBase.noCustomMetadata") }}</span>
             </div>
-          </div>
-          <div v-if="summaryEditing" class="summary_editor">
-            <t-textarea
-              v-model="summaryDraft"
-              :autosize="{ minRows: 4, maxRows: 10 }"
-              :placeholder="$t('knowledgeBase.noDocumentSummary')"
-            />
-            <div class="summary_editor_actions">
-              <t-button size="small" variant="outline" :disabled="summarySaving" @click="cancelSummaryEdit">
-                {{ $t("common.cancel") }}
-              </t-button>
-              <t-button size="small" theme="primary" :loading="summarySaving" @click="saveSummary">
-                {{ $t("common.save") }}
-              </t-button>
+
+            <div v-else class="flex flex-col gap-2">
+              <div v-for="row in metadataDraft" :key="row.id" class="flex items-center gap-1.5 max-[720px]:flex-wrap">
+                <Input
+                  v-model="row.key"
+                  class="min-w-[100px] flex-[0_1_30%] max-[720px]:flex-[1_1_calc(50%-50px)]"
+                  :placeholder="$t('knowledgeBase.metadataKeyPlaceholder')"
+                />
+                <Select v-model="row.type">
+                  <SelectTrigger class="w-auto flex-[0_0_92px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="option in metadataTypeOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select v-if="row.type === 'boolean'" v-model="row.value">
+                  <SelectTrigger class="w-auto min-w-[110px] flex-1 max-[720px]:flex-[1_1_calc(50%-50px)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">true</SelectItem>
+                    <SelectItem value="false">false</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  v-else-if="row.type !== 'null'"
+                  v-model="row.value"
+                  class="min-w-[110px] flex-1 max-[720px]:flex-[1_1_calc(50%-50px)]"
+                  :placeholder="$t('knowledgeBase.metadataValuePlaceholder')"
+                />
+                <div
+                  v-else
+                  class="border-border text-placeholder h-8 min-w-[110px] flex-1 rounded-[3px] border border-solid bg-[color:var(--td-bg-color-component-disabled)] px-2.5 text-[13px] leading-[30px] max-[720px]:flex-[1_1_calc(50%-50px)]"
+                >
+                  null
+                </div>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :class="[ICON_BTN, ICON_BTN_DANGER_HOVER]"
+                      :aria-label="$t('common.delete')"
+                      @click="removeMetadataRow(row.id)"
+                    >
+                      <Trash2Icon class="size-[15px]" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("common.delete") }}</TooltipContent>
+                </Tooltip>
+              </div>
+              <button
+                v-if="metadataDraft.length < 20"
+                type="button"
+                data-slot="metadata-add-row"
+                :class="METADATA_LINK_BTN"
+                @click="addMetadataRow"
+              >
+                <PlusIcon class="size-[15px]" />
+                <span>{{ $t("knowledgeBase.addMetadataField") }}</span>
+              </button>
+              <div class="mt-2 flex items-center justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  :disabled="metadataSaving"
+                  @click="
+                    metadataEditing = false;
+                    syncMetadataDraft();
+                  "
+                >
+                  {{ $t("common.cancel") }}
+                </Button>
+                <Button size="sm" :disabled="metadataSaving" @click="saveMetadata">
+                  <Loader2Icon v-if="metadataSaving" class="animate-spin" />
+                  {{ $t("common.save") }}
+                </Button>
+              </div>
             </div>
-          </div>
-          <div
-            v-else-if="details.description"
-            class="summary_wrapper"
-            :class="{ summary_clickable: summaryOverflow || summaryExpanded }"
-            @click="(summaryOverflow || summaryExpanded) && (summaryExpanded = !summaryExpanded)"
-          >
-            <div ref="summaryRef" :class="['summary_content', { summary_collapsed: !summaryExpanded }]">
-              {{ details.description }}
+          </section>
+
+          <section v-if="details.type === 'url'" :class="[SECTION, 'gap-[14px]']">
+            <h4 :class="[SECTION_TITLE, 'mb-1']">{{ $t("knowledgeBase.urlSource") }}</h4>
+            <div class="bg-accent rounded-[4px] px-3 py-2">
+              <a
+                :href="isValidURL(details.source) ? details.source : 'javascript:void(0)'"
+                :target="isValidURL(details.source) ? '_blank' : undefined"
+                class="text-primary flex items-center gap-2 no-underline"
+              >
+                <LinkIcon class="size-3.5 shrink-0" />
+                <span class="flex-1 text-[13px] break-all">{{ details.source }}</span>
+                <ExternalLinkIcon class="text-primary size-3.5 shrink-0" />
+              </a>
+            </div>
+          </section>
+
+          <section v-if="showSummarySection" :class="[SECTION, 'gap-[14px]']">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex min-w-0 items-center gap-2.5">
+                <h4 :class="[SECTION_TITLE, 'mb-1']">{{ $t("knowledgeBase.documentSummary") }}</h4>
+                <span
+                  v-if="details.description && summaryStatusRefreshing"
+                  class="text-placeholder flex items-center gap-[5px] text-[11px] whitespace-nowrap"
+                >
+                  <Loader2Icon class="text-primary size-3.5 animate-spin" />
+                  <span>{{ $t("knowledgeBase.generatingSummary") }}</span>
+                </span>
+              </div>
+              <div v-if="canEditContent && !summaryEditing" class="flex items-center gap-1.5">
+                <Tooltip v-if="canEditSummary">
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :class="ICON_BTN"
+                      :aria-label="$t('common.edit')"
+                      @click="startSummaryEdit"
+                    >
+                      <PencilIcon class="size-[15px]" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("common.edit") }}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      :class="ICON_BTN"
+                      :disabled="summaryRefreshing"
+                      :aria-label="$t('knowledgeBase.regenerateSummary')"
+                      @click="refreshSummary"
+                    >
+                      <Loader2Icon v-if="summaryRefreshing" class="size-[15px] animate-spin" />
+                      <RefreshCwIcon v-else class="size-[15px]" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("knowledgeBase.regenerateSummary") }}</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+            <div v-if="summaryEditing" class="flex flex-col gap-2.5">
+              <Textarea
+                v-model="summaryDraft"
+                class="max-h-[calc(10lh+18px)] min-h-[calc(4lh+18px)]"
+                :placeholder="$t('knowledgeBase.noDocumentSummary')"
+              />
+              <div class="flex items-center justify-end gap-1.5">
+                <Button size="sm" variant="outline" :disabled="summarySaving" @click="cancelSummaryEdit">
+                  {{ $t("common.cancel") }}
+                </Button>
+                <Button size="sm" :disabled="summarySaving" @click="saveSummary">
+                  <Loader2Icon v-if="summarySaving" class="animate-spin" />
+                  {{ $t("common.save") }}
+                </Button>
+              </div>
             </div>
             <div
-              v-if="(summaryOverflow && !summaryExpanded) || summaryExpanded"
-              class="summary_fade"
-              :class="{ summary_fade_expanded: summaryExpanded }"
+              v-else-if="details.description"
+              class="border-border bg-card relative rounded-[6px] border border-solid"
+              :class="{ 'cursor-pointer': summaryOverflow || summaryExpanded }"
+              @click="(summaryOverflow || summaryExpanded) && (summaryExpanded = !summaryExpanded)"
             >
-              <t-icon :name="summaryExpanded ? 'chevron-up' : 'chevron-down'" size="14px" class="summary_fade_icon" />
-            </div>
-          </div>
-          <div v-else class="summary_loading">
-            <template v-if="details.summary_status === 'pending' || details.summary_status === 'processing'">
-              <t-loading size="small" />
-              <span>{{ $t("knowledgeBase.generatingSummary") }}</span>
-            </template>
-            <template v-else>
-              <t-icon name="file-unknown" size="18px" />
-              <span>{{ $t("knowledgeBase.noDocumentSummary") }}</span>
-              <t-button
-                v-if="canEditContent"
-                size="small"
-                variant="text"
-                :loading="summaryRefreshing"
-                @click="refreshSummary"
+              <div
+                ref="summaryRef"
+                class="text-foreground p-3 text-[13px] leading-[1.5] [word-break:break-word] whitespace-pre-wrap"
+                :class="{ 'max-h-[4.5em] overflow-hidden': !summaryExpanded }"
               >
-                <template #icon><t-icon name="refresh" size="14px" /></template>
-                {{ $t("knowledgeBase.generateSummary") }}
-              </t-button>
-            </template>
-          </div>
-        </section>
-
-        <section class="setting-drawer__section doc-content-section">
-          <div class="doc-content-section-head">
-            <div class="doc-content-section-head-left">
-              <h4 class="setting-drawer__section-title">{{ getContentLabel() }}</h4>
-              <span v-if="details.total > 0" class="chunk-count">
-                {{ $t("knowledgeBase.chunkCount", { count: details.total }) }}
-              </span>
-            </div>
-            <div class="view-mode-buttons">
-              <t-button
-                v-if="canPreview()"
-                size="small"
-                :variant="viewMode === 'preview' ? 'base' : 'outline'"
-                :theme="viewMode === 'preview' ? 'primary' : 'default'"
-                @click="viewMode = 'preview'"
-                class="view-mode-btn"
+                {{ details.description }}
+              </div>
+              <div
+                v-if="(summaryOverflow && !summaryExpanded) || summaryExpanded"
+                class="pointer-events-none flex justify-center pb-1"
+                :class="{
+                  'absolute inset-x-0 bottom-0 h-7 items-end rounded-b-[6px] bg-[linear-gradient(transparent,var(--td-bg-color-container)_80%)]':
+                    !summaryExpanded,
+                }"
               >
-                {{ $t("preview.tab") }}
-              </t-button>
-              <t-button
-                v-if="!canPreview()"
-                size="small"
-                :variant="viewMode === 'merged' ? 'base' : 'outline'"
-                :theme="viewMode === 'merged' ? 'primary' : 'default'"
-                @click="viewMode = 'merged'"
-                class="view-mode-btn"
-              >
-                {{ $t("knowledgeBase.viewMerged") }}
-              </t-button>
-              <t-button
-                size="small"
-                :variant="viewMode === 'chunks' ? 'base' : 'outline'"
-                :theme="viewMode === 'chunks' ? 'primary' : 'default'"
-                @click="viewMode = 'chunks'"
-                class="view-mode-btn"
-              >
-                {{ $t("knowledgeBase.viewChunks") }}
-              </t-button>
+                <ChevronUpIcon v-if="summaryExpanded" class="text-placeholder size-3.5" />
+                <ChevronDownIcon v-else class="text-placeholder size-3.5" />
+              </div>
             </div>
-          </div>
-
-          <!-- 音频播放器（音频文件时固定显示在内容区顶部） -->
-          <div v-if="isAudioFile(details.file_type)" class="audio-player-section">
-            <div v-if="audioLoading" class="audio-loading">
-              <t-loading size="small" />
-              <span>{{ $t("preview.audioLoading") }}</span>
-            </div>
-            <audio v-else-if="audioBlobUrl" controls class="audio-player" :src="audioBlobUrl">
-              {{ $t("preview.audioNotSupported") }}
-            </audio>
-          </div>
-
-          <!-- 视频播放器（视频文件时固定显示在内容区顶部，时间轴 chunk 点击跳转） -->
-          <div v-if="isVideoFile(details.file_type)" class="video-player-section">
-            <div v-if="videoLoading" class="audio-loading">
-              <t-loading size="small" />
-              <span>{{ $t("preview.videoLoading") }}</span>
-            </div>
-            <video
-              v-else-if="videoBlobUrl"
-              ref="videoPlayerRef"
-              controls
-              class="video-player"
-              :src="videoBlobUrl"
-              @loadedmetadata="applyPendingDeepLinkSeek"
+            <div
+              v-else
+              class="border-border bg-card text-placeholder flex min-h-[42px] items-center gap-2 rounded-[6px] border border-dashed p-3 text-[13px]"
             >
-              {{ $t("preview.videoNotSupported") }}
-            </video>
-          </div>
-
-          <!-- 合并视图 -->
-          <div v-if="viewMode === 'merged'">
-            <div v-if="isChunkPageTransition" class="chunk-page-loading">
-              <t-loading size="small" />
-              <span>{{ $t("common.loading") }}</span>
-            </div>
-            <template v-else>
-              <div v-if="!mergedContent" class="no_content">{{ $t("common.noData") }}</div>
-              <div v-else class="md-content" v-html="processMarkdown(mergedContent)"></div>
-            </template>
-          </div>
-
-          <!-- 分块视图 -->
-          <div v-else-if="viewMode === 'chunks'">
-            <div v-if="isChunkPageTransition" class="chunk-page-loading">
-              <t-loading size="small" />
-              <span>{{ $t("common.loading") }}</span>
-            </div>
-            <template v-else>
-              <div v-if="!processedChunks.length" class="no_content">{{ $t("common.noData") }}</div>
-              <div v-else class="chunk-list">
-                <div
-                  class="chunk-item"
-                  :class="{ 'chunk-item--disabled': !chunk.original.is_enabled }"
-                  v-for="(chunk, index) in processedChunks"
-                  :key="chunk.original.id || index"
+              <template v-if="details.summary_status === 'pending' || details.summary_status === 'processing'">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("knowledgeBase.generatingSummary") }}</span>
+              </template>
+              <template v-else>
+                <FileQuestionMarkIcon class="size-[18px]" />
+                <span>{{ $t("knowledgeBase.noDocumentSummary") }}</span>
+                <Button
+                  v-if="canEditContent"
+                  size="sm"
+                  variant="ghost"
+                  class="text-foreground"
+                  :disabled="summaryRefreshing"
+                  @click="refreshSummary"
                 >
-                  <div class="chunk-header">
-                    <div class="chunk-heading">
-                      <span class="chunk-index"
-                        >{{ $t("knowledgeBase.segment") }}
-                        {{ (loadedChunkPage - 1) * CHUNK_PAGE_SIZE + index + 1 }}</span
-                      >
-                      <span
-                        v-if="chunk.videoTime"
-                        class="chunk-timecode"
-                        role="button"
-                        :title="$t('knowledgeBase.jumpToVideoTime')"
-                        @click="seekVideoTo(chunk.videoTime.startMs)"
-                      >
-                        <t-icon name="play-circle" size="14px" />
-                        {{ formatVideoClock(chunk.videoTime.startMs)
-                        }}<template v-if="chunk.videoTime.endMs != null">
-                          - {{ formatVideoClock(chunk.videoTime.endMs) }}</template
+                  <Loader2Icon v-if="summaryRefreshing" class="size-3.5 animate-spin" />
+                  <RefreshCwIcon v-else class="size-3.5" />
+                  {{ $t("knowledgeBase.generateSummary") }}
+                </Button>
+              </template>
+            </div>
+          </section>
+
+          <section :class="[SECTION, 'gap-3']">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <h4 :class="[SECTION_TITLE, 'mb-0']">{{ getContentLabel() }}</h4>
+                <span
+                  v-if="details.total > 0"
+                  class="bg-accent text-muted-foreground shrink-0 rounded-[4px] px-2 py-0.5 text-xs"
+                >
+                  {{ $t("knowledgeBase.chunkCount", { count: details.total }) }}
+                </span>
+              </div>
+              <div class="flex shrink-0 gap-1">
+                <Button
+                  v-if="canPreview()"
+                  size="sm"
+                  :variant="viewMode === 'preview' ? 'default' : 'outline'"
+                  class="h-7 min-w-[60px]"
+                  @click="viewMode = 'preview'"
+                >
+                  {{ $t("preview.tab") }}
+                </Button>
+                <Button
+                  v-if="!canPreview()"
+                  size="sm"
+                  :variant="viewMode === 'merged' ? 'default' : 'outline'"
+                  class="h-7 min-w-[60px]"
+                  @click="viewMode = 'merged'"
+                >
+                  {{ $t("knowledgeBase.viewMerged") }}
+                </Button>
+                <Button
+                  size="sm"
+                  :variant="viewMode === 'chunks' ? 'default' : 'outline'"
+                  class="h-7 min-w-[60px]"
+                  @click="viewMode = 'chunks'"
+                >
+                  {{ $t("knowledgeBase.viewChunks") }}
+                </Button>
+              </div>
+            </div>
+
+            <!-- 音频播放器（音频文件时固定显示在内容区顶部） -->
+            <div
+              v-if="isAudioFile(details.file_type)"
+              class="border-border bg-accent mb-4 rounded-[6px] border border-solid px-4 py-3"
+            >
+              <div v-if="audioLoading" :class="PLAYER_LOADING">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("preview.audioLoading") }}</span>
+              </div>
+              <audio v-else-if="audioBlobUrl" controls class="h-10 w-full" :src="audioBlobUrl">
+                {{ $t("preview.audioNotSupported") }}
+              </audio>
+            </div>
+
+            <!-- 视频播放器（视频文件时固定显示在内容区顶部，时间轴 chunk 点击跳转） -->
+            <!-- Sticky, so the player stays in view while the timeline chunks below it scroll. -->
+            <div
+              v-if="isVideoFile(details.file_type)"
+              class="border-border bg-accent sticky top-0 z-[5] mb-4 rounded-[6px] border border-solid px-4 py-3"
+            >
+              <div v-if="videoLoading" :class="PLAYER_LOADING">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("preview.videoLoading") }}</span>
+              </div>
+              <video
+                v-else-if="videoBlobUrl"
+                ref="videoPlayerRef"
+                controls
+                class="max-h-[320px] w-full rounded-[4px] bg-black"
+                :src="videoBlobUrl"
+                @loadedmetadata="applyPendingDeepLinkSeek"
+              >
+                {{ $t("preview.videoNotSupported") }}
+              </video>
+            </div>
+
+            <!-- 合并视图 -->
+            <div v-if="viewMode === 'merged'">
+              <div v-if="isChunkPageTransition" :class="PAGE_LOADING">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("common.loading") }}</span>
+              </div>
+              <template v-else>
+                <div v-if="!mergedContent" :class="NO_CONTENT">{{ $t("common.noData") }}</div>
+                <div v-else :class="MD_CONTENT" v-html="processMarkdown(mergedContent)"></div>
+              </template>
+            </div>
+
+            <!-- 分块视图 -->
+            <div v-else-if="viewMode === 'chunks'">
+              <div v-if="isChunkPageTransition" :class="PAGE_LOADING">
+                <Loader2Icon class="text-primary size-4 animate-spin" />
+                <span>{{ $t("common.loading") }}</span>
+              </div>
+              <template v-else>
+                <div v-if="!processedChunks.length" :class="NO_CONTENT">{{ $t("common.noData") }}</div>
+                <div v-else class="flex flex-col gap-3">
+                  <div
+                    v-for="(chunk, index) in processedChunks"
+                    :key="chunk.original.id || index"
+                    class="border-border rounded-[6px] border border-solid px-3.5 py-3"
+                    :class="chunk.original.is_enabled ? 'bg-card' : 'bg-muted'"
+                  >
+                    <div
+                      class="mb-2.5 flex min-h-7 flex-wrap items-center justify-between gap-2 border-b border-solid border-[color:var(--td-component-stroke)] pb-2"
+                    >
+                      <div class="flex min-w-0 flex-wrap items-center gap-2">
+                        <span class="text-muted-foreground text-xs font-semibold"
+                          >{{ $t("knowledgeBase.segment") }}
+                          {{ (loadedChunkPage - 1) * CHUNK_PAGE_SIZE + index + 1 }}</span
                         >
-                      </span>
-                      <span class="chunk-meta">{{ chunk.meta }}</span>
-                    </div>
-                    <div class="chunk-header-right">
-                      <t-tooltip
-                        v-if="chunk.original.index_status === 'failed' && canEditContent"
-                        :content="$t('knowledgeBase.retryIndex')"
-                        placement="top"
-                      >
-                        <t-button
-                          class="icon-action-btn"
-                          size="small"
-                          theme="danger"
-                          variant="text"
-                          shape="square"
-                          @click="retryChunkIndex(chunk.original)"
+                        <span
+                          v-if="chunk.videoTime"
+                          class="text-primary inline-flex cursor-pointer items-center gap-1 rounded-[10px] bg-[color:var(--td-brand-color-light)] px-2 py-px text-xs select-none hover:bg-[color:var(--td-brand-color-focus)]"
+                          role="button"
+                          :title="$t('knowledgeBase.jumpToVideoTime')"
+                          @click="seekVideoTo(chunk.videoTime.startMs)"
                         >
-                          <template #icon><t-icon name="refresh" size="15px" /></template>
-                        </t-button>
-                      </t-tooltip>
-                      <t-popup
-                        v-if="chunk.hasParent"
-                        :visible="parentContextPopup === chunk.original.id"
-                        trigger="click"
-                        placement="bottom-right"
-                        :show-arrow="true"
-                        destroy-on-close
-                        :overlay-inner-style="{ padding: 0 }"
-                        overlay-class-name="chunk-context-popup-overlay"
-                        @visible-change="
-                          (visible: boolean) => setParentContextPopupVisible(chunk.original, index, visible)
-                        "
-                      >
-                        <t-button
-                          class="icon-action-btn"
-                          :class="{ 'is-active': parentContextPopup === chunk.original.id }"
-                          size="small"
-                          variant="text"
-                          shape="square"
-                          :title="$t('knowledgeBase.viewParentContext')"
+                          <CirclePlayIcon class="size-3.5" />
+                          {{ formatVideoClock(chunk.videoTime.startMs)
+                          }}<template v-if="chunk.videoTime.endMs != null">
+                            - {{ formatVideoClock(chunk.videoTime.endMs) }}</template
+                          >
+                        </span>
+                        <span class="text-placeholder text-[11px]">{{ chunk.meta }}</span>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-0.5">
+                        <Tooltip v-if="chunk.original.index_status === 'failed' && canEditContent">
+                          <TooltipTrigger as-child>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              :class="[ICON_BTN, 'text-destructive', ICON_BTN_DANGER_HOVER]"
+                              :aria-label="$t('knowledgeBase.retryIndex')"
+                              @click="retryChunkIndex(chunk.original)"
+                            >
+                              <RefreshCwIcon class="size-[15px]" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{{ $t("knowledgeBase.retryIndex") }}</TooltipContent>
+                        </Tooltip>
+                        <Popover
+                          v-if="chunk.hasParent"
+                          :open="parentContextPopup === chunk.original.id"
+                          @update:open="(open: boolean) => setParentContextPopupVisible(chunk.original, index, open)"
                         >
-                          <template #icon><t-icon name="git-branch" size="15px" /></template>
-                        </t-button>
-                        <template #content>
-                          <div class="chunk-context-popup" @click.stop>
-                            <div class="chunk-popup-head">
-                              <div class="chunk-popup-title">
-                                <t-icon name="git-branch" size="15px" />
-                                <span>{{ $t("knowledgeBase.viewParentContext") }}</span>
-                              </div>
-                            </div>
-                            <div v-if="parentContextLoading.has(index)" class="chunk-popup-state">
-                              <t-loading size="small" />
-                              <span>{{ $t("common.loading") }}</span>
-                            </div>
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              :class="[ICON_BTN, parentContextPopup === chunk.original.id ? ICON_BTN_ACTIVE : '']"
+                              :title="$t('knowledgeBase.viewParentContext')"
+                            >
+                              <GitBranchIcon class="size-[15px]" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" :class="POPUP_CONTENT">
                             <div
-                              v-else
-                              class="chunk-context-popup-body md-content"
-                              v-html="processMarkdown(getParentContent(chunk.original))"
-                            ></div>
-                          </div>
-                        </template>
-                      </t-popup>
-                      <t-popup
-                        v-if="chunk.questions.length > 0 || canEditContent"
-                        :visible="questionPopupChunk === chunk.original.id"
-                        trigger="click"
-                        placement="bottom-right"
-                        :show-arrow="true"
-                        destroy-on-close
-                        :overlay-inner-style="{ padding: 0 }"
-                        overlay-class-name="chunk-questions-popup-overlay"
-                        @visible-change="(visible: boolean) => setQuestionPopupVisible(chunk.original, visible)"
-                      >
-                        <t-button
-                          class="icon-action-btn chunk-question-entry"
-                          :class="{ 'is-active': questionPopupChunk === chunk.original.id }"
-                          size="small"
-                          variant="text"
-                          shape="square"
-                          :title="$t('knowledgeBase.generatedQuestions')"
-                        >
-                          <template #icon><t-icon name="help-circle" size="15px" /></template>
-                        </t-button>
-                        <template #content>
-                          <div class="chunk-questions-popup" @click.stop>
-                            <div class="chunk-popup-head">
-                              <div class="chunk-popup-title">
-                                <t-icon name="help-circle" size="15px" />
-                                <span>{{ $t("knowledgeBase.generatedQuestions") }}</span>
-                                <span class="chunk-popup-count">{{ chunk.questions.length }}</span>
-                                <span
-                                  v-if="hasStaleGeneratedQuestions(chunk.original)"
-                                  class="chunk-question-stale-hint"
-                                >
-                                  {{ $t("knowledgeBase.staleGeneratedQuestions") }}
-                                </span>
-                              </div>
-                              <div v-if="canEditContent" class="chunk-popup-actions">
-                                <t-tooltip :content="$t('knowledgeBase.addGeneratedQuestion')" placement="top">
-                                  <t-button
-                                    class="icon-action-btn"
-                                    size="small"
-                                    variant="text"
-                                    shape="square"
-                                    @click.stop="openQuestionComposer(chunk.original)"
-                                  >
-                                    <template #icon><t-icon name="add" size="15px" /></template>
-                                  </t-button>
-                                </t-tooltip>
-                                <t-tooltip :content="$t('knowledgeBase.regenerateQuestions')" placement="top">
-                                  <t-button
-                                    class="icon-action-btn"
-                                    size="small"
-                                    variant="text"
-                                    shape="square"
-                                    :loading="regeneratingQuestionChunk === chunk.original.id"
-                                    @click.stop="regenerateQuestions(chunk.original)"
-                                  >
-                                    <template #icon><t-icon name="refresh" size="15px" /></template>
-                                  </t-button>
-                                </t-tooltip>
-                              </div>
-                            </div>
-                            <div class="chunk-questions-popup-body">
-                              <div
-                                v-if="canEditContent && questionComposerChunk === chunk.original.id"
-                                class="question-composer"
-                              >
-                                <t-input
-                                  v-model="questionDrafts[chunk.original.id]"
-                                  autofocus
-                                  :placeholder="$t('knowledgeBase.addGeneratedQuestion')"
-                                  @enter="addQuestion(chunk.original)"
-                                />
-                                <t-tooltip :content="$t('common.cancel')" placement="top">
-                                  <t-button
-                                    class="icon-action-btn"
-                                    size="small"
-                                    variant="text"
-                                    shape="square"
-                                    :disabled="savingQuestionChunk === chunk.original.id"
-                                    @click="closeQuestionComposer(chunk.original)"
-                                  >
-                                    <template #icon><t-icon name="close" size="14px" /></template>
-                                  </t-button>
-                                </t-tooltip>
-                                <t-button
-                                  size="small"
-                                  theme="primary"
-                                  :loading="savingQuestionChunk === chunk.original.id"
-                                  :disabled="!(questionDrafts[chunk.original.id] || '').trim()"
-                                  @click="addQuestion(chunk.original)"
-                                >
-                                  {{ $t("common.add") }}
-                                </t-button>
-                              </div>
-                              <div v-if="chunk.questions.length" class="questions-list">
-                                <div v-for="question in chunk.questions" :key="question.id" class="question-item">
-                                  <span class="question-leading-icon"><t-icon name="help-circle" size="14px" /></span>
-                                  <div
-                                    v-if="editingQuestionKey === `${chunk.original.id}:${question.id}`"
-                                    class="question-inline-editor"
-                                  >
-                                    <t-input
-                                      v-model="questionEditDraft"
-                                      autofocus
-                                      @enter="saveQuestionEdit(chunk.original, question)"
-                                    />
-                                    <t-button size="small" variant="text" @click="cancelQuestionEdit">{{
-                                      $t("common.cancel")
-                                    }}</t-button>
-                                    <t-button
-                                      size="small"
-                                      theme="primary"
-                                      :loading="savingQuestionKey === `${chunk.original.id}:${question.id}`"
-                                      @click="saveQuestionEdit(chunk.original, question)"
-                                      >{{ $t("common.save") }}</t-button
-                                    >
-                                  </div>
-                                  <template v-else>
-                                    <span class="question-text">{{ question.question }}</span>
-                                    <div class="question-actions">
-                                      <t-tooltip
-                                        v-if="canEditContent && !question.id.startsWith('legacy-')"
-                                        :content="$t('common.edit')"
-                                        placement="top"
-                                      >
-                                        <t-button
-                                          class="icon-action-btn"
-                                          theme="default"
-                                          variant="text"
-                                          shape="square"
-                                          size="small"
-                                          @click.stop="startQuestionEdit(chunk.original, question)"
-                                        >
-                                          <template #icon><t-icon name="edit" size="14px" /></template>
-                                        </t-button>
-                                      </t-tooltip>
-                                      <t-popconfirm
-                                        v-if="canDeleteGeneratedQuestion && !question.id.startsWith('legacy-')"
-                                        theme="warning"
-                                        :content="$t('knowledgeBase.confirmDeleteQuestion')"
-                                        @confirm="handleDeleteQuestion(chunk.original, index, question)"
-                                      >
-                                        <t-button
-                                          class="icon-action-btn delete-question-btn"
-                                          theme="default"
-                                          variant="text"
-                                          shape="square"
-                                          size="small"
-                                          :loading="isDeleting(index, question.id)"
-                                        >
-                                          <template #icon><t-icon name="delete" size="14px" /></template>
-                                        </t-button>
-                                      </t-popconfirm>
-                                    </div>
-                                  </template>
+                              :class="[
+                                POPUP_PANEL,
+                                'max-h-[min(560px,calc(100vh-96px))] w-[min(520px,calc(100vw-32px))]',
+                              ]"
+                              @click.stop
+                            >
+                              <div :class="POPUP_HEAD">
+                                <div :class="[POPUP_TITLE, 'gap-[7px]']">
+                                  <GitBranchIcon class="size-[15px]" />
+                                  <span>{{ $t("knowledgeBase.viewParentContext") }}</span>
                                 </div>
                               </div>
-                              <div v-else-if="questionComposerChunk !== chunk.original.id" class="questions-empty">
-                                <t-icon name="chat-bubble-help" size="20px" />
-                                <span>{{ $t("knowledgeBase.noGeneratedQuestions") }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </template>
-                      </t-popup>
-                      <template v-if="canEditContent">
-                        <t-tooltip :content="$t('common.edit')" placement="top">
-                          <t-button
-                            class="icon-action-btn"
-                            :class="{ 'is-active': editingChunkId === chunk.original.id }"
-                            size="small"
-                            variant="text"
-                            shape="square"
-                            @click="startChunkEdit(chunk.original)"
-                          >
-                            <template #icon><t-icon name="edit" size="15px" /></template>
-                          </t-button>
-                        </t-tooltip>
-                        <t-popup
-                          :visible="chunkHistoryPopup === chunk.original.id"
-                          trigger="click"
-                          placement="bottom-right"
-                          :show-arrow="true"
-                          destroy-on-close
-                          :overlay-inner-style="{ padding: 0 }"
-                          overlay-class-name="chunk-history-popup-overlay"
-                          @visible-change="(visible: boolean) => setChunkHistoryPopupVisible(chunk.original, visible)"
-                        >
-                          <t-button
-                            class="icon-action-btn"
-                            :class="{ 'is-active': chunkHistoryPopup === chunk.original.id }"
-                            size="small"
-                            variant="text"
-                            shape="square"
-                            :title="$t('knowledgeBase.chunkHistory')"
-                          >
-                            <template #icon><t-icon name="history" size="15px" /></template>
-                          </t-button>
-                          <template #content>
-                            <div class="chunk-history-popup" @click.stop>
-                              <div class="chunk-history-popup-head">
-                                <div>
-                                  <div class="chunk-history-popup-title">
-                                    <t-icon name="history" size="15px" />
-                                    <span>{{ $t("knowledgeBase.chunkHistory") }}</span>
-                                  </div>
-                                  <div class="chunk-history-current">
-                                    v{{ chunk.original.content_revision || 0 }} ·
-                                    {{ $t("knowledgeBase.currentVersion") }} ·
-                                    {{
-                                      chunk.original.is_enabled
-                                        ? $t("knowledgeBase.enabledStatus")
-                                        : $t("knowledgeBase.disabledStatus")
-                                    }}
-                                  </div>
-                                </div>
-                                <div class="chunk-history-diff-legend">
-                                  <span class="chunk-history-diff-legend-item chunk-history-diff-legend-item--add">
-                                    <i />{{ $t("knowledgeBase.diffAddedInCurrent") }}
-                                  </span>
-                                  <span class="chunk-history-diff-legend-item chunk-history-diff-legend-item--del">
-                                    <i />{{ $t("knowledgeBase.diffRemovedFromCurrent") }}
-                                  </span>
-                                </div>
-                              </div>
-                              <div v-if="chunkHistoryLoading === chunk.original.id" class="chunk-history-popup-state">
-                                <t-loading size="small" />
+                              <div v-if="parentContextLoading.has(index)" :class="POPUP_STATE">
+                                <Loader2Icon class="text-primary size-4 animate-spin" />
                                 <span>{{ $t("common.loading") }}</span>
                               </div>
                               <div
-                                v-else-if="!(chunkHistories[chunk.original.id] || []).length"
-                                class="chunk-history-popup-state"
-                              >
-                                {{ $t("knowledgeBase.noChunkHistory") }}
-                              </div>
-                              <div v-else class="chunk-history-popup-list">
-                                <div
-                                  v-for="(revision, revisionIndex) in chunkHistories[chunk.original.id]"
-                                  :key="revision.id"
-                                  class="chunk-history-popup-item"
-                                  :class="{
-                                    'is-selected': selectedChunkRevision[chunk.original.id] === revision.revision,
-                                  }"
-                                >
-                                  <button
-                                    type="button"
-                                    class="chunk-history-version-row"
-                                    @click="selectChunkRevision(chunk.original, revision.revision)"
+                                v-else
+                                :class="[
+                                  MD_CONTENT,
+                                  'max-h-[min(480px,calc(100vh-170px))] overflow-auto px-4 py-3.5 text-[13px]',
+                                ]"
+                                v-html="processMarkdown(getParentContent(chunk.original))"
+                              ></div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover
+                          v-if="chunk.questions.length > 0 || canEditContent"
+                          :open="questionPopupChunk === chunk.original.id"
+                          @update:open="(open: boolean) => setQuestionPopupVisible(chunk.original, open)"
+                        >
+                          <PopoverTrigger as-child>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              class="chunk-question-entry"
+                              :class="[ICON_BTN, questionPopupChunk === chunk.original.id ? ICON_BTN_ACTIVE : '']"
+                              :title="$t('knowledgeBase.generatedQuestions')"
+                            >
+                              <CircleHelpIcon class="size-[15px]" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" :class="POPUP_CONTENT">
+                            <div
+                              :class="[
+                                POPUP_PANEL,
+                                'max-h-[min(560px,calc(100vh-96px))] w-[min(520px,calc(100vw-32px))]',
+                              ]"
+                              @click.stop
+                            >
+                              <div :class="POPUP_HEAD">
+                                <div :class="[POPUP_TITLE, 'gap-[7px]']">
+                                  <CircleHelpIcon class="size-[15px]" />
+                                  <span>{{ $t("knowledgeBase.generatedQuestions") }}</span>
+                                  <span class="text-placeholder text-[11px] font-normal">{{
+                                    chunk.questions.length
+                                  }}</span>
+                                  <span
+                                    v-if="hasStaleGeneratedQuestions(chunk.original)"
+                                    class="text-warning text-[11px] font-normal"
                                   >
-                                    <span class="chunk-history-version">v{{ revision.revision }}</span>
-                                    <span class="chunk-history-time">{{
-                                      new Date(revision.edited_at).toLocaleString()
-                                    }}</span>
-                                    <span
-                                      v-if="revisionStatusChanged(chunk.original, revisionIndex)"
-                                      class="chunk-history-status-change"
-                                    >
-                                      <t-icon :name="revision.is_enabled ? 'play-circle' : 'stop-circle'" size="13px" />
-                                      {{
-                                        revision.is_enabled
-                                          ? $t("knowledgeBase.enabledStatus")
-                                          : $t("knowledgeBase.disabledStatus")
-                                      }}
-                                    </span>
-                                    <t-icon
-                                      :name="
-                                        selectedChunkRevision[chunk.original.id] === revision.revision
-                                          ? 'chevron-up'
-                                          : 'chevron-down'
-                                      "
-                                      size="14px"
-                                      class="chunk-history-row-chevron"
-                                    />
-                                  </button>
-                                  <div
-                                    v-if="selectedChunkRevision[chunk.original.id] === revision.revision"
-                                    class="chunk-history-diff"
-                                  >
-                                    <div class="chunk-history-diff-head">
-                                      <span>{{
-                                        $t("knowledgeBase.compareRevisionWithCurrent", {
-                                          revision: revision.revision,
-                                          current: chunk.original.content_revision || 0,
-                                        })
-                                      }}</span>
-                                      <t-popconfirm
-                                        theme="warning"
-                                        :content="
-                                          $t('knowledgeBase.revertRevisionConfirm', { revision: revision.revision })
-                                        "
-                                        @confirm="revertChunk(chunk.original, revision.revision)"
+                                    {{ $t("knowledgeBase.staleGeneratedQuestions") }}
+                                  </span>
+                                </div>
+                                <div v-if="canEditContent" class="flex items-center gap-0.5">
+                                  <Tooltip>
+                                    <TooltipTrigger as-child>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        :class="ICON_BTN"
+                                        :aria-label="$t('knowledgeBase.addGeneratedQuestion')"
+                                        @click.stop="openQuestionComposer(chunk.original)"
                                       >
-                                        <t-button
-                                          class="icon-action-btn"
-                                          size="small"
-                                          variant="text"
-                                          shape="square"
-                                          :title="$t('knowledgeBase.revertRevision')"
-                                          :loading="revertingRevision === `${chunk.original.id}:${revision.revision}`"
+                                        <PlusIcon class="size-[15px]" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">{{
+                                      $t("knowledgeBase.addGeneratedQuestion")
+                                    }}</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger as-child>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        :class="ICON_BTN"
+                                        :disabled="regeneratingQuestionChunk === chunk.original.id"
+                                        :aria-label="$t('knowledgeBase.regenerateQuestions')"
+                                        @click.stop="regenerateQuestions(chunk.original)"
+                                      >
+                                        <Loader2Icon
+                                          v-if="regeneratingQuestionChunk === chunk.original.id"
+                                          class="size-[15px] animate-spin"
+                                        />
+                                        <RefreshCwIcon v-else class="size-[15px]" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">{{
+                                      $t("knowledgeBase.regenerateQuestions")
+                                    }}</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                              <div class="max-h-[min(480px,calc(100vh-170px))] overflow-y-auto px-2.5 pb-2">
+                                <div
+                                  v-if="canEditContent && questionComposerChunk === chunk.original.id"
+                                  class="flex items-center gap-1.5 border-b border-solid border-[color:var(--td-component-stroke)] px-1 py-2"
+                                >
+                                  <Input
+                                    v-model="questionDrafts[chunk.original.id]"
+                                    v-focus
+                                    class="flex-1"
+                                    :placeholder="$t('knowledgeBase.addGeneratedQuestion')"
+                                    @keydown.enter="
+                                      (e: KeyboardEvent) => isSubmitEnter(e) && addQuestion(chunk.original)
+                                    "
+                                  />
+                                  <Tooltip>
+                                    <TooltipTrigger as-child>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        :class="ICON_BTN"
+                                        :disabled="savingQuestionChunk === chunk.original.id"
+                                        :aria-label="$t('common.cancel')"
+                                        @click="closeQuestionComposer(chunk.original)"
+                                      >
+                                        <XIcon class="size-3.5" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">{{ $t("common.cancel") }}</TooltipContent>
+                                  </Tooltip>
+                                  <Button
+                                    size="sm"
+                                    :disabled="
+                                      savingQuestionChunk === chunk.original.id ||
+                                      !(questionDrafts[chunk.original.id] || '').trim()
+                                    "
+                                    @click="addQuestion(chunk.original)"
+                                  >
+                                    <Loader2Icon
+                                      v-if="savingQuestionChunk === chunk.original.id"
+                                      class="animate-spin"
+                                    />
+                                    {{ $t("common.add") }}
+                                  </Button>
+                                </div>
+                                <div v-if="chunk.questions.length">
+                                  <div
+                                    v-for="question in chunk.questions"
+                                    :key="question.id"
+                                    class="group/question text-foreground hover:bg-accent flex min-h-[34px] items-center gap-2 rounded-[4px] border-b border-solid border-[color:var(--td-component-stroke)] bg-transparent px-1.5 py-[5px] text-[13px] leading-5"
+                                  >
+                                    <span
+                                      class="text-muted-foreground flex h-5 w-[18px] shrink-0 items-center justify-center"
+                                    >
+                                      <CircleHelpIcon class="size-3.5" />
+                                    </span>
+                                    <div
+                                      v-if="editingQuestionKey === `${chunk.original.id}:${question.id}`"
+                                      class="flex flex-1 items-center gap-1.5"
+                                    >
+                                      <Input
+                                        v-model="questionEditDraft"
+                                        v-focus
+                                        class="flex-1"
+                                        @keydown.enter="
+                                          (e: KeyboardEvent) =>
+                                            isSubmitEnter(e) && saveQuestionEdit(chunk.original, question)
+                                        "
+                                      />
+                                      <Button size="sm" variant="ghost" @click="cancelQuestionEdit">{{
+                                        $t("common.cancel")
+                                      }}</Button>
+                                      <Button
+                                        size="sm"
+                                        :disabled="savingQuestionKey === `${chunk.original.id}:${question.id}`"
+                                        @click="saveQuestionEdit(chunk.original, question)"
+                                      >
+                                        <Loader2Icon
+                                          v-if="savingQuestionKey === `${chunk.original.id}:${question.id}`"
+                                          class="animate-spin"
+                                        />
+                                        {{ $t("common.save") }}
+                                      </Button>
+                                    </div>
+                                    <template v-else>
+                                      <span class="flex-1 leading-5 [word-break:break-word]">{{
+                                        question.question
+                                      }}</span>
+                                      <div
+                                        class="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/question:opacity-100 focus-within:opacity-100"
+                                      >
+                                        <Tooltip v-if="canEditContent && !question.id.startsWith('legacy-')">
+                                          <TooltipTrigger as-child>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon-sm"
+                                              :class="ICON_BTN"
+                                              :aria-label="$t('common.edit')"
+                                              @click.stop="startQuestionEdit(chunk.original, question)"
+                                            >
+                                              <PencilIcon class="size-3.5" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top">{{ $t("common.edit") }}</TooltipContent>
+                                        </Tooltip>
+                                        <Popover
+                                          v-if="canDeleteGeneratedQuestion && !question.id.startsWith('legacy-')"
                                         >
-                                          <template #icon><t-icon name="rollback" size="14px" /></template>
-                                        </t-button>
-                                      </t-popconfirm>
-                                    </div>
-                                    <div v-if="!compactChunkDiff(chunk.original).length" class="chunk-history-no-diff">
-                                      {{ $t("knowledgeBase.noContentChanges") }}
-                                    </div>
-                                    <pre v-else class="chunk-history-diff-body"><span
-                                    v-for="(line, lineIndex) in compactChunkDiff(chunk.original)" :key="lineIndex"
-                                    :class="['chunk-history-diff-line', `chunk-history-diff-line--${line.type}`]">{{ diffLinePrefix(line.type) }}{{ line.text }}
-</span></pre>
+                                          <PopoverTrigger as-child>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon-sm"
+                                              :class="[ICON_BTN, 'text-placeholder', ICON_BTN_DANGER_HOVER]"
+                                              :disabled="isDeleting(index, question.id)"
+                                              :aria-label="$t('common.delete')"
+                                            >
+                                              <Loader2Icon
+                                                v-if="isDeleting(index, question.id)"
+                                                class="size-3.5 animate-spin"
+                                              />
+                                              <Trash2Icon v-else class="size-3.5" />
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent side="top" :class="CONFIRM_CONTENT">
+                                            <p :class="CONFIRM_MESSAGE">
+                                              <CircleAlertIcon class="text-warning mt-0.5 size-4 shrink-0" />
+                                              <span>{{ $t("knowledgeBase.confirmDeleteQuestion") }}</span>
+                                            </p>
+                                            <div class="flex justify-end gap-2">
+                                              <PopoverClose as-child>
+                                                <Button size="xs" variant="outline">{{ $t("common.cancel") }}</Button>
+                                              </PopoverClose>
+                                              <PopoverClose as-child>
+                                                <Button
+                                                  size="xs"
+                                                  @click="handleDeleteQuestion(chunk.original, index, question)"
+                                                >
+                                                  {{ $t("common.confirm") }}
+                                                </Button>
+                                              </PopoverClose>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      </div>
+                                    </template>
                                   </div>
+                                </div>
+                                <div
+                                  v-else-if="questionComposerChunk !== chunk.original.id"
+                                  class="text-placeholder flex items-center justify-center gap-2 px-2 pt-5 pb-3 text-xs"
+                                >
+                                  <MessageCircleQuestionMarkIcon class="size-5" />
+                                  <span>{{ $t("knowledgeBase.noGeneratedQuestions") }}</span>
                                 </div>
                               </div>
                             </div>
-                          </template>
-                        </t-popup>
-                        <span class="chunk-toolbar-divider" />
-                        <t-tooltip
-                          :content="
-                            chunk.original.is_enabled
-                              ? $t('knowledgeBase.disableChunk')
-                              : $t('knowledgeBase.enableChunk')
-                          "
-                          placement="top"
+                          </PopoverContent>
+                        </Popover>
+                        <template v-if="canEditContent">
+                          <Tooltip>
+                            <TooltipTrigger as-child>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                :class="[ICON_BTN, editingChunkId === chunk.original.id ? ICON_BTN_ACTIVE : '']"
+                                :aria-label="$t('common.edit')"
+                                @click="startChunkEdit(chunk.original)"
+                              >
+                                <PencilIcon class="size-[15px]" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{{ $t("common.edit") }}</TooltipContent>
+                          </Tooltip>
+                          <Popover
+                            :open="chunkHistoryPopup === chunk.original.id"
+                            @update:open="(open: boolean) => setChunkHistoryPopupVisible(chunk.original, open)"
+                          >
+                            <PopoverTrigger as-child>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                :class="[ICON_BTN, chunkHistoryPopup === chunk.original.id ? ICON_BTN_ACTIVE : '']"
+                                :title="$t('knowledgeBase.chunkHistory')"
+                              >
+                                <HistoryIcon class="size-[15px]" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" :class="POPUP_CONTENT">
+                              <div
+                                :class="[
+                                  POPUP_PANEL,
+                                  'max-h-[min(620px,calc(100vh-96px))] w-[min(560px,calc(100vw-32px))]',
+                                ]"
+                                @click.stop
+                              >
+                                <div
+                                  class="flex items-center justify-between gap-4 border-b border-solid border-[color:var(--td-component-stroke)] px-3 pt-2 pb-[7px]"
+                                >
+                                  <div>
+                                    <div :class="[POPUP_TITLE, 'gap-1.5']">
+                                      <HistoryIcon class="size-[15px]" />
+                                      <span>{{ $t("knowledgeBase.chunkHistory") }}</span>
+                                    </div>
+                                    <div class="text-placeholder mt-0.5 text-[11px]">
+                                      v{{ chunk.original.content_revision || 0 }} ·
+                                      {{ $t("knowledgeBase.currentVersion") }} ·
+                                      {{
+                                        chunk.original.is_enabled
+                                          ? $t("knowledgeBase.enabledStatus")
+                                          : $t("knowledgeBase.disabledStatus")
+                                      }}
+                                    </div>
+                                  </div>
+                                  <div class="text-placeholder m-0 flex shrink-0 items-center gap-3 text-[10px]">
+                                    <span class="inline-flex items-center gap-1">
+                                      <i class="bg-success size-[7px] rounded-[2px]" />{{
+                                        $t("knowledgeBase.diffAddedInCurrent")
+                                      }}
+                                    </span>
+                                    <span class="inline-flex items-center gap-1">
+                                      <i class="bg-destructive size-[7px] rounded-[2px]" />{{
+                                        $t("knowledgeBase.diffRemovedFromCurrent")
+                                      }}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div v-if="chunkHistoryLoading === chunk.original.id" :class="HISTORY_STATE">
+                                  <Loader2Icon class="text-primary size-4 animate-spin" />
+                                  <span>{{ $t("common.loading") }}</span>
+                                </div>
+                                <div
+                                  v-else-if="!(chunkHistories[chunk.original.id] || []).length"
+                                  :class="HISTORY_STATE"
+                                >
+                                  {{ $t("knowledgeBase.noChunkHistory") }}
+                                </div>
+                                <div v-else class="max-h-[min(520px,calc(100vh-180px))] overflow-y-auto">
+                                  <div
+                                    v-for="(revision, revisionIndex) in chunkHistories[chunk.original.id]"
+                                    :key="revision.id"
+                                    class="border-b border-solid border-[color:var(--td-component-stroke)] last:border-b-0"
+                                    :class="{
+                                      'bg-muted': selectedChunkRevision[chunk.original.id] === revision.revision,
+                                    }"
+                                  >
+                                    <button
+                                      type="button"
+                                      data-slot="chunk-history-version-row"
+                                      class="text-muted-foreground hover:bg-accent flex min-h-10 w-full items-center gap-2 bg-transparent px-3.5 py-2 text-left"
+                                      @click="selectChunkRevision(chunk.original, revision.revision)"
+                                    >
+                                      <span class="text-foreground min-w-8 text-xs font-semibold"
+                                        >v{{ revision.revision }}</span
+                                      >
+                                      <span class="text-placeholder text-[11px]">{{
+                                        new Date(revision.edited_at).toLocaleString()
+                                      }}</span>
+                                      <span
+                                        v-if="revisionStatusChanged(chunk.original, revisionIndex)"
+                                        class="text-muted-foreground ml-auto inline-flex items-center gap-1 text-[11px]"
+                                      >
+                                        <CirclePlayIcon v-if="revision.is_enabled" class="size-[13px]" />
+                                        <CircleStopIcon v-else class="size-[13px]" />
+                                        {{
+                                          revision.is_enabled
+                                            ? $t("knowledgeBase.enabledStatus")
+                                            : $t("knowledgeBase.disabledStatus")
+                                        }}
+                                      </span>
+                                      <!-- The status label, when shown, already pushes the chevron to the end. -->
+                                      <component
+                                        :is="
+                                          selectedChunkRevision[chunk.original.id] === revision.revision
+                                            ? ChevronUpIcon
+                                            : ChevronDownIcon
+                                        "
+                                        class="text-placeholder size-3.5"
+                                        :class="
+                                          revisionStatusChanged(chunk.original, revisionIndex) ? 'ml-0' : 'ml-auto'
+                                        "
+                                      />
+                                    </button>
+                                    <div
+                                      v-if="selectedChunkRevision[chunk.original.id] === revision.revision"
+                                      class="px-3 pb-2.5"
+                                    >
+                                      <div
+                                        class="text-placeholder flex min-h-[30px] items-center justify-between gap-2.5 text-[11px]"
+                                      >
+                                        <span>{{
+                                          $t("knowledgeBase.compareRevisionWithCurrent", {
+                                            revision: revision.revision,
+                                            current: chunk.original.content_revision || 0,
+                                          })
+                                        }}</span>
+                                        <Popover>
+                                          <PopoverTrigger as-child>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon-sm"
+                                              :class="ICON_BTN"
+                                              :title="$t('knowledgeBase.revertRevision')"
+                                              :disabled="
+                                                revertingRevision === `${chunk.original.id}:${revision.revision}`
+                                              "
+                                            >
+                                              <Loader2Icon
+                                                v-if="revertingRevision === `${chunk.original.id}:${revision.revision}`"
+                                                class="size-3.5 animate-spin"
+                                              />
+                                              <Undo2Icon v-else class="size-3.5" />
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent side="top" :class="CONFIRM_CONTENT">
+                                            <p :class="CONFIRM_MESSAGE">
+                                              <CircleAlertIcon class="text-warning mt-0.5 size-4 shrink-0" />
+                                              <span>{{
+                                                $t("knowledgeBase.revertRevisionConfirm", {
+                                                  revision: revision.revision,
+                                                })
+                                              }}</span>
+                                            </p>
+                                            <div class="flex justify-end gap-2">
+                                              <PopoverClose as-child>
+                                                <Button size="xs" variant="outline">{{ $t("common.cancel") }}</Button>
+                                              </PopoverClose>
+                                              <PopoverClose as-child>
+                                                <Button
+                                                  size="xs"
+                                                  @click="revertChunk(chunk.original, revision.revision)"
+                                                >
+                                                  {{ $t("common.confirm") }}
+                                                </Button>
+                                              </PopoverClose>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      </div>
+                                      <div
+                                        v-if="!compactChunkDiff(chunk.original).length"
+                                        class="bg-card text-placeholder rounded-[4px] p-3 text-center text-xs"
+                                      >
+                                        {{ $t("knowledgeBase.noContentChanges") }}
+                                      </div>
+                                      <pre
+                                        v-else
+                                        class="border-border bg-card m-0 max-h-60 overflow-auto rounded-[4px] border border-solid py-2 font-[family-name:var(--app-font-family-mono)] text-[11px] leading-[1.55] [word-break:break-word] whitespace-pre-wrap"
+                                      ><span
+                                      v-for="(line, lineIndex) in compactChunkDiff(chunk.original)" :key="lineIndex"
+                                      class="block min-h-[17px] px-2.5" :class="DIFF_LINE_CLASS[line.type]">{{ diffLinePrefix(line.type) }}{{ line.text }}
+</span></pre>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <span class="mx-1.5 h-4 w-px bg-[color:var(--td-component-stroke)]" />
+                          <!--
+                            The span is the trigger rather than the switch: the trigger writes its
+                            own data-state onto its child, which would overwrite the checked state
+                            the switch is styled by. It also keeps the tooltip working while the
+                            switch is disabled.
+                          -->
+                          <Tooltip>
+                            <TooltipTrigger as-child>
+                              <span class="inline-flex">
+                                <Switch
+                                  :key="`${chunk.original.id}-${chunk.original.is_enabled}`"
+                                  size="sm"
+                                  :model-value="chunk.original.is_enabled"
+                                  :disabled="chunkStatusLoading === chunk.original.id"
+                                  :aria-label="
+                                    chunk.original.is_enabled
+                                      ? $t('knowledgeBase.disableChunk')
+                                      : $t('knowledgeBase.enableChunk')
+                                  "
+                                  @update:model-value="(value: boolean) => toggleChunkEnabled(chunk.original, value)"
+                                >
+                                  <template #thumb>
+                                    <Loader2Icon
+                                      v-if="chunkStatusLoading === chunk.original.id"
+                                      class="text-muted-foreground size-full animate-spin p-px"
+                                    />
+                                  </template>
+                                </Switch>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {{
+                                chunk.original.is_enabled
+                                  ? $t("knowledgeBase.disableChunk")
+                                  : $t("knowledgeBase.enableChunk")
+                              }}
+                            </TooltipContent>
+                          </Tooltip>
+                        </template>
+                      </div>
+                    </div>
+                    <div v-if="editingChunkId === chunk.original.id" class="bg-muted mt-1 mb-2.5 rounded-[5px] p-3">
+                      <div class="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-medium">
+                        <PencilIcon class="size-3.5" />
+                        <span>{{ $t("knowledgeBase.editChunkContent") }}</span>
+                      </div>
+                      <Textarea
+                        v-model="chunkDraft"
+                        v-focus
+                        class="bg-card dark:bg-card max-h-[calc(20lh+18px)] min-h-[calc(6lh+18px)]"
+                      />
+                      <div class="mt-2 flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          :disabled="savingChunkId === chunk.original.id"
+                          @click="editingChunkId = ''"
+                          >{{ $t("common.cancel") }}</Button
                         >
-                          <t-switch
-                            :key="`${chunk.original.id}-${chunk.original.is_enabled}`"
-                            size="small"
-                            :value="chunk.original.is_enabled"
-                            :loading="chunkStatusLoading === chunk.original.id"
-                            :disabled="chunkStatusLoading === chunk.original.id"
-                            @change="(value: boolean) => toggleChunkEnabled(chunk.original, value)"
-                          />
-                        </t-tooltip>
-                      </template>
+                        <Button
+                          size="sm"
+                          :disabled="savingChunkId === chunk.original.id"
+                          @click="saveChunkEdit(chunk.original)"
+                        >
+                          <Loader2Icon v-if="savingChunkId === chunk.original.id" class="animate-spin" />
+                          {{ $t("common.save") }}
+                        </Button>
+                      </div>
                     </div>
+                    <div
+                      v-else
+                      :class="[MD_CONTENT, { 'opacity-50': !chunk.original.is_enabled }]"
+                      v-html="chunk.processedContent"
+                    ></div>
                   </div>
-                  <div v-if="editingChunkId === chunk.original.id" class="chunk-editor">
-                    <div class="chunk-editor-label">
-                      <t-icon name="edit" size="14px" />
-                      <span>{{ $t("knowledgeBase.editChunkContent") }}</span>
-                    </div>
-                    <t-textarea v-model="chunkDraft" :autosize="{ minRows: 6, maxRows: 20 }" autofocus />
-                    <div class="chunk-editor-actions">
-                      <t-button
-                        size="small"
-                        variant="outline"
-                        :disabled="savingChunkId === chunk.original.id"
-                        @click="editingChunkId = ''"
-                        >{{ $t("common.cancel") }}</t-button
-                      >
-                      <t-button
-                        size="small"
-                        theme="primary"
-                        :loading="savingChunkId === chunk.original.id"
-                        @click="saveChunkEdit(chunk.original)"
-                        >{{ $t("common.save") }}</t-button
-                      >
-                    </div>
-                  </div>
-                  <div
-                    v-else
-                    class="md-content"
-                    :class="{ 'chunk-disabled': !chunk.original.is_enabled }"
-                    v-html="chunk.processedContent"
-                  ></div>
                 </div>
-              </div>
-            </template>
-          </div>
+              </template>
+            </div>
 
-          <!-- 文档预览视图 -->
-          <div
-            v-if="(viewMode === 'merged' || viewMode === 'chunks') && details.total > CHUNK_PAGE_SIZE"
-            class="chunk-pagination"
-          >
-            <t-pagination
-              v-model="chunkPage"
-              :total="details.total"
-              :page-size="CHUNK_PAGE_SIZE"
-              size="small"
-              show-jumper
-              show-page-number
-              :show-page-size="false"
-              :disabled="details.chunkLoading"
-              @change="handleChunkPageChange"
-            />
-          </div>
+            <!-- 文档预览视图 -->
+            <div
+              v-if="(viewMode === 'merged' || viewMode === 'chunks') && details.total > CHUNK_PAGE_SIZE"
+              class="text-muted-foreground mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-solid border-[color:var(--td-component-stroke)] pt-4 text-[13px]"
+              :class="{ 'pointer-events-none opacity-60': details.chunkLoading }"
+            >
+              <!--
+                Reka's pagination primitives styled with the button variants
+                directly, so this pager matches TenantMembersPager, the other
+                replacement for t-pagination with a jumper.
+              -->
+              <span class="whitespace-nowrap">{{ $t("tenantMember.pager.total", { total: details.total }) }}</span>
+              <PaginationRoot
+                v-slot="{ page: current }"
+                :page="chunkPage"
+                :total="details.total"
+                :items-per-page="CHUNK_PAGE_SIZE"
+                :sibling-count="1"
+                :disabled="details.chunkLoading"
+                show-edges
+                @update:page="goToChunkPage"
+              >
+                <PaginationList v-slot="{ items }" class="flex items-center gap-0.5">
+                  <PaginationPrev
+                    :class="buttonVariants({ variant: 'ghost', size: 'icon-sm' })"
+                    :aria-label="$t('tenantMember.pager.previous')"
+                  >
+                    <ChevronLeftIcon />
+                  </PaginationPrev>
+                  <template v-for="(item, itemIndex) in items" :key="itemIndex">
+                    <PaginationListItem
+                      v-if="item.type === 'page'"
+                      :value="item.value"
+                      :class="[
+                        buttonVariants({ variant: item.value === current ? 'outline' : 'ghost', size: 'icon-sm' }),
+                        'text-[13px]',
+                        item.value === current ? 'border-primary text-primary hover:text-primary' : 'text-foreground',
+                      ]"
+                    >
+                      {{ item.value }}
+                    </PaginationListItem>
+                    <PaginationEllipsis v-else :index="itemIndex" class="flex size-7 items-center justify-center">
+                      <EllipsisIcon class="size-4" />
+                    </PaginationEllipsis>
+                  </template>
+                  <PaginationNext
+                    :class="buttonVariants({ variant: 'ghost', size: 'icon-sm' })"
+                    :aria-label="$t('tenantMember.pager.next')"
+                  >
+                    <ChevronRightIcon />
+                  </PaginationNext>
+                </PaginationList>
+              </PaginationRoot>
+              <label class="flex items-center gap-1.5 whitespace-nowrap">
+                {{ $t("tenantMember.pager.jumpTo") }}
+                <Input
+                  v-model="chunkJumpValue"
+                  type="number"
+                  :min="1"
+                  :max="chunkPageCount"
+                  :disabled="details.chunkLoading"
+                  class="h-7 w-14 px-1.5 text-center text-[13px]"
+                  @keydown.enter="commitChunkJump"
+                  @blur="commitChunkJump"
+                />
+                <span v-if="$t('tenantMember.pager.jumpToSuffix')">{{ $t("tenantMember.pager.jumpToSuffix") }}</span>
+              </label>
+            </div>
 
-          <div v-else-if="viewMode === 'preview'">
-            <DocumentPreview
-              :knowledgeId="details.id"
-              :fileType="details.file_type"
-              :fileName="details.title"
-              :active="viewMode === 'preview'"
-            />
-          </div>
-        </section>
-      </div>
-    </t-drawer>
+            <div v-else-if="viewMode === 'preview'">
+              <DocumentPreview
+                :knowledgeId="details.id"
+                :fileType="details.file_type"
+                :fileName="details.title"
+                :active="viewMode === 'preview'"
+              />
+            </div>
+          </section>
+        </div>
+      </DrawerContent>
+    </Drawer>
   </div>
 </template>
-<style scoped lang="less">
-@import "./css/markdown.less";
-
-.section-title-actions,
-.metadata-actions,
-.chunk-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.section-title-actions {
-  justify-content: space-between;
-}
-.metadata-empty {
-  color: var(--td-text-color-placeholder);
-}
-.metadata-actions,
-.chunk-editor-actions {
-  margin-top: 8px;
-  justify-content: flex-end;
-}
-.chunk-disabled {
-  opacity: 0.5;
-}
-
-.chunk-pagination {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.chunk-page-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 120px;
-  color: var(--td-text-color-secondary);
-}
-
-.icon-action-btn {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  padding: 0;
-  color: var(--td-text-color-secondary);
-  border-radius: 4px;
-
-  &:hover,
-  &.is-active {
-    color: var(--td-brand-color);
-    background: var(--td-brand-color-light);
-  }
-}
-
-/* Drawer widths are now driven by the `:size` prop on each <t-drawer>
-   (see mainDrawerSize / timelineDrawerSize in <script>). CSS rules with
-   !important were removed because they fought each other across the
-   scoped/non-scoped boundary and had no clean specificity ordering in
-   dev mode (Vite injects scoped <style> tags later than non-scoped,
-   inverting prod). Inline width via the prop is unambiguous. */
-
-// 代码块样式
+<style scoped>
+/*
+ * What stays CSS here is markup this template does not write: the code
+ * blocks the Markdown renderer emits (see renderer.code in the script),
+ * reached through :deep(), and the root of the processing timeline child
+ * component. Both carry styles of their own that an utility on our side
+ * could not outrank, because utilities live in a cascade layer and these
+ * rules, like highlight.js's github.css, do not. The `.md-content` rules
+ * live in css/markdown.css, imported from the script.
+ */
 :deep(.code-block-wrapper) {
   margin: 12px 0;
   border: 1px solid var(--td-component-border);
@@ -2814,1149 +3225,22 @@ const handleChunkPageChange = (pageInfo: { current: number }) => {
   }
 }
 
-:deep(.t-drawer__header) {
-  font-weight: normal;
-}
-
-.doc-drawer-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  width: 100%;
-  padding-right: 32px;
-}
-
-.doc-drawer-header-icon {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(7, 192, 95, 0.1);
-  color: var(--td-brand-color);
-  font-size: 16px;
-}
-
-.doc-drawer-header-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.doc-drawer-header-title {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.doc-drawer-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.doc-drawer-body .setting-drawer__section {
-  padding: 12px 0 16px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  &:first-child {
-    padding-top: 0;
+/*
+ * The drawer panel is a shadcn part (data-slot), so the element resets in
+ * tailwind.css reach everything inside it, the rendered Markdown included,
+ * and turn its images and SVGs into blocks. Markdown wants them inline, as
+ * the browser draws them. The rule sits in the same base layer as the reset
+ * so that css/markdown.css, in the components layer, still overrides it.
+ */
+@layer base {
+  :deep(.md-content) :where(img, svg, video) {
+    display: revert-layer;
+    vertical-align: revert-layer;
   }
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-}
-
-.doc-drawer-body .setting-drawer__section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  margin: 0 0 4px;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  &::before {
-    content: "";
-    width: 3px;
-    height: 14px;
-    background: var(--td-brand-color);
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-}
-
-.doc-detail-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.doc-detail-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  line-height: 1.6;
-}
-
-.doc-detail-label {
-  flex: 0 0 72px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.doc-detail-value {
-  flex: 1;
-  min-width: 0;
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  word-break: break-word;
-}
-
-.metadata-editor-row {
-  display: flex;
-  align-items: center;
-}
-
-.metadata-capability-icon {
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder);
-  cursor: help;
-}
-
-.metadata-count {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.metadata-display {
-  min-width: 0;
-}
-
-.summary-section-heading,
-.summary-refreshing-indicator {
-  display: flex;
-  align-items: center;
-}
-
-.summary-section-heading {
-  min-width: 0;
-  gap: 10px;
-}
-
-.summary-refreshing-indicator {
-  gap: 5px;
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.metadata-grid {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px 18px;
-}
-
-.metadata-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  min-width: 0;
-}
-
-.metadata-item-key,
-.metadata-item-value {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.metadata-item-key {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-
-  &::after {
-    content: ":";
-  }
-}
-
-.metadata-item-value {
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-}
-
-.metadata-empty-action,
-.metadata-add-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 5px;
-  width: fit-content;
-  min-height: 28px;
-  padding: 0 4px;
-  border: none;
-  border-radius: 4px;
-  color: var(--td-text-color-secondary);
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-
-  &:hover {
-    color: var(--td-brand-color);
-    background: var(--td-brand-color-light);
-  }
-}
-
-.metadata-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.metadata-editor-row {
-  gap: 6px;
-}
-
-.metadata-key-input {
-  flex: 0 1 30%;
-  min-width: 100px;
-}
-
-.metadata-type-select {
-  flex: 0 0 92px;
-}
-
-.metadata-value-input,
-.metadata-null-value {
-  flex: 1;
-  min-width: 110px;
-}
-
-.metadata-null-value {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--td-component-border);
-  border-radius: 3px;
-  color: var(--td-text-color-placeholder);
-  background: var(--td-bg-color-component-disabled);
-  font-size: 13px;
-  line-height: 30px;
-}
-
-.metadata-remove-btn:hover {
-  color: var(--td-error-color);
-  background: var(--td-error-color-light);
-}
-
-@media (max-width: 720px) {
-  .metadata-editor-row {
-    flex-wrap: wrap;
-  }
-
-  .metadata-key-input,
-  .metadata-value-input,
-  .metadata-null-value {
-    flex: 1 1 calc(50% - 50px);
-  }
-}
-
-.doc-content-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.doc-content-section-head-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-
-  .setting-drawer__section-title {
-    margin-bottom: 0;
-  }
-}
-
-.doc-content-section {
-  gap: 12px;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-  flex-grow: 0;
-}
-
-.header-action-btn {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  padding: 0;
-  flex-shrink: 0;
-  color: var(--td-text-color-secondary);
-  border-radius: 4px;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  :deep(.t-button__text) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-/* Hidden mount keeps fetcher live without showing UI */
-.kp-trigger-shadow {
-  display: none;
-}
-
-/* ============== Secondary drawer shell ============== */
-.kp-drawer-shell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background: var(--td-bg-color-container);
-  overflow: hidden;
-  min-width: 0;
 }
 
 .kp-drawer-shell > :deep(.kp-timeline) {
   width: 100%;
   height: 100%;
-}
-
-:deep(.kp-secondary-drawer .t-drawer__body) {
-  padding: 0 !important;
-}
-
-:deep(.kp-secondary-drawer .t-drawer__content) {
-  background: var(--td-bg-color-container);
-}
-
-// 文档摘要区域
-.summary_wrapper {
-  position: relative;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: 6px;
-
-  &.summary_clickable {
-    cursor: pointer;
-  }
-}
-
-.summary-title-actions,
-.summary_editor_actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.summary_editor {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.summary_editor_actions {
-  justify-content: flex-end;
-}
-
-.summary_content {
-  padding: 12px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  line-height: 1.5;
-  word-break: break-word;
-  white-space: pre-wrap;
-
-  &.summary_collapsed {
-    max-height: 4.5em;
-    overflow: hidden;
-  }
-}
-
-.summary_fade {
-  display: flex;
-  justify-content: center;
-  padding-bottom: 4px;
-  pointer-events: none;
-
-  &:not(.summary_fade_expanded) {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    background: linear-gradient(transparent, var(--td-bg-color-container) 80%);
-    border-radius: 0 0 6px 6px;
-    align-items: flex-end;
-  }
-}
-
-.summary_fade_icon {
-  color: var(--td-text-color-placeholder);
-}
-
-.summary_loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  min-height: 42px;
-  background: var(--td-bg-color-container);
-  border: 1px dashed var(--td-component-border);
-  border-radius: 6px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-// URL链接区域
-.url_link_box {
-  border-radius: 4px;
-  background: var(--td-bg-color-container-hover);
-  padding: 8px 12px;
-
-  .url_link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--td-brand-color);
-    text-decoration: none;
-
-    .url_text {
-      flex: 1;
-      font-size: 13px;
-      word-break: break-all;
-    }
-
-    .jump-icon {
-      flex-shrink: 0;
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-.doc-tag-chips {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.doc-tag-chip {
-  max-width: 140px;
-  height: 20px;
-  line-height: 20px;
-  border-radius: 999px;
-  border-color: var(--td-component-stroke);
-  color: var(--td-text-color-secondary);
-  padding: 0 8px;
-  background: transparent;
-
-  .tag-text {
-    display: inline-block;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: middle;
-    font-size: 11px;
-  }
-}
-
-.chunk-count {
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  background: var(--td-bg-color-container-hover);
-  padding: 2px 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.view-mode-buttons {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-
-  .view-mode-btn {
-    height: 28px;
-    min-width: 60px;
-  }
-}
-
-.no_content {
-  margin-top: 12px;
-  color: var(--td-text-color-disabled);
-  font-size: 13px;
-  padding: 16px;
-  text-align: center;
-}
-
-// Chunk列表样式
-.chunk-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chunk-item {
-  border-radius: 6px;
-  padding: 12px 14px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-
-  &.chunk-item--disabled {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.chunk-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 28px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  .chunk-heading {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .chunk-index {
-    color: var(--td-text-color-secondary);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .chunk-header-right {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-
-  .chunk-meta {
-    color: var(--td-text-color-placeholder);
-    font-size: 11px;
-  }
-}
-
-.chunk-toolbar-divider {
-  width: 1px;
-  height: 16px;
-  margin: 0 6px;
-  background: var(--td-component-stroke);
-}
-
-.chunk-editor {
-  margin: 4px 0 10px;
-  padding: 12px;
-  border-radius: 5px;
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.chunk-editor-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.chunk-history-popup {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(620px, calc(100vh - 96px));
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-}
-
-.chunk-history-popup-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 12px 7px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.chunk-history-popup-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.chunk-history-current {
-  margin-top: 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.chunk-history-popup-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 100px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.chunk-history-popup-list {
-  max-height: min(520px, calc(100vh - 180px));
-  overflow-y: auto;
-}
-
-.chunk-history-popup-item {
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &.is-selected {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.chunk-history-version-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 14px;
-  border: none;
-  color: var(--td-text-color-secondary);
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.chunk-history-version {
-  min-width: 32px;
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.chunk-history-time {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.chunk-history-status-change {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-}
-
-.chunk-history-row-chevron {
-  margin-left: auto;
-  color: var(--td-text-color-placeholder);
-}
-
-.chunk-history-status-change + .chunk-history-row-chevron {
-  margin-left: 0;
-}
-
-.chunk-history-diff {
-  padding: 0 12px 10px;
-}
-
-.chunk-history-diff-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 30px;
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.chunk-history-diff-legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 10px;
-}
-
-.chunk-history-diff-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  i {
-    width: 7px;
-    height: 7px;
-    border-radius: 2px;
-  }
-
-  &--add i {
-    background: var(--td-success-color);
-  }
-
-  &--del i {
-    background: var(--td-error-color);
-  }
-}
-
-.chunk-history-no-diff {
-  padding: 12px;
-  border-radius: 4px;
-  color: var(--td-text-color-placeholder);
-  background: var(--td-bg-color-container);
-  text-align: center;
-  font-size: 12px;
-}
-
-.chunk-history-diff-body {
-  max-height: 240px;
-  margin: 0;
-  padding: 8px 0;
-  overflow: auto;
-  border: 1px solid var(--td-component-border);
-  border-radius: 4px;
-  background: var(--td-bg-color-container);
-  font-family: var(--app-font-family-mono);
-  font-size: 11px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.chunk-history-diff-line {
-  display: block;
-  min-height: 17px;
-  padding: 0 10px;
-
-  &--add {
-    color: var(--td-success-color-active);
-    background: var(--td-success-color-light);
-  }
-
-  &--del {
-    color: var(--td-error-color-active);
-    background: var(--td-error-color-light);
-  }
-
-  &--same {
-    color: var(--td-text-color-secondary);
-  }
-
-  &--skip {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.chunk-context-popup,
-.chunk-questions-popup {
-  width: min(520px, calc(100vw - 32px));
-  max-height: min(560px, calc(100vh - 96px));
-  overflow: hidden;
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-}
-
-.chunk-popup-head,
-.chunk-popup-title,
-.chunk-popup-actions,
-.chunk-popup-state {
-  display: flex;
-  align-items: center;
-}
-
-.chunk-popup-head {
-  justify-content: space-between;
-  min-height: 38px;
-  padding: 4px 8px 4px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.chunk-popup-title {
-  gap: 7px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.chunk-popup-count {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.chunk-question-stale-hint {
-  color: var(--td-warning-color);
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.chunk-popup-actions {
-  gap: 2px;
-}
-
-.chunk-popup-state {
-  justify-content: center;
-  gap: 8px;
-  min-height: 120px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.chunk-context-popup-body {
-  max-height: min(480px, calc(100vh - 170px));
-  padding: 14px 16px;
-  overflow: auto;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-}
-
-.chunk-questions-popup-body {
-  max-height: min(480px, calc(100vh - 170px));
-  padding: 0 10px 8px;
-  overflow-y: auto;
-}
-
-.question-item,
-.question-inline-editor,
-.question-composer,
-.questions-empty {
-  display: flex;
-  align-items: center;
-}
-
-.questions-list {
-  padding-top: 0;
-}
-
-.question-item {
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 5px 6px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  border-radius: 4px;
-  background: transparent;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  line-height: 20px;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-
-    .question-actions {
-      opacity: 1;
-    }
-  }
-
-  .question-text {
-    flex: 1;
-    line-height: 20px;
-    word-break: break-word;
-  }
-
-  .delete-question-btn {
-    color: var(--td-text-color-placeholder);
-
-    &:hover {
-      color: var(--td-error-color);
-      background: var(--td-error-color-light);
-    }
-  }
-}
-
-.question-leading-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 20px;
-  color: var(--td-text-color-secondary);
-  flex-shrink: 0;
-}
-
-.question-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-
-  &:focus-within {
-    opacity: 1;
-  }
-}
-
-.question-inline-editor {
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
-
-.question-inline-editor :deep(.t-input) {
-  flex: 1;
-}
-
-.questions-empty {
-  justify-content: center;
-  gap: 8px;
-  padding: 20px 8px 12px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.question-composer {
-  gap: 6px;
-  padding: 8px 4px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.question-composer :deep(.t-input) {
-  flex: 1;
-}
-
-// 音频播放器样式
-.audio-player-section {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: var(--td-bg-color-container-hover);
-  border-radius: 6px;
-  border: 1px solid var(--td-component-border);
-
-  .audio-player {
-    width: 100%;
-    height: 40px;
-  }
-
-  .audio-loading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--td-text-color-placeholder);
-    font-size: 13px;
-    padding: 4px 0;
-  }
-}
-
-.video-player-section {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: var(--td-bg-color-container-hover);
-  border-radius: 6px;
-  border: 1px solid var(--td-component-border);
-  // Keep the player visible while scrolling the timeline chunks below.
-  position: sticky;
-  top: 0;
-  z-index: 5;
-
-  .video-player {
-    width: 100%;
-    max-height: 320px;
-    border-radius: 4px;
-    background: #000;
-  }
-
-  .audio-loading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--td-text-color-placeholder);
-    font-size: 13px;
-    padding: 4px 0;
-  }
-}
-
-.chunk-timecode {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
-  user-select: none;
-
-  &:hover {
-    background: var(--td-brand-color-focus);
-  }
-}
-
-.md-content {
-  word-break: break-word;
-  line-height: 1.6;
-  color: var(--td-text-color-primary);
-}
-
-// 保留旧样式作为兼容（已被chunk-item替代）
-.content {
-  word-break: break-word;
-  padding: 4px;
-  gap: 4px;
-  margin-top: 12px;
-}
-</style>
-
-<!-- Non-scoped padding/background overrides for the secondary drawer.
-     Width is now controlled via the :size prop on <t-drawer> (see
-     timelineDrawerSize in <script>) — that puts width on element.style
-     rather than fighting !important CSS rules. We only keep these
-     non-scoped rules because TDesign's default body padding and
-     content background need to be flushed for the timeline to fill
-     edge-to-edge. -->
-<style lang="less">
-.t-drawer.doc-main-drawer {
-  .t-drawer__header {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .t-drawer__body {
-    padding: 16px 18px;
-  }
-}
-
-/* 主抽屉宽度可调：拖拽手柄通过 teleport 挂到 body，不受 scoped 影响，
-   故样式写在非 scoped 块里。手柄贴在抽屉面板左缘（right = 抽屉宽度）。 */
-.doc-drawer-resize-handle {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  margin-left: -6px;
-  cursor: col-resize;
-  z-index: 2001;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.doc-drawer-resize-handle .doc-drawer-resize-line {
-  width: 2px;
-  height: 48px;
-  border-radius: 1px;
-  background: var(--td-component-border);
-  opacity: 0.55;
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease;
-}
-
-.doc-drawer-resize-handle:hover .doc-drawer-resize-line {
-  opacity: 1;
-  background: var(--td-brand-color);
-}
-
-/* 拖拽过程中关闭宽度过渡，避免跟手卡顿 */
-.t-drawer.doc-main-drawer--resizing .t-drawer__content {
-  transition: none !important;
-}
-
-/* Trace 二级抽屉拖拽手柄：与主抽屉保持一致，teleport 到 body，
-   position: fixed，z-index 高于二级抽屉本体，避免被其他层级遮挡。 */
-.trace-drawer-resize-handle {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  margin-left: -6px;
-  cursor: col-resize;
-  z-index: 2101;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.trace-drawer-resize-handle .trace-drawer-resize-line {
-  width: 2px;
-  height: 48px;
-  border-radius: 1px;
-  background: var(--td-component-border);
-  opacity: 0.55;
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease;
-}
-
-.trace-drawer-resize-handle:hover .trace-drawer-resize-line {
-  opacity: 1;
-  background: var(--td-brand-color);
-}
-
-.t-drawer.kp-secondary-drawer--resizing .trace-drawer-resize-line,
-body:has(.t-drawer.kp-secondary-drawer--resizing) .trace-drawer-resize-line {
-  opacity: 1;
-  background: var(--td-brand-color);
-}
-
-.t-drawer.kp-secondary-drawer .t-drawer__body {
-  padding: 0 !important;
-}
-
-.t-drawer.kp-secondary-drawer .t-drawer__content {
-  background: var(--td-bg-color-container);
-}
-
-.t-drawer.kp-secondary-drawer--resizing .t-drawer__content {
-  transition: none !important;
 }
 </style>

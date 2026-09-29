@@ -1,74 +1,97 @@
 <template>
-  <div class="prompt-template-selector" :class="{ 'position-corner': position === 'corner' }">
-    <div class="template-btn-group">
+  <div class="inline-flex" :class="{ 'absolute right-2 bottom-2 z-10': position === 'corner' }">
+    <div class="inline-flex items-center gap-1">
       <!-- 恢复默认按钮 -->
-      <t-button
-        variant="text"
-        size="small"
-        class="template-default-btn"
-        :loading="resettingDefault"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="text-placeholder hover:text-primary h-[26px] gap-[3px] px-1.5 text-xs"
+        :disabled="resettingDefault"
         @click="handleResetToDefault"
       >
-        <t-icon name="rollback" />
+        <Loader2Icon v-if="resettingDefault" class="size-3.5 animate-spin" />
+        <Undo2Icon v-else class="size-3.5" />
         <span>{{ $t("promptTemplate.resetDefault") }}</span>
-      </t-button>
-      <!-- 选择模板按钮 -->
-      <t-popup
-        v-if="showTemplatePicker"
-        trigger="click"
-        placement="top-right"
-        :visible="popupVisible"
-        @visible-change="handleVisibleChange"
-      >
-        <template #content>
-          <div class="template-popup">
-            <div class="template-header">
-              <span class="template-title">{{ $t("promptTemplate.selectTemplate") }}</span>
+      </Button>
+      <!--
+        选择模板按钮. The popover stays controlled (open + update:open) so a
+        picked template can close it and the first opening can load the list.
+        TDesign's placement="top-right" is side="top" + align="end".
+      -->
+      <Popover v-if="showTemplatePicker" :open="popupVisible" @update:open="handleVisibleChange">
+        <PopoverTrigger as-child>
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-border bg-card text-muted-foreground hover:border-primary hover:bg-secondary hover:text-primary dark:border-border dark:bg-card dark:hover:bg-secondary h-[26px] gap-1 px-2 text-xs"
+            :disabled="loading"
+          >
+            <Loader2Icon v-if="loading" class="size-3.5 animate-spin" />
+            <LayoutGridIcon v-else class="size-3.5" />
+            <span>{{ $t("promptTemplate.useTemplate") }}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent side="top" align="end" class="w-auto gap-0 rounded-md px-2 py-0.5">
+          <div class="flex max-h-[400px] w-[420px] flex-col overflow-hidden">
+            <div class="border-border shrink-0 border-b border-solid px-4 py-3">
+              <span class="text-foreground text-sm font-medium">{{ $t("promptTemplate.selectTemplate") }}</span>
             </div>
-            <div v-if="loading" class="template-loading">
-              <t-loading size="small" />
+            <div v-if="loading" class="text-placeholder flex justify-center px-4 py-10 text-center text-[13px]">
+              <Loader2Icon class="text-primary size-5 animate-spin" />
             </div>
-            <div v-else-if="templates.length === 0" class="template-empty">
+            <div v-else-if="templates.length === 0" class="text-placeholder px-4 py-10 text-center text-[13px]">
               {{ $t("promptTemplate.noTemplates") }}
             </div>
-            <div v-else class="template-list">
+            <div v-else class="flex-1 overflow-y-auto p-2">
               <div
                 v-for="template in templates"
                 :key="template.id"
-                class="template-item"
+                class="hover:bg-secondary mb-1 cursor-pointer rounded-lg p-3 transition-all duration-200 ease-in-out last:mb-0"
                 @click="selectTemplate(template)"
               >
-                <div class="template-item-header">
-                  <span class="template-name">{{ template.name }}</span>
-                  <span v-if="template.default" class="template-tag default-tag">
+                <div class="mb-1.5 flex flex-wrap items-center gap-2">
+                  <span class="text-foreground text-sm font-medium">{{ template.name }}</span>
+                  <span
+                    v-if="template.default"
+                    :class="[tagClass, 'text-warning bg-[var(--td-warning-color-light)] font-medium']"
+                  >
                     {{ $t("promptTemplate.default") }}
                   </span>
-                  <span v-if="template.has_knowledge_base" class="template-tag kb-tag">
-                    <t-icon name="folder" size="12px" />
+                  <span
+                    v-if="template.has_knowledge_base"
+                    :class="[tagClass, 'text-primary bg-[var(--td-brand-color-light)]']"
+                  >
+                    <FolderIcon class="size-3" />
                     {{ $t("promptTemplate.withKnowledgeBase") }}
                   </span>
-                  <span v-if="template.has_web_search" class="template-tag web-tag">
-                    <t-icon name="internet" size="12px" />
+                  <span
+                    v-if="template.has_web_search"
+                    :class="[tagClass, 'text-primary bg-[var(--td-success-color-light)]']"
+                  >
+                    <GlobeIcon class="size-3" />
                     {{ $t("promptTemplate.withWebSearch") }}
                   </span>
                 </div>
-                <p class="template-desc">{{ template.description }}</p>
+                <p class="text-muted-foreground m-0 line-clamp-2 text-xs leading-normal">{{ template.description }}</p>
               </div>
             </div>
           </div>
-        </template>
-        <t-button variant="outline" size="small" class="template-trigger-btn" :loading="loading">
-          <t-icon name="view-module" />
-          <span>{{ $t("promptTemplate.useTemplate") }}</span>
-        </t-button>
-      </t-popup>
+        </PopoverContent>
+      </Popover>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { FolderIcon, GlobeIcon, LayoutGridIcon, Loader2Icon, Undo2Icon } from "@lucide/vue";
 import { getPromptTemplates, type PromptTemplate, type PromptTemplatesConfig } from "@/api/system";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+// The small pill every template tag (default / knowledge base / web search)
+// shares; each adds its own tint.
+const tagClass = "inline-flex items-center gap-[3px] rounded-[4px] px-1.5 py-0.5 text-[11px]";
 
 const props = withDefaults(
   defineProps<{
@@ -202,177 +225,3 @@ onMounted(() => {
   // loadTemplates();
 });
 </script>
-
-<style scoped lang="less">
-.prompt-template-selector {
-  display: inline-flex;
-
-  &.position-corner {
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
-    z-index: 10;
-  }
-}
-
-.template-btn-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.template-default-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  height: 26px;
-  padding: 0 6px;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-
-  :deep(.t-button__text) {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-  }
-
-  :deep(.t-icon) {
-    font-size: 14px;
-    vertical-align: middle;
-    line-height: 1;
-  }
-}
-
-.template-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--td-text-color-secondary);
-  border-color: var(--td-component-stroke);
-  font-size: 12px;
-  height: 26px;
-  padding: 0 8px;
-  background: var(--td-bg-color-container);
-
-  &:hover {
-    color: var(--td-brand-color);
-    border-color: var(--td-brand-color);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  :deep(.t-button__text) {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  :deep(.t-icon) {
-    vertical-align: middle;
-    line-height: 1;
-  }
-}
-
-.template-popup {
-  width: 420px;
-  max-height: 400px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.template-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-}
-
-.template-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.template-loading,
-.template-empty {
-  padding: 40px 16px;
-  text-align: center;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.template-list {
-  overflow-y: auto;
-  padding: 8px;
-  flex: 1;
-}
-
-.template-item {
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: 4px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.template-item-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-
-.template-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.template-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-
-  &.kb-tag {
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-
-  &.web-tag {
-    background: var(--td-success-color-light);
-    color: var(--td-brand-color);
-  }
-
-  &.default-tag {
-    background: var(--td-warning-color-light);
-    color: var(--td-warning-color);
-    font-weight: 500;
-  }
-}
-
-.template-desc {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  margin: 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>

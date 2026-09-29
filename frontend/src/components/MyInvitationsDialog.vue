@@ -5,79 +5,99 @@
        keeps the user in whatever context the bell icon was clicked
        from rather than yanking them to a separate page. The trigger
        lives in UserMenu's avatar-row bell. -->
-  <t-dialog
-    v-model:visible="visibleModel"
-    :header="$t('tenantInvitation.myInbox.title')"
-    :footer="false"
-    width="540px"
-    :close-on-overlay-click="true"
-  >
-    <p class="my-invitations-desc">{{ $t("tenantInvitation.myInbox.description") }}</p>
+  <Dialog v-model:open="visibleModel">
+    <DialogContent class="sm:max-w-[540px]">
+      <DialogHeader>
+        <DialogTitle>{{ $t("tenantInvitation.myInbox.title") }}</DialogTitle>
+        <DialogDescription class="m-0 text-[13px] leading-[1.55]">
+          {{ $t("tenantInvitation.myInbox.description") }}
+        </DialogDescription>
+      </DialogHeader>
 
-    <div v-if="loading" class="loading-inline">
-      <t-loading size="small" />
-      <span>{{ $t("tenantMember.loading") }}</span>
-    </div>
+      <div v-if="loading" class="flex items-center gap-2 py-2">
+        <Loader2Icon class="text-primary size-4 animate-spin" />
+        <span>{{ $t("tenantMember.loading") }}</span>
+      </div>
 
-    <div v-else-if="error" class="error-inline">
-      <t-alert theme="error" :message="error">
-        <template #operation>
-          <t-button size="small" @click="reload">{{ $t("tenantMember.retry") }}</t-button>
-        </template>
-      </t-alert>
-    </div>
+      <div v-else-if="error" class="py-2">
+        <Alert variant="destructive" class="flex items-center gap-2">
+          <CircleXIcon class="size-4 shrink-0" />
+          <AlertDescription class="flex-1">{{ error }}</AlertDescription>
+          <Button size="sm" @click="reload">{{ $t("tenantMember.retry") }}</Button>
+        </Alert>
+      </div>
 
-    <div v-else-if="invitations.length === 0" class="empty-state">
-      <t-empty :description="$t('tenantInvitation.myInbox.empty')" />
-    </div>
+      <Empty v-else-if="invitations.length === 0" class="px-0 pt-4 pb-2">
+        <EmptyMedia>
+          <InboxIcon class="text-placeholder size-12" :stroke-width="1.25" />
+        </EmptyMedia>
+        <EmptyDescription>{{ $t("tenantInvitation.myInbox.empty") }}</EmptyDescription>
+      </Empty>
 
-    <ul v-else class="invitation-list">
-      <li v-for="row in invitations" :key="row.id" class="invitation-card">
-        <div class="invitation-card-main">
-          <div class="invitation-card-header">
-            <span class="tenant-name">
-              {{ row.tenant_name || $t("tenantInvitation.myInbox.tenantLabel") + " #" + row.tenant_id }}
-            </span>
-            <t-tag :theme="roleTagTheme(row.role)" size="small">
-              {{ $t("tenantMember.role." + row.role) }}
-            </t-tag>
-          </div>
-          <div class="invitation-card-meta">
-            <span class="meta-row">
-              <t-icon name="user" size="14px" class="meta-icon" />
-              <span class="meta-label">{{ $t("tenantInvitation.myInbox.from") }}：</span>
-              <span class="meta-value">{{ inviterDisplay(row) }}</span>
-            </span>
-            <span class="meta-row">
-              <t-icon name="time" size="14px" class="meta-icon" />
-              <span class="meta-value">
-                {{ $t("tenantInvitation.myInbox.expiresIn", { date: formatDate(row.expires_at) }) }}
+      <!-- The list caps its height so a user with many invitations scrolls
+           within the dialog rather than the dialog growing past the viewport. -->
+      <ul v-else class="m-0 flex max-h-[60vh] list-none flex-col gap-2.5 overflow-y-auto p-0">
+        <li
+          v-for="row in invitations"
+          :key="row.id"
+          class="bg-card border-border flex items-stretch gap-3 rounded-lg border px-3.5 py-3"
+        >
+          <div class="flex min-w-0 flex-auto flex-col gap-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-foreground text-sm font-semibold">
+                {{ row.tenant_name || $t("tenantInvitation.myInbox.tenantLabel") + " #" + row.tenant_id }}
               </span>
-            </span>
-            <span v-if="row.message" class="meta-row meta-row--message">
-              <t-icon name="chat" size="14px" class="meta-icon" />
-              <span class="meta-label">{{ $t("tenantInvitation.myInbox.messageLabel") }}：</span>
-              <span class="meta-value">{{ row.message }}</span>
-            </span>
+              <span
+                class="inline-flex h-[22px] items-center rounded-[3px] px-2 text-xs leading-none"
+                :class="roleTagClass(row.role)"
+              >
+                {{ $t("tenantMember.role." + row.role) }}
+              </span>
+            </div>
+            <div class="text-muted-foreground flex flex-col gap-[3px] text-xs">
+              <span class="inline-flex items-center gap-1">
+                <UserIcon class="text-placeholder size-3.5 shrink-0" />
+                <span>{{ $t("tenantInvitation.myInbox.from") }}：</span>
+                <span class="text-foreground">{{ inviterDisplay(row) }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <ClockIcon class="text-placeholder size-3.5 shrink-0" />
+                <span class="text-foreground">
+                  {{ $t("tenantInvitation.myInbox.expiresIn", { date: formatDate(row.expires_at) }) }}
+                </span>
+              </span>
+              <span v-if="row.message" class="inline-flex items-start gap-1">
+                <MessageSquareIcon class="text-placeholder mt-0.5 size-3.5 shrink-0" />
+                <span>{{ $t("tenantInvitation.myInbox.messageLabel") }}：</span>
+                <span class="text-foreground break-words">{{ row.message }}</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <div class="invitation-card-actions">
-          <t-button theme="primary" size="small" :loading="acting === row.id" @click="onAccept(row)">
-            {{ $t("tenantInvitation.myInbox.acceptButton") }}
-          </t-button>
-          <t-button theme="default" variant="outline" size="small" :loading="acting === row.id" @click="onDecline(row)">
-            {{ $t("tenantInvitation.myInbox.declineButton") }}
-          </t-button>
-        </div>
-      </li>
-    </ul>
-  </t-dialog>
+          <div class="flex shrink-0 flex-col items-stretch justify-center gap-1.5">
+            <Button size="sm" :disabled="acting === row.id" @click="onAccept(row)">
+              <Loader2Icon v-if="acting === row.id" class="animate-spin" />
+              {{ $t("tenantInvitation.myInbox.acceptButton") }}
+            </Button>
+            <Button variant="outline" size="sm" :disabled="acting === row.id" @click="onDecline(row)">
+              <Loader2Icon v-if="acting === row.id" class="animate-spin" />
+              {{ $t("tenantInvitation.myInbox.declineButton") }}
+            </Button>
+          </div>
+        </li>
+      </ul>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { ClockIcon, CircleXIcon, InboxIcon, Loader2Icon, MessageSquareIcon, UserIcon } from "@lucide/vue";
 import { MessagePlugin } from "tdesign-vue-next";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyMedia } from "@/components/ui/empty";
 import { useAuthStore } from "@/stores/auth";
 import {
   listMyInvitations,
@@ -106,16 +126,18 @@ const loading = ref(false);
 const error = ref("");
 const acting = ref<number | null>(null);
 
-function roleTagTheme(role: TenantRole): "primary" | "warning" | "success" | "default" {
+// The role tag keeps the solid fills the old TDesign tag themes had
+// (owner primary, admin warning, contributor success, the rest neutral).
+function roleTagClass(role: TenantRole): string {
   switch (role) {
     case "owner":
-      return "primary";
+      return "bg-primary text-primary-foreground";
     case "admin":
-      return "warning";
+      return "bg-warning text-primary-foreground";
     case "contributor":
-      return "success";
+      return "bg-success text-primary-foreground";
     default:
-      return "default";
+      return "bg-muted text-foreground";
   }
 }
 
@@ -215,114 +237,3 @@ watch(
   },
 );
 </script>
-
-<style lang="less" scoped>
-.my-invitations-desc {
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.55;
-  margin: 0 0 16px 0;
-}
-
-.loading-inline,
-.error-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-}
-
-.empty-state {
-  padding: 16px 0 8px;
-  display: flex;
-  justify-content: center;
-}
-
-.invitation-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  /* Cap height so a user with many invitations can scroll within
-     the dialog rather than the dialog growing past the viewport. */
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.invitation-card {
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-
-  .invitation-card-main {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .invitation-card-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-
-    .tenant-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  .invitation-card-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    color: var(--td-text-color-secondary);
-    font-size: 12px;
-
-    .meta-row {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-
-      .meta-icon {
-        color: var(--td-text-color-placeholder);
-        flex-shrink: 0;
-      }
-
-      .meta-value {
-        color: var(--td-text-color-primary);
-      }
-
-      &--message {
-        align-items: flex-start;
-
-        .meta-icon {
-          margin-top: 2px;
-        }
-
-        .meta-value {
-          word-break: break-word;
-        }
-      }
-    }
-  }
-
-  .invitation-card-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-}
-</style>

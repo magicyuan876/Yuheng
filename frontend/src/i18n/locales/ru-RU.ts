@@ -125,6 +125,15 @@ export default {
     },
   },
   tenantMember: {
+    pager: {
+      total: "Всего {total}",
+      pageSize: "{size} / стр.",
+      pageSizeLabel: "Строк на странице",
+      jumpTo: "Перейти",
+      jumpToSuffix: "стр.",
+      previous: "Предыдущая страница",
+      next: "Следующая страница",
+    },
     title: "Участники",
     sectionDescription:
       "Приглашайте коллег в пространство и управляйте их ролями. Добавлять и удалять участников может только Владелец.",
@@ -4601,6 +4610,7 @@ export default {
       collapse: "Свернуть папки",
       expand: "Развернуть папки",
       expandFolder: "Развернуть эту папку",
+      collapseFolder: "Свернуть эту папку",
       rename: "Переименовать",
       renamePlaceholder: "Название папки",
       renameSuccess: "Папка переименована",

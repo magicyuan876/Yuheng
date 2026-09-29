@@ -1,41 +1,21 @@
 <script setup lang="ts"></script>
 <template>
-  <div class="empty">
-    <img class="empty-img" src="@/assets/img/upload.svg" alt="" />
-    <span class="empty-txt">{{ $t("knowledgeBase.emptyKnowledgeDragDrop") }}</span>
-    <span class="empty-type-txt">{{ $t("knowledgeBase.pdfDocFormat") }}</span>
-    <span class="empty-type-txt">{{ $t("knowledgeBase.textMarkdownFormat") }}</span>
+  <div class="flex flex-1 flex-col items-center justify-center">
+    <img class="size-[162px]" src="@/assets/img/upload.svg" alt="" />
+    <span
+      class="text-placeholder mt-3 mb-4 font-[family-name:var(--app-font-family)] text-base leading-[26px] font-semibold"
+    >
+      {{ $t("knowledgeBase.emptyKnowledgeDragDrop") }}
+    </span>
+    <span
+      class="w-[217px] text-center font-[family-name:var(--app-font-family)] text-xs font-normal text-[var(--td-text-color-disabled)]"
+    >
+      {{ $t("knowledgeBase.pdfDocFormat") }}
+    </span>
+    <span
+      class="w-[217px] text-center font-[family-name:var(--app-font-family)] text-xs font-normal text-[var(--td-text-color-disabled)]"
+    >
+      {{ $t("knowledgeBase.textMarkdownFormat") }}
+    </span>
   </div>
 </template>
-<style scoped lang="less">
-.empty {
-  flex: 1;
-  display: flex;
-  flex-flow: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.empty-txt {
-  color: var(--td-text-color-placeholder);
-  font-family: var(--app-font-family);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 26px;
-  margin: 12px 0 16px 0;
-}
-
-.empty-type-txt {
-  color: var(--td-text-color-disabled);
-  text-align: center;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-  width: 217px;
-}
-
-.empty-img {
-  width: 162px;
-  height: 162px;
-}
-</style>

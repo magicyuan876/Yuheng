@@ -1,40 +1,35 @@
 <template>
   <div
-    class="chat"
-    :class="{
-      'is-sidebar-collapsed': uiStore.sidebarCollapsed,
-      'has-references-panel': referencesDrawerVisible,
-    }"
+    :class="
+      chatRootClasses({ sidebarCollapsed: uiStore.sidebarCollapsed, referencesPanelOpen: referencesDrawerVisible })
+    "
   >
     <ChatHeader :session="currentSession" :has-references-panel="referencesDrawerVisible" />
-    <div ref="scrollContainer" class="chat_scroll_box" @scroll="handleScroll">
-      <div class="msg_list">
+    <div
+      ref="scrollContainer"
+      :class="chatScrollBoxClasses({ referencesPanelOpen: referencesDrawerVisible })"
+      @scroll="handleScroll"
+    >
+      <div class="msg_list mx-auto flex w-full max-w-[960px] flex-1 flex-col gap-4">
         <!-- 消息列表骨架屏 -->
-        <div v-if="historyLoading && messagesList.length === 0" class="msg-skeleton-list">
-          <div class="msg-skeleton msg-skeleton-user">
-            <t-skeleton animation="gradient" :row-col="[{ width: '45%', height: '36px', type: 'rect' }]" />
+        <div
+          v-if="historyLoading && messagesList.length === 0"
+          class="msg-skeleton-list flex max-w-[960px] flex-col gap-5 py-4"
+        >
+          <div class="flex justify-end">
+            <Skeleton class="h-9 w-[45%]" />
           </div>
-          <div class="msg-skeleton msg-skeleton-bot">
-            <t-skeleton
-              animation="gradient"
-              :row-col="[
-                { width: '80%', height: '16px' },
-                { width: '100%', height: '16px' },
-                { width: '60%', height: '16px' },
-              ]"
-            />
+          <div class="flex flex-col gap-2 pl-1">
+            <Skeleton class="h-4 w-4/5" />
+            <Skeleton class="h-4 w-full" />
+            <Skeleton class="h-4 w-3/5" />
           </div>
-          <div class="msg-skeleton msg-skeleton-user">
-            <t-skeleton animation="gradient" :row-col="[{ width: '35%', height: '36px', type: 'rect' }]" />
+          <div class="flex justify-end">
+            <Skeleton class="h-9 w-[35%]" />
           </div>
-          <div class="msg-skeleton msg-skeleton-bot">
-            <t-skeleton
-              animation="gradient"
-              :row-col="[
-                { width: '70%', height: '16px' },
-                { width: '90%', height: '16px' },
-              ]"
-            />
+          <div class="flex flex-col gap-2 pl-1">
+            <Skeleton class="h-4 w-[70%]" />
+            <Skeleton class="h-4 w-[90%]" />
           </div>
         </div>
         <!--
@@ -45,14 +40,24 @@
                   这是历史加载时白屏 + layout shift 蔓延到 session 列表的根因。
                   仅对极少数尚未拿到 id 的本地占位消息 fallback 到 role+created_at+index。
                 -->
+        <!--
+          Layout/style containment on every message: a layout change inside
+          one message no longer makes the browser invalidate the whole
+          document (the fix for the session list going blank on hover).
+          Not content-visibility: auto — message heights vary from a few
+          hundred to thousands of pixels, and the estimated placeholder
+          height causes large layout shifts and late first paints while
+          scrolling up. Not contain: paint either, which would clip the
+          tooltips and popovers that overflow a message.
+        -->
         <div
           v-for="(session, index) in messagesList"
           :key="session.id || `${session.role}-${session.created_at}-${index}`"
-          class="msg-item-wrapper"
+          class="[contain:layout_style]"
         >
           <MessageTimestamp v-if="shouldShowConversationTimestamp(messagesList, index)" :value="session.created_at" />
 
-          <div v-if="session.role == 'user'" class="message-row">
+          <div v-if="session.role == 'user'" class="flex w-full flex-col">
             <usermsg
               :content="session.content"
               :mentioned_items="session.mentioned_items"
@@ -62,7 +67,7 @@
             >
             </usermsg>
           </div>
-          <div v-if="session.role == 'assistant'" class="message-row">
+          <div v-if="session.role == 'assistant'" class="flex w-full flex-col">
             <botmsg
               :content="session.content"
               :session="session"
@@ -88,7 +93,7 @@
         </div>
         <div
           v-if="showGlobalTypingIndicator"
-          class="chat-global-wait"
+          class="flex min-h-7 items-center pl-1"
           role="status"
           :aria-label="t('chat.thinkingAlt')"
         >
@@ -97,11 +102,16 @@
       </div>
     </div>
     <transition name="scroll-btn-fade">
-      <div v-show="userHasScrolledUp" class="scroll-to-bottom-btn" @click="onClickScrollToBottom">
-        <t-icon name="chevron-down" size="20px" />
+      <div
+        v-show="userHasScrolledUp"
+        class="border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground absolute bottom-[140px] left-1/2 z-10 box-border flex size-9 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-solid shadow-[0_2px_8px_rgba(0,0,0,0.1)] transition-all duration-200 ease-in-out hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] active:scale-[0.92]"
+        @click="onClickScrollToBottom"
+      >
+        <ChevronDownIcon class="h-5 w-5" />
       </div>
     </transition>
-    <div class="input-container">
+    <!-- input-container is a hook for the wiki fix drawer (see chatLayout.ts). -->
+    <div class="input-container relative mx-auto box-border min-h-[115px] w-full max-w-[960px] shrink-0">
       <InputField
         ref="inputFieldRef"
         @send-msg="
@@ -130,6 +140,8 @@
 import { storeToRefs } from "pinia";
 import { ref, onMounted, onBeforeMount, onUnmounted, nextTick, watch, reactive, computed } from "vue";
 import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
+import { ChevronDownIcon } from "@lucide/vue";
+import { Skeleton } from "@/components/ui/skeleton";
 import InputField from "../../components/Input-field.vue";
 import botmsg from "./components/botmsg.vue";
 import usermsg from "./components/usermsg.vue";
@@ -152,6 +164,7 @@ import FollowUpSuggestions from "@/components/chat/FollowUpSuggestions.vue";
 import MessageTimestamp from "@/components/chat/MessageTimestamp.vue";
 import { shouldShowConversationTimestamp } from "@/utils/messageTimestamp";
 import ChatHeader from "@/components/ChatHeader.vue";
+import { chatRootClasses, chatScrollBoxClasses } from "./chatLayout";
 import { notifySessionMutation, SESSION_MUTATION_EVENT } from "@/components/sessionMutations";
 import {
   ensureMessageSuggestions,
@@ -783,116 +796,46 @@ onBeforeRouteUpdate((to, from, next) => {
   next();
 });
 </script>
-<style lang="less" scoped>
-.chat {
-  font-size: 20px;
-  // 右侧不留 padding，滚动条贴到内容区最右缘
-  padding: 0 0 20px 20px;
-  box-sizing: border-box;
-  flex: 1;
-  // The parent .platform-route-outlet is a flex column with min-height:0
-  // and overflow:hidden — we also need min-height:0 here so that our
-  // own flex:1 child (.chat_scroll_box) can shrink below its content
-  // height and scroll instead of pushing .input-container out of view.
-  min-height: 0;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: calc(100vw - 260px);
-  min-width: 400px;
+<style scoped>
+/*
+ * Stays CSS: the rules that reach inside InputField (its root .answers-input
+ * and its textarea), the scrollbar pseudo-elements, the classes Vue's
+ * <transition name="scroll-btn-fade"> adds, and two keyframe animations.
+ */
 
-  &.is-sidebar-collapsed {
-    max-width: calc(100vw - 60px);
-  }
+/* InputField positions itself for the new-chat page; in a conversation it sits in the flow. */
+.chat :deep(.answers-input) {
+  position: static;
+  transform: translateX(0);
+}
 
-  &.has-references-panel {
-    @media (min-width: 960px) {
-      padding-right: 420px;
-      box-sizing: border-box;
+/* Matched as an element, not by the TDesign class InputField's textarea wears today. */
+.chat :deep(.answers-input textarea) {
+  width: 100% !important;
+}
 
-      .chat_scroll_box {
-        padding-top: 0;
-      }
-    }
-  }
-
-  :deep(.answers-input) {
-    position: static;
-    transform: translateX(0);
-
-    .t-textarea__inner {
-      width: 100% !important;
-    }
-
-    @media (min-width: 960px) {
-      transition: padding-right 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
-    }
+@media (min-width: 960px) {
+  .chat :deep(.answers-input) {
+    transition: padding-right 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 }
 
-.chat_scroll_box {
-  flex: 1;
-  // Without min-height: 0, a flex-column child defaults to min-height: auto
-  // and expands to fit all inner content. When there are many messages,
-  // that pushes .input-container out of the viewport. Clamping min-height
-  // to 0 lets overflow-y: auto take effect so the messages scroll inside
-  // this box instead of stretching it.
-  min-height: 0;
-  width: 100%;
-  padding-top: 8px;
-  box-sizing: border-box;
-  overflow-y: auto;
-  // 使用系统原生滚动条（macOS 滚动时自动显示 overlay 滚动条，类似 ChatGPT）
-  scrollbar-width: auto;
-  scrollbar-color: auto;
+/*
+ * theme.css colours every webkit scrollbar in dark mode; the chat keeps the
+ * system one. (The Less version wrapped the theme selector in :global(),
+ * which makes Vue drop the rest of the selector, so this never applied.)
+ */
+html[theme-mode="dark"] .chat_scroll_box::-webkit-scrollbar-thumb,
+html[theme-mode="dark"] .chat_scroll_box::-webkit-scrollbar-thumb:hover,
+html[theme-mode="dark"] .chat_scroll_box::-webkit-scrollbar-track {
+  background-color: initial !important;
 }
 
-// 深色模式下 theme.css 对 * 做了 webkit 滚动条着色，这里恢复为系统默认
-:global(:root[theme-mode="dark"]) .chat_scroll_box {
-  &::-webkit-scrollbar-thumb {
-    background-color: initial !important;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background-color: initial !important;
-  }
-
-  &::-webkit-scrollbar-track {
-    background-color: initial !important;
-  }
-}
-
-.scroll-to-bottom-btn {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 140px;
-  z-index: 10;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--td-text-color-secondary);
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  &:active {
-    transform: translateX(-50%) scale(0.92);
-  }
-}
-
+/*
+ * The button is centred with the `translate` property (-translate-x-1/2) and
+ * pressed with `scale`, so the fade only needs to move it on `transform`,
+ * which composes with both.
+ */
 .scroll-btn-fade-enter-active,
 .scroll-btn-fade-leave-active {
   transition:
@@ -903,7 +846,7 @@ onBeforeRouteUpdate((to, from, next) => {
 .scroll-btn-fade-enter-from,
 .scroll-btn-fade-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(8px);
+  transform: translateY(8px);
 }
 
 @keyframes contentFadeIn {
@@ -919,89 +862,18 @@ onBeforeRouteUpdate((to, from, next) => {
 }
 
 .msg-skeleton-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 960px;
-  padding: 16px 0;
   animation: contentFadeIn 0.3s ease-out;
 }
 
-.msg-skeleton-user {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.msg-skeleton-bot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-left: 4px;
-}
-
-.input-container {
-  min-height: 115px;
-  flex-shrink: 0;
-  margin: 0 auto;
-  width: 100%;
-  max-width: 960px;
+.chat-global-wait__spinner {
+  display: block;
+  width: 12px;
+  height: 12px;
   box-sizing: border-box;
-  position: relative;
-}
-
-.msg_list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 960px;
-  flex: 1;
-  margin: 0 auto;
-  width: 100%;
-
-  /*
-      给每条消息加 layout/style containment：
-      - 一条消息的内部布局变化不再让浏览器去 invalidate 整个文档，
-        这是修掉"hover 到 session 列表也变白"那个问题的关键。
-      - 不要再用 content-visibility: auto / contain-intrinsic-size：
-        消息真实高度差异巨大（几百 ~ 数千 px），估的占位高度会让消息进入视口时
-        反复发生"占位 -> 真实高度"的大幅 layout shift + 首次 paint 滞后，
-        反而在向上滚动时制造"未画完"的白屏闪烁。
-        当前 handleMsgList 全流程 ~50ms，根本无需跳过渲染，老老实实正常渲染最稳。
-      - 不开 contain: paint：消息里有 tooltip / popover 等会溢出的浮层，
-        paint containment 会把它们裁掉。
-    */
-  .msg-item-wrapper {
-    contain: layout style;
-  }
-
-  .message-row {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .botanswer_laoding_gif {
-    width: 24px;
-    height: 18px;
-    margin-left: 16px;
-  }
-
-  .chat-global-wait {
-    display: flex;
-    align-items: center;
-    min-height: 28px;
-    padding-left: 4px;
-  }
-
-  .chat-global-wait__spinner {
-    width: 12px;
-    height: 12px;
-    box-sizing: border-box;
-    border: 1.5px solid var(--td-component-stroke);
-    border-top-color: var(--td-text-color-secondary);
-    border-radius: 50%;
-    animation: chatGlobalWaitSpin 0.8s linear infinite;
-  }
+  border: 1.5px solid var(--td-component-stroke);
+  border-top-color: var(--td-text-color-secondary);
+  border-radius: 50%;
+  animation: chatGlobalWaitSpin 0.8s linear infinite;
 }
 
 @keyframes chatGlobalWaitSpin {

@@ -7,6 +7,7 @@
 // already has `t`, `formatRole` and `roleIcon` in scope from useI18n /
 // useRoleLabel and there is no per-instance state worth tracking.
 
+import type { Component } from "vue";
 import { NotifyPlugin } from "tdesign-vue-next";
 import { renderWorkspaceNotifyContent } from "./workspaceNotifyContent";
 
@@ -18,7 +19,7 @@ type Translator = (key: string, params?: Record<string, unknown>) => string;
 // to split on).
 type TemplateResolver = (key: string) => unknown;
 type RoleFormatter = (role: string | null | undefined) => string;
-type RoleIconResolver = (role: string | null | undefined) => string;
+type RoleIconResolver = (role: string | null | undefined) => Component | null;
 
 interface LoginResponseLike {
   // Password-login response uses `active_tenant`; the OIDC callback
@@ -46,7 +47,7 @@ export function notifyLoginSuccess(
     : null;
   const roleEnum = membership?.role;
   const roleLabel = roleEnum ? formatRole(roleEnum) : "";
-  const roleIconName = roleEnum ? roleIcon(roleEnum) : "";
+  const roleIconComponent = roleEnum ? roleIcon(roleEnum) : null;
 
   const templateKey = roleLabel ? "auth.loginSuccessContentWithRole" : "auth.loginSuccessContent";
   const rawTemplate = tm(templateKey);
@@ -59,7 +60,7 @@ export function notifyLoginSuccess(
       name: tenantName,
       roleLabel: roleLabel || undefined,
       roleEnum: roleEnum || undefined,
-      roleIconName: roleIconName || undefined,
+      roleIcon: roleIconComponent ?? undefined,
     }),
     duration: 6000,
     closeBtn: true,

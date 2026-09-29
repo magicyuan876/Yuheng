@@ -1,19 +1,26 @@
 <template>
-  <span :class="['vs-badge', `vs-badge-${effectiveSource}`, isUnavailable && 'vs-badge-warn']">
-    <t-icon :name="iconName" class="vs-badge-icon" />
-    <span class="vs-badge-name">{{ displayName }}</span>
-    <span v-if="engineType && (effectiveSource === 'user' || effectiveSource === 'env')" class="vs-badge-engine">
+  <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs leading-[1.4]" :class="toneClass">
+    <component :is="iconComponent" class="size-3.5" />
+    <span>{{ displayName }}</span>
+    <span v-if="engineType && (effectiveSource === 'user' || effectiveSource === 'env')" class="text-[11px] opacity-70">
       ({{ engineType }})
     </span>
-    <t-tag v-if="isUnavailable" theme="danger" variant="light" size="small" class="vs-badge-warn-tag">
+    <!-- The old light, small, danger t-tag. -->
+    <span
+      v-if="isUnavailable"
+      class="ml-1 inline-flex h-5 items-center rounded-[3px] bg-[var(--td-error-color-1)] px-1.5 text-xs text-[var(--td-error-color-6)]"
+    >
       {{ $t("vectorStoreBadge.unavailable") }}
-    </t-tag>
+    </span>
   </span>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { CircleHelpIcon, DatabaseIcon, Share2Icon } from "@lucide/vue";
+
 import type { VectorStoreSource, VectorStoreStatus } from "@/api/knowledge-base";
 
 const props = defineProps<{
@@ -32,19 +39,35 @@ const effectiveSource = computed<VectorStoreSource>(() => props.source || "env")
 
 const isUnavailable = computed(() => props.status === "unavailable" || effectiveSource.value === "unavailable");
 
-const iconName = computed(() => {
+const iconComponent = computed<Component>(() => {
   switch (effectiveSource.value) {
     case "env":
     case "user":
       // Both env- and user-bound KBs sit on top of a vector store; the
       // distinction is purely organizational (configured at process
       // start vs. created in the UI), so they share the same icon.
-      return "data-base";
+      return DatabaseIcon;
     case "shared":
-      return "share";
+      return Share2Icon;
     case "unavailable":
     default:
-      return "help-circle";
+      return CircleHelpIcon;
+  }
+});
+
+// The tint per source. An unavailable store wears the error tint whatever its
+// source says, because the warning is what the reader needs to see first.
+const toneClass = computed(() => {
+  if (isUnavailable.value) return "bg-[var(--td-error-color-1,#fde9e6)] text-[var(--td-error-color-7,#b32700)]";
+  switch (effectiveSource.value) {
+    case "env":
+      return "bg-[var(--td-brand-color-1,#ecf2fe)] text-[var(--td-brand-color-7,#0052d9)]";
+    case "user":
+      return "bg-[var(--td-success-color-1,#e8f8f2)] text-[var(--td-success-color-7,#00754a)]";
+    case "shared":
+      return "bg-[var(--td-warning-color-1,#fff1e9)] text-[var(--td-warning-color-7,#b85b00)]";
+    default:
+      return "bg-[var(--td-bg-color-component,#f5f7fa)] text-foreground";
   }
 });
 
@@ -54,50 +77,3 @@ const displayName = computed(() => {
   return props.name || t("vectorStoreBadge.unknownStore");
 });
 </script>
-
-<style scoped>
-.vs-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  background: var(--td-bg-color-component, #f5f7fa);
-  color: var(--td-text-color-primary, #1d2129);
-}
-
-.vs-badge-env {
-  background: var(--td-brand-color-1, #ecf2fe);
-  color: var(--td-brand-color-7, #0052d9);
-}
-
-.vs-badge-user {
-  background: var(--td-success-color-1, #e8f8f2);
-  color: var(--td-success-color-7, #00754a);
-}
-
-.vs-badge-shared {
-  background: var(--td-warning-color-1, #fff1e9);
-  color: var(--td-warning-color-7, #b85b00);
-}
-
-.vs-badge-warn {
-  background: var(--td-error-color-1, #fde9e6);
-  color: var(--td-error-color-7, #b32700);
-}
-
-.vs-badge-icon {
-  font-size: 14px;
-}
-
-.vs-badge-engine {
-  opacity: 0.7;
-  font-size: 11px;
-}
-
-.vs-badge-warn-tag {
-  margin-left: 4px;
-}
-</style>

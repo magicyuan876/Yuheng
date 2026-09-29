@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin, NotifyPlugin } from "tdesign-vue-next";
+import AppProviders from "@/components/AppProviders.vue";
 import ManualKnowledgeEditor from "@/components/manual-knowledge-editor.vue";
 import UploadConfirmHost from "@/components/UploadConfirmHost.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -222,7 +223,7 @@ const showPendingTenantSwitchToast = () => {
       name: pending.name,
       roleLabel: pending.role,
       roleEnum: pending.roleEnum,
-      roleIconName: pending.roleEnum ? roleIcon(pending.roleEnum) : undefined,
+      roleIcon: pending.roleEnum ? (roleIcon(pending.roleEnum) ?? undefined) : undefined,
     }),
     duration: 6000,
     closeBtn: true,
@@ -240,11 +241,13 @@ onUnmounted(() => {
 </script>
 <template>
   <t-config-provider :globalConfig="tdGlobalConfig">
-    <div id="app">
-      <RouterView />
-      <ManualKnowledgeEditor />
-      <UploadConfirmHost />
-    </div>
+    <AppProviders>
+      <div id="app">
+        <RouterView />
+        <ManualKnowledgeEditor />
+        <UploadConfirmHost />
+      </div>
+    </AppProviders>
   </t-config-provider>
 </template>
 <style>

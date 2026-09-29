@@ -1,125 +1,182 @@
 <template>
-  <div class="user-menu" :class="{ 'user-menu--collapsed': uiStore.sidebarCollapsed }" ref="menuRef">
+  <div class="relative w-full" ref="menuRef">
     <!-- 用户按钮 -->
-    <div class="user-button" data-guide="user-menu" @click="toggleMenu">
-      <div class="user-avatar">
-        <img v-if="userAvatar" :src="userAvatar" :alt="$t('common.avatar')" />
-        <span v-else class="avatar-placeholder">{{ userInitial }}</span>
+    <div
+      class="hover:bg-accent flex cursor-pointer items-center rounded-lg bg-transparent transition-all duration-200 active:scale-[0.98]"
+      :class="uiStore.sidebarCollapsed ? 'justify-center gap-0 px-[3px] py-1.5' : 'gap-1.5 px-1.5 py-2'"
+      data-guide="user-menu"
+      @click="toggleMenu"
+    >
+      <div
+        class="from-primary flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-135 to-[var(--td-brand-color-active)] transition-[width,height] duration-200 ease-in-out"
+      >
+        <img v-if="userAvatar" :src="userAvatar" :alt="$t('common.avatar')" class="size-full object-cover" />
+        <span v-else class="text-primary-foreground text-xs leading-none font-semibold">{{ userInitial }}</span>
       </div>
       <template v-if="!uiStore.sidebarCollapsed">
-        <div class="user-info">
+        <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5 text-left">
           <!-- 多空间 / superuser：首行空间名，次行 username · 角色。单空间：昵称 + 邮箱。 -->
           <template v-if="showTenantIdentityLine">
-            <div class="user-tenant-name" :title="activeTenantName">{{ activeTenantName }}</div>
-            <div class="user-tenant-meta">
-              <span v-if="userName && userName !== activeTenantName" class="user-tenant-meta-name">{{ userName }}</span>
-              <span v-if="userName && userName !== activeTenantName && currentRoleLabel" class="user-tenant-meta-sep"
+            <div
+              class="text-foreground truncate text-sm leading-[1.35] font-semibold tracking-[-0.01em]"
+              :title="activeTenantName"
+            >
+              {{ activeTenantName }}
+            </div>
+            <div class="text-muted-foreground mt-0 flex min-w-0 items-center gap-1 text-xs leading-[1.35]">
+              <span v-if="userName && userName !== activeTenantName" class="min-w-0 flex-[0_1_auto] truncate">{{
+                userName
+              }}</span>
+              <span
+                v-if="userName && userName !== activeTenantName && currentRoleLabel"
+                class="text-placeholder shrink-0"
                 >·</span
               >
-              <t-icon v-if="currentRoleIcon" :name="currentRoleIcon" size="12px" class="user-tenant-meta-icon" />
-              <span v-if="currentRoleLabel" class="user-tenant-meta-role">{{ currentRoleLabel }}</span>
+              <component :is="currentRoleIcon" v-if="currentRoleIcon" class="size-3 shrink-0" />
+              <span v-if="currentRoleLabel" class="shrink-0">{{ currentRoleLabel }}</span>
             </div>
           </template>
           <template v-else>
-            <div class="user-name">{{ userName }}</div>
-            <div class="user-email">{{ userEmail }}</div>
+            <div class="text-foreground truncate text-sm font-medium">{{ userName }}</div>
+            <div class="text-muted-foreground truncate text-xs">{{ userEmail }}</div>
           </template>
         </div>
-        <t-icon :name="menuVisible ? 'chevron-up' : 'chevron-down'" class="dropdown-icon" />
+        <component
+          :is="menuVisible ? ChevronUpIcon : ChevronDownIcon"
+          class="text-muted-foreground size-4 shrink-0 transition-transform duration-200"
+        />
       </template>
     </div>
 
     <!-- 下拉菜单 -->
-    <Transition name="dropdown">
-      <div v-if="menuVisible" class="user-dropdown" @click.stop>
+    <Transition
+      enter-active-class="transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      leave-active-class="transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      enter-from-class="translate-y-2 opacity-0"
+      leave-to-class="translate-y-2 opacity-0"
+    >
+      <!--
+        Expanded, the dropdown spans the sidebar width (the right edge is
+        inset so it does not sit exactly on the content boundary). Collapsed,
+        it opens to the right of the rail at the width of the expanded
+        sidebar (260px), so both states show the same menu.
+      -->
+      <div
+        v-if="menuVisible"
+        class="bg-card border-border absolute z-[1000] overflow-hidden rounded-lg border shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+        :class="
+          uiStore.sidebarCollapsed
+            ? 'bottom-0 left-[calc(100%+8px)] mb-1.5 min-w-[260px]'
+            : 'right-[-5px] bottom-full left-[-4px] mb-1.5'
+        "
+        @click.stop
+      >
         <!-- 弹出菜单：账号（头像+昵称）／当前空间（名称+权限）；底部侧栏样式不改。 -->
+        <!--
+          账号区：24px 头像中心与下方 16px 菜单图标中心同竖线；
+          头像 margin-left −4px、gap 6px 保持昵称起点与菜单文案对齐（12 + 24 + 6 − 4 = 38）。
+        -->
         <div
           v-if="userName"
-          class="dropdown-user-header is-clickable"
+          class="hover:bg-accent focus-visible:bg-accent flex min-w-0 cursor-pointer items-center gap-1.5 px-3 py-[9px] transition-colors duration-150 ease-in-out focus-visible:outline-none"
           role="button"
           tabindex="0"
           @click="handleQuickNav('userprofile')"
           @keydown.enter.prevent="handleQuickNav('userprofile')"
           @keydown.space.prevent="handleQuickNav('userprofile')"
         >
-          <div class="dropdown-user-avatar">
-            <img v-if="userAvatar" :src="userAvatar" :alt="$t('common.avatar')" />
-            <span v-else class="dropdown-user-avatar-placeholder">{{ userInitial }}</span>
+          <div
+            class="from-primary -ml-1 flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-135 to-[var(--td-brand-color-active)]"
+          >
+            <img v-if="userAvatar" :src="userAvatar" :alt="$t('common.avatar')" class="size-full object-cover" />
+            <span v-else class="text-primary-foreground text-xs leading-none font-semibold">{{ userInitial }}</span>
           </div>
-          <div class="dropdown-user-meta">
-            <div class="dropdown-user-name-row">
-              <span class="dropdown-user-name">{{ userName }}</span>
-              <t-tooltip :content="$t('newUserGuide.reopen')" placement="top">
-                <button
-                  type="button"
-                  class="dropdown-guide-btn"
-                  :aria-label="$t('newUserGuide.reopen')"
-                  @click.stop="reopenGuide"
-                >
-                  <t-icon name="help-circle" size="14px" />
-                </button>
-              </t-tooltip>
+          <div class="flex min-w-0 flex-1 flex-col justify-center gap-0">
+            <div class="flex min-w-0 items-center gap-0.5">
+              <span class="text-foreground min-w-0 flex-1 truncate text-sm leading-[1.35] font-medium">{{
+                userName
+              }}</span>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    data-slot="icon-button"
+                    class="text-placeholder hover:bg-accent hover:text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-[4px] transition-colors duration-200 ease-in-out"
+                    :aria-label="$t('newUserGuide.reopen')"
+                    @click.stop="reopenGuide"
+                  >
+                    <CircleHelpIcon class="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("newUserGuide.reopen") }}</TooltipContent>
+              </Tooltip>
             </div>
-            <span v-if="userEmail" class="dropdown-user-email">{{ userEmail }}</span>
+            <span v-if="userEmail" class="text-muted-foreground min-w-0 truncate text-xs leading-[1.35]">{{
+              userEmail
+            }}</span>
           </div>
         </div>
 
+        <!-- 当前工作区：与下方菜单项同款对齐（左 16px 图标槽 + 文案列 + 右侧操作图标） -->
         <div
           v-if="userName"
           ref="tenantMenuItemRef"
-          class="dropdown-tenant-panel"
+          class="group border-border flex min-w-0 items-center gap-2.5 border-t bg-transparent px-3 py-[9px] transition-[background] duration-150 ease-in-out"
           :class="{
-            'is-open': tenantSubmenuOpen,
-            'is-clickable': showTenantSwitcher,
+            'hover:bg-accent cursor-pointer': showTenantSwitcher,
+            'bg-accent': showTenantSwitcher && tenantSubmenuOpen,
           }"
           @mouseenter="showTenantSwitcher && showTenantSubmenu()"
           @mouseleave="showTenantSwitcher && scheduleHideTenantSubmenu()"
         >
-          <t-icon name="system-sum" class="menu-icon" aria-hidden="true" />
-          <div class="dropdown-tenant-panel-main">
-            <span class="dropdown-tenant-panel-name" :title="activeTenantName || userName">
+          <AtomIcon class="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+          <div class="flex min-w-0 flex-[1_1_auto] flex-col gap-px">
+            <span
+              class="text-foreground truncate text-sm leading-[1.35] font-medium"
+              :title="activeTenantName || userName"
+            >
               {{ activeTenantName || userName }}
             </span>
-            <div v-if="currentRoleLabel" class="dropdown-tenant-panel-role">
-              <t-icon
-                v-if="currentRoleIcon"
-                :name="currentRoleIcon"
-                size="12px"
-                class="dropdown-tenant-panel-role-icon"
-              />
+            <div
+              v-if="currentRoleLabel"
+              class="text-muted-foreground flex min-w-0 items-center gap-1 truncate text-xs leading-[1.35]"
+            >
+              <component :is="currentRoleIcon" v-if="currentRoleIcon" class="size-3 shrink-0" />
               <span>{{ currentRoleLabel }}</span>
             </div>
           </div>
-          <t-icon
-            v-if="showTenantSwitcher"
-            name="swap"
-            class="dropdown-tenant-panel-trail"
-            :title="$t('tenant.switcher.menuLabel')"
-          />
+          <span v-if="showTenantSwitcher" class="flex shrink-0" :title="$t('tenant.switcher.menuLabel')">
+            <ArrowLeftRightIcon
+              class="size-4 transition-colors duration-150 ease-in-out"
+              :class="
+                tenantSubmenuOpen ? 'text-muted-foreground' : 'text-placeholder group-hover:text-muted-foreground'
+              "
+            />
+          </span>
         </div>
-        <div class="menu-divider"></div>
+        <div class="bg-border mb-[3px] h-px" :class="userName ? 'mt-px' : 'mt-[3px]'"></div>
         <!-- 账号与空间是头像菜单的核心上下文；基础设施类配置统一收进「全部设置」。 -->
-        <div class="menu-item" @click="handleQuickNav('general')">
-          <t-icon name="user" class="menu-icon" />
+        <div :class="menuItemClass" @click="handleQuickNav('general')">
+          <UserIcon :class="menuIconClass" />
           <span>{{ $t("general.personalSettings") }}</span>
         </div>
-        <div class="menu-item" @click="handleQuickNav('tenant')">
-          <t-icon name="user-circle" class="menu-icon" />
+        <div :class="menuItemClass" @click="handleQuickNav('tenant')">
+          <CircleUserIcon :class="menuIconClass" />
           <span>{{ $t("settings.workspaceSettings") }}</span>
         </div>
         <!-- “管理”类快捷入口只对真正具备写权限的人展示。只读名册和模型列表
              仍可从「全部设置」进入，避免 viewer 看到名不副实的管理入口。 -->
-        <div v-if="canManageMembers" class="menu-item" @click="handleQuickNav('members')">
-          <t-icon name="usergroup" class="menu-icon" />
+        <div v-if="canManageMembers" :class="menuItemClass" @click="handleQuickNav('members')">
+          <UsersIcon :class="menuIconClass" />
           <span>{{ $t("tenantMember.title") }}</span>
         </div>
-        <div v-if="canManageModels" class="menu-item" @click="handleQuickNav('models')">
-          <t-icon name="control-platform" class="menu-icon" />
+        <div v-if="canManageModels" :class="menuItemClass" @click="handleQuickNav('models')">
+          <BoxIcon :class="menuIconClass" />
           <span>{{ $t("settings.modelManagement") }}</span>
         </div>
-        <div class="menu-divider"></div>
-        <div class="menu-item" @click="handleSettings">
-          <t-icon name="setting" class="menu-icon" />
+        <div class="bg-border my-[3px] h-px"></div>
+        <div :class="menuItemClass" @click="handleSettings">
+          <SettingsIcon :class="menuIconClass" />
           <span>{{ $t("general.allSettings") }}</span>
         </div>
         <!--
@@ -128,16 +185,16 @@
           including tenant Owners. Real authorisation lives server-side
           (RequireSystemAdmin middleware); this is UI gating only.
         -->
-        <div v-if="authStore.isSystemAdmin" class="menu-item" @click="handleSystemAdmin">
-          <t-icon name="server" class="menu-icon" />
+        <div v-if="authStore.isSystemAdmin" :class="menuItemClass" @click="handleSystemAdmin">
+          <ServerIcon :class="menuIconClass" />
           <span>{{ $t("settings.navGroups.systemAdministration") }}</span>
         </div>
-        <div class="menu-divider"></div>
-        <div v-if="DOCS_BASE_URL" class="menu-item" @click="openDocs">
-          <t-icon name="help-circle" class="menu-icon" />
-          <span class="menu-text-with-icon">
-            <span>{{ $t("general.helpAndDocs") }}</span>
-            <svg class="menu-external-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <div class="bg-border my-[3px] h-px"></div>
+        <div v-if="DOCS_BASE_URL" :class="['group', menuItemClass]" @click="openDocs">
+          <CircleHelpIcon :class="menuIconClass" />
+          <span class="flex min-w-0 flex-1 items-center gap-1.5 text-inherit">
+            <span class="inline-flex min-w-0 items-center truncate">{{ $t("general.helpAndDocs") }}</span>
+            <svg :class="externalIconClass" viewBox="0 0 16 16" aria-hidden="true">
               <path
                 fill="currentColor"
                 d="M12.667 8a.667.667 0 0 1 .666.667v4a2.667 2.667 0 0 1-2.666 2.666H4.667a2.667 2.667 0 0 1-2.667-2.666V5.333a2.667 2.667 0 0 1 2.667-2.666h4a.667.667 0 1 1 0 1.333h-4a1.333 1.333 0 0 0-1.333 1.333v7.334A1.333 1.333 0 0 0 4.667 13.333h6a1.333 1.333 0 0 0 1.333-1.333v-4A.667.667 0 0 1 12.667 8Zm2.666-6.667v4a.667.667 0 0 1-1.333 0V3.276l-5.195 5.195a.667.667 0 0 1-.943-.943l5.195-5.195h-2.057a.667.667 0 0 1 0-1.333h4a.667.667 0 0 1 .666.666Z"
@@ -145,12 +202,24 @@
             </svg>
           </span>
         </div>
-        <div v-if="REPO_URL" class="menu-item" :title="$t('common.githubStarTip')" @click="openGithub">
-          <t-icon name="logo-github" class="menu-icon" />
-          <span class="menu-text-with-icon">
-            <span>{{ $t("common.github") }}</span>
-            <t-icon name="star-filled" class="menu-github-star-icon" size="16px" aria-hidden="true" />
-            <svg class="menu-external-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <div v-if="REPO_URL" :class="['group', menuItemClass]" :title="$t('common.githubStarTip')" @click="openGithub">
+          <!-- lucide ships no brand marks, so the GitHub logo is TDesign's outline drawn inline. -->
+          <svg
+            :class="menuIconClass"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path
+              d="M8.50772 23C8.50772 22.8405 8.50574 22.6061 8.50311 22.2389C8.49789 21.5081 8.49009 20.4149 8.49009 19.1577C8.49009 17.8337 8.93142 16.9864 9.44334 16.5451C6.3011 16.1921 3 14.9917 3 9.57219C3 8.01876 3.54726 6.76529 4.44754 5.7768C4.3063 5.42374 3.81205 3.97616 4.58877 2.03433C4.58877 2.03433 5.77151 1.64593 8.47242 3.48191C9.6003 3.16471 10.8016 3.00052 12 3C13.1984 3.00052 14.3997 3.16471 15.5276 3.48191C18.2285 1.64593 19.4112 2.03433 19.4112 2.03433C20.1879 3.97616 19.6937 5.42374 19.5525 5.7768C20.4527 6.76529 21 8.01876 21 9.57219C21 14.9917 17.6989 16.1921 14.5567 16.5451C15.0686 16.9864 15.5099 17.8337 15.5099 19.1577C15.5099 20.4149 15.5021 21.5081 15.4969 22.2389C15.4943 22.6061 15.4923 22.8405 15.4923 23M2.5 17.5L2.7142 17.6071C3.2319 17.8659 3.68725 18.2341 4.04882 18.686L4.59927 19.3741C5.16858 20.0857 6.03052 20.5 6.94187 20.5H8.5"
+            />
+          </svg>
+          <span class="flex min-w-0 flex-1 items-center gap-1.5 text-inherit">
+            <span class="inline-flex min-w-0 items-center truncate">{{ $t("common.github") }}</span>
+            <StarIcon class="text-warning size-4 shrink-0 fill-current" aria-hidden="true" />
+            <svg :class="externalIconClass" viewBox="0 0 16 16" aria-hidden="true">
               <path
                 fill="currentColor"
                 d="M12.667 8a.667.667 0 0 1 .666.667v4a2.667 2.667 0 0 1-2.666 2.666H4.667a2.667 2.667 0 0 1-2.667-2.666V5.333a2.667 2.667 0 0 1 2.667-2.666h4a.667.667 0 1 1 0 1.333h-4a1.333 1.333 0 0 0-1.333 1.333v7.334A1.333 1.333 0 0 0 4.667 13.333h6a1.333 1.333 0 0 0 1.333-1.333v-4A.667.667 0 0 1 12.667 8Zm2.666-6.667v4a.667.667 0 0 1-1.333 0V3.276l-5.195 5.195a.667.667 0 0 1-.943-.943l5.195-5.195h-2.057a.667.667 0 0 1 0-1.333h4a.667.667 0 0 1 .666.666Z"
@@ -158,49 +227,67 @@
             </svg>
           </span>
         </div>
-        <template>
-          <div class="menu-divider"></div>
-          <div class="menu-item danger" @click="handleLogout">
-            <t-icon name="logout" class="menu-icon" />
-            <span>{{ $t("auth.logout") }}</span>
-          </div>
-        </template>
+        <!--
+          Logout. This block used to sit in a bare <template> left behind
+          when its v-if was removed; Vue 3 renders a directive-less
+          <template> as an inert native element, so the entry never showed.
+        -->
+        <div class="bg-border my-[3px] h-px"></div>
+        <div
+          class="text-destructive flex cursor-pointer items-center gap-2.5 px-3 py-[9px] text-sm transition-all duration-200 hover:bg-[var(--td-error-color-light)]"
+          @click="handleLogout"
+        >
+          <LogOutIcon class="text-destructive size-4 shrink-0" />
+          <span>{{ $t("auth.logout") }}</span>
+        </div>
       </div>
     </Transition>
 
     <!-- Tenant switcher floating panel — shares the same teleport rationale
          as the IM submenu. Data comes from authStore.memberships, kept fresh via
-         GET /auth/me when the submenu opens (throttled) and after invite/create. -->
+         GET /auth/me when the submenu opens (throttled) and after invite/create.
+         `tenant-submenu-floating` is a hook class: the viewport clamp and the
+         click-outside handler find the panel by it. The 2px left padding is a
+         pointer bridge, so sliding off the menu item onto the panel does not
+         cross a gap and trigger the mouseleave hide. -->
     <Teleport to="body">
       <div
         v-if="tenantSubmenuOpen"
-        class="tenant-submenu-floating"
+        class="tenant-submenu-floating bg-card border-border fixed z-[1100] flex max-h-[340px] w-[264px] flex-col overflow-hidden rounded-[10px] border-[0.5px] pl-0.5 shadow-[0_6px_24px_rgba(0,0,0,0.12)]"
         :style="tenantSubmenuStyle"
         @mouseenter="showTenantSubmenu"
         @mouseleave="scheduleHideTenantSubmenu"
       >
-        <div class="tenant-submenu-header">
+        <div class="text-muted-foreground border-border border-b-[0.5px] px-3 pt-2 pb-1.5 text-xs font-semibold">
           {{ $t("tenant.switcher.menuLabel") }}
         </div>
-        <div class="tenant-submenu-list">
+        <div class="overflow-y-auto p-1">
           <div
             v-for="m in switchableMemberships"
             :key="m.tenant_id"
-            class="tenant-submenu-item"
-            :class="{ 'is-current': isCurrentTenant(m.tenant_id) }"
+            class="flex items-center gap-2 rounded-md px-2 py-[7px] transition-[background] duration-150"
+            :class="isCurrentTenant(m.tenant_id) ? 'bg-secondary cursor-default' : 'hover:bg-secondary cursor-pointer'"
             @click="switchToTenant(m)"
           >
-            <div class="tenant-submenu-item-avatar" :class="{ 'is-current': isCurrentTenant(m.tenant_id) }">
+            <div
+              class="relative flex size-7 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold"
+              :class="
+                isCurrentTenant(m.tenant_id)
+                  ? 'from-primary text-primary-foreground bg-linear-135 to-[var(--td-brand-color-active)]'
+                  : 'bg-secondary text-muted-foreground'
+              "
+            >
               {{ tenantInitial(m) }}
               <!-- Home 标识：home tenant 行的 avatar 右下角加一个小 home
                    icon。比起在 meta 行单独立一个「我的」pill，这里更省地、
-                   也保持各行徽标列对齐。 -->
+                   也保持各行徽标列对齐；用户切到非 home tenant 时这个小
+                   icon 仍能一眼指出「我的主空间在哪一行」。 -->
               <span
                 v-if="isHomeTenant(m.tenant_id)"
-                class="tenant-submenu-item-home-dot"
+                class="bg-card text-muted-foreground pointer-events-none absolute -right-[3px] -bottom-[3px] flex size-3.5 items-center justify-center rounded-full border-[1.5px] border-[var(--td-bg-color-container)] shadow-[0_0_0_0.5px_var(--td-success-color-light)]"
                 :title="$t('tenant.switcher.homeTooltip')"
               >
-                <t-icon name="home" size="9px" />
+                <HouseIcon class="size-[9px]" />
               </span>
             </div>
             <!-- 两行布局：第一行是 tenant 名（拿满剩余宽度，避免被徽标截断
@@ -208,32 +295,38 @@
                  被压成省略号）；第二行 role（带角色图标） + 「当前」徽标。
                  home 徽标已挪到 tenant 名首字母 avatar 角落，不再在 meta
                  行额外占位，避免徽标列宽不齐。 -->
-            <div class="tenant-submenu-item-info">
-              <span class="tenant-submenu-item-name">{{ tenantDisplayName(m) }}</span>
-              <div class="tenant-submenu-item-meta">
-                <span class="tenant-submenu-item-role">
-                  <t-icon
-                    v-if="roleIcon(m.role)"
-                    :name="roleIcon(m.role)"
-                    size="12px"
-                    class="tenant-submenu-item-role-icon"
-                  />
+            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span
+                class="text-foreground truncate text-[13px]"
+                :class="{ 'font-semibold': isCurrentTenant(m.tenant_id) }"
+                >{{ tenantDisplayName(m) }}</span
+              >
+              <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span class="text-placeholder inline-flex items-center gap-1 text-[11px]">
+                  <!-- 角色图标颜色继承 role 文字色，避免抢走视觉 -->
+                  <component :is="roleIconComponent(m.role)" v-if="roleIconComponent(m.role)" class="size-3 shrink-0" />
                   {{ formatRole(m.role) }}
                 </span>
-                <span v-if="isCurrentTenant(m.tenant_id)" class="tenant-submenu-item-badge">{{
-                  $t("tenant.switcher.currentBadge")
-                }}</span>
+                <span
+                  v-if="isCurrentTenant(m.tenant_id)"
+                  class="text-muted-foreground shrink-0 rounded-[4px] bg-[var(--td-bg-color-component)] px-1.5 py-0.5 text-[10px] leading-[1.2] font-semibold"
+                  >{{ $t("tenant.switcher.currentBadge") }}</span
+                >
               </div>
             </div>
           </div>
-          <div v-if="switchableMemberships.length === 0" class="tenant-submenu-empty">
+          <div v-if="switchableMemberships.length === 0" class="text-placeholder px-2.5 py-3 text-center text-xs">
             {{ $t("tenant.switcher.empty") }}
           </div>
         </div>
         <!-- 自助创建入口与 /auth/me 返回的后端能力保持一致。 -->
-        <div v-if="authStore.canCreateTenant" class="tenant-submenu-create" @click="openCreateTenantDialog">
-          <t-icon name="add" class="tenant-submenu-create-icon" />
-          <span class="tenant-submenu-create-label">{{ $t("tenant.create.action") }}</span>
+        <div
+          v-if="authStore.canCreateTenant"
+          class="text-primary border-border mx-1 mt-[3px] mb-[5px] flex cursor-pointer items-center gap-1.5 rounded-md border-t-[0.5px] px-2.5 py-2 text-sm font-medium transition-[background] duration-150 hover:bg-[rgba(7,192,95,0.08)]"
+          @click="openCreateTenantDialog"
+        >
+          <PlusIcon class="size-4 shrink-0" />
+          <span class="flex-1 truncate text-xs">{{ $t("tenant.create.action") }}</span>
         </div>
       </div>
     </Teleport>
@@ -263,6 +356,24 @@ import { useRoleLabel, useHomeTenant } from "@/composables/useRoleLabel";
 import { getRootZoom, rectToCssPx, cssViewportSize } from "@/utils/zoom";
 import { openNewUserGuide } from "@/config/contextualGuides";
 import { SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE } from "@/config/settingsAccess";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  ArrowLeftRightIcon,
+  AtomIcon,
+  BoxIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CircleHelpIcon,
+  CircleUserIcon,
+  HouseIcon,
+  LogOutIcon,
+  PlusIcon,
+  ServerIcon,
+  SettingsIcon,
+  StarIcon,
+  UserIcon,
+  UsersIcon,
+} from "@lucide/vue";
 
 const { t } = useI18n();
 
@@ -270,6 +381,17 @@ const router = useRouter();
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 const { formatRole, roleIcon } = useRoleLabel();
+
+// A role without an icon (an unknown role name) renders the label alone.
+const roleIconComponent = roleIcon;
+
+// The dropdown's rows share one look; the classes live here rather than being
+// repeated on every row.
+const menuItemClass =
+  "text-foreground hover:bg-accent flex cursor-pointer items-center gap-2.5 px-3 py-[9px] text-sm transition-all duration-200";
+const menuIconClass = "text-muted-foreground size-4 shrink-0";
+const externalIconClass =
+  "pointer-events-none size-4 shrink-0 text-[var(--td-text-color-disabled)] transition-colors duration-200 ease-in-out group-hover:text-primary";
 const { homeTenantId, isHomeTenant } = useHomeTenant();
 
 // 顶部用户卡片展示的空间名 / 当前角色：跟着 tenant 切换器实时变。
@@ -279,7 +401,7 @@ const activeTenantName = computed(() => {
   return authStore.selectedTenantName || authStore.tenant?.name || "";
 });
 const currentRoleLabel = computed(() => formatRole(authStore.currentTenantRole));
-const currentRoleIcon = computed(() => roleIcon(authStore.currentTenantRole));
+const currentRoleIcon = computed(() => roleIconComponent(authStore.currentTenantRole));
 
 // 单空间用户（memberships <= 1 且非 superuser）= 永远 home + owner，第三
 // 行就是 user-email 信息的重复，没必要占视觉空间；只对多空间 / superuser
@@ -635,693 +757,3 @@ onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
 });
 </script>
-
-<style lang="less" scoped>
-.user-menu {
-  position: relative;
-  width: 100%;
-
-  &--collapsed {
-    .user-button {
-      justify-content: center;
-      padding: 6px 3px;
-      gap: 0;
-    }
-
-    .user-dropdown {
-      left: calc(100% + 8px);
-      bottom: 0;
-      right: auto;
-      /* 与展开侧栏时下拉可视宽度对齐（aside 宽 260px） */
-      min-width: 260px;
-    }
-  }
-}
-
-.user-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: transparent;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.user-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, var(--td-brand-color) 0%, var(--td-brand-color-active) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    width 0.2s ease,
-    height 0.2s ease;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .avatar-placeholder {
-    color: var(--td-text-color-anti);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1;
-  }
-}
-
-.user-info {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  justify-content: center;
-
-  .user-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-email {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-tenant-name {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--td-text-color-primary);
-    line-height: 1.35;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-tenant-meta {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 0;
-    min-width: 0;
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--td-text-color-secondary);
-
-    .user-tenant-meta-name {
-      flex: 0 1 auto;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .user-tenant-meta-sep {
-      flex-shrink: 0;
-      color: var(--td-text-color-placeholder);
-    }
-
-    .user-tenant-meta-icon {
-      flex-shrink: 0;
-      color: inherit;
-    }
-
-    .user-tenant-meta-role {
-      flex-shrink: 0;
-    }
-  }
-}
-
-.dropdown-icon {
-  font-size: 16px;
-  color: var(--td-text-color-secondary);
-  flex-shrink: 0;
-  transition: transform 0.2s;
-}
-
-.user-dropdown {
-  position: absolute;
-  bottom: 100%;
-  /* 相对 .user-menu：左右由 left/right 拉宽；右缘用正值内缩，避免与侧栏内容区右边界完全重合 */
-  left: -4px;
-  right: -5px;
-  margin-bottom: 6px;
-  background: var(--td-bg-color-container);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--td-component-stroke);
-  overflow: hidden;
-  z-index: 1000;
-}
-
-// 下拉顶部 — 账号区：24px 头像中心与下方 16px 菜单图标中心同竖线；
-// margin-left −4px、gap 6px 保持昵称起点与菜单文案对齐（12 + 24 + 6 − 4 = 38）
-.dropdown-user-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 12px;
-  min-width: 0;
-
-  &.is-clickable {
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-
-    &:hover,
-    &:focus-visible {
-      background: var(--td-bg-color-container-hover);
-      outline: none;
-    }
-  }
-
-  .dropdown-user-avatar {
-    width: 24px;
-    height: 24px;
-    margin-left: -4px;
-    border-radius: 50%;
-    overflow: hidden;
-    flex-shrink: 0;
-    background: linear-gradient(135deg, var(--td-brand-color) 0%, var(--td-brand-color-active) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .dropdown-user-avatar-placeholder {
-      color: var(--td-text-color-anti);
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1;
-    }
-  }
-
-  .dropdown-user-meta {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    justify-content: center;
-  }
-
-  .dropdown-user-name-row {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .dropdown-user-name {
-    flex: 1;
-    min-width: 0;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    line-height: 1.35;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .dropdown-user-email {
-    min-width: 0;
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--td-text-color-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .dropdown-guide-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
-
-    &:hover {
-      background: var(--td-bg-color-container-hover);
-      color: var(--td-text-color-secondary);
-    }
-  }
-}
-
-// 下拉 — 当前工作区：与下方 .menu-item 同款对齐（左 16px 图标槽 + 文案列 + 右侧操作图标）
-.dropdown-tenant-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-top: 1px solid var(--td-component-stroke);
-  background: transparent;
-  transition: background 0.15s ease;
-  min-width: 0;
-
-  > .menu-icon {
-    font-size: 16px;
-    color: var(--td-text-color-secondary);
-    flex-shrink: 0;
-  }
-
-  &.is-clickable {
-    cursor: pointer;
-
-    &:hover,
-    &.is-open {
-      background: var(--td-bg-color-container-hover);
-
-      .dropdown-tenant-panel-trail {
-        color: var(--td-text-color-secondary);
-      }
-    }
-  }
-
-  .dropdown-tenant-panel-main {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .dropdown-tenant-panel-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    line-height: 1.35;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .dropdown-tenant-panel-trail {
-    flex-shrink: 0;
-    font-size: 16px;
-    color: var(--td-text-color-placeholder);
-    transition: color 0.15s ease;
-  }
-
-  .dropdown-tenant-panel-role {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    line-height: 1.35;
-    color: var(--td-text-color-secondary);
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    .dropdown-tenant-panel-role-icon {
-      flex-shrink: 0;
-      color: inherit;
-    }
-  }
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.danger {
-    color: var(--td-error-color);
-
-    &:hover {
-      background: var(--td-error-color-light);
-    }
-
-    .menu-icon {
-      color: var(--td-error-color);
-    }
-  }
-
-  // 包含右弹子菜单的菜单项
-  &--submenu {
-    position: relative;
-
-    .menu-item-label {
-      flex: 1;
-    }
-
-    .menu-chevron {
-      font-size: 16px;
-      color: var(--td-text-color-placeholder);
-      flex-shrink: 0;
-      transition: transform 0.15s;
-    }
-
-    &.is-open {
-      background: var(--td-bg-color-container-hover);
-
-      .menu-chevron {
-        color: var(--td-text-color-secondary);
-      }
-    }
-  }
-
-  .menu-icon {
-    font-size: 16px;
-    color: var(--td-text-color-secondary);
-
-    &.svg-icon {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-
-    &--emoji {
-      width: 16px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      line-height: 1;
-      flex-shrink: 0;
-      color: inherit;
-    }
-  }
-
-  .menu-text-with-icon {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: inherit;
-    min-width: 0;
-
-    > span:first-of-type {
-      display: inline-flex;
-      align-items: center;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .menu-new-badge {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.2;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-    letter-spacing: 0.02em;
-  }
-
-  .menu-github-star-icon {
-    flex-shrink: 0;
-    color: var(--td-warning-color);
-  }
-
-  .menu-external-icon {
-    width: 16px;
-    height: 16px;
-    color: var(--td-text-color-disabled);
-    flex-shrink: 0;
-    transition: color 0.2s ease;
-    pointer-events: none;
-  }
-
-  &:hover .menu-external-icon {
-    color: var(--td-brand-color);
-  }
-}
-
-.menu-divider {
-  height: 1px;
-  background: var(--td-component-stroke);
-  margin: 3px 0;
-}
-
-// 紧跟账号/空间区块后的分隔线：略收紧与上方的留白
-.dropdown-user-header + .menu-divider,
-.dropdown-tenant-panel + .menu-divider {
-  margin-top: 1px;
-}
-
-// 下拉动画
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.dropdown-enter-to,
-.dropdown-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-</style>
-
-<style lang="less">
-// Tenant switcher submenu — teleported to <body>.
-// All styling for the panel itself lives here (not in a child component) so
-// the markup in UserMenu.vue stays self-contained.
-.tenant-submenu-floating {
-  position: fixed;
-  z-index: 1100;
-  width: 264px;
-  max-height: 340px;
-  display: flex;
-  flex-direction: column;
-  background: var(--td-bg-color-container);
-  border: 0.5px solid var(--td-component-stroke);
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
-  // Pointer bridge so the user can slide off the menu item onto the panel
-  // without hitting the gap and triggering mouseleave-hide.
-  padding-left: 2px;
-  overflow: hidden;
-
-  .tenant-submenu-header {
-    padding: 8px 12px 6px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--td-text-color-secondary);
-    border-bottom: 0.5px solid var(--td-component-stroke);
-  }
-
-  .tenant-submenu-list {
-    overflow-y: auto;
-    padding: 4px;
-  }
-
-  .tenant-submenu-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.15s;
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer);
-    }
-
-    &.is-current {
-      background: var(--td-bg-color-secondarycontainer);
-      cursor: default;
-
-      .tenant-submenu-item-name {
-        color: var(--td-text-color-primary);
-        font-weight: 600;
-      }
-    }
-  }
-
-  .tenant-submenu-item-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: var(--td-bg-color-secondarycontainer);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--td-text-color-secondary);
-    flex-shrink: 0;
-
-    &.is-current {
-      background: linear-gradient(135deg, var(--td-brand-color) 0%, var(--td-brand-color-active) 100%);
-      color: var(--td-text-color-anti);
-    }
-  }
-
-  .tenant-submenu-item-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .tenant-submenu-item-name {
-    font-size: 13px;
-    color: var(--td-text-color-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  // 第二行：role + 徽标，以 inline 形式排在一起。徽标缩到次级位置，
-  // 让第一行的 tenant 名拿满宽度（之前长名字会被徽标挤成省略号）。
-  .tenant-submenu-item-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    min-width: 0;
-  }
-
-  .tenant-submenu-item-role {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--td-text-color-placeholder);
-
-    .tenant-submenu-item-role-icon {
-      flex-shrink: 0;
-      // 颜色继承 role 文字色，避免抢走视觉
-      color: inherit;
-    }
-  }
-
-  .tenant-submenu-item-badge {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.2;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--td-bg-color-component);
-    color: var(--td-text-color-secondary);
-  }
-
-  // Home 标识改为叠在 avatar 右下角的小 dot，不在 meta 行额外占位，让
-  // 各行徽标列宽对齐；用户切到非 home tenant 时这个小 icon 仍能一眼指
-  // 出「我的主空间在哪一行」。
-  .tenant-submenu-item-avatar {
-    position: relative;
-  }
-
-  .tenant-submenu-item-home-dot {
-    position: absolute;
-    right: -3px;
-    bottom: -3px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--td-bg-color-container);
-    color: var(--td-text-color-secondary);
-    border: 1.5px solid var(--td-bg-color-container);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    box-shadow: 0 0 0 0.5px var(--td-success-color-light);
-  }
-
-  .tenant-submenu-empty {
-    padding: 12px 10px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .tenant-submenu-create {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    margin: 3px 4px 5px;
-    border-top: 0.5px solid var(--td-component-stroke);
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--td-brand-color);
-    font-size: 14px;
-    font-weight: 500;
-    transition: background 0.15s;
-
-    &:hover {
-      background: rgba(7, 192, 95, 0.08);
-    }
-
-    .tenant-submenu-create-icon {
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    .tenant-submenu-create-label {
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 12px;
-    }
-  }
-}
-</style>

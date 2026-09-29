@@ -1,5 +1,10 @@
 <template>
-  <time v-if="label" class="conversation-time" :datetime="datetime">{{ label }}</time>
+  <time
+    v-if="label"
+    class="text-placeholder block w-full pt-1 pb-2 text-center text-xs leading-5 tabular-nums select-none"
+    :datetime="datetime"
+    >{{ label }}</time
+  >
 </template>
 
 <script setup lang="ts">
@@ -31,17 +36,3 @@ const label = computed(() => {
   });
 });
 </script>
-
-<style scoped lang="less">
-.conversation-time {
-  display: block;
-  width: 100%;
-  padding: 4px 0 8px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  line-height: 20px;
-  text-align: center;
-  user-select: none;
-}
-</style>

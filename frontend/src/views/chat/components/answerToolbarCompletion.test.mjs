@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 
 const botMessage = readFileSync(new URL("./botmsg.vue", import.meta.url), "utf8");
 const chatView = readFileSync(new URL("../index.vue", import.meta.url), "utf8");
-const sharedStyles = readFileSync(new URL("../../../components/css/chat-message-shared.less", import.meta.url), "utf8");
+const sharedStyles = readFileSync(new URL("../../../components/css/chat-message-shared.css", import.meta.url), "utf8");
 
 test("answer actions wait for the typewriter buffer to finish", () => {
   assert.match(botMessage, /const answerFullyRendered = computed/);

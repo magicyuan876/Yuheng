@@ -1,66 +1,101 @@
 <template>
+  <!-- session-source-filter, --inline and --emphasized are hook classes: menu.vue reaches them with
+       :deep() to fade the inline trigger in on hover and keep it visible for a non-default source. -->
   <div
     class="session-source-filter"
-    :class="{
-      'session-source-filter--inline': inline,
-      'session-source-filter--emphasized': emphasized,
-    }"
+    :class="[
+      inline ? 'session-source-filter--inline max-w-full min-w-0 p-0' : 'pt-0.5 pb-1.5',
+      { 'session-source-filter--emphasized': emphasized },
+    ]"
   >
     <button
       ref="triggerRef"
       type="button"
-      class="session-source-filter__trigger"
+      data-slot="source-filter-trigger"
+      class="flex cursor-pointer items-center border-0 text-left font-[family-name:var(--app-font-family)] transition-[background,color] duration-150"
+      :class="
+        inline
+          ? 'hover:text-placeholder aria-expanded:text-placeholder w-auto max-w-full justify-end gap-0.5 rounded-none p-0 text-[var(--td-text-color-disabled)]'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground min-h-7 w-full justify-between gap-2 rounded-md py-1 pr-2.5 pl-3.5'
+      "
       :aria-expanded="open"
       aria-haspopup="listbox"
       @click.stop="toggleOpen"
     >
-      <span class="session-source-filter__leading">
+      <span class="inline-flex min-w-0 items-center" :class="inline ? 'flex-[0_1_auto] gap-1' : 'flex-auto gap-[5px]'">
         <img
           v-if="currentOption?.logo"
           :src="currentOption.logo"
           :alt="currentOption.label"
-          class="session-source-filter__logo"
+          class="flex-none object-contain"
+          :class="inline ? 'h-3 w-3 opacity-70' : 'h-3.5 w-3.5 opacity-[0.82]'"
         />
-        <t-icon v-else :name="iconFor(currentOption)" class="session-source-filter__icon" size="14px" />
-        <span class="session-source-filter__label" :title="currentOption?.label">{{ currentOption?.label }}</span>
+        <component
+          :is="iconFor(currentOption)"
+          v-else
+          class="flex-none"
+          :class="inline ? 'size-3 text-[var(--td-text-color-disabled)]' : 'text-placeholder size-3.5'"
+        />
+        <span
+          class="truncate tracking-[0.01em]"
+          :class="inline ? 'text-[11px] leading-4 font-semibold' : 'text-xs leading-[18px] font-medium'"
+          :title="currentOption?.label"
+        >
+          {{ currentOption?.label }}
+        </span>
       </span>
-      <t-icon
-        v-if="inline"
-        name="chevron-down"
-        class="session-source-filter__chevron"
-        :class="{ 'session-source-filter__chevron--open': open }"
-        size="10px"
-      />
-      <t-icon
-        v-else
-        name="chevron-down"
-        class="session-source-filter__chevron"
-        :class="{ 'session-source-filter__chevron--open': open }"
-        size="12px"
+      <ChevronDownIcon
+        class="flex-none transition-[transform,color] duration-[180ms]"
+        :class="[
+          open ? 'rotate-180' : '',
+          inline
+            ? 'size-2.5 text-[var(--td-text-color-disabled)] opacity-85'
+            : open
+              ? 'text-muted-foreground size-3'
+              : 'text-placeholder size-3',
+        ]"
       />
     </button>
     <Teleport to="body">
-      <div v-if="open" class="session-source-filter__panel" role="listbox" :style="panelStyle" @click.stop>
+      <div
+        v-if="open"
+        data-slot="source-filter-panel"
+        class="fixed z-3000 w-max max-w-[min(200px,calc(100vw-16px))] min-w-[108px] rounded-[7px] border border-[var(--td-component-stroke)] bg-[var(--td-bg-color-sidebar,var(--td-bg-color-container))] p-[3px] shadow-[0_2px_10px_rgba(0,0,0,0.05),0_0_1px_rgba(0,0,0,0.04)]"
+        :style="panelStyle"
+        role="listbox"
+        @click.stop
+      >
         <button
           v-for="item in sources"
           :key="item.value"
           type="button"
-          class="session-source-filter__option"
-          :class="{ 'session-source-filter__option--active': item.value === current }"
+          class="text-foreground flex min-h-7 w-full cursor-pointer items-center justify-between gap-1.5 rounded-[5px] border-0 px-1.5 py-1 text-left font-[family-name:var(--app-font-family)] whitespace-nowrap transition-[background,color] duration-150"
+          :class="item.value === current ? 'bg-secondary' : 'hover:bg-accent'"
           role="option"
           :aria-selected="item.value === current"
           @click="handleSelect(item.value)"
         >
-          <span class="session-source-filter__option-leading">
-            <img v-if="item.logo" :src="item.logo" :alt="item.label" class="session-source-filter__logo" />
-            <t-icon v-else :name="iconFor(item)" class="session-source-filter__icon" size="14px" />
-            <span class="session-source-filter__option-label" :title="item.label">{{ item.label }}</span>
+          <span class="inline-flex min-w-0 flex-auto items-center gap-[5px]">
+            <img
+              v-if="item.logo"
+              :src="item.logo"
+              :alt="item.label"
+              class="h-3.5 w-3.5 flex-none object-contain"
+              :class="item.value === current ? 'opacity-[0.92]' : 'opacity-[0.82]'"
+            />
+            <component
+              :is="iconFor(item)"
+              v-else
+              class="size-3.5 flex-none"
+              :class="item.value === current ? 'text-muted-foreground' : 'text-placeholder'"
+            />
+            <span class="truncate text-xs leading-4 font-medium tracking-[0.01em]" :title="item.label">{{
+              item.label
+            }}</span>
           </span>
-          <t-icon
-            name="check"
-            class="session-source-filter__check"
-            :class="{ 'session-source-filter__check--visible': item.value === current }"
-            size="13px"
+          <CheckIcon
+            class="text-placeholder ml-0.5 size-[13px] flex-[0_0_13px]"
+            :class="item.value === current ? 'visible' : 'invisible'"
           />
         </button>
       </div>
@@ -69,7 +104,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, type Component } from "vue";
+
+import { CheckIcon, ChevronDownIcon, CodeIcon, LinkIcon, MessageSquareIcon, ServerIcon } from "@lucide/vue";
+
 import { DEFAULT_SESSION_BUCKET_KEY } from "./sessionSidebarSourceFilter";
 
 interface SourceItem {
@@ -100,12 +138,12 @@ const panelStyle = ref<Record<string, string>>({});
 
 const currentOption = computed(() => props.sources.find((item) => item.value === props.current) ?? props.sources[0]);
 
-const iconFor = (item: SourceItem | undefined): string => {
-  if (!item) return "chat";
-  if (item.value === DEFAULT_SESSION_BUCKET_KEY) return "chat";
-  if (item.value === "api") return "server";
-  if (item.value.startsWith("embed:")) return "code";
-  return "link";
+const iconFor = (item: SourceItem | undefined): Component => {
+  if (!item) return MessageSquareIcon;
+  if (item.value === DEFAULT_SESSION_BUCKET_KEY) return MessageSquareIcon;
+  if (item.value === "api") return ServerIcon;
+  if (item.value.startsWith("embed:")) return CodeIcon;
+  return LinkIcon;
 };
 
 const updatePanelPosition = (): void => {
@@ -165,206 +203,3 @@ onBeforeUnmount(() => {
   removeListeners();
 });
 </script>
-
-<style scoped lang="less">
-.session-source-filter {
-  padding: 2px 0 6px;
-
-  &--inline {
-    padding: 0;
-    min-width: 0;
-    max-width: 100%;
-
-    .session-source-filter__leading {
-      gap: 4px;
-      flex: 0 1 auto;
-    }
-  }
-}
-
-.session-source-filter__trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 28px;
-  padding: 4px 10px 4px 14px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  font-family: var(--app-font-family);
-  text-align: left;
-
-  &:hover,
-  &[aria-expanded="true"] {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  .session-source-filter--inline & {
-    width: auto;
-    max-width: 100%;
-    min-height: 0;
-    gap: 2px;
-    padding: 0;
-    border-radius: 0;
-    color: var(--td-text-color-disabled);
-    justify-content: flex-end;
-
-    &:hover,
-    &[aria-expanded="true"] {
-      background: transparent;
-      color: var(--td-text-color-placeholder);
-    }
-  }
-}
-
-.session-source-filter__leading,
-.session-source-filter__option-leading {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.session-source-filter__label,
-.session-source-filter__option-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 18px;
-  letter-spacing: 0.01em;
-
-  .session-source-filter--inline .session-source-filter__trigger & {
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 16px;
-    color: inherit;
-  }
-}
-
-.session-source-filter__logo {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-  object-fit: contain;
-  opacity: 0.82;
-
-  .session-source-filter--inline & {
-    width: 12px;
-    height: 12px;
-    opacity: 0.7;
-  }
-}
-
-.session-source-filter__icon {
-  flex: 0 0 auto;
-  color: var(--td-text-color-placeholder);
-
-  .session-source-filter--inline & {
-    font-size: 12px !important;
-    color: var(--td-text-color-disabled);
-  }
-}
-
-.session-source-filter__chevron {
-  flex: 0 0 auto;
-  color: var(--td-text-color-placeholder);
-  transition:
-    transform 0.18s ease,
-    color 0.15s ease;
-
-  &--open {
-    transform: rotate(180deg);
-    color: var(--td-text-color-secondary);
-  }
-
-  .session-source-filter--inline & {
-    color: var(--td-text-color-disabled);
-    opacity: 0.85;
-    font-size: 10px !important;
-  }
-}
-
-.session-source-filter__panel {
-  position: fixed;
-  z-index: 3000;
-  width: max-content;
-  min-width: 108px;
-  max-width: min(200px, calc(100vw - 16px));
-  padding: 3px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 7px;
-  background: var(--td-bg-color-sidebar, var(--td-bg-color-container));
-  box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.05),
-    0 0 1px rgba(0, 0, 0, 0.04);
-}
-
-.session-source-filter__option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  min-height: 28px;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  font-family: var(--app-font-family);
-  text-align: left;
-  white-space: nowrap;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &--active {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-
-    .session-source-filter__icon {
-      color: var(--td-text-color-secondary);
-    }
-
-    .session-source-filter__logo {
-      opacity: 0.92;
-      filter: none;
-    }
-  }
-}
-
-.session-source-filter__option-label {
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.session-source-filter__check {
-  flex: 0 0 13px;
-  width: 13px;
-  margin-left: 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px !important;
-  visibility: hidden;
-
-  &--visible {
-    visibility: visible;
-  }
-}
-</style>

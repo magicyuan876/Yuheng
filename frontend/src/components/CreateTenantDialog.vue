@@ -2,53 +2,83 @@
   <!-- 自助创建新工作区弹窗。任意已登录用户均可调用 POST /api/v1/tenants
        （后端 router 已去掉 g.CrossTenant() 守卫），handler 会自动把当前
        用户 EnsureOwner 成新空间的 Owner。 -->
-  <t-dialog
-    :visible="visible"
-    width="480px"
-    :on-confirm="handleSubmit"
-    :on-close="handleClose"
-    :confirm-btn="{ content: $t('tenant.create.submit'), loading: submitting, theme: 'primary' }"
-    :cancel-btn="{ content: $t('tenant.create.cancel') }"
-    :close-on-overlay-click="!submitting"
-    :close-on-esc-keydown="!submitting"
-    @update:visible="onVisibleUpdate"
-  >
-    <template #header>
-      <span class="create-tenant-dialog-header">
-        <t-icon name="system-sum" size="20px" class="create-tenant-dialog-header-icon" aria-hidden="true" />
-        <span class="create-tenant-dialog-header-title">{{ $t("tenant.create.dialogTitle") }}</span>
-      </span>
-    </template>
+  <Dialog :open="visible" @update:open="onVisibleUpdate">
+    <!-- While a submit is in flight the dialog must not be dismissed by the
+         overlay or Esc, as the old t-dialog's close-on-* flags ensured. -->
+    <DialogContent
+      class="sm:max-w-[480px]"
+      @interact-outside="(e: Event) => submitting && e.preventDefault()"
+      @escape-key-down="(e: KeyboardEvent) => submitting && e.preventDefault()"
+    >
+      <DialogHeader>
+        <DialogTitle class="inline-flex items-center gap-2">
+          <LayoutGridIcon class="text-primary size-5 shrink-0" aria-hidden="true" />
+          <span>{{ $t("tenant.create.dialogTitle") }}</span>
+        </DialogTitle>
+        <DialogDescription class="text-muted-foreground m-0 text-[13px] leading-[1.55]">
+          {{ $t("tenant.create.dialogSubtitle") }}
+        </DialogDescription>
+      </DialogHeader>
 
-    <p class="create-tenant-tip">{{ $t("tenant.create.dialogSubtitle") }}</p>
+      <form class="flex flex-col gap-4" novalidate @submit.prevent="handleSubmit">
+        <div class="flex flex-col gap-1.5">
+          <Label for="create-tenant-name">{{ $t("tenant.create.nameLabel") }}</Label>
+          <Input
+            id="create-tenant-name"
+            v-model="form.name"
+            :placeholder="$t('tenant.create.namePlaceholder')"
+            :maxlength="128"
+            :aria-invalid="!!nameError || undefined"
+            autofocus
+            @blur="validateName"
+          />
+          <p v-if="nameError" class="text-destructive m-0 text-xs">{{ nameError }}</p>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <Label for="create-tenant-description">{{ $t("tenant.create.descriptionLabel") }}</Label>
+          <!-- The old autosize grew between three and five rows. -->
+          <Textarea
+            id="create-tenant-description"
+            v-model="form.description"
+            :placeholder="$t('tenant.create.descriptionPlaceholder')"
+            :maxlength="512"
+            class="max-h-[7.5rem] min-h-[4.75rem]"
+          />
+        </div>
+        <!-- A hidden submit button lets Enter in the name field submit the form,
+             which is what the old @enter handler did. -->
+        <button type="submit" class="hidden" tabindex="-1" aria-hidden="true" />
+      </form>
 
-    <t-form ref="formRef" :data="form" :rules="formRules" label-align="top" class="create-tenant-form" @submit.prevent>
-      <t-form-item :label="$t('tenant.create.nameLabel')" name="name">
-        <t-input
-          v-model="form.name"
-          :placeholder="$t('tenant.create.namePlaceholder')"
-          :maxlength="128"
-          autofocus
-          @enter="handleSubmit"
-        />
-      </t-form-item>
-      <t-form-item :label="$t('tenant.create.descriptionLabel')" name="description">
-        <t-textarea
-          v-model="form.description"
-          :placeholder="$t('tenant.create.descriptionPlaceholder')"
-          :maxlength="512"
-          :autosize="{ minRows: 3, maxRows: 5 }"
-        />
-      </t-form-item>
-    </t-form>
-  </t-dialog>
+      <DialogFooter>
+        <Button variant="outline" :disabled="submitting" @click="handleClose">{{ $t("tenant.create.cancel") }}</Button>
+        <Button :disabled="submitting" @click="handleSubmit">
+          <Loader2Icon v-if="submitting" class="animate-spin" />
+          {{ $t("tenant.create.submit") }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { MessagePlugin, type FormInstanceFunctions, type FormRule } from "tdesign-vue-next";
+import { LayoutGridIcon, Loader2Icon } from "@lucide/vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { createTenant, type TenantInfo } from "@/api/tenant";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const props = defineProps<{
   visible: boolean;
@@ -62,7 +92,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-const formRef = ref<FormInstanceFunctions | null>(null);
 const submitting = ref(false);
 
 const form = reactive({
@@ -70,17 +99,17 @@ const form = reactive({
   description: "",
 });
 
-// Trim-aware required check：t-input 的 required 不会去空白，全空格也算
-// 通过；这里手动校验 trim 后非空。max 长度由 :maxlength 在键入时硬限制，
-// 所以这里不再重复挂规则（避免与硬限制双重提示）。
-const formRules: Record<string, FormRule[]> = {
-  name: [
-    {
-      validator: (val: string) => (val ?? "").trim().length > 0,
-      message: t("tenant.create.nameRequired"),
-      trigger: "blur",
-    },
-  ],
+// The field error under the name input. It replaces the TDesign form rule,
+// and like that rule it is shown on blur and on submit.
+const nameError = ref("");
+
+// Trim-aware required check：全空格不算通过；这里手动校验 trim 后非空。
+// max 长度由 :maxlength 在键入时硬限制，所以这里不再重复挂规则（避免与
+// 硬限制双重提示）。
+const validateName = (): boolean => {
+  const ok = (form.name ?? "").trim().length > 0;
+  nameError.value = ok ? "" : t("tenant.create.nameRequired");
+  return ok;
 };
 
 watch(
@@ -89,7 +118,7 @@ watch(
     if (open) {
       form.name = "";
       form.description = "";
-      requestAnimationFrame(() => formRef.value?.clearValidate?.());
+      nameError.value = "";
     }
   },
 );
@@ -106,8 +135,7 @@ const handleClose = () => {
 
 const handleSubmit = async () => {
   if (submitting.value) return;
-  const validateResult = await formRef.value?.validate?.();
-  if (validateResult !== true) return;
+  if (!validateName()) return;
 
   submitting.value = true;
   try {
@@ -130,33 +158,3 @@ const handleSubmit = async () => {
   }
 };
 </script>
-
-<style lang="less" scoped>
-.create-tenant-dialog-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.create-tenant-dialog-header-icon {
-  flex-shrink: 0;
-  color: var(--td-brand-color);
-}
-
-.create-tenant-dialog-header-title {
-  font: inherit;
-}
-
-.create-tenant-tip {
-  margin: 0 0 16px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--td-text-color-secondary);
-}
-
-.create-tenant-form {
-  :deep(.t-form__item):last-child {
-    margin-bottom: 0;
-  }
-}
-</style>

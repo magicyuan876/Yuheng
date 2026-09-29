@@ -1,19 +1,33 @@
 <template>
   <div
-    class="space-avatar"
+    class="space-avatar relative flex shrink-0 items-center justify-center overflow-hidden"
     :style="avatarStyle"
     :class="{
-      'space-avatar-small': size === 'small',
-      'space-avatar-large': size === 'large',
-      'space-avatar-emoji': isEmoji,
+      'size-[22px] rounded-[5px] shadow-none': size === 'small',
+      'size-8 rounded-lg shadow-[var(--td-shadow-2)]': size === 'medium',
+      'size-12 rounded-xl shadow-[var(--td-shadow-2)]': size === 'large',
     }"
   >
+    <!--
+      "space-avatar" stays as an unstyled hook class: ListSpaceSidebar resizes
+      the avatar through :deep(.space-avatar).
+    -->
     <template v-if="isEmoji">
-      <span class="space-avatar-emoji-char">{{ emojiChar }}</span>
+      <span
+        class="relative z-[1] leading-none select-none"
+        :class="{
+          'text-[14px]': size === 'small',
+          'text-[18px]': size === 'medium',
+          'text-[28px]': size === 'large',
+        }"
+        >{{ emojiChar }}</span
+      >
     </template>
     <template v-else>
+      <!-- The decoration is too busy to read at the small size, so it is dropped there. -->
       <svg
-        class="space-avatar-decoration"
+        v-if="size !== 'small'"
+        class="pointer-events-none absolute right-0 bottom-0 h-[55%] w-[55%] text-white/90 opacity-35"
         viewBox="0 0 56 40"
         preserveAspectRatio="xMaxYMax meet"
         fill="none"
@@ -39,7 +53,16 @@
           opacity="0.3"
         />
       </svg>
-      <span class="space-avatar-letter" :style="letterStyle">{{ letter }}</span>
+      <span
+        class="text-primary-foreground relative z-[1] font-[family-name:var(--app-font-family)] font-semibold"
+        :class="{
+          'text-[11px]': size === 'small',
+          'text-[14px]': size === 'medium',
+          'text-[20px]': size === 'large',
+        }"
+        :style="letterStyle"
+        >{{ letter }}</span
+      >
     </template>
   </div>
 </template>
@@ -127,85 +150,3 @@ const letterStyle = computed(() => {
   };
 });
 </script>
-
-<style scoped lang="less">
-.space-avatar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  box-shadow: var(--td-shadow-2);
-  overflow: hidden;
-
-  &.space-avatar-small {
-    width: 22px;
-    height: 22px;
-    border-radius: 5px;
-    box-shadow: none;
-
-    .space-avatar-letter {
-      font-size: 11px;
-    }
-
-    .space-avatar-decoration {
-      display: none;
-    }
-  }
-
-  &.space-avatar-large {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-
-    .space-avatar-letter {
-      font-size: 20px;
-    }
-
-    .space-avatar-emoji-char {
-      font-size: 28px;
-    }
-  }
-
-  &.space-avatar-emoji {
-    .space-avatar-emoji-char {
-      position: relative;
-      z-index: 1;
-      line-height: 1;
-      user-select: none;
-    }
-  }
-}
-
-.space-avatar-emoji-char {
-  font-size: 18px;
-  line-height: 1;
-
-  .space-avatar-small & {
-    font-size: 14px;
-  }
-}
-
-.space-avatar-decoration {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 55%;
-  height: 55%;
-  opacity: 0.35;
-  color: rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-}
-
-.space-avatar-letter {
-  position: relative;
-  z-index: 1;
-  color: var(--td-text-color-anti);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--app-font-family);
-}
-</style>

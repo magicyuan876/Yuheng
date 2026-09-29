@@ -25,8 +25,8 @@
     else that depends on credential state.
 -->
 <template>
-  <div class="credential-resource">
-    <div v-for="field in fields" :key="field.key" class="credential-row">
+  <div class="credential-resource flex flex-col gap-2">
+    <div v-for="field in fields" :key="field.key">
       <!--
         Per-field label, rendered only when there is more than one credential
         (e.g. a provider's api_key + app_secret pair) so a single-field card
@@ -34,9 +34,16 @@
         consumers (ModelEditorDialog API key, WebSearch provider api_key,
         McpService api_key) keep showing the parent label only.
       -->
-      <div v-if="fields.length > 1" class="credential-row-label">{{ field.label }}</div>
+      <div v-if="fields.length > 1" class="text-foreground mb-1 text-[13px] leading-[1.4] font-medium">
+        {{ field.label }}
+      </div>
 
-      <!-- Configured: faux input row (visually identical to t-input) -->
+      <!--
+        Configured: a faux input row, visually identical to a default input —
+        32px tall, the same border, radius and background — so the card reads
+        as a normal field that just doesn't accept typed input, instead of "a
+        card inside a card" between Base URL and the custom headers.
+      -->
       <template v-if="stateOf(field.key) === 'configured'">
         <!--
           Two possible looks:
@@ -47,42 +54,58 @@
           forces the user to context-switch to the screen center, then back
           to this row to see the result. Inline confirm keeps focus on the
           row that's actually changing.
+
+          The confirm state tints the row with the error colour and a
+          danger-coloured border, so it is obvious the row is in a
+          destructive-action standoff; the user has to make a deliberate
+          second click to actually delete.
         -->
         <div
-          class="credential-faux-input"
-          :class="{ 'is-confirm-remove': pendingRemove[field.key] }"
+          class="flex h-8 items-center gap-2 rounded-[6px] border pr-1 pl-3 text-[13px] transition-[border-color,background-color] duration-150"
+          :class="
+            pendingRemove[field.key]
+              ? 'animate-[credential-confirm-flash_0.2s_ease_both] border-[var(--td-error-color-focus)] bg-[var(--td-error-color-light)]'
+              : 'bg-card border-border hover:border-[var(--td-brand-color-hover)]'
+          "
           :title="pendingRemove[field.key] ? '' : t('credential.configured')"
         >
           <template v-if="pendingRemove[field.key]">
-            <t-icon name="error-circle-filled" class="status-icon warn" />
-            <span class="credential-faux-text danger">{{ t("credential.confirmRemovePrompt") }}</span>
-            <div class="credential-actions">
-              <t-button size="small" variant="text" @click="cancelPendingRemove(field.key)">
+            <CircleAlertIcon class="text-destructive size-4 shrink-0" />
+            <span class="text-destructive min-w-0 flex-1 truncate font-medium">
+              {{ t("credential.confirmRemovePrompt") }}
+            </span>
+            <div class="flex shrink-0 items-center gap-0.5">
+              <Button variant="ghost" :class="inlineActionClass" @click="cancelPendingRemove(field.key)">
                 {{ t("common.cancel") }}
-              </t-button>
-              <span class="action-divider"></span>
-              <t-button
-                size="small"
-                variant="text"
-                theme="danger"
-                :loading="busy[field.key] === 'remove'"
+              </Button>
+              <span class="bg-border mx-0.5 h-3.5 w-px" />
+              <Button
+                variant="ghost"
+                :class="[inlineActionClass, dangerTextClass]"
+                :disabled="busy[field.key] === 'remove'"
                 @click="confirmRemove(field)"
               >
+                <Loader2Icon v-if="busy[field.key] === 'remove'" class="size-3 animate-spin" />
                 {{ t("credential.confirmRemove") }}
-              </t-button>
+              </Button>
             </div>
           </template>
           <template v-else>
-            <t-icon name="check-circle-filled" class="status-icon success" />
-            <span class="credential-faux-text">{{ t("credential.configured") }}</span>
-            <div class="credential-actions">
-              <t-button size="small" variant="text" @click="enterEdit(field.key)">
+            <CircleCheckIcon class="text-success size-4 shrink-0" />
+            <span class="text-foreground min-w-0 flex-1 truncate">{{ t("credential.configured") }}</span>
+            <!--
+              The inline actions are text buttons, the same visual weight as
+              the eye toggle on the create-mode API key input. A 1px divider
+              between Update and Remove separates them without adding boxes.
+            -->
+            <div class="flex shrink-0 items-center gap-0.5">
+              <Button variant="ghost" :class="inlineActionClass" @click="enterEdit(field.key)">
                 {{ t("credential.update") }}
-              </t-button>
-              <span class="action-divider"></span>
-              <t-button size="small" variant="text" theme="danger" @click="requestRemove(field.key)">
+              </Button>
+              <span class="bg-border mx-0.5 h-3.5 w-px" />
+              <Button variant="ghost" :class="[inlineActionClass, dangerTextClass]" @click="requestRemove(field.key)">
                 {{ t("credential.remove") }}
-              </t-button>
+              </Button>
             </div>
           </template>
         </div>
@@ -90,60 +113,72 @@
 
       <!-- Unconfigured: faux input row with a single "Configure" affordance -->
       <template v-else-if="stateOf(field.key) === 'unconfigured'">
+        <!--
+          Right after a successful remove we hold the row in place but swap
+          the icon + placeholder text for a brief success state: a tinted
+          background and a success-coloured border, so the user gets clear,
+          anchored confirmation that the remove actually happened. After
+          ~2.4s the row fades back to its plain "未配置" prompt. This keeps
+          feedback anchored to where the user just clicked, instead of asking
+          them to glance at a global toast somewhere else.
+        -->
         <div
-          class="credential-faux-input is-empty"
-          :class="{ 'is-just-removed': inlineToast[field.key]?.kind === 'removed' }"
+          class="flex h-8 items-center gap-2 rounded-[6px] border pr-1 pl-3 text-[13px] transition-[border-color,background-color] duration-150"
+          :class="
+            inlineToast[field.key]?.kind === 'removed'
+              ? 'animate-[credential-toast-flash_0.25s_ease_both] cursor-default border-[var(--td-success-color-focus)] bg-[var(--td-success-color-light)]'
+              : 'bg-card border-border hover:bg-accent cursor-pointer hover:border-[var(--td-brand-color-hover)]'
+          "
           @click="enterEdit(field.key)"
         >
-          <!--
-            Right after a successful remove we hold the row in place but swap
-            the icon + placeholder text for a brief success state. After
-            ~2.4s the row fades back to its plain "未配置" prompt. This
-            keeps feedback anchored to where the user just clicked, instead
-            of asking them to glance at a global toast somewhere else.
-          -->
           <template v-if="inlineToast[field.key]?.kind === 'removed'">
-            <t-icon name="check-circle-filled" class="status-icon success" />
-            <span class="credential-faux-text">{{ t("credential.removedToast") }}</span>
+            <CircleCheckIcon class="text-success size-4 shrink-0" />
+            <span class="text-foreground min-w-0 flex-1 truncate">{{ t("credential.removedToast") }}</span>
           </template>
           <template v-else>
-            <t-icon name="lock-on" class="status-icon muted" />
-            <span class="credential-faux-text muted">{{ t("credential.unconfigured") }}</span>
-            <div class="credential-actions">
-              <t-button size="small" variant="text" theme="primary" @click.stop="enterEdit(field.key)">
+            <LockIcon class="text-placeholder size-4 shrink-0" />
+            <span class="text-placeholder min-w-0 flex-1 truncate">{{ t("credential.unconfigured") }}</span>
+            <div class="flex shrink-0 items-center gap-0.5">
+              <Button
+                variant="ghost"
+                :class="[inlineActionClass, 'text-primary hover:text-primary']"
+                @click.stop="enterEdit(field.key)"
+              >
                 {{ t("credential.configure") }}
-              </t-button>
+              </Button>
             </div>
           </template>
         </div>
       </template>
 
-      <!-- Editing: real input + tiny action row beneath -->
+      <!-- Editing: real input + tiny end-aligned action row beneath -->
       <template v-else>
-        <div class="credential-edit">
-          <t-input
-            v-model="drafts[field.key]"
-            type="password"
-            :placeholder="field.placeholder ?? t('credential.inputPlaceholder')"
-            :autocomplete="'new-password'"
-            class="credential-edit-input"
-            @enter="onSave(field)"
-          >
-            <template #prefix-icon><t-icon name="lock-on" /></template>
-          </t-input>
-          <div class="credential-edit-actions">
-            <t-button size="small" variant="text" @click="cancelEdit(field.key)">
+        <div class="flex flex-col gap-1.5">
+          <div class="relative">
+            <LockIcon
+              class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+            />
+            <Input
+              v-model="drafts[field.key]"
+              type="password"
+              :placeholder="field.placeholder ?? t('credential.inputPlaceholder')"
+              autocomplete="new-password"
+              class="pl-8"
+              @keydown.enter="onSave(field)"
+            />
+          </div>
+          <div class="flex items-center justify-end gap-1">
+            <Button variant="ghost" class="h-7 px-3 text-xs" @click="cancelEdit(field.key)">
               {{ t("common.cancel") }}
-            </t-button>
-            <t-button
-              size="small"
-              theme="primary"
-              :loading="busy[field.key] === 'save'"
-              :disabled="!drafts[field.key]"
+            </Button>
+            <Button
+              class="h-7 px-3 text-xs"
+              :disabled="busy[field.key] === 'save' || !drafts[field.key]"
               @click="onSave(field)"
             >
+              <Loader2Icon v-if="busy[field.key] === 'save'" class="size-3 animate-spin" />
               {{ t("common.save") }}
-            </t-button>
+            </Button>
           </div>
         </div>
       </template>
@@ -155,6 +190,10 @@
 import { onBeforeUnmount, reactive, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
+import { CircleAlertIcon, CircleCheckIcon, Loader2Icon, LockIcon } from "@lucide/vue";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface CredentialFieldDef<K extends string = string> {
   key: K;
@@ -191,6 +230,11 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 const { t } = useI18n();
+
+// The inline text actions inside a faux row: 24px tall, 12px text, so they
+// sit inside the 32px row without touching its border.
+const inlineActionClass = "h-6 rounded-[4px] px-2 text-xs font-normal";
+const dangerTextClass = "text-destructive hover:bg-destructive/10 hover:text-destructive";
 
 type State = "configured" | "unconfigured" | "editing";
 // Local view state per field. Source of truth is props.meta, but we track
@@ -344,98 +388,16 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped lang="less">
-.credential-resource {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.credential-row {
-  /* Empty wrapper now — each state owns its own outer styling so the
-     "configured" and "unconfigured" rows can mimic a t-input exactly,
-     and the editing state can defer the chrome to t-input itself. */
-}
-
-.credential-row-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  margin-bottom: 4px;
-  line-height: 1.4;
-}
-
-/*
-  Faux-input row: visually identical to a TDesign default t-input
-    - 32px tall
-    - same border (--td-component-border) + radius (6px) + bg
-    - 0 12px horizontal padding
-  This makes the credential card stop looking like "a card inside a card"
-  when it sits between Base URL and 自定义请求头 — it reads as a normal
-  field, just one that doesn't accept typed input.
-*/
-.credential-faux-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 4px 0 12px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: 6px;
-  font-size: 13px;
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color-hover);
-  }
-
-  &.is-empty {
-    cursor: pointer;
-    background: var(--td-bg-color-container);
-
-    &:hover {
-      background: var(--td-bg-color-container-hover);
-    }
-  }
-
-  /*
-    Just-removed flash state: brief tinted background + brand-color border
-    so the row gives the user clear, anchored confirmation that the remove
-    actually happened — no need for them to find a corner toast. Auto-fades
-    after ~2.4s back to plain "未配置" via the inlineToast timer.
-  */
-  &.is-just-removed {
-    background: var(--td-success-color-light);
-    border-color: var(--td-success-color-focus);
-    animation: credential-toast-flash 0.25s ease both;
-    cursor: default;
-
-    &:hover {
-      background: var(--td-success-color-light);
-      border-color: var(--td-success-color-focus);
-    }
-  }
-
-  /*
-    Confirm-remove state: warning-tinted background + danger-color border,
-    making it obvious that the row is in a destructive-action standoff. The
-    button group changes to [Cancel | Confirm-danger]; user has to make a
-    deliberate second click to actually delete.
-  */
-  &.is-confirm-remove {
-    background: var(--td-error-color-light);
-    border-color: var(--td-error-color-focus);
-    animation: credential-confirm-flash 0.2s ease both;
-
-    &:hover {
-      border-color: var(--td-error-color-focus);
-    }
-  }
-}
-
+<!--
+  These stay CSS because they are @keyframes: the flash that tints a row
+  when it enters the just-removed or confirm-remove state, animating from
+  the plain row's colours to the tinted ones. The block is not scoped on
+  purpose: Vue renames keyframes in a scoped block and rewrites only the
+  `animation` declarations of that same block, so the animate-[…] utilities
+  in the template would name keyframes that no longer exist. The names are
+  prefixed with the component's name instead.
+-->
+<style>
 @keyframes credential-toast-flash {
   from {
     background: var(--td-bg-color-container);
@@ -455,91 +417,6 @@ onBeforeUnmount(() => {
   to {
     background: var(--td-error-color-light);
     border-color: var(--td-error-color-focus);
-  }
-}
-
-.credential-faux-text {
-  flex: 1;
-  min-width: 0;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &.muted {
-    color: var(--td-text-color-placeholder);
-  }
-
-  &.danger {
-    color: var(--td-error-color);
-    font-weight: 500;
-  }
-}
-
-.status-icon {
-  flex-shrink: 0;
-  font-size: 16px;
-
-  &.success {
-    color: var(--td-success-color);
-  }
-
-  &.muted {
-    color: var(--td-text-color-placeholder);
-  }
-
-  &.warn {
-    color: var(--td-error-color);
-  }
-}
-
-/*
-  Inline action buttons inside the faux input. We use `variant="text"` so
-  they read as inline text affordances — same visual weight as the eye
-  toggle on the create-mode API key input. A 1px divider between Update
-  and Remove gives them just enough separation without adding boxes.
-*/
-.credential-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-
-  :deep(.t-button--variant-text) {
-    height: 24px;
-    padding: 0 8px;
-    font-size: 12px;
-    border-radius: 4px;
-  }
-}
-
-.action-divider {
-  width: 1px;
-  height: 14px;
-  background: var(--td-component-stroke);
-  margin: 0 2px;
-}
-
-/*
-  Editing state — let t-input own its frame; we just stack a tiny
-  end-aligned action row underneath. No border on this wrapper.
-*/
-.credential-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.credential-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 4px;
-
-  :deep(.t-button) {
-    height: 28px;
-    padding: 0 12px;
-    font-size: 12px;
   }
 }
 </style>

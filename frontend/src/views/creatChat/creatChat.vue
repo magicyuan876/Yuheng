@@ -1,7 +1,9 @@
 <template>
-  <div class="dialogue-wrap">
-    <div class="dialogue-answers">
-      <div class="dialogue-title">
+  <div class="flex flex-1 items-center justify-center">
+    <div class="dialogue-answers flex w-full max-w-[960px] flex-col items-center gap-6">
+      <div
+        class="text-foreground mb-0 flex items-center [font-family:var(--app-font-family)] text-[28px] font-semibold"
+      >
         <span>{{ $t("createChat.title") }}</span>
       </div>
       <InputField ref="inputFieldRef" @send-msg="sendMsg"></InputField>
@@ -108,107 +110,48 @@ const handleKBEditorSuccess = (kbId: string) => {
   navigateToKnowledgeBaseList(kbId);
 };
 </script>
-<style lang="less" scoped>
-.dialogue-wrap {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  // position: relative;
-}
-
-.dialogue-answers {
-  display: flex;
-  flex-flow: column;
-  align-items: center;
-  width: 100%;
-  max-width: 960px;
-  gap: 24px;
-
-  :deep(.answers-input) {
-    position: static;
-    transform: translateX(0);
-  }
-}
-
-.dialogue-title {
-  display: flex;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 28px;
-  font-weight: 600;
-  align-items: center;
-  margin-bottom: 0;
-
-  .icon {
-    display: flex;
-    width: 32px;
-    height: 32px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 6px;
-    background: var(--td-bg-color-container);
-    box-shadow: var(--td-shadow-1);
-    margin-right: 12px;
-
-    .logo_img {
-      height: 24px;
-      width: 24px;
-    }
-  }
+<style scoped>
+/*
+ * Stays CSS: these rules reach inside InputField (its root .answers-input,
+ * which also carries this component's scope id, and its textarea), so they
+ * cannot be utility classes on this template; and the textarea widths are
+ * breakpoint-specific values, not tokens. The textarea is matched as an
+ * element rather than by the TDesign class it currently wears, so the rules
+ * keep working when InputField moves to the new stack.
+ *
+ * The Less version also set per-breakpoint translateX() offsets on
+ * .answers-input, but a more specific rule (the static reset below, nested
+ * under the page wrapper) always beat them, so they never applied
+ * and are not carried over.
+ */
+/* Nested under the wrapper so it outranks InputField's own absolute
+ * positioning whatever order the two stylesheets load in. */
+.dialogue-answers :deep(.answers-input) {
+  position: static;
+  transform: translateX(0);
 }
 
 @media (max-width: 1250px) and (min-width: 1045px) {
-  .answers-input {
-    transform: translateX(-329px);
-  }
-
-  :deep(.t-textarea__inner) {
+  :deep(.answers-input textarea) {
     width: 654px !important;
   }
 }
 
 @media (max-width: 1045px) {
-  .answers-input {
-    transform: translateX(-250px);
-  }
-
-  :deep(.t-textarea__inner) {
+  :deep(.answers-input textarea) {
     width: 500px !important;
   }
 }
 
 @media (max-width: 750px) {
-  .answers-input {
-    transform: translateX(-250px);
-  }
-
-  :deep(.t-textarea__inner) {
+  :deep(.answers-input textarea) {
     width: 340px !important;
   }
 }
 
 @media (max-width: 600px) {
-  .answers-input {
-    transform: translateX(-250px);
-  }
-
-  :deep(.t-textarea__inner) {
+  :deep(.answers-input textarea) {
     width: 300px !important;
-  }
-}
-</style>
-<style lang="less">
-.del-menu-popup {
-  z-index: 99 !important;
-
-  .t-popup__content {
-    width: 100px;
-    height: 40px;
-    line-height: 30px;
-    padding-left: 14px;
-    cursor: pointer;
-    margin-top: 4px !important;
   }
 }
 </style>

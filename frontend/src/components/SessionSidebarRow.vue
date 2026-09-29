@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'submenu_item',
+      'submenu_item relative',
       !batchMode && activePath === item.path ? 'submenu_item_active' : '',
       batchMode && selectedIds.includes(item.id) ? 'submenu_item_selected' : '',
       batchMode ? 'submenu_item_batch' : '',
@@ -10,82 +10,120 @@
     @mouseleave="emit('hover-out')"
     @click="batchMode ? emit('toggle-select') : emit('navigate')"
   >
-    <t-checkbox
+    <Checkbox
       v-if="batchMode"
       class="batch-checkbox"
-      :checked="selectedIds.includes(item.id)"
+      :model-value="selectedIds.includes(item.id)"
       @click.stop
-      @change="emit('toggle-select')"
+      @update:model-value="emit('toggle-select')"
     />
-    <form v-if="titleEditing" class="session-title-edit" @submit.prevent="submitTitleEdit" @click.stop>
+    <form v-if="titleEditing" class="min-w-0 flex-1" @submit.prevent="submitTitleEdit" @click.stop>
       <input
         ref="titleInputRef"
         v-model="titleDraft"
-        class="session-title-edit__input"
+        data-slot="session-title-input"
+        class="border-primary bg-card text-foreground h-[26px] w-full rounded-[5px] border px-2 text-sm leading-6 shadow-[0_0_0_2px_var(--td-brand-color-light)] outline-none"
         :maxlength="SESSION_TITLE_MAX_LENGTH"
         @keydown.esc.prevent="cancelTitleEdit"
         @blur="submitTitleEdit"
       />
     </form>
     <span v-else class="submenu_title" :class="batchMode ? 'submenu_title--batch' : ''" :title="item.title">
-      <t-icon v-if="item.is_pinned" name="pin" class="submenu_pin_icon" />
+      <PinIcon v-if="item.is_pinned" class="submenu_pin_icon size-3" />
       <span class="submenu_title-text">{{ item.title }}</span>
     </span>
-    <div v-if="!batchMode" class="session-row-menu-wrap" @click.stop>
-      <t-popup
-        v-model:visible="menuOpen"
-        :overlay-class-name="menuOverlayClass"
-        trigger="click"
-        destroy-on-close
-        placement="bottom-right"
-        @visible-change="onMenuVisibleChange"
-      >
-        <button type="button" class="menu-more-wrap" aria-haspopup="menu" :aria-expanded="menuOpen" @click.stop>
-          <t-icon name="ellipsis" class="menu-more" />
-        </button>
-        <template #content>
-          <div class="session-action-menu" @click.stop>
-            <template v-if="menuMode === 'menu'">
+    <div v-if="!batchMode" class="relative flex-none" @click.stop>
+      <Popover v-model:open="menuOpen" @update:open="onMenuOpenChange">
+        <PopoverTrigger as-child>
+          <!-- menu-more-wrap and menu-more are hook classes: menu.vue hides the button until its row
+               is hovered or active, and colours the glyph, through :deep(). -->
+          <button
+            type="button"
+            data-slot="session-row-more"
+            class="menu-more-wrap hover:bg-accent inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[5px] border-0 p-0 text-inherit transition-[background-color,color,opacity] duration-150"
+            aria-haspopup="menu"
+            :aria-expanded="menuOpen"
+            @click.stop
+          >
+            <MoreHorizontalIcon class="menu-more size-3.5" />
+          </button>
+        </PopoverTrigger>
+        <!-- The old popup's look: a hairline border instead of the ring, a softer shadow, and a
+             darker translucent surface in dark mode. z-3000 keeps it above the sidebar's own
+             stacking contexts, as the old overlay did. -->
+        <PopoverContent
+          class="z-3000 rounded-lg border-[0.5px] border-[var(--td-component-stroke)] bg-[var(--td-bg-color-container)] shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.08)] ring-0 dark:border-white/8 dark:bg-[rgba(36,36,36,0.92)] dark:shadow-[0_0_0_0.5px_rgba(255,255,255,0.05),0_2px_6px_rgba(0,0,0,0.2)]"
+          :class="menuMode === 'menu' ? 'w-max min-w-[160px] p-1' : 'w-[260px] min-w-[260px] p-3'"
+          align="end"
+          :side-offset="2"
+        >
+          <div @click.stop>
+            <div v-if="menuMode === 'menu'" class="flex min-w-[152px] flex-col gap-px">
               <template v-for="(option, index) in menuOptions" :key="option.value">
-                <div v-if="shouldShowDividerBefore(option.value, index)" class="session-action-menu__divider" />
+                <div
+                  v-if="shouldShowDividerBefore(option.value, index)"
+                  class="mx-1.5 my-0.5 h-px bg-[var(--td-component-stroke)]"
+                />
                 <button
                   type="button"
-                  class="session-action-menu__item"
-                  :class="{ 'is-danger': option.theme === 'error' }"
+                  class="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-[5px] border-0 px-3 text-left text-sm leading-5 whitespace-nowrap"
+                  :class="
+                    option.theme === 'error'
+                      ? 'text-[var(--td-error-color-6)] hover:bg-[var(--td-error-color-1)] [&_svg]:text-[var(--td-error-color-6)]'
+                      : 'text-foreground hover:bg-accent [&_svg]:text-muted-foreground'
+                  "
                   @click="handleMenuClick(option)"
                 >
-                  <component :is="option.prefixIcon" v-if="option.prefixIcon" class="session-action-menu__icon" />
+                  <component
+                    :is="option.prefixIcon"
+                    v-if="option.prefixIcon"
+                    class="inline-flex flex-none [&_svg]:size-4"
+                  />
                   <span>{{ option.content }}</span>
                 </button>
               </template>
-            </template>
+            </div>
 
-            <div v-else class="session-action-confirm">
-              <div class="session-action-confirm__title">
+            <div v-else class="flex w-[236px] flex-col gap-2.5">
+              <div class="text-foreground m-0 text-sm leading-5 font-semibold">
                 {{ menuMode === "clear" ? t("chatHeader.clearConfirmTitle") : t("chatHeader.deleteConfirmTitle") }}
               </div>
-              <div class="session-action-confirm__body">
+              <div class="text-muted-foreground text-sm leading-normal break-words">
                 {{ menuMode === "clear" ? t("chatHeader.clearConfirmBody") : t("chatHeader.deleteConfirmBody") }}
               </div>
-              <div class="session-action-confirm__footer">
-                <button type="button" class="session-action-confirm__btn" @click="backToMenu">
+              <div class="mt-0.5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  class="bg-card text-foreground hover:bg-accent h-[30px] min-w-[60px] cursor-pointer rounded-md border-[0.5px] border-[var(--td-component-stroke)] px-3 text-sm leading-7 transition-colors duration-150"
+                  @click="backToMenu"
+                >
                   {{ t("common.cancel") }}
                 </button>
-                <button type="button" class="session-action-confirm__btn is-danger" @click="confirmDangerAction">
+                <button
+                  type="button"
+                  class="h-[30px] min-w-[60px] cursor-pointer rounded-md border-[0.5px] border-transparent bg-[var(--td-error-color-6)] px-3 text-sm leading-7 text-white transition-colors duration-150 hover:bg-[var(--td-error-color-5)]"
+                  @click="confirmDangerAction"
+                >
                   {{ menuMode === "clear" ? t("common.clear") : t("common.delete") }}
                 </button>
               </div>
             </div>
           </div>
-        </template>
-      </t-popup>
+        </PopoverContent>
+      </Popover>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { nextTick, ref } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { MoreHorizontalIcon, PinIcon } from "@lucide/vue";
+
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { normalizeSessionTitleDraft, SESSION_TITLE_MAX_LENGTH } from "./sessionTitleEdit";
 
 interface SessionMenuOption {
@@ -124,11 +162,7 @@ const titleEditing = ref(false);
 const titleDraft = ref("");
 const titleInputRef = ref<HTMLInputElement | null>(null);
 
-const menuOverlayClass = computed(() =>
-  menuMode.value === "menu" ? "session-action-menu-popup" : "session-action-menu-popup is-confirm",
-);
-
-const onMenuVisibleChange = (visible: boolean): void => {
+const onMenuOpenChange = (visible: boolean): void => {
   if (!visible) menuMode.value = "menu";
 };
 
@@ -193,206 +227,3 @@ const confirmDangerAction = (): void => {
   emit("menu-click", { value });
 };
 </script>
-
-<style scoped lang="less">
-.submenu_item {
-  position: relative;
-}
-
-.session-row-menu-wrap {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.session-title-edit {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.session-title-edit__input {
-  width: 100%;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--td-brand-color);
-  border-radius: 5px;
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
-  font-size: 14px;
-  line-height: 24px;
-  outline: none;
-  box-shadow: 0 0 0 2px var(--td-brand-color-light);
-}
-
-.menu-more-wrap {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-</style>
-
-<style lang="less">
-.session-action-menu-popup {
-  z-index: 3000 !important;
-
-  .t-popup__content {
-    padding: 4px !important;
-    margin-top: 2px !important;
-    min-width: 160px !important;
-    width: max-content !important;
-    border-radius: 8px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 6px rgba(0, 0, 0, 0.08) !important;
-    overflow: hidden;
-  }
-
-  &.is-confirm .t-popup__content {
-    padding: 12px !important;
-    width: 260px !important;
-    min-width: 260px !important;
-  }
-}
-
-.session-action-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 152px;
-}
-
-.session-action-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--td-text-color-primary);
-  background: transparent;
-  font-size: 14px;
-  line-height: 20px;
-  text-align: left;
-  white-space: nowrap;
-  box-sizing: border-box;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-danger {
-    color: var(--td-error-color-6);
-
-    .session-action-menu__icon {
-      color: var(--td-error-color-6);
-    }
-
-    &:hover {
-      background: var(--td-error-color-1);
-    }
-  }
-}
-
-.session-action-menu__icon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  color: var(--td-text-color-secondary);
-
-  .t-icon {
-    font-size: 16px;
-  }
-}
-
-.session-action-menu__divider {
-  height: 1px;
-  margin: 2px 6px;
-  background: var(--td-component-stroke);
-}
-
-.session-action-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 236px;
-}
-
-.session-action-confirm__title {
-  margin: 0;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.session-action-confirm__body {
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.session-action-confirm__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.session-action-confirm__btn {
-  min-width: 60px;
-  height: 30px;
-  padding: 0 12px;
-  border: 0.5px solid var(--td-component-stroke);
-  border-radius: 6px;
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
-  font-size: 14px;
-  line-height: 28px;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-danger {
-    border-color: transparent;
-    color: #fff;
-    background: var(--td-error-color-6);
-
-    &:hover:not(:disabled) {
-      background: var(--td-error-color-5);
-    }
-  }
-}
-
-:root[theme-mode="dark"] .session-action-menu-popup .t-popup__content {
-  background: rgba(36, 36, 36, 0.92) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.05),
-    0 2px 6px rgba(0, 0, 0, 0.2) !important;
-}
-</style>

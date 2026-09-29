@@ -1,39 +1,26 @@
 <script setup lang="ts"></script>
 <template>
-  <div class="mask">
-    <img class="upload-mask-img" src="@/assets/img/upload-mask.svg" alt="" />
-    <span class="drag-txt">{{ $t("file.upload") }}</span>
-    <span class="drag-type-txt">{{ $t("knowledgeBase.pdfDocFormat") }}</span>
-    <span class="drag-type-txt">{{ $t("knowledgeBase.textMarkdownFormat") }}</span>
+  <div class="flex flex-col items-center justify-center">
+    <!--
+      The old stylesheet sized a `.upload-img` class that this image never
+      carried, so the illustration has always rendered at its intrinsic size;
+      it is left unsized to keep the overlay looking the way it does.
+    -->
+    <img src="@/assets/img/upload-mask.svg" alt="" />
+    <span
+      class="text-primary mt-3 mb-4 inline-block font-[family-name:var(--app-font-family)] text-2xl leading-[26px] font-semibold"
+    >
+      {{ $t("file.upload") }}
+    </span>
+    <span
+      class="w-[217px] text-center font-[family-name:var(--app-font-family)] text-xs font-normal text-[var(--td-text-color-disabled)]"
+    >
+      {{ $t("knowledgeBase.pdfDocFormat") }}
+    </span>
+    <span
+      class="w-[217px] text-center font-[family-name:var(--app-font-family)] text-xs font-normal text-[var(--td-text-color-disabled)]"
+    >
+      {{ $t("knowledgeBase.textMarkdownFormat") }}
+    </span>
   </div>
 </template>
-<style scoped lang="less">
-.mask {
-  display: flex;
-  flex-flow: column;
-  justify-content: center;
-  align-items: center;
-}
-.drag-txt {
-  color: var(--td-brand-color);
-  font-family: var(--app-font-family);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 26px;
-  display: inline-block;
-  margin: 12px 0 16px 0;
-}
-
-.drag-type-txt {
-  width: 217px;
-  color: var(--td-text-color-disabled);
-  text-align: center;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-}
-.upload-img {
-  width: 162px;
-  height: 162px;
-}
-</style>

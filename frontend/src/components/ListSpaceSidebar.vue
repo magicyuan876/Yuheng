@@ -1,194 +1,207 @@
 <template>
+  <!--
+    The width animates between the collapsed strip (56px) and the expanded
+    panel (208px); while dragging, the inline width follows the pointer and
+    the transition is off so the edge does not lag behind it.
+  -->
   <div
     ref="sidebarRef"
-    class="list-space-sidebar"
-    :class="{ expanded: isExpanded, dragging: isDragging }"
+    class="relative z-10 flex min-h-0 shrink-0 flex-col"
+    :class="[
+      isExpanded ? 'mr-0 w-[208px]' : 'w-14',
+      isDragging ? 'transition-none' : 'transition-[width] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+    ]"
     :style="{ width: isDragging ? `${dragWidth}px` : undefined }"
   >
     <!-- Collapsed: icon strip -->
-    <div v-if="!isExpanded" class="icon-strip">
+    <div
+      v-if="!isExpanded"
+      class="flex min-h-0 w-14 flex-1 [scrollbar-width:none] flex-col items-center gap-1 overflow-x-hidden overflow-y-auto pt-3 pb-1.5 [&::-webkit-scrollbar]:hidden"
+    >
       <template v-if="mode === 'resource'">
-        <t-tooltip
-          v-if="!hideAll"
-          :content="tooltipText($t('listSpaceSidebar.all'), countAll)"
-          placement="right"
-          :show-arrow="false"
-        >
-          <div class="icon-item-labeled" :class="{ active: selected === 'all' }" @click="select('all')">
-            <t-icon name="layers" size="16px" />
-            <span class="icon-label">{{ $t("listSpaceSidebar.all") }}</span>
-          </div>
-        </t-tooltip>
-        <t-tooltip
-          v-if="showFavorites"
-          :content="tooltipText($t('listSpaceSidebar.favorites'), countFavorites)"
-          placement="right"
-          :show-arrow="false"
-        >
-          <div class="icon-item-labeled" :class="{ active: selected === 'favorites' }" @click="select('favorites')">
-            <t-icon name="star" size="16px" />
-            <span class="icon-label">{{ $t("listSpaceSidebar.favorites") }}</span>
-          </div>
-        </t-tooltip>
-        <t-tooltip
-          v-if="showRecents"
-          :content="tooltipText($t('listSpaceSidebar.recents'), countRecents)"
-          placement="right"
-          :show-arrow="false"
-        >
-          <div class="icon-item-labeled" :class="{ active: selected === 'recents' }" @click="select('recents')">
-            <t-icon name="history" size="16px" />
-            <span class="icon-label">{{ $t("listSpaceSidebar.recents") }}</span>
-          </div>
-        </t-tooltip>
-        <t-tooltip :content="tooltipText(workspaceLabel, countMine)" placement="right" :show-arrow="false">
-          <div
-            class="icon-item-labeled workspace-item"
-            :class="{ active: selected === 'mine' }"
-            @click="select('mine')"
-          >
-            <t-icon name="system-sum" size="16px" />
-            <span class="icon-label">{{ workspaceLabel }}</span>
-          </div>
-        </t-tooltip>
+        <Tooltip v-if="!hideAll">
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'all')" @click="select('all')">
+              <LayersIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'all')">{{ $t("listSpaceSidebar.all") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText($t("listSpaceSidebar.all"), countAll) }}</TooltipContent>
+        </Tooltip>
+        <Tooltip v-if="showFavorites">
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'favorites')" @click="select('favorites')">
+              <StarIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'favorites')">{{ $t("listSpaceSidebar.favorites") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{
+            tooltipText($t("listSpaceSidebar.favorites"), countFavorites)
+          }}</TooltipContent>
+        </Tooltip>
+        <Tooltip v-if="showRecents">
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'recents')" @click="select('recents')">
+              <HistoryIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'recents')">{{ $t("listSpaceSidebar.recents") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText($t("listSpaceSidebar.recents"), countRecents) }}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'mine')" @click="select('mine')">
+              <AtomIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'mine')">{{ workspaceLabel }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText(workspaceLabel, countMine) }}</TooltipContent>
+        </Tooltip>
         <!-- Shared spaces group: per-org/space entries only. We dropped
              the aggregate "协作" / shared-with-me entry — its meaning
              oscillated between "everything shared to me" and "things I
              can edit", and either reading duplicated information already
              visible on the per-space entries below. -->
         <template v-if="organizationsWithCount.length">
-          <div class="icon-strip-divider" />
-          <t-tooltip
-            v-for="org in organizationsWithCount"
-            :key="org.id"
-            :content="tooltipText(org.name, getOrgCount(org.id))"
-            placement="right"
-            :show-arrow="false"
-          >
-            <div class="icon-item-labeled" :class="{ active: selected === org.id }" @click="select(org.id)">
-              <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
-              <span class="icon-label">{{ truncateLabel(org.name) }}</span>
-            </div>
-          </t-tooltip>
+          <div class="bg-secondary my-[3px] h-px w-6 shrink-0" />
+          <Tooltip v-for="org in organizationsWithCount" :key="org.id">
+            <TooltipTrigger as-child>
+              <div :class="stripItemClass(selected === org.id)" @click="select(org.id)">
+                <!-- The strip draws the avatar a touch smaller than SpaceAvatar's small size. -->
+                <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" class="size-5! text-[10px]" />
+                <span :class="stripLabelClass(selected === org.id)">{{ truncateLabel(org.name) }}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">{{ tooltipText(org.name, getOrgCount(org.id)) }}</TooltipContent>
+          </Tooltip>
         </template>
       </template>
 
       <template v-else>
-        <t-tooltip :content="tooltipText($t('listSpaceSidebar.all'), countAll)" placement="right" :show-arrow="false">
-          <div class="icon-item-labeled" :class="{ active: selected === 'all' }" @click="select('all')">
-            <t-icon name="layers" size="16px" />
-            <span class="icon-label">{{ $t("listSpaceSidebar.all") }}</span>
-          </div>
-        </t-tooltip>
-        <t-tooltip
-          :content="tooltipText($t('organization.createdByMe'), countCreated)"
-          placement="right"
-          :show-arrow="false"
-        >
-          <div class="icon-item-labeled" :class="{ active: selected === 'created' }" @click="select('created')">
-            <t-icon name="usergroup-add" size="16px" />
-            <span class="icon-label">{{ $t("organization.createdByMe") }}</span>
-          </div>
-        </t-tooltip>
-        <t-tooltip
-          :content="tooltipText($t('organization.joinedByMe'), countJoined)"
-          placement="right"
-          :show-arrow="false"
-        >
-          <div class="icon-item-labeled" :class="{ active: selected === 'joined' }" @click="select('joined')">
-            <t-icon name="usergroup" size="16px" />
-            <span class="icon-label">{{ $t("organization.joinedByMe") }}</span>
-          </div>
-        </t-tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'all')" @click="select('all')">
+              <LayersIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'all')">{{ $t("listSpaceSidebar.all") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText($t("listSpaceSidebar.all"), countAll) }}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'created')" @click="select('created')">
+              <UserPlusIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'created')">{{ $t("organization.createdByMe") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText($t("organization.createdByMe"), countCreated) }}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div :class="stripItemClass(selected === 'joined')" @click="select('joined')">
+              <UsersIcon class="size-4" />
+              <span :class="stripLabelClass(selected === 'joined')">{{ $t("organization.joinedByMe") }}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ tooltipText($t("organization.joinedByMe"), countJoined) }}</TooltipContent>
+        </Tooltip>
       </template>
     </div>
 
     <!-- Expanded: full nav panel -->
-    <nav v-else class="expanded-panel">
-      <div v-if="!hideAll" class="sidebar-item" :class="{ active: selected === 'all' }" @click="select('all')">
-        <div class="item-left">
-          <t-icon name="layers" class="item-icon" />
-          <span class="item-label">{{ $t("listSpaceSidebar.all") }}</span>
+    <nav
+      v-else
+      class="border-border flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-0.5 overflow-x-hidden overflow-y-auto border-r px-2 py-3 [&::-webkit-scrollbar]:hidden"
+    >
+      <div v-if="!hideAll" :class="navItemClass(selected === 'all')" @click="select('all')">
+        <div class="flex min-w-0 flex-1 items-center gap-1.5">
+          <LayersIcon :class="navIconClass(selected === 'all')" />
+          <span :class="navLabelClass">{{ $t("listSpaceSidebar.all") }}</span>
         </div>
-        <span v-if="countAll !== undefined" class="item-count">{{ countAll }}</span>
+        <span v-if="countAll !== undefined" :class="navCountClass(selected === 'all')">{{ countAll }}</span>
       </div>
 
       <template v-if="mode === 'resource'">
-        <div
-          v-if="showFavorites"
-          class="sidebar-item"
-          :class="{ active: selected === 'favorites' }"
-          @click="select('favorites')"
-        >
-          <div class="item-left">
-            <t-icon name="star" class="item-icon" />
-            <span class="item-label">{{ $t("listSpaceSidebar.favorites") }}</span>
+        <div v-if="showFavorites" :class="navItemClass(selected === 'favorites')" @click="select('favorites')">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <StarIcon :class="navIconClass(selected === 'favorites')" />
+            <span :class="navLabelClass">{{ $t("listSpaceSidebar.favorites") }}</span>
           </div>
-          <span v-if="countFavorites > 0" class="item-count">{{ countFavorites }}</span>
+          <span v-if="countFavorites > 0" :class="navCountClass(selected === 'favorites')">{{ countFavorites }}</span>
         </div>
-        <div
-          v-if="showRecents"
-          class="sidebar-item"
-          :class="{ active: selected === 'recents' }"
-          @click="select('recents')"
-        >
-          <div class="item-left">
-            <t-icon name="history" class="item-icon" />
-            <span class="item-label">{{ $t("listSpaceSidebar.recents") }}</span>
+        <div v-if="showRecents" :class="navItemClass(selected === 'recents')" @click="select('recents')">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <HistoryIcon :class="navIconClass(selected === 'recents')" />
+            <span :class="navLabelClass">{{ $t("listSpaceSidebar.recents") }}</span>
           </div>
-          <span v-if="countRecents > 0" class="item-count">{{ countRecents }}</span>
+          <span v-if="countRecents > 0" :class="navCountClass(selected === 'recents')">{{ countRecents }}</span>
         </div>
-        <div v-if="showFavorites || showRecents" class="sidebar-divider" />
-        <div class="sidebar-item" :class="{ active: selected === 'mine' }" @click="select('mine')">
-          <div class="item-left">
-            <t-icon name="system-sum" class="item-icon" />
-            <span class="item-label">{{ workspaceLabel }}</span>
+        <div v-if="showFavorites || showRecents" class="bg-border mx-1 my-1.5 h-px" />
+        <div :class="navItemClass(selected === 'mine')" @click="select('mine')">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <AtomIcon :class="navIconClass(selected === 'mine')" />
+            <span :class="navLabelClass">{{ workspaceLabel }}</span>
           </div>
-          <span v-if="countMine !== undefined" class="item-count">{{ countMine }}</span>
+          <span v-if="countMine !== undefined" :class="navCountClass(selected === 'mine')">{{ countMine }}</span>
         </div>
         <!-- Shared spaces group — per-org entries only; the aggregate
              entry was removed (see collapsed strip for rationale). -->
         <template v-if="organizationsWithCount.length">
-          <div class="sidebar-section">
-            <span class="section-title">{{ $t("listSpaceSidebar.spaces") }}</span>
+          <div class="border-border mt-0.5 border-t px-1.5 pt-2 pb-0.5">
+            <span class="text-muted-foreground text-xs leading-[1.4] font-semibold">{{
+              $t("listSpaceSidebar.spaces")
+            }}</span>
           </div>
           <div
             v-for="org in organizationsWithCount"
             :key="org.id"
-            class="sidebar-item org-item"
-            :class="{ active: selected === org.id }"
+            :class="navItemClass(selected === org.id)"
             @click="select(org.id)"
           >
-            <div class="item-left">
-              <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" class="item-avatar" />
-              <span class="item-label" :title="org.name">{{ org.name }}</span>
+            <div class="flex min-w-0 flex-1 items-center gap-1.5">
+              <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" class="shrink-0" />
+              <span :class="navLabelClass" :title="org.name">{{ org.name }}</span>
             </div>
-            <span v-if="getOrgCount(org.id) !== undefined" class="item-count">{{ getOrgCount(org.id) }}</span>
+            <span v-if="getOrgCount(org.id) !== undefined" :class="navCountClass(selected === org.id)">{{
+              getOrgCount(org.id)
+            }}</span>
           </div>
         </template>
       </template>
 
       <template v-else>
-        <div class="sidebar-item" :class="{ active: selected === 'created' }" @click="select('created')">
-          <div class="item-left">
-            <t-icon name="usergroup-add" class="item-icon" />
-            <span class="item-label">{{ $t("organization.createdByMe") }}</span>
+        <div :class="navItemClass(selected === 'created')" @click="select('created')">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <UserPlusIcon :class="navIconClass(selected === 'created')" />
+            <span :class="navLabelClass">{{ $t("organization.createdByMe") }}</span>
           </div>
-          <span v-if="countCreated !== undefined" class="item-count">{{ countCreated }}</span>
+          <span v-if="countCreated !== undefined" :class="navCountClass(selected === 'created')">{{
+            countCreated
+          }}</span>
         </div>
-        <div class="sidebar-item" :class="{ active: selected === 'joined' }" @click="select('joined')">
-          <div class="item-left">
-            <t-icon name="usergroup" class="item-icon" />
-            <span class="item-label">{{ $t("organization.joinedByMe") }}</span>
+        <div :class="navItemClass(selected === 'joined')" @click="select('joined')">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
+            <UsersIcon :class="navIconClass(selected === 'joined')" />
+            <span :class="navLabelClass">{{ $t("organization.joinedByMe") }}</span>
           </div>
-          <span v-if="countJoined !== undefined" class="item-count">{{ countJoined }}</span>
+          <span v-if="countJoined !== undefined" :class="navCountClass(selected === 'joined')">{{ countJoined }}</span>
         </div>
       </template>
     </nav>
 
     <!-- Drag handle on the right edge -->
-    <div class="resize-handle" @mousedown.prevent="onDragStart">
-      <div class="resize-handle-line" />
+    <div
+      class="group absolute top-0 -right-1.5 bottom-0 z-[12] flex w-3 cursor-col-resize items-center justify-center"
+      @mousedown.prevent="onDragStart"
+    >
+      <div
+        class="h-10 w-0.5 rounded-[1px] transition-[opacity,background] duration-200 ease-in-out"
+        :class="
+          isDragging
+            ? 'bg-primary opacity-100'
+            : 'group-hover:bg-primary bg-[var(--td-bg-color-component-disabled)] opacity-45 group-hover:opacity-100'
+        "
+      />
     </div>
   </div>
 </template>
@@ -196,7 +209,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
-import { Icon as TIcon } from "tdesign-vue-next";
+import { AtomIcon, HistoryIcon, LayersIcon, StarIcon, UserPlusIcon, UsersIcon } from "@lucide/vue";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SpaceAvatar from "./SpaceAvatar.vue";
 import { useOrganizationStore } from "@/stores/organization";
 
@@ -277,6 +291,45 @@ function onDragEnd() {
   dragWidth.value = shouldExpand ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
 }
 
+// Row styles. Each state is spelled out, so the active row's brand colour and
+// the hover colour never depend on which rule happens to come later.
+function stripItemClass(active: boolean): string {
+  return [
+    "flex w-[46px] shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg pt-[5px] pb-0.5 transition-all duration-150 ease-in-out",
+    active ? "bg-secondary text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+  ].join(" ");
+}
+
+function stripLabelClass(active: boolean): string {
+  return [
+    "max-w-[52px] truncate text-center text-[11px] leading-[1.25] transition-colors duration-150 ease-in-out",
+    active ? "text-primary" : "text-muted-foreground",
+  ].join(" ");
+}
+
+function navItemClass(active: boolean): string {
+  return [
+    "group flex cursor-pointer items-center justify-between rounded-[7px] px-2 py-1.5 font-[family-name:var(--app-font-family)] text-sm antialiased transition-all duration-150 ease-in-out",
+    active ? "bg-secondary text-primary" : "text-foreground hover:bg-accent",
+  ].join(" ");
+}
+
+function navIconClass(active: boolean): string {
+  return [
+    "size-3.5 shrink-0 transition-colors duration-150 ease-in-out",
+    active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+  ].join(" ");
+}
+
+const navLabelClass = "min-w-0 flex-1 truncate text-[13px] leading-[1.4] font-[430] tracking-[0.01em]";
+
+function navCountClass(active: boolean): string {
+  return [
+    "bg-secondary ml-1.5 shrink-0 rounded-lg px-[7px] py-0.5 text-xs font-medium transition-all duration-150 ease-in-out",
+    active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+  ].join(" ");
+}
+
 function tooltipText(name: string, count?: number): string {
   return count !== undefined ? `${name} (${count})` : name;
 }
@@ -334,261 +387,3 @@ onBeforeUnmount(() => {
   document.removeEventListener("mouseup", onDragEnd);
 });
 </script>
-
-<style scoped lang="less">
-.list-space-sidebar {
-  width: 56px;
-  flex-shrink: 0;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  z-index: 10;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &.expanded {
-    width: 208px;
-    margin-right: 0;
-  }
-
-  &.dragging {
-    transition: none;
-  }
-}
-
-/* ========== Drag handle ========== */
-.resize-handle {
-  position: absolute;
-  top: 0;
-  right: -6px;
-  bottom: 0;
-  width: 12px;
-  cursor: col-resize;
-  z-index: 12;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover .resize-handle-line,
-  .dragging & .resize-handle-line {
-    opacity: 1;
-    background: var(--td-brand-color);
-  }
-}
-
-.resize-handle-line {
-  width: 2px;
-  height: 40px;
-  border-radius: 1px;
-  background: var(--td-bg-color-component-disabled);
-  opacity: 0.45;
-  transition:
-    opacity 0.2s ease,
-    background 0.2s ease;
-}
-
-/* ========== Icon strip (collapsed) ========== */
-.icon-strip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 56px;
-  padding: 12px 0 6px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.icon-item-labeled {
-  width: 46px;
-  padding: 5px 0 2px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  cursor: pointer;
-  color: var(--td-text-color-secondary);
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer);
-    }
-
-    .icon-label {
-      color: var(--td-brand-color);
-    }
-  }
-
-  :deep(.space-avatar) {
-    width: 20px;
-    height: 20px;
-    font-size: 10px;
-  }
-}
-
-.icon-label {
-  font-size: 11px;
-  line-height: 1.25;
-  color: var(--td-text-color-secondary);
-  max-width: 52px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-  transition: color 0.15s ease;
-}
-
-.icon-strip-divider {
-  width: 24px;
-  height: 1px;
-  background: var(--td-bg-color-secondarycontainer);
-  margin: 3px 0;
-  flex-shrink: 0;
-}
-
-/* ========== Expanded panel ========== */
-.expanded-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 8px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-  border-right: 1px solid var(--td-component-stroke);
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* ========== Nav items inside expanded panel ========== */
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  border-radius: 7px;
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  -webkit-font-smoothing: antialiased;
-
-  .item-left {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .item-icon {
-    flex-shrink: 0;
-    color: var(--td-text-color-secondary);
-    font-size: 14px;
-    transition: color 0.15s ease;
-  }
-
-  .item-avatar {
-    flex-shrink: 0;
-  }
-
-  .item-label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px;
-    font-weight: 430;
-    line-height: 1.4;
-    letter-spacing: 0.01em;
-  }
-
-  .item-count {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    font-weight: 500;
-    padding: 2px 7px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    margin-left: 6px;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-
-    .item-icon {
-      color: var(--td-text-color-primary);
-    }
-
-    .item-count {
-      background: var(--td-bg-color-secondarycontainer);
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  &.active {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-
-    .item-icon {
-      color: var(--td-brand-color);
-    }
-
-    .item-count {
-      background: var(--td-bg-color-secondarycontainer);
-      color: var(--td-brand-color);
-    }
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer);
-    }
-  }
-}
-
-.sidebar-divider {
-  height: 1px;
-  margin: 6px 4px;
-  background: var(--td-component-stroke);
-}
-
-.sidebar-section {
-  padding: 8px 6px 2px;
-  margin-top: 2px;
-  border-top: 1px solid var(--td-component-stroke);
-
-  .section-title {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    font-weight: 600;
-    line-height: 1.4;
-  }
-}
-</style>

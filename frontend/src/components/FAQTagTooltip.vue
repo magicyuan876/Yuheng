@@ -1,16 +1,40 @@
 <template>
-  <div ref="wrapperRef" class="faq-tag-wrapper" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+  <!--
+    The wrapper shrinks with its flex row (a long tag truncates instead of
+    pushing the card wider), which is why it is inline-block with min-width 0
+    rather than a plain inline span.
+  -->
+  <div
+    ref="wrapperRef"
+    class="relative inline-block max-w-full min-w-0 flex-[0_1_auto] overflow-visible"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+  >
     <slot />
     <Teleport to="body">
-      <Transition name="fade">
+      <Transition
+        enter-active-class="transition-opacity duration-150 ease-in-out"
+        leave-active-class="transition-opacity duration-150 ease-in-out"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
         <div
           v-if="showTooltip && content"
           ref="tooltipRef"
-          class="faq-tag-tooltip"
+          class="border-border bg-card text-foreground pointer-events-none fixed z-[9999] max-w-[320px] min-w-[100px] rounded-md border px-3.5 py-2.5 text-xs leading-[1.6] font-normal break-words shadow-[0_0_8px_0_rgba(0,0,0,0.08)]"
           :class="tooltipClass"
           :style="tooltipStyle"
         >
-          <div class="tooltip-content">{{ content }}</div>
+          <!--
+            The arrow is two stacked CSS triangles: the outer one in the
+            border colour, the inner one a pixel closer in the surface colour,
+            so the tooltip's 1px border appears to run around the point.
+          -->
+          <span class="absolute size-0 border-[5px] border-transparent" :class="arrowClasses.outer" />
+          <span class="absolute size-0 border-[5px] border-transparent" :class="arrowClasses.inner" />
+          <div class="text-foreground text-xs leading-[1.6] font-normal break-words whitespace-pre-wrap">
+            {{ content }}
+          </div>
         </div>
       </Transition>
     </Teleport>
@@ -37,6 +61,33 @@ const tooltipClass = computed(() => {
     [`tooltip-${props.type || "answer"}`]: true,
     [`placement-${props.placement || "top"}`]: true,
   };
+});
+
+// Per-placement arrow position and colour. Each side points the triangle
+// towards the tag, so the coloured border edge differs by placement.
+const arrowClasses = computed(() => {
+  switch (props.placement || "top") {
+    case "bottom":
+      return {
+        outer: "-top-2.5 left-1/2 -translate-x-1/2 border-b-border",
+        inner: "-top-[9px] left-1/2 -translate-x-1/2 border-b-card",
+      };
+    case "left":
+      return {
+        outer: "top-1/2 -right-2.5 -translate-y-1/2 border-l-border",
+        inner: "top-1/2 -right-[9px] -translate-y-1/2 border-l-card",
+      };
+    case "right":
+      return {
+        outer: "top-1/2 -left-2.5 -translate-y-1/2 border-r-border",
+        inner: "top-1/2 -left-[9px] -translate-y-1/2 border-r-card",
+      };
+    default:
+      return {
+        outer: "-bottom-2.5 left-1/2 -translate-x-1/2 border-t-border",
+        inner: "-bottom-[9px] left-1/2 -translate-x-1/2 border-t-card",
+      };
+  }
 });
 
 const updatePosition = async () => {
@@ -130,167 +181,3 @@ watch(showTooltip, (newVal) => {
   }
 });
 </script>
-
-<style scoped lang="less">
-.faq-tag-wrapper {
-  display: inline-block;
-  position: relative;
-  max-width: 100%;
-  min-width: 0;
-  overflow: visible;
-  flex-shrink: 1;
-  flex: 0 1 auto;
-
-  // 确保内部的tag也能正确收缩
-  :deep(.t-tag) {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: auto !important;
-    display: inline-flex !important;
-  }
-
-  :deep(.t-tag span),
-  :deep(.t-tag > span) {
-    display: block !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-  }
-}
-
-.faq-tag-tooltip {
-  position: fixed;
-  z-index: 9999;
-  max-width: 320px;
-  min-width: 100px;
-  padding: 10px 14px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.08);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.6;
-  word-break: break-word;
-  pointer-events: none;
-
-  &::before {
-    content: "";
-    position: absolute;
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-  }
-
-  &.placement-top::before {
-    bottom: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-top-color: var(--td-component-stroke);
-  }
-
-  &.placement-top::after {
-    content: "";
-    position: absolute;
-    bottom: -9px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-    border-top-color: var(--td-bg-color-container);
-  }
-
-  &.placement-bottom::before {
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-bottom-color: var(--td-component-stroke);
-  }
-
-  &.placement-bottom::after {
-    content: "";
-    position: absolute;
-    top: -9px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-    border-bottom-color: var(--td-bg-color-container);
-  }
-
-  &.placement-left::before {
-    right: -10px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-left-color: var(--td-component-stroke);
-  }
-
-  &.placement-left::after {
-    content: "";
-    position: absolute;
-    right: -9px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-    border-left-color: var(--td-bg-color-container);
-  }
-
-  &.placement-right::before {
-    left: -10px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-right-color: var(--td-component-stroke);
-  }
-
-  &.placement-right::after {
-    content: "";
-    position: absolute;
-    left: -9px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border: 5px solid transparent;
-    border-right-color: var(--td-bg-color-container);
-  }
-
-  // 所有类型使用统一的常规边框颜色
-  &.tooltip-answer,
-  &.tooltip-similar,
-  &.tooltip-negative {
-    // 边框和箭头颜色已在主样式中定义为 #e7ebf0
-    // 无需额外覆盖
-  }
-}
-
-.tooltip-content {
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from {
-  opacity: 0;
-}
-
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

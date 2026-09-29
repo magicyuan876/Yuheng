@@ -1,143 +1,203 @@
 <template>
-  <t-dialog
-    v-model:visible="dialogVisible"
-    :header="$t('organization.share.title')"
-    width="520px"
-    :footer="false"
-    @close="handleClose"
-  >
-    <!-- Share form -->
-    <div class="share-form" v-if="!showShareList">
-      <t-form :data="shareForm" ref="shareFormRef">
-        <t-form-item
-          :label="$t('organization.share.selectOrg')"
-          name="organization_id"
-          :rules="[{ required: true, message: $t('organization.share.selectOrgPlaceholder') }]"
-        >
-          <t-select
-            v-model="shareForm.organization_id"
-            :placeholder="$t('organization.share.selectOrgPlaceholder')"
-            :loading="loadingOrgs"
-            class="org-select-dropdown"
-            :popup-props="{ overlayClassName: 'org-select-dropdown-popup' }"
-          >
-            <t-option v-for="org in availableOrganizations" :key="org.id" :value="org.id" :label="org.name">
-              <div class="org-option-content">
-                <div class="org-option-icon-wrap">
-                  <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
-                </div>
-                <div class="org-option-body">
-                  <div class="org-option-header">
-                    <span class="org-option-name">{{ org.name }}</span>
-                    <t-tag v-if="org.is_owner" theme="primary" size="small" variant="light">
-                      {{ $t("organization.owner") }}
-                    </t-tag>
-                    <t-tag
-                      v-else-if="org.my_role"
-                      :theme="org.my_role === 'admin' ? 'warning' : 'default'"
-                      size="small"
-                      variant="light"
-                    >
-                      {{ $t(`organization.role.${org.my_role}`) }}
-                    </t-tag>
-                  </div>
-                  <div class="org-option-meta">
-                    <span class="org-meta-tag">
-                      <t-icon name="user" class="org-meta-icon org-meta-icon-user" />
-                      {{ org.member_count ?? 0 }}
-                    </span>
-                    <span class="org-meta-tag">
-                      <img
-                        src="@/assets/img/zhishiku.svg"
-                        class="org-meta-icon org-meta-icon-kb"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                      {{ org.share_count ?? 0 }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </t-option>
-          </t-select>
-        </t-form-item>
-        <t-form-item :label="$t('organization.share.permission')" name="permission">
-          <t-radio-group v-model="shareForm.permission">
-            <t-radio-button value="viewer">{{ $t("organization.share.permissionReadonly") }}</t-radio-button>
-            <t-radio-button value="editor">{{ $t("organization.share.permissionEditable") }}</t-radio-button>
-          </t-radio-group>
-        </t-form-item>
-        <div class="permission-tip">
-          <t-icon name="info-circle" size="14px" />
-          <span>{{ $t("organization.share.permissionTip") }}</span>
-        </div>
-      </t-form>
-      <div class="share-actions">
-        <t-button theme="default" @click="showShareList = true" v-if="shares.length > 0">
-          {{ $t("organization.share.sharedTo") }} ({{ shares.length }})
-        </t-button>
-        <div class="spacer"></div>
-        <t-button theme="default" @click="handleClose">{{ $t("common.cancel") }}</t-button>
-        <t-button theme="primary" :loading="submitting" @click="handleShare">
-          {{ $t("common.confirm") }}
-        </t-button>
-      </div>
-    </div>
+  <Dialog v-model:open="dialogVisible">
+    <DialogContent class="gap-5 sm:max-w-[520px]">
+      <DialogHeader>
+        <DialogTitle>{{ $t("organization.share.title") }}</DialogTitle>
+      </DialogHeader>
 
-    <!-- Share list -->
-    <div class="share-list" v-else>
-      <div class="share-list-header">
-        <t-button variant="text" @click="showShareList = false">
-          <template #icon><t-icon name="chevron-left" /></template>
-          {{ $t("common.back") }}
-        </t-button>
-      </div>
-      <div v-if="loadingShares" class="share-list-loading">
-        <t-loading />
-      </div>
-      <div v-else-if="shares.length === 0" class="share-list-empty">
-        {{ $t("organization.share.noShares") }}
-      </div>
-      <div v-else class="share-items">
-        <div v-for="share in shares" :key="share.id" class="share-item">
-          <div class="share-info">
-            <SpaceAvatar
-              :name="share.organization_name || ''"
-              :avatar="orgStore.organizations.find((o) => o.id === share.organization_id)?.avatar"
-              size="small"
-            />
-            <span class="share-org-name">{{ share.organization_name }}</span>
-            <t-tag :theme="share.permission === 'editor' ? 'warning' : 'default'" size="small">
-              {{
-                share.permission === "editor"
-                  ? $t("organization.share.permissionEditable")
-                  : $t("organization.share.permissionReadonly")
-              }}
-            </t-tag>
-          </div>
-          <div class="share-actions">
-            <t-tooltip :content="$t('organization.settings.editTitle')" placement="top">
-              <t-button
-                variant="text"
-                theme="default"
-                size="small"
-                @click="handleGoToOrgSettings(share.organization_id)"
+      <!-- Share form -->
+      <div v-if="!showShareList" class="py-2">
+        <form novalidate @submit.prevent="handleShare">
+          <!-- The rows keep TDesign's default form layout: a 100px label column,
+               right-aligned, beside the control. -->
+          <div class="mb-6 flex items-start gap-3">
+            <Label class="w-[100px] shrink-0 justify-end gap-0.5 pt-2 text-right">
+              <span class="text-destructive">*</span>{{ $t("organization.share.selectOrg") }}
+            </Label>
+            <div class="min-w-0 flex-1">
+              <Select
+                :model-value="shareForm.organization_id || undefined"
+                @update:model-value="(v) => onSelectOrganization(String(v ?? ''))"
               >
-                <t-icon name="setting" />
-              </t-button>
-            </t-tooltip>
-            <t-button variant="text" theme="danger" size="small" @click="handleUnshare(share)">
-              <t-icon name="close" />
-            </t-button>
+                <SelectTrigger class="w-full" :aria-invalid="!!orgError || undefined">
+                  <SelectValue :placeholder="$t('organization.share.selectOrgPlaceholder')" />
+                </SelectTrigger>
+                <SelectContent position="popper" class="max-h-[320px] p-1">
+                  <div v-if="loadingOrgs" class="flex items-center justify-center py-3">
+                    <Loader2Icon class="text-muted-foreground size-4 animate-spin" />
+                  </div>
+                  <template v-else>
+                    <SelectItem
+                      v-for="org in availableOrganizations"
+                      :key="org.id"
+                      :value="org.id"
+                      :text-value="org.name"
+                      class="my-px h-auto px-3 py-1.5"
+                    >
+                      <div class="flex w-full min-w-[260px] items-center gap-2.5">
+                        <div class="flex shrink-0 items-center justify-center">
+                          <SpaceAvatar :name="org.name" :avatar="org.avatar" size="small" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="mb-0.5 flex items-center gap-1.5">
+                            <span class="text-foreground truncate text-[13px] font-medium">{{ org.name }}</span>
+                            <span
+                              v-if="org.is_owner"
+                              class="bg-primary/10 text-primary inline-flex h-5 items-center rounded-[3px] px-1.5 text-xs"
+                            >
+                              {{ $t("organization.owner") }}
+                            </span>
+                            <span
+                              v-else-if="org.my_role"
+                              class="inline-flex h-5 items-center rounded-[3px] px-1.5 text-xs"
+                              :class="{
+                                'bg-warning/10 text-warning': org.my_role === 'admin',
+                                'bg-muted text-foreground': org.my_role !== 'admin',
+                              }"
+                            >
+                              {{ $t(`organization.role.${org.my_role}`) }}
+                            </span>
+                          </div>
+                          <div class="text-placeholder flex items-center gap-1.5 text-xs">
+                            <span class="bg-muted inline-flex items-center gap-[3px] rounded-sm px-1">
+                              <UserIcon class="text-muted-foreground size-3 shrink-0" />
+                              {{ org.member_count ?? 0 }}
+                            </span>
+                            <span class="bg-muted inline-flex items-center gap-[3px] rounded-sm px-1">
+                              <img
+                                src="@/assets/img/zhishiku.svg"
+                                class="size-3 shrink-0 opacity-75"
+                                alt=""
+                                aria-hidden="true"
+                              />
+                              {{ org.share_count ?? 0 }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  </template>
+                </SelectContent>
+              </Select>
+              <p v-if="orgError" class="text-destructive m-0 mt-1 text-xs">{{ orgError }}</p>
+            </div>
+          </div>
+          <div class="mb-6 flex items-center gap-3">
+            <Label class="w-[100px] shrink-0 justify-end text-right">{{ $t("organization.share.permission") }}</Label>
+            <!-- A segmented control, standing in for TDesign's button-style radio group. -->
+            <div role="radiogroup" class="border-border inline-flex overflow-hidden rounded-md border">
+              <button
+                v-for="option in permissionOptions"
+                :key="option.value"
+                type="button"
+                role="radio"
+                data-slot="segmented-item"
+                :aria-checked="shareForm.permission === option.value"
+                class="h-8 px-4 text-sm transition-colors not-first:border-l"
+                :class="{
+                  'bg-primary/10 text-primary': shareForm.permission === option.value,
+                  'text-foreground hover:bg-accent': shareForm.permission !== option.value,
+                }"
+                @click="shareForm.permission = option.value"
+              >
+                {{ $t(option.label) }}
+              </button>
+            </div>
+          </div>
+          <div
+            class="bg-accent text-muted-foreground mt-2 flex items-start gap-2 rounded-md p-3 text-[13px] leading-normal"
+          >
+            <InfoIcon class="mt-0.5 size-3.5 shrink-0" />
+            <span>{{ $t("organization.share.permissionTip") }}</span>
+          </div>
+        </form>
+        <div class="border-border mt-6 flex items-center gap-3 border-t pt-4">
+          <Button v-if="shares.length > 0" variant="outline" @click="showShareList = true">
+            {{ $t("organization.share.sharedTo") }} ({{ shares.length }})
+          </Button>
+          <div class="flex-1"></div>
+          <Button variant="outline" @click="handleClose">{{ $t("common.cancel") }}</Button>
+          <Button :disabled="submitting" @click="handleShare">
+            <Loader2Icon v-if="submitting" class="animate-spin" />
+            {{ $t("common.confirm") }}
+          </Button>
+        </div>
+      </div>
+
+      <!-- Share list -->
+      <div v-else>
+        <div class="mb-4">
+          <Button variant="ghost" @click="showShareList = false">
+            <ChevronLeftIcon />
+            {{ $t("common.back") }}
+          </Button>
+        </div>
+        <div v-if="loadingShares" class="text-muted-foreground flex justify-center p-8">
+          <Loader2Icon class="text-primary size-5 animate-spin" />
+        </div>
+        <div v-else-if="shares.length === 0" class="text-muted-foreground flex justify-center p-8">
+          {{ $t("organization.share.noShares") }}
+        </div>
+        <div v-else class="flex max-h-[280px] flex-col gap-2.5 overflow-y-auto">
+          <div
+            v-for="share in shares"
+            :key="share.id"
+            class="bg-accent border-border flex items-center justify-between rounded-lg border px-4 py-3.5 transition-colors duration-200 hover:bg-[var(--td-bg-color-container-active)]"
+          >
+            <div class="flex items-center gap-2.5">
+              <SpaceAvatar
+                :name="share.organization_name || ''"
+                :avatar="orgStore.organizations.find((o) => o.id === share.organization_id)?.avatar"
+                size="small"
+              />
+              <span class="font-medium">{{ share.organization_name }}</span>
+              <span
+                class="inline-flex h-5 items-center rounded-[3px] px-1.5 text-xs"
+                :class="{
+                  'bg-warning text-primary-foreground': share.permission === 'editor',
+                  'bg-muted text-foreground': share.permission !== 'editor',
+                }"
+              >
+                {{
+                  share.permission === "editor"
+                    ? $t("organization.share.permissionEditable")
+                    : $t("organization.share.permissionReadonly")
+                }}
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    :aria-label="$t('organization.settings.editTitle')"
+                    @click="handleGoToOrgSettings(share.organization_id)"
+                  >
+                    <SettingsIcon />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("organization.settings.editTitle") }}</TooltipContent>
+              </Tooltip>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="text-destructive hover:text-destructive hover:bg-destructive/10"
+                @click="handleUnshare(share)"
+              >
+                <XIcon />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </t-dialog>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { ChevronLeftIcon, InfoIcon, Loader2Icon, SettingsIcon, UserIcon, XIcon } from "@lucide/vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
@@ -145,6 +205,11 @@ import { useOrganizationStore } from "@/stores/organization";
 import { shareKnowledgeBase, listKBShares, removeShare } from "@/api/organization";
 import type { KnowledgeBaseShare } from "@/api/organization";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -167,7 +232,6 @@ const dialogVisible = computed({
   set: (val) => emit("update:visible", val),
 });
 
-const shareFormRef = ref();
 const loadingOrgs = ref(false);
 const loadingShares = ref(false);
 const submitting = ref(false);
@@ -178,6 +242,22 @@ const shareForm = ref({
   organization_id: "",
   permission: "viewer" as "admin" | "editor" | "viewer",
 });
+
+// The error under the organization select. It replaces the TDesign form
+// rule (required, with the placeholder text as its message), which was
+// checked on submit and cleared once a value was chosen.
+const orgError = ref("");
+
+function onSelectOrganization(id: string) {
+  shareForm.value.organization_id = id;
+  if (id) orgError.value = "";
+}
+
+// The two permission choices of the segmented control, in display order.
+const permissionOptions = [
+  { value: "viewer", label: "organization.share.permissionReadonly" },
+  { value: "editor", label: "organization.share.permissionEditable" },
+] as const;
 
 // Only show organizations where user can share (editor or admin); exclude viewer-only orgs and already shared
 const availableOrganizations = computed(() => {
@@ -194,6 +274,7 @@ watch(
     if (newVal) {
       showShareList.value = false;
       shareForm.value = { organization_id: "", permission: "viewer" };
+      orgError.value = "";
       await Promise.all([loadOrganizations(), loadShares()]);
     }
   },
@@ -229,8 +310,10 @@ async function loadShares() {
 }
 
 async function handleShare() {
-  const valid = await shareFormRef.value?.validate();
-  if (valid !== true) return;
+  if (!shareForm.value.organization_id) {
+    orgError.value = t("organization.share.selectOrgPlaceholder");
+    return;
+  }
 
   submitting.value = true;
   try {
@@ -282,208 +365,3 @@ function handleGoToOrgSettings(orgId: string) {
   emit("update:visible", false);
 }
 </script>
-
-<style lang="less" scoped>
-.share-form {
-  padding: 8px 0;
-}
-
-.permission-tip {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  background: var(--td-bg-color-container-hover);
-  border-radius: 6px;
-  margin-top: 8px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-
-  .t-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-}
-
-.share-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--td-component-stroke);
-
-  .spacer {
-    flex: 1;
-  }
-}
-
-.share-list-header {
-  margin-bottom: 16px;
-}
-
-.share-list-loading,
-.share-list-empty {
-  display: flex;
-  justify-content: center;
-  padding: 32px;
-  color: var(--td-text-color-secondary);
-}
-
-.share-items {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.share-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 16px;
-  background: var(--td-bg-color-container-hover);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
-}
-
-.share-item:hover {
-  background: var(--td-bg-color-container-active);
-  border-color: var(--td-component-stroke);
-}
-
-.share-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.share-org-name {
-  font-weight: 500;
-}
-
-.share-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-// Custom option styles for organization select (compact)
-:deep(.t-select-option) {
-  height: auto;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 4px;
-  margin: 1px 6px;
-  transition: background 0.15s ease;
-}
-
-:deep(.t-select-option:hover),
-:deep(.t-select-option.t-is-selected) {
-  background: var(--td-bg-color-container-hover);
-}
-
-:deep(.t-select-option__content) {
-  width: 100%;
-}
-
-.org-option-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0;
-  min-width: 260px;
-  width: 100%;
-}
-
-.org-option-icon-wrap {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.org-option-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.org-option-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-
-  .org-option-name {
-    font-family: var(--app-font-family);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.org-option-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-
-  .org-meta-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 0px 4px;
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 4px;
-  }
-
-  .org-meta-icon {
-    flex-shrink: 0;
-    vertical-align: middle;
-    color: var(--td-text-color-secondary);
-  }
-
-  .org-meta-icon-user {
-    font-size: 12px;
-  }
-
-  .org-meta-icon-kb {
-    width: 12px;
-    height: 12px;
-    opacity: 0.75;
-  }
-}
-</style>
-
-<style lang="less">
-// Global styles for organization select dropdown (compact)
-.org-select-dropdown-popup.t-select__dropdown {
-  padding: 4px 0;
-  max-height: 320px;
-  overflow-y: auto;
-  border-radius: 6px;
-  box-shadow: var(--td-shadow-2);
-}
-
-.org-select-dropdown-popup .t-select-option {
-  height: auto;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 4px;
-  margin: 1px 6px;
-}
-
-.org-select-dropdown-popup .t-select-option__content {
-  width: 100%;
-}
-</style>

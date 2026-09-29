@@ -1,126 +1,174 @@
 <template>
-  <div class="markdown-test-page">
-    <h1 class="page-title">Markdown Rendering Test</h1>
-    <p class="page-desc">
+  <div class="mx-auto max-w-[860px] px-6 py-8 [font-family:var(--app-font-family)]">
+    <h1 class="mb-1 text-[24px] font-bold">Markdown Rendering Test</h1>
+    <p class="text-muted-foreground mb-8 text-[14px]">
       Dev-only page for visual regression testing of chat answer markdown (same typography as botmsg). Add new test
       cases or paste arbitrary markdown in the editor below.
     </p>
 
     <!-- Basic Text Styles (GPT markdown test doc alignment) -->
-    <section class="test-section">
-      <h2>Basic Text Styles</h2>
-      <div class="test-case">
-        <div class="test-rendered markdown-content" v-html="basicTextHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Basic Text Styles</h2>
+      <div class="my-3">
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="basicTextHtml"
+        ></div>
       </div>
     </section>
 
     <!-- LaTeX Formulas -->
-    <section class="test-section">
-      <h2>LaTeX Formulas</h2>
-      <div v-for="(tc, i) in latexCases" :key="'latex-' + i" class="test-case">
-        <div class="test-raw">
-          <code>{{ tc.raw }}</code>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">LaTeX Formulas</h2>
+      <div v-for="(tc, i) in latexCases" :key="'latex-' + i" class="my-3">
+        <div class="bg-muted mb-1.5 overflow-x-auto rounded px-2.5 py-1.5 text-[13px]">
+          <code class="break-all whitespace-pre-wrap">{{ tc.raw }}</code>
         </div>
-        <div class="test-rendered markdown-content" v-html="tc.html"></div>
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="tc.html"
+        ></div>
       </div>
     </section>
 
     <!-- Code Blocks -->
-    <section class="test-section">
-      <h2>Code Blocks</h2>
-      <div class="test-case">
-        <div class="test-rendered markdown-content" v-html="codeBlockHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Code Blocks</h2>
+      <div class="my-3">
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="codeBlockHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Tables -->
-    <section class="test-section">
-      <h2>Tables</h2>
-      <div class="test-case">
-        <div class="test-rendered markdown-content" v-html="tableHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Tables</h2>
+      <div class="my-3">
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="tableHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Lists & Blockquotes -->
-    <section class="test-section">
-      <h2>Lists &amp; Blockquotes</h2>
-      <div class="test-case">
-        <div class="test-rendered markdown-content" v-html="listsHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Lists &amp; Blockquotes</h2>
+      <div class="my-3">
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="listsHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Mixed Content (LaTeX + code + text) -->
-    <section class="test-section">
-      <h2>Mixed Content</h2>
-      <div class="test-case">
-        <div class="test-rendered markdown-content" v-html="mixedHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Mixed Content</h2>
+      <div class="my-3">
+        <div
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="mixedHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Mermaid -->
-    <section class="test-section">
-      <h2>Mermaid Diagram</h2>
-      <div class="test-case">
-        <div ref="mermaidContainer" class="test-rendered markdown-content" v-html="mermaidHtml"></div>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Mermaid Diagram</h2>
+      <div class="my-3">
+        <div
+          ref="mermaidContainer"
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="mermaidHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Streaming Simulation -->
-    <section class="test-section">
-      <h2>Streaming Simulation</h2>
-      <p class="test-hint">Simulates character-by-character streaming, like during a chat response.</p>
-      <div class="stream-controls">
-        <button @click="startStream" :disabled="isStreaming" class="btn">Start</button>
-        <button @click="resetStream" class="btn">Reset</button>
-        <label class="speed-label">
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Streaming Simulation</h2>
+      <p class="text-muted-foreground mb-2 text-[13px]">
+        Simulates character-by-character streaming, like during a chat response.
+      </p>
+      <div class="mb-3 flex items-center gap-3">
+        <button
+          @click="startStream"
+          :disabled="isStreaming"
+          data-slot="dev-button"
+          class="border-border bg-card hover:bg-accent cursor-pointer rounded border border-solid px-4 py-1 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Start
+        </button>
+        <button
+          @click="resetStream"
+          data-slot="dev-button"
+          class="border-border bg-card hover:bg-accent cursor-pointer rounded border border-solid px-4 py-1 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Reset
+        </button>
+        <label class="flex items-center gap-1.5 text-[13px]">
           Speed:
-          <input type="range" min="10" max="200" v-model.number="streamSpeed" />
+          <input v-model.number="streamSpeed" data-slot="dev-range" type="range" min="10" max="200" class="w-[120px]" />
           {{ streamSpeed }}ms
         </label>
       </div>
-      <div class="test-case">
-        <div ref="streamContainer" class="test-rendered markdown-content" v-html="streamHtml"></div>
+      <div class="my-3">
+        <div
+          ref="streamContainer"
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="streamHtml"
+        ></div>
       </div>
     </section>
 
     <!-- Streaming Shimmer (in-progress step titles) -->
-    <section class="test-section">
-      <h2>Streaming Shimmer</h2>
-      <p class="test-hint">
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Streaming Shimmer</h2>
+      <p class="text-muted-foreground mb-2 text-[13px]">
         The "light sweep" applied to in-progress step titles in RagPipelineProgress. Running steps shimmer; finished
         ones are static.
       </p>
-      <div class="test-case shimmer-demo">
-        <div class="action-card action-pending">
-          <div class="action-title">
-            <span class="action-name">正在检索知识库…</span>
+      <div class="my-3 flex flex-col gap-3.5">
+        <div class="action-card action-pending bg-transparent">
+          <div>
+            <span class="action-name text-muted-foreground text-[14px] leading-[1.55]">正在检索知识库…</span>
           </div>
         </div>
-        <div class="action-card action-pending">
-          <div class="action-title">
-            <span class="action-name">正在生成回答…</span>
+        <div class="action-card action-pending bg-transparent">
+          <div>
+            <span class="action-name text-muted-foreground text-[14px] leading-[1.55]">正在生成回答…</span>
           </div>
         </div>
-        <div class="action-card">
-          <div class="action-title">
-            <span class="action-name is-done">检索完成（静态对照）</span>
+        <div class="action-card bg-transparent">
+          <div>
+            <span class="action-name is-done text-muted-foreground text-[14px] leading-[1.55]"
+              >检索完成（静态对照）</span
+            >
           </div>
         </div>
       </div>
     </section>
 
     <!-- Custom Editor -->
-    <section class="test-section">
-      <h2>Custom Input</h2>
-      <p class="test-hint">Paste any markdown here to test rendering.</p>
+    <section class="border-border mb-9 border-b border-solid pb-6">
+      <h2 class="mb-3 text-[18px] font-semibold">Custom Input</h2>
+      <p class="text-muted-foreground mb-2 text-[13px]">Paste any markdown here to test rendering.</p>
       <textarea
         v-model="customInput"
-        class="custom-textarea"
+        data-slot="dev-textarea"
+        class="border-border mb-3 box-border w-full resize-y rounded-md border border-solid p-2.5 [font-family:var(--app-font-family-mono)] text-[13px]"
         rows="8"
         placeholder="Type or paste markdown here..."
       ></textarea>
-      <div v-if="customInput.trim()" class="test-case">
-        <div ref="customContainer" class="test-rendered markdown-content" v-html="customHtml"></div>
+      <div v-if="customInput.trim()" class="my-3">
+        <div
+          ref="customContainer"
+          class="markdown-content chat-markdown-typography chat-citation-pills border-border bg-card rounded-md border border-solid px-3 py-2"
+          v-html="customHtml"
+        ></div>
       </div>
     </section>
   </div>
@@ -129,6 +177,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from "vue";
 import "katex/dist/katex.min.css";
+// The same shared chat sheets botmsg loads, so this page renders answers with
+// exactly the runtime chat styles and stays a regression target for them:
+// visual changes belong in these files, not here.
+import "@/components/css/chat-markdown.css";
+import "@/components/css/chat-citations.css";
+import "@/components/css/chat-message-shared.css";
+import "@/components/css/chat-timeline-loading.css";
 import { sanitizeMarkdownHTML } from "@/utils/security";
 import { createChatMarkdownRenderer, renderChatMarkdown } from "@/utils/chatMarkdownRenderer";
 import {
@@ -511,144 +566,3 @@ watch(customInput, () => {
   }, 200);
 });
 </script>
-
-<style lang="less" scoped>
-@import "../../components/css/chat-markdown.less";
-@import "../../components/css/chat-citations.less";
-@import "../../components/css/chat-message-shared.less";
-@import "../../components/css/chat-timeline-loading.less";
-
-.markdown-test-page {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  font-family: var(--app-font-family);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.page-desc {
-  color: var(--td-text-color-secondary, #666);
-  font-size: 14px;
-  margin-bottom: 32px;
-}
-
-.test-section {
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--td-component-stroke, #e5e5e5);
-  padding-bottom: 24px;
-
-  h2 {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
-}
-
-.test-hint {
-  font-size: 13px;
-  color: var(--td-text-color-secondary, #999);
-  margin-bottom: 8px;
-}
-
-.test-case {
-  margin: 12px 0;
-}
-
-.test-raw {
-  background: var(--td-bg-color-secondarycontainer, #f5f5f5);
-  padding: 6px 10px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-  font-size: 13px;
-  overflow-x: auto;
-
-  code {
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-}
-
-.test-rendered {
-  padding: 8px 12px;
-  border: 1px solid var(--td-component-stroke, #e5e5e5);
-  border-radius: 6px;
-  background: var(--td-bg-color-container, #fff);
-}
-
-.stream-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.btn {
-  padding: 4px 16px;
-  border: 1px solid var(--td-component-stroke, #ccc);
-  border-radius: 4px;
-  background: var(--td-bg-color-container, #fff);
-  cursor: pointer;
-  font-size: 13px;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover, #f0f0f0);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.speed-label {
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  input[type="range"] {
-    width: 120px;
-  }
-}
-
-.custom-textarea {
-  width: 100%;
-  padding: 10px;
-  font-family: var(--app-font-family-mono);
-  font-size: 13px;
-  border: 1px solid var(--td-component-stroke, #ccc);
-  border-radius: 6px;
-  resize: vertical;
-  box-sizing: border-box;
-  margin-bottom: 12px;
-}
-
-.shimmer-demo {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-
-  .action-card {
-    background: transparent;
-  }
-
-  .action-name {
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-// Chat answer markdown — shared with botmsg
-.markdown-content {
-  // Dev page intentionally uses the same chat Markdown mixin as runtime chat.
-  // Keep visual changes in chat-markdown.less so this page remains a regression target.
-  .chat-markdown-typography();
-  .chat-citation-pills();
-}
-</style>

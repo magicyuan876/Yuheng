@@ -3,7 +3,7 @@
     v-model:visible="drawerVisible"
     :title="$t('modelSettings.debug.title')"
     :description="$t('modelSettings.debug.description')"
-    icon="play-circle-stroke"
+    :icon="CirclePlayIcon"
     width="560px"
     :min-width="480"
     :max-width="900"
@@ -15,49 +15,54 @@
     @confirm="runDebug"
   >
     <template v-if="result" #footer-left>
-      <t-button variant="outline" @click="copyResult">
-        <template #icon><t-icon name="file-copy" /></template>
+      <Button variant="outline" @click="copyResult">
+        <CopyIcon />
         {{ $t("modelSettings.debug.copyResult") }}
-      </t-button>
+      </Button>
     </template>
 
     <div class="model-debug">
       <section class="setting-drawer__section">
         <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupModel") }}</h4>
-        <div v-if="availableModelTypes.length > 1" class="form-item">
-          <div class="model-type-options" role="radiogroup" :aria-label="$t('modelSettings.debug.modelType')">
+        <div v-if="availableModelTypes.length > 1">
+          <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="$t('modelSettings.debug.modelType')">
             <button
               v-for="option in availableModelTypes"
               :key="option.value"
               type="button"
-              class="model-type-option"
-              :class="{ 'is-active': selectedModelType === option.value }"
+              data-slot="model-type-option"
+              class="focus-visible:outline-primary inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] leading-[1.4] transition-[border-color,color,background-color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2"
+              :class="
+                selectedModelType === option.value
+                  ? 'border-primary bg-primary/10 text-primary font-medium'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-[var(--td-brand-color-3,var(--td-brand-color))]'
+              "
               role="radio"
               :aria-checked="selectedModelType === option.value"
               @click="selectModelType(option.value)"
             >
-              <t-icon :name="option.icon" class="model-type-option__icon" />
-              <span class="model-type-option__label">{{ option.label }}</span>
+              <component :is="option.icon" class="size-[15px] shrink-0" />
+              <span class="whitespace-nowrap">{{ option.label }}</span>
             </button>
           </div>
         </div>
-        <div class="form-item">
-          <label class="form-label">{{ $t("modelSettings.debug.model") }}</label>
-          <t-select
-            v-model="selectedModelId"
-            filterable
+        <div>
+          <label :class="labelClass">{{ $t("modelSettings.debug.model") }}</label>
+          <SearchableSelect
+            :model-value="selectedModelId"
+            :options="modelOptions"
             :placeholder="$t('modelSettings.debug.modelPlaceholder')"
             :disabled="filteredModels.length === 0"
-            @change="resetResult"
+            @update:model-value="onModelPicked"
           >
-            <t-option v-for="model in filteredModels" :key="model.id" :value="model.id!" :label="modelLabel(model)">
-              <div class="model-option">
-                <span class="model-option__name">{{ modelLabel(model) }}</span>
-                <span class="model-option__meta">{{ vendorLabel(model) }}</span>
-              </div>
-            </t-option>
-          </t-select>
-          <p v-if="filteredModels.length === 0" class="form-desc">
+            <template #option="{ option }">
+              <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                <span class="min-w-0 truncate">{{ option.label }}</span>
+                <span class="text-placeholder shrink-0 text-xs">{{ option.meta }}</span>
+              </span>
+            </template>
+          </SearchableSelect>
+          <p v-if="filteredModels.length === 0" :class="descClass">
             {{ $t("modelSettings.debug.noModelsForType") }}
           </p>
         </div>
@@ -66,69 +71,95 @@
       <template v-if="selectedModel">
         <section class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupInput") }}</h4>
-          <div v-if="selectedModel.type !== 'ASR'" class="form-item">
-            <label class="form-label">{{ inputLabel }}</label>
-            <t-textarea v-model="input" :placeholder="inputPlaceholder" :autosize="{ minRows: 4, maxRows: 8 }" />
+          <div v-if="selectedModel.type !== 'ASR'">
+            <label :class="labelClass">{{ inputLabel }}</label>
+            <!-- field-sizing grows the box with its text, between four and eight rows. -->
+            <Textarea v-model="input" :placeholder="inputPlaceholder" class="max-h-[184px] min-h-24" />
           </div>
 
-          <div v-if="selectedModel.type === 'Rerank'" class="form-item">
-            <label class="form-label">{{ $t("modelSettings.debug.documents") }}</label>
-            <t-textarea
+          <div v-if="selectedModel.type === 'Rerank'">
+            <label :class="labelClass">{{ $t("modelSettings.debug.documents") }}</label>
+            <Textarea
               v-model="documentsText"
               :placeholder="$t('modelSettings.debug.documentsPlaceholder')"
-              :autosize="{ minRows: 4, maxRows: 8 }"
+              class="max-h-[184px] min-h-24"
             />
-            <p class="form-desc">{{ $t("modelSettings.debug.documentsHint") }}</p>
+            <p :class="descClass">{{ $t("modelSettings.debug.documentsHint") }}</p>
           </div>
 
-          <div v-if="needsFile" class="form-item">
-            <label class="form-label">{{ fileLabel }}</label>
-            <div class="file-picker">
+          <div v-if="needsFile">
+            <label :class="labelClass">{{ fileLabel }}</label>
+            <div class="relative">
+              <!-- The native picker stays in the DOM, invisible, so the button can open it. -->
               <input
                 ref="fileInputRef"
-                class="file-picker__input"
+                class="pointer-events-none absolute size-0 opacity-0"
                 type="file"
                 :accept="selectedModel.type === 'VLLM' ? 'image/*' : 'audio/*'"
                 @change="onNativeFileChange"
               />
-              <t-button variant="outline" size="small" @click="fileInputRef?.click()">
-                <template #icon><t-icon name="upload" /></template>
+              <Button variant="outline" size="sm" @click="fileInputRef?.click()">
+                <UploadIcon />
                 {{ $t("modelSettings.debug.chooseFile") }}
-              </t-button>
+              </Button>
             </div>
-            <p v-if="file" class="form-desc">{{ file.name }} · {{ formatBytes(file.size) }}</p>
+            <p v-if="file" :class="descClass">{{ file.name }} · {{ formatBytes(file.size) }}</p>
           </div>
         </section>
 
         <section v-if="isChat" class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.parameters") }}</h4>
-          <div class="parameter-grid">
-            <div class="form-item">
-              <label class="form-label">Temperature</label>
-              <t-input-number v-model="temperature" :min="0" :max="2" :step="0.1" theme="column" />
+          <div class="grid grid-cols-3 gap-3.5 max-[640px]:grid-cols-1">
+            <div>
+              <label :class="labelClass">Temperature</label>
+              <Input
+                type="number"
+                :model-value="temperature"
+                :min="0"
+                :max="2"
+                :step="0.1"
+                @update:model-value="(v) => (temperature = toNumber(v, temperature))"
+                @blur="temperature = clamp(temperature, 0, 2)"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label">Top P</label>
-              <t-input-number v-model="topP" :min="0.01" :max="1" :step="0.1" theme="column" />
+            <div>
+              <label :class="labelClass">Top P</label>
+              <Input
+                type="number"
+                :model-value="topP"
+                :min="0.01"
+                :max="1"
+                :step="0.1"
+                @update:model-value="(v) => (topP = toNumber(v, topP))"
+                @blur="topP = clamp(topP, 0.01, 1)"
+              />
             </div>
-            <div class="form-item">
-              <label class="form-label">Max Tokens</label>
-              <t-input-number v-model="maxTokens" :min="1" :max="8192" :step="128" theme="column" />
+            <div>
+              <label :class="labelClass">Max Tokens</label>
+              <Input
+                type="number"
+                :model-value="maxTokens"
+                :min="1"
+                :max="8192"
+                :step="128"
+                @update:model-value="(v) => (maxTokens = toNumber(v, maxTokens))"
+                @blur="maxTokens = clamp(maxTokens, 1, 8192)"
+              />
             </div>
           </div>
-          <div class="form-item">
-            <label class="form-label">{{ $t("modelSettings.debug.systemPrompt") }}</label>
-            <t-textarea
+          <div>
+            <label :class="labelClass">{{ $t("modelSettings.debug.systemPrompt") }}</label>
+            <Textarea
               v-model="systemPrompt"
               :placeholder="$t('modelSettings.debug.systemPromptPlaceholder')"
-              :autosize="{ minRows: 2, maxRows: 4 }"
+              class="max-h-[104px] min-h-[60px]"
             />
           </div>
-          <div v-if="supportsThinking" class="form-item">
-            <label class="form-label">{{ $t("modelSettings.debug.thinking") }}</label>
-            <div class="switch-field">
-              <t-switch v-model="thinking" />
-              <span class="form-desc form-desc--inline">{{ $t("modelSettings.debug.thinkingDesc") }}</span>
+          <div v-if="supportsThinking">
+            <label :class="labelClass">{{ $t("modelSettings.debug.thinking") }}</label>
+            <div class="flex min-h-8 items-center gap-2">
+              <Switch v-model="thinking" />
+              <span class="text-placeholder text-xs leading-normal">{{ $t("modelSettings.debug.thinkingDesc") }}</span>
             </div>
           </div>
         </section>
@@ -136,45 +167,79 @@
         <section v-if="result || history.length > 0" class="setting-drawer__section">
           <h4 class="setting-drawer__section-title">{{ $t("modelSettings.debug.groupResult") }}</h4>
 
-          <div v-if="history.length > 1" class="form-item">
-            <label class="form-label">{{ $t("modelSettings.debug.history") }}</label>
-            <div class="history-list">
+          <div v-if="history.length > 1">
+            <label :class="labelClass">{{ $t("modelSettings.debug.history") }}</label>
+            <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="run in history"
                 :key="run.id"
                 type="button"
-                class="history-item"
-                :class="{ 'history-item--active': result === run.result }"
+                data-slot="history-item"
+                class="text-muted-foreground hover:border-primary inline-flex items-center gap-2 rounded-md border px-2.5 py-[5px] text-xs hover:bg-[color-mix(in_srgb,var(--td-brand-color)_6%,var(--td-bg-color-container))]"
+                :class="
+                  result === run.result
+                    ? 'border-primary bg-[color-mix(in_srgb,var(--td-brand-color)_6%,var(--td-bg-color-container))]'
+                    : 'border-border bg-card'
+                "
                 @click="result = run.result"
               >
-                <span class="history-item__label">{{ run.label }}</span>
-                <span class="history-item__meta">{{ run.result.elapsed_ms }} ms</span>
+                <span class="text-foreground font-medium">{{ run.label }}</span>
+                <span class="text-placeholder">{{ run.result.elapsed_ms }} ms</span>
               </button>
             </div>
           </div>
 
-          <div v-if="result" class="debug-result">
-            <div class="result-banner" :class="result.ok ? 'result-banner--ok' : 'result-banner--error'">
-              <t-icon :name="result.ok ? 'check-circle-filled' : 'close-circle-filled'" />
-              <div class="result-banner__text">
-                <strong>{{ result.ok ? $t("modelSettings.debug.success") : $t("modelSettings.debug.failed") }}</strong>
-                <span>{{ result.elapsed_ms }} ms</span>
+          <div v-if="result">
+            <div
+              class="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px]"
+              :class="
+                result.ok
+                  ? 'text-success bg-[var(--td-success-color-light)]'
+                  : 'text-destructive bg-[var(--td-error-color-light)]'
+              "
+            >
+              <CircleCheckIcon v-if="result.ok" class="size-4 shrink-0" />
+              <CircleXIcon v-else class="size-4 shrink-0" />
+              <div class="flex items-baseline gap-2">
+                <strong class="text-foreground">
+                  {{ result.ok ? $t("modelSettings.debug.success") : $t("modelSettings.debug.failed") }}
+                </strong>
+                <span class="text-placeholder text-xs">{{ result.elapsed_ms }} ms</span>
               </div>
             </div>
 
-            <div v-if="resultMetrics.length > 0" class="metric-list">
-              <span v-for="metric in resultMetrics" :key="metric.key" class="metric-chip">
+            <div v-if="resultMetrics.length > 0" class="mt-2.5 flex flex-wrap gap-1.5">
+              <span
+                v-for="metric in resultMetrics"
+                :key="metric.key"
+                class="bg-muted text-muted-foreground rounded-[4px] px-2 py-0.5 text-xs"
+              >
                 {{ metric.label }}: {{ metric.value }}
               </span>
             </div>
 
-            <p v-if="result.error" class="result-error">{{ result.error }}</p>
+            <p v-if="result.error" class="text-destructive mt-2.5 mb-0 text-[13px] whitespace-pre-wrap">
+              {{ result.error }}
+            </p>
 
-            <t-tabs v-model="resultTab" class="result-tabs">
-              <t-tab-panel value="response" :label="$t('modelSettings.debug.rawResponse')" />
-              <t-tab-panel value="request" :label="$t('modelSettings.debug.requestPreview')" />
-            </t-tabs>
-            <pre class="json-output">{{ formattedResult }}</pre>
+            <!-- The tabs only switch what the <pre> below shows; they have no panels of their own. -->
+            <Tabs
+              :model-value="resultTab"
+              class="mt-3"
+              @update:model-value="(v) => (resultTab = v === 'request' ? 'request' : 'response')"
+            >
+              <TabsList variant="line">
+                <TabsTrigger value="response" class="px-3 text-[13px]">
+                  {{ $t("modelSettings.debug.rawResponse") }}
+                </TabsTrigger>
+                <TabsTrigger value="request" class="px-3 text-[13px]">
+                  {{ $t("modelSettings.debug.requestPreview") }}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <pre
+              class="border-border bg-muted text-foreground mt-2 mb-0 max-h-[420px] min-h-[140px] overflow-auto rounded-lg border px-3.5 py-3 font-mono text-xs leading-[1.6] break-words whitespace-pre-wrap"
+              >{{ formattedResult }}</pre>
           </div>
         </section>
       </template>
@@ -184,10 +249,29 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
+import type { Component } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { copyWithToast } from "@/utils/clipboard";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import SearchableSelect from "@/components/SearchableSelect.vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  BubblesIcon,
+  CircleCheckIcon,
+  CirclePlayIcon,
+  CircleXIcon,
+  CopyIcon,
+  FilterIcon,
+  ImageIcon,
+  MessageSquareIcon,
+  UploadIcon,
+  Volume2Icon,
+} from "@lucide/vue";
 import { debugModel, type ModelConfig, type ModelDebugResult } from "@/api/model";
 import { fileSizeVerification } from "@/utils";
 import { modelSupportsThinking } from "@/utils/thinkingControl";
@@ -252,12 +336,14 @@ const canRun = computed(() => {
 });
 
 const allModelTypeOptions = computed(() => {
-  const keys: Record<DebugModelType, { short: string; icon: string }> = {
-    KnowledgeQA: { short: "chat", icon: "chat" },
-    Embedding: { short: "embedding", icon: "chart-bubble" },
-    Rerank: { short: "rerank", icon: "filter-sort" },
-    VLLM: { short: "vllm", icon: "image" },
-    ASR: { short: "asr", icon: "sound" },
+  // The same icons as the model cards in ModelSettings, so a type reads
+  // the same in the list and here.
+  const keys: Record<DebugModelType, { short: string; icon: Component }> = {
+    KnowledgeQA: { short: "chat", icon: MessageSquareIcon },
+    Embedding: { short: "embedding", icon: BubblesIcon },
+    Rerank: { short: "rerank", icon: FilterIcon },
+    VLLM: { short: "vllm", icon: ImageIcon },
+    ASR: { short: "asr", icon: Volume2Icon },
   };
   return (Object.keys(keys) as DebugModelType[]).map((value) => ({
     value,
@@ -279,6 +365,39 @@ const vendorLabel = (model: ModelConfig) => {
   const key = `model.editor.providers.${provider}.label`;
   return te(key) ? t(key) : provider || model.source;
 };
+
+// The model picker's options. The raw name is searchable too, so a model
+// with a display name is still found by the name the provider uses.
+const modelOptions = computed(() =>
+  filteredModels.value.map((model) => ({
+    value: model.id || "",
+    label: modelLabel(model),
+    keywords: [model.name],
+    meta: vendorLabel(model),
+  })),
+);
+
+// Picking a model clears the previous result, as the old select's change
+// handler did; re-picking the same model does too.
+const onModelPicked = (value: string) => {
+  selectedModelId.value = value;
+  resetResult();
+};
+
+// Shared label and helper-text styles for the form rows.
+const labelClass = "text-foreground mb-1.5 block text-[13px] leading-[1.4] font-medium";
+const descClass = "text-placeholder mt-1 mb-0 text-xs leading-normal";
+
+// The number inputs hold numbers. A cleared or half-typed field keeps the
+// last valid value, and the bounds are applied when the field loses focus,
+// which is when TDesign's input-number clamped too.
+const toNumber = (value: string | number, fallback: number) => {
+  if (value === "") return fallback;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const inputLabel = computed(() => {
   if (selectedModel.value?.type === "Embedding") return t("modelSettings.debug.embeddingInput");
@@ -461,259 +580,3 @@ onBeforeUnmount(() => {
   }
 });
 </script>
-
-<style scoped lang="less">
-.form-item {
-  margin-bottom: 0;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-}
-
-.form-desc {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--inline {
-    margin: 0;
-  }
-}
-
-.model-type-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.model-type-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  min-height: 32px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.4;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    background 0.15s ease;
-
-  &__icon {
-    font-size: 15px;
-    flex-shrink: 0;
-  }
-
-  &__label {
-    white-space: nowrap;
-  }
-
-  &:hover:not(.is-active) {
-    border-color: var(--td-brand-color-3, var(--td-brand-color));
-    color: var(--td-text-color-primary);
-  }
-
-  &.is-active {
-    border-color: var(--td-brand-color);
-    background: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 2px;
-  }
-}
-
-.model-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-
-  &__name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__meta {
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-    font-size: 12px;
-  }
-}
-
-.parameter-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-
-  :deep(.t-input-number) {
-    width: 100%;
-  }
-}
-
-.switch-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-}
-
-.file-picker {
-  position: relative;
-
-  &__input {
-    position: absolute;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-  }
-}
-
-.history-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.history-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-
-  &__label {
-    color: var(--td-text-color-primary);
-    font-weight: 500;
-  }
-
-  &__meta {
-    color: var(--td-text-color-placeholder);
-  }
-
-  &:hover,
-  &--active {
-    border-color: var(--td-brand-color);
-    background: color-mix(in srgb, var(--td-brand-color) 6%, var(--td-bg-color-container));
-  }
-}
-
-.result-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-
-  &--ok {
-    background: var(--td-success-color-light);
-    color: var(--td-success-color);
-
-    .result-banner__text strong {
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  &--error {
-    background: var(--td-error-color-light);
-    color: var(--td-error-color);
-
-    .result-banner__text strong {
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  &__text {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-
-    span {
-      color: var(--td-text-color-placeholder);
-      font-size: 12px;
-    }
-  }
-}
-
-.metric-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.metric-chip {
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-}
-
-.result-error {
-  margin: 10px 0 0;
-  color: var(--td-error-color);
-  font-size: 13px;
-  white-space: pre-wrap;
-}
-
-.result-tabs {
-  margin-top: 12px;
-
-  :deep(.t-tabs__content) {
-    display: none;
-  }
-}
-
-.json-output {
-  overflow: auto;
-  max-height: 420px;
-  min-height: 140px;
-  margin: 8px 0 0;
-  padding: 12px 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-primary);
-  font:
-    12px/1.6 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-@media (max-width: 640px) {
-  .parameter-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

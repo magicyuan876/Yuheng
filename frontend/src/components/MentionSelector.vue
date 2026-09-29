@@ -1,83 +1,124 @@
 <template>
-  <div v-if="visible" class="mention-menu" :style="style" ref="menuRef" @click.stop>
-    <div class="mention-list" ref="listRef" @scroll="onScroll">
+  <!--
+    The menu is positioned by the parent (Input-field passes a fixed top/left
+    through `style`); data-slot opts the subtree into the base resets so the
+    bare <button> rows render without browser chrome.
+  -->
+  <div
+    v-if="visible"
+    data-slot="mention-menu"
+    class="mention-menu border-border bg-card fixed z-[10000] flex max-h-[388px] w-[220px] flex-col overflow-hidden rounded-xl border border-solid shadow-[0_10px_30px_rgba(0,0,0,0.1),0_2px_8px_rgba(0,0,0,0.04)]"
+    :style="style"
+    ref="menuRef"
+    @click.stop
+  >
+    <div class="min-h-0 flex-auto overflow-y-auto py-1" ref="listRef" @scroll="onScroll">
       <template v-if="!currentGroupType && !isFlatMode">
         <button
           v-for="(group, index) in groupRows"
           :key="group.type"
           type="button"
-          class="mention-group-entry"
-          :class="{ active: index === groupActiveIndex }"
+          :class="[rowButtonClass, 'text-foreground', { 'bg-secondary': index === groupActiveIndex }]"
           @click.stop="enterGroup(group.type)"
           @mouseenter="groupActiveIndex = index"
         >
-          <span class="mention-group-entry__icon">
-            <t-icon :name="group.icon" />
+          <span class="text-muted-foreground inline-flex size-[18px] shrink-0 items-center justify-center">
+            <component :is="groupIcons[group.icon]" class="size-4" />
           </span>
-          <span class="mention-group-entry__label">{{ group.label }}</span>
-          <span class="mention-group-entry__count">{{ formatGroupCount(group) }}</span>
-          <t-icon class="mention-group-entry__arrow" name="chevron-right" />
+          <span class="min-w-0 flex-1 truncate text-left">{{ group.label }}</span>
+          <span
+            class="bg-secondary text-placeholder min-w-[18px] shrink-0 rounded-full px-1.5 text-center text-xs leading-[18px] tabular-nums"
+            >{{ formatGroupCount(group) }}</span
+          >
+          <ChevronRightIcon class="text-placeholder size-4 shrink-0" />
         </button>
-        <div v-if="groupRows.length === 0 && !loading" class="empty">
+        <div v-if="groupRows.length === 0 && !loading" :class="emptyClass">
           {{ emptyHint || $t("common.noResult") }}
         </div>
       </template>
 
       <template v-else>
-        <button v-if="!isFlatMode" type="button" class="mention-back-row" @click.stop="leaveGroup">
-          <t-icon name="chevron-left" />
-          <span>{{ currentGroup?.label }}</span>
+        <!-- The back row is a full-width strip with a rule under it, not a rounded pill. -->
+        <button
+          v-if="!isFlatMode"
+          type="button"
+          :class="[
+            rowButtonClass,
+            'border-border text-muted-foreground mb-1 min-h-[30px] rounded-none border-b border-solid',
+          ]"
+          @click.stop="leaveGroup"
+        >
+          <ChevronLeftIcon class="size-4 shrink-0" />
+          <span class="min-w-0 flex-1 truncate text-left">{{ currentGroup?.label }}</span>
         </button>
 
-        <div v-if="isFlatMode && groupTabs.length > 1 && kbItems.length > 0" class="mention-group-header">
+        <div v-if="isFlatMode && groupTabs.length > 1 && kbItems.length > 0" :class="groupHeaderClass">
           {{ $t("common.knowledgeBase") }}
         </div>
         <!-- Knowledge Bases Group -->
         <div
           v-if="(isFlatMode || currentGroupType === 'kb') && kbItems.length > 0"
-          class="mention-group"
+          :class="groupClass"
           data-group-type="kb"
         >
-          <t-popup
+          <!--
+            Each row carries a hover card with the item's details. It opens on
+            hover after a short delay, never while the list is scrolling, and
+            its content stays hoverable so the links inside can be clicked.
+          -->
+          <Tooltip
             v-for="(item, index) in kbItems"
             :key="item.id"
-            placement="right-start"
-            trigger="hover"
-            :show-arrow="false"
-            :delay="[320, 80]"
+            :delay-duration="320"
             :disabled="isScrolling"
-            :overlay-class-name="'mention-detail-popup'"
-            :overlay-inner-class-name="'mention-detail-popup-wrap'"
-            @visible-change="(v: boolean) => v && fetchKbDetail(item)"
+            @update:open="(v: boolean) => v && fetchKbDetail(item)"
           >
-            <div
-              class="mention-item"
-              :class="{ active: index === activeIndex }"
-              @click="$emit('select', item)"
-              @mouseenter="$emit('update:activeIndex', index)"
-            >
-              <div class="icon-wrap">
-                <div class="icon" :class="item.kbType === 'faq' ? 'faq-icon' : 'kb-icon'">
-                  <t-icon :name="item.kbType === 'faq' ? 'chat-bubble-help' : 'folder'" />
+            <TooltipTrigger as-child>
+              <div
+                :class="[itemClass, { 'bg-secondary': index === activeIndex }]"
+                @click="$emit('select', item)"
+                @mouseenter="$emit('update:activeIndex', index)"
+              >
+                <div class="relative size-[18px] shrink-0">
+                  <div
+                    :class="[
+                      iconClass,
+                      index === activeIndex
+                        ? item.kbType === 'faq'
+                          ? 'text-[var(--yuheng-faq-color,#0052d9)]'
+                          : 'text-primary'
+                        : 'text-muted-foreground',
+                    ]"
+                  >
+                    <MessageCircleQuestionMarkIcon v-if="item.kbType === 'faq'" class="size-4" />
+                    <FolderIcon v-else class="size-4" />
+                  </div>
+                </div>
+                <div class="flex min-w-0 flex-1 items-center gap-1">
+                  <span class="truncate font-normal">{{ item.name }}</span>
+                  <span class="text-placeholder ml-auto shrink-0 text-xs tabular-nums">{{ item.count || 0 }}</span>
                 </div>
               </div>
-              <div class="item-main">
-                <span class="name">{{ item.name }}</span>
-                <span class="count">{{ item.count || 0 }}</span>
-              </div>
-            </div>
-            <template #content>
-              <div class="mention-detail-content">
+            </TooltipTrigger>
+            <TooltipContent side="right" align="start" :class="detailPopupClass">
+              <div :class="detailContentClass">
                 <template v-if="detailCache[item.id]?.loading">
-                  <div class="detail-loading"><t-loading size="small" /></div>
+                  <div class="py-2"><Loader2Icon class="text-primary size-4 animate-spin" /></div>
                 </template>
                 <template v-else-if="detailCache[item.id]?.error">
-                  <div class="detail-error">{{ detailCache[item.id].error }}</div>
+                  <div class="text-destructive py-2 text-xs">{{ detailCache[item.id].error }}</div>
                 </template>
                 <template v-else-if="detailCache[item.id]?.data">
-                  <div class="detail-header">
-                    <span class="detail-name">{{ detailCache[item.id].data.name }}</span>
-                    <span class="detail-type-badge" :class="detailCache[item.id].data.type === 'faq' ? 'faq' : 'doc'">
+                  <div :class="detailHeaderClass">
+                    <span :class="detailNameClass">{{ detailCache[item.id].data.name }}</span>
+                    <span
+                      class="shrink-0 rounded-md border border-solid px-1.5 py-px text-xs leading-[18px]"
+                      :class="
+                        detailCache[item.id].data.type === 'faq'
+                          ? 'border-[rgba(0,82,217,0.16)] bg-[rgba(0,82,217,0.08)] text-[var(--yuheng-faq-color,#0052d9)]'
+                          : 'border-border bg-secondary text-primary'
+                      "
+                    >
                       {{
                         detailCache[item.id].data.type === "faq"
                           ? $t("knowledgeEditor.basic.typeFAQ")
@@ -85,10 +126,10 @@
                       }}
                     </span>
                   </div>
-                  <p v-if="detailCache[item.id].data.description" class="detail-desc">
+                  <p v-if="detailCache[item.id].data.description" :class="detailDescClass">
                     {{ detailCache[item.id].data.description }}
                   </p>
-                  <div class="detail-meta">
+                  <div :class="detailMetaClass">
                     <span v-if="detailCache[item.id].data.type === 'faq'">
                       {{
                         $t("mentionDetail.faqCount", {
@@ -103,16 +144,16 @@
                         })
                       }}
                     </span>
-                    <span v-if="detailCache[item.id].data.org_name || item.orgName" class="detail-org">
+                    <span v-if="detailCache[item.id].data.org_name || item.orgName" :class="detailLineClass">
                       <img
                         src="@/assets/img/organization-green.svg"
-                        class="detail-icon-img"
+                        :class="detailIconImgClass"
                         alt=""
                         aria-hidden="true"
                       />
-                      <span class="detail-label">{{ $t("mentionDetail.belongsToOrg") }}</span>
+                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToOrg") }}</span>
                       <span
-                        class="detail-value clickable"
+                        :class="detailLinkClass"
                         @click.stop="handleOrgClick(detailCache[item.id].data.org_name || item.orgName)"
                       >
                         {{ detailCache[item.id].data.org_name || item.orgName }}
@@ -121,148 +162,147 @@
                   </div>
                 </template>
               </div>
-            </template>
-          </t-popup>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <template v-for="group in activeExtraGroups" :key="group.type">
-          <div v-if="isFlatMode && groupTabs.length > 1" class="mention-group-header">
+          <div v-if="isFlatMode && groupTabs.length > 1" :class="groupHeaderClass">
             {{ group.label }}
           </div>
-          <div class="mention-group" :data-group-type="group.type">
-            <t-popup
+          <div :class="groupClass" :data-group-type="group.type">
+            <Tooltip
               v-for="(item, index) in group.items"
               :key="`${item.type}:${item.id}`"
-              placement="right-start"
-              trigger="hover"
-              :show-arrow="false"
-              :delay="[320, 80]"
+              :delay-duration="320"
               :disabled="isScrolling"
-              :overlay-class-name="'mention-detail-popup'"
-              :overlay-inner-class-name="'mention-detail-popup-wrap'"
             >
-              <div
-                class="mention-item"
-                :class="{ active: group.offset + index === activeIndex }"
-                @click="$emit('select', item)"
-                @mouseenter="$emit('update:activeIndex', group.offset + index)"
-              >
-                <div class="icon-wrap">
-                  <div class="icon" :class="`${item.type}-icon`">
-                    <t-icon :name="group.icon" />
+              <TooltipTrigger as-child>
+                <div
+                  :class="[itemClass, { 'bg-secondary': group.offset + index === activeIndex }]"
+                  @click="$emit('select', item)"
+                  @mouseenter="$emit('update:activeIndex', group.offset + index)"
+                >
+                  <div class="relative size-[18px] shrink-0">
+                    <div
+                      :class="[iconClass, group.offset + index === activeIndex ? 'text-primary' : 'text-foreground']"
+                    >
+                      <component :is="groupIcons[group.icon]" class="size-4" />
+                    </div>
+                  </div>
+                  <div class="flex min-w-0 flex-1 items-center gap-1">
+                    <span class="truncate font-normal">{{ item.name }}</span>
                   </div>
                 </div>
-                <div class="item-main">
-                  <span class="name">{{ item.name }}</span>
-                </div>
-              </div>
-              <template #content>
-                <div class="mention-detail-content">
-                  <div class="detail-header">
-                    <span class="detail-name">{{ item.name }}</span>
+              </TooltipTrigger>
+              <TooltipContent side="right" align="start" :class="detailPopupClass">
+                <div :class="detailContentClass">
+                  <div :class="detailHeaderClass">
+                    <span :class="detailNameClass">{{ item.name }}</span>
                   </div>
-                  <p v-if="item.description" class="detail-desc">{{ item.description }}</p>
-                  <div class="detail-meta">
-                    <span v-if="item.kbName" class="detail-kb">
-                      <t-icon name="folder" class="detail-icon" />
-                      <span class="detail-label">{{ $t("mentionDetail.belongsToKb") }}</span>
-                      <span class="detail-value clickable" @click.stop="handleKbClick(item.kbId)">
+                  <p v-if="item.description" :class="detailDescClass">{{ item.description }}</p>
+                  <div :class="detailMetaClass">
+                    <span v-if="item.kbName" :class="detailLineClass">
+                      <FolderIcon class="text-primary mr-0.5 size-3.5 shrink-0" />
+                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToKb") }}</span>
+                      <span :class="detailLinkClass" @click.stop="handleKbClick(item.kbId)">
                         {{ item.kbName }}
                       </span>
                     </span>
                   </div>
                 </div>
-              </template>
-            </t-popup>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </template>
 
-        <div v-if="isFlatMode && groupTabs.length > 1 && fileItems.length > 0" class="mention-group-header">
+        <div v-if="isFlatMode && groupTabs.length > 1 && fileItems.length > 0" :class="groupHeaderClass">
           {{ $t("common.file") }}
         </div>
         <!-- Files Group -->
         <div
           v-if="(isFlatMode || currentGroupType === 'file') && fileItems.length > 0"
-          class="mention-group"
+          :class="groupClass"
           data-group-type="file"
         >
-          <t-popup
+          <Tooltip
             v-for="(item, index) in fileItems"
             :key="item.id"
-            placement="right-start"
-            trigger="hover"
-            :show-arrow="false"
-            :delay="[320, 80]"
+            :delay-duration="320"
             :disabled="isScrolling"
-            :overlay-class-name="'mention-detail-popup'"
-            :overlay-inner-class-name="'mention-detail-popup-wrap'"
-            @visible-change="(v: boolean) => v && fetchFileDetail(item)"
+            @update:open="(v: boolean) => v && fetchFileDetail(item)"
           >
-            <div
-              class="mention-item"
-              :class="{ active: fileGroupOffset + index === activeIndex }"
-              @click="$emit('select', item)"
-              @mouseenter="$emit('update:activeIndex', fileGroupOffset + index)"
-            >
-              <div class="icon-wrap">
-                <div class="icon file-icon">
-                  <t-icon name="file" />
+            <TooltipTrigger as-child>
+              <div
+                :class="[itemClass, { 'bg-secondary': fileGroupOffset + index === activeIndex }]"
+                @click="$emit('select', item)"
+                @mouseenter="$emit('update:activeIndex', fileGroupOffset + index)"
+              >
+                <div class="relative size-[18px] shrink-0">
+                  <div
+                    :class="[
+                      iconClass,
+                      fileGroupOffset + index === activeIndex ? 'text-primary' : 'text-muted-foreground',
+                    ]"
+                  >
+                    <FileIcon class="size-4" />
+                  </div>
                 </div>
+                <span class="min-w-0 flex-1 truncate font-normal">{{ item.name }}</span>
               </div>
-              <span class="name">{{ item.name }}</span>
-            </div>
-            <template #content>
-              <div class="mention-detail-content">
+            </TooltipTrigger>
+            <TooltipContent side="right" align="start" :class="detailPopupClass">
+              <div :class="detailContentClass">
                 <template v-if="detailCache[item.id]?.loading">
-                  <div class="detail-loading"><t-loading size="small" /></div>
+                  <div class="py-2"><Loader2Icon class="text-primary size-4 animate-spin" /></div>
                 </template>
                 <template v-else-if="detailCache[item.id]?.error">
-                  <div class="detail-error">{{ detailCache[item.id].error }}</div>
+                  <div class="text-destructive py-2 text-xs">{{ detailCache[item.id].error }}</div>
                 </template>
                 <template v-else-if="detailCache[item.id]?.data">
-                  <div class="detail-header">
-                    <span class="detail-name">{{
+                  <div :class="detailHeaderClass">
+                    <span :class="detailNameClass">{{
                       detailCache[item.id].data.title || detailCache[item.id].data.file_name || item.name
                     }}</span>
                   </div>
-                  <p v-if="detailCache[item.id].data.description" class="detail-desc">
+                  <p v-if="detailCache[item.id].data.description" :class="detailDescClass">
                     {{ detailCache[item.id].data.description }}
                   </p>
-                  <div class="detail-meta">
-                    <span v-if="detailCache[item.id].data.knowledge_base_name || item.kbName" class="detail-kb">
-                      <t-icon name="folder" class="detail-icon" />
-                      <span class="detail-label">{{ $t("mentionDetail.belongsToKb") }}</span>
+                  <div :class="detailMetaClass">
+                    <span v-if="detailCache[item.id].data.knowledge_base_name || item.kbName" :class="detailLineClass">
+                      <FolderIcon class="text-primary mr-0.5 size-3.5 shrink-0" />
+                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToKb") }}</span>
                       <span
-                        class="detail-value clickable"
+                        :class="detailLinkClass"
                         @click.stop="handleKbClick(detailCache[item.id].data.knowledge_base_id || (item as any).kbId)"
                       >
                         {{ detailCache[item.id].data.knowledge_base_name || item.kbName }}
                       </span>
                     </span>
-                    <span v-if="item.orgName" class="detail-org">
+                    <span v-if="item.orgName" :class="detailLineClass">
                       <img
                         src="@/assets/img/organization-green.svg"
-                        class="detail-icon-img"
+                        :class="detailIconImgClass"
                         alt=""
                         aria-hidden="true"
                       />
-                      <span class="detail-label">{{ $t("mentionDetail.belongsToOrg") }}</span>
-                      <span class="detail-value clickable" @click.stop="handleOrgClick(item.orgName)">
+                      <span :class="detailLabelClass">{{ $t("mentionDetail.belongsToOrg") }}</span>
+                      <span :class="detailLinkClass" @click.stop="handleOrgClick(item.orgName)">
                         {{ item.orgName }}
                       </span>
                     </span>
                   </div>
                 </template>
               </div>
-            </template>
-          </t-popup>
+            </TooltipContent>
+          </Tooltip>
           <!-- Loading indicator -->
-          <div v-if="loading" class="loading-more">
-            <t-loading size="small" />
+          <div v-if="loading" class="flex justify-center px-3 py-2">
+            <Loader2Icon class="text-primary size-4 animate-spin" />
           </div>
         </div>
 
-        <div v-if="items.length === 0 && !loading" class="empty">
+        <div v-if="items.length === 0 && !loading" :class="emptyClass">
           {{ emptyHint || $t("common.noResult") }}
         </div>
       </template>
@@ -278,6 +318,63 @@ import { getKnowledgeBaseById } from "@/api/knowledge-base";
 import { getKnowledgeDetails } from "@/api/knowledge-base";
 import { useOrganizationStore } from "@/stores/organization";
 import type { MentionItem, MentionItemType } from "@/types/mention";
+import type { Component } from "vue";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FileIcon,
+  FolderIcon,
+  Loader2Icon,
+  MessageCircleQuestionMarkIcon,
+  TagIcon,
+} from "@lucide/vue";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// The group definitions name their icon as a string (the old TDesign icon
+// name); this maps each one onto its lucide component.
+const groupIcons: Record<string, Component> = {
+  folder: FolderIcon,
+  tag: TagIcon,
+  file: FileIcon,
+};
+
+/*
+ * Class lists shared by the repeated rows, kept here once instead of copied
+ * into every v-for in the template.
+ *
+ * A group entry and the back row are full-width buttons inset by 6px, the
+ * same shape as an item row.
+ */
+const rowButtonClass =
+  "mx-1.5 my-px box-border flex min-h-8 w-[calc(100%-12px)] cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 font-(family-name:--app-font-family) text-sm leading-5 font-normal transition-[background] duration-150 ease-in-out hover:bg-secondary";
+// .mention-item stays as an unstyled hook: scrollToItem() finds the rows by it.
+const itemClass =
+  "mention-item mx-1.5 my-px box-border flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-2 py-1 font-(family-name:--app-font-family) text-sm text-foreground transition-[background] duration-150 ease-in-out hover:bg-secondary";
+const iconClass = "flex size-[18px] shrink-0 items-center justify-center bg-transparent";
+// Groups after the first are divided by a hairline.
+const groupClass = "pt-0.5 pb-[5px] not-last:border-b not-last:border-solid not-last:border-border";
+const groupHeaderClass = "px-3.5 pt-[7px] pb-[5px] text-xs leading-[18px] font-semibold text-placeholder";
+const emptyClass = "px-4 py-7 text-center text-sm text-placeholder";
+
+/*
+ * The detail card beside a hovered row. TooltipContent is a dark bubble by
+ * default; this turns it into a light card, and hides its arrow (the old
+ * popup had none). The arrow is the only svg that is a direct grandchild of
+ * the content root, so `[&>span>svg]` cannot reach the icons inside the card.
+ */
+const detailPopupClass =
+  "z-[10001] block w-auto max-w-[280px] min-w-[220px] rounded-lg border border-solid border-border bg-card px-3.5 py-[13px] text-foreground shadow-[0_10px_28px_rgba(0,0,0,0.1),0_2px_8px_rgba(0,0,0,0.04)] [&>span>svg]:hidden";
+const detailContentClass = "text-xs leading-normal text-foreground";
+const detailHeaderClass = "mb-2 flex flex-wrap items-center gap-2";
+const detailNameClass = "text-sm leading-5 font-semibold break-words";
+const detailDescClass = "m-0 mb-2 line-clamp-4 text-xs leading-normal break-words text-muted-foreground";
+const detailMetaClass = "flex flex-col items-start gap-[5px] text-xs text-placeholder";
+const detailLineClass = "inline-flex w-full items-center gap-1 leading-normal";
+const detailIconImgClass = "mr-0.5 inline-block size-3.5 shrink-0 object-contain align-middle opacity-70";
+const detailLabelClass = "inline-flex shrink-0 items-center leading-normal text-placeholder";
+// The org / knowledge-base name is a link: underlined, brand-coloured on hover.
+const detailLinkClass =
+  "inline-flex max-w-[160px] cursor-pointer items-center truncate leading-normal underline decoration-placeholder transition-[color,text-decoration-color] duration-200 hover:text-primary hover:decoration-primary";
 
 type DetailState = { loading: boolean; error?: string; data?: any };
 
@@ -565,415 +662,3 @@ const scrollToItem = (index: number) => {
   });
 };
 </script>
-
-<style scoped>
-.mention-menu {
-  position: fixed;
-  z-index: 10000;
-  background: var(--td-bg-color-container, #fff);
-  border: 1px solid var(--td-component-stroke, #e7e9eb);
-  border-radius: var(--td-radius-extraLarge, 12px);
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.04);
-  width: 220px;
-  max-height: 388px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.mention-list {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.mention-group-entry,
-.mention-back-row {
-  width: calc(100% - 12px);
-  min-height: 32px;
-  margin: 1px 6px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--td-radius-medium, 6px);
-  background: transparent;
-  color: var(--td-text-color-primary, #333);
-  font-family: var(--app-font-family);
-  font-size: var(--td-font-size-body-medium, 14px);
-  font-weight: 400;
-  line-height: 20px;
-  cursor: pointer;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.15s ease;
-}
-
-.mention-group-entry:hover,
-.mention-group-entry.active,
-.mention-back-row:hover {
-  background: var(--td-bg-color-secondarycontainer, #f3f3f3);
-}
-
-.mention-group-entry__icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary, #666);
-  font-size: 16px;
-}
-
-.mention-group-entry__label,
-.mention-back-row span {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-.mention-group-entry__count {
-  flex-shrink: 0;
-  min-width: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--td-bg-color-secondarycontainer, #f3f3f3);
-  color: var(--td-text-color-placeholder, #999);
-  font-size: var(--td-font-size-mark-small, 12px);
-  line-height: 18px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.mention-group-entry__arrow {
-  flex-shrink: 0;
-  color: var(--td-text-color-placeholder, #999);
-  font-size: 16px;
-}
-
-.mention-back-row {
-  min-height: 30px;
-  margin-bottom: 4px;
-  color: var(--td-text-color-secondary, #666);
-  border-bottom: 1px solid var(--td-component-stroke, #f0f0f0);
-  border-radius: 0;
-}
-
-.mention-back-row span {
-  font-size: var(--td-font-size-body-medium, 14px);
-}
-
-.mention-group {
-  padding: 2px 0 5px;
-}
-
-.mention-group:not(:last-child) {
-  border-bottom: 1px solid var(--td-component-stroke, #f0f0f0);
-}
-
-.mention-group-header {
-  padding: 7px 14px 5px;
-  font-size: var(--td-font-size-mark-small, 12px);
-  font-weight: 600;
-  line-height: 18px;
-  color: var(--td-text-color-placeholder, #999);
-}
-
-.mention-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 4px 8px;
-  margin: 1px 6px;
-  box-sizing: border-box;
-  cursor: pointer;
-  border-radius: var(--td-radius-medium, 6px);
-  color: var(--td-text-color-primary, #333);
-  font-size: var(--td-font-size-body-medium, 14px);
-  font-family: var(--app-font-family);
-  transition: background 0.15s ease;
-}
-
-.mention-item:hover {
-  background: var(--td-bg-color-secondarycontainer, #f3f3f3);
-}
-
-.mention-item.active {
-  background: var(--td-bg-color-secondarycontainer, #f3f3f3);
-  color: var(--td-text-color-primary, #333);
-}
-
-.icon-wrap {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-.icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  font-size: 16px;
-}
-
-/* 右下角组织角标：柔和小圆 + 绿色/灰色 icon，不刺眼 */
-.org-badge-wrap {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--td-bg-color-secondarycontainer, #f0f2f5);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.org-badge-wrap .org-badge {
-  width: 6px;
-  height: 6px;
-  object-fit: contain;
-}
-
-/* 知识库 / 文件 - 无背景，与整体一致 */
-.kb-icon,
-.faq-icon,
-.file-icon {
-  background: transparent;
-  color: var(--td-text-color-secondary, #666);
-}
-
-.mention-item.active .icon {
-  color: var(--td-brand-color);
-}
-
-.mention-item.active .faq-icon {
-  color: var(--yuheng-faq-color, #0052d9);
-}
-
-.item-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.name {
-  font-weight: 400;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* 文件项中的 name 需要占据剩余空间，将 kb-name 推到右边 */
-.mention-item > .name {
-  flex: 1;
-  min-width: 0;
-}
-
-.count {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: var(--td-font-size-mark-small, 12px);
-  font-variant-numeric: tabular-nums;
-  color: var(--td-text-color-placeholder, #999);
-}
-
-.org-name {
-  flex-shrink: 0;
-  max-width: 72px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--td-font-size-mark-small, 12px);
-  color: var(--td-text-color-placeholder, #999);
-}
-
-.kb-name {
-  flex-shrink: 0;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--td-font-size-mark-small, 12px);
-  color: var(--td-text-color-secondary, #999);
-}
-
-.empty {
-  padding: 28px 16px;
-  text-align: center;
-  color: var(--td-text-color-placeholder, #999);
-  font-size: var(--td-font-size-body-medium, 14px);
-}
-
-.loading-more {
-  display: flex;
-  justify-content: center;
-  padding: 8px 12px;
-}
-</style>
-
-<style>
-/* 详情浮层在 Teleport 中，需全局样式 */
-.mention-detail-popup-wrap.t-popup__content {
-  min-width: 220px;
-  max-width: 280px;
-  padding: 13px 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-large, 9px);
-  background: var(--td-bg-color-container);
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.04);
-}
-.mention-detail-content {
-  font-size: var(--td-font-size-body-small, 12px);
-  color: var(--td-text-color-primary, #333);
-  line-height: 1.5;
-}
-.mention-detail-content .detail-loading,
-.mention-detail-content .detail-error {
-  padding: 8px 0;
-  color: var(--td-text-color-secondary, #999);
-  font-size: var(--td-font-size-body-small, 12px);
-}
-.mention-detail-content .detail-error {
-  color: var(--td-error-color, #e34d59);
-}
-.mention-detail-content .detail-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-.mention-detail-content .detail-name {
-  font-weight: 600;
-  font-size: var(--td-font-size-body-medium, 14px);
-  line-height: 20px;
-  word-break: break-word;
-}
-.mention-detail-content .detail-type-badge {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium, 6px);
-  font-size: var(--td-font-size-mark-small, 12px);
-  line-height: 18px;
-}
-.mention-detail-content .detail-type-badge.doc {
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-brand-color);
-}
-.mention-detail-content .detail-type-badge.faq {
-  border-color: rgba(0, 82, 217, 0.16);
-  background: rgba(0, 82, 217, 0.08);
-  color: var(--yuheng-faq-color, #0052d9);
-}
-.mention-detail-content .detail-desc {
-  margin: 0 0 8px;
-  font-size: var(--td-font-size-body-small, 12px);
-  color: var(--td-text-color-secondary, #666);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-.mention-detail-content .detail-meta {
-  font-size: var(--td-font-size-mark-small, 12px);
-  color: var(--td-text-color-placeholder, #999);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  align-items: flex-start;
-}
-.mention-detail-content .detail-readonly-hint {
-  display: block;
-  margin-top: 6px;
-  font-size: var(--td-font-size-mark-small, 12px);
-  color: var(--td-text-color-placeholder, #999);
-  font-style: italic;
-}
-
-.mention-detail-content .detail-org,
-.mention-detail-content .detail-kb {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  line-height: 1.5;
-}
-.mention-detail-content .detail-icon {
-  flex-shrink: 0;
-  font-size: 14px;
-  color: var(--td-text-color-placeholder, #999);
-  margin-right: 2px;
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-}
-.mention-detail-content .detail-kb .detail-icon {
-  color: var(--td-brand-color);
-  font-weight: 600;
-}
-.mention-detail-content .detail-icon-img {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  margin-right: 2px;
-  color: var(--td-text-color-placeholder, #000000);
-  opacity: 0.7;
-  display: inline-block;
-  vertical-align: middle;
-  object-fit: contain;
-}
-.mention-detail-content .detail-label {
-  color: var(--td-text-color-placeholder, #999);
-  flex-shrink: 0;
-  line-height: 1.5;
-  display: inline-flex;
-  align-items: center;
-}
-.mention-detail-content .detail-value {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 160px;
-  line-height: 1.5;
-  display: inline-flex;
-  align-items: center;
-}
-.mention-detail-content .detail-value.clickable {
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--td-text-color-placeholder, #999);
-  transition:
-    color 0.2s,
-    text-decoration-color 0.2s;
-}
-.mention-detail-content .detail-value.clickable:hover {
-  color: var(--td-brand-color, #07c05f);
-  text-decoration-color: var(--td-brand-color, #07c05f);
-}
-</style>

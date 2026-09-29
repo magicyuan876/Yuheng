@@ -1,14 +1,26 @@
 <template>
-  <div v-if="visible" class="kb-overlay" @click="close">
-    <div class="kb-dropdown" @click.stop @wheel.stop :style="dropdownStyle">
+  <!--
+    A full-screen transparent overlay catches the outside click; the panel
+    itself is fixed-positioned by JS (dropdownStyle), so only its inner
+    styling lives here. data-slot opts the whole subtree into the base
+    resets (border-box, bare controls without browser chrome).
+  -->
+  <div v-if="visible" data-slot="kb-selector" class="fixed inset-0 z-[9999] touch-none bg-transparent" @click="close">
+    <div
+      class="animate-in border-border bg-card fade-in-0 zoom-in-98 fixed! z-[10000] m-0 flex origin-top-left flex-col overflow-hidden rounded-[10px] border-[0.5px] border-solid shadow-[var(--td-shadow-2)] duration-150 ease-out"
+      @click.stop
+      @wheel.stop
+      :style="dropdownStyle"
+    >
       <!-- 搜索 -->
-      <div class="kb-search">
+      <div class="border-border border-b-[0.5px] border-solid px-2.5 py-2">
         <input
           ref="searchInput"
           v-model="searchQuery"
           type="text"
+          data-slot="kb-search-input"
           :placeholder="$t('knowledgeBase.searchPlaceholder')"
-          class="kb-search-input"
+          class="border-border bg-secondary focus:border-success focus:bg-card w-full rounded-[6px] border-[0.5px] border-solid px-2.5 py-1.5 text-xs transition-[border] duration-[120ms] outline-none"
           @keydown.down.prevent="moveSelection(1)"
           @keydown.up.prevent="moveSelection(-1)"
           @keydown.enter.prevent="toggleSelection"
@@ -17,17 +29,34 @@
       </div>
 
       <!-- 列表 -->
-      <div class="kb-list" ref="kbList" @wheel.stop>
+      <div
+        class="max-h-[260px] min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1.5 [-webkit-overflow-scrolling:touch]"
+        ref="kbList"
+        @wheel.stop
+      >
+        <!--
+          .kb-item stays as an unstyled hook: moveSelection() finds the rows
+          by it to scroll the highlighted one into view. A selected row keeps
+          its tint on hover, as before, so hover only applies to the others.
+        -->
         <div
           v-for="(kb, index) in filteredKnowledgeBases"
           :key="kb.id"
-          :class="['kb-item', { selected: isSelected(kb.id), highlighted: highlightedIndex === index }]"
+          class="kb-item mb-1 flex cursor-pointer items-center rounded-[6px] px-2 py-1.5 transition-[background] duration-[120ms] last:mb-0"
+          :class="{
+            'bg-[var(--td-brand-color-light)]': isSelected(kb.id),
+            'bg-secondary': !isSelected(kb.id) && highlightedIndex === index,
+            'hover:bg-secondary': !isSelected(kb.id) && highlightedIndex !== index,
+          }"
           @click="toggleKb(kb.id)"
           @mouseenter="highlightedIndex = index"
         >
-          <div class="kb-item-left">
-            <div class="checkbox" :class="{ checked: isSelected(kb.id) }">
-              <svg v-if="isSelected(kb.id)" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <div class="flex w-full items-center gap-2">
+            <div
+              class="flex size-4 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] border-solid"
+              :class="isSelected(kb.id) ? 'border-success bg-success' : 'border-border'"
+            >
+              <svg v-if="isSelected(kb.id)" class="size-2.5" width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path
                   d="M10 3L4.5 8.5L2 6"
                   stroke="#fff"
@@ -37,7 +66,10 @@
                 />
               </svg>
             </div>
-            <div class="kb-icon" :class="{ faq: kb.type === 'faq' }">
+            <div
+              class="flex size-4 shrink-0 items-center justify-center"
+              :class="kb.type === 'faq' ? 'text-primary' : 'text-[var(--td-brand-color-active)]'"
+            >
               <svg v-if="kb.type === 'faq'" width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
@@ -65,22 +97,24 @@
                 />
               </svg>
             </div>
-            <div class="kb-name-wrap">
-              <span class="kb-name">{{ kb.name }}</span>
-              <span class="kb-docs">({{ kb.type === "faq" ? kb.chunk_count || 0 : kb.knowledge_count || 0 }})</span>
+            <div class="flex min-w-0 flex-row items-center gap-1">
+              <span class="text-foreground truncate text-xs leading-[1.4]">{{ kb.name }}</span>
+              <span class="text-placeholder shrink-0 text-[11px]"
+                >({{ kb.type === "faq" ? kb.chunk_count || 0 : kb.knowledge_count || 0 }})</span
+              >
             </div>
           </div>
         </div>
 
-        <div v-if="filteredKnowledgeBases.length === 0" class="kb-empty">
+        <div v-if="filteredKnowledgeBases.length === 0" class="text-placeholder px-2 py-5 text-center text-xs">
           {{ searchQuery ? $t("knowledgeBase.noMatch") : $t("knowledgeBase.noKnowledge") }}
         </div>
       </div>
 
       <!-- 底部操作 -->
-      <div class="kb-actions">
-        <button @click="selectAll" class="kb-btn">{{ $t("common.selectAll") }}</button>
-        <button @click="clearAll" class="kb-btn">{{ $t("common.clear") }}</button>
+      <div class="border-border bg-secondary flex gap-2 border-t border-solid px-2.5 py-2">
+        <button type="button" :class="actionButtonClass" @click="selectAll">{{ $t("common.selectAll") }}</button>
+        <button type="button" :class="actionButtonClass" @click="clearAll">{{ $t("common.clear") }}</button>
       </div>
     </div>
   </div>
@@ -104,6 +138,11 @@ interface KnowledgeBase {
 }
 
 const { t } = useI18n();
+
+// "Select all" / "Clear" in the footer: equal-width outlined buttons that
+// pick up the success colour on hover.
+const actionButtonClass =
+  "flex-1 cursor-pointer rounded-[6px] border border-solid border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground transition-all duration-[120ms] hover:border-success hover:bg-[var(--td-brand-color-light)] hover:text-success";
 
 const props = defineProps<{
   visible: boolean;
@@ -373,193 +412,3 @@ watch(
   },
 );
 </script>
-
-<style scoped lang="less">
-// 确保所有元素使用 border-box 盒模型
-.kb-overlay,
-.kb-overlay *,
-.kb-overlay *::before,
-.kb-overlay *::after {
-  box-sizing: border-box;
-}
-
-.kb-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: transparent;
-  /* 不阻止点击穿透，但防止触摸滚动 */
-  touch-action: none;
-}
-
-/* 下拉面板使用 fixed 定位，相对于视口 */
-.kb-dropdown {
-  position: fixed !important;
-  background: var(--td-bg-color-container);
-  border: 0.5px solid var(--td-component-border);
-  border-radius: 10px;
-  box-shadow: var(--td-shadow-2);
-  overflow: hidden;
-  animation: fadeIn 0.15s ease-out;
-  z-index: 10000;
-  margin: 0;
-  /* 确保定位准确，动画使用 scale 而不是 translate */
-  transform-origin: top left;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 宽度由 JS 控制（dropdownWidth），这里只做内部样式 */
-.kb-search {
-  padding: 8px 10px;
-  border-bottom: 0.5px solid var(--td-component-stroke);
-}
-.kb-search-input {
-  width: 100%;
-  padding: 6px 10px;
-  font-size: 12px;
-  border: 0.5px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  outline: none;
-  transition: border 0.12s;
-}
-.kb-search-input:focus {
-  border-color: var(--td-success-color);
-  background: var(--td-bg-color-container);
-}
-
-.kb-list {
-  flex: 1;
-  min-height: 0; /* 允许 flex 子元素缩小 */
-  max-height: 260px;
-  overflow-y: auto;
-  padding: 6px 8px;
-  /* 确保滚动限制在此容器内 */
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-
-.kb-item {
-  display: flex;
-  align-items: center;
-  padding: 6px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.12s;
-  margin-bottom: 4px;
-}
-.kb-item:last-child {
-  margin-bottom: 0;
-}
-
-.kb-item:hover,
-.kb-item.highlighted {
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.kb-item.selected {
-  background: var(--td-brand-color-light);
-}
-
-.kb-item-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.checkbox {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1.5px solid var(--td-component-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.checkbox.checked {
-  background: var(--td-success-color);
-  border-color: var(--td-success-color);
-}
-.checkbox.checked svg {
-  width: 10px;
-  height: 10px;
-}
-.kb-icon {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--td-brand-color-active);
-
-  &.faq {
-    color: var(--td-brand-color);
-  }
-}
-.kb-name-wrap {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-.kb-name {
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-}
-.kb-docs {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
-}
-
-.kb-empty {
-  padding: 20px 8px;
-  text-align: center;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.kb-actions {
-  display: flex;
-  gap: 8px;
-  padding: 8px 10px;
-  border-top: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-secondarycontainer);
-}
-.kb-btn {
-  flex: 1;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition: all 0.12s;
-}
-.kb-btn:hover {
-  border-color: var(--td-success-color);
-  color: var(--td-success-color);
-  background: var(--td-brand-color-light);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-</style>

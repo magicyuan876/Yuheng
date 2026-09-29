@@ -1,35 +1,43 @@
 <template>
-  <div class="user_msg_container" ref="containerRef" :class="{ 'is-embedded': embeddedMode }">
+  <div ref="containerRef" class="flex w-full flex-col items-end gap-1.5">
     <!-- 显示@的知识库和文件 -->
-    <div v-if="mentioned_items && mentioned_items.length > 0" class="mentioned_items">
-      <span v-for="item in mentioned_items" :key="item.id" class="mentioned_tag" :class="[mentionTagClass(item)]">
+    <div v-if="mentioned_items && mentioned_items.length > 0" class="chat-mentioned-items justify-end">
+      <span v-for="item in mentioned_items" :key="item.id" class="chat-mentioned-tag" :class="[mentionTagClass(item)]">
         <span class="tag_icon">
-          <t-icon v-if="item.type === 'kb'" :name="item.kb_type === 'faq' ? 'chat-bubble-help' : 'folder'" />
-          <t-icon v-else :name="mentionTagIcon(item)" />
+          <FolderIcon v-if="item.type === 'kb' && item.kb_type !== 'faq'" class="h-3.5 w-3.5" />
+          <MessageCircleQuestionIcon v-else-if="item.type === 'kb'" class="h-3.5 w-3.5" />
+          <TagIcon v-else-if="item.type === 'tag'" class="h-3.5 w-3.5" />
+          <WrenchIcon v-else-if="item.type === 'mcp'" class="h-3.5 w-3.5" />
+          <BookmarkIcon v-else-if="item.type === 'skill'" class="h-3.5 w-3.5" />
+          <FileIcon v-else class="h-3.5 w-3.5" />
         </span>
         <span class="tag_name">{{ item.name }}</span>
       </span>
     </div>
     <!-- 显示上传的图片 -->
-    <div v-if="hasImages" class="user_images">
+    <div v-if="hasImages" class="flex max-w-full flex-wrap justify-end gap-1.5">
       <img
         v-for="(img, idx) in props.images"
         :key="idx"
         :src="img.url"
-        class="user_image_thumb"
+        class="h-[120px] w-[120px] cursor-pointer rounded-md border border-[var(--td-border-level-2-color,#e7e7e7)] object-cover transition-opacity duration-200 hover:opacity-85"
         @click="previewImage($event)"
       />
     </div>
     <!-- 显示上传的附件 -->
-    <div v-if="hasAttachments" class="user_attachments">
+    <div v-if="hasAttachments" class="flex max-w-full flex-wrap justify-end gap-2">
       <div
         v-for="(att, idx) in props.attachments"
         :key="idx"
-        class="user_attachment_card"
-        :class="{ 'is-previewable': canPreviewAttachment(att) }"
+        class="bg-card flex max-w-[260px] min-w-[160px] items-center gap-2.5 rounded-[8px] border border-[var(--td-border-level-1-color,#e7e7e7)] px-3 py-2"
+        :class="
+          canPreviewAttachment(att)
+            ? 'cursor-pointer transition-[border-color,box-shadow] duration-200 hover:border-[var(--td-brand-color-2,rgba(0,82,217,0.25))] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+            : 'cursor-default'
+        "
         @click="openAttachmentPreview(att)"
       >
-        <div class="attachment_card_icon">
+        <div class="flex shrink-0 items-center justify-center">
           <svg viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="44">
             <rect width="40" height="48" rx="4" fill="#4A90D9" />
             <path d="M8 6h16l8 8v28a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z" fill="#5BA3E8" />
@@ -39,16 +47,19 @@
             <rect x="10" y="32" width="14" height="2" rx="1" fill="white" fill-opacity="0.9" />
           </svg>
         </div>
-        <div class="attachment_card_info">
-          <div class="attachment_card_name">{{ att.file_name }}</div>
-          <div class="attachment_card_meta">
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div class="text-foreground truncate text-[13px] font-medium">{{ att.file_name }}</div>
+          <div class="text-muted-foreground text-[11px] whitespace-nowrap">
             {{ getFileExt(att.file_name)
             }}<span v-if="att.file_size">&nbsp;·&nbsp;{{ formatFileSize(att.file_size) }}</span>
           </div>
         </div>
       </div>
     </div>
-    <div class="user_msg">
+    <div
+      class="bg-secondary text-foreground ml-auto box-border flex w-max flex-[1_0_0] flex-col items-start justify-center gap-1 rounded-[8px] px-3 py-2 text-left text-base leading-[1.6] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap"
+      :class="embeddedMode ? 'max-w-full' : 'max-w-[min(76%,820px)]'"
+    >
       {{ content }}
     </div>
     <picturePreview :reviewImg="reviewImg" :reviewUrl="reviewUrl" @closePreImg="closePreImg" />
@@ -56,21 +67,16 @@
 </template>
 <script setup>
 import { computed, ref, watch, onMounted, nextTick } from "vue";
+import { BookmarkIcon, FileIcon, FolderIcon, MessageCircleQuestionIcon, TagIcon, WrenchIcon } from "@lucide/vue";
 import { hydrateProtectedFileImages } from "@/utils/security";
 import picturePreview from "@/components/picture-preview.vue";
 import { useChatAttachmentPreviewDrawer } from "@/composables/useChatAttachmentPreviewDrawer";
 import { isPreviewableAttachment, resolveAttachmentFileType } from "@/utils/attachmentPreview";
+import "@/components/css/chat-resource-chips.css";
 
 const mentionTagClass = (item) => {
   if (item.type === "kb") return item.kb_type === "faq" ? "faq-tag" : "kb-tag";
   return `${item.type || "file"}-tag`;
-};
-
-const mentionTagIcon = (item) => {
-  if (item.type === "tag") return "tag";
-  if (item.type === "mcp") return "tools";
-  if (item.type === "skill") return "bookmark";
-  return "file";
 };
 
 const props = defineProps({
@@ -163,178 +169,3 @@ const closePreImg = () => {
   reviewUrl.value = "";
 };
 </script>
-<style scoped lang="less">
-@import "../../../components/css/chat-resource-chips.less";
-
-.user_msg_container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  width: 100%;
-}
-
-.mentioned_items {
-  .chat-mentioned-items(flex-end);
-}
-
-.mentioned_tag {
-  .chat-mentioned-tag();
-}
-
-.user_msg_container {
-  &.is-embedded {
-    .user_msg {
-      max-width: 100%;
-    }
-  }
-}
-
-.user_msg {
-  width: max-content;
-  max-width: min(76%, 820px);
-  display: flex;
-  padding: 8px 12px;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 4px;
-  flex: 1 0 0;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  margin-left: auto;
-  color: var(--td-text-color-primary);
-  font-size: 16px;
-  line-height: 1.6;
-  text-align: left;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  box-sizing: border-box;
-  white-space: pre-wrap;
-}
-
-.user_images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-  max-width: 100%;
-}
-
-.user_attachments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  max-width: 100%;
-}
-
-.user_attachment_card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--td-border-level-1-color, #e7e7e7);
-  background: var(--td-bg-color-container, #fff);
-  max-width: 260px;
-  min-width: 160px;
-  cursor: default;
-
-  &.is-previewable {
-    cursor: pointer;
-    transition:
-      border-color 0.2s,
-      box-shadow 0.2s;
-
-    &:hover {
-      border-color: var(--td-brand-color-2, rgba(0, 82, 217, 0.25));
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    }
-  }
-
-  .attachment_card_icon {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .attachment_card_info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .attachment_card_name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary, #333);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .attachment_card_meta {
-    font-size: 11px;
-    color: var(--td-text-color-secondary, #999);
-    white-space: nowrap;
-    box-sizing: border-box;
-  }
-}
-
-.user_image_thumb {
-  width: 120px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid var(--td-border-level-2-color, #e7e7e7);
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 0.85;
-  }
-}
-
-.channel_tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 18px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-placeholder);
-  border: 1px solid var(--td-border-level-2-color, #e7e7e7);
-
-  &.channel-web {
-    color: var(--td-brand-color);
-    background: var(--td-brand-color-light);
-    border-color: var(--td-brand-color-2, rgba(0, 82, 217, 0.1));
-  }
-
-  &.channel-api {
-    color: var(--td-success-color);
-    background: var(--td-success-color-1, rgba(0, 168, 112, 0.06));
-    border-color: var(--td-success-color-2, rgba(0, 168, 112, 0.15));
-  }
-
-  &.channel-im {
-    color: var(--td-warning-color);
-    background: var(--td-warning-color-1, rgba(237, 123, 0, 0.06));
-    border-color: var(--td-warning-color-2, rgba(237, 123, 0, 0.15));
-  }
-}
-
-html[theme-mode="dark"] {
-  .user_msg {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-</style>

@@ -307,6 +307,7 @@ export default {
       collapse: "Collapse folders",
       expand: "Expand folders",
       expandFolder: "Expand this folder",
+      collapseFolder: "Collapse this folder",
       rename: "Rename",
       renamePlaceholder: "Folder name",
       renameSuccess: "Folder renamed",
@@ -4649,6 +4650,15 @@ export default {
     },
   },
   tenantMember: {
+    pager: {
+      total: "Total {total} items",
+      pageSize: "{size} / page",
+      pageSizeLabel: "Rows per page",
+      jumpTo: "Go to",
+      jumpToSuffix: "",
+      previous: "Previous page",
+      next: "Next page",
+    },
     title: "Members",
     sectionDescription:
       "Invite teammates to the workspace and manage their roles. Only Owner can add or remove members.",

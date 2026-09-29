@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 import { readFileSync } from "node:fs";
 
-const selector = readFileSync(new URL("./ModelSelector.vue", import.meta.url), "utf8");
 const kbModelConfig = readFileSync(new URL("../views/knowledge/settings/KBModelConfig.vue", import.meta.url), "utf8");
 const kbEditor = readFileSync(new URL("../views/knowledge/KnowledgeBaseEditorModal.vue", import.meta.url), "utf8");
 const uploadConfirm = readFileSync(
@@ -27,11 +26,8 @@ function assertNotClearable(tag: string): void {
   assert.doesNotMatch(tag, /(?:\s|:)clearable(?:\s|=|\/>)/);
 }
 
-test("ModelSelector 清空时向父组件回传空字符串，默认仍不可清空", () => {
-  assert.match(selector, /:clearable="clearable"/);
-  assert.match(selector, /clearable:;?\s*false/);
-  assert.match(selector, /emit\(["']update:selectedModelId["'], value \|\| ["']["']\)/);
-});
+// ModelSelector's own clearing behaviour is covered by the mounted tests in
+// ModelSelector.test.ts. What stays here is which call sites opt in.
 
 test("知识库仅在模型确实可选时允许恢复为空", () => {
   const embedding = modelSelectorTag(kbModelConfig, "config.embeddingModelId");

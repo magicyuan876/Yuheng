@@ -1,4 +1,5 @@
-import { computed } from "vue";
+import { computed, type Component } from "vue";
+import { CircleUserIcon, EyeIcon, PencilIcon, ShieldCheckIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 
@@ -10,10 +11,9 @@ import { useAuthStore } from "@/stores/auth";
  * (UserMenu.vue), now extracted so role-aware UI gates across views can
  * share one implementation.
  *
- * `roleIcon(role)` returns a TDesign icon name suitable for prefixing the
- * role label (e.g. in tenant switcher rows). The mapping is intentionally
- * limited to icons already known to ship in this codebase to avoid a
- * runtime "icon not found" footgun on uncommon role names.
+ * `roleIcon(role)` returns the lucide icon that prefixes the role label (the
+ * tenant switcher rows, the login and tenant-switch notifications), or null
+ * for a role without one — the caller then renders the label alone.
  */
 export function useRoleLabel() {
   const { t } = useI18n();
@@ -23,13 +23,13 @@ export function useRoleLabel() {
     const label = t(key);
     return label === key ? role : label;
   };
-  const ROLE_ICONS: Record<string, string> = {
-    owner: "secured",
-    admin: "user-circle",
-    contributor: "edit",
-    viewer: "browse",
+  const ROLE_ICONS: Record<string, Component> = {
+    owner: ShieldCheckIcon,
+    admin: CircleUserIcon,
+    contributor: PencilIcon,
+    viewer: EyeIcon,
   };
-  const roleIcon = (role: string | null | undefined): string => (role && ROLE_ICONS[role]) || "";
+  const roleIcon = (role: string | null | undefined): Component | null => (role && ROLE_ICONS[role]) || null;
   return { formatRole, roleIcon };
 }
 

@@ -1,42 +1,76 @@
 <template>
   <button
     type="button"
-    :class="['cmdk-item', { 'cmdk-item--selected': selected }]"
+    data-slot="cmdk-item"
+    class="text-foreground flex w-full cursor-pointer items-start gap-2.5 rounded-lg border-0 px-3 py-2 text-left transition-[background] duration-100"
+    :class="selected ? 'bg-secondary' : ''"
     :data-cmdk-index="index"
     @click="$emit('primary')"
     @mousemove="onHover"
   >
-    <div class="cmdk-item__icon">
+    <div class="text-muted-foreground mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
       <slot name="icon">
-        <t-icon :name="iconName" size="14px" />
+        <component :is="paletteIcon(iconName, FileIcon)" class="size-3.5" />
       </slot>
     </div>
-    <div class="cmdk-item__body">
-      <div class="cmdk-item__title">
+    <div class="min-w-0 flex-1">
+      <div
+        class="flex items-center gap-1.5 overflow-hidden text-[13px] leading-5 font-medium text-nowrap text-ellipsis whitespace-nowrap"
+      >
         <slot name="title">
           <span v-html="title" />
         </slot>
-        <span v-if="badge" :class="['cmdk-item__badge', `cmdk-item__badge--${badgeVariant || 'default'}`]">
+        <span
+          v-if="badge"
+          class="shrink-0 rounded-[3px] px-[5px] py-px text-[10px] leading-[1.4] font-medium"
+          :class="
+            badgeVariant === 'vector'
+              ? 'bg-primary/10 text-primary'
+              : badgeVariant === 'keyword'
+                ? 'bg-warning/10 text-warning'
+                : 'bg-secondary text-muted-foreground'
+          "
+        >
           {{ badge }}
         </span>
-        <span v-if="score != null" class="cmdk-item__score">{{ (score * 100).toFixed(0) }}%</span>
+        <span v-if="score != null" class="text-placeholder ml-auto shrink-0 text-[11px]"
+          >{{ (score * 100).toFixed(0) }}%</span
+        >
       </div>
-      <div v-if="$slots.subtitle || subtitle" class="cmdk-item__subtitle">
+      <div
+        v-if="$slots.subtitle || subtitle"
+        class="text-muted-foreground mt-0.5 [display:-webkit-box] overflow-hidden text-xs leading-[18px] break-words text-ellipsis [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+      >
         <slot name="subtitle">
           <span v-html="subtitle" />
         </slot>
       </div>
     </div>
-    <div class="cmdk-item__actions">
+    <div class="flex shrink-0 items-center gap-1">
       <slot name="actions" />
-      <span v-if="shortcut" class="cmdk-item__shortcut">
-        <kbd>⌘</kbd><kbd>{{ shortcut }}</kbd>
+      <span
+        v-if="shortcut"
+        class="text-placeholder inline-flex items-center gap-0.5 text-[10px] transition-opacity duration-100"
+        :class="selected ? 'opacity-100' : 'opacity-55'"
+      >
+        <kbd
+          class="bg-secondary text-muted-foreground inline-block min-w-3.5 rounded-[3px] border border-[var(--td-component-stroke)] px-1 text-center font-[inherit] leading-[14px]"
+          >⌘</kbd
+        >
+        <kbd
+          class="bg-secondary text-muted-foreground inline-block min-w-3.5 rounded-[3px] border border-[var(--td-component-stroke)] px-1 text-center font-[inherit] leading-[14px]"
+          >{{ shortcut }}</kbd
+        >
       </span>
     </div>
   </button>
 </template>
 
 <script setup lang="ts">
+import { FileIcon } from "@lucide/vue";
+
+import { paletteIcon } from "./paletteIcons";
+
 /**
  * A single result row inside the command palette.
  * Host component owns selection state; this one just mirrors it via the
@@ -66,133 +100,8 @@ const onHover = (e: MouseEvent) => {
 };
 </script>
 
-<style lang="less" scoped>
-.cmdk-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: var(--td-text-color-primary);
-  transition: background 0.1s ease;
-}
-
-.cmdk-item--selected {
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.cmdk-item__icon {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  margin-top: 2px;
-}
-
-.cmdk-item__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.cmdk-item__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cmdk-item__badge {
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-weight: 500;
-  flex-shrink: 0;
-  line-height: 1.4;
-
-  &--vector {
-    background: rgba(7, 192, 95, 0.1);
-    color: var(--td-brand-color);
-  }
-
-  &--keyword {
-    background: rgba(255, 152, 0, 0.1);
-    color: var(--td-warning-color);
-  }
-
-  &--default {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.cmdk-item__score {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
-}
-
-.cmdk-item__subtitle {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--td-text-color-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-word;
-}
-
-.cmdk-item__actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.cmdk-item__shortcut {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 10px;
-  color: var(--td-text-color-placeholder);
-  opacity: 0.55;
-  transition: opacity 0.1s;
-
-  kbd {
-    display: inline-block;
-    padding: 0 4px;
-    min-width: 14px;
-    font-family: inherit;
-    line-height: 14px;
-    text-align: center;
-    background: var(--td-bg-color-secondarycontainer);
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 3px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.cmdk-item--selected .cmdk-item__shortcut {
-  opacity: 1;
-}
-
+<style scoped>
+/* Highlight spans inside title/subtitle HTML, drawn by the host's matcher. */
 :deep(.search-highlight) {
   background: rgba(255, 213, 0, 0.35);
   color: inherit;

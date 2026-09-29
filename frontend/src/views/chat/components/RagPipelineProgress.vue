@@ -3,16 +3,22 @@
     <!-- Announcements need a region that outlives each wait row, otherwise screen
          readers miss a live region that appears together with its own text. -->
     <div class="sr-only" role="status" aria-live="polite">{{ liveStatusText }}</div>
-    <div v-if="showPrePipelineWait" class="tree-children">
-      <div class="tree-child tree-child-last streaming-loading-node">
-        <div class="tree-branch" />
+    <div v-if="showPrePipelineWait" class="tree-children relative mt-0 ml-2.5 pl-0">
+      <div class="tree-child tree-child-last streaming-loading-node relative mb-0 pl-[42px]">
+        <div class="tree-branch hidden" />
         <div class="tree-child-content">
           <div class="tool-event">
-            <div class="action-card action-pending">
-              <div class="action-header no-results">
-                <div class="action-title">
-                  <t-icon class="action-title-icon" name="lightbulb" />
-                  <span class="action-name">{{ t("chat.preparingAnswer") }}</span>
+            <div class="action-card action-pending relative">
+              <div class="action-header no-results flex min-h-6 cursor-default items-center py-0 select-none">
+                <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                  <LightbulbIcon
+                    class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                  />
+                  <span
+                    class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                  >
+                    {{ t("chat.preparingAnswer") }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -21,50 +27,76 @@
       </div>
     </div>
 
-    <div v-else-if="!showCollapsedRoot" class="tree-children">
+    <div v-else-if="!showCollapsedRoot" class="tree-children relative mt-0 ml-2.5 pl-0">
       <div
         v-for="(step, index) in steps"
         :key="step.id"
-        class="tree-child"
-        :class="{
-          'tree-child-last': !showDoneRow && !showWaitStep && !showThinkingStep && index === steps.length - 1,
-        }"
+        class="tree-child relative pl-[42px]"
+        :class="
+          !showDoneRow && !showWaitStep && !showThinkingStep && index === steps.length - 1
+            ? 'tree-child-last mb-0'
+            : 'mb-[18px]'
+        "
       >
-        <div class="tree-branch" />
+        <div class="tree-branch hidden" />
         <div class="tree-child-content">
           <div class="tool-event">
             <div
-              class="action-card"
-              :class="{ 'has-reference-trigger': step.canOpenReferences }"
+              class="action-card group relative"
+              :class="{ 'has-reference-trigger cursor-pointer': step.canOpenReferences }"
               :role="step.canOpenReferences ? 'button' : undefined"
               :tabindex="step.canOpenReferences ? 0 : undefined"
               @click="handleStepClick(step)"
               @keydown.enter="handleStepClick(step)"
               @keydown.space.prevent="handleStepClick(step)"
             >
-              <div class="action-header" :class="{ 'no-results': !step.canOpenReferences }">
-                <div class="action-title">
-                  <t-icon class="action-title-icon" :name="step.iconName" />
-                  <span class="action-name" :class="{ 'is-running': step.pending }">{{ step.title }}</span>
+              <div
+                class="action-header flex min-h-6 items-center py-0 select-none"
+                :class="step.canOpenReferences ? 'cursor-pointer' : 'cursor-default'"
+              >
+                <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                  <component
+                    :is="agentToolIcons[step.iconName] ?? ClipboardPasteIcon"
+                    class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                  />
+                  <span
+                    class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                    :class="{ 'is-running': step.pending, 'group-hover:text-foreground': step.canOpenReferences }"
+                  >
+                    {{ step.title }}
+                  </span>
                 </div>
               </div>
-              <div v-if="step.summaryHtml" class="search-results-summary-fixed">
-                <div class="results-summary-text" v-html="step.summaryHtml" />
+              <div v-if="step.summaryHtml" class="search-results-summary-fixed pt-0.5 pr-0 pb-0 pl-0">
+                <div
+                  class="results-summary-text text-muted-foreground text-[length:var(--agent-step-summary-size)] leading-[1.5] font-normal"
+                  :class="{ 'group-hover:text-foreground': step.canOpenReferences }"
+                  v-html="step.summaryHtml"
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="showWaitStep" class="tree-child tree-child-last streaming-loading-node rag-model-wait-step">
-        <div class="tree-branch" />
+      <div
+        v-if="showWaitStep"
+        class="tree-child tree-child-last streaming-loading-node rag-model-wait-step relative mb-0 pl-[42px]"
+      >
+        <div class="tree-branch hidden" />
         <div class="tree-child-content">
           <div class="tool-event">
-            <div class="action-card" :class="{ 'action-pending': !waitStepStalled }">
-              <div class="action-header no-results">
-                <div class="action-title">
-                  <t-icon class="action-title-icon" name="lightbulb" />
-                  <span class="action-name">{{ waitStepText }}</span>
+            <div class="action-card relative" :class="{ 'action-pending': !waitStepStalled }">
+              <div class="action-header no-results flex min-h-6 cursor-default items-center py-0 select-none">
+                <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                  <LightbulbIcon
+                    class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                  />
+                  <span
+                    class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                  >
+                    {{ waitStepText }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -72,18 +104,35 @@
         </div>
       </div>
 
-      <div v-if="showThinkingStep" class="tree-child rag-thinking-step" :class="{ 'tree-child-last': !showDoneRow }">
-        <div class="tree-branch" />
+      <div
+        v-if="showThinkingStep"
+        class="tree-child rag-thinking-step relative pl-[42px]"
+        :class="!showDoneRow ? 'tree-child-last mb-0' : 'mb-[18px]'"
+      >
+        <div class="tree-branch hidden" />
         <div class="tree-child-content">
           <div class="tool-event">
-            <div class="action-card" :class="{ 'action-pending': thinkingPending }">
-              <div class="action-header" :class="{ 'no-results': !thinkingContent }" @click="toggleThinking">
-                <div class="action-title">
-                  <t-icon class="action-title-icon" name="lightbulb" />
-                  <span class="action-name">{{ t("agent.think") }}</span>
+            <div class="action-card relative" :class="{ 'action-pending': thinkingPending }">
+              <div
+                class="action-header flex min-h-6 items-center py-0 select-none"
+                :class="thinkingContent ? 'cursor-pointer' : 'cursor-default'"
+                @click="toggleThinking"
+              >
+                <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                  <LightbulbIcon
+                    class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                  />
+                  <span
+                    class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                  >
+                    {{ t("agent.think") }}
+                  </span>
                 </div>
               </div>
-              <div v-if="thinkingContent && thinkingExpanded" class="thinking-detail-content">
+              <div
+                v-if="thinkingContent && thinkingExpanded"
+                class="thinking-detail-content text-placeholder mt-1 max-h-[200px] overflow-y-auto p-0 text-[length:var(--agent-step-summary-size)] leading-[1.55] font-normal break-words whitespace-pre-wrap"
+              >
                 {{ thinkingContent }}
               </div>
             </div>
@@ -91,15 +140,21 @@
         </div>
       </div>
 
-      <div v-if="showDoneRow" class="tree-child agent-step-done tree-child-last">
-        <div class="tree-branch" />
+      <div v-if="showDoneRow" class="tree-child agent-step-done tree-child-last relative mb-0 pl-[42px]">
+        <div class="tree-branch hidden" />
         <div class="tree-child-content">
           <div class="tool-event">
-            <div class="action-card">
-              <div class="action-header no-results">
-                <div class="action-title">
-                  <t-icon class="action-title-icon" name="check-circle" />
-                  <span class="action-name">{{ t("common.finish") }}</span>
+            <div class="action-card relative">
+              <div class="action-header no-results flex min-h-6 cursor-default items-center py-0 select-none">
+                <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                  <CircleCheckIcon
+                    class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                  />
+                  <span
+                    class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                  >
+                    {{ t("common.finish") }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -110,70 +165,111 @@
 
     <div v-else class="tree-container">
       <div class="tool-event">
-        <div class="action-card tree-root">
-          <div class="tree-root-toolbar">
+        <div class="action-card tree-root relative mb-0">
+          <div class="tree-root-toolbar flex w-full min-w-0 items-center justify-start max-[640px]:gap-2">
             <button
               type="button"
-              class="tree-root-expand"
+              data-slot="rag-tree-root-expand"
+              class="tree-root-expand text-muted-foreground hover:text-foreground m-0 inline-flex max-w-full min-w-0 flex-[0_1_auto] cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent p-0 text-[14px] leading-[22px] whitespace-nowrap"
               :aria-expanded="showExpandedTimeline"
               :aria-label="collapsedStatusText"
               @click="toggleExpanded"
             >
-              <span class="tree-root-status">{{ collapsedStatusText }}</span>
-              <span v-if="referenceSummaryText" class="tree-root-reference">
+              <span class="tree-root-status min-w-0 flex-[0_1_auto] whitespace-nowrap">{{ collapsedStatusText }}</span>
+              <span
+                v-if="referenceSummaryText"
+                class="tree-root-reference inline-flex min-w-0 flex-[0_1_auto] items-center gap-1.5 whitespace-nowrap"
+              >
                 {{ referenceSummaryText }}
               </span>
-              <t-icon class="tree-root-expand__icon" :name="showExpandedTimeline ? 'chevron-down' : 'chevron-right'" />
+              <component
+                :is="showExpandedTimeline ? ChevronDownIcon : ChevronRightIcon"
+                class="tree-root-expand__icon h-3.5 w-3.5 shrink-0 text-current"
+              />
             </button>
           </div>
         </div>
       </div>
 
-      <div v-if="showExpandedTimeline" class="tree-children tree-children-expanded">
+      <div v-if="showExpandedTimeline" class="tree-children tree-children-expanded relative mt-3.5 ml-2.5 pl-0">
         <div
           v-for="(step, index) in steps"
           :key="step.id"
-          class="tree-child"
-          :class="{ 'tree-child-last': index === steps.length - 1 && !showDoneRow && !showThinkingStep }"
+          class="tree-child relative pl-[42px]"
+          :class="
+            index === steps.length - 1 && !showDoneRow && !showThinkingStep ? 'tree-child-last mb-0' : 'mb-[18px]'
+          "
         >
-          <div class="tree-branch" />
+          <div class="tree-branch hidden" />
           <div class="tree-child-content">
             <div class="tool-event">
               <div
-                class="action-card"
-                :class="{ 'has-reference-trigger': step.canOpenReferences }"
+                class="action-card group relative"
+                :class="{ 'has-reference-trigger cursor-pointer': step.canOpenReferences }"
                 :role="step.canOpenReferences ? 'button' : undefined"
                 :tabindex="step.canOpenReferences ? 0 : undefined"
                 @click="handleStepClick(step)"
                 @keydown.enter="handleStepClick(step)"
                 @keydown.space.prevent="handleStepClick(step)"
               >
-                <div class="action-header" :class="{ 'no-results': !step.canOpenReferences }">
-                  <div class="action-title">
-                    <t-icon class="action-title-icon" :name="step.iconName" />
-                    <span class="action-name" :class="{ 'is-running': step.pending }">{{ step.title }}</span>
+                <div
+                  class="action-header flex min-h-6 items-center py-0 select-none"
+                  :class="step.canOpenReferences ? 'cursor-pointer' : 'cursor-default'"
+                >
+                  <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                    <component
+                      :is="agentToolIcons[step.iconName] ?? ClipboardPasteIcon"
+                      class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                    />
+                    <span
+                      class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                      :class="{ 'is-running': step.pending, 'group-hover:text-foreground': step.canOpenReferences }"
+                    >
+                      {{ step.title }}
+                    </span>
                   </div>
                 </div>
-                <div v-if="step.summaryHtml" class="search-results-summary-fixed">
-                  <div class="results-summary-text" v-html="step.summaryHtml" />
+                <div v-if="step.summaryHtml" class="search-results-summary-fixed pt-0.5 pr-0 pb-0 pl-0">
+                  <div
+                    class="results-summary-text text-muted-foreground text-[length:var(--agent-step-summary-size)] leading-[1.5] font-normal"
+                    :class="{ 'group-hover:text-foreground': step.canOpenReferences }"
+                    v-html="step.summaryHtml"
+                  />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="showThinkingStep" class="tree-child rag-thinking-step" :class="{ 'tree-child-last': !showDoneRow }">
-          <div class="tree-branch" />
+        <div
+          v-if="showThinkingStep"
+          class="tree-child rag-thinking-step relative pl-[42px]"
+          :class="!showDoneRow ? 'tree-child-last mb-0' : 'mb-[18px]'"
+        >
+          <div class="tree-branch hidden" />
           <div class="tree-child-content">
             <div class="tool-event">
-              <div class="action-card" :class="{ 'action-pending': thinkingPending }">
-                <div class="action-header" :class="{ 'no-results': !thinkingContent }" @click="toggleThinking">
-                  <div class="action-title">
-                    <t-icon class="action-title-icon" name="lightbulb" />
-                    <span class="action-name">{{ t("agent.think") }}</span>
+              <div class="action-card relative" :class="{ 'action-pending': thinkingPending }">
+                <div
+                  class="action-header flex min-h-6 items-center py-0 select-none"
+                  :class="thinkingContent ? 'cursor-pointer' : 'cursor-default'"
+                  @click="toggleThinking"
+                >
+                  <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                    <LightbulbIcon
+                      class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                    />
+                    <span
+                      class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                    >
+                      {{ t("agent.think") }}
+                    </span>
                   </div>
                 </div>
-                <div v-if="thinkingContent && thinkingExpanded" class="thinking-detail-content">
+                <div
+                  v-if="thinkingContent && thinkingExpanded"
+                  class="thinking-detail-content text-placeholder mt-1 max-h-[200px] overflow-y-auto p-0 text-[length:var(--agent-step-summary-size)] leading-[1.55] font-normal break-words whitespace-pre-wrap"
+                >
                   {{ thinkingContent }}
                 </div>
               </div>
@@ -181,15 +277,21 @@
           </div>
         </div>
 
-        <div v-if="showDoneRow" class="tree-child agent-step-done tree-child-last">
-          <div class="tree-branch" />
+        <div v-if="showDoneRow" class="tree-child agent-step-done tree-child-last relative mb-0 pl-[42px]">
+          <div class="tree-branch hidden" />
           <div class="tree-child-content">
             <div class="tool-event">
-              <div class="action-card">
-                <div class="action-header no-results">
-                  <div class="action-title">
-                    <t-icon class="action-title-icon" name="check-circle" />
-                    <span class="action-name">{{ t("common.finish") }}</span>
+              <div class="action-card relative">
+                <div class="action-header no-results flex min-h-6 cursor-default items-center py-0 select-none">
+                  <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
+                    <CircleCheckIcon
+                      class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
+                    />
+                    <span
+                      class="action-name text-muted-foreground max-w-[min(820px,100%)] text-[length:var(--agent-step-text-size)] leading-[1.55] font-normal break-words"
+                    >
+                      {{ t("common.finish") }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -202,8 +304,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+import "@/components/css/chat-timeline-loading.css";
+import {
+  BrainIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleCheckIcon,
+  ClipboardPasteIcon,
+  CodeIcon,
+  DatabaseIcon,
+  FileSearchIcon,
+  GlobeIcon,
+  LightbulbIcon,
+  ListTodoIcon,
+  PaperclipIcon,
+  SearchIcon,
+  SquareTerminalIcon,
+} from "@lucide/vue";
 import { getAgentToolIconName } from "@/utils/agent-tool-icons";
 import {
   getKnowledgeSearchSummaryHtml,
@@ -215,6 +334,23 @@ import { RAG_RETRIEVAL_TOOL_NAMES, RAG_TIMELINE_TOOL_NAMES } from "@/utils/rag-p
 import { useChatReferencesDrawer } from "@/composables/useChatReferencesDrawer";
 import { buildReferenceSections } from "@/utils/referenceSources";
 import { createRagWaitController, getRagPipelineWaitKind, type RagWaitView } from "@/utils/rag-pipeline-state";
+
+/**
+ * getAgentToolIconName still returns the TDesign icon names the agent
+ * timeline was built with; this maps each one onto its lucide component.
+ */
+const agentToolIcons: Record<string, Component> = {
+  "ai-search": BrainIcon,
+  internet: GlobeIcon,
+  "data-search": DatabaseIcon,
+  search: SearchIcon,
+  "file-search": FileSearchIcon,
+  task: ListTodoIcon,
+  attach: PaperclipIcon,
+  terminal: SquareTerminalIcon,
+  code: CodeIcon,
+  "file-paste": ClipboardPasteIcon,
+};
 
 const props = defineProps<{
   session?: {
@@ -478,9 +614,16 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped lang="less">
-@import "@/components/css/chat-timeline-loading.less";
-
+<style scoped>
+/*
+ * Stays CSS: the timeline's size and colour variables (read by the
+ * text-[length:var(--agent-step-…)] utilities in the template), the tree's
+ * connecting line and the dot before the reference summary (both
+ * pseudo-elements), and the <strong> emphasis inside the v-html summaries,
+ * which utilities on this template cannot reach. The shimmer on a pending
+ * step's title comes from the shared chat-timeline-loading.css, imported in
+ * the script.
+ */
 .rag-pipeline-progress {
   --agent-step-text-size: 14px;
   --agent-step-summary-size: 13px;
@@ -507,220 +650,34 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.tree-root {
-  margin-bottom: 0;
-
-  .tree-root-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .tree-root-expand {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--td-text-color-secondary);
-    font-size: 14px;
-    line-height: 22px;
-    cursor: pointer;
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 100%;
-
-    &:hover {
-      background: transparent;
-      color: var(--td-text-color-primary);
-    }
-  }
-
-  .tree-root-status,
-  .tree-root-reference {
-    flex: 0 1 auto;
-    min-width: 0;
-    white-space: nowrap;
-  }
-
-  .tree-root-reference {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-
-    &::before {
-      content: "";
-      width: 3px;
-      height: 3px;
-      border-radius: 50%;
-      background: currentColor;
-      opacity: 0.65;
-      flex-shrink: 0;
-    }
-  }
-
-  .tree-root-expand__icon {
-    flex-shrink: 0;
-    font-size: 14px;
-    color: currentColor;
-  }
+/* The vertical line joining one step's icon to the next; the last step has none. */
+.tree-child::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 22px;
+  bottom: -18px;
+  width: 0;
+  border-left: 1px solid var(--agent-step-line-color);
 }
 
-.tree-children {
-  position: relative;
-  padding-left: 0;
-  margin-top: 0;
-  margin-left: 10px;
+.tree-child.tree-child-last::before {
+  content: none;
 }
 
-.tree-children-expanded {
-  margin-top: 14px;
+/* The small dot separating the collapsed status from the reference count. */
+.tree-root-reference::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.65;
+  flex-shrink: 0;
 }
 
-.tree-child {
-  position: relative;
-  padding-left: 42px;
-  padding-bottom: 0;
-  margin-bottom: 18px;
-
-  &::before {
-    content: "";
-    position: absolute;
-    left: 9px;
-    top: 22px;
-    bottom: -18px;
-    width: 0;
-    border-left: 1px solid var(--agent-step-line-color);
-  }
-
-  .tree-branch {
-    display: none;
-  }
-
-  &.tree-child-last {
-    margin-bottom: 0;
-
-    &::before {
-      content: none;
-    }
-  }
-}
-
-.tool-event {
-  .action-card {
-    position: relative;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-
-    &.has-reference-trigger {
-      cursor: pointer;
-
-      &:hover {
-        .action-name,
-        .results-summary-text {
-          color: var(--td-text-color-primary);
-        }
-      }
-    }
-  }
-
-  .action-header {
-    display: flex;
-    align-items: center;
-    min-height: 24px;
-    padding: 0;
-    cursor: pointer;
-    user-select: none;
-
-    &.no-results {
-      cursor: default;
-    }
-  }
-
-  .action-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: relative;
-    flex: 0 1 auto;
-    min-width: 0;
-
-    .action-show-icon {
-      flex-shrink: 0;
-      margin-left: 2px;
-    }
-  }
-
-  .action-title-icon {
-    position: absolute;
-    left: -42px;
-    top: 3px;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: var(--agent-step-icon-color);
-  }
-
-  .action-name {
-    font-size: var(--agent-step-text-size);
-    line-height: 1.55;
-    font-weight: 400;
-    color: var(--td-text-color-secondary);
-    word-break: break-word;
-    max-width: min(820px, 100%);
-  }
-}
-
-.search-results-summary-fixed {
-  padding: 2px 0 0 0;
-
-  .results-summary-text {
-    font-size: var(--agent-step-summary-size);
-    font-weight: 400;
-    color: var(--td-text-color-secondary);
-    line-height: 1.5;
-
-    :deep(strong) {
-      color: var(--td-text-color-secondary);
-      font-weight: 500;
-    }
-  }
-}
-
-.rag-thinking-step {
-  .thinking-detail-content {
-    margin-top: 4px;
-    padding: 0;
-    font-size: var(--agent-step-summary-size);
-    font-weight: 400;
-    color: var(--td-text-color-placeholder);
-    line-height: 1.55;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .action-pending .action-name {
-    color: var(--td-text-color-secondary);
-  }
-}
-
-@media (max-width: 640px) {
-  .tree-root {
-    .tree-root-toolbar {
-      gap: 8px;
-    }
-
-    .tree-root-expand {
-      max-width: 100%;
-    }
-  }
+.results-summary-text :deep(strong) {
+  color: var(--td-text-color-secondary);
+  font-weight: 500;
 }
 </style>

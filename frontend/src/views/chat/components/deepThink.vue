@@ -1,30 +1,44 @@
 <template>
-  <div class="deep-think">
-    <div class="think-header" @click="toggleFold">
-      <div class="think-title">
-        <span v-if="deepSession.thinking" class="thinking-status">
-          <span class="thinking-indicator">
-            <span class="indicator-dot"></span>
-            <span class="indicator-ring"></span>
+  <div
+    class="deep-think border-border bg-card -mt-2 mb-2.5 box-border flex w-full flex-col overflow-hidden rounded-lg border-[0.5px] border-solid text-[12px] shadow-[0_2px_4px_color-mix(in_srgb,var(--td-brand-color)_8%,transparent)] transition-all duration-[250ms]"
+  >
+    <div
+      class="text-foreground flex cursor-pointer items-center justify-between px-3.5 py-1.5 font-medium select-none hover:bg-[color-mix(in_srgb,var(--td-brand-color)_4%,transparent)]"
+      @click="toggleFold"
+    >
+      <div class="flex items-center">
+        <span v-if="deepSession.thinking" class="flex items-center">
+          <span class="relative mr-2 flex h-4 w-4 items-center justify-center">
+            <span class="indicator-dot bg-primary h-1.5 w-1.5 rounded-full"></span>
+            <span
+              class="indicator-ring border-primary absolute inset-0 rounded-full border-[1.5px] border-solid opacity-0"
+            ></span>
           </span>
-          <span class="thinking-text">{{ $t("chat.thinking") }}</span>
+          <span class="text-foreground text-[12px] whitespace-nowrap">{{ $t("chat.thinking") }}</span>
         </span>
-        <span v-else class="done-status">
-          <img class="done-icon" src="@/assets/img/Frame3718.svg" :alt="$t('chat.deepThoughtAlt')" />
-          <span class="done-text">{{ $t("chat.deepThoughtCompleted") }}</span>
+        <span v-else class="flex items-center">
+          <img class="mr-2 h-4 w-4" src="@/assets/img/Frame3718.svg" :alt="$t('chat.deepThoughtAlt')" />
+          <span class="text-foreground text-[12px] whitespace-nowrap">{{ $t("chat.deepThoughtCompleted") }}</span>
         </span>
       </div>
-      <div class="toggle-icon-wrapper">
-        <t-icon :name="isFold ? 'chevron-down' : 'chevron-up'" class="toggle-icon" />
+      <div class="text-primary px-0.5 pt-0 pb-px text-[14px]">
+        <ChevronDownIcon v-if="isFold" class="h-3.5 w-3.5 transition-transform duration-200" />
+        <ChevronUpIcon v-else class="h-3.5 w-3.5 transition-transform duration-200" />
       </div>
     </div>
-    <div class="think-content" v-show="!isFold || deepSession.thinking">
-      <div ref="contentInnerRef" class="content-inner">{{ deepSession.thinkContent }}</div>
+    <div v-show="!isFold || deepSession.thinking" class="border-secondary border-t border-solid">
+      <div
+        ref="contentInnerRef"
+        class="content-inner text-muted-foreground max-h-[200px] overflow-y-auto px-3.5 py-2 text-[12px] leading-[1.6] break-words whitespace-pre-wrap"
+      >
+        {{ deepSession.thinkContent }}
+      </div>
     </div>
   </div>
 </template>
 <script setup>
 import { watch, ref, onMounted, nextTick } from "vue";
+import { ChevronDownIcon, ChevronUpIcon } from "@lucide/vue";
 
 const isFold = ref(false);
 const contentInnerRef = ref(null);
@@ -77,129 +91,18 @@ const toggleFold = () => {
   }
 };
 </script>
-<style lang="less" scoped>
-.deep-think {
-  display: flex;
-  flex-direction: column;
-  font-size: 12px;
-  width: 100%;
-  border-radius: 8px;
-  background-color: var(--td-bg-color-container);
-  border: 0.5px solid var(--td-component-stroke);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--td-brand-color) 8%, transparent);
-  overflow: hidden;
-  box-sizing: border-box;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  margin: -8px 0px 10px 0px;
+<style scoped>
+/*
+ * Stays CSS: the thinking indicator's two keyframe animations, and the
+ * scrollbar pseudo-elements of the reasoning text, which utilities cannot
+ * reach.
+ */
+.indicator-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
 
-  .think-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 14px;
-    color: var(--td-text-color-primary);
-    font-weight: 500;
-    cursor: pointer;
-    user-select: none;
-
-    &:hover {
-      background-color: color-mix(in srgb, var(--td-brand-color) 4%, transparent);
-    }
-
-    .think-title {
-      display: flex;
-      align-items: center;
-    }
-
-    .thinking-status {
-      display: flex;
-      align-items: center;
-
-      .thinking-indicator {
-        position: relative;
-        width: 16px;
-        height: 16px;
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        .indicator-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--td-brand-color);
-          animation: pulse-dot 1.8s ease-in-out infinite;
-        }
-
-        .indicator-ring {
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-          border: 1.5px solid var(--td-brand-color);
-          opacity: 0;
-          animation: pulse-ring 1.8s ease-out infinite;
-        }
-      }
-
-      .thinking-text {
-        font-size: 12px;
-        color: var(--td-text-color-primary);
-        white-space: nowrap;
-      }
-    }
-
-    .done-status {
-      display: flex;
-      align-items: center;
-
-      .done-icon {
-        width: 16px;
-        height: 16px;
-        margin-right: 8px;
-      }
-
-      .done-text {
-        font-size: 12px;
-        color: var(--td-text-color-primary);
-        white-space: nowrap;
-      }
-    }
-
-    .toggle-icon-wrapper {
-      font-size: 14px;
-      padding: 0 2px 1px 2px;
-      color: var(--td-brand-color);
-
-      .toggle-icon {
-        transition: transform 0.2s;
-      }
-    }
-  }
-
-  .think-content {
-    border-top: 1px solid var(--td-bg-color-secondarycontainer);
-
-    .content-inner {
-      padding: 8px 14px;
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--td-text-color-secondary);
-      max-height: 200px;
-      overflow-y: auto;
-      word-break: break-word;
-      white-space: pre-wrap;
-
-      &::-webkit-scrollbar {
-        width: 4px;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: 2px;
-      }
-    }
-  }
+.indicator-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
 }
 
 @keyframes pulse-dot {
@@ -225,13 +128,16 @@ const toggleFold = () => {
   }
 }
 
-html[theme-mode="dark"] {
-  .deep-think {
-    .think-content .content-inner {
-      &::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
-      }
-    }
-  }
+.content-inner::-webkit-scrollbar {
+  width: 4px;
+}
+
+.content-inner::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+html[theme-mode="dark"] .content-inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 </style>

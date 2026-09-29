@@ -3,7 +3,10 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import { onBeforeRouteUpdate } from "vue-router";
+import type { Component } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
+import { FileIcon, FolderIcon, MessageCircleQuestionMarkIcon, MessageSquareIcon, TagIcon } from "@lucide/vue";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSettingsStore } from "@/stores/settings";
 import { useUIStore } from "@/stores/ui";
 import { useMenuStore } from "@/stores/menu";
@@ -115,7 +118,7 @@ const mentionItems = ref<MentionItem[]>([]);
 const fileIdToKbId = ref<Record<string, string>>({});
 const mentionActiveIndex = ref(0);
 const mentionStyle = ref<Record<string, string>>({});
-const textareaRef = ref<any>(null); // Ref to t-textarea component
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const mentionSelectorRef = ref<any>(null);
 const mentionStartPos = ref(0);
 const isComposing = ref(false);
@@ -226,21 +229,48 @@ const removeSelectedItem = (item: MentionItem) => {
   }
 };
 
-const getMentionIcon = (item: MentionItem) => {
+const getMentionIcon = (item: MentionItem): Component => {
   switch (item.type) {
+    case "kb":
+      return item.kbType === "faq" ? MessageCircleQuestionMarkIcon : FolderIcon;
     case "file":
-      return "file";
+      return FileIcon;
     case "tag":
-      return "tag";
+      return TagIcon;
     default:
-      return "folder";
+      return FolderIcon;
   }
 };
 
-const getMentionChipClass = (item: MentionItem) => {
-  if (item.type === "kb") return item.kbType === "faq" ? "mention-chip--faq" : "mention-chip--kb";
-  return `mention-chip--${item.type}`;
+// A chip's surface stays neutral; its icon alone is tinted by resource type.
+const getMentionIconColorClass = (item: MentionItem) => {
+  if (item.type === "kb") return item.kbType === "faq" ? "text-[var(--yuheng-faq-color,#0052d9)]" : "text-primary";
+  if (item.type === "file") return "text-muted-foreground";
+  if (item.type === "tag") return "text-[#9f7aea]";
+  return "";
 };
+
+/*
+ * Class lists the control-bar buttons share. Each button is a plain <div>
+ * (the old markup), so they are composed here instead of through <Button>.
+ */
+const controlBtnClass =
+  "flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-[6px] px-2.5 py-1.5 text-muted-foreground transition-[background,color] duration-[120ms] select-none";
+// The image and attachment buttons: a 28px square with a count badge. Once
+// something is attached the tint replaces the hover state entirely.
+const uploadBtnClass = "relative size-7 min-w-auto p-0";
+const uploadBtnIdleClass =
+  "text-muted-foreground hover:bg-[var(--td-bg-color-secondarycontainer-hover,#f0f0f0)] hover:text-foreground";
+const uploadBtnActiveClass = "bg-[rgba(16,185,129,0.1)] text-[#07c05f]";
+const uploadCountClass =
+  "absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-[#07c05f] text-[10px] leading-none text-white";
+// The stop button draws a pulsing dot with ::before (keyframes in the style block).
+const stopBtnClass =
+  "relative size-7 border-[1.5px] border-solid border-[rgba(16,185,129,0.2)] bg-[rgba(16,185,129,0.08)] p-0 text-primary before:block before:size-3 before:animate-[inputFieldStopPulse_1.5s_ease-in-out_infinite] before:rounded-full before:bg-primary before:content-[''] hover:border-primary hover:bg-[rgba(16,185,129,0.12)] active:bg-[rgba(16,185,129,0.15)]";
+// The control-bar hints were TDesign's light tooltips: a card-coloured bubble
+// with a hairline border, and an arrow in the same colour.
+const lightTooltipClass =
+  "border-[0.5px] border-solid border-border bg-popover text-popover-foreground shadow-[var(--td-shadow-2)] [&>span>svg]:bg-popover [&>span>svg]:fill-popover";
 
 // 使用 computed 从 store 读取，并通过 setter 同步回 store
 const selectedModelId = computed({
@@ -736,22 +766,26 @@ const loadMoreMentionItems = () => {
   }
 };
 
-const getTextareaEl = () => {
-  if (!textareaRef.value) return null;
-  // If it's a native element
-  if (textareaRef.value instanceof HTMLTextAreaElement) return textareaRef.value;
-  // If it's a component wrapper
-  const el = textareaRef.value.$el || textareaRef.value;
-  if (!el) return null;
-  if (el.tagName === "TEXTAREA") return el as HTMLTextAreaElement;
-  return el.querySelector("textarea");
+const getTextareaEl = () => textareaRef.value;
+
+// Grow the textarea with its content, as TDesign's autosize did. The CSS
+// min/max heights clamp the result, so past the maximum it scrolls. Resetting
+// to auto first lets the box shrink again when text is deleted.
+const autosize = () => {
+  const el = getTextareaEl();
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
 };
+// Immediate so text restored into the box before mount is sized too.
+watch(query, () => nextTick(autosize), { immediate: true });
 
 const onInput = (val: string | InputEvent) => {
   // 如果正在输入法组合中，不处理搜索逻辑，等待 compositionend
   if (isComposing.value) return;
 
-  // TDesign t-textarea passes the value directly, not an event
+  // Called with the native input event, or with the value itself from
+  // onCompositionEnd; v-model has already written the event's text to query.
   const inputVal = typeof val === "string" ? val : query.value;
 
   const textarea = getTextareaEl();
@@ -855,7 +889,7 @@ const onCompositionEnd = (e: CompositionEvent) => {
   isComposing.value = false;
   // 手动触发 onInput 逻辑
   // 注意：在 compositionend 时，v-model 可能还没更新，或者已经更新但我们需要用最新值
-  // TDesign textarea 可能需要 nextTick
+  // Waiting a tick lets v-model settle first.
   nextTick(() => {
     onInput(query.value);
   });
@@ -1156,7 +1190,9 @@ const createSession = async (val: string) => {
 
   // Blur the textarea BEFORE emitting, so that when the parent navigates away
   // and Vue unmounts this component, TDesign's blur handler won't fire on a
-  // detached DOM element (which causes getComputedStyle to throw).
+  // detached DOM element (which causes getComputedStyle to throw). The native
+  // textarea no longer has such a handler; the blur is kept because it also
+  // drops the focus ring and caret before the view changes.
   const textarea = getTextareaEl();
   if (textarea) textarea.blur();
   emit("send-msg", val, selectedModelId.value, mentionedItems, imageFiles, attachmentFiles);
@@ -1173,8 +1209,8 @@ const createSession = async (val: string) => {
 };
 
 const clearvalue = () => {
-  // Guard: only clear when the textarea DOM element is still mounted,
-  // otherwise TDesign's autosize will call getComputedStyle on a non-Element.
+  // Guard: only clear when the textarea DOM element is still mounted; the
+  // query watcher resizes the element, which must still exist.
   if (!getTextareaEl()) return;
   query.value = "";
 };
@@ -1190,30 +1226,27 @@ const clearPendingUploads = () => {
   uploadedAttachments.value = [];
 };
 
-const onKeydown = (
-  val: string,
-  event: { e: { preventDefault(): unknown; keyCode: number; shiftKey: any; ctrlKey: any } },
-) => {
+const onKeydown = (e: KeyboardEvent) => {
   if (showMention.value) {
-    if (event.e.keyCode === 38) {
+    if (e.keyCode === 38) {
       // Up
-      event.e.preventDefault();
+      e.preventDefault();
       mentionSelectorRef.value?.moveActive(-1);
       return;
     }
-    if (event.e.keyCode === 40) {
+    if (e.keyCode === 40) {
       // Down
-      event.e.preventDefault();
+      e.preventDefault();
       mentionSelectorRef.value?.moveActive(1);
       return;
     }
-    if (event.e.keyCode === 13) {
+    if (e.keyCode === 13) {
       // Enter
-      event.e.preventDefault();
+      e.preventDefault();
       mentionSelectorRef.value?.confirmActive();
       return;
     }
-    if (event.e.keyCode === 27) {
+    if (e.keyCode === 27) {
       // Esc
       if (mentionSelectorRef.value?.leaveGroup()) {
         return;
@@ -1224,13 +1257,13 @@ const onKeydown = (
   }
 
   // 退格键：当输入框为空且有选中项时，删除最后一个选中项
-  if (event.e.keyCode === 8) {
+  if (e.keyCode === 8) {
     // Backspace
     const textarea = getTextareaEl();
     if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0 && query.value === "") {
       const items = allSelectedItems.value;
       if (items.length > 0) {
-        event.e.preventDefault();
+        e.preventDefault();
         const lastItem = items[items.length - 1];
         removeSelectedItem(lastItem);
         return;
@@ -1238,12 +1271,14 @@ const onKeydown = (
     }
   }
 
-  if ((event.e.keyCode == 13 && event.e.shiftKey) || (event.e.keyCode == 13 && event.e.ctrlKey)) {
+  if ((e.keyCode == 13 && e.shiftKey) || (e.keyCode == 13 && e.ctrlKey)) {
     return;
   }
-  if (event.e.keyCode == 13) {
-    event.e.preventDefault();
-    createSession(val);
+  if (e.keyCode == 13) {
+    e.preventDefault();
+    // The native event carries no value (TDesign's handler passed it
+    // first); v-model keeps query current.
+    createSession(query.value);
   }
 };
 
@@ -1315,23 +1350,45 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="answers-input" @drop="onDrop" @dragover="onDragOver">
+  <!--
+    .answers-input is a hook: the chat and new-chat views reach it with
+    :deep() to reset position/transform per breakpoint. Those overrides set
+    `transform`, so the centring here uses the transform property too
+    ([transform:…]) rather than Tailwind's translate utilities, which write
+    the separate `translate` property and would survive the override.
+  -->
+  <div
+    class="answers-input absolute bottom-[60px] left-1/2 z-[99] flex w-full [transform:translateX(-50%)] justify-center"
+    @drop="onDrop"
+    @dragover="onDragOver"
+  >
     <!-- Hidden file input for image upload -->
     <input
       ref="imageInputRef"
       type="file"
       accept="image/jpeg,image/png,image/gif,image/webp"
       multiple
-      style="display: none"
+      class="hidden"
       @change="handleImageSelect"
     />
-    <!-- 富文本输入框容器 -->
-    <div class="rich-input-container" data-guide="chat-input">
+    <!-- 富文本输入框容器. .rich-input-container is a hook: closeMentionSelector() tests clicks against it. -->
+    <div
+      class="rich-input-container bg-card focus-within:border-primary relative w-full max-w-[960px] rounded-[12px] border border-solid border-[var(--td-component-stroke,#dcdcdc)] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_8px_16px_-4px_rgba(0,0,0,0.06)]"
+      data-guide="chat-input"
+    >
       <!-- 图片预览区域 -->
-      <div v-if="uploadedImages.length > 0" class="image-preview-bar">
-        <div v-for="(img, idx) in uploadedImages" :key="idx" class="image-preview-item">
-          <img :src="img.preview" class="image-preview-thumb" />
-          <span class="image-preview-remove" @click="removeImage(idx)">×</span>
+      <div v-if="uploadedImages.length > 0" class="flex flex-wrap gap-2 px-3 pt-2 pb-1">
+        <div
+          v-for="(img, idx) in uploadedImages"
+          :key="idx"
+          class="relative size-[60px] overflow-hidden rounded-lg border border-solid border-[var(--td-border-level-1-color,#e7e7e7)]"
+        >
+          <img :src="img.preview" class="size-full object-cover" />
+          <span
+            class="absolute top-0.5 right-0.5 flex size-4 cursor-pointer items-center justify-center rounded-full bg-black/50 text-xs leading-none text-white hover:bg-black/70"
+            @click="removeImage(idx)"
+            >×</span
+          >
         </div>
       </div>
 
@@ -1343,42 +1400,64 @@ defineExpose({
         @update:files="uploadedAttachments = $event"
       />
 
-      <!-- 选中的知识库和文件标签（显示在输入框内顶部） -->
-      <div v-if="allSelectedItems.length > 0" class="selected-tags-inline">
+      <!-- 选中的知识库和文件标签（显示在输入框内顶部）. The top corners follow the container's inner radius (12px − 1px border). -->
+      <div
+        v-if="allSelectedItems.length > 0"
+        class="bg-card flex flex-wrap items-center gap-[5px] rounded-t-[11px] border-b border-solid border-[var(--td-component-stroke,#dcdcdc)] px-3 py-1.5"
+      >
+        <!--
+          The chip surface stays neutral; only the icon's colour tells the
+          resource type apart (getMentionIconColorClass).
+        -->
         <span
           v-for="item in allSelectedItems"
           :key="`${item.type}:${item.id}`"
-          class="mention-chip"
-          :class="[getMentionChipClass(item)]"
+          class="group/chip bg-secondary text-foreground box-border inline-flex min-h-[26px] cursor-default items-center gap-[5px] rounded-md border border-solid border-[var(--td-component-stroke)] py-[3px] pr-[7px] pl-1.5 text-xs leading-[18px] font-medium shadow-[inset_0_1px_0_color-mix(in_srgb,var(--td-bg-color-container)_72%,transparent)] transition-[background,border-color] duration-150 hover:border-[var(--td-component-border)] hover:bg-[var(--td-bg-color-secondarycontainer-hover)]"
         >
-          <span class="mention-chip__icon-wrap" :class="{ 'has-org': item.org_name }">
-            <span class="mention-chip__icon">
-              <t-icon v-if="item.type === 'kb'" :name="item.kbType === 'faq' ? 'chat-bubble-help' : 'folder'" />
-              <t-icon v-else :name="getMentionIcon(item)" />
+          <span
+            class="relative inline-flex size-4 min-w-0 flex-[0_1_auto] items-center justify-center"
+            :class="getMentionIconColorClass(item)"
+          >
+            <span class="flex items-center justify-center text-inherit">
+              <component :is="getMentionIcon(item)" class="size-3" />
             </span>
-            <span v-if="item.org_name" class="mention-chip__org-badge">
+            <span
+              v-if="item.org_name"
+              class="bg-secondary pointer-events-none absolute -right-px -bottom-px flex size-2 items-center justify-center rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"
+            >
               <img
                 :src="getImgSrc(item.type === 'file' ? 'organization-grey.svg' : 'organization-green.svg')"
-                class="mention-chip__org-img"
+                class="size-[5px] object-contain"
                 alt=""
                 aria-hidden="true"
               />
             </span>
           </span>
-          <span class="mention-chip__name" :title="item.name">{{ item.name }}</span>
-          <span class="mention-chip__remove" @click.stop="removeSelectedItem(item)" :aria-label="$t('common.remove')"
+          <span class="max-w-[100px] truncate text-current" :title="item.name">{{ item.name }}</span>
+          <span
+            class="hover:text-foreground ml-px inline-flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-sm leading-none font-normal text-current opacity-50 transition-[opacity,background,color] duration-150 group-hover/chip:opacity-85 hover:bg-[var(--td-bg-color-component)]"
+            @click.stop="removeSelectedItem(item)"
+            :aria-label="$t('common.remove')"
             >×</span
           >
         </span>
       </div>
 
-      <!-- 实际输入框 -->
-      <t-textarea
+      <!--
+        实际输入框. A native <textarea> rather than the ui Textarea: that one
+        forwards its model through a deferred watcher, so query would still hold
+        the previous text when onInput runs, and the @-mention detection reads
+        it on that same event. autosize() grows the box with its content
+        between the min and max heights, as TDesign's autosize did.
+      -->
+      <textarea
         ref="textareaRef"
         v-model="query"
+        data-slot="textarea"
         :placeholder="inputPlaceholder"
         name="description"
-        :autosize="true"
+        class="text-foreground placeholder:text-placeholder box-border block max-h-[200px] min-h-[120px] w-full resize-none border-none bg-transparent pr-4 pb-14 pl-4 font-(family-name:--app-font-family) text-base leading-6 font-normal shadow-none outline-none placeholder:font-(family-name:--app-font-family) placeholder:text-base placeholder:leading-6 placeholder:font-normal focus:border-none focus:shadow-none"
+        :class="allSelectedItems.length > 0 ? 'rounded-b-[12px] pt-3' : 'rounded-[12px] pt-4'"
         @keydown="onKeydown"
         @input="onInput"
         @compositionstart="onCompositionStart"
@@ -1387,12 +1466,53 @@ defineExpose({
       />
 
       <!-- 控制栏（放在 rich-input-container 内，相对输入框边框定位） -->
-      <div class="control-bar">
+      <div
+        class="pointer-events-auto absolute right-4 bottom-3 left-4 z-10 flex max-h-14 flex-wrap items-center justify-between gap-2 bg-[linear-gradient(to_bottom,rgba(255,255,255,0)_0%,var(--td-bg-color-container,#fff)_40%,var(--td-bg-color-container,#fff)_100%)] pt-2"
+      >
         <!-- 左侧控制按钮 -->
-        <div class="control-left">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <!-- @ 知识库/文件选择按钮 -->
-          <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
-            <template #content>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div
+                ref="atButtonRef"
+                data-guide="chat-kb-mention"
+                :class="[
+                  controlBtnClass,
+                  'relative h-7 w-[30px] min-w-[30px] p-0 hover:bg-[var(--td-bg-color-secondarycontainer-hover)]',
+                  {
+                    'bg-secondary text-primary shadow-[inset_0_0_0_1px_var(--td-component-stroke)]':
+                      allSelectedItems.length > 0,
+                  },
+                ]"
+                @click.stop
+                @mousedown.prevent="triggerMention"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="size-[18px]"
+                >
+                  <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.8" />
+                  <path
+                    d="M13.5 10V11.5C13.5 12.163 13.7634 12.7989 14.2322 13.2678C14.7011 13.7366 15.337 14 16 14C16.663 14 17.2989 13.7366 17.7678 13.2678C18.2366 12.7989 18.5 12.163 18.5 11.5V10C18.5 7.74566 17.6045 5.58365 16.0104 3.98959C14.4163 2.39553 12.2543 1.5 10 1.5C7.74566 1.5 5.58365 2.39553 3.98959 3.98959C2.39553 5.58365 1.5 7.74566 1.5 10C1.5 12.2543 2.39553 14.4163 3.98959 16.0104C5.58365 17.6045 7.74566 18.5 10 18.5H12"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span
+                  v-if="allSelectedItems.length > 0"
+                  class="border-card bg-primary text-primary-foreground absolute -top-[5px] -right-[5px] box-content flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-solid px-[3px] text-[9px] leading-[15px] font-semibold"
+                  >{{ allSelectedItems.length }}</span
+                >
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" :class="lightTooltipClass">
               <span>{{
                 allSelectedItems.length > 0
                   ? $t("input.knowledgeBaseWithCount", {
@@ -1400,64 +1520,68 @@ defineExpose({
                     })
                   : $t("input.knowledgeBase")
               }}</span>
-            </template>
-            <div
-              ref="atButtonRef"
-              class="control-btn kb-btn"
-              data-guide="chat-kb-mention"
-              :class="{
-                active: allSelectedItems.length > 0,
-              }"
-              @click.stop
-              @mousedown.prevent="triggerMention"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                class="control-icon at-icon"
+            </TooltipContent>
+          </Tooltip>
+
+          <!-- 图片上传按钮 -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div
+                :class="[
+                  controlBtnClass,
+                  uploadBtnClass,
+                  uploadedImages.length > 0 ? uploadBtnActiveClass : uploadBtnIdleClass,
+                ]"
+                @click.stop="triggerImageUpload()"
               >
-                <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.8" />
-                <path
-                  d="M13.5 10V11.5C13.5 12.163 13.7634 12.7989 14.2322 13.2678C14.7011 13.7366 15.337 14 16 14C16.663 14 17.2989 13.7366 17.7678 13.2678C18.2366 12.7989 18.5 12.163 18.5 11.5V10C18.5 7.74566 17.6045 5.58365 16.0104 3.98959C14.4163 2.39553 12.2543 1.5 10 1.5C7.74566 1.5 5.58365 2.39553 3.98959 3.98959C2.39553 5.58365 1.5 7.74566 1.5 10C1.5 12.2543 2.39553 14.4163 3.98959 16.0104C5.58365 17.6045 7.74566 18.5 10 18.5H12"
+                <svg width="18" height="18" viewBox="0 0 1024 1024" fill="currentColor" class="size-[18px]">
+                  <path
+                    d="M896 128H128c-35.3 0-64 28.7-64 64v640c0 35.3 28.7 64 64 64h768c35.3 0 64-28.7 64-64V192c0-35.3-28.7-64-64-64zM128 832V192h768l0.1 640H128z"
+                  />
+                  <path d="M352 448a96 96 0 1 0 0-192 96 96 0 0 0 0 192z" />
+                  <path d="M128 768l224-288 160 160 192-256L896 640v128H128z" />
+                </svg>
+                <span v-if="uploadedImages.length > 0" :class="uploadCountClass">{{ uploadedImages.length }}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" :class="lightTooltipClass">
+              <span>{{ $t("chat.imageUploadTooltip") }}</span>
+            </TooltipContent>
+          </Tooltip>
+
+          <!-- 附件上传按钮 -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div
+                :class="[
+                  controlBtnClass,
+                  uploadBtnClass,
+                  uploadedAttachments.length > 0 ? uploadBtnActiveClass : uploadBtnIdleClass,
+                ]"
+                @click.stop="attachmentUploadRef?.triggerFileSelect()"
+              >
+                <!-- 回形针图标 -->
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
                   stroke="currentColor"
                   stroke-width="1.8"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                />
-              </svg>
-              <span v-if="allSelectedItems.length > 0" class="kb-count">{{ allSelectedItems.length }}</span>
-            </div>
-          </t-tooltip>
-
-          <!-- 图片上传按钮 -->
-          <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
-            <template #content>
-              <span>{{ $t("chat.imageUploadTooltip") }}</span>
-            </template>
-            <div
-              class="control-btn image-upload-btn"
-              :class="{
-                active: uploadedImages.length > 0,
-              }"
-              @click.stop="triggerImageUpload()"
-            >
-              <svg width="18" height="18" viewBox="0 0 1024 1024" fill="currentColor" class="control-icon">
-                <path
-                  d="M896 128H128c-35.3 0-64 28.7-64 64v640c0 35.3 28.7 64 64 64h768c35.3 0 64-28.7 64-64V192c0-35.3-28.7-64-64-64zM128 832V192h768l0.1 640H128z"
-                />
-                <path d="M352 448a96 96 0 1 0 0-192 96 96 0 0 0 0 192z" />
-                <path d="M128 768l224-288 160 160 192-256L896 640v128H128z" />
-              </svg>
-              <span v-if="uploadedImages.length > 0" class="image-count">{{ uploadedImages.length }}</span>
-            </div>
-          </t-tooltip>
-
-          <!-- 附件上传按钮 -->
-          <t-tooltip placement="top" theme="light" :popupProps="{ overlayClassName: 'input-field-tooltip' }">
-            <template #content>
+                  class="size-[18px]"
+                >
+                  <path
+                    d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                  />
+                </svg>
+                <span v-if="uploadedAttachments.length > 0" :class="uploadCountClass">{{
+                  uploadedAttachments.length
+                }}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" :class="lightTooltipClass">
               <span>{{
                 uploadedAttachments.length > 0
                   ? $t("chat.attachmentWithCount", {
@@ -1465,38 +1589,17 @@ defineExpose({
                     })
                   : $t("chat.attachmentUploadTooltip")
               }}</span>
-            </template>
-            <div
-              class="control-btn attachment-upload-btn"
-              :class="{ active: uploadedAttachments.length > 0 }"
-              @click.stop="attachmentUploadRef?.triggerFileSelect()"
-            >
-              <!-- 回形针图标 -->
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="control-icon"
-              >
-                <path
-                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
-                />
-              </svg>
-              <span v-if="uploadedAttachments.length > 0" class="attachment-count">{{
-                uploadedAttachments.length
-              }}</span>
-            </div>
-          </t-tooltip>
+            </TooltipContent>
+          </Tooltip>
 
           <!-- 模型显示 -->
-          <div class="model-display">
-            <div ref="modelButtonRef" class="model-selector-trigger" @click.stop="toggleModelSelector">
-              <span class="model-selector-name">
+          <div class="ml-auto flex shrink-0 items-center">
+            <div
+              ref="modelButtonRef"
+              class="border-border flex h-[22px] min-w-[100px] cursor-pointer items-center gap-1.5 rounded-[6px] border-[0.5px] border-solid px-2 py-0.5 transition-[background,border-color] duration-[120ms] hover:bg-[var(--td-bg-color-secondarycontainer-hover,#e6e6e6)]"
+              @click.stop="toggleModelSelector"
+            >
+              <span class="text-muted-foreground flex-1 truncate text-xs font-medium">
                 {{ selectedModelDisplayName }}
               </span>
               <svg
@@ -1504,8 +1607,8 @@ defineExpose({
                 height="12"
                 viewBox="0 0 12 12"
                 fill="currentColor"
-                class="model-dropdown-arrow"
-                :class="{ rotate: showModelSelector }"
+                class="text-placeholder size-2.5 shrink-0 transition-transform duration-[120ms]"
+                :class="{ 'rotate-180': showModelSelector }"
               >
                 <path d="M2.5 4.5L6 8L9.5 4.5H2.5Z" />
               </svg>
@@ -1514,34 +1617,60 @@ defineExpose({
         </div>
 
         <Teleport to="body">
-          <div v-if="showModelSelector" class="model-selector-overlay" @click="closeModelSelector">
-            <div class="model-selector-dropdown" :style="modelDropdownStyle" @click.stop>
-              <div class="model-selector-header">
+          <div
+            v-if="showModelSelector"
+            class="fixed inset-0 z-[9999] touch-none bg-transparent"
+            @click="closeModelSelector"
+          >
+            <!--
+              Positioned by JS (modelDropdownStyle). The transform is pinned to
+              none, as before, so only the opacity of the entrance animates.
+            -->
+            <div
+              class="animate-in border-border bg-card fade-in-0 fixed! z-[10000] m-0! flex origin-top-left transform-none! flex-col overflow-hidden rounded-[10px] border-[0.5px] border-solid p-0! shadow-[var(--td-shadow-2)] duration-150 ease-out"
+              :style="modelDropdownStyle"
+              @click.stop
+            >
+              <div
+                class="bg-card text-muted-foreground flex items-center justify-between border-b-[0.5px] border-solid border-[var(--td-component-stroke)] px-2.5 py-2 text-xs font-medium"
+              >
                 <span>{{ $t("conversationSettings.models.chatGroupLabel") }}</span>
-                <button class="model-selector-add" type="button" @click="handleModelChange('__add_model__')">
-                  <span class="add-icon">+</span>
-                  <span class="add-text">{{ $t("input.addModel") }}</span>
+                <button
+                  type="button"
+                  data-slot="model-selector-add"
+                  class="text-primary hover:bg-secondary inline-flex cursor-pointer items-center gap-1 rounded-[6px] border-[0.5px] border-solid border-transparent bg-transparent px-2 py-0.5 text-xs font-medium transition-all duration-[120ms] hover:text-[var(--td-brand-color-hover)]"
+                  @click="handleModelChange('__add_model__')"
+                >
+                  <span class="text-sm leading-none font-normal">+</span>
+                  <span>{{ $t("input.addModel") }}</span>
                 </button>
               </div>
-              <div class="model-selector-content">
+              <div
+                class="max-h-[260px] min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1.5 [-webkit-overflow-scrolling:touch]"
+              >
                 <div
                   v-for="model in availableModels"
                   :key="model.id"
-                  class="model-option"
-                  :class="{ selected: model.id === selectedModelId }"
+                  class="hover:bg-secondary mb-1 flex cursor-pointer items-center rounded-[6px] px-2 py-1.5 transition-[background] duration-[120ms] last:mb-0"
+                  :class="{ 'bg-secondary': model.id === selectedModelId }"
                   @click="handleModelChange(model.id || '')"
                 >
-                  <div class="model-option-left">
-                    <div class="model-option-icon">
-                      <t-icon name="chat" size="14px" />
+                  <div class="flex w-full min-w-0 items-center gap-2">
+                    <div class="text-muted-foreground flex size-4 shrink-0 items-center justify-center">
+                      <MessageSquareIcon class="size-3.5" />
                     </div>
-                    <div class="model-option-name-wrap">
-                      <span class="model-option-name">{{ modelDisplayName(model) }}</span>
-                      <span v-if="model.display_name" class="model-option-raw-name">{{ model.name }}</span>
+                    <div class="flex min-w-0 flex-1 items-center gap-1">
+                      <span class="text-foreground truncate text-xs leading-[1.4]">{{ modelDisplayName(model) }}</span>
+                      <span v-if="model.display_name" class="text-placeholder shrink-0 text-[11px]">{{
+                        model.name
+                      }}</span>
                     </div>
                   </div>
                 </div>
-                <div v-if="availableModels.length === 0" class="model-option empty">
+                <div
+                  v-if="availableModels.length === 0"
+                  class="text-placeholder mb-1 flex cursor-default items-center justify-center rounded-[6px] px-2 py-5 text-center last:mb-0"
+                >
                   {{ $t("input.noModel") }}
                 </div>
               </div>
@@ -1550,25 +1679,36 @@ defineExpose({
         </Teleport>
 
         <!-- 右侧控制按钮组 -->
-        <div class="control-right">
-          <!-- 停止按钮（仅在回复中时显示） -->
-          <t-tooltip v-if="isReplying" :content="$t('input.stopGeneration')" placement="top">
-            <div @click="handleStop" class="control-btn stop-btn">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="5" y="5" width="6" height="6" rx="1" />
-              </svg>
-            </div>
-          </t-tooltip>
+        <div class="flex items-center gap-2">
+          <!--
+            停止按钮（仅在回复中时显示）. The glyph is a pulsing dot drawn by
+            ::before; the square svg is kept but hidden, as before.
+          -->
+          <Tooltip v-if="isReplying">
+            <TooltipTrigger as-child>
+              <div :class="[controlBtnClass, stopBtnClass]" @click="handleStop">
+                <svg class="hidden" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="5" y="5" width="6" height="6" rx="1" />
+                </svg>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">{{ $t("input.stopGeneration") }}</TooltipContent>
+          </Tooltip>
 
-          <!-- 发送按钮 -->
+          <!-- 发送按钮. When disabled it keeps the old hover quirk: the neutral hover fill wins over the tint. -->
           <div
             v-if="!isReplying"
             @click="createSession(query)"
-            class="control-btn send-btn"
             data-guide="chat-send"
-            :class="{ disabled: !query.length }"
+            :class="[
+              controlBtnClass,
+              'size-7 p-0',
+              query.length
+                ? 'bg-primary hover:bg-[var(--td-brand-color-active)]'
+                : 'cursor-not-allowed bg-[var(--td-success-color-light)] opacity-50 hover:bg-[var(--td-bg-color-secondarycontainer,#f5f5f5)]',
+            ]"
           >
-            <img src="../assets/img/sending-aircraft.svg" :alt="$t('input.send')" />
+            <img src="../assets/img/sending-aircraft.svg" class="size-4" :alt="$t('input.send')" />
           </div>
         </div>
       </div>
@@ -1598,509 +1738,15 @@ const getImgSrc = (url: string) => {
   return new URL(`/src/assets/img/${url}`, import.meta.url).href;
 };
 </script>
-<style scoped lang="less">
-@import "./css/chat-resource-chips.less";
-
-.answers-input {
-  position: absolute;
-  z-index: 99;
-  bottom: 60px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-/* 富文本输入框容器 */
-.rich-input-container {
-  position: relative;
-  width: 100%;
-  max-width: 960px;
-  background: var(--td-bg-color-container, #fff);
-  border-radius: 12px;
-  border: 1px solid var(--td-component-stroke, #dcdcdc);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    0 8px 16px -4px rgba(0, 0, 0, 0.06);
-
-  &:focus-within {
-    border-color: var(--td-brand-color, #07c05f);
-  }
-}
-
-/* 选中的知识库/文件标签（mention list 已选项） */
-.selected-tags-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px 6px;
-  border-bottom: 1px solid var(--td-component-stroke, #dcdcdc);
-  background: var(--td-bg-color-container, #fff);
-  border-radius: 11px 11px 0 0;
-  /* 与 .rich-input-container 内缘上边圆角一致（12px - 1px 边框） */
-}
-
-.mention-chip {
-  .chat-resource-chip-surface();
-
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 26px;
-  padding: 3px 7px 3px 6px;
-  border-radius: var(--td-radius-medium, 6px);
-  box-sizing: border-box;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: default;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
-  line-height: 18px;
-
-  &:hover {
-    .chat-resource-chip-hover();
-  }
-}
-
-.mention-chip__icon-wrap {
-  position: relative;
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  flex: 0 1 auto;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-}
-
-.mention-chip__icon {
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-}
-
-.mention-chip__org-badge {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--td-bg-color-secondarycontainer, #f0f2f5);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.mention-chip__org-img {
-  width: 5px;
-  height: 5px;
-  object-fit: contain;
-}
-
-.mention-chip__name {
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: currentColor;
-}
-
-.mention-chip__remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-left: 1px;
-  border-radius: 50%;
-  font-size: 14px;
-  line-height: 1;
-  font-weight: 400;
-  cursor: pointer;
-  opacity: 0.5;
-  transition:
-    opacity 0.15s,
-    background 0.15s,
-    color 0.15s;
-  color: currentColor;
-  flex-shrink: 0;
-}
-
-.mention-chip:hover .mention-chip__remove {
-  opacity: 0.85;
-}
-
-.mention-chip__remove:hover {
-  opacity: 1;
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-primary, #1f2937);
-}
-
-/* 标签表面保持中性，仅用图标颜色表达资源类型。 */
-.mention-chip--kb {
-  color: var(--td-text-color-primary);
-}
-
-.mention-chip--kb .mention-chip__icon-wrap {
-  color: var(--td-brand-color, #07c05f);
-}
-
-.mention-chip--faq {
-  color: var(--td-text-color-primary);
-}
-
-.mention-chip--faq .mention-chip__icon-wrap {
-  color: var(--yuheng-faq-color, #0052d9);
-}
-
-.mention-chip--file {
-  color: var(--td-text-color-primary);
-}
-
-.mention-chip--file .mention-chip__icon-wrap {
-  color: var(--td-text-color-secondary, #6b7280);
-}
-
-.mention-chip--tag {
-  color: var(--td-text-color-primary);
-}
-
-.mention-chip--tag .mention-chip__icon-wrap {
-  color: #9f7aea;
-}
-
-:deep(.t-textarea__inner) {
-  width: 100%;
-  max-height: 200px !important;
-  min-height: 120px !important;
-  resize: none;
-  color: var(--td-text-color-primary, #000000e6);
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 24px;
-  font-family: var(--app-font-family);
-  padding: 12px 16px 56px 16px;
-  border-radius: 0 0 12px 12px;
-  border: none;
-  box-sizing: border-box;
-  background: transparent;
-  box-shadow: none;
-
-  &:focus {
-    border: none;
-    box-shadow: none;
-  }
-
-  &::placeholder {
-    color: var(--td-text-color-placeholder, #00000066);
-    font-family: var(--app-font-family);
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 24px;
-  }
-}
-
-/* 当没有选中标签时，textarea 样式 */
-.rich-input-container:not(:has(.selected-tags-inline)) :deep(.t-textarea__inner) {
-  border-radius: 12px;
-  padding-top: 16px;
-}
-
-/* 控制栏 */
-.control-bar {
-  position: absolute;
-  bottom: 12px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  max-height: 56px;
-  z-index: 10;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0) 0%,
-    var(--td-bg-color-container, #fff) 40%,
-    var(--td-bg-color-container, #fff) 100%
-  );
-  pointer-events: auto;
-  padding-top: 8px;
-}
-
-.control-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.control-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: var(--td-text-color-secondary, #666);
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-  user-select: none;
-  flex-shrink: 0;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer-hover, #e6e6e6);
-  }
-
-  &.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer, #f5f5f5);
-    }
-  }
-}
-
-.control-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.kb-btn {
-  height: 28px;
-  width: 30px;
-  padding: 0;
-  min-width: 30px;
-  position: relative;
-
-  &.active {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    box-shadow: inset 0 0 0 1px var(--td-component-stroke);
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer-hover);
-    }
-  }
-}
-
-.kb-count {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  background: var(--td-brand-color);
-  color: var(--td-text-color-anti, #fff);
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 15px;
-  border: 2px solid var(--td-bg-color-container);
-  border-radius: var(--td-radius-round, 999px);
-  box-sizing: content-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Image upload */
-.image-upload-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  min-width: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  color: var(--td-text-color-secondary, #666);
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer-hover, #f0f0f0);
-    color: var(--td-text-color-primary, #333);
-  }
-
-  &.active {
-    background: rgba(16, 185, 129, 0.1);
-    color: #07c05f;
-  }
-
-  .image-count {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    background: #07c05f;
-    color: #fff;
-    font-size: 10px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-  }
-}
-
-/* Attachment upload */
-.attachment-upload-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  min-width: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  color: var(--td-text-color-secondary, #666);
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer-hover, #f0f0f0);
-    color: var(--td-text-color-primary, #333);
-  }
-
-  &.active {
-    background: rgba(16, 185, 129, 0.1);
-    color: #07c05f;
-  }
-
-  .attachment-count {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    background: #07c05f;
-    color: #fff;
-    font-size: 10px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-  }
-}
-
-.image-preview-bar {
-  display: flex;
-  gap: 8px;
-  padding: 8px 12px 4px;
-  flex-wrap: wrap;
-}
-
-.image-preview-item {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--td-border-level-1-color, #e7e7e7);
-
-  .image-preview-thumb {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .image-preview-remove {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 16px;
-    height: 16px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    cursor: pointer;
-    line-height: 1;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.7);
-    }
-  }
-}
-
-:global(.input-field-tooltip) {
-  .t-popup__content {
-    box-shadow: var(--td-shadow-2);
-    border: 0.5px solid var(--td-component-border, #e7e7e7);
-  }
-}
-
-.model-dropdown-arrow {
-  width: 10px;
-  height: 10px;
-  color: var(--td-text-color-placeholder, #999);
-  flex-shrink: 0;
-  transition: transform 0.12s;
-
-  &.rotate {
-    transform: rotate(180deg);
-  }
-}
-
-.control-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stop-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: rgba(16, 185, 129, 0.08);
-  color: var(--td-brand-color);
-  border: 1.5px solid rgba(16, 185, 129, 0.2);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: var(--td-brand-color);
-  }
-
-  &:active {
-    background: rgba(16, 185, 129, 0.15);
-  }
-
-  svg {
-    display: none;
-  }
-
-  &::before {
-    content: "";
-    width: 12px;
-    height: 12px;
-    background: var(--td-brand-color);
-    border-radius: 50%;
-    display: block;
-    animation: stopBtnPulse 1.5s ease-in-out infinite;
-  }
-}
-
-@keyframes stopBtnPulse {
+<style>
+/*
+ * Kept as CSS because a keyframes rule cannot be a utility: the stop button's
+ * pulsing dot is animated by it (before:animate-[inputFieldStopPulse_…]).
+ * Unscoped on purpose: a scoped block would rename the keyframes with a hash
+ * that the utility class never sees. The component-specific name keeps it
+ * from clashing with anything global.
+ */
+@keyframes inputFieldStopPulse {
   0%,
   100% {
     transform: scale(1);
@@ -2111,218 +1757,5 @@ const getImgSrc = (url: string) => {
     transform: scale(0.75);
     opacity: 0.6;
   }
-}
-
-.send-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background-color: var(--td-brand-color);
-
-  &:hover:not(.disabled) {
-    background-color: var(--td-brand-color-active);
-  }
-
-  &.disabled {
-    background-color: var(--td-success-color-light);
-  }
-
-  img {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-/* 模型显示样式 */
-.model-display {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.model-selector-trigger {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  min-width: 100px;
-  height: 22px;
-  border-radius: 6px;
-  border: 0.5px solid var(--td-component-border, #e7e7e7);
-  transition:
-    background 0.12s,
-    border-color 0.12s;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer-hover, #e6e6e6);
-  }
-}
-
-.model-selector-name {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary, #666);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.model-selector-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: transparent;
-  touch-action: none;
-}
-
-.model-selector-dropdown {
-  position: fixed !important;
-  z-index: 10000;
-  background: var(--td-bg-color-container);
-  border: 0.5px solid var(--td-component-border);
-  border-radius: 10px;
-  box-shadow: var(--td-shadow-2);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  margin: 0 !important;
-  padding: 0 !important;
-  transform: none !important;
-  transform-origin: top left;
-  animation: modelSelectorFadeIn 0.15s ease-out;
-}
-
-@keyframes modelSelectorFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.model-selector-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-bottom: 0.5px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-}
-
-.model-selector-content {
-  flex: 1;
-  min-height: 0;
-  max-height: 260px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: 6px 8px;
-}
-
-.model-selector-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: 0.5px solid transparent;
-  background: transparent;
-  color: var(--td-brand-color);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.12s;
-
-  .add-icon {
-    font-size: 14px;
-    line-height: 1;
-    font-weight: 400;
-  }
-
-  &:hover {
-    color: var(--td-brand-color-hover);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.model-option {
-  display: flex;
-  align-items: center;
-  padding: 6px 8px;
-  cursor: pointer;
-  transition: background 0.12s;
-  border-radius: 6px;
-  margin-bottom: 4px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  &:hover,
-  &.selected {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.empty {
-    color: var(--td-text-color-placeholder);
-    cursor: default;
-    text-align: center;
-    padding: 20px 8px;
-
-    &:hover {
-      background: transparent;
-    }
-  }
-}
-
-.model-option-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.model-option-icon {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--td-text-color-secondary);
-}
-
-.model-option-name-wrap {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.model-option-name {
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.4;
-}
-
-.model-option-raw-name {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
 }
 </style>

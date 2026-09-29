@@ -16,6 +16,19 @@ import {
   type KnowledgeTraceNode,
 } from "@/utils/knowledgeTrace";
 import { resolveTimelineHeaderStatus } from "@/utils/knowledgeProcessingStatus";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleXIcon,
+  CopyIcon,
+  InfoIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+  XIcon,
+} from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
 
 type SpanNode = KnowledgeTraceNode;
@@ -483,6 +496,38 @@ async function onManualRefresh() {
 }
 
 const cancelling = ref(false);
+// The stop-parse confirmation is a controlled popover so that both of its
+// buttons can close it; the confirm button also starts the cancel.
+const cancelConfirmOpen = ref(false);
+
+function confirmCancelParse() {
+  cancelConfirmOpen.value = false;
+  void onCancelParseConfirm();
+}
+
+// The processing-config card opened on hover (it was a hover-triggered
+// TDesign popup). Reka's Popover only opens on click, so hover is driven
+// by hand: entering the trigger or the card opens it, and leaving either
+// closes it after a short grace period, long enough for the pointer to
+// travel from the button into the card without the card vanishing.
+const processConfigOpen = ref(false);
+let processConfigCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+function openProcessConfig() {
+  if (processConfigCloseTimer) {
+    clearTimeout(processConfigCloseTimer);
+    processConfigCloseTimer = null;
+  }
+  processConfigOpen.value = true;
+}
+
+function scheduleCloseProcessConfig() {
+  if (processConfigCloseTimer) clearTimeout(processConfigCloseTimer);
+  processConfigCloseTimer = setTimeout(() => {
+    processConfigOpen.value = false;
+    processConfigCloseTimer = null;
+  }, 150);
+}
 
 // Mirrors the backend CancelKnowledgeParse gate (pending / processing /
 // finalizing). Uses the freshest status we have: live span data first,
@@ -590,6 +635,10 @@ onBeforeUnmount(() => {
     nowTimer = null;
   }
   window.removeEventListener("keydown", onKeydown);
+  if (processConfigCloseTimer) {
+    clearTimeout(processConfigCloseTimer);
+    processConfigCloseTimer = null;
+  }
 });
 
 // ---------- Waterfall helpers ----------
@@ -1128,15 +1177,15 @@ const attemptTabs = computed<AttemptTab[]>(() => {
 function attemptGlyph(status: string): { ch: string; cls: string } {
   switch (status) {
     case "done":
-      return { ch: "✓", cls: "kp-glyph-done" };
+      return { ch: "✓", cls: "text-success" };
     case "failed":
-      return { ch: "✗", cls: "kp-glyph-failed" };
+      return { ch: "✗", cls: "text-destructive" };
     case "running":
     case "pending":
     case "processing":
-      return { ch: "●", cls: "kp-glyph-running" };
+      return { ch: "●", cls: "text-warning animate-[kpLivePulse_1.4s_ease-in-out_infinite]" };
     default:
-      return { ch: "–", cls: "kp-glyph-unknown" };
+      return { ch: "–", cls: "text-placeholder" };
   }
 }
 
@@ -1170,20 +1219,24 @@ const headerStatusText = computed(() => {
   return s ? localizedStatus(s) : "";
 });
 
-const headerStatusTheme = computed(() => {
+// The header badge's tint, one class string per tone. These were the
+// success / danger / warning / default themes of a small light TDesign tag;
+// the colours are the same TDesign variables, so the badge still matches
+// the rest of the page in both themes.
+const headerStatusClass = computed(() => {
   switch (headerStatus.value) {
     case "done":
     case "completed":
-      return "success";
+      return "bg-(--td-success-color-light) text-success";
     case "failed":
-      return "danger";
+      return "bg-(--td-error-color-light) text-destructive";
     case "running":
     case "processing":
     case "pending":
     case "finalizing":
-      return "warning";
+      return "bg-(--td-warning-color-light) text-warning";
     default:
-      return "default";
+      return "bg-muted text-foreground";
   }
 });
 
@@ -1455,30 +1508,193 @@ const processConfigLines = computed<string[]>(() => {
 
   return lines.length ? lines : [t("knowledgeStages.processConfig.kbDefault")];
 });
+// ---------- Status styling ----------
+//
+// The waterfall paints the same handful of span statuses in several
+// places (row dots, bars, the outline behind a bar, the detail chip, the
+// stage breakdown). Each used to be a `.kp-<part>-<status>` rule; they are
+// now one function per part returning the utility classes for a status, so
+// the palette for a part reads in one place and Tailwind sees every class
+// as a literal string.
+
+// The status dot next to a row name, in the detail header, in the stage
+// breakdown and in the compact popover. `placeholder` marks a stage the
+// trace has not reached yet: an empty dashed ring, whatever its status.
+function dotClass(status: string, placeholder = false): string {
+  if (placeholder) return "border border-dashed border-border bg-transparent";
+  switch (status) {
+    case "done":
+    case "completed":
+      return "bg-success";
+    case "running":
+    case "processing":
+      return "bg-warning animate-[kpLivePulse_1.4s_ease-in-out_infinite]";
+    case "failed":
+      return "bg-destructive";
+    case "cancelled":
+      return "border border-dashed border-placeholder bg-transparent";
+    case "skipped":
+      return "bg-placeholder opacity-40";
+    case "pending":
+      return "border border-solid border-border bg-transparent";
+    default:
+      return "bg-placeholder";
+  }
+}
+
+// The span's own bar in the waterfall. Status palette — NOT all green. The
+// project brand color happens to be green, which made done/running
+// visually identical (both solid green). Done stays green (universal
+// "success" semantic); running goes amber + striped (CI-style "in
+// progress" — recognized everywhere from GitHub Actions to Jenkins).
+//
+// The running bar is `relative` rather than `absolute`: it carries the
+// indeterminate sweep as an ::after that has to be clipped to the bar.
+// It is the only in-flow child of its cell, so `left` / `top` place it
+// exactly where the absolute bars sit.
+function barClass(status: string): string {
+  switch (status) {
+    case "done":
+      return "absolute top-3 h-2 bg-success";
+    case "failed":
+      return "absolute top-3 h-2 bg-destructive";
+    case "cancelled":
+      return "absolute top-[13px] h-1.5 border border-dashed border-destructive bg-transparent";
+    case "skipped":
+      return "absolute top-3 h-2 bg-placeholder opacity-40";
+    case "pending":
+      return "hidden";
+    case "running":
+      // Muted amber base. The diagonal stripes do the "in flight"
+      // signaling — the tone just supplies a subtle hint. Earlier
+      // iteration used full --td-warning-color + halo shadow + hard
+      // white stripes; users found that visually screaming.
+      return (
+        "relative top-3 h-2 overflow-hidden bg-(--td-warning-color-3) " +
+        "bg-[linear-gradient(135deg,rgba(255,255,255,0.22)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.22)_50%,rgba(255,255,255,0.22)_75%,transparent_75%,transparent)] " +
+        "bg-size-[14px_14px] animate-[kpStripes_1.6s_linear_infinite] " +
+        "after:absolute after:inset-0 after:animate-[kpSweep_1.6s_linear_infinite] " +
+        "after:bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.5)_50%,transparent_100%)]"
+      );
+    default:
+      return "absolute top-3 h-2 bg-placeholder";
+  }
+}
+
+// The dashed outline drawn behind a bar whose descendants outlive it. The
+// border tints are the old fixed rgba values; hover (in the template)
+// replaces them with the secondary text colour.
+function wrapClass(status: string): string {
+  switch (status) {
+    case "done":
+      return "border-[rgba(7,192,95,0.35)]";
+    case "failed":
+      return "border-[rgba(229,87,64,0.5)]";
+    case "running":
+      return "border-[rgba(250,157,59,0.5)]";
+    case "cancelled":
+      return "border-[rgba(229,87,64,0.3)]";
+    default:
+      return "border-border";
+  }
+}
+
+// The fill of a stage's bar in the root overview's breakdown table. Same
+// palette as the waterfall bars, sized to the table's 6px track.
+function breakdownBarClass(status: string): string {
+  switch (status) {
+    case "done":
+      return "bg-success";
+    case "failed":
+      return "bg-destructive";
+    case "cancelled":
+      return "border border-dashed border-destructive bg-transparent";
+    case "skipped":
+      return "bg-placeholder opacity-40";
+    case "pending":
+      return "hidden";
+    case "running":
+      return (
+        "bg-(--td-warning-color-3) " +
+        "bg-[linear-gradient(135deg,rgba(255,255,255,0.22)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.22)_50%,rgba(255,255,255,0.22)_75%,transparent_75%,transparent)] " +
+        "bg-size-[14px_14px] animate-[kpStripes_1.6s_linear_infinite]"
+      );
+    default:
+      return "bg-placeholder";
+  }
+}
+
+// The status chip in the detail header — a soft tinted background, the way
+// a light TDesign tag looks.
+function chipClass(status: string): string {
+  switch (status) {
+    case "done":
+      return "bg-(--td-success-color-light) text-success";
+    case "running":
+      return "bg-(--td-warning-color-light) text-warning";
+    case "failed":
+      return "bg-(--td-error-color-light) text-destructive";
+    case "cancelled":
+    case "pending":
+      return "bg-(--td-bg-color-component) text-muted-foreground";
+    case "skipped":
+      return "bg-(--td-bg-color-component) text-placeholder";
+    default:
+      return "bg-(--td-bg-color-component) text-foreground";
+  }
+}
+
+// A waterfall row's background. The active row and hovered rows share the
+// secondary container colour; stage rows keep their tint on hover (their
+// rule used to outrank the hover rule), span rows are a hair off the card
+// colour until hovered.
+function rowClass(row: FlatRow): string {
+  if (selectedSpanId.value === row.key) return "bg-muted before:bg-primary";
+  if (row.isStage) return "bg-[color-mix(in_srgb,var(--td-bg-color-secondarycontainer)_55%,transparent)]";
+  if (!row.isRoot) {
+    return "bg-[color-mix(in_srgb,var(--td-bg-color-container)_92%,var(--td-bg-color-secondarycontainer))] hover:bg-muted";
+  }
+  return "hover:bg-muted";
+}
+
+// A detail tab's text colour. A tab with nothing to show stays greyed out
+// even while it is the active one; hover always brings the text forward.
+function tabClass(tab: typeof detailTab.value, empty = false): string {
+  const active = detailTab.value === tab;
+  const colour = empty ? "text-placeholder" : active ? "text-foreground" : "text-muted-foreground";
+  const underline = active
+    ? "font-semibold after:absolute after:right-3.5 after:-bottom-px after:left-3.5 after:h-0.5 after:rounded-t-[2px] after:bg-primary"
+    : "";
+  return `${colour} ${underline}`;
+}
 </script>
 
 <template>
-  <div class="kp-timeline" :class="{ 'kp-compact': compact }">
+  <!-- `kp-timeline` stays as a hook: doc-content.vue sizes this root through it. -->
+  <div
+    class="kp-timeline text-foreground overflow-hidden font-(family-name:--app-font-family) text-[13px]"
+    :class="compact ? 'h-auto w-full max-w-[320px]' : 'h-full w-full'"
+  >
     <!-- =========================================================
          COMPACT MODE — used by the card hover popover. Untouched.
          ========================================================= -->
     <template v-if="compact">
-      <div class="kp-compact-row">
+      <div class="flex items-center gap-1.5">
         <span
           v-for="s in stages"
           :key="s.name"
-          class="kp-dot"
-          :class="['kp-dot-' + s.status]"
+          class="inline-block size-2 rounded-full"
+          :class="dotClass(s.status)"
           :title="t(`knowledgeStages.stage.${s.name}`) + ' · ' + t(`knowledgeStages.status.${s.status}`)"
         />
       </div>
-      <div class="kp-compact-caption">
+      <div class="text-muted-foreground mt-1 truncate text-xs">
         <template v-if="totalMs > 0">
           {{ t("knowledgeStages.totalDuration", { d: formatDuration(totalMs) }) }}
         </template>
         <template v-else>
           <span>{{ t("knowledgeStages.title") }}：</span>
-          <span class="kp-stage-emph">{{ currentStageIndex }}/{{ stages.length }}</span>
+          <span class="text-primary font-semibold">{{ currentStageIndex }}/{{ stages.length }}</span>
           <span> · {{ currentStageLabel }}</span>
         </template>
       </div>
@@ -1489,134 +1705,216 @@ const processConfigLines = computed<string[]>(() => {
          secondary drawer. Bottom-docked detail panel.
          ========================================================= -->
     <template v-else>
-      <div class="kp-shell">
+      <div class="bg-card relative flex size-full min-h-0 min-w-0 flex-col overflow-hidden">
         <!-- ============== HEADER ============== -->
-        <div class="kp-head">
-          <div class="kp-head-toolbar">
-            <h2 class="kp-head-doc-title" :title="primaryHeadTitle">{{ primaryHeadTitle }}</h2>
-            <t-tag
+        <div class="border-border bg-card flex-none border-0 border-b border-solid px-5 pt-3.5 pb-2.5">
+          <div class="flex min-w-0 items-center gap-2">
+            <h2
+              class="text-foreground m-0 min-w-0 flex-1 truncate text-[15px] leading-[1.35] font-semibold"
+              :title="primaryHeadTitle"
+            >
+              {{ primaryHeadTitle }}
+            </h2>
+            <span
               v-if="data && headerStatusText"
-              size="small"
-              :theme="headerStatusTheme"
-              variant="light"
-              class="kp-head-status-tag"
+              class="inline-flex h-5 shrink-0 items-center rounded-(--td-radius-default) px-1.5 text-xs leading-none whitespace-nowrap"
+              :class="headerStatusClass"
             >
               {{ headerStatusText }}
-            </t-tag>
-            <span v-if="isLive" class="kp-live-badge" :title="t('knowledgeStages.liveTooltip')">
-              <span class="kp-live-dot" />
-              <span class="kp-live-text">{{ t("knowledgeStages.live") }}</span>
             </span>
-            <div class="kp-head-actions">
-              <t-popup trigger="hover" placement="bottom-right" :overlay-style="{ maxWidth: '340px' }">
-                <button
-                  type="button"
-                  class="kp-icon-btn"
-                  :title="t('knowledgeStages.processConfig.title')"
-                  :aria-label="t('knowledgeStages.processConfig.title')"
+            <!-- LIVE badge — sits next to the title while polling, telegraphs the
+                 pipeline is actively refreshing. Pulsing dot + uppercase mono label. -->
+            <span
+              v-if="isLive"
+              class="text-warning inline-flex items-center gap-[5px] rounded-md bg-(--td-warning-color-light) px-2 py-0.5 text-[10px] leading-none font-semibold tracking-[0.06em] uppercase"
+              :title="t('knowledgeStages.liveTooltip')"
+            >
+              <span class="bg-warning size-1.5 animate-[kpLivePulse_1.4s_ease-in-out_infinite] rounded-full" />
+              <span class="font-(family-name:--app-font-family-mono)">{{ t("knowledgeStages.live") }}</span>
+            </span>
+            <div class="ml-auto flex shrink-0 items-center gap-1">
+              <Popover :open="processConfigOpen" @update:open="(v: boolean) => (processConfigOpen = v)">
+                <PopoverTrigger as-child>
+                  <button
+                    type="button"
+                    data-slot="icon-button"
+                    class="text-placeholder hover:bg-muted hover:text-foreground inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150"
+                    :title="t('knowledgeStages.processConfig.title')"
+                    :aria-label="t('knowledgeStages.processConfig.title')"
+                    @mouseenter="openProcessConfig"
+                    @mouseleave="scheduleCloseProcessConfig"
+                  >
+                    <InfoIcon class="size-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  class="w-auto max-w-[340px] gap-1 px-3 py-2"
+                  @open-auto-focus.prevent
+                  @mouseenter="openProcessConfig"
+                  @mouseleave="scheduleCloseProcessConfig"
                 >
-                  <t-icon name="info-circle" size="14px" />
-                </button>
-                <template #content>
-                  <div class="kp-proccfg-pop">
-                    <div class="kp-proccfg-title">{{ t("knowledgeStages.processConfig.title") }}</div>
-                    <div v-for="(line, i) in processConfigLines" :key="i" class="kp-proccfg-line">{{ line }}</div>
+                  <div class="text-foreground mb-0.5 text-[13px] font-semibold">
+                    {{ t("knowledgeStages.processConfig.title") }}
                   </div>
-                </template>
-              </t-popup>
+                  <div
+                    v-for="(line, i) in processConfigLines"
+                    :key="i"
+                    class="text-muted-foreground text-xs leading-[1.6] [word-break:break-word]"
+                  >
+                    {{ line }}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <button
                 type="button"
-                class="kp-icon-btn"
-                :class="{
-                  'kp-icon-btn-spin': refreshing,
-                  'kp-icon-btn-autoflow': isLive && !refreshing,
-                }"
+                data-slot="icon-button"
+                class="text-placeholder enabled:hover:bg-muted enabled:hover:text-foreground inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                 :disabled="loading || refreshing"
                 :title="isLive ? t('knowledgeStages.autoRefreshOn') : t('knowledgeStages.refresh')"
                 :aria-label="isLive ? t('knowledgeStages.autoRefreshOn') : t('knowledgeStages.refresh')"
                 @click="onManualRefresh"
               >
-                <t-icon name="refresh" size="14px" />
+                <!-- A fast spin while a manual refresh is in flight; a slow amber
+                     rotation while auto-polling, which says "refresh is happening
+                     on its own" without an extra label or badge. -->
+                <RefreshCwIcon
+                  class="size-3.5"
+                  :class="{
+                    'animate-spin [animation-duration:0.9s]': refreshing,
+                    'text-warning animate-spin [animation-duration:4s]': isLive && !refreshing,
+                  }"
+                />
               </button>
-              <t-popconfirm
+              <Popover
                 v-if="canCancelParse"
-                theme="warning"
-                :content="t('knowledgeBase.cancelParseConfirmBody', { title: props.docTitle || props.knowledgeId })"
-                :confirm-btn="{ content: t('knowledgeBase.cancelParse'), theme: 'danger' }"
-                :cancel-btn="{ content: t('common.cancel') }"
-                placement="bottom"
-                @confirm="onCancelParseConfirm"
+                :open="cancelConfirmOpen"
+                @update:open="(v: boolean) => (cancelConfirmOpen = v)"
               >
-                <button
-                  type="button"
-                  class="kp-icon-btn kp-icon-btn-danger"
-                  :class="{ 'kp-icon-btn-spin': cancelling }"
-                  :disabled="cancelling"
-                  :title="t('knowledgeBase.cancelParse')"
-                  :aria-label="t('knowledgeBase.cancelParse')"
-                  @click.stop
-                >
-                  <t-icon :name="cancelling ? 'loading' : 'close-circle'" size="15px" />
-                </button>
-              </t-popconfirm>
-              <t-button
+                <PopoverTrigger as-child>
+                  <!-- Stop-parse control — stays a quiet placeholder icon until hover, then
+                       reveals its destructive intent with the error tint. Matches the other
+                       header icon buttons rather than shouting with a full outline button. -->
+                  <button
+                    type="button"
+                    data-slot="icon-button"
+                    class="text-placeholder enabled:hover:text-destructive inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150 enabled:hover:bg-(--td-error-color-light) disabled:cursor-not-allowed disabled:opacity-40"
+                    :disabled="cancelling"
+                    :title="t('knowledgeBase.cancelParse')"
+                    :aria-label="t('knowledgeBase.cancelParse')"
+                    @click.stop
+                  >
+                    <Loader2Icon v-if="cancelling" class="size-[15px] animate-spin [animation-duration:0.9s]" />
+                    <CircleXIcon v-else class="size-[15px]" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="bottom" class="w-72">
+                  <div class="flex gap-2">
+                    <CircleAlertIcon class="text-warning mt-0.5 size-4 shrink-0" />
+                    <p class="text-foreground m-0 text-sm">
+                      {{ t("knowledgeBase.cancelParseConfirmBody", { title: props.docTitle || props.knowledgeId }) }}
+                    </p>
+                  </div>
+                  <div class="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" @click="cancelConfirmOpen = false">
+                      {{ t("common.cancel") }}
+                    </Button>
+                    <Button variant="destructive" size="sm" @click="confirmCancelParse">
+                      {{ t("knowledgeBase.cancelParse") }}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
                 v-if="data?.parse_status === 'failed'"
-                size="small"
-                theme="primary"
+                size="sm"
                 variant="outline"
+                class="border-primary text-primary hover:text-primary dark:border-primary"
                 @click="onRetry"
               >
-                <t-icon name="refresh" size="14px" />
-                <span style="margin-left: 4px">{{ t("knowledgeStages.retry") }}</span>
-              </t-button>
+                <RefreshCwIcon class="size-3.5" />
+                <span>{{ t("knowledgeStages.retry") }}</span>
+              </Button>
               <button
                 v-if="showClose"
                 type="button"
-                class="kp-icon-btn"
+                data-slot="icon-button"
+                class="text-placeholder hover:bg-muted hover:text-foreground inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150"
                 :aria-label="t('knowledgeStages.close')"
                 :title="t('knowledgeStages.close')"
                 @click="emit('close')"
               >
-                <t-icon name="close" size="16px" />
+                <XIcon class="size-4" />
               </button>
             </div>
           </div>
 
-          <p v-if="headMetaParts.length > 0" class="kp-head-meta">
+          <p
+            v-if="headMetaParts.length > 0"
+            class="text-muted-foreground mx-0 mt-2 mb-0 text-xs leading-normal [word-break:break-word]"
+          >
             <template v-for="(part, idx) in headMetaParts" :key="idx">
-              <span v-if="idx > 0" class="kp-head-meta-sep" aria-hidden="true">·</span>
-              <span class="kp-head-meta-part">{{ part }}</span>
+              <span v-if="idx > 0" class="text-placeholder mx-1.5" aria-hidden="true">·</span>
+              <span class="inline">{{ part }}</span>
             </template>
           </p>
 
-          <div v-if="attemptTabs.length > 0" class="kp-attempts">
+          <!-- Attempts strip -->
+          <div v-if="attemptTabs.length > 0" class="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
             <button
               v-for="tab in attemptTabs"
               :key="tab.n"
               type="button"
-              class="kp-attempt"
-              :class="{ 'kp-attempt-active': tab.active }"
+              data-slot="attempt"
+              class="inline-flex items-center gap-[5px] rounded-(--td-radius-default) border border-solid px-2.5 py-1 text-xs leading-[1.4] whitespace-nowrap transition-colors duration-150"
+              :class="
+                tab.active
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-card text-muted-foreground hover:border-placeholder hover:bg-muted hover:text-foreground'
+              "
               @click="onAttemptChange(tab.n)"
             >
-              <span class="kp-attempt-num kp-mono">#{{ tab.n }}</span>
-              <span class="kp-attempt-glyph" :class="attemptGlyph(tab.status).cls">{{
-                attemptGlyph(tab.status).ch
-              }}</span>
+              <span class="font-(family-name:--app-font-family-mono) text-[11px] font-semibold tracking-normal"
+                >#{{ tab.n }}</span
+              >
+              <span
+                class="text-[9px] leading-none"
+                :class="[attemptGlyph(tab.status).cls, { 'text-primary-foreground!': tab.active }]"
+                >{{ attemptGlyph(tab.status).ch }}</span
+              >
             </button>
           </div>
 
-          <div v-if="showLastError && data?.last_error" class="kp-last-error" role="alert">
-            <div class="kp-last-error-bar" />
-            <div class="kp-last-error-body">
-              <div class="kp-last-error-row">
-                <span class="kp-last-error-glyph">!</span>
-                <span class="kp-last-error-title">{{ localizedErrorTitle(data.last_error.error_code) }}</span>
-                <span v-if="data.last_error.error_code" class="kp-last-error-code kp-mono">{{
-                  data.last_error.error_code
+          <!-- Last error block — pinned in the header so long trace trees don't bury it -->
+          <div
+            v-if="showLastError && data?.last_error"
+            class="mt-2.5 flex overflow-hidden rounded-md border border-solid border-(--td-error-color-3) bg-(--td-error-color-light)"
+            role="alert"
+          >
+            <div class="bg-destructive w-[3px] shrink-0" />
+            <div class="min-w-0 flex-1 px-3.5 py-2.5">
+              <div class="mb-1 flex items-center gap-2">
+                <span
+                  class="bg-destructive text-primary-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                  >!</span
+                >
+                <span class="text-destructive text-xs font-semibold">{{
+                  localizedErrorTitle(data.last_error.error_code)
                 }}</span>
+                <span
+                  v-if="data.last_error.error_code"
+                  class="bg-destructive text-primary-foreground ml-auto rounded-sm px-1.5 py-px font-(family-name:--app-font-family-mono) text-[11px] tracking-normal"
+                  >{{ data.last_error.error_code }}</span
+                >
               </div>
-              <div class="kp-last-error-suggestion">{{ localizedErrorSuggestion(data.last_error.error_code) }}</div>
-              <div v-if="data.last_error.error_message" class="kp-last-error-raw kp-mono">
+              <div class="text-muted-foreground mb-1 text-xs">
+                {{ localizedErrorSuggestion(data.last_error.error_code) }}
+              </div>
+              <div
+                v-if="data.last_error.error_message"
+                class="text-placeholder font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+              >
                 {{ data.last_error.error_message }}
               </div>
             </div>
@@ -1624,93 +1922,123 @@ const processConfigLines = computed<string[]>(() => {
         </div>
 
         <!-- ============== BODY (Waterfall) ============== -->
-        <div class="kp-body" :class="{ 'kp-body-with-detail': detailOpen }">
-          <div v-if="loading && !data" class="kp-state">
-            <t-loading size="small" />
+        <div class="bg-card flex min-h-0 flex-auto flex-col overflow-hidden">
+          <div
+            v-if="loading && !data"
+            class="text-placeholder flex flex-auto items-center justify-center gap-2 px-5 py-14 text-[13px]"
+          >
+            <Loader2Icon class="text-primary size-5 animate-spin" />
           </div>
-          <div v-else-if="!data && !loading" class="kp-state kp-state-empty">
+          <div
+            v-else-if="!data && !loading"
+            class="text-placeholder flex flex-auto items-center justify-center gap-2 px-5 py-14 text-[13px]"
+          >
             <span>{{ t("knowledgeStages.noActivity") }}</span>
           </div>
 
           <template v-else-if="data">
             <!-- Ruler sits outside the scroll region so the time axis never
                  scrolls away or fights position:sticky inside overflow. -->
-            <div v-if="showRuler" class="kp-ruler">
-              <div class="kp-ruler-spacer-name" />
-              <div class="kp-ruler-spacer-meta" />
-              <div class="kp-ruler-track">
+            <div
+              v-if="showRuler"
+              class="border-border bg-card grid h-6 flex-none grid-cols-[minmax(220px,42%)_64px_1fr] items-end border-0 border-b border-dashed px-5 pt-3 pb-1.5 shadow-[0_4px_8px_-6px_rgba(0,0,0,0.12)]"
+            >
+              <div class="h-full" />
+              <div class="h-full" />
+              <div class="relative mr-4 h-full">
                 <span
                   v-for="(tick, i) in rulerTicks"
                   :key="i"
-                  class="kp-tick"
-                  :class="{ 'kp-tick-first': i === 0, 'kp-tick-last': i === rulerTicks.length - 1 }"
+                  class="text-placeholder absolute bottom-0 flex flex-col text-[10px]"
+                  :class="
+                    i === 0
+                      ? 'items-start'
+                      : i === rulerTicks.length - 1
+                        ? '-translate-x-full items-end'
+                        : '-translate-x-1/2 items-center'
+                  "
                   :style="{ left: tick.left }"
                 >
-                  <span class="kp-tick-line" />
-                  <span class="kp-tick-label kp-mono">{{ tick.label }}</span>
+                  <span class="bg-border h-[5px] w-px" />
+                  <span class="mt-0.5 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal">{{
+                    tick.label
+                  }}</span>
                 </span>
               </div>
             </div>
 
-            <div ref="scrollRef" class="kp-scroll">
-              <div class="kp-rows">
+            <div ref="scrollRef" class="min-h-0 flex-auto overflow-auto pb-4">
+              <div class="flex flex-col">
+                <!-- `kp-row` stays as a hook: scrollRowIntoView() finds rows by it.
+                     The ::before is the brand-coloured edge of the selected row. -->
                 <div
                   v-for="row in flatRows"
                   :key="row.key"
-                  class="kp-row"
+                  class="kp-row group/row relative grid h-8 cursor-pointer grid-cols-[minmax(220px,42%)_64px_1fr] items-center px-5 transition-colors duration-150 before:absolute before:top-1 before:bottom-1 before:left-0 before:w-0.5 before:rounded-r-[2px] before:transition-colors before:duration-150"
                   :data-span-key="row.key"
-                  :class="{
-                    'kp-row-active': selectedSpanId === row.key,
-                    'kp-row-root': row.isRoot,
-                    'kp-row-stage': row.isStage,
-                    'kp-row-span': !row.isRoot && !row.isStage,
-                    'kp-row-expandable': row.hasChildren && !row.isRoot,
-                  }"
+                  :class="[rowClass(row), { 'font-semibold': row.isRoot }]"
                   :title="row.hasChildren && !row.isRoot ? t('knowledgeStages.rowSelectHint') : undefined"
                   @click="selectRow(row)"
                 >
-                  <div class="kp-cell-name">
-                    <div class="kp-name-inner" :style="{ paddingLeft: row.depth * 16 + 'px' }">
+                  <div class="min-w-0">
+                    <div class="flex min-w-0 items-center gap-[7px]" :style="{ paddingLeft: row.depth * 16 + 'px' }">
                       <button
                         v-if="row.hasChildren && !row.isRoot"
                         type="button"
-                        class="kp-tree-toggle"
+                        data-slot="tree-toggle"
+                        class="text-placeholder group-hover/row:bg-accent group-hover/row:text-foreground hover:bg-accent hover:text-foreground -my-[3px] inline-flex size-[22px] shrink-0 items-center justify-center rounded-(--td-radius-default) transition-colors duration-150"
                         :aria-expanded="isRowExpanded(row.key)"
                         :aria-label="treeToggleAriaLabel(row)"
                         @click="toggleTree(row, $event)"
                       >
-                        <t-icon :name="isRowExpanded(row.key) ? 'chevron-down' : 'chevron-right'" size="14px" />
+                        <ChevronDownIcon v-if="isRowExpanded(row.key)" class="size-3.5" />
+                        <ChevronRightIcon v-else class="size-3.5" />
                       </button>
-                      <span v-else class="kp-tree-toggle-spacer" />
+                      <span v-else class="-my-[3px] inline-block size-[22px] shrink-0" />
                       <span
-                        class="kp-status-dot"
-                        :class="['kp-dot-' + row.node.status, { 'kp-dot-placeholder': isPlaceholder(row.node) }]"
+                        class="size-[7px] shrink-0 rounded-full"
+                        :class="dotClass(row.node.status, isPlaceholder(row.node))"
                       />
                       <span
-                        class="kp-name-text"
-                        :class="{ 'kp-name-root': row.isRoot, 'kp-name-mono': !row.isRoot && !row.isStage }"
+                        class="text-foreground truncate"
+                        :class="{
+                          'text-[13px] font-semibold': row.isRoot,
+                          'font-(family-name:--app-font-family-mono) text-[11px]': !row.isRoot && !row.isStage,
+                          'text-xs': !row.isRoot && row.isStage,
+                        }"
                         >{{ rowLabel(row) }}</span
                       >
-                      <span class="kp-name-kind">{{ rowKindLabel(row) }}</span>
+                      <span
+                        class="text-placeholder ml-auto shrink-0 pl-2 font-(family-name:--app-font-family-mono) text-[10px] tracking-[0.5px] uppercase"
+                        >{{ rowKindLabel(row) }}</span
+                      >
                     </div>
                   </div>
 
-                  <div class="kp-cell-dur kp-mono">
+                  <div
+                    class="text-muted-foreground pr-3 text-right font-(family-name:--app-font-family-mono) text-[11px] tracking-normal"
+                  >
                     <template v-if="row.node.status === 'running'">
-                      <span class="kp-running-time">{{ formatDuration(liveElapsedMs(row.node)) }}</span>
+                      <span class="text-warning font-semibold">{{ formatDuration(liveElapsedMs(row.node)) }}</span>
                     </template>
                     <template v-else>
                       {{ formatSpanDuration(row.node) }}
                     </template>
                   </div>
 
-                  <div class="kp-cell-bar">
+                  <div class="relative mr-4 h-8">
+                    <!-- Vertical "now" cursor — animates left during polling so the user can
+                         visually confirm time is advancing even when the running bar grows
+                         slowly toward the right edge of the trace. -->
                     <span
                       v-if="nowMarkerPct !== null && row.isRoot"
-                      class="kp-now-marker"
+                      class="bg-warning before:bg-warning pointer-events-none absolute top-1 bottom-1 z-[1] w-px opacity-65 transition-[left] duration-1000 ease-linear before:absolute before:-top-0.5 before:-left-[3px] before:size-[7px] before:animate-[kpLivePulse_1.4s_ease-in-out_infinite] before:rounded-full"
                       :style="{ left: nowMarkerPct + '%' }"
                     />
-                    <div v-if="isPlaceholder(row.node)" class="kp-bar kp-bar-placeholder" />
+                    <div
+                      v-if="isPlaceholder(row.node)"
+                      class="border-border absolute top-[13px] right-1 h-1.5 w-3.5 rounded-sm border border-dashed bg-transparent"
+                    />
                     <template v-else>
                       <!-- Wrapping outline: descendants extend past this
                          span's own end (e.g. async postprocess subspans
@@ -1718,38 +2046,50 @@ const processConfigLines = computed<string[]>(() => {
                          self-bar so both are visible. -->
                       <div
                         v-if="wrapStyle(row.node)"
-                        class="kp-bar-wrap"
-                        :class="['kp-bar-wrap-' + row.node.status]"
+                        class="group/bar hover:border-muted-foreground pointer-events-auto absolute top-[9px] z-[1] h-3.5 min-w-1 rounded-sm border border-dashed bg-transparent transition-[left,width] duration-800 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+                        :class="wrapClass(row.node.status)"
                         :style="wrapStyle(row.node) || {}"
                       >
-                        <span class="kp-bar-tip">
-                          <span class="kp-bar-tip-name">{{ rowLabel(row) }}</span>
-                          <span class="kp-bar-tip-sep">·</span>
-                          <span class="kp-mono">{{ formatDuration(wrapDurationMs(row.node)) }}</span>
-                          <span class="kp-bar-tip-sep">·</span>
+                        <span
+                          class="bg-foreground text-primary-foreground pointer-events-none absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-(--td-radius-default) px-2 py-1 text-[11px] whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/bar:opacity-100"
+                          :class="row.isRoot ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+8px)]'"
+                        >
+                          <span class="font-medium">{{ rowLabel(row) }}</span>
+                          <span class="text-(--td-font-white-3)">·</span>
+                          <span class="font-(family-name:--app-font-family-mono) text-[11px] tracking-normal">{{
+                            formatDuration(wrapDurationMs(row.node))
+                          }}</span>
+                          <span class="text-(--td-font-white-3)">·</span>
                           <span>{{ t("knowledgeStages.detail.includingChildren") }}</span>
                         </span>
                       </div>
+                      <!-- Smooth left/width changes so polling-driven re-renders feel like
+                           the bar is growing, not jumping. The 800ms easing sits under the
+                           nowTick 1Hz cadence. -->
                       <div
-                        class="kp-bar"
-                        :class="['kp-bar-' + row.node.status, { 'kp-bar-running-anim': row.node.status === 'running' }]"
+                        class="group/bar z-[2] min-w-0.5 rounded-sm transition-[left,width,filter] duration-800 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/row:brightness-105"
+                        :class="barClass(row.node.status)"
                         :style="barStyle(row.node)"
                       >
-                        <span class="kp-bar-tip">
-                          <span class="kp-bar-tip-name">{{ rowLabel(row) }}</span>
-                          <span class="kp-bar-tip-sep">·</span>
-                          <span class="kp-mono">{{
+                        <span
+                          class="bg-foreground text-primary-foreground pointer-events-none absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-(--td-radius-default) px-2 py-1 text-[11px] whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/bar:opacity-100"
+                          :class="row.isRoot ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+8px)]'"
+                        >
+                          <span class="font-medium">{{ rowLabel(row) }}</span>
+                          <span class="text-(--td-font-white-3)">·</span>
+                          <span class="font-(family-name:--app-font-family-mono) text-[11px] tracking-normal">{{
                             row.node.status === "running"
                               ? formatDuration(liveElapsedMs(row.node))
                               : formatSpanDuration(row.node)
                           }}</span>
-                          <span class="kp-bar-tip-sep">·</span>
+                          <span class="text-(--td-font-white-3)">·</span>
                           <span>{{ localizedStatus(row.node.status) }}</span>
                         </span>
                       </div>
                       <span
                         v-if="barOffsetPct(row.node) !== null && barOffsetMs(row.node) > 0"
-                        class="kp-bar-offset kp-mono"
+                        class="text-placeholder pointer-events-none absolute -bottom-px -translate-x-1/2 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal whitespace-nowrap transition-opacity duration-150 group-hover/row:opacity-100"
+                        :class="selectedSpanId === row.key ? 'opacity-100' : 'opacity-0'"
                         :style="{ left: barOffsetPct(row.node) + '%' }"
                       >
                         +{{ formatDuration(barOffsetMs(row.node)) }}
@@ -1763,53 +2103,77 @@ const processConfigLines = computed<string[]>(() => {
         </div>
 
         <!-- ============== DETAIL PANEL ============== -->
-        <div class="kp-detail" :class="{ 'kp-detail-open': detailOpen }">
+        <div
+          class="border-border bg-card flex flex-none flex-col overflow-hidden border-0 border-t border-solid transition-[height] duration-240 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+          :class="detailOpen ? 'h-1/2 min-h-80' : 'h-0'"
+        >
           <template v-if="selectedRow">
-            <div class="kp-detail-head">
-              <div class="kp-detail-title">
-                <span class="kp-status-dot kp-detail-dot" :class="['kp-dot-' + selectedRow.node.status]" />
-                <span class="kp-detail-name">{{ rowLabel(selectedRow) }}</span>
-                <span class="kp-detail-kind">{{ rowKindLabel(selectedRow) }}</span>
-                <span class="kp-status-chip" :class="'kp-chip-' + selectedRow.node.status">
+            <div
+              class="border-border flex flex-none items-center justify-between gap-2 border-0 border-b border-solid px-5 pt-3 pb-2.5"
+            >
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="size-2 shrink-0 rounded-full" :class="dotClass(selectedRow.node.status)" />
+                <span class="text-foreground min-w-0 truncate text-[13px] font-semibold">{{
+                  rowLabel(selectedRow)
+                }}</span>
+                <span
+                  class="text-placeholder shrink-0 font-(family-name:--app-font-family-mono) text-[10px] tracking-[0.5px] uppercase"
+                  >{{ rowKindLabel(selectedRow) }}</span
+                >
+                <span
+                  class="inline-flex shrink-0 items-center rounded-(--td-radius-default) px-2 py-px text-[11px] font-medium"
+                  :class="chipClass(selectedRow.node.status)"
+                >
                   {{ localizedStatus(selectedRow.node.status) }}
                 </span>
               </div>
-              <div class="kp-detail-actions">
+              <div class="flex items-center gap-1">
                 <button
                   type="button"
-                  class="kp-icon-btn"
+                  data-slot="icon-button"
+                  class="text-placeholder hover:bg-muted hover:text-foreground inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150"
                   :title="t('knowledgeStages.copyDetails')"
                   @click.stop="copySpan(selectedRow.node)"
                 >
-                  <t-icon name="copy" size="18px" />
+                  <CopyIcon class="size-[18px]" />
                 </button>
-                <button type="button" class="kp-icon-btn" :title="t('knowledgeStages.close')" @click="closeDetail">
-                  <t-icon name="close" size="18px" />
+                <button
+                  type="button"
+                  data-slot="icon-button"
+                  class="text-placeholder hover:bg-muted hover:text-foreground inline-flex size-[26px] items-center justify-center rounded-(--td-radius-default) transition-colors duration-150"
+                  :title="t('knowledgeStages.close')"
+                  @click="closeDetail"
+                >
+                  <XIcon class="size-[18px]" />
                 </button>
               </div>
             </div>
 
-            <div class="kp-tabs">
+            <!-- Tabs -->
+            <div class="border-border bg-card flex flex-none border-0 border-b border-solid px-5">
               <button
                 type="button"
-                class="kp-tab"
-                :class="{ 'kp-tab-active': detailTab === 'overview' }"
+                data-slot="tab"
+                class="hover:text-foreground relative inline-flex items-center gap-1 px-3.5 pt-[9px] pb-2.5 text-[13px] transition-colors duration-150"
+                :class="tabClass('overview')"
                 @click="detailTab = 'overview'"
               >
                 {{ t("knowledgeStages.tab.overview") }}
               </button>
               <button
                 type="button"
-                class="kp-tab"
-                :class="{ 'kp-tab-active': detailTab === 'input', 'kp-tab-empty': !tabHasContent('input') }"
+                data-slot="tab"
+                class="hover:text-foreground relative inline-flex items-center gap-1 px-3.5 pt-[9px] pb-2.5 text-[13px] transition-colors duration-150"
+                :class="tabClass('input', !tabHasContent('input'))"
                 @click="detailTab = 'input'"
               >
                 {{ t("knowledgeStages.detail.input") }}
               </button>
               <button
                 type="button"
-                class="kp-tab"
-                :class="{ 'kp-tab-active': detailTab === 'output', 'kp-tab-empty': !tabHasContent('output') }"
+                data-slot="tab"
+                class="hover:text-foreground relative inline-flex items-center gap-1 px-3.5 pt-[9px] pb-2.5 text-[13px] transition-colors duration-150"
+                :class="tabClass('output', !tabHasContent('output'))"
                 @click="detailTab = 'output'"
               >
                 {{ t("knowledgeStages.detail.output") }}
@@ -1817,120 +2181,187 @@ const processConfigLines = computed<string[]>(() => {
               <button
                 v-if="tabHasContent('metadata')"
                 type="button"
-                class="kp-tab"
-                :class="{ 'kp-tab-active': detailTab === 'metadata' }"
+                data-slot="tab"
+                class="hover:text-foreground relative inline-flex items-center gap-1 px-3.5 pt-[9px] pb-2.5 text-[13px] transition-colors duration-150"
+                :class="tabClass('metadata')"
                 @click="detailTab = 'metadata'"
               >
                 {{ t("knowledgeStages.detail.metadata") }}
               </button>
               <button
                 type="button"
-                class="kp-tab"
-                :class="{ 'kp-tab-active': detailTab === 'raw' }"
+                data-slot="tab"
+                class="hover:text-foreground relative inline-flex items-center gap-1 px-3.5 pt-[9px] pb-2.5 text-[13px] transition-colors duration-150"
+                :class="tabClass('raw')"
                 @click="detailTab = 'raw'"
               >
                 {{ t("knowledgeStages.tab.raw") }}
               </button>
             </div>
 
-            <div class="kp-detail-body">
+            <div class="flex flex-auto flex-col gap-4 overflow-y-auto px-5 pt-4 pb-[18px]">
               <!-- Overview tab -->
               <template v-if="detailTab === 'overview'">
                 <!-- Timing -->
-                <div class="kp-section">
-                  <div class="kp-section-title">{{ t("knowledgeStages.detail.timing") }}</div>
-                  <div class="kp-kv">
-                    <div class="kp-kv-row">
-                      <span class="kp-kv-key">{{ t("knowledgeStages.detail.started") }}</span>
-                      <span class="kp-kv-val kp-mono">{{ formatTime(selectedRow.node.started_at) }}</span>
+                <div class="flex flex-col gap-2">
+                  <div class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">
+                    {{ t("knowledgeStages.detail.timing") }}
+                  </div>
+                  <div
+                    class="divide-muted border-border bg-card flex flex-col divide-y divide-solid overflow-hidden rounded-md border border-solid"
+                  >
+                    <div class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-center gap-3 px-3 py-2 text-xs">
+                      <span class="text-muted-foreground truncate text-[11px] font-medium">{{
+                        t("knowledgeStages.detail.started")
+                      }}</span>
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [overflow-wrap:anywhere] [word-break:break-word]"
+                        >{{ formatTime(selectedRow.node.started_at) }}</span
+                      >
                     </div>
-                    <div class="kp-kv-row">
-                      <span class="kp-kv-key">{{ t("knowledgeStages.detail.finished") }}</span>
-                      <span class="kp-kv-val kp-mono">
+                    <div class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-center gap-3 px-3 py-2 text-xs">
+                      <span class="text-muted-foreground truncate text-[11px] font-medium">{{
+                        t("knowledgeStages.detail.finished")
+                      }}</span>
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [overflow-wrap:anywhere] [word-break:break-word]"
+                      >
                         <template v-if="selectedRow.node.status === 'running'">
-                          <span class="kp-kv-running">{{ t("knowledgeStages.detail.inProgress") }}</span>
+                          <span class="text-warning font-(family-name:--app-font-family) text-[11px] italic">{{
+                            t("knowledgeStages.detail.inProgress")
+                          }}</span>
                         </template>
                         <template v-else>
                           {{ formatTime(selectedRow.node.finished_at) }}
                         </template>
                       </span>
                     </div>
-                    <div class="kp-kv-row">
-                      <span class="kp-kv-key">{{ t("knowledgeStages.detail.duration") }}</span>
-                      <span class="kp-kv-val kp-mono">
+                    <div class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-center gap-3 px-3 py-2 text-xs">
+                      <span class="text-muted-foreground truncate text-[11px] font-medium">{{
+                        t("knowledgeStages.detail.duration")
+                      }}</span>
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [overflow-wrap:anywhere] [word-break:break-word]"
+                      >
                         <template v-if="selectedRow.node.status === 'running'">
                           {{ formatDuration(liveElapsedMs(selectedRow.node)) }}
-                          <span class="kp-kv-tag-live">{{ t("knowledgeStages.detail.elapsed") }}</span>
+                          <span
+                            class="text-warning ml-1.5 inline-block rounded-sm bg-(--td-warning-color-light) px-1.5 font-(family-name:--app-font-family) text-[9px] font-semibold tracking-[0.5px] uppercase"
+                            >{{ t("knowledgeStages.detail.elapsed") }}</span
+                          >
                         </template>
                         <template v-else>
                           {{ formatSpanDuration(selectedRow.node) }}
                         </template>
                       </span>
                     </div>
-                    <div v-if="!selectedRow.isRoot && barOffsetMs(selectedRow.node) > 0" class="kp-kv-row">
-                      <span class="kp-kv-key">{{ t("knowledgeStages.detail.offset") }}</span>
-                      <span class="kp-kv-val kp-mono">+{{ formatDuration(barOffsetMs(selectedRow.node)) }}</span>
+                    <div
+                      v-if="!selectedRow.isRoot && barOffsetMs(selectedRow.node) > 0"
+                      class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-center gap-3 px-3 py-2 text-xs"
+                    >
+                      <span class="text-muted-foreground truncate text-[11px] font-medium">{{
+                        t("knowledgeStages.detail.offset")
+                      }}</span>
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [overflow-wrap:anywhere] [word-break:break-word]"
+                        >+{{ formatDuration(barOffsetMs(selectedRow.node)) }}</span
+                      >
                     </div>
                   </div>
                 </div>
 
                 <!-- Identity / lineage -->
-                <div class="kp-section">
-                  <div class="kp-section-title">{{ t("knowledgeStages.detail.identity") }}</div>
-                  <div class="kp-kv">
-                    <div v-for="entry in identityFields(selectedRow)" :key="entry.key" class="kp-kv-row">
-                      <span class="kp-kv-key">{{ entry.label }}</span>
-                      <span class="kp-kv-val" :class="{ 'kp-mono': entry.mono, 'kp-kv-truncate': entry.copyable }">
-                        <span class="kp-kv-text">{{ entry.value }}</span>
+                <div class="flex flex-col gap-2">
+                  <div class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">
+                    {{ t("knowledgeStages.detail.identity") }}
+                  </div>
+                  <div
+                    class="divide-muted border-border bg-card flex flex-col divide-y divide-solid overflow-hidden rounded-md border border-solid"
+                  >
+                    <div
+                      v-for="entry in identityFields(selectedRow)"
+                      :key="entry.key"
+                      class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-center gap-3 px-3 py-2 text-xs"
+                    >
+                      <span class="text-muted-foreground truncate text-[11px] font-medium">{{ entry.label }}</span>
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 [overflow-wrap:anywhere] [word-break:break-word]"
+                        :class="{
+                          'font-(family-name:--app-font-family-mono) text-[11px] tracking-normal': entry.mono,
+                          'overflow-hidden': entry.copyable,
+                        }"
+                      >
+                        <span :class="{ 'min-w-0 flex-1 truncate': entry.copyable }">{{ entry.value }}</span>
                         <button
                           v-if="entry.copyable"
                           type="button"
-                          class="kp-kv-copy"
+                          data-slot="icon-button"
+                          class="text-placeholder hover:bg-accent hover:text-primary inline-flex size-[22px] shrink-0 items-center justify-center rounded-sm"
                           :title="t('knowledgeStages.copy')"
                           @click.stop="copyValue(entry.value)"
                         >
-                          <t-icon name="copy" size="14px" />
+                          <CopyIcon class="size-3.5" />
                         </button>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div v-if="traceMetadata" class="kp-section">
-                  <div class="kp-section-title">{{ t("knowledgeStages.detail.traceMetadata") }}</div>
-                  <p class="kp-section-desc">{{ t("knowledgeStages.detail.metadataHint") }}</p>
-                  <div class="kp-kv">
+                <div v-if="traceMetadata" class="flex flex-col gap-2">
+                  <div class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">
+                    {{ t("knowledgeStages.detail.traceMetadata") }}
+                  </div>
+                  <p class="text-placeholder mx-0 mt-1 mb-2 text-xs leading-normal">
+                    {{ t("knowledgeStages.detail.metadataHint") }}
+                  </p>
+                  <div
+                    class="divide-muted border-border bg-card flex flex-col divide-y divide-solid overflow-hidden rounded-md border border-solid"
+                  >
                     <div
                       v-for="entry in buildKvEntries(traceMetadata)"
                       :key="entry.key"
-                      class="kp-kv-row kp-kv-row-multiline"
+                      class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-start gap-3 px-3 py-2 text-xs"
                     >
-                      <span class="kp-kv-key kp-mono">{{ entry.key }}</span>
-                      <span class="kp-kv-val kp-kv-scalar">{{ entry.display }}</span>
+                      <span
+                        class="text-muted-foreground truncate font-(family-name:--app-font-family-mono) text-[11px] font-medium tracking-normal"
+                        >{{ entry.key }}</span
+                      >
+                      <span
+                        class="text-foreground inline-flex min-w-0 items-center gap-1.5 text-xs [overflow-wrap:anywhere] [word-break:break-word]"
+                        >{{ entry.display }}</span
+                      >
                     </div>
                   </div>
                 </div>
 
                 <!-- Stage breakdown (root only) -->
-                <div v-if="selectedRow.isRoot" class="kp-section">
-                  <div class="kp-section-title">{{ t("knowledgeStages.detail.stageBreakdown") }}</div>
-                  <div class="kp-breakdown">
+                <div v-if="selectedRow.isRoot" class="flex flex-col gap-2">
+                  <div class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">
+                    {{ t("knowledgeStages.detail.stageBreakdown") }}
+                  </div>
+                  <div class="border-border bg-card flex flex-col gap-1.5 rounded-md border border-solid px-3 py-2.5">
                     <div
                       v-for="s in stageBreakdown"
                       :key="s.name"
-                      class="kp-breakdown-row"
-                      :class="['kp-breakdown-' + s.status]"
+                      class="grid grid-cols-[110px_1fr_64px] items-center gap-2.5 text-xs"
                     >
-                      <span class="kp-breakdown-label">
-                        <span class="kp-status-dot" :class="['kp-dot-' + s.status]" />
+                      <span class="text-foreground inline-flex items-center gap-1.5">
+                        <span class="size-[7px] shrink-0 rounded-full" :class="dotClass(s.status)" />
                         {{ s.label }}
                       </span>
-                      <div class="kp-breakdown-track">
-                        <div class="kp-breakdown-bar" :class="['kp-bar-' + s.status]" :style="{ width: s.pct + '%' }" />
+                      <div class="bg-muted relative h-1.5 overflow-hidden rounded-sm">
+                        <div
+                          class="absolute inset-y-0 left-0 rounded-sm transition-[width] duration-800 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+                          :class="breakdownBarClass(s.status)"
+                          :style="{ width: s.pct + '%' }"
+                        />
                       </div>
-                      <span class="kp-breakdown-dur kp-mono">{{
-                        s.status === "skipped" || s.status === "pending" ? "—" : formatDuration(s.duration_ms)
-                      }}</span>
+                      <span
+                        class="text-muted-foreground text-right font-(family-name:--app-font-family-mono) text-[11px] tracking-normal"
+                        >{{
+                          s.status === "skipped" || s.status === "pending" ? "—" : formatDuration(s.duration_ms)
+                        }}</span
+                      >
                     </div>
                   </div>
                 </div>
@@ -1941,30 +2372,42 @@ const processConfigLines = computed<string[]>(() => {
                     (selectedRow.node.status === 'failed' || selectedRow.node.status === 'cancelled') &&
                     (selectedRow.node.error_code || selectedRow.node.error_message)
                   "
-                  class="kp-error-block"
+                  class="flex flex-col gap-2 rounded-md border border-solid border-(--td-error-color-3) bg-(--td-error-color-light) px-3 py-2.5"
                 >
-                  <div class="kp-error-head">
-                    <span class="kp-error-glyph">!</span>
-                    <span class="kp-error-title">{{
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="bg-destructive text-primary-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                      >!</span
+                    >
+                    <span class="text-destructive text-xs font-semibold">{{
                       localizedErrorTitle(selectedRow.node.error_code) || t("knowledgeStages.detail.error")
                     }}</span>
-                    <span v-if="selectedRow.node.error_code" class="kp-error-code kp-mono">{{
-                      selectedRow.node.error_code
-                    }}</span>
+                    <span
+                      v-if="selectedRow.node.error_code"
+                      class="bg-destructive text-primary-foreground ml-auto rounded-sm px-1.5 py-px font-(family-name:--app-font-family-mono) text-[10px] tracking-normal"
+                      >{{ selectedRow.node.error_code }}</span
+                    >
                   </div>
-                  <pre v-if="selectedRow.node.error_message" class="kp-error-msg kp-mono">{{
-                    selectedRow.node.error_message
-                  }}</pre>
+                  <pre
+                    v-if="selectedRow.node.error_message"
+                    class="border-border bg-card text-muted-foreground m-0 max-h-40 overflow-auto rounded-(--td-radius-default) border border-solid px-2.5 py-2 font-(family-name:--app-font-family-mono) text-[11px] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+                    >{{ selectedRow.node.error_message }}</pre>
                 </div>
 
-                <div v-if="!selectedRow.node.span_id && !selectedRow.node.started_at" class="kp-detail-hint">
+                <div
+                  v-if="!selectedRow.node.span_id && !selectedRow.node.started_at"
+                  class="border-border bg-muted text-muted-foreground rounded-md border-0 border-l-2 border-solid px-3 py-2.5 text-xs"
+                >
                   {{ t("knowledgeStages.detail.placeholderHint") }}
                 </div>
               </template>
 
               <!-- Input / Output / Metadata tabs -->
               <template v-else-if="detailTab === 'input' || detailTab === 'output' || detailTab === 'metadata'">
-                <div v-if="!tabHasContent(detailTab)" class="kp-detail-empty">
+                <div
+                  v-if="!tabHasContent(detailTab)"
+                  class="text-placeholder flex items-center justify-center py-12 text-[13px]"
+                >
                   <span>{{
                     detailTab === "metadata"
                       ? t("knowledgeStages.detail.metadataEmpty")
@@ -1972,78 +2415,111 @@ const processConfigLines = computed<string[]>(() => {
                   }}</span>
                 </div>
                 <template v-else>
-                  <div class="kp-section">
-                    <div class="kp-section-bar">
-                      <span class="kp-section-title">{{ t("knowledgeStages.detail." + detailTab) }}</span>
+                  <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                        t("knowledgeStages.detail." + detailTab)
+                      }}</span>
                       <button
                         type="button"
-                        class="kp-section-action"
+                        data-slot="section-action"
+                        class="border-border bg-card text-muted-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground inline-flex items-center gap-1 rounded-(--td-radius-default) border border-solid px-2 py-[3px] text-[11px] transition-colors duration-150"
                         @click="copyValue((selectedRow.node as any)[detailTab])"
                       >
-                        <t-icon name="copy" size="14px" />
+                        <CopyIcon class="size-3.5" />
                         <span>{{ t("knowledgeStages.copy") }}</span>
                       </button>
                     </div>
 
-                    <div v-if="isObjectWithKeys((selectedRow.node as any)[detailTab])" class="kp-kv">
+                    <div
+                      v-if="isObjectWithKeys((selectedRow.node as any)[detailTab])"
+                      class="divide-muted border-border bg-card flex flex-col divide-y divide-solid overflow-hidden rounded-md border border-solid"
+                    >
                       <div
                         v-for="entry in buildKvEntries((selectedRow.node as any)[detailTab])"
                         :key="entry.key"
-                        class="kp-kv-row kp-kv-row-multiline"
+                        class="bg-card grid min-w-0 grid-cols-[130px_1fr] items-start gap-3 px-3 py-2 text-xs"
                       >
-                        <span class="kp-kv-key kp-mono">{{ entry.key }}</span>
-                        <div class="kp-kv-val kp-kv-multiline">
+                        <span
+                          class="text-muted-foreground truncate font-(family-name:--app-font-family-mono) text-[11px] font-medium tracking-normal"
+                          >{{ entry.key }}</span
+                        >
+                        <div
+                          class="text-foreground flex min-w-0 flex-col items-stretch gap-1 [overflow-wrap:anywhere] [word-break:break-word]"
+                        >
                           <span
                             v-if="entry.kind === 'bool'"
-                            class="kp-mono"
-                            :class="{ 'kp-bool-true': entry.raw, 'kp-bool-false': !entry.raw }"
+                            class="font-(family-name:--app-font-family-mono) text-[11px] font-medium tracking-normal"
+                            :class="entry.raw ? 'text-success' : 'text-destructive'"
                             >{{ entry.display }}</span
                           >
-                          <span v-else-if="entry.kind === 'scalar'" class="kp-kv-scalar">{{ entry.display }}</span>
+                          <span v-else-if="entry.kind === 'scalar'" class="text-xs">{{ entry.display }}</span>
                           <!-- Short payloads render inline so the user
                                sees the data without an extra click. The
                                summary chip ("Array · 3") is shown above
                                the JSON for context. -->
-                          <div v-else-if="entry.defaultExpanded" class="kp-kv-inline">
-                            <span class="kp-kv-summary kp-mono kp-kv-summary-static">{{ entry.display }}</span>
-                            <pre class="kp-json kp-mono">{{ prettyJSON(entry.raw) }}</pre>
+                          <div v-else-if="entry.defaultExpanded" class="flex min-w-0 flex-col gap-1">
+                            <span
+                              class="text-placeholder font-(family-name:--app-font-family-mono) text-[11px] tracking-normal"
+                              >{{ entry.display }}</span
+                            >
+                            <pre
+                              class="border-border bg-muted text-foreground m-0 max-h-[360px] overflow-auto rounded-md border border-solid px-3 py-2.5 font-(family-name:--app-font-family-mono) text-[11px] leading-[1.6] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+                              >{{ prettyJSON(entry.raw) }}</pre>
                           </div>
-                          <div v-else class="kp-kv-collapsible">
+                          <div v-else class="flex min-w-0 flex-col gap-1.5">
                             <button
                               type="button"
-                              class="kp-kv-toggle"
+                              data-slot="json-toggle"
+                              class="group/toggle text-muted-foreground flex flex-wrap items-baseline gap-2 text-left text-xs"
                               @click.stop="toggleJsonKey(detailTab, entry.key)"
                             >
-                              <span class="kp-kv-summary kp-mono">{{ entry.display }}</span>
-                              <span class="kp-kv-toggle-label">{{
+                              <span
+                                class="text-muted-foreground font-(family-name:--app-font-family-mono) text-[11px] tracking-normal"
+                                >{{ entry.display }}</span
+                              >
+                              <span class="text-primary text-[11px] font-medium group-hover/toggle:underline">{{
                                 isJsonExpanded(detailTab, entry.key)
                                   ? t("knowledgeStages.detail.hideJson")
                                   : t("knowledgeStages.detail.showJson")
                               }}</span>
                             </button>
-                            <pre v-if="isJsonExpanded(detailTab, entry.key)" class="kp-json kp-mono">{{
-                              prettyJSON(entry.raw)
-                            }}</pre>
+                            <pre
+                              v-if="isJsonExpanded(detailTab, entry.key)"
+                              class="border-border bg-muted text-foreground m-0 max-h-[360px] overflow-auto rounded-md border border-solid px-3 py-2.5 font-(family-name:--app-font-family-mono) text-[11px] leading-[1.6] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+                              >{{ prettyJSON(entry.raw) }}</pre>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <pre v-else class="kp-json kp-mono">{{ prettyJSON((selectedRow.node as any)[detailTab]) }}</pre>
+                    <pre
+                      v-else
+                      class="border-border bg-muted text-foreground m-0 max-h-[360px] overflow-auto rounded-md border border-solid px-3 py-2.5 font-(family-name:--app-font-family-mono) text-[11px] leading-[1.6] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+                      >{{ prettyJSON((selectedRow.node as any)[detailTab]) }}</pre>
                   </div>
                 </template>
               </template>
 
               <!-- Raw JSON tab -->
               <template v-else-if="detailTab === 'raw'">
-                <div class="kp-section">
-                  <div class="kp-section-bar">
-                    <span class="kp-section-title">{{ t("knowledgeStages.tab.raw") }}</span>
-                    <button type="button" class="kp-section-action" @click="copyValue(selectedRow.node)">
-                      <t-icon name="copy" size="14px" />
+                <div class="flex flex-col gap-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-muted-foreground text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                      t("knowledgeStages.tab.raw")
+                    }}</span>
+                    <button
+                      type="button"
+                      data-slot="section-action"
+                      class="border-border bg-card text-muted-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground inline-flex items-center gap-1 rounded-(--td-radius-default) border border-solid px-2 py-[3px] text-[11px] transition-colors duration-150"
+                      @click="copyValue(selectedRow.node)"
+                    >
+                      <CopyIcon class="size-3.5" />
                       <span>{{ t("knowledgeStages.copy") }}</span>
                     </button>
                   </div>
-                  <pre class="kp-json kp-mono kp-json-large">{{ prettyJSON(selectedRow.node) }}</pre>
+                  <pre
+                    class="border-border bg-muted text-foreground m-0 max-h-[480px] overflow-auto rounded-md border border-solid px-3 py-2.5 font-(family-name:--app-font-family-mono) text-[11px] leading-[1.6] tracking-normal [word-break:break-word] whitespace-pre-wrap"
+                    >{{ prettyJSON(selectedRow.node) }}</pre>
                 </div>
               </template>
             </div>
@@ -2054,93 +2530,19 @@ const processConfigLines = computed<string[]>(() => {
   </div>
 </template>
 
-<style scoped lang="less">
-.kp-timeline {
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  width: 100%;
-  height: 100%;
-  /* Defensive: never let waterfall rows / detail panel push past the
-     drawer's visible bounds even if the host width is unexpectedly
-     narrow. The horizontal scroll inside .kp-body handles legit cases
-     where labels are long. */
-  overflow: hidden;
-}
+<style>
+/*
+ * Only the keyframes stay as CSS: utilities reference them by name through
+ * `animate-[…]`, and Tailwind has no way to declare a keyframe inline.
+ *
+ * Deliberately NOT scoped. A scoped block renames every @keyframes it
+ * declares (`kpSpin` becomes `kpSpin-<hash>`) and rewrites only the
+ * `animation` declarations inside that same block, so a utility class,
+ * which lives in the global stylesheet, would name a keyframe that no
+ * longer exists. The `kp` prefix keeps the global names from colliding.
+ */
 
-.kp-shell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  min-height: 0;
-  min-width: 0;
-  background: var(--td-bg-color-container);
-  overflow: hidden;
-}
-
-/* ============== HEADER ============== */
-.kp-head {
-  flex: 0 0 auto;
-  padding: 14px 20px 10px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-}
-
-.kp-head-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.kp-head-doc-title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kp-head-status-tag {
-  flex-shrink: 0;
-}
-
-/* LIVE badge — sits next to the title while polling, telegraphs the
-   pipeline is actively refreshing. Pulsing dot + uppercase mono label. */
-.kp-live-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: var(--td-radius-medium);
-  background: var(--td-warning-color-light);
-  color: var(--td-warning-color);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  line-height: 1;
-}
-
-.kp-live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--td-warning-color);
-  animation: kpLivePulse 1.4s ease-in-out infinite;
-}
-
-.kp-live-text {
-  font-family: var(--app-font-family-mono);
-}
-
+/* The pulsing dot of the LIVE badge, the running status dot and the "now" cursor. */
 @keyframes kpLivePulse {
   0%,
   100% {
@@ -2154,647 +2556,15 @@ const processConfigLines = computed<string[]>(() => {
   }
 }
 
-.kp-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.kp-head-meta {
-  margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  word-break: break-word;
-}
-
-.kp-head-meta-sep {
-  margin: 0 6px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-head-meta-part {
-  display: inline;
-}
-
-.kp-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  border-radius: var(--td-radius-default);
-  transition:
-    background 150ms ease,
-    color 150ms ease;
-}
-
-.kp-icon-btn:hover:not(:disabled) {
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-primary);
-}
-
-.kp-icon-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-/* Stop-parse control — stays a quiet placeholder icon until hover, then
-   reveals its destructive intent with the error tint. Matches the other
-   header icon buttons rather than shouting with a full outline button. */
-.kp-icon-btn-danger:hover:not(:disabled) {
-  background: var(--td-error-color-light);
-  color: var(--td-error-color);
-}
-
-.kp-icon-btn-spin :deep(.t-icon) {
-  animation: kpSpin 0.9s linear infinite;
-}
-
-/* Slow rotation while auto-polling — visually distinct from the
-   manual-refresh fast spin. Tells the user "refresh is happening on
-   its own" without an extra label or badge. */
-.kp-icon-btn-autoflow :deep(.t-icon) {
-  animation: kpSpin 4s linear infinite;
-  color: var(--td-warning-color);
-}
-
-@keyframes kpSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.kp-meta-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  font-size: 11px;
-  line-height: 1;
-}
-
-.kp-glyph-done {
-  color: var(--td-success-color);
-}
-
-.kp-glyph-failed {
-  color: var(--td-error-color);
-}
-
-.kp-glyph-running {
-  color: var(--td-warning-color);
-  animation: kpLivePulse 1.4s ease-in-out infinite;
-}
-
-.kp-glyph-unknown {
-  color: var(--td-text-color-placeholder);
-}
-
-/* Attempts strip */
-.kp-attempts {
-  display: flex;
-  gap: 6px;
-  margin-top: 10px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.kp-attempt {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-default);
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.4;
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease;
-}
-
-.kp-attempt:not(.kp-attempt-active):hover {
-  background: var(--td-bg-color-secondarycontainer);
-  border-color: var(--td-text-color-placeholder);
-  color: var(--td-text-color-primary);
-}
-
-.kp-attempt-active {
-  background: var(--td-brand-color);
-  color: var(--td-text-color-anti);
-  border-color: var(--td-brand-color);
-}
-
-.kp-attempt-active:hover {
-  background: var(--td-brand-color);
-  color: var(--td-text-color-anti);
-  border-color: var(--td-brand-color);
-}
-
-.kp-attempt-active .kp-attempt-glyph,
-.kp-attempt-active:hover .kp-attempt-glyph {
-  color: var(--td-text-color-anti) !important;
-}
-
-.kp-attempt-num {
-  font-weight: 600;
-  font-size: 11px;
-}
-
-.kp-attempt-glyph {
-  font-size: 9px;
-  line-height: 1;
-}
-
-/* ============== BODY (Waterfall) ============== */
-.kp-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--td-bg-color-container);
-}
-
-.kp-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding-bottom: 16px;
-}
-
-.kp-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  padding: 56px 20px;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-/* Ruler — pinned above .kp-scroll, not inside the scroller */
-.kp-ruler {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(220px, 42%) 64px 1fr;
-  height: 24px;
-  align-items: end;
-  padding: 12px 20px 6px;
-  background: var(--td-bg-color-container);
-  border-bottom: 1px dashed var(--td-component-stroke);
-  box-shadow: 0 4px 8px -6px rgba(0, 0, 0, 0.12);
-}
-
-.kp-ruler-spacer-name,
-.kp-ruler-spacer-meta {
-  height: 100%;
-}
-
-.kp-ruler-track {
-  position: relative;
-  height: 100%;
-  margin-right: 16px;
-}
-
-.kp-tick {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transform: translateX(-50%);
-  font-size: 10px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-tick-first {
-  transform: translateX(0);
-  align-items: flex-start;
-}
-
-.kp-tick-last {
-  transform: translateX(-100%);
-  align-items: flex-end;
-}
-
-.kp-tick-line {
-  width: 1px;
-  height: 5px;
-  background: var(--td-component-border);
-}
-
-.kp-tick-label {
-  margin-top: 2px;
-  font-size: 10px;
-  letter-spacing: 0.02em;
-}
-
-/* Rows */
-.kp-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.kp-row {
-  display: grid;
-  grid-template-columns: minmax(220px, 42%) 64px 1fr;
-  align-items: center;
-  height: 32px;
-  cursor: pointer;
-  position: relative;
-  padding: 0 20px;
-  transition: background 150ms ease;
-}
-
-.kp-row::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: transparent;
-  border-radius: 0 2px 2px 0;
-  transition: background 150ms ease;
-}
-
-.kp-row:hover {
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.kp-row-active {
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.kp-row-active::before {
-  background: var(--td-brand-color);
-}
-
-.kp-row-root {
-  font-weight: 600;
-}
-
-.kp-row-stage:not(.kp-row-active) {
-  background: color-mix(in srgb, var(--td-bg-color-secondarycontainer) 55%, transparent);
-}
-
-.kp-row-span:not(.kp-row-active):not(:hover) {
-  background: color-mix(in srgb, var(--td-bg-color-container) 92%, var(--td-bg-color-secondarycontainer));
-}
-
-.kp-row-expandable:hover .kp-tree-toggle {
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container-hover);
-}
-
-/* Name cell */
-.kp-cell-name {
-  min-width: 0;
-}
-
-.kp-name-inner {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.kp-tree-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  color: var(--td-text-color-placeholder);
-  width: 22px;
-  height: 22px;
-  margin: -3px 0;
-  transition:
-    color 120ms ease,
-    background 150ms ease;
-  flex-shrink: 0;
-  border-radius: var(--td-radius-default);
-}
-
-.kp-tree-toggle:hover {
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container-hover);
-}
-
-.kp-tree-toggle-spacer {
-  width: 22px;
-  height: 22px;
-  display: inline-block;
-  flex-shrink: 0;
-  margin: -3px 0;
-}
-
-.kp-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--td-text-color-placeholder);
-}
-
-.kp-name-text {
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kp-name-mono {
-  font-family: var(--app-font-family-mono);
-  font-size: 11px;
-}
-
-.kp-name-root {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.kp-name-kind {
-  font-family: var(--app-font-family-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--td-text-color-placeholder);
-  margin-left: auto;
-  padding-left: 8px;
-  flex-shrink: 0;
-}
-
-/* Duration cell */
-.kp-cell-dur {
-  font-size: 11px;
-  color: var(--td-text-color-secondary);
-  text-align: right;
-  padding-right: 12px;
-  letter-spacing: 0.02em;
-}
-
-.kp-running-time {
-  color: var(--td-warning-color);
-  font-weight: 600;
-}
-
-/* Bar cell */
-.kp-cell-bar {
-  position: relative;
-  height: 32px;
-  margin-right: 16px;
-}
-
-/* Vertical "now" cursor — animates left during polling so the user can
-   visually confirm time is advancing even when the running bar grows
-   slowly toward the right edge of the trace. */
-.kp-now-marker {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  width: 1px;
-  background: var(--td-warning-color);
-  opacity: 0.65;
-  z-index: 1;
-  pointer-events: none;
-  transition: left 1s linear;
-}
-
-.kp-now-marker::before {
-  content: "";
-  position: absolute;
-  top: -2px;
-  left: -3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--td-warning-color);
-  animation: kpLivePulse 1.4s ease-in-out infinite;
-}
-
-.kp-bar {
-  position: absolute;
-  top: 12px;
-  height: 8px;
-  border-radius: var(--td-radius-small);
-  background: var(--td-text-color-placeholder);
-  min-width: 2px;
-  /* Smooth left/width changes so polling-driven re-renders feel like
-     the bar is growing, not jumping. The 1s easing matches the nowTick
-     1Hz cadence. */
-  transition:
-    left 800ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 800ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 150ms ease;
-  z-index: 2;
-}
-
-.kp-row:hover .kp-bar {
-  filter: brightness(1.05);
-}
-
-.kp-bar-tip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--td-text-color-primary);
-  color: var(--td-text-color-anti);
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: var(--td-radius-default);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 150ms ease;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.kp-bar-tip-name {
-  font-weight: 500;
-}
-
-.kp-bar-tip-sep {
-  color: var(--td-font-white-3);
-}
-
-.kp-bar:hover .kp-bar-tip {
-  opacity: 1;
-}
-
-/* ROOT row is the first row under the fixed ruler. The default
-   `bottom: calc(100% + 8px)` tooltip placement can clip against the
-   ruler band, so flip tooltips below the bar for the root row. */
-.kp-row-root .kp-bar-tip {
-  bottom: auto;
-  top: calc(100% + 8px);
-}
-
-/* Status palette — NOT all green. The project brand color happens
-   to be green, which made done/running visually identical (both
-   solid green). Done stays green (universal "success" semantic);
-   running goes amber + striped (CI-style "in progress" — recognized
-   everywhere from GitHub Actions to Jenkins). The two are now
-   unmistakably different at a glance. */
-.kp-bar-done {
-  background: var(--td-success-color);
-}
-
-.kp-bar-failed {
-  background: var(--td-error-color);
-}
-
-.kp-bar-cancelled {
-  background: transparent;
-  border: 1px dashed var(--td-error-color);
-  height: 6px;
-  top: 13px;
-}
-
-.kp-bar-skipped {
-  background: var(--td-text-color-placeholder);
-  opacity: 0.4;
-}
-
-.kp-bar-pending {
-  display: none;
-}
-
-.kp-bar-running {
-  /* Muted amber base. The diagonal stripes do the "in flight"
-     signaling — the tone just supplies a subtle hint. Earlier
-     iteration used full --td-warning-color + halo shadow + hard
-     white stripes; users found that visually screaming. */
-  background-color: var(--td-warning-color-3);
-  background-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.22) 25%,
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.22) 50%,
-    rgba(255, 255, 255, 0.22) 75%,
-    transparent 75%,
-    transparent
-  );
-  background-size: 14px 14px;
-  animation: kpStripes 1.6s linear infinite;
-}
-
+/* The diagonal stripes crawling along a running bar. */
 @keyframes kpStripes {
   to {
     background-position: 14px 0;
   }
 }
 
-/* Wrapping outline bar — shows the full window from this span's start
-   to the latest descendant end. Used when async children extend past
-   the parent's own finished_at (e.g. postprocess stage closes fast but
-   its summary/question subspans run for a long time). */
-.kp-bar-wrap {
-  position: absolute;
-  top: 9px;
-  height: 14px;
-  border: 1px dashed var(--td-component-border);
-  border-radius: var(--td-radius-small);
-  background: transparent;
-  min-width: 4px;
-  z-index: 1;
-  pointer-events: auto;
-  transition:
-    left 800ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 800ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.kp-bar-wrap:hover {
-  border-color: var(--td-text-color-secondary);
-}
-
-.kp-bar-wrap:hover .kp-bar-tip {
-  opacity: 1;
-}
-
-.kp-bar-wrap-done {
-  border-color: rgba(7, 192, 95, 0.35);
-}
-
-.kp-bar-wrap-failed {
-  border-color: rgba(229, 87, 64, 0.5);
-}
-
-.kp-bar-wrap-running {
-  border-color: rgba(250, 157, 59, 0.5);
-}
-
-.kp-bar-wrap-cancelled {
-  border-color: rgba(229, 87, 64, 0.3);
-}
-
 /* Indeterminate sweep on the running bar — gives obvious motion while
    waiting for the next poll. */
-.kp-bar-running-anim {
-  position: relative;
-  overflow: hidden;
-}
-
-.kp-bar-running-anim::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
-  animation: kpSweep 1.6s linear infinite;
-}
-
-.kp-bar-placeholder {
-  right: 4px;
-  top: 13px;
-  height: 6px;
-  width: 14px;
-  background: transparent;
-  border: 1px dashed var(--td-component-border);
-  border-radius: var(--td-radius-small);
-  position: absolute;
-}
-
-.kp-bar-offset {
-  position: absolute;
-  bottom: -1px;
-  font-size: 9px;
-  color: var(--td-text-color-placeholder);
-  pointer-events: none;
-  white-space: nowrap;
-  transform: translateX(-50%);
-  opacity: 0;
-  transition: opacity 150ms ease;
-}
-
-.kp-row:hover .kp-bar-offset,
-.kp-row-active .kp-bar-offset {
-  opacity: 1;
-}
-
 @keyframes kpSweep {
   0% {
     transform: translateX(-100%);
@@ -2803,728 +2573,5 @@ const processConfigLines = computed<string[]>(() => {
   100% {
     transform: translateX(100%);
   }
-}
-
-/* Status dots (shared with compact mode) */
-.kp-dot-done {
-  background: var(--td-success-color);
-}
-
-.kp-dot-running {
-  background: var(--td-warning-color);
-  animation: kpLivePulse 1.4s ease-in-out infinite;
-}
-
-.kp-dot-failed {
-  background: var(--td-error-color);
-}
-
-.kp-dot-cancelled {
-  background: transparent;
-  border: 1px dashed var(--td-text-color-placeholder);
-}
-
-.kp-dot-skipped {
-  background: var(--td-text-color-placeholder);
-  opacity: 0.4;
-}
-
-.kp-dot-pending {
-  background: transparent;
-  border: 1px solid var(--td-component-border);
-}
-
-.kp-dot-placeholder {
-  background: transparent;
-  border: 1px dashed var(--td-component-border);
-}
-
-.kp-dot-completed {
-  background: var(--td-success-color);
-}
-
-.kp-dot-processing {
-  background: var(--td-warning-color);
-  animation: kpLivePulse 1.4s ease-in-out infinite;
-}
-
-.kp-dot-unknown {
-  background: var(--td-text-color-placeholder);
-}
-
-/* Last error block — pinned in the header so long trace trees don't bury it */
-.kp-last-error {
-  margin: 10px 0 0;
-  display: flex;
-  background: var(--td-error-color-light);
-  border-radius: var(--td-radius-medium);
-  overflow: hidden;
-  border: 1px solid var(--td-error-color-3);
-}
-
-.kp-last-error-bar {
-  width: 3px;
-  background: var(--td-error-color);
-  flex-shrink: 0;
-}
-
-.kp-last-error-body {
-  flex: 1;
-  padding: 10px 14px;
-  min-width: 0;
-}
-
-.kp-last-error-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.kp-last-error-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  background: var(--td-error-color);
-  color: var(--td-text-color-anti);
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.kp-last-error-title {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--td-error-color);
-}
-
-.kp-last-error-code {
-  font-size: 10px;
-  background: var(--td-error-color);
-  color: var(--td-text-color-anti);
-  padding: 1px 6px;
-  border-radius: var(--td-radius-small);
-  margin-left: auto;
-}
-
-.kp-last-error-suggestion {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  margin-bottom: 4px;
-}
-
-.kp-last-error-raw {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* ============== DETAIL PANEL ============== */
-.kp-detail {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-  height: 0;
-  overflow: hidden;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.kp-detail-open {
-  height: 50%;
-  min-height: 320px;
-}
-
-.kp-detail-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 20px 10px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.kp-detail-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.kp-detail-dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-}
-
-.kp-detail-name {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.kp-detail-kind {
-  font-family: var(--app-font-family-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--td-text-color-placeholder);
-  flex-shrink: 0;
-}
-
-/* Status chip — soft tinted background using the brand/error/success
-   palette. Matches TDesign tag aesthetics. */
-.kp-status-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 8px;
-  border-radius: var(--td-radius-default);
-  font-size: 11px;
-  font-weight: 500;
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-primary);
-  flex-shrink: 0;
-}
-
-.kp-chip-done {
-  background: var(--td-success-color-light);
-  color: var(--td-success-color);
-}
-
-.kp-chip-running {
-  background: var(--td-warning-color-light);
-  color: var(--td-warning-color);
-}
-
-.kp-chip-failed {
-  background: var(--td-error-color-light);
-  color: var(--td-error-color);
-}
-
-.kp-chip-cancelled {
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-secondary);
-}
-
-.kp-chip-skipped {
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-chip-pending {
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-secondary);
-}
-
-.kp-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Tabs */
-.kp-tabs {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 0;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-}
-
-.kp-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 9px 14px 10px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  position: relative;
-  transition: color 150ms ease;
-}
-
-.kp-tab:hover {
-  color: var(--td-text-color-primary);
-}
-
-.kp-tab-active {
-  color: var(--td-text-color-primary);
-  font-weight: 600;
-}
-
-.kp-tab-active::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: -1px;
-  height: 2px;
-  background: var(--td-brand-color);
-  border-radius: 2px 2px 0 0;
-}
-
-.kp-tab-empty {
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-detail-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 16px 20px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.kp-detail-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-detail-hint {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  padding: 10px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: var(--td-radius-medium);
-  border-left: 2px solid var(--td-component-border);
-}
-
-/* Sections */
-.kp-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kp-section-title {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--td-text-color-secondary);
-}
-
-.kp-section-desc {
-  margin: 4px 0 8px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-}
-
-.kp-section-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.kp-section-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--td-component-border);
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: var(--td-radius-default);
-  cursor: pointer;
-  transition:
-    background 150ms ease,
-    color 150ms ease,
-    border-color 150ms ease;
-}
-
-.kp-section-action:hover {
-  background: var(--td-brand-color);
-  color: var(--td-text-color-anti);
-  border-color: var(--td-brand-color);
-}
-
-.kp-section-action:hover :deep(.t-icon) {
-  color: var(--td-text-color-anti);
-}
-
-/* KV grid — TDesign description list aesthetic. White card on the gray
-   page bg, soft 1px row separators, key/label color hierarchy. */
-.kp-kv {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-bg-color-container);
-  overflow: hidden;
-}
-
-.kp-kv-row {
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 12px;
-  align-items: center;
-  font-size: 12px;
-  min-width: 0;
-  padding: 8px 12px;
-  background: var(--td-bg-color-container);
-}
-
-.kp-kv-row + .kp-kv-row {
-  border-top: 1px solid var(--td-bg-color-secondarycontainer);
-}
-
-.kp-kv-row-multiline {
-  align-items: flex-start;
-}
-
-.kp-kv-key {
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kp-kv-val {
-  color: var(--td-text-color-primary);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.kp-kv-truncate {
-  overflow: hidden;
-}
-
-.kp-kv-truncate .kp-kv-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  flex: 1;
-}
-
-.kp-kv-multiline {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: stretch;
-}
-
-.kp-kv-scalar {
-  font-size: 12px;
-}
-
-.kp-kv-running {
-  color: var(--td-warning-color);
-  font-style: italic;
-  font-family: var(--app-font-family);
-  font-size: 11px;
-}
-
-.kp-kv-tag-live {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: var(--td-warning-color-light);
-  color: var(--td-warning-color);
-  border-radius: var(--td-radius-small);
-  font-family: var(--app-font-family);
-}
-
-.kp-kv-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  border-radius: var(--td-radius-small);
-  flex-shrink: 0;
-}
-
-.kp-kv-copy:hover {
-  background: var(--td-bg-color-container-hover);
-  color: var(--td-brand-color);
-}
-
-.kp-mono {
-  font-family: var(--app-font-family-mono);
-  font-size: 11px;
-  letter-spacing: 0;
-}
-
-.kp-bool-true {
-  color: var(--td-success-color);
-  font-weight: 500;
-}
-
-.kp-bool-false {
-  color: var(--td-error-color);
-  font-weight: 500;
-}
-
-.kp-kv-collapsible {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Same vertical layout as collapsible, but with no toggle button —
-   used for short payloads that auto-expand inline. */
-.kp-kv-inline {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.kp-kv-summary-static {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.kp-kv-toggle {
-  border: none;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  flex-wrap: wrap;
-}
-
-.kp-kv-summary {
-  color: var(--td-text-color-secondary);
-}
-
-.kp-kv-toggle-label {
-  font-size: 11px;
-  color: var(--td-brand-color);
-  font-weight: 500;
-}
-
-.kp-kv-toggle:hover .kp-kv-toggle-label {
-  text-decoration: underline;
-}
-
-/* Stage breakdown table inside root overview */
-.kp-breakdown {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-bg-color-container);
-  padding: 10px 12px;
-}
-
-.kp-breakdown-row {
-  display: grid;
-  grid-template-columns: 110px 1fr 64px;
-  gap: 10px;
-  align-items: center;
-  font-size: 12px;
-}
-
-.kp-breakdown-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--td-text-color-primary);
-}
-
-.kp-breakdown-track {
-  position: relative;
-  height: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: var(--td-radius-small);
-  overflow: hidden;
-}
-
-.kp-breakdown-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  border-radius: var(--td-radius-small);
-  transition: width 800ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.kp-breakdown-row.kp-breakdown-pending .kp-breakdown-bar {
-  display: none;
-}
-
-.kp-breakdown-dur {
-  text-align: right;
-  color: var(--td-text-color-secondary);
-}
-
-/* Error block in overview */
-.kp-error-block {
-  border: 1px solid var(--td-error-color-3);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-error-color-light);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kp-error-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.kp-error-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  background: var(--td-error-color);
-  color: var(--td-text-color-anti);
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.kp-error-title {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--td-error-color);
-}
-
-.kp-error-code {
-  margin-left: auto;
-  font-size: 10px;
-  background: var(--td-error-color);
-  color: var(--td-text-color-anti);
-  padding: 1px 6px;
-  border-radius: var(--td-radius-small);
-}
-
-.kp-error-msg {
-  margin: 0;
-  font-size: 11px;
-  color: var(--td-text-color-secondary);
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 160px;
-  overflow: auto;
-  padding: 8px 10px;
-  background: var(--td-bg-color-container);
-  border-radius: var(--td-radius-default);
-  border: 1px solid var(--td-component-stroke);
-}
-
-/* JSON viewer */
-.kp-json {
-  margin: 0;
-  padding: 10px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  max-height: 360px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 11px;
-  color: var(--td-text-color-primary);
-  line-height: 1.6;
-}
-
-.kp-json-large {
-  max-height: 480px;
-}
-
-/* ============== COMPACT MODE (untouched) ============== */
-.kp-compact {
-  max-width: 320px;
-  height: auto;
-}
-
-.kp-compact-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.kp-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--td-text-color-placeholder);
-  display: inline-block;
-}
-
-.kp-compact-caption {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kp-stage-emph {
-  color: var(--td-brand-color);
-  font-weight: 600;
-}
-
-.kp-proccfg-pop {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 2px 0;
-  max-width: 320px;
-}
-
-.kp-proccfg-title {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  margin-bottom: 2px;
-}
-
-.kp-proccfg-line {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--td-text-color-secondary);
-  word-break: break-word;
 }
 </style>
