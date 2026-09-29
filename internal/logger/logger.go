@@ -343,7 +343,7 @@ func resolveLogPathFromEnv() string {
 	if logPath := strings.TrimSpace(os.Getenv("LOG_PATH")); logPath != "" {
 		return filepath.Clean(logPath)
 	}
-	return defaultMacAppLogPath()
+	return ""
 }
 
 // resolveLogFormatFromEnv 从环境变量 LOG_FORMAT 读取自定义日志格式模板。
@@ -351,28 +351,6 @@ func resolveLogPathFromEnv() string {
 // %d=时间 %level=级别 %thread=goroutine %logger=caller %traceId=请求ID %msg=消息+结构化字段
 func resolveLogFormatFromEnv() string {
 	return strings.TrimSpace(os.Getenv("LOG_FORMAT"))
-}
-
-func defaultMacAppLogPath() string {
-	execPath, err := os.Executable()
-	if err != nil || !strings.Contains(execPath, ".app/Contents/MacOS") {
-		return ""
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-
-	appName := "Yuheng Lite"
-	if idx := strings.Index(execPath, ".app/Contents/MacOS"); idx >= 0 {
-		bundleName := filepath.Base(execPath[:idx+4])
-		if trimmed := strings.TrimSuffix(bundleName, ".app"); trimmed != "" {
-			appName = trimmed
-		}
-	}
-
-	return filepath.Join(homeDir, "Library", "Logs", appName, appName+".log")
 }
 
 func openLogFile(logPath string) (io.WriteCloser, error) {

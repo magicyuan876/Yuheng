@@ -15,7 +15,7 @@ type DocsConfig struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 	// CollabURL is the browser-facing WebSocket URL of the collaboration
 	// service (ws://collab:1234 in Compose). Empty means no collaboration
-	// service: pages use exclusive-edit leases instead (Lite edition).
+	// service: pages use exclusive-edit leases instead.
 	CollabURL string `yaml:"collab_url" json:"collab_url"`
 	// CollabSharedSecret signs the HTTP callbacks between the collaboration
 	// service and this server. Required whenever CollabURL is set.

@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 min-w-0 flex-1 flex-col p-[20px_28px_0]">
-    <div class="mb-4 flex flex-none items-center justify-between" style="--wails-draggable: drag">
+    <div class="mb-4 flex flex-none items-center justify-between">
       <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2">
           <h2 class="text-foreground m-0 font-[family-name:var(--app-font-family)] text-[20px] leading-7 font-semibold">
@@ -12,7 +12,6 @@
                 variant="ghost"
                 size="icon-sm"
                 class="text-muted-foreground"
-                style="--wails-draggable: no-drag"
                 :aria-label="t('docs.spaces.create')"
                 @click="openCreate"
               >

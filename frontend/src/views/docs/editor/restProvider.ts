@@ -1,5 +1,5 @@
-// The editing transport for deployments with no collaboration service (the
-// Lite edition, and any deployment that leaves YUHENG_COLLAB_URL empty).
+// The editing transport for deployments with no collaboration service (any
+// deployment that leaves YUHENG_COLLAB_URL empty).
 //
 // It is deliberately shaped like the Hocuspocus provider it replaces: it owns
 // the same Y.Doc the editor is bound to, reports the same three connection

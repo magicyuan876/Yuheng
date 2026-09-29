@@ -3,11 +3,11 @@
 //
 // Two transports, one interface. A deployment with a collaboration service
 // gets a HocuspocusProvider over a WebSocket, with live cursors and merged
-// concurrent edits. A deployment without one (the Lite edition) gets the REST
+// concurrent edits. A deployment without one gets the REST
 // provider, where one person at a time holds a lease on the page. Which one is
 // in use is decided solely by the docs_collab_url deployment capability, so
-// both editions ship the same bundle and the editor above this file does not
-// know the difference.
+// every deployment ships the same bundle and the editor above this file does
+// not know the difference.
 //
 // All the actual decisions (is it editable right now, what banner to show, how
 // to shape a collaborator) live in session.ts and restProvider.ts and are
