@@ -16,7 +16,7 @@ cutting a release: it carries the blocking items.
 
 | Ecosystem | Components | Source of truth |
 |---|---|---|
-| Go | 394 modules | `go.mod`, `cli/go.mod`, `client/go.mod` |
+| Go | 366 modules | `go.mod`, `cli/go.mod`, `client/go.mod` |
 | npm (frontend) | 569 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
 | npm (collab) | 35 packages | `collab/package-lock.json` (resolved from `collab/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
@@ -39,11 +39,11 @@ cutting a release: it carries the blocking items.
 
 | License | Modules |
 |---|---|
-| MIT | 168 |
-| Apache-2.0 | 153 |
+| MIT | 147 |
+| Apache-2.0 | 149 |
 | BSD-3-Clause | 49 |
-| BSD-2-Clause | 13 |
-| ISC | 2 |
+| BSD-2-Clause | 11 |
+| ISC | 1 |
 | MPL-2.0 | 2 |
 | UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | Apache-2.0 (v0.67.0 is replaced by v0.59.0 in go.mod; the replacement is in the cache and scans Apache-2.0) | 1 |
@@ -53,7 +53,7 @@ cutting a release: it carries the blocking items.
 | UNRESOLVED (terminal input; not in the linux module cache) | 1 |
 
 <details>
-<summary>Full list (394 modules)</summary>
+<summary>Full list (366 modules)</summary>
 
 | Module | Version | License |
 |---|---|---|
@@ -61,10 +61,8 @@ cutting a release: it carries the blocking items.
 | `cloud.google.com/go/auth/oauth2adapt` | v0.2.8 | Apache-2.0 |
 | `cloud.google.com/go/compute/metadata` | v0.9.0 | Apache-2.0 |
 | `codeberg.org/readeck/go-readability/v2` | v2.1.2 | MIT |
-| `connectrpc.com/connect` | v1.19.1 | Apache-2.0 |
 | `dario.cat/mergo` | v1.0.2 | BSD-3-Clause |
 | `filippo.io/edwards25519` | v1.2.0 | BSD-3-Clause |
-| `git.sr.ht/~jackmordaunt/go-toast/v2` | v2.0.3 | MIT |
 | `github.com/alicebob/miniredis/v2` | v2.38.0 | MIT |
 | `github.com/aliyun/alibabacloud-oss-go-sdk-v2` | v1.5.1 | Apache-2.0 |
 | `github.com/andybalholm/brotli` | v1.2.0 | MIT |
@@ -93,7 +91,6 @@ cutting a release: it carries the blocking items.
 | `github.com/Azure/go-ansiterm` | v0.0.0-20250102033503-faa5f7b0171c | MIT |
 | `github.com/bahlo/generic-list-go` | v0.2.0 | BSD-3-Clause |
 | `github.com/beorn7/perks` | v1.0.1 | MIT |
-| `github.com/bep/debounce` | v1.2.1 | MIT |
 | `github.com/blang/semver/v4` | v4.0.0 | MIT |
 | `github.com/buger/jsonparser` | v1.1.2 | MIT |
 | `github.com/bytedance/gopkg` | v0.1.3 | Apache-2.0 |
@@ -136,7 +133,6 @@ cutting a release: it carries the blocking items.
 | `github.com/davecgh/go-spew` | v1.1.2-0.20180830191138-d8f796af33cc | ISC |
 | `github.com/dgryski/go-rendezvous` | v0.0.0-20200823014737-9f7001d12a5f | MIT |
 | `github.com/distribution/reference` | v0.6.0 | Apache-2.0 |
-| `github.com/dlclark/regexp2` | v1.11.5 | MIT |
 | `github.com/docker/go-connections` | v0.7.0 | Apache-2.0 |
 | `github.com/docker/go-units` | v0.5.0 | Apache-2.0 |
 | `github.com/duckdb/duckdb-go-bindings` | v0.10502.0 | MIT |
@@ -228,12 +224,10 @@ cutting a release: it carries the blocking items.
 | `github.com/jackc/pgservicefile` | v0.0.0-20240606120523-5a60cdf6a761 | MIT |
 | `github.com/jackc/pgx/v5` | v5.9.2 | MIT |
 | `github.com/jackc/puddle/v2` | v2.2.2 | MIT |
-| `github.com/jchv/go-winloader` | v0.0.0-20210711035445-715c2860da7e | ISC |
 | `github.com/jinzhu/inflection` | v1.0.0 | MIT |
 | `github.com/jinzhu/now` | v1.1.5 | MIT |
 | `github.com/JohannesKaufmann/dom` | v0.2.0 | MIT |
 | `github.com/JohannesKaufmann/html-to-markdown/v2` | v2.5.1 | MIT |
-| `github.com/joho/godotenv` | v1.5.1 | MIT |
 | `github.com/jonboulle/clockwork` | v0.5.0 | Apache-2.0 |
 | `github.com/json-iterator/go` | v1.1.13-0.20220915233716-71ac16282d12 | MIT |
 | `github.com/klauspost/compress` | v1.18.6 | Apache-2.0 |
@@ -243,13 +237,6 @@ cutting a release: it carries the blocking items.
 | `github.com/kr/text` | v0.2.0 | MIT |
 | `github.com/ks3sdklib/aws-sdk-go` | v1.11.0 | Apache-2.0 |
 | `github.com/KyleBanks/depth` | v1.2.1 | MIT |
-| `github.com/labstack/echo/v4` | v4.13.3 | MIT |
-| `github.com/labstack/gommon` | v0.4.2 | MIT |
-| `github.com/larksuite/oapi-sdk-go/v3` | v3.9.7 | MIT |
-| `github.com/leaanthony/go-ansi-parser` | v1.6.1 | MIT |
-| `github.com/leaanthony/gosod` | v1.0.4 | MIT |
-| `github.com/leaanthony/slicer` | v1.6.0 | MIT |
-| `github.com/leaanthony/u` | v1.1.1 | MIT |
 | `github.com/leodido/go-urn` | v1.4.0 | MIT |
 | `github.com/lib/pq` | v1.10.9 | MIT |
 | `github.com/lucasb-eyer/go-colorful` | v1.2.0 | MIT |
@@ -257,12 +244,9 @@ cutting a release: it carries the blocking items.
 | `github.com/magiconair/properties` | v1.8.10 | BSD-2-Clause |
 | `github.com/magicyuan876/yuheng/client` | v0.0.0-00010101000000-000000000000 | MIT (this repository) |
 | `github.com/mailru/easyjson` | v0.9.0 | MIT |
-| `github.com/mark3labs/mcp-go` | v0.52.0 | MIT |
-| `github.com/matiasinsaurralde/go-e2b` | v0.1.1-0.20260808041540-fdc08ceaa1c1 | MIT |
-| `github.com/mattn/go-colorable` | v0.1.13 | MIT |
 | `github.com/mattn/go-isatty` | v0.0.22 | MIT |
 | `github.com/mattn/go-localereader` | v0.0.1 | UNRESOLVED (not in the linux module cache) |
-| `github.com/mattn/go-runewidth` | v0.0.27 | MIT |
+| `github.com/mattn/go-runewidth` | v0.0.30 | MIT |
 | `github.com/Microsoft/go-winio` | v0.6.2 | MIT |
 | `github.com/milvus-io/milvus-proto/go-api/v2` | v2.6.15 | Apache-2.0 |
 | `github.com/milvus-io/milvus/client/v2` | v2.6.4 | Apache-2.0 |
@@ -276,14 +260,14 @@ cutting a release: it carries the blocking items.
 | `github.com/mmcdole/goxpp` | v1.1.1-0.20240225020742-a0c311522b23 | MIT |
 | `github.com/moby/docker-image-spec` | v1.3.1 | Apache-2.0 |
 | `github.com/moby/go-archive` | v0.2.0 | Apache-2.0 |
-| `github.com/moby/moby/api` | v1.55.0 | Apache-2.0 |
-| `github.com/moby/moby/client` | v0.5.1 | Apache-2.0 |
+| `github.com/moby/moby/api` | v1.54.2 | Apache-2.0 |
+| `github.com/moby/moby/client` | v0.4.1 | Apache-2.0 |
 | `github.com/moby/patternmatcher` | v0.6.1 | Apache-2.0 |
 | `github.com/moby/sys/sequential` | v0.6.0 | Apache-2.0 |
 | `github.com/moby/sys/user` | v0.4.0 | Apache-2.0 |
 | `github.com/moby/sys/userns` | v0.1.0 | Apache-2.0 |
 | `github.com/moby/term` | v0.5.2 | Apache-2.0 |
-| `github.com/modelcontextprotocol/go-sdk` | v1.7.0 | Apache-2.0 |
+| `github.com/modelcontextprotocol/go-sdk` | v1.8.0 | Apache-2.0 |
 | `github.com/modern-go/concurrent` | v0.0.0-20180306012644-bacd9c7ef1dd | Apache-2.0 |
 | `github.com/modern-go/reflect2` | v1.0.2 | Apache-2.0 |
 | `github.com/mozillazg/go-httpheader` | v0.2.1 | MIT |
@@ -294,7 +278,6 @@ cutting a release: it carries the blocking items.
 | `github.com/neo4j/neo4j-go-driver/v6` | v6.0.0 | Apache-2.0 |
 | `github.com/oklog/ulid/v2` | v2.1.1 | Apache-2.0 |
 | `github.com/ollama/ollama` | v0.23.2 | MIT |
-| `github.com/open-dingtalk/dingtalk-stream-sdk-go` | v0.9.2-beta.1 | MIT |
 | `github.com/opencontainers/go-digest` | v1.0.0 | Apache-2.0 |
 | `github.com/opencontainers/image-spec` | v1.1.1 | Apache-2.0 |
 | `github.com/opencontainers/runtime-spec` | v1.0.2 | Apache-2.0 |
@@ -308,7 +291,6 @@ cutting a release: it carries the blocking items.
 | `github.com/pgvector/pgvector-go` | v0.3.0 | MIT |
 | `github.com/philhofer/fwd` | v1.2.0 | MIT |
 | `github.com/pierrec/lz4/v4` | v4.1.25 | BSD-3-Clause |
-| `github.com/pkg/browser` | v0.0.0-20240102092130-5ac0b6a4141c | BSD-2-Clause |
 | `github.com/pkg/errors` | v0.9.1 | BSD-2-Clause |
 | `github.com/pmezard/go-difflib` | v1.0.1-0.20181226105442-5d4384ee4fb2 | BSD-2-Clause |
 | `github.com/power-devops/perfstat` | v0.0.0-20240221224432-82ca36839d55 | MIT |
@@ -329,7 +311,6 @@ cutting a release: it carries the blocking items.
 | `github.com/rs/xid` | v1.6.0 | MIT |
 | `github.com/sagikazarmark/locafero` | v0.11.0 | MIT |
 | `github.com/samber/lo` | v1.49.1 | MIT |
-| `github.com/santhosh-tekuri/jsonschema/v6` | v6.0.2 | Apache-2.0 |
 | `github.com/sashabaranov/go-openai` | v1.41.2 | Apache-2.0 |
 | `github.com/segmentio/asm` | v1.1.3 | MIT |
 | `github.com/segmentio/encoding` | v0.5.4 | MIT |
@@ -337,7 +318,6 @@ cutting a release: it carries the blocking items.
 | `github.com/shirou/gopsutil/v4` | v4.26.4 | BSD-3-Clause |
 | `github.com/shoenig/go-m1cpu` | v0.2.2 | MPL-2.0 |
 | `github.com/sirupsen/logrus` | v1.9.4 | MIT |
-| `github.com/slack-go/slack` | v0.23.1 | BSD-2-Clause |
 | `github.com/soheilhy/cmux` | v0.1.5 | Apache-2.0 |
 | `github.com/sourcegraph/conc` | v0.3.1-0.20240121214520-5f936abd7ae8 | MIT |
 | `github.com/spaolacci/murmur3` | v1.1.0 | BSD-3-Clause |
@@ -353,7 +333,6 @@ cutting a release: it carries the blocking items.
 | `github.com/swaggo/gin-swagger` | v1.6.1 | MIT |
 | `github.com/swaggo/swag` | v1.16.6 | MIT |
 | `github.com/tencent/vectordatabase-sdk-go` | v1.8.4 | Apache-2.0 |
-| `github.com/tencentcloud/CubeSandbox/sdk/go` | v0.0.0-20260807115140-5cefcca27a7f | Apache-2.0 |
 | `github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common` | v1.3.103 | Apache-2.0 |
 | `github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/lkeap` | v1.3.103 | Apache-2.0 |
 | `github.com/tencentyun/cos-go-sdk-v5` | v0.7.73 | MIT |
@@ -363,25 +342,18 @@ cutting a release: it carries the blocking items.
 | `github.com/tidwall/match` | v1.1.1 | MIT |
 | `github.com/tidwall/pretty` | v1.2.1 | MIT |
 | `github.com/tiendc/go-deepcopy` | v1.7.2 | MIT |
-| `github.com/tiktoken-go/tokenizer` | v0.7.0 | MIT |
 | `github.com/tinylib/msgp` | v1.6.1 | MIT |
 | `github.com/tklauser/go-sysconf` | v0.3.16 | BSD-3-Clause |
 | `github.com/tklauser/numcpus` | v0.11.0 | Apache-2.0 |
-| `github.com/tkrajina/go-reflector` | v0.5.8 | Apache-2.0 |
 | `github.com/tmc/grpc-websocket-proxy` | v0.0.0-20201229170055-e5319fda7802 | MIT |
 | `github.com/twitchyliquid64/golang-asm` | v0.15.1 | BSD-3-Clause |
 | `github.com/twpayne/go-geom` | v1.6.1 | BSD-2-Clause |
 | `github.com/uber/jaeger-client-go` | v2.30.0+incompatible | Apache-2.0 |
 | `github.com/ugorji/go/codec` | v1.3.1 | MIT |
-| `github.com/valyala/bytebufferpool` | v1.0.0 | MIT |
-| `github.com/valyala/fasttemplate` | v1.2.2 | MIT |
 | `github.com/vcaesar/cedar` | v0.20.2 | BSD-2-Clause |
 | `github.com/volcengine/ve-tos-golang-sdk/v2` | v2.9.4 | Apache-2.0 |
 | `github.com/volcengine/vikingdb-go-sdk` | v0.0.11 | Apache-2.0 |
 | `github.com/volcengine/volc-sdk-golang` | v1.0.252 | Apache-2.0 |
-| `github.com/wailsapp/go-webview2` | v1.0.22 | MIT |
-| `github.com/wailsapp/mimetype` | v1.4.1 | MIT |
-| `github.com/wailsapp/wails/v2` | v2.12.0 | MIT |
 | `github.com/weaviate/weaviate` | v1.37.3 | BSD-3-Clause |
 | `github.com/weaviate/weaviate-go-client/v5` | v5.7.3 | BSD-3-Clause |
 | `github.com/wk8/go-ordered-map/v2` | v2.1.8 | Apache-2.0 |

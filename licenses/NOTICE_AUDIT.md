@@ -39,8 +39,8 @@ github.com/magicyuan876/yuheng/internal/types
 ```
 
 `internal/types` is imported by essentially every package, so this is not a
-build-tag-gated corner: the GPL-2.0 object code ends up in the shipped binary of
-both the standard and lite editions. Distributing that binary under MIT is not
+build-tag-gated corner: the GPL-2.0 object code ends up in the shipped binary.
+Distributing that binary under MIT is not
 something the GPL-2.0 permits.
 
 The only consumer is `internal/types/faq.go`, which builds one
@@ -160,11 +160,6 @@ SPDX-License-Identifier: MIT
 Applied to: `helm/values.yaml`, `helm/templates/NOTES.txt`,
 `helm/templates/_helpers.tpl`, and `helm/templates/{app,docreader,frontend,
 ingress,neo4j,postgres,pvc,redis,secrets,serviceaccount}.yaml` — 13 files.
-
-`cmd/desktop/wails.json` cannot carry comments, so its `info.copyright` field now
-reads `Portions Copyright (c) 2025 Tencent. Modifications Copyright (c) 2026
-magicyuan876.`, and `companyName` / `author.name` changed from `Tencent` /
-`WeKnora Team` to `magicyuan876`.
 
 `mcp-server/LICENSE` keeps `Copyright (c) 2024 WeKnora Team` and gains
 `Modifications Copyright (c) 2026 magicyuan876` beneath it.
