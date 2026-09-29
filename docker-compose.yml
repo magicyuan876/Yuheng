@@ -220,8 +220,8 @@ services:
       # 公司代理的机器上 shell 里往往已经有一个 NO_PROXY=localhost,127.0.0.1 —— 它会
       # 把整份列表顶掉，app 于是连 collab、docreader、postgres 都要走代理，全部 403。
       # 现在环境变量里的值是追加上来的，只能加不能减。
-      - NO_PROXY=localhost,127.0.0.1,10.52.3.178,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,rustfs,neo4j,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
-      - no_proxy=localhost,127.0.0.1,10.52.3.178,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,rustfs,neo4j,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
+      - NO_PROXY=localhost,127.0.0.1,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,rustfs,neo4j,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
+      - no_proxy=localhost,127.0.0.1,app,collab,frontend,docreader,drawio,odl-hybrid,postgres,redis,searxng,rustfs,neo4j,dex,langfuse-db-init,langfuse-clickhouse,langfuse-minio,langfuse-worker,langfuse-web,mcp,host.docker.internal${NO_PROXY:+,}${NO_PROXY}
       # 保留原始 URL 的图片域名白名单（逗号分隔，不替换为 provider://）
       - IMAGE_HOST_KEEP_URL=${IMAGE_HOST_KEEP_URL:-}
       # Always allow the optional searxng sidecar, bundled vector stores, and

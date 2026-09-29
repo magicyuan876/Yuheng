@@ -150,6 +150,11 @@ cd cli && make build && make test
 - 切勿提交 `.env`；部署前请替换 `.env.example` 中的占位密钥。生产环境建议
   内网部署，详见[安装与部署说明](./website-docs/01-getting-started/02-installation.md)。
 
+## 参与贡献
+
+欢迎提交问题报告、修复和改进，请先阅读 [`CONTRIBUTING.md`](./CONTRIBUTING.md)，
+并遵守[行为准则](./CODE_OF_CONDUCT.md)。
+
 ## 致谢与出处
 
 Yuheng 部分衍生自 [WeKnora](https://github.com/Tencent/WeKnora) 项目，上游
@@ -159,4 +164,5 @@ MIT 代码按声明使用——见 [`NOTICE`](./NOTICE)、
 
 ## 许可证
 
-[MIT](./LICENSE)
+[MIT](./LICENSE)。许可证覆盖的是代码；Yuheng、玉衡这两个名称以及项目标识，
+不授权用作修改后产品的名称，详见 [`TRADEMARK.md`](./TRADEMARK.md)。

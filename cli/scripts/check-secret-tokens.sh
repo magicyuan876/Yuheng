@@ -6,7 +6,7 @@
 #
 # Heuristic, low false-positive: a real Yuheng API key is `sk-` followed by a
 # long high-entropy body that CONTAINS A DIGIT (e.g.
-# sk-bVd4ebLoyn-DKevdkgw527XAakwv4G6Tz6FhgXPlOpBO-Ico); placeholder words like
+# sk-a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6); placeholder words like
 # `sk-specific` / `sk-staging` have no digit and are short, so they pass. JWTs
 # are three base64url segments. Lines that look like placeholders
 # (EXAMPLE / REDACTED / <...> / YOUR_ / xxxx) are ignored.

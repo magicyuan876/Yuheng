@@ -33,7 +33,7 @@
 ```curl
 curl --location 'http://localhost:8080/api/v1/tenants/all' \
 --header 'Content-Type: application/json' \
---header 'X-API-Key: sk-An7_t_izCKFIJ4iht9Xjcjnj_MC48ILvwezEDki9ScfIa7KA'
+--header 'X-API-Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 ```
 
 **响应**:
@@ -81,7 +81,7 @@ curl --location 'http://localhost:8080/api/v1/tenants/all' \
 ```curl
 curl --location 'http://localhost:8080/api/v1/tenants/search?keyword=yuheng&page=1&page_size=10' \
 --header 'Content-Type: application/json' \
---header 'X-API-Key: sk-An7_t_izCKFIJ4iht9Xjcjnj_MC48ILvwezEDki9ScfIa7KA'
+--header 'X-API-Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 ```
 
 **响应**:
@@ -188,7 +188,7 @@ curl --location 'http://localhost:8080/api/v1/tenants' \
         "id": 10000,
         "name": "yuheng",
         "description": "yuheng workspaces",
-        "api_key": "sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG",
+        "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "status": "active",
         "business": "wechat",
         "storage_quota": 10737418240,
@@ -215,7 +215,7 @@ curl --location 'http://localhost:8080/api/v1/tenants' \
 
 ```curl
 curl --location 'http://localhost:8080/api/v1/tenants/10000' \
---header 'X-API-Key: sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG' \
+--header 'X-API-Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
 --header 'Content-Type: application/json'
 ```
 
@@ -227,7 +227,7 @@ curl --location 'http://localhost:8080/api/v1/tenants/10000' \
         "id": 10000,
         "name": "yuheng",
         "description": "yuheng workspaces",
-        "api_key": "sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG",
+        "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "status": "active",
         "retriever_engines": {
             "engines": [
@@ -268,7 +268,7 @@ curl --location 'http://localhost:8080/api/v1/tenants/10000' \
 
 ```curl
 curl --location --request PUT 'http://localhost:8080/api/v1/tenants/10000' \
---header 'X-API-Key: sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG' \
+--header 'X-API-Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
     "name": "yuheng new",
@@ -299,7 +299,7 @@ curl --location --request PUT 'http://localhost:8080/api/v1/tenants/10000' \
         "id": 10000,
         "name": "yuheng new",
         "description": "yuheng workspaces new",
-        "api_key": "sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG",
+        "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         "status": "active",
         "retriever_engines": {
             "engines": [
@@ -338,7 +338,7 @@ curl --location --request PUT 'http://localhost:8080/api/v1/tenants/10000' \
 
 ```curl
 curl --location --request DELETE 'http://localhost:8080/api/v1/tenants/10000' \
---header 'X-API-Key: sk-aaLRAgvCRJcmtiL2vLMeB1FB5UV0Q-qB7DlTE1pJ9KA93XZG' \
+--header 'X-API-Key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
 --header 'Content-Type: application/json'
 ```
 
@@ -504,7 +504,7 @@ curl --location 'http://localhost:8080/api/v1/tenants' \
                 "id": 10002,
                 "name": "yuheng",
                 "description": "yuheng workspaces",
-                "api_key": "sk-An7_t_izCKFIJ4iht9Xjcjnj_MC48ILvwezEDki9ScfIa7KA",
+                "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                 "status": "active",
                 "retriever_engines": {
                     "engines": [

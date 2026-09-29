@@ -160,6 +160,12 @@ cd cli && make build && make test
   any real deployment. Internal-network deployment is recommended for
   production — see the [installation & deployment notes](./website-docs/01-getting-started/02-installation.md).
 
+## Contributing
+
+Bug reports, fixes and improvements are welcome; read
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) first, and note the
+[code of conduct](./CODE_OF_CONDUCT.md).
+
 ## Attribution
 
 Yuheng is derived in part from the [WeKnora](https://github.com/Tencent/WeKnora)
@@ -169,4 +175,6 @@ project, MIT-licensed upstream code is used with notice — see
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE). The license covers the code; the names Yuheng and 玉衡 and the
+project's logos are not licensed for use as the name of a modified product — see
+[`TRADEMARK.md`](./TRADEMARK.md).
