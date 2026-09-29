@@ -1,9 +1,9 @@
 <template>
-  <div class="kb-upload-source-dropdown">
+  <div>
     <input
       ref="fileInputRef"
       type="file"
-      class="hidden-file-input"
+      class="pointer-events-none absolute h-0 w-0 opacity-0"
       multiple
       :accept="acceptFileTypes || undefined"
       @change="(e) => handleFilesChange(e, false)"
@@ -11,55 +11,120 @@
     <input
       ref="folderInputRef"
       type="file"
-      class="hidden-file-input"
+      class="pointer-events-none absolute h-0 w-0 opacity-0"
       webkitdirectory
       multiple
       @change="(e) => handleFilesChange(e, true)"
     />
 
-    <t-tooltip :content="tooltipText" placement="top">
-      <t-dropdown :options="dropdownOptions" trigger="click" :placement="placement" @click="handleActionSelect">
-        <t-button
-          variant="text"
-          theme="default"
-          :class="['kb-upload-source-trigger', triggerClass]"
-          :data-guide="dataGuide || undefined"
-          size="small"
-        >
-          <template #icon><t-icon :name="triggerIcon" size="16px" /></template>
-        </t-button>
-      </t-dropdown>
-    </t-tooltip>
+    <!--
+      The menu is the outer component so that the tooltip's trigger and the
+      menu's trigger can both land on the one button (as-child all the way down).
+    -->
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              :class="cn('text-muted-foreground hover:text-primary', triggerClass)"
+              :data-guide="dataGuide || undefined"
+              :aria-label="tooltipText"
+            >
+              <component :is="triggerIconComponent" class="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">{{ tooltipText }}</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent :side="dropdownSide" :align="dropdownAlign">
+        <DropdownMenuItem @select="handleActionSelect('upload')">
+          <UploadIcon class="size-4" />
+          {{ t("upload.uploadDocument") }}
+        </DropdownMenuItem>
+        <DropdownMenuItem @select="handleActionSelect('uploadFolder')">
+          <FolderPlusIcon class="size-4" />
+          {{ t("upload.uploadFolder") }}
+        </DropdownMenuItem>
+        <DropdownMenuItem @select="handleActionSelect('importURL')">
+          <LinkIcon class="size-4" />
+          {{ t("knowledgeBase.importURL") }}
+        </DropdownMenuItem>
+        <DropdownMenuItem v-if="includeManual" @select="handleActionSelect('manualCreate')">
+          <SquarePenIcon class="size-4" />
+          {{ t("upload.onlineEdit") }}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
 
-    <t-dialog
-      v-model:visible="urlDialogVisible"
-      :header="t('knowledgeBase.importURLTitle')"
-      :confirm-btn="{ content: t('common.confirm'), theme: 'primary' }"
-      :cancel-btn="{ content: t('common.cancel') }"
-      width="500px"
-      @confirm="handleUrlDialogConfirm"
-      @cancel="handleUrlDialogCancel"
-    >
-      <div class="url-import-form">
-        <div class="url-input-label">{{ t("knowledgeBase.urlLabel") }}</div>
-        <t-input
-          v-model="urlInputValue"
-          :placeholder="t('knowledgeBase.urlPlaceholder')"
-          clearable
-          autofocus
-          @enter="handleUrlDialogConfirm"
-        />
-        <div class="url-input-tip">{{ t("knowledgeBase.urlTip") }}</div>
-      </div>
-    </t-dialog>
+    <!--
+      z-[3100]: this menu also sits inside UploadConfirmDialog, whose overlay is
+      z-[3000], above the dialog layer (2500); at the default layer the URL
+      dialog opened from "continue adding" would open behind it.
+    -->
+    <Dialog v-model:open="urlDialogVisible">
+      <DialogContent class="z-[3100] sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("knowledgeBase.importURLTitle") }}</DialogTitle>
+        </DialogHeader>
+        <div>
+          <div class="text-foreground mb-2 text-sm font-medium">{{ t("knowledgeBase.urlLabel") }}</div>
+          <div class="relative">
+            <Input
+              v-model="urlInputValue"
+              :placeholder="t('knowledgeBase.urlPlaceholder')"
+              class="pr-8"
+              autofocus
+              @keydown.enter="handleUrlDialogConfirm"
+            />
+            <button
+              v-if="urlInputValue"
+              type="button"
+              data-slot="input-clear"
+              class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2"
+              :aria-label="t('common.clear')"
+              @click="urlInputValue = ''"
+            >
+              <CircleXIcon class="size-4" aria-hidden="true" />
+            </button>
+          </div>
+          <div class="text-placeholder mt-2 text-xs leading-normal">{{ t("knowledgeBase.urlTip") }}</div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="handleUrlDialogCancel">{{ t("common.cancel") }}</Button>
+          <Button @click="handleUrlDialogConfirm">{{ t("common.confirm") }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { MessagePlugin, Icon as TIcon } from "tdesign-vue-next";
+import { MessagePlugin } from "tdesign-vue-next";
+import {
+  CircleXIcon,
+  FilePlusIcon,
+  FolderPlusIcon,
+  LinkIcon,
+  SquarePenIcon,
+  UploadIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 import { filterUploadFiles } from "../utils/uploadSources";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const props = withDefaults(
   defineProps<{
@@ -99,36 +164,23 @@ const urlInputValue = ref("");
 
 const tooltipText = computed(() => props.tooltip || t("knowledgeBase.addDocument"));
 
-const dropdownOptions = computed(() => {
-  const options = [
-    {
-      content: t("upload.uploadDocument"),
-      value: "upload",
-      prefixIcon: () => h(TIcon, { name: "upload", size: "16px" }),
-    },
-    {
-      content: t("upload.uploadFolder"),
-      value: "uploadFolder",
-      prefixIcon: () => h(TIcon, { name: "folder-add", size: "16px" }),
-    },
-    {
-      content: t("knowledgeBase.importURL"),
-      value: "importURL",
-      prefixIcon: () => h(TIcon, { name: "link", size: "16px" }),
-    },
-  ];
-  if (props.includeManual) {
-    options.push({
-      content: t("upload.onlineEdit"),
-      value: "manualCreate",
-      prefixIcon: () => h(TIcon, { name: "edit", size: "16px" }),
-    });
-  }
-  return options;
+// The prop still takes the TDesign icon names the callers pass.
+const triggerIconMap: Record<string, LucideIcon> = {
+  "file-add": FilePlusIcon,
+  upload: UploadIcon,
+};
+
+const triggerIconComponent = computed(() => triggerIconMap[props.triggerIcon] ?? UploadIcon);
+
+const dropdownSide = computed(() => (props.placement === "top" ? "top" : "bottom"));
+const dropdownAlign = computed(() => {
+  if (props.placement === "bottom-left") return "start";
+  if (props.placement === "bottom-right") return "end";
+  return "center";
 });
 
-const handleActionSelect = (data: { value: string }) => {
-  switch (data.value) {
+const handleActionSelect = (value: string) => {
+  switch (value) {
     case "upload":
       fileInputRef.value?.click();
       break;
@@ -210,37 +262,3 @@ const openUrlDialog = () => {
 
 defineExpose({ openUrlDialog });
 </script>
-
-<style lang="less" scoped>
-.hidden-file-input {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.kb-upload-source-trigger {
-  color: var(--td-text-color-secondary);
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.url-import-form {
-  .url-input-label {
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-  }
-
-  .url-input-tip {
-    margin-top: 8px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--td-text-color-placeholder);
-  }
-}
-</style>

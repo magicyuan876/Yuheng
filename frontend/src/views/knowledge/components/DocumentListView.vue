@@ -1,10 +1,32 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  CircleDotIcon,
+  CircleIcon,
+  CloudDownloadIcon,
+  FolderIcon,
+  LinkIcon,
+  ListTreeIcon,
+  Loader2Icon,
+  MoreHorizontalIcon,
+  PenLineIcon,
+  UploadIcon,
+  XCircleIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 import { formatFileSize, getFileIcon } from "@/utils/files";
 import { useTagChipsOverflow } from "@/composables/useTagChipsOverflow";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import DocumentActionMenu from "./DocumentActionMenu.vue";
 import FolderPickerMenu, { type FolderOption } from "./FolderPickerMenu.vue";
+import { fileTypeIcon } from "../utils/fileTypeIcons";
 
 interface Tag {
   id: string;
@@ -103,33 +125,55 @@ const formatTime = (time?: string) => {
   return `${yy}-${MM}-${dd} ${hh}:${mm}`;
 };
 
-const getSourceInfo = (item: KnowledgeItem): { icon: string; label: string } => {
+const getSourceInfo = (item: KnowledgeItem): { icon: LucideIcon; label: string } => {
   const ch = item.channel;
-  if (ch === "feishu") return { icon: "cloud-download", label: t("knowledgeBase.channelFeishu") };
+  if (ch === "feishu") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelFeishu") };
   // Drive (云盘) connectors use their own channel so Drive docs show
   // "飞书云盘" / "Lark 云盘", distinct from the wiki connector's "飞书".
-  if (ch === "feishu_drive") return { icon: "cloud-download", label: t("knowledgeBase.channelFeishuDrive") };
-  if (ch === "lark_drive") return { icon: "cloud-download", label: t("knowledgeBase.channelLarkDrive") };
-  if (ch === "notion") return { icon: "cloud-download", label: t("knowledgeBase.channelNotion") };
-  if (ch === "yuque") return { icon: "cloud-download", label: t("knowledgeBase.channelYuque") };
-  if (ch === "gitlab") return { icon: "cloud-download", label: t("knowledgeBase.channelGitLab") };
-  if (ch === "ima") return { icon: "cloud-download", label: t("knowledgeBase.channelIma") };
-  if (ch === "wechat") return { icon: "cloud-download", label: t("knowledgeBase.channelWechat") };
-  if (ch === "wecom") return { icon: "cloud-download", label: t("knowledgeBase.channelWecom") };
-  if (ch === "dingtalk") return { icon: "cloud-download", label: t("knowledgeBase.channelDingtalk") };
-  if (ch === "slack") return { icon: "cloud-download", label: t("knowledgeBase.channelSlack") };
-  if (ch === "im") return { icon: "cloud-download", label: t("knowledgeBase.channelIm") };
-  if (item.type === "url") return { icon: "link", label: t("knowledgeBase.channelUrl") };
-  if (item.type === "manual") return { icon: "edit", label: t("knowledgeBase.channelManual") };
-  return { icon: "upload", label: t("knowledgeBase.channelUpload") };
+  if (ch === "feishu_drive") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelFeishuDrive") };
+  if (ch === "lark_drive") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelLarkDrive") };
+  if (ch === "notion") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelNotion") };
+  if (ch === "yuque") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelYuque") };
+  if (ch === "gitlab") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelGitLab") };
+  if (ch === "ima") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelIma") };
+  if (ch === "wechat") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelWechat") };
+  if (ch === "wecom") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelWecom") };
+  if (ch === "dingtalk") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelDingtalk") };
+  if (ch === "slack") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelSlack") };
+  if (ch === "im") return { icon: CloudDownloadIcon, label: t("knowledgeBase.channelIm") };
+  if (item.type === "url") return { icon: LinkIcon, label: t("knowledgeBase.channelUrl") };
+  if (item.type === "manual") return { icon: PenLineIcon, label: t("knowledgeBase.channelManual") };
+  return { icon: UploadIcon, label: t("knowledgeBase.channelUpload") };
 };
 
 interface StatusInfo {
   label: string;
   theme: "success" | "warning" | "danger" | "primary" | "default";
-  icon?: string;
+  icon?: "loading" | "close-circle";
   spin?: boolean;
 }
+
+// TDesign's small light-outline tag, per theme: the theme's lightest tint as
+// the fill, a slightly stronger tint as the border, the theme colour as text.
+function statusThemeClass(theme: StatusInfo["theme"]): string {
+  const base = "h-5 rounded-[3px] px-1.5 font-normal";
+  switch (theme) {
+    case "success":
+      return `${base} border-[var(--td-success-color-3)] bg-[var(--td-success-color-1)] text-success`;
+    case "warning":
+      return `${base} border-[var(--td-warning-color-3)] bg-[var(--td-warning-color-1)] text-warning`;
+    case "danger":
+      return `${base} border-[var(--td-error-color-3)] bg-[var(--td-error-color-1)] text-destructive`;
+    case "primary":
+      return `${base} border-[var(--td-brand-color-3)] bg-[var(--td-brand-color-1)] text-primary`;
+    default:
+      return `${base} border-border bg-muted text-foreground`;
+  }
+}
+
+// The same tag shape in the default theme, for the row's document tags.
+const tagBadgeClass = "border-border bg-muted text-foreground h-5 max-w-full rounded-[3px] px-1.5 font-normal";
+
 const computeStatus = (item: KnowledgeItem): StatusInfo => {
   if (item.parse_status === "pending" || item.parse_status === "processing") {
     return { label: t("knowledgeBase.statusProcessing"), theme: "primary", icon: "loading", spin: true };
@@ -183,13 +227,15 @@ const someSelected = computed(() => {
   return props.items.some((i) => props.selectedIds.has(i.id)) && !allSelected.value;
 });
 
-const onHeaderCheckboxChange = (checked: boolean) => {
-  emit("toggle-all", checked);
+const onHeaderCheckboxChange = (checked: boolean | "indeterminate") => {
+  emit("toggle-all", checked === true);
 };
 
-const onRowCheckboxChange = (item: KnowledgeItem, checked: boolean, ctx?: { e?: Event }) => {
-  const me = ctx?.e as MouseEvent | undefined;
-  emit("toggle-row", item.id, checked, !!me?.shiftKey);
+// Shift-click range selection: captured from the row checkbox's click event
+// before the checked update is emitted.
+let rowShiftKey = false;
+const rememberRowShiftKey = (e: MouseEvent) => {
+  rowShiftKey = e.shiftKey;
 };
 
 const moreOpen = ref<string | null>(null);
@@ -261,202 +307,264 @@ const handleAction = (
   item.isMore = false;
   emit("action", action, item);
 };
+
+const gridCols =
+  "grid-cols-[44px_minmax(260px,2.6fr)_minmax(100px,0.9fr)_minmax(96px,0.8fr)_96px_minmax(96px,0.7fr)_140px_48px]";
 </script>
 
 <template>
-  <div class="doc-list-view" :class="{ 'is-loading': loading }">
-    <div ref="stickySentinel" class="doc-list-sticky-sentinel" aria-hidden="true"></div>
-    <div class="doc-list-header" :class="{ 'is-stuck': headerStuck }" role="row">
-      <div class="cell cell-check" role="columnheader" @click.stop>
-        <t-checkbox
-          class="doc-list-check"
-          size="small"
-          :checked="allSelected"
-          :indeterminate="someSelected"
+  <div
+    class="bg-card box-border flex w-full [animation:doc-list-fade-in_0.32s_ease-out] flex-col rounded-[9px] border border-[var(--td-component-stroke)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+  >
+    <div ref="stickySentinel" class="pointer-events-none m-0 h-0 border-0 p-0" aria-hidden="true" />
+    <div
+      class="bg-muted text-muted-foreground sticky top-0 z-[3] grid h-10 items-center gap-0 border-b border-[var(--td-component-stroke)] px-4 [font-family:var(--app-font-family)] text-xs font-medium transition-[border-radius,box-shadow] duration-200"
+      :class="[
+        gridCols,
+        headerStuck
+          ? 'rounded-none shadow-[0_4px_10px_rgba(0,0,0,0.08)]'
+          : 'rounded-t-[8px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]',
+      ]"
+      role="row"
+    >
+      <div class="flex min-w-0 items-center justify-center p-0" role="columnheader" @click.stop>
+        <Checkbox
+          :model-value="allSelected ? true : someSelected ? 'indeterminate' : false"
           :disabled="!items.length"
           :title="t('knowledgeBase.selectAll')"
-          @change="onHeaderCheckboxChange"
+          :aria-label="t('knowledgeBase.selectAll')"
+          @update:model-value="onHeaderCheckboxChange"
         />
       </div>
-      <div class="cell cell-name" role="columnheader">{{ t("knowledgeBase.columnName") }}</div>
-      <div class="cell cell-tag" role="columnheader">{{ t("knowledgeBase.columnTag") }}</div>
-      <div class="cell cell-source" role="columnheader">{{ t("knowledgeBase.columnSource") }}</div>
-      <div class="cell cell-size" role="columnheader">{{ t("knowledgeBase.columnSize") }}</div>
-      <div class="cell cell-status" role="columnheader">{{ t("knowledgeBase.columnStatus") }}</div>
-      <div class="cell cell-time" role="columnheader">{{ t("knowledgeBase.columnUpdatedAt") }}</div>
-      <div class="cell cell-actions" role="columnheader" v-if="canEdit"></div>
+      <div class="flex min-w-0 items-center px-2" role="columnheader">
+        {{ t("knowledgeBase.columnName") }}
+      </div>
+      <div class="flex min-w-0 items-center px-2" role="columnheader">
+        {{ t("knowledgeBase.columnTag") }}
+      </div>
+      <div class="flex min-w-0 items-center px-2" role="columnheader">
+        {{ t("knowledgeBase.columnSource") }}
+      </div>
+      <div class="flex min-w-0 items-center justify-end px-2" role="columnheader">
+        {{ t("knowledgeBase.columnSize") }}
+      </div>
+      <div class="flex min-w-0 items-center px-2" role="columnheader">
+        {{ t("knowledgeBase.columnStatus") }}
+      </div>
+      <div class="flex min-w-0 items-center justify-end px-2" role="columnheader">
+        {{ t("knowledgeBase.columnUpdatedAt") }}
+      </div>
+      <div v-if="canEdit" class="flex min-w-0 items-center justify-end p-0" role="columnheader" />
     </div>
 
-    <div class="doc-list-body">
+    <div class="flex flex-col overflow-hidden rounded-b-[8px]">
       <div
         v-for="folder in folders"
         :key="'folder-' + folder.path"
-        class="doc-list-row doc-list-row--folder"
+        class="doc-list-row text-foreground hover:bg-muted relative grid min-h-[60px] cursor-pointer items-center border-b border-[var(--td-component-stroke)] px-4 text-[13px] transition-colors duration-200 last:border-b-0"
+        :class="gridCols"
         :title="folder.path"
         role="row"
         @click="emit('open-folder', folder.path)"
       >
-        <div class="cell cell-check" aria-hidden="true"></div>
-        <div class="cell cell-name">
-          <span class="row-file-icon-wrap">
-            <t-icon name="folder" class="row-folder-icon" />
+        <div class="flex min-w-0 items-center justify-center p-0" aria-hidden="true" />
+        <div class="flex min-w-0 items-center gap-2.5 px-2 [font-family:var(--app-font-family)]">
+          <span
+            class="bg-muted text-muted-foreground inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-base"
+          >
+            <FolderIcon class="text-primary size-4" />
           </span>
-          <div class="row-file-text">
-            <span class="row-file-name">{{ folder.name }}</span>
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="text-foreground truncate text-sm font-medium">{{ folder.name }}</span>
           </div>
         </div>
-        <div class="cell cell-tag"></div>
-        <div class="cell cell-source">
-          <span class="row-folder-meta">
-            {{ t("knowledgeBase.folderTree.folderCardCount", { count: folder.total_count }) }}
-          </span>
+        <div class="flex min-w-0 items-center px-2" />
+        <div class="flex min-w-0 items-center gap-1.5 px-2">
+          <span class="text-placeholder text-xs">{{
+            t("knowledgeBase.folderTree.folderCardCount", { count: folder.total_count })
+          }}</span>
         </div>
-        <div class="cell cell-size"></div>
-        <div class="cell cell-status"></div>
-        <div class="cell cell-time"></div>
-        <div v-if="canEdit" class="cell cell-actions" aria-hidden="true"></div>
+        <div class="flex min-w-0 items-center justify-end px-2" />
+        <div class="flex min-w-0 items-center px-2" />
+        <div class="flex min-w-0 items-center justify-end px-2" />
+        <div v-if="canEdit" class="flex min-w-0 items-center justify-end p-0" aria-hidden="true" />
       </div>
 
       <div
         v-for="item in items"
         :key="item.id"
-        class="doc-list-row"
-        :class="{ selected: selectedIds.has(item.id), 'menu-open': moreOpen === item.id }"
+        class="doc-list-row group text-foreground relative grid min-h-[60px] cursor-pointer items-center border-b border-[var(--td-component-stroke)] px-4 text-[13px] transition-colors duration-200 last:border-b-0"
+        :class="[
+          gridCols,
+          {
+            'hover:bg-muted': !selectedIds.has(item.id),
+            'bg-muted': moreOpen === item.id && !selectedIds.has(item.id),
+          },
+        ]"
         :data-select-id="item.id"
         role="row"
         @click="emit('open', item)"
       >
-        <div class="cell cell-check" @click.stop>
-          <t-checkbox
-            class="doc-list-check"
-            size="small"
-            :checked="selectedIds.has(item.id)"
+        <div class="flex min-w-0 items-center justify-center p-0" @click.stop>
+          <Checkbox
+            :model-value="selectedIds.has(item.id)"
             :title="item.file_name"
-            @change="(c: boolean, ctx?: { e?: Event }) => onRowCheckboxChange(item, c, ctx)"
+            :aria-label="item.file_name"
+            @click="rememberRowShiftKey"
+            @update:model-value="(c) => emit('toggle-row', item.id, c === true, rowShiftKey)"
           />
         </div>
 
-        <div class="cell cell-name">
-          <span class="row-file-icon-wrap">
-            <t-icon :name="getFileIcon(item)" />
+        <div class="flex min-w-0 items-center gap-2.5 px-2 [font-family:var(--app-font-family)]">
+          <span
+            class="bg-muted text-muted-foreground inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-base"
+          >
+            <component :is="fileTypeIcon(getFileIcon(item))" class="size-4" />
           </span>
-          <div class="row-file-text">
-            <span class="row-file-name" :title="item.file_name">{{ item.file_name }}</span>
+          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="text-foreground truncate text-sm font-semibold tracking-[0.01em]" :title="item.file_name">
+              {{ item.file_name }}
+            </span>
             <button
               v-if="showFolderPath && item.folder_path"
               type="button"
-              class="row-file-folder"
+              data-slot="folder-link"
+              class="text-placeholder hover:text-primary inline-flex max-w-full items-center gap-1 self-start [font-family:var(--app-font-family)] text-xs transition-colors"
               :title="item.folder_path"
               @click.stop="emit('open-folder', item.folder_path)"
             >
-              <t-icon name="folder" />
-              <span>{{ item.folder_path }}</span>
+              <FolderIcon class="size-[13px] shrink-0" />
+              <span class="min-w-0 truncate">{{ item.folder_path }}</span>
             </button>
-            <span v-if="item.description" class="row-file-desc" :title="item.description">{{ item.description }}</span>
+            <span v-if="item.description" class="text-placeholder min-w-0 truncate text-xs" :title="item.description">
+              {{ item.description }}
+            </span>
           </div>
         </div>
 
-        <div class="cell cell-tag">
+        <div class="flex min-w-0 items-center px-2">
           <template v-if="item.tags && item.tags.length > 0">
-            <t-tooltip
-              v-if="hasTagOverflow(item.id, (item.tags || []).length)"
-              :content="(item.tags || []).map((t: any) => t.name).join(', ')"
-              placement="top"
-            >
-              <div
-                class="row-tag-chips"
-                :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-                :class="{ 'is-clickable': canEdit }"
-                @click.stop="canEdit && emit('tag-edit', item)"
-              >
-                <t-tag
-                  v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
-                  :key="tag.id"
-                  size="small"
-                  variant="light-outline"
-                  class="row-tag"
+            <Tooltip v-if="hasTagOverflow(item.id, (item.tags || []).length)">
+              <TooltipTrigger as-child>
+                <div
+                  :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
+                  class="inline-flex flex-nowrap items-center gap-1"
+                  :class="canEdit ? 'cursor-pointer' : ''"
+                  @click.stop="canEdit && emit('tag-edit', item)"
                 >
-                  {{ tag.name }}
-                </t-tag>
-                <span class="row-tag-overflow">+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span>
-              </div>
-            </t-tooltip>
+                  <Badge
+                    v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
+                    :key="tag.id"
+                    variant="outline"
+                    :class="tagBadgeClass"
+                  >
+                    <span class="inline-block max-w-[120px] truncate">{{ tag.name }}</span>
+                  </Badge>
+                  <span
+                    class="text-placeholder hover:border-primary hover:text-primary hover:bg-muted inline-flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-full border border-[var(--td-component-stroke)] px-1 text-[10px] leading-none transition-all"
+                    >+{{ getOverflowCount(item.id, (item.tags || []).length) }}</span
+                  >
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">{{ (item.tags || []).map((t: any) => t.name).join(", ") }}</TooltipContent>
+            </Tooltip>
             <div
               v-else
-              class="row-tag-chips"
               :ref="(el: any) => setupTagChipsObserver(el, item.id, (item.tags || []).length)"
-              :class="{ 'is-clickable': canEdit }"
+              class="inline-flex flex-nowrap items-center gap-1"
+              :class="canEdit ? 'cursor-pointer' : ''"
               @click.stop="canEdit && emit('tag-edit', item)"
             >
-              <t-tag
+              <Badge
                 v-for="tag in (item.tags || []).slice(0, getTagLimit(item.id))"
                 :key="tag.id"
-                size="small"
-                variant="light-outline"
-                class="row-tag"
+                variant="outline"
+                :class="tagBadgeClass"
               >
-                {{ tag.name }}
-              </t-tag>
+                <span class="inline-block max-w-[120px] truncate">{{ tag.name }}</span>
+              </Badge>
             </div>
           </template>
-          <span v-else class="row-tag-chips is-clickable" @click.stop="canEdit && emit('tag-edit', item)">
-            <span class="row-tag-add">+ {{ t("knowledgeBase.tagLabel") }}</span>
+          <span
+            v-else
+            class="inline-flex items-center gap-1"
+            :class="canEdit ? 'cursor-pointer' : ''"
+            @click.stop="canEdit && emit('tag-edit', item)"
+          >
+            <span
+              class="text-placeholder hover:border-primary hover:text-primary hover:bg-muted inline-flex h-5 items-center rounded-full border border-dashed border-[var(--td-component-stroke)] px-1.5 text-[11px] whitespace-nowrap hover:border-solid"
+              >+ {{ t("knowledgeBase.tagLabel") }}</span
+            >
           </span>
         </div>
 
-        <div class="cell cell-source">
-          <t-icon class="row-source-icon" :name="getSourceInfo(item).icon" />
-          <span class="row-source-label">{{ getSourceInfo(item).label }}</span>
+        <div class="flex min-w-0 items-center gap-1.5 px-2">
+          <component :is="getSourceInfo(item).icon" class="text-muted-foreground size-3.5 shrink-0" />
+          <span class="text-muted-foreground min-w-0 truncate text-xs">{{ getSourceInfo(item).label }}</span>
         </div>
 
-        <div class="cell cell-size">
-          <span class="row-mono">{{ formatFileSize(item.file_size) || "--" }}</span>
+        <div class="flex min-w-0 items-center justify-end px-2">
+          <span
+            class="text-muted-foreground [font-family:var(--app-font-family)] text-xs [font-variant-numeric:tabular-nums]"
+          >
+            {{ formatFileSize(item.file_size) || "--" }}
+          </span>
         </div>
 
-        <div class="cell cell-status">
+        <div class="flex min-w-0 items-center px-2">
           <template v-if="statusByRow.get(item.id) as StatusInfo | undefined">
-            <t-tag
+            <Badge
               v-if="statusByRow.get(item.id)!.label !== '--'"
-              size="small"
-              :theme="statusByRow.get(item.id)!.theme"
-              variant="light-outline"
-              class="row-status-tag"
+              variant="outline"
+              :class="statusThemeClass(statusByRow.get(item.id)!.theme)"
             >
-              <template v-if="statusByRow.get(item.id)!.icon" #icon>
-                <t-icon
-                  :name="statusByRow.get(item.id)!.icon!"
-                  :class="{ 'icon-spin': statusByRow.get(item.id)!.spin }"
-                />
-              </template>
+              <Loader2Icon
+                v-if="statusByRow.get(item.id)!.icon === 'loading'"
+                class="mr-0.5 size-3"
+                :class="statusByRow.get(item.id)!.spin ? 'animate-spin' : ''"
+              />
+              <XCircleIcon v-else-if="statusByRow.get(item.id)!.icon === 'close-circle'" class="mr-0.5 size-3" />
               {{ statusByRow.get(item.id)!.label }}
-            </t-tag>
-            <span v-else class="row-muted">--</span>
+            </Badge>
+            <span v-else class="text-[var(--td-text-color-disabled,#bbb)]">--</span>
           </template>
         </div>
 
-        <div class="cell cell-time">
-          <span class="row-mono">{{ formatTime(item.updated_at) }}</span>
+        <div class="flex min-w-0 items-center justify-end px-2">
+          <span
+            class="text-muted-foreground [font-family:var(--app-font-family)] text-xs [font-variant-numeric:tabular-nums]"
+          >
+            {{ formatTime(item.updated_at) }}
+          </span>
         </div>
 
-        <div class="cell cell-actions" v-if="canEdit" @click.stop>
-          <t-popup
-            placement="bottom-right"
-            trigger="click"
-            destroy-on-close
-            overlay-class-name="card-more"
-            :on-visible-change="(v: boolean) => onMoreVisible(item.id, v)"
-          >
-            <button
-              class="row-more-btn"
-              :class="{ active: moreOpen === item.id }"
-              type="button"
-              :aria-label="t('knowledgeBase.columnActions')"
-            >
-              <t-icon name="more" size="16px" />
-            </button>
-            <template #content>
+        <div v-if="canEdit" class="flex min-w-0 items-center justify-end p-0" @click.stop>
+          <Popover :open="moreOpen === item.id" @update:open="(v: boolean) => onMoreVisible(item.id, v)">
+            <PopoverTrigger as-child>
+              <!-- Shown on row hover, while its menu is open, and on selected rows. -->
+              <button
+                data-slot="row-more"
+                class="hover:text-foreground inline-flex size-7 items-center justify-center rounded-[5px] transition-all hover:bg-[var(--td-component-stroke)] focus-visible:opacity-100"
+                :class="[
+                  moreOpen === item.id
+                    ? 'text-foreground bg-[var(--td-component-stroke)]'
+                    : 'text-muted-foreground bg-transparent',
+                  moreOpen === item.id || selectedIds.has(item.id)
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100',
+                ]"
+                type="button"
+                :aria-label="t('knowledgeBase.columnActions')"
+              >
+                <MoreHorizontalIcon class="size-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" class="w-auto min-w-[148px] gap-0 rounded-[10px] p-1">
               <!-- Move: folder picker (must win over the normal menu while open) -->
-              <div v-if="folderPickerItemId === item.id" class="card-menu move-menu">
+              <div
+                v-if="folderPickerItemId === item.id"
+                class="flex max-h-[360px] max-w-[280px] min-w-[220px] flex-col overflow-y-auto"
+              >
                 <FolderPickerMenu
                   :options="folderOptions || []"
                   :current-path="item.folder_path || ''"
@@ -467,7 +575,7 @@ const handleAction = (
               </div>
 
               <!-- Normal menu -->
-              <div v-else-if="moveMenuMode === 'normal'" class="card-menu">
+              <div v-else-if="moveMenuMode === 'normal'" class="flex min-w-[140px] flex-col gap-px">
                 <DocumentActionMenu
                   :item="item"
                   :can-download="canDownload"
@@ -491,27 +599,38 @@ const handleAction = (
               </div>
 
               <!-- Move: target KB list -->
-              <div v-else-if="moveMenuMode === 'targets'" class="card-menu move-menu">
-                <div class="move-menu-header" @click.stop="emit('move-back')">
-                  <t-icon name="chevron-left" size="16px" />
+              <div
+                v-else-if="moveMenuMode === 'targets'"
+                class="flex max-h-[360px] max-w-[280px] min-w-[220px] flex-col overflow-y-auto"
+              >
+                <div
+                  class="text-foreground hover:bg-accent flex cursor-pointer items-center gap-1.5 border-b border-[var(--td-component-stroke)] px-3 py-2 text-[13px] font-medium"
+                  @click.stop="emit('move-back')"
+                >
+                  <ChevronLeftIcon class="size-4" />
                   <span>{{ $t("knowledgeBase.moveToKnowledgeBase") }}</span>
                 </div>
-                <div v-if="moveTargetsLoading" class="move-menu-loading">
-                  <t-loading size="small" />
+                <div v-if="moveTargetsLoading" class="flex items-center justify-center py-5">
+                  <Loader2Icon class="text-primary size-4 animate-spin" />
                 </div>
-                <div v-else-if="moveTargetKbs.length === 0" class="move-menu-empty">
+                <div
+                  v-else-if="moveTargetKbs.length === 0"
+                  class="text-placeholder px-4 py-3 text-center text-xs leading-normal"
+                >
                   {{ $t("knowledgeBase.moveNoTargets") }}
                 </div>
                 <template v-else>
                   <div
                     v-for="kb in moveTargetKbs"
                     :key="kb.id"
-                    class="card-menu-item"
+                    class="group text-foreground hover:bg-accent flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm leading-5 transition-all active:scale-[0.98] active:bg-[var(--td-bg-color-container-active)]"
                     @click.stop="emit('move-select-target', kb)"
                   >
-                    <t-icon class="icon" name="root-list" />
-                    <span class="move-target-name">{{ kb.name }}</span>
-                    <span v-if="kb.knowledge_count !== undefined" class="move-target-count">{{
+                    <ListTreeIcon
+                      class="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors"
+                    />
+                    <span class="min-w-0 flex-1 truncate">{{ kb.name }}</span>
+                    <span v-if="kb.knowledge_count !== undefined" class="text-placeholder text-xs">{{
                       kb.knowledge_count
                     }}</span>
                   </div>
@@ -519,61 +638,83 @@ const handleAction = (
               </div>
 
               <!-- Move: confirm with mode selection -->
-              <div v-else-if="moveMenuMode === 'confirm'" class="card-menu move-menu">
-                <div class="move-menu-header" @click.stop="emit('move-back')">
-                  <t-icon name="chevron-left" size="16px" />
+              <div
+                v-else-if="moveMenuMode === 'confirm'"
+                class="flex max-h-[360px] max-w-[280px] min-w-[220px] flex-col overflow-y-auto"
+              >
+                <div
+                  class="text-foreground hover:bg-accent flex cursor-pointer items-center gap-1.5 border-b border-[var(--td-component-stroke)] px-3 py-2 text-[13px] font-medium"
+                  @click.stop="emit('move-back')"
+                >
+                  <ChevronLeftIcon class="size-4" />
                   <span>{{ $t("knowledgeBase.moveConfirmTitle") }}</span>
                 </div>
-                <div class="move-confirm-body">
-                  <div class="move-target-info">
-                    <t-icon name="arrow-right" size="14px" />
-                    <span>{{ moveSelectedTargetName }}</span>
+                <div class="p-2">
+                  <div
+                    class="bg-accent text-muted-foreground mb-2 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px]"
+                  >
+                    <ArrowRightIcon class="size-3.5" />
+                    <span class="truncate">{{ moveSelectedTargetName }}</span>
                   </div>
                   <div
-                    class="move-mode-item"
-                    :class="{ active: moveMode === 'reuse_vectors' }"
+                    class="mb-1 flex cursor-pointer items-start gap-1.5 rounded-md px-2 py-1.5 transition-colors"
+                    :class="moveMode === 'reuse_vectors' ? 'bg-[var(--td-brand-color-light)]' : 'hover:bg-accent'"
                     @click.stop="emit('update:moveMode', 'reuse_vectors')"
                   >
-                    <t-radio :checked="moveMode === 'reuse_vectors'" />
-                    <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReuseVectors") }}</span>
-                      <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReuseVectorsDesc") }}</span>
+                    <CircleDotIcon v-if="moveMode === 'reuse_vectors'" class="text-primary mt-0.5 size-4 shrink-0" />
+                    <CircleIcon v-else class="text-placeholder mt-0.5 size-4 shrink-0" />
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="text-foreground text-[13px] font-medium">{{
+                        $t("knowledgeBase.moveModeReuseVectors")
+                      }}</span>
+                      <span class="text-placeholder text-[11px] leading-[1.4]">{{
+                        $t("knowledgeBase.moveModeReuseVectorsDesc")
+                      }}</span>
                     </div>
                   </div>
                   <div
-                    class="move-mode-item"
-                    :class="{ active: moveMode === 'reparse' }"
+                    class="mb-1 flex cursor-pointer items-start gap-1.5 rounded-md px-2 py-1.5 transition-colors"
+                    :class="moveMode === 'reparse' ? 'bg-[var(--td-brand-color-light)]' : 'hover:bg-accent'"
                     @click.stop="emit('update:moveMode', 'reparse')"
                   >
-                    <t-radio :checked="moveMode === 'reparse'" />
-                    <div class="move-mode-text">
-                      <span class="move-mode-label">{{ $t("knowledgeBase.moveModeReparse") }}</span>
-                      <span class="move-mode-desc">{{ $t("knowledgeBase.moveModeReparseDesc") }}</span>
+                    <CircleDotIcon v-if="moveMode === 'reparse'" class="text-primary mt-0.5 size-4 shrink-0" />
+                    <CircleIcon v-else class="text-placeholder mt-0.5 size-4 shrink-0" />
+                    <div class="flex min-w-0 flex-col gap-0.5">
+                      <span class="text-foreground text-[13px] font-medium">{{
+                        $t("knowledgeBase.moveModeReparse")
+                      }}</span>
+                      <span class="text-placeholder text-[11px] leading-[1.4]">{{
+                        $t("knowledgeBase.moveModeReparseDesc")
+                      }}</span>
                     </div>
                   </div>
-                  <div class="move-confirm-actions">
-                    <t-button size="small" variant="outline" @click.stop="emit('move-back')">{{
-                      $t("common.cancel")
-                    }}</t-button>
-                    <t-button
-                      size="small"
-                      theme="primary"
-                      :loading="moveSubmitting"
-                      @click.stop="emit('move-confirm')"
-                      >{{ $t("knowledgeBase.moveConfirm") }}</t-button
-                    >
+                  <div class="mt-2 flex justify-end gap-2">
+                    <Button size="xs" variant="outline" @click.stop="emit('move-back')">
+                      {{ $t("common.cancel") }}
+                    </Button>
+                    <Button size="xs" :disabled="moveSubmitting" @click.stop="emit('move-confirm')">
+                      <Loader2Icon v-if="moveSubmitting" class="animate-spin" />
+                      {{ $t("knowledgeBase.moveConfirm") }}
+                    </Button>
                   </div>
                 </div>
               </div>
-            </template>
-          </t-popup>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped lang="less">
+<!--
+  The list fade-in is a keyframe animation, referenced from the `[animation:…]`
+  utility on the list. Deliberately NOT scoped: a scoped block renames its
+  @keyframes and rewrites only the animation declarations inside that same
+  block, so the utility (in the global stylesheet) would name a keyframe that
+  no longer exists. The name is already specific to this view.
+-->
+<style>
 @keyframes doc-list-fade-in {
   from {
     opacity: 0;
@@ -583,389 +724,6 @@ const handleAction = (
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-.doc-list-view {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 9px;
-  /* 不能用 overflow:hidden，否则表头 position:sticky 相对外层滚动区失效 */
-  overflow: visible;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  animation: doc-list-fade-in 0.32s ease-out;
-}
-
-.doc-list-header,
-.doc-list-row {
-  display: grid;
-  grid-template-columns: 44px // checkbox
-    minmax(260px, 2.6fr) // name
-    minmax(100px, 0.9fr) // tag
-    minmax(96px, 0.8fr) // source
-    96px // size
-    minmax(96px, 0.7fr) // status
-    140px // updated_at
-    48px; // actions
-  align-items: center;
-  column-gap: 0;
-  padding: 0 16px;
-}
-
-.doc-list-sticky-sentinel {
-  height: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  pointer-events: none;
-}
-
-.doc-list-header {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  height: 40px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--app-font-family);
-  color: var(--td-text-color-secondary);
-  background: var(--td-bg-color-secondarycontainer);
-  border-bottom: 1px solid var(--td-component-stroke);
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition:
-    border-radius 0.15s ease,
-    box-shadow 0.2s ease;
-
-  &.is-stuck {
-    border-radius: 0;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-  }
-}
-
-.doc-list-body {
-  display: flex;
-  flex-direction: column;
-  border-radius: 0 0 8px 8px;
-  overflow: hidden;
-}
-
-.doc-list-row {
-  position: relative;
-  min-height: 60px;
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  border-bottom: 1px solid var(--td-component-stroke);
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-
-  &:last-child {
-    border-bottom: 0;
-  }
-
-  &:hover:not(.selected),
-  &.menu-open:not(.selected) {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &:hover .row-more-btn,
-  &.menu-open .row-more-btn,
-  &.selected .row-more-btn {
-    opacity: 1;
-  }
-}
-
-.cell {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 0 8px;
-
-  &:first-child {
-    padding-left: 0;
-  }
-
-  &:last-child {
-    padding-right: 0;
-  }
-}
-
-.cell-check {
-  justify-content: center;
-  padding: 0;
-}
-
-.cell-name {
-  gap: 10px;
-  font-family: var(--app-font-family);
-}
-
-.cell-size,
-.cell-time {
-  justify-content: flex-end;
-}
-
-.cell-actions {
-  justify-content: flex-end;
-}
-
-/* TDesign 勾选框：去掉空白 label、与表格行对齐 */
-.doc-list-check {
-  margin: 0;
-
-  :deep(.t-checkbox) {
-    align-items: center;
-  }
-
-  :deep(.t-checkbox__label) {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  :deep(.t-checkbox__input) {
-    margin: 0;
-  }
-
-  :deep(.t-checkbox__input-wrapper) {
-    margin: 0;
-  }
-}
-
-.row-file-icon-wrap {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-}
-
-.row-file-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.row-file-name {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--td-text-color-primary);
-}
-
-.row-file-desc {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.doc-list-row--folder {
-  cursor: pointer;
-
-  .row-file-name {
-    font-weight: 500;
-  }
-}
-
-.row-folder-icon {
-  color: var(--td-brand-color);
-}
-
-.row-folder-meta,
-.row-folder-chevron {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  transition: color 0.15s ease;
-}
-
-.row-file-folder {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 4px;
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  cursor: pointer;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-
-  span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .t-icon {
-    flex: 0 0 auto;
-    font-size: 13px;
-  }
-}
-
-.cell-source {
-  gap: 6px;
-  min-width: 0;
-}
-
-.row-source-icon {
-  flex-shrink: 0;
-  font-size: 14px;
-  color: var(--td-text-color-secondary);
-}
-
-.row-source-label {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.row-tag {
-  max-width: 100%;
-
-  :deep(.t-tag__text) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 120px;
-    display: inline-block;
-  }
-}
-
-.row-tag-chips {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: nowrap;
-
-  &.is-clickable {
-    cursor: pointer;
-  }
-}
-
-.row-tag-overflow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  min-width: 20px;
-  padding: 0 4px;
-  border-radius: 999px;
-  border: 1px solid var(--td-component-stroke);
-  color: var(--td-text-color-placeholder);
-  font-size: 10px;
-  line-height: 1;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-}
-
-.row-tag-add {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  border: 1px dashed var(--td-component-stroke);
-  border-radius: 999px;
-  padding: 0 6px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-secondarycontainer);
-    border-style: solid;
-  }
-}
-
-.row-muted {
-  color: var(--td-text-color-disabled, #bbb);
-}
-
-.row-mono {
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  font-family: var(--app-font-family);
-  color: var(--td-text-color-secondary);
-}
-
-.row-status-tag :deep(.t-icon) {
-  margin-right: 2px;
-}
-
-.icon-spin {
-  animation: doc-list-spin 0.9s linear infinite;
-}
-
-@keyframes doc-list-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.row-more-btn {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  border-radius: 5px;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-component-stroke);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    opacity: 1;
-    background: var(--td-component-stroke);
-    color: var(--td-text-color-primary);
   }
 }
 </style>

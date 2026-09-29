@@ -36,63 +36,23 @@ function fallbackText(type: string) {
 
 <template>
   <span
-    class="ds-type-icon"
-    :class="`ds-type-icon--${variant}`"
+    class="inline-flex shrink-0 items-center justify-center overflow-hidden"
+    :class="variant === 'inline' ? 'rounded-md bg-[var(--td-bg-color-component)]' : 'h-full w-full bg-transparent'"
     :style="variant === 'inline' ? { width: `${size}px`, height: `${size}px` } : undefined"
   >
     <img
       v-if="iconMap[type]"
       :src="iconMap[type]"
       :alt="type"
-      class="ds-type-icon__img"
+      class="block object-contain"
+      :class="variant === 'badge' ? 'h-6 w-6' : ''"
       :style="variant === 'inline' ? { width: `${size}px`, height: `${size}px` } : undefined"
     />
-    <span v-else class="ds-type-icon-fallback">{{ fallbackText(type) }}</span>
+    <span
+      v-else
+      class="font-semibold"
+      :class="variant === 'badge' ? 'text-[15px] tracking-[0.02em]' : 'text-placeholder text-[11px]'"
+      >{{ fallbackText(type) }}</span
+    >
   </span>
 </template>
-
-<style scoped>
-.ds-type-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.ds-type-icon--inline {
-  border-radius: 6px;
-  background: var(--td-bg-color-component);
-}
-
-.ds-type-icon--inline .ds-type-icon__img {
-  display: block;
-  object-fit: contain;
-}
-
-.ds-type-icon--inline .ds-type-icon-fallback {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--td-text-color-placeholder);
-}
-
-.ds-type-icon--badge {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-}
-
-.ds-type-icon--badge .ds-type-icon__img {
-  display: block;
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-.ds-type-icon--badge .ds-type-icon-fallback {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: inherit;
-}
-</style>

@@ -1,101 +1,138 @@
 <template>
-  <div class="faq-manager">
-    <div class="faq-content">
+  <div class="flex h-full flex-col">
+    <div class="flex min-h-0 flex-1 flex-col gap-5">
       <!-- Header -->
-      <div class="faq-header">
-        <div class="faq-header-title">
-          <div class="faq-title-row">
-            <h2 class="faq-breadcrumb">
-              <button type="button" class="breadcrumb-link" @click="handleNavigateToKbList">
+      <div class="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-col gap-1">
+          <div class="flex w-full flex-wrap items-center gap-2">
+            <h2 class="text-foreground m-0 flex items-center gap-1.5 text-xl leading-8 font-semibold">
+              <button
+                type="button"
+                data-slot="breadcrumb-link"
+                class="text-muted-foreground enabled:hover:bg-card enabled:hover:text-success disabled:text-placeholder -mx-2 -my-1 inline-flex items-center gap-1 rounded-md px-2 py-1 transition-all duration-[120ms] disabled:cursor-not-allowed"
+                @click="handleNavigateToKbList"
+              >
                 {{ $t("menu.knowledgeBase") }}
               </button>
-              <t-icon name="chevron-right" class="breadcrumb-separator" />
+              <ChevronRightIcon class="text-placeholder size-3.5" />
               <KBSwitcherDropdown
                 v-if="knowledgeList.length"
                 :kb-list="knowledgeList"
                 :current-kb-id="props.kbId"
                 @select="(id) => handleKnowledgeDropdownSelect({ value: id })"
               >
-                <button type="button" class="breadcrumb-link dropdown" :disabled="!props.kbId">
+                <button
+                  type="button"
+                  data-slot="breadcrumb-link"
+                  class="group/crumb text-muted-foreground enabled:hover:bg-card enabled:hover:text-success disabled:text-placeholder -mx-2 -my-1 inline-flex items-center gap-1 rounded-md py-1 pr-1.5 pl-2 transition-all duration-[120ms] disabled:cursor-not-allowed"
+                  :disabled="!props.kbId"
+                >
                   <template v-if="!kbInfo">
-                    <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
+                    <Skeleton class="h-5 w-[120px]" />
                   </template>
                   <template v-else>
                     <span>{{ kbInfo.name }}</span>
-                    <t-icon name="chevron-down" />
+                    <ChevronDownIcon
+                      class="size-3.5 transition-transform duration-[120ms] group-enabled/crumb:group-hover/crumb:translate-y-px"
+                    />
                   </template>
                 </button>
               </KBSwitcherDropdown>
               <button
                 v-else
                 type="button"
-                class="breadcrumb-link"
+                data-slot="breadcrumb-link"
+                class="text-muted-foreground enabled:hover:bg-card enabled:hover:text-success disabled:text-placeholder -mx-2 -my-1 inline-flex items-center gap-1 rounded-md px-2 py-1 transition-all duration-[120ms] disabled:cursor-not-allowed"
                 :disabled="!props.kbId"
                 @click="handleNavigateToCurrentKB"
               >
                 <template v-if="!kbInfo">
-                  <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
+                  <Skeleton class="h-5 w-[120px]" />
                 </template>
                 <template v-else>
                   {{ kbInfo.name }}
                 </template>
               </button>
-              <t-icon name="chevron-right" class="breadcrumb-separator" />
-              <span class="breadcrumb-current">{{ $t("knowledgeEditor.faq.title") }}</span>
+              <ChevronRightIcon class="text-placeholder size-3.5" />
+              <span class="text-foreground font-semibold">{{ $t("knowledgeEditor.faq.title") }}</span>
             </h2>
-            <div class="kb-title-actions">
+            <div class="inline-flex shrink-0 items-center gap-1.5">
               <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo" />
-              <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">
-                <button type="button" class="kb-settings-button" @click="handleOpenKBSettings">
-                  <t-icon name="setting" size="16px" />
-                </button>
-              </t-tooltip>
+              <Tooltip v-if="canManage">
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    data-slot="kb-settings-button"
+                    class="bg-secondary text-muted-foreground enabled:hover:text-primary inline-flex size-[30px] items-center justify-center rounded-full p-0 transition-all duration-200 enabled:hover:bg-[var(--td-success-color-light)] disabled:cursor-not-allowed disabled:opacity-40"
+                    @click="handleOpenKBSettings"
+                  >
+                    <SettingsIcon class="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("knowledgeBase.settings") }}</TooltipContent>
+              </Tooltip>
               <!-- 导入结果：默认仅图标，hover / 点击展开详情 -->
-              <div
-                v-if="showImportResultBadge"
-                class="faq-import-host"
-                :class="{ 'is-expanded': importResultExpanded }"
-              >
+              <div v-if="showImportResultBadge" class="group/import relative shrink-0">
                 <button
                   type="button"
-                  class="faq-import-trigger"
+                  data-slot="import-result-trigger"
+                  class="text-success m-0 inline-flex items-center justify-center p-0.5 leading-none transition-opacity duration-150 hover:opacity-75"
                   :aria-label="$t('faqManager.import.recentResult')"
                   @click.stop="importResultExpanded = !importResultExpanded"
                 >
-                  <t-icon name="check-circle-filled" size="16px" />
+                  <CircleCheckIcon class="size-4" />
                 </button>
-                <div class="faq-import-panel">
-                  <div class="faq-import-strip faq-import-strip--result faq-import-strip--panel">
-                    <span class="faq-import-strip__text">{{ importResultSummary }}</span>
-                    <t-tag
-                      size="small"
-                      variant="light"
-                      :theme="importResult!.import_mode === 'append' ? 'primary' : 'warning'"
+                <!--
+                  The panel opens on hover, on keyboard focus inside the host,
+                  or when the trigger was clicked (importResultExpanded), and
+                  stays in the DOM so the fade can run both ways.
+                -->
+                <div
+                  class="absolute top-[calc(100%+8px)] left-0 z-[200] transition-[opacity,transform,visibility] duration-150 ease-in-out"
+                  :class="
+                    importResultExpanded
+                      ? 'pointer-events-auto visible translate-y-0 opacity-100'
+                      : 'pointer-events-none invisible -translate-y-1 opacity-0 group-focus-within/import:pointer-events-auto group-focus-within/import:visible group-focus-within/import:translate-y-0 group-focus-within/import:opacity-100 group-hover/import:pointer-events-auto group-hover/import:visible group-hover/import:translate-y-0 group-hover/import:opacity-100'
+                  "
+                >
+                  <div
+                    class="border-border bg-secondary text-muted-foreground inline-flex w-fit max-w-full items-center gap-2 rounded-md border px-2.5 py-2 text-xs leading-[1.4] whitespace-nowrap shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
+                  >
+                    <span class="max-w-[360px] min-w-0 flex-[0_1_auto] truncate">{{ importResultSummary }}</span>
+                    <span
+                      class="inline-flex h-5 shrink-0 items-center rounded-sm px-1.5 text-xs"
+                      :class="
+                        importResult!.import_mode === 'append'
+                          ? 'text-primary bg-[var(--td-brand-color-light)]'
+                          : 'text-warning bg-[var(--td-warning-color-light)]'
+                      "
                     >
                       {{
                         importResult!.import_mode === "append"
                           ? $t("faqManager.import.appendMode")
                           : $t("faqManager.import.replaceMode")
                       }}
-                    </t-tag>
-                    <t-button
+                    </span>
+                    <Button
                       v-if="importResult!.failed_entries_url && importResult!.failed_count > 0"
-                      variant="text"
-                      theme="danger"
-                      size="small"
-                      class="faq-import-strip__link"
+                      variant="ghost"
+                      size="xs"
+                      class="text-destructive hover:text-destructive h-auto shrink-0 px-1 text-xs"
                       @click="downloadFailedEntries"
                     >
                       {{ $t("faqManager.import.downloadReasons") }}
-                    </t-button>
-                    <span class="faq-import-strip__time">{{ formatImportTime(importResult!.imported_at) }}</span>
+                    </Button>
+                    <span class="text-placeholder shrink-0 text-xs whitespace-nowrap">{{
+                      formatImportTime(importResult!.imported_at)
+                    }}</span>
                     <button
                       type="button"
-                      class="faq-import-strip__close"
+                      data-slot="import-result-close"
+                      class="text-placeholder hover:text-muted-foreground m-0 inline-flex size-5 shrink-0 items-center justify-center rounded-sm p-0 transition-colors duration-150 hover:bg-black/6"
                       :aria-label="$t('common.close')"
                       @click="closeImportResult"
                     >
-                      <t-icon name="close" size="14px" />
+                      <XIcon class="size-3.5" />
                     </button>
                   </div>
                 </div>
@@ -103,295 +140,389 @@
               <!-- 导入进行中 -->
               <div
                 v-else-if="isImportInProgress && importState.taskStatus"
-                class="faq-import-strip faq-import-strip--in-title"
-                :class="`faq-import-strip--${importState.taskStatus.status}`"
+                class="text-muted-foreground inline-flex w-fit max-w-[min(420px,40vw)] min-w-0 flex-[0_1_auto] items-center gap-2 rounded-md border py-1 pr-2 pl-2.5 text-xs leading-[1.4]"
+                :class="
+                  importState.taskStatus.status === 'failed'
+                    ? 'border-[rgba(227,77,89,0.3)] bg-[rgba(227,77,89,0.06)]'
+                    : 'border-border bg-secondary'
+                "
               >
-                <t-icon
-                  :name="importProgressIcon"
-                  size="16px"
-                  class="faq-import-strip__icon"
-                  :class="{ 'is-spinning': importState.taskStatus.status === 'running' }"
+                <component
+                  :is="importProgressIcon"
+                  class="size-4 shrink-0"
+                  :class="{
+                    'text-primary animate-spin': importState.taskStatus.status === 'running',
+                    'text-success': importState.taskStatus.status === 'success',
+                    'text-destructive': importState.taskStatus.status === 'failed',
+                    'text-placeholder': !['running', 'success', 'failed'].includes(importState.taskStatus.status),
+                  }"
                 />
-                <span class="faq-import-strip__text">{{ importProgressText }}</span>
-                <div class="faq-import-strip__bar">
-                  <div class="faq-import-strip__bar-fill" :style="{ width: `${importState.taskStatus.progress}%` }" />
+                <span
+                  class="max-w-[220px] min-w-0 flex-[0_1_auto] truncate"
+                  :class="{ 'text-destructive': importState.taskStatus.status === 'failed' }"
+                  >{{ importProgressText }}</span
+                >
+                <div class="h-1 w-[72px] shrink-0 overflow-hidden rounded-[2px] bg-black/8">
+                  <div
+                    class="h-full rounded-[2px] transition-[width] duration-300 ease-in-out"
+                    :class="{
+                      'bg-success': importState.taskStatus.status === 'success',
+                      'bg-destructive': importState.taskStatus.status === 'failed',
+                      'bg-primary':
+                        importState.taskStatus.status !== 'success' && importState.taskStatus.status !== 'failed',
+                    }"
+                    :style="{ width: `${importState.taskStatus.progress}%` }"
+                  />
                 </div>
-                <span class="faq-import-strip__count"
+                <span class="text-placeholder shrink-0 text-xs tabular-nums"
                   >{{ importState.taskStatus.processed }}/{{ importState.taskStatus.total }}</span
                 >
               </div>
             </div>
           </div>
-          <p class="faq-subtitle">{{ $t("knowledgeEditor.faq.subtitle") }}</p>
+          <p class="text-placeholder m-0 text-sm leading-5 font-normal">
+            {{ $t("knowledgeEditor.faq.subtitle") }}
+          </p>
         </div>
       </div>
 
-      <div class="faq-main">
-        <div class="faq-card-area">
+      <div class="flex min-h-0 flex-1">
+        <div class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <!-- 搜索栏与标签筛选 -->
-          <div class="faq-filter-bar">
-            <t-input
-              v-model.trim="entrySearchKeyword"
-              :placeholder="$t('knowledgeEditor.faq.searchPlaceholder')"
-              clearable
-              class="faq-search-input"
-              @clear="loadEntries()"
-              @enter="loadEntries()"
-            >
-              <template #prefix-icon>
-                <t-icon name="search" size="16px" />
-              </template>
-            </t-input>
-            <div class="faq-filter-bar__filters">
-              <t-popup
-                v-model:visible="tagFilterPanelVisible"
-                trigger="click"
-                placement="bottom-left"
-                overlay-class-name="tag-filter-popup"
-                :overlay-inner-style="{ padding: 0 }"
+          <div class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pb-3">
+            <div class="relative min-w-0 flex-[1_1_220px] max-[767px]:basis-full">
+              <SearchIcon
+                class="text-placeholder pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2"
+              />
+              <Input
+                :model-value="entrySearchKeyword"
+                :placeholder="$t('knowledgeEditor.faq.searchPlaceholder')"
+                class="bg-secondary hover:border-primary hover:bg-card focus-visible:border-primary focus-visible:bg-card dark:bg-secondary dark:hover:bg-card dark:focus-visible:bg-card h-8 rounded-md border-transparent pr-7 pl-7 text-[13px] shadow-none focus-visible:ring-0 md:text-[13px]"
+                @update:model-value="(v) => (entrySearchKeyword = String(v).trim())"
+                @keydown.enter="(e: KeyboardEvent) => !e.isComposing && loadEntries()"
+              />
+              <button
+                v-if="entrySearchKeyword"
+                type="button"
+                data-slot="input-clear"
+                class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 inline-flex -translate-y-1/2 items-center"
+                :aria-label="$t('common.clear')"
+                @click="clearEntrySearch"
               >
-                <template #content>
-                  <div class="tag-filter-panel" @click.stop>
-                    <div class="tag-filter-panel__header">
-                      <div class="tag-filter-panel__title">
+                <CircleXIcon class="size-4" />
+              </button>
+            </div>
+            <div class="flex min-w-0 flex-none items-center gap-3 max-[767px]:flex-[1_1_auto]">
+              <Popover v-model:open="tagFilterPanelVisible">
+                <div class="w-[140px] shrink-0">
+                  <PopoverTrigger as-child>
+                    <button
+                      type="button"
+                      data-slot="tag-filter-trigger"
+                      class="bg-secondary inline-flex h-8 w-full items-center rounded-[var(--td-radius-default)] border border-transparent px-2 text-sm leading-none transition-[background,border-color] duration-200"
+                      :class="isTagFilterPlaceholder ? 'text-placeholder' : 'text-foreground'"
+                      :aria-label="$t('knowledgeBase.tagFilterTitle')"
+                      :title="activeTagFilterTitle"
+                      @mouseenter="tagFilterTriggerHover = true"
+                      @mouseleave="tagFilterTriggerHover = false"
+                    >
+                      <span
+                        class="text-placeholder mr-[var(--td-comp-margin-s)] inline-flex shrink-0 items-center"
+                        aria-hidden="true"
+                      >
+                        <TagIcon class="size-4" />
+                      </span>
+                      <span class="min-w-0 flex-1 truncate text-left">{{ activeTagFilterLabel }}</span>
+                      <span class="ml-[var(--td-comp-margin-s)] inline-flex shrink-0 items-center">
+                        <span
+                          v-if="showTagFilterClear"
+                          class="text-placeholder hover:text-muted-foreground inline-flex items-center"
+                          :aria-label="$t('common.clear')"
+                          @click.stop="clearTagFilter"
+                          @mousedown.stop
+                          @pointerdown.stop
+                        >
+                          <CircleXIcon class="size-4" />
+                        </span>
+                        <ChevronDownIcon
+                          v-else
+                          class="size-4 shrink-0 transition-[transform,color] duration-200"
+                          :class="tagFilterPanelVisible ? 'text-primary rotate-180' : 'text-placeholder'"
+                        />
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                </div>
+                <PopoverContent
+                  align="start"
+                  class="border-border z-[5500] w-80 max-w-[min(320px,calc(100vw-32px))] gap-0 rounded-lg border-[0.5px] p-0 shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)] ring-0"
+                >
+                  <div
+                    class="text-foreground box-border flex max-h-[min(70vh,480px)] w-full flex-col px-3.5 py-3 text-xs"
+                    @click.stop
+                  >
+                    <div class="mb-2.5 flex items-center justify-between">
+                      <div class="flex items-baseline gap-1.5 text-sm font-semibold">
                         <span>{{ $t("knowledgeBase.tagFilterTitle") }}</span>
-                        <span class="tag-filter-panel__count">({{ sidebarCategoryCount }})</span>
+                        <span class="text-placeholder text-xs font-normal">({{ sidebarCategoryCount }})</span>
                       </div>
                     </div>
-                    <div class="tag-search-bar">
-                      <t-input
-                        v-model.trim="tagSearchQuery"
-                        size="small"
+                    <div class="relative mb-2.5">
+                      <SearchIcon
+                        class="text-placeholder pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2"
+                      />
+                      <Input
+                        :model-value="tagSearchQuery"
                         :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
-                        clearable
+                        class="border-border bg-card hover:border-primary focus-visible:border-primary focus-visible:ring-primary/10 h-6 rounded-lg pr-6 pl-7 text-sm md:text-sm"
+                        @update:model-value="(v) => (tagSearchQuery = String(v).trim())"
+                      />
+                      <button
+                        v-if="tagSearchQuery"
+                        type="button"
+                        data-slot="input-clear"
+                        class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-1.5 inline-flex -translate-y-1/2 items-center"
+                        :aria-label="$t('common.clear')"
+                        @click="tagSearchQuery = ''"
                       >
-                        <template #prefix-icon>
-                          <t-icon name="search" size="14px" />
-                        </template>
-                      </t-input>
+                        <CircleXIcon class="size-3.5" />
+                      </button>
                     </div>
-                    <div class="tag-filter-panel__body">
+                    <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                       <template v-if="tagLoading && !sidebarTags.length">
-                        <div class="tag-filter-chips">
-                          <div v-for="n in 8" :key="'skel-tag-' + n" class="tag-filter-chip-skeleton">
-                            <t-skeleton
-                              animation="gradient"
-                              :row-col="[{ width: '56px', height: '24px', type: 'rect' }]"
-                            />
-                          </div>
+                        <div class="flex flex-wrap gap-1.5">
+                          <Skeleton v-for="n in 8" :key="'skel-tag-' + n" class="h-6 w-14 rounded-sm" />
                         </div>
                       </template>
                       <template v-else>
-                        <div class="tag-filter-chips">
+                        <div class="flex flex-wrap gap-1.5">
                           <button
                             v-for="tag in sidebarTags"
                             :key="tag.id"
                             type="button"
-                            class="tag-filter-chip"
-                            :class="{ active: isTagFilterActive(tag.id) }"
+                            data-slot="tag-filter-chip"
+                            class="inline-flex h-6 items-center gap-1 rounded-sm border px-2 text-[11px]"
+                            :class="
+                              isTagFilterActive(tag.id)
+                                ? 'text-primary bg-primary/6 border-[color-mix(in_srgb,var(--td-brand-color)_35%,var(--td-component-stroke))]'
+                                : 'border-border text-muted-foreground bg-transparent'
+                            "
                             :title="`${tag.name} (${tag.chunk_count || 0})`"
                             @click="handleTagRowClick(tag.id)"
                           >
-                            <span class="tag-filter-chip__label">{{ tag.name }}</span>
-                            <span class="tag-filter-chip__count">{{ tag.chunk_count || 0 }}</span>
+                            <span class="max-w-[120px] truncate">{{ tag.name }}</span>
+                            <span class="text-placeholder text-[10px]">{{ tag.chunk_count || 0 }}</span>
                           </button>
                         </div>
-                        <div v-if="!sidebarTags.length" class="tag-empty-state">
+                        <div v-if="!sidebarTags.length" class="text-placeholder px-1.5 py-2.5 text-center text-[11px]">
                           {{ $t("knowledgeBase.tagEmptyResult") }}
                         </div>
-                        <div v-if="tagHasMore" class="tag-load-more">
-                          <t-button variant="text" size="small" :loading="tagLoadingMore" @click.stop="loadTags()">
+                        <div v-if="tagHasMore" class="flex justify-center pt-0.5">
+                          <Button variant="ghost" size="xs" :disabled="tagLoadingMore" @click.stop="loadTags()">
+                            <Loader2Icon v-if="tagLoadingMore" class="animate-spin" />
                             {{ $t("tenant.loadMore") }}
-                          </t-button>
+                          </Button>
                         </div>
                       </template>
                     </div>
-                    <div v-if="canEdit" class="tag-filter-panel__footer">
-                      <t-button variant="text" size="small" class="tag-manage-link" @click="openTagManageDrawer">
+                    <div v-if="canEdit" class="border-border mt-2.5 border-t pt-2.5">
+                      <Button variant="ghost" size="xs" @click="openTagManageDrawer">
                         {{ $t("knowledgeBase.tagManageLink") }}
-                      </t-button>
+                      </Button>
                     </div>
                   </div>
-                </template>
-                <div class="doc-filter-field">
-                  <button
-                    type="button"
-                    class="doc-tag-filter-trigger doc-filter-field__control"
-                    :class="{ open: tagFilterPanelVisible, 'is-placeholder': isTagFilterPlaceholder }"
-                    :aria-label="$t('knowledgeBase.tagFilterTitle')"
-                    :title="activeTagFilterTitle"
-                    @mouseenter="tagFilterTriggerHover = true"
-                    @mouseleave="tagFilterTriggerHover = false"
-                  >
-                    <span class="doc-tag-filter-trigger__prefix" aria-hidden="true">
-                      <t-icon name="discount" size="16px" />
-                    </span>
-                    <span class="doc-tag-filter-trigger__label">{{ activeTagFilterLabel }}</span>
-                    <span class="doc-tag-filter-trigger__suffix">
-                      <span
-                        v-if="showTagFilterClear"
-                        class="t-input__suffix t-input__suffix-icon t-input__clear"
-                        :aria-label="$t('common.clear')"
-                        @click.stop="clearTagFilter"
-                        @mousedown.stop
-                      >
-                        <t-icon name="close-circle-filled" class="t-input__suffix-clear" />
-                      </span>
-                      <t-icon
-                        v-else
-                        name="chevron-down"
-                        size="16px"
-                        class="doc-tag-filter-trigger__caret"
-                        :class="{ open: tagFilterPanelVisible }"
-                      />
-                    </span>
-                  </button>
-                </div>
-              </t-popup>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div class="faq-filter-bar__trailing">
+            <div class="ml-auto flex flex-none items-center gap-1">
               <!-- 新建：新建条目 / 导入 -->
-              <template v-if="faqCreateOptions.length">
-                <t-tooltip :content="$t('knowledgeEditor.faq.createGroup')" placement="top">
-                  <t-dropdown
-                    :options="faqCreateOptions"
-                    trigger="click"
-                    placement="bottom-right"
-                    @click="handleFaqAction"
+              <DropdownMenu v-if="faqCreateOptions.length">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="text-muted-foreground hover:bg-secondary hover:text-primary dark:hover:bg-secondary"
+                        :aria-label="$t('knowledgeEditor.faq.createGroup')"
+                      >
+                        <PlusIcon class="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("knowledgeEditor.faq.createGroup") }}</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" class="w-auto">
+                  <DropdownMenuItem
+                    v-for="option in faqCreateOptions"
+                    :key="option.value"
+                    @select="handleFaqAction({ value: option.value })"
                   >
-                    <t-button variant="text" theme="default" class="content-bar-icon-btn" size="small">
-                      <template #icon><t-icon name="add" size="16px" /></template>
-                    </t-button>
-                  </t-dropdown>
-                </t-tooltip>
-              </template>
+                    <component :is="option.icon" class="size-4" />
+                    {{ option.content }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <!-- 导出 -->
-              <t-dropdown :options="faqExportOptions" trigger="click" placement="bottom-right" @click="handleFaqAction">
-                <t-tooltip :content="$t('knowledgeEditor.faqExport.exportButton')" placement="top">
-                  <t-button
-                    variant="text"
-                    theme="default"
-                    class="content-bar-icon-btn"
-                    size="small"
-                    :loading="exportLoading"
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="text-muted-foreground hover:bg-secondary hover:text-primary dark:hover:bg-secondary"
+                        :disabled="exportLoading"
+                        :aria-label="$t('knowledgeEditor.faqExport.exportButton')"
+                      >
+                        <Loader2Icon v-if="exportLoading" class="size-4 animate-spin" />
+                        <DownloadIcon v-else class="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("knowledgeEditor.faqExport.exportButton") }}</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" class="w-auto">
+                  <DropdownMenuItem
+                    v-for="option in faqExportOptions"
+                    :key="option.value"
+                    @select="handleFaqAction({ value: option.value })"
                   >
-                    <template #icon><t-icon name="download" size="16px" /></template>
-                  </t-button>
-                </t-tooltip>
-              </t-dropdown>
+                    {{ option.content }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <!-- 检索 -->
-              <t-tooltip :content="$t('knowledgeEditor.faq.searchTest')" placement="top">
-                <t-button
-                  variant="text"
-                  theme="default"
-                  class="content-bar-icon-btn"
-                  size="small"
-                  @click="handleFaqAction({ value: 'search' })"
-                >
-                  <template #icon><t-icon name="search" size="16px" /></template>
-                </t-button>
-              </t-tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:bg-secondary hover:text-primary dark:hover:bg-secondary"
+                    :aria-label="$t('knowledgeEditor.faq.searchTest')"
+                    @click="handleFaqAction({ value: 'search' })"
+                  >
+                    <SearchIcon class="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("knowledgeEditor.faq.searchTest") }}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
           <!-- Card List Container with Scroll -->
           <div
             ref="scrollContainer"
-            class="faq-scroll-container"
-            :class="{ 'has-batch-bar': selectedRowKeys.length > 0 && canSelectEntries }"
+            class="flex-1 overflow-x-hidden overflow-y-auto pr-1"
+            :class="{ 'pb-[76px]': selectedRowKeys.length > 0 && canSelectEntries }"
             @scroll="handleScroll"
           >
             <!-- FAQ 骨架屏 -->
-            <div v-if="loading && entries.length === 0" class="faq-skeleton-grid">
-              <div v-for="n in 6" :key="'faq-skel-' + n" class="faq-card faq-card-skeleton">
-                <div class="faq-card-header">
-                  <t-skeleton animation="gradient" :row-col="[{ width: '80%', height: '16px' }]" />
+            <div
+              v-if="loading && entries.length === 0"
+              class="animate-in fade-in slide-in-from-bottom-[6px] grid w-full grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 duration-[320ms] ease-out"
+            >
+              <div
+                v-for="n in 6"
+                :key="'faq-skel-' + n"
+                class="border-border bg-card box-border flex h-auto min-w-0 flex-col gap-1.5 overflow-hidden rounded-[10px] border p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+              >
+                <div class="border-border border-b pb-2.5">
+                  <Skeleton class="h-4 w-4/5" />
                 </div>
-                <div class="faq-card-body">
-                  <t-skeleton
-                    animation="gradient"
-                    :row-col="[
-                      { width: '100%', height: '13px' },
-                      { width: '90%', height: '13px' },
-                      { width: '60%', height: '13px' },
-                    ]"
-                  />
+                <div class="flex flex-col gap-2 py-2">
+                  <Skeleton class="h-[13px] w-full" />
+                  <Skeleton class="h-[13px] w-[90%]" />
+                  <Skeleton class="h-[13px] w-[60%]" />
                 </div>
-                <div class="faq-skel-footer">
-                  <t-skeleton
-                    animation="gradient"
-                    :row-col="[
-                      [
-                        { width: '50px', height: '18px', type: 'rect' },
-                        { width: '60px', height: '18px', type: 'rect' },
-                      ],
-                    ]"
-                  />
+                <div class="border-border flex gap-2 border-t pt-2">
+                  <Skeleton class="h-[18px] w-[50px] rounded-sm" />
+                  <Skeleton class="h-[18px] w-[60px] rounded-sm" />
                 </div>
               </div>
             </div>
             <!-- Card List -->
             <template v-else-if="entries.length > 0">
-              <div ref="cardListRef" class="faq-card-list">
+              <!--
+                Cards are laid out as a masonry by arrangeCards(), which finds
+                them through the `faq-card` class and positions each one
+                absolutely; that class is a hook for the script, not styling.
+              -->
+              <div
+                ref="cardListRef"
+                class="animate-in fade-in slide-in-from-bottom-[6px] relative w-full min-w-0 duration-[320ms] ease-out"
+              >
                 <div
                   v-for="entry in entries"
                   :key="entry.id"
-                  class="faq-card"
-                  :class="{ selected: selectedRowKeys.includes(entry.id), 'is-selectable': canSelectEntries }"
+                  class="faq-card box-border flex h-fit max-w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-[10px] border p-2.5 transition-[border-color,box-shadow,background-color] duration-200"
+                  :class="[
+                    selectedRowKeys.includes(entry.id)
+                      ? 'border-primary bg-[var(--td-success-color-light)] shadow-[0_2px_8px_rgba(7,192,95,0.15)]'
+                      : 'border-border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)]',
+                    canSelectEntries
+                      ? 'hover:border-primary cursor-pointer hover:shadow-[0_2px_8px_rgba(7,192,95,0.1)]'
+                      : 'cursor-default',
+                  ]"
                   @click="handleCardSelect(entry.id, !selectedRowKeys.includes(entry.id))"
                 >
                   <!-- Card Header -->
-                  <div class="faq-card-header">
-                    <div class="faq-header-top">
-                      <div class="faq-question" :title="entry.standard_question">
+                  <div class="border-border relative flex flex-col gap-2 border-b pb-2.5">
+                    <div class="flex items-start gap-2.5">
+                      <div
+                        class="text-foreground line-clamp-2 min-w-0 flex-1 overflow-hidden text-[15px] leading-normal font-semibold break-words"
+                        :title="entry.standard_question"
+                      >
                         {{ entry.standard_question }}
                       </div>
-                      <div class="faq-card-actions">
-                        <t-popup
+                      <div class="ml-auto flex shrink-0 items-center gap-1.5">
+                        <DropdownMenu
                           v-if="canManage"
-                          v-model="entry.showMore"
-                          overlayClassName="card-more-popup"
-                          trigger="click"
-                          destroy-on-close
-                          placement="bottom-right"
-                          @visible-change="(visible: boolean) => (entry.showMore = visible)"
+                          :open="!!entry.showMore"
+                          @update:open="(open: boolean) => (entry.showMore = open)"
                         >
-                          <div class="card-more-btn" @click.stop>
-                            <img class="more-icon" src="@/assets/img/more.png" alt="" />
-                          </div>
-                          <template #content>
-                            <div class="popup-menu" @click.stop>
-                              <div class="popup-menu-item" @click.stop="handleMenuEdit(entry)">
-                                <t-icon class="menu-icon" name="edit" />
-                                <span>{{ $t("common.edit") }}</span>
-                              </div>
-                              <div class="popup-menu-item delete" @click.stop="handleMenuDelete(entry)">
-                                <t-icon class="menu-icon" name="delete" />
-                                <span>{{ $t("common.delete") }}</span>
-                              </div>
-                            </div>
-                          </template>
-                        </t-popup>
+                          <DropdownMenuTrigger as-child>
+                            <button
+                              type="button"
+                              data-slot="card-more-button"
+                              class="hover:bg-secondary flex size-7 shrink-0 items-center justify-center rounded-md opacity-60 hover:opacity-100"
+                              @click.stop
+                            >
+                              <img class="size-4" src="@/assets/img/more.png" alt="" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" class="w-auto" @click.stop>
+                            <DropdownMenuItem @select="handleMenuEdit(entry)">
+                              <PencilIcon />
+                              <span>{{ $t("common.edit") }}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem variant="destructive" @select="handleMenuDelete(entry)">
+                              <Trash2Icon />
+                              <span>{{ $t("common.delete") }}</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
 
                   <!-- Card Body -->
-                  <div class="faq-card-body">
+                  <div class="flex min-w-0 flex-1 flex-col gap-1.5 overflow-hidden [contain:layout]">
                     <!-- Similar Questions Section -->
-                    <div v-if="entry.similar_questions?.length" class="faq-section similar">
+                    <div v-if="entry.similar_questions?.length" class="flex min-w-0 flex-col gap-1.5 overflow-hidden">
                       <div
-                        class="faq-section-label clickable"
+                        :class="sectionLabelClass"
+                        class="before:bg-primary"
                         @click.stop="entry.similarCollapsed = !entry.similarCollapsed"
                       >
                         <span>{{ $t("knowledgeEditor.faq.similarQuestions") }}</span>
-                        <span class="section-count"> ({{ entry.similar_questions.length }}) </span>
-                        <t-icon
-                          :name="entry.similarCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon"
+                        <span class="text-placeholder ml-1 font-normal"> ({{ entry.similar_questions.length }}) </span>
+                        <component
+                          :is="entry.similarCollapsed ? ChevronRightIcon : ChevronDownIcon"
+                          class="text-placeholder ml-auto size-[13px] shrink-0"
                         />
                       </div>
-                      <Transition name="slide-down">
-                        <div v-if="!entry.similarCollapsed" class="faq-tags">
+                      <Transition v-bind="slideDownTransition">
+                        <div v-if="!entry.similarCollapsed" :class="cardTagsClass">
                           <FAQTagTooltip
                             v-for="question in entry.similar_questions"
                             :key="question"
@@ -399,29 +530,30 @@
                             type="similar"
                             placement="top"
                           >
-                            <t-tag size="small" variant="light-outline" class="question-tag">
-                              {{ question }}
-                            </t-tag>
+                            <span :class="questionTagClass">
+                              <span class="block min-w-0 truncate leading-[1.4]">{{ question }}</span>
+                            </span>
                           </FAQTagTooltip>
                         </div>
                       </Transition>
                     </div>
 
                     <!-- Negative Questions Section -->
-                    <div v-if="entry.negative_questions?.length" class="faq-section negative">
+                    <div v-if="entry.negative_questions?.length" class="flex min-w-0 flex-col gap-1.5 overflow-hidden">
                       <div
-                        class="faq-section-label clickable"
+                        :class="sectionLabelClass"
+                        class="before:bg-warning"
                         @click.stop="entry.negativeCollapsed = !entry.negativeCollapsed"
                       >
                         <span>{{ $t("knowledgeEditor.faq.negativeQuestions") }}</span>
-                        <span class="section-count"> ({{ entry.negative_questions.length }}) </span>
-                        <t-icon
-                          :name="entry.negativeCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon"
+                        <span class="text-placeholder ml-1 font-normal"> ({{ entry.negative_questions.length }}) </span>
+                        <component
+                          :is="entry.negativeCollapsed ? ChevronRightIcon : ChevronDownIcon"
+                          class="text-placeholder ml-auto size-[13px] shrink-0"
                         />
                       </div>
-                      <Transition name="slide-down">
-                        <div v-if="!entry.negativeCollapsed" class="faq-tags">
+                      <Transition v-bind="slideDownTransition">
+                        <div v-if="!entry.negativeCollapsed" :class="cardTagsClass">
                           <FAQTagTooltip
                             v-for="question in entry.negative_questions"
                             :key="question"
@@ -429,29 +561,32 @@
                             type="negative"
                             placement="top"
                           >
-                            <t-tag size="small" theme="warning" variant="light-outline" class="question-tag">
-                              {{ question }}
-                            </t-tag>
+                            <span :class="questionTagClass">
+                              <span class="block min-w-0 truncate leading-[1.4]">{{ question }}</span>
+                            </span>
                           </FAQTagTooltip>
                         </div>
                       </Transition>
                     </div>
 
                     <!-- Answers Section -->
-                    <div class="faq-section answers">
+                    <div class="flex min-w-0 flex-col gap-1.5 overflow-hidden">
                       <div
-                        class="faq-section-label clickable"
+                        :class="sectionLabelClass"
+                        class="before:bg-primary"
                         @click.stop="entry.answersCollapsed = !entry.answersCollapsed"
                       >
                         <span>{{ $t("knowledgeEditor.faq.answers") }}</span>
-                        <span v-if="entry.answers?.length" class="section-count"> ({{ entry.answers.length }}) </span>
-                        <t-icon
-                          :name="entry.answersCollapsed ? 'chevron-right' : 'chevron-down'"
-                          class="collapse-icon"
+                        <span v-if="entry.answers?.length" class="text-placeholder ml-1 font-normal">
+                          ({{ entry.answers.length }})
+                        </span>
+                        <component
+                          :is="entry.answersCollapsed ? ChevronRightIcon : ChevronDownIcon"
+                          class="text-placeholder ml-auto size-[13px] shrink-0"
                         />
                       </div>
-                      <Transition name="slide-down">
-                        <div v-if="!entry.answersCollapsed" class="faq-tags">
+                      <Transition v-bind="slideDownTransition">
+                        <div v-if="!entry.answersCollapsed" :class="cardTagsClass">
                           <FAQTagTooltip
                             v-for="answer in entry.answers"
                             :key="answer"
@@ -459,9 +594,9 @@
                             type="answer"
                             placement="top"
                           >
-                            <t-tag size="small" theme="success" variant="light-outline" class="question-tag">
-                              {{ answer }}
-                            </t-tag>
+                            <span :class="questionTagClass">
+                              <span class="block min-w-0 truncate leading-[1.4]">{{ answer }}</span>
+                            </span>
                           </FAQTagTooltip>
                         </div>
                       </Transition>
@@ -469,87 +604,118 @@
                   </div>
 
                   <!-- Card Footer -->
-                  <div class="faq-card-footer">
-                    <div class="faq-card-tag" @click.stop>
-                      <template v-if="canEdit && tagList.length">
-                        <t-dropdown
-                          :options="tagDropdownOptions"
-                          trigger="click"
-                          @click="(data: any) => handleEntryTagChange(entry.id, data.value as string)"
-                        >
-                          <t-tag size="small" variant="light-outline" class="faq-tag-chip">
-                            <span class="tag-text">{{ getTagName(entry.tag_id) || $t("knowledgeBase.untagged") }}</span>
-                          </t-tag>
-                        </t-dropdown>
-                      </template>
-                      <template v-else>
-                        <t-tag size="small" variant="light-outline" class="faq-tag-chip">
-                          <span class="tag-text">{{ getTagName(entry.tag_id) || $t("knowledgeBase.untagged") }}</span>
-                        </t-tag>
-                      </template>
+                  <div
+                    class="border-border -mx-2.5 -mb-2.5 flex flex-nowrap items-center justify-between gap-1.5 border-t bg-[rgba(48,50,54,0.02)] px-3 py-2"
+                  >
+                    <div class="flex min-w-0 flex-1 items-center justify-start" @click.stop>
+                      <DropdownMenu v-if="canEdit && tagList.length">
+                        <DropdownMenuTrigger as-child>
+                          <button type="button" data-slot="faq-tag-chip" :class="tagChipClass">
+                            <span class="max-w-[100px] truncate">{{
+                              getTagName(entry.tag_id) || $t("knowledgeBase.untagged")
+                            }}</span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" class="max-h-72 w-auto">
+                          <DropdownMenuItem
+                            v-for="option in tagDropdownOptions"
+                            :key="option.value"
+                            @select="handleEntryTagChange(entry.id, option.value)"
+                          >
+                            {{ option.content }}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <span v-else :class="tagChipClass">
+                        <span class="max-w-[100px] truncate">{{
+                          getTagName(entry.tag_id) || $t("knowledgeBase.untagged")
+                        }}</span>
+                      </span>
                     </div>
-                    <div class="faq-card-status" @click.stop>
+                    <div class="ml-auto flex shrink-0 items-center gap-[5px]" @click.stop>
                       <!-- 暂时隐藏推荐开关
-                      <t-tooltip
-                        :content="entry.is_recommended ? $t('knowledgeEditor.faq.recommendedEnabled') : $t('knowledgeEditor.faq.recommendedDisabled')"
-                        placement="top"
-                      >
-                        <div class="status-item-compact">
-                          <t-switch
-                            :key="`${entry.id}-recommended-${entry.is_recommended}`"
-                            size="small"
-                            :value="entry.is_recommended"
-                            :loading="!!entryRecommendedLoading[entry.id]"
-                            :disabled="!!entryRecommendedLoading[entry.id]"
-                            @click.stop
-                            @change="(value: boolean) => handleEntryRecommendedChange(entry, value)"
-                          />
-                          <span class="status-label">{{ $t('knowledgeEditor.faq.recommended') }}</span>
-                        </div>
-                      </t-tooltip>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div class="hover:bg-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5">
+                            <Switch
+                              :key="`${entry.id}-recommended-${entry.is_recommended}`"
+                              size="sm"
+                              :model-value="entry.is_recommended"
+                              :disabled="!!entryRecommendedLoading[entry.id]"
+                              @click.stop
+                              @update:model-value="(value: boolean) => handleEntryRecommendedChange(entry, value)"
+                            />
+                            <span class="text-muted-foreground text-[11px]">{{ $t('knowledgeEditor.faq.recommended') }}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          {{ entry.is_recommended ? $t('knowledgeEditor.faq.recommendedEnabled') : $t('knowledgeEditor.faq.recommendedDisabled') }}
+                        </TooltipContent>
+                      </Tooltip>
                       -->
-                      <t-tooltip
-                        :content="
-                          entry.is_enabled
-                            ? $t('knowledgeEditor.faq.statusEnabled')
-                            : $t('knowledgeEditor.faq.statusDisabled')
-                        "
-                        placement="top"
-                      >
-                        <div class="status-item-compact">
-                          <t-switch
-                            :key="`${entry.id}-${entry.is_enabled}`"
-                            size="small"
-                            :value="entry.is_enabled"
-                            :loading="!!entryStatusLoading[entry.id]"
-                            :disabled="!!entryStatusLoading[entry.id] || !canEdit"
-                            @click.stop
-                            @change="(value: boolean) => handleEntryStatusChange(entry, value)"
-                          />
-                        </div>
-                      </t-tooltip>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <div
+                            class="hover:bg-accent inline-flex cursor-pointer items-center gap-1.5 rounded-sm px-1 py-0.5 transition-all duration-200"
+                          >
+                            <Loader2Icon
+                              v-if="entryStatusLoading[entry.id]"
+                              class="text-muted-foreground size-3 animate-spin"
+                            />
+                            <Switch
+                              :key="`${entry.id}-${entry.is_enabled}`"
+                              size="sm"
+                              class="shrink-0"
+                              :model-value="entry.is_enabled"
+                              :disabled="!!entryStatusLoading[entry.id] || !canEdit"
+                              @click.stop
+                              @update:model-value="(value: boolean) => handleEntryStatusChange(entry, value)"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          {{
+                            entry.is_enabled
+                              ? $t("knowledgeEditor.faq.statusEnabled")
+                              : $t("knowledgeEditor.faq.statusDisabled")
+                          }}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
               </div>
             </template>
             <template v-else-if="!loading">
-              <div class="faq-empty-state">
-                <div class="empty-content">
-                  <t-icon name="file-add" size="48px" class="empty-icon" />
-                  <div class="empty-text">{{ $t("knowledgeEditor.faq.emptyTitle") }}</div>
-                  <div class="empty-desc">{{ $t("knowledgeEditor.faq.emptyDesc") }}</div>
+              <div class="flex min-h-[400px] items-center justify-center px-5 py-[60px]">
+                <div class="flex max-w-[400px] flex-col items-center gap-4 text-center">
+                  <FilePlusIcon class="size-12 text-[var(--td-text-color-disabled)] opacity-60" />
+                  <div class="text-foreground text-lg leading-7 font-semibold">
+                    {{ $t("knowledgeEditor.faq.emptyTitle") }}
+                  </div>
+                  <div class="text-muted-foreground text-sm leading-[22px] font-normal">
+                    {{ $t("knowledgeEditor.faq.emptyDesc") }}
+                  </div>
                 </div>
               </div>
             </template>
-            <div v-if="loadingMore" class="faq-load-more">
-              <t-loading size="small" :text="$t('common.loading')" />
+            <div
+              v-if="loadingMore"
+              class="text-muted-foreground flex items-center justify-center gap-2 px-4 py-6 text-[13px]"
+            >
+              <Loader2Icon class="text-primary size-4 animate-spin" />
+              <span>{{ $t("common.loading") }}</span>
             </div>
-            <div v-if="hasMore === false && entries.length > 0" class="faq-no-more">
+            <div
+              v-if="hasMore === false && entries.length > 0"
+              class="text-placeholder flex items-center justify-center px-4 py-6 text-[13px] italic"
+            >
               {{ $t("common.noMoreData") }}
             </div>
           </div>
-          <div class="faq-batch-bar-anchor">
+          <div
+            class="pointer-events-none absolute right-0 bottom-3 left-0 z-[6] flex justify-center px-4 [&>*]:pointer-events-auto"
+          >
             <FAQBatchBar
               :count="selectedRowKeys.length"
               :enabled-count="selectedEnabledCount"
@@ -570,322 +736,451 @@
       </div>
     </div>
     <!-- Editor Drawer -->
-    <t-drawer
-      v-model:visible="editorVisible"
-      :header="editorMode === 'create' ? $t('knowledgeEditor.faq.editorCreate') : $t('knowledgeEditor.faq.editorEdit')"
-      :close-btn="true"
-      size="520px"
-      placement="right"
-      class="faq-editor-drawer"
-      @close="handleEditorClose"
-    >
-      <div class="faq-editor-drawer-content">
-        <t-form
-          ref="editorFormRef"
-          :data="editorForm"
-          :rules="editorRules"
-          layout="vertical"
-          :label-width="0"
-          class="faq-editor-form"
-        >
-          <div class="settings-group">
-            <!-- 标准问 -->
-            <div class="setting-row vertical setting-row-primary">
-              <div class="setting-info">
-                <label class="required-label">
-                  {{ $t("knowledgeEditor.faq.standardQuestion") }}
-                  <span class="required-mark">*</span>
-                </label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.standardQuestionDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <t-input v-model="editorForm.standard_question" :maxlength="200" class="full-width-input" />
-              </div>
-            </div>
-
-            <!-- 相似问 -->
-            <div class="setting-row vertical setting-row-optional setting-row-similar">
-              <div class="setting-info">
-                <label class="optional-label">{{ $t("knowledgeEditor.faq.similarQuestions") }}</label>
-                <p class="desc optional-desc">{{ $t("knowledgeEditor.faq.similarQuestionsDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <div class="full-width-input-wrapper">
-                  <t-input
-                    v-model="similarInput"
-                    :placeholder="$t('knowledgeEditor.faq.similarPlaceholder')"
-                    @enter="addSimilar"
-                    class="full-width-input"
-                  />
-                  <t-button
-                    theme="primary"
-                    variant="outline"
-                    :disabled="!similarInput.trim() || editorForm.similar_questions.length >= 10"
-                    @click="addSimilar"
-                    class="add-item-btn"
-                    size="small"
-                  >
-                    <t-icon name="add" size="16px" />
-                  </t-button>
-                </div>
-                <div v-if="editorForm.similar_questions.length > 0" class="item-list">
-                  <div v-for="(question, index) in editorForm.similar_questions" :key="index" class="item-row">
-                    <div class="item-content">{{ question }}</div>
-                    <t-button
-                      theme="default"
-                      variant="text"
-                      size="small"
-                      @click="removeSimilar(index)"
-                      class="remove-item-btn"
-                    >
-                      <t-icon name="close" size="16px" />
-                    </t-button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 反例 -->
-            <div class="setting-row vertical setting-row-optional setting-row-negative">
-              <div class="setting-info">
-                <label class="optional-label">{{ $t("knowledgeEditor.faq.negativeQuestions") }}</label>
-                <p class="desc optional-desc">{{ $t("knowledgeEditor.faq.negativeQuestionsDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <div class="full-width-input-wrapper">
-                  <t-input
-                    v-model="negativeInput"
-                    :placeholder="$t('knowledgeEditor.faq.negativePlaceholder')"
-                    @enter="addNegative"
-                    class="full-width-input"
-                  />
-                  <t-button
-                    theme="primary"
-                    variant="outline"
-                    :disabled="!negativeInput.trim() || editorForm.negative_questions.length >= 10"
-                    @click="addNegative"
-                    class="add-item-btn"
-                    size="small"
-                  >
-                    <t-icon name="add" size="16px" />
-                  </t-button>
-                </div>
-                <div v-if="editorForm.negative_questions.length > 0" class="item-list">
-                  <div
-                    v-for="(question, index) in editorForm.negative_questions"
-                    :key="index"
-                    class="item-row negative"
-                  >
-                    <div class="item-content">{{ question }}</div>
-                    <t-button
-                      theme="default"
-                      variant="text"
-                      size="small"
-                      @click="removeNegative(index)"
-                      class="remove-item-btn"
-                    >
-                      <t-icon name="close" size="16px" />
-                    </t-button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 答案 -->
-            <div class="setting-row vertical setting-row-primary setting-row-answer">
-              <div class="setting-info">
-                <label class="required-label">
-                  {{ $t("knowledgeEditor.faq.answers") }}
-                  <span class="required-mark">*</span>
-                </label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.answersDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <div class="textarea-container">
-                  <div class="full-width-input-wrapper textarea-wrapper">
-                    <t-textarea
-                      v-model="answerInput"
-                      :placeholder="$t('knowledgeEditor.faq.answerPlaceholder')"
-                      :autosize="{ minRows: 3, maxRows: 6 }"
-                      class="full-width-textarea"
-                      @keydown.ctrl.enter="addAnswer"
-                      @keydown.meta.enter="addAnswer"
-                    />
-                    <t-button
-                      theme="primary"
-                      variant="outline"
-                      :disabled="!answerInput.trim() || editorForm.answers.length >= 5"
-                      @click="addAnswer"
-                      class="add-item-btn"
-                      size="small"
-                    >
-                      <t-icon name="add" size="16px" />
-                    </t-button>
-                  </div>
-                  <div class="item-count">{{ editorForm.answers.length }}/5</div>
-                </div>
-                <div v-if="editorForm.answers.length > 0" class="item-list">
-                  <div v-for="(answer, index) in editorForm.answers" :key="index" class="item-row answer-row">
-                    <div class="item-content">{{ answer }}</div>
-                    <t-button
-                      theme="default"
-                      variant="text"
-                      size="small"
-                      @click="removeAnswer(index)"
-                      class="remove-item-btn"
-                    >
-                      <t-icon name="close" size="16px" />
-                    </t-button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-row vertical">
-              <div class="setting-info">
-                <label>{{ $t("knowledgeBase.tagLabel") }}</label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.tagDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <t-select
-                  v-model="editorForm.tag_id"
-                  class="full-width-input"
-                  :options="tagSelectOptions"
-                  clearable
-                  :placeholder="$t('knowledgeEditor.faq.tagPlaceholder')"
-                />
-              </div>
-            </div>
-          </div>
-        </t-form>
-      </div>
-
-      <template #footer>
-        <div class="faq-editor-drawer-footer">
-          <t-button theme="default" variant="outline" @click="editorVisible = false">
-            {{ $t("common.cancel") }}
-          </t-button>
-          <t-button theme="primary" @click="handleSubmitEntry" :loading="savingEntry">
-            {{ editorMode === "create" ? $t("knowledgeEditor.faq.editorCreate") : $t("common.save") }}
-          </t-button>
+    <Drawer :open="editorVisible" swipe-direction="right" @update:open="handleEditorOpenChange">
+      <DrawerContent class="w-[520px] max-w-full rounded-none border-0 sm:max-w-none">
+        <div class="border-border flex shrink-0 items-center justify-between gap-3 border-b px-6 py-5">
+          <DrawerTitle class="text-foreground text-lg font-semibold">
+            {{
+              editorMode === "create" ? $t("knowledgeEditor.faq.editorCreate") : $t("knowledgeEditor.faq.editorEdit")
+            }}
+          </DrawerTitle>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="text-muted-foreground"
+            :aria-label="$t('common.close')"
+            @click="handleEditorOpenChange(false)"
+          >
+            <XIcon />
+          </Button>
         </div>
-      </template>
-    </t-drawer>
+        <div class="flex min-h-0 flex-1 flex-col p-5">
+          <div
+            class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-[3px] [&::-webkit-scrollbar-thumb]:bg-[var(--td-bg-color-component-disabled)] [&::-webkit-scrollbar-thumb:hover]:bg-[var(--td-brand-color)] [&::-webkit-scrollbar-track]:rounded-[3px] [&::-webkit-scrollbar-track]:bg-[var(--td-bg-color-secondarycontainer)]"
+          >
+            <!--
+              Submitting is the footer button's job alone. The native submit a
+              stray Enter would cause is swallowed, as the TDesign form did, so
+              Enter in the question field cannot save a half-written entry.
+            -->
+            <form class="w-full" novalidate @submit.prevent>
+              <div class="flex flex-col">
+                <!-- 标准问 -->
+                <div
+                  :class="[editorRowClass, stripeClass]"
+                  class="border-border before:bg-primary border-b pt-0 pb-5 before:top-0 before:h-[calc(100%-20px)]"
+                >
+                  <div class="w-full">
+                    <label :class="requiredLabelClass" for="faq-standard-question">
+                      {{ $t("knowledgeEditor.faq.standardQuestion") }}
+                      <span class="text-destructive text-sm font-semibold">*</span>
+                    </label>
+                    <p :class="editorDescClass">{{ $t("knowledgeEditor.faq.standardQuestionDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <Input
+                      id="faq-standard-question"
+                      :model-value="editorForm.standard_question"
+                      :maxlength="200"
+                      :class="editorInputClass"
+                      :aria-invalid="editorErrors.standard_question ? true : undefined"
+                      @update:model-value="(v) => (editorForm.standard_question = String(v))"
+                    />
+                    <p v-if="editorErrors.standard_question" class="text-destructive mt-1 mb-0 text-xs">
+                      {{ editorErrors.standard_question }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 相似问 -->
+                <div
+                  :class="[editorRowClass, stripeClass]"
+                  class="border-border before:bg-primary border-b py-5 before:top-5 before:h-[calc(100%-40px)]"
+                >
+                  <div class="w-full">
+                    <label :class="optionalLabelClass">{{ $t("knowledgeEditor.faq.similarQuestions") }}</label>
+                    <p :class="editorDescClass">{{ $t("knowledgeEditor.faq.similarQuestionsDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <div class="flex w-full items-center gap-2">
+                      <Input
+                        :model-value="similarInput"
+                        :placeholder="$t('knowledgeEditor.faq.similarPlaceholder')"
+                        :class="editorInputClass"
+                        class="min-w-0 flex-1"
+                        @update:model-value="(v) => (similarInput = String(v))"
+                        @keydown.enter.prevent="(e: KeyboardEvent) => !e.isComposing && addSimilar()"
+                      />
+                      <Button
+                        type="button"
+                        :class="addItemButtonClass"
+                        :disabled="!similarInput.trim() || editorForm.similar_questions.length >= 10"
+                        @click="addSimilar"
+                      >
+                        <PlusIcon class="size-4" />
+                      </Button>
+                    </div>
+                    <div v-if="editorForm.similar_questions.length > 0" class="mt-2 flex w-full flex-col gap-2">
+                      <div
+                        v-for="(question, index) in editorForm.similar_questions"
+                        :key="index"
+                        :class="itemRowClass"
+                        class="bg-card border-border hover:bg-secondary hover:border-primary items-center py-2.5 hover:shadow-[0_2px_8px_rgba(7,192,95,0.12)]"
+                      >
+                        <div :class="itemContentClass">{{ question }}</div>
+                        <button
+                          type="button"
+                          data-slot="remove-item-button"
+                          :class="removeItemButtonClass"
+                          @click="removeSimilar(index)"
+                        >
+                          <XIcon class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 反例 -->
+                <div
+                  :class="[editorRowClass, stripeClass]"
+                  class="border-border before:bg-warning border-b py-5 before:top-5 before:h-[calc(100%-40px)]"
+                >
+                  <div class="w-full">
+                    <label :class="optionalLabelClass">{{ $t("knowledgeEditor.faq.negativeQuestions") }}</label>
+                    <p :class="editorDescClass">{{ $t("knowledgeEditor.faq.negativeQuestionsDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <div class="flex w-full items-center gap-2">
+                      <Input
+                        :model-value="negativeInput"
+                        :placeholder="$t('knowledgeEditor.faq.negativePlaceholder')"
+                        :class="editorInputClass"
+                        class="min-w-0 flex-1"
+                        @update:model-value="(v) => (negativeInput = String(v))"
+                        @keydown.enter.prevent="(e: KeyboardEvent) => !e.isComposing && addNegative()"
+                      />
+                      <Button
+                        type="button"
+                        :class="addItemButtonClass"
+                        :disabled="!negativeInput.trim() || editorForm.negative_questions.length >= 10"
+                        @click="addNegative"
+                      >
+                        <PlusIcon class="size-4" />
+                      </Button>
+                    </div>
+                    <div v-if="editorForm.negative_questions.length > 0" class="mt-2 flex w-full flex-col gap-2">
+                      <div
+                        v-for="(question, index) in editorForm.negative_questions"
+                        :key="index"
+                        :class="itemRowClass"
+                        class="hover:border-warning items-center border-[var(--td-warning-color-focus)] bg-[var(--td-warning-color-light)] py-2.5 hover:bg-[var(--td-warning-color-light)] hover:shadow-[0_2px_8px_rgba(251,191,36,0.15)]"
+                      >
+                        <div :class="itemContentClass">{{ question }}</div>
+                        <button
+                          type="button"
+                          data-slot="remove-item-button"
+                          :class="removeItemButtonClass"
+                          @click="removeNegative(index)"
+                        >
+                          <XIcon class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 答案 -->
+                <div
+                  :class="[editorRowClass, stripeClass]"
+                  class="before:bg-primary py-5 before:top-5 before:h-[calc(100%-40px)]"
+                >
+                  <div class="w-full">
+                    <label :class="requiredLabelClass" for="faq-answer-input">
+                      {{ $t("knowledgeEditor.faq.answers") }}
+                      <span class="text-destructive text-sm font-semibold">*</span>
+                    </label>
+                    <p :class="editorDescClass">{{ $t("knowledgeEditor.faq.answersDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <div class="flex w-full flex-col gap-2">
+                      <div class="flex w-full items-start gap-2">
+                        <!--
+                          The old control grew from three to six rows with its
+                          content; field-sizing does the same without script,
+                          bounded by the min/max heights (80px was the old floor).
+                        -->
+                        <Textarea
+                          id="faq-answer-input"
+                          :model-value="answerInput"
+                          :placeholder="$t('knowledgeEditor.faq.answerPlaceholder')"
+                          :class="editorInputClass"
+                          class="field-sizing-content max-h-[147px] min-h-20 min-w-0 flex-1 resize-y py-1.5 leading-[1.6]"
+                          :aria-invalid="editorErrors.answers ? true : undefined"
+                          @update:model-value="(v) => (answerInput = String(v))"
+                          @keydown.ctrl.enter="addAnswer"
+                          @keydown.meta.enter="addAnswer"
+                        />
+                        <Button
+                          type="button"
+                          :class="addItemButtonClass"
+                          :disabled="!answerInput.trim() || editorForm.answers.length >= 5"
+                          @click="addAnswer"
+                        >
+                          <PlusIcon class="size-4" />
+                        </Button>
+                      </div>
+                      <div class="text-muted-foreground pr-10 text-right text-[13px] leading-none font-medium">
+                        {{ editorForm.answers.length }}/5
+                      </div>
+                    </div>
+                    <p v-if="editorErrors.answers" class="text-destructive mt-1 mb-0 text-xs">
+                      {{ editorErrors.answers }}
+                    </p>
+                    <div v-if="editorForm.answers.length > 0" class="mt-2 flex w-full flex-col gap-2">
+                      <div
+                        v-for="(answer, index) in editorForm.answers"
+                        :key="index"
+                        :class="itemRowClass"
+                        class="bg-card border-border hover:bg-secondary hover:border-primary items-start py-3 hover:shadow-[0_2px_8px_rgba(7,192,95,0.12)]"
+                      >
+                        <div :class="itemContentClass">{{ answer }}</div>
+                        <button
+                          type="button"
+                          data-slot="remove-item-button"
+                          :class="removeItemButtonClass"
+                          @click="removeAnswer(index)"
+                        >
+                          <XIcon class="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div :class="editorRowClass" class="py-5">
+                  <div class="w-full">
+                    <label class="text-foreground mb-1 block text-[15px] font-medium">
+                      {{ $t("knowledgeBase.tagLabel") }}
+                    </label>
+                    <p :class="editorDescClass">{{ $t("knowledgeEditor.faq.tagDesc") }}</p>
+                  </div>
+                  <div class="relative flex w-full flex-col items-start">
+                    <Select
+                      :model-value="editorForm.tag_id != null ? String(editorForm.tag_id) : undefined"
+                      @update:model-value="(v) => (editorForm.tag_id = v == null || v === '' ? undefined : Number(v))"
+                    >
+                      <SelectTrigger
+                        class="border-border bg-card hover:border-primary focus-visible:border-primary focus-visible:ring-primary/10 dark:bg-card h-8 w-full rounded-lg py-1 pr-8 pl-3"
+                      >
+                        <SelectValue :placeholder="$t('knowledgeEditor.faq.tagPlaceholder')" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem v-for="option in tagSelectOptions" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <!-- The select had a clear affordance; Reka's has none, so it sits over the trigger. -->
+                    <button
+                      v-if="editorForm.tag_id != null"
+                      type="button"
+                      data-slot="select-clear"
+                      class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-8 inline-flex -translate-y-1/2 items-center"
+                      :aria-label="$t('common.clear')"
+                      @click="editorForm.tag_id = undefined"
+                    >
+                      <CircleXIcon class="size-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="border-border flex shrink-0 justify-end gap-3 border-t px-6 py-4">
+          <Button variant="outline" @click="handleEditorOpenChange(false)">
+            {{ $t("common.cancel") }}
+          </Button>
+          <Button :disabled="savingEntry" @click="handleSubmitEntry">
+            <Loader2Icon v-if="savingEntry" class="animate-spin" />
+            {{ editorMode === "create" ? $t("knowledgeEditor.faq.editorCreate") : $t("common.save") }}
+          </Button>
+        </div>
+      </DrawerContent>
+    </Drawer>
 
     <!-- Import Dialog -->
     <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="importVisible" class="faq-import-overlay" @click.self="importVisible = false">
-          <div class="faq-import-modal">
+      <Transition v-bind="modalTransition">
+        <div v-if="importVisible" :class="modalOverlayClass" @click.self="importVisible = false">
+          <div
+            class="bg-card relative flex max-h-[90vh] w-full max-w-[600px] flex-col overflow-hidden rounded-xl shadow-[0_6px_28px_rgba(15,23,42,0.08)]"
+          >
             <!-- 关闭按钮 -->
-            <button class="close-btn" @click="importVisible = false" :aria-label="$t('general.close')">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              </svg>
+            <button
+              type="button"
+              data-slot="modal-close"
+              :class="modalCloseClass"
+              :aria-label="$t('general.close')"
+              @click="importVisible = false"
+            >
+              <XIcon class="size-5" />
             </button>
 
-            <div class="faq-import-container">
-              <div class="faq-import-header">
-                <h2 class="import-title">{{ $t("knowledgeEditor.faqImport.title") }}</h2>
+            <div class="flex h-full flex-col overflow-hidden">
+              <div class="border-border shrink-0 border-b px-6 pt-6 pb-4">
+                <h2 class="text-foreground m-0 text-lg font-semibold">{{ $t("knowledgeEditor.faqImport.title") }}</h2>
               </div>
 
-              <div class="faq-import-content">
+              <div
+                class="max-h-[calc(90vh-140px)] min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-[3px] [&::-webkit-scrollbar-thumb]:bg-[var(--td-bg-color-component-disabled)] [&::-webkit-scrollbar-thumb:hover]:bg-[var(--td-brand-color)] [&::-webkit-scrollbar-track]:rounded-[3px] [&::-webkit-scrollbar-track]:bg-[var(--td-bg-color-secondarycontainer)]"
+              >
                 <!-- 导入模式选择 -->
-                <div class="import-form-item">
-                  <label class="import-form-label required">{{ $t("knowledgeEditor.faqImport.modeLabel") }}</label>
-                  <t-radio-group v-model="importState.mode" class="import-radio-group">
-                    <t-radio-button value="append">{{ $t("knowledgeEditor.faqImport.appendMode") }}</t-radio-button>
-                    <t-radio-button value="replace">{{ $t("knowledgeEditor.faqImport.replaceMode") }}</t-radio-button>
-                  </t-radio-group>
+                <div class="mb-6 last:mb-0">
+                  <label :class="importLabelClass">{{ $t("knowledgeEditor.faqImport.modeLabel") }}</label>
+                  <div
+                    role="radiogroup"
+                    class="border-border inline-flex overflow-hidden rounded-md border"
+                    :aria-label="$t('knowledgeEditor.faqImport.modeLabel')"
+                  >
+                    <button
+                      v-for="mode in importModes"
+                      :key="mode.value"
+                      type="button"
+                      role="radio"
+                      data-slot="import-mode"
+                      :aria-checked="importState.mode === mode.value"
+                      class="border-border -ml-px h-8 border-l px-4 text-sm transition-colors first:ml-0 first:border-l-0"
+                      :class="
+                        importState.mode === mode.value
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-card text-foreground hover:text-primary'
+                      "
+                      @click="importState.mode = mode.value"
+                    >
+                      {{ mode.label }}
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 文件上传区域 -->
-                <div class="import-form-item">
-                  <div class="file-label-row">
-                    <label class="import-form-label required">{{ $t("knowledgeEditor.faqImport.fileLabel") }}</label>
-                    <t-dropdown
-                      :options="downloadExampleOptions"
-                      placement="bottom-right"
-                      trigger="click"
-                      @click="handleDownloadExample"
-                      class="download-example-dropdown"
-                    >
-                      <t-button theme="default" variant="outline" size="small" class="download-example-btn">
-                        <t-icon name="download" size="16px" />
-                        <span>{{ $t("knowledgeEditor.faqImport.downloadExample") }}</span>
-                      </t-button>
-                    </t-dropdown>
+                <div class="mb-6 last:mb-0">
+                  <div class="mb-2.5 flex items-center justify-between gap-3">
+                    <label :class="importLabelClass">{{ $t("knowledgeEditor.faqImport.fileLabel") }}</label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger as-child>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="border-border bg-card text-foreground hover:border-primary hover:text-primary dark:bg-card h-auto gap-1.5 rounded-md px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap hover:bg-[var(--td-success-color-light)] active:bg-[var(--td-success-color-light)]"
+                        >
+                          <DownloadIcon class="size-4" />
+                          <span>{{ $t("knowledgeEditor.faqImport.downloadExample") }}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" class="z-[1100] w-auto">
+                        <DropdownMenuItem
+                          v-for="option in downloadExampleOptions"
+                          :key="option.value"
+                          @select="handleDownloadExample({ value: option.value })"
+                        >
+                          {{ option.content }}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <div class="file-upload-wrapper">
+                  <div class="w-full">
                     <input
                       ref="fileInputRef"
                       type="file"
                       accept=".json,.csv,.xlsx,.xls"
+                      class="pointer-events-none absolute size-0 overflow-hidden opacity-0"
                       @change="handleFileChange"
-                      class="file-input-hidden"
                     />
                     <div
-                      class="file-upload-area"
-                      :class="{ 'has-file': importState.file }"
+                      class="group/upload relative box-border flex min-h-[120px] w-full cursor-pointer items-center justify-center rounded-lg border-2 transition-all duration-300 hover:border-[var(--td-brand-color)] hover:bg-[var(--td-success-color-light)]"
+                      :class="
+                        importState.file
+                          ? 'border-primary border-solid bg-[var(--td-success-color-light)]'
+                          : 'border-border bg-secondary border-dashed'
+                      "
                       @click="fileInputRef?.click()"
                       @dragover.prevent
                       @dragenter.prevent
                       @drop.prevent="handleFileDrop"
                     >
-                      <div class="file-upload-content">
-                        <t-icon name="upload" size="32px" class="upload-icon" />
-                        <div class="upload-text">
-                          <span v-if="!importState.file" class="upload-primary-text">
+                      <div class="flex flex-col items-center gap-3 text-center">
+                        <UploadIcon
+                          class="text-primary size-8 transition-transform duration-200 group-hover/upload:-translate-y-0.5"
+                        />
+                        <div class="flex flex-col gap-1">
+                          <span v-if="!importState.file" class="text-foreground text-sm font-medium">
                             {{ $t("knowledgeEditor.faqImport.clickToUpload") }}
                           </span>
-                          <span v-else class="upload-file-name">
+                          <span v-else class="text-primary text-sm font-medium break-all">
                             {{ importState.file.name }}
                           </span>
-                          <span v-if="!importState.file" class="upload-secondary-text">
+                          <span v-if="!importState.file" class="text-muted-foreground text-xs">
                             {{ $t("knowledgeEditor.faqImport.dragDropTip") }}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <p class="import-form-tip">{{ $t("knowledgeEditor.faqImport.fileTip") }}</p>
+                    <p class="mt-2 mb-3 text-xs leading-[18px] text-[var(--td-text-color-disabled)]">
+                      {{ $t("knowledgeEditor.faqImport.fileTip") }}
+                    </p>
                   </div>
                 </div>
 
                 <!-- 预览区域 -->
-                <div v-if="importState.preview.length" class="import-preview">
-                  <div class="preview-header">
-                    <t-icon name="file-view" size="16px" class="preview-icon" />
-                    <span class="preview-title">
+                <div v-if="importState.preview.length" class="border-border bg-secondary mt-5 rounded-lg border p-4">
+                  <div class="border-border mb-3 flex items-center gap-2 border-b pb-3">
+                    <FileSearchIcon class="text-primary size-4 shrink-0" />
+                    <span class="text-foreground text-sm font-medium">
                       {{ $t("knowledgeEditor.faqImport.previewCount", { count: importState.preview.length }) }}
                     </span>
                   </div>
-                  <div class="preview-list">
-                    <div v-for="(item, index) in importState.preview.slice(0, 5)" :key="index" class="preview-item">
-                      <span class="preview-index">{{ index + 1 }}</span>
-                      <span class="preview-question">{{ item.standard_question }}</span>
+                  <div class="mb-2 flex flex-col gap-2">
+                    <div
+                      v-for="(item, index) in importState.preview.slice(0, 5)"
+                      :key="index"
+                      class="border-border bg-card hover:border-primary flex items-start gap-3 rounded-md border px-3 py-2.5 transition-all duration-200 hover:shadow-[0_2px_4px_rgba(7,192,95,0.08)]"
+                    >
+                      <span
+                        class="text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-sm bg-[linear-gradient(135deg,var(--td-brand-color)_0%,var(--td-brand-color-active)_100%)] text-xs font-semibold"
+                        >{{ index + 1 }}</span
+                      >
+                      <span class="text-foreground flex-1 text-[13px] leading-normal break-words">{{
+                        item.standard_question
+                      }}</span>
                     </div>
                   </div>
-                  <p v-if="importState.preview.length > 5" class="preview-more">
+                  <p
+                    v-if="importState.preview.length > 5"
+                    class="border-border text-muted-foreground mt-2 mb-0 border-t pt-2 text-center text-xs"
+                  >
                     {{ $t("knowledgeEditor.faqImport.previewMore", { count: importState.preview.length - 5 }) }}
                   </p>
                 </div>
               </div>
 
-              <div class="faq-import-footer">
-                <t-button
-                  theme="default"
+              <div class="border-border flex shrink-0 justify-end gap-3 border-t px-6 py-4">
+                <Button
                   variant="outline"
-                  @click="handleCancelImport"
                   :disabled="importState.importing && importState.taskStatus?.status === 'running'"
+                  @click="handleCancelImport"
                 >
                   {{ $t("common.cancel") }}
-                </t-button>
-                <t-button
-                  theme="primary"
+                </Button>
+                <Button
+                  :disabled="
+                    importState.taskStatus?.status === 'running' || (importState.importing && !importState.taskId)
+                  "
                   @click="handleImport"
-                  :loading="importState.importing && !importState.taskId"
-                  :disabled="importState.taskStatus?.status === 'running'"
                 >
+                  <Loader2Icon v-if="importState.importing && !importState.taskId" class="animate-spin" />
                   {{
                     importState.taskStatus?.status === "success"
                       ? $t("common.close")
@@ -893,7 +1188,7 @@
                         ? $t("common.retry")
                         : $t("knowledgeEditor.faqImport.importButton")
                   }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
@@ -903,62 +1198,115 @@
 
     <!-- Batch Tag Dialog -->
     <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="batchTagDialogVisible" class="batch-tag-overlay" @click.self="batchTagDialogVisible = false">
-          <div class="batch-tag-modal">
+      <Transition v-bind="modalTransition">
+        <div v-if="batchTagDialogVisible" :class="modalOverlayClass" @click.self="batchTagDialogVisible = false">
+          <div
+            class="bg-card relative flex w-full max-w-[480px] flex-col overflow-hidden rounded-xl shadow-[0_6px_28px_rgba(15,23,42,0.08)]"
+          >
             <!-- 关闭按钮 -->
             <button
-              class="batch-tag-close-btn"
-              @click="batchTagDialogVisible = false"
+              type="button"
+              data-slot="modal-close"
+              :class="modalCloseClass"
               :aria-label="$t('general.close')"
+              @click="batchTagDialogVisible = false"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              </svg>
+              <XIcon class="size-5" />
             </button>
 
-            <div class="batch-tag-container">
-              <div class="batch-tag-header">
-                <h2 class="batch-tag-title">{{ $t("knowledgeEditor.faq.batchUpdateTag") }}</h2>
+            <div class="flex flex-col p-6">
+              <div class="mb-6 pr-10">
+                <h2 class="text-foreground m-0 text-xl leading-[1.4] font-semibold">
+                  {{ $t("knowledgeEditor.faq.batchUpdateTag") }}
+                </h2>
               </div>
 
-              <div class="batch-tag-content">
-                <div class="batch-tag-tip">
-                  <t-icon name="info-circle" size="16px" class="tip-icon" />
+              <div class="min-h-0 flex-1">
+                <div
+                  class="text-primary mb-5 flex items-start gap-2 rounded-lg border border-[var(--td-brand-color-focus)] bg-[var(--td-brand-color-light)] px-4 py-3 text-sm leading-normal"
+                >
+                  <InfoIcon class="text-primary mt-0.5 size-4 shrink-0" />
                   <span>{{ $t("knowledgeEditor.faq.batchUpdateTagTip", { count: selectedRowKeys.length }) }}</span>
                 </div>
-                <t-form layout="vertical" class="batch-tag-form">
-                  <t-form-item :label="$t('knowledgeBase.tagLabel')">
-                    <t-select
-                      v-model="batchTagValue"
-                      :options="tagSelectOptions"
-                      :placeholder="$t('knowledgeBase.tagPlaceholder')"
-                      clearable
-                      filterable
-                      class="batch-tag-select"
+                <div class="flex flex-col">
+                  <label class="text-foreground mb-2 text-sm font-medium">{{ $t("knowledgeBase.tagLabel") }}</label>
+                  <!--
+                    The old select was filterable, which Reka's Select is not;
+                    a popover with a search box and the options keeps typing to
+                    filter a long tag list.
+                  -->
+                  <Popover v-model:open="batchTagPickerOpen">
+                    <div class="relative w-full">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="batch-tag-trigger"
+                          class="border-border bg-card hover:border-primary flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border py-1 pr-2 pl-3 text-sm transition-colors"
+                          :class="{ 'border-primary': batchTagPickerOpen }"
+                        >
+                          <span
+                            class="min-w-0 truncate"
+                            :class="batchTagLabel ? 'text-foreground' : 'text-placeholder'"
+                          >
+                            {{ batchTagLabel || $t("knowledgeBase.tagPlaceholder") }}
+                          </span>
+                          <ChevronDownIcon class="text-muted-foreground size-4 shrink-0" />
+                        </button>
+                      </PopoverTrigger>
+                      <button
+                        v-if="batchTagValue"
+                        type="button"
+                        data-slot="select-clear"
+                        class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-8 inline-flex -translate-y-1/2 items-center"
+                        :aria-label="$t('common.clear')"
+                        @click="batchTagValue = ''"
+                      >
+                        <CircleXIcon class="size-4" />
+                      </button>
+                    </div>
+                    <PopoverContent
+                      align="start"
+                      class="z-[1100] w-(--reka-popover-trigger-width) max-w-none gap-1 p-1"
                     >
-                      <template #empty>
-                        <div class="tag-select-empty">
+                      <Input
+                        :model-value="batchTagQuery"
+                        :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
+                        class="h-7 text-sm md:text-sm"
+                        @update:model-value="(v) => (batchTagQuery = String(v))"
+                      />
+                      <div class="max-h-60 overflow-y-auto">
+                        <button
+                          v-for="option in filteredBatchTagOptions"
+                          :key="option.value"
+                          type="button"
+                          data-slot="batch-tag-option"
+                          class="hover:bg-accent flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+                          :class="{ 'text-primary': batchTagValue === String(option.value) }"
+                          @click="selectBatchTag(String(option.value))"
+                        >
+                          <span class="min-w-0 truncate">{{ option.label }}</span>
+                          <CheckIcon v-if="batchTagValue === String(option.value)" class="size-4 shrink-0" />
+                        </button>
+                        <div
+                          v-if="!filteredBatchTagOptions.length"
+                          class="text-muted-foreground px-3 py-2 text-center text-sm"
+                        >
                           {{ $t("knowledgeBase.noTags") }}
                         </div>
-                      </template>
-                    </t-select>
-                  </t-form-item>
-                </t-form>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
 
-              <div class="batch-tag-footer">
-                <t-button theme="default" variant="outline" @click="batchTagDialogVisible = false">
+              <div class="border-border mt-6 flex justify-end gap-3 border-t pt-5">
+                <Button variant="outline" @click="batchTagDialogVisible = false">
                   {{ $t("common.cancel") }}
-                </t-button>
-                <t-button
-                  theme="primary"
-                  :loading="batchTagLoading"
-                  :disabled="batchActionLoading"
-                  @click="handleBatchTag"
-                >
+                </Button>
+                <Button :disabled="batchActionLoading" @click="handleBatchTag">
+                  <Loader2Icon v-if="batchTagLoading" class="animate-spin" />
                   {{ $t("common.confirm") }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
@@ -967,151 +1315,205 @@
     </Teleport>
 
     <!-- Search Test Drawer -->
-    <t-drawer
-      v-model:visible="searchDrawerVisible"
-      :header="$t('knowledgeEditor.faq.searchTestTitle')"
-      :close-btn="true"
-      size="420px"
-      placement="right"
-      class="faq-search-drawer"
-    >
-      <div class="search-test-content">
-        <t-form layout="vertical" class="search-form" :label-width="0">
-          <div class="settings-group">
-            <!-- 查询文本 -->
-            <div class="setting-row vertical search-first-row">
-              <div class="setting-info">
-                <label>{{ $t("knowledgeEditor.faq.queryLabel") }}</label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.queryPlaceholder") }}</p>
-              </div>
-              <div class="setting-control">
-                <t-input
-                  v-model="searchForm.query"
-                  :placeholder="$t('knowledgeEditor.faq.queryPlaceholder')"
-                  @enter="handleSearch"
-                  class="full-width-input"
-                />
-              </div>
-            </div>
-
-            <!-- 相似度阈值 -->
-            <div class="setting-row vertical">
-              <div class="setting-info">
-                <label>{{ $t("knowledgeEditor.faq.similarityThresholdLabel") }}</label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.vectorThresholdDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <div class="slider-wrapper">
-                  <t-slider
-                    v-model="searchForm.vectorThreshold"
-                    :min="0"
-                    :max="1"
-                    :step="0.1"
-                    :show-tooltip="true"
-                    :format-tooltip="(val: number) => val.toFixed(2)"
-                  />
-                  <div class="slider-value">{{ searchForm.vectorThreshold.toFixed(2) }}</div>
+    <Drawer :open="searchDrawerVisible" swipe-direction="right" @update:open="(open) => (searchDrawerVisible = open)">
+      <DrawerContent class="w-[420px] max-w-full rounded-none border-0 sm:max-w-none">
+        <div class="border-border flex shrink-0 items-center justify-between gap-3 border-b px-6 py-5">
+          <DrawerTitle class="text-foreground text-lg font-semibold">
+            {{ $t("knowledgeEditor.faq.searchTestTitle") }}
+          </DrawerTitle>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="text-muted-foreground"
+            :aria-label="$t('common.close')"
+            @click="searchDrawerVisible = false"
+          >
+            <XIcon />
+          </Button>
+        </div>
+        <div class="flex min-h-0 flex-1 flex-col p-5">
+          <div
+            class="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+          >
+            <!-- Enter in the query and the button both search; the native submit does nothing. -->
+            <form class="shrink-0" novalidate @submit.prevent>
+              <div class="flex flex-col">
+                <!-- 查询文本 -->
+                <div :class="searchRowClass" class="border-border border-b pt-0 pb-4">
+                  <div :class="searchInfoClass">
+                    <label :class="searchLabelClass" for="faq-search-query">
+                      {{ $t("knowledgeEditor.faq.queryLabel") }}
+                    </label>
+                    <p :class="searchDescClass">{{ $t("knowledgeEditor.faq.queryPlaceholder") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <Input
+                      id="faq-search-query"
+                      :model-value="searchForm.query"
+                      :placeholder="$t('knowledgeEditor.faq.queryPlaceholder')"
+                      :class="editorInputClass"
+                      @update:model-value="(v) => (searchForm.query = String(v))"
+                      @keydown.enter.prevent="(e: KeyboardEvent) => !e.isComposing && handleSearch()"
+                    />
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- 匹配数量 -->
-            <div class="setting-row vertical">
-              <div class="setting-info">
-                <label>{{ $t("knowledgeEditor.faq.matchCountLabel") }}</label>
-                <p class="desc">{{ $t("knowledgeEditor.faq.matchCountDesc") }}</p>
-              </div>
-              <div class="setting-control">
-                <div class="slider-wrapper">
-                  <t-slider v-model="searchForm.matchCount" :min="1" :max="50" :step="1" :show-tooltip="true" />
-                  <div class="slider-value">{{ searchForm.matchCount }}</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 搜索按钮 -->
-            <div class="setting-row vertical">
-              <div class="setting-control">
-                <t-button theme="primary" block :loading="searching" @click="handleSearch" class="search-button">
-                  {{ searching ? $t("knowledgeEditor.faq.searching") : $t("knowledgeEditor.faq.searchButton") }}
-                </t-button>
-              </div>
-            </div>
-          </div>
-        </t-form>
-
-        <!-- Search Results -->
-        <div v-if="searchResults.length > 0 || hasSearched" class="search-results">
-          <div class="results-header">
-            <span>{{ $t("knowledgeEditor.faq.searchResults") }} ({{ searchResults.length }})</span>
-          </div>
-          <div v-if="searchResults.length === 0" class="no-results">
-            {{ $t("knowledgeEditor.faq.noResults") }}
-          </div>
-          <div v-else class="results-list">
-            <div
-              v-for="(result, index) in searchResults"
-              :key="result.id"
-              class="result-card"
-              :class="{ expanded: result.expanded }"
-            >
-              <div class="result-header" @click="toggleResult(result)">
-                <div class="result-question-wrapper">
-                  <div class="result-main">
-                    <div class="result-question">
-                      <span class="result-index">{{ index + 1 }}.</span>
-                      {{ result.standard_question }}
+                <!-- 相似度阈值 -->
+                <div :class="searchRowClass" class="border-border border-b py-4">
+                  <div :class="searchInfoClass">
+                    <label :class="searchLabelClass">{{ $t("knowledgeEditor.faq.similarityThresholdLabel") }}</label>
+                    <p :class="searchDescClass">{{ $t("knowledgeEditor.faq.vectorThresholdDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <div class="flex w-full items-center gap-3 py-0.5">
+                      <Slider
+                        class="min-w-0 flex-1"
+                        :model-value="[searchForm.vectorThreshold]"
+                        :min="0"
+                        :max="1"
+                        :step="0.1"
+                        @update:model-value="(v) => v && (searchForm.vectorThreshold = v[0])"
+                      />
+                      <div :class="sliderValueClass">{{ searchForm.vectorThreshold.toFixed(2) }}</div>
                     </div>
-                    <div
-                      v-if="result.matched_question && result.matched_question !== result.standard_question"
-                      class="matched-question"
+                  </div>
+                </div>
+
+                <!-- 匹配数量 -->
+                <div :class="searchRowClass" class="border-border border-b py-4">
+                  <div :class="searchInfoClass">
+                    <label :class="searchLabelClass">{{ $t("knowledgeEditor.faq.matchCountLabel") }}</label>
+                    <p :class="searchDescClass">{{ $t("knowledgeEditor.faq.matchCountDesc") }}</p>
+                  </div>
+                  <div class="flex w-full flex-col items-start">
+                    <div class="flex w-full items-center gap-3 py-0.5">
+                      <Slider
+                        class="min-w-0 flex-1"
+                        :model-value="[searchForm.matchCount]"
+                        :min="1"
+                        :max="50"
+                        :step="1"
+                        @update:model-value="(v) => v && (searchForm.matchCount = v[0])"
+                      />
+                      <div :class="sliderValueClass">{{ searchForm.matchCount }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 搜索按钮 -->
+                <div :class="searchRowClass" class="pt-4 pb-0">
+                  <div class="flex w-full flex-col items-start">
+                    <Button
+                      type="button"
+                      class="h-9 w-full rounded-lg text-sm font-medium transition-all duration-200 hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(7,192,95,0.3)] active:translate-y-0"
+                      :disabled="searching"
+                      @click="handleSearch"
                     >
-                      <span class="matched-label">{{ $t("knowledgeEditor.faq.matchedQuestion") }}:</span>
-                      <span class="matched-text">{{ result.matched_question }}</span>
-                    </div>
+                      <Loader2Icon v-if="searching" class="animate-spin" />
+                      {{ searching ? $t("knowledgeEditor.faq.searching") : $t("knowledgeEditor.faq.searchButton") }}
+                    </Button>
                   </div>
-                  <div class="result-meta">
-                    <t-tag size="small" variant="light-outline" class="score-tag">
-                      {{ (result.score || 0).toFixed(3) }}
-                    </t-tag>
-                  </div>
-                  <t-icon :name="result.expanded ? 'chevron-up' : 'chevron-down'" class="expand-icon" />
                 </div>
               </div>
-              <Transition name="slide-down">
-                <div v-if="result.expanded" class="result-body">
-                  <div v-if="result.answers?.length" class="result-section">
-                    <div class="section-label">{{ $t("knowledgeEditor.faq.answers") }}</div>
-                    <div class="result-tags">
-                      <t-tooltip v-for="answer in result.answers" :key="answer" :content="answer" placement="top">
-                        <t-tag size="small" theme="success" variant="light" class="answer-tag">
-                          {{ answer }}
-                        </t-tag>
-                      </t-tooltip>
+            </form>
+
+            <!-- Search Results -->
+            <div v-if="searchResults.length > 0 || hasSearched" class="box-border flex w-full flex-col pt-5">
+              <div class="text-foreground mb-4 flex shrink-0 items-center justify-start gap-2 text-sm font-semibold">
+                <span>{{ $t("knowledgeEditor.faq.searchResults") }} ({{ searchResults.length }})</span>
+              </div>
+              <div
+                v-if="searchResults.length === 0"
+                class="border-border bg-card text-muted-foreground flex items-center justify-center rounded-lg border border-dashed px-4 py-12 text-center text-sm"
+              >
+                {{ $t("knowledgeEditor.faq.noResults") }}
+              </div>
+              <div v-else class="flex flex-col gap-3">
+                <div
+                  v-for="(result, index) in searchResults"
+                  :key="result.id"
+                  class="border-border bg-card hover:border-primary relative box-border w-full min-w-0 overflow-visible rounded-lg border p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-200 hover:shadow-[0_2px_8px_rgba(7,192,95,0.12)]"
+                >
+                  <div
+                    class="hover:bg-card relative -m-1 flex cursor-pointer flex-col gap-2 rounded-md p-1 select-none"
+                    :class="{ 'border-border mb-3 border-b pb-3': result.expanded }"
+                    @click="toggleResult(result)"
+                  >
+                    <div class="flex w-full items-start gap-2.5">
+                      <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <div
+                          class="text-foreground flex items-start gap-1.5 text-sm leading-[1.6] font-semibold break-words"
+                        >
+                          <span class="text-primary shrink-0 font-semibold">{{ index + 1 }}.</span>
+                          {{ result.standard_question }}
+                        </div>
+                        <div
+                          v-if="result.matched_question && result.matched_question !== result.standard_question"
+                          class="flex items-start gap-1 pl-5 text-xs leading-normal"
+                        >
+                          <span class="text-warning shrink-0 font-medium"
+                            >{{ $t("knowledgeEditor.faq.matchedQuestion") }}:</span
+                          >
+                          <span
+                            class="rounded-sm bg-[linear-gradient(90deg,rgba(251,191,36,0.15)_0%,rgba(251,191,36,0.05)_100%)] px-1.5 py-px break-words text-[var(--td-warning-color-active)]"
+                            >{{ result.matched_question }}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="ml-auto flex shrink-0 flex-wrap gap-2">
+                        <span
+                          class="border-border bg-secondary text-foreground inline-flex items-center rounded-md border px-2 py-1 text-xs leading-none"
+                        >
+                          {{ (result.score || 0).toFixed(3) }}
+                        </span>
+                      </div>
+                      <component
+                        :is="result.expanded ? ChevronUpIcon : ChevronDownIcon"
+                        class="text-muted-foreground hover:text-primary size-[18px] shrink-0 cursor-pointer transition-transform duration-200"
+                      />
                     </div>
                   </div>
-                  <div v-if="result.similar_questions?.length" class="result-section">
-                    <div class="section-label">{{ $t("knowledgeEditor.faq.similarQuestions") }}</div>
-                    <div class="result-tags">
-                      <t-tooltip
-                        v-for="question in result.similar_questions"
-                        :key="question"
-                        :content="question"
-                        placement="top"
-                      >
-                        <t-tag size="small" variant="light-outline" class="question-tag">
-                          {{ question }}
-                        </t-tag>
-                      </t-tooltip>
+                  <Transition v-bind="slideDownTransition">
+                    <div v-if="result.expanded" class="border-border relative flex w-full flex-col gap-3 border-t pt-3">
+                      <div v-if="result.answers?.length" class="flex flex-col gap-2">
+                        <div :class="resultSectionLabelClass">{{ $t("knowledgeEditor.faq.answers") }}</div>
+                        <div class="flex w-full min-w-0 flex-wrap gap-1">
+                          <Tooltip v-for="answer in result.answers" :key="answer">
+                            <TooltipTrigger as-child>
+                              <span
+                                class="text-success inline-block max-w-full min-w-0 rounded-sm bg-[var(--td-success-color-light)] px-2 py-0.5 text-xs leading-[1.4] break-words whitespace-normal"
+                              >
+                                {{ answer }}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" class="whitespace-pre-wrap">{{ answer }}</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                      <div v-if="result.similar_questions?.length" class="flex flex-col gap-2">
+                        <div :class="resultSectionLabelClass">{{ $t("knowledgeEditor.faq.similarQuestions") }}</div>
+                        <div class="flex w-full min-w-0 flex-wrap gap-1">
+                          <Tooltip v-for="question in result.similar_questions" :key="question">
+                            <TooltipTrigger as-child>
+                              <span
+                                class="border-border bg-card text-placeholder inline-block max-w-full min-w-0 rounded-[5px] border px-2 py-[3px] text-[11px] leading-[1.4] break-words whitespace-normal"
+                              >
+                                {{ question }}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" class="whitespace-pre-wrap">{{ question }}</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Transition>
                 </div>
-              </Transition>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </t-drawer>
+      </DrawerContent>
+    </Drawer>
 
     <KbTagManageDrawer
       v-model:visible="tagManageDrawerVisible"
@@ -1123,9 +1525,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, computed, nextTick, onUnmounted, h } from "vue";
-import { MessagePlugin, Icon as TIcon } from "tdesign-vue-next";
-import type { FormRules, FormInstanceFunctions } from "tdesign-vue-next";
+import { ref, reactive, watch, onMounted, computed, nextTick, onUnmounted } from "vue";
+import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
@@ -1149,6 +1550,46 @@ import {
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import FAQTagTooltip from "@/components/FAQTagTooltip.vue";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  ClockIcon,
+  DownloadIcon,
+  FilePlusIcon,
+  FileSearchIcon,
+  InfoIcon,
+  Loader2Icon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  TagIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+  type LucideIcon,
+} from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import KBInfoPopover from "@/components/KBInfoPopover.vue";
 import KBSwitcherDropdown from "@/components/KBSwitcherDropdown.vue";
 import FAQBatchBar from "./FAQBatchBar.vue";
@@ -1265,12 +1706,12 @@ const faqCreateOptions = computed(() => {
     {
       content: t("knowledgeEditor.faq.editorCreate"),
       value: "create",
-      prefixIcon: () => h(TIcon, { name: "add", size: "16px" }),
+      icon: PlusIcon,
     },
     {
       content: t("knowledgeEditor.faqImport.importButton"),
       value: "import",
-      prefixIcon: () => h(TIcon, { name: "upload", size: "16px" }),
+      icon: UploadIcon,
     },
   ];
 });
@@ -1365,7 +1806,11 @@ const regularTags = computed(() => tagList.value);
 const tagDropdownOptions = computed(() =>
   regularTags.value.map((tag: any) => ({ content: tag.name, value: String(tag.seq_id) })),
 );
-const tagSelectOptions = computed(() => regularTags.value.map((tag: any) => ({ label: tag.name, value: tag.seq_id })));
+// Reka's SelectItem only takes string values, so the seq_id is carried as a
+// string here and turned back into a number where the form stores it.
+const tagSelectOptions = computed(() =>
+  regularTags.value.map((tag: any) => ({ label: tag.name as string, value: String(tag.seq_id) })),
+);
 
 const sidebarCategoryCount = computed(() => tagTotal.value || tagList.value.length);
 const sidebarTags = computed(() => {
@@ -1462,8 +1907,29 @@ const editorForm = reactive<FAQEntryPayload>({
   answers: [],
   tag_id: undefined,
 });
-const editorFormRef = ref<FormInstanceFunctions>();
 const savingEntry = ref(false);
+
+// Inline validation for the editor. The TDesign form this replaced declared
+// rules for these two fields but no form items bound to them, so its
+// validate() resolved true and an empty entry went straight to the API; the
+// checks now run for real, with the same messages, under the fields.
+const editorErrors = reactive<{ standard_question: string; answers: string }>({
+  standard_question: "",
+  answers: "",
+});
+
+const validateEditor = () => {
+  editorErrors.standard_question = editorForm.standard_question.trim()
+    ? ""
+    : t("knowledgeEditor.messages.nameRequired");
+  editorErrors.answers = editorForm.answers.length > 0 ? "" : t("knowledgeEditor.faq.answerRequired");
+  return !editorErrors.standard_question && !editorErrors.answers;
+};
+
+const clearEditorErrors = () => {
+  editorErrors.standard_question = "";
+  editorErrors.answers = "";
+};
 
 // 输入框状态
 const answerInput = ref("");
@@ -1471,6 +1937,11 @@ const similarInput = ref("");
 const negativeInput = ref("");
 
 const importVisible = ref(false);
+
+const importModes = computed(() => [
+  { value: "append" as const, label: t("knowledgeEditor.faqImport.appendMode") },
+  { value: "replace" as const, label: t("knowledgeEditor.faqImport.replaceMode") },
+]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const importState = reactive({
   mode: "append" as "append" | "replace",
@@ -1562,12 +2033,12 @@ const importProgressTitle = computed(() => {
   return t("faqManager.import.waiting");
 });
 
-const importProgressIcon = computed(() => {
+const importProgressIcon = computed<LucideIcon>(() => {
   const status = importState.taskStatus?.status;
-  if (status === "running") return "loading";
-  if (status === "success") return "check-circle-filled";
-  if (status === "failed") return "error-circle-filled";
-  return "time-filled";
+  if (status === "running") return Loader2Icon;
+  if (status === "success") return CircleCheckIcon;
+  if (status === "failed") return CircleAlertIcon;
+  return ClockIcon;
 });
 
 const importProgressText = computed(() => {
@@ -1766,16 +2237,6 @@ const handleEntryStatusChange = async (entry: FAQEntry, value: boolean) => {
   }
 };
 
-const editorRules: FormRules<FAQEntryPayload> = {
-  standard_question: [{ required: true, message: t("knowledgeEditor.messages.nameRequired") }],
-  answers: [
-    {
-      validator: (val: string[]) => Array.isArray(val) && val.length > 0,
-      message: t("knowledgeEditor.faq.answerRequired"),
-    },
-  ],
-};
-
 const loadEntries = async (append = false) => {
   if (!props.kbId) return;
   if (append) {
@@ -1907,6 +2368,7 @@ const resetEditorForm = () => {
 };
 
 const openEditor = (entry?: FAQEntry) => {
+  clearEditorErrors();
   if (entry) {
     editorMode.value = "edit";
     currentEntryId.value = entry.id;
@@ -1932,8 +2394,33 @@ const handleEditorClose = () => {
   answerInput.value = "";
   similarInput.value = "";
   negativeInput.value = "";
-  editorFormRef.value?.clearValidate?.();
+  clearEditorErrors();
 };
+
+// Every user-initiated close (the X, Cancel, Escape, a click outside) resets
+// the form, as the old drawer's close event did. A close after a successful
+// save sets editorVisible directly and does not pass through here; the next
+// openEditor() resets the form anyway.
+const handleEditorOpenChange = (open: boolean) => {
+  if (open) return;
+  editorVisible.value = false;
+  handleEditorClose();
+};
+
+// A field that becomes valid drops its message at once, rather than waiting
+// for the next submit, which is how the old form behaved on change.
+watch(
+  () => editorForm.standard_question,
+  (value) => {
+    if (editorErrors.standard_question && value.trim()) editorErrors.standard_question = "";
+  },
+);
+watch(
+  () => editorForm.answers.length,
+  (count) => {
+    if (editorErrors.answers && count > 0) editorErrors.answers = "";
+  },
+);
 
 // 添加答案
 const addAnswer = () => {
@@ -1978,9 +2465,7 @@ const removeNegative = (index: number) => {
 };
 
 const handleSubmitEntry = async () => {
-  if (!editorFormRef.value) return;
-  const result = await editorFormRef.value.validate?.();
-  if (result !== true) return;
+  if (!validateEditor()) return;
 
   savingEntry.value = true;
   try {
@@ -2030,7 +2515,26 @@ const batchTagValue = ref<string>("");
 const openBatchTagDialog = () => {
   if (!canEdit.value || !selectedRowKeys.value.length || batchActionLoading.value) return;
   batchTagValue.value = "";
+  batchTagQuery.value = "";
   batchTagDialogVisible.value = true;
+};
+
+// The tag picker in the batch dialog: a popover with a filter box standing in
+// for the filterable select it replaced.
+const batchTagPickerOpen = ref(false);
+const batchTagQuery = ref("");
+const filteredBatchTagOptions = computed(() => {
+  const query = batchTagQuery.value.trim().toLowerCase();
+  if (!query) return tagSelectOptions.value;
+  return tagSelectOptions.value.filter((option) => option.label.toLowerCase().includes(query));
+});
+const batchTagLabel = computed(
+  () => tagSelectOptions.value.find((option) => option.value === batchTagValue.value)?.label ?? "",
+);
+const selectBatchTag = (value: string) => {
+  batchTagValue.value = value;
+  batchTagPickerOpen.value = false;
+  batchTagQuery.value = "";
 };
 
 const handleBatchTag = async () => {
@@ -2863,6 +3367,13 @@ watch(tagSearchQuery, (newVal, oldVal) => {
 });
 
 // 监听FAQ搜索关键词变化
+// The search box's clear button: empty the keyword and reload at once, as the
+// old input's clear event did (the debounced watcher below fires as well).
+const clearEntrySearch = () => {
+  entrySearchKeyword.value = "";
+  loadEntries();
+};
+
 watch(entrySearchKeyword, (newVal, oldVal) => {
   if (newVal === oldVal) return;
   if (entrySearchDebounce) {
@@ -3089,2797 +3600,78 @@ watch(
   },
   { deep: true },
 );
+// ---------------------------------------------------------------------------
+// Shared class lists. The template repeats these shapes many times (every card
+// section, every editor row); naming them once keeps the rows identical and
+// the template readable. They are plain strings, so Tailwind still finds them.
+// ---------------------------------------------------------------------------
+
+// The coloured bar before each card section label; its colour comes from the
+// section (primary for questions and answers, warning for negatives).
+const sectionLabelClass =
+  "text-muted-foreground mb-px flex cursor-pointer items-center gap-[5px] rounded-sm py-0.5 text-[11px] font-semibold tracking-[0.5px] uppercase select-none before:h-2.5 before:w-[3px] before:shrink-0 before:rounded-[2px] before:content-[''] hover:-mx-1 hover:bg-card hover:px-1 hover:text-foreground";
+const cardTagsClass =
+  "flex min-h-[18px] w-full min-w-0 flex-wrap gap-[5px] overflow-hidden [contain:layout_style_paint] *:max-w-full *:min-w-0 *:flex-[0_1_auto]";
+const questionTagClass =
+  "border-border bg-card text-placeholder box-border inline-flex h-5 max-w-full min-w-0 items-center rounded-[5px] border px-2 text-[11px] align-middle";
+const tagChipClass =
+  "border-border bg-accent hover:border-primary box-border inline-flex h-5 max-w-[120px] cursor-pointer items-center rounded-sm border px-1.5 text-[11px] font-normal text-[var(--td-text-color-disabled)] transition-all duration-200 hover:bg-[var(--td-success-color-light)] hover:text-[var(--td-brand-color-active)]";
+
+// Editor drawer rows. Vertical padding and the bottom border are set per row
+// (the first and last rows differ), so they are not part of the shared list.
+const editorRowClass = "flex flex-col items-start justify-between gap-3";
+// Standard question, similar, negative and answer rows carry a 3px bar on the
+// left; its colour, top and height are set per row.
+const stripeClass =
+  "relative pl-3 before:absolute before:left-0 before:w-[3px] before:rounded-r-[2px] before:content-['']";
+const requiredLabelClass = "text-foreground mb-1 inline-flex items-center gap-1 text-[15px] font-semibold";
+const optionalLabelClass = "text-foreground mb-1 block text-[15px] font-medium";
+const editorDescClass = "text-muted-foreground m-0 text-[13px] leading-normal";
+const editorInputClass =
+  "border-border bg-card hover:border-primary focus-visible:border-primary focus-visible:ring-primary/10 dark:bg-card rounded-lg px-3 text-sm md:text-sm";
+const addItemButtonClass =
+  "border-primary hover:border-[var(--td-brand-color-active)] active:bg-[var(--td-brand-color-active)] disabled:border-border disabled:text-placeholder size-8 min-w-8 shrink-0 rounded-lg p-0 transition-all duration-200 hover:scale-105 hover:shadow-[0_2px_8px_rgba(7,192,95,0.3)] active:scale-[0.98] disabled:bg-[var(--td-bg-color-component-disabled)] disabled:opacity-60";
+const itemRowClass =
+  "relative box-border flex gap-2.5 rounded-lg border px-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-px";
+const itemContentClass = "text-foreground flex-1 p-0 text-sm leading-[1.6] font-normal break-words whitespace-pre-wrap";
+const removeItemButtonClass =
+  "text-placeholder hover:text-destructive flex size-6 min-w-6 shrink-0 items-center justify-center rounded-md p-0 transition-all duration-200 hover:bg-[var(--td-error-color-light)] active:bg-[var(--td-error-color-light)]";
+
+// Search drawer rows.
+const searchRowClass = "flex flex-col items-start justify-between gap-3";
+const searchInfoClass = "mb-2 w-full";
+const searchLabelClass = "text-foreground mb-1 block text-sm font-medium";
+const searchDescClass = "text-muted-foreground m-0 text-xs leading-[1.4]";
+const sliderValueClass =
+  "text-foreground bg-card min-w-[50px] shrink-0 rounded-md px-2 py-1 text-right text-sm font-medium";
+const resultSectionLabelClass = "text-muted-foreground mb-1 text-xs font-semibold tracking-[0.5px] uppercase";
+
+// Import dialog field labels; both fields are required, hence the asterisk.
+const importLabelClass =
+  "text-foreground m-0 block flex-1 text-sm font-medium tracking-[-0.2px] after:ml-1 after:font-semibold after:text-destructive after:content-['*']";
+
+// The two hand-built modals (import, batch tag): a blurred backdrop and a
+// panel that scales in with it. The panel is the overlay's only child, which
+// is what the `[&>div]` transition classes reach.
+const modalOverlayClass = "fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-5 backdrop-blur-[4px]";
+const modalCloseClass =
+  "bg-secondary text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex size-8 items-center justify-center rounded-md transition-all duration-200";
+const modalTransition = {
+  enterActiveClass:
+    "transition-opacity duration-200 ease-in-out [&>div]:transition-[transform,opacity] [&>div]:duration-200",
+  leaveActiveClass:
+    "transition-opacity duration-200 ease-in-out [&>div]:transition-[transform,opacity] [&>div]:duration-200",
+  enterFromClass: "opacity-0 [&>div]:scale-95 [&>div]:opacity-0",
+  leaveToClass: "opacity-0 [&>div]:scale-95 [&>div]:opacity-0",
+};
+
+// Collapsing card sections and expanding search results slide 8px and fade.
+const slideDownTransition = {
+  enterActiveClass:
+    "overflow-hidden transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[opacity,transform]",
+  leaveActiveClass:
+    "overflow-hidden transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[opacity,transform]",
+  enterFromClass: "-translate-y-2 opacity-0",
+  leaveToClass: "-translate-y-2 opacity-0",
+};
 </script>
-
-<style lang="less">
-/* 下拉菜单样式已统一至 @/assets/dropdown-menu.less */
-.tag-filter-popup {
-  z-index: 5500 !important;
-}
-
-.tag-filter-popup .t-popup__content {
-  padding: 0 !important;
-  border-radius: 8px !important;
-  background: var(--td-bg-color-container) !important;
-  border: 0.5px solid var(--td-component-stroke) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(0, 0, 0, 0.03),
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.1) !important;
-}
-
-.tag-filter-panel {
-  width: 320px;
-  max-width: min(320px, calc(100vw - 32px));
-  max-height: min(70vh, 480px);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 14px;
-  box-sizing: border-box;
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-}
-
-.tag-filter-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.tag-filter-panel__title {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.tag-filter-panel__count {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  font-weight: 400;
-}
-
-.tag-filter-panel .tag-search-bar {
-  margin-bottom: 10px;
-}
-
-.tag-filter-panel__body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.tag-filter-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.tag-filter-chip.active {
-  border-color: color-mix(in srgb, var(--td-brand-color) 35%, var(--td-component-stroke));
-  color: var(--td-brand-color);
-  background-color: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-}
-
-.tag-filter-chip__label {
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-filter-chip__count {
-  font-size: 10px;
-  color: var(--td-text-color-placeholder);
-}
-
-.tag-filter-panel__footer {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.tag-empty-state {
-  text-align: center;
-  padding: 10px 6px;
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.tag-load-more {
-  display: flex;
-  justify-content: center;
-  padding-top: 2px;
-}
-</style>
-<style scoped lang="less">
-.faq-manager {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.faq-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  gap: 20px;
-}
-
-// 与列表页一致：浅灰底圆角区，左侧筛选为白底卡片
-.faq-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  background: transparent;
-  border: none;
-}
-
-.faq-card-area {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 0;
-  border: none;
-  overflow: hidden;
-  background: transparent;
-}
-
-.faq-filter-bar {
-  padding: 0 0 12px 0;
-  flex-shrink: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-
-  .faq-search-input {
-    flex: 1 1 220px;
-    min-width: 0;
-    width: auto;
-  }
-
-  &__filters {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-
-    :deep(.t-popup__reference) {
-      display: block;
-    }
-  }
-
-  &__trailing {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-
-    :deep(.content-bar-icon-btn) {
-      color: var(--td-text-color-secondary);
-      background: transparent;
-      border: none;
-
-      &:hover {
-        color: var(--td-brand-color);
-        background: var(--td-bg-color-secondarycontainer);
-      }
-    }
-  }
-
-  @media (max-width: 767px) {
-    .faq-search-input {
-      flex: 1 1 100%;
-    }
-
-    &__filters {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    &__trailing {
-      flex: 0 0 auto;
-      margin-left: auto;
-    }
-  }
-
-  .doc-filter-field {
-    width: 140px;
-    flex-shrink: 0;
-
-    &__control {
-      width: 100%;
-    }
-  }
-
-  .doc-tag-filter-trigger {
-    display: inline-flex;
-    align-items: center;
-    box-sizing: border-box;
-    width: 100%;
-    height: 32px;
-    padding: 0 8px;
-    border: 1px solid transparent;
-    border-radius: var(--td-radius-default);
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-    transition:
-      background 0.2s ease,
-      border-color 0.2s ease;
-
-    &:hover,
-    &.open {
-      background: var(--td-bg-color-secondarycontainer);
-      border-color: transparent;
-    }
-
-    &.is-placeholder {
-      color: var(--td-text-color-placeholder);
-    }
-
-    &__prefix {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      margin-right: var(--td-comp-margin-s);
-      color: var(--td-text-color-placeholder);
-    }
-
-    &__label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      text-align: left;
-    }
-
-    &__suffix {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      margin-left: var(--td-comp-margin-s);
-    }
-
-    &__caret {
-      flex-shrink: 0;
-      color: var(--td-text-color-placeholder);
-      transition:
-        transform 0.2s ease,
-        color 0.2s ease;
-
-      &.open {
-        color: var(--td-brand-color);
-        transform: rotate(180deg);
-      }
-    }
-  }
-
-  :deep(.t-input) {
-    font-size: 13px;
-    background-color: var(--td-bg-color-secondarycontainer);
-    border-color: transparent;
-    border-radius: 6px;
-    box-shadow: none !important;
-
-    &:hover,
-    &:focus,
-    &.t-is-focused {
-      border-color: var(--td-brand-color);
-      background-color: var(--td-bg-color-container);
-      box-shadow: none !important;
-    }
-  }
-
-  :deep(.t-input__prefix-icon) {
-    margin-right: 0;
-  }
-}
-
-:deep(.tag-menu) {
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.tag-menu-item) {
-  display: flex;
-  align-items: center;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 400;
-
-  .menu-icon {
-    margin-right: 8px;
-    font-size: 16px;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-
-  &.danger {
-    color: var(--td-text-color-primary);
-
-    &:hover {
-      background: var(--td-error-color-light);
-      color: var(--td-error-color);
-
-      .menu-icon {
-        color: var(--td-error-color);
-      }
-    }
-  }
-}
-
-.faq-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  flex-shrink: 0;
-
-  .faq-header-title {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .faq-title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    width: 100%;
-
-    .faq-import-strip--in-title {
-      margin-bottom: 0;
-      flex: 0 1 auto;
-      min-width: 0;
-      max-width: min(420px, 40vw);
-
-      .faq-import-strip__text {
-        max-width: 220px;
-      }
-    }
-  }
-
-  .kb-title-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .faq-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .breadcrumb-link {
-    border: none;
-    background: transparent;
-    padding: 4px 8px;
-    margin: -4px -8px;
-    font: inherit;
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    border-radius: 6px;
-    transition: all 0.12s ease;
-
-    &:hover:not(:disabled) {
-      color: var(--td-success-color);
-      background: var(--td-bg-color-container);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      color: var(--td-text-color-placeholder);
-    }
-
-    &.dropdown {
-      padding-right: 6px;
-
-      :deep(.t-icon) {
-        font-size: 14px;
-        transition: transform 0.12s ease;
-      }
-
-      &:hover:not(:disabled) {
-        :deep(.t-icon) {
-          transform: translateY(1px);
-        }
-      }
-    }
-  }
-
-  .breadcrumb-separator {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .breadcrumb-current {
-    color: var(--td-text-color-primary);
-    font-weight: 600;
-  }
-
-  h2 {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 24px;
-    font-weight: 600;
-    line-height: 32px;
-  }
-
-  .faq-subtitle {
-    margin: 0;
-    color: var(--td-text-color-placeholder);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
-  }
-}
-
-// 导入结果入口：默认仅图标，hover / 点击展开浮层
-.faq-import-host {
-  position: relative;
-  flex-shrink: 0;
-
-  .faq-import-trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    padding: 2px;
-    margin: 0;
-    color: var(--td-success-color);
-    cursor: pointer;
-    line-height: 1;
-    transition: opacity 0.15s ease;
-
-    &:hover {
-      opacity: 0.75;
-    }
-  }
-
-  .faq-import-panel {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    z-index: 200;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(-4px);
-    transition:
-      opacity 0.15s ease,
-      transform 0.15s ease,
-      visibility 0.15s ease;
-  }
-
-  &:hover .faq-import-panel,
-  &.is-expanded .faq-import-panel,
-  &:focus-within .faq-import-panel {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  .faq-import-strip--panel {
-    margin-bottom: 0;
-    padding: 8px 10px;
-    font-size: 12px;
-    white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-
-    .faq-import-strip__text {
-      max-width: 360px;
-    }
-  }
-}
-
-// FAQ 导入提示条（紧凑单行）
-.faq-import-strip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  gap: 8px;
-  max-width: 100%;
-  margin-bottom: 10px;
-  padding: 4px 8px 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--td-text-color-secondary);
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-
-  &__icon {
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-
-    &.is-spinning {
-      animation: faq-import-spin 1s linear infinite;
-    }
-  }
-
-  &__text {
-    flex: 0 1 auto;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 520px;
-  }
-
-  &__bar {
-    flex-shrink: 0;
-    width: 72px;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(0, 0, 0, 0.08);
-    overflow: hidden;
-  }
-
-  &__bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--td-brand-color);
-    transition: width 0.3s ease;
-  }
-
-  &__count {
-    flex-shrink: 0;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    color: var(--td-text-color-placeholder);
-  }
-
-  &__time {
-    flex-shrink: 0;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    white-space: nowrap;
-  }
-
-  &__link {
-    flex-shrink: 0;
-    padding: 0 4px;
-    height: auto;
-    font-size: 12px;
-  }
-
-  &__close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      color 0.15s ease;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.06);
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  &--result {
-    .faq-import-strip__icon {
-      color: var(--td-success-color);
-    }
-  }
-
-  &--running {
-    .faq-import-strip__icon {
-      color: var(--td-brand-color);
-    }
-  }
-
-  &--success {
-    .faq-import-strip__icon {
-      color: var(--td-success-color);
-    }
-
-    .faq-import-strip__bar-fill {
-      background: var(--td-success-color);
-    }
-  }
-
-  &--failed {
-    border-color: rgba(227, 77, 89, 0.3);
-    background: rgba(227, 77, 89, 0.06);
-
-    .faq-import-strip__icon {
-      color: var(--td-error-color);
-    }
-
-    .faq-import-strip__text {
-      color: var(--td-error-color);
-    }
-
-    .faq-import-strip__bar-fill {
-      background: var(--td-error-color);
-    }
-  }
-}
-
-@keyframes faq-import-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.tag-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-
-  .tag-filter-label {
-    color: var(--td-text-color-secondary);
-    font-size: 14px;
-  }
-}
-
-.kb-settings-button {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: var(--td-bg-color-secondarycontainer);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
-
-  &:hover:not(:disabled) {
-    background: var(--td-success-color-light);
-    color: var(--td-brand-color);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
-
-  :deep(.t-icon) {
-    font-size: 18px;
-  }
-}
-
-// 滚动容器
-.faq-scroll-container {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-
-  &.has-batch-bar {
-    padding-bottom: 76px;
-  }
-}
-
-.faq-batch-bar-anchor {
-  position: absolute;
-  right: 0;
-  bottom: 12px;
-  left: 0;
-  z-index: 6;
-  display: flex;
-  justify-content: center;
-  padding: 0 16px;
-  pointer-events: none;
-
-  & > * {
-    pointer-events: auto;
-  }
-}
-
-@keyframes contentFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.faq-skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  width: 100%;
-  animation: contentFadeIn 0.32s ease-out;
-}
-
-.faq-card-skeleton {
-  cursor: default;
-  height: auto;
-
-  .faq-card-header {
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .faq-card-body {
-    padding: 8px 0;
-  }
-
-  .faq-skel-footer {
-    padding-top: 8px;
-    border-top: 1px solid var(--td-component-stroke);
-  }
-}
-
-// 卡片列表样式 - 使用绝对定位实现瀑布流，下一行补齐上一行空缺
-.faq-card-list {
-  position: relative;
-  width: 100%;
-  animation: contentFadeIn 0.32s ease-out;
-  min-width: 0;
-}
-
-.faq-card {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 10px;
-  background: var(--td-bg-color-container);
-  padding: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  cursor: default;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-  box-sizing: border-box;
-  height: fit-content;
-
-  &.is-selectable {
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      box-shadow: 0 2px 8px rgba(7, 192, 95, 0.1);
-    }
-  }
-
-  &.selected {
-    border-color: var(--td-brand-color);
-    background: var(--td-success-color-light);
-    box-shadow: 0 2px 8px rgba(7, 192, 95, 0.15);
-  }
-}
-
-.faq-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  position: relative;
-}
-
-.faq-header-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.faq-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.faq-header-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-top: 5px;
-  border-top: 1px dashed var(--td-component-stroke);
-}
-
-.faq-meta-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-
-  .meta-label {
-    font-size: 11px;
-    color: var(--td-text-color-secondary);
-    font-weight: 500;
-  }
-
-  .meta-value {
-    font-size: 12px;
-    color: var(--td-text-color-primary);
-    font-weight: 600;
-  }
-}
-
-.faq-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 8px 12px;
-  margin: 0 -10px -10px;
-  background: rgba(48, 50, 54, 0.02);
-  border-top: 1px solid var(--td-component-stroke);
-  flex-wrap: nowrap;
-}
-
-.faq-card-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.status-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  font-size: 11px;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-
-  .status-icon {
-    font-size: 13px;
-    color: var(--td-text-color-placeholder);
-
-    &.warning {
-      color: var(--td-warning-color);
-    }
-
-    &.success {
-      color: var(--td-success-color);
-    }
-  }
-}
-
-.status-item-compact {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  .status-icon {
-    font-size: 16px;
-    flex-shrink: 0;
-
-    &.warning {
-      color: var(--td-warning-color);
-    }
-
-    &.success {
-      color: var(--td-success-color);
-    }
-  }
-
-  :deep(.t-switch) {
-    flex-shrink: 0;
-  }
-}
-
-.faq-card-tag {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 1;
-  min-width: 0;
-
-  :deep(.t-tag) {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    max-width: 120px;
-    height: 20px;
-    border-radius: 4px;
-    border-color: var(--td-component-stroke);
-    color: var(--td-text-color-disabled);
-    padding: 0 6px;
-    background: var(--td-bg-color-container-hover);
-    font-size: 11px;
-    font-weight: 400;
-    font-family: var(--app-font-family);
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      color: var(--td-brand-color-active);
-      background: var(--td-success-color-light);
-    }
-  }
-}
-
-.faq-tag-chip {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-
-  .tag-text {
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--td-text-color-disabled);
-  }
-}
-
-.card-more-btn {
-  display: flex;
-  width: 28px;
-  height: 28px;
-  justify-content: center;
-  align-items: center;
-  border-radius: 6px;
-  cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0.6;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    opacity: 1;
-  }
-
-  &.mobile {
-    display: none;
-  }
-
-  .more-icon {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-/* card-menu 样式已统一至 @/assets/dropdown-menu.less，使用 .popup-menu 类 */
-
-.faq-question {
-  flex: 1;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.5;
-  word-break: break-word;
-  min-width: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.faq-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  contain: layout;
-}
-
-.faq-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-
-  .faq-section-label {
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 1px;
-
-    &::before {
-      content: "";
-      width: 3px;
-      height: 10px;
-      background: var(--td-brand-color);
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
-
-    &.clickable {
-      cursor: pointer;
-      user-select: none;
-      padding: 2px 0;
-      border-radius: 4px;
-
-      &:hover {
-        color: var(--td-text-color-primary);
-        background: var(--td-bg-color-container);
-        padding-left: 4px;
-        padding-right: 4px;
-        margin-left: -4px;
-        margin-right: -4px;
-      }
-    }
-
-    .collapse-icon {
-      font-size: 13px;
-      color: var(--td-text-color-placeholder);
-      flex-shrink: 0;
-      margin-left: auto; // 让箭头靠右对齐
-    }
-
-    .section-count {
-      color: var(--td-text-color-placeholder);
-      font-weight: 400;
-      margin-left: 4px;
-    }
-  }
-
-  &.answers .faq-section-label::before {
-    background: var(--td-brand-color);
-  }
-
-  &.similar .faq-section-label::before {
-    background: var(--td-brand-color);
-  }
-
-  &.negative .faq-section-label::before {
-    background: var(--td-warning-color);
-  }
-}
-
-.faq-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  min-height: 18px;
-  min-width: 0;
-  width: 100%;
-  overflow: hidden;
-  contain: layout style paint; // 优化渲染性能
-
-  // 确保每个标签都有最大宽度限制
-  > * {
-    max-width: 100%;
-    min-width: 0;
-    flex: 0 1 auto;
-  }
-
-  // 当标签单独一行时，限制最大宽度
-  > *:first-child:last-child {
-    max-width: 100%;
-  }
-}
-
-.question-tag {
-  font-size: 11px;
-  padding: 3px 8px;
-  max-width: 100%;
-  min-width: 0;
-  border-radius: 5px;
-  font-family: var(--app-font-family);
-  flex: 0 1 auto;
-
-  :deep(.t-tag) {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: auto !important;
-    display: inline-flex !important;
-    align-items: center;
-    vertical-align: middle;
-    overflow: hidden !important;
-    box-sizing: border-box;
-    background: var(--td-bg-color-container);
-    border-color: var(--td-component-stroke);
-    color: var(--td-text-color-primary);
-  }
-
-  // 针对TDesign tag内部的span元素
-  :deep(.t-tag span),
-  :deep(.t-tag > span) {
-    display: block !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    max-width: 100% !important;
-    width: auto !important;
-    line-height: 1.4;
-    min-width: 0 !important;
-  }
-}
-
-// 确保 tag 本身不会超出容器
-.faq-tags :deep(.t-tag) {
-  max-width: 100%;
-  min-width: 0;
-  flex-shrink: 1;
-}
-
-.faq-tags :deep(.faq-tag-wrapper) {
-  max-width: 100%;
-  min-width: 0;
-  flex-shrink: 1;
-}
-
-.empty-tip {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-style: italic;
-  padding: 8px 0;
-  font-family: var(--app-font-family);
-}
-
-.faq-load-more,
-.faq-no-more {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 24px 16px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  font-family: var(--app-font-family);
-}
-
-.faq-no-more {
-  color: var(--td-text-color-placeholder);
-  font-style: italic;
-}
-
-// 空状态样式
-.faq-empty-state {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  padding: 60px 20px;
-
-  .empty-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    text-align: center;
-    max-width: 400px;
-  }
-
-  .empty-icon {
-    color: var(--td-text-color-disabled);
-    opacity: 0.6;
-  }
-
-  .empty-text {
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 28px;
-  }
-
-  .empty-desc {
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 22px;
-  }
-}
-
-// 导入对话框样式 - 与创建知识库弹窗风格一致
-.faq-import-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.faq-import-modal {
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  .close-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--td-text-color-secondary);
-    transition: all 0.2s ease;
-    z-index: 10;
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer);
-      color: var(--td-text-color-primary);
-    }
-  }
-}
-
-.faq-import-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.faq-import-header {
-  padding: 24px 24px 16px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-
-  .import-title {
-    margin: 0;
-    font-family: var(--app-font-family);
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.faq-import-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 24px;
-  min-height: 0;
-  max-height: calc(90vh - 140px); // 减去 header 和 footer 的高度
-
-  // 自定义滚动条
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--td-bg-color-component-disabled);
-    border-radius: 3px;
-    transition: background 0.2s;
-
-    &:hover {
-      background: var(--td-brand-color);
-    }
-  }
-}
-
-.faq-import-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-// 导入表单项
-.import-form-item {
-  margin-bottom: 24px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-// 文件标签行
-.file-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 12px;
-}
-
-// 下载示例按钮
-.download-example-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  transition: all 0.2s ease;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    color: var(--td-brand-color);
-    background: var(--td-success-color-light);
-  }
-
-  &:active {
-    background: var(--td-success-color-light);
-  }
-
-  :deep(.t-icon) {
-    font-size: 16px;
-  }
-}
-
-// 导入表单标签
-.import-form-label {
-  display: block;
-  margin-bottom: 0;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  letter-spacing: -0.2px;
-  flex: 1;
-
-  &.required::after {
-    content: "*";
-    color: var(--td-error-color);
-    margin-left: 4px;
-    font-weight: 600;
-  }
-}
-
-// 文件上传包装器
-.file-upload-wrapper {
-  width: 100%;
-}
-
-// 隐藏的文件输入
-.file-input-hidden {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-// 文件上传区域
-.file-upload-area {
-  position: relative;
-  width: 100%;
-  min-height: 120px;
-  border: 2px dashed var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    background: var(--td-success-color-light);
-  }
-
-  &.has-file {
-    border-color: var(--td-brand-color);
-    background: var(--td-success-color-light);
-    border-style: solid;
-  }
-}
-
-// 文件上传内容
-.file-upload-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-}
-
-.upload-icon {
-  color: var(--td-brand-color);
-  transition: transform 0.2s ease;
-}
-
-.file-upload-area:hover .upload-icon {
-  transform: translateY(-2px);
-}
-
-.upload-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.upload-primary-text {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.upload-secondary-text {
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.upload-file-name {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-brand-color);
-  word-break: break-all;
-}
-
-// 导入表单提示
-.import-form-tip {
-  margin-top: 8px;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  color: var(--td-text-color-disabled);
-  line-height: 18px;
-}
-
-// 预览区域
-.import-preview {
-  margin-top: 20px;
-  padding: 16px;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.preview-icon {
-  color: var(--td-brand-color);
-  flex-shrink: 0;
-}
-
-.preview-title {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.preview-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 12px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 2px 4px rgba(7, 192, 95, 0.08);
-  }
-}
-
-.preview-index {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--td-brand-color) 0%, var(--td-brand-color-active) 100%);
-  color: var(--td-text-color-anti);
-  border-radius: 4px;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.preview-question {
-  flex: 1;
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.preview-more {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--td-component-stroke);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  text-align: center;
-}
-
-// 响应式布局由 JavaScript 动态计算，这里不需要媒体查询
-
-// 卡片菜单弹窗样式已统一至 @/assets/dropdown-menu.less
-
-// FAQ 编辑器抽屉样式
-:deep(.faq-editor-drawer) {
-  .t-drawer__body {
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .t-drawer__header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--td-component-stroke);
-    font-family: var(--app-font-family);
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .t-drawer__footer {
-    padding: 16px 24px;
-    border-top: 1px solid var(--td-component-stroke);
-  }
-}
-
-.faq-editor-drawer-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-
-  // 自定义滚动条
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--td-bg-color-component-disabled);
-    border-radius: 3px;
-    transition: background 0.2s;
-
-    &:hover {
-      background: var(--td-brand-color);
-    }
-  }
-
-  .editor-form {
-    width: 100%;
-  }
-}
-
-.faq-editor-drawer-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-// 全宽输入框包装器 - 统一样式
-.full-width-input-wrapper {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-
-  .full-width-input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .full-width-textarea {
-    flex: 1;
-    min-width: 0;
-
-    :deep(.t-textarea__inner) {
-      min-height: 80px;
-    }
-  }
-
-  // textarea需要顶部对齐
-  &.textarea-wrapper {
-    align-items: flex-start;
-  }
-
-  .add-item-btn {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    padding: 0;
-    font-family: var(--app-font-family);
-    transition: all 0.2s ease;
-    border-radius: 8px;
-  }
-
-  :deep(.add-item-btn) {
-    background: var(--td-brand-color) !important;
-    border: 1px solid var(--td-brand-color) !important;
-    border-radius: 8px !important;
-    color: var(--td-text-color-anti) !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover:not(:disabled) {
-      background: var(--td-brand-color) !important;
-      border-color: var(--td-brand-color-active) !important;
-      transform: scale(1.05);
-      box-shadow: 0 2px 8px rgba(7, 192, 95, 0.3);
-    }
-
-    &:active:not(:disabled) {
-      background: var(--td-brand-color-active) !important;
-      border-color: var(--td-brand-color-active) !important;
-      transform: scale(0.98);
-    }
-
-    &:disabled {
-      background: var(--td-bg-color-component-disabled) !important;
-      border-color: var(--td-component-stroke) !important;
-      color: var(--td-text-color-placeholder) !important;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .t-icon {
-      font-size: 16px;
-    }
-  }
-}
-
-.textarea-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.item-count {
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  font-weight: 500;
-  text-align: right;
-  padding-right: 40px;
-  line-height: 1;
-}
-
-.item-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  margin-top: 8px;
-}
-
-.item-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  position: relative;
-
-  &.answer-row {
-    align-items: flex-start;
-    padding: 12px 14px;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    border-color: var(--td-brand-color);
-    box-shadow: 0 2px 8px rgba(7, 192, 95, 0.12);
-    transform: translateY(-1px);
-  }
-
-  &.negative {
-    background: var(--td-warning-color-light);
-    border-color: var(--td-warning-color-focus);
-
-    &:hover {
-      background: var(--td-warning-color-light);
-      border-color: var(--td-warning-color);
-      box-shadow: 0 2px 8px rgba(251, 191, 36, 0.15);
-    }
-  }
-
-  .item-content {
-    flex: 1;
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    white-space: pre-wrap;
-    word-break: break-word;
-    padding: 0;
-    font-weight: 400;
-  }
-
-  .remove-item-btn {
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-
-    &:hover {
-      color: var(--td-error-color);
-      background: var(--td-error-color-light);
-    }
-
-    &:active {
-      background: var(--td-error-color-light);
-    }
-
-    :deep(.t-icon) {
-      font-size: 14px;
-    }
-  }
-
-  &.answer-row .remove-item-btn {
-    margin-top: 0;
-  }
-}
-
-.form-tip {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--td-text-color-disabled);
-  font-family: var(--app-font-family);
-}
-
-// FAQ编辑器表单样式 - 完全参考设置页面
-.faq-editor-form {
-  width: 100%;
-
-  // 隐藏Form的默认结构
-  :deep(.t-form__label) {
-    display: none !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  :deep(.t-form__controls) {
-    margin-left: 0 !important;
-    width: 100% !important;
-  }
-
-  :deep(.t-form__controls-content) {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    display: block !important;
-  }
-
-  :deep(.t-form-item) {
-    margin-bottom: 0 !important;
-    padding: 0 !important;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &.vertical {
-    flex-direction: column;
-    gap: 12px;
-
-    .setting-control {
-      width: 100%;
-      max-width: 100%;
-    }
-  }
-
-  // 主要字段（标准问、答案）的强调样式
-  &.setting-row-primary {
-    padding: 20px 0;
-    padding-left: 12px;
-    position: relative;
-
-    // 第一个（标准问）去掉顶部间距
-    &:first-child {
-      padding-top: 0;
-    }
-
-    // 左侧颜色标记（标准问和答案都用绿色）
-    &::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 20px;
-      width: 3px;
-      height: calc(100% - 40px);
-      background: var(--td-brand-color);
-      border-radius: 0 2px 2px 0;
-    }
-
-    &:first-child::before {
-      top: 0;
-      height: calc(100% - 20px);
-    }
-  }
-
-  // 可选字段（相似问、反例）的次要样式
-  &.setting-row-optional {
-    padding-left: 12px;
-    position: relative;
-
-    // 左侧颜色标记
-    &::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 20px;
-      width: 3px;
-      height: calc(100% - 40px);
-      border-radius: 0 2px 2px 0;
-    }
-
-    .setting-info {
-      .optional-label {
-        color: var(--td-text-color-primary);
-        font-weight: 500;
-      }
-
-      .optional-desc {
-        color: var(--td-text-color-secondary);
-      }
-    }
-  }
-
-  // 相似问的蓝色标记
-  &.setting-row-similar::before {
-    background: var(--td-brand-color);
-  }
-
-  // 反例的橙色标记
-  &.setting-row-negative::before {
-    background: var(--td-warning-color);
-  }
-
-  // 答案去掉底部边框
-  &.setting-row-answer {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 1;
-  max-width: 65%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .required-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 4px;
-  }
-
-  .required-mark {
-    color: var(--td-error-color);
-    font-weight: 600;
-    font-size: 14px;
-  }
-
-  .optional-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .optional-desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.setting-row.vertical .setting-info {
-  max-width: 100%;
-  padding-right: 0;
-  width: 100%;
-}
-
-.setting-control {
-  flex-shrink: 0;
-  min-width: 280px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.setting-row.vertical .setting-control {
-  width: 100%;
-  max-width: 100%;
-  min-width: unset;
-  justify-content: flex-start;
-  align-items: flex-start;
-  flex-direction: column;
-}
-
-// 垂直布局中的输入框确保全宽
-.setting-row.vertical .full-width-input {
-  width: 100%;
-
-  :deep(.t-input__wrap) {
-    width: 100%;
-  }
-}
-
-.setting-row.vertical .full-width-textarea {
-  width: 100%;
-
-  :deep(.t-textarea) {
-    width: 100%;
-  }
-}
-
-// Input 组件样式 - 与登录页面一致
-:deep(.t-input) {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-  }
-
-  &:focus-within {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 0 0 3px rgba(7, 192, 95, 0.1);
-  }
-
-  .t-input__inner {
-    border: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-    background: transparent;
-    font-size: 14px;
-    font-family: var(--app-font-family);
-    padding: 6px 12px;
-    color: var(--td-text-color-primary);
-
-    &:focus {
-      border: none !important;
-      box-shadow: none !important;
-      outline: none !important;
-    }
-
-    &::placeholder {
-      color: var(--td-text-color-placeholder);
-    }
-  }
-
-  .t-input__wrap {
-    border: none !important;
-    box-shadow: none !important;
-  }
-}
-
-// Textarea 组件样式
-:deep(.t-textarea) {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-  }
-
-  &:focus-within {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 0 0 3px rgba(7, 192, 95, 0.1);
-  }
-
-  .t-textarea__inner {
-    border: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-    background: transparent;
-    font-size: 14px;
-    font-family: var(--app-font-family);
-    line-height: 1.6;
-    resize: vertical;
-    padding: 6px 12px;
-    color: var(--td-text-color-primary);
-
-    &:focus {
-      border: none !important;
-      box-shadow: none !important;
-      outline: none !important;
-    }
-
-    &::placeholder {
-      color: var(--td-text-color-placeholder);
-    }
-  }
-}
-
-// 导入弹窗动画
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-enter-active .faq-import-modal,
-.modal-leave-active .faq-import-modal,
-.modal-enter-active .batch-tag-modal,
-.modal-leave-active .batch-tag-modal {
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .faq-import-modal,
-.modal-leave-to .faq-import-modal,
-.modal-enter-from .batch-tag-modal,
-.modal-leave-to .batch-tag-modal {
-  transform: scale(0.95);
-  opacity: 0;
-}
-
-// Tag 样式优化
-.answer-tag {
-  background: var(--td-brand-color) 1a;
-  color: var(--td-brand-color);
-  border-color: var(--td-brand-color) 33;
-}
-
-.question-tag {
-  background: var(--td-bg-color-container);
-  border-color: var(--td-component-stroke);
-  color: var(--td-text-color-placeholder);
-}
-
-// Search test drawer styles - 与编辑器抽屉风格一致
-:deep(.faq-search-drawer) {
-  .t-drawer__body {
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .t-drawer__header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--td-component-stroke);
-    font-family: var(--app-font-family);
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.search-test-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 0;
-
-  // 隐藏滚动条但保持滚动功能
-  scrollbar-width: none; // Firefox
-  -ms-overflow-style: none; // IE and Edge
-
-  &::-webkit-scrollbar {
-    display: none; // Chrome, Safari, Opera
-  }
-}
-
-.search-form {
-  flex-shrink: 0;
-
-  :deep(.t-form__label) {
-    display: none !important;
-    width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  :deep(.t-form__controls) {
-    margin-left: 0 !important;
-    width: 100% !important;
-  }
-
-  :deep(.t-form__controls-content) {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    display: block !important;
-  }
-
-  :deep(.t-form-item) {
-    margin-bottom: 0 !important;
-    padding: 0 !important;
-  }
-}
-
-.slider-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 2px 0;
-}
-
-.search-form .setting-row {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &.search-first-row {
-    padding-top: 0;
-  }
-
-  &:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  .setting-info {
-    max-width: 100%;
-    padding-right: 0;
-    margin-bottom: 8px;
-
-    label {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--td-text-color-primary);
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .desc {
-      font-size: 12px;
-      color: var(--td-text-color-secondary);
-      margin: 0;
-      line-height: 1.4;
-    }
-  }
-
-  .setting-control {
-    width: 100%;
-    max-width: 100%;
-    min-width: unset;
-    justify-content: flex-start;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
-:deep(.slider-wrapper .t-slider) {
-  flex: 1;
-  min-width: 0;
-}
-
-.slider-value {
-  flex-shrink: 0;
-  min-width: 50px;
-  text-align: right;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-  padding: 4px 8px;
-  background: var(--td-bg-color-container);
-  border-radius: 6px;
-}
-
-.search-button {
-  height: 36px;
-  border-radius: 8px;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(7, 192, 95, 0.3);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-}
-
-.search-results {
-  display: flex;
-  flex-direction: column;
-  padding-top: 20px;
-  padding-left: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.results-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  margin-left: 0;
-  margin-right: 0;
-  padding-left: 0;
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  flex-shrink: 0;
-  justify-content: flex-start;
-
-  .t-icon {
-    color: var(--td-brand-color);
-  }
-}
-
-.no-results {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 16px;
-  color: var(--td-text-color-secondary);
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  text-align: center;
-  background: var(--td-bg-color-container);
-  border-radius: 8px;
-  border: 1px dashed var(--td-component-stroke);
-}
-
-.results-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.result-card {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  padding: 14px;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  width: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-  overflow: visible;
-  position: relative;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 2px 8px rgba(7, 192, 95, 0.12);
-  }
-}
-
-.result-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 0;
-  border-bottom: none;
-  cursor: pointer;
-  user-select: none;
-  padding: 4px;
-  margin: -4px;
-  border-radius: 6px;
-  position: relative;
-
-  &:hover {
-    background-color: var(--td-bg-color-container);
-  }
-}
-
-.result-card.expanded .result-header {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  margin-left: -4px;
-  margin-right: -4px;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-.result-question-wrapper {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-}
-
-.result-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.result-question {
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  line-height: 1.6;
-  word-break: break-word;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-
-  .result-index {
-    flex-shrink: 0;
-    color: var(--td-brand-color);
-    font-weight: 600;
-  }
-}
-
-.matched-question {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  padding-left: 20px;
-  font-size: 12px;
-  line-height: 1.5;
-
-  .matched-label {
-    flex-shrink: 0;
-    color: var(--td-warning-color);
-    font-weight: 500;
-  }
-
-  .matched-text {
-    color: var(--td-warning-color-active);
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%);
-    padding: 1px 6px;
-    border-radius: 4px;
-    word-break: break-word;
-  }
-}
-
-.result-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.expand-icon {
-  flex-shrink: 0;
-  font-size: 18px;
-  color: var(--td-text-color-secondary);
-  transition: transform 0.2s ease;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.score-tag,
-.match-type-tag {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-family: var(--app-font-family);
-}
-
-.result-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 12px;
-  margin-top: 0;
-  border-top: 1px solid var(--td-component-stroke);
-  position: relative;
-  width: 100%;
-}
-
-// Slide down animation - 优化性能
-.slide-down-enter-active {
-  transition:
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  will-change: opacity, transform;
-}
-
-.slide-down-leave-active {
-  transition:
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  will-change: opacity, transform;
-}
-
-.slide-down-enter-from {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.slide-down-enter-to {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.slide-down-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.slide-down-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.result-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-// 批量标签弹窗样式 - 与导入对话框风格一致
-.batch-tag-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.batch-tag-modal {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 6px 28px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  .batch-tag-close-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--td-text-color-secondary);
-    transition: all 0.2s ease;
-    z-index: 10;
-
-    &:hover {
-      background: var(--td-bg-color-secondarycontainer);
-      color: var(--td-text-color-primary);
-    }
-  }
-}
-
-.batch-tag-container {
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-}
-
-.batch-tag-header {
-  margin-bottom: 24px;
-  padding-right: 40px;
-
-  .batch-tag-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    line-height: 1.4;
-  }
-}
-
-.batch-tag-content {
-  flex: 1;
-  min-height: 0;
-}
-
-.batch-tag-tip {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  background: var(--td-brand-color-light);
-  border: 1px solid var(--td-brand-color-focus);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--td-brand-color);
-  line-height: 1.5;
-
-  .tip-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-    color: var(--td-brand-color);
-  }
-}
-
-.batch-tag-form {
-  margin-top: 0;
-
-  :deep(.t-form-item) {
-    margin-bottom: 0;
-  }
-
-  :deep(.t-form-item__label) {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    margin-bottom: 8px;
-  }
-}
-
-.batch-tag-select {
-  width: 100%;
-}
-
-.batch-tag-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.tag-select-empty {
-  padding: 8px 12px;
-  text-align: center;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-}
-
-.section-label {
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--td-text-color-secondary);
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.result-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-}
-
-:deep(.result-tags .t-tag) {
-  max-width: 100%;
-  min-width: 0;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-:deep(.result-tags .t-tag__text) {
-  display: inline-block;
-  max-width: 100%;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-  line-height: 1.4;
-}
-</style>

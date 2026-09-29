@@ -1,18 +1,23 @@
 <template>
-  <div class="kb-model-config">
-    <div class="section-header">
-      <h2>{{ $t("knowledgeEditor.models.title") }}</h2>
-      <p class="section-description">{{ $t("knowledgeEditor.models.description") }}</p>
+  <div class="w-full">
+    <div class="mb-5">
+      <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ $t("knowledgeEditor.models.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("knowledgeEditor.models.description") }}</p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- LLM 大语言模型 -->
-      <div class="setting-row" data-guide="kb-create-llm">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.models.llmLabel") }} <span class="required">*</span></label>
-          <p class="desc">{{ $t("knowledgeEditor.models.llmDesc") }}</p>
+      <div
+        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+        data-guide="kb-create-llm"
+      >
+        <div class="max-w-[40%] shrink-0 basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
+            {{ $t("knowledgeEditor.models.llmLabel") }} <span class="text-destructive ml-0.5">*</span>
+          </label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">{{ $t("knowledgeEditor.models.llmDesc") }}</p>
         </div>
-        <div class="setting-control">
+        <div class="flex max-w-[55%] shrink-0 basis-[55%] items-start justify-end">
           <ModelSelector
             ref="llmSelectorRef"
             model-type="KnowledgeQA"
@@ -26,28 +31,35 @@
       </div>
 
       <!-- Embedding 嵌入模型: RAG 检索启用时必填; 纯 Wiki 时可选(用于目录归类相似度) -->
-      <div v-if="ragEnabled !== false || wikiEnabled" class="setting-row" data-guide="kb-create-embedding">
-        <div class="setting-info">
-          <label>
+      <div
+        v-if="ragEnabled !== false || wikiEnabled"
+        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+        data-guide="kb-create-embedding"
+      >
+        <div class="max-w-[40%] shrink-0 basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">
             {{ $t("knowledgeEditor.models.embeddingLabel") }}
-            <span v-if="ragEnabled" class="required">*</span>
-            <span v-else-if="wikiEnabled" class="optional">{{ $t("knowledgeEditor.models.embeddingOptional") }}</span>
+            <span v-if="ragEnabled" class="text-destructive ml-0.5">*</span>
+            <span v-else-if="wikiEnabled" class="text-placeholder ml-1 text-xs font-normal">{{
+              $t("knowledgeEditor.models.embeddingOptional")
+            }}</span>
           </label>
-          <p class="desc">
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
             {{
               wikiEnabled && ragEnabled === false
                 ? $t("knowledgeEditor.models.embeddingWikiOptionalDesc")
                 : $t("knowledgeEditor.models.embeddingDesc")
             }}
           </p>
-          <t-alert
-            v-if="ragEnabled && hasFiles"
-            theme="warning"
-            :message="$t('knowledgeEditor.models.embeddingLocked')"
-            style="margin-top: 8px"
-          />
+          <!-- t-alert theme="warning": warning-coloured icon on a tinted surface, body text in the normal colour. -->
+          <Alert v-if="ragEnabled && hasFiles" class="border-warning/40 bg-warning/10 text-warning mt-2 px-2.5 py-2">
+            <CircleAlertIcon />
+            <AlertTitle class="text-foreground text-[13px] font-normal">{{
+              $t("knowledgeEditor.models.embeddingLocked")
+            }}</AlertTitle>
+          </Alert>
         </div>
-        <div class="setting-control">
+        <div class="flex max-w-[55%] shrink-0 basis-[55%] items-start justify-end">
           <ModelSelector
             ref="embeddingSelectorRef"
             model-type="Embedding"
@@ -63,12 +75,16 @@
       </div>
 
       <!-- Wiki 合成模型 (仅当 Wiki 启用时显示) -->
-      <div v-if="wikiEnabled" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.wiki.synthesisModelLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.wiki.synthesisModelTip") }}</p>
+      <div v-if="wikiEnabled" class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b">
+        <div class="max-w-[40%] shrink-0 basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.wiki.synthesisModelLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.wiki.synthesisModelTip") }}
+          </p>
         </div>
-        <div class="setting-control">
+        <div class="flex max-w-[55%] shrink-0 basis-[55%] items-start justify-end">
           <ModelSelector
             model-type="KnowledgeQA"
             :selected-model-id="config.wikiSynthesisModelId"
@@ -88,6 +104,8 @@
 import { ref } from "vue";
 import { useUIStore } from "@/stores/ui";
 import ModelSelector from "@/components/ModelSelector.vue";
+import { CircleAlertIcon } from "@lucide/vue";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 interface ModelConfig {
   llmModelId?: string;
@@ -140,86 +158,3 @@ const handleAddModel = (subSection: string) => {
   uiStore.openSettings("models", subSection);
 };
 </script>
-
-<style lang="less" scoped>
-.kb-model-config {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 6px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-
-    .required {
-      color: var(--td-error-color);
-      margin-left: 2px;
-    }
-
-    .optional {
-      color: var(--td-text-color-placeholder);
-      font-size: 12px;
-      font-weight: 400;
-      margin-left: 4px;
-    }
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex: 0 0 55%;
-  max-width: 55%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-}
-</style>

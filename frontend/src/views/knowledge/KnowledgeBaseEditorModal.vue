@@ -1,196 +1,302 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="settings-overlay" @click.self="handleClose">
-        <div class="settings-modal">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="handleClose"
+      >
+        <div
+          class="settings-modal bg-card relative flex h-[85vh] max-h-[750px] w-[90vw] max-w-[1000px] flex-col overflow-hidden rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+        >
           <!-- 关闭按钮 -->
-          <button class="close-btn" @click="handleClose" :aria-label="$t('general.close')">
+          <button
+            type="button"
+            data-slot="modal-close"
+            class="bg-muted text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none transition-all duration-200"
+            @click="handleClose"
+            :aria-label="$t('general.close')"
+          >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </button>
 
-          <div class="settings-container">
+          <div class="flex h-full w-full overflow-hidden">
             <!-- 左侧导航 -->
-            <div class="settings-sidebar">
-              <div class="sidebar-header">
-                <h2 class="sidebar-title">
+            <div
+              class="border-border flex w-[208px] shrink-0 flex-col overflow-hidden border-r bg-[var(--td-bg-color-settings-modal)]"
+            >
+              <div class="border-border shrink-0 border-b px-3.5 pt-4 pb-3">
+                <h2 class="text-foreground m-0 text-base font-semibold">
                   {{ editorMode === "create" ? $t("knowledgeEditor.titleCreate") : $t("knowledgeEditor.titleEdit") }}
                 </h2>
               </div>
-              <div class="settings-nav" data-guide="kb-editor-sidebar">
+              <div class="min-h-0 flex-1 overflow-y-auto p-2 pb-3" data-guide="kb-editor-sidebar">
                 <template v-for="group in navGroups" :key="group.key">
-                  <div class="nav-group-title">{{ group.label }}</div>
+                  <div
+                    class="text-placeholder pt-2 pr-3.5 pb-0.5 pl-3.5 text-xs font-semibold tracking-[0.02em] first:pt-0.5"
+                  >
+                    {{ group.label }}
+                  </div>
                   <div
                     v-for="(item, index) in group.items"
                     :key="index"
-                    :class="['nav-item', { active: currentSection === item.key }]"
+                    class="mb-0.5 flex cursor-pointer items-center rounded-md px-3 py-1.5 text-sm transition-all duration-200 select-none"
+                    :class="
+                      currentSection === item.key
+                        ? 'bg-muted text-primary font-medium'
+                        : 'text-foreground hover:bg-accent'
+                    "
                     :data-guide="`kb-editor-nav-${item.key}`"
                     @click="currentSection = item.key"
                   >
-                    <t-icon :name="item.icon" class="nav-icon" />
-                    <span class="nav-label">{{ item.label }}</span>
-                    <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
+                    <component
+                      :is="navIcon(item.icon)"
+                      class="mr-[9px] flex size-4 shrink-0 items-center justify-center"
+                    />
+                    <span class="flex-1">{{ item.label }}</span>
+                    <span
+                      v-if="item.badge"
+                      class="bg-muted text-muted-foreground ml-0.5 rounded-lg px-1.5 text-[11px] leading-4 font-medium"
+                    >
+                      {{ item.badge }}
+                    </span>
                   </div>
                 </template>
               </div>
             </div>
 
             <!-- 右侧内容区域 -->
-            <div class="settings-content">
-              <div class="content-wrapper">
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
                 <!-- 基本信息 -->
-                <div v-show="currentSection === 'basic'" class="section">
-                  <div v-if="formData" class="section-content">
-                    <div class="section-header">
-                      <h3 class="section-title">{{ $t("knowledgeEditor.basic.title") }}</h3>
-                      <p class="section-desc">{{ $t("knowledgeEditor.basic.description") }}</p>
+                <div v-show="currentSection === 'basic'" class="mb-8 last:mb-0">
+                  <div v-if="formData">
+                    <div class="mb-4">
+                      <h3 class="text-foreground m-0 mb-1.5 [font-family:var(--app-font-family)] text-xl font-semibold">
+                        {{ $t("knowledgeEditor.basic.title") }}
+                      </h3>
+                      <p class="text-placeholder m-0 [font-family:var(--app-font-family)] text-sm leading-[22px]">
+                        {{ $t("knowledgeEditor.basic.description") }}
+                      </p>
                     </div>
-                    <div class="section-body">
-                      <div v-if="editorMode === 'edit' && activeKbId" class="form-item">
-                        <label class="form-label">{{ $t("knowledgeEditor.basic.kbId") }}</label>
-                        <p class="form-tip">
+                    <div>
+                      <div v-if="editorMode === 'edit' && activeKbId" class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
+                        >
+                          {{ $t("knowledgeEditor.basic.kbId") }}
+                        </label>
+                        <p class="text-placeholder mt-1.5 text-xs">
                           {{
                             isPostCreateSession
                               ? $t("knowledgeEditor.postCreateHint.followUpDesc")
                               : $t("knowledgeEditor.basic.kbIdDesc")
                           }}
                         </p>
-                        <div class="kb-id-field">
-                          <code class="kb-id-value" :title="activeKbId">{{ activeKbId }}</code>
-                          <t-tooltip :content="$t('common.copy')" placement="top">
-                            <t-button theme="default" size="small" variant="text" class="kb-id-copy" @click="copyKbId">
-                              <t-icon name="file-copy" />
-                            </t-button>
-                          </t-tooltip>
+                        <div
+                          class="border-border bg-muted mt-2 flex w-full max-w-[480px] items-center gap-1 rounded-md border py-1.5 pr-2 pl-3"
+                        >
+                          <code
+                            class="text-foreground m-0 min-w-0 flex-1 truncate border-none bg-transparent p-0 [font-family:var(--app-font-family-mono)] text-[13px] leading-normal"
+                            :title="activeKbId"
+                          >
+                            {{ activeKbId }}
+                          </code>
+                          <Tooltip>
+                            <TooltipTrigger as-child>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                class="text-muted-foreground hover:text-primary shrink-0"
+                                :aria-label="$t('common.copy')"
+                                @click="copyKbId"
+                              >
+                                <CopyIcon />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">{{ $t("common.copy") }}</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
 
-                      <div class="form-item">
-                        <label class="form-label required">{{ $t("knowledgeEditor.basic.typeLabel") }}</label>
-                        <t-radio-group
-                          v-model="formData.type"
+                      <div class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground after:text-destructive mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium after:ml-1 after:content-['*']"
+                        >
+                          {{ $t("knowledgeEditor.basic.typeLabel") }}
+                        </label>
+                        <SegmentedRadio
+                          :model-value="formData.type"
+                          :options="[
+                            { value: 'document', label: $t('knowledgeEditor.basic.typeDocument') },
+                            { value: 'faq', label: $t('knowledgeEditor.basic.typeFAQ') },
+                          ]"
                           :disabled="editorMode === 'edit'"
                           data-guide="kb-create-type"
-                        >
-                          <t-radio-button value="document">{{
-                            $t("knowledgeEditor.basic.typeDocument")
-                          }}</t-radio-button>
-                          <t-radio-button value="faq">{{ $t("knowledgeEditor.basic.typeFAQ") }}</t-radio-button>
-                        </t-radio-group>
-                        <p class="form-tip">{{ $t("knowledgeEditor.basic.typeDescription") }}</p>
+                          @update:model-value="(val) => (formData.type = val)"
+                        />
+                        <p class="text-placeholder mt-1.5 text-xs">{{ $t("knowledgeEditor.basic.typeDescription") }}</p>
                       </div>
 
                       <!-- 索引策略 (紧跟类型选择) -->
-                      <div v-if="!isFAQ" class="form-item">
-                        <label class="form-label required">{{ $t("knowledgeEditor.indexing.title") }}</label>
-                        <p class="form-tip">{{ $t("knowledgeEditor.indexing.description") }}</p>
+                      <div v-if="!isFAQ" class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground after:text-destructive mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium after:ml-1 after:content-['*']"
+                        >
+                          {{ $t("knowledgeEditor.indexing.title") }}
+                        </label>
+                        <p class="text-placeholder mt-1.5 text-xs">{{ $t("knowledgeEditor.indexing.description") }}</p>
                         <div
-                          class="indexing-checks"
-                          :class="{ 'is-locked': isIndexingLocked }"
+                          class="mt-2.5 grid [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))] gap-3"
                           data-guide="kb-create-indexing"
                         >
                           <div
-                            class="indexing-check-item"
-                            :class="{
-                              'is-checked': formData.indexingStrategy.vectorEnabled,
-                              'is-disabled': isIndexingLocked,
-                            }"
+                            class="flex flex-col gap-1.5 rounded-lg border px-3.5 py-3 transition-colors duration-200 select-none"
+                            :class="[
+                              formData.indexingStrategy.vectorEnabled
+                                ? 'border-primary bg-[var(--td-brand-color-light)]'
+                                : 'border-border bg-card',
+                              isIndexingLocked
+                                ? 'cursor-not-allowed opacity-70'
+                                : 'hover:border-primary cursor-pointer',
+                            ]"
                             @click="toggleVectorIndexing"
                           >
-                            <t-checkbox
-                              :checked="formData.indexingStrategy.vectorEnabled"
-                              :disabled="isIndexingLocked"
-                              class="indexing-check-box"
-                              >{{ $t("knowledgeEditor.indexing.searchTitle") }}</t-checkbox
-                            >
-                            <p class="indexing-check-desc">{{ $t("knowledgeEditor.indexing.searchDesc") }}</p>
+                            <div class="flex items-center gap-2">
+                              <Checkbox
+                                :model-value="formData.indexingStrategy.vectorEnabled"
+                                :disabled="isIndexingLocked"
+                                class="pointer-events-none"
+                              />
+                              <span class="text-foreground text-sm font-medium">{{
+                                $t("knowledgeEditor.indexing.searchTitle")
+                              }}</span>
+                            </div>
+                            <p class="text-placeholder m-0 pl-6 text-xs leading-[18px]">
+                              {{ $t("knowledgeEditor.indexing.searchDesc") }}
+                            </p>
                           </div>
                           <div
-                            class="indexing-check-item"
-                            :class="{
-                              'is-checked': formData.indexingStrategy.wikiEnabled,
-                              'is-disabled': isIndexingLocked,
-                            }"
+                            class="flex flex-col gap-1.5 rounded-lg border px-3.5 py-3 transition-colors duration-200 select-none"
+                            :class="[
+                              formData.indexingStrategy.wikiEnabled
+                                ? 'border-primary bg-[var(--td-brand-color-light)]'
+                                : 'border-border bg-card',
+                              isIndexingLocked
+                                ? 'cursor-not-allowed opacity-70'
+                                : 'hover:border-primary cursor-pointer',
+                            ]"
                             @click="toggleWikiIndexing"
                           >
-                            <t-checkbox
-                              :checked="formData.indexingStrategy.wikiEnabled"
-                              :disabled="isIndexingLocked"
-                              class="indexing-check-box"
-                            >
-                              <span class="indexing-check-title">
+                            <div class="flex items-center gap-2">
+                              <Checkbox
+                                :model-value="formData.indexingStrategy.wikiEnabled"
+                                :disabled="isIndexingLocked"
+                                class="pointer-events-none"
+                              />
+                              <span class="text-foreground inline-flex items-center gap-1.5 text-sm font-medium">
                                 {{ $t("knowledgeEditor.indexing.wikiTitle") }}
-                                <span class="indexing-new-badge">NEW</span>
+                                <span
+                                  class="text-primary inline-flex h-4 items-center rounded-[3px] bg-[var(--td-brand-color-light)] px-1.5 text-[10px] leading-none font-semibold tracking-[0.4px]"
+                                >
+                                  NEW
+                                </span>
                               </span>
-                            </t-checkbox>
-                            <p class="indexing-check-desc">{{ $t("knowledgeEditor.indexing.wikiDesc") }}</p>
+                            </div>
+                            <p class="text-placeholder m-0 pl-6 text-xs leading-[18px]">
+                              {{ $t("knowledgeEditor.indexing.wikiDesc") }}
+                            </p>
                           </div>
                         </div>
-                        <p v-if="isIndexingLocked" class="form-tip locked-tip">
+                        <p v-if="isIndexingLocked" class="text-warning mt-2 text-xs">
                           {{ $t("knowledgeEditor.indexing.lockedTip") }}
                         </p>
                       </div>
 
                       <!-- Wiki 提取粒度 (仅当 Wiki 启用时显示) -->
-                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="form-item">
-                        <label class="form-label">{{ $t("knowledgeEditor.wiki.extractionGranularityLabel") }}</label>
-                        <p class="form-tip">{{ $t("knowledgeEditor.wiki.extractionGranularityTip") }}</p>
-                        <t-radio-group
-                          :value="resolvedGranularity"
-                          class="granularity-radio-group"
-                          @change="handleGranularityChange"
+                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
                         >
-                          <t-radio-button value="focused">
-                            {{ $t("knowledgeEditor.wiki.granularityFocused") }}
-                          </t-radio-button>
-                          <t-radio-button value="standard">
-                            {{ $t("knowledgeEditor.wiki.granularityStandard") }}
-                          </t-radio-button>
-                          <t-radio-button value="exhaustive">
-                            {{ $t("knowledgeEditor.wiki.granularityExhaustive") }}
-                          </t-radio-button>
-                        </t-radio-group>
-                        <p class="form-tip granularity-hint">{{ granularityHint }}</p>
+                          {{ $t("knowledgeEditor.wiki.extractionGranularityLabel") }}
+                        </label>
+                        <p class="text-placeholder mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.wiki.extractionGranularityTip") }}
+                        </p>
+                        <SegmentedRadio
+                          :model-value="resolvedGranularity"
+                          :options="[
+                            { value: 'focused', label: $t('knowledgeEditor.wiki.granularityFocused') },
+                            { value: 'standard', label: $t('knowledgeEditor.wiki.granularityStandard') },
+                            { value: 'exhaustive', label: $t('knowledgeEditor.wiki.granularityExhaustive') },
+                          ]"
+                          class="mt-1"
+                          @update:model-value="handleGranularityChange"
+                        />
+                        <p class="text-muted-foreground mt-2 text-xs leading-[1.6] break-words whitespace-normal">
+                          {{ granularityHint }}
+                        </p>
                       </div>
 
-                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="form-item">
-                        <label class="form-label">{{ $t("knowledgeEditor.wiki.contentInstructionsLabel") }}</label>
-                        <p class="form-tip">{{ $t("knowledgeEditor.wiki.contentInstructionsTip") }}</p>
-                        <t-textarea
+                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
+                        >
+                          {{ $t("knowledgeEditor.wiki.contentInstructionsLabel") }}
+                        </label>
+                        <p class="text-placeholder mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.wiki.contentInstructionsTip") }}
+                        </p>
+                        <Textarea
                           v-model="formData.wikiConfig.contentInstructions"
                           :placeholder="$t('knowledgeEditor.wiki.contentInstructionsPlaceholder')"
                           :maxlength="4000"
-                          :autosize="{ minRows: 3, maxRows: 8 }"
+                          class="max-h-[186px] min-h-[76px]"
                         />
                       </div>
 
-                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="form-item">
-                        <label class="form-label">{{ $t("knowledgeEditor.wiki.extractionInstructionsLabel") }}</label>
-                        <p class="form-tip">{{ $t("knowledgeEditor.wiki.extractionInstructionsTip") }}</p>
-                        <t-textarea
+                      <div v-if="!isFAQ && formData.indexingStrategy.wikiEnabled" class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
+                        >
+                          {{ $t("knowledgeEditor.wiki.extractionInstructionsLabel") }}
+                        </label>
+                        <p class="text-placeholder mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.wiki.extractionInstructionsTip") }}
+                        </p>
+                        <Textarea
                           v-model="formData.wikiConfig.extractionInstructions"
                           :placeholder="$t('knowledgeEditor.wiki.extractionInstructionsPlaceholder')"
                           :maxlength="4000"
-                          :autosize="{ minRows: 3, maxRows: 8 }"
+                          class="max-h-[186px] min-h-[76px]"
                         />
                       </div>
 
-                      <div class="form-item" data-guide="kb-create-name">
-                        <label class="form-label required">{{ $t("knowledgeEditor.basic.nameLabel") }}</label>
-                        <t-input
+                      <div class="mb-4 last:mb-0" data-guide="kb-create-name">
+                        <label
+                          class="text-foreground after:text-destructive mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium after:ml-1 after:content-['*']"
+                        >
+                          {{ $t("knowledgeEditor.basic.nameLabel") }}
+                        </label>
+                        <Input
                           v-model="formData.name"
                           :placeholder="$t('knowledgeEditor.basic.namePlaceholder')"
                           :maxlength="50"
                         />
                       </div>
-                      <div class="form-item">
-                        <label class="form-label">{{ $t("knowledgeEditor.basic.descriptionLabel") }}</label>
-                        <t-textarea
+                      <div class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
+                        >
+                          {{ $t("knowledgeEditor.basic.descriptionLabel") }}
+                        </label>
+                        <Textarea
                           v-model="formData.description"
                           :placeholder="$t('knowledgeEditor.basic.descriptionPlaceholder')"
                           :maxlength="200"
-                          :autosize="{ minRows: 3, maxRows: 6 }"
+                          class="max-h-[142px] min-h-[76px]"
                         />
                       </div>
 
@@ -200,7 +306,7 @@
                 </div>
 
                 <!-- 模型配置 -->
-                <div v-show="currentSection === 'models'" class="section">
+                <div v-show="currentSection === 'models'" class="mb-8 last:mb-0">
                   <KBModelConfig
                     ref="modelConfigRef"
                     v-if="formData"
@@ -214,7 +320,7 @@
                 </div>
 
                 <!-- VectorStore 绑定 -->
-                <div v-show="currentSection === 'vectorStore'" class="section">
+                <div v-show="currentSection === 'vectorStore'" class="mb-8 last:mb-0">
                   <KBVectorStoreSettings
                     v-if="formData"
                     :mode="editorMode"
@@ -228,40 +334,54 @@
                 </div>
 
                 <!-- FAQ 配置 -->
-                <div v-if="isFAQ && formData" v-show="currentSection === 'faq'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h3 class="section-title">{{ $t("knowledgeEditor.faq.title") }}</h3>
-                      <p class="section-desc">{{ $t("knowledgeEditor.faq.description") }}</p>
+                <div v-if="isFAQ && formData" v-show="currentSection === 'faq'" class="mb-8 last:mb-0">
+                  <div>
+                    <div class="mb-4">
+                      <h3 class="text-foreground m-0 mb-1.5 [font-family:var(--app-font-family)] text-xl font-semibold">
+                        {{ $t("knowledgeEditor.faq.title") }}
+                      </h3>
+                      <p class="text-placeholder m-0 [font-family:var(--app-font-family)] text-sm leading-[22px]">
+                        {{ $t("knowledgeEditor.faq.description") }}
+                      </p>
                     </div>
-                    <div class="section-body">
-                      <div class="form-item">
-                        <label class="form-label required">{{ $t("knowledgeEditor.faq.indexModeLabel") }}</label>
-                        <t-radio-group v-model="formData.faqConfig.indexMode">
-                          <t-radio-button value="question_only">{{
-                            $t("knowledgeEditor.faq.modes.questionOnly")
-                          }}</t-radio-button>
-                          <t-radio-button value="question_answer">{{
-                            $t("knowledgeEditor.faq.modes.questionAnswer")
-                          }}</t-radio-button>
-                        </t-radio-group>
-                        <p class="form-tip">{{ $t("knowledgeEditor.faq.indexModeDescription") }}</p>
+                    <div>
+                      <div class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground after:text-destructive mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium after:ml-1 after:content-['*']"
+                        >
+                          {{ $t("knowledgeEditor.faq.indexModeLabel") }}
+                        </label>
+                        <SegmentedRadio
+                          :model-value="formData.faqConfig.indexMode"
+                          :options="[
+                            { value: 'question_only', label: $t('knowledgeEditor.faq.modes.questionOnly') },
+                            { value: 'question_answer', label: $t('knowledgeEditor.faq.modes.questionAnswer') },
+                          ]"
+                          @update:model-value="(val) => (formData.faqConfig.indexMode = val)"
+                        />
+                        <p class="text-placeholder mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.faq.indexModeDescription") }}
+                        </p>
                       </div>
-                      <div class="form-item">
-                        <label class="form-label required">{{
-                          $t("knowledgeEditor.faq.questionIndexModeLabel")
-                        }}</label>
-                        <t-radio-group v-model="formData.faqConfig.questionIndexMode">
-                          <t-radio-button value="combined">{{
-                            $t("knowledgeEditor.faq.modes.combined")
-                          }}</t-radio-button>
-                          <t-radio-button value="separate">{{
-                            $t("knowledgeEditor.faq.modes.separate")
-                          }}</t-radio-button>
-                        </t-radio-group>
-                        <p class="form-tip">{{ $t("knowledgeEditor.faq.questionIndexModeDescription") }}</p>
+                      <div class="mb-4 last:mb-0">
+                        <label
+                          class="text-foreground after:text-destructive mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium after:ml-1 after:content-['*']"
+                        >
+                          {{ $t("knowledgeEditor.faq.questionIndexModeLabel") }}
+                        </label>
+                        <SegmentedRadio
+                          :model-value="formData.faqConfig.questionIndexMode"
+                          :options="[
+                            { value: 'combined', label: $t('knowledgeEditor.faq.modes.combined') },
+                            { value: 'separate', label: $t('knowledgeEditor.faq.modes.separate') },
+                          ]"
+                          @update:model-value="(val) => (formData.faqConfig.questionIndexMode = val)"
+                        />
+                        <p class="text-placeholder mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.faq.questionIndexModeDescription") }}
+                        </p>
                       </div>
-                      <div class="faq-guide">
+                      <div class="bg-muted text-muted-foreground mt-5 rounded-lg p-3 px-4 text-[13px] leading-5">
                         <p>{{ $t("knowledgeEditor.faq.entryGuide") }}</p>
                       </div>
                     </div>
@@ -269,7 +389,7 @@
                 </div>
 
                 <!-- 解析引擎 -->
-                <div v-if="!isFAQ && formData && currentSection === 'parser'" class="section">
+                <div v-if="!isFAQ && formData && currentSection === 'parser'" class="mb-8 last:mb-0">
                   <KBParserSettings
                     :parser-engine-rules="formData.chunkingConfig.parserEngineRules"
                     @update:parser-engine-rules="handleParserEngineRulesUpdate"
@@ -277,7 +397,7 @@
                 </div>
 
                 <!-- 存储引擎 -->
-                <div v-if="!isFAQ && formData && currentSection === 'storage'" class="section">
+                <div v-if="!isFAQ && formData && currentSection === 'storage'" class="mb-8 last:mb-0">
                   <KBStorageSettings
                     :storage-backend-id="formData.storageBackendId"
                     :storage-provider="formData.storageProvider"
@@ -288,7 +408,7 @@
                 </div>
 
                 <!-- 分块设置 -->
-                <div v-if="!isFAQ" v-show="currentSection === 'chunking'" class="section">
+                <div v-if="!isFAQ" v-show="currentSection === 'chunking'" class="mb-8 last:mb-0">
                   <KBChunkingSettings
                     v-if="formData"
                     :config="formData.chunkingConfig"
@@ -297,25 +417,40 @@
                 </div>
 
                 <!-- 多模态配置 -->
-                <div v-if="!isFAQ" v-show="currentSection === 'multimodal'" class="section">
-                  <div v-if="formData" class="kb-multimodal-settings">
-                    <div class="section-header">
-                      <h2>{{ $t("knowledgeEditor.multimodal.title") }}</h2>
-                      <p class="section-description">{{ $t("knowledgeEditor.multimodal.description") }}</p>
+                <div v-if="!isFAQ" v-show="currentSection === 'multimodal'" class="mb-8 last:mb-0">
+                  <div v-if="formData" class="w-full">
+                    <div class="mb-5">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ $t("knowledgeEditor.multimodal.title") }}
+                      </h2>
+                      <p class="text-muted-foreground m-0 text-sm leading-normal">
+                        {{ $t("knowledgeEditor.multimodal.description") }}
+                      </p>
                     </div>
 
-                    <div class="settings-group">
+                    <div class="flex flex-col">
                       <!-- 多模态开关 -->
-                      <div class="setting-row" data-guide="kb-create-multimodal-toggle">
-                        <div class="setting-info">
-                          <label>{{ $t("knowledgeEditor.advanced.multimodal.label") }}</label>
-                          <p class="desc">{{ $t("knowledgeEditor.advanced.multimodal.description") }}</p>
+                      <div
+                        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+                        data-guide="kb-create-multimodal-toggle"
+                      >
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            $t("knowledgeEditor.advanced.multimodal.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ $t("knowledgeEditor.advanced.multimodal.description") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-switch
-                            v-model="formData.multimodalConfig.enabled"
-                            @change="handleMultimodalToggle"
-                            size="medium"
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
+                          <Switch
+                            :model-value="formData.multimodalConfig.enabled"
+                            @update:model-value="
+                              (val: boolean) => {
+                                formData.multimodalConfig.enabled = val;
+                                handleMultimodalToggle();
+                              }
+                            "
                           />
                         </div>
                       </div>
@@ -323,17 +458,19 @@
                       <!-- VLLM 模型选择（多模态启用时） -->
                       <div
                         v-if="formData.multimodalConfig.enabled"
-                        class="setting-row"
+                        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
                         data-guide="kb-create-multimodal-vllm"
                       >
-                        <div class="setting-info">
-                          <label
-                            >{{ $t("knowledgeEditor.advanced.multimodal.vllmLabel") }}
-                            <span class="required">*</span></label
-                          >
-                          <p class="desc">{{ $t("knowledgeEditor.advanced.multimodal.vllmDescription") }}</p>
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">
+                            {{ $t("knowledgeEditor.advanced.multimodal.vllmLabel") }}
+                            <span class="text-destructive ml-0.5 font-medium">*</span>
+                          </label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ $t("knowledgeEditor.advanced.multimodal.vllmDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
                           <ModelSelector
                             model-type="VLLM"
                             :selected-model-id="formData.multimodalConfig.vllmModelId"
@@ -345,40 +482,66 @@
                         </div>
                       </div>
 
-                      <div v-if="formData.multimodalConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ $t("knowledgeEditor.advanced.multimodal.descriptionLanguageLabel") }}</label>
-                          <p class="desc">
+                      <div
+                        v-if="formData.multimodalConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+                      >
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            $t("knowledgeEditor.advanced.multimodal.descriptionLanguageLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
                             {{ $t("knowledgeEditor.advanced.multimodal.descriptionLanguageDescription") }}
                           </p>
                         </div>
-                        <div class="setting-control">
-                          <t-select
-                            v-model="formData.multimodalConfig.descriptionLanguage"
-                            clearable
-                            :placeholder="$t('knowledgeEditor.advanced.multimodal.descriptionLanguageAuto')"
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
+                          <!-- The old select was clearable back to "follow the document". Reka
+                               forbids an empty item value, so that choice is an explicit item
+                               with a sentinel value, mapped back to the empty string. -->
+                          <Select
+                            :model-value="formData.multimodalConfig.descriptionLanguage || undefined"
+                            @update:model-value="
+                              (val) =>
+                                (formData.multimodalConfig.descriptionLanguage =
+                                  val === AUTO_DESCRIPTION_LANGUAGE ? '' : String(val ?? ''))
+                            "
                           >
-                            <t-option value="Chinese" :label="$t('language.zhCN')" />
-                            <t-option value="English" :label="$t('language.enUS')" />
-                            <t-option value="Korean" :label="$t('language.koKR')" />
-                            <t-option value="Russian" :label="$t('language.ruRU')" />
-                          </t-select>
+                            <SelectTrigger class="w-[280px]">
+                              <SelectValue
+                                :placeholder="$t('knowledgeEditor.advanced.multimodal.descriptionLanguageAuto')"
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem :value="AUTO_DESCRIPTION_LANGUAGE">{{
+                                $t("knowledgeEditor.advanced.multimodal.descriptionLanguageAuto")
+                              }}</SelectItem>
+                              <SelectItem value="Chinese">{{ $t("language.zhCN") }}</SelectItem>
+                              <SelectItem value="English">{{ $t("language.enUS") }}</SelectItem>
+                              <SelectItem value="Korean">{{ $t("language.koKR") }}</SelectItem>
+                              <SelectItem value="Russian">{{ $t("language.ruRU") }}</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
-                      <div v-if="formData.multimodalConfig.enabled" class="setting-row setting-row-vertical">
-                        <div class="setting-info">
-                          <label>{{ $t("knowledgeEditor.advanced.multimodal.customInstructionsLabel") }}</label>
-                          <p class="desc">
+                      <div
+                        v-if="formData.multimodalConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+                      >
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            $t("knowledgeEditor.advanced.multimodal.customInstructionsLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
                             {{ $t("knowledgeEditor.advanced.multimodal.customInstructionsDescription") }}
                           </p>
                         </div>
-                        <div class="setting-control setting-control-full">
-                          <t-textarea
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
+                          <Textarea
                             v-model="formData.multimodalConfig.customInstructions"
+                            class="max-h-[186px] min-h-[76px]"
                             :placeholder="$t('knowledgeEditor.advanced.multimodal.customInstructionsPlaceholder')"
                             :maxlength="4000"
-                            :autosize="{ minRows: 3, maxRows: 8 }"
                           />
                         </div>
                       </div>
@@ -387,32 +550,51 @@
                 </div>
 
                 <!-- 音频处理（ASR）设置 -->
-                <div v-if="!isFAQ" v-show="currentSection === 'asr'" class="section">
-                  <div v-if="formData" class="kb-multimodal-settings">
-                    <div class="section-header">
-                      <h2>{{ $t("knowledgeEditor.asr.title") }}</h2>
-                      <p class="section-description">{{ $t("knowledgeEditor.asr.description") }}</p>
+                <div v-if="!isFAQ" v-show="currentSection === 'asr'" class="mb-8 last:mb-0">
+                  <div v-if="formData" class="w-full">
+                    <div class="mb-5">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ $t("knowledgeEditor.asr.title") }}
+                      </h2>
+                      <p class="text-muted-foreground m-0 text-sm leading-normal">
+                        {{ $t("knowledgeEditor.asr.description") }}
+                      </p>
                     </div>
 
-                    <div class="settings-group">
+                    <div class="flex flex-col">
                       <!-- ASR 开关 -->
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ $t("knowledgeEditor.asr.label") }}</label>
-                          <p class="desc">{{ $t("knowledgeEditor.asr.desc") }}</p>
+                      <div class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b">
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            $t("knowledgeEditor.asr.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ $t("knowledgeEditor.asr.desc") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-switch v-model="formData.asrConfig.enabled" size="medium" />
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
+                          <Switch
+                            :model-value="formData.asrConfig.enabled"
+                            @update:model-value="(val: boolean) => (formData.asrConfig.enabled = val)"
+                          />
                         </div>
                       </div>
 
                       <!-- ASR 模型选择 -->
-                      <div v-if="formData.asrConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ $t("knowledgeEditor.asr.modelLabel") }} <span class="required">*</span></label>
-                          <p class="desc">{{ $t("knowledgeEditor.asr.modelDescription") }}</p>
+                      <div
+                        v-if="formData.asrConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b"
+                      >
+                        <div class="max-w-[65%] flex-1 pr-6">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">
+                            {{ $t("knowledgeEditor.asr.modelLabel") }}
+                            <span class="text-destructive ml-0.5 font-medium">*</span>
+                          </label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ $t("knowledgeEditor.asr.modelDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
+                        <div class="flex shrink-0 items-center justify-end" style="min-width: 280px">
                           <ModelSelector
                             model-type="ASR"
                             :selected-model-id="formData.asrConfig.modelId"
@@ -432,7 +614,7 @@
                 </div>
 
                 <!-- 知识图谱 -->
-                <div v-if="!isFAQ && currentSection === 'graph'" class="section">
+                <div v-if="!isFAQ && currentSection === 'graph'" class="mb-8 last:mb-0">
                   <GraphSettings
                     v-if="formData"
                     :graph-extract="formData.nodeExtractConfig"
@@ -443,7 +625,7 @@
                 </div>
 
                 <!-- 高级设置 -->
-                <div v-if="!isFAQ" v-show="currentSection === 'advanced'" class="section">
+                <div v-if="!isFAQ" v-show="currentSection === 'advanced'" class="mb-8 last:mb-0">
                   <KBAdvancedSettings
                     ref="advancedSettingsRef"
                     v-if="formData"
@@ -467,40 +649,49 @@
                 </div>
 
                 <!-- 数据源管理（仅编辑模式） -->
-                <div v-if="editorMode === 'edit' && activeKbId && currentSection === 'datasource'" class="section">
+                <div
+                  v-if="editorMode === 'edit' && activeKbId && currentSection === 'datasource'"
+                  class="mb-8 last:mb-0"
+                >
                   <DataSourceSettings :kb-id="activeKbId" @count="dsCount = $event" />
                 </div>
 
                 <!-- 共享设置（仅编辑模式） -->
-                <div v-if="editorMode === 'edit' && activeKbId && currentSection === 'share'" class="section">
+                <div v-if="editorMode === 'edit' && activeKbId && currentSection === 'share'" class="mb-8 last:mb-0">
                   <KBShareSettings :kb-id="activeKbId" :can-share="canShareKB" />
                 </div>
 
                 <!-- 活动记录（仅编辑模式，KB 所属租户内 Owner/Admin） -->
                 <div
                   v-if="editorMode === 'edit' && activeKbId && canViewActivity && currentSection === 'activity'"
-                  class="section"
+                  class="mb-8 last:mb-0"
                 >
                   <KnowledgeBaseActivitySettings :kb-id="activeKbId" :active="currentSection === 'activity'" />
                 </div>
               </div>
 
               <!-- 保存按钮 -->
-              <div class="settings-footer">
-                <p v-if="isPostCreateSession" class="settings-footer-note">
-                  <t-icon name="check-circle-filled" class="settings-footer-note__icon" />
+              <div class="border-border flex shrink-0 items-center justify-end gap-4 border-t px-10 py-3">
+                <p
+                  v-if="isPostCreateSession"
+                  class="text-muted-foreground m-0 mr-auto flex min-w-0 flex-1 items-start gap-1.5 text-[13px] leading-5"
+                >
+                  <CircleCheckIcon class="text-success mt-0.5 size-3.5 shrink-0" />
                   <span>
-                    <strong>{{ $t("knowledgeEditor.postCreateHint.title") }}</strong>
+                    <strong class="text-foreground mr-1 font-medium">{{
+                      $t("knowledgeEditor.postCreateHint.title")
+                    }}</strong>
                     {{ $t("knowledgeEditor.postCreateHint.footer") }}
                   </span>
                 </p>
-                <div class="settings-footer-actions">
-                  <t-button theme="default" variant="outline" @click="handleClose">
+                <div class="flex shrink-0 gap-3">
+                  <Button variant="outline" @click="handleClose">
                     {{ $t("common.cancel") }}
-                  </t-button>
-                  <t-button theme="primary" data-guide="kb-create-submit" @click="handleSubmit" :loading="saving">
+                  </Button>
+                  <Button data-guide="kb-create-submit" :disabled="saving" @click="handleSubmit">
+                    <Loader2Icon v-if="saving" class="animate-spin" />
                     {{ saveButtonLabel }}
-                  </t-button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -522,6 +713,25 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import KbCreateContextualGuide from "@/components/KbCreateContextualGuide.vue";
 import { KB_EDITOR_FOCUS_SECTION_EVENT, markContextualGuideDone } from "@/config/contextualGuides";
 import { MessagePlugin, DialogPlugin } from "tdesign-vue-next";
+import {
+  CircleCheckIcon,
+  CircleHelpIcon,
+  CloudDownloadIcon,
+  CloudIcon,
+  CopyIcon,
+  DatabaseIcon,
+  FileSearchIcon,
+  HistoryIcon,
+  ImageIcon,
+  InfoIcon,
+  Loader2Icon,
+  NetworkIcon,
+  SettingsIcon,
+  Share2Icon,
+  SlidersHorizontalIcon,
+  AudioLinesIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 import {
   createKnowledgeBase,
   getKnowledgeBaseById,
@@ -548,6 +758,14 @@ import KBShareSettings from "./settings/KBShareSettings.vue";
 import DataSourceSettings from "./settings/DataSourceSettings.vue";
 import KnowledgeBaseActivitySettings from "./settings/KnowledgeBaseActivitySettings.vue";
 import { useI18n } from "vue-i18n";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import SegmentedRadio from "./components/SegmentedRadio.vue";
 
 const uiStore = useUIStore();
 const authStore = useAuthStore();
@@ -577,6 +795,10 @@ const isPostCreateSession = computed(() => !!savedKbId.value);
 const saveButtonLabel = computed(() =>
   editorMode.value === "create" ? t("knowledgeEditor.buttons.create") : t("knowledgeEditor.buttons.saveAndClose"),
 );
+
+// The description-language select's "follow the document" choice. Reka's
+// SelectItem cannot carry an empty value, so this stands in for "" in the UI.
+const AUTO_DESCRIPTION_LANGUAGE = "__auto__";
 
 const copyKbId = async () => {
   await copyWithToast(activeKbId.value, "common.copied");
@@ -655,6 +877,27 @@ const DEFAULT_CHUNKING_PRESET = {
   chunkOverlap: 80,
   enableParentChild: true,
 } as const;
+
+const navIcons: Record<string, LucideIcon> = {
+  "info-circle": InfoIcon,
+  "control-platform": SlidersHorizontalIcon,
+  "data-base": DatabaseIcon,
+  "help-circle": CircleHelpIcon,
+  "file-search": FileSearchIcon,
+  image: ImageIcon,
+  sound: AudioLinesIcon,
+  cloud: CloudIcon,
+  "file-copy": CopyIcon,
+  "chart-bubble": NetworkIcon,
+  setting: SettingsIcon,
+  "cloud-download": CloudDownloadIcon,
+  share: Share2Icon,
+  history: HistoryIcon,
+};
+
+function navIcon(name: string): LucideIcon {
+  return navIcons[name] ?? InfoIcon;
+}
 
 const navItems = computed(() => {
   const items: { key: string; icon: string; label: string; badge?: number }[] = [
@@ -1038,10 +1281,10 @@ const granularityHint = computed<string>(() => {
   }
 });
 
-const handleGranularityChange = (value: string | number | boolean) => {
+const handleGranularityChange = (value: unknown) => {
   if (!formData.value) return;
   const next: "focused" | "standard" | "exhaustive" =
-    value === "focused" || value === "exhaustive" ? (value as "focused" | "exhaustive") : "standard";
+    value === "focused" || value === "exhaustive" ? value : "standard";
   formData.value.wikiConfig = {
     ...formData.value.wikiConfig,
     extractionGranularity: next,
@@ -1634,430 +1877,9 @@ watch(
 );
 </script>
 
-<style scoped lang="less">
-// 复用创建知识库的样式
-.settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.settings-modal {
-  position: relative;
-  width: 90vw;
-  max-width: 1000px;
-  height: 85vh;
-  max-height: 750px;
-  background: var(--td-bg-color-container);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  transition: all 0.2s ease;
-  z-index: 10;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.settings-container {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-/* 左侧导航：与 AgentEditorModal 对齐 */
-.settings-sidebar {
-  width: 208px;
-  background-color: var(--td-bg-color-settings-modal);
-  border-right: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sidebar-header {
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  flex-shrink: 0;
-}
-
-.sidebar-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-}
-
-.settings-nav {
-  flex: 1;
-  padding: 8px 8px 12px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.nav-group-title {
-  padding: 6px 14px 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-
-  .settings-nav > &:first-child {
-    padding-top: 2px;
-  }
-
-  .settings-nav > &:not(:first-child) {
-    padding-top: 8px;
-  }
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 6px 12px;
-  margin-bottom: 2px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-  user-select: none;
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.nav-icon {
-  margin-right: 9px;
-  font-size: 16px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-}
-
-.nav-label {
-  flex: 1;
-}
-
-.nav-badge {
-  flex-shrink: 0;
-  margin-left: 2px;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 500;
-  text-align: center;
-}
-
-.settings-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.content-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 32px;
-}
-
-.section {
-  margin-bottom: 32px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.section-content {
-  .section-header {
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    margin: 0 0 6px 0;
-    font-family: var(--app-font-family);
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .section-desc {
-    margin: 0;
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    line-height: 22px;
-  }
-
-  .section-body {
-    background: var(--td-bg-color-container);
-  }
-}
-
-.form-item {
-  margin-bottom: 16px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 8px;
-  font-family: var(--app-font-family);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-
-  &.required::after {
-    content: "*";
-    color: var(--td-error-color);
-    margin-left: 4px;
-  }
-}
-
-.form-tip {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kb-id-field {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  max-width: 480px;
-  margin-top: 8px;
-  padding: 6px 8px 6px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-
-  .kb-id-value {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    background: none;
-    border: none;
-    font-family: var(--app-font-family-mono);
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .kb-id-copy {
-    flex-shrink: 0;
-    color: var(--td-text-color-secondary);
-
-    &:hover {
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-.granularity-radio-group {
-  margin-top: 4px;
-}
-
-.granularity-hint {
-  margin-top: 8px;
-  line-height: 1.6;
-  color: var(--td-text-color-secondary);
-  white-space: normal;
-  word-break: break-word;
-}
-
-.indexing-checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.indexing-check-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  cursor: pointer;
-  user-select: none;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-  }
-
-  &.is-checked {
-    border-color: var(--td-brand-color);
-    background: var(--td-brand-color-light);
-  }
-
-  &.is-disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-
-    &:hover {
-      border-color: var(--td-component-stroke);
-    }
-
-    &.is-checked:hover {
-      border-color: var(--td-brand-color);
-    }
-  }
-
-  :deep(.t-checkbox__label) {
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.locked-tip {
-  color: var(--td-warning-color);
-  margin-top: 8px;
-}
-
-// 禁用内部 checkbox 自身的点击事件，统一由卡片处理
-.indexing-check-box {
-  pointer-events: none;
-}
-
-.indexing-check-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.indexing-new-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  height: 16px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.4px;
-  color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
-}
-
-.indexing-check-desc {
-  margin: 0;
-  padding-left: 24px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--td-text-color-placeholder);
-}
-
-.faq-guide {
-  margin-top: 20px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.settings-footer {
-  padding: 12px 40px;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-.settings-footer-note {
-  margin: 0;
-  margin-right: auto;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--td-text-color-secondary);
-
-  strong {
-    margin-right: 4px;
-    color: var(--td-text-color-primary);
-    font-weight: 500;
-  }
-
-  &__icon {
-    flex-shrink: 0;
-    margin-top: 2px;
-    font-size: 14px;
-    color: var(--td-success-color);
-  }
-}
-
-.settings-footer-actions {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-// 过渡动画
+<!-- Vue <Transition> hooks for the modal fade; the only style block in the file.
+     The enter/leave classes are applied by Vue at runtime, so they cannot be utilities. -->
+<style scoped>
 .modal-enter-active,
 .modal-leave-active {
   transition: all 0.3s ease;
@@ -2066,84 +1888,10 @@ watch(
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
-
-  .settings-modal {
-    transform: scale(0.95);
-  }
 }
 
-// 多模态配置内联样式（与子组件 KBStorageSettings/KBAdvancedSettings 一致）
-.kb-multimodal-settings {
-  width: 100%;
-
-  .section-header {
-    margin-bottom: 20px;
-
-    h2 {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--td-text-color-primary);
-      margin: 0 0 6px 0;
-    }
-
-    .section-description {
-      font-size: 14px;
-      color: var(--td-text-color-secondary);
-      margin: 0;
-      line-height: 1.5;
-    }
-  }
-
-  .settings-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .setting-row {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--td-component-stroke);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-
-  .setting-info {
-    flex: 1;
-    max-width: 65%;
-    padding-right: 24px;
-
-    label {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--td-text-color-primary);
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .desc {
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-      margin: 0;
-      line-height: 1.5;
-    }
-  }
-
-  .setting-control {
-    flex-shrink: 0;
-    min-width: 280px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-  }
-
-  .required {
-    color: var(--td-error-color);
-    margin-left: 2px;
-    font-weight: 500;
-  }
+.modal-enter-from .settings-modal,
+.modal-leave-to .settings-modal {
+  transform: scale(0.95);
 }
 </style>

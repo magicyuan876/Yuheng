@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { CircleCheckIcon, Loader2Icon, MinusCircleIcon, TagsIcon, Trash2Icon } from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const props = defineProps<{
   count: number;
@@ -24,134 +27,103 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const actionLoading = computed(() => props.tagLoading || props.statusAction != null || props.deleteLoading);
+const deleteConfirmOpen = ref(false);
 </script>
 
 <template>
   <transition name="faq-batch-bar-fade">
     <div
       v-if="count > 0 && (canEdit || canManage)"
-      class="faq-batch-bar"
+      class="box-border w-full max-w-[760px] px-1"
       role="region"
       :aria-label="t('knowledgeBase.selectedCount', { count })"
     >
-      <div class="faq-batch-bar__inner">
-        <div class="faq-batch-bar__selection">
-          <span class="faq-batch-bar__count">{{ t("knowledgeBase.selectedCount", { count }) }}</span>
-          <t-button variant="text" theme="default" size="small" :disabled="actionLoading" @click="emit('cancel')">
+      <div
+        class="bg-card flex items-center justify-between gap-3 rounded-[8px] border border-[var(--td-component-stroke)] px-3 py-2 shadow-[0_6px_16px_rgba(0,0,0,0.08)] max-[760px]:flex-col max-[760px]:items-stretch"
+      >
+        <div class="flex min-w-0 shrink-0 items-center gap-1">
+          <span class="text-muted-foreground text-[13px] font-medium whitespace-nowrap">{{
+            t("knowledgeBase.selectedCount", { count })
+          }}</span>
+          <Button variant="ghost" size="xs" class="font-normal" :disabled="actionLoading" @click="emit('cancel')">
             {{ t("knowledgeBase.clearSelection") }}
-          </t-button>
+          </Button>
         </div>
 
-        <div class="faq-batch-bar__actions">
-          <t-button
-            v-if="canEdit"
-            theme="default"
-            variant="outline"
-            size="small"
-            :disabled="actionLoading"
-            :loading="tagLoading"
-            @click="emit('batchTag')"
-          >
-            <template #icon><t-icon name="discount" size="14px" /></template>
+        <div class="flex flex-wrap items-center justify-end gap-2 max-[760px]:justify-start">
+          <Button v-if="canEdit" variant="outline" size="xs" :disabled="actionLoading" @click="emit('batchTag')">
+            <Loader2Icon v-if="tagLoading" class="size-3.5 animate-spin" />
+            <TagsIcon v-else class="size-3.5" />
             {{ t("knowledgeEditor.faq.batchUpdateTag") }}
-          </t-button>
+          </Button>
 
-          <t-button
+          <Button
             v-if="canEdit && disabledCount > 0"
-            theme="default"
             variant="outline"
-            size="small"
+            size="xs"
             :disabled="actionLoading"
-            :loading="statusAction === 'enable'"
             @click="emit('enable')"
           >
-            <template #icon><t-icon name="check-circle" size="14px" /></template>
+            <Loader2Icon v-if="statusAction === 'enable'" class="size-3.5 animate-spin" />
+            <CircleCheckIcon v-else class="size-3.5" />
             {{ t("knowledgeEditor.faq.batchEnable") }}
-          </t-button>
+          </Button>
 
-          <t-button
+          <Button
             v-if="canEdit && enabledCount > 0"
-            theme="default"
             variant="outline"
-            size="small"
+            size="xs"
             :disabled="actionLoading"
-            :loading="statusAction === 'disable'"
             @click="emit('disable')"
           >
-            <template #icon><t-icon name="minus-circle" size="14px" /></template>
+            <Loader2Icon v-if="statusAction === 'disable'" class="size-3.5 animate-spin" />
+            <MinusCircleIcon v-else class="size-3.5" />
             {{ t("knowledgeEditor.faq.batchDisable") }}
-          </t-button>
+          </Button>
 
-          <t-popconfirm
-            v-if="canManage"
-            theme="warning"
-            :content="t('knowledgeEditor.faq.confirmBatchDelete', { count })"
-            :confirm-btn="{ content: t('knowledgeBase.confirmDelete'), theme: 'danger' }"
-            :cancel-btn="{ content: t('common.cancel') }"
-            placement="top"
-            @confirm="emit('delete')"
-          >
-            <t-button
-              theme="danger"
+          <template v-if="canManage">
+            <!-- TDesign's danger outline: red text and border on the bar's own surface. -->
+            <Button
               variant="outline"
-              size="small"
+              size="xs"
+              class="border-destructive text-destructive hover:text-destructive dark:border-destructive hover:bg-[var(--td-error-color-1)]"
               :disabled="actionLoading"
-              :loading="deleteLoading"
-              @click.stop
+              @click.stop="deleteConfirmOpen = true"
             >
-              <template #icon><t-icon name="delete" size="14px" /></template>
+              <Loader2Icon v-if="deleteLoading" class="size-3.5 animate-spin" />
+              <Trash2Icon v-else class="size-3.5" />
               {{ t("knowledgeEditor.faq.batchDelete") }}
-            </t-button>
-          </t-popconfirm>
+            </Button>
+            <Dialog v-model:open="deleteConfirmOpen">
+              <DialogContent class="sm:max-w-[420px]">
+                <DialogHeader>
+                  <DialogTitle>{{ t("knowledgeEditor.faq.confirmBatchDelete", { count }) }}</DialogTitle>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" @click="deleteConfirmOpen = false">{{ t("common.cancel") }}</Button>
+                  <Button
+                    variant="destructive"
+                    :disabled="deleteLoading"
+                    @click="
+                      emit('delete');
+                      deleteConfirmOpen = false;
+                    "
+                  >
+                    {{ t("knowledgeBase.confirmDelete") }}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </template>
         </div>
       </div>
     </div>
   </transition>
 </template>
 
-<style scoped lang="less">
-.faq-batch-bar {
-  width: 100%;
-  max-width: 760px;
-  padding: 0 4px;
-  box-sizing: border-box;
-}
-
-.faq-batch-bar__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-}
-
-.faq-batch-bar__selection {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.faq-batch-bar__count {
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.faq-batch-bar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
+<!-- Vue <transition> hooks have no Tailwind equivalent; this is the only
+     style block in the file and exists solely to animate the bar in/out. -->
+<style scoped>
 .faq-batch-bar-fade-enter-active,
 .faq-batch-bar-fade-leave-active {
   transition:
@@ -163,16 +135,5 @@ const actionLoading = computed(() => props.tagLoading || props.statusAction != n
 .faq-batch-bar-fade-leave-to {
   opacity: 0;
   transform: translateY(6px);
-}
-
-@media (max-width: 760px) {
-  .faq-batch-bar__inner {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .faq-batch-bar__actions {
-    justify-content: flex-start;
-  }
 }
 </style>

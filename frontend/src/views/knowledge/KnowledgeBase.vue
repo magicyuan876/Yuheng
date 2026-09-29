@@ -72,6 +72,29 @@ import {
 import { useI18n } from "vue-i18n";
 import { useMarqueeSelect } from "@/hooks/useMarqueeSelect";
 import type { ParserEngineInfo } from "@/api/system";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  ClockIcon,
+  FileIcon,
+  FolderIcon,
+  InfoIcon,
+  LayoutGridIcon,
+  LinkIcon,
+  ListIcon,
+  Loader2Icon,
+  SearchIcon,
+  SettingsIcon,
+  TagsIcon,
+} from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 const route = useRoute();
 const { t } = useI18n();
 const kbId = computed(() => ((route.params as any).kbId as string) || "");
@@ -98,6 +121,14 @@ const wikiIndexingTip = computed(() => {
   if (!wikiIsIndexing.value) return "";
   return t("knowledgeEditor.wikiBrowser.queueStatus", { count: wikiStatus.value.pendingTasks || 0 });
 });
+// Classes of one breadcrumb tab (documents / Wiki / graph). The active tab and
+// a tab whose index is still being built both read in the brand colour and do
+// not change on hover; only the active one is bold.
+const breadcrumbTabClass = (tab: KbTab, indexing: boolean) => [
+  "inline-flex cursor-pointer items-center gap-1 transition-colors duration-150 select-none",
+  activeKbTab.value === tab ? "font-semibold" : "font-normal",
+  activeKbTab.value === tab || indexing ? "text-primary" : "text-placeholder hover:text-foreground",
+];
 const onWikiStatusChange = (payload: { pendingTasks: number; isActive: boolean; pendingIssues: number }) => {
   wikiStatus.value = payload;
 };
@@ -611,6 +642,56 @@ const sourceOptions = computed(() => [
 const updatedTimeRange = ref<string[]>([]);
 // Disable any date after today so users cannot filter into the future.
 const disableFutureDate = { after: new Date(new Date().setHours(23, 59, 59, 999)) };
+// The same bound for the native date inputs, as a local "YYYY-MM-DD" (an ISO
+// string would be the UTC date, a day off on either side of midnight).
+const latestFilterDate = (() => {
+  const d = disableFutureDate.after;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+})();
+// The range picker used to write the whole range at once, and [] when cleared.
+// The two date inputs edit one end each, so each edit writes a new array (the
+// selection-clearing watcher is shallow) and an emptied range collapses to [].
+const setUpdatedTimeRangeEdge = (edge: 0 | 1, value: string | number) => {
+  const next = [updatedTimeRange.value[0] ?? "", updatedTimeRange.value[1] ?? ""];
+  next[edge] = String(value);
+  updatedTimeRange.value = next.some(Boolean) ? next : [];
+};
+// The filter bar's inputs and select triggers share the look the old :deep()
+// overrides gave TDesign's: a filled field with no border until hovered or
+// focused, when it turns to the container colour with a brand border and no
+// focus ring.
+// The dark: variants are needed because Input and SelectTrigger set their own.
+const FILTER_CONTROL_CLASS =
+  "bg-muted dark:bg-muted border-transparent rounded-md text-[13px] shadow-none data-placeholder:text-placeholder hover:border-primary hover:bg-card dark:hover:bg-card focus-visible:border-primary focus-visible:bg-card dark:focus-visible:bg-card focus-visible:ring-0 data-[state=open]:border-primary data-[state=open]:bg-card dark:data-[state=open]:bg-card";
+// Reka's SelectItem cannot carry an empty value, which is what the "all …"
+// entries of the filter selects stand for; this sentinel stands in for it.
+const ALL_FILTER_VALUE = "__all__";
+const toFilterOptionValue = (value: string) => value || ALL_FILTER_VALUE;
+const fromFilterOptionValue = (value: unknown) => (value === ALL_FILTER_VALUE || value == null ? "" : String(value));
+// The three select filters of the toolbar, rendered by one template loop.
+const selectFilters = computed(() => [
+  {
+    key: "fileType",
+    model: selectedFileType,
+    icon: FileIcon,
+    placeholder: t("knowledgeBase.fileTypeFilter"),
+    options: fileTypeOptions.value,
+  },
+  {
+    key: "parseStatus",
+    model: selectedParseStatus,
+    icon: CircleCheckIcon,
+    placeholder: t("knowledgeBase.parseStatusFilter"),
+    options: parseStatusOptions.value,
+  },
+  {
+    key: "source",
+    model: selectedSource,
+    icon: LinkIcon,
+    placeholder: t("knowledgeBase.sourceFilter"),
+    options: sourceOptions.value,
+  },
+]);
 
 // ── Folder tree (documents uploaded as a folder keep their relative path) ──
 const FOLDER_TREE_COLLAPSED_KEY = "yuheng.kbFolderTreeCollapsed";
@@ -2293,101 +2374,148 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
 
 <template>
   <template v-if="!isFAQ">
-    <div class="knowledge-layout">
-      <div class="document-header">
-        <div class="document-header-title">
-          <div class="document-title-row">
-            <h2 class="document-breadcrumb">
-              <button type="button" class="breadcrumb-link" @click="handleNavigateToKbList">
+    <div class="mr-4 ml-1 box-border flex h-full w-full min-w-0 flex-1 flex-col gap-5 px-8 pt-6 pb-0">
+      <div class="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-col gap-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2
+              class="text-foreground m-0 flex items-center gap-1.5 [font-family:var(--app-font-family)] text-xl leading-8 font-semibold"
+            >
+              <button
+                type="button"
+                data-slot="breadcrumb-link"
+                class="text-muted-foreground enabled:hover:text-success enabled:hover:bg-card disabled:text-placeholder -mx-2 -my-1 inline-flex cursor-pointer items-center gap-1 rounded-md border-none bg-transparent px-2 py-1 transition-all duration-[120ms] disabled:cursor-not-allowed"
+                @click="handleNavigateToKbList"
+              >
                 {{ $t("menu.knowledgeBase") }}
               </button>
-              <t-icon name="chevron-right" class="breadcrumb-separator" />
+              <ChevronRightIcon class="text-placeholder size-3.5 shrink-0" />
               <KBSwitcherDropdown
                 v-if="knowledgeList.length"
                 :kb-list="knowledgeList"
                 :current-kb-id="kbId"
                 @select="(id) => handleKnowledgeDropdownSelect({ value: id })"
               >
-                <button type="button" class="breadcrumb-link dropdown" :disabled="!kbId">
+                <button
+                  type="button"
+                  data-slot="breadcrumb-link"
+                  class="group text-muted-foreground enabled:hover:text-success enabled:hover:bg-card disabled:text-placeholder -mx-2 -my-1 inline-flex cursor-pointer items-center gap-1 rounded-md border-none bg-transparent py-1 pr-1.5 pl-2 transition-all duration-[120ms] disabled:cursor-not-allowed"
+                  :disabled="!kbId"
+                >
                   <template v-if="!kbInfo">
-                    <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
+                    <Skeleton class="h-5 w-[120px]" />
                   </template>
                   <template v-else>
                     <span>{{ kbInfo.name }}</span>
-                    <t-icon name="chevron-down" />
+                    <ChevronDownIcon
+                      class="size-3.5 transition-transform duration-[120ms] group-enabled:group-hover:translate-y-px"
+                    />
                   </template>
                 </button>
               </KBSwitcherDropdown>
-              <button v-else type="button" class="breadcrumb-link" :disabled="!kbId" @click="handleNavigateToCurrentKB">
+              <button
+                v-else
+                type="button"
+                data-slot="breadcrumb-link"
+                class="text-muted-foreground enabled:hover:text-success enabled:hover:bg-card disabled:text-placeholder -mx-2 -my-1 inline-flex cursor-pointer items-center gap-1 rounded-md border-none bg-transparent px-2 py-1 transition-all duration-[120ms] disabled:cursor-not-allowed"
+                :disabled="!kbId"
+                @click="handleNavigateToCurrentKB"
+              >
                 <template v-if="!kbInfo">
-                  <t-skeleton animation="gradient" :row-col="[{ width: '120px', height: '20px' }]" />
+                  <Skeleton class="h-5 w-[120px]" />
                 </template>
                 <template v-else>
                   {{ kbInfo.name }}
                 </template>
               </button>
-              <t-icon name="chevron-right" class="breadcrumb-separator" />
+              <ChevronRightIcon class="text-placeholder size-3.5 shrink-0" />
               <template v-if="isWiki">
-                <span
-                  :class="['breadcrumb-tab', { active: activeKbTab === 'documents' }]"
-                  @click="activeKbTab = 'documents'"
-                  >{{ $t("knowledgeEditor.wikiBrowser.tabDocuments") }}</span
-                >
-                <span class="breadcrumb-tab-sep">/</span>
-                <span
-                  :class="['breadcrumb-tab', { active: activeKbTab === 'wiki', indexing: wikiIsIndexing }]"
-                  @click="activeKbTab = 'wiki'"
-                >
+                <span :class="breadcrumbTabClass('documents', false)" @click="activeKbTab = 'documents'">{{
+                  $t("knowledgeEditor.wikiBrowser.tabDocuments")
+                }}</span>
+                <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
+                <span :class="breadcrumbTabClass('wiki', wikiIsIndexing)" @click="activeKbTab = 'wiki'">
                   Wiki
-                  <t-tooltip v-if="wikiIsIndexing" :content="wikiIndexingTip" placement="bottom">
-                    <t-loading size="small" class="breadcrumb-tab-indicator" />
-                  </t-tooltip>
+                  <Tooltip v-if="wikiIsIndexing">
+                    <TooltipTrigger as-child>
+                      <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
+                  </Tooltip>
                 </span>
-                <span class="breadcrumb-tab-sep">/</span>
-                <t-tooltip :content="$t('knowledgeEditor.wikiBrowser.tabGraphTip')" placement="bottom">
-                  <span
-                    :class="['breadcrumb-tab', { active: activeKbTab === 'graph', indexing: wikiIsIndexing }]"
-                    @click="activeKbTab = 'graph'"
-                  >
-                    {{ $t("knowledgeEditor.wikiBrowser.tabGraph") }}
-                    <t-tooltip v-if="wikiIsIndexing" :content="wikiIndexingTip" placement="bottom">
-                      <t-loading size="small" class="breadcrumb-tab-indicator" />
-                    </t-tooltip>
-                  </span>
-                </t-tooltip>
+                <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span :class="breadcrumbTabClass('graph', wikiIsIndexing)" @click="activeKbTab = 'graph'">
+                      {{ $t("knowledgeEditor.wikiBrowser.tabGraph") }}
+                      <!-- As before, the indexing spinner carries its own tooltip inside the tab's. -->
+                      <Tooltip v-if="wikiIsIndexing">
+                        <TooltipTrigger as-child>
+                          <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
+                      </Tooltip>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{{ $t("knowledgeEditor.wikiBrowser.tabGraphTip") }}</TooltipContent>
+                </Tooltip>
               </template>
-              <span v-else class="breadcrumb-current">{{ $t("knowledgeEditor.document.title") }}</span>
+              <span v-else class="text-foreground font-semibold">{{ $t("knowledgeEditor.document.title") }}</span>
             </h2>
             <!-- 标题行右侧的动作锚点：聚拢"信息"和"设置"两个圆形按钮。 -->
-            <div class="kb-title-actions">
+            <div class="ml-1 inline-flex shrink-0 items-center gap-1.5">
               <KBInfoPopover v-if="kbInfo" :kb-info="kbInfo" :supported-file-types="[...supportedFileTypes]" />
-              <t-tooltip v-if="canManage" :content="$t('knowledgeBase.settings')" placement="top">
-                <button type="button" class="kb-settings-button" :disabled="!kbId" @click="handleOpenKBSettings">
-                  <t-icon name="setting" size="16px" />
-                </button>
-              </t-tooltip>
+              <Tooltip v-if="canManage">
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    data-slot="kb-settings-button"
+                    class="bg-muted text-muted-foreground enabled:hover:text-primary inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none p-0 transition-all duration-200 enabled:hover:bg-[var(--td-success-color-light)] disabled:cursor-not-allowed disabled:opacity-40"
+                    :disabled="!kbId"
+                    :aria-label="$t('knowledgeBase.settings')"
+                    @click="handleOpenKBSettings"
+                  >
+                    <SettingsIcon class="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{{ $t("knowledgeBase.settings") }}</TooltipContent>
+              </Tooltip>
             </div>
           </div>
-          <p class="document-subtitle">{{ $t("knowledgeEditor.document.subtitle") }}</p>
-          <p v-if="unsupportedFileTypes.length" class="parser-hint" @click="goToParserSettings">
-            <t-icon name="info-circle" class="parser-hint-icon" />
+          <p class="text-placeholder m-0 font-[family-name:var(--app-font-family)] text-sm leading-5 font-normal">
+            {{ $t("knowledgeEditor.document.subtitle") }}
+          </p>
+          <p
+            v-if="unsupportedFileTypes.length"
+            class="group text-warning m-0 mt-0.5 flex cursor-pointer items-center gap-1 text-xs leading-[1.4] transition-colors hover:text-[var(--td-warning-color-active)]"
+            @click="goToParserSettings"
+          >
+            <InfoIcon class="size-3 shrink-0" />
             <span>{{
               $t("knowledgeBase.unsupportedTypesHint", {
                 types: unsupportedFileTypes.map((t) => "." + t).join("、"),
               })
             }}</span>
-            <span class="parser-hint-link">{{ $t("knowledgeBase.goToParserSettings") }} →</span>
+            <span class="text-primary ml-0.5 whitespace-nowrap group-hover:underline"
+              >{{ $t("knowledgeBase.goToParserSettings") }} →</span
+            >
           </p>
-          <p v-if="missingStorageEngine" class="storage-engine-warning" @click="handleOpenKBSettings">
-            <t-icon name="info-circle" class="warning-icon" />
+          <p
+            v-if="missingStorageEngine"
+            class="group text-warning m-0 mt-0.5 flex cursor-pointer items-center gap-1 text-xs leading-[1.4] transition-colors hover:text-[var(--td-warning-color-active)]"
+            @click="handleOpenKBSettings"
+          >
+            <InfoIcon class="size-3 shrink-0" />
             <span>{{ $t("knowledgeBase.missingStorageEngine") }}</span>
-            <span class="warning-link">{{ $t("knowledgeBase.goToStorageSettings") }} →</span>
+            <span class="text-primary ml-0.5 whitespace-nowrap group-hover:underline"
+              >{{ $t("knowledgeBase.goToStorageSettings") }} →</span
+            >
           </p>
         </div>
       </div>
 
       <!-- Wiki Browser / Graph (shown when wiki or graph tab is active) -->
-      <div v-if="isWiki && (activeKbTab === 'wiki' || activeKbTab === 'graph')" class="wiki-main-area">
+      <div v-if="isWiki && (activeKbTab === 'wiki' || activeKbTab === 'graph')" class="min-h-0 flex-1 overflow-hidden">
         <WikiBrowser
           v-if="kbId"
           :knowledge-base-id="kbId"
@@ -2400,7 +2528,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
       </div>
 
       <template v-if="activeKbTab === 'documents' || !isWiki">
-        <div class="knowledge-main">
+        <div class="flex min-h-0 flex-1">
           <KbFolderTree
             v-if="showFolderTree && !folderTreeCollapsed"
             :tree="folderTree"
@@ -2411,250 +2539,365 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
             @update:collapsed="handleFolderTreeCollapsedChange"
             @rename="handleFolderRename"
           />
-          <div class="tag-content">
-            <div class="doc-card-area">
-              <nav v-if="showFolderTree" class="doc-folder-path" :aria-label="$t('knowledgeBase.folderTree.title')">
-                <t-tooltip v-if="folderTreeCollapsed" :content="$t('knowledgeBase.folderTree.expand')" placement="top">
-                  <button
-                    type="button"
-                    class="doc-folder-path__tree-toggle"
-                    :aria-label="$t('knowledgeBase.folderTree.expand')"
-                    @click="handleFolderTreeCollapsedChange(false)"
-                  >
-                    <t-icon name="folder" size="14px" />
-                  </button>
-                </t-tooltip>
-                <span v-if="!folderBreadcrumbs.length" class="doc-folder-path__crumb is-current">
+          <div class="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent">
+            <div
+              class="[container-type:inline-size] relative flex min-w-0 flex-1 flex-col overflow-hidden [container-name:doc-card-area]"
+            >
+              <nav
+                v-if="showFolderTree"
+                class="flex shrink-0 flex-wrap items-center gap-0.5 pb-2"
+                :aria-label="$t('knowledgeBase.folderTree.title')"
+              >
+                <Tooltip v-if="folderTreeCollapsed">
+                  <TooltipTrigger as-child>
+                    <button
+                      type="button"
+                      data-slot="folder-tree-toggle"
+                      class="border-border bg-card text-muted-foreground hover:border-primary hover:text-primary hover:bg-accent mr-1 inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all duration-150"
+                      :aria-label="$t('knowledgeBase.folderTree.expand')"
+                      @click="handleFolderTreeCollapsedChange(false)"
+                    >
+                      <FolderIcon class="size-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{{ $t("knowledgeBase.folderTree.expand") }}</TooltipContent>
+                </Tooltip>
+                <span
+                  v-if="!folderBreadcrumbs.length"
+                  class="text-foreground max-w-[220px] cursor-default truncate rounded px-1 py-0.5 [font-family:var(--app-font-family)] text-xs leading-[18px] font-medium"
+                >
                   {{ $t("knowledgeBase.folderTree.rootRow") }}
                 </span>
-                <button v-else type="button" class="doc-folder-path__crumb" @click="handleFolderSelect('')">
+                <button
+                  v-else
+                  type="button"
+                  data-slot="folder-crumb"
+                  class="text-muted-foreground hover:text-primary hover:bg-accent max-w-[220px] cursor-pointer truncate rounded px-1 py-0.5 [font-family:var(--app-font-family)] text-xs leading-[18px] transition-colors duration-150"
+                  @click="handleFolderSelect('')"
+                >
                   {{ $t("knowledgeBase.folderTree.rootRow") }}
                 </button>
                 <template v-for="(crumb, index) in folderBreadcrumbs" :key="crumb.path">
-                  <t-icon name="chevron-right" class="doc-folder-path__sep" />
-                  <span v-if="index === folderBreadcrumbs.length - 1" class="doc-folder-path__crumb is-current">
+                  <ChevronRightIcon class="text-placeholder size-3 shrink-0" />
+                  <span
+                    v-if="index === folderBreadcrumbs.length - 1"
+                    class="text-foreground max-w-[220px] cursor-default truncate rounded px-1 py-0.5 [font-family:var(--app-font-family)] text-xs leading-[18px] font-medium"
+                  >
                     {{ crumb.name }}
                   </span>
-                  <button v-else type="button" class="doc-folder-path__crumb" @click="handleFolderSelect(crumb.path)">
+                  <button
+                    v-else
+                    type="button"
+                    data-slot="folder-crumb"
+                    class="text-muted-foreground hover:text-primary hover:bg-accent max-w-[220px] cursor-pointer truncate rounded px-1 py-0.5 [font-family:var(--app-font-family)] text-xs leading-[18px] transition-colors duration-150"
+                    @click="handleFolderSelect(crumb.path)"
+                  >
                     {{ crumb.name }}
                   </button>
                 </template>
                 <!-- Filtering silently widens the scope to sub-folders, so say so. -->
-                <span v-if="isFiltering" class="doc-folder-path__scope">
+                <span v-if="isFiltering" class="text-placeholder text-xs">
                   {{ $t("knowledgeBase.folderTree.searchingSubtree") }}
                 </span>
               </nav>
-              <div class="doc-filter-bar">
-                <t-input
-                  v-model.trim="docSearchKeyword"
-                  :placeholder="$t('knowledgeBase.docSearchPlaceholder')"
-                  clearable
-                  class="doc-search-input"
-                  @clear="loadKnowledgeFiles(kbId)"
-                  @enter="loadKnowledgeFiles(kbId)"
+              <!-- Two rows (search + trailing actions, then the filters) until the
+                   content area itself is wide enough for one; see the @container
+                   rule in the style block. -->
+              <div
+                class="doc-filter-bar-responsive grid shrink-0 [grid-template-columns:1fr_auto] items-center gap-x-3 gap-y-2 pb-3 [grid-template-areas:'search_trailing'_'filters_filters']"
+              >
+                <div
+                  class="relative w-full min-w-0 [grid-area:search] min-[1280px]:min-w-[220px] min-[1280px]:flex-[1_1_220px]"
                 >
-                  <template #prefix-icon>
-                    <t-icon name="search" size="16px" />
-                  </template>
-                </t-input>
-                <div class="doc-filter-bar__filters">
-                  <t-popup
-                    v-model:visible="tagFilterPanelVisible"
-                    trigger="click"
-                    placement="bottom-left"
-                    overlay-class-name="tag-filter-popup"
-                    :overlay-inner-style="{ padding: 0 }"
+                  <SearchIcon
+                    class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                  />
+                  <Input
+                    v-model.trim="docSearchKeyword"
+                    :placeholder="$t('knowledgeBase.docSearchPlaceholder')"
+                    :class="[FILTER_CONTROL_CLASS, 'h-8 pr-8 pl-8']"
+                    @keydown.enter="loadKnowledgeFiles(kbId)"
+                  />
+                  <button
+                    v-if="docSearchKeyword"
+                    type="button"
+                    data-slot="input-clear"
+                    class="text-placeholder hover:text-foreground absolute top-1/2 right-2.5 inline-flex -translate-y-1/2 cursor-pointer"
+                    :aria-label="$t('common.clear')"
+                    @click="
+                      docSearchKeyword = '';
+                      loadKnowledgeFiles(kbId);
+                    "
                   >
-                    <template #content>
-                      <div class="tag-filter-panel" @click.stop>
-                        <div class="tag-filter-panel__header">
-                          <div class="tag-filter-panel__title">
+                    <CircleXIcon class="size-4" />
+                  </button>
+                </div>
+                <div
+                  class="doc-filter-bar-filters flex min-w-0 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.15)_transparent] flex-nowrap items-center gap-3 overflow-x-auto [grid-area:filters]"
+                >
+                  <div class="w-[140px] shrink-0">
+                    <Popover v-model:open="tagFilterPanelVisible">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="tag-filter-trigger"
+                          class="bg-muted box-border inline-flex h-8 w-full cursor-pointer items-center rounded-[var(--td-radius-default)] border border-transparent px-2 [font-family:var(--app-font-family)] text-sm leading-none transition-all duration-200"
+                          :class="isTagFilterPlaceholder ? 'text-placeholder' : 'text-foreground'"
+                          :aria-label="$t('knowledgeBase.tagFilterTitle')"
+                          :title="activeTagFilterTitle"
+                          @mouseenter="tagFilterTriggerHover = true"
+                          @mouseleave="tagFilterTriggerHover = false"
+                        >
+                          <span class="text-placeholder mr-2 inline-flex shrink-0 items-center" aria-hidden="true">
+                            <TagsIcon class="size-4" />
+                          </span>
+                          <span class="min-w-0 flex-1 truncate text-left">{{ activeTagFilterLabel }}</span>
+                          <span class="ml-2 inline-flex shrink-0 items-center">
+                            <span
+                              v-if="showTagFilterClear"
+                              class="text-placeholder hover:text-foreground inline-flex cursor-pointer"
+                              :aria-label="$t('common.clear')"
+                              @click.stop="clearTagFilter"
+                              @mousedown.stop
+                              @pointerdown.stop
+                            >
+                              <CircleXIcon class="size-4" />
+                            </span>
+                            <ChevronDownIcon
+                              v-else
+                              class="size-4 shrink-0 transition-[transform,color] duration-200"
+                              :class="tagFilterPanelVisible ? 'text-primary rotate-180' : 'text-placeholder'"
+                            />
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        class="border-border box-border flex max-h-[min(70vh,480px)] w-[320px] max-w-[min(320px,calc(100vw-32px))] flex-col gap-0 rounded-[8px] border-[0.5px] px-3.5 py-3 text-xs shadow-[0_0_0_0.5px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.1)] ring-0"
+                        @click.stop
+                      >
+                        <div class="text-foreground mb-2.5 flex items-center justify-between">
+                          <div class="flex items-baseline gap-1.5 text-sm font-semibold tracking-[0.5px]">
                             <span>{{ $t("knowledgeBase.tagFilterTitle") }}</span>
-                            <span class="tag-filter-panel__count">({{ sidebarCategoryCount }})</span>
+                            <span class="text-placeholder text-xs font-normal">({{ sidebarCategoryCount }})</span>
                           </div>
                         </div>
-                        <div class="tag-search-bar">
-                          <t-input
+                        <div class="relative mb-2.5">
+                          <SearchIcon
+                            class="text-placeholder pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2"
+                          />
+                          <Input
                             v-model.trim="tagSearchQuery"
-                            size="small"
                             :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
-                            clearable
+                            :class="[
+                              FILTER_CONTROL_CLASS,
+                              'hover:border-border focus-visible:border-border h-6 pr-7 pl-7',
+                            ]"
+                          />
+                          <button
+                            v-if="tagSearchQuery"
+                            type="button"
+                            data-slot="input-clear"
+                            class="text-placeholder hover:text-foreground absolute top-1/2 right-2 inline-flex -translate-y-1/2 cursor-pointer"
+                            :aria-label="$t('common.clear')"
+                            @click="tagSearchQuery = ''"
                           >
-                            <template #prefix-icon>
-                              <t-icon name="search" size="14px" />
-                            </template>
-                          </t-input>
+                            <CircleXIcon class="size-3.5" />
+                          </button>
                         </div>
-                        <div class="tag-filter-panel__body">
+                        <div
+                          class="flex min-h-0 flex-1 [scrollbar-width:thin] flex-col gap-2 overflow-x-hidden overflow-y-auto"
+                        >
                           <template v-if="tagLoading && !sidebarTags.length">
-                            <div class="tag-filter-chips">
-                              <div v-for="n in 8" :key="'skel-tag-' + n" class="tag-filter-chip-skeleton">
-                                <t-skeleton
-                                  animation="gradient"
-                                  :row-col="[{ width: '56px', height: '24px', type: 'rect' }]"
-                                />
+                            <div class="flex flex-wrap items-start gap-1.5">
+                              <div v-for="n in 8" :key="'skel-tag-' + n" class="shrink-0">
+                                <Skeleton class="h-6 w-14 rounded-sm" />
                               </div>
                             </div>
                           </template>
                           <template v-else>
-                            <div class="tag-filter-chips">
+                            <div class="flex flex-wrap items-start gap-1.5">
                               <button
                                 v-for="tag in sidebarTags"
                                 :key="tag.id"
                                 type="button"
-                                class="tag-filter-chip"
-                                :class="{ active: isTagFilterActive(tag.id) }"
+                                data-slot="tag-filter-chip"
+                                class="group/chip box-border inline-flex h-6 max-w-full cursor-pointer items-center gap-1 rounded border px-2 [font-family:var(--app-font-family)] text-[11px] leading-6 antialiased transition-colors duration-150 outline-none focus-visible:shadow-[0_0_0_2px_color-mix(in_srgb,var(--td-component-stroke)_60%,transparent)]"
+                                :class="
+                                  isTagFilterActive(tag.id)
+                                    ? 'text-primary border-[color-mix(in_srgb,var(--td-brand-color)_35%,var(--td-component-stroke))] bg-[color-mix(in_srgb,var(--td-brand-color)_6%,transparent)] font-medium hover:bg-[color-mix(in_srgb,var(--td-brand-color)_10%,transparent)]'
+                                    : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground bg-transparent font-normal hover:border-[var(--td-component-border)]'
+                                "
+                                :data-active="isTagFilterActive(tag.id) || undefined"
                                 :title="`${tag.name} (${tag.knowledge_count || 0})`"
                                 @click="handleTagRowClick(tag.id)"
                               >
-                                <span class="tag-filter-chip__label">{{ tag.name }}</span>
-                                <span class="tag-filter-chip__count">{{ tag.knowledge_count || 0 }}</span>
+                                <span class="max-w-[120px] min-w-0 truncate">{{ tag.name }}</span>
+                                <span
+                                  class="shrink-0 text-[10px] font-normal [font-variant-numeric:tabular-nums] before:mr-0.5 before:opacity-65 before:content-['·']"
+                                  :class="
+                                    isTagFilterActive(tag.id)
+                                      ? 'text-[color-mix(in_srgb,var(--td-brand-color)_72%,var(--td-text-color-secondary))]'
+                                      : 'text-placeholder'
+                                  "
+                                  >{{ tag.knowledge_count || 0 }}</span
+                                >
                               </button>
                             </div>
-                            <div v-if="!sidebarTags.length" class="tag-empty-state">
+                            <div v-if="!sidebarTags.length" class="text-placeholder py-1.5 text-center text-xs">
                               {{ $t("knowledgeBase.tagEmptyResult") }}
                             </div>
-                            <div v-if="tagHasMore" class="tag-load-more">
-                              <t-button
-                                variant="text"
-                                size="small"
-                                :loading="tagLoadingMore"
+                            <div v-if="tagHasMore" class="flex justify-center pt-0.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                class="text-placeholder h-auto p-0 text-xs"
+                                :disabled="tagLoadingMore"
                                 @click.stop="kbId && loadTags(kbId)"
                               >
+                                <Loader2Icon v-if="tagLoadingMore" class="animate-spin" />
                                 {{ $t("tenant.loadMore") }}
-                              </t-button>
+                              </Button>
                             </div>
                           </template>
                         </div>
-                        <div v-if="canEdit" class="tag-filter-panel__footer">
-                          <t-button variant="text" size="small" class="tag-manage-link" @click="openTagManageDrawer">
-                            {{ $t("knowledgeBase.tagManageLink") }}
-                          </t-button>
-                        </div>
-                      </div>
-                    </template>
-                    <div class="doc-filter-field">
-                      <button
-                        type="button"
-                        class="doc-tag-filter-trigger doc-filter-field__control"
-                        :class="{ open: tagFilterPanelVisible, 'is-placeholder': isTagFilterPlaceholder }"
-                        :aria-label="$t('knowledgeBase.tagFilterTitle')"
-                        :title="activeTagFilterTitle"
-                        @mouseenter="tagFilterTriggerHover = true"
-                        @mouseleave="tagFilterTriggerHover = false"
-                      >
-                        <span class="doc-tag-filter-trigger__prefix" aria-hidden="true">
-                          <t-icon name="discount" size="16px" />
-                        </span>
-                        <span class="doc-tag-filter-trigger__label">{{ activeTagFilterLabel }}</span>
-                        <span class="doc-tag-filter-trigger__suffix">
-                          <span
-                            v-if="showTagFilterClear"
-                            class="t-input__suffix t-input__suffix-icon t-input__clear"
-                            :aria-label="$t('common.clear')"
-                            @click.stop="clearTagFilter"
-                            @mousedown.stop
+                        <div v-if="canEdit" class="border-border mt-2.5 flex justify-start border-t pt-2.5">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            class="text-muted-foreground hover:text-primary focus-visible:text-primary h-auto min-h-0 p-0 text-[13px] transition-colors duration-150 hover:no-underline"
+                            @click="openTagManageDrawer"
                           >
-                            <t-icon name="close-circle-filled" class="t-input__suffix-clear" />
-                          </span>
-                          <t-icon
-                            v-else
-                            name="chevron-down"
-                            size="16px"
-                            class="doc-tag-filter-trigger__caret"
-                            :class="{ open: tagFilterPanelVisible }"
-                          />
-                        </span>
-                      </button>
+                            {{ $t("knowledgeBase.tagManageLink") }}
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <!-- The three selects were clearable; the × stands beside the trigger
+                       (not inside it, where it would open the list) over its chevron. -->
+                  <div v-for="filter in selectFilters" :key="filter.key" class="relative w-[140px] shrink-0">
+                    <Select
+                      :model-value="filter.model.value || undefined"
+                      @update:model-value="(val) => (filter.model.value = fromFilterOptionValue(val))"
+                    >
+                      <SelectTrigger
+                        :class="[
+                          FILTER_CONTROL_CLASS,
+                          'h-8 w-full gap-0 pl-2',
+                          filter.model.value ? '[&>svg:last-child]:invisible' : '',
+                        ]"
+                      >
+                        <component :is="filter.icon" class="text-placeholder mr-2 size-4 shrink-0" />
+                        <SelectValue :placeholder="filter.placeholder" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="opt in filter.options"
+                          :key="opt.value"
+                          :value="toFilterOptionValue(opt.value)"
+                        >
+                          {{ opt.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <button
+                      v-if="filter.model.value"
+                      type="button"
+                      data-slot="input-clear"
+                      class="text-placeholder hover:text-foreground absolute top-1/2 right-2 inline-flex -translate-y-1/2 cursor-pointer"
+                      :aria-label="$t('common.clear')"
+                      @click="filter.model.value = ''"
+                    >
+                      <CircleXIcon class="size-4" />
+                    </button>
+                  </div>
+                  <div class="w-[280px] shrink-0">
+                    <!-- Two native date inputs stand in for TDesign's range picker; the
+                         new stack has no date picker yet. -->
+                    <div class="relative flex w-full items-center gap-1">
+                      <ClockIcon
+                        class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 z-[1] size-4 -translate-y-1/2"
+                      />
+                      <Input
+                        :model-value="updatedTimeRange[0] ?? ''"
+                        type="date"
+                        :max="latestFilterDate"
+                        :aria-label="$t('knowledgeBase.updatedTimeFrom')"
+                        :title="$t('knowledgeBase.updatedTimeFrom')"
+                        :class="[FILTER_CONTROL_CLASS, 'h-8 min-w-0 pr-1 pl-8']"
+                        @update:model-value="(val) => setUpdatedTimeRangeEdge(0, val)"
+                      />
+                      <span class="text-placeholder shrink-0">–</span>
+                      <Input
+                        :model-value="updatedTimeRange[1] ?? ''"
+                        type="date"
+                        :max="latestFilterDate"
+                        :aria-label="$t('knowledgeBase.updatedTimeTo')"
+                        :title="$t('knowledgeBase.updatedTimeTo')"
+                        :class="[FILTER_CONTROL_CLASS, 'h-8 min-w-0 pl-1.5']"
+                        @update:model-value="(val) => setUpdatedTimeRangeEdge(1, val)"
+                      />
                     </div>
-                  </t-popup>
-                  <div class="doc-filter-field">
-                    <t-select
-                      v-model="selectedFileType"
-                      :options="fileTypeOptions"
-                      :placeholder="$t('knowledgeBase.fileTypeFilter')"
-                      class="doc-type-select doc-filter-field__control"
-                      clearable
-                    >
-                      <template #prefixIcon>
-                        <t-icon name="file" size="16px" />
-                      </template>
-                    </t-select>
-                  </div>
-                  <div class="doc-filter-field">
-                    <t-select
-                      v-model="selectedParseStatus"
-                      :options="parseStatusOptions"
-                      :placeholder="$t('knowledgeBase.parseStatusFilter')"
-                      class="doc-type-select doc-filter-field__control"
-                      clearable
-                    >
-                      <template #prefixIcon>
-                        <t-icon name="check-circle" size="16px" />
-                      </template>
-                    </t-select>
-                  </div>
-                  <div class="doc-filter-field">
-                    <t-select
-                      v-model="selectedSource"
-                      :options="sourceOptions"
-                      :placeholder="$t('knowledgeBase.sourceFilter')"
-                      class="doc-type-select doc-filter-field__control"
-                      clearable
-                    >
-                      <template #prefixIcon>
-                        <t-icon name="link" size="16px" />
-                      </template>
-                    </t-select>
-                  </div>
-                  <div class="doc-filter-field doc-filter-field--wide">
-                    <t-date-range-picker
-                      v-model="updatedTimeRange"
-                      :placeholder="[$t('knowledgeBase.updatedTimeFrom'), $t('knowledgeBase.updatedTimeTo')]"
-                      :disable-date="disableFutureDate"
-                      class="doc-date-range doc-filter-field__control"
-                      clearable
-                      allow-input
-                    >
-                      <template #prefixIcon>
-                        <t-icon name="time" size="16px" />
-                      </template>
-                    </t-date-range-picker>
                   </div>
                 </div>
-                <div class="doc-filter-bar__trailing">
-                  <div class="doc-view-toggle" role="group" :aria-label="$t('knowledgeBase.viewModeToggle')">
-                    <t-tooltip :content="$t('knowledgeBase.viewModeGrid')" placement="top">
-                      <button
-                        type="button"
-                        class="doc-view-toggle-btn"
-                        :class="{ active: viewMode === 'grid' }"
-                        @click="viewMode = 'grid'"
-                        :aria-pressed="viewMode === 'grid'"
-                      >
-                        <t-icon name="view-module" size="16px" />
-                      </button>
-                    </t-tooltip>
-                    <t-tooltip :content="$t('knowledgeBase.viewModeList')" placement="top">
-                      <button
-                        type="button"
-                        class="doc-view-toggle-btn"
-                        :class="{ active: viewMode === 'list' }"
-                        @click="viewMode = 'list'"
-                        :aria-pressed="viewMode === 'list'"
-                      >
-                        <t-icon name="view-list" size="16px" />
-                      </button>
-                    </t-tooltip>
+                <div class="relative z-[1] flex shrink-0 items-center gap-2 [grid-area:trailing]">
+                  <div
+                    class="bg-muted inline-flex shrink-0 items-center rounded-md p-0.5"
+                    role="group"
+                    :aria-label="$t('knowledgeBase.viewModeToggle')"
+                  >
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="view-toggle"
+                          class="inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded transition-colors duration-[120ms]"
+                          :class="
+                            viewMode === 'grid'
+                              ? 'bg-card text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                              : 'text-muted-foreground hover:text-foreground bg-transparent'
+                          "
+                          :aria-label="$t('knowledgeBase.viewModeGrid')"
+                          :aria-pressed="viewMode === 'grid'"
+                          @click="viewMode = 'grid'"
+                        >
+                          <LayoutGridIcon class="size-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{{ $t("knowledgeBase.viewModeGrid") }}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="view-toggle"
+                          class="inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded transition-colors duration-[120ms]"
+                          :class="
+                            viewMode === 'list'
+                              ? 'bg-card text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                              : 'text-muted-foreground hover:text-foreground bg-transparent'
+                          "
+                          :aria-label="$t('knowledgeBase.viewModeList')"
+                          :aria-pressed="viewMode === 'list'"
+                          @click="viewMode = 'list'"
+                        >
+                          <ListIcon class="size-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{{ $t("knowledgeBase.viewModeList") }}</TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div v-if="canEdit" class="doc-filter-actions">
+                  <div v-if="canEdit" class="shrink-0">
+                    <!-- content-bar-icon-btn is the trigger's old hook class; the utilities
+                         carry what the old :deep() rule gave it. -->
                     <KbUploadSourceDropdown
                       ref="uploadSourceRef"
                       :accept-file-types="acceptFileTypes"
                       :supported-file-types="[...supportedFileTypes]"
                       include-manual
                       trigger-icon="file-add"
-                      trigger-class="content-bar-icon-btn"
+                      trigger-class="content-bar-icon-btn text-muted-foreground hover:text-primary hover:bg-muted border-none bg-transparent"
                       data-guide="kb-detail-add-doc"
                       :tooltip="t('knowledgeBase.addDocument')"
                       placement="bottom-right"
@@ -2666,50 +2909,52 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                 </div>
               </div>
               <div
-                class="doc-scroll-container"
-                :class="{
-                  'is-empty': !cardList.length && !currentChildFolders.length && !docListLoading,
-                  'is-marquee-active': docMarqueeVisible,
-                }"
+                class="relative min-h-0 flex-1 overflow-x-hidden pr-1"
+                :class="[
+                  !cardList.length && !currentChildFolders.length && !docListLoading
+                    ? 'flex items-center justify-center overflow-y-hidden'
+                    : 'overflow-y-auto',
+                  { 'cursor-crosshair': docMarqueeVisible },
+                ]"
                 ref="knowledgeScroll"
                 @scroll="handleScroll"
                 @mousedown="onDocMarqueeMouseDown"
               >
                 <div
                   v-if="docMarqueeVisible"
-                  class="doc-marquee-box"
-                  :class="{ 'is-add': docMarqueeMode === 'add', 'is-subtract': docMarqueeMode === 'subtract' }"
+                  class="pointer-events-none absolute z-[4] rounded-[2px] border"
+                  :class="
+                    docMarqueeMode === 'subtract'
+                      ? 'border-[var(--td-error-color-6)] bg-[color-mix(in_srgb,var(--td-error-color-6)_12%,transparent)]'
+                      : docMarqueeMode === 'add'
+                        ? 'border-primary bg-primary/14'
+                        : 'border-primary bg-primary/12'
+                  "
                   :style="docMarqueeBoxStyle"
                   aria-hidden="true"
                 />
                 <!-- 文档骨架屏 -->
                 <div
                   v-if="docListLoading && cardList.length === 0 && !currentChildFolders.length"
-                  class="doc-card-list doc-card-list-animated"
+                  class="doc-skeleton-fade-in box-border grid w-full [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))] content-start gap-3"
                 >
-                  <div v-for="n in 8" :key="'doc-skel-' + n" class="knowledge-card knowledge-card-skeleton">
-                    <div class="card-content">
-                      <div class="card-content-nav">
-                        <t-skeleton animation="gradient" :row-col="[{ width: '70%', height: '18px' }]" />
+                  <div
+                    v-for="n in 8"
+                    :key="'doc-skel-' + n"
+                    class="border-border bg-card relative box-border flex h-[136px] min-w-[240px] cursor-default flex-col overflow-hidden rounded-[8px] border shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                  >
+                    <div class="flex min-h-0 flex-1 flex-col px-3.5 pt-2.5 pb-2">
+                      <div class="mb-2">
+                        <Skeleton class="h-[18px] w-[70%]" />
                       </div>
-                      <t-skeleton
-                        animation="gradient"
-                        :row-col="[
-                          { width: '100%', height: '14px' },
-                          { width: '60%', height: '14px' },
-                        ]"
-                      />
+                      <Skeleton class="h-3.5 w-full" />
+                      <Skeleton class="mt-3 h-3.5 w-[60%]" />
                     </div>
-                    <div class="card-bottom">
-                      <t-skeleton
-                        animation="gradient"
-                        :row-col="[
-                          [
-                            { width: '80px', height: '14px' },
-                            { width: '40px', height: '18px', type: 'rect' },
-                          ],
-                        ]"
-                      />
+                    <div
+                      class="border-border mt-auto box-border flex h-8 w-full shrink-0 items-center justify-between border-t px-3.5"
+                    >
+                      <Skeleton class="h-3.5 w-20" />
+                      <Skeleton class="h-[18px] w-10 rounded-none" />
                     </div>
                   </div>
                 </div>
@@ -2779,8 +3024,8 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                   />
                 </template>
                 <template v-else-if="!docListLoading">
-                  <div class="doc-empty-state">
-                    <p v-if="selectedFolderPath || isFiltering" class="doc-empty-folder">
+                  <div class="flex min-h-full w-full flex-1 items-center justify-center px-5 py-15">
+                    <p v-if="selectedFolderPath || isFiltering" class="text-placeholder text-sm">
                       {{
                         isFiltering
                           ? $t("knowledgeBase.folderTree.emptySearch")
@@ -2791,7 +3036,10 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                   </div>
                 </template>
               </div>
-              <div class="doc-batch-bar-anchor" v-show="batchMode || selectedIds.size > 0">
+              <div
+                class="pointer-events-none absolute right-0 bottom-3 left-0 z-[6] flex justify-center px-4 [&>*]:pointer-events-auto"
+                v-show="batchMode || selectedIds.size > 0"
+              >
                 <DocumentBatchBar
                   :count="selectedIds.size"
                   :delete-loading="batchDeleting"
@@ -2829,7 +3077,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     </div>
   </template>
   <template v-else>
-    <div class="faq-manager-wrapper">
+    <div class="mr-4 ml-1 min-h-0 flex-1 overflow-y-auto px-8 py-6">
       <FAQEntryManager v-if="kbId" :kb-id="kbId" />
     </div>
   </template>
@@ -2883,1112 +3131,11 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
     @changed="onTagManageChanged"
   />
 </template>
-<style>
-/* 下拉菜单容器样式已统一至 @/assets/dropdown-menu.less */
-.tag-filter-popup {
-  z-index: 5500 !important;
-}
-
-.tag-filter-popup .t-popup__content {
-  padding: 0 !important;
-  border-radius: 8px !important;
-  background: var(--td-bg-color-container) !important;
-  border: 0.5px solid var(--td-component-stroke) !important;
-  box-shadow:
-    0 0 0 0.5px rgba(0, 0, 0, 0.03),
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.1) !important;
-}
-
-.tag-more-popup .tag-menu {
-  display: flex;
-  flex-direction: column;
-}
-
-.tag-more-popup .tag-menu-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.tag-more-popup .tag-menu-item .menu-icon {
-  margin-right: 8px;
-  font-size: 16px;
-}
-
-.tag-more-popup .tag-menu-item:hover {
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-primary);
-}
-</style>
-<style scoped lang="less">
-.knowledge-layout {
-  display: flex;
-  flex-direction: column;
-  margin: 0 16px 0 4px;
-  gap: 20px;
-  height: 100%;
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  padding: 24px 32px 0px;
-  box-sizing: border-box;
-}
-
-// Breadcrumb tab switch (文档/Wiki in breadcrumb)
-.breadcrumb-tab {
-  cursor: pointer;
-  color: var(--td-text-color-placeholder);
-  font-weight: 400;
-  transition: color 0.15s;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    color: var(--td-brand-color);
-    font-weight: 600;
-  }
-
-  &.indexing {
-    color: var(--td-brand-color);
-  }
-}
-
-.breadcrumb-tab-indicator {
-  display: inline-flex;
-  align-items: center;
-  color: var(--td-brand-color);
-  font-size: 12px;
-  line-height: 1;
-}
-
-.breadcrumb-tab-sep {
-  margin: 0 6px;
-  color: var(--td-text-color-disabled);
-  font-weight: 400;
-}
-
-.wiki-main-area {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-// 与列表页一致：浅灰底圆角区，左侧筛选为白底卡片
-.knowledge-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  background: transparent;
-  border: none;
-}
-
-// 标签筛选浮层：点击工具栏入口展开，不占文档列表横向空间
-.tag-filter-panel {
-  width: 320px;
-  max-width: min(320px, calc(100vw - 32px));
-  max-height: min(70vh, 480px);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 14px;
-  box-sizing: border-box;
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-
-  .tag-filter-panel__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    padding: 0;
-    color: var(--td-text-color-primary);
-  }
-
-  .tag-filter-panel__title {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  .tag-filter-panel__count {
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    font-weight: 400;
-  }
-
-  .tag-search-bar {
-    margin-bottom: 10px;
-    padding: 0;
-
-    :deep(.t-input) {
-      font-size: 13px;
-      background-color: var(--td-bg-color-secondarycontainer);
-      border-color: transparent;
-      border-radius: 6px;
-      box-shadow: none !important;
-
-      &:hover,
-      &:focus,
-      &.t-is-focused {
-        border-color: var(--td-component-border);
-        background-color: var(--td-bg-color-container);
-        box-shadow: none !important;
-      }
-    }
-
-    :deep(.t-input__inner) {
-      font-size: 13px;
-    }
-
-    :deep(.t-input__prefix-icon) {
-      margin-right: 0;
-    }
-  }
-
-  .tag-filter-panel__body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-
-    &::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      border-radius: 2px;
-      background: var(--td-scrollbar-color);
-    }
-  }
-
-  .tag-filter-chips {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .tag-filter-chip-skeleton {
-    flex-shrink: 0;
-  }
-
-  .tag-filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    box-sizing: border-box;
-    max-width: 100%;
-    height: 24px;
-    padding: 0 8px;
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 4px;
-    background: transparent;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 11px;
-    font-weight: 400;
-    line-height: 24px;
-    cursor: pointer;
-    outline: none;
-    transition:
-      background 0.15s ease,
-      color 0.15s ease,
-      border-color 0.15s ease;
-    -webkit-font-smoothing: antialiased;
-
-    &:hover:not(.active) {
-      border-color: var(--td-component-border);
-      background: var(--td-bg-color-secondarycontainer);
-      color: var(--td-text-color-primary);
-    }
-
-    &:focus-visible {
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--td-component-stroke) 60%, transparent);
-    }
-
-    &.active {
-      border-color: color-mix(in srgb, var(--td-brand-color) 35%, var(--td-component-stroke));
-      color: var(--td-brand-color);
-      font-weight: 500;
-      background-color: color-mix(in srgb, var(--td-brand-color) 6%, transparent);
-
-      .tag-filter-chip__count {
-        color: color-mix(in srgb, var(--td-brand-color) 72%, var(--td-text-color-secondary));
-      }
-
-      &:hover {
-        background-color: color-mix(in srgb, var(--td-brand-color) 10%, transparent);
-      }
-    }
-  }
-
-  .tag-filter-chip__label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 120px;
-  }
-
-  .tag-filter-chip__count {
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-    color: var(--td-text-color-placeholder);
-
-    &::before {
-      content: "·";
-      margin-right: 2px;
-      opacity: 0.65;
-    }
-  }
-
-  .tag-filter-panel__footer {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--td-component-stroke);
-    display: flex;
-    justify-content: flex-start;
-
-    :deep(.tag-manage-link.t-button) {
-      padding: 0;
-      height: auto;
-      min-height: 0;
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-      border: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      transition: color 0.15s ease;
-
-      &:hover,
-      &:focus-visible {
-        color: var(--td-brand-color) !important;
-        background: transparent !important;
-        border-color: transparent !important;
-        text-decoration: none;
-      }
-    }
-  }
-
-  .tag-load-more {
-    display: flex;
-    justify-content: center;
-    padding-top: 2px;
-
-    :deep(.t-button) {
-      padding: 0;
-      font-size: 12px;
-      color: var(--td-text-color-placeholder);
-    }
-  }
-
-  .tag-empty-state {
-    text-align: center;
-    padding: 6px 0;
-    color: var(--td-text-color-placeholder);
-    font-size: 12px;
-  }
-}
-
-.tag-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 0;
-  border: none;
-  overflow: hidden;
-  background: transparent;
-}
-
-.doc-card-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  position: relative;
-  container-type: inline-size;
-  container-name: doc-card-area;
-  /* 作为批量工具栏悬浮的定位上下文 */
-}
-
-// 目录树选中路径的面包屑：与顶部知识库面包屑同一套视觉语言，只是更轻量。
-.doc-folder-path {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 0 0 8px;
-  flex-shrink: 0;
-
-  &__tree-toggle {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    margin-right: 4px;
-    padding: 0;
-    border: 1px solid var(--td-component-border);
-    border-radius: 6px;
-    background: var(--td-bg-color-container);
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    transition:
-      border-color 0.15s ease,
-      color 0.15s ease,
-      background 0.15s ease;
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      color: var(--td-brand-color);
-      background: var(--td-bg-color-container-hover);
-    }
-  }
-
-  &__crumb {
-    max-width: 220px;
-    padding: 2px 4px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 12px;
-    line-height: 18px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      color 0.15s ease,
-      background 0.15s ease;
-
-    &:hover {
-      color: var(--td-brand-color);
-      background: var(--td-bg-color-container-hover);
-    }
-
-    &.is-current {
-      color: var(--td-text-color-primary);
-      font-weight: 500;
-      cursor: default;
-
-      &:hover {
-        background: transparent;
-        color: var(--td-text-color-primary);
-      }
-    }
-  }
-
-  &__sep {
-    flex-shrink: 0;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.doc-filter-bar {
-  padding: 0 0 12px 0;
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "search trailing"
-    "filters filters";
-  gap: 8px 12px;
-  align-items: center;
-
-  .doc-search-input {
-    grid-area: search;
-    min-width: 0;
-    width: 100%;
-  }
-
-  &__filters {
-    grid-area: filters;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
-
-    &::-webkit-scrollbar {
-      height: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background-color: rgba(0, 0, 0, 0.15);
-      border-radius: 2px;
-    }
-  }
-
-  &__trailing {
-    grid-area: trailing;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 1;
-  }
-
-  // The folder tree changes the available document width without changing the
-  // viewport width. Switch to a single row only when this content area itself
-  // is wide enough for TDesign's fixed-width filter controls.
-  @container doc-card-area (min-width: 1240px) {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 12px;
-
-    &__filters {
-      flex: 1 1 auto;
-      overflow-x: auto;
-    }
-  }
-
-  .doc-filter-field {
-    width: 140px;
-    flex-shrink: 0;
-
-    &--wide {
-      width: 280px;
-    }
-
-    &__control {
-      width: 100%;
-    }
-  }
-
-  .doc-tag-filter-trigger {
-    display: inline-flex;
-    align-items: center;
-    box-sizing: border-box;
-    width: 100%;
-    height: 32px;
-    padding: 0 8px;
-    border: 1px solid transparent;
-    border-radius: var(--td-radius-default);
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    line-height: 1;
-    cursor: pointer;
-    transition:
-      background 0.2s ease,
-      border-color 0.2s ease;
-
-    &:hover,
-    &.open {
-      background: var(--td-bg-color-secondarycontainer);
-      border-color: transparent;
-    }
-
-    &.is-placeholder {
-      color: var(--td-text-color-placeholder);
-    }
-
-    &__prefix {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      margin-right: var(--td-comp-margin-s);
-      color: var(--td-text-color-placeholder);
-    }
-
-    &__label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      text-align: left;
-    }
-
-    &__suffix {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      margin-left: var(--td-comp-margin-s);
-
-      :deep(.t-input__suffix) {
-        margin-left: 0;
-      }
-
-      :deep(.t-input__suffix-clear) {
-        font-size: 16px;
-      }
-    }
-
-    &__caret {
-      flex-shrink: 0;
-      color: var(--td-text-color-placeholder);
-      transition:
-        transform 0.2s ease,
-        color 0.2s ease;
-
-      &.open {
-        color: var(--td-brand-color);
-        transform: rotate(180deg);
-      }
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .doc-search-input {
-      flex: 1 1 220px;
-      min-width: 220px;
-    }
-  }
-
-  .doc-type-select {
-    width: 100%;
-  }
-
-  .doc-date-range {
-    width: 100%;
-
-    // TDesign focuses both the outer popup reference and inner inputs, which
-    // visually stacks into a "double border" — drop the inner shadow.
-    :deep(.t-input--focused),
-    :deep(.t-is-focused) {
-      box-shadow: none;
-    }
-  }
-
-  .doc-view-toggle {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    padding: 2px;
-    background: var(--td-bg-color-secondarycontainer);
-    border-radius: 6px;
-    gap: 0;
-
-    .doc-view-toggle-btn {
-      width: 28px;
-      height: 24px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 0;
-      background: transparent;
-      border-radius: 4px;
-      color: var(--td-text-color-secondary, #888);
-      cursor: pointer;
-      transition:
-        background-color 0.12s ease,
-        color 0.12s ease;
-
-      &:hover {
-        color: var(--td-text-color-primary, #232323);
-      }
-
-      &.active {
-        background: var(--td-bg-color-container, #fff);
-        color: var(--td-brand-color, #0052d9);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-      }
-    }
-  }
-
-  .doc-filter-actions {
-    flex-shrink: 0;
-
-    :deep(.content-bar-icon-btn) {
-      color: var(--td-text-color-secondary);
-      background: transparent;
-      border: none;
-
-      &:hover {
-        color: var(--td-brand-color);
-        background: var(--td-bg-color-secondarycontainer);
-      }
-    }
-  }
-
-  :deep(.t-input) {
-    font-size: 13px;
-    background-color: var(--td-bg-color-secondarycontainer);
-    border-color: transparent;
-    border-radius: 6px;
-    box-shadow: none !important;
-
-    &:hover,
-    &:focus,
-    &.t-is-focused {
-      border-color: var(--td-brand-color);
-      background-color: var(--td-bg-color-container);
-      box-shadow: none !important;
-    }
-  }
-
-  :deep(.t-select) {
-    .t-input {
-      font-size: 13px;
-      background-color: var(--td-bg-color-secondarycontainer);
-      border-color: transparent;
-      border-radius: 6px;
-      box-shadow: none !important;
-
-      &:hover,
-      &.t-is-focused {
-        border-color: var(--td-brand-color);
-        background-color: var(--td-bg-color-container);
-        box-shadow: none !important;
-      }
-    }
-  }
-}
-
-.doc-scroll-container {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-
-  &.is-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow-y: hidden;
-  }
-
-  &.is-marquee-active {
-    cursor: crosshair;
-  }
-}
-
-.doc-marquee-box {
-  position: absolute;
-  z-index: 4;
-  pointer-events: none;
-  border: 1px solid var(--td-brand-color);
-  background: color-mix(in srgb, var(--td-brand-color) 12%, transparent);
-  border-radius: 2px;
-
-  &.is-add {
-    border-color: var(--td-brand-color);
-    background: color-mix(in srgb, var(--td-brand-color) 14%, transparent);
-  }
-
-  &.is-subtract {
-    border-color: var(--td-error-color-6);
-    background: color-mix(in srgb, var(--td-error-color-6) 12%, transparent);
-  }
-}
-
-/* 批量条悬浮在滚动区底部，不挤占列表高度 */
-.doc-batch-bar-anchor {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  z-index: 6;
-  display: flex;
-  justify-content: center;
-  padding: 0 16px;
-  pointer-events: none;
-
-  & > * {
-    pointer-events: auto;
-  }
-}
-
-// Header 样式（无底部分割线，留更多空间给下方内容区）
-.document-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  flex-shrink: 0;
-
-  .document-header-title {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .document-title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .kb-title-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    margin-left: 4px;
-  }
-
-  .document-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .breadcrumb-link {
-    border: none;
-    background: transparent;
-    padding: 4px 8px;
-    margin: -4px -8px;
-    font: inherit;
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    border-radius: 6px;
-    transition: all 0.12s ease;
-
-    &:hover:not(:disabled) {
-      color: var(--td-success-color);
-      background: var(--td-bg-color-container);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      color: var(--td-text-color-placeholder);
-    }
-
-    &.dropdown {
-      padding-right: 6px;
-
-      :deep(.t-icon) {
-        font-size: 14px;
-        transition: transform 0.12s ease;
-      }
-
-      &:hover:not(:disabled) {
-        :deep(.t-icon) {
-          transform: translateY(1px);
-        }
-      }
-    }
-  }
-
-  .breadcrumb-separator {
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .breadcrumb-current {
-    color: var(--td-text-color-primary);
-    font-weight: 600;
-  }
-
-  h2 {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 24px;
-    font-weight: 600;
-    line-height: 32px;
-  }
-
-  .document-subtitle {
-    margin: 0;
-    color: var(--td-text-color-placeholder);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
-  }
-
-  .parser-hint {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin: 2px 0 0;
-    color: var(--td-warning-color);
-    font-size: 12px;
-    line-height: 1.4;
-    cursor: pointer;
-    transition: color 0.15s ease;
-
-    &:hover {
-      color: var(--td-warning-color-active);
-
-      .parser-hint-link {
-        text-decoration: underline;
-      }
-    }
-
-    .parser-hint-icon {
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-
-    .parser-hint-link {
-      color: var(--td-brand-color);
-      margin-left: 2px;
-      white-space: nowrap;
-    }
-  }
-
-  .storage-engine-warning {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin: 2px 0 0;
-    color: var(--td-warning-color);
-    font-size: 12px;
-    line-height: 1.4;
-    cursor: pointer;
-    transition: color 0.15s ease;
-
-    &:hover {
-      color: var(--td-warning-color-active);
-
-      .warning-link {
-        text-decoration: underline;
-      }
-    }
-
-    .warning-icon {
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-
-    .warning-link {
-      color: var(--td-brand-color);
-      margin-left: 2px;
-      white-space: nowrap;
-    }
-  }
-}
-
-.document-upload-input {
-  display: none;
-}
-
-.kb-settings-button {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: var(--td-bg-color-secondarycontainer);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
-
-  &:hover:not(:disabled) {
-    background: var(--td-success-color-light);
-    color: var(--td-brand-color);
-    box-shadow: none;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
-
-  :deep(.t-icon) {
-    font-size: 18px;
-  }
-}
-
-.tag-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-
-  .tag-filter-label {
-    color: var(--td-text-color-placeholder);
-    font-size: 14px;
-  }
-}
-
-.card-tag-selector {
-  display: flex;
-  align-items: center;
-
-  .card-tag-chips {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: nowrap;
-    cursor: pointer;
-  }
-
-  .card-tag-overflow {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 18px;
-    min-width: 18px;
-    padding: 0 5px;
-    border-radius: 999px;
-    border: 1px solid var(--td-component-stroke);
-    color: var(--td-text-color-placeholder);
-    font-size: 10px;
-    line-height: 1;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      color: var(--td-brand-color);
-      background: var(--td-bg-color-secondarycontainer);
-    }
-  }
-
-  :deep(.t-tag) {
-    cursor: pointer;
-    max-width: 120px;
-    height: 18px;
-    line-height: 18px;
-    border-radius: 999px;
-    border-color: var(--td-component-stroke);
-    color: var(--td-text-color-secondary);
-    padding: 0 6px;
-    background: transparent;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      color: var(--td-brand-color-active);
-      background: var(--td-bg-color-secondarycontainer);
-    }
-  }
-
-  .tag-text {
-    display: inline-block;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: middle;
-    font-size: 11px;
-  }
-
-  .card-tag-add {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: 999px;
-    border: 1px dashed var(--td-component-stroke);
-    color: var(--td-text-color-placeholder);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    .t-icon {
-      font-size: 12px;
-    }
-
-    &:hover {
-      border-color: var(--td-brand-color);
-      color: var(--td-brand-color-active);
-      background: var(--td-bg-color-secondarycontainer);
-      border-style: solid;
-    }
-  }
-}
-
-.card-bottom-right {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.faq-manager-wrapper {
-  flex: 1;
-  min-height: 0;
-  padding: 24px 32px;
-  overflow-y: auto;
-  margin: 0 16px 0 4px;
-}
-
-@media (max-width: 1250px) and (min-width: 1045px) {
-  .answers-input {
-    transform: translateX(-329px);
-  }
-
-  :deep(.t-textarea__inner) {
-    width: 654px !important;
-  }
-}
-
-@media (max-width: 1045px) {
-  .answers-input {
-    transform: translateX(-250px);
-  }
-
-  :deep(.t-textarea__inner) {
-    width: 500px !important;
-  }
-}
-
-@media (max-width: 750px) {
-  .answers-input {
-    transform: translateX(-182px);
-  }
-
-  :deep(.t-textarea__inner) {
-    width: 340px !important;
-  }
-}
-
-@media (max-width: 600px) {
-  .answers-input {
-    transform: translateX(-164px);
-  }
-
-  :deep(.t-textarea__inner) {
-    width: 300px !important;
-  }
-}
-
+<!-- What stays CSS: the skeleton grid's fade-in (a scoped @keyframes is renamed by
+     Vue, so an animate-[…] utility could not reach it — the class below can), and
+     the named-container breakpoint that puts the filter bar on one row once the
+     content area, not the viewport, is wide enough. Everything else is utilities. -->
+<style scoped>
 @keyframes contentFadeIn {
   from {
     opacity: 0;
@@ -4001,716 +3148,20 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
   }
 }
 
-.doc-card-list {
-  box-sizing: border-box;
-  display: grid;
-  // 文档卡片信息量较大（标题 + 摘要 + 标签/类型），保持稍宽的最小列宽，避免一行塞太多导致内容拥挤。
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-  align-content: flex-start;
-  width: 100%;
-
-  &.doc-card-list-animated {
-    animation: contentFadeIn 0.32s ease-out;
-  }
+.doc-skeleton-fade-in {
+  animation: contentFadeIn 0.32s ease-out;
 }
 
-.knowledge-card-skeleton {
-  cursor: default;
-
-  .card-content {
-    flex: 1;
-    min-height: 0;
+@container doc-card-area (min-width: 1240px) {
+  .doc-filter-bar-responsive {
     display: flex;
-    flex-direction: column;
-    padding: 10px 14px 8px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
   }
 
-  .card-content-nav {
-    margin-bottom: 8px;
+  .doc-filter-bar-responsive .doc-filter-bar-filters {
+    flex: 1 1 auto;
   }
-
-  .card-bottom {
-    flex-shrink: 0;
-    margin-top: auto;
-    width: 100%;
-    padding: 0 14px;
-    box-sizing: border-box;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid var(--td-component-stroke);
-  }
-}
-
-.doc-empty-state {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  min-height: 100%;
-}
-
-.card-menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 140px;
-  gap: 1px;
-}
-
-.card-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  cursor: pointer;
-  color: var(--td-text-color-primary);
-  transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
-  border-radius: 6px;
-  font-size: 14px;
-  line-height: 20px;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:active {
-    background: var(--td-bg-color-container-active);
-    transform: scale(0.98);
-  }
-
-  .icon {
-    font-size: 16px;
-    color: var(--td-text-color-secondary);
-    transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  &:hover .icon {
-    color: var(--td-text-color-primary);
-  }
-
-  &.danger {
-    color: var(--td-error-color-6);
-    margin-top: 4px;
-    position: relative;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: -3px;
-      left: 8px;
-      right: 8px;
-      height: 1px;
-      background: var(--td-component-stroke);
-    }
-
-    .icon {
-      color: var(--td-error-color-6);
-    }
-
-    &:hover {
-      background: var(--td-error-color-1);
-      color: var(--td-error-color-6);
-
-      .icon {
-        color: var(--td-error-color-6);
-      }
-    }
-
-    &:active {
-      background: var(--td-error-color-2);
-    }
-  }
-}
-
-.move-menu {
-  min-width: 220px;
-  max-width: 280px;
-  max-height: 360px;
-  overflow-y: auto;
-
-  .move-menu-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    border-bottom: 1px solid var(--td-component-stroke);
-    cursor: pointer;
-
-    &:hover {
-      background: var(--td-bg-color-container-hover);
-    }
-  }
-
-  .move-menu-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 0;
-  }
-
-  .move-menu-empty {
-    padding: 12px 16px;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    text-align: center;
-    line-height: 1.5;
-  }
-
-  .move-target-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .move-target-count {
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-  }
-
-  .move-confirm-body {
-    padding: 8px;
-
-    .move-target-info {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 8px;
-      background: var(--td-bg-color-container-hover);
-      border-radius: 6px;
-      font-size: 13px;
-      color: var(--td-text-color-secondary);
-      margin-bottom: 8px;
-    }
-
-    .move-mode-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-bottom: 4px;
-
-      &:hover {
-        background: var(--td-bg-color-container-hover);
-      }
-
-      &.active {
-        background: var(--td-brand-color-light);
-      }
-
-      .move-mode-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-
-        .move-mode-label {
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--td-text-color-primary);
-        }
-
-        .move-mode-desc {
-          font-size: 11px;
-          color: var(--td-text-color-placeholder);
-          line-height: 1.4;
-        }
-      }
-    }
-
-    .move-confirm-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 8px;
-    }
-  }
-}
-
-.card-draft {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  flex-shrink: 0;
-}
-
-.card-draft-tip {
-  color: var(--td-warning-color);
-  font-size: 11px;
-}
-
-.knowledge-card {
-  min-width: 240px;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--td-component-border);
-  height: 136px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-sizing: border-box;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-  background: var(--td-bg-color-container);
-  position: relative;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-
-  /* 仅在批量管理模式下渲染 checkbox，常态下不占位，避免标题在 hover 时右滑 */
-  .card-nav-check {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 29px;
-    margin-right: 8px;
-    cursor: pointer;
-
-    .card-select-checkbox {
-      margin: 0;
-      line-height: 0;
-
-      :deep(.t-checkbox) {
-        align-items: center;
-      }
-
-      :deep(.t-checkbox__label) {
-        display: none !important;
-        width: 0 !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      :deep(.t-checkbox__input) {
-        margin: 0;
-      }
-
-      :deep(.t-checkbox__input-wrapper) {
-        margin: 0;
-      }
-    }
-  }
-
-  .card-content {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 10px 14px 8px;
-  }
-
-  .card-analyze {
-    flex-shrink: 0;
-    height: 52px;
-    display: flex;
-    align-items: flex-start;
-  }
-
-  .card-analyze-loading {
-    display: block;
-    color: var(--td-brand-color);
-    font-size: 14px;
-    margin-top: 2px;
-  }
-
-  .card-analyze-txt {
-    color: var(--td-brand-color);
-    font-family: var(--app-font-family);
-    font-size: 11px;
-    margin-left: 8px;
-  }
-
-  // In-flight / failed: only status text + trace icon open the drawer.
-  .card-analyze-trace {
-    height: auto;
-    min-height: 0;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .card-analyze-trace-link {
-    cursor: pointer;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .card-analyze-trace-btn {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 2px;
-    border: none;
-    background: transparent;
-    color: var(--td-brand-color);
-    cursor: pointer;
-    line-height: 1;
-    border-radius: 4px;
-
-    :deep(.t-icon) {
-      font-size: 14px;
-    }
-
-    &:hover {
-      background: var(--td-bg-color-component-hover);
-    }
-  }
-
-  .card-analyze.failure .card-analyze-trace-btn {
-    color: var(--td-error-color);
-  }
-
-  .failure {
-    color: var(--td-error-color);
-  }
-
-  .card-content-nav {
-    flex-shrink: 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 0;
-    margin-bottom: 6px;
-  }
-
-  .card-content-title {
-    flex: 1;
-    min-width: 0;
-    height: 24px;
-    line-height: 24px;
-    display: inline-block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--td-text-color-primary);
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    margin-right: 8px;
-  }
-
-  .more-wrap {
-    flex-shrink: 0;
-    display: flex;
-    width: 25px;
-    height: 25px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-
-  .more-wrap:hover {
-    background: var(--td-component-stroke);
-  }
-
-  .more-icon {
-    width: 14px;
-    height: 14px;
-  }
-
-  .active-more {
-    background: var(--td-component-stroke);
-  }
-
-  .card-content-txt {
-    flex: 1;
-    min-height: 0;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 19px;
-  }
-
-  .card-bottom {
-    flex-shrink: 0;
-    margin-top: auto;
-    padding: 0 14px;
-    box-sizing: border-box;
-    height: 32px;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--td-bg-color-container);
-    border-top: 1px solid var(--td-component-stroke);
-  }
-
-  .card-time {
-    flex-shrink: 0;
-    color: var(--td-text-color-secondary);
-    font-family: var(--app-font-family);
-    font-size: 12px;
-    font-weight: 400;
-    white-space: nowrap;
-  }
-
-  .card-type {
-    flex-shrink: 0;
-    color: var(--td-text-color-placeholder);
-    font-family: var(--app-font-family);
-    font-size: 11px;
-    font-weight: 500;
-    padding: 0;
-    background: transparent;
-    letter-spacing: 0.02em;
-  }
-}
-
-.card-bottom-right {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.knowledge-card:hover {
-  border-color: color-mix(in srgb, var(--td-component-stroke) 55%, var(--td-brand-color));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
-}
-
-/* 悬停知识卡片时跟随鼠标的详情气泡 */
-.knowledge-card-hover-popover {
-  position: fixed;
-  z-index: 9999;
-  pointer-events: none;
-  min-width: 220px;
-  max-width: 360px;
-  padding: 12px 14px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  font-family: var(--app-font-family);
-  transition: opacity 0.15s ease;
-  will-change: transform;
-
-  /* 防止气泡内容抖动 */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-
-  .card-popover-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin-bottom: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .card-popover-status {
-    font-size: 12px;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    &.parsing {
-      color: var(--td-brand-color);
-    }
-
-    &.failure {
-      color: var(--td-error-color);
-    }
-
-    &.draft {
-      color: var(--td-warning-color);
-    }
-  }
-
-  .card-popover-desc {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    line-height: 1.5;
-    margin-bottom: 8px;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 5;
-    line-clamp: 5;
-    overflow: hidden;
-  }
-
-  .card-popover-error-msg {
-    display: block;
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--td-error-color);
-    opacity: 0.95;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 280px;
-  }
-
-  .card-popover-source {
-    font-size: 11px;
-    color: var(--td-brand-color);
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-  }
-
-  .card-popover-extra {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 11px;
-    color: var(--td-text-color-secondary);
-    margin-bottom: 6px;
-  }
-
-  .card-popover-created,
-  .card-popover-size {
-    flex-shrink: 0;
-  }
-
-  .card-popover-meta {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-size: 11px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .card-popover-channel {
-    padding: 1px 6px;
-    background: var(--td-warning-color-light);
-    color: var(--td-warning-color);
-    border-radius: 4px;
-  }
-
-  .card-popover-tags {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    max-width: 100%;
-  }
-
-  .card-popover-tag-chip {
-    max-width: 120px;
-    height: 18px;
-    line-height: 18px;
-    border-radius: 999px;
-    border-color: var(--td-component-stroke);
-    color: var(--td-text-color-secondary);
-    padding: 0 6px;
-    background: transparent;
-
-    .tag-text {
-      display: inline-block;
-      max-width: 80px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      vertical-align: middle;
-      font-size: 11px;
-    }
-  }
-
-  .card-popover-type {
-    padding: 1px 6px;
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-secondary);
-    border-radius: 4px;
-  }
-
-  .card-popover-hint {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--td-component-stroke);
-    font-size: 11px;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.url-import-form {
-  padding: 8px 0;
-
-  .url-input-label {
-    color: var(--td-text-color-primary);
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
-  }
-
-  .url-input-tip {
-    color: var(--td-text-color-secondary);
-    font-size: 12px;
-    margin-top: 8px;
-    line-height: 1.5;
-  }
-}
-
-.knowledge-card-upload {
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-
-  .btn-upload {
-    margin: 33px auto 0;
-    width: 112px;
-    height: 32px;
-    border: 1px solid var(--td-component-border);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 24px;
-  }
-
-  .svg-icon-download {
-    margin-right: 8px;
-  }
-}
-
-.upload-described {
-  color: var(--td-text-color-disabled);
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  font-weight: 400;
-  text-align: center;
-  display: block;
-  width: 188px;
-  margin: 0 auto;
-}
-
-.del-card {
-  vertical-align: middle;
 }
 </style>

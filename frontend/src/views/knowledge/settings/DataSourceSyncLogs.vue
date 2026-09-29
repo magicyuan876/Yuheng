@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { ListTreeIcon, Loader2Icon, RefreshCwIcon } from "@lucide/vue";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { getSyncLogs, type SyncLog, type SyncItemError } from "@/api/datasource";
 
 const props = defineProps<{
@@ -69,18 +73,18 @@ const stats = computed(() => {
 
 // --- Helpers ---
 
-function statusColor(status: string) {
+function statusColorClass(status: string): string {
   switch (status) {
     case "success":
-      return "var(--td-success-color)";
+      return "text-success bg-success";
     case "running":
-      return "var(--td-brand-color)";
+      return "text-primary bg-primary";
     case "failed":
-      return "var(--td-error-color)";
+      return "text-destructive bg-destructive";
     case "partial":
-      return "var(--td-warning-color)";
+      return "text-warning bg-warning";
     default:
-      return "var(--td-text-color-placeholder)";
+      return "text-placeholder bg-placeholder";
   }
 }
 
@@ -184,471 +188,265 @@ const groupedLogs = computed(() => {
   }
   return groups;
 });
+
+const drawerTitle = computed(() =>
+  props.dataSourceName ? `${t("datasource.syncHistory")} · ${props.dataSourceName}` : t("datasource.syncHistory"),
+);
+
+// Only the very last entry of the whole timeline ends the rail at its dot;
+// every other entry, including the last of each date group, keeps the rail
+// running on to the next group.
+function isLastLog(log: SyncLog): boolean {
+  return logs.value[logs.value.length - 1] === log;
+}
+
+function onOpenChange(open: boolean) {
+  // Blur first, as SettingDrawer does: a focused control inside a drawer
+  // that is tearing down can throw from its blur/resize handlers.
+  if (!open && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  visible.value = open;
+}
 </script>
 
 <template>
-  <t-drawer v-model:visible="visible" size="480px" destroy-on-close class="ds-logs-drawer">
-    <template #header>
-      <div class="logs-drawer-header">
-        <span class="logs-drawer-title">
-          {{
-            props.dataSourceName
-              ? `${t("datasource.syncHistory")} · ${props.dataSourceName}`
-              : t("datasource.syncHistory")
-          }}
-        </span>
-        <t-tooltip :content="t('datasource.refreshLogs')">
-          <t-button size="small" variant="text" shape="square" :loading="loading" @click="fetchLogs">
-            <template #icon><t-icon name="refresh" /></template>
-          </t-button>
-        </t-tooltip>
-      </div>
-    </template>
+  <!--
+    Built on the Drawer primitives rather than SettingDrawer because
+    SettingDrawer's header-extra slot sits below the title, where t-drawer
+    put the refresh button beside it.
+  -->
+  <Drawer :open="visible" swipe-direction="right" @update:open="onOpenChange">
+    <!-- The swipe-direction variants carry the primitive's own width, radius and
+         border; overriding them under the same variant lets cn() replace them. -->
+    <DrawerContent
+      class="data-[swipe-direction=right]:w-[480px] data-[swipe-direction=right]:max-w-full data-[swipe-direction=right]:rounded-none data-[swipe-direction=right]:border-l-0 data-[swipe-direction=right]:sm:max-w-full"
+    >
+      <header
+        class="flex w-full items-center justify-between gap-2 border-b border-[var(--td-border-level-1-color)] px-6 py-5"
+      >
+        <DrawerTitle class="text-foreground min-w-0 truncate text-base font-semibold">{{ drawerTitle }}</DrawerTitle>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              class="shrink-0"
+              :disabled="loading"
+              :aria-label="t('datasource.refreshLogs')"
+              @click="fetchLogs()"
+            >
+              <RefreshCwIcon class="size-4" :class="loading ? 'animate-spin' : ''" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ t("datasource.refreshLogs") }}</TooltipContent>
+        </Tooltip>
+      </header>
 
-    <div v-if="loading" style="text-align: center; padding: 60px"><t-loading /></div>
-
-    <div v-else-if="logs.length === 0" class="logs-empty">
-      <t-icon name="root-list" size="40px" />
-      <p>{{ t("datasource.noLogs") }}</p>
-    </div>
-
-    <template v-else>
-      <!-- Summary -->
-      <div class="logs-summary">
-        <div class="summary-stat">
-          <span class="stat-num">{{ stats.total }}</span>
-          <span class="stat-label">{{ t("datasource.logSummary.total") }}</span>
+      <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div v-if="loading" class="flex justify-center py-15">
+          <Loader2Icon class="text-primary size-6 animate-spin" />
         </div>
-        <div class="summary-stat">
-          <span class="stat-num success">{{ stats.success }}</span>
-          <span class="stat-label">{{ t("datasource.logSummary.success") }}</span>
-        </div>
-        <div class="summary-stat">
-          <span class="stat-num error">{{ stats.failed }}</span>
-          <span class="stat-label">{{ t("datasource.logSummary.failed") }}</span>
-        </div>
-        <div class="summary-stat">
-          <span class="stat-num">{{ stats.totalItems }}</span>
-          <span class="stat-label">{{ t("datasource.logSummary.items") }}</span>
-        </div>
-      </div>
 
-      <!-- Timeline grouped by date -->
-      <div class="timeline">
-        <div v-for="group in groupedLogs" :key="group.date" class="timeline-group">
-          <div class="timeline-date">{{ group.date }}</div>
+        <div
+          v-else-if="logs.length === 0"
+          class="text-placeholder flex flex-col items-center justify-center gap-3 py-20 text-[13px]"
+        >
+          <ListTreeIcon class="size-10" />
+          <p class="m-0">{{ t("datasource.noLogs") }}</p>
+        </div>
 
-          <div v-for="log in group.logs" :key="log.id" class="timeline-item" @click="toggleExpand(log.id)">
-            <!-- Dot -->
-            <div class="tl-dot-col">
-              <span class="tl-dot" :style="{ background: statusColor(log.status) }">
-                <t-icon v-if="log.status === 'running'" name="loading" size="10px" class="tl-spin" />
-              </span>
-              <span class="tl-line"></span>
+        <template v-else>
+          <!-- Summary -->
+          <div class="mb-3 flex gap-2 border-b border-[var(--td-border-level-1-color)] pb-6">
+            <div
+              class="bg-card flex flex-1 flex-col gap-1 rounded-xl border border-[var(--td-border-level-1-color)] px-2 py-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+            >
+              <span class="text-foreground text-xl leading-[1.2] font-bold [font-variant-numeric:tabular-nums]">{{
+                stats.total
+              }}</span>
+              <span class="text-placeholder text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                t("datasource.logSummary.total")
+              }}</span>
             </div>
-
-            <!-- Content -->
-            <div class="tl-content">
-              <div class="tl-header">
-                <span class="tl-status" :style="{ color: statusColor(log.status) }">
-                  {{ t(`datasource.logStatus.${log.status}`) }}
-                </span>
-                <span class="tl-time">{{ formatHourMin(log.started_at) }}</span>
-                <span v-if="log.finished_at" class="tl-duration">{{ duration(log) }}</span>
-              </div>
-
-              <!-- Live progress for a running sync -->
-              <div v-if="progressText(log)" class="tl-progress">
-                {{ progressText(log) }}
-              </div>
-
-              <!-- Pills -->
-              <div v-if="hasPills(log)" class="tl-pills">
-                <span v-if="log.items_created > 0" class="pill created">+{{ log.items_created }}</span>
-                <span v-if="log.items_updated > 0" class="pill updated">~{{ log.items_updated }}</span>
-                <span v-if="log.items_deleted > 0" class="pill deleted">-{{ log.items_deleted }}</span>
-                <span v-if="log.items_skipped > 0" class="pill skipped"
-                  >{{ log.items_skipped }} {{ t("datasource.logMetric.skipped") }}</span
-                >
-                <span v-if="log.items_failed > 0" class="pill failed"
-                  >{{ log.items_failed }} {{ t("datasource.logMetric.failed") }}</span
-                >
-              </div>
-
-              <!-- Expanded -->
-              <div v-if="expandedId === log.id" class="tl-detail" @click.stop>
-                <div class="detail-row">
-                  <span class="detail-label">{{ t("datasource.logDetail.startTime") }}</span>
-                  <span>{{ formatTime(log.started_at) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">{{ t("datasource.logDetail.endTime") }}</span>
-                  <span>{{ formatTime(log.finished_at) }}</span>
-                </div>
-                <div v-if="log.items_total > 0" class="detail-row">
-                  <span class="detail-label">{{ t("datasource.logMetric.total") }}</span>
-                  <span>{{ log.items_total }}</span>
-                </div>
-                <!-- Localised failure summary; raw error_message only for a
-                     pure infra failure with no per-document detail. -->
-                <div v-if="log.items_failed > 0" class="tl-error">
-                  {{ t("datasource.logDetail.docsFailedSummary", { n: log.items_failed }) }}
-                </div>
-                <div v-else-if="log.error_message" class="tl-error">
-                  {{ log.error_message }}
-                </div>
-
-                <!-- Per-item failures: which documents failed and why.
-                     The true count is items_failed (a bounded int); result.errors
-                     is only a capped sample the backend retains for display. -->
-                <div v-if="failedItems(log).length" class="tl-failed">
-                  <div class="tl-failed-title">
-                    {{ t("datasource.logDetail.failedItems") }} ({{ log.items_failed }})
-                  </div>
-                  <div v-for="(e, i) in failedItems(log)" :key="i" class="tl-failed-item" :title="formatSyncError(e)">
-                    {{ formatSyncError(e) }}
-                  </div>
-                  <div v-if="log.items_failed > failedItems(log).length" class="tl-failed-more">
-                    {{ t("datasource.logDetail.failedItemsMore", { n: log.items_failed - failedItems(log).length }) }}
-                  </div>
-                </div>
-              </div>
+            <div
+              class="bg-card flex flex-1 flex-col gap-1 rounded-xl border border-[var(--td-border-level-1-color)] px-2 py-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+            >
+              <span class="text-success text-xl leading-[1.2] font-bold [font-variant-numeric:tabular-nums]">{{
+                stats.success
+              }}</span>
+              <span class="text-placeholder text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                t("datasource.logSummary.success")
+              }}</span>
+            </div>
+            <div
+              class="bg-card flex flex-1 flex-col gap-1 rounded-xl border border-[var(--td-border-level-1-color)] px-2 py-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+            >
+              <span class="text-destructive text-xl leading-[1.2] font-bold [font-variant-numeric:tabular-nums]">{{
+                stats.failed
+              }}</span>
+              <span class="text-placeholder text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                t("datasource.logSummary.failed")
+              }}</span>
+            </div>
+            <div
+              class="bg-card flex flex-1 flex-col gap-1 rounded-xl border border-[var(--td-border-level-1-color)] px-2 py-4 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+            >
+              <span class="text-foreground text-xl leading-[1.2] font-bold [font-variant-numeric:tabular-nums]">{{
+                stats.totalItems
+              }}</span>
+              <span class="text-placeholder text-[11px] font-medium tracking-[0.5px] uppercase">{{
+                t("datasource.logSummary.items")
+              }}</span>
             </div>
           </div>
-        </div>
 
-        <div class="logs-load-more">
-          <t-button v-if="hasMore" variant="outline" block :loading="loadingMore" @click="loadMore">
-            {{ t("common.loadMore") }}
-          </t-button>
-          <span v-else class="logs-load-more-text">{{ t("common.noMoreData") }}</span>
-        </div>
+          <!-- Timeline grouped by date -->
+          <div class="flex flex-col">
+            <div v-for="group in groupedLogs" :key="group.date" class="mb-2">
+              <div
+                class="text-placeholder bg-card sticky top-0 z-[1] pt-3 pb-2 pl-6 text-[11px] font-semibold tracking-[0.5px] uppercase"
+              >
+                {{ group.date }}
+              </div>
+
+              <div
+                v-for="log in group.logs"
+                :key="log.id"
+                class="group relative mb-1 flex cursor-pointer"
+                @click="toggleExpand(log.id)"
+              >
+                <!-- Dot -->
+                <div
+                  class="relative flex w-6 shrink-0 flex-col items-center before:absolute before:top-0 before:left-1/2 before:w-[1.5px] before:-translate-x-1/2 before:bg-[var(--td-border-level-1-color)] before:content-['']"
+                  :class="isLastLog(log) ? 'before:bottom-1/2' : 'before:bottom-0'"
+                >
+                  <span
+                    class="relative z-[1] mt-[18px] h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_4px_var(--td-bg-color-container)]"
+                    :class="statusColorClass(log.status).split(' ')[1]"
+                  />
+                </div>
+
+                <!-- Content -->
+                <div class="group-hover:bg-muted min-w-0 flex-1 rounded-[10px] px-3.5 py-3 transition-colors">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[13px] font-medium" :class="statusColorClass(log.status).split(' ')[0]">
+                      {{ t(`datasource.logStatus.${log.status}`) }}
+                    </span>
+                    <span class="text-placeholder text-xs [font-variant-numeric:tabular-nums]">{{
+                      formatHourMin(log.started_at)
+                    }}</span>
+                    <span
+                      v-if="log.finished_at"
+                      class="text-placeholder ml-auto rounded bg-[var(--td-bg-color-component)] px-1.5 py-0.5 text-[11px] font-medium [font-variant-numeric:tabular-nums]"
+                      >{{ duration(log) }}</span
+                    >
+                  </div>
+
+                  <!-- Live progress for a running sync -->
+                  <div v-if="progressText(log)" class="text-muted-foreground mt-1 max-w-full truncate text-xs">
+                    {{ progressText(log) }}
+                  </div>
+
+                  <!-- Pills -->
+                  <div v-if="hasPills(log)" class="mt-2 flex flex-wrap gap-1">
+                    <span
+                      v-if="log.items_created > 0"
+                      class="bg-success/10 text-success rounded px-1.5 py-px text-[11px] leading-[18px] font-medium [font-variant-numeric:tabular-nums]"
+                      >+{{ log.items_created }}</span
+                    >
+                    <span
+                      v-if="log.items_updated > 0"
+                      class="bg-primary/10 text-primary rounded px-1.5 py-px text-[11px] leading-[18px] font-medium [font-variant-numeric:tabular-nums]"
+                      >~{{ log.items_updated }}</span
+                    >
+                    <span
+                      v-if="log.items_deleted > 0"
+                      class="bg-warning/10 text-warning rounded px-1.5 py-px text-[11px] leading-[18px] font-medium [font-variant-numeric:tabular-nums]"
+                      >-{{ log.items_deleted }}</span
+                    >
+                    <span
+                      v-if="log.items_skipped > 0"
+                      class="text-placeholder rounded bg-[var(--td-bg-color-component)] px-1.5 py-px text-[11px] leading-[18px] font-medium [font-variant-numeric:tabular-nums]"
+                      >{{ log.items_skipped }} {{ t("datasource.logMetric.skipped") }}</span
+                    >
+                    <span
+                      v-if="log.items_failed > 0"
+                      class="bg-destructive/10 text-destructive rounded px-1.5 py-px text-[11px] leading-[18px] font-medium [font-variant-numeric:tabular-nums]"
+                      >{{ log.items_failed }} {{ t("datasource.logMetric.failed") }}</span
+                    >
+                  </div>
+
+                  <!-- Expanded -->
+                  <div
+                    v-if="expandedId === log.id"
+                    class="mt-3 flex flex-col gap-1.5 border-t border-dashed border-[var(--td-border-level-2-color)] pt-3"
+                    @click.stop
+                  >
+                    <div class="text-foreground flex justify-between text-xs leading-5">
+                      <span class="text-placeholder">{{ t("datasource.logDetail.startTime") }}</span>
+                      <span>{{ formatTime(log.started_at) }}</span>
+                    </div>
+                    <div class="text-foreground flex justify-between text-xs leading-5">
+                      <span class="text-placeholder">{{ t("datasource.logDetail.endTime") }}</span>
+                      <span>{{ formatTime(log.finished_at) }}</span>
+                    </div>
+                    <div v-if="log.items_total > 0" class="text-foreground flex justify-between text-xs leading-5">
+                      <span class="text-placeholder">{{ t("datasource.logMetric.total") }}</span>
+                      <span>{{ log.items_total }}</span>
+                    </div>
+                    <!-- Localised failure summary; raw error_message only for a
+                     pure infra failure with no per-document detail. -->
+                    <div
+                      v-if="log.items_failed > 0"
+                      class="bg-destructive/10 text-destructive mt-2 rounded-md px-3 py-2 text-xs leading-normal break-words"
+                    >
+                      {{ t("datasource.logDetail.docsFailedSummary", { n: log.items_failed }) }}
+                    </div>
+                    <div
+                      v-else-if="log.error_message"
+                      class="bg-destructive/10 text-destructive mt-2 rounded-md px-3 py-2 text-xs leading-normal break-words"
+                    >
+                      {{ log.error_message }}
+                    </div>
+
+                    <!-- Per-item failures: which documents failed and why.
+                     The true count is items_failed (a bounded int); result.errors
+                     is only a capped sample the backend retains for display. -->
+                    <div v-if="failedItems(log).length" class="mt-2 flex flex-col gap-0.5">
+                      <div class="text-destructive mb-0.5 text-[11px] font-semibold">
+                        {{ t("datasource.logDetail.failedItems") }} ({{ log.items_failed }})
+                      </div>
+                      <div
+                        v-for="(e, i) in failedItems(log)"
+                        :key="i"
+                        class="bg-card text-muted-foreground truncate border-l-2 border-l-[var(--td-error-color-3)] px-2 py-0.5 text-[11px] leading-normal"
+                        :title="formatSyncError(e)"
+                      >
+                        {{ formatSyncError(e) }}
+                      </div>
+                      <div
+                        v-if="log.items_failed > failedItems(log).length"
+                        class="text-placeholder px-2 py-0.5 text-[11px]"
+                      >
+                        {{
+                          t("datasource.logDetail.failedItemsMore", { n: log.items_failed - failedItems(log).length })
+                        }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-0 pt-4 pb-2 text-center">
+              <Button v-if="hasMore" variant="outline" class="w-full" :disabled="loadingMore" @click="loadMore">
+                <Loader2Icon v-if="loadingMore" class="animate-spin" />
+                {{ t("common.loadMore") }}
+              </Button>
+              <span v-else class="text-placeholder text-xs">{{ t("common.noMoreData") }}</span>
+            </div>
+          </div>
+        </template>
       </div>
-    </template>
-  </t-drawer>
+    </DrawerContent>
+  </Drawer>
 </template>
-
-<style scoped>
-.logs-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-  gap: 12px;
-}
-
-/* --- Summary --- */
-.logs-summary {
-  display: flex;
-  gap: 8px;
-  padding-bottom: 24px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--td-border-level-1-color);
-}
-
-.summary-stat {
-  flex: 1;
-  text-align: center;
-  padding: 16px 8px;
-  border-radius: 12px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-border-level-1-color);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-num {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--td-text-color-primary);
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-num.success {
-  color: var(--td-success-color);
-}
-.stat-num.error {
-  color: var(--td-error-color);
-}
-
-.stat-label {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--td-text-color-placeholder);
-}
-
-/* --- Timeline --- */
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.timeline-group {
-  margin-bottom: 8px;
-}
-
-.timeline-date {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--td-text-color-placeholder);
-  padding: 12px 0 8px 24px;
-  position: sticky;
-  top: 0;
-  background: var(--td-bg-color-container);
-  z-index: 1;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.timeline-item {
-  display: flex;
-  cursor: pointer;
-  position: relative;
-  margin-bottom: 4px;
-}
-
-.logs-load-more {
-  padding: 16px 0 8px;
-  text-align: center;
-}
-
-.logs-load-more-text {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-/* --- Dot column: continuous line --- */
-.tl-dot-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 24px;
-  flex-shrink: 0;
-  position: relative;
-}
-
-/* Continuous vertical line behind dots */
-.tl-dot-col::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1.5px;
-  background: var(--td-border-level-1-color);
-  transform: translateX(-50%);
-}
-
-.timeline-group:last-child .timeline-item:last-child .tl-dot-col::before {
-  bottom: 50%;
-}
-
-.tl-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-  margin-top: 18px;
-  box-shadow: 0 0 0 4px var(--td-bg-color-container);
-}
-
-.tl-dot .tl-spin {
-  display: none;
-}
-
-.tl-line {
-  display: none;
-}
-
-/* --- Content --- */
-.tl-content {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 10px;
-  transition: background 0.2s ease;
-}
-
-.timeline-item:hover .tl-content {
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.tl-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tl-status {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.tl-time {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-}
-
-.tl-duration {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-  background: var(--td-bg-color-component);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* --- Pills --- */
-.tl-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.pill {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-weight: 500;
-  line-height: 18px;
-  font-variant-numeric: tabular-nums;
-}
-
-.pill.created {
-  background: var(--td-success-color-1);
-  color: var(--td-success-color);
-}
-.pill.updated {
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
-}
-.pill.deleted {
-  background: var(--td-warning-color-1);
-  color: var(--td-warning-color);
-}
-.pill.skipped {
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-placeholder);
-}
-.pill.failed {
-  background: var(--td-error-color-1);
-  color: var(--td-error-color);
-}
-
-/* --- Expanded detail --- */
-.tl-detail {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--td-border-level-2-color);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--td-text-color-primary);
-  line-height: 20px;
-}
-
-.detail-label {
-  color: var(--td-text-color-placeholder);
-}
-
-.tl-progress {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-.tl-error {
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: var(--td-error-color-1);
-  color: var(--td-error-color);
-  font-size: 12px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-/* --- Per-item failure list --- */
-.tl-failed {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.tl-failed-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--td-error-color);
-  margin-bottom: 2px;
-}
-
-.tl-failed-item {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-  padding: 2px 8px;
-  border-left: 2px solid var(--td-error-color-3);
-  background: var(--td-bg-color-container);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tl-failed-more {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  padding: 2px 8px;
-}
-
-/* --- Drawer header --- */
-.logs-drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.logs-drawer-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* --- Drawer overrides --- */
-.ds-logs-drawer :deep(.t-drawer__header) {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--td-border-level-1-color);
-}
-
-.ds-logs-drawer :deep(.t-drawer__body) {
-  padding: 20px 24px;
-}
-</style>

@@ -26,8 +26,5 @@ test("save button labels distinguish create from save-and-close", () => {
   );
 });
 
-test("shows a post-create hint after the first successful save", () => {
-  assert.match(source, /const isPostCreateSession = computed\(\(\) => !!savedKbId\.value\)/);
-  assert.match(source, /settings-footer-note/);
-  assert.match(source, /knowledgeEditor\.postCreateHint\.followUpDesc/);
-});
+// "Shows a post-create hint after the first successful save" is a mounted test
+// in KnowledgeBaseEditorModal.test.ts; it used to regex-match a class name here.

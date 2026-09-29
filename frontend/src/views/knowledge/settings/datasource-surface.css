@@ -1,0 +1,44 @@
+/*
+ * Shared surface styles for datasource list cards and drawer pickers.
+ * Collected from the former datasource-surface.less mixins — consumers now
+ * compose these classes with Tailwind utilities instead of calling mixins.
+ *
+ * It stays CSS because the interactive card's hover rule excludes disabled
+ * cards (`:not(.disabled):not(:disabled)`), which a utility cannot say, and
+ * because two components share it. Plain values rather than @apply: the
+ * stroke colour and the 8px/10px radii are the old ones exactly, and no
+ * token maps onto them (`--td-component-stroke` is lighter than the
+ * `border-border` token, and `rounded-lg` is TDesign's 9px).
+ *
+ * In the components layer, so a utility on the same element still wins.
+ */
+
+@layer components {
+  .ds-surface-card {
+    border: 1px solid var(--td-component-stroke);
+    border-radius: 10px;
+    background: var(--td-bg-color-container);
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .ds-surface-card--interactive:hover:not(.disabled):not(:disabled),
+  .ds-surface-card--interactive:focus-visible {
+    border-color: var(--td-brand-color-3, var(--td-brand-color));
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    outline: none;
+  }
+
+  .ds-surface-card--interactive:focus-visible {
+    outline: 2px solid var(--td-brand-color);
+    outline-offset: 2px;
+  }
+
+  /* Light inset panel for grouped lists — no outer stroke. */
+  .ds-inset-panel {
+    border-radius: 8px;
+    background: var(--td-bg-color-secondarycontainer);
+    overflow: hidden;
+  }
+}

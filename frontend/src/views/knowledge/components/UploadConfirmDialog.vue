@@ -1,21 +1,42 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="dialogVisible" class="upload-confirm-overlay">
-        <div class="upload-confirm-modal" role="dialog" :aria-label="dialogTitle">
-          <button class="close-btn" type="button" :aria-label="t('general.close')" @click="handleCancel">
+      <div
+        v-if="dialogVisible"
+        class="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50 backdrop-blur-xs"
+      >
+        <div
+          class="bg-card relative flex h-[85vh] max-h-[750px] w-[92vw] max-w-[1160px] flex-col overflow-hidden rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+          role="dialog"
+          :aria-label="dialogTitle"
+        >
+          <button
+            data-slot="close-button"
+            class="bg-muted text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex size-8 items-center justify-center rounded-md"
+            type="button"
+            :aria-label="t('general.close')"
+            @click="handleCancel"
+          >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </button>
 
-          <div class="upload-confirm-container">
-            <aside class="files-panel">
-              <div class="sidebar-header">
-                <div class="sidebar-header-row">
-                  <h2 class="sidebar-title">{{ dialogTitle }}</h2>
-                  <div v-if="mode === 'file'" class="sidebar-header-actions">
-                    <span class="files-count">{{ batchItemCount }}</span>
+          <div class="flex min-h-0 flex-1 overflow-hidden max-[800px]:flex-col">
+            <aside
+              class="border-border flex w-[220px] shrink-0 flex-col border-r bg-[var(--td-bg-color-settings-modal,var(--td-bg-color-secondarycontainer))] max-[800px]:max-h-[140px] max-[800px]:w-auto max-[800px]:border-r-0 max-[800px]:border-b"
+            >
+              <div class="border-border box-border flex min-h-14 shrink-0 flex-col items-stretch gap-2.5 border-b p-3">
+                <div class="flex w-full min-w-0 items-center justify-between gap-2">
+                  <h2 class="text-foreground m-0 min-w-0 flex-1 pr-0 text-base leading-[1.35] font-semibold">
+                    {{ dialogTitle }}
+                  </h2>
+                  <div v-if="mode === 'file'" class="flex shrink-0 items-center gap-1.5">
+                    <span
+                      class="text-muted-foreground box-border h-5 min-w-5 shrink-0 rounded-[10px] bg-[var(--td-bg-color-component)] px-1.5 text-center text-[11px] leading-5 font-semibold"
+                    >
+                      {{ batchItemCount }}
+                    </span>
                     <KbUploadSourceDropdown
                       :accept-file-types="acceptFileTypes"
                       :supported-file-types="supportedFileTypes"
@@ -27,29 +48,30 @@
                   </div>
                 </div>
 
-                <div v-if="mode === 'file'" class="destination-row">
-                  <t-popup
-                    v-model:visible="destinationPickerVisible"
-                    trigger="click"
-                    placement="bottom-left"
-                    attach="body"
-                    :z-index="3100"
-                    overlay-class-name="upload-destination-popup"
-                    destroy-on-close
-                  >
-                    <button
-                      type="button"
-                      class="destination-crumb"
-                      :title="destinationFullLabel"
-                      :aria-label="t('uploadConfirm.destinationChange')"
-                      :aria-expanded="destinationPickerVisible"
+                <div v-if="mode === 'file'" class="shrink-0">
+                  <Popover v-model:open="destinationPickerVisible">
+                    <PopoverTrigger as-child>
+                      <button
+                        type="button"
+                        data-slot="destination-crumb"
+                        class="group text-muted-foreground hover:text-primary inline-flex max-w-full min-w-0 items-center gap-1 [font-family:var(--app-font-family)] text-xs leading-[18px] transition-colors"
+                        :title="destinationFullLabel"
+                        :aria-label="t('uploadConfirm.destinationChange')"
+                        :aria-expanded="destinationPickerVisible"
+                      >
+                        <span class="shrink-0">{{ t("uploadConfirm.destinationLabel") }}</span>
+                        <span class="text-foreground group-hover:text-primary truncate font-medium">{{
+                          destinationBreadcrumb
+                        }}</span>
+                        <ChevronDownIcon class="text-placeholder group-hover:text-primary size-3 shrink-0" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      :side-offset="6"
+                      class="w-auto min-w-[208px] gap-0 rounded-[10px] p-1"
                     >
-                      <span class="destination-crumb__label">{{ t("uploadConfirm.destinationLabel") }}</span>
-                      <span class="destination-crumb__path">{{ destinationBreadcrumb }}</span>
-                      <t-icon name="chevron-down" class="destination-crumb__caret" />
-                    </button>
-                    <template #content>
-                      <div class="card-menu" @click.stop>
+                      <div @click.stop>
                         <FolderPickerMenu
                           :options="pickerFolderOptions"
                           :current-path="localTargetFolder"
@@ -58,134 +80,263 @@
                           @confirm="onDestinationPicked"
                         />
                       </div>
-                    </template>
-                  </t-popup>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
-              <div class="files-list-wrap">
-                <div v-if="mode === 'manual' && manualPreview" class="manual-source-panel">
-                  <p class="manual-source-title" :title="manualPreview.title">{{ manualPreview.title }}</p>
-                  <p class="manual-source-meta">
+              <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pt-1.5 pb-3">
+                <div v-if="mode === 'manual' && manualPreview" class="min-h-0 flex-1 overflow-y-auto p-0">
+                  <p
+                    class="bg-accent text-foreground m-0 rounded-md px-2.5 py-2 text-[13px] leading-[1.4] font-medium break-words"
+                    :title="manualPreview.title"
+                  >
+                    {{ manualPreview.title }}
+                  </p>
+                  <p class="text-placeholder mx-0.5 mt-1.5 mb-0 text-[11px]">
                     {{ t("uploadConfirm.manualCharCount", { count: manualCharCount }) }}
                   </p>
                 </div>
-                <div v-else-if="mode === 'reparse' && reparsePreview" class="manual-source-panel">
-                  <p class="manual-source-title" :title="reparsePreview.fileName">
+                <div v-else-if="mode === 'reparse' && reparsePreview" class="min-h-0 flex-1 overflow-y-auto p-0">
+                  <p
+                    class="bg-accent text-foreground m-0 rounded-md px-2.5 py-2 text-[13px] leading-[1.4] font-medium break-words"
+                    :title="reparsePreview.fileName"
+                  >
                     {{ reparsePreview.fileName || t("uploadConfirm.reparseSource") }}
                   </p>
-                  <p class="manual-source-meta">{{ t("uploadConfirm.reparseHint") }}</p>
+                  <p class="text-placeholder mx-0.5 mt-1.5 mb-0 text-[11px]">{{ t("uploadConfirm.reparseHint") }}</p>
                 </div>
-                <ul v-else-if="mode === 'file' && batchItemCount > 0" class="files-list">
-                  <li v-for="(url, index) in localUrls" :key="`url-${url}-${index}`" class="file-item">
-                    <span class="file-icon-wrap">
-                      <t-icon name="link" class="file-icon" />
+                <ul
+                  v-else-if="mode === 'file' && batchItemCount > 0"
+                  class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0"
+                >
+                  <li
+                    v-for="(url, index) in localUrls"
+                    :key="`url-${url}-${index}`"
+                    class="group hover:bg-accent mb-0.5 flex items-center gap-2 rounded-md py-1.5 pr-1.5 pl-2 transition-colors last:mb-0"
+                  >
+                    <span class="flex h-6 w-6 shrink-0 items-center justify-center">
+                      <LinkIcon class="text-muted-foreground group-hover:text-primary size-4" />
                     </span>
-                    <div class="file-meta">
-                      <span class="file-name" :title="url">{{ url }}</span>
-                      <span class="file-size">{{ t("uploadConfirm.urlItemLabel") }}</span>
+                    <div class="min-w-0 flex-1">
+                      <span class="text-foreground block truncate text-xs leading-[1.35] font-medium" :title="url">{{
+                        url
+                      }}</span>
+                      <span class="text-placeholder mt-px block truncate text-[11px] leading-[1.3]">
+                        {{ t("uploadConfirm.urlItemLabel") }}
+                      </span>
                     </div>
                     <button
                       type="button"
-                      class="file-remove"
+                      data-slot="file-remove"
+                      class="text-placeholder hover:text-foreground flex size-[22px] shrink-0 items-center justify-center rounded opacity-45 transition-all group-hover:opacity-100 hover:bg-[var(--td-bg-color-component)] focus-visible:opacity-100"
                       :aria-label="t('common.remove')"
                       @click="removeUrl(index)"
                     >
-                      <t-icon name="close" />
+                      <XIcon class="size-3.5" />
                     </button>
                   </li>
-                  <li v-for="(file, index) in localFiles" :key="`${file.name}-${index}`" class="file-item">
-                    <span class="file-icon-wrap">
-                      <t-icon :name="getFileIcon(file.name)" class="file-icon" />
+                  <li
+                    v-for="(file, index) in localFiles"
+                    :key="`${file.name}-${index}`"
+                    class="group hover:bg-accent mb-0.5 flex items-center gap-2 rounded-md py-1.5 pr-1.5 pl-2 transition-colors last:mb-0"
+                  >
+                    <span class="flex h-6 w-6 shrink-0 items-center justify-center">
+                      <component
+                        :is="fileTypeIcon(getFileIcon(file.name))"
+                        class="text-muted-foreground group-hover:text-primary size-4"
+                      />
                     </span>
-                    <div class="file-meta">
-                      <span class="file-name" :title="fileDisplayTitle(file)">{{ file.name }}</span>
-                      <span class="file-size">
+                    <div class="min-w-0 flex-1">
+                      <span
+                        class="text-foreground block truncate text-xs leading-[1.35] font-medium"
+                        :title="fileDisplayTitle(file)"
+                      >
+                        {{ file.name }}
+                      </span>
+                      <span class="text-placeholder mt-px block truncate text-[11px] leading-[1.3]">
                         <template v-if="fileRelativeDir(file)">
-                          <span class="file-relative-dir" :title="fileRelativeDir(file)">{{
+                          <span class="text-muted-foreground" :title="fileRelativeDir(file)">{{
                             fileRelativeDir(file)
                           }}</span>
-                          <span class="file-meta-sep">·</span>
+                          <span class="mx-1">·</span>
                         </template>
                         {{ formatFileSize(file.size) }}
                       </span>
                     </div>
                     <button
                       type="button"
-                      class="file-remove"
+                      data-slot="file-remove"
+                      class="text-placeholder hover:text-foreground flex size-[22px] shrink-0 items-center justify-center rounded opacity-45 transition-all group-hover:opacity-100 hover:bg-[var(--td-bg-color-component)] focus-visible:opacity-100"
                       :aria-label="t('common.remove')"
                       @click="removeFile(index)"
                     >
-                      <t-icon name="close" />
+                      <XIcon class="size-3.5" />
                     </button>
                   </li>
                 </ul>
-                <div v-else-if="mode === 'file'" class="files-empty">{{ t("uploadConfirm.noItems") }}</div>
+                <div v-else-if="mode === 'file'" class="text-placeholder flex-1 px-2 py-4 text-center text-xs">
+                  {{ t("uploadConfirm.noItems") }}
+                </div>
               </div>
             </aside>
 
-            <aside class="settings-sidebar">
-              <div class="settings-sidebar-header">
-                <h2 class="settings-sidebar-title">{{ t("uploadConfirm.parseConfig") }}</h2>
+            <aside
+              class="border-border flex min-h-0 w-[216px] shrink-0 flex-col border-r bg-[var(--td-bg-color-settings-modal,var(--td-bg-color-secondarycontainer))] max-[800px]:w-auto max-[800px]:border-r-0 max-[800px]:border-b"
+            >
+              <div class="border-border box-border flex min-h-14 w-full shrink-0 items-center border-b p-3">
+                <h2 class="text-foreground m-0 text-base leading-[1.35] font-semibold">
+                  {{ t("uploadConfirm.parseConfig") }}
+                </h2>
               </div>
-              <nav class="settings-nav" :aria-label="t('uploadConfirm.configNav')">
+              <nav
+                class="min-h-0 flex-1 overflow-y-auto px-1.5 pt-2.5 pb-3 max-[800px]:flex max-[800px]:flex-none max-[800px]:flex-nowrap max-[800px]:gap-1 max-[800px]:overflow-x-auto max-[800px]:p-2"
+                :aria-label="t('uploadConfirm.configNav')"
+              >
                 <button
                   v-for="item in navItems"
                   :key="item.key"
                   type="button"
-                  class="nav-item"
-                  :class="{
-                    active: activeSection === item.key,
-                    'nav-item--issue': item.issue,
-                  }"
+                  data-slot="section-nav-item"
+                  :data-active="activeSection === item.key || undefined"
+                  class="mb-0.5 flex w-full items-start rounded-md px-2.5 py-[9px] text-left text-sm transition-all select-none max-[800px]:mb-0 max-[800px]:w-auto max-[800px]:shrink-0 max-[800px]:whitespace-nowrap"
+                  :class="
+                    activeSection === item.key
+                      ? 'bg-muted text-primary font-medium'
+                      : 'text-foreground hover:bg-accent bg-transparent'
+                  "
                   @click="activeSection = item.key"
                 >
-                  <t-icon :name="item.icon" class="nav-icon" />
-                  <span class="nav-label-wrap">
-                    <span class="nav-label">{{ item.label }}</span>
+                  <component
+                    :is="sectionIcon(item.icon)"
+                    class="mt-0.5 mr-2 flex size-4 shrink-0 items-center justify-center"
+                  />
+                  <span class="flex min-w-0 flex-1 flex-col gap-0.75">
+                    <!-- The active row's colours win over the issue and tone colours, as they did in the old CSS. -->
                     <span
-                      class="nav-status"
-                      :class="{
-                        'nav-status--warning': item.statusTone === 'warning',
-                        'nav-status--error': item.statusTone === 'error',
-                        'nav-status--muted': item.statusTone === 'muted',
-                      }"
+                      class="truncate text-[13px] leading-[1.35] font-medium"
+                      :class="{ 'text-destructive': item.issue && activeSection !== item.key }"
+                    >
+                      {{ item.label }}
+                    </span>
+                    <span
+                      class="truncate text-xs leading-[1.35]"
+                      :class="
+                        activeSection === item.key
+                          ? 'text-muted-foreground'
+                          : {
+                              'text-placeholder': item.statusTone !== 'warning' && item.statusTone !== 'error',
+                              'text-warning': item.statusTone === 'warning',
+                              'text-destructive': item.statusTone === 'error',
+                            }
+                      "
                       :title="item.statusFull"
                       >{{ item.status }}</span
                     >
                   </span>
-                  <span v-if="item.issue" class="nav-dot" aria-hidden="true" />
+                  <span
+                    v-if="item.issue"
+                    class="bg-destructive ml-1.5 size-1.5 shrink-0 rounded-full"
+                    aria-hidden="true"
+                  />
                 </button>
               </nav>
             </aside>
 
-            <div class="config-panel">
-              <div class="content-wrapper upload-confirm-content">
-                <div v-show="activeSection === 'tags'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h2 class="section-title">{{ t("uploadConfirm.tabTags") }}</h2>
-                      <p class="section-desc">{{ t("uploadConfirm.tagsDescription") }}</p>
+            <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <div class="bg-card min-h-0 min-w-0 flex-1 overflow-y-auto px-8 pt-[22px] pb-7 max-[800px]:p-4">
+                <div v-show="activeSection === 'tags'" class="mb-8 last:mb-0">
+                  <div>
+                    <div class="mb-4">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">{{ t("uploadConfirm.tabTags") }}</h2>
+                      <p class="text-placeholder m-0 text-sm leading-[22px]">
+                        {{ t("uploadConfirm.tagsDescription") }}
+                      </p>
                     </div>
-                    <div class="settings-group">
-                      <div class="setting-row setting-row-vertical">
-                        <div class="setting-info">
-                          <label>{{ t("uploadConfirm.tagsPlaceholder") }}</label>
+                    <div class="flex flex-col">
+                      <div class="flex flex-col gap-3 py-4">
+                        <div class="w-full max-w-none pr-0">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("uploadConfirm.tagsPlaceholder")
+                          }}</label>
                         </div>
-                        <div class="setting-control setting-control-full">
-                          <t-select
-                            v-model="selectedTagIds"
-                            :options="tagOptions"
-                            :loading="tagsLoading"
-                            multiple
-                            filterable
-                            clearable
-                            :placeholder="t('uploadConfirm.tagsPlaceholder')"
-                          />
-                          <p v-if="tagsLoadFailed" class="field-hint field-hint--error">
+                        <div class="block w-full max-w-none">
+                          <!--
+                            The old multiple + filterable + clearable select: a
+                            popover with a filter field over a checkbox list, so
+                            picking several tags does not close it after each one.
+                          -->
+                          <Popover
+                            v-model:open="tagPickerOpen"
+                            @update:open="(open: boolean) => open && (tagQuery = '')"
+                          >
+                            <div class="relative w-full">
+                              <PopoverTrigger as-child>
+                                <Button
+                                  variant="outline"
+                                  class="w-full justify-between pr-8 font-normal"
+                                  :aria-label="t('uploadConfirm.tagsPlaceholder')"
+                                >
+                                  <span class="truncate" :class="{ 'text-placeholder': !selectedTagIds.length }">
+                                    {{ selectedTagIds.length ? selectedTagNames : t("uploadConfirm.tagsPlaceholder") }}
+                                  </span>
+                                  <Loader2Icon v-if="tagsLoading" class="size-4 shrink-0 animate-spin opacity-50" />
+                                  <ChevronDownIcon
+                                    v-else-if="!selectedTagIds.length"
+                                    class="size-4 shrink-0 opacity-50"
+                                  />
+                                </Button>
+                              </PopoverTrigger>
+                              <button
+                                v-if="selectedTagIds.length && !tagsLoading"
+                                type="button"
+                                data-slot="select-clear"
+                                class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2.5 -translate-y-1/2"
+                                :aria-label="t('common.clear')"
+                                @click="selectedTagIds = []"
+                              >
+                                <CircleXIcon class="size-4" aria-hidden="true" />
+                              </button>
+                            </div>
+                            <PopoverContent
+                              align="start"
+                              class="w-(--reka-popover-trigger-width) min-w-[240px] gap-1 p-1"
+                            >
+                              <Input
+                                v-model="tagQuery"
+                                :placeholder="t('knowledgeBase.tagEditSearch')"
+                                class="h-7 text-xs md:text-xs"
+                              />
+                              <div class="max-h-64 overflow-y-auto" role="listbox" aria-multiselectable="true">
+                                <label
+                                  v-for="tag in filteredTags"
+                                  :key="tag.id"
+                                  class="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm"
+                                  role="option"
+                                  :aria-selected="selectedTagIds.includes(tag.id)"
+                                >
+                                  <Checkbox
+                                    :model-value="selectedTagIds.includes(tag.id)"
+                                    @update:model-value="(checked) => toggleTag(tag.id, checked === true)"
+                                  />
+                                  <span class="min-w-0 truncate">{{ tag.name }}</span>
+                                </label>
+                                <p
+                                  v-if="!filteredTags.length"
+                                  class="text-placeholder m-0 px-1.5 py-2 text-center text-xs"
+                                >
+                                  {{ t("knowledgeBase.tagEmptyResult") }}
+                                </p>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <p v-if="tagsLoadFailed" class="text-destructive mx-0 mt-1.5 mb-0 text-xs leading-normal">
                             {{ t("uploadConfirm.tagsLoadFailed") }}
                           </p>
-                          <p v-else-if="!tagsLoading && tagOptions.length === 0" class="field-hint">
+                          <p
+                            v-else-if="!tagsLoading && availableTags.length === 0"
+                            class="text-placeholder mx-0 mt-1.5 mb-0 text-xs leading-normal"
+                          >
                             {{ t("uploadConfirm.tagsEmpty") }}
                           </p>
                         </div>
@@ -194,77 +345,117 @@
                   </div>
                 </div>
 
-                <div v-show="activeSection === 'parser'" class="section">
+                <div v-show="activeSection === 'parser'" class="mb-8 last:mb-0">
                   <KBParserSettings
                     :relevant-extensions="batchFileExts"
                     :parser-engine-rules="uiState.chunkingConfig.parserEngineRules"
                     @update:parser-engine-rules="handleParserEngineRulesUpdate"
                   />
-                  <div v-if="hasPdf" class="kb-settings-block">
-                    <div class="settings-group">
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("uploadConfirm.pdfForceScanned.label") }}</label>
-                          <p class="desc">{{ t("uploadConfirm.pdfForceScanned.description") }}</p>
+                  <div v-if="hasPdf" class="w-full">
+                    <div class="flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("uploadConfirm.pdfForceScanned.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("uploadConfirm.pdfForceScanned.description") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-switch v-model="uiState.pdfForceScanned" size="medium" />
+                        <div :class="controlCol">
+                          <Switch
+                            :model-value="uiState.pdfForceScanned"
+                            @update:model-value="(val: boolean) => (uiState.pdfForceScanned = val)"
+                          />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div v-show="activeSection === 'chunking'" class="section">
-                  <div class="section-content">
-                    <div class="section-header">
-                      <h2 class="section-title">{{ t("knowledgeEditor.chunking.title") }}</h2>
-                      <p class="section-desc">{{ t("knowledgeEditor.chunking.description") }}</p>
+                <div v-show="activeSection === 'chunking'" class="mb-8 last:mb-0">
+                  <div>
+                    <div class="mb-4">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ t("knowledgeEditor.chunking.title") }}
+                      </h2>
+                      <p class="text-placeholder m-0 text-sm leading-[22px]">
+                        {{ t("knowledgeEditor.chunking.description") }}
+                      </p>
                     </div>
-                    <div class="settings-group">
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.strategyLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.chunking.strategyDescription") }}</p>
+                    <div class="flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.strategyLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.chunking.strategyDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-select
-                            v-model="uiState.chunkingConfig.strategy"
-                            :options="chunkingStrategyOptions"
-                            :clearable="false"
-                            :style="{ width: '280px' }"
-                          />
+                        <div :class="controlCol">
+                          <Select
+                            :model-value="uiState.chunkingConfig.strategy"
+                            @update:model-value="(v) => (uiState.chunkingConfig.strategy = String(v ?? ''))"
+                          >
+                            <SelectTrigger class="w-[280px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem v-for="opt in chunkingStrategyOptions" :key="opt.value" :value="opt.value">
+                                {{ opt.label }}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.sizeLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.chunking.sizeDescription") }}</p>
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.sizeLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.chunking.sizeDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-input-number
-                            v-model="uiState.chunkingConfig.chunkSize"
+                        <div :class="controlCol">
+                          <Input
+                            v-model.number="uiState.chunkingConfig.chunkSize"
+                            type="number"
+                            @change="clampNumber(uiState.chunkingConfig, 'chunkSize', 100, 4000)"
                             :min="100"
                             :max="4000"
                             :step="50"
-                            theme="normal"
-                            :style="{ width: '200px' }"
+                            class="w-[200px]"
                           />
                         </div>
                       </div>
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.overlapLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.chunking.overlapDescription") }}</p>
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.overlapLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.chunking.overlapDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-input-number
-                            v-model="uiState.chunkingConfig.chunkOverlap"
+                        <div :class="controlCol">
+                          <Input
+                            v-model.number="uiState.chunkingConfig.chunkOverlap"
+                            type="number"
+                            @change="clampNumber(uiState.chunkingConfig, 'chunkOverlap', 0, 500)"
                             :min="0"
                             :max="500"
                             :step="20"
-                            theme="normal"
-                            :style="{ width: '200px' }"
+                            class="w-[200px]"
                           />
                         </div>
                       </div>
@@ -272,95 +463,193 @@
 
                     <button
                       type="button"
-                      class="more-options-toggle"
+                      data-slot="more-options-toggle"
+                      class="text-primary mt-1 inline-flex items-center gap-1.5 px-0 py-1.5 text-[13px]"
                       :aria-expanded="chunkingMoreOpen"
                       @click="chunkingMoreOpen = !chunkingMoreOpen"
                     >
-                      <t-icon name="chevron-down" :class="{ 'is-open': chunkingMoreOpen }" />
+                      <ChevronDownIcon
+                        class="size-[13px] transition-transform duration-[180ms]"
+                        :class="{ 'rotate-180': chunkingMoreOpen }"
+                      />
                       <span>{{ t("uploadConfirm.moreOptions") }}</span>
                     </button>
 
-                    <div v-if="chunkingMoreOpen" class="settings-group settings-group--more">
-                      <div class="setting-row setting-row--separators">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.separatorsLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.chunking.separatorsDescription") }}</p>
+                    <div v-if="chunkingMoreOpen" class="mt-1 flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.separatorsLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.chunking.separatorsDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-select
-                            v-model="uiState.chunkingConfig.separators"
-                            :options="separatorOptions"
-                            multiple
-                            creatable
-                            filterable
-                            :style="{ width: '280px' }"
-                          />
+                        <div :class="controlCol">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                              <Button variant="outline" class="w-[280px] justify-between font-normal">
+                                <span class="truncate">
+                                  {{
+                                    uiState.chunkingConfig.separators.length
+                                      ? uiState.chunkingConfig.separators.map((s) => separatorLabel(s)).join(", ")
+                                      : ""
+                                  }}
+                                </span>
+                                <ChevronDownIcon class="size-4 opacity-50" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent class="w-[280px]">
+                              <DropdownMenuCheckboxItem
+                                v-for="opt in separatorOptions"
+                                :key="opt.value"
+                                :model-value="uiState.chunkingConfig.separators.includes(opt.value)"
+                                @select.prevent
+                                @update:model-value="(checked) => toggleSeparator(opt.value, checked === true)"
+                              >
+                                {{ opt.label }}
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuSeparator />
+                              <div class="flex items-center gap-1.5 p-1.5">
+                                <!--
+                                  keydown.stop: the menu's typeahead would otherwise
+                                  take every typed character and move focus to an item.
+                                -->
+                                <Input
+                                  v-model="customSeparator"
+                                  :aria-label="t('knowledgeEditor.chunking.separatorsLabel')"
+                                  class="h-7 flex-1 text-xs md:text-xs"
+                                  @keydown.stop
+                                  @keydown.enter.prevent="addCustomSeparator"
+                                />
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  :disabled="!customSeparator"
+                                  @click="addCustomSeparator"
+                                >
+                                  <PlusIcon />
+                                </Button>
+                              </div>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.tokenLimitLabel") }}</label>
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.tokenLimitLabel")
+                          }}</label>
                         </div>
-                        <div class="setting-control">
-                          <t-input-number
-                            v-model="uiState.chunkingConfig.tokenLimit"
+                        <div :class="controlCol">
+                          <Input
+                            v-model.number="uiState.chunkingConfig.tokenLimit"
+                            type="number"
+                            @change="clampNumber(uiState.chunkingConfig, 'tokenLimit', 0, 8192)"
                             :min="0"
                             :max="8192"
                             :step="64"
-                            theme="normal"
-                            :style="{ width: '200px' }"
+                            class="w-[200px]"
                           />
                         </div>
                       </div>
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.languagesLabel") }}</label>
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.languagesLabel")
+                          }}</label>
                         </div>
-                        <div class="setting-control">
-                          <t-select
-                            v-model="uiState.chunkingConfig.languages"
-                            :options="languageOptions"
-                            multiple
-                            :style="{ width: '280px' }"
+                        <div :class="controlCol">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger as-child>
+                              <Button variant="outline" class="w-[280px] justify-between font-normal">
+                                <span class="truncate">
+                                  {{
+                                    uiState.chunkingConfig.languages?.length
+                                      ? uiState.chunkingConfig.languages.map((l) => languageLabel(l)).join(", ")
+                                      : ""
+                                  }}
+                                </span>
+                                <ChevronDownIcon class="size-4 opacity-50" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent class="w-[280px]">
+                              <DropdownMenuCheckboxItem
+                                v-for="opt in languageOptions"
+                                :key="opt.value"
+                                :model-value="(uiState.chunkingConfig.languages || []).includes(opt.value)"
+                                @select.prevent
+                                @update:model-value="(checked) => toggleLanguage(opt.value, checked === true)"
+                              >
+                                {{ opt.label }}
+                              </DropdownMenuCheckboxItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.parentChildLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.chunking.parentChildDescription") }}
+                          </p>
+                        </div>
+                        <div :class="controlCol">
+                          <Switch
+                            :model-value="uiState.chunkingConfig.enableParentChild"
+                            @update:model-value="(val: boolean) => (uiState.chunkingConfig.enableParentChild = val)"
                           />
                         </div>
                       </div>
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.parentChildLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.chunking.parentChildDescription") }}</p>
+                      <div
+                        v-if="uiState.chunkingConfig.enableParentChild"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.parentChunkSizeLabel")
+                          }}</label>
                         </div>
-                        <div class="setting-control">
-                          <t-switch v-model="uiState.chunkingConfig.enableParentChild" />
-                        </div>
-                      </div>
-                      <div v-if="uiState.chunkingConfig.enableParentChild" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.parentChunkSizeLabel") }}</label>
-                        </div>
-                        <div class="setting-control">
-                          <t-input-number
-                            v-model="uiState.chunkingConfig.parentChunkSize"
+                        <div :class="controlCol">
+                          <Input
+                            v-model.number="uiState.chunkingConfig.parentChunkSize"
+                            type="number"
+                            @change="clampNumber(uiState.chunkingConfig, 'parentChunkSize', 512, 8192)"
                             :min="512"
                             :max="8192"
                             :step="64"
-                            theme="normal"
-                            :style="{ width: '200px' }"
+                            class="w-[200px]"
                           />
                         </div>
                       </div>
-                      <div v-if="uiState.chunkingConfig.enableParentChild" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.chunking.childChunkSizeLabel") }}</label>
+                      <div
+                        v-if="uiState.chunkingConfig.enableParentChild"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.chunking.childChunkSizeLabel")
+                          }}</label>
                         </div>
-                        <div class="setting-control">
-                          <t-input-number
-                            v-model="uiState.chunkingConfig.childChunkSize"
+                        <div :class="controlCol">
+                          <Input
+                            v-model.number="uiState.chunkingConfig.childChunkSize"
+                            type="number"
+                            @change="clampNumber(uiState.chunkingConfig, 'childChunkSize', 64, 2048)"
                             :min="64"
                             :max="2048"
                             :step="32"
-                            theme="normal"
-                            :style="{ width: '200px' }"
+                            class="w-[200px]"
                           />
                         </div>
                       </div>
@@ -368,35 +657,56 @@
                   </div>
                 </div>
 
-                <div v-show="activeSection === 'multimodal'" class="section" data-section="multimodal">
-                  <div class="kb-settings-block">
-                    <div class="section-header">
-                      <h2 class="section-title">{{ t("knowledgeEditor.multimodal.title") }}</h2>
-                      <p class="section-desc">{{ t("knowledgeEditor.multimodal.description") }}</p>
+                <div v-show="activeSection === 'multimodal'" class="mb-8 last:mb-0" data-section="multimodal">
+                  <div class="w-full">
+                    <div class="mb-5">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ t("knowledgeEditor.multimodal.title") }}
+                      </h2>
+                      <p class="text-muted-foreground m-0 text-sm leading-normal">
+                        {{ t("knowledgeEditor.multimodal.description") }}
+                      </p>
                     </div>
-                    <div v-if="issueSectionKeys.has('multimodal')" class="section-notice">
-                      <t-icon name="info-circle-filled" />
+                    <div
+                      v-if="issueSectionKeys.has('multimodal')"
+                      class="border-border bg-muted text-muted-foreground mb-4 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-[13px] leading-normal"
+                    >
+                      <InfoIcon class="text-primary mt-px size-4 shrink-0" />
                       <span>{{ t("uploadConfirm.multimodalSetupHint") }}</span>
                     </div>
-                    <div class="settings-group">
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.advanced.multimodal.label") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.advanced.multimodal.description") }}</p>
+                    <div class="flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.advanced.multimodal.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.advanced.multimodal.description") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-switch v-model="uiState.multimodalConfig.enabled" size="medium" />
+                        <div :class="controlCol">
+                          <Switch
+                            :model-value="uiState.multimodalConfig.enabled"
+                            @update:model-value="(val: boolean) => (uiState.multimodalConfig.enabled = val)"
+                          />
                         </div>
                       </div>
-                      <div v-if="uiState.multimodalConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label
-                            >{{ t("knowledgeEditor.advanced.multimodal.vllmLabel") }}
-                            <span class="required">*</span></label
-                          >
-                          <p class="desc">{{ t("knowledgeEditor.advanced.multimodal.vllmDescription") }}</p>
+                      <div
+                        v-if="uiState.multimodalConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">
+                            {{ t("knowledgeEditor.advanced.multimodal.vllmLabel") }}
+                            <span class="text-destructive ml-0.5 font-medium">*</span>
+                          </label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.advanced.multimodal.vllmDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
+                        <div :class="controlCol">
                           <ModelSelector
                             model-type="VLLM"
                             :selected-model-id="uiState.multimodalConfig.vllmModelId"
@@ -408,40 +718,68 @@
                           />
                         </div>
                       </div>
-                      <div v-if="uiState.multimodalConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.advanced.multimodal.descriptionLanguageLabel") }}</label>
-                          <p class="desc">
+                      <div
+                        v-if="uiState.multimodalConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.advanced.multimodal.descriptionLanguageLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
                             {{ t("knowledgeEditor.advanced.multimodal.descriptionLanguageDescription") }}
                           </p>
                         </div>
-                        <div class="setting-control">
-                          <t-select
-                            v-model="uiState.multimodalConfig.descriptionLanguage"
-                            clearable
-                            :placeholder="t('knowledgeEditor.advanced.multimodal.descriptionLanguageAuto')"
-                            :style="{ width: '280px' }"
+                        <div :class="controlCol">
+                          <!--
+                            The old select was clearable back to "automatic"; a
+                            Select item cannot carry an empty value, so automatic
+                            is a sentinel that maps back to ''.
+                          -->
+                          <Select
+                            :model-value="uiState.multimodalConfig.descriptionLanguage || AUTO_LANGUAGE"
+                            @update:model-value="
+                              (val) =>
+                                (uiState.multimodalConfig.descriptionLanguage =
+                                  val === AUTO_LANGUAGE ? '' : String(val ?? ''))
+                            "
                           >
-                            <t-option value="Chinese" :label="t('language.zhCN')" />
-                            <t-option value="English" :label="t('language.enUS')" />
-                            <t-option value="Korean" :label="t('language.koKR')" />
-                            <t-option value="Russian" :label="t('language.ruRU')" />
-                          </t-select>
+                            <SelectTrigger class="w-[280px]">
+                              <SelectValue
+                                :placeholder="t('knowledgeEditor.advanced.multimodal.descriptionLanguageAuto')"
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem :value="AUTO_LANGUAGE">{{
+                                t("knowledgeEditor.advanced.multimodal.descriptionLanguageAuto")
+                              }}</SelectItem>
+                              <SelectItem value="Chinese">{{ t("language.zhCN") }}</SelectItem>
+                              <SelectItem value="English">{{ t("language.enUS") }}</SelectItem>
+                              <SelectItem value="Korean">{{ t("language.koKR") }}</SelectItem>
+                              <SelectItem value="Russian">{{ t("language.ruRU") }}</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-                      <div v-if="uiState.multimodalConfig.enabled" class="setting-row setting-row-vertical">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.advanced.multimodal.customInstructionsLabel") }}</label>
-                          <p class="desc">
+                      <div
+                        v-if="uiState.multimodalConfig.enabled"
+                        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+                      >
+                        <div class="w-full max-w-none pr-0">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.advanced.multimodal.customInstructionsLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
                             {{ t("knowledgeEditor.advanced.multimodal.customInstructionsDescription") }}
                           </p>
                         </div>
-                        <div class="setting-control setting-control-full">
-                          <t-textarea
+                        <div class="block w-full max-w-none">
+                          <Textarea
                             v-model="uiState.multimodalConfig.customInstructions"
                             :placeholder="t('knowledgeEditor.advanced.multimodal.customInstructionsPlaceholder')"
                             :maxlength="4000"
-                            :autosize="{ minRows: 3, maxRows: 8 }"
+                            :rows="3"
+                            class="max-h-48 min-h-[76px] overflow-y-auto"
                           />
                         </div>
                       </div>
@@ -449,32 +787,56 @@
                   </div>
                 </div>
 
-                <div v-show="activeSection === 'asr'" class="section" data-section="asr">
-                  <div class="kb-settings-block">
-                    <div class="section-header">
-                      <h2 class="section-title">{{ t("knowledgeEditor.asr.title") }}</h2>
-                      <p class="section-desc">{{ t("knowledgeEditor.asr.description") }}</p>
+                <div v-show="activeSection === 'asr'" class="mb-8 last:mb-0" data-section="asr">
+                  <div class="w-full">
+                    <div class="mb-5">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ t("knowledgeEditor.asr.title") }}
+                      </h2>
+                      <p class="text-muted-foreground m-0 text-sm leading-normal">
+                        {{ t("knowledgeEditor.asr.description") }}
+                      </p>
                     </div>
-                    <div v-if="issueSectionKeys.has('asr')" class="section-notice">
-                      <t-icon name="info-circle-filled" />
+                    <div
+                      v-if="issueSectionKeys.has('asr')"
+                      class="border-border bg-muted text-muted-foreground mb-4 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-[13px] leading-normal"
+                    >
+                      <InfoIcon class="text-primary mt-px size-4 shrink-0" />
                       <span>{{ t("uploadConfirm.asrSetupHint") }}</span>
                     </div>
-                    <div class="settings-group">
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.asr.label") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.asr.desc") }}</p>
+                    <div class="flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.asr.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.asr.desc") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-switch v-model="uiState.asrConfig.enabled" size="medium" />
+                        <div :class="controlCol">
+                          <Switch
+                            :model-value="uiState.asrConfig.enabled"
+                            @update:model-value="(val: boolean) => (uiState.asrConfig.enabled = val)"
+                          />
                         </div>
                       </div>
-                      <div v-if="uiState.asrConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.asr.modelLabel") }} <span class="required">*</span></label>
-                          <p class="desc">{{ t("knowledgeEditor.asr.modelDescription") }}</p>
+                      <div
+                        v-if="uiState.asrConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">
+                            {{ t("knowledgeEditor.asr.modelLabel") }}
+                            <span class="text-destructive ml-0.5 font-medium">*</span>
+                          </label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.asr.modelDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
+                        <div :class="controlCol">
                           <ModelSelector
                             model-type="ASR"
                             :selected-model-id="uiState.asrConfig.modelId"
@@ -490,62 +852,100 @@
                           />
                         </div>
                       </div>
-                      <div v-if="uiState.asrConfig.enabled" class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.asr.languageLabel") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.asr.languageDescription") }}</p>
+                      <div
+                        v-if="uiState.asrConfig.enabled"
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.asr.languageLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.asr.languageDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control">
-                          <t-input
-                            v-model="uiState.asrConfig.language"
-                            clearable
-                            :placeholder="t('knowledgeEditor.asr.languagePlaceholder')"
-                            :style="{ width: '280px' }"
-                          />
+                        <div :class="controlCol">
+                          <div class="relative w-[280px]">
+                            <Input
+                              v-model="uiState.asrConfig.language"
+                              :placeholder="t('knowledgeEditor.asr.languagePlaceholder')"
+                              class="pr-8"
+                            />
+                            <button
+                              v-if="uiState.asrConfig.language"
+                              type="button"
+                              data-slot="input-clear"
+                              class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 -translate-y-1/2"
+                              :aria-label="t('common.clear')"
+                              @click="uiState.asrConfig.language = ''"
+                            >
+                              <CircleXIcon class="size-4" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div v-show="activeSection === 'question'" class="section">
-                  <div class="kb-settings-block">
-                    <div class="section-header">
-                      <h2 class="section-title">{{ t("knowledgeEditor.advanced.questionGeneration.label") }}</h2>
-                      <p class="section-desc">{{ t("knowledgeEditor.advanced.questionGeneration.description") }}</p>
+                <div v-show="activeSection === 'question'" class="mb-8 last:mb-0">
+                  <div class="w-full">
+                    <div class="mb-5">
+                      <h2 class="text-foreground m-0 mb-1.5 text-xl font-semibold">
+                        {{ t("knowledgeEditor.advanced.questionGeneration.label") }}
+                      </h2>
+                      <p class="text-muted-foreground m-0 text-sm leading-normal">
+                        {{ t("knowledgeEditor.advanced.questionGeneration.description") }}
+                      </p>
                     </div>
-                    <div class="settings-group">
-                      <div class="setting-row">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.advanced.questionGeneration.label") }}</label>
-                          <p class="desc">{{ t("knowledgeEditor.advanced.questionGeneration.countDescription") }}</p>
+                    <div class="flex flex-col">
+                      <div
+                        class="border-border flex items-start justify-between py-4 max-[800px]:flex-col max-[800px]:gap-3 [&:not(:last-child)]:border-b"
+                      >
+                        <div :class="infoCol">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.advanced.questionGeneration.label")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                            {{ t("knowledgeEditor.advanced.questionGeneration.countDescription") }}
+                          </p>
                         </div>
-                        <div class="setting-control setting-control-inline">
-                          <t-input-number
+                        <div :class="[controlCol, 'gap-3']">
+                          <Input
                             v-if="uiState.questionGenerationConfig.enabled"
-                            v-model="uiState.questionGenerationConfig.questionCount"
+                            v-model.number="uiState.questionGenerationConfig.questionCount"
+                            type="number"
+                            @change="clampNumber(uiState.questionGenerationConfig, 'questionCount', 1, 10)"
                             :min="1"
                             :max="10"
                             :step="1"
-                            theme="normal"
-                            :style="{ width: '88px' }"
+                            class="w-[88px]"
                           />
-                          <t-switch v-model="uiState.questionGenerationConfig.enabled" size="medium" />
+                          <Switch
+                            :model-value="uiState.questionGenerationConfig.enabled"
+                            @update:model-value="(val: boolean) => (uiState.questionGenerationConfig.enabled = val)"
+                          />
                         </div>
                       </div>
-                      <div v-if="uiState.questionGenerationConfig.enabled" class="setting-row setting-row-vertical">
-                        <div class="setting-info">
-                          <label>{{ t("knowledgeEditor.advanced.questionGeneration.instructionsLabel") }}</label>
-                          <p class="desc">
+                      <div
+                        v-if="uiState.questionGenerationConfig.enabled"
+                        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+                      >
+                        <div class="w-full max-w-none pr-0">
+                          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                            t("knowledgeEditor.advanced.questionGeneration.instructionsLabel")
+                          }}</label>
+                          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
                             {{ t("knowledgeEditor.advanced.questionGeneration.instructionsDescription") }}
                           </p>
                         </div>
-                        <div class="setting-control setting-control-full">
-                          <t-textarea
+                        <div class="block w-full max-w-none">
+                          <Textarea
                             v-model="uiState.questionGenerationConfig.customInstructions"
                             :placeholder="t('knowledgeEditor.advanced.questionGeneration.instructionsPlaceholder')"
                             :maxlength="4000"
-                            :autosize="{ minRows: 3, maxRows: 8 }"
+                            :rows="3"
+                            class="max-h-48 min-h-[76px] overflow-y-auto"
                           />
                         </div>
                       </div>
@@ -553,7 +953,7 @@
                   </div>
                 </div>
 
-                <div v-if="isGraphSectionAvailable" v-show="activeSection === 'graph'" class="section">
+                <div v-if="isGraphSectionAvailable" v-show="activeSection === 'graph'" class="mb-8 last:mb-0">
                   <GraphSettings
                     :graph-extract="uiState.nodeExtractConfig"
                     :model-id="llmModelId"
@@ -563,13 +963,13 @@
                 </div>
               </div>
 
-              <footer class="modal-footer">
-                <t-button theme="default" variant="outline" @click="handleCancel">
+              <footer class="border-border bg-card flex shrink-0 justify-end gap-3 border-t px-5 py-3.5">
+                <Button variant="outline" @click="handleCancel">
                   {{ t("uploadConfirm.cancel") }}
-                </t-button>
-                <t-button theme="primary" :disabled="!canConfirm" @click="handleConfirm">
+                </Button>
+                <Button :disabled="!canConfirm" @click="handleConfirm">
                   {{ confirmButtonText }}
-                </t-button>
+                </Button>
               </footer>
             </div>
           </div>
@@ -583,6 +983,23 @@
 import { ref, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
+import {
+  AudioLinesIcon,
+  ChevronDownIcon,
+  CircleXIcon,
+  CopyIcon,
+  FileSearchIcon,
+  ImageIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  MessageSquareIcon,
+  NetworkIcon,
+  PlusIcon,
+  TagIcon,
+  XIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 import ModelSelector from "@/components/ModelSelector.vue";
 import KBParserSettings from "../settings/KBParserSettings.vue";
 import GraphSettings from "../settings/GraphSettings.vue";
@@ -590,11 +1007,26 @@ import { useChatResourcesStore } from "@/stores/chatResources";
 import { useEditorResourcesStore } from "@/stores/editorResources";
 import { useUIStore } from "@/stores/ui";
 import { formatFileSize, getFileIcon } from "@/utils/files";
+import { fileTypeIcon } from "../utils/fileTypeIcons";
 import { getUploadFileKey } from "../utils/uploadSources";
 import { listKnowledgeTags } from "@/api/knowledge-base";
 import KbUploadSourceDropdown from "./KbUploadSourceDropdown.vue";
 import FolderPickerMenu, { type FolderOption } from "./FolderPickerMenu.vue";
 import { folderOptionFromPath, sortFolderOptions } from "../folderTree";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
 import type {
   UploadConfirmManualSource,
@@ -609,6 +1041,30 @@ const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "webm", "wmv", "flv", "m4v
 
 type ConfigSectionKey = "tags" | "parser" | "chunking" | "multimodal" | "asr" | "question" | "graph";
 type IssueSectionKey = "multimodal" | "asr";
+
+const sectionIcons: Record<string, LucideIcon> = {
+  tag: TagIcon,
+  "file-search": FileSearchIcon,
+  "file-copy": CopyIcon,
+  image: ImageIcon,
+  sound: AudioLinesIcon,
+  chat: MessageSquareIcon,
+  "chart-bubble": NetworkIcon,
+};
+
+function sectionIcon(name: string): LucideIcon {
+  return sectionIcons[name] ?? InfoIcon;
+}
+
+// A settings row: the label column takes 40%, the control 56% with a 280px
+// floor (the old `.upload-confirm-content` override, which applied to every
+// row); below 800px the row stacks and both take the full width.
+const infoCol = "max-w-[40%] flex-[0_0_40%] pr-6 max-[800px]:max-w-none max-[800px]:basis-auto max-[800px]:pr-0";
+const controlCol =
+  "flex max-w-[56%] min-w-[280px] flex-[1_1_56%] items-center justify-end max-[800px]:max-w-none max-[800px]:basis-auto";
+
+// Select items cannot carry an empty value; this stands for "automatic".
+const AUTO_LANGUAGE = "__auto__";
 
 interface ChunkingUIConfig {
   chunkSize: number;
@@ -703,6 +1159,29 @@ const tagsLoadFailed = ref(false);
 const chunkingMoreOpen = ref(false);
 const activeSection = ref<ConfigSectionKey>("tags");
 const uiState = ref<UploadUIState>(createDefaultUIState());
+const customSeparator = ref("");
+const tagPickerOpen = ref(false);
+const tagQuery = ref("");
+
+const filteredTags = computed(() => {
+  const query = tagQuery.value.trim().toLowerCase();
+  if (!query) return availableTags.value;
+  return availableTags.value.filter((tag) => tag.name.toLowerCase().includes(query));
+});
+
+const selectedTagNames = computed(() =>
+  selectedTagIds.value.map((id) => availableTags.value.find((tag) => tag.id === id)?.name ?? id).join(", "),
+);
+
+/**
+ * Keep a number field inside its range once the user leaves it, as
+ * t-input-number did; a native number input accepts any typed value.
+ */
+function clampNumber<T extends object>(target: T, key: keyof T, min: number, max: number) {
+  const raw = Number(target[key]);
+  if (Number.isNaN(raw)) return;
+  target[key] = Math.min(max, Math.max(min, raw)) as T[keyof T];
+}
 // Destination folder for this batch. Pre-filled from the sidebar tree, but
 // editable here so browsing a folder never silently decides where files land.
 const localTargetFolder = ref("");
@@ -869,18 +1348,52 @@ const separatorOptions = computed(() => [
   { label: t("knowledgeEditor.chunking.separators.space"), value: " " },
 ]);
 
+function separatorLabel(value: string): string {
+  return separatorOptions.value.find((o) => o.value === value)?.label ?? value;
+}
+
 const languageOptions = computed(() => [
   { label: t("knowledgeEditor.chunking.languageOptions.de"), value: "de" },
   { label: t("knowledgeEditor.chunking.languageOptions.en"), value: "en" },
   { label: t("knowledgeEditor.chunking.languageOptions.zh"), value: "zh" },
 ]);
 
-const tagOptions = computed(() =>
-  availableTags.value.map((tag) => ({
-    label: tag.name,
-    value: tag.id,
-  })),
-);
+function languageLabel(value: string): string {
+  return languageOptions.value.find((o) => o.value === value)?.label ?? value;
+}
+
+function toggleTag(id: string, checked: boolean) {
+  if (checked) {
+    if (!selectedTagIds.value.includes(id)) selectedTagIds.value = [...selectedTagIds.value, id];
+  } else {
+    selectedTagIds.value = selectedTagIds.value.filter((t) => t !== id);
+  }
+}
+
+function toggleSeparator(value: string, checked: boolean) {
+  const list = uiState.value.chunkingConfig.separators;
+  if (checked) {
+    if (!list.includes(value)) uiState.value.chunkingConfig.separators = [...list, value];
+  } else {
+    uiState.value.chunkingConfig.separators = list.filter((s) => s !== value);
+  }
+}
+
+function addCustomSeparator() {
+  const value = customSeparator.value;
+  if (!value) return;
+  toggleSeparator(value, true);
+  customSeparator.value = "";
+}
+
+function toggleLanguage(value: string, checked: boolean) {
+  const list = uiState.value.chunkingConfig.languages || [];
+  if (checked) {
+    if (!list.includes(value)) uiState.value.chunkingConfig.languages = [...list, value];
+  } else {
+    uiState.value.chunkingConfig.languages = list.filter((l) => l !== value);
+  }
+}
 
 const llmModelId = computed(() => props.kbInfo?.summary_model_id || "");
 
@@ -1481,772 +1994,8 @@ const handleConfirm = () => {
 };
 </script>
 
-<style lang="less" scoped>
-.upload-confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.upload-confirm-modal {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 92vw;
-  max-width: 1160px;
-  height: 85vh;
-  max-height: 750px;
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.close-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-  }
-}
-
-.upload-confirm-container {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.files-panel {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 220px;
-  background: var(--td-bg-color-settings-modal, var(--td-bg-color-secondarycontainer));
-  border-right: 1px solid var(--td-component-stroke);
-}
-
-.sidebar-header,
-.settings-sidebar-header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  box-sizing: border-box;
-  min-height: 56px;
-  padding: 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.sidebar-header {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-}
-
-.sidebar-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.sidebar-title {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-  padding-right: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--td-text-color-primary);
-}
-
-.sidebar-header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.files-count {
-  flex-shrink: 0;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 20px;
-  text-align: center;
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-secondary);
-}
-
-// Destination sits under the title inside the header block.
-.destination-row {
-  flex-shrink: 0;
-  padding: 0;
-}
-
-.destination-row :deep(.t-popup__reference) {
-  display: block;
-  max-width: 100%;
-}
-
-.destination-crumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-family: var(--app-font-family);
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  transition: color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color);
-
-    .destination-crumb__path,
-    .destination-crumb__caret {
-      color: var(--td-brand-color);
-    }
-  }
-}
-
-.destination-crumb__label {
-  flex-shrink: 0;
-}
-
-.destination-crumb__path {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--td-text-color-primary);
-  font-weight: 500;
-}
-
-.destination-crumb__caret {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.files-list-wrap {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  padding: 6px 8px 12px;
-  overflow: hidden;
-}
-
-.files-list {
-  flex: 1;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-  padding: 6px 6px 6px 8px;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.file-icon-wrap {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-
-.file-icon {
-  font-size: 16px;
-  color: var(--td-text-color-secondary);
-}
-
-.file-item:hover .file-icon {
-  color: var(--td-brand-color);
-}
-
-.file-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.file-name {
-  display: block;
-  overflow: hidden;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--td-text-color-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-size {
-  display: block;
-  margin-top: 1px;
-  font-size: 11px;
-  line-height: 1.3;
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-relative-dir {
-  color: var(--td-text-color-secondary);
-}
-
-.file-meta-sep {
-  margin: 0 4px;
-  color: var(--td-text-color-placeholder);
-}
-
-.file-remove {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  transition:
-    opacity 0.15s ease,
-    color 0.15s ease,
-    background-color 0.15s ease;
-  opacity: 0.45;
-
-  .file-item:hover &,
-  &:focus-visible {
-    opacity: 1;
-  }
-
-  &:hover {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-component);
-  }
-}
-
-.files-empty {
-  flex: 1;
-  padding: 16px 8px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  text-align: center;
-}
-
-.manual-source-panel {
-  flex: 1;
-  min-height: 0;
-  padding: 0;
-  overflow-y: auto;
-}
-
-.manual-source-title {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--td-bg-color-container-hover);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-  word-break: break-word;
-}
-
-.manual-source-meta {
-  margin: 6px 2px 0;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.config-panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.settings-sidebar {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 216px;
-  min-height: 0;
-  background-color: var(--td-bg-color-settings-modal, var(--td-bg-color-secondarycontainer));
-  border-right: 1px solid var(--td-component-stroke);
-}
-
-.settings-sidebar-header {
-  width: 100%;
-}
-
-.settings-sidebar-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--td-text-color-primary);
-}
-
-.settings-nav {
-  flex: 1;
-  padding: 10px 6px 12px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.nav-group-title {
-  padding: 6px 14px 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-
-  .settings-nav > &:first-child {
-    padding-top: 2px;
-  }
-
-  .settings-nav > &:not(:first-child) {
-    padding-top: 8px;
-  }
-}
-
-.nav-item {
-  display: flex;
-  align-items: flex-start;
-  width: 100%;
-  margin-bottom: 2px;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-
-  &:hover {
-    background-color: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-
-  &.active {
-    background-color: var(--td-bg-color-secondarycontainer);
-    color: var(--td-brand-color);
-    font-weight: 500;
-
-    .nav-label {
-      color: var(--td-brand-color);
-    }
-
-    .nav-status {
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  &--issue .nav-label {
-    color: var(--td-error-color);
-  }
-}
-
-.nav-icon {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  margin-right: 8px;
-  margin-top: 2px;
-  font-size: 16px;
-  color: inherit;
-}
-
-.nav-label-wrap {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.nav-label {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nav-status {
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 1.35;
-  color: var(--td-text-color-placeholder);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &--muted {
-    color: var(--td-text-color-placeholder);
-  }
-
-  &--warning {
-    color: var(--td-warning-color);
-  }
-
-  &--error {
-    color: var(--td-error-color);
-  }
-}
-
-.nav-dot {
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: var(--td-error-color);
-}
-
-.content-wrapper {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 22px 32px 28px;
-  overflow-y: auto;
-  background: var(--td-bg-color-container);
-}
-
-.upload-confirm-content {
-  .setting-info {
-    flex: 0 0 40%;
-    max-width: 40%;
-  }
-
-  .setting-control {
-    flex: 1 1 56%;
-    max-width: 56%;
-    min-width: 280px;
-  }
-}
-
-.section-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 10px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-secondary);
-
-  .t-icon {
-    flex-shrink: 0;
-    margin-top: 1px;
-    font-size: 16px;
-    color: var(--td-brand-color);
-  }
-}
-
-.section {
-  margin-bottom: 32px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.section-content {
-  .section-header {
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    margin: 0 0 6px;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .section-desc {
-    margin: 0;
-    font-size: 14px;
-    line-height: 22px;
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.kb-settings-block {
-  width: 100%;
-
-  .section-header {
-    margin-bottom: 20px;
-  }
-
-  .section-title {
-    margin: 0 0 6px;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .section-desc {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-
-  &--more {
-    margin-top: 4px;
-  }
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-  }
-
-  .desc {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--td-text-color-secondary);
-  }
-
-  .warn {
-    margin: 4px 0 0;
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--td-warning-color);
-  }
-}
-
-.setting-control {
-  display: flex;
-  flex: 0 0 55%;
-  max-width: 55%;
-  align-items: center;
-  justify-content: flex-end;
-
-  &-full {
-    flex: none;
-    width: 100%;
-    max-width: none;
-    justify-content: flex-start;
-  }
-
-  &-inline {
-    gap: 12px;
-    justify-content: flex-end;
-  }
-}
-
-.setting-row-vertical {
-  flex-direction: column;
-  gap: 12px;
-
-  .setting-info,
-  .setting-control {
-    flex: none;
-    width: 100%;
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .setting-control {
-    display: block;
-  }
-}
-
-.required {
-  margin-left: 2px;
-  font-weight: 500;
-  color: var(--td-error-color);
-}
-
-.field-hint {
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-
-  &--error {
-    color: var(--td-error-color);
-  }
-}
-
-.more-options-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  padding: 6px 0;
-  border: none;
-  background: transparent;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  cursor: pointer;
-
-  .t-icon {
-    transition: transform 0.18s ease;
-
-    &.is-open {
-      transform: rotate(180deg);
-    }
-  }
-}
-
-:deep(.t-input-number) {
-  width: 100%;
-}
-
-.modal-footer {
-  display: flex;
-  flex-shrink: 0;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-}
-
-@media (max-width: 800px) {
-  .upload-confirm-container {
-    flex-direction: column;
-  }
-
-  .files-panel {
-    width: auto;
-    max-height: 140px;
-    border-right: none;
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .settings-sidebar {
-    width: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .settings-nav {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex: none;
-    padding: 8px;
-    overflow-x: auto;
-  }
-
-  .nav-group-title {
-    display: none;
-  }
-
-  .nav-item {
-    flex: 0 0 auto;
-    width: auto;
-    margin-bottom: 0;
-    white-space: nowrap;
-  }
-
-  .content-wrapper {
-    padding: 16px;
-  }
-
-  .setting-info,
-  .setting-control {
-    flex: 1 1 100%;
-    max-width: none;
-  }
-
-  .setting-row {
-    flex-direction: column;
-    gap: 12px;
-  }
-}
-
+<!-- Vue <Transition> hooks for the modal fade; the only style block in the file. -->
+<style scoped>
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.2s ease;
@@ -2255,26 +2004,5 @@ const handleConfirm = () => {
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
-}
-</style>
-
-<style lang="less">
-// Must sit above the upload modal (z-index 3000). Do not reuse card-more-popup here —
-// its global z-index: 99 !important would hide the menu behind the modal overlay.
-.upload-destination-popup {
-  z-index: 3100 !important;
-
-  .t-popup__content {
-    padding: 4px !important;
-    margin-top: 6px !important;
-    min-width: 208px;
-    border-radius: 10px !important;
-    background: var(--td-bg-color-container) !important;
-    border: 0.5px solid var(--td-component-stroke) !important;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.03),
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 8px 24px rgba(0, 0, 0, 0.1) !important;
-  }
 }
 </style>

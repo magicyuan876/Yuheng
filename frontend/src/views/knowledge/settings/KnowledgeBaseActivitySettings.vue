@@ -1,193 +1,243 @@
 <template>
-  <div class="section-content kb-activity-settings">
-    <div class="section-header">
-      <div class="kb-activity-title-row">
-        <h3 class="section-title">{{ t("knowledgeEditor.activity.title") }}</h3>
+  <div class="w-full">
+    <div class="mb-4">
+      <div class="mb-1.5 inline-flex max-w-full items-center gap-1.5">
+        <h3 class="text-foreground m-0 [font-family:var(--app-font-family)] text-xl font-semibold">
+          {{ t("knowledgeEditor.activity.title") }}
+        </h3>
+        <!-- The chat view's suggested-questions refresh button, restated in utilities. -->
         <button
           type="button"
-          class="suggested-questions-refresh"
+          data-slot="icon-button"
+          class="text-placeholder enabled:hover:text-primary enabled:hover:bg-muted enabled:active:bg-muted inline-flex size-5 shrink-0 items-center justify-center rounded-md transition-[color,background-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] disabled:opacity-70"
           :disabled="loading"
           :title="t('knowledgeEditor.activity.refresh')"
           :aria-label="t('knowledgeEditor.activity.refresh')"
           @click="reload"
         >
-          <t-icon :name="loading ? 'loading' : 'refresh'" :class="{ 'sq-refresh-spin': loading }" />
+          <Loader2Icon v-if="loading" class="size-3 animate-[spin_0.8s_linear_infinite]" />
+          <RefreshCwIcon v-else class="size-3" />
         </button>
       </div>
-      <p class="section-desc">{{ t("knowledgeEditor.activity.description") }}</p>
-      <p v-if="hasActiveFilters" class="kb-activity-filter-bar">
+      <p class="text-placeholder m-0 [font-family:var(--app-font-family)] text-sm leading-[22px]">
+        {{ t("knowledgeEditor.activity.description") }}
+      </p>
+      <p
+        v-if="hasActiveFilters"
+        class="text-muted-foreground mx-0 mt-1.5 mb-0 flex flex-wrap items-center gap-2 text-[13px] leading-5"
+      >
         <span>{{ filterSummaryText }}</span>
-        <button type="button" class="kb-activity-clear-filters" @click="clearFilters">
+        <button
+          type="button"
+          data-slot="text-button"
+          class="text-primary cursor-pointer text-[13px] leading-5 hover:underline"
+          @click="clearFilters"
+        >
           {{ t("knowledgeEditor.activity.clearFilters") }}
         </button>
       </p>
     </div>
 
-    <div class="section-body kb-activity-body">
-      <div v-if="error" class="kb-activity-branch kb-activity-branch--error">
-        <t-alert theme="error" :message="error">
-          <template #operation>
-            <t-button size="small" @click="reload">{{ t("knowledgeEditor.activity.retry") }}</t-button>
-          </template>
-        </t-alert>
+    <div class="min-h-[280px]">
+      <div v-if="error" class="flex min-h-[240px] flex-col items-center justify-center">
+        <Alert variant="destructive" class="max-w-xl">
+          <CircleAlertIcon />
+          <AlertTitle>{{ error }}</AlertTitle>
+          <AlertAction>
+            <Button size="sm" variant="outline" @click="reload">{{ t("knowledgeEditor.activity.retry") }}</Button>
+          </AlertAction>
+        </Alert>
       </div>
 
-      <div ref="scrollRoot" class="audit-scroll-area narrow-scrollbar kb-activity-branch">
-        <div class="data-table-shell audit-table-shell">
-          <t-table
-            row-key="id"
-            :data="entries"
-            :columns="columns"
-            :filter-row="null"
-            size="medium"
-            hover
-            :loading="loading && !entries.length && !loadedOnce"
-            @row-click="openDetail"
+      <!-- Rendered alongside the error, as before: the alert sits above the table rather than replacing it. -->
+      <div ref="scrollRoot" class="flex min-h-0 [scrollbar-width:thin] flex-col overflow-x-hidden overflow-y-visible">
+        <div class="border-border bg-card overflow-x-auto rounded-[10px] border">
+          <Table>
+            <TableHeader>
+              <TableRow
+                class="bg-muted hover:bg-muted sticky top-0 z-[2] shadow-[inset_0_-1px_0_var(--td-component-stroke)]"
+              >
+                <TableHead class="w-[116px] px-4 py-3.5 text-[13px] font-semibold">{{
+                  t("knowledgeEditor.activity.columns.time")
+                }}</TableHead>
+                <TableHead class="w-[132px] px-4 py-3.5 text-[13px] font-semibold">
+                  <div class="inline-flex max-w-full items-center gap-1">
+                    <span>{{ t("knowledgeEditor.activity.columns.action") }}</span>
+                    <Popover v-model:open="actionFilterOpen">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="icon-button"
+                          class="inline-flex size-[22px] cursor-pointer items-center justify-center rounded transition-colors duration-150"
+                          :class="
+                            action
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-placeholder hover:bg-accent hover:text-muted-foreground bg-transparent'
+                          "
+                          :aria-label="t('knowledgeEditor.activity.columns.action')"
+                        >
+                          <ListFilterIcon class="size-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" class="w-auto p-1.5">
+                        <div class="flex max-h-[min(360px,60vh)] max-w-[280px] min-w-[160px] flex-col overflow-hidden">
+                          <div class="flex min-h-0 flex-1 [scrollbar-width:thin] flex-col gap-px overflow-y-auto">
+                            <button
+                              v-for="item in actionFilterList"
+                              :key="item.value || '__all__'"
+                              type="button"
+                              data-slot="menu-option"
+                              class="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] leading-[1.4] transition-colors duration-150"
+                              :class="
+                                (action ?? '') === item.value
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-foreground hover:bg-muted bg-transparent'
+                              "
+                              @click="selectActionFilter(item.value)"
+                            >
+                              <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+                              <CheckIcon v-if="(action ?? '') === item.value" class="text-primary size-3.5 shrink-0" />
+                            </button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+                <TableHead class="min-w-[180px] px-4 py-3.5 text-[13px] font-semibold">{{
+                  t("knowledgeEditor.activity.columns.target")
+                }}</TableHead>
+                <TableHead class="w-[120px] px-4 py-3.5 text-[13px] font-semibold">{{
+                  t("knowledgeEditor.activity.columns.actor")
+                }}</TableHead>
+                <TableHead class="w-[108px] px-4 py-3.5 text-center text-[13px] font-semibold">
+                  <div class="inline-flex w-full items-center justify-center gap-1">
+                    <span>{{ t("knowledgeEditor.activity.columns.outcome") }}</span>
+                    <Popover v-model:open="outcomeFilterOpen">
+                      <PopoverTrigger as-child>
+                        <button
+                          type="button"
+                          data-slot="icon-button"
+                          class="inline-flex size-[22px] cursor-pointer items-center justify-center rounded transition-colors duration-150"
+                          :class="
+                            outcome
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-placeholder hover:bg-accent hover:text-muted-foreground bg-transparent'
+                          "
+                          :aria-label="t('knowledgeEditor.activity.columns.outcome')"
+                        >
+                          <ListFilterIcon class="size-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" class="w-auto p-1.5">
+                        <div class="flex max-h-[min(360px,60vh)] max-w-[280px] min-w-[160px] flex-col overflow-hidden">
+                          <div class="flex min-h-0 flex-1 [scrollbar-width:thin] flex-col gap-px overflow-y-auto">
+                            <button
+                              v-for="item in outcomeFilterList"
+                              :key="item.value || '__all__'"
+                              type="button"
+                              data-slot="menu-option"
+                              class="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] leading-[1.4] transition-colors duration-150"
+                              :class="
+                                (outcome ?? '') === item.value
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-foreground hover:bg-muted bg-transparent'
+                              "
+                              @click="selectOutcomeFilter(item.value)"
+                            >
+                              <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+                              <CheckIcon v-if="(outcome ?? '') === item.value" class="text-primary size-3.5 shrink-0" />
+                            </button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="entry in entries"
+                :key="entry.id"
+                class="hover:bg-accent cursor-pointer"
+                @click="openDetail(entry)"
+              >
+                <TableCell class="px-4 py-3.5 align-middle">
+                  <div class="flex flex-col gap-0.5 leading-[1.3]">
+                    <span class="text-muted-foreground text-xs">{{ formatDatePart(entry.created_at) }}</span>
+                    <span class="text-foreground text-[13px] font-medium [font-variant-numeric:tabular-nums]">{{
+                      formatTimePart(entry.created_at)
+                    }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle">
+                  <Badge :class="actionBadgeClass(entry.action)">
+                    {{ actionLabel(entry.action) }}
+                  </Badge>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle whitespace-normal">
+                  <div class="flex min-w-0 flex-col gap-1 py-0.5 leading-[1.35]">
+                    <span v-if="targetSubject(entry)" class="text-foreground text-[13px] break-words">{{
+                      targetSubject(entry)
+                    }}</span>
+                    <span
+                      v-if="targetDiff(entry)"
+                      class="text-muted-foreground [font-family:var(--td-font-family-mono,monospace)] text-xs leading-[1.4] break-all"
+                      >{{ targetDiff(entry) }}</span
+                    >
+                    <span v-else-if="!targetSubject(entry)" class="text-placeholder">—</span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 align-middle">
+                  <div class="min-w-0">
+                    <span class="text-foreground truncate text-[13px] font-medium">{{ actorLabel(entry) }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3.5 text-center align-middle">
+                  <Badge :class="outcomeBadgeClass(entry.outcome)">
+                    {{ outcomeLabel(entry.outcome) }}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+
+          <div v-if="!entries.length && !loading" class="flex flex-col items-center gap-2 py-6">
+            <Empty>
+              <EmptyDescription>{{ emptyDescription }}</EmptyDescription>
+            </Empty>
+          </div>
+          <div
+            v-else-if="!entries.length && loading"
+            class="text-muted-foreground flex justify-center gap-2 py-10 text-sm"
           >
-            <template #action-title>
-              <div class="kb-activity-col-header">
-                <span>{{ t("knowledgeEditor.activity.columns.action") }}</span>
-                <t-popup
-                  v-model:visible="actionFilterOpen"
-                  trigger="click"
-                  placement="bottom-left"
-                  destroy-on-close
-                  :overlay-style="{ padding: 0 }"
-                  :overlay-inner-style="{ padding: 0 }"
-                >
-                  <template #content>
-                    <div class="kb-activity-filter-menu">
-                      <div class="kb-activity-filter-options">
-                        <button
-                          v-for="item in actionFilterList"
-                          :key="item.value || '__all__'"
-                          type="button"
-                          class="kb-activity-filter-option"
-                          :class="{ active: (action ?? '') === item.value }"
-                          @click="selectActionFilter(item.value)"
-                        >
-                          <span class="kb-activity-filter-option-label">{{ item.label }}</span>
-                          <t-icon
-                            v-if="(action ?? '') === item.value"
-                            name="check"
-                            class="kb-activity-filter-option-check"
-                            size="14px"
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  </template>
-                  <button
-                    type="button"
-                    class="kb-activity-filter-trigger"
-                    :class="{ active: Boolean(action) }"
-                    :aria-label="t('knowledgeEditor.activity.columns.action')"
-                    @click.stop
-                  >
-                    <t-icon name="filter" size="14px" />
-                  </button>
-                </t-popup>
-              </div>
-            </template>
-            <template #outcome-title>
-              <div class="kb-activity-col-header kb-activity-col-header--center">
-                <span>{{ t("knowledgeEditor.activity.columns.outcome") }}</span>
-                <t-popup
-                  v-model:visible="outcomeFilterOpen"
-                  trigger="click"
-                  placement="bottom-right"
-                  destroy-on-close
-                  :overlay-style="{ padding: 0 }"
-                  :overlay-inner-style="{ padding: 0 }"
-                >
-                  <template #content>
-                    <div class="kb-activity-filter-menu">
-                      <div class="kb-activity-filter-options">
-                        <button
-                          v-for="item in outcomeFilterList"
-                          :key="item.value || '__all__'"
-                          type="button"
-                          class="kb-activity-filter-option"
-                          :class="{ active: (outcome ?? '') === item.value }"
-                          @click="selectOutcomeFilter(item.value)"
-                        >
-                          <span class="kb-activity-filter-option-label">{{ item.label }}</span>
-                          <t-icon
-                            v-if="(outcome ?? '') === item.value"
-                            name="check"
-                            class="kb-activity-filter-option-check"
-                            size="14px"
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  </template>
-                  <button
-                    type="button"
-                    class="kb-activity-filter-trigger"
-                    :class="{ active: Boolean(outcome) }"
-                    :aria-label="t('knowledgeEditor.activity.columns.outcome')"
-                    @click.stop
-                  >
-                    <t-icon name="filter" size="14px" />
-                  </button>
-                </t-popup>
-              </div>
-            </template>
-            <template #empty>
-              <div class="kb-activity-empty">
-                <t-empty :description="emptyDescription" />
-              </div>
-            </template>
-            <template #created_at="{ row }">
-              <div class="audit-time">
-                <span class="audit-time-date">{{ formatDatePart(row.created_at) }}</span>
-                <span class="audit-time-clock">{{ formatTimePart(row.created_at) }}</span>
-              </div>
-            </template>
-            <template #action="{ row }">
-              <t-tag :theme="actionTheme(row.action)" size="small" variant="light-outline">
-                {{ actionLabel(row.action) }}
-              </t-tag>
-            </template>
-            <template #target="{ row }">
-              <div class="audit-target">
-                <span v-if="targetSubject(row)" class="audit-target-key">{{ targetSubject(row) }}</span>
-                <span v-if="targetDiff(row)" class="audit-target-diff">{{ targetDiff(row) }}</span>
-                <span v-else-if="!targetSubject(row)" class="audit-target-empty">—</span>
-              </div>
-            </template>
-            <template #actor="{ row }">
-              <div class="audit-actor">
-                <span class="audit-actor-name">{{ actorLabel(row) }}</span>
-              </div>
-            </template>
-            <template #outcome="{ row }">
-              <t-tag :theme="outcomeTheme(row.outcome)" size="small" variant="light">
-                {{ outcomeLabel(row.outcome) }}
-              </t-tag>
-            </template>
-          </t-table>
+            <Loader2Icon class="size-5 animate-spin" />
+          </div>
         </div>
 
-        <div ref="loadSentinel" class="audit-load-sentinel" aria-hidden="true" />
+        <div ref="loadSentinel" class="pointer-events-none h-px w-full" aria-hidden="true" />
 
-        <div v-if="loading && entries.length > 0" class="audit-loading-more">
-          <t-loading size="small" />
+        <div
+          v-if="loading && entries.length > 0"
+          class="text-muted-foreground flex items-center justify-center gap-2.5 p-3 text-xs"
+        >
+          <Loader2Icon class="size-4 animate-spin" />
           <span>{{ t("knowledgeEditor.activity.loadingMore") }}</span>
         </div>
-        <p v-else-if="!hasMore && entries.length > 0" class="audit-end-hint">
+        <p v-else-if="!hasMore && entries.length > 0" class="text-placeholder m-0 px-0 pt-2 pb-3.5 text-center text-xs">
           {{ t("knowledgeEditor.activity.end") }}
         </p>
       </div>
     </div>
 
+    <!-- SettingDrawer sits on the z-[2500] layer, above the z-[1000] editor modal. -->
     <SettingDrawer
       v-model:visible="detailVisible"
       class="kb-activity-detail-drawer"
       :title="detailTitle"
       :description="detailDescription"
-      icon="file-paste"
+      :icon="ClipboardPasteIcon"
       width="640px"
       :min-width="480"
       :max-width="960"
@@ -195,47 +245,92 @@
       hide-footer
     >
       <template v-if="selectedEntry">
-        <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section class="border-border flex flex-col gap-2.5 border-b py-4 first:pt-0 last:border-b-0">
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-sm before:content-['']"
+          >
             {{ t("knowledgeEditor.activity.drawer.sectionSummary") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in summaryFields(selectedEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in summaryFields(selectedEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd class="text-foreground m-0 text-[13px] leading-[1.55] break-all" :title="field.value">
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section v-if="identifierFields(selectedEntry).length > 0" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section
+          v-if="identifierFields(selectedEntry).length > 0"
+          class="border-border flex flex-col gap-2.5 border-b py-4 first:pt-0 last:border-b-0"
+        >
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-sm before:content-['']"
+          >
             {{ t("knowledgeEditor.activity.drawer.sectionIdentifiers") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in identifierFields(selectedEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd class="mono" :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in identifierFields(selectedEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd
+                class="mono text-foreground m-0 [font-family:var(--td-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace)] text-[13px] leading-[1.55] break-all"
+                :title="field.value"
+              >
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section v-if="taskFields(selectedEntry).length > 0" class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section
+          v-if="taskFields(selectedEntry).length > 0"
+          class="border-border flex flex-col gap-2.5 border-b py-4 first:pt-0 last:border-b-0"
+        >
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-sm before:content-['']"
+          >
             {{ t("knowledgeEditor.activity.drawer.sectionTask") }}
           </h4>
-          <dl class="audit-detail-fields">
-            <div v-for="field in taskFields(selectedEntry)" :key="field.key" class="audit-detail-field">
-              <dt>{{ field.label }}</dt>
-              <dd :class="{ mono: field.key.endsWith('_id') }" :title="field.value">{{ field.value }}</dd>
+          <dl class="m-0 flex flex-col gap-2.5">
+            <div
+              v-for="field in taskFields(selectedEntry)"
+              :key="field.key"
+              class="m-0 grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-3"
+            >
+              <dt class="text-placeholder m-0 text-xs leading-[1.45] whitespace-nowrap">{{ field.label }}</dt>
+              <dd
+                class="text-foreground m-0 text-[13px] leading-[1.55] break-all"
+                :class="
+                  field.key.endsWith('_id')
+                    ? 'mono [font-family:var(--td-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace)]'
+                    : ''
+                "
+                :title="field.value"
+              >
+                {{ field.value }}
+              </dd>
             </div>
           </dl>
         </section>
 
-        <section class="setting-drawer__section">
-          <h4 class="setting-drawer__section-title">
+        <section class="border-border flex flex-col gap-2.5 border-b py-4 first:pt-0 last:border-b-0">
+          <h4
+            class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-sm before:content-['']"
+          >
             {{ t("knowledgeEditor.activity.expanded.details") }}
           </h4>
-          <pre class="audit-detail-json mono">{{ detailsJSON(selectedEntry) }}</pre>
+          <pre
+            class="border-border bg-card text-foreground m-0 max-h-[min(420px,50vh)] overflow-auto rounded-lg border px-3.5 py-3 [font-family:var(--td-font-family-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace)] text-xs leading-[1.55] break-all whitespace-pre-wrap"
+            >{{ detailsJSON(selectedEntry) }}</pre>
         </section>
       </template>
     </SettingDrawer>
@@ -245,7 +340,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  ClipboardPasteIcon,
+  ListFilterIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+} from "@lucide/vue";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AUDIT_ACTION_I18N_ROOTS } from "@/i18n/auditActionRegistry";
 import { auditActionLabel } from "@/i18n/auditActionLabel";
 import { listKnowledgeBaseActivity, type KnowledgeBaseActivity } from "@/api/knowledge-base";
@@ -308,23 +417,6 @@ const actionFilterList = computed(() => {
       : [];
   return [{ label: t("knowledgeEditor.activity.allActions"), value: "" }, ...list];
 });
-
-const columns = computed(() => [
-  { colKey: "created_at", title: t("knowledgeEditor.activity.columns.time"), width: 116 },
-  {
-    colKey: "action",
-    title: "action-title",
-    width: 132,
-  },
-  { colKey: "target", title: t("knowledgeEditor.activity.columns.target"), minWidth: 180 },
-  { colKey: "actor", title: t("knowledgeEditor.activity.columns.actor"), width: 120 },
-  {
-    colKey: "outcome",
-    title: "outcome-title",
-    width: 108,
-    align: "center" as const,
-  },
-]);
 
 const hasActiveFilters = computed(() => Boolean(action.value || outcome.value));
 
@@ -390,12 +482,12 @@ function outcomeLabel(value: AuditOutcome): string {
   return te(key) ? t(key) : value;
 }
 
-function outcomeTheme(value: AuditOutcome): "success" | "danger" | "warning" | "primary" | "default" {
-  if (value === "accepted") return "primary";
-  if (value === "success") return "success";
-  if (value === "failed" || value === "denied") return "danger";
-  if (value === "partial" || value === "canceled") return "warning";
-  return "default";
+function outcomeBadgeClass(value: AuditOutcome): string {
+  if (value === "accepted") return "bg-primary/10 text-primary hover:bg-primary/10";
+  if (value === "success") return "bg-success/10 text-success hover:bg-success/10";
+  if (value === "failed" || value === "denied") return "bg-destructive/10 text-destructive hover:bg-destructive/10";
+  if (value === "partial" || value === "canceled") return "bg-warning/10 text-warning hover:bg-warning/10";
+  return "bg-muted text-muted-foreground hover:bg-muted";
 }
 
 const taskDetailKeys = [
@@ -432,12 +524,16 @@ function taskFields(entry: KnowledgeBaseActivity): DetailField[] {
   });
 }
 
-function actionTheme(action: string): "success" | "warning" | "danger" | "primary" | "default" {
-  if (action.includes("failed") || action.includes("denied")) return "danger";
-  if (action.includes("deleted") || action.includes("removed") || action.includes("canceled")) return "warning";
-  if (action.includes("completed") || action.includes("created") || action.includes("added")) return "success";
-  if (action.includes("started") || action.includes("updated") || action.includes("changed")) return "primary";
-  return "default";
+function actionBadgeClass(action: string): string {
+  if (action.includes("failed") || action.includes("denied"))
+    return "bg-destructive/10 text-destructive border-destructive/40";
+  if (action.includes("deleted") || action.includes("removed") || action.includes("canceled"))
+    return "bg-warning/10 text-warning border-warning/40";
+  if (action.includes("completed") || action.includes("created") || action.includes("added"))
+    return "bg-success/10 text-success border-success/40";
+  if (action.includes("started") || action.includes("updated") || action.includes("changed"))
+    return "bg-primary/10 text-primary border-primary/40";
+  return "bg-muted text-muted-foreground border-border";
 }
 
 function targetLabel(value: string): string {
@@ -617,8 +713,8 @@ function detailsJSON(entry: KnowledgeBaseActivity): string {
   }
 }
 
-function openDetail(context: { row: KnowledgeBaseActivity }) {
-  selectedEntry.value = context.row;
+function openDetail(entry: KnowledgeBaseActivity) {
+  selectedEntry.value = entry;
   detailVisible.value = true;
 }
 
@@ -709,373 +805,3 @@ watch(
 
 onUnmounted(() => detachInfiniteScroll());
 </script>
-
-<style scoped lang="less">
-@import "@/components/css/suggested-questions.less";
-
-.section-content {
-  width: 100%;
-
-  .section-header {
-    margin-bottom: 16px;
-  }
-
-  .kb-activity-title-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    max-width: 100%;
-  }
-
-  .section-title {
-    margin: 0;
-    font-family: var(--app-font-family);
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-
-  .section-desc {
-    margin: 0;
-    font-family: var(--app-font-family);
-    font-size: 14px;
-    color: var(--td-text-color-placeholder);
-    line-height: 22px;
-  }
-
-  .kb-activity-filter-bar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 6px 0 0;
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    line-height: 20px;
-  }
-}
-
-.kb-activity-body {
-  min-height: 280px;
-}
-
-.kb-activity-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 24px 0;
-}
-
-.kb-activity-clear-filters {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  line-height: 20px;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.kb-activity-col-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-
-  &--center {
-    justify-content: center;
-    width: 100%;
-  }
-}
-
-.kb-activity-filter-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-secondary);
-  }
-
-  &.active {
-    color: var(--td-brand-color);
-    background: var(--td-brand-color-light, rgba(0, 82, 217, 0.08));
-  }
-}
-
-.kb-activity-filter-menu {
-  min-width: 160px;
-  max-width: 280px;
-  max-height: min(360px, 60vh);
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  overflow: hidden;
-}
-
-.kb-activity-filter-options {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  scrollbar-width: thin;
-}
-
-.kb-activity-filter-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  line-height: 1.4;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &.active {
-    background: var(--td-brand-color-light, rgba(0, 82, 217, 0.08));
-    color: var(--td-brand-color);
-    font-weight: 500;
-  }
-}
-
-.kb-activity-filter-option-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kb-activity-filter-option-check {
-  flex: 0 0 auto;
-  color: var(--td-brand-color);
-}
-
-.kb-activity-branch {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.kb-activity-branch--error {
-  justify-content: center;
-  align-items: center;
-  min-height: 240px;
-}
-
-.audit-scroll-area {
-  overflow-x: hidden;
-  overflow-y: visible;
-}
-
-.audit-load-sentinel {
-  height: 1px;
-  width: 100%;
-  pointer-events: none;
-}
-
-.audit-loading-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.audit-end-hint {
-  text-align: center;
-  font-size: 12px;
-  color: var(--td-text-color-disabled);
-  padding: 8px 0 14px;
-  margin: 0;
-}
-
-.audit-time {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.3;
-
-  .audit-time-date {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-  }
-
-  .audit-time-clock {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.audit-actor {
-  min-width: 0;
-
-  .audit-actor-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.audit-target {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  line-height: 1.35;
-  min-width: 0;
-  padding: 2px 0;
-
-  .audit-target-key {
-    font-size: 13px;
-    color: var(--td-text-color-primary);
-    word-break: break-word;
-  }
-
-  .audit-target-diff {
-    font-size: 12px;
-    color: var(--td-text-color-secondary);
-    font-family: var(--td-font-family-mono, monospace);
-    word-break: break-all;
-    line-height: 1.4;
-  }
-
-  .audit-target-empty {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.data-table-shell {
-  overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid var(--td-component-stroke);
-  background-color: var(--td-bg-color-container);
-
-  &:deep(thead th) {
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  &:deep(.t-table td),
-  &:deep(.t-table th) {
-    padding-top: 12px;
-    padding-bottom: 12px;
-  }
-}
-
-.audit-table-shell {
-  &:deep(.t-table td),
-  &:deep(.t-table th) {
-    vertical-align: middle;
-    padding-top: 14px;
-    padding-bottom: 14px;
-  }
-
-  &:deep(thead th) {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background-color: var(--td-bg-color-secondarycontainer) !important;
-    box-shadow: inset 0 -1px 0 var(--td-component-stroke);
-  }
-
-  &:deep(.t-table tbody tr) {
-    cursor: pointer;
-  }
-
-  &:deep(.t-table tbody tr:hover > td) {
-    background-color: var(--td-bg-color-container-hover);
-  }
-}
-
-.audit-detail-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-}
-
-.audit-detail-field {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 12px;
-  align-items: baseline;
-  margin: 0;
-
-  dt {
-    margin: 0;
-    color: var(--td-text-color-placeholder);
-    font-size: 12px;
-    line-height: 1.45;
-    white-space: nowrap;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-size: 13px;
-    line-height: 1.55;
-    word-break: break-all;
-  }
-}
-
-.audit-detail-json {
-  margin: 0;
-  padding: 12px 14px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--td-text-color-primary);
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: min(420px, 50vh);
-  overflow: auto;
-}
-
-.mono {
-  font-family: var(--td-font-family-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-}
-
-.narrow-scrollbar {
-  scrollbar-width: thin;
-}
-</style>

@@ -3,154 +3,198 @@
     v-model:visible="drawerVisible"
     :title="$t('knowledgeBase.tagManageTitle')"
     :description="$t('knowledgeBase.tagManageDescription')"
-    icon="discount"
+    :icon="TagsIcon"
     width="480px"
     :min-width="420"
     :max-width="640"
-    resizable
+    :resizable="true"
     storage-key="setting-drawer:width:kb-tag-manage"
     :hide-footer="true"
   >
-    <section class="setting-drawer__section">
-      <h4 class="setting-drawer__section-title">{{ $t("knowledgeBase.tagManageListSection") }}</h4>
+    <section
+      class="flex flex-col gap-3.5 border-b border-[var(--td-component-stroke)] pt-3 pb-4 first:pt-0 last:border-b-0 last:pb-0"
+    >
+      <h4
+        class="text-foreground before:bg-primary m-0 mb-1 flex items-center gap-2 text-[13px] font-semibold select-none before:h-3.5 before:w-[3px] before:shrink-0 before:rounded-sm before:content-['']"
+      >
+        {{ $t("knowledgeBase.tagManageListSection") }}
+      </h4>
 
-      <div class="tag-manage-toolbar">
-        <div class="tag-manage-search-wrap">
-          <t-input
+      <div class="flex items-center gap-1.5">
+        <div class="relative min-w-0 flex-1">
+          <SearchIcon
+            class="text-placeholder pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2"
+            aria-hidden="true"
+          />
+          <!-- A 24px filled field that turns into a bordered one on hover or focus, as the TDesign small input did. -->
+          <Input
             v-model.trim="searchQuery"
-            size="small"
             :placeholder="$t('knowledgeBase.tagSearchPlaceholder')"
-            clearable
-            class="tag-manage-search"
+            class="bg-muted dark:bg-muted hover:bg-card focus-visible:bg-card hover:border-border focus-visible:border-border placeholder:text-placeholder h-6 rounded-md border-transparent pr-7 pl-7 text-[13px] focus-visible:ring-0 md:text-[13px]"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            data-slot="input-clear"
+            class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-1.5 -translate-y-1/2"
+            :aria-label="$t('common.clear')"
+            @click="searchQuery = ''"
           >
-            <template #prefix-icon>
-              <t-icon name="search" size="14px" />
-            </template>
-          </t-input>
+            <CircleXIcon class="size-3.5" aria-hidden="true" />
+          </button>
         </div>
-        <t-tooltip :content="$t('knowledgeBase.tagCreateAction')" placement="top">
-          <t-button
-            size="small"
-            variant="text"
-            class="tag-manage-create-btn"
-            :disabled="creatingTag"
-            :aria-label="$t('knowledgeBase.tagCreateAction')"
-            @click="startCreateTag"
-          >
-            <template #icon><t-icon name="add" size="16px" /></template>
-          </t-button>
-        </t-tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="text-muted-foreground hover:text-foreground hover:bg-muted rounded-md disabled:opacity-45"
+              :disabled="creatingTag"
+              :aria-label="$t('knowledgeBase.tagCreateAction')"
+              @click="startCreateTag"
+            >
+              <PlusIcon class="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{{ $t("knowledgeBase.tagCreateAction") }}</TooltipContent>
+        </Tooltip>
       </div>
 
-      <t-loading :loading="loading && !tags.length" size="small" class="tag-manage-loading">
-        <div v-if="!loading && !tags.length && !creatingTag" class="tag-manage-empty">
-          <t-empty :description="$t('knowledgeBase.tagEmptyResult')" />
+      <!-- The list stays in place under the spinner, as it did under t-loading. -->
+      <div class="relative min-h-[80px]" :aria-busy="loading && !tags.length">
+        <div v-if="!loading && !tags.length && !creatingTag" class="py-6">
+          <Empty>
+            <EmptyDescription>{{ $t("knowledgeBase.tagEmptyResult") }}</EmptyDescription>
+          </Empty>
         </div>
 
-        <ul v-else class="tag-tile-grid">
+        <ul v-else class="m-0 grid list-none grid-cols-2 gap-1.5 p-0">
           <template v-if="loading && !tags.length">
-            <li v-for="n in 4" :key="'tag-skel-' + n" class="tag-tile tag-tile--skeleton">
-              <t-skeleton animation="gradient" :row-col="[{ width: '100%', height: '44px', type: 'rect' }]" />
+            <li v-for="n in 4" :key="'tag-skel-' + n">
+              <Skeleton class="h-11 w-full" />
             </li>
           </template>
 
           <template v-else>
-            <li v-if="creatingTag" class="tag-tile tag-tile--editing" @click.stop>
-              <div class="tag-tile__main tag-tile__main--editing">
-                <span class="tag-tile__badge" aria-hidden="true">
-                  <t-icon name="discount" size="15px" />
+            <li
+              v-if="creatingTag"
+              class="bg-muted relative box-border flex min-h-11 items-center justify-between gap-1 rounded-md border border-[var(--td-component-border)] py-[5px] pr-1.5 pl-2"
+              @click.stop
+            >
+              <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                <span
+                  class="bg-muted text-placeholder inline-flex size-6 shrink-0 items-center justify-center rounded-md"
+                  aria-hidden="true"
+                >
+                  <TagsIcon class="size-[15px]" />
                 </span>
-                <t-input
+                <Input
                   ref="newTagInputRef"
                   v-model="newTagName"
-                  size="small"
                   :maxlength="40"
-                  class="tag-tile__input"
+                  class="h-6 min-w-0 flex-1 rounded-none border-transparent bg-transparent px-0 text-[13px] font-medium shadow-none focus-visible:border-transparent focus-visible:ring-0 md:text-[13px] dark:bg-transparent"
                   :placeholder="$t('knowledgeBase.tagNamePlaceholder')"
-                  @enter="submitCreateTag"
-                  @keydown="(_v: string, ctx?: { e?: KeyboardEvent }) => onEditKeydown(ctx, cancelCreateTag)"
+                  @keydown.enter="submitCreateTag"
+                  @keydown="(e: KeyboardEvent) => onEditKeydown(e, cancelCreateTag)"
                 />
               </div>
-              <div class="tag-tile__actions">
-                <t-button
-                  variant="text"
-                  shape="square"
-                  size="small"
-                  class="tag-tile__action-btn tag-tile__action-btn--confirm"
-                  :loading="creatingTagLoading"
+              <div class="flex shrink-0 items-center">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  class="text-muted-foreground hover:text-foreground focus-visible:text-foreground hover:bg-card dark:hover:bg-card"
+                  :disabled="creatingTagLoading"
                   :title="$t('common.create')"
+                  :aria-label="$t('common.create')"
                   @click.stop="submitCreateTag"
                 >
-                  <template #icon><t-icon name="check" size="14px" /></template>
-                </t-button>
-                <t-button
-                  variant="text"
-                  shape="square"
-                  size="small"
-                  class="tag-tile__action-btn"
+                  <Loader2Icon v-if="creatingTagLoading" class="size-3.5 animate-spin" />
+                  <CheckIcon v-else class="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  class="text-muted-foreground"
                   :title="$t('common.cancel')"
+                  :aria-label="$t('common.cancel')"
                   @click.stop="cancelCreateTag"
                 >
-                  <template #icon><t-icon name="close" size="14px" /></template>
-                </t-button>
+                  <XIcon class="size-3.5" />
+                </Button>
               </div>
             </li>
 
+            <!--
+              A tile's actions appear on hover or keyboard focus, and always
+              on touch screens, which have no hover to reveal them.
+            -->
             <li
               v-for="tag in tags"
               :key="tag.id"
-              class="tag-tile"
-              :class="{ 'tag-tile--editing': editingTagId === tag.id }"
+              class="group relative box-border flex min-h-11 items-center justify-between gap-1 rounded-md border py-[5px] pr-1.5 pl-2 transition-colors"
+              :class="
+                editingTagId === tag.id
+                  ? 'bg-muted border-[var(--td-component-border)]'
+                  : 'bg-card border-[var(--td-component-stroke)] hover:border-[var(--td-component-border)] hover:bg-[color-mix(in_srgb,var(--td-bg-color-secondarycontainer)_40%,var(--td-bg-color-container))]'
+              "
               @click.stop
             >
               <template v-if="editingTagId === tag.id">
-                <div class="tag-tile__main tag-tile__main--editing">
-                  <span class="tag-tile__badge" aria-hidden="true">
-                    <t-icon name="discount" size="15px" />
+                <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span
+                    class="bg-muted text-placeholder inline-flex size-6 shrink-0 items-center justify-center rounded-md"
+                    aria-hidden="true"
+                  >
+                    <TagsIcon class="size-[15px]" />
                   </span>
-                  <t-input
-                    :ref="(el: any) => setEditingTagInputRef(el, tag.id)"
+                  <Input
+                    :ref="(el) => setEditingTagInputRef(el as ComponentPublicInstance | null, tag.id)"
                     v-model="editingTagName"
-                    size="small"
                     :maxlength="40"
-                    class="tag-tile__input"
+                    class="h-6 min-w-0 flex-1 rounded-none border-transparent bg-transparent px-0 text-[13px] font-medium shadow-none focus-visible:border-transparent focus-visible:ring-0 md:text-[13px] dark:bg-transparent"
                     :placeholder="$t('knowledgeBase.tagNamePlaceholder')"
-                    @enter="submitEditTag"
-                    @keydown="(_v: string, ctx?: { e?: KeyboardEvent }) => onEditKeydown(ctx, cancelEditTag)"
+                    @keydown.enter="submitEditTag"
+                    @keydown="(e: KeyboardEvent) => onEditKeydown(e, cancelEditTag)"
                   />
                 </div>
-                <div class="tag-tile__actions">
-                  <t-button
-                    variant="text"
-                    shape="square"
-                    size="small"
-                    class="tag-tile__action-btn tag-tile__action-btn--confirm"
-                    :loading="editingTagSubmitting"
+                <div class="flex shrink-0 items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground focus-visible:text-foreground hover:bg-card dark:hover:bg-card"
+                    :disabled="editingTagSubmitting"
                     :title="$t('common.save')"
+                    :aria-label="$t('common.save')"
                     @click.stop="submitEditTag"
                   >
-                    <template #icon><t-icon name="check" size="14px" /></template>
-                  </t-button>
-                  <t-button
-                    variant="text"
-                    shape="square"
-                    size="small"
-                    class="tag-tile__action-btn"
+                    <Loader2Icon v-if="editingTagSubmitting" class="size-3.5 animate-spin" />
+                    <CheckIcon v-else class="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground"
                     :title="$t('common.cancel')"
+                    :aria-label="$t('common.cancel')"
                     @click.stop="cancelEditTag"
                   >
-                    <template #icon><t-icon name="close" size="14px" /></template>
-                  </t-button>
+                    <XIcon class="size-3.5" />
+                  </Button>
                 </div>
               </template>
               <template v-else>
-                <div class="tag-tile__main">
-                  <span class="tag-tile__badge" aria-hidden="true">
-                    <t-icon name="discount" size="15px" />
+                <div class="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span
+                    class="bg-muted text-placeholder inline-flex size-6 shrink-0 items-center justify-center rounded-md"
+                    aria-hidden="true"
+                  >
+                    <TagsIcon class="size-[15px]" />
                   </span>
-                  <span class="tag-tile__text">
-                    <span class="tag-tile__name" :title="tag.name">{{ tag.name }}</span>
-                    <span class="tag-tile__count">
+                  <span class="flex min-w-0 flex-1 flex-col gap-px">
+                    <span class="text-foreground truncate text-[13px] leading-[1.3] font-medium" :title="tag.name">{{
+                      tag.name
+                    }}</span>
+                    <span class="text-placeholder truncate text-[11px] leading-[1.3]">
                       {{
                         isFaq
                           ? $t("knowledgeBase.tagManageFaqCount", { count: tag.chunk_count || 0 })
@@ -159,49 +203,74 @@
                     </span>
                   </span>
                 </div>
-                <div class="tag-tile__actions" @click.stop>
-                  <t-button
-                    variant="text"
-                    shape="square"
-                    size="small"
-                    class="tag-tile__action-btn"
+                <div
+                  class="flex shrink-0 items-center opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                  @click.stop
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
                     :title="$t('knowledgeBase.tagEditAction')"
+                    :aria-label="$t('knowledgeBase.tagEditAction')"
                     @click="startEditTag(tag)"
                   >
-                    <template #icon><t-icon name="edit" size="14px" /></template>
-                  </t-button>
-                  <t-popconfirm
-                    :content="getDeleteConfirmContent(tag)"
-                    :confirm-btn="{ content: $t('common.delete'), theme: 'danger' }"
-                    :cancel-btn="{ content: $t('common.cancel') }"
-                    placement="bottom-right"
-                    @confirm="deleteTag(tag)"
+                    <PenLineIcon class="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-destructive hover:text-destructive hover:bg-[var(--td-error-color-1)] dark:hover:bg-[var(--td-error-color-1)]"
+                    :title="$t('knowledgeBase.tagDeleteAction')"
+                    :aria-label="$t('knowledgeBase.tagDeleteAction')"
+                    @click.stop="deleteTarget = tag"
                   >
-                    <t-button
-                      theme="danger"
-                      shape="square"
-                      variant="text"
-                      size="small"
-                      class="tag-tile__action-btn"
-                      :title="$t('knowledgeBase.tagDeleteAction')"
-                      @click.stop
-                    >
-                      <template #icon><t-icon name="delete" size="14px" /></template>
-                    </t-button>
-                  </t-popconfirm>
+                    <Trash2Icon class="size-3.5" />
+                  </Button>
                 </div>
               </template>
             </li>
           </template>
         </ul>
 
-        <div v-if="hasMore && tags.length" class="tag-load-more">
-          <t-button variant="text" size="small" :loading="loadingMore" @click="loadTags(false)">
-            {{ $t("tenant.loadMore") }}
-          </t-button>
+        <div v-if="loading && !tags.length" class="absolute inset-0 flex items-center justify-center">
+          <Loader2Icon class="text-primary size-5 animate-spin" />
         </div>
-      </t-loading>
+
+        <div v-if="hasMore && tags.length" class="flex justify-center pt-2">
+          <Button
+            variant="ghost"
+            size="xs"
+            class="text-placeholder font-normal"
+            :disabled="loadingMore"
+            @click="loadTags(false)"
+          >
+            <Loader2Icon v-if="loadingMore" class="animate-spin" />
+            {{ $t("tenant.loadMore") }}
+          </Button>
+        </div>
+      </div>
     </section>
+
+    <Dialog :open="deleteTarget !== null" @update:open="(v: boolean) => !v && (deleteTarget = null)">
+      <DialogContent class="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>{{ deleteTarget ? getDeleteConfirmContent(deleteTarget) : "" }}</DialogTitle>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="deleteTarget = null">{{ $t("common.cancel") }}</Button>
+          <Button
+            variant="destructive"
+            @click="
+              if (deleteTarget) deleteTag(deleteTarget);
+              deleteTarget = null;
+            "
+          >
+            {{ $t("common.delete") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </SettingDrawer>
 </template>
 
@@ -209,7 +278,24 @@
 import { ref, watch, nextTick, computed, type ComponentPublicInstance } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
+import {
+  CheckIcon,
+  CircleXIcon,
+  Loader2Icon,
+  PenLineIcon,
+  PlusIcon,
+  SearchIcon,
+  TagsIcon,
+  Trash2Icon,
+  XIcon,
+} from "@lucide/vue";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   listKnowledgeTags,
   createKnowledgeBaseTag,
@@ -225,7 +311,17 @@ type TagRow = {
   chunk_count?: number;
 };
 
-type TagInputInstance = ComponentPublicInstance<{ focus: () => void; select: () => void }>;
+// The Input component exposes nothing of its own; its root element is the
+// <input>, which is what gets focused and selected.
+type TagInputInstance = ComponentPublicInstance;
+
+const focusAndSelect = (instance: TagInputInstance | null | undefined) => {
+  const el = instance?.$el;
+  if (el instanceof HTMLInputElement) {
+    el.focus();
+    el.select();
+  }
+};
 
 const TAG_PAGE_SIZE = 50;
 
@@ -265,6 +361,7 @@ const editingTagId = ref<string | null>(null);
 const editingTagName = ref("");
 const editingTagSubmitting = ref(false);
 const editingTagInputRefs = new Map<string, TagInputInstance | null>();
+const deleteTarget = ref<TagRow | null>(null);
 
 const setEditingTagInputRef = (el: TagInputInstance | null, tagId: string) => {
   if (el) {
@@ -277,10 +374,10 @@ const setEditingTagInputRef = (el: TagInputInstance | null, tagId: string) => {
 const getDeleteConfirmContent = (tag: { name: string }) =>
   t(props.isFaq ? "knowledgeBase.tagDeleteDesc" : "knowledgeBase.tagDeleteDescDoc", { name: tag.name });
 
-const onEditKeydown = (ctx: { e?: KeyboardEvent } | undefined, cancel: () => void) => {
-  if (ctx?.e?.key === "Escape") {
-    ctx.e.stopPropagation();
-    ctx.e.preventDefault();
+const onEditKeydown = (e: KeyboardEvent, cancel: () => void) => {
+  if (e.key === "Escape") {
+    e.stopPropagation();
+    e.preventDefault();
     cancel();
   }
 };
@@ -347,10 +444,7 @@ const startCreateTag = () => {
   if (!props.kbId || creatingTag.value) return;
   cancelEditTag();
   creatingTag.value = true;
-  nextTick(() => {
-    newTagInputRef.value?.focus?.();
-    newTagInputRef.value?.select?.();
-  });
+  nextTick(() => focusAndSelect(newTagInputRef.value));
 };
 
 const cancelCreateTag = () => {
@@ -383,10 +477,7 @@ const startEditTag = (tag: TagRow) => {
   cancelCreateTag();
   editingTagId.value = tag.id;
   editingTagName.value = tag.name;
-  nextTick(() => {
-    editingTagInputRefs.get(tag.id)?.focus?.();
-    editingTagInputRefs.get(tag.id)?.select?.();
-  });
+  nextTick(() => focusAndSelect(editingTagInputRefs.get(tag.id)));
 };
 
 const cancelEditTag = () => {
@@ -457,252 +548,3 @@ watch(searchQuery, (newVal, oldVal) => {
   }, 300);
 });
 </script>
-
-<style scoped lang="less">
-.tag-manage-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tag-manage-search-wrap {
-  flex: 1;
-  min-width: 0;
-}
-
-.tag-manage-search {
-  width: 100%;
-
-  :deep(.t-input) {
-    font-size: 13px;
-    background-color: var(--td-bg-color-secondarycontainer);
-    border-color: transparent;
-    border-radius: 6px;
-    box-shadow: none !important;
-
-    &:hover,
-    &:focus,
-    &.t-is-focused {
-      border-color: var(--td-component-border);
-      background-color: var(--td-bg-color-container);
-      box-shadow: none !important;
-    }
-  }
-
-  :deep(.t-input__inner) {
-    font-size: 13px;
-  }
-
-  :deep(.t-input__prefix-icon) {
-    margin-right: 0;
-  }
-}
-
-.tag-manage-create-btn {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 6px;
-  color: var(--td-text-color-secondary);
-
-  :deep(.t-icon) {
-    font-size: 16px;
-  }
-
-  &:hover:not(:disabled) {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-
-  &:disabled {
-    opacity: 0.45;
-  }
-}
-
-.tag-manage-loading {
-  min-height: 80px;
-}
-
-.tag-manage-empty {
-  padding: 24px 0;
-}
-
-.tag-tile-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.tag-tile {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  min-height: 44px;
-  padding: 5px 6px 5px 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-  box-sizing: border-box;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-
-  &:hover:not(.tag-tile--editing):not(.tag-tile--skeleton) {
-    border-color: var(--td-component-border);
-    background: color-mix(in srgb, var(--td-bg-color-secondarycontainer) 40%, var(--td-bg-color-container));
-  }
-
-  &--skeleton {
-    padding: 0;
-    border: none;
-    background: transparent;
-  }
-
-  &--editing {
-    border-color: var(--td-component-border);
-    background: var(--td-bg-color-secondarycontainer);
-    box-shadow: none;
-
-    .tag-tile__actions {
-      opacity: 1;
-    }
-  }
-}
-
-.tag-tile__main {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.tag-tile__input {
-  flex: 1;
-  min-width: 0;
-
-  :deep(.t-input) {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-    padding-left: 0;
-    padding-right: 0;
-  }
-
-  :deep(.t-input__wrap) {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-  }
-
-  :deep(.t-input__inner) {
-    padding: 0;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  :deep(.t-input:hover),
-  :deep(.t-input.t-is-focused),
-  :deep(.t-input__wrap:hover),
-  :deep(.t-input__wrap.t-is-focused) {
-    border-color: transparent !important;
-    box-shadow: none !important;
-    outline: none;
-  }
-
-  :deep(.t-input.t-is-focused .t-input__suffix),
-  :deep(.t-input.t-is-focused .t-input__prefix) {
-    box-shadow: none;
-  }
-}
-
-.tag-tile__badge {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-placeholder);
-}
-
-.tag-tile__text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-
-.tag-tile__name {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.3;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-tile__count {
-  font-size: 11px;
-  line-height: 1.3;
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag-tile__actions {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.tag-tile:hover .tag-tile__actions,
-.tag-tile:focus-within .tag-tile__actions,
-.tag-tile__actions:focus-within {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .tag-tile__actions {
-    opacity: 1;
-  }
-}
-
-.tag-tile__action-btn {
-  padding: 0 2px;
-
-  &--confirm {
-    color: var(--td-text-color-secondary);
-
-    &:hover,
-    &:focus-visible {
-      color: var(--td-text-color-primary);
-      background: var(--td-bg-color-container);
-    }
-  }
-}
-
-.tag-load-more {
-  display: flex;
-  justify-content: center;
-  padding-top: 8px;
-
-  :deep(.t-button) {
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-  }
-}
-</style>

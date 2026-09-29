@@ -1,28 +1,66 @@
 <template>
-  <div class="kb-chunking-settings" :class="{ 'kb-chunking-settings--embedded': embedded }">
-    <div v-if="!embedded" class="section-header">
-      <div class="section-header-text">
-        <h2>{{ $t("knowledgeEditor.chunking.title") }}</h2>
-        <p class="section-description">{{ $t("knowledgeEditor.chunking.description") }}</p>
+  <div class="w-full">
+    <!--
+      Sticks to the top of the scrollable section so the title stays visible
+      over a long form. The negative top and margins cancel the host
+      content-wrapper's 24px 32px padding, so the band spans the full width.
+    -->
+    <div
+      v-if="!embedded"
+      class="border-border bg-card sticky top-[-24px] z-5 -mx-8 -mt-6 mb-4 flex items-start justify-between gap-4 border-b px-8 pt-6 pb-3"
+    >
+      <div class="min-w-0 flex-1">
+        <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ $t("knowledgeEditor.chunking.title") }}</h2>
+        <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("knowledgeEditor.chunking.description") }}</p>
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- Strategy -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.strategyLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.strategyDescription") }}</p>
+      <div :class="rowClass">
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.strategyLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.strategyDescription") }}</p>
         </div>
-        <div class="setting-control strategy-control">
-          <t-select
-            v-model="localStrategy"
-            :options="strategyOptions"
-            :placeholder="$t('knowledgeEditor.chunking.strategyPlaceholder')"
-            :clearable="true"
-            @change="handleStrategyChange"
-            :style="selectStyle"
-          />
+        <!-- The picker sits above the test trigger, both right-aligned in the right column. -->
+        <div
+          class="flex flex-col"
+          :class="embedded ? 'w-full items-stretch' : 'max-w-[55%] shrink-0 basis-[55%] items-end gap-1.5'"
+        >
+          <div class="group/strategy relative" :class="embedded ? 'w-full' : 'w-[280px]'">
+            <Select
+              :model-value="localStrategy || undefined"
+              @update:model-value="
+                (val) => {
+                  localStrategy = String(val ?? '');
+                  handleStrategyChange();
+                }
+              "
+            >
+              <SelectTrigger class="w-full">
+                <SelectValue :placeholder="$t('knowledgeEditor.chunking.strategyPlaceholder')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in strategyOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <!-- t-select's `clearable`: an empty strategy means "server default". -->
+            <button
+              v-if="localStrategy"
+              type="button"
+              data-slot="icon-button"
+              class="bg-card text-placeholder hover:text-muted-foreground absolute top-1/2 right-2 hidden -translate-y-1/2 group-hover/strategy:inline-flex"
+              :aria-label="$t('common.clear')"
+              @click="
+                localStrategy = '';
+                handleStrategyChange();
+              "
+            >
+              <CircleXIcon class="size-4" />
+            </button>
+          </div>
           <!-- Test trigger sits right next to the strategy picker so users
                discover it exactly when they're deciding which strategy to
                use on their content. -->
@@ -31,177 +69,265 @@
       </div>
 
       <!-- Strategy explanation panel -->
-      <div v-if="currentStrategyInfo" class="strategy-info-panel">
-        <p>
-          <strong>{{ currentStrategyInfo.label }}:</strong>
+      <div
+        v-if="currentStrategyInfo"
+        class="bg-accent text-muted-foreground border-l-primary rounded-r border-l-[3px] leading-normal break-words"
+        :class="embedded ? '-mt-1 mb-2.5 px-3 py-2 text-xs' : 'mb-4 px-3.5 py-2.5 text-[13px]'"
+      >
+        <p class="m-0">
+          <strong class="text-foreground">{{ currentStrategyInfo.label }}:</strong>
           {{ currentStrategyInfo.tooltip }}
         </p>
       </div>
 
       <!-- Chunk Size -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.sizeLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.sizeDescription") }}</p>
+      <div :class="rowClass">
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.sizeLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.sizeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <div class="slider-container">
-            <t-slider
-              v-model="localChunkSize"
-              :min="100"
-              :max="4000"
-              :step="50"
-              :marks="embedded ? undefined : chunkSizeMarks"
-              @change="handleChunkSizeChange"
-              :style="sliderStyle"
-            />
-            <span class="value-display">{{ localChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Chunk Overlap -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.overlapLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.overlapDescription") }}</p>
-          <p v-if="overlapTooHigh" class="warn">{{ $t("knowledgeEditor.chunking.overlapWarning") }}</p>
-        </div>
-        <div class="setting-control">
-          <div class="slider-container">
-            <t-slider
-              v-model="localChunkOverlap"
-              :min="0"
-              :max="500"
-              :step="20"
-              :marks="embedded ? undefined : chunkOverlapMarks"
-              @change="handleChunkOverlapChange"
-              :style="sliderStyle"
-            />
-            <span class="value-display">{{ localChunkOverlap }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Separators -->
-      <div class="setting-row setting-row--separators">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.separatorsLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.separatorsDescription") }}</p>
-        </div>
-        <div class="setting-control">
-          <t-select
-            v-model="localSeparators"
-            :options="separatorOptions"
-            multiple
-            creatable
-            filterable
-            :placeholder="$t('knowledgeEditor.chunking.separatorsPlaceholder')"
-            @change="handleSeparatorsChange"
-            :style="selectStyle"
+        <div :class="controlClass">
+          <ChunkSlider
+            v-model="localChunkSize"
+            :min="100"
+            :max="4000"
+            :step="50"
+            :marks="embedded ? undefined : chunkSizeMarks"
+            :embedded="embedded"
+            :unit="$t('knowledgeEditor.chunking.characters')"
+            @update:model-value="handleChunkSizeChange"
           />
         </div>
       </div>
 
-      <!-- Parent-Child Chunking -->
-      <div class="setting-row setting-row--toggle">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.parentChildLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.parentChildDescription") }}</p>
+      <!-- Chunk Overlap -->
+      <div :class="rowClass">
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.overlapLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.overlapDescription") }}</p>
+          <p v-if="overlapTooHigh" class="text-warning mt-1 mb-0 text-xs leading-[1.4]">
+            {{ $t("knowledgeEditor.chunking.overlapWarning") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch v-model="localEnableParentChild" @change="handleParentChildChange" />
+        <div :class="controlClass">
+          <ChunkSlider
+            v-model="localChunkOverlap"
+            :min="0"
+            :max="500"
+            :step="20"
+            :marks="embedded ? undefined : chunkOverlapMarks"
+            :embedded="embedded"
+            :unit="$t('knowledgeEditor.chunking.characters')"
+            @update:model-value="handleChunkOverlapChange"
+          />
+        </div>
+      </div>
+
+      <!-- Separators -->
+      <div
+        class="border-border flex justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'flex-col items-stretch gap-2.5 pt-3.5 pb-[18px]' : 'items-start py-4'"
+      >
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.separatorsLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.separatorsDescription") }}</p>
+        </div>
+        <div :class="controlClass">
+          <!--
+            t-select multiple + creatable: a Popover rather than a DropdownMenu,
+            because a menu's typeahead would swallow the keys typed into the
+            "add your own" input, and a menu closes on every toggle.
+          -->
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button variant="outline" class="justify-between font-normal" :class="embedded ? 'w-full' : 'w-[280px]'">
+                <span class="truncate" :class="localSeparators.length ? '' : 'text-placeholder'">
+                  {{
+                    localSeparators.length
+                      ? localSeparators.map((s) => separatorLabel(s)).join(", ")
+                      : $t("knowledgeEditor.chunking.separatorsPlaceholder")
+                  }}
+                </span>
+                <ChevronDownIcon class="size-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" class="w-(--reka-popover-trigger-width) min-w-[240px] gap-1 p-1">
+              <div class="flex max-h-[240px] flex-col gap-px overflow-y-auto">
+                <label
+                  v-for="opt in separatorChoices"
+                  :key="opt.value"
+                  class="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                >
+                  <Checkbox
+                    :model-value="localSeparators.includes(opt.value)"
+                    @update:model-value="(checked) => toggleSeparator(opt.value, checked === true)"
+                  />
+                  <span class="truncate">{{ opt.label }}</span>
+                </label>
+              </div>
+              <div class="border-border flex items-center gap-1.5 border-t p-1.5">
+                <Input
+                  v-model="customSeparator"
+                  class="h-7 flex-1 text-xs md:text-xs"
+                  :placeholder="$t('knowledgeEditor.chunking.separatorsPlaceholder')"
+                  @keydown.enter.prevent="addCustomSeparator"
+                />
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  :disabled="!customSeparator"
+                  :aria-label="$t('common.add')"
+                  @click="addCustomSeparator"
+                >
+                  <PlusIcon />
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <!-- Parent-Child Chunking: embedded, a switch row stays a row. -->
+      <div
+        class="border-border flex justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'items-center gap-4 py-3.5' : 'items-start py-4'"
+      >
+        <div :class="embedded ? 'min-w-0 flex-1' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.parentChildLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.parentChildDescription") }}</p>
+        </div>
+        <div
+          :class="
+            embedded
+              ? 'flex w-auto flex-none justify-end'
+              : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'
+          "
+        >
+          <Switch
+            :model-value="localEnableParentChild"
+            @update:model-value="
+              (val: boolean) => {
+                localEnableParentChild = val;
+                handleParentChildChange();
+              }
+            "
+          />
         </div>
       </div>
 
       <!-- Parent Chunk Size -->
-      <div v-if="localEnableParentChild" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.parentChunkSizeLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.parentChunkSizeDescription") }}</p>
+      <div v-if="localEnableParentChild" :class="rowClass">
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.parentChunkSizeLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.parentChunkSizeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <div class="slider-container">
-            <t-slider
-              v-model="localParentChunkSize"
-              :min="512"
-              :max="8192"
-              :step="64"
-              :marks="embedded ? undefined : parentChunkSizeMarks"
-              @change="handleParentChunkSizeChange"
-              :style="sliderStyle"
-            />
-            <span class="value-display"
-              >{{ localParentChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span
-            >
-          </div>
+        <div :class="controlClass">
+          <ChunkSlider
+            v-model="localParentChunkSize"
+            :min="512"
+            :max="8192"
+            :step="64"
+            :marks="embedded ? undefined : parentChunkSizeMarks"
+            :embedded="embedded"
+            :unit="$t('knowledgeEditor.chunking.characters')"
+            @update:model-value="handleParentChunkSizeChange"
+          />
         </div>
       </div>
 
       <!-- Child Chunk Size -->
-      <div v-if="localEnableParentChild" class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.chunking.childChunkSizeLabel") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.chunking.childChunkSizeDescription") }}</p>
+      <div v-if="localEnableParentChild" :class="rowClass">
+        <div :class="infoClass">
+          <label :class="labelClass">{{ $t("knowledgeEditor.chunking.childChunkSizeLabel") }}</label>
+          <p :class="descClass">{{ $t("knowledgeEditor.chunking.childChunkSizeDescription") }}</p>
         </div>
-        <div class="setting-control">
-          <div class="slider-container">
-            <t-slider
-              v-model="localChildChunkSize"
-              :min="64"
-              :max="2048"
-              :step="32"
-              :marks="embedded ? undefined : childChunkSizeMarks"
-              @change="handleChildChunkSizeChange"
-              :style="sliderStyle"
-            />
-            <span class="value-display">{{ localChildChunkSize }} {{ $t("knowledgeEditor.chunking.characters") }}</span>
-          </div>
+        <div :class="controlClass">
+          <ChunkSlider
+            v-model="localChildChunkSize"
+            :min="64"
+            :max="2048"
+            :step="32"
+            :marks="embedded ? undefined : childChunkSizeMarks"
+            :embedded="embedded"
+            :unit="$t('knowledgeEditor.chunking.characters')"
+            @update:model-value="handleChildChunkSizeChange"
+          />
         </div>
       </div>
 
       <!-- Advanced section toggle -->
-      <button type="button" class="advanced-toggle" @click="advancedOpen = !advancedOpen">
-        <chevron-right-icon class="toggle-arrow" :class="{ open: advancedOpen }" />
+      <button
+        type="button"
+        data-slot="advanced-toggle"
+        class="text-muted-foreground hover:text-foreground focus-visible:outline-ring inline-flex items-center gap-1.5 self-start pb-2 text-sm font-medium select-none focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2"
+        :class="embedded ? 'pt-2.5' : 'pt-4'"
+        @click="advancedOpen = !advancedOpen"
+      >
+        <ChevronRightIcon class="size-4 transition-transform duration-150" :class="advancedOpen ? 'rotate-90' : ''" />
         <span>{{ $t("knowledgeEditor.chunking.advancedLabel") }}</span>
       </button>
 
-      <div v-if="advancedOpen" class="advanced-section">
+      <div v-if="advancedOpen" class="mt-1">
         <!-- Token Limit -->
-        <div class="setting-row" :class="{ disabled: advancedDisabled }">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.chunking.tokenLimitLabel") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.chunking.tokenLimitDescription") }}</p>
+        <div :class="[rowClass, advancedDisabled ? 'opacity-50' : '']">
+          <div :class="infoClass">
+            <label :class="labelClass">{{ $t("knowledgeEditor.chunking.tokenLimitLabel") }}</label>
+            <p :class="descClass">{{ $t("knowledgeEditor.chunking.tokenLimitDescription") }}</p>
           </div>
-          <div class="setting-control">
-            <t-input-number
-              v-model="localTokenLimit"
+          <div :class="controlClass">
+            <Input
+              v-model.number="localTokenLimit"
+              type="number"
               :min="0"
               :max="8192"
               :step="64"
               :disabled="advancedDisabled"
+              :class="embedded ? 'w-full' : 'w-[200px]'"
               @change="handleTokenLimitChange"
-              style="width: 200px"
             />
           </div>
         </div>
 
         <!-- Languages -->
-        <div class="setting-row" :class="{ disabled: advancedDisabled }">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.chunking.languagesLabel") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.chunking.languagesDescription") }}</p>
+        <div :class="[rowClass, advancedDisabled ? 'opacity-50' : '']">
+          <div :class="infoClass">
+            <label :class="labelClass">{{ $t("knowledgeEditor.chunking.languagesLabel") }}</label>
+            <p :class="descClass">{{ $t("knowledgeEditor.chunking.languagesDescription") }}</p>
           </div>
-          <div class="setting-control">
-            <t-select
-              v-model="localLanguages"
-              :options="languageOptions"
-              multiple
-              :disabled="advancedDisabled"
-              :placeholder="$t('knowledgeEditor.chunking.languagesPlaceholder')"
-              @change="handleLanguagesChange"
-              :style="selectStyle"
-            />
+          <div :class="controlClass">
+            <!-- t-select multiple: a checkbox list that stays open while toggling. -->
+            <Popover>
+              <PopoverTrigger as-child>
+                <Button
+                  variant="outline"
+                  class="justify-between font-normal"
+                  :class="embedded ? 'w-full' : 'w-[280px]'"
+                  :disabled="advancedDisabled"
+                >
+                  <span class="truncate" :class="localLanguages.length ? '' : 'text-placeholder'">
+                    {{
+                      localLanguages.length
+                        ? localLanguages.map((l) => languageLabel(l)).join(", ")
+                        : $t("knowledgeEditor.chunking.languagesPlaceholder")
+                    }}
+                  </span>
+                  <ChevronDownIcon class="size-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" class="w-(--reka-popover-trigger-width) min-w-[200px] gap-px p-1">
+                <label
+                  v-for="opt in languageOptions"
+                  :key="opt.value"
+                  class="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                >
+                  <Checkbox
+                    :model-value="localLanguages.includes(opt.value)"
+                    @update:model-value="(checked) => toggleLanguage(opt.value, checked === true)"
+                  />
+                  <span>{{ opt.label }}</span>
+                </label>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
@@ -212,8 +338,15 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { ChevronRightIcon } from "tdesign-icons-vue-next";
+import { ChevronDownIcon, ChevronRightIcon, CircleXIcon, PlusIcon } from "@lucide/vue";
+import ChunkSlider from "./ChunkSlider.vue";
 import KBChunkingDebug from "./KBChunkingDebug.vue";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 interface ParserEngineRule {
   file_types: string[];
@@ -221,7 +354,7 @@ interface ParserEngineRule {
   xlsx_first_row_as_header?: boolean;
 }
 
-// Slider ranges defined in this file (min/max props on t-slider) mirror
+// Slider ranges defined in this file (min/max props on the sliders) mirror
 // the validated bounds in the backend splitter:
 //   ChunkSize:      100–4000  (default 512). 100 = too fragmented to be
 //                   useful; 4000 = approaches the 7500-char absoluteMaxSize
@@ -259,14 +392,6 @@ const props = withDefaults(defineProps<Props>(), {
   embedded: false,
 });
 
-const selectStyle = computed(() => (props.embedded ? { width: "100%" } : { width: "280px" }));
-const sliderStyle = computed(() => (props.embedded ? { width: "100%" } : { width: "200px" }));
-
-const chunkSizeMarks = { 100: "100", 1000: "1000", 2000: "2000", 4000: "4000" };
-const chunkOverlapMarks = { 0: "0", 250: "250", 500: "500" };
-const parentChunkSizeMarks = { 512: "512", 2048: "2048", 4096: "4096", 8192: "8192" };
-const childChunkSizeMarks = { 64: "64", 384: "384", 1024: "1024", 2048: "2048" };
-
 const emit = defineEmits<{
   "update:config": [value: ChunkingConfig];
 }>();
@@ -283,6 +408,34 @@ const localStrategy = ref(props.config.strategy ?? "");
 const localTokenLimit = ref(props.config.tokenLimit ?? 0);
 const localLanguages = ref<string[]>([...(props.config.languages ?? [])]);
 const advancedOpen = ref(false);
+const customSeparator = ref("");
+
+// The row layout, shared by every row but the switch row and the separators
+// row. Embedded (the upload dialog), rows stack with the control full width
+// and slightly smaller type.
+const rowClass = computed(() =>
+  props.embedded
+    ? "border-border flex flex-col items-stretch justify-between gap-2.5 py-3.5 [&:not(:last-child)]:border-b"
+    : "border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b",
+);
+const infoClass = computed(() => (props.embedded ? "max-w-none" : "max-w-[40%] shrink-0 basis-2/5 pr-6"));
+const labelClass = computed(
+  () => `text-foreground mb-1 block font-medium ${props.embedded ? "text-sm" : "text-[15px]"}`,
+);
+const descClass = computed(
+  () => `text-muted-foreground m-0 leading-normal ${props.embedded ? "text-xs" : "text-[13px]"}`,
+);
+const controlClass = computed(() =>
+  props.embedded
+    ? "flex w-full max-w-none items-stretch justify-start"
+    : "flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end",
+);
+
+// Tick labels under the sliders in the full layout (t-slider's `marks`).
+const chunkSizeMarks = [100, 1000, 2000, 4000];
+const chunkOverlapMarks = [0, 250, 500];
+const parentChunkSizeMarks = [512, 2048, 4096, 8192];
+const childChunkSizeMarks = [64, 384, 1024, 2048];
 
 const strategyOptions = computed(() => [
   {
@@ -340,6 +493,10 @@ const languageOptions = computed(() => [
   { label: t("knowledgeEditor.chunking.languageOptions.zh"), value: "zh" },
 ]);
 
+function languageLabel(value: string): string {
+  return languageOptions.value.find((o) => o.value === value)?.label ?? value;
+}
+
 const separatorOptions = computed(() => [
   { label: t("knowledgeEditor.chunking.separators.doubleNewline"), value: "\n\n" },
   { label: t("knowledgeEditor.chunking.separators.singleNewline"), value: "\n" },
@@ -350,6 +507,47 @@ const separatorOptions = computed(() => [
   { label: t("knowledgeEditor.chunking.separators.semicolonEn"), value: ";" },
   { label: t("knowledgeEditor.chunking.separators.space"), value: " " },
 ]);
+
+// The preset separators plus any the user typed in: t-select showed created
+// values as tags, so they must stay visible here to be removable.
+const separatorChoices = computed(() => [
+  ...separatorOptions.value,
+  ...localSeparators.value
+    .filter((value) => !separatorOptions.value.some((o) => o.value === value))
+    .map((value) => ({ label: value, value })),
+]);
+
+function separatorLabel(value: string): string {
+  return separatorOptions.value.find((o) => o.value === value)?.label ?? value;
+}
+
+function toggleSeparator(value: string, checked: boolean) {
+  if (checked) {
+    if (!localSeparators.value.includes(value)) localSeparators.value = [...localSeparators.value, value];
+  } else {
+    localSeparators.value = localSeparators.value.filter((s) => s !== value);
+  }
+  handleSeparatorsChange();
+}
+
+function addCustomSeparator() {
+  const value = customSeparator.value;
+  if (!value) return;
+  if (!localSeparators.value.includes(value)) {
+    localSeparators.value = [...localSeparators.value, value];
+    handleSeparatorsChange();
+  }
+  customSeparator.value = "";
+}
+
+function toggleLanguage(value: string, checked: boolean) {
+  if (checked) {
+    if (!localLanguages.value.includes(value)) localLanguages.value = [...localLanguages.value, value];
+  } else {
+    localLanguages.value = localLanguages.value.filter((l) => l !== value);
+  }
+  handleLanguagesChange();
+}
 
 watch(
   () => props.config,
@@ -413,287 +611,3 @@ const emitUpdate = () => {
   });
 };
 </script>
-
-<style lang="less" scoped>
-.kb-chunking-settings {
-  width: 100%;
-}
-
-.section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  // Stick to the top of the scrollable section so the section title remains
-  // visible while the user scrolls through a long form. Negative top and
-  // matching negative margins compensate for content-wrapper's padding
-  // (24px 32px) so the sticky band visually spans the full width when stuck.
-  position: sticky;
-  top: -24px;
-  z-index: 5;
-  background: var(--td-bg-color-container);
-  padding: 24px 32px 12px 32px;
-  margin: -24px -32px 16px -32px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  .section-header-text {
-    flex: 1;
-    min-width: 0;
-  }
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 6px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &.disabled {
-    opacity: 0.5;
-  }
-}
-
-.strategy-info-panel {
-  margin: 0 0 16px 0;
-  padding: 10px 14px;
-  background: var(--td-bg-color-container-hover);
-  border-left: 3px solid var(--td-brand-color);
-  border-radius: 0 4px 4px 0;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-  line-height: 1.5;
-
-  p {
-    margin: 0;
-    word-break: break-word;
-  }
-
-  strong {
-    color: var(--td-text-color-primary);
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .warn {
-    font-size: 12px;
-    color: var(--td-warning-color);
-    margin: 4px 0 0 0;
-    line-height: 1.4;
-  }
-}
-
-.setting-control {
-  flex: 0 0 55%;
-  max-width: 55%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-// Strategy row stacks the picker above the test trigger so the action has
-// room to breathe without competing with the select for horizontal space.
-// Both children stay right-aligned under the section's right column.
-.strategy-control {
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.slider-container {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  justify-content: flex-end;
-}
-
-.value-display {
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-  font-weight: 500;
-  min-width: 80px;
-  text-align: right;
-}
-
-.advanced-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 16px 0 8px 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--td-text-color-secondary);
-  user-select: none;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color-focus);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
-}
-
-.toggle-arrow {
-  font-size: 16px;
-  transition: transform 0.15s ease;
-
-  &.open {
-    transform: rotate(90deg);
-  }
-}
-
-.advanced-section {
-  // Visually grouped via the toggle above; avoid a left rule that hugs the
-  // panel edge and looks detached from the rest of the form.
-  margin-top: 4px;
-}
-
-.kb-chunking-settings--embedded {
-  .setting-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 14px 0;
-  }
-
-  .setting-row--toggle {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-
-    .setting-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .setting-control {
-      flex: none;
-      width: auto;
-      justify-content: flex-end;
-    }
-  }
-
-  .setting-row--separators {
-    padding-bottom: 18px;
-  }
-
-  .setting-info {
-    flex: none;
-    max-width: none;
-    padding-right: 0;
-
-    label {
-      font-size: 14px;
-    }
-
-    .desc {
-      font-size: 12px;
-    }
-  }
-
-  .setting-control {
-    flex: none;
-    max-width: none;
-    justify-content: flex-start;
-    align-items: stretch;
-    width: 100%;
-  }
-
-  .strategy-control {
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-  }
-
-  .strategy-info-panel {
-    margin: -4px 0 10px;
-    padding: 8px 12px;
-    font-size: 12px;
-  }
-
-  .slider-container {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .value-display {
-    order: -1;
-    text-align: left;
-    min-width: 0;
-  }
-
-  :deep(.t-slider) {
-    padding-bottom: 0;
-  }
-
-  :deep(.t-select__wrap) {
-    max-width: 100%;
-  }
-
-  :deep(.t-tag) {
-    max-width: 100%;
-  }
-
-  .advanced-toggle {
-    padding-top: 10px;
-  }
-
-  .advanced-section .setting-row {
-    padding: 14px 0;
-  }
-}
-</style>

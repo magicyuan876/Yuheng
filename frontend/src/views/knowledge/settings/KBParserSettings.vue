@@ -1,60 +1,94 @@
 <template>
-  <div class="kb-parser-settings" :class="{ 'kb-parser-settings--embedded': embedded }">
-    <div v-if="!embedded" class="section-header">
-      <h2>{{ $t("kbSettings.parser.title") }}</h2>
-      <p class="section-description">{{ $t("kbSettings.parser.description") }}</p>
+  <div class="w-full">
+    <div v-if="!embedded" class="mb-5">
+      <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ $t("kbSettings.parser.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("kbSettings.parser.description") }}</p>
     </div>
 
-    <div v-if="loading" class="loading-inline">
-      <t-loading size="small" />
+    <div v-if="loading" class="flex items-center gap-2 py-4">
+      <Loader2Icon class="size-4 animate-spin" />
       <span>{{ $t("kbSettings.parser.loading") }}</span>
     </div>
 
-    <div v-else-if="fileTypeGroups.length === 0" class="empty-hint">
-      <p>{{ $t("kbSettings.parser.noEngineAvailable") }}</p>
+    <div v-else-if="fileTypeGroups.length === 0" class="text-muted-foreground py-6">
+      <p class="m-0">{{ $t("kbSettings.parser.noEngineAvailable") }}</p>
     </div>
 
-    <div v-else class="settings-group" :class="{ 'settings-group--embedded': embedded }">
-      <div v-for="group in fileTypeGroups" :key="group.key" class="setting-row">
-        <div class="setting-info">
-          <label class="group-label">
-            <t-icon v-if="!embedded" :name="group.icon" class="group-icon" />
+    <div
+      v-else
+      class="flex flex-col"
+      :class="embedded ? 'border-border bg-muted overflow-hidden rounded-lg border' : ''"
+    >
+      <div
+        v-for="group in fileTypeGroups"
+        :key="group.key"
+        class="border-border flex justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'bg-card items-center gap-4 px-3.5 py-2.5' : 'items-start py-4'"
+      >
+        <div class="shrink-0" :class="embedded ? 'block max-w-[168px] basis-[168px]' : 'max-w-[40%] basis-2/5 pr-6'">
+          <label
+            class="text-foreground mb-1 flex items-center gap-1.5 font-medium"
+            :class="embedded ? 'text-[13px]' : 'text-[15px]'"
+          >
+            <component :is="iconFor(group.icon)" v-if="!embedded" class="text-muted-foreground size-[18px] shrink-0" />
             {{ group.label }}
           </label>
-          <div class="ext-tags">
-            <span v-for="ext in group.extensions" :key="ext" class="ext-tag">.{{ ext }}</span>
+          <div class="flex flex-wrap" :class="embedded ? 'mt-0 gap-1' : 'mt-1.5 gap-1.5'">
+            <span
+              v-for="ext in group.extensions"
+              :key="ext"
+              class="bg-muted text-muted-foreground inline-block rounded [font-family:var(--app-font-family-mono)] leading-none"
+              :class="embedded ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-[3px] text-xs'"
+              >.{{ ext }}</span
+            >
           </div>
         </div>
-        <div class="setting-control">
-          <div class="parser-control-stack">
-            <t-select
-              :value="getEngineForGroup(group.extensions) || undefined"
-              @change="(val: string) => handleEngineChange(group.extensions, val)"
-              :style="embedded ? undefined : { width: '280px' }"
-              :class="{ 'parser-engine-select--embedded': embedded }"
-              :status="hasAvailableEngine(group.extensions) ? 'default' : 'warning'"
-              :placeholder="$t('kbSettings.parser.noEngine')"
-              :popup-props="{ overlayInnerStyle: { maxHeight: '240px' } }"
+        <div
+          class="flex flex-col"
+          :class="embedded ? 'min-w-0 flex-1 items-stretch' : 'max-w-[55%] shrink-0 basis-[55%] items-end'"
+        >
+          <div class="flex flex-col items-stretch gap-2.5" :class="embedded ? 'w-full' : 'w-[280px]'">
+            <Select
+              :model-value="getEngineForGroup(group.extensions) || undefined"
+              @update:model-value="(val) => handleEngineChange(group.extensions, String(val))"
             >
-              <t-option
-                v-for="opt in getEngineOptions(group.extensions)"
-                :key="opt.value"
-                :value="opt.value"
-                :label="opt.selectLabel"
-              />
-            </t-select>
-            <t-checkbox
+              <SelectTrigger
+                class="w-full"
+                :class="[embedded ? '' : 'w-[280px]', !hasAvailableEngine(group.extensions) ? 'border-warning' : '']"
+              >
+                <SelectValue :placeholder="$t('kbSettings.parser.noEngine')" />
+              </SelectTrigger>
+              <!-- The old popup capped its list at 240px. -->
+              <SelectContent class="max-h-[240px]">
+                <SelectItem v-for="opt in getEngineOptions(group.extensions)" :key="opt.value" :value="opt.value">
+                  {{ opt.selectLabel }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <!-- A <label>, so the text toggles the box as t-checkbox's label did. -->
+            <label
               v-if="group.extensions.includes('xlsx') && getEngineForGroup(group.extensions) === 'builtin'"
-              class="xlsx-header-option"
-              :checked="getXLSXFirstRowAsHeader(group.extensions)"
-              @change="(checked: boolean) => handleXLSXFirstRowAsHeaderChange(group.extensions, checked)"
+              class="flex cursor-pointer items-start gap-2"
             >
-              {{ $t("kbSettings.parser.xlsxFirstRowAsHeader") }}
-            </t-checkbox>
-            <div v-if="!hasAvailableEngine(group.extensions)" class="no-engine-warning">
-              <a v-if="canManageParser" class="go-settings" @click.prevent="goToParserSettings">{{
-                $t("kbSettings.parser.goConfig")
-              }}</a>
+              <Checkbox
+                class="mt-0.5"
+                :model-value="getXLSXFirstRowAsHeader(group.extensions)"
+                @update:model-value="(checked) => handleXLSXFirstRowAsHeaderChange(group.extensions, checked === true)"
+              />
+              <span class="text-foreground text-left text-xs leading-normal">{{
+                $t("kbSettings.parser.xlsxFirstRowAsHeader")
+              }}</span>
+            </label>
+            <div
+              v-if="!hasAvailableEngine(group.extensions)"
+              class="text-warning mt-2 flex items-center gap-1 text-xs leading-[1.4]"
+            >
+              <a
+                v-if="canManageParser"
+                class="text-primary cursor-pointer whitespace-nowrap no-underline hover:underline"
+                @click.prevent="goToParserSettings"
+                >{{ $t("kbSettings.parser.goConfig") }}</a
+              >
             </div>
           </div>
         </div>
@@ -64,13 +98,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { storeToRefs } from "pinia";
+import {
+  FileAudioIcon,
+  FileCodeIcon,
+  FileIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  ImageIcon,
+  Loader2Icon,
+  PresentationIcon,
+  type LucideIcon,
+} from "@lucide/vue";
 import { type ParserEngineInfo } from "@/api/system";
 import { useEditorResourcesStore } from "@/stores/editorResources";
 import { useUIStore } from "@/stores/ui";
 import { usePlatformInfraAccess } from "@/composables/usePlatformInfraAccess";
-import { storeToRefs } from "pinia";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const { t } = useI18n();
 const editorResources = useEditorResourcesStore();
@@ -121,6 +168,21 @@ const canManageParser = usePlatformInfraAccess("parser");
 const localEngineRules = ref<ParserEngineRule[]>([...props.parserEngineRules]);
 const parserEngines = ref<ParserEngineInfo[]>([]);
 const loading = ref(true);
+
+const iconComponents: Record<string, LucideIcon> = {
+  "file-pdf": FileTextIcon,
+  "file-word": FileTextIcon,
+  "file-powerpoint": PresentationIcon,
+  "file-excel": FileSpreadsheetIcon,
+  file: FileIcon,
+  "file-code": FileCodeIcon,
+  image: ImageIcon,
+  sound: FileAudioIcon,
+};
+
+function iconFor(name: string): LucideIcon {
+  return iconComponents[name] ?? FileIcon;
+}
 
 const allFileTypes = computed(() => {
   const s = new Set<string>();
@@ -352,221 +414,3 @@ watch(
   { deep: true },
 );
 </script>
-
-<style lang="less" scoped>
-.kb-parser-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 6px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.loading-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 0;
-}
-
-.empty-hint {
-  padding: 24px 0;
-  color: var(--td-text-color-secondary);
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  .group-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .group-icon {
-    font-size: 18px;
-    color: var(--td-text-color-secondary);
-    flex-shrink: 0;
-  }
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .ext-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
-  }
-
-  .ext-tag {
-    display: inline-block;
-    font-size: 12px;
-    line-height: 1;
-    color: var(--td-text-color-secondary);
-    background: var(--td-bg-color-secondarycontainer);
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-family: var(--app-font-family-mono);
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex: 0 0 55%;
-  max-width: 55%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.parser-control-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  width: 280px;
-}
-
-.xlsx-header-option {
-  align-self: stretch;
-
-  :deep(.t-checkbox) {
-    align-items: flex-start;
-  }
-
-  :deep(.t-checkbox__label) {
-    font-size: 12px;
-    line-height: 1.5;
-    text-align: left;
-    white-space: normal;
-  }
-}
-
-.no-engine-warning {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--td-warning-color);
-  line-height: 1.4;
-
-  .go-settings {
-    color: var(--td-brand-color);
-    cursor: pointer;
-    white-space: nowrap;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-}
-
-// ---- 下拉选项样式 ----
-.kb-parser-settings--embedded {
-  .settings-group {
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer, #f8f9fb);
-    overflow: hidden;
-  }
-
-  .setting-row {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-    padding: 10px 14px;
-    background: var(--td-bg-color-container, #fff);
-    border-bottom: 1px solid var(--td-component-stroke);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-
-  .setting-info {
-    flex: 0 0 168px;
-    max-width: 168px;
-    padding-right: 0;
-    display: block;
-  }
-
-  .setting-control {
-    flex: 1;
-    min-width: 0;
-    max-width: none;
-    align-items: stretch;
-  }
-
-  .parser-control-stack {
-    width: 100%;
-  }
-
-  .group-label {
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 4px;
-  }
-
-  .ext-tags {
-    margin-top: 0;
-    gap: 4px;
-  }
-
-  .ext-tag {
-    font-size: 11px;
-    padding: 2px 6px;
-  }
-
-  .parser-engine-select--embedded {
-    width: 100%;
-  }
-}
-</style>

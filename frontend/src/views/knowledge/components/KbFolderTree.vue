@@ -1,49 +1,65 @@
 <template>
-  <aside class="kb-folder-tree" :class="{ 'is-collapsed': collapsed }">
-    <div class="kb-folder-tree__header">
+  <aside
+    class="box-border flex min-h-0 shrink-0 flex-col border-r border-[var(--td-component-stroke)]"
+    :class="collapsed ? 'mr-2 w-auto pr-2' : 'mr-3 w-[268px] pr-3'"
+  >
+    <div class="flex h-8 shrink-0 items-center justify-between gap-1.5">
       <template v-if="!collapsed">
-        <span class="kb-folder-tree__title">{{ t("knowledgeBase.folderTree.title") }}</span>
-        <t-tooltip :content="t('knowledgeBase.folderTree.collapse')" placement="top">
+        <span class="text-foreground truncate text-[13px] font-semibold">{{
+          t("knowledgeBase.folderTree.title")
+        }}</span>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              data-slot="icon-button"
+              class="text-muted-foreground hover:text-primary hover:bg-accent inline-flex size-6 items-center justify-center rounded-md transition-colors"
+              :aria-label="t('knowledgeBase.folderTree.collapse')"
+              @click="emit('update:collapsed', true)"
+            >
+              <ChevronsLeftIcon class="size-[15px]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">{{ t("knowledgeBase.folderTree.collapse") }}</TooltipContent>
+        </Tooltip>
+      </template>
+      <Tooltip v-else>
+        <TooltipTrigger as-child>
           <button
             type="button"
-            class="kb-folder-tree__icon-btn"
-            :aria-label="t('knowledgeBase.folderTree.collapse')"
-            @click="emit('update:collapsed', true)"
+            data-slot="icon-button"
+            class="text-muted-foreground hover:text-primary hover:bg-accent inline-flex size-6 items-center justify-center rounded-md transition-colors"
+            :aria-label="t('knowledgeBase.folderTree.expand')"
+            @click="emit('update:collapsed', false)"
           >
-            <t-icon name="chevron-left-double" size="15px" />
+            <ChevronsRightIcon class="size-[15px]" />
           </button>
-        </t-tooltip>
-      </template>
-      <t-tooltip v-else :content="t('knowledgeBase.folderTree.expand')" placement="right">
-        <button
-          type="button"
-          class="kb-folder-tree__icon-btn"
-          :aria-label="t('knowledgeBase.folderTree.expand')"
-          @click="emit('update:collapsed', false)"
-        >
-          <t-icon name="chevron-right-double" size="15px" />
-        </button>
-      </t-tooltip>
+        </TooltipTrigger>
+        <TooltipContent side="right">{{ t("knowledgeBase.folderTree.expand") }}</TooltipContent>
+      </Tooltip>
     </div>
 
-    <div v-if="!collapsed" class="kb-folder-tree__body">
+    <div
+      v-if="!collapsed"
+      class="min-h-0 flex-1 [scrollbar-width:thin] overflow-x-hidden overflow-y-auto pt-1 pb-3 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[var(--td-scrollbar-color)]"
+    >
       <template v-if="loading && !tree">
-        <div v-for="n in 5" :key="'folder-skel-' + n" class="kb-folder-tree__skeleton">
-          <t-skeleton animation="gradient" :row-col="[{ width: '100%', height: '16px' }]" />
+        <div v-for="n in 5" :key="'folder-skel-' + n" class="px-2 py-[7px]">
+          <Skeleton class="h-4 w-full" />
         </div>
       </template>
       <template v-else>
+        <!--
+          Each depth indents the row by 10px. The count gives way to the "more"
+          button while an editable row is hovered or its menu is open; `group`
+          carries the hover to those children.
+        -->
         <div
           v-for="row in rows"
           :key="row.path || '__root__'"
-          class="kb-folder-row"
-          :class="{
-            active: selectedPath === row.path,
-            'is-root': row.kind === 'root',
-            'is-editable': canEdit && row.kind === 'folder',
-            'is-menu-open': menuOpenPath === row.path,
-          }"
-          :style="{ '--kb-folder-depth': row.depth }"
+          class="group text-foreground hover:bg-accent box-border flex h-[30px] w-full cursor-pointer items-center gap-1 rounded-md pr-2 text-left [font-family:var(--app-font-family)] text-[13px] transition-colors select-none focus-visible:shadow-[0_0_0_2px_color-mix(in_srgb,var(--td-brand-color)_30%,transparent)] focus-visible:outline-none"
+          :class="{ 'bg-accent': selectedPath === row.path }"
+          :style="{ paddingLeft: `${row.depth * 10}px` }"
           :title="row.kind === 'root' ? t('knowledgeBase.folderTree.rootRowTip') : row.path"
           role="button"
           tabindex="0"
@@ -52,7 +68,7 @@
         >
           <span
             v-if="row.hasChildren"
-            class="kb-folder-row__toggle"
+            class="text-placeholder hover:text-foreground hover:bg-muted inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded"
             role="button"
             :aria-label="
               t(
@@ -63,20 +79,23 @@
             "
             @click.stop="toggle(row.path)"
           >
-            <t-icon :name="isExpanded(row.path) ? 'chevron-down' : 'chevron-right'" />
+            <ChevronDownIcon v-if="isExpanded(row.path)" class="size-3.5" />
+            <ChevronRightIcon v-else class="size-3.5" />
           </span>
-          <span v-else class="kb-folder-row__toggle-placeholder" aria-hidden="true" />
+          <span v-else class="inline-flex size-4 shrink-0" aria-hidden="true" />
 
-          <t-icon
-            :name="row.kind === 'root' || (row.hasChildren && isExpanded(row.path)) ? 'folder-open' : 'folder'"
-            class="kb-folder-row__icon"
+          <component
+            :is="row.kind === 'root' || (row.hasChildren && isExpanded(row.path)) ? FolderOpenIcon : FolderIcon"
+            class="size-[15px] shrink-0"
+            :class="selectedPath === row.path ? 'text-primary' : 'text-placeholder'"
           />
 
           <input
             v-if="isRenaming(row)"
             ref="renameInputRef"
             v-model="renameValue"
-            class="kb-folder-row__rename"
+            data-slot="folder-rename"
+            class="border-primary bg-card text-foreground h-[22px] min-w-0 flex-1 rounded border px-1.5 [font-family:var(--app-font-family)] text-[13px] outline-none"
             :placeholder="t('knowledgeBase.folderTree.renamePlaceholder')"
             @click.stop
             @keydown.enter="commitRename(row)"
@@ -84,38 +103,55 @@
             @blur="commitRename(row)"
           />
           <template v-else>
-            <span class="kb-folder-row__label">
+            <span
+              class="min-w-0 flex-1 truncate"
+              :class="{ 'text-primary': selectedPath === row.path, 'font-medium': row.kind === 'root' }"
+            >
               {{ row.kind === "root" ? t("knowledgeBase.folderTree.rootRow") : row.name }}
             </span>
-            <span class="kb-folder-row__trailing">
-              <span class="kb-folder-row__count">{{ row.totalCount }}</span>
-              <t-popup
-                v-if="canEdit && row.kind === 'folder'"
-                :visible="menuOpenPath === row.path"
-                trigger="click"
-                placement="bottom-right"
-                destroy-on-close
-                overlay-class-name="card-more-popup"
-                @visible-change="(visible: boolean) => onFolderMenuVisible(row.path, visible)"
+            <span class="ml-0.5 flex h-5 w-[22px] shrink-0 items-center justify-center">
+              <span
+                class="text-placeholder text-[11px] leading-none tabular-nums"
+                :class="{
+                  'group-hover:hidden': canEdit && row.kind === 'folder',
+                  hidden: menuOpenPath === row.path,
+                }"
+                >{{ row.totalCount }}</span
               >
-                <button
-                  type="button"
-                  class="kb-folder-row__more"
-                  :class="{ 'is-open': menuOpenPath === row.path }"
-                  :aria-label="t('knowledgeBase.moreOptions')"
-                  @click.stop
-                >
-                  <t-icon name="more" />
-                </button>
-                <template #content>
-                  <div class="popup-menu kb-folder-row__menu" @click.stop>
-                    <div class="popup-menu-item" @click="onFolderMenuRename(row)">
-                      <t-icon name="edit" class="menu-icon" />
+              <Popover
+                v-if="canEdit && row.kind === 'folder'"
+                :open="menuOpenPath === row.path"
+                @update:open="(visible: boolean) => onFolderMenuVisible(row.path, visible)"
+              >
+                <PopoverTrigger as-child>
+                  <button
+                    type="button"
+                    data-slot="folder-more"
+                    class="hover:text-primary hover:bg-muted size-5 items-center justify-center rounded transition-colors"
+                    :class="
+                      menuOpenPath === row.path
+                        ? 'text-primary inline-flex'
+                        : 'text-placeholder hidden group-hover:inline-flex'
+                    "
+                    :aria-label="t('docs.tree.moreActions')"
+                    @click.stop
+                  >
+                    <EllipsisIcon class="size-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" class="w-auto min-w-[148px] gap-px rounded-[10px] p-1">
+                  <div class="flex min-w-[140px] flex-col gap-px" @click.stop>
+                    <div
+                      data-menu-item="rename"
+                      class="group/item text-foreground hover:bg-accent flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm leading-5 transition-all active:scale-[0.98] active:bg-[var(--td-bg-color-container-active)]"
+                      @click="onFolderMenuRename(row)"
+                    >
+                      <PenLineIcon class="text-muted-foreground group-hover/item:text-foreground size-4 shrink-0" />
                       <span>{{ t("knowledgeBase.folderTree.rename") }}</span>
                     </div>
                   </div>
-                </template>
-              </t-popup>
+                </PopoverContent>
+              </Popover>
             </span>
           </template>
         </div>
@@ -127,6 +163,19 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  EllipsisIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  PenLineIcon,
+} from "@lucide/vue";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { KnowledgeFolderTree } from "@/api/knowledge-base/index";
 import { buildFolderRows, folderAncestorPaths, joinFolderPath, ROOT_FOLDER_PATH, type FolderRow } from "../folderTree";
 
@@ -237,244 +286,3 @@ watch(
   { immediate: true },
 );
 </script>
-
-<style scoped lang="less">
-.kb-folder-tree {
-  --kb-folder-indent: 10px;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 268px;
-  min-height: 0;
-  padding-right: 12px;
-  margin-right: 12px;
-  border-right: 1px solid var(--td-component-stroke);
-  box-sizing: border-box;
-
-  &.is-collapsed {
-    width: auto;
-    padding-right: 8px;
-    margin-right: 8px;
-  }
-}
-
-.kb-folder-tree__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.kb-folder-tree__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.kb-folder-tree__icon-btn {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.kb-folder-tree__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 4px 0 12px;
-  scrollbar-width: thin;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 2px;
-    background: var(--td-scrollbar-color);
-  }
-}
-
-.kb-folder-tree__skeleton {
-  padding: 7px 8px;
-}
-
-.kb-folder-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-sizing: border-box;
-  width: 100%;
-  height: 30px;
-  padding: 0 8px 0 calc(var(--kb-folder-depth, 0) * var(--kb-folder-indent));
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  user-select: none;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--td-brand-color) 30%, transparent);
-  }
-
-  &.active {
-    background: var(--td-bg-color-container-hover);
-
-    .kb-folder-row__label,
-    .kb-folder-row__icon {
-      color: var(--td-brand-color);
-    }
-  }
-
-  &.is-root .kb-folder-row__label {
-    font-weight: 500;
-  }
-}
-
-.kb-folder-row__toggle,
-.kb-folder-row__toggle-placeholder {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-placeholder);
-  border-radius: 4px;
-}
-
-.kb-folder-row__toggle {
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  .t-icon {
-    font-size: 14px;
-  }
-}
-
-.kb-folder-row__icon {
-  flex: 0 0 auto;
-  font-size: 15px;
-  color: var(--td-text-color-placeholder);
-}
-
-.kb-folder-row__label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kb-folder-row__trailing {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 2px;
-}
-
-.kb-folder-row__count {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.kb-folder-row__more {
-  display: none;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  .t-icon {
-    font-size: 14px;
-  }
-}
-
-.kb-folder-row.is-editable:hover,
-.kb-folder-row.is-menu-open {
-  .kb-folder-row__count {
-    display: none;
-  }
-
-  .kb-folder-row__more {
-    display: inline-flex;
-  }
-}
-
-.kb-folder-row__more.is-open {
-  color: var(--td-brand-color);
-}
-
-.kb-folder-row__menu {
-  min-width: 140px;
-}
-
-.kb-folder-row__rename {
-  flex: 1;
-  min-width: 0;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid var(--td-brand-color);
-  border-radius: 4px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  outline: none;
-}
-</style>

@@ -1,33 +1,42 @@
 <template>
-  <div class="kb-multimodal-settings">
-    <div class="section-header">
-      <h2>{{ $t("knowledgeEditor.indexing.title") }}</h2>
-      <p class="section-description">{{ $t("knowledgeEditor.indexing.description") }}</p>
+  <div class="w-full">
+    <div class="mb-5">
+      <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ $t("knowledgeEditor.indexing.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">
+        {{ $t("knowledgeEditor.indexing.description") }}
+      </p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- Hybrid Search (vector + keyword combined) -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.indexing.searchTitle") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.indexing.searchDesc") }}</p>
+      <div class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b">
+        <div class="max-w-[40%] basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.indexing.searchTitle")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.indexing.searchDesc") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch :model-value="searchEnabled" @change="handleSearchToggle" size="medium" />
+        <div class="flex max-w-[55%] basis-[55%] items-start justify-end">
+          <Switch :model-value="searchEnabled" @update:model-value="handleSearchToggle" />
         </div>
       </div>
 
       <!-- Wiki -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.indexing.wikiTitle") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.indexing.wikiDesc") }}</p>
+      <div class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b">
+        <div class="max-w-[40%] basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.indexing.wikiTitle")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.indexing.wikiDesc") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch
+        <div class="flex max-w-[55%] basis-[55%] items-start justify-end">
+          <Switch
             :model-value="modelValue.wikiEnabled"
-            @change="(val: boolean) => update('wikiEnabled', val)"
-            size="medium"
+            @update:model-value="(val: boolean) => update('wikiEnabled', val)"
           />
         </div>
       </div>
@@ -38,16 +47,19 @@
       </template>
 
       <!-- Knowledge Graph -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.indexing.graphTitle") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.indexing.graphDesc") }}</p>
+      <div class="border-border flex items-start justify-between py-4 [&:not(:last-child)]:border-b">
+        <div class="max-w-[40%] basis-2/5 pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.indexing.graphTitle")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.indexing.graphDesc") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch
+        <div class="flex max-w-[55%] basis-[55%] items-start justify-end">
+          <Switch
             :model-value="modelValue.graphEnabled"
-            @change="(val: boolean) => update('graphEnabled', val)"
-            size="medium"
+            @update:model-value="(val: boolean) => update('graphEnabled', val)"
           />
         </div>
       </div>
@@ -62,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { Switch } from "@/components/ui/switch";
 
 export interface IndexingStrategy {
   vectorEnabled: boolean;
@@ -96,10 +109,3 @@ const update = (field: keyof IndexingStrategy, value: boolean) => {
   });
 };
 </script>
-
-<style lang="less">
-/* NOT scoped — these classes must match the parent modal's scoped styles.
-   Since slot content is rendered in the parent scope, only the wrapper
-   elements defined HERE need their own styles. We replicate the same
-   design tokens used by .kb-multimodal-settings in the parent. */
-</style>

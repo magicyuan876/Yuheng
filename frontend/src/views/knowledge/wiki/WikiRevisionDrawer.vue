@@ -1,74 +1,105 @@
 <template>
   <SettingDrawer
     v-model:visible="drawerVisible"
-    class="wiki-revision-drawer"
     :title="drawerTitle"
-    icon="history"
+    :icon="HistoryIcon"
     width="760px"
     :min-width="560"
     :max-width="1280"
     storage-key="setting-drawer:width:wiki-revision-history"
     hide-footer
   >
-    <div class="wiki-rev-layout">
+    <!--
+      The layout runs edge to edge: the negative margins cancel the drawer
+      body's padding, which the old drawer's body override set to zero.
+    -->
+    <div class="-mx-[18px] -my-4 flex h-full min-h-0 flex-1 items-stretch">
       <!-- Version list -->
-      <aside class="wiki-rev-list">
-        <div class="wiki-rev-list-items">
+      <aside
+        class="bg-card box-border flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-[var(--td-component-stroke)] py-3"
+      >
+        <div class="min-h-0 shrink-0 overflow-y-auto py-0 pr-2 pl-3.5">
           <div
             v-if="currentPage"
-            class="wiki-rev-item"
-            :class="{ 'wiki-rev-item--active': selectedVersion === currentPage.version }"
+            class="cursor-pointer rounded-md py-1.5 pr-2.5 pl-3.5 transition-colors"
+            :class="selectedVersion === currentPage.version ? 'bg-accent' : 'hover:bg-accent'"
             @click="selectCurrent"
           >
-            <div class="wiki-rev-item-primary">
-              <span class="wiki-rev-version">v{{ currentPage.version }}</span>
-              <span class="wiki-rev-current-label">{{ t("knowledgeEditor.wikiBrowser.revisionCurrent") }}</span>
+            <div class="flex min-w-0 items-center gap-2">
+              <span
+                class="[font-family:var(--td-font-family-mono,monospace)] text-sm leading-5 transition-colors"
+                :class="selectedVersion === currentPage.version ? 'text-primary' : 'text-foreground'"
+                >v{{ currentPage.version }}</span
+              >
+              <span
+                class="text-xs leading-4 transition-colors"
+                :class="selectedVersion === currentPage.version ? 'text-primary' : 'text-placeholder'"
+                >{{ t("knowledgeEditor.wikiBrowser.revisionCurrent") }}</span
+              >
             </div>
-            <div class="wiki-rev-item-secondary">
+            <div class="text-placeholder mt-0.5 flex min-w-0 items-center justify-between gap-2 text-[11px] leading-4">
               <span>{{ sourceLabel(currentPage.last_edit_source) }}</span>
-              <span class="wiki-rev-time">{{ formatShortTime(currentPage.updated_at) }}</span>
+              <span class="shrink-0 whitespace-nowrap [font-variant-numeric:tabular-nums]">{{
+                formatShortTime(currentPage.updated_at)
+              }}</span>
             </div>
           </div>
 
           <div
             v-for="rev in revisions"
             :key="rev.id"
-            class="wiki-rev-item"
-            :class="{ 'wiki-rev-item--active': selectedVersion === rev.version }"
+            class="cursor-pointer rounded-md py-1.5 pr-2.5 pl-3.5 transition-colors"
+            :class="selectedVersion === rev.version ? 'bg-accent' : 'hover:bg-accent'"
             @click="selectRevision(rev)"
           >
-            <div class="wiki-rev-item-primary">
-              <span class="wiki-rev-version">v{{ rev.version }}</span>
+            <div class="flex min-w-0 items-center gap-2">
+              <span
+                class="[font-family:var(--td-font-family-mono,monospace)] text-sm leading-5 transition-colors"
+                :class="selectedVersion === rev.version ? 'text-primary' : 'text-foreground'"
+                >v{{ rev.version }}</span
+              >
             </div>
-            <div class="wiki-rev-item-secondary">
+            <div class="text-placeholder mt-0.5 flex min-w-0 items-center justify-between gap-2 text-[11px] leading-4">
               <span>{{ sourceLabel(rev.edit_source) }}</span>
-              <span class="wiki-rev-time">{{ formatShortTime(rev.edited_at) }}</span>
+              <span class="shrink-0 whitespace-nowrap [font-variant-numeric:tabular-nums]">{{
+                formatShortTime(rev.edited_at)
+              }}</span>
             </div>
           </div>
 
-          <div v-if="revisions.length < total" class="wiki-rev-load-more">
-            <t-button size="small" variant="outline" theme="default" :loading="loadingList" block @click="loadMore">
+          <div v-if="revisions.length < total" class="py-2 pb-1">
+            <Button variant="outline" class="w-full font-normal" size="xs" :disabled="loadingList" @click="loadMore">
+              <Loader2Icon v-if="loadingList" class="animate-spin" />
               {{ t("knowledgeEditor.wikiBrowser.loadMoreShort") }}
-            </t-button>
+            </Button>
           </div>
         </div>
-        <div v-if="!loadingList && revisions.length === 0" class="wiki-rev-empty">
+        <div
+          v-if="!loadingList && revisions.length === 0"
+          class="text-placeholder flex flex-1 items-center justify-center px-3.5 py-4 text-center text-xs leading-normal"
+        >
           {{ t("knowledgeEditor.wikiBrowser.revisionEmpty") }}
         </div>
       </aside>
 
       <!-- Detail pane -->
-      <div class="wiki-rev-detail">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-[18px] pt-3.5 pb-[18px]">
         <template v-if="selectedVersion !== null && canShowDiff">
-          <div class="wiki-rev-detail-head">
-            <div class="wiki-rev-detail-context">
-              <div class="wiki-rev-detail-range">{{ versionRangeLabel }}</div>
-              <div v-if="contextHint" class="wiki-rev-detail-sub">{{ contextHint }}</div>
+          <div
+            class="mb-3.5 flex items-start justify-between gap-4 border-b border-[var(--td-component-stroke)] pb-3.5"
+          >
+            <div class="min-w-0 flex-1">
+              <div
+                class="text-foreground [font-family:var(--td-font-family-mono,monospace)] text-[15px] leading-[1.4] font-semibold"
+              >
+                {{ versionRangeLabel }}
+              </div>
+              <div v-if="contextHint" class="text-placeholder mt-1 text-xs leading-normal">{{ contextHint }}</div>
             </div>
-            <div class="wiki-rev-detail-controls">
+            <div class="flex shrink-0 items-center gap-2">
               <div
                 v-if="viewModeOptions.length > 1"
-                class="wiki-rev-view-switch"
+                class="bg-muted inline-flex items-center gap-0.5 rounded-lg p-0.5"
                 role="tablist"
                 :aria-label="t('knowledgeEditor.wikiBrowser.revisionViewModeLabel')"
               >
@@ -76,54 +107,102 @@
                   v-for="option in viewModeOptions"
                   :key="option.value"
                   type="button"
-                  class="wiki-rev-view-switch-btn"
+                  data-slot="view-mode-tab"
+                  class="rounded-md px-2.5 py-[5px] text-xs leading-[1.4] whitespace-nowrap transition-colors"
+                  :class="
+                    viewMode === option.value
+                      ? 'bg-card text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground bg-transparent'
+                  "
                   role="tab"
                   :aria-selected="viewMode === option.value"
-                  :class="{ active: viewMode === option.value }"
                   @click="viewMode = option.value"
                 >
                   {{ option.label }}
                 </button>
               </div>
-              <t-popconfirm
-                v-if="canEdit && selectedRevision"
-                :content="t('knowledgeEditor.wikiBrowser.revertConfirm', { ver: selectedRevision.version })"
-                @confirm="doRevert"
-              >
-                <t-button size="small" variant="text" theme="warning" :loading="reverting">
-                  <template #icon><t-icon name="rollback" /></template>
+              <template v-if="canEdit && selectedRevision">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  class="text-warning hover:text-warning font-normal hover:bg-[var(--td-warning-color-1)] dark:hover:bg-[var(--td-warning-color-1)]"
+                  :disabled="reverting"
+                  @click="revertConfirmOpen = true"
+                >
+                  <Loader2Icon v-if="reverting" class="size-3.5 animate-spin" />
+                  <Undo2Icon v-else class="size-3.5" />
                   {{ t("knowledgeEditor.wikiBrowser.revertBtn") }}
-                </t-button>
-              </t-popconfirm>
+                </Button>
+                <Dialog v-model:open="revertConfirmOpen">
+                  <DialogContent class="sm:max-w-[420px]">
+                    <DialogHeader>
+                      <DialogTitle>{{
+                        t("knowledgeEditor.wikiBrowser.revertConfirm", { ver: selectedRevision.version })
+                      }}</DialogTitle>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" @click="revertConfirmOpen = false">{{ t("common.cancel") }}</Button>
+                      <Button
+                        class="bg-warning/15 text-warning hover:bg-warning/25"
+                        :disabled="reverting"
+                        @click="doRevert"
+                      >
+                        <Loader2Icon v-if="reverting" class="animate-spin" />
+                        {{ t("knowledgeEditor.wikiBrowser.revertBtn") }}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </template>
             </div>
           </div>
 
-          <div v-if="loadingDetail || diffLoading" class="wiki-rev-detail-loading">
-            <t-loading size="small" />
+          <div
+            v-if="loadingDetail || diffLoading"
+            class="text-placeholder flex flex-1 items-center justify-center gap-2 text-[13px]"
+          >
+            <Loader2Icon class="text-primary size-4 animate-spin" />
             <span>{{ t("knowledgeEditor.wikiBrowser.loading") }}</span>
           </div>
 
-          <div v-else-if="viewMode !== 'raw'" class="wiki-rev-diff">
-            <div v-if="diffSections.length === 0" class="wiki-rev-empty-diff">
+          <div v-else-if="viewMode !== 'raw'" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+            <div v-if="diffSections.length === 0" class="text-placeholder py-6 text-center text-[13px]">
               {{ t("knowledgeEditor.wikiBrowser.revisionDiffEmpty") }}
             </div>
             <template v-for="section in diffSections" :key="section.field">
-              <div class="wiki-rev-diff-block">
-                <div class="wiki-rev-diff-block-label">{{ revisionDiffFieldLabel(section.field) }}</div>
-                <pre class="wiki-rev-diff-block-body"><span v-for="(line, idx) in section.lines"
+              <div class="flex flex-col gap-1.5">
+                <div class="text-placeholder text-xs font-medium">{{ revisionDiffFieldLabel(section.field) }}</div>
+                <pre
+                  class="bg-muted m-0 overflow-auto rounded-lg px-3 py-2.5 [font-family:var(--td-font-family-mono,monospace)] text-xs leading-[1.7] break-words whitespace-pre-wrap"
+                ><span v-for="(line, idx) in section.lines"
                   :key="`${section.field}-${idx}`"
-                  :class="['wiki-rev-diff-line', `wiki-rev-diff-line--${line.type}`]">{{ diffPrefix(line.type) }}{{ line.text }}
+                  class="block"
+                  :class="[
+                    line.type === 'add'
+                      ? 'bg-[rgba(7,192,95,0.08)] text-foreground'
+                      : line.type === 'del'
+                        ? 'bg-[rgba(213,73,65,0.06)] text-muted-foreground'
+                        : '',
+                  ]"
+                  >{{ diffPrefix(line.type) }}{{ line.text }}
 </span></pre>
               </div>
             </template>
           </div>
 
-          <div v-else-if="selectedRevision" class="wiki-rev-raw">
-            <pre class="wiki-rev-raw-body">{{ rawRevisionText }}</pre>
+          <div v-else-if="selectedRevision" class="min-h-0 flex-1 overflow-auto">
+            <pre
+              class="bg-muted m-0 rounded-lg px-3.5 py-3 [font-family:var(--td-font-family-mono,monospace)] text-[13px] leading-[1.7] break-words whitespace-pre-wrap"
+              >{{ rawRevisionText }}</pre>
           </div>
         </template>
 
-        <div v-else class="wiki-rev-detail-hint">{{ t("knowledgeEditor.wikiBrowser.revisionSelectHint") }}</div>
+        <div
+          v-else
+          class="text-placeholder flex flex-1 items-center justify-center p-6 text-center text-[13px] leading-normal"
+        >
+          {{ t("knowledgeEditor.wikiBrowser.revisionSelectHint") }}
+        </div>
       </div>
     </div>
   </SettingDrawer>
@@ -133,7 +212,10 @@
 import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
+import { HistoryIcon, Loader2Icon, Undo2Icon } from "@lucide/vue";
 import SettingDrawer from "@/components/settings/SettingDrawer.vue";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { listWikiRevisions, getWikiRevision, revertWikiPage, type WikiPage, type WikiPageRevision } from "@/api/wiki";
 import { diffWikiRevision, type WikiRevisionDiffField, type WikiRevisionSnapshot } from "@/utils/wikiRevisionDiff";
 
@@ -182,6 +264,7 @@ const detailContent = ref("");
 const loadingDetail = ref(false);
 const viewMode = ref<ViewMode>("incremental");
 const reverting = ref(false);
+const revertConfirmOpen = ref(false);
 const diffLoading = ref(false);
 const diffPair = ref<DiffPair | null>(null);
 
@@ -467,6 +550,7 @@ async function doRevert() {
     const res = await revertWikiPage(props.kbId, props.slug, selectedRevision.value.version);
     const updated = ((res as any).data || (res as any)) as WikiPage;
     MessagePlugin.success(t("knowledgeEditor.wikiBrowser.revertSuccess", { ver: selectedRevision.value.version }));
+    revertConfirmOpen.value = false;
     emit("reverted", updated);
     // Stay open: reload so the just-created snapshot of the pre-revert
     // version shows up and the "current" entry reflects the new version.
@@ -522,318 +606,3 @@ function formatShortTime(iso?: string): string {
   });
 }
 </script>
-
-<style scoped>
-.wiki-rev-layout {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  align-items: stretch;
-}
-
-.wiki-rev-list {
-  width: 220px;
-  flex-shrink: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 12px 0;
-  border-right: 1px solid var(--td-component-stroke);
-  display: flex;
-  flex-direction: column;
-  background: var(--td-bg-color-container);
-}
-
-.wiki-rev-list-items {
-  flex: 0 0 auto;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 0 8px 0 14px;
-}
-
-.wiki-rev-item {
-  border: none;
-  border-radius: 6px;
-  padding: 6px 10px 6px 14px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.wiki-rev-item:hover,
-.wiki-rev-item--active {
-  background: var(--td-bg-color-container-hover);
-}
-
-.wiki-rev-item--active .wiki-rev-version,
-.wiki-rev-item--active .wiki-rev-current-label {
-  color: var(--td-brand-color);
-}
-
-.wiki-rev-item-primary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.wiki-rev-version {
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 20px;
-  font-family: var(--td-font-family-mono, monospace);
-  color: var(--td-text-color-primary);
-  transition: color 0.15s ease;
-}
-
-.wiki-rev-current-label {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--td-text-color-placeholder);
-  transition: color 0.15s ease;
-}
-
-.wiki-rev-item-secondary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 2px;
-  min-width: 0;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--td-text-color-placeholder);
-}
-
-.wiki-rev-time {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.wiki-rev-load-more {
-  padding: 8px 0 4px;
-}
-
-.wiki-rev-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 14px;
-  text-align: center;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-}
-
-.wiki-rev-detail {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 14px 18px 18px;
-}
-
-.wiki-rev-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.wiki-rev-detail-context {
-  min-width: 0;
-  flex: 1;
-}
-
-.wiki-rev-detail-range {
-  font-family: var(--td-font-family-mono, monospace);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--td-text-color-primary);
-}
-
-.wiki-rev-detail-sub {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-}
-
-.wiki-rev-detail-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.wiki-rev-view-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.wiki-rev-view-switch-btn {
-  padding: 5px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.wiki-rev-view-switch-btn:hover {
-  color: var(--td-text-color-primary);
-}
-
-.wiki-rev-view-switch-btn.active {
-  color: var(--td-brand-color);
-  background: var(--td-bg-color-container);
-  font-weight: 500;
-}
-
-.wiki-rev-detail-hint {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-placeholder);
-  padding: 24px;
-  text-align: center;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.wiki-rev-detail-loading {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.wiki-rev-diff {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.wiki-rev-empty-diff {
-  padding: 24px 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.wiki-rev-diff-block {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.wiki-rev-diff-block-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-placeholder);
-}
-
-.wiki-rev-diff-block-body {
-  overflow: auto;
-  margin: 0;
-  padding: 10px 12px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.7;
-  font-family: var(--td-font-family-mono, monospace);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.wiki-rev-raw {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.wiki-rev-raw-body {
-  margin: 0;
-  padding: 12px 14px;
-  background: var(--td-bg-color-secondarycontainer);
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.7;
-  font-family: var(--td-font-family-mono, monospace);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.wiki-rev-diff-line {
-  display: block;
-}
-
-.wiki-rev-diff-line--add {
-  background: rgba(7, 192, 95, 0.08);
-  color: var(--td-text-color-primary);
-}
-
-.wiki-rev-diff-line--del {
-  background: rgba(213, 73, 65, 0.06);
-  color: var(--td-text-color-secondary);
-}
-</style>
-
-<style lang="less">
-.wiki-revision-drawer {
-  .t-drawer__content-wrapper,
-  .t-drawer__content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .t-drawer__body {
-    flex: 1;
-    min-height: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .setting-drawer__body {
-    flex: 1;
-    min-height: 0;
-    padding: 0;
-    gap: 0;
-    animation: none;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-}
-</style>

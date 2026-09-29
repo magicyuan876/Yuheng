@@ -1,161 +1,245 @@
 <template>
-  <div class="graph-settings" :class="{ 'graph-settings--embedded': embedded }">
-    <div v-if="!embedded" class="section-header">
-      <h2>{{ t("graphSettings.title") }}</h2>
-      <p class="section-description">{{ t("graphSettings.description") }}</p>
+  <div class="w-full">
+    <div v-if="!embedded" class="mb-5">
+      <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ t("graphSettings.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ t("graphSettings.description") }}</p>
 
-      <t-alert v-if="!isGraphDatabaseEnabled" theme="warning" style="margin-top: 16px">
-        <template #message>
+      <!-- t-alert theme="warning": warning-coloured icon, message in the normal text colour. -->
+      <Alert v-if="!isGraphDatabaseEnabled" class="border-warning/40 bg-warning/10 text-warning mt-4">
+        <CircleAlertIcon />
+        <AlertTitle class="text-foreground font-normal">
           <div>{{ t("graphSettings.disabledWarning") }}</div>
-          <t-link class="graph-guide-link" theme="primary" @click="handleOpenGraphGuide">
+          <button
+            type="button"
+            data-slot="link-button"
+            class="text-primary hover:text-primary/80 text-sm"
+            @click="handleOpenGraphGuide"
+          >
             {{ t("graphSettings.howToEnable") }}
-          </t-link>
-        </template>
-      </t-alert>
+          </button>
+        </AlertTitle>
+      </Alert>
     </div>
-    <t-alert v-else-if="!isGraphDatabaseEnabled" theme="warning" class="embedded-graph-alert">
-      <template #message>
-        <div>{{ t("graphSettings.disabledWarning") }}</div>
-      </template>
-    </t-alert>
+    <Alert v-else-if="!isGraphDatabaseEnabled" class="border-warning/40 bg-warning/10 text-warning mb-3">
+      <CircleAlertIcon />
+      <AlertTitle class="text-foreground font-normal">{{ t("graphSettings.disabledWarning") }}</AlertTitle>
+    </Alert>
 
-    <div v-if="isGraphDatabaseEnabled" class="settings-group">
+    <div v-if="isGraphDatabaseEnabled" class="flex flex-col">
       <!-- 启用实体关系提取 -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.enableLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.enableDescription") }}</p>
+      <div
+        class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4'"
+      >
+        <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ t("graphSettings.enableLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.enableDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch v-model="localGraphExtract.enabled" @change="handleEnabledChange" />
+        <div :class="embedded ? 'self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'">
+          <Switch
+            :model-value="localGraphExtract.enabled"
+            @update:model-value="
+              (val: boolean) => {
+                localGraphExtract.enabled = val;
+                handleEnabledChange();
+              }
+            "
+          />
         </div>
       </div>
 
-      <div v-if="localGraphExtract.enabled" class="setting-row vertical">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.customInstructionsLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.customInstructionsDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[40%] pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.customInstructionsLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.customInstructionsDescription") }}
+          </p>
         </div>
-        <div class="setting-control full-width">
-          <t-textarea
+        <div class="flex w-full max-w-full flex-col items-start gap-3">
+          <Textarea
             v-model="localGraphExtract.customInstructions"
             :placeholder="t('graphSettings.customInstructionsPlaceholder')"
             :maxlength="4000"
-            :autosize="{ minRows: 3, maxRows: 8 }"
-            @change="handleConfigChange"
+            :rows="3"
+            class="max-h-[176px] min-h-[76px]"
+            @update:model-value="handleConfigChange"
           />
         </div>
       </div>
 
       <!-- 关系类型配置 -->
-      <div v-if="localGraphExtract.enabled" class="setting-row vertical">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.tagsLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.tagsDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[40%] pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{ t("graphSettings.tagsLabel") }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.tagsDescription") }}
+          </p>
         </div>
-        <div class="setting-control full-width">
-          <div class="tags-control-group">
-            <t-button
+        <div class="flex w-full max-w-full flex-col items-start gap-3">
+          <div class="flex w-full items-start gap-3">
+            <Button
               v-if="canRunGraphExtract"
-              theme="default"
-              size="medium"
-              :disabled="!modelStatus.llm.available"
-              :loading="tagFabring"
+              variant="secondary"
+              :disabled="!modelStatus.llm.available || tagFabring"
               @click="handleFabriTag"
-              class="gen-tags-btn"
             >
+              <Loader2Icon v-if="tagFabring" class="animate-spin" />
               {{ t("graphSettings.generateRandomTags") }}
-            </t-button>
-            <t-select
-              v-model="localGraphExtract.tags"
-              multiple
-              :placeholder="t('graphSettings.tagsPlaceholder')"
-              clearable
-              creatable
-              filterable
-              @change="handleTagsChange"
-              style="flex: 1; min-width: 400px"
-            />
+            </Button>
+            <!--
+              t-select multiple + creatable + clearable with no options of its own:
+              the values show as removable chips, typing and Enter adds one, and
+              a clear button empties the list.
+            -->
+            <div
+              class="border-input focus-within:border-ring focus-within:ring-ring/50 dark:bg-input/30 flex min-h-8 min-w-[400px] flex-1 flex-wrap items-center gap-1 rounded-lg border px-1.5 py-1 focus-within:ring-3"
+            >
+              <span
+                v-for="tag in localGraphExtract.tags"
+                :key="tag"
+                class="bg-muted text-foreground inline-flex h-6 items-center gap-1 rounded-md pr-1 pl-2 text-xs"
+              >
+                {{ tag }}
+                <button
+                  type="button"
+                  data-slot="icon-button"
+                  class="text-muted-foreground hover:text-foreground inline-flex"
+                  :aria-label="t('common.delete')"
+                  @click="removeTag(tag)"
+                >
+                  <XIcon class="size-3" />
+                </button>
+              </span>
+              <input
+                v-model="newTagInput"
+                data-slot="tag-input"
+                class="placeholder:text-placeholder h-6 min-w-[120px] flex-1 px-1 text-sm outline-none"
+                :placeholder="localGraphExtract.tags.length ? '' : t('graphSettings.tagsPlaceholder')"
+                @keydown.enter.prevent="addTag"
+              />
+              <button
+                v-if="localGraphExtract.tags.length"
+                type="button"
+                data-slot="icon-button"
+                class="text-placeholder hover:text-muted-foreground inline-flex px-1"
+                :aria-label="t('common.clear')"
+                @click="
+                  localGraphExtract.tags = [];
+                  handleTagsChange();
+                "
+              >
+                <CircleXIcon class="size-4" />
+              </button>
+            </div>
           </div>
-          <div v-if="!modelStatus.llm.available" class="control-tip">
-            <t-icon name="info-circle" class="tip-icon" />
+          <div v-if="!modelStatus.llm.available" class="text-muted-foreground flex items-center gap-1.5 text-[13px]">
+            <InfoIcon class="text-primary size-4" />
             <span>{{ t("graphSettings.completeModelConfig") }}</span>
           </div>
         </div>
       </div>
 
       <!-- 示例文本 -->
-      <div v-if="localGraphExtract.enabled" class="setting-row vertical">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.sampleTextLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.sampleTextDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[40%] pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.sampleTextLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.sampleTextDescription") }}
+          </p>
         </div>
-        <div class="setting-control full-width">
-          <div class="text-control-group">
-            <t-button
+        <div class="flex w-full max-w-full flex-col items-start gap-3">
+          <div class="flex w-full flex-col items-start gap-3">
+            <Button
               v-if="canRunGraphExtract"
-              theme="default"
-              size="medium"
-              :disabled="!modelStatus.llm.available"
-              :loading="textFabring"
+              variant="secondary"
+              :disabled="!modelStatus.llm.available || textFabring"
               @click="handleFabriText"
-              class="gen-text-btn"
             >
+              <Loader2Icon v-if="textFabring" class="animate-spin" />
               {{ t("graphSettings.generateRandomText") }}
-            </t-button>
-            <t-textarea
-              v-model="localGraphExtract.text"
-              :placeholder="t('graphSettings.sampleTextPlaceholder')"
-              :autosize="{ minRows: 6, maxRows: 12 }"
-              show-word-limit
-              maxlength="5000"
-              @change="handleTextChange"
-              style="width: 100%"
-            />
+            </Button>
+            <div class="w-full">
+              <Textarea
+                v-model="localGraphExtract.text"
+                :placeholder="t('graphSettings.sampleTextPlaceholder')"
+                :rows="6"
+                :maxlength="5000"
+                class="max-h-[256px] min-h-[136px]"
+                @update:model-value="handleTextChange"
+              />
+              <!-- t-textarea's show-word-limit. -->
+              <p class="text-placeholder m-0 mt-1 text-right text-xs">{{ localGraphExtract.text.length }}/5000</p>
+            </div>
           </div>
-          <div v-if="!modelStatus.llm.available" class="control-tip">
-            <t-icon name="info-circle" class="tip-icon" />
+          <div v-if="!modelStatus.llm.available" class="text-muted-foreground flex items-center gap-1.5 text-[13px]">
+            <InfoIcon class="text-primary size-4" />
             <span>{{ t("graphSettings.completeModelConfig") }}</span>
           </div>
         </div>
       </div>
 
       <!-- 实体列表 -->
-      <div v-if="localGraphExtract.enabled && localGraphExtract.nodes.length > 0" class="setting-row vertical">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.entityListLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.entityListDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled && localGraphExtract.nodes.length > 0"
+        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[40%] pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.entityListLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.entityListDescription") }}
+          </p>
         </div>
-        <div class="setting-control full-width">
-          <div class="node-list">
-            <div v-for="(node, nodeIndex) in localGraphExtract.nodes" :key="nodeIndex" class="node-item">
-              <div class="node-header">
-                <t-icon name="user" class="node-icon" />
-                <t-input
+        <div class="flex w-full max-w-full flex-col items-start gap-3">
+          <div class="flex w-full flex-col gap-4">
+            <div
+              v-for="(node, nodeIndex) in localGraphExtract.nodes"
+              :key="nodeIndex"
+              class="border-border bg-card rounded-lg border p-4"
+            >
+              <div class="mb-3 flex items-center gap-3">
+                <UserIcon class="text-primary size-5" />
+                <Input
                   v-model="node.name"
                   :placeholder="t('graphSettings.nodeNamePlaceholder')"
-                  @change="handleNodesChange"
-                  class="node-name-input"
+                  class="flex-1"
+                  @update:model-value="handleNodesChange"
                 />
-                <t-button theme="default" size="small" @click="removeNode(nodeIndex)">
-                  <t-icon name="delete" />
-                </t-button>
+                <Button variant="outline" size="icon-sm" @click="removeNode(nodeIndex)">
+                  <Trash2Icon />
+                </Button>
               </div>
-              <div class="node-attributes">
-                <div v-for="(attribute, attrIndex) in node.attributes" :key="attrIndex" class="attribute-item">
-                  <t-input
+              <div class="flex flex-col gap-2 pl-8">
+                <div v-for="(attribute, attrIndex) in node.attributes" :key="attrIndex" class="flex items-center gap-2">
+                  <Input
                     v-model="node.attributes[attrIndex]"
                     :placeholder="t('graphSettings.attributePlaceholder')"
-                    @change="handleNodesChange"
-                    class="attribute-input"
+                    class="flex-1"
+                    @update:model-value="handleNodesChange"
                   />
-                  <t-button theme="default" size="small" @click="removeAttribute(nodeIndex, attrIndex)">
-                    <t-icon name="close" />
-                  </t-button>
+                  <Button variant="outline" size="icon-sm" @click="removeAttribute(nodeIndex, attrIndex)">
+                    <XIcon />
+                  </Button>
                 </div>
-                <t-button theme="default" size="small" @click="addAttribute(nodeIndex)" class="add-attr-btn">
+                <Button variant="outline" size="sm" class="self-start" @click="addAttribute(nodeIndex)">
                   {{ t("graphSettings.addAttribute") }}
-                </t-button>
+                </Button>
               </div>
             </div>
           </div>
@@ -163,110 +247,180 @@
       </div>
 
       <!-- 添加实体按钮 -->
-      <div v-if="localGraphExtract.enabled" class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.manageEntitiesLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.manageEntitiesDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4'"
+      >
+        <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.manageEntitiesLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.manageEntitiesDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-button theme="primary" @click="addNode">
-            {{ t("graphSettings.addEntity") }}
-          </t-button>
+        <div :class="embedded ? 'self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'">
+          <Button @click="addNode">{{ t("graphSettings.addEntity") }}</Button>
         </div>
       </div>
 
       <!-- 关系列表 -->
-      <div v-if="localGraphExtract.enabled && localGraphExtract.relations.length > 0" class="setting-row vertical">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.relationListLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.relationListDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled && localGraphExtract.relations.length > 0"
+        class="border-border flex flex-col gap-3 py-4 [&:not(:last-child)]:border-b"
+      >
+        <div class="max-w-[40%] pr-6">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.relationListLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.relationListDescription") }}
+          </p>
         </div>
-        <div class="setting-control full-width">
-          <div class="relation-list">
-            <div v-for="(relation, index) in localGraphExtract.relations" :key="index" class="relation-item">
-              <t-select
-                v-model="relation.node1"
-                :placeholder="t('graphSettings.selectEntity')"
-                @change="handleRelationsChange"
-                class="relation-select"
-              >
-                <t-option
-                  v-for="node in localGraphExtract.nodes"
-                  :key="node.name"
-                  :value="node.name"
-                  :label="node.name"
-                />
-              </t-select>
-              <t-icon name="arrow-right" class="relation-arrow" />
-              <t-select
-                v-model="relation.type"
-                :placeholder="t('graphSettings.selectRelationType')"
-                clearable
-                creatable
-                filterable
-                @change="handleRelationsChange"
-                class="relation-select"
-              >
-                <t-option v-for="tag in localGraphExtract.tags" :key="tag" :value="tag" :label="tag" />
-              </t-select>
-              <t-icon name="arrow-right" class="relation-arrow" />
-              <t-select
-                v-model="relation.node2"
-                :placeholder="t('graphSettings.selectEntity')"
-                @change="handleRelationsChange"
-                class="relation-select"
-              >
-                <t-option
-                  v-for="node in localGraphExtract.nodes"
-                  :key="node.name"
-                  :value="node.name"
-                  :label="node.name"
-                />
-              </t-select>
-              <t-button theme="default" size="small" @click="removeRelation(index)">
-                <t-icon name="delete" />
-              </t-button>
+        <div class="flex w-full max-w-full flex-col items-start gap-3">
+          <div class="flex w-full flex-col gap-3">
+            <div
+              v-for="(relation, index) in localGraphExtract.relations"
+              :key="index"
+              class="border-border bg-card flex items-center gap-3 rounded-lg border p-3"
+            >
+              <Select v-model="relation.node1" @update:model-value="handleRelationsChange">
+                <SelectTrigger class="min-w-[150px] flex-1">
+                  <SelectValue :placeholder="t('graphSettings.selectEntity')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="node in namedNodes" :key="node.name" :value="node.name">
+                    {{ node.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <ArrowRightIcon class="text-muted-foreground size-4" />
+              <Popover>
+                <PopoverTrigger as-child>
+                  <Button variant="outline" class="min-w-[150px] flex-1 justify-between font-normal">
+                    <span class="truncate">{{ relation.type || t("graphSettings.selectRelationType") }}</span>
+                    <ChevronDownIcon class="size-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent class="w-[220px] p-1">
+                  <div class="flex max-h-[240px] flex-col gap-px overflow-y-auto">
+                    <button
+                      v-for="tag in localGraphExtract.tags"
+                      :key="tag"
+                      type="button"
+                      data-slot="option-button"
+                      class="flex items-center rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors"
+                      :class="
+                        relation.type === tag
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-foreground hover:bg-muted'
+                      "
+                      @click="
+                        relation.type = tag;
+                        handleRelationsChange();
+                      "
+                    >
+                      {{ tag }}
+                    </button>
+                  </div>
+                  <div class="border-border mt-1 flex items-center gap-1.5 border-t p-1.5">
+                    <Input
+                      :model-value="relationTypeDrafts[index] || ''"
+                      class="h-7 flex-1 text-xs"
+                      :placeholder="t('graphSettings.selectRelationType')"
+                      @update:model-value="(v) => (relationTypeDrafts[index] = String(v))"
+                      @keydown.enter.prevent="
+                        if (relationTypeDrafts[index]?.trim()) {
+                          relation.type = relationTypeDrafts[index].trim();
+                          relationTypeDrafts[index] = '';
+                          handleRelationsChange();
+                        }
+                      "
+                    />
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      :disabled="!relationTypeDrafts[index]?.trim()"
+                      @click="
+                        relation.type = relationTypeDrafts[index].trim();
+                        relationTypeDrafts[index] = '';
+                        handleRelationsChange();
+                      "
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <ArrowRightIcon class="text-muted-foreground size-4" />
+              <Select v-model="relation.node2" @update:model-value="handleRelationsChange">
+                <SelectTrigger class="min-w-[150px] flex-1">
+                  <SelectValue :placeholder="t('graphSettings.selectEntity')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="node in namedNodes" :key="node.name" :value="node.name">
+                    {{ node.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon-sm" @click="removeRelation(index)">
+                <Trash2Icon />
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 添加关系按钮 -->
-      <div v-if="localGraphExtract.enabled" class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.manageRelationsLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.manageRelationsDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4'"
+      >
+        <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.manageRelationsLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.manageRelationsDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-button theme="primary" @click="addRelation">
-            {{ t("graphSettings.addRelation") }}
-          </t-button>
+        <div :class="embedded ? 'self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'">
+          <Button @click="addRelation">{{ t("graphSettings.addRelation") }}</Button>
         </div>
       </div>
 
       <!-- 提取操作按钮 -->
-      <div v-if="localGraphExtract.enabled" class="setting-row">
-        <div class="setting-info">
-          <label>{{ t("graphSettings.extractActionsLabel") }}</label>
-          <p class="desc">{{ t("graphSettings.extractActionsDescription") }}</p>
+      <div
+        v-if="localGraphExtract.enabled"
+        class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4'"
+      >
+        <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            t("graphSettings.extractActionsLabel")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ t("graphSettings.extractActionsDescription") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <div class="action-buttons">
-            <t-button
+        <div :class="embedded ? 'self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'">
+          <div class="flex flex-wrap gap-3">
+            <Button
               v-if="canRunGraphExtract"
-              theme="primary"
-              :disabled="!modelStatus.llm.available || !localGraphExtract.text"
-              :loading="extracting"
+              :disabled="!modelStatus.llm.available || !localGraphExtract.text || extracting"
               @click="handleExtract"
             >
+              <Loader2Icon v-if="extracting" class="animate-spin" />
               {{ extracting ? t("graphSettings.extracting") : t("graphSettings.startExtraction") }}
-            </t-button>
-            <t-button theme="default" @click="defaultExtractExample">
+            </Button>
+            <Button variant="secondary" @click="defaultExtractExample">
               {{ t("graphSettings.defaultExample") }}
-            </t-button>
-            <t-button theme="default" @click="clearExtractExample">
+            </Button>
+            <Button variant="secondary" @click="clearExtractExample">
               {{ t("graphSettings.clearExample") }}
-            </t-button>
+            </Button>
           </div>
         </div>
       </div>
@@ -279,9 +433,28 @@ import { docsUrl } from "@/config/externalLinks";
 import { ref, watch, onMounted, computed } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
+import {
+  ArrowRightIcon,
+  ChevronDownIcon,
+  CircleAlertIcon,
+  CircleXIcon,
+  InfoIcon,
+  Loader2Icon,
+  PlusIcon,
+  Trash2Icon,
+  UserIcon,
+  XIcon,
+} from "@lucide/vue";
 import { extractTextRelations, fabriText, fabriTag, type Node, type Relation } from "@/api/initialization";
 import { useEditorResourcesStore } from "@/stores/editorResources";
 import { useAuthStore } from "@/stores/auth";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -333,6 +506,14 @@ const localGraphExtract = ref<GraphExtractConfig>({
 const tagFabring = ref(false);
 const textFabring = ref(false);
 const extracting = ref(false);
+
+// 关系类型自定义输入草稿（按关系行索引）
+const relationTypeDrafts = ref<Record<number, string>>({});
+const newTagInput = ref("");
+
+// Entities a relation can point at. A freshly added entity has no name yet,
+// and Reka's SelectItem rejects an empty value, so unnamed ones are left out.
+const namedNodes = computed(() => localGraphExtract.value.nodes.filter((node) => node.name));
 
 // 系统信息
 const systemInfo = ref<any>(null);
@@ -387,6 +568,21 @@ const handleNodesChange = () => {
 
 const handleRelationsChange = () => {
   handleConfigChange();
+};
+
+const addTag = () => {
+  const value = newTagInput.value.trim();
+  if (!value) return;
+  if (!localGraphExtract.value.tags.includes(value)) {
+    localGraphExtract.value.tags = [...localGraphExtract.value.tags, value];
+    handleTagsChange();
+  }
+  newTagInput.value = "";
+};
+
+const removeTag = (tag: string) => {
+  localGraphExtract.value.tags = localGraphExtract.value.tags.filter((t) => t !== tag);
+  handleTagsChange();
 };
 
 // 节点操作
@@ -569,223 +765,3 @@ onMounted(async () => {
   await loadSystemInfo();
 });
 </script>
-
-<style lang="less" scoped>
-.graph-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 6px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &.vertical {
-    flex-direction: column;
-    gap: 12px;
-
-    .setting-control {
-      width: 100%;
-      max-width: 100%;
-    }
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex: 0 0 55%;
-  max-width: 55%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-
-  &.full-width {
-    width: 100%;
-    max-width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-}
-
-.tags-control-group,
-.text-control-group {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  align-items: flex-start;
-}
-
-.text-control-group {
-  flex-direction: column;
-}
-
-.control-tip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--td-text-color-secondary);
-
-  .tip-icon {
-    color: var(--td-brand-color);
-  }
-}
-
-.node-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-}
-
-.node-item {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.node-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-
-  .node-icon {
-    font-size: 20px;
-    color: var(--td-brand-color);
-  }
-
-  .node-name-input {
-    flex: 1;
-  }
-}
-
-.node-attributes {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-left: 32px;
-}
-
-.attribute-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-
-  .attribute-input {
-    flex: 1;
-  }
-}
-
-.add-attr-btn {
-  align-self: flex-start;
-}
-
-.relation-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-}
-
-.relation-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-
-  .relation-select {
-    flex: 1;
-    min-width: 150px;
-  }
-
-  .relation-arrow {
-    color: var(--td-text-color-secondary);
-    font-size: 16px;
-  }
-}
-
-.action-buttons {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.graph-settings--embedded {
-  .embedded-graph-alert {
-    margin-bottom: 12px;
-  }
-
-  .setting-row:not(.vertical) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 12px 0;
-  }
-
-  .setting-row:not(.vertical) .setting-info {
-    flex: none;
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .setting-row:not(.vertical) .setting-control {
-    align-self: flex-start;
-  }
-}
-</style>

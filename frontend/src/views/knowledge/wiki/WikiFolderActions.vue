@@ -4,83 +4,100 @@
        confirm) happens inside this one popup so no full-page dialog is spawned.
        click.stop on the trigger and content prevents the surrounding directory
        row from treating the interaction as an expand/collapse toggle. -->
-  <t-popup
-    v-model:visible="open"
-    trigger="click"
-    placement="bottom-start"
-    destroy-on-close
-    :overlay-class-name="popupOverlayClass"
-    @visible-change="onVisibleChange"
-  >
-    <span
-      :class="['wiki-directory-action', 'wiki-directory-action--reveal', { 'is-open': open }]"
-      :title="t('knowledgeEditor.wikiBrowser.folderActions')"
+  <Popover v-model:open="open" @update:open="onVisibleChange">
+    <PopoverTrigger as-child>
+      <!--
+        Hidden until the directory row is hovered (the row is
+        group/wiki-dir in WikiBrowser) or this menu is open.
+      -->
+      <span
+        class="text-placeholder hover:text-primary inline-flex shrink-0 cursor-pointer items-center transition-[color,opacity] duration-150 group-hover/wiki-dir:opacity-100 focus-visible:opacity-100"
+        :class="open ? 'opacity-100' : 'opacity-0'"
+        :title="t('knowledgeEditor.wikiBrowser.folderActions')"
+        :aria-label="t('knowledgeEditor.wikiBrowser.folderActions')"
+        role="button"
+        @click.stop
+        @dragstart.prevent.stop
+      >
+        <EllipsisIcon class="size-[15px]" />
+      </span>
+    </PopoverTrigger>
+    <!--
+      One popover, two looks: the compact menu, and the roomier anchored form
+      (name input, delete confirmation) it turns into.
+    -->
+    <PopoverContent
+      align="start"
+      :class="
+        mode === 'menu'
+          ? 'w-auto min-w-[148px] gap-0 rounded-[10px] p-1'
+          : 'w-auto max-w-[min(392px,calc(100vw-24px))] min-w-[300px] gap-0 rounded-xl px-4 py-3.5'
+      "
       @click.stop
-      @dragstart.prevent.stop
     >
-      <t-icon name="more" />
-    </span>
-    <template #content>
-      <div class="wiki-folder-menu" @click.stop>
-        <div v-if="mode === 'menu'" class="popup-menu">
-          <div class="popup-menu-item" @click="enterMode('create')">
-            <t-icon name="folder-add" class="menu-icon" />
-            <span>{{ t("knowledgeEditor.wikiBrowser.newSubfolder") }}</span>
-          </div>
-          <div class="popup-menu-item" @click="emitRename">
-            <t-icon name="edit" class="menu-icon" />
-            <span>{{ t("knowledgeEditor.wikiBrowser.renameFolder") }}</span>
-          </div>
-          <div class="popup-menu-item delete" @click="enterMode('delete')">
-            <t-icon name="delete" class="menu-icon" />
-            <span>{{ t("knowledgeEditor.wikiBrowser.deleteFolder") }}</span>
-          </div>
+      <div v-if="mode === 'menu'" class="flex min-w-[188px] flex-col gap-px">
+        <div :class="itemClass" @click="enterMode('create')">
+          <FolderPlusIcon :class="iconClass" />
+          <span>{{ t("knowledgeEditor.wikiBrowser.newSubfolder") }}</span>
         </div>
+        <div :class="itemClass" @click="emitRename">
+          <PenLineIcon :class="iconClass" />
+          <span>{{ t("knowledgeEditor.wikiBrowser.renameFolder") }}</span>
+        </div>
+        <div :class="dangerItemClass" @click="enterMode('delete')">
+          <Trash2Icon class="size-4 shrink-0" />
+          <span>{{ t("knowledgeEditor.wikiBrowser.deleteFolder") }}</span>
+        </div>
+      </div>
 
-        <div v-else-if="mode === 'create'" class="anchored-form-popup-inner">
-          <div class="anchored-form-popup-title">{{ t("knowledgeEditor.wikiBrowser.newSubfolder") }}</div>
-          <t-input
+      <div v-else class="max-w-full">
+        <div v-if="mode === 'create'">
+          <div class="text-foreground mb-3 text-[15px] leading-[1.35] font-semibold">
+            {{ t("knowledgeEditor.wikiBrowser.newSubfolder") }}
+          </div>
+          <Input
             ref="inputRef"
             v-model="nameInput"
             :placeholder="t('knowledgeEditor.wikiBrowser.folderNamePlaceholder')"
-            @enter="submitName"
+            @keydown.enter="submitName"
           />
-          <div class="anchored-form-popup-footer">
-            <t-button variant="outline" @click="open = false">
-              {{ t("common.cancel") }}
-            </t-button>
-            <t-button theme="primary" :disabled="!nameInput.trim()" @click="submitName">
-              {{ t("common.confirm") }}
-            </t-button>
-          </div>
         </div>
-
-        <div v-else class="anchored-form-popup-inner">
-          <div class="anchored-form-popup-title">{{ t("knowledgeEditor.wikiBrowser.deleteFolder") }}</div>
-          <div class="anchored-form-popup-body">
+        <div v-else>
+          <div class="text-foreground mb-3 text-[15px] leading-[1.35] font-semibold">
+            {{ t("knowledgeEditor.wikiBrowser.deleteFolder") }}
+          </div>
+          <div class="text-foreground pb-1 text-sm leading-[1.6] break-words">
             {{
               deletable
                 ? t("knowledgeEditor.wikiBrowser.deleteFolderConfirm", { name })
                 : t("knowledgeEditor.wikiBrowser.deleteFolderNotEmpty")
             }}
           </div>
-          <div class="anchored-form-popup-footer">
-            <t-button variant="outline" @click="open = false">
-              {{ deletable ? t("common.cancel") : t("common.confirm") }}
-            </t-button>
-            <t-button v-if="deletable" theme="danger" @click="submitDelete">
-              {{ t("common.confirm") }}
-            </t-button>
-          </div>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button variant="outline" @click="open = false">
+            {{ mode === "delete" && !deletable ? t("common.confirm") : t("common.cancel") }}
+          </Button>
+          <Button v-if="mode === 'create'" :disabled="!nameInput.trim()" @click="submitName">
+            {{ t("common.confirm") }}
+          </Button>
+          <Button v-else-if="deletable" variant="destructive" @click="submitDelete">
+            {{ t("common.confirm") }}
+          </Button>
         </div>
       </div>
-    </template>
-  </t-popup>
+    </PopoverContent>
+  </Popover>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
+import { EllipsisIcon, FolderPlusIcon, PenLineIcon, Trash2Icon } from "@lucide/vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const props = withDefaults(
   defineProps<{
@@ -106,28 +123,37 @@ const { t } = useI18n();
 const open = ref(false);
 const mode = ref<"menu" | "create" | "delete">("menu");
 const nameInput = ref("");
-const inputRef = ref<{ focus: () => void } | null>(null);
+const inputRef = ref<InstanceType<typeof Input> | null>(null);
 
 const deletable = computed(() => props.pageCount === 0 && !props.hasChildren);
 
-const popupOverlayClass = computed(() =>
-  mode.value === "menu" ? "card-more-popup wiki-folder-action-overlay" : "anchored-form-popup-overlay",
+// The menu rows of the shared popup menu (formerly .popup-menu-item in
+// dropdown-menu.css): the icon darkens with its row, and the destructive row
+// sits under a hairline divider.
+const itemClass =
+  "group flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm leading-5 text-foreground transition-all hover:bg-accent active:bg-[var(--td-bg-color-container-active)] active:scale-[0.98]";
+const iconClass = "text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors";
+// Merged through cn() so the red text and hover win over itemClass's own.
+const dangerItemClass = cn(
+  itemClass,
+  "text-destructive relative mt-1 before:absolute before:-top-[3px] before:right-2 before:left-2 before:h-px before:bg-border before:content-[''] hover:bg-[var(--td-error-color-1)] active:bg-[var(--td-error-color-2)]",
 );
 
 function onVisibleChange(visible: boolean) {
-  if (!visible) {
-    mode.value = "menu";
-    nameInput.value = "";
-    return;
-  }
   mode.value = "menu";
+  if (!visible) {
+    nameInput.value = "";
+  }
 }
 
 function enterMode(next: "create" | "delete") {
   mode.value = next;
   if (next === "create") {
     nameInput.value = "";
-    nextTick(() => inputRef.value?.focus());
+    nextTick(() => {
+      const el = inputRef.value?.$el;
+      if (el instanceof HTMLElement) el.focus();
+    });
   }
 }
 
@@ -148,38 +174,3 @@ function submitDelete() {
   open.value = false;
 }
 </script>
-
-<style lang="less" scoped>
-.wiki-directory-action {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  font-size: 15px;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    opacity 0.15s;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.wiki-directory-action--reveal {
-  opacity: 0;
-
-  &.is-open {
-    opacity: 1;
-  }
-}
-</style>
-
-<style lang="less">
-// Menu chrome comes from card-more-popup + .popup-menu in dropdown-menu.less.
-.wiki-folder-action-overlay {
-  .wiki-folder-menu {
-    min-width: 188px;
-  }
-}
-</style>

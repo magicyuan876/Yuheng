@@ -1,26 +1,45 @@
 <template>
-  <div class="folder-picker">
-    <div v-if="showBack" class="folder-picker__header" @click.stop="emit('back')">
-      <t-icon name="chevron-left" size="16px" />
+  <div class="max-w-[280px] min-w-[208px]">
+    <div
+      v-if="showBack"
+      class="text-muted-foreground hover:text-primary mb-0.5 flex cursor-pointer items-center gap-1.5 border-b border-[var(--td-component-stroke)] px-2.5 py-1.5 text-[13px]"
+      @click.stop="emit('back')"
+    >
+      <ChevronLeftIcon class="size-4" />
       <span>{{ t("knowledgeBase.moveToFolder.action") }}</span>
     </div>
 
-    <div ref="listRef" class="folder-picker__list">
+    <div
+      ref="listRef"
+      class="max-h-[260px] [scrollbar-width:thin] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[var(--td-scrollbar-color)]"
+    >
+      <!--
+        Rows indent 12px per depth after a 10px base. The "new folder" button
+        stays invisible (and unclickable) until its row is hovered; the current
+        folder is greyed and does not highlight, but still offers the button.
+      -->
       <template v-for="row in renderRows" :key="row.key">
         <div
           v-if="row.kind === 'folder'"
           :data-folder-path="row.path || undefined"
-          class="folder-picker__item"
-          :class="{ current: effectiveCurrentPath === row.path }"
-          :style="{ '--folder-picker-depth': row.depth }"
+          :data-current="effectiveCurrentPath === row.path || undefined"
+          class="group box-border flex h-[30px] items-center gap-1.5 rounded-md pr-2 text-[13px] transition-colors"
+          :class="
+            effectiveCurrentPath === row.path
+              ? 'text-placeholder cursor-default'
+              : 'text-foreground hover:bg-accent cursor-pointer'
+          "
+          :style="{ paddingLeft: `${row.depth * 12 + 10}px` }"
           :title="row.path || undefined"
           @click.stop="choose(row.path)"
         >
-          <t-icon :name="row.isRoot ? 'folder-open' : 'folder'" class="folder-picker__icon" />
-          <span class="folder-picker__name">{{ row.label }}</span>
+          <FolderOpenIcon v-if="row.isRoot" class="text-placeholder size-[15px] shrink-0" />
+          <FolderIcon v-else class="text-placeholder size-[15px] shrink-0" />
+          <span class="min-w-0 flex-1 truncate">{{ row.label }}</span>
           <button
             type="button"
-            class="folder-picker__add"
+            data-slot="folder-add"
+            class="text-placeholder hover:text-primary pointer-events-none -mr-0.5 inline-flex size-[22px] shrink-0 items-center justify-center rounded opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 hover:bg-[var(--td-bg-color-component)]"
             :title="
               row.isRoot
                 ? t('knowledgeBase.moveToFolder.newFolderAddRoot')
@@ -33,22 +52,24 @@
             "
             @click.stop="startCreatingUnder(row.path)"
           >
-            <t-icon name="folder-add" />
+            <FolderPlusIcon class="size-4" />
           </button>
-          <t-icon v-if="effectiveCurrentPath === row.path" name="check" class="folder-picker__current" />
+          <CheckIcon v-if="effectiveCurrentPath === row.path" class="text-placeholder size-3.5 shrink-0" />
         </div>
 
         <div
           v-else
-          class="folder-picker__item folder-picker__item--create"
-          :style="{ '--folder-picker-depth': row.depth }"
+          data-folder-create
+          class="box-border flex h-[30px] cursor-default items-center gap-1.5 rounded-md pr-2 text-[13px]"
+          :style="{ paddingLeft: `${row.depth * 12 + 10}px` }"
           @click.stop
         >
-          <t-icon name="folder" class="folder-picker__icon" />
+          <FolderIcon class="text-placeholder size-[15px] shrink-0" />
           <input
             ref="newFolderInputRef"
             v-model.trim="newFolderName"
-            class="folder-picker__input"
+            data-slot="folder-name"
+            class="border-primary bg-card text-foreground h-6 min-w-0 flex-1 rounded border px-1.5 [font-family:var(--app-font-family)] text-[13px] outline-none"
             :placeholder="t('knowledgeBase.moveToFolder.newFolderPlaceholder')"
             @keydown.enter.stop="commitNewFolder"
             @keydown.esc.stop="cancelCreating"
@@ -63,6 +84,7 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
+import { CheckIcon, ChevronLeftIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon } from "@lucide/vue";
 import { folderOptionFromPath, joinFolderPath, normalizeFolderPath, sortFolderOptions } from "../folderTree";
 
 export type FolderOption = { path: string; name: string; depth: number };
@@ -109,7 +131,9 @@ const { t } = useI18n();
 
 const creatingUnder = ref<string | null>(null);
 const newFolderName = ref("");
-const newFolderInputRef = ref<HTMLInputElement | null>(null);
+// The input sits inside a v-for, where Vue collects a template ref into an
+// array; there is only ever one create row, so the first element is the one.
+const newFolderInputRef = ref<HTMLInputElement | HTMLInputElement[] | null>(null);
 const listRef = ref<HTMLElement | null>(null);
 const localCreatedPaths = ref<string[]>([]);
 const selectedPath = ref<string | null>(null);
@@ -172,7 +196,8 @@ const renderRows = computed<RenderRow[]>(() => {
 watch(creatingUnder, async (value) => {
   if (value === null) return;
   await nextTick();
-  newFolderInputRef.value?.focus();
+  const input = Array.isArray(newFolderInputRef.value) ? newFolderInputRef.value[0] : newFolderInputRef.value;
+  input?.focus();
 });
 
 watch(
@@ -240,148 +265,3 @@ const commitNewFolder = async () => {
   await scrollToFolder(path);
 };
 </script>
-
-<style scoped lang="less">
-.folder-picker {
-  --folder-picker-indent: 12px;
-  min-width: 208px;
-  max-width: 280px;
-}
-
-.folder-picker__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.folder-picker__list {
-  max-height: 260px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 2px;
-    background: var(--td-scrollbar-color);
-  }
-}
-
-.folder-picker__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  box-sizing: border-box;
-  padding: 0 8px 0 calc(var(--folder-picker-depth, 0) * var(--folder-picker-indent) + 10px);
-  border-radius: 6px;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-
-    .folder-picker__add {
-      opacity: 1;
-      pointer-events: auto;
-    }
-  }
-
-  &.current {
-    color: var(--td-text-color-placeholder);
-    cursor: default;
-
-    &:hover {
-      background: transparent;
-
-      .folder-picker__add {
-        opacity: 1;
-        pointer-events: auto;
-      }
-    }
-  }
-
-  &--create {
-    cursor: default;
-
-    &:hover {
-      background: transparent;
-    }
-  }
-}
-
-.folder-picker__icon {
-  flex: 0 0 auto;
-  font-size: 15px;
-  color: var(--td-text-color-placeholder);
-}
-
-.folder-picker__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folder-picker__add {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-right: -2px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  opacity: 0;
-  pointer-events: none;
-  cursor: pointer;
-  transition:
-    opacity 0.15s ease,
-    color 0.15s ease,
-    background 0.15s ease;
-
-  &:hover {
-    color: var(--td-brand-color);
-    background: var(--td-bg-color-component);
-  }
-}
-
-.folder-picker__current {
-  flex: 0 0 auto;
-  font-size: 14px;
-  color: var(--td-text-color-placeholder);
-}
-
-.folder-picker__input {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  padding: 0 6px;
-  border: 1px solid var(--td-brand-color);
-  border-radius: 4px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-family: var(--app-font-family);
-  font-size: 13px;
-  outline: none;
-}
-</style>

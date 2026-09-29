@@ -1,81 +1,151 @@
 <template>
-  <div class="kb-advanced-settings" :class="{ 'kb-advanced-settings--embedded': embedded }">
-    <div v-if="!embedded" class="section-header">
-      <h2>{{ $t("knowledgeEditor.advanced.title") }}</h2>
-      <p class="section-description">{{ $t("knowledgeEditor.advanced.description") }}</p>
+  <div class="w-full">
+    <div v-if="!embedded" class="mb-5">
+      <h2 class="text-foreground mt-0 mb-1.5 text-xl font-semibold">{{ $t("knowledgeEditor.advanced.title") }}</h2>
+      <p class="text-muted-foreground m-0 text-sm leading-normal">{{ $t("knowledgeEditor.advanced.description") }}</p>
     </div>
 
-    <div class="settings-group">
+    <div class="flex flex-col">
       <!-- Question Generation feature (only useful for RAG indexing) -->
       <template v-if="ragEnabled !== false">
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.advanced.questionGeneration.label") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.description") }}</p>
+        <div
+          class="border-border flex justify-between [&:not(:last-child)]:border-b"
+          :class="embedded ? 'items-center gap-4 py-3' : 'items-start py-4'"
+        >
+          <div :class="embedded ? 'min-w-0 flex-1 pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("knowledgeEditor.advanced.questionGeneration.label")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("knowledgeEditor.advanced.questionGeneration.description") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <t-switch
-              v-model="localQuestionGeneration.enabled"
-              @change="handleQuestionGenerationToggle"
-              size="medium"
+          <div
+            :class="
+              embedded
+                ? 'flex flex-none items-center self-center'
+                : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'
+            "
+          >
+            <Switch
+              :model-value="localQuestionGeneration.enabled"
+              @update:model-value="
+                (val: boolean) => {
+                  localQuestionGeneration.enabled = val;
+                  handleQuestionGenerationToggle();
+                }
+              "
             />
           </div>
         </div>
 
         <!-- Question Generation configuration -->
-        <div v-if="localQuestionGeneration.enabled" class="subsection">
-          <div class="setting-row">
-            <div class="setting-info">
-              <label>{{ $t("knowledgeEditor.advanced.questionGeneration.countLabel") }}</label>
-              <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.countDescription") }}</p>
+        <div
+          v-if="localQuestionGeneration.enabled"
+          class="relative"
+          :class="embedded ? 'p-0' : 'bg-card border-l-primary mt-3 rounded-lg border-l-[3px] px-5 py-4'"
+        >
+          <div
+            class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+            :class="[embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4']"
+          >
+            <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+              <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                $t("knowledgeEditor.advanced.questionGeneration.countLabel")
+              }}</label>
+              <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                {{ $t("knowledgeEditor.advanced.questionGeneration.countDescription") }}
+              </p>
             </div>
-            <div class="setting-control">
-              <t-input-number
-                v-model="localQuestionGeneration.questionCount"
+            <div
+              :class="embedded ? 'block self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'"
+            >
+              <Input
+                v-model.number="localQuestionGeneration.questionCount"
+                type="number"
                 :min="1"
                 :max="10"
                 :step="1"
-                theme="normal"
+                class="w-[120px]"
                 @change="handleQuestionGenerationChange"
-                style="width: 120px"
               />
             </div>
           </div>
-          <div class="setting-row setting-row-vertical">
-            <div class="setting-info">
-              <label>{{ $t("knowledgeEditor.advanced.questionGeneration.instructionsLabel") }}</label>
-              <p class="desc">{{ $t("knowledgeEditor.advanced.questionGeneration.instructionsDescription") }}</p>
+          <div
+            class="border-border flex-col [&:not(:last-child)]:border-b"
+            :class="embedded ? 'flex items-stretch gap-2 py-3' : 'flex gap-3 py-4'"
+          >
+            <div class="w-full max-w-none pr-0">
+              <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+                $t("knowledgeEditor.advanced.questionGeneration.instructionsLabel")
+              }}</label>
+              <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+                {{ $t("knowledgeEditor.advanced.questionGeneration.instructionsDescription") }}
+              </p>
             </div>
-            <div class="setting-control">
-              <t-textarea
+            <div class="block w-full max-w-none">
+              <Textarea
                 v-model="localQuestionGeneration.customInstructions"
                 :placeholder="$t('knowledgeEditor.advanced.questionGeneration.instructionsPlaceholder')"
                 :maxlength="4000"
-                :autosize="{ minRows: 3, maxRows: 8 }"
-                @change="handleQuestionGenerationChange"
+                :rows="3"
+                class="max-h-[176px] min-h-[76px]"
+                @update:model-value="handleQuestionGenerationChange"
               />
             </div>
           </div>
         </div>
       </template>
 
-      <div class="setting-row">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.advanced.autoTag.label") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.description") }}</p>
+      <div
+        class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+        :class="embedded ? 'items-center gap-4 py-3' : 'py-4'"
+      >
+        <div :class="embedded ? 'min-w-0 flex-1 pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.advanced.autoTag.label")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.advanced.autoTag.description") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-switch v-model="localAutoTag.enabled" size="medium" @change="emitAutoTag" />
+        <div
+          :class="
+            embedded
+              ? 'flex flex-none items-center self-center'
+              : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'
+          "
+        >
+          <Switch
+            :model-value="localAutoTag.enabled"
+            @update:model-value="
+              (val: boolean) => {
+                localAutoTag.enabled = val;
+                emitAutoTag();
+              }
+            "
+          />
         </div>
       </div>
 
-      <div v-if="localAutoTag.enabled" class="subsection">
-        <div class="setting-row setting-row-vertical">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.advanced.autoTag.modelLabel") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.modelDescription") }}</p>
+      <div
+        v-if="localAutoTag.enabled"
+        class="relative"
+        :class="embedded ? 'p-0' : 'bg-card border-l-primary mt-3 rounded-lg border-l-[3px] px-5 py-4'"
+      >
+        <div
+          class="border-border flex-col [&:not(:last-child)]:border-b"
+          :class="embedded ? 'flex items-stretch gap-2 py-3' : 'flex gap-3 py-4'"
+        >
+          <div class="w-full max-w-none pr-0">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("knowledgeEditor.advanced.autoTag.modelLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("knowledgeEditor.advanced.autoTag.modelDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
+          <div class="block w-full max-w-none">
             <ModelSelector
               model-type="KnowledgeQA"
               :selected-model-id="localAutoTag.modelId"
@@ -91,46 +161,81 @@
             />
           </div>
         </div>
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.advanced.autoTag.maxTagsLabel") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.maxTagsDescription") }}</p>
+        <div
+          class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+          :class="[embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4']"
+        >
+          <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("knowledgeEditor.advanced.autoTag.maxTagsLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("knowledgeEditor.advanced.autoTag.maxTagsDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <t-input-number
-              v-model="localAutoTag.maxTags"
+          <div
+            :class="embedded ? 'block self-start' : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'"
+          >
+            <Input
+              v-model.number="localAutoTag.maxTags"
+              type="number"
               :min="1"
               :max="10"
               :step="1"
-              theme="normal"
-              style="width: 120px"
+              class="w-[120px]"
               @change="emitAutoTag"
             />
           </div>
         </div>
-        <div class="setting-row">
-          <div class="setting-info">
-            <label>{{ $t("knowledgeEditor.advanced.autoTag.skipIfTaggedLabel") }}</label>
-            <p class="desc">{{ $t("knowledgeEditor.advanced.autoTag.skipIfTaggedDescription") }}</p>
+        <div
+          class="border-border flex items-start justify-between [&:not(:last-child)]:border-b"
+          :class="[embedded ? 'flex-col items-stretch gap-2 py-3' : 'py-4']"
+        >
+          <div :class="embedded ? 'max-w-none pr-0' : 'max-w-[40%] shrink-0 basis-2/5 pr-6'">
+            <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+              $t("knowledgeEditor.advanced.autoTag.skipIfTaggedLabel")
+            }}</label>
+            <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+              {{ $t("knowledgeEditor.advanced.autoTag.skipIfTaggedDescription") }}
+            </p>
           </div>
-          <div class="setting-control">
-            <t-switch v-model="localAutoTag.skipIfTagged" size="medium" @change="emitAutoTag" />
+          <div
+            :class="
+              embedded
+                ? 'flex items-center self-start'
+                : 'flex max-w-[55%] shrink-0 basis-[55%] items-center justify-end'
+            "
+          >
+            <Switch
+              :model-value="localAutoTag.skipIfTagged"
+              @update:model-value="
+                (val: boolean) => {
+                  localAutoTag.skipIfTagged = val;
+                  emitAutoTag();
+                }
+              "
+            />
           </div>
         </div>
       </div>
 
-      <div class="setting-row setting-row-vertical">
-        <div class="setting-info">
-          <label>{{ $t("knowledgeEditor.advanced.tableMetadataInstructions.label") }}</label>
-          <p class="desc">{{ $t("knowledgeEditor.advanced.tableMetadataInstructions.description") }}</p>
+      <div class="border-border flex flex-col gap-3 [&:not(:last-child)]:border-b" :class="embedded ? 'py-3' : 'py-4'">
+        <div class="w-full max-w-none pr-0">
+          <label class="text-foreground mb-1 block text-[15px] font-medium">{{
+            $t("knowledgeEditor.advanced.tableMetadataInstructions.label")
+          }}</label>
+          <p class="text-muted-foreground m-0 text-[13px] leading-normal">
+            {{ $t("knowledgeEditor.advanced.tableMetadataInstructions.description") }}
+          </p>
         </div>
-        <div class="setting-control">
-          <t-textarea
+        <div class="block w-full max-w-none">
+          <Textarea
             :model-value="tableMetadataInstructions"
             :placeholder="$t('knowledgeEditor.advanced.tableMetadataInstructions.placeholder')"
             :maxlength="4000"
-            :autosize="{ minRows: 3, maxRows: 8 }"
-            @change="(value: string) => emit('update:tableMetadataInstructions', value)"
+            :rows="3"
+            class="max-h-[176px] min-h-[76px]"
+            @update:model-value="(value) => emit('update:tableMetadataInstructions', String(value))"
           />
         </div>
       </div>
@@ -141,6 +246,9 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import ModelSelector from "@/components/ModelSelector.vue";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 interface QuestionGenerationConfig {
   enabled: boolean;
@@ -219,160 +327,3 @@ const handleQuestionGenerationChange = () => {
   emit("update:questionGeneration", localQuestionGeneration.value);
 };
 </script>
-
-<style lang="less" scoped>
-.kb-advanced-settings {
-  width: 100%;
-}
-
-.section-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    margin: 0 0 6px 0;
-  }
-
-  .section-description {
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.setting-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  &:last-child {
-    border-bottom: none;
-  }
-}
-
-.setting-info {
-  flex: 0 0 40%;
-  max-width: 40%;
-  padding-right: 24px;
-
-  label {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--td-text-color-primary);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .desc {
-    font-size: 13px;
-    color: var(--td-text-color-secondary);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .hint {
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    margin: 6px 0 0 0;
-    line-height: 1.5;
-  }
-}
-
-.setting-control {
-  flex: 0 0 55%;
-  max-width: 55%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.setting-row-vertical {
-  flex-direction: column;
-  gap: 12px;
-
-  .setting-info,
-  .setting-control {
-    flex: none;
-    width: 100%;
-    max-width: none;
-    padding-right: 0;
-  }
-
-  .setting-control {
-    display: block;
-  }
-}
-
-.subsection {
-  padding: 16px 20px;
-  margin: 12px 0 0 0;
-  background: var(--td-bg-color-container);
-  border-radius: 8px;
-  border-left: 3px solid var(--td-brand-color);
-  position: relative;
-}
-
-.required {
-  color: var(--td-error-color);
-  margin-left: 2px;
-  font-weight: 500;
-}
-
-.kb-advanced-settings--embedded {
-  .setting-row {
-    padding: 12px 0;
-  }
-
-  .setting-row:has(.t-switch) {
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-
-    .setting-info {
-      flex: 1;
-      min-width: 0;
-      max-width: none;
-      padding-right: 0;
-    }
-
-    .setting-control {
-      flex: none;
-      align-self: center;
-    }
-  }
-
-  .subsection .setting-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-
-    .setting-info {
-      flex: none;
-      max-width: none;
-      padding-right: 0;
-    }
-
-    .setting-control {
-      align-self: flex-start;
-    }
-  }
-
-  .subsection {
-    margin-top: 0;
-    padding: 0;
-    border: none;
-    background: none;
-  }
-}
-</style>
