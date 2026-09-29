@@ -8,6 +8,7 @@
 !frontend/.prettierignore
 !.git-blame-ignore-revs
 !.gitleaks.toml
+!.govulncheck-ignore
 
 # 敏感文件
 *.pem

@@ -135,10 +135,9 @@ jobs:
   # ours, so this must never block a merge. It reports what the binary
   # actually reaches; read the log when it is red.
   govulncheck:
-    name: govulncheck (advisory)
+    name: govulncheck
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
@@ -150,4 +149,4 @@ jobs:
       - name: Scan the server
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./cmd/... ./internal/...
+          scripts/govulncheck.sh

@@ -1,0 +1,16 @@
+# Vulnerabilities govulncheck reports that do not apply to Yuheng, one OSV id per
+# line followed by the reason. scripts/govulncheck.sh fails on any reachable
+# vulnerability not listed here. Review this list whenever a dependency moves:
+# remove an entry as soon as a fixed version exists.
+#
+# github.com/ollama/ollama: every one of these is in the Ollama server (its HTTP
+# handlers, model loading, uploads). Yuheng links only the api client package to
+# talk to an Ollama server; none has a fixed version.
+GO-2025-3557 ollama server; only the api client is linked
+GO-2025-3558 ollama server; only the api client is linked
+GO-2025-3559 ollama server; only the api client is linked
+GO-2025-3582 ollama server; only the api client is linked
+GO-2025-3689 ollama server; only the api client is linked
+GO-2025-3695 ollama server; only the api client is linked
+GO-2025-3824 ollama server; only the api client is linked
+GO-2025-4251 ollama server; only the api client is linked
