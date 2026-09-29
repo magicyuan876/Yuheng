@@ -31,7 +31,6 @@ package index
 
 import (
 	"strings"
-	"time"
 )
 
 // Decision is why a page is or is not indexed. Returned rather than a bare
@@ -96,109 +95,4 @@ func Decide(c Candidate) Decision {
 		return Decision{Reason: ReasonEmpty}
 	}
 	return Decision{Index: true}
-}
-
-// DefaultDebounce is how long a page is left alone after an edit before it
-// is re-indexed.
-//
-// Re-indexing runs a document through chunking and embedding, which costs
-// real money on a hosted model. Somebody writing a page saves it every few
-// seconds for half an hour; without a debounce that is several hundred
-// rebuilds of a document nobody has finished writing.
-const DefaultDebounce = time.Minute
-
-// Pending is a page waiting to be re-indexed.
-type Pending struct {
-	PageID string
-	// Due is when the debounce expires.
-	Due time.Time
-}
-
-// Queue collects pages to re-index, collapsing repeat edits.
-//
-// Not a durable queue: a page missed because the server restarted is picked
-// up by the next edit, or by a manual rebuild of the space. Durability here
-// would mean a table and a worker for something whose worst failure is a
-// stale search result, which is not worth the machinery.
-type Queue struct {
-	debounce time.Duration
-	pending  map[string]time.Time
-	// urgent marks pages that are due at once and stay so: a later Touch must
-	// not push them back out.
-	urgent map[string]struct{}
-}
-
-// NewQueue builds a queue. A debounce of 0 uses DefaultDebounce; a negative
-// one means "immediately", which is what tests and manual rebuilds want.
-func NewQueue(debounce time.Duration) *Queue {
-	if debounce == 0 {
-		debounce = DefaultDebounce
-	}
-	return &Queue{debounce: debounce, pending: map[string]time.Time{}, urgent: map[string]struct{}{}}
-}
-
-// Touch notes that a page changed.
-//
-// Each edit pushes the deadline out, so a page saved every ten seconds is
-// indexed once the writing stops rather than once per save. The trade is
-// that a page under continuous editing is never indexed until it settles,
-// which is the right way round: nobody wants search results from a document
-// mid-sentence.
-func (q *Queue) Touch(pageID string, now time.Time) {
-	if q == nil || pageID == "" {
-		return
-	}
-	if _, ok := q.urgent[pageID]; ok {
-		return
-	}
-	q.pending[pageID] = now.Add(q.debounce)
-}
-
-// Urgent makes a page due immediately, and keeps it so until it is drained.
-//
-// Debouncing suits edits, where waiting spares an embedding run per keystroke.
-// It does not suit a change that takes content away from readers — a page
-// restricted, moved out of a space, or trashed — because every second of delay
-// is a second in which people who may no longer see it can still find it. Such
-// a page is therefore not held back, and an edit arriving afterwards does not
-// hold it back either.
-func (q *Queue) Urgent(pageID string, now time.Time) {
-	if q == nil || pageID == "" {
-		return
-	}
-	q.urgent[pageID] = struct{}{}
-	q.pending[pageID] = now
-}
-
-// Forget drops a page, for one that has been deleted.
-func (q *Queue) Forget(pageID string) {
-	if q == nil {
-		return
-	}
-	delete(q.pending, pageID)
-	delete(q.urgent, pageID)
-}
-
-// Due returns the pages whose debounce has expired, and removes them.
-func (q *Queue) Due(now time.Time) []string {
-	if q == nil {
-		return nil
-	}
-	var out []string
-	for pageID, due := range q.pending {
-		if !now.Before(due) {
-			out = append(out, pageID)
-			delete(q.pending, pageID)
-			delete(q.urgent, pageID)
-		}
-	}
-	return out
-}
-
-// Len is how many pages are waiting.
-func (q *Queue) Len() int {
-	if q == nil {
-		return 0
-	}
-	return len(q.pending)
 }

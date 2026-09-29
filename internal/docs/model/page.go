@@ -146,3 +146,24 @@ type EditLease struct {
 
 // TableName pins the table name.
 func (EditLease) TableName() string { return "docs_edit_leases" }
+
+// IndexState is the bookkeeping for mirroring one page into its space's
+// knowledge base: what is pending, who is working on it, and what was last sent.
+type IndexState struct {
+	PageID   string `gorm:"type:varchar(36);primaryKey"`
+	TenantID uint64 `gorm:"not null"`
+	// DueAt is when the page is next to be synchronised; nil when nothing is
+	// pending.
+	DueAt *time.Time
+	// Seq increases with every request to synchronise the page.
+	Seq          int64 `gorm:"not null;default:0"`
+	ClaimedUntil *time.Time
+	Attempts     int    `gorm:"not null;default:0"`
+	LastError    string `gorm:"type:text;not null;default:''"`
+	// IndexedHash is the hash of the title and Markdown last sent.
+	IndexedHash string `gorm:"type:varchar(64);not null;default:''"`
+	IndexedAt   *time.Time
+}
+
+// TableName pins the table name.
+func (IndexState) TableName() string { return "docs_index_state" }

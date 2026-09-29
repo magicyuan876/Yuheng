@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/docs/index"
@@ -50,39 +53,85 @@ type IndexResult struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-// SyncPageToKnowledge brings one page's knowledge entry in step with the page.
+// indexLease is how long a claim on a page holds before another worker may take
+// it over. It has to outlast the slowest realistic synchronisation (a long page
+// through a slow embedding service); a worker that dies simply lets it expire.
+const indexLease = 10 * time.Minute
+
+// SyncPageToKnowledge brings one page's knowledge entry in step with the page,
+// now, for the caller that asked (an administrator rebuilding a space, a test).
+// The background workers do the same for the pages queued by edits.
 //
-// Idempotent: running it twice on an unchanged page is one update and no
-// duplicate. Safe to call for any page, including ones in spaces with no
-// knowledge base — the policy answers "no binding" and nothing happens.
+// Idempotent: running it twice on an unchanged page sends nothing the second
+// time. Safe to call for any page, including ones in spaces with no knowledge
+// base — the policy answers "no binding" and nothing happens. A page a worker
+// is synchronising at that moment is left to it (Reason "busy"): two writers
+// on one page are how a duplicate entry would be made.
 func (s *PageService) SyncPageToKnowledge(ctx context.Context, tenantID uint64, pageID string) (
 	*IndexResult, error,
 ) {
 	if s.d.Knowledge == nil {
 		return &IndexResult{PageID: pageID, Reason: index.ReasonNoBinding}, nil
 	}
-	page, err := s.d.Repos.Pages.GetAny(ctx, tenantID, pageID)
+	claim, ok, err := s.d.Repos.IndexQueue.ClaimPage(ctx, tenantID, pageID, indexLease)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			// The page is gone entirely; so must its entry be.
-			return &IndexResult{PageID: pageID, Reason: index.ReasonTrashed}, nil
+		return nil, err
+	}
+	if !ok {
+		// Either a worker holds the page, or the page is gone entirely; a
+		// missing page has nothing to mirror, and the entry of a purged page
+		// was removed when it was trashed.
+		if _, getErr := s.d.Repos.Pages.GetAny(ctx, tenantID, pageID); getErr != nil {
+			if errors.Is(getErr, repository.ErrNotFound) {
+				return &IndexResult{PageID: pageID, Reason: index.ReasonTrashed}, nil
+			}
+			return nil, getErr
+		}
+		return &IndexResult{PageID: pageID, Reason: ReasonBusy}, nil
+	}
+	return s.syncClaimed(ctx, claim)
+}
+
+// ReasonBusy is the IndexResult reason for a page another worker is
+// synchronising.
+const ReasonBusy = "busy"
+
+// syncClaimed synchronises a page the caller holds a claim on, and settles the
+// claim: completed with the hash of what is now in the knowledge base, or
+// failed with a retry scheduled. The returned error is the synchronisation's.
+func (s *PageService) syncClaimed(ctx context.Context, claim repository.IndexClaim) (*IndexResult, error) {
+	result, hash, err := s.syncPage(ctx, claim.TenantID, claim.PageID)
+	if err != nil {
+		if failErr := s.d.Repos.IndexQueue.Fail(ctx, claim, err, indexRetryDelay(claim.Attempts)); failErr != nil {
+			logger.Warnf(ctx, "[docs] releasing the claim on page %s failed: %v", claim.PageID, failErr)
 		}
 		return nil, err
 	}
-
-	return s.syncLoaded(ctx, page, false)
+	if err := s.d.Repos.IndexQueue.Complete(ctx, claim, hash); err != nil {
+		// The entry is right and only the bookkeeping failed: the claim expires
+		// and the page is looked at again, which costs nothing while the hash
+		// stored last time still matches.
+		logger.Warnf(ctx, "[docs] recording the synchronisation of page %s failed: %v", claim.PageID, err)
+	}
+	return result, nil
 }
 
-// syncLoaded is SyncPageToKnowledge for a page already read.
-//
-// With reconcile set, an entry that is already where it belongs is left as it
-// is instead of being rewritten. Rewriting means chunking and embedding, and a
-// subtree sync visits every page under a moved or restricted page, nearly all
-// of which have not changed.
-func (s *PageService) syncLoaded(ctx context.Context, page *model.Page, reconcile bool) (*IndexResult, error) {
+// syncPage does the synchronisation itself and reports the hash of what the
+// knowledge base holds for the page afterwards ("" when it holds nothing).
+func (s *PageService) syncPage(ctx context.Context, tenantID uint64, pageID string) (
+	*IndexResult, string, error,
+) {
+	page, err := s.d.Repos.Pages.GetAny(ctx, tenantID, pageID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return &IndexResult{PageID: pageID, Reason: index.ReasonTrashed}, "", nil
+		}
+		return nil, "", err
+	}
+
 	decision, boundKB, err := s.indexDecision(ctx, page)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	result := &IndexResult{PageID: page.ID, Reason: decision.Reason}
 
@@ -92,74 +141,18 @@ func (s *PageService) syncLoaded(ctx context.Context, page *model.Page, reconcil
 		// the case that makes this a removal rather than a skip.
 		removed, err := s.dropKnowledgeEntry(ctx, page)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		result.Removed = removed
-		return result, nil
+		return result, "", nil
 	}
 
-	if err := s.writeKnowledgeEntry(ctx, page, boundKB, reconcile); err != nil {
-		return nil, err
+	hash, err := s.writeKnowledgeEntry(ctx, page, boundKB)
+	if err != nil {
+		return nil, "", err
 	}
 	result.Indexed = true
-	return result, nil
-}
-
-// SyncSubtreeToKnowledge brings a page and every page beneath it in step with
-// the knowledge base.
-//
-// Whether a page may be indexed depends on its ancestors: a restriction is
-// inherited down the tree, a trashed page takes its children with it, and a
-// page moved elsewhere arrives under different ancestors and possibly in a
-// different space. An event names only the page it happened to, so re-syncing
-// just that page left the ones below it exactly as they were — searchable
-// after their parent had been restricted or deleted.
-//
-// The page itself is synced in full. The pages below are only reconciled
-// (see syncLoaded): removed if they should no longer be there, added if they
-// should now be, moved if their space is bound to another knowledge base, and
-// otherwise left alone.
-//
-// One page failing does not stop the rest, for the reason SyncSpaceToKnowledge
-// gives; the failures come back joined so the caller can log them.
-func (s *PageService) SyncSubtreeToKnowledge(ctx context.Context, tenantID uint64, pageID string) (
-	[]*IndexResult, error,
-) {
-	if s.d.Knowledge == nil {
-		return []*IndexResult{{PageID: pageID, Reason: index.ReasonNoBinding}}, nil
-	}
-	ids, err := s.d.Repos.Pages.SubtreeIDs(ctx, tenantID, pageID)
-	if err != nil {
-		return nil, err
-	}
-
-	results := make([]*IndexResult, 0, len(ids)+1)
-	var failures []error
-
-	root, err := s.SyncPageToKnowledge(ctx, tenantID, pageID)
-	if err != nil {
-		failures = append(failures, err)
-	} else {
-		results = append(results, root)
-	}
-
-	for _, id := range ids {
-		if id == pageID {
-			continue
-		}
-		page, err := s.d.Repos.Pages.GetAny(ctx, tenantID, id)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("docs: reading page %s: %w", id, err))
-			continue
-		}
-		result, err := s.syncLoaded(ctx, page, true)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("docs: reconciling page %s: %w", id, err))
-			continue
-		}
-		results = append(results, result)
-	}
-	return results, errors.Join(failures...)
+	return result, hash, nil
 }
 
 // indexDecision gathers what the policy needs and applies it.
@@ -187,7 +180,7 @@ func (s *PageService) indexDecision(ctx context.Context, page *model.Page) (
 }
 
 // writeKnowledgeEntry creates or updates the entry mirroring a page, in the
-// knowledge base its space is bound to.
+// knowledge base its space is bound to, and returns the hash of what it sent.
 //
 // An entry lives in one knowledge base, and the binding can change under it: a
 // page moved to a space bound to another knowledge base, or its space rebound.
@@ -195,40 +188,46 @@ func (s *PageService) indexDecision(ctx context.Context, page *model.Page) (
 // base, answerable to that base's audience and not to the audience of the space
 // the page now belongs to. So an entry in the wrong knowledge base is removed
 // and a new one made in the right one.
-func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page, kbID string, reconcile bool) error {
+//
+// Sending a page means chunking and embedding it, which costs money on a hosted
+// model, and most looks at a page find it unchanged (a permission event on its
+// parent, a periodic re-check). An entry already in the right place holding the
+// hash of what would be sent is left alone.
+func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page, kbID string) (string, error) {
 	body, err := s.pageMarkdown(page)
 	if err != nil {
-		return err
+		return "", err
 	}
 	title := page.Title
 	if strings.TrimSpace(title) == "" {
 		title = "Untitled"
 	}
+	hash := contentHash(title, body)
 
 	if page.KnowledgeID != nil && *page.KnowledgeID != "" {
 		entryKB, found, err := s.d.Knowledge.KnowledgeBaseOf(ctx, *page.KnowledgeID)
 		if err != nil {
 			// Not knowing where the entry is, it can be neither updated nor
 			// replaced without risking a second copy in the wrong place. The
-			// next event tries again.
-			return fmt.Errorf("docs: locating the entry of page %s: %w", page.ID, err)
+			// retry looks again.
+			return "", fmt.Errorf("docs: locating the entry of page %s: %w", page.ID, err)
 		}
 		if found && entryKB != kbID {
 			if err := s.d.Knowledge.DeleteKnowledge(ctx, *page.KnowledgeID); err != nil {
 				// Making a new entry while this one stays would leave the page
 				// searchable in both places.
-				return fmt.Errorf("docs: removing the entry of page %s from knowledge base %s: %w",
+				return "", fmt.Errorf("docs: removing the entry of page %s from knowledge base %s: %w",
 					page.ID, entryKB, err)
 			}
 			found = false
 		}
-		if found && reconcile {
-			return nil
+		if found && s.sentHash(ctx, page) == hash {
+			return hash, nil
 		}
 		if found {
 			updated, err := s.d.Knowledge.UpdateKnowledgeContent(ctx, *page.KnowledgeID, title, body)
 			if err == nil && updated {
-				return nil
+				return hash, nil
 			}
 			if err != nil {
 				logger.Warnf(ctx, "[docs] updating knowledge entry %s for page %s failed: %v",
@@ -237,7 +236,26 @@ func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page,
 		}
 	}
 
-	return s.createKnowledgeEntry(ctx, page, kbID, title, body)
+	if err := s.createKnowledgeEntry(ctx, page, kbID, title, body); err != nil {
+		return "", err
+	}
+	return hash, nil
+}
+
+// sentHash is the hash recorded when the page was last synchronised, or "".
+func (s *PageService) sentHash(ctx context.Context, page *model.Page) string {
+	st, err := s.d.Repos.IndexQueue.Get(ctx, page.TenantID, page.ID)
+	if err != nil {
+		return ""
+	}
+	return st.IndexedHash
+}
+
+// contentHash identifies what is sent for a page. The separator keeps a title
+// that ends where a body begins from colliding with a different split.
+func contentHash(title, body string) string {
+	sum := sha256.Sum256([]byte(title + "\x00" + body))
+	return hex.EncodeToString(sum[:])
 }
 
 // createKnowledgeEntry makes the entry for a page and records it.

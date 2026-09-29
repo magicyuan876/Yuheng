@@ -33,51 +33,53 @@ var (
 
 // Repositories bundles the module's repositories over one *gorm.DB.
 type Repositories struct {
-	db        *gorm.DB
-	Spaces    SpaceRepository
-	Members   SpaceMemberRepository
-	Groups    GroupRepository
-	Pages     PageRepository
-	Access    PageAccessRepository
-	Leases    LeaseRepository
-	Files     AttachmentRepository
-	Links     LinkRepository
-	Blocks    TransclusionRepository
-	History   RevisionRepository
-	Comments  CommentRepository
-	Watchers  WatcherRepository
-	Notices   NotificationRepository
-	Labels    LabelRepository
-	Shares    ShareRepository
-	Templates TemplateRepository
-	Search    SearchRepository
-	Exports   ExportJobRepository
-	Imports   ImportJobRepository
+	db         *gorm.DB
+	Spaces     SpaceRepository
+	Members    SpaceMemberRepository
+	Groups     GroupRepository
+	Pages      PageRepository
+	Access     PageAccessRepository
+	Leases     LeaseRepository
+	Files      AttachmentRepository
+	Links      LinkRepository
+	Blocks     TransclusionRepository
+	History    RevisionRepository
+	Comments   CommentRepository
+	Watchers   WatcherRepository
+	Notices    NotificationRepository
+	Labels     LabelRepository
+	Shares     ShareRepository
+	Templates  TemplateRepository
+	Search     SearchRepository
+	Exports    ExportJobRepository
+	Imports    ImportJobRepository
+	IndexQueue IndexStateRepository
 }
 
 // New wires the repositories.
 func New(db *gorm.DB) *Repositories {
 	return &Repositories{
-		db:        db,
-		Spaces:    &spaceRepository{db: db},
-		Members:   &spaceMemberRepository{db: db},
-		Groups:    &groupRepository{db: db},
-		Pages:     &pageRepository{db: db},
-		Access:    &pageAccessRepository{db: db},
-		Leases:    &leaseRepository{db: db},
-		Files:     &attachmentRepository{db: db},
-		Links:     &linkRepository{db: db},
-		Blocks:    &transclusionRepository{db: db},
-		History:   &revisionRepository{db: db},
-		Comments:  &commentRepository{db: db},
-		Watchers:  &watcherRepository{db: db},
-		Notices:   &notificationRepository{db: db},
-		Labels:    &labelRepository{db: db},
-		Shares:    &shareRepository{db: db},
-		Templates: &templateRepository{db: db},
-		Search:    &searchRepository{db: db},
-		Exports:   &exportJobRepository{db: db},
-		Imports:   &importJobRepository{db: db},
+		db:         db,
+		Spaces:     &spaceRepository{db: db},
+		Members:    &spaceMemberRepository{db: db},
+		Groups:     &groupRepository{db: db},
+		Pages:      &pageRepository{db: db},
+		Access:     &pageAccessRepository{db: db},
+		Leases:     &leaseRepository{db: db},
+		Files:      &attachmentRepository{db: db},
+		Links:      &linkRepository{db: db},
+		Blocks:     &transclusionRepository{db: db},
+		History:    &revisionRepository{db: db},
+		Comments:   &commentRepository{db: db},
+		Watchers:   &watcherRepository{db: db},
+		Notices:    &notificationRepository{db: db},
+		Labels:     &labelRepository{db: db},
+		Shares:     &shareRepository{db: db},
+		Templates:  &templateRepository{db: db},
+		Search:     &searchRepository{db: db},
+		Exports:    &exportJobRepository{db: db},
+		Imports:    &importJobRepository{db: db},
+		IndexQueue: &indexStateRepository{db: db},
 	}
 }
 

@@ -482,7 +482,8 @@ func registerLocalModelConcurrencyLimiter(ss interfaces.SystemSettingService) {
 func initRedisClient() (*redis.Client, error) {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
-		logger.Infof(context.Background(), "[Redis] No REDIS_ADDR configured, Redis disabled (no-Redis/single-process mode)")
+		logger.Warnf(context.Background(), "[Redis] No REDIS_ADDR configured: running in single-process mode. "+
+			"Events, caches and background tasks are not shared, so run exactly one instance of the application")
 		return nil, nil
 	}
 	db, err := strconv.Atoi(os.Getenv("REDIS_DB"))

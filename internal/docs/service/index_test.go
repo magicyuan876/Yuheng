@@ -22,6 +22,9 @@ type fakeKnowledge struct {
 	failUpdate bool
 	// failDelete makes every delete fail, leaving the entry where it is.
 	failDelete bool
+	// failCreate makes every create fail, as an embedding service that is down
+	// would.
+	failCreate bool
 	// updates counts rewrites, each of which costs an embedding run.
 	updates int
 }
@@ -37,6 +40,9 @@ func newFakeKnowledge() *fakeKnowledge {
 func (f *fakeKnowledge) CreateKnowledgeFromText(_ context.Context, kbID, title, body string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failCreate {
+		return "", errors.New("embedding service unavailable")
+	}
 	f.seq++
 	id := "knowledge-" + string(rune('a'+f.seq-1))
 	f.entries[id] = knowledgeEntry{kbID: kbID, title: title, body: body}
@@ -382,6 +388,26 @@ func TestARebuildReportsPerPageReasons(t *testing.T) {
 
 // ---- the pages below a page that changed ---------------------------------------
 
+// syncSubtree does what the indexer does for an event that takes content away
+// from readers: queue the page and everything beneath it at once, then work the
+// queue until it is empty.
+func (p *pageEnv) syncSubtree(pageID string) error {
+	if err := p.svc.Pages.QueueIndex(ctx(), 1, pageID, true, 0); err != nil {
+		return err
+	}
+	return p.drainIndex()
+}
+
+// drainIndex works the queue as a worker would.
+func (p *pageEnv) drainIndex() error {
+	for {
+		n, err := p.svc.Pages.ProcessIndexQueue(ctx(), 50)
+		if err != nil || n == 0 {
+			return err
+		}
+	}
+}
+
 // indexAll gives every page an entry, as an earlier rebuild would have.
 func (p *pageEnv) indexAll(t *testing.T, ids ...string) {
 	t.Helper()
@@ -407,7 +433,7 @@ func TestRestrictingAPageRemovesTheEntriesBelowIt(t *testing.T) {
 	require.Equal(t, 4, kb.count())
 
 	p.cut(t, p.alice, parent.ID)
-	_, err := p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	err := p.syncSubtree(parent.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, kb.count(), "only the page outside the restricted subtree remains")
@@ -428,19 +454,19 @@ func TestTrashingAPageRemovesTheEntriesBelowItAndRestoringBringsThemBack(t *test
 
 	_, err := p.svc.Pages.Delete(ctx(), p.alice, p.decision(t, p.alice, parent.ID))
 	require.NoError(t, err)
-	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	err = p.syncSubtree(parent.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, kb.count(), "nothing of a trashed subtree stays searchable")
 
 	_, err = p.svc.Pages.Restore(ctx(), p.alice, parent.ID)
 	require.NoError(t, err)
-	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	err = p.syncSubtree(parent.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 2, kb.count(), "and it all comes back")
 }
 
 // Visiting a whole subtree must not re-embed the pages that did not change.
-func TestASubtreeSyncLeavesUnchangedEntriesAlone(t *testing.T) {
+func TestARepeatedSyncLeavesUnchangedEntriesAlone(t *testing.T) {
 	p, kb := newIndexEnv(t)
 	parent := p.create(t, p.alice, nil, "目录")
 	child := p.create(t, p.alice, &parent.ID, "子页面")
@@ -449,11 +475,12 @@ func TestASubtreeSyncLeavesUnchangedEntriesAlone(t *testing.T) {
 	}
 	p.indexAll(t, parent.ID, child.ID)
 
-	_, err := p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	err := p.syncSubtree(parent.ID)
 	require.NoError(t, err)
 
-	// The page named by the event is rewritten; the ones below are not.
-	assert.Equal(t, 1, kb.updates)
+	// Nothing changed, so nothing is sent again, the page named by the event
+	// included: sending means embedding, which costs money.
+	assert.Zero(t, kb.updates)
 	assert.Equal(t, 2, kb.count())
 }
 
@@ -472,7 +499,7 @@ func TestASubtreeSyncIndexesPagesThatShouldNowBeThere(t *testing.T) {
 	p.access(t, p.alice, parent.ID)
 	_, err := p.svc.Pages.SetPageRestricted(ctx(), p.alice, p.decision(t, p.alice, parent.ID), false)
 	require.NoError(t, err)
-	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, parent.ID)
+	err = p.syncSubtree(parent.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 2, kb.count())
 }
@@ -524,7 +551,7 @@ func TestAPageMovedToASpaceWithAnotherKnowledgeBaseFollowsIt(t *testing.T) {
 	_, err = p.svc.Pages.Move(ctx(), p.alice, p.decision(t, p.alice, page.ID),
 		MovePageInput{SpaceID: target.ID})
 	require.NoError(t, err)
-	_, err = p.svc.Pages.SyncSubtreeToKnowledge(ctx(), 1, page.ID)
+	err = p.syncSubtree(page.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, kb.inKB("kb-1"), "gone from the old knowledge base")
