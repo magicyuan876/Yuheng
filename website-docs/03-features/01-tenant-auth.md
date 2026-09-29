@@ -12,11 +12,6 @@
 | 管理整个部署（全局设置、任务队列、跨空间审计） | 需要**系统管理员**身份，与空间 Owner 是两回事，见[平台管理与系统管理员](20-platform-admin.md) |
 | 删除整个空间 | 空间设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该空间的知识库、会话与成员关系，不可撤销 |
 
-<Screenshot
-  src="/screenshots/settings-members.png"
-  caption="空间成员管理：成员角色与邀请入口"
-  hint="展示成员列表、角色下拉与「邀请成员」按钮，最好含一条 pending 邀请。" />
-
 四个角色能做什么，一句话版本：Viewer 只能看和问，Contributor 可以建库和传文档，Admin 管成员和空间设置，Owner 额外能删空间和转让。完整矩阵见下文 RBAC 章节。
 
 技术上，认证支持密码登录、OIDC 单点登录与 API Key 三种主体；授权由空间内 RBAC 角色阶梯 + 资源所有权（ownership）+ API Key 能力（capability）三套正交机制共同实现，下面逐层展开。
@@ -210,7 +205,7 @@ const (
 
 ```go
 type AuthConfig struct {
-    RegistrationMode  string // "self_serve"（默认，公开注册） | "invite_only"（仅邀请）
+    RegistrationMode  string // "auto"（默认：仅在还没有任何用户时开放，首个注册者成为系统管理员） | "self_serve"（公开注册） | "invite_only"（仅邀请）
     DefaultTenantMode string // "create_personal"（默认，自动建个人租户） | "tenantless"（无租户等待邀请）
 }
 
@@ -221,9 +216,11 @@ func (c *AuthConfig) IsInviteOnly() bool {
 
 判定分两层，理解这一点才能解释「改了 env 没生效」：
 
-**启动时**（`applyAuthAndTenantDefaults()`）合成 `cfg.Auth.RegistrationMode`：`DISABLE_REGISTRATION=true` 会直接把它改写成 `invite_only`，**盖过 YAML** 里的值。之所以让 env 盖 YAML，是为了让「接口拒绝注册」和「前端隐藏注册入口」（前端读 `/auth/config`）两道闸门一致，否则会出现按钮还在、点了报 403。
+**启动时**（`applyAuthAndTenantDefaults()`）合成 `cfg.Auth.RegistrationMode`：`DISABLE_REGISTRATION=true` 会直接把它改写成 `invite_only`，`DISABLE_REGISTRATION=false` 改写成 `self_serve`（明确要求一直开放），两者都**盖过 YAML** 里的值；未设置或留空时保持 YAML 的值，默认 `auto`。之所以让 env 盖 YAML，是为了让「接口拒绝注册」和「前端隐藏注册入口」（前端读 `/auth/config`）两道闸门一致，否则会出现按钮还在、点了报 403。
 
-**每次请求时**（`resolveRegistrationMode()`）只比较两个来源：数据库 `system_settings` 的 `auth.registration_mode` 行 > 上面合成的 cfg 值 > 硬编码兜底 `self_serve`。`DISABLE_REGISTRATION` **不会**被逐请求重新读取。
+**每次请求时**（`resolveRegistrationMode()`）只比较两个来源：数据库 `system_settings` 的 `auth.registration_mode` 行 > 上面合成的 cfg 值 > 硬编码兜底 `auto`。`DISABLE_REGISTRATION` **不会**被逐请求重新读取。
+
+`auto` 模式下，只要系统里还没有任何用户，注册就是开放的，且首个注册者会同时成为租户 Owner 与系统管理员；之后公开注册自动关闭（邀请注册走另一个端点，不受影响）。首个用户的创建在注册事务里判定，两个人同时注册也只有一个能成功。
 
 后果是：系统管理员在界面上把 `auth.registration_mode` 设成 `self_serve` 后，即使部署里仍写着 `DISABLE_REGISTRATION=true`，公开注册也是开着的。要彻底关掉，得把数据库里那一行重置（`DELETE /system/admin/settings/auth.registration_mode`）。
 
@@ -628,7 +625,7 @@ flowchart LR
 
 | 配置项 | 取值 | 默认 | 作用 |
 | --- | --- | --- | --- |
-| `auth.registration_mode` | `self_serve` / `invite_only` | `self_serve` | 公开注册开关（DB system_settings 可热改） |
+| `auth.registration_mode` | `auto` / `self_serve` / `invite_only` | `auto` | 公开注册开关（DB system_settings 可热改） |
 | `auth.default_tenant_mode` | `create_personal` / `tenantless` | `create_personal` | 新用户是否自动建个人租户 |
 | `tenant.enable_rbac` | `true` / `false` | `true` | RBAC 强制执行 / 仅日志模式 |
 | `JWT_SECRET`（环境变量） | 任意字符串 | 随机 32 字节 | JWT HMAC 密钥 |

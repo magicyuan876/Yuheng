@@ -113,7 +113,7 @@ flowchart LR
 
 | 段 | 结构体 | 关键字段与默认值 |
 | --- | --- | --- |
-| `auth` | `AuthConfig` | `registration_mode`：`self_serve`（默认）/ `invite_only`（`DISABLE_REGISTRATION=true` 时强制）；`default_tenant_mode`：`create_personal`（默认）/ `tenantless` |
+| `auth` | `AuthConfig` | `registration_mode`：`auto`（默认：仅在还没有任何用户时开放）/ `self_serve` / `invite_only`（`DISABLE_REGISTRATION=true` 时强制；`false` 强制 `self_serve`）；`default_tenant_mode`：`create_personal`（默认）/ `tenantless` |
 | `audit` | `AuditConfig` | `retention_days`：审计日志保留天数，段落省略时默认 90；0 禁用清理；<0 校验报错（env `YUHENG_AUDIT_RETENTION_DAYS`） |
 | `oidc_auth` | `OIDCAuthConfig` | `enable`、`issuer_url`、`discovery_url`（缺省由 issuer 拼 `/.well-known/openid-configuration`）、`client_id`、`client_secret`、`authorization_endpoint`、`token_endpoint`、`user_info_endpoint`、`scopes`（默认 `openid profile email`）、`user_info_mapping.username`（默认 `name`）/`email`（默认 `email`）；全部可用 `OIDC_AUTH_*` 环境变量覆盖 |
 | `docreader` | `DocReaderConfig` | `addr`（gRPC 地址如 `docreader:50051` 或 HTTP base URL）、`transport`：`grpc`（默认）/ `http`；通常用 env `DOCREADER_ADDR` / `DOCREADER_TRANSPORT` |
@@ -210,7 +210,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | --- | --- | --- |
 | `JWT_SECRET` | 空 | JWT 签名密钥（必填） |
 | `SYSTEM_AES_KEY` | 空 | 敏感字段落盘加密的 AES-256 主密钥，**必须 32 字节**；丢失则已加密数据（租户 API Key、模型 key、向量库凭证等）不可恢复。取代已废弃的 `TENANT_AES_KEY`/`CRYPTO_MASTER_KEY`/`CRYPTO_SALT` |
-| `DISABLE_REGISTRATION` | false | true 时强制 `registration_mode=invite_only` |
+| `DISABLE_REGISTRATION` | 未设置 | 未设置：`auto`（只在还没有用户时开放注册，首个注册者成为系统管理员）；`true`：强制 `invite_only`；`false`：强制 `self_serve` |
 | `YUHENG_AUTH_DEFAULT_TENANT_MODE` | create_personal | 注册后建空间策略（`create_personal` / `tenantless`） |
 | `YUHENG_TENANT_ENABLE_RBAC` | （默认 true） | 空间角色强制鉴权开关 |
 | `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | false | 跨空间访问 |

@@ -17,8 +17,12 @@ body:
         - Frontend UI
         - Backend Service & API
         - Document Reader Service
-        - Vector Database
+        - Retrieval & Database (PostgreSQL / ParadeDB)
         - Model Service
+        - Data Source Connectors
+        - Wiki
+        - Collaborative Docs
+        - MCP Server / CLI / Go SDK
         - Configuration Management
         - Other
     validations:

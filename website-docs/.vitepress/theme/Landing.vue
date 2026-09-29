@@ -73,7 +73,6 @@ const chain = [
 
 const surfaces = [
   { icon: 'console', name: 'Web 控制台', desc: '知识库管理、对话、Wiki 浏览与系统配置的完整界面。' },
-  { icon: 'extension', name: 'Chrome 插件', desc: '网页侧边栏问答，支持正文剪藏与 Markdown 速记入库。' },
   { icon: 'cli', name: '命令行 yuheng', desc: '文档管理、检索与带引用的流式问答，默认 JSON 输出，便于脚本化。' },
   { icon: 'api', name: 'REST API 与 Go SDK', desc: '完整 /api/v1 接口；API Key 支持按能力与知识库范围授权。' },
   { icon: 'mcp', name: 'MCP Server', desc: '将 Yuheng 暴露为 MCP 工具，供 Claude、Cursor 等客户端检索。' },
@@ -104,7 +103,7 @@ const features = [
   {
     icon: 'mcp',
     title: 'MCP Server 集成',
-    desc: '通过 yuheng-mcp（Python MCP Server，29 个工具）把检索、问答与知识库管理暴露给 Claude、Cursor 等 MCP 客户端；同样的能力也覆盖在 REST API 与 Go SDK。',
+    desc: '通过 yuheng-mcp（Python MCP Server，23 个工具）把检索、问答与知识库管理暴露给 Claude、Cursor 等 MCP 客户端；同样的能力也覆盖在 REST API 与 Go SDK。',
     href: '/03-features/08-mcp',
     tag: '工具生态',
   },
@@ -242,7 +241,7 @@ const map = [
 ]
 
 const deployments = [
-  { icon: 'compose', name: 'Docker Compose', desc: '标准部署，12 个可选 profile 组合基础设施', note: '' },
+  { icon: 'compose', name: 'Docker Compose', desc: '标准部署，多个可选 profile 组合基础设施；镜像在本地构建', note: '' },
   { icon: 'helm', name: 'Helm', desc: 'Kubernetes 集群编排，适用于生产多副本', note: '' },
 ]
 </script>
@@ -259,12 +258,18 @@ const deployments = [
           </h1>
           <p class="lede">Yuheng（玉衡）将 PDF、Word、网页与飞书 / Notion / 语雀等来源的资料汇入知识库，提供检索增强的问答能力，回答标注可追溯的出处。除基础问答外，还提供 <strong>Wiki 自动成书</strong>、<strong>知识图谱增强检索</strong>、<strong>FAQ 精确问答</strong>，以及面向团队的<strong>多空间隔离、四级 RBAC、作用域 API Key 与审计日志</strong>。支持完整私有部署，模型可全部替换为本地推理。</p>
           <p class="lede lede-sub">本文档覆盖部署与配置、功能说明、约 290 个 API 端点的接口参考，以及二次开发的扩展点。</p>
+          <p class="lede lede-sub lang-note">
+            文档以中文为主。仅「安装部署」和「快速上手」两篇有英文版：
+            <a :href="withBase('/en/01-getting-started/02-installation')">Installation</a>、
+            <a :href="withBase('/en/01-getting-started/03-quickstart')">Quick start</a>。
+            Yuheng 目前是 0.x 预览版，<code>/api/v1</code> 在 0.x 各版本之间可能变化，MCP 工具名是稳定的。
+          </p>
           <div class="actions">
             <a class="btn btn-solid" :href="withBase('/01-getting-started/01-introduction')">开始阅读</a>
             <a class="btn btn-ghost" :href="withBase('/02-architecture/01-overview')">系统架构</a>
             <a
               class="btn btn-text"
-              href="https://github.com/magicyuan876/yuheng"
+              href="https://github.com/magicyuan876/Yuheng"
               target="_blank"
               rel="noreferrer"
             >
@@ -452,7 +457,7 @@ const deployments = [
         <div class="deploy-copy">
           <span class="marker">部署</span>
           <h2 class="chapter-title">部署形态</h2>
-          <p class="chapter-sub">标准部署克隆代码、改两个密钥、一条命令拉起全套服务。</p>
+          <p class="chapter-sub">标准部署克隆代码、生成两个密钥、在本地构建镜像并拉起全套服务。</p>
           <ul class="deploy-list">
             <li v-for="d in deployments" :key="d.name">
               <span class="deploy-name">
@@ -473,14 +478,17 @@ const deployments = [
             <span>标准部署 · Docker Compose</span>
           </div>
           <pre><code><span class="c"># 1 获取代码</span>
-git clone https://github.com/magicyuan876/yuheng.git
+git clone https://github.com/magicyuan876/Yuheng.git
 cd Yuheng
 
-<span class="c"># 2 准备配置：至少修改 JWT_SECRET 与 SYSTEM_AES_KEY</span>
+<span class="c"># 2 准备配置：必须替换 JWT_SECRET 与 SYSTEM_AES_KEY</span>
 cp .env.example .env
+openssl rand -hex 32   <span class="c"># JWT_SECRET</span>
+openssl rand -hex 16   <span class="c"># SYSTEM_AES_KEY（正好 32 字节）</span>
 
-<span class="c"># 3 拉起全部服务（首次需拉取镜像）</span>
-docker compose up -d --pull always
+<span class="c"># 3 构建前端，再本地构建并拉起全部服务（本版本不发布镜像）</span>
+./scripts/build_frontend_dist.sh
+docker compose up -d --build
 
 <span class="c"># 4 确认服务就绪</span>
 docker compose ps
@@ -491,7 +499,7 @@ open http://localhost
 
 <span class="c"># 停止：docker compose down</span></code></pre>
           <p class="deploy-code-note">
-            首次打开前端会落到注册页，注册后在初始化向导里配置对话模型与向量模型，即可建库提问。后端 API 与前端同域，走 <code>http://localhost/api/v1</code>。
+            全新部署没有默认账号：第一个注册的账号成为系统管理员，之后公开注册关闭。先在「设置 → 模型管理」配置对话模型与向量模型，再建库提问。后端 API 与前端同域，走 <code>http://localhost/api/v1</code>。
             完整步骤见<a :href="withBase('/01-getting-started/03-quickstart')">快速上手</a>，其余部署形态与参数见<a :href="withBase('/01-getting-started/02-installation')">安装部署</a>。
           </p>
         </div>
@@ -527,7 +535,7 @@ open http://localhost
           <a :href="withBase('/01-getting-started/01-introduction')">快速开始</a>
           <a :href="withBase('/04-api/01-api-overview')">API 总览</a>
           <a :href="withBase('/06-development/03-extension-points')">扩展点</a>
-          <a href="https://github.com/magicyuan876/yuheng" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/magicyuan876/Yuheng" target="_blank" rel="noreferrer">GitHub</a>
         </div>
         <p class="closing-copy">Portions © 2025 Tencent · Modifications © 2026 magicyuan876 · MIT License</p>
       </div>

@@ -1,15 +1,15 @@
 # MCP（Model Context Protocol）集成
 
-Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独立的 Python MCP server（PyPI 包 **`yuheng-mcp`**，入口命令 `yuheng-mcp-server`），把 Yuheng 的知识库、检索、问答、Wiki 等 REST API 封装成 23 个 MCP 工具，供 Claude Desktop、VS Code Copilot 等外部 MCP 客户端使用。
+Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独立的 Python MCP server（包名 **`yuheng-mcp`**，入口命令 `yuheng-mcp-server`），把 Yuheng 的知识库、检索、问答、Wiki 等 REST API 封装成 23 个 MCP 工具，供 Claude Desktop、VS Code Copilot 等外部 MCP 客户端使用。
 
 简单说，这个方向是**让别人用 Yuheng**：在 Claude Desktop 里直接查你的知识库、让外部智能体检索与写入知识。
 
 此外 `yuheng` CLI 也提供 `yuheng mcp serve`，把精选的 10 个工具（知识库/文档检索与问答）以 MCP 形式暴露给本地客户端，见 [CLI 文档](../05-clients/02-cli.md)。
 
-`mcp-server/` 是一个独立的 Python 包，PyPI 名 **`yuheng-mcp`**（当前 1.1.1，Python ≥ 3.10，依赖 `mcp>=2,<3`、`requests>=2.31.0`、`starlette`、`uvicorn`），核心实现在 `mcp-server/yuheng_mcp_server.py`：`YuhengClient` 用 `requests.Session` 携带 `X-API-Key` 调 Yuheng REST API，`MCPServer("yuheng-server", version="1.1.1")` 注册工具并通过所选传输对外服务。
+`mcp-server/` 是一个独立的 Python 包，包名 **`yuheng-mcp`**（当前 0.1.0，Python ≥ 3.10，依赖 `mcp>=2,<3`、`requests>=2.31.0`、`starlette`、`uvicorn`），核心实现在 `mcp-server/yuheng_mcp_server.py`：`YuhengClient` 用 `requests.Session` 携带 `X-API-Key` 调 Yuheng REST API，`MCPServer("yuheng-server", version="0.1.0")` 注册工具并通过所选传输对外服务。
 
 ::: warning 包名与 API 变更（v1.1.x）
-- 本仓库的包名是 `yuheng-mcp`，命令行入口是 `yuheng-mcp-server` / `yuheng-server`。注意该包名尚未在 PyPI 上发布——发布前请先确认名称可用。
+- 本仓库的包名是 `yuheng-mcp`，命令行入口是 `yuheng-mcp-server` / `yuheng-server`。该包**尚未发布到 PyPI**，请从源码安装。
 - 实现已迁移到 mcp 2.x 的高层 API：工具是加了 `@mcp.tool()` 装饰器的普通函数，入参 JSON Schema 由类型标注自动推导，描述取自 docstring，返回值自动序列化。旧的 `handle_list_tools()` / `handle_call_tool()` 分发写法已移除——扩展工具时只需新增一个带装饰器的函数。
 - 阻塞式网络 I/O（`chat`）被投递到线程池执行，不阻塞 asyncio 事件循环。
 :::
@@ -24,16 +24,6 @@ Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独�
 cd mcp-server
 pip install -r requirements.txt
 python main.py            # 或 python run.py / python run_server.py
-```
-
-**从 PyPI 安装**（提供两个 console 入口 `yuheng-mcp-server` 与 `yuheng-server`）：
-
-```bash
-pip install yuheng-mcp
-yuheng-mcp-server
-
-# 或者不预装，直接用 uvx 运行
-uvx --from yuheng-mcp yuheng-mcp-server
 ```
 
 **本地开发安装**：
@@ -175,22 +165,7 @@ stdio 传输（Claude Desktop 的 `claude_desktop_config.json`）：
 }
 ```
 
-已从 PyPI 安装时，`command` 可直接写 `yuheng-mcp-server`，或者用 `uvx` 免安装运行：
-
-```json
-{
-  "mcpServers": {
-    "yuheng": {
-      "command": "uvx",
-      "args": ["--from", "yuheng-mcp", "yuheng-mcp-server"],
-      "env": {
-        "YUHENG_BASE_URL": "http://localhost:8080/api/v1",
-        "YUHENG_API_KEY": "your-yuheng-api-key"
-      }
-    }
-  }
-}
-```
+已从源码 `pip install .` 安装时，`command` 可直接写 `yuheng-mcp-server`。
 
 远程部署（Docker / `--transport http`）时，客户端连接 `http://<host>:8000/mcp` 并携带 `Authorization: Bearer <MCP_SERVER_AUTH_TOKEN>`。
 

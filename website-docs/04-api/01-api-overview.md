@@ -2,6 +2,8 @@
 
 本节介绍 Yuheng HTTP API 的通用约定：Base URL、认证方式、响应结构、错误码、分页、SSE 与限流。
 
+> **稳定性**：Yuheng 处于 0.x 预览阶段，`/api/v1` 在 0.x 各版本之间仍可能变化，升级前请对照更新日志；MCP 工具名是稳定的，不会改名。
+
 ## Base URL 与版本前缀
 
 - 所有业务 API 挂载在 `/api/v1` 前缀下（`router.go` 中 `r.Group("/api/v1")`）。

@@ -13,11 +13,6 @@ Yuheng 的权限分两层：**空间内**的四级角色（见[租户、用户�
 
 还有第三个标志 `CanAccessAllTenants`（跨空间访问），它管的是「能不能读写别人的空间数据」，与系统管理员也是分开的：系统管理员默认看不到别人空间里的知识库内容。
 
-<Screenshot
-  src="/screenshots/settings-system-admin.png"
-  caption="平台控制台：系统设置、任务队列、平台 API Key 与系统审计日志"
-  hint="以系统管理员身份打开「设置」，展示侧栏底部四个仅系统管理员可见的分区，正文可用系统设置页。" />
-
 ## 1. 第一个系统管理员怎么来
 
 新部署里**没有任何系统管理员**。引导流程在 `cmd/server/bootstrap.go`：
@@ -56,7 +51,7 @@ Yuheng 的权限分两层：**空间内**的四级角色（见[租户、用户�
 
 | 键 | 类型 | 默认 | 生效时机 |
 | --- | --- | --- | --- |
-| `auth.registration_mode` | `self_serve` / `invite_only` | `self_serve` | 立即 |
+| `auth.registration_mode` | `auto` / `self_serve` / `invite_only` | `auto`（只在还没有用户时开放） | 立即 |
 | `auth.default_tenant_mode` | `create_personal` / `tenantless` | `create_personal` | 只影响之后注册的新用户 |
 | `tenant.self_service_creation_enabled` | bool | `true` | 立即 |
 | `tenant.max_owned_per_user` | int | `10`（0 = 用内置默认，负数 = 关闭限额） | 每次建空间时读取 |

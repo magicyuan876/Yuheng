@@ -4,11 +4,6 @@
 
 用法：数据源是**挂在知识库上**的，不在全局设置里——打开目标知识库 → 编辑设置 → 「数据源」页签（仅编辑模式下出现）→ 新建连接 → 填凭据并授权 → 选要同步的空间/目录 → 设定同步周期。首次同步是全量，之后按修改时间增量拉取。
 
-<Screenshot
-  src="/screenshots/datasource-sync.png"
-  caption="数据源：连接列表与同步状态"
-  hint="展示已配置的数据源（类型、目标知识库、上次同步时间、状态）与同步日志入口。" />
-
 它不是一次性导入工具，而是一套完整的"连接器 + 调度器 + 增量同步 + 知识入库"流水线：
 
 - 连接器框架与实现：`internal/datasource/`（`connector.go`、`scheduler.go`、`httpclient.go`、`errors.go`、`connector/` 各实现）
@@ -68,10 +63,14 @@ registry.Register(feishuConnector.NewConnector(feishuConnector.RegionFeishu))  /
 registry.Register(feishuConnector.NewConnector(feishuConnector.RegionLark))    // lark（国际版，同一实现不同 Region）
 registry.Register(notionConnector.NewConnector())                              // notion
 registry.Register(yuqueConnector.NewConnector())                               // yuque
+registry.Register(drive.NewDriveConnector(core.RegionFeishuDrive))             // feishu_drive（云盘）
+registry.Register(drive.NewDriveConnector(core.RegionLarkDrive))               // lark_drive
+registry.Register(imaConnector.NewConnector())                                 // ima（腾讯 ima）
 registry.Register(rssConnector.NewConnector())                                 // rss
+registry.Register(gitlabConnector.NewConnector())                              // gitlab
 ```
 
-> 注意：`connector.go` 中的 `ConnectorMetadataRegistry` 为前端展示定义了更多连接器元数据（Confluence、GitHub、Google Drive、OneDrive、DingTalk、Web Crawler、Slack、IMAP 等），但**当前代码库中实际注册可用的连接器只有 5 个类型：`feishu`、`lark`、`notion`、`yuque`、`rss`**（其中 feishu/lark 共用同一份实现）。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
+> 注意：`connector.go` 中的 `ConnectorMetadataRegistry` 为前端展示定义了更多连接器元数据（Confluence、GitHub、Google Drive、OneDrive、DingTalk、Web Crawler、Slack、IMAP 等），但**当前代码库中实际注册可用的连接器有 9 个类型：`feishu`、`lark`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`ima`、`rss`、`gitlab`**（飞书/Lark 的知识库与云盘各用一份实现）。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
 
 ## 数据模型（internal/types/datasource.go）
 

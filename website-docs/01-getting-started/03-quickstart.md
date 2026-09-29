@@ -12,43 +12,36 @@
 
 ## 2. 注册并登录
 
-首次访问会落到登录页，注册是同一页上的一个页签——只有当注册模式是 `self_serve` 时才显示（前端读 `/auth/config` 决定）。系统没有内置默认账号，注册完成后会自动得到一个属于自己的工作空间，你在这个空间里是 Owner。
+首次访问会落到登录页，注册是同一页上的一个页签，只在注册开放时才显示（前端读 `/auth/config` 决定）。系统没有内置默认账号：
 
-<Screenshot
-  src="/screenshots/quickstart-register.png"
-  caption="首次访问的注册页面"
-  hint="展示注册表单（用户名 / 邮箱 / 密码）与登录入口即可。" />
+- **全新部署里，你注册的第一个账号会成为整个部署的系统管理员**，同时得到一个属于自己的工作空间（你是这个空间的 Owner）。之后公开注册自动关闭，其他人通过邀请加入；
+- 想让注册一直开放，设 `DISABLE_REGISTRATION=false`；想从一开始就关闭（账号由别的办法创建），设 `DISABLE_REGISTRATION=true`；不设置就是默认的 `auto`：只在还没有任何用户时开放。也可以登录后在「设置 → 系统」里改 `auth.registration_mode`（立即生效，不用重启）。
 
 几点值得先知道：
 
 - 用户名 2–50 个字符；密码在注册页要求 8–32 位且含字母和数字（直接调 `POST /auth/register` 接口时后端只校验 ≥6 位，建议仍按 8 位以上来）；
-- 团队部署时，注册完第一个账号就可以关闭公开注册，之后通过邀请链接加人。关的方式有两种：设 `DISABLE_REGISTRATION=true`（启动时把注册模式强制为 `invite_only`），或者登录后在「设置 → 系统」里把 `auth.registration_mode` 改成 `invite_only`（立即生效，不用重启）；
-- 如果部署把默认空间策略设成了 `tenantless`（`auth.default_tenant_mode`），注册后**不会**自动建空间，而是被引导到 `/onboarding/workspace`，需要先自建或接受邀请加入一个空间才能继续；
+- 邀请成员：登录后在「设置 → 成员管理」发邀请（站内邀请，或生成邀请链接）；被邀请的人走邀请注册，不受上面的注册开关影响；
+- 如果部署把默认空间策略设成了 `tenantless`（`auth.default_tenant_mode`），注册后**不会**自动建空间，而是被引导到 `/onboarding/workspace`，需要先自建或接受邀请加入一个空间才能继续。
 
 ::: tip 空间 Owner ≠ 系统管理员
 这两个是不同维度的身份，很容易混：
 
-- **空间 Owner**：某一个工作空间内的最高权限，管这个空间的成员、模型、知识库。注册即拥有自己的空间，所以人人都是自己空间的 Owner。
-- **系统管理员（System Admin）**：平台级身份，管的是整个部署——全局系统设置、任务队列、平台 API Key、跨空间审计日志、重置用户密码。它不属于任何空间，也不会因为你在某个空间是 Owner 就自动获得。
+- **空间 Owner**：某一个工作空间内的最高权限，管这个空间的成员、模型、知识库。
+- **系统管理员（System Admin）**：平台级身份，管的是整个部署——全局系统设置、任务队列、平台 API Key、跨空间审计日志、重置用户密码。它不属于任何空间。
 
-新部署里**没有任何系统管理员**，需要显式指定第一个。做法：先正常注册账号，然后给 app 服务设 `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<该账号邮箱>` 并重启——启动时若检测到「当前部署一个系统管理员都没有」，就把这个邮箱对应的用户提升为系统管理员。已经存在系统管理员时这个变量不再生效（避免界面上刚撤销的权限被下次重启悄悄恢复），用户没注册时也只是打一条 WARN、下次重启再试。之后新增管理员就在界面上操作即可。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md)。
+第一个注册的账号两个身份兼有。之后新增系统管理员在「设置 → 系统设置」里操作。如果部署里已经有用户却没有系统管理员（比如从旧版本升级而来），可以给 app 服务设 `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL=<已注册账号的邮箱>` 并重启，启动时会把该用户提升为系统管理员；已经存在系统管理员时这个变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md)。
 :::
 
-## 3. 创建知识库并配置模型
+## 3. 配置模型并创建知识库
 
-登录后新建一个知识库。Yuheng 的模型配置是**按知识库**走的：新建之后前端会引导你为这个库选模型，没有全局的一次性初始化。
+问答能用之前，必须先有模型：**至少一个对话模型（LLM）和一个向量模型（Embedding）**。模型在工作空间层面配置，知识库再从中选用。
 
-1. 在「知识库」页点新建，填名称，选类型：`document`（普通文档库）或 `faq`（问答对库）；
-2. 在弹出的初始化向导里选模型：
-   - **对话模型（LLM）**：生成回答用；
+1. 打开「设置 → 模型管理」，点「添加模型」。选模型类型（对话 / Embedding / ReRank / 视觉 / 语音）与来源（远程 API 或本地 Ollama），填模型名称、Base URL 和 API Key，用「测试连接」确认连得通再保存；
+2. 回到「知识库」页点新建，填名称，选类型：`document`（普通文档库）或 `faq`（问答对库）；
+3. 在「模型配置」里为这个库选模型：
+   - **对话模型（LLM）**：总结、摘要与生成回答用；
    - **向量模型（Embedding）**：把文档转成向量用，**建库后不要再换**，换了需要重建索引；
-   - 其余（重排 Rerank、图片理解 VLM、语音转写 ASR、知识图谱抽取、问题预生成）都可以先不开，之后随时能加；
-3. 用向导里的「测试」按钮确认模型连得通，再保存。
-
-<Screenshot
-  src="/screenshots/quickstart-init-wizard.png"
-  caption="初始化向导：为知识库选择对话模型与向量模型"
-  hint="展示模型来源（Ollama / 远程 API）、模型名、Base URL 输入框，以及连通性测试通过的提示。" />
+   - 其余（重排 Rerank、图片理解 VLM、语音转写 ASR、知识图谱抽取、问题预生成）都可以先不开，之后随时能加。
 
 ::: tip 用本地 Ollama 时最容易踩的坑
 后端跑在容器里，填 `http://localhost:11434` 连不上宿主机的 Ollama，要填 `http://host.docker.internal:11434`。
@@ -60,26 +53,11 @@
 
 支持的格式包括 PDF、Word、Excel、PPT、Markdown、HTML、EPUB、图片和音频等，完整清单见[文档解析服务](../03-features/03-document-parsing.md)。
 
-<Screenshot
-  src="/screenshots/quickstart-upload.png"
-  caption="上传确认对话框：选择文件、打标签、调整解析选项"
-  hint="展示待上传文件列表、标签选择与解析引擎选项。" />
-
 上传后文档会异步解析，状态依次是 `pending → processing → finalizing → completed`。PDF 扫描件、大文件会慢一些，列表页会实时刷新进度。
-
-<Screenshot
-  src="/screenshots/quickstart-document-list.png"
-  caption="文档列表：三篇文档解析完成"
-  hint="展示文档名称、类型、解析状态为「已完成」、分块数等列。" />
 
 ## 5. 提问
 
-进入对话页，选择刚才的知识库，直接提问。默认用的是内置的「快速问答」Agent：检索相关片段 → 交给大模型作答 → 回答里带出处，点引用可以跳回原文。
-
-<Screenshot
-  src="/screenshots/quickstart-chat.png"
-  caption="知识问答：回答与可点击的引用来源"
-  hint="展示一轮问答，回答正文中的引用角标以及展开后的引用来源面板。" />
+进入对话页，选择刚才的知识库，直接提问。默认用的是「快速问答」模式：检索相关片段 → 交给大模型作答 → 回答里带出处，点引用可以跳回原文。
 
 到这一步，最小闭环就跑通了。
 
@@ -97,7 +75,7 @@
 ```bash
 BASE=http://localhost:8080/api/v1
 
-# 1) 注册（首次部署时；username>=2 字符，password>=6 字符）
+# 1) 注册（全新部署里第一个注册的账号成为系统管理员，之后注册默认关闭；username>=2 字符，password>=6 字符）
 curl -s -X POST $BASE/auth/register -H "Content-Type: application/json" \
   -d '{"username":"admin","email":"admin@example.com","password":"pass123456"}'
 
@@ -208,7 +186,7 @@ sequenceDiagram
 | 上传后一直 `processing` | `docker logs Yuheng-docreader`；大文件受 `MAX_FILE_SIZE_MB`（默认 50）与 `YUHENG_DOCUMENT_PROCESS_TIMEOUT`（默认 2h）约束 |
 | 初始化时 Ollama 检测失败 | 容器内默认地址 `http://host.docker.internal:11434`（`OLLAMA_BASE_URL`）；Linux 需确认 `extra_hosts: host.docker.internal:host-gateway` 生效 |
 | 问答无引用 / 召回为空 | 确认知识解析 `completed`；调低 `vector_threshold`；检查 embedding 模型与建库时一致 |
-| 注册页签消失 | 查 `GET /auth/config` 的 `registration_mode`。值可能来自「设置 → 系统」里的数据库设置，不只是 `DISABLE_REGISTRATION`；邀请链接与 OIDC 首次登录是另外两条通路，不受它影响 |
+| 注册页签消失 | 默认的 `auto` 模式只在还没有任何用户时开放注册，有了第一个账号后就会隐藏。查 `GET /auth/config` 的 `registration_open`；值可能来自「设置 → 系统」里的数据库设置，不只是 `DISABLE_REGISTRATION`；邀请链接与 OIDC 首次登录是另外两条通路，不受它影响 |
 | API Key 请求 403 | Key 的 capabilities 不含所需能力，或 `knowledge_base_ids` 白名单未包含目标库 |
 
 下一步：想调细节看[配置详解](./04-configuration.md)，想了解系统怎么运转看[总体架构](../02-architecture/01-overview.md)。

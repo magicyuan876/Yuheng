@@ -8,11 +8,6 @@
 - 合规要求某类文档必须存在特定地域的桶里；
 - 从自建 S3 兼容存储（RustFS、MinIO）迁到云对象存储时，新库先用新后端，老库保持不动。
 
-<Screenshot
-  src="/screenshots/settings-storage-backends.png"
-  caption="存储后端设置：多实例列表、默认实例与连通性测试"
-  hint="展示已注册的存储后端卡片（provider、状态、默认标记）与新建/编辑表单，含「测试连接」结果。" />
-
 ## 怎么配
 
 入口在「设置 → 存储」（`storage` 分区，需 Admin）：

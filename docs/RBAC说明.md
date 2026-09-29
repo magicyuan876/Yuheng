@@ -115,9 +115,10 @@ tenant:
   enable_cross_tenant_access: false
 
 auth:
-  # self_serve（默认）：任何人都可注册，自动建空间 + Owner 成员
+  # auto（默认）      ：仅在系统里还没有任何用户时开放注册，首个注册者成为系统管理员，之后自动关闭
+  # self_serve        ：任何人都可注册，自动建空间 + Owner 成员
   # invite_only       ：禁止公开注册，新用户必须通过 /tenants/:id/members 邀请进入
-  registration_mode: self_serve
+  registration_mode: auto
 
 audit:
   # 审计日志保留天数；每日后台清理；默认 90；置 0 关闭清理
@@ -131,7 +132,7 @@ audit:
 | `YUHENG_TENANT_ENABLE_RBAC` | `tenant.enable_rbac` | `true` / `false` |
 | `YUHENG_AUDIT_RETENTION_DAYS` | `audit.retention_days` | 非负整数 |
 
-`auth.registration_mode` 没有专属环境变量，沿用历史的 `DISABLE_REGISTRATION=true`——一旦设置，启动时会把 `auth.registration_mode` 强制改成 `invite_only`，保证后端 API 和 `/auth/config` 驱动的前端注册入口一致。
+`auth.registration_mode` 没有专属环境变量，沿用历史的 `DISABLE_REGISTRATION`：`true` 在启动时把 `auth.registration_mode` 强制改成 `invite_only`，`false` 强制改成 `self_serve`，未设置则保持 `auto`；这样保证后端 API 和 `/auth/config` 驱动的前端注册入口一致。
 
 启动日志会打印一行总结，确认本次启动到底使用了哪一组配置以及覆盖来源。
 
@@ -191,30 +192,18 @@ Pinia 中的 `authStore` 暴露：
 
 ### 前端实际界面
 
+成员管理页同时展示「待接受的邀请」和「空间成员」两组列表；只有 Owner 可以新增 / 移除成员；右上角的「审计日志」入口跳转到 `audit_logs` 视图。用户菜单里可以切换到其它空间，「当前」角标标识活跃工作区。
+
 <table>
   <tr>
-    <td colspan="2" align="center">
-      <b>成员管理页</b><br/>
-      <img src="./images/rbac-member-management.png" alt="成员管理" width="100%"/>
-      <br/><sub>同时展示「待接受的邀请」和「空间成员」两组列表；只有 Owner 可以新增 / 移除成员；右上角的「审计日志」入口跳转到 <code>audit_logs</code> 视图。</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>用户菜单 + 工作区切换器</b><br/>
-      <img src="./images/rbac-workspace-switcher.png" alt="用户菜单 + 切换空间" width="100%"/>
-      <br/><sub>左侧：当前空间角色徽章 / 设置入口 / 退出；右侧：切换到其它空间，「当前」角标标识活跃工作区。</sub>
-    </td>
     <td width="50%" align="center">
       <b>自助创建工作区</b><br/>
       <img src="./images/rbac-create-workspace.png" alt="创建新空间" width="100%"/>
       <br/><sub>任何用户都可以自助创建空间，创建后自动成为新空间的 Owner（受 <code>YUHENG_TENANT_MAX_PER_USER</code> 上限保护）。</sub>
     </td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">
+    <td width="50%" align="center">
       <b>待处理邀请弹窗</b><br/>
-      <img src="./images/rbac-pending-invitation.png" alt="我的邀请" width="80%"/>
+      <img src="./images/rbac-pending-invitation.png" alt="我的邀请" width="100%"/>
       <br/><sub>用户菜单上的邀请铃铛会展示来自其它空间的待处理邀请，可直接「接受 / 拒绝」；7 天未响应自动过期。</sub>
     </td>
   </tr>

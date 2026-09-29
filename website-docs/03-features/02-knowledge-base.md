@@ -4,11 +4,6 @@
 
 按知识库分而不是全部堆在一起，主要有三个好处：不同资料可以用不同的分块与模型配置；提问时可以只在指定范围内检索；权限和共享也是按库授予的。
 
-<Screenshot
-  src="/screenshots/kb-document-list.png"
-  caption="知识库文档列表：解析状态、标签与批量操作"
-  hint="展示文档列表页，包含解析状态列、标签列、顶部筛选栏与勾选后出现的批量操作栏。" />
-
 ## 0. 日常会用到的操作
 
 | 想做什么 | 在哪里做 |
@@ -21,11 +16,6 @@
 | 补充部门、密级等自定义字段 | 文档详情里的自定义元数据（见 §3.1） |
 | 看谁改过什么 | 知识库设置 → 活动（见 §6） |
 | 整库复制 / 把文档挪到别的库 | 知识库列表的复制，或文档批量操作里的移动（见 §4） |
-
-<Screenshot
-  src="/screenshots/kb-settings.png"
-  caption="知识库设置：分块参数与索引策略开关"
-  hint="展示分块大小/重叠/父子分块设置，以及向量、关键词、Wiki、图谱四个索引开关。" />
 
 ## 1. 知识库模型与配置项
 
@@ -244,11 +234,6 @@ stateDiagram-v2
 
 界面上文档列表左侧是文件夹树，可以像文件管理器一样浏览、重命名文件夹、把文档拖到别的文件夹。对应接口是 `GET/PUT /knowledge-bases/:id/knowledge/folders` 与 `POST /knowledge/folder`（见 [API 参考](../04-api/02-api-knowledge.md)）。重命名文件夹会连子目录一起改路径，目标已存在时两个文件夹合并。
 
-<Screenshot
-  src="/screenshots/kb-folder-tree.png"
-  caption="文档列表的文件夹树：按目录浏览与重新归类"
-  hint="展示左侧文件夹树、当前目录下的文档列表，以及重命名/移动文件夹的操作入口。" />
-
 ### 3.5 标签（KnowledgeTag）
 
 `internal/types/tag.go` + `internal/handler/tag.go`：
@@ -280,19 +265,9 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 - **批量打标签**：文档列表勾选若干文档后，批量操作栏的「标签」按钮打开 `BatchTagDialog.vue`。对话框会把所选文档**共有**的标签预选中，支持搜索、直接跳转标签管理，提交后刷新列表；
 - **上传时设置标签**：上传确认对话框（`UploadConfirmDialog.vue`）可在文件入库前直接指定标签与解析选项，省去先传后改。
 
-<Screenshot
-  src="/screenshots/kb-batch-tag.png"
-  caption="批量打标签：已选文档的共有标签会被预选中"
-  hint="展示勾选多篇文档后打开的标签对话框，含已选标签区、搜索框与可选标签列表。" />
-
 ### 3.6 分块编辑与版本历史
 
 解析结果不总是完美——表格错行、OCR 串字、公式丢符号。这类问题以前只能重传文档，现在可以在文档详情里直接改分块正文，改完立即重建索引，并且每次修改都留有历史版本可以回滚。
-
-<Screenshot
-  src="/screenshots/kb-chunk-edit.png"
-  caption="分块编辑：修改正文、查看版本历史与回滚"
-  hint="展示某个分块的编辑态、版本历史列表（含编辑者与时间）以及回滚入口。" />
 
 实现上（`internal/application/service/chunk.go`，migration `000078`）：
 
@@ -395,11 +370,6 @@ Chunk 类型（`internal/types/chunk.go`）：`text`、`parent_text`、`image_oc
 ## 6. 知识库活动流（KB Activity）
 
 活动流回答「这个库最近被谁改了什么」：建库改配置、上传删除文档、编辑分块、共享给谁、Wiki 更新，都会留痕。入口在知识库设置的「活动」页签。
-
-<Screenshot
-  src="/screenshots/kb-activity.png"
-  caption="知识库活动流：按时间倒序的操作记录"
-  hint="展示活动列表（操作人、动作、目标文档、时间）与展开后的详情抽屉。" />
 
 `internal/application/service/kb_activity.go` 复用审计日志体系（`AuditLog`，scope 为 knowledge_base），通过 `recordKBActivity(ctx, audit, tenantID, kbID, action, targetType, targetID, outcome, details)` 记录：
 

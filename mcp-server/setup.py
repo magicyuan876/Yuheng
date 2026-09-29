@@ -33,7 +33,7 @@ def read_requirements():
 
 setup(
     name="yuheng-mcp",
-    version="1.1.1",
+    version="0.1.0",
     author="Yuheng Team",
     author_email="support@yuheng.com",
     description="Yuheng MCP Server - Model Context Protocol server for Yuheng API",

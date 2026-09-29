@@ -57,7 +57,7 @@ function tokenize(text: string): string[] {
   return tokens
 }
 
-const repo = 'https://github.com/magicyuan876/yuheng'
+const repo = 'https://github.com/magicyuan876/Yuheng'
 const site = 'https://magicyuan876.github.io/yuheng'
 
 export default withMermaid(
@@ -66,6 +66,46 @@ export default withMermaid(
     titleTemplate: ':title · Yuheng 文档',
     description: 'Yuheng（玉衡）文档：部署、配置、功能说明、API 参考与二次开发',
     lang: 'zh-CN',
+
+    // Chinese is the primary language and lives at the site root. English exists
+    // only for the installation and quick start pages, under /en/.
+    locales: {
+      root: { label: '简体中文', lang: 'zh-CN' },
+      en: {
+        label: 'English',
+        lang: 'en-US',
+        link: '/en/',
+        titleTemplate: ':title · Yuheng docs',
+        description: 'Yuheng documentation in English: installation and quick start. The rest of the documentation is in Chinese.',
+        themeConfig: {
+          nav: [
+            { text: 'Installation', link: '/en/01-getting-started/02-installation', activeMatch: '/en/01-getting-started/02' },
+            { text: 'Quick start', link: '/en/01-getting-started/03-quickstart', activeMatch: '/en/01-getting-started/03' },
+            { text: '中文文档', link: '/01-getting-started/01-introduction' },
+          ],
+          sidebar: [
+            {
+              text: 'Getting started',
+              items: [
+                { text: 'About this translation', link: '/en/' },
+                { text: 'Installation', link: '/en/01-getting-started/02-installation' },
+                { text: 'Quick start', link: '/en/01-getting-started/03-quickstart' },
+              ],
+            },
+          ],
+          outline: { level: [2, 3], label: 'On this page' },
+          docFooter: { prev: 'Previous', next: 'Next' },
+          returnToTopLabel: 'Back to top',
+          sidebarMenuLabel: 'Menu',
+          darkModeSwitchLabel: 'Appearance',
+          lightModeSwitchTitle: 'Switch to light theme',
+          darkModeSwitchTitle: 'Switch to dark theme',
+          langMenuLabel: 'Languages',
+          lastUpdated: { text: 'Last updated', formatOptions: { dateStyle: 'medium', timeStyle: undefined } },
+          editLink: { pattern: `${repo}/edit/main/website-docs/:path`, text: 'Edit this page on GitHub' },
+        },
+      },
+    },
     base: '/docs/',
     cleanUrls: true,
     lastUpdated: true,
@@ -141,6 +181,20 @@ export default withMermaid(
       search: {
         provider: 'local',
         options: {
+          locales: {
+            en: {
+              translations: {
+                button: { buttonText: 'Search', buttonAriaLabel: 'Search' },
+                modal: {
+                  displayDetails: 'Display detailed list',
+                  resetButtonTitle: 'Reset',
+                  backButtonTitle: 'Close',
+                  noResultsText: 'No results for',
+                  footer: { selectText: 'to select', navigateText: 'to navigate', closeText: 'to close' },
+                },
+              },
+            },
+          },
           translations: {
             button: { buttonText: '搜索文档', buttonAriaLabel: '搜索文档' },
             modal: {

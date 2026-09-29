@@ -1,5 +1,5 @@
 <p align="center">
-    <a href="https://github.com/magicyuan876/yuheng/blob/main/LICENSE">
+    <a href="https://github.com/magicyuan876/Yuheng/blob/main/LICENSE">
         <img src="https://img.shields.io/badge/License-MIT-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="License">
     </a>
     <a href="./CHANGELOG.md">
@@ -23,6 +23,14 @@ Yuheng 是一个开源的、由大模型驱动的企业级知识平台：它把�
 Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好一件事：成为
 **知识层**。你的 AI 智能体——Claude、Cursor、自研 ReAct 循环，任何东西——
 通过 REST 与 MCP 来 Yuheng 获取检索、问答与 Wiki 能力。
+
+## 项目状态
+
+Yuheng 目前是 0.x 预览版，由一位维护者开发。
+
+- `/api/v1` REST 接口在 0.x 各版本之间仍可能变化；MCP 工具名是稳定的，不会改名。
+- 文档以中文为主，产品文档（[`website-docs/`](./website-docs/)）是中文优先。快速开始和安装部署两篇另有[英文版](./website-docs/en/01-getting-started/02-installation.md)。
+- 首个版本不发布 Docker 镜像，需要在本地构建（见[快速开始](#快速开始)）。
 
 ## 为什么选择 Yuheng
 
@@ -52,7 +60,7 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
   无需另外部署搜索集群
 - 混合检索（向量 + BM25/全文）、Rerank、查询改写与扩展
 - FAQ 条目（批量导入、去重）；知识图谱（Neo4j，可选）；内置联网搜索
-  （9 家提供商 + 自托管 SearXNG）
+  （12 家提供商，含自托管 SearXNG）
 - 流式回答：流水线进度时间线 + 可点击引用角标
 
 **📖 自动 Wiki**
@@ -62,7 +70,7 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 **🤖 面向你的 AI 智能体**
 - 完整的 `/api/v1` REST API——Swagger UI 位于 `/swagger/index.html`
 - 细粒度能力域的 API Key（retrieve、ingest、manage 等）
-- [`yuheng-mcp`](./mcp-server/)：23 个 MCP 工具，支持 stdio/SSE/HTTP
+- [`yuheng-mcp`](./mcp-server/)：23 个 MCP 工具，支持 stdio/SSE/HTTP（从源码安装）
 - [Go SDK](./client/) 与 [`yuheng` CLI](./cli/)；[DeepSeek Harness 插件](./packages/dsh-yuheng/)
 
 **🏢 平台能力**
@@ -74,7 +82,7 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 ```
 ┌─────────────┐   REST / SSE   ┌──────────────────────────────┐
 │ Web / CLI   │ ◄────────────► │  Go 后端（Gin，/api/v1）      │
-└─────────────┘                │  问答管道 · RAG · Wiki        │
+│ Go SDK      │                │  问答管道 · RAG · Wiki        │
 └─────────────┘                │  异步任务（asynq/Redis）       │
 ┌─────────────┐   MCP (23)     └───────┬──────────────┬───────┘
 │ AI 智能体   │ ◄───────────────────── │              │ gRPC（TLS+token）
@@ -89,25 +97,64 @@ Yuheng 不试图替你当「智能体」。从 0.1.0 开始，它只专注做好
 
 ## 快速开始
 
-最快的方式是 Docker Compose：
+本版本不提供预构建镜像，Docker Compose 会从源码构建。需要：带 Compose v2 的
+Docker、Node.js 与 npm（前端要先在宿主机上构建）、`git`；建议 4 核 CPU、8 GB
+内存，首次构建要下载很多依赖，耗时较长。
 
 ```bash
-git clone https://github.com/magicyuan876/yuheng.git
-cd yuheng
-cp .env.example .env          # 生产环境请先修改密钥
-docker compose pull && docker compose up -d
+git clone https://github.com/magicyuan876/Yuheng.git
+cd Yuheng
+cp .env.example .env
 ```
 
-启动后访问：
+首次启动前先编辑 `.env`。`JWT_SECRET` 与 `SYSTEM_AES_KEY` 的示例值是公开的，必须
+替换；值为空或仍是示例值时，服务会拒绝启动：
+
+```bash
+openssl rand -hex 32     # -> JWT_SECRET
+openssl rand -hex 16     # -> SYSTEM_AES_KEY（32 个十六进制字符 = AES-256 需要的 32 字节）
+```
+
+`DB_PASSWORD` 和 `REDIS_PASSWORD` 也请一并修改。妥善保管 `SYSTEM_AES_KEY`：数据库里
+的 API Key 等凭据都用它加密，丢失后无法恢复。
+
+先构建前端静态产物，再构建并启动整套服务：
+
+```bash
+./scripts/build_frontend_dist.sh      # 在 frontend/ 里执行 npm ci 与 npm run build，前端镜像依赖它
+docker compose up -d --build
+docker compose ps                     # 等服务都变成 healthy
+```
+
+默认（不带 profile）启动前端、Go 后端（`app`）、`docreader`、PostgreSQL
+（ParadeDB）、Redis 和 RustFS。RustFS 是 S3 兼容的对象存储，也是默认的文件存储；
+想改用本机目录，设 `STORAGE_TYPE=local`，想用外部存储就配置 `S3_*`。可选 profile：
+`docker compose --profile docs up -d --build` 额外启动在线协同文档服务与 draw.io
+（还需要的配置见 `.env.example` 的 K 节），`--profile full` 启动全部可选组件
+（Neo4j、Langfuse、SearXNG、MCP 服务、测试用 OIDC 等）。
+
+`.env.example` 里的 `APK_MIRROR_ARG=mirrors.tencent.com`（国内 Alpine 镜像源）和
+`TZ=Asia/Shanghai` 是面向国内的默认值，在国外部署时请清空前者并把 `TZ` 改成自己的时区。
+
+### 首次使用
+
+浏览器打开 `http://localhost`（端口由 `FRONTEND_PORT` 决定，默认 80）。系统没有默认账号。
+
+- **你注册的第一个账号会成为整个部署的管理员**，之后公开注册自动关闭，其他成员
+  通过邀请加入（空间设置里的成员管理）。
+- 想一直保持开放注册，设 `DISABLE_REGISTRATION=false`；想从一开始就关闭，设
+  `DISABLE_REGISTRATION=true`。不设置时，只在第一个账号出现之前开放注册。
+- 问答能用之前，必须先配置至少一个对话（LLM）模型和一个向量（Embedding）模型：
+  设置 → 模型管理。宿主机上的 Ollama 和任何 OpenAI 兼容接口都可以。
 
 | 服务 | 地址 |
 | --- | --- |
-| Web 界面 | http://localhost |
-| API | http://localhost:8080 |
-| Swagger UI | http://localhost:8080/swagger/index.html |
+| Web 界面 | http://localhost（`FRONTEND_PORT`） |
+| API | http://localhost:8080（`APP_PORT`） |
+| Swagger UI | http://localhost:8080/swagger/index.html（仅 `GIN_MODE` 不是 `release` 时可用） |
 
-可选的 Compose profile 可追加 Neo4j、RustFS（S3 兼容对象存储）与 Langfuse：
-`docker compose --profile full up -d`。
+默认情况下，除前端外，所有发布到宿主机的端口都只绑定在 localhost。要在单机之外使用，
+请在前端前面放一个带 TLS 的反向代理，并先改掉 `.env` 里的默认口令。
 
 其他运行方式：
 
@@ -123,14 +170,14 @@ make dev-frontend    # Vite 开发服务器
 | --- | --- | --- |
 | Web 界面 | [`frontend/`](./frontend/) | Vue 3 + TDesign |
 | CLI | [`cli/`](./cli/) | `yuheng`——可脚本化的 JSON 输出，多 profile |
-| MCP 服务 | [`mcp-server/`](./mcp-server/) | `pip install yuheng-mcp`——23 个工具 |
+| MCP 服务 | [`mcp-server/`](./mcp-server/) | 从源码安装（`pip install ./mcp-server`），未发布到 PyPI——23 个工具 |
 | Go SDK | [`client/`](./client/) | CLI 即基于它 |
-| DeepSeek Harness 插件 | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | `@magicyuan876/dsh-yuheng` |
+| DeepSeek Harness 插件 | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | 从源码安装（`dsh plugin --profile web add ./packages/dsh-yuheng`），未发布到 npm |
 
 ## 文档
 
-- [产品文档](./website-docs/README.md)——入门、架构、功能、API 参考、客户端、开发（VitePress）
-- [开发者文档](./docs/)——设计说明、常见问题、运维（中英混合）
+- [产品文档](./website-docs/README.md)——入门、架构、功能、API 参考、客户端、开发（VitePress，中文；快速开始与安装部署另有[英文版](./website-docs/en/01-getting-started/02-installation.md)）
+- [开发者文档](./docs/README.md)——设计说明与运维说明，以中文为主
 - [更新日志](./CHANGELOG.md)
 
 ## 开发
@@ -148,7 +195,7 @@ cd cli && make build && make test
 - 所有凭据（API Key、数据源令牌、MCP 密钥）在静态存储时均经 AES-256-GCM 加密。
 - 数据源与 URL 导入的外发 HTTP 一律走 SSRF 安全客户端与允许列表。
 - 切勿提交 `.env`；部署前请替换 `.env.example` 中的占位密钥。生产环境建议
-  内网部署，详见[安装与部署说明](./website-docs/01-getting-started/02-installation.md)。
+  内网部署，详见[安装部署](./website-docs/01-getting-started/02-installation.md)。
 
 ## 参与贡献
 

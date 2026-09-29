@@ -34,16 +34,7 @@ npm run preview  # 预览构建产物
   hint="展示文档列表页，包含解析状态列、标签列、顶部筛选栏与勾选后出现的批量操作栏。" />
 ```
 
-图片文件不存在时，组件会渲染成一个带说明的虚线占位框，标出期望的文件路径与该图应当展示的内容；把同名图片放进 `website-docs/public/screenshots/` 即可自动生效，**不需要改 Markdown**。
-
-当前待补充的截图共 2 张：
-
-| 文件名（放在 `public/screenshots/` 下） | 出现位置 | 应当展示 |
-| --- | --- | --- |
-| `kb-folder-tree.png` | 知识库 | 文档列表的文件夹树 |
-| `kg-graph.png` | 知识图谱 | 实体关系图 |
-
-仓库 `docs/images/` 下已有一批现成的产品截图（`qa.png`、`knowledgebases.png`、`wiki-browser.png`、`wiki-graph.png`、`settings.png`、`graph1-3.png`、`langfuse.png`、`rbac-*.png` 等），补图时可以先看看能否直接复用。
+目前文档里没有引用任何截图：原有截图来自上游项目，带有上游品牌标识和已移除功能的界面，公开前已全部删除。重新截图时请在 Yuheng 自己的界面上截取，使用不含真实邮箱、令牌的演示数据；图片文件不存在时，组件会渲染成一个带说明的虚线占位框，所以不要在没有图片时提前写入 `<Screenshot>`。
 
 ## 阅读路径建议
 
@@ -60,7 +51,7 @@ npm run preview  # 预览构建产物
 | 文档 | 内容 |
 | --- | --- |
 | [产品介绍](01-getting-started/01-introduction.md) | Yuheng 是什么、核心概念（租户/知识库/知识/分块/Wiki/会话等）、功能总览与系统组件图 |
-| [安装部署](01-getting-started/02-installation.md) | docker-compose（含 12 个可选 profile）、开发模式、Helm |
+| [安装部署](01-getting-started/02-installation.md) | docker-compose（含多个可选 profile）、开发模式、Helm |
 | [快速上手](01-getting-started/03-quickstart.md) | 注册 → 初始化向导 → 配置模型 → 建库 → 上传 → 问答的完整路径，含可直接执行的 curl 链路 |
 | [配置详解](01-getting-started/04-configuration.md) | config.yaml 全字段、prompt 模板、内置模型配置 |
 

@@ -75,7 +75,7 @@ curl -X POST $BASE/api/v1/auth/login -H 'Content-Type: application/json' -d '{"e
 
 用途：查询注册模式等认证配置。免认证。Handler: `internal/handler/auth.go`
 
-响应：200 `{"success":true,"registration_mode":"self_serve|invite_only"}`
+响应：200 `{"success":true,"registration_mode":"self_serve|invite_only","configured_registration_mode":"auto|self_serve|invite_only","registration_open":true,"first_user":false}`。`registration_mode` 是**当前生效**的状态（`auto` 且已有用户时读作 `invite_only`）；`first_user` 为 true 表示这是全新部署，下一个注册者将成为系统管理员
 
 ```bash
 curl $BASE/api/v1/auth/config

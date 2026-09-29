@@ -58,17 +58,17 @@ python main.py --version              # 显示版本信息
 
 ## 安装为 Python 包
 
-### 从 PyPI 安装
+### 从源码安装
+
+`yuheng-mcp` 目前没有发布到 PyPI，请从本仓库安装：
 
 ```bash
-pip install yuheng-mcp
-# 或使用 uvx 直接运行（无需预安装）
-uvx --from yuheng-mcp yuheng-mcp-server
+git clone https://github.com/magicyuan876/Yuheng.git
+cd Yuheng/mcp-server
+pip install .
 ```
 
-> 本仓库的 PyPI 包名为 **`yuheng-mcp`**。**该名称尚未在 PyPI 上发布**，
-> 发布前请先确认可用；在此之前请用源码方式运行。
-> 安装后命令行入口仍为 `yuheng-mcp-server` / `yuheng-server`。
+安装后命令行入口为 `yuheng-mcp-server` / `yuheng-server`。
 
 ### 开发模式安装
 ```bash

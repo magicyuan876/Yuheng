@@ -1,5 +1,7 @@
 # Yuheng 云镜像打包指南
 
+> **说明：本文档所属的云镜像流程面向腾讯云轻量应用服务器（Tencent Lighthouse）/ CVM 的镜像制作流程，其他平台需要自行改造。首个版本不发布 Docker 镜像，`prepare.sh` 里的 `docker compose pull` 拉不到镜像，也仍引用已移除的 Agent Skills sandbox 服务，使用前需要先自行改成本地构建，因此这套流程目前未经验证。**
+
 把 Yuheng 打包成可分发的云镜像（AMI / 自定义镜像 / Snapshot），用户基于镜像创建实例后开机即用、自动随机化密钥、零私密泄漏。
 
 ## 通用工具

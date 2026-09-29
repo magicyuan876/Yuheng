@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Yuheng Documentation
-    url: https://github.com/magicyuan876/yuheng/blob/main/docs/QA.md
+    url: https://github.com/magicyuan876/Yuheng/blob/main/docs/QA.md
     about: Check Yuheng FAQ
   - name: Discussions
-    url: https://github.com/magicyuan876/yuheng/discussions
+    url: https://github.com/magicyuan876/Yuheng/discussions
     about: Ask questions or share ideas in Discussions

@@ -6,11 +6,6 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 
 代码上是三个进程：Go（Gin）写的后端、Vue 3 的前端、Python（gRPC）的文档解析服务 docreader。部署方式有 Docker Compose 与 Helm，按环境挑一种。
 
-<Screenshot
-  src="/screenshots/introduction-overview.png"
-  caption="Yuheng 主界面：左侧知识库与会话，右侧问答区"
-  hint="展示登录后的主界面全貌：侧边栏（知识库、设置入口）与一轮带引用的问答。" />
-
 ## Yuheng 解决什么问题
 
 | 痛点 | Yuheng 的做法 |
@@ -42,12 +37,12 @@ Yuheng（玉衡）是一个开源的知识库问答系统，做的事情是：�
 | 概念 | 说明 |
 | --- | --- |
 | 知识库 KnowledgeBase | 知识容器，`Type` 支持 `document`（默认）/ `faq` / `wiki`。核心配置：`ChunkingConfig`（分块大小/重叠/父子分块/自适应策略 `auto`/`heading`/`heuristic` 等）、`EmbeddingModelID`、`IndexingStrategy`（向量 / 关键词 / Wiki / 图谱四路索引开关）、`VectorStoreID`（可绑定独立向量库） |
-| 知识 Knowledge | 一份文档 / 网页 / 手写条目。记录文件元数据（`FileName`/`FileType`/`FileHash`）、导入渠道 `Channel`（web / api / wechat / feishu 等）与解析状态机 `ParseStatus`：`pending → processing → finalizing → completed`（可 `failed` / `cancelled`） |
+| 知识 Knowledge | 一份文档 / 网页 / 手写条目。记录文件元数据（`FileName`/`FileType`/`FileHash`）、导入渠道 `Channel`（web / api / feishu 等）与解析状态机 `ParseStatus`：`pending → processing → finalizing → completed`（可 `failed` / `cancelled`） |
 | 分块 Chunk | 检索的最小单元。`ChunkType` 十余种：`text`、`parent_text`（父子分块）、`image_ocr`、`image_caption`、`faq`、`entity` / `relationship`（图谱）、`table_summary` / `table_column`（表格）、`wiki_page`、`web_search` 等；状态 `Stored`（已存）→ `Indexed`（已入索引） |
 | FAQ | FAQ 型知识库中的问答对，存于 Chunk 的 Metadata：标准问 `StandardQuestion`、相似问、反例问、多答案与答案策略 |
 | Wiki 页面 WikiPage | Wiki 型索引产物：由 LLM 从文档生成的结构化百科页面，最多三级分类路径，可在 Wiki 浏览器中按分类导航，也作为检索的一类 chunk 参与问答 |
 | 知识图谱 Entity / Relationship | 从分块中抽取的实体与关系（强度 1-10），存储在 Neo4j（`NEO4J_ENABLE=true` 时），用于 GraphRAG 增强检索 |
-| 数据源 DataSource | 外部内容连接器。**当前可用 5 个**：`feishu`、`lark`（与飞书同一适配器，域名不同）、`notion`、`yuque`、`rss`，支持 Cron 定时同步（增量/全量）与冲突策略。`internal/types/datasource.go` 里还声明了 `confluence`、`github`、`imap` 等类型常量，但对应实现尚未接入（`initConnectorRegistry()` 中相关注册被注释），选不到 |
+| 数据源 DataSource | 外部内容连接器。**当前可用 6 类平台、9 个连接器类型**：`feishu`、`lark`（与飞书同一适配器，域名不同）、`feishu_drive`、`lark_drive`（云盘）、`notion`、`yuque`、`ima`（腾讯 ima）、`rss`、`gitlab`，支持 Cron 定时同步（增量/全量）与冲突策略。`internal/types/datasource.go` 里还声明了 `confluence`、`github`、`imap` 等类型常量，但对应实现尚未接入（`initConnectorRegistry()` 中相关注册被注释），选不到 |
 | 检索配置 RetrievalConfig | 租户级检索参数：`EmbeddingTopK`（默认 50）、`VectorThreshold`（0.15）、`KeywordThreshold`（0.3）、`RerankTopK`（10）、`RerankThreshold`（0.2）、RRF 融合参数（`RRFK`=60，向量权重 0.7 / 关键词权重 0.3） |
 
 ### 对话与模型
@@ -101,7 +96,7 @@ flowchart TB
 - **索引管道**：可配置分块（含父子分块与自适应策略）、向量索引、关键词全文索引、FAQ 索引、Wiki 生成、知识图谱抽取、预生成问题（question generation）。
 - **检索**：向量 + BM25 混合检索、RRF 融合、Rerank 重排、查询改写与扩展、意图识别（greeting/chitchat/web_search 等，见 `config/prompt_templates/intent_prompts.yaml`）。
 - **问答**：流式 SSE 问答、多轮上下文压缩、引用溯源、联网搜索（内置 12 个提供商，含自建 SearXNG）。
-- **多租户与安全**：RBAC 角色鉴权（默认开启，`YUHENG_TENANT_ENABLE_RBAC`）、审计日志（默认保留 90 天）、邀请制注册（`auth.registration_mode=invite_only`，也可用旧变量 `DISABLE_REGISTRATION=true`）、OIDC 单点登录、SSRF 防护、敏感字段 AES-256 加密。
+- **多租户与安全**：RBAC 角色鉴权（默认开启，`YUHENG_TENANT_ENABLE_RBAC`）、审计日志（默认保留 90 天）、注册策略（`auth.registration_mode`：默认 `auto`，仅在还没有任何用户时开放注册，之后改为邀请制；也可用变量 `DISABLE_REGISTRATION` 强制开或关）、OIDC 单点登录、SSRF 防护、敏感字段 AES-256 加密。
 - **可观测性**：Langfuse 全链路追踪（LLM/Embedding/Rerank/VLM/ASR 调用与 token 统计）、健康检查、Swagger API 文档（`GIN_MODE=debug` 时）。
 - **生态**：REST API（`/api/v1`）+ API Key、独立 MCP Server（把 Yuheng 作为工具暴露给其他 Agent）、CLI（`cli/`）、DeepSeek Harness 插件（`packages/dsh-yuheng/`）。
 

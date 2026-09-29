@@ -18,7 +18,9 @@ Yuheng 提供了一系列 RESTful API，用于创建和管理知识库、检索�
 
 Yuheng 同时提供基于 OpenAPI 的 Swagger 文档。**启动服务后访问 `http://localhost:8080/swagger/index.html`**，可看到所有端点的完整参数、请求/响应 schema，并可直接在浏览器内试调——它随代码自动更新，是最准确的接口参考。
 
-本目录下的 markdown 文档提供更易读的示例与场景说明，与 swagger 同步维护；当二者出现差异时，以 swagger 为准。
+本目录下的 markdown 文档提供更易读的示例与场景说明；维护中的 API 参考在 [`website-docs/04-api/`](../../website-docs/04-api/01-api-overview.md)，当文档与 swagger 出现差异时，以 swagger 为准。
+
+> **稳定性**：Yuheng 处于 0.x 预览阶段，`/api/v1` 在 0.x 各版本之间仍可能变化；MCP 工具名是稳定的，不会改名。
 
 > Swagger UI 仅在非 release 模式（`GIN_MODE != release`）下挂载；生产部署默认关闭。
 
@@ -128,6 +130,6 @@ Yuheng API 按功能分为以下几类：
 | 网络搜索 | 网络搜索服务商 | [web-search.md](./web-search.md) |
 | 向量存储 | 向量数据库连接管理 | [vector-store.md](./vector-store.md) |
 | 存储后端 | 对象/文件存储实例（多实例）管理 | [storage-backend.md](./storage-backend.md) |
-| 数据源导入 | 飞书 / 企微 / Notion / Confluence 等外部数据源接入与同步 | [../数据源导入开发文档.md](../数据源导入开发文档.md) |
+| 数据源导入 | 飞书 / Lark、Notion、语雀、RSS、GitLab、腾讯 ima 等外部数据源接入与同步 | [../数据源导入开发文档.md](../数据源导入开发文档.md) |
 
 > **变更说明**：智能体管理（`agent.md`）、Skills（`skill.md`）、MCP 服务管理（`mcp-service.md`）与 IM 渠道集成文档已随 Agent 能力剥离移除，对应端点现在返回 `404`。Agent 集成请改用 REST API / Go SDK（`client/`）/ CLI / `yuheng-mcp` MCP server，见 [MCP 功能使用说明](../MCP功能使用说明.md)。

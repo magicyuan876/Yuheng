@@ -7,53 +7,23 @@ docker compose logs -f app docreader postgres
 
 ## 2. 如何启动和停止服务？
 ```bash
-# 启动服务
-./scripts/start_all.sh
+# 启动服务（本版本不发布镜像，从源码构建；先执行 ./scripts/build_frontend_dist.sh）
+docker compose up -d --build
 
 # 停止服务
-./scripts/start_all.sh --stop
+docker compose down
 
 # 清空数据库
-./scripts/start_all.sh --stop && make clean-db
+docker compose down && make clean-db
 ```
+
+`scripts/start_all.sh` 默认会先拉取镜像（`--no-pull` 可跳过），而本版本没有可拉取的镜像，所以这里不推荐使用。
 
 ## 3. 服务启动后无法正常上传文档？
 
 通常是Embedding模型和对话模型没有正确被设置导致。按照以下步骤进行排查
 
-1. 查看`.env`配置中的模型信息是否配置完整，其中如果使用ollama访问本地模型，需要确保本地ollama服务正常运行，同时在`.env`中的如下环境变量需要正确设置:
-```bash
-# LLM Model
-INIT_LLM_MODEL_NAME=your_llm_model
-# Embedding Model
-INIT_EMBEDDING_MODEL_NAME=your_embedding_model
-# Embedding模型向量维度
-INIT_EMBEDDING_MODEL_DIMENSION=your_embedding_model_dimension
-# Embedding模型的ID，通常是一个字符串
-INIT_EMBEDDING_MODEL_ID=your_embedding_model_id
-```
-
-如果是通过remote api访问模型，则需要额外提供对应的`BASE_URL`和`API_KEY`:
-```bash
-# LLM模型的访问地址
-INIT_LLM_MODEL_BASE_URL=your_llm_model_base_url
-# LLM模型的API密钥，如果需要身份验证，可以设置
-INIT_LLM_MODEL_API_KEY=your_llm_model_api_key
-# Embedding模型的访问地址
-INIT_EMBEDDING_MODEL_BASE_URL=your_embedding_model_base_url
-# Embedding模型的API密钥，如果需要身份验证，可以设置
-INIT_EMBEDDING_MODEL_API_KEY=your_embedding_model_api_key
-```
-
-当需要重排序功能时，需要额外配置Rerank模型，具体配置如下：
-```bash
-# 使用的Rerank模型名称
-INIT_RERANK_MODEL_NAME=your_rerank_model_name
-# Rerank模型的访问地址
-INIT_RERANK_MODEL_BASE_URL=your_rerank_model_base_url
-# Rerank模型的API密钥，如果需要身份验证，可以设置
-INIT_RERANK_MODEL_API_KEY=your_rerank_model_api_key
-```
+1. 在「设置 → 模型管理」里确认已经添加了对话（LLM）模型和向量（Embedding）模型，并且新建知识库时选用了它们。用「测试连接」确认模型可用；如果通过 Ollama 访问本地模型，需要确保 Ollama 服务正常运行，并且容器内能访问到它（默认地址 `http://host.docker.internal:11434`，即 `OLLAMA_BASE_URL`）。需要重排序功能时，再额外添加一个 Rerank 模型。
 
 2. 查看主服务日志，是否有`ERROR`日志输出
 
@@ -331,7 +301,7 @@ docker build -t yuheng-docs website-docs
 docker run -d -p 8081:8081 yuheng-docs
 ```
 
-站点的版本号在构建时自动读取仓库根目录的 `VERSION` 文件，因此升级版本后无需手动改文档。若某处截图显示为虚线占位框，说明 `website-docs/public/screenshots/` 下缺少同名图片，补图即可生效，不需要改 Markdown。
+站点的版本号在构建时自动读取仓库根目录的 `VERSION` 文件，因此升级版本后无需手动改文档。
 
 `website-docs/sample-data/` 下还提供了 4 份 Markdown 样例文档与 1 份 FAQ 导入 JSON，可以直接用来跑一遍「建库 → 上传 → 问答」；`examples/mcp-demo/` 是一个可直接运行的本地 MCP 服务示例。
 

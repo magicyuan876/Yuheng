@@ -13,7 +13,7 @@ MCP（Model Context Protocol）让 AI Agent 以标准协议访问外部工具与
 
 ### 方式一：`yuheng-mcp`（Python MCP server，23 个工具）
 
-官方 PyPI 包 `yuheng-mcp`，支持 stdio / SSE / HTTP 三种传输，工具覆盖：租户与知识库管理、文档导入（文件 / URL / 文本）、混合检索、RAG 问答（`chat`，每次调用自动创建会话）、分块管理、Wiki 搜索与阅读、模型管理。
+Python 包 `yuheng-mcp`（尚未发布到 PyPI，从 `mcp-server/` 源码安装），支持 stdio / SSE / HTTP 三种传输，工具覆盖：租户与知识库管理、文档导入（文件 / URL / 文本）、混合检索、RAG 问答（`chat`，每次调用自动创建会话）、分块管理、Wiki 搜索与阅读、模型管理。
 
 配置步骤（Claude Desktop 示例）：
 

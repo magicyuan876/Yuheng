@@ -6,9 +6,9 @@ Yuheng 支持从「一台笔记本」到「Kubernetes 集群」的多种部署�
 
 | 形态 | 入口 | 数据库 | 队列/流 | 适用场景 |
 | --- | --- | --- | --- | --- |
-| Docker Compose（标准） | `docker-compose.yml` | ParadeDB（PostgreSQL） | Redis + Asynq | 生产 / 团队自托管，推荐 |
+| Docker Compose（标准） | `docker-compose.yml` | ParadeDB（PostgreSQL） | Redis + Asynq | 团队自托管，推荐；镜像在本地构建 |
 | Docker Compose（开发） | `docker-compose.dev.yml` | 同上（仅基础设施进容器） | 同上 | 本地开发：app / frontend 在宿主机运行 |
-| Helm | `helm/` | ParadeDB（chart 内置） | Redis（chart 内置） | Kubernetes >= 1.25 |
+| Helm | `helm/` | ParadeDB（chart 内置） | Redis（chart 内置） | Kubernetes >= 1.25；镜像需自行构建并推送到自己的仓库 |
 
 ```mermaid
 flowchart TB
@@ -17,7 +17,8 @@ flowchart TB
         APP1 --> PG1[("postgres :5432")]
         APP1 --> RD1[("redis :6379")]
         APP1 --> DR1["docreader :50051"]
-        APP1 -. "profile 可选" .-> OPT1["neo4j / minio / searxng / langfuse / mcp ..."]
+        APP1 --> RF1[("rustfs :9000")]
+        APP1 -. "profile 可选" .-> OPT1["neo4j / searxng / langfuse / docs / mcp ..."]
     end
     subgraph dev["开发模式 (make dev-start)"]
         LOCALAPP["宿主机 go run app :8080"] --> PG2[("postgres 容器")]
@@ -36,45 +37,66 @@ flowchart TB
 
 ## 一、Docker Compose 标准部署（docker-compose.yml）
 
-最快路径：
+> **本版本不发布 Docker 镜像。** 下面的流程都是在本机从源码构建镜像；`docker compose pull` 拉不到 `magicyuan876/yuheng-*` 镜像，不要用。
+
+前置条件：带 Compose v2 的 Docker、Node.js + npm（前端静态产物要先在宿主机构建）、`git`。
 
 ```bash
-git clone https://github.com/magicyuan876/yuheng.git && cd Yuheng
-cp .env.example .env              # 编辑必填项：DB_USER/DB_PASSWORD/DB_NAME、REDIS_PASSWORD、JWT_SECRET、SYSTEM_AES_KEY
-make start-all                # 等价 ./scripts/start_all.sh（默认拉取最新镜像）
-# 或直接：
-docker compose pull           # 拉取与 YUHENG_VERSION 匹配的镜像
-docker compose up -d
+git clone https://github.com/magicyuan876/Yuheng.git && cd Yuheng
+cp .env.example .env
+```
+
+编辑 `.env`，必须替换的项：`JWT_SECRET`、`SYSTEM_AES_KEY`（示例值是公开的，值为空或仍是示例值时服务拒绝启动），并建议同时修改 `DB_PASSWORD`、`REDIS_PASSWORD`：
+
+```bash
+openssl rand -hex 32     # -> JWT_SECRET
+openssl rand -hex 16     # -> SYSTEM_AES_KEY：必须正好 32 字节，32 个十六进制字符即可
+```
+
+`SYSTEM_AES_KEY` 用来加密数据库里的 API Key 等凭据，丢失后这些数据无法恢复，请妥善保管。
+
+`.env.example` 里 `APK_MIRROR_ARG=mirrors.tencent.com` 与 `TZ=Asia/Shanghai` 是面向国内的默认值；在国外部署请清空前者、把 `TZ` 改成自己的时区。
+
+然后构建前端、构建并启动整套服务：
+
+```bash
+./scripts/build_frontend_dist.sh  # 先产出 frontend/dist，frontend 镜像的构建依赖它
+docker compose up -d --build      # 从源码构建 app / docreader / frontend 镜像并启动
 docker compose ps                 # 等所有服务变成 healthy/running
 ```
 
-停止用 `docker compose down`（加 `-v` 会连数据卷一起删，慎用）。仓库里的 `make start-all` 是同一条命令的封装（`scripts/start_all.sh`，额外做 Ollama 检查与 `.env` 兜底），两者选一即可。
+需要在线协同文档（collab + draw.io）时加上 profile：`docker compose --profile docs up -d --build`，并按 `.env.example` 的 K 节补全 `YUHENG_COLLAB_URL`、`YUHENG_COLLAB_SHARED_SECRET` 等配置。
 
-启动后在浏览器打开 `http://localhost` 就是前端（端口由 `FRONTEND_PORT` 决定，默认 80），首次访问会落到注册页。前端 Nginx 把 `/api/` 反代到后端，所以接口调用同样走 `http://localhost/api/v1`；后端 `8080` 端口也直接映射到宿主机，`curl http://localhost:8080/health` 可用于确认后端就绪。
+停止用 `docker compose down`（加 `-v` 会连数据卷一起删，慎用）。`make start-all`（`scripts/start_all.sh`）是另一种入口，会额外做 Ollama 检查与 `.env` 兜底，但它的默认行为是拉取镜像，本版本请直接用上面的命令。
+
+启动后在浏览器打开 `http://localhost` 就是前端（端口由 `FRONTEND_PORT` 决定，默认 80）。**全新部署没有默认账号：你注册的第一个账号自动成为系统管理员，之后公开注册关闭**（`DISABLE_REGISTRATION=false` 可让注册一直开放，详见[快速上手](./03-quickstart.md)）。前端 Nginx 把 `/api/` 反代到后端，所以接口调用同样走 `http://localhost/api/v1`；后端端口（`APP_PORT`，默认 8080）也映射到宿主机，`curl http://localhost:8080/health` 可用于确认后端就绪。
+
+默认情况下，除前端外，发布到宿主机的端口都只绑定在本机回环地址。要对局域网或公网提供服务，请在前端前面放一个带 TLS 的反向代理，并先换掉 `.env` 里的默认口令与 RustFS 的默认账号。
+
+首次问答之前还需要在「设置 → 模型管理」里配置至少一个对话模型和一个向量模型，见[快速上手](./03-quickstart.md)。
 
 > 注意：`docker-compose.yml` 的 app 服务使用 `env_file: [.env]`，`.env` 不存在会导致 compose 解析失败。`make docker-run` / `start_all.sh` 会自动 `cp .env.example .env` 或 `touch .env` 兜底。
 
 ### 版本升级
 
-若已有部署并下载了更新的 release：
+升级也是本地重新构建：更新源码后重新构建前端和镜像，再启动。**升级前先备份**——数据库迁移在启动时自动执行，其中有破坏性的迁移，无法回退。备份、恢复与升级步骤见 [备份与升级](./05-backup-and-upgrade.md)。
 
 ```bash
-# 在 .env 中将 YUHENG_VERSION 设为目标版本（如 0.1.0），或保持 latest
-docker compose pull
-docker compose up -d
+git pull
+./scripts/build_frontend_dist.sh
+docker compose up -d --build
 ```
-
-> 仅执行 `docker compose up -d` 会复用本地缓存镜像，可能导致 Web UI 显示版本与下载的 release 不一致。
 
 ### 核心服务（默认启动）
 
 | 服务 | 镜像 | 端口（宿主:容器） | 依赖 | 说明 |
 | --- | --- | --- | --- | --- |
-| `frontend` | `magicyuan876/yuheng-ui:${YUHENG_VERSION:-latest}` | `${FRONTEND_PORT:-80}:80` | app（healthy） | Nginx 托管 SPA 并反代到 app；`APP_HOST`/`APP_BACKEND_PORT`/`APP_SCHEME` 可指向远程后端 |
-| `app` | `magicyuan876/yuheng-app` | `${APP_PORT:-8080}:8080` | postgres（healthy）、redis、docreader（healthy） | Go 后端；挂载 `./config/config.yaml` 与 `data-files` 卷；健康检查 `GET /health` |
-| `docreader` | `magicyuan876/yuheng-docreader` | 仅 `expose: 50051`（不发布到宿主机） | — | 文档解析 gRPC 服务；健康检查 `grpc_health_probe`；与 app 共享 `docreader-tmp` 卷传递图片 |
+| `frontend` | 本地构建，标记为 `magicyuan876/yuheng-ui:${YUHENG_VERSION:-latest}` | `${FRONTEND_PORT:-80}:80` | app（healthy） | Nginx 托管 SPA 并反代到 app；`APP_HOST`/`APP_BACKEND_PORT`/`APP_SCHEME` 可指向远程后端 |
+| `app` | 本地构建 `magicyuan876/yuheng-app` | `${APP_PORT:-8080}:8080` | postgres（healthy）、redis、docreader（healthy） | Go 后端；挂载 `./config/config.yaml` 与 `data-files` 卷；健康检查 `GET /health` |
+| `docreader` | 本地构建 `magicyuan876/yuheng-docreader` | 仅 `expose: 50051`（不发布到宿主机） | — | 文档解析 gRPC 服务；健康检查 `grpc_health_probe`；与 app 共享 `docreader-tmp` 卷传递图片 |
 | `postgres` | `paradedb/paradedb:v0.22.2-pg17` | 不映射宿主端口 | — | ParadeDB = PostgreSQL 17 + BM25/向量扩展，默认检索引擎 |
 | `redis` | `redis:7.0-alpine` | 不映射宿主端口 | — | `--appendonly yes --requirepass ${REDIS_PASSWORD}` |
+| `rustfs` | `rustfs/rustfs`（按 digest 固定） | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | — | 默认文件存储（S3 兼容对象存储），详见下文「对象存储」；即使 `STORAGE_TYPE` 改用别处也会启动 |
 
 ### 可选服务与 profiles
 
@@ -85,7 +107,7 @@ docker compose up -d
 | profile | 服务 | 端口 | 用途 |
 | --- | --- | --- | --- |
 | `searxng`（含 `full`） | `searxng-init` + `searxng` | `127.0.0.1:8888`（`SEARXNG_BIND`/`SEARXNG_PORT`） | 自建 Web 搜索；默认仅绑定回环，公开前必须轮换 `SEARXNG_SECRET` |
-| `rustfs`（默认启动） | `rustfs` | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | S3 兼容对象存储（`STORAGE_TYPE=s3`），默认账号 `rustfsadmin/rustfsadmin`，详见下文「对象存储」 |
+| `docs` | `collab` + `drawio` | `${COLLAB_PORT:-1234}` / `${DRAWIO_PORT:-8087}` | 在线协同文档与 draw.io 绘图；需在 `.env` 补全 `YUHENG_COLLAB_*`（见 `.env.example` K 节） |
 | `neo4j`（含 `full`） | `neo4j` | 7474 / 7687 | 知识图谱（`NEO4J_ENABLE=true`），默认 `neo4j/password` |
 | `dex`（含 `full`） | `dex` | 5556 | OIDC 测试用 IdP（配置在 `misc/dex-config.yaml`） |
 | `langfuse`（含 `full`） | `langfuse-db-init`、`langfuse-clickhouse`、`langfuse-minio`、`langfuse-worker`、`langfuse-web` | 3000（UI）/ 9100/9101（专用 MinIO） | 自建 Langfuse 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
@@ -131,7 +153,7 @@ S3_ADDRESSING_STYLE=auto          # auto | path | virtual
 
 **使用自带的 RustFS（默认）**
 
-`docker compose up -d` 会一并启动 RustFS，应用默认连接它：端点 `http://rustfs:9000`、区域 `us-east-1`、桶 `yuheng`（首次使用时自动创建），凭证取自 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`。不需要在 `.env` 里另外配置存储。改用本机目录时设 `STORAGE_TYPE=local`；改用外部服务时设置 `S3_*`。
+`docker compose up -d --build` 会一并启动 RustFS，应用默认连接它：端点 `http://rustfs:9000`、区域 `us-east-1`、桶 `yuheng`（首次使用时自动创建），凭证取自 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`。不需要在 `.env` 里另外配置存储。改用本机目录时设 `STORAGE_TYPE=local`；改用外部服务时设置 `S3_*`。
 
 RustFS 服务的端口默认只绑定 `127.0.0.1`（`RUSTFS_BIND`、`RUSTFS_PORT`、`RUSTFS_CONSOLE_PORT` 可调），默认账号密码 `rustfsadmin/rustfsadmin` 只适合首次试用，上线前请通过 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` 更换。
 
@@ -181,7 +203,7 @@ make docker-build-frontend
 | `make start-all` / `stop-all` | 调 `scripts/start_all.sh` 启停整套服务（含 Ollama 检查、.env 兜底） |
 | `make start-ollama` / `start-docker` | 仅启动 Ollama / 仅启动 Docker 服务 |
 | `make docker-run` / `docker-stop` / `docker-restart` | 传统 `docker-compose up/down/restart`（自动兜底 `.env`） |
-| `make build-images*` / `clean-images` / `pull-images` | 源码构建 / 清理 / 拉取镜像 |
+| `make build-images*` / `clean-images` | 源码构建 / 清理镜像（`pull-images` 会去拉取镜像，本版本没有可拉取的镜像） |
 | `make check-env` / `list-containers` / `show-platform` | 环境检查（`scripts/check-env.sh` 校验 .env 必填变量与工具链）/ 容器列表 / 构建平台（自动识别 amd64/arm64） |
 | `make migrate-up` / `migrate-down` / `migrate-version` / `migrate-create name=x` / `migrate-force version=n` / `migrate-goto version=n` | 数据库迁移（`scripts/migrate.sh`；容器内默认 `AUTO_MIGRATE=true` 启动时自动迁移） |
 | `make dev-*` | 开发模式（见上文） |

@@ -15,7 +15,7 @@ Yuheng 的 `/auth/*` 端点本身**不需要 X-API-Key**，但部分端点需要
 | `/auth/refresh` | refresh_token（请求体携带） |
 | `/auth/validate` `/auth/me` `/auth/logout` `/auth/change-password` | Bearer JWT |
 
-注册接口可通过环境变量 `DISABLE_REGISTRATION=true` 关闭。
+注册接口默认只在系统还没有任何用户时开放（首个注册者成为系统管理员）；`DISABLE_REGISTRATION=true` 一直关闭，`DISABLE_REGISTRATION=false` 一直开放。
 
 ## 端点一览
 

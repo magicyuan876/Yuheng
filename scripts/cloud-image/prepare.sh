@@ -6,7 +6,7 @@
 # 可调环境变量:
 #   YUHENG_REF              要拉取的 git ref (tag / branch / commit), 默认 main
 #   YUHENG_DIR              部署目录, 默认 /opt/Yuheng
-#   YUHENG_REPO             仓库地址, 默认 https://github.com/magicyuan876/yuheng
+#   YUHENG_REPO             仓库地址, 默认 https://github.com/magicyuan876/Yuheng
 #   YUHENG_GH_PROXY         GitHub 加速前缀, 默认空。中国大陆机器可设
 #                            https://gh-proxy.com/ 或 https://ghfast.top/
 #                            (实际下载地址变成 ${YUHENG_GH_PROXY}${YUHENG_REPO}/archive/...)
@@ -29,7 +29,7 @@ set -euo pipefail
 
 YUHENG_REF="${YUHENG_REF:-main}"
 YUHENG_DIR="${YUHENG_DIR:-/opt/Yuheng}"
-YUHENG_REPO="${YUHENG_REPO:-https://github.com/magicyuan876/yuheng}"
+YUHENG_REPO="${YUHENG_REPO:-https://github.com/magicyuan876/Yuheng}"
 YUHENG_GH_PROXY="${YUHENG_GH_PROXY:-}"
 DOCKER_INSTALL_MIRROR="${DOCKER_INSTALL_MIRROR:-}"
 DOCKER_REGISTRY_MIRROR="${DOCKER_REGISTRY_MIRROR:-}"

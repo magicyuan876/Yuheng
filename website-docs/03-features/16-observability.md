@@ -10,16 +10,6 @@
 | 服务是否存活 | `GET /health` |
 | 一次请求在各服务的日志里怎么串起来 | 按响应头里的 `X-Request-ID` 检索日志 |
 
-<Screenshot
-  src="/screenshots/queue-dashboard.png"
-  caption="运行时任务队列：各队列的积压、失败与重试情况"
-  hint="展示队列面板，含队列名、待处理/进行中/失败数量与死信任务操作入口。" />
-
-<Screenshot
-  src="/screenshots/observability-langfuse.png"
-  caption="Langfuse 追踪：一次问答的完整调用链"
-  hint="展示 Langfuse 中一条 trace 的展开视图，含检索、重排、生成各 span 与 token 用量。" />
-
 下面按日志、追踪、审计、限流、健康检查逐项展开。
 
 ## 1. 可观测性数据流总览

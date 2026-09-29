@@ -52,7 +52,7 @@ flowchart TB
 `cli/README.md` 明确说明：**从源码构建是目前受支持的安装方式**；预编译二进制、`go install`、CLI 的 Homebrew formula 计划随正式 tag 发布一同提供。
 
 ```bash
-git clone https://github.com/magicyuan876/yuheng.git
+git clone https://github.com/magicyuan876/Yuheng.git
 cd Yuheng/cli
 go build -o yuheng .
 sudo mv yuheng /usr/local/bin/   # 或放到任意 $PATH 目录

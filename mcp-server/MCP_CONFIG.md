@@ -2,7 +2,7 @@
 
 > 更推荐使用`uv`来运行基于python的MCP服务。
 >
-> 发布到 PyPI 后可通过 `pip install yuheng-mcp` 安装，或使用 `uvx --from yuheng-mcp yuheng-mcp-server`。**包名 `yuheng-mcp` 目前尚未发布**，在此之前请用源码方式运行。
+> `yuheng-mcp` 目前**没有发布到 PyPI**，请从本仓库源码安装（`pip install .`）。
 
 ## 1. 安装 uv
 

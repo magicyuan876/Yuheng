@@ -22,7 +22,7 @@ Fixes #
 <!-- Describe how these changes were tested. Include reproduction or verification steps. -->
 <!--
 For a focused change, run checks scoped to the files/packages you changed.
-See the Contributing section in README.md for examples. If a full-repository
+See CONTRIBUTING.md for the checks each area expects. If a full-repository
 check is blocked by unrelated baseline or environment failures, record the
 exact command and failure here.
 -->

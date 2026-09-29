@@ -57,9 +57,9 @@ body:
       label: Other Environment Info
       description: Please provide other relevant environment information
       placeholder: |
-        - Yuheng App Version: [concrete version from Settings → System Info, e.g., v0.6.0 — NOT "latest"]
-        - Yuheng UI Version: [concrete version from Settings → System Info, e.g., v0.6.0]
-        - Deployment: [e.g., Docker, build from source]
+        - Yuheng App Version: [concrete version from Settings → System Info, e.g., v0.1.0 — NOT "latest"]
+        - Yuheng UI Version: [concrete version from Settings → System Info, e.g., v0.1.0]
+        - Deployment: [e.g., Docker Compose built locally, build from source]
         - Other relevant info...
 
   - type: markdown
@@ -87,7 +87,7 @@ body:
       label: Resources Already Checked
       description: List the docs, issues or other resources you've already checked
       placeholder: |
-        - Docs checked: [e.g., README.md, API.md]
+        - Docs checked: [e.g., README.md, website-docs, docs/QA.md]
         - Issues checked: [e.g., #123, #456]
         - Other resources: [e.g., official docs, Stack Overflow]
 

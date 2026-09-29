@@ -91,7 +91,7 @@ Lighthouse 的镜像可以「共享给 CVM」，转成 CVM 自定义镜像后即
 7. 提交审核（云市场运营人员审核约 7 个工作日）
 8. 审核通过后，用户在云市场或购买 CVM 时即可选到你的镜像
 
-> Yuheng 是独立项目，与云平台方没有隶属关系，上架云市场需要以本项目自身的名义申请。相关讨论请提到 [Yuheng GitHub Issues](https://github.com/magicyuan876/yuheng/issues)。
+> Yuheng 是独立项目，与云平台方没有隶属关系，上架云市场需要以本项目自身的名义申请。相关讨论请提到 [Yuheng GitHub Issues](https://github.com/magicyuan876/Yuheng/issues)。
 
 ## 注意事项
 

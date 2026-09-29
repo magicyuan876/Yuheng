@@ -5,7 +5,7 @@ Yuheng MCP Server Package
 A Model Context Protocol server that provides access to the Yuheng knowledge management API.
 """
 
-__version__ = "1.1.1"
+__version__ = "0.1.0"
 __author__ = "Yuheng Team"
 __description__ = "Yuheng MCP Server - Model Context Protocol server for Yuheng API"
 

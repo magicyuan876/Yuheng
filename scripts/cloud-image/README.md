@@ -1,7 +1,9 @@
 # Yuheng 云镜像打包脚本（Cloud-Agnostic）
 
+> **说明：本目录的脚本面向腾讯云轻量应用服务器（Tencent Lighthouse）/ CVM 的镜像制作流程，其他平台需要自行改造。首个版本不发布 Docker 镜像，`prepare.sh` 里的 `docker compose pull` 拉不到镜像，也仍引用已移除的 Agent Skills sandbox 服务，使用前需要先自行改成本地构建，因此这套流程目前未经验证。**
+
 > **本文档面向「想把 Yuheng 打包成云镜像（AMI / 自定义镜像 / Snapshot）分发给其他人」的用户。**
-> **如果你只是想自己用 Yuheng，请直接看主仓 [README](../../README.md)，`docker compose up -d` 即可。**
+> **如果你只是想自己用 Yuheng，请直接看主仓 [README](../../README.md) 的 Getting started（本地构建并 `docker compose up -d --build`）。**
 
 ## 这套脚本能做什么
 
@@ -131,7 +133,7 @@ sudo -i      # 切到 root, 后续命令直接执行
 # 不通时设 GH_PROXY=https://gh-proxy.com/ 或 https://ghfast.top/, 注意末尾斜杠。
 GH_PROXY="${GH_PROXY:-}"
 mkdir -p /opt/yuheng-tools && cd /opt/yuheng-tools
-git init -q && git remote add origin "${GH_PROXY}https://github.com/magicyuan876/yuheng.git"
+git init -q && git remote add origin "${GH_PROXY}https://github.com/magicyuan876/Yuheng.git"
 git config core.sparseCheckout true
 echo "scripts/cloud-image/" >> .git/info/sparse-checkout
 git pull -q --depth=1 origin main

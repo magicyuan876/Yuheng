@@ -17,8 +17,12 @@ body:
         - Frontend UI
         - Backend Service & API
         - Document Reader Service
-        - Vector Database
+        - Retrieval & Database (PostgreSQL / ParadeDB)
         - Model Service
+        - Data Source Connectors
+        - Wiki
+        - Collaborative Docs
+        - MCP Server / CLI / Go SDK
         - Other
     validations:
       required: true
@@ -71,7 +75,7 @@ body:
         Please provide the concrete version number you are running, **not** `latest`, `main` or `master`.
         You can find it on the **Settings → System Info** page (both "App Version" and "UI Version" — if they differ, please report both).
         If you built from source, include the commit SHA instead.
-      placeholder: "e.g., App Version: v0.6.0, UI Version: v0.6.0 (or commit abc1234)"
+      placeholder: "e.g., App Version: v0.1.0, UI Version: v0.1.0 (or commit abc1234)"
     validations:
       required: true
 
@@ -81,10 +85,8 @@ body:
       label: Deployment Method
       description: How are you running Yuheng?
       options:
-        - Docker Compose
+        - Docker Compose (images built locally)
         - Build from source
-        - Lite (single binary)
-        - Desktop app
         - Kubernetes (Helm)
         - Other
     validations:
@@ -110,7 +112,7 @@ body:
           ```bash
           docker compose logs -f --tail=1000 app docreader postgres
           ```
-        - Lite / Desktop / build from source: include the console output or log files (e.g., `logs/*.log`).
+        - Build from source: include the console output or log files (e.g., `logs/*.log`).
 
   - type: textarea
     id: logs

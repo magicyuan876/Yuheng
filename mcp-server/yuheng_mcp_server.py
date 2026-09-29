@@ -526,7 +526,7 @@ class YuhengClient:
 # Initialize MCP server instance (mcp 2.x high-level API).
 # MCPServer (formerly FastMCP) builds input schemas from function type hints
 # and serializes plain return values automatically.
-mcp = MCPServer("yuheng-server", version="1.1.1")
+mcp = MCPServer("yuheng-server", version="0.1.0")
 # Initialize Yuheng API client with configuration
 client = YuhengClient(YUHENG_BASE_URL, YUHENG_API_KEY)
 

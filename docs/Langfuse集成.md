@@ -1,6 +1,6 @@
 # Langfuse 集成
 
-Yuheng 内置了对 [Langfuse](https://langfuse.com) 的轻量级集成，用于统计 token 消耗、追踪 LLM 调用链路、并为每个对话生成可在 Langfuse 控制台查看的 trace。该集成解决 issue [#497](https://github.com/magicyuan876/yuheng/issues/497)（token 使用量统计）和 discussion [#620](https://github.com/magicyuan876/yuheng/discussions/620)（接入 Langfuse）。
+Yuheng 内置了对 [Langfuse](https://langfuse.com) 的轻量级集成，用于统计 token 消耗、追踪 LLM 调用链路、并为每个对话生成可在 Langfuse 控制台查看的 trace。该集成解决 issue [#497](https://github.com/magicyuan876/Yuheng/issues/497)（token 使用量统计）和 discussion [#620](https://github.com/magicyuan876/Yuheng/discussions/620)（接入 Langfuse）。
 
 ## 1. 特性
 

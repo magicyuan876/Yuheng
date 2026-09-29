@@ -140,7 +140,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases/kb-00000001/knowle
 --header 'X-API-Key: sk-xxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
-    "url": "https://github.com/magicyuan876/yuheng",
+    "url": "https://github.com/magicyuan876/Yuheng",
     "enable_multimodel": true
 }'
 ```
@@ -169,7 +169,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases/kb-00000001/knowle
         "type": "url",
         "title": "",
         "description": "",
-        "source": "https://github.com/magicyuan876/yuheng",
+        "source": "https://github.com/magicyuan876/Yuheng",
         "channel": "web",
         "tag_id": "",
         "summary_status": "none",
@@ -303,7 +303,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases/kb-00000001/knowle
             "type": "url",
             "title": "",
             "description": "",
-            "source": "https://github.com/magicyuan876/yuheng",
+            "source": "https://github.com/magicyuan876/Yuheng",
             "channel": "web",
             "tag_id": "tag-00000001",
             "summary_status": "none",
@@ -475,7 +475,7 @@ curl --location 'http://localhost:8080/api/v1/knowledge/batch?ids=9c8af585-ae15-
             "knowledge_base_id": "kb-00000001",
             "type": "url",
             "title": "",
-            "source": "https://github.com/magicyuan876/yuheng",
+            "source": "https://github.com/magicyuan876/Yuheng",
             "parse_status": "pending",
             "enable_status": "disabled",
             "created_at": "2025-08-12T11:55:05.709266+08:00",

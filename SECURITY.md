@@ -1,46 +1,43 @@
 # Security Policy
 
-## Reporting a Vulnerability
+Yuheng is maintained by one person. Reports are handled on a best-effort basis
+and this policy makes no service-level promise.
 
-The Yuheng team takes security vulnerabilities seriously.  
-We appreciate your efforts to responsibly disclose any security issues you discover.
+## Supported versions
 
-⚠️ **Please do NOT report security vulnerabilities through public GitHub issues.**
+Yuheng is a 0.x preview. Security fixes go into the latest release and the
+`main` branch only.
 
-### Preferred reporting method
+## Reporting a vulnerability
 
-We recommend reporting security vulnerabilities using GitHub’s private vulnerability reporting feature:
+**Please do not report security vulnerabilities through public GitHub issues,
+discussions or pull requests.**
 
-1. Go to the **Security** tab of this repository
-2. Click **“Report a vulnerability”**
-3. Fill in the details and submit the report
+Use GitHub's private vulnerability reporting:
 
-This allows us to discuss, investigate, and fix the issue privately.
+1. Open the **Security** tab of this repository.
+2. Click **Report a vulnerability**.
+3. Describe the problem and submit.
 
-### Alternative contact
+<!-- Maintainer: private vulnerability reporting must be enabled for this to work
+     (repository Settings > Code security > Private vulnerability reporting).
+     There is no other reporting channel. -->
 
-If you are unable to use GitHub’s Security Advisory feature, you may contact the maintainers through the repository owners.
+If the button is not there, private vulnerability reporting has not been
+enabled on the repository yet. Open a public issue that says only that you
+have a security report and would like a private channel, without any details
+of the vulnerability.
 
-> Please avoid sharing sensitive information publicly.
-
-### What to include in your report
-
-To help us understand and resolve the issue quickly, please include:
+### What to include
 
 - A clear description of the vulnerability
-- Steps to reproduce (proof-of-concept if available)
-- The affected version(s)
-- Potential impact and severity
-- Any suggested mitigations or fixes (if known)
+- Steps to reproduce (a proof of concept if you have one)
+- The affected version or commit
+- The impact you expect
+- A suggested fix, if you have one
 
-### Response timeline
+### What to expect
 
-We aim to:
-- Acknowledge receipt of your report within **48 hours**
-- Provide a status update as the investigation progresses
-
-### Coordinated disclosure
-
-We kindly ask reporters to follow responsible disclosure practices and allow us reasonable time to address the issue before any public disclosure.
-
-Thank you for helping keep **Yuheng** and its users secure.
+The maintainer will read the report, reproduce it, and reply in the private
+thread with a status. Please allow reasonable time for a fix before any
+public disclosure; we will credit you in the release notes if you wish.

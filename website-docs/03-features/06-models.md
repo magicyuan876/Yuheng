@@ -2,11 +2,6 @@
 
 Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和问答上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
 
-<Screenshot
-  src="/screenshots/settings-models.png"
-  caption="模型设置：按类型管理已添加的模型"
-  hint="展示模型列表（名称、类型、来源、默认标记）与「添加模型」表单，含连通性测试结果。" />
-
 添加模型时注意两点：
 
 - **向量模型选定后别再换**。它决定索引里向量的含义与维度，换了之后老数据检索不到，必须重建索引；
@@ -243,11 +238,11 @@ builtin_models:
 
 2. **模型调试器**（`POST /models/:id/debug`，`ModelHandler.DebugModel`）：对已保存模型按类型发起真实调用并返回完整归一化响应——Chat 走流式并聚合 `stream_events` / thinking 观测项；Embedding 返回向量与维度；Rerank 返回打分结果；VLM / ASR 接受上传文件。响应含 `elapsed_ms`、脱敏后的请求预览（`redactedDebugConfig` 隐去 secret/token/api_key 类字段）与 `observations`。
 
-## rerank_server_demo.py 的用途
+## 自托管 Rerank 服务的协议
 
-仓库根目录的 `rerank_server_demo.py` 是一个**自托管 Rerank 服务的最小参考实现**：FastAPI + HuggingFace `AutoModelForSequenceClassification`，暴露 `POST /rerank`，请求体 `{query, documents}`，返回 `{"results": [{index, document: {text}, score}]}`。
+任何私有 Rerank 服务只要实现如下最小协议，就可以以 `generic` provider 接入 Yuheng：暴露 `POST /rerank`，请求体 `{query, documents}`，返回 `{"results": [{index, document: {text}, score}]}`。
 
-它故意把打分字段命名为 `score` 而非 `relevance_score`，用于验证 Go 客户端的兼容性——`internal/models/rerank/reranker.go` 中 `RankResult.UnmarshalJSON` 会优先读取 `relevance_score`，缺失时回退到 `score`；`DocumentInfo.UnmarshalJSON` 同时兼容字符串与 `{text}` 对象两种格式。因此任何按此协议实现的私有 rerank 服务都可以以 `generic` provider 接入 Yuheng。
+Go 客户端对返回格式做了宽松兼容（`internal/models/rerank/reranker.go`）：`RankResult.UnmarshalJSON` 优先读取 `relevance_score`，缺失时回退到 `score`；`DocumentInfo.UnmarshalJSON` 同时兼容字符串与 `{text}` 对象两种格式。
 
 ## 模型用量统计
 
