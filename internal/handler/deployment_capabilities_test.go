@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -55,17 +54,16 @@ func readFrontendDeploymentCapabilityKeys() ([]string, error) {
 		return nil, os.ErrInvalid
 	}
 
+	// Take the string literals themselves rather than trimming lines. Trimming
+	// broke twice on formatting alone: a Windows checkout's "\r" line endings
+	// kept the trailing comma, and when Prettier moved the file from single to
+	// double quotes every key came back still wrapped in quotes. A literal is
+	// either quote style; line breaks, commas and the `as const` around it
+	// no longer matter.
+	literal := regexp.MustCompile(`'([^']*)'|"([^"]*)"`)
 	var keys []string
-	for _, line := range strings.Split(string(match[1]), "\n") {
-		// TrimSpace first: on a Windows checkout with core.autocrlf=true the
-		// line ends in "\r", which left the trailing comma un-trimmed and made
-		// every key come back as "organizations'," instead of "organizations".
-		line = strings.TrimRight(strings.TrimSpace(line), ",")
-		if line == "" {
-			continue
-		}
-		line = strings.Trim(line, `'`)
-		keys = append(keys, line)
+	for _, m := range literal.FindAllSubmatch(match[1], -1) {
+		keys = append(keys, string(m[1])+string(m[2]))
 	}
 	return keys, nil
 }
