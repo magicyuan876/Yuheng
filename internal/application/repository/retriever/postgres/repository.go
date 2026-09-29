@@ -534,6 +534,8 @@ func (g *pgRepository) CopyIndices(ctx context.Context,
 
 		// Create target vector index
 		targetVectors := make([]*pgVector, 0, batchCount)
+		// Rows to switch off again once inserted; see below.
+		var disabledSourceIDs []string
 		for _, sourceVector := range sourceVectors {
 			// Get the mapped target chunk ID
 			targetChunkID, ok := sourceToTargetChunkIDMap[sourceVector.ChunkID]
@@ -572,24 +574,43 @@ func (g *pgRepository) CopyIndices(ctx context.Context,
 			}
 
 			// Create new vector index, copy the content and vector of the source index
-			targetVector := &pgVector{
+			targetVectors = append(targetVectors, &pgVector{
 				Content:         sourceVector.Content,
 				SourceID:        targetSourceID, // Handle SourceID transformation properly
 				SourceType:      sourceVector.SourceType,
 				ChunkID:         targetChunkID,         // Update to target chunk ID
 				KnowledgeID:     targetKnowledgeID,     // Update to target knowledge ID
 				KnowledgeBaseID: targetKnowledgeBaseID, // Update to target knowledge base ID
-				Dimension:       sourceVector.Dimension,
-				Embedding:       sourceVector.Embedding, // Copy the vector embedding directly, avoid recalculation
+				// The tag travels with the row, or a copied FAQ entry loses it.
+				TagID:     sourceVector.TagID,
+				Dimension: sourceVector.Dimension,
+				Embedding: sourceVector.Embedding, // Copy the vector embedding directly, avoid recalculation
+			})
+			if !sourceVector.IsEnabled {
+				disabledSourceIDs = append(disabledSourceIDs, targetSourceID)
 			}
-
-			targetVectors = append(targetVectors, targetVector)
 		}
 
 		// Batch insert target vector index
 		if len(targetVectors) > 0 {
-			if err := g.db.WithContext(ctx).
-				Clauses(clause.OnConflict{DoNothing: true}).Create(targetVectors).Error; err != nil {
+			// is_enabled has `default:true`, and GORM replaces a struct field's zero
+			// value (false) with the default even when the column is selected, so
+			// the insert cannot carry "disabled". Inserting a map instead trips a
+			// GORM panic with ON CONFLICT. So the rows are inserted as enabled and
+			// the ones that were disabled at the source are switched off again, in
+			// the same transaction: a copy of a disabled FAQ entry must not come
+			// back enabled.
+			if err := g.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+				if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(targetVectors).Error; err != nil {
+					return err
+				}
+				if len(disabledSourceIDs) == 0 {
+					return nil
+				}
+				return tx.Model(&pgVector{}).
+					Where("knowledge_base_id = ? AND source_id IN ?", targetKnowledgeBaseID, disabledSourceIDs).
+					Update("is_enabled", false).Error
+			}); err != nil {
 				logger.GetLogger(ctx).Errorf("[Postgres] Failed to batch create target index: %v", err)
 				return err
 			}
