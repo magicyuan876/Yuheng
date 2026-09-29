@@ -9,8 +9,8 @@ import (
 	"fmt"
 )
 
-// JSON is a raw JSON column. It stores as text so the same model works on
-// Postgres (JSONB) and SQLite (TEXT); nil stores as SQL NULL.
+// JSON is a raw JSON column, stored as JSONB. It is handed to the driver as
+// text, which Postgres parses into JSONB; nil stores as SQL NULL.
 type JSON json.RawMessage
 
 // Value implements driver.Valuer.

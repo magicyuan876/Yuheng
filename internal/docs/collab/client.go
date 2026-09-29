@@ -17,9 +17,9 @@ import (
 // restore, AI write-back) or to drop its connections (deletion, permission
 // change).
 //
-// A nil Client means "no collaboration service configured" (the Lite
-// edition); every method then reports ErrNotConfigured so callers can fall
-// back to the exclusive-edit path instead of failing the request.
+// A nil Client means "no collaboration service configured"; every method
+// then reports ErrNotConfigured so callers can fall back to the exclusive-edit
+// path instead of failing the request.
 type Client struct {
 	baseURL string
 	secret  string

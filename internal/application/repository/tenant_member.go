@@ -18,10 +18,9 @@ import (
 // semantic; just kept separate so the repo doesn't import service).
 var ErrLastOwner = errors.New("repository: last active owner")
 
-// forUpdateClause returns the gorm SELECT ... FOR UPDATE clause. Kept
-// in one place so we can swap it out for `clause.Locking{Strength: "UPDATE"}`
-// on databases that don't support row-level locking (none in our matrix,
-// but keeps the seam if SQLite-lite ever needs a no-op).
+// forUpdateClause returns the gorm SELECT ... FOR UPDATE clause, kept in one
+// place so every membership read that must serialise with a concurrent
+// writer locks the same way.
 func forUpdateClause() clause.Expression {
 	return clause.Locking{Strength: "UPDATE"}
 }

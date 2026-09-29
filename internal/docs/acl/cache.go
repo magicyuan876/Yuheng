@@ -29,8 +29,8 @@ type memEntry struct {
 	gen     uint64
 }
 
-// MemoryCache is a process-local Cache: right for the Lite edition and for a
-// single-instance deployment. Multi-instance deployments must use RedisCache,
+// MemoryCache is a process-local Cache: right for a single-instance
+// deployment. Multi-instance deployments must use RedisCache,
 // otherwise instance B keeps serving a decision instance A invalidated.
 type MemoryCache struct {
 	mu      sync.Mutex

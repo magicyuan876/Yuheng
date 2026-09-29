@@ -4,16 +4,12 @@
 // a caller can never reach another tenant's rows by guessing an ID. Soft
 // deletion is explicit (deleted_at), not GORM's automatic scope, so that
 // trash listing and restore can reason about it.
-//
-// The same implementation serves Postgres and SQLite; dialect differences are
-// confined to a handful of helpers in this file.
 package repository
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,34 +96,21 @@ func (r *Repositories) DB() *gorm.DB { return r.db }
 func NewID() string { return uuid.NewString() }
 
 // now returns the wall clock truncated to microseconds, the finest precision
-// both dialects round-trip identically.
+// a Postgres timestamp stores, so a value round-trips unchanged.
 func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }
 
-// isUniqueViolation recognises a unique-constraint failure on either dialect.
+// isUniqueViolation recognises a unique-constraint failure (SQLSTATE 23505).
 func isUniqueViolation(err error) bool {
-	if err == nil {
-		return false
-	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "UNIQUE constraint failed") || strings.Contains(msg, "constraint failed: UNIQUE")
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-// isForeignKeyViolation recognises a missing referenced row on either dialect.
+// isForeignKeyViolation recognises a missing referenced row (SQLSTATE 23503).
 // Derived rows such as links are written optimistically; a target that has just
 // been deleted means the reference does not exist, not that the save failed.
 func isForeignKeyViolation(err error) bool {
-	if err == nil {
-		return false
-	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23503"
-	}
-	return strings.Contains(err.Error(), "FOREIGN KEY constraint failed")
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }
 
 func translateWriteError(err error) error {

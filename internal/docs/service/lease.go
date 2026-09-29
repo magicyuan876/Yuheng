@@ -15,15 +15,14 @@ import (
 )
 
 // LeaseService is how a page is edited when no collaboration service is
-// configured — the Lite edition, and any deployment that leaves
-// YUHENG_COLLAB_URL empty.
+// configured, that is in any deployment that leaves YUHENG_COLLAB_URL empty.
 //
-// The editor is the same one the standard edition runs: the same Tiptap
+// The editor is the same one collaborative deployments run: the same Tiptap
 // extensions over the same Yjs document. Only the transport changes. Instead
 // of a WebSocket that merges everyone's updates, one editor at a time holds a
 // short lease on the page and posts the whole Yjs state over REST; everybody
 // else reads. That is a real limitation, and it is deliberate: merging CRDT
-// updates needs a process this edition does not have, and silently letting two
+// updates needs a process such a deployment does not have, and silently letting two
 // people write would lose one of them. A lease makes the limitation visible
 // instead.
 //
@@ -77,7 +76,7 @@ type LeaseView struct {
 type YDocView struct {
 	PageID string `json:"page_id"`
 	// YDoc is the Yjs state, base64 so it fits the JSON envelope every other
-	// endpoint uses. Lite pages are small; a binary body is not worth a
+	// endpoint uses. Pages are small; a binary body is not worth a
 	// second response shape.
 	YDoc string `json:"ydoc,omitempty"`
 	// Content is the ProseMirror body to materialise a Yjs document from.

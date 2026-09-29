@@ -53,16 +53,10 @@ func (r *chunkRepository) CreateChunks(ctx context.Context, chunks []*types.Chun
 
 	db := r.db.WithContext(ctx)
 
-	// SQLite doesn't support autoIncrement on non-PK columns,
-	// so we must pre-assign SeqIDs manually (safe: single connection).
-	// PostgreSQL / MySQL use DB sequences — skip to avoid duplicate key
-	// races under concurrent inserts.
-	if db.Dialector.Name() == "sqlite" {
-		if err := types.AssignChunkSeqIDs(db, chunks); err != nil {
-			return fmt.Errorf("failed to assign chunk seq_ids: %w", err)
-		}
-	}
-
+	// seq_id comes from the chunks_seq_id_seq column default; it is never
+	// assigned here, since pre-computing it would race concurrent inserts
+	// into duplicate keys.
+	//
 	// Select("*") ensures zero-value fields (IsEnabled=false, Flags=0) are
 	// explicitly inserted, bypassing GORM's default value behavior.
 	// SeqID=0 is skipped by GORM automatically (autoIncrement tag).
@@ -216,41 +210,20 @@ func (r *chunkRepository) ListPagedChunksByKnowledgeID(
 				return db
 			}
 
-			// FAQ type: search based on searchField
-			// 根据数据库类型使用不同的 JSON 查询语法
-			isPostgres := db.Dialector.Name() == "postgres"
-
+			// FAQ type: search based on searchField, in the JSONB metadata.
 			switch searchField {
 			case "standard_question":
 				// Search only in standard_question field of metadata
-				if isPostgres {
-					db = db.Where("metadata->>'standard_question' ILIKE ?", like)
-				} else {
-					// MySQL: metadata->>'$.standard_question' (MySQL 5.7.13+)
-					// 也可以用 JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.standard_question'))
-					db = db.Where("metadata->>'$.standard_question' LIKE ?", like)
-				}
+				db = db.Where("metadata->>'standard_question' ILIKE ?", like)
 			case "similar_questions":
 				// Search in similar_questions array of metadata
-				if isPostgres {
-					db = db.Where("(metadata->'similar_questions')::text ILIKE ?", like)
-				} else {
-					db = db.Where("JSON_EXTRACT(metadata, '$.similar_questions') LIKE ?", like)
-				}
+				db = db.Where("(metadata->'similar_questions')::text ILIKE ?", like)
 			case "answers":
 				// Search in answers array of metadata
-				if isPostgres {
-					db = db.Where("(metadata->'answers')::text ILIKE ?", like)
-				} else {
-					db = db.Where("JSON_EXTRACT(metadata, '$.answers') LIKE ?", like)
-				}
+				db = db.Where("(metadata->'answers')::text ILIKE ?", like)
 			default:
 				// Search in all fields (content and metadata)
-				if isPostgres {
-					db = db.Where("(content ILIKE ? OR metadata::text ILIKE ?)", like, like)
-				} else {
-					db = db.Where("(content LIKE ? OR CAST(metadata AS CHAR) LIKE ?)", like, like)
-				}
+				db = db.Where("(content ILIKE ? OR metadata::text ILIKE ?)", like, like)
 			}
 		}
 		return db
@@ -475,46 +448,23 @@ func (r *chunkRepository) UpdateChunks(ctx context.Context, chunks []*types.Chun
 		args = append(args, id)
 	}
 
-	isPostgres := r.db.Dialector.Name() == "postgres"
-
-	var sql string
-	if isPostgres {
-		sql = fmt.Sprintf(`
-			UPDATE chunks SET
-				content = CASE %s END,
-				is_enabled = (CASE %s END)::boolean,
-				tag_id = CASE %s END,
-				flags = (CASE %s END)::integer,
-				status = (CASE %s END)::integer,
-				updated_at = NOW()
-			WHERE id IN (%s)
-		`,
-			strings.Join(contentCases, " "),
-			strings.Join(isEnabledCases, " "),
-			strings.Join(tagIDCases, " "),
-			strings.Join(flagsCases, " "),
-			strings.Join(statusCases, " "),
-			strings.Join(inPlaceholders, ","),
-		)
-	} else {
-		sql = fmt.Sprintf(`
-			UPDATE chunks SET
-				content = CASE %s END,
-				is_enabled = CASE %s END,
-				tag_id = CASE %s END,
-				flags = CASE %s END,
-				status = CASE %s END,
-				updated_at = datetime('now')
-			WHERE id IN (%s)
-		`,
-			strings.Join(contentCases, " "),
-			strings.Join(isEnabledCases, " "),
-			strings.Join(tagIDCases, " "),
-			strings.Join(flagsCases, " "),
-			strings.Join(statusCases, " "),
-			strings.Join(inPlaceholders, ","),
-		)
-	}
+	sql := fmt.Sprintf(`
+		UPDATE chunks SET
+			content = CASE %s END,
+			is_enabled = (CASE %s END)::boolean,
+			tag_id = CASE %s END,
+			flags = (CASE %s END)::integer,
+			status = (CASE %s END)::integer,
+			updated_at = NOW()
+		WHERE id IN (%s)
+	`,
+		strings.Join(contentCases, " "),
+		strings.Join(isEnabledCases, " "),
+		strings.Join(tagIDCases, " "),
+		strings.Join(flagsCases, " "),
+		strings.Join(statusCases, " "),
+		strings.Join(inPlaceholders, ","),
+	)
 
 	return r.db.WithContext(ctx).Exec(sql, args...).Error
 }
@@ -744,7 +694,7 @@ func (r *chunkRepository) ListAllFAQChunksWithMetadataByKnowledgeBaseID(
 
 // FindFAQChunkWithDuplicateQuestion finds a single FAQ chunk whose standard_question or
 // similar_questions overlap with the given question list.
-// Uses dialect-specific JSON queries (MySQL / PostgreSQL / SQLite).
+// Uses dialect-specific JSON queries; any other dialect is refused.
 func (r *chunkRepository) FindFAQChunkWithDuplicateQuestion(
 	ctx context.Context,
 	tenantID uint64,
@@ -792,14 +742,11 @@ func (r *chunkRepository) FindFAQChunkWithDuplicateQuestion(
 				"COALESCE(metadata->'similar_questions', '[]'::jsonb)) elem "+
 				"WHERE elem.value IN ?))",
 			questions, questions)
-	default: // sqlite
-		db = db.Where(
-			"(json_extract(metadata, '$.standard_question') IN ? OR EXISTS ("+
-				"SELECT 1 FROM json_each("+
-				"CASE WHEN json_extract(metadata, '$.similar_questions') IS NOT NULL "+
-				"THEN json_extract(metadata, '$.similar_questions') ELSE '[]' END) "+
-				"WHERE value IN ?))",
-			questions, questions)
+	default:
+		// Refuse rather than run a query written for another engine: an
+		// unrecognised dialect would otherwise fail in the database or, worse,
+		// match nothing and let a duplicate question through.
+		return nil, fmt.Errorf("find duplicate FAQ question: unsupported database dialect %q", r.db.Name())
 	}
 
 	var chunk types.Chunk
@@ -918,18 +865,14 @@ func (r *chunkRepository) UpdateChunkFlagsBatch(
 		inPlaceholders[i] = "?"
 	}
 
-	nowFunc := "NOW()"
-	if r.db.Dialector.Name() == "sqlite" {
-		nowFunc = "datetime('now')"
-	}
 	sql := fmt.Sprintf(`
 	UPDATE chunks
     SET flags = (flags | (%s)) & ~(%s),
-        updated_at = %s
+        updated_at = NOW()
     WHERE tenant_id = ?
       AND knowledge_base_id = ?
       AND id IN (%s)
-`, setExpr, clearExpr, nowFunc, strings.Join(inPlaceholders, ","))
+`, setExpr, clearExpr, strings.Join(inPlaceholders, ","))
 
 	args = append(args, tenantID, kbID)
 	for _, id := range allIDs {
@@ -1297,14 +1240,9 @@ func (r *chunkRepository) ListRecentDocumentChunksWithQuestions(
 			Find(&chunks).Error; err != nil {
 			return nil, err
 		}
-	default: // sqlite
-		if err := baseQuery.
-			Where("metadata IS NOT NULL AND json_array_length(json_extract(metadata, '$.generated_questions')) > 0").
-			Order(orderClause).
-			Limit(limit).
-			Find(&chunks).Error; err != nil {
-			return nil, err
-		}
+	default:
+		// Refuse rather than run a query written for another engine.
+		return nil, fmt.Errorf("list document chunks with questions: unsupported database dialect %q", r.db.Name())
 	}
 
 	return chunks, nil

@@ -33,7 +33,7 @@ type ScoreNormalizer interface {
 // Source formulas (verified against repository implementations on
 // upstream/main 3214e3d9, OpenSearch 2.17 / 3.5 docs, the k-NN plugin's
 // SpaceType.java source, the Tencent VectorDB Go SDK base_document.go,
-// pgvector / sqlite-vec / Qdrant / Weaviate docs, and the Lucene
+// pgvector / Qdrant / Weaviate docs, and the Lucene
 // script_score non-negative invariant). Engines are grouped by the
 // effective score range observed at the normalizer's input:
 //
@@ -65,10 +65,6 @@ type ScoreNormalizer interface {
 //	    where `<=>` is cosine distance ∈ [0, 2]; the theoretical range
 //	    is therefore [-1, 1] but IR-normalized embeddings (see below)
 //	    keep the observed range in [0, 1].
-//	  - SQLite sqlite-vec — driver computes `1 - v.Distance` where the
-//	    vec0 `distance_metric=cosine` returns distance ∈ [0, 2] (per
-//	    sqlite-vec docs: "0 for identical, 2 for opposite"). Same IR
-//	    caveat as pgvector.
 //	  - Qdrant — Distance.Cosine; Qdrant normalizes vectors at insert
 //	    time and the score returned by ScoredPoint.score is the dot
 //	    product of the normalized vectors = raw cosine ∈ [-1, 1] in
@@ -80,7 +76,7 @@ type ScoreNormalizer interface {
 //	    L2-normalized embeddings (or legacy `(1 - cosine_distance_approximate)`),
 //	    which equals raw cosine ∈ [-1, 1]. Same IR caveat.
 //
-// IR-normalization caveat (applies to pgvector, sqlite-vec, Qdrant,
+// IR-normalization caveat (applies to pgvector, Qdrant,
 // TencentVectorDB, Doris): modern RAG embeddings are L2-normalized
 // positive-component unit vectors (sentence-transformers, BGE, OpenAI
 // text-embedding-3, Cohere, E5, etc.) that empirically keep cosine in
@@ -143,7 +139,7 @@ func (EngineAwareNormalizer) Normalize(
 		// script_score non-negative invariant; OpenSearch's k-NN plugin
 		// SpaceType.COSINESIMIL.scoreTranslation pre-translation;
 		// Weaviate's certainty intrinsic; and the IR-normalization
-		// caveat covering pgvector / sqlite-vec / Qdrant /
+		// caveat covering pgvector / Qdrant /
 		// TencentVectorDB / Doris (theoretical [-1, 1] but observed
 		// [0, 1] for L2-normalized positive-component IR embeddings).
 		//

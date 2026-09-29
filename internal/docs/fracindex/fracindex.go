@@ -13,7 +13,7 @@
 //
 // Fractions never end in '0' so that the ordering has no ties ("a1" and "a10"
 // would otherwise denote the same position). The database column that stores
-// keys must compare bytewise (SQLite BINARY, Postgres COLLATE "C").
+// keys must compare bytewise (Postgres COLLATE "C").
 //
 // The scheme itself is the widely documented one used by collaborative
 // editors; this file is an independent implementation with a jittered

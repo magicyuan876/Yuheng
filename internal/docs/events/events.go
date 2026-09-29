@@ -7,7 +7,7 @@
 // a hint to refresh, never the record of truth (the database is).
 //
 // Two implementations share one contract: MemoryBus for a single process
-// (Lite, tests) and RedisBus, which fans events out to every instance through
+// (single-instance deployments, tests) and RedisBus, which fans events out to every instance through
 // one pub/sub channel while still delivering locally without a round trip.
 package events
 

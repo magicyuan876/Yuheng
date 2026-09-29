@@ -8,6 +8,12 @@ linters:
     lll:
       line-length: 120
       tab-width: 4
+  exclusions:
+    paths:
+      # Swagger output written by `make docs`. swag's header does not match the
+      # standard "Code generated … DO NOT EDIT." form golangci-lint recognises,
+      # so without this every regeneration reports its long lines as new.
+      - ^docs/docs\.go$
 formatters:
   enable:
     - gofmt

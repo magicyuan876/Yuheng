@@ -592,8 +592,8 @@ func (r *pageRepository) SuggestByTitle(ctx context.Context, tenantID uint64, sp
 
 // escapeLike neutralises the wildcards in a user-supplied pattern, so a query
 // of "%" matches that character rather than every page in the space. The
-// escape character is named in the query itself because SQLite has none by
-// default, and relying on PostgreSQL's staying the same would be a trap.
+// escape character is named in the query itself, because relying on
+// PostgreSQL's default staying the same would be a trap.
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 	return r.Replace(s)

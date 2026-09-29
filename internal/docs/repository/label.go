@@ -95,22 +95,16 @@ func (r *labelRepository) Update(ctx context.Context, tenantID uint64, labelID s
 }
 
 func (r *labelRepository) Delete(ctx context.Context, tenantID uint64, labelID string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// The attachments go first: the foreign key cascades on Postgres, but
-		// SQLite only does when foreign keys are switched on, and a label
-		// removed from a space must not leave rows pointing at nothing.
-		if err := tx.Where("label_id = ?", labelID).Delete(&model.PageLabel{}).Error; err != nil {
-			return err
-		}
-		res := tx.Where("tenant_id = ? AND id = ?", tenantID, labelID).Delete(&model.Label{})
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return ErrNotFound
-		}
-		return nil
-	})
+	// The label's attachments to pages go with it: docs_page_labels.label_id
+	// cascades on delete, so no page is left pointing at a removed label.
+	res := r.db.WithContext(ctx).Where("tenant_id = ? AND id = ?", tenantID, labelID).Delete(&model.Label{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *labelRepository) Get(ctx context.Context, tenantID uint64, labelID string) (

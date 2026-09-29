@@ -142,10 +142,8 @@ func (s *StorageBackendService) Update(ctx context.Context, incoming *types.Stor
 func (s *StorageBackendService) Delete(ctx context.Context, tenantID uint64, id string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var backend types.StorageBackend
-		query := tx.Where("tenant_id = ? AND id = ?", tenantID, id)
-		if tx.Dialector.Name() == "postgres" {
-			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
-		}
+		query := tx.Where("tenant_id = ? AND id = ?", tenantID, id).
+			Clauses(clause.Locking{Strength: "UPDATE"})
 		if err := query.First(&backend).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return apperrors.NewNotFoundError("storage backend not found")
@@ -282,10 +280,8 @@ func (s *StorageBackendService) countForeignBindings(
 func (s *StorageBackendService) SetDefault(ctx context.Context, tenantID uint64, id string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var backend types.StorageBackend
-		query := tx.Where("tenant_id = ? AND id = ?", tenantID, id)
-		if tx.Dialector.Name() == "postgres" {
-			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
-		}
+		query := tx.Where("tenant_id = ? AND id = ?", tenantID, id).
+			Clauses(clause.Locking{Strength: "UPDATE"})
 		if err := query.First(&backend).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return apperrors.NewNotFoundError("storage backend not found")

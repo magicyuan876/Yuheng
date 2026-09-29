@@ -8,8 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// LeaseRepository persists the exclusive-edit leases the Lite edition uses in
-// place of a collaboration service: one row per page naming who may currently
+// LeaseRepository persists the exclusive-edit leases a deployment without a
+// collaboration service uses in its place: one row per page naming who may currently
 // write it and until when.
 //
 // The table is only ever written by a deployment with no collaboration
@@ -31,7 +31,7 @@ type LeaseRepository interface {
 	Release(ctx context.Context, tenantID uint64, pageID, userID, sessionID string) (bool, error)
 	// PurgeExpired removes leases that expired before the cutoff. Nothing
 	// depends on it (an expired row is already ignored); it keeps the table
-	// from growing in a long-lived Lite deployment.
+	// from growing in a long-lived deployment without collab.
 	PurgeExpired(ctx context.Context, before time.Time) (int64, error)
 }
 
@@ -54,9 +54,9 @@ func (r *leaseRepository) Get(ctx context.Context, tenantID uint64, pageID strin
 // a takeover legal only when the stored lease has expired or belongs to the
 // same session; when it does not hold, no row changes and RowsAffected is 0.
 //
-// Both dialects support the upsert-with-predicate form (PostgreSQL 9.5+,
-// SQLite 3.24+), and the statement is written once rather than through GORM's
-// clause builder so the predicate is unambiguous.
+// PostgreSQL supports the upsert-with-predicate form since 9.5, and the
+// statement is written by hand rather than through GORM's clause builder so
+// the predicate is unambiguous.
 const acquireSQL = `
 INSERT INTO docs_edit_leases (page_id, tenant_id, user_id, session_id, expires_at, created_at)
 VALUES (?, ?, ?, ?, ?, ?)

@@ -85,8 +85,8 @@ type Sink interface {
 	Log(ctx context.Context, entry *types.AuditLog) error
 }
 
-// Recorder writes audit rows; nil-safe so Lite builds without an audit
-// service keep working.
+// Recorder writes audit rows; nil-safe so a deployment without an audit
+// service keeps working.
 type Recorder struct {
 	svc Sink
 }

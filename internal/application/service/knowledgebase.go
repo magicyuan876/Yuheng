@@ -475,7 +475,7 @@ func (s *knowledgeBaseService) FillKnowledgeBaseCounts(ctx context.Context, kb *
 //
 //  1. ORM layer: the GORM tag `<-:create` on KnowledgeBase.VectorStoreID
 //     makes every UPDATE path (Save / Updates / Select-Updates) a no-op for
-//     that column. Verified by repository/knowledgebase_sqlite_test.go.
+//     that column. Verified by the repository package's knowledge base tests.
 //  2. Service layer: this method intentionally omits VectorStoreID from its
 //     parameter list, and the matching handler DTO UpdateKnowledgeBaseRequest
 //     omits the field as well. A reflection-based regression test

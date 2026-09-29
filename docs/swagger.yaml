@@ -3183,7 +3183,7 @@ definitions:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.UserPreferences'
         description: |-
           Per-user UI/feature preferences.
-          Stored as JSON (jsonb on Postgres, TEXT on SQLite) via the
+          Stored as JSON in a jsonb column via the
           driver.Valuer / sql.Scanner methods on UserPreferences.
       tenant:
         allOf:

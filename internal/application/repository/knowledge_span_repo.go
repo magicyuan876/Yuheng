@@ -160,8 +160,8 @@ func (r *knowledgeSpanRepository) GetSpan(ctx context.Context, knowledgeID strin
 // flipping pending/running rows to cancelled. We bail when a level adds
 // zero rows (fixed point reached) or after a generous depth bound.
 //
-// Postgres-specific WITH RECURSIVE would be denser but harder to test on
-// the SQLite Lite backend. The iterative path stays portable.
+// A WITH RECURSIVE query would be denser; the iterative walk keeps the
+// depth bound explicit and each statement a plain indexed UPDATE.
 func (r *knowledgeSpanRepository) CancelDescendants(ctx context.Context, knowledgeID string, attempt int, parentSpanID, reason string) (int64, error) {
 	frontier := []string{parentSpanID}
 	var totalAffected int64

@@ -580,16 +580,15 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Sanity check: dialect-specific code in services (notably the
-	// vector_stores delete guard) compares Dialector.Name() to the "postgres"
-	// string literal. A future driver swap that produces a different name
-	// (e.g., a wrapper dialect for managed PG) would silently fall back to the
-	// non-Postgres path, dropping the row-level X-lock. Catching the mismatch
-	// at startup is loud and inexpensive.
+	// Sanity check: the rest of the code assumes PostgreSQL — its SQL, locks,
+	// sequences and JSONB queries — and has no path for any other dialect. A
+	// future driver swap that reports a different name (e.g. a wrapper dialect
+	// for managed PG) would therefore run Postgres SQL against something that
+	// may not accept it. Refusing to start is loud and inexpensive.
 	if name := db.Dialector.Name(); name != "postgres" {
 		return nil, fmt.Errorf(
 			"unsupported gorm dialector %q; expected postgres "+
-				"(see vectorStoreService.isPostgres for impact)", name)
+				"(the application has no code path for any other dialect)", name)
 	}
 
 	// Run database migrations automatically (optional, can be disabled via env var)
@@ -785,9 +784,6 @@ func migrateLegacyStorageBackends(db *gorm.DB) {
 // because older code assigned seq_id via application-level MAX()+1, which could
 // advance values past the DB sequence counter and cause duplicate key errors.
 func syncSequences(db *gorm.DB) {
-	if db.Dialector.Name() != "postgres" {
-		return
-	}
 	pairs := [][2]string{
 		{"chunks", "chunks_seq_id_seq"},
 		{"knowledge_tags", "knowledge_tags_seq_id_seq"},

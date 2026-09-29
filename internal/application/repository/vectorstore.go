@@ -95,8 +95,9 @@ func (r *vectorStoreRepository) Delete(ctx context.Context, tenantID uint64, id 
 }
 
 // ExistsByEndpointAndIndex checks if a store with the same endpoint and index already exists.
-// Comparison is done at the application level because JSONB field extraction syntax
-// differs between PostgreSQL and SQLite, and the row count is small (a few per tenant).
+// Comparison is done at the application level, where the endpoint and index
+// are read through the same connection-config decoding the rest of the code
+// uses; the row count is small (a few per tenant).
 func (r *vectorStoreRepository) ExistsByEndpointAndIndex(
 	ctx context.Context,
 	tenantID uint64,

@@ -219,11 +219,9 @@ func (s *vectorStoreService) SetStoreSharing(
 //     delete are atomic with respect to other writers holding the store
 //     row lock. Default isolation is Read Committed; this is a write-lock
 //     relationship, not a "shared snapshot" relationship.
-//  2. PostgreSQL: take a row-level X-lock on the vector_stores row via
+//  2. Take a row-level X-lock on the vector_stores row via
 //     SELECT … FOR UPDATE so concurrent KB-create requests reading the
-//     same store row block until our transaction completes. SQLite
-//     serializes writes via WAL + max-open-conns=1, so the lock hint is
-//     skipped and we rely on the transaction boundary alone.
+//     same store row block until our transaction completes.
 //  3. Count knowledge_bases rows via the shared CountByVectorStoreID
 //     repository method (tx-aware), which leverages the composite index
 //     (tenant_id, vector_store_id). GORM auto-applies the soft-delete
@@ -251,12 +249,10 @@ func (s *vectorStoreService) DeleteStore(ctx context.Context, tenantID uint64, i
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// tx inherits ctx from WithContext above; no need to re-attach.
 
-		// 1. Lock the store row (PG row-level X-lock; skipped on SQLite).
+		// 1. Lock the store row (row-level X-lock, SELECT … FOR UPDATE).
 		var store types.VectorStore
-		q := tx.Where("id = ? AND tenant_id = ?", id, tenantID)
-		if s.isPostgres(tx) {
-			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
-		}
+		q := tx.Where("id = ? AND tenant_id = ?", id, tenantID).
+			Clauses(clause.Locking{Strength: "UPDATE"})
 		if err := q.First(&store).Error; err != nil {
 			if stderrors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.NewNotFoundError("vector store not found")
@@ -307,13 +303,6 @@ func (s *vectorStoreService) unregisterSafely(ctx context.Context, storeID strin
 	if s.storeRegistry != nil {
 		s.storeRegistry.UnregisterByStoreID(storeID)
 	}
-}
-
-// isPostgres reports whether the active GORM dialector is PostgreSQL.
-// Used to gate dialect-specific clauses (e.g., SELECT FOR UPDATE) that
-// SQLite would either ignore (recent versions) or fail to compile on.
-func (s *vectorStoreService) isPostgres(db *gorm.DB) bool {
-	return db != nil && db.Dialector != nil && db.Dialector.Name() == "postgres"
 }
 
 // SaveDetectedVersion updates the connection_config.version for a stored vector store.

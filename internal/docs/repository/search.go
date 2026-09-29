@@ -73,18 +73,6 @@ type SearchTransclusionRow struct {
 
 type searchRepository struct{ db *gorm.DB }
 
-// like is the dialect's case-insensitive substring operator.
-//
-// Postgres ILIKE folds case for Latin text; SQLite's LIKE already does for
-// ASCII. Neither folds case for Chinese, which has none, so the two behave
-// identically on the text this mostly runs against.
-func (r *searchRepository) like() string {
-	if r.db.Dialector.Name() == "postgres" {
-		return "ILIKE"
-	}
-	return "LIKE"
-}
-
 func searchLimit(limit int) int {
 	if limit <= 0 || limit > 500 {
 		return 100
@@ -98,16 +86,16 @@ func (r *searchRepository) Pages(ctx context.Context, tenantID uint64, spaceIDs 
 	if len(spaceIDs) == 0 || pattern == "" {
 		return nil, nil
 	}
-	op := r.like()
 	wild := "%" + pattern + "%"
 	var rows []*SearchPageRow
 	err := r.db.WithContext(ctx).
 		Table("docs_pages").
 		Select("id, short_id, space_id, title, text_content").
 		Where("tenant_id = ? AND space_id IN ? AND deleted_at IS NULL", tenantID, spaceIDs).
-		// ESCAPE is explicit: SQLite has no escape character unless one is
-		// declared, so a query containing % would otherwise be a wildcard.
-		Where("title "+op+" ? ESCAPE '\\' OR text_content "+op+" ? ESCAPE '\\'", wild, wild).
+		// ILIKE folds case for Latin text; Chinese has no case to fold. ESCAPE
+		// is explicit so the escaping EscapeLike did cannot depend on the
+		// server's default escape character.
+		Where("title ILIKE ? ESCAPE '\\' OR text_content ILIKE ? ESCAPE '\\'", wild, wild).
 		Order("content_updated_at DESC NULLS LAST, updated_at DESC").
 		Limit(searchLimit(limit)).
 		Find(&rows).Error
@@ -120,7 +108,6 @@ func (r *searchRepository) Comments(ctx context.Context, tenantID uint64, spaceI
 	if len(spaceIDs) == 0 || pattern == "" {
 		return nil, nil
 	}
-	op := r.like()
 	wild := "%" + pattern + "%"
 	var rows []*SearchCommentRow
 	err := r.db.WithContext(ctx).
@@ -132,7 +119,7 @@ func (r *searchRepository) Comments(ctx context.Context, tenantID uint64, spaceI
 		// A comment on a trashed page is not a result: the page it belongs to
 		// cannot be opened.
 		Where("c.deleted_at IS NULL AND p.deleted_at IS NULL").
-		Where("c.text_content "+op+" ? ESCAPE '\\'", wild).
+		Where("c.text_content ILIKE ? ESCAPE '\\'", wild).
 		Order("c.created_at DESC").
 		Limit(searchLimit(limit)).
 		Find(&rows).Error
@@ -155,7 +142,6 @@ func (r *searchRepository) Transclusions(ctx context.Context, tenantID uint64, s
 	if len(spaceIDs) == 0 || pattern == "" {
 		return nil, nil
 	}
-	op := r.like()
 	wild := "%" + pattern + "%"
 	var rows []*SearchTransclusionRow
 	err := r.db.WithContext(ctx).
@@ -167,7 +153,7 @@ func (r *searchRepository) Transclusions(ctx context.Context, tenantID uint64, s
 			string(model.LinkTransclusion)).
 		Joins("JOIN docs_pages rp ON rp.id = l.source_page_id").
 		Where("tb.tenant_id = ? AND rp.space_id IN ? AND rp.deleted_at IS NULL", tenantID, spaceIDs).
-		Where("tb.text_content "+op+" ? ESCAPE '\\'", wild).
+		Where("tb.text_content ILIKE ? ESCAPE '\\'", wild).
 		Limit(searchLimit(limit)).
 		Find(&rows).Error
 	return rows, err

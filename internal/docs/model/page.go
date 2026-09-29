@@ -134,7 +134,7 @@ type TransclusionBlock struct {
 func (TransclusionBlock) TableName() string { return "docs_transclusion_blocks" }
 
 // EditLease is the exclusive-edit lock used when no collaboration service is
-// configured (Lite edition).
+// configured.
 type EditLease struct {
 	PageID    string    `json:"page_id"    gorm:"type:varchar(36);primaryKey"`
 	TenantID  uint64    `json:"tenant_id"  gorm:"not null"`

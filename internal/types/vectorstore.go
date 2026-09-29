@@ -43,7 +43,7 @@ type VectorStore struct {
 	TenantID uint64 `yaml:"tenant_id" json:"tenant_id"`
 	// User-friendly name, e.g., "elasticsearch-hot"
 	Name string `yaml:"name" json:"name" gorm:"type:varchar(255);not null"`
-	// Engine type: postgres, elasticsearch, qdrant, milvus, weaviate, sqlite
+	// Engine type: postgres, elasticsearch, opensearch, qdrant, milvus, weaviate, doris, tencent_vectordb
 	EngineType RetrieverEngineType `yaml:"engine_type" json:"engine_type" gorm:"type:varchar(50);not null"`
 	// Driver-specific connection parameters (sensitive fields encrypted with AES-GCM)
 	ConnectionConfig ConnectionConfig `yaml:"connection_config" json:"connection_config" gorm:"type:json"`
@@ -85,13 +85,13 @@ func (v *VectorStore) BeforeCreate(tx *gorm.DB) error {
 //
 // Excluded engines:
 //   - Infinity / ElasticFaiss — legacy/experimental, no standalone deployable instance.
-//   - Postgres / SQLite — only meaningful when bound to the app's default DB
+//   - Postgres — only meaningful when bound to the app's default DB
 //     connection (UseDefaultConnection=true). The Postgres retriever's
 //     embeddings table is a single hard-coded name with no per-store
 //     partitioning, so registering a second Postgres store on the same
 //     instance has no separation effect — every KB sharing this engine
-//     ends up in the same physical table. These engines are still
-//     reachable via env stores (RETRIEVE_DRIVER=postgres/sqlite), which
+//     ends up in the same physical table. The engine is still
+//     reachable via env stores (RETRIEVE_DRIVER=postgres), which
 //     route through a separate code path (BuildEnvVectorStores) and do
 //     not pass through this validation.
 var validEngineTypes = map[RetrieverEngineType]bool{
@@ -715,9 +715,9 @@ func GetVectorStoreTypes() []VectorStoreTypeInfo {
 				{Name: "number_of_replicas", Type: "number", Required: false, Description: "Replicas", Default: 1},
 			},
 		},
-		// PostgreSQL and SQLite are excluded from the type list because they only support
-		// the app's default DB connection (UseDefaultConnection=true). They appear as
-		// env stores when configured via RETRIEVE_DRIVER but cannot be added as DB stores.
+		// PostgreSQL is excluded from the type list because it only supports the app's
+		// default DB connection (UseDefaultConnection=true). It appears as an env store
+		// when configured via RETRIEVE_DRIVER but cannot be added as a DB store.
 		{
 			Type:        "qdrant",
 			DisplayName: "Qdrant",
@@ -801,8 +801,11 @@ func GetVectorStoreTypes() []VectorStoreTypeInfo {
 				{Name: "addr", Type: "string", Required: true, Description: "URL", Default: "https://localhost:9200"},
 				{Name: "username", Type: "string", Required: false, Description: "Username", Default: "admin"},
 				{Name: "password", Type: "string", Required: false, Sensitive: true, Description: "Password"},
-				{Name: "insecure_skip_verify", Type: "boolean", Required: false, Default: false,
-					Description: "Skip TLS certificate verification. For self-signed dev clusters only — never enable in production."},
+				{
+					Name: "insecure_skip_verify", Type: "boolean", Required: false, Default: false,
+					Description: "Skip TLS certificate verification. " +
+						"For self-signed dev clusters only — never enable in production.",
+				},
 			},
 			IndexFields: []VectorStoreFieldInfo{
 				{Name: "index_name", Type: "string", Required: false, Description: "Index Name", Default: "yuheng"},

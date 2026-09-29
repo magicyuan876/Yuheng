@@ -103,9 +103,9 @@ func terms(text string) []string {
 
 // EscapeLike makes a literal safe inside a LIKE pattern.
 //
-// SQLite has no escape character unless one is declared, so every caller
-// must pair this with an explicit ESCAPE clause — the same rule the page
-// title search has followed since T2.2.
+// Every caller must pair this with an explicit ESCAPE clause, so the result
+// does not depend on the server's default escape character — the same rule
+// the page title search has followed since T2.2.
 func EscapeLike(s string) string {
 	var b strings.Builder
 	b.Grow(len(s) + 8)
@@ -159,10 +159,10 @@ const (
 
 // Score rates a candidate against a query.
 //
-// Deliberately simple and entirely in Go rather than in SQL: ranking that
-// lives in a query is ranking that differs between the two dialects this
-// module supports, and a search that orders results differently on SQLite
-// and Postgres is one whose behaviour nobody can reason about.
+// Deliberately simple and entirely in Go rather than in SQL: the candidates
+// come from several queries (pages, comments, blocks), and one scoring
+// function over all of them keeps their ranking comparable and testable
+// without a database.
 func Score(q Query, kind Kind, title, body string) float64 {
 	if q.Empty() {
 		return 0

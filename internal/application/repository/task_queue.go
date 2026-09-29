@@ -72,11 +72,8 @@ func (r *taskPendingOpsRepository) EnqueueIfKnowledgeBaseActive(
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		query := tx.Model(&types.KnowledgeBase{}).
 			Select("id").
-			Where("id = ? AND tenant_id = ?", op.ScopeID, op.TenantID)
-		dialector := tx.Dialector
-		if dialector.Name() == "postgres" {
-			query = query.Clauses(clause.Locking{Strength: "SHARE"})
-		}
+			Where("id = ? AND tenant_id = ?", op.ScopeID, op.TenantID).
+			Clauses(clause.Locking{Strength: "SHARE"})
 		var kb types.KnowledgeBase
 		if err := query.Take(&kb).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -120,10 +117,8 @@ func (r *taskPendingOpsRepository) SeedKnowledgeFinalizingWithPendingOp(
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		query := tx.Model(&types.KnowledgeBase{}).
 			Select("id").
-			Where("id = ? AND tenant_id = ?", op.ScopeID, op.TenantID)
-		if tx.Dialector.Name() == "postgres" {
-			query = query.Clauses(clause.Locking{Strength: "SHARE"})
-		}
+			Where("id = ? AND tenant_id = ?", op.ScopeID, op.TenantID).
+			Clauses(clause.Locking{Strength: "SHARE"})
 		var kb types.KnowledgeBase
 		if err := query.Take(&kb).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -204,17 +199,12 @@ func (r *taskPendingOpsRepository) PeekBatch(
 //
 // Eligibility = unclaimed (claimed_at IS NULL) OR stale claim
 // (claimed_at < staleBefore), AND the key has no fresh claim. The whole thing
-// runs in one transaction:
-//
-//   - Postgres: we lock the ANCHOR row (earliest eligible id) of each
-//     candidate dedup_key with FOR UPDATE SKIP LOCKED. Because the anchor
-//     uniquely represents its key, SKIP LOCKED hands concurrent claimers
-//     DISJOINT key sets — a key whose anchor is already locked by another
-//     in-flight claim is skipped entirely rather than half-claimed. We then
-//     stamp every eligible row of the chosen keys and read them back.
-//   - Other dialects (SQLite, used by unit tests / Lite mode): writes are
-//     serialized by the single-writer engine, so a plain grouped SELECT +
-//     UPDATE is already race-free.
+// runs in one transaction: we lock the ANCHOR row (earliest eligible id) of
+// each candidate dedup_key with FOR UPDATE SKIP LOCKED. Because the anchor
+// uniquely represents its key, SKIP LOCKED hands concurrent claimers DISJOINT
+// key sets — a key whose anchor is already locked by another in-flight claim
+// is skipped entirely rather than half-claimed. We then stamp every eligible
+// row of the chosen keys and read them back.
 //
 // Rows are claimed by explicit id (only the eligible ones), so a freshly
 // enqueued or still-in-flight sibling row of a chosen key is never handed
@@ -238,12 +228,11 @@ func (r *taskPendingOpsRepository) ClaimBatch(
 		//    Keys with a fresh claim are excluded WHOLESALE so a late sibling
 		//    of an in-flight document never gets claimed on its own.
 		var keys []string
-		if tx.Dialector.Name() == "postgres" {
-			// Lock the anchor (earliest eligible) row of each key with SKIP
-			// LOCKED so concurrent claimers get disjoint KEY sets, then map
-			// the locked anchors back to their dedup_keys. The NOT IN subquery
-			// drops any key that still has a fresh (non-stale) claim.
-			const anchorSQL = `
+		// Lock the anchor (earliest eligible) row of each key with SKIP
+		// LOCKED so concurrent claimers get disjoint KEY sets, then map
+		// the locked anchors back to their dedup_keys. The NOT IN subquery
+		// drops any key that still has a fresh (non-stale) claim.
+		const anchorSQL = `
 SELECT dedup_key FROM task_pending_ops
 WHERE id IN (
 	SELECT id FROM (
@@ -261,28 +250,12 @@ WHERE id IN (
 ORDER BY id ASC
 LIMIT ?
 FOR UPDATE SKIP LOCKED`
-			if err := tx.Raw(anchorSQL,
-				taskType, scope, scopeID, staleBefore,
-				taskType, scope, scopeID, staleBefore,
-				limit).
-				Scan(&keys).Error; err != nil {
-				return err
-			}
-		} else {
-			freshKeys := tx.Model(&types.TaskPendingOp{}).
-				Select("dedup_key").
-				Where("task_type = ? AND scope = ? AND scope_id = ?", taskType, scope, scopeID).
-				Where("claimed_at IS NOT NULL AND claimed_at >= ?", staleBefore)
-			if err := tx.Model(&types.TaskPendingOp{}).
-				Where("task_type = ? AND scope = ? AND scope_id = ?", taskType, scope, scopeID).
-				Where("(claimed_at IS NULL OR claimed_at < ?)", staleBefore).
-				Where("dedup_key NOT IN (?)", freshKeys).
-				Group("dedup_key").
-				Order("MIN(id) ASC").
-				Limit(limit).
-				Pluck("dedup_key", &keys).Error; err != nil {
-				return err
-			}
+		if err := tx.Raw(anchorSQL,
+			taskType, scope, scopeID, staleBefore,
+			taskType, scope, scopeID, staleBefore,
+			limit).
+			Scan(&keys).Error; err != nil {
+			return err
 		}
 		if len(keys) == 0 {
 			return nil

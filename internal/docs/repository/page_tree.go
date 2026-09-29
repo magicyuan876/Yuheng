@@ -20,13 +20,10 @@ type TreeCursor struct {
 const MaxTreePage = 2000
 
 // LockSpace serialises writers of one space's tree for the rest of the
-// current transaction: Postgres takes a row lock on the space; SQLite has a
-// single writer anyway so nothing is needed. Callers must be inside
-// Repositories.Transaction.
+// current transaction by taking a row lock on the space. Callers must be
+// inside Repositories.Transaction; outside one the lock is released as soon
+// as the statement ends.
 func (r *pageRepository) LockSpace(ctx context.Context, tenantID uint64, spaceID string) error {
-	if r.db.Dialector.Name() != "postgres" {
-		return nil
-	}
 	var id string
 	err := r.db.WithContext(ctx).Raw(
 		"SELECT id FROM docs_spaces WHERE tenant_id = ? AND id = ? FOR UPDATE", tenantID, spaceID).Scan(&id).Error

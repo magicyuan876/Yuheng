@@ -21918,7 +21918,7 @@
                     "type": "boolean"
                 },
                 "preferences": {
-                    "description": "Per-user UI/feature preferences.\nStored as JSON (jsonb on Postgres, TEXT on SQLite) via the\ndriver.Valuer / sql.Scanner methods on UserPreferences.",
+                    "description": "Per-user UI/feature preferences.\nStored as JSON in a jsonb column via the\ndriver.Valuer / sql.Scanner methods on UserPreferences.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.UserPreferences"

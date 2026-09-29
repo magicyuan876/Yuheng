@@ -37,17 +37,11 @@ func NewWikiPageRepository(db *gorm.DB) interfaces.WikiPageRepository {
 // whole listing. The type is therefore tested first; CASE evaluates its
 // branches in order, so the length is only taken of an array.
 func (r *wikiPageRepository) wikiCategoryRankOrder() string {
-	if r.db != nil && r.db.Dialector != nil && r.db.Dialector.Name() == "sqlite" {
-		return "CASE WHEN COALESCE(json_array_length(category_path), 0) > 0 THEN 0 ELSE 1 END ASC"
-	}
 	return "CASE WHEN jsonb_typeof(category_path) IS DISTINCT FROM 'array' THEN 1 " +
 		"WHEN jsonb_array_length(category_path) > 0 THEN 0 ELSE 1 END ASC"
 }
 
 func (r *wikiPageRepository) wikiEmptyInLinksPredicate() string {
-	if r.db != nil && r.db.Dialector != nil && r.db.Dialector.Name() == "sqlite" {
-		return "(in_links IS NULL OR json_array_length(in_links) = 0)"
-	}
 	return "(in_links IS NULL OR in_links = '[]'::JSONB)"
 }
 
@@ -335,10 +329,9 @@ func (r *wikiPageRepository) List(ctx context.Context, req *types.WikiPageListRe
 	}
 	// Directory filters are pushed to SQL so the DB does the counting and
 	// pagination instead of loading every page of the type into memory. `depth`
-	// is a cached column (= len(category_path)); `category_path` is a JSON column
-	// whose stored text is json.Marshal of the cleaned path, so we compare
-	// against the same encoding. Postgres needs an explicit jsonb cast for array
-	// equality; SQLite stores JSON as TEXT and compares directly.
+	// is a cached column (= len(category_path)); `category_path` is a JSONB column
+	// holding json.Marshal of the cleaned path, so we compare it with the same
+	// encoding, cast to jsonb so the comparison is by value, not by text.
 	if req.FolderID != nil {
 		query = query.Where("folder_id = ?", *req.FolderID)
 	}
@@ -347,11 +340,7 @@ func (r *wikiPageRepository) List(ctx context.Context, req *types.WikiPageListRe
 	}
 	if wantPath := types.CleanWikiCategoryPath(req.CategoryPath); len(wantPath) > 0 {
 		if encoded, err := json.Marshal([]string(wantPath)); err == nil {
-			if r.db.Dialector != nil && r.db.Dialector.Name() == "postgres" {
-				query = query.Where("category_path::jsonb = ?::jsonb", string(encoded))
-			} else {
-				query = query.Where("category_path = ?", string(encoded))
-			}
+			query = query.Where("category_path::jsonb = ?::jsonb", string(encoded))
 		}
 	}
 

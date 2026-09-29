@@ -1216,9 +1216,10 @@ func (s *PageService) purgeSubtree(ctx context.Context, tenantID uint64, spaceID
 	s.invalidate(ctx, tenantID)
 	for _, id := range ids {
 		s.evict(ctx, id)
-		// The foreign key cascades these rows away on Postgres, but SQLite
-		// only enforces one when foreign keys are switched on, so the purge
-		// says so explicitly rather than depending on the dialect.
+		// The foreign keys on these tables cascade from docs_pages, so the
+		// purge above has normally removed the rows already; clearing them
+		// explicitly keeps the purge complete even for a table that is added
+		// without the cascade.
 		if s.d.Repos.Blocks != nil {
 			if err := s.d.Repos.Blocks.DeleteForPage(ctx, tenantID, id); err != nil {
 				logger.Warnf(ctx, "[docs] clearing the block snapshots of page %s failed: %v", id, err)

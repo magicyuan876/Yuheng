@@ -24,7 +24,7 @@ import (
 )
 
 // Params are resolved by the DI container. Redis and the audit service are
-// optional so the Lite edition (no Redis, possibly no audit) still boots.
+// optional so a deployment without them still boots.
 type Params struct {
 	dig.In
 

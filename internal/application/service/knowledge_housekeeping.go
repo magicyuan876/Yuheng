@@ -226,13 +226,11 @@ func (h *HousekeepingService) filterByLastSpanActivity(ctx context.Context, cand
 		ids = append(ids, k.ID)
 	}
 
-	// We scan MAX(updated_at) as string then parse client-side. That
-	// dodges the SQLite driver's well-known refusal to auto-convert
-	// aggregate datetime values into time.Time on its own — Postgres
-	// happily round-trips, but the same query shape must work in
-	// Lite mode too. Since we only compare against a cutoff, the
-	// parse layer below tries the formats both Postgres and SQLite
-	// emit and takes the first that parses.
+	// We scan MAX(updated_at) as a string and parse it client-side, so
+	// the comparison does not depend on how the driver types an
+	// aggregate column. Since we only compare against a cutoff, the
+	// parse layer below tries the textual forms a Postgres timestamp
+	// can arrive in and takes the first that parses.
 	type spanHeartbeat struct {
 		KnowledgeID string `gorm:"column:knowledge_id"`
 		LastSeen    string `gorm:"column:last_seen"`
@@ -346,8 +344,8 @@ func (h *HousekeepingService) filterOutQueued(
 	return out, skipped
 }
 
-// parseHeartbeatTime accepts the timestamp formats Postgres and SQLite
-// emit for a TIMESTAMP column read back through MAX(). Returns false if
+// parseHeartbeatTime accepts the timestamp formats a Postgres TIMESTAMP
+// column can arrive in when read back through MAX(). Returns false if
 // none parse — the caller treats unparseable rows as "no heartbeat",
 // which fails safe (the row gets recovered as stuck rather than
 // silently preserved).

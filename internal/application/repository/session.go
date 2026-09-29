@@ -125,20 +125,10 @@ func (r *sessionRepository) GetPagedByTenantID(
 func (r *sessionRepository) QueryPaged(
 	ctx context.Context, q *types.SessionListQuery,
 ) ([]*types.SessionListItem, int64, error) {
-	// Dialect-aware bits so the same query works on Postgres and SQLite (Lite build).
-	isPostgres := r.db.Dialector.Name() == "postgres"
-	titleLikeExpr := "LOWER(s.title) LIKE LOWER(?)"
-	if isPostgres {
-		titleLikeExpr = "s.title ILIKE ?"
-	}
-	// SQLite (the driver used by Lite) does not support NULLS LAST; its default
-	// nulls ordering puts NULLs first for DESC, which is actually what we want
-	// for pinned_at (rows with pinned_at=NULL are never pinned, so they get
-	// filtered to the tail by the preceding is_pinned DESC anyway).
+	titleLikeExpr := "s.title ILIKE ?"
+	// Postgres sorts NULLs first under DESC; NULLS LAST keeps a pinned row
+	// with no pinned_at from jumping ahead of the ones that have one.
 	orderClause := "s.is_pinned DESC, s.pinned_at DESC NULLS LAST, s.updated_at DESC"
-	if !isPostgres {
-		orderClause = "s.is_pinned DESC, s.pinned_at DESC, s.updated_at DESC"
-	}
 
 	// Base filter shared by count and list queries.
 	applyBase := func(db *gorm.DB) *gorm.DB {

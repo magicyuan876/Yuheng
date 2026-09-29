@@ -108,7 +108,8 @@ type Deps struct {
 	StorageBackends StorageBackends
 	// Tokens is required by the collaboration callbacks only.
 	Tokens Tokens
-	// Collab is nil in the Lite edition (exclusive editing instead).
+	// Collab is nil when no collaboration service is configured (exclusive
+	// editing instead).
 	Collab CollabClient
 	// CollabURL is the browser-facing WebSocket address, empty when pages
 	// are edited exclusively.
