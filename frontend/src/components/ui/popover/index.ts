@@ -1,4 +1,7 @@
 export { default as Popover } from "./Popover.vue";
+// Reka's close part carries no styling of its own, so it is re-exported as is
+// rather than wrapped.
+export { PopoverClose } from "reka-ui";
 export { default as PopoverAnchor } from "./PopoverAnchor.vue";
 export { default as PopoverContent } from "./PopoverContent.vue";
 export { default as PopoverDescription } from "./PopoverDescription.vue";

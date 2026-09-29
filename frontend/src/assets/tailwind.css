@@ -97,6 +97,16 @@
 }
 
 /*
+ * Stacking. The overlay components in src/components/ui do not use
+ * shadcn's z-50: they sit on TDesign's own scale, so a new select opened
+ * inside an old dialog, or an old popup inside a new one, lands on top of
+ * its host rather than behind it. Dialogs and drawers take TDesign's
+ * dialog layer (2500), popovers, selects and menus its popup layer (5500),
+ * tooltips its tooltip layer (5600). Both stacks teleport overlays to
+ * <body>, so within one layer the one opened last is painted last.
+ */
+
+/*
  * The resets the new components would otherwise get from preflight, scoped
  * to them. shadcn-vue marks every element it renders with data-slot, which
  * makes that the scope — and makes it hold for content teleported to
