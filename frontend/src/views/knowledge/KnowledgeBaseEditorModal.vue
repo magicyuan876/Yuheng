@@ -1176,7 +1176,7 @@ const loadKBData = async (kbIdOverride?: string) => {
         tableMetadataInstructions: kb.chunking_config?.table_metadata_instructions || "",
       },
       storageBackendId: (kb.storage_backend_id || "") as string,
-      storageProvider: (kb.storage_provider_config?.provider || kb.storage_config?.provider || "local") as string,
+      storageProvider: (kb.storage_provider_config?.provider || "local") as string,
       multimodalConfig: {
         enabled: !!kb.vlm_config?.enabled,
         vllmModelId: kb.vlm_config?.model_id || "",
@@ -1534,9 +1534,6 @@ const buildSubmitData = () => {
   data.storage_provider_config = {
     provider: storageProvider,
   };
-  data.storage_config = {
-    provider: storageProvider,
-  };
 
   // 添加知识图谱配置 — now synced via indexingStrategy.graphEnabled
   // extract_config is sent below along with indexing_strategy
@@ -1727,7 +1724,7 @@ const doSubmit = async () => {
           enabled: !!data.vlm_config?.enabled,
         },
         storageBackendId: formData.value?.storageBackendId || "",
-        storageProvider: data.storage_provider_config?.provider || data.storage_config?.provider || "local",
+        storageProvider: data.storage_provider_config?.provider || "local",
         nodeExtract: {
           enabled: data.extract_config?.enabled || false,
           text: data.extract_config?.text || "",

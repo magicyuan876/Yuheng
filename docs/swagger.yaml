@@ -1110,15 +1110,8 @@ definitions:
           base is shared with (not stored in database)
         type: integer
       storage_backend_id:
-        description: |-
-          StorageBackendID binds this KB to one concrete storage instance. The
-          legacy provider field remains readable during migration only.
+        description: StorageBackendID binds this KB to one concrete storage instance.
         type: string
-      storage_config:
-        allOf:
-        - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageConfig'
-        description: 'Deprecated: legacy storage config column. Kept for backward
-          compatibility with old data.'
       storage_provider_config:
         allOf:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageProviderConfig'
@@ -2549,36 +2542,6 @@ definitions:
       secret_access_key:
         type: string
       use_ssl:
-        type: boolean
-    type: object
-  github_com_magicyuan876_yuheng_internal_types.StorageConfig:
-    properties:
-      app_id:
-        description: App ID (legacy, unused by the current providers)
-        type: string
-      bucket_name:
-        description: Bucket Name
-        type: string
-      endpoint:
-        description: Endpoint (S3 specific)
-        type: string
-      path_prefix:
-        description: Path Prefix
-        type: string
-      provider:
-        description: 'Provider: "local" or "s3"'
-        type: string
-      region:
-        description: Region
-        type: string
-      secret_id:
-        description: Access Key ID
-        type: string
-      secret_key:
-        description: Secret Access Key
-        type: string
-      use_ssl:
-        description: UseSSL (S3 specific) - whether to use HTTPS
         type: boolean
     type: object
   github_com_magicyuan876_yuheng_internal_types.StorageEngineConfig:

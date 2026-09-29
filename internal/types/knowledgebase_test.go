@@ -123,15 +123,14 @@ func TestKnowledgeBase_VectorStoreID_JSON(t *testing.T) {
 	}
 }
 
-// TestKnowledgeBase_UnmarshalJSON_WithVectorStoreID verifies that the custom
-// UnmarshalJSON on KnowledgeBase (which shadows cos_config for legacy
-// compatibility) still delegates the new vector_store_id field to the alias
-// type path, without interfering with StorageProviderConfig inference.
-func TestKnowledgeBase_UnmarshalJSON_WithVectorStoreID(t *testing.T) {
-	// Legacy cos_config + new vector_store_id in the same payload: both must map correctly.
+// A knowledge base decodes vector_store_id and storage_provider_config as they
+// are; the removed cos_config field a legacy client may still send is ignored
+// rather than mapped onto the storage provider.
+func TestKnowledgeBase_UnmarshalJSON_StorageAndVectorStore(t *testing.T) {
 	body := `{
 		"id": "kb-1",
 		"cos_config": {"provider": "s3", "bucket_name": "legacy-bucket"},
+		"storage_provider_config": {"provider": "local"},
 		"vector_store_id": "store-uuid"
 	}`
 
@@ -143,15 +142,9 @@ func TestKnowledgeBase_UnmarshalJSON_WithVectorStoreID(t *testing.T) {
 	if kb.VectorStoreID == nil || *kb.VectorStoreID != "store-uuid" {
 		t.Errorf("expected VectorStoreID = &\"store-uuid\", got %v", kb.VectorStoreID)
 	}
-	if kb.StorageConfig.Provider != "s3" {
-		t.Errorf("expected legacy StorageConfig.Provider = s3, got %q", kb.StorageConfig.Provider)
+	if got := kb.GetStorageProvider(); got != "local" {
+		t.Errorf("expected the provider from storage_provider_config, got %q", got)
 	}
-	if kb.StorageProviderConfig == nil || kb.StorageProviderConfig.Provider != "s3" {
-		t.Errorf("expected StorageProviderConfig.Provider auto-populated from cos_config, got %v", kb.StorageProviderConfig)
-	}
-
-	// Regression guard: the aux struct inside UnmarshalJSON must not shadow vector_store_id.
-	// If a future change introduces such a shadow, the value above would fail to populate.
 }
 
 // TestKnowledgeBase_HasVectorStore covers the nil-safe binding accessor.

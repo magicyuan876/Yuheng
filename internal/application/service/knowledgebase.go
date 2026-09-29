@@ -1185,7 +1185,6 @@ func (s *knowledgeBaseService) CopyKnowledgeBase(ctx context.Context,
 			VLMConfig:             sourceKB.VLMConfig,
 			StorageProviderConfig: sourceKB.StorageProviderConfig,
 			StorageBackendID:      sourceKB.StorageBackendID,
-			StorageConfig:         sourceKB.StorageConfig,
 			FAQConfig:             faqConfig,
 			VectorStoreID:         sourceKB.VectorStoreID,
 		}

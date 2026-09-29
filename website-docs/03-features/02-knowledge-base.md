@@ -133,7 +133,6 @@ graph TB
 
 - **StorageProviderConfig**（新）：`provider ∈ {local, s3}`；
 - **StorageBackendID**：绑定具体存储后端实例；
-- **StorageConfig**（遗留 `cos_config` 列）：`access_key_id / secret_access_key / region / bucket_name / path_prefix / provider / endpoint / use_ssl / addressing_style`。
 
 ### 1.7 KB 计算字段
 

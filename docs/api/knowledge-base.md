@@ -5,7 +5,6 @@
 **字段说明（知识库对象）**
 
 - 知识库类型 `type` 为 `document`（文档）或 `faq`（FAQ），默认 `document`。
-- JSON 中对象存储相关字段：**`storage_config`** 为序列化字段名（对应数据库列 `cos_config`，兼容旧数据）。旧客户端若仍发送或接收 `cos_config`，服务端会兼容解析；新集成请使用 **`storage_config`**。
 - **`storage_provider_config`** 为新版存储提供者选择（如 `{"provider": "local"}`），与空间级存储引擎凭证配合使用；无配置时可为 `null`。
 - 嵌套配置对象：`chunking_config`、`image_processing_config`、`vlm_config`、`asr_config`、`extract_config`、`faq_config`、`question_generation_config`、`auto_tag_config`。其中 `extract_config`、`faq_config`、`question_generation_config`、`auto_tag_config` 允许为 `null`。
 - **`vector_store_id`** 为知识库绑定的向量存储 ID（参见 [vector-store.md](./vector-store.md)）。未指定（或 `null`/`""`）时使用空间级默认的环境变量存储；一旦创建即不可修改。详情接口返回时会附带 `vector_store_name` / `vector_store_source` / `vector_store_engine_type` / `vector_store_status` 四个只读元数据字段，用于前端展示。
@@ -42,7 +41,6 @@
 | vlm_config                    | object  | 否   | VLM（视觉模型）配置                                             |
 | asr_config                    | object  | 否   | ASR（语音识别）配置                                             |
 | storage_provider_config       | object  | 否   | 存储提供者选择，如 `{"provider": "local"}`                      |
-| storage_config                | object  | 否   | 旧版存储凭证（兼容字段，新集成留空即可）                   |
 | extract_config                | object  | 否   | 图谱抽取配置；`enabled=true` 时需提供 `text`/`tags`/`nodes`/`relations` |
 | faq_config                    | object  | 否   | FAQ 配置（仅 FAQ 类型知识库需要）                               |
 | question_generation_config    | object  | 否   | 问题生成配置                                                    |
@@ -93,14 +91,6 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases' \
     },
     "storage_provider_config": {
         "provider": "local"
-    },
-    "storage_config": {
-        "secret_id": "",
-        "secret_key": "",
-        "region": "",
-        "bucket_name": "",
-        "app_id": "",
-        "path_prefix": ""
     },
     "extract_config": null,
     "faq_config": null,
@@ -162,14 +152,6 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases' \
         },
         "storage_provider_config": {
             "provider": "local"
-        },
-        "storage_config": {
-            "secret_id": "",
-            "secret_key": "",
-            "region": "",
-            "bucket_name": "",
-            "app_id": "",
-            "path_prefix": ""
         },
         "extract_config": null,
         "faq_config": null,
@@ -691,14 +673,6 @@ curl --location 'http://localhost:8080/api/v1/knowledge-bases/kb-00000001/move-t
             },
             "storage_provider_config": {
                 "provider": "local"
-            },
-            "storage_config": {
-                "secret_id": "",
-                "secret_key": "",
-                "region": "",
-                "bucket_name": "",
-                "app_id": "",
-                "path_prefix": ""
             },
             "extract_config": null,
             "faq_config": null,

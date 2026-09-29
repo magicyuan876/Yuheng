@@ -89,11 +89,8 @@ type KnowledgeBase struct {
 	ASRConfig ASRConfig `yaml:"asr_config"              json:"asr_config"              gorm:"type:json"`
 	// Storage provider config (new): only stores provider selection; credentials from workspace StorageEngineConfig
 	StorageProviderConfig *StorageProviderConfig `yaml:"storage_provider_config" json:"storage_provider_config"  gorm:"column:storage_provider_config;type:jsonb"`
-	// StorageBackendID binds this KB to one concrete storage instance. The
-	// legacy provider field remains readable during migration only.
+	// StorageBackendID binds this KB to one concrete storage instance.
 	StorageBackendID *string `yaml:"storage_backend_id" json:"storage_backend_id,omitempty" gorm:"column:storage_backend_id;type:varchar(36);default:null"`
-	// Deprecated: legacy storage config column. Kept for backward compatibility with old data.
-	StorageConfig StorageConfig `yaml:"-" json:"storage_config" gorm:"column:cos_config;type:json"`
 	// VectorStoreID references the VectorStore this knowledge base is bound to.
 	// When nil, the KB falls back to the workspace's effective engines derived from
 	// the RETRIEVE_DRIVER environment variable (env store flow).
@@ -329,70 +326,7 @@ func (c *StorageProviderConfig) Scan(value interface{}) error {
 	return json.Unmarshal(b, c)
 }
 
-// Deprecated: StorageConfig is the legacy storage configuration stored in the cos_config column.
-// New code should use StorageProviderConfig. Kept for backward compatibility with old data.
-type StorageConfig struct {
-	// Access Key ID
-	SecretID string `yaml:"secret_id"   json:"secret_id"`
-	// Secret Access Key
-	SecretKey string `yaml:"secret_key"  json:"secret_key"`
-	// Region
-	Region string `yaml:"region"      json:"region"`
-	// Bucket Name
-	BucketName string `yaml:"bucket_name" json:"bucket_name"`
-	// App ID (legacy, unused by the current providers)
-	AppID string `yaml:"app_id"      json:"app_id"`
-	// Path Prefix
-	PathPrefix string `yaml:"path_prefix" json:"path_prefix"`
-	// Provider: "local" or "s3"
-	Provider string `yaml:"provider"    json:"provider"`
-	// Endpoint (S3 specific)
-	Endpoint string `yaml:"endpoint"    json:"endpoint,omitempty"`
-	// UseSSL (S3 specific) - whether to use HTTPS
-	UseSSL bool `yaml:"use_ssl"     json:"use_ssl,omitempty"`
-}
-
-func (c StorageConfig) Value() (driver.Value, error) {
-	return json.Marshal(c)
-}
-
-func (c *StorageConfig) Scan(value interface{}) error {
-	if value == nil {
-		return nil
-	}
-	b, ok := value.([]byte)
-	if !ok {
-		return nil
-	}
-	return json.Unmarshal(b, c)
-}
-
-// UnmarshalJSON keeps backward compatibility for legacy clients that still send
-// `cos_config` or `storage_config`, while migrating to `storage_provider_config`.
-func (kb *KnowledgeBase) UnmarshalJSON(data []byte) error {
-	type alias KnowledgeBase
-	aux := struct {
-		*alias
-		LegacyStorageConfig *StorageConfig `json:"cos_config"`
-	}{
-		alias: (*alias)(kb),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	// Backward compat: populate legacy StorageConfig from cos_config
-	if aux.LegacyStorageConfig != nil && kb.StorageConfig == (StorageConfig{}) {
-		kb.StorageConfig = *aux.LegacyStorageConfig
-	}
-	// Auto-populate StorageProviderConfig from legacy StorageConfig if not set
-	if kb.StorageProviderConfig == nil && kb.StorageConfig.Provider != "" {
-		kb.StorageProviderConfig = &StorageProviderConfig{Provider: kb.StorageConfig.Provider}
-	}
-	return nil
-}
-
 // GetStorageProvider returns the effective storage provider for this KB.
-// Priority: StorageProviderConfig (new) > StorageConfig.Provider (legacy cos_config).
 func (kb *KnowledgeBase) GetStorageProvider() string {
 	if kb == nil {
 		return ""
@@ -403,7 +337,7 @@ func (kb *KnowledgeBase) GetStorageProvider() string {
 			return p
 		}
 	}
-	return strings.ToLower(strings.TrimSpace(kb.StorageConfig.Provider))
+	return ""
 }
 
 // EffectiveStorageProvider returns the KB's storage provider, falling back to

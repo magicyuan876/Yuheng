@@ -19164,16 +19164,8 @@
                     "type": "integer"
                 },
                 "storage_backend_id": {
-                    "description": "StorageBackendID binds this KB to one concrete storage instance. The\nlegacy provider field remains readable during migration only.",
+                    "description": "StorageBackendID binds this KB to one concrete storage instance.",
                     "type": "string"
-                },
-                "storage_config": {
-                    "description": "Deprecated: legacy storage config column. Kept for backward compatibility with old data.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.StorageConfig"
-                        }
-                    ]
                 },
                 "storage_provider_config": {
                     "description": "Storage provider config (new): only stores provider selection; credentials from workspace StorageEngineConfig",
@@ -21052,47 +21044,6 @@
                     "type": "string"
                 },
                 "use_ssl": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.StorageConfig": {
-            "type": "object",
-            "properties": {
-                "app_id": {
-                    "description": "App ID (legacy, unused by the current providers)",
-                    "type": "string"
-                },
-                "bucket_name": {
-                    "description": "Bucket Name",
-                    "type": "string"
-                },
-                "endpoint": {
-                    "description": "Endpoint (S3 specific)",
-                    "type": "string"
-                },
-                "path_prefix": {
-                    "description": "Path Prefix",
-                    "type": "string"
-                },
-                "provider": {
-                    "description": "Provider: \"local\" or \"s3\"",
-                    "type": "string"
-                },
-                "region": {
-                    "description": "Region",
-                    "type": "string"
-                },
-                "secret_id": {
-                    "description": "Access Key ID",
-                    "type": "string"
-                },
-                "secret_key": {
-                    "description": "Secret Access Key",
-                    "type": "string"
-                },
-                "use_ssl": {
-                    "description": "UseSSL (S3 specific) - whether to use HTTPS",
                     "type": "boolean"
                 }
             }

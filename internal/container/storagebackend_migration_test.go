@@ -21,8 +21,8 @@ func TestMigrateLegacyStorageBackends(t *testing.T) {
 	require.NoError(t, db.Exec("INSERT INTO tenants(id, name, business, storage_engine_config) VALUES (?, ?, ?, ?)",
 		7, "workspace", "test", tenantConfig).Error)
 	require.NoError(t, db.Exec(`INSERT INTO knowledge_bases
-		(id, tenant_id, name, embedding_model_id, summary_model_id, storage_provider_config, cos_config)
-		VALUES (?, ?, ?, '', '', ?, ?)`, "kb-a", 7, "kb", providerConfig, "{}").Error)
+		(id, tenant_id, name, embedding_model_id, summary_model_id, storage_provider_config)
+		VALUES (?, ?, ?, '', '', ?)`, "kb-a", 7, "kb", providerConfig).Error)
 
 	migrateLegacyStorageBackends(db)
 
@@ -47,8 +47,8 @@ func TestMigrateLegacyStorageBackendsToleratesRemovedProviders(t *testing.T) {
 	require.NoError(t, db.Exec(`INSERT INTO tenants(id, name, business, storage_engine_config)
 		VALUES (8, 'legacy', 'test', ?::jsonb)`, oldConfig).Error)
 	require.NoError(t, db.Exec(`INSERT INTO knowledge_bases
-		(id, tenant_id, name, embedding_model_id, summary_model_id, storage_provider_config, cos_config)
-		VALUES ('kb-old', 8, 'kb', '', '', '{"provider":"minio"}'::jsonb, '{}')`).Error)
+		(id, tenant_id, name, embedding_model_id, summary_model_id, storage_provider_config)
+		VALUES ('kb-old', 8, 'kb', '', '', '{"provider":"minio"}'::jsonb)`).Error)
 
 	require.NotPanics(t, func() { migrateLegacyStorageBackends(db) })
 

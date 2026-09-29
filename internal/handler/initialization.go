@@ -828,7 +828,6 @@ func (h *InitializationHandler) applyKnowledgeBaseInitialization(
 	} else {
 		kb.VLMConfig = types.VLMConfig{}
 		kb.SetStorageProvider("")
-		kb.StorageConfig = types.StorageConfig{}
 	}
 
 	if req.NodeExtract.Enabled {
