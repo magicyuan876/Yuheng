@@ -151,7 +151,7 @@ flowchart LR
         PG[("PostgreSQL / ParadeDB")]
         RD[("Redis + asynq")]
         VS[("向量/检索引擎 可选多种")]
-        OBJ[("对象存储 local/minio/cos/oss/s3 等")]
+        OBJ[("对象存储 local / S3 兼容")]
         NEO[("Neo4j 知识图谱 可选")]
     end
     LLM["LLM / Embedding / Rerank / VLM 多厂商"]

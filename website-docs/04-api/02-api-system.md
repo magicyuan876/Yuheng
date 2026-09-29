@@ -14,7 +14,7 @@ Handler: `internal/handler/system.go`。API key：`manage_vector_stores`/full。
 
 用途：系统版本与引擎信息。权限：Viewer+。
 
-响应：200 `{"code":0,"msg":"success","data":{version,edition,commit_id,build_time,go_version,keyword_index_engine,vector_store_engine,graph_database_engine,minio_enabled,db_version,started_at,uptime_seconds}}`
+响应：200 `{"code":0,"msg":"success","data":{version,edition,commit_id,build_time,go_version,keyword_index_engine,vector_store_engine,graph_database_engine,db_version,started_at,uptime_seconds}}`
 
 ```bash
 curl $BASE/api/v1/system/info -H "Authorization: Bearer $TOKEN"
@@ -56,7 +56,7 @@ curl -X POST $BASE/api/v1/system/docreader/reconnect -H "Authorization: Bearer $
 
 用途：对象存储引擎可用性。权限：Viewer+。
 
-响应：200 `{"code":0,"msg":"success","data":{"engines":[{name,allowed,available,description}],"allowed_providers":[...],"minio_env_available":bool}}`
+响应：200 `{"code":0,"msg":"success","data":{"engines":[{name,allowed,available,description}],"allowed_providers":[...]}}`（`engines` 只列出 `local` 与 `s3`）
 
 ```bash
 curl $BASE/api/v1/system/storage-engine-status -H "Authorization: Bearer $TOKEN"
@@ -64,13 +64,13 @@ curl $BASE/api/v1/system/storage-engine-status -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/system/storage-engine-check
 
-用途：校验存储配置（SSRF 防护后探测）。权限：Admin+。请求体：`provider`（必填，`minio/cos/tos/s3/oss/ks3/obs`）+ 对应 `minio|cos|tos|s3|oss|ks3|obs` 配置对象。
+用途：校验存储配置（SSRF 防护后探测）。权限：Admin+。请求体：`provider`（必填，`local` 或 `s3`）+ `s3` 配置对象（`endpoint`、`region`、`access_key_id`、`secret_access_key`、`bucket_name`、`path_prefix`、`use_ssl`、`addressing_style`）。
 
-响应：200 `{"code":0,"data":{"ok","message","bucket_created"}}`
+响应：200 `{"code":0,"data":{"ok","message"}}`
 
 ```bash
 curl -X POST $BASE/api/v1/system/storage-engine-check -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"provider":"minio","minio":{"endpoint":"minio:9000"}}'
+  -H 'Content-Type: application/json' -d '{"provider":"s3","s3":{"endpoint":"http://rustfs:9000","region":"us-east-1","bucket_name":"yuheng","access_key_id":"rustfsadmin","secret_access_key":"rustfsadmin","addressing_style":"path"}}'
 ```
 
 ## 系统管理（/api/v1/system/admin，SystemAdmin 专属）

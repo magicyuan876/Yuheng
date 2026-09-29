@@ -65,7 +65,7 @@ show_help() {
     echo "  help       显示此帮助信息"
     echo ""
     echo "可选 Profile（用于 start 命令）:"
-    echo "  --minio       启动 MinIO 对象存储"
+    echo "  --rustfs      启动 RustFS（S3 兼容对象存储）"
     echo "  --docs        启动在线文档的协同编辑服务（不开则为独占编辑）"
     echo "  --neo4j       启动 Neo4j 图数据库"
     echo "  --dex         启动 Dex（OIDC 身份认证）"
@@ -209,14 +209,14 @@ start_services() {
     # 解析 profile 参数
     shift  # 移除 "start" 命令本身
     # 默认启动基础设施（postgres / redis / docreader）+ langfuse，
-    # 其余可选服务通过 --minio / --neo4j / --dex / --full 按需开启。
+    # 其余可选服务通过 --rustfs / --neo4j / --dex / --full 按需开启。
     PROFILES="--profile langfuse"
     ENABLED_SERVICES="langfuse"
     while [ $# -gt 0 ]; do
         case "$1" in
-            --minio)
-                PROFILES="$PROFILES --profile minio"
-                ENABLED_SERVICES="$ENABLED_SERVICES minio"
+            --rustfs)
+                PROFILES="$PROFILES --profile rustfs"
+                ENABLED_SERVICES="$ENABLED_SERVICES rustfs"
                 ;;
             --neo4j)
                 PROFILES="$PROFILES --profile neo4j"
@@ -245,7 +245,7 @@ start_services() {
                 ;;
             --full)
                 PROFILES="--profile full"
-                ENABLED_SERVICES="minio neo4j dex"
+                ENABLED_SERVICES="rustfs neo4j dex"
                 break
                 ;;
             *)
@@ -278,8 +278,8 @@ start_services() {
         echo "  - DocReader:     localhost:50051"
         
         # 根据启用的 profile 显示额外服务
-        if [[ "$ENABLED_SERVICES" == *"minio"* ]]; then
-            echo "  - MinIO:         localhost:9000 (Console: localhost:9001)"
+        if [[ "$ENABLED_SERVICES" == *"rustfs"* ]]; then
+            echo "  - RustFS:        localhost:9000 (Console: localhost:9001)"
         fi
         if [[ "$ENABLED_SERVICES" == *"neo4j"* ]]; then
             echo "  - Neo4j:         localhost:7474 (Bolt: localhost:7687)"
@@ -468,7 +468,7 @@ start_app() {
         export DB_HOST="${DB_HOST:-$DEV_REMOTE_HOST}"
         export REDIS_ADDR="${REDIS_ADDR:-$DEV_REMOTE_HOST:6379}"
         export DOCREADER_ADDR="${DOCREADER_ADDR:-$DEV_REMOTE_HOST:50051}"
-        export MINIO_ENDPOINT="${MINIO_ENDPOINT:-$DEV_REMOTE_HOST:9000}"
+        export S3_ENDPOINT="${S3_ENDPOINT:-http://$DEV_REMOTE_HOST:9000}"
         export NEO4J_URI="${NEO4J_URI:-bolt://$DEV_REMOTE_HOST:7687}"
         if [ -z "${LANGFUSE_HOST:-}" ] || [ "$LANGFUSE_HOST" = "http://langfuse-web:3000" ]; then
             export LANGFUSE_HOST="http://${DEV_REMOTE_HOST}:3000"
@@ -476,7 +476,7 @@ start_app() {
     else
         export DB_HOST=127.0.0.1
         export DOCREADER_ADDR=127.0.0.1:50051
-        export MINIO_ENDPOINT=127.0.0.1:9000
+        export S3_ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:9000}"
         export REDIS_ADDR=127.0.0.1:6379
         export NEO4J_URI=bolt://127.0.0.1:7687
     fi

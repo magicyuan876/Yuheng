@@ -268,8 +268,8 @@ clean-db:
 	@if [ $$(docker volume ls -q -f name=yuheng_postgres-data) ]; then \
 		docker volume rm yuheng_postgres-data; \
 	fi
-	@if [ $$(docker volume ls -q -f name=yuheng_minio_data) ]; then \
-		docker volume rm yuheng_minio_data; \
+	@if [ $$(docker volume ls -q -f name=yuheng_rustfs_data) ]; then \
+		docker volume rm yuheng_rustfs_data; \
 	fi
 	@if [ $$(docker volume ls -q -f name=yuheng_redis_data) ]; then \
 		docker volume rm yuheng_redis_data; \

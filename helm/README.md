@@ -227,7 +227,6 @@ These map to docker-compose profiles:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `minio.enabled` | Enable MinIO storage | `false` |
 | `neo4j.enabled` | Enable Neo4j (GraphRAG) | `false` |
 | `docs.enabled` | Enable online documents | `false` |
 | `collab.enabled` | Enable collaborative editing for online documents | `false` |

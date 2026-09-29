@@ -81,27 +81,28 @@ services:
       - searxng
       - full
 
-  minio:
-    image: minio/minio:latest
-    container_name: Yuheng-minio-dev
+  rustfs:
+    image: rustfs/rustfs:latest@sha256:b7014e0ce2bc703c1316b3ef760e29dfae61fe4a50d1a66fa89638e0f8ea211f
+    container_name: Yuheng-rustfs-dev
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${RUSTFS_PORT:-9000}:9000"
+      - "127.0.0.1:${RUSTFS_CONSOLE_PORT:-9001}:9001"
     environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY_ID:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_ACCESS_KEY:-minioadmin}
-    command: server --console-address ":9001" /data
+      - RUSTFS_ROOT_USER=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      - RUSTFS_ROOT_PASSWORD=${RUSTFS_SECRET_KEY:-rustfsadmin}
+      - RUSTFS_VOLUMES=/data
     volumes:
-      - minio_data_dev:/data
+      - rustfs_data_dev:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
-      timeout: 20s
+      timeout: 10s
       retries: 3
+      start_period: 30s
     networks:
       - Yuheng-network-dev
     profiles:
-      - minio
+      - rustfs
       - full
 
   neo4j:
@@ -499,7 +500,7 @@ networks:
 volumes:
   postgres-data-dev:
   redis_data_dev:
-  minio_data_dev:
+  rustfs_data_dev:
   neo4j-data-dev:
   docreader-tmp-dev:
   langfuse_clickhouse_data_dev:

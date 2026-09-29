@@ -106,7 +106,7 @@ docker compose pull && docker compose up -d
 | API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger/index.html |
 
-可选的 Compose profile 可追加 Neo4j、MinIO 与 Langfuse：
+可选的 Compose profile 可追加 Neo4j、RustFS（S3 兼容对象存储）与 Langfuse：
 `docker compose --profile full up -d`。
 
 其他运行方式：

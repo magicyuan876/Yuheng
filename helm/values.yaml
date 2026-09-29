@@ -91,7 +91,7 @@ app:
     GIN_MODE: release
     # -- Retrieval driver. The built-in engine is postgres (ParadeDB + pgvector).
     RETRIEVE_DRIVER: postgres
-    # -- Storage type: local, minio, cos, tos, s3
+    # -- Storage type: local, or s3 for any S3-compatible object storage (see the S3_* variables in .env.example)
     STORAGE_TYPE: local
     LOCAL_STORAGE_BASE_DIR: /data/files
     AUTO_RECOVER_DIRTY: "true"
@@ -517,22 +517,6 @@ secrets:
 # -----------------------------------------------------------------------------
 # Optional Components (Profiles from docker-compose)
 # -----------------------------------------------------------------------------
-
-# -- MinIO configuration (S3-compatible storage)
-# Equivalent to: docker compose --profile minio
-minio:
-  # -- Enable MinIO
-  enabled: false
-  image:
-    repository: minio/minio
-    tag: latest
-  # -- Root user
-  rootUser: minioadmin
-  # -- Root password (REQUIRED if enabled)
-  rootPassword: ""
-  persistence:
-    enabled: true
-    size: 20Gi
 
 # -- Neo4j configuration (Knowledge Graph)
 # Equivalent to: docker compose --profile neo4j

@@ -115,7 +115,7 @@ flowchart TB
 | postgres | ParadeDB（PostgreSQL 17 + BM25/向量扩展） | 镜像 `paradedb/paradedb` | 5432 | 主数据库 + 唯一的检索引擎（`RETRIEVE_DRIVER=postgres`，需 `vector` 与 `pg_search` 扩展） |
 | redis | Redis 7 | — | 6379 | 流管理（SSE 恢复）、Asynq 任务队列 |
 | 可选：neo4j | Neo4j | profile `neo4j` | 7474 / 7687 | 知识图谱存储（GraphRAG） |
-| 可选：minio | MinIO | profile `minio` | 9000 / 9001 | S3 兼容对象存储（`STORAGE_TYPE=minio`） |
+| 可选：rustfs | RustFS | profile `rustfs` | 9000 / 9001（默认仅绑定 127.0.0.1） | S3 兼容对象存储（`STORAGE_TYPE=s3`） |
 | 可选：searxng | SearXNG | profile `searxng` | 8888 | 自建 Web 搜索引擎 |
 | 可选：langfuse 栈 | Langfuse 3 + ClickHouse + MinIO | profile `langfuse` | 3000 | LLM 可观测性 |
 | 可选：mcp | Python | `mcp-server/`，profile `full` | 8082 | 将 Yuheng API 封装为 MCP Server |
@@ -130,7 +130,7 @@ flowchart LR
     APP --> PG[("ParadeDB / PostgreSQL :5432 元数据 + 混合检索")]
     APP --> RD[("Redis :6379 流管理 + Asynq 队列")]
     APP -. "可选" .-> NEO[("Neo4j 知识图谱")]
-    APP -. "可选" .-> OSS[("MinIO / COS / S3 / OSS / OBS / TOS 对象存储")]
+    APP -. "可选" .-> OSS[("S3 兼容对象存储（RustFS / MinIO / AWS S3 / 各云 S3 端点）")]
     APP -. "可选" .-> SX["SearXNG Web 搜索 :8888"]
     APP -. "可选" .-> LF["Langfuse 可观测 :3000"]
     APP --> LLM["Ollama 本地模型 / OpenAI 兼容远程模型"]

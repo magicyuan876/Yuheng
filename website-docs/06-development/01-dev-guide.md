@@ -68,7 +68,7 @@ make dev-restart  # 重启
 | `redis` | `redis:7.0-alpine`（`--requirepass`） | `6379` | 默认启动 |
 | `docreader` | 本地构建 `docker/Dockerfile.docreader` | `50051`（gRPC） | 默认启动 |
 | `searxng`（+`searxng-init`） | `searxng/searxng:latest` | `127.0.0.1:8888` | `--searxng` / `--full`（compose profile `searxng`） |
-| `minio` | `minio/minio:latest` | `9000` / 控制台 `9001` | `--minio` / `--full` |
+| `rustfs` | `rustfs/rustfs`（按 digest 固定） | `9000` / 控制台 `9001` | `--rustfs` / `--full` |
 | `neo4j` | `neo4j:latest`（APOC 插件） | `7474` / `7687` | `--neo4j` / `--full` |
 | `dex` | `dexidp/dex:latest`（OIDC 测试身份源，配置 `misc/dex-config.yaml`） | `5556` | `--dex` / `--full` |
 | `langfuse-web` / `langfuse-worker` / `langfuse-clickhouse` / `langfuse-minio` / `langfuse-db-init` | Langfuse v3 自建栈，复用 dev 的 postgres（独立 `langfuse` 库）与 redis（DB 1） | web `3000`、minio `9100/9101` | `--langfuse`（`dev.sh` 默认开启，`--no-langfuse` 关闭） |
@@ -122,7 +122,7 @@ docreader 的大量调优参数（PDF 渲染 DPI、扫描件判定、SSRF 白名
 | `build-images` / `build-images-app` / `build-images-docreader` / `build-images-frontend` / `clean-images` | `scripts/build_images.sh` 从源码构建/清理镜像 |
 | `check-env` / `list-containers` / `pull-images` | `start_all.sh --check / --list / --pull` |
 | `show-platform` | 显示 `uname -m` 与 Docker 构建平台（amd64/arm64 自动探测） |
-| `clean-db` | 删除 `yuheng_postgres-data` / `yuheng_minio_data` / `yuheng_redis_data` 三个 Docker volume（**清空数据**） |
+| `clean-db` | 删除 `yuheng_postgres-data` / `yuheng_rustfs_data` / `yuheng_redis_data` 三个 Docker volume（**清空数据**） |
 
 ### 3.3 数据库迁移（详见《数据库与迁移》一章）
 

@@ -142,7 +142,7 @@ curl $BASE/api/v1/initialization/config/kb-1 -H "Authorization: Bearer $TOKEN"
 | `embedding.source` / `embedding.modelName` | string | 是 | Embedding 模型 |
 | `embedding.baseUrl` / `embedding.apiKey` / `embedding.dimension` | — | 否 | 连接与维度 |
 | `rerank.enabled` + `rerank.modelName/baseUrl/apiKey` | — | 否 | Rerank 配置 |
-| `multimodal.enabled` + `multimodal.vlm.*` + `multimodal.storageType` + `multimodal.cos.*|minio.*` | — | 否 | 多模态与图床 |
+| `multimodal.enabled` + `multimodal.vlm.*` + `multimodal.storageType` | — | 否 | 多模态与图床；`storageType` 为空、`local` 或 `s3`，S3 连接参数取自服务端 `S3_*` 环境变量 |
 | `documentSplitting.chunkSize` / `separators` | int / []string | 是 | 分块配置 |
 | `documentSplitting.chunkOverlap` | int | 否 | 重叠 |
 | `nodeExtract.*` | — | 否 | 图谱抽取（enabled/text/tags/nodes/relations） |
@@ -257,13 +257,13 @@ curl -X POST $BASE/api/v1/initialization/remote/check -H "Authorization: Bearer 
 
 ### POST /api/v1/initialization/multimodal/test
 
-用途：多模态（VLM+图床）端到端测试。权限：Admin+。multipart 字段：`image`（必填）、`vlm_model`、`vlm_base_url`（必填）、`vlm_api_key`、`vlm_interface_type`、`storage_type`（`cos|minio`，必填）及对应 `cos_*`/`minio_*` 字段、`chunk_size`、`chunk_overlap`、`separators`。
+用途：多模态（VLM+图床）端到端测试。权限：Admin+。multipart 字段：`image`（必填）、`vlm_model`、`vlm_base_url`（必填）、`vlm_api_key`、`vlm_interface_type`、`storage_type`（`local|s3`，必填；S3 连接参数取自服务端 `S3_*` 环境变量）、`chunk_size`、`chunk_overlap`、`separators`。
 
 响应：200 `{"success":true,"data":{"success","caption","ocr","processing_time"}}`
 
 ```bash
 curl -X POST $BASE/api/v1/initialization/multimodal/test -H "Authorization: Bearer $TOKEN" \
-  -F 'image=@demo.png' -F 'vlm_model=qwen-vl' -F 'vlm_base_url=http://x' -F 'storage_type=minio'
+  -F 'image=@demo.png' -F 'vlm_model=qwen-vl' -F 'vlm_base_url=http://x' -F 'storage_type=local'
 ```
 
 ### POST /api/v1/initialization/extract/text-relation

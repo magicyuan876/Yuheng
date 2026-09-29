@@ -85,7 +85,7 @@ docker compose up -d
 | profile | 服务 | 端口 | 用途 |
 | --- | --- | --- | --- |
 | `searxng`（含 `full`） | `searxng-init` + `searxng` | `127.0.0.1:8888`（`SEARXNG_BIND`/`SEARXNG_PORT`） | 自建 Web 搜索；默认仅绑定回环，公开前必须轮换 `SEARXNG_SECRET` |
-| `minio`（含 `full`） | `minio` | 9000（S3）/ 9001（控制台） | S3 兼容对象存储（`STORAGE_TYPE=minio`），默认账号 `minioadmin/minioadmin` |
+| `rustfs`（含 `full`） | `rustfs` | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | S3 兼容对象存储（`STORAGE_TYPE=s3`），默认账号 `rustfsadmin/rustfsadmin`，详见下文「对象存储」 |
 | `neo4j`（含 `full`） | `neo4j` | 7474 / 7687 | 知识图谱（`NEO4J_ENABLE=true`），默认 `neo4j/password` |
 | `dex`（含 `full`） | `dex` | 5556 | OIDC 测试用 IdP（配置在 `misc/dex-config.yaml`） |
 | `langfuse`（含 `full`） | `langfuse-db-init`、`langfuse-clickhouse`、`langfuse-minio`、`langfuse-worker`、`langfuse-web` | 3000（UI）/ 9100/9101（专用 MinIO） | 自建 Langfuse 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
@@ -94,12 +94,71 @@ docker compose up -d
 
 app 容器的 `environment` 段落是全量环境变量清单（数据库、向量库、对象存储、Docreader 调优、租户策略、OIDC 等），详见 [04-configuration.md](./04-configuration.md)。
 
+### 对象存储（S3 兼容）
+
+文件存储只有两种：`local`（默认，写入本地目录）与 `s3`（任何 S3 兼容服务）。MinIO、RustFS、AWS S3，以及阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS，都通过 `s3` 及其 S3 兼容 endpoint 接入，没有各厂商的专用 provider。
+
+通用步骤只有一套：在 `.env` 中设置
+
+```bash
+STORAGE_TYPE=s3
+S3_ENDPOINT=<S3 兼容 endpoint，AWS S3 可留空>
+S3_REGION=<区域，必填>
+S3_BUCKET_NAME=<bucket，必填；不存在时首次使用会自动创建>
+S3_ACCESS_KEY=<访问密钥>          # 与 S3_SECRET_KEY 要么都填、要么都不填；
+S3_SECRET_KEY=<访问密钥 Secret>   # 都不填时使用 AWS 默认凭据链
+S3_PATH_PREFIX=yuheng/            # 可选，对象前缀
+S3_USE_SSL=true                   # 默认 true，仅在 endpoint 不带协议头时生效
+S3_ADDRESSING_STYLE=auto          # auto | path | virtual
+```
+
+`S3_ADDRESSING_STYLE=auto` 时，endpoint 为空或属于 `amazonaws.com` 用 virtual-hosted 寻址，其他 endpoint 一律用 path-style。各服务的取值：
+
+| 服务 | `S3_ENDPOINT` 示例 | `S3_ADDRESSING_STYLE` |
+| --- | --- | --- |
+| RustFS（自建，compose 自带） | `http://rustfs:9000` | `path`（`auto` 也可） |
+| MinIO（自建） | `http://minio:9000` | `path`（`auto` 也可） |
+| AWS S3 | 留空，或 `https://s3.us-east-1.amazonaws.com` | `auto` |
+| 阿里云 OSS | `https://oss-cn-hangzhou.aliyuncs.com` | `virtual`（必须） |
+| 腾讯云 COS | `https://cos.ap-guangzhou.myqcloud.com` | `virtual`（必须） |
+| 火山引擎 TOS | `https://tos-s3-cn-beijing.volces.com` | `virtual`（必须） |
+| 华为云 OBS | `https://obs.cn-north-4.myhuaweicloud.com` | `virtual`（必须） |
+| 金山云 KS3 | 未验证，可尝试其 S3 兼容 endpoint | 未验证 |
+
+阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 拒绝 path-style 请求，必须显式设为 `virtual`。金山云 KS3 没有实际测试过，不作保证。
+
+私有网络里的 endpoint（如 `rustfs:9000`、内网 MinIO）会被 SSRF 校验拦截，需要写进 `SSRF_WHITELIST` 或 `SSRF_WHITELIST_EXTRA`；compose 已默认放行 `rustfs` 服务名。
+
+**使用自带的 RustFS**
+
+```bash
+docker compose --profile rustfs up -d
+```
+
+然后在 `.env` 中：
+
+```bash
+STORAGE_TYPE=s3
+S3_ENDPOINT=http://rustfs:9000
+S3_REGION=us-east-1
+S3_BUCKET_NAME=yuheng
+S3_ACCESS_KEY=rustfsadmin      # 与 RUSTFS_ACCESS_KEY 相同
+S3_SECRET_KEY=rustfsadmin      # 与 RUSTFS_SECRET_KEY 相同
+S3_ADDRESSING_STYLE=path
+```
+
+RustFS 服务的端口默认只绑定 `127.0.0.1`（`RUSTFS_BIND`、`RUSTFS_PORT`、`RUSTFS_CONSOLE_PORT` 可调），默认账号密码 `rustfsadmin/rustfsadmin` 只适合首次试用，上线前请通过 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` 更换。
+
+> RustFS 仍处于 1.0 之前的阶段（撰写时为 1.0.0-rc.5），compose 里的镜像按 digest 固定。生产环境要评估这一点：升级镜像前先备份数据，也可以改用 MinIO、AWS S3 或云厂商的 S3 兼容服务。
+
+已有知识库里以 `s3://` 开头的文件路径仍然有效；`minio://`、`cos://`、`tos://`、`oss://`、`ks3://`、`obs://` 这些旧协议头不再被识别。
+
 ## 二、开发模式（docker-compose.dev.yml + scripts/dev.sh）
 
 开发编排只把**基础设施**放进容器（postgres、redis、docreader 端口全部映射到宿主机），app 与 frontend 在宿主机上以热更新方式运行：
 
 ```bash
-make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --minio / --neo4j / --dex / --full
+make dev-start          # ./scripts/dev.sh start，可加 DEV_ARGS=--odl-hybrid / --rustfs / --neo4j / --dex / --full
 make dev-app            # 宿主机启动 Go 后端（自动把 DB_HOST/REDIS_ADDR 指到 localhost）
 make dev-frontend       # 宿主机启动 Vue 前端 dev server
 make dev-logs / dev-status / dev-stop / dev-restart
@@ -142,7 +201,7 @@ make docker-build-frontend
 | `make dev-*` | 开发模式（见上文） |
 | `make build` / `run` / `build-prod` | 本地编译运行 `cmd/server`（`build-prod` 需 CGO，注入版本号） |
 | `make docs` / `install-swagger` | 生成 Swagger 文档（`http://localhost:8080/swagger/index.html`，release 模式禁用） |
-| `make clean-db` | 删除 postgres/minio/redis 数据卷（危险操作） |
+| `make clean-db` | 删除 postgres/rustfs/redis 数据卷（危险操作） |
 
 ## 五、scripts/ 启动脚本
 
@@ -160,7 +219,7 @@ make docker-build-frontend
 
 `helm/Chart.yaml`：apiVersion v2，chart 名 `yuheng`，appVersion 跟随版本（如 v0.1.0），要求 Kubernetes >= 1.25.0。
 
-Chart 内包含五个组件：`app`（`magicyuan876/yuheng-app`）、`frontend`（`magicyuan876/yuheng-ui`）、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`（`redis:7-alpine`），并可选启用 `minio` 与 `neo4j`。
+Chart 内包含五个组件：`app`（`magicyuan876/yuheng-app`）、`frontend`（`magicyuan876/yuheng-ui`）、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`（`redis:7-alpine`），并可选启用 `neo4j`。
 
 `helm/values.yaml` 关键配置：
 
@@ -170,7 +229,7 @@ app:
   env:
     GIN_MODE: release
     RETRIEVE_DRIVER: postgres      # 社区版只支持 postgres（ParadeDB + pgvector）
-    STORAGE_TYPE: local            # local / minio / cos / tos / s3
+    STORAGE_TYPE: local            # local / s3（任何 S3 兼容服务）
     STREAM_MANAGER_TYPE: redis
 postgresql:
   enabled: true

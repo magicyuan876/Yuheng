@@ -65,7 +65,6 @@ curl --location 'http://localhost:8080/api/v1/system/info' \
         "keyword_index_engine": "bleve",
         "vector_store_engine": "postgres",
         "graph_database_engine": "neo4j",
-        "minio_enabled": true,
         "db_version": "20250810_001"
     },
     "success": true
@@ -172,33 +171,24 @@ curl --location 'http://localhost:8080/api/v1/system/storage-engine-status' \
     "data": {
         "engines": [
             {
-                "name": "minio",
+                "name": "local",
                 "available": true,
-                "description": "MinIO 对象存储"
-            },
-            {
-                "name": "cos",
-                "available": false,
-                "description": "腾讯云 COS 对象存储"
+                "description": "本地文件系统"
             },
             {
                 "name": "s3",
-                "available": false,
-                "description": "AWS S3 对象存储"
-            },
-            {
-                "name": "oss",
-                "available": false,
-                "description": "阿里云 OSS 对象存储"
+                "available": true,
+                "description": "S3 兼容对象存储（RustFS、MinIO、AWS S3、OSS、COS、TOS、OBS 等）"
             }
-        ],
-        "minio_env_available": true
+        ]
     },
     "success": true
 }
 ```
 
 ## POST `/system/storage-engine-check` - 检查存储引擎连通性
+
+`provider` 取 `local` 或 `s3`；`s3` 配置对象的字段与 [存储后端 API](./storage-backend.md) 的 `config` 相同。
 
 **请求**:
 
@@ -207,13 +197,14 @@ curl --location 'http://localhost:8080/api/v1/system/storage-engine-check' \
 --header 'X-API-Key: sk-xxxxx' \
 --header 'Content-Type: application/json' \
 --data '{
-    "provider": "minio",
-    "minio": {
-        "endpoint": "localhost:9000",
-        "access_key": "minioadmin",
-        "secret_key": "minioadmin",
-        "bucket": "yuheng",
-        "use_ssl": false
+    "provider": "s3",
+    "s3": {
+        "endpoint": "http://rustfs:9000",
+        "region": "us-east-1",
+        "access_key_id": "rustfsadmin",
+        "secret_access_key": "rustfsadmin",
+        "bucket_name": "yuheng",
+        "addressing_style": "path"
     }
 }'
 ```
@@ -224,8 +215,7 @@ curl --location 'http://localhost:8080/api/v1/system/storage-engine-check' \
 {
     "data": {
         "ok": true,
-        "message": "连接成功",
-        "bucket_created": false
+        "message": "连接成功"
     },
     "success": true
 }

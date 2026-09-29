@@ -42,7 +42,7 @@
 | vlm_config                    | object  | 否   | VLM（视觉模型）配置                                             |
 | asr_config                    | object  | 否   | ASR（语音识别）配置                                             |
 | storage_provider_config       | object  | 否   | 存储提供者选择，如 `{"provider": "local"}`                      |
-| storage_config                | object  | 否   | 旧版 COS 存储凭证（兼容字段，新集成留空即可）                   |
+| storage_config                | object  | 否   | 旧版存储凭证（兼容字段，新集成留空即可）                   |
 | extract_config                | object  | 否   | 图谱抽取配置；`enabled=true` 时需提供 `text`/`tags`/`nodes`/`relations` |
 | faq_config                    | object  | 否   | FAQ 配置（仅 FAQ 类型知识库需要）                               |
 | question_generation_config    | object  | 否   | 问题生成配置                                                    |

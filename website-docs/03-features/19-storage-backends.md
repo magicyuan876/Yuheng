@@ -6,7 +6,7 @@
 
 - 不同团队/项目的资料落在不同的桶，便于分账与权限隔离；
 - 合规要求某类文档必须存在特定地域的桶里；
-- 从自建 MinIO 迁到云对象存储时，新库先用新后端，老库保持不动。
+- 从自建 S3 兼容存储（RustFS、MinIO）迁到云对象存储时，新库先用新后端，老库保持不动。
 
 <Screenshot
   src="/screenshots/settings-storage-backends.png"
@@ -17,7 +17,7 @@
 
 入口在「设置 → 存储」（`storage` 分区，需 Admin）：
 
-1. 新建后端，选 provider（`local` / `minio` / `cos` / `oss` / `s3` / `tos` / `obs` 等，与[文档入库流程](../02-architecture/03-document-pipeline.md)里的存储 provider 一致），填连接参数；
+1. 新建后端，选 provider（`local` 或 `s3`，与[文档入库流程](../02-architecture/03-document-pipeline.md)里的存储 provider 一致）。`s3` 覆盖 RustFS、MinIO、AWS S3 以及阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 的 S3 兼容端点，各服务的 endpoint 与 `addressing_style` 取值见[安装部署](../01-getting-started/02-installation.md)；
 2. **保存前点「测试」**：连通性测试会真实读写一次，配错的桶或过期的密钥能立刻发现，而不是等到上传文档时才报错；
 3. 需要的话把它设为空间默认（`PUT /storage-backends/:id/default`，同时写回 `tenants.default_storage_backend_id`）。新建知识库不指定实例时就用这个默认值；
 4. 单个知识库想用别的实例，在知识库编辑弹窗的「存储」页签里选——对应 `knowledge_bases.storage_backend_id`。

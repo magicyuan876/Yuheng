@@ -85,18 +85,6 @@ echo ""
 log_info "存储配置:"
 check_var "STORAGE_TYPE"
 
-if [ "$STORAGE_TYPE" = "minio" ]; then
-    check_var "MINIO_BUCKET_NAME"
-fi
-
-if [ "$STORAGE_TYPE" = "tos" ]; then
-    check_var "TOS_ENDPOINT"
-    check_var "TOS_REGION"
-    check_var "TOS_ACCESS_KEY"
-    check_var "TOS_SECRET_KEY"
-    check_var "TOS_BUCKET_NAME"
-fi
-
 if [ "$STORAGE_TYPE" = "s3" ]; then
     check_var "S3_REGION"
     check_var "S3_BUCKET_NAME"

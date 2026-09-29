@@ -6,7 +6,7 @@
 
 ### GET /files
 
-用途：认证后的统一文件代理（本地/MinIO/COS/TOS 等）。权限：任意已认证空间成员；API key 需非 KB 受限（full-access 或全空间 retrieve，`middleware.AllowFileServeAPIKey()`）；路径强制同空间（`ValidateStoragePathTenant`）。
+用途：认证后的统一文件代理（本地 / S3 兼容存储）。权限：任意已认证空间成员；API key 需非 KB 受限（full-access 或全空间 retrieve，`middleware.AllowFileServeAPIKey()`）；路径强制同空间（`ValidateStoragePathTenant`）。
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

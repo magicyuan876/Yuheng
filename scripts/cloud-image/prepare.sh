@@ -181,7 +181,7 @@ docker compose up -d
 echo "[prepare] 4.5/6 预拉 sandbox 镜像 (Agent Skills 用, 非常驻)"
 docker compose --profile full pull sandbox || true
 
-# 可选组件 (neo4j, langfuse-*, minio, dex)
+# 可选组件 (neo4j, langfuse-*, rustfs, dex)
 # 不预拉, 体积可省 5-15GB. 用户如需启用:
 #   cd /opt/Yuheng && docker compose --profile <name> up -d
 

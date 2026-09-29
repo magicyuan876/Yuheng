@@ -10,43 +10,13 @@ DocReader 是 Yuheng 项目中负责文档解析和处理的 gRPC 服务。它�
 docreader:
   image: magicyuan876/yuheng-docreader:${YUHENG_VERSION:-latest}
   environment:
-    - MINIO_ENDPOINT=minio:9000
-    - MINIO_PUBLIC_ENDPOINT=http://localhost:${MINIO_PORT:-9000}
     - MINERU_ENDPOINT=${MINERU_ENDPOINT:-}
     - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-}
 ```
 
 ### 环境变量说明
 
-#### 1. MINIO_ENDPOINT
-
-- **说明**: MinIO 服务的内部访问地址（容器间通信）
-- **默认值**: `minio:9000`
-- **用途**: DocReader 服务使用此地址连接到 MinIO 对象存储服务，用于读取和存储文档处理过程中的文件
-- **配置示例**:
-  ```yaml
-  - MINIO_ENDPOINT=minio:9000  # Docker 网络内部地址
-  ```
-
-#### 2. MINIO_PUBLIC_ENDPOINT
-
-- **说明**: MinIO 服务的公开访问地址（外部访问）
-- **默认值**: `http://localhost:9000`
-- **用途**: 用于生成可从外部访问的文件 URL，例如在文档解析后返回图片链接时使用
-- **重要提示**: 
-  - 如果需要从其他设备或容器访问，需要将 `localhost` 替换为实际的 IP 地址
-  - 可以在 `.env` 文件中配置 `MINIO_PORT` 来自定义端口
-- **配置示例**:
-  ```bash
-  # .env 文件
-  MINIO_PORT=9000
-  ```
-  或直接在 docker-compose.yml 中修改：
-  ```yaml
-  - MINIO_PUBLIC_ENDPOINT=http://192.168.1.100:9000  # 使用实际 IP
-  ```
-
-#### 3. MINERU_ENDPOINT
+#### 1. MINERU_ENDPOINT
 
 - **说明**: MinerU 服务的访问地址（可选）
 - **默认值**: 空（不使用 MinerU）
@@ -57,7 +27,7 @@ docreader:
   MINERU_ENDPOINT=http://mineru-service:8080
   ```
 
-#### 4. MAX_FILE_SIZE_MB
+#### 2. MAX_FILE_SIZE_MB
 
 - **说明**: 允许上传的最大文件大小（单位：MB）
 - **默认值**: `50` MB
@@ -88,39 +58,10 @@ docreader:
 
 DocReader 自身不再内置 OCR 与 VLM 后端。扫描 PDF 会被渲染为 JPEG 图片后交由 Go App 侧调用 OCR/VLM 服务处理，相关配置请参考主项目文档。
 
-### 存储配置
+### 存储
 
-DocReader 支持多种存储后端：
-
-#### MinIO/S3 存储（推荐）
-
-- `STORAGE_TYPE`: 设置为 `minio`
-- `MINIO_ACCESS_KEY_ID`: MinIO 访问密钥 ID（默认：minioadmin）
-- `MINIO_SECRET_ACCESS_KEY`: MinIO 访问密钥（默认：minioadmin）
-- `MINIO_BUCKET_NAME`: MinIO 存储桶名称（默认：Yuheng）
-- `MINIO_PATH_PREFIX`: 文件路径前缀
-- `MINIO_USE_SSL`: 是否使用 SSL（默认：false）
-
-#### 腾讯云 COS 存储
-
-- `STORAGE_TYPE`: 设置为 `cos`
-- `COS_SECRET_ID`: COS 访问密钥 ID
-- `COS_SECRET_KEY`: COS 访问密钥
-- `COS_REGION`: COS 区域
-- `COS_BUCKET_NAME`: COS 存储桶名称
-- `COS_APP_ID`: COS 应用 ID
-- `COS_PATH_PREFIX`: 文件路径前缀
-- `COS_ENABLE_OLD_DOMAIN`: 是否使用旧域名（默认：true）
-
-#### 阿里云 OSS 存储
-
-- `STORAGE_TYPE`: 设置为 `oss`
-- `OSS_ACCESS_KEY_ID`: OSS 访问密钥 ID
-- `OSS_ACCESS_KEY_SECRET`: OSS 访问密钥
-- `OSS_ENDPOINT`: OSS 端点（如 `oss-cn-hangzhou.aliyuncs.com`）
-- `OSS_BUCKET_NAME`: OSS 存储桶名称
-- `OSS_REGION`: OSS 区域（如 `cn-hangzhou`）
-- `OSS_PATH_PREFIX`: 文件路径前缀
+DocReader 不直接访问对象存储：解析出的图片以内联字节返回，由 Go App 按其存储配置（`local` 或 S3 兼容）持久化。
+因此这里没有存储相关的环境变量。
 
 ### 代理配置
 
@@ -136,13 +77,11 @@ DocReader 支持多种存储后端：
 
 ## 配置示例
 
-### 基础配置（使用 MinIO）
+### 基础配置
 
 ```yaml
 docreader:
   environment:
-    - MINIO_ENDPOINT=minio:9000
-    - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
     - MAX_FILE_SIZE_MB=50
 ```
 
@@ -151,51 +90,19 @@ docreader:
 ```yaml
 docreader:
   environment:
-    - MINIO_ENDPOINT=minio:9000
-    - MINIO_PUBLIC_ENDPOINT=http://192.168.1.100:9000
     - MINERU_ENDPOINT=http://mineru:8080
     - MAX_FILE_SIZE_MB=100
-```
-
-### 使用腾讯云 COS
-
-```yaml
-docreader:
-  environment:
-    - STORAGE_TYPE=cos
-    - COS_SECRET_ID=your_secret_id
-    - COS_SECRET_KEY=your_secret_key
-    - COS_REGION=ap-guangzhou
-    - COS_BUCKET_NAME=your-bucket
-    - COS_APP_ID=your_app_id
-    - MAX_FILE_SIZE_MB=50
-```
-
-### 使用阿里云 OSS
-
-```yaml
-docreader:
-  environment:
-    - STORAGE_TYPE=oss
-    - OSS_ACCESS_KEY_ID=your_access_key_id
-    - OSS_ACCESS_KEY_SECRET=your_access_key_secret
-    - OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
-    - OSS_BUCKET_NAME=your-bucket
-    - OSS_REGION=cn-hangzhou
-    - MAX_FILE_SIZE_MB=50
 ```
 
 ## 常见问题
 
 ### 1. DocReader 服务无法启动？
 
-检查容器日志中是否存在依赖缺失或权限相关错误，必要时确认 `MINIO_ENDPOINT` / 存储相关环境变量是否正确配置。
+检查容器日志中是否存在依赖缺失或权限相关错误，DocReader 本身不访问对象存储，存储相关配置（`STORAGE_TYPE`、`S3_*`）属于 app 服务。
 
 ### 2. 图片无法显示？
 
-检查 `MINIO_PUBLIC_ENDPOINT` 配置：
-- 确保使用的是可从浏览器访问的地址
-- 如果从其他设备访问，不要使用 `localhost`，应使用实际 IP 地址
+图片由 app 服务保存到对象存储，请检查 app 的 `STORAGE_TYPE` 与 `S3_*` 配置（参见 `.env.example`），并确认存储服务从 app 容器内可达。
 
 ### 3. 文件上传失败？
 

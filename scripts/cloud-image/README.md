@@ -85,7 +85,7 @@ Yuheng `docker-compose.yml` 大量服务是 **profile 限定**，本镜像只默
 
 | profile | 用途 |
 |---|---|
-| `minio` | 对象存储替代本地文件 |
+| `rustfs` | S3 兼容对象存储，替代本地文件（配合 `STORAGE_TYPE=s3`） |
 | `neo4j` | GraphRAG 知识图谱 |
 | `langfuse` | 自建 Langfuse 可观测平台 |
 | `dex` | OIDC 登录 |
@@ -261,7 +261,7 @@ sudo bash    /opt/yuheng-tools/scripts/cloud-image/cleanup.sh   # 制作新镜�
 ## 安全注意事项
 
 - 镜像里**不要**预置任何 LLM API Key、Langfuse Key、个人 SSH key
-- 数据库 / Redis / MinIO 端口默认仅对 docker 网络可见，不要在云防火墙里对外开放
+- 数据库 / Redis / RustFS 端口默认仅对 docker 网络可见，不要在云防火墙里对外开放
 - `/root/yuheng-credentials.txt` 用 `umask 077` 创建，仅 root 可读
 - 每次重制镜像前必须执行 `cleanup.sh`，避免泄漏上一份测试数据 / SSH key / machine-id
 

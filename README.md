@@ -113,7 +113,7 @@ Then open:
 | API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger/index.html |
 
-Optional Compose profiles add Neo4j, MinIO and Langfuse:
+Optional Compose profiles add Neo4j, RustFS (S3-compatible object storage) and Langfuse:
 `docker compose --profile full up -d`.
 
 Other ways to run:

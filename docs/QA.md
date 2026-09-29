@@ -65,36 +65,45 @@ INIT_RERANK_MODEL_API_KEY=your_rerank_model_api_key
 
 在知识库设置中开启**高级设置 - 多模态功能**，并在界面中配置相应的多模态模型。
 
-### 2. 确认 MinIO 服务已启动
+### 2. 确认对象存储可用
 
-如果多模态功能配置使用的是 MinIO 存储，需要确保 MinIO 镜像已正确启动：
+图片由对象存储保存。默认的 `STORAGE_TYPE=local` 不需要额外服务；如果配置的是 `STORAGE_TYPE=s3`，请确认 S3 兼容服务可达。使用 compose 自带的 RustFS 时：
 
 ```bash
-# 启动 MinIO 服务
-docker-compose --profile minio up -d
+# 启动 RustFS（默认只绑定 127.0.0.1）
+docker compose --profile rustfs up -d
 
-# 或者启动完整服务（包括 MinIO、Neo4j）
-docker-compose --profile full up -d
+# 或者启动完整服务（包括 RustFS、Neo4j 等）
+docker compose --profile full up -d
 ```
 
-### 3. 检查 MinIO Bucket 权限
+对应的 `.env` 配置：
 
-确保 MinIO 对应的 bucket 具有正确的读写权限：
+```bash
+STORAGE_TYPE=s3
+S3_ENDPOINT=http://rustfs:9000
+S3_REGION=us-east-1
+S3_BUCKET_NAME=yuheng
+S3_ACCESS_KEY=rustfsadmin        # 与 RUSTFS_ACCESS_KEY 相同
+S3_SECRET_KEY=rustfsadmin        # 与 RUSTFS_SECRET_KEY 相同
+S3_ADDRESSING_STYLE=path
+```
 
-1. 访问 MinIO 控制台：`http://localhost:9001`（默认端口）
-2. 使用 `.env` 中配置的 `MINIO_ACCESS_KEY_ID` 和 `MINIO_SECRET_ACCESS_KEY` 登录
-3. 进入对应的 bucket，检查并设置访问策略为**公开读取**或**公开读写**
+`rustfs:9000` 属于内网地址，需要被 `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` 放行（compose 已默认放行 `rustfs` 服务名）。
+
+### 3. 检查 Bucket 与凭据
+
+1. 在 **设置 → 存储后端** 里对当前配置点「测试连接」，或调用 `POST /system/storage-engine-check`，根据返回的 `message` 定位问题
+2. 确认 `S3_BUCKET_NAME` 对应的 bucket 可读写。bucket 不存在时，首次使用会自动创建
+3. 使用云厂商（阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS）时，`S3_ADDRESSING_STYLE` 必须设为 `virtual`，否则请求会被拒绝
 
 **重要提示**：
 - Bucket 名称不要包含特殊字符（包括中文），建议使用小写字母、数字和连字符
-- 如果无法修改现有 bucket 的权限，可以在配置中填入一个不存在的 bucket 名称，本项目会自动创建对应的 bucket 并设置好正确的权限
+- `S3_ACCESS_KEY` 与 `S3_SECRET_KEY` 要么都填、要么都不填；都不填时使用 AWS 默认凭据链
 
-### 4. 配置 MINIO_PUBLIC_ENDPOINT
+### 4. 图片链接无法从其他设备访问
 
-在 `docker-compose.yml` 文件中，`MINIO_PUBLIC_ENDPOINT` 变量默认配置为 `http://localhost:9000`。
-
-**重要提示**：如果你需要从其他设备或容器访问图片，`localhost` 可能无法正常工作，需要将其替换为本机的实际 IP 地址：
-
+图片默认以内部引用（`resource://`）保存，浏览器通过带登录态的 `/files` 代理读取，不依赖对象存储对外可达。如果需要生成外部可访问的直链，请配置 `APP_EXTERNAL_URL`，或让 S3 endpoint 本身公网可达。`S3_ENDPOINT` 使用 `localhost` 或容器内地址时，其他设备无法直接访问该地址。
 
 ## 5. 平台兼容性说明
 
@@ -286,7 +295,7 @@ SystemAdmin 可在 **系统管理 → 平台 API Key** 创建 `scope_type=platfo
 
 ## 24. 一个空间如何绑定多个对象存储实例？
 
-Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。一个空间可注册多个存储实例（`local` / `minio` / `cos` / `tos` / `s3` / `oss` / `ks3` / `obs`），不同知识库绑定到不同实例，空间维度还有一个默认实例：
+Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。一个空间可注册多个存储实例（`local` / `s3`，MinIO、RustFS、AWS S3、阿里云 OSS、腾讯云 COS 等都用 `s3` 接入），不同知识库绑定到不同实例，空间维度还有一个默认实例：
 
 - 在 **设置 → 存储后端** 创建/测试/设为默认（需 Admin+；API Key 需 `manage_storage_backends` 能力）。
 - 未显式绑定的新知识库使用空间默认实例；响应中的 `access_key_id` / `secret_access_key` 会被掩码，更新时提交掩码占位符不会覆盖库中真实凭据。
@@ -365,7 +374,7 @@ docker run -d -p 8081:8081 yuheng-docs
 注意事项：
 
 - 直链依赖 `APP_EXTERNAL_URL`（或存储后端本身公网可达）才能生成；无法生成时该引用会保持 `resource://` 原样，客户端仍可回退到 `/files`。
-- `public` 会为每个被引用文件签发**限时匿名可读**链接（Yuheng 侧 2 小时，MinIO 24 小时），请评估是否符合你的安全要求。
+- `public` 会为每个被引用文件签发**限时匿名可读**链接（Yuheng 侧 2 小时，存储后端预签名的时长由存储决定），请评估是否符合你的安全要求。
 - 限定了知识库范围的 API Key **始终返回 handle**，不受该变量影响。
 - 建议同时配置 `SYSTEM_AES_KEY`，以便复用 grant 行、稳定直链 URL 并降低读接口的写入压力。
 

@@ -101,7 +101,7 @@ curl -X POST $BASE/api/v1/vector-stores/vs-1/test -H "Authorization: Bearer $TOK
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是（`binding:"required"`） | 名称 |
-| `provider` | string | 是（`binding:"required"`） | 提供方（minio/cos/tos/s3/oss/ks3/obs…） |
+| `provider` | string | 是（`binding:"required"`） | 提供方（`local` 或 `s3`；S3 兼容服务的 endpoint 与 `addressing_style` 见[安装部署](../01-getting-started/02-installation.md)） |
 | `config` | object | 否 | 提供方配置（响应中凭证掩码） |
 | `status` | string | 否 | 状态 |
 
@@ -119,7 +119,7 @@ curl $BASE/api/v1/storage-backends/types -H "Authorization: Bearer $TOKEN"
 
 ```bash
 curl -X POST $BASE/api/v1/storage-backends/test -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"t","provider":"minio","config":{"endpoint":"minio:9000"}}'
+  -H 'Content-Type: application/json' -d '{"name":"t","provider":"s3","config":{"endpoint":"http://rustfs:9000","region":"us-east-1","bucket_name":"yuheng","access_key_id":"rustfsadmin","secret_access_key":"rustfsadmin","addressing_style":"path"}}'
 ```
 
 ### POST /api/v1/storage-backends
@@ -128,7 +128,7 @@ curl -X POST $BASE/api/v1/storage-backends/test -H "Authorization: Bearer $TOKEN
 
 ```bash
 curl -X POST $BASE/api/v1/storage-backends -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"minio-main","provider":"minio","config":{"endpoint":"minio:9000"}}'
+  -H 'Content-Type: application/json' -d '{"name":"rustfs-main","provider":"s3","config":{"endpoint":"http://rustfs:9000","region":"us-east-1","bucket_name":"yuheng","access_key_id":"rustfsadmin","secret_access_key":"rustfsadmin","addressing_style":"path"}}'
 ```
 
 ### GET /api/v1/storage-backends
@@ -153,7 +153,7 @@ curl $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN"
 
 ```bash
 curl -X PUT $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"minio-prod","provider":"minio"}'
+  -H 'Content-Type: application/json' -d '{"name":"s3-prod","provider":"s3"}'
 ```
 
 ### DELETE /api/v1/storage-backends/:id

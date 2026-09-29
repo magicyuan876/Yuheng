@@ -131,9 +131,9 @@ graph TB
 
 ### 1.6 存储配置
 
-- **StorageProviderConfig**（新）：`provider ∈ {local, minio, cos, tos, s3, oss, ks3, obs}`；
+- **StorageProviderConfig**（新）：`provider ∈ {local, s3}`；
 - **StorageBackendID**：绑定具体存储后端实例；
-- **StorageConfig**（遗留 `cos_config` 列）：`secret_id / secret_key / region / bucket_name / app_id / path_prefix / provider / endpoint / use_ssl / force_path_style`。
+- **StorageConfig**（遗留 `cos_config` 列）：`access_key_id / secret_access_key / region / bucket_name / path_prefix / provider / endpoint / use_ssl / addressing_style`。
 
 ### 1.7 KB 计算字段
 

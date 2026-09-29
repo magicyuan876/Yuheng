@@ -2,7 +2,7 @@
 
 [返回目录](./README.md)
 
-存储后端（StorageBackend）API 用于管理空间的对象/文件存储实例。一个空间可以注册多个存储实例（`local`、`minio`、`cos`、`tos`、`s3`、`oss`、`ks3`、`obs`），并将不同知识库绑定到不同实例；空间维度还有一个默认实例（`default_storage_backend_id`），未显式绑定的新知识库使用该默认实例。
+存储后端（StorageBackend）API 用于管理空间的对象/文件存储实例。一个空间可以注册多个存储实例（`local` 或 `s3`；MinIO、RustFS、AWS S3、阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 等都通过 `s3` 的 S3 兼容 endpoint 接入），并将不同知识库绑定到不同实例；空间维度还有一个默认实例（`default_storage_backend_id`），未显式绑定的新知识库使用该默认实例。
 
 接口同时管理用户创建的实例（`source: "user"`）以及从环境变量快照生成的只读实例（`source: "env"`）。存储后端 CRUD 需要 **Admin+** 角色；对 API Key 需具备 `manage_storage_backends` capability（或 full-access）。
 
@@ -22,23 +22,31 @@
 
 ## 存储配置字段（`config`）
 
-不同 provider 使用同一套归一化的配置对象，按 provider 取用其中的子集：
+`local` 不需要任何配置字段；`s3` 使用下列字段。`region` 与 `bucket_name` 必填；`access_key_id` 与 `secret_access_key` 要么都填、要么都不填，都不填时走 AWS 默认凭据链。
 
 | 字段                | 类型    | 说明                                                          |
 | ------------------- | ------- | ------------------------------------------------------------- |
-| mode                | string  | MinIO 模式：`docker`（复用环境变量凭据）或 `remote`            |
-| endpoint            | string  | 对象存储 endpoint（COS 使用 region，不需要 endpoint）          |
-| region              | string  | 区域                                                          |
-| access_key_id       | string  | 访问密钥 ID（COS 对应 SecretID）；响应中掩码                   |
-| secret_access_key   | string  | 访问密钥 Secret（COS 对应 SecretKey）；响应中掩码             |
-| bucket_name         | string  | Bucket 名称                                                   |
+| endpoint            | string  | S3 兼容服务的 endpoint；可带 `http://` / `https://`，不带时按 `use_ssl` 决定；留空表示 AWS S3 |
+| region              | string  | 区域（必填），如 `us-east-1`、`cn-hangzhou`                    |
+| access_key_id       | string  | 访问密钥 ID；响应中掩码                                       |
+| secret_access_key   | string  | 访问密钥 Secret；响应中掩码                                   |
+| bucket_name         | string  | Bucket 名称（必填）；不存在时首次使用会自动创建                |
 | path_prefix         | string  | 对象前缀，必须为相对路径，禁止 `/` 开头或 `..` 上跳            |
-| app_id              | string  | 腾讯云 COS AppID                                              |
-| use_ssl             | boolean | 是否使用 SSL                                                  |
-| force_path_style    | boolean | S3 是否使用 path-style 寻址                                   |
-| use_temp_bucket     | boolean | OSS 是否使用临时 bucket                                       |
-| temp_bucket_name    | string  | 临时 bucket 名称                                              |
-| temp_region         | string  | 临时 bucket 区域                                              |
+| use_ssl             | boolean | 是否使用 SSL，默认 `true`；仅在 endpoint 不带协议头时生效      |
+| addressing_style    | string  | `auto`（默认）/ `path` / `virtual`，见下表                     |
+
+`addressing_style` 为 `auto` 时：endpoint 为空或属于 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO 等）用 path-style。
+
+| 服务 | endpoint 示例 | `addressing_style` |
+| ---- | ------------- | ------------------ |
+| RustFS（自建） | `http://rustfs:9000` | `path`（或 `auto`） |
+| MinIO（自建） | `http://minio:9000` | `path`（或 `auto`） |
+| AWS S3 | 留空，或 `https://s3.us-east-1.amazonaws.com` | `auto` |
+| 阿里云 OSS | `https://oss-cn-hangzhou.aliyuncs.com` | `virtual`（必须） |
+| 腾讯云 COS | `https://cos.ap-guangzhou.myqcloud.com` | `virtual`（必须） |
+| 火山引擎 TOS | `https://tos-s3-cn-beijing.volces.com` | `virtual`（必须） |
+| 华为云 OBS | `https://obs.cn-north-4.myhuaweicloud.com` | `virtual`（必须） |
+| 金山云 KS3 | 未验证，可尝试其 S3 兼容 endpoint | 未验证 |
 
 > `endpoint`、`region`、`bucket_name`、`path_prefix` 决定对象的物理位置，**创建后不可变更**（更新时会被拒绝）；如需迁移请使用存储迁移流程。凭据可通过更新单独轮换。
 
@@ -58,7 +66,7 @@ curl --location 'http://localhost:8080/api/v1/storage-backends/types' \
 ```json
 {
     "success": true,
-    "data": ["local", "minio", "cos", "s3"]
+    "data": ["local", "s3"]
 }
 ```
 
@@ -114,7 +122,7 @@ curl --location --request POST 'http://localhost:8080/api/v1/storage-backends/te
 
 ## POST `/storage-backends` - 创建存储实例
 
-为当前空间创建一个新的存储实例。创建前会先校验配置、执行 SSRF 校验（本地存储与 docker 模式 MinIO 除外），并执行一次连通性测试；任一环节失败都会返回 `400`。同一空间内实例名称不允许重复。
+为当前空间创建一个新的存储实例。创建前会先校验配置、执行 SSRF 校验（本地存储除外；`rustfs:9000` 这类内网 endpoint 需在 `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` 中放行），并执行一次连通性测试；任一环节失败都会返回 `400`。同一空间内实例名称不允许重复。
 
 **参数说明（请求体）**:
 

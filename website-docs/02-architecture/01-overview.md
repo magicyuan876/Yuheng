@@ -24,12 +24,12 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | --- | --- | --- |
 | `searxng`（+ 一次性 `searxng-init`） | `searxng` / `full` | 自托管元搜索引擎，为知识问答提供 Web Search（默认绑定 `127.0.0.1:8888`） |
 | `neo4j` | `neo4j` / `full` | 知识图谱存储（GraphRAG），开关为 `NEO4J_ENABLE`，Bolt 协议 `7687` |
-| `minio` | `minio` / `full` | 对象存储（`STORAGE_TYPE=minio`） |
+| `rustfs` | `rustfs` / `full` | S3 兼容对象存储（`STORAGE_TYPE=s3`，默认仅绑定 `127.0.0.1`） |
 | `odl-hybrid` | `odl-hybrid` | OpenDataLoader PDF 混合解析后端（docreader 通过 HTTP `:5002` 调用） |
 | `dex` | `dex` / `full` | OIDC 测试用 IdP（配合 `OIDC_AUTH_ENABLE`） |
 | `langfuse-*`（web/worker/clickhouse/minio/db-init） | `langfuse` | 自建 LLM 可观测栈，复用 Yuheng 的 postgres（新建 `langfuse` 库）与 redis（DB 1） |
 
-检索引擎只有 postgres 一种（`RETRIEVE_DRIVER=postgres`），没有独立的向量库服务；此外，Go 后端还可直连未在 compose 内的 8 种对象存储（local/MinIO/COS/TOS/S3/OSS/KS3/OBS）。
+检索引擎只有 postgres 一种（`RETRIEVE_DRIVER=postgres`），没有独立的向量库服务；对象存储只有 `local` 与 `s3` 两种；`s3` 可对接 compose 内的 RustFS，也可对接 MinIO、AWS S3 或各云的 S3 兼容端点。
 
 ### 1.3 部署形态
 
@@ -72,7 +72,7 @@ Yuheng 采用"主服务 + 前端 + 文档解析微服务"的三进程核心架�
 | `app` → `postgres` | PostgreSQL wire（GORM/pgx） | 业务数据 + BM25 + pgvector |
 | `app` ↔ `redis` | RESP（支持 TLS） | ① Asynq 任务队列（文档解析/富化/Wiki 等 19 类任务）；② SSE 流断线续传的 Stream Manager（`STREAM_MANAGER_TYPE`）；③ `system_settings` 变更 Pub/Sub；④ 分布式 per-model 并发信号量 |
 | `app` → `neo4j` | Bolt（`bolt://neo4j:7687`） | GraphRAG 实体/关系存取 |
-| `app` → `searxng` / Web 搜索 provider | HTTP | SSRF 白名单校验（`SSRF_WHITELIST_EXTRA` 默认放行 compose 内 `searxng,minio`） |
+| `app` → `searxng` / Web 搜索 provider | HTTP | SSRF 白名单校验（`SSRF_WHITELIST_EXTRA` 默认放行 compose 内 `searxng,rustfs`） |
 | `app` → 对象存储/LLM 提供商 | 各自 SDK（HTTP/gRPC） | 检索走 `app` → `postgres`，不经过独立向量库 |
 
 ## 4. 总体架构图
@@ -94,12 +94,12 @@ graph LR
         subgraph Optional["可选 profile"]
             SX["searxng (联网搜索)"]
             NEO[("neo4j (知识图谱)")]
-            MINIO[("minio (对象存储)")]
+            RUSTFS[("rustfs (对象存储)")]
             LF["langfuse 可观测栈"]
         end
     end
 
-    EXT["外部服务: LLM API / COS / S3 / OSS ..."]
+    EXT["外部服务: LLM API / S3 兼容对象存储 ..."]
 
     Browser -->|"HTTP / SSE"| FE
     Mini -->|"HTTP"| APP
@@ -112,7 +112,7 @@ graph LR
     APP -->|"HTTP"| SX
     APP -->|"Bolt"| NEO
     APP -->|"SDK"| VDB
-    APP -->|"S3 API"| MINIO
+    APP -->|"S3 API"| RUSTFS
     APP -->|"HTTPS"| EXT
     APP -.->|"trace 上报"| LF
     DR -.->|"共享卷 docreader-tmp"| APP

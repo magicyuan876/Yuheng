@@ -496,13 +496,9 @@ type StorageBackendResolver interface {
 | provider | 文件 | 说明 |
 | --- | --- | --- |
 | `local` | `local.go` | 本地文件系统 |
-| `minio` | `minio.go` | MinIO / S3 兼容 |
-| `cos` | `cos.go` | 腾讯云 COS |
-| `tos` | `tos.go` | 火山引擎 TOS |
-| `s3` | `s3.go` | AWS S3 及兼容服务 |
-| `obs` | `obs.go` | 华为云 OBS |
-| `oss` | `oss.go` | 阿里云 OSS |
-| `ks3` | `ks3.go` | 金山云 KS3 |
+| `s3` | `s3.go` | 任何 S3 兼容服务（RustFS、MinIO、AWS S3，以及各云的 S3 端点） |
+
+MinIO、腾讯云 COS、火山引擎 TOS、阿里云 OSS、华为云 OBS、金山云 KS3 不再有专用 provider，统一走 `s3`（见[安装部署](../01-getting-started/02-installation.md)）。
 
 ### 新增步骤
 
@@ -512,7 +508,7 @@ type StorageBackendResolver interface {
 ```go
 switch p {
 case "local":  // NewLocalFileService(...)
-case "minio":  // NewMinioFileService(...)
+case "s3":     // NewS3FileService(...)
 // ... 在此追加：
 case "mystore":
     return NewMyStoreFileService(cfg), p, nil

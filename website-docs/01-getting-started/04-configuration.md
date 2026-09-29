@@ -146,10 +146,10 @@ flowchart LR
 
 `APP_EXTERNAL_URL` 决定 `resource://` 引用能否改写成外部可加载的链接，二选一：
 
-1. 存储后端本身公网可达（对象存储用公网 endpoint，或把 `MINIO_ENDPOINT` 设成公网 host），此时 `resource://` 回退到后端预签名 URL，不需要本变量；
+1. 存储后端本身公网可达（对象存储用公网 endpoint，或把 `S3_ENDPOINT` 设成公网 host），此时 `resource://` 回退到后端预签名 URL，不需要本变量；
 2. 设置 `APP_EXTERNAL_URL`，`resource://` 图片被改写成 `<APP_EXTERNAL_URL>/r/<token>` 走 Yuheng 自身（需要 nginx 代理 `/r/`，官方前端镜像已内置该 location）。
 
-默认的 MinIO 内网部署与 `local` 后端都只能走第二种。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
+默认的自带 RustFS 内网部署（`rustfs:9000`）与 `local` 后端都只能走第二种。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
 
 四种 URL 形式与取法见[图片与文件的对外访问](../03-features/21-file-access.md)。
 
@@ -177,12 +177,19 @@ flowchart LR
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `STORAGE_TYPE` | local | `local` / `minio` / `cos` / `tos` / `s3` / `obs` / `oss` |
+| `STORAGE_TYPE` | local | `local` / `s3`（任何 S3 兼容服务）；`dummy` 仅用于测试 |
 | `STORAGE_ALLOW_LIST` | 空 | 允许用户选择的存储类型白名单（逗号分隔） |
 | `LOCAL_STORAGE_BASE_DIR` | /data/files | 本地存储根目录 |
-| `MINIO_ENDPOINT/ACCESS_KEY_ID/SECRET_ACCESS_KEY/BUCKET_NAME/USE_SSL` | minio:9000 / minioadmin / minioadmin / 空 / false | MinIO |
-| `COS_SECRET_ID/SECRET_KEY/REGION/BUCKET_NAME/APP_ID/PATH_PREFIX` | 空 | 腾讯云 COS（另有 TEMP_BUCKET/TEMP_REGION） |
-| `S3_*` / `OBS_*` / `OSS_*` / `TOS_*` | 见 `.env.example` B4 节 | AWS S3 / 华为 OBS / 阿里 OSS / 火山 TOS，均含 ENDPOINT/REGION/KEY/BUCKET/PATH_PREFIX 等 |
+| `S3_ENDPOINT` | 空 | S3 兼容服务地址；可带 `http://` / `https://`；空表示 AWS S3 |
+| `S3_REGION` | 空 | 区域，`STORAGE_TYPE=s3` 时必填 |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 空 | 访问密钥，要么都填、要么都不填 |
+| `S3_BUCKET_NAME` | 空 | Bucket，必填；不存在时首次使用自动创建 |
+| `S3_PATH_PREFIX` | yuheng/ | 对象前缀 |
+| `S3_USE_SSL` | true | endpoint 不带协议头时是否用 HTTPS |
+| `S3_ADDRESSING_STYLE` | auto | `auto` / `path` / `virtual`。`auto`：endpoint 为空或 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO）用 path-style；阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 必须设 `virtual` |
+| `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` | rustfsadmin | 自带 RustFS（profile `rustfs`）的账号；另有 `RUSTFS_PORT` / `RUSTFS_CONSOLE_PORT` / `RUSTFS_BIND` |
+
+各服务的 endpoint 与寻址方式对照表见[安装部署](02-installation.md)。原有的 `MINIO_*` / `COS_*` / `TOS_*` / `OSS_*` / `OBS_*` / `KS3_*` 变量已不再生效，请改用 `S3_*`。
 
 AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 AWS SDK 默认凭证链，支持 EC2/ECS/EKS IAM Role、IRSA/Web Identity、环境变量与共享配置文件——在 AWS 上部署时不必再往环境变量里塞长期密钥。两者必须同填或同空。`S3_ENDPOINT` 留空则使用 Region 对应的标准端点。
 
@@ -215,7 +222,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `YUHENG_AUDIT_RETENTION_DAYS` | 90 | 审计日志保留天数 |
 | `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` | 空 | 引导第一个系统管理员。**不会创建用户**：该邮箱需先自行注册，下次启动时若部署内还没有任何系统管理员，才把它提升；已有管理员后本变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md) |
 | `OIDC_AUTH_ENABLE` 及 `OIDC_AUTH_*` / `OIDC_USER_INFO_MAPPING_*` | false / 空 | OIDC 单点登录全套配置 |
-| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,minio` | 出站请求 SSRF 白名单（app 与 docreader 共用） |
+| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,rustfs` | 出站请求 SSRF 白名单（app 与 docreader 共用） |
 | `IMAGE_HOST_KEEP_URL` | 空 | 保留原始 URL 的图片域名白名单 |
 
 ### Docreader 解析（docreader 容器）

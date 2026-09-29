@@ -82,7 +82,7 @@ sequenceDiagram
     participant U as "用户 / 前端"
     participant G as "Go App (knowledge_process)"
     participant D as "docreader (Python gRPC :50051)"
-    participant S as "对象存储 (local/minio/cos/tos)"
+    participant S as "对象存储 (local/s3)"
     participant M as "OCR / VLM (Go 侧调用)"
 
     U->>G: 上传文件 / 提交 URL
@@ -448,5 +448,5 @@ docker build -f docker/Dockerfile.app --build-arg WITH_ANYDOC=0 -t yuheng-app .
 - **对外接口**：仅 gRPC，端口 `50051`（`DOCREADER_GRPC_PORT`/`PORT`），RPC：`Read` / `ReadStream` / `ListEngines` + 标准 Health 服务。
 - **docreader 直接支持的文件格式全集**：`pdf`、`docx`、`doc`、`xlsx`、`xls`（markitdown 引擎额外含 `pptx`、`ppt`、`csv`）、`md`/`markdown`、`epub`、`html`/`htm`、`mhtml`、图片 `jpg/jpeg/png/gif/bmp/tiff/webp`，以及 URL 网页抓取；`txt`/`csv`/`json`/图片/音频在主链路中由 Go 侧 `SimpleFormatReader` 原生处理，不经过本服务。
 - **OCR / VLM**：docreader 内部零 OCR、零 VLM；扫描页与插图作为图片回传，OCR（PaddleOCR-VL）与 caption 由 Go App 完成。
-- **图片回传**：inline bytes（`ImageRef.image_data`），持久化到 local/minio/cos/tos 由 Go 负责。
+- **图片回传**：inline bytes（`ImageRef.image_data`），持久化到 local/s3 由 Go 负责。
 - **分块**：生产路径在 Go 侧 chunker；Python `TextSplitter`（512/80）仅为 sidecar 保留并与 Go 对齐。

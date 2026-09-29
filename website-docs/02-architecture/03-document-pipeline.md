@@ -188,13 +188,7 @@ type FileService interface {
 | Provider | 路径前缀 | 实现文件 | 说明 | 关键配置 |
 |----------|----------|----------|------|----------|
 | `local` | `local://` | `file/local.go` | 单机本地磁盘 | `LocalEngineConfig.PathPrefix`，基目录取 `LOCAL_STORAGE_BASE_DIR`，外链签名取 `APP_EXTERNAL_URL` |
-| `minio` | `minio://` | `file/minio.go` | MinIO / S3 兼容 | `MinIOEngineConfig`（`mode: docker` 时读环境变量 `MINIO_ENDPOINT` / `MINIO_ACCESS_KEY_ID` / `MINIO_SECRET_ACCESS_KEY` / `MINIO_BUCKET_NAME`；`mode: remote` 时读配置字段） |
-| `cos` | `cos://` | `file/cos.go` | 腾讯云 COS | `SecretID/SecretKey/Region/BucketName/AppID`，支持独立临时桶 `TempBucketName/TempRegion` |
-| `oss` | `oss://` | `file/oss.go` | 阿里云 OSS | `Endpoint/Region/AccessKey/SecretKey/BucketName`，支持临时桶 |
-| `s3` | `s3://` | `file/s3.go` | AWS S3 / 兼容协议 | `Endpoint/Region/AccessKey/SecretKey/BucketName/UseSSL/ForcePathStyle` |
-| `tos` | `tos://` | `file/tos.go` | 火山引擎 TOS | 同上，支持临时桶 |
-| `obs` | `obs://` | `file/obs.go` | 华为云 OBS | `Endpoint/Region/AccessKey/SecretKey/BucketName/UseSSL` |
-| `ks3` | `ks3://` | `file/ks3.go` | 金山云 KS3 | `Endpoint/Region/AccessKey/SecretKey/BucketName` |
+| `s3` | `s3://` | `file/s3.go` | 任何 S3 兼容服务（RustFS、MinIO、AWS S3；阿里云 OSS / 腾讯云 COS / 火山引擎 TOS / 华为云 OBS 通过各自的 S3 端点） | `Endpoint/Region/AccessKey/SecretKey/BucketName/PathPrefix/UseSSL/AddressingStyle`；两个密钥都留空时走 AWS 默认凭据链；云厂商端点需 `AddressingStyle=virtual` |
 | `dummy` | `dummy://` | `file/dummy.go` | 测试用空实现 | 无 |
 
 ### 3.3 对象 Key 组织规则
@@ -534,7 +528,7 @@ type FAQChunkMetadata struct {
 
 一篇启用了多模态、问题生成与图谱的 PDF，完整旅程是：
 
-1. `POST /knowledge-bases/:id/knowledge/file` → MD5 去重 → `cos://tenant/kb/uuid.pdf` → Knowledge(`pending`) → asynq `document:process`；
+1. `POST /knowledge-bases/:id/knowledge/file` → MD5 去重 → `s3://tenant/kb/uuid.pdf` → Knowledge(`pending`) → asynq `document:process`；
 2. Worker：Span attempt=1 开根 → `docreader` 阶段 gRPC 调 Python 服务拿 Markdown+图片字节 → 图片上传存储并重写 URL → `chunking` 阶段 Go chunker 切块 → 写 chunks → `embedding` 阶段 BatchIndex → `EnableStatus=enabled`（此刻已可检索）→ 每图入队 multimodal 任务；
 3. 多模态 worker 逐图 OCR+Caption，生成 image_caption/image_ocr 子 chunk 并索引；全部完成后触发 post-process；
 4. 编排器计算 `expectedSubtasks`（1 摘要 + N/20 问题批 + M 图谱 + 0/1 Wiki）→ `SetFinalizing` → 扇出；每个子任务终态 `FinalizeSubtask` 递减，减到 0 → `completed`；
