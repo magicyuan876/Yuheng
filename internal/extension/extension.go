@@ -174,3 +174,29 @@ func ApplyHooks(c *dig.Container) error {
 	hooksApplied.Store(true)
 	return nil
 }
+
+// TB is the part of *testing.T that IsolateForTest needs, so this package does
+// not import "testing" into the server.
+type TB interface {
+	Helper()
+	Cleanup(func())
+}
+
+// IsolateForTest empties the hook registry for the duration of one test and
+// restores it afterwards, so a test neither sees hooks registered by other
+// tests or by linked extensions nor leaves its own behind. It exists for tests
+// of code that depends on the registry state; do not call it from anything else.
+func IsolateForTest(t TB) {
+	t.Helper()
+	hooksMu.Lock()
+	saved, savedApplied := hooks, hooksApplied.Load()
+	hooks = nil
+	hooksApplied.Store(false)
+	hooksMu.Unlock()
+	t.Cleanup(func() {
+		hooksMu.Lock()
+		hooks = saved
+		hooksApplied.Store(savedApplied)
+		hooksMu.Unlock()
+	})
+}

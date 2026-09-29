@@ -9,22 +9,7 @@ import (
 	"go.uber.org/dig"
 )
 
-// resetHooks empties the registry for one test and restores it afterwards, so
-// tests do not see hooks registered by other tests or by linked extensions.
-func resetHooks(t *testing.T) {
-	t.Helper()
-	hooksMu.Lock()
-	saved, savedApplied := hooks, hooksApplied.Load()
-	hooks = nil
-	hooksApplied.Store(false)
-	hooksMu.Unlock()
-	t.Cleanup(func() {
-		hooksMu.Lock()
-		hooks = saved
-		hooksApplied.Store(savedApplied)
-		hooksMu.Unlock()
-	})
-}
+func resetHooks(t *testing.T) { IsolateForTest(t) }
 
 func TestDefaultFeaturesHaveNothing(t *testing.T) {
 	resetHooks(t)

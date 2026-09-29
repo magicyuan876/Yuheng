@@ -117,10 +117,7 @@ func TestNewEngineFactory_FailsClosed(t *testing.T) {
 }
 
 func TestNewEngineCatalog_RequiresExtensionHooksToBeApplied(t *testing.T) {
-	// The extension package keeps its hook registry private, so this test
-	// cannot reset it. It instead leaves the registry in a usable state:
-	// registering a no-op hook and then applying it is harmless to the other
-	// tests of this package, which all run with hooks applied or absent.
+	extension.IsolateForTest(t)
 	extension.RegisterHook("container-test-noop", func(*dig.Container) error { return nil })
 
 	params := engineCatalogParams{Descriptors: []retriever.EngineDescriptor{retriever.PostgresDescriptor()}}
