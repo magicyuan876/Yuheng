@@ -84,7 +84,7 @@ func (g *pgRepository) Save(ctx context.Context, indexInfo *types.IndexInfo, add
 	if err := g.ensureDimensions(ctx, []*pgVector{embeddingDB}); err != nil {
 		return err
 	}
-	err := g.db.WithContext(ctx).Create(embeddingDB).Error
+	err := g.createRows(ctx, []*pgVector{embeddingDB}, false)
 	if err != nil {
 		logger.GetLogger(ctx).Errorf("[Postgres] Failed to save index: %v", err)
 		return err
@@ -105,13 +105,44 @@ func (g *pgRepository) BatchSave(
 	if err := g.ensureDimensions(ctx, indexInfoDBList); err != nil {
 		return err
 	}
-	err := g.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(indexInfoDBList).Error
+	err := g.createRows(ctx, indexInfoDBList, true)
 	if err != nil {
 		logger.GetLogger(ctx).Errorf("[Postgres] Batch save failed: %v", err)
 		return err
 	}
 	logger.GetLogger(ctx).Infof("[Postgres] Successfully batch saved %d indices", len(indexInfoList))
 	return nil
+}
+
+// createRows inserts index rows and keeps the is_enabled flag they carry.
+//
+// is_enabled has `default:true`, and GORM replaces a struct field's zero value
+// (false) with the default even when the column is selected, so an insert alone
+// stores every row as enabled. A chunk indexed as disabled (an FAQ entry that
+// is switched off is re-indexed this way: old rows deleted, new ones saved with
+// the chunk's current flag) would then be answered from. The rows that should
+// be disabled are switched off in the same transaction, as CopyIndices does.
+func (r *pgRepository) createRows(ctx context.Context, rows []*pgVector, skipDuplicates bool) error {
+	// Read the flags first: Create writes the default back into the structs.
+	var disabled []string
+	for _, row := range rows {
+		if !row.IsEnabled {
+			disabled = append(disabled, row.SourceID)
+		}
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		insert := tx
+		if skipDuplicates {
+			insert = tx.Clauses(clause.OnConflict{DoNothing: true})
+		}
+		if err := insert.Create(rows).Error; err != nil {
+			return err
+		}
+		if len(disabled) == 0 {
+			return nil
+		}
+		return tx.Model(&pgVector{}).Where("source_id IN ?", disabled).Update("is_enabled", false).Error
+	})
 }
 
 // DeleteByChunkIDList deletes indices by chunk IDs

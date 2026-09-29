@@ -515,6 +515,9 @@ func (s *ImageMultimodalService) indexChunks(ctx context.Context, payload types.
 			ChunkID:         chunk.ID,
 			KnowledgeID:     chunk.KnowledgeID,
 			KnowledgeBaseID: chunk.KnowledgeBaseID,
+			// Explicit, like every other indexer: an unset flag reads as
+			// "disabled" now that the engine stores the flag it is given.
+			IsEnabled: true,
 		})
 	}
 
