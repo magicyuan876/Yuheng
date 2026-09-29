@@ -5,19 +5,17 @@ import (
 	"testing"
 
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func newSessionRepositoryForTest(t *testing.T) (interfaces.SessionRepository, *gorm.DB) {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Session{}))
+	db := pgtest.New(t)
 
 	return NewSessionRepository(db), db
 }

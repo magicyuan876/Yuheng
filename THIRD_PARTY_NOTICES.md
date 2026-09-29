@@ -16,7 +16,7 @@ cutting a release: it carries the blocking items.
 
 | Ecosystem | Components | Source of truth |
 |---|---|---|
-| Go | 381 modules | `go.mod`, `cli/go.mod`, `client/go.mod`, `docs/poc/docker-sandbox/go.mod` |
+| Go | 394 modules | `go.mod`, `cli/go.mod`, `client/go.mod` |
 | npm (frontend) | 569 packages | `frontend/package-lock.json` (resolved from `frontend/node_modules`) |
 | npm (collab) | 35 packages | `collab/package-lock.json` (resolved from `collab/node_modules`) |
 | Python (docreader) | 66 distributions | `docreader/uv.lock` (resolved from the built image) |
@@ -39,22 +39,21 @@ cutting a release: it carries the blocking items.
 
 | License | Modules |
 |---|---|
-| MIT | 166 |
-| Apache-2.0 | 144 |
-| BSD-3-Clause | 47 |
-| BSD-2-Clause | 12 |
+| MIT | 168 |
+| Apache-2.0 | 153 |
+| BSD-3-Clause | 49 |
+| BSD-2-Clause | 13 |
 | ISC | 2 |
 | MPL-2.0 | 2 |
 | UNRESOLVED (windows-only; not in the linux module cache) | 2 |
 | Apache-2.0 (v0.67.0 is replaced by v0.59.0 in go.mod; the replacement is in the cache and scans Apache-2.0) | 1 |
 | MIT (this repository) | 1 |
 | MIT (vendored at third_party/anydoc-go; see its LICENSE) | 1 |
-| MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) | 1 |
 | UNRESOLVED (not in the linux module cache) | 1 |
 | UNRESOLVED (terminal input; not in the linux module cache) | 1 |
 
 <details>
-<summary>Full list (381 modules)</summary>
+<summary>Full list (394 modules)</summary>
 
 | Module | Version | License |
 |---|---|---|
@@ -63,6 +62,7 @@ cutting a release: it carries the blocking items.
 | `cloud.google.com/go/compute/metadata` | v0.9.0 | Apache-2.0 |
 | `codeberg.org/readeck/go-readability/v2` | v2.1.2 | MIT |
 | `connectrpc.com/connect` | v1.19.1 | Apache-2.0 |
+| `dario.cat/mergo` | v1.0.2 | BSD-3-Clause |
 | `filippo.io/edwards25519` | v1.2.0 | BSD-3-Clause |
 | `git.sr.ht/~jackmordaunt/go-toast/v2` | v2.0.3 | MIT |
 | `github.com/alicebob/miniredis/v2` | v2.38.0 | MIT |
@@ -70,7 +70,6 @@ cutting a release: it carries the blocking items.
 | `github.com/andybalholm/brotli` | v1.2.0 | MIT |
 | `github.com/andybalholm/cascadia` | v1.3.3 | BSD-2-Clause |
 | `github.com/apache/arrow-go/v18` | v18.5.1 | Apache-2.0 |
-| `github.com/asg017/sqlite-vec-go-bindings` | v0.1.6 | MIT OR Apache-2.0 (from asg017/sqlite-vec; no LICENSE in the bindings submodule) |
 | `github.com/atotto/clipboard` | v0.1.4 | BSD-3-Clause |
 | `github.com/aws/aws-sdk-go-v2` | v1.41.7 | Apache-2.0 |
 | `github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream` | v1.7.10 | Apache-2.0 |
@@ -91,6 +90,7 @@ cutting a release: it carries the blocking items.
 | `github.com/aws/aws-sdk-go-v2/service/sts` | v1.42.1 | Apache-2.0 |
 | `github.com/aws/smithy-go` | v1.25.1 | Apache-2.0 |
 | `github.com/aymanbagabas/go-osc52/v2` | v2.0.1 | MIT |
+| `github.com/Azure/go-ansiterm` | v0.0.0-20250102033503-faa5f7b0171c | MIT |
 | `github.com/bahlo/generic-list-go` | v0.2.0 | BSD-3-Clause |
 | `github.com/beorn7/perks` | v1.0.1 | MIT |
 | `github.com/bep/debounce` | v1.2.1 | MIT |
@@ -126,8 +126,11 @@ cutting a release: it carries the blocking items.
 | `github.com/containerd/cgroups/v3` | v3.0.3 | Apache-2.0 |
 | `github.com/containerd/errdefs` | v1.0.0 | Apache-2.0 |
 | `github.com/containerd/errdefs/pkg` | v0.3.0 | Apache-2.0 |
+| `github.com/containerd/log` | v0.1.0 | Apache-2.0 |
+| `github.com/containerd/platforms` | v0.2.1 | Apache-2.0 |
 | `github.com/coreos/go-semver` | v0.3.0 | Apache-2.0 |
 | `github.com/coreos/go-systemd/v22` | v22.3.2 | Apache-2.0 |
+| `github.com/cpuguy83/dockercfg` | v0.3.2 | MIT |
 | `github.com/danieljoos/wincred` | v1.2.3 | UNRESOLVED (windows-only; not in the linux module cache) |
 | `github.com/DATA-DOG/go-sqlmock` | v1.5.2 | BSD-2-Clause |
 | `github.com/davecgh/go-spew` | v1.1.2-0.20180830191138-d8f796af33cc | ISC |
@@ -144,6 +147,7 @@ cutting a release: it carries the blocking items.
 | `github.com/duckdb/duckdb-go-bindings/lib/windows-amd64` | v0.10502.0 | MIT |
 | `github.com/duckdb/duckdb-go/v2` | v2.10502.0 | MIT |
 | `github.com/dustin/go-humanize` | v1.0.1 | MIT |
+| `github.com/ebitengine/purego` | v0.10.0 | Apache-2.0 |
 | `github.com/elastic/elastic-transport-go/v8` | v8.9.0 | Apache-2.0 |
 | `github.com/elastic/go-elasticsearch/v7` | v7.17.10 | Apache-2.0 |
 | `github.com/elastic/go-elasticsearch/v8` | v8.19.6 | Apache-2.0 |
@@ -250,6 +254,7 @@ cutting a release: it carries the blocking items.
 | `github.com/lib/pq` | v1.10.9 | MIT |
 | `github.com/lucasb-eyer/go-colorful` | v1.2.0 | MIT |
 | `github.com/lufia/plan9stats` | v0.0.0-20260330125221-c963978e514e | BSD-3-Clause |
+| `github.com/magiconair/properties` | v1.8.10 | BSD-2-Clause |
 | `github.com/magicyuan876/yuheng/client` | v0.0.0-00010101000000-000000000000 | MIT (this repository) |
 | `github.com/mailru/easyjson` | v0.9.0 | MIT |
 | `github.com/mark3labs/mcp-go` | v0.52.0 | MIT |
@@ -258,7 +263,6 @@ cutting a release: it carries the blocking items.
 | `github.com/mattn/go-isatty` | v0.0.22 | MIT |
 | `github.com/mattn/go-localereader` | v0.0.1 | UNRESOLVED (not in the linux module cache) |
 | `github.com/mattn/go-runewidth` | v0.0.27 | MIT |
-| `github.com/mattn/go-sqlite3` | v1.14.24 | MIT |
 | `github.com/Microsoft/go-winio` | v0.6.2 | MIT |
 | `github.com/milvus-io/milvus-proto/go-api/v2` | v2.6.15 | Apache-2.0 |
 | `github.com/milvus-io/milvus/client/v2` | v2.6.4 | Apache-2.0 |
@@ -271,8 +275,14 @@ cutting a release: it carries the blocking items.
 | `github.com/mmcdole/gofeed` | v1.3.0 | MIT |
 | `github.com/mmcdole/goxpp` | v1.1.1-0.20240225020742-a0c311522b23 | MIT |
 | `github.com/moby/docker-image-spec` | v1.3.1 | Apache-2.0 |
+| `github.com/moby/go-archive` | v0.2.0 | Apache-2.0 |
 | `github.com/moby/moby/api` | v1.55.0 | Apache-2.0 |
 | `github.com/moby/moby/client` | v0.5.1 | Apache-2.0 |
+| `github.com/moby/patternmatcher` | v0.6.1 | Apache-2.0 |
+| `github.com/moby/sys/sequential` | v0.6.0 | Apache-2.0 |
+| `github.com/moby/sys/user` | v0.4.0 | Apache-2.0 |
+| `github.com/moby/sys/userns` | v0.1.0 | Apache-2.0 |
+| `github.com/moby/term` | v0.5.2 | Apache-2.0 |
 | `github.com/modelcontextprotocol/go-sdk` | v1.7.0 | Apache-2.0 |
 | `github.com/modern-go/concurrent` | v0.0.0-20180306012644-bacd9c7ef1dd | Apache-2.0 |
 | `github.com/modern-go/reflect2` | v1.0.2 | Apache-2.0 |
@@ -324,7 +334,8 @@ cutting a release: it carries the blocking items.
 | `github.com/segmentio/asm` | v1.1.3 | MIT |
 | `github.com/segmentio/encoding` | v0.5.4 | MIT |
 | `github.com/shirou/gopsutil/v3` | v3.23.12 | BSD-3-Clause |
-| `github.com/shoenig/go-m1cpu` | v0.1.6 | MPL-2.0 |
+| `github.com/shirou/gopsutil/v4` | v4.26.4 | BSD-3-Clause |
+| `github.com/shoenig/go-m1cpu` | v0.2.2 | MPL-2.0 |
 | `github.com/sirupsen/logrus` | v1.9.4 | MIT |
 | `github.com/slack-go/slack` | v0.23.1 | BSD-2-Clause |
 | `github.com/soheilhy/cmux` | v0.1.5 | Apache-2.0 |
@@ -346,6 +357,8 @@ cutting a release: it carries the blocking items.
 | `github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common` | v1.3.103 | Apache-2.0 |
 | `github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/lkeap` | v1.3.103 | Apache-2.0 |
 | `github.com/tencentyun/cos-go-sdk-v5` | v0.7.73 | MIT |
+| `github.com/testcontainers/testcontainers-go` | v0.42.0 | MIT |
+| `github.com/testcontainers/testcontainers-go/modules/postgres` | v0.42.0 | MIT |
 | `github.com/tidwall/gjson` | v1.18.0 | MIT |
 | `github.com/tidwall/match` | v1.1.1 | MIT |
 | `github.com/tidwall/pretty` | v1.2.1 | MIT |
@@ -435,7 +448,6 @@ cutting a release: it carries the blocking items.
 | `gopkg.in/yaml.v2` | v2.4.0 | Apache-2.0 |
 | `gopkg.in/yaml.v3` | v3.0.1 | MIT |
 | `gorm.io/driver/postgres` | v1.6.0 | MIT |
-| `gorm.io/driver/sqlite` | v1.6.0 | MIT |
 | `gorm.io/gorm` | v1.31.1 | MIT |
 | `k8s.io/apimachinery` | v0.32.3 | Apache-2.0 |
 | `sigs.k8s.io/yaml` | v1.4.0 | Apache-2.0 |

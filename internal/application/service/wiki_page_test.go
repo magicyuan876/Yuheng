@@ -2,22 +2,18 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestPruneEmptyFolderChainsDeletesOnlyEmptyCandidateAncestors(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.WikiFolder{}, &types.WikiPage{}, &types.WikiPageRevision{}))
+	db := pgtest.New(t)
 
 	ctx := context.Background()
 	repo := repository.NewWikiPageRepository(db)
@@ -71,9 +67,7 @@ func TestStripWikiInlineChunkCitationsPreservesOrdinaryMarkdown(t *testing.T) {
 }
 
 func TestUpdateWikiPagePersistsAndClearsAliases(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.WikiFolder{}, &types.WikiPage{}, &types.WikiPageRevision{}))
+	db := pgtest.New(t)
 
 	ctx := context.Background()
 	repo := repository.NewWikiPageRepository(db)
@@ -174,9 +168,7 @@ func TestParseOutLinks(t *testing.T) {
 }
 
 func TestRepairContentLinks(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.WikiFolder{}, &types.WikiPage{}, &types.WikiPageRevision{}))
+	db := pgtest.New(t)
 
 	ctx := context.Background()
 	repo := repository.NewWikiPageRepository(db)

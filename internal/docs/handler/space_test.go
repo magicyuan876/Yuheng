@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -22,14 +19,11 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
 	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/middleware"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
-
-var handlerDBSeq atomic.Int64
 
 // tenantTable is the fake tenant membership; every listed user is active.
 type tenantTable map[string]types.TenantRole
@@ -92,24 +86,14 @@ func (t tenantTable) GetUsersByIDs(_ context.Context, ids []string) (map[string]
 	return out, nil
 }
 
-// openHandlerDB opens a private in-memory database with the module's real
-// SQLite migration applied.
+// openHandlerDB opens a private PostgreSQL database with the production
+// schema applied.
 func openHandlerDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := fmt.Sprintf("file:docs-handler-%d?mode=memory&cache=shared&_foreign_keys=1", handlerDBSeq.Add(1))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(ddl)).Error)
-	return db
+	return pgtest.New(t)
 }
 
-// newSpaceRouter wires the module's routes on top of an in-memory database.
+// newSpaceRouter wires the module's routes on top of a private PostgreSQL database.
 // opts adjust the service dependencies, which is how a test switches the
 // deployment between the collaborative and the exclusive-edit shape.
 func newSpaceRouter(t *testing.T, opts ...func(*service.Deps)) (*gin.Engine, *repository.Repositories) {

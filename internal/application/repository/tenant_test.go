@@ -4,20 +4,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// setupTestDB creates an in-memory SQLite database with tenant table.
+// setupTestDB returns a fresh database with the production schema.
 func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Tenant{}, &types.TenantMember{}))
-	return db
+	return pgtest.New(t)
 }
 
 func TestDeleteTenant_SoftDeletesMemberships(t *testing.T) {

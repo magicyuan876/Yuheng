@@ -75,7 +75,7 @@ func TestEngineAwareNormalizer_UnitInterval(t *testing.T) {
 	//   - OpenSearch — the k-NN plugin's
 	//     SpaceType.COSINESIMIL.scoreTranslation pre-maps to (1 + cos)/2.
 	//   - Weaviate — driver requests certainty, intrinsically in [0, 1].
-	//   - Postgres pgvector / SQLite sqlite-vec / Qdrant /
+	//   - Postgres pgvector / Qdrant /
 	//     TencentVectorDB / Doris — theoretically [-1, 1] but the
 	//     IR-normalized embeddings Yuheng targets (BGE / OpenAI /
 	//     Cohere / sentence-transformers) keep the observed range

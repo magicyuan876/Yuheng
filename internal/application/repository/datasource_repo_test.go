@@ -5,19 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func setupDataSourceRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.DataSource{}, &types.SyncLog{}))
-	return db
+	return pgtest.New(t)
 }
 
 func TestDataSourceRepositoryUpdateSyncStateClearsErrorMessage(t *testing.T) {
@@ -47,7 +44,8 @@ func TestDataSourceRepositoryUpdateSyncStateClearsErrorMessage(t *testing.T) {
 	require.NoError(t, db.First(&stored, "id = ?", ds.ID).Error)
 	assert.Equal(t, types.DataSourceStatusActive, stored.Status)
 	assert.Empty(t, stored.ErrorMessage)
-	assert.Equal(t, result.ToString(), stored.LastSyncResult.ToString())
+	// JSONB stores the document, not its text, so compare as JSON.
+	assert.JSONEq(t, result.ToString(), stored.LastSyncResult.ToString())
 	require.NotNil(t, stored.LastSyncAt)
 }
 
@@ -130,7 +128,7 @@ func TestDataSourceRepositoryCreatePersistsEnabledSyncDeletions(t *testing.T) {
 	assert.True(t, stored.SyncDeletions)
 }
 
-func TestDataSourceRepositoryDeleteSoftDeletesOnSQLite(t *testing.T) {
+func TestDataSourceRepositoryDeleteSoftDeletes(t *testing.T) {
 	db := setupDataSourceRepoTestDB(t)
 	repo := NewDataSourceRepository(db)
 	ctx := context.Background()
@@ -173,6 +171,16 @@ func TestSyncLogRepositoryUpdateResultClearsErrorMessage(t *testing.T) {
 	finishedAt := time.Now().UTC()
 	result := types.JSON(`{"total":0}`)
 
+	// sync_logs.data_source_id references data_sources, so the log needs
+	// its parent row.
+	require.NoError(t, NewDataSourceRepository(db).Create(context.Background(), &types.DataSource{
+		ID:              "ds-1",
+		TenantID:        1,
+		KnowledgeBaseID: "kb-1",
+		Name:            "Feishu",
+		Type:            types.ConnectorTypeFeishu,
+	}))
+
 	log := &types.SyncLog{
 		ID:           "log-1",
 		DataSourceID: "ds-1",
@@ -198,6 +206,6 @@ func TestSyncLogRepositoryUpdateResultClearsErrorMessage(t *testing.T) {
 	assert.Empty(t, stored.ErrorMessage)
 	assert.Zero(t, stored.ItemsTotal)
 	assert.Zero(t, stored.ItemsFailed)
-	assert.Equal(t, result.ToString(), stored.Result.ToString())
+	assert.JSONEq(t, result.ToString(), stored.Result.ToString())
 	require.NotNil(t, stored.FinishedAt)
 }

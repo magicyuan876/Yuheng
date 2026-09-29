@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newLeaseEnv builds the Lite shape: docs enabled, no collaboration service.
+// newLeaseEnv builds the exclusive-edit shape: docs enabled, no collaboration service.
 func newLeaseEnv(t *testing.T) *pageEnv {
 	t.Helper()
 	return newPageEnvWith(t)

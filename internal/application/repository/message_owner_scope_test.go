@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -18,13 +18,7 @@ import (
 // than assumed.
 func newOwnerScopeDB(t *testing.T, name string) (*gorm.DB, map[string]string) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+name+"?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	if err := db.AutoMigrate(&types.Session{}, &types.Message{}); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := pgtest.New(t)
 	sessions := map[string]*types.Session{
 		"alice":  {TenantID: 7, UserID: "web_user:alice", Title: "Alice 的会话"},
 		"bob":    {TenantID: 7, UserID: "web_user:bob", Title: "Bob 的会话"},

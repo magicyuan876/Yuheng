@@ -53,8 +53,8 @@ func TestSpacesSeparateTerms(t *testing.T) {
 	assert.Equal(t, []string{"quota", "limit"}, q.Terms)
 }
 
-// SQLite has no LIKE escape character unless one is declared, so a query
-// containing % must not become a wildcard.
+// A query containing % or _ must not become a wildcard in the LIKE pattern
+// it is searched with.
 func TestLikeWildcardsInAQueryAreEscaped(t *testing.T) {
 	assert.Equal(t, `100\%`, EscapeLike("100%"))
 	assert.Equal(t, `a\_b`, EscapeLike("a_b"))

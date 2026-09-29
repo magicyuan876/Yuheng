@@ -9,11 +9,11 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/models/embedding"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	sqlitedrv "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -154,27 +154,35 @@ func (m *mockEngineService) Support() []types.RetrieverType { return nil }
 func (m *mockEngineService) Index(_ context.Context, _ embedding.Embedder, _ *types.IndexInfo, _ []types.RetrieverType) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchIndex(_ context.Context, _ embedding.Embedder, _ []*types.IndexInfo, _ []types.RetrieverType) error {
 	return nil
 }
+
 func (m *mockEngineService) EstimateStorageSize(_ context.Context, _ embedding.Embedder, _ []*types.IndexInfo, _ []types.RetrieverType) int64 {
 	return 0
 }
+
 func (m *mockEngineService) CopyIndices(_ context.Context, _ string, _ map[string]string, _ map[string]string, _ string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteByChunkIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteBySourceIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteByKnowledgeIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchUpdateChunkEnabledStatus(_ context.Context, _ map[string]bool) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchUpdateChunkTagID(_ context.Context, _ map[string]string) error {
 	return nil
 }
@@ -423,9 +431,9 @@ func TestCreateStore_DifferentEndpointSameIndex_Allowed(t *testing.T) {
 	// Historical note — this test used Postgres + UseDefaultConnection so the
 	// connectivity test step would short-circuit (testPostgresConnection
 	// returns nil on use_default_connection), letting the duplicate-check
-	// logic run against a pure in-memory mock. Once Postgres/SQLite were
-	// dropped from validEngineTypes (DB stores must be a network-reachable
-	// engine), no engine remaining in the allow list has an equivalent
+	// logic run against a pure in-memory mock. Once the database-backed
+	// engines were dropped from validEngineTypes (DB stores must be a
+	// network-reachable engine), no engine remaining in the allow list has an equivalent
 	// "no network needed" fast path: every other engine's connection probe
 	// dials a real endpoint, which a unit-test environment cannot
 	// reasonably provide without spinning up a real backend.
@@ -520,7 +528,7 @@ func TestCreateStore_NilRegistryAndFactory(t *testing.T) {
 // both a kbRepo and a *gorm.DB handle, so the in-memory mock cannot
 // exercise it. The TestDeleteStore_Guard_* family below covers the same
 // outcomes (success, missing store, registry interaction, rollback)
-// against an actual sqlite transaction.
+// against an actual Postgres transaction.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -625,7 +633,7 @@ func TestUpdateStore_ValidationError(t *testing.T) {
 
 // TestDeleteStore_Success and TestDeleteStore_RepoError have been replaced
 // by the TestDeleteStore_Guard_* family below, which exercises the
-// transactional delete-guard path against an actual sqlite database (a mock
+// transactional delete-guard path against an actual Postgres database (a mock
 // repo would not honor the row-lock + binding-count semantics).
 
 // ---------------------------------------------------------------------------
@@ -835,65 +843,15 @@ func TestValidateConnectionConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 // DeleteStore guard + ResolveStoreView + BatchResolveStoreView integration
 //
-// These use a real sqlite in-memory database because the delete guard relies
-// on GORM transactions and the soft-delete auto-scope; an interface-level
-// mock would not catch divergence between the row-lock path and the count.
+// These use a real PostgreSQL database with the production schema because
+// the delete guard relies on GORM transactions, SELECT … FOR UPDATE on the
+// store row and the soft-delete auto-scope; an interface-level mock would not
+// catch divergence between the row-lock path and the count.
 // ---------------------------------------------------------------------------
-
-// guardTestDDL inlines the subset of the SQLite init schema
-// that the delete-guard tests touch. We do not use AutoMigrate because the
-// KnowledgeBase struct carries `type:jsonb` GORM tags that SQLite cannot
-// map cleanly.
-const guardTestDDL = `
-CREATE TABLE IF NOT EXISTS vector_stores (
-    id VARCHAR(36) NOT NULL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    engine_type VARCHAR(50) NOT NULL,
-    connection_config TEXT NOT NULL DEFAULT '{}',
-    index_config TEXT NOT NULL DEFAULT '{}',
-    tenant_id INTEGER NOT NULL,
-    is_builtin BOOLEAN NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at DATETIME NULL
-);
-CREATE TABLE IF NOT EXISTS knowledge_bases (
-    id VARCHAR(36) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    tenant_id INTEGER NOT NULL,
-    creator_id VARCHAR(36),
-    type VARCHAR(32) NOT NULL DEFAULT 'document',
-    chunking_config TEXT NOT NULL DEFAULT '{}',
-    image_processing_config TEXT NOT NULL DEFAULT '{}',
-    embedding_model_id VARCHAR(64) NOT NULL,
-    summary_model_id VARCHAR(64) NOT NULL,
-    cos_config TEXT NOT NULL DEFAULT '{}',
-    storage_provider_config TEXT DEFAULT NULL,
-    vlm_config TEXT NOT NULL DEFAULT '{}',
-    extract_config TEXT NULL DEFAULT NULL,
-    faq_config TEXT,
-    question_generation_config TEXT NULL,
-    auto_tag_config TEXT NULL,
-    is_temporary BOOLEAN NOT NULL DEFAULT 0,
-    is_pinned INTEGER NOT NULL DEFAULT 0,
-    pinned_at DATETIME NULL,
-    asr_config TEXT,
-		vector_store_id VARCHAR(36),
-		storage_backend_id VARCHAR(36),
-    wiki_config TEXT,
-    indexing_strategy TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at DATETIME
-);
-`
 
 func newGuardTestService(t *testing.T) (*vectorStoreService, *gorm.DB, *mockStoreRegistry) {
 	t.Helper()
-	db, err := gorm.Open(sqlitedrv.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(guardTestDDL).Error)
+	db := pgtest.New(t)
 
 	registry := newMockStoreRegistry()
 	svc := &vectorStoreService{
@@ -907,14 +865,15 @@ func newGuardTestService(t *testing.T) (*vectorStoreService, *gorm.DB, *mockStor
 	return svc, db, registry
 }
 
-// realStoreRepo is a hand-rolled VectorStoreRepository against an in-memory
-// sqlite handle. We avoid pulling in the repository package to keep this
+// realStoreRepo is a hand-rolled VectorStoreRepository against the test's
+// Postgres handle. We avoid pulling in the repository package to keep this
 // test file self-contained.
 type realStoreRepo struct{ db *gorm.DB }
 
 func (r *realStoreRepo) Create(ctx context.Context, s *types.VectorStore) error {
 	return r.db.WithContext(ctx).Create(s).Error
 }
+
 func (r *realStoreRepo) GetByID(ctx context.Context, tenantID uint64, id string) (*types.VectorStore, error) {
 	var s types.VectorStore
 	err := r.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", id, tenantID).First(&s).Error
@@ -926,25 +885,31 @@ func (r *realStoreRepo) GetByID(ctx context.Context, tenantID uint64, id string)
 	}
 	return &s, nil
 }
+
 func (r *realStoreRepo) List(ctx context.Context, tenantID uint64) ([]*types.VectorStore, error) {
 	var stores []*types.VectorStore
 	err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Find(&stores).Error
 	return stores, err
 }
+
 func (r *realStoreRepo) Update(_ context.Context, _ *types.VectorStore) error {
 	return nil
 }
+
 func (r *realStoreRepo) UpdateConnectionConfig(_ context.Context, _ *types.VectorStore) error {
 	return nil
 }
+
 func (r *realStoreRepo) SetSharing(ctx context.Context, tenantID uint64, id string, shared bool) error {
 	return r.db.WithContext(ctx).Model(&types.VectorStore{}).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Update("is_builtin", shared).Error
 }
+
 func (r *realStoreRepo) Delete(ctx context.Context, tenantID uint64, id string) error {
 	return r.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&types.VectorStore{}).Error
 }
+
 func (r *realStoreRepo) ExistsByEndpointAndIndex(_ context.Context, _ uint64, _ types.RetrieverEngineType, _ string, _ string) (bool, error) {
 	return false, nil
 }
@@ -958,6 +923,7 @@ func (r *realKBRepo) CountByVectorStoreIDAllTenants(
 ) (int64, error) {
 	return 0, nil
 }
+
 func (r *realKBRepo) CountByVectorStoreID(ctx context.Context, db *gorm.DB, tenantID uint64, storeID string) (int64, error) {
 	if db == nil {
 		db = r.db
@@ -969,9 +935,11 @@ func (r *realKBRepo) CountByVectorStoreID(ctx context.Context, db *gorm.DB, tena
 		Count(&count).Error
 	return count, err
 }
+
 func (r *realKBRepo) CountByModelID(_ context.Context, _ uint64, _ string) (int64, error) {
 	return 0, nil
 }
+
 func (r *realKBRepo) CountByModelIDAllTenants(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
@@ -981,33 +949,43 @@ func (r *realKBRepo) CountByModelIDAllTenants(_ context.Context, _ string) (int6
 func (r *realKBRepo) CreateKnowledgeBase(_ context.Context, kb *types.KnowledgeBase) error {
 	return r.db.Create(kb).Error
 }
+
 func (r *realKBRepo) GetKnowledgeBaseByID(_ context.Context, _ string) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) GetKnowledgeBaseByIDAndTenant(_ context.Context, _ string, _ uint64) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) GetKnowledgeBaseByIDs(_ context.Context, _ []string) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) ListKnowledgeBases(_ context.Context) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) ListKnowledgeBasesByTenantID(_ context.Context, _ uint64) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) UpdateKnowledgeBase(_ context.Context, _ *types.KnowledgeBase) error {
 	return nil
 }
+
 func (r *realKBRepo) DeleteKnowledgeBase(_ context.Context, _ string) error {
 	return nil
 }
+
 func (r *realKBRepo) TogglePinKnowledgeBase(_ context.Context, _ string, _ uint64) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *realKBRepo) ListUserKBPinIDs(_ context.Context, _ uint64, _ string) (map[string]time.Time, error) {
 	return map[string]time.Time{}, nil
 }
+
 func (r *realKBRepo) SetUserKBPin(_ context.Context, _ uint64, _ string, _ string, _ bool) (*time.Time, error) {
 	return nil, nil
 }
@@ -1043,6 +1021,7 @@ func tenantID2s(t uint64) string {
 	}
 	return "tN"
 }
+
 func ptrOrEmpty(p *string) string {
 	if p == nil {
 		return "nil"

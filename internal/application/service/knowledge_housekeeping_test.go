@@ -7,91 +7,21 @@ import (
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/config"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// knowledgeTestDDL is the minimal subset of the knowledge schema this
-// suite needs. We avoid AutoMigrate because Knowledge carries multiple
-// JSONB-tagged fields whose SQLite mapping is fragile.
-//
-// Table name is `knowledges` (plural) — that's what migration 000000
-// creates and what GORM's default pluralization expects when the
-// service code uses Model(&types.Knowledge{}).
-const knowledgeTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledges (
-    id              VARCHAR(64) PRIMARY KEY,
-    tenant_id       INTEGER NOT NULL DEFAULT 0,
-    knowledge_base_id VARCHAR(64),
-    parse_status    VARCHAR(32) NOT NULL DEFAULT 'pending',
-    summary_status  VARCHAR(32) NOT NULL DEFAULT 'none',
-    pending_subtasks_count INTEGER NOT NULL DEFAULT 0,
-    error_message   TEXT,
-    title           TEXT,
-    file_type       TEXT,
-    enable_status   TEXT NOT NULL DEFAULT 'enabled',
-    type            TEXT NOT NULL DEFAULT 'document',
-    embedding_model_id TEXT NOT NULL DEFAULT '',
-    storage_size    BIGINT NOT NULL DEFAULT 0,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at      DATETIME
-);
-`
-
-const housekeepingSpansDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_processing_spans (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    knowledge_id    VARCHAR(64) NOT NULL,
-    attempt         INTEGER     NOT NULL DEFAULT 1,
-    span_id         VARCHAR(64) NOT NULL,
-    parent_span_id  VARCHAR(64),
-    name            VARCHAR(255) NOT NULL,
-    kind            VARCHAR(16) NOT NULL,
-    status          VARCHAR(16) NOT NULL,
-    input           TEXT,
-    output          TEXT,
-    metadata        TEXT,
-    error_code      VARCHAR(64),
-    error_message   TEXT,
-    error_detail    TEXT,
-    started_at      DATETIME,
-    finished_at     DATETIME,
-    duration_ms     BIGINT,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (knowledge_id, attempt, span_id)
-);
-`
-
-const housekeepingPendingOpsDDL = `
-CREATE TABLE IF NOT EXISTS task_pending_ops (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    tenant_id   INTEGER NOT NULL DEFAULT 0,
-    task_type   VARCHAR(64) NOT NULL,
-    scope       VARCHAR(32) NOT NULL,
-    scope_id    VARCHAR(64) NOT NULL,
-    op          VARCHAR(32) NOT NULL,
-    dedup_key   VARCHAR(128) NOT NULL DEFAULT '',
-    payload     TEXT NOT NULL DEFAULT '{}',
-    fail_count  INTEGER NOT NULL DEFAULT 0,
-    enqueued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    claimed_at  DATETIME
-);
-`
-
+// setupHousekeepingDB returns a Postgres database with the production
+// schema, so the sweep's queries run against the real knowledges,
+// knowledge_processing_spans and task_pending_ops tables — including the
+// MAX(updated_at) heartbeat aggregate whose textual form the service parses.
 func setupHousekeepingDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(knowledgeTestDDL).Error)
-	require.NoError(t, db.Exec(housekeepingSpansDDL).Error)
-	require.NoError(t, db.Exec(housekeepingPendingOpsDDL).Error)
-	return db
+	return pgtest.New(t)
 }
 
 // insertWikiPendingOp mirrors newWikiIngestPendingOp: the durable row is
@@ -100,8 +30,8 @@ func setupHousekeepingDB(t *testing.T) *gorm.DB {
 func insertWikiPendingOp(t *testing.T, db *gorm.DB, kbID, knowledgeID string) {
 	t.Helper()
 	require.NoError(t, db.Exec(
-		`INSERT INTO task_pending_ops (task_type, scope, scope_id, op, dedup_key, payload)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO task_pending_ops (tenant_id, task_type, scope, scope_id, op, dedup_key, payload)
+		 VALUES (1, ?, ?, ?, ?, ?, ?)`,
 		wikiTaskType, wikiTaskScope, kbID, WikiOpIngest, knowledgeID,
 		`{"op":"ingest","knowledge_id":"`+knowledgeID+`"}`,
 	).Error)
@@ -109,11 +39,14 @@ func insertWikiPendingOp(t *testing.T, db *gorm.DB, kbID, knowledgeID string) {
 
 // insertKnowledge writes a knowledge row at the given updated_at. We
 // can't pass updated_at through GORM defaults since CURRENT_TIMESTAMP
-// would override our test fixture; raw SQL keeps the timestamp.
+// would override our test fixture; raw SQL keeps the timestamp. The fixed
+// tenant, knowledge base, type, title and source only satisfy the table's
+// NOT NULL columns; the sweep does not look at them.
 func insertKnowledge(t *testing.T, db *gorm.DB, id, status string, updatedAt time.Time) {
 	t.Helper()
 	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, updated_at) VALUES (?, ?, ?)`,
+		`INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status, updated_at)
+		 VALUES (?, 1, 'kb-1', 'document', 'housekeeping fixture', 'file', ?, ?)`,
 		id, status, updatedAt,
 	).Error)
 }

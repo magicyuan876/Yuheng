@@ -116,5 +116,7 @@ func TestPageCreateBatchAndPurgeOne(t *testing.T) {
 	_, err = f.repos.Pages.PurgeOne(ctx(), 1, parent.ID)
 	require.ErrorIs(t, err, ErrNotFound)
 
-	require.NoError(t, f.repos.Pages.LockSpace(ctx(), 1, f.space.ID), "a no-op on SQLite")
+	// Outside a transaction the row lock is taken and released with the
+	// statement; it must still succeed for a space that exists.
+	require.NoError(t, f.repos.Pages.LockSpace(ctx(), 1, f.space.ID))
 }

@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	ifaces "github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -19,9 +19,7 @@ type wikiRevisionTestHarness struct {
 
 func newWikiRevisionTestService(t *testing.T) (context.Context, wikiRevisionTestHarness, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.WikiFolder{}, &types.WikiPage{}, &types.WikiPageRevision{}))
+	db := pgtest.New(t)
 	repo := repository.NewWikiPageRepository(db)
 	svc := NewWikiPageService(repo, nil, nil, nil, nil)
 	return context.Background(), wikiRevisionTestHarness{svc: svc}, db

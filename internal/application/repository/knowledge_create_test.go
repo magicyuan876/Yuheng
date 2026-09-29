@@ -4,22 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestCreateKnowledgeDefaultsCustomMetadataToEmptyObject(t *testing.T) {
-	dsn := "file:" + uuid.New().String() + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	require.NoError(t, db.AutoMigrate(&types.Knowledge{}))
+	db := pgtest.New(t)
 
 	repo := NewKnowledgeRepository(db)
 	knowledge := &types.Knowledge{

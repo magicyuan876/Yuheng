@@ -6,78 +6,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// taskPendingOpsTestDDL mirrors the production schema in
-// migrations/versioned/000041_task_queue_and_wiki_indexes.up.sql but uses
-// SQLite-compatible types. INTEGER PRIMARY KEY AUTOINCREMENT preserves
-// the monotonically-increasing ID semantics PeekBatch/cursor pagination
-// rely on. JSONB → TEXT is fine since GORM round-trips json.RawMessage
-// as bytes either way.
-const taskPendingOpsTestDDL = `
-CREATE TABLE IF NOT EXISTS task_pending_ops (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    tenant_id   INTEGER NOT NULL,
-    task_type   VARCHAR(64) NOT NULL,
-    scope       VARCHAR(32) NOT NULL,
-    scope_id    VARCHAR(64) NOT NULL,
-    op          VARCHAR(32) NOT NULL,
-    dedup_key   VARCHAR(128) NOT NULL DEFAULT '',
-    payload     TEXT NOT NULL DEFAULT '{}',
-    fail_count  INTEGER NOT NULL DEFAULT 0,
-    enqueued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    claimed_at  DATETIME
-);
-`
-
-const taskDeadLettersTestDDL = `
-CREATE TABLE IF NOT EXISTS task_dead_letters (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    tenant_id   INTEGER NOT NULL,
-    task_type   VARCHAR(64) NOT NULL,
-    scope       VARCHAR(32) NOT NULL,
-    scope_id    VARCHAR(64) NOT NULL,
-    related_id  VARCHAR(64) NOT NULL DEFAULT '',
-    payload     TEXT NOT NULL,
-    last_error  TEXT NOT NULL DEFAULT '',
-    fail_count  INTEGER NOT NULL,
-    failed_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-`
-
-const taskQueueKnowledgeBaseTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_bases (
-    id         VARCHAR(64) PRIMARY KEY,
-    tenant_id  INTEGER NOT NULL,
-    deleted_at DATETIME
-);
-`
-
-const taskQueueKnowledgeTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledges (
-    id                     VARCHAR(64) PRIMARY KEY,
-    tenant_id              INTEGER NOT NULL,
-    knowledge_base_id      VARCHAR(64) NOT NULL,
-    parse_status           VARCHAR(32) NOT NULL,
-    pending_subtasks_count INTEGER NOT NULL DEFAULT 0,
-    updated_at             DATETIME,
-    deleted_at             DATETIME
-);
-`
-
 func setupTaskQueueTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(taskPendingOpsTestDDL).Error)
-	require.NoError(t, db.Exec(taskDeadLettersTestDDL).Error)
-	return db
+	return pgtest.New(t)
 }
 
 func makePendingOp(taskType, scope, scopeID, op, dedup string, payload []byte) *types.TaskPendingOp {
@@ -98,13 +37,13 @@ func setupFinalizingPendingOpTest(t *testing.T) (*gorm.DB, interfaces.TaskPendin
 	repo := NewTaskPendingOpsRepository(db)
 	seeder, ok := repo.(interfaces.TaskPendingOpsFinalizingSeeder)
 	require.True(t, ok, "task pending repository must support atomic finalizing handoff")
-	require.NoError(t, db.Exec(taskQueueKnowledgeBaseTestDDL).Error)
-	require.NoError(t, db.Exec(taskQueueKnowledgeTestDDL).Error)
 	require.NoError(t, db.Exec(
-		`INSERT INTO knowledge_bases (id, tenant_id) VALUES ('kb-1', 1)`,
+		`INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id)
+			VALUES ('kb-1', 1, 'kb-1', '', '')`,
 	).Error)
 	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, tenant_id, knowledge_base_id, parse_status) VALUES ('knowledge-1', 1, 'kb-1', ?)`,
+		`INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status)
+			VALUES ('knowledge-1', 1, 'kb-1', 'file', 'knowledge-1', '', ?)`,
 		types.ParseStatusProcessing,
 	).Error)
 	return db, seeder
@@ -347,13 +286,9 @@ func TestTaskPendingOps_DeleteByScope_RejectsMissingScope(t *testing.T) {
 
 func TestTaskPendingOps_EnqueueIfKnowledgeBaseActive(t *testing.T) {
 	db := setupTaskQueueTestDB(t)
-	require.NoError(t, db.Exec(`CREATE TABLE knowledge_bases (
-		id VARCHAR(64) PRIMARY KEY,
-		tenant_id INTEGER NOT NULL,
-		deleted_at DATETIME
-	)`).Error)
 	require.NoError(t, db.Exec(
-		"INSERT INTO knowledge_bases (id, tenant_id, deleted_at) VALUES (?, ?, NULL), (?, ?, ?)",
+		"INSERT INTO knowledge_bases (id, tenant_id, name, embedding_model_id, summary_model_id, deleted_at) "+
+			"VALUES (?, ?, 'active', '', '', NULL), (?, ?, 'deleted', '', '', ?)",
 		"kb-active", 1, "kb-deleted", 1, time.Now(),
 	).Error)
 

@@ -3,38 +3,23 @@ package acl
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-var seq atomic.Int64
-
+// openRepos opens a private PostgreSQL database with the production schema
+// and the docs repositories over it.
 func openRepos(t *testing.T) *repository.Repositories {
 	t.Helper()
-	dsn := fmt.Sprintf("file:docs-acl-%d?mode=memory&cache=shared&_foreign_keys=1", seq.Add(1))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(ddl)).Error)
-	return repository.New(db)
+	return repository.New(pgtest.New(t))
 }
 
 // fakeRoles is a TenantRoleSource backed by a map of "tenant/user" -> role.

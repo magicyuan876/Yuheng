@@ -4,50 +4,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestKnowledgeSourceSchemaAllowsObjectStorageURLs(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:knowledge_source_schema?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("get sqlite handle: %v", err)
-	}
-	sqlDB.SetMaxOpenConns(1)
-	if err := db.AutoMigrate(&types.Knowledge{}); err != nil {
-		t.Fatalf("auto migrate knowledge: %v", err)
-	}
+	db := pgtest.New(t)
 
-	var sourceType string
-	rows, err := db.Raw("PRAGMA table_info(knowledges)").Rows()
-	if err != nil {
+	// The column is read from the migrated schema rather than from the
+	// struct tag, so a migration that narrows it again is caught here.
+	var column struct {
+		DataType  string
+		MaxLength *int
+	}
+	if err := db.Raw(`SELECT data_type, character_maximum_length AS max_length
+		FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = 'knowledges' AND column_name = 'source'`).
+		Scan(&column).Error; err != nil {
 		t.Fatalf("inspect knowledge schema: %v", err)
 	}
-
-	for rows.Next() {
-		var cid int
-		var name, typ string
-		var notNull int
-		var defaultValue any
-		var pk int
-		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
-			t.Fatalf("scan column info: %v", err)
-		}
-		if name == "source" {
-			sourceType = strings.ToLower(typ)
-			break
-		}
-	}
-	if err := rows.Close(); err != nil {
-		t.Fatalf("close column info rows: %v", err)
-	}
-	if sourceType != "varchar(2048)" {
-		t.Fatalf("knowledge source column type = %q, want varchar(2048)", sourceType)
+	if column.DataType != "character varying" || column.MaxLength == nil || *column.MaxLength != 2048 {
+		t.Fatalf("knowledge source column = %s(%v), want character varying(2048)", column.DataType, column.MaxLength)
 	}
 
 	longURL := "https://example-bucket.cos.ap-beijing.myqcloud.com/test/" +

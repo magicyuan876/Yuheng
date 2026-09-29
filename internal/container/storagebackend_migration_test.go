@@ -3,33 +3,26 @@ package container
 import (
 	"testing"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestMigrateLegacyStorageBackends(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	// Schema is owned by the SQL migrations in production; provision it here so
-	// the test exercises only the data-migration logic.
-	require.NoError(t, db.Exec(`CREATE TABLE tenants (
-		id INTEGER PRIMARY KEY, name TEXT, storage_engine_config TEXT,
-		default_storage_backend_id TEXT, updated_at DATETIME, deleted_at DATETIME
-	)`).Error)
-	require.NoError(t, db.Exec(`CREATE TABLE knowledge_bases (
-		id TEXT PRIMARY KEY, tenant_id INTEGER, storage_provider_config TEXT,
-		storage_backend_id TEXT, cos_config TEXT, updated_at DATETIME, deleted_at DATETIME
-	)`).Error)
-	require.NoError(t, db.AutoMigrate(&types.StorageBackend{}))
+	// The production schema: tenants, knowledge_bases and storage_backends as
+	// the migrations create them, so the test exercises only the
+	// data-migration logic against the columns the server really has.
+	db := pgtest.New(t)
 	tenantConfig, err := (&types.StorageEngineConfig{DefaultProvider: "local", Local: &types.LocalEngineConfig{PathPrefix: "workspace-a"}}).Value()
 	require.NoError(t, err)
 	providerConfig, err := (types.StorageProviderConfig{Provider: "local"}).Value()
 	require.NoError(t, err)
-	require.NoError(t, db.Exec("INSERT INTO tenants(id, name, storage_engine_config) VALUES (?, ?, ?)", 7, "workspace", tenantConfig).Error)
-	require.NoError(t, db.Exec("INSERT INTO knowledge_bases(id, tenant_id, storage_provider_config, cos_config) VALUES (?, ?, ?, ?)", "kb-a", 7, providerConfig, []byte("{}")).Error)
+	require.NoError(t, db.Exec("INSERT INTO tenants(id, name, business, storage_engine_config) VALUES (?, ?, ?, ?)",
+		7, "workspace", "test", tenantConfig).Error)
+	require.NoError(t, db.Exec(`INSERT INTO knowledge_bases
+		(id, tenant_id, name, embedding_model_id, summary_model_id, storage_provider_config, cos_config)
+		VALUES (?, ?, ?, '', '', ?, ?)`, "kb-a", 7, "kb", providerConfig, "{}").Error)
 
 	migrateLegacyStorageBackends(db)
 

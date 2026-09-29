@@ -3,10 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
@@ -14,27 +11,17 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-var dbSeq atomic.Int64
-
+// openRepos opens a private PostgreSQL database with the production schema
+// and the docs repositories over it.
 func openRepos(t *testing.T) (*repository.Repositories, *gorm.DB) {
 	t.Helper()
-	dsn := fmt.Sprintf("file:docs-svc-%d?mode=memory&cache=shared&_foreign_keys=1", dbSeq.Add(1))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	ddl, err := os.ReadFile(filepath.FromSlash("../testdata/schema_sqlite.sql"))
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(ddl)).Error)
+	db := pgtest.New(t)
 	return repository.New(db), db
 }
 

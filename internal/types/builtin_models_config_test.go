@@ -6,22 +6,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// setupBuiltinModelsDB creates an in-memory SQLite DB with `models` migrated
-// via GORM AutoMigrate. AutoMigrate honours the struct tags so the
-// `managed_by` and soft-delete columns are present, matching what the real
-// migrations produce.
+// setupBuiltinModelsDB returns an empty database with the production schema,
+// so the `models` table carries the `managed_by` and soft-delete columns, the
+// varchar limits and the constraints exactly as the real migrations create
+// them.
 func setupBuiltinModelsDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&Model{}))
-	return db
+	return pgtest.New(t)
 }
 
 // writeYAML writes a builtin_models.yaml file inside a fresh temp dir and

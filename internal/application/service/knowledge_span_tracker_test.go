@@ -9,53 +9,22 @@ import (
 	"unicode/utf8"
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// span tracker tests use a real GORM-backed repo against an in-memory
-// SQLite DB. We do this instead of a stub repo because the cascade /
-// LookupStage logic interacts non-trivially with the persistence layer
-// (UPSERT, MAX(attempt), parent IN ...) — a stub would let regressions
-// in those queries slip through.
-//
-// We DDL-define the spans table inline (same content as the repo test's
-// spansTestDDL — kept duplicated rather than exported because a service
-// test crossing into the repository test file's identifiers couples the
-// two too tightly).
-const spanTrackerTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_processing_spans (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    knowledge_id    VARCHAR(64) NOT NULL,
-    attempt         INTEGER     NOT NULL DEFAULT 1,
-    span_id         VARCHAR(64) NOT NULL,
-    parent_span_id  VARCHAR(64),
-    name            VARCHAR(255) NOT NULL,
-    kind            VARCHAR(16) NOT NULL,
-    status          VARCHAR(16) NOT NULL,
-    input           TEXT,
-    output          TEXT,
-    metadata        TEXT,
-    error_code      VARCHAR(64),
-    error_message   TEXT,
-    error_detail    TEXT,
-    started_at      DATETIME,
-    finished_at     DATETIME,
-    duration_ms     BIGINT,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (knowledge_id, attempt, span_id)
-);
-`
-
+// span tracker tests use a real GORM-backed repo against a Postgres
+// database with the production schema. We do this instead of a stub repo
+// because the cascade / LookupStage logic interacts non-trivially with the
+// persistence layer (UPSERT, MAX(attempt), parent IN ...) — a stub would let
+// regressions in those queries slip through, and so would a hand-written
+// copy of the spans table that drifts from the migration.
 func setupSpanTrackerTest(t *testing.T) (SpanTracker, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(spanTrackerTestDDL).Error)
+	db := pgtest.New(t)
 	// Pass nil for the heartbeat db: these tests don't exercise
 	// heartbeat side-effects (those are covered in the housekeeping
 	// suite). Keeping it nil also avoids needing the knowledges

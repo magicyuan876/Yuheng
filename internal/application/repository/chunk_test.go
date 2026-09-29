@@ -6,20 +6,18 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// setupChunkTestDB creates an in-memory SQLite database with chunk and tag tables.
+// setupChunkTestDB returns a fresh database with the production schema, so
+// chunk and tag rows get their seq_id from the real sequences.
 func setupChunkTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Chunk{}, &types.KnowledgeTag{}))
-	return db
+	return pgtest.New(t)
 }
 
 func makeChunk(kbID, knowledgeID string, chunkType string) *types.Chunk {
@@ -34,7 +32,7 @@ func makeChunk(kbID, knowledgeID string, chunkType string) *types.Chunk {
 	}
 }
 
-func TestCreateChunks_SQLite_SeqIDAutoAssigned(t *testing.T) {
+func TestCreateChunks_SeqIDAutoAssigned(t *testing.T) {
 	db := setupChunkTestDB(t)
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
@@ -54,13 +52,17 @@ func TestCreateChunks_SQLite_SeqIDAutoAssigned(t *testing.T) {
 	err := repo.CreateChunks(ctx, chunks)
 	require.NoError(t, err)
 
-	// Verify all chunks got unique sequential seq_ids
+	// Verify all chunks got unique sequential seq_ids. The sequence starts
+	// well above 1 (migration 000010), so they are checked relative to the
+	// first one.
 	var saved []types.Chunk
 	require.NoError(t, db.Order("seq_id").Find(&saved).Error)
-	assert.Len(t, saved, 5)
+	require.Len(t, saved, 5)
 
+	first := saved[0].SeqID
+	assert.NotZero(t, first)
 	for i, c := range saved {
-		assert.Equal(t, int64(i+1), c.SeqID, "chunk %d should have seq_id %d", i, i+1)
+		assert.Equal(t, first+int64(i), c.SeqID, "chunk %d should have seq_id %d", i, first+int64(i))
 	}
 }
 
@@ -83,7 +85,7 @@ func TestCreateChunks_CleansContextHeaderBeforePersistence(t *testing.T) {
 	assert.True(t, utf8.ValidString(saved.ContextHeader))
 }
 
-func TestCreateChunks_SQLite_SeqIDContinuesFromExisting(t *testing.T) {
+func TestCreateChunks_SeqIDContinuesFromExisting(t *testing.T) {
 	db := setupChunkTestDB(t)
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
@@ -108,14 +110,15 @@ func TestCreateChunks_SQLite_SeqIDContinuesFromExisting(t *testing.T) {
 
 	var saved []types.Chunk
 	require.NoError(t, db.Order("seq_id").Find(&saved).Error)
-	assert.Len(t, saved, 5)
+	require.Len(t, saved, 5)
 
+	first := saved[0].SeqID
 	for i, c := range saved {
-		assert.Equal(t, int64(i+1), c.SeqID, "chunk %d should have seq_id %d", i, i+1)
+		assert.Equal(t, first+int64(i), c.SeqID, "chunk %d should have seq_id %d", i, first+int64(i))
 	}
 }
 
-func TestCreateChunks_SQLite_SeqIDUniqueAcrossKBs(t *testing.T) {
+func TestCreateChunks_SeqIDUniqueAcrossKBs(t *testing.T) {
 	db := setupChunkTestDB(t)
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
@@ -135,7 +138,7 @@ func TestCreateChunks_SQLite_SeqIDUniqueAcrossKBs(t *testing.T) {
 		makeChunk(kb2, k2, "faq"),
 	}))
 
-	// All seq_ids should be globally unique (1,2,3,4)
+	// All seq_ids should be globally unique, not per knowledge base
 	var saved []types.Chunk
 	require.NoError(t, db.Order("seq_id").Find(&saved).Error)
 	assert.Len(t, saved, 4)
@@ -148,7 +151,7 @@ func TestCreateChunks_SQLite_SeqIDUniqueAcrossKBs(t *testing.T) {
 	}
 }
 
-func TestKnowledgeTag_SQLite_SeqIDAutoAssigned(t *testing.T) {
+func TestKnowledgeTag_SeqIDAutoAssigned(t *testing.T) {
 	db := setupChunkTestDB(t)
 	ctx := context.Background()
 
@@ -177,7 +180,7 @@ func TestKnowledgeTag_SQLite_SeqIDAutoAssigned(t *testing.T) {
 	assert.NotEqual(t, tag1.SeqID, tag2.SeqID)
 }
 
-func TestCreateChunks_SQLite_SeqIDAfterSoftDelete(t *testing.T) {
+func TestCreateChunks_SeqIDAfterSoftDelete(t *testing.T) {
 	db := setupChunkTestDB(t)
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
@@ -192,6 +195,8 @@ func TestCreateChunks_SQLite_SeqIDAfterSoftDelete(t *testing.T) {
 		makeChunk(kbID, knowledgeID, "faq"),
 	}
 	require.NoError(t, repo.CreateChunks(ctx, batch1))
+	var deletedMax int64
+	require.NoError(t, db.Model(&types.Chunk{}).Select("MAX(seq_id)").Scan(&deletedMax).Error)
 
 	// Soft-delete all chunks (like frontend "clear" does)
 	require.NoError(t, db.Where("knowledge_base_id = ?", kbID).Delete(&types.Chunk{}).Error)
@@ -209,15 +214,15 @@ func TestCreateChunks_SQLite_SeqIDAfterSoftDelete(t *testing.T) {
 	err := repo.CreateChunks(ctx, batch2)
 	require.NoError(t, err, "should not get UNIQUE constraint error after soft delete")
 
-	// Verify new seq_ids start after the soft-deleted max (3)
+	// Verify new seq_ids continue after the soft-deleted max
 	var saved []types.Chunk
 	require.NoError(t, db.Order("seq_id").Find(&saved).Error)
-	assert.Len(t, saved, 2)
-	assert.Equal(t, int64(4), saved[0].SeqID)
-	assert.Equal(t, int64(5), saved[1].SeqID)
+	require.Len(t, saved, 2)
+	assert.Equal(t, deletedMax+1, saved[0].SeqID)
+	assert.Equal(t, deletedMax+2, saved[1].SeqID)
 }
 
-func TestUpdateChunk_SQLite_NoNOWError(t *testing.T) {
+func TestUpdateChunk_NoNOWError(t *testing.T) {
 	db := setupChunkTestDB(t)
 	ctx := context.Background()
 

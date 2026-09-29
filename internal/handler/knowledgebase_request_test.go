@@ -11,7 +11,7 @@ import (
 // TestUpdateKBRequest_DoesNotAcceptVectorStoreID is the structural enforcement
 // behind the vector_store_id immutability contract. The GORM `<-:create`
 // tag on KnowledgeBase.VectorStoreID already blocks every ORM UPDATE path
-// (verified by the repository-level sqlite immutability tests), but the
+// (verified by the repository-level immutability tests), but the
 // service DTO must independently refuse to even *accept* the field —
 // otherwise a future maintainer who adds it to UpdateKnowledgeBaseRequest
 // or KnowledgeBaseConfig opens a path where the field is silently ignored

@@ -6,10 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-
 	"github.com/magicyuan876/yuheng/internal/config"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
@@ -56,8 +54,10 @@ func TestCreateOpenSearchEngine_RejectsBadCluster(t *testing.T) {
 	ts := httptest.NewServer(osClusterHandler("elasticsearch", "8.10.4", true))
 	defer ts.Close()
 	_, err := createOpenSearchEngine(context.Background(),
-		types.VectorStore{EngineType: types.OpenSearchRetrieverEngineType,
-			ConnectionConfig: types.ConnectionConfig{Addr: ts.URL}}, nil)
+		types.VectorStore{
+			EngineType:       types.OpenSearchRetrieverEngineType,
+			ConnectionConfig: types.ConnectionConfig{Addr: ts.URL},
+		}, nil)
 	if err == nil {
 		t.Error("elasticsearch cluster should be rejected at engine creation")
 	}
@@ -67,8 +67,10 @@ func TestCreateEngineServiceFromStore_OpenSearchCaseReached(t *testing.T) {
 	ts := httptest.NewServer(osClusterHandler("opensearch", "2.11.0", true))
 	defer ts.Close()
 	svc, err := createEngineServiceFromStore(context.Background(),
-		types.VectorStore{EngineType: types.OpenSearchRetrieverEngineType,
-			ConnectionConfig: types.ConnectionConfig{Addr: ts.URL}},
+		types.VectorStore{
+			EngineType:       types.OpenSearchRetrieverEngineType,
+			ConnectionConfig: types.ConnectionConfig{Addr: ts.URL},
+		},
 		nil, &config.Config{}, nil)
 	if err != nil {
 		t.Fatalf("createEngineServiceFromStore (opensearch case): %v", err)
@@ -84,12 +86,9 @@ func TestInitRetrieveEngineRegistry_OpenSearchEnvPath(t *testing.T) {
 	ts := httptest.NewServer(osClusterHandler("opensearch", "3.3.2", true))
 	defer ts.Close()
 
-	// In-memory DB: the vector_stores table is absent, so loadDBStores logs
-	// and returns (non-fatal) — only the env-path block matters here.
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open in-mem db: %v", err)
-	}
+	// A fresh database has no vector_stores rows, so loadDBStores registers
+	// nothing — only the env-path block matters here.
+	db := pgtest.New(t)
 
 	t.Setenv("RETRIEVE_DRIVER", "opensearch")
 	t.Setenv("OPENSEARCH_ADDR", ts.URL)

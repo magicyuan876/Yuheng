@@ -4,59 +4,19 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// knowledgeBasesTestDDL mirrors the `knowledge_bases` section of
-// the SQLite init schema. We inline the DDL here instead of
-// using GORM AutoMigrate because KnowledgeBase carries fields tagged with
-// `type:jsonb`, which AutoMigrate does not map cleanly onto SQLite.
-const knowledgeBasesTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_bases (
-    id VARCHAR(36) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    tenant_id INTEGER NOT NULL,
-    type VARCHAR(32) NOT NULL DEFAULT 'document',
-    chunking_config TEXT NOT NULL DEFAULT '{}',
-    image_processing_config TEXT NOT NULL DEFAULT '{}',
-    embedding_model_id VARCHAR(64) NOT NULL,
-    summary_model_id VARCHAR(64) NOT NULL,
-    cos_config TEXT NOT NULL DEFAULT '{}',
-    storage_provider_config TEXT DEFAULT NULL,
-    vlm_config TEXT NOT NULL DEFAULT '{}',
-    extract_config TEXT NULL DEFAULT NULL,
-    faq_config TEXT,
-    question_generation_config TEXT NULL,
-    auto_tag_config TEXT NULL,
-    is_temporary BOOLEAN NOT NULL DEFAULT 0,
-    is_pinned INTEGER NOT NULL DEFAULT 0,
-    pinned_at DATETIME NULL,
-    asr_config TEXT,
-    vector_store_id VARCHAR(36),
-    storage_backend_id VARCHAR(36),
-    wiki_config TEXT,
-    indexing_strategy TEXT,
-    creator_id VARCHAR(36),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at DATETIME
-);
-`
-
-// setupKBTestDB creates an in-memory SQLite database containing the
-// knowledge_bases table with the vector_store_id column included, so that
-// tests can exercise the GORM behavior of the VectorStoreID field.
+// setupKBTestDB returns a fresh database with the production schema, whose
+// knowledge_bases table carries the vector_store_id column the tests
+// exercise through the VectorStoreID field.
 func setupKBTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(knowledgeBasesTestDDL).Error)
-	return db
+	return pgtest.New(t)
 }
 
 // makeKB builds a minimal KnowledgeBase suitable for insert. Only the columns
@@ -224,9 +184,9 @@ func TestKnowledgeBase_VectorStoreID_Roundtrip_Value(t *testing.T) {
 // TestCountByVectorStoreID covers the binding-count helper used by the
 // VectorStore delete guard. Verifies tenant scoping, the GORM auto soft-delete
 // filter (no explicit `deleted_at IS NULL` literal in the query), and the
-// edge case where a row stores an empty-string vector_store_id (SQLite
-// treats "" and NULL differently — we want both excluded from a non-empty
-// storeID lookup).
+// edge case where a row stores an empty-string vector_store_id ("" and NULL
+// are different values — we want both excluded from a non-empty storeID
+// lookup).
 func TestCountByVectorStoreID(t *testing.T) {
 	db := setupKBTestDB(t)
 	repo := &knowledgeBaseRepository{db: db}
@@ -250,7 +210,7 @@ func TestCountByVectorStoreID(t *testing.T) {
 	require.NoError(t, db.Create(kbDeleted).Error)
 	require.NoError(t, db.Delete(kbDeleted).Error)
 
-	// Row with empty-string vector_store_id (regression — sqlite quirk).
+	// Row with empty-string vector_store_id (regression: "" is not NULL).
 	kbEmpty := makeKB(kbStrPtr(""))
 	require.NoError(t, db.Create(kbEmpty).Error)
 
@@ -287,8 +247,8 @@ func TestCountByVectorStoreID(t *testing.T) {
 	t.Run("non-empty lookup does not match empty-string rows", func(t *testing.T) {
 		count, err := repo.CountByVectorStoreID(ctx, nil, 1, "")
 		require.NoError(t, err)
-		// Only the empty-string-vsid row matches "" exactly (SQLite quirk —
-		// "" is not NULL). The non-empty rows do not.
+		// Only the empty-string-vsid row matches "" exactly ("" is not
+		// NULL). The non-empty rows do not.
 		assert.Equal(t, int64(1), count, "empty-string lookup matches only the empty row")
 	})
 

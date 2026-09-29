@@ -244,7 +244,7 @@ func TestNewVectorStoreResponse(t *testing.T) {
 func TestGetVectorStoreTypes(t *testing.T) {
 	types := GetVectorStoreTypes()
 
-	t.Run("returns supported external engine types (excludes postgres and sqlite)", func(t *testing.T) {
+	t.Run("returns supported external engine types (excludes postgres)", func(t *testing.T) {
 		assert.Len(t, types, 7)
 	})
 
@@ -261,7 +261,6 @@ func TestGetVectorStoreTypes(t *testing.T) {
 		assert.Contains(t, typeNames, "doris")
 		assert.Contains(t, typeNames, "opensearch")
 		assert.NotContains(t, typeNames, "postgres")
-		assert.NotContains(t, typeNames, "sqlite")
 	})
 
 	t.Run("doris has connection and index fields", func(t *testing.T) {
@@ -449,10 +448,10 @@ func TestIsValidEngineType(t *testing.T) {
 		})
 	}
 
-	// Postgres and SQLite are intentionally NOT registerable as DB stores —
-	// they only make sense as env stores driven by RETRIEVE_DRIVER (see the
-	// doc comment on validEngineTypes). UI/API surface stays consistent:
-	// GetVectorStoreTypes does not list them, Validate rejects them, and
+	// Postgres is intentionally NOT registerable as a DB store — it only
+	// makes sense as an env store driven by RETRIEVE_DRIVER (see the doc
+	// comment on validEngineTypes). UI/API surface stays consistent:
+	// GetVectorStoreTypes does not list it, Validate rejects it, and
 	// env stores reach the engine registry through BuildEnvVectorStores
 	// instead of through CreateStore.
 	// Note: opensearch is now a VALID DB-store engine (activated in this PR);
@@ -1124,9 +1123,9 @@ func TestIndexConfig_ScalabilityFieldsRoundTrip(t *testing.T) {
 	})
 }
 
-// TestVectorStore_PostgresSqliteNotRegisterable pins the write-path and
-// read-path consistency for the two engines that are only meaningful as env
-// stores. They must:
+// TestVectorStore_PostgresNotRegisterable pins the write-path and
+// read-path consistency for the engine that is only meaningful as an env
+// store. It must:
 //
 //  1. Be rejected by Validate() so POST /vector-stores returns a 4xx
 //     instead of silently persisting a row that has no separation effect.
@@ -1137,7 +1136,7 @@ func TestIndexConfig_ScalabilityFieldsRoundTrip(t *testing.T) {
 // (e.g., adds Postgres back to validEngineTypes for some niche case)
 // fails this test pair instead of silently re-opening the inconsistency
 // that this fix closed.
-func TestVectorStore_PostgresSqliteNotRegisterable(t *testing.T) {
+func TestVectorStore_PostgresNotRegisterable(t *testing.T) {
 	t.Run("Validate rejects postgres as DB store", func(t *testing.T) {
 		v := &VectorStore{
 			Name: "test", TenantID: 1,

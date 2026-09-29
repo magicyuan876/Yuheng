@@ -19,8 +19,9 @@ func TestCheckKnowledgeExists_FileHashIsScopedByFileType(t *testing.T) {
 	const fileHash = "same-content-hash"
 
 	require.NoError(t, db.Exec(`
-		INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, file_name, file_type, file_hash, parse_status)
-		VALUES (?, ?, ?, 'file', 'document.md', 'document.md', 'md', ?, 'completed')
+		INSERT INTO knowledges
+			(id, tenant_id, knowledge_base_id, type, title, source, file_name, file_type, file_hash, parse_status)
+		VALUES (?, ?, ?, 'file', 'document.md', '', 'document.md', 'md', ?, 'completed')
 	`, uuid.NewString(), tenantID, kbID, fileHash).Error)
 
 	t.Run("same content with another file type is allowed", func(t *testing.T) {

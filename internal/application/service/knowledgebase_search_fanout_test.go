@@ -414,27 +414,35 @@ func (f *fakeRetrieveEngineService) Retrieve(ctx context.Context, p types.Retrie
 func (f *fakeRetrieveEngineService) Index(context.Context, embedding.Embedder, *types.IndexInfo, []types.RetrieverType) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) BatchIndex(context.Context, embedding.Embedder, []*types.IndexInfo, []types.RetrieverType) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) EstimateStorageSize(context.Context, embedding.Embedder, []*types.IndexInfo, []types.RetrieverType) int64 {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) CopyIndices(context.Context, string, map[string]string, map[string]string, string, int, string) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) DeleteByChunkIDList(context.Context, []string, int, string) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) DeleteBySourceIDList(context.Context, []string, int, string) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) DeleteByKnowledgeIDList(context.Context, []string, int, string) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) BatchUpdateChunkEnabledStatus(context.Context, map[string]bool) error {
 	panic("unused")
 }
+
 func (f *fakeRetrieveEngineService) BatchUpdateChunkTagID(context.Context, map[string]string) error {
 	panic("unused")
 }
@@ -454,9 +462,11 @@ func (r *fakeFanoutRegistry) Register(interfaces.RetrieveEngineService) error { 
 func (r *fakeFanoutRegistry) GetRetrieveEngineService(types.RetrieverEngineType) (interfaces.RetrieveEngineService, error) {
 	return nil, stderrors.New("not used in fan-out tests")
 }
+
 func (r *fakeFanoutRegistry) GetAllRetrieveEngineServices() []interfaces.RetrieveEngineService {
 	return nil
 }
+
 func (r *fakeFanoutRegistry) GetByStoreID(id string) (interfaces.RetrieveEngineService, error) {
 	if svc, ok := r.byStore[id]; ok {
 		return svc, nil
@@ -577,7 +587,7 @@ func TestRetrieveFromStores_MultiGroupParallel_Concat(t *testing.T) {
 func TestRetrieveFromStores_MixedEngine_Normalizes(t *testing.T) {
 	t.Parallel()
 	// EngineAwareNormalizer policy in effect:
-	//   - ES / ElasticFaiss / OpenSearch / Weaviate / Postgres / SQLite /
+	//   - ES / ElasticFaiss / OpenSearch / Weaviate / Postgres /
 	//     Qdrant / TencentVectorDB / Doris surface non-negative cosine in
 	//     [0, 1] when the value reaches the normalizer (Lucene script_score
 	//     non-negative invariant for ES; k-NN plugin SpaceType.COSINESIMIL

@@ -42,7 +42,7 @@ func (t tokenTable) ValidateToken(_ context.Context, token string) (*types.User,
 }
 
 // newCollabRouter wires the internal callbacks exactly as the router does,
-// on top of an in-memory database with one space and one page.
+// on top of a private PostgreSQL database with one space and one page.
 func newCollabRouter(t *testing.T) (*gin.Engine, *repository.Repositories, *model.Page) {
 	t.Helper()
 	db := openHandlerDB(t)

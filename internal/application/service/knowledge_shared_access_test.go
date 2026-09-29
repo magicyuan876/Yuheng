@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -21,45 +21,59 @@ type fakeKBShareService struct {
 func (f *fakeKBShareService) ShareKnowledgeBase(context.Context, string, string, string, uint64, types.OrgMemberRole) (*types.KnowledgeBaseShare, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) UpdateSharePermission(context.Context, string, types.OrgMemberRole, string, uint64) error {
 	return errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) RemoveShare(context.Context, string, string, uint64) error {
 	return errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) ListSharesByKnowledgeBase(context.Context, string, uint64) ([]*types.KnowledgeBaseShare, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) ListSharesByOrganization(context.Context, string) ([]*types.KnowledgeBaseShare, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) ListSharedKnowledgeBases(context.Context, uint64, types.TenantRole) ([]*types.SharedKnowledgeBaseInfo, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) ListSharedKnowledgeBasesInOrganization(context.Context, string, uint64, types.TenantRole) ([]*types.OrganizationSharedKnowledgeBaseItem, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) ListSharedKnowledgeBaseIDsByOrganizations(context.Context, []string, uint64) (map[string][]string, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) GetShare(context.Context, string) (*types.KnowledgeBaseShare, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) GetShareByKBAndOrg(context.Context, string, string) (*types.KnowledgeBaseShare, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) CheckTenantKBPermission(context.Context, string, uint64, types.TenantRole) (types.OrgMemberRole, bool, error) {
 	return "", false, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) HasTenantKBPermission(ctx context.Context, kbID string, callerTenantID uint64, callerTenantRole types.TenantRole, requiredRole types.OrgMemberRole) (bool, error) {
 	return f.allowedKBs[kbID], nil
 }
+
 func (f *fakeKBShareService) GetKBSourceTenant(context.Context, string) (uint64, error) {
 	return 0, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) CountSharesByKnowledgeBaseIDs(context.Context, []string) (map[string]int64, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (f *fakeKBShareService) CountByOrganizations(context.Context, []string) (map[string]int64, error) {
 	return nil, errors.New("not implemented")
 }
@@ -67,9 +81,7 @@ func (f *fakeKBShareService) CountByOrganizations(context.Context, []string) (ma
 func setupKnowledgeSharedAccessDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Knowledge{}))
+	db := pgtest.New(t)
 	return db
 }
 

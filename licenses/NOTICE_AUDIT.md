@@ -93,7 +93,6 @@ detection.
 | `caniuse-lite` (npm) | CC-BY-4.0 — attribution required | Attribution given in THIRD_PARTY_NOTICES.md. Build-time only; not in the shipped bundle. |
 | `dompurify` (npm) | MPL-2.0 OR Apache-2.0 | Elected **Apache-2.0**; recorded. |
 | 4 Go modules unresolved offline | `danieljoos/wincred`, `erikgeiser/coninput`, `inconshreveable/mousetrap`, `mattn/go-localereader` are Windows/terminal-only and absent from the Linux module cache used for the scan | Re-run `tools/license_check.sh` on a machine with the full module cache (`GOOS=windows go mod download`) before a release that ships Windows binaries. |
-| `github.com/asg017/sqlite-vec-go-bindings` | No LICENSE file in the module | Upstream `asg017/sqlite-vec` is MIT OR Apache-2.0. Confirm and record explicitly. |
 | `packages/dsh-yuheng`, `website-docs`, `miniprogram` npm trees | Not installed, so not scanned | Scan before publishing anything from those directories. |
 
 ---

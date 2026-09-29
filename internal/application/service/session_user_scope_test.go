@@ -6,9 +6,9 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -43,9 +43,7 @@ func testAPITenantKeyScopeContext(tenantID uint64, keyID uint64) context.Context
 func newTestSessionService(t *testing.T) (*sessionService, *gorm.DB) {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Session{}))
+	db := pgtest.New(t)
 
 	return &sessionService{
 		sessionRepo: repository.NewSessionRepository(db),

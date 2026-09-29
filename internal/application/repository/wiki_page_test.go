@@ -8,104 +8,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// wikiPagesTestDDL is a minimal SQLite-compatible subset of the
-// production wiki_pages DDL (migrations/versioned/000037_wiki_and_indexing.up.sql).
-// JSONB is stored as TEXT in SQLite; the StringArray Scan/Value pair
-// handles the JSON round-trip unchanged.
-const wikiPagesTestDDL = `
-CREATE TABLE IF NOT EXISTS wiki_pages (
-    id                VARCHAR(36) PRIMARY KEY,
-    tenant_id         INTEGER NOT NULL,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    slug              VARCHAR(255) NOT NULL,
-    title             VARCHAR(512) NOT NULL DEFAULT '',
-    page_type         VARCHAR(32) NOT NULL DEFAULT 'summary',
-    status            VARCHAR(32) NOT NULL DEFAULT 'published',
-    content           TEXT NOT NULL DEFAULT '',
-    summary           TEXT NOT NULL DEFAULT '',
-    parent_slug       VARCHAR(255) NOT NULL DEFAULT '',
-    folder_id         VARCHAR(36) NOT NULL DEFAULT '',
-    category_path     TEXT DEFAULT '[]',
-    wiki_path         VARCHAR(1024) NOT NULL DEFAULT '',
-    depth             INTEGER NOT NULL DEFAULT 0,
-    sort_order        INTEGER NOT NULL DEFAULT 0,
-    source_refs       TEXT DEFAULT '[]',
-    chunk_refs        TEXT DEFAULT '[]',
-    in_links          TEXT DEFAULT '[]',
-    out_links         TEXT DEFAULT '[]',
-    page_metadata     TEXT DEFAULT '{}',
-    aliases           TEXT DEFAULT '[]',
-    version           INTEGER NOT NULL DEFAULT 1,
-    last_edit_source  VARCHAR(16) NOT NULL DEFAULT '',
-    last_editor_id    VARCHAR(64) NOT NULL DEFAULT '',
-    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at        DATETIME
-);
-`
-
-// wikiPageRevisionsTestDDL mirrors the production wiki_page_revisions DDL
-// (migrations/versioned/000075_wiki_page_revisions.up.sql) for SQLite.
-const wikiPageRevisionsTestDDL = `
-CREATE TABLE IF NOT EXISTS wiki_page_revisions (
-    id                VARCHAR(36) PRIMARY KEY,
-    tenant_id         INTEGER NOT NULL,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    page_id           VARCHAR(36) NOT NULL,
-    slug              VARCHAR(255) NOT NULL,
-    version           INTEGER NOT NULL,
-    title             VARCHAR(512) NOT NULL DEFAULT '',
-    page_type         VARCHAR(32) NOT NULL DEFAULT 'summary',
-    status            VARCHAR(32) NOT NULL DEFAULT 'published',
-    content           TEXT NOT NULL DEFAULT '',
-    summary           TEXT NOT NULL DEFAULT '',
-    aliases           TEXT DEFAULT '[]',
-    edit_source       VARCHAR(16) NOT NULL DEFAULT '',
-    editor_id         VARCHAR(64) NOT NULL DEFAULT '',
-    edited_at         DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_wiki_page_revisions_page_version
-    ON wiki_page_revisions (page_id, version);
-`
-
-// wikiFoldersTestDDL mirrors the production wiki_folders DDL for SQLite.
-const wikiFoldersTestDDL = `
-CREATE TABLE IF NOT EXISTS wiki_folders (
-    id                VARCHAR(36) PRIMARY KEY,
-    tenant_id         INTEGER NOT NULL DEFAULT 0,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    parent_id         VARCHAR(36) NOT NULL DEFAULT '',
-    name              VARCHAR(255) NOT NULL,
-    path              VARCHAR(1024) NOT NULL DEFAULT '',
-    depth             INTEGER NOT NULL DEFAULT 0,
-    sort_order        INTEGER NOT NULL DEFAULT 0,
-    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at        DATETIME
-);
-`
-
 func setupWikiPagesTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(wikiPagesTestDDL).Error)
-	require.NoError(t, db.Exec(wikiFoldersTestDDL).Error)
-	for _, stmt := range strings.Split(strings.TrimSpace(wikiPageRevisionsTestDDL), ";") {
-		if strings.TrimSpace(stmt) == "" {
-			continue
-		}
-		require.NoError(t, db.Exec(stmt).Error)
-	}
-	return db
+	return pgtest.New(t)
 }
 
 // makeWikiPage builds a minimal WikiPage suitable for insert. Title is
@@ -406,7 +318,7 @@ func TestListByTypeLight_ClampsLimit(t *testing.T) {
 	assert.LessOrEqual(t, len(clampedEntries), 200)
 }
 
-func TestCountOrphans_SQLiteCountsEmptyInLinks(t *testing.T) {
+func TestCountOrphans_CountsEmptyInLinks(t *testing.T) {
 	db := setupWikiPagesTestDB(t)
 	repo := NewWikiPageRepository(db)
 	ctx := context.Background()

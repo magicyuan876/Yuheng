@@ -104,6 +104,16 @@ gofmt + gofumpt, golangci-lint v2 (`.golangci.yml`, line length 120).
 `make test`, `make lint`. Config is environment-driven; every knob is
 documented in `.env.example` — keep it in sync with `docker-compose.yml`.
 
+**PostgreSQL is the only database** — in production (the server refuses any
+other `DB_DRIVER`) and in tests. There is no SQLite anywhere and no dialect
+branch in the code; do not add either. A test that needs a database calls
+`pgtest.New(t)` (`internal/testutil/pgtest`): a fresh database per test with
+the real schema from `migrations/versioned`, on the ParadeDB image
+docker-compose runs, started once per test package. So `go test` needs
+Docker running — or `YUHENG_TEST_POSTGRES_URL` pointing at a Postgres
+superuser URL; `YUHENG_TEST_POSTGRES_IMAGE` swaps the image for a mirror.
+Tests must pass in any time zone.
+
 ## Running it
 
 ```
@@ -124,7 +134,10 @@ containers off from each other.
   the working directory. An `npm install` that runs at the repository root
   creates a stray `package.json` there — check `git status` after installs.
 - Docker Desktop's registry mirror in `daemon.json` is stale (401). Pull base
-  images from `<registry-mirror>/<image>` and retag.
+  images from `<registry-mirror>/<image>` and retag. For the
+  Go tests, `TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX=<registry-mirror>/`
+  makes testcontainers pull both of its images (ParadeDB and its ryuk
+  reaper) through the mirror.
 - `frontend/Dockerfile` pins nginx by digest; the local copy carries that
   digest under the mirror's name, so a local image build needs the pin
   removed temporarily (and restored — it must not be committed unpinned).

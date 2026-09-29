@@ -11,47 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const knowledgeTagTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledges (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id INTEGER NOT NULL,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    type VARCHAR(50) NOT NULL DEFAULT 'file',
-    title VARCHAR(255) NOT NULL DEFAULT '',
-    parse_status VARCHAR(50) NOT NULL DEFAULT 'completed',
-    deleted_at DATETIME
-);
-CREATE TABLE IF NOT EXISTS knowledge_tags (
-    id VARCHAR(36) PRIMARY KEY,
-    seq_id INTEGER NOT NULL,
-    tenant_id INTEGER NOT NULL,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    name VARCHAR(128) NOT NULL,
-    color VARCHAR(32),
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS knowledge_tag_relations (
-    knowledge_id VARCHAR(36) NOT NULL,
-    tag_id VARCHAR(36) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (knowledge_id, tag_id)
-);
-CREATE TABLE IF NOT EXISTS chunks (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id INTEGER NOT NULL,
-    knowledge_base_id VARCHAR(36) NOT NULL,
-    tag_id VARCHAR(36),
-    deleted_at DATETIME
-);
-`
-
 func setupKnowledgeTagTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupKnowledgeTestDB(t)
-	require.NoError(t, db.Exec(knowledgeTagTestDDL).Error)
-	return db
+	return setupKnowledgeTestDB(t)
 }
 
 func seedKnowledgeTagFixture(t *testing.T, db *gorm.DB) (kbID, knowledgeID, tagA, tagB string) {
@@ -61,8 +23,8 @@ func seedKnowledgeTagFixture(t *testing.T, db *gorm.DB) (kbID, knowledgeID, tagA
 	tagA = uuid.New().String()
 	tagB = uuid.New().String()
 	require.NoError(t, db.Exec(`
-		INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, parse_status)
-		VALUES (?, 1, ?, 'file', 'doc', 'completed')
+		INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status)
+		VALUES (?, 1, ?, 'file', 'doc', '', 'completed')
 	`, knowledgeID, kbID).Error)
 	require.NoError(t, db.Exec(`
 		INSERT INTO knowledge_tags (id, seq_id, tenant_id, knowledge_base_id, name)
@@ -190,8 +152,8 @@ func TestApplyKnowledgeListFilter_TagIDsOrSemantics(t *testing.T) {
 		{docA, "a"}, {docB, "b"}, {docC, "c"},
 	} {
 		require.NoError(t, db.Exec(`
-			INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, parse_status)
-			VALUES (?, 1, ?, 'file', ?, 'completed')
+			INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status)
+			VALUES (?, 1, ?, 'file', ?, '', 'completed')
 		`, row.id, kbID, row.title).Error)
 	}
 	require.NoError(t, db.Exec(`
@@ -227,8 +189,8 @@ func TestBatchCountReferences_ScopedToKnowledgeBase(t *testing.T) {
 	tag2 := uuid.New().String()
 
 	require.NoError(t, db.Exec(`
-		INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, parse_status)
-		VALUES (?, 1, ?, 'file', 'kb1-doc', 'completed'), (?, 1, ?, 'file', 'kb2-doc', 'completed')
+		INSERT INTO knowledges (id, tenant_id, knowledge_base_id, type, title, source, parse_status)
+		VALUES (?, 1, ?, 'file', 'kb1-doc', '', 'completed'), (?, 1, ?, 'file', 'kb2-doc', '', 'completed')
 	`, doc1, kb1, doc2, kb2).Error)
 	require.NoError(t, db.Exec(`
 		INSERT INTO knowledge_tags (id, seq_id, tenant_id, knowledge_base_id, name)

@@ -5,48 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// spansTestDDL mirrors migration 000053 for SQLite — same column order
-// minus the JSONB type (SQLite stores JSON as TEXT, the JSONMap Scanner
-// handles the round trip transparently). Inlined for the same reason
-// knowledgebase_sqlite_test.go inlines its DDL: GORM AutoMigrate doesn't
-// reproduce our PostgreSQL-flavoured schema cleanly.
-const spansTestDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_processing_spans (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    knowledge_id    VARCHAR(64) NOT NULL,
-    attempt         INTEGER     NOT NULL DEFAULT 1,
-    span_id         VARCHAR(64) NOT NULL,
-    parent_span_id  VARCHAR(64),
-    name            VARCHAR(255) NOT NULL,
-    kind            VARCHAR(16) NOT NULL,
-    status          VARCHAR(16) NOT NULL,
-    input           TEXT,
-    output          TEXT,
-    metadata        TEXT,
-    error_code      VARCHAR(64),
-    error_message   TEXT,
-    error_detail    TEXT,
-    started_at      DATETIME,
-    finished_at     DATETIME,
-    duration_ms     BIGINT,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (knowledge_id, attempt, span_id)
-);
-`
-
 func setupSpanTestRepo(t *testing.T) (KnowledgeSpanRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(spansTestDDL).Error)
+	db := pgtest.New(t)
 	return NewKnowledgeSpanRepository(db), db
 }
 

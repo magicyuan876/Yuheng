@@ -7,17 +7,14 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	"github.com/magicyuan876/yuheng/internal/application/service"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestStorageBackendResolverScopesPathsAndTenant(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.StorageBackend{}))
+	db := pgtest.New(t)
 	repo := repository.NewStorageBackendRepository(db)
 	backend := &types.StorageBackend{TenantID: 7, Name: "Local A", Provider: "local", Config: types.StorageBackendConfig{}, LegacyAlias: true}
 	require.NoError(t, repo.Create(context.Background(), backend))
@@ -43,9 +40,7 @@ func TestStorageBackendResolverScopesPathsAndTenant(t *testing.T) {
 
 func TestResolveFileServiceUsesWorkspaceDefaultForStubTenant(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "local")
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Tenant{}, &types.StorageBackend{}))
+	db := pgtest.New(t)
 
 	tenantRepo := repository.NewTenantRepository(db)
 	storageRepo := repository.NewStorageBackendRepository(db)
@@ -67,9 +62,7 @@ func TestResolveFileServiceUsesWorkspaceDefaultForStubTenant(t *testing.T) {
 
 func TestResolveFileServiceFallsBackToEnvWhenWorkspaceHasNoBackend(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "local")
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.Tenant{}, &types.StorageBackend{}))
+	db := pgtest.New(t)
 	require.NoError(t, db.Create(&types.Tenant{ID: 9, Name: "legacy"}).Error)
 
 	resolver := service.NewStorageBackendService(repository.NewStorageBackendRepository(db), db)

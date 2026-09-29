@@ -105,7 +105,7 @@ func TestNewClientIsNilWithoutConfiguration(t *testing.T) {
 	require.Equal(t, "http://collab:1234", c.baseURL, "a trailing slash would double up in paths")
 }
 
-// A nil client is what the Lite edition holds; its calls must report that
+// A nil client is what a deployment without collab holds; its calls must report that
 // rather than panic.
 func TestNilClientReportsNotConfigured(t *testing.T) {
 	var c *Client

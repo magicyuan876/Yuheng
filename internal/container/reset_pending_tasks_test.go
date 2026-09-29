@@ -8,103 +8,59 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/magicyuan876/yuheng/internal/application/service"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-const resetPendingKnowledgeDDL = `
-CREATE TABLE IF NOT EXISTS knowledges (
-    id              VARCHAR(64) PRIMARY KEY,
-    parse_status    VARCHAR(32) NOT NULL DEFAULT 'pending',
-    summary_status  VARCHAR(32) NOT NULL DEFAULT 'none',
-    pending_subtasks_count INTEGER NOT NULL DEFAULT 0,
-    error_message   TEXT,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deleted_at      DATETIME
-);
-`
-
-const resetPendingSyncLogDDL = `
-CREATE TABLE IF NOT EXISTS sync_logs (
-    id              VARCHAR(64) PRIMARY KEY,
-    data_source_id  VARCHAR(64) NOT NULL DEFAULT '',
-    tenant_id       INTEGER NOT NULL DEFAULT 0,
-    status          VARCHAR(32) NOT NULL,
-    started_at      DATETIME,
-    finished_at     DATETIME,
-    error_message   TEXT,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-`
-
-const resetPendingSpansDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_processing_spans (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    knowledge_id    VARCHAR(64) NOT NULL,
-    attempt         INTEGER NOT NULL DEFAULT 1,
-    span_id         VARCHAR(64) NOT NULL,
-    parent_span_id  VARCHAR(64),
-    name            VARCHAR(255) NOT NULL,
-    kind            VARCHAR(16) NOT NULL,
-    status          VARCHAR(16) NOT NULL,
-    error_code      VARCHAR(64),
-    error_message   TEXT,
-    started_at      DATETIME,
-    finished_at     DATETIME,
-    duration_ms     INTEGER,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (knowledge_id, attempt, span_id)
-);
-`
-
-const resetPendingOpsDDL = `
-CREATE TABLE IF NOT EXISTS task_pending_ops (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    tenant_id   INTEGER NOT NULL DEFAULT 0,
-    task_type   VARCHAR(64) NOT NULL,
-    scope       VARCHAR(32) NOT NULL,
-    scope_id    VARCHAR(64) NOT NULL,
-    op          VARCHAR(32) NOT NULL,
-    dedup_key   VARCHAR(128) NOT NULL DEFAULT '',
-    payload     TEXT NOT NULL DEFAULT '{}',
-    fail_count  INTEGER NOT NULL DEFAULT 0,
-    enqueued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    claimed_at  DATETIME
-);
-`
-
-const resetPendingKnowledgeBasesDDL = `
-CREATE TABLE IF NOT EXISTS knowledge_bases (
-    id          VARCHAR(64) PRIMARY KEY,
-    tenant_id   INTEGER NOT NULL DEFAULT 0,
-    deleted_at  DATETIME
-);
-`
-
+// setupResetPendingDB returns an empty database with the production schema.
 func setupResetPendingDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(resetPendingKnowledgeDDL).Error)
-	require.NoError(t, db.Exec(resetPendingSyncLogDDL).Error)
-	require.NoError(t, db.Exec(resetPendingSpansDDL).Error)
-	require.NoError(t, db.Exec(resetPendingOpsDDL).Error)
-	require.NoError(t, db.Exec(resetPendingKnowledgeBasesDDL).Error)
-	return db
+	return pgtest.New(t)
+}
+
+// insertKnowledge inserts a knowledges row. The production table requires a
+// tenant, a knowledge base, a type, a title and a source; none of them matter
+// to the startup reset, so they are filled with fixed values and each test
+// passes only the columns it is about.
+func insertKnowledge(t *testing.T, db *gorm.DB, fields map[string]interface{}) {
+	t.Helper()
+	row := map[string]interface{}{
+		"tenant_id":         7,
+		"knowledge_base_id": "kb-reset",
+		"type":              "file",
+		"title":             fields["id"],
+		"source":            "test",
+	}
+	for k, v := range fields {
+		row[k] = v
+	}
+	require.NoError(t, db.Table("knowledges").Create(row).Error)
+}
+
+// insertRunningSyncLog inserts a running sync_logs row. sync_logs references
+// data_sources, so the data source it belongs to is created first.
+func insertRunningSyncLog(t *testing.T, db *gorm.DB, id string, startedAt time.Time) {
+	t.Helper()
+	require.NoError(t, db.Exec(
+		`INSERT INTO data_sources (id, tenant_id, knowledge_base_id, name, type)
+		 VALUES ('ds-reset', 7, 'kb-reset', 'reset source', 'feishu')
+		 ON CONFLICT (id) DO NOTHING`,
+	).Error)
+	require.NoError(t, db.Exec(
+		`INSERT INTO sync_logs (id, data_source_id, tenant_id, status, started_at) VALUES (?, 'ds-reset', 7, ?, ?)`,
+		id, types.SyncLogStatusRunning, startedAt,
+	).Error)
 }
 
 func TestResetPendingTasks_KnowledgeFindThenUpdate(t *testing.T) {
 	db := setupResetPendingDB(t)
 	stale := time.Now().Add(-2 * time.Hour)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, updated_at) VALUES (?, ?, ?)`,
-		"k-stuck", types.ParseStatusProcessing, stale,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-stuck", "parse_status": types.ParseStatusProcessing, "updated_at": stale,
+	})
 
 	os.Unsetenv("REDIS_ADDR")
 	resetPendingTasks(db)
@@ -120,10 +76,9 @@ func TestResetPendingTasks_KnowledgeFindThenUpdate(t *testing.T) {
 func TestResetPendingTasks_KnowledgeFreshInDistributedMode(t *testing.T) {
 	db := setupResetPendingDB(t)
 	fresh := time.Now().Add(-5 * time.Minute)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, updated_at) VALUES (?, ?, ?)`,
-		"k-fresh", types.ParseStatusProcessing, fresh,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-fresh", "parse_status": types.ParseStatusProcessing, "updated_at": fresh,
+	})
 
 	t.Setenv("REDIS_ADDR", "redis:6379")
 	resetPendingTasks(db)
@@ -150,10 +105,9 @@ func TestResetPendingTasks_DistributedModePreservesEveryStage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			db := setupResetPendingDB(t)
 			stale := time.Now().Add(-2 * time.Hour)
-			require.NoError(t, db.Exec(
-				`INSERT INTO knowledges (id, parse_status, updated_at) VALUES (?, ?, ?)`,
-				"k-active-span", tc.parseStatus, stale,
-			).Error)
+			insertKnowledge(t, db, map[string]interface{}{
+				"id": "k-active-span", "parse_status": tc.parseStatus, "updated_at": stale,
+			})
 
 			t.Setenv("REDIS_ADDR", "redis:6379")
 			resetPendingTasks(db)
@@ -171,11 +125,10 @@ func TestResetPendingTasks_DistributedModePreservesEveryStage(t *testing.T) {
 func TestResetPendingTasks_DistributedSummaryTaskSurvivesRestart(t *testing.T) {
 	db := setupResetPendingDB(t)
 	stale := time.Now().Add(-2 * time.Hour)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, summary_status, updated_at)
-		 VALUES (?, ?, ?, ?)`,
-		"k-summary", types.ParseStatusCompleted, types.SummaryStatusProcessing, stale,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-summary", "parse_status": types.ParseStatusCompleted,
+		"summary_status": types.SummaryStatusProcessing, "updated_at": stale,
+	})
 
 	t.Setenv("REDIS_ADDR", "redis:6379")
 	resetPendingTasks(db)
@@ -189,10 +142,9 @@ func TestResetPendingTasks_DistributedSummaryTaskSurvivesRestart(t *testing.T) {
 
 func TestResetPendingTasks_DurableWikiOpSurvivesLiteRestart(t *testing.T) {
 	db := setupResetPendingDB(t)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, pending_subtasks_count)
-		 VALUES (?, ?, 1)`, "k-wiki", types.ParseStatusFinalizing,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-wiki", "parse_status": types.ParseStatusFinalizing, "pending_subtasks_count": 1,
+	})
 	require.NoError(t, db.Exec(
 		`INSERT INTO task_pending_ops
 		 (tenant_id, task_type, scope, scope_id, op, dedup_key, payload)
@@ -214,10 +166,9 @@ func TestResetPendingTasks_DurableWikiOpSurvivesLiteRestart(t *testing.T) {
 
 func TestResetPendingTasks_LiteWikiDoesNotHideOtherLostSubtasks(t *testing.T) {
 	db := setupResetPendingDB(t)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, pending_subtasks_count)
-		 VALUES (?, ?, 2)`, "k-wiki-plus-summary", types.ParseStatusFinalizing,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-wiki-plus-summary", "parse_status": types.ParseStatusFinalizing, "pending_subtasks_count": 2,
+	})
 	require.NoError(t, db.Exec(
 		`INSERT INTO task_pending_ops
 		 (tenant_id, task_type, scope, scope_id, op, dedup_key, payload)
@@ -239,10 +190,7 @@ func TestResetPendingTasks_LiteWikiDoesNotHideOtherLostSubtasks(t *testing.T) {
 func TestResetPendingTasks_SyncLogStaleRunning(t *testing.T) {
 	db := setupResetPendingDB(t)
 	stale := time.Now().Add(-2 * time.Hour)
-	require.NoError(t, db.Exec(
-		`INSERT INTO sync_logs (id, status, started_at) VALUES (?, ?, ?)`,
-		"sync-1", types.SyncLogStatusRunning, stale,
-	).Error)
+	insertRunningSyncLog(t, db, "sync-1", stale)
 
 	t.Setenv("REDIS_ADDR", "redis:6379")
 	resetPendingTasks(db)
@@ -259,10 +207,7 @@ func TestResetPendingTasks_SyncLogStaleRunning(t *testing.T) {
 func TestResetPendingTasks_SyncLogLiteMode(t *testing.T) {
 	db := setupResetPendingDB(t)
 	os.Unsetenv("REDIS_ADDR")
-	require.NoError(t, db.Exec(
-		`INSERT INTO sync_logs (id, status, started_at) VALUES (?, ?, ?)`,
-		"sync-lite", types.SyncLogStatusRunning, time.Now(),
-	).Error)
+	insertRunningSyncLog(t, db, "sync-lite", time.Now())
 
 	resetPendingTasks(db)
 
@@ -276,10 +221,9 @@ func TestResetPendingTasks_SyncLogLiteMode(t *testing.T) {
 func TestStuckKnowledgeParseQuery_ReuseAfterFindDoesNotBreakUpdate(t *testing.T) {
 	db := setupResetPendingDB(t)
 	stale := time.Now().Add(-2 * time.Hour)
-	require.NoError(t, db.Exec(
-		`INSERT INTO knowledges (id, parse_status, updated_at) VALUES (?, ?, ?)`,
-		"k-reuse", types.ParseStatusProcessing, stale,
-	).Error)
+	insertKnowledge(t, db, map[string]interface{}{
+		"id": "k-reuse", "parse_status": types.ParseStatusProcessing, "updated_at": stale,
+	})
 
 	var rows []types.Knowledge
 	q := stuckKnowledgeParseQuery(db)
@@ -305,8 +249,9 @@ func (r *recordingTaskEnqueuer) Enqueue(task *asynq.Task, _ ...asynq.Option) (*a
 func TestRecoverPendingWikiTasks_RecreatesOneTriggerPerLaneAndKB(t *testing.T) {
 	db := setupResetPendingDB(t)
 	require.NoError(t, db.Exec(
-		`INSERT INTO knowledge_bases (id, tenant_id, deleted_at)
-		 VALUES (?, ?, NULL), (?, ?, NULL), (?, ?, ?)`,
+		`INSERT INTO knowledge_bases
+		 (id, tenant_id, name, embedding_model_id, summary_model_id, deleted_at)
+		 VALUES (?, ?, 'a', '', '', NULL), (?, ?, 'b', '', '', NULL), (?, ?, 'deleted', '', '', ?)`,
 		"kb-a", 7, "kb-b", 8, "kb-deleted", 9, time.Now(),
 	).Error)
 	rows := []struct {

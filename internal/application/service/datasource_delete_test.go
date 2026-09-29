@@ -2,20 +2,23 @@ package service
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	"github.com/magicyuan876/yuheng/internal/datasource"
+	"github.com/magicyuan876/yuheng/internal/testutil/pgtest"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-type sqliteDataSourceDeleteFixture struct {
+// dataSourceDeleteFixture wires the real data source and sync log
+// repositories to a Postgres database with the production schema, so the
+// delete paths below run the same soft-delete and sync-log UPDATEs the server
+// runs, against the real columns and the sync_logs → data_sources foreign key.
+type dataSourceDeleteFixture struct {
 	db          *gorm.DB
 	dsRepo      interfaces.DataSourceRepository
 	syncLogRepo interfaces.SyncLogRepository
@@ -25,19 +28,17 @@ type sqliteDataSourceDeleteFixture struct {
 	runningLog  *types.SyncLog
 }
 
-func newSQLiteDataSourceDeleteFixture(t *testing.T) *sqliteDataSourceDeleteFixture {
+func newDataSourceDeleteFixture(t *testing.T) *dataSourceDeleteFixture {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "yuheng.db")), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&types.DataSource{}, &types.SyncLog{}))
+	db := pgtest.New(t)
 
 	dsRepo := repository.NewDataSourceRepository(db)
 	syncLogRepo := repository.NewSyncLogRepository(db)
 	ds := &types.DataSource{
-		ID:              "ds-sqlite-delete",
+		ID:              "ds-delete",
 		TenantID:        1,
-		KnowledgeBaseID: "kb-sqlite-delete",
-		Name:            "SQLite delete",
+		KnowledgeBaseID: "kb-delete",
+		Name:            "Delete fixture",
 		Type:            types.ConnectorTypeFeishu,
 		Status:          types.DataSourceStatusActive,
 		SyncSchedule:    "0 0 * * * *",
@@ -62,7 +63,7 @@ func newSQLiteDataSourceDeleteFixture(t *testing.T) *sqliteDataSourceDeleteFixtu
 	require.NoError(t, scheduler.AddOrUpdate(ds))
 	require.Equal(t, 1, scheduler.EntryCount())
 
-	return &sqliteDataSourceDeleteFixture{
+	return &dataSourceDeleteFixture{
 		db:          db,
 		dsRepo:      dsRepo,
 		syncLogRepo: syncLogRepo,
@@ -73,8 +74,8 @@ func newSQLiteDataSourceDeleteFixture(t *testing.T) *sqliteDataSourceDeleteFixtu
 	}
 }
 
-func TestDataSourceServiceDeleteSQLiteCleansUpAfterSoftDelete(t *testing.T) {
-	fixture := newSQLiteDataSourceDeleteFixture(t)
+func TestDataSourceServiceDeleteCleansUpAfterSoftDelete(t *testing.T) {
+	fixture := newDataSourceDeleteFixture(t)
 	svc := &DataSourceService{
 		dsRepo:      fixture.dsRepo,
 		syncLogRepo: fixture.syncLogRepo,
@@ -97,14 +98,23 @@ func TestDataSourceServiceDeleteSQLiteCleansUpAfterSoftDelete(t *testing.T) {
 }
 
 func TestDataSourceServiceDeleteKeepsCleanupStateWhenSoftDeleteFails(t *testing.T) {
-	fixture := newSQLiteDataSourceDeleteFixture(t)
+	fixture := newDataSourceDeleteFixture(t)
+	// A trigger that rejects the soft-delete UPDATE of this one row makes the
+	// database, not a mock, fail the delete, so the test proves the service
+	// leaves the scheduler entry and the sync logs alone when the row stays.
+	require.NoError(t, fixture.db.Exec(`
+		CREATE FUNCTION fail_datasource_soft_delete() RETURNS trigger AS $$
+		BEGIN
+			RAISE EXCEPTION 'forced soft delete failure';
+		END;
+		$$ LANGUAGE plpgsql;
+	`).Error)
 	require.NoError(t, fixture.db.Exec(`
 		CREATE TRIGGER fail_datasource_soft_delete
 		BEFORE UPDATE OF deleted_at ON data_sources
-		WHEN NEW.id = 'ds-sqlite-delete'
-		BEGIN
-			SELECT RAISE(FAIL, 'forced soft delete failure');
-		END;
+		FOR EACH ROW
+		WHEN (NEW.id = 'ds-delete')
+		EXECUTE FUNCTION fail_datasource_soft_delete();
 	`).Error)
 	svc := &DataSourceService{
 		dsRepo:      fixture.dsRepo,
@@ -128,13 +138,13 @@ func TestDataSourceServiceDeleteKeepsCleanupStateWhenSoftDeleteFails(t *testing.
 	assert.Equal(t, types.SyncLogStatusRunning, running.Status)
 }
 
-func TestDeleteKnowledgeBaseCleansUpSQLiteDataSources(t *testing.T) {
-	fixture := newSQLiteDataSourceDeleteFixture(t)
+func TestDeleteKnowledgeBaseCleansUpPersistedDataSources(t *testing.T) {
+	fixture := newDataSourceDeleteFixture(t)
 	kbRepo := &kbDeleteKBRepo{fakeKBRepo: *newFakeKBRepo()}
 	kbRepo.rows[fixture.ds.KnowledgeBaseID] = &types.KnowledgeBase{
 		ID:       fixture.ds.KnowledgeBaseID,
 		TenantID: fixture.ds.TenantID,
-		Name:     "SQLite delete",
+		Name:     "Delete fixture",
 	}
 	svc := &knowledgeBaseService{
 		repo:        kbRepo,
