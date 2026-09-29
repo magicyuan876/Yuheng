@@ -86,6 +86,15 @@ func New(t testing.TB) *gorm.DB {
 	return db
 }
 
+// NewURL is New for tests that start something which opens its own connection,
+// such as the server's dependency graph: it also returns the connection URL
+// (postgres://user:password@host:port/database) of the fresh database.
+func NewURL(t testing.TB) (*gorm.DB, string) {
+	t.Helper()
+	db, name := open(t)
+	return db, shared.dsn(name)
+}
+
 // NewSQL is New for code that takes a *sql.DB. The *gorm.DB over the same
 // connection pool is returned too, for seeding rows.
 func NewSQL(t testing.TB) (*sql.DB, *gorm.DB) {

@@ -41,6 +41,9 @@ func TestInitDatabaseMigrationFailureIsFatalByDefault(t *testing.T) {
 		"000001_bad.up.sql": &fstest.MapFile{Data: []byte(`SELECT * FROM no_such_table`)},
 	}
 	database.RegisterMigrationSource("startup-test", broken, "startup_test_migrations")
+	// The registry is process-wide: left behind, this source would make every
+	// later test that starts the server fail on its broken migration.
+	t.Cleanup(func() { database.UnregisterMigrationSource("startup-test") })
 
 	t.Setenv("MIGRATION_FAIL_FAST", "")
 	db, err := initDatabase(&config.Config{})

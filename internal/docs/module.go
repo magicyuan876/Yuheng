@@ -83,6 +83,12 @@ type Module struct {
 	Cleaner *Cleaner
 	// Indexer mirrors edited pages into their space's knowledge base.
 	Indexer *Indexer
+	// Degraded names the optional dependencies the container did not provide.
+	// Every one of them makes a feature quietly unavailable (mirroring into the
+	// knowledge base, attachments, drafting, ...) instead of failing start-up,
+	// so a broken binding is invisible unless somebody asks. The start-up
+	// wiring test asserts the list is empty in the shipped configuration.
+	Degraded []string
 }
 
 // NewModule wires the module from container-provided dependencies.
@@ -161,6 +167,10 @@ func NewModule(p Params) *Module {
 	if p.StorageBackends != nil {
 		deps.StorageBackends = p.StorageBackends
 	}
+	degraded := p.degraded()
+	if len(degraded) > 0 {
+		logger.Warnf(context.Background(), "[docs] running without optional dependencies: %v", degraded)
+	}
 	services := service.New(deps)
 	h := handler.New(handler.Deps{
 		Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec, Idempotency: idem,
@@ -184,8 +194,31 @@ func NewModule(p Params) *Module {
 	return &Module{
 		Enabled: true, Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec,
 		Services: services, Handler: h, Collab: collabClient, Cleaner: cleaner,
-		Indexer: indexer,
+		Indexer: indexer, Degraded: degraded,
 	}
+}
+
+// degraded lists the optional parameters that arrived nil. Redis is left out
+// on purpose: running without it is a supported single-process mode, not a
+// defect.
+func (p Params) degraded() []string {
+	var missing []string
+	note := func(name string, absent bool) {
+		if absent {
+			missing = append(missing, name)
+		}
+	}
+	note("UserService", p.UserService == nil)
+	note("Audit", p.Audit == nil)
+	note("KnowledgeBases", p.KnowledgeBases == nil)
+	note("StorageBackends", p.StorageBackends == nil)
+	note("StorageResolver", p.StorageResolver == nil)
+	note("Tenants", p.Tenants == nil)
+	note("Favourites", p.Favourites == nil)
+	note("KnowledgeBaseService", p.KnowledgeBaseService == nil)
+	note("ModelService", p.ModelService == nil)
+	note("KnowledgeService", p.KnowledgeService == nil)
+	return missing
 }
 
 // Close releases background resources: the maintenance loop and the Redis

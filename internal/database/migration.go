@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -180,6 +181,17 @@ func RegisterMigrationSource(name string, fsys fs.FS, table string) {
 		}
 	}
 	sources = append(sources, migrationSource{name: name, fsys: fsys, table: table})
+}
+
+// UnregisterMigrationSource removes a source added by RegisterMigrationSource.
+// The registry is process-wide, so a test that registers a deliberately broken
+// source must remove it again, or every later test in the binary that starts
+// the server fails on it. Production code has no use for this: sources are
+// registered once, at start-up.
+func UnregisterMigrationSource(name string) {
+	sourcesMu.Lock()
+	defer sourcesMu.Unlock()
+	sources = slices.DeleteFunc(sources, func(s migrationSource) bool { return s.name == name })
 }
 
 func registeredSources() []migrationSource {
