@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -784,13 +783,17 @@ func SSRFSafeDialContext(ctx context.Context, network, addr string) (net.Conn, e
 // Whitelisted entries bypass the normal SSRF checks performed by isSSRFSafeURL.
 
 var (
-	// ssrfWhitelistOnce protects the cold-start ENV-only path. Once
-	// SystemSettingService has called SetSSRFWhitelistFromRaw, the
-	// atomic pointer below takes over and this Once is never observed
-	// again — we keep it for tests (resetSSRFWhitelistForTest) and the
-	// rare deployment that runs without DB-backed system_settings.
-	ssrfWhitelistOnce sync.Once
-	ssrfWhitelist     *ssrfWhitelistConfig
+	// ssrfEnvWhitelist caches the parse of the environment-only whitelist,
+	// keyed by the raw values it was parsed from. Once SystemSettingService
+	// has called SetSSRFWhitelistFromRaw, the atomic pointer below takes over
+	// and this is never consulted; it serves the startup window and the rare
+	// deployment that runs without DB-backed system_settings.
+	//
+	// Keyed by the environment rather than parsed once for the life of the
+	// process: a sync.Once made the first caller's environment decide for every
+	// later one, so tests that set SSRF_WHITELIST passed or failed depending on
+	// the order they ran in. The cost is two os.Getenv calls per validation.
+	ssrfEnvWhitelist atomic.Pointer[ssrfEnvWhitelistEntry]
 
 	// ssrfWhitelistAtomic is the runtime-tunable whitelist source.
 	// SystemSettingService writes here at preload, on every Update,
@@ -804,6 +807,11 @@ var (
 	ssrfWhitelistAtomic atomic.Pointer[ssrfWhitelistConfig]
 )
 
+type ssrfEnvWhitelistEntry struct {
+	key string // SSRF_WHITELIST and SSRF_WHITELIST_EXTRA as read
+	cfg *ssrfWhitelistConfig
+}
+
 type ssrfWhitelistConfig struct {
 	exactHosts  map[string]bool // lowercase exact hostnames / IPs
 	suffixHosts []string        // suffix matches (from "*.example.com" → ".example.com")
@@ -814,7 +822,7 @@ type ssrfWhitelistConfig struct {
 // order:
 //  1. ssrfWhitelistAtomic — set by SystemSettingService whenever DB
 //     ssrf.whitelist changes. This is the runtime-tunable path.
-//  2. ENV fallback — sync.Once-cached parse of SSRF_WHITELIST and
+//  2. ENV fallback — cached parse of SSRF_WHITELIST and
 //     SSRF_WHITELIST_EXTRA. Used during the startup window before
 //     the service has finished its preload, and on deployments that
 //     don't run system_settings (lite mode).
@@ -822,16 +830,20 @@ func loadSSRFWhitelist() *ssrfWhitelistConfig {
 	if cur := ssrfWhitelistAtomic.Load(); cur != nil {
 		return cur
 	}
-	ssrfWhitelistOnce.Do(func() {
-		raw := os.Getenv("SSRF_WHITELIST")
-		// SSRF_WHITELIST_EXTRA is merged in addition to SSRF_WHITELIST so that
-		// deployment-managed defaults (e.g. docker-compose injected sidecar host
-		// names like "searxng") aren't accidentally clobbered when an operator
-		// overrides SSRF_WHITELIST in their .env.
-		extra := os.Getenv("SSRF_WHITELIST_EXTRA")
-		ssrfWhitelist = parseSSRFWhitelistRaw(mergeSSRFWhitelistRaws(raw, extra))
-	})
-	return ssrfWhitelist
+	// SSRF_WHITELIST_EXTRA is merged in addition to SSRF_WHITELIST so that
+	// deployment-managed defaults (e.g. docker-compose injected sidecar host
+	// names like "searxng") aren't accidentally clobbered when an operator
+	// overrides SSRF_WHITELIST in their .env.
+	raw, extra := os.Getenv("SSRF_WHITELIST"), os.Getenv("SSRF_WHITELIST_EXTRA")
+	key := raw + "\x00" + extra
+	if cur := ssrfEnvWhitelist.Load(); cur != nil && cur.key == key {
+		return cur.cfg
+	}
+	cfg := parseSSRFWhitelistRaw(mergeSSRFWhitelistRaws(raw, extra))
+	ssrfEnvWhitelist.Store(&ssrfEnvWhitelistEntry{key: key, cfg: cfg})
+	// Decisions cached under the previous whitelist are no longer valid.
+	invalidateSSRFOutboundValidationCache()
+	return cfg
 }
 
 // SetSSRFWhitelistFromRaw atomically replaces the active SSRF whitelist
@@ -1026,8 +1038,7 @@ func IsSSRFWhitelisted(hostname string) bool {
 // cached via the first sync.Once.Do(). NOT for production use — the ForTest
 // suffix is the contract.
 func ResetSSRFWhitelistForTest() {
-	ssrfWhitelistOnce = sync.Once{}
-	ssrfWhitelist = nil
+	ssrfEnvWhitelist.Store(nil)
 	ssrfWhitelistAtomic.Store(nil)
 	invalidateSSRFOutboundValidationCache()
 }
