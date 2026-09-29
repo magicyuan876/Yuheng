@@ -2,10 +2,9 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-
 )
 
-// Locking a page and marking it draft or published.
+// Locking a page, and whether it takes part in the knowledge base.
 
 // LockRequest is the body of PUT /docs/pages/:pid/lock.
 type LockRequest struct {
