@@ -69,3 +69,24 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Advisory, like govulncheck in app.yml: advisories are published without any
+  # commit of ours, so this reports and never blocks. Production dependencies
+  # only; the build tooling does not ship.
+  audit:
+    name: npm audit (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev

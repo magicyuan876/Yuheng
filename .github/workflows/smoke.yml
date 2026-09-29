@@ -1,0 +1,116 @@
+name: Smoke
+
+# Builds the images and starts the stack exactly as the README tells a new
+# user to (`docker compose up -d --build`, default profile), then walks the
+# first-run path through the frontend's nginx: the page loads, the first
+# account registers, a second one is refused, login issues a token and the API
+# tells a signed-in caller from an anonymous one (scripts/smoke.sh).
+#
+# It exists because every other job tests a piece: the Go tests never start
+# nginx, the frontend job never starts the app, and a compose or migration
+# mistake — the default stack once failed to start because nginx resolved an
+# optional service at boot — is invisible to all of them.
+#
+# The trigger is deliberately broad. Everything that ends up in an image or
+# changes what compose starts (Go code, migrations, config, Dockerfiles, the
+# frontend, docreader, compose itself, .env.example) can break the stack, so
+# instead of listing those paths this workflow ignores only what cannot:
+# Markdown, the documentation site, the CLI/client/SDK packages, the MCP
+# server, Helm and the licence text.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "website-docs/**"
+      - "cli/**"
+      - "client/**"
+      - "packages/**"
+      - "mcp-server/**"
+      - "helm/**"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "website-docs/**"
+      - "cli/**"
+      - "client/**"
+      - "packages/**"
+      - "mcp-server/**"
+      - "helm/**"
+      - "LICENSE"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Same heap ceiling as frontend.yml: the build is close to a runner's default.
+  NODE_OPTIONS: "--max-old-space-size=4096"
+  # Not 80: keep clear of anything already listening on the runner.
+  FRONTEND_PORT: "8086"
+
+jobs:
+  smoke:
+    name: Start the stack and walk the first-run path
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The frontend image copies a prebuilt frontend/dist (see its
+      # Dockerfile); this is the same script the README points to.
+      - name: Build the frontend assets
+        run: scripts/build_frontend_dist.sh
+
+      - name: Write .env with fresh secrets
+        shell: bash
+        run: |
+          cp .env.example .env
+          jwt=$(openssl rand -hex 32)
+          aes=$(openssl rand -hex 16)
+          echo "::add-mask::$jwt"
+          echo "::add-mask::$aes"
+          sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${jwt}|" .env
+          sed -i "s|^SYSTEM_AES_KEY=.*|SYSTEM_AES_KEY=${aes}|" .env
+          sed -i "s|^FRONTEND_PORT=.*|FRONTEND_PORT=${FRONTEND_PORT}|" .env
+          # anydoc is an optional parser engine that needs a Rust toolchain in
+          # the image build; leaving it out saves minutes and nothing this job
+          # asserts depends on it.
+          echo "WITH_ANYDOC=0" >> .env
+          grep -c '^JWT_SECRET=.\{64\}$' .env
+          grep -c '^SYSTEM_AES_KEY=.\{32\}$' .env
+
+      # --wait blocks until every service with a health check is healthy (and
+      # fails when one exits), --wait-timeout is the deadline.
+      - name: Build and start the stack
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Smoke test through the frontend
+        env:
+          BASE_URL: http://127.0.0.1:${{ env.FRONTEND_PORT }}
+          SMOKE_WAIT_SECS: "120"
+        run: scripts/smoke.sh
+
+      - name: Dump service logs
+        if: failure()
+        run: |
+          docker compose ps --all || true
+          docker compose logs --no-color --tail=300 || true
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans

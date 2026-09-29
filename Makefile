@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend build-images-collab clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
+.PHONY: help build run test fmt fmt-check lint clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend build-images-collab clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
 
 # Show help
 help:
@@ -39,7 +39,8 @@ help:
 	@echo "  migrate-down      回滚数据库迁移"
 	@echo ""
 	@echo "开发工具:"
-	@echo "  fmt               格式化代码"
+	@echo "  fmt               格式化代码（gofumpt，整个仓库；缺工具时会给出安装命令）"
+	@echo "  fmt-check         检查格式，有未格式化文件则失败（CI 同款）"
 	@echo "  lint              代码检查"
 	@echo "  deps              安装依赖"
 	@echo "  docs              生成 Swagger API 文档"
@@ -234,9 +235,14 @@ docs:
 install-swagger:
 	go install github.com/swaggo/swag/cmd/swag@latest
 
-# Format code
+# Format code. gofumpt (a stricter gofmt), pinned to the version golangci-lint
+# embeds, over the whole root module: see scripts/gofumpt-tree.sh.
 fmt:
-	go fmt ./...
+	./scripts/gofumpt-tree.sh write
+
+# Fail if any Go file is not formatted; CI runs the same check.
+fmt-check:
+	./scripts/gofumpt-tree.sh check
 
 # Lint code
 lint:

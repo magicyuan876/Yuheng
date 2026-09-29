@@ -19,6 +19,7 @@ on:
       - "migrations/**"
       - "testdata/**"
       - "docker/Dockerfile.app"
+      - "scripts/gofumpt-tree.sh"
       - ".github/workflows/app.yml"
   pull_request:
     paths:
@@ -34,6 +35,7 @@ on:
       - "migrations/**"
       - "testdata/**"
       - "docker/Dockerfile.app"
+      - "scripts/gofumpt-tree.sh"
       - ".github/workflows/app.yml"
   workflow_dispatch:
 
@@ -49,7 +51,6 @@ env:
   GOPROXY: https://proxy.golang.org,direct
   # Keep tests independent of a developer machine's custom log template.
   LOG_FORMAT: ""
-  BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
 
 jobs:
   verify:
@@ -95,37 +96,25 @@ jobs:
       - name: Download modules
         run: go mod download
 
-      - name: Check formatting
-        shell: bash
+      # The whole tree, not only the files this change touches: a file left
+      # unformatted by one commit would otherwise fail the next commit that
+      # happens to edit it. scripts/gofumpt-tree.sh is what `make fmt-check`
+      # runs, and pins the gofumpt that golangci-lint embeds, so this job, the
+      # lint job and a developer's `make fmt` agree.
+      - name: Check formatting (gofumpt, whole tree)
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Compare base..head, not the PR merge commit, so files changed only
-            # on main after the branch point are not attributed to this PR.
-            diff_range="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
-          else
-            base="$BASE_SHA"
-            if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then
-              # A root commit has no parent: diff against the empty tree instead.
-              base=$(git rev-parse --verify -q HEAD^ 2>/dev/null || git hash-object -t tree /dev/null)
-            fi
-            diff_range="$base..$GITHUB_SHA"
-          fi
-          unformatted=$(
-            git diff --name-only --diff-filter=ACMR -z "$diff_range" -- '*.go' ':!cli/**' |
-              xargs -0 -r gofmt -l
-          )
-          if [ -n "$unformatted" ]; then
-            echo "The following Go files are not gofmt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
+          go install mvdan.cc/gofumpt@v0.9.2
+          scripts/gofumpt-tree.sh check
 
       - name: Vet and test
         shell: bash
         run: |
           mapfile -t pkgs < <(go list ./... | grep -v '/docreader/')
           go vet "${pkgs[@]}"
-          go test "${pkgs[@]}"
+          # -count=1: never a cached pass; -shuffle=on: an order dependency
+          # between tests fails here instead of on someone's machine (the seed
+          # is printed, so a failure can be replayed with -shuffle=<seed>).
+          go test -count=1 -shuffle=on "${pkgs[@]}"
 
       - name: Build server
         run: go build ./cmd/server
@@ -141,3 +130,24 @@ jobs:
             ${{ steps.go-cache.outputs.build }}
             ${{ steps.go-cache.outputs.mod }}
           key: app-go-${{ runner.os }}-${{ env.GO_VERSION }}-${{ hashFiles('go.sum') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  # Advisory: a new vulnerability in a dependency appears without any commit of
+  # ours, so this must never block a merge. It reports what the binary
+  # actually reaches; read the log when it is red.
+  govulncheck:
+    name: govulncheck (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Scan the server
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./cmd/... ./internal/...
