@@ -32,7 +32,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
   <Button
     variant="ghost"
     size="icon-sm"
-    class="absolute top-3 left-3 z-10 text-muted-foreground hover:text-foreground"
+    class="text-muted-foreground hover:text-foreground absolute top-3 left-3 z-10"
     :aria-label="label"
     :aria-expanded="!collapsed"
     :title="`${label} (${shortcut})`"

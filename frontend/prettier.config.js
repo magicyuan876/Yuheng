@@ -12,4 +12,8 @@
 /** @type {import("prettier").Config} */
 export default {
   printWidth: 120,
+  // Sorts Tailwind class names in class attributes into the order the
+  // compiler emits them; without it every migrated screen lands with its
+  // utilities in the order they were typed.
+  plugins: ["prettier-plugin-tailwindcss"],
 };

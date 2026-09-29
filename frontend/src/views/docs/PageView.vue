@@ -1,19 +1,19 @@
 <template>
   <div class="min-h-0 flex-1 overflow-y-auto px-12 pt-4 pb-16">
     <!-- Breadcrumbs -->
-    <nav class="mb-5 flex flex-wrap items-center gap-0.5 text-[13px] text-muted-foreground" aria-label="breadcrumb">
-      <Button variant="ghost" size="xs" class="max-w-[24ch] truncate font-normal text-[13px]" @click="goSpace">
+    <nav class="text-muted-foreground mb-5 flex flex-wrap items-center gap-0.5 text-[13px]" aria-label="breadcrumb">
+      <Button variant="ghost" size="xs" class="max-w-[24ch] truncate text-[13px] font-normal" @click="goSpace">
         {{ space.name }}
       </Button>
       <template v-for="a in ancestors" :key="a.id">
-        <ChevronRightIcon class="size-3 shrink-0 text-placeholder" />
-        <Button variant="ghost" size="xs" class="max-w-[24ch] truncate font-normal text-[13px]" @click="goPage(a)">
+        <ChevronRightIcon class="text-placeholder size-3 shrink-0" />
+        <Button variant="ghost" size="xs" class="max-w-[24ch] truncate text-[13px] font-normal" @click="goPage(a)">
           {{ a.title || t("docs.tree.untitled") }}
         </Button>
       </template>
       <template v-if="page">
-        <ChevronRightIcon class="size-3 shrink-0 text-placeholder" />
-        <span class="max-w-[24ch] truncate px-1.5 text-foreground">{{ page.title || t("docs.tree.untitled") }}</span>
+        <ChevronRightIcon class="text-placeholder size-3 shrink-0" />
+        <span class="text-foreground max-w-[24ch] truncate px-1.5">{{ page.title || t("docs.tree.untitled") }}</span>
       </template>
     </nav>
 
@@ -24,20 +24,20 @@
     </div>
 
     <!-- In the trash -->
-    <div v-else-if="gone" class="mx-auto my-20 max-w-[520px] text-center text-muted-foreground">
+    <div v-else-if="gone" class="text-muted-foreground mx-auto my-20 max-w-[520px] text-center">
       <Trash2Icon class="mx-auto size-8" />
-      <h2 class="mt-3 mb-2 text-lg text-foreground">{{ t("docs.pages.gone") }}</h2>
+      <h2 class="text-foreground mt-3 mb-2 text-lg">{{ t("docs.pages.gone") }}</h2>
       <p class="mb-3">{{ t("docs.pages.goneHint", { time: formatDate(gone.deleted_at) }) }}</p>
-      <p v-if="!gone.restorable" class="text-[13px] text-placeholder">{{ t("docs.pages.restoreNotAllowed") }}</p>
+      <p v-if="!gone.restorable" class="text-placeholder text-[13px]">{{ t("docs.pages.restoreNotAllowed") }}</p>
       <Button v-else :disabled="restoring" @click="restore">
         <Loader2Icon v-if="restoring" class="animate-spin" />
         {{ t("docs.pages.restore") }}
       </Button>
     </div>
 
-    <div v-else-if="notFound" class="mx-auto my-20 max-w-[520px] text-center text-muted-foreground">
+    <div v-else-if="notFound" class="text-muted-foreground mx-auto my-20 max-w-[520px] text-center">
       <CircleAlertIcon class="mx-auto size-8" />
-      <h2 class="mt-3 mb-2 text-lg text-foreground">{{ t("docs.pages.notFound") }}</h2>
+      <h2 class="text-foreground mt-3 mb-2 text-lg">{{ t("docs.pages.notFound") }}</h2>
     </div>
 
     <!-- The column's width is the reader's choice (see usePageWidth); the
@@ -55,7 +55,7 @@
               <Button
                 variant="ghost"
                 size="icon"
-                class="size-10 rounded-lg text-[30px] leading-none text-muted-foreground"
+                class="text-muted-foreground size-10 rounded-lg text-[30px] leading-none"
                 :aria-label="t('docs.pages.iconPlaceholder')"
               >
                 <span v-if="page.icon">{{ page.icon }}</span>
@@ -89,7 +89,7 @@
           </Popover>
           <span
             v-else
-            class="flex size-10 shrink-0 items-center justify-center text-[30px] leading-none text-muted-foreground"
+            class="text-muted-foreground flex size-10 shrink-0 items-center justify-center text-[30px] leading-none"
           >
             <span v-if="page.icon">{{ page.icon }}</span>
             <FileIcon v-else class="size-7" />
@@ -102,7 +102,7 @@
             ref="titleInput"
             v-model="titleDraft"
             data-slot="page-title"
-            class="min-w-0 flex-1 resize-none overflow-hidden text-[32px] leading-[1.25] font-bold text-foreground outline-none [font-family:var(--app-font-family)] placeholder:text-placeholder"
+            class="text-foreground placeholder:text-placeholder min-w-0 flex-1 resize-none overflow-hidden [font-family:var(--app-font-family)] text-[32px] leading-[1.25] font-bold outline-none"
             rows="1"
             :placeholder="t('docs.pages.titlePlaceholder')"
             maxlength="500"
@@ -112,7 +112,7 @@
           />
           <h1
             v-else
-            class="m-0 min-w-0 flex-1 text-[32px] leading-[1.25] font-bold [font-family:var(--app-font-family)]"
+            class="m-0 min-w-0 flex-1 [font-family:var(--app-font-family)] text-[32px] leading-[1.25] font-bold"
             :class="page.title ? 'text-foreground' : 'text-placeholder'"
           >
             {{ page.title || t("docs.pages.titlePlaceholder") }}
@@ -136,7 +136,7 @@
              under the pointer. A toggled state (watching, starred, muted,
              locked) keeps the brand colour, so it reads as a state rather
              than as one more button. -->
-        <div class="mt-1.5 flex flex-wrap items-center gap-0.5 text-xs text-placeholder">
+        <div class="text-placeholder mt-1.5 flex flex-wrap items-center gap-0.5 text-xs">
           <!-- The live word count lives in the editor's own toolbar row;
                showing the persisted one here too would just disagree with
                it while someone is typing. -->
@@ -165,7 +165,7 @@
             {{ watchState.muted ? t("docs.watch.muted") : t("docs.watch.mute") }}
           </Button>
           <Button variant="ghost" size="xs" class="page-action" :aria-pressed="favourite" @click="toggleFavourite">
-            <StarIcon :class="favourite ? 'fill-current text-warning' : ''" />
+            <StarIcon :class="favourite ? 'text-warning fill-current' : ''" />
             {{ favourite ? t("docs.home.starred") : t("docs.home.star") }}
           </Button>
           <Button variant="ghost" size="xs" class="page-action" @click="accessOpen = true">
@@ -243,7 +243,7 @@
           v-if="editingModeKnown"
           ref="docEditor"
           :key="editorKey"
-          class="page-body min-w-0 flex-1 text-[15px] leading-[1.75] text-foreground"
+          class="page-body text-foreground min-w-0 flex-1 text-[15px] leading-[1.75]"
           :page-id="page.id"
           :space-id="page.space_id"
           :tenant-id="tenantId"
@@ -286,8 +286,8 @@
 
       <BacklinksPanel :entries="backlinks" :loading="backlinksLoading" />
 
-      <section v-if="children.length" class="mt-10 border-t border-border pt-4">
-        <h3 class="mb-2 text-[13px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+      <section v-if="children.length" class="border-border mt-10 border-t pt-4">
+        <h3 class="text-muted-foreground mb-2 text-[13px] font-semibold tracking-[0.04em] uppercase">
           {{ t("docs.pages.subpages") }}
         </h3>
         <ul class="mb-2 list-none">
@@ -313,7 +313,7 @@
         v-else-if="page.can_edit"
         variant="ghost"
         size="sm"
-        class="mt-8 text-muted-foreground"
+        class="text-muted-foreground mt-8"
         @click="emit('createChild', page.id)"
       >
         <PlusIcon />
