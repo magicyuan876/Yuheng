@@ -1,0 +1,21 @@
+# Secret-scan configuration (gitleaks). The default ruleset applies; the entries
+# below are reviewed false positives, each naming why it is not a secret.
+title = "Yuheng gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fixed keys and tokens that exist only inside tests"
+paths = [
+  '''(^|/)[^/]*_test\.go$''',
+]
+
+[[allowlists]]
+description = "keyAlphabet is the character set of share-link tokens, not a credential"
+paths = ['''internal/docs/share/share\.go''']
+regexes = ['''keyAlphabet\s*=''']
+
+[[allowlists]]
+description = "API documentation examples; the sample keys in them are obvious placeholders"
+paths = ['''^docs/api/.*\.md$''', '''^website-docs/.*\.md$''']
