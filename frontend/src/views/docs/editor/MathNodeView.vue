@@ -1,13 +1,13 @@
 <template>
-  <NodeViewWrapper
-    :as="inline ? 'span' : 'div'"
-    class="docs-math"
-    :class="[inline ? 'docs-math--inline' : 'docs-math--block', { 'docs-math--selected': selected }]"
-  >
+  <NodeViewWrapper :as="inline ? 'span' : 'div'" :class="inline ? 'inline' : 'my-3 block text-center'">
     <span
       v-if="!editing"
-      class="docs-math-rendered"
-      :class="{ 'docs-math-rendered--error': !!result.error }"
+      class="cursor-pointer rounded-[4px] px-0.5"
+      :class="{
+        'text-destructive bg-[var(--td-error-color-light)] [font-family:var(--td-font-family-mono,ui-monospace,monospace)] text-[0.9em]':
+          !!result.error,
+        'outline-primary outline-2 outline-offset-1': selected,
+      }"
       :contenteditable="false"
       :title="result.error || undefined"
       @click="startEditing"
@@ -16,7 +16,9 @@
     <textarea
       v-else
       ref="input"
-      class="docs-math-input"
+      data-slot="math-input"
+      class="border-primary min-w-[120px] resize-y rounded-[4px] border px-1.5 py-0.5 [font-family:var(--td-font-family-mono,ui-monospace,monospace)] text-[13px]"
+      :class="inline ? 'inline-block w-auto' : 'w-full'"
       :rows="inline ? 1 : 3"
       :value="draft"
       :placeholder="t('docs.blocks.mathPlaceholder')"
@@ -25,7 +27,7 @@
       @keydown.enter.exact="onEnter"
       @blur="stopEditing"
     />
-    <span v-if="editing && preview.error" class="docs-math-error">{{ preview.error }}</span>
+    <span v-if="editing && preview.error" class="text-destructive mt-1 block text-xs">{{ preview.error }}</span>
   </NodeViewWrapper>
 </template>
 
@@ -88,56 +90,3 @@ function onEnter(event: KeyboardEvent) {
   stopEditing();
 }
 </script>
-
-<style scoped lang="less">
-.docs-math--inline {
-  display: inline;
-}
-
-.docs-math--block {
-  display: block;
-  margin: 12px 0;
-  text-align: center;
-}
-
-.docs-math-rendered {
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 0 2px;
-
-  &--error {
-    color: var(--td-error-color);
-    background: var(--td-error-color-light);
-    font-family: var(--td-font-family-mono, ui-monospace, monospace);
-    font-size: 0.9em;
-  }
-}
-
-.docs-math--selected .docs-math-rendered {
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: 1px;
-}
-
-.docs-math-input {
-  width: 100%;
-  min-width: 120px;
-  border: 1px solid var(--td-brand-color);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-family: var(--td-font-family-mono, ui-monospace, monospace);
-  font-size: 13px;
-  resize: vertical;
-}
-
-.docs-math--inline .docs-math-input {
-  width: auto;
-  display: inline-block;
-}
-
-.docs-math-error {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--td-error-color);
-}
-</style>

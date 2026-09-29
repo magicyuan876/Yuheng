@@ -1,5 +1,12 @@
 <template>
-  <NodeViewWrapper class="docs-column" :style="{ flexBasis: basis, flexGrow: grow }">
+  <!-- The first and last child lose their outer margin, so a column's content
+       sits flush with the row it shares. The editor's own paragraph margins
+       are unlayered page CSS and outrank these utilities, exactly as they
+       outranked the scoped rules this replaces. -->
+  <NodeViewWrapper
+    class="min-w-0 [&>:first-child]:mt-0 [&>:last-child]:mb-0"
+    :style="{ flexBasis: basis, flexGrow: grow }"
+  >
     <NodeViewContent />
   </NodeViewWrapper>
 </template>
@@ -25,17 +32,3 @@ const width = computed(() => {
 const basis = computed(() => (width.value === null ? "0" : `${width.value}%`));
 const grow = computed(() => (width.value === null ? 1 : 0));
 </script>
-
-<style scoped lang="less">
-.docs-column {
-  min-width: 0;
-
-  :deep(> :first-child) {
-    margin-top: 0;
-  }
-
-  :deep(> :last-child) {
-    margin-bottom: 0;
-  }
-}
-</style>

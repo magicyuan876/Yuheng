@@ -2,22 +2,22 @@
   <div
     v-if="visible"
     ref="bar"
-    class="docs-toolbar"
-    :class="{ 'docs-toolbar--below': placement.below }"
+    class="bg-popover fixed z-1400 box-border flex items-center gap-0.5 rounded-[8px] border border-[var(--td-component-stroke)] px-1.5 py-1 shadow-[0_6px_20px_rgb(0_0_0/0.12)]"
     role="toolbar"
     :aria-label="t('docs.toolbar.label')"
     :style="{ left: `${placement.left}px`, top: `${placement.top}px`, width: `${TOOLBAR_WIDTH}px` }"
     @keydown="onKeyDown"
   >
     <template v-for="(group, gi) in groups" :key="gi">
-      <span v-if="gi > 0" class="docs-toolbar-divider" aria-hidden="true" />
+      <span v-if="gi > 0" class="mx-1 h-[18px] w-px bg-[var(--td-component-stroke)]" aria-hidden="true" />
       <button
         v-for="item in group"
         :key="item.id"
         :ref="(el) => registerButton(item.id, el)"
         type="button"
-        class="docs-toolbar-button"
-        :class="{ 'is-active': isActive(item) }"
+        data-slot="toolbar-button"
+        class="focus-visible:outline-primary flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 p-0 focus-visible:outline-2 focus-visible:-outline-offset-2"
+        :class="isActive(item) ? 'text-primary bg-[var(--td-brand-color-light)]' : 'text-foreground hover:bg-accent'"
         :title="tooltip(item)"
         :aria-label="t(item.labelKey)"
         :aria-pressed="item.activeName ? isActive(item) : undefined"
@@ -26,26 +26,40 @@
         @click="run(item)"
         @focus="focusedId = item.id"
       >
-        <span v-if="item.badge" class="docs-toolbar-badge" aria-hidden="true">{{ item.badge }}</span>
-        <t-icon v-else :name="item.icon" size="16px" />
+        <span v-if="item.badge" class="text-xs leading-none font-semibold tracking-[0.02em]" aria-hidden="true">
+          {{ item.badge }}
+        </span>
+        <component :is="editorIcon(item.icon, TypeIcon)" v-else class="size-4" />
       </button>
     </template>
 
-    <form v-if="linkOpen" class="docs-toolbar-link" @submit.prevent="commitLink">
+    <form v-if="linkOpen" class="ml-1 flex min-w-0 flex-1 items-center gap-1" @submit.prevent="commitLink">
       <input
         ref="linkInput"
         v-model="linkDraft"
         type="url"
-        class="docs-toolbar-link-input"
+        data-slot="toolbar-link-input"
+        class="bg-card text-foreground aria-[invalid=true]:border-destructive h-[26px] min-w-0 flex-1 rounded-md border border-[var(--td-component-stroke)] px-2 text-[13px]"
         :placeholder="t('docs.toolbar.linkPlaceholder')"
         :aria-label="t('docs.toolbar.link')"
         :aria-invalid="linkDraft !== '' && !linkValid"
         @keydown.esc.prevent.stop="closeLink"
       />
-      <button type="submit" class="docs-toolbar-link-apply" :disabled="!linkValid">
+      <button
+        type="submit"
+        data-slot="toolbar-link-apply"
+        class="text-primary h-[26px] cursor-pointer rounded-md border-0 px-2 text-[13px] disabled:cursor-default disabled:text-[var(--td-text-color-disabled)]"
+        :disabled="!linkValid"
+      >
         {{ t("common.confirm") }}
       </button>
-      <button v-if="hasLink" type="button" class="docs-toolbar-link-apply" @click="removeLink">
+      <button
+        v-if="hasLink"
+        type="button"
+        data-slot="toolbar-link-apply"
+        class="text-primary h-[26px] cursor-pointer rounded-md border-0 px-2 text-[13px]"
+        @click="removeLink"
+      >
         {{ t("docs.toolbar.linkRemove") }}
       </button>
     </form>
@@ -56,7 +70,7 @@
     above it when the bar itself flipped below the selection. -->
   <div
     v-if="colorOpen && visible"
-    class="docs-toolbar-colors"
+    class="bg-popover fixed z-1400 flex items-center gap-1 rounded-[8px] border border-[var(--td-component-stroke)] p-1.5 shadow-[0_6px_20px_rgb(0_0_0/0.12)]"
     role="listbox"
     :aria-label="t('docs.toolbar.textColor')"
     :style="colorStyle"
@@ -64,21 +78,23 @@
   >
     <button
       type="button"
-      class="docs-toolbar-swatch docs-toolbar-swatch--default"
-      :class="{ 'is-active': currentColor === '' }"
+      data-slot="toolbar-swatch"
+      class="text-placeholder inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-[var(--td-component-stroke)] bg-transparent outline-offset-1 hover:outline-2 hover:outline-[var(--td-brand-color)] focus-visible:outline-2 focus-visible:outline-[var(--td-brand-color)]"
+      :class="currentColor === '' ? 'outline-2 outline-[var(--td-brand-color)]' : ''"
       :title="t('docs.toolbar.colorDefault')"
       :aria-label="t('docs.toolbar.colorDefault')"
       @mousedown.prevent
       @click="applyColor('')"
     >
-      <t-icon name="close" size="12px" />
+      <XIcon class="size-3" />
     </button>
     <button
       v-for="color in TEXT_COLORS"
       :key="color"
       type="button"
-      class="docs-toolbar-swatch"
-      :class="{ 'is-active': currentColor === color }"
+      data-slot="toolbar-swatch"
+      class="h-5 w-5 cursor-pointer rounded-full border border-[var(--td-component-stroke)] outline-offset-1 hover:outline-2 hover:outline-[var(--td-brand-color)] focus-visible:outline-2 focus-visible:outline-[var(--td-brand-color)]"
+      :class="currentColor === color ? 'outline-2 outline-[var(--td-brand-color)]' : ''"
       :style="{ background: color }"
       :title="color"
       :aria-label="color"
@@ -93,6 +109,9 @@ import type { Editor } from "@tiptap/core";
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { TypeIcon, XIcon } from "@lucide/vue";
+
+import { editorIcon } from "./lucideIconMap";
 import { isSafeLinkHref } from "./paste";
 import { moveFocus, TEXT_COLORS, TOOLBAR_WIDTH, toolbarGroups, visibleItems, type ToolbarItem } from "./toolbar";
 
@@ -338,143 +357,3 @@ watch(
   },
 );
 </script>
-
-<style scoped lang="less">
-.docs-toolbar {
-  position: fixed;
-  z-index: 1400;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 6px;
-  box-sizing: border-box;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-}
-
-.docs-toolbar-divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 4px;
-  background: var(--td-component-stroke);
-}
-
-.docs-toolbar-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: -2px;
-  }
-
-  &.is-active {
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-toolbar-badge {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.02em;
-}
-
-.docs-toolbar-link {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  margin-left: 4px;
-}
-
-.docs-toolbar-link-input {
-  flex: 1;
-  min-width: 0;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-
-  &[aria-invalid="true"] {
-    border-color: var(--td-error-color);
-  }
-}
-
-.docs-toolbar-link-apply {
-  height: 26px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  cursor: pointer;
-
-  &:disabled {
-    color: var(--td-text-color-disabled);
-    cursor: default;
-  }
-}
-
-.docs-toolbar-colors {
-  position: fixed;
-  z-index: 1400;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-}
-
-.docs-toolbar-swatch {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--td-text-color-placeholder);
-
-  &:hover,
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-
-  &.is-active {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-}
-
-.docs-toolbar-swatch--default {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-}
-</style>

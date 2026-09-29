@@ -1,47 +1,76 @@
 <template>
-  <div class="doc-editor" :class="{ 'doc-editor--readonly': !editorEditable }">
-    <div v-if="banner.kind !== 'none'" class="doc-editor-banner" :class="`doc-editor-banner--${banner.kind}`">
-      <t-icon :name="bannerIcon" size="14px" />
+  <!-- doc-editor--readonly is a hook: the scoped rule at the bottom gives a read-only
+       document the default cursor. -->
+  <div class="relative flex flex-col gap-2" :class="{ 'doc-editor--readonly': !editorEditable }">
+    <div
+      v-if="banner.kind !== 'none'"
+      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px]"
+      :class="
+        banner.kind === 'offline' || banner.kind === 'connecting'
+          ? 'bg-secondary text-muted-foreground'
+          : banner.kind === 'read-only' || banner.kind === 'lease-held' || banner.kind === 'unavailable'
+            ? 'bg-secondary text-placeholder'
+            : 'bg-[var(--td-warning-color-light,#fef3e6)] text-[var(--td-warning-color,#e37318)]'
+      "
+    >
+      <component :is="bannerIcon" class="size-3.5" />
       <span>{{ bannerText }}</span>
     </div>
 
-    <div class="doc-editor-toolbar-row">
-      <div class="doc-editor-online">
+    <div class="flex min-h-[22px] items-center justify-between">
+      <div class="flex items-center gap-1">
         <template v-if="onlineUsers.length">
-          <t-tooltip v-for="u in onlineUsers.slice(0, 6)" :key="u.id" :content="u.name">
-            <span class="online-avatar" :style="{ background: u.color }">
-              <img v-if="u.avatar" :src="u.avatar" :alt="u.name" />
-              <span v-else>{{ (u.name || "?").slice(0, 1).toUpperCase() }}</span>
-            </span>
-          </t-tooltip>
-          <span v-if="onlineUsers.length > 6" class="online-more">+{{ onlineUsers.length - 6 }}</span>
+          <Tooltip v-for="u in onlineUsers.slice(0, 6)" :key="u.id">
+            <TooltipTrigger as-child>
+              <span
+                class="border-card -ml-1.5 inline-flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-full border-2 text-[11px] font-semibold text-white first:ml-0"
+                :style="{ background: u.color }"
+              >
+                <img v-if="u.avatar" :src="u.avatar" :alt="u.name" class="size-full object-cover" />
+                <span v-else>{{ (u.name || "?").slice(0, 1).toUpperCase() }}</span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{{ u.name }}</TooltipContent>
+          </Tooltip>
+          <span v-if="onlineUsers.length > 6" class="text-placeholder ml-1 text-[11px]">
+            +{{ onlineUsers.length - 6 }}
+          </span>
         </template>
       </div>
-      <div class="doc-editor-meta">
-        <button v-if="editorEditable" type="button" class="doc-editor-attach" @click="pickFiles">
-          <t-icon name="attach" size="14px" />
+      <div class="text-placeholder flex items-center gap-2.5 text-xs">
+        <button
+          v-if="editorEditable"
+          type="button"
+          data-slot="doc-editor-attach"
+          class="hover:text-foreground hover:bg-accent inline-flex cursor-pointer items-center gap-1 rounded border-0 px-1 py-0.5 text-xs"
+          @click="pickFiles"
+        >
+          <PaperclipIcon class="size-3.5" />
           <span>{{ t("docs.attachments.attach") }}</span>
         </button>
-        <span v-if="saveLabel" class="doc-editor-save">{{ saveLabel }}</span>
+        <span v-if="saveLabel" class="tabular-nums">{{ saveLabel }}</span>
         <span>{{ t("docs.pages.wordCount", { count: wordCount }) }}</span>
       </div>
     </div>
 
-    <div v-if="!collab.ready.value" class="doc-editor-loading">
-      <t-skeleton animation="gradient" :row-col="[{ width: '90%' }, { width: '75%' }, { width: '85%' }]" />
+    <div v-if="!collab.ready.value" class="space-y-2.5 py-2">
+      <Skeleton class="h-4 w-[90%]" />
+      <Skeleton class="h-4 w-3/4" />
+      <Skeleton class="h-4 w-[85%]" />
     </div>
     <EditorContent v-else-if="editor" :editor="editor" class="doc-editor-content" />
 
-    <ul v-if="uploads.tasks.value.length" class="doc-editor-uploads">
-      <li v-for="task in uploads.tasks.value" :key="task.key">
-        <t-icon name="upload" size="13px" />
-        <span class="doc-editor-upload-name">{{ task.name }}</span>
-        <t-progress
-          theme="line"
-          :percentage="Math.max(task.progress, 1)"
-          :label="false"
-          class="doc-editor-upload-bar"
-        />
+    <ul v-if="uploads.tasks.value.length" class="mt-2 mb-0 list-none p-0">
+      <li
+        v-for="task in uploads.tasks.value"
+        :key="task.key"
+        class="text-placeholder flex items-center gap-2 px-0 py-0.5 text-xs"
+      >
+        <UploadIcon class="size-[13px]" />
+        <span class="max-w-[220px] truncate">{{ task.name }}</span>
+        <span class="bg-muted h-1.5 max-w-[200px] flex-1 overflow-hidden rounded-full">
+          <span class="bg-primary block h-full rounded-full" :style="{ width: `${Math.max(task.progress, 1)}%` }" />
+        </span>
       </li>
     </ul>
 
@@ -76,7 +105,7 @@
       @hover="suggestions.hover"
     />
 
-    <input ref="filePicker" type="file" multiple class="doc-editor-file-input" @change="onFilesPicked" />
+    <input ref="filePicker" type="file" multiple class="hidden" @change="onFilesPicked" />
   </div>
 </template>
 
@@ -92,7 +121,11 @@ import { MessagePlugin } from "tdesign-vue-next";
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { CircleXIcon, InfoIcon, LockIcon, PaperclipIcon, RefreshCwIcon, UploadIcon, UserRoundIcon } from "@lucide/vue";
+
 import { resolveBlockRefs, resolvePageTitles } from "@/api/docs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import AttachmentNodeView from "./AttachmentNodeView.vue";
 import CalloutNodeView from "./CalloutNodeView.vue";
@@ -193,14 +226,14 @@ const onlineUsers = collab.onlineUsers;
 const bannerIcon = computed(
   () =>
     ({
-      connecting: "refresh",
-      offline: "error-circle",
-      "read-only": "lock-on",
-      "permission-narrowed": "lock-on",
-      "lease-held": "user-circle",
-      superseded: "error-circle",
-      unavailable: "info-circle",
-      none: "info-circle",
+      connecting: RefreshCwIcon,
+      offline: CircleXIcon,
+      "read-only": LockIcon,
+      "permission-narrowed": LockIcon,
+      "lease-held": UserRoundIcon,
+      superseded: CircleXIcon,
+      unavailable: InfoIcon,
+      none: InfoIcon,
     })[banner.value.kind],
 );
 
@@ -716,11 +749,13 @@ defineExpose({
 });
 </script>
 
-<style scoped lang="less">
-// Created by the drag-handle plugin rather than by this template, so it needs
-// :deep to be reached from a scoped block.
-// Comment highlights, drawn as decorations by the comment plugin. Never a
-// mark: see the note at the top of views/docs/comments/decorations.ts.
+<!-- Everything below styles markup the editor (or its plugins) renders:
+ProseMirror's own DOM, decorations, the drag-handle strip and the block menu
+it appends to <body>. None of it is this template's, so it stays in CSS and
+reaches through :deep where it is scoped. -->
+<style scoped>
+/* Comment highlights, drawn as decorations by the comment plugin. Never a
+   mark: see the note at the top of views/docs/comments/decorations.ts. */
 :deep(.docs-comment-mark) {
   background: var(--td-warning-color-1);
   border-bottom: 2px solid var(--td-warning-color-5);
@@ -730,14 +765,14 @@ defineExpose({
     background: var(--td-warning-color-3);
   }
 
-  // Placed by its quotation rather than by its stored position: a good guess,
-  // and the reader should be able to tell it is one.
+  /* Placed by its quotation rather than by its stored position: a good guess,
+     and the reader should be able to tell it is one. */
   &.is-approximate {
     border-bottom-style: dashed;
   }
 }
 
-// Drawn by the find plugin as a decoration, so it is likewise out of scope.
+/* Drawn by the find plugin as a decoration, so it is likewise out of scope. */
 :deep(.docs-find-match) {
   background: var(--td-warning-color-2);
   border-radius: 2px;
@@ -747,22 +782,22 @@ defineExpose({
   }
 }
 
-// The strip holding the "+" beside the hovered block.
+/* The strip holding the "+" beside the hovered block. */
 :deep(.docs-drag-tools) {
   position: absolute;
   visibility: hidden;
   display: flex;
   align-items: center;
-  // Aligned with the block's first line: `place` puts the strip's top on
-  // that line's centre, this lifts it back up by half of itself.
+  /* Aligned with the block's first line: `place` puts the strip's top on
+     that line's centre, this lifts it back up by half of itself. */
   transform: translateY(-50%);
   user-select: none;
 
-  // The gutter between the button and the text belongs to neither, and a
-  // pointer crossing it is on its way here. This bridge makes that crossing
-  // a hover of the strip itself, so the deferred hide is cancelled the
-  // moment somebody sets off towards the button rather than at the end of
-  // its delay.
+  /* The gutter between the button and the text belongs to neither, and a
+     pointer crossing it is on its way here. This bridge makes that crossing
+     a hover of the strip itself, so the deferred hide is cancelled the
+     moment somebody sets off towards the button rather than at the end of
+     its delay. */
   &::after {
     content: "";
     position: absolute;
@@ -773,10 +808,10 @@ defineExpose({
   }
 }
 
-// One control, three gestures: click inserts a block and opens the slash
-// menu, dragging moves the block, right-click opens the block menu. `grab`
-// rather than `pointer` because the drag is the gesture a cursor cannot
-// otherwise advertise; the click target is obvious from the glyph.
+/* One control, three gestures: click inserts a block and opens the slash
+   menu, dragging moves the block, right-click opens the block menu. `grab`
+   rather than `pointer` because the drag is the gesture a cursor cannot
+   otherwise advertise; the click target is obvious from the glyph. */
 :deep(.docs-drag-plus) {
   display: flex;
   align-items: center;
@@ -803,146 +838,6 @@ defineExpose({
   }
 }
 
-// The block menu is appended to the document body by the drag-handle
-// plugin, so its styles live in the unscoped block below; scoped ones
-// cannot reach it.
-
-.doc-editor {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.doc-editor-banner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  background: var(--td-warning-color-light, #fef3e6);
-  color: var(--td-warning-color, #e37318);
-
-  &--offline,
-  &--connecting {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-secondary);
-  }
-
-  &--read-only,
-  &--lease-held,
-  &--unavailable {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.doc-editor-toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 22px;
-}
-
-.doc-editor-online {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.online-avatar {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  overflow: hidden;
-  border: 2px solid var(--td-bg-color-container);
-  margin-left: -6px;
-
-  &:first-child {
-    margin-left: 0;
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.online-more {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-  margin-left: 4px;
-}
-
-.doc-editor-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.doc-editor-save {
-  font-variant-numeric: tabular-nums;
-}
-
-.doc-editor-attach {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.doc-editor-file-input {
-  display: none;
-}
-
-.doc-editor-uploads {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--td-text-color-placeholder);
-    padding: 2px 0;
-  }
-}
-
-.doc-editor-upload-name {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.doc-editor-upload-bar {
-  flex: 1;
-  max-width: 200px;
-}
-
 :deep(.docs-upload-placeholder) {
   display: inline-block;
   padding: 1px 8px;
@@ -951,229 +846,227 @@ defineExpose({
   color: var(--td-text-color-placeholder);
   background: var(--td-bg-color-secondarycontainer);
 }
+</style>
 
-.doc-editor-loading {
-  padding: 8px 0;
+<style scoped>
+/* The rendered document. */
+.doc-editor-content {
+  /* The gutter the "+" lives in. Without it the strip is positioned outside
+     the content box and clipped away. */
+  padding-left: 40px;
 }
 
-.doc-editor-content {
-  // The gutter the "+" lives in. Without it the strip is positioned outside
-  // the content box and clipped away.
-  padding-left: 40px;
+.doc-editor-content :deep(.ProseMirror) {
+  outline: none;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--td-text-color-primary);
+  min-height: 120px;
+}
 
-  :deep(.ProseMirror) {
-    outline: none;
-    font-size: 15px;
-    line-height: 1.75;
-    color: var(--td-text-color-primary);
-    min-height: 120px;
-  }
+.doc-editor-content :deep(.ProseMirror p) {
+  margin: 0.5em 0;
+}
 
-  :deep(.ProseMirror p) {
-    margin: 0.5em 0;
-  }
+.doc-editor-content :deep(.ProseMirror h1),
+.doc-editor-content :deep(.ProseMirror h2),
+.doc-editor-content :deep(.ProseMirror h3),
+.doc-editor-content :deep(.ProseMirror h4),
+.doc-editor-content :deep(.ProseMirror h5),
+.doc-editor-content :deep(.ProseMirror h6) {
+  margin: 1.4em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
+}
 
-  :deep(.ProseMirror h1),
-  :deep(.ProseMirror h2),
-  :deep(.ProseMirror h3),
-  :deep(.ProseMirror h4),
-  :deep(.ProseMirror h5),
-  :deep(.ProseMirror h6) {
-    margin: 1.4em 0 0.5em;
-    font-weight: 600;
-    line-height: 1.3;
-  }
+.doc-editor-content :deep(.ProseMirror blockquote) {
+  margin: 0.8em 0;
+  padding: 4px 14px;
+  border-left: 3px solid var(--td-brand-color);
+  color: var(--td-text-color-secondary);
+}
 
-  :deep(.ProseMirror blockquote) {
-    margin: 0.8em 0;
-    padding: 4px 14px;
-    border-left: 3px solid var(--td-brand-color);
-    color: var(--td-text-color-secondary);
-  }
+.doc-editor-content :deep(.ProseMirror pre) {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--td-bg-color-secondarycontainer);
+  overflow-x: auto;
+  font-size: 13px;
+}
 
-  :deep(.ProseMirror pre) {
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: var(--td-bg-color-secondarycontainer);
-    overflow-x: auto;
-    font-size: 13px;
-  }
+.doc-editor-content :deep(.ProseMirror code) {
+  font-family: var(--td-font-family-mono, ui-monospace, monospace);
+}
 
-  :deep(.ProseMirror code) {
-    font-family: var(--td-font-family-mono, ui-monospace, monospace);
-  }
+.doc-editor-content :deep(.ProseMirror pre code) {
+  background: none;
+  padding: 0;
+}
 
-  :deep(.ProseMirror pre code) {
-    background: none;
-    padding: 0;
-  }
+/* Tables: a tinted header row, a hairline grid, hover and selection
+   feedback, and a draggable edge on every column. The wrapper is what
+   @tiptap/extension-table puts round a resizable table; scrolling it rather
+   than the page is what keeps a wide table from stretching the document. */
+.doc-editor-content :deep(.ProseMirror .tableWrapper) {
+  margin: 1em 0;
+  overflow-x: auto;
+  /* A resized column can leave the table narrower than the text, and a
+     block that shrinks to its content reads as an accident. */
+  padding-bottom: 2px;
+}
 
-  // Tables: a tinted header row, a hairline grid, hover and selection
-  // feedback, and a draggable edge on every column. The wrapper is what
-  // @tiptap/extension-table puts
-  // round a resizable table; scrolling it rather than the page is what keeps
-  // a wide table from stretching the document.
-  :deep(.ProseMirror .tableWrapper) {
-    margin: 1em 0;
-    overflow-x: auto;
-    // A resized column can leave the table narrower than the text, and a
-    // block that shrinks to its content reads as an accident.
-    padding-bottom: 2px;
-  }
+.doc-editor-content :deep(.ProseMirror table) {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  /* Cells draw the grid; this is the outer edge the radius rounds. */
+  box-shadow: 0 0 0 1px var(--td-component-stroke);
+}
 
-  :deep(.ProseMirror table) {
-    border-collapse: collapse;
-    table-layout: fixed;
-    width: 100%;
+.doc-editor-content :deep(.ProseMirror th),
+.doc-editor-content :deep(.ProseMirror td) {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 60px;
+  border: 1px solid var(--td-component-stroke);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+
+  /* A paragraph is the only thing a cell usually holds, and the margin it
+     carries in prose is wrong inside one. */
+  > p {
     margin: 0;
-    overflow: hidden;
-    border-radius: 6px;
-    // Cells draw the grid; this is the outer edge the radius rounds.
-    box-shadow: 0 0 0 1px var(--td-component-stroke);
   }
 
-  :deep(.ProseMirror th),
-  :deep(.ProseMirror td) {
-    position: relative;
-    box-sizing: border-box;
-    min-width: 60px;
-    border: 1px solid var(--td-component-stroke);
-    padding: 7px 10px;
-    text-align: left;
-    vertical-align: top;
+  > p + p {
+    margin-top: 6px;
+  }
+}
 
-    // A paragraph is the only thing a cell usually holds, and the margin it
-    // carries in prose is wrong inside one.
-    > p {
-      margin: 0;
-    }
+.doc-editor-content :deep(.ProseMirror th) {
+  background: var(--td-bg-color-secondarycontainer);
+  font-weight: 600;
+  color: var(--td-text-color-primary);
+  /* The header stays put while a long table scrolls under it.
+     `position: relative` on the cells is what the resize grip needs, so
+     the header opts back out of it here; the z-index keeps it over the
+     body rows it scrolls past. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 
-    > p + p {
-      margin-top: 6px;
-    }
+.doc-editor-content :deep(.ProseMirror tbody tr:hover) > td {
+  background: var(--td-bg-color-container-hover);
+}
+
+/* The cells of a multi-cell selection, which ProseMirror marks for us. */
+.doc-editor-content :deep(.ProseMirror .selectedCell::after) {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--td-brand-color-light);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* The column-resize grip: invisible until the pointer is on it, then a
+   brand-coloured rule for as long as the column is being dragged. */
+.doc-editor-content :deep(.ProseMirror .column-resize-handle) {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background: var(--td-brand-color);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.doc-editor-content :deep(.ProseMirror .column-resize-handle:hover),
+.doc-editor-content :deep(.ProseMirror.resize-cursor .column-resize-handle) {
+  opacity: 1;
+}
+
+/* While a column is being dragged the pointer says so everywhere, not
+   only over the grip. */
+.doc-editor-content :deep(.ProseMirror.resize-cursor) {
+  cursor: col-resize;
+}
+
+.doc-editor-content :deep(.ProseMirror a) {
+  color: var(--td-brand-color);
+}
+
+.doc-editor-content :deep(.ProseMirror .page-break) {
+  height: 0;
+  margin: 20px 0;
+  border-top: 2px dashed var(--td-component-stroke);
+  position: relative;
+}
+
+.doc-editor-content :deep(.ProseMirror mark) {
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.doc-editor-content :deep(.ProseMirror ul[data-type="taskList"]) {
+  list-style: none;
+  padding-left: 4px;
+}
+
+.doc-editor-content :deep(.ProseMirror li[data-type="taskItem"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+
+  > label {
+    margin-top: 3px;
   }
 
-  :deep(.ProseMirror th) {
-    background: var(--td-bg-color-secondarycontainer);
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-    // The header stays put while a long table scrolls under it.
-    // `position: relative` on the cells is what the resize grip needs, so
-    // the header opts back out of it here; the z-index keeps it over the
-    // body rows it scrolls past.
-    position: sticky;
-    top: 0;
-    z-index: 2;
+  > div {
+    flex: 1;
   }
+}
 
-  :deep(.ProseMirror tbody tr:hover) > td {
-    background: var(--td-bg-color-container-hover);
-  }
+.doc-editor-content :deep(.ProseMirror details) {
+  margin: 0.6em 0;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
 
-  // The cells of a multi-cell selection, which ProseMirror marks for us.
-  :deep(.ProseMirror .selectedCell::after) {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--td-brand-color-light);
-    opacity: 0.55;
-    pointer-events: none;
-  }
+.doc-editor-content :deep(.ProseMirror ul),
+.doc-editor-content :deep(.ProseMirror ol) {
+  padding-left: 1.6em;
+}
 
-  // The column-resize grip: invisible until the pointer is on it, then a
-  // brand-coloured rule for as long as the column is being dragged.
-  :deep(.ProseMirror .column-resize-handle) {
-    position: absolute;
-    right: -2px;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    z-index: 20;
-    background: var(--td-brand-color);
-    opacity: 0;
-    pointer-events: none;
-  }
+.doc-editor-content :deep(.collaboration-carets__caret) {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
 
-  :deep(.ProseMirror .column-resize-handle:hover),
-  :deep(.ProseMirror.resize-cursor .column-resize-handle) {
-    opacity: 1;
-  }
-
-  // While a column is being dragged the pointer says so everywhere, not
-  // only over the grip.
-  :deep(.ProseMirror.resize-cursor) {
-    cursor: col-resize;
-  }
-
-  :deep(.ProseMirror a) {
-    color: var(--td-brand-color);
-  }
-
-  :deep(.ProseMirror .page-break) {
-    height: 0;
-    margin: 20px 0;
-    border-top: 2px dashed var(--td-component-stroke);
-    position: relative;
-  }
-
-  :deep(.ProseMirror mark) {
-    border-radius: 2px;
-    padding: 0 2px;
-  }
-
-  :deep(.ProseMirror ul[data-type="taskList"]) {
-    list-style: none;
-    padding-left: 4px;
-  }
-
-  :deep(.ProseMirror li[data-type="taskItem"]) {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-
-    > label {
-      margin-top: 3px;
-    }
-
-    > div {
-      flex: 1;
-    }
-  }
-
-  :deep(.ProseMirror details) {
-    margin: 0.6em 0;
-    border: 1px solid var(--td-component-stroke);
-    border-radius: 6px;
-    padding: 4px 10px;
-  }
-
-  :deep(.ProseMirror ul),
-  :deep(.ProseMirror ol) {
-    padding-left: 1.6em;
-  }
-
-  :deep(.collaboration-carets__caret) {
-    position: relative;
-    margin-left: -1px;
-    margin-right: -1px;
-    border-left: 1px solid;
-    border-right: 1px solid;
-    word-break: normal;
-    pointer-events: none;
-  }
-
-  :deep(.collaboration-carets__label) {
-    position: absolute;
-    top: -1.1em;
-    left: -1px;
-    padding: 1px 5px;
-    border-radius: 3px 3px 3px 0;
-    font-size: 11px;
-    font-weight: 600;
-    color: #fff;
-    white-space: nowrap;
-    user-select: none;
-  }
+.doc-editor-content :deep(.collaboration-carets__label) {
+  position: absolute;
+  top: -1.1em;
+  left: -1px;
+  padding: 1px 5px;
+  border-radius: 3px 3px 3px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .doc-editor--readonly .doc-editor-content :deep(.ProseMirror) {
@@ -1184,7 +1077,7 @@ defineExpose({
 <!-- The block menu is appended to the document body by the drag-handle
 plugin, so its styles live in an unscoped block; the scoped ones above
 cannot reach it. Same self-drawn look as the slash menu. -->
-<style lang="less">
+<style>
 .docs-block-menu {
   position: fixed;
   z-index: 1300;

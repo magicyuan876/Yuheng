@@ -1,62 +1,96 @@
 <template>
-  <t-popup v-model:visible="open" trigger="click" placement="bottom-right" :overlay-style="{ padding: 0 }">
-    <button type="button" class="docs-bell" :aria-label="t('docs.notifications.title')" @click="onOpen">
-      <t-icon name="notification" size="18px" />
-      <span v-if="unread > 0" class="docs-bell-badge">{{ unread > 99 ? "99+" : unread }}</span>
-    </button>
-
-    <template #content>
-      <section class="docs-notify" role="dialog" :aria-label="t('docs.notifications.title')">
-        <header class="docs-notify-head">
-          <h3>{{ t("docs.notifications.title") }}</h3>
-          <label class="docs-notify-filter">
-            <input v-model="unreadOnly" type="checkbox" @change="reload" />
-            {{ t("docs.notifications.unreadOnly") }}
-          </label>
-          <button type="button" class="docs-notify-action" :disabled="unread === 0" @click="markAllRead">
+  <Popover v-model:open="open" @update:open="onOpenChange">
+    <PopoverTrigger as-child>
+      <button
+        type="button"
+        data-slot="docs-bell"
+        class="text-muted-foreground hover:bg-accent hover:text-foreground relative inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-0"
+        :aria-label="t('docs.notifications.title')"
+      >
+        <BellIcon class="size-[18px]" />
+        <span
+          v-if="unread > 0"
+          class="bg-destructive absolute top-0.5 right-0 min-w-[15px] rounded-full px-[3px] text-[10px] leading-[15px] text-white tabular-nums"
+        >
+          {{ unread > 99 ? "99+" : unread }}
+        </span>
+      </button>
+    </PopoverTrigger>
+    <PopoverContent class="w-[min(380px,90vw)] p-0" align="end">
+      <section class="flex max-h-[60vh] flex-col text-[13px]" role="dialog" :aria-label="t('docs.notifications.title')">
+        <header class="flex items-center gap-2.5 border-b border-[var(--td-component-stroke)] px-3 py-2.5">
+          <h3 class="m-0 flex-1 text-sm">{{ t("docs.notifications.title") }}</h3>
+          <div class="flex items-center gap-1">
+            <Checkbox id="notify-unread-only" v-model="unreadOnly" @update:model-value="reload" />
+            <Label for="notify-unread-only" class="text-muted-foreground cursor-pointer text-xs font-normal">{{
+              t("docs.notifications.unreadOnly")
+            }}</Label>
+          </div>
+          <button
+            type="button"
+            class="text-primary cursor-pointer border-0 p-0 text-xs disabled:cursor-default disabled:text-[var(--td-text-color-disabled)]"
+            :disabled="unread === 0"
+            @click="markAllRead"
+          >
             {{ t("docs.notifications.markAllRead") }}
           </button>
         </header>
 
-        <div ref="scroller" class="docs-notify-body" @scroll="onScroll">
-          <p v-if="loading && !items.length" class="docs-notify-note">{{ t("common.loading") }}</p>
-          <p v-else-if="!items.length" class="docs-notify-note">{{ t("docs.notifications.empty") }}</p>
+        <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto pt-1 pb-2" @scroll="onScroll">
+          <p v-if="loading && !items.length" class="text-placeholder m-3">{{ t("common.loading") }}</p>
+          <p v-else-if="!items.length" class="text-placeholder m-3">{{ t("docs.notifications.empty") }}</p>
 
           <template v-for="group in groups" :key="group.key">
-            <h4 class="docs-notify-day">{{ t(`docs.notifications.day.${group.label}`) }}</h4>
+            <h4 class="text-placeholder m-[8px_12px_4px] text-[11px] font-medium">
+              {{ t(`docs.notifications.day.${group.label}`) }}
+            </h4>
             <button
               v-for="row in group.items"
               :key="row.id"
               type="button"
-              class="docs-notify-row"
-              :class="{ 'is-unread': described(row).unread }"
+              class="flex w-full cursor-pointer gap-2 border-0 px-3 py-2 text-left"
+              :class="
+                described(row).unread
+                  ? 'bg-[var(--td-brand-color-light)] hover:bg-[var(--td-brand-color-light-hover)]'
+                  : 'hover:bg-accent'
+              "
               @click="openRow(row)"
             >
-              <t-icon :name="described(row).icon" size="16px" class="docs-notify-icon" />
-              <span class="docs-notify-text">
-                <span class="docs-notify-title">{{ described(row).title }}</span>
-                <span v-if="described(row).excerpt" class="docs-notify-excerpt">
+              <component :is="iconOf(described(row).icon)" class="text-muted-foreground mt-0.5 size-4 flex-none" />
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-foreground leading-[1.4]">{{ described(row).title }}</span>
+                <span
+                  v-if="described(row).excerpt"
+                  class="text-muted-foreground [display:-webkit-box] overflow-hidden text-xs [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+                >
                   {{ described(row).excerpt }}
                 </span>
-                <time class="docs-notify-when" :datetime="row.created_at">{{ when(row) }}</time>
+                <time class="text-placeholder text-[11px] tabular-nums" :datetime="row.created_at">{{
+                  when(row)
+                }}</time>
               </span>
             </button>
           </template>
 
-          <p v-if="loadingMore" class="docs-notify-note">{{ t("common.loading") }}</p>
+          <p v-if="loadingMore" class="text-placeholder m-3">{{ t("common.loading") }}</p>
         </div>
       </section>
-    </template>
-  </t-popup>
+    </PopoverContent>
+  </Popover>
 </template>
 
 <script setup lang="ts">
 import { MessagePlugin } from "tdesign-vue-next";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import { BellIcon, MessageSquareIcon, PencilIcon, UserRoundPlusIcon, UsersRoundIcon } from "@lucide/vue";
+
 import { getPageByShortId, listNotifications, markNotificationsRead, type NotificationView } from "@/api/docs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { pageSlug } from "../tree/pageTree";
 
@@ -86,6 +120,19 @@ const groups = computed(() => groupByDay(items.value));
 /** Memoised per render pass; describe is cheap but called several times per row. */
 function described(row: NotificationView) {
   return describe(row as NotificationLike, t as (key: string, values?: Record<string, unknown>) => string);
+}
+
+/** The notification kinds speak in tdesign names; this is where they meet lucide. */
+const KIND_ICONS: Record<string, Component> = {
+  "chat-bubble": MessageSquareIcon,
+  "user-arrow-right": UserRoundPlusIcon,
+  edit: PencilIcon,
+  usergroup: UsersRoundIcon,
+  notification: BellIcon,
+};
+
+function iconOf(name: string): Component {
+  return KIND_ICONS[name] ?? BellIcon;
 }
 
 function when(row: NotificationView): string {
@@ -121,8 +168,9 @@ function reload() {
   void load();
 }
 
-function onOpen() {
-  if (!open.value) reload();
+function onOpenChange(visible: boolean) {
+  open.value = visible;
+  if (visible) reload();
 }
 
 function onScroll(event: Event) {
@@ -192,158 +240,3 @@ onBeforeUnmount(() => {
   open.value = false;
 });
 </script>
-
-<style scoped lang="less">
-.docs-bell {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.docs-bell-badge {
-  position: absolute;
-  top: 2px;
-  right: 0;
-  min-width: 15px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--td-error-color);
-  color: #fff;
-  font-size: 10px;
-  line-height: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-notify {
-  width: min(380px, 90vw);
-  max-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  font-size: 13px;
-}
-
-.docs-notify-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  h3 {
-    margin: 0;
-    flex: 1;
-    font-size: 14px;
-  }
-}
-
-.docs-notify-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-}
-
-.docs-notify-action {
-  border: none;
-  background: transparent;
-  padding: 0;
-  color: var(--td-brand-color);
-  font-size: 12px;
-  cursor: pointer;
-
-  &:disabled {
-    color: var(--td-text-color-disabled);
-    cursor: default;
-  }
-}
-
-.docs-notify-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 4px 0 8px;
-}
-
-.docs-notify-note {
-  margin: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-notify-day {
-  margin: 8px 12px 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-notify-row {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-unread {
-    background: var(--td-brand-color-light);
-
-    &:hover {
-      background: var(--td-brand-color-light-hover);
-    }
-  }
-}
-
-.docs-notify-icon {
-  flex: none;
-  margin-top: 2px;
-  color: var(--td-text-color-secondary);
-}
-
-.docs-notify-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.docs-notify-title {
-  color: var(--td-text-color-primary);
-  line-height: 1.4;
-}
-
-.docs-notify-excerpt {
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.docs-notify-when {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-</style>

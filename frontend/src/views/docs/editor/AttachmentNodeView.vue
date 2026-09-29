@@ -1,32 +1,49 @@
 <template>
   <NodeViewWrapper
-    class="docs-file"
-    :class="{ 'docs-file--selected': selected }"
+    class="bg-card my-2.5 flex max-w-[420px] items-center gap-2 rounded-[8px] border px-2.5 py-2"
+    :class="selected ? 'border-primary' : 'border-[var(--td-component-stroke)]'"
     :data-drag-handle="editor.isEditable ? '' : undefined"
   >
-    <a class="docs-file-link" :href="href" :download="name" target="_blank" rel="noopener">
-      <t-icon :name="icon" size="20px" class="docs-file-icon" />
-      <span class="docs-file-text">
-        <span class="docs-file-name">{{ name }}</span>
-        <span class="docs-file-meta">{{ meta }}</span>
+    <a
+      class="flex min-w-0 flex-1 items-center gap-2.5 text-inherit no-underline"
+      :href="href"
+      :download="name"
+      target="_blank"
+      rel="noopener"
+    >
+      <component :is="icon" class="text-primary size-5 flex-none" />
+      <span class="flex min-w-0 flex-col">
+        <span class="text-foreground truncate text-[13.5px]">{{ name }}</span>
+        <span class="text-placeholder text-xs tabular-nums">{{ meta }}</span>
       </span>
     </a>
     <button
       v-if="editor.isEditable"
       type="button"
-      class="docs-file-remove"
+      data-slot="attachment-remove"
+      class="text-placeholder hover:text-destructive hover:bg-accent flex-none cursor-pointer rounded border-0 p-1 leading-0"
       :aria-label="t('docs.attachments.remove')"
       @click="deleteNode"
     >
-      <t-icon name="delete" size="14px" />
+      <Trash2Icon class="size-3.5" />
     </button>
   </NodeViewWrapper>
 </template>
 
 <script setup lang="ts">
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import {
+  CirclePlayIcon,
+  FileArchiveIcon,
+  FileIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  Trash2Icon,
+  Volume2Icon,
+} from "@lucide/vue";
 
 import { attachmentSrc, formatBytes } from "./attachments";
 
@@ -54,83 +71,14 @@ const shortType = computed(() => {
   return sub.split(/[.+]/).pop()?.toUpperCase() ?? "";
 });
 
-const icon = computed(() => {
+const icon = computed<Component>(() => {
   const mime = String(props.node.attrs.mime ?? "");
-  if (mime.startsWith("video/")) return "play-circle";
-  if (mime.startsWith("audio/")) return "sound";
-  if (mime === "application/pdf") return "file-pdf";
-  if (mime.includes("spreadsheet") || mime.includes("excel") || mime === "text/csv") return "file-excel";
-  if (mime.includes("word")) return "file-word";
-  if (mime.includes("zip") || mime.includes("compressed")) return "folder-zip";
-  return "file";
+  if (mime.startsWith("video/")) return CirclePlayIcon;
+  if (mime.startsWith("audio/")) return Volume2Icon;
+  if (mime === "application/pdf") return FileTextIcon;
+  if (mime.includes("spreadsheet") || mime.includes("excel") || mime === "text/csv") return FileSpreadsheetIcon;
+  if (mime.includes("word")) return FileTextIcon;
+  if (mime.includes("zip") || mime.includes("compressed")) return FileArchiveIcon;
+  return FileIcon;
 });
 </script>
-
-<style scoped lang="less">
-.docs-file {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 10px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  max-width: 420px;
-}
-
-.docs-file--selected {
-  border-color: var(--td-brand-color);
-}
-
-.docs-file-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-.docs-file-icon {
-  color: var(--td-brand-color);
-  flex: none;
-}
-
-.docs-file-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.docs-file-name {
-  font-size: 13.5px;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-file-meta {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-file-remove {
-  flex: none;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 4px;
-  line-height: 0;
-
-  &:hover {
-    color: var(--td-error-color);
-    background: var(--td-bg-color-container-hover);
-  }
-}
-</style>

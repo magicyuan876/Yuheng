@@ -1,34 +1,43 @@
 <template>
   <NodeViewWrapper
     as="div"
-    class="docs-transclusion"
-    :class="{
-      'docs-transclusion--selected': selected,
-      'docs-transclusion--broken': state === 'missing',
-    }"
+    class="relative my-3 rounded-md border border-l-[3px] border-[var(--td-component-stroke)] bg-[var(--td-bg-color-container-select)] px-3 pt-2.5 pb-1.5"
+    :class="[
+      selected ? 'outline-primary outline-2 outline-offset-1 outline-solid' : '',
+      state === 'missing' ? 'border-l-[var(--td-text-color-placeholder)]' : 'border-l-[var(--td-brand-color)]',
+    ]"
     :data-state="state"
   >
-    <div class="docs-transclusion-body" contenteditable="false">
+    <!-- The quoted block is somebody else's text: it is shown, never typed into. -->
+    <div class="cursor-default select-text" contenteditable="false">
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-if="state === 'ok'" class="docs-transclusion-content" v-html="html" />
-      <p v-else-if="state === 'pending'" class="docs-transclusion-note">
+      <div v-if="state === 'ok'" class="transclusion-content" v-html="html" />
+      <p v-else-if="state === 'pending'" class="text-placeholder m-0 flex items-center gap-1 text-[13px]">
         {{ t("docs.transclusion.pending") }}
       </p>
-      <p v-else-if="state === 'missing'" class="docs-transclusion-note docs-transclusion-note--broken">
-        <t-icon name="link-unlink" size="14px" />
+      <p v-else-if="state === 'missing'" class="text-muted-foreground m-0 flex items-center gap-1 text-[13px]">
+        <UnlinkIcon class="size-3.5" />
         {{ t("docs.transclusion.missing") }}
       </p>
-      <p v-else class="docs-transclusion-note">{{ t("docs.links.loading") }}</p>
+      <p v-else class="text-placeholder m-0 flex items-center gap-1 text-[13px]">{{ t("docs.links.loading") }}</p>
     </div>
 
-    <footer class="docs-transclusion-source" contenteditable="false">
-      <t-icon name="quote" size="13px" />
+    <footer
+      class="text-placeholder mt-2 flex items-center gap-1 border-t border-dashed border-[var(--td-component-stroke)] pt-1.5 text-xs"
+      contenteditable="false"
+    >
+      <TextQuoteIcon class="size-[13px]" />
       <span>{{ t("docs.transclusion.from") }}</span>
-      <a v-if="resolved?.title" class="docs-transclusion-link" :href="href" @click.prevent="openSource">
-        <span v-if="resolved.icon" class="docs-transclusion-icon">{{ resolved.icon }}</span>
+      <a
+        v-if="resolved?.title"
+        class="text-primary no-underline hover:underline"
+        :href="href"
+        @click.prevent="openSource"
+      >
+        <span v-if="resolved.icon" class="mr-0.5">{{ resolved.icon }}</span>
         {{ resolved.title }}
       </a>
-      <span v-else class="docs-transclusion-unknown">{{ t("docs.links.broken") }}</span>
+      <span v-else class="text-placeholder">{{ t("docs.links.broken") }}</span>
     </footer>
   </NodeViewWrapper>
 </template>
@@ -39,6 +48,8 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+
+import { TextQuoteIcon, UnlinkIcon } from "@lucide/vue";
 
 import { pageSlug } from "../tree/pageTree";
 
@@ -109,82 +120,14 @@ function openSource() {
 }
 </script>
 
-<style scoped lang="less">
-.docs-transclusion {
-  position: relative;
-  margin: 12px 0;
-  padding: 10px 12px 6px;
-  border: 1px solid var(--td-component-stroke);
-  border-left: 3px solid var(--td-brand-color);
-  border-radius: 6px;
-  background: var(--td-bg-color-container-select);
-
-  &--selected {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-
-  &--broken {
-    border-left-color: var(--td-text-color-placeholder);
-  }
+<style scoped>
+/* The quoted content's first and last blocks lose their outer margins so the
+   quote does not look padded twice; rendered HTML, so :deep is required. */
+.transclusion-content :deep(> *:first-child) {
+  margin-top: 0;
 }
 
-// The quoted block is somebody else's text: it is shown, never typed into.
-.docs-transclusion-body {
-  cursor: default;
-  user-select: text;
-}
-
-.docs-transclusion-content {
-  // The first and last blocks inside lose their outer margins so the quote
-  // does not look padded twice.
-  :deep(> *:first-child) {
-    margin-top: 0;
-  }
-
-  :deep(> *:last-child) {
-    margin-bottom: 0;
-  }
-}
-
-.docs-transclusion-note {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-
-  &--broken {
-    color: var(--td-text-color-secondary);
-  }
-}
-
-.docs-transclusion-source {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px dashed var(--td-component-stroke);
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-transclusion-link {
-  color: var(--td-brand-color);
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.docs-transclusion-icon {
-  margin-right: 2px;
-}
-
-.docs-transclusion-unknown {
-  color: var(--td-text-color-placeholder);
+.transclusion-content :deep(> *:last-child) {
+  margin-bottom: 0;
 }
 </style>

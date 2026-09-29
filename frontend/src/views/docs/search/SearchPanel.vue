@@ -1,59 +1,92 @@
 <template>
-  <div class="search-panel">
-    <t-input
-      v-model="query"
-      :placeholder="t('docs.search.placeholder')"
-      clearable
-      autofocus
-      size="large"
-      @input="onType"
-    >
-      <template #prefix-icon><t-icon name="search" /></template>
-    </t-input>
-
-    <div v-if="spaceId" class="scope-row">
-      <t-checkbox v-model="thisSpaceOnly">{{ t("docs.search.thisSpaceOnly") }}</t-checkbox>
+  <div class="flex min-h-[200px] flex-col gap-3">
+    <div class="relative">
+      <SearchIcon class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+      <!-- h-10 and 16px text: the old field was TDesign's large size. -->
+      <Input
+        v-model="query"
+        class="h-10 pr-9 pl-8 text-base md:text-base"
+        :placeholder="t('docs.search.placeholder')"
+        autofocus
+        @input="onType"
+      />
+      <!-- The old field was clearable. -->
+      <button
+        v-if="query"
+        type="button"
+        data-slot="search-clear"
+        class="text-placeholder hover:text-muted-foreground absolute top-1/2 right-2.5 inline-flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full"
+        :aria-label="t('common.clear')"
+        @click="clearQuery"
+      >
+        <CircleXIcon class="size-4" />
+      </button>
     </div>
 
-    <t-loading :loading="loading" size="small">
-      <ul v-if="results.length" class="hit-list">
-        <li v-for="hit in results" :key="`${hit.kind}:${hit.page_id}:${hit.comment_id ?? ''}`">
-          <button type="button" class="hit" @click="open(hit)">
-            <span class="hit-head">
-              <t-icon :name="iconFor(hit.kind)" size="14px" class="hit-icon" />
-              <span class="hit-title">{{ hit.title || t("docs.tree.untitled") }}</span>
-              <t-tag v-if="hit.kind !== 'page'" size="small" variant="light">
-                {{ t(`docs.search.kind.${hit.kind}`) }}
-              </t-tag>
-            </span>
-            <!-- Rendered as text nodes, never as markup: an excerpt is page
-                 content, which is exactly the untrusted text this product
-                 exists to store. -->
-            <span class="hit-excerpt">
-              <span v-for="(segment, i) in segmentsOf(hit)" :key="i" :class="{ mark: segment.match }">{{
-                segment.text
-              }}</span>
-            </span>
-          </button>
-        </li>
-      </ul>
+    <div v-if="spaceId" class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <Checkbox id="search-this-space" v-model="thisSpaceOnly" />
+        <Label for="search-this-space" class="font-normal">{{ t("docs.search.thisSpaceOnly") }}</Label>
+      </div>
+    </div>
 
-      <p v-else-if="searched && !loading" class="search-empty">
-        {{ t("docs.search.nothing", { query: lastQuery }) }}
-      </p>
-      <p v-else-if="!searched" class="search-hint">{{ t("docs.search.hint") }}</p>
+    <div class="relative">
+      <div v-if="loading" class="flex items-center justify-center gap-2 py-4">
+        <Loader2Icon class="size-4 animate-spin" />
+      </div>
+      <template v-else>
+        <ul v-if="results.length" class="m-0 flex max-h-[52vh] list-none flex-col gap-0.5 overflow-y-auto p-0">
+          <li v-for="hit in results" :key="`${hit.kind}:${hit.page_id}:${hit.comment_id ?? ''}`">
+            <button
+              type="button"
+              data-slot="search-hit"
+              class="hover:bg-accent flex w-full cursor-pointer flex-col gap-[3px] rounded-[8px] border-0 p-[9px_10px] text-left text-inherit"
+              @click="open(hit)"
+            >
+              <span class="flex min-w-0 items-center gap-1.5">
+                <component :is="iconFor(hit.kind)" class="text-placeholder size-3.5 flex-none" />
+                <span class="truncate text-sm font-medium">{{ hit.title || t("docs.tree.untitled") }}</span>
+                <Badge v-if="hit.kind !== 'page'" variant="secondary">{{ t(`docs.search.kind.${hit.kind}`) }}</Badge>
+              </span>
+              <!-- Rendered as text nodes, never as markup: an excerpt is page
+                   content, which is exactly the untrusted text this product
+                   exists to store. -->
+              <span
+                class="text-muted-foreground [display:-webkit-box] overflow-hidden text-xs leading-[1.6] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
+              >
+                <span v-for="(segment, i) in segmentsOf(hit)" :key="i" :class="{ mark: segment.match }">{{
+                  segment.text
+                }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
 
-      <p v-if="truncated" class="search-more">{{ t("docs.search.more") }}</p>
-    </t-loading>
+        <p v-else-if="searched && !loading" class="text-placeholder m-0 px-0.5 py-3 text-[13px]">
+          {{ t("docs.search.nothing", { query: lastQuery }) }}
+        </p>
+        <p v-else-if="!searched" class="text-placeholder m-0 px-0.5 py-3 text-[13px]">
+          {{ t("docs.search.hint") }}
+        </p>
+
+        <p v-if="truncated" class="text-placeholder m-0 px-0.5 py-3 text-[13px]">{{ t("docs.search.more") }}</p>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from "vue";
+import { computed, ref, shallowRef, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import { CircleXIcon, FileIcon, LinkIcon, Loader2Icon, MessageSquareIcon, SearchIcon } from "@lucide/vue";
+
 import { searchDocs, type SearchHit } from "@/api/docs";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { highlight } from "./highlight";
 import { pageSlug } from "../tree/pageTree";
@@ -120,10 +153,15 @@ function segmentsOf(hit: SearchHit) {
   return highlight(hit.excerpt, lastQuery.value);
 }
 
-function iconFor(kind: SearchHit["kind"]): string {
-  if (kind === "comment") return "chat";
-  if (kind === "transclusion") return "link";
-  return "file";
+function clearQuery() {
+  query.value = "";
+  onType();
+}
+
+function iconFor(kind: SearchHit["kind"]): Component {
+  if (kind === "comment") return MessageSquareIcon;
+  if (kind === "transclusion") return LinkIcon;
+  return FileIcon;
 }
 
 function open(hit: SearchHit) {
@@ -143,91 +181,12 @@ watch(thisSpaceOnly, () => {
 </script>
 
 <style scoped>
-.search-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 200px;
-}
-
-.scope-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hit-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 52vh;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.hit {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.hit:hover {
-  background: var(--td-bg-color-container-hover);
-}
-
-.hit-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.hit-icon {
-  flex: none;
-  color: var(--td-text-color-placeholder);
-}
-
-.hit-title {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.hit-excerpt {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.6;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
+/* Highlight for matched terms in the excerpt; kept as the one visual detail
+   that has no Tailwind utility in the token bridge. */
 .mark {
   border-radius: 2px;
   background: var(--td-warning-color-light);
   color: var(--td-text-color-primary);
   font-weight: 600;
-}
-
-.search-empty,
-.search-hint,
-.search-more {
-  margin: 0;
-  padding: 12px 2px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
 }
 </style>

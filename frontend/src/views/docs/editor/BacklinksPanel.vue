@@ -1,12 +1,17 @@
 <template>
-  <section v-if="entries.length || loading" class="docs-backlinks">
-    <h3 class="docs-backlinks-title">{{ t("docs.links.backlinks") }}</h3>
-    <p v-if="loading && !entries.length" class="docs-backlinks-note">{{ t("docs.links.searching") }}</p>
-    <ul v-else class="docs-backlinks-list">
-      <li v-for="entry in entries" :key="entry.page_id">
-        <RouterLink :to="linkTo(entry)">
-          <span v-if="entry.icon" class="docs-backlinks-icon">{{ entry.icon }}</span>
-          <t-icon v-else name="file" size="14px" />
+  <section v-if="entries.length || loading" class="mt-7 border-t border-[var(--td-component-stroke)] pt-4">
+    <h3 class="text-placeholder m-0 mb-2 text-xs font-semibold tracking-[0.04em] uppercase">
+      {{ t("docs.links.backlinks") }}
+    </h3>
+    <p v-if="loading && !entries.length" class="text-placeholder m-0 text-[13px]">{{ t("docs.links.searching") }}</p>
+    <ul v-else class="m-0 list-none p-0">
+      <li v-for="entry in entries" :key="entry.page_id" class="my-[3px]">
+        <RouterLink
+          :to="linkTo(entry)"
+          class="text-primary inline-flex items-center gap-1.5 text-[13.5px] no-underline hover:underline"
+        >
+          <span v-if="entry.icon" class="text-[13px]">{{ entry.icon }}</span>
+          <FileIcon v-else class="size-3.5" />
           <span>{{ entry.title || t("docs.tree.untitled") }}</span>
         </RouterLink>
       </li>
@@ -16,6 +21,8 @@
 
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
+
+import { FileIcon } from "@lucide/vue";
 
 import type { PageRef } from "@/api/docs";
 
@@ -29,53 +36,3 @@ function linkTo(entry: PageRef): string {
   return `/docs/spaces/${entry.space_id}/${pageSlug(entry.title, entry.short_id)}`;
 }
 </script>
-
-<style scoped lang="less">
-.docs-backlinks {
-  margin-top: 28px;
-  padding-top: 16px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.docs-backlinks-title {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-backlinks-note {
-  margin: 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-backlinks-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-
-  li {
-    margin: 3px 0;
-  }
-
-  a {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13.5px;
-    color: var(--td-brand-color);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-}
-
-.docs-backlinks-icon {
-  font-size: 13px;
-}
-</style>

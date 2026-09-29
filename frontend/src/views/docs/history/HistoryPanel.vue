@@ -1,122 +1,203 @@
 <template>
-  <t-drawer
-    :visible="visible"
-    :header="t('docs.history.title')"
-    size="min(1080px, 94vw)"
-    :footer="false"
-    destroy-on-close
-    @close="emit('close')"
-  >
-    <div class="docs-history">
-      <!-- The versions, newest first. -->
-      <aside class="docs-history-list" @scroll="onScroll">
-        <p v-if="loading && !items.length" class="docs-history-note">{{ t("common.loading") }}</p>
-        <p v-else-if="!items.length" class="docs-history-note">{{ t("docs.history.empty") }}</p>
-
-        <button
-          v-for="(item, index) in items"
-          :key="item.id"
-          type="button"
-          class="docs-history-item"
-          :class="{ 'is-active': item.id === selectedId, 'is-compared': item.id === compareId }"
-          @click="select(item, index)"
+  <Drawer :open="visible" swipe-direction="right" @update:open="(v: boolean) => !v && emit('close')">
+    <DrawerContent class="max-w-none rounded-none border-0 sm:max-w-none" :style="{ width: 'min(1080px, 94vw)' }">
+      <DrawerHeader class="relative flex-row items-center justify-between border-b border-[var(--td-component-stroke)]">
+        <DrawerTitle>{{ t("docs.history.title") }}</DrawerTitle>
+        <!-- The old t-drawer carried a close button in its header. -->
+        <DrawerClose
+          class="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex size-7 cursor-pointer items-center justify-center rounded-md"
+          :aria-label="t('common.close')"
         >
-          <span class="docs-history-when">{{ formatWhen(item.created_at) }}</span>
-          <span class="docs-history-who">{{ who(item) }}</span>
-          <span class="docs-history-meta">
-            <span class="docs-history-reason" :data-reason="item.reason">
-              {{ t(`docs.history.reason.${item.reason}`) }}
-            </span>
-            <span>{{ t("docs.history.words", { count: item.word_count }) }}</span>
-          </span>
-          <span
-            v-if="index > 0"
-            class="docs-history-compare"
-            role="button"
-            :aria-label="t('docs.history.compareWith')"
-            @click.stop="setCompare(item)"
+          <XIcon class="size-4" />
+        </DrawerClose>
+      </DrawerHeader>
+      <div class="grid min-h-0 flex-1 grid-cols-[290px_minmax(0,1fr)] gap-4 p-4 max-[760px]:grid-cols-[minmax(0,1fr)]">
+        <!-- The versions, newest first. -->
+        <aside class="overflow-y-auto border-r border-[var(--td-component-stroke)] pr-2" @scroll="onScroll">
+          <p v-if="loading && !items.length" class="text-placeholder my-3 text-[13px]">{{ t("common.loading") }}</p>
+          <p v-else-if="!items.length" class="text-placeholder my-3 text-[13px]">{{ t("docs.history.empty") }}</p>
+
+          <button
+            v-for="(item, index) in items"
+            :key="item.id"
+            type="button"
+            data-slot="history-item"
+            class="relative flex w-full cursor-pointer flex-col gap-0.5 rounded-md border-0 px-2.5 py-2 text-left"
+            :class="[
+              item.id === selectedId ? 'bg-[var(--td-brand-color-light)]' : 'hover:bg-accent',
+              item.id === compareId ? 'ring-primary ring-1 ring-inset' : '',
+            ]"
+            @click="select(item, index)"
           >
-            <t-icon name="swap" size="14px" />
-          </span>
-        </button>
+            <span class="text-foreground text-[13px] tabular-nums">{{ formatWhen(item.created_at) }}</span>
+            <span class="text-muted-foreground text-xs">{{ who(item) }}</span>
+            <span class="text-placeholder flex gap-2 text-[11px]">
+              <span
+                :class="
+                  item.reason === 'restore' || item.reason === 'import' || item.reason === 'publish'
+                    ? 'text-primary'
+                    : ''
+                "
+              >
+                {{ t(`docs.history.reason.${item.reason}`) }}
+              </span>
+              <span>{{ t("docs.history.words", { count: item.word_count }) }}</span>
+            </span>
+            <span
+              v-if="index > 0"
+              class="text-placeholder hover:text-primary absolute top-2 right-2 leading-none"
+              role="button"
+              :aria-label="t('docs.history.compareWith')"
+              @click.stop="setCompare(item)"
+            >
+              <ArrowLeftRightIcon class="size-3.5" />
+            </span>
+          </button>
 
-        <p v-if="loadingMore" class="docs-history-note">{{ t("common.loading") }}</p>
-      </aside>
+          <p v-if="loadingMore" class="text-placeholder my-3 text-[13px]">{{ t("common.loading") }}</p>
+        </aside>
 
-      <!-- What the selected version says, or how it differs. -->
-      <section class="docs-history-detail">
-        <header v-if="selected" class="docs-history-detail-head">
-          <div>
-            <h3>{{ selected.title || t("docs.tree.untitled") }}</h3>
-            <p class="docs-history-subtitle">
-              {{ comparing ? t("docs.history.comparing", { a: compareLabel, b: selectedLabel }) : selectedLabel }}
-            </p>
+        <!-- What the selected version says, or how it differs. -->
+        <section class="flex min-h-0 min-w-0 flex-col">
+          <header
+            v-if="selected"
+            class="flex items-start justify-between gap-3 border-b border-[var(--td-component-stroke)] pb-2.5"
+          >
+            <div>
+              <h3 class="m-0 text-[15px]">{{ selected.title || t("docs.tree.untitled") }}</h3>
+              <p class="text-placeholder m-0 mt-0.5 text-xs">
+                {{ comparing ? t("docs.history.comparing", { a: compareLabel, b: selectedLabel }) : selectedLabel }}
+              </p>
+            </div>
+            <div class="flex flex-none items-center gap-2">
+              <!-- A two-way switch, as the old filled radio-button group was. -->
+              <div class="bg-muted inline-flex rounded-md p-0.5" role="radiogroup">
+                <button
+                  v-for="option in MODES"
+                  :key="option"
+                  type="button"
+                  data-slot="history-mode"
+                  role="radio"
+                  :aria-checked="mode === option"
+                  class="h-6 cursor-pointer rounded-[5px] px-2.5 text-xs transition-colors"
+                  :class="
+                    mode === option
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  "
+                  @click="mode = option"
+                >
+                  {{ option === "preview" ? t("docs.history.preview") : t("docs.history.changes") }}
+                </button>
+              </div>
+              <Button v-if="canEdit" size="sm" :disabled="restoring" @click="confirmRestore">
+                <Loader2Icon v-if="restoring" class="animate-spin" />
+                {{ t("docs.history.restore") }}
+              </Button>
+            </div>
+          </header>
+
+          <div v-if="!selected" class="text-placeholder m-3 text-[13px]">{{ t("docs.history.pick") }}</div>
+
+          <!-- Preview: the document as it was, read-only. -->
+          <div v-else-if="mode === 'preview'" class="min-h-0 flex-1 overflow-y-auto pt-3">
+            <p v-if="detailLoading" class="text-placeholder m-3 text-[13px]">{{ t("common.loading") }}</p>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div v-else class="text-sm leading-[1.7]" v-html="previewHTML" />
           </div>
-          <div class="docs-history-actions">
-            <t-radio-group v-model="mode" variant="default-filled" size="small">
-              <t-radio-button value="preview">{{ t("docs.history.preview") }}</t-radio-button>
-              <t-radio-button value="diff">{{ t("docs.history.changes") }}</t-radio-button>
-            </t-radio-group>
-            <t-button v-if="canEdit" size="small" theme="primary" :loading="restoring" @click="confirmRestore">
-              {{ t("docs.history.restore") }}
-            </t-button>
-          </div>
-        </header>
 
-        <div v-if="!selected" class="docs-history-note">{{ t("docs.history.pick") }}</div>
+          <!-- Changes: the two comparisons the server computed. -->
+          <div v-else class="min-h-0 flex-1 overflow-y-auto pt-3">
+            <p v-if="diffLoading" class="text-placeholder m-3 text-[13px]">{{ t("common.loading") }}</p>
+            <template v-else-if="diff">
+              <p class="text-placeholder m-0 mb-2.5 flex gap-3 text-xs tabular-nums">
+                <span class="text-success">+{{ diff.line_summary.added }}</span>
+                <span class="text-destructive">−{{ diff.line_summary.removed }}</span>
+                <span v-if="blocks.length">{{ t("docs.history.blocksChanged", { count: blocks.length }) }}</span>
+              </p>
 
-        <!-- Preview: the document as it was, read-only. -->
-        <div v-else-if="mode === 'preview'" class="docs-history-body">
-          <p v-if="detailLoading" class="docs-history-note">{{ t("common.loading") }}</p>
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <div v-else class="docs-history-content" v-html="previewHTML" />
-        </div>
-
-        <!-- Changes: the two comparisons the server computed. -->
-        <div v-else class="docs-history-body">
-          <p v-if="diffLoading" class="docs-history-note">{{ t("common.loading") }}</p>
-          <template v-else-if="diff">
-            <p class="docs-history-summary">
-              <span class="is-added">+{{ diff.line_summary.added }}</span>
-              <span class="is-removed">−{{ diff.line_summary.removed }}</span>
-              <span v-if="blocks.length">{{ t("docs.history.blocksChanged", { count: blocks.length }) }}</span>
-            </p>
-
-            <p v-if="!rows.length" class="docs-history-note">{{ t("docs.history.identical") }}</p>
-            <ol v-else class="docs-history-diff">
-              <li v-for="(row, index) in rows" :key="index" :class="rowClass(row)">
-                <template v-if="row.type === 'gap'">
-                  <span class="docs-history-gap">{{ t("docs.history.skipped", { count: row.skipped }) }}</span>
-                </template>
-                <template v-else>
-                  <span class="docs-history-lineno">{{ row.line.old_line || "" }}</span>
-                  <span class="docs-history-lineno">{{ row.line.new_line || "" }}</span>
-                  <span class="docs-history-text">{{ row.line.text }}</span>
-                </template>
-              </li>
-            </ol>
-
-            <template v-if="blocks.length">
-              <h4 class="docs-history-subhead">{{ t("docs.history.structure") }}</h4>
-              <ul class="docs-history-blocks">
-                <li v-for="block in blocks" :key="block.block_id" :data-kind="block.kind">
-                  <span class="docs-history-blockkind">{{ t(`docs.history.block.${block.kind}`) }}</span>
-                  <span class="docs-history-blocktext">{{ block.text || block.type }}</span>
+              <p v-if="!rows.length" class="text-placeholder m-3 text-[13px]">{{ t("docs.history.identical") }}</p>
+              <ol
+                v-else
+                class="m-0 list-none overflow-x-auto rounded-md border border-[var(--td-component-stroke)] p-0 font-[family-name:var(--td-font-family-medium,ui-monospace,SFMono-Regular,Menlo,monospace)] text-[12.5px] leading-[1.6]"
+              >
+                <li
+                  v-for="(row, index) in rows"
+                  :key="index"
+                  class="flex gap-2 px-2 [word-break:break-word] whitespace-pre-wrap"
+                  :class="
+                    row.type === 'gap'
+                      ? 'bg-accent text-placeholder justify-center text-[11px]'
+                      : row.line.kind === 'added'
+                        ? 'bg-[var(--td-success-color-1)]'
+                        : row.line.kind === 'removed'
+                          ? 'bg-[var(--td-error-color-1)]'
+                          : ''
+                  "
+                >
+                  <template v-if="row.type === 'gap'">
+                    <span>{{ t("docs.history.skipped", { count: row.skipped }) }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="text-placeholder w-[34px] flex-none text-right tabular-nums select-none">
+                      {{ row.line.old_line || "" }}
+                    </span>
+                    <span class="text-placeholder w-[34px] flex-none text-right tabular-nums select-none">
+                      {{ row.line.new_line || "" }}
+                    </span>
+                    <span class="min-w-0 flex-1">{{ row.line.text }}</span>
+                  </template>
                 </li>
-              </ul>
+              </ol>
+
+              <template v-if="blocks.length">
+                <h4 class="my-[18px_8px] text-[13px]">{{ t("docs.history.structure") }}</h4>
+                <ul class="m-0 list-none p-0 text-[13px]">
+                  <li
+                    v-for="block in blocks"
+                    :key="block.block_id"
+                    class="flex gap-2 border-b border-[var(--td-component-stroke)] py-1 last:border-b-0"
+                  >
+                    <span class="text-placeholder min-w-[56px] flex-none text-[11px]">
+                      {{ t(`docs.history.block.${block.kind}`) }}
+                    </span>
+                    <span class="text-muted-foreground min-w-0 flex-1 truncate">
+                      {{ block.text || block.type }}
+                    </span>
+                  </li>
+                </ul>
+              </template>
             </template>
-          </template>
-        </div>
-      </section>
-    </div>
-  </t-drawer>
+          </div>
+        </section>
+      </div>
+    </DrawerContent>
+  </Drawer>
+
+  <Dialog :open="restoreConfirm !== null" @update:open="(v: boolean) => !v && (restoreConfirm = null)">
+    <DialogContent class="sm:max-w-[440px]">
+      <DialogHeader>
+        <DialogTitle>{{ t("docs.history.restore") }}</DialogTitle>
+      </DialogHeader>
+      <DialogDescription>{{ restoreConfirm }}</DialogDescription>
+      <DialogFooter>
+        <Button variant="outline" @click="restoreConfirm = null">{{ t("common.cancel") }}</Button>
+        <Button :disabled="restoring" @click="onConfirmRestore">
+          <Loader2Icon v-if="restoring" class="animate-spin" />
+          {{ t("docs.history.restore") }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { generateHTML } from "@tiptap/core";
-import { DialogPlugin, MessagePlugin } from "tdesign-vue-next";
+import { MessagePlugin } from "tdesign-vue-next";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { ArrowLeftRightIcon, Loader2Icon, XIcon } from "@lucide/vue";
 
 import {
   getRevision,
@@ -126,6 +207,16 @@ import {
   type DiffView,
   type RevisionView,
 } from "@/api/docs";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 import { officialExtensions } from "../editor/extensions";
 
@@ -148,6 +239,7 @@ const exhausted = ref(false);
 
 const selectedId = ref("");
 const compareId = ref("");
+const MODES = ["preview", "diff"] as const;
 const mode = ref<"preview" | "diff">("preview");
 const restoring = ref(false);
 
@@ -155,6 +247,9 @@ const detailLoading = ref(false);
 const previewHTML = ref("");
 const diff = ref<DiffView | null>(null);
 const diffLoading = ref(false);
+
+/** Body text of the restore confirmation; null hides the dialog. */
+const restoreConfirm = ref<string | null>(null);
 
 const selected = computed(() => items.value.find((item) => item.id === selectedId.value));
 const comparing = computed(() => compareId.value !== "");
@@ -181,11 +276,6 @@ function who(item: RevisionView): string {
   if (names.length === 0) return t("docs.links.someone");
   if (names.length <= 2) return names.join("、");
   return t("docs.history.andOthers", { name: names[0], count: names.length - 1 });
-}
-
-function rowClass(row: HunkRow): string {
-  if (row.type === "gap") return "is-gap";
-  return `is-${row.line.kind}`;
 }
 
 async function load(more = false) {
@@ -309,15 +399,14 @@ function renderDocument(content: unknown): string {
 function confirmRestore() {
   if (!selected.value) return;
   const when = formatWhen(selected.value.created_at);
-  const dialog = DialogPlugin.confirm({
-    header: t("docs.history.restore"),
-    body: t("docs.history.restoreConfirm", { when }),
-    confirmBtn: { content: t("docs.history.restore"), theme: "primary" },
-    onConfirm: async () => {
-      dialog.hide();
-      await doRestore();
-    },
-  });
+  restoreConfirm.value = t("docs.history.restoreConfirm", { when });
+}
+
+// As the old confirm did: the dialog goes away first, and the restore's own
+// toast reports how it went.
+function onConfirmRestore() {
+  restoreConfirm.value = null;
+  void doRestore();
 }
 
 async function doRestore() {
@@ -356,246 +445,3 @@ watch(
 
 watch(mode, () => void refresh());
 </script>
-
-<style scoped lang="less">
-.docs-history {
-  display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 16px;
-  height: 100%;
-  min-height: 0;
-}
-
-@media (max-width: 760px) {
-  .docs-history {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.docs-history-list {
-  overflow-y: auto;
-  border-right: 1px solid var(--td-component-stroke);
-  padding-right: 8px;
-}
-
-.docs-history-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &.is-active {
-    background: var(--td-brand-color-light);
-  }
-
-  &.is-compared {
-    box-shadow: inset 0 0 0 1px var(--td-brand-color);
-  }
-}
-
-.docs-history-when {
-  font-size: 13px;
-  color: var(--td-text-color-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-history-who {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-}
-
-.docs-history-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-history-reason {
-  &[data-reason="restore"],
-  &[data-reason="import"],
-  &[data-reason="publish"] {
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-history-compare {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  color: var(--td-text-color-placeholder);
-  line-height: 0;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-history-detail {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-.docs-history-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--td-component-stroke);
-
-  h3 {
-    margin: 0;
-    font-size: 15px;
-  }
-}
-
-.docs-history-subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-history-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-}
-
-.docs-history-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: 12px;
-}
-
-.docs-history-note {
-  margin: 12px 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-history-summary {
-  display: flex;
-  gap: 12px;
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--td-text-color-placeholder);
-
-  .is-added {
-    color: var(--td-success-color);
-  }
-
-  .is-removed {
-    color: var(--td-error-color);
-  }
-}
-
-.docs-history-diff {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--td-font-family-medium, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12.5px;
-  line-height: 1.6;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  overflow-x: auto;
-
-  li {
-    display: flex;
-    gap: 8px;
-    padding: 0 8px;
-    white-space: pre-wrap;
-    word-break: break-word;
-
-    &.is-added {
-      background: var(--td-success-color-1);
-    }
-
-    &.is-removed {
-      background: var(--td-error-color-1);
-    }
-
-    &.is-gap {
-      justify-content: center;
-      background: var(--td-bg-color-container-hover);
-      color: var(--td-text-color-placeholder);
-      font-size: 11px;
-    }
-  }
-}
-
-.docs-history-lineno {
-  flex: none;
-  width: 34px;
-  text-align: right;
-  color: var(--td-text-color-placeholder);
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-history-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.docs-history-subhead {
-  margin: 18px 0 8px;
-  font-size: 13px;
-}
-
-.docs-history-blocks {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 13px;
-
-  li {
-    display: flex;
-    gap: 8px;
-    padding: 4px 0;
-    border-bottom: 1px solid var(--td-component-stroke);
-
-    &:last-child {
-      border-bottom: 0;
-    }
-  }
-}
-
-.docs-history-blockkind {
-  flex: none;
-  min-width: 56px;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-history-blocktext {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--td-text-color-secondary);
-}
-
-.docs-history-content {
-  font-size: 14px;
-  line-height: 1.7;
-}
-</style>

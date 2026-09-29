@@ -1,26 +1,42 @@
 <template>
   <Teleport to="body">
-    <div class="docs-excalidraw" role="dialog" :aria-label="t('docs.media.diagramEdit')">
-      <div class="docs-excalidraw-bar">
+    <div
+      class="bg-background fixed inset-0 z-3000 flex flex-col"
+      role="dialog"
+      :aria-label="t('docs.media.diagramEdit')"
+    >
+      <div
+        class="text-foreground flex items-center gap-2.5 border-b border-[var(--td-component-stroke)] px-3.5 py-2 text-sm"
+      >
         <span>{{ t("docs.media.diagramEdit") }}</span>
-        <span class="docs-excalidraw-spacer" />
-        <t-button size="small" theme="primary" :loading="saving" @click="save">
+        <span class="flex-1" />
+        <Button size="sm" :disabled="saving" @click="save">
+          <Loader2Icon v-if="saving" class="animate-spin" />
           {{ t("common.save") }}
-        </t-button>
+        </Button>
         <button
           type="button"
-          class="docs-excalidraw-close"
+          data-slot="excalidraw-close"
+          class="text-muted-foreground hover:bg-accent inline-flex cursor-pointer rounded border-0 p-1 leading-0"
           :aria-label="t('docs.media.closeEditor')"
           @click="emit('close')"
         >
-          <t-icon name="close" size="16px" />
+          <XIcon class="size-4" />
         </button>
       </div>
 
-      <div class="docs-excalidraw-body">
-        <div ref="mount" class="docs-excalidraw-mount" />
-        <p v-if="status === 'loading'" class="docs-excalidraw-note">{{ t("docs.media.diagramLoading") }}</p>
-        <p v-else-if="status === 'failed'" class="docs-excalidraw-note docs-excalidraw-note--error">
+      <div class="relative min-h-0 flex-1">
+        <div ref="mount" class="h-full w-full" />
+        <p
+          v-if="status === 'loading'"
+          class="text-placeholder pointer-events-none absolute inset-0 m-0 flex items-center justify-center text-sm"
+        >
+          {{ t("docs.media.diagramLoading") }}
+        </p>
+        <p
+          v-else-if="status === 'failed'"
+          class="text-destructive pointer-events-none absolute inset-0 m-0 flex items-center justify-center text-sm"
+        >
           {{ t("docs.media.diagramEditorFailed") }}
         </p>
       </div>
@@ -32,6 +48,10 @@
 import { MessagePlugin } from "tdesign-vue-next";
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { Loader2Icon, XIcon } from "@lucide/vue";
+
+import { Button } from "@/components/ui/button";
 
 import {
   DEFAULT_ITEM_STYLE,
@@ -168,69 +188,3 @@ async function save() {
   }
 }
 </script>
-
-<style scoped lang="less">
-.docs-excalidraw {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: flex;
-  flex-direction: column;
-  background: var(--td-bg-color-page);
-}
-
-.docs-excalidraw-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-}
-
-.docs-excalidraw-spacer {
-  flex: 1;
-}
-
-.docs-excalidraw-close {
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 4px;
-  line-height: 0;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.docs-excalidraw-body {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-}
-
-.docs-excalidraw-mount {
-  width: 100%;
-  height: 100%;
-}
-
-.docs-excalidraw-note {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  font-size: 14px;
-  color: var(--td-text-color-placeholder);
-  pointer-events: none;
-
-  &--error {
-    color: var(--td-error-color);
-  }
-}
-</style>

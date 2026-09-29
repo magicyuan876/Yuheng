@@ -1,8 +1,8 @@
 <template>
-  <NodeViewWrapper as="span" class="docs-status-wrap">
+  <NodeViewWrapper as="span" class="inline">
     <span
-      class="docs-status"
-      :class="[`docs-status--${color}`, { 'docs-status--selected': selected }]"
+      class="inline-block cursor-pointer rounded-[4px] px-[7px] align-baseline text-xs leading-[18px] font-semibold select-none"
+      :class="[COLOR_CLASS[color], { 'outline-primary outline-2 outline-offset-1': selected }]"
       :contenteditable="false"
       @click="edit"
       >{{ text || t("docs.blocks.statusEmpty") }}</span
@@ -15,13 +15,27 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { STATUS_COLORS, statusColor } from "./figures";
+import { STATUS_COLORS, type StatusColor, statusColor } from "./figures";
 
 const props = defineProps<NodeViewProps>();
 const { t } = useI18n();
 
 const text = computed(() => String(props.node.attrs.text ?? ""));
 const color = computed(() => statusColor(props.node.attrs.color));
+
+/**
+ * One chip colour per status, background and text together. TDesign has a
+ * light tint for each semantic colour but no token for purple, which keeps
+ * the fixed pair it has always had.
+ */
+const COLOR_CLASS: Record<StatusColor, string> = {
+  gray: "bg-muted text-muted-foreground",
+  blue: "bg-[var(--td-brand-color-light)] text-primary",
+  green: "bg-[var(--td-success-color-light)] text-success",
+  yellow: "bg-[var(--td-warning-color-light)] text-warning",
+  red: "bg-[var(--td-error-color-light)] text-destructive",
+  purple: "bg-[#f0e8fa] text-[#7a4e8e]",
+};
 
 /** One click edits the text; holding shift steps the colour instead, which
  * keeps a chip to a single control rather than a popover. */
@@ -37,56 +51,3 @@ function edit(event: MouseEvent) {
   props.updateAttributes({ text: value.trim().slice(0, 64) });
 }
 </script>
-
-<style scoped lang="less">
-.docs-status-wrap {
-  display: inline;
-}
-
-.docs-status {
-  display: inline-block;
-  padding: 0 7px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  vertical-align: baseline;
-  cursor: pointer;
-  user-select: none;
-  background: var(--docs-status-bg);
-  color: var(--docs-status-fg);
-
-  --docs-status-bg: var(--td-bg-color-secondarycontainer);
-  --docs-status-fg: var(--td-text-color-secondary);
-
-  &--blue {
-    --docs-status-bg: var(--td-brand-color-light);
-    --docs-status-fg: var(--td-brand-color);
-  }
-
-  &--green {
-    --docs-status-bg: var(--td-success-color-light);
-    --docs-status-fg: var(--td-success-color);
-  }
-
-  &--yellow {
-    --docs-status-bg: var(--td-warning-color-light);
-    --docs-status-fg: var(--td-warning-color);
-  }
-
-  &--red {
-    --docs-status-bg: var(--td-error-color-light);
-    --docs-status-fg: var(--td-error-color);
-  }
-
-  &--purple {
-    --docs-status-bg: #f0e8fa;
-    --docs-status-fg: #7a4e8e;
-  }
-
-  &--selected {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-}
-</style>

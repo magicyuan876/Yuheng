@@ -1,57 +1,75 @@
 <template>
-  <div class="page-labels">
-    <span v-for="l in model" :key="l.id" class="label-chip" :class="{ removable: canEdit }">
-      <span class="label-dot" :class="`dot-${l.color}`" />
-      <span class="label-name">{{ l.name }}</span>
+  <div class="flex flex-wrap items-center gap-1.5">
+    <span
+      v-for="l in model"
+      :key="l.id"
+      class="border-border text-foreground inline-flex items-center gap-[5px] rounded-full border px-2 py-0.5 text-xs leading-[18px]"
+    >
+      <span class="size-2 flex-none rounded-full" :class="DOT_CLASS[l.color] ?? 'bg-placeholder'" />
+      <span>{{ l.name }}</span>
       <button
         v-if="canEdit"
         type="button"
-        class="label-remove"
+        data-slot="label-remove"
+        class="text-placeholder hover:text-destructive inline-flex cursor-pointer border-0 p-0"
         :aria-label="t('docs.labels.remove', { name: l.name })"
         @click="remove(l.id)"
       >
-        <t-icon name="close" size="12px" />
+        <XIcon class="size-3" />
       </button>
     </span>
 
-    <t-popup v-if="canEdit" trigger="click" placement="bottom-left" :visible="open" @visible-change="onOpenChange">
-      <button type="button" class="label-add">
-        <t-icon name="add" size="12px" />
-        <span>{{ model.length ? t("docs.labels.add") : t("docs.labels.addFirst") }}</span>
-      </button>
-      <template #content>
-        <div class="label-picker">
-          <t-input
+    <Popover v-if="canEdit" :open="open" @update:open="onOpenChange">
+      <PopoverTrigger as-child>
+        <button
+          type="button"
+          data-slot="label-add"
+          class="border-border text-placeholder hover:border-primary hover:text-primary inline-flex cursor-pointer items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs leading-[18px]"
+        >
+          <PlusIcon class="size-3" />
+          <span>{{ model.length ? t("docs.labels.add") : t("docs.labels.addFirst") }}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent class="w-[240px] p-2" align="start">
+        <div class="flex flex-col gap-2">
+          <Input
             v-model="query"
             :maxlength="MAX_NAME"
             :placeholder="t('docs.labels.search')"
             autofocus
-            @enter="createFromQuery"
+            @keydown.enter="(e: KeyboardEvent) => !e.isComposing && createFromQuery()"
           />
-          <div class="picker-list">
+          <div class="flex max-h-[220px] flex-col gap-0.5 overflow-y-auto">
             <button
               v-for="l in matches"
               :key="l.id"
               type="button"
-              class="picker-row"
-              :class="{ on: chosen.has(l.id) }"
+              class="hover:bg-accent flex w-full cursor-pointer items-center gap-2 rounded border-0 px-2 py-[5px] text-left text-[13px] text-inherit"
               @click="toggle(l)"
             >
-              <span class="label-dot" :class="`dot-${l.color}`" />
-              <span class="picker-name">{{ l.name }}</span>
-              <t-icon v-if="chosen.has(l.id)" name="check" size="14px" />
+              <span class="size-2 flex-none rounded-full" :class="DOT_CLASS[l.color] ?? 'bg-placeholder'" />
+              <span class="min-w-0 flex-1 truncate">{{ l.name }}</span>
+              <CheckIcon v-if="chosen.has(l.id)" class="size-3.5" />
             </button>
-            <p v-if="!matches.length && !canCreate" class="picker-empty">{{ t("docs.labels.none") }}</p>
+            <p v-if="!matches.length && !canCreate" class="text-placeholder m-0 px-2 py-1.5 text-xs">
+              {{ t("docs.labels.none") }}
+            </p>
           </div>
           <!-- Making one is the same gesture as picking one: a writer files
                their own work without asking an admin for the vocabulary. -->
-          <button v-if="canCreate" type="button" class="picker-create" :disabled="creating" @click="createFromQuery">
-            <t-icon name="add" size="14px" />
-            <span>{{ t("docs.labels.create", { name: trimmedQuery }) }}</span>
+          <button
+            v-if="canCreate"
+            type="button"
+            class="text-primary hover:bg-accent flex w-full cursor-pointer items-center gap-2 rounded-none border-0 border-t border-[var(--td-component-stroke)] px-2 py-[5px] text-left text-[13px]"
+            :disabled="creating"
+            @click="createFromQuery"
+          >
+            <PlusIcon class="size-3.5" />
+            <span class="truncate">{{ t("docs.labels.create", { name: trimmedQuery }) }}</span>
           </button>
         </div>
-      </template>
-    </t-popup>
+      </PopoverContent>
+    </Popover>
   </div>
 </template>
 
@@ -60,7 +78,11 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 
+import { CheckIcon, PlusIcon, XIcon } from "@lucide/vue";
+
 import { createLabel, listLabels, setPageLabels, type LabelView } from "@/api/docs";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // The labels on one page: chips beside the title, and a picker that doubles
 // as the place new labels are made.
@@ -71,6 +93,19 @@ import { createLabel, listLabels, setPageLabels, type LabelView } from "@/api/do
 
 const MAX_NAME = 32;
 const MAX_PER_PAGE = 20;
+
+/** The closed set from LabelColors, kept in one place. */
+const DOT_CLASS: Record<string, string> = {
+  gray: "bg-[#8b8f96]",
+  red: "bg-[#e34d59]",
+  orange: "bg-[#ed7b2f]",
+  yellow: "bg-[#ebb105]",
+  green: "bg-[#2ba471]",
+  teal: "bg-[#0594fa]",
+  blue: "bg-[#366ef4]",
+  purple: "bg-[#834ec2]",
+  pink: "bg-[#ed49b4]",
+};
 
 const props = defineProps<{ pageId: string; spaceId: string; canEdit: boolean; labels: LabelView[] }>();
 const emit = defineEmits<{ change: [LabelView[]] }>();
@@ -170,149 +205,3 @@ async function createFromQuery() {
   }
 }
 </script>
-
-<style scoped>
-.page-labels {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.label-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border: 1px solid var(--td-component-border);
-  border-radius: 999px;
-  color: var(--td-text-color-primary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.label-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--label-hue, var(--td-text-color-placeholder));
-}
-
-/* The closed set from LabelColors, themed in one place. */
-.dot-gray {
-  --label-hue: #8b8f96;
-}
-.dot-red {
-  --label-hue: #e34d59;
-}
-.dot-orange {
-  --label-hue: #ed7b2f;
-}
-.dot-yellow {
-  --label-hue: #ebb105;
-}
-.dot-green {
-  --label-hue: #2ba471;
-}
-.dot-teal {
-  --label-hue: #0594fa;
-}
-.dot-blue {
-  --label-hue: #366ef4;
-}
-.dot-purple {
-  --label-hue: #834ec2;
-}
-.dot-pink {
-  --label-hue: #ed49b4;
-}
-
-.label-remove {
-  display: inline-flex;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  cursor: pointer;
-}
-
-.label-remove:hover {
-  color: var(--td-error-color);
-}
-
-.label-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: 1px dashed var(--td-component-border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 18px;
-  cursor: pointer;
-}
-
-.label-add:hover {
-  color: var(--td-brand-color);
-  border-color: var(--td-brand-color);
-}
-
-.label-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 240px;
-}
-
-.picker-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.picker-row,
-.picker-create {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.picker-row:hover,
-.picker-create:hover {
-  background: var(--td-bg-color-container-hover);
-}
-
-.picker-name {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.picker-create {
-  border-top: 1px solid var(--td-component-stroke);
-  border-radius: 0;
-  color: var(--td-brand-color);
-}
-
-.picker-empty {
-  margin: 0;
-  padding: 6px 8px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-</style>

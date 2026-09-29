@@ -1,38 +1,54 @@
 <template>
-  <aside class="docs-comments" :aria-label="t('docs.comments.title')">
-    <header class="docs-comments-head">
-      <h3>
+  <aside class="flex min-w-0 flex-col gap-2 text-[13px]" :aria-label="t('docs.comments.title')">
+    <header class="flex items-baseline justify-between gap-2">
+      <h3 class="m-0 text-[14px]">
         {{ t("docs.comments.title") }}
-        <span v-if="total" class="docs-comments-count">{{ open }}/{{ total }}</span>
+        <span v-if="total" class="text-placeholder ml-1 font-normal tabular-nums">{{ open }}/{{ total }}</span>
       </h3>
-      <label class="docs-comments-toggle">
-        <input v-model="resolvedShown" type="checkbox" />
+      <label class="text-muted-foreground inline-flex cursor-pointer items-center gap-1 text-xs">
+        <!-- The checkbox reports "indeterminate" as well as true and false; only
+             a plain tick means the resolved threads are shown. -->
+        <Checkbox
+          class="size-3.5"
+          :model-value="showResolved"
+          @update:model-value="(v) => emit('update:showResolved', v === true)"
+        />
         {{ t("docs.comments.showResolved") }}
       </label>
     </header>
 
-    <p v-if="loading && !threads.length" class="docs-comments-note">{{ t("common.loading") }}</p>
-    <p v-else-if="!threads.length" class="docs-comments-note">{{ t("docs.comments.empty") }}</p>
+    <p v-if="loading && !threads.length" class="text-placeholder my-2">{{ t("common.loading") }}</p>
+    <p v-else-if="!threads.length" class="text-placeholder my-2">{{ t("docs.comments.empty") }}</p>
 
     <!-- Comments that lost their place are grouped rather than scattered, so
          it is obvious they are a category and not one-off oddities. -->
     <template v-for="group in groups" :key="group.key">
-      <h4 v-if="group.items.length && group.key !== 'inline'" class="docs-comments-group">
+      <h4 v-if="group.items.length && group.key !== 'inline'" class="text-placeholder mt-3 mb-1 text-xs font-medium">
         {{ t(`docs.comments.group.${group.key}`) }}
       </h4>
 
       <article
         v-for="thread in group.items"
         :key="thread.id"
-        class="docs-comments-thread"
-        :class="{
-          'is-active': thread.id === activeId,
-          'is-resolved': !!thread.resolved_at,
-          'is-orphaned': group.key === 'orphaned',
-        }"
+        class="bg-card cursor-pointer rounded-[8px] border px-2.5 py-2"
+        :class="[
+          // The active thread keeps its brand outline under the pointer too,
+          // so the hover tint applies only to the others.
+          thread.id === activeId
+            ? 'border-primary shadow-[0_0_0_1px_var(--td-brand-color)]'
+            : 'border-border hover:border-[var(--td-brand-color-light-active)]',
+          { 'opacity-[0.68]': !!thread.resolved_at, 'border-dashed': group.key === 'orphaned' },
+        ]"
         @click="emit('select', thread.id)"
       >
-        <p v-if="thread.quoted_text" class="docs-comments-quote">{{ thread.quoted_text }}</p>
+        <!-- The passage the comment was about, kept so an orphaned thread
+             still says what it was answering. -->
+        <p
+          v-if="thread.quoted_text"
+          class="text-muted-foreground mt-0 mb-1.5 line-clamp-3 border-l-2 border-[var(--td-warning-color-3)] pl-2 text-xs"
+        >
+          {{ thread.quoted_text }}
+        </p>
 
         <CommentItem
           :comment="thread"
@@ -44,14 +60,14 @@
         <CommentItem
           v-for="reply in thread.replies ?? []"
           :key="reply.id"
-          class="docs-comments-reply"
+          class="border-border ml-3 border-l pl-2"
           :comment="reply"
           :busy="busyId === reply.id"
           @edit="(body) => emit('edit', reply.id, body)"
           @delete="emit('delete', reply.id)"
         />
 
-        <footer class="docs-comments-actions" @click.stop>
+        <footer class="mt-1.5 flex flex-wrap items-center gap-2" @click.stop>
           <CommentComposer
             v-if="replyingTo === thread.id"
             :placeholder="t('docs.comments.replyPlaceholder')"
@@ -60,18 +76,24 @@
             @cancel="replyingTo = ''"
           />
           <template v-else>
-            <button type="button" class="docs-comments-action" @click="replyingTo = thread.id">
+            <button
+              type="button"
+              data-slot="comment-action"
+              class="text-primary text-xs hover:underline"
+              @click="replyingTo = thread.id"
+            >
               {{ t("docs.comments.reply") }}
             </button>
             <button
               v-if="thread.can_resolve"
               type="button"
-              class="docs-comments-action"
+              data-slot="comment-action"
+              class="text-primary text-xs hover:underline"
               @click="emit('resolve', thread.id, !thread.resolved_at)"
             >
               {{ thread.resolved_at ? t("docs.comments.reopen") : t("docs.comments.resolve") }}
             </button>
-            <span v-if="thread.resolved_at" class="docs-comments-resolved">
+            <span v-if="thread.resolved_at" class="text-placeholder text-[11px]">
               {{ t("docs.comments.resolvedBy", { name: displayName(thread.resolved_user) }) }}
             </span>
           </template>
@@ -86,6 +108,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import type { CommentView } from "@/api/docs";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import CommentComposer from "./CommentComposer.vue";
 import CommentItem from "./CommentItem.vue";
@@ -113,11 +136,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const replyingTo = ref("");
-
-const resolvedShown = computed({
-  get: () => props.showResolved,
-  set: (value: boolean) => emit("update:showResolved", value),
-});
 
 /**
  * The order the sidebar reads in: comments on passages first, top to bottom
@@ -149,124 +167,3 @@ watch(
   },
 );
 </script>
-
-<style scoped lang="less">
-.docs-comments {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  font-size: 13px;
-}
-
-.docs-comments-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-
-  h3 {
-    margin: 0;
-    font-size: 14px;
-  }
-}
-
-.docs-comments-count {
-  margin-left: 4px;
-  color: var(--td-text-color-placeholder);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-comments-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-}
-
-.docs-comments-note {
-  margin: 8px 0;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-comments-group {
-  margin: 12px 0 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-comments-thread {
-  padding: 8px 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--td-brand-color-light-active);
-  }
-
-  &.is-active {
-    border-color: var(--td-brand-color);
-    box-shadow: 0 0 0 1px var(--td-brand-color);
-  }
-
-  &.is-resolved {
-    opacity: 0.68;
-  }
-
-  &.is-orphaned {
-    border-style: dashed;
-  }
-}
-
-// The passage the comment was about, kept so an orphaned thread still says
-// what it was answering.
-.docs-comments-quote {
-  margin: 0 0 6px;
-  padding-left: 8px;
-  border-left: 2px solid var(--td-warning-color-3);
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.docs-comments-reply {
-  margin-left: 12px;
-  padding-left: 8px;
-  border-left: 1px solid var(--td-component-stroke);
-}
-
-.docs-comments-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.docs-comments-action {
-  border: none;
-  background: transparent;
-  padding: 0;
-  color: var(--td-brand-color);
-  font-size: 12px;
-  cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.docs-comments-resolved {
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

@@ -1,100 +1,123 @@
 <template>
-  <div class="share-panel">
-    <t-loading :loading="loading" size="small">
-      <t-alert v-if="!sharingAvailable" theme="info" class="off-alert">
-        <template #message>{{ t("docs.share.disabled") }}</template>
-      </t-alert>
+  <div class="flex min-h-20 flex-col gap-3.5">
+    <div v-if="loading && !links.length" class="flex items-center justify-center gap-2 py-6">
+      <Loader2Icon class="size-4 animate-spin" />
+    </div>
+    <template v-else>
+      <Alert v-if="!sharingAvailable" class="bg-primary/5 border-primary/30 m-0">
+        <InfoIcon />
+        <AlertDescription>{{ t("docs.share.disabled") }}</AlertDescription>
+      </Alert>
 
       <template v-else>
-        <ul v-if="links.length" class="link-list">
-          <li v-for="link in links" :key="link.id" class="link-row">
-            <div class="link-main">
-              <button type="button" class="link-url" :title="urlOf(link)" @click="copy(link)">
-                <t-icon name="link" size="14px" />
-                <span class="link-text">{{ urlOf(link) }}</span>
+        <ul v-if="links.length" class="m-0 flex list-none flex-col gap-2.5 p-0">
+          <li v-for="link in links" :key="link.id" class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <button
+                type="button"
+                data-slot="share-link-url"
+                class="text-primary flex max-w-full cursor-pointer items-center gap-1.5 border-0 p-0 text-[13px]"
+                :title="urlOf(link)"
+                @click="copy(link)"
+              >
+                <LinkIcon class="size-3.5 flex-none" />
+                <span class="truncate">{{ urlOf(link) }}</span>
               </button>
-              <div class="link-facts">
+              <div class="text-placeholder mt-1 flex flex-wrap items-center gap-2.5 text-xs">
                 <!-- A link that resolves to nothing is the one fact the owner
                      most needs; it leads. -->
-                <t-tag v-if="!link.live" size="small" theme="warning" variant="light">
-                  {{ t("docs.share.notLive") }}
-                </t-tag>
-                <span v-if="link.has_password" class="fact">
-                  <t-icon name="lock-on" size="12px" /> {{ t("docs.share.hasPassword") }}
+                <Badge v-if="!link.live" class="bg-warning/10 text-warning">{{ t("docs.share.notLive") }}</Badge>
+                <span v-if="link.has_password" class="inline-flex items-center gap-[3px]">
+                  <LockIcon class="size-3" /> {{ t("docs.share.hasPassword") }}
                 </span>
-                <span v-if="link.include_children" class="fact">
-                  <t-icon name="tree-square-dot" size="12px" /> {{ t("docs.share.withChildren") }}
+                <span v-if="link.include_children" class="inline-flex items-center gap-[3px]">
+                  <FolderTreeIcon class="size-3" /> {{ t("docs.share.withChildren") }}
                 </span>
-                <span v-if="link.expires_at" class="fact">
-                  <t-icon name="time" size="12px" /> {{ t("docs.share.expires", { date: dateOf(link.expires_at) }) }}
+                <span v-if="link.expires_at" class="inline-flex items-center gap-[3px]">
+                  <ClockIcon class="size-3" /> {{ t("docs.share.expires", { date: dateOf(link.expires_at) }) }}
                 </span>
-                <span v-if="link.allow_search_index" class="fact">
-                  <t-icon name="search" size="12px" /> {{ t("docs.share.indexed") }}
+                <span v-if="link.allow_search_index" class="inline-flex items-center gap-[3px]">
+                  <SearchIcon class="size-3" /> {{ t("docs.share.indexed") }}
                 </span>
-                <span class="fact">{{ t("docs.share.views", { n: link.view_count }) }}</span>
+                <span>{{ t("docs.share.views", { n: link.view_count }) }}</span>
               </div>
             </div>
-            <t-button
+            <Button
               v-if="canManage"
-              variant="text"
-              size="small"
-              theme="danger"
-              :loading="busy === link.id"
+              variant="ghost"
+              size="sm"
+              class="text-destructive hover:text-destructive flex-none"
+              :disabled="busy === link.id"
               @click="confirmRevoke(link)"
             >
+              <Loader2Icon v-if="busy === link.id" class="animate-spin" />
               {{ t("docs.share.revoke") }}
-            </t-button>
+            </Button>
           </li>
         </ul>
-        <p v-else-if="!loading" class="link-empty">{{ t("docs.share.none") }}</p>
+        <p v-else class="text-placeholder m-0 text-[13px]">{{ t("docs.share.none") }}</p>
 
         <!-- Restricted pages cannot be published at all, and saying why is
              more useful than a disabled button with no explanation. -->
-        <t-alert v-if="restricted" theme="warning" class="off-alert">
-          <template #message>{{ t("docs.share.restrictedPage") }}</template>
-        </t-alert>
+        <Alert v-if="restricted" class="bg-warning/5 border-warning/40 m-0">
+          <TriangleAlertIcon />
+          <AlertDescription>{{ t("docs.share.restrictedPage") }}</AlertDescription>
+        </Alert>
 
-        <form v-else-if="canManage" class="new-link" @submit.prevent="create">
-          <div class="new-options">
-            <t-checkbox v-model="includeChildren">{{ t("docs.share.optionChildren") }}</t-checkbox>
-            <t-checkbox v-model="allowIndex">{{ t("docs.share.optionIndex") }}</t-checkbox>
+        <form
+          v-else-if="canManage"
+          class="flex flex-col gap-2 border-t border-[var(--td-component-stroke)] pt-3"
+          @submit.prevent="create"
+        >
+          <div class="flex flex-wrap gap-4">
+            <div class="flex items-center gap-2">
+              <Checkbox id="share-option-children" v-model="includeChildren" />
+              <Label for="share-option-children" class="font-normal">{{ t("docs.share.optionChildren") }}</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox id="share-option-index" v-model="allowIndex" />
+              <Label for="share-option-index" class="font-normal">{{ t("docs.share.optionIndex") }}</Label>
+            </div>
           </div>
-          <div class="new-row">
-            <t-input
+          <div class="flex flex-wrap gap-2">
+            <Input
               v-model="password"
               type="password"
-              size="small"
-              class="new-password"
+              class="h-7 min-w-[140px] flex-1 text-xs md:text-xs"
               :placeholder="t('docs.share.optionPassword')"
               :maxlength="64"
             />
-            <t-date-picker
+            <Input
               v-model="expiresAt"
-              size="small"
-              class="new-expiry"
-              clearable
+              type="date"
+              class="h-7 w-[160px] text-xs md:text-xs"
+              :min="today"
               :placeholder="t('docs.share.optionExpiry')"
-              :disable-date="disablePast"
             />
-            <t-button theme="primary" size="small" type="submit" :loading="creating">
+            <Button size="sm" type="submit" :disabled="creating">
+              <Loader2Icon v-if="creating" class="animate-spin" />
               {{ t("docs.share.create") }}
-            </t-button>
+            </Button>
           </div>
         </form>
       </template>
-    </t-loading>
+    </template>
 
-    <t-dialog
-      v-model:visible="revokeVisible"
-      :header="t('docs.share.revokeHeader')"
-      theme="danger"
-      width="440px"
-      :confirm-btn="{ content: t('docs.share.revoke'), theme: 'danger' }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="revoke"
-    >
-      <p>{{ t("docs.share.revokeBody") }}</p>
-    </t-dialog>
+    <Dialog :open="revokeVisible" @update:open="(v: boolean) => (revokeVisible = v)">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.share.revokeHeader") }}</DialogTitle>
+        </DialogHeader>
+        <p class="text-foreground text-sm">{{ t("docs.share.revokeBody") }}</p>
+        <DialogFooter>
+          <Button variant="outline" @click="revokeVisible = false">{{ t("common.cancel") }}</Button>
+          <Button variant="destructive" @click="revoke">
+            <Loader2Icon v-if="busy" class="animate-spin" />
+            {{ t("docs.share.revoke") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -103,7 +126,25 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 
+import {
+  ClockIcon,
+  FolderTreeIcon,
+  InfoIcon,
+  LinkIcon,
+  Loader2Icon,
+  LockIcon,
+  SearchIcon,
+  TriangleAlertIcon,
+} from "@lucide/vue";
+
 import { createShare, listShares, revokeShare, type ShareView } from "@/api/docs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useDeploymentCapabilitiesStore } from "@/stores/deploymentCapabilities";
 
 // Publishing a page to the internet, and seeing what is already published.
@@ -137,6 +178,14 @@ const pending = ref<ShareView | null>(null);
 
 const canManage = computed(() => props.canManage);
 
+/** Earliest day the picker offers: today, in the reader's own calendar (the
+ * old picker disabled only days before today). */
+const today = (() => {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+})();
+
 /** The address a visitor opens. Built here rather than returned by the
  * server, which does not know how this deployment is addressed from outside. */
 function urlOf(link: ShareView): string {
@@ -148,8 +197,6 @@ function dateOf(iso?: string): string {
   const at = new Date(iso);
   return Number.isNaN(at.getTime()) ? "" : at.toLocaleDateString(locale.value);
 }
-
-const disablePast = (date: Date) => date.getTime() < Date.now() - 86400000;
 
 function fail(err: unknown, fallback: string) {
   const msg = (err as { message?: string } | null)?.message;
@@ -230,106 +277,3 @@ watch(
   { immediate: true },
 );
 </script>
-
-<style scoped>
-.share-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 80px;
-}
-
-.off-alert {
-  margin: 0;
-}
-
-.link-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.link-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.link-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.link-url {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.link-text {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.link-facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.fact {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.link-empty {
-  margin: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.new-link {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.new-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.new-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.new-password {
-  flex: 1;
-  min-width: 140px;
-}
-
-.new-expiry {
-  width: 160px;
-}
-</style>

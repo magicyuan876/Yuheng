@@ -1,11 +1,16 @@
 <template>
-  <NodeViewWrapper class="docs-embed" :class="[`docs-embed--${align}`, { 'docs-embed--selected': selected }]">
-    <div class="docs-embed-frame" :style="frameStyle">
+  <NodeViewWrapper class="my-3 flex flex-col" :class="ALIGN_CLASS[align] ?? ALIGN_CLASS.center">
+    <div
+      class="bg-secondary relative w-full max-w-full overflow-hidden rounded-[8px]"
+      :class="selected ? 'outline-primary outline-2 outline-offset-2' : ''"
+      :style="frameStyle"
+    >
       <!-- The address is the one the server derived from its allow-list, never
            the one stored on the node. Sandboxed, with no referrer and no
            access to this document. -->
       <iframe
         v-if="embedUrl"
+        class="block h-full w-full border-0"
         :src="embedUrl"
         :title="provider"
         sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
@@ -13,18 +18,35 @@
         loading="lazy"
         allowfullscreen
       />
-      <p v-else-if="checking" class="docs-embed-note">{{ t("docs.media.embedChecking") }}</p>
-      <p v-else class="docs-embed-note docs-embed-note--refused">
-        <t-icon name="error-circle" size="14px" />
+      <p v-else-if="checking" class="text-placeholder m-0 flex h-full items-center justify-center gap-1.5 text-[13px]">
+        {{ t("docs.media.embedChecking") }}
+      </p>
+      <p v-else class="text-destructive m-0 flex h-full items-center justify-center gap-1.5 text-[13px]">
+        <CircleXIcon class="size-3.5" />
         <span>{{ t("docs.media.embedRefused") }}</span>
-        <a :href="url" target="_blank" rel="noopener noreferrer nofollow">{{ t("docs.media.openInTab") }}</a>
+        <a class="text-primary" :href="url" target="_blank" rel="noopener noreferrer nofollow">
+          {{ t("docs.media.openInTab") }}
+        </a>
       </p>
     </div>
 
-    <div v-if="editor.isEditable" class="docs-embed-tools">
-      <a class="docs-embed-source" :href="url" target="_blank" rel="noopener noreferrer nofollow">{{ host }}</a>
-      <button type="button" :aria-label="t('docs.attachments.remove')" @click="deleteNode">
-        <t-icon name="delete" size="14px" />
+    <div v-if="editor.isEditable" class="mt-1 flex items-center gap-2 text-xs">
+      <a
+        class="text-placeholder hover:text-primary no-underline"
+        :href="url"
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+      >
+        {{ host }}
+      </a>
+      <button
+        type="button"
+        data-slot="embed-remove"
+        class="text-placeholder hover:text-destructive cursor-pointer rounded border-0 p-0.5 leading-0"
+        :aria-label="t('docs.attachments.remove')"
+        @click="deleteNode"
+      >
+        <Trash2Icon class="size-3.5" />
       </button>
     </div>
   </NodeViewWrapper>
@@ -35,12 +57,20 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { CircleXIcon, Trash2Icon } from "@lucide/vue";
+
 import { DOCS_EMBEDS, type EmbedResolverHandle } from "./linkContext";
 
 const props = defineProps<NodeViewProps>();
 const { t } = useI18n();
 
 const resolver = inject<EmbedResolverHandle | null>(DOCS_EMBEDS, null);
+
+const ALIGN_CLASS: Record<string, string> = {
+  left: "items-start",
+  center: "items-center",
+  right: "items-end",
+};
 
 const provider = computed(() => String(props.node.attrs.provider ?? ""));
 const url = computed(() => String(props.node.attrs.url ?? ""));
@@ -79,94 +109,3 @@ const frameStyle = computed(() => {
   };
 });
 </script>
-
-<style scoped lang="less">
-.docs-embed {
-  display: flex;
-  flex-direction: column;
-  margin: 12px 0;
-
-  &--left {
-    align-items: flex-start;
-  }
-
-  &--center {
-    align-items: center;
-  }
-
-  &--right {
-    align-items: flex-end;
-  }
-
-  &--selected .docs-embed-frame {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 2px;
-  }
-}
-
-.docs-embed-frame {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--td-bg-color-secondarycontainer);
-
-  iframe {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-}
-
-.docs-embed-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 100%;
-  margin: 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-
-  &--refused {
-    color: var(--td-error-color);
-  }
-
-  a {
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-embed-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 12px;
-
-  button {
-    border: none;
-    background: transparent;
-    color: var(--td-text-color-placeholder);
-    border-radius: 4px;
-    padding: 2px;
-    line-height: 0;
-    cursor: pointer;
-
-    &:hover {
-      color: var(--td-error-color);
-    }
-  }
-}
-
-.docs-embed-source {
-  color: var(--td-text-color-placeholder);
-  text-decoration: none;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-</style>

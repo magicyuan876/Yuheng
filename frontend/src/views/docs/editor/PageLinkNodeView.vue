@@ -1,19 +1,16 @@
 <template>
-  <NodeViewWrapper as="span" class="docs-pagelink-wrap">
+  <NodeViewWrapper as="span" class="inline">
     <a
-      class="docs-pagelink"
-      :class="{
-        'docs-pagelink--broken': resolved === false,
-        'docs-pagelink--loading': page === undefined,
-        'docs-pagelink--selected': selected,
-      }"
+      class="inline-flex items-baseline gap-[3px] rounded-[3px] border-b px-[3px] no-underline"
+      :class="[stateClass, selected ? 'outline-primary outline-2 outline-offset-1 outline-solid' : '']"
       :href="href"
       :title="resolved === false ? t('docs.links.brokenHint') : page?.title"
       @click.prevent="open"
     >
-      <span v-if="page?.icon" class="docs-pagelink-icon">{{ page.icon }}</span>
-      <t-icon v-else :name="resolved === false ? 'link-unlink' : 'file'" size="13px" />
-      <span class="docs-pagelink-text">{{ label }}</span>
+      <span v-if="page?.icon" class="text-xs">{{ page.icon }}</span>
+      <UnlinkIcon v-else-if="resolved === false" class="size-[13px]" />
+      <FileIcon v-else class="size-[13px]" />
+      <span class="whitespace-nowrap">{{ label }}</span>
     </a>
   </NodeViewWrapper>
 </template>
@@ -23,6 +20,8 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+
+import { FileIcon, UnlinkIcon } from "@lucide/vue";
 
 import { pageSlug } from "../tree/pageTree";
 
@@ -60,60 +59,21 @@ const href = computed(() => {
   return `/docs/spaces/${p.spaceId}/${pageSlug(p.title, p.shortId)}`;
 });
 
+// One class set per state, so no two states fight over the same property: a
+// broken link is dashed and inert, a loading one hides its underline, a resolved
+// one is the brand-coloured link with the light hover.
+const stateClass = computed(() => {
+  if (resolved.value === false) {
+    return "text-placeholder cursor-default border-dashed border-[var(--td-text-color-placeholder)]";
+  }
+  if (page.value === undefined)
+    return "text-placeholder cursor-pointer border-transparent hover:bg-[var(--td-brand-color-light)]";
+  return "text-primary cursor-pointer border-[var(--td-brand-color-4)] hover:bg-[var(--td-brand-color-light)]";
+});
+
 function open() {
   const p = page.value;
   if (!p?.resolved || !p.spaceId || !p.shortId) return;
   void router.push(href.value);
 }
 </script>
-
-<style scoped lang="less">
-.docs-pagelink-wrap {
-  display: inline;
-}
-
-.docs-pagelink {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 3px;
-  padding: 0 3px;
-  border-radius: 3px;
-  color: var(--td-brand-color);
-  text-decoration: none;
-  border-bottom: 1px solid var(--td-brand-color-4);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-brand-color-light);
-  }
-
-  &--broken {
-    color: var(--td-text-color-placeholder);
-    border-bottom-style: dashed;
-    border-bottom-color: var(--td-text-color-placeholder);
-    cursor: default;
-
-    &:hover {
-      background: transparent;
-    }
-  }
-
-  &--loading {
-    color: var(--td-text-color-placeholder);
-    border-bottom-color: transparent;
-  }
-
-  &--selected {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-}
-
-.docs-pagelink-icon {
-  font-size: 12px;
-}
-
-.docs-pagelink-text {
-  white-space: nowrap;
-}
-</style>

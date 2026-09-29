@@ -1,54 +1,65 @@
 <template>
-  <section class="storage-usage">
-    <t-loading :loading="loading" size="small">
-      <div class="usage-head">
-        <span class="usage-figures">
+  <section class="flex flex-col gap-2">
+    <div v-if="loading && !usage" class="flex items-center justify-center gap-2 py-2">
+      <Loader2Icon class="size-4 animate-spin" />
+    </div>
+    <template v-else>
+      <div class="flex items-center justify-between gap-3">
+        <span class="text-foreground text-sm tabular-nums">
           <strong>{{ formatBytes(usage?.used_bytes ?? 0) }}</strong>
           <template v-if="hasLimit"> / {{ formatBytes(usage!.quota_bytes) }}</template>
-          <span v-else class="usage-unlimited">{{ t("docs.storage.unlimited") }}</span>
+          <span v-else class="text-placeholder ml-1.5 text-[13px]">{{ t("docs.storage.unlimited") }}</span>
         </span>
-        <t-button v-if="usage?.can_manage" variant="text" size="small" @click="openEditor">
+        <Button v-if="usage?.can_manage" variant="ghost" size="sm" @click="openEditor">
           {{ t("docs.storage.setQuota") }}
-        </t-button>
+        </Button>
       </div>
 
       <!-- The bar only means something when there is a ceiling to measure
            against; without one it would imply a limit that does not exist. -->
-      <div v-if="hasLimit" class="usage-track" :class="`level-${level}`">
-        <div class="usage-fill" :style="{ width: `${(fraction ?? 0) * 100}%` }" />
+      <div v-if="hasLimit" class="h-1.5 overflow-hidden rounded-full bg-[var(--td-bg-color-component)]">
+        <div
+          class="h-full rounded-full transition-[width] duration-200"
+          :class="level === 'full' ? 'bg-destructive' : level === 'warning' ? 'bg-warning' : 'bg-success'"
+          :style="{ width: `${(fraction ?? 0) * 100}%` }"
+        />
       </div>
 
-      <p class="usage-note">
+      <p class="text-placeholder m-0 min-h-[18px] text-xs">
         <template v-if="level === 'full'">{{ t("docs.storage.full") }}</template>
         <template v-else-if="level === 'warning'">{{ t("docs.storage.nearlyFull") }}</template>
         <template v-else-if="usage?.from_default">{{ t("docs.storage.fromDefault") }}</template>
         <template v-else-if="!hasLimit">{{ t("docs.storage.unlimitedHint") }}</template>
       </p>
-    </t-loading>
+    </template>
 
-    <t-dialog
-      v-model:visible="editing"
-      :header="t('docs.storage.setQuota')"
-      width="440px"
-      destroy-on-close
-      :confirm-btn="{ content: t('common.save'), loading: saving }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="save"
-    >
-      <div class="quota-form">
-        <t-input
-          v-model="draft"
-          :placeholder="t('docs.storage.quotaPlaceholder')"
-          :status="draftInvalid ? 'error' : undefined"
-        />
-        <p class="quota-hint">{{ t("docs.storage.quotaHint") }}</p>
-        <!-- Said plainly: lowering a quota below what is already stored is
-             allowed, and it is not a delete. -->
-        <p v-if="wouldBeOver" class="quota-warning">
-          {{ t("docs.storage.belowUsage", { used: formatBytes(usage?.used_bytes ?? 0) }) }}
-        </p>
-      </div>
-    </t-dialog>
+    <Dialog :open="editing" @update:open="(v: boolean) => (editing = v)">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.storage.setQuota") }}</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-2">
+          <Input
+            v-model="draft"
+            :placeholder="t('docs.storage.quotaPlaceholder')"
+            :aria-invalid="draftInvalid || undefined"
+          />
+          <p class="text-placeholder m-0 text-xs leading-normal">{{ t("docs.storage.quotaHint") }}</p>
+          <!-- Said plainly: lowering a quota below what is already stored is
+               allowed, and it is not a delete. -->
+          <p v-if="wouldBeOver" class="text-warning m-0 text-xs leading-normal">
+            {{ t("docs.storage.belowUsage", { used: formatBytes(usage?.used_bytes ?? 0) }) }}
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="editing = false">{{ t("common.cancel") }}</Button>
+          <Button :disabled="saving || (draft.trim() !== '' && parsed === null)" @click="save">
+            <Loader2Icon v-if="saving" class="animate-spin" />
+            {{ t("common.save") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </section>
 </template>
 
@@ -57,7 +68,12 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 
+import { Loader2Icon } from "@lucide/vue";
+
 import { getSpaceUsage, setSpaceQuota, type SpaceUsage } from "@/api/docs";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 import { formatBytes, parseBytes, usageFraction, usageLevel } from "./formatBytes";
 
@@ -130,78 +146,3 @@ watch(
   { immediate: true },
 );
 </script>
-
-<style scoped>
-.storage-usage {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.usage-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.usage-figures {
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-
-.usage-unlimited {
-  margin-left: 6px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.usage-track {
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--td-bg-color-component);
-}
-
-.usage-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--td-success-color);
-  transition: width 0.2s ease;
-}
-
-.level-warning .usage-fill {
-  background: var(--td-warning-color);
-}
-
-.level-full .usage-fill {
-  background: var(--td-error-color);
-}
-
-.usage-note {
-  margin: 0;
-  min-height: 18px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.quota-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.quota-hint {
-  margin: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.quota-warning {
-  margin: 0;
-  color: var(--td-warning-color);
-  font-size: 12px;
-  line-height: 1.5;
-}
-</style>

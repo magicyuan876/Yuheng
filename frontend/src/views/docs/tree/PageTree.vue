@@ -1,7 +1,7 @@
 <template>
   <div
     ref="viewport"
-    class="page-tree"
+    class="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto outline-none select-none focus-visible:shadow-[inset_0_0_0_1px_var(--td-brand-color-focus)]"
     role="tree"
     tabindex="0"
     :aria-activedescendant="activeId || undefined"
@@ -10,24 +10,32 @@
     @dragover.prevent
     @drop.prevent="onDropOutside"
   >
-    <div v-if="rows.length === 0 && !loading" class="tree-empty">
-      <div class="tree-empty-title">{{ t("docs.tree.empty") }}</div>
-      <div v-if="canEdit" class="tree-empty-hint">{{ t("docs.tree.emptyHint") }}</div>
+    <div v-if="rows.length === 0 && !loading" class="text-muted-foreground px-4 py-8 text-center">
+      <div class="text-[13px] font-medium">{{ t("docs.tree.empty") }}</div>
+      <div v-if="canEdit" class="text-placeholder mt-1 text-xs">{{ t("docs.tree.emptyHint") }}</div>
     </div>
-    <div v-else class="tree-spacer" :style="{ height: rows.length * ROW_HEIGHT + 'px' }">
+    <div v-else class="relative w-full" :style="{ height: rows.length * ROW_HEIGHT + 'px' }">
       <div
         v-for="item in visible"
         :key="item.row.node.id"
-        class="tree-row"
+        class="group absolute top-0 right-0 left-0 box-border flex h-8 cursor-pointer items-center gap-1 rounded-md pr-1.5"
+        :class="[
+          item.row.node.id === activeId
+            ? 'text-primary bg-[var(--td-brand-color-light)]'
+            : 'text-foreground hover:bg-accent',
+          item.row.node.id === dragId ? 'opacity-40' : '',
+          indicator?.id === item.row.node.id && indicator.position === 'inside'
+            ? 'shadow-[inset_0_0_0_2px_var(--td-brand-color)]'
+            : '',
+          indicator?.id === item.row.node.id && indicator.position === 'before'
+            ? 'before:absolute before:top-[-1px] before:right-2 before:left-2 before:h-0.5 before:rounded-full before:bg-[var(--td-brand-color)]'
+            : '',
+          indicator?.id === item.row.node.id && indicator.position === 'after'
+            ? 'after:absolute after:right-2 after:bottom-[-1px] after:left-2 after:h-0.5 after:rounded-full after:bg-[var(--td-brand-color)]'
+            : '',
+        ]"
         role="treeitem"
         :id="'tree-row-' + item.row.node.id"
-        :class="{
-          'tree-row--active': item.row.node.id === activeId,
-          'tree-row--dragging': item.row.node.id === dragId,
-          'tree-row--drop-inside': indicator?.id === item.row.node.id && indicator.position === 'inside',
-          'tree-row--drop-before': indicator?.id === item.row.node.id && indicator.position === 'before',
-          'tree-row--drop-after': indicator?.id === item.row.node.id && indicator.position === 'after',
-        }"
         :style="{ transform: `translateY(${item.index * ROW_HEIGHT}px)`, paddingLeft: 8 + item.row.depth * 16 + 'px' }"
         :aria-level="item.row.depth + 1"
         :aria-expanded="item.row.node.has_children ? item.row.expanded : undefined"
@@ -43,47 +51,54 @@
       >
         <button
           type="button"
-          class="tree-toggle"
-          :class="{ 'tree-toggle--hidden': !item.row.node.has_children }"
+          class="text-muted-foreground hover:bg-secondary flex h-5 w-5 flex-none cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0"
+          :class="!item.row.node.has_children ? 'invisible' : ''"
           :aria-label="item.row.expanded ? t('docs.tree.collapse') : t('docs.tree.expand')"
           tabindex="-1"
           @click.stop="emit('toggle', item.row.node)"
         >
-          <t-icon name="chevron-right" size="14px" :class="{ 'tree-toggle-icon--open': item.row.expanded }" />
+          <ChevronRightIcon
+            class="size-3.5 transition-transform duration-150"
+            :class="item.row.expanded ? 'rotate-90' : ''"
+          />
         </button>
-        <span class="tree-icon" aria-hidden="true">
-          <span v-if="item.row.node.icon" class="tree-emoji">{{ item.row.node.icon }}</span>
-          <t-icon v-else name="file" size="15px" />
+        <span class="text-muted-foreground inline-flex w-5 flex-none items-center justify-center" aria-hidden="true">
+          <span v-if="item.row.node.icon" class="text-[15px] leading-none">{{ item.row.node.icon }}</span>
+          <FileIcon v-else class="size-[15px]" />
         </span>
-        <span class="tree-title" :class="{ 'tree-title--untitled': !item.row.node.title }">
+        <span
+          class="min-w-0 flex-1 overflow-hidden text-[13px] leading-5 text-ellipsis whitespace-nowrap"
+          :class="!item.row.node.title ? 'text-placeholder' : ''"
+        >
           {{ item.row.node.title || t("docs.tree.untitled") }}
         </span>
-        <t-icon
+        <LockIcon
           v-if="item.row.node.restricted"
-          name="lock-on"
-          size="12px"
-          class="tree-flag"
+          class="text-placeholder size-3 flex-none"
           :aria-label="t('docs.pages.restricted')"
         />
-        <span class="tree-actions" @click.stop>
+        <span
+          class="inline-flex flex-none gap-0.5 opacity-0 transition-opacity duration-100 group-hover:opacity-100"
+          @click.stop
+        >
           <button
             v-if="canEdit && item.row.node.can_edit"
             type="button"
-            class="tree-action"
-            tabindex="-1"
+            class="text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0"
             :aria-label="t('docs.tree.newSubpage')"
+            tabindex="-1"
             @click="emit('action', 'new-child', item.row.node)"
           >
-            <t-icon name="add" size="14px" />
+            <PlusIcon class="size-3.5" />
           </button>
           <button
             type="button"
-            class="tree-action"
-            tabindex="-1"
+            class="text-muted-foreground hover:bg-secondary hover:text-foreground inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded border-0 bg-transparent p-0"
             :aria-label="t('docs.tree.moreActions')"
+            tabindex="-1"
             @click="openMenu($event, item.row.node)"
           >
-            <t-icon name="ellipsis" size="14px" />
+            <MoreHorizontalIcon class="size-3.5" />
           </button>
         </span>
       </div>
@@ -92,7 +107,7 @@
     <Teleport to="body">
       <div
         v-if="menu"
-        class="page-tree-menu"
+        class="bg-popover fixed z-3000 min-w-[200px] rounded-[8px] border border-[var(--td-component-stroke)] p-1 shadow-[var(--td-shadow-2)]"
         :style="{ left: menu.x + 'px', top: menu.y + 'px' }"
         role="menu"
         @click.stop
@@ -102,13 +117,19 @@
           v-for="entry in menuEntries"
           :key="entry.action"
           type="button"
-          class="page-tree-menu-item"
-          :class="{ 'page-tree-menu-item--danger': entry.danger }"
+          class="enabled:hover:bg-accent flex w-full cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 py-[7px] text-left text-[13px] disabled:cursor-not-allowed"
+          :class="
+            entry.disabled
+              ? 'text-[var(--td-text-color-disabled)]'
+              : entry.danger
+                ? 'text-destructive'
+                : 'text-foreground'
+          "
           role="menuitem"
           :disabled="entry.disabled"
           @click="runMenu(entry.action)"
         >
-          <t-icon :name="entry.icon" size="14px" />
+          <component :is="entry.icon" class="size-3.5" />
           <span>{{ entry.label }}</span>
         </button>
       </div>
@@ -117,8 +138,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import {
+  ArrowLeftRightIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  FileIcon,
+  LinkIcon,
+  LockIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "@lucide/vue";
 
 import {
   dropPositionFor,
@@ -276,16 +310,24 @@ const onDocumentKey = (e: KeyboardEvent) => {
   if (e.key === "Escape") closeMenu();
 };
 
-const menuEntries = computed(() => {
+interface MenuEntry {
+  action: TreeAction;
+  icon: Component;
+  label: string;
+  disabled: boolean;
+  danger?: boolean;
+}
+
+const menuEntries = computed<MenuEntry[]>(() => {
   const node = menu.value?.node;
   const editable = !!node && props.canEdit && node.can_edit;
   return [
-    { action: "new-child" as TreeAction, icon: "add", label: t("docs.tree.newSubpage"), disabled: !editable },
-    { action: "rename" as TreeAction, icon: "edit-1", label: t("docs.tree.rename"), disabled: !editable },
-    { action: "duplicate" as TreeAction, icon: "file-copy", label: t("docs.tree.duplicate"), disabled: !props.canEdit },
-    { action: "copy-link" as TreeAction, icon: "link", label: t("docs.tree.copyLink"), disabled: false },
-    { action: "move-space" as TreeAction, icon: "swap", label: t("docs.tree.moveToSpace"), disabled: !editable },
-    { action: "delete" as TreeAction, icon: "delete", label: t("docs.tree.delete"), disabled: !editable, danger: true },
+    { action: "new-child", icon: PlusIcon, label: t("docs.tree.newSubpage"), disabled: !editable },
+    { action: "rename", icon: PencilIcon, label: t("docs.tree.rename"), disabled: !editable },
+    { action: "duplicate", icon: CopyIcon, label: t("docs.tree.duplicate"), disabled: !props.canEdit },
+    { action: "copy-link", icon: LinkIcon, label: t("docs.tree.copyLink"), disabled: false },
+    { action: "move-space", icon: ArrowLeftRightIcon, label: t("docs.tree.moveToSpace"), disabled: !editable },
+    { action: "delete", icon: Trash2Icon, label: t("docs.tree.delete"), disabled: !editable, danger: true },
   ];
 });
 
@@ -334,230 +376,3 @@ const onKeydown = (e: KeyboardEvent) => {
   }
 };
 </script>
-
-<style scoped lang="less">
-.page-tree {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  outline: none;
-  user-select: none;
-
-  &:focus-visible {
-    box-shadow: inset 0 0 0 1px var(--td-brand-color-focus);
-  }
-}
-
-.tree-spacer {
-  position: relative;
-  width: 100%;
-}
-
-.tree-row {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-right: 6px;
-  border-radius: 6px;
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  box-sizing: border-box;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-
-    .tree-actions {
-      opacity: 1;
-    }
-  }
-
-  &--active {
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-
-  &--dragging {
-    opacity: 0.4;
-  }
-
-  &--drop-inside {
-    box-shadow: inset 0 0 0 2px var(--td-brand-color);
-  }
-
-  &--drop-before::before,
-  &--drop-after::after {
-    content: "";
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    height: 2px;
-    background: var(--td-brand-color);
-    border-radius: 1px;
-  }
-
-  &--drop-before::before {
-    top: -1px;
-  }
-
-  &--drop-after::after {
-    bottom: -1px;
-  }
-}
-
-.tree-toggle {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-  }
-
-  &--hidden {
-    visibility: hidden;
-  }
-}
-
-.tree-toggle-icon--open {
-  transform: rotate(90deg);
-}
-
-.tree-toggle :deep(.t-icon) {
-  transition: transform 0.15s ease;
-}
-
-.tree-icon {
-  flex: none;
-  width: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--td-text-color-secondary);
-}
-
-.tree-emoji {
-  font-size: 15px;
-  line-height: 1;
-}
-
-.tree-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  line-height: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &--untitled {
-    color: var(--td-text-color-placeholder);
-  }
-}
-
-.tree-flag {
-  flex: none;
-  color: var(--td-text-color-placeholder);
-}
-
-.tree-actions {
-  flex: none;
-  display: inline-flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.tree-action {
-  width: 22px;
-  height: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-  padding: 0;
-
-  &:hover {
-    background: var(--td-bg-color-secondarycontainer);
-    color: var(--td-text-color-primary);
-  }
-}
-
-.tree-empty {
-  padding: 32px 16px;
-  text-align: center;
-  color: var(--td-text-color-secondary);
-}
-
-.tree-empty-title {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.tree-empty-hint {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-</style>
-
-<style lang="less">
-/* Teleported to body: not scoped on purpose. */
-.page-tree-menu {
-  position: fixed;
-  z-index: 3000;
-  min-width: 200px;
-  padding: 4px;
-  border-radius: 8px;
-  border: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-container);
-  box-shadow: var(--td-shadow-2);
-}
-
-.page-tree-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:disabled {
-    color: var(--td-text-color-disabled);
-    cursor: not-allowed;
-  }
-
-  &--danger:not(:disabled) {
-    color: var(--td-error-color);
-  }
-}
-</style>

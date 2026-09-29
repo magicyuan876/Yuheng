@@ -1,19 +1,23 @@
 <template>
-  <NodeViewWrapper class="docs-pdf" :class="{ 'docs-pdf--selected': selected }">
-    <div class="docs-pdf-bar">
-      <t-icon name="file-pdf" size="16px" />
-      <span class="docs-pdf-name">{{ name }}</span>
-      <a v-if="src" class="docs-pdf-open" :href="src" target="_blank" rel="noopener">
+  <NodeViewWrapper
+    class="my-3 overflow-hidden rounded-[8px] border"
+    :class="selected ? 'border-primary' : 'border-[var(--td-component-stroke)]'"
+  >
+    <div class="bg-secondary flex items-center gap-2 px-2.5 py-1.5 text-[13px]">
+      <FileTextIcon class="size-4" />
+      <span class="min-w-0 flex-1 truncate">{{ name }}</span>
+      <a v-if="src" class="text-primary text-xs no-underline" :href="src" target="_blank" rel="noopener">
         {{ t("docs.media.openInTab") }}
       </a>
       <button
         v-if="editor.isEditable"
         type="button"
-        class="docs-pdf-remove"
+        data-slot="pdf-remove"
+        class="text-placeholder hover:text-destructive cursor-pointer rounded border-0 p-[3px] leading-0"
         :aria-label="t('docs.attachments.remove')"
         @click="deleteNode"
       >
-        <t-icon name="delete" size="14px" />
+        <Trash2Icon class="size-3.5" />
       </button>
     </div>
 
@@ -22,14 +26,14 @@
          the site's even if the file turns out not to be a PDF. -->
     <iframe
       v-if="src"
-      class="docs-pdf-frame"
+      class="block w-full border-0"
       :src="src"
       :style="frameStyle"
       :title="name"
       loading="lazy"
       referrerpolicy="no-referrer"
     />
-    <p v-else class="docs-pdf-missing">{{ t("docs.media.missing") }}</p>
+    <p v-else class="text-placeholder m-0 p-4 text-[13px]">{{ t("docs.media.missing") }}</p>
   </NodeViewWrapper>
 </template>
 
@@ -37,6 +41,8 @@
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { FileTextIcon, Trash2Icon } from "@lucide/vue";
 
 import { useAttachmentUrl } from "./useAttachmentUrl";
 
@@ -51,66 +57,3 @@ const frameStyle = computed(() => {
   return { height: `${height > 0 ? height : 520}px` };
 });
 </script>
-
-<style scoped lang="less">
-.docs-pdf {
-  margin: 12px 0;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  overflow: hidden;
-
-  &--selected {
-    border-color: var(--td-brand-color);
-  }
-}
-
-.docs-pdf-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--td-bg-color-secondarycontainer);
-  font-size: 13px;
-}
-
-.docs-pdf-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-pdf-open {
-  font-size: 12px;
-  color: var(--td-brand-color);
-  text-decoration: none;
-}
-
-.docs-pdf-remove {
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  border-radius: 4px;
-  padding: 3px;
-  line-height: 0;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-error-color);
-  }
-}
-
-.docs-pdf-frame {
-  display: block;
-  width: 100%;
-  border: none;
-}
-
-.docs-pdf-missing {
-  margin: 0;
-  padding: 16px;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

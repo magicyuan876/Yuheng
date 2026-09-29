@@ -1,15 +1,27 @@
 <template>
   <Teleport to="body">
-    <div class="docs-drawio" role="dialog" :aria-label="t('docs.media.diagramEdit')">
-      <div class="docs-drawio-bar">
+    <div
+      class="bg-background fixed inset-0 z-3000 flex flex-col"
+      role="dialog"
+      :aria-label="t('docs.media.diagramEdit')"
+    >
+      <div
+        class="text-foreground flex items-center justify-between border-b border-[var(--td-component-stroke)] px-3.5 py-2 text-sm"
+      >
         <span>{{ t("docs.media.diagramEdit") }}</span>
-        <button type="button" @click="emit('close')">
-          <t-icon name="close" size="16px" />
+        <button
+          type="button"
+          data-slot="drawio-close"
+          class="text-muted-foreground hover:bg-accent inline-flex cursor-pointer rounded border-0 p-1 leading-0"
+          :aria-label="t('common.close')"
+          @click="emit('close')"
+        >
+          <XIcon class="size-4" />
         </button>
       </div>
       <iframe
         ref="frame"
-        class="docs-drawio-frame"
+        class="w-full flex-1 border-0"
         :src="frameSrc"
         :title="t('docs.media.diagramEdit')"
         referrerpolicy="no-referrer"
@@ -21,6 +33,8 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { XIcon } from "@lucide/vue";
 
 import { drawioFrameURL, DrawioSession, isFromEditor, originOf, parseMessage } from "./drawio";
 import { DOCS_DIAGRAMS, type DiagramHost } from "./linkContext";
@@ -93,44 +107,3 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
 });
 </script>
-
-<style scoped lang="less">
-.docs-drawio {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: flex;
-  flex-direction: column;
-  background: var(--td-bg-color-page);
-}
-
-.docs-drawio-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--td-component-stroke);
-  font-size: 14px;
-  color: var(--td-text-color-primary);
-
-  button {
-    border: none;
-    background: transparent;
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 4px;
-    line-height: 0;
-
-    &:hover {
-      background: var(--td-bg-color-container-hover);
-    }
-  }
-}
-
-.docs-drawio-frame {
-  flex: 1;
-  width: 100%;
-  border: none;
-}
-</style>

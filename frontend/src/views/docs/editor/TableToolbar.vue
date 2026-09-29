@@ -1,26 +1,30 @@
 <template>
   <div
     v-if="visible"
-    class="docs-table-toolbar"
+    class="bg-popover fixed z-1350 flex items-center gap-0.5 rounded-[8px] border border-[var(--td-component-stroke)] px-1.5 py-1 shadow-[0_6px_20px_rgb(0_0_0/0.12)]"
     role="toolbar"
     :aria-label="t('docs.table.label')"
     :style="{ left: `${placement.left}px`, top: `${placement.top}px` }"
   >
     <template v-for="(group, gi) in groups" :key="gi">
-      <span v-if="gi > 0" class="docs-table-divider" aria-hidden="true" />
+      <span v-if="gi > 0" class="mx-1 h-[18px] w-px bg-[var(--td-component-stroke)]" aria-hidden="true" />
       <button
         v-for="action in group"
         :key="action.id"
         type="button"
-        class="docs-table-button"
-        :class="{ 'is-danger': action.danger, 'is-active': action.palette && colorOpen }"
+        data-slot="table-toolbar-button"
+        class="focus-visible:outline-primary enabled:hover:bg-accent flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-0 p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:cursor-default disabled:text-[var(--td-text-color-disabled)]"
+        :class="[
+          action.palette && colorOpen ? 'text-primary bg-[var(--td-brand-color-light)]' : 'text-foreground',
+          action.danger ? 'enabled:hover:text-destructive' : '',
+        ]"
         :title="t(action.labelKey)"
         :aria-label="t(action.labelKey)"
         :disabled="!enabled(action)"
         @mousedown.prevent
         @click="run(action)"
       >
-        <t-icon :name="action.icon" size="16px" />
+        <component :is="editorIcon(action.icon, TableIcon)" class="size-4" />
       </button>
     </template>
   </div>
@@ -30,18 +34,23 @@
     buttons and change the bar's width as it opened. -->
   <div
     v-if="visible && colorOpen"
-    class="docs-table-colors"
+    class="bg-popover fixed z-1350 rounded-[8px] border border-[var(--td-component-stroke)] p-2 shadow-[0_6px_20px_rgb(0_0_0/0.12)]"
     :style="{ left: `${placement.left}px`, top: `${placement.top + 40}px` }"
     @keydown.esc.prevent.stop="closeColors"
   >
-    <div class="docs-table-swatches" role="listbox" :aria-label="t('docs.table.cellColor')">
+    <!-- Ten to a row, so the two bands line up hue for hue: the pale one sits directly above the
+         saturated one it is a tint of. A swatch's ring is a hairline at low opacity rather than
+         the component stroke: against a saturated swatch the stroke colour disappears, and a
+         ring that vanishes on half the palette looks like a rendering fault. -->
+    <div class="grid grid-cols-[repeat(10,20px)] gap-[5px]" role="listbox" :aria-label="t('docs.table.cellColor')">
       <button
         v-for="color in CELL_COLORS"
         :key="color"
         type="button"
         role="option"
-        class="docs-table-swatch"
-        :class="{ 'is-active': currentColor.toLowerCase() === color }"
+        data-slot="table-swatch"
+        class="h-5 w-5 cursor-pointer rounded border border-black/12 outline-offset-1 hover:outline-2 hover:outline-[var(--td-brand-color)] focus-visible:outline-2 focus-visible:outline-[var(--td-brand-color)]"
+        :class="currentColor.toLowerCase() === color ? 'outline-2 outline-[var(--td-brand-color)]' : ''"
         :aria-selected="currentColor.toLowerCase() === color"
         :style="{ background: color }"
         :title="color"
@@ -51,20 +60,27 @@
       />
     </div>
 
-    <div class="docs-table-colors-foot">
-      <button type="button" class="docs-table-colors-action" @mousedown.prevent @click="applyColor(null)">
-        <t-icon name="close" size="13px" />
+    <div class="mt-2 flex items-center gap-1 border-t border-[var(--td-component-stroke)] pt-2">
+      <button
+        type="button"
+        data-slot="table-colors-action"
+        class="text-muted-foreground hover:bg-accent focus-visible:outline-primary flex h-[26px] flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border-0 px-2 text-xs focus-visible:outline-2 focus-visible:-outline-offset-2"
+        @mousedown.prevent
+        @click="applyColor(null)"
+      >
+        <XIcon class="size-[13px]" />
         <span>{{ t("docs.table.cellColorDefault") }}</span>
       </button>
       <button
         type="button"
-        class="docs-table-colors-action"
-        :class="{ 'is-active': pickerOpen }"
+        data-slot="table-colors-action"
+        class="focus-visible:outline-primary flex h-[26px] flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border-0 px-2 text-xs focus-visible:outline-2 focus-visible:-outline-offset-2"
+        :class="pickerOpen ? 'text-primary bg-[var(--td-brand-color-light)]' : 'text-muted-foreground hover:bg-accent'"
         :aria-expanded="pickerOpen"
         @mousedown.prevent
         @click="pickerOpen = !pickerOpen"
       >
-        <t-icon name="palette" size="13px" />
+        <PaletteIcon class="size-[13px]" />
         <span>{{ t("docs.table.cellColorCustom") }}</span>
       </button>
     </div>
@@ -72,14 +88,13 @@
     <!-- Hex without an alpha channel. A half-transparent fill is not a colour
       the document can round-trip: the schema stores one string, and what a
       reader sees would depend on whatever happens to be behind the table. -->
-    <div v-if="pickerOpen" class="docs-table-picker" @mousedown.prevent>
-      <t-color-picker-panel
-        format="HEX"
-        :enable-alpha="false"
-        :show-primary-color-preview="false"
-        :color-modes="['monochrome']"
+    <div v-if="pickerOpen" class="mt-2 border-t border-[var(--td-component-stroke)] pt-2" @mousedown.prevent>
+      <input
+        type="color"
+        class="h-8 w-full cursor-pointer"
         :value="currentColor || DEFAULT_PICK"
-        @change="onPick"
+        :aria-label="t('docs.table.cellColorCustom')"
+        @change="onPick(($event.target as HTMLInputElement).value)"
       />
     </div>
   </div>
@@ -90,6 +105,8 @@ import type { Editor } from "@tiptap/core";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { PaletteIcon, TableIcon, XIcon } from "@lucide/vue";
+
 import {
   CELL_COLORS,
   canRun,
@@ -99,6 +116,7 @@ import {
   type TableAction,
   type TablePlacement,
 } from "./tableActions";
+import { editorIcon } from "./lucideIconMap";
 
 const props = defineProps<{
   visible: boolean;
@@ -172,7 +190,12 @@ function closeColors() {
   props.editor?.commands.focus();
 }
 
-/** A colour dragged out of the picker panel. */
+/**
+ * A colour committed on the native picker. `change`, not `input`: the picker
+ * reports every step of a drag as input, and each would be a transaction of
+ * its own (and would pull focus back into the editor mid-drag), where the old
+ * panel applied the colour once the drag ended.
+ */
 function onPick(value: unknown) {
   if (typeof value === "string" && isCellColor(value)) applyColor(value);
 }
@@ -210,148 +233,3 @@ watch(
   },
 );
 </script>
-
-<style scoped lang="less">
-.docs-table-toolbar {
-  position: fixed;
-  z-index: 1350;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 6px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-}
-
-.docs-table-divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 4px;
-  background: var(--td-component-stroke);
-}
-
-.docs-table-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: -2px;
-  }
-
-  &.is-active {
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-
-  &.is-danger:hover:not(:disabled) {
-    color: var(--td-error-color);
-  }
-
-  &:disabled {
-    color: var(--td-text-color-disabled);
-    cursor: default;
-  }
-}
-
-.docs-table-colors {
-  position: fixed;
-  z-index: 1350;
-  padding: 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-}
-
-// Ten to a row, so the two bands line up hue for hue: the pale one sits
-// directly above the saturated one it is a tint of.
-.docs-table-swatches {
-  display: grid;
-  grid-template-columns: repeat(10, 20px);
-  gap: 5px;
-}
-
-.docs-table-swatch {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  // A hairline at low opacity rather than the component stroke: against a
-  // saturated swatch the stroke colour disappears, and a ring that vanishes
-  // on half the palette looks like a rendering fault.
-  border: 1px solid rgb(0 0 0 / 12%);
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-
-  &.is-active {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-}
-
-.docs-table-colors-foot {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.docs-table-colors-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  flex: 1;
-  height: 26px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: -2px;
-  }
-
-  &.is-active {
-    background: var(--td-brand-color-light);
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-table-picker {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-</style>

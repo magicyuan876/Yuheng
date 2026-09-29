@@ -1,9 +1,13 @@
 <template>
-  <form class="docs-composer" @submit.prevent="submit">
+  <form class="flex flex-col gap-1.5" @submit.prevent="submit">
+    <!-- The controls are bare elements drawn by hand, compact enough for a
+         sidebar; data-slot opts each into the element reset so none of the
+         browser's chrome has to be undone. -->
     <textarea
       ref="input"
       v-model="draft"
-      class="docs-composer-input"
+      data-slot="comment-input"
+      class="border-border bg-card text-foreground focus:border-primary box-border w-full resize-none rounded-[6px] border px-2 py-1.5 text-[13px] leading-[1.5] focus:outline-none"
       rows="2"
       :placeholder="placeholder ?? t('docs.comments.placeholder')"
       :disabled="busy"
@@ -11,12 +15,23 @@
       @keydown="onKeyDown"
       @input="autosize"
     />
-    <div class="docs-composer-actions">
-      <span class="docs-composer-hint">{{ t("docs.comments.submitHint") }}</span>
-      <button type="button" class="docs-composer-cancel" :disabled="busy" @click="emit('cancel')">
+    <div class="flex items-center gap-2">
+      <span class="text-placeholder flex-1 text-[11px]">{{ t("docs.comments.submitHint") }}</span>
+      <button
+        type="button"
+        data-slot="comment-cancel"
+        class="text-muted-foreground rounded-[6px] px-2.5 py-[3px] text-xs"
+        :disabled="busy"
+        @click="emit('cancel')"
+      >
         {{ t("common.cancel") }}
       </button>
-      <button type="submit" class="docs-composer-submit" :disabled="busy || !canSubmit">
+      <button
+        type="submit"
+        data-slot="comment-submit"
+        class="bg-primary rounded-[6px] px-2.5 py-[3px] text-xs text-white disabled:bg-[var(--td-bg-color-component-disabled)] disabled:text-[var(--td-text-color-disabled)]"
+        :disabled="busy || !canSubmit"
+      >
         {{ submitLabel ?? t("docs.comments.submit") }}
       </button>
     </div>
@@ -93,67 +108,3 @@ onMounted(() => {
   autosize();
 });
 </script>
-
-<style scoped lang="less">
-.docs-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.docs-composer-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font: inherit;
-  font-size: 13px;
-  line-height: 1.5;
-  resize: none;
-
-  &:focus {
-    outline: none;
-    border-color: var(--td-brand-color);
-  }
-}
-
-.docs-composer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.docs-composer-hint {
-  flex: 1;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-composer-cancel,
-.docs-composer-submit {
-  border: none;
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.docs-composer-cancel {
-  background: transparent;
-  color: var(--td-text-color-secondary);
-}
-
-.docs-composer-submit {
-  background: var(--td-brand-color);
-  color: #fff;
-
-  &:disabled {
-    background: var(--td-bg-color-component-disabled);
-    color: var(--td-text-color-disabled);
-    cursor: default;
-  }
-}
-</style>

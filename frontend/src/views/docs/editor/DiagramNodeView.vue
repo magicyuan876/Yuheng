@@ -1,26 +1,57 @@
 <template>
-  <NodeViewWrapper class="docs-diagram" :class="[`docs-diagram--${align}`, { 'docs-diagram--selected': selected }]">
+  <NodeViewWrapper class="my-3 flex flex-col" :class="ALIGN_CLASS[align] ?? ALIGN_CLASS.center">
     <!-- The reading state, and the only state an export or a share page ever
          reaches: the rendered preview, with no editor loaded at all. -->
-    <figure class="docs-diagram-frame" :style="frameStyle">
-      <img v-if="previewSrc" :src="previewSrc" :alt="t('docs.media.diagram')" loading="lazy" />
-      <p v-else class="docs-diagram-empty">{{ t("docs.media.diagramNoPreview") }}</p>
+    <figure class="group relative m-0 max-w-full leading-none" :style="frameStyle">
+      <img
+        v-if="previewSrc"
+        class="bg-card block h-auto max-w-full rounded-md"
+        :class="selected ? 'outline-primary outline-2 outline-offset-2' : ''"
+        :src="previewSrc"
+        :alt="t('docs.media.diagram')"
+        loading="lazy"
+      />
+      <p
+        v-else
+        class="text-placeholder m-0 rounded-[8px] border border-dashed border-[var(--td-component-stroke)] p-[24px_32px] text-[13px] leading-normal"
+      >
+        {{ t("docs.media.diagramNoPreview") }}
+      </p>
 
-      <div v-if="editor.isEditable" class="docs-diagram-tools">
-        <t-tooltip v-if="canEdit" :content="t('docs.media.diagramEdit')">
-          <button type="button" @click="openEditor">
-            <t-icon name="edit" size="14px" />
-          </button>
-        </t-tooltip>
-        <t-tooltip :content="t('docs.attachments.remove')">
-          <button type="button" @click="deleteNode">
-            <t-icon name="delete" size="14px" />
-          </button>
-        </t-tooltip>
+      <div
+        v-if="editor.isEditable"
+        class="absolute top-1.5 right-1.5 hidden gap-0.5 rounded-md bg-black/55 p-0.5 group-hover:flex"
+      >
+        <Tooltip v-if="canEdit">
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              data-slot="diagram-tool"
+              class="cursor-pointer rounded border-0 px-1 py-[3px] leading-0 text-white hover:bg-white/24"
+              @click="openEditor"
+            >
+              <PencilIcon class="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{{ t("docs.media.diagramEdit") }}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              data-slot="diagram-tool"
+              class="cursor-pointer rounded border-0 px-1 py-[3px] leading-0 text-white hover:bg-white/24"
+              @click="deleteNode"
+            >
+              <Trash2Icon class="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{{ t("docs.attachments.remove") }}</TooltipContent>
+        </Tooltip>
       </div>
     </figure>
 
-    <p v-if="editor.isEditable && !canEdit" class="docs-diagram-note">
+    <p v-if="editor.isEditable && !canEdit" class="text-placeholder mt-1 mb-0 text-xs">
       {{ kind === "drawio" ? t("docs.media.drawioUnavailable") : t("docs.media.excalidrawUnavailable") }}
     </p>
 
@@ -40,6 +71,10 @@ import { MessagePlugin } from "tdesign-vue-next";
 import { computed, inject, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { PencilIcon, Trash2Icon } from "@lucide/vue";
+
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { useAttachmentUrl } from "./useAttachmentUrl";
 import DrawioDialog from "./DrawioDialog.vue";
 import { EMPTY_DRAWIO_XML } from "./drawio";
@@ -51,6 +86,12 @@ const props = defineProps<NodeViewProps>();
 const { t } = useI18n();
 
 const host = inject<DiagramHost | null>(DOCS_DIAGRAMS, null);
+
+const ALIGN_CLASS: Record<string, string> = {
+  left: "items-start",
+  center: "items-center",
+  right: "items-end",
+};
 
 const kind = computed(() => props.node.type.name as "drawio" | "excalidraw");
 const align = computed(() => String(props.node.attrs.align ?? "center"));
@@ -116,88 +157,3 @@ async function store(source: string, svg: string) {
   }
 }
 </script>
-
-<style scoped lang="less">
-.docs-diagram {
-  display: flex;
-  flex-direction: column;
-  margin: 12px 0;
-
-  &--left {
-    align-items: flex-start;
-  }
-
-  &--center {
-    align-items: center;
-  }
-
-  &--right {
-    align-items: flex-end;
-  }
-}
-
-.docs-diagram-frame {
-  position: relative;
-  margin: 0;
-  max-width: 100%;
-  line-height: 0;
-
-  img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: 6px;
-    background: var(--td-bg-color-container);
-  }
-}
-
-.docs-diagram--selected .docs-diagram-frame img {
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: 2px;
-}
-
-.docs-diagram-empty {
-  margin: 0;
-  padding: 24px 32px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--td-text-color-placeholder);
-  border: 1px dashed var(--td-component-stroke);
-  border-radius: 8px;
-}
-
-.docs-diagram-tools {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: none;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
-
-  button {
-    border: none;
-    background: transparent;
-    color: #fff;
-    border-radius: 4px;
-    padding: 3px 4px;
-    line-height: 0;
-    cursor: pointer;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.24);
-    }
-  }
-}
-
-.docs-diagram-frame:hover .docs-diagram-tools {
-  display: flex;
-}
-
-.docs-diagram-note {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

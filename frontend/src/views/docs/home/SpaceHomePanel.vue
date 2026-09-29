@@ -1,83 +1,118 @@
 <template>
-  <div class="docs-home">
-    <div v-if="labels.length" class="home-labels">
+  <div class="flex w-full max-w-[720px] flex-col gap-7 text-left">
+    <div v-if="labels.length" class="flex flex-wrap items-center gap-2">
       <button
         v-for="l in labels"
         :key="l.id"
         type="button"
-        class="label-chip"
-        :class="{ on: selected.has(l.id) }"
+        data-slot="label-chip"
+        class="text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-[3px] text-[13px]"
+        :class="selected.has(l.id) ? 'border-primary bg-[var(--td-brand-color-light)]' : 'border-border bg-card'"
         @click="toggleLabel(l.id)"
       >
-        <span class="label-dot" :class="`dot-${l.color}`" />
-        <span class="label-name">{{ l.name }}</span>
-        <span class="label-count">{{ l.page_count }}</span>
+        <span class="size-2 flex-none rounded-full" :class="DOT_CLASS[l.color] ?? 'bg-placeholder'" />
+        <span>{{ l.name }}</span>
+        <span class="text-placeholder tabular-nums">{{ l.page_count }}</span>
       </button>
-      <t-button v-if="selected.size" variant="text" size="small" @click="clearLabels">
+      <Button v-if="selected.size" variant="ghost" size="sm" @click="clearLabels">
         {{ t("docs.home.clearFilter") }}
-      </t-button>
+      </Button>
     </div>
 
     <!-- Filtering replaces the lists: somebody who has narrowed to a label is
          asking one question, and answering it beside three other lists buries
          the answer. -->
-    <section v-if="selected.size" class="home-section">
-      <h2>{{ t("docs.home.filtered", { count: filtered.length }) }}</h2>
-      <t-loading :loading="filtering" size="small">
-        <ul v-if="filtered.length" class="home-list">
+    <section v-if="selected.size">
+      <h2 class="text-muted-foreground m-0 mb-2.5 text-[13px] font-semibold tracking-[0.04em] uppercase">
+        {{ t("docs.home.filtered", { count: filtered.length }) }}
+      </h2>
+      <div v-if="filtering" class="flex items-center justify-center gap-2 py-3">
+        <Loader2Icon class="size-4 animate-spin" />
+      </div>
+      <template v-else>
+        <ul v-if="filtered.length" class="m-0 flex list-none flex-col gap-0.5 p-0">
           <li v-for="n in filtered" :key="n.id">
-            <button type="button" class="home-row" @click="emit('open', n)">
-              <span class="row-icon">{{ n.icon || "📄" }}</span>
-              <span class="row-title">{{ n.title || t("docs.tree.untitled") }}</span>
+            <button
+              type="button"
+              data-slot="home-row"
+              class="hover:bg-accent flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 px-2.5 py-[7px] text-left text-sm text-inherit"
+              @click="emit('open', n)"
+            >
+              <span class="w-5 flex-none text-center">{{ n.icon || "📄" }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ n.title || t("docs.tree.untitled") }}</span>
             </button>
           </li>
         </ul>
-        <p v-else-if="!filtering" class="home-empty">{{ t("docs.home.noneWithLabels") }}</p>
-      </t-loading>
+        <p v-else class="text-placeholder m-0 text-[13px]">{{ t("docs.home.noneWithLabels") }}</p>
+      </template>
     </section>
 
     <template v-else>
-      <section v-if="favourites.length" class="home-section">
-        <h2>{{ t("docs.home.favourites") }}</h2>
-        <ul class="home-list">
+      <section v-if="favourites.length">
+        <h2 class="text-muted-foreground m-0 mb-2.5 text-[13px] font-semibold tracking-[0.04em] uppercase">
+          {{ t("docs.home.favourites") }}
+        </h2>
+        <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
           <li v-for="n in favourites" :key="n.id">
-            <button type="button" class="home-row" @click="emit('open', n)">
-              <span class="row-icon">{{ n.icon || "📄" }}</span>
-              <span class="row-title">{{ n.title || t("docs.tree.untitled") }}</span>
+            <button
+              type="button"
+              data-slot="home-row"
+              class="hover:bg-accent flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 px-2.5 py-[7px] text-left text-sm text-inherit"
+              @click="emit('open', n)"
+            >
+              <span class="w-5 flex-none text-center">{{ n.icon || "📄" }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ n.title || t("docs.tree.untitled") }}</span>
             </button>
           </li>
         </ul>
       </section>
 
-      <section v-if="visited.length" class="home-section">
-        <h2>{{ t("docs.home.recentlyViewed") }}</h2>
+      <section v-if="visited.length">
+        <h2 class="text-muted-foreground m-0 mb-2.5 text-[13px] font-semibold tracking-[0.04em] uppercase">
+          {{ t("docs.home.recentlyViewed") }}
+        </h2>
         <!-- Said plainly rather than left to be discovered: this list is on
              this device only, because it is never written to the server. -->
-        <p class="home-note">{{ t("docs.home.recentlyViewedNote") }}</p>
-        <ul class="home-list">
+        <p class="text-placeholder m-0 -mt-1.5 mb-2.5 text-xs">{{ t("docs.home.recentlyViewedNote") }}</p>
+        <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
           <li v-for="v in visited" :key="v.pageId">
-            <button type="button" class="home-row" @click="emit('openVisit', v)">
-              <span class="row-icon">{{ v.icon || "📄" }}</span>
-              <span class="row-title">{{ v.title || t("docs.tree.untitled") }}</span>
+            <button
+              type="button"
+              data-slot="home-row"
+              class="hover:bg-accent flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 px-2.5 py-[7px] text-left text-sm text-inherit"
+              @click="emit('openVisit', v)"
+            >
+              <span class="w-5 flex-none text-center">{{ v.icon || "📄" }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ v.title || t("docs.tree.untitled") }}</span>
             </button>
           </li>
         </ul>
       </section>
 
-      <section class="home-section">
-        <h2>{{ t("docs.home.recentlyEdited") }}</h2>
-        <t-loading :loading="loading" size="small">
-          <ul v-if="recent.length" class="home-list">
+      <section>
+        <h2 class="text-muted-foreground m-0 mb-2.5 text-[13px] font-semibold tracking-[0.04em] uppercase">
+          {{ t("docs.home.recentlyEdited") }}
+        </h2>
+        <div v-if="loading" class="flex items-center justify-center gap-2 py-3">
+          <Loader2Icon class="size-4 animate-spin" />
+        </div>
+        <template v-else>
+          <ul v-if="recent.length" class="m-0 flex list-none flex-col gap-0.5 p-0">
             <li v-for="n in recent" :key="n.id">
-              <button type="button" class="home-row" @click="emit('open', n)">
-                <span class="row-icon">{{ n.icon || "📄" }}</span>
-                <span class="row-title">{{ n.title || t("docs.tree.untitled") }}</span>
-                <span class="row-when">{{ when(n.content_updated_at || n.updated_at) }}</span>
+              <button
+                type="button"
+                data-slot="home-row"
+                class="hover:bg-accent flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 px-2.5 py-[7px] text-left text-sm text-inherit"
+                @click="emit('open', n)"
+              >
+                <span class="w-5 flex-none text-center">{{ n.icon || "📄" }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ n.title || t("docs.tree.untitled") }}</span>
+                <span class="text-placeholder flex-none text-xs">{{ when(n.content_updated_at || n.updated_at) }}</span>
               </button>
             </li>
           </ul>
-          <p v-else-if="!loading" class="home-empty">{{ t("docs.home.nothingYet") }}</p>
-        </t-loading>
+          <p v-else class="text-placeholder m-0 text-[13px]">{{ t("docs.home.nothingYet") }}</p>
+        </template>
       </section>
     </template>
   </div>
@@ -88,7 +123,10 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
 
+import { Loader2Icon } from "@lucide/vue";
+
 import { getSpaceHome, pagesWithLabels, type LabelView, type TreeNode } from "@/api/docs";
+import { Button } from "@/components/ui/button";
 
 import { browserStore, readVisits, type Visit } from "./recentlyViewed";
 
@@ -98,6 +136,19 @@ import { browserStore, readVisits, type Visit } from "./recentlyViewed";
 // Three of the four lists come from one request — a landing page that paints
 // in four stages reads as a page that is broken. The fourth, where they were,
 // never leaves the browser; see recentlyViewed.ts.
+
+/** A closed set, themed in one place — see LabelColors in the service. */
+const DOT_CLASS: Record<string, string> = {
+  gray: "bg-[#8b8f96]",
+  red: "bg-[#e34d59]",
+  orange: "bg-[#ed7b2f]",
+  yellow: "bg-[#ebb105]",
+  green: "bg-[#2ba471]",
+  teal: "bg-[#0594fa]",
+  blue: "bg-[#366ef4]",
+  purple: "bg-[#834ec2]",
+  pink: "bg-[#ed49b4]",
+};
 
 const props = defineProps<{ spaceId: string; spaceSlug: string }>();
 const emit = defineEmits<{ open: [TreeNode]; openVisit: [Visit] }>();
@@ -191,143 +242,3 @@ watch(selected, () => {
 
 defineExpose({ reload: load });
 </script>
-
-<style scoped>
-.docs-home {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  width: 100%;
-  max-width: 720px;
-  text-align: left;
-}
-
-.home-labels {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.label-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--td-component-border);
-  border-radius: 999px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.label-chip.on {
-  border-color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
-}
-
-.label-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--label-hue, var(--td-text-color-placeholder));
-}
-
-/* A closed set, themed in one place — see LabelColors in the service. */
-.dot-gray {
-  --label-hue: #8b8f96;
-}
-.dot-red {
-  --label-hue: #e34d59;
-}
-.dot-orange {
-  --label-hue: #ed7b2f;
-}
-.dot-yellow {
-  --label-hue: #ebb105;
-}
-.dot-green {
-  --label-hue: #2ba471;
-}
-.dot-teal {
-  --label-hue: #0594fa;
-}
-.dot-blue {
-  --label-hue: #366ef4;
-}
-.dot-purple {
-  --label-hue: #834ec2;
-}
-.dot-pink {
-  --label-hue: #ed49b4;
-}
-
-.label-count {
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-}
-
-.home-section h2 {
-  margin: 0 0 10px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.home-note {
-  margin: -6px 0 10px;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.home-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.home-row:hover {
-  background: var(--td-bg-color-container-hover);
-}
-
-.row-title {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.row-when {
-  flex: none;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.home-empty {
-  margin: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-</style>

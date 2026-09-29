@@ -2,34 +2,43 @@
   <div
     v-if="open"
     ref="menu"
-    class="docs-suggest"
+    class="bg-popover fixed z-1200 max-h-[360px] max-w-[360px] min-w-[240px] overflow-y-auto rounded-[8px] border border-[var(--td-component-stroke)] p-1 shadow-[var(--td-shadow-2)]"
     :style="{ left: `${position.left}px`, top: `${position.top}px` }"
     role="listbox"
   >
-    <p v-if="loading" class="docs-suggest-note">{{ t("docs.links.searching") }}</p>
-    <p v-else-if="!items.length" class="docs-suggest-note">
+    <p v-if="loading" class="text-placeholder m-0 px-2.5 py-2 text-[13px]">{{ t("docs.links.searching") }}</p>
+    <p v-else-if="!items.length" class="text-placeholder m-0 px-2.5 py-2 text-[13px]">
       {{ kind === "command" ? t("docs.commands.noMatches") : t("docs.links.noMatches") }}
     </p>
     <template v-for="(item, index) in items" :key="item.key">
-      <p v-if="item.group && item.group !== items[index - 1]?.group" class="docs-suggest-group" aria-hidden="true">
+      <p
+        v-if="item.group && item.group !== items[index - 1]?.group"
+        class="text-placeholder m-0 px-2 pt-1.5 pb-0.5 text-[11px]"
+        aria-hidden="true"
+      >
         {{ item.group }}
       </p>
       <button
         type="button"
         role="option"
-        class="docs-suggest-item"
-        :class="{ 'is-active': index === selected }"
+        data-slot="suggestion-item"
+        class="flex w-full cursor-pointer items-center gap-2 rounded-md border-0 px-2 py-1.5 text-left"
+        :class="index === selected ? 'bg-accent' : ''"
         :aria-selected="index === selected"
         @mousedown.prevent="emit('choose', index)"
         @mouseenter="emit('hover', index)"
       >
-        <span class="docs-suggest-icon">
+        <!-- A badge such as "H1" stands in for an icon the set does not have, so it is drawn at
+             the weight an icon reads at rather than as body text. -->
+        <span
+          class="text-placeholder inline-flex w-[18px] flex-none items-center justify-center text-center text-xs leading-none font-semibold"
+        >
           <template v-if="item.icon">{{ item.icon }}</template>
-          <t-icon v-else :name="item.iconName ?? fallbackIcon" size="14px" />
+          <component :is="editorIcon(item.iconName, fallbackIcon)" v-else class="size-3.5" />
         </span>
-        <span class="docs-suggest-text">
-          <span class="docs-suggest-title">{{ item.title }}</span>
-          <span v-if="item.hint" class="docs-suggest-hint">{{ item.hint }}</span>
+        <span class="flex min-w-0 flex-col">
+          <span class="text-foreground truncate text-[13.5px]">{{ item.title }}</span>
+          <span v-if="item.hint" class="text-placeholder truncate text-xs">{{ item.hint }}</span>
         </span>
       </button>
     </template>
@@ -37,8 +46,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch, type Component } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { FileIcon, UserRoundIcon } from "@lucide/vue";
+
+import { editorIcon } from "./lucideIconMap";
 
 /** One row of the menu, already shaped by whoever fetched it. */
 export interface SuggestionItem {
@@ -72,7 +85,7 @@ const { t } = useI18n();
 const menu = ref<HTMLElement | null>(null);
 
 /** What to draw for an entry that brought no icon of its own. */
-const fallbackIcon = computed(() => (props.kind === "mention" ? "user" : "file"));
+const fallbackIcon = computed<Component>(() => (props.kind === "mention" ? UserRoundIcon : FileIcon));
 
 /**
  * The list outgrows the popup and only the first rows are visible, so an
@@ -83,91 +96,7 @@ watch(
   () => props.selected,
   async () => {
     await nextTick();
-    menu.value?.querySelector(".is-active")?.scrollIntoView({ block: "nearest" });
+    menu.value?.querySelector("[aria-selected='true']")?.scrollIntoView({ block: "nearest" });
   },
 );
 </script>
-
-<style scoped lang="less">
-.docs-suggest {
-  position: fixed;
-  z-index: 1200;
-  min-width: 240px;
-  max-width: 360px;
-  max-height: 360px;
-  overflow-y: auto;
-  padding: 4px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: var(--td-shadow-2);
-}
-
-.docs-suggest-note {
-  margin: 0;
-  padding: 8px 10px;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-suggest-group {
-  margin: 0;
-  padding: 6px 8px 2px;
-  font-size: 11px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-suggest-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  padding: 6px 8px;
-  cursor: pointer;
-  text-align: left;
-
-  &.is-active {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.docs-suggest-icon {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  text-align: center;
-  // A badge such as "H1" stands in for an icon the set does not have, so it
-  // is drawn at the weight an icon reads at rather than as body text.
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-suggest-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.docs-suggest-title {
-  font-size: 13.5px;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docs-suggest-hint {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-</style>

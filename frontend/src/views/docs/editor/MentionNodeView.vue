@@ -1,6 +1,12 @@
 <template>
-  <NodeViewWrapper as="span" class="docs-mention-wrap">
-    <span class="docs-mention" :class="{ 'docs-mention--selected': selected }" :title="title"> @{{ label }} </span>
+  <NodeViewWrapper as="span" class="inline">
+    <span
+      class="text-primary inline-block rounded-[3px] bg-[var(--td-brand-color-light)] px-1 font-medium whitespace-nowrap"
+      :class="{ 'outline-primary outline-2 outline-offset-1': selected }"
+      :title="title"
+    >
+      @{{ label }}
+    </span>
   </NodeViewWrapper>
 </template>
 
@@ -34,24 +40,3 @@ const label = computed(
 
 const title = computed(() => person.value?.email ?? "");
 </script>
-
-<style scoped lang="less">
-.docs-mention-wrap {
-  display: inline;
-}
-
-.docs-mention {
-  display: inline-block;
-  padding: 0 4px;
-  border-radius: 3px;
-  background: var(--td-brand-color-light);
-  color: var(--td-brand-color);
-  font-weight: 500;
-  white-space: nowrap;
-
-  &--selected {
-    outline: 2px solid var(--td-brand-color);
-    outline-offset: 1px;
-  }
-}
-</style>

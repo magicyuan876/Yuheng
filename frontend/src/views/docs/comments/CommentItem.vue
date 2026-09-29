@@ -1,16 +1,28 @@
 <template>
-  <div class="docs-comment">
-    <header class="docs-comment-head">
-      <span class="docs-comment-author">{{ authorName }}</span>
-      <time class="docs-comment-when" :datetime="comment.created_at">{{ when }}</time>
-      <span v-if="comment.edited_at" class="docs-comment-edited">{{ t("docs.comments.edited") }}</span>
+  <div class="py-1">
+    <header class="flex items-baseline gap-1.5 text-xs">
+      <span class="text-foreground font-medium">{{ authorName }}</span>
+      <time class="text-placeholder text-[11px]" :datetime="comment.created_at">{{ when }}</time>
+      <span v-if="comment.edited_at" class="text-placeholder text-[11px]">{{ t("docs.comments.edited") }}</span>
 
-      <span class="docs-comment-spacer" />
+      <span class="flex-1" />
       <template v-if="!editing">
-        <button v-if="comment.can_edit" type="button" class="docs-comment-action" @click.stop="startEditing">
+        <button
+          v-if="comment.can_edit"
+          type="button"
+          data-slot="comment-action"
+          class="text-placeholder hover:text-primary text-[11px]"
+          @click.stop="startEditing"
+        >
           {{ t("common.edit") }}
         </button>
-        <button v-if="comment.can_delete" type="button" class="docs-comment-action" @click.stop="confirmDelete">
+        <button
+          v-if="comment.can_delete"
+          type="button"
+          data-slot="comment-action"
+          class="text-placeholder hover:text-primary text-[11px]"
+          @click.stop="confirmDelete"
+        >
           {{ t("common.delete") }}
         </button>
       </template>
@@ -24,8 +36,15 @@
       @submit="commitEdit"
       @cancel="editing = false"
     />
+    <!-- The body is generated markup, so its paragraphs and code blocks are
+         styled as descendants: tight paragraph spacing, and a tinted block
+         for code. -->
     <!-- eslint-disable-next-line vue/no-v-html -->
-    <div v-else class="docs-comment-body" v-html="html" />
+    <div
+      v-else
+      class="[&_pre]:bg-accent mt-0.5 text-[13px] leading-[1.6] [word-break:break-word] [&_p]:mt-0 [&_p]:mb-1 [&_p:last-child]:mb-0 [&_pre]:overflow-x-auto [&_pre]:rounded-[4px] [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-xs"
+      v-html="html"
+    />
   </div>
 </template>
 
@@ -97,67 +116,3 @@ function confirmDelete() {
   });
 }
 </script>
-
-<style scoped lang="less">
-.docs-comment {
-  padding: 4px 0;
-}
-
-.docs-comment-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.docs-comment-author {
-  font-weight: 500;
-  color: var(--td-text-color-primary);
-}
-
-.docs-comment-when,
-.docs-comment-edited {
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-}
-
-.docs-comment-spacer {
-  flex: 1;
-}
-
-.docs-comment-action {
-  border: none;
-  background: transparent;
-  padding: 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 11px;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--td-brand-color);
-  }
-}
-
-.docs-comment-body {
-  margin-top: 2px;
-  font-size: 13px;
-  line-height: 1.6;
-  word-break: break-word;
-
-  :deep(p) {
-    margin: 0 0 4px;
-  }
-
-  :deep(p:last-child) {
-    margin-bottom: 0;
-  }
-
-  :deep(pre) {
-    padding: 6px 8px;
-    border-radius: 4px;
-    background: var(--td-bg-color-container-hover);
-    overflow-x: auto;
-    font-size: 12px;
-  }
-}
-</style>

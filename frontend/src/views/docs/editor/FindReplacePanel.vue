@@ -1,51 +1,91 @@
 <template>
-  <div v-if="open" class="docs-find" role="dialog" :aria-label="t('docs.find.title')" @keydown.esc.prevent.stop="close">
-    <div class="docs-find-row">
-      <input
+  <div
+    v-if="open"
+    class="bg-popover absolute top-2 right-4 z-1300 w-[380px] max-w-[calc(100%-32px)] rounded-[8px] border border-[var(--td-component-stroke)] p-2 shadow-[0_6px_20px_rgb(0_0_0/0.12)]"
+    role="dialog"
+    :aria-label="t('docs.find.title')"
+    @keydown.esc.prevent.stop="close"
+  >
+    <div class="mb-1.5 flex items-center gap-1.5">
+      <Input
         ref="queryInput"
         v-model="query"
-        type="text"
-        class="docs-find-input"
+        class="h-7 flex-1 px-2 text-[13px] md:text-[13px]"
         :placeholder="t('docs.find.findPlaceholder')"
         :aria-label="t('docs.find.findPlaceholder')"
         @keydown.enter.prevent="step($event.shiftKey ? -1 : 1)"
       />
-      <span class="docs-find-count" aria-live="polite">
+      <span class="text-placeholder flex-none text-xs tabular-nums" aria-live="polite">
         {{ matches.length ? t("docs.find.count", { index: current + 1, total: matches.length }) : t("docs.find.none") }}
       </span>
-      <button type="button" class="docs-find-icon" :aria-label="t('docs.find.previous')" @click="step(-1)">
-        <t-icon name="chevron-up" size="16px" />
+      <button
+        type="button"
+        data-slot="find-icon-button"
+        class="text-muted-foreground hover:bg-accent inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border-0"
+        :aria-label="t('docs.find.previous')"
+        @click="step(-1)"
+      >
+        <ChevronUpIcon class="size-4" />
       </button>
-      <button type="button" class="docs-find-icon" :aria-label="t('docs.find.next')" @click="step(1)">
-        <t-icon name="chevron-down" size="16px" />
+      <button
+        type="button"
+        data-slot="find-icon-button"
+        class="text-muted-foreground hover:bg-accent inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border-0"
+        :aria-label="t('docs.find.next')"
+        @click="step(1)"
+      >
+        <ChevronDownIcon class="size-4" />
       </button>
-      <button type="button" class="docs-find-icon" :aria-label="t('common.close')" @click="close">
-        <t-icon name="close" size="16px" />
+      <button
+        type="button"
+        data-slot="find-icon-button"
+        class="text-muted-foreground hover:bg-accent inline-flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border-0"
+        :aria-label="t('common.close')"
+        @click="close"
+      >
+        <XIcon class="size-4" />
       </button>
     </div>
 
-    <div v-if="editable" class="docs-find-row">
-      <input
+    <div v-if="editable" class="mb-1.5 flex items-center gap-1.5">
+      <Input
         v-model="replacement"
-        type="text"
-        class="docs-find-input"
+        class="h-7 flex-1 px-2 text-[13px] md:text-[13px]"
         :placeholder="t('docs.find.replacePlaceholder')"
         :aria-label="t('docs.find.replacePlaceholder')"
         @keydown.enter.prevent="replaceCurrent"
       />
-      <button type="button" class="docs-find-text" :disabled="!matches.length" @click="replaceCurrent">
+      <button
+        type="button"
+        data-slot="find-text-button"
+        class="text-primary h-[26px] cursor-pointer rounded-md border-0 px-2 text-[13px] disabled:cursor-default disabled:text-[var(--td-text-color-disabled)]"
+        :disabled="!matches.length"
+        @click="replaceCurrent"
+      >
         {{ t("docs.find.replace") }}
       </button>
-      <button type="button" class="docs-find-text" :disabled="!matches.length" @click="replaceEvery">
+      <button
+        type="button"
+        data-slot="find-text-button"
+        class="text-primary h-[26px] cursor-pointer rounded-md border-0 px-2 text-[13px] disabled:cursor-default disabled:text-[var(--td-text-color-disabled)]"
+        :disabled="!matches.length"
+        @click="replaceEvery"
+      >
         {{ t("docs.find.replaceAll") }}
       </button>
     </div>
 
-    <div class="docs-find-row docs-find-options">
-      <label><input v-model="caseSensitive" type="checkbox" /> {{ t("docs.find.caseSensitive") }}</label>
-      <label><input v-model="wholeWord" type="checkbox" /> {{ t("docs.find.wholeWord") }}</label>
-      <label><input v-model="regex" type="checkbox" /> {{ t("docs.find.regex") }}</label>
-      <span v-if="badPattern" class="docs-find-error">{{ t("docs.find.badPattern") }}</span>
+    <div class="text-muted-foreground flex items-center gap-3 text-xs">
+      <label class="inline-flex cursor-pointer items-center gap-1">
+        <input v-model="caseSensitive" type="checkbox" /> {{ t("docs.find.caseSensitive") }}
+      </label>
+      <label class="inline-flex cursor-pointer items-center gap-1">
+        <input v-model="wholeWord" type="checkbox" /> {{ t("docs.find.wholeWord") }}
+      </label>
+      <label class="inline-flex cursor-pointer items-center gap-1">
+        <input v-model="regex" type="checkbox" /> {{ t("docs.find.regex") }}
+      </label>
+      <span v-if="badPattern" class="text-warning">{{ t("docs.find.badPattern") }}</span>
     </div>
   </div>
 </template>
@@ -55,6 +95,10 @@ import type { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+
+import { ChevronDownIcon, ChevronUpIcon, XIcon } from "@lucide/vue";
+
+import { Input } from "@/components/ui/input";
 
 import { IdleScheduler } from "./idleWork";
 import { findKey, findMatches, matchAfter, replaceAll, replaceMatch, searchRegex, stepMatch, type Match } from "./find";
@@ -77,7 +121,9 @@ const wholeWord = ref(false);
 const regex = ref(false);
 const matches = ref<Match[]>([]);
 const current = ref(0);
-const queryInput = ref<HTMLInputElement | null>(null);
+// The ui Input is a component, so the ref holds its instance; its root element
+// is the <input> that takes focus.
+const queryInput = ref<InstanceType<typeof Input> | null>(null);
 
 const options = computed(() => ({
   caseSensitive: caseSensitive.value,
@@ -196,8 +242,9 @@ watch(
       const selected = selectedText();
       if (selected && !selected.includes("\n")) query.value = selected;
       void nextTick(() => {
-        queryInput.value?.focus();
-        queryInput.value?.select();
+        const field = queryInput.value?.$el as HTMLInputElement | undefined;
+        field?.focus();
+        field?.select();
         refresh(false);
       });
     } else {
@@ -214,97 +261,3 @@ function selectedText(): string {
   return editor.state.doc.textBetween(from, Math.min(to, from + 120), "\n");
 }
 </script>
-
-<style scoped lang="less">
-.docs-find {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: 1300;
-  width: 380px;
-  max-width: calc(100% - 32px);
-  padding: 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-}
-
-.docs-find-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  & + & {
-    margin-top: 6px;
-  }
-}
-
-.docs-find-input {
-  flex: 1;
-  min-width: 0;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 6px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  font-size: 13px;
-}
-
-.docs-find-count {
-  flex: none;
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-find-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-text-color-secondary);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.docs-find-text {
-  height: 26px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--td-brand-color);
-  font-size: 13px;
-  cursor: pointer;
-
-  &:disabled {
-    color: var(--td-text-color-disabled);
-    cursor: default;
-  }
-}
-
-.docs-find-options {
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-
-  label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-  }
-}
-
-.docs-find-error {
-  color: var(--td-warning-color);
-}
-</style>

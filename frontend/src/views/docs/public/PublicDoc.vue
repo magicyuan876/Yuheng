@@ -1,84 +1,105 @@
 <template>
-  <div class="public-doc">
-    <main class="doc-shell">
-      <t-loading :loading="loading" size="small">
+  <div class="bg-background min-h-screen">
+    <main class="mx-auto max-w-[820px] px-5 pt-12 pb-24">
+      <div v-if="loading && !page && !state" class="flex items-center justify-center gap-2 py-8">
+        <Loader2Icon class="size-4 animate-spin" />
+      </div>
+      <template v-else>
         <!-- A dead link is a thing to render, not an error to throw. Each
              outcome gets its own sentence, because "something went wrong"
              tells the visitor nothing they can act on. -->
-        <section v-if="state === 'password'" class="doc-gate">
-          <t-icon name="lock-on" size="28px" />
-          <h1>{{ t('docs.public.passwordTitle') }}</h1>
-          <p>{{ t('docs.public.passwordHint') }}</p>
-          <form class="gate-form" @submit.prevent="submitPassword">
-            <t-input v-model="password" type="password" :placeholder="t('docs.public.passwordLabel')"
-              :status="wrong ? 'error' : undefined" autofocus
-              @change="wrong = false" />
-            <t-button theme="primary" type="submit" :loading="unlocking" :disabled="!password">
-              {{ t('docs.public.unlock') }}
-            </t-button>
+        <section v-if="state === 'password'" class="text-muted-foreground flex flex-col items-center gap-3 py-20 text-center">
+          <LockIcon class="size-7" />
+          <h1 class="text-foreground m-0 text-xl">{{ t("docs.public.passwordTitle") }}</h1>
+          <p class="m-0 text-sm">{{ t("docs.public.passwordHint") }}</p>
+          <form class="mt-2 flex w-full max-w-[320px] gap-2" @submit.prevent="submitPassword">
+            <Input
+              v-model="password"
+              type="password"
+              :placeholder="t('docs.public.passwordLabel')"
+              :aria-invalid="wrong || undefined"
+              autofocus
+              @input="wrong = false"
+            />
+            <Button type="submit" :disabled="!password || unlocking">
+              <Loader2Icon v-if="unlocking" class="animate-spin" />
+              {{ t("docs.public.unlock") }}
+            </Button>
           </form>
-          <p v-if="wrong" class="gate-error">{{ t('docs.public.wrongPassword') }}</p>
+          <p v-if="wrong" class="text-destructive m-0 text-[13px]">{{ t("docs.public.wrongPassword") }}</p>
         </section>
 
-        <section v-else-if="state && state !== 'ok'" class="doc-gate">
-          <t-icon name="link-unlink" size="28px" />
-          <h1>{{ t(`docs.public.state.${state}`) }}</h1>
-          <p>{{ t('docs.public.stateHint') }}</p>
+        <section v-else-if="state && state !== 'ok'" class="text-muted-foreground flex flex-col items-center gap-3 py-20 text-center">
+          <UnlinkIcon class="size-7" />
+          <h1 class="text-foreground m-0 text-xl">{{ t(`docs.public.state.${state}`) }}</h1>
+          <p class="m-0 text-sm">{{ t("docs.public.stateHint") }}</p>
         </section>
 
-        <article v-else-if="page" class="doc-article">
-          <nav v-if="page.breadcrumb.length" class="doc-crumbs">
-            <span v-for="crumb in page.breadcrumb" :key="crumb.short_id" class="crumb-item">
-              <button type="button" class="crumb" @click="open(crumb.short_id)">
-                {{ crumb.title || t('docs.tree.untitled') }}
+        <article v-else-if="page">
+          <nav v-if="page.breadcrumb.length" class="text-placeholder mb-4 flex flex-wrap items-center gap-1 text-[13px]">
+            <span v-for="crumb in page.breadcrumb" :key="crumb.short_id" class="inline-flex items-center gap-1">
+              <button
+                type="button"
+                data-slot="public-doc-crumb"
+                class="hover:text-primary cursor-pointer border-0 p-0"
+                @click="open(crumb.short_id)"
+              >
+                {{ crumb.title || t("docs.tree.untitled") }}
               </button>
-              <span class="crumb-sep" aria-hidden="true">/</span>
+              <span aria-hidden="true">/</span>
             </span>
           </nav>
 
-          <header class="doc-head">
-            <span v-if="page.icon" class="doc-icon">{{ page.icon }}</span>
-            <h1 class="doc-title">{{ page.title || t('docs.tree.untitled') }}</h1>
-            <p class="doc-meta">
-              {{ t('docs.public.from', { space: page.space_name }) }}
-              <span v-if="page.updated_at"> · {{ t('docs.public.updated', { date: updated }) }}</span>
+          <header class="mb-7">
+            <span v-if="page.icon" class="mb-2 block text-[40px] leading-none">{{ page.icon }}</span>
+            <h1 class="m-0 text-[32px] leading-[1.25] font-bold text-balance">
+              {{ page.title || t("docs.tree.untitled") }}
+            </h1>
+            <p class="text-placeholder mt-2 mb-0 text-[13px]">
+              {{ t("docs.public.from", { space: page.space_name }) }}
+              <span v-if="page.updated_at"> · {{ t("docs.public.updated", { date: updated }) }}</span>
             </p>
           </header>
 
           <!-- The server renders the document; it is the same renderer the
                exports use, and it has already dropped everything a visitor
                may not see. -->
-          <div class="doc-body prosemirror-host" v-html="page.html" />
+          <div class="doc-body prosemirror-host text-[15px] leading-[1.75]" v-html="page.html" />
 
-          <nav v-if="page.children.length" class="doc-children">
-            <h2>{{ t('docs.public.inThisSection') }}</h2>
-            <ul>
+          <nav v-if="page.children.length" class="mt-12 border-t border-[var(--td-component-stroke)] pt-5">
+            <h2 class="text-muted-foreground m-0 mb-2.5 text-xs font-semibold tracking-[0.04em] uppercase">
+              {{ t("docs.public.inThisSection") }}
+            </h2>
+            <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
               <li v-for="c in page.children" :key="c.short_id">
-                <button type="button" class="child" @click="open(c.short_id)">
-                  <span class="child-icon">{{ c.icon || '📄' }}</span>
-                  <span>{{ c.title || t('docs.tree.untitled') }}</span>
+                <button
+                  type="button"
+                  data-slot="public-doc-child"
+                  class="hover:bg-accent flex w-full cursor-pointer items-center gap-2 rounded-md border-0 px-2.5 py-[7px] text-left text-sm text-inherit"
+                  @click="open(c.short_id)"
+                >
+                  <span class="w-5 flex-none text-center">{{ c.icon || "📄" }}</span>
+                  <span>{{ c.title || t("docs.tree.untitled") }}</span>
                 </button>
               </li>
             </ul>
           </nav>
         </article>
-      </t-loading>
+      </template>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref, shallowRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRoute, useRouter } from "vue-router";
 
-import {
-  unlockShare,
-  visitPublicSpacePage,
-  visitShare,
-  type SharedPage,
-  type ShareState,
-} from '@/api/docs'
+import { Loader2Icon, LockIcon, UnlinkIcon } from "@lucide/vue";
+
+import { unlockShare, visitPublicSpacePage, visitShare, type SharedPage, type ShareState } from "@/api/docs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // The page an anonymous visitor lands on.
 //
@@ -87,21 +108,21 @@ import {
 // with no application around it. No sidebar, no editor, no comments, no
 // account. Whatever the server did not send is not here to leak.
 
-const route = useRoute()
-const router = useRouter()
-const { t, locale } = useI18n()
+const route = useRoute();
+const router = useRouter();
+const { t, locale } = useI18n();
 
-const loading = ref(false)
-const unlocking = ref(false)
-const wrong = ref(false)
-const password = ref('')
-const state = ref<ShareState | ''>('')
-const page = shallowRef<SharedPage | null>(null)
+const loading = ref(false);
+const unlocking = ref(false);
+const wrong = ref(false);
+const password = ref("");
+const state = ref<ShareState | "">("");
+const page = shallowRef<SharedPage | null>(null);
 
 /** A public space addresses pages by id in the URL; a share link by key. */
-const shareKey = computed(() => String(route.params.key ?? ''))
-const spaceId = computed(() => String(route.params.spaceId ?? ''))
-const wantPage = computed(() => String(route.query.page ?? route.params.short ?? ''))
+const shareKey = computed(() => String(route.params.key ?? ""));
+const spaceId = computed(() => String(route.params.spaceId ?? ""));
+const wantPage = computed(() => String(route.query.page ?? route.params.short ?? ""));
 
 /**
  * The unlock token lives in sessionStorage, keyed by link.
@@ -110,19 +131,19 @@ const wantPage = computed(() => String(route.query.page ?? route.params.short ??
  * shared link is for. Wrapped because storage throws in a private window
  * rather than returning nothing.
  */
-const tokenKey = computed(() => `yuheng.docs.share.${shareKey.value}`)
+const tokenKey = computed(() => `yuheng.docs.share.${shareKey.value}`);
 
 function readToken(): string {
   try {
-    return sessionStorage.getItem(tokenKey.value) ?? ''
+    return sessionStorage.getItem(tokenKey.value) ?? "";
   } catch {
-    return ''
+    return "";
   }
 }
 
 function writeToken(token: string) {
   try {
-    sessionStorage.setItem(tokenKey.value, token)
+    sessionStorage.setItem(tokenKey.value, token);
   } catch {
     // A visitor in a locked-down browser types the password once per page
     // instead of once per session. That is a worse experience, not a broken
@@ -131,176 +152,77 @@ function writeToken(token: string) {
 }
 
 const updated = computed(() => {
-  if (!page.value?.updated_at) return ''
-  const at = new Date(page.value.updated_at)
-  return Number.isNaN(at.getTime()) ? '' : at.toLocaleDateString(locale.value)
-})
+  if (!page.value?.updated_at) return "";
+  const at = new Date(page.value.updated_at);
+  return Number.isNaN(at.getTime()) ? "" : at.toLocaleDateString(locale.value);
+});
 
 async function load() {
-  loading.value = true
+  loading.value = true;
   try {
     if (spaceId.value) {
-      page.value = await visitPublicSpacePage(spaceId.value, wantPage.value)
-      state.value = 'ok'
-      return
+      page.value = await visitPublicSpacePage(spaceId.value, wantPage.value);
+      state.value = "ok";
+      return;
     }
     const res = await visitShare(shareKey.value, {
       page: wantPage.value || undefined,
       unlockToken: readToken() || undefined,
-    })
-    state.value = res.state
-    page.value = res.page ?? null
+    });
+    state.value = res.state;
+    page.value = res.page ?? null;
   } catch {
     // The only errors that reach here are a key that was never issued and a
     // deployment with sharing switched off. Both are, from outside, the same
     // thing: there is nothing at this address.
-    state.value = 'gone'
-    page.value = null
+    state.value = "gone";
+    page.value = null;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function submitPassword() {
-  if (!password.value) return
-  unlocking.value = true
-  wrong.value = false
+  if (!password.value) return;
+  unlocking.value = true;
+  wrong.value = false;
   try {
-    const res = await unlockShare(shareKey.value, password.value)
+    const res = await unlockShare(shareKey.value, password.value);
     if (res.unlock_token) {
-      writeToken(res.unlock_token)
-      password.value = ''
-      await load()
-      return
+      writeToken(res.unlock_token);
+      password.value = "";
+      await load();
+      return;
     }
     // The link died between loading it and typing the password.
-    state.value = res.state
+    state.value = res.state;
   } catch {
-    wrong.value = true
+    wrong.value = true;
   } finally {
-    unlocking.value = false
+    unlocking.value = false;
   }
 }
 
 function open(shortId: string) {
   if (spaceId.value) {
-    router.push({ name: 'docsPublicSpacePage', params: { spaceId: spaceId.value, short: shortId } })
-    return
+    router.push({ name: "docsPublicSpacePage", params: { spaceId: spaceId.value, short: shortId } });
+    return;
   }
-  router.push({ name: 'docsPublicLink', params: { key: shareKey.value }, query: { page: shortId } })
+  router.push({ name: "docsPublicLink", params: { key: shareKey.value }, query: { page: shortId } });
 }
 
-watch([shareKey, spaceId, wantPage], () => {
-  void load()
-}, { immediate: true })
+watch(
+  [shareKey, spaceId, wantPage],
+  () => {
+    void load();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
-.public-doc {
-  min-height: 100vh;
-  background: var(--td-bg-color-page);
-}
-
-.doc-shell {
-  max-width: 820px;
-  margin: 0 auto;
-  padding-block: 48px 96px;
-  padding-inline: 20px;
-}
-
-.doc-gate {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding-block: 80px;
-  color: var(--td-text-color-secondary);
-  text-align: center;
-}
-
-.doc-gate h1 {
-  margin: 0;
-  color: var(--td-text-color-primary);
-  font-size: 20px;
-}
-
-.doc-gate p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.gate-form {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-  max-width: 320px;
-  margin-top: 8px;
-}
-
-.gate-error {
-  color: var(--td-error-color);
-  font-size: 13px;
-}
-
-.doc-crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 16px;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.crumb-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.crumb {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.crumb:hover {
-  color: var(--td-brand-color);
-}
-
-.doc-head {
-  margin-bottom: 28px;
-}
-
-.doc-icon {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 40px;
-  line-height: 1;
-}
-
-.doc-title {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.25;
-  text-wrap: balance;
-}
-
-.doc-meta {
-  margin: 8px 0 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-
-.doc-body {
-  font-size: 15px;
-  line-height: 1.75;
-}
-
+/* Server-rendered document markup; scoped host rules only, kept because they
+   style HTML this component does not own. */
 .doc-body :deep(img),
 .doc-body :deep(video) {
   max-width: 100%;
@@ -317,48 +239,5 @@ watch([shareKey, spaceId, wantPage], () => {
   padding: 12px 14px;
   border-radius: 6px;
   background: var(--td-bg-color-secondarycontainer);
-}
-
-.doc-children {
-  margin-top: 48px;
-  padding-top: 20px;
-  border-top: 1px solid var(--td-component-stroke);
-}
-
-.doc-children h2 {
-  margin: 0 0 10px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.doc-children ul {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.child {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.child:hover {
-  background: var(--td-bg-color-container-hover);
 }
 </style>

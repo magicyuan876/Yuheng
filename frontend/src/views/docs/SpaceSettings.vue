@@ -1,262 +1,449 @@
 <template>
-  <div class="docs-space-page">
-    <div class="page-header">
-      <t-button
-        variant="text"
-        size="small"
-        class="back-btn"
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-[16px_28px_24px]">
+    <div class="mb-3 flex flex-col gap-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="text-muted-foreground hover:text-foreground -ml-2.5 self-start"
         @click="router.push({ name: 'docsSpace', params: { slug: route.params.slug as string } })"
       >
-        <template #icon><t-icon name="chevron-left" /></template>
+        <ChevronLeftIcon />
         {{ t("docs.spaces.backToSpace") }}
-      </t-button>
-      <div v-if="space" class="space-heading">
+      </Button>
+      <div v-if="space" class="flex items-center gap-3.5">
         <SpaceAvatar :name="space.name" :avatar="space.icon || ''" size="large" />
-        <div class="space-heading-text">
-          <h2>{{ space.name }}</h2>
-          <div class="space-meta">
-            <span class="mono">/{{ space.slug }}</span>
-            <t-tag size="small" variant="light">{{ t("docs.spaces.visibility." + space.visibility) }}</t-tag>
-            <t-tag size="small" variant="light" theme="primary">
+        <div class="flex min-w-0 flex-col gap-1">
+          <h2 class="text-foreground m-0 text-[22px] leading-[30px] font-semibold">{{ space.name }}</h2>
+          <div class="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px]">
+            <span class="font-[family-name:var(--td-font-family-mono,ui-monospace,monospace)]">/{{ space.slug }}</span>
+            <Badge variant="secondary">{{ t("docs.spaces.visibility." + space.visibility) }}</Badge>
+            <Badge class="bg-primary/10 text-primary">
               {{ t("docs.spaces.overview.yourRole") }}: {{ t("docs.spaces.role." + space.role) }}
-            </t-tag>
+            </Badge>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="loading" class="loading-block">
-      <t-skeleton animation="gradient" :row-col="[{ width: '40%' }, { width: '100%' }, { width: '80%' }]" />
+    <div v-if="loading" class="space-y-2.5 py-6">
+      <Skeleton class="h-4 w-2/5" />
+      <Skeleton class="h-4 w-full" />
+      <Skeleton class="h-4 w-4/5" />
     </div>
-    <div v-else-if="!space" class="missing-block">{{ t("docs.spaces.loadFailed") }}</div>
+    <div v-else-if="!space" class="text-muted-foreground py-6">{{ t("docs.spaces.loadFailed") }}</div>
 
-    <t-tabs v-else v-model="tab" class="space-tabs">
+    <Tabs v-else v-model="tab" class="w-full">
+      <TabsList>
+        <TabsTrigger value="overview">{{ t("docs.spaces.tabs.overview") }}</TabsTrigger>
+        <TabsTrigger value="members">{{ t("docs.spaces.tabs.members") }}</TabsTrigger>
+        <TabsTrigger v-if="canManage" value="settings">{{ t("docs.spaces.tabs.settings") }}</TabsTrigger>
+      </TabsList>
+
       <!-- Overview -->
-      <t-tab-panel value="overview" :label="t('docs.spaces.tabs.overview')">
-        <dl class="overview-grid">
-          <dt>{{ t("docs.spaces.form.description") }}</dt>
-          <dd>{{ space.description || t("docs.spaces.noDescription") }}</dd>
-          <dt>{{ t("docs.spaces.overview.slug") }}</dt>
-          <dd class="mono">{{ space.slug }}</dd>
-          <dt>{{ t("docs.spaces.overview.visibility") }}</dt>
-          <dd>
+      <TabsContent value="overview" class="pt-4">
+        <dl class="m-0 grid max-w-[760px] grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-3">
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.form.description") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+            {{ space.description || t("docs.spaces.noDescription") }}
+          </dd>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.overview.slug") }}</dt>
+          <dd
+            class="text-foreground m-0 flex flex-col gap-0.5 font-[family-name:var(--td-font-family-mono,ui-monospace,monospace)] text-sm leading-[22px]"
+          >
+            {{ space.slug }}
+          </dd>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.overview.visibility") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
             {{ t("docs.spaces.visibility." + space.visibility) }}
-            <span v-if="space.visibility === 'open'" class="dd-hint">
+            <span v-if="space.visibility === 'open'" class="text-placeholder text-xs">
               {{ t("docs.spaces.overview.defaultRole") }}: {{ t("docs.spaces.role." + space.default_role) }}
             </span>
           </dd>
-          <dt>{{ t("docs.spaces.overview.knowledgeBase") }}</dt>
-          <dd>
-            <span v-if="space.knowledge_base_id" class="mono">{{ space.knowledge_base_id }}</span>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">
+            {{ t("docs.spaces.overview.knowledgeBase") }}
+          </dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+            <span
+              v-if="space.knowledge_base_id"
+              class="font-[family-name:var(--td-font-family-mono,ui-monospace,monospace)]"
+              >{{ space.knowledge_base_id }}</span
+            >
             <span v-else>{{ t("docs.spaces.overview.knowledgeBaseNone") }}</span>
-            <span class="dd-hint">{{ t("docs.spaces.overview.knowledgeBaseHint") }}</span>
+            <span class="text-placeholder text-xs">{{ t("docs.spaces.overview.knowledgeBaseHint") }}</span>
           </dd>
-          <dt>{{ t("docs.spaces.overview.created") }}</dt>
-          <dd>{{ formatDate(space.created_at) }}</dd>
-          <dt>{{ t("docs.spaces.overview.updated") }}</dt>
-          <dd>{{ formatDate(space.updated_at) }}</dd>
-          <dt>{{ t("docs.storage.title") }}</dt>
-          <dd>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.overview.created") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+            {{ formatDate(space.created_at) }}
+          </dd>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.spaces.overview.updated") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+            {{ formatDate(space.updated_at) }}
+          </dd>
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.storage.title") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
             <StorageUsage :space-id="space.id" />
           </dd>
-          <dt>{{ t("docs.exportDoc.title") }}</dt>
-          <dd>
-            <div class="export-row">
-              <t-select
-                v-model="exportFormat"
-                size="small"
-                :options="exportFormatOptions"
-                class="export-format"
-                :disabled="exporting"
-              />
-              <t-button size="small" :loading="exporting" @click="runSpaceExport">
+          <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.exportDoc.title") }}</dt>
+          <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+            <div class="flex items-center gap-2">
+              <Select v-model="exportFormat" :disabled="exporting">
+                <SelectTrigger class="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="markdown">{{ t("docs.exportDoc.markdown") }}</SelectItem>
+                  <SelectItem value="html">{{ t("docs.exportDoc.html") }}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm" :disabled="exporting" @click="runSpaceExport">
+                <Loader2Icon v-if="exporting" class="animate-spin" />
                 {{ t("docs.exportDoc.exportSpace") }}
-              </t-button>
+              </Button>
             </div>
-            <span v-if="exporting" class="dd-hint">{{ t("docs.exportDoc.preparing") }}</span>
+            <span v-if="exporting" class="text-placeholder text-xs">{{ t("docs.exportDoc.preparing") }}</span>
           </dd>
-          <dt v-if="canWrite">{{ t("docs.importDoc.title") }}</dt>
-          <dd v-if="canWrite">
-            <div class="export-row">
-              <input
-                ref="importInput"
-                type="file"
-                accept=".md,.markdown,.zip"
-                class="import-input"
-                :disabled="importing"
-                @change="onImportPicked"
-              />
-              <t-button size="small" :loading="importing" @click="pickImport">
-                {{ t("docs.importDoc.pick") }}
-              </t-button>
-            </div>
-            <span class="dd-hint">
-              {{ importing ? t("docs.importDoc.running") : t("docs.importDoc.hint") }}
-            </span>
-            <ul v-if="importSkipped.length" class="import-skipped">
-              <li class="import-skipped-title">{{ t("docs.importDoc.skippedTitle") }}</li>
-              <li v-for="(line, i) in importSkipped" :key="i">{{ line }}</li>
-            </ul>
-          </dd>
+          <template v-if="canWrite">
+            <dt class="text-muted-foreground text-[13px] leading-[22px]">{{ t("docs.importDoc.title") }}</dt>
+            <dd class="text-foreground m-0 flex flex-col gap-0.5 text-sm leading-[22px]">
+              <div class="flex items-center gap-2">
+                <input
+                  ref="importInput"
+                  type="file"
+                  accept=".md,.markdown,.zip"
+                  class="hidden"
+                  :disabled="importing"
+                  @change="onImportPicked"
+                />
+                <Button size="sm" :disabled="importing" @click="pickImport">
+                  <Loader2Icon v-if="importing" class="animate-spin" />
+                  {{ t("docs.importDoc.pick") }}
+                </Button>
+              </div>
+              <span class="text-placeholder text-xs">
+                {{ importing ? t("docs.importDoc.running") : t("docs.importDoc.hint") }}
+              </span>
+              <ul
+                v-if="importSkipped.length"
+                class="text-muted-foreground mt-2 mb-0 max-h-40 list-disc overflow-y-auto pl-[18px] text-xs"
+              >
+                <li class="-ml-[18px] list-none font-semibold">{{ t("docs.importDoc.skippedTitle") }}</li>
+                <li v-for="(line, i) in importSkipped" :key="i">{{ line }}</li>
+              </ul>
+            </dd>
+          </template>
         </dl>
-      </t-tab-panel>
+      </TabsContent>
 
       <!-- Members -->
-      <t-tab-panel value="members" :label="t('docs.spaces.tabs.members')">
-        <div class="members-toolbar">
-          <p class="section-hint">{{ canManage ? t("docs.members.hint") : t("docs.members.readOnlyHint") }}</p>
-          <t-button v-if="canManage" size="small" theme="primary" @click="openAddMember">
-            <template #icon><t-icon name="user-add" /></template>
+      <TabsContent value="members" class="pt-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <p class="text-muted-foreground m-0 text-[13px]">
+            {{ canManage ? t("docs.members.hint") : t("docs.members.readOnlyHint") }}
+          </p>
+          <Button v-if="canManage" size="sm" @click="openAddMember">
+            <UserRoundPlusIcon />
             {{ t("docs.members.add") }}
-          </t-button>
+          </Button>
         </div>
-        <t-table
-          :data="members"
-          :columns="memberColumns"
-          row-key="key"
-          :loading="membersLoading"
-          size="small"
-          :empty="t('docs.members.empty')"
-          hover
-        >
-          <template #member="{ row }">
-            <div class="member-cell">
-              <div class="member-avatar" :class="{ 'member-avatar--group': row.principal_type === 'group' }">
-                <img v-if="row.principal_type === 'user' && row.avatar" :src="row.avatar" alt="" />
-                <t-icon v-else :name="row.principal_type === 'group' ? 'usergroup' : 'user'" size="14px" />
-              </div>
-              <div class="member-text">
-                <span class="member-name">
-                  {{ row.name }}
-                  <t-tag v-if="row.is_default_group" size="small" variant="outline" class="default-tag">
-                    {{ t("docs.members.defaultGroup") }}
-                  </t-tag>
-                </span>
-                <span v-if="row.principal_type === 'user'" class="member-sub">{{ row.email }}</span>
-                <span v-else class="member-sub">
-                  {{ t("docs.members.groupMembers", { count: row.group_member_count ?? 0 }) }}
-                </span>
-              </div>
-            </div>
-          </template>
-          <template #type="{ row }">
-            <t-tag size="small" variant="light">{{ t("docs.members." + row.principal_type) }}</t-tag>
-          </template>
-          <template #role="{ row }">
-            <t-select
-              v-if="canManage"
-              size="small"
-              :value="row.role"
-              :options="roleOptions"
-              class="role-select"
-              :disabled="savingKey === row.key || isLastAdmin(row)"
-              @change="(v: unknown) => changeRole(row, v)"
-            />
-            <span v-else>{{ t("docs.spaces.role." + row.role) }}</span>
-          </template>
-          <template #added="{ row }">{{ formatDate(row.created_at) }}</template>
-          <template #actions="{ row }">
-            <t-tooltip v-if="isLastAdmin(row)" :content="t('docs.members.lastAdmin')">
-              <t-button variant="text" size="small" theme="danger" disabled>
-                <template #icon><t-icon name="delete" /></template>
-              </t-button>
-            </t-tooltip>
-            <t-popconfirm
-              v-else
-              :content="t('docs.members.removeConfirm', { name: row.name })"
-              theme="danger"
-              @confirm="removeMember(row)"
-            >
-              <t-button variant="text" size="small" theme="danger" :loading="savingKey === row.key">
-                <template #icon><t-icon name="delete" /></template>
-              </t-button>
-            </t-popconfirm>
-          </template>
-        </t-table>
-      </t-tab-panel>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead v-for="c in memberColumns" :key="c.colKey" :style="{ width: c.width, minWidth: c.minWidth }">
+                {{ c.title }}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-if="membersLoading">
+              <TableRow v-for="i in 3" :key="i">
+                <TableCell v-for="c in memberColumns" :key="c.colKey"><Skeleton class="h-4 w-full" /></TableCell>
+              </TableRow>
+            </template>
+            <TableRow v-else-if="!members.length">
+              <TableCell :colspan="memberColumns.length">
+                <div class="text-muted-foreground py-6 text-center text-[13px]">{{ t("docs.members.empty") }}</div>
+              </TableCell>
+            </TableRow>
+            <TableRow v-else v-for="row in members" :key="row.key">
+              <TableCell>
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <div
+                    class="flex size-7 shrink-0 items-center justify-center overflow-hidden"
+                    :class="
+                      row.principal_type === 'group'
+                        ? 'text-primary rounded-[8px] bg-[var(--td-brand-color-light)]'
+                        : 'bg-secondary text-muted-foreground rounded-full'
+                    "
+                  >
+                    <img
+                      v-if="row.principal_type === 'user' && row.avatar"
+                      :src="row.avatar"
+                      alt=""
+                      class="size-full object-cover"
+                    />
+                    <UsersRoundIcon v-else-if="row.principal_type === 'group'" class="size-3.5" />
+                    <UserRoundIcon v-else class="size-3.5" />
+                  </div>
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-foreground flex items-center gap-1.5 text-sm leading-5">
+                      {{ row.name }}
+                      <Badge v-if="row.is_default_group" variant="outline">{{ t("docs.members.defaultGroup") }}</Badge>
+                    </span>
+                    <span v-if="row.principal_type === 'user'" class="text-placeholder truncate text-xs leading-4">
+                      {{ row.email }}
+                    </span>
+                    <span v-else class="text-placeholder truncate text-xs leading-4">
+                      {{ t("docs.members.groupMembers", { count: row.group_member_count ?? 0 }) }}
+                    </span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary">{{ t("docs.members." + row.principal_type) }}</Badge>
+              </TableCell>
+              <TableCell>
+                <Select
+                  v-if="canManage"
+                  :model-value="row.role"
+                  :disabled="savingKey === row.key || isLastAdmin(row)"
+                  @update:model-value="(v) => changeRole(row, v)"
+                >
+                  <SelectTrigger size="sm" class="w-[128px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="o in roleOptions" :key="o.value" :value="o.value">{{ o.label }}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span v-else>{{ t("docs.spaces.role." + row.role) }}</span>
+              </TableCell>
+              <TableCell>{{ formatDate(row.created_at) }}</TableCell>
+              <TableCell v-if="canManage">
+                <!-- A disabled button swallows no pointer events, so the tooltip hangs on a
+                     wrapper that does. -->
+                <Tooltip v-if="isLastAdmin(row)">
+                  <TooltipTrigger as-child>
+                    <span class="inline-flex" tabindex="0">
+                      <Button variant="ghost" size="icon-sm" class="text-destructive" disabled>
+                        <Trash2Icon />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ t("docs.members.lastAdmin") }}</TooltipContent>
+                </Tooltip>
+                <Button
+                  v-else
+                  variant="ghost"
+                  size="icon-sm"
+                  class="text-destructive hover:text-destructive"
+                  :disabled="savingKey === row.key"
+                  @click="removeTarget = row"
+                >
+                  <Loader2Icon v-if="savingKey === row.key" class="animate-spin" />
+                  <Trash2Icon v-else />
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TabsContent>
 
       <!-- Settings (space admins) -->
-      <t-tab-panel v-if="canManage" value="settings" :label="t('docs.spaces.tabs.settings')">
-        <div class="settings-panel">
+      <TabsContent v-if="canManage" value="settings" class="pt-4">
+        <div class="flex max-w-[640px] flex-col gap-4">
           <SpaceForm v-model="form" mode="edit" :problems="problems" />
-          <div class="settings-actions">
-            <t-button theme="primary" :loading="saving" :disabled="!dirty" @click="saveSettings">
+          <div class="flex gap-2">
+            <Button :disabled="!dirty || saving" @click="saveSettings">
+              <Loader2Icon v-if="saving" class="animate-spin" />
               {{ t("common.save") }}
-            </t-button>
-            <t-button variant="outline" :disabled="!dirty || saving" @click="resetForm">{{
-              t("common.cancel")
-            }}</t-button>
+            </Button>
+            <Button variant="outline" :disabled="!dirty || saving" @click="resetForm">
+              {{ t("common.cancel") }}
+            </Button>
           </div>
 
-          <div class="danger-zone">
-            <div class="danger-title">{{ t("docs.spaces.dangerZone") }}</div>
-            <p class="danger-hint">{{ t("docs.spaces.dangerZoneHint") }}</p>
-            <t-button theme="danger" variant="outline" @click="deleteVisible = true">
+          <div class="mt-6 rounded-[8px] border border-[var(--td-error-color-3)] bg-[var(--td-error-color-1)] p-4">
+            <div class="text-destructive mb-1 font-semibold">{{ t("docs.spaces.dangerZone") }}</div>
+            <p class="text-muted-foreground m-0 mb-3 text-[13px]">{{ t("docs.spaces.dangerZoneHint") }}</p>
+            <Button
+              variant="outline"
+              class="text-destructive hover:text-destructive hover:bg-destructive/10 border-[var(--td-error-color)] bg-transparent dark:border-[var(--td-error-color)]"
+              @click="deleteVisible = true"
+            >
               {{ t("docs.spaces.deleteSpace") }}
-            </t-button>
+            </Button>
           </div>
         </div>
-      </t-tab-panel>
-    </t-tabs>
+      </TabsContent>
+    </Tabs>
 
     <!-- Add member dialog -->
-    <t-dialog
-      v-model:visible="addVisible"
-      :header="t('docs.members.addTitle')"
-      width="520px"
-      destroy-on-close
-      :confirm-btn="{ content: t('common.add'), loading: adding, disabled: !addForm.principal_id }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="submitAddMember"
-    >
-      <t-form label-align="top" @submit.prevent>
-        <t-form-item :label="t('docs.members.principalType')">
-          <t-radio-group v-model="addForm.principal_type" variant="default-filled" @change="addForm.principal_id = ''">
-            <t-radio-button value="user">{{ t("docs.members.user") }}</t-radio-button>
-            <t-radio-button value="group">{{ t("docs.members.group") }}</t-radio-button>
-          </t-radio-group>
-        </t-form-item>
-        <t-form-item v-if="addForm.principal_type === 'user'" :label="t('docs.members.pickUser')">
-          <t-select
-            v-model="addForm.principal_id"
-            filterable
-            :loading="memberSearch.loading.value"
-            :options="memberSearch.options.value"
-            :filter="() => true"
-            :placeholder="t('docs.members.pickUserPlaceholder')"
-            @search="memberSearch.search"
-          />
-        </t-form-item>
-        <t-form-item v-else :label="t('docs.members.pickGroup')">
-          <t-select
-            v-model="addForm.principal_id"
-            filterable
-            :loading="groupsLoading"
-            :options="groupOptions"
-            :placeholder="t('docs.members.pickGroupPlaceholder')"
-          />
-        </t-form-item>
-        <t-form-item :label="t('docs.members.role')" :tips="t('docs.members.roleHint')">
-          <t-select v-model="addForm.role" :options="roleOptions" />
-        </t-form-item>
-      </t-form>
-    </t-dialog>
+    <Dialog :open="addVisible" @update:open="(v: boolean) => (addVisible = v)">
+      <DialogContent class="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.members.addTitle") }}</DialogTitle>
+        </DialogHeader>
+        <form class="flex flex-col gap-4" @submit.prevent>
+          <div class="flex flex-col gap-1.5">
+            <Label>{{ t("docs.members.principalType") }}</Label>
+            <RadioGroup
+              v-model="addForm.principal_type"
+              class="flex gap-4"
+              @update:model-value="addForm.principal_id = ''"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem id="principal-type-user" value="user" />
+                <Label for="principal-type-user" class="font-normal">{{ t("docs.members.user") }}</Label>
+              </div>
+              <div class="flex items-center gap-2">
+                <RadioGroupItem id="principal-type-group" value="group" />
+                <Label for="principal-type-group" class="font-normal">{{ t("docs.members.group") }}</Label>
+              </div>
+            </RadioGroup>
+          </div>
 
-    <!-- Delete dialog -->
-    <t-dialog
-      v-model:visible="deleteVisible"
-      :header="t('docs.spaces.deleteConfirmTitle')"
-      theme="danger"
-      :confirm-btn="{ content: t('common.delete'), theme: 'danger', loading: deleting }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="confirmDelete"
-    >
-      <p>{{ t("docs.spaces.deleteConfirm", { name: space?.name ?? "" }) }}</p>
-    </t-dialog>
+          <div v-if="addForm.principal_type === 'user'" class="flex flex-col gap-1.5">
+            <Label>{{ t("docs.members.pickUser") }}</Label>
+            <Popover v-model:open="userPickOpen">
+              <PopoverTrigger as-child>
+                <Button type="button" variant="outline" class="w-full justify-between font-normal">
+                  <span class="truncate">{{ pickedUserLabel || t("docs.members.pickUserPlaceholder") }}</span>
+                  <ChevronsUpDownIcon class="text-placeholder size-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent class="w-(--reka-popover-trigger-width) gap-0 p-0" align="start">
+                <div class="border-border border-b p-2">
+                  <Input
+                    v-model="userQuery"
+                    class="h-8"
+                    :placeholder="t('docs.members.pickUserPlaceholder')"
+                    @input="onUserQuery"
+                  />
+                </div>
+                <div class="max-h-56 overflow-y-auto p-1">
+                  <div
+                    v-if="memberSearch.loading.value"
+                    class="text-muted-foreground flex items-center justify-center gap-2 py-4 text-[13px]"
+                  >
+                    <Loader2Icon class="size-3.5 animate-spin" />
+                  </div>
+                  <template v-else>
+                    <button
+                      v-for="o in memberSearch.options.value"
+                      :key="o.value"
+                      type="button"
+                      class="hover:bg-accent focus:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none"
+                      @click="selectUserOption(o)"
+                    >
+                      <CheckIcon
+                        class="size-3.5"
+                        :class="o.value === addForm.principal_id ? 'opacity-100' : 'opacity-0'"
+                      />
+                      <span class="truncate">{{ o.label }}</span>
+                    </button>
+                    <div
+                      v-if="!memberSearch.options.value.length"
+                      class="text-placeholder py-4 text-center text-[13px]"
+                    >
+                      {{ t("common.noData") }}
+                    </div>
+                  </template>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div v-else class="flex flex-col gap-1.5">
+            <Label>{{ t("docs.members.pickGroup") }}</Label>
+            <Select v-model="addForm.principal_id">
+              <SelectTrigger>
+                <SelectValue :placeholder="t('docs.members.pickGroupPlaceholder')" />
+              </SelectTrigger>
+              <SelectContent>
+                <div
+                  v-if="groupsLoading"
+                  class="text-muted-foreground flex items-center justify-center gap-2 py-3 text-[13px]"
+                >
+                  <Loader2Icon class="size-3.5 animate-spin" />
+                </div>
+                <template v-else>
+                  <SelectItem v-for="g in groupOptions" :key="g.value" :value="g.value" :disabled="g.disabled">
+                    {{ g.label }}
+                  </SelectItem>
+                </template>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <Label>{{ t("docs.members.role") }}</Label>
+            <Select v-model="addForm.role">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="o in roleOptions" :key="o.value" :value="o.value">{{ o.label }}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-muted-foreground m-0 text-xs">{{ t("docs.members.roleHint") }}</p>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" @click="addVisible = false">{{ t("common.cancel") }}</Button>
+          <Button :disabled="!addForm.principal_id || adding" @click="submitAddMember">
+            <Loader2Icon v-if="adding" class="animate-spin" />
+            {{ t("common.add") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Remove member confirm -->
+    <Dialog :open="removeTarget !== null" @update:open="(v: boolean) => !v && (removeTarget = null)">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.members.removeConfirm", { name: removeTarget?.name ?? "" }) }}</DialogTitle>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="removeTarget = null">{{ t("common.cancel") }}</Button>
+          <Button variant="destructive" :disabled="removing" @click="confirmRemove">
+            <Loader2Icon v-if="removing" class="animate-spin" />
+            {{ t("common.delete") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Delete space dialog -->
+    <Dialog :open="deleteVisible" @update:open="(v: boolean) => (deleteVisible = v)">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.spaces.deleteConfirmTitle") }}</DialogTitle>
+        </DialogHeader>
+        <p class="text-foreground text-sm">{{ t("docs.spaces.deleteConfirm", { name: space?.name ?? "" }) }}</p>
+        <DialogFooter>
+          <Button variant="outline" @click="deleteVisible = false">{{ t("common.cancel") }}</Button>
+          <Button variant="destructive" :disabled="deleting" @click="confirmDelete">
+            <Loader2Icon v-if="deleting" class="animate-spin" />
+            {{ t("common.delete") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  ChevronsUpDownIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  Loader2Icon,
+  Trash2Icon,
+  UserRoundIcon,
+  UserRoundPlusIcon,
+  UsersRoundIcon,
+} from "@lucide/vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -284,6 +471,18 @@ import {
   type ExportJobView,
   type ImportJobView,
 } from "@/api/docs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
 
 import StorageUsage from "./quota/StorageUsage.vue";
@@ -299,7 +498,7 @@ import {
   type SpaceFormProblem,
 } from "./docsAccess";
 import SpaceForm from "./SpaceForm.vue";
-import { useMemberSearch } from "./useMemberSearch";
+import { useMemberSearch, type MemberOption } from "./useMemberSearch";
 
 type MemberRow = SpaceMember & { key: string };
 
@@ -364,14 +563,21 @@ const loadMembers = async () => {
 
 const roleOptions = computed(() => GRANTABLE_SPACE_ROLES.map((r) => ({ label: t("docs.spaces.role." + r), value: r })));
 
-const memberColumns = computed(() => {
-  const cols = [
-    { colKey: "member", title: t("docs.members.columns.member"), ellipsis: true, minWidth: 220 },
-    { colKey: "type", title: t("docs.members.columns.type"), width: 96 },
-    { colKey: "role", title: t("docs.members.columns.role"), width: 150 },
-    { colKey: "added", title: t("docs.members.columns.added"), width: 180 },
+interface MemberColumn {
+  colKey: string;
+  title: string;
+  width?: string;
+  minWidth?: string;
+}
+
+const memberColumns = computed<MemberColumn[]>(() => {
+  const cols: MemberColumn[] = [
+    { colKey: "member", title: t("docs.members.columns.member"), minWidth: "220px" },
+    { colKey: "type", title: t("docs.members.columns.type"), width: "96px" },
+    { colKey: "role", title: t("docs.members.columns.role"), width: "150px" },
+    { colKey: "added", title: t("docs.members.columns.added"), width: "180px" },
   ];
-  if (canManage.value) cols.push({ colKey: "actions", title: t("docs.members.columns.actions"), width: 72 });
+  if (canManage.value) cols.push({ colKey: "actions", title: t("docs.members.columns.actions"), width: "72px" });
   return cols;
 });
 
@@ -401,19 +607,26 @@ const changeRole = async (row: MemberRow, value: unknown) => {
   }
 };
 
-const removeMember = async (row: MemberRow) => {
-  if (!space.value) return;
+const removeTarget = ref<MemberRow | null>(null);
+const removing = ref(false);
+
+const confirmRemove = async () => {
+  const row = removeTarget.value;
+  if (!space.value || !row) return;
   savingKey.value = row.key;
+  removing.value = true;
   try {
     await removeSpaceMember(space.value.id, row.principal_type, row.principal_id);
     members.value = members.value.filter((m) => m.key !== row.key);
     MessagePlugin.success(t("docs.members.removeSuccess"));
+    removeTarget.value = null;
     // Removing yourself may have cost you admin rights; reload the space.
     await load();
   } catch (err: unknown) {
     MessagePlugin.error(errorText(err, t("docs.members.removeFailed")));
   } finally {
     savingKey.value = "";
+    removing.value = false;
   }
 };
 
@@ -437,8 +650,25 @@ const groupOptions = computed(() => {
   }));
 });
 
+// Remote-search user picker (the t-select `filterable` pattern): popover with a
+// debounced search input feeding the shared member-search composable.
+const userPickOpen = ref(false);
+const userQuery = ref("");
+
+const pickedUserLabel = computed(
+  () => memberSearch.options.value.find((o) => o.value === addForm.value.principal_id)?.label ?? "",
+);
+
+const onUserQuery = () => memberSearch.search(userQuery.value);
+
+const selectUserOption = (o: MemberOption) => {
+  addForm.value.principal_id = o.value;
+  userPickOpen.value = false;
+};
+
 const openAddMember = async () => {
   addForm.value = { principal_type: "user", principal_id: "", role: "reader" };
+  userQuery.value = "";
   addVisible.value = true;
   void memberSearch.load("");
   groupsLoading.value = true;
@@ -555,11 +785,6 @@ onMounted(load);
 const exportFormat = ref<ExportFormat>("markdown");
 const exporting = ref(false);
 
-const exportFormatOptions = computed(() => [
-  { label: t("docs.exportDoc.markdown"), value: "markdown" },
-  { label: t("docs.exportDoc.html"), value: "html" },
-]);
-
 // Polling stops after this long. A job that has not finished by then has not
 // failed — the operator can come back to it — but this page should not keep
 // asking forever.
@@ -666,228 +891,3 @@ async function waitForImport(jobId: string): Promise<ImportJobView | null> {
   }
 }
 </script>
-
-<style scoped lang="less">
-.docs-space-page {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  padding: 16px 28px 24px 28px;
-  overflow-y: auto;
-}
-
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.back-btn {
-  align-self: flex-start;
-  padding-left: 0 !important;
-  color: var(--td-text-color-secondary);
-}
-
-.space-heading {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-
-  h2 {
-    margin: 0;
-    font-size: 22px;
-    line-height: 30px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.space-heading-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.space-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-}
-
-.mono {
-  font-family: var(--td-font-family-mono, ui-monospace, monospace);
-}
-
-.loading-block,
-.missing-block {
-  padding: 24px 0;
-  color: var(--td-text-color-secondary);
-}
-
-.space-tabs {
-  :deep(.t-tabs__content) {
-    padding-top: 16px;
-  }
-}
-
-.overview-grid {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 12px 24px;
-  max-width: 760px;
-  margin: 0;
-
-  dt {
-    color: var(--td-text-color-secondary);
-    font-size: 13px;
-    line-height: 22px;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--td-text-color-primary);
-    font-size: 14px;
-    line-height: 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-}
-
-.dd-hint {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-}
-
-.members-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.section-hint {
-  margin: 0;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-}
-
-.member-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.member-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  overflow: hidden;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  &--group {
-    border-radius: 8px;
-    color: var(--td-brand-color);
-    background: var(--td-brand-color-light);
-  }
-}
-
-.member-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.member-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--td-text-color-primary);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.member-sub {
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  line-height: 16px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.role-select {
-  width: 128px;
-}
-
-.settings-panel {
-  max-width: 640px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.settings-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.danger-zone {
-  margin-top: 24px;
-  padding: 16px;
-  border: 1px solid var(--td-error-color-3);
-  border-radius: 8px;
-  background: var(--td-error-color-1);
-}
-
-.danger-title {
-  font-weight: 600;
-  color: var(--td-error-color);
-  margin-bottom: 4px;
-}
-
-.danger-hint {
-  margin: 0 0 12px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-}
-
-.import-input {
-  display: none;
-}
-
-.import-skipped {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: var(--td-text-color-secondary);
-  max-height: 160px;
-  overflow-y: auto;
-}
-
-.import-skipped-title {
-  list-style: none;
-  margin-left: -18px;
-  font-weight: 600;
-}
-</style>

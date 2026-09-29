@@ -1,12 +1,32 @@
 <template>
-  <NodeViewWrapper class="docs-toc" :class="{ 'docs-toc--selected': selected }">
-    <div class="docs-toc-title">{{ t("docs.pages.toc") }}</div>
-    <ol v-if="entries.length" class="docs-toc-list">
-      <li v-for="entry in entries" :key="entry.pos" :style="{ paddingLeft: (entry.level - 1) * 14 + 'px' }">
-        <button type="button" @click="jump(entry.pos)">{{ entry.text || t("docs.tree.untitled") }}</button>
+  <NodeViewWrapper
+    class="bg-muted my-3 rounded-[8px] border px-3.5 py-2.5"
+    :class="selected ? 'border-primary' : 'border-border'"
+  >
+    <div class="text-placeholder mb-1.5 text-xs font-semibold tracking-[0.04em] uppercase">
+      {{ t("docs.pages.toc") }}
+    </div>
+    <!-- The editor's unlayered list and paragraph rules (padding-left on ol,
+         margins on p) outrank the resets on the list and the empty note, as
+         they outranked the scoped rules this replaces. -->
+    <ol v-if="entries.length" class="m-0 list-none p-0">
+      <li
+        v-for="entry in entries"
+        :key="entry.pos"
+        class="my-px"
+        :style="{ paddingLeft: (entry.level - 1) * 14 + 'px' }"
+      >
+        <button
+          type="button"
+          data-slot="toc-entry"
+          class="text-primary cursor-pointer py-0.5 text-left text-[13.5px]"
+          @click="jump(entry.pos)"
+        >
+          {{ entry.text || t("docs.tree.untitled") }}
+        </button>
       </li>
     </ol>
-    <p v-else class="docs-toc-empty">{{ t("docs.pages.tocEmpty") }}</p>
+    <p v-else class="text-placeholder m-0 text-[13px]">{{ t("docs.pages.tocEmpty") }}</p>
   </NodeViewWrapper>
 </template>
 
@@ -37,52 +57,3 @@ function jump(pos: number) {
     .run();
 }
 </script>
-
-<style scoped lang="less">
-.docs-toc {
-  margin: 12px 0;
-  padding: 10px 14px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.docs-toc--selected {
-  border-color: var(--td-brand-color);
-}
-
-.docs-toc-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--td-text-color-placeholder);
-  margin-bottom: 6px;
-}
-
-.docs-toc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-
-  li {
-    margin: 1px 0;
-  }
-
-  button {
-    border: none;
-    background: transparent;
-    padding: 2px 0;
-    font-size: 13.5px;
-    color: var(--td-brand-color);
-    cursor: pointer;
-    text-align: left;
-  }
-}
-
-.docs-toc-empty {
-  margin: 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-</style>

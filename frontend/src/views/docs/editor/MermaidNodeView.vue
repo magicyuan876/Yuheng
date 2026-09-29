@@ -1,30 +1,55 @@
 <template>
-  <NodeViewWrapper class="docs-mermaid" :class="{ 'docs-mermaid--selected': selected }">
-    <div class="docs-mermaid-bar">
-      <button v-if="editor.isEditable" type="button" class="docs-mermaid-toggle" @click="showSource = !showSource">
-        <t-icon :name="showSource ? 'chart' : 'code'" size="13px" />
+  <NodeViewWrapper
+    class="bg-card relative my-3 rounded-[8px] border p-2"
+    :class="selected ? 'border-primary' : 'border-[var(--td-component-stroke)]'"
+  >
+    <div class="flex min-h-[18px] justify-end">
+      <button
+        v-if="editor.isEditable"
+        type="button"
+        data-slot="mermaid-toggle"
+        class="text-placeholder hover:text-foreground hover:bg-accent inline-flex cursor-pointer items-center gap-1 rounded border-0 px-1 py-px text-xs"
+        @click="showSource = !showSource"
+      >
+        <BarChart3Icon v-if="showSource" class="size-[13px]" />
+        <CodeIcon v-else class="size-[13px]" />
         <span>{{ showSource ? t("docs.blocks.mermaidPreview") : t("docs.blocks.mermaidSource") }}</span>
       </button>
     </div>
 
-    <textarea
+    <Textarea
       v-if="showSource"
-      class="docs-mermaid-input"
+      class="border-primary field-sizing-fixed min-h-0 w-full resize-y rounded border px-2 py-1.5 font-[family-name:var(--td-font-family-mono,ui-monospace,monospace)] text-[13px] leading-normal md:text-[13px]"
       rows="6"
-      :value="draft"
+      :model-value="draft"
       :placeholder="t('docs.blocks.mermaidPlaceholder')"
-      @input="draft = ($event.target as HTMLTextAreaElement).value"
+      @update:model-value="draft = String($event)"
       @blur="commit"
     />
 
-    <div v-else-if="svg" class="docs-mermaid-canvas" :contenteditable="false" v-html="svg" />
+    <div
+      v-else-if="svg"
+      class="mermaid-canvas flex justify-center overflow-x-auto"
+      :contenteditable="false"
+      v-html="svg"
+    />
 
-    <p v-else-if="error" class="docs-mermaid-error" :contenteditable="false">
-      <t-icon name="error-circle" size="14px" />
+    <p
+      v-else-if="error"
+      class="text-destructive m-2 flex items-center justify-center gap-1.5 text-[13px]"
+      :contenteditable="false"
+    >
+      <CircleXIcon class="size-3.5" />
       <span>{{ t("docs.blocks.mermaidBroken") }}</span>
     </p>
 
-    <p v-else class="docs-mermaid-empty" :contenteditable="false">{{ t("docs.blocks.mermaidEmpty") }}</p>
+    <p
+      v-else
+      class="text-placeholder m-2 flex items-center justify-center gap-1.5 text-[13px]"
+      :contenteditable="false"
+    >
+      {{ t("docs.blocks.mermaidEmpty") }}
+    </p>
   </NodeViewWrapper>
 </template>
 
@@ -33,6 +58,9 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/vue-3";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { BarChart3Icon, CircleXIcon, CodeIcon } from "@lucide/vue";
+
+import { Textarea } from "@/components/ui/textarea";
 import { renderMermaidToSvg } from "@/utils/mermaidShared";
 
 import { mermaidId } from "./figures";
@@ -96,78 +124,10 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped lang="less">
-.docs-mermaid {
-  position: relative;
-  margin: 12px 0;
-  padding: 8px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-}
-
-.docs-mermaid--selected {
-  border-color: var(--td-brand-color);
-}
-
-.docs-mermaid-bar {
-  display: flex;
-  justify-content: flex-end;
-  min-height: 18px;
-}
-
-.docs-mermaid-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: none;
-  background: transparent;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 1px 4px;
-
-  &:hover {
-    color: var(--td-text-color-primary);
-    background: var(--td-bg-color-container-hover);
-  }
-}
-
-.docs-mermaid-input {
-  width: 100%;
-  border: 1px solid var(--td-brand-color);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-family: var(--td-font-family-mono, ui-monospace, monospace);
-  font-size: 13px;
-  line-height: 1.5;
-  resize: vertical;
-}
-
-.docs-mermaid-canvas {
-  display: flex;
-  justify-content: center;
-  overflow-x: auto;
-
-  :deep(svg) {
-    max-width: 100%;
-    height: auto;
-  }
-}
-
-.docs-mermaid-error,
-.docs-mermaid-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 8px 0;
-  font-size: 13px;
-  color: var(--td-text-color-placeholder);
-}
-
-.docs-mermaid-error {
-  color: var(--td-error-color);
+<style scoped>
+/* Rendered diagram markup: keep the svg inside its scroll box. */
+.mermaid-canvas :deep(svg) {
+  max-width: 100%;
+  height: auto;
 }
 </style>

@@ -1,42 +1,58 @@
 <template>
-  <div class="template-picker">
-    <t-loading :loading="loading" size="small">
+  <div class="flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto">
+    <div v-if="loading && !templates.length" class="flex items-center justify-center gap-2 py-4">
+      <Loader2Icon class="size-4 animate-spin" />
+    </div>
+    <template v-else>
       <!-- Starting blank is the common case and the one people reach for
            when a picker gets in the way, so it is the first choice rather
            than a way out of the dialog. -->
-      <button type="button" class="tpl-row tpl-blank" :class="{ on: chosen === '' }" @click="choose('')">
-        <span class="tpl-icon">📄</span>
-        <span class="tpl-main">
-          <span class="tpl-name">{{ t("docs.templates.blank") }}</span>
-          <span class="tpl-desc">{{ t("docs.templates.blankHint") }}</span>
+      <button
+        type="button"
+        data-slot="template-row"
+        class="mb-1 flex w-full cursor-pointer items-start gap-2.5 rounded-[8px] border px-3 py-2.5 text-left text-inherit"
+        :class="rowClass(chosen === '')"
+        @click="choose('')"
+      >
+        <span class="flex-none text-[20px] leading-[1.3]">📄</span>
+        <span class="flex min-w-0 flex-col gap-0.5">
+          <span class="text-sm font-medium">{{ t("docs.templates.blank") }}</span>
+          <span class="text-placeholder overflow-hidden text-xs text-ellipsis">{{
+            t("docs.templates.blankHint")
+          }}</span>
         </span>
       </button>
 
       <template v-for="group in grouped" :key="group.name">
-        <h3 class="tpl-group">{{ group.name || t("docs.templates.uncategorised") }}</h3>
+        <h3 class="text-muted-foreground mx-0 mt-3.5 mb-1 text-xs font-semibold tracking-[0.04em] uppercase">
+          {{ group.name || t("docs.templates.uncategorised") }}
+        </h3>
         <button
           v-for="tpl in group.items"
           :key="tpl.id"
           type="button"
-          class="tpl-row"
-          :class="{ on: chosen === tpl.id }"
+          data-slot="template-row"
+          class="flex w-full cursor-pointer items-start gap-2.5 rounded-[8px] border px-3 py-2.5 text-left text-inherit"
+          :class="rowClass(chosen === tpl.id)"
           @click="choose(tpl.id)"
         >
-          <span class="tpl-icon">{{ tpl.icon || "🧩" }}</span>
-          <span class="tpl-main">
-            <span class="tpl-name">
+          <span class="flex-none text-[20px] leading-[1.3]">{{ tpl.icon || "🧩" }}</span>
+          <span class="flex min-w-0 flex-col gap-0.5">
+            <span class="flex items-center gap-1.5 text-sm font-medium">
               {{ tpl.name }}
-              <t-tag v-if="tpl.shared" size="small" variant="light">
-                {{ t("docs.templates.shared") }}
-              </t-tag>
+              <Badge v-if="tpl.shared" variant="secondary">{{ t("docs.templates.shared") }}</Badge>
             </span>
-            <span v-if="tpl.description" class="tpl-desc">{{ tpl.description }}</span>
+            <span v-if="tpl.description" class="text-placeholder overflow-hidden text-xs text-ellipsis">
+              {{ tpl.description }}
+            </span>
           </span>
         </button>
       </template>
 
-      <p v-if="!templates.length && !loading" class="tpl-empty">{{ t("docs.templates.none") }}</p>
-    </t-loading>
+      <p v-if="!templates.length && !loading" class="text-placeholder m-0 mt-3 text-[13px]">
+        {{ t("docs.templates.none") }}
+      </p>
+    </template>
   </div>
 </template>
 
@@ -44,7 +60,10 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { Loader2Icon } from "@lucide/vue";
+
 import { listTemplates, type TemplateView } from "@/api/docs";
+import { Badge } from "@/components/ui/badge";
 
 // Choosing what a new page starts from.
 //
@@ -83,6 +102,12 @@ const grouped = computed<Group[]>(() => {
   return groups;
 });
 
+// The chosen row keeps its tint under the pointer, as the old `.on` rule
+// (declared after `:hover`) did; only the others take the hover background.
+function rowClass(on: boolean): string {
+  return on ? "border-primary bg-[var(--td-brand-color-light)]" : "hover:bg-accent border-transparent";
+}
+
 function choose(id: string) {
   emit("update:modelValue", id);
 }
@@ -112,83 +137,3 @@ watch(
   { immediate: true },
 );
 </script>
-
-<style scoped>
-.template-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.tpl-group {
-  margin: 14px 0 4px;
-  color: var(--td-text-color-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.tpl-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tpl-row:hover {
-  background: var(--td-bg-color-container-hover);
-}
-
-.tpl-row.on {
-  border-color: var(--td-brand-color);
-  background: var(--td-brand-color-light);
-}
-
-.tpl-blank {
-  margin-bottom: 4px;
-}
-
-.tpl-icon {
-  flex: none;
-  font-size: 20px;
-  line-height: 1.3;
-}
-
-.tpl-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.tpl-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.tpl-desc {
-  overflow: hidden;
-  color: var(--td-text-color-placeholder);
-  font-size: 12px;
-  text-overflow: ellipsis;
-}
-
-.tpl-empty {
-  margin: 12px 0 0;
-  color: var(--td-text-color-placeholder);
-  font-size: 13px;
-}
-</style>

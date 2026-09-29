@@ -1,74 +1,88 @@
 <template>
-  <div class="docs-space-home">
-    <aside class="space-sidebar" :class="{ 'space-sidebar--collapsed': sidebar.collapsed.value }">
-      <div class="sidebar-top">
-        <t-button variant="text" size="small" class="back-btn" @click="router.push({ name: 'docsSpaceList' })">
-          <template #icon><t-icon name="chevron-left" /></template>
+  <div class="flex min-h-0 min-w-0 flex-1">
+    <!-- Folded away by SidebarToggle in the main column. Hidden outright rather than narrowed:
+         a width transition would wrap the tree's rows on the way down, and there is nothing to
+         see in the tree while it is closing. -->
+    <aside
+      class="w-[280px] flex-none flex-col border-r border-[var(--td-component-stroke)] bg-[var(--td-bg-color-secondarycontainer,var(--td-bg-color-container))] p-[12px_8px_8px]"
+      :class="sidebar.collapsed.value ? 'hidden' : 'flex'"
+    >
+      <div class="flex-none p-[0_4px_8px]">
+        <Button variant="ghost" size="sm" class="mb-1.5 -ml-1.5" @click="router.push({ name: 'docsSpaceList' })">
+          <ChevronLeftIcon />
           {{ t("docs.spaces.backToList") }}
-        </t-button>
-        <div v-if="space" class="space-heading">
+        </Button>
+        <div v-if="space" class="flex min-w-0 items-center gap-2">
           <SpaceAvatar :name="space.name" :avatar="space.icon || ''" size="small" />
-          <span class="space-name" :title="space.name">{{ space.name }}</span>
-          <span class="space-tools">
-            <t-tooltip v-if="canEdit" :content="t('docs.tree.newPage')">
-              <t-button
-                variant="text"
-                size="small"
-                shape="square"
-                :aria-label="t('docs.tree.newPage')"
-                :loading="creating === ROOT_KEY"
-                @click="createUnder(null)"
-              >
-                <template #icon><t-icon name="add" /></template>
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="t('docs.search.title')">
-              <t-button
-                variant="text"
-                size="small"
-                shape="square"
-                :aria-label="t('docs.search.title')"
-                @click="searchVisible = true"
-              >
-                <template #icon><t-icon name="search" /></template>
-              </t-button>
-            </t-tooltip>
-            <t-tooltip v-if="canEdit" :content="t('docs.templates.newFrom')">
-              <t-button
-                variant="text"
-                size="small"
-                shape="square"
-                :aria-label="t('docs.templates.newFrom')"
-                @click="openTemplatePicker(null)"
-              >
-                <template #icon><t-icon name="template" /></template>
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="t('docs.trash.title')">
-              <t-button
-                variant="text"
-                size="small"
-                shape="square"
-                :aria-label="t('docs.trash.title')"
-                @click="trashVisible = true"
-              >
-                <template #icon><t-icon name="delete" /></template>
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="t('docs.tree.settings')">
-              <t-button
-                variant="text"
-                size="small"
-                shape="square"
-                :aria-label="t('docs.tree.settings')"
-                @click="router.push({ name: 'docsSpaceSettings', params: { slug } })"
-              >
-                <template #icon><t-icon name="setting" /></template>
-              </t-button>
-            </t-tooltip>
+          <span class="text-foreground min-w-0 flex-1 truncate text-sm font-semibold" :title="space.name">
+            {{ space.name }}
+          </span>
+          <span class="inline-flex flex-none gap-0.5">
+            <Tooltip v-if="canEdit">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="t('docs.tree.newPage')"
+                  :disabled="creating === ROOT_KEY"
+                  @click="createUnder(null)"
+                >
+                  <Loader2Icon v-if="creating === ROOT_KEY" class="animate-spin" />
+                  <PlusIcon v-else />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t("docs.tree.newPage") }}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="t('docs.search.title')"
+                  @click="searchVisible = true"
+                >
+                  <SearchIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t("docs.search.title") }}</TooltipContent>
+            </Tooltip>
+            <Tooltip v-if="canEdit">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="t('docs.templates.newFrom')"
+                  @click="openTemplatePicker(null)"
+                >
+                  <LayoutTemplateIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t("docs.templates.newFrom") }}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon-sm" :aria-label="t('docs.trash.title')" @click="trashVisible = true">
+                  <Trash2Icon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t("docs.trash.title") }}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="t('docs.tree.settings')"
+                  @click="router.push({ name: 'docsSpaceSettings', params: { slug } })"
+                >
+                  <SettingsIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ t("docs.tree.settings") }}</TooltipContent>
+            </Tooltip>
           </span>
         </div>
-        <t-skeleton v-else animation="gradient" :row-col="[{ width: '70%' }]" />
+        <Skeleton v-else class="h-4 w-[70%]" />
       </div>
 
       <PageTree
@@ -84,7 +98,7 @@
       />
     </aside>
 
-    <main class="space-main">
+    <main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <SidebarToggle />
       <PageView
         v-if="space && shortId"
@@ -96,115 +110,182 @@
         @restored="onRestored"
         @create-child="createUnder"
       />
-      <div v-else-if="space" class="space-welcome">
+      <div
+        v-else-if="space"
+        class="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-[40px_24px] text-center"
+      >
         <SpaceAvatar :name="space.name" :avatar="space.icon || ''" size="large" />
-        <h1>{{ t("docs.pages.welcome", { name: space.name }) }}</h1>
-        <p class="welcome-description">{{ space.description || t("docs.pages.welcomeHint") }}</p>
+        <h1 class="text-foreground mt-2 mb-0 text-[22px] font-semibold">
+          {{ t("docs.pages.welcome", { name: space.name }) }}
+        </h1>
+        <p class="text-muted-foreground m-0 mb-2 max-w-[56ch] text-sm leading-[22px]">
+          {{ space.description || t("docs.pages.welcomeHint") }}
+        </p>
         <SpaceHomePanel :space-id="space.id" :space-slug="slug" @open="openPage" @open-visit="openVisit" />
-        <div v-if="rootNodes.length" class="root-pages">
-          <div class="root-pages-title">{{ t("docs.pages.rootPages") }}</div>
-          <button v-for="n in rootNodes" :key="n.id" type="button" class="root-page" @click="openPage(n)">
-            <span class="root-page-icon">{{ n.icon || "📄" }}</span>
-            <span class="root-page-title">{{ n.title || t("docs.tree.untitled") }}</span>
+        <div v-if="rootNodes.length" class="mb-2 w-[min(520px,100%)] text-left">
+          <div class="text-placeholder mb-1.5 text-xs tracking-[0.04em] uppercase">
+            {{ t("docs.pages.rootPages") }}
+          </div>
+          <button
+            v-for="n in rootNodes"
+            :key="n.id"
+            type="button"
+            data-slot="root-page"
+            class="bg-card text-foreground hover:border-primary mb-1.5 flex w-full cursor-pointer items-center gap-2 rounded-[8px] border border-[var(--td-component-stroke)] px-2.5 py-2 text-left"
+            @click="openPage(n)"
+          >
+            <span class="w-5 flex-none text-center">{{ n.icon || "📄" }}</span>
+            <span class="min-w-0 flex-1 truncate text-sm">{{ n.title || t("docs.tree.untitled") }}</span>
           </button>
         </div>
-        <t-button v-if="canEdit" theme="primary" :loading="creating === ROOT_KEY" @click="createUnder(null)">
-          <template #icon><t-icon name="add" /></template>
+        <Button v-if="canEdit" :disabled="creating === ROOT_KEY" @click="createUnder(null)">
+          <Loader2Icon v-if="creating === ROOT_KEY" class="animate-spin" />
+          <PlusIcon v-else />
           {{ t("docs.tree.newPage") }}
-        </t-button>
+        </Button>
       </div>
-      <div v-else-if="spaceMissing" class="space-missing">{{ t("docs.spaces.loadFailed") }}</div>
+      <div v-else-if="spaceMissing" class="text-muted-foreground p-12 text-center">
+        {{ t("docs.spaces.loadFailed") }}
+      </div>
     </main>
 
     <!-- Search -->
-    <t-dialog
-      v-model:visible="searchVisible"
-      :header="t('docs.search.title')"
-      width="640px"
-      destroy-on-close
-      :footer="false"
-    >
-      <SearchPanel :space-id="space?.id" @close="searchVisible = false" />
-    </t-dialog>
+    <Dialog :open="searchVisible" @update:open="(v: boolean) => (searchVisible = v)">
+      <DialogContent class="sm:max-w-[640px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.search.title") }}</DialogTitle>
+        </DialogHeader>
+        <SearchPanel :space-id="space?.id" @close="searchVisible = false" />
+      </DialogContent>
+    </Dialog>
 
     <!-- Start from a template -->
-    <t-dialog
-      v-model:visible="templateVisible"
-      :header="t('docs.templates.newFrom')"
-      width="560px"
-      destroy-on-close
-      :confirm-btn="{ content: t('docs.templates.createPage') }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="createFromTemplate"
-    >
-      <TemplatePicker v-if="space" v-model="templateChoice" :space-id="space.id" />
-    </t-dialog>
+    <Dialog :open="templateVisible" @update:open="(v: boolean) => (templateVisible = v)">
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.templates.newFrom") }}</DialogTitle>
+        </DialogHeader>
+        <TemplatePicker v-if="space" v-model="templateChoice" :space-id="space.id" />
+        <DialogFooter>
+          <Button variant="outline" @click="templateVisible = false">{{ t("common.cancel") }}</Button>
+          <!-- No choice is a valid choice: it creates a blank page, as the old dialog did. -->
+          <Button @click="createFromTemplate">
+            {{ t("docs.templates.createPage") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Rename -->
-    <t-dialog
-      v-model:visible="renameVisible"
-      :header="t('docs.tree.rename')"
-      width="460px"
-      destroy-on-close
-      :confirm-btn="{ content: t('common.save'), loading: renaming }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="submitRename"
-    >
-      <t-input
-        v-model="renameTitle"
-        :maxlength="500"
-        :placeholder="t('docs.tree.untitled')"
-        autofocus
-        @enter="submitRename"
-      />
-    </t-dialog>
+    <Dialog :open="renameVisible" @update:open="(v: boolean) => (renameVisible = v)">
+      <DialogContent class="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.tree.rename") }}</DialogTitle>
+        </DialogHeader>
+        <Input
+          v-model="renameTitle"
+          :maxlength="500"
+          :placeholder="t('docs.tree.untitled')"
+          autofocus
+          @keydown.enter="submitRename"
+        />
+        <DialogFooter>
+          <Button variant="outline" @click="renameVisible = false">{{ t("common.cancel") }}</Button>
+          <Button :disabled="renaming" @click="submitRename">
+            <Loader2Icon v-if="renaming" class="animate-spin" />
+            {{ t("common.save") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Move to another space -->
-    <t-dialog
-      v-model:visible="moveVisible"
-      :header="t('docs.tree.moveDialogTitle')"
-      width="480px"
-      destroy-on-close
-      :confirm-btn="{ content: t('common.confirm'), loading: moving, disabled: !moveTargetId }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="submitMoveToSpace"
-    >
-      <p class="dialog-hint">{{ t("docs.tree.moveDialogHint") }}</p>
-      <t-select
-        v-model="moveTargetId"
-        :options="moveTargets"
-        :loading="spacesLoading"
-        :placeholder="t('docs.tree.moveDialogPick')"
-        :empty="t('docs.tree.moveDialogNoSpaces')"
-      />
-    </t-dialog>
+    <Dialog :open="moveVisible" @update:open="(v: boolean) => (moveVisible = v)">
+      <DialogContent class="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.tree.moveDialogTitle") }}</DialogTitle>
+        </DialogHeader>
+        <p class="text-muted-foreground m-0 mb-3 text-[13px] leading-5">{{ t("docs.tree.moveDialogHint") }}</p>
+        <Select v-model="moveTargetId">
+          <SelectTrigger>
+            <SelectValue :placeholder="t('docs.tree.moveDialogPick')" />
+          </SelectTrigger>
+          <SelectContent>
+            <div
+              v-if="spacesLoading"
+              class="text-muted-foreground flex items-center justify-center gap-2 py-3 text-[13px]"
+            >
+              <Loader2Icon class="size-3.5 animate-spin" />
+            </div>
+            <template v-else>
+              <SelectItem v-for="o in moveTargets" :key="o.value" :value="o.value">{{ o.label }}</SelectItem>
+              <div v-if="!moveTargets.length" class="text-placeholder px-2 py-3 text-center text-[13px]">
+                {{ t("docs.tree.moveDialogNoSpaces") }}
+              </div>
+            </template>
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Button variant="outline" @click="moveVisible = false">{{ t("common.cancel") }}</Button>
+          <Button :disabled="!moveTargetId || moving" @click="submitMoveToSpace">
+            <Loader2Icon v-if="moving" class="animate-spin" />
+            {{ t("common.confirm") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Delete -->
-    <t-dialog
-      v-model:visible="deleteVisible"
-      :header="t('docs.tree.delete')"
-      theme="danger"
-      width="460px"
-      :confirm-btn="{ content: t('common.delete'), theme: 'danger', loading: deleting }"
-      :cancel-btn="t('common.cancel')"
-      @confirm="submitDelete"
-    >
-      <p>{{ t("docs.tree.deleteConfirm", { title: pendingNode?.title || t("docs.tree.untitled") }) }}</p>
-    </t-dialog>
+    <Dialog :open="deleteVisible" @update:open="(v: boolean) => (deleteVisible = v)">
+      <DialogContent class="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{{ t("docs.tree.delete") }}</DialogTitle>
+        </DialogHeader>
+        <p class="text-foreground text-sm">
+          {{ t("docs.tree.deleteConfirm", { title: pendingNode?.title || t("docs.tree.untitled") }) }}
+        </p>
+        <DialogFooter>
+          <Button variant="outline" @click="deleteVisible = false">{{ t("common.cancel") }}</Button>
+          <Button variant="destructive" :disabled="deleting" @click="submitDelete">
+            <Loader2Icon v-if="deleting" class="animate-spin" />
+            {{ t("common.delete") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-    <t-drawer
-      v-model:visible="trashVisible"
-      :header="t('docs.trash.title')"
-      size="440px"
-      :footer="false"
-      destroy-on-close
-    >
-      <TrashPanel v-if="space" :space="space" @restored="onRestored" />
-    </t-drawer>
+    <Drawer :open="trashVisible" swipe-direction="right" @update:open="(v: boolean) => (trashVisible = v)">
+      <DrawerContent
+        class="max-w-none rounded-none border-0 sm:max-w-none"
+        :style="{ width: '440px', maxWidth: '90vw' }"
+      >
+        <DrawerHeader class="relative flex-row items-center justify-between">
+          <DrawerTitle>{{ t("docs.trash.title") }}</DrawerTitle>
+          <DrawerClose as-child>
+            <Button variant="ghost" size="icon-sm" :aria-label="t('common.close')">
+              <XIcon />
+            </Button>
+          </DrawerClose>
+        </DrawerHeader>
+        <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
+          <TrashPanel v-if="space" :space="space" @restored="onRestored" />
+        </div>
+      </DrawerContent>
+    </Drawer>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  ChevronLeftIcon,
+  LayoutTemplateIcon,
+  Loader2Icon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  Trash2Icon,
+  XIcon,
+} from "@lucide/vue";
 import { MessagePlugin } from "tdesign-vue-next";
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -224,6 +305,13 @@ import {
   type DocsSpace,
   type PageView as PageViewDto,
 } from "@/api/docs";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SpaceAvatar from "@/components/SpaceAvatar.vue";
 
 import { canEditSpaceContent, roleAtLeast } from "./docsAccess";
@@ -638,163 +726,3 @@ onBeforeUnmount(() => {
   lastEvent.value = null;
 });
 </script>
-
-<style scoped lang="less">
-.docs-space-home {
-  flex: 1;
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-}
-
-.space-sidebar {
-  flex: none;
-  width: 280px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid var(--td-component-stroke);
-  background: var(--td-bg-color-secondarycontainer, var(--td-bg-color-container));
-  padding: 12px 8px 8px 8px;
-}
-
-// Folded away by SidebarToggle in the main column. Hidden outright rather
-// than narrowed: a width transition would wrap the tree's rows on the way
-// down, and there is nothing to see in the tree while it is closing.
-.space-sidebar--collapsed {
-  display: none;
-}
-
-.sidebar-top {
-  flex: none;
-  padding: 0 4px 8px 4px;
-}
-
-.back-btn {
-  margin-left: -6px;
-  margin-bottom: 6px;
-}
-
-.space-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.space-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--td-text-color-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.space-tools {
-  flex: none;
-  display: inline-flex;
-  gap: 2px;
-}
-
-.space-main {
-  // The toggle is positioned against this column's top-left corner.
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.space-welcome {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px 24px;
-  text-align: center;
-  overflow-y: auto;
-
-  h1 {
-    margin: 8px 0 0;
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--td-text-color-primary);
-  }
-}
-
-.welcome-description {
-  max-width: 56ch;
-  margin: 0 0 8px;
-  color: var(--td-text-color-secondary);
-  font-size: 14px;
-  line-height: 22px;
-}
-
-.root-pages {
-  width: min(520px, 100%);
-  text-align: left;
-  margin-bottom: 8px;
-}
-
-.root-pages-title {
-  font-size: 12px;
-  color: var(--td-text-color-placeholder);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
-}
-
-.root-page {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: 8px;
-  background: var(--td-bg-color-container);
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  text-align: left;
-  margin-bottom: 6px;
-
-  &:hover {
-    border-color: var(--td-brand-color);
-  }
-}
-
-.root-page-icon {
-  flex: none;
-  width: 20px;
-  text-align: center;
-}
-
-.root-page-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-}
-
-.space-missing {
-  padding: 48px;
-  text-align: center;
-  color: var(--td-text-color-secondary);
-}
-
-.dialog-hint {
-  margin: 0 0 12px;
-  color: var(--td-text-color-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-</style>
