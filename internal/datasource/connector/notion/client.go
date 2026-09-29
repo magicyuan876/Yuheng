@@ -270,8 +270,10 @@ func (c *notionClient) GetBlockChildrenFlat(ctx context.Context, blockID string)
 	return allBlocks, nil
 }
 
-const maxBlockDepth = 5       // Limit recursion depth — deeper content has diminishing value for knowledge bases
-const maxBlocksPerPage = 1000 // Limit total blocks fetched per page to prevent runaway API calls
+const (
+	maxBlockDepth    = 5    // Limit recursion depth — deeper content has diminishing value for knowledge bases
+	maxBlocksPerPage = 1000 // Limit total blocks fetched per page to prevent runaway API calls
+)
 
 // GetBlockChildrenAll recursively fetches all blocks under a given block ID,
 // building a tree structure with Children populated for blocks with has_children=true.
@@ -521,7 +523,8 @@ func extractTitle(page *notionPage) string {
 
 func joinPlainText(segments []struct {
 	PlainText string `json:"plain_text"`
-}) string {
+},
+) string {
 	var sb strings.Builder
 	for _, s := range segments {
 		sb.WriteString(s.PlainText)

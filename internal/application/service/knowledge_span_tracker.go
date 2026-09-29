@@ -864,6 +864,7 @@ func (noopSpanTracker) LatestAttempt(_ context.Context, _ string) int { return 0
 func (noopSpanTracker) BeginStage(_ context.Context, _ string, _ int, _ string, _ types.JSONMap) *Span {
 	return nil
 }
+
 func (noopSpanTracker) BeginSubSpan(_ context.Context, _ *Span, _, _ string, _ types.JSONMap) *Span {
 	return nil
 }
@@ -874,6 +875,7 @@ func (noopSpanTracker) LookupStage(_ context.Context, _ string, _ int, _ string)
 func (noopSpanTracker) LookupSpanByName(_ context.Context, _ string, _ int, _ string) *Span {
 	return nil
 }
+
 func (noopSpanTracker) FinalizeAttempt(_ context.Context, _ string, _ int, _ string, _ types.JSONMap, _, _ string) {
 }
 func (noopSpanTracker) AbortAttempt(_ context.Context, _ string, _ int, _, _, _ string) {}

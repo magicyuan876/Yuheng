@@ -54,6 +54,7 @@ func (c *Connector) Validate(ctx context.Context, ds *types.DataSourceConfig) er
 	}
 	return nil
 }
+
 func (c *Connector) ListResources(ctx context.Context, ds *types.DataSourceConfig, parent string) ([]types.Resource, error) {
 	var err error
 	if c, err = c.configured(ds); err != nil {
@@ -91,9 +92,11 @@ func (c *Connector) ListResources(ctx context.Context, ds *types.DataSourceConfi
 	}
 	return out, nil
 }
+
 func (c *Connector) ResolveResourceAncestors(context.Context, *types.DataSourceConfig, []string) ([]string, error) {
 	return []string{}, nil
 }
+
 func (c *Connector) FetchAll(ctx context.Context, ds *types.DataSourceConfig, _ []string) ([]types.FetchedItem, error) {
 	var err error
 	if c, err = c.configured(ds); err != nil {
@@ -413,9 +416,11 @@ func knowledgeRelativePath(projectName, ref, file string) string {
 	root := strings.TrimSpace(projectName) + "-" + strings.ReplaceAll(strings.TrimSpace(ref), "/", "-")
 	return path.Join(root, file)
 }
+
 func (c *Connector) deleted(p *project, ref, file string) types.FetchedItem {
 	return types.FetchedItem{ExternalID: fmt.Sprintf("gitlab:%s:%d:%s:%s", c.canonicalBase, p.ID, ref, file), IsDeleted: true, Metadata: map[string]string{"channel": types.ConnectorTypeGitLab, "gitlab_path": file}}
 }
+
 func (c *Connector) inScope(file string, roots []string) bool {
 	if len(roots) == 0 {
 		return true
@@ -427,6 +432,7 @@ func (c *Connector) inScope(file string, roots []string) bool {
 	}
 	return false
 }
+
 func splitResourceID(value string) (string, string) {
 	parts := strings.SplitN(value, ":", 2)
 	if len(parts) == 1 {

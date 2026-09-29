@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
-	"slices"
 )
 
 // applyFAQPostProcessing handles FAQ-specific post-processing: iterative retrieval

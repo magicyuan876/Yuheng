@@ -107,6 +107,7 @@ func (deepseekProvider) Name() provider.ProviderName { return provider.ProviderD
 // Native DeepSeek cache counters are not represented by go-openai v1.41.2;
 // use the raw path so prompt_cache_hit_tokens/miss_tokens remain observable.
 func (deepseekProvider) ForceRawHTTP() bool { return true }
+
 func (deepseekProvider) ShapeRequest(req *openai.ChatCompletionRequest, opts *ChatOptions, _ bool) {
 	if opts != nil && opts.ToolChoice != "" {
 		req.ToolChoice = nil
@@ -144,6 +145,7 @@ func (geminiProvider) ExtractToolCallMetadata(raw json.RawMessage) types.ToolCal
 	}
 	return types.ToolCallMetadata{"google": google}
 }
+
 func (geminiProvider) InjectToolCallMetadata(toolCall map[string]any, metadata types.ToolCallMetadata) {
 	if len(metadata) == 0 {
 		return
@@ -180,6 +182,7 @@ type azureReasoningProvider struct{ azureProvider }
 func (azureReasoningProvider) Matches(model string) bool {
 	return provider.IsOpenAIReasoningOrGPT5Model(model)
 }
+
 func (azureReasoningProvider) ShapeRequest(req *openai.ChatCompletionRequest, _ *ChatOptions, _ bool) {
 	shapeOpenAIReasoning(req)
 }
@@ -192,6 +195,7 @@ func (openAIReasoningProvider) Name() provider.ProviderName { return provider.Pr
 func (openAIReasoningProvider) Matches(model string) bool {
 	return provider.IsOpenAIReasoningOrGPT5Model(model)
 }
+
 func (openAIReasoningProvider) ShapeRequest(req *openai.ChatCompletionRequest, _ *ChatOptions, _ bool) {
 	shapeOpenAIReasoning(req)
 }
@@ -204,6 +208,7 @@ func (moonshotProvider) Name() provider.ProviderName { return provider.ProviderM
 func (moonshotProvider) Matches(model string) bool {
 	return provider.IsMoonshotFixedTempModel(model)
 }
+
 func (moonshotProvider) ShapeRequest(req *openai.ChatCompletionRequest, _ *ChatOptions, _ bool) {
 	// Pin temperature to 1 and drop the other sampling params, matching the
 	// pre-refactor behavior where these fields were never set for this model.

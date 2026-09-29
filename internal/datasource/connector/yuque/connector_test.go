@@ -134,8 +134,10 @@ func TestConnector_FetchAll_Markdown(t *testing.T) {
 		{ID: 102, Type: "Doc", Status: "0", Title: "Draft", Slug: "draft", BookID: 7, ContentUpdatedAt: "2026-04-20T11:00:00Z"}, // draft, skipped
 	}})
 	f.handleJSON("/api/v2/repos/docs/101", 200, v2DocDetailResponse{
-		Data: v2DocDetail{ID: 101, Title: "Hello", Body: "# Hello\n\nworld", Format: "markdown", Status: "1",
-			ContentUpdatedAt: "2026-04-20T10:00:00Z", Book: v2Repo{Namespace: "alice/demo"}},
+		Data: v2DocDetail{
+			ID: 101, Title: "Hello", Body: "# Hello\n\nworld", Format: "markdown", Status: "1",
+			ContentUpdatedAt: "2026-04-20T10:00:00Z", Book: v2Repo{Namespace: "alice/demo"},
+		},
 	})
 
 	items, err := NewConnector().FetchAll(context.Background(), makeDSConfig(f, []string{"7"}), []string{"7"})

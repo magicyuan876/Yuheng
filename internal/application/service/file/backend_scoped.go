@@ -40,9 +40,11 @@ func (s *backendScopedFileService) unwrap(path string) (string, error) {
 func (s *backendScopedFileService) wrap(path string) string {
 	return types.BuildStorageBackendPath(s.backendID, path)
 }
+
 func (s *backendScopedFileService) CheckConnectivity(ctx context.Context) error {
 	return s.inner.CheckConnectivity(ctx)
 }
+
 func (s *backendScopedFileService) SaveFile(ctx context.Context, f *multipart.FileHeader, tenantID uint64, knowledgeID string) (string, error) {
 	p, err := s.inner.SaveFile(ctx, f, tenantID, knowledgeID)
 	if err != nil {
@@ -50,6 +52,7 @@ func (s *backendScopedFileService) SaveFile(ctx context.Context, f *multipart.Fi
 	}
 	return s.wrap(p), nil
 }
+
 func (s *backendScopedFileService) SaveBytes(ctx context.Context, data []byte, tenantID uint64, name string, temp bool) (string, error) {
 	p, err := s.inner.SaveBytes(ctx, data, tenantID, name, temp)
 	if err != nil {
@@ -57,6 +60,7 @@ func (s *backendScopedFileService) SaveBytes(ctx context.Context, data []byte, t
 	}
 	return s.wrap(p), nil
 }
+
 func (s *backendScopedFileService) GetFile(ctx context.Context, path string) (io.ReadCloser, error) {
 	p, err := s.unwrap(path)
 	if err != nil {
@@ -64,6 +68,7 @@ func (s *backendScopedFileService) GetFile(ctx context.Context, path string) (io
 	}
 	return s.inner.GetFile(ctx, p)
 }
+
 func (s *backendScopedFileService) GetFileURL(ctx context.Context, path string) (string, error) {
 	p, err := s.unwrap(path)
 	if err != nil {
@@ -93,6 +98,7 @@ func (s *backendScopedFileService) GetFileURL(ctx context.Context, path string) 
 	}
 	return result, nil
 }
+
 func (s *backendScopedFileService) DeleteFile(ctx context.Context, path string) error {
 	p, err := s.unwrap(path)
 	if err != nil {
@@ -100,6 +106,7 @@ func (s *backendScopedFileService) DeleteFile(ctx context.Context, path string) 
 	}
 	return s.inner.DeleteFile(ctx, p)
 }
+
 func (s *backendScopedFileService) CopyFile(ctx context.Context, path string, tenantID uint64, knowledgeID string) (string, error) {
 	p, err := s.unwrap(path)
 	if err != nil {

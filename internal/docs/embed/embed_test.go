@@ -95,19 +95,31 @@ func TestEachProviderResolvesItsOwnAddresses(t *testing.T) {
 		provider string
 		embed    string
 	}{
-		{"https://www.bilibili.com/video/BV1GJ411x7h7", "bilibili",
-			"https://player.bilibili.com/player.html?bvid=BV1GJ411x7h7"},
-		{"https://www.bilibili.com/video/av170001", "bilibili",
-			"https://player.bilibili.com/player.html?aid=170001"},
-		{"https://www.loom.com/share/abcdef1234567890", "loom",
-			"https://www.loom.com/embed/abcdef1234567890"},
-		{"https://miro.com/app/board/uXjVO_abc123=/", "miro",
-			"https://miro.com/app/live-embed/uXjVO_abc123=/"},
+		{
+			"https://www.bilibili.com/video/BV1GJ411x7h7", "bilibili",
+			"https://player.bilibili.com/player.html?bvid=BV1GJ411x7h7",
+		},
+		{
+			"https://www.bilibili.com/video/av170001", "bilibili",
+			"https://player.bilibili.com/player.html?aid=170001",
+		},
+		{
+			"https://www.loom.com/share/abcdef1234567890", "loom",
+			"https://www.loom.com/embed/abcdef1234567890",
+		},
+		{
+			"https://miro.com/app/board/uXjVO_abc123=/", "miro",
+			"https://miro.com/app/live-embed/uXjVO_abc123=/",
+		},
 		{"https://acme.feishu.cn/wiki/AbCdEf", "feishu", "https://acme.feishu.cn/wiki/AbCdEf"},
-		{"https://www.canva.com/design/DAF123/view", "canva",
-			"https://www.canva.com/design/DAF123/view?embed"},
-		{"https://www.canva.com/design/DAF123", "canva",
-			"https://www.canva.com/design/DAF123/view?embed"},
+		{
+			"https://www.canva.com/design/DAF123/view", "canva",
+			"https://www.canva.com/design/DAF123/view?embed",
+		},
+		{
+			"https://www.canva.com/design/DAF123", "canva",
+			"https://www.canva.com/design/DAF123/view?embed",
+		},
 	}
 	for _, tc := range cases {
 		got, err := r.Resolve(tc.raw)

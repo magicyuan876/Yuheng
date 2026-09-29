@@ -1064,8 +1064,10 @@ func (s *knowledgeService) ProcessKnowledgeMove(ctx context.Context, t *asynq.Ta
 			for _, kbID := range []string{payload.SourceKBID, payload.TargetKBID} {
 				recordKBActivity(ctx, s.audit, payload.TenantID, kbID, types.AuditActionKnowledgeMoveFailed,
 					"knowledge_move", payload.TaskID, types.AuditOutcomeFailed,
-					map[string]any{"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
-						"task_id": payload.TaskID, "count": len(payload.KnowledgeIDs), "mode": payload.Mode})
+					map[string]any{
+						"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
+						"task_id": payload.TaskID, "count": len(payload.KnowledgeIDs), "mode": payload.Mode,
+					})
 			}
 		}
 	}
@@ -1073,8 +1075,10 @@ func (s *knowledgeService) ProcessKnowledgeMove(ctx context.Context, t *asynq.Ta
 		for _, kbID := range []string{payload.SourceKBID, payload.TargetKBID} {
 			recordKBActivity(ctx, s.audit, payload.TenantID, kbID, types.AuditActionKnowledgeMoveStarted,
 				"knowledge_move", payload.TaskID, types.AuditOutcomeAccepted,
-				map[string]any{"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
-					"task_id": payload.TaskID, "count": len(payload.KnowledgeIDs), "mode": payload.Mode})
+				map[string]any{
+					"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
+					"task_id": payload.TaskID, "count": len(payload.KnowledgeIDs), "mode": payload.Mode,
+				})
 		}
 	}
 
@@ -1155,8 +1159,10 @@ func (s *knowledgeService) ProcessKnowledgeMove(ctx context.Context, t *asynq.Ta
 	for _, kbID := range []string{payload.SourceKBID, payload.TargetKBID} {
 		recordKBActivity(ctx, s.audit, payload.TenantID, kbID, action,
 			"knowledge_move", payload.TaskID, outcome,
-			map[string]any{"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
-				"task_id": payload.TaskID, "count": progress.Total, "failed": progress.Failed, "mode": payload.Mode})
+			map[string]any{
+				"source_kb_id": payload.SourceKBID, "target_kb_id": payload.TargetKBID,
+				"task_id": payload.TaskID, "count": progress.Total, "failed": progress.Failed, "mode": payload.Mode,
+			})
 	}
 	return nil
 }

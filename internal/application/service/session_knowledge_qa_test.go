@@ -99,6 +99,7 @@ func (s *stubModelService) UpdateModel(context.Context, *types.Model) error {
 func (s *stubModelService) SetModelSharing(context.Context, string, bool) (*types.Model, error) {
 	return nil, nil
 }
+
 func (s *stubModelService) DeleteModel(context.Context, string) error {
 	return nil
 }

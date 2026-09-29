@@ -517,8 +517,10 @@ func (s *DataSourceService) ManualSync(ctx context.Context, dsID string) (*types
 	logger.Infof(ctx, "sync task enqueued: ds=%s syncLog=%s", dsID, syncLog.ID)
 	recordKBActivity(ctx, s.audit, ds.TenantID, ds.KnowledgeBaseID, types.AuditActionDataSourceSyncStarted,
 		"data_source", ds.ID, types.AuditOutcomeAccepted,
-		map[string]any{"name": ds.Name, "type": ds.Type, "sync_log_id": syncLog.ID,
-			"task_id": info.ID, "trigger": "manual", "processing_status": "pending"})
+		map[string]any{
+			"name": ds.Name, "type": ds.Type, "sync_log_id": syncLog.ID,
+			"task_id": info.ID, "trigger": "manual", "processing_status": "pending",
+		})
 	return syncLog, nil
 }
 
@@ -749,7 +751,7 @@ func (s *DataSourceService) ProcessSync(ctx context.Context, task *asynq.Task) e
 	}
 
 	// Process fetched items and write to knowledge base
-	var result = &types.SyncResult{
+	result := &types.SyncResult{
 		Total: len(items),
 	}
 

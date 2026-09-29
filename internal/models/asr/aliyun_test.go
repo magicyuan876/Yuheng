@@ -50,12 +50,18 @@ func TestNewASRRoutesAliyunToDashScope(t *testing.T) {
 	// "remote"; older hand-configured models may carry only the BaseURL.
 	// All three shapes must route to the DashScope adapter.
 	cases := []Config{
-		{Provider: "aliyun", Source: types.ModelSourceRemote,
-			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1"},
-		{Source: types.ModelSourceAliyun,
-			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1"},
-		{Source: types.ModelSourceRemote,
-			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1"},
+		{
+			Provider: "aliyun", Source: types.ModelSourceRemote,
+			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+		},
+		{
+			Source:  types.ModelSourceAliyun,
+			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+		},
+		{
+			Source:  types.ModelSourceRemote,
+			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+		},
 	}
 	for i, cfg := range cases {
 		cfg.ModelName = "qwen3-asr-flash"

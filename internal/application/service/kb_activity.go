@@ -19,8 +19,10 @@ type kbActivityTaskMetadata struct {
 	Trigger string
 }
 
-type kbActivityTaskContextKey struct{}
-type kbActivitySuppressedContextKey struct{}
+type (
+	kbActivityTaskContextKey       struct{}
+	kbActivitySuppressedContextKey struct{}
+)
 
 // withKBActivityTask annotates a worker context with stable correlation fields
 // that recordKBActivity will add to each event produced by that task.

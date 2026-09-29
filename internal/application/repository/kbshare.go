@@ -45,7 +45,6 @@ func (r *kbShareRepository) GetByID(ctx context.Context, id string) (*types.Know
 	err := r.db.WithContext(ctx).
 		Where("id = ?", id).
 		First(&share).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrKBShareNotFound
@@ -61,7 +60,6 @@ func (r *kbShareRepository) GetByKBAndOrg(ctx context.Context, kbID string, orgI
 	err := r.db.WithContext(ctx).
 		Where("knowledge_base_id = ? AND organization_id = ?", kbID, orgID).
 		First(&share).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrKBShareNotFound
@@ -101,7 +99,6 @@ func (r *kbShareRepository) ListByKnowledgeBase(ctx context.Context, kbID string
 		Where("knowledge_base_id = ?", kbID).
 		Order("created_at DESC").
 		Find(&shares).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +116,6 @@ func (r *kbShareRepository) ListByOrganization(ctx context.Context, orgID string
 		Where("kb_shares.organization_id = ? AND kb_shares.deleted_at IS NULL", orgID).
 		Order("kb_shares.created_at DESC").
 		Find(&shares).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +157,6 @@ func (r *kbShareRepository) ListSharedKBsForTenant(ctx context.Context, tenantID
 		Where("kb_shares.deleted_at IS NULL").
 		Order("kb_shares.created_at DESC").
 		Find(&shares).Error
-
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +192,6 @@ func (r *kbShareRepository) CountSharesByKnowledgeBaseIDs(ctx context.Context, k
 		Where("knowledge_base_id IN ? AND deleted_at IS NULL", kbIDs).
 		Group("knowledge_base_id").
 		Find(&results).Error
-
 	if err != nil {
 		return nil, err
 	}

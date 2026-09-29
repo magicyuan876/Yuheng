@@ -87,9 +87,11 @@ func (r *fakeKBRepo) CreateKnowledgeBase(_ context.Context, kb *types.KnowledgeB
 	r.rows[kb.ID] = kb
 	return nil
 }
+
 func (r *fakeKBRepo) GetKnowledgeBaseByID(_ context.Context, id string) (*types.KnowledgeBase, error) {
 	return r.rows[id], nil
 }
+
 func (r *fakeKBRepo) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string, tenantID uint64) (*types.KnowledgeBase, error) {
 	kb := r.rows[id]
 	if kb == nil || kb.TenantID != tenantID {
@@ -97,12 +99,15 @@ func (r *fakeKBRepo) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string,
 	}
 	return kb, nil
 }
+
 func (r *fakeKBRepo) GetKnowledgeBaseByIDs(_ context.Context, _ []string) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *fakeKBRepo) ListKnowledgeBases(_ context.Context) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *fakeKBRepo) ListKnowledgeBasesByTenantID(_ context.Context, tenantID uint64) ([]*types.KnowledgeBase, error) {
 	rows := make([]*types.KnowledgeBase, 0, len(r.rows))
 	for _, kb := range r.rows {
@@ -112,6 +117,7 @@ func (r *fakeKBRepo) ListKnowledgeBasesByTenantID(_ context.Context, tenantID ui
 	}
 	return rows, nil
 }
+
 func (r *fakeKBRepo) UpdateKnowledgeBase(_ context.Context, _ *types.KnowledgeBase) error {
 	return nil
 }
@@ -119,23 +125,29 @@ func (r *fakeKBRepo) DeleteKnowledgeBase(_ context.Context, _ string) error { re
 func (r *fakeKBRepo) TogglePinKnowledgeBase(_ context.Context, _ string, _ uint64) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (r *fakeKBRepo) CountByVectorStoreIDAllTenants(
 	_ context.Context, _ *gorm.DB, _ uint64, _ string,
 ) (int64, error) {
 	return 0, nil
 }
+
 func (r *fakeKBRepo) CountByVectorStoreID(_ context.Context, _ *gorm.DB, _ uint64, _ string) (int64, error) {
 	return 0, nil
 }
+
 func (r *fakeKBRepo) CountByModelID(_ context.Context, _ uint64, _ string) (int64, error) {
 	return 0, nil
 }
+
 func (r *fakeKBRepo) CountByModelIDAllTenants(_ context.Context, _ string) (int64, error) {
 	return 0, nil
 }
+
 func (r *fakeKBRepo) SetUserKBPin(_ context.Context, _ uint64, _ string, _ string, _ bool) (*time.Time, error) {
 	return nil, nil
 }
+
 func (r *fakeKBRepo) ListUserKBPinIDs(_ context.Context, _ uint64, _ string) (map[string]time.Time, error) {
 	return map[string]time.Time{}, nil
 }

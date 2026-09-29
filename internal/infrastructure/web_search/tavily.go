@@ -20,9 +20,7 @@ const (
 	defaultTavilySearchURL = "https://api.tavily.com/search"
 )
 
-var (
-	defaultTavilyTimeout = 15 * time.Second
-)
+var defaultTavilyTimeout = 15 * time.Second
 
 // TavilyProvider implements web search using Tavily Search API
 type TavilyProvider struct {

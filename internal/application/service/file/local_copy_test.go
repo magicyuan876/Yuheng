@@ -28,7 +28,8 @@ func seedLocalObject(t *testing.T, baseDir string, tenantID uint64, name string,
 
 func readLocal(t *testing.T, svc interface {
 	GetFile(context.Context, string) (io.ReadCloser, error)
-}, path string) []byte {
+}, path string,
+) []byte {
 	t.Helper()
 	rc, err := svc.GetFile(context.Background(), path)
 	require.NoError(t, err)

@@ -281,8 +281,10 @@ func TestAuditLogRetentionRunner_RunOnceLogsButDoesNotPanicOnError(t *testing.T)
 
 // Ensure the test stubs satisfy the production type: if the interface
 // drifts, this assignment will fail to compile and tell us immediately.
-var _ interfaces.AuditLogRepository = (*stubAuditRepo)(nil)
-var _ interfaces.AuditLogRepository = (*stubAuditRepoForRetention)(nil)
+var (
+	_ interfaces.AuditLogRepository = (*stubAuditRepo)(nil)
+	_ interfaces.AuditLogRepository = (*stubAuditRepoForRetention)(nil)
+)
 
 // Sanity check the audit entry struct's fields stay attached to the
 // retention path — guards against a refactor that drops CreatedAt

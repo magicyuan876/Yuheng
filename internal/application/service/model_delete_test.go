@@ -19,21 +19,27 @@ type stubKBRepoForModelDelete struct {
 func (s *stubKBRepoForModelDelete) CreateKnowledgeBase(context.Context, *types.KnowledgeBase) error {
 	return nil
 }
+
 func (s *stubKBRepoForModelDelete) GetKnowledgeBaseByID(context.Context, string) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) GetKnowledgeBaseByIDAndTenant(context.Context, string, uint64) (*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) GetKnowledgeBaseByIDs(context.Context, []string) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) ListKnowledgeBases(context.Context) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) ListKnowledgeBasesByTenantID(context.Context, uint64) ([]*types.KnowledgeBase, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) UpdateKnowledgeBase(context.Context, *types.KnowledgeBase) error {
 	return nil
 }
@@ -43,18 +49,23 @@ func (s *stubKBRepoForModelDelete) CountByVectorStoreIDAllTenants(
 ) (int64, error) {
 	return 0, nil
 }
+
 func (s *stubKBRepoForModelDelete) CountByVectorStoreID(context.Context, *gorm.DB, uint64, string) (int64, error) {
 	return 0, nil
 }
+
 func (s *stubKBRepoForModelDelete) CountByModelID(context.Context, uint64, string) (int64, error) {
 	return s.count, nil
 }
+
 func (s *stubKBRepoForModelDelete) CountByModelIDAllTenants(context.Context, string) (int64, error) {
 	return s.count, nil
 }
+
 func (s *stubKBRepoForModelDelete) SetUserKBPin(context.Context, uint64, string, string, bool) (*time.Time, error) {
 	return nil, nil
 }
+
 func (s *stubKBRepoForModelDelete) ListUserKBPinIDs(context.Context, uint64, string) (map[string]time.Time, error) {
 	return nil, nil
 }
@@ -72,21 +83,25 @@ func (s *stubModelRepoForDelete) GetByID(_ context.Context, _ uint64, id string)
 	}
 	return nil, nil
 }
+
 func (s *stubModelRepoForDelete) List(context.Context, uint64, types.ModelType, types.ModelSource) ([]*types.Model, error) {
 	return nil, nil
 }
+
 func (s *stubModelRepoForDelete) Update(_ context.Context, model *types.Model) error {
 	if s.update != nil {
 		return s.update(model)
 	}
 	return nil
 }
+
 func (s *stubModelRepoForDelete) Delete(_ context.Context, _ uint64, id string) error {
 	if s.delete != nil {
 		return s.delete(id)
 	}
 	return nil
 }
+
 func (s *stubModelRepoForDelete) ClearDefaultByType(context.Context, uint, types.ModelType, string) error {
 	return nil
 }
@@ -138,15 +153,19 @@ type stubTenantServiceForModelDelete struct {
 func (s *stubTenantServiceForModelDelete) CreateTenant(context.Context, *types.Tenant) (*types.Tenant, error) {
 	return nil, nil
 }
+
 func (s *stubTenantServiceForModelDelete) GetTenantByID(context.Context, uint64) (*types.Tenant, error) {
 	return s.tenant, nil
 }
+
 func (s *stubTenantServiceForModelDelete) GetTenantsByIDs(context.Context, []uint64) (map[uint64]*types.Tenant, error) {
 	return nil, nil
 }
+
 func (s *stubTenantServiceForModelDelete) ListTenants(context.Context) ([]*types.Tenant, error) {
 	return nil, nil
 }
+
 func (s *stubTenantServiceForModelDelete) UpdateTenant(context.Context, *types.Tenant) (*types.Tenant, error) {
 	return nil, nil
 }
@@ -154,12 +173,15 @@ func (s *stubTenantServiceForModelDelete) DeleteTenant(context.Context, uint64) 
 func (s *stubTenantServiceForModelDelete) ListAllTenants(context.Context) ([]*types.Tenant, error) {
 	return nil, nil
 }
+
 func (s *stubTenantServiceForModelDelete) BulkSetStorageQuota(context.Context, int64) (int64, error) {
 	return 0, nil
 }
+
 func (s *stubTenantServiceForModelDelete) SearchTenants(context.Context, string, uint64, int, int) ([]*types.Tenant, int64, error) {
 	return nil, 0, nil
 }
+
 func (s *stubTenantServiceForModelDelete) GetTenantByIDForUser(context.Context, uint64, string) (*types.Tenant, error) {
 	return s.tenant, nil
 }

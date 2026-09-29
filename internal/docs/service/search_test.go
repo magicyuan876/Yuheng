@@ -199,7 +199,8 @@ func TestAnEditedCommentIsSearchedByItsNewText(t *testing.T) {
 	page := p.create(t, p.alice, nil, "讨论")
 	d := p.decision(t, p.alice, page.Page.ID)
 	made, err := p.svc.Pages.CreateComment(ctx(), p.alice, d, CreateCommentInput{
-		Body: say("原来的说法")})
+		Body: say("原来的说法"),
+	})
 	require.NoError(t, err)
 
 	_, err = p.svc.Pages.UpdateComment(ctx(), p.alice, d, made.ID,
@@ -215,7 +216,8 @@ func TestADeletedCommentIsNotFound(t *testing.T) {
 	page := p.create(t, p.alice, nil, "讨论")
 	d := p.decision(t, p.alice, page.Page.ID)
 	made, err := p.svc.Pages.CreateComment(ctx(), p.alice, d, CreateCommentInput{
-		Body: say("要删掉的配额")})
+		Body: say("要删掉的配额"),
+	})
 	require.NoError(t, err)
 	require.NoError(t, p.svc.Pages.DeleteComment(ctx(), p.alice, d, made.ID))
 

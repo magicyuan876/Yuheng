@@ -25,9 +25,7 @@ const (
 	defaultKeenableResults = 5
 )
 
-var (
-	defaultKeenableTimeout = 15 * time.Second
-)
+var defaultKeenableTimeout = 15 * time.Second
 
 // KeenableProvider implements web search using the Keenable Search API.
 // Keyless by default: with no API key it calls the public endpoint

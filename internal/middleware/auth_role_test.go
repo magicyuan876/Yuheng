@@ -111,14 +111,17 @@ func (f *fakeMemberService) ListByUser(ctx context.Context, userID string) ([]*t
 	}
 	return out, nil
 }
+
 func (f *fakeMemberService) ListByTenant(ctx context.Context, tenantID uint64) ([]*types.TenantMember, error) {
 	return nil, nil
 }
+
 func (f *fakeMemberService) ListMembersPage(
 	ctx context.Context, tenantID uint64, query string, page, pageSize int,
 ) ([]*types.TenantMember, int64, error) {
 	return nil, 0, nil
 }
+
 func (f *fakeMemberService) HasAnyMembers(ctx context.Context, tenantID uint64) (bool, error) {
 	if f.failHasAny != nil {
 		return false, f.failHasAny
@@ -130,11 +133,13 @@ func (f *fakeMemberService) HasAnyMembers(ctx context.Context, tenantID uint64) 
 	}
 	return false, nil
 }
+
 func (f *fakeMemberService) UpdateRole(
 	ctx context.Context, userID string, tenantID uint64, newRole types.TenantRole,
 ) error {
 	return nil
 }
+
 func (f *fakeMemberService) RemoveMember(ctx context.Context, userID string, tenantID uint64) error {
 	return nil
 }
