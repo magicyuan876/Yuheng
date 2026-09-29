@@ -18,13 +18,14 @@ import (
 
 // pgRepository implements PostgreSQL-based retrieval operations
 type pgRepository struct {
-	db *gorm.DB // Database connection
+	db      *gorm.DB // Database connection
+	indexes *vectorIndexes
 }
 
 // NewPostgresRetrieveEngineRepository creates a new PostgreSQL retriever repository
 func NewPostgresRetrieveEngineRepository(db *gorm.DB) interfaces.RetrieveEngineRepository {
 	logger.GetLogger(context.Background()).Info("[Postgres] Initializing PostgreSQL retriever engine repository")
-	return &pgRepository{db: db}
+	return &pgRepository{db: db, indexes: newVectorIndexes(db)}
 }
 
 // EngineType returns the retriever engine type (PostgreSQL)
@@ -80,6 +81,9 @@ func (g *pgRepository) EstimateStorageSize(
 func (g *pgRepository) Save(ctx context.Context, indexInfo *types.IndexInfo, additionalParams map[string]any) error {
 	logger.GetLogger(ctx).Debugf("[Postgres] Saving index for source ID: %s", indexInfo.SourceID)
 	embeddingDB := toDBVectorEmbedding(indexInfo, additionalParams)
+	if err := g.ensureDimensions(ctx, []*pgVector{embeddingDB}); err != nil {
+		return err
+	}
 	err := g.db.WithContext(ctx).Create(embeddingDB).Error
 	if err != nil {
 		logger.GetLogger(ctx).Errorf("[Postgres] Failed to save index: %v", err)
@@ -97,6 +101,9 @@ func (g *pgRepository) BatchSave(
 	indexInfoDBList := make([]*pgVector, len(indexInfoList))
 	for i := range indexInfoList {
 		indexInfoDBList[i] = toDBVectorEmbedding(indexInfoList[i], additionalParams)
+	}
+	if err := g.ensureDimensions(ctx, indexInfoDBList); err != nil {
+		return err
 	}
 	err := g.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(indexInfoDBList).Error
 	if err != nil {
@@ -499,6 +506,10 @@ func (g *pgRepository) CopyIndices(ctx context.Context,
 	if len(sourceToTargetChunkIDMap) == 0 {
 		logger.GetLogger(ctx).Warnf("[Postgres] Mapping is empty, no need to copy")
 		return nil
+	}
+
+	if err := g.indexes.Ensure(ctx, dimension); err != nil {
+		return err
 	}
 
 	// Batch processing parameters
