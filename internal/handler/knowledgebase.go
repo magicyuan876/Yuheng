@@ -182,7 +182,7 @@ func sharedKBRow(
 // envDefaultStoreView returns the env-fallback store display enriched with
 // the configured env-store engine type when the service is available. The
 // service path populates EngineType so the caller can show "postgres" or
-// "qdrant" on the env-default badge instead of leaving it blank. A nil
+// a named engine on the env-default badge instead of leaving it blank. A nil
 // service (e.g. in narrow unit-test setups) falls back to the bare default
 // display rather than failing the list response.
 func (h *KnowledgeBaseHandler) envDefaultStoreView(ctx context.Context) types.StoreDisplay {

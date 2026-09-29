@@ -99,5 +99,8 @@ type VectorStoreRepository interface {
 	// Delete soft-deletes a vector store
 	Delete(ctx context.Context, tenantID uint64, id string) error
 	// ExistsByEndpointAndIndex checks if a store with the same endpoint and index already exists
-	ExistsByEndpointAndIndex(ctx context.Context, tenantID uint64, engineType types.RetrieverEngineType, endpoint string, indexName string) (bool, error)
+	ExistsByEndpointAndIndex(
+		ctx context.Context, tenantID uint64, engineType types.RetrieverEngineType,
+		endpoint, indexName, defaultIndexName string,
+	) (bool, error)
 }

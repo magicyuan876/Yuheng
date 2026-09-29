@@ -221,7 +221,7 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 			"has_query_embedding": len(params.QueryEmbedding) > 0,
 		},
 	})
-	retrieveResults, err := s.retrieveFromStores(retrieveCtx, groups, retriever.EngineAwareNormalizer{})
+	retrieveResults, err := s.retrieveFromStores(retrieveCtx, groups, retriever.NewEngineAwareNormalizer(s.engines))
 	retrieveSpan.Finish(langfuse.SummarizeRetrieveOutput(retrieveResults), nil, err)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, map[string]interface{}{

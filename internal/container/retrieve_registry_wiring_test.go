@@ -36,8 +36,12 @@ func TestRetrieveEngineRegistryWiring(t *testing.T) {
 	}
 	provide(func() *gorm.DB { return db })
 	provide(func() *config.Config { return &config.Config{} })
-	provide(func() interfaces.AuditLogService { return &fakeAuditSvc{} })
+	provide(func() interfaces.AuditLogService { return nil })
 	provide(repository.NewVectorStoreRepository)
+	provide(NewEngineCatalog)
+	if err := c.Provide(retriever.PostgresDescriptor, dig.Group(retriever.EngineGroup)); err != nil {
+		t.Fatalf("provide: %v", err)
+	}
 	provide(NewEngineFactory)
 	provide(initRetrieveEngineRegistry)
 

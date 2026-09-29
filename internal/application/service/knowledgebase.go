@@ -48,6 +48,7 @@ type knowledgeBaseService struct {
 	syncLogRepo     interfaces.SyncLogRepository
 	dsScheduler     *datasource.Scheduler
 	audit           interfaces.AuditLogService
+	engines         *retriever.Catalog
 }
 
 // NewKnowledgeBaseService creates a new knowledge base service
@@ -70,6 +71,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 	syncLogRepo interfaces.SyncLogRepository,
 	dsScheduler *datasource.Scheduler,
 	audit interfaces.AuditLogService,
+	engines *retriever.Catalog,
 ) interfaces.KnowledgeBaseService {
 	return &knowledgeBaseService{
 		repo:            repo,
@@ -91,6 +93,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 		syncLogRepo:     syncLogRepo,
 		dsScheduler:     dsScheduler,
 		audit:           audit,
+		engines:         engines,
 	}
 }
 

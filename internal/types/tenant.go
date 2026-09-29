@@ -5,78 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/utils"
 	"gorm.io/gorm"
 )
-
-// retrieverEngineMapping maps RETRIEVE_DRIVER values to retriever engine configurations
-var retrieverEngineMapping = map[string][]RetrieverEngineParams{
-	"postgres": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: PostgresRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: PostgresRetrieverEngineType},
-	},
-	"elasticsearch_v7": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: ElasticsearchRetrieverEngineType},
-	},
-	"elasticsearch_v8": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: ElasticsearchRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: ElasticsearchRetrieverEngineType},
-	},
-	"qdrant": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: QdrantRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: QdrantRetrieverEngineType},
-	},
-	"milvus": {
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: MilvusRetrieverEngineType},
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: MilvusRetrieverEngineType},
-	},
-	"weaviate": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: WeaviateRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: WeaviateRetrieverEngineType},
-	},
-	"doris": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: DorisRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: DorisRetrieverEngineType},
-	},
-	"tencent_vectordb": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: TencentVectorDBRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: TencentVectorDBRetrieverEngineType},
-	},
-	"opensearch": {
-		{RetrieverType: KeywordsRetrieverType, RetrieverEngineType: OpenSearchRetrieverEngineType},
-		{RetrieverType: VectorRetrieverType, RetrieverEngineType: OpenSearchRetrieverEngineType},
-	},
-}
-
-// GetRetrieverEngineMapping returns the retriever engine mapping
-// This allows other packages to access the driver capabilities
-func GetRetrieverEngineMapping() map[string][]RetrieverEngineParams {
-	return retrieverEngineMapping
-}
-
-// GetDefaultRetrieverEngines returns the default retriever engines based on RETRIEVE_DRIVER env
-func GetDefaultRetrieverEngines() []RetrieverEngineParams {
-	result := []RetrieverEngineParams{}
-	seen := make(map[string]bool)
-
-	for _, driver := range strings.Split(os.Getenv("RETRIEVE_DRIVER"), ",") {
-		driver = strings.TrimSpace(driver)
-		if params, ok := retrieverEngineMapping[driver]; ok {
-			for _, p := range params {
-				key := string(p.RetrieverType) + ":" + string(p.RetrieverEngineType)
-				if !seen[key] {
-					seen[key] = true
-					result = append(result, p)
-				}
-			}
-		}
-	}
-	return result
-}
 
 // Tenant represents the tenant
 type Tenant struct {
@@ -128,12 +63,28 @@ type RetrieverEngines struct {
 	Engines []RetrieverEngineParams `yaml:"engines" json:"engines" gorm:"type:json"`
 }
 
-// GetEffectiveEngines returns the tenant's engines if configured, otherwise returns system defaults
+// defaultRetrieverEngines is what a tenant with no engines of its own uses.
+// The engine catalog knows what the deployment offers, and the model must not
+// depend on it, so the application sets this once at start-up.
+var defaultRetrieverEngines atomic.Pointer[[]RetrieverEngineParams]
+
+// SetDefaultRetrieverEngines sets the engines used by tenants that configure
+// none. Call it once, before serving requests.
+func SetDefaultRetrieverEngines(engines []RetrieverEngineParams) {
+	cp := append([]RetrieverEngineParams(nil), engines...)
+	defaultRetrieverEngines.Store(&cp)
+}
+
+// GetEffectiveEngines returns the tenant's engines if configured, otherwise the
+// deployment's defaults.
 func (t *Tenant) GetEffectiveEngines() []RetrieverEngineParams {
 	if len(t.RetrieverEngines.Engines) > 0 {
 		return t.RetrieverEngines.Engines
 	}
-	return GetDefaultRetrieverEngines()
+	if d := defaultRetrieverEngines.Load(); d != nil {
+		return append([]RetrieverEngineParams(nil), *d...)
+	}
+	return []RetrieverEngineParams{}
 }
 
 // BeforeCreate is a hook function that is called before creating a tenant

@@ -2,382 +2,149 @@ package container
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"net"
-	"strconv"
+	"os"
 	"strings"
-	"time"
 
-	esv7 "github.com/elastic/go-elasticsearch/v7"
-	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/go-sql-driver/mysql" // 通过 database/sql 注册 mysql 驱动给 Doris 使用
-	"github.com/milvus-io/milvus/client/v2/milvusclient"
-	"github.com/qdrant/go-client/qdrant"
-	"github.com/weaviate/weaviate-go-client/v5/weaviate"
-	"github.com/weaviate/weaviate-go-client/v5/weaviate/auth"
-	wgrpc "github.com/weaviate/weaviate-go-client/v5/weaviate/grpc"
-	"google.golang.org/grpc"
+	"go.uber.org/dig"
 	"gorm.io/gorm"
 
-	dorisRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/doris"
-	elasticsearchRepoV7 "github.com/magicyuan876/yuheng/internal/application/repository/retriever/elasticsearch/v7"
-	elasticsearchRepoV8 "github.com/magicyuan876/yuheng/internal/application/repository/retriever/elasticsearch/v8"
-	milvusRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/milvus"
-	openSearchRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/opensearch"
-	postgresRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/postgres"
-	qdrantRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/qdrant"
-	tencentVectorDBRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/tencentvectordb"
-	weaviateRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/weaviate"
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/config"
+	"github.com/magicyuan876/yuheng/internal/extension"
+	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/magicyuan876/yuheng/internal/utils"
-	"github.com/tencent/vectordatabase-sdk-go/tcvectordb"
 )
 
-// NewEngineFactory returns an EngineFactory function closed over db, cfg, and
-// an audit sink (built from the AuditLogService). Registered in dig and
-// injected into VectorStoreService for dynamic registry updates. The
-// EngineFactory type itself is unchanged — the audit sink is captured in the
-// closure rather than added to the signature.
-func NewEngineFactory(db *gorm.DB, cfg *config.Config, auditSvc interfaces.AuditLogService) interfaces.EngineFactory {
-	sink := newAuditSinkAdapter(auditSvc)
-	return func(ctx context.Context, store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-		return createEngineServiceFromStore(ctx, store, db, cfg, sink)
-	}
+// engineCatalogParams collects every engine descriptor provided into
+// retriever.EngineGroup: the core's own, and those an extension adds.
+type engineCatalogParams struct {
+	dig.In
+
+	Descriptors []retriever.EngineDescriptor `group:"retrieve_engines"`
 }
 
-// createEngineServiceFromStore creates a RetrieveEngineService from a VectorStore's config.
-// This is the DB store counterpart of the env-based initialization in initRetrieveEngineRegistry.
-// auditSink may be nil (audit becomes a no-op).
-func createEngineServiceFromStore(
-	ctx context.Context,
-	store types.VectorStore,
-	db *gorm.DB,
-	cfg *config.Config,
-	auditSink openSearchRepo.AuditSink,
-) (interfaces.RetrieveEngineService, error) {
-	if err := validateRuntimeVectorStoreAddresses(store); err != nil {
+// NewEngineCatalog builds the catalog of engines this deployment offers.
+//
+// It refuses to be built before the extension hooks have run: a catalog built
+// earlier would silently lack the engines an extension provides.
+func NewEngineCatalog(in engineCatalogParams) (*retriever.Catalog, error) {
+	if err := extension.RequireApplied("engine catalog"); err != nil {
 		return nil, err
 	}
-	switch store.EngineType {
-	case types.PostgresRetrieverEngineType:
-		return createPostgresEngine(store, db)
-	case types.ElasticsearchRetrieverEngineType:
-		return createElasticsearchEngine(store, cfg)
-	case types.QdrantRetrieverEngineType:
-		return createQdrantEngine(store)
-	case types.MilvusRetrieverEngineType:
-		return createMilvusEngine(ctx, store)
-	case types.WeaviateRetrieverEngineType:
-		return createWeaviateEngine(store)
-	case types.DorisRetrieverEngineType:
-		return createDorisEngine(store)
-	case types.TencentVectorDBRetrieverEngineType:
-		return createTencentVectorDBEngine(store)
-	case types.OpenSearchRetrieverEngineType:
-		return createOpenSearchEngine(ctx, store, auditSink)
-	default:
-		return nil, fmt.Errorf("unsupported engine type: %s", store.EngineType)
-	}
+	return retriever.NewCatalog(in.Descriptors...)
 }
 
-// validateRuntimeVectorStoreAddresses is the final guard for persisted or
-// imported vector-store rows. Create/test handlers validate the same fields at
-// the input boundary, but runtime construction must not assume every stored row
-// was written through those handlers.
-func validateRuntimeVectorStoreAddresses(store types.VectorStore) error {
-	cc := store.ConnectionConfig
-	check := func(label, endpoint string) error {
-		endpoint = strings.TrimSpace(endpoint)
-		if endpoint == "" {
-			return nil
+// NewEngineFactory returns the EngineFactory that builds an engine from a
+// stored VectorStore row. It is registered in dig and injected into
+// VectorStoreService for dynamic registry updates.
+func NewEngineFactory(
+	db *gorm.DB, cfg *config.Config, auditSvc interfaces.AuditLogService, catalog *retriever.Catalog,
+) interfaces.EngineFactory {
+	deps := retriever.EngineDeps{DB: db, Config: cfg, Audit: auditSvc}
+	return func(ctx context.Context, store types.VectorStore) (interfaces.RetrieveEngineService, error) {
+		engine, ok := catalog.ByType(store.EngineType)
+		if !ok {
+			return nil, fmt.Errorf("vector store engine %q is not available in this deployment", store.EngineType)
 		}
-		if err := utils.ValidateURLForSSRF(endpoint); err != nil {
-			return fmt.Errorf("%s failed SSRF validation: %w", label, err)
+		// Stored rows are user-controlled data: the API validates them on the
+		// way in, but construction must not assume every row came that way.
+		// Fail closed for an engine that was never meant to be registered.
+		if !engine.Registrable {
+			return nil, fmt.Errorf("vector store engine %q cannot be registered by a workspace", store.EngineType)
 		}
-		return nil
-	}
-
-	switch store.EngineType {
-	case types.PostgresRetrieverEngineType:
-		return nil
-	case types.ElasticsearchRetrieverEngineType,
-		types.OpenSearchRetrieverEngineType,
-		types.MilvusRetrieverEngineType,
-		types.TencentVectorDBRetrieverEngineType,
-		types.DorisRetrieverEngineType:
-		return check("vector store address", cc.Addr)
-	case types.QdrantRetrieverEngineType:
-		endpoint := cc.Host
-		if endpoint != "" && cc.Port != 0 {
-			endpoint = net.JoinHostPort(strings.Trim(cc.Host, "[]"), strconv.Itoa(cc.Port))
+		for _, addr := range engine.DialAddresses(store.ConnectionConfig) {
+			addr = strings.TrimSpace(addr)
+			if addr == "" {
+				continue
+			}
+			if err := utils.ValidateURLForSSRF(addr); err != nil {
+				return nil, fmt.Errorf("vector store address failed SSRF validation: %w", err)
+			}
 		}
-		return check("qdrant address", endpoint)
-	case types.WeaviateRetrieverEngineType:
-		if err := check("weaviate HTTP address", cc.Host); err != nil {
-			return err
-		}
-		return check("weaviate gRPC address", cc.GrpcAddress)
-	default:
-		return fmt.Errorf("vector store engine %q has no SSRF address policy", store.EngineType)
+		return engine.New(ctx, store, deps)
 	}
 }
 
-// createOpenSearchEngine builds an OpenSearch k-NN retrieve engine. Mirrors
-// createElasticsearchV8Engine but uses the driver's TLS-hardened client
-// constructor and injects the audit sink. NewRepository probes the cluster
-// (version + k-NN plugin), so an unreachable cluster fails here at
-// registration rather than on first query.
-func createOpenSearchEngine(
-	ctx context.Context, store types.VectorStore, auditSink openSearchRepo.AuditSink,
-) (interfaces.RetrieveEngineService, error) {
-	client, err := openSearchRepo.NewOpenSearchClient(&store.ConnectionConfig)
-	if err != nil {
-		return nil, fmt.Errorf("create opensearch client: %w", err)
-	}
-	// Env stores share the cluster without a per-store index prefix; DB stores
-	// fold their (>=16-char) ID into the index name. NewRepository enforces the
-	// length rule, so map env-store IDs to "".
-	storeID := store.ID
-	if types.IsEnvStoreID(storeID) {
-		storeID = ""
-	}
-	repo, err := openSearchRepo.NewRepository(ctx, client, storeID, &store.IndexConfig,
-		openSearchRepo.WithAuditSink(auditSink))
-	if err != nil {
-		return nil, fmt.Errorf("create opensearch repository: %w", err)
-	}
-	return retriever.NewKVHybridRetrieveEngine(repo, types.OpenSearchRetrieverEngineType), nil
-}
-
-func createPostgresEngine(store types.VectorStore, db *gorm.DB) (interfaces.RetrieveEngineService, error) {
-	if store.ConnectionConfig.UseDefaultConnection {
-		repo := postgresRepo.NewPostgresRetrieveEngineRepository(db)
-		return retriever.NewKVHybridRetrieveEngine(repo, types.PostgresRetrieverEngineType), nil
-	}
-	// Phase 1: only UseDefaultConnection is supported.
-	// Custom connections require connection pool management and migration handling.
-	return nil, fmt.Errorf("custom postgres connections not yet supported; use use_default_connection=true")
-}
-
-func createElasticsearchEngine(store types.VectorStore, cfg *config.Config) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	// Version-based v7/v8 SDK selection.
-	// Version is auto-detected by PR2's TestConnection and saved to connection_config.
-	// Empty version defaults to v8 (latest SDK).
-	if isESv7(cc.Version) {
-		return createElasticsearchV7Engine(store, cfg)
-	}
-	return createElasticsearchV8Engine(store, cfg)
-}
-
-// isESv7 checks if the detected ES version is 7.x.
-func isESv7(version string) bool {
-	return strings.HasPrefix(version, "7.")
-}
-
-func createElasticsearchV8Engine(store types.VectorStore, cfg *config.Config) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	if err := utils.ValidateURLForSSRF(cc.Addr); err != nil {
-		return nil, fmt.Errorf("elasticsearch address failed SSRF validation: %w", err)
-	}
-	client, err := elasticsearch.NewTypedClient(elasticsearch.Config{
-		Addresses: []string{cc.Addr},
-		Username:  cc.Username,
-		Password:  cc.Password,
-		Transport: &utils.SSRFValidatingRoundTripper{
-			Base: utils.NewSSRFSafeTransport(utils.DefaultSSRFSafeHTTPClientConfig()),
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create elasticsearch v8 client: %w", err)
-	}
-	repo := elasticsearchRepoV8.NewElasticsearchEngineRepository(client, cfg, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.ElasticsearchRetrieverEngineType), nil
-}
-
-func createElasticsearchV7Engine(store types.VectorStore, cfg *config.Config) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	if err := utils.ValidateURLForSSRF(cc.Addr); err != nil {
-		return nil, fmt.Errorf("elasticsearch address failed SSRF validation: %w", err)
-	}
-	client, err := esv7.NewClient(esv7.Config{
-		Addresses: []string{cc.Addr},
-		Username:  cc.Username,
-		Password:  cc.Password,
-		Transport: &utils.SSRFValidatingRoundTripper{
-			Base: utils.NewSSRFSafeTransport(utils.DefaultSSRFSafeHTTPClientConfig()),
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create elasticsearch v7 client: %w", err)
-	}
-	repo := elasticsearchRepoV7.NewElasticsearchEngineRepository(client, cfg, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.ElasticsearchRetrieverEngineType), nil
-}
-
-func createQdrantEngine(store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	port := cc.Port
-	if port == 0 {
-		port = 6334
-	}
-
-	client, err := qdrant.NewClient(&qdrant.Config{
-		Host:        cc.Host,
-		Port:        port,
-		APIKey:      cc.APIKey,
-		UseTLS:      cc.UseTLS,
-		GrpcOptions: []grpc.DialOption{grpc.WithContextDialer(utils.SSRFSafeGRPCDialer)},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create qdrant client: %w", err)
-	}
-	repo := qdrantRepo.NewQdrantRetrieveEngineRepository(client, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.QdrantRetrieverEngineType), nil
-}
-
-func createMilvusEngine(ctx context.Context, store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-	milvusCfg := buildMilvusClientConfig(store.ConnectionConfig)
-	client, err := milvusclient.New(ctx, &milvusCfg)
-	if err != nil {
-		return nil, fmt.Errorf("create milvus client: %w", err)
-	}
-	repo := milvusRepo.NewMilvusRetrieveEngineRepository(client, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.MilvusRetrieverEngineType), nil
-}
-
-func buildMilvusClientConfig(cc types.ConnectionConfig) milvusclient.ClientConfig {
-	addr := cc.Addr
-	if addr == "" {
-		addr = "localhost:19530"
-	}
-
-	milvusCfg := milvusclient.ClientConfig{
-		Address: addr,
-		DialOptions: []grpc.DialOption{
-			grpc.WithTimeout(5 * time.Second),
-			grpc.WithContextDialer(utils.SSRFSafeGRPCDialer),
-		},
-	}
-	if cc.Username != "" {
-		milvusCfg.Username = cc.Username
-	}
-	if cc.Password != "" {
-		milvusCfg.Password = cc.Password
-	}
-	if cc.Database != "" {
-		milvusCfg.DBName = cc.Database
-	}
-	return milvusCfg
-}
-
-func createWeaviateEngine(store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	host := cc.Host
-	if host == "" {
-		host = "weaviate:8080"
-	}
-	grpcAddress := cc.GrpcAddress
-	if grpcAddress == "" {
-		grpcAddress = "weaviate:50051"
-	}
-	scheme := cc.Scheme
-	if scheme == "" {
-		scheme = "http"
-	}
-
-	weaviateCfg := weaviate.Config{
-		Host:             host,
-		ConnectionClient: utils.NewSSRFSafeHTTPClient(utils.DefaultSSRFSafeHTTPClientConfig()),
-		GrpcConfig: &wgrpc.Config{
-			Host: grpcAddress,
-		},
-		Scheme: scheme,
-	}
-	// Unlike the env path (which checks WEAVIATE_AUTH_ENABLED), the factory uses
-	// APIKey directly — if a user provides it, they intend to use it.
-	if cc.APIKey != "" {
-		weaviateCfg.AuthConfig = auth.ApiKey{Value: cc.APIKey}
-	}
-
-	client, err := weaviate.NewClient(weaviateCfg)
-	if err != nil {
-		return nil, fmt.Errorf("create weaviate client: %w", err)
-	}
-	repo := weaviateRepo.NewWeaviateRetrieveEngineRepository(client, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.WeaviateRetrieverEngineType), nil
-}
-
-// createDorisEngine 创建 Apache Doris 检索引擎服务。
+// initRetrieveEngineRegistry builds the retrieval engine registry from the
+// engines RETRIEVE_DRIVER names, then adds the stores workspaces registered.
 //
-// Doris 同时使用两个端口：
-//   - MySQL 协议（默认 9030）走 database/sql 做主链路读写；
-//   - HTTP（默认 FE 8030）走 Stream Load 做 partial update。
-//
-// Addr 字段承担 host:9030 的 MySQL 端点；HTTPPort + Addr 的 host 部分组成 HTTP base URL。
-func createDorisEngine(store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	if cc.Addr == "" {
-		return nil, fmt.Errorf("doris connection requires addr (host:port)")
-	}
-	if cc.Database == "" {
-		return nil, fmt.Errorf("doris connection requires database")
+// storeRepo and engineFactory let the registry rebuild a store engine that is
+// absent from this process, which happens when startup skipped it after a
+// construction failure or when another instance registered it.
+func initRetrieveEngineRegistry(
+	db *gorm.DB, cfg *config.Config, auditSvc interfaces.AuditLogService,
+	storeRepo interfaces.VectorStoreRepository, engineFactory interfaces.EngineFactory,
+	catalog *retriever.Catalog,
+) (interfaces.RetrieveEngineRegistry, error) {
+	ctx := context.Background()
+	log := logger.GetLogger(ctx)
+	registry := retriever.NewRetrieveEngineRegistry(storeRepo, engineFactory)
+	deps := retriever.EngineDeps{DB: db, Config: cfg, Audit: auditSvc}
+
+	retrieveDriver := os.Getenv("RETRIEVE_DRIVER")
+	// Tenants that configure no engines of their own use what the deployment
+	// names here.
+	types.SetDefaultRetrieverEngines(catalog.DefaultEngines(retrieveDriver))
+	engines, unknown := catalog.Drivers(retrieveDriver)
+	for _, token := range unknown {
+		// A typo here would otherwise leave the deployment without search and
+		// with nothing in the log to say why.
+		log.Errorf("RETRIEVE_DRIVER names %q, which is not an engine of this deployment", token)
 	}
 
-	mc := mysql.NewConfig()
-	mc.User = cc.Username
-	mc.Passwd = cc.Password
-	utils.RegisterMySQLSSRFDialer()
-	mc.Net = utils.MySQLSSRFNetwork
-	mc.Addr = cc.Addr
-	mc.DBName = cc.Database
-	mc.Params = map[string]string{"charset": "utf8mb4"}
-	mc.ParseTime = true
-	mc.Loc = time.Local
-	db, err := sql.Open("mysql", mc.FormatDSN())
-	if err != nil {
-		return nil, fmt.Errorf("create doris client: %w", err)
+	// Environment engines are the operator's own configuration and trusted, so
+	// they are built directly and not through the workspace-facing factory.
+	for _, engine := range engines {
+		store := engine.EnvStore(os.Getenv)
+		if store == nil {
+			continue
+		}
+		svc, err := engine.New(ctx, *store, deps)
+		if err != nil {
+			log.Errorf("Create %s retrieve engine failed: %v", engine.Type, err)
+			continue
+		}
+		if err := registry.Register(svc); err != nil {
+			log.Errorf("Register %s retrieve engine failed: %v", engine.Type, err)
+			continue
+		}
+		log.Infof("Register %s retrieve engine success", engine.Type)
 	}
-	db.SetMaxOpenConns(20)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Hour)
 
-	httpPort := cc.HTTPPort
-	if httpPort <= 0 {
-		httpPort = 8030
+	if storeRegistry, ok := registry.(interfaces.StoreRegistry); ok {
+		loadDBStoresIntoRegistry(storeRegistry, db, engineFactory)
 	}
-	httpBase := "http://" + hostFromAddr(cc.Addr) + ":" + strconv.Itoa(httpPort)
-
-	repo := dorisRepo.NewDorisRetrieveEngineRepository(
-		db, httpBase, cc.Username, cc.Password, cc.Database, &store.IndexConfig,
-	)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.DorisRetrieverEngineType), nil
+	return registry, nil
 }
 
-// hostFromAddr 从 "host:port" 中拆出 host 部分；Addr 没有冒号时整段当作 host。
-func hostFromAddr(addr string) string {
-	if i := strings.LastIndex(addr, ":"); i > 0 {
-		return addr[:i]
-	}
-	return addr
-}
+// loadDBStoresIntoRegistry registers the VectorStore rows workspaces created.
+// A store that fails to build is logged and skipped: one unreachable cluster
+// must not keep the application from starting.
+func loadDBStoresIntoRegistry(registry interfaces.StoreRegistry, db *gorm.DB, factory interfaces.EngineFactory) {
+	ctx := context.Background()
+	log := logger.GetLogger(ctx)
 
-func createTencentVectorDBEngine(store types.VectorStore) (interfaces.RetrieveEngineService, error) {
-	cc := store.ConnectionConfig
-	client, err := tcvectordb.NewRpcClient(cc.Addr, cc.Username, cc.APIKey, &tcvectordb.ClientOption{
-		ReadConsistency: tcvectordb.EventualConsistency,
-		Timeout:         10 * time.Second,
-		Transport: &utils.SSRFValidatingRoundTripper{
-			Base: utils.NewSSRFSafeTransport(utils.DefaultSSRFSafeHTTPClientConfig()),
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create tencent vectordb client: %w", err)
+	var stores []types.VectorStore
+	// GORM soft delete automatically adds "deleted_at IS NULL" condition
+	if err := db.Find(&stores).Error; err != nil {
+		log.Warnf("Failed to load vector stores from DB: %v", err)
+		return
 	}
-	repo := tencentVectorDBRepo.NewTencentVectorDBRetrieveEngineRepository(client, cc.Database, &store.IndexConfig)
-	return retriever.NewKVHybridRetrieveEngine(repo, types.TencentVectorDBRetrieverEngineType), nil
+	if len(stores) == 0 {
+		return
+	}
+
+	log.Infof("Loading %d vector store(s) from database", len(stores))
+	for _, store := range stores {
+		svc, err := factory(ctx, store)
+		if err != nil {
+			log.Errorf("Failed to create engine for store %s (%s): %v", store.ID, store.Name, err)
+			continue
+		}
+		registry.RegisterWithStoreID(store.ID, svc)
+		log.Infof("Registered DB vector store: id=%s, name=%s, engine=%s", store.ID, store.Name, store.EngineType)
+	}
 }

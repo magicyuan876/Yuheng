@@ -1,15 +1,21 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/docs"
 	"github.com/magicyuan876/yuheng/internal/handler"
+	"github.com/magicyuan876/yuheng/internal/types"
+	"github.com/magicyuan876/yuheng/internal/types/interfaces"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func allDeploymentFeaturesAvailable() handler.DeploymentFeatureAvailability {
@@ -104,4 +110,37 @@ func TestGetDeploymentCapabilitiesHandlerReturnsSnapshot(t *testing.T) {
 	if !body.Data.Capabilities["settings.websearch"].Supported {
 		t.Fatal("websearch capability should be returned")
 	}
+}
+
+// Registering a vector store needs an engine to register. The community
+// edition ships none, so it must not advertise the screen.
+func TestVectorStoreCapabilityFollowsRegistrableEngines(t *testing.T) {
+	registrable := retriever.EngineDescriptor{
+		Type: "registrable", Driver: "registrable", DisplayName: "Registrable",
+		Capabilities:   retriever.EngineCapabilities{Retrievers: []types.RetrieverType{types.VectorRetrieverType}},
+		Registrable:    true,
+		EnvStore:       func(types.EnvLookupFunc) *types.VectorStore { return nil },
+		DialAddresses:  func(types.ConnectionConfig) []string { return nil },
+		TestConnection: func(context.Context, types.ConnectionConfig) (string, error) { return "", nil },
+		New: func(context.Context, types.VectorStore, retriever.EngineDeps) (interfaces.RetrieveEngineService, error) {
+			return nil, nil
+		},
+	}
+	builtInOnly, err := retriever.NewCatalog(retriever.PostgresDescriptor())
+	require.NoError(t, err)
+	withEngine, err := retriever.NewCatalog(retriever.PostgresDescriptor(), registrable)
+	require.NoError(t, err)
+
+	base := RouterParams{VectorStoreHandler: &handler.VectorStoreHandler{}}
+
+	assert.False(t, deploymentCapabilitiesFromRouter(base).VectorStore, "no catalog")
+
+	base.EngineCatalog = builtInOnly
+	assert.False(t, deploymentCapabilitiesFromRouter(base).VectorStore, "only the built-in engine")
+
+	base.EngineCatalog = withEngine
+	assert.True(t, deploymentCapabilitiesFromRouter(base).VectorStore, "an engine can be registered")
+
+	base.VectorStoreHandler = nil
+	assert.False(t, deploymentCapabilitiesFromRouter(base).VectorStore, "no handler, no screen")
 }

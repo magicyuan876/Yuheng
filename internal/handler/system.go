@@ -19,6 +19,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/application/repository"
 	"github.com/magicyuan876/yuheng/internal/application/service"
 	"github.com/magicyuan876/yuheng/internal/application/service/file"
+	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/database"
 	apperrors "github.com/magicyuan876/yuheng/internal/errors"
@@ -74,6 +75,7 @@ type SystemHandler struct {
 	// extensionFeatures is consulted on every GET /system/capabilities, since
 	// what extensions report can change at runtime. Optional; nil reports none.
 	extensionFeatures extension.Features
+	engines           *retriever.Catalog
 }
 
 // NewSystemHandler creates a new system handler
@@ -89,6 +91,7 @@ func NewSystemHandler(cfg *config.Config,
 	knowledgeSvc interfaces.KnowledgeService,
 	storageBackendRepo interfaces.StorageBackendRepository,
 	parserResolver interfaces.ParserEngineResolver,
+	engines *retriever.Catalog,
 ) *SystemHandler {
 	return &SystemHandler{
 		cfg:                cfg,
@@ -103,6 +106,7 @@ func NewSystemHandler(cfg *config.Config,
 		knowledgeSvc:       knowledgeSvc,
 		storageBackendRepo: storageBackendRepo,
 		parserResolver:     parserResolver,
+		engines:            engines,
 	}
 }
 
@@ -649,25 +653,11 @@ func (h *SystemHandler) getGraphDatabaseEngine() string {
 	return "Neo4j"
 }
 
-// supportsRetrieverType checks if a driver supports a specific retriever type
-// by looking up the retrieverEngineMapping from types package
+// supportsRetrieverType reports whether the engine a RETRIEVE_DRIVER token names
+// implements the retrieval kind.
 func (h *SystemHandler) supportsRetrieverType(driver string, retrieverType types.RetrieverType) bool {
-	// Get the mapping of all supported drivers and their capabilities
-	mapping := types.GetRetrieverEngineMapping()
-
-	// Check if the driver exists in the mapping
-	engines, exists := mapping[driver]
-	if !exists {
-		return false
-	}
-
-	// Check if any of the engine configurations support the requested retriever type
-	for _, engine := range engines {
-		if engine.RetrieverType == retrieverType {
-			return true
-		}
-	}
-	return false
+	engine, ok := h.engines.ByDriver(driver)
+	return ok && engine.Capabilities.Supports(retrieverType)
 }
 
 // getMinioConfig resolves MinIO connection parameters from tenant config (if mode=remote) or env vars (mode=docker/default).

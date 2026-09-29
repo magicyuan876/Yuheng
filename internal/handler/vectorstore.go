@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/handler/dto"
 	"github.com/magicyuan876/yuheng/internal/logger"
@@ -17,14 +18,16 @@ import (
 type VectorStoreHandler struct {
 	repo    interfaces.VectorStoreRepository
 	service interfaces.VectorStoreService
+	engines *retriever.Catalog
 }
 
 // NewVectorStoreHandler creates a new handler
 func NewVectorStoreHandler(
 	repo interfaces.VectorStoreRepository,
 	service interfaces.VectorStoreService,
+	engines *retriever.Catalog,
 ) *VectorStoreHandler {
-	return &VectorStoreHandler{repo: repo, service: service}
+	return &VectorStoreHandler{repo: repo, service: service, engines: engines}
 }
 
 // --- request DTOs ---
@@ -167,7 +170,7 @@ func (h *VectorStoreHandler) ListStores(c *gin.Context) {
 	}
 
 	// env stores → VectorStore → VectorStoreResponse (masked)
-	envStores := types.BuildEnvVectorStores(os.Getenv("RETRIEVE_DRIVER"), os.Getenv)
+	envStores := h.engines.EnvStores(os.Getenv("RETRIEVE_DRIVER"), os.Getenv)
 	maskedEnvStores := make([]types.VectorStoreResponse, len(envStores))
 	for i := range envStores {
 		maskedEnvStores[i] = types.NewVectorStoreResponse(&envStores[i], "env", true)
@@ -207,7 +210,7 @@ func (h *VectorStoreHandler) GetStore(c *gin.Context) {
 
 	// Handle env store
 	if types.IsEnvStoreID(id) {
-		envStore := types.FindEnvVectorStore(os.Getenv("RETRIEVE_DRIVER"), os.Getenv, id)
+		envStore := h.engines.FindEnvStore(os.Getenv("RETRIEVE_DRIVER"), os.Getenv, id)
 		if envStore == nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "vector store not found"})
 			return
@@ -361,7 +364,7 @@ func (h *VectorStoreHandler) DeleteStore(c *gin.Context) {
 func (h *VectorStoreHandler) ListStoreTypes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    types.GetVectorStoreTypes(),
+		"data":    h.engines.TypeInfos(),
 	})
 }
 
@@ -390,7 +393,7 @@ func (h *VectorStoreHandler) TestStoreByID(c *gin.Context) {
 
 	// env store — test with unmasked config
 	if types.IsEnvStoreID(id) {
-		envStore := types.FindEnvVectorStore(os.Getenv("RETRIEVE_DRIVER"), os.Getenv, id)
+		envStore := h.engines.FindEnvStore(os.Getenv("RETRIEVE_DRIVER"), os.Getenv, id)
 		if envStore == nil {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "vector store not found"})
 			return

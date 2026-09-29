@@ -95,6 +95,7 @@ func (r *vectorStoreRepository) Delete(ctx context.Context, tenantID uint64, id 
 }
 
 // ExistsByEndpointAndIndex checks if a store with the same endpoint and index already exists.
+// A stored row that names no index is compared under defaultIndexName, the engine's default.
 // Comparison is done at the application level, where the endpoint and index
 // are read through the same connection-config decoding the rest of the code
 // uses; the row count is small (a few per tenant).
@@ -104,6 +105,7 @@ func (r *vectorStoreRepository) ExistsByEndpointAndIndex(
 	engineType types.RetrieverEngineType,
 	endpoint string,
 	indexName string,
+	defaultIndexName string,
 ) (bool, error) {
 	var stores []*types.VectorStore
 	if err := r.db.WithContext(ctx).Where(
@@ -112,8 +114,11 @@ func (r *vectorStoreRepository) ExistsByEndpointAndIndex(
 		return false, err
 	}
 	for _, s := range stores {
-		if s.ConnectionConfig.GetEndpoint() == endpoint &&
-			s.IndexConfig.GetIndexNameOrDefault(engineType) == indexName {
+		effective := s.IndexConfig.IndexName
+		if effective == "" {
+			effective = defaultIndexName
+		}
+		if s.ConnectionConfig.GetEndpoint() == endpoint && effective == indexName {
 			return true, nil
 		}
 	}

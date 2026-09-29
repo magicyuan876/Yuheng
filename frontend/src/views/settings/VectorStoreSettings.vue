@@ -1057,24 +1057,7 @@ onMounted(async () => {
   mask-size: contain;
 }
 
-/* 各 vector engine 配色（覆盖 11 类常见后端，未列出的回落到默认蓝） */
-.store-card--qdrant .store-card__badge {
-  background: rgba(225, 38, 38, 0.12);
-  color: #e12626;
-}
-.store-card--milvus .store-card__badge {
-  background: rgba(0, 137, 255, 0.12);
-  color: #0089ff;
-}
-.store-card--weaviate .store-card__badge {
-  background: rgba(7, 192, 95, 0.12);
-  color: #07a050;
-}
-.store-card--elasticsearch .store-card__badge,
-.store-card--elasticfaiss .store-card__badge {
-  background: rgba(255, 153, 0, 0.12);
-  color: #d97706;
-}
+/* 各 vector engine 配色（未列出的回落到默认蓝） */
 .store-card--postgres .store-card__badge {
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
@@ -1082,18 +1065,6 @@ onMounted(async () => {
 .store-card--opensearch .store-card__badge {
   background: rgba(98, 53, 187, 0.12);
   color: #6235bb;
-}
-.store-card--infinity .store-card__badge {
-  background: rgba(98, 53, 187, 0.12);
-  color: #6235bb;
-}
-.store-card--tencent_vectordb .store-card__badge {
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-.store-card--doris .store-card__badge {
-  background: rgba(255, 90, 0, 0.12);
-  color: #e55a00;
 }
 
 .store-card:hover .store-card__more,
@@ -1131,23 +1102,6 @@ onMounted(async () => {
   box-shadow: inset 0 0 0 1px var(--td-component-stroke);
 }
 
-.vectorstore-drawer--qdrant .setting-drawer__header-icon {
-  background: rgba(225, 38, 38, 0.12);
-  color: #e12626;
-}
-.vectorstore-drawer--milvus .setting-drawer__header-icon {
-  background: rgba(0, 137, 255, 0.12);
-  color: #0089ff;
-}
-.vectorstore-drawer--weaviate .setting-drawer__header-icon {
-  background: rgba(7, 192, 95, 0.12);
-  color: #07a050;
-}
-.vectorstore-drawer--elasticsearch .setting-drawer__header-icon,
-.vectorstore-drawer--elasticfaiss .setting-drawer__header-icon {
-  background: rgba(255, 153, 0, 0.12);
-  color: #d97706;
-}
 .vectorstore-drawer--postgres .setting-drawer__header-icon {
   background: rgba(0, 82, 217, 0.1);
   color: #0052d9;
@@ -1155,17 +1109,5 @@ onMounted(async () => {
 .vectorstore-drawer--opensearch .setting-drawer__header-icon {
   background: rgba(98, 53, 187, 0.12);
   color: #6235bb;
-}
-.vectorstore-drawer--infinity .setting-drawer__header-icon {
-  background: rgba(98, 53, 187, 0.12);
-  color: #6235bb;
-}
-.vectorstore-drawer--tencent_vectordb .setting-drawer__header-icon {
-  background: rgba(0, 82, 217, 0.1);
-  color: #0052d9;
-}
-.vectorstore-drawer--doris .setting-drawer__header-icon {
-  background: rgba(255, 90, 0, 0.12);
-  color: #e55a00;
 }
 </style>

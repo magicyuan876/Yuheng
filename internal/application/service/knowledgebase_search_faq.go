@@ -101,7 +101,7 @@ func (s *knowledgeBaseService) iterativeRetrieveWithDeduplication(ctx context.Co
 		}
 
 		retrieveResults, err := s.retrieveFromStores(
-			ctx, groups, retriever.EngineAwareNormalizer{})
+			ctx, groups, retriever.NewEngineAwareNormalizer(s.engines))
 		if err != nil {
 			// Typed AppErrors must surface to HybridSearch so the user
 			// sees the failure rather than a silently truncated chunk

@@ -18149,9 +18149,6 @@ const docTemplate = `{
                 "vector_store.created",
                 "vector_store.updated",
                 "vector_store.deleted",
-                "opensearch.index_created",
-                "opensearch.index_deleted",
-                "opensearch.reindex_executed",
                 "system.setting_changed",
                 "system.admin_promoted",
                 "system.admin_revoked",
@@ -18213,9 +18210,6 @@ const docTemplate = `{
                 "AuditActionVectorStoreCreated",
                 "AuditActionVectorStoreUpdated",
                 "AuditActionVectorStoreDeleted",
-                "AuditActionOpenSearchIndexCreated",
-                "AuditActionOpenSearchIndexDeleted",
-                "AuditActionOpenSearchReindexExecuted",
                 "AuditActionSystemSettingChanged",
                 "AuditActionSystemAdminPromoted",
                 "AuditActionSystemAdminRevoked",
@@ -18462,55 +18456,29 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "addr": {
-                    "description": "Common",
                     "type": "string"
                 },
                 "api_key": {
                     "description": "AES-GCM encrypted",
                     "type": "string"
                 },
-                "database": {
-                    "description": "Database name used by engines that support database-level namespaces\n(currently Milvus, Tencent VectorDB, and Doris).",
-                    "type": "string"
-                },
-                "grpc_address": {
-                    "description": "Weaviate",
-                    "type": "string"
-                },
-                "host": {
-                    "description": "Qdrant",
-                    "type": "string"
-                },
-                "http_port": {
-                    "description": "Doris: HTTP port for Stream Load API (FE default 8030).\nAddr is reused for the MySQL protocol \"host:9030\"; HTTPPort + the host of Addr\ntogether form the FE HTTP endpoint used by Stream Load.",
-                    "type": "integer"
-                },
                 "insecure_skip_verify": {
-                    "description": "InsecureSkipVerify disables TLS certificate verification when\ntalking to the backing store over HTTPS. Defaults to false\n(secure). Set to true ONLY for self-signed development clusters;\nproduction deployments should provide trusted certificates via\nthe system CA pool. Cross-driver applicable but currently only\nthe OpenSearch driver (Phase 3) reads this field. Note: this\ndiffers from the Qdrant-specific UseTLS below, which *enables*\nTLS on gRPC connections — InsecureSkipVerify only controls\n*verification* of an already-TLS connection.",
+                    "description": "InsecureSkipVerify disables TLS certificate verification when talking\nto the backing store over HTTPS. Defaults to false (secure). Set it\nonly for self-signed development clusters; production deployments\nshould provide trusted certificates through the system CA pool.",
                     "type": "boolean"
                 },
                 "password": {
                     "description": "AES-GCM encrypted",
                     "type": "string"
                 },
-                "port": {
-                    "type": "integer"
-                },
-                "scheme": {
-                    "type": "string"
-                },
                 "use_default_connection": {
-                    "description": "Postgres",
-                    "type": "boolean"
-                },
-                "use_tls": {
+                    "description": "UseDefaultConnection binds the store to the application's own\nPostgreSQL connection instead of a separate address.",
                     "type": "boolean"
                 },
                 "username": {
                     "type": "string"
                 },
                 "version": {
-                    "description": "Version is the detected server version (e.g., \"7.10.1\", \"16.2\", \"1.12.6\").\nAuto-populated by TestConnection on successful connectivity check.",
+                    "description": "Version is the detected server version (e.g., \"7.10.1\", \"16.2\").\nAuto-populated by TestConnection on successful connectivity check.",
                     "type": "string"
                 }
             }
@@ -18971,68 +18939,26 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.IndexConfig": {
             "type": "object",
             "properties": {
-                "buckets_num": {
-                    "description": "Doris: number of buckets per table (DISTRIBUTED BY HASH ... BUCKETS N)",
-                    "type": "integer"
-                },
-                "collection_name": {
-                    "description": "Milvus",
-                    "type": "string"
-                },
-                "collection_prefix": {
-                    "description": "Qdrant, Weaviate",
-                    "type": "string"
-                },
-                "desired_shard_count": {
-                    "description": "Weaviate: number of shards per collection",
-                    "type": "integer"
-                },
                 "hnsw_ef_construction": {
-                    "description": "OpenSearch: HNSW index-build candidate list size",
                     "type": "integer"
                 },
                 "hnsw_ef_search": {
-                    "description": "OpenSearch: HNSW search candidate list size (faiss; lucene reads at query time)",
                     "type": "integer"
                 },
                 "hnsw_m": {
-                    "description": "--- OpenSearch k-NN HNSW fields ---\nAll omitempty so other engines' serialized IndexConfig is unchanged.\nZero / empty values fall back to the driver defaults in buildInternalCfg.",
+                    "description": "k-NN HNSW settings, for engines that build an HNSW graph themselves.\nZero / empty values fall back to the driver defaults.\n\nHNSWM is the graph degree (M); HNSWEFConstruction the candidate list size\nwhile building the index; HNSWEFSearch the one while searching; KNNEngine\nthe backend (\"lucene\" | \"faiss\").",
                     "type": "integer"
                 },
                 "index_name": {
-                    "description": "--- Existing fields ---",
                     "type": "string"
                 },
                 "knn_engine": {
-                    "description": "OpenSearch: k-NN backend (\"lucene\" | \"faiss\")",
                     "type": "string"
                 },
                 "number_of_replicas": {
-                    "description": "ES, OpenSearch",
                     "type": "integer"
                 },
                 "number_of_shards": {
-                    "description": "ES, OpenSearch",
-                    "type": "integer"
-                },
-                "replica_number": {
-                    "description": "Milvus LoadCollection / Tencent VectorDB CreateCollection replicas",
-                    "type": "integer"
-                },
-                "replication_factor": {
-                    "description": "Qdrant, Weaviate: number of replicas",
-                    "type": "integer"
-                },
-                "replication_num": {
-                    "description": "Doris: replication_num PROPERTIES",
-                    "type": "integer"
-                },
-                "shard_number": {
-                    "description": "--- Scalability fields ---",
-                    "type": "integer"
-                },
-                "shards_num": {
-                    "description": "Milvus: number of shards per collection (CreateCollection)",
                     "type": "integer"
                 }
             }
@@ -20760,28 +20686,10 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.RetrieverEngineType": {
             "type": "string",
             "enum": [
-                "postgres",
-                "elasticsearch",
-                "infinity",
-                "elasticfaiss",
-                "qdrant",
-                "milvus",
-                "weaviate",
-                "doris",
-                "tencent_vectordb",
-                "opensearch"
+                "postgres"
             ],
             "x-enum-varnames": [
-                "PostgresRetrieverEngineType",
-                "ElasticsearchRetrieverEngineType",
-                "InfinityRetrieverEngineType",
-                "ElasticFaissRetrieverEngineType",
-                "QdrantRetrieverEngineType",
-                "MilvusRetrieverEngineType",
-                "WeaviateRetrieverEngineType",
-                "DorisRetrieverEngineType",
-                "TencentVectorDBRetrieverEngineType",
-                "OpenSearchRetrieverEngineType"
+                "PostgresRetrieverEngineType"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_types.RetrieverEngines": {

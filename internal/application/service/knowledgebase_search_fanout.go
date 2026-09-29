@@ -114,7 +114,7 @@ func (s *knowledgeBaseService) retrieveFromStores(
 				hit.Score = normalizer.Normalize(
 					ctx, hit.Score, rr.RetrieverType, rr.RetrieverEngineType)
 			}
-			if !isKnownEngineType(rr.RetrieverEngineType) {
+			if !normalizerKnows(normalizer, rr.RetrieverEngineType) {
 				if _, dup := seenUnknown[rr.RetrieverEngineType]; !dup {
 					seenUnknown[rr.RetrieverEngineType] = struct{}{}
 					// Engine type strings can originate from operator
@@ -169,24 +169,14 @@ func hasMixedEngineTypes(results []*types.RetrieveResult) bool {
 	return false
 }
 
-// isKnownEngineType reports whether the given engine type has a
-// hard-coded normalization entry in EngineAwareNormalizer. Used by the
-// caller of Normalize to deduplicate "unknown engine" WARN logs per
-// request.
-func isKnownEngineType(t types.RetrieverEngineType) bool {
-	switch t {
-	case types.ElasticsearchRetrieverEngineType,
-		types.ElasticFaissRetrieverEngineType,
-		types.MilvusRetrieverEngineType,
-		types.PostgresRetrieverEngineType,
-		types.QdrantRetrieverEngineType,
-		types.WeaviateRetrieverEngineType,
-		types.InfinityRetrieverEngineType,
-		types.TencentVectorDBRetrieverEngineType,
-		types.DorisRetrieverEngineType:
-		return true
-	}
-	return false
+// normalizerKnows reports whether the normalizer has a declared scale for the
+// engine. A normalizer that cannot say counts as knowing every engine: the
+// warning it gates is about a fallback only EngineAwareNormalizer applies.
+func normalizerKnows(n retriever.ScoreNormalizer, engineType types.RetrieverEngineType) bool {
+	k, ok := n.(interface {
+		Knows(types.RetrieverEngineType) bool
+	})
+	return !ok || k.Knows(engineType)
 }
 
 // multiStoreRetrieveTimeout reads MULTI_STORE_RETRIEVE_TIMEOUT_SEC; falls

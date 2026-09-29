@@ -7,9 +7,14 @@ import (
 
 func deploymentCapabilitiesFromRouter(params RouterParams) handler.DeploymentFeatureAvailability {
 	return handler.DeploymentFeatureAvailability{
-		Organizations:     params.OrganizationHandler != nil,
-		WebSearch:         params.WebSearchHandler != nil && params.WebSearchProviderHandler != nil && params.WebSearchCredentialsHandler != nil,
-		VectorStore:       params.VectorStoreHandler != nil,
+		Organizations: params.OrganizationHandler != nil,
+		WebSearch: params.WebSearchHandler != nil &&
+			params.WebSearchProviderHandler != nil &&
+			params.WebSearchCredentialsHandler != nil,
+		// Registering a store only makes sense when some engine can be registered;
+		// the community edition ships none (its engine is the application's own
+		// database), and an extension adds them.
+		VectorStore:       params.VectorStoreHandler != nil && len(params.EngineCatalog.Registrable()) > 0,
 		Storage:           params.StorageBackendHandler != nil,
 		Docs:              params.DocsModule != nil && params.DocsModule.Enabled,
 		DocsCollabURL:     docsCollabURL(params.DocsModule),

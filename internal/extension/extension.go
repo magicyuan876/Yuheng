@@ -30,7 +30,6 @@
 package extension
 
 import (
-	"errors"
 	"fmt"
 	"maps"
 	"sync"
@@ -68,21 +67,30 @@ type Features interface {
 	All() map[Feature]FeatureStatus
 }
 
-// NewFeatures returns the default registry, which has no features. A build
-// with no extensions serves this, and an extension replaces it with Decorate.
-//
-// It refuses to run while extensions are registered but ApplyHooks has not yet
-// been called. Whatever is built from a Features at that point would keep the
-// default for good (see ApplyHooks), so the mistake is turned into a start-up
-// failure instead of a server that quietly ignores its extensions.
-func NewFeatures() (Features, error) {
+// RequireApplied reports an error when extensions are registered but
+// ApplyHooks has not yet run. Whatever is built from a container value that an
+// extension may decorate or add to keeps the undecorated result for good (see
+// ApplyHooks), so a constructor of such a value calls this first and turns the
+// ordering mistake into a start-up failure instead of a server that quietly
+// ignores its extensions. The argument names the value, for the message.
+func RequireApplied(what string) error {
 	hooksMu.Lock()
 	registered := len(hooks)
 	hooksMu.Unlock()
 	if registered > 0 && !hooksApplied.Load() {
-		return nil, errors.New("extension: Features was built before ApplyHooks ran, " +
-			"so it would miss the registered extensions; call ApplyHooks before " +
-			"anything that depends on Features is constructed")
+		return fmt.Errorf("extension: %s was built before ApplyHooks ran, "+
+			"so it would miss the registered extensions; call ApplyHooks before "+
+			"anything that depends on it is constructed", what)
+	}
+	return nil
+}
+
+// NewFeatures returns the default registry, which has no features. A build
+// with no extensions serves this, and an extension replaces it with Decorate.
+// It fails as RequireApplied does.
+func NewFeatures() (Features, error) {
+	if err := RequireApplied("Features"); err != nil {
+		return nil, err
 	}
 	return noFeatures{}, nil
 }

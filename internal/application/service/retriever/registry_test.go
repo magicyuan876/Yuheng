@@ -27,27 +27,35 @@ func (m *mockEngineService) Support() []types.RetrieverType { return nil }
 func (m *mockEngineService) Index(_ context.Context, _ embedding.Embedder, _ *types.IndexInfo, _ []types.RetrieverType) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchIndex(_ context.Context, _ embedding.Embedder, _ []*types.IndexInfo, _ []types.RetrieverType) error {
 	return nil
 }
+
 func (m *mockEngineService) EstimateStorageSize(_ context.Context, _ embedding.Embedder, _ []*types.IndexInfo, _ []types.RetrieverType) int64 {
 	return 0
 }
+
 func (m *mockEngineService) CopyIndices(_ context.Context, _ string, _ map[string]string, _ map[string]string, _ string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteByChunkIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteBySourceIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) DeleteByKnowledgeIDList(_ context.Context, _ []string, _ int, _ string) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchUpdateChunkEnabledStatus(_ context.Context, _ map[string]bool) error {
 	return nil
 }
+
 func (m *mockEngineService) BatchUpdateChunkTagID(_ context.Context, _ map[string]string) error {
 	return nil
 }
@@ -84,7 +92,7 @@ func TestRegistry_GetRetrieveEngineService(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := reg.GetRetrieveEngineService(types.QdrantRetrieverEngineType)
+		_, err := reg.GetRetrieveEngineService(testOtherEngineType)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -93,7 +101,7 @@ func TestRegistry_GetRetrieveEngineService(t *testing.T) {
 func TestRegistry_GetAllRetrieveEngineServices(t *testing.T) {
 	reg := NewRetrieveEngineRegistry(nil, nil).(*RetrieveEngineRegistry)
 	_ = reg.Register(newMock(types.PostgresRetrieverEngineType))
-	_ = reg.Register(newMock(types.ElasticsearchRetrieverEngineType))
+	_ = reg.Register(newMock(testOtherEngineType))
 
 	t.Run("returns all byEngineType entries", func(t *testing.T) {
 		all := reg.GetAllRetrieveEngineServices()
@@ -102,7 +110,8 @@ func TestRegistry_GetAllRetrieveEngineServices(t *testing.T) {
 
 	t.Run("returns copy - modifying result does not affect registry", func(t *testing.T) {
 		all := reg.GetAllRetrieveEngineServices()
-		all = append(all, newMock(types.QdrantRetrieverEngineType))
+		grown := append(all, newMock(testOtherEngineType))
+		assert.Len(t, grown, len(all)+1)
 		assert.Len(t, reg.GetAllRetrieveEngineServices(), 2)
 	})
 }
@@ -120,16 +129,16 @@ func TestRegistry_RegisterWithStoreID(t *testing.T) {
 	})
 
 	t.Run("upsert overwrites existing", func(t *testing.T) {
-		newSvc := newMock(types.ElasticsearchRetrieverEngineType)
+		newSvc := newMock(types.PostgresRetrieverEngineType)
 		reg.RegisterWithStoreID("store-1", newSvc)
 		svc, err := reg.GetByStoreID("store-1")
 		assert.NoError(t, err)
-		assert.Equal(t, types.ElasticsearchRetrieverEngineType, svc.EngineType())
+		assert.Equal(t, types.PostgresRetrieverEngineType, svc.EngineType())
 	})
 
 	t.Run("same engine type different store IDs", func(t *testing.T) {
-		reg.RegisterWithStoreID("es-hot", newMock(types.ElasticsearchRetrieverEngineType))
-		reg.RegisterWithStoreID("es-warm", newMock(types.ElasticsearchRetrieverEngineType))
+		reg.RegisterWithStoreID("es-hot", newMock(types.PostgresRetrieverEngineType))
+		reg.RegisterWithStoreID("es-warm", newMock(types.PostgresRetrieverEngineType))
 
 		svc1, err1 := reg.GetByStoreID("es-hot")
 		svc2, err2 := reg.GetByStoreID("es-warm")
@@ -178,7 +187,7 @@ func TestRegistry_DualMapIsolation(t *testing.T) {
 
 	_ = reg.Register(newMock(types.PostgresRetrieverEngineType))
 	reg.RegisterWithStoreID("store-pg", newMock(types.PostgresRetrieverEngineType))
-	reg.RegisterWithStoreID("store-es", newMock(types.ElasticsearchRetrieverEngineType))
+	reg.RegisterWithStoreID("store-other", newMock(testOtherEngineType))
 
 	t.Run("GetAllRetrieveEngineServices returns only byEngineType", func(t *testing.T) {
 		all := reg.GetAllRetrieveEngineServices()
@@ -186,8 +195,8 @@ func TestRegistry_DualMapIsolation(t *testing.T) {
 	})
 
 	t.Run("byStoreID does not affect byEngineType lookup", func(t *testing.T) {
-		_, err := reg.GetRetrieveEngineService(types.ElasticsearchRetrieverEngineType)
-		assert.Error(t, err) // ES is only in byStoreID, not byEngineType
+		_, err := reg.GetRetrieveEngineService(testOtherEngineType)
+		assert.Error(t, err) // other engine is only in byStoreID, not byEngineType
 	})
 
 	t.Run("unregister byStoreID does not affect byEngineType", func(t *testing.T) {
@@ -235,3 +244,7 @@ func TestRegistry_ImplementsStoreRegistry(t *testing.T) {
 
 	var _ interfaces.StoreRegistry = concreteReg
 }
+
+// testOtherEngineType is a second engine type for tests that need two
+// distinct engines without depending on a real driver.
+const testOtherEngineType types.RetrieverEngineType = "other"
