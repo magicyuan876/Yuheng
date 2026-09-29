@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ return 0
 // call so callers (e.g. embed channels) can vary budgets without rebuilding
 // the limiter.
 type Limiter struct {
-	redis      *redis.Client
+	redis      atomic.Pointer[redis.Client]
 	local      *localLimiter
 	keyPrefix  string
 	window     time.Duration
@@ -53,21 +54,31 @@ func New(redisClient *redis.Client, keyPrefix string, window time.Duration, inst
 	if instanceID == "" {
 		instanceID = uuid.New().String()
 	}
-	return &Limiter{
-		redis:      redisClient,
+	l := &Limiter{
 		local:      newLocalLimiter(),
 		keyPrefix:  keyPrefix,
 		window:     window,
 		instanceID: instanceID,
 	}
+	l.redis.Store(redisClient)
+	return l
 }
+
+// SetRedis switches the shared Redis store on (or off with nil) after
+// construction, for limiters that exist before the Redis client does (route
+// registration runs before wiring completes). Safe for concurrent use.
+func (l *Limiter) SetRedis(c *redis.Client) { l.redis.Store(c) }
+
+// SetClock replaces the time source of the in-process fallback. It exists so
+// tests can move time without sleeping; Redis-backed counting is unaffected.
+func (l *Limiter) SetClock(now func() time.Time) { l.local.now = now }
 
 // Allow reports whether key is within budget for the current window.
 func (l *Limiter) Allow(ctx context.Context, key string, max int) bool {
 	if max <= 0 {
 		return true
 	}
-	if l.redis != nil {
+	if l.redis.Load() != nil {
 		allowed, err := l.redisAllow(ctx, key, max)
 		if err == nil {
 			return allowed
@@ -82,7 +93,7 @@ func (l *Limiter) redisAllow(ctx context.Context, key string, max int) (bool, er
 	windowMs := l.window.Milliseconds()
 	member := fmt.Sprintf("%s:%d", l.instanceID, nowMs)
 
-	result, err := rateLimitScript.Run(ctx, l.redis,
+	result, err := rateLimitScript.Run(ctx, l.redis.Load(),
 		[]string{redisKey},
 		nowMs, windowMs, max, member,
 	).Int64()
@@ -106,14 +117,15 @@ type localEntry struct {
 
 type localLimiter struct {
 	entries sync.Map // key -> *localEntry
+	now     func() time.Time
 }
 
 func newLocalLimiter() *localLimiter {
-	return &localLimiter{}
+	return &localLimiter{now: time.Now}
 }
 
 func (l *localLimiter) allow(key string, window time.Duration, max int) bool {
-	now := time.Now()
+	now := l.now()
 	cutoff := now.Add(-window)
 
 	for {

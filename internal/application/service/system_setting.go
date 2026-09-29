@@ -162,11 +162,12 @@ var registry = map[string]settingSpec{
 	"auth.registration_mode": {
 		Type:     "string",
 		EnvName:  "", // No env fallback — handler passes cfg.Auth.RegistrationMode as default
-		Default:  "self_serve",
-		Enum:     []string{"self_serve", "invite_only"},
+		Default:  "auto",
+		Enum:     []string{"auto", "self_serve", "invite_only"},
 		Category: "auth",
-		Description: "自助注册模式。self_serve = 任何人可注册账号；invite_only = 关闭公网注册，" +
-			"仅 Owner/Admin 可邀请。修改后立即生效，但谨慎对待 self_serve（公网会接受 spam）。",
+		Description: "自助注册模式。auto = 仅在系统中还没有任何用户时开放（首个注册者成为系统管理员），之后自动关闭；" +
+			"self_serve = 任何人可注册账号；invite_only = 关闭公网注册，仅 Owner/Admin 可邀请。" +
+			"修改后立即生效，但谨慎对待 self_serve（公网会接受 spam）。",
 	},
 	"auth.default_tenant_mode": {
 		Type:     "string",

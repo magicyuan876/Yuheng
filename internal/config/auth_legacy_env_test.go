@@ -20,9 +20,13 @@ func TestApplyAuthAndTenantDefaults_DisableRegistrationDrivesRegistrationMode(t 
 		{"case-insensitive TRUE also coerces", "TRUE", "", AuthRegistrationModeInviteOnly},
 		{"true overrides explicit self_serve YAML", "true", AuthRegistrationModeSelfServe, AuthRegistrationModeInviteOnly},
 		{"true is a no-op when YAML already invite_only", "true", AuthRegistrationModeInviteOnly, AuthRegistrationModeInviteOnly},
-		{"false leaves YAML untouched", "false", AuthRegistrationModeSelfServe, AuthRegistrationModeSelfServe},
-		{"unset falls back to default self_serve", "", "", AuthRegistrationModeSelfServe},
+		{"false is the explicit opt-in to open registration", "false", "", AuthRegistrationModeSelfServe},
+		{"false overrides invite_only YAML", "false", AuthRegistrationModeInviteOnly, AuthRegistrationModeSelfServe},
+		{"unset falls back to the auto default", "", "", AuthRegistrationModeAuto},
+		{"auto is the same as unset", "auto", "", AuthRegistrationModeAuto},
+		{"auto keeps invite_only YAML", "auto", AuthRegistrationModeInviteOnly, AuthRegistrationModeInviteOnly},
 		{"unset keeps explicit invite_only YAML", "", AuthRegistrationModeInviteOnly, AuthRegistrationModeInviteOnly},
+		{"unset keeps explicit self_serve YAML", "", AuthRegistrationModeSelfServe, AuthRegistrationModeSelfServe},
 	}
 
 	for _, tc := range cases {

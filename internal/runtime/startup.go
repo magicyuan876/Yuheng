@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -75,6 +76,7 @@ var startupEnvVars = []envVarSpec{
 	// Security
 	{name: "SYSTEM_AES_KEY", sensitive: true},
 	{name: "JWT_SECRET", sensitive: true},
+	{name: "GRPC_AUTH_TOKEN", sensitive: true},
 	// Runtime
 	{name: "GIN_MODE"},
 	{name: "AUTO_MIGRATE"},
@@ -111,10 +113,8 @@ var startupEnvVars = []envVarSpec{
 //	[startup-env] JWT_SECRET=<unset>
 //	[startup-env] DB_DRIVER=postgres
 //
-// Special call-outs are printed afterwards for misconfigurations that
-// would silently degrade behaviour (e.g. SYSTEM_AES_KEY set but wrong
-// length is treated as unset by crypto.GetAESKey — easy to miss without
-// a loud warning).
+// Finally the deployment secrets are validated and the process exits when
+// they are unsafe (see EnforceSecrets).
 func LogStartupEnv(ctx context.Context) {
 	// Sort by name for deterministic output.
 	specs := make([]envVarSpec, len(startupEnvVars))
@@ -127,54 +127,15 @@ func LogStartupEnv(ctx context.Context) {
 		logger.Infof(ctx, "[startup-env]   %s=%s", s.name, formatEnvValue(s, val))
 	}
 
-	// Targeted warnings for footguns. SYSTEM_AES_KEY set to wrong length
-	// is the most common one — utils.GetAESKey() silently falls back to
-	// nil (== "no encryption") when len != 32.
-	if k := os.Getenv("SYSTEM_AES_KEY"); k != "" && len(k) != 32 {
-		logger.Warnf(ctx,
-			"[startup-env] SYSTEM_AES_KEY is set but %d bytes long; AES-256 requires exactly 32 bytes — encryption is DISABLED",
-			len(k))
-	}
-	// Shipped example secrets. .env.example has to contain *something* for the
-	// stack to come up on a first `docker compose up`, which means the published
-	// values are known to everyone who has read the repository. A deployment
-	// still running them has no encryption and no session integrity, so say so in
-	// the same words an operator can search for.
-	for _, s := range publishedExampleSecrets {
-		if os.Getenv(s.name) == s.example {
-			logger.Warnf(ctx,
-				"[startup-env] %s is still the value published in .env.example — "+
-					"anyone who has read this repository can %s. Generate a new one "+
-					"before exposing this deployment.",
-				s.name, s.consequence)
-		}
-	}
+	// Secrets that are missing, weak or still the published example are no
+	// longer a warning: outside the explicit developer opt-out they stop the
+	// server from starting (see EnforceSecrets).
+	enforceSecretsOrExit(ctx)
 
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("REDIS_TLS_INSECURE_SKIP_VERIFY")), "true") {
 		logger.Warn(ctx,
 			"[startup-env] REDIS_TLS_INSECURE_SKIP_VERIFY=true — Redis TLS certificate verification is DISABLED; do not use in production")
 	}
-}
-
-// publishedExampleSecrets are the placeholder secrets that ship in
-// .env.example. They exist so a first-time `docker compose up` works; leaving
-// them in place in a real deployment is a silent, total loss of the protection
-// they are meant to provide.
-var publishedExampleSecrets = []struct {
-	name        string
-	example     string
-	consequence string
-}{
-	{
-		name:        "SYSTEM_AES_KEY",
-		example:     "yuheng-system-aes-key-32bytes!!",
-		consequence: "decrypt every stored model key, MCP credential and data-source secret",
-	},
-	{
-		name:        "JWT_SECRET",
-		example:     "yuheng-jwt-secret",
-		consequence: "mint a valid session token for any user",
-	},
 }
 
 func formatEnvValue(s envVarSpec, val string) string {
@@ -185,4 +146,145 @@ func formatEnvValue(s envVarSpec, val string) string {
 		return fmt.Sprintf("set (%d chars)", len(val))
 	}
 	return val
+}
+
+// InsecureDevEnv is the explicit developer opt-out from secret enforcement.
+// It exists so a laptop can run the stack straight from .env.example; it must
+// never be set on a deployment anyone else can reach.
+const InsecureDevEnv = "YUHENG_INSECURE_DEV"
+
+// Published example values. They are in .env.example / documentation, so they
+// are known to everyone who has read the repository.
+const (
+	exampleJWTSecret   = "yuheng-jwt-secret"
+	exampleAESKey      = "yuheng-system-aes-key-32bytes!!"
+	exampleGRPCToken   = "your-secret-token-at-least-16-bytes"
+	minJWTSecretLength = 32
+	aesKeyLength       = 32
+	minGRPCTokenLength = 16
+)
+
+// secretProblem is one unsafe secret, worded for an operator.
+type secretProblem struct {
+	name   string
+	reason string
+	why    string
+	how    string
+}
+
+func (p secretProblem) String() string {
+	return fmt.Sprintf("  %s\n    problem: %s\n    why:     %s\n    fix:     %s", p.name, p.reason, p.why, p.how)
+}
+
+// secretProblems returns every unsafe secret in the environment given by
+// getenv, or nil when all are acceptable. It does not consult the developer
+// opt-out; ValidateSecrets does.
+func secretProblems(getenv func(string) string) []secretProblem {
+	var out []secretProblem
+	add := func(name, reason, why, how string) {
+		out = append(out, secretProblem{name: name, reason: reason, why: why, how: how})
+	}
+	const example = "it is still the example value published in .env.example"
+
+	jwtWhy := "it signs every session token; whoever knows it can mint a valid login for any user, " +
+		"including administrators"
+	jwtHow := "generate one and set it in .env:  JWT_SECRET=$(openssl rand -hex 32)"
+	switch jwt := strings.TrimSpace(getenv("JWT_SECRET")); {
+	case jwt == "":
+		add("JWT_SECRET", "it is not set (a random one would be generated per start, logging everyone out on "+
+			"every restart and breaking multi-instance deployments)", jwtWhy, jwtHow)
+	case jwt == exampleJWTSecret:
+		add("JWT_SECRET", example, jwtWhy, jwtHow)
+	case len(jwt) < minJWTSecretLength:
+		add("JWT_SECRET", fmt.Sprintf("it is %d characters long; at least %d are required",
+			len(jwt), minJWTSecretLength), jwtWhy, jwtHow)
+	}
+
+	aesWhy := "it encrypts model API keys, MCP and data-source credentials and other secrets stored in the " +
+		"database; without a valid key they would be stored as plaintext, and with a public one anyone can decrypt them"
+	aesHow := "generate one and set it in .env (back it up: losing it makes stored secrets unreadable):  " +
+		"SYSTEM_AES_KEY=$(openssl rand -hex 16)   # exactly 32 bytes"
+	switch aes := getenv("SYSTEM_AES_KEY"); {
+	case aes == "":
+		add("SYSTEM_AES_KEY", "it is not set, so encryption at rest would be silently disabled", aesWhy, aesHow)
+	case aes == exampleAESKey:
+		add("SYSTEM_AES_KEY", example, aesWhy, aesHow)
+	case len(aes) != aesKeyLength:
+		add("SYSTEM_AES_KEY", fmt.Sprintf("it is %d bytes long; AES-256 needs exactly %d, and any other length "+
+			"silently disables encryption", len(aes), aesKeyLength), aesWhy, aesHow)
+	}
+
+	// GRPC_AUTH_TOKEN authenticates the docreader link. Unset is a legitimate
+	// choice on a private network (docreader then runs without auth and says
+	// so), so only a set-but-known or set-but-weak value is an error.
+	grpcWhy := "it authenticates calls to the document parser; a known or guessable token is no authentication"
+	grpcHow := "generate one and set it for BOTH app and docreader in .env:  GRPC_AUTH_TOKEN=$(openssl rand -hex 24)"
+	switch tok := getenv("GRPC_AUTH_TOKEN"); {
+	case tok == "":
+	case tok == exampleGRPCToken:
+		add("GRPC_AUTH_TOKEN", example, grpcWhy, grpcHow)
+	case len(tok) < minGRPCTokenLength:
+		add("GRPC_AUTH_TOKEN", fmt.Sprintf("it is %d characters long; at least %d are required",
+			len(tok), minGRPCTokenLength), grpcWhy, grpcHow)
+	}
+	return out
+}
+
+// ValidateSecrets checks the deployment secrets and returns a multi-line error
+// naming each unsafe one, why it matters and how to generate a good value.
+// With YUHENG_INSECURE_DEV=true it returns nil (EnforceSecrets logs the
+// problems it is waving through).
+func ValidateSecrets(getenv func(string) string) error {
+	problems := secretProblems(getenv)
+	if len(problems) == 0 || insecureDevEnabled(getenv) {
+		return nil
+	}
+	return errors.New(formatsecretProblems(problems))
+}
+
+func insecureDevEnabled(getenv func(string) string) bool {
+	return strings.EqualFold(strings.TrimSpace(getenv(InsecureDevEnv)), "true")
+}
+
+func formatsecretProblems(problems []secretProblem) string {
+	var b strings.Builder
+	b.WriteString("refusing to start: the deployment secrets are missing or unsafe.\n\n")
+	for _, p := range problems {
+		b.WriteString(p.String())
+		b.WriteString("\n\n")
+	}
+	b.WriteString("For a throwaway local run only, " + InsecureDevEnv + "=true skips this check " +
+		"(secrets then stay weak and encryption at rest may be off).")
+	return b.String()
+}
+
+// EnforceSecrets validates the secrets from the process environment. It
+// returns the multi-line error from ValidateSecrets, or nil; when the developer
+// opt-out is active it logs each problem loudly and returns nil.
+func EnforceSecrets(ctx context.Context) error {
+	getenv := os.Getenv
+	if err := ValidateSecrets(getenv); err != nil {
+		return err
+	}
+	if insecureDevEnabled(getenv) {
+		for _, p := range secretProblems(getenv) {
+			logger.Warnf(ctx, "[startup-env] %s=true: continuing although %s: %s. NEVER run like this in production.",
+				InsecureDevEnv, p.name, p.reason)
+		}
+	}
+	return nil
+}
+
+// exitFunc is os.Exit, replaceable in tests.
+var exitFunc = os.Exit
+
+// enforceSecretsOrExit stops the process on unsafe secrets. It is called from
+// LogStartupEnv so that the check runs on every start without depending on the
+// caller remembering it.
+func enforceSecretsOrExit(ctx context.Context) {
+	if err := EnforceSecrets(ctx); err != nil {
+		logger.Errorf(ctx, "[startup-env] %v", err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		exitFunc(1)
+	}
 }

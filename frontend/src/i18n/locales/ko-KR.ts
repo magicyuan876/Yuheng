@@ -2123,6 +2123,7 @@ export default {
             tenantless: "공간을 자동 생성하지 않음",
           },
           registration_mode: {
+            auto: "자동 (첫 번째 계정이 생기기 전까지만 가입 허용)",
             self_serve: "셀프 가입 (누구나 가입 가능)",
             invite_only: "초대 전용 (공개 가입 비활성)",
           },

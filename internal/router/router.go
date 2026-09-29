@@ -115,6 +115,15 @@ func NewRouter(params RouterParams) *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Failed-login counters and the per-IP auth budgets are shared between
+	// instances when Redis is there, and per process otherwise.
+	if params.RedisClient != nil {
+		middleware.SetAuthRateLimitRedis(params.RedisClient)
+		if params.AuthHandler != nil {
+			params.AuthHandler.UseRedis(params.RedisClient)
+		}
+	}
+
 	// 基础中间件（不需要认证）
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Language())

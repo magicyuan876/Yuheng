@@ -275,18 +275,23 @@ func (r *cleanupUserRepo) GetUserByID(_ context.Context, id string) (*types.User
 	cp := *u
 	return &cp, nil
 }
+
 func (r *cleanupUserRepo) GetUsersByIDs(context.Context, []string) (map[string]*types.User, error) {
 	return nil, nil
 }
+
 func (r *cleanupUserRepo) GetUserByEmail(context.Context, string) (*types.User, error) {
 	return nil, nil
 }
+
 func (r *cleanupUserRepo) GetUserByUsername(context.Context, string) (*types.User, error) {
 	return nil, nil
 }
+
 func (r *cleanupUserRepo) GetUserByTenantID(context.Context, uint64) (*types.User, error) {
 	return nil, nil
 }
+
 func (r *cleanupUserRepo) UpdateUser(_ context.Context, user *types.User) error {
 	cp := *user
 	r.users[user.ID] = &cp
@@ -296,12 +301,23 @@ func (r *cleanupUserRepo) DeleteUser(context.Context, string) error { return nil
 func (r *cleanupUserRepo) ListUsers(context.Context, int, int) ([]*types.User, error) {
 	return nil, nil
 }
+
 func (r *cleanupUserRepo) ListSystemAdmins(context.Context, int, int) ([]*types.User, int64, error) {
 	return nil, 0, nil
 }
+
 func (r *cleanupUserRepo) RevokeSystemAdmin(context.Context, string, string) (*types.User, error) {
 	return nil, nil
 }
+
+func (r *cleanupUserRepo) HasAnyUser(context.Context) (bool, error) {
+	return false, nil
+}
+
+func (r *cleanupUserRepo) CreateFirstUser(context.Context, *types.User) error {
+	return nil
+}
+
 func (r *cleanupUserRepo) SearchUsers(context.Context, string, int) ([]*types.User, error) {
 	return nil, nil
 }
@@ -314,6 +330,7 @@ func (r *cleanupTokenRepo) CreateToken(context.Context, *types.AuthToken) error 
 func (r *cleanupTokenRepo) GetTokenByValue(context.Context, string) (*types.AuthToken, error) {
 	return nil, errors.New("not found")
 }
+
 func (r *cleanupTokenRepo) GetTokensByUserID(context.Context, string) ([]*types.AuthToken, error) {
 	return nil, nil
 }

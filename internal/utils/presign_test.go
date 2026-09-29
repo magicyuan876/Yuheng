@@ -131,3 +131,35 @@ func TestParseTenantIDFromStoragePath(t *testing.T) {
 		})
 	}
 }
+
+func TestPresignAndGrantKeysAreDerivedAndDistinct(t *testing.T) {
+	const secret = "0123456789abcdef0123456789abcdef"
+	t.Setenv("SYSTEM_AES_KEY", secret)
+
+	presign := getPresignKey()
+	grant := SystemHMACKey()
+	if len(presign) != 32 || len(grant) != 32 {
+		t.Fatalf("derived keys must be 32 bytes, got %d and %d", len(presign), len(grant))
+	}
+	if string(presign) == secret || string(grant) == secret {
+		t.Fatal("the AES key itself must never be used as an HMAC key")
+	}
+	if string(presign) == string(grant) {
+		t.Fatal("presign and grant keys must be domain-separated")
+	}
+	// Deterministic: two instances of the same deployment must agree.
+	if string(getPresignKey()) != string(presign) {
+		t.Fatal("derivation must be deterministic")
+	}
+	t.Setenv("SYSTEM_AES_KEY", "fedcba9876543210fedcba9876543210")
+	if string(getPresignKey()) == string(presign) {
+		t.Fatal("a different secret must yield a different key")
+	}
+}
+
+func TestPresignKeysNilForShortSecret(t *testing.T) {
+	t.Setenv("SYSTEM_AES_KEY", "short")
+	if getPresignKey() != nil || SystemHMACKey() != nil {
+		t.Fatal("a too-short secret must disable signing, not yield a weak key")
+	}
+}

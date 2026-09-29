@@ -6,22 +6,28 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/magicyuan876/yuheng/internal/application/service"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/handler/dto"
 	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/ratelimit"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
-const oidcNonceCookieName = "yuheng_oidc_nonce"
-const oidcNonceCookieMaxAge = 600
+const (
+	oidcNonceCookieName   = "yuheng_oidc_nonce"
+	oidcNonceCookieMaxAge = 600
+)
 
 // AuthHandler implements HTTP request handlers for user authentication
 // Provides functionality for user registration, login, logout, and token management
@@ -36,6 +42,30 @@ type AuthHandler struct {
 	// fixtures — the share-link endpoints respond 503 rather than
 	// blocking the rest of the auth surface.
 	invitationSvc interfaces.TenantInvitationService
+	// loginLockout throttles password guessing per account: after
+	// loginMaxFailures failures within loginFailureWindow the account is
+	// locked for loginLockDuration. In-process until UseRedis is called.
+	loginLockout *ratelimit.Lockout
+}
+
+// Failed-login policy. Five wrong passwords in fifteen minutes lock the
+// account for fifteen minutes — slow enough to make online guessing useless,
+// short enough that a person who typo'd their way into a lock is not stranded.
+const (
+	loginMaxFailures   = 5
+	loginFailureWindow = 15 * time.Minute
+	loginLockDuration  = 15 * time.Minute
+)
+
+// registrationClosedMessage is what a visitor sees when public registration
+// is closed. It says how to get an account rather than just refusing.
+const registrationClosedMessage = "Registration is closed. Ask an administrator to create an account for you " +
+	"or to send you an invitation link."
+
+// UseRedis makes the failed-login counters shared across server instances.
+// Without it they live in this process, which is right for a single instance.
+func (h *AuthHandler) UseRedis(c *redis.Client) {
+	h.loginLockout.SetRedis(c)
 }
 
 // NewAuthHandler creates a new auth handler instance with the provided services
@@ -71,12 +101,17 @@ func NewAuthHandler(configInfo *config.Config,
 		tenantService:    tenantService,
 		systemSettingSvc: systemSettingSvc,
 		invitationSvc:    invitationSvc,
+		loginLockout: ratelimit.NewLockout(nil, "auth:lockout:", ratelimit.LockoutConfig{
+			MaxFailures: loginMaxFailures,
+			Window:      loginFailureWindow,
+			LockFor:     loginLockDuration,
+		}),
 	}
 }
 
 // resolveRegistrationMode returns the currently active registration mode.
 // Priority: DB system_settings > cfg (which already absorbed the legacy
-// DISABLE_REGISTRATION env coerce at startup) > "self_serve" hard default.
+// DISABLE_REGISTRATION env coerce at startup) > "auto" hard default.
 //
 // Centralised here so /auth/register and /auth/config stay in lock-step —
 // otherwise a SystemAdmin's UI edit could affect one path and not the other.
@@ -84,7 +119,7 @@ func (h *AuthHandler) resolveRegistrationMode(ctx context.Context) string {
 	// cfg-derived default: empty is impossible after applyAuthAndTenantDefaults,
 	// but be defensive in case AuthHandler was constructed before that ran
 	// (the NewAuthHandler guard already logged in that case).
-	def := config.AuthRegistrationModeSelfServe
+	def := config.AuthRegistrationModeAuto
 	if h.configInfo != nil && h.configInfo.Auth != nil {
 		if m := strings.TrimSpace(h.configInfo.Auth.RegistrationMode); m != "" {
 			def = m
@@ -99,6 +134,34 @@ func (h *AuthHandler) resolveRegistrationMode(ctx context.Context) string {
 	// layer would mean a UI delete (DB row absent) silently flipped to
 	// the legacy boolean read again, which is surprising.
 	return h.systemSettingSvc.GetString(ctx, "auth.registration_mode", "", def)
+}
+
+// registrationState says whether public registration is open right now and, if
+// so, whether the registrant is the bootstrap administrator (the deployment has
+// no user yet).
+//
+//   - invite_only: closed.
+//   - self_serve:  open; the registrant is an ordinary user.
+//   - auto (and any unrecognised value, so a typo cannot open the door):
+//     open only while the users table is empty, and then the registrant is the
+//     bootstrap administrator. If the probe itself fails we report closed.
+//
+// The probe here is only a cheap early answer; the authoritative, race-free
+// decision is CreateFirstUser inside the registration transaction.
+func (h *AuthHandler) registrationState(ctx context.Context) (open, bootstrap bool) {
+	switch h.resolveRegistrationMode(ctx) {
+	case config.AuthRegistrationModeInviteOnly:
+		return false, false
+	case config.AuthRegistrationModeSelfServe:
+		return true, false
+	default:
+		hasUser, err := h.userService.HasAnyUser(ctx)
+		if err != nil {
+			logger.Errorf(ctx, "Failed to check whether any user exists; treating registration as closed: %v", err)
+			return false, false
+		}
+		return !hasUser, !hasUser
+	}
 }
 
 // resolveDefaultTenantMode returns the provisioning policy for a new
@@ -162,16 +225,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	logger.Info(ctx, "Start user registration")
 
-	// 当 auth.registration_mode=invite_only 时，public 注册被关闭。
-	// 优先级：DB system_settings > cfg.Auth.RegistrationMode > "self_serve"。
-	// SystemAdmin 通过「全局设置」UI 实时切换 self_serve / invite_only，立即
-	// 生效，不需要重启服务。历史变量 DISABLE_REGISTRATION=true 仍在 config
-	// 启动阶段被等价提升为 invite_only（applyAuthAndTenantDefaults），
-	// 作为 cfg-default 进入 resolveRegistrationMode。
-	if h.resolveRegistrationMode(ctx) == config.AuthRegistrationModeInviteOnly {
-		logger.Warn(ctx, "Registration rejected: auth.registration_mode=invite_only")
-		appErr := errors.NewForbiddenError("Registration is invite-only")
-		c.Error(appErr)
+	// Registration policy (auth.registration_mode: auto / self_serve /
+	// invite_only). Priority: DB system_settings > cfg.Auth.RegistrationMode
+	// (which already absorbed DISABLE_REGISTRATION) > "auto". SystemAdmin can
+	// change it live from the global settings UI. Invitation registration
+	// (/auth/register-by-invite) is a separate endpoint and is not gated here.
+	open, bootstrap := h.registrationState(ctx)
+	if !open {
+		logger.Warn(ctx, "Registration rejected: public registration is closed")
+		_ = c.Error(errors.NewForbiddenError(registrationClosedMessage))
 		return
 	}
 
@@ -201,9 +263,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	req.Username = secutils.SanitizeForLog(req.Username)
 	req.Email = secutils.SanitizeForLog(req.Email)
 	req.TenantProvisioning = h.resolveDefaultTenantMode(ctx)
+	req.BootstrapFirstUser = bootstrap
 	// Call service to register user
 	user, err := h.userService.Register(ctx, &req)
 	if err != nil {
+		if stderrors.Is(err, types.ErrRegistrationClosed) {
+			// Another first registration won the race between our probe and
+			// the insert; the window is now closed.
+			logger.Warn(ctx, "Registration rejected: lost the first-user race")
+			_ = c.Error(errors.NewForbiddenError(registrationClosedMessage))
+			return
+		}
 		logger.Errorf(ctx, "Failed to register user: %v", err)
 		appErr := errors.NewBadRequestError(err.Error())
 		c.Error(appErr)
@@ -253,21 +323,38 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Per-account brake on password guessing. The lock is keyed by the
+	// submitted address whether or not such an account exists, and a locked
+	// address answers the same way for a right or wrong password, so neither
+	// the lock nor the answer says anything about the account.
+	lockKey := strings.ToLower(strings.TrimSpace(req.Email))
+	if locked, retryAfter := h.loginLockout.Check(ctx, lockKey); locked {
+		logger.Warnf(ctx, "Login rejected: too many failed attempts for %s", email)
+		secs := int(retryAfter.Seconds()) + 1
+		c.Header("Retry-After", strconv.Itoa(secs))
+		_ = c.Error(errors.NewTooManyRequestsError("Too many failed login attempts. Please try again later."))
+		return
+	}
+
 	// Call service to authenticate user
 	response, err := h.userService.Login(ctx, &req)
 	if err != nil {
+		// The detail stays in the log; the client only learns that it failed.
 		logger.Errorf(ctx, "Failed to login user: %v", err)
-		appErr := errors.NewUnauthorizedError("Login failed").WithDetails(err.Error())
-		c.Error(appErr)
+		_ = c.Error(errors.NewUnauthorizedError("Login failed"))
 		return
 	}
 
 	// Check if login was successful
 	if !response.Success {
 		logger.Warnf(ctx, "Login failed: %s", response.Message)
+		if h.loginLockout.RecordFailure(ctx, lockKey) {
+			logger.Warnf(ctx, "Account %s locked after repeated failed logins", email)
+		}
 		c.JSON(http.StatusUnauthorized, dto.NewAuthLoginResponse(response))
 		return
 	}
+	h.loginLockout.Reset(ctx, lockKey)
 
 	// User is already in the correct format from service
 
@@ -788,15 +875,30 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 //
 // GetAuthConfig is intentionally a no-auth endpoint: the frontend reads
 // it on app load to decide whether to show the Register tab. We expose
-// only what the UI strictly needs (registration_mode); other config
+// only what the UI strictly needs (registration state); other config
 // stays internal.
 func (h *AuthHandler) GetAuthConfig(c *gin.Context) {
 	// Same source-of-truth as Register's gate, so the UI hide-the-button
 	// signal can never disagree with the API enforcement signal.
-	mode := h.resolveRegistrationMode(c.Request.Context())
+	ctx := c.Request.Context()
+	configured := h.resolveRegistrationMode(ctx)
+	open, bootstrap := h.registrationState(ctx)
+	// registration_mode is what existing clients read (they hide the sign-up
+	// entry when it is "invite_only"), so it reports the EFFECTIVE state: an
+	// "auto" deployment that already has users reads as invite_only. The raw
+	// setting is in configured_registration_mode for anything that wants it.
+	effective := config.AuthRegistrationModeInviteOnly
+	if open {
+		effective = config.AuthRegistrationModeSelfServe
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"success":           true,
-		"registration_mode": mode,
+		"success":                      true,
+		"registration_mode":            effective,
+		"configured_registration_mode": configured,
+		"registration_open":            open,
+		// first_user is true on a fresh install: the next registrant becomes
+		// the system administrator, so the UI can say "create the admin account".
+		"first_user": bootstrap,
 	})
 }
 

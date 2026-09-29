@@ -19,6 +19,47 @@ var (
 	ErrUserNotSystemAdmin = errors.New("user is not a system administrator")
 )
 
+// firstUserLockKey is the pg_advisory_xact_lock key that serialises first-user
+// registration. The value is arbitrary but fixed; it only has to be unique
+// among this application's advisory locks.
+const firstUserLockKey int64 = 0x79756865
+
+// HasAnyUser reports whether the users table has at least one row. It is a
+// primary-key EXISTS probe, so it stays cheap however large the table grows.
+func (r *userRepository) HasAnyUser(ctx context.Context) (bool, error) {
+	var exists bool
+	if err := r.db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM users)").Scan(&exists).Error; err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+// CreateFirstUser inserts user as the system administrator, but only when the
+// users table is empty. The emptiness check and the insert run in one
+// transaction under a transaction-scoped advisory lock: two concurrent first
+// registrations queue on the lock, and the loser re-checks after the winner has
+// committed and gets ErrRegistrationClosed. A plain "count then insert" would
+// let both through under READ COMMITTED, making two administrators.
+func (r *userRepository) CreateFirstUser(ctx context.Context, user *types.User) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", firstUserLockKey).Error; err != nil {
+			return err
+		}
+		var exists bool
+		if err := tx.Raw("SELECT EXISTS (SELECT 1 FROM users)").Scan(&exists).Error; err != nil {
+			return err
+		}
+		if exists {
+			return types.ErrRegistrationClosed
+		}
+		user.IsSystemAdmin = true
+		if user.TenantID == 0 {
+			return tx.Omit("tenant_id").Create(user).Error
+		}
+		return tx.Create(user).Error
+	})
+}
+
 // userRepository implements user repository interface
 type userRepository struct {
 	db *gorm.DB

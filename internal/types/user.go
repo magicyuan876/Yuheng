@@ -182,6 +182,11 @@ type OIDCUserInfo struct {
 	Claims   map[string]interface{} `json:"claims,omitempty"`
 }
 
+// ErrRegistrationClosed is returned when public registration is not (or is no
+// longer) open: in "auto" mode once the first user exists, or in "invite_only"
+// mode. Handlers translate it to 403.
+var ErrRegistrationClosed = errors.New("registration is closed")
+
 // RegisterRequest represents a registration request
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=2,max=50"`
@@ -193,6 +198,11 @@ type RegisterRequest struct {
 	// own tenancy semantics. Empty preserves the historical behaviour and is
 	// treated as create_personal by UserService.Register.
 	TenantProvisioning TenantProvisioningMode `json:"-"`
+
+	// BootstrapFirstUser is server-controlled (never bound from JSON): the
+	// account is created as system administrator, atomically, and only if no
+	// user exists yet. Set by the handler in "auto" registration mode.
+	BootstrapFirstUser bool `json:"-"`
 }
 
 // AdminCreateUserRequest is the payload for a SystemAdmin provisioning a

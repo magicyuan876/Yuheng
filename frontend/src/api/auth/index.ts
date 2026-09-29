@@ -248,14 +248,21 @@ export async function getOIDCConfig(): Promise<OIDCConfigResponse> {
  * 获取认证配置（仅返回前端渲染需要的公开字段，例如注册模式）。
  *
  * 后端通过 `auth.registration_mode` 控制是否允许自助注册：
- *   - "self_serve"  保留现有自助注册入口（默认）
+ *   - "self_serve"  开放自助注册
  *   - "invite_only" 关闭注册，要求管理员邀请
+ * 服务端默认策略是 auto（只在还没有任何用户时开放注册），此处的 registration_mode 是它当前实际的状态。
  *
  * 失败时回落到 self_serve，避免接口异常导致注册入口直接消失。
  */
 export interface AuthConfigResponse {
   success: boolean;
   registration_mode: "self_serve" | "invite_only" | string;
+  /** 公开注册当前是否开放（auto 模式下，第一个账号创建后为 false）。 */
+  registration_open?: boolean;
+  /** 数据库里还没有任何用户：第一个注册的账号会成为管理员。 */
+  first_user?: boolean;
+  /** 配置的策略：auto / self_serve / invite_only。 */
+  configured_registration_mode?: string;
 }
 
 export async function getAuthConfig(): Promise<AuthConfigResponse> {

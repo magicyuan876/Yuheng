@@ -2078,6 +2078,7 @@ export default {
             tenantless: "不自动创建空间",
           },
           registration_mode: {
+            auto: "自动（仅在创建第一个账号前开放）",
             self_serve: "自助注册（任何人可注册）",
             invite_only: "仅邀请（关闭公网注册）",
           },

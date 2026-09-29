@@ -433,7 +433,10 @@ func RegisterDocsPublicRoutes(r *gin.Engine, m *docs.Module) {
 	pg := m.Handler.Pages
 	public := r.Group("/api/v1/docs/public")
 	public.GET("/:key", pg.PublicPage)
-	public.POST("/:key/unlock", pg.UnlockPublicPage)
+	// The unlock password is the only credential on a protected link, so the
+	// route gets a per-IP budget against online guessing.
+	public.POST("/:key/unlock",
+		middleware.AuthIPRateLimit("docs-unlock", middleware.DocsUnlockIPLimit), pg.UnlockPublicPage)
 
 	// Public spaces live under their own prefix rather than under /public,
 	// because gin cannot have a literal segment and a ":key" parameter at the

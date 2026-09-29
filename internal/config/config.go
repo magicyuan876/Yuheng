@@ -259,9 +259,14 @@ type AuditConfig struct {
 // AuthConfig governs the user authentication entry points.
 type AuthConfig struct {
 	// RegistrationMode controls who may call POST /auth/register.
-	//   "self_serve" (default) — anyone may register; a new tenant is
+	//   "auto" (default)       — registration is open only while the
+	//                            deployment has no user at all: the first
+	//                            registrant becomes tenant owner and system
+	//                            administrator, after which public
+	//                            registration closes.
+	//   "self_serve"           — anyone may register; a new tenant is
 	//                            auto-created and the registrant becomes
-	//                            its Owner. Preserves existing behaviour.
+	//                            its Owner. An explicit opt-in.
 	//   "invite_only"          — public registration is rejected; new
 	//                            users only enter through the invitation
 	//                            flow added in PR 3.
@@ -275,6 +280,7 @@ type AuthConfig struct {
 
 // AuthRegistrationMode constants used by handlers and middleware.
 const (
+	AuthRegistrationModeAuto            = "auto"
 	AuthRegistrationModeSelfServe       = "self_serve"
 	AuthRegistrationModeInviteOnly      = "invite_only"
 	AuthDefaultTenantModeCreatePersonal = "create_personal"
@@ -792,11 +798,23 @@ func applyKnowledgeBaseEnvOverrides(cfg *Config) {
 //     can't silently disable the quota for a future deployment.
 //
 // Note: auth.registration_mode has no dedicated env override. The
-// long-standing DISABLE_REGISTRATION=true env var is the single env-layer
-// knob and, when set, coerces registration_mode to invite_only here. That
-// way both the API gate (handler) and the /auth/config-driven UI gate
+// long-standing DISABLE_REGISTRATION env var is the single env-layer knob:
+//   - unset / empty / "auto": registration_mode keeps its YAML value, which
+//     defaults to "auto" (open only until the first user exists);
+//   - "true":  coerced to invite_only (always closed);
+//   - "false": coerced to self_serve (always open — an explicit opt-in).
+//
+// That way both the API gate (handler) and the /auth/config-driven UI gate
 // (frontend hides the register entry) stay consistent — without needing
 // two parallel env vars.
+func overrideRegistrationMode(cfg *Config, source, mode string) {
+	prev := strings.TrimSpace(cfg.Auth.RegistrationMode)
+	cfg.Auth.RegistrationMode = mode
+	if prev != "" && prev != mode {
+		fmt.Printf("[config] %s overrides auth.registration_mode=%q -> %q\n", source, prev, mode)
+	}
+}
+
 func applyAuthAndTenantDefaults(cfg *Config) {
 	if cfg.Auth == nil {
 		cfg.Auth = &AuthConfig{}
@@ -805,19 +823,15 @@ func applyAuthAndTenantDefaults(cfg *Config) {
 		cfg.Tenant = &TenantConfig{}
 	}
 
-	if legacy := strings.TrimSpace(os.Getenv("DISABLE_REGISTRATION")); strings.EqualFold(legacy, "true") {
-		prev := strings.TrimSpace(cfg.Auth.RegistrationMode)
-		cfg.Auth.RegistrationMode = AuthRegistrationModeInviteOnly
-		if prev != "" && prev != AuthRegistrationModeInviteOnly {
-			fmt.Printf(
-				"[config] DISABLE_REGISTRATION=true overrides auth.registration_mode=%q -> %q\n",
-				prev, AuthRegistrationModeInviteOnly,
-			)
-		}
+	switch legacy := strings.TrimSpace(os.Getenv("DISABLE_REGISTRATION")); {
+	case strings.EqualFold(legacy, "true"):
+		overrideRegistrationMode(cfg, "DISABLE_REGISTRATION=true", AuthRegistrationModeInviteOnly)
+	case strings.EqualFold(legacy, "false"):
+		overrideRegistrationMode(cfg, "DISABLE_REGISTRATION=false", AuthRegistrationModeSelfServe)
 	}
 
 	if strings.TrimSpace(cfg.Auth.RegistrationMode) == "" {
-		cfg.Auth.RegistrationMode = AuthRegistrationModeSelfServe
+		cfg.Auth.RegistrationMode = AuthRegistrationModeAuto
 	}
 	if value := strings.TrimSpace(os.Getenv("YUHENG_AUTH_DEFAULT_TENANT_MODE")); value != "" {
 		cfg.Auth.DefaultTenantMode = value

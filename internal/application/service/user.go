@@ -111,6 +111,35 @@ func getJwtSecret() string {
 	return jwtSecret
 }
 
+var (
+	dummyHashOnce  sync.Once
+	dummyHashBytes []byte
+)
+
+// dummyPasswordHash returns a bcrypt hash (at the same cost real passwords
+// use) of a random value, computed once. Login compares against it when the
+// e-mail is unknown so that unknown and wrong-password attempts take the same
+// time.
+func dummyPasswordHash() []byte {
+	dummyHashOnce.Do(func() {
+		random := make([]byte, 16)
+		_, _ = rand.Read(random)
+		h, err := bcrypt.GenerateFromPassword(random, bcrypt.DefaultCost)
+		if err != nil {
+			// Cannot happen for a 16-byte input; a fixed valid hash keeps the
+			// comparison expensive even so.
+			h = []byte("$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BCSq4EFUR0jy7r3vJ8U4PzQwXW2K")
+		}
+		dummyHashBytes = h
+	})
+	return dummyHashBytes
+}
+
+// HasAnyUser reports whether the deployment has at least one user account.
+func (s *userService) HasAnyUser(ctx context.Context) (bool, error) {
+	return s.userRepo.HasAnyUser(ctx)
+}
+
 // userService implements the UserService interface
 type userService struct {
 	userRepo      interfaces.UserRepository
@@ -165,7 +194,10 @@ func (s *userService) Register(ctx context.Context, req *types.RegisterRequest) 
 	}
 
 	provisioning := req.TenantProvisioning
-	if provisioning == "" {
+	if provisioning == "" || req.BootstrapFirstUser {
+		// The bootstrap administrator always gets a workspace of their own,
+		// whatever the default tenant mode: a system administrator with no
+		// tenant would have nowhere to start from.
 		provisioning = types.TenantProvisioningCreatePersonal
 	}
 	if !provisioning.IsValid() {
@@ -204,14 +236,23 @@ func (s *userService) Register(ctx context.Context, req *types.RegisterRequest) 
 		user.TenantID = createdTenant.ID
 	}
 
-	err = s.userRepo.CreateUser(ctx, user)
+	if req.BootstrapFirstUser {
+		// Atomic "only if the table is empty" insert; see CreateFirstUser.
+		err = s.userRepo.CreateFirstUser(ctx, user)
+	} else {
+		err = s.userRepo.CreateUser(ctx, user)
+	}
 	if err != nil {
-		logger.Errorf(ctx, "Failed to create user: %v", err)
 		if createdTenant != nil {
 			if rollbackErr := s.tenantService.DeleteTenant(ctx, createdTenant.ID); rollbackErr != nil {
 				logger.Errorf(ctx, "Failed to roll back tenant %d after user creation failure: %v", createdTenant.ID, rollbackErr)
 			}
 		}
+		if errors.Is(err, types.ErrRegistrationClosed) {
+			// Lost the race for the first account: not a server fault.
+			return nil, types.ErrRegistrationClosed
+		}
+		logger.Errorf(ctx, "Failed to create user: %v", err)
 		return nil, errors.New("failed to create user")
 	}
 
@@ -238,37 +279,37 @@ func (s *userService) Login(ctx context.Context, req *types.LoginRequest) (*type
 	logger.Info(ctx, "Start user login")
 	// Get user by email
 	user, err := s.userRepo.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		logger.Errorf(ctx, "Failed to get user by email: %v", err)
-		return &types.LoginResponse{
-			Success: false,
-			Message: "Invalid email or password",
-		}, nil
-	}
-	if user == nil {
-		logger.Warn(ctx, "User not found for email")
+	if err != nil || user == nil {
+		if err != nil {
+			logger.Errorf(ctx, "Failed to get user by email: %v", err)
+		} else {
+			logger.Warn(ctx, "User not found for email")
+		}
+		// Spend the same bcrypt time an existing account would, so response
+		// latency does not reveal whether the e-mail is registered.
+		_ = bcrypt.CompareHashAndPassword(dummyPasswordHash(), []byte(req.Password))
 		return &types.LoginResponse{
 			Success: false,
 			Message: "Invalid email or password",
 		}, nil
 	}
 
-	// Check if user is active
-	if !user.IsActive {
-		logger.Warn(ctx, "User account is disabled")
-		return &types.LoginResponse{
-			Success: false,
-			Message: "Account is disabled",
-		}, nil
-	}
-
-	// Verify password
+	// Verify the password before looking at account status: a disabled
+	// account must not confirm its existence to someone who does not hold
+	// the password.
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
 		logger.Warn(ctx, "Password verification failed")
 		return &types.LoginResponse{
 			Success: false,
 			Message: "Invalid email or password",
+		}, nil
+	}
+	if !user.IsActive {
+		logger.Warn(ctx, "User account is disabled")
+		return &types.LoginResponse{
+			Success: false,
+			Message: "Account is disabled",
 		}, nil
 	}
 	logger.Info(ctx, "Password verification successful")

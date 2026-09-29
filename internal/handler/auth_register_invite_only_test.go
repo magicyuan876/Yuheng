@@ -22,6 +22,14 @@ import (
 type stubRegisterUserService struct {
 	interfaces.UserService
 	register func(ctx context.Context, req *types.RegisterRequest) (*types.User, error)
+	// hasUser / hasUserErr script the answer to HasAnyUser, which the "auto"
+	// registration mode (the default) consults.
+	hasUser    bool
+	hasUserErr error
+}
+
+func (s *stubRegisterUserService) HasAnyUser(context.Context) (bool, error) {
+	return s.hasUser, s.hasUserErr
 }
 
 func (s *stubRegisterUserService) Register(ctx context.Context, req *types.RegisterRequest) (*types.User, error) {
@@ -152,9 +160,10 @@ func TestRegister_TenantlessProvisioningFromConfig(t *testing.T) {
 
 func TestRegister_NilAuthConfigDoesNotPanic(t *testing.T) {
 	// Defensive: a nil Auth section means the operator hasn't set the
-	// registration mode at all, which must not crash and must keep the
-	// legacy "registration enabled" behaviour. Mirrors the nil guard in
-	// the handler so a config-loading bug doesn't take the server down.
+	// registration mode at all, which must not crash. The default is "auto",
+	// so on an empty deployment (the stub reports no users) registration is
+	// open. Mirrors the nil guard in the handler so a config-loading bug
+	// doesn't take the server down.
 	us := &stubRegisterUserService{
 		register: func(_ context.Context, _ *types.RegisterRequest) (*types.User, error) {
 			return &types.User{ID: "u1", Email: "alice@example.com"}, nil
@@ -164,7 +173,7 @@ func TestRegister_NilAuthConfigDoesNotPanic(t *testing.T) {
 
 	w := doRegister(t, newRegisterTestRouter(h), validRegisterBody())
 	if w.Code != http.StatusCreated {
-		t.Fatalf("nil Auth config must fall back to allow, got %d body=%s", w.Code, w.Body.String())
+		t.Fatalf("nil Auth config must fall back to auto (open when empty), got %d body=%s", w.Code, w.Body.String())
 	}
 }
 

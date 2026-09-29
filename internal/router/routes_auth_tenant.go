@@ -178,7 +178,11 @@ func RegisterMyInvitationRoutes(r *gin.RouterGroup, invitationHandler *handler.T
 
 // RegisterAuthRoutes registers authentication routes
 func RegisterAuthRoutes(r *gin.RouterGroup, handler *handler.AuthHandler, g *rbacGuards) {
-	r.POST("/auth/register", handler.Register)
+	// Credential endpoints get a per-IP budget of their own (the per-account
+	// lockout for login lives in the handler). Register-by-invite keeps the
+	// shared share-link limiter below.
+	r.POST("/auth/register",
+		middleware.AuthIPRateLimit("register", middleware.AuthRegisterIPLimit), handler.Register)
 	// Share-link surfaces are unauthenticated and accept a plaintext
 	// token from the caller; rate-limit by IP to bound brute-force /
 	// enumeration / abuse traffic. Limiter is shared across both
@@ -187,9 +191,11 @@ func RegisterAuthRoutes(r *gin.RouterGroup, handler *handler.AuthHandler, g *rba
 	publicAuthRL := middleware.PublicAuthRateLimit()
 	r.POST("/auth/register-by-invite", publicAuthRL, handler.RegisterByInvite)
 	r.POST("/auth/invitations/lookup", publicAuthRL, handler.LookupInvitationByToken)
-	r.POST("/auth/login", handler.Login)
+	r.POST("/auth/login",
+		middleware.AuthIPRateLimit("login", middleware.AuthLoginIPLimit), handler.Login)
 	r.GET("/auth/config", handler.GetAuthConfig)
-	r.POST("/auth/switch-tenant", handler.SwitchTenant)
+	r.POST("/auth/switch-tenant",
+		middleware.AuthIPRateLimit("switch-tenant", middleware.AuthSwitchTenantIPLimit), handler.SwitchTenant)
 	r.GET("/auth/oidc/config", handler.GetOIDCConfig)
 	r.GET("/auth/oidc/url", handler.GetOIDCAuthorizationURL)
 	r.GET("/auth/oidc/callback", handler.OIDCRedirectCallback)

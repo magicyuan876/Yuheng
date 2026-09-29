@@ -2766,6 +2766,7 @@ export default {
       enumLabels: {
         auth: {
           registration_mode: {
+            auto: "Automatic (open only until the first account exists)",
             self_serve: "Self-service (anyone can register)",
             invite_only: "Invite only (public registration disabled)",
           },

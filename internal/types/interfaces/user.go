@@ -10,6 +10,9 @@ import (
 type UserService interface {
 	// Register creates a new user account
 	Register(ctx context.Context, req *types.RegisterRequest) (*types.User, error)
+	// HasAnyUser reports whether the deployment already has a user; drives the
+	// "auto" registration mode (open only until the first account exists).
+	HasAnyUser(ctx context.Context) (bool, error)
 	// Login authenticates a user and returns tokens
 	Login(ctx context.Context, req *types.LoginRequest) (*types.LoginResponse, error)
 	// GetOIDCAuthorizationURL builds the third-party OIDC authorization URL
@@ -99,6 +102,11 @@ type UserService interface {
 type UserRepository interface {
 	// CreateUser creates a user
 	CreateUser(ctx context.Context, user *types.User) error
+	// HasAnyUser reports whether at least one user exists (cheap EXISTS probe).
+	HasAnyUser(ctx context.Context) (bool, error)
+	// CreateFirstUser creates user as system administrator only if no user
+	// exists yet, atomically; otherwise it returns types.ErrRegistrationClosed.
+	CreateFirstUser(ctx context.Context, user *types.User) error
 	// GetUserByID gets a user by ID
 	GetUserByID(ctx context.Context, id string) (*types.User, error)
 	// GetUsersByIDs batch-fetches users by id, returning a map keyed by

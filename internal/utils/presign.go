@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/hkdf"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -22,21 +23,46 @@ const (
 	presignDefaultTTL = 2 * time.Hour
 )
 
-// SystemHMACKey returns the deployment-wide HMAC key derived from
-// SYSTEM_AES_KEY, or nil when it is unset or too short to be a real secret.
-// Callers must treat nil as "this deployment cannot sign", not as an empty key.
-func SystemHMACKey() []byte {
-	key := os.Getenv("SYSTEM_AES_KEY")
-	if len(key) < 16 {
+// Purposes for deriveSubkey. Each names one use of the deployment secret, so a
+// signature made for one purpose can never be replayed as another and the raw
+// AES key is never itself used as an HMAC key.
+const (
+	subkeyPresign     = "yuheng/presign-hmac/v1"
+	subkeySystemGrant = "yuheng/system-hmac/v1"
+)
+
+// deriveSubkey derives a 32-byte HMAC key for purpose from SYSTEM_AES_KEY with
+// HKDF-SHA256 (RFC 5869), or returns nil when the secret is unset or too short
+// to be a real secret. Callers must treat nil as "this deployment cannot sign",
+// not as an empty key.
+//
+// Before this derivation the AES-256-GCM key doubled as the HMAC key. Deriving
+// per-purpose subkeys means a weakness or leak in one use does not carry over to
+// the other. Presigned URLs issued before the change no longer verify; they live
+// for at most two hours (presignDefaultTTL), so nothing durable is affected.
+func deriveSubkey(purpose string) []byte {
+	secret := os.Getenv("SYSTEM_AES_KEY")
+	if len(secret) < 16 {
 		return nil
 	}
-	return []byte(key)
+	key, err := hkdf.Key(sha256.New, []byte(secret), nil, purpose, sha256.Size)
+	if err != nil {
+		return nil
+	}
+	return key
 }
 
-// getPresignKey returns the HMAC key derived from SYSTEM_AES_KEY.
-// Returns nil if the key is not configured or invalid.
+// SystemHMACKey returns the deployment-wide HMAC key for resource grants,
+// derived from SYSTEM_AES_KEY (see deriveSubkey), or nil when the secret is not
+// configured.
+func SystemHMACKey() []byte {
+	return deriveSubkey(subkeySystemGrant)
+}
+
+// getPresignKey returns the HMAC key used to sign presigned file URLs, or nil
+// when the secret is not configured.
 func getPresignKey() []byte {
-	return SystemHMACKey()
+	return deriveSubkey(subkeyPresign)
 }
 
 // signPayload computes HMAC-SHA256 over the canonical payload string.
