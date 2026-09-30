@@ -97,8 +97,9 @@
 
     <!-- Logo - Top Left -->
     <div
-      class="fixed top-8 left-[50px] z-[100] cursor-pointer max-[1024px]:top-[26px] max-[1024px]:left-10 max-[768px]:top-[22px] max-[768px]:left-[30px] max-[480px]:top-[18px] max-[480px]:left-5"
+      class="fixed top-8 left-[50px] z-[100] flex cursor-pointer items-center gap-2.5 max-[1024px]:top-[26px] max-[1024px]:left-10 max-[768px]:top-[22px] max-[768px]:left-[30px] max-[480px]:top-[18px] max-[480px]:left-5"
     >
+      <img :src="yuhengMark" alt="" class="size-8 shrink-0 rounded-[8px] max-[768px]:size-7" draggable="false" />
       <span
         class="text-foreground inline-block text-[22px] leading-[1.2] font-bold tracking-[-0.01em] whitespace-nowrap select-none max-[1024px]:text-[19px] max-[768px]:text-[17px] max-[480px]:text-[15px] dark:[filter:invert(1)_hue-rotate(180deg)_brightness(1.1)]"
         >Yuheng</span
@@ -536,6 +537,7 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick, onMounted, onBeforeUnmount, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import yuhengMark from "@/assets/img/yuheng-mark.svg";
 import { MessagePlugin } from "tdesign-vue-next";
 import { ChevronDownIcon, LinkIcon, Loader2Icon } from "@lucide/vue";
 import { Button } from "@/components/ui/button";

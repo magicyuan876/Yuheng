@@ -1,6 +1,1 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="#101f38"/>
-  <path d="M19.9 6.4c.35-.48 1.12-.2 1.09.38l-.5 9.1-6.2-.05c-.58 0-.83-.7-.39-1.08L19.9 6.4z" fill="#fdfcfa"/>
-  <path d="M4 19.6c5.6-1.6 10.7-.9 15.8.35 3.7.9 7 1.35 11.1.1" stroke="#fdfcfa" stroke-width="2" stroke-linecap="round"/>
-  <path d="M6.4 23.4c4.9-1.15 9.4-.6 14 .45 3.3.75 6.2 1.05 9.8.1" stroke="#d9a94f" stroke-width="1.4" stroke-linecap="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="玉衡 Yuheng"><title>玉衡 Yuheng</title><defs><linearGradient id="fnight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E1E3C"/><stop offset="1" stop-color="#1B3A6A"/></linearGradient><linearGradient id="fjade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8AF5DA"/><stop offset="1" stop-color="#1DB592"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#fnight)"/><path d="M14 22 L28 34" stroke="#8FB3E6" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="22" r="3.2" fill="#EEF3FB"/><circle cx="16" cy="44" r="2.8" fill="#EEF3FB"/><path d="M38 12 Q38 34 60 34 Q38 34 38 56 Q38 34 16 34 Q38 34 38 12Z" fill="url(#fjade)" transform="translate(-2 0) scale(1)"/><circle cx="36" cy="34" r="2.6" fill="#FFFFFF"/></svg>

@@ -25,6 +25,7 @@
         class="flex min-w-0 flex-1 cursor-pointer items-center overflow-hidden"
         @click="router.push('/platform/knowledge-bases')"
       >
+        <img :src="yuhengMark" alt="" class="mr-2 size-6 shrink-0 rounded-[6px]" draggable="false" />
         <span
           class="text-foreground inline-block max-w-[128px] truncate text-[19px] leading-[1.2] font-bold tracking-[-0.01em] select-none"
           >Yuheng</span
@@ -404,6 +405,7 @@ import { useCommandPaletteStore } from "@/stores/commandPalette";
 import { MessagePlugin, DialogPlugin } from "tdesign-vue-next";
 import UserMenu from "@/components/UserMenu.vue";
 import TenantSelector from "@/components/TenantSelector.vue";
+import yuhengMark from "@/assets/img/yuheng-mark.svg";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
