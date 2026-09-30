@@ -138,7 +138,6 @@ flowchart TD
     E --> E1["c.Invoke(func(*gorm.DB){})<br/>先建库并迁移; 失败即 Fatal"]
     E1 --> F["runStartupBootstrap(c) — best-effort, 失败仅告警"]
     F --> F0["上传大小限制接入 system settings;<br/>安装平台级解析引擎配置层"]
-    F --> F1["TenantAPIKeyService.SealStoredKeys<br/>(000132 之前的 API Key 改为只存哈希与提示)"]
     F --> F2["bootstrapSystemAdmin<br/>YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL 指定的用户<br/>在无系统管理员时晋升 (幂等)"]
     F --> G["c.Invoke(cfg, router, resourceCleaner, systemSettingSvc)"]
     G --> H["listenWithRetry(addr, 10 次, 300ms 起步退避)"]

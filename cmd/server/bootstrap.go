@@ -70,19 +70,6 @@ func runStartupBootstrap(c *dig.Container) {
 		logger.Warnf(ctx, "[bootstrap] failed to install the platform parser engine layer: %v", err)
 	}
 
-	// Keys created before migration 000132 are still stored in a
-	// recoverable form; seal them into a hash and a hint. Runs on every
-	// start; once none are left it is one query over a small table.
-	if err := c.Invoke(func(apiKeySvc interfaces.TenantAPIKeyService) {
-		if n, err := apiKeySvc.SealStoredKeys(ctx); err != nil {
-			logger.Warnf(ctx, "[bootstrap] sealing stored API keys failed: %v", err)
-		} else if n > 0 {
-			logger.Infof(ctx, "[bootstrap] sealed %d stored API key(s): only their hash and hint are kept", n)
-		}
-	}); err != nil {
-		logger.Warnf(ctx, "[bootstrap] failed to resolve TenantAPIKeyService: %v", err)
-	}
-
 	email := strings.TrimSpace(os.Getenv(bootstrapEnvVar))
 	if email == "" {
 		return

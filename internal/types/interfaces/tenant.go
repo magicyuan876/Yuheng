@@ -96,12 +96,6 @@ type TenantAPIKeyRepository interface {
 	RevokeAPIKey(ctx context.Context, tenantID uint64, id uint64) error
 	RevokePlatformAPIKey(ctx context.Context, id uint64) error
 	UpdateAPIKeyLastUsed(ctx context.Context, id uint64, at time.Time) error
-	// ListStoredKeySecrets returns the rows that still hold their key in the
-	// legacy api_key column (keys created before migration 000132).
-	ListStoredKeySecrets(ctx context.Context) ([]types.StoredAPIKeySecret, error)
-	// SealKey stores a key's hint, and its real hash when hash is not empty,
-	// and empties the legacy api_key column.
-	SealKey(ctx context.Context, id uint64, hint, hash string) error
 }
 
 type TenantAPIKeyService interface {
@@ -112,8 +106,4 @@ type TenantAPIKeyService interface {
 	UpdateAPIKey(ctx context.Context, req TenantAPIKeyUpdateRequest) (*types.TenantAPIKey, error)
 	RevokeAPIKey(ctx context.Context, tenantID uint64, id uint64) error
 	RevokePlatformAPIKey(ctx context.Context, id uint64) error
-	// SealStoredKeys converts keys still stored in a recoverable form (before
-	// migration 000132) into a hash and a hint, and forgets the key itself.
-	// Returns how many keys were sealed.
-	SealStoredKeys(ctx context.Context) (int, error)
 }

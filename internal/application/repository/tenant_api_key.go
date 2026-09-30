@@ -121,38 +121,6 @@ func (r *tenantAPIKeyRepository) RevokePlatformAPIKey(ctx context.Context, id ui
 	return nil
 }
 
-// placeholderKeyHashPrefix mirrors the value written by migration
-// 000065_tenant_api_keys.up.sql ('migrated-tenant-' || id): a key copied from
-// tenants.api_key before its real hash was known.
-const placeholderKeyHashPrefix = "migrated-tenant-"
-
-// ListStoredKeySecrets returns every row, revoked ones included, that still
-// holds its key in the legacy api_key column.
-func (r *tenantAPIKeyRepository) ListStoredKeySecrets(ctx context.Context) ([]types.StoredAPIKeySecret, error) {
-	var rows []types.StoredAPIKeySecret
-	err := r.db.WithContext(ctx).
-		Model(&types.TenantAPIKey{}).
-		Select("id, api_key AS secret, key_hash LIKE ? AS needs_hash", placeholderKeyHashPrefix+"%").
-		Where("api_key <> ''").
-		Order("id").
-		Scan(&rows).Error
-	return rows, err
-}
-
-// SealKey records a key's hint (and its real hash, when hash is not empty)
-// and empties the legacy api_key column, in one statement, so a row is never
-// left without the secret and without the hint derived from it.
-func (r *tenantAPIKeyRepository) SealKey(ctx context.Context, id uint64, hint, hash string) error {
-	fields := map[string]any{"key_hint": hint, "api_key": ""}
-	if hash != "" {
-		fields["key_hash"] = hash
-	}
-	return r.db.WithContext(ctx).
-		Model(&types.TenantAPIKey{}).
-		Where("id = ?", id).
-		Updates(fields).Error
-}
-
 func (r *tenantAPIKeyRepository) UpdateAPIKeyLastUsed(ctx context.Context, id uint64, at time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&types.TenantAPIKey{}).

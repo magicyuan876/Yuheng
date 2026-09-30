@@ -16,8 +16,6 @@ type fakeTenantAPIKeyRepo struct {
 	byHash              map[string]*types.TenantAPIKey
 	nextID              uint64
 	lastUsedUpdateCount int
-	// stored holds rows still keeping their key in the legacy api_key column.
-	stored map[uint64]types.StoredAPIKeySecret
 }
 
 func TestTenantAPIKeyServiceCreateAPIKeyUsesSKPrefix(t *testing.T) {
@@ -43,9 +41,7 @@ func TestTenantAPIKeyServiceCreateAPIKeyUsesSKPrefix(t *testing.T) {
 }
 
 func newFakeTenantAPIKeyRepo() *fakeTenantAPIKeyRepo {
-	return &fakeTenantAPIKeyRepo{
-		byHash: map[string]*types.TenantAPIKey{}, nextID: 1, stored: map[uint64]types.StoredAPIKeySecret{},
-	}
+	return &fakeTenantAPIKeyRepo{byHash: map[string]*types.TenantAPIKey{}, nextID: 1}
 }
 
 func (r *fakeTenantAPIKeyRepo) CreateAPIKey(_ context.Context, key *types.TenantAPIKey) error {
@@ -193,31 +189,6 @@ func (r *fakeTenantAPIKeyRepo) RevokePlatformAPIKey(_ context.Context, id uint64
 	return apprepo.ErrTenantAPIKeyNotFound
 }
 
-func (r *fakeTenantAPIKeyRepo) ListStoredKeySecrets(_ context.Context) ([]types.StoredAPIKeySecret, error) {
-	out := make([]types.StoredAPIKeySecret, 0, len(r.stored))
-	for _, row := range r.stored {
-		out = append(out, row)
-	}
-	return out, nil
-}
-
-func (r *fakeTenantAPIKeyRepo) SealKey(_ context.Context, id uint64, hint, hash string) error {
-	for oldHash, key := range r.byHash {
-		if key.ID != id {
-			continue
-		}
-		key.KeyHint = hint
-		if hash != "" {
-			delete(r.byHash, oldHash)
-			key.KeyHash = hash
-			r.byHash[hash] = key
-		}
-		delete(r.stored, id)
-		return nil
-	}
-	return apprepo.ErrTenantAPIKeyNotFound
-}
-
 func (r *fakeTenantAPIKeyRepo) UpdateAPIKeyLastUsed(_ context.Context, id uint64, at time.Time) error {
 	r.lastUsedUpdateCount++
 	for _, key := range r.byHash {
@@ -226,45 +197,6 @@ func (r *fakeTenantAPIKeyRepo) UpdateAPIKeyLastUsed(_ context.Context, id uint64
 		}
 	}
 	return nil
-}
-
-func TestTenantAPIKeyServiceSealStoredKeys(t *testing.T) {
-	ctx := context.Background()
-	repo := newFakeTenantAPIKeyRepo()
-	svc := NewTenantAPIKeyService(repo)
-
-	// A key migrated from tenants.api_key (placeholder hash) and one created
-	// before 000132 (real hash), both still holding the key itself.
-	legacyToken, olderToken := "sk-legacy-token-value", "sk-older-token-value-1234"
-	legacy := &types.TenantAPIKey{TenantID: uint64Pointer(7), Name: "legacy", KeyHash: "migrated-tenant-7"}
-	older := &types.TenantAPIKey{TenantID: uint64Pointer(7), Name: "older", KeyHash: hashTenantAPIKey(olderToken)}
-	for _, k := range []*types.TenantAPIKey{legacy, older} {
-		if err := repo.CreateAPIKey(ctx, k); err != nil {
-			t.Fatalf("CreateAPIKey returned error: %v", err)
-		}
-	}
-	repo.stored[legacy.ID] = types.StoredAPIKeySecret{ID: legacy.ID, Secret: legacyToken, NeedsHash: true}
-	repo.stored[older.ID] = types.StoredAPIKeySecret{ID: older.ID, Secret: olderToken}
-
-	n, err := svc.SealStoredKeys(ctx)
-	if err != nil || n != 2 {
-		t.Fatalf("SealStoredKeys = (%d, %v), want (2, nil)", n, err)
-	}
-	for token, want := range map[string]string{legacyToken: "legacy", olderToken: "older"} {
-		key, err := svc.AuthenticateAPIKey(ctx, token)
-		if err != nil {
-			t.Fatalf("AuthenticateAPIKey(%s) after sealing: %v", want, err)
-		}
-		if key.KeyHint != types.MaskAPIKey(token) {
-			t.Fatalf("%s hint = %q, want %q", want, key.KeyHint, types.MaskAPIKey(token))
-		}
-	}
-	if len(repo.stored) != 0 {
-		t.Fatalf("%d key(s) still stored in a recoverable form", len(repo.stored))
-	}
-	if n, err := svc.SealStoredKeys(ctx); err != nil || n != 0 {
-		t.Fatalf("second SealStoredKeys = (%d, %v), want (0, nil)", n, err)
-	}
 }
 
 func TestMaskAPIKeyNeverShowsEnoughToUse(t *testing.T) {

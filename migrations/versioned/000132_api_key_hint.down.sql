@@ -1,6 +1,6 @@
--- Migration 000132 Down: drop key_hint.
--- The keys the server emptied out of api_key cannot be restored: only their
--- hashes remain, which is what authentication uses. A server before 000132
--- shows those keys with an empty api_key and otherwise works unchanged.
-COMMENT ON COLUMN tenant_api_keys.api_key IS NULL;
+-- Migration 000132 Down: restore the api_key column, empty, and drop key_hint.
+-- The keys cannot be restored: only their hashes were kept, and hashes are
+-- what authentication uses. The placeholder rows deleted on the way up could
+-- never authenticate and are not recreated.
+ALTER TABLE tenant_api_keys ADD COLUMN IF NOT EXISTS api_key TEXT NOT NULL DEFAULT '';
 ALTER TABLE tenant_api_keys DROP COLUMN IF EXISTS key_hint;

@@ -55,7 +55,7 @@ migrations/
 | 000129 | 分块重叠「未设置」与 0 分开 | 删除 `knowledge_bases.chunking_config` 与单篇解析覆盖中存量的 `chunk_overlap: 0` |
 | 000130 | 删除无写入方的页面问题表 | DROP `wiki_page_issues` |
 | 000131 | 清理智能体收藏 | 删除 `user_resource_favorites` 中 `resource_type = 'agent'` 的行 |
-| 000132 | API Key 不再可还原 | `tenant_api_keys.key_hint`；存量行由服务启动时写入提示、补全 000065 的哈希并清空 `api_key` |
+| 000132 | API Key 不再可还原 | 新增 `tenant_api_keys.key_hint`，删除 `api_key` 列；000065 留下的占位 Key（从未能认证）一并删除 |
 
 ## 3. 最终表结构
 

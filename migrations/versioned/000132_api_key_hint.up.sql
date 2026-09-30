@@ -8,14 +8,17 @@
 --
 -- key_hint holds what a person needs to tell keys apart: the first and last
 -- few characters, never enough to use one. New keys write only key_hash and
--- key_hint. Existing rows are converted by the server at startup rather than
--- here, because SQL cannot decrypt an encrypted api_key: it derives key_hint
--- (and, for rows migrated from tenants.api_key in 000065, the real key_hash)
--- from the stored key and then empties api_key. The column stays, empty,
--- so a server that has not yet started can still find what to convert.
-DO $$ BEGIN RAISE NOTICE '[Migration 000132] Adding tenant_api_keys.key_hint...'; END $$;
+-- key_hint; the key itself is shown once, when it is created.
+--
+-- api_key goes. Existing keys keep working (they authenticate by key_hash)
+-- and simply show no hint. The one kind of row that relied on api_key is a
+-- key copied from tenants.api_key in 000065 whose key_hash is still that
+-- migration's placeholder: it has never been usable without the column, so
+-- it is removed with it.
+DO $$ BEGIN RAISE NOTICE '[Migration 000132] tenant_api_keys: key_hint in, api_key out...'; END $$;
 
 ALTER TABLE tenant_api_keys ADD COLUMN IF NOT EXISTS key_hint VARCHAR(32) NOT NULL DEFAULT '';
 
-COMMENT ON COLUMN tenant_api_keys.api_key IS
-    'Legacy: the key itself. Emptied by the server at startup once key_hint and key_hash are derived; never written for new keys.';
+DELETE FROM tenant_api_keys WHERE key_hash LIKE 'migrated-tenant-%';
+
+ALTER TABLE tenant_api_keys DROP COLUMN IF EXISTS api_key;

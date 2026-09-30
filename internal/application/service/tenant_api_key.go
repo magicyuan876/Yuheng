@@ -15,7 +15,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
-	"github.com/magicyuan876/yuheng/internal/utils"
 )
 
 // apiKeyLastUsedMinInterval bounds how often we persist last_used_at per key.
@@ -183,38 +182,6 @@ func (s *tenantAPIKeyService) RevokeAPIKey(ctx context.Context, tenantID uint64,
 
 func (s *tenantAPIKeyService) RevokePlatformAPIKey(ctx context.Context, id uint64) error {
 	return s.repo.RevokePlatformAPIKey(ctx, id)
-}
-
-// SealStoredKeys turns every key still kept in the legacy api_key column
-// into what a key is stored as now: its hash (already there, except for keys
-// migrated in 000065) and its hint. It runs at every startup and is cheap
-// once there is nothing left to seal.
-//
-// A key that cannot be decrypted (SYSTEM_AES_KEY missing or changed for this
-// start) is left as it is and reported, so the next start with the right key
-// can still seal it; everything else is sealed regardless.
-func (s *tenantAPIKeyService) SealStoredKeys(ctx context.Context) (int, error) {
-	rows, err := s.repo.ListStoredKeySecrets(ctx)
-	if err != nil {
-		return 0, err
-	}
-	sealed := 0
-	for _, row := range rows {
-		token, err := utils.DecryptStoredSecret(row.Secret)
-		if err != nil {
-			logger.Warnf(ctx, "[api-keys] cannot decrypt stored key id=%d, left for a later start: %v", row.ID, err)
-			continue
-		}
-		hash := ""
-		if row.NeedsHash {
-			hash = hashTenantAPIKey(token)
-		}
-		if err := s.repo.SealKey(ctx, row.ID, types.MaskAPIKey(token), hash); err != nil {
-			return sealed, err
-		}
-		sealed++
-	}
-	return sealed, nil
 }
 
 func generateTenantAPIKeyToken() (string, error) {

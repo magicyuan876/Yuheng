@@ -172,7 +172,6 @@ type TenantAPIKey struct {
 ```
 
 - **不落库明文**：Key 只在创建时返回一次（响应里的 `token`），库里只存两样东西：认证用的不可逆 `KeyHash`（SHA-256），以及用来区分 Key 的 `KeyHint`（前 7 位 + `...` + 后 4 位，接口里仍以 `api_key` 字段返回）。两者都无法还原出 Key，所以丢了只能吊销重建。
-- **旧数据封存**：000132 之前创建的 Key 还把 Key 本身存在 `api_key` 列里（配置了 `SYSTEM_AES_KEY` 时加密，否则是明文）。服务每次启动都会处理这些行：解密出 Key，写入 `key_hint`；000065 从 `tenants.api_key` 迁来的 Key 还会补上真实哈希。处理完清空该列。解密失败的行保留原样，等下一次用正确的 `SYSTEM_AES_KEY` 启动时再处理。
 - **校验流程**：请求携带 `X-API-Key` → 计算哈希 → 按 `KeyHash` 查表 → 检查 `RevokedAt` / `ExpiresAt` → 将 `TenantAPIKeyScope{KeyID, ScopeType, FullAccess, KnowledgeBaseIDs, Capabilities}` 注入 context，后续用 `types.TenantAPIKeyScopeFromContext` 读取。
 
 ### 1.5 Organization（组织 / 共享空间）

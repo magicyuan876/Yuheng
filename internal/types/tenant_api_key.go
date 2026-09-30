@@ -266,19 +266,6 @@ func MaskAPIKey(token string) string {
 	return token[:7] + "..." + token[len(token)-4:]
 }
 
-// StoredAPIKeySecret is a row that still holds its key in the legacy api_key
-// column, as keys created before migration 000132 do until the server seals
-// them at startup (TenantAPIKeyService.SealStoredKeys).
-type StoredAPIKeySecret struct {
-	ID uint64
-	// Secret is the api_key column as stored: encrypted, or plain text when
-	// SYSTEM_AES_KEY was not set.
-	Secret string
-	// NeedsHash marks a key migrated from tenants.api_key in 000065 whose
-	// key_hash is still a placeholder, so the real hash must be derived too.
-	NeedsHash bool
-}
-
 // TenantAPIKeyScope is the request-context projection used by middleware.
 type TenantAPIKeyScope struct {
 	KeyID            uint64
