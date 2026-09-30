@@ -161,7 +161,7 @@ curl $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN"
 | `capabilities` | []string | scoped key 必填 | capability 列表（见[总览](./01-api-overview.md)）；`full_access=false` 时至少一个，出现未知值返回 1010 |
 | `expires_at_unix` | *int64 | 否 | 过期时间（Unix 秒） |
 
-响应：201 `{"success":true,"data":{...,"api_key":"<明文>","token":"<明文>"}}`。明文只在创建时返回一次，之后列表里只有掩码。
+响应：201 `{"success":true,"data":{...,"api_key":"sk-AbCd...wXyZ","token":"<明文>"}}`。`token` 是 Key 本身，只在这次响应里出现；服务端只保存它的哈希和 `api_key` 这个掩码提示，之后无从找回。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN" \
@@ -173,7 +173,7 @@ curl -X POST $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN" \
 
 用途：修改已创建 key 的名称、全权开关、KB 白名单、capability 与过期时间，key 本身不变。权限：Owner，仅 JWT。请求体字段与创建接口相同，校验规则也相同（整体替换，不是局部合并）。
 
-响应：200 `{"success":true,"data":{tenantAPIKeyResponse}}`；key 不存在返回 404。
+响应：200 `{"success":true,"data":{tenantAPIKeyResponse}}`。key 不存在（或不属于该空间）返回 404；请求不合法返回 400，例如给空间 Key 申请 `system_*` 能力（这类能力只属于平台 Key）。
 
 ```bash
 curl -X PUT $BASE/api/v1/tenants/1/api-keys/5 -H "Authorization: Bearer $TOKEN" \

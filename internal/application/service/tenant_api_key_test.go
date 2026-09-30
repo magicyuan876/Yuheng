@@ -16,6 +16,8 @@ type fakeTenantAPIKeyRepo struct {
 	byHash              map[string]*types.TenantAPIKey
 	nextID              uint64
 	lastUsedUpdateCount int
+	// stored holds rows still keeping their key in the legacy api_key column.
+	stored map[uint64]types.StoredAPIKeySecret
 }
 
 func TestTenantAPIKeyServiceCreateAPIKeyUsesSKPrefix(t *testing.T) {
@@ -33,13 +35,17 @@ func TestTenantAPIKeyServiceCreateAPIKeyUsesSKPrefix(t *testing.T) {
 	if !strings.HasPrefix(result.Token, "sk-") {
 		t.Fatalf("created token = %q, want sk- prefix", result.Token)
 	}
-	if result.APIKey.APIKey != result.Token {
-		t.Fatalf("created api_key = %q, want token %q", result.APIKey.APIKey, result.Token)
+	// Only the hint is kept; the token itself is returned once, here.
+	hint := result.APIKey.KeyHint
+	if hint != types.MaskAPIKey(result.Token) || strings.Contains(result.Token, hint) {
+		t.Fatalf("stored hint = %q, want the masked token %q", hint, types.MaskAPIKey(result.Token))
 	}
 }
 
 func newFakeTenantAPIKeyRepo() *fakeTenantAPIKeyRepo {
-	return &fakeTenantAPIKeyRepo{byHash: map[string]*types.TenantAPIKey{}, nextID: 1}
+	return &fakeTenantAPIKeyRepo{
+		byHash: map[string]*types.TenantAPIKey{}, nextID: 1, stored: map[uint64]types.StoredAPIKeySecret{},
+	}
 }
 
 func (r *fakeTenantAPIKeyRepo) CreateAPIKey(_ context.Context, key *types.TenantAPIKey) error {
@@ -187,36 +193,29 @@ func (r *fakeTenantAPIKeyRepo) RevokePlatformAPIKey(_ context.Context, id uint64
 	return apprepo.ErrTenantAPIKeyNotFound
 }
 
-func (r *fakeTenantAPIKeyRepo) UpdateAPIKeyHash(_ context.Context, id uint64, hash string) error {
+func (r *fakeTenantAPIKeyRepo) ListStoredKeySecrets(_ context.Context) ([]types.StoredAPIKeySecret, error) {
+	out := make([]types.StoredAPIKeySecret, 0, len(r.stored))
+	for _, row := range r.stored {
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+func (r *fakeTenantAPIKeyRepo) SealKey(_ context.Context, id uint64, hint, hash string) error {
 	for oldHash, key := range r.byHash {
-		if key.ID == id && key.RevokedAt == nil {
+		if key.ID != id {
+			continue
+		}
+		key.KeyHint = hint
+		if hash != "" {
 			delete(r.byHash, oldHash)
 			key.KeyHash = hash
 			r.byHash[hash] = key
-			return nil
 		}
+		delete(r.stored, id)
+		return nil
 	}
 	return apprepo.ErrTenantAPIKeyNotFound
-}
-
-func (r *fakeTenantAPIKeyRepo) HasKeysWithPlaceholderHash(_ context.Context) (bool, error) {
-	for _, key := range r.byHash {
-		if key.RevokedAt == nil && strings.HasPrefix(key.KeyHash, "migrated-tenant-") {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (r *fakeTenantAPIKeyRepo) ListKeysWithPlaceholderHash(_ context.Context) ([]*types.TenantAPIKey, error) {
-	out := []*types.TenantAPIKey{}
-	for _, key := range r.byHash {
-		if key.RevokedAt == nil && strings.HasPrefix(key.KeyHash, "migrated-tenant-") {
-			cp := *key
-			out = append(out, &cp)
-		}
-	}
-	return out, nil
 }
 
 func (r *fakeTenantAPIKeyRepo) UpdateAPIKeyLastUsed(_ context.Context, id uint64, at time.Time) error {
@@ -229,35 +228,53 @@ func (r *fakeTenantAPIKeyRepo) UpdateAPIKeyLastUsed(_ context.Context, id uint64
 	return nil
 }
 
-func TestTenantAPIKeyServiceBackfillMissingKeyHashes(t *testing.T) {
+func TestTenantAPIKeyServiceSealStoredKeys(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeTenantAPIKeyRepo()
 	svc := NewTenantAPIKeyService(repo)
 
-	token := "sk-legacy-token-value"
-	legacy := &types.TenantAPIKey{
-		TenantID:   uint64Pointer(7),
-		Name:       "legacy",
-		KeyHash:    "migrated-tenant-7",
-		APIKey:     token,
-		FullAccess: true,
+	// A key migrated from tenants.api_key (placeholder hash) and one created
+	// before 000132 (real hash), both still holding the key itself.
+	legacyToken, olderToken := "sk-legacy-token-value", "sk-older-token-value-1234"
+	legacy := &types.TenantAPIKey{TenantID: uint64Pointer(7), Name: "legacy", KeyHash: "migrated-tenant-7"}
+	older := &types.TenantAPIKey{TenantID: uint64Pointer(7), Name: "older", KeyHash: hashTenantAPIKey(olderToken)}
+	for _, k := range []*types.TenantAPIKey{legacy, older} {
+		if err := repo.CreateAPIKey(ctx, k); err != nil {
+			t.Fatalf("CreateAPIKey returned error: %v", err)
+		}
 	}
-	if err := repo.CreateAPIKey(ctx, legacy); err != nil {
-		t.Fatalf("CreateAPIKey returned error: %v", err)
-	}
+	repo.stored[legacy.ID] = types.StoredAPIKeySecret{ID: legacy.ID, Secret: legacyToken, NeedsHash: true}
+	repo.stored[older.ID] = types.StoredAPIKeySecret{ID: older.ID, Secret: olderToken}
 
-	n, err := svc.BackfillMissingKeyHashes(ctx)
-	if err != nil {
-		t.Fatalf("BackfillMissingKeyHashes returned error: %v", err)
+	n, err := svc.SealStoredKeys(ctx)
+	if err != nil || n != 2 {
+		t.Fatalf("SealStoredKeys = (%d, %v), want (2, nil)", n, err)
 	}
-	if n != 1 {
-		t.Fatalf("backfilled = %d, want 1", n)
+	for token, want := range map[string]string{legacyToken: "legacy", olderToken: "older"} {
+		key, err := svc.AuthenticateAPIKey(ctx, token)
+		if err != nil {
+			t.Fatalf("AuthenticateAPIKey(%s) after sealing: %v", want, err)
+		}
+		if key.KeyHint != types.MaskAPIKey(token) {
+			t.Fatalf("%s hint = %q, want %q", want, key.KeyHint, types.MaskAPIKey(token))
+		}
 	}
-	if _, err := svc.AuthenticateAPIKey(ctx, token); err != nil {
-		t.Fatalf("AuthenticateAPIKey after backfill returned error: %v", err)
+	if len(repo.stored) != 0 {
+		t.Fatalf("%d key(s) still stored in a recoverable form", len(repo.stored))
 	}
-	if n, err := svc.BackfillMissingKeyHashes(ctx); err != nil || n != 0 {
-		t.Fatalf("second BackfillMissingKeyHashes = (%d, %v), want (0, nil)", n, err)
+	if n, err := svc.SealStoredKeys(ctx); err != nil || n != 0 {
+		t.Fatalf("second SealStoredKeys = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
+func TestMaskAPIKeyNeverShowsEnoughToUse(t *testing.T) {
+	token := "sk-0123456789abcdefghijklmnopqrstuvwxyzABCDEFG"
+	hint := types.MaskAPIKey(token)
+	if hint != "sk-0123...DEFG" {
+		t.Fatalf("hint = %q", hint)
+	}
+	if types.MaskAPIKey("sk-short") != "***" {
+		t.Fatal("a key too short to show any of is fully masked")
 	}
 }
 
@@ -357,5 +374,39 @@ func TestTenantAPIKeyServiceAuthenticateRejectsExpiredKey(t *testing.T) {
 	}
 	if _, err := svc.AuthenticateAPIKey(ctx, created.Token); err == nil {
 		t.Fatal("expired key should not authenticate")
+	}
+}
+
+func TestTenantAPIKeyServiceRefusesPlatformOnlyCapabilitiesOnWorkspaceKeys(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeTenantAPIKeyRepo()
+	svc := NewTenantAPIKeyService(repo)
+	system := string(types.APIKeyCapabilitySystemAuditRead)
+
+	_, err := svc.CreateAPIKey(ctx, interfaces.TenantAPIKeyCreateRequest{
+		TenantID: 42, Name: "reporting", Capabilities: []string{string(types.APIKeyCapabilityRetrieve), system},
+	})
+	if !errors.Is(err, types.ErrPlatformOnlyCapability) {
+		t.Fatalf("create with %s = %v, want ErrPlatformOnlyCapability", system, err)
+	}
+
+	created, err := svc.CreateAPIKey(ctx, interfaces.TenantAPIKeyCreateRequest{
+		TenantID: 42, Name: "reporting", Capabilities: []string{string(types.APIKeyCapabilityRetrieve)},
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey returned error: %v", err)
+	}
+	_, err = svc.UpdateAPIKey(ctx, interfaces.TenantAPIKeyUpdateRequest{
+		TenantID: 42, APIKeyID: created.APIKey.ID, Name: "reporting", Capabilities: []string{system},
+	})
+	if !errors.Is(err, types.ErrPlatformOnlyCapability) {
+		t.Fatalf("update to %s = %v, want ErrPlatformOnlyCapability", system, err)
+	}
+
+	// A platform key is exactly where such a capability belongs.
+	if _, err := svc.CreateAPIKey(ctx, interfaces.TenantAPIKeyCreateRequest{
+		ScopeType: types.APIKeyScopePlatform, Name: "audit export", Capabilities: []string{system},
+	}); err != nil {
+		t.Fatalf("platform key with %s: %v", system, err)
 	}
 }

@@ -121,46 +121,36 @@ func (r *tenantAPIKeyRepository) RevokePlatformAPIKey(ctx context.Context, id ui
 	return nil
 }
 
-func (r *tenantAPIKeyRepository) UpdateAPIKeyHash(ctx context.Context, id uint64, hash string) error {
-	return r.db.WithContext(ctx).
-		Model(&types.TenantAPIKey{}).
-		Where("id = ? AND revoked_at IS NULL", id).
-		Update("key_hash", hash).Error
-}
-
 // placeholderKeyHashPrefix mirrors the value written by migration
-// 000065_tenant_api_keys.up.sql ('migrated-tenant-' || id). Rows still
-// carrying it have never been authenticated since the upgrade, so their
-// key_hash is not the real SHA-256 of the API key yet.
+// 000065_tenant_api_keys.up.sql ('migrated-tenant-' || id): a key copied from
+// tenants.api_key before its real hash was known.
 const placeholderKeyHashPrefix = "migrated-tenant-"
 
-func (r *tenantAPIKeyRepository) HasKeysWithPlaceholderHash(ctx context.Context) (bool, error) {
-	var id uint64
-	err := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
+// ListStoredKeySecrets returns every row, revoked ones included, that still
+// holds its key in the legacy api_key column.
+func (r *tenantAPIKeyRepository) ListStoredKeySecrets(ctx context.Context) ([]types.StoredAPIKeySecret, error) {
+	var rows []types.StoredAPIKeySecret
+	err := r.db.WithContext(ctx).
 		Model(&types.TenantAPIKey{}).
-		Select("id").
-		Where("key_hash LIKE ? AND revoked_at IS NULL", placeholderKeyHashPrefix+"%").
-		Limit(1).
-		Scan(&id).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
-		}
-		return false, err
-	}
-	return id != 0, nil
+		Select("id, api_key AS secret, key_hash LIKE ? AS needs_hash", placeholderKeyHashPrefix+"%").
+		Where("api_key <> ''").
+		Order("id").
+		Scan(&rows).Error
+	return rows, err
 }
 
-func (r *tenantAPIKeyRepository) ListKeysWithPlaceholderHash(
-	ctx context.Context,
-) ([]*types.TenantAPIKey, error) {
-	var keys []*types.TenantAPIKey
-	// AfterFind decrypts api_key, so callers get the plaintext token needed
-	// to compute the real hash.
-	err := r.db.WithContext(ctx).
-		Where("key_hash LIKE ? AND revoked_at IS NULL", placeholderKeyHashPrefix+"%").
-		Find(&keys).Error
-	return keys, err
+// SealKey records a key's hint (and its real hash, when hash is not empty)
+// and empties the legacy api_key column, in one statement, so a row is never
+// left without the secret and without the hint derived from it.
+func (r *tenantAPIKeyRepository) SealKey(ctx context.Context, id uint64, hint, hash string) error {
+	fields := map[string]any{"key_hint": hint, "api_key": ""}
+	if hash != "" {
+		fields["key_hash"] = hash
+	}
+	return r.db.WithContext(ctx).
+		Model(&types.TenantAPIKey{}).
+		Where("id = ?", id).
+		Updates(fields).Error
 }
 
 func (r *tenantAPIKeyRepository) UpdateAPIKeyLastUsed(ctx context.Context, id uint64, at time.Time) error {

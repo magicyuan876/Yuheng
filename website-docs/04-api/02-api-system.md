@@ -185,7 +185,7 @@ curl $BASE/api/v1/system/admin/api-keys -H "Authorization: Bearer $TOKEN"
 
 用途：创建平台 API key（明文仅在响应的 `data.token` 里返回一次，之后列表只有掩码）。请求体：`name`（非空）、`capabilities`（必填，每一项都必须是已知 capability，否则 1010；可以是 `system_*`，也可以是作用于 `X-Tenant-ID` 所选空间的空间 capability）、`expires_at_unix`（可选，须为未来时间）。平台 key 没有 `full_access`，也不能创建或删除别的平台 key（这三个管理接口只接受 JWT）。平台 key 的调用方式见[总览](./01-api-overview.md)。
 
-响应：201 `{"success":true,"data":{...,"api_key":"<明文>","token":"<明文>"}}`
+响应：201 `{"success":true,"data":{...,"api_key":"sk-AbCd...wXyZ","token":"<明文>"}}`：`token` 只在这次响应里出现，`api_key` 是掩码提示
 
 ```bash
 curl -X POST $BASE/api/v1/system/admin/api-keys -H "Authorization: Bearer $TOKEN" \

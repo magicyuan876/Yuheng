@@ -36,7 +36,7 @@ func TestTenantAPIKeyRepositoryPersistsUTCExpiry(t *testing.T) {
 		ScopeType:  types.APIKeyScopeTenant,
 		Name:       "integration",
 		KeyHash:    "hash-expiry",
-		APIKey:     "sk-test",
+		KeyHint:    "sk-test",
 		FullAccess: true,
 		ExpiresAt:  &expiresAt,
 	}
@@ -70,10 +70,14 @@ func TestTenantAPIKeyRepositoryUpdateIsTenantScoped(t *testing.T) {
 	repo := NewTenantAPIKeyRepository(db)
 	ctx := context.Background()
 	tenant42, tenant43 := uint64(42), uint64(43)
+	key := func(tenant *uint64, name string, fullAccess bool) *types.TenantAPIKey {
+		return &types.TenantAPIKey{
+			TenantID: tenant, ScopeType: types.APIKeyScopeTenant, Name: name,
+			KeyHash: "hash-" + name, KeyHint: "sk-" + name, FullAccess: fullAccess,
+		}
+	}
 	keys := []*types.TenantAPIKey{
-		{TenantID: &tenant42, ScopeType: types.APIKeyScopeTenant, Name: "scoped", KeyHash: "hash-scoped", APIKey: "sk-scoped"},
-		{TenantID: &tenant43, ScopeType: types.APIKeyScopeTenant, Name: "other", KeyHash: "hash-other", APIKey: "sk-other"},
-		{TenantID: &tenant42, ScopeType: types.APIKeyScopeTenant, Name: "full", KeyHash: "hash-full", APIKey: "sk-full", FullAccess: true},
+		key(&tenant42, "scoped", false), key(&tenant43, "other", false), key(&tenant42, "full", true),
 	}
 	for _, key := range keys {
 		require.NoError(t, repo.CreateAPIKey(ctx, key))
@@ -101,4 +105,44 @@ func TestTenantAPIKeyRepositoryUpdateIsTenantScoped(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.False(t, full.FullAccess)
+}
+
+// Keys created before migration 000132 keep the key itself in api_key; the
+// repository must find them (and know which still need their real hash) and
+// seal each in one statement.
+func TestTenantAPIKeyRepositorySealsStoredKeys(t *testing.T) {
+	db := pgtest.New(t)
+	insertAPIKeyTenant(t, db, 42)
+	repo := NewTenantAPIKeyRepository(db)
+	ctx := context.Background()
+
+	require.NoError(t, db.Exec(`INSERT INTO tenant_api_keys (tenant_id, scope_type, name, key_hash, api_key)
+		VALUES (42, 'tenant', 'migrated', 'migrated-tenant-42', 'sk-migrated-secret'),
+		       (42, 'tenant', 'older', 'real-hash', 'enc:v1:ciphertext'),
+		       (42, 'tenant', 'new', 'new-hash', '')`).Error)
+
+	rows, err := repo.ListStoredKeySecrets(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 2, "a key with nothing in api_key has nothing to seal")
+	require.Equal(t, "sk-migrated-secret", rows[0].Secret)
+	require.True(t, rows[0].NeedsHash, "a 000065 placeholder needs its real hash")
+	require.False(t, rows[1].NeedsHash)
+
+	require.NoError(t, repo.SealKey(ctx, rows[0].ID, "sk-migr...cret", "the-real-hash"))
+	require.NoError(t, repo.SealKey(ctx, rows[1].ID, "enc:v1:...text", ""))
+
+	var sealed []struct {
+		KeyHash, KeyHint, APIKey string
+	}
+	require.NoError(t, db.Raw(`SELECT key_hash, key_hint, api_key FROM tenant_api_keys
+		WHERE name IN ('migrated', 'older') ORDER BY id`).Scan(&sealed).Error)
+	require.Equal(t, "the-real-hash", sealed[0].KeyHash)
+	require.Equal(t, "real-hash", sealed[1].KeyHash, "an empty hash leaves the stored one alone")
+	for _, row := range sealed {
+		require.Empty(t, row.APIKey, "the key itself is no longer stored")
+		require.NotEmpty(t, row.KeyHint)
+	}
+	rows, err = repo.ListStoredKeySecrets(ctx)
+	require.NoError(t, err)
+	require.Empty(t, rows)
 }

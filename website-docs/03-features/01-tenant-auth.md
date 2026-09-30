@@ -162,8 +162,8 @@ type TenantAPIKey struct {
     TenantID         *uint64         // platform key 为 NULL
     ScopeType        APIKeyScopeType // "tenant" | "platform"
     Name             string
-    KeyHash          string      `json:"-" gorm:"uniqueIndex"` // 查表用哈希
-    APIKey           string      // 明文（落库前 AES-256-GCM 加密，见 BeforeSave/AfterFind）
+    KeyHash          string      `json:"-" gorm:"uniqueIndex"` // 认证用的 SHA-256
+    KeyHint          string      `json:"api_key"`              // 掩码提示，不可还原
     FullAccess       bool        // 全量访问（不受 capabilities 限制）
     KnowledgeBaseIDs StringArray // KB allow-list（空 = 不限制）
     Capabilities     StringArray // 能力列表
@@ -171,7 +171,8 @@ type TenantAPIKey struct {
 }
 ```
 
-- **落库加密**：`BeforeSave` 钩子用 `SYSTEM_AES_KEY` 将 `api_key` 列以 AES-GCM 加密存储，`AfterFind` 自动解密；查表始终走不可逆的 `KeyHash`。`SYSTEM_AES_KEY` 是必填项，留空或长度不对时服务拒绝启动（见 §3.1）。
+- **不落库明文**：Key 只在创建时返回一次（响应里的 `token`），库里只存两样东西：认证用的不可逆 `KeyHash`（SHA-256），以及用来区分 Key 的 `KeyHint`（前 7 位 + `...` + 后 4 位，接口里仍以 `api_key` 字段返回）。两者都无法还原出 Key，所以丢了只能吊销重建。
+- **旧数据封存**：000132 之前创建的 Key 还把 Key 本身存在 `api_key` 列里（配置了 `SYSTEM_AES_KEY` 时加密，否则是明文）。服务每次启动都会处理这些行：解密出 Key，写入 `key_hint`；000065 从 `tenants.api_key` 迁来的 Key 还会补上真实哈希。处理完清空该列。解密失败的行保留原样，等下一次用正确的 `SYSTEM_AES_KEY` 启动时再处理。
 - **校验流程**：请求携带 `X-API-Key` → 计算哈希 → 按 `KeyHash` 查表 → 检查 `RevokedAt` / `ExpiresAt` → 将 `TenantAPIKeyScope{KeyID, ScopeType, FullAccess, KnowledgeBaseIDs, Capabilities}` 注入 context，后续用 `types.TenantAPIKeyScopeFromContext` 读取。
 
 ### 1.5 Organization（组织 / 共享空间）

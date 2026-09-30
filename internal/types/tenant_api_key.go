@@ -2,28 +2,31 @@ package types
 
 import (
 	"context"
-	"fmt"
+	stderrors "errors"
 	"strings"
 	"time"
 
 	"github.com/magicyuan876/yuheng/internal/errors"
-	"github.com/magicyuan876/yuheng/internal/utils"
-	"gorm.io/gorm"
 )
 
 // TenantAPIKey is a revocable machine credential. Tenant-scoped and platform
 // keys intentionally share one table; platform keys have tenant_id=NULL and
-// choose a target workspace per request. KeyHash is used for authentication
-// lookup; APIKey is stored encrypted when SYSTEM_AES_KEY is set.
+// choose a target workspace per request.
+//
+// The key itself is shown once, when it is created, and is never stored in a
+// form it can be recovered from: KeyHash authenticates it, KeyHint names it.
 type TenantAPIKey struct {
-	ID               uint64          `json:"id" gorm:"primaryKey;autoIncrement"`
-	TenantID         *uint64         `json:"tenant_id,omitempty" gorm:"index"`
-	ScopeType        APIKeyScopeType `json:"scope_type" gorm:"type:varchar(16);not null;default:tenant;index"`
-	Name             string          `json:"name" gorm:"type:varchar(128);not null"`
-	KeyHash          string          `json:"-" gorm:"type:varchar(64);not null;uniqueIndex"`
-	APIKey           string          `json:"api_key" gorm:"column:api_key;type:text;not null;default:''"`
-	FullAccess       bool            `json:"full_access" gorm:"not null;default:false"`
-	KnowledgeBaseIDs StringArray     `json:"knowledge_base_ids" gorm:"type:jsonb;not null;default:'[]'"`
+	ID        uint64          `json:"id" gorm:"primaryKey;autoIncrement"`
+	TenantID  *uint64         `json:"tenant_id,omitempty" gorm:"index"`
+	ScopeType APIKeyScopeType `json:"scope_type" gorm:"type:varchar(16);not null;default:tenant;index"`
+	Name      string          `json:"name" gorm:"type:varchar(128);not null"`
+	KeyHash   string          `json:"-" gorm:"type:varchar(64);not null;uniqueIndex"`
+	// KeyHint tells keys apart ("sk-AbCd...wXyZ", see MaskAPIKey) without
+	// being usable. It is served as api_key, the name clients have always
+	// read, and is masked there as it is everywhere.
+	KeyHint          string      `json:"api_key" gorm:"column:key_hint;type:varchar(32);not null;default:''"`
+	FullAccess       bool        `json:"full_access" gorm:"not null;default:false"`
+	KnowledgeBaseIDs StringArray `json:"knowledge_base_ids" gorm:"type:jsonb;not null;default:'[]'"`
 	// Capabilities are bounded grants for non-full-access keys. Each
 	// capability maps to an integration persona (retrieval, chat, ingest,
 	// tenant infrastructure management, and history access). KB scoping
@@ -158,6 +161,25 @@ const (
 	APIKeyCapabilityDocsAdmin APIKeyCapability = "docs_admin"
 )
 
+// PlatformOnly reports whether the capability governs the deployment rather
+// than one workspace. Only a platform key may hold one: a workspace key has
+// nothing beyond its workspace for it to grant, so storing one would only
+// make the key look more powerful than it is.
+func (c APIKeyCapability) PlatformOnly() bool {
+	switch c {
+	case APIKeyCapabilitySystemTenantsRead, APIKeyCapabilitySystemTenantsManage,
+		APIKeyCapabilitySystemSettingsRead, APIKeyCapabilitySystemSettingsManage,
+		APIKeyCapabilitySystemRuntimeRead, APIKeyCapabilitySystemRuntimeManage,
+		APIKeyCapabilitySystemAuditRead:
+		return true
+	}
+	return false
+}
+
+// ErrPlatformOnlyCapability rejects a workspace key asking for a capability
+// only a platform key may hold (APIKeyCapability.PlatformOnly).
+var ErrPlatformOnlyCapability = stderrors.New("a workspace API key cannot hold a system_* capability")
+
 // NormalizeAPIKeyCapability maps an input capability string to a known
 // capability, returning "" for anything unrecognised so callers can drop it.
 func NormalizeAPIKeyCapability(c APIKeyCapability) APIKeyCapability {
@@ -234,27 +256,27 @@ func NormalizeAPIKeyCapabilities(in StringArray) StringArray {
 	return out
 }
 
-func (k *TenantAPIKey) BeforeSave(tx *gorm.DB) error {
-	if key := utils.GetAESKey(); key != nil && k.APIKey != "" {
-		encrypted, err := utils.EncryptAESGCM(k.APIKey, key)
-		if err != nil {
-			// Never fall through to storing the plaintext key: abort the
-			// write so the caller sees the failure instead of silently
-			// persisting an unencrypted secret.
-			return fmt.Errorf("encrypt tenant_api_keys.api_key (id=%d): %w", k.ID, err)
-		}
-		tx.Statement.SetColumn("api_key", encrypted)
+// MaskAPIKey is the hint a key is known by once issued: its first seven and
+// last four characters, or "***" for one too short to show any of.
+func MaskAPIKey(token string) string {
+	token = strings.TrimSpace(token)
+	if len(token) <= 12 {
+		return "***"
 	}
-	return nil
+	return token[:7] + "..." + token[len(token)-4:]
 }
 
-func (k *TenantAPIKey) AfterFind(tx *gorm.DB) error {
-	decrypted, err := utils.DecryptStoredSecret(k.APIKey)
-	if err != nil {
-		return fmt.Errorf("decrypt tenant_api_keys.api_key (id=%d): %w", k.ID, err)
-	}
-	k.APIKey = decrypted
-	return nil
+// StoredAPIKeySecret is a row that still holds its key in the legacy api_key
+// column, as keys created before migration 000132 do until the server seals
+// them at startup (TenantAPIKeyService.SealStoredKeys).
+type StoredAPIKeySecret struct {
+	ID uint64
+	// Secret is the api_key column as stored: encrypted, or plain text when
+	// SYSTEM_AES_KEY was not set.
+	Secret string
+	// NeedsHash marks a key migrated from tenants.api_key in 000065 whose
+	// key_hash is still a placeholder, so the real hash must be derived too.
+	NeedsHash bool
 }
 
 // TenantAPIKeyScope is the request-context projection used by middleware.
@@ -408,7 +430,8 @@ func AuthorizeTenantAPIKeyOptionalTagIDs(ctx context.Context, tagIDs []string) e
 
 // FilterKnowledgeBasesForTenantAPIKeyScope intersects resolved KB IDs with the
 // API key allow-list. When the caller supplied explicit kb_ids, every ID must
-// be allowed; implicit agent defaults are intersected instead of rejected.
+// be allowed; KBs resolved implicitly (not named by the caller) are
+// intersected instead of rejected.
 func FilterKnowledgeBasesForTenantAPIKeyScope(
 	ctx context.Context, requestedKBIDs, resolvedKBIDs []string,
 ) ([]string, error) {

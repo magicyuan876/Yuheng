@@ -17,11 +17,11 @@ PostgreSQL 是 Yuheng **唯一**的数据库，生产与测试都是：
 ```text
 migrations/
 ├── embed.go       # //go:embed versioned/*.sql，把核心迁移编进二进制（migrations.Core()）
-├── versioned/     # 版本化迁移：000000–000089 与 000120–000128（.up.sql / .down.sql 成对）
+├── versioned/     # 版本化迁移：000000–000089 与 000120–000132（.up.sql / .down.sql 成对）
 └── paradedb/      # 00-init-db.sql（扩展与基础表初始化）、01-migrate-to-paradedb.sql（存量库切换）
 ```
 
-- `versioned/` 是唯一的增量历史，当前最新版本为 **000128**（`000128_message_feedback`）；
+- `versioned/` 是唯一的增量历史，当前最新版本为 **000132**（`000132_api_key_hint`）；
 - 000090–000119 **没有文件**：在线文档模块为了能独立合入，预留了 000120–000139 这段编号（见 `000120_docs_module.up.sql` 头部注释），后续的知识健康迁移也接在这段之后。golang-migrate 只要求版本号递增，不要求连续；
 - BM25 索引建在 `embeddings.content` 上，使用 `chinese_lindera` 分词器（`000002_embeddings`）。
 
@@ -35,7 +35,7 @@ migrations/
 | 000012–000018 | 跨租户协作 | `organizations`、`organization_members`、`kb_shares`、`organization_join_requests` |
 | 000019–000028 | 消息增强 | `messages` 扩列（images、rendered_content、channel 等）；同期的 IM 渠道表已于 000089 删除 |
 | 000029–000036 | 数据源与向量库抽象 | `data_sources`、`sync_logs`、`web_search_providers`、`vector_stores`、KB 的 `asr_config` / `vector_store_id` |
-| 000037–000041 | Wiki 与任务队列 | `wiki_pages`、`wiki_folders`、`wiki_page_issues`、`task_pending_ops`、`task_dead_letters`（`wiki_log_entries` 已于 000077 删除） |
+| 000037–000041 | Wiki 与任务队列 | `wiki_pages`、`wiki_folders`、`task_pending_ops`、`task_dead_letters`（`wiki_log_entries` 已于 000077 删除，`wiki_page_issues` 已于 000130 删除） |
 | 000042–000054 | RBAC / 审计 / 邀请 / 系统设置 | `tenant_members`、`audit_logs`、`organization_tenant_members`、`user_resource_favorites`、`tenant_invitations`（000054 增加邀请链接 `token`）、`user_kb_pins`、`users.is_system_admin` 与 `system_settings`（000053） |
 | 000055–000060 | 处理管道 | `knowledge_processing_spans`、`knowledges.pending_subtasks_count`（000056）、HNSW 1024 维索引 |
 | 000061–000067 | Wiki 层级 / 文档多标签 / API Key / 建议问题 | `wiki_pages` 层级列、`knowledge_tag_relations`、`tenant_api_keys`、`message_suggestion_sets`、`message_suggestion_events`；同期的 `mcp_oauth_clients` / `mcp_oauth_tokens` 为上游遗留 |
@@ -52,6 +52,10 @@ migrations/
 | 000126 | 问题派发 | `knowledge_findings.assignee_id` / `assigned_by` / `resolution` |
 | 000127 | 页面被取代 | `docs_pages.superseded_by` |
 | 000128 | 回答反馈 | `message_feedback` |
+| 000129 | 分块重叠「未设置」与 0 分开 | 删除 `knowledge_bases.chunking_config` 与单篇解析覆盖中存量的 `chunk_overlap: 0` |
+| 000130 | 删除无写入方的页面问题表 | DROP `wiki_page_issues` |
+| 000131 | 清理智能体收藏 | 删除 `user_resource_favorites` 中 `resource_type = 'agent'` 的行 |
+| 000132 | API Key 不再可还原 | `tenant_api_keys.key_hint`；存量行由服务启动时写入提示、补全 000065 的哈希并清空 `api_key` |
 
 ## 3. 最终表结构
 
@@ -66,7 +70,7 @@ migrations/
 | `auth_tokens` | 登录令牌 | `user_id`（FK→users，CASCADE）、`token`、`token_type`（access/refresh）、`expires_at`（TIMESTAMPTZ）、`is_revoked` |
 | `tenant_members` | 租户级 RBAC 成员关系 | `user_id`+`tenant_id`（软删除下唯一）、`role`（owner/admin/contributor/viewer）、`status`、`invited_by`、`joined_at` |
 | `tenant_invitations` | 站内邀请与邀请链接 | `tenant_id`、`invitee_user_id`、`role`、`status`（pending/accepted/rejected）、`token`、`accepted_count`、`expires_at` |
-| `tenant_api_keys` | 租户/平台 API Key | `tenant_id`（平台作用域时为 NULL）、`scope_type`（tenant/platform）、`key_hash`（唯一）、`full_access`、`knowledge_base_ids`、`capabilities`、`expires_at`/`revoked_at` |
+| `tenant_api_keys` | 租户/平台 API Key | `tenant_id`（平台作用域时为 NULL）、`scope_type`（tenant/platform）、`key_hash`（唯一，认证用）、`key_hint`（掩码提示）、`full_access`、`knowledge_base_ids`、`capabilities`、`expires_at`/`revoked_at` |
 | `tenant_groups` / `tenant_group_members` | 租户内用户组（000120，在线文档的空间成员与页面授权可以授给组） | 组：`name`、`is_default`、`source`/`external_id`；成员：PK（`group_id`,`user_id`） |
 | `user_kb_pins` | 用户级知识库置顶 | PK（`tenant_id`,`user_id`,`kb_id`）+ `pinned_at` |
 | `user_resource_favorites` | 用户收藏（知识库、在线文档页面与空间等） | PK（`user_id`,`tenant_id`,`resource_type`,`resource_id`） |
@@ -125,7 +129,6 @@ migrations/
 | --- | --- | --- |
 | `wiki_pages` | 生成的 Wiki 页面（000037） | `knowledge_base_id`、`slug`（KB 内唯一）、`title`、`page_type`、`status`、`content`/`summary`、层级列（`parent_slug`、`folder_id`、`category_path`、`wiki_path`、`depth`、`sort_order`）、`source_refs`/`chunk_refs`/`in_links`/`out_links`（JSONB）、`version`、`last_edit_source`/`last_editor_id` |
 | `wiki_folders` | Wiki 文件夹树 | `knowledge_base_id`、`parent_id`、`name`（同父下唯一）、`path`、`depth`、`sort_order` |
-| `wiki_page_issues` | 页面问题上报 | `knowledge_base_id`、`slug`、`issue_type`、`description`、`suspected_knowledge_ids`、`status`、`reported_by` |
 | `wiki_page_revisions` | Wiki 页面历史版本（000075） | `page_id`+`version`（唯一）、内容快照、`edit_source`、`editor_id`、`edited_at` |
 
 ### 3.7 数据源 / 搜索 / 存储 / 任务
@@ -262,7 +265,7 @@ make migrate-goto version=120      # 迁移/回滚到指定版本
 
 ## 6. 如何新增一个迁移
 
-1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000128`，新迁移将是 `000129_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
+1. **创建文件**：`make migrate-create name=add_my_feature`，在 `migrations/versioned/` 下生成下一个版本号（当前最大为 `000132`，新迁移将是 `000133_add_my_feature.up.sql` / `.down.sql`）。由于 `embed.go` 用 `versioned/*.sql` 通配，新文件会自动编进二进制；
 2. **编写 up SQL**：PostgreSQL 方言（JSONB、部分索引、TIMESTAMPTZ）。惯例：`IF NOT EXISTS` / `IF EXISTS` 保证可重入，开头结尾用 `RAISE NOTICE` 标记，文件头注释说明为什么这样设计；涉及 `embeddings` 表时参考既有迁移用 `current_setting('app.skip_embedding', true)` 门控；
 3. **编写 down SQL**：必须可逆，否则回滚链会断；
 4. **同步 GORM 模型**：在 `internal/types/`（或在线文档的 `internal/docs/model/`）对应 struct 增加字段。GORM 只做映射，**不使用 AutoMigrate**，schema 完全由 SQL 迁移驱动；

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/magicyuan876/yuheng/internal/application/repository"
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/handler/dto"
@@ -711,7 +713,7 @@ func (h *TenantHandler) CreateAPIKey(c *gin.Context) {
 		ExpiresAt:        expiresAt,
 	})
 	if err != nil {
-		c.Error(errors.NewInternalServerError("Failed to create API key").WithDetails(err.Error()))
+		_ = c.Error(apiKeyWriteError(err, "Failed to create API key"))
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
@@ -757,7 +759,7 @@ func (h *TenantHandler) UpdateAPIKey(c *gin.Context) {
 		KnowledgeBaseIDs: req.KnowledgeBaseIDs, Capabilities: req.Capabilities, ExpiresAt: expiresAt,
 	})
 	if err != nil {
-		c.Error(errors.NewNotFoundError("API key not found"))
+		_ = c.Error(apiKeyWriteError(err, "Failed to update API key"))
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": tenantAPIKeyForResponse(updated)})
@@ -776,10 +778,25 @@ func (h *TenantHandler) DeleteAPIKey(c *gin.Context) {
 		return
 	}
 	if err := h.apiKeyService.RevokeAPIKey(ctx, tenantID, keyID); err != nil {
-		c.Error(errors.NewNotFoundError("API key not found"))
+		_ = c.Error(apiKeyWriteError(err, "Failed to revoke API key"))
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// apiKeyWriteError says what went wrong with a key write: a key that is not
+// there (or not this workspace's) is 404, a request the service refuses is
+// 400, and only a failure of the service itself is 500. Reporting every
+// error as "not found" hid a rejected capability behind a missing key.
+func apiKeyWriteError(err error, what string) *errors.AppError {
+	switch {
+	case stderrors.Is(err, repository.ErrTenantAPIKeyNotFound):
+		return errors.NewNotFoundError("API key not found")
+	case stderrors.Is(err, types.ErrPlatformOnlyCapability):
+		return errors.NewValidationError(err.Error())
+	default:
+		return errors.NewInternalServerError(what).WithDetails(err.Error())
+	}
 }
 
 func tenantAPIKeyForResponse(key *types.TenantAPIKey) tenantAPIKeyResponse {
@@ -790,7 +807,7 @@ func tenantAPIKeyForResponse(key *types.TenantAPIKey) tenantAPIKeyResponse {
 		ID:               key.ID,
 		ScopeType:        types.NormalizeAPIKeyScopeType(key.ScopeType),
 		Name:             key.Name,
-		APIKey:           key.APIKey,
+		APIKey:           key.KeyHint,
 		FullAccess:       key.FullAccess,
 		KnowledgeBaseIDs: key.KnowledgeBaseIDs,
 		Capabilities:     types.NormalizeAPIKeyCapabilities(key.Capabilities),
@@ -820,8 +837,12 @@ func validateTenantAPIKeyRequest(
 		if strings.TrimSpace(cap) == "" {
 			continue
 		}
-		if types.NormalizeAPIKeyCapability(types.APIKeyCapability(cap)) == "" {
+		normalized := types.NormalizeAPIKeyCapability(types.APIKeyCapability(cap))
+		if normalized == "" {
 			return errors.NewValidationError("capabilities contains an unknown capability")
+		}
+		if normalized.PlatformOnly() {
+			return errors.NewValidationError(types.ErrPlatformOnlyCapability.Error())
 		}
 	}
 	return validateTenantAPIKeyKnowledgeBaseIDs(ctx, kbService, tenantID, req.KnowledgeBaseIDs)

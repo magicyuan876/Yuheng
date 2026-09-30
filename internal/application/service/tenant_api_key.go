@@ -15,6 +15,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
+	"github.com/magicyuan876/yuheng/internal/utils"
 )
 
 // apiKeyLastUsedMinInterval bounds how often we persist last_used_at per key.
@@ -45,6 +46,9 @@ func (s *tenantAPIKeyService) CreateAPIKey(
 	if scopeType == types.APIKeyScopePlatform && len(capabilities) == 0 {
 		return nil, errors.New("platform API keys require at least one capability")
 	}
+	if scopeType == types.APIKeyScopeTenant && holdsPlatformOnly(capabilities) {
+		return nil, types.ErrPlatformOnlyCapability
+	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, errors.New("name is required")
@@ -67,7 +71,7 @@ func (s *tenantAPIKeyService) CreateAPIKey(
 		ScopeType:        scopeType,
 		Name:             name,
 		KeyHash:          hashTenantAPIKey(token),
-		APIKey:           token,
+		KeyHint:          types.MaskAPIKey(token),
 		FullAccess:       req.FullAccess,
 		KnowledgeBaseIDs: normalizeAPIKeyIDs(req.KnowledgeBaseIDs),
 		Capabilities:     capabilities,
@@ -149,6 +153,11 @@ func (s *tenantAPIKeyService) UpdateAPIKey(
 	if !req.FullAccess && len(capabilities) == 0 {
 		return nil, errors.New("capabilities are required for scoped API keys")
 	}
+	// Only workspace keys are updated here (the repository matches
+	// scope_type = tenant), so a system_* capability is never theirs.
+	if holdsPlatformOnly(capabilities) {
+		return nil, types.ErrPlatformOnlyCapability
+	}
 	expiresAt := req.ExpiresAt
 	if expiresAt != nil {
 		utc := expiresAt.UTC()
@@ -176,33 +185,36 @@ func (s *tenantAPIKeyService) RevokePlatformAPIKey(ctx context.Context, id uint6
 	return s.repo.RevokePlatformAPIKey(ctx, id)
 }
 
-func (s *tenantAPIKeyService) BackfillMissingKeyHashes(ctx context.Context) (int, error) {
-	has, err := s.repo.HasKeysWithPlaceholderHash(ctx)
+// SealStoredKeys turns every key still kept in the legacy api_key column
+// into what a key is stored as now: its hash (already there, except for keys
+// migrated in 000065) and its hint. It runs at every startup and is cheap
+// once there is nothing left to seal.
+//
+// A key that cannot be decrypted (SYSTEM_AES_KEY missing or changed for this
+// start) is left as it is and reported, so the next start with the right key
+// can still seal it; everything else is sealed regardless.
+func (s *tenantAPIKeyService) SealStoredKeys(ctx context.Context) (int, error) {
+	rows, err := s.repo.ListStoredKeySecrets(ctx)
 	if err != nil {
 		return 0, err
 	}
-	if !has {
-		return 0, nil
-	}
-	keys, err := s.repo.ListKeysWithPlaceholderHash(ctx)
-	if err != nil {
-		return 0, err
-	}
-	backfilled := 0
-	for _, key := range keys {
-		if key == nil || strings.TrimSpace(key.APIKey) == "" {
+	sealed := 0
+	for _, row := range rows {
+		token, err := utils.DecryptStoredSecret(row.Secret)
+		if err != nil {
+			logger.Warnf(ctx, "[api-keys] cannot decrypt stored key id=%d, left for a later start: %v", row.ID, err)
 			continue
 		}
-		hash := hashTenantAPIKey(key.APIKey)
-		if key.KeyHash == hash {
-			continue
+		hash := ""
+		if row.NeedsHash {
+			hash = hashTenantAPIKey(token)
 		}
-		if err := s.repo.UpdateAPIKeyHash(ctx, key.ID, hash); err != nil {
-			return backfilled, err
+		if err := s.repo.SealKey(ctx, row.ID, types.MaskAPIKey(token), hash); err != nil {
+			return sealed, err
 		}
-		backfilled++
+		sealed++
 	}
-	return backfilled, nil
+	return sealed, nil
 }
 
 func generateTenantAPIKeyToken() (string, error) {
@@ -211,6 +223,15 @@ func generateTenantAPIKeyToken() (string, error) {
 		return "", err
 	}
 	return "sk-" + base64.RawURLEncoding.EncodeToString(b[:]), nil
+}
+
+func holdsPlatformOnly(capabilities types.StringArray) bool {
+	for _, c := range capabilities {
+		if types.APIKeyCapability(c).PlatformOnly() {
+			return true
+		}
+	}
+	return false
 }
 
 func hashTenantAPIKey(token string) string {
