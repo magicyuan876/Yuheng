@@ -70,7 +70,7 @@ func (s stubTenants) GetTenantByID(_ context.Context, id uint64) (*types.Tenant,
 }
 
 func newBridge(svc *stubKnowledgeService, tenants interfaces.TenantRepository) *knowledgeBridge {
-	return NewKnowledgeBridge(svc, tenants).(*knowledgeBridge)
+	return NewKnowledgeBridge(svc, tenants, nil).(*knowledgeBridge)
 }
 
 // A draft is stored and never chunked or embedded: the mirror would look
@@ -142,6 +142,6 @@ func TestKnowledgeBaseOfTellsAMissingEntryFromAFailedLookup(t *testing.T) {
 }
 
 func TestTheBridgeNeedsBothServices(t *testing.T) {
-	assert.Nil(t, NewKnowledgeBridge(nil, stubTenants{}))
-	assert.Nil(t, NewKnowledgeBridge(&stubKnowledgeService{}, nil))
+	assert.Nil(t, NewKnowledgeBridge(nil, stubTenants{}, nil))
+	assert.Nil(t, NewKnowledgeBridge(&stubKnowledgeService{}, nil, nil))
 }

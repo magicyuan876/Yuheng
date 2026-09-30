@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,6 +30,13 @@ type fakeKnowledge struct {
 	updates int
 	// tenants records the tenant each write was made for.
 	tenants []uint64
+	// stewards records the last stewardship copied onto each entry.
+	stewards map[string]fakeSteward
+}
+
+type fakeSteward struct {
+	owner, reviewedBy string
+	reviewedAt        time.Time
 }
 
 type knowledgeEntry struct {
@@ -36,7 +44,7 @@ type knowledgeEntry struct {
 }
 
 func newFakeKnowledge() *fakeKnowledge {
-	return &fakeKnowledge{entries: map[string]knowledgeEntry{}}
+	return &fakeKnowledge{entries: map[string]knowledgeEntry{}, stewards: map[string]fakeSteward{}}
 }
 
 func (f *fakeKnowledge) CreateKnowledgeFromText(
@@ -87,6 +95,22 @@ func (f *fakeKnowledge) DeleteKnowledge(_ context.Context, tenantID uint64, id s
 	}
 	delete(f.entries, id)
 	return nil
+}
+
+func (f *fakeKnowledge) SyncStewardship(_ context.Context, _ uint64, id, owner, reviewedBy string,
+	reviewedAt time.Time,
+) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stewards[id] = fakeSteward{owner: owner, reviewedBy: reviewedBy, reviewedAt: reviewedAt}
+	return nil
+}
+
+func (f *fakeKnowledge) steward(id string) (fakeSteward, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	st, ok := f.stewards[id]
+	return st, ok
 }
 
 func (f *fakeKnowledge) count() int {

@@ -292,7 +292,7 @@ func TestDocsMirrorAgainstTheRealKnowledgeService(t *testing.T) {
 			createErr error
 		)
 		must1(t, s.DI.Invoke(func(svc interfaces.KnowledgeService, tenants interfaces.TenantRepository) {
-			b := docs.NewKnowledgeBridge(svc, tenants)
+			b := docs.NewKnowledgeBridge(svc, tenants, nil)
 			id, createErr = b.CreateKnowledgeFromText(ctx, 987654321, kb.ID, "Orphan", "Text of a page in no tenant.")
 		}))
 		err := createErr

@@ -93,6 +93,12 @@ type PageView struct {
 	Labels []*LabelView `json:"labels"`
 	// Favourite is whether this caller starred the page.
 	Favourite bool `json:"favourite"`
+	// StewardID is the page's maintainer (model.Page.Steward), so clients
+	// need not know the rule.
+	StewardID string `json:"steward_id"`
+	// CanChangeOwner is whether the caller may hand the page to somebody
+	// else: its maintainer, or an administrator of it.
+	CanChangeOwner bool `json:"can_change_owner"`
 }
 
 // TreeNode is one row of a tree listing.
@@ -329,6 +335,7 @@ func (s *PageService) view(ctx context.Context, d acl.Decision) (*PageView, erro
 	return &PageView{
 		Page: d.Page, Role: d.Role, CanEdit: canEdit(d.Role, d.Page),
 		HasChildren: counts[d.Page.ID] > 0, Restricted: restricted,
+		StewardID: d.Page.Steward(), CanChangeOwner: canChangeOwner(ctx, d),
 	}, nil
 }
 

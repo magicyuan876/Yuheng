@@ -4,7 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Locking a page, and whether it takes part in the knowledge base.
+// Locking a page, whether it takes part in the knowledge base, and who
+// maintains it.
 
 // LockRequest is the body of PUT /docs/pages/:pid/lock.
 type LockRequest struct {
@@ -76,6 +77,45 @@ func (h *PageHandler) SetKnowledgeExcluded(c *gin.Context) {
 		return
 	}
 	view, err := h.svc.SetKnowledgeExcluded(c.Request.Context(), actor, d, req.Excluded)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, view)
+}
+
+// OwnerRequest is the body of PUT /docs/pages/:pid/owner.
+type OwnerRequest struct {
+	// OwnerID is the new maintainer, who must be able to edit the page.
+	OwnerID string `json:"owner_id" binding:"required"`
+}
+
+// SetOwner godoc
+// @Summary      转交页面负责人
+// @Description  页面负责人默认是创建者，是知识健康把这个页面的问题（需要复核、回答被反馈有误、重复）派给的人，不是权限。
+// @Description  只有当前负责人或页面管理员能转交，新负责人必须能编辑这个页面。锁定的页面也可以转交
+// @Tags         在线文档
+// @Accept       json
+// @Produce      json
+// @Param        pid      path  string        true  "页面 ID"
+// @Param        request  body  OwnerRequest  true  "新负责人"
+// @Success      200  {object}  map[string]interface{}
+// @Security     Bearer
+// @Router       /docs/pages/{pid}/owner [put]
+func (h *PageHandler) SetOwner(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	actor, d, found := pageScope(c)
+	if !found {
+		return
+	}
+	var req OwnerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid request body: "+err.Error())
+		return
+	}
+	view, err := h.svc.SetOwner(c.Request.Context(), actor, d, req.OwnerID)
 	if err != nil {
 		fail(c, err)
 		return

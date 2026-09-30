@@ -1099,6 +1099,8 @@ func (s *knowledgeService) UpdateManualKnowledge(ctx context.Context,
 			"title": existing.Title, "status": status, "processing_status": "pending",
 			"task_id": taskID, "trigger": kbActivityTrigger(ctx),
 		})
+	// Only a published edit: a draft is not what the knowledge base says.
+	s.markReviewedByEditor(ctx, tenantID, existing.ID)
 	return existing, nil
 }
 

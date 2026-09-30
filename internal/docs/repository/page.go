@@ -390,7 +390,7 @@ func (r *pageRepository) Move(ctx context.Context, tenantID uint64, id string, t
 
 var pageMetaColumns = map[string]bool{
 	"title": true, "icon": true, "cover": true, "exclude_from_knowledge": true, "is_locked": true, "template_id": true,
-	"source_refs": true, "position": true, "attachment_bytes": true, "knowledge_id": true,
+	"source_refs": true, "position": true, "attachment_bytes": true, "knowledge_id": true, "owner_id": true,
 }
 
 func (r *pageRepository) UpdateMeta(ctx context.Context, tenantID uint64, id string, fields map[string]any) error {

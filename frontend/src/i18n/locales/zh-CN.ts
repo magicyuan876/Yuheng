@@ -3209,6 +3209,8 @@ export default {
         "knowledge.move_started": "开始移动知识",
         "knowledge.move_completed": "完成移动知识",
         "knowledge.move_failed": "移动知识失败",
+        "knowledge.owner_changed": "转交文档负责人",
+        "knowledge.reviewed": "确认文档仍然有效",
         "tag.created": "创建标签",
         "tag.updated": "更新标签",
         "tag.deleted": "删除标签",

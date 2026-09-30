@@ -81,6 +81,8 @@ type knowledgeService struct {
 	// which has a no-op fallback. See knowledge_span_tracker.go.
 	spanTracker SpanTracker
 	audit       interfaces.AuditLogService
+	// stewardship records a person's edit of an entry as a review of it.
+	stewardship interfaces.KnowledgeStewardshipRepository
 }
 
 const (
@@ -118,6 +120,7 @@ func NewKnowledgeService(
 	taskPendingRepo interfaces.TaskPendingOpsRepository,
 	spanTracker SpanTracker,
 	audit interfaces.AuditLogService,
+	stewardship interfaces.KnowledgeStewardshipRepository,
 ) (interfaces.KnowledgeService, error) {
 	return &knowledgeService{
 		config:          config,
@@ -147,7 +150,26 @@ func NewKnowledgeService(
 		taskPendingRepo: taskPendingRepo,
 		spanTracker:     spanTracker,
 		audit:           audit,
+		stewardship:     stewardship,
 	}, nil
+}
+
+// markReviewedByEditor records a person's change to an entry's content as
+// their review of it: whoever just rewrote it has vouched for what it now
+// says. Nothing is recorded for a caller that is not a person — an API key,
+// a background writer — and a failure only costs the review clock a restart,
+// so it is logged rather than returned.
+func (s *knowledgeService) markReviewedByEditor(ctx context.Context, tenantID uint64, knowledgeID string) {
+	if s.stewardship == nil {
+		return
+	}
+	actor, ok := types.UserIDFromContext(ctx)
+	if !ok || types.IsSyntheticUserID(actor) {
+		return
+	}
+	if err := s.stewardship.MarkReviewed(ctx, tenantID, knowledgeID, actor, time.Now()); err != nil {
+		logger.Warnf(ctx, "[Stewardship] recording the edit of %s as a review failed: %v", knowledgeID, err)
+	}
 }
 
 // tracker returns a usable SpanTracker — falls back to a no-op when the

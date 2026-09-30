@@ -222,12 +222,14 @@ func (s *PageService) writeKnowledgeEntry(ctx context.Context, page *model.Page,
 			found = false
 		}
 		if found && s.sentHash(ctx, page) == hash {
-			return hash, nil
+			// The content is in place; the stewardship may not be, after a
+			// hand-over, which queues the page for exactly this.
+			return hash, s.syncStewardship(ctx, page, *page.KnowledgeID)
 		}
 		if found {
 			updated, err := s.d.Knowledge.UpdateKnowledgeContent(ctx, page.TenantID, *page.KnowledgeID, title, body)
 			if err == nil && updated {
-				return hash, nil
+				return hash, s.syncStewardship(ctx, page, *page.KnowledgeID)
 			}
 			if err != nil {
 				logger.Warnf(ctx, "[docs] updating knowledge entry %s for page %s failed: %v",
@@ -264,7 +266,10 @@ func (s *PageService) createKnowledgeEntry(ctx context.Context, page *model.Page
 	if err != nil {
 		return fmt.Errorf("docs: indexing page %s: %w", page.ID, err)
 	}
-	return s.d.Repos.Pages.SetKnowledgeID(ctx, page.TenantID, page.ID, &created)
+	if err := s.d.Repos.Pages.SetKnowledgeID(ctx, page.TenantID, page.ID, &created); err != nil {
+		return err
+	}
+	return s.syncStewardship(ctx, page, created)
 }
 
 // dropKnowledgeEntry removes a page's entry, reporting whether there was one.
@@ -363,4 +368,9 @@ type Knowledge interface {
 	KnowledgeBaseOf(ctx context.Context, knowledgeID string) (kbID string, found bool, err error)
 	// DeleteKnowledge removes a document.
 	DeleteKnowledge(ctx context.Context, tenantID uint64, knowledgeID string) error
+	// SyncStewardship copies a page's maintainer and its last review onto
+	// its document. ownerID may be empty; an empty reviewedBy or a zero
+	// reviewedAt records no review.
+	SyncStewardship(ctx context.Context, tenantID uint64, knowledgeID, ownerID, reviewedBy string,
+		reviewedAt time.Time) error
 }

@@ -82,6 +82,7 @@ type RouterParams struct {
 	DataSourceCredentialsHandler *handler.DataSourceCredentialsHandler
 	WikiPageHandler              *handler.WikiPageHandler
 	KnowledgeFindingHandler      *handler.KnowledgeFindingHandler
+	KnowledgeStewardshipHandler  *handler.KnowledgeStewardshipHandler
 	DocsModule                   *docs.Module `optional:"true"`
 
 	// RouteRegistrars are the routes extensions add (see the extension
@@ -261,6 +262,7 @@ func NewRouter(params RouterParams) *gin.Engine {
 		RegisterDataSourceRoutes(v1, params.DataSourceHandler, params.DataSourceCredentialsHandler, rbacGuards)
 		RegisterWikiPageRoutes(v1, params.WikiPageHandler, rbacGuards)
 		RegisterKnowledgeFindingRoutes(v1, params.KnowledgeFindingHandler, rbacGuards)
+		RegisterKnowledgeStewardshipRoutes(v1, params.KnowledgeStewardshipHandler, rbacGuards)
 		RegisterChunkerDebugRoutes(v1, rbacGuards)
 
 		// Extension routes come last: a path a core route already owns is then

@@ -111,6 +111,10 @@ type KnowledgeBase struct {
 	// IndexingStrategy controls which indexing pipelines are active for this knowledge base.
 	// Pipelines: vector search, keyword search, wiki generation, knowledge graph extraction.
 	IndexingStrategy IndexingStrategy `yaml:"indexing_strategy"       json:"indexing_strategy"       gorm:"column:indexing_strategy;type:json"`
+	// ReviewIntervalDays is how long an entry may go without a person
+	// confirming or changing it before knowledge health asks its owner to
+	// review it. 0 switches periodic review off.
+	ReviewIntervalDays int `yaml:"review_interval_days" json:"review_interval_days" gorm:"not null;default:0"`
 	// IsPinned and PinnedAt are computed per-caller from user_kb_pins
 	// (see migration 000050). They used to be stored on the row itself,
 	// which made pinning a workspace-wide ordering decision gated behind
@@ -160,7 +164,14 @@ type KnowledgeBaseConfig struct {
 	// IndexingStrategy controls which indexing pipelines are active.
 	// nil means "no change" when updating (preserves existing strategy).
 	IndexingStrategy *IndexingStrategy `yaml:"indexing_strategy"       json:"indexing_strategy"`
+	// ReviewIntervalDays sets the periodic review period in days, 0 to switch
+	// it off. nil means "no change" when updating.
+	ReviewIntervalDays *int `yaml:"review_interval_days" json:"review_interval_days"`
 }
+
+// MaxReviewIntervalDays bounds the review period; the database enforces the
+// same limit.
+const MaxReviewIntervalDays = 3650
 
 const (
 	// DefaultAutoTagMaxTags is applied when max_tags is unset or non-positive.

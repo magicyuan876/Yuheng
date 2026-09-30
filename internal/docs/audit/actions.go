@@ -45,6 +45,7 @@ const (
 	PageUnlocked          types.AuditAction = "docs.page.unlocked"
 	PageKnowledgeExcluded types.AuditAction = "docs.page.knowledge_excluded"
 	PageKnowledgeIncluded types.AuditAction = "docs.page.knowledge_included"
+	PageOwnerChanged      types.AuditAction = "docs.page.owner_changed"
 	PageReplaced          types.AuditAction = "docs.page.content_replaced"
 	PageRestoredTo        types.AuditAction = "docs.page.revision_restored"
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -22,22 +23,26 @@ import (
 // DocsChannel labels knowledge entries that came from a document page, so an
 // operator looking at a knowledge base can tell which rows are mirrors of
 // documents and which somebody uploaded.
-const DocsChannel = "docs"
+const DocsChannel = types.ChannelDocs
 
 type knowledgeBridge struct {
-	svc     interfaces.KnowledgeService
-	tenants interfaces.TenantRepository
+	svc         interfaces.KnowledgeService
+	tenants     interfaces.TenantRepository
+	stewardship interfaces.KnowledgeStewardshipService
 }
 
 // NewKnowledgeBridge adapts Yuheng's knowledge service for the docs module.
 // Without the knowledge service, or without the tenant repository the bridge
 // needs to act on behalf of a tenant, it yields nil, which leaves every space
-// unindexed.
-func NewKnowledgeBridge(svc interfaces.KnowledgeService, tenants interfaces.TenantRepository) service.Knowledge {
+// unindexed. Without the stewardship service mirror entries are indexed and
+// carry no maintainer.
+func NewKnowledgeBridge(svc interfaces.KnowledgeService, tenants interfaces.TenantRepository,
+	stewardship interfaces.KnowledgeStewardshipService,
+) service.Knowledge {
 	if svc == nil || tenants == nil {
 		return nil
 	}
-	return &knowledgeBridge{svc: svc, tenants: tenants}
+	return &knowledgeBridge{svc: svc, tenants: tenants, stewardship: stewardship}
 }
 
 // asTenant returns a context the knowledge service will accept.
@@ -132,4 +137,14 @@ func (b *knowledgeBridge) DeleteKnowledge(ctx context.Context, tenantID uint64, 
 		return err
 	}
 	return b.svc.DeleteKnowledge(ctx, knowledgeID)
+}
+
+// SyncStewardship copies a page's stewardship onto its mirror entry.
+func (b *knowledgeBridge) SyncStewardship(ctx context.Context, tenantID uint64, knowledgeID, ownerID,
+	reviewedBy string, reviewedAt time.Time,
+) error {
+	if b.stewardship == nil {
+		return nil
+	}
+	return b.stewardship.SyncFromSource(ctx, tenantID, knowledgeID, ownerID, reviewedBy, reviewedAt)
 }

@@ -41,7 +41,11 @@ func escapeLikeKeyword(keyword string) string {
 // counter jump back up and never reach zero (the "stuck
 // pending_subtasks_count / never promoted to completed" bug). Omitting
 // the column here means Save can never touch it.
-var omitFieldsOnUpdate = []string{"DeletedAt", "PendingSubtasksCount"}
+//
+// The stewardship columns (owner, last review) are omitted for the same
+// reason: they change by a person's hand while ingestion steps hold copies
+// of the row, and are written only by SetOwner and MarkReviewed.
+var omitFieldsOnUpdate = []string{"DeletedAt", "PendingSubtasksCount", "OwnerID", "ReviewedAt", "ReviewedBy"}
 
 // knowledgeRepository implements knowledge base and knowledge repository interface
 type knowledgeRepository struct {

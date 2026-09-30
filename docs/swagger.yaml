@@ -329,6 +329,8 @@ definitions:
     - knowledge.move_started
     - knowledge.move_completed
     - knowledge.move_failed
+    - knowledge.owner_changed
+    - knowledge.reviewed
     - tag.created
     - tag.updated
     - tag.deleted
@@ -392,6 +394,8 @@ definitions:
     - AuditActionKnowledgeMoveStarted
     - AuditActionKnowledgeMoveCompleted
     - AuditActionKnowledgeMoveFailed
+    - AuditActionKnowledgeOwnerChanged
+    - AuditActionKnowledgeReviewed
     - AuditActionTagCreated
     - AuditActionTagUpdated
     - AuditActionTagDeleted
@@ -1109,6 +1113,12 @@ definitions:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.QuestionGenerationConfig'
         description: QuestionGenerationConfig stores question generation configuration
           for document knowledge bases
+      review_interval_days:
+        description: |-
+          ReviewIntervalDays is how long an entry may go without a person
+          confirming or changing it before knowledge health asks its owner to
+          review it. 0 switches periodic review off.
+        type: integer
       share_count:
         description: ShareCount indicates the number of organizations this knowledge
           base is shared with (not stored in database)
@@ -1177,6 +1187,11 @@ definitions:
         description: |-
           IndexingStrategy controls which indexing pipelines are active.
           nil means "no change" when updating (preserves existing strategy).
+      review_interval_days:
+        description: |-
+          ReviewIntervalDays sets the periodic review period in days, 0 to switch
+          it off. nil means "no change" when updating.
+        type: integer
       wiki_config:
         allOf:
         - $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.WikiConfig'
@@ -2517,6 +2532,14 @@ definitions:
         type: array
       web_search_enabled:
         type: boolean
+    type: object
+  github_com_magicyuan876_yuheng_internal_types.SetKnowledgeOwnerRequest:
+    properties:
+      owner_id:
+        description: |-
+          OwnerID is the new owner, who must be an active member of the entry's
+          workspace. Empty removes the owner.
+        type: string
     type: object
   github_com_magicyuan876_yuheng_internal_types.ShareKnowledgeBaseRequest:
     properties:
@@ -3946,6 +3969,14 @@ definitions:
         type: boolean
       value:
         type: string
+    type: object
+  handler.OwnerRequest:
+    properties:
+      owner_id:
+        description: OwnerID is the new maintainer, who must be able to edit the page.
+        type: string
+    required:
+    - owner_id
     type: object
   handler.PageLabelsRequest:
     properties:
@@ -7943,6 +7974,38 @@ paths:
       security:
       - Bearer: []
       summary: 静音或取消静音页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/owner:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        页面负责人默认是创建者，是知识健康把这个页面的问题（需要复核、回答被反馈有误、重复）派给的人，不是权限。
+        只有当前负责人或页面管理员能转交，新负责人必须能编辑这个页面。锁定的页面也可以转交
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 新负责人
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.OwnerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 转交页面负责人
       tags:
       - 在线文档
   /docs/pages/{pid}/restore:
@@ -11959,6 +12022,49 @@ paths:
       summary: 下载知识文件
       tags:
       - 知识管理
+  /knowledge/{id}/owner:
+    put:
+      consumes:
+      - application/json
+      description: 把文档交给另一位能编辑该知识库的在职成员维护，owner_id 为空表示不设负责人。文档页镜像的负责人在页面上修改。操作记入知识库动态
+      parameters:
+      - description: 知识 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 新负责人
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SetKnowledgeOwnerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 负责人与复核状态'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 转交文档负责人
+      tags:
+      - 知识健康
   /knowledge/{id}/preview:
     get:
       consumes:
@@ -12028,6 +12134,63 @@ paths:
       summary: 重新解析知识
       tags:
       - 知识管理
+  /knowledge/{id}/review:
+    post:
+      description: 记录当前用户确认文档内容无误，重新开始复核计时，并关闭“需要复核”“回答被反馈有误”这类问题。需要登录用户，API Key 不能确认。操作记入知识库动态
+      parameters:
+      - description: 知识 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 负责人与复核状态'
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 确认文档仍然有效
+      tags:
+      - 知识健康
+  /knowledge/{id}/stewardship:
+    get:
+      description: 负责人、最近一次有人确认或修改的时间和人、知识库的复核周期、下次复核时间以及是否已超期
+      parameters:
+      - description: 知识 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 负责人与复核状态'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 文档的负责人与复核状态
+      tags:
+      - 知识健康
   /knowledge/batch:
     get:
       consumes:

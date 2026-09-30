@@ -3331,6 +3331,8 @@ export default {
         "knowledge.move_started": "Перемещение начато",
         "knowledge.move_completed": "Перемещение завершено",
         "knowledge.move_failed": "Ошибка перемещения",
+        "knowledge.owner_changed": "Смена ответственного за документ",
+        "knowledge.reviewed": "Документ подтверждён как актуальный",
         "tag.created": "Тег создан",
         "tag.updated": "Тег обновлён",
         "tag.deleted": "Тег удалён",

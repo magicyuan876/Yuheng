@@ -135,6 +135,10 @@ func (s *knowledgeBaseService) CreateKnowledgeBase(ctx context.Context,
 		kb.CreatorID = uid
 	}
 	kb.EnsureDefaults()
+	if kb.ReviewIntervalDays < 0 || kb.ReviewIntervalDays > types.MaxReviewIntervalDays {
+		return nil, apperrors.NewValidationError(
+			fmt.Sprintf("review_interval_days must be between 0 and %d", types.MaxReviewIntervalDays))
+	}
 	applyTenantDefaultStorageProvider(ctx, kb)
 	if err := s.applyAndValidateStorageBackend(ctx, kb); err != nil {
 		return nil, err
@@ -553,6 +557,13 @@ func (s *knowledgeBaseService) UpdateKnowledgeBase(ctx context.Context,
 			} else if config.IndexingStrategy.GraphEnabled {
 				kb.ExtractConfig = &types.ExtractConfig{Enabled: true}
 			}
+		}
+		if days := config.ReviewIntervalDays; days != nil {
+			if *days < 0 || *days > types.MaxReviewIntervalDays {
+				return nil, apperrors.NewValidationError(
+					fmt.Sprintf("review_interval_days must be between 0 and %d", types.MaxReviewIntervalDays))
+			}
+			kb.ReviewIntervalDays = *days
 		}
 	}
 	kb.UpdatedAt = time.Now()

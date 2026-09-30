@@ -62,6 +62,8 @@ export const KB_ACTIVITY_ACTIONS = [
   "knowledge.move_started",
   "knowledge.move_completed",
   "knowledge.move_failed",
+  "knowledge.owner_changed",
+  "knowledge.reviewed",
   "tag.created",
   "tag.updated",
   "tag.deleted",

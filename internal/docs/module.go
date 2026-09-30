@@ -63,6 +63,10 @@ type Params struct {
 	// Findings shows a page's knowledge-health findings to its readers.
 	// Optional like the rest: without it every page reports none.
 	Findings interfaces.KnowledgeFindingService `optional:"true"`
+	// Stewardship copies a page's maintainer onto its mirror entry.
+	// Optional: without it mirror entries carry no maintainer, and their
+	// problems go to the fallbacks.
+	Stewardship interfaces.KnowledgeStewardshipService `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -155,7 +159,7 @@ func NewModule(p Params) *Module {
 		deps.Favourites = p.Favourites
 	}
 	if p.KnowledgeService != nil {
-		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService, p.Tenants)
+		deps.Knowledge = NewKnowledgeBridge(p.KnowledgeService, p.Tenants, p.Stewardship)
 	}
 	deps.Drafter = NewDraftBridge(p.KnowledgeService, p.KnowledgeBaseService, p.ModelService)
 	if p.UserService != nil {
@@ -225,6 +229,7 @@ func (p Params) degraded() []string {
 	note("ModelService", p.ModelService == nil)
 	note("KnowledgeService", p.KnowledgeService == nil)
 	note("Findings", p.Findings == nil)
+	note("Stewardship", p.Stewardship == nil)
 	return missing
 }
 

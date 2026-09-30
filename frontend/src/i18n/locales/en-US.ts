@@ -1547,6 +1547,8 @@ export default {
         "knowledge.move_started": "Knowledge move started",
         "knowledge.move_completed": "Knowledge move completed",
         "knowledge.move_failed": "Knowledge move failed",
+        "knowledge.owner_changed": "Knowledge owner changed",
+        "knowledge.reviewed": "Knowledge confirmed as still valid",
         "tag.created": "Tag created",
         "tag.updated": "Tag updated",
         "tag.deleted": "Tag deleted",

@@ -145,6 +145,12 @@ const (
 	AuditActionKnowledgeMoveStarted    AuditAction = "knowledge.move_started"
 	AuditActionKnowledgeMoveCompleted  AuditAction = "knowledge.move_completed"
 	AuditActionKnowledgeMoveFailed     AuditAction = "knowledge.move_failed"
+	// AuditActionKnowledgeOwnerChanged is an entry handed to another
+	// maintainer, or left without one.
+	AuditActionKnowledgeOwnerChanged AuditAction = "knowledge.owner_changed"
+	// AuditActionKnowledgeReviewed is a person confirming an entry is still
+	// right as it stands.
+	AuditActionKnowledgeReviewed AuditAction = "knowledge.reviewed"
 
 	AuditActionTagCreated AuditAction = "tag.created"
 	AuditActionTagUpdated AuditAction = "tag.updated"

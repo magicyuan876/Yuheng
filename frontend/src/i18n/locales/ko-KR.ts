@@ -3289,6 +3289,8 @@ export default {
         "knowledge.move_started": "지식 이동 시작",
         "knowledge.move_completed": "지식 이동 완료",
         "knowledge.move_failed": "지식 이동 실패",
+        "knowledge.owner_changed": "문서 담당자 변경",
+        "knowledge.reviewed": "문서 유효성 확인",
         "tag.created": "태그 생성",
         "tag.updated": "태그 업데이트",
         "tag.deleted": "태그 삭제",

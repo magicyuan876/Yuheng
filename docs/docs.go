@@ -3877,6 +3877,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/pages/{pid}/owner": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "页面负责人默认是创建者，是知识健康把这个页面的问题（需要复核、回答被反馈有误、重复）派给的人，不是权限。\n只有当前负责人或页面管理员能转交，新负责人必须能编辑这个页面。锁定的页面也可以转交",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "转交页面负责人",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新负责人",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.OwnerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/pages/{pid}/restore": {
             "post": {
                 "security": [
@@ -10687,6 +10734,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/knowledge/{id}/owner": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "把文档交给另一位能编辑该知识库的在职成员维护，owner_id 为空表示不设负责人。文档页镜像的负责人在页面上修改。操作记入知识库动态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "转交文档负责人",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新负责人",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.SetKnowledgeOwnerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: 负责人与复核状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
         "/knowledge/{id}/preview": {
             "get": {
                 "security": [
@@ -10790,6 +10905,97 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge/{id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "记录当前用户确认文档内容无误，重新开始复核计时，并关闭“需要复核”“回答被反馈有误”这类问题。需要登录用户，API Key 不能确认。操作记入知识库动态",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "确认文档仍然有效",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: 负责人与复核状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge/{id}/stewardship": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "负责人、最近一次有人确认或修改的时间和人、知识库的复核周期、下次复核时间以及是否已超期",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "文档的负责人与复核状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: 负责人与复核状态",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -18455,6 +18661,8 @@ const docTemplate = `{
                 "knowledge.move_started",
                 "knowledge.move_completed",
                 "knowledge.move_failed",
+                "knowledge.owner_changed",
+                "knowledge.reviewed",
                 "tag.created",
                 "tag.updated",
                 "tag.deleted",
@@ -18518,6 +18726,8 @@ const docTemplate = `{
                 "AuditActionKnowledgeMoveStarted",
                 "AuditActionKnowledgeMoveCompleted",
                 "AuditActionKnowledgeMoveFailed",
+                "AuditActionKnowledgeOwnerChanged",
+                "AuditActionKnowledgeReviewed",
                 "AuditActionTagCreated",
                 "AuditActionTagUpdated",
                 "AuditActionTagDeleted",
@@ -19448,6 +19658,10 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "review_interval_days": {
+                    "description": "ReviewIntervalDays is how long an entry may go without a person\nconfirming or changing it before knowledge health asks its owner to\nreview it. 0 switches periodic review off.",
+                    "type": "integer"
+                },
                 "share_count": {
                     "description": "ShareCount indicates the number of organizations this knowledge base is shared with (not stored in database)",
                     "type": "integer"
@@ -19544,6 +19758,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.IndexingStrategy"
                         }
                     ]
+                },
+                "review_interval_days": {
+                    "description": "ReviewIntervalDays sets the periodic review period in days, 0 to switch\nit off. nil means \"no change\" when updating.",
+                    "type": "integer"
                 },
                 "wiki_config": {
                     "description": "Wiki configuration (only for wiki-enabled knowledge bases)",
@@ -21289,6 +21507,15 @@ const docTemplate = `{
                 },
                 "web_search_enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "github_com_magicyuan876_yuheng_internal_types.SetKnowledgeOwnerRequest": {
+            "type": "object",
+            "properties": {
+                "owner_id": {
+                    "description": "OwnerID is the new owner, who must be an active member of the entry's\nworkspace. Empty removes the owner.",
+                    "type": "string"
                 }
             }
         },
@@ -23159,6 +23386,18 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.OwnerRequest": {
+            "type": "object",
+            "required": [
+                "owner_id"
+            ],
+            "properties": {
+                "owner_id": {
+                    "description": "OwnerID is the new maintainer, who must be able to edit the page.",
                     "type": "string"
                 }
             }

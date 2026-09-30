@@ -36,6 +36,7 @@ const (
 	ChannelYuque            = "yuque"             // Yuque (语雀)
 	ChannelRSS              = "rss"               // RSS / Atom feed
 	ChannelIMA              = "ima"               // Tencent IMA (ima.qq.com)
+	ChannelDocs             = "docs"              // Mirror of a page of the docs module
 )
 
 // Knowledge parse status constants
@@ -192,6 +193,18 @@ type Knowledge struct {
 	DeletedAt gorm.DeletedAt `json:"deleted_at"         gorm:"index"`
 	// Knowledge base name (not stored in database, populated on query)
 	KnowledgeBaseName string `json:"knowledge_base_name" gorm:"-"`
+
+	// Stewardship. OwnerID is the entry's maintainer — the person a problem
+	// with it is taken to — and not a permission. ReviewedAt/ReviewedBy is
+	// the last time a person vouched for the content, by confirming it or
+	// changing it; re-parsing does not count. All three are written on
+	// create and by the stewardship methods of the repository only: a
+	// full-row update omits them (omitFieldsOnUpdate), so a pipeline step
+	// holding a copy loaded before a transfer cannot write the old owner
+	// back.
+	OwnerID    *string    `json:"owner_id"    gorm:"type:varchar(36)"`
+	ReviewedAt *time.Time `json:"reviewed_at"`
+	ReviewedBy *string    `json:"reviewed_by" gorm:"type:varchar(36)"`
 }
 
 // CustomMetadataText returns stable human-readable metadata for summaries and
@@ -250,6 +263,16 @@ func (k *Knowledge) BeforeCreate(tx *gorm.DB) (err error) {
 	// invariant for every knowledge creation path.
 	if len(k.CustomMetadata) == 0 {
 		k.CustomMetadata = JSON(`{}`)
+	}
+	// Whoever creates an entry maintains it until somebody says otherwise.
+	// Set here rather than at each of the many creation paths, so none can
+	// forget; an owner the caller chose is kept. A background writer (a
+	// data-source sync, the docs mirror) has no person in its context and
+	// leaves the entry unowned, or sets the owner itself.
+	if k.OwnerID == nil && tx != nil && tx.Statement != nil && tx.Statement.Context != nil {
+		if uid, ok := UserIDFromContext(tx.Statement.Context); ok && !IsSyntheticUserID(uid) {
+			k.OwnerID = &uid
+		}
 	}
 	return nil
 }

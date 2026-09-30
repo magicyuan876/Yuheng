@@ -27,9 +27,12 @@ type Page struct {
 	SourceRefs           StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
 	// KnowledgeID is the knowledge-base entry mirroring this page, when its
 	// space is bound to one and the page is eligible. nil means not indexed.
-	KnowledgeID      *string    `json:"knowledge_id,omitempty" gorm:"type:varchar(36)"`
-	ContributorIDs   StringList `json:"contributor_ids"   gorm:"type:json;not null;default:'[]'"`
-	CreatorID        *string    `json:"creator_id,omitempty"     gorm:"type:varchar(36)"`
+	KnowledgeID    *string    `json:"knowledge_id,omitempty" gorm:"type:varchar(36)"`
+	ContributorIDs StringList `json:"contributor_ids"   gorm:"type:json;not null;default:'[]'"`
+	CreatorID      *string    `json:"creator_id,omitempty"     gorm:"type:varchar(36)"`
+	// OwnerID is the page's maintainer when somebody handed it over; nil
+	// means its creator. See Steward.
+	OwnerID          *string    `json:"owner_id,omitempty"       gorm:"type:varchar(36)"`
 	LastEditorID     *string    `json:"last_editor_id,omitempty" gorm:"type:varchar(36)"`
 	DeletedBy        *string    `json:"deleted_by,omitempty"     gorm:"type:varchar(36)"`
 	WordCount        int        `json:"word_count"        gorm:"not null;default:0"`
@@ -43,6 +46,19 @@ type Page struct {
 // TableName pins the table name.
 func (Page) TableName() string { return "docs_pages" }
 
+// Steward is the page's maintainer: the person it was handed to, else its
+// creator. Empty for a page with neither (an import by a background job).
+// Knowledge health takes the problems of the page's mirror entry to them.
+func (p *Page) Steward() string {
+	if p.OwnerID != nil && *p.OwnerID != "" {
+		return *p.OwnerID
+	}
+	if p.CreatorID != nil {
+		return *p.CreatorID
+	}
+	return ""
+}
+
 // IsDeleted reports whether the page is in the trash.
 func (p *Page) IsDeleted() bool { return p.DeletedAt != nil }
 
@@ -51,7 +67,7 @@ func (p *Page) IsDeleted() bool { return p.DeletedAt != nil }
 var PageSummaryColumns = []string{
 	"id", "short_id", "tenant_id", "space_id", "parent_id", "position", "title", "icon", "cover",
 	"ydoc_version", "exclude_from_knowledge", "is_locked", "template_id", "source_refs", "contributor_ids",
-	"creator_id", "last_editor_id", "deleted_by", "word_count", "attachment_bytes",
+	"creator_id", "owner_id", "last_editor_id", "deleted_by", "word_count", "attachment_bytes",
 	"created_at", "updated_at", "content_updated_at", "deleted_at",
 }
 

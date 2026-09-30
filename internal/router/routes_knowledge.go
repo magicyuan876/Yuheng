@@ -281,6 +281,27 @@ func RegisterKnowledgeFindingRoutes(r *gin.RouterGroup, h *handler.KnowledgeFind
 	}
 }
 
+// RegisterKnowledgeStewardshipRoutes exposes who maintains an entry and
+// confirming an entry is still right.
+//
+// Reading is a read of the entry. Handing it to another maintainer and
+// vouching for its content are edits of the knowledge base's content, and take
+// the gates of editing a document: the base's creator or an Admin+, with
+// editor access (API keys with ingest; a confirmation additionally needs a
+// person, which the service enforces).
+func RegisterKnowledgeStewardshipRoutes(r *gin.RouterGroup, h *handler.KnowledgeStewardshipHandler, g *rbacGuards) {
+	if h == nil {
+		return
+	}
+	k := g.apiKeyGroup(r.Group("/knowledge"), apiKeyIngest(apiKeyFullAccess()))
+	read := k.With(apiKeyRetrieve(apiKeyFullAccess()))
+	{
+		read.GET("/:id/stewardship", g.Viewer(), g.KBAccessReadFromKnowledgeIDParam("id"), h.GetStewardship)
+		k.PUT("/:id/owner", g.OwnedKnowledgeKBOrAdmin(), g.KBAccessWriteFromKnowledgeIDParam("id"), h.SetOwner)
+		k.POST("/:id/review", g.OwnedKnowledgeKBOrAdmin(), g.KBAccessWriteFromKnowledgeIDParam("id"), h.ConfirmReviewed)
+	}
+}
+
 // RegisterKnowledgeTagRoutes 注册知识库标签相关路由。
 //
 // Tags are KB metadata: Viewer reads, Contributor writes. Per-KB
