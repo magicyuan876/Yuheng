@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, type Component } from "vue";
 
-import { CheckIcon, ChevronDownIcon, CodeIcon, LinkIcon, MessageSquareIcon, ServerIcon } from "@lucide/vue";
+import { CheckIcon, ChevronDownIcon, LinkIcon, MessageSquareIcon, ServerIcon } from "@lucide/vue";
 
 import { DEFAULT_SESSION_BUCKET_KEY } from "./sessionSidebarSourceFilter";
 
@@ -142,7 +142,6 @@ const iconFor = (item: SourceItem | undefined): Component => {
   if (!item) return MessageSquareIcon;
   if (item.value === DEFAULT_SESSION_BUCKET_KEY) return MessageSquareIcon;
   if (item.value === "api") return ServerIcon;
-  if (item.value.startsWith("embed:")) return CodeIcon;
   return LinkIcon;
 };
 

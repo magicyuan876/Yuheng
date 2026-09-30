@@ -118,13 +118,14 @@ const (
 	WikiPageTypeConcept = "concept"
 	// WikiPageTypeIndex represents the wiki index page (index.md)
 	WikiPageTypeIndex = "index"
-	// WikiPageTypeSynthesis represents a synthesis/analysis page.
-	// NOT auto-created by ingest — Agent creates these via wiki_write_page tool
-	// when it generates cross-document analysis, trends, or insights during conversations.
+	// WikiPageTypeSynthesis represents a synthesis/analysis page (cross-document
+	// analysis, trends, insights). NOT auto-created by ingest: such pages are
+	// written through the wiki editor / REST API, or are legacy rows authored by
+	// the upstream agent wiki tools this fork removed.
 	WikiPageTypeSynthesis = "synthesis"
-	// WikiPageTypeComparison represents a comparison page.
-	// NOT auto-created by ingest — Agent creates these via wiki_write_page tool
-	// when the user asks to compare entities, concepts, or approaches.
+	// WikiPageTypeComparison represents a comparison of entities, concepts or
+	// approaches. NOT auto-created by ingest: like synthesis pages, these come
+	// from the wiki editor / REST API or from legacy agent-authored rows.
 	WikiPageTypeComparison = "comparison"
 )
 
@@ -261,8 +262,10 @@ const (
 	// WikiEditSourcePipeline marks versions written by the wiki ingest
 	// pipeline (also the fallback for legacy rows with an empty source).
 	WikiEditSourcePipeline = "pipeline"
-	// WikiEditSourceAgent marks versions written through the agent wiki
-	// tools (wiki_write_page / wiki_replace_text / ...).
+	// WikiEditSourceAgent marks versions written through the upstream agent
+	// wiki tools (wiki_write_page / wiki_replace_text / ...), which this fork
+	// removed. Nothing writes it any more; it stays valid so stored pages and
+	// revisions keep their author kind.
 	WikiEditSourceAgent = "agent"
 	// WikiEditSourceUser marks versions written by a human through the
 	// wiki editor UI / REST API.
@@ -319,7 +322,7 @@ func (WikiPageRevision) TableName() string {
 // Snapshot retention is two-tiered, because the two kinds of history have
 // very different value. A hot hub page is rewritten by the ingest pipeline on
 // every related batch, so machine snapshots would otherwise crowd out the
-// handful of human/agent edits this feature exists to protect.
+// handful of human edits this feature exists to protect.
 const (
 	// WikiMaxRevisionsPerPage is how many recent versions are kept for
 	// prunable (machine-authored) snapshots.
@@ -708,30 +711,7 @@ type WikiStats struct {
 	OrphanCount   int64            `json:"orphan_count"`   // pages with no inbound links
 	RecentUpdates []*WikiPage      `json:"recent_updates"` // last N updated pages
 	PendingTasks  int64            `json:"pending_tasks"`  // number of documents waiting to be ingested
-	PendingIssues int64            `json:"pending_issues"` // number of pending wiki issues
 	IsActive      bool             `json:"is_active"`      // whether wiki ingestion is currently running
-}
-
-// WikiPageIssue represents an issue flagged on a specific wiki page.
-// These issues are typically identified by agents or linters and stored for review.
-type WikiPageIssue struct {
-	ID                    string         `json:"id" gorm:"type:varchar(36);primaryKey"`
-	TenantID              uint64         `json:"tenant_id" gorm:"index"`
-	KnowledgeBaseID       string         `json:"knowledge_base_id" gorm:"type:varchar(36);index"`
-	Slug                  string         `json:"slug" gorm:"type:varchar(255);index"`
-	IssueType             string         `json:"issue_type" gorm:"type:varchar(50)"`
-	Description           string         `json:"description" gorm:"type:text"`
-	SuspectedKnowledgeIDs StringArray    `json:"suspected_knowledge_ids" gorm:"type:json"`
-	Status                string         `json:"status" gorm:"type:varchar(20);default:'pending';index"`
-	ReportedBy            string         `json:"reported_by" gorm:"type:varchar(100)"`
-	CreatedAt             time.Time      `json:"created_at"`
-	UpdatedAt             time.Time      `json:"updated_at"`
-	DeletedAt             gorm.DeletedAt `json:"deleted_at" gorm:"index"`
-}
-
-// TableName specifies the database table name
-func (WikiPageIssue) TableName() string {
-	return "wiki_page_issues"
 }
 
 // WikiIndexEntry is a single row in the structured wiki index response.

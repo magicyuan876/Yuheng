@@ -349,9 +349,9 @@ func storageEngineDefaultProvider(sec *types.StorageEngineConfig) string {
 }
 
 // hydrateTenantStorage fills DefaultStorageBackendID / StorageEngineConfig from
-// the workspace row when the caller only passed a stub Tenant{ID: ...}. Skill
-// install and bundle cleanup do that, and without the default the factory
-// returns "empty provider".
+// the workspace row when the caller only passed a stub Tenant{ID: ...} (the
+// docs attachment store falls back to one when it cannot load the tenant row),
+// and without the default the factory returns "empty provider".
 func (s *StorageBackendService) hydrateTenantStorage(ctx context.Context, tenant *types.Tenant) *types.Tenant {
 	if tenant == nil || tenant.ID == 0 || s.db == nil {
 		return tenant

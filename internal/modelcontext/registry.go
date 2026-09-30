@@ -45,7 +45,7 @@ type Registry struct {
 	issues    *HandleTable
 }
 
-// NewRegistry creates a registry for one model request/Agent execution.
+// NewRegistry creates a registry for one model request.
 func NewRegistry(citationsEnabled bool) *Registry {
 	return &Registry{
 		sources:   newSourceRegistry(citationsEnabled),

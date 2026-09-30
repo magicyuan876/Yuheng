@@ -125,7 +125,6 @@ export interface PromptTemplatesConfig {
   generate_summary?: PromptTemplate[];
   keywords_extraction?: PromptTemplate[];
   chat_summary?: PromptTemplate[];
-  agent_system_prompt?: PromptTemplate[];
   intent_prompts?: PromptTemplate[];
 }
 

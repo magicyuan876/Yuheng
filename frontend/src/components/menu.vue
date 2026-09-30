@@ -869,8 +869,6 @@ const mapSessionRow = (item: any) => ({
   updated_at: item.updated_at,
   is_pinned: !!item.is_pinned,
   pinned_at: item.pinned_at || null,
-  im_platform: item.im_platform || "",
-  description: item.description || "",
   user_id: item.user_id || "",
 });
 
@@ -890,8 +888,6 @@ const menuChildToSessionRow = (item: Record<string, unknown>): SessionForGroupin
     is_pinned: !!item.is_pinned,
     created_at: typeof item.created_at === "string" ? item.created_at : undefined,
     updated_at: typeof item.updated_at === "string" ? item.updated_at : undefined,
-    im_platform: typeof item.im_platform === "string" ? item.im_platform : "",
-    description: typeof item.description === "string" ? item.description : "",
     user_id: typeof item.user_id === "string" ? item.user_id : "",
   };
 };
@@ -1010,8 +1006,8 @@ const syncActiveBucketFromChat = async (sessionId: string | undefined) => {
     }
   }
   // On a hard refresh only the web bucket is loaded, so a session opened from
-  // any other folder (IM, embed, or the admin-only API folder) isn't in any
-  // bucket or the menu store. Fetch its detail and classify its origin folder
+  // the admin-only API folder isn't in any bucket or the menu store. Fetch
+  // its detail and classify its origin folder
   // so the sidebar stays in sync with the chat pane instead of snapping back
   // to "my chats". Only switch when that folder is actually present.
   if (!bucketKey) {
@@ -1020,8 +1016,6 @@ const syncActiveBucketFromChat = async (sessionId: string | undefined) => {
       const candidate = originGroupKey(
         resolveSessionOrigin({
           id: sessionId,
-          im_platform: res?.data?.im_platform || "",
-          description: res?.data?.description || "",
           user_id: res?.data?.user_id || "",
         }),
       );
@@ -1106,11 +1100,6 @@ async function loadCurrentKbInfo(kbId: string) {
   }
 }
 
-const loadSessionOriginMeta = async () => {
-  // IM / embed 渠道已随 agent 能力移除：会话来源只剩 web / api，
-  // 渠道文件夹定义由 rebuildBucketDefinitions 的空列表决定。
-};
-
 const handleSessionMutation = (event: Event) => {
   const detail = (event as CustomEvent<SessionMutationDetail>).detail;
   if (!detail?.sessionId) return;
@@ -1140,7 +1129,6 @@ onMounted(async () => {
 
   await loadCurrentKbInfo((route.params as any)?.kbId as string);
 
-  await loadSessionOriginMeta();
   await getMessageList();
   const initialChatId = route.params.chatid as string | undefined;
   if (initialChatId) {

@@ -140,9 +140,10 @@ func (h *OrganizationHandler) GetOrganization(c *gin.Context) {
 }
 
 // ListMyOrganizations lists organizations that the current tenant belongs to.
-// Response includes resource_counts (per-org KB/agent counts) for list sidebar so frontend does not need a separate GET /me/resource-counts.
+// Response includes resource_counts (per-org KB counts) for list sidebar so frontend does not need a separate
+// GET /me/resource-counts.
 // @Summary      获取我的组织列表
-// @Description  获取当前空间所属的所有组织，并附带各空间内知识库/智能体数量
+// @Description  获取当前空间所属的所有组织，并附带各空间内知识库数量
 // @Tags         组织管理
 // @Produce      json
 // @Success      200  {object}  types.ListOrganizationsResponse

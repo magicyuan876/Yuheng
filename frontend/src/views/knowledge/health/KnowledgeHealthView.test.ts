@@ -259,17 +259,17 @@ test("more than one page of findings gets a pager that asks for the next page", 
   assert.equal(api.listFindings.mock.calls.at(-1)?.[1].page, 2);
 });
 
-test("a wiki knowledge base links to the wiki's own issue list", async () => {
+test("a wiki knowledge base points at the wiki's own lint report", async () => {
   api.getFindingsSummary.mockResolvedValue(summary());
   api.listFindings.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 });
   const plain = await mountView();
   assert.equal(plain.find('[data-testid="health-wiki"]').exists(), false);
 
-  const wiki = await mountView({ isWiki: true, wikiPendingIssues: 3 });
+  const wiki = await mountView({ isWiki: true });
   const section = wiki.get('[data-testid="health-wiki"]');
-  assert.match(section.text(), /3 wiki issue/);
+  assert.match(section.text(), new RegExp(enUS.knowledgeHealth.wiki.title));
   await section.get("button").trigger("click");
-  assert.equal(wiki.emitted("open-wiki-issues")?.length, 1);
+  assert.equal(wiki.emitted("open-wiki-lint")?.length, 1);
 });
 
 test("only mine asks the server for the caller's findings", async () => {

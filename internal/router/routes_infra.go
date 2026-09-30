@@ -12,8 +12,8 @@ import (
 // Viewer+ for reads, PlatformManaged for any mutation — Admin+ normally,
 // SystemAdmin-only once governance.centralized_infra is on.
 //
-// Reads deliberately stay Viewer+ in both modes: the knowledge-base and
-// agent editors list models so users can select a platform-provided one at
+// Reads deliberately stay Viewer+ in both modes: the knowledge-base editor
+// and the chat UI list models so users can select a platform-provided one at
 // point of use. dto.NewModelResponse strips credentials and base URLs from
 // built-in rows, so a Viewer sees the capability surface, never the secret.
 func RegisterModelRoutes(

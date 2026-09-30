@@ -6,8 +6,7 @@ import "time"
 // new favoritable resource is just a new constant string + a frontend hook,
 // no schema change required.
 const (
-	ResourceTypeKB    = "kb"
-	ResourceTypeAgent = "agent"
+	ResourceTypeKB = "kb"
 	// Docs module (spaces and pages of the online documents feature).
 	ResourceTypeDocPage  = "doc_page"
 	ResourceTypeDocSpace = "doc_space"
@@ -36,7 +35,7 @@ func (UserResourceFavorite) TableName() string {
 // the table and break the frontend's segmented view).
 func IsValidFavoriteResourceType(t string) bool {
 	switch t {
-	case ResourceTypeKB, ResourceTypeAgent, ResourceTypeDocPage, ResourceTypeDocSpace:
+	case ResourceTypeKB, ResourceTypeDocPage, ResourceTypeDocSpace:
 		return true
 	default:
 		return false

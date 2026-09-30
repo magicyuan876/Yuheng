@@ -82,8 +82,8 @@ type Session struct {
 	Description string `json:"description"`
 	// Workspace ID
 	TenantID uint64 `json:"tenant_id"   gorm:"index"`
-	// UserID is the owner scope for this session. Yuheng user UUIDs, API
-	// external-user principals, and embed visitor principals all use this column.
+	// UserID is the owner scope for this session. Yuheng user UUIDs and API
+	// principals use this column, as do the visitor ids of legacy embed rows.
 	UserID string `json:"user_id,omitempty" gorm:"type:varchar(512);index"`
 	// IsPinned indicates whether the session is pinned in the list.
 	IsPinned bool `json:"is_pinned" gorm:"default:false"`
@@ -147,7 +147,8 @@ const SessionSourceAPI = "api"
 const SessionSourceWeb = "web"
 
 // SessionListSourceRequiresAdmin reports whether a session-list source filter
-// exposes tenant-wide channel traffic (API / IM / embed) in the Web console.
+// exposes tenant-wide channel traffic (API keys, legacy embed rows) in the Web
+// console.
 func SessionListSourceRequiresAdmin(source string) bool {
 	src := strings.TrimSpace(source)
 	if src == "" || strings.EqualFold(src, SessionSourceWeb) {
@@ -158,18 +159,15 @@ func SessionListSourceRequiresAdmin(source string) bool {
 
 // SessionRequiresAdminConsoleRead reports whether a session row is channel-
 // managed traffic that non-admin web users must not open from the console.
-func SessionRequiresAdminConsoleRead(s *Session, imPlatform string) bool {
+func SessionRequiresAdminConsoleRead(s *Session) bool {
 	if s == nil {
 		return false
 	}
 	if IsAPISessionOwnerID(s.UserID) {
 		return true
 	}
-	if strings.HasPrefix(s.Description, EmbedSessionMarkerPrefix) ||
-		strings.HasPrefix(s.UserID, EmbedSessionOwnerPrefix) {
-		return true
-	}
-	return strings.TrimSpace(imPlatform) != ""
+	return strings.HasPrefix(s.Description, EmbedSessionMarkerPrefix) ||
+		strings.HasPrefix(s.UserID, EmbedSessionOwnerPrefix)
 }
 
 // SessionListQuery bundles the parameters for listing sessions.

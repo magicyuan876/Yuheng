@@ -24,7 +24,7 @@ import (
 // Local in-memory only — fine for typical deployments since both
 // endpoints handle low absolute volumes; if/when Yuheng horizontally
 // scales the auth surface, swap to the Redis-backed limiter in
-// internal/ratelimit (shared with IM + embed surfaces).
+// internal/ratelimit (already used by the per-IP auth limiter).
 
 // publicAuthRateLimitWindow is the rolling window length per IP.
 const publicAuthRateLimitWindow = 60 * time.Second

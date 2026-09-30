@@ -108,8 +108,8 @@ func (w *Rewriter) CopyReferences(ctx context.Context, refs []*types.SearchResul
 }
 
 // CopyData returns a rewritten copy of an SSE metadata map, or data itself when
-// it holds no storage reference. Agent tool results put renderable Markdown into
-// this map, and its shape is tool-defined, so every string leaf is rewritten.
+// it holds no storage reference. Chat pipeline tool results put renderable Markdown
+// into this map, and its shape is tool-defined, so every string leaf is rewritten.
 func (w *Rewriter) CopyData(ctx context.Context, data map[string]interface{}) map[string]interface{} {
 	if !w.Enabled() || data == nil {
 		return data

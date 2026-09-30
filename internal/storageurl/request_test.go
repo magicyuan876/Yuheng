@@ -121,7 +121,7 @@ func TestCopyReferences_DisabledReturnsInput(t *testing.T) {
 	assert.Equal(t, refs, w.CopyReferences(context.Background(), refs))
 }
 
-// Agent tool metadata is tool-defined, so every string leaf is rewritten — and
+// Tool result metadata is tool-defined, so every string leaf is rewritten — and
 // the source map, which the replay buffer also holds, must not be mutated.
 func TestCopyData_RewritesNestedStringsWithoutMutating(t *testing.T) {
 	w := publicRewriter("https://cdn.example.com/x.png")
@@ -201,7 +201,7 @@ func TestDefaultMode(t *testing.T) {
 	assert.Equal(t, ModeHandle, DefaultMode(ctx), "a typo must degrade to the safe default")
 }
 
-// Anonymous surfaces (embed channels) pin the mode: neither the query parameter
+// Anonymous surfaces pin the mode: neither the query parameter
 // nor the deployment default may hand a visitor a credential-free URL. The
 // downgrade is silent so a client that forwards the parameter keeps working.
 func TestResolveMode_ForcedHandleModeWins(t *testing.T) {

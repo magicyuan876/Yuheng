@@ -360,6 +360,12 @@ var ConnectorMetadataRegistry = map[string]ConnectorMetadata{
 }
 ```
 
+The entry and the registration in Step 5 go together: `GET /datasource/types`
+lists only registered connectors that have an entry
+(`ConnectorRegistry.Available()`), and `initConnectorRegistry()` calls
+`ConnectorRegistry.VerifyMetadata()`, which fails start-up when either one is
+missing.
+
 ## Step 8: Test Your Connector
 
 ```go

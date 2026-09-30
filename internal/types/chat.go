@@ -165,7 +165,7 @@ type LLMToolCall struct {
 }
 
 // ToolCallMetadata carries provider-specific tool-call state that must round-trip
-// with the assistant tool call, without teaching core agent code vendor fields.
+// with the assistant tool call, without teaching core chat code vendor fields.
 type ToolCallMetadata map[string]json.RawMessage
 
 // FunctionCall represents the function details
@@ -206,11 +206,11 @@ const (
 	ResponseTypeAnswer ResponseType = "answer"
 	// References response type
 	ResponseTypeReferences ResponseType = "references"
-	// Thinking response type (for agent thought process)
+	// ResponseTypeThinking carries the model's reasoning, streamed ahead of the answer.
 	ResponseTypeThinking ResponseType = "thinking"
-	// Tool call response type (for agent tool invocations)
+	// ResponseTypeToolCall carries a tool call the model's stream returned.
 	ResponseTypeToolCall ResponseType = "tool_call"
-	// Tool result response type (for agent tool results)
+	// ResponseTypeToolResult carries the result of such a tool call.
 	ResponseTypeToolResult ResponseType = "tool_result"
 	// Error response type
 	ResponseTypeError ResponseType = "error"
@@ -218,7 +218,7 @@ const (
 	ResponseTypeSessionTitle ResponseType = "session_title"
 	// Agent query response type (query received and processing started)
 	ResponseTypeAgentQuery ResponseType = "agent_query"
-	// Complete response type (agent complete)
+	// ResponseTypeComplete marks the end of the turn.
 	ResponseTypeComplete ResponseType = "complete"
 )
 

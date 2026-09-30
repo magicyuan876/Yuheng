@@ -46,7 +46,6 @@ type qaRequestContext struct {
 	summaryModelID        string
 	webSearchEnabled      bool
 	mentionedItems        types.MentionedItems
-	effectiveTenantID     uint64                   // retrieval/model tenant; 0 = use context tenant
 	images                []ImageAttachment        // Uploaded images with analysis text
 	userMessageID         string                   // Created user message ID (populated after createUserMessage)
 	userCreatedAt         time.Time                // Persisted user message timestamp, echoed on agent_query
@@ -149,20 +148,6 @@ func (h *Handler) parseQARequest(c *gin.Context, logPrefix string) (*qaRequestCo
 	kbIDs, knowledgeIDs := mergeKnowledgeTargets(request.KnowledgeBaseIDs, request.KnowledgeIds, request.MentionedItems)
 	if err := types.AuthorizeTenantAPIKeyKnowledgeTargets(ctx, kbIDs, knowledgeIDs); err != nil {
 		return nil, nil, err
-	}
-
-	// The wiki fixer is invoked from the wiki editor with its dedicated agent
-	// marker. It no longer resolves to an agent; the marker only triggers the
-	// shared-KB tenant scope below so a fix run over an org-shared wiki
-	// resolves models/retrieval in the source workspace.
-	var effectiveTenantID uint64
-	if secutils.SanitizeForLog(request.AgentID) == BuiltinWikiFixerAgentID {
-		effectiveTenantID = h.resolveWikiFixerTenantScope(
-			ctx,
-			c.GetUint64(types.TenantIDContextKey.String()),
-			types.TenantRoleFromContext(ctx),
-			kbIDs,
-		)
 	}
 
 	// Log merge results for debugging
@@ -303,7 +288,6 @@ func (h *Handler) parseQARequest(c *gin.Context, logPrefix string) (*qaRequestCo
 		summaryModelID:        secutils.SanitizeForLog(request.SummaryModelID),
 		webSearchEnabled:      request.WebSearchEnabled,
 		mentionedItems:        convertMentionedItems(request.MentionedItems),
-		effectiveTenantID:     effectiveTenantID,
 		images:                request.Images,
 		channel:               request.Channel,
 		attachments:           processedAttachments,
@@ -463,20 +447,9 @@ func (h *Handler) setupSSEStream(reqCtx *qaRequestContext, generateTitle bool) *
 		reqCtx.assistantMessage,
 	)
 
-	// Base context for async work. The wiki fixer borrows the source
-	// workspace of a shared KB so KB-scoped models resolve there; everyone
-	// else runs in the caller's tenant.
-	baseCtx := reqCtx.ctx
-	if reqCtx.effectiveTenantID != 0 && h.tenantService != nil {
-		if tenant, err := h.tenantService.GetTenantByID(reqCtx.ctx, reqCtx.effectiveTenantID); err == nil && tenant != nil {
-			baseCtx = context.WithValue(context.WithValue(reqCtx.ctx, types.TenantIDContextKey, reqCtx.effectiveTenantID), types.TenantInfoContextKey, tenant)
-			logger.Infof(reqCtx.ctx, "Using effective tenant %d for shared-KB chat (model/KB resolution)", reqCtx.effectiveTenantID)
-		}
-	}
-
 	// Create EventBus and cancellable context
 	eventBus := event.NewEventBus()
-	asyncCtx, cancel := context.WithCancel(logger.CloneContext(baseCtx))
+	asyncCtx, cancel := context.WithCancel(logger.CloneContext(reqCtx.ctx))
 
 	streamCtx := &sseStreamContext{
 		eventBus:         eventBus,
@@ -494,9 +467,9 @@ func (h *Handler) setupSSEStream(reqCtx *qaRequestContext, generateTitle bool) *
 	// before POSTing /stop). The watcher self-terminates on a terminal stream
 	// event, so its lifetime is decoupled from when the QA service call
 	// returns (KnowledgeQA returns immediately while streaming continues in a
-	// background goroutine). Use a connection-independent context derived from
-	// baseCtx so it survives the client disconnect.
-	h.startStopWatcher(logger.CloneContext(baseCtx), reqCtx.sessionID, reqCtx.assistantMessage.ID, eventBus)
+	// background goroutine). Use a connection-independent clone of the request
+	// context so it survives the client disconnect.
+	h.startStopWatcher(logger.CloneContext(reqCtx.ctx), reqCtx.sessionID, reqCtx.assistantMessage.ID, eventBus)
 
 	// Setup stream handler
 	h.setupStreamHandler(asyncCtx, reqCtx.sessionID, reqCtx.assistantMessage.ID,

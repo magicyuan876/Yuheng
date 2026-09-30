@@ -30,8 +30,8 @@ type webMeta struct {
 	title string
 }
 
-// sourceRegistry is scoped to one assistant response (including every Agent tool
-// round). Handles are never persisted or accepted across requests.
+// sourceRegistry is scoped to one assistant response (including every tool
+// round within it). Handles are never persisted or accepted across requests.
 type sourceRegistry struct {
 	citationsEnabled bool
 

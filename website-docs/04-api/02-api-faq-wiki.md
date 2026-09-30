@@ -441,23 +441,3 @@ curl $BASE/api/v1/knowledgebase/kb-1/wiki/lint -H "Authorization: Bearer $TOKEN"
 curl -X POST $BASE/api/v1/knowledgebase/kb-1/wiki/auto-fix -H "Authorization: Bearer $TOKEN"
 ```
 
-### GET /api/v1/knowledgebase/:kb_id/wiki/issues
-
-用途：问题列表。查询参数：`slug`（按页面过滤）、`status`（`pending/ignored/resolved`）。
-
-响应：200 `[WikiPageIssue]`
-
-```bash
-curl $BASE/api/v1/knowledgebase/kb-1/wiki/issues -H "Authorization: Bearer $TOKEN"
-```
-
-### PUT /api/v1/knowledgebase/:kb_id/wiki/issues/:issue_id/status
-
-用途：更新问题状态。写权限。请求体：`{"status":"pending|ignored|resolved"}`（`binding:"required"`）。
-
-响应：200 `{"message":"Issue status updated successfully"}`
-
-```bash
-curl -X PUT $BASE/api/v1/knowledgebase/kb-1/wiki/issues/i-1/status -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"status":"resolved"}'
-```

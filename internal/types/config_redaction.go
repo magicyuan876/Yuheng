@@ -105,8 +105,9 @@ func MergeParserEngineConfigForUpdate(incoming, existing *ParserEngineConfig) *P
 	out.MinerUAPIKey = PreserveIfRedacted(out.MinerUAPIKey, prev.MinerUAPIKey)
 	out.PaddleOCRVLCloudToken = PreserveIfRedacted(out.PaddleOCRVLCloudToken, prev.PaddleOCRVLCloudToken)
 	out.MinerUTianshuAPIKey = PreserveIfRedacted(out.MinerUTianshuAPIKey, prev.MinerUTianshuAPIKey)
-	// Chat attachment parser rules are configured per agent; preserve any legacy
-	// tenant-level rules when the settings UI omits this field on engine updates.
+	// Preserve the stored chat attachment parser rules when the settings UI
+	// omits this field on engine updates, so saving the engine form cannot
+	// silently wipe them.
 	if incoming.ChatParserEngineRules == nil && existing != nil {
 		out.ChatParserEngineRules = existing.ChatParserEngineRules
 	}

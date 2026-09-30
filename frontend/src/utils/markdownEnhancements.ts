@@ -81,7 +81,7 @@ export function formatCodeLang(lang: string): string {
 
 export function buildCodeBlockHtml(lang: string, highlighted: string, highlightLang: string): string {
   const displayLang = escapeHtml(formatCodeLang(lang));
-  const copyLabel = escapeHtml(i18n.global.t("embedPublish.copyCode"));
+  const copyLabel = escapeHtml(i18n.global.t("common.copyCode"));
   const safeLang = escapeHtml(highlightLang || lang || "text");
   return `<div class="chat-code-block">
     <div class="chat-code-block__header">
@@ -127,7 +127,7 @@ async function handleCodeCopy(btn: HTMLButtonElement): Promise<void> {
 
   const textEl = btn.querySelector<HTMLElement>(".chat-code-block__copy-text");
   const copiedLabel = i18n.global.t("common.copied");
-  const defaultLabel = i18n.global.t("embedPublish.copyCode");
+  const defaultLabel = i18n.global.t("common.copyCode");
 
   const ok = await copyToClipboard(code);
   if (ok) {

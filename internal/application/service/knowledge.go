@@ -1086,7 +1086,8 @@ func (s *knowledgeService) SearchKnowledge(ctx context.Context, keyword string, 
 	return s.repo.SearchKnowledgeInScopes(ctx, scopes, keyword, offset, limit, fileTypes)
 }
 
-// SearchKnowledgeForScopes searches knowledge within the given scopes (e.g. for shared agent context).
+// SearchKnowledgeForScopes searches knowledge within the given scopes (e.g. the KB scope of a restricted
+// tenant API key).
 func (s *knowledgeService) SearchKnowledgeForScopes(ctx context.Context, scopes []types.KnowledgeSearchScope, keyword string, offset, limit int, fileTypes []string) ([]*types.Knowledge, bool, int64, error) {
 	if len(scopes) == 0 {
 		return nil, false, 0, nil

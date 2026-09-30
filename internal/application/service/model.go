@@ -246,8 +246,8 @@ func (s *modelService) UpdateModel(ctx context.Context, model *types.Model) erro
 }
 
 // UpdateModelCredentials writes one or more credential fields on the model's
-// Parameters jsonb. Models are not pooled per-instance the way MCP clients
-// are (each call to GetEmbeddingModel/GetChatModel rebuilds the client from
+// Parameters jsonb. Models are not pooled per-instance (each call to
+// GetEmbeddingModel/GetChatModel rebuilds the client from
 // the current Parameters), so no explicit cache invalidation is required —
 // the next call will pick up the new credential automatically.
 func (s *modelService) UpdateModelCredentials(
@@ -361,9 +361,9 @@ func (s *modelService) SetModelSharing(ctx context.Context, id string, shared bo
 
 	if !shared {
 		// Withdrawing sharing strands every other workspace that selected
-		// this model: knowledge_bases.embedding_model_id and the agent config
-		// bindings are bare strings with no foreign key, so retrieval would
-		// degrade with nothing raised anywhere. Refuse while anything binds it.
+		// this model: knowledge_bases.embedding_model_id is a bare string with
+		// no foreign key, so retrieval would degrade with nothing raised
+		// anywhere. Refuse while any knowledge base binds it.
 		if err := s.assertBuiltinModelUnreferenced(ctx, id); err != nil {
 			return nil, err
 		}

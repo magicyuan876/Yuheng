@@ -203,7 +203,7 @@ export default {
     leave: {
       confirmTitle: "Покинуть это пространство?",
       confirmBody:
-        "Вы потеряете доступ ко всем базам знаний и агентам в этом пространстве. Позже вас можно будет пригласить снова.",
+        "Вы потеряете доступ ко всем базам знаний в этом пространстве. Позже вас можно будет пригласить снова.",
       confirm: "Покинуть",
       success: "Вы покинули пространство",
     },
@@ -239,7 +239,7 @@ export default {
       manageMembers: "Управление участниками",
       manageTenantConfig: "Изменение настроек пространства",
       manageInfra: "Настройка моделей / векторных хранилищ / IM-каналов",
-      createOwnKB: "Создание и редактирование своих БЗ и агентов",
+      createOwnKB: "Создание и редактирование своих БЗ",
       readAll: "Чтение содержимого пространства",
     },
   },
@@ -683,44 +683,6 @@ export default {
       noFailedRecords: "Нет записей с ошибками для скачивания",
     },
   },
-  agentEditor: {
-    fileTypes: {
-      desc: "Ограничение выбираемых типов файлов. Пустое поле — все типы поддерживаются.",
-    },
-    faq: {
-      title: "Стратегия приоритета FAQ",
-    },
-    chatParser: {
-      desc: "Выберите движок разбора по типу файла для вложений чата этого агента.",
-    },
-    audioUpload: {
-      desc: "Позволяет пользователям загружать аудиофайлы в чате. Система автоматически транскрибирует их с помощью ASR-модели.",
-    },
-    imageUpload: {
-      desc: "Разрешить пользователям загружать изображения в чате для понимания через VLM",
-    },
-    llmCallTimeout: {
-      desc: "Максимальное время ожидания одного вызова LLM (в секундах). По истечении этого времени вызов прерывается",
-    },
-    mcp: {
-      desc: "Выберите MCP-сервисы, доступные агенту",
-    },
-    agentType: {
-      desc: "Выбор пресета автоматически заполняет системный промпт, список инструментов и рекомендуемую область баз знаний.",
-    },
-    im: {
-      title: "Интеграция IM",
-    },
-    embed: {
-      title: "Встраивание на веб-страницу",
-    },
-    intentPrompts: {
-      title: "Промпты намерений",
-    },
-    questionSuggestions: {
-      title: "Рекомендации вопросов в диалоге",
-    },
-  },
   agentStream: {
     toolStatus: {
       searchKb: "Поиск по базе знаний",
@@ -871,18 +833,6 @@ export default {
     unknownStore: "Unknown store",
     unavailable: "Unavailable",
   },
-  tools: {
-    multiKbSearch: "Кросс-КБ поиск",
-    knowledgeSearch: "Поиск по базе знаний",
-    grepChunks: "Поиск по текстовому шаблону",
-    getChunkDetail: "Получить детали фрагмента",
-    listKnowledgeChunks: "Список фрагментов знаний",
-    listKnowledgeBases: "Список баз знаний",
-    getDocumentInfo: "Получить информацию о документе",
-    queryKnowledgeGraph: "Запрос к графу знаний",
-    think: "Глубокое размышление",
-    todoWrite: "Составить план",
-  },
   commandPalette: {
     placeholder: "Поиск по базам знаний, файлам, диалогам…",
     clearRecent: "Очистить",
@@ -942,7 +892,7 @@ export default {
   organization: {
     title: "Shared Spaces",
     subtitle:
-      "Create or join shared spaces so multiple workspaces can collaborate and share knowledge bases and agents",
+      "Создавайте общие пространства или присоединяйтесь к ним, чтобы рабочие пространства совместно работали и делились базами знаний",
     createOrg: "Создать общее пространство",
     joinOrg: "Присоединиться к общему пространству",
     name: "Название общего пространства",
@@ -1056,16 +1006,15 @@ export default {
       nameTip: "Use your team or project name for easy identification",
       descriptionTip: "Опишите назначение и цели общего пространства, чтобы участники лучше его понимали",
       permissionsTitle: "Member Permissions",
-      permissionsDesc: "Узнайте объём прав разных ролей на базы знаний и агентов в общем пространстве",
+      permissionsDesc: "Узнайте объём прав разных ролей на базы знаний в общем пространстве",
       permissionFeature: "Permission Feature",
       fullAccess: "Full Access",
       editAccess: "Edit Access",
       viewAccess: "View Only",
-      adminPerm1: "Управление настройками общего пространства, участниками и общим доступом к базам знаний и агентам",
-      adminPerm2: "Share and manage knowledge bases and agents",
+      adminPerm1: "Управление настройками общего пространства, участниками и общим доступом к базам знаний",
+      adminPerm2: "Публикация и управление базами знаний",
       adminPerm3: "Edit shared knowledge base content",
       adminPerm4: "View and search knowledge bases",
-      useSharedAgentsPerm: "Use shared agents",
       shareKBPerm: "Предоставлять доступ к базам знаний в общем пространстве",
       editorPerm1: "Edit shared knowledge base content",
       editorPerm2: "View and search knowledge bases",
@@ -1076,7 +1025,7 @@ export default {
       ownerNote: "Как создатель общего пространства, вы автоматически становитесь администратором с полными правами.",
       joinTitle: "Присоединиться к общему пространству",
       joinDesc:
-        "Присоединитесь к существующему общему пространству по коду приглашения, чтобы получить доступ к базам знаний и агентам",
+        "Присоединитесь к существующему общему пространству по коду приглашения, чтобы получить доступ к базам знаний",
       joinIllustration:
         "Введите код приглашения, предоставленный администратором общего пространства, чтобы присоединиться",
       inviteCodeTip: "Код приглашения создаётся администраторами общего пространства, запросите его у них",
@@ -1248,20 +1197,6 @@ export default {
       cannotCreate: "Недостаточно прав в текущем пространстве для создания общего пространства",
       cannotJoin: "Недостаточно прав в текущем пространстве для присоединения к общему пространству",
       cannotManage: "Недостаточно прав в текущем пространстве для управления общим пространством",
-    },
-  },
-  promptTemplate: {
-    noTemplates: "No templates available",
-    selectTemplate: "Select Template",
-    useTemplate: "Use Template",
-    resetDefault: "Reset Default",
-    default: "Default",
-    withKnowledgeBase: "KB",
-    withWebSearch: "Web Search",
-  },
-  mcpServiceDialog: {
-    customHeaders: {
-      desc: "HTTP-заголовки, добавляемые к каждому запросу MCP; обычно используются для аутентификации на корпоративном шлюзе, трассировки и т. п.",
     },
   },
   ollamaSettings: {
@@ -1512,29 +1447,6 @@ export default {
       chatGroupLabel: "Thinking / Chat Models",
     },
   },
-  agentSettings: {
-    systemPrompt: {
-      desc: "Настройте системный промпт Agent. Подстановки будут заменены во время выполнения.",
-    },
-    allowedTools: {
-      desc: "Список инструментов, доступных Agent",
-    },
-    temperature: {
-      desc: "Контролирует случайность ответа. 0 — детерминированно, 1 — максимально случайно",
-    },
-    rerankModel: {
-      desc: "Повторная ранжировка результатов поиска и нормализация релевантности",
-    },
-    thinkingModel: {
-      desc: "LLM для рассуждений и планирования",
-    },
-    maxIterations: {
-      desc: "Максимальное число шагов рассуждений при выполнении задач",
-    },
-    modelRecommendation: {
-      title: "Model Recommendation",
-    },
-  },
   upload: {
     uploadDocument: "Загрузить документ",
     uploadFolder: "Загрузить папку",
@@ -1552,21 +1464,17 @@ export default {
   },
   platform: {
     subtitle: "Корпоративная платформа знаний на базе больших языковых моделей",
-    description:
-      "RAG-поиск, агентные рассуждения и Wiki-базы знаний — чтобы документы действительно понимались и приносили пользу",
+    description: "RAG-поиск и Wiki-базы знаний — чтобы документы действительно понимались и приносили пользу",
     rag: "RAG расширенная генерация",
-    agent: "ReAct агент",
     wiki: "Wiki-база знаний",
     hybridSearch: "Гибридный поиск",
     multimodalParsing: "Мультимодальный анализ документов",
     hybridSearchEngine: "Гибридный поиск + граф знаний",
-    ragQandA: "Вопрос-ответ с ReAct агентом",
+    ragQandA: "RAG-ответы со ссылками на источники",
     independentTenant: "Независимое рабочее пространство",
     fullApiAccess: "Полный доступ к API",
     knowledgeBaseManagement: "Управление базой знаний",
     carousel: {
-      agenticRagTitle: "Agentic RAG",
-      agenticRagDesc: "ReAct-рассуждения + вызов инструментов + многошаговое мышление",
       hybridSearchTitle: "Гибридная стратегия поиска",
       hybridSearchDesc: "BM25 + Вектор + Граф знаний",
       wikiTitle: "Wiki-база знаний",
@@ -1695,7 +1603,7 @@ export default {
         "Ограничивает число одновременных фоновых вызовов (индексация/обогащение) к этой модели, общее для модели по всем репликам. 0 или пусто — используется глобальное значение по умолчанию; интерактивный чат не затрагивается.",
       thinkingControlLabel: "Формат параметров режима размышления",
       thinkingControlDesc:
-        "Определяет, как переключатель «Режим размышления» агента записывается в API. При возможности выбирается по поставщику/модели; при несоответствии измените по документации API. При выборе «Не отправлять» переключатель «Режим размышления» агента не действует.",
+        "Определяет, как переключатель «Режим размышления» записывается в API. При возможности выбирается по поставщику/модели; при несоответствии измените по документации API. При выборе «Не отправлять» переключатель «Режим размышления» не действует.",
       dimensionHint: "Модель выбрана. Нажмите «Определить размерность», чтобы автоматически получить значение.",
       loadModelListFailed: "Не удалось загрузить список моделей",
       listRefreshed: "Список обновлён",
@@ -1839,7 +1747,7 @@ export default {
         },
         none: {
           label: "Не отправлять параметры размышления",
-          hint: "Переключатель «Режим размышления» агента не действует; параметры размышления не отправляются в запросе",
+          hint: "Переключатель «Режим размышления» не действует; параметры размышления не отправляются в запросе",
         },
       },
       volcengine: {
@@ -1918,11 +1826,6 @@ export default {
       refreshTokenFailed: "Не удалось обновить токен",
       logoutFailed: "Ошибка выхода",
       validateTokenFailed: "Ошибка проверки токена",
-    },
-  },
-  mcp: {
-    testResult: {
-      title: "Результат теста: {name}",
     },
   },
   system: {
@@ -2128,7 +2031,7 @@ export default {
             },
             add: {
               header: "Добавить запись в белый список SSRF",
-              body: "Добавить {entry} в белый список SSRF? Соответствующие хосты / IP / подсети будут обходить защиту от SSRF и смогут обращаться к внутренним сервисам через агентов. Добавляйте только полностью доверенные записи.",
+              body: "Добавить {entry} в белый список SSRF? Соответствующие хосты / IP / подсети будут обходить защиту от SSRF, и запросы сервера (веб-поиск, импорт по URL, вызовы моделей) смогут обращаться к внутренним сервисам. Добавляйте только полностью доверенные записи.",
               confirmBtn: "Добавить",
             },
           },
@@ -2539,11 +2442,11 @@ export default {
     },
     deleteDangerZone: {
       title: "Delete this workspace",
-      desc: "Delete the whole workspace and its configuration. Members will no longer be able to access its knowledge bases, agents, or API key.",
+      desc: "Удаляет всё пространство и его настройки. Участники потеряют доступ к его базам знаний и API-ключам.",
       button: "Delete workspace",
       confirmTitle: "Delete this workspace?",
       confirmBody:
-        'This will delete "{name}" and make its knowledge bases, agents, members, and API key unavailable. This action cannot be undone.',
+        "Пространство «{name}» будет удалено, а его базы знаний, участники и API-ключи станут недоступны. Это действие нельзя отменить.",
       confirmHint: 'Type the workspace name "{name}" to confirm deletion.',
       confirm: "Delete workspace",
       nameMismatch: "Workspace name does not match",
@@ -2552,7 +2455,7 @@ export default {
     },
     leaveDangerZone: {
       title: "Покинуть это рабочее пространство",
-      desc: "Завершает ваше членство в этом пространстве. Вы потеряете доступ к базам знаний и агентам. Позже вас можно снова пригласить.",
+      desc: "Завершает ваше членство в этом пространстве. Вы потеряете доступ к его базам знаний. Позже вас можно снова пригласить.",
       button: "Покинуть пространство",
     },
     storage: {
@@ -2655,9 +2558,6 @@ export default {
     requestInfoUrl: "Request",
     requestInfoSentAt: "Sent at",
     requestInfoEmpty: "No request info available",
-    channelWeb: "Веб",
-    channelApi: "API",
-    channelIm: "IM",
     navigateToDocument: "Просмотр документа",
     jumpToVideoTime: "Перейти к этому моменту видео",
     enterDescription: "Введите описание",
@@ -3170,26 +3070,23 @@ export default {
         "Показано {visible} из {total} соседей ({hidden} вне обзора — нажмите «Развернуть», чтобы переключиться сюда)",
       backToOverview: "Вернуться к обзору",
       queueStatus: "{count} ожидающих задач в очереди Wiki",
-      issueTitle: "На этой странице есть {count} неразрешенных конфликтов или ошибок знаний",
-      issueFixBtn: "AI Автоисправление",
-      issueMixed: "Смешанная инфо",
-      issueConflict: "Фактический конфликт",
-      issueOutdated: "Устарело",
-      issueAttention: "Требует внимания",
-      issueReportedBy: "Сообщил {reporter}",
-      issueAiLinter: "AI Линтер",
-      issueIgnore: "Игнорировать",
-      globalIssuesTitle: "Глобальные проблемы содержимого",
-      globalIssuesCount: "Ожидающие проблемы содержимого: {count}",
-      globalIssuesEmpty: "Нет ожидающих проблем содержимого",
-      issuePagePrefix: "Страница: ",
-      issueGoFix: "Исправить",
-      fixAssistantTitle: "Wiki Умный помощник исправления",
-      issueFixSuggestions: "Предложения по оптимизации ({count})",
-      issueFixSingle: "Исправить",
-      fixStartError: "Не удалось запустить помощник исправления",
-      issueFixPromptSingle: "Пожалуйста, исправьте проблему (ID: {id}) на странице [[{slug}]].",
-      issueFixPromptAutoStart: "Пожалуйста, исправьте следующие проблемы на странице [[{slug}]]:",
+      lintOpen: "Проверка Wiki",
+      lintTitle: "Проверка Wiki",
+      lintRunning: "Проверяем все страницы…",
+      lintFailed: "Проверку выполнить не удалось. Повторите позже.",
+      lintScore: "Оценка состояния (0–100)",
+      lintClean: "Проблем не найдено",
+      lintCount: "Найдено проблем: {count}",
+      lintAutoFix: "Исправить автоматически: {count}",
+      lintFixable: "Можно исправить автоматически",
+      lintFixed: "Исправлено проблем: {count}",
+      lintFixFailed: "Не удалось исправить автоматически",
+      lintOrphan: "Страница без ссылок",
+      lintBrokenLink: "Битая ссылка",
+      lintStaleRef: "Источник удалён",
+      lintMissingCrossRef: "Нет перекрёстной ссылки",
+      lintEmpty: "Пустая страница",
+      lintDuplicateSlug: "Повторяющийся slug",
     },
     indexing: {
       title: "Стратегия индексации",
@@ -3199,8 +3096,6 @@ export default {
       searchDesc: "Разбивает документы на чанки, векторизует и индексирует ключевые слова, поддерживая гибридный поиск",
       wikiTitle: "Wiki-база знаний",
       wikiDesc: "Автоматически создаёт взаимосвязанные Wiki-страницы и формирует структурированную систему знаний",
-      graphTitle: "Граф знаний",
-      graphDesc: "Извлекает сущности и связи, строит граф знаний и поддерживает поиск по графу",
       atLeastOne: "Должна быть включена хотя бы одна стратегия индексации",
       embeddingRequired: "RAG-поиск требует настройки модели Embedding",
       lockedTip:
@@ -3419,9 +3314,6 @@ export default {
       },
     },
   },
-  embedPublish: {
-    copyCode: "Копировать код",
-  },
   knowledgeList: {
     create: "Создать базу знаний",
     subtitle: "Управляйте и организуйте свои базы знаний, поддерживаются документные и FAQ-базы знаний",
@@ -3448,13 +3340,7 @@ export default {
       title: "Shared Knowledge Base",
       sourceType: "Source",
       sourceTypeKbShare: "KB shared directly to this space",
-      sourceTypeAgent: "Visible via shared agent",
       sourceOrg: "Space",
-      sourceFromAgent: "Agent",
-      agentKbStrategy: "Agent KB strategy",
-      agentKbStrategyAll: "All knowledge bases",
-      agentKbStrategySelected: "Selected knowledge bases",
-      agentKbStrategyNone: "No knowledge bases",
       sharedAt: "Shared At",
       myPermission: "My Permission",
       goToKb: "Go to Knowledge Base",
@@ -3641,6 +3527,7 @@ export default {
     edit: "Редактировать",
     copy: "Копировать",
     copied: "Скопировано",
+    copyCode: "Копировать код",
     create: "Создать",
     download: "Скачать",
     refresh: "Обновить",
@@ -3711,7 +3598,7 @@ export default {
     firstTime: "Впервые в Yuheng?",
     registerSuccess: "Регистрация завершена. Войдите в систему",
     registerFailed: "Ошибка регистрации",
-    subtitle: "RAG, ReAct-агент и Wiki — корпоративный фреймворк знаний на основе больших моделей",
+    subtitle: "RAG-ответы и Wiki-базы знаний — корпоративный фреймворк знаний на основе больших моделей",
     registerSubtitle: "Создайте аккаунт и начните работу с Yuheng",
     emailPlaceholder: "Введите адрес электронной почты",
     passwordPlaceholder: "Введите пароль (8-32 символа, включая буквы и цифры)",
@@ -3867,11 +3754,6 @@ export default {
     toasts: {
       saveSuccess: "Конфигурация управления сообщениями сохранена",
       saveFailed: "Не удалось сохранить конфигурацию: {message}",
-    },
-  },
-  memorySettings: {
-    usage: {
-      title: "Когда записи используются",
     },
   },
   vectorStoreSettings: {
@@ -4136,26 +4018,6 @@ export default {
     think: "Размышление",
     copy: "Копировать",
     addToKnowledgeBase: "Добавить в базу знаний",
-    selector: {
-      title: "Select Agent",
-    },
-    shareScope: {
-      title: "Share Scope",
-      desc: "Space members have read-only access to this agent and will use it according to your current configuration; your changes to the agent will sync to shared spaces. To allow space members to edit knowledge base content, share the knowledge base to the space.",
-    },
-    detail: {
-      title: "Agent Details",
-    },
-    empty: {
-      title: "No Custom Agents",
-    },
-    sections: {
-      tenantOthers: "Рабочая область · Другие участники",
-      tenantReadonly: "Рабочая область · Только просмотр",
-    },
-    artifactDrawer: {
-      title: "Сгенерированные файлы",
-    },
   },
   knowledgeStages: {
     title: "Конвейер обработки",
@@ -4686,7 +4548,7 @@ export default {
         },
         kb: {
           title: "Выберите область знаний",
-          desc: "Нажмите {'@'}, чтобы выбрать одну или несколько баз знаний или файлов. Иначе используются настройки текущего агента.",
+          desc: "Нажмите {'@'}, чтобы выбрать одну или несколько баз знаний или файлов. Без выбора модель отвечает без поиска по базам знаний.",
         },
       },
     },
@@ -4811,10 +4673,6 @@ export default {
         title: "Аккаунт и настройки",
         desc: "Откройте это меню, чтобы управлять аккаунтом, участниками и системными настройками. Обучение можно снова открыть кнопкой помощи рядом с именем вверху меню.",
       },
-      agents: {
-        title: "Создавайте собственных агентов",
-        desc: "Объединяйте базы знаний, промпты и инструменты в переиспользуемых агентов, закрепляя свою экспертизу.",
-      },
       chat: {
         title: "Начните чат с ИИ",
         desc: "Задавайте вопросы на основе вашей базы знаний и получайте точные ответы со ссылками на источники. Нажмите здесь, чтобы начать новый чат.",
@@ -4825,7 +4683,7 @@ export default {
       },
       welcome: {
         title: "Добро пожаловать в Yuheng",
-        desc: "Несколько простых шагов познакомят вас с базами знаний, чатом и агентами. Нажмите «Далее», чтобы начать.",
+        desc: "Несколько простых шагов познакомят вас с базами знаний и чатом. Нажмите «Далее», чтобы начать.",
       },
     },
   },
@@ -5043,10 +4901,10 @@ export default {
     reportQuestion: "Вопрос: {text}",
     reportAnswer: "Ответ: {text}",
     wiki: {
-      title: "Отчёт проверки Wiki",
-      pending: "Проблем Wiki, ожидающих проверки: {count}",
-      none: "Открытых проблем Wiki нет",
-      open: "Открыть в Wiki",
+      title: "Проверка Wiki",
+      description:
+        "Битые ссылки, страницы без ссылок, удалённые источники и другие структурные проблемы проверяются на вкладке Wiki.",
+      open: "Запустить проверку",
     },
   },
   stewardship: {

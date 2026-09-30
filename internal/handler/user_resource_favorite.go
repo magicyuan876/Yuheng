@@ -54,7 +54,7 @@ func favoriteContext(c *gin.Context) (string, uint64, bool) {
 // @Summary      List my favorites
 // @Description  Lists this user's starred resources in the current workspace for a given type
 // @Tags         User
-// @Param        type  query     string  true  "Resource type (kb | agent)"
+// @Param        type  query     string  true  "Resource type (kb | doc_page | doc_space)"
 // @Success      200   {object}  map[string]interface{}
 // @Router       /user/favorites [get]
 func (h *UserResourceFavoriteHandler) ListFavorites(c *gin.Context) {

@@ -18,8 +18,9 @@ import (
 // DriveConnector implements the datasource.Connector (and StreamingConnector)
 // interface for Feishu/Lark Drive (云盘) mode. It shares core.Client/core.Config/core.Region
 // and the export/download logic with the wiki Connector; only resource
-// enumeration and Fetch dispatch differ. See 飞书云盘数据源设计.md and
-// ADR-0001..0004.
+// enumeration and Fetch dispatch differ, because a Drive folder is listed
+// through the Drive files API rather than the wiki node tree. The user-facing
+// behaviour is described in website-docs/03-features/10-datasource.md.
 type DriveConnector struct {
 	region core.Region
 }
@@ -63,7 +64,9 @@ func (c *DriveConnector) Validate(ctx context.Context, config *types.DataSourceC
 //   - parentID == ""                          -> return the user-supplied root
 //     folder (from config.ResourceIDs[0]) as the single root resource
 //     (HasChildren=true). Drive has no "space list" API, so the root is
-//     user-supplied. folder_token == "" is rejected (ADR-0004).
+//     user-supplied. folder_token == "" is rejected: the Drive root folder
+//     is not paginated and does not return shortcuts, so listing it would
+//     silently drop content (see core's listDriveFiles).
 //   - parentID == folderToken                 -> ListDriveFiles(folderToken)
 //     returns the direct children.
 //   - parentID == "folderToken:subFolderToken" -> ListDriveFiles(subFolderToken)
@@ -71,7 +74,9 @@ func (c *DriveConnector) Validate(ctx context.Context, config *types.DataSourceC
 //
 // Each core.DriveFile becomes a Resource: folder HasChildren=true, others false.
 // resourceID encoding: root = folderToken; child = folderToken + ":" + fileToken
-// (reuses core.FeishuWikiNodeResourceSeparator). See ADR-0001 §3.4.
+// (reuses core.FeishuWikiNodeResourceSeparator), the same shape the wiki
+// connector uses for space:node, so the picker and cursor code treat both
+// alike.
 func (c *DriveConnector) ListResources(
 	ctx context.Context, config *types.DataSourceConfig, parentID string,
 ) ([]types.Resource, error) {
@@ -134,7 +139,8 @@ func (c *DriveConnector) ListResources(
 // single-node queries. Drive has no single-file parent query API (verified -
 // metas/batch_query does not return parent), so we walk top-down from the root
 // folder with ListDriveFiles and share the traversal across all selections in
-// the same root. Best-effort: a broken path just stays collapsed. See ADR-0003.
+// the same root. Best-effort: a broken path just stays collapsed, which costs
+// the user one click rather than failing the whole picker.
 func (c *DriveConnector) ResolveResourceAncestors(
 	ctx context.Context, config *types.DataSourceConfig, resourceIDs []string,
 ) ([]string, error) {

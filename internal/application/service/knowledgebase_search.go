@@ -169,8 +169,8 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 	// buildRetrievalParams would re-embed the same query text — for N
 	// stores that means N API calls of identical input.
 	//
-	// Skip when params already carries an embedding (e.g. the agent
-	// pre-computed it) or when the primary KB has no vector indexing
+	// Skip when params already carries an embedding (e.g. the chat
+	// pipeline pre-computed it) or when the primary KB has no vector indexing
 	// configured.
 	if len(params.QueryEmbedding) == 0 &&
 		kb.IsVectorEnabled() && kb.EmbeddingModelID != "" &&
@@ -191,7 +191,7 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 	if len(groups) == 0 || allBaseParamsEmpty(groups) {
 		// Wiki-only / graph-only fan-out: every KB is non-retrievable.
 		// Preserve the existing "return empty rather than error" contract
-		// so agent tools that combine multiple KB scopes degrade gracefully.
+		// so callers that combine multiple KB scopes degrade gracefully.
 		logger.Infof(ctx, "No retrievable indexing pipelines across %d KBs", len(kbs))
 		return nil, nil
 	}
@@ -280,7 +280,7 @@ func (s *knowledgeBaseService) HybridSearch(ctx context.Context,
 // search; a negative value panics on that same slice bound.
 //
 // The fallback is shared with RetrievalConfig.GetEffectiveEmbeddingTopK:
-// internal callers (chat pipeline, agent tools) feed these results into
+// internal callers (chat pipeline, message search) feed these results into
 // reranking, which trims to RerankTopK afterwards, so a wide candidate pool is
 // the right failure mode for them.
 func normalizedMatchCount(requested int) int {
@@ -314,7 +314,7 @@ func pickPrimary(kbs []*types.KnowledgeBase, id string) *types.KnowledgeBase {
 // BaseParams slice. True only when every KB in scope is wiki-only or
 // graph-only with neither vector nor keyword indexing — HybridSearch then
 // returns nil so callers that combine searchable + non-searchable KBs
-// (agent tools, chat pipeline) degrade gracefully.
+// (chat pipeline, multi-KB search API) degrade gracefully.
 func allBaseParamsEmpty(groups []*storeGroup) bool {
 	for _, g := range groups {
 		if len(g.BaseParams) > 0 {
@@ -364,8 +364,8 @@ func (s *knowledgeBaseService) buildRetrievalParams(
 	// vector indexing enabled (e.g. wiki-only or graph-only KBs) has no
 	// embeddings to retrieve from, and typically has no EmbeddingModelID
 	// configured either; such KBs are skipped for vector retrieval to avoid
-	// spurious "model ID cannot be empty" errors when an agent's retrieval
-	// scope happens to include them (e.g. KBSelectionMode=all picking up a
+	// spurious "model ID cannot be empty" errors when a retrieval scope
+	// happens to include them (e.g. a multi-KB chat that also selected a
 	// wiki-only KB).
 	var faqVectorKBIDs, docVectorKBIDs, docKeywordKBIDs []string
 	for _, kb := range groupKBs {

@@ -171,7 +171,7 @@ func (s *resourceCatalog) CreateAccessGrant(ctx context.Context, reference strin
 	if ttl <= 0 {
 		ttl = defaultResourceGrantTTL
 	}
-	// Opportunistic cleanup keeps high-volume IM rendering from accumulating
+	// Opportunistic cleanup keeps high-volume public-URL rendering from accumulating
 	// expired capability rows; failure is non-fatal to the current grant.
 	_ = s.repo.DeleteExpiredGrants(ctx, time.Now().UTC())
 

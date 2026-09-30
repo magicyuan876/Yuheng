@@ -27,16 +27,9 @@ function getCurrentLanguage(): string {
 
 instance.interceptors.request.use(
   (config) => {
-    const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;
-    const isEmbedAuth = typeof existingAuth === "string" && existingAuth.startsWith("Embed ");
-    const isEmbedPath = typeof config.url === "string" && config.url.includes("/api/v1/embed/");
-
-    // 嵌入渠道使用 Embed token；勿用本地 JWT 覆盖（否则调试页会 401）
-    if (!isEmbedAuth) {
-      const token = localStorage.getItem("yuheng_token");
-      if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
-      }
+    const token = localStorage.getItem("yuheng_token");
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
     }
 
     // 添加用户语言偏好
@@ -51,11 +44,9 @@ instance.interceptors.request.use(
     // 换之后只有第一批请求带 X-Tenant-ID"调成永久状态。
     // 后端 IsTenantAccessible 已经允许 header 指向 home 空间（自家），
     // 所以无脑附不会引入新风险。
-    if (!isEmbedAuth && !isEmbedPath) {
-      const selectedTenantId = localStorage.getItem("yuheng_selected_tenant_id");
-      if (selectedTenantId) {
-        config.headers["X-Tenant-ID"] = selectedTenantId;
-      }
+    const selectedTenantId = localStorage.getItem("yuheng_selected_tenant_id");
+    if (selectedTenantId) {
+      config.headers["X-Tenant-ID"] = selectedTenantId;
     }
 
     config.headers["X-Request-ID"] = `${generateRandomString(12)}`;
@@ -77,13 +68,7 @@ let failedQueue: Array<{ resolve: (token: string | null) => void; reject: (reaso
 // must surface to the page (e.g. expired token), not trigger the
 // refresh-then-redirect-to-login flow (issue #1617). '/auth/register' already
 // covers '/auth/register-by-invite' via substring match.
-const PUBLIC_AUTH_PATHS = [
-  "/auth/login",
-  "/auth/register",
-  "/auth/oidc/",
-  "/auth/invitations/lookup",
-  "/api/v1/embed/",
-];
+const PUBLIC_AUTH_PATHS = ["/auth/login", "/auth/register", "/auth/oidc/", "/auth/invitations/lookup"];
 
 function isPublicAuthRequest(url?: string): boolean {
   if (!url) return false;
@@ -103,16 +88,9 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-function isEmbedPage(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.location.pathname.startsWith("/embed/");
-}
-
 function redirectToLogin() {
   if (typeof window === "undefined") return;
   if (window.location.pathname === "/login") return;
-  // Embed 渠道用 Embed token 鉴权，匿名访问不应被踢到登录页
-  if (isEmbedPage()) return;
   window.location.href = "/login";
 }
 
@@ -140,18 +118,6 @@ instance.interceptors.response.use(
 
     // 公开接口（login / register / oidc）的 401 不走 refresh 逻辑，直接返回错误
     if ((error.response.status === 401 || error.response.status === 403) && isPublicAuthRequest(originalRequest?.url)) {
-      const { status, data } = error.response;
-      const msg =
-        typeof data === "object"
-          ? typeof data?.error === "string"
-            ? data.error
-            : data?.error?.message || data?.message
-          : data;
-      return Promise.reject({ status, message: msg || t("error.invalidCredentials") });
-    }
-
-    // Embed 调试页/挂件：无 JWT 时直接拒绝，勿走 refresh → /login
-    if (error.response.status === 401 && isEmbedPage()) {
       const { status, data } = error.response;
       const msg =
         typeof data === "object"

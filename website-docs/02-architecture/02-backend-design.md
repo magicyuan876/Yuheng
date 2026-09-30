@@ -375,7 +375,7 @@ type AppError struct {
 }
 ```
 
-- **错误码分段**：1000–1999 通用 HTTP 语义（`ErrBadRequest=1000`、`ErrUnauthorized=1001`、`ErrForbidden=1002`、`ErrNotFound=1003`、`ErrConflict=1005`、`ErrTooManyRequests=1006`、`ErrServiceUnavailable=1008`、`ErrValidation=1010`）；2000–2099 租户；2200–2299 向量库绑定。2100–2103 是上游遗留的 Agent 错误码常量，当前代码不再使用；
+- **错误码分段**：1000–1999 通用 HTTP 语义（`ErrBadRequest=1000`、`ErrUnauthorized=1001`、`ErrForbidden=1002`、`ErrNotFound=1003`、`ErrConflict=1005`、`ErrTooManyRequests=1006`、`ErrServiceUnavailable=1008`、`ErrValidation=1010`）；2000–2099 租户；2200–2299 向量库绑定（2100–2199 曾是上游的 Agent 错误码，已随 Agent 一起删除）；
 - **构造函数**：`NewBadRequestError` / `NewUnauthorizedError` / `NewForbiddenError` / `NewNotFoundError` / `NewValidationError` / `NewConflictError` / `NewTooManyRequestsError` / `NewServiceUnavailableError` 等；
 - **配合方式**：Handler/中间件用 `c.Error(appErr)` 挂错，`ErrorHandler` 末端统一渲染信封，前端据 `error.code` 做 i18n；非 `AppError` 一律 500。扩展的特性门控另有字符串码 `feature_disabled`（`extension.FeatureDisabledCode`）；
 - `session.go` 提供会话域哨兵错误；`parse_error_codes.go` 定义文档解析阶段的字符串错误码（`DOCREADER_TIMEOUT`、`EMBEDDING_RATE_LIMIT`、`VECTORSTORE_WRITE_FAILED`、`TASK_TIMEOUT` 等），落在 `Knowledge.ErrorMessage` 与处理 span 上供前端翻译。

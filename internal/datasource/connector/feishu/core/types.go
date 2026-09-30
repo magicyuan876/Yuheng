@@ -268,13 +268,13 @@ type FeishuCursor struct {
 }
 
 // --- Drive (云盘) file listing types (feishu_drive / lark_drive connectors) ---
-// Added by feat/datasource-feishu-drive. These are independent of the wiki
-// types above and do not affect the wiki connector.
+// These are independent of the wiki types above and do not affect the wiki
+// connector.
 
 // DriveFile represents a file/folder in Feishu Drive (云空间). Returned by
 // GET /open-apis/drive/v1/files?folder_token=xxx. The list API returns
 // modified_time directly (verified), so no batch_query/metas call is needed for
-// incremental detection - see ADR-0002.
+// incremental detection: comparing it with the cursor is enough.
 type DriveFile struct {
 	Token        string `json:"token"`
 	Name         string `json:"name"`
@@ -286,7 +286,8 @@ type DriveFile struct {
 	OwnerID      string `json:"owner_id"`
 	// ShortcutInfo is populated only for type=="shortcut". target_type can only
 	// be doc/sheet/mindnote/bitable/file/docx (Feishu does not allow shortcuts to
-	// folders, verified) - see ADR-0002 / glossary shortcut entry.
+	// folders, verified), so a shortcut is always synced as the document it
+	// points to and never has to be walked like a folder.
 	ShortcutInfo *driveShortcutInfo `json:"shortcut_info,omitempty"`
 }
 
@@ -356,7 +357,8 @@ func (e *PartialDriveFileListError) Error() string {
 // FeishuDriveCursor stores incremental sync state for Feishu Drive (云盘).
 // Structurally symmetric with FeishuCursor: outer key = resourceID
 // ("folderToken" or "folderToken:fileToken"), inner key = file_token,
-// value = modified_time. See ADR-0001.
+// value = modified_time. Keeping the wiki cursor's shape lets both connectors
+// share the sync engine's skip-if-unchanged logic.
 type FeishuDriveCursor struct {
 	// LastSyncTime is the timestamp of the last successful sync.
 	LastSyncTime time.Time `json:"last_sync_time"`

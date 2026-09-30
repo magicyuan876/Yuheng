@@ -144,7 +144,7 @@ flowchart TD
 | GET | `/graph` | 链接图（全局概览 / ego 模式） |
 | GET | `/stats` | 统计 |
 | GET | `/search?q=...` | 搜索 |
-| GET | `/lint` / `/issues` | 质量检查结果 / 问题列表 |
+| GET | `/lint` | 质量检查结果 |
 | GET | `/revisions/*slug` | 版本历史列表；带 `?version=N` 取该版本全文 |
 
 `KBAccessRead` 覆盖：KB 所有者与组织共享。
@@ -158,7 +158,6 @@ flowchart TD
 | PUT | `/move-page` | 移动页面到目录 |
 | POST | `/rebuild-links` | 重建链接图 |
 | POST | `/auto-fix` | 触发自动修复 |
-| PUT | `/issues/:issue_id/status` | 更新问题状态 |
 | POST | `/revert` | 回滚到指定版本（body：`{slug, version}`） |
 
 写权限按 KB 归属判定：贡献者只要拥有该 KB 即可管理其 wiki，否则 403。API Key 场景下读接口需要 `retrieve` 能力，写接口需要 `ingest` 能力（或全量权限）。
@@ -200,9 +199,7 @@ Wiki 页面是 LLM 生成的，难免有需要人工订正的地方。页面因�
 
 Wiki 页面是问答管线的一类检索来源：rerank 之后 `wiki_boost.go` 会对 `wiki_page` 类型的 chunk 加权（×1.3），让 LLM 预综合的 Wiki 页面优先于原始分块进入上下文；被引用的 Wiki 内容同样出现在引用面板中。
 
-**质量检查**：`GET /lint`（`wiki_lint.go`）按需计算问题报告，类型包括孤立页面（`orphan_page`）、死链（`broken_link`）、过期引用（`stale_ref`）、缺少交叉引用（`missing_cross_ref`）、内容过少（`empty_content`）、重复 slug（`duplicate_slug`）；`POST /auto-fix` 自动修复其中可自动修复的项（死链改为纯文本、内容过少的页面归档）。这两个接口目前只能通过 API 调用，界面上没有入口。
-
-**页面问题与修复助手**：WikiBrowser 显示 `wiki_page_issues` 表里状态为待处理的问题（页面顶部「待修复内容问题」、全库问题抽屉），可以「忽略误报」（`PUT /issues/:issue_id/status`），或点修复按钮打开「Wiki 智能修复助手」抽屉。修复助手是一个限定在当前知识库的普通问答会话：请求带 `builtin-wiki-fixer` 标记，后端只用它选择检索/模型的租户作用域（跨租户共享 KB 时提升到源租户上下文，`internal/handler/session/wiki_fixer_scope.go`），模型基于该 KB 的内容给出修改建议，**不会自动改页面**，改动仍由人在编辑器里完成。注意：本仓库里目前没有任何代码路径会新建 `wiki_page_issues` 记录（`CreateIssue` 没有调用方），所以这个列表通常为空。
+**质量检查**：`GET /lint`（`wiki_lint.go`）按需计算问题报告，类型包括孤立页面（`orphan_page`）、死链（`broken_link`）、过期引用（`stale_ref`）、缺少交叉引用（`missing_cross_ref`）、内容过少（`empty_content`）、重复 slug（`duplicate_slug`）；`POST /auto-fix` 自动修复其中可自动修复的项（死链改为纯文本、内容过少的页面归档）。界面上的入口是 Wiki 页签的「Wiki 检查」：打开时运行一次检查，列出健康分和问题，点问题可跳到对应页面；知识库编辑者可以一键修复可自动修复的项，修复后报告会重新计算。报告不做存储，每次都遍历全部页面，所以只在打开时运行，不随页面浏览刷新。
 
 ## 操作历史（知识库活动流）
 
@@ -238,7 +235,6 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 | 问答加权 | `internal/application/service/chat_pipeline/wiki_boost.go` |
 | 活动流 | `internal/application/service/kb_activity.go` |
 | LLM 提示词 | `internal/application/service/wikiprompts/prompts_wiki.go` |
-| Wiki 修复作用域 | `internal/handler/session/wiki_fixer_scope.go` |
 | 失败恢复 | `internal/container/recover_pending_wiki_tasks.go` |
 | 路由 | `internal/router/routes_knowledge.go`（行为测试见 `internal/router/router_wiki_test.go`） |
 | 数据库迁移 | `migrations/versioned/000037_wiki_and_indexing.up.sql`、`000061_wiki_page_hierarchy.up.sql`、`000075_wiki_page_revisions.up.sql`、`000077_remove_wiki_log.up.sql` |

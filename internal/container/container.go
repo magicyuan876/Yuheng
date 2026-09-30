@@ -1117,9 +1117,11 @@ func initConnectorRegistry() (*datasource.ConnectorRegistry, error) {
 	if err := registry.Register(wiki.NewConnector(core.RegionLark)); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("register lark connector: %w", err))
 	}
-	// Feishu/Lark Drive (云盘) mode: different connector type so the registry
-	// dispatches to the Drive connector. Shares core.Client/Region/export logic
-	// with the wiki connector. See 飞书云盘数据源设计.md / ADR-0001.
+	// Feishu/Lark Drive (云盘) mode is its own connector type, so the registry
+	// dispatches to the Drive connector: a Drive folder is enumerated and
+	// fetched differently from a Wiki space, while the API client, region and
+	// export logic are shared through the core package. See
+	// website-docs/03-features/10-datasource.md.
 	if err := registry.Register(drive.NewDriveConnector(core.RegionFeishuDrive)); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("register feishu_drive connector: %w", err))
 	}
@@ -1142,9 +1144,9 @@ func initConnectorRegistry() (*datasource.ConnectorRegistry, error) {
 		errs = errors.Join(errs, fmt.Errorf("register gitlab connector: %w", err))
 	}
 
-	// Future connectors will be registered here:
-	// if err := registry.Register(confluenceConnector.NewConnector()); err != nil { ... }
-	// if err := registry.Register(githubConnector.NewConnector()); err != nil { ... }
+	// Every registered connector needs its UI metadata and every metadata
+	// entry a connector; GET /datasource/types lists the intersection.
+	errs = errors.Join(errs, registry.VerifyMetadata())
 
 	if errs != nil {
 		return nil, errs

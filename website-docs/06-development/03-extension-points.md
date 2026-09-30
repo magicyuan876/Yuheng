@@ -443,7 +443,7 @@ type StreamingConnector interface {
 }
 ```
 
-注册表同文件：`ConnectorRegistry`（`NewConnectorRegistry()` / `Register(connector)` / `Get(type)` / `List()`）；连接器的 UI 元数据（名称、AuthType、capabilities）在同文件的 `ConnectorMetadataRegistry` map 中。
+注册表同文件：`ConnectorRegistry`（`NewConnectorRegistry()` / `Register(connector)` / `Get(type)` / `List()` / `Available()` / `VerifyMetadata()`）；连接器的 UI 元数据（名称、AuthType、capabilities）在同文件的 `ConnectorMetadataRegistry` map 中，必须与注册的连接器一一对应。
 
 ### 现有实现
 
@@ -456,8 +456,6 @@ type StreamingConnector interface {
 | `rss` | `internal/datasource/connector/rss/` | RSS 订阅 |
 | `gitlab` | `internal/datasource/connector/gitlab/` | GitLab |
 | `ima` | `internal/datasource/connector/ima/` | 腾讯 ima |
-
-`internal/types/datasource.go` 里还有 `confluence`、`github`、`google_drive`、`onedrive`、`dingtalk`、`slack` 等类型常量，它们没有实现，也没有注册。
 
 ### 同步是怎么运行的
 
@@ -505,7 +503,7 @@ if err := registry.Register(mysourceConnector.NewConnector()); err != nil {
 }
 ```
 
-4. **注册点二：`internal/datasource/connector.go` 的 `ConnectorMetadataRegistry`** — 增加元数据条目（`Type`、`Name`、`Description`、`Icon`、`Priority`（越小越靠前）、`AuthType`（`oauth2` / `api_key` / `token` 等）、`Capabilities`（`incremental`、`deletion_sync` 等）），`GET /api/v1/datasource/types` 返回的就是它；
+4. **注册点二：`internal/datasource/connector.go` 的 `ConnectorMetadataRegistry`** — 增加元数据条目（`Type`、`Name`、`Description`、`Icon`、`Priority`（越小越靠前）、`AuthType`（`oauth2` / `api_key` / `token` 等）、`Capabilities`（`incremental`、`deletion_sync` 等）），`GET /api/v1/datasource/types` 返回的是已注册连接器的这些条目（`ConnectorRegistry.Available()`）。漏了这一步或多写一条，`initConnectorRegistry()` 里的 `VerifyMetadata()` 都会让启动失败；
 5. **前端**：在 `frontend/src/views/knowledge/settings/DataSourceEditorDialog.vue` 加类型选项与凭据表单字段，图标放 `datasourceIcons.ts`，文案加到四个语言包；
 6. 凭据随 `DataSourceConfig` 以 `SYSTEM_AES_KEY` 加密存储，不要另存明文。更细的逐步说明见包内的 `internal/datasource/CONNECTOR_IMPLEMENTATION_GUIDE.md`，飞书连接器（`connector/feishu/`）是最完整的参考实现。
 

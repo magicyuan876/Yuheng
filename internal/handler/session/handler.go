@@ -16,19 +16,16 @@ import (
 
 // Handler handles all HTTP requests related to conversation sessions
 type Handler struct {
-	messageService       interfaces.MessageService // Service for managing messages
-	suggestionService    interfaces.MessageSuggestionService
-	sessionService       interfaces.SessionService       // Service for managing sessions
-	streamManager        interfaces.StreamManager        // Manager for handling streaming responses
-	config               *config.Config                  // Application configuration
-	knowledgebaseService interfaces.KnowledgeBaseService // Service for managing knowledge bases
-	tenantService        interfaces.TenantService        // Service for loading tenant
-	kbShareService       interfaces.KBShareService       // Service for resolving shared KB permissions
-	fileService          interfaces.FileService          // Service for file storage (image uploads)
-	storageResolver      interfaces.StorageBackendResolver
-	modelService         interfaces.ModelService // Service for model management (VLM access)
-	attachmentProcessor  *AttachmentProcessor    // Processor for file attachments
-	temporaryDocuments   interfaces.TemporaryDocumentService
+	messageService      interfaces.MessageService // Service for managing messages
+	suggestionService   interfaces.MessageSuggestionService
+	sessionService      interfaces.SessionService // Service for managing sessions
+	streamManager       interfaces.StreamManager  // Manager for handling streaming responses
+	config              *config.Config            // Application configuration
+	fileService         interfaces.FileService    // Service for file storage (image uploads)
+	storageResolver     interfaces.StorageBackendResolver
+	modelService        interfaces.ModelService // Service for model management (VLM access)
+	attachmentProcessor *AttachmentProcessor    // Processor for file attachments
+	temporaryDocuments  interfaces.TemporaryDocumentService
 }
 
 // NewHandler creates a new instance of Handler with all necessary dependencies
@@ -38,9 +35,6 @@ func NewHandler(
 	suggestionService interfaces.MessageSuggestionService,
 	streamManager interfaces.StreamManager,
 	config *config.Config,
-	knowledgebaseService interfaces.KnowledgeBaseService,
-	tenantService interfaces.TenantService,
-	kbShareService interfaces.KBShareService,
 	fileService interfaces.FileService,
 	storageResolver interfaces.StorageBackendResolver,
 	modelService interfaces.ModelService,
@@ -49,18 +43,15 @@ func NewHandler(
 	temporaryDocuments interfaces.TemporaryDocumentService,
 ) *Handler {
 	return &Handler{
-		sessionService:       sessionService,
-		messageService:       messageService,
-		suggestionService:    suggestionService,
-		streamManager:        streamManager,
-		config:               config,
-		knowledgebaseService: knowledgebaseService,
-		tenantService:        tenantService,
-		kbShareService:       kbShareService,
-		fileService:          fileService,
-		storageResolver:      storageResolver,
-		modelService:         modelService,
-		temporaryDocuments:   temporaryDocuments,
+		sessionService:     sessionService,
+		messageService:     messageService,
+		suggestionService:  suggestionService,
+		streamManager:      streamManager,
+		config:             config,
+		fileService:        fileService,
+		storageResolver:    storageResolver,
+		modelService:       modelService,
+		temporaryDocuments: temporaryDocuments,
 		attachmentProcessor: NewAttachmentProcessor(
 			fileService,
 			documentReader,
@@ -100,9 +91,10 @@ func (h *Handler) CreateSession(c *gin.Context) {
 		return
 	}
 
-	// Sessions are now knowledge-base-independent:
-	// - All configuration comes from custom agent at query time
-	// - Session only stores basic info (tenant ID, title, description)
+	// Sessions are knowledge-base-independent conversation containers: the
+	// knowledge bases, files and models used for a turn arrive with each chat
+	// request, so the session itself only stores basic info (tenant ID, title,
+	// description).
 	logger.Infof(
 		ctx,
 		"Processing session creation request, tenant ID: %d",
@@ -195,7 +187,7 @@ func (h *Handler) GetSession(c *gin.Context) {
 // @Param        page       query     int     false  "页码"
 // @Param        page_size  query     int     false  "每页数量"
 // @Param        keyword    query     string  false  "标题模糊搜索"
-// @Param        source     query     string  false  "来源过滤：web / embed / api / feishu / wechat / slack / ...（api、embed、IM 渠道需 Admin+）"
+// @Param        source     query     string  false  "来源过滤：web / api / embed（旧版嵌入会话）/ ...；除 web 外均需 Admin+，未知来源按 web 处理"
 // @Success      200        {object}  map[string]interface{}  "会话列表"
 // @Failure      400        {object}  errors.AppError         "请求参数错误"
 // @Security     Bearer
@@ -212,9 +204,9 @@ func (h *Handler) GetSessionsByTenant(c *gin.Context) {
 		return
 	}
 
-	// Response items always include pin state and (when available) IM origin
-	// fields so the frontend can render pin icons / source badges without a
-	// second roundtrip. Unset filter params behave like "no filter".
+	// Response items always include pin state so the frontend can render pin
+	// icons without a second roundtrip. Unset filter params behave like
+	// "no filter".
 	result, err := h.sessionService.ListSessions(ctx, &types.SessionListQuery{
 		Keyword:  c.Query("keyword"),
 		Source:   c.Query("source"),

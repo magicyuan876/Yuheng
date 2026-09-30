@@ -8,8 +8,8 @@
 //   - PUT requests treat "", or RedactedSecretPlaceholder as "preserve
 //     existing"; any other value replaces the stored secret.
 //
-// MCP / Model / WebSearch provider / DataSource credentials use a dedicated
-// /credentials subresource instead; see internal/handler/dto/mcp.go.
+// Model / WebSearch provider / DataSource credentials use a dedicated
+// /credentials subresource instead; see internal/handler/model_credentials.go.
 package types
 
 // RedactedSecretPlaceholder is the fixed value returned in API responses

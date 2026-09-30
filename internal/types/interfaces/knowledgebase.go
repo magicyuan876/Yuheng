@@ -57,7 +57,8 @@ type KnowledgeBaseService interface {
 	//   - List of knowledge base objects
 	//   - Possible errors such as insufficient permissions, etc.
 	ListKnowledgeBases(ctx context.Context) ([]*types.KnowledgeBase, error)
-	// ListKnowledgeBasesByTenantID lists all knowledge bases for a specific tenant (e.g. for shared agent context).
+	// ListKnowledgeBasesByTenantID lists all knowledge bases for a specific tenant, which need not be the
+	// caller's own tenant.
 	ListKnowledgeBasesByTenantID(ctx context.Context, tenantID uint64) ([]*types.KnowledgeBase, error)
 
 	// UpdateKnowledgeBase updates knowledge base information

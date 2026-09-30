@@ -8,7 +8,14 @@
 
 import { get, post, del } from "@/utils/request";
 
-export type FavoriteResourceType = "kb" | "agent";
+/**
+ * The resource types the web app favorites through this API. The backend
+ * accepts more (see types.IsValidFavoriteResourceType); the docs module keeps
+ * its own favorites UI.
+ */
+export const FAVORITE_RESOURCE_TYPES = ["kb"] as const;
+
+export type FavoriteResourceType = (typeof FAVORITE_RESOURCE_TYPES)[number];
 
 export interface FavoriteEntry {
   user_id: string;

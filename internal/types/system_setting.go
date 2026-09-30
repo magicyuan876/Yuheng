@@ -30,7 +30,7 @@ type SystemSetting struct {
 	// updates whose payload type does not match; UI uses it to pick
 	// InputNumber vs Input vs Switch.
 	ValueType string `gorm:"type:varchar(16);not null"  json:"value_type"`
-	// Category groups settings in the management UI ("limits", "agent",
+	// Category groups settings in the management UI ("file", "security",
 	// "auth", ...). Free-form string so adding a new category is a
 	// data-only change.
 	Category    string `gorm:"type:varchar(32);not null"  json:"category"`
@@ -71,11 +71,10 @@ func (SystemSetting) TableName() string {
 const (
 	// SettingKeyCentralizedInfra is the registry key for
 	// centralised-infrastructure mode. When true, shared infrastructure
-	// (models, MCP services, web-search providers, vector stores, storage
-	// backends, sandbox configs, parser engines, Ollama) is configured only
-	// by SystemAdmins; workspace Owners/Admins keep read access so they can
-	// still select platform resources when building knowledge bases and
-	// agents.
+	// (models, web-search providers, vector stores, storage backends,
+	// parser engines, Ollama) is configured only by SystemAdmins; workspace
+	// Owners/Admins keep read access so they can still select platform
+	// resources when building knowledge bases.
 	//
 	// Consumed by the PlatformManaged route guard and by the handlers that
 	// dispatch a single route across both platform- and workspace-owned

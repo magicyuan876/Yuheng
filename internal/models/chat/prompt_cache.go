@@ -22,8 +22,8 @@ func FingerprintPromptPrefix(parts ...string) string {
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
-// PromptPrefixFingerprint hashes the stable portion common to normal chat and
-// agent requests: leading system messages plus the deterministic tool schema.
+// PromptPrefixFingerprint hashes the stable portion of a chat request: leading
+// system messages plus the deterministic tool schema, when the request carries one.
 // Dynamic conversation/user messages intentionally do not participate.
 func PromptPrefixFingerprint(messages []Message, opts *ChatOptions) string {
 	type stablePrefix struct {

@@ -324,7 +324,8 @@ func (h *Handler) setupStopEventHandler(
 		logger.Infof(ctx, "Received stop event, cancelling async operations for session: %s", sessionID)
 		cancel()
 		// Preserve whatever has been streamed so far; do not overwrite Content.
-		// Use session's tenant for message update (ctx may have effectiveTenantID when using shared agent).
+		// Pin the message update to the session's own tenant, where the message
+		// row lives, rather than trusting whatever tenant the event ctx carries.
 		// Use WithoutCancel so the GORM UPDATE survives the upcoming ctx.Done triggered by cancel()/client disconnect.
 		updateCtx := context.WithValue(
 			context.WithoutCancel(ctx),

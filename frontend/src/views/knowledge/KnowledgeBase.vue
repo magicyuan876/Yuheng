@@ -113,10 +113,9 @@ const activeKbTab = ref<KbTab>(initTab);
 
 // Wiki 状态用于面包屑上的索引中指示。父组件自行拉取，避免依赖 WikiBrowser 挂载状态
 // （用户切到"文档" tab 时 WikiBrowser 会卸载，这里仍需持续反映后台索引进度）。
-const wikiStatus = ref<{ pendingTasks: number; isActive: boolean; pendingIssues: number }>({
+const wikiStatus = ref<{ pendingTasks: number; isActive: boolean }>({
   pendingTasks: 0,
   isActive: false,
-  pendingIssues: 0,
 });
 const wikiIsIndexing = computed(() => wikiStatus.value.isActive || wikiStatus.value.pendingTasks > 0);
 const wikiIndexingTip = computed(() => {
@@ -164,15 +163,15 @@ const onHealthSummaryChange = (summary: FindingsSummary) => {
   healthSummary.value = summary;
   healthState.value = "ok";
 };
-// Set when the health view asks for the wiki's issue list; WikiBrowser is
-// mounted fresh by the tab switch and opens its issue drawer on arrival.
-const openWikiIssuesOnMount = ref(false);
-const onOpenWikiIssues = () => {
-  openWikiIssuesOnMount.value = true;
+// Set when the health view asks for the wiki's lint report; WikiBrowser is
+// mounted fresh by the tab switch and opens the report on arrival.
+const openWikiLintOnMount = ref(false);
+const onOpenWikiLint = () => {
+  openWikiLintOnMount.value = true;
   activeKbTab.value = "wiki";
 };
 watch(activeKbTab, (tab) => {
-  if (tab !== "wiki") openWikiIssuesOnMount.value = false;
+  if (tab !== "wiki") openWikiLintOnMount.value = false;
 });
 watch(
   kbId,
@@ -181,7 +180,7 @@ watch(
   },
   { immediate: true },
 );
-const onWikiStatusChange = (payload: { pendingTasks: number; isActive: boolean; pendingIssues: number }) => {
+const onWikiStatusChange = (payload: { pendingTasks: number; isActive: boolean }) => {
   wikiStatus.value = payload;
 };
 const onViewWikiInGraph = async (slug: string) => {
@@ -212,7 +211,6 @@ const fetchWikiStatusOnce = async () => {
     wikiStatus.value = {
       pendingTasks: data.pending_tasks || 0,
       isActive: !!data.is_active,
-      pendingIssues: data.pending_issues || 0,
     };
     // 活跃时轮询，空闲时停掉定时器，避免无谓请求
     if (wikiIsIndexing.value) {
@@ -246,7 +244,7 @@ watch(
   ([newKbId, newIsWiki]) => {
     stopWikiStatusPolling();
     clearWikiStatusProbes();
-    wikiStatus.value = { pendingTasks: 0, isActive: false, pendingIssues: 0 };
+    wikiStatus.value = { pendingTasks: 0, isActive: false };
     if (newKbId && newIsWiki) {
       fetchWikiStatusOnce();
     }
@@ -2591,7 +2589,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
           :knowledge-base-id="kbId"
           :view="activeKbTab === 'graph' ? 'graph' : 'browser'"
           :can-edit="canEdit"
-          :open-issues-on-mount="openWikiIssuesOnMount"
+          :open-lint-on-mount="openWikiLintOnMount"
           @open-source-doc="openSourceDoc"
           @status-change="onWikiStatusChange"
           @view-graph="onViewWikiInGraph"
@@ -2605,9 +2603,8 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
           :can-rescan="canManage"
           :can-edit="canEdit"
           :is-wiki="isWiki"
-          :wiki-pending-issues="wikiStatus.pendingIssues"
           @open-knowledge="openSourceDoc"
-          @open-wiki-issues="onOpenWikiIssues"
+          @open-wiki-lint="onOpenWikiLint"
           @summary-change="onHealthSummaryChange"
         />
       </div>

@@ -31,7 +31,7 @@ const (
 //
 // Failure policy: all-or-nothing. The first group error fails the whole
 // search and cancels siblings via errgroup, matching the existing single-
-// store behavior — chat/agent callers already treat "search failed" as
+// store behavior — chat and search callers already treat "search failed" as
 // abort. A future PR can extract a MergePolicy interface (open/closed)
 // to add partial-result support without changing this function's callers.
 //

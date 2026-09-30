@@ -31,12 +31,6 @@ const (
 	ErrTenantInvalidStatus    ErrorCode = 2004
 	ErrTenantCreationDisabled ErrorCode = 2005
 
-	// Agent related error codes (2100-2199)
-	ErrAgentMissingThinkingModel ErrorCode = 2100
-	ErrAgentMissingAllowedTools  ErrorCode = 2101
-	ErrAgentInvalidMaxIterations ErrorCode = 2102
-	ErrAgentInvalidTemperature   ErrorCode = 2103
-
 	// VectorStore binding related error codes (2200-2299).
 	// Both map to HTTP 400 with a generic message; the typed code lets
 	// clients distinguish "wrong UUID / cross-tenant" from "store exists
@@ -192,39 +186,6 @@ func NewTenantCreationDisabledError() *AppError {
 		Code:     ErrTenantCreationDisabled,
 		Message:  "self-service workspace creation is disabled; join a workspace by invitation",
 		HTTPCode: http.StatusForbidden,
-	}
-}
-
-// Agent related errors
-func NewAgentMissingThinkingModelError() *AppError {
-	return &AppError{
-		Code:     ErrAgentMissingThinkingModel,
-		Message:  "启用Agent模式前，请先选择思考模型",
-		HTTPCode: http.StatusBadRequest,
-	}
-}
-
-func NewAgentMissingAllowedToolsError() *AppError {
-	return &AppError{
-		Code:     ErrAgentMissingAllowedTools,
-		Message:  "至少需要选择一个允许的工具",
-		HTTPCode: http.StatusBadRequest,
-	}
-}
-
-func NewAgentInvalidMaxIterationsError() *AppError {
-	return &AppError{
-		Code:     ErrAgentInvalidMaxIterations,
-		Message:  "最大迭代次数必须在1-20之间",
-		HTTPCode: http.StatusBadRequest,
-	}
-}
-
-func NewAgentInvalidTemperatureError() *AppError {
-	return &AppError{
-		Code:     ErrAgentInvalidTemperature,
-		Message:  "温度参数必须在0-2之间",
-		HTTPCode: http.StatusBadRequest,
 	}
 }
 

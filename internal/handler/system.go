@@ -409,7 +409,7 @@ func (h *SystemHandler) GetUploadLimits(c *gin.Context) {
 
 // GetGovernance godoc
 // @Summary      获取平台治理模式
-// @Description  返回是否启用「集中管控基础设施」。开启后模型、MCP、解析引擎、向量库、存储、沙箱、
+// @Description  返回是否启用「集中管控基础设施」。开启后模型、解析引擎、向量库、存储、
 //
 //	网络搜索等配置归系统管理员，空间管理员仅保留只读；前端据此隐藏对应设置入口。
 //	任何已登录成员均可读取——它不包含任何配置内容，只说明入口该不该显示。

@@ -97,19 +97,9 @@ export interface SharedKnowledgeBase {
   shared_at: string;
 }
 
-/** When set, this KB is visible in the space via a shared agent (read-only, no direct KB share) */
-export interface SourceFromAgentInfo {
-  agent_id: string;
-  agent_name: string;
-  /** "all" | "selected" | "none" — for showing agent's KB strategy in the drawer */
-  kb_selection_mode?: string;
-}
-
-/** Item from GET /organizations/:id/shared-knowledge-bases (space-scoped list including mine and agent-carried) */
+/** Item from GET /organizations/:id/shared-knowledge-bases (space-scoped list, including the caller's own shares) */
 export type OrganizationSharedKnowledgeBaseItem = SharedKnowledgeBase & {
   is_mine: boolean;
-  /** Present when the KB is from a shared agent's config (not directly shared to the space) */
-  source_from_agent?: SourceFromAgentInfo;
 };
 
 export interface OrganizationPreview {

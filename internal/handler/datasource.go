@@ -14,18 +14,23 @@ import (
 
 // DataSourceHandler handles HTTP requests for data source management
 type DataSourceHandler struct {
-	service   interfaces.DataSourceService
-	kbService interfaces.KnowledgeBaseService
+	service    interfaces.DataSourceService
+	kbService  interfaces.KnowledgeBaseService
+	connectors *datasource.ConnectorRegistry
 }
 
-// NewDataSourceHandler creates a new data source handler
+// NewDataSourceHandler creates a new data source handler. connectors is the
+// registry of implemented connectors, the one source of what
+// GET /datasource/types offers.
 func NewDataSourceHandler(
 	service interfaces.DataSourceService,
 	kbService interfaces.KnowledgeBaseService,
+	connectors *datasource.ConnectorRegistry,
 ) *DataSourceHandler {
 	return &DataSourceHandler{
-		service:   service,
-		kbService: kbService,
+		service:    service,
+		kbService:  kbService,
+		connectors: connectors,
 	}
 }
 
@@ -601,12 +606,11 @@ func (h *DataSourceHandler) GetSyncLog(c *gin.Context) {
 
 // GetAvailableConnectors godoc
 // @Summary Get available connectors
-// @Description Get list of available data source connectors
+// @Description Get list of the data source connectors this server implements
 // @Tags DataSource
 // @Produce json
 // @Success 200 {object} []datasource.ConnectorMetadata
 // @Router /datasource/types [get]
 func (h *DataSourceHandler) GetAvailableConnectors(c *gin.Context) {
-	connectors := datasource.ListAvailableConnectors()
-	c.JSON(http.StatusOK, connectors)
+	c.JSON(http.StatusOK, h.connectors.Available())
 }

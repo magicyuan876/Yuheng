@@ -35,8 +35,8 @@ return 0
 `)
 
 // Limiter enforces per-key sliding-window limits. max is evaluated per Allow
-// call so callers (e.g. embed channels) can vary budgets without rebuilding
-// the limiter.
+// call so callers (e.g. the per-IP auth limiter, one budget per route) can
+// vary budgets without rebuilding the limiter.
 type Limiter struct {
 	redis      atomic.Pointer[redis.Client]
 	local      *localLimiter

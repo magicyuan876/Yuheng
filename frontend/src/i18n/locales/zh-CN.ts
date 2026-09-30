@@ -194,7 +194,7 @@ export default {
     },
     leave: {
       confirmTitle: "确认退出当前空间？",
-      confirmBody: "退出后您将无法访问当前空间内的所有知识库和智能体。后续可被再次邀请加入。",
+      confirmBody: "退出后您将无法访问当前空间内的所有知识库。后续可被再次邀请加入。",
       confirm: "退出",
       success: "已退出当前空间",
     },
@@ -230,7 +230,7 @@ export default {
       manageMembers: "管理成员",
       manageTenantConfig: "修改空间配置",
       manageInfra: "配置模型 / 向量库 / IM 通道",
-      createOwnKB: "创建并编辑自己的知识库和智能体",
+      createOwnKB: "创建并编辑自己的知识库",
       readAll: "查看空间内容",
     },
   },
@@ -651,44 +651,6 @@ export default {
       noFailedRecords: "暂无失败记录可下载",
     },
   },
-  agentEditor: {
-    fileTypes: {
-      desc: "限制可选择的文件类型，留空表示支持所有类型",
-    },
-    faq: {
-      title: "FAQ 优先策略",
-    },
-    chatParser: {
-      desc: "为不同文件类型指定解析引擎，仅对当前智能体的聊天附件生效",
-    },
-    audioUpload: {
-      desc: "启用后用户可在对话中上传音频文件，系统将使用 ASR 模型自动转录为文字",
-    },
-    imageUpload: {
-      desc: "启用后用户可在对话中上传图片并由 VLM 理解",
-    },
-    llmCallTimeout: {
-      desc: "单次 LLM 调用的最大等待时间（秒），超过此时间后调用将被中止",
-    },
-    mcp: {
-      desc: "选择 Agent 可以调用的 MCP 服务",
-    },
-    agentType: {
-      desc: "选择一个预设会自动填充系统提示词、工具列表和推荐的知识库范围。",
-    },
-    im: {
-      title: "IM 集成",
-    },
-    embed: {
-      title: "网页嵌入",
-    },
-    intentPrompts: {
-      title: "意图提示词",
-    },
-    questionSuggestions: {
-      title: "对话问题推荐",
-    },
-  },
   agentStream: {
     toolStatus: {
       searchKb: "检索知识库",
@@ -833,18 +795,6 @@ export default {
     unknownStore: "未知存储",
     unavailable: "不可用",
   },
-  tools: {
-    multiKbSearch: "跨库搜索",
-    knowledgeSearch: "知识库搜索",
-    grepChunks: "搜索关键词",
-    getChunkDetail: "获取片段详情",
-    listKnowledgeChunks: "查看知识分块",
-    listKnowledgeBases: "列出知识库",
-    getDocumentInfo: "获取文档信息",
-    queryKnowledgeGraph: "查询知识图谱",
-    think: "深度思考",
-    todoWrite: "制定计划",
-  },
   commandPalette: {
     placeholder: "搜索知识库、文件、对话…",
     clearRecent: "清除",
@@ -903,7 +853,7 @@ export default {
   },
   organization: {
     title: "共享空间",
-    subtitle: "创建或加入共享空间，让多个空间互相协作，共享知识库与智能体",
+    subtitle: "创建或加入共享空间，让多个空间互相协作，共享知识库",
     createOrg: "创建共享空间",
     joinOrg: "加入共享空间",
     name: "共享空间名称",
@@ -1012,16 +962,15 @@ export default {
       nameTip: "建议使用团队或项目名称，便于成员识别",
       descriptionTip: "描述共享空间的用途和目标，帮助成员了解共享空间",
       permissionsTitle: "成员权限",
-      permissionsDesc: "了解共享空间中不同角色对知识库与智能体的权限范围",
+      permissionsDesc: "了解共享空间中不同角色对知识库的权限范围",
       permissionFeature: "权限功能",
       fullAccess: "完整权限",
       editAccess: "编辑权限",
       viewAccess: "只读权限",
-      adminPerm1: "管理共享空间设置、成员及知识库与智能体共享",
-      adminPerm2: "共享和管理知识库与智能体",
+      adminPerm1: "管理共享空间设置、成员及知识库共享",
+      adminPerm2: "共享和管理知识库",
       adminPerm3: "编辑共享知识库内容",
       adminPerm4: "查看和检索知识库",
-      useSharedAgentsPerm: "使用共享智能体",
       shareKBPerm: "共享知识库到共享空间",
       editorPerm1: "编辑共享知识库内容",
       editorPerm2: "查看和检索知识库",
@@ -1031,7 +980,7 @@ export default {
       viewerPerm3: "管理共享空间设置",
       ownerNote: "作为共享空间创建者，您将自动成为共享空间的管理员，拥有完整权限。",
       joinTitle: "加入共享空间",
-      joinDesc: "通过邀请码加入现有共享空间，获得知识库与智能体访问权限",
+      joinDesc: "通过邀请码加入现有共享空间，获得知识库访问权限",
       joinIllustration: "输入共享空间管理员提供的邀请码即可加入",
       inviteCodeTip: "邀请码由共享空间管理员生成，请向他们索取",
       howToGetCode: "如何获取邀请码？",
@@ -1195,20 +1144,6 @@ export default {
       cannotCreate: "当前空间角色不足，无法创建共享空间",
       cannotJoin: "当前空间角色不足，无法加入或申请加入共享空间",
       cannotManage: "当前空间角色不足，无法管理共享空间",
-    },
-  },
-  promptTemplate: {
-    noTemplates: "暂无模板",
-    selectTemplate: "选择模板",
-    useTemplate: "使用模板",
-    resetDefault: "恢复默认",
-    default: "默认",
-    withKnowledgeBase: "知识库",
-    withWebSearch: "网络搜索",
-  },
-  mcpServiceDialog: {
-    customHeaders: {
-      desc: "附加到每次 MCP 请求的 HTTP 请求头，常用于企业网关鉴权、链路追踪等场景。",
     },
   },
   ollamaSettings: {
@@ -1454,29 +1389,6 @@ export default {
       chatGroupLabel: "思考 / 对话模型",
     },
   },
-  agentSettings: {
-    systemPrompt: {
-      desc: "配置 Agent 的系统提示词，支持占位符模板。占位符会在运行时自动替换为实际内容。",
-    },
-    allowedTools: {
-      desc: "当前 Agent 可使用的工具列表",
-    },
-    temperature: {
-      desc: "控制模型输出的随机性，0 最确定，1 最随机",
-    },
-    rerankModel: {
-      desc: "搜索结果重排序，统一不同来源的相关度分数",
-    },
-    thinkingModel: {
-      desc: "用于 Agent 推理和规划的 LLM 模型",
-    },
-    maxIterations: {
-      desc: "Agent 执行任务时的最大推理步骤数",
-    },
-    modelRecommendation: {
-      title: "模型推荐",
-    },
-  },
   upload: {
     uploadDocument: "上传文档",
     uploadFolder: "上传文件夹",
@@ -1494,20 +1406,17 @@ export default {
   },
   platform: {
     subtitle: "大模型驱动的企业级知识框架",
-    description: "RAG 检索、智能体推理、Wiki 知识库，让文档真正被理解和运用",
+    description: "RAG 检索与 Wiki 知识库，让文档真正被理解和运用",
     rag: "RAG 增强生成",
-    agent: "ReAct 智能体",
     wiki: "Wiki 知识库",
     hybridSearch: "混合检索",
     multimodalParsing: "多模态文档解析",
     hybridSearchEngine: "混合检索 + 知识图谱",
-    ragQandA: "ReAct 智能体问答",
+    ragQandA: "带引用的 RAG 问答",
     independentTenant: "独立空间",
     fullApiAccess: "完整 API 访问",
     knowledgeBaseManagement: "知识库管理",
     carousel: {
-      agenticRagTitle: "Agentic RAG",
-      agenticRagDesc: "ReAct 推理 + 工具调用 + 多步思考",
       hybridSearchTitle: "混合检索策略",
       hybridSearchDesc: "BM25 + 向量 + 知识图谱",
       wikiTitle: "Wiki 知识库",
@@ -1633,7 +1542,7 @@ export default {
         "限制文档入库/富化等后台任务对该模型的并发调用数（按模型全副本共享）。0 或留空表示沿用全局默认；不影响交互式对话。",
       thinkingControlLabel: "思考模式参数格式",
       thinkingControlDesc:
-        "决定智能体「思考模式」开/关时如何写入 API。已尝试按厂商/模型预选，若与实际情况不符请按 API 文档手动修改；选「不写入」时，智能体「思考模式」开关不生效。",
+        "决定「思考模式」开/关时如何写入 API。已尝试按厂商/模型预选，若与实际情况不符请按 API 文档手动修改；选「不写入」时，「思考模式」开关不生效。",
       dimensionHint: '模型已选择，点击"检测维度"按钮自动获取向量维度',
       loadModelListFailed: "加载模型列表失败",
       listRefreshed: "列表已刷新",
@@ -1777,7 +1686,7 @@ export default {
         },
         none: {
           label: "不写入思考参数",
-          hint: "智能体「思考模式」开关不生效，不会在请求中写入思考相关参数",
+          hint: "「思考模式」开关不生效，不会在请求中写入思考相关参数",
         },
       },
       volcengine: {
@@ -1855,11 +1764,6 @@ export default {
       refreshTokenFailed: "刷新Token失败",
       logoutFailed: "登出失败",
       validateTokenFailed: "Token验证失败",
-    },
-  },
-  mcp: {
-    testResult: {
-      title: "测试结果: {name}",
     },
   },
   system: {
@@ -2058,7 +1962,7 @@ export default {
             },
             add: {
               header: "添加 SSRF 白名单条目",
-              body: "确认把 {entry} 加入 SSRF 白名单？该条目匹配到的主机 / IP / 网段会绕过 SSRF 防护，可能让 Agent 访问内网服务，请仅在确知用途时添加。",
+              body: "确认把 {entry} 加入 SSRF 白名单？该条目匹配到的主机 / IP / 网段会绕过 SSRF 防护，服务端发起的请求（网络搜索、网址导入、模型调用等）可能因此访问到内网服务，请仅在确知用途时添加。",
               confirmBtn: "确认添加",
             },
           },
@@ -2452,10 +2356,10 @@ export default {
     },
     deleteDangerZone: {
       title: "删除当前空间",
-      desc: "删除整个空间及其配置。删除后，空间成员将无法继续访问其中的知识库、智能体与 API Key。",
+      desc: "删除整个空间及其配置。删除后，空间成员将无法继续访问其中的知识库与 API Key。",
       button: "删除空间",
       confirmTitle: "删除当前空间？",
-      confirmBody: "此操作将删除空间「{name}」，并使其中的知识库、智能体、成员与 API Key 不再可用。此操作不可撤销。",
+      confirmBody: "此操作将删除空间「{name}」，并使其中的知识库、成员与 API Key 不再可用。此操作不可撤销。",
       confirmHint: "请输入空间名称「{name}」以确认删除。",
       confirm: "确认删除",
       nameMismatch: "空间名称不匹配",
@@ -2464,7 +2368,7 @@ export default {
     },
     leaveDangerZone: {
       title: "退出当前空间",
-      desc: "终止您在本空间的成员身份。退出后将无法访问本空间的知识库与智能体，之后可被再次邀请加入。",
+      desc: "终止您在本空间的成员身份。退出后将无法访问本空间的知识库，之后可被再次邀请加入。",
       button: "退出空间",
     },
     storage: {
@@ -2566,9 +2470,6 @@ export default {
     requestInfoUrl: "请求",
     requestInfoSentAt: "发起时间",
     requestInfoEmpty: "暂无请求信息",
-    channelWeb: "网页",
-    channelApi: "API",
-    channelIm: "IM",
     navigateToDocument: "查看文档详情",
     jumpToVideoTime: "跳转到视频对应时间",
     enterDescription: "输入描述",
@@ -3060,26 +2961,23 @@ export default {
       neighborsOverviewHidden: '已显示邻居 {visible}/{total}（{hidden} 个不在概览范围，点"展开邻居"以此为中心查看）',
       backToOverview: "返回概览",
       queueStatus: "Wiki 队列中 {count} 个待处理任务",
-      issueTitle: "此页面存在 {count} 个待处理的知识冲突或错误",
-      issueFixBtn: "AI 一键修复",
-      issueMixed: "信息混杂",
-      issueConflict: "事实冲突",
-      issueOutdated: "信息过时",
-      issueAttention: "需要关注",
-      issueReportedBy: "由 {reporter} 报告",
-      issueAiLinter: "AI 巡检",
-      issueIgnore: "忽略误报",
-      globalIssuesTitle: "全库待修复内容问题",
-      globalIssuesCount: "待修复内容问题: {count} 项",
-      globalIssuesEmpty: "暂无待处理的内容问题",
-      issuePagePrefix: "页面: ",
-      issueGoFix: "去处理",
-      fixAssistantTitle: "Wiki 智能修复助手",
-      issueFixSuggestions: "内容优化建议 ({count})",
-      issueFixSingle: "修复",
-      fixStartError: "启动修复助手失败",
-      issueFixPromptSingle: "请修复页面 [[{slug}]] 上的问题 (ID: {id})。",
-      issueFixPromptAutoStart: "请修复页面 [[{slug}]] 上的以下问题：",
+      lintOpen: "Wiki 检查",
+      lintTitle: "Wiki 检查",
+      lintRunning: "正在检查所有页面…",
+      lintFailed: "检查未能完成，请稍后重试。",
+      lintScore: "健康分（0–100）",
+      lintClean: "没有发现问题",
+      lintCount: "发现 {count} 个问题",
+      lintAutoFix: "自动修复 {count} 项",
+      lintFixable: "可自动修复",
+      lintFixed: "已修复 {count} 个问题",
+      lintFixFailed: "自动修复失败",
+      lintOrphan: "孤立页面",
+      lintBrokenLink: "失效链接",
+      lintStaleRef: "来源已删除",
+      lintMissingCrossRef: "缺少交叉引用",
+      lintEmpty: "空页面",
+      lintDuplicateSlug: "页面标识重复",
     },
     indexing: {
       title: "索引策略",
@@ -3088,8 +2986,6 @@ export default {
       searchDesc: "对文档进行分块、向量化和关键词索引，支持混合检索",
       wikiTitle: "Wiki 知识库",
       wikiDesc: "自动生成互相关联的 Wiki 知识页面，构建结构化知识体系",
-      graphTitle: "知识图谱",
-      graphDesc: "提取实体和关系，构建知识图谱支持图谱检索",
       atLeastOne: "至少需要开启一种索引策略",
       embeddingRequired: "RAG 检索需要配置 Embedding 模型",
       lockedTip: "知识库已有内容，索引策略暂不支持调整。如需变更，请先清空知识库。",
@@ -3297,9 +3193,6 @@ export default {
       },
     },
   },
-  embedPublish: {
-    copyCode: "复制代码",
-  },
   knowledgeList: {
     create: "新建知识库",
     subtitle: "管理和组织您的知识库，支持文档型和问答型知识库",
@@ -3325,13 +3218,7 @@ export default {
       title: "共享知识库",
       sourceType: "来源方式",
       sourceTypeKbShare: "知识库直接共享到本空间",
-      sourceTypeAgent: "智能体可访问（通过共享智能体可见）",
       sourceOrg: "来源空间",
-      sourceFromAgent: "智能体",
-      agentKbStrategy: "智能体知识库策略",
-      agentKbStrategyAll: "全部知识库",
-      agentKbStrategySelected: "指定知识库",
-      agentKbStrategyNone: "不使用知识库",
       sharedAt: "共享时间",
       myPermission: "我的权限",
       goToKb: "进入知识库",
@@ -3518,6 +3405,7 @@ export default {
     edit: "编辑",
     copy: "复制",
     copied: "已复制",
+    copyCode: "复制代码",
     create: "创建",
     download: "下载",
     refresh: "刷新",
@@ -3588,7 +3476,7 @@ export default {
     firstTime: "首次使用 Yuheng 知识库？",
     registerSuccess: "注册成功，请登录",
     registerFailed: "注册失败",
-    subtitle: "RAG 问答、ReAct 智能体与 Wiki 知识库，大模型驱动的企业级知识框架",
+    subtitle: "RAG 问答与 Wiki 知识库，大模型驱动的企业级知识框架",
     registerSubtitle: "创建账户并开始使用 Yuheng 知识库",
     emailPlaceholder: "输入邮箱地址",
     passwordPlaceholder: "输入密码（8-32个字符，包含字母和数字）",
@@ -3739,11 +3627,6 @@ export default {
     toasts: {
       saveSuccess: "消息管理配置已保存",
       saveFailed: "保存配置失败: {message}",
-    },
-  },
-  memorySettings: {
-    usage: {
-      title: "记忆何时会被使用",
     },
   },
   vectorStoreSettings: {
@@ -3995,26 +3878,6 @@ export default {
     think: "思考",
     copy: "复制",
     addToKnowledgeBase: "添加到知识库",
-    selector: {
-      title: "选择智能体",
-    },
-    shareScope: {
-      title: "共享范围说明",
-      desc: "空间成员以只读方式使用该智能体，将遵循您当前配置的能力与资源；您对智能体的修改会同步给已共享的空间。如需允许空间成员编辑知识库内容，请将知识库共享到空间。",
-    },
-    detail: {
-      title: "智能体详情",
-    },
-    empty: {
-      title: "暂无自定义智能体",
-    },
-    sections: {
-      tenantOthers: "本空间 · 其他成员",
-      tenantReadonly: "本空间 · 仅查看",
-    },
-    artifactDrawer: {
-      title: "生成的文件",
-    },
   },
   knowledgeStages: {
     title: "处理流水线",
@@ -4536,7 +4399,7 @@ export default {
         },
         kb: {
           title: "选择知识范围",
-          desc: "点击 {'@'} 可指定一个或多个知识库/文件，仅基于选中内容回答；不选则按当前智能体配置检索。",
+          desc: "点击 {'@'} 可指定一个或多个知识库/文件，仅基于选中内容回答；不选则由模型直接回答，不检索知识库。",
         },
       },
     },
@@ -4661,10 +4524,6 @@ export default {
         title: "账户与设置入口",
         desc: "点开这里可以管理账户、成员与系统设置。需要再次查看本引导时，可点击菜单顶部昵称旁的帮助按钮重新打开。",
       },
-      agents: {
-        title: "打造专属智能体",
-        desc: "把知识库、提示词与工具组合成可复用的智能体，沉淀你的专业能力。",
-      },
       chat: {
         title: "发起智能对话",
         desc: "基于知识库内容向 AI 提问，获得带引用来源的精准回答。点击这里开始新对话。",
@@ -4675,7 +4534,7 @@ export default {
       },
       welcome: {
         title: "欢迎使用 Yuheng 知识库",
-        desc: "只需几步，带你快速了解知识库、对话与智能体的核心用法。点击「下一步」开始。",
+        desc: "只需几步，带你快速了解知识库与对话的核心用法。点击「下一步」开始。",
       },
     },
   },
@@ -4885,10 +4744,9 @@ export default {
     reportQuestion: "提问：{text}",
     reportAnswer: "回答：{text}",
     wiki: {
-      title: "Wiki 检查报告",
-      pending: "{count} 个 Wiki 问题待处理",
-      none: "没有待处理的 Wiki 问题",
-      open: "在 Wiki 中查看",
+      title: "Wiki 检查",
+      description: "失效链接、孤立页面、已删除的来源等结构问题在 Wiki 页签中检查。",
+      open: "运行检查",
     },
   },
   stewardship: {

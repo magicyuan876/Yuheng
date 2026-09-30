@@ -78,8 +78,8 @@ func (r *knowledgeBaseRepository) ListKnowledgeBases(ctx context.Context) ([]*ty
 // repository would return tenant-wide pinned rows first. That column is
 // no longer the source of truth (see migration 000050) — pin state is
 // now per (user, kb) and applied by the service layer after enrichment.
-// We keep `created_at DESC` here so callers that don't enrich (chat
-// pipeline, agent editor, IM commands) still get a stable ordering.
+// We keep `created_at DESC` here so callers that don't enrich (for
+// example the duplicate-name builder) still get a stable ordering.
 func (r *knowledgeBaseRepository) ListKnowledgeBasesByTenantID(
 	ctx context.Context, tenantID uint64,
 ) ([]*types.KnowledgeBase, error) {

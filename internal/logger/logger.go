@@ -499,7 +499,7 @@ func CloneContext(ctx context.Context) context.Context {
 	// *Trace handle above carries the trace id, but span PARENTING flows through
 	// the OTel span context (trace.SpanFromContext), which CloneContext would
 	// otherwise drop — orphaning child spans opened after a CloneContext (e.g.
-	// the agent engine's agent.execute becoming a separate trace from the HTTP
+	// a detached chat pipeline span becoming a separate trace from the HTTP
 	// root). Re-inject the recording span so children stitch to the same trace.
 	if sp := trace.SpanFromContext(ctx); sp.IsRecording() {
 		newCtx = trace.ContextWithSpan(newCtx, sp)

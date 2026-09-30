@@ -17,7 +17,7 @@ import (
 // FetchIncremental are thin wrappers over the same engine that collect Emits
 // instead of streaming them.
 //
-// Behaviour note (deliberate, see ADR-0005 / design §2.4):
+// Behaviour note (deliberate):
 //   - Resume/incremental fast-path: a node recorded at its current edit time
 //     is skipped, keeping the cursor entry.
 //   - A fetch failure does NOT advance the cursor: the prior edit time is

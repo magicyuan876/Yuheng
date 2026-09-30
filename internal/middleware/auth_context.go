@@ -32,8 +32,9 @@ type authSession struct {
 	// APIKeyScope marks machine principals; the APIKeyGate authorizes them
 	// per-route from this scope.
 	APIKeyScope *types.TenantAPIKeyScope
-	// Extra carries surface-specific context values (e.g. the authenticated
-	// embed channel) that must be visible on both surfaces like the rest.
+	// Extra carries surface-specific context values that must be visible on
+	// both surfaces like the rest. No authenticator sets it today (the embed
+	// channel that did was removed); it stays as the extension point.
 	Extra map[types.ContextKey]any
 }
 

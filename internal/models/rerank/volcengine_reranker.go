@@ -99,7 +99,7 @@ func (r *VolcengineReranker) Rerank(
 
 	// The managed Knowledge Service Rerank API rejects requests carrying more
 	// than volcengineRerankMaxDocuments items. Upstream callers (chat pipeline,
-	// agent knowledge search, message search) feed in every retrieval candidate
+	// knowledge search API, message search) feed in every retrieval candidate
 	// and do not cap the count per provider, so a large embedding_top_k or a
 	// multi-target search can exceed the limit. Each Data item is scored
 	// independently against the same (query, instruction) pair, so the scores

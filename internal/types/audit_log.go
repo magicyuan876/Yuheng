@@ -6,7 +6,7 @@ import (
 
 // AuditAction names a single audited action class. Action constants are
 // dot-namespaced (`<area>.<event>`) so future PRs can plug in their own
-// areas (e.g. `kb.shared`, `agent.copied`) without colliding with the
+// areas (e.g. `kb.shared`, `datasource.synced`) without colliding with the
 // RBAC events PR 6 ships.
 type AuditAction string
 
@@ -208,7 +208,7 @@ const (
 
 // AuditLog is a single immutable audit event. The schema is intentionally
 // generic: PR 6 wires only RBAC events, but TargetType / TargetID /
-// Details are set up to absorb KB / agent / datasource events in
+// Details are set up to absorb KB / datasource events in
 // follow-up PRs without another migration. Knowledge-base task events use a
 // bounded convention inside Details: task_id, trigger, processing_status,
 // source/target ids, aggregate counts, and operation-specific mode/attempt.

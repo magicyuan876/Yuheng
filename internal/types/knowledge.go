@@ -18,20 +18,19 @@ const (
 	KnowledgeTypeFAQ = "faq"
 )
 
-// Channel constants identify through which channel a knowledge entry was ingested.
-// Aligned with Message.Channel values ("web", "api", "im") but allows finer granularity.
+// Channel constants identify through which channel a knowledge entry was
+// ingested. The column is free text: a client may send its own value, and
+// rows ingested by the upstream project's IM integrations (removed from this
+// fork) still carry theirs ("wechat", "wecom", "dingtalk", "slack", "im").
+// Nothing here writes those any more, so they are not listed; reading them
+// needs nothing, since the value is only displayed and filtered on.
 const (
 	ChannelWeb              = "web"               // Web UI (default)
 	ChannelAPI              = "api"               // External API call
 	ChannelBrowserExtension = "browser_extension" // Browser extension / plugin
-	ChannelWechat           = "wechat"            // WeChat
-	ChannelWecom            = "wecom"             // WeCom (企业微信)
 	ChannelFeishu           = "feishu"            // Feishu / Lark
 	ChannelFeishuDrive      = "feishu_drive"      // Feishu Drive (云盘)
 	ChannelLarkDrive        = "lark_drive"        // Lark Drive (international)
-	ChannelDingtalk         = "dingtalk"          // DingTalk
-	ChannelSlack            = "slack"             // Slack
-	ChannelIM               = "im"                // Generic IM channel
 	ChannelNotion           = "notion"            // Notion
 	ChannelYuque            = "yuque"             // Yuque (语雀)
 	ChannelRSS              = "rss"               // RSS / Atom feed
@@ -109,7 +108,7 @@ type KnowledgeListFilter struct {
 	FileType string
 	// ParseStatus filters by parse_status when non-empty (e.g. pending, processing, completed, failed).
 	ParseStatus string
-	// Source filters by ingestion channel when non-empty (web, api, feishu, notion, wechat, ...).
+	// Source filters by ingestion channel when non-empty (web, api, feishu, notion, ...).
 	// The special values "manual" and "url" are routed to the `type` column to match
 	// FileType semantics, so callers can filter "manually created" / "URL imported" entries.
 	Source string
@@ -149,7 +148,7 @@ type Knowledge struct {
 	DescriptionSpecified bool `json:"-" gorm:"-"`
 	// Source of the knowledge (e.g. URL address for url type, "manual" for manual type)
 	Source string `json:"source"             gorm:"type:varchar(2048)"`
-	// Channel indicates through which channel the knowledge was ingested (web, api, browser_extension, wechat, etc.)
+	// Channel indicates through which channel the knowledge was ingested (web, api, browser_extension, etc.)
 	Channel string `json:"channel"            gorm:"type:varchar(50);default:'web'"`
 	// Parse status of the knowledge
 	ParseStatus string `json:"parse_status"`

@@ -106,7 +106,7 @@
             </div>
             <div v-else-if="effectiveKBPermission" :class="rowClass">
               <span :class="labelClass">{{ t("knowledgeBase.infoCard.source") }}</span>
-              <span :class="valueClass">{{ t("knowledgeList.detail.sourceTypeAgent") }}</span>
+              <span :class="valueClass">{{ t("knowledgeList.detail.sourceTypeKbShare") }}</span>
             </div>
             <div v-if="(kbInfo.share_count ?? 0) > 0" :class="rowClass">
               <span :class="labelClass">{{ t("knowledgeBase.infoCard.sharedTo") }}</span>

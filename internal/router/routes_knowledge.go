@@ -31,7 +31,7 @@ func RegisterChunkRoutes(r *gin.RouterGroup, handler *handler.ChunkHandler, g *r
 	chunks := g.apiKeyGroup(r.Group("/chunks"), apiKeyIngest(apiKeyFullAccess()))
 	chunkRead := chunks.With(apiKeyRetrieve(apiKeyFullAccess()))
 	{
-		// 获取分块列表 — Viewer+ 且对父 KB 有 read 权限（own / shared / via shared agent）
+		// 获取分块列表 — Viewer+ 且对父 KB 有 read 权限（own / org-shared）
 		chunkRead.GET("/:knowledge_id", g.Viewer(), g.KBAccessReadFromKnowledgeIDParam("knowledge_id"), handler.ListKnowledgeChunks)
 		// 通过chunk_id获取单个chunk（不需要knowledge_id） — Viewer+ 且对父 KB 有 read 权限
 		chunkRead.GET("/by-id/:id", g.Viewer(), g.KBAccessReadFromChunkIDParam("id"), handler.GetChunkByIDOnly)
@@ -156,7 +156,7 @@ func RegisterFAQRoutes(r *gin.RouterGroup, handler *handler.FAQHandler, g *rbacG
 	faq := g.apiKeyGroup(r.Group("/knowledge-bases/:id/faq"), apiKeyIngest(apiKeyFullAccess()))
 	faqRead := faq.With(apiKeyRetrieve(apiKeyFullAccess()))
 	{
-		// KBAccessRead/Write resolve own/shared/agent-visible access and
+		// KBAccessRead/Write resolve own/org-shared access and
 		// rewrite the request's tenant context — handler no longer
 		// carries an effectiveCtxForKB helper.
 		faqRead.GET("/entries", g.Viewer(), g.KBAccessRead("id"), handler.ListEntries)
@@ -224,7 +224,7 @@ func RegisterKnowledgeBaseRoutes(r *gin.RouterGroup, handler *handler.KnowledgeB
 		// 置顶/取消置顶知识库 — 创建者本人 OR Admin+ 且对 KB 有 write 权限
 		// Pin state is now per-(user, kb) (migration 000050). Anyone with
 		// at least Viewer-level read access to the KB — including users
-		// who reached it via a shared agent — may pin it for themselves;
+		// who reached it through an org share — may pin it for themselves;
 		// no edit permission is required. The OwnedKBOrAdmin guard was
 		// removed accordingly. The route still requires KB read access
 		// so callers can't poke at KBs they can't see.
@@ -337,7 +337,7 @@ func RegisterKnowledgeTagRoutes(r *gin.RouterGroup, tagHandler *handler.TagHandl
 	kbTags := g.apiKeyGroup(r.Group("/knowledge-bases/:id/tags"), apiKeyIngest(apiKeyFullAccess()))
 	kbTagsRead := kbTags.With(apiKeyRetrieve(apiKeyFullAccess()))
 	{
-		// KBAccessRead/Write resolve own/shared/agent-visible access and
+		// KBAccessRead/Write resolve own/org-shared access and
 		// rewrite the request's tenant context to the effective tenant
 		// for the duration of the handler — so the handler no longer
 		// needs its own effectiveCtxForKB helper.
@@ -351,7 +351,7 @@ func RegisterKnowledgeTagRoutes(r *gin.RouterGroup, tagHandler *handler.TagHandl
 // RegisterWikiPageRoutes registers wiki page related routes.
 //
 // Wiki pages are KB content (wiki mode): reads are Viewer+ and gated by
-// KBAccessRead (own / org-shared / via shared agent), matching FAQ /
+// KBAccessRead (own / org-shared), matching FAQ /
 // chunk / tag read routes. Content mutations (create/update/delete) and
 // maintenance actions (rebuild-links, auto-fix, change issue status)
 // honour per-KB ownership via OwnedWikiKBOrAdmin (PR 5, #1303): the URL
@@ -392,9 +392,5 @@ func RegisterWikiPageRoutes(r *gin.RouterGroup, wikiHandler *handler.WikiPageHan
 		wiki.POST("/rebuild-links", g.OwnedWikiKBOrAdmin(), g.KBAccessWrite("kb_id"), wikiHandler.RebuildLinks)
 		wikiRead.GET("/lint", g.Viewer(), g.KBAccessRead("kb_id"), wikiHandler.Lint)
 		wiki.POST("/auto-fix", g.OwnedWikiKBOrAdmin(), g.KBAccessWrite("kb_id"), wikiHandler.AutoFix)
-
-		// Issues
-		wikiRead.GET("/issues", g.Viewer(), g.KBAccessRead("kb_id"), wikiHandler.ListIssues)
-		wiki.PUT("/issues/:issue_id/status", g.OwnedWikiKBOrAdmin(), g.KBAccessWrite("kb_id"), wikiHandler.UpdateIssueStatus)
 	}
 }

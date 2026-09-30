@@ -2,12 +2,15 @@ package datasource
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sort"
 
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
 // Connector is the interface that all external data source connectors must implement.
-// Each connector (Feishu, Notion, Confluence, etc.) provides an implementation of this interface.
+// Each connector (Feishu, Notion, Yuque, etc.) provides an implementation of this interface.
 type Connector interface {
 	// Type returns the connector type identifier (e.g., "feishu", "notion")
 	Type() string
@@ -160,6 +163,46 @@ func (r *ConnectorRegistry) List() []string {
 	return types
 }
 
+// Available returns the metadata of every registered connector, sorted by
+// priority (then type, so the order is stable). It is what GET
+// /datasource/types offers, so the list can only name connectors that exist:
+// the static metadata table once advertised Confluence, GitHub, Slack and
+// others that had no implementation behind them.
+func (r *ConnectorRegistry) Available() []ConnectorMetadata {
+	metadata := make([]ConnectorMetadata, 0, len(r.connectors))
+	for t := range r.connectors {
+		if meta, ok := ConnectorMetadataRegistry[t]; ok {
+			metadata = append(metadata, meta)
+		}
+	}
+	sort.Slice(metadata, func(i, j int) bool {
+		if metadata[i].Priority != metadata[j].Priority {
+			return metadata[i].Priority < metadata[j].Priority
+		}
+		return metadata[i].Type < metadata[j].Type
+	})
+	return metadata
+}
+
+// VerifyMetadata reports a registered connector that has no metadata, which
+// Available would silently leave out of the UI, and metadata for a type that
+// has no connector, which is dead text in the table. The container calls it
+// after registering the built-in connectors, so either mistake fails start-up.
+func (r *ConnectorRegistry) VerifyMetadata() error {
+	var errs error
+	for t := range r.connectors {
+		if _, ok := ConnectorMetadataRegistry[t]; !ok {
+			errs = errors.Join(errs, fmt.Errorf("connector %q has no entry in ConnectorMetadataRegistry", t))
+		}
+	}
+	for t := range ConnectorMetadataRegistry {
+		if _, ok := r.connectors[t]; !ok {
+			errs = errors.Join(errs, fmt.Errorf("ConnectorMetadataRegistry lists %q, which has no connector", t))
+		}
+	}
+	return errs
+}
+
 // ConnectorMetadata provides metadata about available connectors
 type ConnectorMetadata struct {
 	Type         string   `json:"type"`
@@ -171,8 +214,9 @@ type ConnectorMetadata struct {
 	Capabilities []string `json:"capabilities"` // "incremental", "webhook", "deletion_sync", etc.
 }
 
-// GetConnectorMetadata returns metadata for all available connectors
-// This is used by the frontend to display connector options
+// ConnectorMetadataRegistry describes each connector for the UI, keyed by
+// connector type. It holds an entry for exactly the connectors the container
+// registers (see ConnectorRegistry.VerifyMetadata).
 var ConnectorMetadataRegistry = map[string]ConnectorMetadata{
 	types.ConnectorTypeFeishu: {
 		Type:         types.ConnectorTypeFeishu,
@@ -214,14 +258,6 @@ var ConnectorMetadataRegistry = map[string]ConnectorMetadata{
 		AuthType:     "api_key",
 		Capabilities: []string{"incremental"},
 	},
-	types.ConnectorTypeConfluence: {
-		Type:         types.ConnectorTypeConfluence,
-		Name:         "Confluence",
-		Description:  "Sync spaces and pages from Atlassian Confluence",
-		Priority:     2,
-		AuthType:     "api_key",
-		Capabilities: []string{"incremental"},
-	},
 	types.ConnectorTypeYuque: {
 		Type:         types.ConnectorTypeYuque,
 		Name:         "Yuque (语雀)",
@@ -237,62 +273,6 @@ var ConnectorMetadataRegistry = map[string]ConnectorMetadata{
 		Priority:     3,
 		AuthType:     "api_key",
 		Capabilities: []string{"incremental", "deletion_sync"},
-	},
-	types.ConnectorTypeGitHub: {
-		Type:         types.ConnectorTypeGitHub,
-		Name:         "GitHub",
-		Description:  "Sync repositories, wikis, and issues from GitHub",
-		Priority:     4,
-		AuthType:     "oauth2",
-		Capabilities: []string{"incremental"},
-	},
-	types.ConnectorTypeGoogleDrive: {
-		Type:         types.ConnectorTypeGoogleDrive,
-		Name:         "Google Drive",
-		Description:  "Sync documents and files from Google Drive",
-		Priority:     5,
-		AuthType:     "oauth2",
-		Capabilities: []string{"incremental"},
-	},
-	types.ConnectorTypeOneDrive: {
-		Type:         types.ConnectorTypeOneDrive,
-		Name:         "OneDrive / SharePoint",
-		Description:  "Sync documents and files from Microsoft OneDrive",
-		Priority:     6,
-		AuthType:     "oauth2",
-		Capabilities: []string{"incremental"},
-	},
-	types.ConnectorTypeDingTalk: {
-		Type:         types.ConnectorTypeDingTalk,
-		Name:         "DingTalk (钉钉)",
-		Description:  "Sync documents and content from DingTalk",
-		Priority:     7,
-		AuthType:     "api_key",
-		Capabilities: []string{"incremental"},
-	},
-	types.ConnectorTypeWebCrawler: {
-		Type:         types.ConnectorTypeWebCrawler,
-		Name:         "Web Crawler (Sitemap)",
-		Description:  "Crawl websites via Sitemap.xml",
-		Priority:     9,
-		AuthType:     "none",
-		Capabilities: []string{},
-	},
-	types.ConnectorTypeSlack: {
-		Type:         types.ConnectorTypeSlack,
-		Name:         "Slack",
-		Description:  "Sync channel messages and files from Slack",
-		Priority:     10,
-		AuthType:     "oauth2",
-		Capabilities: []string{"incremental"},
-	},
-	types.ConnectorTypeIMAP: {
-		Type:         types.ConnectorTypeIMAP,
-		Name:         "Email (IMAP)",
-		Description:  "Sync email content from IMAP servers",
-		Priority:     11,
-		AuthType:     "password",
-		Capabilities: []string{},
 	},
 	types.ConnectorTypeRSS: {
 		Type:         types.ConnectorTypeRSS,
@@ -310,26 +290,4 @@ var ConnectorMetadataRegistry = map[string]ConnectorMetadata{
 		AuthType:     "token",
 		Capabilities: []string{"incremental", "hierarchical"},
 	},
-}
-
-// ListAvailableConnectors returns all available connector metadata
-// sorted by priority
-func ListAvailableConnectors() []ConnectorMetadata {
-	metadata := make([]ConnectorMetadata, 0, len(ConnectorMetadataRegistry))
-	for _, meta := range ConnectorMetadataRegistry {
-		metadata = append(metadata, meta)
-	}
-
-	// Sort by priority (insertion sort for simplicity)
-	for i := 1; i < len(metadata); i++ {
-		key := metadata[i]
-		j := i - 1
-		for j >= 0 && metadata[j].Priority > key.Priority {
-			metadata[j+1] = metadata[j]
-			j--
-		}
-		metadata[j+1] = key
-	}
-
-	return metadata
 }

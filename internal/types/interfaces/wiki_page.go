@@ -40,9 +40,10 @@ type WikiPageService interface {
 	GetPageBySlug(ctx context.Context, kbID string, slug string) (*types.WikiPage, error)
 
 	// RepairContentLinks rewrites dead [[slug]] references in content to their
-	// most likely live target (rewrite-only — never strips). Used by the agent
-	// write path to auto-correct LLM-mangled slugs (especially UUID-based
-	// summary slugs) before persistence. Returns the possibly-updated content
+	// most likely live target (rewrite-only — never strips), auto-correcting
+	// LLM-mangled slugs (especially UUID-based summary slugs) before
+	// persistence. Its original caller, the agent write path, was removed, so
+	// nothing calls it today. Returns the possibly-updated content
 	// and whether any rewrite happened. Best-effort: callers may ignore errors.
 	RepairContentLinks(ctx context.Context, kbID, selfSlug, content string) (string, bool, error)
 
@@ -219,15 +220,6 @@ type WikiPageService interface {
 	// is snapshotted, version advances, and links are re-parsed. The edit is
 	// attributed to WikiEditSourceRevert.
 	RevertPageToVersion(ctx context.Context, kbID string, slug string, version int) (*types.WikiPage, error)
-
-	// CreateIssue logs a new issue for a wiki page.
-	CreateIssue(ctx context.Context, issue *types.WikiPageIssue) (*types.WikiPageIssue, error)
-
-	// ListIssues retrieves issues for a knowledge base, optionally filtered by slug and status.
-	ListIssues(ctx context.Context, kbID string, slug string, status string) ([]*types.WikiPageIssue, error)
-
-	// UpdateIssueStatus updates the status of an issue (e.g. pending -> resolved/ignored).
-	UpdateIssueStatus(ctx context.Context, issueID string, status string) error
 }
 
 // WikiPageRepository defines the wiki page data persistence interface.
@@ -398,13 +390,4 @@ type WikiPageRepository interface {
 
 	// DeleteRevisionsByPage hard-deletes a page's entire snapshot history.
 	DeleteRevisionsByPage(ctx context.Context, pageID string) error
-
-	// CreateIssue inserts a new wiki page issue record.
-	CreateIssue(ctx context.Context, issue *types.WikiPageIssue) error
-
-	// ListIssues retrieves issues with optional filtering by slug and status.
-	ListIssues(ctx context.Context, kbID string, slug string, status string) ([]*types.WikiPageIssue, error)
-
-	// UpdateIssueStatus updates an issue's status.
-	UpdateIssueStatus(ctx context.Context, issueID string, status string) error
 }

@@ -291,7 +291,6 @@ Handler: `internal/handler/session/qa.go`。API key：聊天需 `chat`/full；`k
 | `query` | string | 是（`binding:"required"`） | 用户问题 |
 | `knowledge_base_ids` | []string | 否 | 检索的 KB |
 | `knowledge_ids` | []string | 否 | 限定知识文件 |
-| `agent_id` | string | 否 | 行为标记，目前只识别内置的 Wiki 修复流程（`builtin-wiki-fixer`）；不会解析为智能体 |
 | `web_search_enabled` | bool | 否 | 联网搜索 |
 | `summary_model_id` | string | 否 | 总结模型 |
 | `tag_ids` | []string | 否 | 标签过滤 |

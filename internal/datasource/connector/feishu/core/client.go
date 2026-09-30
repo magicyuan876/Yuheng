@@ -806,7 +806,8 @@ func (c *Client) downloadRawBytes(ctx context.Context, path string, maxBytes int
 // ──────────────────────────────────────────────────────────────────────
 // Drive (云盘) file listing: for feishu_drive / lark_drive connectors.
 // Mirrors the wiki ListWikiNodes / ListWikiNodesRecursiveFrom shape so the
-// Drive connector's FetchStream mirrors the wiki connector's. See ADR-0001/0002.
+// Drive connector's FetchStream mirrors the wiki connector's and both run on
+// the same sync engine.
 // ──────────────────────────────────────────────────────────────────────
 
 // listDriveFiles lists files in a Drive folder (non-recursive), one page at a
@@ -815,7 +816,8 @@ func (c *Client) downloadRawBytes(ctx context.Context, path string, maxBytes int
 //
 // folderToken == "" is rejected: the root folder is not paginated and does
 // not return shortcuts (Feishu API limitation), which would silently drop
-// content and risk an unbounded single response. See ADR-0004.
+// content and risk an unbounded single response. Asking the user for a
+// concrete folder turns that into a clear error instead.
 func (c *Client) listDriveFiles(ctx context.Context, folderToken, pageToken string) ([]DriveFile, string, error) {
 	if folderToken == "" {
 		return nil, "", fmt.Errorf("root folder not supported; specify a concrete folder_token (root folder is not paginated and does not return shortcuts)")

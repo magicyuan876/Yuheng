@@ -41,7 +41,7 @@ var storedRefRE = regexp.MustCompile(
 var resourceHandleShapeRE = regexp.MustCompile(`res://\d+`)
 
 // resourceRegistry assigns low-entropy, request-local handles to stable resource
-// handles. It is safe to reuse across all rounds of one Agent execution.
+// handles. It is safe to reuse across all rounds of one model request.
 type resourceRegistry struct {
 	table *handleTable[struct{}]
 }

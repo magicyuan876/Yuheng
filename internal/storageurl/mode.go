@@ -46,10 +46,12 @@ var ErrPublicModeForbidden = errors.New(
 // the query parameter or the deployment default says.
 type forcedHandleKey struct{}
 
-// WithForcedHandleMode pins a request to ModeHandle. Anonymous surfaces use it:
-// an embed visitor is authorized only by the channel's session handle, so it
-// must keep fetching images through the channel-scoped `/embed/…/files` proxy
-// instead of receiving a shareable, credential-free URL.
+// WithForcedHandleMode pins a request to ModeHandle, for anonymous surfaces
+// whose visitors are authorized only by a scoped session handle and so must
+// keep fetching images through a scoped proxy instead of receiving a
+// shareable, credential-free URL. No surface sets it today (the embed widget
+// that did was removed); the guard stays so a future anonymous surface cannot
+// forget it.
 func WithForcedHandleMode(ctx context.Context) context.Context {
 	return context.WithValue(ctx, forcedHandleKey{}, true)
 }
@@ -125,9 +127,9 @@ func DefaultMode(ctx context.Context) Mode {
 // receiving handles.
 //
 // Limits:
-//   - A ctx pinned by WithForcedHandleMode (anonymous embed traffic) is silently
-//     downgraded rather than rejected, so an embed client that happens to send
-//     the parameter keeps working — it just never gets a public URL.
+//   - A ctx pinned by WithForcedHandleMode (anonymous traffic) is silently
+//     downgraded rather than rejected, so an anonymous client that happens to
+//     send the parameter keeps working — it just never gets a public URL.
 //   - A knowledge-base-restricted API key is rejected with
 //     ErrPublicModeForbidden. Such a key is already denied the `/files` proxy,
 //     so handing it anonymous file URLs would widen its scope from "chunk text"

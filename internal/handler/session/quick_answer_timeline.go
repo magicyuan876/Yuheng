@@ -35,9 +35,9 @@ type quickAnswerTimelineRecorder struct {
 }
 
 // registerQuickAnswerTimelineRecorder subscribes to the pipeline's tool events
-// for the lifetime of one fast-answer turn. Agent mode is excluded on purpose:
-// its own steps are written by the agent stream handler, which overwrites
-// AgentSteps wholesale.
+// for the lifetime of one fast-answer turn. The knowledge-chat handler registers
+// it for every turn; the recorded steps land in AgentSteps, the column the
+// chat UI reads the timeline from.
 func registerQuickAnswerTimelineRecorder(bus *event.EventBus, msg *types.Message) {
 	if bus == nil || msg == nil {
 		return

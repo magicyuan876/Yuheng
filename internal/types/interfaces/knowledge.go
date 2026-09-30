@@ -19,7 +19,7 @@ var ErrKnowledgeNotFound = errors.New("knowledge not found")
 // KnowledgeService defines the interface for knowledge services.
 type KnowledgeService interface {
 	// CreateKnowledgeFromFile creates knowledge from a file.
-	// channel identifies the ingestion channel (e.g. "web", "api", "wechat"); empty defaults to "web".
+	// channel identifies the ingestion channel (e.g. "web", "api", "feishu"); empty defaults to "web".
 	CreateKnowledgeFromFile(
 		ctx context.Context,
 		kbID string,
@@ -235,7 +235,8 @@ type KnowledgeService interface {
 	// SearchKnowledge searches knowledge items by keyword across the tenant.
 	// fileTypes: optional list of file extensions to filter by (e.g., ["csv", "xlsx"])
 	SearchKnowledge(ctx context.Context, keyword string, offset, limit int, fileTypes []string) ([]*types.Knowledge, bool, int64, error)
-	// SearchKnowledgeForScopes searches knowledge within the given (tenant_id, kb_id) scopes (e.g. for shared agent context).
+	// SearchKnowledgeForScopes searches knowledge within the given (tenant_id, kb_id) scopes (e.g. the KB
+	// scope of a restricted tenant API key).
 	SearchKnowledgeForScopes(ctx context.Context, scopes []types.KnowledgeSearchScope, keyword string, offset, limit int, fileTypes []string) ([]*types.Knowledge, bool, int64, error)
 }
 

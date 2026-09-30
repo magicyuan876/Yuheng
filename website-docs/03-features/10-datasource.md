@@ -88,7 +88,7 @@ registry.Register(rssConnector.NewConnector())                                 /
 registry.Register(gitlabConnector.NewConnector())                              // gitlab
 ```
 
-> 注意：`connector.go` 中的 `ConnectorMetadataRegistry`（`GET /datasource/types` 的返回）还列出了 Confluence、GitHub、Google Drive、OneDrive、DingTalk、Web Crawler、Slack、IMAP 等元数据，但**实际注册可用的连接器只有 9 个类型：`feishu`、`lark`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`ima`、`rss`、`gitlab`**（飞书/Lark 的知识库与云盘各用一份实现），前端的类型列表也只列这 9 个。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
+> 可用的连接器共 9 个类型：`feishu`、`lark`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`ima`、`rss`、`gitlab`（飞书/Lark 的知识库与云盘各用一份实现）。`GET /datasource/types` 只返回已注册的连接器（`ConnectorRegistry.Available()`），元数据表 `ConnectorMetadataRegistry` 与注册的连接器一一对应，启动时由 `VerifyMetadata()` 校验，任何一边多出来都会让启动失败。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
 
 ## 数据模型（internal/types/datasource.go）
 
@@ -136,7 +136,7 @@ if key := utils.GetAESKey(); key != nil && len(out.Credentials) > 0 {
 
 | 方法与路径 | 权限 | 说明 |
 | --- | --- | --- |
-| `GET /api/v1/datasource/types` | Viewer | 可用连接器元数据列表（`ListAvailableConnectors`，按 Priority 排序） |
+| `GET /api/v1/datasource/types` | Viewer | 已注册连接器的元数据列表（`ConnectorRegistry.Available()`，按 Priority 排序） |
 | `POST /api/v1/datasource/validate-credentials` | Admin | 用裸凭据测试连通性（不落库），供创建向导的"测试连接"按钮 |
 | `POST /api/v1/datasource` | Admin | 创建数据源（校验 KB 归属租户 → 校验连接器类型 → 在线 Validate → 落库 → 注册 cron） |
 | `GET /api/v1/datasource?kb_id=` | Viewer | 按知识库列出数据源（附带最近一次 SyncLog） |

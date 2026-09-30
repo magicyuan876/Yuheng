@@ -96,18 +96,15 @@
               </PopoverContent>
             </Popover>
           </div>
-          <div
-            v-if="stats && stats.pending_issues > 0"
-            class="flex cursor-pointer items-center gap-2 rounded-md bg-[var(--td-warning-color-light)] px-3 py-2 text-[13px] text-[var(--td-warning-color-8)] opacity-95 shadow-[var(--td-shadow-1)] transition-[filter] duration-200 hover:brightness-95"
-            @click="showGlobalIssuesDrawer = true"
+          <Button
+            variant="outline"
+            size="sm"
+            class="bg-card shadow-[var(--td-shadow-1)]"
+            @click="showLintDrawer = true"
           >
-            <CircleAlertIcon class="text-warning size-[13px] shrink-0" />
-            <span class="leading-[1.2] font-medium">{{
-              $t("knowledgeEditor.wikiBrowser.globalIssuesCount", {
-                count: stats.pending_issues,
-              })
-            }}</span>
-          </div>
+            <ShieldCheckIcon />
+            {{ $t("knowledgeEditor.wikiBrowser.lintOpen") }}
+          </Button>
         </div>
 
         <!-- Legend Overlay -->
@@ -338,19 +335,11 @@
               })
             }}</span>
           </div>
-          <!-- Global Issues -->
-          <div
-            v-if="stats && stats.pending_issues > 0"
-            class="flex cursor-pointer items-center gap-2 rounded-md bg-[var(--td-warning-color-light)] px-3 py-2 text-[13px] text-[var(--td-warning-color-8)] transition-[filter] duration-200 hover:brightness-95"
-            @click="showGlobalIssuesDrawer = true"
-          >
-            <CircleAlertIcon class="text-warning size-[13px] shrink-0" />
-            <span class="leading-[1.2] font-medium">{{
-              $t("knowledgeEditor.wikiBrowser.globalIssuesCount", {
-                count: stats.pending_issues,
-              })
-            }}</span>
-          </div>
+          <!-- Structural check of the whole wiki (lint) -->
+          <Button variant="outline" size="sm" class="justify-start" @click="showLintDrawer = true">
+            <ShieldCheckIcon />
+            {{ $t("knowledgeEditor.wikiBrowser.lintOpen") }}
+          </Button>
           <div class="relative">
             <SearchIcon
               class="text-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
@@ -783,81 +772,6 @@
                       class="text-foreground m-0 flex min-w-0 items-center gap-2 text-[26px] leading-[1.3] font-semibold"
                     >
                       <span class="min-w-0">{{ selectedPage.title }}</span>
-
-                      <Popover v-if="pageIssues.length > 0" v-model:open="showIssuesBox">
-                        <PopoverTrigger as-child>
-                          <span
-                            class="ml-2 flex cursor-pointer items-center justify-center transition-opacity hover:opacity-80"
-                            :title="$t('knowledgeEditor.wikiBrowser.issueTitle', { count: pageIssues.length })"
-                          >
-                            <CircleAlertIcon class="fill-warning text-card size-5" />
-                          </span>
-                        </PopoverTrigger>
-
-                        <PopoverContent
-                          side="bottom"
-                          align="start"
-                          class="w-[560px] max-w-[90vw] gap-0 overflow-hidden rounded-lg p-0 shadow-[var(--td-shadow-3)]"
-                        >
-                          <div class="bg-card flex flex-col overflow-hidden rounded-lg">
-                            <div class="bg-muted border-border flex items-center justify-between border-b px-4 py-3">
-                              <div class="text-foreground flex items-center text-sm font-medium">
-                                <span>{{
-                                  $t("knowledgeEditor.wikiBrowser.issueFixSuggestions", {
-                                    count: pageIssues.length,
-                                  })
-                                }}</span>
-                              </div>
-                              <Button v-if="props.canEdit" size="sm" @click="triggerAutoFix">
-                                <WrenchIcon />
-                                {{ $t("knowledgeEditor.wikiBrowser.issueFixBtn") }}
-                              </Button>
-                            </div>
-                            <div class="flex max-h-[400px] flex-col gap-3 overflow-y-auto px-3 py-2">
-                              <div v-for="issue in pageIssues" :key="issue.id" :class="issueItemClass">
-                                <div class="flex flex-1 flex-col gap-2">
-                                  <div class="flex flex-wrap gap-2">
-                                    <span :class="issueTagClass(issue.issue_type)">{{
-                                      issueTagLabel(issue.issue_type)
-                                    }}</span>
-                                  </div>
-                                  <div :class="issueDescClass">
-                                    {{ issue.description }}
-                                  </div>
-                                  <div
-                                    class="border-border mt-2 flex items-center gap-4 border-t pt-3 [--tw-border-style:dashed]"
-                                  >
-                                    <span class="text-placeholder flex-1 text-xs">
-                                      {{
-                                        issue.reported_by === "wiki-researcher-agent"
-                                          ? $t("knowledgeEditor.wikiBrowser.issueAiLinter")
-                                          : $t("knowledgeEditor.wikiBrowser.issueReportedBy", {
-                                              reporter: issue.reported_by,
-                                            })
-                                      }}
-                                    </span>
-                                    <div v-if="props.canEdit" class="flex items-center">
-                                      <span
-                                        class="text-primary mr-3 inline-flex cursor-pointer items-center text-xs font-medium transition-opacity hover:opacity-80"
-                                        @click="triggerFixIssue(issue)"
-                                      >
-                                        <WrenchIcon class="mr-1 size-3" />{{
-                                          $t("knowledgeEditor.wikiBrowser.issueFixSingle")
-                                        }}
-                                      </span>
-                                      <span
-                                        class="text-placeholder cursor-pointer text-xs transition-opacity hover:opacity-80"
-                                        @click="handleIssueIgnore(issue.id)"
-                                        >{{ $t("knowledgeEditor.wikiBrowser.issueIgnore") }}</span
-                                      >
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
                     </h2>
                     <Input
                       v-else
@@ -1198,73 +1112,62 @@
       />
     </Teleport>
 
-    <!-- Global Issues Drawer -->
+    <!-- Lint report: the wiki's structural problems, computed on request -->
     <SettingDrawer
-      v-model:visible="showGlobalIssuesDrawer"
-      :title="$t('knowledgeEditor.wikiBrowser.globalIssuesTitle')"
-      width="480px"
+      v-model:visible="showLintDrawer"
+      :title="$t('knowledgeEditor.wikiBrowser.lintTitle')"
+      width="520px"
       :resizable="false"
       hide-footer
     >
-      <div class="flex max-h-[400px] flex-col gap-3 overflow-y-auto px-3 py-2">
-        <div v-for="issue in globalIssues" :key="issue.id" :class="issueItemClass">
-          <div class="flex flex-1 flex-col gap-2">
-            <div class="flex flex-wrap gap-2">
-              <span :class="issueTagClass(issue.issue_type)">{{ issueTagLabel(issue.issue_type) }}</span>
+      <div class="flex min-h-0 flex-1 flex-col gap-3 px-3 py-2" data-testid="wiki-lint">
+        <div v-if="lintLoading" class="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+          <Loader2Icon class="size-4 animate-spin" />
+          {{ $t("knowledgeEditor.wikiBrowser.lintRunning") }}
+        </div>
+        <Alert v-else-if="lintError" variant="destructive">
+          <AlertDescription>{{ $t("knowledgeEditor.wikiBrowser.lintFailed") }}</AlertDescription>
+        </Alert>
+        <template v-else-if="lintReport">
+          <div class="border-border bg-muted flex items-center gap-3 rounded-md border px-4 py-3">
+            <span class="text-foreground text-2xl font-semibold tabular-nums">{{ lintReport.health_score }}</span>
+            <div class="flex min-w-0 flex-1 flex-col">
+              <span class="text-foreground text-sm font-medium">{{ $t("knowledgeEditor.wikiBrowser.lintScore") }}</span>
+              <span class="text-placeholder text-xs">{{
+                lintIssues.length === 0
+                  ? $t("knowledgeEditor.wikiBrowser.lintClean")
+                  : $t("knowledgeEditor.wikiBrowser.lintCount", { count: lintIssues.length })
+              }}</span>
             </div>
-            <div :class="issueDescClass">
-              <div class="text-primary mb-1 cursor-pointer font-medium" @click="navigateToSlugAndFix(issue.slug)">
-                <LinkIcon class="inline size-3 align-[-1px]" /> {{ $t("knowledgeEditor.wikiBrowser.issuePagePrefix")
-                }}{{ slugDisplayName(issue.slug) }}
+            <Button v-if="props.canEdit && fixableCount > 0" size="sm" :disabled="autoFixing" @click="runAutoFix">
+              <Loader2Icon v-if="autoFixing" class="animate-spin" />
+              <WrenchIcon v-else />
+              {{ $t("knowledgeEditor.wikiBrowser.lintAutoFix", { count: fixableCount }) }}
+            </Button>
+          </div>
+          <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+            <div
+              v-for="(issue, idx) in lintIssues"
+              :key="`${issue.type}:${issue.page_slug}:${issue.target_slug ?? ''}:${idx}`"
+              :class="lintItemClass"
+            >
+              <div class="flex flex-wrap items-center gap-2">
+                <span :class="lintSeverityClass(issue.severity)">{{ lintTypeLabel(issue.type) }}</span>
+                <span v-if="issue.auto_fixable" class="text-placeholder text-xs">{{
+                  $t("knowledgeEditor.wikiBrowser.lintFixable")
+                }}</span>
               </div>
-              {{ issue.description }}
-            </div>
-            <div class="border-border mt-2 flex items-center gap-4 border-t pt-3 [--tw-border-style:dashed]">
-              <span class="text-placeholder flex-1 text-xs">
-                {{
-                  issue.reported_by === "wiki-researcher-agent"
-                    ? $t("knowledgeEditor.wikiBrowser.issueAiLinter")
-                    : $t("knowledgeEditor.wikiBrowser.issueReportedBy", { reporter: issue.reported_by })
-                }}
-              </span>
-              <div class="flex items-center">
-                <span
-                  class="text-primary mr-3 inline-flex cursor-pointer items-center text-xs font-medium transition-opacity hover:opacity-80"
-                  @click="navigateToSlugAndFix(issue.slug)"
-                >
-                  <CircleArrowRightIcon class="mr-1 size-3" />{{ $t("knowledgeEditor.wikiBrowser.issueGoFix") }}
-                </span>
-                <span
-                  class="text-placeholder cursor-pointer text-xs transition-opacity hover:opacity-80"
-                  @click="handleGlobalIssueIgnore(issue.id)"
-                  >{{ $t("knowledgeEditor.wikiBrowser.issueIgnore") }}</span
-                >
-              </div>
+              <button
+                type="button"
+                class="text-primary w-fit cursor-pointer text-left text-sm font-medium hover:underline"
+                @click="openLintPage(issue.page_slug)"
+              >
+                {{ slugDisplayName(issue.page_slug) }}
+              </button>
+              <div :class="lintDescClass">{{ issue.description }}</div>
             </div>
           </div>
-        </div>
-        <div v-if="globalIssues.length === 0" class="text-placeholder p-10 text-center">
-          {{ $t("knowledgeEditor.wikiBrowser.globalIssuesEmpty") }}
-        </div>
-      </div>
-    </SettingDrawer>
-
-    <!-- Fix Chat Drawer -->
-    <SettingDrawer
-      v-model:visible="showFixDrawer"
-      :title="$t('knowledgeEditor.wikiBrowser.fixAssistantTitle')"
-      width="700px"
-      :resizable="false"
-      hide-footer
-    >
-      <div class="wiki-fix-chat flex min-h-0 flex-1 flex-col overflow-hidden">
-        <ChatView
-          v-if="showFixDrawer"
-          :session_id="currentFixSessionId"
-          agentId="builtin-wiki-fixer"
-          :kbIds="[props.knowledgeBaseId]"
-          :embeddedMode="true"
-        />
+        </template>
       </div>
     </SettingDrawer>
 
@@ -1386,7 +1289,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted, watch, nextTick, type Component } from "vue";
 import { useRoute } from "vue-router";
-import { useMenuStore } from "@/stores/menu";
 import { useI18n } from "vue-i18n";
 import { marked } from "marked";
 import { MessagePlugin } from "tdesign-vue-next";
@@ -1400,7 +1302,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleAlertIcon,
-  CircleArrowRightIcon,
   CircleHelpIcon,
   CircleXIcon,
   ClockIcon,
@@ -1421,6 +1322,7 @@ import {
   Loader2Icon,
   PencilIcon,
   SearchIcon,
+  ShieldCheckIcon,
   TableOfContentsIcon,
   TagIcon,
   Trash2Icon,
@@ -1446,8 +1348,6 @@ import WikiFolderActions from "./WikiFolderActions.vue";
 import WikiRevisionDrawer from "./WikiRevisionDrawer.vue";
 import { expandedWikiDirectoryPaths, expandWikiDirectoryPath } from "./wikiDirectoryState";
 import { getKnowledgeDetails } from "@/api/knowledge-base";
-import { createSessions } from "@/api/chat";
-import ChatView from "@/views/chat/index.vue";
 import {
   listWikiPages,
   listWikiFolders,
@@ -1463,19 +1363,19 @@ import {
   getWikiGraph,
   getWikiStats,
   searchWikiPages,
-  listWikiIssues,
-  updateWikiIssueStatus,
+  lintWiki,
+  autoFixWiki,
   type WikiPage,
   type WikiFolderNode,
   type WikiGraphData,
   type WikiStats,
-  type WikiPageIssue,
+  type WikiLintIssue,
+  type WikiLintReport,
   type WikiIndexGroup,
   type WikiIndexEntryDTO,
 } from "@/api/wiki";
 
 const route = useRoute();
-const menuStore = useMenuStore();
 
 const { t } = useI18n();
 
@@ -1483,19 +1383,19 @@ const props = defineProps<{
   knowledgeBaseId: string;
   view?: "browser" | "graph";
   // canEdit 由父组件 KnowledgeBase.vue 透传（与 canEdit computed 同源）。
-  // 控制 AutoFix / FixIssue / IgnoreIssue 三个写操作按钮的可见性，
+  // 控制写操作按钮（编辑、移动、Lint 自动修复等）的可见性，
   // 对应后端 g.OwnedWikiKBOrAdmin() 守卫（KB creator OR Admin+ OR
   // org-share editor）。父组件没传时按 false 兜底，避免漏 gate。
   canEdit?: boolean;
-  // Opens the pending-issues drawer as soon as the browser mounts. The
-  // knowledge-health view links here for the wiki's lint report instead of
-  // listing the same issues a second time.
-  openIssuesOnMount?: boolean;
+  // Opens the lint report as soon as the browser mounts. The knowledge-health
+  // view links here for the wiki's structural check instead of running the
+  // same (whole-wiki) lint a second time.
+  openLintOnMount?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "open-source-doc", knowledgeId: string): void;
-  (e: "status-change", payload: { pendingTasks: number; isActive: boolean; pendingIssues: number }): void;
+  (e: "status-change", payload: { pendingTasks: number; isActive: boolean }): void;
   (e: "view-graph", slug: string): void;
 }>();
 
@@ -1620,12 +1520,16 @@ const activeSystemView = ref<"" | "index">("");
 // show a flat result list instead. Bucketed state is preserved behind
 // the scenes so clearing the query can snap back without re-fetching.
 const searchResults = ref<WikiPage[] | null>(null);
-const pageIssues = ref<WikiPageIssue[]>([]);
-const showIssuesBox = ref(false);
-const showFixDrawer = ref(false);
-const showGlobalIssuesDrawer = ref(false);
-const globalIssues = ref<WikiPageIssue[]>([]);
-const currentFixSessionId = ref("");
+// The lint report is fetched each time its drawer opens: it is computed from
+// every page of the wiki, stored nowhere, and a stale copy would list
+// problems that were fixed a minute ago.
+const showLintDrawer = ref(false);
+const lintReport = ref<WikiLintReport | null>(null);
+const lintLoading = ref(false);
+const lintError = ref(false);
+const autoFixing = ref(false);
+const lintIssues = computed<WikiLintIssue[]>(() => lintReport.value?.issues ?? []);
+const fixableCount = computed(() => lintIssues.value.filter((i) => i.auto_fixable).length);
 const stats = ref<WikiStats | null>(null);
 const graphData = ref<WikiGraphData | null>(null);
 const searchQuery = ref("");
@@ -1654,46 +1558,56 @@ const GRAPH_OVERVIEW_LIMIT = 500;
 const GRAPH_EGO_LIMIT = 500;
 const GRAPH_EGO_DEFAULT_DEPTH = 1;
 
-watch(showGlobalIssuesDrawer, async (val) => {
-  if (val) {
-    try {
-      const res = await listWikiIssues(props.knowledgeBaseId, "", "pending");
-      globalIssues.value = (res as any).data || (res as any) || [];
-    } catch (e) {
-      console.error("Failed to load global wiki issues:", e);
-      globalIssues.value = [];
-    }
+async function runLint() {
+  lintLoading.value = true;
+  lintError.value = false;
+  try {
+    lintReport.value = await lintWiki(props.knowledgeBaseId);
+  } catch (e) {
+    console.error("Wiki lint failed:", e);
+    lintReport.value = null;
+    lintError.value = true;
+  } finally {
+    lintLoading.value = false;
   }
+}
+
+watch(showLintDrawer, (open) => {
+  if (open) void runLint();
 });
 
-// Registered after the loader above so that opening on mount goes through it.
+// Registered after the watcher above so that opening on mount goes through it.
 watch(
-  () => props.openIssuesOnMount,
+  () => props.openLintOnMount,
   (open) => {
-    if (open) showGlobalIssuesDrawer.value = true;
+    if (open) showLintDrawer.value = true;
   },
   { immediate: true },
 );
 
-async function navigateToSlugAndFix(slug: string) {
-  showGlobalIssuesDrawer.value = false;
+async function runAutoFix() {
+  autoFixing.value = true;
+  try {
+    const res = await autoFixWiki(props.knowledgeBaseId);
+    MessagePlugin.success(t("knowledgeEditor.wikiBrowser.lintFixed", { count: res?.fixed ?? 0 }));
+  } catch (e) {
+    console.error("Wiki auto-fix failed:", e);
+    MessagePlugin.error(t("knowledgeEditor.wikiBrowser.lintFixFailed"));
+  } finally {
+    autoFixing.value = false;
+  }
+  // What was fixed changed the pages; the report and the counts follow.
+  await runLint();
+  loadStats();
+  if (selectedPage.value) void refreshSelectedPage();
+}
+
+async function openLintPage(slug: string) {
+  showLintDrawer.value = false;
   if (props.view === "graph") {
     handleGraphSearchSelect(slug);
   } else {
     await navigateToSlug(slug);
-    showIssuesBox.value = true;
-  }
-}
-
-async function handleGlobalIssueIgnore(issueId: string) {
-  try {
-    await updateWikiIssueStatus(props.knowledgeBaseId, issueId, "ignored");
-    // Refresh list
-    const res = await listWikiIssues(props.knowledgeBaseId, "", "pending");
-    globalIssues.value = (res as any).data || (res as any) || [];
-    loadStats();
-  } catch (e) {
-    console.error("Failed to update issue status:", e);
   }
 }
 
@@ -2653,43 +2567,46 @@ function getTypeTagClass(type: string): string {
   return map[type] || "border-border bg-muted text-foreground";
 }
 
-// Issue tags are the filled-light variant: a tint, no border. The class and
-// the label are looked up separately so the page popover and the global
-// drawer render the same tag from one definition.
-const ISSUE_TAG_BASE = "inline-flex h-[22px] items-center rounded-sm px-2 text-xs";
+// Lint tags are the filled-light variant: a tint, no border, coloured by
+// severity and labelled by kind.
+const LINT_TAG_BASE = "inline-flex h-[22px] items-center rounded-sm px-2 text-xs";
 
-function issueTagClass(issueType: string): string {
-  switch (issueType) {
-    case "mixed_entities":
-      return `${ISSUE_TAG_BASE} bg-[var(--td-warning-color-light)] text-warning`;
-    case "contradictory_facts":
-      return `${ISSUE_TAG_BASE} bg-[var(--td-error-color-light)] text-destructive`;
-    case "out_of_date":
-      return `${ISSUE_TAG_BASE} bg-muted text-foreground`;
+function lintSeverityClass(severity: WikiLintIssue["severity"]): string {
+  switch (severity) {
+    case "error":
+      return `${LINT_TAG_BASE} bg-[var(--td-error-color-light)] text-destructive`;
+    case "warning":
+      return `${LINT_TAG_BASE} bg-[var(--td-warning-color-light)] text-warning`;
     default:
-      return `${ISSUE_TAG_BASE} bg-[var(--td-brand-color-light)] text-primary`;
+      return `${LINT_TAG_BASE} bg-muted text-foreground`;
   }
 }
 
-function issueTagLabel(issueType: string): string {
-  switch (issueType) {
-    case "mixed_entities":
-      return t("knowledgeEditor.wikiBrowser.issueMixed");
-    case "contradictory_facts":
-      return t("knowledgeEditor.wikiBrowser.issueConflict");
-    case "out_of_date":
-      return t("knowledgeEditor.wikiBrowser.issueOutdated");
+function lintTypeLabel(type: WikiLintIssue["type"]): string {
+  switch (type) {
+    case "orphan_page":
+      return t("knowledgeEditor.wikiBrowser.lintOrphan");
+    case "broken_link":
+      return t("knowledgeEditor.wikiBrowser.lintBrokenLink");
+    case "stale_ref":
+      return t("knowledgeEditor.wikiBrowser.lintStaleRef");
+    case "missing_cross_ref":
+      return t("knowledgeEditor.wikiBrowser.lintMissingCrossRef");
+    case "empty_content":
+      return t("knowledgeEditor.wikiBrowser.lintEmpty");
+    case "duplicate_slug":
+      return t("knowledgeEditor.wikiBrowser.lintDuplicateSlug");
     default:
-      return t("knowledgeEditor.wikiBrowser.issueAttention");
+      return type;
   }
 }
 
 // Class strings shared by several repeated elements of the template. They
 // live here so each variant is written once; Tailwind scans this file, so
 // the utilities are generated all the same.
-const issueItemClass =
-  "border-border bg-card flex gap-3 rounded-md border p-4 transition-[box-shadow,border-color] duration-200 hover:border-[var(--td-brand-color-light)]";
-const issueDescClass =
+const lintItemClass =
+  "border-border bg-card flex flex-col gap-2 rounded-md border p-4 transition-[box-shadow,border-color] duration-200 hover:border-[var(--td-brand-color-light)]";
+const lintDescClass =
   "text-foreground max-h-[150px] overflow-y-auto pr-1 text-[13px] leading-[1.6] break-words whitespace-pre-wrap [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-[var(--td-scrollbar-color)] [&::-webkit-scrollbar-track]:bg-transparent";
 const legendActionClass =
   "group/legend-action text-muted-foreground hover:text-primary flex cursor-pointer items-center gap-1.5 text-[11px] leading-[14px] transition-all select-none";
@@ -3607,7 +3524,6 @@ async function loadStats() {
       emit("status-change", {
         pendingTasks: stats.value.pending_tasks || 0,
         isActive: !!stats.value.is_active,
-        pendingIssues: stats.value.pending_issues || 0,
       });
     }
 
@@ -3881,7 +3797,6 @@ async function refreshSelectedPage() {
   try {
     const res = await getWikiPage(props.knowledgeBaseId, slug);
     selectedPage.value = (res as any).data || (res as any);
-    await loadPageIssues(slug);
   } catch (e) {
     console.error(`Failed to refresh wiki page ${slug}:`, e);
   }
@@ -4277,18 +4192,6 @@ async function growFrontier() {
   }
 }
 
-async function loadPageIssues(slug: string) {
-  try {
-    const res = await listWikiIssues(props.knowledgeBaseId, slug, "pending");
-    pageIssues.value = (res as any).data || (res as any) || [];
-    showIssuesBox.value = false;
-  } catch (e) {
-    console.error("Failed to load wiki issues:", e);
-    pageIssues.value = [];
-    showIssuesBox.value = false;
-  }
-}
-
 async function selectPage(page: WikiPage) {
   try {
     if (selectedPage.value && selectedPage.value.id !== page.id) {
@@ -4303,7 +4206,6 @@ async function selectPage(page: WikiPage) {
     activeSystemView.value = "";
     const res = await getWikiPage(props.knowledgeBaseId, page.slug);
     selectedPage.value = (res as any).data || (res as any);
-    await loadPageIssues(page.slug);
   } catch (e) {
     console.error("Failed to load wiki page:", e);
   }
@@ -4322,7 +4224,6 @@ async function navigateToSlug(slug: string) {
     activeSystemView.value = "";
     const res = await getWikiPage(props.knowledgeBaseId, slug);
     selectedPage.value = (res as any).data || (res as any);
-    await loadPageIssues(slug);
   } catch (e) {
     console.error(`Failed to navigate to ${slug}:`, e);
   }
@@ -4332,7 +4233,6 @@ function goBack() {
   const prev = navHistory.value.pop();
   if (prev) {
     selectedPage.value = prev;
-    loadPageIssues(prev.slug);
     return;
   }
   // History stack is empty but we remember the page was opened from
@@ -4343,69 +4243,6 @@ function goBack() {
     selectedPage.value = null;
     if (view === "index") openIndexView();
   }
-}
-
-async function handleIssueIgnore(issueId: string) {
-  try {
-    await updateWikiIssueStatus(props.knowledgeBaseId, issueId, "ignored");
-    if (selectedPage.value) {
-      await loadPageIssues(selectedPage.value.slug);
-    }
-  } catch (e) {
-    console.error("Failed to update issue status:", e);
-  }
-}
-
-async function startFixSession(prompt: string) {
-  try {
-    const res = await createSessions({});
-    if (res && (res as any).data && (res as any).data.id) {
-      const sessionId = (res as any).data.id;
-      const now = new Date().toISOString();
-
-      menuStore.updataMenuChildren({
-        title: t("knowledgeEditor.wikiBrowser.fixAssistantTitle"),
-        path: `chat/${sessionId}`,
-        id: sessionId,
-        isMore: false,
-        isNoTitle: true,
-        created_at: now,
-        updated_at: now,
-      });
-
-      menuStore.changeIsFirstSession(true);
-      menuStore.changeFirstQuery(prompt, [], "", []);
-
-      currentFixSessionId.value = sessionId;
-      showFixDrawer.value = true;
-      showIssuesBox.value = false; // Hide issues box
-    } else {
-      MessagePlugin.error(t("knowledgeEditor.wikiBrowser.fixStartError"));
-    }
-  } catch (e) {
-    console.error("Failed to create fix session", e);
-    MessagePlugin.error(t("knowledgeEditor.wikiBrowser.fixStartError"));
-  }
-}
-
-function triggerFixIssue(issue: WikiPageIssue) {
-  if (!selectedPage.value) return;
-  const prompt = t("knowledgeEditor.wikiBrowser.issueFixPromptSingle", {
-    slug: selectedPage.value.slug,
-    id: issue.id,
-  });
-  startFixSession(prompt);
-}
-
-function triggerAutoFix() {
-  if (!selectedPage.value || pageIssues.value.length === 0) return;
-  let prompt = t("knowledgeEditor.wikiBrowser.issueFixPromptAutoStart", { slug: selectedPage.value.slug }) + "\n\n";
-
-  pageIssues.value.forEach((issue, idx) => {
-    prompt += `${idx + 1}. Issue ID: ${issue.id}\n`;
-  });
-
-  startFixSession(prompt);
 }
 
 async function doSearch() {
@@ -5625,7 +5462,7 @@ let graphAdjacencyRef = new Map<string, Set<string>>();
 
 // handleGraphSearchSelect is the single entry point every "jump to this
 // slug" path funnels through — the graph search select, drawer wiki-link
-// clicks, the ?slug= query param, and the global issues "去处理" button.
+// clicks, the ?slug= query param, and the lint report's page links.
 // On a 4万-page wiki, the current render contains at most GRAPH_OVERVIEW_LIMIT
 // (500) nodes, so most of the wiki is NOT on screen at any given moment.
 // If the requested slug is missing from the current canvas we reload the

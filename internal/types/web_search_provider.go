@@ -32,7 +32,7 @@ const (
 // WebSearchProviderEntity represents a configured web search provider instance for a workspace.
 // This is a CRUD entity stored in the database, similar to the Model entity.
 // Each workspace can create multiple provider configurations (e.g., "Production Bing", "Test Google").
-// Agents reference these by ID.
+// Chat requests reference these by ID (the tenant's default provider is used today).
 type WebSearchProviderEntity struct {
 	// Unique identifier (UUID, auto-generated)
 	ID string `yaml:"id" json:"id" gorm:"type:varchar(36);primaryKey"`

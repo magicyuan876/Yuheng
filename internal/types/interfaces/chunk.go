@@ -44,7 +44,7 @@ type ChunkRepository interface {
 	//   - Document (manual): sorts by chunk_index, keyword searches content only
 	// sortOrder: "asc" for ascending, default is descending
 	// searchField: specifies which field to search in (only applicable for FAQ type)
-	// isEnabled: when non-nil, filters chunks by their enabled state. Agent/model
+	// isEnabled: when non-nil, filters chunks by their enabled state. Model-facing
 	// consumers must pass true so disabled content never enters model context.
 	ListPagedChunksByKnowledgeID(
 		ctx context.Context,

@@ -55,7 +55,7 @@ func UserIDFromContext(ctx context.Context) (string, bool) {
 }
 
 // WithWikiEditSource marks ctx so wiki page writes performed under it are
-// attributed to the given edit source (WikiEditSourceUser / Agent / Revert).
+// attributed to the given edit source (e.g. WikiEditSourceUser / WikiEditSourceRevert).
 // Writes without the mark are attributed to the ingest pipeline.
 func WithWikiEditSource(ctx context.Context, source string) context.Context {
 	return context.WithValue(ctx, WikiEditSourceContextKey, NormalizeWikiEditSource(source))

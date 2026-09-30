@@ -25,19 +25,13 @@ func sessionUserIDFromContext(ctx context.Context) string {
 // runtimeMayBypassAdminConsoleRead reports whether a non-admin caller on the
 // owner-scoped read path may open a channel-managed session. Admin console reads
 // use the GetByID fallback in loadSessionForRead and never call this helper.
-func runtimeMayBypassAdminConsoleRead(
-	ctx context.Context,
-	session *types.Session,
-	imPlatform string,
-) bool {
+func runtimeMayBypassAdminConsoleRead(ctx context.Context, session *types.Session) bool {
 	principal, ok := types.PrincipalFromContext(ctx)
 	if !ok || session == nil {
 		return false
 	}
 
 	switch principal.Type {
-	case types.PrincipalIMUser:
-		return strings.TrimSpace(imPlatform) != ""
 	case types.PrincipalAPITenant, types.PrincipalAPIExternalUser:
 		ownerID := types.SessionOwnerIDFromContext(ctx)
 		return types.IsAPISessionOwnerID(session.UserID) && session.UserID == ownerID
@@ -48,7 +42,7 @@ func runtimeMayBypassAdminConsoleRead(
 
 // loadSessionForRead loads a session honoring the caller's per-user scope, with
 // an Admin+ fallback that additionally permits reading tenant channel sessions
-// (API-key and embed) from the Web console. Non-admin callers must not open
+// (API-key, and the legacy embed rows) from the Web console. Non-admin callers must not open
 // channel-managed rows even when legacy empty user_id scope would match. Write
 // paths keep the strict scope and must not use this helper.
 func loadSessionForRead(
@@ -61,9 +55,9 @@ func loadSessionForRead(
 
 	session, err := repo.Get(ctx, tenantID, ownerID, sessionID)
 	if err == nil {
-		if types.SessionRequiresAdminConsoleRead(session, "") &&
+		if types.SessionRequiresAdminConsoleRead(session) &&
 			!isAdmin &&
-			!runtimeMayBypassAdminConsoleRead(ctx, session, "") {
+			!runtimeMayBypassAdminConsoleRead(ctx, session) {
 			return nil, apperrors.ErrSessionNotFound
 		}
 		return session, nil
@@ -78,7 +72,7 @@ func loadSessionForRead(
 	if e != nil {
 		return nil, err
 	}
-	if !types.SessionRequiresAdminConsoleRead(s, "") {
+	if !types.SessionRequiresAdminConsoleRead(s) {
 		return nil, err
 	}
 	return s, nil
@@ -283,10 +277,11 @@ func (s *sessionService) ListSessions(
 		query = &types.SessionListQuery{}
 	}
 	query.TenantID = types.MustTenantIDFromContext(ctx)
-	// API / IM / embed source filters are tenant-wide admin views over channel
-	// traffic. Gate them behind Admin+ and drop the per-user owner scope so an
-	// Owner/admin can observe sessions that are otherwise isolated per key,
-	// visitor, or IM identity; everyone else stays scoped to their own principal.
+	// Every source filter but "web" is a tenant-wide admin view over channel
+	// traffic (API keys, and the legacy embed rows). Gate them behind Admin+
+	// and drop the per-user owner scope so an Owner/admin can observe
+	// sessions that are otherwise isolated per key or visitor; everyone else
+	// stays scoped to their own principal.
 	if types.SessionListSourceRequiresAdmin(query.Source) {
 		if !types.TenantRoleFromContext(ctx).HasPermission(types.TenantRoleAdmin) {
 			return nil, apperrors.NewForbiddenError(

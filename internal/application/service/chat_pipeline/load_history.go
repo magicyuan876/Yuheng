@@ -33,7 +33,7 @@ func (p *PluginLoadHistory) OnEvent(ctx context.Context,
 	eventType types.EventType, chatManage *types.ChatManage, next func() *PluginError,
 ) *PluginError {
 	// chatManage.MaxRounds == 0 means multi-turn is explicitly disabled
-	// (e.g. by a custom agent with MultiTurnEnabled=false). Skip loading so
+	// (e.g. Conversation.MaxRounds configured as 0). Skip loading so
 	// history doesn't leak into the LLM context. We do NOT fall back to the
 	// global Conversation.MaxRounds default here, otherwise the disable flag
 	// would be silently overridden.

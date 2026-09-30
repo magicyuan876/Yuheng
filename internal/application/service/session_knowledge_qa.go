@@ -302,10 +302,10 @@ func (s *sessionService) selectChatModelID(
 }
 
 // buildSearchTargets computes the unified search targets from knowledgeBaseIDs and knowledgeIDs.
-// tenantID is the retrieval scope: session.TenantID or effective tenant from shared agent (set by handler).
+// tenantID is the retrieval scope: the context tenant when set, otherwise session.TenantID.
 // This is called once at the request entry point to avoid repeated queries later in the pipeline.
 // Logic:
-//   - For each knowledgeBaseID: resolve actual TenantID (own, org-shared, or in retrieval-tenant scope for shared agent)
+//   - For each knowledgeBaseID: resolve actual TenantID (own KB, or the source tenant of an org-shared KB)
 //   - For each knowledgeID: find its knowledgeBaseID; if the KB is already in the list, skip; otherwise add SearchTargetTypeKnowledge
 func (s *sessionService) buildSearchTargets(
 	ctx context.Context,

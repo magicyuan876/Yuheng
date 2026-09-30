@@ -142,7 +142,7 @@ func TestPresignedFile_HEAD_Returns200WithoutBody(t *testing.T) {
 		t.Fatalf("Content-Type = %q, want image/png", got)
 	}
 	// HEAD must not stream the body — protects backing storage from a
-	// full read on every IM preview probe.
+	// full read on every client's preview probe.
 	if w.Body.Len() != 0 {
 		t.Fatalf("HEAD response body should be empty, got %d bytes", w.Body.Len())
 	}

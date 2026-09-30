@@ -9,8 +9,8 @@ import "github.com/magicyuan876/yuheng/internal/modelcontext"
 // dropping hex digits. The model copies the tiny handle; we translate handles
 // back to real slugs on output.
 //
-// This is the generation-stage counterpart to wiki_write_page's slug
-// validation: rather than repairing a mangled slug after the fact, it removes
+// This is the generation-stage counterpart to RepairContentLinks' slug
+// repair: rather than repairing a mangled slug after the fact, it removes
 // the opportunity to mangle at the source. It mirrors the chunk-handle
 // (c000/c001) indirection already used by the chunk-citation pass in
 // wiki_ingest_cite.go.

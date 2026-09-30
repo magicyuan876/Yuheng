@@ -48,9 +48,11 @@
       </div>
     </section>
 
-    <!-- The wiki's own lint report stays where it is built — the Wiki tab's
-         issue drawer — and this view only points at it, so there is one list
-         of wiki issues with one set of actions, not two that drift apart. -->
+    <!-- The wiki's structural check (lint: broken links, orphan pages, stale
+         references…) lives in the Wiki tab, where its findings can be opened
+         and auto-fixed; this view only points at it. It shows no count on
+         purpose: the report is computed from every page on request, which is
+         too heavy to run just to decorate this panel. -->
     <section
       v-if="isWiki"
       class="border-border bg-card flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3"
@@ -59,15 +61,9 @@
       <BookOpenIcon class="text-muted-foreground size-4" />
       <div class="flex min-w-0 flex-col">
         <span class="text-foreground text-sm font-medium">{{ t("knowledgeHealth.wiki.title") }}</span>
-        <span class="text-placeholder text-xs">
-          {{
-            wikiPendingIssues > 0
-              ? t("knowledgeHealth.wiki.pending", { count: wikiPendingIssues })
-              : t("knowledgeHealth.wiki.none")
-          }}
-        </span>
+        <span class="text-placeholder text-xs">{{ t("knowledgeHealth.wiki.description") }}</span>
       </div>
-      <Button variant="ghost" size="sm" class="ml-auto" @click="emit('open-wiki-issues')">
+      <Button variant="ghost" size="sm" class="ml-auto" @click="emit('open-wiki-lint')">
         {{ t("knowledgeHealth.wiki.open") }}
         <ArrowRightIcon />
       </Button>
@@ -283,15 +279,14 @@ const props = withDefaults(
     /** Editors of the knowledge base may dismiss, reopen and assign. */
     canEdit?: boolean;
     isWiki?: boolean;
-    /** Open wiki lint issues, as the knowledge base screen already polls them. */
-    wikiPendingIssues?: number;
   }>(),
-  { canRescan: false, canEdit: false, isWiki: false, wikiPendingIssues: 0 },
+  { canRescan: false, canEdit: false, isWiki: false },
 );
 
 const emit = defineEmits<{
   "open-knowledge": [knowledgeId: string];
-  "open-wiki-issues": [];
+  /** Asks the knowledge base screen to open the Wiki tab's lint report. */
+  "open-wiki-lint": [];
   /** The open count changed, so a badge elsewhere can follow without a refetch. */
   "summary-change": [summary: FindingsSummary];
 }>();

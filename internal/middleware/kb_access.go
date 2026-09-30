@@ -41,8 +41,8 @@ import (
 //
 // The guard rewrites ONLY the request context — c.Keys is intentionally
 // left at the caller's own tenant so handlers that still run their own
-// share resolution (currently knowledge.go / knowledgebase.go, which
-// branch on the ?agent_id query) keep working unchanged. New handlers
+// share resolution (currently knowledge.go / knowledgebase.go, via their
+// own validate* helpers) keep working unchanged. New handlers
 // MUST read tenant from c.Request.Context() (the "effective" tenant
 // for shared KBs); reading from c.Keys after this guard runs gives
 // the caller's own tenant, which is almost always the wrong answer

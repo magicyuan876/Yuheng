@@ -65,7 +65,7 @@ export default {
     steps: {
       welcome: {
         title: "Welcome to Yuheng",
-        desc: 'A few quick steps to get you familiar with knowledge bases, chat and agents. Click "Next" to begin.',
+        desc: 'A few quick steps to get you familiar with knowledge bases and chat. Click "Next" to begin.',
       },
       knowledge: {
         title: "Create your knowledge base",
@@ -74,10 +74,6 @@ export default {
       chat: {
         title: "Start an AI chat",
         desc: "Ask questions grounded in your knowledge base and get accurate answers with cited sources. Click here to start a new chat.",
-      },
-      agents: {
-        title: "Build dedicated agents",
-        desc: "Combine knowledge bases, prompts and tools into reusable agents that capture your expertise.",
       },
       settings: {
         title: "Account & settings",
@@ -204,7 +200,7 @@ export default {
       steps: {
         kb: {
           title: "Choose knowledge scope",
-          desc: "Click {'@'} to pick one or more knowledge bases or files. Answers use only the selection; otherwise the current agent settings apply.",
+          desc: "Click {'@'} to pick one or more knowledge bases or files. Answers use only the selection; with nothing selected the model answers without retrieval.",
         },
         input: {
           title: "Type your question",
@@ -729,26 +725,6 @@ export default {
     think: "Thinking",
     copy: "Copy",
     addToKnowledgeBase: "Add to Knowledge Base",
-    artifactDrawer: {
-      title: "Generated files",
-    },
-    sections: {
-      tenantOthers: "Workspace · Other members",
-      tenantReadonly: "Workspace · View only",
-    },
-    empty: {
-      title: "No Custom Agents",
-    },
-    detail: {
-      title: "Agent Details",
-    },
-    shareScope: {
-      title: "Share Scope",
-      desc: "Space members have read-only access to this agent and will use it according to your current configuration; your changes to the agent will sync to shared spaces. To allow space members to edit knowledge base content, share the knowledge base to the space.",
-    },
-    selector: {
-      title: "Select Agent",
-    },
   },
   settings: {
     modelManagement: "Model Management",
@@ -1007,11 +983,6 @@ export default {
       errorGeneric: "An error occurred. Please try again.",
     },
   },
-  memorySettings: {
-    usage: {
-      title: "When memories are used",
-    },
-  },
   chatHistorySettings: {
     title: "Message Management",
     description:
@@ -1158,7 +1129,7 @@ export default {
     firstTime: "New to Yuheng?",
     registerSuccess: "Registration successful. Please sign in",
     registerFailed: "Registration failed",
-    subtitle: "RAG Q&A, ReAct Agent and Wiki — an LLM-powered enterprise knowledge framework",
+    subtitle: "RAG Q&A and Wiki knowledge bases — an LLM-powered enterprise knowledge framework",
     registerSubtitle: "Create your account and start using Yuheng",
     emailPlaceholder: "Enter email address",
     passwordPlaceholder: "Enter password (8-32 characters, including letters and numbers)",
@@ -1215,6 +1186,7 @@ export default {
     edit: "Edit",
     copy: "Copy",
     copied: "Copied",
+    copyCode: "Copy code",
     create: "Create",
     download: "Download",
     refresh: "Refresh",
@@ -1434,13 +1406,7 @@ export default {
       title: "Shared Knowledge Base",
       sourceType: "Source",
       sourceTypeKbShare: "KB shared directly to this space",
-      sourceTypeAgent: "Visible via shared agent",
       sourceOrg: "Space",
-      sourceFromAgent: "Agent",
-      agentKbStrategy: "Agent KB strategy",
-      agentKbStrategyAll: "All knowledge bases",
-      agentKbStrategySelected: "Selected knowledge bases",
-      agentKbStrategyNone: "No knowledge bases",
       sharedAt: "Shared At",
       myPermission: "My Permission",
       goToKb: "Go to Knowledge Base",
@@ -1461,9 +1427,6 @@ export default {
       errorTip: "Some files failed to upload. Please check the notifications.",
       unknownKb: "Knowledge Base {id}",
     },
-  },
-  embedPublish: {
-    copyCode: "Copy code",
   },
   knowledgeEditor: {
     activity: {
@@ -1685,8 +1648,6 @@ export default {
       searchDesc: "Chunk, vectorize and keyword-index documents for hybrid retrieval",
       wikiTitle: "Wiki Knowledge Base",
       wikiDesc: "Auto-generate interlinked wiki pages to build a structured knowledge system",
-      graphTitle: "Knowledge Graph",
-      graphDesc: "Extract entities and relationships to build a knowledge graph for graph-based retrieval",
       atLeastOne: "At least one indexing strategy must be enabled",
       embeddingRequired: "RAG search requires an Embedding model",
       lockedTip:
@@ -1846,26 +1807,23 @@ export default {
         "Showing {visible} of {total} neighbors ({hidden} outside the overview — click Expand to pivot here)",
       backToOverview: "Back to overview",
       queueStatus: "{count} pending tasks in Wiki queue",
-      issueTitle: "This page has {count} pending knowledge conflicts or errors",
-      issueFixBtn: "AI Auto-Fix",
-      issueMixed: "Mixed Info",
-      issueConflict: "Factual Conflict",
-      issueOutdated: "Outdated",
-      issueAttention: "Needs Attention",
-      issueReportedBy: "Reported by {reporter}",
-      issueAiLinter: "AI Linter",
-      issueIgnore: "Ignore False Alarm",
-      globalIssuesTitle: "Global Pending Content Issues",
-      globalIssuesCount: "{count} Pending Content Issues",
-      globalIssuesEmpty: "No pending content issues",
-      issuePagePrefix: "Page: ",
-      issueGoFix: "Go to fix",
-      fixAssistantTitle: "Wiki Smart Fix Assistant",
-      issueFixSuggestions: "Content Optimization Suggestions ({count})",
-      issueFixSingle: "Fix",
-      fixStartError: "Failed to start fix assistant",
-      issueFixPromptSingle: "Please fix the issue (ID: {id}) on page [[{slug}]].",
-      issueFixPromptAutoStart: "Please fix the following issues on page [[{slug}]]:",
+      lintOpen: "Check wiki",
+      lintTitle: "Wiki check",
+      lintRunning: "Checking every page…",
+      lintFailed: "The check could not run. Try again later.",
+      lintScore: "Health score (0–100)",
+      lintClean: "No problems found",
+      lintCount: "{count} problem(s) found",
+      lintAutoFix: "Fix {count} automatically",
+      lintFixable: "Can be fixed automatically",
+      lintFixed: "Fixed {count} problem(s)",
+      lintFixFailed: "Automatic fix failed",
+      lintOrphan: "Orphan page",
+      lintBrokenLink: "Broken link",
+      lintStaleRef: "Source deleted",
+      lintMissingCrossRef: "Missing cross-reference",
+      lintEmpty: "Empty page",
+      lintDuplicateSlug: "Duplicate slug",
     },
     buttons: {
       create: "Create Knowledge Base",
@@ -2245,9 +2203,6 @@ export default {
     requestInfoUrl: "Request",
     requestInfoSentAt: "Sent at",
     requestInfoEmpty: "No request info available",
-    channelWeb: "Web",
-    channelApi: "API",
-    channelIm: "IM",
     navigateToDocument: "View document details",
     jumpToVideoTime: "Jump to this time in the video",
     enterDescription: "Enter description",
@@ -2349,16 +2304,16 @@ export default {
     },
     leaveDangerZone: {
       title: "Leave this workspace",
-      desc: "Ends your membership in this workspace. You will lose access to its knowledge bases and agents. You can be invited again later.",
+      desc: "Ends your membership in this workspace. You will lose access to its knowledge bases. You can be invited again later.",
       button: "Leave workspace",
     },
     deleteDangerZone: {
       title: "Delete this workspace",
-      desc: "Delete the whole workspace and its configuration. Members will no longer be able to access its knowledge bases, agents, or API key.",
+      desc: "Delete the whole workspace and its configuration. Members will no longer be able to access its knowledge bases or API keys.",
       button: "Delete workspace",
       confirmTitle: "Delete this workspace?",
       confirmBody:
-        'This will delete "{name}" and make its knowledge bases, agents, members, and API key unavailable. This action cannot be undone.',
+        'This will delete "{name}" and make its knowledge bases, members, and API keys unavailable. This action cannot be undone.',
       confirmHint: 'Type the workspace name "{name}" to confirm deletion.',
       confirm: "Delete workspace",
       nameMismatch: "Workspace name does not match",
@@ -2810,7 +2765,7 @@ export default {
           whitelist: {
             add: {
               header: "Add SSRF allowlist entry",
-              body: "Add {entry} to the SSRF allowlist? Hosts / IPs / CIDRs that match this entry will bypass SSRF protection and may let agents reach internal services. Only add entries you fully trust.",
+              body: "Add {entry} to the SSRF allowlist? Hosts / IPs / CIDRs that match this entry will bypass SSRF protection, so server-side fetches (web search, URL import, model calls) may reach internal services. Only add entries you fully trust.",
               confirmBtn: "Add",
             },
             remove: {
@@ -2961,11 +2916,6 @@ export default {
       },
     },
   },
-  mcp: {
-    testResult: {
-      title: "Test Result: {name}",
-    },
-  },
   error: {
     networkError: "Network error, please check your connection",
     invalidCredentials: "Invalid username or password",
@@ -3096,11 +3046,11 @@ export default {
         "Caps concurrent background (ingestion/enrichment) calls to this model, shared per model across all replicas. 0 or empty falls back to the global default; interactive chat is never affected.",
       thinkingControlLabel: "Thinking mode request format",
       thinkingControlDesc:
-        "Controls how the agent’s “Thinking mode” on/off switch is written to the API. We pre-select based on vendor/model when possible; change it to match your API docs. With “Do not send”, the agent Thinking mode switch has no effect.",
+        "Controls how the “Thinking mode” on/off switch is written to the API. We pre-select based on vendor/model when possible; change it to match your API docs. With “Do not send”, the Thinking mode switch has no effect.",
       thinkingControl: {
         none: {
           label: "Do not send thinking fields",
-          hint: "Agent “Thinking mode” switch has no effect; thinking parameters are not sent in requests",
+          hint: "“Thinking mode” switch has no effect; thinking parameters are not sent in requests",
         },
         chatTemplateKwargs: {
           label: "chat_template_kwargs",
@@ -3312,21 +3262,17 @@ export default {
   },
   platform: {
     subtitle: "LLM-Powered Enterprise Knowledge Framework",
-    description:
-      "RAG retrieval, agentic reasoning and Wiki knowledge bases — so your documents are truly understood and put to work",
+    description: "RAG retrieval and Wiki knowledge bases — so your documents are truly understood and put to work",
     rag: "RAG Enhanced Generation",
-    agent: "ReAct Agent",
     wiki: "Wiki Knowledge Base",
     hybridSearch: "Hybrid Search",
     multimodalParsing: "Multimodal Document Parsing",
     hybridSearchEngine: "Hybrid Search + Knowledge Graph",
-    ragQandA: "ReAct Agent Q&A",
+    ragQandA: "Cited RAG Q&A",
     independentTenant: "Independent Workspace",
     fullApiAccess: "Full API Access",
     knowledgeBaseManagement: "Knowledge Base Management",
     carousel: {
-      agenticRagTitle: "Agentic RAG",
-      agenticRagDesc: "ReAct reasoning + tool calls + multi-step thinking",
       hybridSearchTitle: "Hybrid search strategy",
       hybridSearchDesc: "BM25 + Vector + Knowledge Graph",
       wikiTitle: "Wiki Knowledge Base",
@@ -3349,29 +3295,6 @@ export default {
     uploadFolder: "Upload Folder",
     onlineEdit: "Online Edit",
     deleteRecord: "Delete Record",
-  },
-  agentSettings: {
-    modelRecommendation: {
-      title: "Model Recommendation",
-    },
-    maxIterations: {
-      desc: "Maximum reasoning steps when the Agent executes tasks",
-    },
-    thinkingModel: {
-      desc: "LLM used for Agent reasoning and planning",
-    },
-    rerankModel: {
-      desc: "Re-rank search results and normalize relevance scores",
-    },
-    temperature: {
-      desc: "Controls randomness in outputs. 0 is most deterministic; 1 is most random",
-    },
-    allowedTools: {
-      desc: "Tools currently enabled for the Agent",
-    },
-    systemPrompt: {
-      desc: "Configure the Agent’s system prompt with placeholders that are resolved at runtime.",
-    },
   },
   conversationSettings: {
     models: {
@@ -3621,24 +3544,9 @@ export default {
       progressFailed: "Failed to query download progress",
     },
   },
-  mcpServiceDialog: {
-    customHeaders: {
-      desc: "HTTP headers attached to every MCP request, commonly used for enterprise gateway auth, tracing, etc.",
-    },
-  },
-  promptTemplate: {
-    noTemplates: "No templates available",
-    selectTemplate: "Select Template",
-    useTemplate: "Use Template",
-    resetDefault: "Reset Default",
-    default: "Default",
-    withKnowledgeBase: "KB",
-    withWebSearch: "Web Search",
-  },
   organization: {
     title: "Shared Spaces",
-    subtitle:
-      "Create or join shared spaces so multiple workspaces can collaborate and share knowledge bases and agents",
+    subtitle: "Create or join shared spaces so multiple workspaces can collaborate and share knowledge bases",
     createOrg: "Create Shared Space",
     joinOrg: "Join Shared Space",
     name: "Shared Space Name",
@@ -3858,17 +3766,15 @@ export default {
       nameTip: "Use your team or project name for easy identification",
       descriptionTip: "Describe the purpose and goals of the shared space to help members understand it",
       permissionsTitle: "Member Permissions",
-      permissionsDesc:
-        "Understand the permission scope of different roles for knowledge bases and agents in the shared space",
+      permissionsDesc: "Understand the permission scope of different roles for knowledge bases in the shared space",
       permissionFeature: "Permission Feature",
       fullAccess: "Full Access",
       editAccess: "Edit Access",
       viewAccess: "View Only",
-      adminPerm1: "Manage shared space settings, members, and knowledge base & agent sharing",
-      adminPerm2: "Share and manage knowledge bases and agents",
+      adminPerm1: "Manage shared space settings, members, and knowledge base sharing",
+      adminPerm2: "Share and manage knowledge bases",
       adminPerm3: "Edit shared knowledge base content",
       adminPerm4: "View and search knowledge bases",
-      useSharedAgentsPerm: "Use shared agents",
       shareKBPerm: "Share knowledge bases to shared space",
       editorPerm1: "Edit shared knowledge base content",
       editorPerm2: "View and search knowledge bases",
@@ -3878,7 +3784,7 @@ export default {
       viewerPerm3: "Manage shared space settings",
       ownerNote: "As the shared space creator, you will automatically become an admin with full permissions.",
       joinTitle: "Join Shared Space",
-      joinDesc: "Join an existing shared space with an invite code to access shared knowledge bases and agents",
+      joinDesc: "Join an existing shared space with an invite code to access shared knowledge bases",
       joinIllustration: "Enter the invite code provided by the shared space admin to join",
       inviteCodeTip: "The invite code is generated by shared space admins, please ask them for it",
       howToGetCode: "How to get an invite code?",
@@ -3998,18 +3904,6 @@ export default {
       cmdEnter: "Start chat",
       esc: "Close",
     },
-  },
-  tools: {
-    multiKbSearch: "Cross-KB Search",
-    knowledgeSearch: "Knowledge Search",
-    grepChunks: "Text Pattern Search",
-    getChunkDetail: "Get Chunk Detail",
-    listKnowledgeChunks: "List Knowledge Chunks",
-    listKnowledgeBases: "List Knowledge Bases",
-    getDocumentInfo: "Get Document Info",
-    queryKnowledgeGraph: "Query Knowledge Graph",
-    think: "Deep Thinking",
-    todoWrite: "Make Plan",
   },
   vectorStoreBadge: {
     systemDefault: "System default",
@@ -4158,44 +4052,6 @@ export default {
       attachmentParsingFailed: "Attachment parsing failed",
       queryUnderstanding: "Understanding query...",
       queryUnderstandDone: "Query understood",
-    },
-  },
-  agentEditor: {
-    questionSuggestions: {
-      title: "Conversation question suggestions",
-    },
-    intentPrompts: {
-      title: "Intent Prompts",
-    },
-    embed: {
-      title: "Web Page Embed",
-    },
-    im: {
-      title: "IM Integration",
-    },
-    agentType: {
-      desc: "Picking a preset auto-fills the system prompt, tool list and recommended KB scope.",
-    },
-    mcp: {
-      desc: "Select MCP services available to the Agent",
-    },
-    llmCallTimeout: {
-      desc: "Maximum waiting time for a single LLM call (seconds). Call will be terminated if this time is exceeded",
-    },
-    imageUpload: {
-      desc: "Allow users to upload images in chat for VLM understanding",
-    },
-    audioUpload: {
-      desc: "When enabled, users can upload audio files in conversations. The system will automatically transcribe them using the ASR model.",
-    },
-    chatParser: {
-      desc: "Choose a parser engine per file type for this agent's chat attachments.",
-    },
-    faq: {
-      title: "FAQ Priority Strategy",
-    },
-    fileTypes: {
-      desc: "Restrict selectable file types, leave empty to support all types",
     },
   },
   faqManager: {
@@ -4659,7 +4515,7 @@ export default {
       manageMembers: "Manage members",
       manageTenantConfig: "Edit workspace settings",
       manageInfra: "Configure models / vector stores / IM channels",
-      createOwnKB: "Create and edit own KBs and agents",
+      createOwnKB: "Create and edit own KBs",
       readAll: "Read workspace content",
     },
     columns: {
@@ -4689,8 +4545,7 @@ export default {
     },
     leave: {
       confirmTitle: "Leave this workspace?",
-      confirmBody:
-        "You will lose access to all knowledge bases and agents in this workspace. You can be re-invited later.",
+      confirmBody: "You will lose access to all knowledge bases in this workspace. You can be re-invited later.",
       confirm: "Leave",
       success: "You have left the workspace",
     },
@@ -5034,10 +4889,10 @@ export default {
     reportQuestion: "Question: {text}",
     reportAnswer: "Answer: {text}",
     wiki: {
-      title: "Wiki lint report",
-      pending: "{count} wiki issue(s) waiting for review",
-      none: "No open wiki issues",
-      open: "Open in Wiki",
+      title: "Wiki check",
+      description:
+        "Broken links, orphan pages, deleted sources and other structural problems are checked in the Wiki tab.",
+      open: "Run the check",
     },
   },
   stewardship: {

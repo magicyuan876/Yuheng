@@ -92,22 +92,31 @@ export interface WikiStats {
   orphan_count: number;
   recent_updates: WikiPage[];
   pending_tasks: number;
-  pending_issues: number;
   is_active: boolean;
 }
 
-export interface WikiPageIssue {
-  id: string;
-  tenant_id: number;
-  knowledge_base_id: string;
-  slug: string;
-  issue_type: string;
+/** One structural problem the wiki lint found (internal/application/service/wiki_lint.go). */
+export interface WikiLintIssue {
+  type: "orphan_page" | "broken_link" | "stale_ref" | "missing_cross_ref" | "empty_content" | "duplicate_slug";
+  severity: "info" | "warning" | "error";
+  page_slug: string;
+  /** The other page involved: a broken link's target, a missing cross-reference's entity. */
+  target_slug?: string;
   description: string;
-  suspected_knowledge_ids: string[];
-  status: string;
-  reported_by: string;
-  created_at: string;
-  updated_at: string;
+  auto_fixable: boolean;
+}
+
+/**
+ * The wiki lint report. Computed from the pages on every request and stored
+ * nowhere, so it is always current and costs a walk of the whole wiki: fetch
+ * it when somebody asks for it, not on every page view.
+ */
+export interface WikiLintReport {
+  knowledge_base_id: string;
+  issues: WikiLintIssue[] | null;
+  /** 0–100. */
+  health_score: number;
+  summary: string;
 }
 
 // Wiki API Functions
@@ -337,15 +346,14 @@ export function searchWikiPages(kbId: string, q: string, limit?: number) {
   return get(`/api/v1/knowledgebase/${kbId}/wiki/search?${params.toString()}`);
 }
 
-export function listWikiIssues(kbId: string, slug?: string, status?: string) {
-  const params = new URLSearchParams();
-  if (slug) params.set("slug", slug);
-  if (status) params.set("status", status);
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/issues?${params.toString()}`);
+/** Backend: GET /knowledgebase/:kb_id/wiki/lint (reader). Answers the report itself, not an envelope. */
+export function lintWiki(kbId: string): Promise<WikiLintReport> {
+  return get<WikiLintReport>(`/api/v1/knowledgebase/${kbId}/wiki/lint`);
 }
 
-export function updateWikiIssueStatus(kbId: string, issueId: string, status: string) {
-  return put(`/api/v1/knowledgebase/${kbId}/wiki/issues/${issueId}/status`, { status });
+/** Backend: POST /knowledgebase/:kb_id/wiki/auto-fix (KB editor). Fixes the auto-fixable lint issues. */
+export function autoFixWiki(kbId: string): Promise<{ fixed: number }> {
+  return post(`/api/v1/knowledgebase/${kbId}/wiki/auto-fix`, {}) as Promise<{ fixed: number }>;
 }
 
 export function rebuildWikiLinks(kbId: string) {

@@ -11,8 +11,8 @@ import WikiBrowser from "./WikiBrowser.vue";
 // parts of the screen that the move off TDesign rewrote by hand rather than
 // swapped one component for another: the sidebar search (its clear button
 // used to come with the TDesign input), the reader header a search hit
-// opens, the delete confirmation that replaced the popconfirm, and the
-// global-issues badge that opens its drawer.
+// opens, the delete confirmation that replaced the popconfirm, and the lint
+// report with its automatic fix.
 
 const page = {
   id: "p1",
@@ -32,7 +32,8 @@ const api = vi.hoisted(() => ({
   searchWikiPages: vi.fn(),
   getWikiPage: vi.fn(),
   getWikiStats: vi.fn(),
-  listWikiIssues: vi.fn(),
+  lintWiki: vi.fn(),
+  autoFixWiki: vi.fn(),
   deleteWikiPage: vi.fn(),
 }));
 
@@ -55,18 +56,14 @@ vi.mock("@/api/wiki", () => {
     getWikiGraph: vi.fn(empty),
     getWikiStats: api.getWikiStats,
     searchWikiPages: api.searchWikiPages,
-    listWikiIssues: api.listWikiIssues,
-    updateWikiIssueStatus: vi.fn(empty),
+    lintWiki: api.lintWiki,
+    autoFixWiki: api.autoFixWiki,
   };
 });
 
 vi.mock("@/api/knowledge-base", () => ({ getKnowledgeDetails: vi.fn(async () => ({ data: {} })) }));
-vi.mock("@/api/chat", () => ({ createSessions: vi.fn(async () => ({ data: {} })) }));
 vi.mock("vue-router", () => ({ useRoute: () => ({ query: {} }) }));
-vi.mock("@/stores/menu", () => ({ useMenuStore: () => ({}) }));
 vi.mock("tdesign-vue-next", () => ({ MessagePlugin: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
-// The fix drawer embeds the whole chat view; nothing here opens it.
-vi.mock("@/views/chat/index.vue", () => ({ default: defineComponent({ render: () => h("div") }) }));
 
 let wrapper: VueWrapper | null = null;
 
@@ -109,8 +106,7 @@ async function searchAndOpenHit() {
 beforeEach(() => {
   api.searchWikiPages.mockResolvedValue({ data: { pages: [page] } });
   api.getWikiPage.mockResolvedValue({ data: page });
-  api.getWikiStats.mockResolvedValue({ data: { pending_tasks: 0, is_active: false, pending_issues: 0 } });
-  api.listWikiIssues.mockResolvedValue({ data: [] });
+  api.getWikiStats.mockResolvedValue({ data: { pending_tasks: 0, is_active: false } });
   api.deleteWikiPage.mockResolvedValue({ data: {} });
 });
 
@@ -168,15 +164,72 @@ test("deleting a page asks first, and only the confirm button deletes it", async
   assert.deepEqual(api.deleteWikiPage.mock.calls[0], ["kb1", page.slug]);
 });
 
-test("the pending-issues badge opens the global issues drawer", async () => {
-  api.getWikiStats.mockResolvedValue({ data: { pending_tasks: 0, is_active: false, pending_issues: 2 } });
-  await mountBrowser();
+function lintButton(): HTMLButtonElement {
+  const btn = [...document.querySelectorAll("button")].find(
+    (el) => el.textContent?.trim() === enUS.knowledgeEditor.wikiBrowser.lintOpen,
+  );
+  assert.ok(btn, "the wiki offers its structural check");
+  return btn as HTMLButtonElement;
+}
 
-  const label = enUS.knowledgeEditor.wikiBrowser.globalIssuesCount.replace("{count}", "2");
-  const badge = [...document.querySelectorAll("span")].find((el) => el.textContent?.trim() === label);
-  assert.ok(badge, "the badge shows the issue count");
-  badge.click();
+const report = {
+  knowledge_base_id: "kb1",
+  health_score: 80,
+  summary: "",
+  issues: [
+    {
+      type: "broken_link",
+      severity: "warning",
+      page_slug: page.slug,
+      target_slug: "concept/gone",
+      description: "Page 'Raft consensus' links to [[concept/gone]] which does not exist",
+      auto_fixable: true,
+    },
+    {
+      type: "orphan_page",
+      severity: "info",
+      page_slug: "entity/lonely",
+      description: "Page 'Lonely' has no inbound links",
+      auto_fixable: false,
+    },
+  ],
+};
+
+test("the lint report is run when opened and lists what it found", async () => {
+  api.lintWiki.mockResolvedValue(report);
+  await mountBrowser();
+  assert.equal(api.lintWiki.mock.calls.length, 0, "the whole-wiki check is not run on every visit");
+
+  lintButton().click();
+  await flushPromises();
+  assert.deepEqual(api.lintWiki.mock.calls[0], ["kb1"]);
+  const drawer = document.querySelector('[data-testid="wiki-lint"]');
+  assert.ok(drawer, "the report opens");
+  const text = drawer.textContent ?? "";
+  assert.match(text, /80/);
+  assert.ok(text.includes(enUS.knowledgeEditor.wikiBrowser.lintBrokenLink));
+  assert.ok(text.includes(enUS.knowledgeEditor.wikiBrowser.lintOrphan));
+  assert.ok(text.includes(report.issues[0].description));
+});
+
+test("automatic fixing fixes what can be fixed and runs the check again", async () => {
+  api.lintWiki.mockResolvedValueOnce(report).mockResolvedValueOnce({ ...report, issues: [report.issues[1]] });
+  api.autoFixWiki.mockResolvedValue({ fixed: 1 });
+  await mountBrowser();
+  lintButton().click();
   await flushPromises();
 
-  assert.ok(document.body.textContent?.includes(enUS.knowledgeEditor.wikiBrowser.globalIssuesTitle));
+  const label = enUS.knowledgeEditor.wikiBrowser.lintAutoFix.replace("{count}", "1");
+  const fix = [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === label);
+  assert.ok(fix, "an editor is offered the fix for the one fixable problem");
+  fix.click();
+  await flushPromises();
+
+  assert.deepEqual(api.autoFixWiki.mock.calls[0], ["kb1"]);
+  assert.equal(api.lintWiki.mock.calls.length, 2, "the report follows the fix");
+  assert.equal(
+    [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === label),
+    undefined,
+    "nothing fixable is left to offer",
+  );
 });

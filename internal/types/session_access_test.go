@@ -25,31 +25,26 @@ func TestSessionListSourceRequiresAdmin(t *testing.T) {
 
 func TestSessionRequiresAdminConsoleRead(t *testing.T) {
 	api := &Session{UserID: SessionOwnerAPITenantKeyPrefix + "1:10"}
-	if !SessionRequiresAdminConsoleRead(api, "") {
+	if !SessionRequiresAdminConsoleRead(api) {
 		t.Fatal("API-key session should require admin")
 	}
 	apiExternalUser := &Session{UserID: SessionOwnerAPIExternalUserPrefix + "1:alice"}
-	if !SessionRequiresAdminConsoleRead(apiExternalUser, "") {
+	if !SessionRequiresAdminConsoleRead(apiExternalUser) {
 		t.Fatal("external-user API session should require admin")
 	}
 
 	embed := &Session{Description: EmbedSessionMarkerPrefix + "ch-1"}
-	if !SessionRequiresAdminConsoleRead(embed, "") {
+	if !SessionRequiresAdminConsoleRead(embed) {
 		t.Fatal("embed description should require admin")
 	}
 
 	embedOwner := &Session{UserID: EmbedSessionOwnerPrefix + "1:ch-1:sess-1"}
-	if !SessionRequiresAdminConsoleRead(embedOwner, "") {
+	if !SessionRequiresAdminConsoleRead(embedOwner) {
 		t.Fatal("embed owner id should require admin")
 	}
 
-	im := &Session{Title: "hello"}
-	if !SessionRequiresAdminConsoleRead(im, "feishu") {
-		t.Fatal("IM-mapped session should require admin")
-	}
-
 	web := &Session{UserID: "alice", Title: "my chat"}
-	if SessionRequiresAdminConsoleRead(web, "") {
+	if SessionRequiresAdminConsoleRead(web) {
 		t.Fatal("personal web session should not require admin")
 	}
 }

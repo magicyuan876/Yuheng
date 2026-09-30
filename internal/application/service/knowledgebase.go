@@ -402,17 +402,18 @@ func (s *knowledgeBaseService) ListKnowledgeBases(ctx context.Context) ([]*types
 		}
 	}
 
-	// Per-user pin stamping + ordering. The "main" list view is the
-	// only path that needs to honour the caller's personal pin set;
-	// agent/share/IM callers go through ListKnowledgeBasesByTenantID
-	// which also enriches but keys off the user in their own context.
+	// Per-user pin stamping + ordering. The "main" list view honours the
+	// caller's personal pin set; ListKnowledgeBasesByTenantID, which lists
+	// an arbitrary tenant's KBs, also enriches but scopes the pins to the
+	// tenant being listed.
 	if userID, ok := types.UserIDFromContext(ctx); ok && userID != "" {
 		s.applyUserKBPins(ctx, tenantID, userID, kbs)
 	}
 	return kbs, nil
 }
 
-// ListKnowledgeBasesByTenantID returns all knowledge bases for the given tenant (e.g. for shared agent context).
+// ListKnowledgeBasesByTenantID returns all knowledge bases for the given tenant, which need not be the
+// caller's own tenant.
 func (s *knowledgeBaseService) ListKnowledgeBasesByTenantID(ctx context.Context, tenantID uint64) ([]*types.KnowledgeBase, error) {
 	kbs, err := s.repo.ListKnowledgeBasesByTenantID(ctx, tenantID)
 	if err != nil {
@@ -440,9 +441,8 @@ func (s *knowledgeBaseService) ListKnowledgeBasesByTenantID(ctx context.Context,
 	}
 
 	// Stamp pin state from the caller's perspective. The tenantID
-	// argument may not match the caller's own tenant (this method is
-	// also used to list a shared-agent's source-tenant KBs); we still
-	// scope user_kb_pins by `tenantID` since a pin tied to one tenant
+	// argument may not match the caller's own tenant; we still scope
+	// user_kb_pins by `tenantID` since a pin tied to one tenant
 	// shouldn't surface when browsing another tenant's KBs.
 	if userID, ok := types.UserIDFromContext(ctx); ok && userID != "" {
 		s.applyUserKBPins(ctx, tenantID, userID, kbs)
@@ -613,8 +613,8 @@ func (s *knowledgeBaseService) TogglePinKnowledgeBase(
 	}
 
 	// Look the KB up without a tenant filter: the route's KBAccessRead
-	// guard already validated that this caller can see this KB (own,
-	// org-shared, or agent-shared). Filtering by the caller's tenant
+	// guard already validated that this caller can see this KB (own or
+	// org-shared). Filtering by the caller's tenant
 	// here would 404 every legitimate pin against a shared KB whose
 	// owning tenant differs from the caller's active tenant.
 	kb, err := s.repo.GetKnowledgeBaseByID(ctx, id)

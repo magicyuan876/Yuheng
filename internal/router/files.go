@@ -25,8 +25,8 @@ import (
 //   - /files                              tenant-scoped raw storage proxy
 //   - /api/v1/knowledge-bases/:id/files   KB-scoped proxy (shared-KB images)
 //   - /api/v1/sessions/:id/messages/:message_id/files
-//                                          message-scoped proxy (shared-agent output)
-//   - /api/v1/files/presigned             HMAC-signed anonymous access (IM)
+//                                          message-scoped proxy (assistant-message resources)
+//   - /api/v1/files/presigned             HMAC-signed anonymous access (external clients)
 //   - /api/v1/files/presigned-preview     Admin-only URL diagnostics
 //   - /r/:token                           short-lived capability URLs
 //
@@ -289,8 +289,7 @@ func serveFilesWithResources(
 	// API-key guard. A KB-restricted key is denied (a raw storage path cannot
 	// be bounded to its allow-list); full-access keys and tenant-wide retrieve
 	// keys pass, since the handler still enforces same-tenant paths
-	// (ValidateStoragePathTenant). Embed routes use their own
-	// /embed/.../files handler.
+	// (ValidateStoragePathTenant).
 	r.GET(
 		"/files",
 		middleware.AllowFileServeAPIKey(),
@@ -299,7 +298,8 @@ func serveFilesWithResources(
 }
 
 // serveResourceGrants exposes short, revocable capability URLs for clients
-// such as IM platforms that cannot attach a Yuheng bearer/embed token.
+// that cannot attach a Yuheng bearer token (for example a third-party app
+// rendering an image from an API response with resource_urls=public).
 func serveResourceGrants(
 	r *gin.Engine,
 	resourceCatalog interfaces.ResourceCatalog,
@@ -363,7 +363,7 @@ func serveResourceGrants(
 // embedded in a knowledge base's content (chunks / wiki pages). Unlike the
 // tenant-scoped /files route — which enforces file_path.tenant == caller.tenant
 // and therefore cannot serve objects owned by another tenant — this route is
-// gated by RequireKBAccess. That guard resolves org-shared / agent-visible KBs
+// gated by RequireKBAccess. That guard resolves own and org-shared KBs
 // and rewrites the request context's tenant ID to the KB's *owner* (source)
 // tenant, so images stored under the owner tenant (local://<owner>/exports/...)
 // become reachable by tenants that legitimately share the KB, while still
@@ -384,7 +384,7 @@ func serveKBScopedFiles(
 	// arbitrary file_path under the KB owner tenant cannot be bounded to a
 	// key's allow-list), while full-access and tenant-wide retrieve keys pass
 	// — KBAccessRead still confines them to KBs they may read (own /
-	// org-shared / agent-visible), exactly as it does for a JWT Viewer. The
+	// org-shared), exactly as it does for a JWT Viewer. The
 	// route is declared to the gate with the retrieve policy so it is reachable
 	// at all; AllowFileServeAPIKey then applies the stricter not-KB-restricted
 	// constraint.
@@ -633,16 +633,17 @@ func serveMessageScopedFiles(
 }
 
 // servePresignedFiles serves files via HMAC-signed URLs without requiring authentication.
-// This is used by IM channels to serve images that are embedded in bot replies.
+// Local storage issues these URLs when APP_EXTERNAL_URL is set, so external
+// clients (e.g. API integrators using resource_urls=public) can load images directly.
 //
 // Routes:
 //   - GET  /api/v1/files/presigned?file_path=<provider://...>&tenant_id=<id>&expires=<unix>&sig=<hmac>
-//   - HEAD /api/v1/files/presigned?...  (IM platforms issue HEAD first to validate
-//     Content-Type / Content-Length before rendering image previews; HEAD must
-//     succeed or the inline image renders as broken)
+//   - HEAD /api/v1/files/presigned?...  (chat platforms and link previewers often
+//     issue HEAD first to validate Content-Type / Content-Length before rendering
+//     image previews; HEAD must succeed or the inline image renders as broken)
 //
 // Failure paths log client IP + User-Agent + (truncated) file_path so operators
-// can correlate an IM platform's fetch against the upstream signing log line.
+// can correlate a client's fetch against the upstream signing log line.
 // Without this it is otherwise impossible to tell whether a "broken image" is
 // caused by an expired signature, a stale URL cached by the platform, the
 // platform's IP being blocked, or the URL simply never reaching us.
@@ -654,7 +655,7 @@ func servePresignedFiles(r *gin.Engine, tenantService interfaces.TenantService, 
 
 // presignedFileHandler returns the shared Gin handler used by both GET and HEAD.
 // For HEAD requests it returns the same status + headers but does not stream
-// the body — this is enough for IM platforms to validate the URL while saving
+// the body — this is enough for clients to validate the URL while saving
 // us a full read of the backing object.
 func presignedFileHandler(tenantService interfaces.TenantService, absDir string, resolvers ...interfaces.StorageBackendResolver) gin.HandlerFunc {
 	var storageResolver interfaces.StorageBackendResolver
@@ -692,7 +693,7 @@ func presignedFileHandler(tenantService interfaces.TenantService, absDir string,
 
 		// Verify HMAC signature and expiry. Logged at Warn because every 403
 		// here is a signal worth investigating: either the URL was tampered
-		// with, the IM platform cached an expired URL, or SYSTEM_AES_KEY was
+		// with, a client cached an expired URL, or SYSTEM_AES_KEY was
 		// rotated without invalidating in-flight links.
 		if !secutils.VerifyFileURLSig(filePath, tenantID, expiresStr, sig) {
 			logger.Warnf(ctx, "[Router] /files/presigned sig invalid or expired: client_ip=%s ua=%q tenant_id=%d file_path=%q expires=%s",
@@ -738,9 +739,9 @@ func presignedFileHandler(tenantService interfaces.TenantService, absDir string,
 // servePresignedPreview registers an Admin-only diagnostic endpoint that
 // returns the presigned HTTP URL that *would be* generated for a given
 // storage path by the calling tenant's current storage config — exactly the
-// URL an IM channel would embed in a reply. Operators can paste the result
-// into a 4G/mobile browser to verify public reachability without having to
-// send a real message through an IM bot.
+// URL an API response with resource_urls=public would carry. Operators can
+// paste the result into a 4G/mobile browser to verify public reachability
+// without having to drive a real client through it.
 //
 // Route:
 //   - GET /api/v1/files/presigned-preview?file_path=<provider://...>

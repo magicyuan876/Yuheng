@@ -24,7 +24,7 @@ func TestApplyIntentPromptOverride_AgentOverrideWins(t *testing.T) {
 }
 
 func TestApplyIntentPromptOverride_PreservesAgentWhitespace(t *testing.T) {
-	// Agent-supplied prompts with surrounding whitespace must reach the model
+	// Override prompts with surrounding whitespace must reach the model
 	// verbatim; trim is only used for emptiness detection.
 	raw := "  agent prompt with trailing newline\n"
 	cm := &types.ChatManage{

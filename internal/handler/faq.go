@@ -16,7 +16,7 @@ import (
 
 // FAQHandler handles FAQ knowledge base operations.
 //
-// All KB-access checks (own / org-shared / via shared agent) are now
+// All KB-access checks (own KB / org-shared KB) are now
 // performed by the route-level g.KBAccessRead / g.KBAccessWrite
 // guards in router.go — the guard rewrites c.Request.Context() to
 // carry the effective tenant ID for the duration of the handler, so

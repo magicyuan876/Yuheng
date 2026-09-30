@@ -197,8 +197,7 @@ export default {
     },
     leave: {
       confirmTitle: "이 워크스페이스에서 나가시겠어요?",
-      confirmBody:
-        "이 워크스페이스의 모든 지식 베이스와 에이전트에 접근할 수 없게 됩니다. 나중에 다시 초대받을 수 있습니다.",
+      confirmBody: "이 워크스페이스의 모든 지식 베이스에 접근할 수 없게 됩니다. 나중에 다시 초대받을 수 있습니다.",
       confirm: "나가기",
       success: "워크스페이스에서 나갔습니다",
     },
@@ -234,7 +233,7 @@ export default {
       manageMembers: "멤버 관리",
       manageTenantConfig: "워크스페이스 설정 변경",
       manageInfra: "모델 / 벡터 저장소 / IM 채널 구성",
-      createOwnKB: "내 지식 베이스 및 에이전트 생성/편집",
+      createOwnKB: "내 지식 베이스 생성/편집",
       readAll: "워크스페이스 콘텐츠 조회",
     },
   },
@@ -669,44 +668,6 @@ export default {
       noFailedRecords: "다운로드할 실패 기록이 없습니다",
     },
   },
-  agentEditor: {
-    fileTypes: {
-      desc: "선택 가능한 파일 유형을 제한합니다. 비워두면 모든 유형을 지원합니다.",
-    },
-    faq: {
-      title: "FAQ 우선 전략",
-    },
-    chatParser: {
-      desc: "현재 에이전트의 채팅 첨부 파일 유형별 파서 엔진을 지정합니다.",
-    },
-    audioUpload: {
-      desc: "활성화하면 사용자가 대화에서 오디오 파일을 업로드할 수 있으며, ASR 모델로 자동 변환됩니다",
-    },
-    imageUpload: {
-      desc: "활성화하면 사용자가 대화에서 이미지를 업로드하고 VLM으로 이해할 수 있습니다",
-    },
-    llmCallTimeout: {
-      desc: "단일 LLM 호출의 최대 대기 시간(초)입니다. 이 시간을 초과하면 호출이 중단됩니다",
-    },
-    mcp: {
-      desc: "Agent가 호출할 수 있는 MCP 서비스를 선택하세요",
-    },
-    agentType: {
-      desc: "프리셋을 선택하면 시스템 프롬프트, 도구 목록, 권장 지식 베이스 범위가 자동으로 채워집니다.",
-    },
-    im: {
-      title: "IM 통합",
-    },
-    embed: {
-      title: "웹 페이지 임베드",
-    },
-    intentPrompts: {
-      title: "의도 프롬프트",
-    },
-    questionSuggestions: {
-      title: "대화 질문 추천",
-    },
-  },
   agentStream: {
     toolStatus: {
       searchKb: "지식베이스 검색",
@@ -856,18 +817,6 @@ export default {
     unknownStore: "알 수 없는 스토어",
     unavailable: "사용 불가",
   },
-  tools: {
-    multiKbSearch: "크로스 KB 검색",
-    knowledgeSearch: "지식베이스 검색",
-    grepChunks: "텍스트 패턴 검색",
-    getChunkDetail: "청크 상세 조회",
-    listKnowledgeChunks: "지식 청크 목록",
-    listKnowledgeBases: "지식베이스 목록",
-    getDocumentInfo: "문서 정보 조회",
-    queryKnowledgeGraph: "지식 그래프 쿼리",
-    think: "깊이 생각하기",
-    todoWrite: "계획 수립",
-  },
   commandPalette: {
     placeholder: "지식베이스, 파일, 대화 검색…",
     clearRecent: "지우기",
@@ -926,7 +875,7 @@ export default {
   },
   organization: {
     title: "공유 공간",
-    subtitle: "공유 공간를 만들거나 참여하여 여러 스페이스가 함께 협업하고 지식베이스와 에이전트를 공유하세요.",
+    subtitle: "공유 공간을 만들거나 참여하여 여러 스페이스가 함께 협업하고 지식베이스를 공유하세요.",
     createOrg: "공유 공간 생성",
     joinOrg: "공유 공간에 참여하기",
     name: "공유 공간 이름",
@@ -1040,16 +989,15 @@ export default {
       nameTip: "구성원 식별이 용이하도록 팀 또는 프로젝트 이름 사용을 권장합니다.",
       descriptionTip: "회원들이 공유 공간을 이해할 수 있도록 공유 공간의 목적과 목표를 설명합니다.",
       permissionsTitle: "회원 권한",
-      permissionsDesc: "지식베이스와 에이전트를 통해 공유 공간 내 다양한 ​​역할의 권한 범위를 이해합니다.",
+      permissionsDesc: "공유 공간에서 역할별로 지식베이스에 대해 갖는 권한 범위를 확인합니다.",
       permissionFeature: "권한 기능",
       fullAccess: "전체 권한",
       editAccess: "편집 권한",
       viewAccess: "읽기 전용 권한",
-      adminPerm1: "공유 공간 설정, 구성원, 에이전트과의 지식베이스 공유를 관리하세요.",
-      adminPerm2: "지식베이스와 에이전트 공유 및 관리",
+      adminPerm1: "공유 공간 설정, 구성원, 지식베이스 공유를 관리하세요.",
+      adminPerm2: "지식베이스 공유 및 관리",
       adminPerm3: "공유 지식베이스 콘텐츠 편집",
       adminPerm4: "지식베이스 보기 및 검색",
-      useSharedAgentsPerm: "공유 에이전트 사용",
       shareKBPerm: "지식베이스를 공유 공간에 공유",
       editorPerm1: "공유 지식베이스 콘텐츠 편집",
       editorPerm2: "지식베이스 보기 및 검색",
@@ -1059,7 +1007,7 @@ export default {
       viewerPerm3: "공유 공간 설정 관리",
       ownerNote: "공유 공간 작성자로서 귀하는 자동으로 공유 공간의 관리자가 되며 모든 권한을 갖게 됩니다.",
       joinTitle: "공유 공간에 참여하기",
-      joinDesc: "초대 코드를 통해 기존 공유 공간에 참여하고 지식베이스 및 에이전트에 액세스하세요.",
+      joinDesc: "초대 코드를 통해 기존 공유 공간에 참여하고 지식베이스에 액세스하세요.",
       joinIllustration: "공유 공간 관리자가 제공한 초대 코드를 입력하여 참여하세요.",
       inviteCodeTip: "초대코드는 공유 공간 관리자가 생성한 것이므로 관리자에게 문의하세요.",
       howToGetCode: "초대코드는 어떻게 받나요?",
@@ -1228,20 +1176,6 @@ export default {
       cannotCreate: "현재 워크스페이스 역할이 부족하여 공유 공간을 만들 수 없습니다",
       cannotJoin: "현재 워크스페이스 역할이 부족하여 공유 공간에 가입하거나 가입을 신청할 수 없습니다",
       cannotManage: "현재 워크스페이스 역할이 부족하여 공유 공간을 관리할 수 없습니다",
-    },
-  },
-  promptTemplate: {
-    noTemplates: "아직 템플릿이 없습니다.",
-    selectTemplate: "템플릿 선택",
-    useTemplate: "템플릿 사용",
-    resetDefault: "기본값 복원",
-    default: "기본",
-    withKnowledgeBase: "지식베이스",
-    withWebSearch: "웹 검색",
-  },
-  mcpServiceDialog: {
-    customHeaders: {
-      desc: "모든 MCP 요청에 추가되는 HTTP 헤더로, 기업 게이트웨이 인증, 추적 등에 자주 사용됩니다.",
     },
   },
   ollamaSettings: {
@@ -1492,29 +1426,6 @@ export default {
       chatGroupLabel: "사고 / 대화 모델",
     },
   },
-  agentSettings: {
-    systemPrompt: {
-      desc: "Agent의 시스템 프롬프트를 설정합니다. 플레이스홀더 템플릿을 지원합니다. 플레이스홀더는 런타임에 자동으로 실제 내용으로 대체됩니다.",
-    },
-    allowedTools: {
-      desc: "현재 Agent가 사용할 수 있는 도구 목록",
-    },
-    temperature: {
-      desc: "모델 출력의 무작위성을 제어합니다. 0은 가장 확정적, 1은 가장 무작위",
-    },
-    rerankModel: {
-      desc: "검색 결과 재정렬, 다양한 소스의 관련성 점수 통합",
-    },
-    thinkingModel: {
-      desc: "Agent 추론 및 계획을 위한 LLM 모델",
-    },
-    maxIterations: {
-      desc: "Agent가 작업을 실행할 때의 최대 추론 단계 수",
-    },
-    modelRecommendation: {
-      title: "모델 추천",
-    },
-  },
   upload: {
     uploadDocument: "문서 업로드",
     uploadFolder: "폴더 업로드",
@@ -1532,20 +1443,17 @@ export default {
   },
   platform: {
     subtitle: "대규모 언어 모델 기반 엔터프라이즈 지식 프레임워크",
-    description: "RAG 검색, 에이전트 추론, Wiki 지식베이스로 문서를 진정으로 이해하고 활용합니다",
+    description: "RAG 검색과 Wiki 지식베이스로 문서를 진정으로 이해하고 활용합니다",
     rag: "RAG 강화 생성",
-    agent: "ReAct 에이전트",
     wiki: "Wiki 지식베이스",
     hybridSearch: "하이브리드 검색",
     multimodalParsing: "멀티모달 문서 파싱",
     hybridSearchEngine: "하이브리드 검색 + 지식 그래프",
-    ragQandA: "ReAct 에이전트 Q&A",
+    ragQandA: "출처가 있는 RAG Q&A",
     independentTenant: "독립 워크스페이스",
     fullApiAccess: "전체 API 접근",
     knowledgeBaseManagement: "지식베이스 관리",
     carousel: {
-      agenticRagTitle: "Agentic RAG",
-      agenticRagDesc: "ReAct 추론 + 도구 호출 + 다단계 사고",
       hybridSearchTitle: "하이브리드 검색 전략",
       hybridSearchDesc: "BM25 + 벡터 + 지식 그래프",
       wikiTitle: "Wiki 지식베이스",
@@ -1672,7 +1580,7 @@ export default {
         "문서 인덱싱/보강 등 백그라운드 작업이 이 모델을 호출하는 동시 실행 수를 제한합니다(모델별로 모든 복제본이 공유). 0 또는 비워 두면 전역 기본값을 사용하며, 대화형 채팅에는 영향을 주지 않습니다.",
       thinkingControlLabel: "사고 모드 매개변수 형식",
       thinkingControlDesc:
-        "에이전트 「사고 모드」 켜기/끄기 시 API에 어떻게 기록할지 결정합니다. 벤더/모델에 따라 미리 선택되며, 실제 API와 다르면 문서에 맞게 수정하세요. 「전송 안 함」을 선택하면 에이전트 「사고 모드」 스위치가 효과가 없습니다.",
+        "「사고 모드」 켜기/끄기 시 API에 어떻게 기록할지 결정합니다. 벤더/모델에 따라 미리 선택되며, 실제 API와 다르면 문서에 맞게 수정하세요. 「전송 안 함」을 선택하면 「사고 모드」 스위치가 효과가 없습니다.",
       dimensionHint: '모델이 선택되었습니다. "차원 감지" 버튼을 클릭하여 벡터 차원을 자동으로 가져옵니다',
       loadModelListFailed: "모델 목록 로드 실패",
       listRefreshed: "목록이 새로고침되었습니다",
@@ -1816,7 +1724,7 @@ export default {
         },
         none: {
           label: "사고 매개변수 전송 안 함",
-          hint: "에이전트 「사고 모드」 스위치가 효과 없음, 요청에 사고 관련 매개변수를 보내지 않음",
+          hint: "「사고 모드」 스위치가 효과 없음, 요청에 사고 관련 매개변수를 보내지 않음",
         },
       },
       volcengine: {
@@ -1895,11 +1803,6 @@ export default {
       refreshTokenFailed: "토큰 갱신 실패",
       logoutFailed: "로그아웃 실패",
       validateTokenFailed: "토큰 검증 실패",
-    },
-  },
-  mcp: {
-    testResult: {
-      title: "테스트 결과: {name}",
     },
   },
   system: {
@@ -2103,7 +2006,7 @@ export default {
             },
             add: {
               header: "SSRF 화이트리스트 항목 추가",
-              body: "{entry} 항목을 SSRF 화이트리스트에 추가하시겠습니까? 일치하는 호스트 / IP / 대역은 SSRF 보호를 우회하여 에이전트가 내부 서비스에 접근할 수 있게 됩니다. 신뢰하는 항목만 추가하세요.",
+              body: "{entry} 항목을 SSRF 화이트리스트에 추가하시겠습니까? 일치하는 호스트 / IP / 대역은 SSRF 보호를 우회하므로, 서버가 보내는 요청(웹 검색, URL 가져오기, 모델 호출 등)이 내부 서비스에 접근할 수 있게 됩니다. 신뢰하는 항목만 추가하세요.",
               confirmBtn: "추가 확인",
             },
           },
@@ -2508,11 +2411,11 @@ export default {
     },
     deleteDangerZone: {
       title: "Delete this workspace",
-      desc: "Delete the whole workspace and its configuration. Members will no longer be able to access its knowledge bases, agents, or API key.",
+      desc: "워크스페이스 전체와 그 설정을 삭제합니다. 멤버는 더 이상 이 워크스페이스의 지식베이스나 API 키에 접근할 수 없습니다.",
       button: "Delete workspace",
       confirmTitle: "Delete this workspace?",
       confirmBody:
-        'This will delete "{name}" and make its knowledge bases, agents, members, and API key unavailable. This action cannot be undone.',
+        "“{name}”을(를) 삭제하고 그 지식베이스, 멤버, API 키를 사용할 수 없게 만듭니다. 이 작업은 되돌릴 수 없습니다.",
       confirmHint: 'Type the workspace name "{name}" to confirm deletion.',
       confirm: "Delete workspace",
       nameMismatch: "Workspace name does not match",
@@ -2521,7 +2424,7 @@ export default {
     },
     leaveDangerZone: {
       title: "이 스페이스 나가기",
-      desc: "현재 스페이스에서 멤버십을 종료합니다. 지식 베이스 및 에이전트에 접근할 수 없게 되며, 이후 초대되면 다시 참여할 수 있습니다.",
+      desc: "현재 스페이스에서 멤버십을 종료합니다. 지식 베이스에 접근할 수 없게 되며, 이후 초대되면 다시 참여할 수 있습니다.",
       button: "스페이스 나가기",
     },
     storage: {
@@ -2623,9 +2526,6 @@ export default {
     requestInfoUrl: "Request",
     requestInfoSentAt: "Sent at",
     requestInfoEmpty: "No request info available",
-    channelWeb: "웹",
-    channelApi: "API",
-    channelIm: "IM",
     navigateToDocument: "문서 상세 보기",
     jumpToVideoTime: "동영상의 해당 시점으로 이동",
     enterDescription: "설명 입력",
@@ -3131,26 +3031,23 @@ export default {
         "이웃 {visible}/{total} 표시됨 ({hidden}개는 개요 범위 밖 — 확장을 클릭하여 이곳으로 전환)",
       backToOverview: "개요로 돌아가기",
       queueStatus: "Wiki 대기열에 {count}개의 보류 중인 작업",
-      issueTitle: "이 페이지에는 {count}개의 대기 중인 지식 충돌 또는 오류가 있습니다",
-      issueFixBtn: "AI 자동 수정",
-      issueMixed: "혼합된 정보",
-      issueConflict: "사실 충돌",
-      issueOutdated: "오래된 정보",
-      issueAttention: "주의 필요",
-      issueReportedBy: "{reporter} 보고함",
-      issueAiLinter: "AI 검사기",
-      issueIgnore: "오탐지 무시",
-      globalIssuesTitle: "전체 보류 중인 콘텐츠 문제",
-      globalIssuesCount: "보류 중인 콘텐츠 문제: {count}개",
-      globalIssuesEmpty: "보류 중인 콘텐츠 문제가 없습니다",
-      issuePagePrefix: "페이지: ",
-      issueGoFix: "수정하러 가기",
-      fixAssistantTitle: "Wiki 스마트 수정 도우미",
-      issueFixSuggestions: "콘텐츠 최적화 제안 ({count})",
-      issueFixSingle: "수정",
-      fixStartError: "수정 도우미 시작 실패",
-      issueFixPromptSingle: "페이지 [[{slug}]] 의 문제(ID: {id})를 수정해 주세요.",
-      issueFixPromptAutoStart: "페이지 [[{slug}]] 의 다음 문제들을 수정해 주세요:",
+      lintOpen: "Wiki 점검",
+      lintTitle: "Wiki 점검",
+      lintRunning: "모든 페이지를 점검하는 중…",
+      lintFailed: "점검을 실행하지 못했습니다. 잠시 후 다시 시도하세요.",
+      lintScore: "상태 점수 (0–100)",
+      lintClean: "문제가 없습니다",
+      lintCount: "문제 {count}개 발견",
+      lintAutoFix: "{count}개 자동 수정",
+      lintFixable: "자동 수정 가능",
+      lintFixed: "문제 {count}개를 수정했습니다",
+      lintFixFailed: "자동 수정에 실패했습니다",
+      lintOrphan: "고립된 페이지",
+      lintBrokenLink: "깨진 링크",
+      lintStaleRef: "출처 삭제됨",
+      lintMissingCrossRef: "상호 참조 누락",
+      lintEmpty: "빈 페이지",
+      lintDuplicateSlug: "중복된 슬러그",
     },
     indexing: {
       title: "인덱싱 전략",
@@ -3159,8 +3056,6 @@ export default {
       searchDesc: "문서를 청크 분할, 벡터화, 키워드 인덱싱하여 하이브리드 검색을 지원합니다",
       wikiTitle: "Wiki 지식베이스",
       wikiDesc: "상호 연결된 Wiki 지식 페이지를 자동 생성하여 구조화된 지식 체계를 구축합니다",
-      graphTitle: "지식 그래프",
-      graphDesc: "엔티티와 관계를 추출하여 지식 그래프를 구축하고 그래프 검색을 지원합니다",
       atLeastOne: "최소 하나의 인덱싱 전략을 활성화해야 합니다",
       embeddingRequired: "RAG 검색에는 Embedding 모델 설정이 필요합니다",
       lockedTip: "지식베이스에 콘텐츠가 있어 인덱싱 전략을 변경할 수 없습니다. 변경하려면 먼저 지식베이스를 비우세요.",
@@ -3377,9 +3272,6 @@ export default {
       },
     },
   },
-  embedPublish: {
-    copyCode: "코드 복사",
-  },
   knowledgeList: {
     create: "지식베이스 생성",
     subtitle: "지식베이스를 관리하고 구성합니다. 문서형과 Q&A형 지식베이스를 지원합니다",
@@ -3406,13 +3298,7 @@ export default {
       title: "공유 지식베이스",
       sourceType: "소스 방법",
       sourceTypeKbShare: "지식베이스는 이 스페이스에 직접 공유됩니다.",
-      sourceTypeAgent: "에이전트 액세스 가능(공유 에이전트를 통해 표시)",
       sourceOrg: "소스 스페이스",
-      sourceFromAgent: "에이전트",
-      agentKbStrategy: "에이전트 지식베이스 전략",
-      agentKbStrategyAll: "모든 지식베이스",
-      agentKbStrategySelected: "지식베이스 지정",
-      agentKbStrategyNone: "지식베이스를 사용하지 않음",
       sharedAt: "공유 시간",
       myPermission: "내 권한",
       goToKb: "지식베이스를 입력하세요",
@@ -3599,6 +3485,7 @@ export default {
     edit: "편집",
     copy: "복사",
     copied: "복사됨",
+    copyCode: "코드 복사",
     create: "생성",
     download: "다운로드",
     refresh: "새로고침",
@@ -3669,7 +3556,7 @@ export default {
     firstTime: "Yuheng가 처음이신가요?",
     registerSuccess: "가입이 완료되었습니다. 로그인해주세요",
     registerFailed: "가입 실패",
-    subtitle: "RAG Q&A, ReAct 에이전트, Wiki 지식베이스 — 대규모 언어 모델 기반 엔터프라이즈 지식 프레임워크",
+    subtitle: "RAG Q&A와 Wiki 지식베이스 — 대규모 언어 모델 기반 엔터프라이즈 지식 프레임워크",
     registerSubtitle: "계정을 만들고 Yuheng를 시작하세요",
     emailPlaceholder: "이메일 주소 입력",
     passwordPlaceholder: "비밀번호 입력 (8-32자, 문자와 숫자 포함)",
@@ -3820,11 +3707,6 @@ export default {
     toasts: {
       saveSuccess: "메시지 관리 설정이 저장되었습니다",
       saveFailed: "설정 저장 실패: {message}",
-    },
-  },
-  memorySettings: {
-    usage: {
-      title: "기억이 사용되는 시점",
     },
   },
   vectorStoreSettings: {
@@ -4085,26 +3967,6 @@ export default {
     think: "사고",
     copy: "복사",
     addToKnowledgeBase: "지식베이스에 추가",
-    selector: {
-      title: "에이전트 선택",
-    },
-    shareScope: {
-      title: "공유 범위 설명",
-      desc: "스페이스 구성원은 읽기 전용 모드로 에이전트를 사용하며 현재 구성된 기능과 리소스를 따릅니다. 에이전트에 대한 수정 사항은 공유 공간에 동기화됩니다. 스페이스 구성원이 지식베이스 콘텐츠를 편집할 수 있도록 허용하려면 지식베이스를 스페이스에 공유하세요.",
-    },
-    detail: {
-      title: "에이전트 세부정보",
-    },
-    empty: {
-      title: "아직 맞춤 에이전트가 없습니다.",
-    },
-    sections: {
-      tenantOthers: "워크스페이스 · 다른 멤버",
-      tenantReadonly: "워크스페이스 · 읽기 전용",
-    },
-    artifactDrawer: {
-      title: "생성된 파일",
-    },
   },
   knowledgeStages: {
     title: "처리 파이프라인",
@@ -4630,7 +4492,7 @@ export default {
         },
         kb: {
           title: "지식 범위 선택",
-          desc: "{'@'}를 눌러 지식 베이스나 파일을 선택하세요. 선택한 범위만 사용해 답변합니다. 선택하지 않으면 현재 에이전트 설정이 적용됩니다.",
+          desc: "{'@'}를 눌러 지식 베이스나 파일을 선택하세요. 선택한 범위만 사용해 답변합니다. 선택하지 않으면 검색 없이 모델이 바로 답변합니다.",
         },
       },
     },
@@ -4755,10 +4617,6 @@ export default {
         title: "계정 및 설정 입구",
         desc: "여기를 열면 계정, 멤버, 시스템 설정을 관리할 수 있습니다. 이 가이드는 메뉴 상단 닉네임 옆 도움말 버튼에서 다시 열 수 있습니다.",
       },
-      agents: {
-        title: "전용 에이전트 구축",
-        desc: "지식 베이스, 프롬프트, 도구를 결합해 재사용 가능한 에이전트로 전문성을 축적하세요.",
-      },
       chat: {
         title: "AI 대화 시작하기",
         desc: "지식 베이스 내용을 기반으로 질문하고 출처가 포함된 정확한 답변을 받아보세요. 여기를 클릭해 새 대화를 시작하세요.",
@@ -4769,7 +4627,7 @@ export default {
       },
       welcome: {
         title: "Yuheng에 오신 것을 환영합니다",
-        desc: "몇 단계만으로 지식 베이스, 대화, 에이전트의 핵심 사용법을 안내합니다. '다음'을 눌러 시작하세요.",
+        desc: "몇 단계만으로 지식 베이스와 대화의 핵심 사용법을 안내합니다. '다음'을 눌러 시작하세요.",
       },
     },
   },
@@ -4984,10 +4842,9 @@ export default {
     reportQuestion: "질문: {text}",
     reportAnswer: "답변: {text}",
     wiki: {
-      title: "Wiki 점검 보고서",
-      pending: "검토 대기 중인 Wiki 문제 {count}건",
-      none: "미처리 Wiki 문제가 없습니다",
-      open: "Wiki에서 열기",
+      title: "Wiki 점검",
+      description: "깨진 링크, 고립된 페이지, 삭제된 출처 등 구조 문제는 Wiki 탭에서 점검합니다.",
+      open: "점검 실행",
     },
   },
   stewardship: {

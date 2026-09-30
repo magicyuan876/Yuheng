@@ -12,7 +12,7 @@ type SessionService interface {
 	// CreateSession creates a session
 	CreateSession(ctx context.Context, session *types.Session) (*types.Session, error)
 	// GetSession gets a session, honoring the caller's per-user scope with an
-	// Admin+ read fallback for tenant channel sessions (API / IM / embed).
+	// Admin+ read fallback for tenant channel sessions (API keys, legacy embed rows).
 	// Use only for read paths.
 	GetSession(ctx context.Context, id string) (*types.Session, error)
 	// GetOwnedSession gets a session strictly within the caller's owner scope
@@ -73,7 +73,7 @@ type SessionRepository interface {
 	// Get gets a session visible to the tenant/user scope.
 	Get(ctx context.Context, tenantID uint64, userID string, id string) (*types.Session, error)
 	// GetByID loads a session by tenant and id without user scoping. Callers
-	// must enforce access (e.g. embed channel + session signature).
+	// must enforce access themselves (loadSessionForRead's Admin+ fallback).
 	GetByID(ctx context.Context, tenantID uint64, id string) (*types.Session, error)
 	// GetByTenantID gets all sessions visible to the tenant/user scope.
 	GetByTenantID(ctx context.Context, tenantID uint64, userID string) ([]*types.Session, error)
@@ -86,7 +86,7 @@ type SessionRepository interface {
 	// SetOwnerID assigns sessions.user_id for a tenant-scoped row.
 	SetOwnerID(ctx context.Context, tenantID uint64, id, ownerID string) (int64, error)
 	// UpdateLastRequestState persists the most recent input-bar state for a
-	// session (agent, model, KB scope, etc.) so the chat UI can restore it
+	// session (model, KB scope, web search, etc.) so the chat UI can restore it
 	// when the session is reopened. Scope rules match Update.
 	UpdateLastRequestState(ctx context.Context, tenantID uint64, userID string, sessionID string, state *types.SessionLastRequestState) (int64, error)
 	// SetPinned pins or unpins a session row scoped by tenant.

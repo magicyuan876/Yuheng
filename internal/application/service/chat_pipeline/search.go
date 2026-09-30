@@ -599,7 +599,7 @@ func (p *PluginSearch) searchWebIfEnabled(ctx context.Context, chatManage *types
 		webConfig = types.EffectiveWebSearchConfig(tenant.WebSearchConfig)
 	}
 
-	// Apply agent-level web search overrides
+	// Apply the request-level max-results value resolved for this turn
 	if chatManage.WebSearchMaxResults > 0 {
 		webConfig.MaxResults = chatManage.WebSearchMaxResults
 	}

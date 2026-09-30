@@ -30,7 +30,8 @@ type PipelineRequest struct {
 	FallbackResponse string           `json:"fallback_response"`
 	FallbackPrompt   string           `json:"fallback_prompt"`
 	// CitationEnabled controls only final knowledge/web source citations. Nil
-	// defaults to true for requests and agents created before this option existed.
+	// means true; nothing sets it since the custom-agent option that did was
+	// removed, so citations are always on today.
 	CitationEnabled *bool `json:"citation_enabled,omitempty"`
 
 	// Rewrite parameters
@@ -51,15 +52,17 @@ type PipelineRequest struct {
 	// File attachments support
 	Attachments MessageAttachments `json:"-"`
 
-	// IntentPromptOverrides holds agent-level intent prompt overrides for the
+	// IntentPromptOverrides holds request-level intent prompt overrides for the
 	// query-understanding stage. Empty values fall back to tenant/global defaults.
+	// Nothing populates it since the custom-agent config that did was removed,
+	// so today the tenant/global defaults always apply.
 	IntentPromptOverrides map[string]string `json:"-"`
 
 	// Misc request-scoped config
 	TenantID            uint64 `json:"-"`
 	WebSearchEnabled    bool   `json:"-"`
-	WebSearchProviderID string `json:"-"` // Resolved from agent config or tenant default
-	WebSearchMaxResults int    `json:"-"` // Resolved from agent config or tenant default
+	WebSearchProviderID string `json:"-"` // Resolved from the tenant default provider
+	WebSearchMaxResults int    `json:"-"` // Resolved from the tenant web search config
 	WebFetchEnabled     bool   `json:"-"` // Auto-fetch full page content for web search results after rerank
 	WebFetchTopN        int    `json:"-"` // Max pages to fetch (default 3)
 	Language            string `json:"-"`

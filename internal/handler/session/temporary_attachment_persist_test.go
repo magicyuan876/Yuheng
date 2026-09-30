@@ -41,7 +41,7 @@ func newAttachmentReqCtx() *qaRequestContext {
 // TestPersistResolvedAttachmentContent_EnrichesMatchingAttachments is the core
 // regression guard for PR #2086: the user message is created with
 // metadata-only attachment entries, and the parsed content selected after the
-// SSE stream starts must be written back so multi-turn (Agent-mode) history can
+// SSE stream starts must be written back so multi-turn history can
 // replay it via the Attachments column.
 func TestPersistResolvedAttachmentContent_EnrichesMatchingAttachments(t *testing.T) {
 	stub := &attachmentMsgStub{

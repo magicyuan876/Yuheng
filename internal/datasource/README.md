@@ -17,7 +17,7 @@ The data source sync framework enables Yuheng to automatically import and synchr
               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  Connector Registry & Adapters              │
-│    Each platform (feishu/, notion/, confluence/, etc)     │
+│    Each platform (feishu/, notion/, yuque/, etc)          │
 │           implements the Connector interface               │
 └─────────────┬───────────────────────────────────────────────┘
               │
@@ -95,7 +95,7 @@ migrations/versioned/
 ### DataSource
 Represents a configured external data source:
 - **ID**: Unique identifier
-- **Type**: Connector type (feishu, notion, confluence, etc)
+- **Type**: Connector type (feishu, notion, yuque, etc)
 - **Config**: Encrypted credentials and configuration (JSON)
 - **SyncSchedule**: Cron expression (e.g., "0 */6 * * *")
 - **SyncMode**: "incremental" or "full"

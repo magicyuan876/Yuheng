@@ -672,7 +672,7 @@ func (kb *KnowledgeBase) EnsureDefaults() {
 // KBCapabilities describes the functional features a knowledge base exposes.
 // It is computed from the KB's configuration (IndexingStrategy, Type, WikiConfig, …)
 // and surfaced in the JSON representation of a KnowledgeBase so that the frontend
-// can filter / enable / disable KB options based on what the selected agent type needs.
+// can filter / enable / disable KB options based on the features a screen needs.
 type KBCapabilities struct {
 	// Vector means semantic (embedding) search is indexed.
 	Vector bool `json:"vector"`
@@ -702,7 +702,7 @@ func (kb *KnowledgeBase) Capabilities() KBCapabilities {
 }
 
 // MarshalJSON augments the default JSON encoding of KnowledgeBase with a computed
-// `capabilities` field so clients (agent editor) can filter KBs by feature.
+// `capabilities` field so clients can filter KBs by feature.
 // It preserves all existing fields verbatim.
 func (kb *KnowledgeBase) MarshalJSON() ([]byte, error) {
 	type alias KnowledgeBase

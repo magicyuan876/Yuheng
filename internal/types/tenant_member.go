@@ -20,15 +20,15 @@ const (
 	// deletion, ownership transfer, and managing tenant API keys.
 	TenantRoleOwner TenantRole = "owner"
 	// TenantRoleAdmin manages users, integrations, and tenant-scoped
-	// configuration such as model providers, vector stores, MCP services
-	// and IM channels, but cannot delete the tenant or change Owners.
+	// configuration such as model providers, vector stores and web-search
+	// providers, but cannot delete the tenant or change Owners.
 	TenantRoleAdmin TenantRole = "admin"
-	// TenantRoleContributor can create knowledge bases and agents, and edit
+	// TenantRoleContributor can create knowledge bases, and edit
 	// the ones they created. They have read access to everything else in
 	// the tenant.
 	TenantRoleContributor TenantRole = "contributor"
 	// TenantRoleViewer has read-only access to tenant resources and can
-	// run agents that are explicitly marked as runnable by viewers.
+	// chat against the knowledge bases it can read.
 	TenantRoleViewer TenantRole = "viewer"
 )
 

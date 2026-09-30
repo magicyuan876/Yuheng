@@ -178,7 +178,7 @@ graph TB
 
 `metadata` 与 `custom_metadata` 刻意分开（migration `000078`）：前者是入库过程写入的内部状态与 ID，后者是用户自己维护的描述性字段（部门、密级、版本号等）。`custom_metadata` 最多 20 个字段，键 1-64 字符，值为字符串/数字/布尔/null 且不超过 1000 字符；`Knowledge.CustomMetadataText()` 把它渲染成稳定排序的 `键: 值` 文本，参与摘要生成与文档级模型上下文。修改元数据会自动触发一次摘要刷新。
 
-`channel` 记录内容从哪里进来：界面上传默认 `web`；上传接口可用表单字段 `channel` 自报（如 `api`）；数据源同步写入连接器类型（`feishu`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`rss`、`gitlab`、`ima`）；在线文档页面的镜像为 `docs`。`internal/types/knowledge.go` 里还留着 `wechat`、`wecom`、`dingtalk`、`slack`、`im` 等来自上游的常量，但 IM 渠道已移除，现在不会产生这些值。
+`channel` 记录内容从哪里进来：界面上传默认 `web`；上传接口可用表单字段 `channel` 自报（如 `api`）；数据源同步写入连接器类型（`feishu`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`rss`、`gitlab`、`ima`）；在线文档页面的镜像为 `docs`。`channel` 是自由文本：上游 IM 集成（已移除）写入的 `wechat`、`wecom`、`dingtalk`、`slack`、`im` 仍可能出现在旧数据里，只用于显示和过滤，不需要迁移；现在的代码不会再产生这些值。
 
 解析状态机：
 

@@ -8,9 +8,9 @@
 // authenticated `/files` proxy for every image.
 //
 // This package is the single implementation of the "give me a loadable link"
-// translation. It is used by the IM channels (which have no way to attach
-// Yuheng credentials to an image fetch) and, opt-in, by the HTTP API so
-// integrators receive ready-to-render URLs.
+// translation. The HTTP API uses it, opt-in via resource_urls=public, so
+// integrators (which may have no way to attach Yuheng credentials to an image
+// fetch) receive ready-to-render URLs.
 package storageurl
 
 import (
@@ -66,8 +66,8 @@ type Resolver interface {
 //     is DEBUG-only so log aggregation cannot hand out anonymously readable
 //     links; operators can raise the log level when verifying reachability.
 //   - Failure or no-op logs at WARN. The no-op case usually means
-//     APP_EXTERNAL_URL is unset, the most common cause of "image broken in the
-//     IM channel / in my app" reports.
+//     APP_EXTERNAL_URL is unset, the most common cause of "image broken in
+//     my app" reports.
 type Rewriter struct {
 	resolver  Resolver
 	logPrefix string
@@ -77,7 +77,7 @@ type Rewriter struct {
 }
 
 // NewRewriter returns a Rewriter that resolves references through r. logPrefix
-// tags log lines with the calling surface (for example "IM" or "API"). A nil
+// tags log lines with the calling surface (for example "API"). A nil
 // resolver yields a Rewriter that leaves content unchanged.
 func NewRewriter(r Resolver, logPrefix string) *Rewriter {
 	return &Rewriter{resolver: r, logPrefix: logPrefix, memo: make(map[string]string)}

@@ -91,7 +91,7 @@ func (h *KnowledgeHandler) validateKnowledgeBaseAccess(c *gin.Context) (*types.K
 }
 
 // validateKnowledgeBaseAccessWithKBID validates access to the given knowledge base ID (e.g. from query or body).
-// Enforces per-API-key KB scope before tenant/share/agent resolution.
+// Enforces per-API-key KB scope before tenant/share resolution.
 // Returns the knowledge base, kbID, effective tenant ID, permission, and error.
 func (h *KnowledgeHandler) validateKnowledgeBaseAccessWithKBID(c *gin.Context, kbID string) (*types.KnowledgeBase, string, uint64, types.OrgMemberRole, error) {
 	ctx := c.Request.Context()

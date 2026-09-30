@@ -103,7 +103,7 @@ func (p *PluginChatCompletionStream) OnEvent(ctx context.Context,
 
 	// Start goroutine to consume channel and emit events directly.
 	// reasoning_content is routed to EventAgentThought (SSE response_type=thinking)
-	// and plain answer text to EventAgentFinalAnswer, matching the Agent pipeline.
+	// and plain answer text to EventAgentFinalAnswer, the chat SSE protocol events.
 	// The goroutine monitors ctx.Done() to avoid leaking when the context is cancelled
 	// and the upstream channel is not closed promptly.
 	go func() {

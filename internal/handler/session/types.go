@@ -6,7 +6,7 @@ import (
 
 // CreateSessionRequest represents a request to create a new session
 // Sessions are now knowledge-base-independent and serve as conversation containers.
-// All configuration (knowledge bases, model settings, etc.) comes from custom agent at query time.
+// Per-turn configuration (knowledge bases, files, models) arrives with each chat request instead.
 type CreateSessionRequest struct {
 	// Title for the session (optional)
 	Title string `json:"title"`
@@ -43,7 +43,6 @@ type CreateKnowledgeQARequest struct {
 	Query                 string                       `json:"query"              binding:"required"` // Query text for knowledge base search
 	KnowledgeBaseIDs      []string                     `json:"knowledge_base_ids"`                    // Selected knowledge base ID for this request
 	KnowledgeIds          []string                     `json:"knowledge_ids"`                         // Selected knowledge ID for this request
-	AgentID               string                       `json:"agent_id"`                              // Optional behaviour marker (builtin-wiki-fixer); no agent resolution
 	WebSearchEnabled      bool                         `json:"web_search_enabled"`                    // Whether web search is enabled for this request
 	SummaryModelID        string                       `json:"summary_model_id"`                      // Optional summary model ID for this request (overrides session default)
 	TagIDs                []string                     `json:"tag_ids"`                               // @mentioned tag IDs (display/debug; scoped via MentionedItems)

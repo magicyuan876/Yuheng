@@ -293,7 +293,8 @@ func (s *temporaryDocumentService) Process(ctx context.Context, task *asynq.Task
 		return err
 	}
 	// The attachment row and file remain scoped to payload.TenantID, while
-	// parser/model dependencies may belong to a verified shared-agent source.
+	// parser/model dependencies resolve against ResourceTenantID when a
+	// stored document carries one (see TemporaryDocumentCreateOptions).
 	resourceTenantID := payload.TenantID
 	var options types.TemporaryDocumentCreateOptions
 	if json.Unmarshal(document.ProcessingOptions, &options) == nil && options.ResourceTenantID != 0 {
@@ -448,7 +449,7 @@ func (s *temporaryDocumentService) parse(ctx context.Context, document *types.Te
 // text-bearing screenshot costs one VLM call, while a diagram/photo falls back
 // to a caption). This only kicks in when the parsed content is text-poor, i.e.
 // no dedicated OCR engine already ran. Image-only / scanned documents get an
-// OCR-only pass, gated by the agent opt-in and the low-text threshold to keep
+// OCR-only pass, gated by the ImageUnderstanding opt-in and the low-text threshold to keep
 // latency predictable. Returns the enriched content, or "" to keep the original
 // content unchanged.
 func (s *temporaryDocumentService) applyImageUnderstanding(

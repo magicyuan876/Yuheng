@@ -899,10 +899,7 @@
         >
           <template
             v-for="(shared, index) in sortedSpaceKbsList"
-            :key="
-              'shared-' +
-              (shared.share_id || `agent-${shared.knowledge_base?.id}-${shared.source_from_agent?.agent_id || ''}`)
-            "
+            :key="'shared-' + (shared.share_id || shared.knowledge_base?.id)"
           >
             <!-- 我共享的：本空间下我自己创建并共享进来的条目，只在第一条 is_mine 上挂标题 -->
             <div
@@ -1240,34 +1237,16 @@
                   $t("knowledgeList.detail.sourceType")
                 }}</span>
                 <span class="text-foreground text-sm leading-normal font-medium break-words">
-                  {{
-                    currentSharedKbForDetail.source_from_agent
-                      ? $t("knowledgeList.detail.sourceTypeAgent")
-                      : $t("knowledgeList.detail.sourceTypeKbShare")
-                  }}
+                  {{ $t("knowledgeList.detail.sourceTypeKbShare") }}
                 </span>
               </div>
               <div class="flex flex-col gap-1.5">
                 <span class="text-muted-foreground text-xs leading-[1.4]">{{
-                  currentSharedKbForDetail.source_from_agent
-                    ? $t("knowledgeList.detail.sourceFromAgent")
-                    : $t("knowledgeList.detail.sourceOrg")
+                  $t("knowledgeList.detail.sourceOrg")
                 }}</span>
                 <span class="text-foreground inline-flex items-center gap-1.5 text-sm leading-normal break-words">
                   <img src="@/assets/img/organization-green.svg" class="size-3.5 shrink-0" alt="" aria-hidden="true" />
-                  {{
-                    currentSharedKbForDetail.source_from_agent
-                      ? currentSharedKbForDetail.source_from_agent.agent_name
-                      : currentSharedKbForDetail.org_name
-                  }}
-                </span>
-              </div>
-              <div v-if="currentSharedKbForDetail.source_from_agent" class="flex flex-col gap-1.5">
-                <span class="text-muted-foreground text-xs leading-[1.4]">{{
-                  $t("knowledgeList.detail.agentKbStrategy")
-                }}</span>
-                <span class="text-foreground text-sm leading-normal break-words">
-                  {{ agentKbStrategyText(currentSharedKbForDetail.source_from_agent?.kb_selection_mode ?? "") }}
+                  {{ currentSharedKbForDetail.org_name }}
                 </span>
               </div>
               <div class="flex flex-col gap-1.5">
@@ -1328,7 +1307,6 @@ import {
   listOrganizationSharedKnowledgeBases,
   type SharedKnowledgeBase,
   type OrganizationSharedKnowledgeBaseItem,
-  type SourceFromAgentInfo,
 } from "@/api/organization";
 import { mergeAllScopeKnowledgeBases, type OwnedKnowledgeBase, type SharedKnowledgeBaseLike } from "./kbListMerge";
 import KnowledgeBaseEditorModal from "./KnowledgeBaseEditorModal.vue";
@@ -2135,8 +2113,8 @@ const handleSharedKbClickFromAll = (kb: any) => {
   router.push(`/platform/knowledge-bases/${kb.id}`);
 };
 
-// 右侧详情面板：共享知识库详情（含直接共享与来自智能体的）
-type SharedKbDetailItem = SharedKnowledgeBase & { is_mine?: boolean; source_from_agent?: SourceFromAgentInfo };
+// 右侧详情面板：直接共享到空间的知识库详情
+type SharedKbDetailItem = SharedKnowledgeBase & { is_mine?: boolean };
 const sharedDetailPanelVisible = ref(false);
 const currentSharedKbForDetail = ref<SharedKbDetailItem | null>(null);
 
@@ -2154,17 +2132,10 @@ const openSharedDetailFromAll = (kb: any) => {
   }
 };
 
-// 打开右侧详情面板（空间 Tab：直接共享或来自智能体）
+// 打开右侧详情面板（空间 Tab）
 const openSharedDetail = (sharedKb: SharedKbDetailItem) => {
   currentSharedKbForDetail.value = sharedKb;
   sharedDetailPanelVisible.value = true;
-};
-
-// 智能体对知识库的策略文案（用于抽屉「来源方式」为智能体时）
-const agentKbStrategyText = (mode: string) => {
-  if (mode === "all") return t("knowledgeList.detail.agentKbStrategyAll");
-  if (mode === "selected") return t("knowledgeList.detail.agentKbStrategySelected");
-  return t("knowledgeList.detail.agentKbStrategyNone");
 };
 
 // 从右侧面板进入知识库

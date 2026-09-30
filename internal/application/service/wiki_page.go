@@ -257,7 +257,7 @@ func revisionFromPage(p *types.WikiPage) *types.WikiPageRevision {
 
 // pruneRevisions bounds one page's snapshot history after it advanced to
 // currentVersion. Machine-authored snapshots are dropped once they fall out
-// of the recent window; human/agent/revert ones survive until the hard cap,
+// of the recent window; user, revert and legacy agent ones survive until the hard cap,
 // so pipeline churn on a hot page cannot evict the edits users care about.
 func (s *wikiPageService) pruneRevisions(ctx context.Context, pageID string, currentVersion int) {
 	req := types.WikiRevisionPruneRequest{
@@ -850,7 +850,6 @@ func (s *wikiPageService) GetStats(ctx context.Context, kbID string) (*types.Wik
 	}
 
 	var pendingTasks int64
-	var pendingIssues int64
 	var isActive bool
 	if s.taskPendingRepo != nil {
 		// Pending wiki ingest ops live in task_pending_ops keyed by
@@ -865,9 +864,6 @@ func (s *wikiPageService) GetStats(ctx context.Context, kbID string) (*types.Wik
 		isActive = activeFlag > 0
 	}
 
-	issues, _ := s.ListIssues(ctx, kbID, "", "pending")
-	pendingIssues = int64(len(issues))
-
 	return &types.WikiStats{
 		TotalPages:    total,
 		PagesByType:   counts,
@@ -875,7 +871,6 @@ func (s *wikiPageService) GetStats(ctx context.Context, kbID string) (*types.Wik
 		OrphanCount:   orphans,
 		RecentUpdates: recentPages,
 		PendingTasks:  pendingTasks,
-		PendingIssues: pendingIssues,
 		IsActive:      isActive,
 	}, nil
 }
@@ -1329,27 +1324,6 @@ func removeString(slice []string, s string) types.StringArray {
 		}
 	}
 	return result
-}
-
-// CreateIssue logs a new issue for a wiki page
-func (s *wikiPageService) CreateIssue(ctx context.Context, issue *types.WikiPageIssue) (*types.WikiPageIssue, error) {
-	if issue.ID == "" {
-		issue.ID = uuid.New().String()
-	}
-	if err := s.repo.CreateIssue(ctx, issue); err != nil {
-		return nil, fmt.Errorf("create wiki page issue: %w", err)
-	}
-	return issue, nil
-}
-
-// ListIssues retrieves issues for a knowledge base
-func (s *wikiPageService) ListIssues(ctx context.Context, kbID string, slug string, status string) ([]*types.WikiPageIssue, error) {
-	return s.repo.ListIssues(ctx, kbID, slug, status)
-}
-
-// UpdateIssueStatus updates an issue's status
-func (s *wikiPageService) UpdateIssueStatus(ctx context.Context, issueID string, status string) error {
-	return s.repo.UpdateIssueStatus(ctx, issueID, status)
 }
 
 // --- Folder tree (wiki_folders) ---
@@ -1871,16 +1845,15 @@ func (s *wikiPageService) InjectCrossLinks(ctx context.Context, kbID string, aff
 	}
 }
 
-// RebuildIndexPage was historically called by agent write/rename tools to
-// refresh the index page's directory listing after a page mutation.
+// RebuildIndexPage was historically called by the upstream agent write/rename
+// tools to refresh the index page's directory listing after a page mutation.
 //
 // The directory is no longer persisted in wiki_pages.content — it is
 // assembled on demand by GetIndexView from the lightweight ListByTypeLight
 // projection, so individual page writes don't need to redo O(N) string
-// concatenation and rewrite a multi-MB TEXT column anymore. Keeping the
-// method name lets existing agent tool call sites (wiki_write_page,
-// wiki_rename_page) compile unchanged; the body is now intentionally a
-// no-op.
+// concatenation and rewrite a multi-MB TEXT column anymore. Those agent tools
+// were removed with the rest of the agent feature and nothing calls this
+// method today; the body is intentionally a no-op.
 //
 // The intro that still lives on the index row is managed separately by
 // the ingest pipeline (see wikiIngestService.rebuildIndexPage) on batch

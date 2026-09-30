@@ -256,7 +256,7 @@ func TestRequireKBAccess_NoTenant_Aborts(t *testing.T) {
 	require.True(t, c.IsAborted())
 }
 
-// ---------- Agent-share fallback ----------
+// ---------- EnableRBAC=false behaviour ----------
 
 func TestRequireKBAccess_Forbidden_FailOpenWhenRBACDisabled(t *testing.T) {
 	// Same scenario as PermissionBelowMin (which aborts when enforcing),

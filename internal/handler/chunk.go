@@ -15,7 +15,7 @@ import (
 
 // ChunkHandler defines HTTP handlers for chunk operations.
 //
-// All KB-access checks (own / org-shared / via shared agent) are now
+// All KB-access checks (own KB / org-shared KB) are now
 // performed by the route-level g.KBAccessRead*FromKnowledgeIDParam /
 // g.KBAccessWrite*FromKnowledgeIDParam / g.KBAccess*FromChunkIDParam
 // guards in router.go — the guard rewrites c.Request.Context() to

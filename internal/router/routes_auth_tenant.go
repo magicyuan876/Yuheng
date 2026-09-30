@@ -237,7 +237,7 @@ func RegisterSystemRoutes(
 		systemRoutes.With(apiKeyAny()).GET("/governance", g.Viewer(), handler.GetGovernance)
 		systemRoutes.GET("/info", g.Viewer(), handler.GetSystemInfo)
 		// 引擎清单只读 Viewer+（建库时要选解析引擎）；连通性探测会带着已保存
-		// 的凭据打到上游解析/存储/沙箱服务，与写同权 —— PlatformManaged。
+		// 的凭据打到上游解析/存储服务，与写同权 —— PlatformManaged。
 		systemRoutes.GET("/parser-engines", g.Viewer(), handler.ListParserEngines)
 		systemRoutes.POST("/parser-engines/check", g.PlatformManaged(), handler.CheckParserEngines)
 		systemRoutes.POST("/docreader/reconnect", g.PlatformManaged(), handler.ReconnectDocReader)

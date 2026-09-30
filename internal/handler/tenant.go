@@ -93,7 +93,7 @@ type createTenantRequest struct {
 
 // updateTenantRequest is the JSON body for PUT /tenants/:id. Only the
 // fields an Owner is permitted to mutate via the public API are bound;
-// everything else (storage_quota, status, business, api_key, agent /
+// everything else (storage_quota, status, business, api_key,
 // retrieval / storage configs, ...) is intentionally NOT writable here
 // — those go through dedicated endpoints (PUT /tenants/kv/:key, ...)
 // that have their own validation.

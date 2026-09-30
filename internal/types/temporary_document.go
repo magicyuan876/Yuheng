@@ -92,8 +92,11 @@ type TemporaryDocumentTaskPayload struct {
 }
 
 type TemporaryDocumentCreateOptions struct {
-	// ResourceTenantID is the verified agent source workspace used to resolve
-	// parser/model dependencies. The document itself remains owned by TenantID.
+	// ResourceTenantID, when non-zero, is the workspace used to resolve
+	// parser/model dependencies; zero means TenantID. The document itself
+	// remains owned by TenantID. The chat upload handler never sets it (the
+	// shared-agent flow that did was removed); it is still honoured so that
+	// documents queued with it keep processing the same way.
 	ResourceTenantID uint64 `json:"resource_tenant_id,omitempty"`
 	ASRModelID       string `json:"asr_model_id,omitempty"`
 	ParserEngine     string `json:"parser_engine,omitempty"`

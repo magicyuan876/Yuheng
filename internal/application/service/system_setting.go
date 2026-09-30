@@ -316,9 +316,9 @@ var registry = map[string]settingSpec{
 			"（各模型仍会尊重自身在模型管理里配置的上限）。仅影响后台任务，不影响交互式对话。",
 	},
 	// governance.centralized_infra flips the deployment into "centralised
-	// infrastructure" mode: models, MCP services, web-search providers,
-	// vector stores, storage backends, sandbox configs, parser engines and
-	// Ollama become platform-owned. Workspace Owners/Admins keep READ access
+	// infrastructure" mode: models, web-search providers, vector stores,
+	// storage backends, parser engines and Ollama become platform-owned.
+	// Workspace Owners/Admins keep READ access
 	// (the knowledge-base editor still has to list and select them) but lose
 	// every write path — only SystemAdmins may configure them.
 	//

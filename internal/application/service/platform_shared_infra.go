@@ -9,15 +9,15 @@ import (
 )
 
 // Shared helpers for infrastructure rows that can be marked is_builtin and
-// become visible to every workspace: models, MCP services, web-search
-// providers, vector stores and storage backends.
+// become visible to every workspace: models, web-search providers, vector
+// stores and storage backends.
 //
 // The shape is always the same, and getting any part of it wrong is a
 // cross-tenant bug rather than a cosmetic one:
 //
 //   - READS are widened at the repository layer to
 //     "(tenant_id = ? OR is_builtin = true)" so a workspace can select a
-//     platform-provided instance when building a knowledge base or agent.
+//     platform-provided instance when building a knowledge base.
 //   - WRITES must stay keyed on the OWNING tenant, not the caller's. Every
 //     repository update/delete is keyed on (id, tenant_id); a shared row
 //     belongs to whichever workspace created it, which is rarely the admin's

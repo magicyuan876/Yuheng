@@ -77,7 +77,8 @@ var (
 		Description: "助手的回答内容（用于对话历史格式化）",
 	}
 
-	// Agent mode specific placeholders
+	// Placeholders from the upstream agent mode. No prompt field offers them
+	// and nothing in this fork renders them; they remain in AllPlaceholders only.
 	PlaceholderKnowledgeBases = PromptPlaceholder{
 		Name:        "knowledge_bases",
 		Label:       "知识库列表",

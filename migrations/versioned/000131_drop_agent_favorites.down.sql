@@ -1,0 +1,3 @@
+-- Migration 000131 Down: nothing to undo.
+-- The deleted rows named agents that no longer exist; there is nothing to
+-- restore them from, and the schema did not change.

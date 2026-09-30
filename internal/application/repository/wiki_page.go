@@ -1064,9 +1064,10 @@ func (r *wikiPageRepository) ListAll(ctx context.Context, kbID string) ([]*types
 }
 
 // ListRecentForSuggestions returns recent user-visible wiki pages across the given
-// knowledge bases, used as a fallback source for agent suggested questions when
-// the KB has no FAQ entries or AI-generated document questions (typical for
-// Wiki-only KBs). Excludes the index page and archived pages.
+// knowledge bases, meant as a fallback source for suggested questions when the
+// KB has no FAQ entries or AI-generated document questions (typical for
+// Wiki-only KBs). Its caller was the custom agent's suggestion path, which was
+// removed, so nothing calls it today. Excludes the index page and archived pages.
 func (r *wikiPageRepository) ListRecentForSuggestions(
 	ctx context.Context,
 	tenantID uint64,
@@ -1215,30 +1216,4 @@ func (r *wikiPageRepository) CountOrphans(ctx context.Context, kbID string) (int
 		return 0, err
 	}
 	return count, nil
-}
-
-func (r *wikiPageRepository) CreateIssue(ctx context.Context, issue *types.WikiPageIssue) error {
-	return r.db.WithContext(ctx).Create(issue).Error
-}
-
-func (r *wikiPageRepository) ListIssues(ctx context.Context, kbID string, slug string, status string) ([]*types.WikiPageIssue, error) {
-	query := r.db.WithContext(ctx).Where("knowledge_base_id = ?", kbID)
-	if slug != "" {
-		query = query.Where("slug = ?", slug)
-	}
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-
-	var issues []*types.WikiPageIssue
-	if err := query.Order("created_at DESC").Find(&issues).Error; err != nil {
-		return nil, err
-	}
-	return issues, nil
-}
-
-func (r *wikiPageRepository) UpdateIssueStatus(ctx context.Context, issueID string, status string) error {
-	return r.db.WithContext(ctx).Model(&types.WikiPageIssue{}).
-		Where("id = ?", issueID).
-		Update("status", status).Error
 }

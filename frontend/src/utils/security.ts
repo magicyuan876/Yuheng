@@ -580,9 +580,8 @@ function applyHydratedProtectedImage(root: ParentNode, sourceURL: string, blobUR
  * 将内容里的受保护图片（resource:// 等）通过对应的文件代理带鉴权拉取，
  * 再以 blob URL 替换显示。
  *
- * 走哪条代理由 {@link resolveProtectedFileAccess} 决定：应用入口注册的默认
- * 上下文（如嵌入应用的 Embed 平面）优先，组件只在同一鉴权平面内用
- * `access` 细化作用域（如知识库）。
+ * 走哪条代理由组件传入的 `access` 作用域决定（如知识库、会话消息），缺省为
+ * 租户作用域，见 {@link resolveProtectedFileAccess}。
  */
 export async function hydrateProtectedFileImages(
   root: ParentNode | null | undefined,
@@ -619,9 +618,8 @@ export async function hydrateProtectedFileImages(
       }
       img.dataset.authHydrated = "1";
 
-      // A null request means this source cannot be fetched under the current
-      // access context (not a storage path, or the embed token has not arrived
-      // yet). Leave the placeholder so a later pass can retry.
+      // A null request means this source is not a storage path the proxies
+      // serve. Leave the placeholder so a later pass can retry.
       const request = buildProtectedFileRequest(sourceURL, resolvedAccess);
       if (!request) {
         img.dataset.authHydrated = "0";

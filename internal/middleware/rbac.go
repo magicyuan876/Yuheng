@@ -280,7 +280,7 @@ func RequireSystemAdmin(cfg *config.Config) gin.HandlerFunc {
 // either (a) callers whose role is at least min, or (b) the original
 // creator of the resource being touched.
 //
-// Use it for KB / agent mutations where Contributors should only manage
+// Use it for KB mutations where Contributors should only manage
 // their own resources but Admins+ have free reign. The lookup closure
 // is responsible for translating the URL into the resource's creator
 // user ID (see CreatorLookup for the return-value contract).

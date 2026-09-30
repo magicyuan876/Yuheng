@@ -1,6 +1,6 @@
 // Package langfuse implements Yuheng's Langfuse/LiteFuse LLM tracing client on
 // top of the OpenTelemetry Go SDK. It records chat/embedding/rerank/VLM/ASR
-// generations plus the surrounding agent/HTTP/asynq spans as OTLP/HTTP spans
+// generations plus the surrounding HTTP/pipeline/asynq spans as OTLP/HTTP spans
 // to a Langfuse v3+ or LiteFuse backend (POST /api/public/otel/v1/traces).
 //
 // The integration is fully opt-in: when disabled (the default), every public

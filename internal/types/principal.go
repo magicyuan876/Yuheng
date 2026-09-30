@@ -11,7 +11,6 @@ const (
 	PrincipalAPITenant       = "api_tenant"
 	PrincipalAPIPlatform     = "api_platform"
 	PrincipalAPIExternalUser = "api_external_user"
-	PrincipalIMUser          = "im_user"
 )
 
 // SessionOwnerAPITenantKeyPrefix prefixes sessions.user_id for rows created by a

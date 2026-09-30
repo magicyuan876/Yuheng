@@ -168,11 +168,6 @@
           <span
             class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
           >
-            {{ $t("platform.agent") }}
-          </span>
-          <span
-            class="inline-block rounded-[20px] bg-white/20 px-5 py-2 text-sm font-medium text-white max-[480px]:px-4 max-[480px]:py-1.5 max-[480px]:text-xs dark:bg-white/[0.12]"
-          >
             {{ $t("platform.wiki") }}
           </span>
           <span
@@ -568,7 +563,6 @@ import { useI18n } from "vue-i18n";
 import screenshot1 from "@/assets/img/screenshot-1.svg";
 import screenshot2 from "@/assets/img/screenshot-2.svg";
 import screenshot3 from "@/assets/img/screenshot-3.svg";
-import screenshot4 from "@/assets/img/screenshot-4.svg";
 
 const router = useRouter();
 const route = useRoute();
@@ -581,11 +575,6 @@ const modules = [Autoplay, EffectFade, Pagination];
 
 // Carousel slides data
 const slides = [
-  {
-    image: screenshot4,
-    title: t("platform.carousel.agenticRagTitle"),
-    description: t("platform.carousel.agenticRagDesc"),
-  },
   {
     image: screenshot2,
     title: t("platform.carousel.hybridSearchTitle"),
