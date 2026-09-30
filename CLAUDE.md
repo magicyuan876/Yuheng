@@ -37,9 +37,10 @@ Rules:
 2. `src/components/ui/*` is **our source**. Read it, edit it, add
    components with `npx shadcn-vue@latest add <name>` (run with proxy
    variables unset if the registry fetch fails; the CLI ignores
-   `HTTPS_PROXY` handling that the rest of the toolchain has). The
-   `shadcn-vue` dev dependency is not just the CLI: `tailwind.css` imports
-   `shadcn-vue/tailwind.css` from it.
+   `HTTPS_PROXY` handling that the rest of the toolchain has). The CLI is
+   not a dependency; its Tailwind layer (keyframes, `data-open:` variants,
+   utilities) is vendored as `src/assets/shadcn-vue.css` — re-copy it from
+   the matching shadcn-vue release if a new component needs more.
 3. `src/views/docs/**` is the pilot module and is held strictly: no `any`
    (ESLint enforces it there and only there).
 4. Toasts and confirmations still go through `MessagePlugin` /

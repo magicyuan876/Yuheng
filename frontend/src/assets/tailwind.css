@@ -39,11 +39,12 @@
 
 /*
  * shadcn-vue's own utilities and variants (scroll fades, shimmer, the
- * `data-open:` family). Components added later assume these exist; Tailwind
- * emits a utility only where it is used, so importing them costs nothing
- * until then.
+ * `data-open:` family), kept in our source beside the components it serves
+ * (see the header of that file). Components added later assume these exist;
+ * Tailwind emits a utility only where it is used, so importing them costs
+ * nothing until then.
  */
-@import "shadcn-vue/tailwind.css";
+@import "./shadcn-vue.css";
 
 /*
  * Dark mode follows the application's own switch. useTheme puts

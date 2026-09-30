@@ -14,7 +14,7 @@ Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应�
 | 样式 | Tailwind CSS | ^4.3.3 | 入口 `frontend/src/assets/tailwind.css`，不启用 preflight |
 | 组件 | shadcn-vue（Reka UI） | reka-ui ^2.10.5 | 组件源码复制在 `frontend/src/components/ui/`，由本仓库维护 |
 | 图标 | @lucide/vue | ^1.48.0 | `XIcon` 形式命名 |
-| 旧组件库 | TDesign (tdesign-vue-next) | ^1.19.2 | 正在退役，见下文「两套样式栈」；`tdesign-icons-vue-next` 被 overrides 锁定在 0.4.4 |
+| 提示与对话框 | TDesign (tdesign-vue-next) | ^1.19.2 | 只剩 `MessagePlugin` / `DialogPlugin` / `NotifyPlugin` 与 `<t-config-provider>`，见下文「样式栈」；`tdesign-icons-vue-next` 被 overrides 锁定在 0.4.4 |
 | 状态管理 | Pinia | ^3.0.4 | 全部 store 位于 `frontend/src/stores/` |
 | 路由 | Vue Router | ^4.5.0 | `createWebHistory(import.meta.env.BASE_URL)`，见 `frontend/src/router/index.ts` |
 | 多语言 | vue-i18n | ^11.4.2 | zh-CN / en-US / ru-RU / ko-KR |
@@ -34,24 +34,22 @@ Yuheng 的 Web 前端是一个基于 **Vue 3 + TypeScript + Vite** 的单页应�
 - `frontend/pnpm-workspace.yaml` 并非声明子包 workspace，只包含 `allowBuilds` 白名单（允许 `@vue-office/pptx`、`esbuild`、`vue-demi` 执行构建脚本）；
 - `overrides` / `resolutions` 统一了 `esbuild`、`serialize-javascript`、`tdesign-icons-vue-next` 的版本，并为 Excalidraw 的依赖钉住 `nanoid`。
 
-## 两套样式栈
+## 样式栈
 
-前端正在从 TDesign + Less 迁移到 Tailwind v4 + shadcn-vue。**新代码一律使用新栈**：Tailwind 工具类、`src/components/ui/` 下的 shadcn-vue 组件、`@lucide/vue` 图标。规则是「一个组件要么全新、要么全旧」：同一个 `.vue` 文件里不混用 `<t-*>` 与 shadcn 组件，也不混用 Less 与工具类。
-
-迁移已经推进到模板层面基本完成：`src/` 下的 `.vue` 文件已不再包含 `lang="less"` 样式块，模板里剩下的 TDesign 组件只有 `App.vue` 中的 `<t-config-provider>`。TDesign 仍然留在三处：
+界面由 Tailwind v4 + shadcn-vue 构成：Tailwind 工具类、`src/components/ui/` 下的 shadcn-vue 组件、`@lucide/vue` 图标。从 TDesign + Less 的迁移在模板层面已经完成：项目里没有 Less，模板里剩下的 TDesign 组件只有 `App.vue` 中的 `<t-config-provider>`。新代码不再引入 `<t-*>` 或 Less。TDesign 有意保留在三处：
 
 - **JS API**：提示与对话框仍走 `MessagePlugin`、`DialogPlugin`、`NotifyPlugin`（`tdesign-vue-next`），它们是函数调用而不是模板组件，会单独替换；
 - **设计 token**：`main.ts` 只引入 `tdesign-vue-next/es/style/index.css`（`--td-*` 变量），加上 `frontend/src/assets/theme/theme.css` 的品牌主题；
 - **全局安装**：`app.use(TDesign)` 仍在，`src/types/tdesign-global.d.ts` 让类型检查器认识全局的 `<t-*>` 组件。
 
-两套栈如何共存由 `frontend/src/assets/tailwind.css` 和 `vite.config.ts` 中的 `tdesignInLayer` 插件决定：
+TDesign 剩下的样式与 Tailwind 如何共存，由 `frontend/src/assets/tailwind.css` 和 `vite.config.ts` 中的 `tdesignInLayer` 插件决定：
 
 - 级联层顺序声明为 `theme, base, tdesign, components, utilities`。`tdesignInLayer` 把 `node_modules/tdesign-*` 的每个 CSS 文件包进 `@layer tdesign`，所以 Tailwind 工具类能覆盖 TDesign 样式，而 `base` 层的元素重置碰不到 TDesign 组件；
 - 不启用 Tailwind preflight：聊天与文档视图渲染的 Markdown 依赖浏览器默认样式。新组件需要的元素重置只作用于带 `data-slot` 属性的元素，给一个裸元素加上 `data-slot="…"` 即可纳入；
-- 每个语义 token（`bg-primary`、`text-muted-foreground`、`text-placeholder`、`text-warning`、`rounded-md` 等）都桥接到对应的 TDesign `--td-*` 变量，两套栈共享一套配色与一套暗色模式；
+- 每个语义 token（`bg-primary`、`text-muted-foreground`、`text-placeholder`、`text-warning`、`rounded-md` 等）都桥接到对应的 TDesign `--td-*` 变量，提示与对话框因此和界面共享同一套配色与暗色模式；
 - 暗色模式跟随应用自己的开关：`useTheme` 在 `<html>` 上设置 `theme-mode="dark"`，`dark:` 变体通过 `@custom-variant dark (&:where([theme-mode="dark"], [theme-mode="dark"] *))` 与之同步。
 
-新增 shadcn-vue 组件使用 `npx shadcn-vue@latest add <name>`（配置见 `frontend/components.json`，style 为 `reka-nova`，图标库 lucide）。
+新增 shadcn-vue 组件使用 `npx shadcn-vue@latest add <name>`（配置见 `frontend/components.json`，style 为 `reka-nova`，图标库 lucide）。命令行工具不在依赖里；组件依赖的 shadcn-vue Tailwind 层（动画关键帧、`data-open:` 变体、滚动渐隐等工具类）以源码形式放在 `frontend/src/assets/shadcn-vue.css`，新组件需要更多内容时从对应版本重新复制。
 
 ## 模块结构
 
