@@ -2,7 +2,7 @@
 
 The heavy media work (ffmpeg demux / scene detection) happens here in the
 sidecar; model calls stay in the Go app, mirroring the audio split:
-  - the extracted audio track is returned via Document.audio_bytes and
+  - the extracted audio track is returned via Document.audio_segments and
     transcribed by the Go-side ASR model with segment timestamps;
   - keyframes are returned via Document.images with their millisecond
     positions in Document.image_timestamps, and captioned by the Go-side

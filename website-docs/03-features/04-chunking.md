@@ -14,7 +14,7 @@
 
 问答对形式的内容更适合建 FAQ 知识库，它不经过分块（§6）。改完分块配置需要对已有文档重新解析才会生效。下面是完整机制。
 
-Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包），采用"文档画像 → 分层策略 → 结果校验 → 逐级回退"的自适应架构；Python 侧 `docreader/splitter/` 保留了同源的递归分块器供 docreader sidecar 使用（生产主路径是 Go 实现，`docreader/splitter/splitter.py` 注释明确说明二者默认值已对齐）。
+Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包），采用"文档画像 → 分层策略 → 结果校验 → 逐级回退"的自适应架构。docreader 不分块，只返回 Markdown 与图片引用。
 
 涉及源码：
 
@@ -31,7 +31,6 @@ Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包）�
 | 配置结构 | `internal/types/knowledgebase.go`（`ChunkingConfig`）、`internal/types/indexing_strategy.go` |
 | 管线接入 | `internal/application/service/knowledge_process.go`（`buildSplitterConfigFromChunking` / `buildParentChildConfigs` / `processChunks`） |
 | 调试端点 | `internal/handler/chunker_debug.go`（`POST /api/v1/chunker/preview`） |
-| Python 侧 | `docreader/splitter/splitter.py`、`docreader/splitter/header_hook.py` |
 
 ## 1. 配置模型
 
@@ -215,9 +214,9 @@ flowchart TD
 - 两边界之间的超大块递归交给 `SplitText`；
 - overlap 对齐：`applyOverlapAligned` 在 `[curEnd-2*overlap, curEnd)` 窗口内优先吸附到最近的语义边界，其次吸附到换行，避免下一块从词中间开始。
 
-### 3.3 Tier 3：递归分块 legacy（splitter.go，Python 移植）
+### 3.3 Tier 3：递归分块 legacy（splitter.go）
 
-这是从 `docreader/splitter/splitter.py` 移植的基础实现，也是所有 Tier 的兜底与"段内二次切分"引擎。三步：
+这是基础实现，也是所有 Tier 的兜底与"段内二次切分"引擎。三步：
 
 **Step 1 — 受保护区间识别**（`protectedSpans`），这些内容绝不从中间切开：
 
@@ -249,7 +248,7 @@ var protectedPatterns = []*regexp.Regexp{
 
 ### 3.4 表格处理：表头追踪（header_tracker.go）
 
-大 Markdown 表格被切成多块后，后续块会丢失列名上下文。`headerTracker`（移植自 `docreader/splitter/header_hook.py`）解决这一问题：
+大 Markdown 表格被切成多块后，后续块会丢失列名上下文。`headerTracker` 解决这一问题：
 
 - 检测"表头行 + 分隔行"（`| A | B |` + `| --- | --- |`）作为**活动表头**，在表格结束（空行 / 非 `|` 开头行）前保持活动；
 - `mergeUnits` 落新块时，若活动表头未在重叠区/下一单元中出现且列数匹配（`headerAlreadyPresent` / `headerColumnMismatch`），把表头作为 `start==end` 的零宽单元**前置到新块**——每个表格分片都自带列名；
@@ -421,16 +420,7 @@ g.apiKeyRoute(r, http.MethodPost, "/chunker/preview",
 - **标题面包屑有成本**：heading 层把面包屑拼进 embedding 输入，每块的 embedding 输入会长一些；换来的是结构化文档切出的块更少、每块自带章节语境。
 - **解析器造成的问题分块器修不了**：竖排文字被 OCR 拆成逐字一行这类问题出在解析阶段；heuristic 层按换页符对齐分块，只能减轻，不能消除。
 
-## 11. Python 侧分块器（docreader/splitter/）
-
-`docreader/splitter/splitter.py` 的 `TextSplitter` 是 Go legacy 实现的原型，仍随 docreader sidecar 保留：
-
-- 默认值已与 Go 对齐：`DEFAULT_CHUNK_SIZE = 512`、`DEFAULT_CHUNK_OVERLAP = 80`；构造器默认分隔符 `["\n", "。", " "]`，最后附字符级切分兜底；
-- 同一套受保护正则（公式/图片/链接/表头/表行/代码块），`_split`（递归分隔）→ `_split_protected` + `_join`（保护区间隔离）→ `_merge`（重叠合并 + `HeaderTracker` 表头前置）；
-- 产出 `(start, end, text)` 三元组并断言 `"".join(splits) == text` 可完整还原；`restore_text` 演示了去重叠还原算法；
-- `docreader/splitter/header_hook.py` 的 `HeaderTracker` 与 Go `header_tracker.go` 行为一致（表头识别、空表头补全、列数不匹配时结束）。
-
-## 12. 参数速查与调优建议
+## 11. 参数速查与调优建议
 
 | 场景 | strategy | chunk_size | chunk_overlap | 其他 |
 |------|----------|------------|---------------|------|

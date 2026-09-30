@@ -338,19 +338,13 @@ docreader 侧的图片契约非常简单：每个解析器把图片以 `Document
 - unary `Read`：`_resolve_images()` 把全部图片 base64 解码为 `ImageRef.image_data` **内联字节**一次性返回（`image_dir_path` 恒为空——历史上"写共享卷目录"的模式已废弃，图片持久化完全由 Go App 负责，写入配置的存储后端：本地或 S3 兼容存储）；
 - streaming `ReadStream`：`_iter_image_refs()` 逐张 yield，边发边 `pop` 释放内存。
 
-Go 侧接手后（`internal/infrastructure/docparser/image_resolver.go`）：将 inline bytes 上传对象存储、把 markdown 中的 `images/...` 引用重写为存储 URL；随后 `internal/application/service/image_multimodal.go` 用知识库配置的视觉模型（`VLMConfig`）处理每张图：OCR 时 `image_source_type=scanned_pdf` 的整页图用专门的扫描件提示词、其余图用通用 OCR 提示词，并为图片生成描述；结果成为 `image_ocr` / `image_caption` 子分块。知识库没有开启图像处理时，这一步不执行，扫描页也就没有文字。**docreader 内没有任何模型调用**；`models/read_config.py` 中的 `vlm_config`/`storage_config` 字段只是为了老构造函数签名兼容而保留的空壳（"Legacy config kept for backward compatibility"）。
+Go 侧接手后（`internal/infrastructure/docparser/image_resolver.go`）：将 inline bytes 上传对象存储、把 markdown 中的 `images/...` 引用重写为存储 URL；随后 `internal/application/service/image_multimodal.go` 用知识库配置的视觉模型（`VLMConfig`）处理每张图：OCR 时 `image_source_type=scanned_pdf` 的整页图用专门的扫描件提示词、其余图用通用 OCR 提示词，并为图片生成描述；结果成为 `image_ocr` / `image_caption` 子分块。知识库没有开启图像处理时，这一步不执行，扫描页也就没有文字。**docreader 内没有任何模型调用**。
 
 ---
 
-## 5. splitter/ 分块器与 Go 侧 chunker 的关系
+## 5. 分块不在 docreader
 
-`docreader/splitter/splitter.py` 的 `TextSplitter` 是一个带保护模式的递归分块器：
-
-- 默认 `chunk_size=512`、`chunk_overlap=80`，代码注释明确 **"Aligned with internal/infrastructure/chunker/splitter.go (DefaultChunkOverlap = 80, DefaultChunkSize = 512). The Go splitter is now the production path; this Python splitter is kept for the docreader sidecar where it's still used."** —— 即**生产链路的分块在 Go 侧**（`internal/infrastructure/chunker/`，含 heading_splitter、heuristic_splitter、header_tracker 等），Python 版仅供 sidecar 场景/本地调试保留，且两侧算法/默认值保持对齐。
-- 分割流程：按分隔符优先级（`\n`、`。`、空格，字符级兜底）递归切分 → 用 `protected_regex` 提取不可切断片段（`$$...$$` 数学公式、`![](...)` 图片、`[](...)` 链接、Markdown 表头+表体行、代码块头）→ `_join` 保证保护片段完整 → `_merge` 按 chunk_size/overlap 合并并产出 `(start, end, text)` 三元组（可由 `restore_text` 无损还原原文）。
-- `splitter/header_hook.py` 的 `HeaderTracker` 在合并时跟踪 Markdown 表格表头：新 chunk 若从表体中间开始，自动把表头（含分隔行）前置补进 chunk（列数不匹配时不补，`header_column_mismatch`；空表头行用首个数据行补全列名，与 Go 侧 header_tracker 行为一致），保证 RAG 检索到的表格分块自带列名上下文。
-
-gRPC 响应中不再返回 chunks（`ReadResponse` 没有 chunk 字段）；`ExcelParser` 虽然在 `Document.chunks` 里放了逐行 chunk，但主链路只消费 `content`。
+docreader 只把文件转成 Markdown 与图片引用，gRPC 响应里没有分块。分块全部在 Go 侧的 `internal/infrastructure/chunker/` 完成（标题、启发式、递归三级策略与表头前置），见[分块策略](04-chunking.md)。
 
 ---
 
@@ -493,7 +487,7 @@ docker build -f docker/Dockerfile.app --build-arg WITH_ANYDOC=0 -t yuheng-app .
 - **docreader 直接支持的文件格式全集**：`pdf`、`docx`、`doc`、`xlsx`、`xls`、`pptx`、`ppt`、`md`/`markdown`、`epub`、`html`/`htm`、`mhtml`、`xmind`、图片 `jpg/jpeg/png/gif/bmp/tiff/webp`、视频（需 ffmpeg），以及 URL 网页抓取（markitdown 引擎额外含 `csv`）；`txt`/`csv`/`json`/图片/音频在未指定引擎时由 Go 侧 `SimpleFormatReader` 原生处理，不经过本服务。
 - **OCR / VLM / ASR**：docreader 内部不调用任何模型；扫描页、插图、视频关键帧作为图片回传，由 Go 侧视觉模型做 OCR 与描述，音频与视频音轨由 Go 侧 ASR 模型转写。MinerU、PaddleOCR-VL 是可选的整文档解析引擎，不是 builtin 路径的 OCR。
 - **图片回传**：inline bytes（`ImageRef.image_data`），持久化到 local/s3 由 Go 负责。
-- **分块**：生产路径在 Go 侧 chunker；Python `TextSplitter`（512/80）仅为 sidecar 保留并与 Go 对齐。
+- **分块**：全部在 Go 侧 chunker，docreader 不分块。
 
 ## 实现参考
 

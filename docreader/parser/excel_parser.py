@@ -1,9 +1,9 @@
 """
 Excel Parser Module
 
-This module provides functionality to parse Excel files (.xlsx, .xls) into
-structured Document objects with text content and chunks. It supports multiple
-sheets and handles various Excel formats using pandas.
+This module parses Excel files (.xlsx, .xls) into a Document whose content has
+one "column: value" line per row, across all sheets, using pandas. Chunking
+happens in the Go app, which reads those lines.
 """
 import logging
 import re
@@ -12,7 +12,7 @@ from typing import Any, List
 
 import pandas as pd
 
-from docreader.models.document import Chunk, Document
+from docreader.models.document import Document
 from docreader.parser.base_parser import BaseParser
 from docreader.parser.excel_convert import (
     convert_excel_to_xlsx_bytes,
@@ -46,14 +46,12 @@ class ExcelParser(BaseParser):
     """Parser for Excel files (.xlsx, .xls).
     
     This parser extracts text content from Excel files by processing all sheets
-    and converting each row into a structured text format. Each row becomes a
-    separate chunk with key-value pairs.
+    and converting each row into one line of key-value pairs.
     
     Features:
         - Supports multiple sheets in a single Excel file
         - Automatically removes completely empty rows
         - Converts each row to "column: value" format
-        - Creates individual chunks for each row for better granularity
         
     Example:
         >>> parser = ExcelParser()
@@ -84,16 +82,13 @@ class ExcelParser(BaseParser):
         Returns:
             Document: Parsed document containing:
                 - content: Full text with all rows from all sheets
-                - chunks: List of Chunk objects, one per row
                 
         Note:
             - Empty rows (all NaN values) are automatically skipped
             - Each row is formatted as: "col1: val1,col2: val2,..."
-            - Chunks maintain sequential ordering across all sheets
+            - Rows keep their order across all sheets
         """
-        chunks: List[Chunk] = []
         text: List[str] = []
-        start, end = 0, 0
 
         excel_file = _open_excel_file(content, file_type=self.file_type)
         
@@ -120,18 +115,9 @@ class ExcelParser(BaseParser):
                     continue
                 
                 # Format row as comma-separated key-value pairs
-                content_row = ",".join(page_content) + "\n"
-                end += len(content_row)
-                text.append(content_row)
-                
-                # Create a chunk for this row with position tracking
-                chunks.append(
-                    Chunk(content=content_row, seq=len(chunks), start=start, end=end)
-                )
-                start = end
+                text.append(",".join(page_content) + "\n")
 
-        # Combine all text and return as Document
-        return Document(content="".join(text), chunks=chunks)
+        return Document(content="".join(text))
 
 
 def _read_sheet_dataframe(
@@ -256,10 +242,4 @@ if __name__ == "__main__":
         content = f.read()
         document = parser.parse_into_text(content)
         
-        # Display the full document content
-        logger.error(document.content)
-
-        # Display the first chunk as an example
-        for chunk in document.chunks:
-            logger.error(chunk.content)
-            break  # Only show the first chunk
+        logger.info(document.content)

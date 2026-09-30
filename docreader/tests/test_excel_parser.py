@@ -277,15 +277,15 @@ class XlsxMergeFillTest(unittest.TestCase):
         with open(path, "rb") as handle:
             document = ExcelParser().parse_into_text(handle.read())
 
-        chunks = [chunk.content.strip() for chunk in document.chunks]
-        self.assertEqual(len(chunks), 12)
-        self.assertIn("A: A1", chunks[0])
-        self.assertIn("A: A2", chunks[1])
-        self.assertIn("B: B3", chunks[2])
+        rows = document.content.splitlines()
+        self.assertEqual(len(rows), 12)
+        self.assertIn("A: A1", rows[0])
+        self.assertIn("A: A2", rows[1])
+        self.assertIn("B: B3", rows[2])
         self.assertNotIn("Unnamed:", document.content)
-        self.assertIn("A: A7", chunks[6])
-        self.assertIn("A: A7", chunks[7])
-        self.assertIn("D: D10", chunks[9])
+        self.assertIn("A: A7", rows[6])
+        self.assertIn("A: A7", rows[7])
+        self.assertIn("D: D10", rows[9])
 
 
 class ExcelImageFilterTest(unittest.TestCase):
@@ -407,9 +407,9 @@ class ExcelParserTest(unittest.TestCase):
             xlsx_first_row_as_header="true",
         ).parse_into_text(content)
 
-        chunks = [chunk.content.strip() for chunk in document.chunks]
+        rows = document.content.splitlines()
         self.assertEqual(
-            chunks,
+            rows,
             [
                 "Name: Alice,Age: 30,City: Shenzhen",
                 "Name: Bob,Age: 28,City: Shanghai",
@@ -429,10 +429,10 @@ class ExcelParserTest(unittest.TestCase):
             content
         )
 
-        chunks = [chunk.content.strip() for chunk in document.chunks]
-        self.assertEqual(len(chunks), 2)
-        self.assertEqual(chunks[0], "A: Name,B: City")
-        self.assertEqual(chunks[1], "A: Alice,B: Shenzhen")
+        rows = document.content.splitlines()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0], "A: Name,B: City")
+        self.assertEqual(rows[1], "A: Alice,B: Shenzhen")
 
     def test_single_row_xlsx_is_not_consumed_in_header_mode(self):
         content = self._workbook_bytes([["Name", "Age", "City"]])
@@ -444,7 +444,7 @@ class ExcelParserTest(unittest.TestCase):
         ).parse_into_text(content)
 
         self.assertEqual(
-            [chunk.content.strip() for chunk in document.chunks],
+            document.content.splitlines(),
             ["A: Name,B: Age,C: City"],
         )
 
@@ -463,7 +463,7 @@ class ExcelParserTest(unittest.TestCase):
         ).parse_into_text(content)
 
         self.assertEqual(
-            [chunk.content.strip() for chunk in document.chunks],
+            document.content.splitlines(),
             ["Name: Alice,Name_2: Alias,C: Shenzhen"],
         )
 
@@ -481,15 +481,15 @@ class ExcelParserTest(unittest.TestCase):
             xlsx_first_row_as_header="false",
         ).parse_into_text(content)
 
-        chunks = [chunk.content.strip() for chunk in document.chunks]
-        self.assertEqual(chunks[0], "A: Name,B: Age")
-        self.assertEqual(chunks[1], "A: Alice,B: 30")
+        rows = document.content.splitlines()
+        self.assertEqual(rows[0], "A: Name,B: Age")
+        self.assertEqual(rows[1], "A: Alice,B: 30")
 
     def test_parse_phantom_shared_strings_workbook(self):
         document = ExcelParser().parse_into_text(_xlsx_with_phantom_shared_strings())
         self.assertIn("hello", document.content)
         self.assertIn("42", document.content)
-        self.assertGreater(len(document.chunks), 0)
+        self.assertGreater(len(document.content.splitlines()), 0)
 
     def test_parse_en_calcchain_shared_strings_case(self):
         path = os.path.join(
@@ -506,7 +506,7 @@ class ExcelParserTest(unittest.TestCase):
         with open(path, "rb") as f:
             document = ExcelParser().parse_into_text(f.read())
         self.assertGreater(len(document.content), 0)
-        self.assertGreater(len(document.chunks), 0)
+        self.assertGreater(len(document.content.splitlines()), 0)
 
 
 if __name__ == "__main__":

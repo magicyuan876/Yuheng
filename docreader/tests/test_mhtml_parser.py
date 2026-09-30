@@ -142,7 +142,7 @@ class MHTMLParserTest(unittest.TestCase):
     def test_html_to_markdown_preserves_indentation_and_code_block_blanks(self):
         markdown = MHTMLParser(
             file_name="article.mhtml", file_type="mhtml"
-        )._html_to_markdown(
+        ).html_to_markdown(
             "<ul><li>parent<ul><li>child</li></ul></li></ul>"
             "<blockquote><p>quoted</p></blockquote>"
             "<pre><code>line1\n\n  indented\n</code></pre>"
@@ -155,21 +155,21 @@ class MHTMLParserTest(unittest.TestCase):
     def test_html_to_markdown_preserves_nested_list_indentation(self):
         markdown = MHTMLParser(
             file_name="article.mhtml", file_type="mhtml"
-        )._html_to_markdown("<ul><li>parent<ul><li>child</li></ul></li></ul>")
+        ).html_to_markdown("<ul><li>parent<ul><li>child</li></ul></li></ul>")
 
         self.assertIn("* parent\n  + child", markdown)
 
     def test_html_to_markdown_preserves_blockquote_boundaries(self):
         markdown = MHTMLParser(
             file_name="article.mhtml", file_type="mhtml"
-        )._html_to_markdown("<p>before</p><blockquote><p>quoted</p></blockquote><p>after</p>")
+        ).html_to_markdown("<p>before</p><blockquote><p>quoted</p></blockquote><p>after</p>")
 
         self.assertIn("before\n\n> quoted\n\nafter", markdown)
 
     def test_html_to_markdown_preserves_fenced_code_blank_lines(self):
         markdown = MHTMLParser(
             file_name="article.mhtml", file_type="mhtml"
-        )._html_to_markdown("<pre><code>line1\n\n\nline2\n</code></pre>")
+        ).html_to_markdown("<pre><code>line1\n\n\nline2\n</code></pre>")
 
         self.assertIn("```\nline1\n\n\nline2\n```", markdown)
 
@@ -182,7 +182,7 @@ class MHTMLParserTest(unittest.TestCase):
     def test_html_to_markdown_preserves_hard_break_spaces(self):
         markdown = MHTMLParser(
             file_name="article.mhtml", file_type="mhtml"
-        )._html_to_markdown("<p>alpha<br>beta</p>")
+        ).html_to_markdown("<p>alpha<br>beta</p>")
 
         self.assertEqual(markdown, "alpha  \nbeta")
 

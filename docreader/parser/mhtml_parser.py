@@ -238,15 +238,6 @@ class MHTMLParser(BaseParser):
             logger.error("HTML to Markdown conversion failed: %s", e)
             return raw_html_fallback()
 
-    def _html_to_markdown(
-        self,
-        html_content: str,
-        image_aliases: Dict[str, str] | None = None,
-        base_location: str = "",
-    ) -> str:
-        """Backward-compatible wrapper for existing internal callers and tests."""
-        return self.html_to_markdown(html_content, image_aliases, base_location)
-
     @staticmethod
     def _normalize_markdown(markdown_text: str) -> str:
         text = markdown_text.replace("\r\n", "\n").replace("\r", "\n")

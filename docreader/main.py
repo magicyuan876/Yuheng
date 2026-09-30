@@ -88,16 +88,8 @@ def _iter_audio_chunks(result):
 
     Semantic segments (fixed-duration pieces for segment-wise ASR) each map
     to one or more transport slices sharing segment_index/start_ms/end_ms.
-    A legacy single-blob track is emitted as segment 0.
     """
-    segments = result.audio_segments or []
-    if not segments and result.audio_bytes:
-        segments = [
-            type("_Blob", (), {
-                "start_ms": 0, "end_ms": 0, "data": result.audio_bytes,
-            })()
-        ]
-    for index, seg in enumerate(segments):
+    for index, seg in enumerate(result.audio_segments or []):
         data = seg.data or b""
         for offset in range(0, len(data), _AUDIO_STREAM_CHUNK_BYTES):
             yield AudioChunk(
@@ -307,8 +299,9 @@ class DocReaderServicer(docreader_pb2_grpc.DocReaderServicer):
                     if result.metadata
                     else {},
                     media=_media_info_from(result),
-                    audio_data=result.audio_bytes
-                    or b"".join(seg.data for seg in (result.audio_segments or [])),
+                    audio_data=b"".join(
+                        seg.data for seg in (result.audio_segments or [])
+                    ),
                 )
                 logger.info(
                     "Read response: content_len=%d, images=%d",
