@@ -1,0 +1,11 @@
+# Keep host-built artefacts out of the image: a local .venv holds binaries for
+# the host platform, and the tests are not part of the runtime.
+.venv
+**/__pycache__
+.pytest_cache
+dist
+build
+*.egg-info
+tests
+test_*.py
+check_imports.py

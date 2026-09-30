@@ -9,6 +9,6 @@ __version__ = "0.1.0"
 __author__ = "Yuheng Team"
 __description__ = "Yuheng MCP Server - Model Context Protocol server for Yuheng API"
 
-from yuheng_mcp_server import YuhengClient, run
+from yuheng_mcp_server import YuhengClient
 
-__all__ = ["YuhengClient", "run"]
+__all__ = ["YuhengClient"]

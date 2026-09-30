@@ -28,9 +28,9 @@ class StdioStdoutPurityTest(unittest.TestCase):
             "environment check output should appear on stderr",
         )
 
-    def test_run_server_startup_keeps_stdout_empty(self):
+    def test_main_stdio_startup_keeps_stdout_empty(self):
         proc = subprocess.Popen(
-            [sys.executable, "run_server.py"],
+            [sys.executable, "main.py", "--transport", "stdio"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=MCP_SERVER_DIR,
@@ -44,7 +44,7 @@ class StdioStdoutPurityTest(unittest.TestCase):
         self.assertEqual(
             stdout,
             b"",
-            f"run_server.py must not write to stdout before JSON-RPC, got: {stdout!r}",
+            f"main.py must not write to stdout before JSON-RPC, got: {stdout!r}",
         )
         self.assertTrue(stderr, "startup diagnostics should appear on stderr")
 

@@ -1,11 +1,23 @@
+FROM python:3.11-slim AS lock
+
+# uv.lock is the dependency set CI tests and the third-party notices list, so
+# the image installs exactly that: uv turns the lock into a hash-pinned
+# requirements file, and pip below refuses anything that does not match it.
+RUN pip install --no-cache-dir uv==0.11.9
+WORKDIR /src
+COPY pyproject.toml uv.lock ./
+RUN uv export --frozen --no-emit-project --format requirements-txt -o requirements.lock
+
 FROM python:3.11-slim
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=lock /src/requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
+# The server runs from source as `python main.py`; installing the project
+# itself would only add a console-script shim and a build backend resolved
+# outside the lock.
 COPY . .
-RUN pip install --no-cache-dir -e .
 
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8000
@@ -19,4 +31,4 @@ USER mcp
 
 EXPOSE 8000
 
-CMD ["yuheng-mcp-server", "--transport", "http", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000"]

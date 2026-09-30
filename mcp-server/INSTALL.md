@@ -4,7 +4,7 @@
 
 ### 1. 安装依赖
 ```bash
-pip install -r requirements.txt
+uv sync        # 按 uv.lock 安装锁定的依赖
 ```
 
 ### 2. 设置环境变量
@@ -24,26 +24,8 @@ set YUHENG_API_KEY=your_api_key_here
 
 ### 3. 运行服务器
 
-有多种方式运行服务器：
-
-#### 方式 1: 使用主入口点 (推荐)
 ```bash
-python main.py
-```
-
-#### 方式 2: 使用原始启动脚本
-```bash
-python run_server.py
-```
-
-#### 方式 3: 直接运行服务器模块
-```bash
-python yuheng_mcp_server.py
-```
-
-#### 方式 4: 作为 Python 模块运行
-```bash
-python -m yuheng_mcp_server
+uv run python main.py
 ```
 
 ## 作为 Python 包安装
@@ -56,8 +38,6 @@ pip install -e .
 安装后可以使用命令行工具：
 ```bash
 yuheng-mcp-server
-# 或
-yuheng-server
 ```
 
 ### 生产模式安装
@@ -67,12 +47,7 @@ pip install .
 
 ### 构建分发包
 ```bash
-# 构建源码分发包和轮子
-python setup.py sdist bdist_wheel
-
-# 或使用 build 工具
-pip install build
-python -m build
+uv build
 ```
 
 ## 命令行选项
@@ -102,7 +77,7 @@ python main.py --check-only
 
 ### 1. 导入错误
 如果遇到 `ImportError`，请确保：
-- 已安装所有依赖：`pip install -r requirements.txt`
+- 已安装所有依赖：`uv sync`
 - Python 版本兼容（推荐 3.10+）
 - 没有文件名冲突
 
@@ -124,12 +99,11 @@ python main.py --check-only
 ```
 Yuheng/mcp-server/
 ├── __init__.py              # 包初始化文件
-├── main.py                  # 主入口点
-├── run_server.py           # 原始启动脚本
+├── main.py                  # 启动入口
 ├── yuheng_mcp_server.py   # MCP 服务器实现
-├── requirements.txt        # 依赖列表
-├── setup.py               # 安装脚本
-├── pyproject.toml         # 项目元数据（PyPI: yuheng-mcp）
+├── upload_paths.py        # 上传路径校验与目录白名单
+├── pyproject.toml         # 项目元数据（包名 yuheng-mcp）
+├── uv.lock                # 锁定的依赖集（CI、镜像与许可证清单都以它为准）
 ├── MANIFEST.in            # 包含文件清单
 ├── LICENSE                # 许可证
 ├── README.md              # 项目说明
@@ -156,21 +130,10 @@ python main.py --verbose
 ## 部署
 
 ### Docker 部署
-创建 `Dockerfile`：
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-RUN pip install -e .
-
-ENV YUHENG_BASE_URL=http://localhost:8080/api/v1
-EXPOSE 8000
-
-CMD ["yuheng-mcp-server"]
+目录下的 `Dockerfile` 只安装 `uv.lock` 锁定的依赖（`uv export --frozen` 生成带哈希的清单，`pip install --require-hashes` 安装），以 Streamable HTTP 传输启动：
+```bash
+docker build -t yuheng-mcp .
+docker run -e MCP_SERVER_AUTH_TOKEN=... -e YUHENG_API_KEY=... -p 8000:8000 yuheng-mcp
 ```
 
 ### 系统服务

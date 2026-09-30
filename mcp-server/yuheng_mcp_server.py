@@ -37,8 +37,9 @@ except ValueError:
     logger.warning("YUHENG_CHAT_TIMEOUT is not a valid integer; falling back to 300s.")
     YUHENG_CHAT_TIMEOUT = 300
 
-# Network transport defaults kept for backward compatibility with pre-2.x deployments.
-SSE_MESSAGE_PATH = "/sse/messages/"
+# Streamable HTTP runs stateless: every request is self-contained, so no
+# Mcp-Session-Id has to be carried and replicas need no session affinity. None
+# of the tools depends on per-session server state.
 STREAMABLE_HTTP_STATELESS = True
 
 
@@ -812,13 +813,12 @@ async def run_sse(host: str, port: int):
         ) from e
 
     starlette_app = MCPAuthMiddleware(
-        mcp.sse_app(host=host, message_path=SSE_MESSAGE_PATH),
+        mcp.sse_app(host=host),
         auth_token,
     )
 
     logger.info("Starting SSE MCP server on %s:%d", host, port)
     logger.info("SSE endpoint:  http://%s:%d/sse", host, port)
-    logger.info("SSE messages: http://%s:%d%s", host, port, SSE_MESSAGE_PATH)
     config = uvicorn.Config(starlette_app, host=host, port=port, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
@@ -845,11 +845,6 @@ async def run_http(host: str, port: int):
     config = uvicorn.Config(starlette_app, host=host, port=port, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
-
-
-# Backward-compatible alias used by run_server.py
-run = run_stdio
-
 
 
 def main():

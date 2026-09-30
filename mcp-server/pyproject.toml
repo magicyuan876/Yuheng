@@ -59,10 +59,9 @@ Changelog = "https://github.com/magicyuan876/yuheng/blob/main/mcp-server/CHANGEL
 
 [project.scripts]
 yuheng-mcp-server = "main:sync_main"
-yuheng-server = "run_server:main"
 
 [tool.setuptools]
-py-modules = ["yuheng_mcp_server", "upload_paths", "main", "run_server", "run", "test_module"]
+py-modules = ["yuheng_mcp_server", "upload_paths", "main"]
 include-package-data = true
 
 [tool.setuptools.package-data]

@@ -9,21 +9,21 @@ Yuheng 通过 MCP 对外提供能力：仓库 `mcp-server/` 目录是一个独�
 `mcp-server/` 是一个独立的 Python 包，包名 **`yuheng-mcp`**（当前 0.1.0，Python ≥ 3.10，依赖 `mcp>=2,<3`、`requests>=2.31.0`、`starlette`、`uvicorn`），核心实现在 `mcp-server/yuheng_mcp_server.py`：`YuhengClient` 用 `requests.Session`（每个线程一个）携带 `X-API-Key` 调 Yuheng REST API，`MCPServer("yuheng-server", version="0.1.0")` 注册工具并通过所选传输对外服务。
 
 ::: warning 从源码安装
-该包**没有发布到 PyPI**，也没有预构建的镜像，请从源码安装或在本地构建镜像。命令行入口是 `yuheng-mcp-server`（支持三种传输）和 `yuheng-server`（只走 stdio）。
+该包**没有发布到 PyPI**，也没有预构建的镜像，请从源码安装或在本地构建镜像。唯一的启动入口是 `main.py`；安装后同一个入口以命令 `yuheng-mcp-server` 提供。
 :::
 
 实现基于 mcp 2.x 的高层 API：每个工具是一个加了 `@mcp.tool()` 装饰器的普通函数，入参 JSON Schema 由类型标注推导，描述取自 docstring，返回的 dict 由框架序列化；扩展工具时新增一个带装饰器的函数即可。`chat` 的阻塞式网络 I/O 被投递到线程池执行，不阻塞 asyncio 事件循环。
 
 ## 安装方式
 
-以下命令与 `mcp-server/setup.py`、`pyproject.toml`、`Dockerfile`、`INSTALL.md` 一致：
+依赖以 `mcp-server/uv.lock` 为准：CI 用它跑测试，第三方许可证清单按它生成，Docker 镜像也只安装它锁定的版本。以下命令与 `pyproject.toml`、`Dockerfile`、`INSTALL.md` 一致：
 
 **源码运行**：
 
 ```bash
 cd mcp-server
-pip install -r requirements.txt
-python main.py            # 或 python run.py / python run_server.py
+uv sync                   # 按 uv.lock 安装依赖
+uv run python main.py
 ```
 
 **本地开发安装**：
@@ -34,14 +34,14 @@ pip install -e .          # 开发模式；或 pip install .
 yuheng-mcp-server
 ```
 
-**Docker**（`mcp-server/Dockerfile`，基于 `python:3.11-slim`，以非特权用户 uid 10001 运行，默认以 Streamable HTTP 传输启动并暴露 8000 端口）：
+**Docker**（`mcp-server/Dockerfile`，基于 `python:3.11-slim`，以非特权用户 uid 10001 运行，默认以 Streamable HTTP 传输启动并暴露 8000 端口）。构建分两段：第一段用 `uv export --frozen` 把 `uv.lock` 转成带哈希的 requirements 文件，第二段 `pip install --require-hashes` 只装这些版本，然后从源码运行：
 
 ```dockerfile
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8000
 ENV YUHENG_BASE_URL=http://app:8080/api/v1
 EXPOSE 8000
-CMD ["yuheng-mcp-server", "--transport", "http", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 运行容器时必须注入 `MCP_SERVER_AUTH_TOKEN`（HTTP 传输没有它会拒绝启动，见下文「传输方式与网络鉴权」）。
@@ -52,7 +52,7 @@ CMD ["yuheng-mcp-server", "--transport", "http", "--host", "0.0.0.0", "--port", 
 docker compose --profile full up -d mcp
 ```
 
-三个入口脚本的分工：`main.py` 是功能最全的主入口（`--check-only` 环境检查、`--verbose`、`--transport/--host/--port`）；`run.py` 是转调 `main.sync_main` 的简化脚本；`run_server.py` 走 `yuheng_mcp_server.run`（stdio 别名）。
+`main.py` 是启动入口：`--check-only` 只做环境检查，`--verbose` 打开调试日志，`--transport/--host/--port` 选择传输。
 
 ::: tip stdio 传输下的诊断输出
 stdio 传输把 stdout 当作协议通道，任何多余的 `print` 都会污染协议流，客户端会直接判定「启动失败」。因此入口脚本的所有诊断信息一律写 stderr。自行封装启动脚本时务必遵守同样的约定。
@@ -81,10 +81,8 @@ stdio 传输把 stdout 当作协议通道，任何多余的 `print` 都会污染
 | 传输 | 端点 | 适用场景 |
 |---|---|---|
 | `stdio` | stdin/stdout 管道 | Claude Desktop、VS Code Copilot 等本地客户端（默认） |
-| `sse` | `http://host:port/sse`（消息回传 `/sse/messages/`） | 旧版远程 MCP 客户端 |
+| `sse` | `http://host:port/sse`（消息回传地址由 SSE 的 `endpoint` 事件下发，mcp SDK 默认 `/messages/`） | 只支持 SSE 的远程 MCP 客户端 |
 | `http` | `http://host:port/mcp` | Streamable HTTP（MCP 2025-03-26 规范），默认以 `stateless_http` 运行 |
-
-SSE 的消息回传路径由 `SSE_MESSAGE_PATH = "/sse/messages/"` 显式指定：迁移到 mcp 2.x 后默认路径与实际挂载点不一致，会让客户端初始化超时。
 
 SSE 与 HTTP 传输由 `MCPAuthMiddleware`（ASGI 中间件）统一鉴权：客户端必须携带 `Authorization: Bearer <MCP_SERVER_AUTH_TOKEN>` 或 `X-MCP-Auth-Token` header，比较使用 `secrets.compare_digest` 防时序攻击，失败返回 401；`require_network_transport_auth` 确保网络传输在无 token 时根本起不来。
 
@@ -221,8 +219,8 @@ MCP server 只是 REST API 的客户端，每个工具能否成功取决于 `YUH
 |---|---|
 | `mcp-server/yuheng_mcp_server.py` | `YuhengClient`（REST 调用、`resolve_kb_id`、SSE 消费）、23 个 `@mcp.tool()` 工具、三种传输、`MCPAuthMiddleware` |
 | `mcp-server/upload_paths.py` | `create_knowledge_from_file` 的路径校验与上传目录白名单 |
-| `mcp-server/main.py`、`run.py`、`run_server.py` | 入口脚本 |
-| `mcp-server/pyproject.toml`、`setup.py` | 包定义与 `yuheng-mcp-server` / `yuheng-server` 命令 |
+| `mcp-server/main.py` | 启动入口 |
+| `mcp-server/pyproject.toml`、`uv.lock` | 包定义、`yuheng-mcp-server` 命令与锁定的依赖集 |
 | `mcp-server/Dockerfile`、`docker-compose.yml` 的 `mcp` 服务 | 容器化部署 |
 | `mcp-server/test_*.py`、`mcp-server/tests/` | 传输、stdout 洁净、文件路径安全等测试 |
 | `cli/cmd/mcp/serve.go`、`cli/internal/mcp/tools.go` | `yuheng mcp serve` 与它的 8 个工具 |

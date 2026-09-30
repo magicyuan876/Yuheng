@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for MCP 2.x transport compatibility."""
+"""Regression tests for the MCP network transports and the REST client."""
 
 import asyncio
 import os
@@ -22,24 +22,6 @@ class TransportRegressionTest(unittest.TestCase):
             host="127.0.0.1", stateless_http=srv.STREAMABLE_HTTP_STATELESS
         )
         self.assertTrue(probe.session_manager.stateless)
-
-    def test_sse_message_path_matches_legacy_mount(self):
-        import yuheng_mcp_server as srv
-        from mcp.server import MCPServer
-        from starlette.routing import Mount, Route
-
-        probe = MCPServer("probe")
-        app = probe.sse_app(host="127.0.0.1", message_path=srv.SSE_MESSAGE_PATH)
-        mount_paths = [
-            route.path
-            for route in app.routes
-            if isinstance(route, (Mount, Route))
-        ]
-        self.assertIn("/sse", mount_paths)
-        self.assertIn(
-            srv.SSE_MESSAGE_PATH.rstrip("/"),
-            {path.rstrip("/") for path in mount_paths},
-        )
 
     def test_yuheng_client_session_is_thread_local(self):
         from yuheng_mcp_server import YuhengClient

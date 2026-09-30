@@ -37,7 +37,7 @@ def check_dependencies():
         return True
     except ImportError as e:
         print(f"缺少依赖: {e}", file=sys.stderr)
-        print("请运行: pip install -r requirements.txt", file=sys.stderr)
+        print("请运行: uv sync（或 pip install .）", file=sys.stderr)
         return False
 
 

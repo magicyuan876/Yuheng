@@ -8,7 +8,7 @@
 
 ### 1. 安装依赖
 ```bash
-pip install -r requirements.txt
+uv sync        # 按 uv.lock 安装锁定的依赖
 ```
 
 ### 2. 配置环境变量
@@ -28,24 +28,8 @@ set YUHENG_API_KEY=your_api_key_here
 
 ### 3. 运行服务器
 
-**推荐方式 - 使用主入口点：**
 ```bash
-python main.py
-```
-
-**其他运行方式：**
-```bash
-# 使用原始启动脚本
-python run_server.py
-
-# 使用便捷脚本
-python run.py
-
-# 直接运行服务器模块
-python yuheng_mcp_server.py
-
-# 作为 Python 模块运行
-python -m yuheng_mcp_server
+uv run python main.py
 ```
 
 ### 4. 命令行选项
@@ -68,7 +52,7 @@ cd Yuheng/mcp-server
 pip install .
 ```
 
-安装后命令行入口为 `yuheng-mcp-server` / `yuheng-server`。
+安装后命令行入口为 `yuheng-mcp-server`（即 `main.py`）。
 
 ### 开发模式安装
 ```bash
@@ -78,8 +62,6 @@ pip install -e .
 安装后可以使用命令行工具：
 ```bash
 yuheng-mcp-server
-# 或
-yuheng-server
 ```
 
 ### 生产模式安装
@@ -89,19 +71,14 @@ pip install .
 
 ### 构建分发包
 ```bash
-# 使用 setuptools
-python setup.py sdist bdist_wheel
-
-# 使用现代构建工具
-pip install build
-python -m build
+uv build
 ```
 
 ## 测试模组
 
-运行测试脚本验证模组是否正常工作：
+运行全部测试（与 CI 相同）：
 ```bash
-python test_module.py
+uv run --extra test python -m unittest discover -s . -p "test_*.py"
 ```
 
 ## 功能特性

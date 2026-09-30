@@ -6,7 +6,7 @@ name: Build & Publish (mcp-server)
 #
 # Release policy: pushes to main only test and build; publishing to PyPI
 # happens exclusively for mcp-server-v* tags. To release, bump the version in
-# mcp-server/pyproject.toml (and the synced version strings in setup.py,
+# mcp-server/pyproject.toml (and the synced version strings in
 # __init__.py, yuheng_mcp_server.py server_version, main.py --version), merge
 # to main, then push the matching tag. A pre-publish check still skips the
 # upload if that exact version is already on PyPI.
@@ -81,7 +81,7 @@ jobs:
         run: |
           set -e
           if ! python3 -c "import glob, zipfile, sys; whl=glob.glob('dist/*.whl')[0]; z=zipfile.ZipFile(whl); sys.exit(0 if 'upload_paths.py' in z.namelist() else 1)"; then
-            echo "::error::upload_paths.py is missing from the wheel — check py-modules in pyproject.toml/setup.py"
+            echo "::error::upload_paths.py is missing from the wheel — check py-modules in pyproject.toml"
             exit 1
           fi
           echo "upload_paths.py present in wheel ✓"

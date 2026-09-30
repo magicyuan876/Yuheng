@@ -17,10 +17,8 @@ MCP_SERVER_DIR = Path(__file__).resolve().parent
 REQUIRED_FILES = [
     "__init__.py",
     "main.py",
-    "run_server.py",
     "yuheng_mcp_server.py",
-    "requirements.txt",
-    "setup.py",
+    "uv.lock",
     "pyproject.toml",
     "README.md",
     "INSTALL.md",
@@ -34,7 +32,7 @@ class ModuleIntegrationTest(unittest.TestCase):
         import mcp  # noqa: F401
         import requests  # noqa: F401
         import yuheng_mcp_server  # noqa: F401
-        from yuheng_mcp_server import YuhengClient, run  # noqa: F401
+        from yuheng_mcp_server import YuhengClient, run_http, run_sse, run_stdio  # noqa: F401
         import main  # noqa: F401
 
     def test_environment_optional_vars(self):

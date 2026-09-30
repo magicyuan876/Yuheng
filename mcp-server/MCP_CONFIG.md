@@ -31,7 +31,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
         "--directory",
         "/path/Yuheng/mcp-server",
         "run",
-        "run_server.py"
+        "main.py"
       ],
       "command": "uv",
       "env": {
@@ -56,7 +56,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
         "--directory",
         "/path/Yuheng/mcp-server",
         "run",
-        "run_server.py"
+        "main.py"
       ],
       "env": {
         "YUHENG_API_KEY": "your_api_key_here",
@@ -80,7 +80,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
         "--directory",
         "/path/Yuheng/mcp-server",
         "run",
-        "run_server.py"
+        "main.py"
       ],
       "env": {
         "YUHENG_API_KEY": "your_api_key_here",
@@ -104,7 +104,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
         "--directory",
         "/path/Yuheng/mcp-server",
         "run",
-        "run_server.py"
+        "main.py"
       ],
       "env": {
         "YUHENG_API_KEY": "your_api_key_here",
