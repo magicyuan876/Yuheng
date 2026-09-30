@@ -52,6 +52,8 @@ import type { KnowledgeProcessOverrides } from "@/types/knowledgeProcess";
 import { useUploadConfirmStore, type UploadConfirmResult } from "@/stores/uploadConfirm";
 import WikiBrowser from "./wiki/WikiBrowser.vue";
 import { getWikiStats } from "@/api/wiki";
+import KnowledgeHealthView from "./health/KnowledgeHealthView.vue";
+import { getFindingsSummary, type FindingsSummary } from "@/api/findings";
 import {
   isKnowledgeParseInFlight,
   knowledgeNeedsStatusPolling,
@@ -104,7 +106,7 @@ const kbLoading = ref(false);
 const docListLoading = ref(true);
 const isFAQ = computed(() => (kbInfo.value?.type || "") === "faq");
 const isWiki = computed(() => !!kbInfo.value?.indexing_strategy?.wiki_enabled);
-const validTabs = ["documents", "wiki", "graph"] as const;
+const validTabs = ["documents", "wiki", "graph", "health"] as const;
 type KbTab = (typeof validTabs)[number];
 const initTab = validTabs.includes(route.query.tab as any) ? (route.query.tab as KbTab) : "documents";
 const activeKbTab = ref<KbTab>(initTab);
@@ -129,6 +131,56 @@ const breadcrumbTabClass = (tab: KbTab, indexing: boolean) => [
   activeKbTab.value === tab ? "font-semibold" : "font-normal",
   activeKbTab.value === tab || indexing ? "text-primary" : "text-placeholder hover:text-foreground",
 ];
+// Knowledge health. The summary is read here, not only inside the health view,
+// because the tab carries the open count as a badge while another tab is
+// showing. A backend without the findings API answers with an error, and then
+// the tab is not offered at all rather than leading to a view that can only
+// fail; "loading" keeps a ?tab=health link on the health view while the first
+// answer is on its way instead of flashing the document list.
+const healthSummary = ref<FindingsSummary | null>(null);
+const healthState = ref<"loading" | "ok" | "unavailable">("loading");
+const healthAvailable = computed(() => healthState.value !== "unavailable");
+const showHealthView = computed(() => activeKbTab.value === "health" && healthAvailable.value);
+const showDocumentsView = computed(
+  () => !showHealthView.value && (activeKbTab.value === "documents" || activeKbTab.value === "health" || !isWiki.value),
+);
+let healthSeq = 0;
+const loadHealthSummary = async (id: string) => {
+  const seq = ++healthSeq;
+  healthState.value = "loading";
+  healthSummary.value = null;
+  try {
+    const summary = await getFindingsSummary(id);
+    if (seq !== healthSeq) return;
+    healthSummary.value = summary;
+    healthState.value = "ok";
+  } catch (err) {
+    if (seq !== healthSeq) return;
+    console.debug("knowledge health unavailable", err);
+    healthState.value = "unavailable";
+  }
+};
+const onHealthSummaryChange = (summary: FindingsSummary) => {
+  healthSummary.value = summary;
+  healthState.value = "ok";
+};
+// Set when the health view asks for the wiki's issue list; WikiBrowser is
+// mounted fresh by the tab switch and opens its issue drawer on arrival.
+const openWikiIssuesOnMount = ref(false);
+const onOpenWikiIssues = () => {
+  openWikiIssuesOnMount.value = true;
+  activeKbTab.value = "wiki";
+};
+watch(activeKbTab, (tab) => {
+  if (tab !== "wiki") openWikiIssuesOnMount.value = false;
+});
+watch(
+  kbId,
+  (id) => {
+    if (id) void loadHealthSummary(id);
+  },
+  { immediate: true },
+);
 const onWikiStatusChange = (payload: { pendingTasks: number; isActive: boolean; pendingIssues: number }) => {
   wikiStatus.value = payload;
 };
@@ -2429,36 +2481,54 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
                 </template>
               </button>
               <ChevronRightIcon class="text-placeholder size-3.5 shrink-0" />
-              <template v-if="isWiki">
+              <template v-if="isWiki || healthAvailable">
                 <span :class="breadcrumbTabClass('documents', false)" @click="activeKbTab = 'documents'">{{
                   $t("knowledgeEditor.wikiBrowser.tabDocuments")
                 }}</span>
-                <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
-                <span :class="breadcrumbTabClass('wiki', wikiIsIndexing)" @click="activeKbTab = 'wiki'">
-                  Wiki
-                  <Tooltip v-if="wikiIsIndexing">
+                <template v-if="isWiki">
+                  <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
+                  <span :class="breadcrumbTabClass('wiki', wikiIsIndexing)" @click="activeKbTab = 'wiki'">
+                    Wiki
+                    <Tooltip v-if="wikiIsIndexing">
+                      <TooltipTrigger as-child>
+                        <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
+                    </Tooltip>
+                  </span>
+                  <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
+                  <Tooltip>
                     <TooltipTrigger as-child>
-                      <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
+                      <span :class="breadcrumbTabClass('graph', wikiIsIndexing)" @click="activeKbTab = 'graph'">
+                        {{ $t("knowledgeEditor.wikiBrowser.tabGraph") }}
+                        <!-- As before, the indexing spinner carries its own tooltip inside the tab's. -->
+                        <Tooltip v-if="wikiIsIndexing">
+                          <TooltipTrigger as-child>
+                            <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
+                        </Tooltip>
+                      </span>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
+                    <TooltipContent side="bottom">{{ $t("knowledgeEditor.wikiBrowser.tabGraphTip") }}</TooltipContent>
                   </Tooltip>
-                </span>
-                <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <span :class="breadcrumbTabClass('graph', wikiIsIndexing)" @click="activeKbTab = 'graph'">
-                      {{ $t("knowledgeEditor.wikiBrowser.tabGraph") }}
-                      <!-- As before, the indexing spinner carries its own tooltip inside the tab's. -->
-                      <Tooltip v-if="wikiIsIndexing">
-                        <TooltipTrigger as-child>
-                          <Loader2Icon class="text-primary inline-flex size-3 animate-spin items-center" />
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">{{ wikiIndexingTip }}</TooltipContent>
-                      </Tooltip>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">{{ $t("knowledgeEditor.wikiBrowser.tabGraphTip") }}</TooltipContent>
-                </Tooltip>
+                </template>
+                <template v-if="healthAvailable">
+                  <span class="mx-1.5 font-normal text-[var(--td-text-color-disabled)]">/</span>
+                  <span
+                    :class="breadcrumbTabClass('health', false)"
+                    data-testid="kb-health-tab"
+                    @click="activeKbTab = 'health'"
+                  >
+                    {{ $t("knowledgeHealth.tab") }}
+                    <span
+                      v-if="healthSummary && healthSummary.open_total > 0"
+                      class="bg-warning/15 text-warning inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[11px] leading-none font-semibold"
+                      :aria-label="$t('knowledgeHealth.openCount', { count: healthSummary.open_total })"
+                      >{{ healthSummary.open_total > 99 ? "99+" : healthSummary.open_total }}</span
+                    >
+                  </span>
+                </template>
               </template>
               <span v-else class="text-foreground font-semibold">{{ $t("knowledgeEditor.document.title") }}</span>
             </h2>
@@ -2521,13 +2591,27 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
           :knowledge-base-id="kbId"
           :view="activeKbTab === 'graph' ? 'graph' : 'browser'"
           :can-edit="canEdit"
+          :open-issues-on-mount="openWikiIssuesOnMount"
           @open-source-doc="openSourceDoc"
           @status-change="onWikiStatusChange"
           @view-graph="onViewWikiInGraph"
         />
       </div>
 
-      <template v-if="activeKbTab === 'documents' || !isWiki">
+      <div v-if="showHealthView" class="flex min-h-0 flex-1 flex-col">
+        <KnowledgeHealthView
+          v-if="kbId"
+          :kb-id="kbId"
+          :can-rescan="canManage"
+          :is-wiki="isWiki"
+          :wiki-pending-issues="wikiStatus.pendingIssues"
+          @open-knowledge="openSourceDoc"
+          @open-wiki-issues="onOpenWikiIssues"
+          @summary-change="onHealthSummaryChange"
+        />
+      </div>
+
+      <template v-if="showDocumentsView">
         <div class="flex min-h-0 flex-1">
           <KbFolderTree
             v-if="showFolderTree && !folderTreeCollapsed"

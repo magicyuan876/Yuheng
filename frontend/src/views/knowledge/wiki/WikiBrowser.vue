@@ -1487,6 +1487,10 @@ const props = defineProps<{
   // 对应后端 g.OwnedWikiKBOrAdmin() 守卫（KB creator OR Admin+ OR
   // org-share editor）。父组件没传时按 false 兜底，避免漏 gate。
   canEdit?: boolean;
+  // Opens the pending-issues drawer as soon as the browser mounts. The
+  // knowledge-health view links here for the wiki's lint report instead of
+  // listing the same issues a second time.
+  openIssuesOnMount?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -1661,6 +1665,15 @@ watch(showGlobalIssuesDrawer, async (val) => {
     }
   }
 });
+
+// Registered after the loader above so that opening on mount goes through it.
+watch(
+  () => props.openIssuesOnMount,
+  (open) => {
+    if (open) showGlobalIssuesDrawer.value = true;
+  },
+  { immediate: true },
+);
 
 async function navigateToSlugAndFix(slug: string) {
   showGlobalIssuesDrawer.value = false;

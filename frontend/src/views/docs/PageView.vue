@@ -244,6 +244,14 @@
           :labels="labels"
           @change="onLabelsChanged"
         />
+        <!-- Loads itself once the page is idle, so it never holds up the page. -->
+        <PageFindingsNotice
+          class="mt-2.5"
+          :page-id="page.id"
+          :page-title="page.title"
+          :knowledge-base-id="space.knowledge_base_id"
+          :excluded="page.exclude_from_knowledge"
+        />
       </header>
 
       <div class="mt-4 flex items-start gap-6">
@@ -442,6 +450,7 @@ import CommentComposer from "./comments/CommentComposer.vue";
 import PageAccessPanel from "./access/PageAccessPanel.vue";
 import SharePanel from "./share/SharePanel.vue";
 import PageLabels from "./labels/PageLabels.vue";
+import PageFindingsNotice from "./findings/PageFindingsNotice.vue";
 import { browserStore, recordVisit } from "./home/recentlyViewed";
 import NotificationCentre from "./notifications/NotificationCentre.vue";
 import CommentsPanel from "./comments/CommentsPanel.vue";
