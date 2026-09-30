@@ -539,12 +539,17 @@ services:
     # 添加停机时的优雅退出时间
     stop_grace_period: 1m
 
+  # Valkey, the BSD-licensed continuation of Redis (Linux Foundation): Redis
+  # itself left BSD with 7.4 (RSAL/SSPL, then AGPLv3 from 8.0). It speaks the
+  # same protocol, so the service keeps the name of its role, and every client
+  # (go-redis, asynq, collab, Langfuse) connects to it unchanged. Pinned to the
+  # same release as the Helm chart.
   redis:
-    image: redis:7.0-alpine
+    image: valkey/valkey:8.1.10-alpine
     container_name: Yuheng-redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-    # redis-cli reads the password from REDISCLI_AUTH, so it never appears in the
-    # process list or the healthcheck output.
+    command: valkey-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    # valkey-cli reads the password from REDISCLI_AUTH, so it never appears in
+    # the process list or the healthcheck output.
     environment:
       - REDISCLI_AUTH=${REDIS_PASSWORD:-}
     # The append-only file lives here: without a volume every `docker compose
@@ -552,7 +557,7 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5

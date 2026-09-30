@@ -98,7 +98,7 @@ To serve a network or the internet: put a reverse proxy with TLS in front of the
 | `app` | built locally, `magicyuan876/yuheng-app` | `127.0.0.1:${APP_PORT:-8080}` | postgres, redis, docreader, rustfs (all healthy) | Go backend; mounts `./config/config.yaml` and the `data-files` volume; health check `GET /ready` |
 | `docreader` | built locally, `magicyuan876/yuheng-docreader` | not published (50051 on the Compose network) | none | Document-parsing gRPC service, runs as non-root; health check via `grpc_health_probe`; shares the `docreader-tmp` volume with app for images |
 | `postgres` | `paradedb/paradedb:v0.22.2-pg17` | not published | none | PostgreSQL 17 + `pg_search` (BM25) + pgvector: the only database and the only retrieval engine |
-| `redis` | `redis:7.0-alpine` | not published | none | `--appendonly yes`; data in the `redis-data` volume |
+| `redis` | `valkey/valkey:8.1.10-alpine` | not published | none | Valkey (the BSD-licensed, protocol-compatible continuation of Redis); `--appendonly yes`; data in the `redis-data` volume |
 | `rustfs` | `rustfs/rustfs` (pinned by digest) | `127.0.0.1:9000` (S3) / `127.0.0.1:9001` (console) | none | The default file storage (S3-compatible object store); see "File storage" below. It starts even if `STORAGE_TYPE` points elsewhere. |
 
 ### Optional services and profiles

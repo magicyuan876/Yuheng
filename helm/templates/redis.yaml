@@ -42,7 +42,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           command:
-            - redis-server
+            - valkey-server
             - --requirepass
             - $(REDIS_PASSWORD)
             - --appendonly
@@ -51,6 +51,13 @@ spec:
             - /data
           env:
             - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "yuheng.secretName" . }}
+                  key: REDIS_PASSWORD
+            # valkey-cli reads the password from here, so the probes do not
+            # put it on a command line.
+            - name: REDISCLI_AUTH
               valueFrom:
                 secretKeyRef:
                   name: {{ include "yuheng.secretName" . }}
@@ -69,7 +76,7 @@ spec:
               command:
                 - sh
                 - -c
-                - redis-cli -a $REDIS_PASSWORD ping | grep PONG
+                - valkey-cli ping | grep -q PONG
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
@@ -79,7 +86,7 @@ spec:
               command:
                 - sh
                 - -c
-                - redis-cli -a $REDIS_PASSWORD ping | grep PONG
+                - valkey-cli ping | grep -q PONG
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3

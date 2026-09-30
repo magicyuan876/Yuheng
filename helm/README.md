@@ -241,8 +241,8 @@ helm install yuheng ./helm \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `redis.enabled` | Enable Redis | `true` |
-| `redis.image.repository` | Image repository | `redis` |
-| `redis.image.tag` | Image tag | `7-alpine` |
+| `redis.image.repository` | Image repository (Valkey, Redis-protocol compatible) | `valkey/valkey` |
+| `redis.image.tag` | Image tag | `8.1.10-alpine` |
 | `redis.persistence.enabled` | Enable persistence | `true` |
 | `redis.persistence.size` | PVC size | `1Gi` |
 
@@ -365,6 +365,14 @@ helm upgrade yuheng ./helm \
   --namespace yuheng \
   --reuse-values
 ```
+
+**Chart 0.2.x → 0.3.0.** Redis is served by Valkey (`valkey/valkey:8.1.10-alpine`),
+the BSD-licensed continuation of Redis, as in docker-compose. The old default
+`redis:7-alpine` resolved to Redis 7.4, whose RDB format Valkey 8 cannot load,
+so the Redis volume does not carry over. Redis holds only the task queue,
+caches and the event bus, not data of record: let the task queue drain (or
+accept that queued tasks are dropped), then delete the Redis PVC before
+upgrading so Valkey starts empty.
 
 **Chart 0.1.x → 0.2.0.** Two changes need attention on an existing release:
 

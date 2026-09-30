@@ -95,7 +95,7 @@ docker compose ps                 # 等所有服务变成 healthy / running
 | `app` | 本地构建 `magicyuan876/yuheng-app` | `127.0.0.1:${APP_PORT:-8080}` | postgres、redis、docreader、rustfs（均 healthy） | Go 后端；挂载 `./config/config.yaml` 与 `data-files` 卷；健康检查 `GET /ready` |
 | `docreader` | 本地构建 `magicyuan876/yuheng-docreader` | 不发布（容器网络内 50051） | — | 文档解析 gRPC 服务，以非 root 运行；健康检查 `grpc_health_probe`；与 app 共享 `docreader-tmp` 卷传递图片 |
 | `postgres` | `paradedb/paradedb:v0.22.2-pg17` | 不发布 | — | PostgreSQL 17 + `pg_search`（BM25）+ pgvector，唯一的数据库与检索引擎 |
-| `redis` | `redis:7.0-alpine` | 不发布 | — | `--appendonly yes`，数据在 `redis-data` 卷 |
+| `redis` | `valkey/valkey:8.1.10-alpine` | 不发布 | — | Valkey（BSD 许可的 Redis 延续版，协议兼容）；`--appendonly yes`，数据在 `redis-data` 卷 |
 | `rustfs` | `rustfs/rustfs`（按 digest 固定） | `127.0.0.1:9000`（S3）/ `127.0.0.1:9001`（控制台） | — | 默认的文件存储（S3 兼容对象存储），见下文「文件存储」；即使 `STORAGE_TYPE` 改成别的也会启动 |
 
 ### 可选服务与 profiles

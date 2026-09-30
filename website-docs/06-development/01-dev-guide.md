@@ -62,7 +62,7 @@ make dev-restart  # 重启
 | 服务 | 镜像 | 端口（默认） | 启动条件 |
 | --- | --- | --- | --- |
 | `postgres` | `paradedb/paradedb:v0.22.2-pg17`（自带 pgvector 与 pg_search） | `5432` | 默认 |
-| `redis` | `redis:7.0-alpine`（`--requirepass`） | `6379` | 默认 |
+| `redis` | `valkey/valkey:8.1.10-alpine`（`--requirepass`） | `6379` | 默认 |
 | `docreader` | 本地构建 `docker/Dockerfile.docreader` | `50051`（gRPC） | 默认 |
 | `rustfs` | `rustfs/rustfs`（按 digest 固定） | `9000` / 控制台 `9001` | 默认 |
 | `langfuse-web` / `langfuse-worker` / `langfuse-clickhouse` / `langfuse-minio` / `langfuse-db-init` | Langfuse v3 自建栈，复用 dev 的 postgres（独立 `langfuse` 库）与 redis | web `3000` | 默认开启，`--no-langfuse` 关闭 |

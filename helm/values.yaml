@@ -416,15 +416,18 @@ postgresql:
 # -----------------------------------------------------------------------------
 # Redis (Stream & Task Queue)
 # -----------------------------------------------------------------------------
+# Served by Valkey, the BSD-licensed continuation of Redis; it speaks the Redis
+# protocol, so the component keeps the name of its role. Keep the tag in step
+# with docker-compose.yml.
 redis:
   # -- Enable Redis
   enabled: true
 
   image:
     # -- Image repository
-    repository: redis
+    repository: valkey/valkey
     # -- Image tag
-    tag: 7-alpine
+    tag: 8.1.10-alpine
 
   # -- Resource requests and limits
   resources:

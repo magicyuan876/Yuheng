@@ -16,7 +16,7 @@ Yuheng 的核心是"主服务 + 前端 + 文档解析微服务"三个进程，�
 | `frontend` | `frontend/`（NGINX + Vue 3 静态产物，需先 `scripts/build_frontend_dist.sh`） | `80`（`FRONTEND_PORT`） | Web UI；NGINX 同时是反向代理，把 `/api`、`/files`、`/r` 与 `/collab` 转发到后端（`APP_HOST`/`APP_BACKEND_PORT`/`APP_SCHEME` 可指向远端后端） |
 | `docreader` | `docker/Dockerfile.docreader`（Python） | `50051`（仅 compose 网络内） | 文档解析微服务：gRPC 服务端，PDF/DOCX/Excel/EPUB/网页/音视频等格式解析与页面渲染 |
 | `postgres` | `paradedb/paradedb:v0.22.2-pg17` | `5432`（网络内） | 唯一的数据库。ParadeDB 发行版自带 pgvector 与 `pg_search`（BM25），同时承担业务数据与检索索引；服务启动时检查 `vector` 与 `pg_search` 两个扩展，缺失即拒绝启动 |
-| `redis` | `redis:7.0-alpine` | `6379`（网络内） | Asynq 任务队列、`system_settings` 变更发布订阅、分布式限流与模型并发闸门、在线文档的事件总线与权限缓存；配置 `STREAM_MANAGER_TYPE=redis` 时还承载 SSE 事件流 |
+| `redis` | `valkey/valkey:8.1.10-alpine`（Valkey，协议兼容 Redis） | `6379`（网络内） | Asynq 任务队列、`system_settings` 变更发布订阅、分布式限流与模型并发闸门、在线文档的事件总线与权限缓存；配置 `STREAM_MANAGER_TYPE=redis` 时还承载 SSE 事件流 |
 | `rustfs` | `rustfs/rustfs`（按 digest 固定） | `9000` / 控制台 `9001`（仅 `127.0.0.1`） | 默认的 S3 兼容对象存储（compose 默认 `STORAGE_TYPE=s3`、`S3_ENDPOINT=http://rustfs:9000`）；改用本地目录或外部对象存储时它仍会启动 |
 
 仓库目前不发布预构建镜像：compose 中的 `image:` 名只是本地构建产物的标签，`docker compose up -d --build` 会从源码构建。`app` 与 `docreader` 之间通过共享卷 `docreader-tmp`（挂载于 `/tmp/docreader`）传递解析产物图片；`app` 的本地文件存储卷为 `data-files`（`/data/files`），大视频在本地存储时也经共享路径交给 docreader，而不走 gRPC 消息体。
