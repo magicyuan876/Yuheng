@@ -211,13 +211,17 @@ func startContainer(ctx context.Context) (string, error) {
 		tcpostgres.WithDatabase("postgres"),
 		tcpostgres.WithUsername("postgres"),
 		tcpostgres.WithPassword("postgres"),
-		testcontainers.WithWaitStrategy(
+		testcontainers.WithWaitStrategy(wait.ForAll(
 			// The entrypoint starts the server twice — once to run its init
 			// scripts, then for real — so wait for the second "ready".
 			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(2*time.Minute),
-		),
+				WithOccurrence(2),
+			// And for Docker to publish the port. With many test packages
+			// starting containers at once, the daemon can report the
+			// container ready before its port mapping is visible, and the
+			// connection string then fails with `port "5432/tcp" not found`.
+			wait.ForListeningPort("5432/tcp"),
+		).WithDeadline(2*time.Minute)),
 	)
 	if err != nil {
 		return "", fmt.Errorf("start %s: %w", image(), err)
