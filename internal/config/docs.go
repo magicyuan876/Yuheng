@@ -99,9 +99,9 @@ func (d *DocsConfig) CollabInternalURL() string {
 // IsEnabled is nil-safe.
 func (d *DocsConfig) IsEnabled() bool { return d != nil && d.Enabled }
 
-// loadDocsConfig reads the module's environment. Defaults are the values the
-// design document specifies; malformed numbers fall back to the default with
-// a startup warning rather than aborting boot.
+// loadDocsConfig reads the module's environment. Defaults are the values
+// documented in .env.example (group K); malformed numbers fall back to the
+// default with a startup warning rather than aborting boot.
 func loadDocsConfig() *DocsConfig {
 	d := &DocsConfig{
 		Enabled:                envBool("YUHENG_DOCS_ENABLED", false),
@@ -118,7 +118,7 @@ func loadDocsConfig() *DocsConfig {
 		DrawioURL:              strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
 		PublicSharing:          envBool("YUHENG_DOCS_PUBLIC_SHARING", false),
 		DefaultSpaceQuotaBytes: envInt64("YUHENG_DOCS_SPACE_QUOTA_BYTES", 0),
-		CleanupIntervalMinutes: int(envInt64("YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES", 60)),
+		CleanupIntervalMinutes: int(envSignedInt64("YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES", 60)),
 	}
 	if d.Enabled && d.CollabEnabled() && d.CollabSharedSecret == "" {
 		// Printf: LoadConfig runs before the logger is wired.
@@ -159,6 +159,8 @@ func envBool(name string, def bool) bool {
 	return def
 }
 
+// envInt64 reads a size, count or duration, which cannot be negative; a
+// negative or malformed value falls back to the default with a warning.
 func envInt64(name string, def int64) int64 {
 	v := strings.TrimSpace(os.Getenv(name))
 	if v == "" {
@@ -167,6 +169,23 @@ func envInt64(name string, def int64) int64 {
 	n, err := strconv.ParseInt(v, 10, 64)
 	if err != nil || n < 0 {
 		fmt.Printf("[config] WARNING: %s=%q is not a non-negative integer; using %d\n", name, v, def)
+		return def
+	}
+	return n
+}
+
+// envSignedInt64 reads a setting where a negative value means something of
+// its own, such as a timer interval below zero switching the timer off.
+// Read through envInt64, such a value was taken for a typo and replaced by
+// the default, so the documented way to switch the timer off did nothing.
+func envSignedInt64(name string, def int64) int64 {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return def
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		fmt.Printf("[config] WARNING: %s=%q is not an integer; using %d\n", name, v, def)
 		return def
 	}
 	return n
