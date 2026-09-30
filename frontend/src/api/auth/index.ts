@@ -24,20 +24,8 @@ export interface LoginResponse {
     created_at: string;
     updated_at: string;
   };
-  tenant?: {
-    id: number;
-    name: string;
-    description: string;
-    status: string;
-    business: string;
-    storage_quota: number;
-    storage_used: number;
-    created_at: string;
-    updated_at: string;
-  } | null;
-  // active_tenant mirrors `tenant` for endpoints that distinguish home
-  // tenant from current tenant (e.g. /auth/register-by-invite). Only
-  // one of `tenant` / `active_tenant` is populated by any given endpoint.
+  // The workspace the issued token is scoped to: the user's home workspace
+  // on a fresh login, or the one the server remembered as last active.
   active_tenant?: {
     id: number;
     name: string;

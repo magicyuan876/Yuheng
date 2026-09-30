@@ -1412,14 +1412,6 @@ func (s *userService) GetCurrentUser(ctx context.Context) (*types.User, error) {
 	return user, nil
 }
 
-// SearchUsers searches users by username or email
-func (s *userService) SearchUsers(ctx context.Context, query string, limit int) ([]*types.User, error) {
-	if query == "" {
-		return []*types.User{}, nil
-	}
-	return s.userRepo.SearchUsers(ctx, query, limit)
-}
-
 type oidcDiscoveryDocument struct {
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
 	TokenEndpoint         string `json:"token_endpoint"`

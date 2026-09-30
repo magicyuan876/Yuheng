@@ -1683,7 +1683,6 @@ export default {
       editConflictReload: "Load latest",
       editConflictOverwrite: "Overwrite",
       editSourceUser: "Manually edited",
-      editSourceAgent: "AI edited",
       editSourceRevert: "Reverted",
       editSourcePipeline: "Auto-generated",
       newPageBtn: "New page",
@@ -2689,7 +2688,6 @@ export default {
           max_owned_per_user: "Max workspaces owned per user",
           self_service_creation_enabled: "Allow self-service workspace creation",
           default_storage_quota_gb: "Default storage quota for new workspaces (GB)",
-          auto_create_api_key: "Automatically create an API key for new workspaces",
         },
         asynq: {
           core_concurrency: "Guaranteed core parse concurrency",
@@ -2727,8 +2725,6 @@ export default {
             "Whether non-superusers may create workspaces themselves. When disabled, regular users can only join existing workspaces by invitation; cross-workspace superusers remain exempt. Takes effect immediately.",
           default_storage_quota_gb:
             "Default storage quota (GB) assigned when a new workspace is created, covering vectors, originals, text, indexes, and related data. Read only at creation time — changes apply to newly created workspaces only and do not retroactively update existing workspaces. 0 or a negative value uses the built-in default of 10 GB.",
-          auto_create_api_key:
-            "Automatically creates a full_access API key for a new workspace and returns its plaintext token in the create response. Use only for integrations that depend on the legacy behavior; it is disabled by default and explicit API-key creation is recommended.",
         },
         asynq: {
           core_concurrency:

@@ -30,8 +30,8 @@ export interface WikiPage {
   out_links: string[];
   page_metadata: Record<string, any>;
   version: number;
-  // Author kind of the current version: 'pipeline' | 'agent' | 'user' |
-  // 'revert'. Only the last three get a badge in the reader.
+  // Author kind of the current version: 'pipeline' | 'user' | 'revert'.
+  // Only the last two get a badge in the reader.
   last_edit_source?: string;
   last_editor_id?: string;
   created_at: string;

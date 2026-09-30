@@ -191,23 +191,14 @@ curl -X POST $BASE/api/v1/organizations/org-1/invite-code -H "Authorization: Bea
 curl "$BASE/api/v1/organizations/org-1/search-tenants?q=demo" -H "Authorization: Bearer $TOKEN"
 ```
 
-### GET /api/v1/organizations/:id/search-users
-
-用途：已废弃别名，行为同 `search-tenants`（返回空间分组结果）。权限：Admin+。参数同上。
-
-```bash
-curl "$BASE/api/v1/organizations/org-1/search-users?q=demo" -H "Authorization: Bearer $TOKEN"
-```
-
 ### POST /api/v1/organizations/:id/invite
 
 用途：直接邀请空间加入组织。权限：Admin+。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `tenant_id` | uint64 | 二选一 | 目标空间 ID（推荐） |
-| `user_id` | string | 二选一 | 兼容路径：用户 ID（解析为其空间） |
-| `representative_user_id` | string | 否 | 该空间的代表用户 |
+| `tenant_id` | uint64 | 是 | 目标空间 ID |
+| `representative_user_id` | string | 否 | 该空间的代表用户（仅用于展示与审计；不属于该空间的用户会被忽略） |
 | `role` | string | 是 | 组织内角色 |
 
 响应：200 `{"success":true,"message":"Member added successfully"}`
@@ -221,7 +212,7 @@ curl -X POST $BASE/api/v1/organizations/org-1/invite -H "Authorization: Bearer $
 
 用途：组织成员（空间）列表。权限：Viewer+。
 
-响应：200 `{"success":true,"data":{"members":[{id,user_id,representative_user_id,role,tenant_id,tenant_name,username,email,avatar,joined_at}],"total":N}}`
+响应：200 `{"success":true,"data":{"members":[{id,representative_user_id,role,tenant_id,tenant_name,username,email,avatar,joined_at}],"total":N}}`
 
 ```bash
 curl $BASE/api/v1/organizations/org-1/members -H "Authorization: Bearer $TOKEN"

@@ -97,10 +97,6 @@ func (s *stubUserRepoForAuth) CreateFirstUser(context.Context, *types.User) erro
 	return nil
 }
 
-func (s *stubUserRepoForAuth) SearchUsers(context.Context, string, int) ([]*types.User, error) {
-	return nil, nil
-}
-
 func newAuthTestUserService(tokenRepo *stubAuthTokenRepo) *userService {
 	return &userService{
 		userRepo: &stubUserRepoForAuth{

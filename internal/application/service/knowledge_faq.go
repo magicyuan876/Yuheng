@@ -21,7 +21,7 @@ import (
 
 // ListFAQEntries lists FAQ entries under a FAQ knowledge base.
 func (s *knowledgeService) ListFAQEntries(ctx context.Context,
-	kbID string, page *types.Pagination, tagUUIDs []string, legacyTagSeqID int64, keyword string, searchField string, sortOrder string,
+	kbID string, page *types.Pagination, tagUUIDs []string, keyword string, searchField string, sortOrder string,
 ) (*types.PageResult, error) {
 	if page == nil {
 		page = &types.Pagination{}
@@ -64,14 +64,6 @@ func (s *knowledgeService) ListFAQEntries(ctx context.Context,
 	}
 	if faqKnowledge == nil {
 		return types.NewPageResult(0, page, []*types.FAQEntry{}), nil
-	}
-
-	if len(tagUUIDs) == 0 && legacyTagSeqID > 0 {
-		tag, err := s.tagRepo.GetBySeqID(ctx, effectiveTenantID, legacyTagSeqID)
-		if err != nil {
-			return nil, werrors.NewNotFoundError("标签不存在")
-		}
-		tagUUIDs = []string{tag.ID}
 	}
 
 	chunkType := []types.ChunkType{types.ChunkTypeFAQ}

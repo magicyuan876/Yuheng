@@ -154,7 +154,7 @@ type KnowledgeBaseListResponse struct {
 //
 // Channel grouping: 0-1 primary text channels (vector + keyword);
 // 2-5 enrichment chunks (added in addition to primary matches, score=0);
-// 6-9 alternate sources (graph DB, web search, raw load, data analysis).
+// 6 and 7 alternate sources (graph DB, web search).
 type MatchType int
 
 const (
@@ -166,8 +166,6 @@ const (
 	MatchTypeRelation MatchType = 5 // server: MatchTypeRelationChunk
 	MatchTypeGraph    MatchType = 6 // server: MatchTypeGraph
 	MatchTypeWeb      MatchType = 7 // server: MatchTypeWebSearch
-	MatchTypeDirect   MatchType = 8 // server: MatchTypeDirectLoad — chunk loaded by ID without scoring
-	MatchTypeData     MatchType = 9 // server: MatchTypeDataAnalysis — produced by analytical pipeline, not retrieval
 )
 
 // SearchResult represents search result.

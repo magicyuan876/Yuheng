@@ -328,7 +328,6 @@ func (h *OrganizationHandler) ListMembers(c *gin.Context) {
 	for _, m := range members {
 		resp := types.OrganizationMemberResponse{
 			ID:                   m.ID,
-			UserID:               m.RepresentativeUserID,
 			RepresentativeUserID: m.RepresentativeUserID,
 			Role:                 string(m.Role),
 			TenantID:             m.TenantID,
@@ -1468,22 +1467,9 @@ func (h *OrganizationHandler) SearchTenantsForInvite(c *gin.Context) {
 	})
 }
 
-// SearchUsersForInvite is retained as a thin compatibility shim that
-// delegates to SearchTenantsForInvite, so older frontends still get
-// tenant-grouped results without breaking the call site. The response
-// shape here is (intentionally) the new tenant-candidate shape; the
-// previous shape returned one row per matching user, which leaked the
-// pre-Plan-3 mental model.
-//
-// @Deprecated  Use SearchTenantsForInvite. Kept for one release.
-// @Router      /organizations/{id}/search-users [get]
-func (h *OrganizationHandler) SearchUsersForInvite(c *gin.Context) {
-	h.SearchTenantsForInvite(c)
-}
-
-// InviteMember directly adds a user to organization
+// InviteMember directly adds a workspace to an organization.
 // @Summary      邀请成员
-// @Description  管理员直接添加用户为组织成员
+// @Description  管理员直接把一个空间（tenant_id）添加为组织成员
 // @Tags         组织管理
 // @Accept       json
 // @Produce      json
@@ -1520,55 +1506,25 @@ func (h *OrganizationHandler) InviteMember(c *gin.Context) {
 		return
 	}
 
-	// Plan 3: resolve the (target tenant, representative user) pair.
-	//
-	//  - Preferred: caller supplies tenant_id directly (and optionally
-	//    representative_user_id) — this matches the tenant-centric mental
-	//    model and lets admins invite any user as the rep.
-	//  - Legacy:   caller supplies only user_id — handler looks up that
-	//    user's tenant and uses the same user as the rep, preserving the
-	//    pre-Plan-3 SDK contract.
+	// The member is a workspace; the representative user is attached to the
+	// row for display and audit only.
 	targetTenantID := req.TenantID
-	representativeUserID := req.RepresentativeUserID
-	switch {
-	case targetTenantID != 0:
-		// Tenant-id path: validate the tenant exists; pick a sensible
-		// representative when the caller didn't pin one.
-		if _, err := h.tenantService.GetTenantByID(ctx, targetTenantID); err != nil {
-			c.Error(apperrors.NewNotFoundError("Workspace not found"))
-			return
-		}
-		if representativeUserID == "" {
-			// Fall back to the legacy user_id field if it was sent, so
-			// existing clients that learned to send both keep working.
-			representativeUserID = req.UserID
-		}
-		if representativeUserID != "" {
-			// If a representative is named, sanity-check it belongs to
-			// the target tenant. We don't hard-fail when it doesn't —
-			// the membership row is keyed by tenant_id, the rep field
-			// is informational — but we strip the inconsistent value
-			// so the audit log doesn't lie.
-			if u, err := h.userService.GetUserByID(ctx, representativeUserID); err != nil || u == nil || u.TenantID != targetTenantID {
-				logger.Warnf(ctx, "representative_user_id %s does not belong to tenant %d; dropping",
-					secutils.SanitizeForLog(representativeUserID), targetTenantID)
-				representativeUserID = ""
-			}
-		}
-	case req.UserID != "":
-		// Legacy path: resolve target tenant from the user.
-		invitedUser, err := h.userService.GetUserByID(ctx, req.UserID)
-		if err != nil {
-			c.Error(apperrors.NewNotFoundError("User not found"))
-			return
-		}
-		targetTenantID = invitedUser.TenantID
-		if representativeUserID == "" {
-			representativeUserID = req.UserID
-		}
-	default:
-		c.Error(apperrors.NewValidationError("Either tenant_id or user_id is required"))
+	if _, err := h.tenantService.GetTenantByID(ctx, targetTenantID); err != nil {
+		_ = c.Error(apperrors.NewNotFoundError("Workspace not found"))
 		return
+	}
+	representativeUserID := req.RepresentativeUserID
+	if representativeUserID != "" {
+		// A representative from another workspace would make the audit log
+		// lie. The membership row is keyed by tenant_id, so an inconsistent
+		// value is dropped (the row then has no representative) rather than
+		// failing the invitation.
+		u, err := h.userService.GetUserByID(ctx, representativeUserID)
+		if err != nil || u == nil || u.TenantID != targetTenantID {
+			logger.Warnf(ctx, "representative_user_id %s does not belong to tenant %d; dropping",
+				secutils.SanitizeForLog(representativeUserID), targetTenantID)
+			representativeUserID = ""
+		}
 	}
 
 	// Check if target tenant is already a member of this org.

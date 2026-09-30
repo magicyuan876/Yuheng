@@ -2252,7 +2252,7 @@ const loadEntries = async (append = false) => {
   }
 
   try {
-    // If overallFAQTotal is not initialized, fetch it first (without tag_id filter)
+    // If overallFAQTotal is not initialized, fetch it first (without a tag filter)
     if (overallFAQTotal.value === 0 && !append) {
       const totalRes = await listFAQEntries(props.kbId, {
         page: 1,

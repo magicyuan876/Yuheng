@@ -15,7 +15,6 @@
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `page` / `page_size` | int | 否 | 分页（默认 1/20） |
-| `tag_id` | int | 否 | 旧版单标签 seq_id |
 | `tag_ids` | string | 否 | 逗号分隔标签 UUID |
 | `keyword` | string | 否 | 关键字 |
 | `search_field` | string | 否 | `standard_question`/`similar_questions`/`answers`（默认全字段） |

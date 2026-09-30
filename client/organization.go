@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -27,11 +28,14 @@ type Organization struct {
 
 // OrganizationResponse represents an organization in API responses (with counts)
 type OrganizationResponse struct {
-	ID                      string     `json:"id"`
-	Name                    string     `json:"name"`
-	Description             string     `json:"description"`
-	Avatar                  string     `json:"avatar,omitempty"`
-	OwnerID                 string     `json:"owner_id"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Avatar      string `json:"avatar,omitempty"`
+	OwnerID     string `json:"owner_id"`
+	// OwnerTenantID is the workspace that owns the organization. Members are
+	// workspaces, so this is how to find the owner's row in ListOrgMembers.
+	OwnerTenantID           uint64     `json:"owner_tenant_id"`
 	InviteCode              string     `json:"invite_code,omitempty"`
 	InviteCodeExpiresAt     *time.Time `json:"invite_code_expires_at,omitempty"`
 	InviteCodeValidityDays  int        `json:"invite_code_validity_days"`
@@ -68,16 +72,42 @@ type UpdateOrganizationRequest struct {
 	MemberLimit            *int    `json:"member_limit,omitempty"`
 }
 
-// OrganizationMemberResponse represents a member in API responses
+// OrganizationMemberResponse is one member of an organization. Members are
+// workspaces: TenantID and TenantName identify the member, and TenantID is
+// what UpdateMemberRole and RemoveMember take. The user fields describe the
+// representative user attached to the row for display and audit only; they
+// may be empty when that user has been deleted.
 type OrganizationMemberResponse struct {
-	ID       string    `json:"id"`
-	UserID   string    `json:"user_id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
-	Avatar   string    `json:"avatar"`
-	Role     string    `json:"role"`
-	TenantID uint64    `json:"tenant_id"`
-	JoinedAt time.Time `json:"joined_at"`
+	ID                   string    `json:"id"`
+	TenantID             uint64    `json:"tenant_id"`
+	TenantName           string    `json:"tenant_name,omitempty"`
+	Role                 string    `json:"role"`
+	RepresentativeUserID string    `json:"representative_user_id"`
+	Username             string    `json:"username"`
+	Email                string    `json:"email"`
+	Avatar               string    `json:"avatar"`
+	JoinedAt             time.Time `json:"joined_at"`
+}
+
+// TenantInviteCandidate is a workspace SearchTenantsForInvite found. The
+// representative fields name a user of that workspace, for display only.
+type TenantInviteCandidate struct {
+	TenantID               uint64 `json:"tenant_id"`
+	TenantName             string `json:"tenant_name"`
+	RepresentativeUserID   string `json:"representative_user_id"`
+	RepresentativeUsername string `json:"representative_username"`
+	RepresentativeEmail    string `json:"representative_email"`
+	RepresentativeAvatar   string `json:"representative_avatar,omitempty"`
+}
+
+// InviteMemberRequest adds a workspace to an organization directly.
+// RepresentativeUserID optionally names a user of that workspace to show
+// against the membership; the server ignores one that belongs to another
+// workspace.
+type InviteMemberRequest struct {
+	TenantID             uint64 `json:"tenant_id"`
+	RepresentativeUserID string `json:"representative_user_id,omitempty"`
+	Role                 string `json:"role"`
 }
 
 // KnowledgeBaseShareResponse represents a KB share record in API responses
@@ -119,19 +149,6 @@ type SharedKnowledgeBaseInfo struct {
 	Permission     string    `json:"permission"`
 	SourceTenantID uint64    `json:"source_tenant_id"`
 	SharedAt       time.Time `json:"shared_at"`
-}
-
-// UserInfo represents user information for API responses
-type UserInfo struct {
-	ID                  string    `json:"id"`
-	Username            string    `json:"username"`
-	Email               string    `json:"email"`
-	Avatar              string    `json:"avatar"`
-	TenantID            uint64    `json:"tenant_id"`
-	IsActive            bool      `json:"is_active"`
-	CanAccessAllTenants bool      `json:"can_access_all_tenants"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // --- Organization CRUD ---
@@ -335,19 +352,26 @@ func (c *Client) GenerateInviteCode(ctx context.Context, orgID string) (string, 
 	return result.Data.InviteCode, nil
 }
 
-// SearchUsersForInvite searches users to invite into an organization (admin only)
-func (c *Client) SearchUsersForInvite(ctx context.Context, orgID, keyword string) ([]UserInfo, error) {
+// SearchTenantsForInvite finds workspaces whose name matches query and that
+// are not yet members of the organization (org admins only). limit <= 0 uses
+// the server's default of 10; the server caps it at 50.
+func (c *Client) SearchTenantsForInvite(
+	ctx context.Context,
+	orgID, query string,
+	limit int,
+) ([]TenantInviteCandidate, error) {
 	q := url.Values{}
-	if keyword != "" {
-		q.Set("keyword", keyword)
+	q.Set("q", query)
+	if limit > 0 {
+		q.Set("limit", strconv.Itoa(limit))
 	}
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/organizations/%s/search-users", orgID), nil, q)
+	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/organizations/%s/search-tenants", orgID), nil, q)
 	if err != nil {
 		return nil, err
 	}
 	var result struct {
-		Success bool       `json:"success"`
-		Data    []UserInfo `json:"data"`
+		Success bool                    `json:"success"`
+		Data    []TenantInviteCandidate `json:"data"`
 	}
 	if err := parseResponse(resp, &result); err != nil {
 		return nil, err
@@ -355,12 +379,8 @@ func (c *Client) SearchUsersForInvite(ctx context.Context, orgID, keyword string
 	return result.Data, nil
 }
 
-// InviteMember directly invites a user to an organization (admin only)
-func (c *Client) InviteMember(ctx context.Context, orgID, userID, role string) error {
-	req := map[string]string{
-		"user_id": userID,
-		"role":    role,
-	}
+// InviteMember adds a workspace to an organization directly (org admins only).
+func (c *Client) InviteMember(ctx context.Context, orgID string, req InviteMemberRequest) error {
 	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/organizations/%s/invite", orgID), req, nil)
 	if err != nil {
 		return err
@@ -386,19 +406,24 @@ func (c *Client) ListOrgMembers(ctx context.Context, orgID string) ([]Organizati
 	return result.Data.Members, nil
 }
 
-// UpdateMemberRole updates a member's role in an organization
-func (c *Client) UpdateMemberRole(ctx context.Context, orgID, userID, role string) error {
+// UpdateMemberRole changes the role of the member workspace memberTenantID.
+func (c *Client) UpdateMemberRole(ctx context.Context, orgID string, memberTenantID uint64, role string) error {
 	req := map[string]string{"role": role}
-	resp, err := c.doRequest(ctx, http.MethodPut, fmt.Sprintf("/api/v1/organizations/%s/members/%s", orgID, userID), req, nil)
+	resp, err := c.doRequest(
+		ctx, http.MethodPut, fmt.Sprintf("/api/v1/organizations/%s/members/%d", orgID, memberTenantID), req, nil,
+	)
 	if err != nil {
 		return err
 	}
 	return parseResponse(resp, nil)
 }
 
-// RemoveMember removes a member from an organization
-func (c *Client) RemoveMember(ctx context.Context, orgID, userID string) error {
-	resp, err := c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/v1/organizations/%s/members/%s", orgID, userID), nil, nil)
+// RemoveMember takes the member workspace memberTenantID out of the
+// organization.
+func (c *Client) RemoveMember(ctx context.Context, orgID string, memberTenantID uint64) error {
+	resp, err := c.doRequest(
+		ctx, http.MethodDelete, fmt.Sprintf("/api/v1/organizations/%s/members/%d", orgID, memberTenantID), nil, nil,
+	)
 	if err != nil {
 		return err
 	}

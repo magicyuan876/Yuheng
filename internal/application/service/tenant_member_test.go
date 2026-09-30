@@ -318,10 +318,6 @@ func (r *cleanupUserRepo) CreateFirstUser(context.Context, *types.User) error {
 	return nil
 }
 
-func (r *cleanupUserRepo) SearchUsers(context.Context, string, int) ([]*types.User, error) {
-	return nil, nil
-}
-
 type cleanupTokenRepo struct {
 	revoked []string
 }

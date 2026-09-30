@@ -2135,8 +2135,6 @@ export default {
             "비슈퍼유저가 공간을 직접 만들 수 있는지 설정합니다. 비활성화하면 일반 사용자는 초대로만 기존 공간에 참여할 수 있으며, 크로스 워크스페이스 슈퍼유저는 계속 만들 수 있습니다.",
           default_storage_quota_gb:
             "신규 워크스페이스 생성 시 기본으로 할당되는 저장 용량(GB)으로, 벡터·원본·텍스트·인덱스 등을 포함합니다. 생성 시에만 읽으며, 변경은 이후 생성되는 워크스페이스에만 적용되고 기존 워크스페이스에는 소급되지 않습니다. 0 또는 음수는 내장 기본값 10GB를 사용합니다.",
-          auto_create_api_key:
-            "신규 워크스페이스에 full_access API Key를 자동 생성하고 생성 응답에 평문 token을 반환합니다. 기존 동작에 의존하는 연동에만 사용하세요. 기본값은 비활성화입니다.",
         },
         file: {
           max_size_mb:
@@ -2171,7 +2169,6 @@ export default {
           max_owned_per_user: "사용자당 최대 워크스페이스 수",
           self_service_creation_enabled: "사용자 공간 직접 생성 허용",
           default_storage_quota_gb: "신규 워크스페이스 기본 저장 용량 (GB)",
-          auto_create_api_key: "신규 워크스페이스 API Key 자동 생성",
         },
         file: {
           max_size_mb: "문서 업로드 크기 상한 (MB)",
@@ -2981,7 +2978,6 @@ export default {
       editConflictReload: "최신 버전 불러오기",
       editConflictOverwrite: "덮어쓰기",
       editSourceUser: "수동 편집",
-      editSourceAgent: "AI 수정",
       editSourceRevert: "롤백됨",
       editSourcePipeline: "자동 생성",
       newPageBtn: "새 페이지",

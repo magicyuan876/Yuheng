@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -153,11 +154,12 @@ type faqSimpleResponse struct {
 }
 
 // ListFAQEntries returns paginated FAQ entries under a knowledge base.
-// tagSeqID: filter by tag seq_id (0 means no filter)
+// tagIDs: keep only entries carrying any of these tags, by Tag.ID (the UUID,
+// not SeqID); empty means no tag filter
 // searchField: specifies which field to search in ("standard_question", "similar_questions", "answers", "" for all)
 // sortOrder: "asc" for time ascending (updated_at ASC), default is time descending (updated_at DESC)
 func (c *Client) ListFAQEntries(ctx context.Context,
-	knowledgeBaseID string, page, pageSize int, tagSeqID int64, keyword string, searchField string, sortOrder string,
+	knowledgeBaseID string, page, pageSize int, tagIDs []string, keyword string, searchField string, sortOrder string,
 ) (*FAQEntriesPage, error) {
 	path := fmt.Sprintf("/api/v1/knowledge-bases/%s/faq/entries", knowledgeBaseID)
 	query := url.Values{}
@@ -167,8 +169,8 @@ func (c *Client) ListFAQEntries(ctx context.Context,
 	if pageSize > 0 {
 		query.Add("page_size", strconv.Itoa(pageSize))
 	}
-	if tagSeqID != 0 {
-		query.Add("tag_id", strconv.FormatInt(tagSeqID, 10))
+	if len(tagIDs) > 0 {
+		query.Add("tag_ids", strings.Join(tagIDs, ","))
 	}
 	if keyword != "" {
 		query.Add("keyword", keyword)

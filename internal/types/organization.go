@@ -302,24 +302,17 @@ type RequestRoleUpgradeRequest struct {
 
 // InviteMemberRequest represents a request to directly invite a workspace to an organization.
 //
-// Plan 3 (#1303) moved membership to the workspace level: an invitation enrols a whole
-// workspace into the organization, with one user attached purely as the representative
-// (display/audit). Callers SHOULD set TenantID and optionally
-// RepresentativeUserID. For backward compatibility with older SDK callers that
-// still send UserID alone, the handler resolves that user's TenantID and uses
-// the user as the representative.
+// Membership is per workspace: an invitation enrols a whole workspace into the
+// organization, with one user optionally attached as its representative
+// (display/audit only).
 type InviteMemberRequest struct {
-	// TenantID is the workspace to enrol as an org member. Preferred field.
-	TenantID uint64 `json:"tenant_id"`
+	// TenantID is the workspace to enrol as an org member.
+	TenantID uint64 `json:"tenant_id" binding:"required"`
 	// RepresentativeUserID identifies the user attached to the OTM row for
-	// display/audit. Optional: when unset, the handler picks a stable default
-	// (the user from the legacy UserID field, or the workspace's owner).
-	RepresentativeUserID string `json:"representative_user_id"`
-	// UserID is retained for backward compatibility. When set without
-	// TenantID, the handler resolves the user's TenantID and uses this
-	// user as the representative.
-	UserID string        `json:"user_id"`
-	Role   OrgMemberRole `json:"role" binding:"required"` // Role to assign: admin/editor/viewer
+	// display/audit. Optional; the handler drops a user who does not belong
+	// to TenantID, leaving the row without a representative.
+	RepresentativeUserID string        `json:"representative_user_id"`
+	Role                 OrgMemberRole `json:"role" binding:"required"` // Role to assign: admin/editor/viewer
 }
 
 // ShareKnowledgeBaseRequest represents a request to share a knowledge base
@@ -364,15 +357,12 @@ type OrganizationResponse struct {
 
 // OrganizationMemberResponse represents a member in API responses.
 //
-// Post-Plan-3: every row is a (org, tenant) tuple. TenantID + TenantName
-// are the primary identity; UserID / Username / Email / Avatar describe
-// the representative user (informational, may be empty if the rep user
-// was soft-deleted). RepresentativeUserID is the same value as UserID,
-// kept as an explicit alias so frontends can stop relying on the
-// misleading user_id field name.
+// Every row is a (org, tenant) tuple. TenantID + TenantName are the primary
+// identity; RepresentativeUserID / Username / Email / Avatar describe the
+// representative user (informational, may be empty if the rep user was
+// soft-deleted or none was named).
 type OrganizationMemberResponse struct {
 	ID                   string    `json:"id"`
-	UserID               string    `json:"user_id"`
 	RepresentativeUserID string    `json:"representative_user_id"`
 	Username             string    `json:"username"`
 	Email                string    `json:"email"`

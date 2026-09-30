@@ -638,9 +638,7 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 // 4. 插入序去重，丢弃解析不到名称的 defunct 租户，截断到 limit
 ```
 
-旧端点 `GET /organizations/:id/search-users` 保留为兼容 shim，直接委托给 `SearchTenantsForInvite`（响应已是新的 tenant-candidate 形状，标记 `@Deprecated`）。
-
-`POST /organizations/:id/invite`（仅组织 admin）直接添加成员：优先走 `tenant_id`（可选 `representative_user_id`，若代表用户不属于目标租户则告警并丢弃该字段，不硬失败）；兼容旧 SDK 的 `user_id` 路径（反查该用户租户）。
+`POST /organizations/:id/invite`（仅组织 admin）直接添加成员：必须给出 `tenant_id`（可选 `representative_user_id`，若代表用户不属于目标租户则告警并丢弃该字段，不硬失败）。
 
 ### 8.3 KB 共享模型与权限计算
 

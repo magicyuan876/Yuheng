@@ -231,8 +231,8 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组�
 | `CreateOrganization` / `ListMyOrganizations` / `GetOrganization` / `UpdateOrganization` / `DeleteOrganization` | 组织 CRUD |
 | `SearchOrganizations` / `PreviewOrganizationByInviteCode` | 搜索/邀请码预览组织 |
 | `JoinOrganizationByInviteCode` / `SubmitJoinRequest` / `JoinByOrganizationID` / `LeaveOrganization` / `RequestRoleUpgrade` | 加入/退出/申请升级角色 |
-| `GenerateInviteCode` / `SearchUsersForInvite` / `InviteMember` | 邀请成员 |
-| `ListOrgMembers` / `UpdateMemberRole` / `RemoveMember` | 成员管理 |
+| `GenerateInviteCode` / `SearchTenantsForInvite` / `InviteMember` | 邀请成员：成员单位是空间，按空间名搜索、按 `tenant_id` 邀请 |
+| `ListOrgMembers` / `UpdateMemberRole` / `RemoveMember` | 成员管理（后两者以成员空间的 `tenant_id` 定位） |
 | `ListJoinRequests` / `ReviewJoinRequest` | 加入申请审批 |
 | `ShareKnowledgeBase` / `ListKBShares` / `UpdateSharePermission` / `RemoveKBShare` | 知识库共享 |
 | `ListOrgShares` / `ListSharedKnowledgeBases` | 组织内共享的知识库、共享给我的知识库 |
@@ -241,7 +241,7 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组�
 
 | 方法 | 说明 |
 |---|---|
-| `ListFAQEntries` | 分页列出 FAQ 条目 |
+| `ListFAQEntries` | 分页列出 FAQ 条目（按标签 UUID `tag_ids` 过滤） |
 | `UpsertFAQEntries` | 批量新增/更新 FAQ 条目（异步导入） |
 | `CreateFAQEntry` | 创建单条 FAQ |
 | `GetFAQEntry` | 获取单条 FAQ |

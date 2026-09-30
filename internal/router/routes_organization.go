@@ -71,10 +71,6 @@ func RegisterOrganizationRoutes(r *gin.RouterGroup, orgHandler *handler.Organiza
 		// tenants (with one representative user attached) instead of one
 		// row per user.
 		orgs.GET("/:id/search-tenants", g.Admin(), orgHandler.SearchTenantsForInvite)
-		// Deprecated alias for /:id/search-tenants. Old frontends that
-		// still hit search-users will receive the tenant-grouped shape;
-		// the deprecation is documented in the handler.
-		orgs.GET("/:id/search-users", g.Admin(), orgHandler.SearchUsersForInvite)
 		// Invite member directly (admin only)
 		orgs.POST("/:id/invite", g.Admin(), orgHandler.InviteMember)
 		// List members — Viewer+

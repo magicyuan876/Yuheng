@@ -2084,8 +2084,6 @@ export default {
             "是否允许非超管用户主动创建空间。关闭后，普通用户只能通过邀请加入已有空间；跨空间超管仍可创建。修改后立即生效。",
           default_storage_quota_gb:
             "新建空间时默认分配的存储配额（GB），包含向量、原文、文本、索引等。仅在创建时读取，修改后只对之后新建的空间生效，不会回写已存在的空间。0 或负数表示使用内置默认值 10GB。",
-          auto_create_api_key:
-            "为新空间自动生成 full_access API Key，并在创建响应中返回明文 token。仅用于兼容依赖旧行为的集成；默认关闭，建议通过 API Key 管理显式创建。",
         },
         file: {
           max_size_mb:
@@ -2120,7 +2118,6 @@ export default {
           max_owned_per_user: "每用户最大空间数",
           self_service_creation_enabled: "允许用户自助创建空间",
           default_storage_quota_gb: "新空间默认存储配额 (GB)",
-          auto_create_api_key: "创建空间时自动生成 API Key",
         },
         file: {
           max_size_mb: "文档上传大小上限 (MB)",
@@ -2909,7 +2906,6 @@ export default {
       editConflictReload: "加载最新版本",
       editConflictOverwrite: "覆盖保存",
       editSourceUser: "手动编辑",
-      editSourceAgent: "AI 修改",
       editSourceRevert: "版本回滚",
       editSourcePipeline: "自动生成",
       newPageBtn: "新建页面",

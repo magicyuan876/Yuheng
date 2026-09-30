@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-// KBModelConfigView is the secret-free, read-only model configuration of a
-// knowledge base, returned by GetInitializationConfig. The server's read
-// response nests config under embedding/llm/rerank/multimodal and INCLUDES
-// provider apiKey/baseUrl (for the web config form); this view intentionally
-// parses only the non-secret fields, so credentials can never leak through the
-// CLI. Field tags are snake_case (the CLI envelope convention), remapped from
-// the server's camelCase.
+// KBModelConfigView is the read-only model configuration of a knowledge base,
+// returned by GetInitializationConfig. The server's read response nests config
+// under embedding/llm/rerank/multimodal and carries a provider baseUrl (for
+// admins; the API key itself only as a configured flag); this view parses only
+// model identity, so no endpoint detail reaches the CLI's output. Field tags
+// are snake_case (the CLI envelope convention), remapped from the server's
+// camelCase.
 type KBModelConfigView struct {
 	RetrievalReady bool               `json:"retrieval_ready"` // embedding model bound → KB can embed/retrieve
 	Embedding      ModelSlotView      `json:"embedding"`
@@ -67,17 +67,17 @@ type ModelCheckResult struct {
 }
 
 // GetInitializationConfig returns a knowledge base's model configuration as a
-// secret-free KBModelConfigView. The server response nests config under
-// embedding/llm/rerank/multimodal and includes provider apiKey/baseUrl; this
-// parses ONLY the non-secret fields (apiKey/baseUrl are never read into the
-// struct, so they cannot leak through the CLI) and remaps to snake_case.
+// KBModelConfigView. The server response nests config under
+// embedding/llm/rerank/multimodal and includes the provider baseUrl; this
+// parses only model identity (baseUrl is never read into the struct, so it
+// cannot leak through the CLI) and remaps to snake_case.
 func (c *Client) GetInitializationConfig(ctx context.Context, kbID string) (*KBModelConfigView, error) {
 	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/initialization/config/%s", kbID), nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Deliberately model only non-secret fields; apiKey / baseUrl in the server
-	// payload are ignored by omission.
+	// Deliberately model only model identity; baseUrl and the credential
+	// flags in the server payload are ignored by omission.
 	var result struct {
 		Data struct {
 			Embedding struct {

@@ -22,12 +22,9 @@ type RoleFormatter = (role: string | null | undefined) => string;
 type RoleIconResolver = (role: string | null | undefined) => Component | null;
 
 interface LoginResponseLike {
-  // The password-login response names the active tenant `active_tenant`;
-  // the OIDC callback response calls the same thing `tenant`
-  // (dto.AuthOIDCCallbackResponse). Accept either so callers don't have to
-  // normalise.
+  // Password login, invite registration and the OIDC callback all name the
+  // workspace the issued token is scoped to `active_tenant`.
   active_tenant?: { id?: number | string; name?: string } | null;
-  tenant?: { id?: number | string; name?: string } | null;
   memberships?: Array<{ tenant_id?: number | string; role?: string }>;
 }
 
@@ -38,7 +35,7 @@ export function notifyLoginSuccess(
   formatRole: RoleFormatter,
   roleIcon: RoleIconResolver,
 ): void {
-  const activeTenant = response?.active_tenant || response?.tenant;
+  const activeTenant = response?.active_tenant;
   if (!activeTenant) return;
 
   const tenantName = activeTenant.name || String(activeTenant.id || "");

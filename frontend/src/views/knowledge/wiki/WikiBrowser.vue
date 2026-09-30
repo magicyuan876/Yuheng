@@ -3728,15 +3728,13 @@ function updateSidebarPageTitle(slug: string, title: string) {
 }
 
 function editSourceVisible(source?: string): boolean {
-  return source === "user" || source === "agent" || source === "revert";
+  return source === "user" || source === "revert";
 }
 
 function editSourceLabel(source?: string): string {
   switch (source) {
     case "user":
       return t("knowledgeEditor.wikiBrowser.editSourceUser");
-    case "agent":
-      return t("knowledgeEditor.wikiBrowser.editSourceAgent");
     case "revert":
       return t("knowledgeEditor.wikiBrowser.editSourceRevert");
     default:
@@ -3748,8 +3746,6 @@ function editSourceIcon(source?: string): Component {
   switch (source) {
     case "user":
       return UserIcon;
-    case "agent":
-      return WrenchIcon;
     case "revert":
       return Undo2Icon;
     default:

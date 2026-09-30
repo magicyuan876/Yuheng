@@ -229,13 +229,6 @@ export interface InviteMemberRequest {
   role: "admin" | "editor" | "viewer";
 }
 
-export interface UserSearchResult {
-  id: string;
-  username: string;
-  email: string;
-  avatar?: string;
-}
-
 /**
  * TenantInviteCandidate is one row in the search-tenants-for-invite picker.
  * The picker is tenant-centric; the representative_* fields describe the

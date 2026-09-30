@@ -730,7 +730,6 @@ const HIGH_RISK_KEYS = new Set<string>(["auth.registration_mode"]);
 
 const HIGH_IMPACT_KEYS = new Set<string>([
   "auth.registration_mode",
-  "tenant.auto_create_api_key",
   "ssrf.whitelist",
   // Flipping this relocates every infrastructure settings page between the
   // workspace and the platform, so every workspace admin sees their nav
@@ -837,7 +836,7 @@ const SETTINGS_SECTION_KEYS: Record<Exclude<SettingsSection, "other">, readonly 
     "tenant.self_service_creation_enabled",
     "tenant.max_owned_per_user",
   ],
-  tenant: ["tenant.default_storage_quota_gb", "tenant.auto_create_api_key"],
+  tenant: ["tenant.default_storage_quota_gb"],
   file: ["file.max_size_mb", "file.video_max_size_mb"],
   runtime: [
     "asynq.core_concurrency",

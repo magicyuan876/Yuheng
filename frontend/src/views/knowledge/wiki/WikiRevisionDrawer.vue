@@ -578,8 +578,6 @@ function sourceLabel(source?: string): string {
   switch (source) {
     case "user":
       return t("knowledgeEditor.wikiBrowser.editSourceUser");
-    case "agent":
-      return t("knowledgeEditor.wikiBrowser.editSourceAgent");
     case "revert":
       return t("knowledgeEditor.wikiBrowser.editSourceRevert");
     default:

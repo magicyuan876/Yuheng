@@ -155,7 +155,6 @@ type KnowledgeService interface {
 		kbID string,
 		page *types.Pagination,
 		tagUUIDs []string,
-		legacyTagSeqID int64,
 		keyword string,
 		searchField string,
 		sortOrder string,
