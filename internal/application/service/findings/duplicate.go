@@ -27,6 +27,11 @@ import (
 // document found, the search is also run from its side, and the finding is
 // built from the union of both directions — the same pairs whichever document
 // triggered the check.
+//
+// The matched passages are then compared as text (divergence.go). Word-for-word
+// copies make a duplicate finding, taken to whoever wrote the newer text; pairs
+// that are alike but differ make a divergent one, taken to whoever answers for
+// the document nobody has vouched for the longest.
 
 // DuplicateDetectorName is the detector's stored name.
 const DuplicateDetectorName = "duplicate"
@@ -52,6 +57,9 @@ const (
 	duplicateEvidencePairs = 3
 	// duplicateExcerptRunes bounds each excerpt shown.
 	duplicateExcerptRunes = 300
+	// duplicateExcerptLead is how much text an excerpt keeps before the
+	// difference it is centred on.
+	duplicateExcerptLead = 60
 )
 
 // ChunkReader is the part of the chunk repository the detector reads.
@@ -274,42 +282,62 @@ func buildDuplicate(kbID, aID string, a map[string]passage, bID string, b map[st
 		flipped = true
 	}
 
+	// Each pair in the finding's orientation, compared as text: whether the
+	// two passages are copies or differ decides what the finding is.
+	oriented := make([]orientedPair, 0, len(pairs))
+	divergent := false
+	for _, p := range pairs {
+		s, r := p.subject, p.related
+		if flipped {
+			s, r = r, s
+		}
+		c := comparePassages(subject[s].content, related[r].content)
+		divergent = divergent || c.Differs
+		oriented = append(oriented, orientedPair{subject: s, related: r, score: p.score, cmp: c})
+	}
+
 	evidence := make([]types.FindingEvidence, 0, duplicateEvidencePairs)
 	usedSubject, usedRelated := map[string]bool{}, map[string]bool{}
-	pick := func(requireDistinct bool) {
-		for _, p := range pairs {
+	pick := func(requireDistinct, differing bool) {
+		for _, p := range oriented {
 			if len(evidence) >= duplicateEvidencePairs {
 				return
 			}
-			s, r := p.subject, p.related
-			if flipped {
-				s, r = r, s
-			}
-			if usedSubject[s] && usedRelated[r] {
+			if differing && !p.cmp.Differs {
 				continue
 			}
-			if requireDistinct && (usedSubject[s] || usedRelated[r]) {
+			if usedSubject[p.subject] && usedRelated[p.related] {
 				continue
 			}
-			usedSubject[s], usedRelated[r] = true, true
-			evidence = append(evidence, types.FindingEvidence{
-				SubjectChunkID: s, SubjectExcerpt: excerpt(subject[s].content),
-				RelatedChunkID: r, RelatedExcerpt: excerpt(related[r].content),
-				Score: p.score,
-			})
+			if requireDistinct && (usedSubject[p.subject] || usedRelated[p.related]) {
+				continue
+			}
+			usedSubject[p.subject], usedRelated[p.related] = true, true
+			e := types.FindingEvidence{
+				SubjectChunkID: p.subject, RelatedChunkID: p.related, Score: p.score, Differs: p.cmp.Differs,
+				SubjectExcerpt: excerpt(subject[p.subject].content),
+				RelatedExcerpt: excerpt(related[p.related].content),
+			}
+			if p.cmp.Differs {
+				e.SubjectExcerpt = excerptAround(subject[p.subject].content, p.cmp.SubjectAt)
+				e.RelatedExcerpt = excerptAround(related[p.related].content, p.cmp.RelatedAt)
+			}
+			evidence = append(evidence, e)
 		}
 	}
-	// Different passages first: three pairs showing the same paragraph
-	// matched three times say less than three paragraphs matched once.
-	pick(true)
-	pick(false)
-
-	severity := types.FindingSeverityInfo
-	if overlap >= duplicateWarningOverlap {
-		severity = types.FindingSeverityWarning
+	// The differences first, when there are any: they are what somebody has
+	// to decide about. Then different passages before the same passage
+	// again: three pairs showing one paragraph matched three times say less
+	// than three paragraphs matched once.
+	if divergent {
+		pick(true, true)
+		pick(false, true)
 	}
-	return Candidate{
-		Type: types.FindingTypeDuplicate, Severity: severity,
+	pick(true, false)
+	pick(false, false)
+
+	c := Candidate{
+		Type: types.FindingTypeDuplicate, Severity: types.FindingSeverityInfo, Assign: AssignLatestHand,
 		SubjectKnowledgeID: subjectID, RelatedKnowledgeID: relatedID,
 		Score:       pairs[0].score,
 		Fingerprint: PairFingerprint(types.FindingTypeDuplicate, kbID, aID, bID),
@@ -318,6 +346,24 @@ func buildDuplicate(kbID, aID string, a map[string]passage, bID string, b map[st
 			EvidenceHash: evidenceHash(aID, a, bID, b, pairs),
 		},
 	}
+	switch {
+	case divergent:
+		// Always a warning: whichever account is wrong is answering
+		// questions now.
+		c.Type, c.Severity, c.Assign = types.FindingTypeDivergent, types.FindingSeverityWarning, AssignStalestOwner
+		c.Fingerprint = PairFingerprint(types.FindingTypeDivergent, kbID, aID, bID)
+	case overlap >= duplicateWarningOverlap:
+		c.Severity = types.FindingSeverityWarning
+	}
+	return c
+}
+
+// orientedPair is a matched pair in the finding's orientation, with the
+// outcome of comparing its passages as text.
+type orientedPair struct {
+	subject, related string
+	score            float64
+	cmp              passageComparison
 }
 
 // evidenceHash summarises the matched text, not the chunk IDs: re-parsing a

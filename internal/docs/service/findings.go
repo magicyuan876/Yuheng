@@ -36,6 +36,9 @@ type PageFindingView struct {
 	OverlapRatio float64                 `json:"overlap_ratio"`
 	RelatedPage  *PageFindingPage        `json:"related_page"`
 	Evidence     []types.FindingEvidence `json:"evidence"`
+	// Assignee is who the finding is taken to, nil when nobody could be
+	// found.
+	Assignee *types.PersonRef `json:"assignee"`
 }
 
 // PageFindingsView answers GET /docs/pages/{pid}/findings.
@@ -101,7 +104,7 @@ func (s *PageService) Findings(ctx context.Context, actor *acl.Identity, d acl.D
 	for _, f := range findings {
 		view := &PageFindingView{
 			ID: f.ID, Type: f.Type, Severity: f.Severity, Score: f.Score, OverlapRatio: f.OverlapRatio,
-			Evidence: append([]types.FindingEvidence{}, f.Evidence...),
+			Evidence: append([]types.FindingEvidence{}, f.Evidence...), Assignee: f.Assignee,
 		}
 		if f.Related != nil {
 			other, ok := byKnowledge[f.Related.KnowledgeID]

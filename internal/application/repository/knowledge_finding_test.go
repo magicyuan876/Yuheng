@@ -136,7 +136,8 @@ func TestDismissedFindingStaysUntilTheEvidenceChanges(t *testing.T) {
 	f.run(t, a, []string{"duplicate"}, duplicateOf(a, b, "h1", 0.97))
 	id := f.list(t, "open")[0].ID
 
-	row, err := f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusDismissed, "user-1")
+	row, err := f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusDismissed, "user-1",
+		types.FindingResolutionIntentional)
 	require.NoError(t, err)
 	assert.Equal(t, types.FindingStatusDismissed, row.Status)
 	require.NotNil(t, row.ResolvedBy)
@@ -163,9 +164,10 @@ func TestDismissedFindingStaysUntilTheEvidenceChanges(t *testing.T) {
 	assert.Nil(t, row.ResolvedBy)
 
 	// Reopening by hand clears the resolution columns too.
-	_, err = f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusDismissed, "user-1")
+	_, err = f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusDismissed, "user-1",
+		types.FindingResolutionIntentional)
 	require.NoError(t, err)
-	row, err = f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusOpen, "user-2")
+	row, err = f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusOpen, "user-2", "")
 	require.NoError(t, err)
 	assert.Equal(t, types.FindingStatusOpen, row.Status)
 	assert.Nil(t, row.ResolvedAt)
@@ -278,4 +280,104 @@ func TestFindingListFiltersAndCounts(t *testing.T) {
 	ids, err = f.repo.ListCheckableKnowledgeIDs(ctx, 1, f.kb, 1)
 	require.NoError(t, err)
 	assert.Len(t, ids, 1, "the limit holds")
+}
+
+// The routing's assignee is written on every run, except over a person's
+// choice; handing a finding back to the routing lets the next run move it.
+func TestFindingAssignmentFollowsTheRoutingUnlessChosenByHand(t *testing.T) {
+	f := newFindingFixture(t)
+	ctx := context.Background()
+	a, b := f.doc(t, "Leave policy"), f.doc(t, "Leave policy 2026")
+	routed := func(assignee string) *types.KnowledgeFinding {
+		finding := duplicateOf(a, b, "h1", 0.97)
+		finding.AssigneeID = &assignee
+		return finding
+	}
+	assignee := func() string {
+		rows := f.list(t, "open")
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].AssigneeID)
+		return *rows[0].AssigneeID
+	}
+
+	f.run(t, a, []string{"duplicate"}, routed("alice"))
+	assert.Equal(t, "alice", assignee())
+	f.run(t, a, []string{"duplicate"}, routed("bob"))
+	assert.Equal(t, "bob", assignee(), "a hand-over re-routes an open finding")
+
+	id := f.list(t, "open")[0].ID
+	row, err := f.repo.SetAssignee(ctx, 1, f.kb, id, "carol", "admin")
+	require.NoError(t, err)
+	require.NotNil(t, row.AssignedBy)
+	f.run(t, a, []string{"duplicate"}, routed("bob"))
+	assert.Equal(t, "carol", assignee(), "a person's choice survives the next check")
+
+	_, err = f.repo.SetAssignee(ctx, 1, f.kb, id, "", "")
+	require.NoError(t, err)
+	assert.Equal(t, "carol", assignee(), "handed back, it stays put until the routing runs")
+	f.run(t, a, []string{"duplicate"}, routed("bob"))
+	assert.Equal(t, "bob", assignee())
+}
+
+// A finding the detectors stopped reporting is cleared; a dismissal keeps its
+// reason until it is reopened.
+func TestFindingResolutionsSayWhy(t *testing.T) {
+	f := newFindingFixture(t)
+	ctx := context.Background()
+	a, b := f.doc(t, "A"), f.doc(t, "B")
+	f.run(t, a, []string{"duplicate"}, duplicateOf(a, b, "h1", 0.97))
+	id := f.list(t, "open")[0].ID
+
+	row, err := f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusDismissed, "u",
+		types.FindingResolutionDistinctScope)
+	require.NoError(t, err)
+	require.NotNil(t, row.Resolution)
+	assert.Equal(t, types.FindingResolutionDistinctScope, *row.Resolution)
+	row, err = f.repo.SetStatus(ctx, 1, f.kb, id, types.FindingStatusOpen, "u", "")
+	require.NoError(t, err)
+	assert.Nil(t, row.Resolution)
+
+	f.run(t, a, []string{"duplicate"})
+	resolved := f.list(t, "resolved")
+	require.Len(t, resolved, 1)
+	require.NotNil(t, resolved[0].Resolution)
+	assert.Equal(t, types.FindingResolutionCleared, *resolved[0].Resolution)
+
+	f.run(t, a, []string{"duplicate"}, duplicateOf(a, b, "h1", 0.97))
+	back := f.list(t, "open")
+	require.Len(t, back, 1)
+	assert.Nil(t, back[0].Resolution, "a problem that comes back is open again, with no reason attached")
+}
+
+// A person's findings across the knowledge bases of the workspace, named by
+// base, open ones counted; a deleted base's are not listed.
+func TestFindingsAssignedToAPerson(t *testing.T) {
+	f := newFindingFixture(t)
+	ctx := context.Background()
+	require.NoError(t, f.db.Exec(`
+		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id)
+		VALUES (?, 'Handbook', 1, '', '')`, f.kb).Error)
+	a, b, c := f.doc(t, "A"), f.doc(t, "B"), f.doc(t, "C")
+	mine := duplicateOf(a, b, "h1", 0.97)
+	me := "me"
+	mine.AssigneeID = &me
+	theirs := duplicateOf(a, c, "h2", 0.96)
+	f.run(t, a, []string{"duplicate"}, mine, theirs)
+
+	rows, total, err := f.repo.ListAssigned(ctx, 1, "me", types.FindingStatusOpen, 1, 20)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, total)
+	assert.Equal(t, "Handbook", rows[0].KnowledgeBaseName)
+	n, err := f.repo.CountOpenAssigned(ctx, 1, "me")
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	_, total, err = f.repo.ListAssigned(ctx, 2, "me", "all", 1, 20)
+	require.NoError(t, err)
+	assert.Zero(t, total, "another workspace's findings are not listed")
+
+	require.NoError(t, f.db.Exec(`UPDATE knowledge_bases SET deleted_at = NOW() WHERE id = ?`, f.kb).Error)
+	n, err = f.repo.CountOpenAssigned(ctx, 1, "me")
+	require.NoError(t, err)
+	assert.Zero(t, n)
 }

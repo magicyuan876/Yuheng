@@ -30,7 +30,16 @@ func NewKnowledgeFindingRepository(db *gorm.DB) interfaces.KnowledgeFindingRepos
 // join, so no read ever shows a document that was deleted or moved away —
 // even in the moment before the trigger on knowledges removes the row.
 const findingFromLive = `
+	FROM knowledge_findings f` + findingLiveJoins
+
+// findingFromLiveWithBase is findingFromLive with the finding's knowledge base
+// joined in as kb, for listings that span knowledge bases and name them. A
+// finding of a deleted knowledge base is not listed.
+const findingFromLiveWithBase = `
 	FROM knowledge_findings f
+	JOIN knowledge_bases kb ON kb.id = f.knowledge_base_id AND kb.deleted_at IS NULL` + findingLiveJoins
+
+const findingLiveJoins = `
 	JOIN knowledges s ON s.id = f.subject_knowledge_id AND s.deleted_at IS NULL
 	                 AND s.knowledge_base_id = f.knowledge_base_id
 	LEFT JOIN knowledges r ON r.id = f.related_knowledge_id AND r.deleted_at IS NULL
@@ -38,6 +47,10 @@ const findingFromLive = `
 	WHERE (f.related_knowledge_id IS NULL OR r.id IS NOT NULL)`
 
 const findingSelectColumns = `SELECT f.*, s.title AS subject_title, COALESCE(r.title, '') AS related_title`
+
+// findingSelectWithBase adds the knowledge base's name; it goes with
+// findingFromLiveWithBase.
+const findingSelectWithBase = findingSelectColumns + `, kb.name AS knowledge_base_name`
 
 // findingOrder puts the most urgent first, then the strongest evidence.
 const findingOrder = ` ORDER BY CASE f.severity WHEN 'error' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
@@ -80,6 +93,9 @@ func (r *knowledgeFindingRepository) Reconcile(ctx context.Context, run types.Fi
 //   - dismissed stays dismissed while the evidence hash is the same — the
 //     person dismissed exactly this — and reopens when it differs.
 //
+// The assignee is the runner's routing, except on a finding somebody assigned
+// by hand (assigned_by set), which keeps the person they chose.
+//
 // The row is only written while both documents exist in the knowledge base:
 // a document deleted while its check was running must not be brought back
 // into the findings by the check's late write.
@@ -101,8 +117,9 @@ func upsertFinding(tx *gorm.DB, run types.FindingRun, f *types.KnowledgeFinding)
 		AND knowledge_findings.details->>'evidence_hash' IS NOT DISTINCT FROM EXCLUDED.details->>'evidence_hash'`
 	stmt := `
 		INSERT INTO knowledge_findings (id, tenant_id, knowledge_base_id, type, detector, severity, status,
-			fingerprint, subject_knowledge_id, related_knowledge_id, score, details, created_at, updated_at)
-		SELECT ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?::jsonb, NOW(), NOW()
+			fingerprint, subject_knowledge_id, related_knowledge_id, score, details, assignee_id,
+			created_at, updated_at)
+		SELECT ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?::jsonb, ?, NOW(), NOW()
 		WHERE EXISTS (SELECT 1 FROM knowledges WHERE id = ? AND tenant_id = ? AND knowledge_base_id = ?
 		                AND deleted_at IS NULL)
 		  AND (?::varchar IS NULL OR EXISTS (SELECT 1 FROM knowledges WHERE id = ? AND tenant_id = ?
@@ -119,10 +136,13 @@ func upsertFinding(tx *gorm.DB, run types.FindingRun, f *types.KnowledgeFinding)
 			updated_at = NOW(),
 			status = CASE WHEN ` + keepDismissed + ` THEN 'dismissed' ELSE 'open' END,
 			resolved_at = CASE WHEN ` + keepDismissed + ` THEN knowledge_findings.resolved_at END,
-			resolved_by = CASE WHEN ` + keepDismissed + ` THEN knowledge_findings.resolved_by END`
+			resolved_by = CASE WHEN ` + keepDismissed + ` THEN knowledge_findings.resolved_by END,
+			resolution = CASE WHEN ` + keepDismissed + ` THEN knowledge_findings.resolution END,
+			assignee_id = CASE WHEN knowledge_findings.assigned_by IS NULL THEN EXCLUDED.assignee_id
+			                   ELSE knowledge_findings.assignee_id END`
 	return tx.Exec(stmt,
 		f.ID, run.TenantID, run.KnowledgeBaseID, f.Type, f.Detector, f.Severity,
-		f.Fingerprint, f.SubjectKnowledgeID, f.RelatedKnowledgeID, f.Score, details,
+		f.Fingerprint, f.SubjectKnowledgeID, f.RelatedKnowledgeID, f.Score, details, f.AssigneeID,
 		f.SubjectKnowledgeID, run.TenantID, run.KnowledgeBaseID,
 		f.RelatedKnowledgeID, f.RelatedKnowledgeID, run.TenantID, run.KnowledgeBaseID,
 	).Error
@@ -148,6 +168,7 @@ func resolveUnreported(tx *gorm.DB, run types.FindingRun, reported []string) err
 		"status":      types.FindingStatusResolved,
 		"resolved_at": gorm.Expr("NOW()"),
 		"resolved_by": types.FindingResolvedBySystem,
+		"resolution":  types.FindingResolutionCleared,
 		"updated_at":  gorm.Expr("NOW()"),
 	}).Error
 }
@@ -170,13 +191,35 @@ func (r *knowledgeFindingRepository) List(ctx context.Context, tenantID uint64, 
 		where = append(where, "(f.subject_knowledge_id = ? OR f.related_knowledge_id = ?)")
 		args = append(args, filter.KnowledgeID, filter.KnowledgeID)
 	}
-	cond := findingFromLive + " AND " + strings.Join(where, " AND ")
+	if filter.AssigneeID != "" {
+		where = append(where, "f.assignee_id = ?")
+		args = append(args, filter.AssigneeID)
+	}
+	return r.page(ctx, findingSelectColumns, findingFromLive+" AND "+strings.Join(where, " AND "), args,
+		filter.Page, filter.PageSize)
+}
 
+// ListAssigned implements interfaces.KnowledgeFindingRepository.
+func (r *knowledgeFindingRepository) ListAssigned(ctx context.Context, tenantID uint64, assigneeID, status string,
+	page, pageSize int,
+) ([]*types.KnowledgeFindingRow, int64, error) {
+	cond := findingFromLiveWithBase + " AND f.tenant_id = ? AND f.assignee_id = ?"
+	args := []any{tenantID, assigneeID}
+	if status != "" && status != "all" {
+		cond += " AND f.status = ?"
+		args = append(args, status)
+	}
+	return r.page(ctx, findingSelectWithBase, cond, args, page, pageSize)
+}
+
+// page counts the findings a condition selects and returns one page of them,
+// most urgent first.
+func (r *knowledgeFindingRepository) page(ctx context.Context, columns, cond string, args []any, page, size int,
+) ([]*types.KnowledgeFindingRow, int64, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).Raw("SELECT COUNT(*) "+cond, args...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	page, size := filter.Page, filter.PageSize
 	if page < 1 {
 		page = 1
 	}
@@ -185,8 +228,7 @@ func (r *knowledgeFindingRepository) List(ctx context.Context, tenantID uint64, 
 	}
 	var rows []*types.KnowledgeFindingRow
 	err := r.db.WithContext(ctx).
-		Raw(findingSelectColumns+cond+findingOrder+" LIMIT ? OFFSET ?",
-			append(args, size, (page-1)*size)...).
+		Raw(columns+cond+findingOrder+" LIMIT ? OFFSET ?", append(args, size, (page-1)*size)...).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, 0, err
@@ -212,8 +254,8 @@ func (r *knowledgeFindingRepository) Get(ctx context.Context, tenantID uint64, k
 }
 
 // SetStatus implements interfaces.KnowledgeFindingRepository.
-func (r *knowledgeFindingRepository) SetStatus(ctx context.Context, tenantID uint64, kbID, id, status,
-	actor string,
+func (r *knowledgeFindingRepository) SetStatus(ctx context.Context, tenantID uint64, kbID, id, status, actor,
+	resolution string,
 ) (*types.KnowledgeFindingRow, error) {
 	if _, err := r.Get(ctx, tenantID, kbID, id); err != nil {
 		return nil, err
@@ -223,9 +265,11 @@ func (r *knowledgeFindingRepository) SetStatus(ctx context.Context, tenantID uin
 	case types.FindingStatusOpen:
 		updates["resolved_at"] = nil
 		updates["resolved_by"] = nil
+		updates["resolution"] = nil
 	default:
 		updates["resolved_at"] = gorm.Expr("NOW()")
 		updates["resolved_by"] = actor
+		updates["resolution"] = resolution
 	}
 	err := r.db.WithContext(ctx).Model(&types.KnowledgeFinding{}).
 		Where("tenant_id = ? AND knowledge_base_id = ? AND id = ?", tenantID, kbID, id).
@@ -234,6 +278,45 @@ func (r *knowledgeFindingRepository) SetStatus(ctx context.Context, tenantID uin
 		return nil, err
 	}
 	return r.Get(ctx, tenantID, kbID, id)
+}
+
+// SetAssignee implements interfaces.KnowledgeFindingRepository.
+func (r *knowledgeFindingRepository) SetAssignee(ctx context.Context, tenantID uint64, kbID, id, assigneeID,
+	assignedBy string,
+) (*types.KnowledgeFindingRow, error) {
+	if _, err := r.Get(ctx, tenantID, kbID, id); err != nil {
+		return nil, err
+	}
+	nullable := func(s string) any {
+		if s == "" {
+			return nil
+		}
+		return s
+	}
+	updates := map[string]any{"assigned_by": nullable(assignedBy), "updated_at": gorm.Expr("NOW()")}
+	if assignedBy != "" {
+		// Back to automatic leaves the current assignee until the next
+		// check routes the finding again.
+		updates["assignee_id"] = nullable(assigneeID)
+	}
+	err := r.db.WithContext(ctx).Model(&types.KnowledgeFinding{}).
+		Where("tenant_id = ? AND knowledge_base_id = ? AND id = ?", tenantID, kbID, id).
+		Updates(updates).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.Get(ctx, tenantID, kbID, id)
+}
+
+// CountOpenAssigned implements interfaces.KnowledgeFindingRepository.
+func (r *knowledgeFindingRepository) CountOpenAssigned(ctx context.Context, tenantID uint64, assigneeID string,
+) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).
+		Raw("SELECT COUNT(*)"+findingFromLiveWithBase+" AND f.tenant_id = ? AND f.assignee_id = ? AND f.status = ?",
+			tenantID, assigneeID, types.FindingStatusOpen).
+		Scan(&n).Error
+	return n, err
 }
 
 // CountOpenByType implements interfaces.KnowledgeFindingRepository.

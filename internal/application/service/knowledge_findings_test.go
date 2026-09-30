@@ -23,7 +23,7 @@ type fakeFindingRepo struct {
 	rows      map[string]*types.KnowledgeFindingRow
 	checkable []string
 	lastScan  *time.Time
-	lastSet   struct{ status, actor string }
+	lastSet   struct{ status, actor, resolution string }
 }
 
 func (f *fakeFindingRepo) Get(_ context.Context, _ uint64, kbID, id string) (*types.KnowledgeFindingRow, error) {
@@ -36,10 +36,21 @@ func (f *fakeFindingRepo) Get(_ context.Context, _ uint64, kbID, id string) (*ty
 }
 
 func (f *fakeFindingRepo) SetStatus(ctx context.Context, tenantID uint64, kbID, id, status,
-	actor string,
+	actor, resolution string,
 ) (*types.KnowledgeFindingRow, error) {
-	f.lastSet.status, f.lastSet.actor = status, actor
+	f.lastSet.status, f.lastSet.actor, f.lastSet.resolution = status, actor, resolution
 	f.rows[id].Status = status
+	return f.Get(ctx, tenantID, kbID, id)
+}
+
+func (f *fakeFindingRepo) SetAssignee(ctx context.Context, tenantID uint64, kbID, id, assignee,
+	assignedBy string,
+) (*types.KnowledgeFindingRow, error) {
+	row := f.rows[id]
+	row.AssignedBy = nil
+	if assignedBy != "" {
+		row.AssigneeID, row.AssignedBy = &assignee, &assignedBy
+	}
 	return f.Get(ctx, tenantID, kbID, id)
 }
 
@@ -141,10 +152,11 @@ func (d supportDetector) Supports(context.Context, *types.KnowledgeBase) (bool, 
 }
 
 type findingServiceFixture struct {
-	svc   interfaces.KnowledgeFindingService
-	repo  *fakeFindingRepo
-	sched *fakeScheduler
-	audit *capturedAudit
+	svc      interfaces.KnowledgeFindingService
+	repo     *fakeFindingRepo
+	sched    *fakeScheduler
+	audit    *capturedAudit
+	stewards *fakeStewardRepo
 }
 
 func newFindingServiceFixture(t *testing.T, enabled, supported bool) *findingServiceFixture {
@@ -170,10 +182,20 @@ func newFindingServiceFixture(t *testing.T, enabled, supported bool) *findingSer
 	runner, err := findings.NewRunner(repo, supportDetector{supported: supported})
 	require.NoError(t, err)
 	kbs := fakeFindingKBs{kb: &types.KnowledgeBase{ID: "kb-1", TenantID: 1}}
+	stewards := &fakeStewardRepo{
+		stewards: map[string]*types.KnowledgeSteward{
+			"doc-a": {KnowledgeID: "doc-a", Origin: types.KnowledgeOriginLocal},
+			"doc-b": {KnowledgeID: "doc-b", Origin: types.KnowledgeOriginLocal},
+		},
+		maintainers: map[string]bool{"editor": true},
+		members:     map[string]bool{"writer": true},
+	}
+	users := &fakeUserRepo{users: map[string]*types.User{"editor": {ID: "editor", Username: "Editor"}}}
 	svc := &knowledgeFindingService{
 		repo: repo, kbs: kbs, trigger: sched, runner: runner, audit: audit, enabled: enabled,
+		stewards: stewards, users: users,
 	}
-	return &findingServiceFixture{svc: svc, repo: repo, sched: sched, audit: audit}
+	return &findingServiceFixture{svc: svc, repo: repo, sched: sched, audit: audit, stewards: stewards}
 }
 
 func asUser(user string) context.Context {
@@ -207,11 +229,13 @@ func TestFindingListDefaultsToOpenAndValidatesStatus(t *testing.T) {
 func TestFindingStatusChangesAreAuditedAndConstrained(t *testing.T) {
 	f := newFindingServiceFixture(t, true, true)
 	ctx := asUser("user-9")
+	const intentional = types.FindingResolutionIntentional
 
-	view, err := f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed)
+	view, err := f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed, intentional)
 	require.NoError(t, err)
 	assert.Equal(t, types.FindingStatusDismissed, view.Status)
 	assert.Equal(t, "user-9", f.repo.lastSet.actor)
+	assert.Equal(t, types.FindingResolutionIntentional, f.repo.lastSet.resolution)
 	require.Len(t, f.audit.rows, 1)
 	row := f.audit.rows[0]
 	assert.Equal(t, types.AuditActionFindingStatusChanged, row.Action)
@@ -219,26 +243,63 @@ func TestFindingStatusChangesAreAuditedAndConstrained(t *testing.T) {
 	assert.Equal(t, "kb-1", row.ScopeID)
 	assert.Equal(t, "f1", row.TargetID)
 	assert.Contains(t, string(row.Details), `"to":"dismissed"`)
+	assert.Contains(t, string(row.Details), `"reason":"intentional"`)
 	assert.Contains(t, string(row.Details), "Doc A")
 
 	// Setting the status it already has changes and records nothing.
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed)
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed, intentional)
 	require.NoError(t, err)
 	assert.Len(t, f.audit.rows, 1)
 
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen)
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen, "")
 	require.NoError(t, err)
 	assert.Len(t, f.audit.rows, 2)
 
-	f.repo.rows["f1"].Status = types.FindingStatusResolved
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen)
-	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err), "resolved is the detectors' to change")
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusResolved)
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed, "")
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err), "a dismissal says why")
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed, "because")
 	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err))
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "missing", types.FindingStatusDismissed)
+
+	f.repo.rows["f1"].Status = types.FindingStatusResolved
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen, "")
+	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err), "resolved is the detectors' to change")
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusResolved, "")
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err))
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "missing", types.FindingStatusDismissed, intentional)
 	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err))
-	_, err = f.svc.UpdateStatus(ctx, 1, "kb-other", "f1", types.FindingStatusDismissed)
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-other", "f1", types.FindingStatusDismissed, intentional)
 	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err), "a finding is addressed through its own base")
+}
+
+// A finding is assigned by hand to somebody who can act on it, named in the
+// response and recorded; handing it back to the routing re-checks at once.
+func TestFindingAssignment(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	ctx := asUser("admin-1")
+
+	view, err := f.svc.Assign(ctx, 1, "kb-1", "f1", "editor")
+	require.NoError(t, err)
+	require.NotNil(t, view.Assignee)
+	assert.Equal(t, "Editor", view.Assignee.Username)
+	assert.True(t, view.AssignedManually)
+	require.Len(t, f.audit.rows, 1)
+	assert.Equal(t, types.AuditActionFindingAssigned, f.audit.rows[0].Action)
+
+	_, err = f.svc.Assign(ctx, 1, "kb-1", "f1", "writer")
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err),
+		"a member who cannot edit the base cannot act on two uploaded files")
+	f.stewards.stewards["doc-b"].Origin = types.KnowledgeOriginDocs
+	_, err = f.svc.Assign(ctx, 1, "kb-1", "f1", "writer")
+	require.NoError(t, err, "a page's writers are members the knowledge base does not know as editors")
+
+	view, err = f.svc.Assign(ctx, 1, "kb-1", "f1", "")
+	require.NoError(t, err)
+	assert.False(t, view.AssignedManually)
+
+	_, err = f.svc.Assign(asUser("system-1"), 1, "kb-1", "f1", "editor")
+	assert.Equal(t, http.StatusForbidden, httpCodeOf(t, err))
+	_, err = f.svc.Assign(ctx, 1, "kb-1", "missing", "editor")
+	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err))
 }
 
 func TestFindingSummaryReportsCountsAndCapability(t *testing.T) {

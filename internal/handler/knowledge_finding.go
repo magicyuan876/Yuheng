@@ -32,17 +32,28 @@ func NewKnowledgeFindingHandler(svc interfaces.KnowledgeFindingService) *Knowled
 type UpdateFindingRequest struct {
 	// Status is "dismissed" or "open".
 	Status string `json:"status" binding:"required"`
+	// Reason is required to dismiss: "distinct_scope" (the documents apply
+	// to different things) or "intentional" (the overlap is wanted).
+	Reason string `json:"reason"`
+}
+
+// AssignFindingRequest is the body of PUT /knowledge-bases/{id}/findings/{finding_id}/assignee.
+type AssignFindingRequest struct {
+	// AssigneeID is the person to take the finding to; empty hands it back
+	// to the automatic routing.
+	AssigneeID string `json:"assignee_id"`
 }
 
 // ListFindings godoc
 // @Summary      列出知识库的健康问题
-// @Description  列出自动检测到的问题（目前是重复文档）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题
+// @Description  列出自动检测到的问题（重复、内容有出入等）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题
 // @Tags         知识健康
 // @Produce      json
 // @Param        id            path   string  true   "知识库 ID"
 // @Param        status        query  string  false  "open（默认）/ dismissed / resolved / all"
 // @Param        type          query  string  false  "问题类型，如 duplicate"
 // @Param        knowledge_id  query  string  false  "只列出涉及该文档的问题"
+// @Param        assignee      query  string  false  "me：只列出派给我的问题"
 // @Param        page          query  int     false  "页码，默认 1"
 // @Param        page_size     query  int     false  "每页数量，默认 20，最大 100"
 // @Success      200  {object}  map[string]interface{}  "data: {items, total, page, page_size}"
@@ -61,6 +72,7 @@ func (h *KnowledgeFindingHandler) ListFindings(c *gin.Context) {
 			Status:      strings.TrimSpace(c.Query("status")),
 			Type:        strings.TrimSpace(c.Query("type")),
 			KnowledgeID: strings.TrimSpace(c.Query("knowledge_id")),
+			Mine:        strings.TrimSpace(c.Query("assignee")) == "me",
 			Page:        page,
 			PageSize:    pageSize,
 		})
@@ -94,7 +106,9 @@ func (h *KnowledgeFindingHandler) FindingSummary(c *gin.Context) {
 
 // UpdateFinding godoc
 // @Summary      忽略或重新打开一个问题
-// @Description  status=dismissed 忽略（证据不变时不再出现），status=open 重新打开一个已忽略的问题。操作记入知识库动态
+// @Description  status=dismissed 忽略（证据不变时不再出现），须给出原因 reason：
+// @Description  distinct_scope（适用范围不同）或 intentional（有意保留）；
+// @Description  status=open 重新打开一个已忽略的问题。操作记入知识库动态
 // @Tags         知识健康
 // @Accept       json
 // @Produce      json
@@ -117,12 +131,89 @@ func (h *KnowledgeFindingHandler) UpdateFinding(c *gin.Context) {
 	}
 	view, err := h.svc.UpdateStatus(ctx, types.MustTenantIDFromContext(ctx),
 		secutils.SanitizeForLog(c.Param("id")), secutils.SanitizeForLog(c.Param("finding_id")),
-		strings.TrimSpace(req.Status))
+		strings.TrimSpace(req.Status), strings.TrimSpace(req.Reason))
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": view})
+}
+
+// AssignFinding godoc
+// @Summary      指派问题的处理人
+// @Description  把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是空间的在职成员。操作记入知识库动态
+// @Tags         知识健康
+// @Accept       json
+// @Produce      json
+// @Param        id          path  string                true  "知识库 ID"
+// @Param        finding_id  path  string                true  "问题 ID"
+// @Param        request     body  AssignFindingRequest  true  "处理人"
+// @Success      200  {object}  map[string]interface{}  "data: 更新后的问题"
+// @Failure      400  {object}  apperrors.AppError
+// @Failure      403  {object}  apperrors.AppError
+// @Failure      404  {object}  apperrors.AppError
+// @Security     Bearer
+// @Router       /knowledge-bases/{id}/findings/{finding_id}/assignee [put]
+func (h *KnowledgeFindingHandler) AssignFinding(c *gin.Context) {
+	ctx := c.Request.Context()
+	var req AssignFindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apperrors.NewBadRequestError("请求参数不合法").WithDetails(err.Error()))
+		return
+	}
+	view, err := h.svc.Assign(ctx, types.MustTenantIDFromContext(ctx),
+		secutils.SanitizeForLog(c.Param("id")), secutils.SanitizeForLog(c.Param("finding_id")),
+		strings.TrimSpace(req.AssigneeID))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": view})
+}
+
+// ListAssignedFindings godoc
+// @Summary      我的知识待办
+// @Description  当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部
+// @Tags         知识健康
+// @Produce      json
+// @Param        status     query  string  false  "open（默认）/ dismissed / resolved / all"
+// @Param        page       query  int     false  "页码，默认 1"
+// @Param        page_size  query  int     false  "每页数量，默认 20，最大 100"
+// @Success      200  {object}  map[string]interface{}  "data: {items, total, page, page_size}"
+// @Failure      400  {object}  apperrors.AppError
+// @Security     Bearer
+// @Router       /findings/assigned [get]
+func (h *KnowledgeFindingHandler) ListAssignedFindings(c *gin.Context) {
+	ctx := c.Request.Context()
+	page, pageSize, ok := parseListPagination(c)
+	if !ok {
+		return
+	}
+	result, err := h.svc.ListAssigned(ctx, types.MustTenantIDFromContext(ctx), strings.TrimSpace(c.Query("status")),
+		page, pageSize)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+// CountAssignedFindings godoc
+// @Summary      我的待办数量
+// @Description  当前空间里派给我、尚未处理的知识健康问题数量，用于导航角标
+// @Tags         知识健康
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}  "data: {open_total}"
+// @Security     Bearer
+// @Router       /findings/assigned/count [get]
+func (h *KnowledgeFindingHandler) CountAssignedFindings(c *gin.Context) {
+	ctx := c.Request.Context()
+	n, err := h.svc.CountAssigned(ctx, types.MustTenantIDFromContext(ctx))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"open_total": n}})
 }
 
 // ScanFindings godoc

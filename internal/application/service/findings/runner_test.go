@@ -124,6 +124,95 @@ func TestRunnerKeepsTheStrongestReportOfOneProblemAndRejectsMalformedOnes(t *tes
 	assert.InDelta(t, 0.99, *repo.runs[0].Findings[0].Score, 1e-9)
 }
 
+// fakeStewards serves stewardship from a table.
+type fakeStewards struct {
+	byID map[string]*types.KnowledgeSteward
+	err  error
+}
+
+func (f fakeStewards) Stewards(_ context.Context, _ uint64, ids []string,
+) (map[string]*types.KnowledgeSteward, error) {
+	out := map[string]*types.KnowledgeSteward{}
+	for _, id := range ids {
+		if st, ok := f.byID[id]; ok {
+			out[id] = st
+		}
+	}
+	return out, f.err
+}
+
+func vouched(owner, reviewer string, daysAgo int) *types.KnowledgeSteward {
+	at := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -daysAgo)
+	return &types.KnowledgeSteward{
+		CreatedAt: at.AddDate(-1, 0, 0), ReviewedAt: &at,
+		OwnerID: owner, OwnerActive: owner != "", ReviewedBy: reviewer, ReviewerActive: reviewer != "",
+	}
+}
+
+// Every finding is routed by its rule: a copy to whoever wrote the newer
+// text, a disagreement to whoever answers for the older account, a finding
+// about one document to its owner — and, when the person the rule picks
+// cannot be asked, to the other document's.
+func TestRunnerRoutesFindingsByTheirRule(t *testing.T) {
+	stewards := fakeStewards{byID: map[string]*types.KnowledgeSteward{
+		"old":    vouched("old-owner", "old-editor", 300),
+		"new":    vouched("new-owner", "new-editor", 1),
+		"orphan": vouched("", "", 500),
+	}}
+	cases := []struct {
+		name string
+		cand Candidate
+		want string
+	}{
+		{"copy: the newer text's latest hand", Candidate{
+			Type: types.FindingTypeDuplicate, Severity: types.FindingSeverityInfo, Assign: AssignLatestHand,
+			SubjectKnowledgeID: "old", RelatedKnowledgeID: "new", Score: 0.99,
+		}, "new-editor"},
+		{"disagreement: the older account's owner", Candidate{
+			Type: types.FindingTypeDivergent, Severity: types.FindingSeverityWarning, Assign: AssignStalestOwner,
+			SubjectKnowledgeID: "new", RelatedKnowledgeID: "old", Score: 0.97,
+		}, "old-owner"},
+		{"the older account has nobody: the other side", Candidate{
+			Type: types.FindingTypeDivergent, Severity: types.FindingSeverityWarning, Assign: AssignStalestOwner,
+			SubjectKnowledgeID: "new", RelatedKnowledgeID: "orphan", Score: 0.97,
+		}, "new-owner"},
+		{"one document: its owner", Candidate{
+			Type: "stale", Severity: types.FindingSeverityInfo, SubjectKnowledgeID: "old", Score: 1,
+		}, "old-owner"},
+		{"nobody at all", Candidate{
+			Type: "stale", Severity: types.FindingSeverityInfo, SubjectKnowledgeID: "orphan", Score: 1,
+		}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repo := &recordingRepo{}
+			r, err := NewRunner(repo, &stubDetector{name: "d", cands: []Candidate{c.cand}})
+			require.NoError(t, err)
+			require.NoError(t, r.WithStewards(stewards).Run(context.Background(), scopeOf(c.cand.SubjectKnowledgeID)))
+			require.Len(t, repo.runs, 1)
+			got := repo.runs[0].Findings[0].AssigneeID
+			if c.want == "" {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, c.want, *got)
+		})
+	}
+}
+
+// A check that cannot route records nothing: recording would unassign every
+// finding of the entry.
+func TestRunnerRecordsNothingWhenRoutingFails(t *testing.T) {
+	repo := &recordingRepo{}
+	down := errors.New("database unreachable")
+	r, err := NewRunner(repo, &stubDetector{name: "d", cands: []Candidate{pair("a", "b", 0.97)}})
+	require.NoError(t, err)
+	err = r.WithStewards(fakeStewards{err: down}).Run(context.Background(), scopeOf("a"))
+	assert.ErrorIs(t, err, down)
+	assert.Empty(t, repo.runs)
+}
+
 // recordingEnqueuer captures what the trigger sends.
 type recordingEnqueuer struct {
 	tasks []*asynq.Task

@@ -6088,6 +6088,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/findings/assigned": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "我的知识待办",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "open（默认）/ dismissed / resolved / all",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 20，最大 100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {items, total, page, page_size}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/findings/assigned/count": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "当前空间里派给我、尚未处理的知识健康问题数量，用于导航角标",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "我的待办数量",
+                "responses": {
+                    "200": {
+                        "description": "data: {open_total}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/groups": {
             "get": {
                 "security": [
@@ -8394,7 +8472,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "列出自动检测到的问题（目前是重复文档）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题",
+                "description": "列出自动检测到的问题（重复、内容有出入等）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题",
                 "produces": [
                     "application/json"
                 ],
@@ -8426,6 +8504,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "只列出涉及该文档的问题",
                         "name": "knowledge_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "me：只列出派给我的问题",
+                        "name": "assignee",
                         "in": "query"
                     },
                     {
@@ -8562,7 +8646,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "status=dismissed 忽略（证据不变时不再出现），status=open 重新打开一个已忽略的问题。操作记入知识库动态",
+                "description": "status=dismissed 忽略（证据不变时不再出现），须给出原因 reason：\ndistinct_scope（适用范围不同）或 intentional（有意保留）；\nstatus=open 重新打开一个已忽略的问题。操作记入知识库动态",
                 "consumes": [
                     "application/json"
                 ],
@@ -8620,6 +8704,78 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings/{finding_id}/assignee": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是空间的在职成员。操作记入知识库动态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "指派问题的处理人",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "问题 ID",
+                        "name": "finding_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "处理人",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.AssignFindingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: 更新后的问题",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -18682,7 +18838,8 @@ const docTemplate = `{
                 "faq.import_completed",
                 "faq.import_failed",
                 "finding.status_changed",
-                "finding.scan_requested"
+                "finding.scan_requested",
+                "finding.assigned"
             ],
             "x-enum-varnames": [
                 "AuditActionMemberAdded",
@@ -18747,7 +18904,8 @@ const docTemplate = `{
                 "AuditActionFAQImportCompleted",
                 "AuditActionFAQImportFailed",
                 "AuditActionFindingStatusChanged",
-                "AuditActionFindingScanRequested"
+                "AuditActionFindingScanRequested",
+                "AuditActionFindingAssigned"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_types.AuditLog": {
@@ -23716,6 +23874,15 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_handler.AssignFindingRequest": {
+            "type": "object",
+            "properties": {
+                "assignee_id": {
+                    "description": "AssigneeID is the person to take the finding to; empty hands it back\nto the automatic routing.",
+                    "type": "string"
+                }
+            }
+        },
         "internal_handler.BatchDeleteKnowledgeRequest": {
             "type": "object",
             "required": [
@@ -24901,6 +25068,10 @@ const docTemplate = `{
                 "status"
             ],
             "properties": {
+                "reason": {
+                    "description": "Reason is required to dismiss: \"distinct_scope\" (the documents apply\nto different things) or \"intentional\" (the overlap is wanted).",
+                    "type": "string"
+                },
                 "status": {
                     "description": "Status is \"dismissed\" or \"open\".",
                     "type": "string"

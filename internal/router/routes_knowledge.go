@@ -263,7 +263,8 @@ func RegisterKnowledgeBaseActivityRoutes(r *gin.RouterGroup, auditHandler *handl
 // read of the base (Viewer+, KBAccessRead; API keys with retrieve). Dismissing
 // or reopening one changes what everybody sees, so it takes the same gate as
 // editing the base's content: its creator or an Admin+, with editor access
-// (API keys with ingest). A full re-check is a management action on the base
+// (API keys with ingest), and so does choosing who deals with one. A full
+// re-check is a management action on the base
 // (API keys with manage_kbs); the handler additionally keeps it to the owning
 // workspace, so an organisation sharee with editor access cannot start one.
 func RegisterKnowledgeFindingRoutes(r *gin.RouterGroup, h *handler.KnowledgeFindingHandler, g *rbacGuards) {
@@ -277,7 +278,18 @@ func RegisterKnowledgeFindingRoutes(r *gin.RouterGroup, h *handler.KnowledgeFind
 		read.GET("", g.Viewer(), g.KBAccessRead("id"), h.ListFindings)
 		read.GET("/summary", g.Viewer(), g.KBAccessRead("id"), h.FindingSummary)
 		findings.PATCH("/:finding_id", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.UpdateFinding)
+		findings.PUT("/:finding_id/assignee", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.AssignFinding)
 		manage.POST("/scan", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.ScanFindings)
+	}
+
+	// The caller's own findings, across the knowledge bases of the current
+	// workspace. They were routed to the caller because they look after the
+	// documents involved, so any member may list theirs; an API key, which
+	// is nobody, has none.
+	mine := g.apiKeyGroup(r.Group("/findings/assigned"), apiKeyRetrieve(apiKeyFullAccess()))
+	{
+		mine.GET("", g.Viewer(), h.ListAssignedFindings)
+		mine.GET("/count", g.Viewer(), h.CountAssignedFindings)
 	}
 }
 

@@ -28,6 +28,9 @@ type KnowledgeStewardshipRepository interface {
 	// owner who could not change the entry would be sent problems they
 	// cannot fix.
 	CanMaintain(ctx context.Context, tenantID uint64, kbID, userID string) (bool, error)
+	// IsActiveMember reports whether a user is an active account with an
+	// active membership of the tenant.
+	IsActiveMember(ctx context.Context, tenantID uint64, userID string) (bool, error)
 }
 
 // KnowledgeStewardshipService is the API over stewardship. tenantID is the

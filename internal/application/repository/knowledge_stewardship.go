@@ -123,3 +123,15 @@ func (r *knowledgeStewardshipRepository) CanMaintain(ctx context.Context, tenant
 		}).Scan(&ok).Error
 	return ok, err
 }
+
+// IsActiveMember implements interfaces.KnowledgeStewardshipRepository.
+func (r *knowledgeStewardshipRepository) IsActiveMember(ctx context.Context, tenantID uint64, userID string,
+) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	var ok bool
+	err := r.db.WithContext(ctx).Raw(`SELECT `+activeMemberSQL("@user", "@tenant"),
+		map[string]any{"user": userID, "tenant": tenantID}).Scan(&ok).Error
+	return ok, err
+}

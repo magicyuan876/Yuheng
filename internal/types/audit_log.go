@@ -182,6 +182,9 @@ const (
 	// AuditActionFindingScanRequested is a full re-check of a knowledge base
 	// being scheduled; details carry how many documents were queued.
 	AuditActionFindingScanRequested AuditAction = "finding.scan_requested"
+	// AuditActionFindingAssigned is a person choosing who a finding is taken
+	// to, or handing it back to the automatic routing.
+	AuditActionFindingAssigned AuditAction = "finding.assigned"
 )
 
 // AuditOutcome separates asynchronous acceptance from terminal business

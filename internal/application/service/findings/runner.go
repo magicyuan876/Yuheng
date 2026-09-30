@@ -22,6 +22,13 @@ type RunnerParams struct {
 	// fails if the two drift apart.
 	Detectors []Detector `group:"finding_detectors"`
 	Repo      interfaces.KnowledgeFindingRepository
+	Stewards  interfaces.KnowledgeStewardshipRepository
+}
+
+// StewardLookup loads the stewardship of knowledge entries, which the runner
+// routes findings by. interfaces.KnowledgeStewardshipRepository satisfies it.
+type StewardLookup interface {
+	Stewards(ctx context.Context, tenantID uint64, knowledgeIDs []string) (map[string]*types.KnowledgeSteward, error)
 }
 
 // Runner runs the detectors over a changed knowledge entry and records the
@@ -29,6 +36,7 @@ type RunnerParams struct {
 type Runner struct {
 	detectors []Detector
 	repo      interfaces.KnowledgeFindingRepository
+	stewards  StewardLookup
 }
 
 // NewRunnerFromContainer builds the runner from the container's detectors. It
@@ -39,7 +47,11 @@ func NewRunnerFromContainer(p RunnerParams) (*Runner, error) {
 	if err := extension.RequireApplied("finding detectors"); err != nil {
 		return nil, err
 	}
-	return NewRunner(p.Repo, p.Detectors...)
+	r, err := NewRunner(p.Repo, p.Detectors...)
+	if err != nil {
+		return nil, err
+	}
+	return r.WithStewards(p.Stewards), nil
 }
 
 // NewRunner builds a runner over the given detectors. Names must be present
@@ -71,6 +83,13 @@ func NewRunner(repo interfaces.KnowledgeFindingRepository, detectors ...Detector
 	return &Runner{detectors: kept, repo: repo}, nil
 }
 
+// WithStewards makes the runner route every finding to a person (see
+// AssignRule). Without it findings are recorded unassigned.
+func (r *Runner) WithStewards(lookup StewardLookup) *Runner {
+	r.stewards = lookup
+	return r
+}
+
 // Detectors lists the detector names, in the order they run.
 func (r *Runner) Detectors() []string {
 	out := make([]string, len(r.detectors))
@@ -94,6 +113,7 @@ func (r *Runner) Run(ctx context.Context, scope Scope) error {
 		TenantID: scope.TenantID, KnowledgeBaseID: scope.KnowledgeBaseID(), KnowledgeID: scope.KnowledgeID(),
 	}
 	byFingerprint := map[string]*types.KnowledgeFinding{}
+	rules := map[string]AssignRule{}
 	var failures []error
 	for _, d := range r.detectors {
 		candidates, err := d.Detect(ctx, scope)
@@ -118,6 +138,7 @@ func (r *Runner) Run(ctx context.Context, scope Scope) error {
 				continue
 			}
 			byFingerprint[f.Fingerprint] = f
+			rules[f.Fingerprint] = c.Assign
 		}
 	}
 	if len(run.Detectors) > 0 {
@@ -129,6 +150,12 @@ func (r *Runner) Run(ctx context.Context, scope Scope) error {
 		for _, fp := range fingerprints {
 			run.Findings = append(run.Findings, byFingerprint[fp])
 		}
+		if err := r.route(ctx, scope.TenantID, run.Findings, rules); err != nil {
+			// Recording without the routing would unassign every finding
+			// of the entry; the retry routes them.
+			return errors.Join(append(failures, fmt.Errorf("routing the findings of knowledge %s: %w",
+				run.KnowledgeID, err))...)
+		}
 		if err := r.repo.Reconcile(ctx, run); err != nil {
 			return fmt.Errorf("recording the findings of knowledge %s: %w", run.KnowledgeID, err)
 		}
@@ -136,6 +163,64 @@ func (r *Runner) Run(ctx context.Context, scope Scope) error {
 			run.KnowledgeID, run.Detectors, len(run.Findings))
 	}
 	return errors.Join(failures...)
+}
+
+// route sets the assignee of every finding by its rule.
+func (r *Runner) route(ctx context.Context, tenantID uint64, findings []*types.KnowledgeFinding,
+	rules map[string]AssignRule,
+) error {
+	if r.stewards == nil || len(findings) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, 2*len(findings))
+	for _, f := range findings {
+		ids = append(ids, f.SubjectKnowledgeID)
+		if f.RelatedKnowledgeID != nil {
+			ids = append(ids, *f.RelatedKnowledgeID)
+		}
+	}
+	stewards, err := r.stewards.Stewards(ctx, tenantID, ids)
+	if err != nil {
+		return err
+	}
+	for _, f := range findings {
+		var related *types.KnowledgeSteward
+		if f.RelatedKnowledgeID != nil {
+			related = stewards[*f.RelatedKnowledgeID]
+		}
+		if assignee := assign(rules[f.Fingerprint], stewards[f.SubjectKnowledgeID], related); assignee != "" {
+			f.AssigneeID = &assignee
+		}
+	}
+	return nil
+}
+
+// assign applies a rule to the stewardship of a finding's documents. When the
+// document the rule picks has nobody who can be asked, the other document's
+// person is asked instead: somebody has to see the finding.
+func assign(rule AssignRule, subject, related *types.KnowledgeSteward) string {
+	first, second := subject, related
+	pick := (*types.KnowledgeSteward).Responsible
+	switch rule {
+	case AssignLatestHand:
+		pick = (*types.KnowledgeSteward).LatestHand
+		if subject != nil && related != nil && related.LastVouchedAt().After(subject.LastVouchedAt()) {
+			first, second = related, subject
+		}
+	case AssignStalestOwner:
+		if subject != nil && related != nil && related.LastVouchedAt().Before(subject.LastVouchedAt()) {
+			first, second = related, subject
+		}
+	}
+	for _, st := range []*types.KnowledgeSteward{first, second} {
+		if st == nil {
+			continue
+		}
+		if who := pick(st); who != "" {
+			return who
+		}
+	}
+	return ""
 }
 
 // toFinding validates a candidate and turns it into a row.

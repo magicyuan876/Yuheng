@@ -17,6 +17,8 @@ import (
 type fakeStewardRepo struct {
 	stewards    map[string]*types.KnowledgeSteward
 	maintainers map[string]bool
+	// members can be asked but cannot edit the knowledge base.
+	members map[string]bool
 }
 
 func (r *fakeStewardRepo) Stewards(_ context.Context, _ uint64, ids []string,
@@ -50,6 +52,10 @@ func (r *fakeStewardRepo) MarkReviewed(_ context.Context, _ uint64, id, user str
 
 func (r *fakeStewardRepo) CanMaintain(_ context.Context, _ uint64, _, user string) (bool, error) {
 	return r.maintainers[user], nil
+}
+
+func (r *fakeStewardRepo) IsActiveMember(_ context.Context, _ uint64, user string) (bool, error) {
+	return r.maintainers[user] || r.members[user], nil
 }
 
 type fakeUserRepo struct {

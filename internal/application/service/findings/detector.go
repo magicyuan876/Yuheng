@@ -96,7 +96,33 @@ type Candidate struct {
 	// Details is the evidence shown to people. EvidenceHash should be set:
 	// it decides whether a dismissed finding reopens.
 	Details types.FindingDetails
+	// Assign says who the finding is taken to. The zero value, the
+	// subject's responsible person, suits a finding about one document.
+	Assign AssignRule
 }
+
+// AssignRule says who a finding is taken to, in terms of the stewardship of
+// its documents (types.KnowledgeSteward). The runner applies it on every
+// check, so a hand-over or a new edit re-routes the open findings; a finding a
+// person assigned by hand is left alone.
+type AssignRule int
+
+const (
+	// AssignSubjectOwner takes the finding to whoever answers for the
+	// subject: its owner, else its last reviewer, else the creator of its
+	// knowledge base.
+	AssignSubjectOwner AssignRule = iota
+	// AssignLatestHand takes a finding about two documents to the person
+	// who last worked on the one worked on most recently. A copy is made
+	// by whoever wrote the newer text, and is cheapest to fix while they
+	// still have it in mind.
+	AssignLatestHand
+	// AssignStalestOwner takes a finding about two documents to whoever
+	// answers for the one nobody has vouched for the longest. When two
+	// accounts disagree, the older one is the likelier to be out of date;
+	// the other side sees the finding on its own document all the same.
+	AssignStalestOwner
+)
 
 // Detector finds problems involving one changed knowledge entry.
 type Detector interface {

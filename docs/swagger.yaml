@@ -351,6 +351,7 @@ definitions:
     - faq.import_failed
     - finding.status_changed
     - finding.scan_requested
+    - finding.assigned
     type: string
     x-enum-varnames:
     - AuditActionMemberAdded
@@ -416,6 +417,7 @@ definitions:
     - AuditActionFAQImportFailed
     - AuditActionFindingStatusChanged
     - AuditActionFindingScanRequested
+    - AuditActionFindingAssigned
   github_com_magicyuan876_yuheng_internal_types.AuditLog:
     properties:
       action:
@@ -4188,6 +4190,14 @@ definitions:
       type:
         type: string
     type: object
+  internal_handler.AssignFindingRequest:
+    properties:
+      assignee_id:
+        description: |-
+          AssigneeID is the person to take the finding to; empty hands it back
+          to the automatic routing.
+        type: string
+    type: object
   internal_handler.BatchDeleteKnowledgeRequest:
     properties:
       ids:
@@ -5019,6 +5029,11 @@ definitions:
     type: object
   internal_handler.UpdateFindingRequest:
     properties:
+      reason:
+        description: |-
+          Reason is required to dismiss: "distinct_scope" (the documents apply
+          to different things) or "intentional" (the overlap is wanted).
+        type: string
       status:
         description: Status is "dismissed" or "open".
         type: string
@@ -9443,6 +9458,55 @@ paths:
       summary: 获取FAQ导入进度
       tags:
       - FAQ管理
+  /findings/assigned:
+    get:
+      description: 当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部
+      parameters:
+      - description: open（默认）/ dismissed / resolved / all
+        in: query
+        name: status
+        type: string
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {items, total, page, page_size}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 我的知识待办
+      tags:
+      - 知识健康
+  /findings/assigned/count:
+    get:
+      description: 当前空间里派给我、尚未处理的知识健康问题数量，用于导航角标
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {open_total}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 我的待办数量
+      tags:
+      - 知识健康
   /groups:
     get:
       description: 默认组（全体成员）在前；每个组附成员数
@@ -10828,7 +10892,7 @@ paths:
       - FAQ管理
   /knowledge-bases/{id}/findings:
     get:
-      description: 列出自动检测到的问题（目前是重复文档）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题
+      description: 列出自动检测到的问题（重复、内容有出入等）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题
       parameters:
       - description: 知识库 ID
         in: path
@@ -10846,6 +10910,10 @@ paths:
       - description: 只列出涉及该文档的问题
         in: query
         name: knowledge_id
+        type: string
+      - description: me：只列出派给我的问题
+        in: query
+        name: assignee
         type: string
       - description: 页码，默认 1
         in: query
@@ -10877,7 +10945,10 @@ paths:
     patch:
       consumes:
       - application/json
-      description: status=dismissed 忽略（证据不变时不再出现），status=open 重新打开一个已忽略的问题。操作记入知识库动态
+      description: |-
+        status=dismissed 忽略（证据不变时不再出现），须给出原因 reason：
+        distinct_scope（适用范围不同）或 intentional（有意保留）；
+        status=open 重新打开一个已忽略的问题。操作记入知识库动态
       parameters:
       - description: 知识库 ID
         in: path
@@ -10919,6 +10990,53 @@ paths:
       - Bearer: []
       - ApiKeyAuth: []
       summary: 忽略或重新打开一个问题
+      tags:
+      - 知识健康
+  /knowledge-bases/{id}/findings/{finding_id}/assignee:
+    put:
+      consumes:
+      - application/json
+      description: 把问题交给指定成员处理（之后的自动检测不再改派）；assignee_id 为空表示交还自动派发，并立即重新派发。处理人须能编辑该知识库，涉及在线文档的问题也可以是空间的在职成员。操作记入知识库动态
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 问题 ID
+        in: path
+        name: finding_id
+        required: true
+        type: string
+      - description: 处理人
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.AssignFindingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 更新后的问题'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 指派问题的处理人
       tags:
       - 知识健康
   /knowledge-bases/{id}/findings/scan:

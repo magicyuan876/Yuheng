@@ -115,7 +115,7 @@ func duplicateFixture() (fakeChunks, *fakeFinder) {
 			// Too short to count, whatever it matches.
 			text("b5", "Contact us"),
 		},
-		"other": {text("o1", long("Hotels are capped in most cities"))},
+		"other": {text("o1", long("Hotels are capped per city"))},
 	}
 	finder := newFakeFinder()
 	finder.chunk("small", "s1", "s2")
@@ -207,6 +207,46 @@ func TestDuplicateSeverityFollowsTheOverlap(t *testing.T) {
 	assert.Equal(t, "other", res[0].SubjectKnowledgeID, "the larger share decides the subject")
 	assert.InDelta(t, 1.0/3, res[0].Details.OverlapRatio, 1e-9)
 	assert.Equal(t, types.FindingSeverityInfo, res[0].Severity)
+}
+
+// Passages that are alike and not the same make a divergent finding, whose
+// evidence shows the difference, taken to whoever answers for the document
+// vouched for the longest ago; copies make a duplicate one, taken to whoever
+// wrote the newer text.
+func TestDuplicateDetectorTellsACopyFromANearCopy(t *testing.T) {
+	copyFinding := findingBetween(t, detectFrom(t, "small"), "small", "big")
+	assert.Equal(t, types.FindingTypeDuplicate, copyFinding.Type)
+	assert.Equal(t, AssignLatestHand, copyFinding.Assign)
+	for _, e := range copyFinding.Details.Evidence {
+		assert.False(t, e.Differs)
+	}
+
+	leave := "Every employee has fifteen days of paid leave a year, requested two weeks ahead in the HR system."
+	changed := strings.Replace(leave, "fifteen", "ten", 1)
+	chunks := fakeChunks{
+		"old": {text("old1", leave), text("old2", long("Receipts must be kept"))},
+		"new": {text("new1", changed), text("new2", long("Receipts must be kept"))},
+	}
+	finder := newFakeFinder()
+	finder.chunk("old", "old1", "old2")
+	finder.chunk("new", "new1", "new2")
+	finder.similar("old1", "new1", 0.97)
+	finder.similar("old2", "new2", 0.99)
+	d := NewDuplicateDetector(chunks, fixedResolver{finder: finder, ok: true}, 0.95)
+	out, err := d.Detect(context.Background(), scopeOf("new"))
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	c := out[0]
+	assert.Equal(t, types.FindingTypeDivergent, c.Type)
+	assert.Equal(t, types.FindingSeverityWarning, c.Severity, "a disagreement is a warning however small")
+	assert.Equal(t, AssignStalestOwner, c.Assign)
+	assert.Equal(t, PairFingerprint(types.FindingTypeDivergent, "kb-1", "old", "new"), c.Fingerprint)
+	require.Len(t, c.Details.Evidence, 2)
+	first := c.Details.Evidence[0]
+	assert.True(t, first.Differs, "the difference is shown first, though its pair scored lower")
+	assert.Contains(t, first.SubjectExcerpt+first.RelatedExcerpt, "fifteen")
+	assert.Contains(t, first.SubjectExcerpt+first.RelatedExcerpt, "ten days")
+	assert.False(t, c.Details.Evidence[1].Differs)
 }
 
 // The hash is over the matched text, so re-parsing (new chunk IDs, same

@@ -48,13 +48,30 @@ func (s *stubFindingService) Summary(_ context.Context, tenantID uint64, _ strin
 	}, nil
 }
 
-func (s *stubFindingService) UpdateStatus(_ context.Context, tenantID uint64, kbID, id, status string,
+func (s *stubFindingService) UpdateStatus(_ context.Context, tenantID uint64, kbID, id, status, _ string,
 ) (*types.KnowledgeFindingView, error) {
 	s.tenants = append(s.tenants, tenantID)
 	s.status = status
 	return &types.KnowledgeFindingView{
 		ID: id, KnowledgeBaseID: kbID, Status: status, Evidence: []types.FindingEvidence{},
 	}, nil
+}
+
+func (s *stubFindingService) Assign(_ context.Context, tenantID uint64, kbID, id, _ string,
+) (*types.KnowledgeFindingView, error) {
+	s.tenants = append(s.tenants, tenantID)
+	return &types.KnowledgeFindingView{ID: id, KnowledgeBaseID: kbID, Evidence: []types.FindingEvidence{}}, nil
+}
+
+func (s *stubFindingService) ListAssigned(_ context.Context, tenantID uint64, _ string, page, size int,
+) (*types.KnowledgeFindingPage, error) {
+	s.tenants = append(s.tenants, tenantID)
+	return &types.KnowledgeFindingPage{Items: []*types.KnowledgeFindingView{}, Page: page, PageSize: size}, nil
+}
+
+func (s *stubFindingService) CountAssigned(_ context.Context, tenantID uint64) (int64, error) {
+	s.tenants = append(s.tenants, tenantID)
+	return 0, nil
 }
 
 func (s *stubFindingService) Scan(_ context.Context, tenantID uint64, _ string) (int, error) {

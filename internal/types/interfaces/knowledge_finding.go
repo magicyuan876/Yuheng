@@ -62,8 +62,23 @@ type KnowledgeFindingRepository interface {
 	// Get loads one finding of a knowledge base.
 	Get(ctx context.Context, tenantID uint64, kbID, id string) (*types.KnowledgeFindingRow, error)
 	// SetStatus changes a finding's status by a person's hand: dismissing
-	// records who and when, reopening clears both.
-	SetStatus(ctx context.Context, tenantID uint64, kbID, id, status, actor string) (*types.KnowledgeFindingRow, error)
+	// records who, when and why (resolution), reopening clears all three.
+	SetStatus(ctx context.Context, tenantID uint64, kbID, id, status, actor,
+		resolution string) (*types.KnowledgeFindingRow, error)
+	// SetAssignee assigns a finding by hand to assigneeID on behalf of
+	// assignedBy, which later checks then leave alone; an empty assignedBy
+	// hands the finding back to automatic routing, which the next check
+	// applies.
+	SetAssignee(ctx context.Context, tenantID uint64, kbID, id, assigneeID,
+		assignedBy string) (*types.KnowledgeFindingRow, error)
+	// ListAssigned pages through the findings of a tenant's knowledge bases
+	// assigned to a person, with the knowledge bases' names. status "all"
+	// or empty lists every status.
+	ListAssigned(ctx context.Context, tenantID uint64, assigneeID, status string,
+		page, pageSize int) ([]*types.KnowledgeFindingRow, int64, error)
+	// CountOpenAssigned counts the open findings assigned to a person in a
+	// tenant.
+	CountOpenAssigned(ctx context.Context, tenantID uint64, assigneeID string) (int64, error)
 	// CountOpenByType counts the open findings of a knowledge base by type.
 	CountOpenByType(ctx context.Context, tenantID uint64, kbID string) (map[string]int64, error)
 	// LastScanAt is when an entry of the knowledge base was last checked.
@@ -98,10 +113,20 @@ type KnowledgeFindingService interface {
 	List(ctx context.Context, tenantID uint64, kbID string,
 		filter types.KnowledgeFindingFilter) (*types.KnowledgeFindingPage, error)
 	Summary(ctx context.Context, tenantID uint64, kbID string) (*types.KnowledgeFindingSummary, error)
-	// UpdateStatus dismisses or reopens a finding and records it in the
-	// knowledge base's activity.
+	// UpdateStatus dismisses (with a reason, types.ValidDismissReason) or
+	// reopens a finding and records it in the knowledge base's activity.
 	UpdateStatus(ctx context.Context, tenantID uint64, kbID, findingID,
-		status string) (*types.KnowledgeFindingView, error)
+		status, reason string) (*types.KnowledgeFindingView, error)
+	// Assign takes a finding to a person of the caller's choosing, or, with
+	// an empty assigneeID, back to the automatic routing.
+	Assign(ctx context.Context, tenantID uint64, kbID, findingID,
+		assigneeID string) (*types.KnowledgeFindingView, error)
+	// ListAssigned pages through the findings of the tenant assigned to the
+	// caller, across its knowledge bases.
+	ListAssigned(ctx context.Context, tenantID uint64, status string, page,
+		pageSize int) (*types.KnowledgeFindingPage, error)
+	// CountAssigned counts the caller's open findings in the tenant.
+	CountAssigned(ctx context.Context, tenantID uint64) (int64, error)
 	// Scan schedules a check of every indexed entry of the knowledge base and
 	// reports how many were scheduled.
 	Scan(ctx context.Context, tenantID uint64, kbID string) (int, error)

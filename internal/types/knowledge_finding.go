@@ -19,9 +19,13 @@ import (
 
 // Finding types the core produces. Other detectors may define their own.
 const (
-	// FindingTypeDuplicate is two documents of one knowledge base whose
-	// content is largely the same.
+	// FindingTypeDuplicate is two documents of one knowledge base sharing
+	// passages word for word: one is, in part or whole, a copy.
 	FindingTypeDuplicate = "duplicate"
+	// FindingTypeDivergent is two documents with passages that are nearly
+	// the same and not quite: an edited copy, one of which is probably out
+	// of date, or two accounts of one thing that disagree.
+	FindingTypeDivergent = "divergent"
 )
 
 // Finding severities, in increasing order of urgency.
@@ -46,6 +50,27 @@ const (
 // FindingResolvedBySystem is the resolved_by of a finding closed because the
 // detector stopped reporting it, as opposed to a person's user ID.
 const FindingResolvedBySystem = "system"
+
+// Finding resolutions: why a finding was closed. A dismissal names one of the
+// two reasons a person can have to leave a problem as it is; a finding the
+// detectors stopped reporting is cleared.
+const (
+	// FindingResolutionDistinctScope: the documents look alike but apply
+	// to different things — two offices, two products, two years.
+	FindingResolutionDistinctScope = "distinct_scope"
+	// FindingResolutionIntentional: the overlap is wanted, e.g. a summary
+	// page that quotes its sources.
+	FindingResolutionIntentional = "intentional"
+	// FindingResolutionCleared: the content changed and the problem is
+	// gone.
+	FindingResolutionCleared = "cleared"
+)
+
+// ValidDismissReason reports whether r is a reason a person may give for
+// dismissing a finding.
+func ValidDismissReason(r string) bool {
+	return r == FindingResolutionDistinctScope || r == FindingResolutionIntentional
+}
 
 // ValidFindingSeverity reports whether s is one of the defined severities.
 func ValidFindingSeverity(s string) bool {
@@ -76,6 +101,13 @@ type KnowledgeFinding struct {
 	UpdatedAt          time.Time      `json:"updated_at"`
 	ResolvedAt         *time.Time     `json:"resolved_at"`
 	ResolvedBy         *string        `json:"resolved_by"          gorm:"type:varchar(64)"`
+	// Resolution says why a closed finding was closed (FindingResolution*).
+	Resolution *string `json:"resolution" gorm:"type:varchar(32)"`
+	// AssigneeID is the person the finding is taken to. The runner routes
+	// it on every check unless AssignedBy is set: somebody assigned it by
+	// hand, and a check must not undo that.
+	AssigneeID *string `json:"assignee_id" gorm:"type:varchar(36)"`
+	AssignedBy *string `json:"assigned_by" gorm:"type:varchar(36)"`
 }
 
 // TableName pins the table name.
@@ -90,6 +122,9 @@ type FindingEvidence struct {
 	RelatedChunkID string  `json:"related_chunk_id"`
 	RelatedExcerpt string  `json:"related_excerpt"`
 	Score          float64 `json:"score"`
+	// Differs is true when the two passages differ inside the text they
+	// share; the excerpts are then centred on the first difference.
+	Differs bool `json:"differs,omitempty"`
 }
 
 // Flipped returns the pair as seen from the related document.
@@ -97,7 +132,7 @@ func (e FindingEvidence) Flipped() FindingEvidence {
 	return FindingEvidence{
 		SubjectChunkID: e.RelatedChunkID, SubjectExcerpt: e.RelatedExcerpt,
 		RelatedChunkID: e.SubjectChunkID, RelatedExcerpt: e.SubjectExcerpt,
-		Score: e.Score,
+		Score: e.Score, Differs: e.Differs,
 	}
 }
 
@@ -184,14 +219,22 @@ type KnowledgeFindingView struct {
 	UpdatedAt       time.Time         `json:"updated_at"`
 	ResolvedAt      *time.Time        `json:"resolved_at"`
 	ResolvedBy      *string           `json:"resolved_by"`
+	Resolution      *string           `json:"resolution"`
+	// Assignee is who the finding is taken to; nil when nobody could be
+	// found. AssignedManually says a person chose them.
+	Assignee         *PersonRef `json:"assignee"`
+	AssignedManually bool       `json:"assigned_manually"`
+	// KnowledgeBaseName is filled in listings that span knowledge bases.
+	KnowledgeBaseName string `json:"knowledge_base_name,omitempty"`
 }
 
 // KnowledgeFindingRow is a finding with the titles of the entries it names,
 // which the list query joins in.
 type KnowledgeFindingRow struct {
 	KnowledgeFinding
-	SubjectTitle string
-	RelatedTitle string
+	SubjectTitle      string
+	RelatedTitle      string
+	KnowledgeBaseName string
 }
 
 // View renders the row for the API.
@@ -202,6 +245,13 @@ func (r *KnowledgeFindingRow) View() *KnowledgeFindingView {
 		Subject:   KnowledgeRef{KnowledgeID: r.SubjectKnowledgeID, Title: r.SubjectTitle},
 		Evidence:  append([]FindingEvidence{}, r.Details.Evidence...),
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy,
+		Resolution: r.Resolution, AssignedManually: r.AssignedBy != nil && *r.AssignedBy != "",
+		KnowledgeBaseName: r.KnowledgeBaseName,
+	}
+	if r.AssigneeID != nil && *r.AssigneeID != "" {
+		// Named by the service, which knows the users; the ID alone until
+		// then.
+		v.Assignee = &PersonRef{ID: *r.AssigneeID, Active: true}
 	}
 	if r.Score != nil {
 		v.Score = *r.Score
@@ -218,8 +268,13 @@ type KnowledgeFindingFilter struct {
 	Status      string
 	Type        string
 	KnowledgeID string
-	Page        int
-	PageSize    int
+	// AssigneeID lists only the findings assigned to that person. The
+	// service sets it from Mine; the API does not take other people's.
+	AssigneeID string
+	// Mine lists only the findings assigned to the caller.
+	Mine     bool
+	Page     int
+	PageSize int
 }
 
 // KnowledgeFindingPage is one page of a finding list.
