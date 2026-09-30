@@ -1,118 +1,169 @@
 <p align="center">
-    <a href="https://github.com/magicyuan876/Yuheng/blob/main/LICENSE">
-        <img src="https://img.shields.io/badge/License-MIT-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="License">
-    </a>
-    <a href="./CHANGELOG.md">
-        <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-2e6cc4?labelColor=d4eaf7">
-    </a>
-    <img alt="Go" src="https://img.shields.io/badge/Go-1.26-2e6cc4?labelColor=d4eaf7">
-    <img alt="Vue" src="https://img.shields.io/badge/Vue-3-2e6cc4?labelColor=d4eaf7">
-    <img alt="Python" src="https://img.shields.io/badge/Python-%3E%3D3.10-2e6cc4?labelColor=d4eaf7">
+  <img src="./website-docs/public/brand/yuheng-banner.svg" alt="Yuheng 玉衡 — the knowledge layer for AI agents" width="100%">
+</p>
+
+<p align="center">
+    <a href="https://github.com/magicyuan876/Yuheng/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-1DB592?labelColor=0E1E3C" alt="License"></a>
+    <a href="./CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-0.1.0-1DB592?labelColor=0E1E3C"></a>
+    <img alt="Go" src="https://img.shields.io/badge/Go-1.26-1DB592?labelColor=0E1E3C">
+    <img alt="Vue" src="https://img.shields.io/badge/Vue-3.5-1DB592?labelColor=0E1E3C">
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-ParadeDB-1DB592?labelColor=0E1E3C">
 </p>
 
 <p align="center">
 | <b>English</b> | <a href="./README_CN.md"><b>简体中文</b></a> |
 </p>
 
-# Yuheng — the knowledge platform for the AI-agent era
+# Yuheng 玉衡
 
-Yuheng is an open-source, LLM-powered enterprise knowledge platform. It ingests
-documents and data from anywhere, parses and organizes them into searchable
-knowledge, answers questions with grounded citations, and turns knowledge bases
-into publishable Wiki sites.
+**The knowledge platform for the age of AI agents.** Yuheng brings in what your
+organization knows — files, web pages, Feishu, Notion and more — turns it into
+knowledge that is searchable, trustworthy and actually maintained, answers
+people's questions with citations, and hands the same capabilities to your AI
+agents over REST and MCP.
 
-Yuheng does not try to be your agent. Starting with 0.1.0 it focuses on one job
-and does it well: being the **knowledge layer**. Your AI agents — Claude,
-Cursor, custom ReAct loops, anything — come to Yuheng for retrieval, Q&A, and
-Wiki content over REST and MCP.
+Yuheng does not try to be your agent. It is the **knowledge layer**: Claude,
+Cursor, your own ReAct loop — any agent — comes here to search, ask, read the
+Wiki and write knowledge back.
 
-## Status
+> **The name**: 玉衡 (Yùhéng, Alioth) is the fifth star of the Big Dipper, where
+> the bowl meets the handle; 璇玑玉衡 was also the ancient Chinese instrument for
+> measuring the heavens. The mark draws the Dipper around it: stars joined into
+> one figure, as knowledge is, and the star that weighs and measures, as
+> knowledge needs.
 
-Yuheng is a 0.x preview, developed by one maintainer.
+## What it does
 
-- The REST API under `/api/v1` may still change between 0.x releases. The MCP
-  tool names are stable: they will not be renamed.
-- Most product documentation is currently in Chinese. English translations of
-  the [quick start](./website-docs/en/01-getting-started/03-quickstart.md) and the
-  [installation guide](./website-docs/en/01-getting-started/02-installation.md) exist;
-  everything else under [`website-docs/`](./website-docs/) is Chinese-first.
-- The first release does not publish Docker images. You build them locally
-  (see [Getting started](#getting-started)).
+```
+ Ingest             Organize             Answer                Maintain              Expose
+ ───────────────    ─────────────────    ──────────────────    ──────────────────    ────────────────
+ files and URLs     knowledge bases      hybrid retrieval      duplicates and        REST /api/v1
+ data-source sync   chunking, FAQ, tags  cited streaming Q&A   near-copies           MCP (23 tools)
+ collaborative docs Auto-Wiki            web search            periodic review       Go SDK · CLI
+                    graph (optional)                           answer feedback
+                                                               owners and to-dos
+```
 
-## Why Yuheng
+- **Knowledge in**: upload documents (PDF, Word, Excel, PPT, HTML, EPUB, images,
+  audio, video), import web pages, or connect Feishu/Lark wiki and drive, Notion,
+  Yuque, RSS, GitLab and Tencent ima with scheduled incremental sync — or write in
+  Yuheng's own **collaborative documents**, whose pages flow into the knowledge
+  base.
+- **Answers out**: vector + BM25 hybrid retrieval, rerank and query rewriting;
+  every answer links back to the chunks it came from; optional knowledge graph and
+  12 web-search providers (including self-hosted SearXNG).
+- **Knowledge that does not quietly rot**: **knowledge health** compares the
+  documents of a knowledge base as they change, finding word-for-word copies and
+  near-copies that differ (the old policy says 15 days of leave, the new one 10 —
+  with the difference highlighted); asks owners to review what nobody has
+  confirmed within the review period; and takes answers people marked "not
+  helpful" to the documents they cite. Every finding is routed to the person who
+  should act, collected in a personal to-do, and settled by superseding one
+  document with the other, confirming a document is still right, or dismissing it
+  with a reason.
+- **Built for agents**: everything the web UI does is a REST endpoint (JWT or
+  scoped API keys) and an MCP tool; there is also a Go SDK, the `yuheng` CLI and a
+  DeepSeek Harness plugin.
+- **Enterprise-ready**: multi-tenant workspaces, four roles, organizations and
+  shared spaces, audit logs, AES-256-GCM encrypted credentials, login rate limits
+  and lockout, Langfuse tracing.
 
-- **Knowledge in, answers out.** Upload documents or connect Feishu/Lark,
-  Notion, Yuque, RSS, GitLab and more; Yuheng parses, chunks, indexes, and
-  starts answering. No pipeline code to write.
-- **Grounded, citable Q&A.** Every answer links back to the exact source
-  chunks. Hybrid retrieval + rerank + optional knowledge-graph and web-search
-  enrichment keep answers accurate.
-- **Auto-Wiki.** A knowledge base can be promoted into a full Wiki site by an
-  LLM pipeline — with human review, version history, and an issue-feedback loop.
-- **Built for agents first-class.** Everything a human can do in the web UI is
-  also a REST endpoint (`/api/v1`, JWT or scoped API keys) and an MCP tool
-  (23 tools). Plus a Go SDK, a CLI, and a DeepSeek Harness plugin.
-- **Enterprise-ready.** Multi-tenant workspaces, four-tier RBAC, organizations
-  and shared spaces, audit logs, AES-256-GCM credential encryption, Langfuse
-  tracing, rate limiting.
+## Features
 
-## Key features
+**📥 Ingestion and parsing**
+- `docreader` gRPC parsing service: layout analysis, OCR of scans, tables,
+  multimodal image captions; optional in-process Rust parser `anydoc`
+- Data-source connectors: Feishu/Lark (wiki and drive), Notion, Yuque, RSS,
+  GitLab, Tencent ima — encrypted credentials, scheduled incremental sync,
+  conflict strategies
+- Folder trees, tags, batch operations, chunk-level editing with history, custom
+  metadata
 
-**📥 Ingestion & parsing**
-- gRPC document-parsing service (`docreader`): PDF, Word, Excel, PPT, HTML,
-  MHTML, EPUB, images, video and more; optional in-process Rust parser (`anydoc`)
-- Data-source connectors: Feishu/Lark, Notion, Yuque, RSS, GitLab, Tencent IMA,
-  with credential encryption and scheduled incremental sync
-- Tree folders, multi-tags, batch operations, chunk-level editing with version
-  history, custom metadata
+**📝 Collaborative documents** (`docs` profile)
+- Spaces and page trees, page permissions and restricted pages, locking, trash
+- Real-time collaboration (Yjs) or exclusive editing; tables, Mermaid, draw.io,
+  attachments, block references, templates
+- Comments, mentions, watching and notifications, revision history and restore,
+  public share links, import and export
+- A space bound to a knowledge base mirrors its pages into it; a restricted page
+  never reaches the knowledge base
 
-**🔎 Retrieval & Q&A**
-- One retrieval engine, done thoroughly: PostgreSQL with ParadeDB (BM25
-  full-text) and pgvector (vectors) — no separate search cluster to run
-- Hybrid retrieval (vector + BM25/full-text), rerank, query rewrite & expansion
-- FAQ entries with bulk import and dedup; knowledge graph (Neo4j, optional);
-  built-in web search (12 providers, including self-hosted SearXNG)
-- Streaming answers with a progress timeline and clickable citations
+**🔎 Retrieval and Q&A**
+- One retrieval engine, done properly: PostgreSQL + ParadeDB (BM25) + pgvector,
+  no separate search cluster to run
+- Hybrid retrieval, RRF fusion, rerank, query rewriting and expansion; FAQ
+  entries; knowledge graph (Neo4j, optional)
+- Streaming answers with a retrieval-progress timeline and clickable citations;
+  answers can be rated helpful / not helpful
 
 **📖 Auto-Wiki**
-- Four-stage LLM pipeline turns a knowledge base into a Wiki site
-- Human editing with version history and rollback; issue reports with a
-  closed-loop fix flow; Wiki changes feed back into the knowledge activity stream
+- An LLM pipeline organizes a knowledge base into interlinked Wiki pages, with
+  human editing, version history and an issue-feedback loop
+
+**🩺 Knowledge health**
+- Content comparison: word-for-word duplicates, and near-copies compared as text
+  with the differences highlighted
+- Periodic review: a knowledge base's review period sends overdue documents to
+  their owners
+- Answer feedback: "not helpful" gathers on the cited documents; the question is
+  attached only when the person chooses to
+- Owners and routing: every document has an owner, every finding goes to the
+  person best placed to act; a personal knowledge to-do
+- Settling: supersede one of two documents (a docs page is excluded and marked
+  superseded, never deleted), confirm still valid, dismiss with a reason
 
 **🤖 For your AI agents**
-- Complete REST API under `/api/v1` — Swagger UI at `/swagger/index.html`
-- Scoped API keys with fine-grained capabilities (retrieve, ingest, manage…)
-- [`yuheng-mcp`](./mcp-server/): 23 MCP tools over stdio/SSE/HTTP (install from source)
-- [Go SDK](./client/) and [`yuheng` CLI](./cli/); [DeepSeek Harness plugin](./packages/dsh-yuheng/)
+- The `/api/v1` REST API, Swagger UI at `/swagger/index.html` (non-release mode)
+- Scoped API keys (retrieve, chat, ingest, manage_kbs, …), optionally limited to
+  knowledge bases
+- [`yuheng-mcp`](./mcp-server/): 23 MCP tools over stdio / SSE / HTTP
+- [Go SDK](./client/), [`yuheng` CLI](./cli/), [DeepSeek Harness plugin](./packages/dsh-yuheng/)
 
 **🏢 Platform**
-- Multi-tenant; four-tier workspace roles; organizations & shared spaces
-- Audit log, Langfuse observability, task-queue dashboard, rate limiting
+- Multi-tenant workspaces with owner / admin / contributor / viewer roles;
+  organizations and shared spaces
+- Audit logs and knowledge-base activity, task-queue dashboard, Langfuse, rate
+  limiting
+- File storage: a local directory or any S3-compatible store, RustFS bundled by
+  default
 
 ## Architecture
 
 ```
-┌─────────────┐   REST / SSE   ┌──────────────────────────────┐
-│  Web / CLI  │ ◄────────────► │  Go backend (Gin, /api/v1)   │
-│  Go SDK     │                │  chat pipeline · RAG · Wiki  │
-└─────────────┘                │  async tasks (asynq/Redis)   │
-┌─────────────┐   MCP (23)     └───────┬──────────────┬───────┘
-│ AI agents   │ ◄───────────────────── │              │ gRPC (TLS+token)
-└─────────────┘                        │              ▼
-                               ┌───────┴───────┐  ┌────────────┐
-                               │  docreader    │  │ PostgreSQL │
-                               │  (Python)     │  │ + pgvector │
-                               └───────────────┘  └────────────┘
+┌──────────────────┐  REST / SSE  ┌──────────────────────────────────────────────┐
+│ Web UI · CLI     │ ◄──────────► │  Go backend (Gin, /api/v1)                    │
+│ Go SDK           │              │  Q&A · retrieval · Wiki · docs · health       │
+└──────────────────┘              │  async tasks (asynq / Redis, or in-process)   │
+┌──────────────────┐  MCP (23)    └──┬──────────────┬───────────────┬────────────┘
+│ AI agents        │ ◄────────────── │              │ gRPC          │ WebSocket
+└──────────────────┘                 │              ▼               ▼
+          ┌──────────────────────────┴──┐   ┌────────────┐   ┌────────────────┐
+          │ PostgreSQL (ParadeDB)       │   │ docreader  │   │ collab (Yjs)   │
+          │ data · pgvector · BM25      │   │ (Python)   │   │ docs mode only │
+          └─────────────────────────────┘   └────────────┘   └────────────────┘
+          Redis · RustFS / S3 · Neo4j (optional) · Langfuse (optional)
 ```
 
-For the full picture see the [architecture docs](./website-docs/02-architecture/01-overview.md).
+See the [architecture overview](./website-docs/02-architecture/01-overview.md) (Chinese).
 
-## Getting started
+## Project status
 
-There are no prebuilt images for this release, so Docker Compose builds them
-from the checkout. You need Docker with Compose v2, Node.js and npm (the
-frontend is built on the host first), and `git`. Plan for 4 CPU cores and 8 GB
-of RAM; the first build downloads a lot and takes a while.
+Yuheng is a 0.x preview maintained by one person. It is an independent fork of
+Tencent [WeKnora](https://github.com/Tencent/WeKnora) and has diverged a long
+way: the built-in agent, IM channels and the other retrieval engines are gone;
+collaborative documents and knowledge health are new.
+
+- The `/api/v1` REST API may change between 0.x releases; MCP tool names are
+  stable.
+- The documentation is Chinese-first ([`website-docs/`](./website-docs/)); the
+  quick start and installation guide also exist [in English](./website-docs/en/01-getting-started/02-installation.md).
+- Docker images are not published yet; build them locally (below).
+
+## Quick start
+
+You need Docker with Compose v2, Node.js and npm (the frontend is built on the
+host), and `git`; 4 CPU cores and 8 GB of memory are recommended. The first build
+downloads a lot and takes a while.
 
 ```bash
 git clone https://github.com/magicyuan876/Yuheng.git
@@ -120,123 +171,115 @@ cd Yuheng
 cp .env.example .env
 ```
 
-Edit `.env` before the first start: `JWT_SECRET` and `SYSTEM_AES_KEY` are
-empty and must be filled in. The server refuses to start while either is empty,
-too short, or an old published example value:
+Edit `.env` before the first start: `JWT_SECRET` and `SYSTEM_AES_KEY` are empty
+and must be set; the server refuses to start while they are empty, too short, or
+one of the old published examples:
 
 ```bash
 openssl rand -hex 32     # -> JWT_SECRET
 openssl rand -hex 16     # -> SYSTEM_AES_KEY (32 hex characters = the 32 bytes AES-256 needs)
 ```
 
-Also change `DB_PASSWORD` and `REDIS_PASSWORD`. Keep `SYSTEM_AES_KEY` safe:
-API keys and other credentials in the database are encrypted with it, and they
-cannot be recovered if it is lost.
-
-Build the frontend assets, then build and start the stack:
+Change `DB_PASSWORD` and `REDIS_PASSWORD` too. Keep `SYSTEM_AES_KEY` safe: stored
+credentials such as API keys are encrypted with it and cannot be recovered
+without it.
 
 ```bash
-./scripts/build_frontend_dist.sh      # runs npm ci + npm run build in frontend/, needed by the frontend image
+./scripts/build_frontend_dist.sh      # builds the frontend assets the frontend image needs
 docker compose up -d --build
 docker compose ps                     # wait until the services are healthy
 ```
 
-The default profile starts the frontend, the Go backend (`app`), `docreader`,
-PostgreSQL (ParadeDB), Redis and RustFS, an S3-compatible object store that is
-the default file storage (set `STORAGE_TYPE=local` to use a local directory
-instead, or point `S3_*` at an external service). Optional profiles add more:
-`docker compose --profile docs up -d --build` starts the collaborative
-documents service and draw.io (see section K of `.env.example` for the extra
-settings it needs), and `--profile full` starts everything optional (Neo4j,
-Langfuse, SearXNG, the MCP server, a test OIDC provider).
+This starts the frontend, the Go backend (`app`), `docreader`, PostgreSQL
+(ParadeDB), Redis and RustFS. Optional profiles: `--profile docs` adds the
+collaborative documents service and draw.io (settings in section K of
+`.env.example`); `--profile full` starts every optional component (Neo4j,
+Langfuse, SearXNG, the MCP server, …). `TZ` defaults to UTC.
 
-Inside mainland China, the image builds are faster with a package mirror: set
-`APK_MIRROR_ARG=mirrors.tencent.com` in `.env`. `TZ` defaults to UTC.
+### First use
 
-### First run
+Open `http://localhost` (port `FRONTEND_PORT`, default 80). There is no default
+account.
 
-Open the web UI at `http://localhost` (the port is `FRONTEND_PORT`, 80 by
-default). There is no default account.
+- **The first account to register becomes the administrator of the deployment**;
+  registration then closes, and others join by invitation.
+  `DISABLE_REGISTRATION=false` keeps it open, `true` closes it from the start.
+- Before asking anything, configure at least one chat model and one embedding
+  model under Settings → Models; Ollama on the host and any OpenAI-compatible API
+  work.
+- To have knowledge health ask for reviews, set a review period in the knowledge
+  base's basic settings.
 
-- The first account you register becomes the administrator of the
-  deployment. After that, public registration closes. Add people by inviting
-  them (workspace settings, members).
-- To keep registration open, set `DISABLE_REGISTRATION=false`; to keep it
-  closed from the start, set `DISABLE_REGISTRATION=true`. Left unset, it is
-  open only until the first account exists.
-- Before Q&A works you must configure at least one chat (LLM) model and one
-  embedding model: Settings, then Model Management. Ollama on the host and any
-  OpenAI-compatible API both work.
-
-| Service | URL |
+| Service | Address |
 | --- | --- |
 | Web UI | http://localhost (`FRONTEND_PORT`) |
 | API | http://localhost:8080 (`APP_PORT`) |
-| Swagger UI | http://localhost:8080/swagger/index.html (only when `GIN_MODE` is not `release`) |
+| Readiness | http://localhost:8080/ready |
+| Swagger UI | http://localhost:8080/swagger/index.html (when `GIN_MODE` is not `release`) |
 
-By default every published port except the frontend's is bound to localhost.
-For anything beyond a single machine, put a reverse proxy with TLS in front of
-the frontend, and change the default credentials in `.env` first.
+By default every published port except the frontend binds to localhost only. To
+serve beyond one machine, put a TLS reverse proxy in front of the frontend. Full
+steps: [installation](./website-docs/en/01-getting-started/02-installation.md) and
+[quick start](./website-docs/en/01-getting-started/03-quickstart.md).
 
-Other ways to run:
+## Clients and integrations
 
-```bash
-make dev-start       # local infra (Postgres, Redis, docreader, Langfuse)
-make dev-app         # backend with hot reload (Air)
-make dev-frontend    # Vite dev server
-```
-
-## Clients & integrations
-
-| Client | Path | Notes |
+| Client | Directory | Notes |
 | --- | --- | --- |
-| Web UI | [`frontend/`](./frontend/) | Vue 3 + TDesign |
-| CLI | [`cli/`](./cli/) | `yuheng` — scriptable JSON output, multi-profile |
-| MCP server | [`mcp-server/`](./mcp-server/) | install from source (`pip install ./mcp-server`), not on PyPI — 23 tools |
-| Go SDK | [`client/`](./client/) | used by the CLI |
-| DeepSeek Harness plugin | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | install from source (`dsh plugin --profile web add ./packages/dsh-yuheng`), not on npm |
+| Web UI | [`frontend/`](./frontend/) | Vue 3.5 + TypeScript + Vite; Tailwind v4 + shadcn-vue (migrating from TDesign screen by screen) |
+| MCP server | [`mcp-server/`](./mcp-server/) | Install from source (`pip install ./mcp-server`); 23 tools |
+| CLI | [`cli/`](./cli/) | `yuheng`: scriptable JSON output, multiple profiles |
+| Go SDK | [`client/`](./client/) | The CLI is built on it |
+| DeepSeek Harness plugin | [`packages/dsh-yuheng/`](./packages/dsh-yuheng/) | Install from source |
 
 ## Documentation
 
-- [Product documentation](./website-docs/README.md) — getting started, architecture, features, API reference, clients, development (VitePress). Written in Chinese; the quick start and installation pages also have [English versions](./website-docs/en/01-getting-started/02-installation.md)
-- [Developer docs](./docs/README.md) — design notes and operations notes, mostly Chinese
-- [Changelog](./CHANGELOG.md)
+- [Product documentation](./website-docs/README.md) (Chinese): getting started,
+  architecture, features, API reference, clients, development
+- Good places to start: [introduction](./website-docs/01-getting-started/01-introduction.md) ·
+  [collaborative documents](./website-docs/03-features/07-docs.md) ·
+  [knowledge health](./website-docs/03-features/22-knowledge-health.md) ·
+  [MCP](./website-docs/03-features/08-mcp.md) ·
+  [API overview](./website-docs/04-api/01-api-overview.md) ·
+  [extension points](./website-docs/06-development/03-extension-points.md)
+- [Changelog](./CHANGELOG.md) · [Roadmap](./docs/ROADMAP.md)
 
 ## Development
 
 ```bash
-make test             # go test -v ./...
+make test             # go test ./... (needs Docker: tests run on a real PostgreSQL)
 make lint             # golangci-lint
-cd frontend && npm run type-check && npm test
+cd frontend && npm run lint && npm test && npm run type-check
 cd docreader && uv sync && pytest tests/
 cd cli && make build && make test
 ```
 
-## Security
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow and conventions, and
+follow the [code of conduct](./CODE_OF_CONDUCT.md). Report security issues
+privately as described in [`SECURITY.md`](./SECURITY.md).
 
-- All credentials (API keys, data-source tokens, MCP secrets) are encrypted
-  with AES-256-GCM at rest.
-- Outbound HTTP from data sources and URL import goes through an SSRF-safe
-  client with allow-listing.
-- Never commit `.env`; replace the placeholder secrets in `.env.example` before
-  any real deployment. Internal-network deployment is recommended for
-  production — see the [installation guide](./website-docs/en/01-getting-started/02-installation.md).
+## Security notes
 
-## Contributing
+- Credentials (API keys, data-source tokens, …) are encrypted at rest with
+  AES-256-GCM; the server refuses to start with a missing or example key.
+- Outbound requests of data sources and URL imports go through SSRF protection
+  and an allow-list.
+- Login and registration are rate-limited per IP and repeated failures lock the
+  account; CORS does not allow credentials by default.
+- Never commit `.env`. For production, deploy on an internal network; see the
+  [installation guide](./website-docs/en/01-getting-started/02-installation.md).
 
-Bug reports, fixes and improvements are welcome; read
-[`CONTRIBUTING.md`](./CONTRIBUTING.md) first, and note the
-[code of conduct](./CODE_OF_CONDUCT.md).
+## Acknowledgements
 
-## Attribution
-
-Yuheng is derived in part from the [WeKnora](https://github.com/Tencent/WeKnora)
-project, MIT-licensed upstream code is used with notice — see
-[`NOTICE`](./NOTICE), [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md), and
+Yuheng is partly derived from [WeKnora](https://github.com/Tencent/WeKnora) by
+Tencent; the upstream MIT code is used as declared in [`NOTICE`](./NOTICE),
+[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) and
 [`licenses/upstream-weknora/`](./licenses/upstream-weknora/). <!-- license-check: attribution -->
+The lettering of the logo is Noto Serif CJK (SIL Open Font License 1.1),
+converted to outlines.
 
 ## License
 
 [MIT](./LICENSE). The license covers the code; the names Yuheng and 玉衡 and the
-project's logos are not licensed for use as the name of a modified product — see
+project's marks are not licensed as the name of a modified product — see
 [`TRADEMARK.md`](./TRADEMARK.md).
