@@ -141,7 +141,7 @@ func secretTenantFixture() *types.Tenant {
 		ID:   42,
 		Name: "tenant",
 		WebSearchConfig: &types.WebSearchConfig{
-			APIKey: "legacy-search-secret-999",
+			ProxyURL: "http://proxy-user:proxy-secret@proxy.internal:8080",
 		},
 		ParserEngineConfig: &types.ParserEngineConfig{
 			MinerUAPIKey: "parser-secret-123",

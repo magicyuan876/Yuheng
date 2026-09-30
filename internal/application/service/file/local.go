@@ -104,15 +104,13 @@ func (s *localFileService) SaveFile(ctx context.Context,
 	return localScheme + filepath.ToSlash(relPath), nil
 }
 
-// GetFile retrieves a file from the local file system by its path
-// Returns a ReadCloser for reading the file content
-// Supports both provider scheme: local://{relative_path} and legacy absolute paths.
+// GetFile retrieves a file from the local file system by its local:// path.
+// Returns a ReadCloser for reading the file content.
 // 路径必须在 baseDir 下，防止路径遍历（如 ../../）
 func (s *localFileService) GetFile(ctx context.Context, filePath string) (io.ReadCloser, error) {
 	logger.Infof(ctx, "Getting file: %s", filePath)
 
-	candidate := s.normalizePathForBase(filePath)
-	resolved, err := secutils.SafePathUnderBase(s.baseDir, candidate)
+	resolved, err := s.resolvePath(filePath)
 	if err != nil {
 		logger.Errorf(ctx, "Path traversal denied for GetFile: %v", err)
 		return nil, fmt.Errorf("invalid file path: %w", err)
@@ -137,8 +135,7 @@ func (s *localFileService) GetFile(ctx context.Context, filePath string) (io.Rea
 func (s *localFileService) DeleteFile(ctx context.Context, filePath string) error {
 	logger.Infof(ctx, "Deleting file: %s", filePath)
 
-	candidate := s.normalizePathForBase(filePath)
-	resolved, err := secutils.SafePathUnderBase(s.baseDir, candidate)
+	resolved, err := s.resolvePath(filePath)
 	if err != nil {
 		logger.Errorf(ctx, "Path traversal denied for DeleteFile: %v", err)
 		return fmt.Errorf("invalid file path: %w", err)
@@ -161,16 +158,14 @@ func (s *localFileService) DeleteFile(ctx context.Context, filePath string) erro
 func (s *localFileService) CopyFile(ctx context.Context,
 	srcPath string, tenantID uint64, knowledgeID string,
 ) (string, error) {
-	// Only local paths are accepted. A provider scheme other than local://
-	// (e.g. s3://) means a cross-backend copy, which this service
-	// does not support. Legacy bare/absolute paths have no scheme and pass.
+	// A provider scheme other than local:// (e.g. s3://) means a
+	// cross-backend copy, which this service does not support.
 	if i := strings.Index(srcPath, "://"); i >= 0 && srcPath[:i+3] != localScheme {
 		return "", fmt.Errorf("local file service cannot copy %q: %w", srcPath, ErrCrossBackendCopy)
 	}
 
 	// Validate and resolve the source path under baseDir (same guard as GetFile).
-	srcCandidate := s.normalizePathForBase(srcPath)
-	srcResolved, err := secutils.SafePathUnderBase(s.baseDir, srcCandidate)
+	srcResolved, err := s.resolvePath(srcPath)
 	if err != nil {
 		logger.Errorf(ctx, "Path traversal denied for CopyFile src: %v", err)
 		return "", fmt.Errorf("invalid source path: %w", err)
@@ -250,19 +245,13 @@ func (s *localFileService) SaveBytes(ctx context.Context, data []byte, tenantID 
 
 // GetFileURL returns a download URL for the file.
 // When externalURL is configured, returns a presigned HTTP URL suitable for external access.
-// Otherwise returns the local://... path for backward compatibility.
+// Otherwise returns the local:// path itself: without an externally reachable
+// address there is no URL to sign, and callers resolve local:// through the
+// file-serving routes.
 func (s *localFileService) GetFileURL(ctx context.Context, filePath string) (string, error) {
-	// Normalize to provider:// format.
-	normalized := filePath
 	if !strings.HasPrefix(filePath, localScheme) {
-		relPath, err := filepath.Rel(s.baseDir, filePath)
-		if err != nil {
-			normalized = filePath
-		} else {
-			normalized = localScheme + filepath.ToSlash(relPath)
-		}
+		return "", fmt.Errorf("not a %s path: %q", localScheme, filePath)
 	}
-
 	// If external URL is configured, generate a presigned HTTP URL.
 	if s.externalURL != "" {
 		// Tenant ID is parsed from the storage path, which encodes the
@@ -270,44 +259,25 @@ func (s *localFileService) GetFileURL(ctx context.Context, filePath string) (str
 		// /api/v1/files/presigned uses this ID to look up the owning
 		// tenant's StorageEngineConfig — using the caller's tenant would
 		// break cross-tenant shared resources (e.g. shared KB images).
-		tenantID := secutils.ParseTenantIDFromStoragePath(normalized)
-		presignedURL, err := secutils.SignFileURL(s.externalURL, normalized, tenantID, 0)
+		tenantID := secutils.ParseTenantIDFromStoragePath(filePath)
+		presignedURL, err := secutils.SignFileURL(s.externalURL, filePath, tenantID, 0)
 		if err != nil {
-			logger.Warnf(ctx, "Failed to generate presigned URL for %s: %v, returning local:// path", normalized, err)
-			return normalized, nil
+			logger.Warnf(ctx, "Failed to generate presigned URL for %s: %v, returning local:// path", filePath, err)
+			return filePath, nil
 		}
 		return presignedURL, nil
 	}
 
-	return normalized, nil
+	return filePath, nil
 }
 
-// normalizePathForBase keeps backward compatibility for legacy file paths:
-// - provider scheme: "local://tenant/.." → baseDir/tenant/..
-// - absolute path: "/data/files/tenant/.."
-// - path under base dir: "tenant/.."
-// - legacy relative with base prefix: "data/files/tenant/.."
-func (s *localFileService) normalizePathForBase(filePath string) string {
-	// Handle provider:// format: local://{relPath}
-	if strings.HasPrefix(filePath, localScheme) {
-		relPath := strings.TrimPrefix(filePath, localScheme)
-		return filepath.Join(s.baseDir, filepath.FromSlash(relPath))
+// resolvePath maps a local://{relative_path} storage path onto the file
+// system, refusing anything that is not a local:// path or that would escape
+// baseDir (e.g. local://../../etc/passwd).
+func (s *localFileService) resolvePath(filePath string) (string, error) {
+	relPath, ok := strings.CutPrefix(filePath, localScheme)
+	if !ok {
+		return "", fmt.Errorf("not a %s path: %q", localScheme, filePath)
 	}
-
-	clean := filepath.Clean(strings.TrimSpace(filePath))
-	if clean == "." || clean == "" {
-		return clean
-	}
-	if filepath.IsAbs(clean) {
-		return clean
-	}
-
-	// Strip duplicated base prefix in legacy relative paths, e.g. "data/files/..."
-	baseClean := filepath.Clean(s.baseDir)
-	baseNoSlash := strings.Trim(baseClean, string(filepath.Separator))
-	cleanNoDot := strings.TrimPrefix(clean, "."+string(filepath.Separator))
-	if strings.HasPrefix(cleanNoDot, baseNoSlash+string(filepath.Separator)) {
-		cleanNoDot = strings.TrimPrefix(cleanNoDot, baseNoSlash+string(filepath.Separator))
-	}
-	return filepath.Join(baseClean, cleanNoDot)
+	return secutils.SafePathUnderBase(s.baseDir, filepath.Join(s.baseDir, filepath.FromSlash(relPath)))
 }

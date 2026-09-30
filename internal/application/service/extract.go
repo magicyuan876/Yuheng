@@ -242,8 +242,8 @@ func (s *ChunkExtractService) Handle(ctx context.Context, t *asynq.Task) error {
 
 	// Open a postprocess subspan keyed by chunk ordinal so the trace
 	// shows real per-chunk graph extraction time. Skipped silently when
-	// upstream didn't pass the parent attempt (legacy in-flight tasks)
-	// or when the postprocess stage span isn't found.
+	// upstream had no parent attempt to pass or when the postprocess
+	// stage span isn't found.
 	var gSpan *Span
 	if p.KnowledgeID != "" && p.Attempt > 0 {
 		parent := s.tracker().LookupStage(ctx, p.KnowledgeID, p.Attempt, types.StagePostProcess)
@@ -263,8 +263,7 @@ func (s *ChunkExtractService) Handle(ctx context.Context, t *asynq.Task) error {
 	defer func() {
 		// Decrement the parent's enrichment counter on terminal exit so a
 		// completed (or terminally-failed) per-chunk extract releases its
-		// slot in pending_subtasks_count. KnowledgeID is the new (post-#? )
-		// payload field; legacy in-flight tasks without it are skipped.
+		// slot in pending_subtasks_count.
 		finalizeSubtaskDetached(ctx, s.knowledgeRepo, p.KnowledgeID,
 			fmt.Sprintf("graph_chunk[%d]", p.ChunkIndex),
 			handleErr, false, isFinalAsynqAttempt(ctx))

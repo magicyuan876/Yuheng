@@ -24,9 +24,10 @@ import (
 )
 
 // Pattern matches every internal storage reference form: `resource://` handles,
-// legacy `provider://` paths, and canonical `storage://<backend-id>/provider://`
-// paths. The trailing character class stops at Markdown/HTML delimiters so a
-// reference inside `![alt](…)` or `src="…"` is matched without them.
+// bare `provider://` paths (what a file service without a backend binding
+// returns), and canonical `storage://<backend-id>/provider://` paths. The
+// trailing character class stops at Markdown/HTML delimiters so a reference
+// inside `![alt](…)` or `src="…"` is matched without them.
 var Pattern = regexp.MustCompile(
 	`\b(?:resource://[0-9A-Za-z_-]+|` +
 		`(?:storage://[0-9A-Za-z_-]+/)?` +

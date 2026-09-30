@@ -88,8 +88,9 @@ func TaskInitiatorFromContext(ctx context.Context) TaskInitiator {
 	return TaskInitiator{UserID: userID, Role: TenantRoleFromContext(ctx)}
 }
 
-// Apply restores a captured task initiator onto a worker context. Empty or
-// legacy payloads are a no-op and therefore retain the system-task fallback.
+// Apply restores a captured task initiator onto a worker context. An empty
+// initiator (a system-triggered task) is a no-op, so the worker keeps the
+// system-task identity.
 func (i TaskInitiator) Apply(ctx context.Context) context.Context {
 	if i.UserID == "" {
 		return ctx

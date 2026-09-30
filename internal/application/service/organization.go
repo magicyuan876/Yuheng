@@ -317,20 +317,15 @@ func (s *organizationService) JoinByOrganizationID(ctx context.Context, orgID st
 	return org, nil
 }
 
-// DeleteOrganization deletes an organization. Post-Plan-3 the gate is
-// tenant-keyed: the caller's tenant must be the persisted owner tenant
-// (org.OwnerTenantID, set on creation by migration 000046). For legacy
-// rows where OwnerTenantID is still 0 we fall back to the old user-level
-// rule so pre-backfill orgs remain deletable by their original creator.
+// DeleteOrganization deletes an organization. The gate is tenant-keyed: the
+// caller's tenant must be the persisted owner tenant (org.OwnerTenantID).
 func (s *organizationService) DeleteOrganization(ctx context.Context, id string, userID string, tenantID uint64) error {
 	org, err := s.orgRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	isOwnerTenant := org.OwnerTenantID != 0 && org.OwnerTenantID == tenantID
-	isLegacyOwnerUser := org.OwnerTenantID == 0 && org.OwnerID == userID
-	if !isOwnerTenant && !isLegacyOwnerUser {
+	if !s.isOwnerTenant(ctx, org, tenantID) {
 		return ErrOrgPermissionDenied
 	}
 
@@ -383,9 +378,8 @@ func (s *organizationService) RemoveTenantMember(ctx context.Context, orgID stri
 	if err != nil {
 		return err
 	}
-	// Owner-tenant is the persisted org.OwnerTenantID (Plan 3 / migration
-	// 000046). isOwnerTenant fails-closed on legacy zero values, so this
-	// is also the right gate for orgs created before the backfill.
+	// The owner tenant (org.OwnerTenantID) may never be removed: the
+	// organization would be left without anyone entitled to administer it.
 	if s.isOwnerTenant(ctx, org, memberTenantID) {
 		return ErrCannotRemoveOwner
 	}
@@ -570,29 +564,13 @@ func (s *organizationService) GetTenantRoleInOrg(ctx context.Context, orgID stri
 }
 
 // isOwnerTenant returns true when the given tenant is the org's owning
-// tenant, i.e. the tenant the creator was in when CreateOrganization
-// ran. Plan 3 (#1303, migration 000046) persists this on the org row
-// itself; we no longer derive it from owner.user.TenantID at request
-// time, so the answer is stable even if the owner user later switches
-// tenants or is soft-deleted.
-//
-// Fail-closed semantics: when org.OwnerTenantID is zero (e.g. legacy
-// row that pre-dates migration 000046, or a unit test that bypassed
-// the migration), every tenant is treated AS IF it were the owner —
-// effectively freezing the membership table for that org until an
-// operator backfills the column. This is the conservative choice
-// because the alternative (treat as "no owner") would let any tenant
-// be removed including the real one, with no recovery path. The
-// production migration aborts on any unresolved orphan, so this branch
-// should be unreachable outside of tests.
+// tenant, i.e. the tenant the creator was in when CreateOrganization ran.
+// It is pinned on the org row (organizations.owner_tenant_id, NOT NULL)
+// rather than derived from the owner user's current tenant, so the answer
+// is stable even if the owner user later switches tenants or is
+// soft-deleted.
 func (s *organizationService) isOwnerTenant(_ context.Context, org *types.Organization, tenantID uint64) bool {
-	if org == nil {
-		return false
-	}
-	if org.OwnerTenantID == 0 {
-		return true
-	}
-	return org.OwnerTenantID == tenantID
+	return org != nil && org.OwnerTenantID == tenantID
 }
 
 // generateInviteCode generates a random 16-character invite code

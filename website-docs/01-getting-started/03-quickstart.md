@@ -94,30 +94,31 @@ AUTH="Authorization: Bearer $TOKEN"
 KB_ID=$(curl -s -X POST $BASE/knowledge-bases -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"name":"我的知识库","description":"demo","type":"document"}' | jq -r '.data.id')
 
-# 4) 初始化知识库（以本地 Ollama 为例；远程模型改 source/baseUrl/apiKey）
-curl -s -X POST $BASE/initialization/initialize/$KB_ID -H "$AUTH" -H "Content-Type: application/json" -d '{
-  "llm":       {"source":"local","modelName":"qwen3:8b"},
-  "embedding": {"source":"local","modelName":"bge-m3","dimension":1024},
-  "rerank":    {"enabled":false},
-  "multimodal":{"enabled":false},
-  "documentSplitting":{"chunkSize":512,"chunkOverlap":50,"separators":["\n\n","\n","。"]},
-  "nodeExtract":{"enabled":false},
-  "questionGeneration":{"enabled":false}}'
+# 4) 注册模型（以本地 Ollama 为例；远程模型改 source，并在 parameters 里给 base_url / api_key）
+LLM_ID=$(curl -s -X POST $BASE/models -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"qwen3:8b","type":"KnowledgeQA","source":"local","parameters":{}}' | jq -r '.data.id')
+EMB_ID=$(curl -s -X POST $BASE/models -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"bge-m3","type":"Embedding","source":"local","parameters":{"embedding_parameters":{"dimension":1024}}}' | jq -r '.data.id')
 
-# 5) 上传文档（multipart，字段名 file）
+# 5) 给知识库配置模型与分块
+curl -s -X PUT $BASE/initialization/config/$KB_ID -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "llmModelId":"'$LLM_ID'","embeddingModelId":"'$EMB_ID'",
+  "documentSplitting":{"chunkSize":512,"chunkOverlap":50,"separators":["\n\n","\n","。"]}}'
+
+# 6) 上传文档（multipart，字段名 file）
 curl -s -X POST $BASE/knowledge-bases/$KB_ID/knowledge/file -H "$AUTH" \
   -F "file=@./demo.pdf"
 # 轮询解析状态：GET /knowledge-bases/$KB_ID/knowledge 直到 parse_status=completed
 
-# 6) 创建会话
+# 7) 创建会话
 SESSION_ID=$(curl -s -X POST $BASE/sessions -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"title":"第一次对话"}' | jq -r '.data.id')
 
-# 7) 知识问答（SSE 流式输出）
+# 8) 知识问答（SSE 流式输出）
 curl -N -X POST $BASE/knowledge-chat/$SESSION_ID -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"这份文档讲了什么？","knowledge_base_ids":["'$KB_ID'"]}'
 
-# 8) 仅检索不生成（结构化 JSON 结果）
+# 9) 仅检索不生成（结构化 JSON 结果）
 curl -s -X POST $BASE/knowledge-search -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"关键字","knowledge_base_ids":["'$KB_ID'"]}'
 ```
@@ -153,9 +154,9 @@ curl -s $BASE/knowledge-bases -H "X-API-Key: <创建时返回的 key>"
 | 下载 Ollama 模型 | `POST /api/v1/initialization/ollama/models/download` → `GET /api/v1/initialization/ollama/download/progress/:taskId` | 异步下载并轮询进度 |
 | 测试远程模型 | `POST /api/v1/initialization/remote/check`、`/initialization/embedding/test`、`/initialization/rerank/check`、`/initialization/asr/check`、`/initialization/multimodal/test` | 保存前连通性验证 |
 | 知识图谱试抽取 | `POST /api/v1/initialization/extract/text-relation`（配 `fabri-text` / `fabri-tag` 生成示例） | 预览实体/关系抽取效果 |
-| 保存配置 | `POST /api/v1/initialization/initialize/:kbId`（首次）/ `PUT /api/v1/initialization/config/:kbId`（更新） | 落库：创建/更新 Model 记录并写入 KnowledgeBase 配置 |
+| 保存配置 | `POST /api/v1/models`（注册模型）→ `PUT /api/v1/initialization/config/:kbId` | 先建 Model 记录，再把模型 ID 与分块等配置写入 KnowledgeBase |
 
-`source` 取 `local`（Ollama）或远程厂商标识（`openai`、`deepseek`、`aliyun`、`zhipu`、`siliconflow` 等）。`chunkSize` 合法范围 100–10000。
+模型的 `source` 取 `local`（Ollama）或远程厂商标识（`openai`、`deepseek`、`aliyun`、`zhipu`、`siliconflow` 等）。
 
 ### 整条链路发生了什么
 
@@ -172,7 +173,7 @@ sequenceDiagram
     FE->>APP: POST /api/v1/auth/register → login
     APP-->>FE: JWT + 自动创建的工作空间
     U->>APP: POST /api/v1/knowledge-bases (创建知识库)
-    U->>APP: POST /api/v1/initialization/initialize/:kbId (配置模型)
+    U->>APP: PUT /api/v1/initialization/config/:kbId (配置模型)
     APP->>LLM: 连通性测试 (remote/check, embedding/test)
     U->>APP: POST /api/v1/knowledge-bases/:id/knowledge/file (上传)
     APP->>DR: gRPC 解析文档 (OCR / 版式 / 图片)

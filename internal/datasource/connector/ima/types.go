@@ -253,13 +253,9 @@ type getDocContentResp struct {
 // Only items that were successfully synced (or deterministically skipped)
 // this cycle are recorded, so a transient download failure leaves the key
 // absent and the next run retries it instead of treating it as unchanged.
-//
-// KBMedia is a legacy field retained only so cursors persisted by earlier
-// builds still deserialize; it is never written or consulted.
 type imaCursor struct {
 	LastSyncTime time.Time                    `json:"last_sync_time"`
 	KBLogical    map[string]map[string]string `json:"kb_logical,omitempty"`
-	KBMedia      map[string]map[string]string `json:"kb_media,omitempty"`
 }
 
 // logicalKey derives a stable identity for an IMA item that survives

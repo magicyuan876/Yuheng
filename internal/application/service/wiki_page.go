@@ -257,7 +257,7 @@ func revisionFromPage(p *types.WikiPage) *types.WikiPageRevision {
 
 // pruneRevisions bounds one page's snapshot history after it advanced to
 // currentVersion. Machine-authored snapshots are dropped once they fall out
-// of the recent window; user, revert and legacy agent ones survive until the hard cap,
+// of the recent window; user and revert ones survive until the hard cap,
 // so pipeline churn on a hot page cannot evict the edits users care about.
 func (s *wikiPageService) pruneRevisions(ctx context.Context, pageID string, currentVersion int) {
 	req := types.WikiRevisionPruneRequest{
@@ -422,14 +422,18 @@ func (s *wikiPageService) DeletePage(ctx context.Context, kbID string, slug stri
 	return nil
 }
 
+// defaultWikiIndexContent is the placeholder a new index page starts with.
+// Ingest recognizes it (see rebuildIndexPage) as "no intro written yet".
+const defaultWikiIndexContent = "# Wiki Index\n\n" +
+	"This is the index page. It will be automatically updated as pages are added.\n"
+
 // GetIndex returns the index page for a knowledge base
 func (s *wikiPageService) GetIndex(ctx context.Context, kbID string) (*types.WikiPage, error) {
 	page, err := s.repo.GetBySlug(ctx, kbID, "index")
 	if err != nil {
 		if errors.Is(err, repository.ErrWikiPageNotFound) {
 			// Create default index page
-			return s.createDefaultPage(ctx, kbID, "index", "Index", types.WikiPageTypeIndex,
-				"# Wiki Index\n\nThis is the index page. It will be automatically updated as pages are added.\n")
+			return s.createDefaultPage(ctx, kbID, "index", "Index", types.WikiPageTypeIndex, defaultWikiIndexContent)
 		}
 		return nil, err
 	}

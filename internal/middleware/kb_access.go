@@ -171,10 +171,10 @@ func KBIDFromChunkIDParam(param string, chunkService ChunkLookup) KBIDResolver {
 			return "", apperrors.NewNotFoundError("Chunk not found")
 		}
 		if ch.KnowledgeBaseID == "" {
-			// Should-never-happen on a fresh schema; on legacy rows the
-			// chunk effectively isn't resolvable to a KB so the client
-			// gets the same 404 they'd get for a missing chunk rather
-			// than a 500 that pollutes alerting.
+			// Should never happen: every writer sets the KB. If it does,
+			// the chunk isn't resolvable to a KB, so the client gets the
+			// same 404 they'd get for a missing chunk rather than a 500
+			// that pollutes alerting.
 			logger.Warnf(c.Request.Context(),
 				"[kb_access] chunk %s has empty knowledge_base_id; treating as not-found", v)
 			return "", apperrors.NewNotFoundError("Chunk not found")

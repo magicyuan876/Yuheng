@@ -39,7 +39,7 @@ func (s *sessionService) resolveKnowledgeBases(
 }
 
 // resolveChatModelID resolves the effective chat model ID for a QA request.
-// A request-level override may choose a valid model; otherwise the legacy
+// A request-level override may choose a valid model; otherwise the
 // KB / session / system fallback chain is used.
 func (s *sessionService) resolveChatModelID(
 	ctx context.Context,

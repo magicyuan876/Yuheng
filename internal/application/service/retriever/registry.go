@@ -31,7 +31,7 @@ const rebuildCooldown = 30 * time.Second
 
 // RetrieveEngineRegistry implements the retrieval engine registry.
 // It maintains two maps:
-//   - byEngineType: env stores registered via RETRIEVE_DRIVER (backward compatible)
+//   - byEngineType: the deployment's env-configured stores (RETRIEVE_DRIVER)
 //   - byStoreID: DB stores registered via VectorStore table (instance-based)
 //
 // Implements both interfaces.RetrieveEngineRegistry and interfaces.StoreRegistry.
@@ -162,20 +162,6 @@ func (r *RetrieveEngineRegistry) GetRetrieveEngineService(repoType types.Retriev
 	}
 
 	return repo, nil
-}
-
-// GetAllRetrieveEngineServices retrieves all registered retrieval engine services.
-// Only returns byEngineType entries (env stores) for backward compatibility.
-func (r *RetrieveEngineRegistry) GetAllRetrieveEngineServices() []interfaces.RetrieveEngineService {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make([]interfaces.RetrieveEngineService, 0, len(r.byEngineType))
-	for _, v := range r.byEngineType {
-		result = append(result, v)
-	}
-
-	return result
 }
 
 // --- interfaces.StoreRegistry methods (new, for VectorStore-based engines) ---

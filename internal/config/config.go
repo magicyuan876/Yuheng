@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -201,8 +200,8 @@ type TenantConfig struct {
 // active. Nil receiver or nil EnableRBAC pointer means "operator did
 // not opt out", which after applyAuthAndTenantDefaults is the new
 // default (true). Callers that need to treat a nil *Config as
-// fail-open (legacy behaviour) should keep their own `cfg != nil`
-// short-circuit before invoking this helper.
+// fail-open should keep their own `cfg != nil` short-circuit before
+// invoking this helper.
 func (t *TenantConfig) IsRBACEnforced() bool {
 	if t == nil || t.EnableRBAC == nil {
 		return true
@@ -533,7 +532,6 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	warnLegacyEnvPrefix()
 	cfg.Docs = loadDocsConfig()
 	findings, err := loadFindingsConfig()
 	if err != nil {
@@ -560,51 +558,6 @@ func LoadConfig() (*Config, error) {
 	)
 
 	return &cfg, nil
-}
-
-// legacyEnvPrefix is the prefix every environment variable carried in the
-// upstream project Yuheng was forked from (Tencent WeKnora).
-const legacyEnvPrefix = "WEKNORA_" // license-check: attribution
-
-// warnLegacyEnvPrefix shouts when a deployment still carries variables with
-// the upstream prefix.
-//
-// This project renamed every environment variable from the prefix it
-// inherited from its upstream to YUHENG_. Nothing reads the old names any more,
-// so a stale .env does not fail — it silently falls back to defaults, which is
-// far worse than an error (RBAC quietly off, concurrency quietly wrong). One
-// loud line at startup turns that silence into something an operator can see.
-// Printf rather than logger: LoadConfig runs before the logger sink is wired.
-//
-// It once looked for the YUHENG_ prefix itself — the rename rewrote this check
-// along with everything else — and so warned every correctly configured
-// deployment that its settings were ignored.
-func warnLegacyEnvPrefix() {
-	stale := legacyEnvNames(os.Environ())
-	if len(stale) == 0 {
-		return
-	}
-	fmt.Printf(
-		"[config] WARNING: %d environment variable(s) with the old %s prefix are set and IGNORED: %s\n"+
-			"[config]          rename the prefix to YUHENG_ (see .env.example) or these settings do nothing.\n",
-		len(stale), legacyEnvPrefix, strings.Join(stale, ", "),
-	)
-}
-
-// legacyEnvNames returns, sorted, the names in environ ("NAME=value" pairs)
-// that carry the upstream prefix.
-func legacyEnvNames(environ []string) []string {
-	var stale []string
-	for _, kv := range environ {
-		if !strings.HasPrefix(kv, legacyEnvPrefix) {
-			continue
-		}
-		if name, _, ok := strings.Cut(kv, "="); ok {
-			stale = append(stale, name)
-		}
-	}
-	sort.Strings(stale)
-	return stale
 }
 
 // ValidateConfig performs basic validation of the loaded configuration.
@@ -819,10 +772,10 @@ func applyAuthAndTenantDefaults(cfg *Config) {
 		cfg.Tenant = &TenantConfig{}
 	}
 
-	switch legacy := strings.TrimSpace(os.Getenv("DISABLE_REGISTRATION")); {
-	case strings.EqualFold(legacy, "true"):
+	switch disable := strings.TrimSpace(os.Getenv("DISABLE_REGISTRATION")); {
+	case strings.EqualFold(disable, "true"):
 		overrideRegistrationMode(cfg, "DISABLE_REGISTRATION=true", AuthRegistrationModeInviteOnly)
-	case strings.EqualFold(legacy, "false"):
+	case strings.EqualFold(disable, "false"):
 		overrideRegistrationMode(cfg, "DISABLE_REGISTRATION=false", AuthRegistrationModeSelfServe)
 	}
 

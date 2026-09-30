@@ -32,7 +32,8 @@ var ErrResourceNotFound = errors.New("rbac: resource not found")
 //   - (creatorID, nil) where creatorID != ""  -> the resource has a
 //     recorded owner; ownership match grants access.
 //   - ("", nil)                                -> "tenant-owned": no
-//     human creator was recorded (legacy row or built-in resource);
+//     human creator was recorded (built-in resource, or one created
+//     through an API key);
 //     only callers whose role meets the bar may proceed.
 //   - ("", ErrResourceNotFound)                -> the :id does not
 //     resolve to any row visible to this caller's tenant. Middleware
@@ -416,7 +417,7 @@ func EvaluateOwnershipOrRole(
 	// is a human concept that never applies to a machine principal, so
 	// short-circuit here — exactly as RequireOwnershipOrRole does for the
 	// middleware form. Without this, a scoped key (synthesized as Viewer for
-	// legacy-guard compatibility) would be 403'd by the body-carried-KB
+	// the role-reading guards) would be 403'd by the body-carried-KB
 	// ownership checks even though the gate + allow-list already admitted it.
 	if _, ok := types.TenantAPIKeyScopeFromContext(ctx); ok {
 		return nil

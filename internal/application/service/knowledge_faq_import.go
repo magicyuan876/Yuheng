@@ -1733,17 +1733,15 @@ func (s *knowledgeService) getRunningFAQImportInfo(ctx context.Context, kbID str
 		return nil, fmt.Errorf("failed to get running FAQ import task: %w", err)
 	}
 
-	// Try to parse as JSON first (new format)
 	var info runningFAQImportInfo
 	if err := json.Unmarshal([]byte(data), &info); err != nil {
-		// Fallback: old format was just taskID string
-		return &runningFAQImportInfo{TaskID: data, EnqueuedAt: 0}, nil
+		return nil, fmt.Errorf("failed to decode running FAQ import task: %w", err)
 	}
 	return &info, nil
 }
 
 // getRunningFAQImportTaskID checks if there's a running FAQ import task for the given KB
-// Returns the task ID if found, empty string otherwise (for backward compatibility)
+// Returns the task ID if found, empty string otherwise.
 func (s *knowledgeService) getRunningFAQImportTaskID(ctx context.Context, kbID string) (string, error) {
 	info, err := s.getRunningFAQImportInfo(ctx, kbID)
 	if err != nil {

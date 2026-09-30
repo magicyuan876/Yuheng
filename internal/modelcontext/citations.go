@@ -15,12 +15,11 @@ const sourceHandleProtocolPrompt = `
 
 ## Source handling protocol (system-owned)
 Retrieved content uses request-local source handles: cN identifies a knowledge chunk, wN a web page, dN a document, and bN a knowledge base.
-- Use dN and bN only as tool arguments when a tool requests a document or knowledge base.
 - Never reveal raw chunk IDs, knowledge IDs, knowledge-base IDs, or private source handles in user-visible output. This does not change separate instructions to preserve retrieved Markdown image URLs.`
 
 const citationEnabledProtocolPrompt = `
 - Source citations are enabled for this answer. Cite a knowledge chunk with exactly <ref id="cN"/> and a web page with exactly <ref id="wN"/>.
-- Copy only cN/wN handles that appeared in supplied context or tool results. Never cite dN/bN.
+- Copy only cN/wN handles that appeared in supplied context. Never cite dN/bN.
 - Never output <kb> or <web> tags yourself; the system expands valid <ref/> tags after generation.
 - Keep each <ref/> inline on the same line as the claim it supports. Do not group citations at the end.
 - These rules supersede earlier, saved, or custom prompt instructions about citation syntax.`
@@ -48,36 +47,14 @@ func (r *sourceRegistry) ProtocolPrompt() string {
 }
 
 var (
-	publicKBTagRE        = regexp.MustCompile(`(?is)<kb\b[^>]*>`)
-	publicWebTagRE       = regexp.MustCompile(`(?is)<web\b[^>]*>`)
-	docAttrRE            = regexp.MustCompile(`(?i)\bdoc\s*=\s*"([^"]*)"`)
-	chunkAttrRE          = regexp.MustCompile(`(?i)\bchunk_id\s*=\s*"([^"]+)"`)
-	publicKBAttrRE       = regexp.MustCompile(`(?i)\bkb_id\s*=\s*"([^"]*)"`)
-	urlAttrRE            = regexp.MustCompile(`(?i)\burl\s*=\s*"([^"]+)"`)
-	titleAttrRE          = regexp.MustCompile(`(?i)\btitle\s*=\s*"([^"]*)"`)
-	legacyChunkRE        = regexp.MustCompile(`(?is)<(?:chunk|faq)\b[^>]*>`)
-	faqAttrRE            = regexp.MustCompile(`(?i)\bfaq_id\s*=\s*"([^"]+)"`)
-	knowledgeTitleAttrRE = regexp.MustCompile(`(?i)\bknowledge_title\s*=\s*"([^"]*)"`)
+	publicKBTagRE  = regexp.MustCompile(`(?is)<kb\b[^>]*>`)
+	publicWebTagRE = regexp.MustCompile(`(?is)<web\b[^>]*>`)
+	docAttrRE      = regexp.MustCompile(`(?i)\bdoc\s*=\s*"([^"]*)"`)
+	chunkAttrRE    = regexp.MustCompile(`(?i)\bchunk_id\s*=\s*"([^"]+)"`)
+	publicKBAttrRE = regexp.MustCompile(`(?i)\bkb_id\s*=\s*"([^"]*)"`)
+	urlAttrRE      = regexp.MustCompile(`(?i)\burl\s*=\s*"([^"]+)"`)
+	titleAttrRE    = regexp.MustCompile(`(?i)\btitle\s*=\s*"([^"]*)"`)
 )
-
-func (r *sourceRegistry) registerLegacyToolReferences(text string) {
-	if r == nil || text == "" {
-		return
-	}
-	r.registerLabeledReferences(text)
-	for _, tag := range legacyChunkRE.FindAllString(text, -1) {
-		chunkID := firstNonEmpty(publicAttr(chunkAttrRE, tag), publicAttr(faqAttrRE, tag))
-		if chunkID == "" {
-			continue
-		}
-		r.RegisterChunk(ChunkReference{
-			ChunkID:         chunkID,
-			KnowledgeID:     publicAttr(documentAttrRE, tag),
-			KnowledgeBaseID: firstNonEmpty(publicAttr(kbAttrRE, tag), publicAttr(publicKBAttrRE, tag)),
-			DocumentTitle:   firstNonEmpty(publicAttr(knowledgeTitleAttrRE, tag), publicAttr(docAttrRE, tag)),
-		})
-	}
-}
 
 // CompactPublicCitations folds canonical citations from prior assistant turns
 // back into this request's private protocol. This prevents durable chunk IDs
@@ -122,36 +99,6 @@ var (
 	modelKBTagRE   = regexp.MustCompile(`(?is)<kb(?:\s|$)[^>]*(?:>|$)`)
 	modelWebTagRE  = regexp.MustCompile(`(?is)<web(?:\s|$)[^>]*(?:>|$)`)
 )
-
-var (
-	documentAttrRE    = regexp.MustCompile(`(?i)\bknowledge_id\s*=\s*"([^"]+)"`)
-	documentElementRE = regexp.MustCompile(`(?is)<knowledge_id>\s*([^<]+?)\s*</knowledge_id>`)
-	kbAttrRE          = regexp.MustCompile(`(?i)\b(?:knowledge_base_id|kb_id)\s*=\s*"([^"]+)"`)
-	kbElementRE       = regexp.MustCompile(`(?is)<(?:knowledge_base_id|kb_id)>\s*([^<]+?)\s*</(?:knowledge_base_id|kb_id)>`)
-)
-
-// registerLabeledReferences covers metadata-oriented tools that do not have a
-// dedicated compact renderer. Only explicit ID labels are recognized; UUID-like
-// text in retrieved content is never guessed to be a source identifier.
-func (r *sourceRegistry) registerLabeledReferences(text string) {
-	if r == nil || text == "" {
-		return
-	}
-	for _, expression := range []*regexp.Regexp{documentAttrRE, documentElementRE} {
-		for _, match := range expression.FindAllStringSubmatch(text, -1) {
-			if len(match) == 2 {
-				r.RegisterDocument(strings.TrimSpace(match[1]))
-			}
-		}
-	}
-	for _, expression := range []*regexp.Regexp{kbAttrRE, kbElementRE} {
-		for _, match := range expression.FindAllStringSubmatch(text, -1) {
-			if len(match) == 2 {
-				r.RegisterKnowledgeBase(strings.TrimSpace(match[1]))
-			}
-		}
-	}
-}
 
 // ExpandText converts the private model protocol into the existing public
 // <kb/> / <web/> contract. Unknown handles fail closed and disappear.

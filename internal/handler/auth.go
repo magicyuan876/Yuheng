@@ -38,8 +38,8 @@ type AuthHandler struct {
 	configInfo       *config.Config
 	systemSettingSvc interfaces.SystemSettingService
 	// invitationSvc is required for the share-link registration path
-	// (POST /auth/register-by-invite). When nil — e.g. legacy test
-	// fixtures — the share-link endpoints respond 503 rather than
+	// (POST /auth/register-by-invite). When nil — e.g. test fixtures
+	// that do not wire it — the share-link endpoints respond 503 rather than
 	// blocking the rest of the auth surface.
 	invitationSvc interfaces.TenantInvitationService
 	// loginLockout throttles password guessing per account: after
@@ -75,7 +75,7 @@ func (h *AuthHandler) UseRedis(c *redis.Client) {
 //   - systemSettingSvc: 3-tier resolver for runtime-tunable settings such as
 //     auth.registration_mode (P3). When DB has a row, it overrides cfg's
 //     startup value; otherwise we fall back to cfg.Auth.RegistrationMode
-//     (which already accounted for the legacy DISABLE_REGISTRATION env coerce
+//     (which already accounted for the DISABLE_REGISTRATION env coerce
 //     during config load). Mismatch impossible by construction since the
 //     handler always passes cfg's value as the def parameter to GetString.
 //
@@ -110,7 +110,7 @@ func NewAuthHandler(configInfo *config.Config,
 }
 
 // resolveRegistrationMode returns the currently active registration mode.
-// Priority: DB system_settings > cfg (which already absorbed the legacy
+// Priority: DB system_settings > cfg (which already absorbed the
 // DISABLE_REGISTRATION env coerce at startup) > "auto" hard default.
 //
 // Centralised here so /auth/register and /auth/config stay in lock-step —
@@ -129,10 +129,10 @@ func (h *AuthHandler) resolveRegistrationMode(ctx context.Context) string {
 		return def
 	}
 	// envName = "" because DISABLE_REGISTRATION is a boolean and
-	// auth.registration_mode is a string — the legacy env was already
-	// coerced into `def` above. Mixing the two semantics at the resolver
-	// layer would mean a UI delete (DB row absent) silently flipped to
-	// the legacy boolean read again, which is surprising.
+	// auth.registration_mode is a string — the env was already coerced
+	// into `def` above. Mixing the two semantics at the resolver layer
+	// would mean a UI delete (DB row absent) silently flipped to the
+	// boolean read again, which is surprising.
 	return h.systemSettingSvc.GetString(ctx, "auth.registration_mode", "", def)
 }
 

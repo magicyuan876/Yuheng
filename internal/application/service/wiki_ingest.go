@@ -310,7 +310,7 @@ type WikiPendingOp struct {
 	FolderIDs  []string `json:"folder_ids,omitempty"`
 
 	// dbID is set by peekPendingList from task_pending_ops.id. Zero in
-	// constructions made outside the queue (e.g. legacy tests).
+	// constructions made outside the queue (e.g. tests).
 	dbID int64 `json:"-"`
 }
 
@@ -318,9 +318,9 @@ type WikiPendingOp struct {
 //
 // Durable state lives in two places:
 //   - task_pending_ops (rows tagged task_type="wiki:ingest", scope=
-//     "knowledge_base"): the per-document op queue. Replaces the
-//     legacy Redis wiki:pending:<kbID> list, which was vulnerable to
-//     24h TTL eviction at 4w-document scale.
+//     "knowledge_base"): the per-document op queue. It is durable in
+//     PostgreSQL rather than a Redis list, which a TTL could evict at
+//     4w-document scale.
 //   - task_dead_letters: in-batch failures that exhausted
 //     wikiMaxFailRetries land here. The asynq dead-letter middleware
 //     also writes asynq-level archived rows here uniformly across
@@ -480,8 +480,7 @@ func EnqueueWikiIngest(
 	// Persist the pending op. A re-ingest of the same knowledge id while
 	// a previous op is still queued simply appends another row; the
 	// peekPendingList consumer collapses by dedup_key (== knowledge_id),
-	// keeping the LATEST op for each knowledge — matching the legacy
-	// "RPush + reverse-dedupe" semantics.
+	// keeping the LATEST op for each knowledge.
 	if err != nil {
 		logger.Warnf(ctx, "wiki ingest: failed to marshal pending op for %s: %v", knowledgeID, err)
 		return false, err
@@ -806,10 +805,9 @@ func (s *wikiIngestService) scheduleFinalizeRetry(ctx context.Context, payload W
 //
 // peekedIDs returns the DB ids of every row included in the peek
 // (NOT just the ones that survived dedup) so trimPendingList can
-// delete them all in one statement at the end of the batch — this
-// matches the legacy "LTrim peekedCount entries" semantics, where
-// duplicates collapsed by the consumer were also drained from the
-// list once their canonical sibling had been processed.
+// delete them all in one statement at the end of the batch: duplicates
+// collapsed by the consumer are drained along with their canonical
+// sibling once it has been processed.
 func (s *wikiIngestService) peekPendingList(ctx context.Context, kbID string, limit int) (ops []WikiPendingOp, peekedIDs []int64, err error) {
 	if s.pendingRepo == nil {
 		return nil, nil, nil
@@ -1586,9 +1584,8 @@ func (s *wikiIngestService) resolveLiveSlugs(
 //     last-segment of the slug). This is the original behaviour.
 //
 // The resolver is optional: when liveSlugs / titleToSlug are nil or
-// empty, every dead slug falls through to the strip path. This keeps
-// backward compatibility for tests / call sites that don't yet wire
-// the resolution data.
+// empty, every dead slug falls through to the strip path, which is what
+// call sites without resolution data get.
 func stripDeadWikiLinks(
 	content string,
 	deadSlugs map[string]struct{},
@@ -1645,8 +1642,8 @@ func stripDeadWikiLinks(
 // cleanup — no LLM call.
 //
 // Scope is intentionally limited to the slugs touched by this batch:
-// at 4w-document scale the legacy "scan every page in the KB" path was
-// the dominant tail in the post-batch phase, and the long-tail
+// at 4w-document scale scanning every page in the KB would dominate the
+// post-batch phase, and the long-tail
 // historical dead links are better handled by the lint AutoFix pipeline
 // (which runs out-of-band and can afford a full table walk).
 //
@@ -1941,7 +1938,7 @@ func formatExistingTaxonomyForPrompt(paths [][]string) string {
 // retractions.
 //
 // Backed by idx_wiki_pages_source_refs (GIN jsonb_path_ops, migration
-// 000041) and the legacy text-index fallback for "kid|title" entries.
+// 000041) and the text-index fallback for "kid|title" entries.
 // We project to slugs only — no need to load full row content for a
 // per-doc snapshot.
 //
@@ -2007,26 +2004,6 @@ type combinedExtraction struct {
 	Concepts []extractedItem `json:"concepts"`
 }
 
-// rebuildIndexPage refreshes the LLM-generated intro that sits on the
-// index wiki_pages row.
-//
-// History: the index page used to store "intro + full directory listing" as
-// a single multi-MB markdown blob in content. Every ingest batch rewrote
-// the whole column, which on KBs with tens of thousands of pages caused
-// O(N) TOAST writes per batch. The directory was lifted out into the
-// structured GET /wiki/index endpoint (see wikiPageService.GetIndexView),
-// and this method now only maintains the intro.
-//
-// Intro lifecycle:
-//   - First time (empty or legacy placeholder): generate from all document
-//     summaries via WikiIndexIntroPrompt.
-//   - Subsequent calls with a change description: incremental update via
-//     WikiIndexIntroUpdatePrompt so the intro reflects what just landed.
-//   - No change description: keep the existing intro untouched.
-//
-// The new intro is written to both Content and Summary so readers that
-// still fall back to Summary (older clients, legacy migrations) stay in
-// sync with the column the view actually renders.
 // indexIntroSummaryCap caps how many summary pages we feed into the
 // LLM when generating the wiki index intro from scratch. A 4w-document
 // KB would otherwise blow the context window every batch, and the
@@ -2036,24 +2013,26 @@ type combinedExtraction struct {
 // hint to the prompt so the LLM can be honest about its sample.
 const indexIntroSummaryCap = 200
 
-// rebuildIndexPage refreshes the LLM-generated intro on the index
-// page. Two paths:
+// rebuildIndexPage refreshes the LLM-generated intro on the index wiki
+// page. The page holds only the intro: the directory is served by the
+// structured GET /wiki/index endpoint (see wikiPageService.GetIndexView), so
+// an ingest batch never rewrites a listing that grows with the KB.
 //
-//   - First-time generation (no existing intro, or only the legacy
+//   - First-time generation (no existing intro, or only the default
 //     placeholder): the LLM gets a CAPPED window of the most recent
-//     summary pages (most-recently-updated wins). Compare with the
-//     legacy path which loaded ALL summaries — at 4w-document scale
-//     that produced multi-MB prompts that simply broke the context
-//     window and silently fell back to a hardcoded intro.
+//     summary pages (most-recently-updated wins) via WikiIndexIntroPrompt.
+//     Loading ALL summaries at 4w-document scale would produce multi-MB
+//     prompts that break the context window.
 //   - Incremental update: the LLM gets only the existing intro plus
-//     the change description for THIS batch. Document summaries are
-//     intentionally NOT included — at scale the change-description
-//     alone is enough signal for "what landed?", and excluding the
-//     full summary set keeps the prompt size bounded regardless of
-//     KB size.
+//     the change description for THIS batch, via WikiIndexIntroUpdatePrompt.
+//     Document summaries are intentionally NOT included — at scale the
+//     change-description alone is enough signal for "what landed?", and
+//     excluding the full summary set keeps the prompt size bounded
+//     regardless of KB size.
+//   - No change description: the existing intro is kept untouched.
 //
-// The intro is written to both Content and Summary so legacy readers
-// that fall through to Summary stay in sync.
+// The intro is written to both Content and Summary: Content is what the
+// index view renders, Summary is what page listings show.
 func (s *wikiIngestService) rebuildIndexPage(ctx context.Context, chatModel chat.Chat, payload WikiIngestPayload,
 	changeDesc, lang, customInstructions string,
 ) error {
@@ -2062,25 +2041,11 @@ func (s *wikiIngestService) rebuildIndexPage(ctx context.Context, chatModel chat
 		return nil
 	}
 
-	// The intro lives on both Content and Summary. Prefer Content since
-	// that's what the new index view returns; fall back to Summary for
-	// rows written before this refactor so the incremental-update prompt
-	// has something to work with.
 	existingIntro := strings.TrimSpace(indexPage.Content)
-	if existingIntro == "" {
-		existingIntro = strings.TrimSpace(indexPage.Summary)
-	}
-	// Detect the legacy "intro + directory" payload. Such rows embed the
-	// fence-separated "## Summary" sections right after the intro, so we
-	// clip everything from the first directory heading onward to keep the
-	// intro length bounded when we feed it back into the update prompt.
-	if idx := strings.Index(existingIntro, "\n## "); idx >= 0 {
-		existingIntro = strings.TrimSpace(existingIntro[:idx])
-	}
 
 	var intro string
 	switch {
-	case existingIntro == "" || existingIntro == "Wiki index - table of contents":
+	case existingIntro == "" || existingIntro == strings.TrimSpace(defaultWikiIndexContent):
 		// First-time generation: pull the top-N most-recent summary
 		// pages via the lite projection. CountByType lets us tell the
 		// LLM "showing N of M" so it can frame the intro honestly when
@@ -2147,10 +2112,9 @@ func (s *wikiIngestService) rebuildIndexPage(ctx context.Context, chatModel chat
 	}
 
 	// Defensive: some LLM outputs occasionally bleed into a directory-
-	// like section even when the intro prompt doesn't ask for one. If
-	// the freshly-generated intro starts to look like a legacy payload,
-	// clip it at the first "\n## " just like we did on the read path
-	// above. This keeps indexPage.Content a bounded intro-only blob.
+	// like section even when the intro prompt doesn't ask for one. Clip
+	// the intro at the first "\n## " so indexPage.Content stays a
+	// bounded intro-only blob (the directory is served by GET /wiki/index).
 	if idx := strings.Index(intro, "\n## "); idx >= 0 {
 		intro = strings.TrimSpace(intro[:idx])
 	}
@@ -2243,15 +2207,11 @@ func xmlEscape(s string) string {
 }
 
 // deduplicateExtractedBatch deduplicates both entities and concepts against
-// existing wiki pages in a single LLM call. Uses pre-loaded allPages to avoid
-// redundant DB queries. This replaces the two separate deduplicateItems calls
-// that each queried ListAllPages + made a separate LLM call.
-// deduplicateExtractedBatch deduplicates both entities and concepts against
 // existing wiki pages in a single LLM call. Pre-filters candidates via the
 // pg_trgm trigram index on lower(title) — every new item issues a
 // FindSimilarPages probe and the union of top-K hits across all items is
-// the candidate set. This replaces the legacy "ListAllPages + Go-side
-// surface-form Jaccard" path that scaled O(P × N) on large KBs.
+// the candidate set, so the cost does not grow with the page count (a
+// Go-side comparison against every page would be O(P × N) on large KBs).
 //
 // The KB-id-keyed query relies on idx_wiki_pages_title_trgm (added in
 // migration 000041); pg_search environments load pg_trgm in the same

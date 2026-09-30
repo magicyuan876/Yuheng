@@ -142,18 +142,7 @@ func (s *knowledgeService) getVLMConfig(ctx context.Context, kb *types.Knowledge
 	if kb == nil {
 		return nil, nil
 	}
-	// 兼容老版本：直接使用 ModelName 和 BaseURL
-	if kb.VLMConfig.ModelName != "" && kb.VLMConfig.BaseURL != "" {
-		return &types.DocParserVLMConfig{
-			ModelName:     kb.VLMConfig.ModelName,
-			BaseURL:       kb.VLMConfig.BaseURL,
-			APIKey:        kb.VLMConfig.APIKey,
-			InterfaceType: kb.VLMConfig.InterfaceType,
-		}, nil
-	}
-
-	// 新版本：未启用或无模型ID时返回nil
-	if !kb.VLMConfig.Enabled || kb.VLMConfig.ModelID == "" {
+	if !kb.VLMConfig.IsEnabled() {
 		return nil, nil
 	}
 
@@ -176,7 +165,7 @@ func (s *knowledgeService) getVLMConfig(ctx context.Context, kb *types.Knowledge
 }
 
 // resolveFileService returns the FileService for the given knowledge base,
-// based on the KB's StorageProviderConfig (or legacy StorageConfig.Provider) and the tenant's StorageEngineConfig.
+// based on the KB's StorageProviderConfig and the tenant's StorageEngineConfig.
 // Falls back to the global fileSvc when no tenant-level storage config is found.
 func (s *knowledgeService) resolveFileService(ctx context.Context, kb *types.KnowledgeBase) interfaces.FileService {
 	if kb == nil {

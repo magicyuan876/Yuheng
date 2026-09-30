@@ -198,8 +198,9 @@ func withAttempt(ctx context.Context, attempt int) context.Context {
 }
 
 // attemptFromCtx extracts the attempt number stored by withAttempt;
-// returns 0 when missing (legacy paths or tests). Tracker call sites
-// treat 0 as "skip recording" since we have no attempt to anchor under.
+// returns 0 when missing (the attempt could not be opened, or tests).
+// Tracker call sites treat 0 as "skip recording" since we have no attempt
+// to anchor under.
 func attemptFromCtx(ctx context.Context) int {
 	if v, ok := ctx.Value(attemptCtxKey{}).(int); ok {
 		return v
@@ -326,9 +327,9 @@ func (s *knowledgeService) skipStage(ctx context.Context, kid, name, reason stri
 // like an instant ~10ms enqueue.
 //
 // Returns nil when:
-//   - attempt <= 0 (legacy in-flight task without span tracking)
-//   - the postprocess stage span is missing (parse predates tracker, or
-//     the upstream BeginStage call failed)
+//   - attempt <= 0 (the parse attempt could not be opened)
+//   - the postprocess stage span is missing (the upstream BeginStage call
+//     failed)
 //
 // Callers must tolerate nil — pair every begin with a deferred
 // endPostprocessSubspan / failPostprocessSubspan that no-ops on nil.
@@ -347,8 +348,8 @@ func (s *knowledgeService) beginPostprocessSubspan(
 
 // beginQuestionBatchSubspan opens a per-batch question subspan under the
 // "postprocess.question" grouping span created by the orchestrator, falling
-// back to the postprocess stage when the group span isn't found (legacy
-// in-flight tasks or a tracker that skipped it). Mirrors beginPostprocessSubspan
+// back to the postprocess stage when the group span isn't found (the
+// tracker failed to write it). Mirrors beginPostprocessSubspan
 // but resolves the grouping parent first.
 func (s *knowledgeService) beginQuestionBatchSubspan(
 	ctx context.Context, knowledgeID string, attempt int, name string, input types.JSONMap,

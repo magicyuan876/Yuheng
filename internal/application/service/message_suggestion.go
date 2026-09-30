@@ -480,8 +480,9 @@ func groupSuggestionConversationTurns(messages []*types.Message) []suggestionCon
 			continue
 		}
 
-		// Legacy rows can lack request_id. Pair an assistant with the most
-		// recent unmatched anonymous user instead of collapsing all such rows.
+		// A message whose request carried no request ID has an empty one.
+		// Pair such an assistant with the most recent unmatched anonymous
+		// user instead of collapsing all of them into one turn.
 		if message.Role == "user" {
 			turns = append(turns, suggestionConversationTurn{user: message})
 			continue

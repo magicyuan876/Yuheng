@@ -101,17 +101,13 @@ func (h *Handler) CreateSession(c *gin.Context) {
 		tenantID,
 	)
 
-	// Create session object with base properties
+	// The calling principal owns the session. API-key callers are scoped per
+	// external user when configured, otherwise per key.
 	createdSession := &types.Session{
 		TenantID:    tenantID.(uint64),
+		UserID:      types.SessionOwnerIDFromContext(ctx),
 		Title:       request.Title,
 		Description: request.Description,
-	}
-	// Attach the calling user as the session owner when available.
-	// API-key callers scope sessions per external user when configured;
-	// otherwise they fall back to the synthetic tenant user.
-	if ownerID := types.SessionOwnerIDFromContext(ctx); ownerID != "" {
-		createdSession.UserID = ownerID
 	}
 
 	// Call service to create session
@@ -119,7 +115,11 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	createdSession, err := h.sessionService.CreateSession(ctx, createdSession)
 	if err != nil {
 		logger.ErrorWithFields(ctx, err, nil)
-		c.Error(errors.NewInternalServerError(err.Error()))
+		if appErr, ok := errors.IsAppError(err); ok {
+			_ = c.Error(appErr)
+		} else {
+			_ = c.Error(errors.NewInternalServerError(err.Error()))
+		}
 		return
 	}
 

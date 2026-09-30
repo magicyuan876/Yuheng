@@ -32,7 +32,7 @@ func TestBuildLangfuseGenerationOutput(t *testing.T) {
 	}
 }
 
-func TestSnapshotLangfuseToolCallsKeepsModelArguments(t *testing.T) {
+func TestSnapshotLangfuseToolCallsIsIndependentOfLaterMutation(t *testing.T) {
 	providerCalls := []types.LLMToolCall{{
 		ID:       "call_1",
 		Function: types.FunctionCall{Name: "wiki_read_page", Arguments: `{"slugs":["res://0001"]}`},

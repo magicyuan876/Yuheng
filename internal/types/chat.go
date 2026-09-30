@@ -20,12 +20,9 @@ const (
 
 // TokenUsage holds token consumption statistics returned by the model API.
 type TokenUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-	// CachedTokens is the legacy alias for CacheReadTokens. It remains on the
-	// wire for compatibility with existing API consumers.
-	CachedTokens     int               `json:"cached_tokens,omitempty"`
+	PromptTokens     int               `json:"prompt_tokens"`
+	CompletionTokens int               `json:"completion_tokens"`
+	TotalTokens      int               `json:"total_tokens"`
 	CacheReadTokens  int               `json:"cache_read_tokens,omitempty"`
 	CacheWriteTokens int               `json:"cache_write_tokens,omitempty"`
 	CacheMissTokens  int               `json:"cache_miss_tokens,omitempty"`
@@ -49,7 +46,6 @@ func (u *TokenUsage) SetPromptCacheUsage(read, write, miss int, reported bool) {
 	if miss < 0 {
 		miss = 0
 	}
-	u.CachedTokens = read
 	u.CacheReadTokens = read
 	u.CacheWriteTokens = write
 	u.CacheMissTokens = miss
@@ -87,7 +83,6 @@ func (u *TokenUsage) Accumulate(other TokenUsage) {
 	u.PromptTokens += other.PromptTokens
 	u.CompletionTokens += other.CompletionTokens
 	u.TotalTokens += other.TotalTokens
-	u.CachedTokens += other.CachedTokens
 	u.CacheReadTokens += other.CacheReadTokens
 	u.CacheWriteTokens += other.CacheWriteTokens
 	u.CacheMissTokens += other.CacheMissTokens
@@ -153,15 +148,6 @@ type LLMToolCall struct {
 	Type             string           `json:"type"` // "function"
 	Function         FunctionCall     `json:"function"`
 	ProviderMetadata ToolCallMetadata `json:"provider_metadata,omitempty"`
-
-	// ModelArguments and the resolution fields are request-local observability
-	// state. ModelArguments preserves the exact JSON emitted by the model while
-	// Function.Arguments is decoded to durable application identifiers before
-	// tool execution. These fields must never be sent back to a provider or
-	// persisted in chat history.
-	ModelArguments     string   `json:"-"`
-	ArgumentResolution string   `json:"-"`
-	UnresolvedHandles  []string `json:"-"`
 }
 
 // ToolCallMetadata carries provider-specific tool-call state that must round-trip

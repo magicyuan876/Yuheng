@@ -330,13 +330,12 @@ data: {"id":"3475c004-...","response_type":"answer","content":"","done":true}
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `query` | string | 是（`binding:"required"`） | 查询 |
-| `knowledge_base_id` | string | 否 | 单 KB（兼容旧版） |
-| `knowledge_base_ids` | []string | 否 | 多 KB |
+| `knowledge_base_ids` | []string | 否 | 检索的 KB |
 | `knowledge_ids` | []string | 否 | 限定文件 |
 | `tag_ids` | []string | 否 | 标签过滤 |
 | `mentioned_items` | []object | 否 | 带 KB 范围的标签提及 |
 
-`knowledge_base_id` / `knowledge_base_ids`、`knowledge_ids`、带知识库范围的标签至少要给一种，否则返回 400。只给 `knowledge_ids` 时直接在这些文件里检索。
+`knowledge_base_ids`、`knowledge_ids`、带知识库范围的标签至少要给一种，否则返回 400。只给 `knowledge_ids` 时直接在这些文件里检索。
 
 响应：200 `{"success":true,"data":[SearchResult]}`，只返回检索结果，不经过 LLM 总结。`SearchResult` 主要字段：
 

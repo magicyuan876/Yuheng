@@ -173,8 +173,9 @@ type Chunk struct {
 	TagID string `json:"tag_id"                   gorm:"type:varchar(36);index"`
 	// Actual text content of the chunk
 	Content string `json:"content"`
-	// SourceContent is the immutable parser output. Legacy rows are lazily
-	// backfilled from Content on the first manual edit.
+	// SourceContent is the immutable parser output. CreateChunks fills it
+	// from Content when the caller leaves it empty, so every stored chunk
+	// carries it from the start.
 	SourceContent string `json:"-"`
 	// ContentRevision is incremented for every user edit or rollback.
 	ContentRevision int `json:"content_revision" gorm:"not null;default:0"`

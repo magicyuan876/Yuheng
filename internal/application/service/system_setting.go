@@ -68,8 +68,8 @@ type settingSpec struct {
 	// accordingly. "json" is an opaque object whose internal shape is owned by
 	// the consuming subsystem and checked in validateRegistryEntry, not here.
 	Type string
-	// EnvName is the legacy environment variable consulted when the DB
-	// row is absent. Empty string means "no ENV fallback for this key"
+	// EnvName is the deploy-time environment variable consulted when the
+	// DB row is absent. Empty string means "no ENV fallback for this key"
 	// (the caller passes the desired default explicitly via the GetXxx
 	// def parameter — useful when the cfg already coerced it at startup).
 	EnvName string
@@ -216,23 +216,6 @@ var registry = map[string]settingSpec{
 		Description: "新建空间时默认分配的存储配额（GB），包含向量、原文、文本、索引等。" +
 			"仅在创建时读取，修改后只对之后新建的空间生效，不会回写已存在的空间。" +
 			"0 或负数表示使用内置默认值 10GB。",
-	},
-	// tenant.auto_create_api_key restores the legacy behaviour where creating
-	// a tenant also minted a full-access API key and returned its plaintext
-	// token in the create response. Newer versions stopped doing this (keys
-	// are created explicitly via tenant_api_keys), which is a breaking change
-	// for integrations that relied on the create response carrying a key.
-	// Deployments that need the old behaviour set this to true (or the
-	// YUHENG_TENANT_AUTO_CREATE_API_KEY env var). Default false keeps the
-	// current, safer no-implicit-key behaviour. Read at create time only.
-	"tenant.auto_create_api_key": {
-		Type:     "bool",
-		EnvName:  "YUHENG_TENANT_AUTO_CREATE_API_KEY",
-		Default:  false,
-		Category: "tenant",
-		Description: "创建空间时是否自动生成一个全量权限（full_access）的 API Key，并在创建接口的响应中返回其明文 token。" +
-			"用于兼容旧版本「创建空间即下发默认 API Key」的行为（属于破坏性变更的回退开关）。" +
-			"每次创建空间时实时读取，修改后立即生效。默认 false（不自动创建，需通过 API Key 管理显式创建）。",
 	},
 	// tenant.auto_accept_invitation: invite = auto-join switch (default false).
 	"tenant.auto_accept_invitation": {
@@ -739,8 +722,9 @@ func (s *systemSettingService) GetString(ctx context.Context, key string, envNam
 	return def
 }
 
-// GetBool resolves a bool setting. Tolerates legacy ENV values like
-// "1", "0", "yes", "no" via strconv.ParseBool. Same priority + degradation.
+// GetBool resolves a bool setting. ENV values go through strconv.ParseBool,
+// so "1"/"0"/"t"/"f" work as well as "true"/"false". Same priority +
+// degradation.
 func (s *systemSettingService) GetBool(ctx context.Context, key string, envName string, def bool) bool {
 	if raw, ok := s.resolveRaw(ctx, key); ok {
 		var v bool
@@ -761,9 +745,8 @@ func (s *systemSettingService) GetBool(ctx context.Context, key string, envName 
 
 // GetStringList resolves a []string setting. Priority: DB > ENV > def.
 //
-// At the ENV level the value is parsed as a comma-separated string
-// (matches the legacy SSRF_WHITELIST format and means operators don't
-// have to learn a new convention to migrate). Whitespace around each
+// At the ENV level the value is parsed as a comma-separated string (the
+// format SSRF_WHITELIST documents in .env.example). Whitespace around each
 // entry is trimmed; empty entries are dropped. The returned slice is
 // always non-nil so callers can iterate without a nil check.
 //
@@ -1326,7 +1309,7 @@ func encodeForType(declared string, rawValue any) (types.JSON, error) {
 	case "string_list":
 		// Accept either a JSON array of strings (the canonical UI shape
 		// — t-tag-input emits string[]) or a single comma-separated
-		// string (operator pasting from a legacy ENV value). Reject
+		// string (an operator pasting the value of an ENV variable). Reject
 		// arrays containing non-strings to avoid silently coercing
 		// `[1, 2]` into `["1", "2"]` — that hides typos.
 		var entries []string

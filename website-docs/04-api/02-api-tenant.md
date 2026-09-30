@@ -17,7 +17,7 @@
 
 跨空间超管可提交完整 `types.Tenant`（含 `storage_quota`、`status` 等）。
 
-响应：201 `{"success":true,"data":{Tenant}}`。默认不发放 API key，需要时创建后再调 `POST /tenants/:id/api-keys`。系统设置 `tenant.auto_create_api_key`（环境变量 `YUHENG_TENANT_AUTO_CREATE_API_KEY`，默认 false）打开时恢复旧行为：创建空间顺带生成一个 `full_access` key，明文只在这次响应的 `data.api_key` 里返回。自助创建被禁用返回 403（code 2005），超配额返回 429。
+响应：201 `{"success":true,"data":{Tenant}}`。创建空间不会发放 API key，需要时创建后再调 `POST /tenants/:id/api-keys`。自助创建被禁用返回 403（code 2005），超配额返回 429。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants -H "Authorization: Bearer $TOKEN" \

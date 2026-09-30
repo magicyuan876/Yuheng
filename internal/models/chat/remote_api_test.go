@@ -457,7 +457,7 @@ func TestCachedTokensHelper(t *testing.T) {
 
 // TestParseCompletionResponse_CachedTokens verifies that
 // prompt_tokens_details.cached_tokens from an OpenAI-compatible response is
-// propagated into TokenUsage.CachedTokens. This is the field Qwen explicit
+// propagated into TokenUsage.CacheReadTokens. This is the field Qwen explicit
 // caching populates on a cache hit.
 func TestParseCompletionResponse_CachedTokens(t *testing.T) {
 	c := newTestRemoteChat(t)
@@ -486,9 +486,8 @@ func TestParseCompletionResponse_CachedTokens(t *testing.T) {
 		assert.Equal(t, 6929, got.Usage.PromptTokens)
 		assert.Equal(t, 42, got.Usage.CompletionTokens)
 		assert.Equal(t, 6971, got.Usage.TotalTokens)
-		assert.Equal(t, 6900, got.Usage.CachedTokens,
-			"cached_tokens must mirror prompt_tokens_details.cached_tokens")
-		assert.Equal(t, 6900, got.Usage.CacheReadTokens)
+		assert.Equal(t, 6900, got.Usage.CacheReadTokens,
+			"cache reads must mirror prompt_tokens_details.cached_tokens")
 		assert.Equal(t, 29, got.Usage.CacheMissTokens)
 		assert.True(t, got.Usage.CacheReported)
 		assert.Equal(t, types.PromptCacheStatusHit, got.Usage.CacheStatus)
@@ -514,7 +513,7 @@ func TestParseCompletionResponse_CachedTokens(t *testing.T) {
 		got, err := c.parseCompletionResponse(resp)
 		require.NoError(t, err)
 		require.NotNil(t, got)
-		assert.Equal(t, 0, got.Usage.CachedTokens,
+		assert.Equal(t, 0, got.Usage.CacheReadTokens,
 			"missing details must surface as zero, not panic")
 		assert.False(t, got.Usage.CacheReported)
 		assert.Equal(t, types.PromptCacheStatusUnsupported, got.Usage.CacheStatus)
@@ -530,21 +529,21 @@ func TestApplyRawPromptCacheUsage_DeepSeekNativeFields(t *testing.T) {
 	assert.Equal(t, types.PromptCacheStatusHit, usage.CacheStatus)
 }
 
-// TestTokenUsage_CachedTokensJSONOmitempty ensures the new CachedTokens field
-// stays out of serialized payloads when it is zero. This keeps logs and API
-// responses unchanged for providers that never report cache hits.
-func TestTokenUsage_CachedTokensJSONOmitempty(t *testing.T) {
+// TestTokenUsage_CacheReadTokensJSONOmitempty ensures CacheReadTokens stays
+// out of serialized payloads when it is zero, so providers that never report
+// cache hits do not grow a meaningless counter in API responses.
+func TestTokenUsage_CacheReadTokensJSONOmitempty(t *testing.T) {
 	t.Run("zero is omitted", func(t *testing.T) {
 		u := types.TokenUsage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15}
 		b, err := json.Marshal(u)
 		require.NoError(t, err)
-		assert.NotContains(t, string(b), "cached_tokens")
+		assert.NotContains(t, string(b), "cache_read_tokens")
 	})
 
 	t.Run("non-zero is emitted", func(t *testing.T) {
-		u := types.TokenUsage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15, CachedTokens: 7}
+		u := types.TokenUsage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15, CacheReadTokens: 7}
 		b, err := json.Marshal(u)
 		require.NoError(t, err)
-		assert.Contains(t, string(b), `"cached_tokens":7`)
+		assert.Contains(t, string(b), `"cache_read_tokens":7`)
 	})
 }

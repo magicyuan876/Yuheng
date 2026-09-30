@@ -115,7 +115,7 @@ opt := &asynq.RedisClientOpt{
 - **保障容量 + 弹性借用**：core/postprocess/enrichment/maintenance 提供最低保障容量；`shared` pool 同时订阅 core 与 enrichment 的队列，闲置容量可被任一阶段借用（`NewSharedAsynqServer`：Redis dequeue 原子，多 server 订阅同一队列每个任务仍只执行一次）。post-process 与 maintenance 被刻意排除在 shared 之外（`QueueWeightsForSharedPool` 注释：post-process 需要延迟保证，长 maintenance 任务不应占用面向用户的突发容量）。
 - **Wiki 硬隔离**：`wiki` pool 只拉取 `wiki` 队列，防止解析流水线与 Wiki 生成互相饿死（`NewWikiAsynqServer` 注释）。
 - **聊天附件优先**：`chat_attachment` 在 core pool 权重 3 高于 `default` 的 1，大批量 KB 导入不会让交互式聊天上传排队。
-- **滚动升级兼容**：`QueueMaintenance` 常量的物理 Redis 队列名保持旧版的 `"low"`，旧版本入队的任务在滚动部署期间仍可被消费。
+- **队列名**：`QueueMaintenance` 常量的物理 Redis 队列名是 `"low"`；前端「运行时队列」页面按这个名字查找显示文案，两边要一起改。
 
 ### 4.2 Worker Pool 架构图
 

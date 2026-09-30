@@ -18,7 +18,7 @@ type AuthOIDCCallbackResponse struct {
 	Success      bool               `json:"success"`
 	Message      string             `json:"message,omitempty"`
 	User         *types.User        `json:"user,omitempty"`
-	Tenant       *TenantResponse    `json:"tenant,omitempty"`
+	ActiveTenant *TenantResponse    `json:"active_tenant,omitempty"`
 	Memberships  []types.Membership `json:"memberships"`
 	Token        string             `json:"token,omitempty"`
 	RefreshToken string             `json:"refresh_token,omitempty"`
@@ -51,14 +51,14 @@ func NewAuthOIDCCallbackResponse(resp *types.OIDCCallbackResponse) *AuthOIDCCall
 		return nil
 	}
 	var role types.TenantRole
-	if resp.Tenant != nil {
-		role = membershipRoleForTenant(resp.Memberships, resp.Tenant.ID)
+	if resp.ActiveTenant != nil {
+		role = membershipRoleForTenant(resp.Memberships, resp.ActiveTenant.ID)
 	}
 	return &AuthOIDCCallbackResponse{
 		Success:      resp.Success,
 		Message:      resp.Message,
 		User:         resp.User,
-		Tenant:       NewTenantResponseWithRole(resp.Tenant, role),
+		ActiveTenant: NewTenantResponseWithRole(resp.ActiveTenant, role),
 		Memberships:  resp.Memberships,
 		Token:        resp.Token,
 		RefreshToken: resp.RefreshToken,

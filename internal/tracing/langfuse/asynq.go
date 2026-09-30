@@ -37,8 +37,8 @@ func InjectTracing(ctx context.Context, carrier types.LangfuseTracingCarrier) {
 	c := propagation.MapCarrier{}
 	propagator.Inject(ctx, c)
 	tc.LangfuseTraceparent = c["traceparent"]
-	// Backward-compat: keep LangfuseTraceID = the W3C trace id for any legacy
-	// reader. LangfuseParentObservationID is no longer used by the OTLP path.
+	// The plain trace id travels alongside the traceparent because the
+	// document-processing tracker stores it on each attempt it opens.
 	if trace, ok := TraceFromContext(ctx); ok && trace != nil {
 		tc.LangfuseTraceID = trace.ID
 	}

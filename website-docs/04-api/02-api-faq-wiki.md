@@ -273,7 +273,7 @@ curl -X PUT $BASE/api/v1/knowledgebase/kb-1/wiki/pages/overview -H "Authorizatio
 | `limit` | int | 否 | 默认 50，上限 200；仅列表模式生效 |
 | `offset` | int | 否 | 分页偏移 |
 
-不带 `version` 时返回历史列表（版本号倒序、**不含正文**）加上页面当前版本号；每条含 `edit_source`（`pipeline` / `user` / `revert`；从上游迁移来的历史数据里可能还有 `agent`）、`editor_id`、`edited_at`。
+不带 `version` 时返回历史列表（版本号倒序、**不含正文**）加上页面当前版本号；每条含 `edit_source`（`pipeline` / `user` / `revert`）、`editor_id`、`edited_at`。
 
 历史保留是两级上限：软上限 50 版只裁剪 `pipeline` 与空来源的快照，硬上限 200 版对所有来源生效，因此人工编辑不会被管道刷掉。
 

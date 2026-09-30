@@ -587,8 +587,8 @@ func (r *SyncResult) ToJSON() (JSON, error) {
 //
 // DecryptStoredSecret transparently handles three cases per credential:
 //   - empty string: untouched
-//   - legacy plaintext (no enc:v1: prefix): returned as-is, so historical
-//     rows continue to work without a migration step
+//   - plaintext (no enc:v1: prefix, stored while SYSTEM_AES_KEY is unset):
+//     returned as-is
 //   - enc:v1: encrypted: decrypted with SYSTEM_AES_KEY; missing/rotated
 //     key surfaces as an error so we fail loudly rather than handing
 //     ciphertext to the upstream connector as the credential

@@ -63,12 +63,12 @@ type citationPipelineOutcome struct {
 
 // extractCandidateSlugs runs Pass 0 of the chunk-cited pipeline: it scans the
 // full (reconstructed) document text and returns a lightweight skeleton of
-// every significant entity/concept. Unlike the legacy single-shot extraction,
+// every significant entity/concept. Unlike the single-shot extraction,
 // this pass explicitly does NOT ask the LLM to paraphrase full facts per item;
 // those will come from the chunk-citation pass instead.
 //
 // Returns (entities, concepts, slugItems, error). On LLM or parse failure it
-// returns an error — the caller can then fall back to the legacy extractor.
+// returns an error — the caller can then fall back to the single-shot extractor.
 func (s *wikiIngestService) extractCandidateSlugs(
 	ctx context.Context,
 	chatModel chat.Chat,

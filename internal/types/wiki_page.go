@@ -120,12 +120,11 @@ const (
 	WikiPageTypeIndex = "index"
 	// WikiPageTypeSynthesis represents a synthesis/analysis page (cross-document
 	// analysis, trends, insights). NOT auto-created by ingest: such pages are
-	// written through the wiki editor / REST API, or are legacy rows authored by
-	// the upstream agent wiki tools this fork removed.
+	// written through the wiki editor / REST API.
 	WikiPageTypeSynthesis = "synthesis"
 	// WikiPageTypeComparison represents a comparison of entities, concepts or
 	// approaches. NOT auto-created by ingest: like synthesis pages, these come
-	// from the wiki editor / REST API or from legacy agent-authored rows.
+	// from the wiki editor / REST API.
 	WikiPageTypeComparison = "comparison"
 )
 
@@ -210,9 +209,9 @@ type WikiPage struct {
 	// ordering before falling back to title.
 	SortOrder int `json:"sort_order,omitempty" gorm:"default:0;index"`
 	// References to source knowledge IDs that contributed to this page.
-	// Format matches the legacy "<knowledge_id>|<doc_title>" convention used
-	// across the ingest pipeline, so retract / display code can split on `|`
-	// to recover the title. Document-level granularity.
+	// Format is "<knowledge_id>|<doc_title>", the convention used across the
+	// ingest pipeline, so retract / display code can split on `|` to recover
+	// the title. Document-level granularity.
 	SourceRefs StringArray `json:"source_refs" gorm:"type:json"`
 	// ChunkRefs records the specific source-document chunks this page was
 	// built from — one UUID per cited chunk. Populated during ingest from
@@ -235,7 +234,7 @@ type WikiPage struct {
 	// real "the page was edited" signal.
 	Version int `json:"version" gorm:"default:1"`
 	// LastEditSource records who authored the CURRENT version: pipeline |
-	// agent | user | revert. Empty for legacy rows (treated as pipeline).
+	// user | revert. Empty (a write that did not say) is treated as pipeline.
 	// When the version is superseded this value travels into the revision
 	// snapshot, so each historical version keeps its own author kind.
 	LastEditSource string `json:"last_edit_source,omitempty" gorm:"type:varchar(16);default:''"`
@@ -260,13 +259,8 @@ func (WikiPage) TableName() string {
 // (historical versions).
 const (
 	// WikiEditSourcePipeline marks versions written by the wiki ingest
-	// pipeline (also the fallback for legacy rows with an empty source).
+	// pipeline (also the fallback for an empty source).
 	WikiEditSourcePipeline = "pipeline"
-	// WikiEditSourceAgent marks versions written through the upstream agent
-	// wiki tools (wiki_write_page / wiki_replace_text / ...), which this fork
-	// removed. Nothing writes it any more; it stays valid so stored pages and
-	// revisions keep their author kind.
-	WikiEditSourceAgent = "agent"
 	// WikiEditSourceUser marks versions written by a human through the
 	// wiki editor UI / REST API.
 	WikiEditSourceUser = "user"
@@ -276,11 +270,11 @@ const (
 )
 
 // NormalizeWikiEditSource maps unknown / empty values to
-// WikiEditSourcePipeline so legacy rows and forgotten call sites degrade to
-// the historical behavior ("the machine wrote this").
+// WikiEditSourcePipeline so a call site that forgot to say degrades to "the
+// machine wrote this".
 func NormalizeWikiEditSource(source string) string {
 	switch source {
-	case WikiEditSourceAgent, WikiEditSourceUser, WikiEditSourceRevert, WikiEditSourcePipeline:
+	case WikiEditSourceUser, WikiEditSourceRevert, WikiEditSourcePipeline:
 		return source
 	default:
 		return WikiEditSourcePipeline
@@ -334,8 +328,8 @@ const (
 )
 
 // WikiPrunableEditSources lists the edit sources whose snapshots may be
-// dropped by the soft cap. Everything else (user / agent / revert) survives
-// until the hard cap. Legacy rows carry an empty source, hence "".
+// dropped by the soft cap. Everything else (user / revert) survives until the
+// hard cap. The column defaults to "", which counts as pipeline.
 var WikiPrunableEditSources = []string{"", WikiEditSourcePipeline}
 
 // WikiRevisionPruneRequest describes the two-tier retention applied to one
@@ -364,7 +358,8 @@ type WikiPageUpdateRequest struct {
 	Aliases  *StringArray `json:"aliases,omitempty"`
 	// Version is the optimistic-lock guard: when > 0 the update is rejected
 	// with a conflict if the stored version differs (someone else edited the
-	// page since the client loaded it). 0 skips the check (legacy clients).
+	// page since the client loaded it). 0 skips the check (a client that does
+	// not track versions).
 	Version int `json:"version,omitempty"`
 }
 

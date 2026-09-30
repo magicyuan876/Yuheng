@@ -4,32 +4,21 @@
 //
 // Its boundaries are deliberate:
 //   - UUIDs, wiki slugs, URLs, and resource:// handles are durable identities.
-//   - cN/dN/bN/wN/iN/res://NNNN/ref-N values are temporary model handles.
+//   - cN/dN/bN/wN/res://NNNN/ref-N values are temporary model handles.
 //   - temporary handles are never persisted or accepted outside their registry.
-//   - every model response is decoded before tools, storage, or UI consume it.
+//   - every model response is decoded before storage or UI consume it.
 package modelcontext
 
 import (
-	"encoding/json"
-	"reflect"
-	"sort"
-
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 	"github.com/magicyuan876/yuheng/internal/types"
-)
-
-const (
-	ArgumentResolutionUnchanged         = "unchanged"
-	ArgumentResolutionResolved          = "resolved"
-	ArgumentResolutionPartiallyResolved = "partially_resolved"
-	ArgumentResolutionUnresolved        = "unresolved"
 )
 
 const resourceHandleProtocolPrompt = `
 
 ## Resource handle protocol (system-owned)
-Some durable resources and high-entropy Wiki slugs are represented by request-local res://NNNN handles. Wiki issues may use iN handles.
-- Copy only handles that appeared in supplied context or tool results, preserving them exactly in links, images, and tool arguments.
+Some durable resources and high-entropy Wiki slugs are represented by request-local res://NNNN handles.
+- Copy only handles that appeared in supplied context, preserving them exactly in links and images.
 - Never invent, edit, or expand any handle. The system restores it after generation.`
 
 // Registry is the single request-scoped boundary between durable application
@@ -42,7 +31,6 @@ Some durable resources and high-entropy Wiki slugs are represented by request-lo
 type Registry struct {
 	sources   *sourceRegistry
 	resources *resourceRegistry
-	issues    *HandleTable
 }
 
 // NewRegistry creates a registry for one model request.
@@ -50,7 +38,6 @@ func NewRegistry(citationsEnabled bool) *Registry {
 	return &Registry{
 		sources:   newSourceRegistry(citationsEnabled),
 		resources: newResourceRegistry(),
-		issues:    NewHandleTable("i", 0, 1),
 	}
 }
 
@@ -68,98 +55,17 @@ func (r *Registry) EncodeMessages(messages []chat.Message) []chat.Message {
 	if r == nil {
 		return messages
 	}
-	messages = r.resources.EncodeMessages(messages)
-	// Register tool-private IDs from all replayed results before encoding any
-	// assistant call. The scan is intentionally order-independent, matching the
-	// source codec's two-pass replay behavior.
-	for i := range messages {
-		if messages[i].Role == "tool" {
-			messages[i].Content = r.encodeToolPrivateResult(messages[i].Name, messages[i].Content)
-		}
-	}
-	messages = r.sources.EncodeMessagesWithPolicies(messages, sourceArgumentAllowed, sourceOutputAllowed)
-	for i := range messages {
-		if len(messages[i].ToolCalls) == 0 {
-			continue
-		}
-		messages[i].ToolCalls = append([]chat.ToolCall(nil), messages[i].ToolCalls...)
-		for j := range messages[i].ToolCalls {
-			r.encodeReplayedToolPolicies(&messages[i].ToolCalls[j])
-		}
-	}
-	return messages
+	return r.sources.EncodeMessages(r.resources.EncodeMessages(messages))
 }
 
-// DecodeToolCalls restores all temporary handles in tool-call arguments.
-func (r *Registry) DecodeToolCalls(toolCalls []types.LLMToolCall) {
-	if r == nil {
-		return
-	}
-	for i := range toolCalls {
-		if toolCalls[i].ModelArguments == "" {
-			toolCalls[i].ModelArguments = toolCalls[i].Function.Arguments
-		}
-	}
-	r.resources.DecodeToolCalls(toolCalls)
-	r.sources.DecodeToolCallsWithPolicy(toolCalls, sourceArgumentAllowed)
-	for i := range toolCalls {
-		r.decodeToolPolicies(&toolCalls[i])
-		resolved := toolCalls[i].Function.Arguments
-		unresolved := append(
-			r.resources.OrphanHandles(resolved),
-			r.sources.UnresolvedToolHandlesWithPolicy(
-				toolCalls[i].Function.Name, resolved, sourceArgumentAllowed,
-			)...,
-		)
-		unresolved = append(unresolved, r.unresolvedPrivateToolHandles(toolCalls[i].Function.Name, resolved)...)
-		toolCalls[i].UnresolvedHandles = uniqueSorted(unresolved)
-		changed := !jsonEquivalent(toolCalls[i].ModelArguments, resolved)
-		switch {
-		case changed && len(toolCalls[i].UnresolvedHandles) > 0:
-			toolCalls[i].ArgumentResolution = ArgumentResolutionPartiallyResolved
-		case len(toolCalls[i].UnresolvedHandles) > 0:
-			toolCalls[i].ArgumentResolution = ArgumentResolutionUnresolved
-		case changed:
-			toolCalls[i].ArgumentResolution = ArgumentResolutionResolved
-		default:
-			toolCalls[i].ArgumentResolution = ArgumentResolutionUnchanged
-		}
-	}
-}
-
-func jsonEquivalent(left, right string) bool {
-	var leftValue interface{}
-	var rightValue interface{}
-	if json.Unmarshal([]byte(left), &leftValue) != nil || json.Unmarshal([]byte(right), &rightValue) != nil {
-		return left == right
-	}
-	return reflect.DeepEqual(leftValue, rightValue)
-}
-
-func uniqueSorted(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if value != "" {
-			seen[value] = struct{}{}
-		}
-	}
-	result := make([]string, 0, len(seen))
-	for value := range seen {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
-}
-
-// DecodeResponse restores resources, expands citations, and decodes tool
-// arguments in a non-streaming response.
+// DecodeResponse restores resources and expands citations in a
+// non-streaming response.
 func (r *Registry) DecodeResponse(response *types.ChatResponse) {
 	if r == nil || response == nil {
 		return
 	}
 	response.Content = r.DecodeOutputText(response.Content)
 	response.ReasoningContent = r.DecodeOutputText(response.ReasoningContent)
-	r.DecodeToolCalls(response.ToolCalls)
 }
 
 // StreamDecoder creates one ordered decoder for a response text channel.
@@ -170,7 +76,6 @@ func (r *Registry) StreamDecoder() *StreamDecoder {
 	return &StreamDecoder{
 		resources: newResourceStreamDecoder(r.resources),
 		sources:   newCitationStreamExpander(r.sources),
-		issues:    NewHandleStreamDecoder(r.issues),
 		orphans:   newOrphanResourceStreamFilter(),
 	}
 }
@@ -235,14 +140,12 @@ func (r *Registry) CompactKnownText(text string) string {
 	return r.sources.CompactKnownText(text)
 }
 
-// ModelToolResult renders a tool result using registered model handles.
+// ModelToolResult renders retrieved context, carried in the ToolResult shape
+// the retrieval renderers understand, using registered model handles. The
+// durable-resource codec runs before the source codec so UUID-bearing summary
+// slugs are protected before any embedded document ID can be compacted, and
+// once more afterwards for references rendered from structured result data.
 func (r *Registry) ModelToolResult(result *types.ToolResult) string {
-	return r.ModelToolResultForTool("", result)
-}
-
-// ModelToolResultForTool renders a result and applies any explicit private-ID
-// policy owned by that built-in tool family.
-func (r *Registry) ModelToolResultForTool(toolName string, result *types.ToolResult) string {
 	if result == nil {
 		return ""
 	}
@@ -252,31 +155,10 @@ func (r *Registry) ModelToolResultForTool(toolName string, result *types.ToolRes
 		}
 		return result.Error
 	}
-	// Protect durable resources and UUID-bearing summary slugs before the
-	// source codec sees any embedded document IDs. Encode once more afterwards
-	// for resource references rendered from structured ToolResult.Data.
 	copyResult := *result
-	// Error text is encoded on the same path as Output: a failed tool call
-	// routinely echoes the offending argument, so a raw durable ID would leak
-	// through the error branch of an otherwise handle-only tool.
-	copyResult.Output = r.resources.EncodeText(r.encodeToolPrivateResult(toolName, result.Output))
-	copyResult.Error = r.resources.EncodeText(r.encodeToolPrivateResult(toolName, result.Error))
-	var modelOutput string
-	if sourceOutputAllowed(toolName) {
-		modelOutput = r.sources.ModelOutput(&copyResult)
-	} else if copyResult.Success {
-		modelOutput = copyResult.Output
-	} else if copyResult.Error != "" {
-		modelOutput = "Error: " + copyResult.Error
-	} else {
-		modelOutput = "Error: tool call failed"
-	}
-	// Even tools without structured source results can surface a known durable
-	// ID in validation errors or status text. Compact only explicitly declared
-	// built-ins; dynamic MCP output remains fully opaque.
-	if sourceCompactionAllowed(toolName) {
-		modelOutput = r.sources.CompactKnownText(modelOutput)
-	}
+	copyResult.Output = r.resources.EncodeText(result.Output)
+	copyResult.Error = r.resources.EncodeText(result.Error)
+	modelOutput := r.sources.CompactKnownText(r.sources.ModelOutput(&copyResult))
 	return r.resources.EncodeText(modelOutput)
 }
 
@@ -288,6 +170,5 @@ func (r *Registry) DecodeOutputText(text string) string {
 	}
 	text = r.resources.DecodeText(text)
 	text = r.resources.StripOrphanHandles(text)
-	text = r.sources.ExpandText(text)
-	return r.issues.DecodeKnownText(text)
+	return r.sources.ExpandText(text)
 }

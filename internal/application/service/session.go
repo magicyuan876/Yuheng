@@ -41,9 +41,8 @@ func runtimeMayBypassAdminConsoleRead(ctx context.Context, session *types.Sessio
 }
 
 // loadSessionForRead loads a session honoring the caller's per-user scope, with
-// an Admin+ fallback that additionally permits reading tenant channel sessions
-// (API-key, and the legacy embed rows) from the Web console. Non-admin callers must not open
-// channel-managed rows even when legacy empty user_id scope would match. Write
+// an Admin+ fallback that additionally permits reading tenant API-key sessions
+// from the Web console. Non-admin callers must not open API-key sessions. Write
 // paths keep the strict scope and must not use this helper.
 func loadSessionForRead(
 	ctx context.Context,
@@ -142,6 +141,12 @@ func (s *sessionService) CreateSession(ctx context.Context, session *types.Sessi
 	if session.TenantID == 0 {
 		logger.Error(ctx, "Failed to create session: tenant ID cannot be empty")
 		return nil, stderrors.New("tenant ID is required")
+	}
+	// Every session belongs to one principal; the read and write scopes key
+	// on sessions.user_id, so an ownerless row would be reachable by nobody
+	// but tenant-wide admin views.
+	if strings.TrimSpace(session.UserID) == "" {
+		return nil, apperrors.NewUnauthorizedError("a session needs an owning user or API principal")
 	}
 
 	logger.Infof(ctx, "Creating session, tenant ID: %d", session.TenantID)
@@ -277,11 +282,10 @@ func (s *sessionService) ListSessions(
 		query = &types.SessionListQuery{}
 	}
 	query.TenantID = types.MustTenantIDFromContext(ctx)
-	// Every source filter but "web" is a tenant-wide admin view over channel
-	// traffic (API keys, and the legacy embed rows). Gate them behind Admin+
-	// and drop the per-user owner scope so an Owner/admin can observe
-	// sessions that are otherwise isolated per key or visitor; everyone else
-	// stays scoped to their own principal.
+	// Every source filter but "web" is a tenant-wide admin view over API-key
+	// traffic. Gate them behind Admin+ and drop the per-user owner scope so an
+	// Owner/admin can observe sessions that are otherwise isolated per key or
+	// external user; everyone else stays scoped to their own principal.
 	if types.SessionListSourceRequiresAdmin(query.Source) {
 		if !types.TenantRoleFromContext(ctx).HasPermission(types.TenantRoleAdmin) {
 			return nil, apperrors.NewForbiddenError(

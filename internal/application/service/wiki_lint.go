@@ -81,16 +81,12 @@ const lintCursorBatch = 200
 
 // RunLint performs a comprehensive health check on a wiki knowledge base.
 //
-// At 4w-document scale the legacy "load every page in one shot"
-// approach was the dominant tail in this method (and intermittently
-// caused OOM in production). We now walk the page set via
-// ListPagesCursor in lintCursorBatch-sized windows, accumulating
-// issues incrementally — memory stays bounded regardless of KB size.
-//
-// We also drop the GetGraph(Limit:0) call that the legacy path used
-// to compute the live-slug set. ListAllSlugs is a one-column projection
-// over the same predicate (kbID + status<>archived), so it gives the
-// same answer at a fraction of the cost.
+// At 4w-document scale loading every page in one shot would dominate this
+// method and risk OOM, so the page set is walked via ListPagesCursor in
+// lintCursorBatch-sized windows, accumulating issues incrementally —
+// memory stays bounded regardless of KB size. The live-slug set comes from
+// ListAllSlugs, a one-column projection over kbID + status<>archived, rather
+// than from the full graph.
 func (s *WikiLintService) RunLint(ctx context.Context, kbID string) (*WikiLintReport, error) {
 	// Validate KB
 	kb, err := s.kbService.GetKnowledgeBaseByIDOnly(ctx, kbID)

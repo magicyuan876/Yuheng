@@ -553,8 +553,9 @@ func newMessageScopedFileServeHandler(
 			return
 		}
 
-		// Registered resources carry authoritative tenant ownership. Legacy
-		// provider paths must still encode the authorized owner tenant.
+		// Registered resources carry authoritative tenant ownership. A bare
+		// provider path has no catalog row, so it must encode the authorized
+		// owner tenant itself.
 		if resource == nil {
 			if err := secutils.ValidateStoragePathTenant(resolvedPath, ownerTenantID); err != nil {
 				logger.Warnf(ctx,

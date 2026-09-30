@@ -70,7 +70,7 @@ func (st SearchTargets) HasRecallThresholdOverride() bool {
 
 // HasKnowledgeRetrievalScope reports whether a request has any effective
 // knowledge retrieval scope. SearchTargets are the unified runtime form and
-// must be considered alongside the legacy/raw KB and knowledge ID fields so
+// must be considered alongside the plain KB and knowledge ID fields so
 // tag-only mentions are not mistaken for pure chat.
 func HasKnowledgeRetrievalScope(
 	searchTargets SearchTargets,

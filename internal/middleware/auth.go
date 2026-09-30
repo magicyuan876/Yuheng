@@ -456,8 +456,8 @@ func attachPlatformAPIKeyAuthContext(c *gin.Context, key *types.TenantAPIKey) {
 	applyAuthSession(c, authSession{
 		User:      user,
 		Principal: principal,
-		// This role context exists only for legacy guard compatibility after
-		// RequireRole short-circuits API-key principals; the key's real
+		// RequireRole short-circuits API-key principals, so this role only
+		// satisfies guards that read a role from context; the key's real
 		// authority is its platform capabilities enforced by the APIKeyGate.
 		Role: types.TenantRoleViewer,
 		APIKeyScope: &types.TenantAPIKeyScope{
@@ -530,8 +530,8 @@ func attachAPIKeyAuthContext(
 		}
 	}
 
-	// This role context exists only for legacy guard compatibility after
-	// RequireRole short-circuits API-key principals. The API key's real
+	// RequireRole short-circuits API-key principals, so this role only
+	// satisfies guards that read a role from context. The API key's real
 	// authority is FullAccess + Capabilities + KnowledgeBaseIDs.
 	apiKeyTenantRoleContext := types.TenantRoleViewer
 	fullAccess := key != nil && key.FullAccess && !key.IsPlatform()
@@ -613,20 +613,6 @@ const (
 	ExternalUserTokenAudience = "yuheng"
 )
 
-// checkExternalUserAudience accepts tokens whose audience names this service.
-func checkExternalUserAudience(claims jwt.MapClaims) error {
-	auds, err := claims.GetAudience()
-	if err != nil {
-		return errors.New("invalid audience")
-	}
-	for _, aud := range auds {
-		if strings.TrimSpace(aud) == ExternalUserTokenAudience {
-			return nil
-		}
-	}
-	return errors.New("invalid audience")
-}
-
 func verifyExternalUserJWT(tokenString string, tenantID uint64, secret string) (string, error) {
 	tokenString = strings.TrimSpace(tokenString)
 	secret = strings.TrimSpace(secret)
@@ -637,11 +623,9 @@ func verifyExternalUserJWT(tokenString string, tenantID uint64, secret string) (
 		return "", errors.New("external user token secret is not configured")
 	}
 	claims := jwt.MapClaims{}
-	// Audience is checked manually below so both the current and the legacy
-	// value are accepted — jwt.WithAudience only takes a single value, and
-	// integrations provisioned before the rename still sign the old one.
 	parser := jwt.NewParser(
 		jwt.WithExpirationRequired(),
+		jwt.WithAudience(ExternalUserTokenAudience),
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 	)
 	token, err := parser.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -655,9 +639,6 @@ func verifyExternalUserJWT(tokenString string, tenantID uint64, secret string) (
 	}
 	if token == nil || !token.Valid {
 		return "", errors.New("invalid external user token")
-	}
-	if err := checkExternalUserAudience(claims); err != nil {
-		return "", err
 	}
 	exp, err := claims.GetExpirationTime()
 	if err != nil || exp == nil {

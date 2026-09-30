@@ -17,12 +17,13 @@ type sessionRepository struct {
 	db *gorm.DB
 }
 
+// applySessionUserScope narrows a query to one owner's sessions. An empty
+// userID is the tenant-wide view the admin-only listings use.
 func applySessionUserScope(db *gorm.DB, userID string) *gorm.DB {
 	if userID == "" {
 		return db
 	}
-	// Empty user_id rows are legacy/API-created tenant-level sessions.
-	return db.Where("(user_id = ? OR user_id IS NULL OR user_id = '')", userID)
+	return db.Where("user_id = ?", userID)
 }
 
 // NewSessionRepository creates a new session repository instance
@@ -119,9 +120,8 @@ func (r *sessionRepository) GetPagedByTenantID(
 }
 
 // QueryPaged lists sessions for tenant/user with keyword/source filters and
-// pin-aware ordering. Source filtering is description/owner based only: the
-// im_channel_sessions table was dropped with the agent infrastructure, so
-// legacy IM rows are indistinguishable from ordinary chats and list as web.
+// pin-aware ordering. Source filtering is owner based: API-key sessions carry
+// an API principal as their owner, everything else is a Web-console chat.
 func (r *sessionRepository) QueryPaged(
 	ctx context.Context, q *types.SessionListQuery,
 ) ([]*types.SessionListItem, int64, error) {
@@ -134,7 +134,7 @@ func (r *sessionRepository) QueryPaged(
 	applyBase := func(db *gorm.DB) *gorm.DB {
 		db = db.Where("s.tenant_id = ? AND s.deleted_at IS NULL", q.TenantID)
 		if q.UserID != "" {
-			db = db.Where("(s.user_id = ? OR s.user_id IS NULL OR s.user_id = '')", q.UserID)
+			db = db.Where("s.user_id = ?", q.UserID)
 		}
 		if kw := strings.TrimSpace(q.Keyword); kw != "" {
 			db = db.Where(titleLikeExpr, "%"+escapeLikeKeyword(kw)+"%")
@@ -142,25 +142,18 @@ func (r *sessionRepository) QueryPaged(
 		return db
 	}
 
-	// webVisible keeps only ordinary user chats: embed-widget sessions and
-	// API-key sessions are excluded (the latter surface only in the admin-only
-	// "api" bucket). The user_id NULL check keeps legacy tenant-level web rows
-	// visible, since "col NOT LIKE ?" is unknown (not true) for NULL.
+	// webVisible keeps only ordinary user chats: API-key sessions surface
+	// only in the admin-only "api" bucket.
 	webVisible := func(db *gorm.DB) *gorm.DB {
 		return db.Where(
-			"(s.description = '' OR s.description NOT LIKE ?) "+
-				"AND (s.user_id IS NULL OR (s.user_id NOT LIKE ? AND s.user_id NOT LIKE ?))",
-			types.EmbedSessionMarkerPrefix+"%",
+			"s.user_id NOT LIKE ? AND s.user_id NOT LIKE ?",
 			types.SessionOwnerAPITenantKeyPrefix+"%",
 			types.SessionOwnerAPIExternalUserPrefix+"%",
 		)
 	}
 
 	applySource := func(db *gorm.DB) *gorm.DB {
-		src := strings.TrimSpace(q.Source)
-		lower := strings.ToLower(src)
-		embedPrefix := types.EmbedSessionMarkerPrefix
-		switch lower {
+		switch strings.ToLower(strings.TrimSpace(q.Source)) {
 		case "":
 			return db
 		case types.SessionSourceAPI:
@@ -174,20 +167,9 @@ func (r *sessionRepository) QueryPaged(
 				types.SessionOwnerAPITenantKeyPrefix+"%",
 				types.SessionOwnerAPIExternalUserPrefix+"%",
 			)
-		case "web":
-			return webVisible(db)
-		case "embed":
-			return db.Where("s.description LIKE ?", embedPrefix+"%")
 		default:
-			if strings.HasPrefix(lower, "embed:") {
-				channelID := strings.TrimSpace(src[len("embed:"):])
-				if channelID != "" {
-					return db.Where("s.description = ?", embedPrefix+channelID)
-				}
-			}
-			// Unknown sources (including legacy IM platform names) fall back to
-			// the web visibility filter: with im_channel_sessions gone there is
-			// no way to recognize IM-origin rows, so they list as ordinary chats.
+			// "web", and any source this build does not know, list ordinary
+			// chats: an unrecognized filter must never widen what is shown.
 			return webVisible(db)
 		}
 	}
@@ -226,8 +208,7 @@ func (r *sessionRepository) QueryPaged(
 
 // SetPinned toggles is_pinned/pinned_at for a single session.
 // Scope: must match tenant, and user_id (when provided) to prevent pinning
-// other users' sessions. Legacy rows with user_id NULL/” remain mutable
-// at the tenant level (same visibility rule as QueryPaged).
+// other users' sessions (same visibility rule as QueryPaged).
 //
 // Returns the number of rows affected so callers can distinguish "session
 // doesn't exist / not visible to this user" (0) from a real DB error.
@@ -249,7 +230,7 @@ func (r *sessionRepository) SetPinned(
 		Model(&types.Session{}).
 		Where("tenant_id = ? AND id = ?", tenantID, id)
 	if userID != "" {
-		q = q.Where("(user_id = ? OR user_id IS NULL OR user_id = '')", userID)
+		q = q.Where("user_id = ?", userID)
 	}
 	res := q.Updates(updates)
 	return res.RowsAffected, res.Error

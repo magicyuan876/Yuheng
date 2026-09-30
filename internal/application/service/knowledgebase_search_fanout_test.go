@@ -455,10 +455,6 @@ func (r *fakeFanoutRegistry) GetRetrieveEngineService(types.RetrieverEngineType)
 	return nil, stderrors.New("not used in fan-out tests")
 }
 
-func (r *fakeFanoutRegistry) GetAllRetrieveEngineServices() []interfaces.RetrieveEngineService {
-	return nil
-}
-
 func (r *fakeFanoutRegistry) GetByStoreID(id string) (interfaces.RetrieveEngineService, error) {
 	if svc, ok := r.byStore[id]; ok {
 		return svc, nil

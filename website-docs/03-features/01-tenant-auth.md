@@ -385,7 +385,7 @@ apiKeyRetrieve(base) / apiKeyChat(base) / apiKeyIngest(base) / ...
 | 路由 | 要求能力 |
 | --- | --- |
 | `POST /sessions`、`POST /knowledge-chat/:session_id`、`GET /messages/:session_id/load` | `chat` |
-| `PUT/DELETE /knowledge-bases/:id`、`POST /initialization/initialize/:kbId` | `manage_kbs` |
+| `PUT/DELETE /knowledge-bases/:id`、`PUT /initialization/config/:kbId` | `manage_kbs` |
 | `POST /messages/search`、`GET /messages/chat-history-stats` | `message_history`（不是 chat） |
 | `GET /system/admin/settings` | platform key + `system_settings_read` |
 | `POST /system/admin/runtime/queues/:queue/tasks/:task_id/actions/:action` | platform key + `system_runtime_manage` |

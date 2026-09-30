@@ -61,7 +61,8 @@ func EncryptAESGCM(plaintext string, key []byte) (string, error) {
 var ErrEncryptedDataMissingKey = errors.New("encrypted data found but SYSTEM_AES_KEY is not set or has wrong length")
 
 // DecryptAESGCM decrypts an AES-256-GCM encrypted string.
-// If the string lacks the enc:v1: prefix, it's treated as legacy plaintext and returned as-is.
+// If the string lacks the enc:v1: prefix, it is plaintext (what EncryptAESGCM
+// stores while SYSTEM_AES_KEY is unset) and is returned as-is.
 func DecryptAESGCM(encrypted string, key []byte) (string, error) {
 	if encrypted == "" || key == nil {
 		return encrypted, nil
@@ -105,7 +106,8 @@ func DecryptAESGCM(encrypted string, key []byte) (string, error) {
 //
 // Behaviour:
 //   - empty input -> empty output, no error.
-//   - no enc:v1: prefix -> returned as-is (legacy plaintext column), no error.
+//   - no enc:v1: prefix -> returned as-is (stored while SYSTEM_AES_KEY was
+//     unset), no error.
 //   - has enc:v1: prefix and SYSTEM_AES_KEY is missing or wrong length ->
 //     returns ErrEncryptedDataMissingKey.
 //   - has enc:v1: prefix and key is set -> decrypts, returns any decryption
@@ -137,7 +139,7 @@ func DecryptStoredSecret(encrypted string) (string, error) {
 // failing the whole row load.
 //
 // Returns:
-//   - (plaintext, true)  for empty input, legacy plaintext, or successful decrypt
+//   - (plaintext, true)  for empty input, unencrypted plaintext, or successful decrypt
 //   - ("", false)        when the value has the enc:v1: prefix but cannot be
 //     decrypted (SYSTEM_AES_KEY missing, rotated, or ciphertext corrupted).
 //     The bool=false case is the operator's signal: log a warning and treat

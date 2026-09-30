@@ -130,9 +130,9 @@ curl -X DELETE $BASE/api/v1/knowledge-bases/kb-1 -H "Authorization: Bearer $TOKE
 curl -X PUT $BASE/api/v1/knowledge-bases/kb-1/pin -H "Authorization: Bearer $TOKEN"
 ```
 
-### POST /api/v1/knowledge-bases/:id/hybrid-search（兼容 GET）
+### POST /api/v1/knowledge-bases/:id/hybrid-search
 
-用途：KB 内混合检索（向量+关键词）。权限：Viewer+，KB read；API key `retrieve`/full。GET 携带 JSON body 仅为向后兼容（#1727），推荐 POST。
+用途：KB 内混合检索（向量+关键词）。权限：Viewer+，KB read；API key `retrieve`/full。
 
 请求体（`types.SearchParams`）：
 

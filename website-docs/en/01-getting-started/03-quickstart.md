@@ -98,30 +98,31 @@ AUTH="Authorization: Bearer $TOKEN"
 KB_ID=$(curl -s -X POST $BASE/knowledge-bases -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"name":"My knowledge base","description":"demo","type":"document"}' | jq -r '.data.id')
 
-# 4) Initialize the knowledge base (local Ollama as the example; for a remote model change source/baseUrl/apiKey)
-curl -s -X POST $BASE/initialization/initialize/$KB_ID -H "$AUTH" -H "Content-Type: application/json" -d '{
-  "llm":       {"source":"local","modelName":"qwen3:8b"},
-  "embedding": {"source":"local","modelName":"bge-m3","dimension":1024},
-  "rerank":    {"enabled":false},
-  "multimodal":{"enabled":false},
-  "documentSplitting":{"chunkSize":512,"chunkOverlap":50,"separators":["\n\n","\n","。"]},
-  "nodeExtract":{"enabled":false},
-  "questionGeneration":{"enabled":false}}'
+# 4) Register the models (local Ollama as the example; for a remote model change source and put base_url / api_key in parameters)
+LLM_ID=$(curl -s -X POST $BASE/models -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"qwen3:8b","type":"KnowledgeQA","source":"local","parameters":{}}' | jq -r '.data.id')
+EMB_ID=$(curl -s -X POST $BASE/models -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"bge-m3","type":"Embedding","source":"local","parameters":{"embedding_parameters":{"dimension":1024}}}' | jq -r '.data.id')
 
-# 5) Upload a document (multipart, field name "file")
+# 5) Point the knowledge base at those models and set chunking
+curl -s -X PUT $BASE/initialization/config/$KB_ID -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "llmModelId":"'$LLM_ID'","embeddingModelId":"'$EMB_ID'",
+  "documentSplitting":{"chunkSize":512,"chunkOverlap":50,"separators":["\n\n","\n","。"]}}'
+
+# 6) Upload a document (multipart, field name "file")
 curl -s -X POST $BASE/knowledge-bases/$KB_ID/knowledge/file -H "$AUTH" \
   -F "file=@./demo.pdf"
 # Poll the parse status: GET /knowledge-bases/$KB_ID/knowledge until parse_status=completed
 
-# 6) Create a session
+# 7) Create a session
 SESSION_ID=$(curl -s -X POST $BASE/sessions -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"title":"First conversation"}' | jq -r '.data.id')
 
-# 7) Ask a question (streamed over SSE)
+# 8) Ask a question (streamed over SSE)
 curl -N -X POST $BASE/knowledge-chat/$SESSION_ID -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"What is this document about?","knowledge_base_ids":["'$KB_ID'"]}'
 
-# 8) Retrieve only, without generating an answer (structured JSON)
+# 9) Retrieve only, without generating an answer (structured JSON)
 curl -s -X POST $BASE/knowledge-search -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"query":"keyword","knowledge_base_ids":["'$KB_ID'"]}'
 ```
@@ -159,9 +160,9 @@ Each step of the setup in the UI has its own endpoint, which you can reuse when 
 | Download an Ollama model | `POST /api/v1/initialization/ollama/models/download` then `GET /api/v1/initialization/ollama/download/progress/:taskId` | Asynchronous download; poll for progress |
 | Test a remote model | `POST /api/v1/initialization/remote/check`, `/initialization/embedding/test`, `/initialization/rerank/check`, `/initialization/asr/check`, `/initialization/multimodal/test` | Connectivity checks before saving |
 | Trial knowledge-graph extraction | `POST /api/v1/initialization/extract/text-relation` (with `fabri-text` / `fabri-tag` to generate samples) | Previews entity and relation extraction |
-| Save the configuration | `POST /api/v1/initialization/initialize/:kbId` (first time) / `PUT /api/v1/initialization/config/:kbId` (update) | Persists: creates or updates the Model records and writes the knowledge base configuration |
+| Save the configuration | `POST /api/v1/models` (register the models), then `PUT /api/v1/initialization/config/:kbId` | Creates the Model records first, then writes their IDs and the chunking settings into the knowledge base |
 
-`source` is `local` (Ollama) or a remote vendor identifier (`openai`, `deepseek`, `aliyun`, `zhipu`, `siliconflow` and so on). `chunkSize` must be between 100 and 10000.
+A model's `source` is `local` (Ollama) or a remote vendor identifier (`openai`, `deepseek`, `aliyun`, `zhipu`, `siliconflow` and so on).
 
 ### What happens along the chain
 
@@ -178,7 +179,7 @@ sequenceDiagram
     FE->>APP: POST /api/v1/auth/register then login
     APP-->>FE: JWT + the automatically created workspace
     U->>APP: POST /api/v1/knowledge-bases (create a knowledge base)
-    U->>APP: POST /api/v1/initialization/initialize/:kbId (configure models)
+    U->>APP: PUT /api/v1/initialization/config/:kbId (configure models)
     APP->>LLM: connectivity tests (remote/check, embedding/test)
     U->>APP: POST /api/v1/knowledge-bases/:id/knowledge/file (upload)
     APP->>DR: gRPC parse the document (OCR / layout / images)

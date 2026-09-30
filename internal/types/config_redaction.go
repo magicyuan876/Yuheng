@@ -3,8 +3,8 @@ package types
 import "strings"
 
 // WebSearchConfigForResponse returns a copy safe for HTTP responses.
-// When maskSecrets is true, api_key is omitted and a configured proxy_url
-// is replaced with RedactedSecretPlaceholder.
+// When maskSecrets is true, a configured proxy_url is replaced with
+// RedactedSecretPlaceholder.
 func WebSearchConfigForResponse(cfg *WebSearchConfig, maskSecrets bool) *WebSearchConfig {
 	if cfg == nil {
 		return nil
@@ -13,7 +13,6 @@ func WebSearchConfigForResponse(cfg *WebSearchConfig, maskSecrets bool) *WebSear
 	if !maskSecrets {
 		return &out
 	}
-	out.APIKey = ""
 	if strings.TrimSpace(out.ProxyURL) != "" {
 		out.ProxyURL = RedactedSecretPlaceholder
 	}
@@ -86,7 +85,6 @@ func MergeWebSearchConfigForUpdate(incoming, existing *WebSearchConfig) *WebSear
 	if existing != nil {
 		prev = *EffectiveWebSearchConfig(existing)
 	}
-	out.APIKey = PreserveIfRedacted(out.APIKey, prev.APIKey)
 	out.ProxyURL = PreserveIfRedacted(out.ProxyURL, prev.ProxyURL)
 	return &out
 }

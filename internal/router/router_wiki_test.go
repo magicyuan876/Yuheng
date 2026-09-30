@@ -161,7 +161,6 @@ func TestInitializationWriteRoutesDenyOutOfScopeAPIKeyKB(t *testing.T) {
 		body   string
 	}{
 		{http.MethodPut, "/api/v1/initialization/config/kb-other", `{}`},
-		{http.MethodPost, "/api/v1/initialization/initialize/kb-other", `{}`},
 	}
 
 	for _, tc := range cases {

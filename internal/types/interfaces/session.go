@@ -12,7 +12,7 @@ type SessionService interface {
 	// CreateSession creates a session
 	CreateSession(ctx context.Context, session *types.Session) (*types.Session, error)
 	// GetSession gets a session, honoring the caller's per-user scope with an
-	// Admin+ read fallback for tenant channel sessions (API keys, legacy embed rows).
+	// Admin+ read fallback for tenant API-key sessions.
 	// Use only for read paths.
 	GetSession(ctx context.Context, id string) (*types.Session, error)
 	// GetOwnedSession gets a session strictly within the caller's owner scope

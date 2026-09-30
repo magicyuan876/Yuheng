@@ -72,8 +72,8 @@ type KnowledgeBase struct {
 	// CreatorID records the user ID of whoever originally created the KB.
 	// Used by the workspace-level RBAC middleware to let Contributors edit
 	// their own KBs without granting them access to everyone else's.
-	// Nullable for backward compatibility with rows created before the
-	// RBAC migration backfilled the column to the workspace Owner.
+	// Empty for KBs no human created (built-in ones, and those created
+	// through an API key): they are tenant-owned.
 	CreatorID string `yaml:"creator_id"              json:"creator_id"              gorm:"type:varchar(36);index"`
 	// Chunking configuration
 	ChunkingConfig ChunkingConfig `yaml:"chunking_config"         json:"chunking_config"         gorm:"type:json"`
@@ -115,14 +115,10 @@ type KnowledgeBase struct {
 	// confirming or changing it before knowledge health asks its owner to
 	// review it. 0 switches periodic review off.
 	ReviewIntervalDays int `yaml:"review_interval_days" json:"review_interval_days" gorm:"not null;default:0"`
-	// IsPinned and PinnedAt are computed per-caller from user_kb_pins
-	// (see migration 000050). They used to be stored on the row itself,
-	// which made pinning a workspace-wide ordering decision gated behind
-	// the kb-edit RBAC guard. The columns are still present in legacy
-	// schemas for rollback safety but are no longer read or written by
-	// the application — both fields are tagged `gorm:"-"` so GORM
-	// ignores them on every CRUD call and the list handler stamps them
-	// after enriching with the caller's pin set.
+	// IsPinned and PinnedAt are computed per-caller from user_kb_pins:
+	// pinning is a personal ordering choice, not a property of the KB.
+	// Both fields are tagged `gorm:"-"`; the list handler stamps them after
+	// enriching with the caller's pin set.
 	IsPinned bool `yaml:"is_pinned"               json:"is_pinned"               gorm:"-"`
 	// PinnedAt records when the current caller pinned this knowledge
 	// base; nil when they have not.
@@ -274,8 +270,8 @@ type ChunkingConfig struct {
 	// ChildChunkSize is the size of child chunks used for embedding (default: 384).
 	// Only used when EnableParentChild is true.
 	ChildChunkSize int `yaml:"child_chunk_size,omitempty" json:"child_chunk_size,omitempty"`
-	// Strategy selects the adaptive chunking tier. Empty / "legacy" preserves
-	// the historical recursive splitter; "auto" lets a profiler pick between
+	// Strategy selects the adaptive chunking tier. Empty / "legacy" is the
+	// plain recursive splitter; "auto" lets a profiler pick between
 	// heading-aware, heuristic and recursive tiers; "heading" / "heuristic" /
 	// "recursive" pin the tier explicitly.
 	Strategy string `yaml:"strategy,omitempty" json:"strategy,omitempty"`
@@ -349,7 +345,7 @@ func (kb *KnowledgeBase) GetStorageProvider() string {
 	}
 	if kb.StorageProviderConfig != nil {
 		p := strings.ToLower(strings.TrimSpace(kb.StorageProviderConfig.Provider))
-		if p != "" && p != "__pending_env__" {
+		if p != "" {
 			return p
 		}
 	}
@@ -468,31 +464,12 @@ type VLMConfig struct {
 	// CustomInstructions adds KB-specific image interpretation guidance without
 	// replacing the system-owned OCR and Markdown output contract.
 	CustomInstructions string `yaml:"custom_instructions,omitempty" json:"custom_instructions,omitempty"`
-
-	// 兼容老版本
-	// Model Name
-	ModelName string `yaml:"model_name" json:"model_name"`
-	// Base URL
-	BaseURL string `yaml:"base_url" json:"base_url"`
-	// API Key
-	APIKey string `yaml:"api_key" json:"api_key"`
-	// Interface Type: "ollama" or "openai"
-	InterfaceType string `yaml:"interface_type" json:"interface_type"`
 }
 
-// IsEnabled 判断多模态是否启用（兼容新老版本）
-// 新版本：Enabled && ModelID != ""
-// 老版本：ModelName != "" && BaseURL != ""
+// IsEnabled reports whether image understanding is on. The switch alone is
+// not enough: without a model there is nothing to run the images through.
 func (c VLMConfig) IsEnabled() bool {
-	// 新版本配置
-	if c.Enabled && c.ModelID != "" {
-		return true
-	}
-	// 兼容老版本配置
-	if c.ModelName != "" && c.BaseURL != "" {
-		return true
-	}
-	return false
+	return c.Enabled && c.ModelID != ""
 }
 
 // QuestionGenerationConfig represents the question generation configuration for document knowledge bases
@@ -663,7 +640,8 @@ func (kb *KnowledgeBase) EnsureDefaults() {
 	if kb.IndexingStrategy.IsZero() {
 		kb.IndexingStrategy = DefaultIndexingStrategy()
 	}
-	// Sync legacy ExtractConfig.Enabled → IndexingStrategy.GraphEnabled
+	// An enabled ExtractConfig implies graph indexing: IsGraphEnabled needs
+	// both flags, and a caller may have set only the extract one.
 	if kb.ExtractConfig != nil && kb.ExtractConfig.Enabled && !kb.IndexingStrategy.GraphEnabled {
 		kb.IndexingStrategy.GraphEnabled = true
 	}

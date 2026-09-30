@@ -157,11 +157,12 @@ func loadAndProcessHistory(
 			h = &types.History{}
 		}
 		if message.Role == "user" {
-			// RenderedContent is a snapshot of the prompt/context format used by
-			// the original turn. Replaying it would mix legacy <context id="…">
-			// envelopes and old citation instructions into the current protocol.
-			// Historical references are carried separately in KnowledgeReferences
-			// and can be re-merged into this turn's freshly rendered context.
+			// RenderedContent is a snapshot of the whole prompt the original turn
+			// sent, its retrieved passages numbered <context id="N"> for that
+			// turn included. Replaying it would repeat stale context under
+			// numbers that collide with this turn's. Historical references are
+			// carried separately in KnowledgeReferences and can be re-merged
+			// into this turn's freshly rendered context.
 			h.Query = message.Content
 			h.CreateAt = message.CreatedAt
 			if desc := extractImageCaptions(message.Images); desc != "" {

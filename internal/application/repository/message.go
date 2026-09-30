@@ -187,10 +187,9 @@ func (r *messageRepository) SearchMessagesByKeyword(
 		Where("messages.deleted_at IS NULL").
 		Where("messages.content ILIKE ?", "%"+escapeLikeKeyword(keyword)+"%")
 
-	// Matches the scoping used when listing sessions, including the legacy
-	// allowance for tenant-level sessions created before per-user ownership.
+	// Matches the scoping used when listing sessions.
 	if ownerID != "" {
-		query = query.Where("(sessions.user_id = ? OR sessions.user_id IS NULL OR sessions.user_id = '')", ownerID)
+		query = query.Where("sessions.user_id = ?", ownerID)
 	}
 
 	if len(sessionIDs) > 0 {
@@ -224,7 +223,7 @@ func (r *messageRepository) OwnedSessionIDs(
 		Where("deleted_at IS NULL").
 		Where("id IN ?", sessionIDs)
 	if ownerID != "" {
-		query = query.Where("(user_id = ? OR user_id IS NULL OR user_id = '')", ownerID)
+		query = query.Where("user_id = ?", ownerID)
 	}
 	if err := query.Pluck("id", &ids).Error; err != nil {
 		return nil, err

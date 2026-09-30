@@ -23,7 +23,6 @@ type ReadRequest struct {
 type ReadResult struct {
 	MarkdownContent string
 	ImageRefs       []ImageRef
-	ImageDirPath    string
 	Metadata        map[string]string
 	Error           string
 	IsAudio         bool   // true when the result contains raw audio data needing ASR transcription
@@ -52,7 +51,6 @@ type ImageRef struct {
 	Filename    string
 	OriginalRef string
 	MimeType    string
-	StorageKey  string
 	ImageData   []byte // inline image bytes (universal fallback for cross-machine deployments)
 	// IsOriginal marks references that point to the originally uploaded file
 	// itself (e.g. when the user uploads a standalone image). Such references

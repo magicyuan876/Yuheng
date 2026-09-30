@@ -396,12 +396,11 @@ func TestPostprocessSubspan_AttachesUnderPostProcessStage(t *testing.T) {
 	assert.NotNil(t, found.Output, "EndSpan must record the output map")
 }
 
-// TestPostprocessSubspan_MissingParentFallsThrough covers the legacy
-// path: an in-flight async task may carry attempt=0 (queued before the
-// span-tracking field was added) or hit a knowledge whose postprocess
-// stage row is missing (parse predates tracker). LookupStage returning
-// nil must NOT crash the handler — the caller is expected to skip span
-// recording and continue normal processing.
+// TestPostprocessSubspan_MissingParentFallsThrough covers a tracker that
+// could not write its rows: an async task may carry an attempt with no
+// rows, or hit a knowledge whose postprocess stage row is missing.
+// LookupStage returning nil must NOT crash the handler — the caller is
+// expected to skip span recording and continue normal processing.
 func TestPostprocessSubspan_MissingParentFallsThrough(t *testing.T) {
 	tracker, _ := setupSpanTrackerTest(t)
 	ctx := context.Background()

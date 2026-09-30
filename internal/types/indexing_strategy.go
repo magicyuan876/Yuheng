@@ -19,8 +19,8 @@ type IndexingStrategy struct {
 	GraphEnabled bool `yaml:"graph_enabled" json:"graph_enabled"`
 }
 
-// DefaultIndexingStrategy returns the default strategy matching the legacy behavior:
-// vector and keyword indexing enabled, wiki and graph disabled.
+// DefaultIndexingStrategy returns the default strategy: vector and keyword
+// indexing enabled, wiki and graph disabled.
 func DefaultIndexingStrategy() IndexingStrategy {
 	return IndexingStrategy{
 		VectorEnabled:  true,
@@ -57,8 +57,8 @@ func (s IndexingStrategy) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface for GORM deserialization.
-// When the database column is NULL (existing rows before migration),
-// it returns DefaultIndexingStrategy() for backward compatibility.
+// The column is nullable, and a NULL or unreadable value means nobody chose
+// a strategy, so it scans as DefaultIndexingStrategy().
 func (s *IndexingStrategy) Scan(value interface{}) error {
 	if value == nil {
 		*s = DefaultIndexingStrategy()

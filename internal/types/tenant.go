@@ -101,8 +101,9 @@ func (c RetrieverEngines) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface, used to convert database value to RetrieverEngines.
-// It supports both the legacy bare-array format (e.g. [{...}, {...}]) and the current
-// object-wrapped format (e.g. {"engines": [{...}, {...}]}).
+// It accepts both the object-wrapped format Value writes ({"engines": [...]}) and a
+// bare array: the column's schema default is '[]', so a row nobody has saved yet
+// still holds one.
 func (c *RetrieverEngines) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -117,7 +118,7 @@ func (c *RetrieverEngines) Scan(value interface{}) error {
 		return nil
 	}
 
-	// Fallback: legacy bare-array format: [{...}, {...}]
+	// Bare array: the untouched column default.
 	var engines []RetrieverEngineParams
 	if err := json.Unmarshal(b, &engines); err != nil {
 		return fmt.Errorf("retriever_engines: cannot unmarshal as object or array: %w", err)
@@ -234,10 +235,7 @@ type ParserEngineConfig struct {
 	MinerUEnableFormula *bool  `json:"mineru_enable_formula,omitempty"`
 	MinerUEnableTable   *bool  `json:"mineru_enable_table,omitempty"`
 	MinerUParseMethod   string `json:"mineru_parse_method,omitempty"`
-	// MinerUEnableOCR is retained for compatibility with configurations saved
-	// before parse_method supported auto/ocr/txt.
-	MinerUEnableOCR *bool  `json:"mineru_enable_ocr,omitempty"`
-	MinerULanguage  string `json:"mineru_language,omitempty"`
+	MinerULanguage      string `json:"mineru_language,omitempty"`
 
 	// MinerU 云 API 解析参数
 	MinerUCloudModel         string `json:"mineru_cloud_model,omitempty"` // model_version: pipeline, vlm, MinerU-HTML
@@ -288,21 +286,17 @@ const (
 	MinerUParseMethodText = "txt"
 )
 
-// ResolveMinerUParseMethod normalizes the explicit MinerU parse method and
-// maps the legacy OCR toggle to the closest safe behavior. The old enabled
-// value maps to auto instead of ocr so digital PDFs keep their native text
-// layer while scanned PDFs are still detected and OCRed by MinerU.
-func ResolveMinerUParseMethod(method string, legacyOCREnabled *bool) string {
+// ResolveMinerUParseMethod normalizes the MinerU parse method. Anything
+// unrecognized, empty included, resolves to auto rather than ocr, so digital
+// PDFs keep their native text layer while scanned PDFs are still detected and
+// OCRed by MinerU.
+func ResolveMinerUParseMethod(method string) string {
 	switch strings.ToLower(strings.TrimSpace(method)) {
 	case MinerUParseMethodAuto:
 		return MinerUParseMethodAuto
 	case MinerUParseMethodOCR:
 		return MinerUParseMethodOCR
 	case MinerUParseMethodText:
-		return MinerUParseMethodText
-	}
-
-	if legacyOCREnabled != nil && !*legacyOCREnabled {
 		return MinerUParseMethodText
 	}
 	return MinerUParseMethodAuto
@@ -348,11 +342,8 @@ func (c *ParserEngineConfig) ToOverridesMap() map[string]string {
 	if c.MinerUEnableTable != nil {
 		m["mineru_enable_table"] = fmt.Sprintf("%v", *c.MinerUEnableTable)
 	}
-	if c.MinerUParseMethod != "" || c.MinerUEnableOCR != nil {
-		m["mineru_parse_method"] = ResolveMinerUParseMethod(c.MinerUParseMethod, c.MinerUEnableOCR)
-	}
-	if c.MinerUEnableOCR != nil {
-		m["mineru_enable_ocr"] = fmt.Sprintf("%v", *c.MinerUEnableOCR)
+	if c.MinerUParseMethod != "" {
+		m["mineru_parse_method"] = ResolveMinerUParseMethod(c.MinerUParseMethod)
 	}
 	if c.MinerULanguage != "" {
 		m["mineru_language"] = c.MinerULanguage

@@ -59,8 +59,9 @@ type DocumentChunkMetadata struct {
 
 // IsQuestionCurrent reports whether a generated question was authored for the
 // current chunk body. This is advisory metadata for the UI: questions remain
-// valid retrieval aliases across chunk edits. Legacy rows fall back to the
-// metadata-level revision.
+// valid retrieval aliases across chunk edits. A question without its own
+// revision (the chunk editor writes only the metadata-level one) falls back to
+// that.
 func (m *DocumentChunkMetadata) IsQuestionCurrent(question GeneratedQuestion, chunkRevision int) bool {
 	if question.ContentRevision != nil {
 		return *question.ContentRevision == chunkRevision
@@ -484,14 +485,6 @@ type FAQImportProgress struct {
 	ProcessingTime int64     `json:"processing_time,omitempty"` // 处理耗时（毫秒）
 }
 
-// FAQImportMetadata 存储在Knowledge.Metadata中的FAQ导入任务信息
-// Deprecated: Use FAQImportProgress with Redis storage instead
-type FAQImportMetadata struct {
-	ImportProgress  int `json:"import_progress"` // 0-100
-	ImportTotal     int `json:"import_total"`
-	ImportProcessed int `json:"import_processed"`
-}
-
 // FAQImportResult 存储FAQ导入完成后的统计结果
 // 这个信息是持久化的，不跟随进度状态，直到下次导入时被替换
 type FAQImportResult struct {
@@ -519,18 +512,6 @@ type FAQImportResult struct {
 	ProcessingTime int64 `json:"processing_time"` // 处理耗时（毫秒）
 }
 
-// ToJSON converts the metadata to JSON type.
-func (m *FAQImportMetadata) ToJSON() (JSON, error) {
-	if m == nil {
-		return nil, nil
-	}
-	bytes, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	return JSON(bytes), nil
-}
-
 // ToJSON converts the import result to JSON type.
 func (r *FAQImportResult) ToJSON() (JSON, error) {
 	if r == nil {
@@ -541,18 +522,6 @@ func (r *FAQImportResult) ToJSON() (JSON, error) {
 		return nil, err
 	}
 	return JSON(bytes), nil
-}
-
-// ParseFAQImportMetadata parses FAQ import metadata from Knowledge.
-func ParseFAQImportMetadata(k *Knowledge) (*FAQImportMetadata, error) {
-	if k == nil || len(k.Metadata) == 0 {
-		return nil, nil
-	}
-	var metadata FAQImportMetadata
-	if err := json.Unmarshal(k.Metadata, &metadata); err != nil {
-		return nil, err
-	}
-	return &metadata, nil
 }
 
 // normalizeQuestionStrings 对问题列表进行归一化处理

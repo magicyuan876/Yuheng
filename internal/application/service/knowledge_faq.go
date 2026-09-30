@@ -38,12 +38,10 @@ func (s *knowledgeService) ListFAQEntries(ctx context.Context,
 
 	// If the kb belongs to a different tenant, check for shared access
 	if kb.TenantID != tenantID {
-		// Get user ID from context
-		userIDVal := ctx.Value(types.UserIDContextKey)
-		if userIDVal == nil {
+		// Cross-tenant reads through an org share are for signed-in users only.
+		if ctx.Value(types.UserIDContextKey) == nil {
 			return nil, werrors.NewForbiddenError("无权访问该知识库")
 		}
-		_ = userIDVal.(string) // userID retained only for legacy log fields
 		callerTenantRole := types.TenantRoleFromContext(ctx)
 
 		// Check if the caller's tenant has at least viewer permission via org sharing.

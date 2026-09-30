@@ -40,10 +40,10 @@ func TestUpdateWikiPageSnapshotsSupersededVersion(t *testing.T) {
 	// First real edit: v1 must be snapshotted, v2 becomes current.
 	edit := *created
 	edit.Content = "v2 body"
-	updated, err := h.svc.UpdatePage(types.WithWikiEditSource(ctx, types.WikiEditSourceAgent), &edit)
+	updated, err := h.svc.UpdatePage(types.WithWikiEditSource(ctx, types.WikiEditSourceRevert), &edit)
 	require.NoError(t, err)
 	require.Equal(t, 2, updated.Version)
-	require.Equal(t, types.WikiEditSourceAgent, updated.LastEditSource)
+	require.Equal(t, types.WikiEditSourceRevert, updated.LastEditSource)
 
 	resp, err := h.svc.ListRevisions(ctx, kb, "concept/rag", 50, 0)
 	require.NoError(t, err)

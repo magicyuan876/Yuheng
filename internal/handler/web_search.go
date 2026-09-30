@@ -7,7 +7,8 @@ import (
 	"github.com/magicyuan876/yuheng/internal/types"
 )
 
-// WebSearchHandler handles legacy web search related requests
+// WebSearchHandler serves the catalogue of web search engine types. The
+// configured providers themselves live under WebSearchProviderHandler.
 type WebSearchHandler struct{}
 
 // NewWebSearchHandler creates a new web search handler

@@ -14,9 +14,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/resolver"
-	"google.golang.org/grpc/status"
 )
 
 // getMaxMessageSize returns the gRPC message cap for the docreader
@@ -26,8 +24,8 @@ import (
 // follow UI edits — instead it leaves headroom for them.
 //
 // DOCREADER_GRPC_MAX_FILE_SIZE_MB (same env the python server reads) wins
-// when set; otherwise max(MAX_FILE_SIZE_MB, 512) so legacy deployments
-// that raised MAX_FILE_SIZE_MB beyond 512 keep working unchanged.
+// when set; otherwise max(MAX_FILE_SIZE_MB, 512), so raising the business
+// limit past 512 MB never leaves the transport cap below it.
 func getMaxMessageSize() int {
 	if sizeStr := os.Getenv("DOCREADER_GRPC_MAX_FILE_SIZE_MB"); sizeStr != "" {
 		if size, err := strconv.Atoi(sizeStr); err == nil && size > 0 {
@@ -151,24 +149,11 @@ func (p *GRPCDocumentReader) Read(ctx context.Context, req *types.ReadRequest) (
 	// Use the streaming RPC so documents with many page images (large scanned
 	// PDFs) are not capped by the unary message-size limit. The meta frame
 	// arrives first, followed by one frame per image.
-	result, err := p.readStream(ctx, client, protoReq)
-	if err != nil {
-		// An older docreader build may not implement ReadStream. Fall back to
-		// the unary Read RPC so a version-skewed deployment still parses
-		// documents (small/medium docs only — the unary path remains capped by
-		// the gRPC message-size limit, which is exactly what streaming avoids).
-		if status.Code(err) == codes.Unimplemented {
-			logger.Warnf(ctx, "docreader ReadStream unimplemented, falling back to unary Read: %v", err)
-			return p.readUnary(ctx, client, protoReq)
-		}
-		return nil, err
-	}
-	return result, nil
+	return p.readStream(ctx, client, protoReq)
 }
 
 // readStream consumes the server-streaming ReadStream RPC: one meta frame
-// followed by one frame per image. Errors are returned verbatim so the caller
-// can inspect the gRPC status code (e.g. Unimplemented) for fallback.
+// followed by one frame per image.
 func (p *GRPCDocumentReader) readStream(
 	ctx context.Context, client proto.DocReaderClient, protoReq *proto.ReadRequest,
 ) (*types.ReadResult, error) {
@@ -191,7 +176,6 @@ func (p *GRPCDocumentReader) readStream(
 		if meta := frame.GetMeta(); meta != nil {
 			gotMeta = true
 			result.MarkdownContent = meta.GetMarkdownContent()
-			result.ImageDirPath = meta.GetImageDirPath()
 			result.Metadata = meta.GetMetadata()
 			result.Error = meta.GetError()
 			if n := meta.GetImageCount(); n > 0 {
@@ -223,7 +207,6 @@ func (p *GRPCDocumentReader) readStream(
 				Filename:    img.GetFilename(),
 				OriginalRef: img.GetOriginalRef(),
 				MimeType:    img.GetMimeType(),
-				StorageKey:  img.GetStorageKey(),
 				ImageData:   img.GetImageData(),
 				TimestampMs: img.GetTimestampMs(),
 			})
@@ -236,45 +219,8 @@ func (p *GRPCDocumentReader) readStream(
 	return result, nil
 }
 
-// readUnary calls the legacy unary Read RPC. Used only as a compatibility
-// fallback when the connected docreader does not implement ReadStream.
-func (p *GRPCDocumentReader) readUnary(
-	ctx context.Context, client proto.DocReaderClient, protoReq *proto.ReadRequest,
-) (*types.ReadResult, error) {
-	resp, err := client.Read(ctx, protoReq)
-	if err != nil {
-		return nil, fmt.Errorf("gRPC Read failed: %w", err)
-	}
-
-	result := &types.ReadResult{
-		MarkdownContent: resp.GetMarkdownContent(),
-		ImageDirPath:    resp.GetImageDirPath(),
-		Metadata:        resp.GetMetadata(),
-		Error:           resp.GetError(),
-	}
-	applyMediaInfo(result, resp.GetMedia())
-	if audio := resp.GetAudioData(); len(audio) > 0 {
-		result.AudioData = audio
-	}
-	if refs := resp.GetImageRefs(); len(refs) > 0 {
-		result.ImageRefs = make([]types.ImageRef, 0, len(refs))
-		for _, img := range refs {
-			result.ImageRefs = append(result.ImageRefs, types.ImageRef{
-				Filename:    img.GetFilename(),
-				OriginalRef: img.GetOriginalRef(),
-				MimeType:    img.GetMimeType(),
-				StorageKey:  img.GetStorageKey(),
-				ImageData:   img.GetImageData(),
-				TimestampMs: img.GetTimestampMs(),
-			})
-		}
-	}
-	return result, nil
-}
-
 // applyMediaInfo copies the docreader MediaInfo frame onto the read result.
-// A nil media frame (ordinary documents, or an older docreader build) leaves
-// the result untouched.
+// A nil media frame (ordinary documents) leaves the result untouched.
 func applyMediaInfo(result *types.ReadResult, media *proto.MediaInfo) {
 	if media == nil || !media.GetIsVideo() {
 		return

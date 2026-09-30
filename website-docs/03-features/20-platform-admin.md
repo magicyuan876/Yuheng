@@ -62,14 +62,11 @@ Yuheng 的权限分两层：**空间内**的四级角色（见[租户、用户�
 | `tenant.self_service_creation_enabled` | bool | `true` | 立即 |
 | `tenant.max_owned_per_user` | int | `10`（0 = 用内置默认，负数 = 关闭限额） | 每次建空间时读取 |
 | `tenant.default_storage_quota_gb` | int | `10` | **仅新建空间时读取**，不回写已有空间 |
-| `tenant.auto_create_api_key` | bool | `false` | 每次建空间时读取 |
 | `tenant.auto_accept_invitation` | bool | `false` | 立即；开启后邀请已注册用户时直接加入空间，不再等对方接受 |
 | `ssrf.whitelist` | 字符串列表 | 空（`SSRF_WHITELIST`） | 立即（`SSRF_WHITELIST_EXTRA` 仍只由部署方维护，不在此覆盖） |
 | `asynq.core/postprocess/enrichment/maintenance/shared/wiki_concurrency` | int | 见[异步任务系统](../02-architecture/05-async-tasks.md) | **需重启** |
 | `model.max_concurrency` | int | `32`（`YUHENG_MODEL_MAX_CONCURRENCY`） | 立即；只限制后台任务，不影响交互式对话 |
 | `governance.centralized_infra` | bool | `false` | 立即；开启后模型、网络搜索、向量存储、存储后端、解析引擎、Ollama 的写操作只允许系统管理员，空间 Owner/Admin 保留只读（`PlatformManaged` 路由守卫） |
-
-`tenant.auto_create_api_key` 是个兼容开关：老版本「建空间就自动下发一个 full-access Key 并在响应里返回明文」的行为属于破坏性变更，依赖它的集成可以打开这个开关退回旧行为，默认关闭。
 
 ::: warning 配置来源不只有环境变量
 上表这些键一旦在控制台里改过，数据库里就有了一行记录，**之后改环境变量不再有效果**。排查「明明改了 env 却没生效」时先看这里；把设置项重置（`DELETE /system/admin/settings/:key`）会删掉 DB 行，重新回落到环境变量或内置默认值。

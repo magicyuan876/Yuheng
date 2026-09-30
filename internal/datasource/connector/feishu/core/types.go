@@ -193,18 +193,6 @@ type WikiNodeInfoResponse struct {
 
 // --- Export task API responses ---
 
-// docRawContentData is the data payload of docRawContentResponse.
-type docRawContentData struct {
-	Content string `json:"content"`
-}
-
-// docRawContentResponse is the response for GET /open-apis/docx/v1/documents/:document_id/raw_content.
-// Deprecated: prefer export API for full-fidelity document export.
-type docRawContentResponse struct {
-	ApiResponse
-	Data docRawContentData `json:"data"`
-}
-
 // ExportTaskCreateData is the data payload of ExportTaskCreateResponse.
 type ExportTaskCreateData struct {
 	Ticket string `json:"ticket"`

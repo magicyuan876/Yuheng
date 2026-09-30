@@ -540,7 +540,8 @@ func (s *knowledgeBaseService) UpdateKnowledgeBase(ctx context.Context,
 			config.AutoTagConfig.Normalize()
 			kb.AutoTagConfig = config.AutoTagConfig
 		}
-		// Update indexing strategy — syncs to ExtractConfig for backward compat
+		// Update indexing strategy. GraphEnabled is mirrored onto
+		// ExtractConfig.Enabled because IsGraphEnabled requires both.
 		if config.IndexingStrategy != nil {
 			if !config.IndexingStrategy.HasAnyIndexing() {
 				return nil, errors.New("at least one indexing strategy must be enabled")

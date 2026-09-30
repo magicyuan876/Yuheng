@@ -43,8 +43,8 @@ func runStartupBootstrap(c *dig.Container) {
 	// Wire the runtime-tunable upload limits (file.max_size_mb /
 	// file.video_max_size_mb system settings) into the utils/filesize
 	// helpers so every existing call site becomes dynamic without a DI
-	// edit. GetInt falls back to the legacy env vars, then the built-in
-	// defaults, so unwired deployments behave exactly as before.
+	// edit. GetInt falls back to the MAX_*_SIZE_MB env vars, then the
+	// built-in defaults, when no system setting row exists.
 	if err := c.Invoke(func(ss interfaces.SystemSettingService) {
 		utils.RegisterMaxFileSizeResolvers(
 			func() int64 {

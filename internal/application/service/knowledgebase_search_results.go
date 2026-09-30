@@ -340,7 +340,7 @@ func (s *knowledgeBaseService) isSearchableChunk(chunk *types.Chunk) bool {
 	}
 	// An edit is persisted before its retrieval artifacts are synchronized.
 	// Do not hydrate stale vector hits while that synchronization is pending or
-	// failed. Empty is accepted for legacy rows created before index_status.
+	// failed.
 	if chunk.IndexStatus == "processing" || chunk.IndexStatus == "failed" {
 		return false
 	}

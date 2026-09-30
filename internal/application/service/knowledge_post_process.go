@@ -93,9 +93,9 @@ func (s *KnowledgePostProcessService) Handle(ctx context.Context, task *asynq.Ta
 		ctx = context.WithValue(ctx, types.LanguageContextKey, payload.Language)
 	}
 
-	// Resolve attempt: payload carries it from the upstream stage, but
-	// fall back to the latest known attempt for compatibility with
-	// in-flight tasks queued before this code shipped.
+	// Resolve attempt: payload carries it from the upstream stage. 0 means
+	// the upstream stage could not open one; the latest known attempt is
+	// then the closest anchor for this run's spans.
 	attempt := payload.Attempt
 	if attempt <= 0 {
 		attempt = s.tracker().LatestAttempt(ctx, payload.KnowledgeID)
@@ -189,10 +189,9 @@ func (s *KnowledgePostProcessService) Handle(ctx context.Context, task *asynq.Ta
 	// Question generation now fans out one subtask per plain text chunk
 	// (mirroring the graph-extract per-chunk pattern) so each chunk's LLM
 	// call retries / cancels / traces independently. We only target
-	// ChunkTypeText here — OCR / Caption chunks were never fed to question
-	// generation in the legacy whole-knowledge loop, so excluding them
-	// keeps behavior identical. Sorted by StartAt so the per-chunk
-	// context (prev / next) matches the legacy ordering.
+	// ChunkTypeText here — OCR / Caption chunks describe images, and
+	// questions about them would only echo the caption. Sorted by StartAt
+	// so the per-chunk context (prev / next) follows document order.
 	var questionChunks []*types.Chunk
 	if willSpawnQuestion {
 		for _, c := range textChunks {

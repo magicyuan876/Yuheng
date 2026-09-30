@@ -57,7 +57,7 @@ func (c *Connector) ResolveResourceAncestors(
 //
 // Primary source is get_addable_knowledge_base_list, which returns the KBs the
 // current OpenAPI credential has permission to operate on. When that endpoint
-// returns an empty list (e.g. a legacy tenant only exposes read scopes) we
+// returns an empty list (e.g. a tenant that only exposes read scopes) we
 // fall back to search_knowledge_base with an empty query so users still see
 // something to pick.
 func (c *Connector) ListResources(

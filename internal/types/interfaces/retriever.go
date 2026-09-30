@@ -70,8 +70,6 @@ type RetrieveEngineRegistry interface {
 	Register(indexService RetrieveEngineService) error
 	// GetRetrieveEngineService gets the retrieve engine service
 	GetRetrieveEngineService(engineType types.RetrieverEngineType) (RetrieveEngineService, error)
-	// GetAllRetrieveEngineServices gets all retrieve engine services
-	GetAllRetrieveEngineServices() []RetrieveEngineService
 
 	// GetByStoreID returns the engine service registered for a specific DB store ID.
 	//

@@ -455,7 +455,7 @@ func TestPruneRevisionsKeepsHumanEditsUntilHardCap(t *testing.T) {
 
 	// v1 is a human edit buried under a long tail of pipeline rewrites.
 	require.NoError(t, db.Create(makeWikiRevision(page, 1, types.WikiEditSourceUser)).Error)
-	require.NoError(t, db.Create(makeWikiRevision(page, 2, types.WikiEditSourceAgent)).Error)
+	require.NoError(t, db.Create(makeWikiRevision(page, 2, types.WikiEditSourceRevert)).Error)
 	for v := 3; v <= 120; v++ {
 		require.NoError(t, db.Create(makeWikiRevision(page, v, types.WikiEditSourcePipeline)).Error)
 	}

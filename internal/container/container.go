@@ -680,10 +680,9 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 			}
 		}
 
-		// Post-migration: resolve __pending_env__ storage provider markers for historical KBs.
-		// The SQL migration marks KBs that have documents but no provider with "__pending_env__";
-		// we replace that with the actual STORAGE_TYPE from the environment.
-		resolveStorageProviderPending(db)
+		syncSequences(db)
+		// Reset any pending tasks left over from previous aborted runs (no-Redis mode)
+		resetPendingTasks(db)
 		migrateLegacyStorageBackends(db)
 
 		// Post-migration: declarative built-in models from config/builtin_models.yaml (optional).
@@ -706,35 +705,6 @@ func initDatabase(cfg *config.Config) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(pool.ConnMaxLifetime)
 
 	return db, nil
-}
-
-// resolveStorageProviderPending replaces the "__pending_env__" sentinel in
-// knowledge_bases.storage_provider_config with the actual STORAGE_TYPE from the environment.
-// This runs once after SQL migrations to bind historical KBs to their real storage provider.
-func resolveStorageProviderPending(db *gorm.DB) {
-	storageType := strings.TrimSpace(os.Getenv("STORAGE_TYPE"))
-	if storageType == "" {
-		storageType = "local"
-	}
-	storageType = strings.ToLower(storageType)
-
-	result := db.Exec(
-		`UPDATE knowledge_bases SET storage_provider_config = ? WHERE storage_provider_config IS NOT NULL AND storage_provider_config->>'provider' = '__pending_env__'`,
-		fmt.Sprintf(`{"provider":"%s"}`, storageType),
-	)
-	if result.Error != nil {
-		logger.Warnf(context.Background(), "Failed to resolve __pending_env__ storage providers: %v", result.Error)
-	} else if result.RowsAffected > 0 {
-		logger.Infof(context.Background(), "Resolved %d knowledge bases with __pending_env__ storage provider → %s", result.RowsAffected, storageType)
-	}
-
-	// Sync PostgreSQL sequences with actual MAX values to prevent duplicate key
-	// errors. The old code assigned seq_id via SELECT MAX()+1 in application
-	// code, which could push values past the DB sequence counter.
-	syncSequences(db)
-
-	// Reset any pending tasks left over from previous aborted runs (no-Redis mode)
-	resetPendingTasks(db)
 }
 
 // migrateLegacyStorageBackends backfills the storage_backends table from each
@@ -848,9 +818,10 @@ func migrateLegacyStorageBackends(db *gorm.DB) {
 }
 
 // syncSequences ensures PostgreSQL sequences for auto-increment columns (seq_id)
-// are at least as high as the current MAX value in each table. This is needed
-// because older code assigned seq_id via application-level MAX()+1, which could
-// advance values past the DB sequence counter and cause duplicate key errors.
+// are at least as high as the current MAX value in each table. FAQ entries can
+// be created and imported with an explicit seq_id, which inserts past the
+// sequence counter without advancing it; the next generated value would then
+// collide.
 func syncSequences(db *gorm.DB) {
 	pairs := [][2]string{
 		{"chunks", "chunks_seq_id_seq"},

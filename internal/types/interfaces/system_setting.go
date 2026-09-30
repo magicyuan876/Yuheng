@@ -42,7 +42,7 @@ type SystemSettingRepository interface {
 type SystemSettingService interface {
 	// GetInt returns the resolved int64 value for `key`.
 	//
-	// envName is the legacy environment-variable name to consult when
+	// envName is the deploy-time environment variable to consult when
 	// the DB row is absent ("" means the key has no ENV fallback).
 	// def is the built-in default used when both DB and ENV miss.
 	//
@@ -55,8 +55,8 @@ type SystemSettingService interface {
 	GetString(ctx context.Context, key string, envName string, def string) string
 	GetBool(ctx context.Context, key string, envName string, def bool) bool
 	// GetStringList resolves a comma-separated list of strings. envName
-	// is treated as a comma-separated string at the ENV level (mirrors
-	// the legacy SSRF_WHITELIST format). The slice returned is always
+	// is treated as a comma-separated string at the ENV level (the
+	// SSRF_WHITELIST format). The slice returned is always
 	// non-nil so callers can iterate without a nil check.
 	GetStringList(ctx context.Context, key string, envName string, def []string) []string
 

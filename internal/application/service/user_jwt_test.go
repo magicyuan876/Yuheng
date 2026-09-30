@@ -29,7 +29,6 @@ func TestIsRefreshTokenClaims(t *testing.T) {
 // userService.ValidateToken. It must:
 //   - prefer the claim when present (so /auth/switch-tenant takes effect)
 //   - fall back to the caller-supplied default when the claim is absent
-//     (backward compatibility with tokens minted before tenant-level RBAC)
 //   - reject zero / negative claim values rather than scoping the session
 //     to "tenant 0"
 //

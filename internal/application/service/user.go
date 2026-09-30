@@ -384,7 +384,7 @@ func (s *userService) buildMembershipsForUser(
 		return []types.Membership{}
 	}
 	// Only synthesise a membership from User.TenantID when the membership
-	// service is entirely unavailable (partial DI graphs / legacy tests).
+	// service is entirely unavailable (partial DI graphs in tests).
 	// Once ListByUser is reachable, an empty or fully-filtered result is
 	// authoritative: inventing a row from a stale users.tenant_id is what
 	// kept removed workspaces visible in the space switcher (#2586).
@@ -603,7 +603,7 @@ func (s *userService) LoginWithOIDC(
 		Success:      true,
 		Message:      "登录成功",
 		User:         user,
-		Tenant:       tenant,
+		ActiveTenant: tenant,
 		Memberships:  memberships,
 		Token:        accessToken,
 		RefreshToken: refreshToken,
@@ -1215,8 +1215,8 @@ func (s *userService) SwitchTenant(
 // ValidateToken validates an access token. The second return value is
 // the JWT's `tenant_id` claim — i.e. the tenant the token was minted
 // for, which may differ from user.TenantID after a /auth/switch-tenant
-// call. Tokens minted before tenant-level RBAC don't carry the claim;
-// in that case we fall back to user.TenantID for backward compatibility.
+// call. A token minted without an active tenant (claim 0) resolves to
+// user.TenantID.
 func (s *userService) ValidateToken(ctx context.Context, tokenString string) (*types.User, uint64, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -1257,9 +1257,9 @@ func (s *userService) ValidateToken(ctx context.Context, tokenString string) (*t
 		return nil, 0, err
 	}
 
-	// Extract active tenant from the JWT. Anything missing or unparseable
-	// falls back to the user's home tenant so old tokens (and tokens issued
-	// by code paths that don't yet set the claim) keep working.
+	// Extract active tenant from the JWT. A zero, missing or unparseable
+	// claim falls back to the user's home tenant rather than scoping the
+	// request to "tenant 0".
 	activeTenantID := tenantIDFromClaims(claims, user.TenantID)
 
 	return user, activeTenantID, nil
@@ -1299,8 +1299,8 @@ func userIDFromSignedToken(tokenString string) (string, error) {
 // tested without standing up the full userService dependency graph.
 //
 // JSON numbers come back as float64 from jwt.MapClaims; the int64 /
-// uint64 branches cover legacy code paths and tests that build claims
-// directly. Negative values are treated as missing.
+// uint64 branches cover claims built in memory (tests) rather than parsed.
+// Negative values are treated as missing.
 func tenantIDFromClaims(claims jwt.MapClaims, fallback uint64) uint64 {
 	raw, ok := claims["tenant_id"]
 	if !ok {

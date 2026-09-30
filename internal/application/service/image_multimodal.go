@@ -168,7 +168,7 @@ func (s *ImageMultimodalService) Handle(ctx context.Context, task *asynq.Task) e
 
 	// Drop orphaned or user-aborted work before touching VLM. Missing
 	// knowledge/KB rows are permanent failures — retrying only burns queue
-	// capacity (asynq default MaxRetry=25 on legacy tasks).
+	// capacity.
 	drop, dropErr := s.shouldDropOrphanedMultimodal(ctx, &payload)
 	if dropErr != nil {
 		return dropErr
@@ -184,9 +184,8 @@ func (s *ImageMultimodalService) Handle(ctx context.Context, task *asynq.Task) e
 	}
 
 	// Open a per-image subspan under the parent attempt's multimodal
-	// stage. If the parent stage row is missing (legacy in-flight
-	// task, or the upstream code shipped without span tracking), the
-	// tracker is a no-op so we silently fall back to the existing
+	// stage. If the parent stage row is missing (the tracker failed to
+	// write it), the tracker is a no-op so we silently fall back to the
 	// counter-based finalize semantics.
 	tracker := s.tracker()
 	var imgSpan *Span
@@ -247,15 +246,10 @@ func (s *ImageMultimodalService) Handle(ctx context.Context, task *asynq.Task) e
 		handleErr = fmt.Errorf("resolve VLM: %w", err)
 		return handleErr
 	}
-	// Capture the resolved VLM model id (or "legacy_inline" for the
-	// legacy inline-config path) so the trace shows WHICH model handled
-	// this image. Without this, debugging "VLM is slow" requires a
+	// Capture the resolved VLM model id so the trace shows WHICH model
+	// handled this image. Without this, debugging "VLM is slow" requires a
 	// separate hop to the KB config.
-	if id := strings.TrimSpace(vlmCfg.ModelID); id != "" {
-		imgOut["vlm_model_id"] = id
-	} else {
-		imgOut["vlm_model_id"] = "legacy_inline"
-	}
+	imgOut["vlm_model_id"] = vlmCfg.ModelID
 
 	// Read image bytes. A provider:// URL must be resolved via FileService —
 	// it must NEVER be handed to the HTTP downloader (which would fail with
@@ -544,8 +538,8 @@ func (s *ImageMultimodalService) indexChunks(ctx context.Context, payload types.
 	logger.Infof(ctx, "[ImageMultimodal] Indexed %d multimodal chunks for image %s", len(chunks), payload.ImageURL)
 }
 
-// resolveVLM creates a vlm.VLM instance for the given knowledge base,
-// supporting both new-style (ModelID) and legacy (inline BaseURL) configs.
+// resolveVLM creates a vlm.VLM instance for the given knowledge base from the
+// model its VLMConfig names.
 // Per-upload process_overrides on the knowledge entry take precedence over KB defaults.
 func (s *ImageMultimodalService) resolveVLM(ctx context.Context, kbID, knowledgeID string) (vlm.VLM, types.VLMConfig, error) {
 	kb, err := s.kbService.GetKnowledgeBaseByIDOnly(ctx, kbID)
@@ -567,14 +561,7 @@ func (s *ImageMultimodalService) resolveVLM(ctx context.Context, kbID, knowledge
 		return nil, types.VLMConfig{}, fmt.Errorf("VLM is not enabled for knowledge base %s", kbID)
 	}
 
-	// New-style: resolve model through ModelService
-	if vlmCfg.ModelID != "" {
-		model, err := s.modelService.GetVLMModel(ctx, vlmCfg.ModelID)
-		return model, vlmCfg, err
-	}
-
-	// Legacy: create VLM from inline config
-	model, err := vlm.NewVLMFromLegacyConfig(vlmCfg, s.ollamaService)
+	model, err := s.modelService.GetVLMModel(ctx, vlmCfg.ModelID)
 	return model, vlmCfg, err
 }
 
@@ -637,8 +624,6 @@ func (s *ImageMultimodalService) resolveFileServiceForPayload(ctx context.Contex
 //   - For provider:// URLs (local://, s3://) it reads via
 //     the resolved FileService and NEVER falls back to HTTP — handing a
 //     provider:// URL to the HTTP downloader is what caused issue #1282.
-//   - For legacy in-flight payloads with ImageLocalPath set, it tries the local
-//     file before falling back to the URL.
 //   - For plain http(s):// URLs it uses the SSRF-safe downloader.
 func (s *ImageMultimodalService) readImageBytes(ctx context.Context, payload types.ImageMultimodalPayload) ([]byte, error) {
 	_, isResourceRef := types.ParseResourcePath(payload.ImageURL)
@@ -657,14 +642,6 @@ func (s *ImageMultimodalService) readImageBytes(ctx context.Context, payload typ
 			return nil, fmt.Errorf("read %s: %w", payload.ImageURL, err)
 		}
 		return data, nil
-	}
-
-	if payload.ImageLocalPath != "" {
-		if data, err := os.ReadFile(payload.ImageLocalPath); err == nil {
-			return data, nil
-		} else {
-			logger.Warnf(ctx, "[ImageMultimodal] Local file %s not available (%v), falling back to URL", payload.ImageLocalPath, err)
-		}
 	}
 
 	data, err := downloadImageFromURL(payload.ImageURL)

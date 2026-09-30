@@ -325,6 +325,3 @@ var Pipeline = map[string][]EventType{
 		CHAT_COMPLETION_STREAM,
 	},
 }
-
-// Pipline is a deprecated alias for Pipeline (kept for backward compatibility).
-var Pipline = Pipeline

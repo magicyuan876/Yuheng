@@ -195,8 +195,7 @@ func NewEnrichmentAsynqServer(svc interfaces.SystemSettingService) *asynq.Server
 }
 
 // NewMaintenanceAsynqServer runs connector sync, cleanup, deletion, and batch
-// dispatch work. QueueMaintenance keeps the legacy Redis name "low", so old
-// tasks are drained safely during rolling upgrades.
+// dispatch work.
 func NewMaintenanceAsynqServer(svc interfaces.SystemSettingService) *asynq.Server {
 	allocation := resolveWorkerPoolConcurrency(svc)
 	log.Printf("asynq maintenance-pool server starting with concurrency=%d total_upstream=%d",

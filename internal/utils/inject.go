@@ -831,7 +831,7 @@ func ValidateSQL(sql string, opts ...SQLValidationOption) (*SQLParseResult, *SQL
 			}
 		}
 
-		// Phase 7: Check for SQL injection risks (legacy check)
+		// Phase 7: Check for SQL injection risks
 		if validator.checkInjectionRisk {
 			injectionErrors := checkSQLInjectionRisks(result.WhereClause)
 			if len(injectionErrors) > 0 {

@@ -237,7 +237,6 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | false | 跨空间访问 |
 | `YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED` | true | 普通用户自建空间 |
 | `YUHENG_TENANT_MAX_OWNED_PER_USER` | 空 | 自建空间上限 |
-| `YUHENG_TENANT_AUTO_CREATE_API_KEY` | false | 建空间时自动下发 full_access API Key（兼容旧行为） |
 | `YUHENG_TENANT_AUTO_ACCEPT_INVITATION` | false | 邀请已注册用户时直接加入空间，不需要对方接受 |
 | `YUHENG_GOVERNANCE_CENTRALIZED_INFRA` | false | 集中管控：模型、网络搜索、存储、解析引擎、Ollama 等基础设施配置收归系统管理员，空间管理员只读但照常可选用。也可在系统设置里开关，数据库里的值优先 |
 | `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 10 | 新空间默认存储配额 |

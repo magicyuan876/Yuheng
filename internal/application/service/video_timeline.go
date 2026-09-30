@@ -120,7 +120,7 @@ func buildVideoTimelineWindows(
 
 	sortedFrames := make([]types.ImageRef, 0, len(frames))
 	for _, f := range frames {
-		if len(f.ImageData) > 0 || f.StorageKey != "" {
+		if len(f.ImageData) > 0 {
 			sortedFrames = append(sortedFrames, f)
 		}
 	}
@@ -231,19 +231,11 @@ func (s *knowledgeService) prepareVideoTimeline(
 	var transcript string
 	var segments []asr.Segment
 
-	// The audio track arrives as fixed-duration segments (legacy single-blob
-	// tracks become one segment covering the whole video). Each segment is
+	// The audio track arrives as fixed-duration segments. Each segment is
 	// transcribed independently: provider timestamps are shifted by the
 	// segment's offset, and providers without timestamp support (e.g.
 	// DashScope Qwen-ASR) still yield a segment-level timeline.
 	tracks := convertResult.AudioSegments
-	if len(tracks) == 0 && len(convertResult.AudioData) > 0 {
-		tracks = []types.AudioTrackSegment{{
-			StartMs: 0,
-			EndMs:   convertResult.VideoDurationMs,
-			Data:    convertResult.AudioData,
-		}}
-	}
 
 	if len(tracks) > 0 {
 		if !eff.ASRConfig.IsASREnabled() {
@@ -324,7 +316,6 @@ func (s *knowledgeService) prepareVideoTimeline(
 	}
 
 	// Audio bytes are consumed; never let the audio-file path re-transcribe.
-	convertResult.AudioData = nil
 	convertResult.AudioSegments = nil
 	convertResult.IsAudio = false
 

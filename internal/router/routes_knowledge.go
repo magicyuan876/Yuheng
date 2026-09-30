@@ -230,9 +230,9 @@ func RegisterKnowledgeBaseRoutes(r *gin.RouterGroup, handler *handler.KnowledgeB
 		// so callers can't poke at KBs they can't see.
 		kb.PUT("/:id/pin", g.Viewer(), g.KBAccessRead("id"), handler.TogglePinKnowledgeBase)
 		// 混合搜索 — Viewer+ 且对 KB 有 read 权限 (read-only)
-		// POST is preferred; GET with JSON body is kept for backward compatibility (#1727).
+		// POST, not GET: the search parameters travel as a JSON body, which
+		// proxies and HTTP clients are free to drop from a GET.
 		kb.POST("/:id/hybrid-search", g.Viewer(), g.KBAccessRead("id"), handler.HybridSearch)
-		kb.GET("/:id/hybrid-search", g.Viewer(), g.KBAccessRead("id"), handler.HybridSearch)
 		// 拷贝知识库 — 产出新 KB，与 create 同档：JWT Contributor+，API key 需 manage_kbs 或 full-access。
 		// 源 KB 通过 body 里的 source_id 传入（非 :id 路径参数），无法套用基于路径参数
 		// 的 KBAccessRead，故源/目标 KB 的租户归属与 allow-list 校验在 handler 内完成

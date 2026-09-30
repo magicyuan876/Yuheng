@@ -43,14 +43,12 @@ type httpImageRef struct {
 	Filename    string `json:"filename"`
 	OriginalRef string `json:"original_ref"`
 	MimeType    string `json:"mime_type"`
-	StorageKey  string `json:"storage_key,omitempty"`
 	ImageData   []byte `json:"image_data,omitempty"`
 }
 
 type httpReadResponse struct {
 	MarkdownContent string            `json:"markdown_content"`
 	ImageRefs       []httpImageRef    `json:"image_refs,omitempty"`
-	ImageDirPath    string            `json:"image_dir_path,omitempty"`
 	Metadata        map[string]string `json:"metadata,omitempty"`
 	Error           string            `json:"error,omitempty"`
 }
@@ -177,7 +175,6 @@ func (p *HTTPDocumentReader) ListEngines(ctx context.Context, overrides map[stri
 func fromHTTPReadResponse(resp *httpReadResponse) *types.ReadResult {
 	result := &types.ReadResult{
 		MarkdownContent: resp.MarkdownContent,
-		ImageDirPath:    resp.ImageDirPath,
 		Metadata:        resp.Metadata,
 		Error:           resp.Error,
 	}
@@ -186,7 +183,6 @@ func fromHTTPReadResponse(resp *httpReadResponse) *types.ReadResult {
 			Filename:    ref.Filename,
 			OriginalRef: ref.OriginalRef,
 			MimeType:    ref.MimeType,
-			StorageKey:  ref.StorageKey,
 			ImageData:   ref.ImageData,
 		})
 	}

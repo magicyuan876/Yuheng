@@ -50,7 +50,7 @@ type qaRequestContext struct {
 	userMessageID         string                   // Created user message ID (populated after createUserMessage)
 	userCreatedAt         time.Time                // Persisted user message timestamp, echoed on agent_query
 	channel               string                   // Source channel: "web", "api", etc.
-	attachments           types.MessageAttachments // Processed base64 file attachments (legacy inline uploads)
+	attachments           types.MessageAttachments // Processed base64 file attachments (inline uploads)
 	attachmentIDs         []string                 // Pre-uploaded session-scoped document IDs, resolved after SSE starts
 	attachmentMetas       types.MessageAttachments // Metadata-only view of attachmentIDs for the persisted user message
 	suggestionAttribution *types.SuggestionAttribution
@@ -525,21 +525,7 @@ func (h *Handler) SearchKnowledge(c *gin.Context) {
 		return
 	}
 
-	// Merge single knowledge_base_id into knowledge_base_ids for backward compatibility
 	knowledgeBaseIDs := request.KnowledgeBaseIDs
-	if request.KnowledgeBaseID != "" {
-		// Check if it's already in the list to avoid duplicates
-		found := false
-		for _, id := range knowledgeBaseIDs {
-			if id == request.KnowledgeBaseID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			knowledgeBaseIDs = append(knowledgeBaseIDs, request.KnowledgeBaseID)
-		}
-	}
 
 	mentionScopes := tagScopesFromMentionedItems(request.MentionedItems)
 	requestTagIDs := dedupRequestStrings(request.TagIDs)

@@ -9,24 +9,24 @@ import (
 	"strings"
 
 	"github.com/magicyuan876/yuheng/internal/models/chat"
-	"github.com/magicyuan876/yuheng/internal/types"
 )
 
-// storedRefRE also recognizes legacy physical references. New writes persist
-// resource:// handles, but old chunks and message history can still contain a
-// provider URL. Giving both forms the same request-local handle makes rollout
-// safe without a blocking full-table content rewrite.
+// storedRefRE recognizes both reference forms stored text can carry: resource://
+// handles and the physical provider URLs (local://, s3://, optionally prefixed
+// by storage://<backend>/) that file services return and that therefore still
+// appear in stored content and file paths. Both get the same kind of
+// request-local handle.
 //
 // The final alternative handles wiki summary-page slugs (summary/<uuid>). They
 // are not storage handles, but they share the exact failure mode this registry
 // exists to prevent: a high-entropy identifier the model must reproduce
-// verbatim (inside [[slug|display]] links and as wiki-tool slug arguments).
+// verbatim (inside [[slug|display]] links).
 // Models routinely mangle the UUID by inserting or dropping hex digits, which
 // yields dead cross-links. Aliasing the slug to a low-entropy res:// token
 // removes the opportunity to mangle at the source; the token round-trips back
-// to the real slug on stream output and in decoded tool-call arguments before
-// anything is persisted. Entity slugs (entity/<readable-title>) are low-entropy
-// and semantically meaningful, so they are deliberately left untouched.
+// to the real slug on stream output before anything is persisted. Entity slugs
+// (entity/<readable-title>) are low-entropy and semantically meaningful, so
+// they are deliberately left untouched.
 var storedRefRE = regexp.MustCompile(
 	`resource://[0-9A-Za-z_-]{22}|` +
 		`(?:storage://[0-9A-Za-z_-]+/)?` +
@@ -80,8 +80,8 @@ func (r *resourceRegistry) DecodeText(value string) string {
 }
 
 // StripOrphanHandles removes handle-shaped tokens after all known handles have
-// been restored. Use this only on model output; tool arguments must retain
-// unknown handles long enough for modelcontext to reject the call.
+// been restored, so a hallucinated reference never reaches the reader as a
+// broken link. Use this only on model output.
 func (r *resourceRegistry) StripOrphanHandles(value string) string {
 	if value == "" {
 		return value
@@ -106,21 +106,8 @@ func (r *resourceRegistry) EncodeMessages(messages []chat.Message) []chat.Messag
 				encoded[i].MultiContent[j].Text = r.EncodeText(encoded[i].MultiContent[j].Text)
 			}
 		}
-		if len(encoded[i].ToolCalls) > 0 {
-			encoded[i].ToolCalls = append([]chat.ToolCall(nil), encoded[i].ToolCalls...)
-			for j := range encoded[i].ToolCalls {
-				encoded[i].ToolCalls[j].Function.Arguments = r.EncodeText(encoded[i].ToolCalls[j].Function.Arguments)
-			}
-		}
 	}
 	return encoded
-}
-
-// DecodeToolCalls restores handles in tool-call JSON arguments.
-func (r *resourceRegistry) DecodeToolCalls(toolCalls []types.LLMToolCall) {
-	for i := range toolCalls {
-		toolCalls[i].Function.Arguments = r.DecodeText(toolCalls[i].Function.Arguments)
-	}
 }
 
 // OrphanHandles returns the distinct handle-shaped tokens in an already-decoded

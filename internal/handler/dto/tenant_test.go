@@ -15,7 +15,6 @@ func TestTenantResponse_ViewerOmitsSecrets(t *testing.T) {
 	require.NoError(t, err)
 	s := string(body)
 	assert.NotContains(t, s, "tenant-api-key-123")
-	assert.NotContains(t, s, "legacy-search-secret-999")
 	assert.NotContains(t, s, "wk-app-secret-def")
 	assert.NotContains(t, s, "parser-secret-123")
 	assert.NotContains(t, s, "s3-secret-789")
@@ -31,7 +30,6 @@ func TestTenantResponse_OwnerOmitsLegacyTenantAPIKey(t *testing.T) {
 	require.NoError(t, err)
 	s := string(body)
 	assert.NotContains(t, s, `"api_key"`)
-	assert.NotContains(t, s, "legacy-search-secret-999")
 	assert.NotContains(t, s, "parser-secret-123")
 	assert.Contains(t, s, "web_search_config")
 }
@@ -41,7 +39,6 @@ func TestTenantResponse_AdminGetsRedactedIntegrationConfigs(t *testing.T) {
 	resp := NewTenantResponse(adminContext(), tenant)
 	require.NotNil(t, resp.WebSearchConfig)
 	assert.Equal(t, types.RedactedSecretPlaceholder, resp.WebSearchConfig.ProxyURL)
-	assert.Empty(t, resp.WebSearchConfig.APIKey)
 	require.NotNil(t, resp.ParserEngineConfig)
 	assert.Equal(t, types.RedactedSecretPlaceholder, resp.ParserEngineConfig.MinerUAPIKey)
 	require.NotNil(t, resp.StorageEngineConfig.S3)
@@ -62,7 +59,6 @@ func sampleSecretTenant() *types.Tenant {
 		ID:   42,
 		Name: "tenant",
 		WebSearchConfig: &types.WebSearchConfig{
-			APIKey:   "legacy-search-secret-999",
 			ProxyURL: "http://proxy.internal:8080",
 		},
 		ParserEngineConfig: &types.ParserEngineConfig{

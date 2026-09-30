@@ -325,9 +325,8 @@ func (t *spanTracker) BeginStage(ctx context.Context, knowledgeID string, attemp
 		}
 	}
 	if rootID == "" {
-		// Pipeline started before tracker was wired (legacy data,
-		// or the OpenAttempt repo write failed). Synthesize a
-		// rootless stage so we still record SOMETHING.
+		// The OpenAttempt repo write failed. Synthesize a rootless
+		// stage so we still record SOMETHING.
 		logger.Warnf(ctx, "[SpanTracker] BeginStage: no root for kid=%s attempt=%d, recording rootless",
 			knowledgeID, attempt)
 	}

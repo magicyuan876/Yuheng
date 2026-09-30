@@ -760,8 +760,8 @@ func storageEndpointHost(endpoint string) string {
 	return endpoint
 }
 
-// isBlockedStorageEndpoint keeps the legacy handler contract while delegating
-// to the same fail-closed SSRF policy used by the storage clients themselves.
+// isBlockedStorageEndpoint reports whether a storage endpoint is refused,
+// delegating to the same fail-closed SSRF policy the storage clients use.
 // Private storage endpoints must be explicitly whitelisted by an operator.
 func isBlockedStorageEndpoint(endpoint string) (bool, string) {
 	endpoint = strings.TrimSpace(endpoint)
@@ -1826,9 +1826,8 @@ func (h *SystemHandler) enrichSettingsModifiedBy(ctx context.Context, rows []*ty
 			continue
 		}
 		// Username is the canonical display label; fall back to email
-		// for older rows where username may be empty (legacy seeded
-		// admins). Both empty → leave LastModifiedByName empty so the
-		// UI's UUID-prefix fallback kicks in.
+		// when a user has none. Both empty → leave LastModifiedByName
+		// empty so the UI's UUID-prefix fallback kicks in.
 		switch {
 		case strings.TrimSpace(u.Username) != "":
 			r.LastModifiedByName = u.Username

@@ -56,6 +56,7 @@ migrations/
 | 000130 | 删除无写入方的页面问题表 | DROP `wiki_page_issues` |
 | 000131 | 清理智能体收藏 | 删除 `user_resource_favorites` 中 `resource_type = 'agent'` 的行 |
 | 000132 | API Key 不再可还原 | 新增 `tenant_api_keys.key_hint`，删除 `api_key` 列；000065 留下的占位 Key（从未能认证）一并删除 |
+| 000133 | 删除空间级置顶列 | 删除 `knowledge_bases.is_pinned` / `pinned_at`（置顶自 000050 起按用户存在 `user_kb_pins`） |
 
 ## 3. 最终表结构
 

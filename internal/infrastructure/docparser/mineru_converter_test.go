@@ -21,9 +21,8 @@ func TestNewMinerUReaderResolvesParseMethod(t *testing.T) {
 		want      string
 	}{
 		{name: "default is auto", overrides: map[string]string{}, want: "auto"},
-		{name: "legacy enabled becomes auto", overrides: map[string]string{"mineru_enable_ocr": "true"}, want: "auto"},
-		{name: "legacy disabled becomes text", overrides: map[string]string{"mineru_enable_ocr": "false"}, want: "txt"},
-		{name: "explicit method wins", overrides: map[string]string{"mineru_parse_method": "ocr", "mineru_enable_ocr": "false"}, want: "ocr"},
+		{name: "explicit method", overrides: map[string]string{"mineru_parse_method": "ocr"}, want: "ocr"},
+		{name: "unknown method is auto", overrides: map[string]string{"mineru_parse_method": "bogus"}, want: "auto"},
 	}
 
 	for _, tt := range tests {

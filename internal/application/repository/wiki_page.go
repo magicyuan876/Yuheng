@@ -502,8 +502,9 @@ func (r *wikiPageRepository) ListBySourceRef(ctx context.Context, kbID string, s
 // it only needs a "before" set of slugs.
 //
 // Backed by idx_wiki_pages_source_refs (GIN jsonb_path_ops) for the
-// containment branch and idx_wiki_pages_source_refs_text for the legacy
-// text-LIKE branch — both added in migration 000041.
+// containment branch and idx_wiki_pages_source_refs_text for the
+// text-LIKE branch that matches "knowledgeID|title" entries (containment
+// can only match a whole element) — both added in migration 000041.
 func (r *wikiPageRepository) ListSlugsBySourceRef(ctx context.Context, kbID string, sourceKnowledgeID string) ([]string, error) {
 	needle, err := json.Marshal([]string{sourceKnowledgeID})
 	if err != nil {
@@ -777,7 +778,7 @@ func (r *wikiPageRepository) ListPagesByFolderIDs(
 // knowledge id that authored it. The page_type filter is applied first
 // (only summary pages have content suitable for retract framing); within
 // that subset we look at source_refs for either the bare knowledge id
-// or the "knowledgeID|title" legacy form.
+// or the "knowledgeID|title" form.
 //
 // Empty kids returns nil, nil. A knowledge id with no surviving summary
 // page is silently absent from the result map.
@@ -796,7 +797,7 @@ func (r *wikiPageRepository) ListSummariesByKnowledgeIDs(
 	}
 
 	// Build a JSONB containment-OR with one needle per knowledge id,
-	// plus a single text-LIKE OR over the legacy prefix forms. The
+	// plus a single text-LIKE OR over the "knowledgeID|" prefix forms. The
 	// containment branches each get their own GIN index probe; the
 	// LIKE branch falls back to the text fulltext GIN.
 	type row struct {

@@ -161,11 +161,9 @@ type OIDCCallbackResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message,omitempty"`
 	User    *User  `json:"user,omitempty"`
-	// Tenant carries the active tenant for the issued token. The field
-	// name is preserved for backward compatibility with existing frontend
-	// OIDC callback handling; LoginResponse uses ActiveTenant for the
-	// same data.
-	Tenant *Tenant `json:"tenant,omitempty"`
+	// ActiveTenant carries the active tenant for the issued token, named as
+	// in LoginResponse so both login flows share one response shape.
+	ActiveTenant *Tenant `json:"active_tenant,omitempty"`
 	// Memberships mirrors LoginResponse.Memberships so the OIDC flow
 	// produces the same role information available to password logins.
 	// Always populated (length >= 1 for an authenticated user).

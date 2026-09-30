@@ -120,7 +120,7 @@ func (chatTemplateKwargs) Apply(req *openai.ChatCompletionRequest, opts *ChatOpt
 // parseThinkingOverride reads extra_config.thinking_control and returns the
 // strategy it selects, or nil when unset (the provider adapter's default
 // strategy then applies). An unrecognized non-empty value falls back to
-// chat_template_kwargs, preserving the legacy default-mode behavior.
+// chat_template_kwargs, the strategy most OpenAI-compatible servers accept.
 func parseThinkingOverride(extraConfig map[string]string) ThinkingStrategy {
 	if extraConfig == nil {
 		return nil

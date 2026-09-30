@@ -15,7 +15,7 @@ func TestRegistryRoundTripAndDeduplicate(t *testing.T) {
 	require.Equal(t, "![a]("+ref+") and "+ref, r.DecodeText(encoded))
 }
 
-func TestRegistryAliasesLegacyPhysicalReferencesDuringRollout(t *testing.T) {
+func TestRegistryAliasesPhysicalProviderReferences(t *testing.T) {
 	r := newResourceRegistry()
 	ref := "storage://c0d93536-702c-4977-aa5e-fe670073c3cb/local://10000/exports/image.png"
 	encoded := r.EncodeText("![image](" + ref + ")")

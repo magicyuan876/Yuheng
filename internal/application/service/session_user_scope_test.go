@@ -64,11 +64,6 @@ func TestGetSessionIsScopedToCurrentUser(t *testing.T) {
 		Title:    "bob private session",
 	}
 	require.NoError(t, db.Create(bobSession).Error)
-	legacySession := &types.Session{
-		TenantID: 1,
-		Title:    "legacy tenant session",
-	}
-	require.NoError(t, db.Create(legacySession).Error)
 
 	_, err := svc.GetSession(testSessionScopeContext(1, "bob"), aliceSession.ID)
 	require.ErrorIs(t, err, apperrors.ErrSessionNotFound)
@@ -76,10 +71,22 @@ func TestGetSessionIsScopedToCurrentUser(t *testing.T) {
 	got, err := svc.GetSession(testSessionScopeContext(1, "bob"), bobSession.ID)
 	require.NoError(t, err)
 	require.Equal(t, bobSession.ID, got.ID)
+}
 
-	got, err = svc.GetSession(testSessionScopeContext(1, "bob"), legacySession.ID)
+// The owner scope is what keeps sessions private, so a session nobody owns is
+// refused at creation rather than stored for everyone or no one to see.
+func TestCreateSessionRequiresAnOwner(t *testing.T) {
+	svc, _ := newTestSessionService(t)
+
+	_, err := svc.CreateSession(testSessionScopeContext(1, "alice"), &types.Session{TenantID: 1, Title: "ownerless"})
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, apperrors.ErrUnauthorized, appErr.Code)
+
+	created, err := svc.CreateSession(testSessionScopeContext(1, "alice"),
+		&types.Session{TenantID: 1, UserID: "alice", Title: "owned"})
 	require.NoError(t, err)
-	require.Equal(t, legacySession.ID, got.ID)
+	require.Equal(t, "alice", created.UserID)
 }
 
 func TestUpdateSessionIsScopedToCurrentUserAndAllowsNoOp(t *testing.T) {
@@ -257,14 +264,13 @@ func TestGetSessionAllowsAdminToReadAPIExternalUserSession(t *testing.T) {
 	require.Equal(t, apiSession.ID, got.ID)
 }
 
-// A legacy IM platform name is an unknown source now that im_channel_sessions
-// is gone: it requires Admin+ like before, and the admin listing falls back to
-// the web visibility filter (the IM row is indistinguishable from a chat).
-func TestListSessionsIMSourceRequiresAdmin(t *testing.T) {
+// A source filter the server does not know requires Admin+ like every non-web
+// source, and the admin listing falls back to the web visibility filter.
+func TestListSessionsUnknownSourceRequiresAdmin(t *testing.T) {
 	svc, db := newTestSessionService(t)
 
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
+	chat := &types.Session{TenantID: 1, UserID: "bob", Title: "bob chat"}
+	require.NoError(t, db.Create(chat).Error)
 
 	viewerCtx := testSessionScopeContext(1, "alice")
 	_, err := svc.ListSessions(viewerCtx, &types.SessionListQuery{Source: "feishu"})
@@ -277,50 +283,6 @@ func TestListSessionsIMSourceRequiresAdmin(t *testing.T) {
 	result, err := svc.ListSessions(adminCtx, &types.SessionListQuery{Source: "feishu"})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, result.Total)
-}
-
-func TestListSessionsEmbedSourceRequiresAdmin(t *testing.T) {
-	svc, db := newTestSessionService(t)
-
-	embed := &types.Session{
-		TenantID:    1,
-		Title:       "embed chat",
-		Description: types.EmbedSessionMarkerPrefix + "ch-1",
-		UserID:      types.EmbedSessionOwnerPrefix + "1:ch-1:sess-1",
-	}
-	require.NoError(t, db.Create(embed).Error)
-
-	viewerCtx := testSessionScopeContext(1, "alice")
-	_, err := svc.ListSessions(viewerCtx, &types.SessionListQuery{Source: "embed:ch-1"})
-	require.Error(t, err)
-	var appErr *apperrors.AppError
-	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, apperrors.ErrForbidden, appErr.Code)
-
-	adminCtx := context.WithValue(testSessionScopeContext(1, "alice"), types.TenantRoleContextKey, types.TenantRoleAdmin)
-	result, err := svc.ListSessions(adminCtx, &types.SessionListQuery{Source: "embed:ch-1"})
-	require.NoError(t, err)
-	require.EqualValues(t, 1, result.Total)
-}
-
-// Legacy IM sessions keep their rows but the im_channel_sessions mapping table
-// is gone, so they are indistinguishable from ordinary chats: any caller whose
-// owner scope matches can read them, exactly like a plain web session.
-func TestGetSessionTreatsLegacyIMSessionAsOrdinaryRow(t *testing.T) {
-	svc, db := newTestSessionService(t)
-
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
-
-	viewerCtx := testSessionScopeContext(1, "alice")
-	got, err := svc.GetSession(viewerCtx, imSession.ID)
-	require.NoError(t, err)
-	require.Equal(t, imSession.ID, got.ID)
-
-	adminCtx := context.WithValue(testSessionScopeContext(1, "alice"), types.TenantRoleContextKey, types.TenantRoleAdmin)
-	got, err = svc.GetSession(adminCtx, imSession.ID)
-	require.NoError(t, err)
-	require.Equal(t, imSession.ID, got.ID)
 }
 
 func TestGetSessionAllowsAPITenantRuntimeToReadOwnAPIKeySession(t *testing.T) {
@@ -336,29 +298,4 @@ func TestGetSessionAllowsAPITenantRuntimeToReadOwnAPIKeySession(t *testing.T) {
 	got, err := svc.GetSession(testAPITenantKeyScopeContext(1, 10), apiSession.ID)
 	require.NoError(t, err)
 	require.Equal(t, apiSession.ID, got.ID)
-}
-
-// A legacy IM row is an ordinary row now that the mapping table is gone, so an
-// API-key principal whose owner scope matches reads it like any legacy
-// tenant-level chat.
-func TestGetSessionAllowsAPITenantRuntimeToReadLegacyIMSession(t *testing.T) {
-	svc, db := newTestSessionService(t)
-
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
-
-	got, err := svc.GetSession(testAPITenantKeyScopeContext(1, 10), imSession.ID)
-	require.NoError(t, err)
-	require.Equal(t, imSession.ID, got.ID)
-}
-
-func TestGetSessionAllowsAPIExternalUserRuntimeToReadLegacyIMSession(t *testing.T) {
-	svc, db := newTestSessionService(t)
-
-	imSession := &types.Session{TenantID: 1, Title: "feishu chat"}
-	require.NoError(t, db.Create(imSession).Error)
-
-	got, err := svc.GetSession(testAPISessionScopeContext(1, "1:alice"), imSession.ID)
-	require.NoError(t, err)
-	require.Equal(t, imSession.ID, got.ID)
 }

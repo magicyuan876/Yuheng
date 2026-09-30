@@ -123,7 +123,7 @@ if redisAvailable {
 
 - `ResourceCleaner`（`internal/container/cleanup.go`）：各组件通过 `RegisterWithName(name, cleanupFunc)` 注册析构（ants 池、Langfuse flush、数据源调度器、Housekeeping、`KnowledgeReviewSweep` 等），退出时统一 `Cleanup(ctx)`；
 - `EngineFactory`（`internal/container/engine_factory.go`）：根据 `vector_stores` 表行在运行时创建检索引擎实例——按行的 `engine_type` 到引擎目录（`retriever.Catalog`，由各引擎的 `EngineDescriptor` 构成）里查描述符并调用其 `New`。社区版目录里只有 postgres 且不可由工作空间注册，因此这条路径在社区版不会创建新引擎；
-- `initDatabase`（`container.go`）：`DB_DRIVER` 只接受 `postgres`；内置检索引擎启用时先检查 `vector` / `pg_search` 扩展（`pgextensions.go`），再执行迁移（`AUTO_MIGRATE`，默认开启）。迁移失败默认**终止启动**（`MIGRATION_FAIL_FAST`，设为 `false` 才只告警继续，此时 `/ready` 保持 503）。迁移之后依次执行：`__pending_env__` 存储 provider 回填、遗留存储后端迁移（`migrateLegacyStorageBackends`）、序列同步（`syncSequences`）、遗留 pending 任务复位（`resetPendingTasks`）、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
+- `initDatabase`（`container.go`）：`DB_DRIVER` 只接受 `postgres`；内置检索引擎启用时先检查 `vector` / `pg_search` 扩展（`pgextensions.go`），再执行迁移（`AUTO_MIGRATE`，默认开启）。迁移失败默认**终止启动**（`MIGRATION_FAIL_FAST`，设为 `false` 才只告警继续，此时 `/ready` 保持 503）。迁移之后依次执行：序列同步（`syncSequences`）、遗留 pending 任务复位（`resetPendingTasks`）、存储后端回填（`migrateLegacyStorageBackends`）、`config/builtin_models.yaml` 声明式内置模型 UPSERT。
 
 ## 3. cmd/server 启动流程
 

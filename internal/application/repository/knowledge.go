@@ -313,8 +313,8 @@ func (r *knowledgeRepository) RenameKnowledgeFolderPath(
 // UpdateKnowledge updates knowledge
 func (r *knowledgeRepository) UpdateKnowledge(ctx context.Context, knowledge *types.Knowledge) error {
 	omit := omitFieldsOnUpdate
-	// Legacy/unit-test schemas created before custom_metadata should continue
-	// to support unrelated updates when the caller did not provide the field.
+	// A nil CustomMetadata means the caller neither loaded nor set it; omit
+	// the column so an unrelated update cannot wipe the stored metadata.
 	if knowledge.CustomMetadata == nil {
 		omit = append(append([]string{}, omitFieldsOnUpdate...), "custom_metadata")
 	}

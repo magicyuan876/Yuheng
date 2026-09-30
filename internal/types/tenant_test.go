@@ -7,40 +7,31 @@ import (
 )
 
 func TestResolveMinerUParseMethod(t *testing.T) {
-	trueValue := true
-	falseValue := false
 	tests := []struct {
-		name      string
-		method    string
-		legacyOCR *bool
-		want      string
+		name   string
+		method string
+		want   string
 	}{
-		{name: "new default", want: MinerUParseMethodAuto},
-		{name: "legacy enabled", legacyOCR: &trueValue, want: MinerUParseMethodAuto},
-		{name: "legacy disabled", legacyOCR: &falseValue, want: MinerUParseMethodText},
-		{name: "explicit auto overrides legacy", method: "auto", legacyOCR: &falseValue, want: MinerUParseMethodAuto},
+		{name: "empty is auto", want: MinerUParseMethodAuto},
+		{name: "explicit auto", method: "auto", want: MinerUParseMethodAuto},
 		{name: "explicit OCR is normalized", method: " OCR ", want: MinerUParseMethodOCR},
-		{name: "explicit text overrides legacy", method: "txt", legacyOCR: &trueValue, want: MinerUParseMethodText},
+		{name: "explicit text", method: "txt", want: MinerUParseMethodText},
 		{name: "invalid method falls back safely", method: "invalid", want: MinerUParseMethodAuto},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ResolveMinerUParseMethod(tt.method, tt.legacyOCR))
+			assert.Equal(t, tt.want, ResolveMinerUParseMethod(tt.method))
 		})
 	}
 }
 
 func TestParserEngineConfigToOverridesMapResolvesMinerUParseMethod(t *testing.T) {
-	falseValue := false
-	explicit := (&ParserEngineConfig{
-		MinerUParseMethod: MinerUParseMethodOCR,
-		MinerUEnableOCR:   &falseValue,
-	}).ToOverridesMap()
+	explicit := (&ParserEngineConfig{MinerUParseMethod: " OCR "}).ToOverridesMap()
 	assert.Equal(t, MinerUParseMethodOCR, explicit["mineru_parse_method"])
 
-	legacy := (&ParserEngineConfig{MinerUEnableOCR: &falseValue}).ToOverridesMap()
-	assert.Equal(t, MinerUParseMethodText, legacy["mineru_parse_method"])
+	unset := (&ParserEngineConfig{}).ToOverridesMap()
+	assert.NotContains(t, unset, "mineru_parse_method")
 }
 
 func TestGetEffectiveEngines(t *testing.T) {

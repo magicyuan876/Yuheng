@@ -174,7 +174,7 @@ Wiki 页面是 LLM 生成的，难免有需要人工订正的地方。页面因�
 
 | `edit_source` | 含义 |
 | --- | --- |
-| `pipeline` | Wiki 生成管道写的（历史遗留行为空串，按 `pipeline` 处理） |
+| `pipeline` | Wiki 生成管道写的（空串也按 `pipeline` 处理） |
 | `user` | 人工在编辑器里改的 |
 | `revert` | 回滚产生的版本 |
 

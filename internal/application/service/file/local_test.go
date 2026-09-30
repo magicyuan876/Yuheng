@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"net/url"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,12 +32,28 @@ func TestLocalGetFileURL_TenantIDFromPath(t *testing.T) {
 	assert.Equal(t, "7", extractTenantIDFromPresignedURL(t, got))
 }
 
-// TestLocalGetFileURL_NoExternalURL verifies backward compatibility: without
-// APP_EXTERNAL_URL, GetFileURL still returns the local:// path unchanged.
+// TestLocalGetFileURL_NoExternalURL verifies that without APP_EXTERNAL_URL
+// there is nothing to sign, so GetFileURL returns the local:// path unchanged.
 func TestLocalGetFileURL_NoExternalURL(t *testing.T) {
 	svc := NewLocalFileService("/data/files", "")
 
 	got, err := svc.GetFileURL(context.Background(), "local://1/abc/img.png")
 	require.NoError(t, err)
 	assert.Equal(t, "local://1/abc/img.png", got)
+}
+
+// Every path this service hands out is local://; a bare or absolute path is
+// not one of its own and must not be opened, deleted or signed.
+func TestLocalFileService_RejectsPathsWithoutTheLocalScheme(t *testing.T) {
+	base := t.TempDir()
+	svc := NewLocalFileService(base, "https://yuheng.example.com")
+	ctx := context.Background()
+
+	for _, p := range []string{filepath.Join(base, "1", "a.png"), "1/a.png", "/etc/passwd"} {
+		_, err := svc.GetFile(ctx, p)
+		assert.Error(t, err, "GetFile(%q)", p)
+		assert.Error(t, svc.DeleteFile(ctx, p), "DeleteFile(%q)", p)
+		_, err = svc.GetFileURL(ctx, p)
+		assert.Error(t, err, "GetFileURL(%q)", p)
+	}
 }

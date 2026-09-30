@@ -17,7 +17,7 @@ type WebSearchProvider interface {
 // WebSearchService defines the interface for web search services
 type WebSearchService interface {
 	// Search performs a web search using the provider entity identified by providerID.
-	// If providerID is empty, it falls back to the deprecated config.Provider field for backward compatibility.
+	// An empty providerID is an error: the workspace has no provider configured.
 	Search(ctx context.Context, providerID string, config *types.WebSearchConfig, query string) ([]*types.WebSearchResult, error)
 	// CompressWithRAG performs RAG-based compression using a temporary, hidden knowledge base
 	// The temporary knowledge base is deleted after use. The UI will not list it due to repo filtering.

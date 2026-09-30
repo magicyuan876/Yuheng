@@ -679,10 +679,10 @@ func (h *KnowledgeHandler) GetKnowledgeSpans(c *gin.Context) {
 	// missing from the DB are synthesized as "pending" placeholders
 	// under a synthetic (or real, if present) root so the timeline
 	// always renders five segments. parse_status threads through so
-	// pre-tracker historical knowledge (no rows but parse_status is
-	// already terminal) renders as done/failed instead of pending —
-	// otherwise legacy completed documents would forever look like
-	// they're still waiting in the queue.
+	// knowledge that reached a terminal state without span rows (a copy
+	// made by KB clone/move, or a parse whose tracker writes failed)
+	// renders as done/failed instead of pending — otherwise it would
+	// forever look like it is still waiting in the queue.
 	tree, currentStageName, lastErr := buildSpanTree(knowledge.ID, currentAttempt, rows, knowledge.ParseStatus)
 
 	resp := gin.H{
@@ -757,12 +757,11 @@ func knowledgeSpansLastError(
 // exists.
 //
 // parseStatus is the knowledge.parse_status string. When the spans table
-// has zero rows for this attempt (legacy data parsed before tracking, or
-// a fresh knowledge before the pipeline starts), the placeholder status
-// is inferred from parseStatus: completed → done, failed → failed,
-// otherwise pending. Without this, every historical knowledge would
-// render as "all 5 stages pending" forever despite having actually
-// completed parsing.
+// has zero rows for this attempt (a cloned or moved copy, a parse whose
+// tracker writes failed, or a fresh knowledge before the pipeline starts),
+// the placeholder status is inferred from parseStatus: completed → done,
+// failed → failed, otherwise pending. Without this, such knowledge would
+// render as "all 5 stages pending" forever despite having completed.
 func buildSpanTree(knowledgeID string, attempt int, rows []types.KnowledgeProcessingSpan, parseStatus string) (
 	root *types.SpanTreeNode, currentStage string, lastFailure *types.KnowledgeProcessingSpan,
 ) {
@@ -791,10 +790,7 @@ func buildSpanTree(knowledgeID string, attempt int, rows []types.KnowledgeProces
 		}
 	}
 
-	// Pick the synthesized stage status from parse_status. Without this,
-	// historical knowledge that completed before span tracking was wired
-	// would render as "5 pending stages" forever — the rows simply
-	// weren't recorded, but parse_status correctly reads "completed".
+	// Pick the synthesized stage status from parse_status (see above).
 	// The synthesized stages don't carry duration/timing data; they
 	// just communicate the inferred terminal state.
 	syntheticStatus := types.SpanStatusPending
@@ -2133,8 +2129,8 @@ func (h *KnowledgeHandler) SearchKnowledge(c *gin.Context) {
 	if userID, ok := c.Get(types.UserIDContextKey.String()); ok {
 		ctx = context.WithValue(ctx, types.UserIDContextKey, userID)
 	}
-	// Accept both ?keyword= (legacy / upstream name) and ?query= (what most
-	// MCP / agent integrations send). Empty input is only valid for an explicit
+	// ?keyword= is the parameter our clients send; ?query= is accepted too
+	// because it is what most MCP / agent integrations send. Empty input is only valid for an explicit
 	// recent-file browse request; ordinary callers still get a clear 400 instead
 	// of silently receiving the same newest cards for every missing query.
 	keyword := c.Query("keyword")

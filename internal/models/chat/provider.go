@@ -210,8 +210,9 @@ func (moonshotProvider) Matches(model string) bool {
 }
 
 func (moonshotProvider) ShapeRequest(req *openai.ChatCompletionRequest, _ *ChatOptions, _ bool) {
-	// Pin temperature to 1 and drop the other sampling params, matching the
-	// pre-refactor behavior where these fields were never set for this model.
+	// These models reject any temperature other than 1 (see
+	// provider.IsMoonshotFixedTempModel), so pin it and leave the other
+	// sampling params unset rather than send values they may also refuse.
 	req.Temperature = 1
 	req.TopP = 0
 	req.FrequencyPenalty = 0

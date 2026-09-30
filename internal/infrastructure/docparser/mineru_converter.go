@@ -42,19 +42,13 @@ type MinerUReader struct {
 
 // NewMinerUReader creates a reader from ParserEngineOverrides.
 func NewMinerUReader(overrides map[string]string) *MinerUReader {
-	var legacyOCREnabled *bool
-	if raw, ok := overrides["mineru_enable_ocr"]; ok {
-		value := parseBoolOr(raw, true)
-		legacyOCREnabled = &value
-	}
-
 	c := &MinerUReader{
 		endpoint:      strings.TrimRight(overrides["mineru_endpoint"], "/"),
 		backend:       stringOr(overrides["mineru_model"], "pipeline"),
 		vlmServerURL:  overrides["mineru_vlm_server_url"],
 		formulaEnable: parseBoolOr(overrides["mineru_enable_formula"], true),
 		tableEnable:   parseBoolOr(overrides["mineru_enable_table"], true),
-		parseMethod:   types.ResolveMinerUParseMethod(overrides["mineru_parse_method"], legacyOCREnabled),
+		parseMethod:   types.ResolveMinerUParseMethod(overrides["mineru_parse_method"]),
 		language:      stringOr(overrides["mineru_language"], "ch"),
 	}
 	return c

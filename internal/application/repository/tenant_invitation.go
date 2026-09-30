@@ -110,8 +110,8 @@ func (r *tenantInvitationRepository) GetPendingByPair(
 
 // GetActiveByToken returns the share-link row matching token, or
 // (nil, nil) if none. Empty token returns (nil, nil) defensively so
-// a malformed caller doesn't accidentally match the legacy "" sentinel
-// rows that have token=”.
+// a malformed caller doesn't accidentally match the per-user invitation
+// rows, which carry an empty token.
 func (r *tenantInvitationRepository) GetActiveByToken(
 	ctx context.Context,
 	token string,

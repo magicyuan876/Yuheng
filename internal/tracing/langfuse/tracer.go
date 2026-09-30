@@ -156,7 +156,7 @@ func (m *Manager) ResumeTrace(ctx context.Context, traceID, parentSpanID string)
 	}
 	tid, err := trace.TraceIDFromHex(traceID)
 	if err != nil {
-		// Not a W3C 32-hex trace id (legacy UUID, etc.); cannot resume.
+		// Not a W3C 32-hex trace id (e.g. a caller-chosen UUID); cannot resume.
 		return ctx, nil
 	}
 	var sid trace.SpanID

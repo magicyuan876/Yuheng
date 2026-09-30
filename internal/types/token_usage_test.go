@@ -22,9 +22,6 @@ func TestTokenUsageAccumulateSumsEveryCounter(t *testing.T) {
 	if turn.CacheReadTokens != 800 || turn.CacheWriteTokens != 1500 || turn.CacheMissTokens != 1700 {
 		t.Fatalf("cache sums wrong: %+v", turn)
 	}
-	if turn.CachedTokens != turn.CacheReadTokens {
-		t.Fatalf("legacy alias diverged from cache reads: %+v", turn)
-	}
 	if !turn.CacheReported || turn.CacheStatus != PromptCacheStatusHit {
 		t.Fatalf("a hit anywhere in the turn must read as a hit: %+v", turn)
 	}

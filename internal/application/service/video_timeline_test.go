@@ -226,7 +226,7 @@ func TestPrepareVideoTimelineWithSegments(t *testing.T) {
 	result := &types.ReadResult{
 		IsVideo:         true,
 		VideoDurationMs: 30_000,
-		AudioData:       []byte{1, 2, 3},
+		AudioSegments:   []types.AudioTrackSegment{{StartMs: 0, EndMs: 30_000, Data: []byte{1, 2, 3}}},
 		AudioMimeType:   "audio/mpeg",
 		ImageRefs:       []types.ImageRef{frameRef(5_000)},
 	}
@@ -237,7 +237,7 @@ func TestPrepareVideoTimelineWithSegments(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.NotEmpty(t, windows)
-	assert.Nil(t, result.AudioData, "audio bytes must be consumed")
+	assert.Nil(t, result.AudioSegments, "audio bytes must be consumed")
 	assert.Contains(t, result.MarkdownContent, "**[00:00 - 00:30]**")
 	assert.Contains(t, result.MarkdownContent, "vframe")
 }
@@ -308,7 +308,7 @@ func TestPrepareVideoTimelineFrameOnlyWithoutASR(t *testing.T) {
 	result := &types.ReadResult{
 		IsVideo:         true,
 		VideoDurationMs: 60_000,
-		AudioData:       []byte{1}, // audio track present but ASR unavailable
+		AudioSegments:   []types.AudioTrackSegment{{EndMs: 60_000, Data: []byte{1}}}, // audio present, ASR unavailable
 		ImageRefs:       []types.ImageRef{frameRef(0), frameRef(30_000)},
 	}
 	knowledge := &types.Knowledge{ID: "k1", FileName: "silent.mp4"}
@@ -339,7 +339,7 @@ func TestPrepareVideoTimelineFailsWhenNothingUsable(t *testing.T) {
 func TestPrepareVideoTimelineTranscribeErrorRetries(t *testing.T) {
 	svc, repo := videoTestService(&fakeVideoASR{err: assert.AnError}, nil)
 
-	result := &types.ReadResult{IsVideo: true, AudioData: []byte{1}}
+	result := &types.ReadResult{IsVideo: true, AudioSegments: []types.AudioTrackSegment{{Data: []byte{1}}}}
 	knowledge := &types.Knowledge{ID: "k1", FileName: "talk.mp4"}
 
 	// Not the last retry → error returned for asynq retry, status untouched.
@@ -349,7 +349,7 @@ func TestPrepareVideoTimelineTranscribeErrorRetries(t *testing.T) {
 	assert.Nil(t, repo.updated)
 
 	// Last retry → knowledge marked failed.
-	result2 := &types.ReadResult{IsVideo: true, AudioData: []byte{1}}
+	result2 := &types.ReadResult{IsVideo: true, AudioSegments: []types.AudioTrackSegment{{Data: []byte{1}}}}
 	_, ok, err = svc.prepareVideoTimeline(context.Background(), knowledge, asrEnabledConfig(), result2, true)
 	require.Error(t, err)
 	assert.False(t, ok)

@@ -22,7 +22,7 @@ func newOwnerScopeDB(t *testing.T, name string) (*gorm.DB, map[string]string) {
 	sessions := map[string]*types.Session{
 		"alice":  {TenantID: 7, UserID: "web_user:alice", Title: "Alice 的会话"},
 		"bob":    {TenantID: 7, UserID: "web_user:bob", Title: "Bob 的会话"},
-		"legacy": {TenantID: 7, Title: "API 建的会话"},
+		"apikey": {TenantID: 7, UserID: types.SessionOwnerAPITenantKeyPrefix + "7:1", Title: "API 建的会话"},
 		"other":  {TenantID: 8, UserID: "web_user:alice", Title: "别的工作区"},
 	}
 	ids := make(map[string]string, len(sessions))
@@ -40,7 +40,7 @@ func TestOwnedSessionIDsExcludesOtherPeople(t *testing.T) {
 	repo := NewMessageRepository(db)
 
 	owned, err := repo.OwnedSessionIDs(context.Background(), 7, "web_user:alice",
-		[]string{ids["alice"], ids["bob"], ids["legacy"], ids["other"]})
+		[]string{ids["alice"], ids["bob"], ids["apikey"], ids["other"]})
 	if err != nil {
 		t.Fatalf("owned session ids: %v", err)
 	}
@@ -51,8 +51,8 @@ func TestOwnedSessionIDsExcludesOtherPeople(t *testing.T) {
 	if owned[ids["bob"]] {
 		t.Error("alice must not be able to reach bob's conversations")
 	}
-	if !owned[ids["legacy"]] {
-		t.Error("tenant-level sessions stay reachable, matching how they are listed")
+	if owned[ids["apikey"]] {
+		t.Error("an API key's sessions belong to the key, not to every workspace member")
 	}
 	if owned[ids["other"]] {
 		t.Error("a workspace boundary is not something an owner check may cross")

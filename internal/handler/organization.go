@@ -797,18 +797,15 @@ func (h *OrganizationHandler) LeaveOrganization(c *gin.Context) {
 	userID := c.GetString(types.UserIDContextKey.String())
 	tenantID := c.GetUint64(types.TenantIDContextKey.String())
 
-	// Check if caller's tenant is the owner tenant. Post-Plan-3, "owner
-	// can't leave" is a tenant-level rule: the owner_tenant_id row is the
-	// one that may not depart the org. Legacy rows with OwnerTenantID == 0
-	// fall back to the user-level rule so we don't break pre-000046 data.
+	// "Owner can't leave" is a tenant-level rule: the owner_tenant_id
+	// workspace is the one that may not depart the org.
 	org, err := h.orgService.GetOrganization(ctx, orgID)
 	if err != nil {
 		c.Error(apperrors.NewNotFoundError("Organization not found"))
 		return
 	}
 
-	isOwnerTenant := org.OwnerTenantID != 0 && org.OwnerTenantID == tenantID
-	if isOwnerTenant || (org.OwnerTenantID == 0 && org.OwnerID == userID) {
+	if org.OwnerTenantID == tenantID {
 		c.Error(apperrors.NewForbiddenError("Organization owner cannot leave. Please transfer ownership or delete the organization."))
 		return
 	}
@@ -872,10 +869,6 @@ func (h *OrganizationHandler) ListJoinRequests(c *gin.Context) {
 			Status:        string(r.Status),
 			CreatedAt:     r.CreatedAt,
 			ReviewedAt:    r.ReviewedAt,
-		}
-		// Default request_type to 'join' for backward compatibility
-		if item.RequestType == "" {
-			item.RequestType = string(types.JoinRequestTypeJoin)
 		}
 		if r.User != nil {
 			item.Username = r.User.Username
@@ -1290,17 +1283,9 @@ func (h *OrganizationHandler) ListOrganizationSharedKnowledgeBases(c *gin.Contex
 // toOrgResponse converts an organization to response format
 func (h *OrganizationHandler) toOrgResponse(ctx context.Context, org *types.Organization, currentUserID string) types.OrganizationResponse {
 	currentTenantID := types.MustTenantIDFromContext(ctx)
-	// Post-Plan-3 the canonical "is the caller the owner side?" check
-	// is tenant-based: org.OwnerTenantID is the pinned column; legacy
-	// rows with OwnerTenantID == 0 (pre-000046, unlikely in prod)
-	// fall back to the user-id check so we don't show the wrong tenant
-	// as "owner" in those edge cases.
-	isOwner := false
-	if org.OwnerTenantID != 0 {
-		isOwner = org.OwnerTenantID == currentTenantID
-	} else {
-		isOwner = org.OwnerID == currentUserID
-	}
+	// "Is the caller the owner side?" is tenant-based: org.OwnerTenantID
+	// is the pinned column, OwnerID only records which user created it.
+	isOwner := org.OwnerTenantID == currentTenantID
 	resp := types.OrganizationResponse{
 		ID:                     org.ID,
 		Name:                   org.Name,

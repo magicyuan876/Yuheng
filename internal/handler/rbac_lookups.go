@@ -17,7 +17,7 @@ import (
 // and gets back one of:
 //
 //   - (creatorID, nil)            : ownership match check decides
-//   - ("",        nil)            : tenant-owned (legacy or built-in)
+//   - ("",        nil)            : tenant-owned (built-in or API-key-created)
 //   - ("", ErrResourceNotFound)   : :id doesn't resolve in this tenant;
 //                                   middleware passes through so the
 //                                   handler can issue a real 404
@@ -63,9 +63,8 @@ func (h *KnowledgeBaseHandler) KBCreatorLookup(c *gin.Context) (string, error) {
 }
 
 // KBCreatorLookupFromKbIDParam is the same lookup as KBCreatorLookup
-// but reads `:kbId` instead of `:id`. Used by the /initialization
-// routes (POST /initialization/initialize/:kbId, PUT
-// /initialization/config/:kbId), which are KB-scoped mutating ops:
+// but reads `:kbId` instead of `:id`. Used by PUT
+// /initialization/config/:kbId, a KB-scoped mutating op:
 // changing a KB's embedding/parser/storage configuration is at least
 // as sensitive as updating the KB itself, so it must follow the same
 // "creator OR Admin+" matrix.
@@ -110,8 +109,8 @@ var (
 // CreatorID of the *owning KB*, scoped to the caller's tenant. Used by
 // per-knowledge mutating routes (PR 5, #1303) so a Contributor who owns
 // the KB can edit/delete any of its documents while a Contributor who
-// merely belongs to the tenant cannot. Built-in / legacy KBs without a
-// CreatorID surface as ("", nil) and stay Admin-gated.
+// merely belongs to the tenant cannot. KBs without a CreatorID (built-in,
+// or created through an API key) surface as ("", nil) and stay Admin-gated.
 //
 // The chain (knowledge_id -> kb_id -> KB.CreatorID) lives in the
 // service layer (KnowledgeService.GetOwningKBCreatorID) so this lookup

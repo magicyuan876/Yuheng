@@ -25,9 +25,9 @@ const (
 		DefaultMaintenanceWorkerConcurrency + DefaultSharedWorkerConcurrency
 )
 
-// Asynq queue names. QueueMaintenance intentionally keeps the physical Redis
-// name "low" so tasks enqueued by older releases remain consumable during a
-// rolling deployment. New code uses the business-semantic constant.
+// Asynq queue names. Code always goes through the constants; QueueMaintenance's
+// physical Redis name is "low", which is also the key the runtime-queues
+// settings page looks its labels up by, so the two must change together.
 const (
 	QueueDefault = "default"
 	// QueueChatAttachment carries session-scoped chat attachment parsing. It
@@ -263,8 +263,8 @@ type ExtractChunkPayload struct {
 	ModelID  string `json:"model_id"`
 	// KnowledgeID + Attempt link the per-chunk extract back to the parent
 	// parse attempt's postprocess stage so the worker can record a
-	// postprocess.graph.chunk[i] subspan. 0 / "" means "skip span
-	// recording" for legacy in-flight tasks.
+	// postprocess.graph.chunk[i] subspan. Attempt 0 (the parse attempt
+	// could not be opened) means "skip span recording".
 	KnowledgeID string `json:"knowledge_id,omitempty"`
 	Attempt     int    `json:"attempt,omitempty"`
 	// ChunkIndex is the 0-based ordinal of this chunk inside the parent
@@ -327,35 +327,27 @@ type QuestionGenerationPayload struct {
 	Language string `json:"language,omitempty"`
 	// Attempt links this task to the parent parse attempt so the worker
 	// can record a postprocess.question subspan under the right attempt's
-	// postprocess stage. 0 means "skip span recording" (legacy in-flight
-	// tasks queued before this field shipped, or callers without a
-	// tracker).
+	// postprocess stage. 0 means "skip span recording" (the parse attempt
+	// could not be opened, or the caller has no tracker).
 	Attempt int `json:"attempt,omitempty"`
-	// ChunkIDs switches the handler into batched fan-out mode: the task
-	// generates questions for this ordered window of text chunks only.
+	// ChunkIDs is the ordered window of text chunks this task generates
+	// questions for.
 	// Batching (rather than one task per chunk) keeps the task count
 	// bounded for very large documents, while still giving each batch
 	// independent retry / cancellation / tracing and letting the worker
-	// do a single embedding BatchIndex per batch. Empty means the legacy
-	// whole-knowledge mode (kept for in-flight tasks queued before fan-out
-	// shipped), where the handler iterates all text chunks itself.
-	// Following the ExtractChunkPayload precedent, we carry only chunk ids
-	// (not their content) so the payload stays small and the worker reads
-	// fresh content at run time.
+	// do a single embedding BatchIndex per batch. Following the
+	// ExtractChunkPayload precedent, we carry only chunk ids (not their
+	// content) so the payload stays small and the worker reads fresh
+	// content at run time.
 	ChunkIDs []string `json:"chunk_ids,omitempty"`
-	// ChunkID is the single-chunk variant of ChunkIDs, retained only so
-	// tasks enqueued by an interim per-chunk build still run (treated as a
-	// one-element batch). New enqueues use ChunkIDs.
-	ChunkID string `json:"chunk_id,omitempty"`
 	// BatchIndex is the 0-based ordinal of this batch inside the parent
 	// knowledge's text-chunk set, used as the subspan name suffix
 	// ("postprocess.question.batch[3]") so the timeline preserves order.
 	BatchIndex int `json:"batch_index,omitempty"`
 	// PrevChunkID / NextChunkID are the text chunks (by StartAt) just
 	// outside this batch window, computed at enqueue time so the worker can
-	// rebuild the same surrounding context the legacy whole-knowledge loop
-	// used at the batch boundaries, without re-listing every chunk of the
-	// knowledge. Empty when the batch is at a document boundary.
+	// give the chunks at the batch boundaries their surrounding context,
+	// without re-listing every chunk of the knowledge. Empty when the batch is at a document boundary.
 	PrevChunkID string `json:"prev_chunk_id,omitempty"`
 	NextChunkID string `json:"next_chunk_id,omitempty"`
 }
@@ -499,9 +491,8 @@ type ImageMultimodalPayload struct {
 	TenantID        uint64 `json:"tenant_id"`
 	KnowledgeID     string `json:"knowledge_id"`
 	KnowledgeBaseID string `json:"knowledge_base_id"`
-	ChunkID         string `json:"chunk_id"`         // parent text chunk
-	ImageURL        string `json:"image_url"`        // provider:// URL (e.g. local://..., s3://...)
-	ImageLocalPath  string `json:"image_local_path"` // deprecated: kept for backward compat with in-flight tasks
+	ChunkID         string `json:"chunk_id"`  // parent text chunk
+	ImageURL        string `json:"image_url"` // provider:// URL (e.g. local://..., s3://...)
 	EnableOCR       bool   `json:"enable_ocr"`
 	EnableCaption   bool   `json:"enable_caption"`
 	Language        string `json:"language,omitempty"`          // Request locale for {{language}} in prompt templates

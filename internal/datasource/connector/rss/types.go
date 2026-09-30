@@ -40,8 +40,10 @@ import (
 //
 // FeedURLs are stored in DataSourceConfig.Settings (non-secret, editable in
 // the UI without replacing credentials). AuthHeaders live in Credentials
-// because they may carry secrets that must be encrypted at rest. Credentials
-// may still carry feed_urls for backward compatibility with older rows.
+// because they may carry secrets that must be encrypted at rest. A
+// credentials-only check (POST validate-credentials, which has no settings)
+// passes feed_urls inside the credentials instead; settings win when both
+// are present. Persistence strips feed_urls from credentials.
 type Config struct {
 	// FeedURLs is a newline- or comma-separated list of feed URLs.
 	FeedURLs string `json:"feed_urls"`

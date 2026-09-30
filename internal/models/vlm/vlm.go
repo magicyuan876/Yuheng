@@ -2,11 +2,9 @@ package vlm
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/models/provider"
 	"github.com/magicyuan876/yuheng/internal/models/utils/ollama"
 	"github.com/magicyuan876/yuheng/internal/types"
 )
@@ -104,34 +102,5 @@ func newVLM(config *Config, ollamaService *ollama.OllamaService) (VLM, error) {
 		return NewOllamaVLM(config, ollamaService)
 	}
 
-	providerName := provider.ProviderName(config.Provider)
-	if providerName == "" {
-		providerName = provider.DetectProvider(config.BaseURL)
-	}
 	return NewRemoteAPIVLM(config)
-}
-
-// NewVLMFromLegacyConfig creates a VLM from a legacy VLMConfig (inline BaseURL/APIKey/ModelName).
-func NewVLMFromLegacyConfig(vlmCfg types.VLMConfig, ollamaService *ollama.OllamaService) (VLM, error) {
-	if !vlmCfg.IsEnabled() {
-		return nil, fmt.Errorf("VLM config is not enabled")
-	}
-
-	ifType := vlmCfg.InterfaceType
-	if ifType == "" {
-		ifType = "openai"
-	}
-
-	source := types.ModelSourceRemote
-	if strings.EqualFold(ifType, "ollama") {
-		source = types.ModelSourceLocal
-	}
-
-	return NewVLM(&Config{
-		Source:        source,
-		BaseURL:       vlmCfg.BaseURL,
-		ModelName:     vlmCfg.ModelName,
-		APIKey:        vlmCfg.APIKey,
-		InterfaceType: ifType,
-	}, ollamaService)
 }

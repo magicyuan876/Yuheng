@@ -98,24 +98,6 @@ func TestRegistry_GetRetrieveEngineService(t *testing.T) {
 	})
 }
 
-func TestRegistry_GetAllRetrieveEngineServices(t *testing.T) {
-	reg := NewRetrieveEngineRegistry(nil, nil).(*RetrieveEngineRegistry)
-	_ = reg.Register(newMock(types.PostgresRetrieverEngineType))
-	_ = reg.Register(newMock(testOtherEngineType))
-
-	t.Run("returns all byEngineType entries", func(t *testing.T) {
-		all := reg.GetAllRetrieveEngineServices()
-		assert.Len(t, all, 2)
-	})
-
-	t.Run("returns copy - modifying result does not affect registry", func(t *testing.T) {
-		all := reg.GetAllRetrieveEngineServices()
-		grown := append(all, newMock(testOtherEngineType))
-		assert.Len(t, grown, len(all)+1)
-		assert.Len(t, reg.GetAllRetrieveEngineServices(), 2)
-	})
-}
-
 // --- RegisterWithStoreID (byStoreID) tests ---
 
 func TestRegistry_RegisterWithStoreID(t *testing.T) {
@@ -188,11 +170,6 @@ func TestRegistry_DualMapIsolation(t *testing.T) {
 	_ = reg.Register(newMock(types.PostgresRetrieverEngineType))
 	reg.RegisterWithStoreID("store-pg", newMock(types.PostgresRetrieverEngineType))
 	reg.RegisterWithStoreID("store-other", newMock(testOtherEngineType))
-
-	t.Run("GetAllRetrieveEngineServices returns only byEngineType", func(t *testing.T) {
-		all := reg.GetAllRetrieveEngineServices()
-		assert.Len(t, all, 1)
-	})
 
 	t.Run("byStoreID does not affect byEngineType lookup", func(t *testing.T) {
 		_, err := reg.GetRetrieveEngineService(testOtherEngineType)

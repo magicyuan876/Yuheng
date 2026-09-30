@@ -431,11 +431,7 @@ func (s *chunkService) UpdateDocumentChunk(
 		return chunk, nil
 	}
 	if content != nil {
-		sourceContent := chunk.SourceContent
-		if sourceContent == "" {
-			sourceContent = chunk.Content
-		}
-		if err := validateEditedChunkImages(sourceContent, newContent); err != nil {
+		if err := validateEditedChunkImages(chunk.SourceContent, newContent); err != nil {
 			return nil, err
 		}
 	}
@@ -449,9 +445,6 @@ func (s *chunkService) UpdateDocumentChunk(
 		ChunkID: chunk.ID, Revision: oldRevision, Content: chunk.Content,
 		IsEnabled: chunk.IsEnabled, EditorID: chunk.LastEditorID,
 		EditSource: "user", EditedAt: chunk.UpdatedAt, CreatedAt: now,
-	}
-	if chunk.SourceContent == "" {
-		chunk.SourceContent = chunk.Content
 	}
 	bodyChanged := newContent != chunk.Content
 	chunk.Content = newContent
@@ -587,10 +580,6 @@ func (s *chunkService) rebuildParentContent(ctx context.Context, edited *types.C
 		return err
 	}
 	base := parent.SourceContent
-	if base == "" {
-		base = parent.Content
-		parent.SourceContent = base
-	}
 	baseRunes := []rune(base)
 	type replacement struct {
 		start, end int

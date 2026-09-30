@@ -12,20 +12,16 @@ package types
 //   - the langfuse package can remain a leaf dependency that only types
 //     (and its own tests) reference directly.
 //
-// The JSON tags all use the "lf_" prefix and omitempty so that payloads
-// constructed before the Langfuse feature landed remain byte-compatible
-// (empty fields collapse to nothing in the serialized output) and so that
-// Langfuse-specific columns don't collide with business fields that may
-// happen to be named similarly.
+// The JSON tags all use the "lf_" prefix and omitempty so that untraced
+// payloads carry nothing extra (empty fields collapse to nothing in the
+// serialized output) and so that Langfuse-specific keys don't collide with
+// business fields that may happen to be named similarly.
 type TracingContext struct {
 	// LangfuseTraceID is the id of the root trace that originated this task.
-	// Kept for backward compatibility with legacy payloads; the OTLP path now
-	// propagates correlation via LangfuseTraceparent (W3C) below.
+	// Span linking itself flows through LangfuseTraceparent below; this plain
+	// id is what the document-processing tracker records on each attempt so
+	// the attempt can be opened in Langfuse directly.
 	LangfuseTraceID string `json:"lf_trace_id,omitempty"`
-	// LangfuseParentObservationID is retained for backward compatibility only;
-	// the OTLP path no longer uses it (parent linking flows through the W3C
-	// traceparent's parent span id).
-	LangfuseParentObservationID string `json:"lf_parent_obs_id,omitempty"`
 	// LangfuseTraceparent carries the W3C Trace Context (`traceparent` header
 	// value: `00-<trace_id>-<span_id>-<flags>`) from the enqueuing request.
 	// The worker re-extracts it so its spans are children of the same trace —

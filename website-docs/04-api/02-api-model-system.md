@@ -169,33 +169,6 @@ Handler: `internal/handler/initialization.go`。KB 配置类：API key `manage_k
 curl $BASE/api/v1/initialization/config/kb-1 -H "Authorization: Bearer $TOKEN"
 ```
 
-### POST /api/v1/initialization/initialize/:kbId
-
-用途：初始化 KB 的模型与解析配置（首次配置向导）。权限：KB 创建者 OR Admin+，KB write。
-
-主要字段（`InitializationRequest`）：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `llm.source` / `llm.modelName` | string | 是 | LLM 来源与模型名 |
-| `llm.baseUrl` / `llm.apiKey` | string | 否 | 连接参数 |
-| `embedding.source` / `embedding.modelName` | string | 是 | Embedding 模型 |
-| `embedding.baseUrl` / `embedding.apiKey` / `embedding.dimension` | — | 否 | 连接与维度 |
-| `rerank.enabled` + `rerank.modelName/baseUrl/apiKey` | — | 否 | Rerank 配置 |
-| `multimodal.enabled` + `multimodal.vlm.*` + `multimodal.storageType` | — | 否 | 多模态与图床；`storageType` 为空、`local` 或 `s3`，S3 连接参数取自服务端 `S3_*` 环境变量 |
-| `documentSplitting.chunkSize` / `separators` | int / []string | 是 | 分块配置 |
-| `documentSplitting.chunkOverlap` | int | 否 | 重叠 |
-| `nodeExtract.*` | — | 否 | 图谱抽取（enabled/text/tags/nodes/relations） |
-| `questionGeneration.*` | — | 否 | 问题生成（enabled/questionCount） |
-
-响应：200 `{"success":true,"message":"知识库配置更新成功","data":{"models":[Model],"knowledge_base":{KnowledgeBase}}}`
-
-```bash
-curl -X POST $BASE/api/v1/initialization/initialize/kb-1 -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"llm":{"source":"remote","modelName":"gpt-4o-mini"},"embedding":{"source":"remote","modelName":"text-embedding-3-small"},"documentSplitting":{"chunkSize":512,"separators":["\n\n"]}}'
-```
-
 ### PUT /api/v1/initialization/config/:kbId
 
 用途：更新 KB 模型/分块配置（`KBModelConfigRequest`：`llmModelId` 必填，`embeddingModelId`、`vlm_config`、`asr_config`、`documentSplitting.*`、`multimodal.enabled`、`storageProvider`、`storageBackendId`、`nodeExtract.*`、`questionGeneration.*` 可选）。权限：KB 创建者 OR Admin+，KB write。

@@ -65,10 +65,9 @@ func (s *wikiIngestService) scheduleFollowUp(ctx context.Context, payload WikiIn
 }
 
 // newWikiBatchContext builds the per-run lazy fetchers used by both the ingest
-// batch and the debounced finalize task. These replace the legacy pre-batch
-// ListAllPages dump: instead of pulling ~100MB of rows up front (and walking
-// them several more times), callers pay only for the slugs / knowledge ids they
-// actually reach for. Cache hits keep repeat lookups within a single run free.
+// batch and the debounced finalize task. Instead of pulling every page up
+// front (~100MB of rows on a large KB, walked several more times), callers pay
+// only for the slugs / knowledge ids they actually reach for. Cache hits keep repeat lookups within a single run free.
 // The cache is per-call (goroutine-safe via fetchMu), so each task gets a fresh,
 // isolated view.
 func (s *wikiIngestService) newWikiBatchContext(
@@ -538,9 +537,7 @@ func (s *wikiIngestService) ProcessWikiIngest(ctx context.Context, t *asynq.Task
 				// No fail-count reset needed: a successful op is added
 				// to peekedIDs and gets DELETEd from task_pending_ops at
 				// trim time, so there is no stale fail_count column to
-				// scrub. Compare with the legacy Redis path, which kept
-				// a separate wiki:failcount:<...> key alive for 24h
-				// regardless of whether the original op had drained.
+				// scrub and no failure counter can outlive its op.
 				//
 				// The finalizing slot is drained later (after reduce +
 				// publish) in the docResults loop, so "completed" only
@@ -1103,9 +1100,9 @@ func (s *wikiIngestService) ProcessWikiFinalize(ctx context.Context, t *asynq.Ta
 		}
 	}
 
-	// Drain the processed rows. Best-effort convergence mirrors the legacy
-	// in-batch behaviour: a failed index rebuild is logged (not retried),
-	// so we delete regardless to avoid re-doing the whole pass forever.
+	// Drain the processed rows. Convergence is best-effort: a failed index
+	// rebuild is logged (not retried), so we delete regardless to avoid
+	// re-doing the whole pass forever.
 	idsToTrim := ids
 	if pruneDeferred && len(pruneRowIDs) > 0 {
 		deferred := make(map[int64]struct{}, len(pruneRowIDs))
@@ -1234,7 +1231,7 @@ func (s *wikiIngestService) mapOneDocument(
 	oldPageSlugs := s.getExistingPageSlugsForKnowledge(ctx, payload.KnowledgeBaseID, knowledgeID)
 
 	// Pass 0: lightweight candidate slug extraction (skeleton only).
-	// On failure we fall back to the legacy single-shot extractor so the doc
+	// On failure we fall back to the single-shot extractor so the doc
 	// still gets ingested, just without chunk-level citations.
 	var (
 		extractedEntities []extractedItem
@@ -1249,11 +1246,12 @@ func (s *wikiIngestService) mapOneDocument(
 	})
 	extractedEntities, extractedConcepts, slugItems, err = s.extractCandidateSlugs(ctx, chatModel, payload.KnowledgeBaseID, content, lang, oldPageSlugs, batchCtx)
 	if err != nil {
-		logger.Warnf(ctx, "wiki ingest: pass 0 failed for %s (%v) — falling back to legacy extractor", knowledgeID, err)
+		logger.Warnf(ctx, "wiki ingest: pass 0 failed for %s (%v) — falling back to single-shot extractor",
+			knowledgeID, err)
 		pass0Failed = true
 		extractedEntities, extractedConcepts, slugItems, err = s.extractEntitiesAndConceptsNoUpsert(ctx, chatModel, payload.KnowledgeBaseID, content, lang, oldPageSlugs, batchCtx)
 		if err != nil {
-			logger.Warnf(ctx, "wiki ingest: legacy fallback also failed for %s: %v", knowledgeID, err)
+			logger.Warnf(ctx, "wiki ingest: single-shot fallback also failed for %s: %v", knowledgeID, err)
 			s.tracker().FailSpan(ctx, extractSpan, "EXTRACT_FAILED", err.Error(), err)
 			s.tracker().FailSpan(ctx, wikiSpan, "EXTRACT_FAILED", err.Error(), err)
 			return nil, nil, err
@@ -1341,8 +1339,8 @@ func (s *wikiIngestService) mapOneDocument(
 	}()
 	go func() {
 		defer wg.Done()
-		// Skip citation pass when Pass 0 has fallen back to the legacy path —
-		// the legacy output already contains paraphrased Details, so chunk
+		// Skip citation pass when Pass 0 has fallen back to the single-shot
+		// extractor — its output already contains paraphrased Details, so chunk
 		// citations would be redundant and we'd spend LLM calls for nothing.
 		if pass0Failed {
 			citations = map[string][]string{}
@@ -1945,7 +1943,7 @@ func (s *wikiIngestService) reduceSlugUpdates(
 					"<document>\n<title>%s</title>\n<content>\n**%s**: %s\n\n%s\n</content>\n</document>\n\n",
 					add.DocTitle, add.Item.Name, add.Item.Description, cited)
 			} else {
-				// Fallback: no citations available (legacy path, citation pass
+				// Fallback: no citations available (single-shot path, citation pass
 				// failed, or bad chunk IDs were filtered out) — stick with
 				// the short Details summary so the page still gets real text.
 				fmt.Fprintf(&newContentBuilder,

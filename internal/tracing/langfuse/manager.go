@@ -27,9 +27,8 @@ var propagator = propagation.TraceContext{}
 // Internally the manager owns an OpenTelemetry TracerProvider backed by an
 // OTLP/HTTP exporter pointing at the Langfuse v3+ / LiteFuse OTel endpoint.
 // The handles (*Trace / *Span / *Generation) wrap OTel spans; spans are
-// buffered by the BatchSpanProcessor and exported complete on End, so there
-// is no per-flush-batch duplication of root spans (the bug the legacy
-// hand-rolled translator had on long traces spanning multiple flushes).
+// buffered by the BatchSpanProcessor and exported complete on End, so a long
+// trace spanning several flushes never duplicates its root span.
 type Manager struct {
 	cfg Config
 

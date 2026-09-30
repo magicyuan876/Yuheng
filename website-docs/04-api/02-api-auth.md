@@ -134,7 +134,7 @@ curl "$BASE/api/v1/auth/oidc/url?redirect_uri=https://app.example.com/callback"
 
 响应：总是 302 重定向到前端 `/`，结果放在 URL hash 里：
 
-- 成功：`#oidc_result=<base64url(JSON)>`，JSON 与登录响应同构（`success`、`user`、`tenant`、`memberships`、`token`、`refresh_token`、`is_new_user`；这里的活跃空间字段叫 `tenant`，登录接口叫 `active_tenant`）。
+- 成功：`#oidc_result=<base64url(JSON)>`，JSON 与登录响应同构（`success`、`user`、`active_tenant`、`memberships`、`token`、`refresh_token`，外加 `is_new_user`）。
 - 失败：`#oidc_error=<原因>[&oidc_error_description=<说明>]`，原因为 IdP 返回的 `error`，或 `invalid_state`、`missing_code`、`login_failed`、`payload_encode_failed`。
 
 ```bash

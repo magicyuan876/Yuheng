@@ -82,8 +82,8 @@ type Session struct {
 	Description string `json:"description"`
 	// Workspace ID
 	TenantID uint64 `json:"tenant_id"   gorm:"index"`
-	// UserID is the owner scope for this session. Yuheng user UUIDs and API
-	// principals use this column, as do the visitor ids of legacy embed rows.
+	// UserID is the owner scope for this session: a Yuheng user UUID or an
+	// API principal (see SessionOwnerIDFromContext). Every session has one.
 	UserID string `json:"user_id,omitempty" gorm:"type:varchar(512);index"`
 	// IsPinned indicates whether the session is pinned in the list.
 	IsPinned bool `json:"is_pinned" gorm:"default:false"`
@@ -127,16 +127,6 @@ func (s *Session) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-// EmbedSessionMarkerPrefix tags sessions created through an embed channel
-// (legacy rows; the embed feature has been removed). Kept so existing rows
-// keep classifying correctly in the session list.
-const EmbedSessionMarkerPrefix = "embed_channel:"
-
-// EmbedSessionOwnerPrefix is the legacy sessions.user_id prefix of embed chat
-// sessions (the embed feature has been removed). Kept so those rows stay
-// admin-only in the Web console.
-const EmbedSessionOwnerPrefix = "embed_session:"
-
 // SessionSourceAPI is the source filter that lists every session created via a
 // tenant API key across the whole tenant. It is an admin-only view: the service
 // layer requires Admin+ and drops the per-user owner scope so a tenant
@@ -147,8 +137,8 @@ const SessionSourceAPI = "api"
 const SessionSourceWeb = "web"
 
 // SessionListSourceRequiresAdmin reports whether a session-list source filter
-// exposes tenant-wide channel traffic (API keys, legacy embed rows) in the Web
-// console.
+// exposes tenant-wide API-key traffic in the Web console. Anything but the
+// user's own Web chats does.
 func SessionListSourceRequiresAdmin(source string) bool {
 	src := strings.TrimSpace(source)
 	if src == "" || strings.EqualFold(src, SessionSourceWeb) {
@@ -157,26 +147,18 @@ func SessionListSourceRequiresAdmin(source string) bool {
 	return true
 }
 
-// SessionRequiresAdminConsoleRead reports whether a session row is channel-
-// managed traffic that non-admin web users must not open from the console.
+// SessionRequiresAdminConsoleRead reports whether a session row is API-key
+// traffic that non-admin web users must not open from the console.
 func SessionRequiresAdminConsoleRead(s *Session) bool {
-	if s == nil {
-		return false
-	}
-	if IsAPISessionOwnerID(s.UserID) {
-		return true
-	}
-	return strings.HasPrefix(s.Description, EmbedSessionMarkerPrefix) ||
-		strings.HasPrefix(s.UserID, EmbedSessionOwnerPrefix)
+	return s != nil && IsAPISessionOwnerID(s.UserID)
 }
 
 // SessionListQuery bundles the parameters for listing sessions.
-// UserID empty means "tenant-wide" (used by API-key callers / legacy rows).
+// UserID empty means "tenant-wide" (the admin-only api view).
 // Keyword matches title ILIKE '%keyword%'.
-// Source values: "web" (user chats, no embed/API rows), "embed" /
-// "embed:{channelID}", "api" (all API-key sessions, Admin+ only). Embed and
-// api sources are Admin+ only; unknown sources (including legacy IM platform
-// names) fall back to the web visibility filter.
+// Source values: "web" (user chats, no API rows) and "api" (all API-key
+// sessions, Admin+ only); unknown sources fall back to the web visibility
+// filter.
 type SessionListQuery struct {
 	TenantID uint64
 	UserID   string
@@ -253,8 +235,6 @@ func (s *SessionLastRequestState) Value() (driver.Value, error) {
 }
 
 // Scan implements sql.Scanner for SessionLastRequestState (JSONB).
-// Tolerates legacy values that may not match the current schema by silently
-// ignoring unmarshal errors — the stored row predates this struct.
 func (s *SessionLastRequestState) Scan(value interface{}) error {
 	if value == nil {
 		return nil
@@ -271,11 +251,7 @@ func (s *SessionLastRequestState) Scan(value interface{}) error {
 	if len(b) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(b, s); err != nil {
-		// Tolerate legacy shapes from before this column was repurposed.
-		return nil
-	}
-	return nil
+	return json.Unmarshal(b, s)
 }
 
 // Value implements the driver.Valuer interface, used to convert ContextConfig to database value
