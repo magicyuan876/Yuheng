@@ -746,7 +746,17 @@ curl -X POST $BASE/api/v1/docs/public/<key>/unlock -H 'Content-Type: application
 - 空间：`{id,name,slug,description,icon,pages}`，`pages` 为顶层页面。空间必须是 `public`，否则 404。用空间 ID 而不是 slug 寻址（slug 只在工作区内唯一，访客没有工作区）。
 - 页面：按 `short_id` 返回一页，结构同公开链接的 `page`。受限页面与回收站页面一律 404。
 
-两者都带 `X-Robots-Tag: index, follow`。页面里的附件、图片地址指向需要登录的 `/api/v1/docs/attachments/:aid`，匿名访客加载不到（见功能页第 9 节）。
+两者都带 `X-Robots-Tag: index, follow`。
+
+### GET /api/v1/docs/public/:key/attachments/:aid · GET /api/v1/docs/public-spaces/:sid/attachments/:aid
+
+用途：公开页面里的图片、附件、音视频与图表预览。匿名页面渲染出的 HTML 已经指向这两个地址，访客的浏览器不需要登录态；成员路由 `/api/v1/docs/attachments/:aid` 仍需登录。
+
+- 只提供**挂在已发布页面上**的附件：公开链接为链接根页面，或开启「包含子页面」时其子树内的页面；公开空间为该空间的页面。页面受限（自身或任一上级）、在回收站、不在链接覆盖范围内、附件尚未挂到任何页面上，一律 404，与附件不存在无从区分。
+- 每次请求都重新判定：撤销、过期链接，限制页面，或把空间改回非公开后，附件立即不可访问。
+- **带密码的链接**：解锁令牌只走请求头，从不进入 URL，而 `<img>` 带不了请求头。因此，只有持有效解锁令牌的访客拿到的 HTML 里，每个附件地址才带 `sig` 参数。它是一个签名，只对这一个附件有效，12 小时后过期，修改或去掉密码后立即作废，拿它打不开页面本身。没有密码的链接和公开空间不需要 `sig`。
+- 查询参数：`w`（图片宽度 320/800/1600，同成员路由）。
+- 响应头：`Cache-Control: private, no-store`（权限随时可能收回，不能留缓存）、`X-Robots-Tag: noindex`，其余与成员路由相同（`nosniff`、可渲染类型加沙箱 CSP、其它类型作为下载）。
 
 ## 维护
 

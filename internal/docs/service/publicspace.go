@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/docs/render"
@@ -90,7 +91,7 @@ func (s *PageService) PublicSpacePage(ctx context.Context, spaceID, shortID stri
 	if err != nil {
 		return nil, err
 	}
-	html, err := s.renderAnonymous(page, titles)
+	html, err := s.renderForVisitor(page, titles, publicSpaceAttachmentURL(space.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -258,23 +259,36 @@ func (s *PageService) publicTitles(ctx context.Context, space *model.Space) (map
 	return out, nil
 }
 
-// renderAnonymous renders a page for somebody with no session. Shared with
-// the share-link path so that both get the same treatment of page links and
-// embeds; see renderHTML for why titles are filtered.
-func (s *PageService) renderAnonymous(page *model.Page, titles map[string]string) (string, error) {
+// renderForVisitor renders a page for somebody with no session, through a
+// share link or a public space; both get the same treatment of page links,
+// embeds and attachments.
+//
+// Page links are the subtle part. A published document may link to pages that
+// are not published, and resolving those titles would leak them — "there is a
+// page called Q3 Redundancies" is the leak, not its contents. So titles
+// resolves only the pages the visitor may reach, and every other link renders
+// as plain text with no destination.
+//
+// Attachments are addressed through attachmentURL, a route of the same
+// anonymous surface: the member route behind a normal page needs a session,
+// which a visitor's <img> does not carry.
+func (s *PageService) renderForVisitor(page *model.Page, titles map[string]string,
+	attachmentURL func(attachmentID string) string,
+) (string, error) {
 	content := page.Content
 	if len(content) == 0 {
 		content = EmptyDocument
 	}
 	node, _, err := schema.Default().Validate(content)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("docs: stored content of %s is invalid: %w", page.ID, err)
 	}
 	return render.HTML(node, render.Options{
 		PageTitle: func(id string) (string, bool) {
 			title, ok := titles[id]
 			return title, ok
 		},
-		EmbedURL: s.embedURL,
+		EmbedURL:      s.embedURL,
+		AttachmentURL: attachmentURL,
 	}), nil
 }

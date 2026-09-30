@@ -18,9 +18,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/events"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/docs/notify"
-	"github.com/magicyuan876/yuheng/internal/docs/render"
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
-	"github.com/magicyuan876/yuheng/internal/docs/schema"
 	"github.com/magicyuan876/yuheng/internal/docs/share"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
@@ -370,32 +368,16 @@ func (s *PageService) RevokeSharesForPages(ctx context.Context, tenantID uint64,
 func (s *PageService) ResolveShare(ctx context.Context, key, unlockToken, wantShortID string) (
 	*ShareResult, error,
 ) {
-	if !s.d.PublicSharing {
-		return nil, notFound("share")
-	}
-	clean, err := share.NormaliseKey(key)
+	link, err := s.openShare(ctx, key)
 	if err != nil {
-		return nil, notFound("share")
-	}
-	row, err := s.d.Repos.Shares.GetByKey(ctx, clean)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, notFound("share")
-		}
 		return nil, err
 	}
-
-	page, live := s.sharedRootPage(ctx, row)
-	state := share.Evaluate(share.Link{
-		ExpiresAt: row.ExpiresAt, RevokedAt: row.RevokedAt,
-		HasPassword: row.PasswordHash != nil,
-		PageLive:    live, PageRestricted: s.pageRestricted(ctx, row, page),
-	}, time.Now(), s.unlockValid(row, unlockToken))
+	state := link.state(s.unlockValid(link.row, unlockToken))
 	if !state.Visible() {
 		return &ShareResult{State: state}, nil
 	}
 
-	view, err := s.renderShared(ctx, row, page, wantShortID)
+	view, err := s.renderShared(ctx, link, wantShortID)
 	if err != nil {
 		return nil, err
 	}
@@ -405,12 +387,20 @@ func (s *PageService) ResolveShare(ctx context.Context, key, unlockToken, wantSh
 		// that does not exist are the same thing.
 		return &ShareResult{State: share.StateGone}, nil
 	}
-	s.countVisit(ctx, row)
+	s.countVisit(ctx, link.row)
 	return &ShareResult{State: state, Page: view}, nil
 }
 
-// UnlockShare checks a password and issues a token.
-func (s *PageService) UnlockShare(ctx context.Context, key, password string) (*ShareResult, error) {
+// openedShare is a link looked up by its key, with the facts its state is
+// computed from. Every anonymous entry point — the page, the password prompt,
+// an attachment — starts here, so none can skip a rule the others apply.
+type openedShare struct {
+	row        *model.Share
+	root       *model.Page // nil when the page is no longer live
+	restricted bool
+}
+
+func (s *PageService) openShare(ctx context.Context, key string) (*openedShare, error) {
 	if !s.d.PublicSharing {
 		return nil, notFound("share")
 	}
@@ -425,22 +415,37 @@ func (s *PageService) UnlockShare(ctx context.Context, key, password string) (*S
 		}
 		return nil, err
 	}
+	root, _ := s.sharedRootPage(ctx, row)
+	return &openedShare{row: row, root: root, restricted: root != nil && s.anyRestricted(ctx, row.TenantID, root)}, nil
+}
 
-	page, live := s.sharedRootPage(ctx, row)
+// state evaluates the link now; unlocked says whether the visitor proved the
+// password (ignored for a link without one).
+func (l *openedShare) state(unlocked bool) share.State {
+	return share.Evaluate(share.Link{
+		ExpiresAt: l.row.ExpiresAt, RevokedAt: l.row.RevokedAt,
+		HasPassword: l.row.PasswordHash != nil,
+		PageLive:    l.root != nil, PageRestricted: l.restricted,
+	}, time.Now(), unlocked)
+}
+
+// UnlockShare checks a password and issues a token.
+func (s *PageService) UnlockShare(ctx context.Context, key, password string) (*ShareResult, error) {
+	link, err := s.openShare(ctx, key)
+	if err != nil {
+		return nil, err
+	}
 	// The state is checked BEFORE the password, so a revoked or expired link
 	// cannot be used as an oracle for whether a guess was right.
-	state := share.Evaluate(share.Link{
-		ExpiresAt: row.ExpiresAt, RevokedAt: row.RevokedAt,
-		HasPassword: row.PasswordHash != nil,
-		PageLive:    live, PageRestricted: s.pageRestricted(ctx, row, page),
-	}, time.Now(), false)
-	if state != share.StatePassword {
+	if state := link.state(false); state != share.StatePassword {
 		return &ShareResult{State: state}, nil
 	}
-	if bcrypt.CompareHashAndPassword([]byte(*row.PasswordHash), []byte(password)) != nil {
+	if bcrypt.CompareHashAndPassword([]byte(*link.row.PasswordHash), []byte(password)) != nil {
 		return nil, forbidden("that password does not open this link")
 	}
-	return &ShareResult{State: share.StateOK, UnlockToken: s.unlockToken(row, time.Now().Add(unlockLifetime))}, nil
+	return &ShareResult{
+		State: share.StateOK, UnlockToken: s.unlockToken(link.row, time.Now().Add(unlockLifetime)),
+	}, nil
 }
 
 // ---- helpers -------------------------------------------------------------------
@@ -485,30 +490,6 @@ func (s *PageService) sharedRootPage(ctx context.Context, row *model.Share) (*mo
 		return nil, false
 	}
 	return page, true
-}
-
-// pageRestricted reports whether the shared page, or anything above it, cuts
-// permission inheritance. Rule 1.
-func (s *PageService) pageRestricted(ctx context.Context, row *model.Share, page *model.Page) bool {
-	if page == nil {
-		return false
-	}
-	ancestors, err := s.d.Repos.Pages.ListAncestors(ctx, row.TenantID, page.ID)
-	if err != nil {
-		// Not being able to prove a page is unrestricted is not permission to
-		// publish it.
-		return true
-	}
-	chain := make([]string, 0, len(ancestors)+1)
-	for _, a := range ancestors {
-		chain = append(chain, a.ID)
-	}
-	chain = append(chain, page.ID)
-	restricted, err := s.d.Repos.Access.Restricted(ctx, row.TenantID, chain)
-	if err != nil {
-		return true
-	}
-	return len(restricted) > 0
 }
 
 // checkShareable refuses to publish something that is not publishable.
@@ -558,9 +539,8 @@ func (s *PageService) shareView(row *model.Share, users map[string]*types.User, 
 
 // renderShared builds what the visitor sees, or nil when the requested page
 // is outside the link.
-func (s *PageService) renderShared(ctx context.Context, row *model.Share, root *model.Page,
-	wantShortID string,
-) (*SharedPage, error) {
+func (s *PageService) renderShared(ctx context.Context, link *openedShare, wantShortID string) (*SharedPage, error) {
+	row, root := link.row, link.root
 	page := root
 	var breadcrumb []SharedRef
 
@@ -579,7 +559,7 @@ func (s *PageService) renderShared(ctx context.Context, row *model.Share, root *
 	if err != nil {
 		return nil, err
 	}
-	html, err := s.renderHTML(ctx, row, page, inLink)
+	html, err := s.renderForVisitor(page, inLink, s.shareAttachmentURL(row))
 	if err != nil {
 		return nil, err
 	}
@@ -678,33 +658,6 @@ func (s *PageService) findInSharedSubtree(ctx context.Context, row *model.Share,
 
 // MaxSharedSubtreePages bounds a public subtree walk.
 const MaxSharedSubtreePages = 500
-
-// renderHTML renders a page for an anonymous visitor.
-//
-// Page links are the subtle part. A shared document may link to pages that
-// are not shared, and resolving those titles would leak them — "there is a
-// page called Q3 Redundancies" is the leak, not its contents. So titles are
-// resolved only for pages inside this link, and every other link renders as
-// plain text with no destination.
-func (s *PageService) renderHTML(ctx context.Context, row *model.Share, page *model.Page,
-	inLink map[string]string,
-) (string, error) {
-	content := page.Content
-	if len(content) == 0 {
-		content = EmptyDocument
-	}
-	node, _, err := schema.Default().Validate(content)
-	if err != nil {
-		return "", fmt.Errorf("docs: stored content of %s is invalid: %w", page.ID, err)
-	}
-	return render.HTML(node, render.Options{
-		PageTitle: func(id string) (string, bool) {
-			title, ok := inLink[id]
-			return title, ok
-		},
-		EmbedURL: s.embedURL,
-	}), nil
-}
 
 // countVisit records the visit and tells the link's owner when it reaches a
 // milestone. §8.3's fifth row.

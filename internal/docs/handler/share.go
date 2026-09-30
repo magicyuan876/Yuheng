@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -279,4 +280,77 @@ func (h *PageHandler) PublicSpacePage(c *gin.Context) {
 	}
 	c.Header("X-Robots-Tag", "index, follow")
 	ok(c, view)
+}
+
+// PublicShareAttachment godoc
+// @Summary      读取公开链接页面里的附件（无需登录）
+// @Description  只提供链接覆盖范围内、未受限的页面上的附件；链接被撤销、过期或页面受限后立即不可访问
+// @Description  带密码的链接需要页面渲染时附在地址上的 sig 签名（只对这一个附件有效，12 小时过期）
+// @Tags         在线文档
+// @Produce      octet-stream
+// @Param        key  path   string  true   "公开链接 key"
+// @Param        aid  path   string  true   "附件 ID"
+// @Param        sig  query  string  false  "附件签名（带密码的链接必填，由渲染的 HTML 给出）"
+// @Param        w    query  int     false  "图片宽度（320/800/1600）"
+// @Success      200  {file}  file
+// @Router       /docs/public/{key}/attachments/{aid} [get]
+func (h *PageHandler) PublicShareAttachment(c *gin.Context) {
+	if !h.readyToServeFiles(c) {
+		return
+	}
+	ctx := c.Request.Context()
+	reach, err := h.svc.ShareAttachmentReach(ctx, c.Param("key"), c.Param("aid"), c.Query("sig"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	h.servePublished(c, reach)
+}
+
+// PublicSpaceAttachment godoc
+// @Summary      读取公开空间页面里的附件（无需登录）
+// @Description  只提供该空间内未受限、不在回收站的页面上的附件
+// @Tags         在线文档
+// @Produce      octet-stream
+// @Param        sid  path   string  true   "空间 ID"
+// @Param        aid  path   string  true   "附件 ID"
+// @Param        w    query  int     false  "图片宽度（320/800/1600）"
+// @Success      200  {file}  file
+// @Router       /docs/public-spaces/{sid}/attachments/{aid} [get]
+func (h *PageHandler) PublicSpaceAttachment(c *gin.Context) {
+	if !h.readyToServeFiles(c) {
+		return
+	}
+	reach, err := h.svc.PublicSpaceAttachmentReach(c.Request.Context(), c.Param("sid"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	h.servePublished(c, reach)
+}
+
+// readyToServeFiles is ready for the routes that also need the attachment
+// service.
+func (h *PageHandler) readyToServeFiles(c *gin.Context) bool {
+	if !h.ready(c) {
+		return false
+	}
+	if h.files == nil {
+		NotImplemented(c)
+		return false
+	}
+	return true
+}
+
+func (h *PageHandler) servePublished(c *gin.Context, reach *service.PublicReach) {
+	width, _ := strconv.Atoi(c.Query("w"))
+	res, err := h.files.FetchPublished(c.Request.Context(), reach, c.Param("aid"), width)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.Header("X-Robots-Tag", "noindex")
+	// Not stored anywhere: whether this file may be read changes the moment
+	// a link is revoked or a page restricted, and a cached copy would not.
+	serveAttachment(c, res, "private, no-store")
 }

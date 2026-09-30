@@ -453,6 +453,10 @@ func RegisterDocsPublicRoutes(r *gin.Engine, m *docs.Module) {
 	// route gets a per-IP budget against online guessing.
 	public.POST("/:key/unlock",
 		middleware.AuthIPRateLimit("docs-unlock", middleware.DocsUnlockIPLimit), pg.UnlockPublicPage)
+	// A published page's images and files: the visitor's browser requests
+	// them without a session, so the member route cannot serve them. The
+	// service admits only attachments of pages the link publishes.
+	public.GET("/:key/attachments/:aid", pg.PublicShareAttachment)
 
 	// Public spaces live under their own prefix rather than under /public,
 	// because gin cannot have a literal segment and a ":key" parameter at the
@@ -461,4 +465,5 @@ func RegisterDocsPublicRoutes(r *gin.Engine, m *docs.Module) {
 	spaces := r.Group("/api/v1/docs/public-spaces")
 	spaces.GET("/:sid", pg.PublicSpace)
 	spaces.GET("/:sid/pages/:short", pg.PublicSpacePage)
+	spaces.GET("/:sid/attachments/:aid", pg.PublicSpaceAttachment)
 }

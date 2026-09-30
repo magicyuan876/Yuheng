@@ -403,8 +403,14 @@ func (s *AttachmentService) Fetch(ctx context.Context, actor *acl.Identity, id s
 	if err := s.canRead(ctx, actor, row); err != nil {
 		return nil, err
 	}
+	return s.serve(ctx, row, width)
+}
 
-	_, fileSvc, err := s.storageForSpaceID(ctx, actor.TenantID, row.SpaceID)
+// serve produces the bytes, variant or redirect for an attachment whose reader
+// has already been authorised, by Fetch for a member or FetchPublished for a
+// visitor.
+func (s *AttachmentService) serve(ctx context.Context, row *model.Attachment, width int) (*ServeResult, error) {
+	_, fileSvc, err := s.storageForSpaceID(ctx, row.TenantID, row.SpaceID)
 	if err != nil {
 		return nil, err
 	}

@@ -90,16 +90,27 @@ func (h *AttachmentHandler) Download(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	// Private: the response is permission-checked, so no shared cache may
+	// keep it. The browser may, which is what makes an image in a long page
+	// cheap to scroll past twice.
+	serveAttachment(c, res, "private, max-age=3600")
+}
+
+// serveAttachment writes an authorised attachment: a redirect to the storage
+// URL, a rendered variant, or the proxied bytes, under the headers that keep
+// user content from being treated as the site's own.
+func serveAttachment(c *gin.Context, res *service.ServeResult, cacheControl string) {
 	defer func() { _ = res.Close() }()
 
 	if res.Redirect != "" {
 		// The signed URL is short-lived and unguessable; the permission check
-		// above is what decided the caller may have it at all.
+		// before this is what decided the caller may have it at all.
+		c.Header("Cache-Control", cacheControl)
 		c.Redirect(http.StatusFound, res.Redirect)
 		return
 	}
 
-	writeAttachmentHeaders(c, res)
+	writeAttachmentHeaders(c, res, cacheControl)
 	if res.Data != nil {
 		c.Data(http.StatusOK, res.ContentType, res.Data)
 		return
@@ -116,7 +127,7 @@ func (h *AttachmentHandler) Download(c *gin.Context) {
 // writeAttachmentHeaders applies the rules that keep user content from being
 // treated as the site's own: the sniffed type is never trusted by the browser,
 // anything renderable is sandboxed, and everything else is a download.
-func writeAttachmentHeaders(c *gin.Context, res *service.ServeResult) {
+func writeAttachmentHeaders(c *gin.Context, res *service.ServeResult, cacheControl string) {
 	c.Header("Content-Type", res.ContentType)
 	c.Header("X-Content-Type-Options", "nosniff")
 	disposition := "attachment"
@@ -127,10 +138,7 @@ func writeAttachmentHeaders(c *gin.Context, res *service.ServeResult) {
 	if res.Sandbox {
 		c.Header("Content-Security-Policy", attachment.SandboxPolicy)
 	}
-	// Private: the response is permission-checked, so no shared cache may
-	// keep it. The browser may, which is what makes an image in a long page
-	// cheap to scroll past twice.
-	c.Header("Cache-Control", "private, max-age=3600")
+	c.Header("Cache-Control", cacheControl)
 }
 
 // Delete godoc
