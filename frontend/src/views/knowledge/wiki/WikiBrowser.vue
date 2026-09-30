@@ -1647,17 +1647,6 @@ async function toggleGraphFilterType(type: string) {
   }
 }
 
-// applyGraphFilters is retained as a no-op for compatibility with a
-// handful of callers that used to nudge the client-side hide/show state
-// (e.g. handleGraphSearchSelect re-enabling a filtered-out type before
-// centering on it). With server-side filtering the allow-list change
-// itself triggers a refetch via the watcher in toggleGraphFilterType,
-// so this function no longer has to do anything.
-function applyGraphFilters() {
-  // Intentionally empty: server-side filtering handles the actual
-  // node/edge membership when the allow-list changes.
-}
-
 // Fit graph to view
 function fitGraphToView() {
   if (!graphReady.value || !graphPanZoomRef || !graphRef.value || graphNodes.length === 0) return;
@@ -1845,8 +1834,8 @@ async function hydrateSourceRefTitles(refs: string[]) {
     try {
       const res = await getKnowledgeDetails(id);
       if (seq !== sourceRefTitleRequestSeq) return;
-      const data = (res as any)?.data ?? res;
-      const title = data?.title || data?.file_name || data?.fileName;
+      const data = res.data;
+      const title = data?.title || data?.file_name;
       if (title) sourceRefTitleCache[id] = title;
     } catch {
       // Keep truncated-ID fallback when the doc was deleted or is inaccessible.
@@ -2119,7 +2108,7 @@ function renderMarkdown(content: string): string {
 async function openGraphDrawer(slug: string) {
   try {
     const res = await getWikiPage(props.knowledgeBaseId, slug);
-    graphDrawerPage.value = (res as any).data || (res as any);
+    graphDrawerPage.value = res;
     graphDrawerVisible.value = true;
   } catch (e) {
     console.error(`Failed to load page ${slug}:`, e);
@@ -2774,8 +2763,7 @@ async function loadFlatPagesForType(type: string, reset = false): Promise<boolea
       sort_by: "wiki_path",
       sort_order: "asc",
     });
-    const body: any = (res as any).data || res;
-    const batch: WikiPage[] = body?.pages || [];
+    const batch: WikiPage[] = res.pages ?? [];
     if (reset) {
       bucket.flatItems = batch;
       bucket.flatNextPage = 2;
@@ -2786,7 +2774,7 @@ async function loadFlatPagesForType(type: string, reset = false): Promise<boolea
       }
       bucket.flatNextPage += 1;
     }
-    bucket.flatTotal = Number(body?.total) || 0;
+    bucket.flatTotal = res.total || 0;
     bucket.flatInitialized = true;
 
     const seenPages = new Set(pages.value.map((page) => page.id));
@@ -2840,8 +2828,7 @@ async function loadCategoriesForType(type: string, opts: { reset?: boolean; pare
   if (isRoot) bucket.categoriesLoading = true;
   try {
     const res = await listWikiFolders(props.knowledgeBaseId, parentId || "", tabPageTypes(type));
-    const body: any = (res as any).data || res;
-    const folders: WikiFolderNode[] = Array.isArray(body?.folders) ? body.folders : [];
+    const folders: WikiFolderNode[] = res.folders ?? [];
     const incoming = folders
       .map((folder) => ({
         path: String(folder.path || "")
@@ -3186,9 +3173,8 @@ async function loadPagesForType(
       category_path: categoryPath.join("/"),
       category_depth: categoryPath.length,
     });
-    const body: any = (res as any).data || res;
-    const batch: WikiPage[] = body?.pages || [];
-    const reportedTotal = Number(body?.total) || 0;
+    const batch: WikiPage[] = res.pages ?? [];
+    const reportedTotal = res.total || 0;
 
     if (!scopedToCategory) {
       if (opts.reset) {
@@ -3253,21 +3239,6 @@ async function loadPagesForType(
 // group types) — a bounded response regardless of KB size. Sections are
 // fetched lazily after the user actually opens the Index view; see
 // loadMoreIndexSection.
-// stripLegacyIndexDirectory removes the inline "## Summary (N)\n[[...]]
-// ..." directory listing from a legacy index row. Old wiki_pages rows
-// stored "intro + directory markdown" in content; after the refactor
-// intro is the whole payload, but pre-existing KBs still carry the
-// directory until the next ingest batch rewrites it (see
-// wikiIngestService.rebuildIndexPage). We don't want the stale
-// directory to show up in the reader alongside the new live-fetched
-// sections, so we clip everything from the first `\n## ` heading on.
-function stripLegacyIndexDirectory(intro: string): string {
-  if (!intro) return "";
-  const idx = intro.indexOf("\n## ");
-  if (idx < 0) return intro.trim();
-  return intro.slice(0, idx).trim();
-}
-
 async function loadIndex() {
   try {
     // We only need intro on the initial probe — the directory groups
@@ -3276,9 +3247,7 @@ async function loadIndex() {
     // on the backend instead of scanning every directory group, and
     // the frontend discards the resulting empty group unconditionally.
     const idxRes = await getWikiIndex(props.knowledgeBaseId, { types: ["__intro_only__"], limit: 1 });
-    const body: any = (idxRes as any).data || (idxRes as any);
-    const intro: string = body?.intro || "";
-    const cleanIntro = stripLegacyIndexDirectory(intro);
+    const cleanIntro = (idxRes.intro || "").trim();
     indexMarkdown.value = cleanIntro ? cleanIntro + "\n" : "";
     indexAvailable.value = true;
     indexSections.value = {};
@@ -3358,8 +3327,7 @@ async function loadMoreIndexSection() {
       limit: 50,
       cursor: isFirstChunkOfSection ? undefined : state.cursor || undefined,
     });
-    const body: any = (res as any).data || (res as any);
-    const group = (body?.groups || []).find((g: WikiIndexGroup) => g.type === type);
+    const group = (res.groups ?? []).find((g: WikiIndexGroup) => g.type === type);
 
     const items: WikiIndexEntryDTO[] = group?.items || [];
     const total: number = group?.total || 0;
@@ -3517,7 +3485,7 @@ let statsTimer: ReturnType<typeof setInterval> | null = null;
 async function loadStats() {
   try {
     const res = await getWikiStats(props.knowledgeBaseId);
-    stats.value = (res as any).data || (res as any);
+    stats.value = res;
 
     // Notify parent so it can reflect wiki status (e.g. indexing badge in the breadcrumb)
     if (stats.value) {
@@ -3606,7 +3574,7 @@ async function savePageEdit(versionOverride?: number) {
       content: editForm.value.content,
       version: versionOverride ?? editBaseVersion.value,
     });
-    const updated = ((res as any).data || res) as WikiPage;
+    const updated = res;
     selectedPage.value = updated;
     editingPage.value = false;
     editConflictVersion.value = null;
@@ -3632,8 +3600,7 @@ async function overwriteSavePage() {
   if (!selectedPage.value) return;
   try {
     const res = await getWikiPage(props.knowledgeBaseId, selectedPage.value.slug);
-    const latest = ((res as any).data || res) as WikiPage;
-    await savePageEdit(latest.version);
+    await savePageEdit(res.version);
   } catch (e) {
     console.error("Failed to fetch latest version for overwrite save:", e);
     MessagePlugin.error(t("knowledgeEditor.wikiBrowser.editSaveFailed"));
@@ -3796,7 +3763,7 @@ async function refreshSelectedPage() {
   const slug = selectedPage.value.slug;
   try {
     const res = await getWikiPage(props.knowledgeBaseId, slug);
-    selectedPage.value = (res as any).data || (res as any);
+    selectedPage.value = res;
   } catch (e) {
     console.error(`Failed to refresh wiki page ${slug}:`, e);
   }
@@ -3841,7 +3808,7 @@ async function loadGraph() {
       limit: GRAPH_OVERVIEW_LIMIT,
       types: graphFilterTypesToArray(),
     });
-    graphData.value = (res as any).data || (res as any);
+    graphData.value = res;
     // Seed the search dropdown's empty-state with this overview snapshot
     // so opening the select without typing shows the top-500 by link_count
     // — matching what the old client-filter dropdown used to surface.
@@ -3898,7 +3865,7 @@ async function loadEgoGraph(slug: string, depth = GRAPH_EGO_DEFAULT_DEPTH) {
       limit: GRAPH_EGO_LIMIT,
       types: graphFilterTypesToArray(),
     });
-    graphData.value = (res as any).data || (res as any);
+    graphData.value = res;
     graphMode.value = "ego";
     graphCenter.value = slug;
     // Entering (or re-entering) a fresh ego view resets the bloom
@@ -3967,8 +3934,8 @@ async function loadBloomNeighbors(anchorSlug: string, depth = GRAPH_EGO_DEFAULT_
       limit: GRAPH_EGO_LIMIT,
       types: graphFilterTypesToArray(),
     });
-    const incoming = (res as any).data || (res as any);
-    if (!incoming || !Array.isArray(incoming.nodes)) return;
+    const incoming = res;
+    if (!Array.isArray(incoming.nodes)) return;
 
     bloomCurrentGeneration += 1;
     const merged = mergeGraphData(graphData.value, incoming, bloomCurrentGeneration);
@@ -4156,8 +4123,7 @@ async function growFrontier() {
             limit: GRAPH_EGO_LIMIT,
             types: graphFilterTypesToArray(),
           });
-          const data = (res as any).data || (res as any);
-          if (data?.nodes) responses.push(data);
+          if (res.nodes) responses.push(res);
         } catch (e) {
           console.error(`growFrontier: ego fetch failed for ${slug}:`, e);
         }
@@ -4205,7 +4171,7 @@ async function selectPage(page: WikiPage) {
     }
     activeSystemView.value = "";
     const res = await getWikiPage(props.knowledgeBaseId, page.slug);
-    selectedPage.value = (res as any).data || (res as any);
+    selectedPage.value = res;
   } catch (e) {
     console.error("Failed to load wiki page:", e);
   }
@@ -4223,7 +4189,7 @@ async function navigateToSlug(slug: string) {
     }
     activeSystemView.value = "";
     const res = await getWikiPage(props.knowledgeBaseId, slug);
-    selectedPage.value = (res as any).data || (res as any);
+    selectedPage.value = res;
   } catch (e) {
     console.error(`Failed to navigate to ${slug}:`, e);
   }
@@ -4253,7 +4219,7 @@ async function doSearch() {
   loading.value = true;
   try {
     const res = await searchWikiPages(props.knowledgeBaseId, searchQuery.value);
-    const hits: WikiPage[] = (res as any).data?.pages || (res as any).pages || [];
+    const hits: WikiPage[] = res.pages ?? [];
     searchResults.value = hits;
     // Also seed `pages.value` with hits so slugDisplayName / navigation
     // heuristics keep resolving titles correctly without re-fetching.
@@ -4987,8 +4953,6 @@ function renderGraph(opts: RenderGraphOpts = {}) {
   graphEdgeElsRef = edgeEls.map((e) => ({ line: e.line, source: e.source, target: e.target, bidir: e.bidir }));
   graphAdjacencyRef = adjacency;
 
-  applyGraphFilters();
-
   graphAnimFrame = requestAnimationFrame(tick);
   graphReady.value = true;
 }
@@ -5438,7 +5402,7 @@ async function handleGraphRemoteSearch(keyword: string) {
     try {
       const res = await searchWikiPages(props.knowledgeBaseId, q, 20);
       if (seq !== graphSearchSeq) return;
-      const pages: WikiPage[] = (res as any)?.data?.pages || (res as any)?.pages || [];
+      const pages: WikiPage[] = res.pages ?? [];
       graphSearchOptions.value = pages.map((p) => ({ label: p.title, value: p.slug }));
     } catch (e) {
       if (seq !== graphSearchSeq) return;
@@ -5543,7 +5507,7 @@ async function handleGraphSearchEnter(context: { inputValue: string }) {
   // somewhere useful rather than silently doing nothing.
   try {
     const res = await searchWikiPages(props.knowledgeBaseId, value, 1);
-    const pages: WikiPage[] = (res as any)?.data?.pages || (res as any)?.pages || [];
+    const pages: WikiPage[] = res.pages ?? [];
     if (pages.length > 0) {
       handleGraphSearchSelect(pages[0].slug);
     }

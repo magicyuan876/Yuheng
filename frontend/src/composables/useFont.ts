@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { loadPreference, savePreference, migratePreferencesIntoUser } from "./preferenceStorage";
+import { loadPreference, savePreference, adoptAnonPreferences } from "./preferenceStorage";
 
 // Font options are filtered by host platform. A Windows user selecting
 // "PingFang SC" in a cross-platform list would see Microsoft YaHei anyway
@@ -270,7 +270,7 @@ export function initFont() {
 
 /** Re-read preferences from storage (call after login / logout). */
 export function reloadFontFromStorage() {
-  migratePreferencesIntoUser();
+  adoptAnonPreferences();
   currentSans.value = loadSans();
   currentMono.value = loadMono();
   currentSize.value = loadSize();

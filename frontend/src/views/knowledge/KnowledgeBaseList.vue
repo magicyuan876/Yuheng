@@ -1477,8 +1477,9 @@ interface KB {
   share_count?: number;
   is_pinned?: boolean;
   // creator_id is the owner-id matched against authStore.user.id when
-  // gating the per-card more-menu (Settings / Delete). Empty for legacy
-  // KBs created before PR 5; those fall back to the role gate.
+  // gating the per-card more-menu (Settings / Delete). Empty for a
+  // tenant-owned KB (created through an API key); those fall back to the
+  // role gate.
   creator_id?: string;
   // creator_name 由后端 list 接口回填，仅用于卡片右下角来源徽章的 tooltip。
   creator_name?: string;
@@ -1519,8 +1520,6 @@ const spaceSelectionOrgId = computed(() => {
   const s = spaceSelection.value;
   return !!s && !RESERVED_SCOPES.has(s);
 });
-
-// 当前空间下共享给我的知识库（旧：仅他人共享；保留用于兼容）
 
 // 空间视角：该空间内全部知识库（含我共享的），选中空间时请求新接口
 const spaceKbsList = ref<OrganizationSharedKnowledgeBaseItem[]>([]);
@@ -1984,9 +1983,8 @@ const handleSettings = (kb: KB) => {
 // route only requires KB read access, so anyone who can see the card
 // should be able to pin it for themselves.
 //
-// Legacy KBs created before PR 5 have an empty creator_id; treat
-// those as tenant-owned (Admin+ may manage) so existing KBs aren't
-// suddenly unmanageable for everyone.
+// A KB created through an API key has an empty creator_id and is
+// tenant-owned: Admin+ may manage it.
 function canManageKBCard(kb: KB): boolean {
   const userId = authStore.user?.id || "";
   if (kb.creator_id && userId && kb.creator_id === userId) return true;
@@ -2082,7 +2080,7 @@ const duplicateKB = async (id: string) => {
   try {
     const res: any = await duplicateKnowledgeBase(id);
     if (res?.success) {
-      const newKbId = res.data?.target_id || res.data?.knowledge_base?.id;
+      const newKbId: string | undefined = res.data?.target_id;
       MessagePlugin.success(t("knowledgeList.messages.duplicateSuccess"));
       await fetchList(true);
       if (newKbId) {

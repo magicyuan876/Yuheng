@@ -390,33 +390,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     }
   };
 
-  const updateAssistantSession = (payload: ChatMessage) => {
-    const message = findLastMessage((item) => {
-      if (item.request_id === payload.id) return true;
-      return item.id === payload.id;
-    });
-    if (message) {
-      if (payload.id && !message.request_id) message.request_id = payload.id;
-      message.content = payload.content;
-      message.thinking = payload.thinking;
-      message.thinkContent = payload.thinkContent;
-      message.showThink = payload.showThink;
-      if (!message.knowledge_references) {
-        message.knowledge_references = payload.knowledge_references;
-      }
-      if (payload.is_fallback) message.is_fallback = true;
-      if (payload.is_completed) message.is_completed = true;
-      emitMessageUpdated(message, payload);
-    } else {
-      const entry = { ...payload };
-      if (entry.id && !entry.request_id) entry.request_id = entry.id;
-      messagesList.push(entry);
-      emitMessageCreated(entry);
-      emitMessageUpdated(entry, payload);
-    }
-    scrollToBottom();
-  };
-
   const reportError = (errorMsg: string) => {
     if (onError) {
       onError(errorMsg);
@@ -603,19 +576,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
     scrollToBottom();
   };
 
-  // Agent 管线事件帧（tool_call / tool_result / 工具审批 / MCP OAuth / 记忆召回 /
-  // reflection 等）：随 agent 能力一并移除，knowledge-chat 不会再发送，收到时安全忽略。
-  const IGNORED_LEGACY_RESPONSE_TYPES = new Set([
-    "tool_call",
-    "tool_result",
-    "tool_approval_required",
-    "tool_approval_resolved",
-    "mcp_oauth_required",
-    "mcp_oauth_resolved",
-    "memory_recalled",
-    "reflection",
-  ]);
-
   const processStreamChunk = (data: ChatMessage) => {
     log("[Stream Event Received]", {
       response_type: data.response_type,
@@ -688,10 +648,6 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
       return;
     }
 
-    if (IGNORED_LEGACY_RESPONSE_TYPES.has(data.response_type as string)) {
-      return;
-    }
-
     if (
       data.response_type === "thinking" ||
       data.response_type === "answer" ||
@@ -700,61 +656,11 @@ export function useChatStreamHandler(options: UseChatStreamHandlerOptions) {
       data.response_type === "stop"
     ) {
       handleStreamChunk(data);
-      return;
     }
-
-    // 旧版非事件流兜底：按 content 累积的经典路径（history / continue-stream
-    // 之外的异常帧仍可走这里渲染）。
-    const existingMessage = findLastMessage((item) => {
-      if (item.request_id === data.id) return true;
-      return item.id === data.id;
-    });
-    if (existingMessage?.is_completed && data.done && !data.content) {
-      log("[Legacy] Ignoring duplicate completion event for completed message");
-      return;
-    }
-
-    fullContent.value += (data.content as string) || "";
-    const obj: ChatMessage = {
-      ...data,
-      content: "",
-      role: "assistant",
-      showThink: false,
-      is_completed: false,
-    };
-
-    if ((data.data as ChatMessage | undefined)?.is_fallback) obj.is_fallback = true;
-
-    const thinkCloseTag = "</think>";
-    if (fullContent.value.includes("<think>") && !fullContent.value.includes(thinkCloseTag)) {
-      obj.thinking = true;
-      obj.showThink = true;
-      obj.content = "";
-      obj.thinkContent = fullContent.value.replace("<think>", "").trim();
-    } else if (fullContent.value.includes("<think>") && fullContent.value.includes(thinkCloseTag)) {
-      obj.thinking = false;
-      obj.showThink = true;
-      const index = fullContent.value.lastIndexOf(thinkCloseTag);
-      obj.thinkContent = fullContent.value.substring(0, index).replace("<think>", "").trim();
-      obj.content = fullContent.value.substring(index + thinkCloseTag.length).trim();
-    } else {
-      obj.content = fullContent.value;
-    }
-
-    if (!existingMessage) loading.value = false;
-
-    if (data.done) {
-      obj.is_completed = true;
-      onReplyComplete?.(String(obj.content || ""));
-      isReplying.value = false;
-      fullContent.value = "";
-      currentAssistantMessageId.value = "";
-    }
-    updateAssistantSession(obj);
-    if (data.done) {
-      const completed = resolveActiveAssistantMessage(data) || obj;
-      onTurnComplete?.(completed);
-    }
+    // Every other frame is ignored on purpose. session_title is consumed by
+    // the chat view before it reaches this handler, and the knowledge chat
+    // has no tool timeline to put the backend's tool_call / tool_result
+    // frames on.
   };
 
   return {

@@ -6,7 +6,8 @@ import type { TenantInfo as TenantInfoFromAPI } from "@/api/tenant";
 import i18n from "@/i18n";
 import { reloadFontFromStorage } from "@/composables/useFont";
 import { reloadThemeFromStorage } from "@/composables/useTheme";
-import { resetMigrationLatch } from "@/composables/preferenceStorage";
+import { resetAdoptionLatch } from "@/composables/preferenceStorage";
+import { SETTINGS_STORAGE_KEY } from "@/stores/settingsStorage";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { useEditorResourcesStore } from "@/stores/editorResources";
 import { useOrganizationStore } from "@/stores/organization";
@@ -21,8 +22,8 @@ function clearSessionResourceCaches() {
 // Per-user UI preferences are namespaced by user id in localStorage.
 // Reload them whenever the active user changes.
 function reloadUserPreferences() {
-  // Reset the latch so migration runs once for the new active user.
-  resetMigrationLatch();
+  // Reset the latch so the anon preferences are adopted once for the new active user.
+  resetAdoptionLatch();
   reloadFontFromStorage();
   reloadThemeFromStorage();
 }
@@ -239,20 +240,15 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       localStorage.removeItem("yuheng_last_chat_model_id");
       localStorage.removeItem("yuheng_current_kb");
-      const raw = localStorage.getItem("Yuheng_settings");
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
-          if (parsed.conversationModels && typeof parsed.conversationModels === "object") {
-            parsed.conversationModels.summaryModelId = "";
-            parsed.conversationModels.rerankModelId = "";
-            parsed.conversationModels.selectedChatModelId = "";
-          }
+          parsed.conversationModels = { selectedChatModelId: "" };
           parsed.selectedKnowledgeBases = [];
           parsed.selectedFiles = [];
           parsed.selectedFileKbMap = {};
-          parsed.knowledgeBaseId = "";
-          localStorage.setItem("Yuheng_settings", JSON.stringify(parsed));
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(parsed));
         }
       }
     } catch (e) {

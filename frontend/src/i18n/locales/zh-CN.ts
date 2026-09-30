@@ -4207,7 +4207,6 @@ export default {
     viewParentContext: "查看父块上下文",
     parentContextLoadFailed: "加载父上下文失败",
     confirmDeleteQuestion: "确定要删除这个问题吗？删除后将同时移除对应的向量索引。",
-    legacyQuestionCannotDelete: "旧格式问题无法删除，请重新生成问题",
     customMetadata: "自定义元数据",
     metadataCapabilityHint: "用于文档总结，并在文档被召回后作为文档级上下文辅助回答；不会参与索引或影响召回排序",
     noCustomMetadata: "暂无自定义元数据",

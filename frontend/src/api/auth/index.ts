@@ -173,9 +173,9 @@ export interface KnowledgeBaseInfo {
   name: string;
   description: string;
   tenant_id: string;
-  // creator_id is the user id of whoever originally created the KB.
-  // Set by PR 5 of the multi-tenant RBAC series; nullable for legacy
-  // KBs created before that migration backfilled the column.
+  // creator_id is the user id of whoever created the KB. Empty for a KB
+  // created through an API key: such a KB is tenant-owned, and only the
+  // role gate (Admin+) decides who may manage it.
   creator_id?: string;
   // creator_name 由后端 list 接口批量回填（username 优先，退化到 email），
   // 仅用于列表卡片来源徽章；缺失代表无法解析（已删除 / 老数据）。

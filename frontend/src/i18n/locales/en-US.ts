@@ -411,7 +411,6 @@ export default {
     parentContextLoadFailed: "Failed to load parent context",
     confirmDeleteQuestion:
       "Are you sure you want to delete this question? The corresponding vector index will also be removed.",
-    legacyQuestionCannotDelete: "Legacy format questions cannot be deleted. Please regenerate questions.",
     customMetadata: "Custom metadata",
     metadataCapabilityHint:
       "Used for document summaries and as document-level context after retrieval; it is not indexed and does not affect retrieval ranking",

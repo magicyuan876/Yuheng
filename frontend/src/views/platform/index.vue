@@ -20,14 +20,13 @@
 </template>
 <script setup lang="ts">
 import Menu from "@/components/menu.vue";
-import { ref, onMounted, onUnmounted, nextTick, provide, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, onMounted, onUnmounted, nextTick, provide } from "vue";
+import { useRoute } from "vue-router";
 import UploadMask from "@/components/upload-mask.vue";
 import Settings from "@/views/settings/Settings.vue";
 import GlobalCommandPalette from "@/components/GlobalCommandPalette.vue";
 import GlobalCornerActions from "@/components/GlobalCornerActions.vue";
 import NewUserGuide from "@/components/NewUserGuide.vue";
-import { useCommandPaletteStore } from "@/stores/commandPalette";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { getKnowledgeBaseById } from "@/api/knowledge-base/index";
 import { MessagePlugin } from "tdesign-vue-next";
@@ -35,8 +34,6 @@ import { useI18n } from "vue-i18n";
 import { collectDroppedFiles } from "./collectDroppedFiles";
 
 const route = useRoute();
-const router = useRouter();
-const commandPaletteStore = useCommandPaletteStore();
 const ismask = ref(false);
 const { t } = useI18n();
 
@@ -171,30 +168,9 @@ onMounted(() => {
   document.addEventListener("dragover", handleGlobalDragOver, true);
   document.addEventListener("dragleave", handleGlobalDragLeave, true);
   document.addEventListener("drop", handleGlobalDrop, true);
-  // 支持通过 URL 查询参数打开全局命令面板，例如旧路径
-  // /platform/knowledge-search?q=foo 重定向后携带 ?cmdk=foo
-  maybeOpenCmdkFromRoute();
   // 后台预取对话输入栏资源，进入 creatChat / chat 时复用缓存
   void useChatResourcesStore().prefetchChatInput();
 });
-
-// 监听路由变化，兼容 SPA 内部跳转时的 ?cmdk= 参数
-watch(
-  () => route.query.cmdk,
-  () => {
-    maybeOpenCmdkFromRoute();
-  },
-);
-
-function maybeOpenCmdkFromRoute() {
-  if (!("cmdk" in route.query)) return;
-  const q = String(route.query.cmdk ?? "");
-  commandPaletteStore.openPalette(q);
-  // 清除 query，避免回退/刷新时反复触发
-  const newQuery = { ...route.query };
-  delete (newQuery as any).cmdk;
-  router.replace({ path: route.path, query: newQuery, hash: route.hash });
-}
 
 // 组件卸载时移除全局事件监听器
 onUnmounted(() => {

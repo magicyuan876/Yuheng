@@ -31,7 +31,7 @@ export interface WikiPage {
   page_metadata: Record<string, any>;
   version: number;
   // Author kind of the current version: 'pipeline' | 'agent' | 'user' |
-  // 'revert'. Empty/missing on legacy rows (treat as 'pipeline').
+  // 'revert'. Only the last three get a badge in the reader.
   last_edit_source?: string;
   last_editor_id?: string;
   created_at: string;
@@ -119,7 +119,9 @@ export interface WikiLintReport {
   summary: string;
 }
 
-// Wiki API Functions
+// Wiki API Functions. The wiki handlers answer with the resource itself, not
+// the { success, data } envelope most other endpoints use, so every function
+// here resolves to the bare response shape.
 export function listWikiPages(
   kbId: string,
   params?: {
@@ -143,7 +145,7 @@ export function listWikiPages(
     });
   }
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/pages${qs ? "?" + qs : ""}`);
+  return get<WikiPageListResponse>(`/api/v1/knowledgebase/${kbId}/wiki/pages${qs ? "?" + qs : ""}`);
 }
 
 // listWikiFolders returns the direct child folders of parentId ("" = root),
@@ -157,12 +159,12 @@ export function listWikiFolders(kbId: string, parentId = "", pageTypes = "") {
   if (parentId) query.set("parent_id", parentId);
   if (pageTypes) query.set("page_types", pageTypes);
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/folders${qs ? "?" + qs : ""}`);
+  return get<WikiFolderListResponse>(`/api/v1/knowledgebase/${kbId}/wiki/folders${qs ? "?" + qs : ""}`);
 }
 
 // createWikiFolder creates a new empty folder under parentId ("" = root).
 export function createWikiFolder(kbId: string, parentId: string, name: string) {
-  return post(`/api/v1/knowledgebase/${kbId}/wiki/folders`, { parent_id: parentId, name });
+  return post<WikiFolder>(`/api/v1/knowledgebase/${kbId}/wiki/folders`, { parent_id: parentId, name });
 }
 
 // updateWikiFolder renames and/or reparents a folder. Pass move_parent: true
@@ -172,7 +174,7 @@ export function updateWikiFolder(
   folderId: string,
   data: { name?: string; parent_id?: string; move_parent?: boolean },
 ) {
-  return put(`/api/v1/knowledgebase/${kbId}/wiki/folders/${folderId}`, data);
+  return put<WikiFolder>(`/api/v1/knowledgebase/${kbId}/wiki/folders/${folderId}`, data);
 }
 
 // deleteWikiFolder removes an empty folder (no pages, no sub-folders).
@@ -183,15 +185,15 @@ export function deleteWikiFolder(kbId: string, folderId: string) {
 // moveWikiPage relocates a page into folderId ("" = root). The slug is sent in
 // the body because wiki slugs are hierarchical.
 export function moveWikiPage(kbId: string, slug: string, folderId: string) {
-  return put(`/api/v1/knowledgebase/${kbId}/wiki/move-page`, { slug, folder_id: folderId });
+  return put<WikiPage>(`/api/v1/knowledgebase/${kbId}/wiki/move-page`, { slug, folder_id: folderId });
 }
 
 export function createWikiPage(kbId: string, data: Partial<WikiPage>) {
-  return post(`/api/v1/knowledgebase/${kbId}/wiki/pages`, data);
+  return post<WikiPage>(`/api/v1/knowledgebase/${kbId}/wiki/pages`, data);
 }
 
 export function getWikiPage(kbId: string, slug: string) {
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/pages/${encodeSlugPath(slug)}`);
+  return get<WikiPage>(`/api/v1/knowledgebase/${kbId}/wiki/pages/${encodeSlugPath(slug)}`);
 }
 
 // WikiPageUpdatePayload is a partial update: absent fields keep their stored
@@ -209,7 +211,7 @@ export interface WikiPageUpdatePayload {
 }
 
 export function updateWikiPage(kbId: string, slug: string, data: WikiPageUpdatePayload) {
-  return put(`/api/v1/knowledgebase/${kbId}/wiki/pages/${encodeSlugPath(slug)}`, data);
+  return put<WikiPage>(`/api/v1/knowledgebase/${kbId}/wiki/pages/${encodeSlugPath(slug)}`, data);
 }
 
 export function deleteWikiPage(kbId: string, slug: string) {
@@ -251,19 +253,23 @@ export function listWikiRevisions(kbId: string, slug: string, params?: { limit?:
   if (params?.limit !== undefined) query.set("limit", String(params.limit));
   if (params?.offset !== undefined) query.set("offset", String(params.offset));
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}${qs ? "?" + qs : ""}`);
+  return get<WikiRevisionListResponse>(
+    `/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}${qs ? "?" + qs : ""}`,
+  );
 }
 
 // getWikiRevision returns one snapshot with full content.
 export function getWikiRevision(kbId: string, slug: string, version: number) {
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}?version=${version}`);
+  return get<WikiPageRevision>(
+    `/api/v1/knowledgebase/${kbId}/wiki/revisions/${encodeSlugPath(slug)}?version=${version}`,
+  );
 }
 
 // revertWikiPage rolls the page back to a stored revision. Applied as a
 // regular edit: the pre-revert state is snapshotted and version advances,
 // so a revert is itself revertable.
 export function revertWikiPage(kbId: string, slug: string, version: number) {
-  return post(`/api/v1/knowledgebase/${kbId}/wiki/revert`, { slug, version });
+  return post<WikiPage>(`/api/v1/knowledgebase/${kbId}/wiki/revert`, { slug, version });
 }
 
 export interface WikiIndexEntryDTO {
@@ -290,9 +296,8 @@ export interface WikiIndexResponse {
   groups: WikiIndexGroup[];
 }
 
-// getWikiIndex fetches the structured index view for a wiki KB. The
-// backend replaced the legacy "markdown blob of intro + directory" with
-// { intro, groups } so a 40k-page wiki no longer round-trips multiple
+// getWikiIndex fetches the structured index view for a wiki KB as
+// { intro, groups }, so a 40k-page wiki does not round-trip multiple
 // megabytes on every index open. Pass `types` to restrict which
 // page_type buckets come back; `limit` bounds the per-group window;
 // `cursor` resumes from a previous response.
@@ -305,7 +310,7 @@ export function getWikiIndex(kbId: string, params?: { types?: string[]; limit?: 
   }
   const qs = query.toString();
   const suffix = qs ? `?${qs}` : "";
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/index${suffix}`);
+  return get<WikiIndexResponse>(`/api/v1/knowledgebase/${kbId}/wiki/index${suffix}`);
 }
 
 export interface WikiGraphQueryParams {
@@ -333,17 +338,17 @@ export function getWikiGraph(kbId: string, params?: WikiGraphQueryParams) {
     }
   }
   const qs = query.toString();
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/graph${qs ? "?" + qs : ""}`);
+  return get<WikiGraphData>(`/api/v1/knowledgebase/${kbId}/wiki/graph${qs ? "?" + qs : ""}`);
 }
 
 export function getWikiStats(kbId: string) {
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/stats`);
+  return get<WikiStats>(`/api/v1/knowledgebase/${kbId}/wiki/stats`);
 }
 
 export function searchWikiPages(kbId: string, q: string, limit?: number) {
   const params = new URLSearchParams({ q });
   if (limit) params.set("limit", String(limit));
-  return get(`/api/v1/knowledgebase/${kbId}/wiki/search?${params.toString()}`);
+  return get<{ pages: WikiPage[] }>(`/api/v1/knowledgebase/${kbId}/wiki/search?${params.toString()}`);
 }
 
 /** Backend: GET /knowledgebase/:kb_id/wiki/lint (reader). Answers the report itself, not an envelope. */
@@ -353,7 +358,7 @@ export function lintWiki(kbId: string): Promise<WikiLintReport> {
 
 /** Backend: POST /knowledgebase/:kb_id/wiki/auto-fix (KB editor). Fixes the auto-fixable lint issues. */
 export function autoFixWiki(kbId: string): Promise<{ fixed: number }> {
-  return post(`/api/v1/knowledgebase/${kbId}/wiki/auto-fix`, {}) as Promise<{ fixed: number }>;
+  return post<{ fixed: number }>(`/api/v1/knowledgebase/${kbId}/wiki/auto-fix`, {});
 }
 
 export function rebuildWikiLinks(kbId: string) {

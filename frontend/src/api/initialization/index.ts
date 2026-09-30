@@ -3,71 +3,6 @@ import i18n from "@/i18n";
 
 const t = (key: string) => i18n.global.t(key);
 
-// GET /initialization/config/:kbId exposes credential presence, not values.
-export interface ModelCredentialStatus {
-  apiKey?: boolean;
-}
-
-// 初始化配置数据类型
-export interface InitializationConfig {
-  llm: {
-    source: string;
-    modelName: string;
-    baseUrl?: string;
-    /** @deprecated Use credentials.apiKey from GET responses */
-    apiKey?: string;
-    credentials?: ModelCredentialStatus;
-  };
-  embedding: {
-    source: string;
-    modelName: string;
-    baseUrl?: string;
-    /** @deprecated Use credentials.apiKey from GET responses */
-    apiKey?: string;
-    dimension?: number; // 添加embedding维度字段
-    credentials?: ModelCredentialStatus;
-  };
-  rerank: {
-    modelName: string;
-    baseUrl: string;
-    /** @deprecated Use credentials.apiKey from GET responses */
-    apiKey?: string;
-    enabled: boolean;
-    credentials?: ModelCredentialStatus;
-  };
-  multimodal: {
-    enabled: boolean;
-    vlm?: {
-      modelName: string;
-      baseUrl: string;
-      /** @deprecated Use credentials.apiKey from GET responses */
-      apiKey?: string;
-      interfaceType?: string; // "ollama" or "openai"
-      credentials?: ModelCredentialStatus;
-    };
-  };
-  documentSplitting: {
-    chunkSize: number;
-    chunkOverlap: number;
-    separators: string[];
-    // Adaptive chunking strategy. Empty / "legacy" = classic recursive splitter.
-    // "auto" lets the backend profiler pick a tier; "heading" / "heuristic"
-    // pin the tier explicitly. See backend chunker package for details.
-    strategy?: string;
-    // Cap chunk size in approx tokens. 0 = char-based budget only.
-    tokenLimit?: number;
-    // Language hints for heuristic patterns ("de", "en", "zh"). Empty = auto-detect.
-    languages?: string[];
-  };
-  nodeExtract: {
-    enabled: boolean;
-    text: string;
-    tags: string[];
-    nodes: Node[];
-    relations: Relation[];
-  };
-}
-
 // 下载任务状态类型
 export interface DownloadTask {
   id: string;
@@ -144,22 +79,6 @@ export function updateKBConfig(kbId: string, config: KBModelConfigRequest): Prom
   return new Promise((resolve, reject) => {
     console.log("Starting KB config update (simplified)...", kbId, config);
     put(`/api/v1/initialization/config/${kbId}`, config)
-      .then((response: any) => {
-        console.log("KB config update completed", response);
-        resolve(response);
-      })
-      .catch((error: any) => {
-        console.error("Failed to update KB config:", error);
-        reject(error.error || error);
-      });
-  });
-}
-
-// 根据知识库ID执行配置更新（旧版，保留兼容性）
-export function initializeSystemByKB(kbId: string, config: InitializationConfig): Promise<any> {
-  return new Promise((resolve, reject) => {
-    console.log("Starting KB config update...", kbId, config);
-    post(`/api/v1/initialization/initialize/${kbId}`, config)
       .then((response: any) => {
         console.log("KB config update completed", response);
         resolve(response);
@@ -265,19 +184,6 @@ export function listDownloadTasks(): Promise<DownloadTask[]> {
       })
       .catch((error: any) => {
         console.error("Failed to list download tasks:", error);
-        reject(error);
-      });
-  });
-}
-
-export function getCurrentConfigByKB(kbId: string): Promise<InitializationConfig & { hasFiles: boolean }> {
-  return new Promise((resolve, reject) => {
-    get(`/api/v1/initialization/config/${kbId}`)
-      .then((response: any) => {
-        resolve(response.data || {});
-      })
-      .catch((error: any) => {
-        console.error("Failed to get KB config:", error);
         reject(error);
       });
   });

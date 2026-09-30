@@ -1,10 +1,10 @@
 @reference "../../assets/tailwind.css";
 
 /*
- * Legacy Markdown styles for non-chat document/editor surfaces that render
+ * Markdown styles for non-chat document/editor surfaces that render
  * `.md-content`. Chat answer Markdown must use `chat-markdown.css` only.
- * Converted from Less: :deep(.md-content) became the plain .md-content class
- * (this sheet is global, imported from doc-content's script).
+ * The sheet is global (imported from doc-content's script), so it styles the
+ * plain .md-content class.
  */
 @layer components {
   .md-content {

@@ -150,26 +150,6 @@ export interface SearchTenantsResponse {
   message?: string;
 }
 
-/**
- * 获取所有空间列表（需要跨空间访问权限）
- * @deprecated 建议使用 searchTenants 代替，支持分页和搜索
- */
-export async function listAllTenants(): Promise<{
-  success: boolean;
-  data?: { items: TenantInfo[] };
-  message?: string;
-}> {
-  try {
-    const response = await get("/api/v1/tenants/all");
-    return response as unknown as { success: boolean; data?: { items: TenantInfo[] }; message?: string };
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error.message || t("error.tenant.listFailed"),
-    };
-  }
-}
-
 export async function getAPIPrincipalConfig(
   tenantId: number,
 ): Promise<{ success: boolean; data?: APIPrincipalConfig; message?: string }> {

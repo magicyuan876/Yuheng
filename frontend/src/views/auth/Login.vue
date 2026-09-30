@@ -850,11 +850,9 @@ onBeforeUnmount(() => {
 });
 
 const persistLoginResponse = async (response: any, skipRedirect = false) => {
-  // Backend renamed `tenant` to `active_tenant` and added `memberships`
-  // when tenant-level RBAC landed (issue #1303). The two are otherwise
-  // identical — `active_tenant` is the tenant whose ID is encoded in the
-  // JWT, defaulting to the user's home tenant on a fresh login.
-  const activeTenant = response.active_tenant || response.tenant;
+  // `active_tenant` is the tenant whose ID is encoded in the JWT, defaulting
+  // to the user's home tenant on a fresh login.
+  const activeTenant = response.active_tenant;
   if (response.user && response.token) {
     // user.tenant_id must be the user's HOME tenant (the immutable row
     // on the users table); useHomeTenant() and the home-badge logic both

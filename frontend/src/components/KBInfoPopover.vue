@@ -227,9 +227,9 @@ const orgStore = useOrganizationStore();
 const authStore = useAuthStore();
 
 // "Owner" here mirrors the per-page guards: the original creator
-// (creator_id) — not "in my tenant". creator_id is unset for legacy
-// KBs created before that gate existed; those fall through to the
-// role/share check.
+// (creator_id) — not "in my tenant". creator_id is empty for a
+// tenant-owned KB (created through an API key); those fall through to
+// the role/share check.
 const isOwner = computed<boolean>(() => {
   const kb = props.kbInfo;
   if (!kb) return false;

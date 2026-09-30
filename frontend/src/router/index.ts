@@ -6,7 +6,6 @@ import { getCurrentUser, userInfoFromApi } from "@/api/auth";
 import type { DeploymentCapabilityKey } from "@/config/deploymentCapabilities";
 import { MessagePlugin } from "tdesign-vue-next";
 import i18n from "@/i18n";
-import { normalizeSettingsSection } from "@/config/settingsRoute";
 import { refreshUploadLimits } from "@/api/system";
 
 // 上传上限是可动态调整的系统设置；每个会话在首次通过认证守卫时刷新一次
@@ -90,22 +89,12 @@ const router = createRouter({
       meta: { requiresInit: true, requiresAuth: true },
     },
     {
-      path: "/knowledgeBase",
-      name: "home",
-      component: () => import("../views/knowledge/KnowledgeBase.vue"),
-      meta: { requiresInit: true, requiresAuth: true },
-    },
-    {
       path: "/platform",
       name: "Platform",
       redirect: "/platform/knowledge-bases",
       component: () => import("../views/platform/index.vue"),
       meta: { requiresInit: true, requiresAuth: true },
       children: [
-        {
-          path: "tenant",
-          redirect: "/platform/settings",
-        },
         {
           path: "settings",
           name: "settings",
@@ -122,34 +111,6 @@ const router = createRouter({
           path: "knowledge-bases/:kbId",
           name: "knowledgeBaseDetail",
           component: () => import("../views/knowledge/KnowledgeBase.vue"),
-          meta: { requiresInit: true, requiresAuth: true },
-        },
-        {
-          path: "knowledge-search",
-          // 旧路径保留为重定向，打开全局命令面板（⌘K），带上可选的 q 参数
-          redirect: (to) => {
-            const q = to.query.q;
-            return {
-              path: "/platform/knowledge-bases",
-              query: typeof q === "string" ? { cmdk: q } : { cmdk: "" },
-            };
-          },
-        },
-        {
-          path: "integrations",
-          redirect: (to) => {
-            const tab = typeof to.query.tab === "string" ? to.query.tab : undefined;
-            const incoming = typeof to.query.section === "string" ? to.query.section : "integrations";
-            const rest = { ...to.query };
-            delete rest.tab;
-            return {
-              path: "/platform/settings",
-              query: {
-                ...rest,
-                section: normalizeSettingsSection(incoming, tab),
-              },
-            };
-          },
           meta: { requiresInit: true, requiresAuth: true },
         },
         {
@@ -197,33 +158,6 @@ const router = createRouter({
           name: "docsSpace",
           component: () => import("../views/docs/SpaceHome.vue"),
           meta: { requiresInit: true, requiresAuth: true, requiredCapability: "docs" },
-        },
-        // Compatibility redirects for /platform/system/* URLs. System
-        // administration surfaces live as dedicated sections inside the
-        // standard Settings modal; keep stable URLs for bookmarks and
-        // external links.
-        {
-          path: "system",
-          redirect: { path: "/platform/settings", query: { section: "system-global" } },
-          meta: { requiresInit: true, requiresAuth: true, requiresSystemAdmin: true },
-        },
-        {
-          path: "system/settings",
-          name: "systemSettings",
-          redirect: { path: "/platform/settings", query: { section: "system-global" } },
-          meta: { requiresInit: true, requiresAuth: true, requiresSystemAdmin: true },
-        },
-        {
-          path: "system/admins",
-          name: "systemAdmins",
-          redirect: { path: "/platform/settings", query: { section: "system-global" } },
-          meta: { requiresInit: true, requiresAuth: true, requiresSystemAdmin: true },
-        },
-        {
-          path: "system/queues",
-          name: "systemQueues",
-          redirect: { path: "/platform/settings", query: { section: "runtime-queues" } },
-          meta: { requiresInit: true, requiresAuth: true, requiresSystemAdmin: true },
         },
       ],
     },

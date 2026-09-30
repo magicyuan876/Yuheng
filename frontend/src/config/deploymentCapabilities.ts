@@ -17,7 +17,7 @@ export interface DeploymentCapability {
 export type DeploymentCapabilityMap = Partial<Record<DeploymentCapabilityKey, DeploymentCapability>>;
 
 /**
- * 能力接口失败或旧版后端没有返回某个键时保持可见，避免一次探测失败把整个菜单清空。
+ * 能力接口失败或没有返回某个键时保持可见，避免一次探测失败把整个菜单清空。
  * 只有后端明确返回 supported: false 时才隐藏入口。
  */
 export function isDeploymentCapabilitySupported(
@@ -39,8 +39,8 @@ export type ExtensionCapabilityMap = Record<string, DeploymentCapability>;
  * Extension features are the reverse of the built-in ones: the built-ins stay
  * visible unless the backend says no, because the backend refuses anyway and a
  * failed probe should not empty the menu. An extension feature does not exist
- * until the backend lists it as supported, so an absent key, a failed probe and
- * an old backend all mean "not available".
+ * until the backend lists it as supported, so an absent key and a failed probe
+ * both mean "not available".
  */
 export function isExtensionEnabled(extensions: ExtensionCapabilityMap, key: string): boolean {
   return extensions[key]?.supported === true;
@@ -59,8 +59,8 @@ export function extensionUnavailableReason(extensions: ExtensionCapabilityMap, k
  *  - "locked": listed but not supported, usually with a reason such as
  *    `license_required` or `license_expired_for_build`. The extension is
  *    installed; something (a license) is missing.
- *  - "unavailable": not listed. A community build, an old backend or a failed
- *    probe, which the client cannot tell apart and should not try to.
+ *  - "unavailable": not listed. A community build or a failed probe, which the
+ *    client cannot tell apart and should not try to.
  */
 export type ExtensionState = "enabled" | "locked" | "unavailable";
 

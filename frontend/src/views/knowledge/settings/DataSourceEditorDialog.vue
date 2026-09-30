@@ -175,21 +175,6 @@ function syncRssAuthHeadersToCredentials() {
   }
 }
 
-// Feed URLs may still live in credentials on older rows (not returned by the
-// API). The backend copies them into settings on read; fall back to the
-// selected feed resource IDs when settings are still empty.
-function hydrateRssFeedUrlsFromConfig(config: { settings?: Record<string, any>; resource_ids?: string[] }) {
-  const settings = config.settings || {};
-  if (String(settings.feed_urls || "").trim()) {
-    return { ...settings };
-  }
-  const ids = config.resource_ids || [];
-  if (ids.length === 0) {
-    return { ...settings };
-  }
-  return { ...settings, feed_urls: ids.join("\n") };
-}
-
 function addRssAuthHeader() {
   rssAuthHeaders.value.push({ key: "", value: "" });
 }
@@ -307,11 +292,10 @@ async function addWikiDocByUrl() {
         knowledge_base_id: props.kbId,
         status: "paused",
       } as any);
-      const created = res?.data || res;
-      tempDsId.value = created.id;
+      tempDsId.value = res.id;
     }
     const res = await listResources(tempDsId.value, id);
-    const list = res?.data || res || [];
+    const list = res ?? [];
     manualWikiDocs.value.push({ id, name: list[0]?.name || token });
     wikiDocInput.value = "";
   } catch (e: any) {
@@ -433,8 +417,7 @@ async function loadDriveRoot() {
         knowledge_base_id: props.kbId,
         status: "paused",
       } as any);
-      const created = res?.data || res;
-      tempDsId.value = created.id;
+      tempDsId.value = res.id;
     } else {
       // Edit mode OR a previously-created temp row: persist the new folder_token
       // so listResources sees the updated config. Previously this branch skipped
@@ -446,7 +429,7 @@ async function loadDriveRoot() {
     }
 
     const res = await listResources(tempDsId.value);
-    resources.value = res?.data || res || [];
+    resources.value = res ?? [];
     if (resources.value.length > 0) {
       // Mirror loadResources' tree initialization: index parents that already
       // arrived with children and auto-expand them.
@@ -581,7 +564,7 @@ async function ensureChildrenLoaded(id: string) {
   loadingChildrenIds.value = new Set(loadingChildrenIds.value).add(id);
   try {
     const res = await listResources(tempDsId.value, id);
-    const children: Resource[] = res?.data || res || [];
+    const children: Resource[] = res ?? [];
     if (children.length > 0) {
       const existing = new Set(resources.value.map((r) => r.external_id));
       const merged = resources.value.slice();
@@ -912,8 +895,7 @@ watch(visible, async (v) => {
       config: {
         credentials: {},
         resource_ids: editConfig.resource_ids || [],
-        settings:
-          props.dataSource.type === "rss" ? hydrateRssFeedUrlsFromConfig(editConfig) : editConfig.settings || {},
+        settings: { ...(editConfig.settings || {}) },
       },
       sync_schedule: props.dataSource.sync_schedule,
       sync_mode: props.dataSource.sync_mode,
@@ -1062,8 +1044,7 @@ async function loadResources() {
         knowledge_base_id: props.kbId,
         status: "paused",
       } as any);
-      const created = res?.data || res;
-      tempDsId.value = created.id;
+      tempDsId.value = res.id;
     } else if (!isEdit.value) {
       await updateDataSource(tempDsId.value, {
         ...form.value,
@@ -1072,7 +1053,7 @@ async function loadResources() {
     }
 
     const res = await listResources(tempDsId.value);
-    resources.value = res?.data || res || [];
+    resources.value = res ?? [];
     // Any parent that already arrived with children (connectors returning the
     // full tree, e.g. Notion) needs no further lazy fetch.
     const parentsWithChildren = new Set<string>();
@@ -1111,7 +1092,7 @@ async function revealExistingSelections(hiddenIds: string[]) {
   if (!tempDsId.value || hiddenIds.length === 0) return;
   try {
     const res = await resolveResourceAncestors(tempDsId.value, hiddenIds);
-    const ancestors: string[] = res?.data?.ancestors || res?.ancestors || [];
+    const ancestors: string[] = res.ancestors ?? [];
     if (ancestors.length === 0) return;
     const expanded = new Set(expandedResourceIds.value);
     for (const id of ancestors) expanded.add(id);
@@ -1339,9 +1320,8 @@ async function handleSubmit() {
         knowledge_base_id: props.kbId,
         status: "active",
       } as any);
-      const created = res?.data || res;
-      dataSourceId = created.id;
-      tempDsId.value = created.id;
+      dataSourceId = res.id;
+      tempDsId.value = res.id;
     }
 
     if (isEdit.value) {

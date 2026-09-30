@@ -76,11 +76,11 @@ export function replaceIncompleteImageWithPlaceholder(content: string): string {
   return content;
 }
 
-const LEGACY_IMAGE_BLOCK_RE = /<image\b([^>]*)>([\s\S]*?)<\/images?>/gi;
-const LEGACY_IMAGES_WRAPPER_RE = /<\/?images\b[^>]*>/gi;
-const LEGACY_IMAGE_ORIGINAL_RE = /<image_original>([\s\S]*?)<\/image_original>/i;
-const LEGACY_IMAGE_CAPTION_RE = /<image_caption>([\s\S]*?)<\/image_caption>/i;
-const LEGACY_IMAGE_OCR_RE = /<image_ocr>([\s\S]*?)<\/image_ocr>/i;
+const IMAGE_CONTEXT_BLOCK_RE = /<image\b([^>]*)>([\s\S]*?)<\/images?>/gi;
+const IMAGE_CONTEXT_WRAPPER_RE = /<\/?images\b[^>]*>/gi;
+const IMAGE_CONTEXT_ORIGINAL_RE = /<image_original>([\s\S]*?)<\/image_original>/i;
+const IMAGE_CONTEXT_CAPTION_RE = /<image_caption>([\s\S]*?)<\/image_caption>/i;
+const IMAGE_CONTEXT_OCR_RE = /<image_ocr>([\s\S]*?)<\/image_ocr>/i;
 const COMPLETE_MARKDOWN_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g;
 const IMAGE_URL_SCHEME = "(?:https?|resource|storage|local|minio|s3|cos|tos|oss|obs|ks3)";
 const FULLWIDTH_IMAGE_OPEN_RE = new RegExp(`(!\\[[^\\]\\n]*\\])（(?=${IMAGE_URL_SCHEME}://)`, "gi");
@@ -105,7 +105,7 @@ export function normalizeFullwidthMarkdownImageParentheses(content: string): str
   return parts.join("");
 }
 
-function legacyImageField(body: string, pattern: RegExp): string {
+function imageContextField(body: string, pattern: RegExp): string {
   const value = body.match(pattern)?.[1] || "";
   return value
     .replace(/<[^>]*>/g, "")
@@ -117,48 +117,49 @@ function escapeMarkdownImageAlt(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
 }
 
-function legacyImageBlockToMarkdown(attributes: string, body: string): string {
-  const original = body.match(LEGACY_IMAGE_ORIGINAL_RE)?.[1]?.trim();
+function imageContextBlockToMarkdown(attributes: string, body: string): string {
+  const original = body.match(IMAGE_CONTEXT_ORIGINAL_RE)?.[1]?.trim();
   if (original) return original;
 
   const urlMatch = attributes.match(/\burl\s*=\s*(["'])(.*?)\1/i);
   const url = urlMatch?.[2]?.trim() || "";
-  const caption = legacyImageField(body, LEGACY_IMAGE_CAPTION_RE);
-  const ocr = legacyImageField(body, LEGACY_IMAGE_OCR_RE);
+  const caption = imageContextField(body, IMAGE_CONTEXT_CAPTION_RE);
+  const ocr = imageContextField(body, IMAGE_CONTEXT_OCR_RE);
   if (!url) return caption || ocr;
 
   const alt = escapeMarkdownImageAlt(caption || ocr || "image");
   return `![${alt}](${url})`;
 }
 
-function normalizeLegacyImageSegment(content: string): string {
+function normalizeImageContextSegment(content: string): string {
   return content
-    .replace(LEGACY_IMAGE_BLOCK_RE, (_match, attributes: string, body: string) =>
-      legacyImageBlockToMarkdown(attributes, body),
+    .replace(IMAGE_CONTEXT_BLOCK_RE, (_match, attributes: string, body: string) =>
+      imageContextBlockToMarkdown(attributes, body),
     )
-    .replace(LEGACY_IMAGES_WRAPPER_RE, "");
+    .replace(IMAGE_CONTEXT_WRAPPER_RE, "");
 }
 
 /**
- * Normalize the legacy image-context protocol if a model copies it into an
- * answer. New chat context is Markdown-native, but persisted conversations and
- * older deployments can still contain `<image url="…">` blocks.
+ * Normalize the image-context markup if a model copies it into an answer. The
+ * retrieval context the backend hands the model wraps each image in an
+ * `<image url="…">` block with `<image_caption>` / `<image_ocr>` children
+ * (internal/searchutil/imageinfo.go), and models sometimes echo it verbatim.
  *
  * Complete blocks become ordinary Markdown images and therefore pass through
  * the same URL validation/sanitization as model-authored images. While a block
  * is still streaming, its unfinished tail is replaced by the existing image
  * skeleton so internal tags, captions, and OCR never flash as prose.
  */
-export function normalizeLegacyImageContextMarkup(content: string, streaming = false): string {
+export function normalizeImageContextMarkup(content: string, streaming = false): string {
   if (!content) return content;
-  const hasLegacyImageTag = /<\/?images?\b/i.test(content);
+  const hasImageContextTag = /<\/?images?\b/i.test(content);
   const partialTagPattern = /(^|\n)[ \t]*<i(?:m(?:a(?:g(?:e(?:[ \t][^>\n]*)?)?)?)?)?$/i;
   const hasPartialStreamingTag = streaming && partialTagPattern.test(content);
-  if (!hasLegacyImageTag && !hasPartialStreamingTag) return content;
+  if (!hasImageContextTag && !hasPartialStreamingTag) return content;
 
   const parts = content.split(COMPLETE_MARKDOWN_CODE_RE);
   for (let i = 0; i < parts.length; i += 2) {
-    parts[i] = normalizeLegacyImageSegment(parts[i]);
+    parts[i] = normalizeImageContextSegment(parts[i]);
   }
   if (streaming) {
     // The split always leaves normal Markdown in the final even-indexed part,
@@ -448,7 +449,7 @@ export function renderChatMarkdown(rawMarkdown: unknown, options: RenderChatMark
   const streamingSafeText = options.streaming
     ? stripTrailingStreamingListMarker(stripTrailingStreamingHorizontalRule(rawText))
     : rawText;
-  const imageContextSafeText = normalizeLegacyImageContextMarkup(streamingSafeText, Boolean(options.streaming));
+  const imageContextSafeText = normalizeImageContextMarkup(streamingSafeText, Boolean(options.streaming));
   const citationSafeText = stripIncompleteCitationTag(imageContextSafeText);
   const { text: tagSafe, tags } = preserveCitationTags(citationSafeText);
   const normalizedImageMarkdown = normalizeFullwidthMarkdownImageParentheses(tagSafe);

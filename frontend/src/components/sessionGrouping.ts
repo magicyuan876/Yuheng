@@ -25,9 +25,7 @@ export interface SessionGroup<T extends SessionForGrouping = SessionForGrouping>
 
 /**
  * Where a session came from: the user's own Web-console chats, or the
- * admin-only folder of sessions created through API keys. (Upstream also had
- * IM and embed channels; both were removed, and the backend files their
- * legacy rows under neither web nor api.)
+ * admin-only folder of sessions created through API keys.
  */
 export type SessionOrigin = { kind: "web" } | { kind: "api" };
 

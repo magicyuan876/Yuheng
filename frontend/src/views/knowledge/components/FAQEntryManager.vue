@@ -1647,8 +1647,8 @@ const orgStore = useOrganizationStore();
 // it" — Viewer / Contributor in their home tenant ended up showing every FAQ
 // CRUD entry on every KB and 403'ing when they clicked. Mirror the rule we settled
 // on in KnowledgeBase.vue: explicit creator_id match, with role / org-share fallbacks
-// inside canEdit / canManage. Legacy KBs with empty creator_id stay tenant-owned
-// (Admin+ may manage).
+// inside canEdit / canManage. A KB with an empty creator_id (created through an API
+// key) is tenant-owned (Admin+ may manage).
 const isOwner = computed(() => {
   if (!kbInfo.value) return false;
   const creatorId = (kbInfo.value as any).creator_id || "";
@@ -3119,31 +3119,23 @@ const handleImport = async () => {
       mode: importState.mode,
     });
 
-    const taskId = res?.data?.task_id;
-    if (taskId) {
-      importState.taskId = taskId;
-      importState.taskStatus = {
-        status: "pending",
-        progress: 0,
-        total: importState.preview.length,
-        processed: 0,
-        message: t("faqManager.import.progressHint"),
-      };
-      // 开始轮询任务状态
-      startPolling(taskId);
-      // 立即关闭导入对话框，进度将在列表页面顶部显示
-      importVisible.value = false;
-      // 重置导入对话框状态（但保留taskId和taskStatus用于进度显示）
-      importState.file = null;
-      importState.preview = [];
-      importState.importing = false;
-    } else {
-      // 如果没有返回任务ID，可能是旧版本API，使用同步方式
-      MessagePlugin.success(t("knowledgeEditor.faqImport.importSuccess"));
-      importVisible.value = false;
-      await loadEntries();
-      importState.importing = false;
-    }
+    // The import always runs as a background task; its progress shows on
+    // top of the entry list once the dialog closes.
+    const taskId: string = res.data.task_id;
+    importState.taskId = taskId;
+    importState.taskStatus = {
+      status: "pending",
+      progress: 0,
+      total: importState.preview.length,
+      processed: 0,
+      message: t("faqManager.import.progressHint"),
+    };
+    startPolling(taskId);
+    importVisible.value = false;
+    // Clear the dialog's input but keep taskId / taskStatus for the progress display.
+    importState.file = null;
+    importState.preview = [];
+    importState.importing = false;
   } catch (error: any) {
     MessagePlugin.error(error?.message || t("common.operationFailed"));
     importState.importing = false;

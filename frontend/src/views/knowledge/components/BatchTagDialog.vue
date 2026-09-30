@@ -257,8 +257,8 @@ async function handleCreateTag() {
   if (!name) return;
   creatingTag.value = true;
   try {
-    const res: any = await createKnowledgeBaseTag(props.kbId, { name });
-    const newTag = res?.data || res;
+    const res = await createKnowledgeBaseTag(props.kbId, { name });
+    const newTag = res.data;
     const next = new Set(selectedSet.value);
     next.add(newTag.id);
     selectedSet.value = next;
@@ -285,8 +285,8 @@ async function handleAddNewTag() {
   }
   creatingTag.value = true;
   try {
-    const res: any = await createKnowledgeBaseTag(props.kbId, { name });
-    const newTag = res?.data || res;
+    const res = await createKnowledgeBaseTag(props.kbId, { name });
+    const newTag = res.data;
     const next = new Set(selectedSet.value);
     next.add(newTag.id);
     selectedSet.value = next;

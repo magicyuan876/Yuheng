@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { loadPreference, savePreference, migratePreferencesIntoUser } from "./preferenceStorage";
+import { loadPreference, savePreference, adoptAnonPreferences } from "./preferenceStorage";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -72,7 +72,7 @@ export function initTheme() {
 
 /** Re-read preferences from storage (call after login / logout). */
 export function reloadThemeFromStorage() {
-  migratePreferencesIntoUser();
+  adoptAnonPreferences();
   currentTheme.value = loadTheme();
   applyTheme(currentTheme.value);
 }

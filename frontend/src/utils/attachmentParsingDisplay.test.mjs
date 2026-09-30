@@ -25,13 +25,8 @@ test("resolveAttachmentParsingCounts prefers structured tool_data", () => {
   );
 });
 
-test("resolveAttachmentParsingCounts falls back to legacy output text", () => {
-  assert.deepEqual(
-    resolveAttachmentParsingCounts({
-      output: "已解析 3 个附件，1 个未完成已跳过",
-    }),
-    { parsed: 3, skipped: 1 },
-  );
+test("resolveAttachmentParsingCounts counts nothing when tool_data carries no counts", () => {
+  assert.deepEqual(resolveAttachmentParsingCounts({ output: "已分析图片内容" }), { parsed: 0, skipped: 0 });
 });
 
 test("getAttachmentParsingSummaryHtml renders parsed count", () => {

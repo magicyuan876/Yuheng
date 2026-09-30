@@ -412,8 +412,7 @@ async function loadVersionSnapshot(version: number): Promise<WikiRevisionSnapsho
   const cached = snapshotCache.get(version);
   if (cached) return cached;
   const res = await getWikiRevision(props.kbId, props.slug, version);
-  const data = (res as any).data || (res as any);
-  const snap = snapshotFromRevisionData(data, data.content || "");
+  const snap = snapshotFromRevisionData(res, res.content || "");
   snapshotCache.set(version, snap);
   return snap;
 }
@@ -483,8 +482,7 @@ async function loadList(offset: number) {
   loadingList.value = true;
   try {
     const res = await listWikiRevisions(props.kbId, props.slug, { limit: PAGE_SIZE, offset });
-    const data = (res as any).data || (res as any);
-    const items: WikiPageRevision[] = data.revisions || [];
+    const items: WikiPageRevision[] = res.revisions ?? [];
     if (offset === 0) {
       revisions.value = items;
     } else {
@@ -494,7 +492,7 @@ async function loadList(offset: number) {
       const seen = new Set(revisions.value.map((r) => r.version));
       revisions.value = [...revisions.value, ...items.filter((r) => !seen.has(r.version))];
     }
-    total.value = data.total ?? revisions.value.length;
+    total.value = res.total ?? revisions.value.length;
   } catch (e: any) {
     MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revisionLoadFailed"));
   } finally {
@@ -531,10 +529,9 @@ async function selectRevision(rev: WikiPageRevision) {
   try {
     const res = await getWikiRevision(props.kbId, props.slug, rev.version);
     if (seq !== detailRequestSeq) return;
-    const data = (res as any).data || (res as any);
-    selectedRevision.value = { ...rev, ...data };
-    detailContent.value = data.content || "";
-    snapshotCache.set(rev.version, snapshotFromRevisionData(data, data.content || ""));
+    selectedRevision.value = { ...rev, ...res };
+    detailContent.value = res.content || "";
+    snapshotCache.set(rev.version, snapshotFromRevisionData(res, res.content || ""));
   } catch (e: any) {
     if (seq !== detailRequestSeq) return;
     MessagePlugin.error(e?.message || t("knowledgeEditor.wikiBrowser.revisionLoadFailed"));
@@ -548,7 +545,7 @@ async function doRevert() {
   reverting.value = true;
   try {
     const res = await revertWikiPage(props.kbId, props.slug, selectedRevision.value.version);
-    const updated = ((res as any).data || (res as any)) as WikiPage;
+    const updated = res;
     MessagePlugin.success(t("knowledgeEditor.wikiBrowser.revertSuccess", { ver: selectedRevision.value.version }));
     revertConfirmOpen.value = false;
     emit("reverted", updated);

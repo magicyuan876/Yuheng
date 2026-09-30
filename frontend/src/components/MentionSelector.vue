@@ -544,8 +544,8 @@ async function fetchKbDetail(item: { id: string }) {
   if (detailCache.value[item.id]?.data || detailCache.value[item.id]?.loading) return;
   detailCache.value = { ...detailCache.value, [item.id]: { loading: true } };
   try {
-    const res: any = await getKnowledgeBaseById(item.id);
-    detailCache.value = { ...detailCache.value, [item.id]: { loading: false, data: res?.data ?? res } };
+    const res = await getKnowledgeBaseById(item.id);
+    detailCache.value = { ...detailCache.value, [item.id]: { loading: false, data: res.data } };
   } catch (e: any) {
     detailCache.value = { ...detailCache.value, [item.id]: { loading: false, error: e?.message || "Failed to load" } };
   }
@@ -555,8 +555,8 @@ async function fetchFileDetail(item: { id: string }) {
   if (detailCache.value[item.id]?.data || detailCache.value[item.id]?.loading) return;
   detailCache.value = { ...detailCache.value, [item.id]: { loading: true } };
   try {
-    const res: any = await getKnowledgeDetails(item.id);
-    detailCache.value = { ...detailCache.value, [item.id]: { loading: false, data: res?.data ?? res } };
+    const res = await getKnowledgeDetails(item.id);
+    detailCache.value = { ...detailCache.value, [item.id]: { loading: false, data: res.data } };
   } catch (e: any) {
     detailCache.value = { ...detailCache.value, [item.id]: { loading: false, error: e?.message || "Failed to load" } };
   }

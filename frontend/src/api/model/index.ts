@@ -196,8 +196,8 @@ export async function putModelCredentials(
   id: string,
   body: Partial<Record<ModelCredentialField, string>>,
 ): Promise<ModelCredentialsResponse> {
-  const response: any = await put(`/api/v1/models/${id}/credentials`, body);
-  return (response.data ?? response) as ModelCredentialsResponse;
+  const response = await put<{ data: ModelCredentialsResponse }>(`/api/v1/models/${id}/credentials`, body);
+  return response.data;
 }
 
 export async function deleteModelCredentialField(id: string, field: ModelCredentialField): Promise<void> {
@@ -214,6 +214,6 @@ export async function deleteModelCredentialField(id: string, field: ModelCredent
  * 取消共享时，若仍有任意空间的知识库或智能体绑定该模型，后端返回 400。
  */
 export async function setModelSharing(id: string, shared: boolean): Promise<ModelConfig> {
-  const response: any = await put(`/api/v1/models/${id}/sharing`, { shared });
-  return (response.data ?? response) as ModelConfig;
+  const response = await put<{ data: ModelConfig }>(`/api/v1/models/${id}/sharing`, { shared });
+  return response.data;
 }

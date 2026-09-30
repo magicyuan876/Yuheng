@@ -9,8 +9,6 @@ import { useSettingsStore } from "@/stores/settings";
  *   - Global command palette (⌘K) when user presses ⌘↵ on a result
  *   - KB-scoped search bar on the KB detail page
  *   - Empty-state "Ask AI directly" button in the palette
- *
- * Mirrors the legacy behavior of KnowledgeSearch.vue#startChat.
  */
 export function useStartChat() {
   const router = useRouter();

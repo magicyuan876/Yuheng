@@ -97,8 +97,8 @@ export const PAIR_FINDING_TYPES = new Set(["duplicate", "divergent"]);
 /** The finding types a person settles by confirming the document is still right. */
 export const CONFIRMABLE_FINDING_TYPES = new Set(["stale", "disputed"]);
 
-/** The reports of a dispute finding, read defensively from its extra: an
- * older server or another detector may put something else there. */
+/** The reports of a dispute finding, read defensively from its extra: the
+ * extra is a free-form map that another detector may fill differently. */
 export function disputeReports(extra: Record<string, unknown> | undefined): DisputeReport[] {
   const raw = extra?.reports;
   return Array.isArray(raw) ? (raw as DisputeReport[]) : [];

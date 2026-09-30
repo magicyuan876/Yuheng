@@ -732,11 +732,7 @@ onMounted(async () => {
     scrollLock.value = true;
     historyLoading.value = false;
     if (firstModelId.value) {
-      useSettingsStoreInstance.updateConversationModels({
-        summaryModelId: firstModelId.value,
-        selectedChatModelId: firstModelId.value,
-        rerankModelId: "",
-      });
+      useSettingsStoreInstance.updateConversationModels({ selectedChatModelId: firstModelId.value });
     }
     sendMsg(
       firstQuery.value,

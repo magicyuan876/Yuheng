@@ -110,7 +110,7 @@ test("resolveReferenceHighlightKey falls back to document title and knowledge ba
 
   assert.equal(
     resolveReferenceHighlightKey(refs, {
-      chunkId: "cited-chunk-missing-from-legacy-replay",
+      chunkId: "cited-chunk-not-in-references",
       documentTitle: "Claude Sonnet 5.md",
       knowledgeBaseId: "kb-1",
     }),

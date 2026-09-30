@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { getAgentToolIconName } from "./agent-tool-icons.ts";
-import {
-  getKnowledgeSearchSummaryHtml,
-  getQueryText,
-  getRagPipelineStepTitle,
-  getWikiPageText,
-} from "./agent-tool-display.ts";
+import { BrainIcon, DatabaseIcon, GlobeIcon, PaperclipIcon } from "@lucide/vue";
+import { getRagStepIcon } from "./rag-step-icon.ts";
+import { getKnowledgeSearchSummaryHtml, getQueryText, getRagPipelineStepTitle } from "./agent-tool-display.ts";
 
 const t = (key, params) => {
   if (key === "agentStream.search.foundResultsFromFiles") {
@@ -21,19 +17,13 @@ const t = (key, params) => {
   return key;
 };
 
-test("getAgentToolIconName maps rag pipeline tools", () => {
-  assert.equal(getAgentToolIconName("query_understand"), "ai-search");
-  assert.equal(getAgentToolIconName("knowledge_search"), "data-search");
-});
-
-test("getAgentToolIconName maps sandbox shell tools to the terminal icon", () => {
-  assert.equal(getAgentToolIconName("shell_exec"), "terminal");
-});
-
-test("getAgentToolIconName maps Wiki tools to semantic search and reading icons", () => {
-  assert.equal(getAgentToolIconName("wiki_search"), "search");
-  assert.equal(getAgentToolIconName("wiki_read_page"), "file-search");
-  assert.equal(getAgentToolIconName("wiki_read_source_doc"), "file-search");
+test("getRagStepIcon gives each timeline tool its icon", () => {
+  assert.equal(getRagStepIcon("query_understand"), BrainIcon);
+  assert.equal(getRagStepIcon("image_analysis"), BrainIcon);
+  assert.equal(getRagStepIcon("attachment_parsing"), PaperclipIcon);
+  assert.equal(getRagStepIcon("knowledge_search"), DatabaseIcon);
+  assert.equal(getRagStepIcon("knowledge_search", "mixed"), DatabaseIcon);
+  assert.equal(getRagStepIcon("knowledge_search", "web"), GlobeIcon);
 });
 
 test("getQueryText joins unique query strings", () => {
@@ -47,11 +37,6 @@ test("getQueryText parses JSON-encoded queries string", () => {
     }),
     "合力天胜游泳俱乐部介绍，合力天胜游泳训练机构，合力天胜游泳队",
   );
-});
-
-test("getWikiPageText supports persisted slugs arrays", () => {
-  assert.equal(getWikiPageText({ slugs: ["entity/知识助理", "concept/API管理"] }), "entity/知识助理、concept/API管理");
-  assert.equal(getWikiPageText('{"slug":"index"}'), "index");
 });
 
 test("getKnowledgeSearchSummaryHtml includes file count when present", () => {

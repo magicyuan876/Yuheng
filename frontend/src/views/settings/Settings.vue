@@ -133,7 +133,7 @@
               >
                 <!-- 角色不允许访问当前 section（deep-link 进来 / 跨空间切换后角色降级）—— 优先于具体 section 渲染。
                      正常导航走 navItems filter 不会到这里，但 watch(navItems) 的 fallback 会在角色降级
-                     的瞬间触发；这一段做兜底兼容旧 URL。 -->
+                     的瞬间触发；这一段是那一瞬间以及 deep-link 的兜底。 -->
                 <div
                   v-if="!canSeeSection(currentSection)"
                   class="section flex min-h-[240px] flex-col items-center justify-center gap-3 px-6 py-16 text-center"
@@ -286,11 +286,7 @@ import {
 } from "@/config/settingsAccess";
 import { SETTINGS_SECTION_CAPABILITY } from "@/config/deploymentCapabilities";
 import { isEnterprisePromotionHidden } from "@/config/enterprisePromotion";
-import {
-  buildSettingsRouteQuery,
-  normalizeSettingsSection as normalizeSettingsSectionFromQuery,
-  settingsQueryUnchanged,
-} from "@/config/settingsRoute";
+import { buildSettingsRouteQuery, settingsQueryUnchanged } from "@/config/settingsRoute";
 
 import {
   ChevronDownIcon,
@@ -363,10 +359,6 @@ const SYSTEM_ADMIN_SECTIONS = SYSTEM_ADMIN_SETTINGS_SECTIONS;
 // Table-heavy workspace pages get the full content width instead of the
 // 760px reading column.
 const WIDE_WORKSPACE_SECTIONS = new Set(["members", "apikeys"]);
-
-const normalizeSettingsSection = (section: string) => {
-  return normalizeSettingsSectionFromQuery(section, route.query.tab as string | undefined);
-};
 
 const syncSettingsRoute = (sectionKey: string) => {
   if (route.path !== "/platform/settings") return;
@@ -549,16 +541,15 @@ watch(
   () => uiStore.settingsInitialSection,
   (section) => {
     if (section && visible.value) {
-      const normalizedSection = normalizeSettingsSection(section);
-      if (deploymentCapabilities.loaded && !isSectionSupported(normalizedSection)) {
+      if (deploymentCapabilities.loaded && !isSectionSupported(section)) {
         MessagePlugin.warning(t("settings.capabilityUnavailable"));
         currentSection.value = navItems.value[0]?.key || "general";
         currentSubSection.value = "";
         return;
       }
-      currentSection.value = normalizedSection;
-      syncSettingsRoute(normalizedSection);
-      const navItem = (navItems.value as any[]).find((item) => item.key === normalizedSection);
+      currentSection.value = section;
+      syncSettingsRoute(section);
+      const navItem = (navItems.value as any[]).find((item) => item.key === section);
       if (navItem && navItem.children && navItem.children.length > 0) {
         if (!expandedMenus.value.includes(section)) {
           expandedMenus.value.push(section);
@@ -588,11 +579,7 @@ watch(
       syncSettingsRoute(currentSection.value || "general");
       return;
     }
-    const normalizedSection = normalizeSettingsSectionFromQuery(
-      section,
-      typeof route.query.tab === "string" ? route.query.tab : undefined,
-    );
-    if (capabilitiesLoaded && !isSectionSupported(normalizedSection)) {
+    if (capabilitiesLoaded && !isSectionSupported(section)) {
       MessagePlugin.warning(t("settings.capabilityUnavailable"));
       const fallback = navItems.value[0]?.key || "general";
       currentSection.value = fallback;
@@ -600,9 +587,9 @@ watch(
       syncSettingsRoute(fallback);
       return;
     }
-    currentSection.value = normalizedSection;
+    currentSection.value = section;
     currentSubSection.value = "";
-    syncSettingsRoute(normalizedSection);
+    syncSettingsRoute(section);
   },
   { immediate: true },
 );
@@ -629,17 +616,16 @@ const handleEscape = (e: KeyboardEvent) => {
 const handleSettingsNav = (e: CustomEvent) => {
   const { section, subsection } = e.detail;
   if (section) {
-    const normalizedSection = normalizeSettingsSection(section);
-    if (deploymentCapabilities.loaded && !isSectionSupported(normalizedSection)) {
+    if (deploymentCapabilities.loaded && !isSectionSupported(section)) {
       MessagePlugin.warning(t("settings.capabilityUnavailable"));
       currentSection.value = navItems.value[0]?.key || "general";
       currentSubSection.value = "";
       return;
     }
-    currentSection.value = normalizedSection;
-    syncSettingsRoute(normalizedSection);
+    currentSection.value = section;
+    syncSettingsRoute(section);
     // 如果有子菜单，自动展开
-    const navItem = (navItems.value as any[]).find((item: any) => item.key === normalizedSection);
+    const navItem = (navItems.value as any[]).find((item: any) => item.key === section);
     if (navItem && navItem.children && navItem.children.length > 0) {
       if (!expandedMenus.value.includes(section)) {
         expandedMenus.value.push(section);

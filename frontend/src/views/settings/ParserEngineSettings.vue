@@ -739,7 +739,6 @@ const DEFAULT_PARSER_CONFIG: ParserEngineConfig = {
   mineru_enable_formula: true,
   mineru_enable_table: true,
   mineru_parse_method: "auto",
-  mineru_enable_ocr: true,
   mineru_language: "ch",
   mineru_cloud_model: "pipeline",
   mineru_cloud_enable_formula: true,
@@ -915,8 +914,7 @@ async function loadConfig() {
       mineru_vlm_server_url: data?.mineru_vlm_server_url ?? DEFAULT_PARSER_CONFIG.mineru_vlm_server_url ?? "",
       mineru_enable_formula: data?.mineru_enable_formula ?? DEFAULT_PARSER_CONFIG.mineru_enable_formula ?? true,
       mineru_enable_table: data?.mineru_enable_table ?? DEFAULT_PARSER_CONFIG.mineru_enable_table ?? true,
-      mineru_parse_method: data?.mineru_parse_method ?? (data?.mineru_enable_ocr === false ? "txt" : "auto"),
-      mineru_enable_ocr: data?.mineru_enable_ocr ?? DEFAULT_PARSER_CONFIG.mineru_enable_ocr ?? true,
+      mineru_parse_method: data?.mineru_parse_method || "auto",
       mineru_language: data?.mineru_language ?? DEFAULT_PARSER_CONFIG.mineru_language ?? "ch",
       mineru_cloud_model: data?.mineru_cloud_model ?? DEFAULT_PARSER_CONFIG.mineru_cloud_model ?? "",
       mineru_cloud_enable_formula:
@@ -973,8 +971,6 @@ function buildConfigPayload(): ParserEngineConfig {
     mineru_enable_formula: config.value.mineru_enable_formula,
     mineru_enable_table: config.value.mineru_enable_table,
     mineru_parse_method: config.value.mineru_parse_method ?? "auto",
-    // Keep the legacy toggle during rolling upgrades. New servers prefer parse_method.
-    mineru_enable_ocr: config.value.mineru_parse_method !== "txt",
     mineru_language: config.value.mineru_language?.trim() ?? "",
     mineru_cloud_model: config.value.mineru_cloud_model?.trim() ?? "",
     mineru_cloud_enable_formula: config.value.mineru_cloud_enable_formula,
@@ -1086,8 +1082,7 @@ onMounted(loadAll);
   color: #0052d9;
 }
 
-.engine-card--builtin .engine-card__badge,
-.engine-card--builtin-legacy .engine-card__badge {
+.engine-card--builtin .engine-card__badge {
   background: rgba(7, 192, 95, 0.12);
   color: #07c05f;
 }
@@ -1116,8 +1111,7 @@ onMounted(loadAll);
   .engine-card__badge from the scoped block above.
 -->
 <style>
-.parser-engine-drawer--builtin .setting-drawer__header-icon,
-.parser-engine-drawer--builtin-legacy .setting-drawer__header-icon {
+.parser-engine-drawer--builtin .setting-drawer__header-icon {
   background: rgba(7, 192, 95, 0.12);
   color: #07c05f;
 }

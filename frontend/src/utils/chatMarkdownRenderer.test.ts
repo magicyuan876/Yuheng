@@ -7,7 +7,7 @@ import {
   createChatMarkdownRenderer,
   markStandaloneStrongParagraphs,
   normalizeFullwidthMarkdownImageParentheses,
-  normalizeLegacyImageContextMarkup,
+  normalizeImageContextMarkup,
   preprocessMathDelimiters,
   renderChatMarkdown,
   repairFlankingEmphasis,
@@ -88,7 +88,7 @@ test("renderChatMarkdown hides an unfinished fullwidth-parenthesis image while s
   assert.doesNotMatch(html, /resource:\/\/|（/);
 });
 
-test("normalizeLegacyImageContextMarkup converts copied image XML to Markdown", () => {
+test("normalizeImageContextMarkup converts copied image XML to Markdown", () => {
   const input = [
     "before",
     '<image url="resource://AbCdEfGhIjKlMnOpQrStUv">',
@@ -98,13 +98,13 @@ test("normalizeLegacyImageContextMarkup converts copied image XML to Markdown", 
     "after",
   ].join("\n");
 
-  const output = normalizeLegacyImageContextMarkup(input);
+  const output = normalizeImageContextMarkup(input);
   assert.ok(output.includes("![目标说话人提取的流程图 \\[测试\\]](resource://AbCdEfGhIjKlMnOpQrStUv)"));
   assert.doesNotMatch(output, /<image|image_caption|image_ocr/);
   assert.match(output, /before[\s\S]*after/);
 });
 
-test("normalizeLegacyImageContextMarkup keeps original Markdown when present", () => {
+test("normalizeImageContextMarkup keeps original Markdown when present", () => {
   const input = [
     "<images>",
     '<image url="resource://AbCdEfGhIjKlMnOpQrStUv">',
@@ -114,17 +114,17 @@ test("normalizeLegacyImageContextMarkup keeps original Markdown when present", (
     "</images>",
   ].join("\n");
 
-  assert.equal(normalizeLegacyImageContextMarkup(input).trim(), "![原图](resource://AbCdEfGhIjKlMnOpQrStUv)");
+  assert.equal(normalizeImageContextMarkup(input).trim(), "![原图](resource://AbCdEfGhIjKlMnOpQrStUv)");
 });
 
-test("normalizeLegacyImageContextMarkup hides an unfinished XML block while streaming", () => {
+test("normalizeImageContextMarkup hides an unfinished XML block while streaming", () => {
   const prefix = "测试阶段主要流程\n\n";
   for (const partial of [
     "<ima",
     '<image url="resource://AbCdEfGhIjKlMnOpQrStUv">',
     '<image url="resource://AbCdEfGhIjKlMnOpQrStUv">\n<image_caption>流程图',
   ]) {
-    const output = normalizeLegacyImageContextMarkup(prefix + partial, true);
+    const output = normalizeImageContextMarkup(prefix + partial, true);
     assert.equal(
       output,
       prefix + '<span class="streaming-image-loading"><span class="streaming-image-loading__skeleton"></span></span>',
@@ -133,14 +133,14 @@ test("normalizeLegacyImageContextMarkup hides an unfinished XML block while stre
   }
 });
 
-test("normalizeLegacyImageContextMarkup preserves literal image XML in code", () => {
+test("normalizeImageContextMarkup preserves literal image XML in code", () => {
   const code = '```xml\n<image url="resource://example">\n</image>\n```';
-  assert.equal(normalizeLegacyImageContextMarkup(code, true), code);
-  assert.equal(normalizeLegacyImageContextMarkup(code, false), code);
-  assert.equal(normalizeLegacyImageContextMarkup("ordinary <input", true), "ordinary <input");
+  assert.equal(normalizeImageContextMarkup(code, true), code);
+  assert.equal(normalizeImageContextMarkup(code, false), code);
+  assert.equal(normalizeImageContextMarkup("ordinary <input", true), "ordinary <input");
 });
 
-test("renderChatMarkdown renders leaked legacy image XML through the safe image renderer", () => {
+test("renderChatMarkdown renders leaked image-context XML through the safe image renderer", () => {
   const renderer = createChatMarkdownRenderer({
     imageRenderer: ({ href, text }) => `<img src="${href}" alt="${text}">`,
     isValidImageUrl: (href) => href.startsWith("resource://"),

@@ -1,4 +1,8 @@
-/** Whether GET /knowledge/:id/spans returned a real trace (not legacy placeholder-only). */
+/**
+ * Whether GET /knowledge/:id/spans returned a real trace. Before a document's
+ * first processing attempt the handler answers with a synthesized tree of
+ * pending stages that has no span id and attempt 0; that one is not a trace.
+ */
 export function knowledgeSpansPayloadHasTrace(
   data: { trace?: { span_id?: string }; current_attempt?: number } | null | undefined,
 ): boolean {

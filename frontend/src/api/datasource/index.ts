@@ -85,25 +85,30 @@ export interface Resource {
 }
 
 // --- API calls ---
+//
+// The data source handlers answer with the resource itself, not the
+// { success, data } envelope most other endpoints use (the credentials
+// subresource below is the exception). A list can come back as null when it
+// is empty, hence the nullable array types.
 
 export function getConnectorTypes() {
   return get("/api/v1/datasource/types");
 }
 
 export function listDataSources(kbId: string) {
-  return get(`/api/v1/datasource?kb_id=${encodeURIComponent(kbId)}`);
+  return get<DataSource[] | null>(`/api/v1/datasource?kb_id=${encodeURIComponent(kbId)}`);
 }
 
 export function getDataSource(id: string) {
-  return get(`/api/v1/datasource/${id}`);
+  return get<DataSource>(`/api/v1/datasource/${id}`);
 }
 
 export function createDataSource(data: Partial<DataSource>) {
-  return post("/api/v1/datasource", data);
+  return post<DataSource>("/api/v1/datasource", data);
 }
 
 export function updateDataSource(id: string, data: Partial<DataSource>) {
-  return put(`/api/v1/datasource/${id}`, data);
+  return put<DataSource>(`/api/v1/datasource/${id}`, data);
 }
 
 export function deleteDataSource(id: string) {
@@ -124,14 +129,18 @@ export function validateCredentials(type: string, credentials: Record<string, an
 // space/node), which avoids traversing the whole tree up front.
 export function listResources(id: string, parentId?: string) {
   const query = parentId ? `?parent_id=${encodeURIComponent(parentId)}` : "";
-  return get(`/api/v1/datasource/${id}/resources${query}`, { timeout: 120000 });
+  return get<Resource[] | null>(`/api/v1/datasource/${id}/resources${query}`, { timeout: 120000 });
 }
 
 // resolveResourceAncestors returns the ExternalIDs of every parent that must be
 // expanded to reveal the given (possibly deeply nested) selections in a lazily
 // loaded picker. Used when editing a data source to restore an existing selection.
 export function resolveResourceAncestors(id: string, resourceIds: string[]) {
-  return post(`/api/v1/datasource/${id}/resource-ancestors`, { resource_ids: resourceIds }, { timeout: 120000 });
+  return post<{ ancestors: string[] | null }>(
+    `/api/v1/datasource/${id}/resource-ancestors`,
+    { resource_ids: resourceIds },
+    { timeout: 120000 },
+  );
 }
 
 export function triggerSync(id: string) {
@@ -147,7 +156,7 @@ export function resumeDataSource(id: string) {
 }
 
 export function getSyncLogs(id: string, limit = 20, offset = 0) {
-  return get(`/api/v1/datasource/${id}/logs?limit=${limit}&offset=${offset}`);
+  return get<SyncLog[] | null>(`/api/v1/datasource/${id}/logs?limit=${limit}&offset=${offset}`);
 }
 
 // ----------------------------------------------------------------------------
@@ -166,8 +175,10 @@ export async function putDataSourceCredentials(
   id: string,
   credentials: Record<string, unknown>,
 ): Promise<DataSourceCredentialsResponse> {
-  const response: any = await put(`/api/v1/datasource/${id}/credentials`, { credentials });
-  return (response.data ?? response) as DataSourceCredentialsResponse;
+  const response = await put<{ data: DataSourceCredentialsResponse }>(`/api/v1/datasource/${id}/credentials`, {
+    credentials,
+  });
+  return response.data;
 }
 
 export async function deleteDataSourceCredentials(id: string): Promise<void> {

@@ -406,11 +406,7 @@ const initChatModelSelection = () => {
   const lastPick = readLastChatModelID();
   const currentSelectedModel = settingsStore.conversationModels.selectedChatModelId;
   const initialSelection = lastPick || currentSelectedModel || "";
-  settingsStore.updateConversationModels({
-    summaryModelId: initialSelection,
-    selectedChatModelId: initialSelection,
-    rerankModelId: "",
-  });
+  settingsStore.updateConversationModels({ selectedChatModelId: initialSelection });
   if (!selectedModelId.value) {
     selectedModelId.value = initialSelection;
   }
@@ -421,7 +417,7 @@ const loadChatModels = async (force = false) => {
   if (modelsLoading.value) return;
   modelsLoading.value = true;
   try {
-    await chatResources.ensureChatModels(force);
+    await chatResources.ensureModels(force);
     ensureModelSelection();
   } catch (error) {
     console.error("Failed to load chat models:", error);
@@ -476,11 +472,7 @@ const handleModelChange = (value: string | number | Array<string | number> | und
   selectedModelId.value = val;
   showModelSelector.value = false;
 
-  settingsStore.updateConversationModels({
-    summaryModelId: val,
-    selectedChatModelId: val,
-    rerankModelId: "",
-  });
+  settingsStore.updateConversationModels({ selectedChatModelId: val });
 };
 
 const selectedModel = computed(() => {
@@ -667,10 +659,10 @@ const loadMentionItems = async (q: string, resetIndex = true, append = false) =>
     try {
       const tagResults = await Promise.all(
         tagSources.map(async (kb: any) => {
-          const res: any = await listKnowledgeTags(kb.id, { page: 1, page_size: 20, keyword: tagKeyword || undefined });
-          const payload = res?.data ?? res;
-          const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-          return list.map((tag: any) => ({
+          const res = await listKnowledgeTags(kb.id, { page: 1, page_size: 20, keyword: tagKeyword || undefined });
+          // The tag list is a page: { data: { data: [...], total, ... } }.
+          const list: Array<{ id: string; name: string }> = res.data?.data ?? [];
+          return list.map((tag) => ({
             id: tag.id,
             name: tag.name,
             type: "tag" as const,

@@ -6,12 +6,10 @@
  * no cross-namespace fallbacks — so one user's preferences cannot bleed
  * into another user's session.
  *
- * One-shot migration adopts pre-existing values into the current user's
- * namespace at login time:
- *   - Legacy un-namespaced keys (Yuheng_${suffix}) from earlier branch
- *     versions are inherited and removed.
- *   - The "anon" namespace (used while no user is logged in) is also
- *     adopted and cleared, so the next user to log in cannot inherit it.
+ * At login the "anon" namespace (written while nobody is logged in, e.g. a
+ * theme picked on the login page) is adopted into the user's namespace and
+ * cleared, so the choice carries over and the next user to log in cannot
+ * inherit it.
  */
 
 const PREFERENCE_SUFFIXES = ["theme", "font_sans", "font_mono", "font_size"] as const;
@@ -65,50 +63,38 @@ export function savePreference(suffix: string, value: string): void {
   safeSetItem(userKey(suffix), value);
 }
 
-let migratedForUser: string | null = null;
+let adoptedForUser: string | null = null;
 
 /**
- * Adopt legacy and anon preferences into the current user's namespace, then
- * remove the source keys. Idempotent per session per user — repeat calls for
- * the same userId are no-ops. Safe to call before the user is logged in
- * (it returns early when userId === "anon").
+ * Adopt the anon preferences into the current user's namespace, then remove
+ * the anon keys. A value the user already has wins over the anon one.
+ * Idempotent per session per user — repeat calls for the same userId are
+ * no-ops. Safe to call before the user is logged in (it returns early when
+ * userId === "anon").
  */
-export function migratePreferencesIntoUser(): void {
+export function adoptAnonPreferences(): void {
   const userId = readUserId();
   if (userId === "anon") return;
-  if (migratedForUser === userId) return;
-  migratedForUser = userId;
+  if (adoptedForUser === userId) return;
+  adoptedForUser = userId;
 
   for (const suffix of PREFERENCE_SUFFIXES) {
     const target = `Yuheng_${userId}_${suffix}`;
-    const targetExists = safeGetItem(target) !== null;
-
     const anonKey = `Yuheng_anon_${suffix}`;
-    const legacyKey = `Yuheng_${suffix}`;
-
-    if (!targetExists) {
-      const anonValue = safeGetItem(anonKey);
-      if (anonValue !== null) {
-        safeSetItem(target, anonValue);
-      } else {
-        const legacyValue = safeGetItem(legacyKey);
-        if (legacyValue !== null) {
-          safeSetItem(target, legacyValue);
-        }
-      }
+    const anonValue = safeGetItem(anonKey);
+    if (anonValue !== null && safeGetItem(target) === null) {
+      safeSetItem(target, anonValue);
     }
-
-    // Always clean up source keys so subsequent users cannot inherit them.
+    // Always clear the anon key so a later user cannot inherit it.
     safeRemoveItem(anonKey);
-    safeRemoveItem(legacyKey);
   }
 }
 
-/** Resets the per-session migration latch (used when the active user changes). */
-export function resetMigrationLatch(): void {
-  migratedForUser = null;
+/** Resets the per-session adoption latch (used when the active user changes). */
+export function resetAdoptionLatch(): void {
+  adoptedForUser = null;
 }
 
-// Run migration once at module load so the composables that read from
-// storage see post-migration values when initialising their refs.
-migratePreferencesIntoUser();
+// Adopt once at module load so the composables that read from storage see
+// the adopted values when initialising their refs.
+adoptAnonPreferences();

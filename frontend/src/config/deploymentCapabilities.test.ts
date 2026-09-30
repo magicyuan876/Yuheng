@@ -63,7 +63,7 @@ test("an extension feature is enabled, locked or unavailable", () => {
   assert.equal(extensionState(extensions, "acme.on"), "enabled");
   assert.equal(extensionState(extensions, "acme.locked"), "locked");
   assert.equal(extensionState(extensions, "acme.locked_no_reason"), "locked");
-  // A community build, an old backend and a failed probe all look like this.
+  // A community build and a failed probe both look like this.
   assert.equal(extensionState(extensions, "acme.absent"), "unavailable");
   assert.equal(extensionState({}, "acme.on"), "unavailable");
   // The fail-closed check is untouched: only "enabled" passes.

@@ -205,9 +205,7 @@ const clearWikiStatusProbes = () => {
 const fetchWikiStatusOnce = async () => {
   if (!kbId.value || !isWiki.value) return;
   try {
-    const res: any = await getWikiStats(kbId.value);
-    const data = res?.data || res;
-    if (!data) return;
+    const data = await getWikiStats(kbId.value);
     wikiStatus.value = {
       pendingTasks: data.pending_tasks || 0,
       isActive: !!data.is_active,
@@ -257,9 +255,9 @@ onUnmounted(() => {
 });
 const missingStorageEngine = computed(() => {
   if (!kbInfo.value || isFAQ.value) return false;
-  // storage_backend_id is authoritative; storage_provider_config.provider is a
-  // compatibility projection for older clients. Either being present means the
-  // KB has a bound storage instance and uploads should not be blocked.
+  // storage_backend_id names the bound storage instance; the backend also
+  // mirrors its provider into storage_provider_config. Either being present
+  // means uploads have somewhere to go and should not be blocked.
   if (kbInfo.value.storage_backend_id) return false;
   const spc = kbInfo.value.storage_provider_config;
   return !spc || !spc.provider;
@@ -329,8 +327,8 @@ const isOwner = computed(() => {
   if (!kbInfo.value) return false;
   const creatorId = (kbInfo.value as any).creator_id || "";
   const userId = authStore.user?.id || "";
-  // creator_id may be empty for legacy KBs created before PR 5; treat
-  // those as tenant-owned so the role gate applies (Admin+ can manage,
+  // creator_id is empty for a tenant-owned KB (created through an API
+  // key); nobody owns it, so the role gate applies (Admin+ can manage,
   // Viewer cannot).
   if (!creatorId) return false;
   return creatorId === userId;
@@ -1379,9 +1377,9 @@ const tryAutoOpenDocument = async () => {
   // drawer opens correctly while the page misleadingly remains at KB root.
   let target = card || ({ id: targetId } as KnowledgeCard);
   try {
-    const response: any = await getKnowledgeDetails(targetId);
+    const response = await getKnowledgeDetails(targetId);
     if (request !== autoOpenRequest) return;
-    const detail = response?.data || response;
+    const detail = response.data;
     if (detail && typeof detail === "object") {
       target = { ...target, ...detail, id: targetId } as KnowledgeCard;
       selectedFolderPath.value = detail.folder_path || ROOT_FOLDER_PATH;

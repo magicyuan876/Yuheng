@@ -115,8 +115,11 @@ export async function putWebSearchProviderCredentials(
   id: string,
   body: Partial<Record<WebSearchCredentialField, string>>,
 ): Promise<WebSearchCredentialsResponse> {
-  const response: any = await put(`/api/v1/web-search-providers/${id}/credentials`, body);
-  return (response.data ?? response) as WebSearchCredentialsResponse;
+  const response = await put<{ data: WebSearchCredentialsResponse }>(
+    `/api/v1/web-search-providers/${id}/credentials`,
+    body,
+  );
+  return response.data;
 }
 
 export async function deleteWebSearchProviderCredentialField(

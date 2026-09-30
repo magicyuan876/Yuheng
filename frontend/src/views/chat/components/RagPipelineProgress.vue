@@ -56,7 +56,7 @@
               >
                 <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
                   <component
-                    :is="agentToolIcons[step.iconName] ?? ClipboardPasteIcon"
+                    :is="step.icon"
                     class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
                   />
                   <span
@@ -218,7 +218,7 @@
                 >
                   <div class="action-title relative flex min-w-0 flex-[0_1_auto] items-center gap-3">
                     <component
-                      :is="agentToolIcons[step.iconName] ?? ClipboardPasteIcon"
+                      :is="step.icon"
                       class="action-title-icon text-placeholder absolute top-[3px] -left-[42px] h-[18px] w-[18px] shrink-0"
                     />
                     <span
@@ -304,26 +304,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Component } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import "@/components/css/chat-timeline-loading.css";
-import {
-  BrainIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CircleCheckIcon,
-  ClipboardPasteIcon,
-  CodeIcon,
-  DatabaseIcon,
-  FileSearchIcon,
-  GlobeIcon,
-  LightbulbIcon,
-  ListTodoIcon,
-  PaperclipIcon,
-  SearchIcon,
-  SquareTerminalIcon,
-} from "@lucide/vue";
-import { getAgentToolIconName } from "@/utils/agent-tool-icons";
+import { ChevronDownIcon, ChevronRightIcon, CircleCheckIcon, LightbulbIcon } from "@lucide/vue";
+import { getRagStepIcon } from "@/utils/rag-step-icon";
 import {
   getKnowledgeSearchSummaryHtml,
   getRagPipelineStepTitle,
@@ -334,23 +319,6 @@ import { RAG_RETRIEVAL_TOOL_NAMES, RAG_TIMELINE_TOOL_NAMES } from "@/utils/rag-p
 import { useChatReferencesDrawer } from "@/composables/useChatReferencesDrawer";
 import { buildReferenceSections } from "@/utils/referenceSources";
 import { createRagWaitController, getRagPipelineWaitKind, type RagWaitView } from "@/utils/rag-pipeline-state";
-
-/**
- * getAgentToolIconName still returns the TDesign icon names the agent
- * timeline was built with; this maps each one onto its lucide component.
- */
-const agentToolIcons: Record<string, Component> = {
-  "ai-search": BrainIcon,
-  internet: GlobeIcon,
-  "data-search": DatabaseIcon,
-  search: SearchIcon,
-  "file-search": FileSearchIcon,
-  task: ListTodoIcon,
-  attach: PaperclipIcon,
-  terminal: SquareTerminalIcon,
-  code: CodeIcon,
-  "file-paste": ClipboardPasteIcon,
-};
 
 const props = defineProps<{
   session?: {
@@ -440,7 +408,7 @@ const steps = computed(() => {
         id: String(event.tool_call_id || `${toolName}-${event.timestamp || 0}`),
         toolName,
         pending,
-        iconName: getAgentToolIconName(toolName, searchSource),
+        icon: getRagStepIcon(toolName, searchSource),
         title: getRagPipelineStepTitle(t, {
           tool_name: toolName,
           pending,

@@ -945,7 +945,7 @@ const credentialApi = computed<CredentialResourceApi<ModelCredentialField>>(() =
   };
 });
 
-// Initial credential metadata. ModelSettings.convertToLegacyFormat
+// Initial credential metadata. ModelSettings.toModelView
 // preserves `credentials` from the main ListModels response so the card
 // renders the correct "Configured" state on dialog open.
 const credentialMeta = computed(

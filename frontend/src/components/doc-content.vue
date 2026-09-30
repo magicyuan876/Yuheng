@@ -1321,15 +1321,7 @@ const getGeneratedQuestions = (item: any): GeneratedQuestion[] => {
   if (!item || !item.metadata) return [];
   try {
     const metadata = typeof item.metadata === "string" ? JSON.parse(item.metadata) : item.metadata;
-    const questions = metadata.generated_questions || [];
-    // 兼容旧格式（字符串数组）和新格式（对象数组）
-    return questions.map((q: string | GeneratedQuestion, index: number) => {
-      if (typeof q === "string") {
-        // 旧格式：字符串，生成临时ID
-        return { id: `legacy-${index}`, question: q };
-      }
-      return q;
-    });
+    return (metadata.generated_questions || []) as GeneratedQuestion[];
   } catch {
     return [];
   }
@@ -1694,12 +1686,6 @@ const deletingQuestion = ref<{ chunkIndex: number; questionId: string } | null>(
 const handleDeleteQuestion = async (item: any, chunkIndex: number, question: GeneratedQuestion) => {
   if (!item || !item.id) {
     MessagePlugin.error(t("common.error"));
-    return;
-  }
-
-  // 检查是否是旧格式数据（无法删除）
-  if (question.id.startsWith("legacy-")) {
-    MessagePlugin.warning(t("knowledgeBase.legacyQuestionCannotDelete"));
     return;
   }
 
@@ -2750,7 +2736,7 @@ const onDrawerPointerDownOutside = (event: CustomEvent<{ originalEvent: PointerE
                                       <div
                                         class="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/question:opacity-100 focus-within:opacity-100"
                                       >
-                                        <Tooltip v-if="canEditContent && !question.id.startsWith('legacy-')">
+                                        <Tooltip v-if="canEditContent">
                                           <TooltipTrigger as-child>
                                             <Button
                                               variant="ghost"
@@ -2764,9 +2750,7 @@ const onDrawerPointerDownOutside = (event: CustomEvent<{ originalEvent: PointerE
                                           </TooltipTrigger>
                                           <TooltipContent side="top">{{ $t("common.edit") }}</TooltipContent>
                                         </Tooltip>
-                                        <Popover
-                                          v-if="canDeleteGeneratedQuestion && !question.id.startsWith('legacy-')"
-                                        >
+                                        <Popover v-if="canDeleteGeneratedQuestion">
                                           <PopoverTrigger as-child>
                                             <Button
                                               variant="ghost"

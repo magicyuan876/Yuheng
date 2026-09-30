@@ -124,7 +124,6 @@ flowchart TB
 | `/s/:spaceId`、`/s/:spaceId/:short` | `docsPublicSpace` / `docsPublicSpacePage` | `src/views/docs/public/PublicSpace.vue`、`PublicDoc.vue` | 公开空间及其页面，匿名访问 |
 | `/onboarding/workspace` | `workspaceOnboarding` | `src/views/auth/WorkspaceOnboarding.vue` | 无租户用户的工作空间引导页（创建或等待被邀请），需要登录但不要求已有租户 |
 | `/join` | `joinOrganization` | 重定向 | 加入组织邀请链接，把 `?code=` 转成 `invite_code` 参数并跳到 `/platform/organizations` |
-| `/knowledgeBase` | `home` | `src/views/knowledge/KnowledgeBase.vue` | 知识库详情（历史遗留顶层路径） |
 | `/platform` | `Platform` | `src/views/platform/index.vue` | 平台主布局（左侧菜单 + 路由出口 + 全局设置模态 + 拖拽上传遮罩），默认重定向到知识库列表 |
 | `/platform/dev/markdown` | `markdownTest` | `src/views/dev/MarkdownTestPage.vue` | 仅开发模式（`import.meta.env.DEV`）注册的 Markdown 渲染测试页 |
 
@@ -142,11 +141,6 @@ flowchart TB
 | `/platform/docs/spaces/:slug/settings` | `docsSpaceSettings` | `src/views/docs/SpaceSettings.vue` | 空间设置 |
 | `/platform/organizations` | `organizationList` | `src/views/organization/OrganizationList.vue` | 组织列表：创建/加入组织、成员与共享资源管理（需部署能力 `organizations`） |
 | `/platform/settings` | `settings` | `src/views/settings/Settings.vue` | 设置中心（全屏模态形态），分区见下方「设置中心的分区与可见性」 |
-| `/platform/tenant` | — | 重定向 | 兼容旧路径 → `/platform/settings` |
-| `/platform/knowledge-search` | — | 重定向 | 旧全局搜索路径 → 知识库列表并通过 `?cmdk=` 打开全局命令面板（⌘K） |
-| `/platform/integrations` | — | 重定向 | → `/platform/settings`；旧的集成类 `section` / `tab`（IM、嵌入、API 等已移除的分区）由 `normalizeSettingsSection` 归一为 `general` |
-| `/platform/system`、`/platform/system/settings`、`/platform/system/admins` | —、`systemSettings`、`systemAdmins` | 重定向 | → `/platform/settings?section=system-global`，要求 `requiresSystemAdmin` |
-| `/platform/system/queues` | `systemQueues` | 重定向 | → `/platform/settings?section=runtime-queues` |
 
 在线文档模块的功能说明见[在线文档](../03-features/07-docs.md)。
 
@@ -228,8 +222,8 @@ flowchart TB
 | `stores/commandPalette.ts` | `useCommandPaletteStore` | 全局命令面板开关与查询；最近搜索按 (user, tenant) 作用域存储 |
 | `stores/organization.ts` | `useOrganizationStore` | 组织协作：组织列表、成员、共享知识库、加入申请与审核、角色升级 |
 | `stores/organizationState.ts` | 纯函数模块 | 组织列表 upsert / merge 等纯逻辑（配套单测 `organizationState.test.ts`） |
-| `stores/settings.ts` | `useSettingsStore` | 会话配置：选中的知识库/文件/标签、模型配置、Ollama 配置、Web 搜索开关等 |
-| `stores/settingsStorage.ts` | 纯函数模块 | 设置持久化的读取与克隆（配套 `settingsStorage.test.mjs`） |
+| `stores/settings.ts` | `useSettingsStore` | 对话输入栏配置：选中的知识库/文件/标签、当前对话模型、Ollama 地址、Web 搜索开关，以及进入历史会话时的快照/还原 |
+| `stores/settingsStorage.ts` | 纯函数模块 | `loadSettings`：从 `localStorage` 读取设置并铺在默认值之上，损坏时回退到默认值（配套 `settingsStorage.test.ts`） |
 | `stores/menu.ts` | `useMenuStore` | 左侧导航菜单：新建对话、知识库、在线文档（需 `docs` 能力）、组织、设置、退出 |
 | `stores/knowledge.ts` | `knowledgeStore` | 知识卡片列表与总数（轻量） |
 | `stores/ui.ts` | `useUIStore` | 全局 UI 状态：设置模态、知识库编辑模态、手工文档编辑器、侧栏折叠等 |
@@ -265,7 +259,7 @@ flowchart TB
 | `api/datasource/` | 数据源接入 |
 | `api/initialization/` | 知识库初始化与模型检测 |
 | `api/system/` | 系统信息、部署能力、上传上限、解析引擎、存储引擎状态、系统管理接口 |
-| `api/web-search.ts` / `api/web-search-provider.ts` | Web 搜索及 provider 配置 |
+| `api/web-search-provider.ts` | Web 搜索 provider 配置 |
 | `api/wiki/` | 知识库 Wiki |
 | `api/message-suggestion.ts` | 推荐问题 |
 | `api/user-favorites.ts` | 用户收藏（知识库） |
@@ -299,7 +293,7 @@ RAG 流水线的进度展示（`views/chat/components/RagPipelineProgress.vue`�
 
 - **主题模式**：`frontend/src/composables/useTheme.ts` 提供 `light | dark | system` 三态，在 `document.documentElement` 上设置 `theme-mode` 属性；`system` 模式跟随 `prefers-color-scheme`。
 - **CSS 变量**：`frontend/src/assets/theme/theme.css` 以 TDesign token 体系（`--td-brand-color-*`、`--td-bg-color-*`、`--td-text-color-*` 等）分别定义 `:root[theme-mode="light"]` 与 `:root[theme-mode="dark"]` 两套变量；Tailwind 的语义 token 桥接到这些变量，所以两套样式栈同步换肤。
-- **偏好持久化**：主题与字体偏好通过 `frontend/src/composables/preferenceStorage.ts` 按用户 id 命名空间存入 `localStorage`，登录/登出/切换账号时由 `stores/auth.ts` 触发重载。
+- **偏好持久化**：主题与字体偏好通过 `frontend/src/composables/preferenceStorage.ts` 按用户 id 命名空间存入 `localStorage`；登录前写下的偏好（`anon` 命名空间）在登录时并入该用户并清除。登录/登出/切换账号时由 `stores/auth.ts` 触发重载。
 - **字体**：`frontend/src/composables/useFont.ts` 管理界面字体，`main.ts` 启动时 `initTheme()` + `initFont()`。
 
 ## 开发、测试与质量门槛

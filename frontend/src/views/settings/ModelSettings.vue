@@ -360,12 +360,13 @@ const backendTypeToModelType: Record<string, ModelType> = {
   ASR: "asr",
 };
 
-// 将后端模型格式转换为旧的前端格式（附带 _modelType 便于渲染）
+// Maps a backend model onto the camelCase shape the model cards and the editor
+// dialog work with, tagged with _modelType for the type filter.
 // apiKey is always blank here: the server's main GET response does not
 // include it (see internal/handler/dto/model.go — ModelParametersDTO omits
 // secret fields). Credential read/write happens inside the editor dialog
 // via the dedicated /credentials subresource.
-function convertToLegacyFormat(model: ModelConfig) {
+function toModelView(model: ModelConfig) {
   return {
     id: model.id!,
     name: model.name,
@@ -394,16 +395,16 @@ function convertToLegacyFormat(model: ModelConfig) {
 }
 
 // 平铺 + 过滤
-const allLegacyModels = computed(() => allModels.value.map(convertToLegacyFormat));
+const modelViews = computed(() => allModels.value.map(toModelView));
 const filteredModels = computed(() => {
-  if (activeTypeFilter.value === "all") return allLegacyModels.value;
-  return allLegacyModels.value.filter((m) => m._modelType === activeTypeFilter.value);
+  if (activeTypeFilter.value === "all") return modelViews.value;
+  return modelViews.value.filter((m) => m._modelType === activeTypeFilter.value);
 });
 
-const countByType = (type: ModelType) => allLegacyModels.value.filter((m) => m._modelType === type).length;
+const countByType = (type: ModelType) => modelViews.value.filter((m) => m._modelType === type).length;
 
 const typeTabs = computed(() => [
-  { value: "all" as FilterType, label: `${t("common.all")}(${allLegacyModels.value.length})` },
+  { value: "all" as FilterType, label: `${t("common.all")}(${modelViews.value.length})` },
   { value: "chat" as FilterType, label: `${t("modelSettings.typeShort.chat")}(${countByType("chat")})` },
   {
     value: "embedding" as FilterType,

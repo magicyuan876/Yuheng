@@ -158,7 +158,6 @@ export interface ParserEngineConfig {
   mineru_enable_formula?: boolean | null;
   mineru_enable_table?: boolean | null;
   mineru_parse_method?: MinerUParseMethod;
-  mineru_enable_ocr?: boolean | null;
   mineru_language?: string;
   // MinerU 云 API 参数
   mineru_cloud_model?: string;

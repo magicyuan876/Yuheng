@@ -199,9 +199,8 @@ const computeStatus = (item: KnowledgeItem): StatusInfo => {
   if (item.parse_status === "draft") {
     return { label: t("knowledgeBase.statusDraft"), theme: "warning" };
   }
-  // Legacy completed+summary_pending path: kept as a defensive fallback
-  // for rows that bypassed finalizing (no enrichment configured, or
-  // upgraded mid-flight from a pre-finalizing build).
+  // A completed document whose summary is being generated again (a manual
+  // regenerate, or a queued retry after a failed attempt) keeps a spinner.
   if (
     item.parse_status === "completed" &&
     (item.summary_status === "pending" || item.summary_status === "processing")

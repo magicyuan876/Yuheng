@@ -37,11 +37,13 @@ const api = vi.hoisted(() => ({
   deleteWikiPage: vi.fn(),
 }));
 
+// The wiki handlers answer with the resource itself, not an envelope, so the
+// mocks resolve to bare shapes.
 vi.mock("@/api/wiki", () => {
-  const empty = async () => ({ data: {} });
+  const empty = async () => ({});
   return {
-    listWikiPages: vi.fn(async () => ({ data: { pages: [], total: 0 } })),
-    listWikiFolders: vi.fn(async () => ({ data: [] })),
+    listWikiPages: vi.fn(async () => ({ pages: [], total: 0 })),
+    listWikiFolders: vi.fn(async () => ({ parent_id: "", folders: [] })),
     createWikiFolder: vi.fn(empty),
     updateWikiFolder: vi.fn(empty),
     deleteWikiFolder: vi.fn(empty),
@@ -53,7 +55,7 @@ vi.mock("@/api/wiki", () => {
     getWikiIndex: vi.fn(async () => {
       throw new Error("no index");
     }),
-    getWikiGraph: vi.fn(empty),
+    getWikiGraph: vi.fn(async () => ({ nodes: [], edges: [], meta: { mode: "overview" } })),
     getWikiStats: api.getWikiStats,
     searchWikiPages: api.searchWikiPages,
     lintWiki: api.lintWiki,
@@ -104,10 +106,10 @@ async function searchAndOpenHit() {
 }
 
 beforeEach(() => {
-  api.searchWikiPages.mockResolvedValue({ data: { pages: [page] } });
-  api.getWikiPage.mockResolvedValue({ data: page });
-  api.getWikiStats.mockResolvedValue({ data: { pending_tasks: 0, is_active: false } });
-  api.deleteWikiPage.mockResolvedValue({ data: {} });
+  api.searchWikiPages.mockResolvedValue({ pages: [page] });
+  api.getWikiPage.mockResolvedValue(page);
+  api.getWikiStats.mockResolvedValue({ pending_tasks: 0, is_active: false });
+  api.deleteWikiPage.mockResolvedValue({});
 });
 
 afterEach(() => {

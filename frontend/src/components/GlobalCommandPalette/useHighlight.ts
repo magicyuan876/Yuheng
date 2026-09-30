@@ -1,10 +1,8 @@
 /**
  * Safely highlight query keywords inside a plain-text string by wrapping
  * matches in <mark> tags. The input text is HTML-escaped first so the output
- * is safe to bind with v-html.
- *
- * Extracted from the legacy KnowledgeSearch.vue so it can be reused by the
- * global command palette and KB-scoped search bar.
+ * is safe to bind with v-html. Shared by the global command palette and the
+ * KB-scoped search bar.
  */
 export function escapeHtml(str: string): string {
   return (str || "")

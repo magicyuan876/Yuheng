@@ -33,7 +33,7 @@ async function fetchLogs(reset = true) {
   try {
     const offset = reset ? 0 : logs.value.length;
     const res = await getSyncLogs(props.dataSourceId, pageSize, offset);
-    const items = res?.data || res || [];
+    const items = res ?? [];
     logs.value = reset ? items : [...logs.value, ...items];
     hasMore.value = items.length === pageSize;
   } catch {

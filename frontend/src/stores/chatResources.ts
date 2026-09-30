@@ -120,11 +120,6 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
     });
   }
 
-  /** @deprecated 使用 ensureModels；保留别名供对话输入栏调用 */
-  async function ensureChatModels(force = false): Promise<void> {
-    return ensureModels(force);
-  }
-
   /** 并行预取对话输入栏及列表页常用的空间级资源 */
   async function prefetchChatInput(force = false): Promise<void> {
     const orgStore = useOrganizationStore();
@@ -203,7 +198,6 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
     ensureKnowledgeBases,
     ensureModels,
     ensureWebSearchProviders,
-    ensureChatModels,
     prefetchChatInput,
     fetchKnowledgeBaseById,
     invalidateKnowledgeBaseDetail,

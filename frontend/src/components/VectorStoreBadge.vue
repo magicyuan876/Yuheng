@@ -32,9 +32,9 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
-// When backend omits the source (e.g. legacy KB row from a cached list
-// endpoint that does not enrich), treat it as env so the badge renders
-// gracefully instead of going blank.
+// A caller without a source (the KB detail has not loaded yet, or the
+// response carried no store view) gets the env look rather than a blank
+// badge: a KB with no bound store runs on the env stores.
 const effectiveSource = computed<VectorStoreSource>(() => props.source || "env");
 
 const isUnavailable = computed(() => props.status === "unavailable" || effectiveSource.value === "unavailable");

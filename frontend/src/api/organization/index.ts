@@ -8,12 +8,9 @@ export interface Organization {
   avatar?: string;
   owner_id: string;
   /**
-   * Persisted owner tenant of the organization (Plan 3, migration 000046).
-   * After Plan 3, member ownership is tenant-keyed: identifying the
-   * "owner row" in the members list means matching member.tenant_id
-   * against owner_tenant_id (NOT member.user_id against owner_id).
-   * May be 0 on pre-000046 legacy rows; in that case fall back to
-   * owner_id for display only.
+   * Owner workspace of the organization. Membership is workspace-keyed:
+   * the "owner row" in the members list is the one whose tenant_id equals
+   * owner_tenant_id (owner_id is only the user who created the org).
    */
   owner_tenant_id: number;
   invite_code?: string;
@@ -40,16 +37,14 @@ export interface Organization {
  * that row for display/audit, not the member identity itself.
  *
  * - `tenant_id` + `tenant_name` are the canonical member identity.
- * - `representative_user_id` is the post-Plan-3 explicit alias; `user_id`
- *   is kept for backward compatibility and points at the same value.
+ * - `representative_user_id` is the user attached to the row.
  * - Two users belonging to the *same* tenant produce a single row here
  *   (UNIQUE(org_id, tenant_id)); the rep is the user who first brought
  *   the tenant in.
  */
 export interface OrganizationMember {
   id: string;
-  user_id: string;
-  representative_user_id?: string;
+  representative_user_id: string;
   username: string;
   email: string;
   avatar?: string;
@@ -227,13 +222,10 @@ export interface RequestRoleUpgradeRequest {
  * - `tenant_id` is the preferred identity for the invitee.
  * - `representative_user_id` is optional metadata for the OTM row's
  *   display/audit; when omitted the server picks a sensible default.
- * - `user_id` is kept for backward compatibility with pre-Plan-3 callers
- *   (the server resolves the user's tenant if `tenant_id` is unset).
  */
 export interface InviteMemberRequest {
-  tenant_id?: number;
+  tenant_id: number;
   representative_user_id?: string;
-  user_id?: string;
   role: "admin" | "editor" | "viewer";
 }
 
@@ -634,19 +626,6 @@ export async function searchTenantsForInvite(
   } catch (error: any) {
     return { success: false, message: error.message || "Failed to search tenants" };
   }
-}
-
-/**
- * @deprecated Use `searchTenantsForInvite`. Kept for callers that haven't
- * migrated yet; the backend serves the tenant-grouped shape from the
- * legacy `/search-users` path as well.
- */
-export async function searchUsersForInvite(
-  orgId: string,
-  query: string,
-  limit: number = 10,
-): Promise<ApiResponse<TenantInviteCandidate[]>> {
-  return searchTenantsForInvite(orgId, query, limit);
 }
 
 /**

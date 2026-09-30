@@ -183,8 +183,8 @@ onMounted(async () => {
     if (resp.success) allStores.value = resp.data || [];
   } catch (e) {
     // Graceful degradation: if vector-store listing fails the dropdown
-    // simply renders only the "System default" entry, which is exactly
-    // the legacy behavior. The KB editor remains usable.
+    // simply renders only the "System default" entry, which is what a
+    // tenant without custom stores sees anyway. The KB editor remains usable.
     console.warn("[KBVectorStoreSettings] failed to load vector stores", e);
   } finally {
     loading.value = false;

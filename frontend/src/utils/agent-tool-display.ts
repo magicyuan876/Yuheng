@@ -51,25 +51,6 @@ export function getQueryText(args: unknown): string {
   return Array.from(new Set(queries)).join("，");
 }
 
-export function getWikiPageText(args: unknown): string {
-  if (!args) return "";
-
-  let parsedArgs = args;
-  if (typeof parsedArgs === "string") {
-    try {
-      parsedArgs = JSON.parse(parsedArgs);
-    } catch {
-      return "";
-    }
-  }
-
-  if (!parsedArgs || typeof parsedArgs !== "object") return "";
-
-  const record = parsedArgs as Record<string, unknown>;
-  const slugs = [...collectQueryStrings(record.slug), ...collectQueryStrings(record.slugs)];
-  return Array.from(new Set(slugs)).join("、");
-}
-
 export function getRetrievalSearchSource(
   args: unknown,
   toolData?: Record<string, unknown> | null,
@@ -183,7 +164,7 @@ export function getRagPipelineStepTitle(t: ComposerTranslation, event: RagPipeli
     return pending ? t("agentStream.toolStatus.queryUnderstanding") : t("agentStream.toolStatus.queryUnderstandDone");
   }
 
-  if (toolName === "knowledge_search" || toolName === "search_knowledge") {
+  if (toolName === "knowledge_search") {
     const searchSource = getRetrievalSearchSource(event.arguments, event.tool_data);
     const labels = getRetrievalStatusKeys(searchSource, event.success === false);
     if (pending) {

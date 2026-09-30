@@ -814,7 +814,7 @@
                                     >{{ $t("organization.owner") }}</span
                                   >
                                   <span
-                                    v-if="row.user_id === authStore.currentUserId"
+                                    v-if="row.representative_user_id === authStore.currentUserId"
                                     class="bg-primary text-primary-foreground inline-flex h-4 shrink-0 items-center rounded-[3px] px-[5px] text-[10px] font-medium"
                                     >{{ $t("common.me") }}</span
                                   >
@@ -1730,19 +1730,9 @@ const memberSecondaryLabel = (m: OrganizationMember): string => {
   return "";
 };
 
-// Owner identification is tenant-keyed after Plan 3 (#1303): the org's
-// pinned owner_tenant_id (migration 000046) is the authority on which
-// row in the per-tenant members list represents the owner. Falling
-// back to owner_id (user-id) only matters for legacy rows where
-// owner_tenant_id wasn't backfilled — in that case the old per-user
-// rule is still better than nothing.
-const isOwnerMember = (member: OrganizationMember): boolean => {
-  const ownerTenantID = orgInfo.value?.owner_tenant_id;
-  if (ownerTenantID && ownerTenantID > 0) {
-    return member.tenant_id === ownerTenantID;
-  }
-  return member.user_id === orgInfo.value?.owner_id;
-};
+// Owner identification is workspace-keyed: the org's owner_tenant_id names
+// the row in the per-workspace members list that represents the owner.
+const isOwnerMember = (member: OrganizationMember): boolean => member.tenant_id === orgInfo.value?.owner_tenant_id;
 
 const inviteLink = computed(() => {
   if (!inviteCode.value) return "";

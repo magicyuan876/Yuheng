@@ -859,9 +859,9 @@ const initialStorageProvider = ref<string>("");
 const tenantDefaultStorageProvider = ref("local");
 const initialIndexingStrategy = ref<any>(null);
 const dsCount = ref(0);
-// Identifier of the user who created this KB. Empty for older rows
-// that predate per-KB ownership tracking; those KBs have no "owner" and
-// only tenant Admin+ can mutate their share settings.
+// Identifier of the user who created this KB. Empty for a KB created
+// through an API key; such a KB has no "owner" and only tenant Admin+ can
+// mutate its share settings.
 const kbCreatorId = ref<string>("");
 const kbTenantId = ref<number>(0);
 
@@ -1196,8 +1196,8 @@ const loadKBData = async (kbIdOverride?: string) => {
         enableParentChild: kb.chunking_config?.enable_parent_child || false,
         parentChunkSize: kb.chunking_config?.parent_chunk_size || 4096,
         childChunkSize: kb.chunking_config?.child_chunk_size || 384,
-        // Existing KBs without strategy field render as empty (= legacy behavior).
-        // The user has to actively pick a value to opt in to the new tiers.
+        // An unset strategy renders as empty, which the backend treats as the
+        // classic recursive splitter; the user picks a tier to opt in.
         strategy: kb.chunking_config?.strategy || "",
         tokenLimit: kb.chunking_config?.token_limit || 0,
         languages: kb.chunking_config?.languages || [],
@@ -1562,8 +1562,9 @@ const buildSubmitData = () => {
     language: formData.value.asrConfig?.language || "",
   };
 
-  // storage_backend_id is authoritative. Keep provider projection for old clients
-  // and for rolling upgrades where a node has not picked up the new schema yet.
+  // storage_backend_id is authoritative. The provider still goes along because
+  // the backend falls back to it when no instance id is sent (see
+  // applyAndValidateStorageBackend in internal/application/service/knowledgebase.go).
   if (formData.value.storageBackendId) {
     data.storage_backend_id = formData.value.storageBackendId;
   }

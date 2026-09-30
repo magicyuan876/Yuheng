@@ -7,32 +7,18 @@ type AttachmentParsingEvent = {
   tool_data?: Record<string, unknown> | null;
 };
 
+/**
+ * The parsed / skipped counts of an attachment step. The backend reports them
+ * in tool_data; a step without them (image analysis) counts as nothing parsed.
+ */
 export function resolveAttachmentParsingCounts(event: AttachmentParsingEvent): {
   parsed: number;
   skipped: number;
 } {
   const toolData = event.tool_data;
-  if (toolData && toolData.parsed_count !== undefined) {
-    return {
-      parsed: Number(toolData.parsed_count) || 0,
-      skipped: Number(toolData.skipped_count) || 0,
-    };
-  }
-
-  return parseAttachmentOutput(event.output);
-}
-
-function parseAttachmentOutput(output?: string): { parsed: number; skipped: number } {
-  if (!output) return { parsed: 0, skipped: 0 };
-
-  const parsedMatch = output.match(/已解析\s*(\d+)\s*个附件/);
-  const skippedMatch = output.match(/(\d+)\s*个未完成已跳过/);
-  const parsedEnMatch = output.match(/Parsed\s*(\d+)\s*attachment/i);
-  const skippedEnMatch = output.match(/(\d+)\s*skipped/i);
-
   return {
-    parsed: Number(parsedMatch?.[1] ?? parsedEnMatch?.[1] ?? 0) || 0,
-    skipped: Number(skippedMatch?.[1] ?? skippedEnMatch?.[1] ?? 0) || 0,
+    parsed: Number(toolData?.parsed_count) || 0,
+    skipped: Number(toolData?.skipped_count) || 0,
   };
 }
 
