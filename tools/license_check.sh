@@ -14,11 +14,12 @@
 #   tools/license_check.sh deps         # just the dependency license scan
 #   tools/license_check.sh notices      # regenerate THIRD_PARTY_NOTICES.md's lists
 #
-# deps and notices take optional section names (go, npm-frontend, npm-collab,
-# python-docreader, python-mcp-server) to limit the run to those ecosystems.
-# A section whose scan cannot run here (no module cache, no node_modules, no
-# uv) is skipped with a warning. deps also fails when THIRD_PARTY_NOTICES.md no
-# longer matches what it scanned; the fix is always `notices`, then commit.
+# deps and notices take optional section names (go, cargo-anydoc, npm-frontend,
+# npm-collab, python-docreader, python-mcp-server) to limit the run to those
+# ecosystems. A section whose scan cannot run here (no module cache, no
+# node_modules, no uv, crates.io unreachable with a cold cache) is skipped with
+# a warning. deps also fails when THIRD_PARTY_NOTICES.md no longer matches
+# what it scanned; the fix is always `notices`, then commit.
 #
 # Exit codes: 0 clean, 1 a check failed, 2 the script could not run a check.
 
@@ -157,11 +158,12 @@ DENIED_RE='GPL|AGPL|LGPL|SSPL|Elastic|Business Source|BUSL|Commons Clause'
 
 # One section of THIRD_PARTY_NOTICES.md per scanned ecosystem; the names are the
 # ones in its GENERATED markers and in tools/licensescan/render_notices.py.
-ALL_SECTIONS=(go npm-frontend npm-collab python-docreader python-mcp-server)
+ALL_SECTIONS=(go cargo-anydoc npm-frontend npm-collab python-docreader python-mcp-server)
 
 label() {
   case "$1" in
     go)                echo "Go" ;;
+    cargo-anydoc)      echo "Rust crates (anydoc-go)" ;;
     npm-frontend)      echo "npm (frontend)" ;;
     npm-collab)        echo "npm (collab)" ;;
     python-docreader)  echo "Python (docreader)" ;;
@@ -178,6 +180,19 @@ python_dockerfile() {
     mcp-server) echo mcp-server/Dockerfile ;;
   esac
 }
+
+# The lockfile each Cargo section reads. Its crates are statically linked into
+# the app binary through the vendored Go bindings (the `anydoc` build tag).
+cargo_lockfile() {
+  case "$1" in
+    anydoc) echo third_party/anydoc-go/Cargo.lock ;;
+  esac
+}
+
+# Where scan_cargo.py keeps crates.io's answers. They describe published crate
+# versions, which never change, so the cache is safe to keep indefinitely; CI
+# restores it with actions/cache.
+CARGO_CACHE=${LICENSESCAN_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/yuheng-licensescan}/cargo
 
 # scan_section NAME DIR — run one ecosystem's scanner, leaving DIR/NAME.json
 # (for render_notices.py) and DIR/NAME.txt (for report). Returns 0 when the scan
@@ -197,6 +212,24 @@ scan_section() {
       { "$PY" tools/licensescan/collect_gomods.py "$ROOT" "$dir/gomods.json" \
           && "$PY" tools/licensescan/scan_go.py --modcache "$cache" --repo "$ROOT" \
                "$dir/gomods.json" "$json"; } > "$txt" 2>&1 || status=$?
+      ;;
+    cargo-*)
+      # No Rust toolchain needed: scan_cargo.py reads the lockfile and asks
+      # crates.io, caching every answer. It needs tomllib (Python 3.11+).
+      if ! "$PY" -c 'import tomllib' 2>/dev/null; then
+        warn "$name: $PY has no tomllib (Python 3.11+ needed); skipping"
+        return 3
+      fi
+      "$PY" tools/licensescan/scan_cargo.py --lockfile "$(cargo_lockfile "${name#cargo-}")" \
+          --cache-dir "$CARGO_CACHE" "$json" > "$txt" 2>&1 || status=$?
+      # Unreachable registry, cold cache: on a developer's machine that is "cannot
+      # run here", like a missing node_modules. In CI it is a failure, or an
+      # outage would pass the gate without checking anything.
+      if (( status == 3 )) && [[ -z ${CI:-} ]]; then
+        warn "$name: crates.io unreachable and $CARGO_CACHE is cold; skipping"
+        sed 's/^/      /' "$txt"
+        return 3
+      fi
       ;;
     npm-*)
       local project=${name#npm-}
@@ -291,6 +324,10 @@ generate_notices() {
 # A disjunction like '(MIT OR GPL-3.0-or-later)' is not a copyleft dependency:
 # the licensee picks. Only fail when every option is copyleft, and record the
 # elections in THIRD_PARTY_NOTICES.md so the choice is written down somewhere.
+# An expression that also has an AND is not read as a choice at all: in
+# '(MIT OR Apache-2.0) AND LGPL-2.1' the LGPL term applies whatever is elected,
+# and crates.io serves compound expressions like that routinely. Such a line
+# fails, and a human either proves it harmless or lists it as an exception.
 # MPL counts as an acceptable option: its copyleft is per file, and a covered
 # file used unmodified obliges nothing an MIT distribution cannot meet (this is
 # how `tld`'s MPL-1.1 OR GPL OR LGPL is elected; NOTICE_AUDIT.md §2).
@@ -330,7 +367,7 @@ report() {
     lic=${line##* -> }
     lic=${lic%% (file: *}
     [[ $lic =~ $DENIED_RE ]] || continue
-    if [[ $lic == *' OR '* ]] && [[ $lic =~ $PERMISSIVE_RE ]]; then
+    if [[ $lic == *' OR '* && $lic != *' AND '* ]] && [[ $lic =~ $PERMISSIVE_RE ]]; then
       continue   # dual-licensed; a permissive option exists
     fi
     if is_known_exception "$line"; then

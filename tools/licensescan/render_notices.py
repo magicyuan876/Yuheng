@@ -22,10 +22,10 @@ diff and the exit status is 1, which is how tools/license_check.sh fails CI when
 a dependency change lands without the notices.
 
 Sections are rendered one at a time, so a scan that can only run in some
-environment (the Python ones need uv, the npm ones an installed tree) updates or
-verifies its own section and leaves the rest of the file alone. The output is
-deterministic -- rows sorted, ties broken by name -- so rendering twice from
-the same tree changes nothing.
+environment (the Python ones need uv, the npm ones an installed tree, the Cargo
+one crates.io or a warm cache) updates or verifies its own section and leaves
+the rest of the file alone. The output is deterministic -- rows sorted, ties
+broken by name -- so rendering twice from the same tree changes nothing.
 """
 import argparse
 import difflib
@@ -38,6 +38,7 @@ from collections import Counter
 # section name -> (scanner kind, noun for the summary column, noun for the list).
 SECTIONS = {
     "go": ("go", "Modules", "Module"),
+    "cargo-anydoc": ("cargo", "Crates", "Crate"),
     "npm-frontend": ("npm", "Packages", "Package"),
     "npm-collab": ("npm", "Packages", "Package"),
     "python-docreader": ("python", "Distributions", "Distribution"),
@@ -145,7 +146,47 @@ def python_rows(section, scan, used):
     return source, rows
 
 
-RENDERERS = {"go": go_rows, "npm": npm_rows, "python": python_rows}
+# What a crate is for the published images, when it is not simply linked in.
+# scan_cargo.py explains how each role is established.
+CARGO_ROLES = {
+    "linked": None,
+    "build": "build-time only",
+    "other-targets": "not built for Linux",
+}
+
+
+def cargo_rows(section, scan, used):
+    rows = []
+    for r in scan["rows"]:
+        text = annotate(section, r["name"], r["license"], used)
+        if text is None:
+            if r["license"] == "NOT-RECORDED":
+                text = f"UNRESOLVED ({r['source']} source; crates.io has no record of this build)"
+            else:
+                text = r["license"]
+        notes = []
+        if r["source"] == "patch":
+            notes.append("built from a patched copy of the published crate")
+        role = CARGO_ROLES[r["role"]]
+        if role and r["platforms"]:
+            role += f" on {', '.join(r['platforms'])}"
+        elif r["platforms"]:
+            role = f"linked on {', '.join(r['platforms'])} only"
+        if role:
+            notes.append(role)
+        if notes:
+            text += f" ({'; '.join(notes)})"
+        rows.append((r["name"], r["version"], text))
+    meta = scan["meta"]
+    platforms = " and ".join(meta["platforms"])
+    source = (f"Every crate `{meta['lockfile']}` pins, except `{meta['root']}` itself (see Bundled assets), with "
+              "the license each crate version declares on crates.io. Unmarked crates are linked into the static "
+              f"library for {platforms}; *build-time only* crates run while it is built, and *not built for "
+              "Linux* crates are locked for other targets only.")
+    return source, rows
+
+
+RENDERERS = {"go": go_rows, "cargo": cargo_rows, "npm": npm_rows, "python": python_rows}
 
 
 def render(section, scan, used):

@@ -96,7 +96,7 @@ detection.
 | `lightningcss` (npm, 12 entries with its platform binaries) | MPL-2.0; arrived with Tailwind v4 as its CSS compiler | Build-time only and used unmodified; nothing MPL-covered is in the shipped bundle. Recorded in THIRD_PARTY_NOTICES.md. |
 | `@esbuild/*` 0.25.6 binaries, `fsevents` (npm) | Platform-specific packages whose license `frontend/package-lock.json` does not record; the generator reads platform-specific licenses from the lockfile only (so the list is the same on every OS) and shows them as UNRESOLVED | All are MIT per their own `package.json`, and build/dev-time only; recorded in THIRD_PARTY_NOTICES.md. A future lockfile refresh that records the field clears them. |
 | `pypdfium2` (Python, docreader) | Declares "BSD-3-Clause, Apache-2.0, dependency licenses": the wheel bundles a PDFium build with FreeType, ICU, libjpeg-turbo, libpng, libtiff, Little CMS, OpenJPEG, zlib, abseil and others | All permissive; texts ship in the wheel's `dist-info/licenses/`. FreeType is dual FTL / GPL-2.0 — FTL elected, recorded in THIRD_PARTY_NOTICES.md. |
-| `third_party/anydoc-go/` static libraries | The vendored Go bindings link `libanydoc_go`, a Rust library built from the vendored crate; its `Cargo.lock` resolves 168 crates, and no scanner covers Cargo | Scan the crate licenses (e.g. `cargo about` / `cargo deny` in the upstream checkout) before a release, and add what it finds to the Bundled assets row. |
+| `third_party/anydoc-go/` static libraries | The vendored Go bindings link `libanydoc_go`, a Rust library built from the vendored crate; its `Cargo.lock` pins 168 packages, and no scanner covered Cargo | **Resolved 2026-09-30:** `scan_cargo.py` (§5) scans the lockfile and THIRD_PARTY_NOTICES.md lists every crate. Nothing denied. All but four crates offer MIT, two of them with a permissive term that applies alongside it (`encoding_rs` BSD-3-Clause, `unicode-ident` Unicode-3.0); of the four, `zlib-rs` (Zlib), `zopfli` (Apache-2.0) and `ryu` (Apache-2.0 OR BSL-1.0; BSL-1.0 elected) are permissive, and `cbindgen` is MPL-2.0 but build-time only, generating the C header. `r-efi` offers LGPL-2.1 next to MIT and Apache-2.0 and is UEFI-only. Elections recorded in THIRD_PARTY_NOTICES.md. |
 | mcp-server image | `mcp-server/Dockerfile` installs `requirements.txt` (version ranges) with pip, not `uv.lock`, so the image can resolve other versions than the ones THIRD_PARTY_NOTICES.md lists | Build the image from the lock (`uv export --frozen --no-dev`, as docreader does) so the notices describe what ships. |
 | `packages/dsh-yuheng`, `packages/docs-schema`, `website-docs` npm trees | Not scanned | Scan before publishing anything from those directories. |
 
@@ -174,8 +174,8 @@ in this tree — every Apache-2.0 dependency is consumed unmodified from its
 registry — so no per-file change notices are required.
 
 **MPL-2.0 §3.2**: likewise, no MPL-2.0 covered file is modified. The MPL
-components (`certifi`, `dompurify`, `go-sql-driver/mysql`, `lightningcss`,
-`tld`) are used as published;
+components (`cbindgen`, `certifi`, `dompurify`, `go-sql-driver/mysql`,
+`lightningcss`, `tld`) are used as published;
 their sources remain available at the upstream URLs recorded in
 THIRD_PARTY_NOTICES.md.
 
@@ -195,6 +195,23 @@ ecosystem, from `tools/licensescan/`, and each writes JSON:
   signatures; submodule paths (`.../v18`, `.../lib/linux-arm64`) fall back to the
   repository root's license. A module of this repository takes the license
   `NOTICE` declares.
+* **Cargo** (`scan_cargo.py`) — the package list is `third_party/anydoc-go/Cargo.lock`,
+  the lockfile `scripts/build-anydoc-lib.sh` builds with `--locked`. Each crate
+  version's `license` expression is read from the crates.io API, and its
+  dependency kinds and targets from the crates.io index, whose checksum must
+  match the lockfile's; no Rust toolchain is needed, and every answer is cached
+  per name@version, since a published version never changes. Like the npm scan,
+  the list is the whole lockfile, build tooling and other platforms' crates
+  included, so a copyleft crate anywhere in it fails the gate; each row also
+  says whether the crate is linked into the library for linux/amd64 and
+  linux/arm64 (the targets the image builds, `cfg(...)` predicates evaluated for
+  each), only compiled to run at build time (`cbindgen` and build scripts), or
+  not built for Linux at all (the `windows-*` family, wasm, UEFI). Proc-macro
+  crates count as linked, because registry metadata does not mark them. The
+  root crate `anydoc-go` is this repository's vendored code and is not listed;
+  `anydoc`, which `[patch.crates-io]` replaces with a copy of the published
+  crate, takes that crate's license. A git or alternative-registry source would
+  be reported as unresolved for a human to classify.
 * **npm** (`scan_npm.py`) — the package list is `package-lock.json`, for
   `frontend/` and `collab/` separately, not the installed tree: npm installs only
   the platform binaries that match the machine, so a list built from
@@ -223,12 +240,16 @@ snapshot this replaced had drifted to dozens of modules no longer in any
 
 * `tools/license_check.sh notices [section…]` regenerates every section whose
   scan can run on the machine and leaves the others untouched (no module cache,
-  no `node_modules`, no `uv` → skipped with a message).
+  no `node_modules`, no `uv`, crates.io unreachable with a cold cache → skipped
+  with a message; in CI an unreachable crates.io fails instead).
 * `tools/license_check.sh deps [section…]` scans, fails on a new copyleft or
   source-available license, and fails when a scanned section no longer matches
-  the file, printing the diff and naming the `notices` command to run. In
-  `.github/workflows/license.yml` the Go + npm job checks `go`, `npm-frontend`
-  and `npm-collab`; the docreader and mcp-server jobs each check their own
+  the file, printing the diff and naming the `notices` command to run. A dual license passes only when it has no
+  `AND`: `(MIT OR Apache-2.0) AND LGPL-2.1` keeps its LGPL term whatever is
+  elected, and crates.io serves compound expressions like that routinely. In
+  `.github/workflows/license.yml` the Go + npm job checks `go`, `cargo-anydoc`
+  (with the crates.io answers kept in `actions/cache`), `npm-frontend` and
+  `npm-collab`; the docreader and mcp-server jobs each check their own
   Python section.
 
 The component counts live in the generated sections only; nothing in this audit
@@ -254,8 +275,6 @@ recording because both would have produced a wrong blocking list:
 
 **Not covered by this audit:**
 
-* The Rust crates statically linked into `third_party/anydoc-go` (§2).
-
 * Transitive licenses of the base container images (`debian:12.12-slim`,
   `paradedb/paradedb`, `redis`, `minio`, …). Those are separately
   licensed artifacts, not part of this source tree.
@@ -279,7 +298,7 @@ good-faith engineering record, not legal advice.
 - [x] Resolve blocking item 1.3 (`chardet`, LGPL-2.1) — 2026-09-18
 - [x] `TencentSans.ttf` removed (unused `@font-face`; deleted together with `fonts.css`)
 - [x] Complete Go scan — `go mod download` in every module is GOOS-independent (§2), and CI runs it
-- [ ] Scan the Rust crates linked into `third_party/anydoc-go` (§2)
+- [x] Scan the Rust crates linked into `third_party/anydoc-go` (§2) — 2026-09-30, `scan_cargo.py`
 - [ ] Confirm `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `licenses/` are in
       the source tarball, in the container images, and in any binary archive
 

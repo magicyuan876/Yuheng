@@ -10,8 +10,9 @@ name: License
 # package caches first, scans them, and also fails when THIRD_PARTY_NOTICES.md
 # no longer matches the scan: its per-ecosystem lists are generated, so a
 # dependency change must land together with `tools/license_check.sh notices`.
-# Each job checks only the sections it can scan -- Go and both npm trees here,
-# each Python project in its own job.
+# Each job checks only the sections it can scan -- Go, the Rust crates linked
+# through third_party/anydoc-go and both npm trees here, each Python project in
+# its own job.
 
 on:
   push:
@@ -78,8 +79,22 @@ jobs:
         working-directory: collab
         run: npm ci --ignore-scripts
 
+      # The Cargo scan needs no Rust toolchain: it reads Cargo.lock and asks
+      # crates.io for each crate's license, a second apart per its crawler
+      # policy (a few minutes cold). Answers describe published crate versions,
+      # which never change, so the cache only ever grows; a lockfile change
+      # restores the previous cache and fetches just the new crates.
+      - name: Cache crates.io license answers
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/licensescan-cache
+          key: licensescan-cargo-${{ hashFiles('third_party/anydoc-go/Cargo.lock') }}
+          restore-keys: licensescan-cargo-
+
       - name: Scan dependency licenses and check the notices
-        run: tools/license_check.sh deps go npm-frontend npm-collab
+        env:
+          LICENSESCAN_CACHE: ${{ runner.temp }}/licensescan-cache
+        run: tools/license_check.sh deps go cargo-anydoc npm-frontend npm-collab
 
   docreader-dependencies:
     name: Dependency licenses (docreader)
