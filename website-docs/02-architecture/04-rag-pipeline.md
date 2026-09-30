@@ -1,6 +1,6 @@
 # 检索问答全流程（RAG Pipeline）
 
-本文完整描述 Yuheng 中一次"知识问答"请求从 HTTP 入口到流式回答落盘的全链路：SSE 会话装配 → 事件驱动 Pipeline（意图识别 / 查询改写 / 并行检索 / 重排 / 融合合并 / 过滤 / 上下文组装 / 流式生成）→ 引用（citation）展开 → 流式输出与断线续传。
+本文完整描述 Yuheng 中一次"知识问答"请求从 HTTP 入口到流式回答落盘的全链路：SSE 会话装配 → 事件驱动 Pipeline（意图识别 / 查询改写 / 并行检索 / 重排 / 融合合并 / 过滤 / 上下文组装 / 流式生成）→ 引用（citation）展开 → 流式输出与断线续传，以及回答反馈如何回流到知识健康。问答是一条固定编排的检索增强流水线，不是 Agent 循环：模型不会自行选择工具或多轮调用。
 
 各环节对应的源码位置：
 
@@ -15,6 +15,7 @@
 | 跨库混合检索 | `internal/application/service/knowledgebase_search*.go` |
 | 流管理器（断线续传） | `internal/stream/`（`factory.go`、`memory_manager.go`、`redis_manager.go`） |
 | 会话 / 消息管理 | `internal/application/service/session.go`、`message.go` |
+| 回答反馈 | `internal/application/service/message_feedback.go`、`findings/dispute.go` |
 | 引用别名与展开 | `internal/modelcontext/` |
 | 文本工具 | `internal/searchutil/` |
 | Prompt 模板 | `config/prompt_templates/`、`internal/config/config.go` |
@@ -338,6 +339,10 @@ flowchart TD
 - `GetRecentMessagesBySession` 是历史加载的数据源。
 - 附加能力：`IndexMessageToKB`（把问答对写入"聊天历史知识库"供跨会话搜索）、`SearchMessages`（向量+rerank 的消息搜索）。
 
+### 5.3 回答反馈与知识健康
+
+会话所有者可以对 assistant 消息标记「有帮助 / 没帮助」（`PUT /api/v1/sessions/:id/messages/:message_id/feedback`，需登录用户），记录在 `message_feedback` 表（每人每条消息一行，`rating` 为 `up` / `down`，可附意见与 `share_question`）。提交或撤回「没帮助」后，`MessageFeedbackService` 取出该回答 `knowledge_references` 中**本空间**的文档，为每篇排一次知识健康检测；`DisputeDetector` 统计自该文档最近一次被确认或修改以来、引用它的回答收到的「没帮助」，有则生成 `disputed` 问题交给文档负责人。负责人确认文档仍然有效或修改文档后，计数重新开始，问题在下一次检测时关闭。跨空间共享来的知识库不接收这里的反馈；会话被删除后其中的反馈不再计入。详见 [知识健康](../03-features/22-knowledge-health.md)。
+
 ## 6. 流式输出机制
 
 ### 6.1 StreamManager：append-only 事件流
@@ -355,7 +360,7 @@ flowchart TD
 
 1. `setupSSEStream`（`qa.go`）为每个请求创建**独立** `event.EventBus` 和可取消的 `asyncCtx`；
 2. `StreamHandler.Subscribe()`（`stream_handler.go`）订阅 `thought` / `tool_call` / `tool_result` / `references` / `final_answer` / `error` / `session_title` / `agent.complete` 等事件，将其转换为 `StreamEvent` 追加进 StreamManager。它同时在内存中累积 `answerSegments` 与 `knowledgeRefs`，流结束时组装 assistant 消息落库；
-3. HTTP 层 `handleAgentEventsForSSE`（`stream.go`）以 100ms ticker 轮询 `GetEvents`，把每个 `StreamEvent` 经 `buildStreamResponse` 包装为 `types.StreamResponse` 后 `c.SSEvent("message", response)` 推送；收到 `complete` 事件结束（新会话可再等 3s 标题事件）。
+3. HTTP 层 `handleEventsForSSE`（`stream.go`）以 100ms ticker 轮询 `GetEvents`，把每个 `StreamEvent` 经 `buildStreamResponse` 包装为 `types.StreamResponse` 后 `c.SSEvent("message", response)` 推送；收到 `complete` 事件结束（新会话可再等 3s 标题事件）。
 
 ### 6.3 SSE 协议与 response_type 事件类型
 

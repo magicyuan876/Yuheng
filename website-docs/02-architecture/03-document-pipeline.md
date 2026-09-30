@@ -1,6 +1,6 @@
 # 文档入库流程（Document Ingestion Pipeline）
 
-本文完整描述 Yuheng 中一篇文档从"上传"到"可检索"的全链路：入口 API → 文件存储 → 异步任务 → 解析（docreader）→ 分块 → 向量化 → 索引写入 → 后处理富化（摘要 / 问题生成 / 图谱 / Wiki / 图片多模态）→ 状态机与进度追踪，以及失败重试、Housekeeping 自愈、删除清理、FAQ 导入与知识克隆/移动等配套链路。
+本文完整描述 Yuheng 中一篇文档从"上传"到"可检索"的全链路：入口 API → 文件存储 → 异步任务 → 解析（docreader）→ 分块 → 向量化 → 索引写入 → 后处理富化（摘要 / 问题生成 / 图谱 / Wiki / 自动打标 / 图片多模态）→ 知识健康检测 → 状态机与进度追踪，以及失败重试、Housekeeping 自愈、删除清理、FAQ 导入与知识克隆/移动等配套链路。数据源同步与在线文档镜像最终也汇入同一条管线（§2.6、§2.7）。
 
 各环节对应的源码位置：
 
@@ -12,7 +12,9 @@
 | 解析基础设施 | `internal/infrastructure/docparser/`、`docreader/`（Python 服务） |
 | 主处理管线 | `internal/application/service/knowledge_process.go` |
 | 处理配置合并 | `internal/application/service/knowledge_process_config.go` |
-| 后处理 | `internal/application/service/knowledge_post_process.go`、`image_multimodal.go` |
+| 后处理 | `internal/application/service/knowledge_post_process.go`、`image_multimodal.go`、`knowledge_auto_tag.go` |
+| 知识健康触发 | `internal/application/service/findings/trigger.go`（由 `knowledge_post_process.go` 调用） |
+| 在线文档镜像 | `internal/docs/indexer.go`、`internal/docs/knowledgebridge.go` |
 | 进度追踪 | `internal/application/service/knowledge_span_tracker.go`、`internal/types/knowledge_span.go` |
 | 自愈 | `internal/application/service/knowledge_housekeeping.go` |
 | 删除 | `internal/application/service/knowledge_delete.go` |
@@ -54,7 +56,9 @@ flowchart TD
         D3["TypeQuestionGeneration<br/>(问题生成, 每批 20 chunk)"]
         D4["TypeChunkExtract<br/>(图谱抽取, 每 chunk 一任务)"]
         D5["TypeWikiIngest<br/>(Wiki 页面生成)"]
+        D6["TypeKnowledgeAutoTag<br/>(自动打标, 不计入子任务)"]
     end
+    F["TypeKnowledgeFindings<br/>(知识健康, 约 30s 后, low 队列)"]
 
     A1 --> B1 --> B2 --> B3 --> B4
     A2 --> B3
@@ -67,13 +71,15 @@ flowchart TD
     C5 --> D3
     C5 --> D4
     C5 --> D5
+    C5 --> D6
+    C5 --> F
     D2 -->|"FinalizeSubtask 原子递减"| E["parse_status=completed"]
     D3 --> E
     D4 --> E
     D5 --> E
 ```
 
-## 2. 入口层：三种创建方式
+## 2. 入口层：知识从哪里来
 
 路由注册在 `internal/router/routes_knowledge.go`：
 
@@ -90,7 +96,7 @@ kb.POST("/manual", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateManu
 - 表单参数：`file`、`fileName`、`metadata`、`enable_multimodel`、`tag_ids`、`process_config`（每次上传可覆盖 KB 级处理配置，见 §5）。
 - 流程：扩展名校验 → MD5 去重 → `FileService.SaveFile` 存储 → 创建 `Knowledge` 记录 → 入队。
 
-### 2.1.1 统一的扩展名闸门
+#### 统一的扩展名闸门
 
 `internal/application/service/knowledge_util.go` 里的 `supportedImportFileExtensions` 是**所有导入路径的唯一事实来源**——直接上传、文件 URL 下载、以及 worker 下载完成后的复检都查同一张表：
 
@@ -98,9 +104,10 @@ kb.POST("/manual", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateManu
 pdf txt docx doc epub html htm mhtml md markdown
 png jpg jpeg gif csv xlsx xls pptx ppt json
 mp3 wav m4a flac ogg
+mp4 mov avi mkv webm wmv flv m4v
 ```
 
-此前 URL 导入维护着一份更短的独立白名单，导致「直接上传 xlsx 可以、URL 导入 xlsx 被拒」这类不一致（#2447）；现在统一由 `isSupportedImportExtension()` / `validateImportFileType()` 判定，视频类型会给出「暂不支持上传视频文件」的明确提示。
+统一由 `isSupportedImportExtension()` / `validateImportFileType()` 判定，避免「直接上传可以、URL 导入被拒」这类不一致。视频有独立的大小上限（`file.video_max_size_mb` 系统设置，缺省取 `MAX_VIDEO_FILE_SIZE_MB`，默认 2048MB），并且要求知识库至少配置了 ASR（转写音轨）或开启多模态（描述关键帧）之一，否则解析时直接失败并给出原因。
 
 表格类扩展名（`csv` / `xlsx` / `xls`，`dataTableFileExtensions`）在文档处理任务之后额外挂一个表摘要任务（`enqueueDataTableSummaryIfNeeded`）。
 
@@ -123,7 +130,7 @@ Worker 侧在真正抓取前会再次校验（`knowledge_process.go` 的 `conver
 
 ### 2.3 手动创建（CreateManualKnowledge）
 
-- JSON Body 为 `types.ManualKnowledgePayload{Title, Content, Status, TagIDs, Channel, ProcessConfig}`，支持草稿（Draft）状态；发布时走 `triggerManualProcessing()` 进入与文件相同的分块/索引管线（跳过 DocReader 阶段）。
+- JSON Body 为 `types.ManualKnowledgePayload{Title, Content, Status, TagIDs, Channel, ProcessConfig}`，支持草稿（Draft）状态；发布时走 `triggerManualProcessing()` 入队 `manual:process`（`default` 队列），进入与文件相同的分块/索引管线（跳过 DocReader 阶段）。草稿只存储、不分块也不可检索。
 
 ### 2.4 去重机制
 
@@ -163,6 +170,16 @@ knowledge := &types.Knowledge{
 
 对 CSV/Excel 数据表类知识，创建后还会额外入队 `TypeDataTableSummary`（`datatable:summary`）任务，生成 `table_summary` / `table_column` 类型的 Chunk 用于表格问答。
 
+创建时 `Knowledge.OwnerID`（负责人）默认取当前用户（`types/knowledge.go` 的 `BeforeCreate`），它决定知识健康问题派给谁，不影响权限。
+
+### 2.6 数据源同步
+
+数据源连接器（`internal/datasource/connector/`：飞书/Lark 知识库与云盘、Notion、语雀、RSS、GitLab、腾讯 ima）由 `datasource:sync` 任务（`sync` 队列）拉取增量，写入的知识条目在 `metadata.datasource_id` 上记录来源，其余与文件/URL/手工创建相同。这类条目在知识健康里被视为"同步来的"（`KnowledgeOrigin=synced`），不能在 Yuheng 里被取代删除——下次同步会回来。
+
+### 2.7 在线文档镜像
+
+在线文档模块开启且空间绑定了知识库时，`internal/docs/indexer.go` 把页面镜像为该知识库里的手工知识（`channel=docs`）：页面事件写入 `docs_index_state`（防抖默认 60 秒），各实例用 `FOR UPDATE SKIP LOCKED` 认领到期行，经 `knowledgeBridge.CreateKnowledgeFromText` / `UpdateKnowledgeContent` 调用 `CreateKnowledgeFromManual` / `UpdateManualKnowledge`，于是走 §2.3 的 `manual:process` 管线。受限页面、被排除（`exclude_from_knowledge`）的页面与回收站中的页面不会进入知识库；已镜像的页面变为受限或被删除时，镜像条目随之移除。细节见《Go 后端设计》第 6 节。
+
 ## 3. 文件存储层（FileService 与存储后端）
 
 ### 3.1 接口定义
@@ -183,13 +200,13 @@ type FileService interface {
 
 ### 3.2 支持的存储后端
 
-工厂函数 `NewFileServiceFromStorageConfig()`（`internal/application/service/file/factory.go`）根据 `types.StorageEngineConfig.DefaultProvider` 选择后端。实际支持的后端清单：
+工厂函数 `NewFileServiceFromStorageConfig()`（`internal/application/service/file/factory.go`）根据 `types.StorageEngineConfig.DefaultProvider` 选择后端，只有 `local` 与 `s3` 两个分支（compose 默认 `STORAGE_TYPE=s3`，指向内置 RustFS）：
 
 | Provider | 路径前缀 | 实现文件 | 说明 | 关键配置 |
 |----------|----------|----------|------|----------|
 | `local` | `local://` | `file/local.go` | 单机本地磁盘 | `LocalEngineConfig.PathPrefix`，基目录取 `LOCAL_STORAGE_BASE_DIR`，外链签名取 `APP_EXTERNAL_URL` |
 | `s3` | `s3://` | `file/s3.go` | 任何 S3 兼容服务（RustFS、MinIO、AWS S3；阿里云 OSS / 腾讯云 COS / 火山引擎 TOS / 华为云 OBS 通过各自的 S3 端点） | `Endpoint/Region/AccessKey/SecretKey/BucketName/PathPrefix/UseSSL/AddressingStyle`；两个密钥都留空时走 AWS 默认凭据链；云厂商端点需 `AddressingStyle=virtual` |
-| `dummy` | `dummy://` | `file/dummy.go` | 测试用空实现 | 无 |
+| `dummy` | `dummy://` | `file/dummy.go` | 测试用空实现，不经工厂创建 | 无 |
 
 ### 3.3 对象 Key 组织规则
 
@@ -211,7 +228,7 @@ type FileService interface {
 ```go
 opts := []asynq.Option{
     asynq.Queue(types.QueueDefault),
-    asynq.Timeout(config.DocumentProcessTimeout(cfg)), // 默认 30 分钟
+    asynq.Timeout(config.DocumentProcessTimeout(cfg)), // 默认 2 小时
     asynq.MaxRetry(3),                                  // 失败最多重试 3 次
 }
 task := asynq.NewTask(types.TypeDocumentProcess, payloadBytes, opts...)
@@ -224,19 +241,25 @@ info, err := s.task.Enqueue(task)
 
 `internal/types/task.go` 定义的队列：
 
-| 队列常量 | 名称 | 用途 |
-|----------|------|------|
-| `QueueDefault` | `default` | 核心文档处理（解析/分块/嵌入/索引） |
-| `QueuePostProcess` | `postprocess` | 后处理编排任务 |
-| `QueueSummary` | `summary` | 摘要 / 问题生成类 LLM 任务 |
-| `QueueMultimodal` | `multimodal` | 图片 OCR / VLM Caption |
-| `QueueMaintenance` | `low` | 维护类任务（FAQ 批量导入等） |
+入库链路涉及的队列：
 
-默认并发数（`internal/types/task.go`）：核心池 `DefaultCoreWorkerConcurrency = 8`、后处理池 `2`、富化池 `12`、维护池 `4`。
+| 队列常量 | 名称 | Worker 池 | 用途 |
+|----------|------|-----------|------|
+| `QueueDefault` | `default` | core | 核心文档处理（`document:process`、`manual:process`） |
+| `QueuePostProcess` | `postprocess` | postprocess | 后处理编排（`knowledge:post_process`） |
+| `QueueSummary` | `summary` | enrichment | 摘要、表格摘要、自动打标 |
+| `QueueMultimodal` | `multimodal` | enrichment | 图片 / 视频关键帧 OCR 与 VLM Caption |
+| `QueueGraph` | `graph` | enrichment | 图谱实体/关系抽取 |
+| `QueueQuestion` | `question` | enrichment | 问题生成 |
+| `QueueSync` | `sync` | maintenance | 数据源同步 |
+| `QueueMaintenance` | `low` | maintenance | FAQ 导入、批量删除/重解析、移动、克隆、知识健康检测等 |
+| `QueueWiki` | `wiki` | wiki | Wiki 生成与收尾 |
+
+默认并发数（`internal/types/task.go`）：core 8、postprocess 2、enrichment 12、maintenance 4、shared（弹性借用 core 与 enrichment 队列）6、wiki 8。完整拓扑见《异步任务系统》。
 
 ### 4.3 失败重试语义
 
-- `TypeDocumentProcess`：`MaxRetry(3)` → 初始 + 3 次重试共 4 次尝试；每次尝试受 `DocumentProcessTimeout`（默认 30 分钟）约束。
+- `TypeDocumentProcess`：`MaxRetry(3)` → 初始 + 3 次重试共 4 次尝试；每次尝试受 `DocumentProcessTimeout`（默认 2 小时，`config.yaml` 的 `knowledge_base.document_process_timeout` 或 `YUHENG_DOCUMENT_PROCESS_TIMEOUT`）约束。
 - Payload 携带 `Attempt`（重新解析时取历史最大 attempt+1）；Span Tracker 用 attempt 隔离每轮处理的进度树，新 attempt 会"取代"（supersede）旧任务的收尾动作。
 - 处理函数区分"是否最后一次 asynq 尝试"（`isLastRetry`）：非最后一次的失败直接返回错误让 asynq 重试，最后一次才把 `ParseStatus` 落为 `failed` 并写 `ErrorMessage`。
 
@@ -363,6 +386,8 @@ promoted, err := s.knowledgeRepo.SetFinalizing(ctx, payload.KnowledgeID, expecte
 - 每个子任务终态退出时调用 `FinalizeSubtask` 原子递减 `pending_subtasks_count`，减到 0 时自动升级为 `completed`。
 - **短缺协调**：若实际入队数少于计划数（如某队列入队失败），立即补偿递减差额，防止永远卡在 `finalizing`。
 - `finalizeSubtaskDetached`（`knowledge.go`）：递减动作使用 `context.WithoutCancel` + 10 秒超时的**脱离上下文**执行，避免 worker 优雅退出时 ctx 取消导致计数丢失、知识永久滞留 `finalizing`。
+- **知识健康**：成功进入 finalizing（或快速路径完成）后调用 `triggerFindings`，经 `findings.Trigger` 排一个 `knowledge:findings` 任务（`low` 队列，按文档 30 秒防抖）。上传、重解析、手工编辑、数据源同步、在线文档镜像最终都经过这个任务，所以这一处调用覆盖了所有内容变化。它是 best-effort 的：不占 finalizing 计数，排队失败也不会让索引失败。
+- **自动打标**：知识库为文档类型且开启了 `auto_tag_config` 时，入队 `knowledge:auto_tag`（`summary` 队列），按知识库已有标签给文档归类。同样是 best-effort，不计入子任务。
 
 四类富化子任务：
 
@@ -471,10 +496,10 @@ WHERE id IN (stuck_ids)
 2. 对 `pending/processing` 状态的知识执行 `dequeueKnowledgeTasks()` 取消队列中的下游任务；
 3. **errgroup 并行清理**四类资源：
    - 向量/关键词索引：`retrieveEngine.DeleteByKnowledgeIDList`（按 embedding 维度与 KB 类型路由）；
-   - Wiki：`cleanupWikiOnKnowledgeDelete`（写 Redis tombstone → 清 pending ingest → reconcile 现有页面 → 入队 WikiRetract）；
+   - Wiki：`cleanupWikiOnKnowledgeDelete`（写 tombstone → 清 pending ingest → reconcile 现有页面 → 追加 retract 待处理操作）；
    - Chunks：`chunkService.DeleteChunksByKnowledgeID`；
    - 图谱：`graphEngine.DelGraph`；
-4. 删除 Tag 关联 → 删除 Knowledge 数据库行；
+4. 删除 Tag 关联 → 删除 Knowledge 数据库行；`knowledges` 上的触发器（迁移 000124）同时删除涉及该文档的 `knowledge_findings` 与 `knowledge_finding_scans` 行；
 5. **最后 best-effort 清理物理文件**：源文件 + 从 `chunk_image_info` 收集的所有提取图片（`collectImageURLs` + `deleteExtractedImages`），并回冲租户存储统计。
 
 批量版 `DeleteKnowledgeList` 预加载各 KB 的 FileService、按 KB 分组图片 URL、按 embedding 模型分组删索引，避免 goroutine 内重复查询。
@@ -532,4 +557,5 @@ type FAQChunkMetadata struct {
 2. Worker：Span attempt=1 开根 → `docreader` 阶段 gRPC 调 Python 服务拿 Markdown+图片字节 → 图片上传存储并重写 URL → `chunking` 阶段 Go chunker 切块 → 写 chunks → `embedding` 阶段 BatchIndex → `EnableStatus=enabled`（此刻已可检索）→ 每图入队 multimodal 任务；
 3. 多模态 worker 逐图 OCR+Caption，生成 image_caption/image_ocr 子 chunk 并索引；全部完成后触发 post-process；
 4. 编排器计算 `expectedSubtasks`（1 摘要 + N/20 问题批 + M 图谱 + 0/1 Wiki）→ `SetFinalizing` → 扇出；每个子任务终态 `FinalizeSubtask` 递减，减到 0 → `completed`；
-5. 期间任一环节僵死，Housekeeping 5 分钟一轮按"updated_at + span 心跳 + 队列检查"三重判据回收为 `failed`，用户可 reparse（attempt+1）重来。
+5. 进入 finalizing 时排 `knowledge:findings`，约 30 秒后运行重复/有出入、复核、回答反馈等检测器，结果写入 `knowledge_findings`（见 [知识健康](../03-features/22-knowledge-health.md)）；
+6. 期间任一环节僵死，Housekeeping 5 分钟一轮按"updated_at + span 心跳 + 队列检查"三重判据回收为 `failed`，用户可 reparse（attempt+1）重来。

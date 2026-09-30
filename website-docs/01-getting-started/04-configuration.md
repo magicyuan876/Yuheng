@@ -7,11 +7,11 @@ Yuheng 的配置由四层组成，**优先级从低到高**：
 | 主配置文件 | `config/config.yaml` | 结构化的默认值，随镜像分发 |
 | 模板 / 预设 | `config/prompt_templates/*.yaml`、`builtin_models.yaml` | 提示词模板、内置模型 |
 | 环境变量 | `.env` / 容器 environment | 部署级覆盖，改完需重启 |
-| 运行时系统设置 | 数据库 `system_settings` 表，界面在「设置 → 系统」 | 一部分开关可以在线改，**盖过环境变量**，绝大多数立即生效 |
+| 运行时系统设置 | 数据库 `system_settings` 表，界面在「设置 → 系统设置」（系统管理员） | 一部分开关可以在线改，**盖过环境变量**，绝大多数立即生效 |
 
-最后一层容易被忽略，却是排查「改了 env 没生效」的第一现场：注册模式、空间策略与配额、SSRF 白名单、各 worker pool 并发、模型并发上限这些键一旦在界面上改过，数据库里就留下一行记录，此后环境变量不再起作用；把该项重置（`DELETE /api/v1/system/admin/settings/:key`）才会回落到环境变量或内置默认值。完整键表与语义见[租户、用户与认证授权](../03-features/01-tenant-auth.md)的「运行时可改的系统设置」。
+最后一层容易被忽略，却是排查「改了 env 没生效」的第一现场：注册模式、空间策略与配额、上传大小上限、SSRF 白名单、邀请自动加入、各 worker pool 并发、模型并发上限这些键一旦在界面上改过，数据库里就留下一行记录，此后环境变量不再起作用；把该项重置（`DELETE /api/v1/system/admin/settings/:key`）才会回落到环境变量或内置默认值。完整键表与语义见[租户、用户与认证授权](../03-features/01-tenant-auth.md)的「运行时可改的系统设置」。
 
-下文对照 `internal/config/config.go` 中的结构体逐段解读，并在末尾汇总环境变量。
+`.env.example` 按用途分组注释了每一个可配置的环境变量，是最完整的清单；下文先对照 `internal/config/config.go` 中的结构体解读 `config.yaml`，再按主题汇总重要的环境变量。
 
 ## 配置加载机制
 
@@ -21,7 +21,8 @@ Yuheng 的配置由四层组成，**优先级从低到高**：
 2. **环境变量展开**：对文件内容做正则替换，`${ENV_VAR}` 会被同名环境变量的值替换；变量未设置时保留字面量 `${ENV_VAR}` 原样（便于暴露配置错误）；
 3. viper 开启 `AutomaticEnv()` 且 key 分隔符 `.` 映射为 `_`（即 `server.port` 可被环境变量 `SERVER_PORT` 覆盖）；
 4. 从 `config/prompt_templates/*.yaml` 加载提示词模板，并按 `xxx_prompt_id` 字段**回填**到 conversation 配置（`backfillConversationDefaults`）；
-5. 应用环境变量覆盖（OIDC、KnowledgeBase、Auth/Tenant、Audit 各组）并执行 `ValidateConfig` 校验。
+5. 应用环境变量覆盖（OIDC、KnowledgeBase、Auth/Tenant、Audit 各组）并执行 `ValidateConfig` 校验；
+6. 在线文档（`YUHENG_DOCS_*`）与知识健康（`YUHENG_FINDINGS_*`）的配置只从环境变量读取，不看 `config.yaml`；知识健康阈值越界时启动失败。
 
 ```mermaid
 flowchart LR
@@ -30,7 +31,7 @@ flowchart LR
     PT["config/prompt_templates/*.yaml"] --> BF["backfillConversationDefaults (按 *_prompt_id 解析为文本)"]
     V --> BF
     BF --> OV["applyOIDCEnvOverrides / applyKnowledgeBaseEnvOverrides / applyAuthAndTenantDefaults / applyAuditDefaults"]
-    OV --> VC["ValidateConfig"] --> CFG["最终 *config.Config"]
+    OV --> VC["ValidateConfig"] --> ENV["loadDocsConfig / loadFindingsConfig 只读环境变量"] --> CFG["最终 *config.Config"]
 ```
 
 ## config/config.yaml 逐段解读
@@ -42,7 +43,7 @@ flowchart LR
 | `server.port` | int | 8080 | HTTP 监听端口，校验范围 1–65535 |
 | `server.host` | string | "0.0.0.0" | 监听地址 |
 | `server.log_path` | string | 空 | 日志文件路径（也可用环境变量 `LOG_PATH`） |
-| `server.shutdown_timeout` | duration | 30s | 优雅停机超时 |
+| `server.shutdown_timeout` | duration | 30s | 优雅停机超时（默认文件未写出；compose 给 app 的 `stop_grace_period` 是 45s，比它长） |
 
 ### conversation（`ConversationConfig`）——检索问答管线
 
@@ -119,28 +120,33 @@ flowchart LR
 | `docreader` | `DocReaderConfig` | `addr`（gRPC 地址如 `docreader:50051` 或 HTTP base URL）、`transport`：`grpc`（默认）/ `http`；通常用 env `DOCREADER_ADDR` / `DOCREADER_TRANSPORT` |
 | `vector_database` | `VectorDatabaseConfig` | `driver`（通常用 env `RETRIEVE_DRIVER`） |
 | `stream_manager` | `StreamManagerConfig` | `type`：`memory` / `redis`；`redis.address/username/password/db/prefix/ttl`；`cleanup_timeout`（通常用 env `STREAM_MANAGER_TYPE`、`REDIS_*`） |
-| `web_search` | `WebSearchConfig` | `timeout`：Web 搜索超时秒数 |
 | `models` | `[]ModelConfig` | 历史遗留的静态模型清单（`type`/`source`/`model_name`/`parameters`）；现推荐用 `builtin_models.yaml` 或界面配置 |
 | `frontend_base_url` | string | 空 | SPA 对外 origin，用于生成邀请等绝对链接（env `FRONTEND_BASE_URL`） |
 
+默认文件里另有 `web_search.timeout: 60`（联网搜索单次请求超时，秒；抓取正文的提供商需要比 10 秒默认值长得多）。
+
 ## 重要环境变量
 
-以下变量来自 `docker-compose.yml` 的 app/docreader `environment` 段、`.env.example` 与代码中的 `os.Getenv`。生产部署至少要改：`DB_USER/DB_PASSWORD/DB_NAME`、`REDIS_PASSWORD`、`JWT_SECRET`、`SYSTEM_AES_KEY`。
+以下变量来自 `docker-compose.yml` 的 `environment` 段、`.env.example` 与代码中的 `os.Getenv`。「默认值」一栏是 compose 部署下的实际取值；两者不同时分别注明。生产部署至少要设：`JWT_SECRET`、`SYSTEM_AES_KEY`（不设服务拒绝启动），并改掉 `DB_PASSWORD`、`REDIS_PASSWORD`、`RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` 的示例值。
 
 ### 运行时基础
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
 | `GIN_MODE` | release | `debug` 开发模式（启用 Swagger）/ `release` 生产 |
-| `LOG_LEVEL` / `LOG_PATH` / `LOG_FORMAT` | debug / 空 / 空 | 日志级别、文件路径（空则仅 stdout）、自定义格式 |
+| `LOG_LEVEL` / `LOG_PATH` / `LOG_FORMAT` | debug / 空 / 空 | 日志级别（debug / info / warn / error / fatal）、文件路径（空则仅 stdout）、自定义格式 |
 | `LLM_DEBUG_LOG` | false | true 时在 LOG_PATH 同目录写 `llm_debug.log` |
-| `TZ` | Asia/Shanghai | 时区 |
+| `TZ` | UTC（`.env.example`；`.env` 未设置时 compose 回退为 Asia/Shanghai） | 时区，影响日志时间戳与时间显示。数据库连接固定用 UTC |
 | `YUHENG_LANGUAGE` | 空 | 文档处理语言（问题/摘要生成）。优先级：本变量 > 请求的 `Accept-Language` > 内置 `zh-CN`。**它压过请求头**是刻意的：界面语言与文档处理语言是两件事，允许「英文界面 + 处理韩文文档」 |
-| `AUTO_MIGRATE` | true | 启动时自动执行数据库迁移 |
-| `AUTO_RECOVER_DIRTY` | true | 自动修复 golang-migrate 的 dirty 状态（上次迁移中断留下的）。手工排查迁移问题时应临时设为 false，否则启动会自动改写迁移版本记录，见[数据库与迁移](../06-development/02-database-schema.md) |
-| `YUHENG_TRUSTED_PROXIES` | 空 | gin 信任代理 CIDR（逗号分隔） |
-| `MAX_FILE_SIZE_MB` | 50 | 上传文件大小限制（app/frontend/docreader 三处共用） |
-| `CONCURRENCY_POOL_SIZE` | 5 | 通用并发池 |
+| `AUTO_MIGRATE` | true | 启动时自动执行数据库迁移（迁移文件已嵌入二进制） |
+| `MIGRATION_FAIL_FAST` | true | 迁移失败即终止启动。只有在服务外自行迁移（CI、DBA）时才设 false：服务照常启动，但 `/ready` 在迁移状态恢复正常前一直返回 503 |
+| `AUTO_RECOVER_DIRTY` | false | 遇到 dirty 状态（上次迁移被中断）时自动回退一个版本并重跑。只有被中断的迁移可以安全地执行两遍时才能开，见[备份与升级](./05-backup-and-upgrade.md)与[数据库与迁移](../06-development/02-database-schema.md) |
+| `YUHENG_INSECURE_DEV` | 空 | 设为 true 时跳过 `JWT_SECRET` / `SYSTEM_AES_KEY` 的启动检查，仅供一次性的本机试验，每次启动都会打印警告；绝不要用在别人能访问的部署上 |
+| `YUHENG_TRUSTED_PROXIES` | 未设置 | gin 信任的代理 CIDR（逗号分隔）。未设置时信任回环与私网段（覆盖容器网络里的 Nginx）；显式设为空字符串则不信任任何代理 |
+| `YUHENG_CORS_ALLOWED_ORIGINS` | 空 | 浏览器跨域允许的来源（逗号分隔）。空或含 `*` 表示任意来源且不带 credentials；前端经自带 Nginx 同源访问，通常不用设 |
+| `MAX_FILE_SIZE_MB` / `MAX_VIDEO_FILE_SIZE_MB` | 50 / 2048 | 文档与视频的上传大小上限，也是系统设置 `file.max_size_mb` / `file.video_max_size_mb` 的默认值（系统管理员可在界面调整）。前端 Nginx 的请求体上限取两者较大值，docreader 的 gRPC 消息上限默认 `max(MAX_FILE_SIZE_MB, 512)`，界面上的值不能超过它们 |
+| `CONCURRENCY_POOL_SIZE` | 5 | Embedding 并发协程池，模型服务返回 429 时调小 |
+| `DEFAULT_LOCALE` | 空 | 前端界面的默认语言（`zh-CN` / `en-US` / `ko-KR` / `ru-RU`），只影响还没手动选过语言的用户；改完重启 frontend 容器即可 |
 | `APP_EXTERNAL_URL` / `FRONTEND_BASE_URL` | 空 | 文件引用外链的外部可达 URL（配合 `RESOURCE_URL_MODE=public`，详见 [图片与文件的对外访问](../03-features/21-file-access.md)） / 前端外部 origin（用于生成邀请等绝对链接） |
 | `RESOURCE_URL_MODE` | handle | API 响应里文件引用的默认形式：`handle` 返回内部 `resource://`，`public` 返回可直接加载的限时外链。单次请求可用 `?resource_urls=` 覆盖，详见 [API 总览](../04-api/01-api-overview.md) |
 
@@ -149,45 +155,59 @@ flowchart LR
 1. 存储后端本身公网可达（对象存储用公网 endpoint，或把 `S3_ENDPOINT` 设成公网 host），此时 `resource://` 回退到后端预签名 URL，不需要本变量；
 2. 设置 `APP_EXTERNAL_URL`，`resource://` 图片被改写成 `<APP_EXTERNAL_URL>/r/<token>` 走 Yuheng 自身（需要 nginx 代理 `/r/`，官方前端镜像已内置该 location）。
 
-默认的自带 RustFS 内网部署（`rustfs:9000`）与 `local` 后端都只能走第二种。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
+默认的自带 RustFS 内网部署（`rustfs:9000`）与 `local` 后端都只能走第二种。`scripts/deploy.sh` 会交互式地帮你填这个变量。本变量为空时，服务启动会打印一次 WARN；改写结果若不是 http(s) URL 会保留原引用并记录可操作的告警，而不是发出外部无法访问的链接。
 
 四种 URL 形式与取法见[图片与文件的对外访问](../03-features/21-file-access.md)。
+
+### 端口与网络
+
+| 名称 | 默认值 | 说明 |
+| --- | --- | --- |
+| `FRONTEND_PORT` | 80 | 前端端口，监听所有网卡，是唯一的公开入口 |
+| `APP_PORT` / `APP_BIND` | 8080 / 127.0.0.1 | 后端在宿主机上的端口与绑定地址。浏览器经前端 Nginx 访问后端，通常不需要改绑定 |
+| `COLLAB_BIND`、`DRAWIO_BIND`、`MCP_BIND`、`NEO4J_BIND`、`DEX_BIND`、`LANGFUSE_WEB_BIND`、`LANGFUSE_MINIO_BIND`、`RUSTFS_BIND`、`SEARXNG_BIND` | 127.0.0.1 | 各可选服务端口的绑定地址。只有确实需要从别的机器直连时才设 `0.0.0.0`，并在前面放 TLS |
+| `APP_HOST` / `APP_BACKEND_PORT` / `APP_SCHEME` | app / 8080 / http | 前端 Nginx 反代的后端地址，前后端分开部署时改 |
+| `DOCKER_NETWORK_MTU` | 1500 | 容器网络 MTU。要访问的服务位于 MTU 更小的 VPN / 隧道之后时调小（用 `scripts/probe-mtu.sh` 探测），改完需重建网络 |
+| `DOCREADER_MEM_LIMIT` | 4g | docreader 容器内存上限 |
 
 ### 数据库与队列
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `DB_DRIVER` | postgres | `postgres` / `mysql` |
-| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | postgres / 5432 / 空 / 空 / 空 | PostgreSQL 连接（必填） |
-| `STREAM_MANAGER_TYPE` | 空（compose 实际走 redis） | `redis` / `memory` |
+| `DB_DRIVER` | postgres | 只支持 `postgres`，其他取值启动即报错 |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | postgres / 5432 / 见 `.env.example` | PostgreSQL 连接（必填）。compose 的 postgres 容器用同一组值初始化 |
+| `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` / `DB_CONN_MAX_LIFETIME_MINUTES` | 50 / 10 / 10 | 每个 app 进程的连接池。`副本数 × DB_MAX_OPEN_CONNS` 加上其他客户端要小于 PostgreSQL 的 `max_connections`（`POSTGRES_MAX_CONNECTIONS`，默认 100）；无效值会终止启动 |
+| `POSTGRES_SHARED_BUFFERS` 等 `POSTGRES_*` | PostgreSQL 出厂值 | compose 传给 postgres 的容量参数（`shared_buffers`、`work_mem`、并行度等）；`scripts/deploy.sh` 会按机器规格填写 |
+| `STREAM_MANAGER_TYPE` | redis（`.env.example`） | `redis` / `memory` |
 | `REDIS_ADDR` / `REDIS_USERNAME` / `REDIS_PASSWORD` / `REDIS_DB` / `REDIS_PREFIX` | redis:6379 / … | Redis 连接 |
 | `REDIS_USE_TLS` | false | **启用 TLS 的总开关**，托管 Redis（如 AWS ElastiCache）需要打开；`REDIS_TLS_SERVER_NAME` 指定校验与 SNI 用的服务器名（地址是 IP 时有用），`REDIS_TLS_INSECURE_SKIP_VERIFY` 跳过证书校验（不安全，仅自签证书的开发环境用） |
 | `YUHENG_REDIS_NAMESPACE` | 空 | 多部署共用 Redis 时的频道命名空间后缀 |
-| `YUHENG_ASYNQ_CORE_CONCURRENCY` 等 | 8 / 2 / 12 / 4 / 6 | Asynq 各队列并发（core/postprocess/enrichment/maintenance/shared），另有 `YUHENG_WIKI_ASYNQ_CONCURRENCY=8`、`YUHENG_MODEL_MAX_CONCURRENCY=32` |
+| `YUHENG_REDIS_OP_TIMEOUT_MS` | 500 | Asynq 客户端的 Redis 读写超时（毫秒） |
+| `YUHENG_ASYNQ_CORE_CONCURRENCY` 等 | 8 / 2 / 12 / 4 / 6 | Asynq 各队列并发（core/postprocess/enrichment/maintenance/shared），另有 `YUHENG_WIKI_ASYNQ_CONCURRENCY=8`、`YUHENG_MODEL_MAX_CONCURRENCY=32`。这些都可以在系统设置里运行时调整，数据库里的值优先 |
 
 ### 检索引擎与向量库
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
 | `RETRIEVE_DRIVER` | postgres | 检索引擎。社区版只支持 `postgres`（ParadeDB `pg_search` BM25 + pgvector）；服务器启动时若所连 PostgreSQL 缺少 `vector` 或 `pg_search` 扩展会拒绝启动。请使用 `docker-compose.yml` 的 ParadeDB 镜像，或在自有 PostgreSQL 上自行安装这两个扩展（托管 PostgreSQL 通常无法安装 `pg_search`） |
-| `MULTI_STORE_RETRIEVE_TIMEOUT_SEC` | 空 | 多引擎并行检索超时 |
+| `MULTI_STORE_RETRIEVE_TIMEOUT_SEC` | 空 | 多个检索引擎并行检索时的超时（秒）。社区版只有一个引擎，通常用不到 |
 | `NEO4J_ENABLE` / `NEO4J_URI` / `NEO4J_USERNAME` / `NEO4J_PASSWORD` | 空 / bolt://neo4j:7687 / neo4j / password | 知识图谱唯一开关（`ENABLE_GRAPH_RAG` 已废弃） |
 
 ### 文件存储
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `STORAGE_TYPE` | local | `local` / `s3`（任何 S3 兼容服务）；`dummy` 仅用于测试 |
+| `STORAGE_TYPE` | s3（compose 与 `.env.example`；变量完全未设置时代码回退为 local，例如 Helm 与源码运行） | `local` / `s3`（任何 S3 兼容服务）；`dummy` 仅用于测试 |
 | `STORAGE_ALLOW_LIST` | 空 | 允许用户选择的存储类型白名单（逗号分隔） |
 | `LOCAL_STORAGE_BASE_DIR` | /data/files | 本地存储根目录 |
-| `S3_ENDPOINT` | 空 | S3 兼容服务地址；可带 `http://` / `https://`；空表示 AWS S3 |
-| `S3_REGION` | 空 | 区域，`STORAGE_TYPE=s3` 时必填 |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 空 | 访问密钥，要么都填、要么都不填 |
-| `S3_BUCKET_NAME` | 空 | Bucket，必填；不存在时首次使用自动创建 |
+| `S3_ENDPOINT` | http://rustfs:9000（compose） | S3 兼容服务地址；可带 `http://` / `https://`；空表示 AWS S3 |
+| `S3_REGION` | us-east-1（compose） | 区域，`STORAGE_TYPE=s3` 时必填 |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | 取 `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY`（compose） | 访问密钥，要么都填、要么都不填 |
+| `S3_BUCKET_NAME` | yuheng（compose） | Bucket，必填；不存在时首次使用自动创建 |
 | `S3_PATH_PREFIX` | yuheng/ | 对象前缀 |
-| `S3_USE_SSL` | true | endpoint 不带协议头时是否用 HTTPS |
+| `S3_USE_SSL` | false（compose）；未设置时 true | endpoint 不带协议头时是否用 HTTPS |
 | `S3_ADDRESSING_STYLE` | auto | `auto` / `path` / `virtual`。`auto`：endpoint 为空或 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO）用 path-style；阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 必须设 `virtual` |
-| `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` | rustfsadmin | 自带 RustFS（默认启动）的账号；另有 `RUSTFS_PORT` / `RUSTFS_CONSOLE_PORT` / `RUSTFS_BIND` |
+| `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` | rustfsadmin | 自带 RustFS（默认启动）的账号，上线前务必更换；另有 `RUSTFS_PORT` / `RUSTFS_CONSOLE_PORT` / `RUSTFS_BIND` |
 
 各服务的 endpoint 与寻址方式对照表见[安装部署](02-installation.md)。原有的 `MINIO_*` / `COS_*` / `TOS_*` / `OSS_*` / `OBS_*` / `KS3_*` 变量已不再生效，请改用 `S3_*`。
 
@@ -202,14 +222,15 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `BATCH_EMBED_SIZE` | 空 | 批量 embedding 大小 |
 | `VLM_HTTP_TIMEOUT_SECONDS` | 180 | VLM 单次请求超时 |
 | `BUILTIN_MODELS_CONFIG` | config/builtin_models.yaml | 内置模型声明文件路径（见下文） |
+| `FEISHU_DOCX_PARSE_MODE` | export | 飞书 / Lark 同步新版云文档时的解析方式：`export` 导出为 docx 交给 docreader（图片与正文关联，较慢）；`blocks` 用 blocks API 转 Markdown（快，保留附件，但图片不与正文关联） |
 | `YUHENG_LLM_STREAM_RAW_DUMP` / `_DIR` | 空 | LLM 流原始转储（排障用） |
 
 ### 认证、租户与安全
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `JWT_SECRET` | 空 | JWT 签名密钥（必填） |
-| `SYSTEM_AES_KEY` | 空 | 敏感字段落盘加密的 AES-256 主密钥，**必须 32 字节**；丢失则已加密数据（租户 API Key、模型 key、向量库凭证等）不可恢复。取代已废弃的 `TENANT_AES_KEY`/`CRYPTO_MASTER_KEY`/`CRYPTO_SALT` |
+| `JWT_SECRET` | 空 | JWT 签名密钥，**必填，至少 32 个字符**（`openssl rand -hex 32`）。多副本必须一致 |
+| `SYSTEM_AES_KEY` | 空 | 数据库中敏感字段加密的 AES-256 主密钥，**必填，正好 32 字节**（`openssl rand -hex 16`）；丢失则已加密的数据（API Key、模型密钥、数据源凭据等）不可恢复。取代已废弃的 `TENANT_AES_KEY` / `CRYPTO_MASTER_KEY` / `CRYPTO_SALT` |
 | `DISABLE_REGISTRATION` | 未设置 | 未设置：`auto`（只在还没有用户时开放注册，首个注册者成为系统管理员）；`true`：强制 `invite_only`；`false`：强制 `self_serve` |
 | `YUHENG_AUTH_DEFAULT_TENANT_MODE` | create_personal | 注册后建空间策略（`create_personal` / `tenantless`） |
 | `YUHENG_TENANT_ENABLE_RBAC` | （默认 true） | 空间角色强制鉴权开关 |
@@ -217,12 +238,14 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED` | true | 普通用户自建空间 |
 | `YUHENG_TENANT_MAX_OWNED_PER_USER` | 空 | 自建空间上限 |
 | `YUHENG_TENANT_AUTO_CREATE_API_KEY` | false | 建空间时自动下发 full_access API Key（兼容旧行为） |
+| `YUHENG_TENANT_AUTO_ACCEPT_INVITATION` | false | 邀请已注册用户时直接加入空间，不需要对方接受 |
+| `YUHENG_GOVERNANCE_CENTRALIZED_INFRA` | false | 集中管控：模型、网络搜索、存储、解析引擎、Ollama 等基础设施配置收归系统管理员，空间管理员只读但照常可选用。也可在系统设置里开关，数据库里的值优先 |
 | `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 10 | 新空间默认存储配额 |
 | `YUHENG_INVITATION_TTL` | 168h | 邀请链接有效期 |
 | `YUHENG_AUDIT_RETENTION_DAYS` | 90 | 审计日志保留天数 |
 | `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` | 空 | 引导第一个系统管理员。**不会创建用户**：该邮箱需先自行注册，下次启动时若部署内还没有任何系统管理员，才把它提升；已有管理员后本变量不再生效。详见[租户、用户与认证授权](../03-features/01-tenant-auth.md) |
 | `OIDC_AUTH_ENABLE` 及 `OIDC_AUTH_*` / `OIDC_USER_INFO_MAPPING_*` | false / 空 | OIDC 单点登录全套配置 |
-| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,rustfs` | 出站请求 SSRF 白名单（app 与 docreader 共用） |
+| `SSRF_WHITELIST` / `SSRF_WHITELIST_EXTRA` | 空 / `searxng,rustfs` | 出站请求 SSRF 白名单（域名、通配域名、IP 或 CIDR，逗号分隔）。两者合并生效；自定义 `SSRF_WHITELIST_EXTRA` 会覆盖 compose 默认值，要把 `searxng,rustfs` 一起写上 |
 | `IMAGE_HOST_KEEP_URL` | 空 | 保留原始 URL 的图片域名白名单 |
 
 ### Docreader 解析（docreader 容器）
@@ -230,22 +253,48 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
 | `DOCREADER_ADDR` / `DOCREADER_TRANSPORT` | docreader:50051 / grpc | app 侧连接地址与传输（`grpc`/`http`） |
-| `DOCREADER_GRPC_MAX_WORKERS` / `DOCREADER_GRPC_PORT` / `DOCREADER_GRPC_MAX_FILE_SIZE_MB` | 4 / 50051 / 跟随 MAX_FILE_SIZE_MB | gRPC 服务参数 |
-| `GRPC_TLS_ENABLED/CERT/KEY/CA/SERVER_NAME`、`GRPC_MTLS_REQUIRE_CLIENT_CERT`、`GRPC_AUTH_TOKEN` | false / 空 | app↔docreader 链路 TLS/mTLS 与 token 认证 |
+| `DOCREADER_GRPC_MAX_WORKERS` / `DOCREADER_GRPC_PORT` / `DOCREADER_GRPC_MAX_FILE_SIZE_MB` | 4 / 50051 / `max(MAX_FILE_SIZE_MB, 512)` | gRPC 服务参数。批量入库时 worker 数往往是瓶颈，`scripts/deploy.sh` 会按 CPU 数填写 |
+| `GRPC_TLS_ENABLED/CERT/KEY/CA/SERVER_NAME`、`GRPC_MTLS_REQUIRE_CLIENT_CERT`、`GRPC_AUTH_TOKEN` | false / 空 | app↔docreader 链路 TLS/mTLS 与 token 认证。`GRPC_AUTH_TOKEN` 可以不设（docreader 只在容器内网）；设了就必须至少 16 个字符且不是示例值，否则 app 拒绝启动 |
 | `DOCREADER_PDF_RENDER_DPI` / `DOCREADER_PDF_JPEG_QUALITY` / `DOCREADER_PDF_RENDER_MAX_EDGE` | 200 / 85 / 2000 | PDF 渲染 |
 | `DOCREADER_PDF_FORCE_SCANNED` / `DOCREADER_PDF_SCAN_IMAGE_RATIO` / `DOCREADER_PDF_SCAN_MIN_CHARS` | false / 代码默认 | 扫描件判定 |
 | `DOCREADER_ODL_HYBRID` / `DOCREADER_ODL_HYBRID_URL` / `DOCREADER_ODL_HYBRID_MODE` / `DOCREADER_ODL_HYBRID_FALLBACK` | off / http://odl-hybrid:5002 / auto / false | OpenDataLoader 混合解析 |
 | 其余 `DOCREADER_PDF_*`（词距/边栏/隐藏文本/嵌入图/图表区等 20+ 项） | 见 `docker-compose.yml` docreader 段注释 | PDF 版式与抽取精调 |
 | `DOCREADER_EXTERNAL_HTTP_PROXY` / `_HTTPS_PROXY` | 空 | docreader 出站抓取代理 |
 
-### 会话附件
+### 文档处理与会话附件
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
+| `YUHENG_DOCUMENT_PROCESS_TIMEOUT` / `YUHENG_DOCREADER_CALL_TIMEOUT` | 2h / 30m | 文档处理任务与单次 RPC 超时，后者须小于前者 |
+| `YUHENG_HOUSEKEEPING_ENABLED` | true | 巡检回收卡在 processing 的文档，不建议关 |
 | `YUHENG_CHAT_ATTACHMENT_TTL_HOURS` / `_WAIT_TIMEOUT_SEC` / `_OCR_CONCURRENCY` / `_OCR_MAX_PAGES` | 24 / 60 / 8 / 8 | 聊天附件解析保留时长、等待超时与 OCR 并发/页数上限 |
-| `YUHENG_HOUSEKEEPING_ENABLED` | 启用 | 回收卡在 processing 的脏数据 |
-| `YUHENG_FINDINGS_ENABLED` / `YUHENG_FINDINGS_DUPLICATE_MIN_SCORE` | true / 0.95 | 知识健康：索引后自动检测重复文档；阈值取值 0.5–1，超出范围拒绝启动（见 [知识健康](../03-features/22-knowledge-health.md)） |
-| `YUHENG_DOCUMENT_PROCESS_TIMEOUT` / `YUHENG_DOCREADER_CALL_TIMEOUT` | 2h / 30m | 文档处理任务与单次 RPC 超时 |
+
+### 知识健康
+
+| 名称 | 默认值 | 说明 |
+| --- | --- | --- |
+| `YUHENG_FINDINGS_ENABLED` | true | 是否自动检测（索引后的内容比对，以及每小时的复核巡检）。关闭后不再产生新问题，已有记录仍可查看 |
+| `YUHENG_FINDINGS_DUPLICATE_MIN_SCORE` | 0.95 | 内容比对时两个段落被视为重叠的余弦相似度，取值 0.5–1，超出范围服务拒绝启动 |
+
+复核周期是知识库级设置（知识库设置的「基本信息」），不是环境变量。详见[知识健康](../03-features/22-knowledge-health.md)。
+
+### 在线文档
+
+在线文档默认关闭，全部配置在 `.env.example` 的 K 节，常用的几项：
+
+| 名称 | 默认值 | 说明 |
+| --- | --- | --- |
+| `YUHENG_DOCS_ENABLED` | false | 打开在线文档模块（注册 `/api/v1/docs/**`） |
+| `YUHENG_COLLAB_URL` | 空 | 协同服务的浏览器侧 WebSocket 地址，例如 `ws://localhost/collab`；留空为独占编辑 |
+| `YUHENG_COLLAB_SHARED_SECRET` | 空 | app 与 collab 之间的 HMAC 共享密钥，设了 `YUHENG_COLLAB_URL` 就必须设，至少 16 个字符 |
+| `YUHENG_COLLAB_INTERNAL_URL` | http://collab:1234（compose） | app 回调协同服务的内网地址 |
+| `COLLAB_REDIS_URL` | 空 | 协同服务多实例时用 Redis 同步；单实例留空 |
+| `YUHENG_DOCS_DRAWIO_URL` | 空 | 浏览器能打开的 draw.io 地址；留空时图表只能查看 |
+| `YUHENG_DOCS_PUBLIC_SHARING` | false | 是否允许发布免登录的公开链接；关闭时连公开路由都不注册 |
+| `YUHENG_DOCS_MAX_YDOC_BYTES` / `YUHENG_DOCS_MAX_ATTACHMENT_BYTES` | 20MiB / 200MiB | 单页协同状态上限 / 单个附件上限 |
+| `YUHENG_DOCS_INDEX_DEBOUNCE_SECONDS` | 60 | 页面编辑后延迟多少秒同步到知识库 |
+
+部署步骤见[安装部署](./02-installation.md)的「在线文档」一节，功能说明见[在线文档](../03-features/07-docs.md)。
 
 ### 可观测性（Langfuse）
 
@@ -269,7 +318,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `YUHENG_API_KEY` | 空 | mcp-server 反过来调 Yuheng REST 用的 Key，在「设置 → API Keys」生成 |
+| `YUHENG_API_KEY` | 空 | mcp-server 调 Yuheng REST 用的 API Key，用 `POST /api/v1/tenants/:id/api-keys` 创建 |
 | `MCP_SERVER_AUTH_TOKEN` | 空 | **HTTP/SSE 传输必填**，缺失时进程直接拒绝启动；客户端以 `Authorization: Bearer` 携带 |
 | `YUHENG_CHAT_TIMEOUT` | 300 | 调 Yuheng REST 的读超时（秒） |
 | `YUHENG_VERIFY_SSL` | true | 是否校验后端 TLS 证书，自签证书可设 false |
@@ -296,7 +345,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 | 文件 | 用途 | 模板 ID |
 | --- | --- | --- |
-| `system_prompt.yaml` | 问答系统 Prompt（quick-answer / RAG） | `default_kb`（默认）、`expert_assistant`、`customer_service`、`technical_support`、`pure_chat`、`web_search_assistant` |
+| `system_prompt.yaml` | 问答的系统 Prompt | `default_kb`（默认）、`expert_assistant`、`customer_service`、`technical_support`、`pure_chat`、`web_search_assistant` |
 | `context_template.yaml` | 检索结果拼装为上下文的模板 | `default_context`、`detailed_context`、`simple_context`、`qa_context` |
 | `rewrite.yaml` | 多轮查询改写（content+user 成对） | `default_rewrite`、`standard_rewrite`、`strict_rewrite` |
 | `fallback.yaml` | 未命中兜底（固定回复 + `mode:"model"` 模型兜底） | `default_fallback`、`polite_fallback`、`brief_fallback`、`model_fallback`、`default_fallback_prompt` |
@@ -305,7 +354,6 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | `generate_questions.yaml` | 文档预生成问题 | `default_generate_questions` |
 | `keywords_extraction.yaml` | 关键词抽取 | `default_keywords_extraction` |
 | `graph_extraction.yaml` | 图谱实体/关系抽取 | `default_extract_entities`、`default_extract_relationships` |
-| `agent_system_prompt.yaml` | Agent（smart-reasoning）系统 Prompt | `pure_agent`、`progressive_rag_agent`、`data_analyst`、`wiki_researcher`、`wiki_fixer`、`hybrid_rag_wiki_agent` |
 | `intent_prompts.yaml` | 意图路由的分意图系统 Prompt（模板 ID = 意图值） | `greeting`、`chitchat`、`follow_up`、`image_only`、`summarize`、`web_search`、`doc_only` |
 
 **可定制点**：直接编辑模板 `content`，或新增模板条目并把 config.yaml 中对应 `*_prompt_id` 改为新 ID；重启（compose 已挂载 `./config/config.yaml`，模板目录随镜像/挂载）即生效。ID 找不到时启动日志会输出 `Warning: xxx_prompt_id not found`。
@@ -330,8 +378,8 @@ builtin_models:
         truncate_prompt_tokens: 0
 ```
 
-注意：未设置的 `${ENV}` 会保留字面量以便暴露配置错误；非字符串字段（`type`、`source`、`is_default`、`dimension` 等）必须写字面值；从文件删除条目**不会**自动删库，需手动清理。
+注意：未设置的 `${ENV}` 会保留字面量以便暴露配置错误；非字符串字段（`type`、`source`、`is_default`、`dimension` 等）必须写字面值。这些记录标记为 `managed_by=yaml`：从文件里删掉一个条目，下次启动时对应记录会被软删除；系统管理员在界面上改过的记录转为手工管理，之后不再受文件影响。完整说明（界面共享、YAML 对账规则、下线与临时停用）见[模型管理：内置模型](../03-features/06-models.md#内置模型)。
 
 ## 配置优先级速记
 
-对同一语义的配置，生效优先级为：**数据库 `system_settings`（仅注册在表内的键）> 环境变量 > config.yaml > 代码内置默认值**；租户/知识库级配置（`RetrievalConfig`、`ChunkingConfig` 等，存于数据库）在运行时覆盖全局默认。修改 `.env` 后需重启容器（`docker compose up -d app`）；开发模式 air 热重载不会重读 `.env`，需重启 dev 脚本。
+对同一语义的配置，生效优先级为：**数据库 `system_settings`（仅注册在表内的键）> 环境变量 > config.yaml > 代码内置默认值**；租户/知识库级配置（`RetrievalConfig`、`ChunkingConfig` 等，存于数据库）在运行时覆盖全局默认。修改 `.env` 后需重建容器才会生效（`docker compose up -d app`，单纯 `restart` 不会重读 `.env`）；开发模式的热重载同样不会重读 `.env`，需重启 dev 脚本。

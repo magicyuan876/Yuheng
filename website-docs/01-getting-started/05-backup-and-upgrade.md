@@ -12,11 +12,12 @@
 | 上传的原始文件和解析出的图片 | 默认（`STORAGE_TYPE=s3`）在卷 `rustfs_data`（服务 `rustfs`）；`STORAGE_TYPE=local` 时在卷 `data-files`（挂在 `/data/files`）；接外部 S3 时在你的对象存储里 | 数据库只存指向它们的路径，**只备份数据库不够** |
 | 在线文档的协同状态 | 同样在 `postgres`（`docs_pages.ydoc`） | 协同服务 `collab` 自己不落盘、不持有数据，无需单独备份 |
 | Redis | 卷 `redis-data`（服务 `redis`，AOF 持久化） | 异步任务队列和缓存。丢失后排队中和处理中的任务会消失，卡在「处理中」的文档由巡检回收，需要时重新解析；不是必须备份的数据 |
+| 知识健康 | 同样在 `postgres`（`knowledge_findings` 等表，以及文档的负责人与复核记录） | 问题记录可以重新检测出来，但「忽略」的决定、手动指派、负责人与「确认仍然有效」的记录只存在这里 |
 | 知识图谱 | 卷 `neo4j-data`（服务 `neo4j`，仅启用 `neo4j` profile 时） | 可以由文档重新抽取，但耗时耗模型费用 |
 | 临时目录 | 卷 `docreader-tmp` | 解析中间产物，不用备份 |
 | 其他可选组件 | `searxng_config`、`langfuse_*` 等 | 各自独立，Langfuse 的数据库 `langfuse` 与业务库在同一个 postgres 里，`pg_dump` 时按需一起导出 |
 
-`.env` 里的 `SYSTEM_AES_KEY` 和 `JWT_SECRET` 也是状态的一部分：数据库里加密存放的 API Key 等凭据**离开 `SYSTEM_AES_KEY` 就无法解密**，备份时把 `.env` 一起收好（放在与数据备份不同的地方）。
+`.env` 里的 `SYSTEM_AES_KEY` 和 `JWT_SECRET` 也是状态的一部分：数据库里加密存放的 API Key、模型密钥、数据源凭据**离开 `SYSTEM_AES_KEY` 就无法解密**，备份时把 `.env` 一起收好（放在与数据备份不同的地方）。
 
 ## 一致地备份
 
@@ -44,6 +45,7 @@ docker compose start rustfs
 docker compose start app collab frontend
 ```
 
+- 没有启用 `docs` profile 时，第 1、4 步去掉 `collab`（没有这个容器时 `start` 会报错）。启用了 `full` profile 的，同样先停 `mcp`。
 - `STORAGE_TYPE=local`：第 3 步换成 `data-files` 卷（`grep 'data-files$'`）。
 - 外部 S3（云厂商）：用厂商的版本控制 / 跨区域复制，或 `rclone sync` 到另一个桶；备份时间点要与数据库转储相近。
 - 用了知识图谱：同样方式打包 `neo4j-data` 卷（先 `docker compose stop neo4j`）。
@@ -76,7 +78,7 @@ docker compose start rustfs
 docker compose start app collab frontend
 ```
 
-恢复后用 `curl localhost:8080/ready` 确认返回 200（见下文）。
+没有启用 `docs` profile 时，同样去掉命令里的 `collab`。恢复后用 `curl localhost:8080/ready` 确认返回 200（见下文）。
 
 ## 升级流程
 
@@ -87,10 +89,12 @@ docker compose start app collab frontend
    ```bash
    git pull
    ./scripts/build_frontend_dist.sh
-   docker compose --profile docs up -d --build
+   docker compose --profile docs up -d --build   # 带上你实际启用的 profile
    ```
+
+   用 `scripts/deploy.sh` 部署的，重新执行同一个脚本即可，它会重新构建镜像并原地更新容器。
 4. **看启动日志**：`docker compose logs -f app`。迁移在服务开始监听之前执行，日志里有 `[core] Current migration version: …`、`Database migrated from version A to B`。
-5. **验证**：`curl localhost:8080/ready` 返回 200，系统信息页的数据库版本已更新。
+5. **验证**：`curl localhost:8080/ready` 返回 200，「设置 → 版本信息」页的数据库版本（当前迁移版本号）已更新。
 6. 出问题，且一时修不好：停服务，**恢复备份并换回旧版本的代码和镜像**。不要靠 `migrate down` 回退。
 
 ### 迁移失败时如何读启动报错
@@ -108,7 +112,7 @@ Next steps: run ./scripts/migrate.sh version ...
 - **原始错误**：数据库返回的报错和出错的行号，去 `migrations/versioned/<N>_*.up.sql` 里对照。
 - 出错的如果是扩展注册的迁移源，报错会写明 `migration source "<名字>"`，它有自己的版本记录表。
 
-之后按 [docs/migration-troubleshooting.md](https://github.com/magicyuan876/yuheng/blob/main/docs/migration-troubleshooting.md) 的步骤处理：先修好根因（缺扩展、权限、磁盘），手工收拾半成品，再 `./scripts/migrate.sh force <N-1>`，最后重启。
+之后按 [docs/migration-troubleshooting.md](https://github.com/magicyuan876/yuheng/blob/main/docs/migration-troubleshooting.md) 的步骤处理：先修好根因（缺扩展、权限、磁盘），手工收拾半成品，再 `./scripts/migrate.sh force <上一个版本>` 把版本记录退回到上一个**实际存在**的迁移（编号有空段：000120 的上一个是 89，不是 119；启动报错里会直接给出这个版本号），最后重启。
 
 两个相关开关：
 
@@ -151,7 +155,7 @@ Next steps: run ./scripts/migrate.sh version ...
 - 数据库连接：每个副本最多占 `DB_MAX_OPEN_CONNS`（默认 50）个连接。`副本数 × DB_MAX_OPEN_CONNS + 其他客户端`必须小于 postgres 的 `max_connections`（compose 默认 100，可用 `POSTGRES_MAX_CONNECTIONS` 调），否则调小前者或调大后者。
 - 迁移：多个副本同时启动时，迁移靠 postgres 的 advisory lock 串行执行，只有一个真正迁移，其余等待后发现已最新。
 
-**当前的限制：** 数据源同步、审计日志保留清理、在线文档清理这几类定时任务**在每个副本上各跑一份**，没有选主。它们对重复执行是安全的，但会白白多做工作并多占资源；数据源同步在多副本下会对同一个外部数据源重复拉取。
+**当前的限制：** 数据源同步、审计日志保留清理、在线文档清理、知识健康的复核巡检这几类定时任务**在每个副本上各跑一份**，没有选主。它们对重复执行是安全的（复核巡检安排的重复检测会被合并成一次），但会白白多做工作并多占资源；数据源同步在多副本下会对同一个外部数据源重复拉取。
 
 协同服务 `collab` 同理：单实例无需 Redis；多实例必须设置 `COLLAB_REDIS_URL`。
 

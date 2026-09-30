@@ -1,6 +1,6 @@
 # 异步任务系统
 
-Yuheng 的文档解析、索引构建、富化（摘要 / 问题生成 / 图谱抽取 / 多模态）、Wiki 生成、数据源同步、批量删除与重解析等所有耗时操作，都通过基于 [asynq](https://github.com/hibiken/asynq)（Redis 作为 broker）的异步任务系统执行。涉及的主要源码：
+Yuheng 的文档解析、索引构建、富化（摘要 / 问题生成 / 图谱抽取 / 多模态 / 自动打标）、Wiki 生成、数据源同步、知识健康检测、批量删除与重解析等耗时操作，都通过基于 [asynq](https://github.com/hibiken/asynq)（Redis 作为 broker）的异步任务系统执行；没有 Redis 时由进程内执行器承担同样的任务。另有几类后台作业不走任务队列，而是定时器或数据库里的持久队列（第 8 节）。涉及的主要源码：
 
 | 模块 | 源码路径 |
 | --- | --- |
@@ -14,13 +14,15 @@ Yuheng 的文档解析、索引构建、富化（摘要 / 问题生成 / 图谱�
 | 事件总线 | `internal/event/`（`event.go`、`event_data.go`、`global.go`、`middleware.go`、`adapter.go`） |
 | 运行时辅助（DI 容器、启动横幅、uptime） | `internal/runtime/`（`container.go`、`server.go`、`startup.go`） |
 | 卡死任务兜底清扫 | `internal/application/service/knowledge_housekeeping.go` |
+| 知识健康调度与复核巡检 | `internal/application/service/findings/trigger.go`、`task.go`、`review.go` |
+| 在线文档镜像队列 | `internal/docs/indexer.go`、`internal/docs/service/indexqueue.go`、`internal/docs/repository/indexstate.go` |
 
 ## 1. 总体架构：双执行模式
 
 Yuheng 有两种任务执行模式，通过部署形态选择：
 
 - **asynq 模式（标准部署）**：任务经 `asynq.Client` 序列化为 JSON payload 写入 Redis 队列，由多个独立的 `asynq.Server`（worker pool）消费。`internal/router/task.go` 中 `RunAsynqServer()` 构建统一的 `asynq.ServeMux` 并在 6 个 pool 上运行。
-- **无 Redis（单机部署）**：`internal/router/sync_task.go` 的 `SyncTaskExecutor` 实现同一个 `interfaces.TaskEnqueuer` 接口，`Enqueue` 直接把任务派发到 goroutine 执行，支持 `ProcessIn`（延迟）与 `MaxRetry` 选项；重试为线性退避（`attempt * 5s`，上限 30s）。
+- **无 Redis（单机部署）**：`internal/router/sync_task.go` 的 `SyncTaskExecutor` 实现同一个 `interfaces.TaskEnqueuer` 接口，`Enqueue` 直接把任务派发到 goroutine 执行，支持 `ProcessIn`（延迟）、`MaxRetry` 与 `TaskID` 选项——同一 TaskID 的任务尚未结束时再次入队返回 `asynq.ErrTaskIDConflict`，与 asynq 语义一致（知识健康的防抖依赖这一点）；重试为线性退避（`attempt * 5s`，上限 30s）。任务同样打上后台任务标记，受进程内的 per-model 并发闸门约束。
 
 ```go
 // internal/router/sync_task.go
@@ -39,6 +41,8 @@ Yuheng 有两种任务执行模式，通过部署形态选择：
 | Wiki ingest 互斥锁 | `wiki:active:<kbID>`、finalize 锁、slug 锁均为 `SetNX` + TTL | `internal/application/service/wiki_ingest.go`、`wiki_ingest_batch.go` |
 | 多模态子任务计数器 | 图片子任务完成计数（DECR），最后一个 attempt 触发 finalize | `image_multimodal` 相关服务 |
 | 限流 | 滑动窗口限流 ZSET（见可观测性文档） | `internal/ratelimit/limiter.go` |
+| 模型并发闸门 | 分布式 per-model 信号量，限制后台任务对同一模型的并发 | `registerModelConcurrencyLimiter`（`internal/container/container.go`） |
+| 在线文档 | 模块事件总线（`RedisBus`，跨实例）、权限决策缓存、幂等键 | `internal/docs/events/`、`internal/docs/acl/cache.go` |
 
 Redis 连接参数来自环境变量 `REDIS_ADDR` / `REDIS_USERNAME` / `REDIS_PASSWORD` / `REDIS_DB` / TLS 配置。读写超时由 `YUHENG_REDIS_OP_TIMEOUT_MS` 控制，默认 500ms（写超时为其 2 倍以吸收队头阻塞）：
 
@@ -78,6 +82,14 @@ opt := &asynq.RedisClientOpt{
 | `knowledge:move` | `TypeKnowledgeMove` | 知识移动 | `low` |
 | `wiki:ingest` | `TypeWikiIngest` | Wiki 页面生成/同步 | `wiki` |
 | `wiki:finalize` | `TypeWikiFinalize` | Wiki KB 级收尾（防抖：索引重建/死链清理/交叉链接） | `wiki` |
+| `knowledge:auto_tag` | `TypeKnowledgeAutoTag` | 按知识库已有标签给文档自动归类（best-effort，不计入子任务） | `summary` |
+| `knowledge:findings` | `TypeKnowledgeFindings` | 知识健康检测，按文档防抖（见 3.1） | `low` |
+
+共 21 个任务类型。队列归属以 `queueDefinitions` 的 `TaskTypes` 为准，生产者入队时仍显式传队列名，`types.QueueForTaskType` 供测试与观测检测两者漂移。
+
+### 3.1 知识健康任务的防抖
+
+`findings.Trigger`（`internal/application/service/findings/trigger.go`）用**确定性的任务 ID** 做防抖：`knowledge-findings:<knowledgeID>:<slot>`，其中 slot 是"预计运行时刻"落在哪个 30 秒窗口。同一窗口内的多次变化命名同一个任务，第二次入队得到 `ErrTaskIDConflict` 并被静默忽略；变化只会并入一个**还没开始**的检测，所以不会被一个已经读过文档的检测吞掉。之所以不用 asynq 的 `Unique` 选项，是因为它在任务运行期间一直持锁，检测期间发生的变化会被丢弃。任务 `MaxRetry(3)`、超时 10 分钟，放在维护队列——它只读数据库并比较已存储的向量，不调用模型。
 
 所有 payload 结构体（如 `DocumentProcessPayload`、`ImageMultimodalPayload`）都内嵌 `types.TracingContext`，用于跨进程传递 Langfuse/W3C traceparent（见可观测性文档），并统一携带 `tenant_id` / `knowledge_id` / `knowledge_base_id` 等路由字段，供死信归档与取消匹配使用。
 
@@ -94,7 +106,7 @@ opt := &asynq.RedisClientOpt{
 | `core` | 8 | `default`(1)、`chat_attachment`(3) | `asynq.core_concurrency` / `YUHENG_ASYNQ_CORE_CONCURRENCY` |
 | `postprocess` | 2 | `postprocess`(1) | `asynq.postprocess_concurrency` / `YUHENG_ASYNQ_POSTPROCESS_CONCURRENCY` |
 | `enrichment` | 12 | `summary`(2)、`multimodal`(1)、`graph`(1)、`question`(1) | `asynq.enrichment_concurrency` / `YUHENG_ASYNQ_ENRICHMENT_CONCURRENCY` |
-| `maintenance` | 4 | `sync`(2)、`low`(1) | `asynq.maintenance_concurrency` / `YUHENG_ASYNQ_MAINTENANCE_CONCURRENCY` |
+| `maintenance` | 4 | `sync`(2)、`low`(1)（`low` 含知识健康检测） | `asynq.maintenance_concurrency` / `YUHENG_ASYNQ_MAINTENANCE_CONCURRENCY` |
 | `shared`（弹性层） | 6 | core + enrichment 中 `SharedWeight > 0` 的队列 | `asynq.shared_concurrency` / `YUHENG_ASYNQ_SHARED_CONCURRENCY` |
 | `wiki` | 8 | `wiki`(1) | `asynq.wiki_concurrency` / `YUHENG_WIKI_ASYNQ_CONCURRENCY` |
 
@@ -186,6 +198,21 @@ func asynqRetryDelayFunc(n int, e error, t *asynq.Task) time.Duration {
 ```
 
 原因：孤儿锁 TTL ≤ 60s，固定 15s 重试几乎必然成功；指数退避反而会让崩溃重启后的 KB 卡 7–10 分钟。
+
+### 4.5 配置与容量规划
+
+- 六个池的并发都可在系统设置里修改，**改完需要重启服务**才生效（设置页会标出"需重启"）；环境变量是 system_settings 没有值时的回退。旧的总量设置 `asynq.concurrency` / `YUHENG_ASYNQ_CONCURRENCY` 已废弃：库里残留的旧行被忽略，也不会在设置页显示，设过它的部署要改成按池配置；
+- 默认值下每个实例的上游总量是 32（core 8 + postprocess 2 + enrichment 12 + maintenance 4 + shared 6，`DefaultUpstreamWorkerConcurrency`），wiki 的 8 另算；
+- worker 并发只是**接纳多少任务**的预算，不能代替模型配额、docreader 容量、对象存储、PostgreSQL 连接数等各自的限制。三层分别调：worker 并发决定每个实例同时跑多少个 handler；per-model 并发闸门决定对同一个模型的并发；下游服务有它们自己的资源上限。模型闸门等待变多而队列也忙时，加 worker 只会多出一批等待者——应当提高服务商配额，或者减少 worker；
+- 估算某个池的峰值需求：
+
+```text
+所需 worker = ceil(峰值任务到达率 × 平均任务耗时 / 0.70)
+```
+
+  到达率要按**扇出之后**算：一篇文档会产生 1 个摘要、若干问题批次、每个分块 1 个图谱任务、每张图 1 个多模态任务。队列里的任务数本身不是容量信号，要看最老 pending 任务的等待时间（`latency_ms`）。只有当某个池的积压年龄在增长、且它的下游还有余量时才加这个池；core 长期空闲而扇出队列增长时，把容量挪给 enrichment；瓶颈在 docreader 的 CPU、内存或延迟时，反而应当减少 core。
+
+运维面板（6.2）给出每实例配置的并发、在线实例数、按 asynq 心跳汇总的集群容量、活跃 worker 与利用率、队列积压与重试、死信，以及 per-model 并发闸门的统计（`modellimiter.RuntimeStats`）。
 
 ## 5. 任务生命周期状态机
 
@@ -286,11 +313,28 @@ stateDiagram-v2
 
 `internal/application/service/knowledge_housekeeping.go`：cron 每 5 分钟（`0 */5 * * * *`）扫描卡在 `pending`/`processing`/`finalizing` 超过 stale 阈值的知识行并标记 failed。这是 asynq 重试、死信回调、multimodal finalize 之外的最后防线（worker 被 kill 在 handler 中间、defer 没跑到等场景）。清扫结合 span 心跳、`updated_at` 与 `TaskInspector.HasQueuedTasksForKnowledge`，避免误杀"积压但未孤儿"的行。可用 `YUHENG_HOUSEKEEPING_ENABLED=false` 关闭。
 
-## 8. 事件总线（`internal/event`）
+## 8. 不走任务队列的后台作业
 
-事件总线用于**进程内**的会话流式事件分发（如 SSE 推送），与 asynq（跨进程持久任务）互补。
+以下作业在容器装配时由 `container.Invoke` 启动、退出时经 `ResourceCleaner` 停止。它们要么可以跳过一轮而无损失，要么自带数据库里的持久队列，因此不需要 asynq 的持久化：
 
-### 8.1 结构与投递保证
+| 作业 | 周期 | 做什么 | 源码 |
+| --- | --- | --- | --- |
+| Housekeeping | 每 5 分钟（cron `0 */5 * * * *`） | 回收卡死的知识行与摘要状态（见 7.3） | `knowledge_housekeeping.go` |
+| 知识健康复核巡检 `ReviewSweep` | 每小时 | 找出复核到期的文档，按 200ms 间隔错开排 `knowledge:findings`；`YUHENG_FINDINGS_ENABLED=false` 时不运行 | `findings/review.go`、`container/findings.go` |
+| 数据源调度器 | 按各数据源的 cron | 到点入队 `datasource:sync` | `internal/datasource/`（`datasource.NewScheduler`） |
+| 审计日志保留 | 定时 | 删除超过 `YUHENG_AUDIT_RETENTION_DAYS` 的审计记录 | `service.NewAuditLogRetentionRunner` |
+| 临时文档清理 | 定时 | 删除过期的会话临时附件 | `startTemporaryDocumentCleanup` |
+| 在线文档索引器 | 每 10 秒一轮，积压时连续排空；每 5 分钟补扫 | 见下 | `internal/docs/indexer.go` |
+| 在线文档清理器 | `YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES`（默认 60） | 清理过期回收站与孤儿附件 | `internal/docs/cleanup.go` |
+| Wiki 待处理操作恢复 | 启动时一次 | 为 `task_pending_ops` 中遗留的 Wiki 操作重新入队触发任务 | `container/recover_pending_wiki_tasks.go` |
+
+**在线文档的持久队列**：页面镜像到知识库不用 asynq，而是 `docs_index_state` 表（迁移 000122）。模块事件只负责把页面标记为"需要再看一次"（写 `due_at`，编辑防抖默认 60 秒，收回可见性的事件立即到期，`seq` 自增）；每个实例的索引器循环用 `FOR UPDATE SKIP LOCKED` 认领到期行并写 `claimed_until`（租约 10 分钟），处理完成后比较 `seq`，期间又有新请求就保留待办。实例崩溃时租约过期、页面被别的实例重新认领，写入失败由 `attempts` / `last_error` 记录并由 5 分钟一次的 `RequeueIndex` 兜底。镜像本身调用手工知识接口，随后照常进入 `manual:process` → `knowledge:post_process` → `knowledge:findings`。
+
+## 9. 事件总线（`internal/event`）
+
+事件总线用于**进程内**的问答流式事件分发（SSE 推送），与 asynq（持久任务）互补。在线文档模块另有自己的事件总线（`internal/docs/events`，有 Redis 时跨实例），与这里无关。
+
+### 9.1 结构与投递保证
 
 ```go
 // internal/event/event.go
@@ -313,7 +357,7 @@ type Event struct {
 - `middleware.go` 提供 handler 中间件：`WithLogging`（触发/失败日志）、`WithTiming`（耗时写入 metadata）、`WithRecovery`（panic 转 `PanicError`），`Chain` / `ApplyMiddleware` 组合。
 - `adapter.go` 的 `EventBusAdapter` 把 `*EventBus` 适配为 `types.EventBusInterface`，避免循环依赖。
 
-### 8.2 事件类型清单（`internal/event/event.go`）
+### 9.2 事件类型清单（`internal/event/event.go`）
 
 | 分组 | 事件类型 |
 | --- | --- |
@@ -322,20 +366,20 @@ type Event struct {
 | 重排 | `rerank.start`、`rerank.complete` |
 | 合并 | `merge.start`、`merge.complete` |
 | 聊天生成 | `chat.start`、`chat.complete`、`chat.stream` |
-| 问答生命周期 | `agent.query`、`agent.complete` |
-| 问答流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`references`、`final_answer` |
+| 问答生命周期 | `agent.query`、`agent.complete`（名称沿用上游，现只用于知识问答，不存在 Agent） |
+| 问答流式（实时反馈） | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`（`tool_call` / `tool_result` 用来呈现检索、查询理解等管线阶段的进度） |
 | 错误 / 会话 / 控制 | `error`、`session_title`、`stop` |
 
 每类事件的数据结构定义在 `internal/event/event_data.go`（如 `AgentToolCallData` 携带 `tool_call_id`/`tool_name`/`arguments`/`hint`，`AgentFinalAnswerData` 携带 `content`/`done`/`is_fallback` 等）。
 
-### 8.3 主要订阅者
+### 9.3 主要订阅者
 
 | 订阅者 | 源码 | 订阅内容 |
 | --- | --- | --- |
 | SSE 流式 handler | `internal/handler/session/stream_handler.go` | `thought`、`tool_call`、`tool_result`、`references`、`final_answer`、`error`、`session_title`、`agent.complete` 等 |
 | 知识问答 handler | `internal/handler/session/qa.go`、`helpers.go` | `thought`、`final_answer`、`stop` |
 
-## 9. `internal/runtime` 包
+## 10. `internal/runtime` 包
 
 该包很小，是运行时基础设施而非 worker 逻辑：
 
@@ -343,7 +387,7 @@ type Event struct {
 - `server.go`：`MarkServerStarted()` / `ServerStartedAt()` / `ServerUptime()` —— 进程启动时刻记录，供运维面板显示 uptime。
 - `startup.go`：`SilenceGinRouteSpam()` 抑制约 150 行 Gin 路由注册日志并汇总为一行（`LogGinRouteCount`）；`LogStartupEnv()` 打印精选环境变量横幅（敏感值只显示 `set (N chars)`），并对典型 footgun 发出显式警告（如 `SYSTEM_AES_KEY` 长度不等于 32 时加密实际被禁用、`REDIS_TLS_INSECURE_SKIP_VERIFY=true`）。
 
-## 10. 如何监控任务
+## 11. 如何监控任务
 
 1. **运维面板 / Runtime API**（第 6.2 节）：队列深度、最老 pending 延迟（`latency_ms`）、当日 processed/failed、worker 心跳；按状态浏览任务、查看 `last_error`、`retried/max_retry`、执行 `run_now`/`cancel`/`delete`。
 2. **死信表 SQL**：`SELECT * FROM task_dead_letters WHERE scope='knowledge_base' AND scope_id='<kbID>' ORDER BY id DESC;` 或按 `task_type` 聚合失败率；`task_pending_ops` 的 `PendingCount` / `enqueued_at` 可发现从未排空的积压。
