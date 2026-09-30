@@ -8,14 +8,19 @@
 
 | 想做什么 | 在哪里做 |
 | --- | --- |
-| 建库、改分块大小与索引开关 | 知识库编辑弹窗的「分块」「索引策略」页签 |
+| 建库、选索引策略 | 知识库编辑弹窗的「基本信息」：勾选「RAG 检索」（向量 + 关键词）和 / 或「Wiki 知识库」。库里已有内容后索引策略锁定，要改须先清空 |
+| 调分块大小、父子分块 | 知识库编辑弹窗的「分块设置」（见[分块机制](04-chunking.md)） |
+| 为某类文件换解析引擎 | 知识库编辑弹窗的「解析引擎」（见[文档解析服务](03-document-parsing.md)） |
 | 上传文件 / 导入网页 / 手写一篇 | 文档列表页的上传区，或「新建」下拉 |
 | 用文件夹整理文档 | 文档列表左侧的文件夹树；整目录拖进上传区会保留目录结构（见 §3.4） |
 | 给文档打标签（一篇可多个） | 单篇在详情里改；多篇勾选后用批量操作栏的「标签」（见 §3.5） |
 | 检查解析结果、改错字 | 打开文档 → 分块列表 → 直接编辑分块（见 §3.6） |
 | 补充部门、密级等自定义字段 | 文档详情里的自定义元数据（见 §3.1） |
-| 看谁改过什么 | 知识库设置 → 活动（见 §6） |
+| 看谁改过什么 | 知识库编辑弹窗 → 「活动记录」（见 §6） |
 | 整库复制 / 把文档挪到别的库 | 知识库列表的复制，或文档批量操作里的移动（见 §4） |
+| 指定一篇文档由谁负责、确认它仍然有效 | 打开文档详情，「负责人」「复核」两行（见 §9） |
+| 让没人确认的文档定期提醒负责人复核 | 知识库编辑弹窗 → 「基本信息」→「定期复核」，填天数（见 §1.8） |
+| 查看重复、有出入、过期、被反馈有误的文档 | 知识库页面顶部的「知识健康」标签（见[知识健康](22-knowledge-health.md)） |
 
 ## 1. 知识库模型与配置项
 
@@ -48,7 +53,9 @@ graph TB
     KB --> FAQ["FAQConfig (仅 faq 类型)"]
     KB --> QG["QuestionGenerationConfig (问题生成)"]
     KB --> WIKI["WikiConfig (wiki_enabled 打开时)"]
-    KB --> ST["StorageProviderConfig / StorageBackendID / StorageConfig(遗留)"]
+    KB --> AT["AutoTagConfig (自动关联标签, 仅 document 类型)"]
+    KB --> RV["ReviewIntervalDays (复核周期)"]
+    KB --> ST["StorageProviderConfig / StorageBackendID"]
     KB --> VS["VectorStoreID (创建后不可改)"]
     CC --> PCR["ParserEngineRules (按文件类型选解析引擎)"]
     CC --> PC["父子分块 (parent_chunk_size / child_chunk_size)"]
@@ -63,15 +70,15 @@ graph TB
 
 | 字段 | 类型 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| `chunk_size` | int | 必填 | 分块大小（字符数） |
-| `chunk_overlap` | int | - | 相邻分块重叠 |
+| `chunk_size` | int | 512（≤0 时取默认） | 分块大小（字符数） |
+| `chunk_overlap` | int | 80（≤0 时取默认） | 相邻分块重叠（字符数）；0 不表示「不重叠」，见[分块机制](04-chunking.md) §1.1 |
 | `separators` | []string | - | 分隔符列表 |
 | `parser_engine_rules` | []ParserEngineRule | - | 按文件类型指定解析引擎：`{file_types, engine, xlsx_first_row_as_header?}` |
 | `enable_parent_child` | bool | false | 启用父子分块策略 |
 | `parent_chunk_size` | int | 4096 | 父分块大小（用于返回上下文） |
 | `child_chunk_size` | int | 384 | 子分块大小（用于嵌入检索） |
 | `strategy` | string | 空（= `legacy`） | 分块策略：`legacy`（历史递归切分）/ `auto`（画像器自动选层）/ `heading` / `heuristic` / `recursive`（固定某一层），详见[分块机制](04-chunking.md) |
-| `token_limit` | int | 0 | 令牌上限（0 = 不限） |
+| `token_limit` | int | 0 | 近似 token 上限（0 = 只按 `chunk_size` 字符数） |
 | `languages` | []string | 自动检测 | 语言提示 |
 | `table_metadata_instructions` | string | - | 表格元数据生成指令 |
 
@@ -83,6 +90,8 @@ graph TB
 | `keyword_enabled` | true | 关键词（BM25）检索 |
 | `wiki_enabled` | false | Wiki 页面生成 |
 | `graph_enabled` | false | 知识图谱提取 |
+
+界面上「RAG 检索」一个勾选同时控制 `vector_enabled` 与 `keyword_enabled`；知识图谱在「知识图谱」页签单独开启（需要部署 Neo4j，见[知识图谱](09-knowledge-graph.md)）。编辑已有内容的知识库时索引策略不可改。
 
 ### 1.5 多模态与富化配置
 
@@ -105,6 +114,8 @@ graph TB
 
 **ExtractConfig（知识图谱）**：`enabled`、`text`、`tags`、`nodes []*GraphNode{name, chunks, attributes}`、`relations []*GraphRelation{node1, node2, type}`、`custom_instructions`（领域提取指导）。
 
+**AutoTagConfig（自动关联标签，仅文档库）**：`enabled`；`model_id`（留空用知识库的摘要模型）；`max_tags` 单篇最多关联几个标签（默认 3，上限 10）；`skip_if_tagged` 已有标签的文档不再自动打（默认 true）。文档解析完成后，模型从**本库已有的标签**里挑选合适的关联上，不新建也不删除标签，每篇文档多一次模型调用。界面位置：「高级设置」→「自动关联标签」。
+
 **FAQConfig（仅 FAQ 库）**：`index_mode`（`question_only` / `question_answer`，默认后者）、`question_index_mode`（`combined` / `separate`，默认 combined），详见 FAQ 篇。
 
 **WikiConfig（打开 `indexing_strategy.wiki_enabled` 的知识库）**——注意它不是 `type = "wiki"` 专属：普通文档库打开 Wiki 索引后，`UpdateKnowledgeBase` 会自动给它建一份空的 `WikiConfig` 承载这些可调项：
@@ -122,13 +133,17 @@ graph TB
 ### 1.6 存储配置
 
 - **StorageProviderConfig**（新）：`provider ∈ {local, s3}`；
-- **StorageBackendID**：绑定具体存储后端实例；
+- **StorageBackendID**：绑定具体存储后端实例，未绑定时用空间默认存储（见[存储后端](19-storage-backends.md)）；
 
 ### 1.7 KB 计算字段
 
 列表 / 详情响应附带：`knowledge_count`、`chunk_count`、`is_processing`（FAQ 库）、`processing_count`（文档库处理中知识数）、`share_count`（共享到的组织数）、`creator_name`、`is_pinned` / `pinned_at`（当前用户置顶状态）。
 
 另有一个存储字段 `is_temporary`：标记**临时（ephemeral）知识库**，正常的知识库列表里不展示。它由系统内部使用，典型场景是联网搜索把抓回来的网页缓存成可检索内容。手工建库不会产生临时库。
+
+### 1.8 复核周期（review_interval_days）
+
+`review_interval_days` 规定一篇文档最多可以多少天没人确认、也没人修改；超过后知识健康会生成一条「需要复核」交给文档负责人。默认 0，表示不做定期复核；上限 3650（数据库约束同样限制）。在知识库编辑弹窗的「基本信息」→「定期复核」里设置，或通过 `PUT /knowledge-bases/:id` 在请求体的 `config.review_interval_days` 里传（超出 0–3650 返回校验错误）。计时规则、巡检频率与处理方式见[知识健康](22-knowledge-health.md) §1.2。
 
 ## 2. KB 路由与权限
 
@@ -149,19 +164,21 @@ graph TB
 | GET | `/knowledge-bases/:id/move-targets` | ListMoveTargets | Viewer+ + KBAccessRead |
 | GET | `/knowledge-bases/:id/activity` | ListKnowledgeBaseActivity | OwnedKBOrAdmin + KBAccessRead（仅 JWT） |
 
-**创建流程**（`internal/handler/knowledgebase.go`）：Contributor 校验 → 租户存储配额检查 → `EmbeddingModelID` 校验 → `VectorStoreID` 绑定校验 → 创建 → 返回 KB + `vector_store_display`。
+知识健康（`/knowledge-bases/:id/findings*`）、组织共享（`/knowledge-bases/:id/shares`）的路由分别见[知识健康](22-knowledge-health.md) §6 与[租户、用户与认证授权](01-tenant-auth.md) §8。
 
-**删除级联**：删除 KB 下全部 Knowledge → Chunk → 向量索引 → 关键词索引 → Wiki 页面 → 标签 → 存储文件 → 软删除 KB 本身。共享侧的 editor 无法删除源 KB（删除要求 owner 租户 + Admin 侧权限）。
+**创建流程**（`internal/handler/knowledgebase.go`）：Contributor 校验 → 请求参数校验（图谱抽取配置、各类 `custom_instructions` 长度）→ 服务层创建（含 `VectorStoreID` 绑定校验）→ 返回 KB 与向量存储的展示信息。存储配额不在建库时检查，而是在向库里添加内容时检查（见 §7）。
+
+**删除**（`DeleteKnowledgeBase`）：先软删除 KB 行并记 `kb.deleted` 活动，同步清理该库排队中的任务、删除它的组织共享记录、停止并软删除绑定的数据源；随后投递一个异步删除任务，在后台清掉库内知识、分块、检索索引与存储文件。共享侧的 editor 无法删除源 KB（handler 以调用者自己的租户比对 `kb.TenantID`，删除锁定为「所有者租户 + 创建者或 Admin」）。
 
 ## 3. 知识（Knowledge）管理
 
 ### 3.1 模型要点
 
-`internal/types/knowledge.go`。关键字段：`type`（`manual` 手动 Markdown / `faq` / 文件类型）、`source` / `channel`（摄入渠道）、`parse_status`、`summary_status`、`enable_status`、`file_name/type/size/hash/path`、`storage_size`、`metadata`（JSON，手动知识存 `ManualKnowledgeMetadata{content, format, status(draft/publish), version}`）、`custom_metadata`（JSON，用户自填元数据）、`last_faq_import_result`。
+`internal/types/knowledge.go`。关键字段：`type`（`manual` 手动 Markdown / `url` / `faq` / 文件类型）、`source`（URL 类知识存地址）/ `channel`（摄入渠道）、`parse_status`、`summary_status`、`enable_status`、`file_name/type/size/hash/path`、`storage_size`、`metadata`（JSON，手动知识存 `ManualKnowledgeMetadata{content, format, status(draft/publish), version}`）、`custom_metadata`（JSON，用户自填元数据）、`last_faq_import_result`，以及负责人字段 `owner_id` / `reviewed_at` / `reviewed_by`（migration `000125`，见 §9）。
 
 `metadata` 与 `custom_metadata` 刻意分开（migration `000078`）：前者是入库过程写入的内部状态与 ID，后者是用户自己维护的描述性字段（部门、密级、版本号等）。`custom_metadata` 最多 20 个字段，键 1-64 字符，值为字符串/数字/布尔/null 且不超过 1000 字符；`Knowledge.CustomMetadataText()` 把它渲染成稳定排序的 `键: 值` 文本，参与摘要生成与文档级模型上下文。修改元数据会自动触发一次摘要刷新。
 
-摄入渠道常量：`web`、`api`、`browser_extension`、`wechat`、`wecom`、`feishu`、`dingtalk`、`slack`、`im`、`notion`、`yuque`、`rss`。
+`channel` 记录内容从哪里进来：界面上传默认 `web`；上传接口可用表单字段 `channel` 自报（如 `api`）；数据源同步写入连接器类型（`feishu`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`rss`、`gitlab`、`ima`）；在线文档页面的镜像为 `docs`。`internal/types/knowledge.go` 里还留着 `wechat`、`wecom`、`dingtalk`、`slack`、`im` 等来自上游的常量，但 IM 渠道已移除，现在不会产生这些值。
 
 解析状态机：
 
@@ -200,6 +217,10 @@ stateDiagram-v2
 | POST | `/knowledge/batch-reparse`、`/knowledge/batch-delete` | 批量重解析 / 删除 | Contributor+ / `ingest` |
 | POST | `/knowledge/move` | 移动知识 | Contributor+ / `ingest` |
 | GET | `/knowledge/move/progress/:task_id` | 移动进度 | Viewer+ |
+| POST | `/knowledge/folder` | 把文档移到文件夹（只改归类） | Contributor+ / `ingest` |
+| GET | `/knowledge/:id/stewardship` | 负责人、最近确认、复核到期时间 | Viewer+ + KBAccessRead |
+| PUT | `/knowledge/:id/owner` | 转交负责人 | OwnedKnowledgeKBOrAdmin + KBAccessWrite |
+| POST | `/knowledge/:id/review` | 确认文档仍然有效（需要登录用户，API Key 不行） | 同上 |
 
 ### 3.3 列表过滤参数
 
@@ -207,13 +228,13 @@ stateDiagram-v2
 
 | 参数 | 说明 |
 | --- | --- |
-| `page` / `page_size` | 分页（默认按 `updated_at DESC` 排序） |
+| `page` / `page_size` | 分页（按 `created_at DESC` 排序） |
 | `keyword` | 按文件名 / 标题搜索 |
-| `file_type` | 文件类型过滤（`pdf` / `manual` / `url` …） |
+| `file_type` | 文件类型过滤（`pdf` …；`manual` / `url` 按知识的 `type` 列匹配） |
 | `parse_status` | 解析状态过滤 |
 | `source` | 摄入渠道过滤（`api` / `web` / `feishu` …） |
-| `tag_id` | 标签过滤，逗号分隔多个（**OR 语义**） |
-| `updated_from` / `updated_to` | 更新时间范围（RFC3339） |
+| `tag_ids` | 标签过滤，逗号分隔多个（**OR 语义**） |
+| `start_time` / `end_time` | 按 `updated_at` 过滤的时间范围（RFC3339，或 `2006-01-02 15:04:05` / `2006-01-02`，按服务器时区解析） |
 | `folder_path` | 按文件夹筛选。**是否传这个参数决定列表模式**：不传是全库扁平视图，传空字符串是知识库根目录（不含子目录） |
 | `folder_recursive` | 配合 `folder_path` 使用，为 `true` 时连子目录里的文档一起返回 |
 
@@ -255,7 +276,7 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 
 - 读：`Knowledge.Tags` 是查询时按 `knowledge_id` 批量 JOIN 出来的（`gorm:"-"`，不落在 knowledges 表上）；
 - 写：整体替换语义——`PUT /knowledge/tags` 传 `{knowledge_id: [tag_ids]}`，实现先删该文档的全部关联再写入新集合；
-- 过滤：`tag_ids` 是 **OR 语义**（命中任一标签即返回），SQL 走 `knowledges.id IN (SELECT knowledge_id FROM knowledge_tag_relations WHERE tag_id IN (...))`；
+- 过滤：列表参数 `tag_ids` 是 **OR 语义**（命中任一标签即返回），SQL 走 `knowledges.id IN (SELECT knowledge_id FROM knowledge_tag_relations WHERE tag_id IN (...))`；
 - FAQ 条目是另一套：它本身是 chunk，标签存在 `chunks.tag_id` 上（**单标签**），与文档的多标签关联表不是同一条路径。
 
 标签本身的管理路由：`GET /knowledge-bases/:id/tags`（Viewer+）、`POST`（OwnedKBOrAdmin）、`PUT/DELETE /knowledge-bases/:id/tags/:tag_id`（OwnedKBOrAdmin）；`tag_id` 路径参数同时接受 UUID 与整数 `seq_id`。
@@ -298,17 +319,17 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 
 ### 3.7 下载与预览安全
 
-`GET /knowledge/:id/preview` 的安全机制由 `internal/handler/knowledge_preview_security_test.go` 固化验证：
+`GET /knowledge/:id/preview` 按文件名决定响应方式（`secutils.SafeContentTypeByFilename`）：
 
-| 控制 | 实现 | 目的 |
+| 文件类型 | 响应 | 目的 |
 | --- | --- | --- |
-| 强制 `Content-Type: application/octet-stream` | 响应头固定 | 阻止浏览器把 HTML/SVG 当页面执行（防存储型 XSS） |
-| `X-Content-Type-Options: nosniff` | 响应头 | 禁止 MIME 嗅探绕过 |
-| `Content-Disposition: attachment; filename=...` | 响应头 | 强制下载而非内联渲染 |
-| 路径校验 | `ValidateKBScopedStoragePath()` | 文件路径必须落在该 KB 的授权存储范围内（防路径穿越 / 越权读取） |
-| 大小限制 | GetFile 响应体限制 | 防止超大文件拖垮预览 |
+| 浏览器会当作页面或脚本执行的类型（`.svg` `.svgz` `.html` `.htm` `.xhtml` `.xml` `.js` `.mjs` `.css`） | `Content-Type: application/octet-stream` + `Content-Disposition: attachment` | 不让上传的 HTML/SVG 在本站源下执行（防存储型 XSS） |
+| 其他类型（PDF、图片、CSV 等） | 按扩展名给出真实 `Content-Type`，`Content-Disposition: inline`，可在浏览器内预览 | |
+| 所有响应 | `X-Content-Type-Options: nosniff`、`Cache-Control: private, max-age=3600` | 禁止 MIME 嗅探绕过；不进共享缓存 |
 
-测试用例明确验证：即使文件内容是 `<script>alert(1)</script>`，也只会作为二进制附件传输。下载端点（`/knowledge/:id/download`）要求更高的 Contributor+ 且走 KBAccessWrite 门禁。
+`internal/handler/knowledge_preview_security_test.go` 固化了这一点：内容是 `<script>alert(1)</script>` 的 HTML 文件只会作为附件下载。
+
+下载原始文件（`GET /knowledge/:id/download`）比预览更严：要求 Contributor+，且走 KBAccessWrite——空间 Viewer 与组织共享来的 Viewer 都不能下载原件。
 
 ## 4. 知识库复制与知识移动
 
@@ -316,16 +337,14 @@ type KnowledgeTagRelation struct { KnowledgeID, TagID string } // 多对多
 
 `internal/application/service/knowledge_clone_move.go`，preflight 规则由 `internal/handler/knowledgebase_copy_preflight_test.go` 固化：
 
-- `POST /knowledge-bases/copy`：整库复制（配置 + 内容），body 传 `source_id`；异步任务，进度查 `GET /knowledge-bases/copy/progress/:task_id`（活动流记 `kb.clone_started` / `kb.clone_completed` / `kb.clone_failed`）。
+- `POST /knowledge-bases/copy`：整库复制（配置 + 内容），body 传 `source_id`，可选 `target_id` 复制进已有的库；异步任务，进度查 `GET /knowledge-bases/copy/progress/:task_id`（活动流记 `kb.clone_started` / `kb.clone_completed` / `kb.clone_failed`）。
 - `POST /knowledge-bases/:id/duplicate`：**仅复制配置**（不复制内容 / 索引 / 共享记录），活动流记 `kb.duplicated`。
 
-Preflight（复制前校验，直接同步拒绝）：
+Preflight（复制前在 handler 里同步校验，不通过直接返回，异步任务里还会再查一遍）：
 
-1. 源 / 目标 KB 的租户隔离（跨租户拒绝）；
-2. 源 KB 存在性；
-3. **VectorStore 兼容性**：`reuse_vectors` 模式不支持跨向量库的 KB（向量不可直接搬移）；
-4. **StorageBackend 兼容性**：跨存储后端复制不支持；
-5. API Key 调用时源 / 目标 KB 均须在 allow-list 内。
+1. 源 KB 存在，且属于调用者的租户（跨租户返回 403）；
+2. 指定了 `target_id` 时：目标 KB 存在且属于调用者的租户；两库 **embedding 模型相同**（否则向量空间不兼容）；绑定**同一个向量存储**（`SharesStoreWith`）；使用**同一个存储后端实例**（`SharesStorageBackendWith`，比较具体实例而不只是 provider 类型）；
+3. API Key 调用时源 / 目标 KB 均须在 allow-list 内。
 
 ### 4.2 知识移动门禁（move gate）
 
@@ -363,17 +382,19 @@ nil & nil               → true   (同为 env-store)
   → 每个富化子任务完成后原子递减；归零 → parse_status=completed
 ```
 
-**配置合并优先级**（`EffectiveProcessConfig`）：`Knowledge.ProcessOverrides`（单次上传覆盖，存于知识 metadata 的 `KnowledgeProcessOverrides`，可覆盖 parser 规则 / 分块 / VLM / ASR / 问题生成 / 图谱开关等）> KB 配置 > 租户默认。
+**配置合并**（`ResolveProcessConfig` → `EffectiveProcessConfig`）：以 KB 配置为底，叠加单次上传的覆盖项（`KnowledgeProcessOverrides`，存于知识 metadata，可覆盖 parser 规则 / 分块 / 多模态 / ASR / 问题生成 / 图谱开关等；上传确认对话框里的选项就落在这里）。重新解析时沿用上次的覆盖项。
+
+解析完成后还有几类异步后处理：CSV / Excel 额外生成表格摘要分块（`table_summary` / `table_column`，用 DuckDB 读表）；开启了自动关联标签的文档库做一次标签分类；索引完成约 30 秒后跑知识健康检测（见[知识健康](22-knowledge-health.md) §3）。
 
 Chunk 类型（`internal/types/chunk.go`）：`text`、`parent_text`、`image_ocr`、`image_caption`、`summary`、`entity`、`relationship`、`faq`、`web_search`、`table_summary`、`table_column`、`wiki_page`；chunk 支持 `is_enabled` 开关与 `flags` 位标志（bit0 = 可推荐）。
 
 ## 6. 知识库活动流（KB Activity）
 
-活动流回答「这个库最近被谁改了什么」：建库改配置、上传删除文档、编辑分块、共享给谁、Wiki 更新，都会留痕。入口在知识库设置的「活动」页签。
+活动流回答「这个库最近被谁改了什么」：建库改配置、上传删除与重新解析文档、移动文档、标签增删改、共享给谁、数据源同步、FAQ 导入、Wiki 内容变化、转交负责人与确认有效、知识健康问题的忽略 / 指派 / 取代，都会留痕。手工编辑分块不单独记活动，它的历史在分块版本里（§3.6）。入口在知识库编辑弹窗的「活动记录」，只有知识库创建者或 Admin 可见。
 
 `internal/application/service/kb_activity.go` 复用审计日志体系（`AuditLog`，scope 为 knowledge_base），通过 `recordKBActivity(ctx, audit, tenantID, kbID, action, targetType, targetID, outcome, details)` 记录：
 
-- **活动动作**（`internal/types/audit_log.go`）：`kb.created` / `kb.updated` / `kb.deleted` / `kb.duplicated` / `kb.clone_started` / `kb.clone_completed` / `kb.clone_failed`、`kb.share_added` / `kb.share_permission_changed` / `kb.share_removed`，以及知识 / chunk 级的增删改动作；
+- **活动动作**（`internal/types/audit_log.go`）：`kb.created` / `kb.updated` / `kb.deleted` / `kb.duplicated` / `kb.clone_*`；`knowledge.created` / `updated` / `deleted` / `batch_deleted` / `reparse_started` / `parse_canceled` / `move_*` / `owner_changed` / `reviewed`；`tag.*`；`kb.share_*`；`datasource.*`；`faq.import_*`；`wiki.content_changed`；`finding.status_changed` / `scan_requested` / `assigned` / `superseded`；
 - **触发源**：context 中的 `kbActivityTaskMetadata{TaskID, Trigger}`（`user` 用户操作 / `system` 后台任务）自动并入 details；根据 outcome 自动补 `processing_status`（accepted→pending、success→completed、partial→partial、failed/denied→failed、canceled→canceled）；
 - **批量操作样本标题**：`kbActivityAppendSampleTitles` 为批量操作附带最多 5 个去重标题（第一个作为 `title`，其余进 `titles` 数组），保证活动流可读且有界；
 - **抑制机制**：`withKBActivitySuppressed(ctx)` 可让内部级联操作不产生重复活动记录。
@@ -389,11 +410,24 @@ Chunk 类型（`internal/types/chunk.go`）：`text`、`parent_text`、`image_oc
 | `storage_quota` | 10737418240（10GB） | 租户总配额 |
 | `storage_used` | 0 | 已用量（涵盖原始文件、文本、向量与索引占用） |
 
-创建 KB 与上传知识前都会执行配额检查（`internal/handler/knowledgebase.go` 创建校验链），超限拒绝写入；每条知识记录自身 `file_size` 与 `storage_size`，删除时回收用量。
+添加知识（文件、URL、手动 Markdown）前检查配额（`internal/application/service/knowledge_create.go`）：`storage_quota > 0` 且已用量 `storage_used` 已达到配额时拒绝写入；配额 ≤ 0 表示不限。检查看的是已用量，不预估本次文件大小，所以最后一次上传可能让用量略超配额。每条知识记录自身 `file_size` 与 `storage_size`，删除时回收用量。
+
+新建租户的默认配额由系统设置 `tenant.default_storage_quota_gb` / 环境变量 `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` 决定（默认 10GB），在创建时写入租户行，之后改设置不影响已有租户。
 
 ## 8. 混合检索（Hybrid Search）
 
-`POST /knowledge-bases/:id/hybrid-search`（`internal/handler/knowledgebase.go` + `internal/application/service/knowledgebase_search*.go`）按 KB 的 `IndexingStrategy` 组合召回：向量（vector_enabled）+ 关键词 BM25（keyword_enabled），经 rank fusion 融合与重排（rerank），可叠加知识图谱增强（graph_enabled）；多 KB 场景由 `knowledgebase_search_fanout.go` 并发扇出、`knowledgebase_search_fusion.go` 融合；共享 KB 检索路径见 `knowledgebase_search_shared.go`。FAQ 库检索有专门的命中策略（负例过滤 / 迭代召回），见 FAQ 篇。
+`POST /knowledge-bases/:id/hybrid-search`（`internal/handler/knowledgebase.go` + `internal/application/service/knowledgebase_search*.go`）按 KB 的 `IndexingStrategy` 组合召回：向量（`vector_enabled`）+ 关键词 BM25（`keyword_enabled`），两路都有结果时用 RRF 加权融合，只有一路时按原始分去重；结果截断到 `match_count`（未传或 ≤0 时取 50）。这个端点只做召回与融合，**不调用 rerank 模型**；重排、知识图谱增强都发生在问答流水线里（见[检索问答流程](../02-architecture/04-rag-pipeline.md)）。多 KB 场景由 `knowledgebase_search_fanout.go` 并发扇出、`knowledgebase_search_fusion.go` 融合；共享 KB 检索路径见 `knowledgebase_search_shared.go`。FAQ 库检索有专门的命中策略（负例过滤 / 迭代召回），见 [FAQ 能力](17-faq.md)。引擎层细节见[检索引擎与向量存储](05-retrieval-engines.md)。
+
+## 9. 负责人与复核（Stewardship）
+
+每篇文档有一个**负责人**（`owner_id`）：默认是添加它的人，可以转交。负责人不是权限，谁能看、谁能改仍由上文的角色与共享规则决定；它回答的是「这篇出了问题该找谁」。每篇文档还记录**最近一次有人经手**（`reviewed_at` / `reviewed_by`）：有人点「确认仍然有效」或修改了内容时更新；重新解析、换向量模型、移动都不算。
+
+界面上，打开文档详情可以看到「负责人」与「复核」两行：
+
+- **转交**：知识库创建者或 Admin 可以把负责人转给另一位成员，新负责人必须能编辑这个知识库。在线文档页面镜像来的条目，负责人在页面上改，这里显示「在文档页面上修改」（接口返回 409）；
+- **确认仍然有效**：重新开始复核计时。知识库开启了复核周期（§1.8）时，这一行还显示到期时间和是否已超期；未开启时显示「本知识库未开启定期复核」。
+
+负责人决定知识健康发现的问题派给谁，复核周期决定何时提醒复核。这两件事的完整规则——派发顺序、「我的知识待办」、忽略与取代——见[知识健康](22-knowledge-health.md)。
 
 ## 实现参考
 
@@ -411,5 +445,8 @@ Chunk 类型（`internal/types/chunk.go`）：`text`、`parent_text`、`image_oc
 | 知识创建 / 处理管线 | `internal/application/service/knowledge_create.go`、`knowledge_process.go`、`knowledge_process_config.go` |
 | 复制与移动 | `internal/application/service/knowledge_clone_move.go` |
 | 活动流 | `internal/application/service/kb_activity.go` |
+| 负责人与复核 | `internal/application/service/knowledge_stewardship.go`、`internal/handler/knowledge_stewardship.go`、`frontend/src/components/findings/KnowledgeStewardship.vue` |
+| 知识健康 | `internal/application/service/knowledge_findings.go`、`internal/handler/knowledge_finding.go`、`frontend/src/views/knowledge/health/` |
+| 编辑弹窗 | `frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue`、`frontend/src/views/knowledge/settings/` |
 | 路由与门禁 | `internal/router/router.go`、`internal/router/rbac.go` |
 | 关键测试佐证 | `internal/handler/knowledge_preview_security_test.go`、`knowledge_move_gate_test.go`、`knowledgebase_copy_preflight_test.go` |

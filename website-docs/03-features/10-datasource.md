@@ -1,12 +1,30 @@
 # 数据源导入（Data Source）
 
-团队的知识往往长在飞书、Notion、语雀里，手动导一次很快就过期。数据源要解决的是**持续同步**：绑定一次账号，之后按计划自动把新增和修改同步进知识库，删除的文档也会同步下架。
+团队的知识往往长在飞书、Notion、语雀、GitLab 里，手动导一次很快就过期。数据源要解决的是**持续同步**：绑定一次账号，之后按计划自动把新增和修改同步进知识库，源端删除的文档默认也会从知识库删除。
 
-用法：数据源是**挂在知识库上**的，不在全局设置里——打开目标知识库 → 编辑设置 → 「数据源」页签（仅编辑模式下出现）→ 新建连接 → 填凭据并授权 → 选要同步的空间/目录 → 设定同步周期。首次同步是全量，之后按修改时间增量拉取。
+## 在界面上怎么用
+
+数据源是**挂在知识库上**的，不在全局设置里：打开目标知识库的设置，在「存储与数据」分组里选「数据源」（只在编辑已有知识库时出现），点「添加数据源」，按四步完成：
+
+1. **选择类型**：飞书、Lark（飞书国际版）、飞书云盘、Lark 云盘、Notion、语雀、腾讯 IMA、RSS / Atom 订阅、GitLab。
+2. **配置凭证**：填写该连接器需要的凭据（见下文「连接器能力对比」），可以先「测试连接」。对话框会给出各平台获取凭据与开通权限的指引，例如飞书需要企业自建应用、机器人能力，以及 `wiki:wiki:readonly`、`drive:drive:readonly`、`drive:export:readonly`、`docx:document:readonly` 权限，并通过群聊把应用加为知识库成员。
+3. **选择范围**：勾选要同步的空间 / 目录 / 知识库。飞书知识库还可以粘贴文档链接直接添加（用于不在空间列表里的个人云文档，连同子文档一起同步）；飞书云盘需要输入具体文件夹的 `folder_token` 或文件夹链接（不支持云空间根目录）；GitLab 填写项目 ID 或 `group/project` 路径，可选分支（默认分支）与目录；RSS 每行填一个订阅源地址。
+4. **同步策略**：
+   - 同步频率：每 30 分钟 / 每小时 / 每 6 小时（默认）/ 每 12 小时 / 每天；
+   - 同步模式：增量同步（默认）或全量同步；
+   - 冲突策略：条目在知识库中已存在（按来源 ID 判断）时，「覆盖更新」删除旧条目并重新解析入库，「跳过已存在」保持原样，省下重复解析和模型开销；
+   - 同步删除（默认开启）：源端删除时同步删除知识库中的对应条目；
+   - 飞书系连接器另有「同步视频附件」（默认上限 2048 MB）与「抓取文档中的网页链接」（每篇最多 50 个外部链接）两个开关。
+
+保存时可以选「创建并立即同步」。首次同步是全量，之后按游标增量拉取。数据源列表上可以「立即同步」「暂停」「恢复」、查看同步历史（每次的新增、更新、删除、跳过、失败数与失败文档）；编辑数据源不会自动触发同步。删除数据源不会删除已同步进知识库的知识。
+
+同步进来的每个条目都会自动打上以数据源名称命名的标签，并在元数据里记录 `external_id`、`source_resource_id`、`datasource_id`，便于在知识库里识别来源。
+
+## 实现概览
 
 它不是一次性导入工具，而是一套完整的"连接器 + 调度器 + 增量同步 + 知识入库"流水线：
 
-- 连接器框架与实现：`internal/datasource/`（`connector.go`、`scheduler.go`、`httpclient.go`、`errors.go`、`connector/` 各实现）
+- 连接器框架与实现：`internal/datasource/`（`connector.go`、`scheduler.go`、`httpclient.go`、`errors.go`、`progress.go`、`connector/` 各实现）
 - HTTP 接口层：`internal/handler/datasource.go`、`internal/handler/datasource_credentials.go`
 - 业务服务层：`internal/application/service/datasource_service.go`
 - 数据模型：`internal/types/datasource.go`
@@ -52,15 +70,15 @@ type StreamingConnector interface {
 }
 ```
 
-价值（见源码注释，对应 issue upstream#2136）：同步任务超时（Asynq 任务超时为 2 小时）后可以从最后一个 checkpoint **续传**，而不是从头重来；同时内存占用被限制在"单个条目"级别。目前只有 **Feishu/Lark 连接器**实现了 `StreamingConnector`。
+价值：同步任务超时（Asynq 任务超时为 6 小时）后可以从最后一个 checkpoint **续传**，而不是从头重来；同时内存占用被限制在"单个条目"级别。目前实现了 `StreamingConnector` 的是**飞书/Lark 知识库、飞书/Lark 云盘与 GitLab** 连接器。
 
 ### ConnectorRegistry：注册与查找
 
 `ConnectorRegistry` 是简单的 `map[string]Connector` 注册表。实际注册发生在 `internal/container/container.go` 的 `initConnectorRegistry()`：
 
 ```go
-registry.Register(feishuConnector.NewConnector(feishuConnector.RegionFeishu))  // feishu
-registry.Register(feishuConnector.NewConnector(feishuConnector.RegionLark))    // lark（国际版，同一实现不同 Region）
+registry.Register(wiki.NewConnector(core.RegionFeishu))                        // feishu
+registry.Register(wiki.NewConnector(core.RegionLark))                          // lark（国际版，同一实现不同 Region）
 registry.Register(notionConnector.NewConnector())                              // notion
 registry.Register(yuqueConnector.NewConnector())                               // yuque
 registry.Register(drive.NewDriveConnector(core.RegionFeishuDrive))             // feishu_drive（云盘）
@@ -70,13 +88,13 @@ registry.Register(rssConnector.NewConnector())                                 /
 registry.Register(gitlabConnector.NewConnector())                              // gitlab
 ```
 
-> 注意：`connector.go` 中的 `ConnectorMetadataRegistry` 为前端展示定义了更多连接器元数据（Confluence、GitHub、Google Drive、OneDrive、DingTalk、Web Crawler、Slack、IMAP 等），但**当前代码库中实际注册可用的连接器有 9 个类型：`feishu`、`lark`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`ima`、`rss`、`gitlab`**（飞书/Lark 的知识库与云盘各用一份实现）。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
+> 注意：`connector.go` 中的 `ConnectorMetadataRegistry`（`GET /datasource/types` 的返回）还列出了 Confluence、GitHub、Google Drive、OneDrive、DingTalk、Web Crawler、Slack、IMAP 等元数据，但**实际注册可用的连接器只有 9 个类型：`feishu`、`lark`、`feishu_drive`、`lark_drive`、`notion`、`yuque`、`ima`、`rss`、`gitlab`**（飞书/Lark 的知识库与云盘各用一份实现），前端的类型列表也只列这 9 个。未注册类型在创建数据源时会被 `connectorRegistry.Get()` 以 `ErrConnectorNotFound` 拒绝。
 
 ## 数据模型（internal/types/datasource.go）
 
 | 结构 | 说明 |
 | --- | --- |
-| `DataSource` | 数据源配置实体（表 `data_sources`）。关键字段：`Type`（连接器类型）、`Config`（JSONB，含加密凭据）、`SyncSchedule`（cron 表达式）、`SyncMode`（`incremental`/`full`）、`Status`（`active`/`paused`/`error`/`deleted`）、`ConflictStrategy`、`SyncDeletions`、`LastSyncCursor`（增量游标 JSONB）、`LastSyncAt`、`LastSyncResult`、`SyncLogRetentionDays` |
+| `DataSource` | 数据源配置实体（表 `data_sources`）。关键字段：`Type`（连接器类型）、`Config`（JSONB，含加密凭据）、`SyncSchedule`（6 段 cron 表达式）、`SyncMode`（`incremental`（默认）/`full`）、`Status`（`active`/`paused`/`error`/`deleted`）、`ConflictStrategy`（`overwrite`（默认）/`skip`）、`SyncDeletions`（默认 true）、`LastSyncCursor`（增量游标 JSONB）、`LastSyncAt`、`LastSyncResult`、`SyncLogRetentionDays`（默认 30） |
 | `SyncLog` | 单次同步执行记录（表 `sync_logs`）。状态：`running`/`success`/`partial`/`failed`/`canceled`；计数：`ItemsTotal/Created/Updated/Deleted/Skipped/Failed`；`Result` 保存 `SyncResult` JSON |
 | `DataSourceConfig` | 解密后的配置结构：`Type` + `Credentials map[string]interface{}` + `ResourceIDs []string`（选中的资源）+ `Settings map[string]interface{}`（非机密配置） |
 | `Resource` | 外部系统的可选资源：`ExternalID`、`Name`、`Type`、`URL`、`ParentID`、`HasChildren`、`ModifiedAt`、`Metadata` |
@@ -114,7 +132,7 @@ if key := utils.GetAESKey(); key != nil && len(out.Credentials) > 0 {
 
 ## 数据源生命周期与 REST API
 
-路由注册在 `internal/router/router.go` 的 `RegisterDataSourceRoutes`（读操作 Viewer+，写操作 Admin+）：
+路由注册在 `internal/router/routes_infra.go` 的 `RegisterDataSourceRoutes`（查询类读操作 Viewer+，写操作与访问外部系统的操作 Admin+；API Key 调用需要 `manage_datasources` 能力或全量权限）：
 
 | 方法与路径 | 权限 | 说明 |
 | --- | --- | --- |
@@ -124,12 +142,12 @@ if key := utils.GetAESKey(); key != nil && len(out.Credentials) > 0 {
 | `GET /api/v1/datasource?kb_id=` | Viewer | 按知识库列出数据源（附带最近一次 SyncLog） |
 | `GET /api/v1/datasource/:id` | Viewer | 详情 |
 | `PUT /api/v1/datasource/:id` | Admin | 更新（凭据字段被忽略；配置实际变化且已有凭据时才触发在线校验；同步更新 cron） |
-| `DELETE /api/v1/datasource/:id` | Admin | 软删除 + 移除 cron + 取消 pending/running 的 SyncLog |
+| `DELETE /api/v1/datasource/:id` | Admin | 软删除 + 移除 cron + 取消 pending/running 的 SyncLog（已同步的知识保留） |
 | `PUT /api/v1/datasource/:id/credentials` | Admin | 原子替换凭据（见上节） |
 | `DELETE /api/v1/datasource/:id/credentials/:field` | Admin | 清空凭据（field 只接受 `credentials`） |
 | `POST /api/v1/datasource/:id/validate` | Admin | 对已存数据源做连接测试；失败置 `status=error`，成功清除 error 状态 |
-| `GET /api/v1/datasource/:id/resources?parent_id=` | Viewer | 列出外部系统可选资源（parent_id 支持懒加载展开） |
-| `POST /api/v1/datasource/:id/resource-ancestors` | Viewer | 解析选中资源的祖先链（编辑时回显深层勾选） |
+| `GET /api/v1/datasource/:id/resources?parent_id=` | Admin | 列出外部系统可选资源（parent_id 支持懒加载展开） |
+| `POST /api/v1/datasource/:id/resource-ancestors` | Admin | 解析选中资源的祖先链（编辑时回显深层勾选） |
 | `POST /api/v1/datasource/:id/sync` | Admin | 手动触发同步（创建 SyncLog + 入队 Asynq 任务） |
 | `POST /api/v1/datasource/:id/pause` / `resume` | Admin | 暂停/恢复（同时移除/重挂 cron） |
 | `GET /api/v1/datasource/:id/logs`、`GET /api/v1/datasource/logs/:log_id` | Viewer | 同步历史 |
@@ -160,7 +178,7 @@ flowchart LR
 1. **DB 层防重叠**：`syncLogRepo.HasRunningSync` —— 上一次同步还在 running 就跳过本次（防止同步耗时超过 cron 间隔时叠加执行）。
 2. **Redis 层跨实例去重**：确定性的 `asynq.TaskID = "dssync:<dsID>:<yyyyMMddHHmm>"`（按分钟截断）。同一分钟内所有实例产生相同 TaskID，Redis 保证只有一个入队成功，其余得到 `asynq.ErrTaskIDConflict`，对应 SyncLog 标记为 `canceled`（"deduplicated: another instance enqueued first"）。
 
-入队参数：队列 `types.QueueSync`、`MaxRetry(5)`、`Timeout(2*time.Hour)`。任务类型为 `types.TypeDataSourceSync`（`"datasource:sync"`），由 `internal/router/task.go` 中 `mux.HandleFunc(types.TypeDataSourceSync, params.DataSourceService.ProcessSync)` 消费。
+入队参数：队列 `types.QueueSync`、`MaxRetry(5)`、`Timeout(6*time.Hour)`。任务类型为 `types.TypeDataSourceSync`（`"datasource:sync"`），由 `internal/router/task.go` 中 `mux.HandleFunc(types.TypeDataSourceSync, params.DataSourceService.ProcessSync)` 消费。
 
 ## 同步执行与知识入库（datasource_service.go）
 
@@ -170,9 +188,9 @@ flowchart LR
 - **两条抓取路径**：连接器实现了 `StreamingConnector` 走 `processSyncStreaming`（流式）；否则按 `ForceFull || SyncMode==full` 走 `FetchAll`，或带上 `ParseSyncCursor()` 的游标走 `FetchIncremental`（批量）。
 - **流式路径的游标策略**（`streamStartCursor`）：用户触发的全量同步在**首次尝试**时丢弃游标全量抓取；Asynq **重试**（attempt > 0）以及所有增量同步都从最后一个 checkpoint 续传。
 - **入库核心 `applyFetchedItem` → `ingestItem`**：
-  - `IsDeleted=true` 的条目只累加 `result.Deleted` 计数——**刻意不真正删除知识库条目**（防止连接器误判或重新配置导致意外数据丢失，用户需在 KB UI 中显式删除）；
+  - `IsDeleted=true` 的条目：数据源关闭了 `SyncDeletions` 时既不删除也不计数；开启时（默认）按 `external_id` 在**本数据源拥有的**条目里查找并真正删除（软删后硬删），计为 Deleted，找不到则计为 Skipped（删除幂等）。删除失败计入 `DeletionFailed`，由于游标已越过该条目，通常要等下次全量同步才会重试；
   - 有 `Content` 字节 → 包装成 `multipart.FileHeader` 走 `KnowledgeService.CreateKnowledgeFromFile`（完整文档解析流水线）；只有 `URL` → 走 `CreateKnowledgeFromURL` 由 Yuheng 下载解析；
-  - **更新 = 先删后建**：按 metadata `external_id` 查到既有知识条目就先 `DeleteKnowledge` 再重建，计为 Updated；
+  - **更新 = 先删后建**：按 `external_id` 在本数据源拥有的条目里查到既有知识条目，冲突策略为 `overwrite` 时先删除再重建，计为 Updated；为 `skip` 时原样保留，计为 Skipped；
   - 重复文件（`DuplicateKnowledgeError`）计为 Skipped，不算失败；
   - 每个条目自动带上 metadata：`external_id`、`source_resource_id`、`datasource_id` 以及连接器附加的 metadata。
 - **自动打标**：`resolveAutoTagIDs` 按数据源名称在目标 KB 中 FindOrCreate 一个标签，所有同步条目自动挂上，便于在 KB 中识别来源；打标失败不阻断同步。
@@ -198,18 +216,18 @@ sequenceDiagram
     Q-->>S: ProcessSync(payload)
     S->>DB: 加载 DataSource / SyncLog / 校验 KB 存在
     S->>S: ParseConfig() 解密凭据
-    alt "StreamingConnector（Feishu/Lark）"
+    alt "StreamingConnector（飞书/Lark 知识库与云盘、GitLab）"
         S->>C: FetchStream(config, cursor, handler)
         loop "遍历 Wiki 节点"
-            C->>EXT: ListWikiNodesRecursive / ExportAndDownload
-            EXT-->>C: 文档内容 (.docx/.xlsx/原文件)
+            C->>EXT: 列举节点 / 导出或下载
+            EXT-->>C: 文档内容 (.docx/.xlsx/Markdown/原文件)
             C->>S: handler.Emit(item)
             S->>K: CreateKnowledgeFromFile (先删后建=更新)
             C->>S: handler.Checkpoint(cursor) 每 50 节点或 30s
             S->>DB: 持久化 LastSyncCursor + SyncLog 进度
         end
         C-->>S: 最终 cursor
-    else "批量连接器（Notion/Yuque/RSS）"
+    else "批量连接器（Notion/语雀/RSS/IMA）"
         S->>C: FetchAll 或 FetchIncremental(cursor)
         C->>EXT: 列表 + 拉取变更内容
         EXT-->>C: 文档 / Markdown
@@ -226,34 +244,81 @@ sequenceDiagram
 
 ### 连接器能力对比
 
-| | Feishu / Lark | Notion | Yuque（语雀） | RSS / Atom |
-| --- | --- | --- | --- | --- |
-| 源码目录 | `internal/datasource/connector/feishu/` | `connector/notion/` | `connector/yuque/` | `connector/rss/` |
-| 类型标识 | `feishu` / `lark` | `notion` | `yuque` | `rss` |
-| 认证方式 | 企业自建应用 `app_id` + `app_secret`（tenant_access_token） | Internal Integration Token（`api_key`） | 个人/团队 Token（`api_token`，`X-Auth-Token` 头） | 无认证或自定义请求头（`auth_headers`） |
-| 凭据字段 | `app_id`、`app_secret`、`base_url`（可选覆盖） | `api_key`（`base_url` 走 Settings） | `api_token`、`base_url`（私有化部署可选） | `auth_headers`（可选，属凭据）；`feed_urls` 属 Settings |
-| 资源模型 | Wiki 空间 → 节点树（懒加载，`spaceID:nodeToken` 复合 ID） | 页面/数据库全量树（一次返回带 parent 关系） | 知识库（book/repo）扁平列表 | 每个 feed URL 一个资源（扁平） |
-| 内容格式 | 导出 API → `.docx`/`.xlsx` 文件；drive 文件原样下载 | Block → Markdown；数据库转 Markdown 表格；附件下载 | `body` Markdown 原文（`.md`） | Readability 全文抽取 → HTML→Markdown |
-| 增量机制 | 按节点 `obj_edit_time` 比对（cursor: `SpaceNodeTimes`） | 按页面/记录 `last_edited_time` 比对（cursor: `PageEditTimes`） | 按文档 `content_updated_at` 比对（cursor: `BookDocTimes`） | feed 信号指纹 + 内容 SHA-256 指纹双层比对 |
-| 删除检测 | 支持（游标中有、当前树没有 → `IsDeleted`；部分列举失败时跳过删除检测） | 支持（区分"源端已删"与"用户取消勾选"，后者不报删除） | 支持 | 不支持（feed 天然滚动淘汰旧条目） |
-| 流式可恢复同步 | 是（`StreamingConnector`，每 50 节点或 30 秒 checkpoint） | 否 | 否 | 否 |
-| 限流应对 | 429 读 `Retry-After` + 指数退避（2s/4s/8s，最多 3 次重试）；5xx 重试 | — | 每次 `GetDocDetail` 间隔 300ms（个人 token 约 100 req/5min） | — |
-| 部分失败 | 单文档失败生成带错误 metadata 的占位条目，继续同步 | 单页失败记日志跳过 | 单文档失败生成占位条目 | 单 feed 失败 → `PartialFetchError`；全部失败才算 fail |
+| | 飞书 / Lark 知识库 | 飞书 / Lark 云盘 | Notion | 语雀 | RSS / Atom | GitLab | 腾讯 IMA |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 源码目录 | `connector/feishu/wiki/` + `core/` | `connector/feishu/drive/` + `core/` | `connector/notion/` | `connector/yuque/` | `connector/rss/` | `connector/gitlab/` | `connector/ima/` |
+| 类型标识 | `feishu` / `lark` | `feishu_drive` / `lark_drive` | `notion` | `yuque` | `rss` | `gitlab` | `ima` |
+| 凭据字段 | `app_id`、`app_secret`，可选 `base_url`（开放平台地址）、`web_base_url`（生成原文链接用的访问域名） | 同左 | `api_key`（Internal Integration Token） | `api_token`（`X-Auth-Token` 头），可选 `base_url`（私有化部署） | 可选 `auth_headers`；`feed_urls` 属 Settings | `base_url`、`access_token`（个人访问令牌） | `client_id`、`api_key`，可选 `base_url` |
+| 资源模型 | Wiki 空间 → 节点树（懒加载，`spaceID:nodeToken` 复合 ID）；也可按文档链接添加 | 用户给出的文件夹 `folder_token` → 子文件夹懒加载 | 页面/数据库全量树（一次返回带 parent 关系） | 知识库（book/repo）扁平列表 | 每个 feed URL 一个资源 | 项目 → 目录树；Settings 里记录项目、分支、目录 | 知识库扁平列表 |
+| 内容格式 | 文档默认走导出 API 得到 `.docx`（`FEISHU_DOCX_PARSE_MODE=blocks` 改走块 API 转 Markdown）；表格导出 `.xlsx`；文件原样下载 | 同左 | Block → Markdown；数据库转 Markdown 表格；附件下载 | `body` Markdown 原文 | Readability 全文抽取 → Markdown | 仓库文件原样下载，只收导入流水线支持的扩展名 | 按媒体类型下载文件；笔记按 Markdown 入库；AI 会话与视频跳过 |
+| 增量机制 | 按节点 `obj_edit_time` 比对（cursor: `SpaceNodeTimes`） | 按文件 `modified_time` 比对 | 按页面/记录 `last_edited_time` 比对（cursor: `PageEditTimes`） | 按文档 `content_updated_at` 比对（cursor: `BookDocTimes`） | feed 信号指纹 + 内容 SHA-256 指纹双层比对 | 记录每个项目的 head commit，用 compare API 取变更文件 | 按稳定的逻辑键与 `media_id` 比对 |
+| 删除检测 | 支持（部分列举失败时跳过删除检测） | 支持 | 支持（区分"源端已删"与"用户取消勾选"，后者不报删除） | 支持 | 不支持（feed 天然滚动淘汰旧条目） | 支持（删除与重命名的旧路径） | 支持 |
+| 流式可恢复同步 | 是（每 50 节点或 30 秒 checkpoint） | 是（同一引擎） | 否 | 否 | 否 | 是（每个项目一个 checkpoint） | 否 |
+| 限流应对 | 429 读 `Retry-After`，传输错误指数退避（2s/4s/8s，最多 3 次）；5xx 重试 1 次 | 同左 | — | 每次 `GetDocDetail` 间隔 300ms | — | — | — |
+| 部分失败 | 单文档失败生成带错误 metadata 的占位条目，继续同步 | 同左 | 单页失败记日志跳过 | 单文档失败生成占位条目 | 单 feed 失败 → `PartialFetchError`；全部失败才算 fail | — | — |
 
-### Feishu / Lark（`connector/feishu/`）
+### 飞书 / Lark（`connector/feishu/`）
 
-飞书与 Lark（国际版 open.larksuite.com）是部署在两朵隔离云上的同一产品，Wiki/docx/drive API 完全一致，因此**共用同一份连接器代码**，由 `region.go` 中的 `Region` 结构选择云端（`RegionFeishu` / `RegionLark`，分别对应类型 `feishu` / `lark`、API 域名 `open.feishu.cn` / `open.larksuite.com`）。`base_url` 凭据字段可显式覆盖（兼容历史上把 feishu 连接器指向 larksuite 的存量数据源）。
+飞书与 Lark（国际版 open.larksuite.com）是部署在两朵隔离云上的同一产品，Wiki/docx/drive API 完全一致，因此**共用同一份代码**：`core/` 放客户端、区域、导出与块转换、以及知识库与云盘共用的流式同步引擎（`engine.go`），`wiki/` 与 `drive/` 只负责资源枚举与抓取分派。`core/region.go` 中的 `Region` 结构选择云端（`RegionFeishu` / `RegionLark` / `RegionFeishuDrive` / `RegionLarkDrive`，API 域名 `open.feishu.cn` / `open.larksuite.com`）。`base_url` 凭据字段可显式覆盖（例如 Lark 专属版 `https://open.larkenterprise.com`）。
 
-- **认证**（`client.go`）：`POST /open-apis/auth/v3/tenant_access_token/internal` 换取 tenant_access_token，带互斥锁缓存与过期刷新。
-- **资源列举**（`ListResources`）：三级懒加载——`parentID==""` 列 Wiki 空间；`parentID==spaceID` 列空间顶层节点；`parentID=="spaceID:nodeToken"` 列该节点子节点。早期版本会预先递归整棵树，大 Wiki 会超时（issue #1672），现在递归只发生在同步时。`ResolveResourceAncestors` 通过 `GetWikiNode` 的 `parent_node_token` 逐级上溯，O(depth) 回显深层勾选。
-- **内容抓取**（`fetchNodeContent`）按 `obj_type` 分派：
-  - `docx`/`doc` → 异步导出 API（`POST /drive/v1/export_tasks`）导出 `.docx`；
+- **认证**（`core/client.go`）：`POST /open-apis/auth/v3/tenant_access_token/internal` 换取 tenant_access_token，带互斥锁缓存与过期刷新。
+- **资源列举**（知识库，`ListResources`）：三级懒加载——`parentID==""` 列 Wiki 空间；`parentID==spaceID` 列空间顶层节点；`parentID=="spaceID:nodeToken"` 列该节点子节点。递归只发生在同步时，避免大 Wiki 在选择器里超时。`ResolveResourceAncestors` 通过 `GetWikiNode` 的 `parent_node_token` 逐级上溯，O(depth) 回显深层勾选。
+- **内容抓取**按 `obj_type` 分派：
+  - `docx`/`doc` → 默认用异步导出 API 导出 `.docx`，交给 docreader 解析，图片随文档绑定；环境变量 `FEISHU_DOCX_PARSE_MODE=blocks` 时改走块 API 转 Markdown（更快，但图片会拆成独立条目），块 API 出错或渲染为空时回退导出；
   - `sheet`/`bitable` → 导出 `.xlsx`；
   - `file` → drive 原文件下载（PDF/Word/图片等）；
-  - `mindnote`/`slides` → **跳过**（无内容读取 API），并通过 `fetchTally` 统计输出 `discovered/fetched/failed/skipped_unsupported by_type` 摘要日志，解释"发现 13 篇为何只同步了 3 篇"（issue #2136）。
-- **增量逻辑**：游标 `feishuCursor.SpaceNodeTimes`（`resourceID → nodeToken → editTime`）。变更判定用 `obj_edit_time`（文档内容编辑时间），而**不是** `node_edit_time`（只反映改标题/挪位置）。抓取失败的节点**不推进游标**（保留旧 editTime，下次必然 prev != current 而重试），避免瞬时导出失败导致文档被永久跳过。
-- **FetchStream**：统一全量/增量路径（cursor==nil 即全量），每处理 `feishuStreamCheckpointInterval = 50` 个节点、或距上次 checkpoint 超过 `feishuStreamCheckpointMaxInterval = 30s` 就落盘一次游标——后者兜底"少量文档但每篇导出都极慢（被限流）"导致 2 小时超时前从未 checkpoint 的场景。
-- **错误分类**（`feishuFailure`）：把原始错误归类为稳定 i18n code（`feishu_auth_or_permission` / `feishu_rate_limited` / `feishu_timeout` / `feishu_server_unavailable` / `feishu_api_error`(+code) / `sync_failed`），前端本地化展示；原始 status/body/log_id 只留在服务端日志。
+  - `mindnote`/`slides` → **跳过**（无内容读取 API），并通过 `fetchTally` 按类型输出 `discovered/fetched/failed/skipped_unsupported` 摘要日志，解释"发现的文档为何没全部同步"。
+  - 开启「同步视频附件」时（Settings `sync_video_attachments`、`video_max_mb`），文档内嵌视频与云盘视频文件会下载并作为视频知识解析；开启「抓取文档中的网页链接」时（`sync_linked_pages`），正文中的外部网页链接作为独立网页知识抓取（每篇最多 50 个，飞书/Lark 内部链接不抓）。
+- **增量逻辑**：游标 `SpaceNodeTimes`（`resourceID → nodeToken → editTime`）。变更判定用 `obj_edit_time`（文档内容编辑时间），而**不是** `node_edit_time`（只反映改标题/挪位置）。抓取失败的节点**不推进游标**（保留旧 editTime，下次必然重试），避免瞬时导出失败导致文档被永久跳过。
+- **FetchStream**：统一全量/增量路径（cursor==nil 即全量），每处理 `FeishuStreamCheckpointInterval = 50` 个节点、或距上次 checkpoint 超过 `FeishuStreamCheckpointMaxInterval = 30s` 就落盘一次游标——后者兜底"少量文档但每篇导出都极慢（被限流）"导致任务超时前从未 checkpoint 的场景。
+- **错误分类**：把原始错误归类为稳定 i18n code（`feishu_auth_or_permission` / `feishu_rate_limited` / `feishu_timeout` / `feishu_server_unavailable` / `feishu_api_error`(+code) 等），前端本地化展示；原始 status/body/log_id 只留在服务端日志。其中权限类错误不在下次同步时自动重试（需要先改应用权限或共享设置）。
+
+### 飞书 / Lark 的应用准备与权限
+
+飞书（open.feishu.cn）和 Lark（open.larksuite.com）是两个独立体系，应用和凭据不能混用：同步飞书内容用飞书开放平台的应用，同步 Lark 内容用 Lark 开放平台的应用。
+
+1. 在开放平台创建**企业自建应用**，记下 App ID（`cli_` 开头）与 App Secret；
+2. 为应用添加「机器人」能力；
+3. 在「权限管理」里开通权限，并**创建并发布新版本**——权限改动不发布不生效：
+
+| 权限 | 用途 | 知识库（`feishu` / `lark`） | 云盘（`feishu_drive` / `lark_drive`） |
+| --- | --- | --- | --- |
+| `wiki:wiki:readonly` | 列举知识空间与节点 | 需要 | 不需要 |
+| `drive:drive:readonly` | 列举文件夹、下载普通文件 | 需要 | 需要 |
+| `drive:export:readonly` | 把 docx / doc / sheet / bitable 导出为 docx / xlsx | 需要 | 需要 |
+| `docx:document:readonly` | 用块 API 读取新版文档正文与附件 | 需要 | 需要 |
+
+4. **把内容授权给应用**。开通 API 权限之后，应用仍然只能访问被显式分享给它的内容，做法是经由群聊：建一个群（或复用一个），把应用加为群机器人，并把内容的管理者也拉进群；
+   - 知识库：在知识库「设置 → 成员设置」里添加该群为成员，角色至少「可阅读」；
+   - 云盘：在目标文件夹「分享 / 添加协作者」里分享给该群，给「可阅读」。子文件夹与其中的文件随父文件夹一起获得授权。之后某个文件同步报 403，先检查它是否在这棵已分享的目录树下；
+   - 个人云文档库里的文档不会出现在知识空间列表里：在文档「…」菜单把应用加为协作者，再在「选择范围」一步粘贴文档链接添加（连同子文档一起同步）。
+
+### 飞书 / Lark 云盘的使用要点
+
+- **选择范围**：在「云盘文件夹 Token」里填 `folder_token`，或直接粘贴文件夹链接（`https://xxx.feishu.cn/drive/folder/<token>` 或 Lark 的对应链接，前端会提取 token），点「加载」后按目录树勾选。**不支持云空间根目录**（根目录不分页且不返回快捷方式），必须选具体文件夹。
+- **文件类型**：`docx` / `doc` 与 `sheet` / `bitable` 的处理同知识库；`file`（PDF、PPT、图片等普通文件）直接下载后按类型解析；`folder` 递归遍历；`shortcut`（快捷方式）按目标文件同步（飞书不允许快捷方式指向文件夹）；`mindnote` / `slides` / `board` 没有读取接口，跳过。
+- **增量**：按文件修改时间（`modified_time`）比对游标，中断后从最后一个 checkpoint 续传。
+- **来源标记**：同步进来的条目渠道为 `feishu_drive` / `lark_drive`，与知识库同步的 `feishu` / `lark` 区分开。
+
+| 界面提示 | 原因与处理 |
+| --- | --- |
+| 「请输入具体文件夹的 folder_token，不支持云空间根目录」 | 输入为空或给的是根目录链接，换具体文件夹 |
+| 「应用无权访问该文件夹……分享给应用所在的群」 | 没有把文件夹分享给应用所在的群 |
+| 「应用凭证无效或缺少云盘权限」 | App ID / Secret 错误，或权限未开通、未发布版本 |
+| 「folder_token 不存在或已删除」 | token 复制有误，从文件夹链接重新复制 |
+
+### 飞书 docx 的两种解析模式
+
+新版云文档（docx）怎么解析由 app 服务的环境变量 `FEISHU_DOCX_PARSE_MODE` 决定（不是数据源配置），同时作用于飞书知识库与云盘连接器，修改后重启 app 生效：
+
+| | `export`（默认，留空同） | `blocks` |
+| --- | --- | --- |
+| 路径 | 异步导出 API → `.docx` → docreader 解析 | 块 API → Markdown，出错或渲染为空时回退导出 |
+| 图片与文档的关联 | 图片随文档一起解析，挂在同一条知识下，检索与 Wiki 能把图片内容和正文一起用上 | 图片块渲染为空占位，图片另存为独立知识条目，和正文割裂 |
+| docx 内的附件（file 块） | 丢失（导出的 .docx 不含附件） | 保留，作为独立知识条目；父文档更新时清理已移除的附件 |
+| 速度 | 慢（创建导出任务、轮询、下载，再解析） | 快 |
+
+需要图片内容和文档关联时用默认的 `export`；只要正文、要保留附件或追求同步速度时用 `blocks`。两种模式下，图片内容（OCR / 描述）都要知识库配置了视觉模型才会生成，没配置时正文照常同步。
 
 ### Notion（`connector/notion/`）
 
@@ -277,6 +342,20 @@ sequenceDiagram
 - **增量逻辑**：双层指纹——先比 feed 侧信号指纹（`feedSignalFingerprint`，未变则连原文页都不抓）；再比抓取后内容的 SHA-256 指纹。**不支持删除同步**（feed 会自然淘汰旧条目）。
 - **部分失败**：单个 feed 抓取/解析失败时沿用旧游标（`copyFeedCursor`）并继续其余 feed，最终以 `datasource.PartialFetchError` 上报（SyncLog 记 `partial`）；全部 feed 都失败才整体报错。
 
+### GitLab（`connector/gitlab/`）
+
+- **凭据**：`base_url`（GitLab 实例地址）+ `access_token`（个人访问令牌），加密存储。
+- **范围**：Settings 的 `projects` 列表，每项含 `project_id`（数字 ID 或 `group/project`）、可选 `ref`（留空用默认分支）与 `paths`（留空同步整个项目）。选择器里项目下可展开目录树。
+- **抓取**：只同步导入流水线能处理的扩展名（PDF、Word、Markdown/MDX、HTML、表格、PPT、JSON、EPUB、图片、音频等，见 `gitLabSupportedFileExtensions`）。
+- **增量逻辑**：游标记录每个项目上次同步的 commit。首次同步列举全部文件；head 变化时用 compare API 取变更文件，删除与重命名的旧路径发出 `IsDeleted`；compare 不可用（历史被改写）或被截断时回退为重新列举。每处理完一个项目 checkpoint 一次。
+
+### 腾讯 IMA（`connector/ima/`）
+
+- **凭据**：IMA 智能体接入页的 `client_id` 与 `api_key`（请求头 `ima-openapi-clientid` / `ima-openapi-apikey`），可选 `base_url`；需要先在 IMA 客户端为该凭证授权要同步的知识库。
+- **资源**：凭证可操作的知识库扁平列表（`get_addable_knowledge_base_list`，为空时回退搜索接口）。
+- **抓取**：递归枚举知识库目录；PDF、Word、PPT、Excel、Markdown、TXT、图片、音频、HTML、EPUB 等按媒体类型下载，笔记从笔记命名空间读取正文按 Markdown 入库；AI 会话与视频解析没有读取接口，跳过。
+- **增量逻辑**：用稳定的逻辑键识别条目（IMA 替换同名文件会换新的 `media_id`，按逻辑键判断才能把它当作更新而不是一删一增）：新键 → 新增，`media_id` 变化 → 更新，上次有本次无 → 删除。IMA 不提供条目级修改时间，同一 `media_id` 下的原地修改检测不到，需要定期全量同步。
+
 ## 安全限制（internal/datasource/httpclient.go 与 errors.go）
 
 `httpclient.go` 提供两个所有连接器共用的 SSRF 防护入口：
@@ -296,11 +375,22 @@ func NewConnectorHTTPClient(timeout time.Duration) *http.Client {
 }
 ```
 
-底层 `internal/utils/security.go` 会拒绝私网地址、回环地址、link-local 等目标，并且在**每次重定向和实际拨号时**重新校验（而非只校验初始 URL），防止恶意 feed 或自定义 base_url 把 Yuheng 引向内网服务。各连接器的 `parseXXXConfig` 都会对 base_url 调用 `ValidateConnectorBaseURL`。
+底层 `internal/utils/security.go` 会拒绝私网地址、回环地址、link-local 等目标，并且在**每次重定向和实际拨号时**重新校验（而非只校验初始 URL），防止恶意 feed 或自定义 base_url 把 Yuheng 引向内网服务。带 base_url 的连接器（飞书/Lark、Notion、语雀、GitLab、IMA）在解析配置时都会调用 `ValidateConnectorBaseURL`。
 
 `errors.go` 定义了模块级哨兵错误（`ErrConnectorNotFound`、`ErrDataSourceInvalid`、`ErrInvalidCredentials`、`ErrSyncFailed` 等）与 `PartialFetchError`（部分资源成功、部分失败；调用方应处理已得条目、持久化游标、把 `Details` 以 partial 状态呈现给用户）。
 
-## 参考
+## 实现参考
 
-- 连接器开发指南（随代码维护）：`internal/datasource/CONNECTOR_IMPLEMENTATION_GUIDE.md`
-- 模块说明（随代码维护）：`internal/datasource/README.md`
+| 路径 | 内容 |
+|---|---|
+| `internal/datasource/connector.go` | `Connector` / `StreamingConnector` 接口、注册表、连接器元数据 |
+| `internal/datasource/scheduler.go` | cron 调度与跨实例去重 |
+| `internal/datasource/httpclient.go`、`errors.go`、`progress.go` | SSRF 防护、哨兵错误、同步进度上报 |
+| `internal/datasource/connector/` | 各连接器实现（`feishu/{core,wiki,drive}`、`notion`、`yuque`、`rss`、`gitlab`、`ima`） |
+| `internal/application/service/datasource_service.go` | 数据源 CRUD、`ProcessSync`、`applyFetchedItem` / `ingestItem` |
+| `internal/handler/datasource.go`、`datasource_credentials.go` | HTTP 接口与凭据子资源 |
+| `internal/router/routes_infra.go` | `RegisterDataSourceRoutes` |
+| `internal/types/datasource.go` | 数据模型、凭据加解密 |
+| `internal/container/container.go` | `initConnectorRegistry` |
+| `frontend/src/views/knowledge/settings/DataSourceSettings.vue`、`DataSourceEditorDialog.vue`、`DataSourceSyncLogs.vue` | 知识库设置里的数据源页、创建向导、同步历史 |
+| `internal/datasource/CONNECTOR_IMPLEMENTATION_GUIDE.md`、`README.md` | 连接器开发指南与模块说明 |

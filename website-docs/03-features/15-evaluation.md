@@ -3,14 +3,14 @@
 换个向量模型、开不开重排、分块调大一点——这些改动到底有没有让效果变好？评估能力就是用来回答这个问题的：准备一份带标准答案的 QA 数据集，Yuheng 会自动建一个临时知识库灌进语料，逐题跑完整的检索 + 生成流程，最后给出一组可比较的分数（检索侧 Precision / Recall / NDCG / MRR / MAP，生成侧 BLEU / ROUGE）。
 
 ::: tip 目前只有 API
-评估暂时没有独立的界面入口，通过 `POST /api/v1/evaluation` 发起、`GET /api/v1/evaluation?task_id=...` 轮询结果，需要 Admin 权限。数据集是 Parquet 格式，格式要求见下文。
+评估暂时没有界面入口，通过 `POST /api/v1/evaluation` 发起（需要空间 Admin 权限）、用返回的任务 ID 调 `GET /api/v1/evaluation?task_id=...` 轮询结果。数据集是 app 容器工作目录下 `dataset/samples/` 里的 5 个 Parquet 文件，格式要求见下文。
 :::
 
 用法建议：固定数据集，每次只改一个变量（比如只换 embedding 模型），对比同一组指标，否则分数变化归因不清。
 
 ## API
 
-`internal/router/router.go`：
+`internal/router/routes_infra.go`：
 
 ```go
 evaluationRoutes := g.apiKeyGroup(r.Group("/evaluation"), apiKeyRunEvaluations(apiKeyFullAccess()))
@@ -22,7 +22,7 @@ evaluationRoutes := g.apiKeyGroup(r.Group("/evaluation"), apiKeyRunEvaluations(a
 
 | 方法 | 路径 | 权限 | 说明 |
 | --- | --- | --- | --- |
-| POST | `/api/v1/evaluation` | Admin（API Key 需 `RunEvaluations` 能力） | 创建评估任务，立即返回任务信息 |
+| POST | `/api/v1/evaluation` | Admin（API Key 需 `run_evaluations` 能力或全量权限） | 创建评估任务，立即返回任务信息 |
 | GET | `/api/v1/evaluation?task_id=...` | Viewer | 查询任务状态、进度与指标结果 |
 
 ### 创建评估任务
@@ -40,12 +40,12 @@ type EvaluationRequest struct {
 
 | 参数 | 必填 | 默认行为 |
 | --- | --- | --- |
-| `dataset_id` | 否 | 缺省使用内置 `default` 数据集（`dataset/samples/`） |
+| `dataset_id` | 否 | 缺省为 `default`。目前只作为标签写进任务 ID 与任务信息，**加载的始终是 `./dataset/samples/`**（`DatasetService.GetDatasetByID` 忽略该参数） |
 | `knowledge_base_id` | 否 | 未提供则新建评估专用知识库；提供则复制其配置创建评估 KB |
 | `chat_id` | 否 | 缺省自动选择默认 Chat 模型 |
 | `rerank_id` | 否 | 缺省自动选择默认 Rerank 模型 |
 
-任务 ID 格式为 `evaluation-{tenantID}-{datasetID}`。任务对象（`internal/types/evaluation.go`）：
+任务 ID 由 `utils.GenerateTaskID` 生成，格式为 `evaluation_{tenantID}_{毫秒时间戳}_{8 位随机串}_{datasetID}`，每次发起都不同，需从 POST 的响应里取。任务对象（`internal/types/evaluation.go`）：
 
 ```go
 type EvaluationTask struct {
@@ -121,7 +121,7 @@ type MetricInput struct {
 flowchart TD
     A["POST /api/v1/evaluation<br/>(dataset_id, knowledge_base_id, chat_id, rerank_id)"] --> B["创建评估专用知识库<br/>(新建或克隆参考 KB 配置)"]
     B --> C["装配 ChatManage 评估参数<br/>(阈值 / TopK / Summary 配置)"]
-    C --> D["注册任务到内存存储<br/>ID = evaluation-{tenant}-{dataset}, 状态 Pending"]
+    C --> D["注册任务到内存存储<br/>ID = evaluation_{tenant}_{ts}_{rand}_{dataset}, 状态 Pending"]
     D --> E["立即返回任务信息"]
     D --> F["goroutine 后台执行, 状态 Running"]
     F --> G["加载 Parquet 数据集<br/>queries / corpus / qrels / answers / qas"]
@@ -183,7 +183,7 @@ BLEU 核心（`metric/bleu.go`）：修正 n-gram 精度的加权几何平均乘
 
 ## 数据集格式
 
-数据集服务（`internal/application/service/dataset.go`）从 `./dataset/samples/` 加载 5 个 **Parquet** 文件：
+数据集服务（`internal/application/service/dataset.go`）从进程工作目录下的 `./dataset/samples/` 加载 5 个 **Parquet** 文件（app 镜像在构建时把仓库的 `dataset/samples` 复制进去，见 `docker/Dockerfile.app`）：
 
 | 文件 | Schema | 含义 |
 | --- | --- | --- |
@@ -223,18 +223,18 @@ type QAPair struct {
 }
 ```
 
-自定义数据集只需按上述 Schema 生成同名 Parquet 文件。加载时服务会打印统计信息（问题数、语料数、平均相关段落数、答案覆盖率等）。
+自定义数据集只需按上述 Schema 生成同名 Parquet 文件，替换 `dataset/samples/` 下的文件（容器部署时可以挂载到 app 容器的对应目录）；文件缺失或格式不对时加载会 panic。仓库里的 `dataset/qa_dataset.py` 与 `dataset/README_zh.md` 说明了如何生成这些文件。加载时服务会打印统计信息（问题数、语料数、平均相关段落数、答案覆盖率等）。
 
 ## 结果查询
 
-`GET /api/v1/evaluation?task_id=evaluation-{tenant}-{dataset}`，返回 `EvaluationDetail`：
+`GET /api/v1/evaluation?task_id=<任务 ID>`，返回 `EvaluationDetail`（只能查询本租户的任务）：
 
 ```json
 {
   "success": true,
   "data": {
     "task": {
-      "id": "evaluation-1-default",
+      "id": "evaluation_1_1767225600000_3f2a9c1b_default",
       "dataset_id": "default",
       "status": 2,
       "total": 100,
@@ -273,4 +273,5 @@ type QAPair struct {
 | 数据集加载 | `internal/application/service/dataset.go`、`internal/handler/evaluation.go` |
 | 类型定义 | `internal/types/evaluation.go`、`internal/types/dataset.go` |
 | 内置样例数据集 | `dataset/samples/`（Parquet 文件） |
-| 路由注册 | `internal/router/router.go` 的 `RegisterEvaluationRoutes` |
+| 路由注册 | `internal/router/routes_infra.go` 的 `RegisterEvaluationRoutes` |
+| 数据集生成脚本 | `dataset/qa_dataset.py`、`dataset/README_zh.md` |

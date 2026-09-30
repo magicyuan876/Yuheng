@@ -1,13 +1,15 @@
 # 模型管理
 
-Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型」里添加，然后在知识库和问答上按需选用。本地 Ollama 和 20 多家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
+Yuheng 不绑定任何一家模型厂商：对话、向量化、重排、图片理解、语音转写这五类能力都抽象成统一的「模型」，你在「设置 → 模型管理」里添加，然后在知识库和问答上按需选用。本地 Ollama 和 25 家远程厂商（OpenAI、DeepSeek、通义、智谱、混元、Gemini、硅基流动等）都可以混着用，比如用本地小模型做向量化、用远程大模型做回答。
 
 添加模型时注意两点：
 
 - **向量模型选定后别再换**。它决定索引里向量的含义与维度，换了之后老数据检索不到，必须重建索引；
 - **保存前点一下测试**。连不通的模型保存后只会在提问时报错，排查更费劲。
 
-下面梳理模型类型、Provider 抽象、配置字段、内置模型机制、并发限流、连通性测试与用量统计。
+谁能管模型：添加、修改、删除、调试模型需要空间 Admin 或 Owner；系统设置 `governance.centralized_infra` 打开后，只有系统管理员能写，空间成员只能选用。查看与选用模型对所有成员开放。系统管理员还可以把一个模型设为**平台共享**（在代码里即把它标记为 `is_builtin`），所有空间都能看到并使用它，但看不到它的凭据。
+
+下面梳理模型类型、Provider 抽象、配置字段、内置模型、并发限流、连通性测试与用量统计。
 
 ## 模型类型与用途
 
@@ -110,7 +112,7 @@ func NewRemoteChat(config *ChatConfig) (Chat, error) {
   - **LKEAP**：腾讯云 `RunRerank` 限制单次最多 60 篇文档、Query 与 Docs 合计不超过 2000 字符。`lkeapRerankBatches` 按这两个上限自动切批并回填全局下标，调用方不用感知分批；单篇文档自身就超限时直接报错并指出下标。
   - **Volcengine**：候选集超过接口单次文档上限时自动切成多批**并发**打分再合并（并发上限见 `volcengineRerankMaxConcurrency`），不会静默截断候选。
   - **NVIDIA**：接口返回的是原始 logit 而非 [0,1] 概率。`normalizeNvidiaLogit` 用数值稳定的 sigmoid 归一化（负数走 `e^x/(1+e^x)` 分支避免溢出），否则 `RerankThreshold` 这类阈值配置在该厂商下完全失效。
-- **ASR**：所有厂商统一使用 OpenAI 兼容 `/v1/audio/transcriptions`（`asr/asr.go`：`NewASR` 直接 `NewOpenAIASR`）。
+- **ASR**：阿里云百炼（DashScope）没有 OpenAI 兼容的转写端点，provider 为 `aliyun`、来源为 `aliyun` 或 BaseURL 识别为 DashScope 时走 `asr/aliyun.go`：通过多模态生成接口调用 Qwen-ASR（如 `qwen3-asr-flash`），音频以 base64 内联，返回不带时间戳的纯文本，视频的时间线靠分段转写得到（见[文档解析服务](03-document-parsing.md) §3.14）。其余厂商使用 OpenAI 兼容 `/v1/audio/transcriptions`（`asr/openai.go`），返回文本与分段时间戳。
 
 ## 模型调用链
 
@@ -162,42 +164,86 @@ return wrapChatConcurrency(c, config.MaxConcurrency, err)
 
 模型级字段还包括 `name`（运行期实际调用的模型名）、`display_name`、`type`、`source`、`is_default`（同一 `(tenant_id, type)` 桶内唯一默认）、`is_builtin`、`managed_by`、`status`（`active` / `downloading` / `download_failed`）。
 
-### 管理 API（`internal/router/router.go`）
+### 管理 API（`internal/router/routes_infra.go`）
 
-| 方法 & 路径 | 说明 |
-|-------------|------|
-| `GET /models/providers` | 按 `model_type` 查询支持的厂商列表（`ListModelProviders`） |
-| `POST /models` / `GET /models` / `GET /models/:id` / `PUT /models/:id` / `DELETE /models/:id` | 模型 CRUD |
-| `PUT /models/:id/credentials`、`DELETE /models/:id/credentials/:field` | 凭证子资源；`PUT /models/:id` 请求体中的 `api_key` 会被强制忽略并告警 |
-| `POST /models/:id/debug` | 模型调试（见下文） |
+| 方法 & 路径 | 说明 | 权限 |
+|-------------|------|------|
+| `GET /models/providers` | 按 `model_type` 查询支持的厂商列表（`ListModelProviders`） | Viewer+ |
+| `GET /models` / `GET /models/:id` | 列表 / 详情（响应不含明文密钥） | Viewer+ |
+| `POST /models` / `PUT /models/:id` / `DELETE /models/:id` | 创建 / 修改 / 删除 | PlatformManaged |
+| `PUT /models/:id/credentials`、`DELETE /models/:id/credentials/:field` | 凭证子资源；`PUT /models/:id` 请求体中的 `api_key` 会被强制忽略并告警 | PlatformManaged |
+| `POST /models/:id/debug` | 模型调试（见下文），会发起真实上游调用并产生费用 | PlatformManaged |
+| `PUT /models/:id/sharing` | 设为 / 取消平台共享；取消时若还有任何空间的知识库在用该模型则拒绝 | 仅系统管理员（服务层强制） |
 
-## 内置模型机制
+PlatformManaged 守卫：`governance.centralized_infra` 关闭（默认）时为空间 Admin+（系统管理员也可），打开后仅系统管理员。内置模型（`is_builtin`）的凭据只有系统管理员能改。API Key 调用这些接口需要 `manage_models` 能力或完全访问。
 
-`internal/types/builtin_models_config.go` 实现了声明式内置模型：启动时读取 `config/builtin_models.yaml`（或 `BUILTIN_MODELS_CONFIG` 指定路径，模板见 `config/builtin_models.yaml.example`），把每个条目 UPSERT 到 `models` 表，`is_builtin=true`、`managed_by="yaml"`、默认 `tenant_id=10000`（`DefaultBuiltinModelTenantID`），对所有租户可见。
+## 内置模型
 
-关键行为（`LoadBuiltinModelsConfig`）：
+内置模型是对部署里**所有空间**可见、可选用的模型，用来给每个空间提供统一的默认模型服务。空间成员（包括空间 Admin / Owner）只能看到模型名、类型这些能力信息，看不到 Base URL 和凭据，也不能修改；只有系统管理员能编辑它的配置和凭据。数据上它就是 `models` 表里 `is_builtin=true` 的行，默认挂在租户 `10000`（`DefaultBuiltinModelTenantID`）下。
 
-- 任意字符串字段支持 `${ENV_NAME}` 环境变量插值；未设置的变量保留字面量以便暴露配置错误。
-- 每次启动按 `id` UPSERT，并把 `deleted_at` 强制重置为 NULL（文件中重新出现的条目会复活）。
-- **漂移清理**：`managed_by='yaml'` 但 id 已不在文件中的行被软删除——从 YAML 删除条目即是下线内置模型的正规方式。
-- 管理员在运行时接管某行（`managed_by` 置空）后，YAML 加载器会跳过该行（"preserving runtime override"）。
-- `is_default: true` 条目会先清掉同 `(tenant_id, type)` 桶内其他默认，保持与 API 路径一致的唯一默认不变式。
-- 校验规则：id 非空且 ≤64 字符（`ModelIDMaxLen`）、type 必须是 `KnowledgeQA | Embedding | Rerank | VLLM | ASR`、status 合法或为空；YAML 解析失败时中止对账（不执行漂移清理）。
+有三种方式产生内置模型：
 
-YAML 示例（摘自 `builtin_models.yaml.example`）：
+| 方式 | 适合 | 行的 `managed_by` | 怎么下线 |
+| --- | --- | --- | --- |
+| 界面：「设置 → 模型管理」，模型卡片菜单里「设为平台共享」 | 最直接，随时开关 | 空（运行时托管） | 同一菜单「取消平台共享」，或在界面删除 |
+| `config/builtin_models.yaml` 声明 | 需要版本化、随部署脚本下发 | `yaml` | 从文件里删掉条目后重启 |
+| 直接写 SQL（`INSERT … is_builtin = true`，或把已有模型 `UPDATE … SET is_builtin = true`） | 兼容旧做法 | 空 | 用 SQL 改回 `is_builtin = false` 或删除 |
+
+几条护栏：
+
+- **取消共享或删除前检查引用**：只要还有任何空间的知识库绑定该模型，操作被拒绝并给出引用数。`knowledge_bases.embedding_model_id` 这类列没有外键，强行撤回会让那些空间的检索悄悄失效。
+- **YAML 托管的行不能在界面删除**：删了下次启动会被写回，接口直接返回错误，要去 YAML 里删。
+- **界面保存即接管**：系统管理员在界面上保存过某个 YAML 托管的模型（改参数或凭据）后，该行 `managed_by` 被清空，之后启动不再用 YAML 覆盖它，界面上的修改重启后仍然有效。想交还给 YAML 管理，需要在数据库里把 `managed_by` 改回 `yaml`。
+- 凭据按 `SYSTEM_AES_KEY` 加密存储；界面对非系统管理员隐藏 API Key 与 Base URL，但数据库里仍有原始（加密后的）数据，数据库访问权限要妥善控制。
+
+### 用 YAML 声明内置模型
+
+1. 复制 `config/builtin_models.yaml.example` 为 `config/builtin_models.yaml`（或用环境变量 `BUILTIN_MODELS_CONFIG` 指向别的路径）；
+2. 在 `docker-compose.yml` 的 `app` 服务里取消 `- ./config/builtin_models.yaml:/app/config/builtin_models.yaml:ro` 这一行挂载的注释；
+3. 把文件里引用的变量写进项目根目录的 `.env`。`app` 服务通过 `env_file: .env` 读取整个文件，不需要在 `environment:` 里逐个列出（这里用的是数组写法，`.env` 不存在时 Compose 会报错，`scripts/start_all.sh` 在缺失时会从 `.env.example` 复制一份）；
+4. 重启 `app`，看日志确认：
+
+```bash
+docker compose logs app | grep builtin-models
+# [builtin-models] upserted: id=builtin-llm-default name=gpt-4o-mini type=KnowledgeQA
+# [builtin-models] applied: 1 upserted, 0 pruned from /app/config/builtin_models.yaml
+```
+
+条目格式（字段含义与 `types.Model` 一致）：
 
 ```yaml
 builtin_models:
-  - id: builtin-llm-default
-    type: KnowledgeQA
-    source: remote
-    is_default: true
+  - id: builtin-llm-default        # 必填，稳定 ID，按它幂等 UPSERT；建议 builtin-{类型}-{名称}
+    tenant_id: 10000               # 可省，默认 10000
+    type: KnowledgeQA              # KnowledgeQA | Embedding | Rerank | VLLM | ASR
+    source: remote                 # 可省，默认 remote
+    status: active                 # 可省，默认 active
+    is_default: true               # 设为该类型默认模型
     name: ${LLM_MODEL_NAME}
+    description: 平台默认对话模型
     parameters:
       base_url: ${LLM_BASE_URL}
       api_key: ${LLM_API_KEY}
-      provider: ${LLM_PROVIDER}
+      provider: ${LLM_PROVIDER}    # openai | generic | aliyun | …
+      # embedding_parameters:      # 仅 Embedding 类型
+      #   dimension: 1536
+      #   truncate_prompt_tokens: 0
 ```
+
+`${NAME}` 插值规则：字符串字段里的 `${NAME}` 替换为环境变量的值；变量未设置或为空时**保留字面量** `${NAME}`，让上游返回的 401 一眼能看出是哪个变量没配。不支持 `${VAR:-default}` 这类 shell 扩展。非字符串字段（`type`、`is_default`、`dimension` 等）必须写字面值。
+
+### 加载与对账的实现
+
+`internal/types/builtin_models_config.go` 的 `LoadBuiltinModelsConfig` 在每次启动时执行：
+
+- 文件不存在（或是个目录——Docker 绑定挂载一个不存在的源文件时会替换成目录）时记一行日志跳过，不报错；
+- 读取失败或 YAML 解析失败只打 WARN 并**跳过整次对账**，不执行漂移清理，一次手抖的改动不会成批软删已有模型；
+- 单个条目校验不通过（id 为空或超过 64 字符 `ModelIDMaxLen`、type 非法、status 非法）时跳过该条；
+- 每个条目按 `id` UPSERT，写入 `is_builtin=true`、`managed_by="yaml"`，并把 `deleted_at` 重置为 NULL（从文件里拿掉再加回来等于恢复）；已被运行时接管（`managed_by` 为空）的同 ID 行跳过，日志 `preserving runtime override`；
+- `is_default: true` 的条目先清掉同 `(tenant_id, type)` 里其他行的默认标记，保持「每类一个默认」；
+- **漂移清理**：`managed_by='yaml'` 且 id 不在本次文件里的行被软删除。手工 SQL 插入或界面共享的行（`managed_by` 为空）永远不受影响。
+
+需要临时停用 YAML 接管又不想改文件时，把 `BUILTIN_MODELS_CONFIG` 指向一个不存在的路径并重启：加载器看到文件缺失直接跳过，也不做漂移清理，已写入的行原样保留。
 
 ### 本地模型下载（Ollama）
 
@@ -211,7 +257,9 @@ builtin_models:
 | `POST /initialization/ollama/models/download` | 异步下载（`downloadModelAsync` + `pullModelWithProgress`，写入模型 `status=downloading`） |
 | `GET /initialization/ollama/download/progress/:taskId`、`GET /initialization/ollama/download/tasks` | 下载进度 / 任务列表 |
 
-> 注意：`cmd/download/duckdb/duckdb.go` 与模型无关——它在构建镜像时预下载 DuckDB 的 `spatial`、`excel` 扩展，供数据分析工具使用。模型权重下载只发生在 Ollama 路径。
+> 注意：`cmd/download/duckdb/duckdb.go` 与模型无关——它在构建镜像时预下载 DuckDB 的 `spatial`、`excel` 扩展，供入库时为 CSV / Excel 生成表格摘要分块使用（`internal/application/service/extract.go` 的 `DataTableSummaryService`）。模型权重下载只发生在 Ollama 路径。
+
+Ollama 服务地址由环境变量 `OLLAMA_BASE_URL` 指定；下载、检查模型属于写操作，同样受 PlatformManaged 守卫约束。
 
 ## 并发与限流（limiter）
 
@@ -220,7 +268,7 @@ builtin_models:
 - **Redis 后端**（`NewRedisLimiter`）：自愈式分布式信号量。每个持有的槽位是 ZSET 成员（唯一 token），score 为租约到期时间；`acquireScript` Lua 脚本原子地清理过期租约、计数、在限额内准入。租约 TTL 30s，持有方每 TTL/3 心跳续租（同时续 ZSET key 自身的 TTL），进程崩溃后租约自然过期回收。**任何后端错误都 fail-open**——限流器故障绝不能阻断模型流量。
 - **Local 后端**（`NewLocalLimiter`）：无 Redis（单进程）部署下的进程内计数信号量。
 - **仅后台任务被限流**：`GateNamedN`（`governor.go`）只在 `types.IsBackgroundTask(ctx)` 为真（asynq worker：摘要、问题生成、图谱抽取、多模态增强等）时排队；交互式用户请求永不被闸门阻塞。
-- 限额优先取模型自身 `parameters.max_concurrency`，为 0 时回落进程级默认 `model.max_concurrency`（可经系统设置在运行时通过 `SetGlobalLimit` 热更新）。
+- 限额优先取模型自身 `parameters.max_concurrency`，为 0 时回落全局默认：系统设置 `model.max_concurrency` > 环境变量 `YUHENG_MODEL_MAX_CONCURRENCY` > 32。全局值在运行时修改后通过 `SetGlobalLimit` 热更新；设为 0 或负数即关闭闸门。
 - 运行时观测：`GET /system/admin/runtime/queues`（`internal/handler/system.go`）返回 `limiter.RuntimeStats()` 的每模型 `active / waiting / limit`（Redis 后端 active 为集群级，waiting 为进程本地）。
 
 ## 模型健康检查 / 连通性测试
@@ -254,7 +302,23 @@ Go 客户端对返回格式做了宽松兼容（`internal/models/rerank/reranker
       ...)
   ```
 
-  其中 `purpose` 来自 `types.WithLLMCallMetadata`（如 `web_fetch_summary`、`entity_extraction`），可按用途聚合。
+  其中 `purpose` 来自 `types.WithLLMCallMetadata`（如 `document_summary`、`question_generation`、`entity_extraction`、`document_auto_tag`、`query_rewrite`），可按用途聚合。
 - **链路追踪**：启用 Langfuse 时，每类模型都有 `langfuse_wrapper.go` 装饰器把调用（含 usage）上报为 trace/span。
 - **流式响应**：usage 随最后的 `StreamResponse` 事件返回（模型调试器会将其聚合进 `usage` 字段）。
 - **并发水位**：如上节所述，`GET /system/admin/runtime/queues` 暴露每模型实时 `active / waiting / limit`。
+
+## 实现参考
+
+想读源码时按下表定位（路径相对仓库根目录）：
+
+| 层 | 文件 |
+| --- | --- |
+| 模型实体与参数 | `internal/types/model.go` |
+| 内置模型加载 | `internal/types/builtin_models_config.go`、`config/builtin_models.yaml.example` |
+| 厂商注册表 | `internal/models/provider/` |
+| 各类模型客户端 | `internal/models/{chat,embedding,rerank,vlm,asr}/` |
+| Ollama | `internal/models/utils/ollama/`、`internal/handler/initialization.go` |
+| 后台并发闸门 | `internal/models/limiter/`、`internal/container/container.go`（`resolveModelMaxConcurrency`） |
+| 模型服务 | `internal/application/service/model.go` |
+| Handler | `internal/handler/model.go`、`model_credentials.go` |
+| 路由与守卫 | `internal/router/routes_infra.go`、`internal/router/rbac.go`（`PlatformManaged`） |

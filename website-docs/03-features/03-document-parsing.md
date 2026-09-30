@@ -1,21 +1,24 @@
 # 文档解析服务 docreader
 
-上传一个 PDF 之后，系统要先把它变成能被切分和索引的文本——这件事由独立的解析服务 docreader 完成。作为使用者，你通常只需要知道两件事：**支持哪些格式**，以及**解析不理想时能调什么**。
+上传一个 PDF 之后，系统要先把它变成能被切分和索引的文本——复杂格式由独立的解析服务 docreader 完成，纯文本、图片和音频由 Go 主服务直接处理。作为使用者，你通常只需要知道两件事：**支持哪些格式**，以及**解析不理想时能调什么**。
 
-支持的格式：
+可以上传的格式（上传白名单见 `internal/application/service/knowledge_util.go`）：
 
 | 类别 | 格式 |
 | --- | --- |
 | 文档 | PDF、Word（doc/docx）、PPT（ppt/pptx）、Excel（xls/xlsx）、EPUB |
-| 文本 | txt、Markdown、CSV、JSON |
-| 网页 | 在线 URL 抓取、本地 HTML / MHTML 归档 |
-| 图片 | jpg、png、gif、bmp、tiff、webp（需配置视觉模型才能理解内容） |
-| 音频 | mp3、wav、m4a、flac、ogg（需配置语音识别模型） |
+| 文本 | txt、Markdown（md/markdown）、CSV、JSON |
+| 网页 | 在线 URL 抓取、本地 HTML（html/htm）/ MHTML 归档 |
+| 图片 | jpg、jpeg、png、gif（需要在知识库里开启图像处理并配置视觉模型才能理解内容） |
+| 音频 | mp3、wav、m4a、flac、ogg（需要配置语音识别模型） |
+| 视频 | mp4、mov、avi、mkv、webm、wmv、flv、m4v（需要语音识别模型转写音轨，或开启图像处理描述关键帧，至少其一；docreader 需装有 ffmpeg） |
+
+单个文件的大小上限由系统管理员在运行时设置（`file.max_size_mb`，默认取 `MAX_FILE_SIZE_MB`=50；视频单独用 `file.video_max_size_mb`，默认取 `MAX_VIDEO_FILE_SIZE_MB`=2048）。
 
 解析结果不理想时可以调整：
 
-- **PDF 版式还原差、表格错位**：在知识库的解析设置里为 `pdf` 指定其他解析引擎（MarkItDown / OpenDataLoader / MinerU）；
-- **扫描件没识别出文字**：确认已配置视觉模型，必要时强制走扫描件模式；
+- **PDF 版式还原差、表格错位**：在知识库编辑弹窗的「解析引擎」里为 `pdf` 换一个引擎（MarkItDown、OpenDataLoader、anydoc，或配置好的 MinerU / PaddleOCR-VL 服务）；
+- **扫描件、网页打印的 PDF 没识别出文字**：确认知识库开启了图像处理（视觉模型），上传时在确认对话框里勾选「按扫描件解析 PDF」，逐页渲染后由视觉模型 OCR；
 - **Excel 首行是列名却被当成数据**：为 `xlsx`/`xls` 打开「首行作为表头」；
 - **个别段落切错**：不必重传整个文档，直接在分块列表里改，见[知识库与知识管理](02-knowledge-base.md)的分块编辑一节。
 
@@ -43,6 +46,8 @@ class BaseParser(ABC):
 
 服务入口是 `docreader/main.py`，只启动一个 gRPC server（`grpc.server` + `ThreadPoolExecutor`），默认监听 `50051` 端口，同时注册标准的 gRPC Health 服务（`grpc_health.v1`）供 K8s / Docker 探活（配合镜像内的 `grpc_health_probe` 二进制）。**没有任何 HTTP 接口**。
 
+Go 侧客户端还支持 `DOCREADER_TRANSPORT=http`，按 `/read`、`/list-engines` 的 JSON 协议调用一个兼容的 HTTP 服务（`internal/infrastructure/docparser/http_parser.go`）；本仓库的 docreader 本身只提供 gRPC，默认 `DOCREADER_TRANSPORT=grpc`、`DOCREADER_ADDR=docreader:50051`。`DOCREADER_ADDR` 为空时主服务以「未连接」状态启动，此时只能处理 Go 原生支持的格式。
+
 Proto 定义在 `docreader/proto/docreader.proto`，共 3 个 RPC：
 
 ```protobuf
@@ -55,13 +60,13 @@ service DocReader {
 }
 ```
 
-`ReadRequest` 是统一请求：设置 `file_content`/`file_name`/`file_type` 为文件模式，设置 `url`/`title` 为 URL 模式；`config.parser_engine` 指定引擎（`builtin` / `markitdown` / `opendataloader`），`config.parser_engine_overrides` 传递引擎级覆盖参数（如 `pdf_force_scanned`、`odl_hybrid`）。
+`ReadRequest` 是统一请求：设置 `file_content`/`file_name`/`file_type` 为文件模式，设置 `url`/`title` 为 URL 模式；另有 `file_path`，供大体积媒体（多 GB 的视频）走共享卷——Go 传两个容器都挂载的路径而不是把字节塞进 gRPC，docreader 校验路径必须落在 `DOCREADER_SHARED_DATA_DIR`（默认 `/data/files`）之内。`config.parser_engine` 指定引擎（`builtin` / `markitdown` / `opendataloader`），`config.parser_engine_overrides` 传递引擎级覆盖参数（如 `pdf_force_scanned`、`xlsx_first_row_as_header`、`odl_hybrid`）。
 
-`ReadResponse` 返回 `markdown_content` + `repeated ImageRef image_refs`（图片以 **inline bytes** 内联返回，`image_dir_path` 恒为空字符串——图片持久化完全由 Go App 负责，proto 中原来的 `image_storage` 字段 3 已 `reserved`）。
+`ReadResponse` 返回 `markdown_content` + `repeated ImageRef image_refs`（图片以 **inline bytes** 内联返回，`image_dir_path` 恒为空字符串——图片持久化完全由 Go App 负责，proto 中原来的 `image_storage` 字段 3 已 `reserved`）。解析视频时还带 `MediaInfo`（时长、分辨率、是否有音轨）与抽出的音轨：unary 版放在 `audio_data`，流式版按固定时长分段作为 `AudioChunk` 帧发送；关键帧的 `ImageRef` 带 `timestamp_ms`。
 
-`ReadStream` 的价值（见 `main.py::ReadStream` 与 `_iter_image_refs`）：每帧独立、体积小；服务端边解码 base64 边 `images.pop(ref_path)` 释放源数据，双方都不必同时持有全部图片，解决大扫描件 PDF 的峰值内存和消息尺寸问题。Go 侧 `internal/infrastructure/docparser/grpc_parser.go` 优先调用 `ReadStream`，遇到旧版本 docreader 返回 `Unimplemented` 时自动回退 unary `Read`。
+`ReadStream` 的价值（见 `main.py::ReadStream` 与 `_iter_image_refs`）：首帧是元数据，随后是音频分段（仅视频），最后每张图片一帧；每帧独立、体积小；服务端边解码 base64 边 `images.pop(ref_path)` 释放源数据，双方都不必同时持有全部图片，解决大扫描件 PDF 的峰值内存和消息尺寸问题。Go 侧 `internal/infrastructure/docparser/grpc_parser.go` 优先调用 `ReadStream`，遇到旧版本 docreader 返回 `Unimplemented` 时自动回退 unary `Read`。
 
-`ListEngines` 保留用于向后兼容——注释明确说明引擎列表现在由 Go 侧 `internal/infrastructure/docparser/engine_registry.go`（`docparser.ListAllEngines`）管理，Go App 已不再调用该 RPC，MinerU 等远程引擎由 Go 原生处理。
+`ListEngines` 返回 docreader 注册的引擎及其可用性。设置页的引擎列表由 Go 侧 `docparser.ListAllEngines`（`internal/infrastructure/docparser/engine_registry.go`）合并而成：Go 本地注册的引擎总在列表里；docreader 已连接时再调用 `ListEngines`，同名引擎以 docreader 报告的文件类型为准，Go 不认识的引擎（`markitdown`、`opendataloader`）原样追加，并在解析时路由给 docreader。`docreader/parser/registry.py` 里「Go 已不再调用该 RPC」的注释已经过时。
 
 ### 1.2 认证与 TLS（auth.py）
 
@@ -75,7 +80,7 @@ Go 侧客户端在 `docreader/client/auth.go`（`LoadAuthConfigFromEnv` 读取�
 
 ### 1.3 与主服务的交互时序
 
-Go App 中 `internal/application/service/knowledge_process.go` 在文档入库流水线的 docreader stage 调用解析（超时由 `docreader_call_timeout` 配置控制，防止挂死的 docreader 长时间占用 worker）。注意：**md/markdown/txt/csv/json/图片/音频由 Go 侧 `SimpleFormatReader` 原生处理，不经过 docreader**（见 `internal/infrastructure/docparser/builtin_converter.go` 的 `simpleFormats`）。
+Go App 中 `internal/application/service/knowledge_process.go` 在文档入库流水线的 docreader stage 调用解析（单次调用超时 `docreader_call_timeout` / `YUHENG_DOCREADER_CALL_TIMEOUT`，默认 30 分钟，须小于整个文档处理任务的超时 `YUHENG_DOCUMENT_PROCESS_TIMEOUT`，默认 2 小时）。注意：**知识库没有为该文件类型指定引擎时，md/markdown/txt/csv/json/图片/音频由 Go 侧 `SimpleFormatReader` 原生处理，不经过 docreader**（见 `internal/infrastructure/docparser/builtin_converter.go` 的 `simpleFormats`）；显式选了 `builtin` 则仍交给 docreader。视频总是交给 docreader。
 
 ```mermaid
 sequenceDiagram
@@ -83,14 +88,16 @@ sequenceDiagram
     participant G as "Go App (knowledge_process)"
     participant D as "docreader (Python gRPC :50051)"
     participant S as "对象存储 (local/s3)"
-    participant M as "OCR / VLM (Go 侧调用)"
+    participant M as "VLM / ASR 模型 (Go 侧调用)"
 
     U->>G: 上传文件 / 提交 URL
-    G->>G: "IsSimpleFormat? (md/txt/csv/json/图片/音频)"
+    G->>G: "未指定引擎且 IsSimpleFormat? (md/txt/csv/json/图片/音频)"
     alt "简单格式"
         G->>G: "SimpleFormatReader 直接转 Markdown"
-    else "复杂格式 (pdf/docx/doc/xlsx/xls/pptx/ppt/epub/html/mhtml/URL)"
-        G->>D: "ReadStream(ReadRequest{file_content, config.parser_engine, request_id})"
+    else "Go 本地引擎 (anydoc / MinerU / PaddleOCR-VL)"
+        G->>G: "进程内或调用外部服务, 不经 docreader"
+    else "复杂格式 (pdf/docx/doc/xlsx/xls/pptx/ppt/epub/html/mhtml/视频/URL)"
+        G->>D: "ReadStream(ReadRequest{file_content 或 file_path, config.parser_engine, request_id})"
         Note over D: "AuthInterceptor 校验 Bearer token"
         D->>D: "Parser.parse_file → registry 选择解析器 → parse_into_text"
         D-->>G: "帧1: ReadStreamMeta{markdown_content, metadata, image_count}"
@@ -100,7 +107,7 @@ sequenceDiagram
         Note over G: "旧版 docreader 无 ReadStream 时回退 unary Read"
     end
     G->>S: "ImageResolver 持久化图片, 重写 markdown 中 images/xxx 引用为存储 URL"
-    G->>M: "对 image_source_type=scanned_pdf 的页面图执行 OCR，对插图生成 caption"
+    G->>M: "视觉模型: scanned_pdf 页面图用扫描件 OCR 提示词, 插图 OCR + caption，音频/视频音轨交给 ASR"
     G->>G: "chunker 分块 → embedding → 索引"
     G-->>U: "入库完成"
 ```
@@ -109,17 +116,30 @@ sequenceDiagram
 
 ## 2. 解析器注册与调度机制
 
-### 2.1 引擎注册表（parser/registry.py）
+### 2.1 引擎全景：Go 侧注册表与 docreader 注册表
 
-`ParserEngineRegistry` 维护 `引擎名 → {文件扩展名 → 解析器类}` 的两级映射，并支持每个引擎注册 `check_available` 探针（用于 `ListEngines` 汇报可用性与不可用原因）。
+知识库「解析引擎」设置里可选的引擎来自两处。Go 侧 `internal/infrastructure/docparser/engines.go` 注册的本地引擎：
 
-`_build_default_registry()` 注册三个引擎：
+| 引擎 | 在哪里运行 | 文件类型 | 可用条件 |
+| --- | --- | --- | --- |
+| `builtin` | docreader | 见下表 | docreader 已连接 |
+| `simple` | Go 进程内 | md、markdown、txt、csv、json、图片、音频 | 总是可用 |
+| `anydoc` | Go 进程内（cgo） | doc、docx、docm、odt、rtf、ppt、pptx、pptm、odp、xls、xlsx、xlsm、ods、epub、csv、pdf | 二进制链接了 anydoc（见 §8） |
+| `mineru` / `mineru_cloud` | 自托管 MinerU 服务 / MinerU 云 API | pdf、图片、doc、docx、ppt、pptx | 空间设置里配置了服务地址 / API Key 且探测可达 |
+| `mineru_tianshu` | 自托管 MinerU 天枢任务队列 | 另含 xls、xlsx、html、htm | 配置了服务地址（及所需凭据）且探测可达 |
+| `paddleocr_vl` / `paddleocr_vl_cloud` | 自托管 PaddleOCR-VL / AI Studio 云 API | pdf、jpg、jpeg、png、bmp、tiff | 配置了服务地址 / Token 且探测可达 |
+
+MinerU、PaddleOCR-VL 这类远程引擎的地址与凭据是空间级配置（`Tenant.ParserEngineConfig`），由 Go 直接调用，不经 docreader。上表的文件类型是引擎能处理的范围，最终能否上传仍受上传白名单约束（例如 `bmp`、`tiff`、`odt` 不在白名单内）。
+
+docreader 侧 `ParserEngineRegistry`（`docreader/parser/registry.py`）维护 `引擎名 → {文件扩展名 → 解析器类}` 的两级映射，并支持每个引擎注册 `check_available` 探针（用于 `ListEngines` 汇报可用性与不可用原因）。`_build_default_registry()` 注册三个引擎：
 
 | 引擎 | 文件类型 | 说明 |
 | --- | --- | --- |
-| `builtin` | `docx`(Docx2Parser)、`doc`(DocParser)、`pdf`(PDFParser)、`md`/`markdown`(MarkdownParser)、`xlsx`/`xls`(ExcelParser)、`epub`(EPUBParser)、`html`/`htm`(HTMLParser)、`mhtml`(MHTMLParser)、`jpg`/`jpeg`/`png`/`gif`/`bmp`/`tiff`/`webp`(ImageParser) | 内置解析引擎 |
-| `markitdown` | `md`、`markdown`、`pdf`、`docx`、`doc`、`pptx`、`ppt`、`xlsx`、`xls`、`csv`（全部 MarkitdownParser） | 微软 MarkItDown 库。**PPT/PPTX 只有该引擎支持** |
+| `builtin` | `docx`(Docx2Parser)、`doc`(DocParser)、`pdf`(PDFParser)、`md`/`markdown`(MarkdownParser)、`xlsx`/`xls`(ExcelParser)、`pptx`/`ppt`(MarkitdownParser)、`epub`(EPUBParser)、`html`/`htm`(HTMLParser)、`mhtml`(MHTMLParser)、`xmind`(XMindParser)、`jpg`/`jpeg`/`png`/`gif`/`bmp`/`tiff`/`webp`(ImageParser)、`mp4`/`mov`/`avi`/`mkv`/`webm`/`wmv`/`flv`/`m4v`(VideoParser，仅在 PATH 上有 ffmpeg 与 ffprobe 时注册) | 内置解析引擎 |
+| `markitdown` | `md`、`markdown`、`pdf`、`docx`、`doc`、`pptx`、`ppt`、`xlsx`、`xls`、`csv`（全部 MarkitdownParser） | 微软 MarkItDown 库 |
 | `opendataloader` | `pdf`(OpenDataLoaderParser) | OpenDataLoader PDF 版面分析，需 Java 11+；`check_available` 探测 java、Python 包及 hybrid 服务健康 |
+
+`xmind` 在 builtin 注册表里，但不在上传白名单内，目前只会经数据源同步（腾讯 ima）进来。
 
 调度规则（`get_parser_class`）：请求指定的引擎若不支持该文件类型，**自动回退 `builtin` 引擎**；builtin 也没有则抛 `ValueError("Unsupported file type")`。
 
@@ -209,16 +229,18 @@ sequenceDiagram
 
 XLSX 读取前统一走 `repair → fill_merged_cells` 预处理，并用 `header=None` + A/B/C 列字母作为稳定列名（xls 则先尝试首行做表头，遇 `Unnamed:` 列回退列字母）。
 
-### 3.5 ppt_convert.py / pptx_media.py（.ppt / .pptx，服务于 markitdown 引擎）
+### 3.5 ppt_convert.py / pptx_media.py（.ppt / .pptx）
 
-PPT 系列**没有独立解析器**，由 `MarkitdownParser` 处理，这两个模块是它的前后置助手：
+PPT 系列**没有独立解析器**，builtin 与 markitdown 两个引擎都把它交给 `MarkitdownParser`，这两个模块是它的前后置助手：
 
 - **`ppt_convert.py`**：`normalize_ppt_bytes` 按魔数判断（ZIP=pptx 直通；OLE=老式 ppt 则 LibreOffice `convert-to pptx`，独立 profile + 3 次重试）。无 LibreOffice 时对 .ppt 直接抛错并提示安装。
 - **`pptx_media.py`**：MarkItDown 无法内联的 PPTX 媒体（尤其 WMF/EMF/SVG 矢量图）的补救——解包 `ppt/media/` 下所有资源，按顺序用 Pillow（位图）或 ImageMagick `convert`（矢量，兜底一切格式）栅格化为 PNG，然后把 markdown 里未解析的 `![](...)` 引用按顺序替换为 `images/<uuid>.png` 并内联图片数据。
 
 ### 3.6 image_parser.py — ImageParser（独立图片文件）
 
-最简单的解析器（29 行）：**不做任何 OCR**。把整张图 base64 内联进 `Document.images`，正文只有一行 `![文件名](images/文件名)`。**OCR 引擎在 Go 侧**——docreader 的 Dockerfile 注释明确"已移除 OCR/PaddleOCR 相关依赖"，Go 侧通过 `internal/infrastructure/docparser/paddleocr_vl_converter.go` / `paddleocr_vl_cloud_converter.go`（PaddleOCR-VL）及 `image_multimodal.go` 完成 OCR 与 caption。另外注意：Go 的 `simpleFormats` 已把图片格式收编为 Go 原生处理，docreader 的 ImageParser 主要服务于直接调用 gRPC 的 SDK 场景。
+最简单的解析器：**不做任何 OCR**。把整张图 base64 内联进 `Document.images`，正文只有一行 `![文件名](images/文件名)`。图片的 OCR 与描述在 Go 侧由知识库配置的**视觉模型**完成（`internal/application/service/image_multimodal.go`，见 §4）。另外注意：Go 的 `simpleFormats` 已把图片格式收编为 Go 原生处理，只有知识库为图片显式选了 `builtin` 引擎时才会走到 docreader 的 ImageParser。
+
+PaddleOCR-VL（`paddleocr_vl_converter.go` / `paddleocr_vl_cloud_converter.go`）与 MinerU 是另一回事：它们是可选的**整文档解析引擎**，为某类文件选中后替代 docreader 产出 Markdown，而不是给 builtin 路径做 OCR。
 
 ### 3.7 markdown_parser.py — MarkdownParser（.md / .markdown）
 
@@ -263,7 +285,19 @@ PPT 系列**没有独立解析器**，由 `MarkitdownParser` 处理，这两个�
 
 包装 Apache-2.0 的 **opendataloader-pdf**（Java 实现的版面分析）：每次 `convert()` 拉起一个 JVM（`parser_worker_limit("opendataloader", 1)` 限流），输出 markdown + 外置图片目录；随后收集输出树下所有图片、构建别名表（尖括号包裹 `<images/foo.png>`、HTML 实体、basename、`imageFileN` 编号对齐）重写 markdown 图片引用。支持 **hybrid 模式**（`DOCREADER_ODL_HYBRID=docling-fast` 等）：调用独立部署的 `opendataloader-pdf-hybrid` HTTP 服务（`DOCREADER_ODL_HYBRID_URL`，默认 `http://127.0.0.1:5002`，Docker 侧对应 `docker/Dockerfile.odl-hybrid`），可用性探针带重试（快速探测 2s×1 次；解析前探测 5s×6 次容忍服务冷启动）。产出文本 <20 字符时判定失败，**回退 builtin 的 `PDFScannedParser`**。可用性检查：`java` 在 PATH（需 Java 11+，镜像装的是 openjdk-17-jre-headless）+ Python 包已装 + hybrid 健康。
 
-### 3.14 解析器选择决策流程
+### 3.14 video_parser.py — VideoParser（视频）与 xmind_parser.py — XMindParser
+
+**VideoParser** 只做媒体层面的重活，模型调用都留在 Go 侧：
+
+- 用 ffprobe 读时长、分辨率、是否有音轨；抽出音轨（码率 `DOCREADER_VIDEO_AUDIO_BITRATE`，默认 64k），按 `DOCREADER_VIDEO_AUDIO_SEGMENT_SEC`（默认 170 秒）切段回传，Go 侧用 ASR 模型逐段转写，每段自带起止时间，不支持时间戳的 ASR 厂商也能得到分段级时间线；
+- 先用 ffmpeg 场景检测（阈值 `DOCREADER_VIDEO_SCENE_THRESHOLD`=0.3）选关键帧，场景变化太少（例如静态的讲座录像）时退回固定间隔；帧间隔下限 `DOCREADER_VIDEO_MIN_FRAME_INTERVAL_SEC`=5 秒、总数上限 `DOCREADER_VIDEO_MAX_FRAMES`=200、长边 `DOCREADER_VIDEO_FRAME_MAX_EDGE`=1280 px，防止超长视频产生上千个视觉模型任务；关键帧带毫秒时间戳，由 Go 侧视觉模型描述；
+- 正文只返回占位 Markdown，Go 侧用转写文本与关键帧描述重建带时间线的正文。
+
+Go 侧对视频的前置检查：知识库既没有配置 ASR 模型也没有开启图像处理时，直接判解析失败并提示。本地存储部署下，视频经共享卷把路径交给 docreader，ffmpeg 原地读取，不经 gRPC 传字节。
+
+**XMindParser** 把 XMind 归档（ZIP）里的画布与主题树展开成 Markdown 大纲，主题备注随主题输出；单个内容文件上限 32 MB。
+
+### 3.15 解析器选择决策流程
 
 ```mermaid
 flowchart TD
@@ -288,6 +322,9 @@ flowchart TD
     H -- "epub" --> EP["EPUBParser (ebooklib → ZIP 回退)"]
     H -- "html / htm" --> HT["HTMLParser (BeautifulSoup + markdownify)"]
     H -- "mhtml" --> MH["MHTMLParser"]
+    H -- "pptx / ppt" --> PP["MarkitdownParser (ppt 先经 LibreOffice 转 pptx)"]
+    H -- "xmind" --> XM["XMindParser"]
+    H -- "mp4/mov/... (有 ffmpeg 时)" --> VD["VideoParser (音轨分段 + 关键帧)"]
     H -- "jpg/png/gif/bmp/tiff/webp" --> IM["ImageParser (整图内联, 不做 OCR)"]
     H -- "其他" --> ERR["ValueError: Unsupported file type"]
 ```
@@ -300,10 +337,10 @@ docreader 侧的图片契约非常简单：每个解析器把图片以 `Document
 
 `main.py` 的两条回传路径：
 
-- unary `Read`：`_resolve_images()` 把全部图片 base64 解码为 `ImageRef.image_data` **内联字节**一次性返回（`image_dir_path` 恒为空——历史上"写共享卷目录"的模式已废弃，注释明确 *"The Go App is solely responsible for persisting images to the configured storage backend (local/minio/cos/tos)"*）；
+- unary `Read`：`_resolve_images()` 把全部图片 base64 解码为 `ImageRef.image_data` **内联字节**一次性返回（`image_dir_path` 恒为空——历史上"写共享卷目录"的模式已废弃，图片持久化完全由 Go App 负责，写入配置的存储后端：本地或 S3 兼容存储）；
 - streaming `ReadStream`：`_iter_image_refs()` 逐张 yield，边发边 `pop` 释放内存。
 
-Go 侧接手后（`internal/infrastructure/docparser/image_resolver.go`）：将 inline bytes 上传对象存储、把 markdown 中的 `images/...` 引用重写为存储 URL；随后 `internal/application/service/image_multimodal.go` 依据 metadata 的 `image_source_type` 决策——`scanned_pdf` 的整页图走 OCR（带专用 `ocr_prompt`），普通插图走 VLM caption。**docreader 内没有任何 VLM 调用**；`models/read_config.py` 中的 `vlm_config`/`storage_config` 字段只是为了老构造函数签名兼容而保留的空壳（"Legacy config kept for backward compatibility"）。
+Go 侧接手后（`internal/infrastructure/docparser/image_resolver.go`）：将 inline bytes 上传对象存储、把 markdown 中的 `images/...` 引用重写为存储 URL；随后 `internal/application/service/image_multimodal.go` 用知识库配置的视觉模型（`VLMConfig`）处理每张图：OCR 时 `image_source_type=scanned_pdf` 的整页图用专门的扫描件提示词、其余图用通用 OCR 提示词，并为图片生成描述；结果成为 `image_ocr` / `image_caption` 子分块。知识库没有开启图像处理时，这一步不执行，扫描页也就没有文字。**docreader 内没有任何模型调用**；`models/read_config.py` 中的 `vlm_config`/`storage_config` 字段只是为了老构造函数签名兼容而保留的空壳（"Legacy config kept for backward compatibility"）。
 
 ---
 
@@ -326,7 +363,7 @@ gRPC 响应中不再返回 chunks（`ReadResponse` 没有 chunk 字段）；`Exc
 | 环境变量（别名） | 默认值 | 说明 |
 | --- | --- | --- |
 | `DOCREADER_GRPC_MAX_WORKERS`（`GRPC_MAX_WORKERS`） | 4 | gRPC 线程池并发数 |
-| `DOCREADER_GRPC_MAX_FILE_SIZE_MB`（`MAX_FILE_SIZE_MB`） | 50（MB） | gRPC 收发消息上限（换算为字节） |
+| `DOCREADER_GRPC_MAX_FILE_SIZE_MB` | `max(MAX_FILE_SIZE_MB, 512)`（MB） | gRPC 收发消息的传输硬上限。它不是上传限额，Go 客户端用同一规则，两端须一致 |
 | `DOCREADER_GRPC_PORT`（`PORT`） | 50051 | gRPC 监听端口 |
 | `DOCREADER_DOCX_MAX_PAGES` | 0（不限） | DOCX 最大处理页数 |
 | `DOCREADER_MARKITDOWN_MAX_WORKERS` | 1 | MarkItDown 并发限流（≤0 关闭限流） |
@@ -343,6 +380,12 @@ gRPC 响应中不再返回 chunks（`ReadResponse` 没有 chunk 字段）；`Exc
 | `DOCREADER_PDF_RENDER_MAX_EDGE` | 2000 | 渲染/抽取图片长边像素上限（0 不限） |
 | `DOCREADER_EXTERNAL_HTTP_PROXY` / `DOCREADER_EXTERNAL_HTTPS_PROXY`（`EXTERNAL_HTTP_PROXY`/`EXTERNAL_HTTPS_PROXY`） | 空 | 外网代理（WebParser、DOC 转换子进程） |
 | `DOCREADER_IMAGE_OUTPUT_DIR`（`IMAGE_OUTPUT_DIR`） | `/tmp/docreader` | 临时图片目录（local 模式回退用，当前主链路不写盘） |
+| `DOCREADER_SHARED_DATA_DIR`（`LOCAL_STORAGE_BASE_DIR`） | `/data/files` | 与 app 共享的存储卷挂载点；`file_path` 请求必须落在其下（两容器路径须一致） |
+| `DOCREADER_VIDEO_SCENE_THRESHOLD` | 0.3 | 关键帧场景检测阈值 |
+| `DOCREADER_VIDEO_MIN_FRAME_INTERVAL_SEC` / `_MAX_FRAMES` / `_FRAME_MAX_EDGE` | 5 / 200 / 1280 | 关键帧最小间隔（秒）/ 上限张数 / 长边像素 |
+| `DOCREADER_VIDEO_MAX_DURATION_SEC` | 0（不限） | 视频时长上限，超过则解析失败 |
+| `DOCREADER_VIDEO_FFMPEG_TIMEOUT_SEC` | 1800（compose 设为 3600） | 单次 ffmpeg 调用超时 |
+| `DOCREADER_VIDEO_AUDIO_BITRATE` / `_AUDIO_SEGMENT_SEC` | `64k` / 170 | 抽出音轨的码率 / 分段时长（秒） |
 
 ### 6.2 PDF 路由细节（pdf_parser.py 模块级环境变量，节选常用项）
 
@@ -381,9 +424,12 @@ gRPC 响应中不再返回 chunks（`ReadResponse` 没有 chunk 字段）；`Exc
 - **LibreOffice**（doc→docx、ppt→pptx、异常表格→xlsx 转换）+ 一串 X/字体库（libxinerama1、libfontconfig1、libcairo2、libcups2 等）；
 - **antiword**（.doc 纯文本兜底）；
 - **openjdk-17-jre-headless**（OpenDataLoader PDF 需要 Java 11+）；
+- **ffmpeg**（视频：抽音轨、抽关键帧）；
 - **Playwright WebKit**：`python -m playwright install webkit` + `install-deps webkit`——这是镜像里唯一的"模型/浏览器二进制下载"步骤（轻量化后**没有 OCR 模型下载**，Dockerfile 注释明确"已移除 OCR/PaddleOCR 相关依赖"）；
 - **grpc_health_probe**（gRPC 健康检查探针，供容器编排探活）；
 - ImageMagick `convert` 若存在会被 `pptx_media.py` 用于 WMF/EMF 栅格化（属可选增强）。
+
+服务以非 root 用户 `docreader`（uid 10001）运行，代码与依赖只读：它解析的是不可信的用户文档，LibreOffice、ffmpeg、WebKit、PDF 库出漏洞时不该拿到 root。
 
 `scripts/` 下另有两个工具：`generate_proto.sh`（grpc_tools.protoc 生成 Python/Go 代码并修复 import 路径）与 `parse_local.py`（本地直接调 Parser 调试解析结果，不经 gRPC，支持 `--engine`、`--scanned`、`--out` 导出 markdown 与图片）。
 
@@ -395,8 +441,8 @@ Python 依赖（`pyproject.toml` + `uv.lock` 锁定）：`grpcio`、`pypdfium2`�
 - **单实例纵向调优**：CPU 富余时调大 `DOCREADER_PDF_RENDER_PARALLELISM`（单文档渲染提速近线性）与 `DOCREADER_GRPC_MAX_WORKERS`（非 PDF 格式可真并发）；内存受限时优先保证 Go 侧走 `ReadStream`（默认行为）。
 - **大文件**：`MAX_FILE_SIZE_MB` 需 Go 客户端与 docreader **两端同步调整**；扫描件页图大小受 `DOCREADER_PDF_RENDER_MAX_EDGE`/`_DPI`/`_JPEG_QUALITY` 三个旋钮控制。
 - **JVM/浏览器类负载隔离**：OpenDataLoader 每次解析拉起 JVM、WebParser 每次拉起 WebKit，均为重进程；`DOCREADER_ODL_MAX_WORKERS`、`DOCREADER_MARKITDOWN_MAX_WORKERS` 默认 1 是保守值，资源充足可放宽或设 ≤0 关闭限流。ODL hybrid 服务（`Dockerfile.odl-hybrid`）应独立部署并配置 `DOCREADER_ODL_HYBRID_URL`。
-- **超时保护**：Go 侧务必配置 `docreader_call_timeout`（`internal/config/config.go`），否则挂死的 docreader 会长时间占用入库 worker。
-- **安全基线**：生产环境开启 `GRPC_AUTH_TOKEN`（≥16 字节）+ `GRPC_TLS_ENABLED`；不设置时服务会以明文 + 无鉴权模式启动并打印 WARNING。
+- **超时保护**：单次调用超时 `YUHENG_DOCREADER_CALL_TIMEOUT`（默认 30 分钟）防止挂死的 docreader 长时间占用入库 worker；处理超大扫描件或长视频时，它和 `YUHENG_DOCUMENT_PROCESS_TIMEOUT`（默认 2 小时）可能需要一起调大，前者须小于后者。
+- **安全基线**：`docker-compose.yml` 不把 50051 端口发布到宿主机，只在内部网络供 app 调用，默认不鉴权。docreader 需要从其他机器访问时，开启 `GRPC_AUTH_TOKEN`（≥16 字节，app 与 docreader 两边设同一个值；设成示例值或过短时 app 拒绝启动）+ `GRPC_TLS_ENABLED`；不设置时服务会以明文 + 无鉴权模式启动并打印 WARNING。
 
 ---
 
@@ -408,7 +454,7 @@ Python 依赖（`pyproject.toml` + `uv.lock` 锁定）：`grpcio`、`pypdfium2`�
 
 ### 8.1 启用方式
 
-解析库是 Rust 静态库，需要 Rust 工具链构建。官方 Docker 镜像（`magicyuan876/yuheng-app`）和 `docker compose build` **默认链接** anydoc，设置页可直接选用。本地 `go build` 默认不链接：未加 `-tags anydoc` 时该引擎在「解析引擎」列表里显示为不可用，其它引擎不受影响。
+解析库是 Rust 静态库，需要 Rust 工具链构建。用本仓库的 `docker/Dockerfile.app` 构建镜像（`docker compose build`、`make` 的镜像目标）**默认链接** anydoc，设置页可直接选用。本地 `go build` 默认不链接：未加 `-tags anydoc` 时该引擎在「解析引擎」列表里显示为不可用，其它引擎不受影响。
 
 ```bash
 make build-anydoc                  # 构建静态库 + 带 anydoc 标签的二进制
@@ -428,7 +474,7 @@ docker build -f docker/Dockerfile.app --build-arg WITH_ANYDOC=0 -t yuheng-app .
 ### 8.2 能力边界
 
 - **扫描件 PDF**：anydoc 只抽取 PDF 的文字层。没有文字层的扫描件会报「需要 OCR」；若 DocReader（builtin）已连接，AnydocReader 会自动把该文件交给 builtin，按页渲染 JPEG 并标记 `image_source_type=scanned_pdf`，后续仍走 Go 侧 OCR。未连接 DocReader 时转换失败，请改用 `builtin`、`mineru` 或 `paddleocr_vl`。
-- **纵向合并单元格不回填**：docreader 的 `Docx2Parser` 会把纵向合并的值复制到每一行（见 issue #2634），anydoc 只在起始行输出该值，后续行留空。对依赖表格逐行语义的知识库，`builtin` 仍然更稳。
+- **纵向合并单元格不回填**：docreader 的 `Docx2Parser` 会把纵向合并的值复制到每一行，anydoc 只在起始行输出该值，后续行留空。对依赖表格逐行语义的知识库，`builtin` 仍然更稳。
 - **图片位置**：开启图片抽取时，先把文档模型里的嵌入图改写成 `images/image-N.ext` 链接，再交给 anydoc 官方 GFM 序列化，因此图片会留在原段落/表格/列表位置。设置引擎覆盖参数 `anydoc_extract_images=false` 可关闭图片抽取，走更快的纯文本渲染（嵌入图会退化成 alt 文本）。
 - **不处理 URL、图片、音频**：这些仍由 `WebParser`、`SimpleFormatReader` 与 ASR 链路负责。
 
@@ -446,7 +492,29 @@ docker build -f docker/Dockerfile.app --build-arg WITH_ANYDOC=0 -t yuheng-app .
 ## 附：关键事实速查
 
 - **对外接口**：仅 gRPC，端口 `50051`（`DOCREADER_GRPC_PORT`/`PORT`），RPC：`Read` / `ReadStream` / `ListEngines` + 标准 Health 服务。
-- **docreader 直接支持的文件格式全集**：`pdf`、`docx`、`doc`、`xlsx`、`xls`（markitdown 引擎额外含 `pptx`、`ppt`、`csv`）、`md`/`markdown`、`epub`、`html`/`htm`、`mhtml`、图片 `jpg/jpeg/png/gif/bmp/tiff/webp`，以及 URL 网页抓取；`txt`/`csv`/`json`/图片/音频在主链路中由 Go 侧 `SimpleFormatReader` 原生处理，不经过本服务。
-- **OCR / VLM**：docreader 内部零 OCR、零 VLM；扫描页与插图作为图片回传，OCR（PaddleOCR-VL）与 caption 由 Go App 完成。
+- **docreader 直接支持的文件格式全集**：`pdf`、`docx`、`doc`、`xlsx`、`xls`、`pptx`、`ppt`、`md`/`markdown`、`epub`、`html`/`htm`、`mhtml`、`xmind`、图片 `jpg/jpeg/png/gif/bmp/tiff/webp`、视频（需 ffmpeg），以及 URL 网页抓取（markitdown 引擎额外含 `csv`）；`txt`/`csv`/`json`/图片/音频在未指定引擎时由 Go 侧 `SimpleFormatReader` 原生处理，不经过本服务。
+- **OCR / VLM / ASR**：docreader 内部不调用任何模型；扫描页、插图、视频关键帧作为图片回传，由 Go 侧视觉模型做 OCR 与描述，音频与视频音轨由 Go 侧 ASR 模型转写。MinerU、PaddleOCR-VL 是可选的整文档解析引擎，不是 builtin 路径的 OCR。
 - **图片回传**：inline bytes（`ImageRef.image_data`），持久化到 local/s3 由 Go 负责。
 - **分块**：生产路径在 Go 侧 chunker；Python `TextSplitter`（512/80）仅为 sidecar 保留并与 Go 对齐。
+
+## 实现参考
+
+想读源码时按下表定位（路径相对仓库根目录）：
+
+| 层 | 文件 |
+| --- | --- |
+| gRPC 服务入口 | `docreader/main.py` |
+| 协议定义 | `docreader/proto/docreader.proto` |
+| docreader 配置 | `docreader/config.py` |
+| 认证与 TLS | `docreader/auth.py`（服务端）、`docreader/client/auth.go`（Go 客户端） |
+| 解析器注册表与门面 | `docreader/parser/registry.py`、`docreader/parser/parser.py` |
+| 各解析器 | `docreader/parser/*_parser.py` |
+| Go 侧引擎注册与路由 | `internal/infrastructure/docparser/engines.go`、`engine_registry.go` |
+| Go 侧 docreader 客户端 | `internal/infrastructure/docparser/grpc_parser.go`、`http_parser.go` |
+| Go 原生格式处理 | `internal/infrastructure/docparser/builtin_converter.go` |
+| 远程解析引擎 | `internal/infrastructure/docparser/mineru_*.go`、`paddleocr_vl_*.go` |
+| 图片持久化与引用重写 | `internal/infrastructure/docparser/image_resolver.go` |
+| 图片 OCR 与描述 | `internal/application/service/image_multimodal.go` |
+| 上传白名单 | `internal/application/service/knowledge_util.go` |
+| 入库流水线调用点 | `internal/application/service/knowledge_process.go`、`knowledge_process_config.go` |
+| 镜像 | `docker/Dockerfile.docreader`、`docker/Dockerfile.odl-hybrid` |

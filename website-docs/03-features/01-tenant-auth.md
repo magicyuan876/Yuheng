@@ -2,13 +2,15 @@
 
 在 Yuheng 里，一个人（**用户**）可以属于多个**空间**（后端叫租户 Tenant，界面上叫工作空间）。空间是隔离边界：知识库、模型、会话都归属某个空间，配额也按空间算。想让两个空间之间共享知识库，就把它们放进同一个**组织**（共享空间）。
 
-日常最常问的三件事：
+日常最常用的操作：
 
 | 想做什么 | 怎么做 |
 | --- | --- |
+| 部署后创建第一个账号 | 直接在注册页注册。默认的 `auto` 注册模式下，第一个注册的人同时成为空间 Owner 与系统管理员，之后公开注册自动关闭（见 §2.1） |
+| 让没有账号的人加入 | 空间设置 → 成员 → 生成邀请链接，对方凭链接注册（公开注册关闭时也可用）；或由系统管理员直接创建账号 |
 | 拉同事进来一起用 | 空间设置 → 成员 → 邀请，并给对方一个角色（Owner / Admin / Contributor / Viewer） |
 | 把知识库共享给另一个团队 | 建组织 → 把两个空间都加进去 → 在知识库上「共享到组织」 |
-| 让程序调接口 | 空间设置 → API Key，按需勾选能力（检索 / 问答 / 入库 / 管理），必要时限定可访问的知识库 |
+| 让程序调接口 | 由空间 Owner 调 `POST /api/v1/tenants/:id/api-keys` 创建 API Key（目前没有管理界面），按需勾选能力（检索 / 问答 / 入库 / 管理），必要时限定可访问的知识库 |
 | 管理整个部署（全局设置、任务队列、跨空间审计） | 需要**系统管理员**身份，与空间 Owner 是两回事，见[平台管理与系统管理员](20-platform-admin.md) |
 | 删除整个空间 | 空间设置里由 **Owner** 触发（`DELETE /tenants/:id`）；会连带清掉该空间的知识库、会话与成员关系，不可撤销 |
 
@@ -42,7 +44,7 @@ graph TB
 关键点：
 
 - 一个 User 可以通过 `tenant_members` 表同时属于多个 Tenant，每个成员关系有独立角色。
-- 组织成员关系是**租户级**的（Plan 3 迁移之后 `OrganizationTenantMember` 以 `tenant_id` 为单位，而非 user），共享也是"某个租户把 KB 共享给某个组织"。
+- 组织成员关系是**租户级**的（`OrganizationTenantMember` 以 `tenant_id` 为单位，而非 user），共享也是"某个租户把 KB 共享给某个组织"。
 - API Key 是与 JWT 用户完全独立的机器主体，不复用租户角色阶梯。
 
 ## 1. 数据模型
@@ -97,6 +99,9 @@ type User struct {
 type UserPreferences struct {
     // 上次活跃的租户 ID，登录时用于恢复上下文
     LastActiveTenantID *uint64 `json:"last_active_tenant_id,omitempty"`
+    // OIDC 自动开户的账号为 true：它的密码是随机生成、用户不知道的，
+    // 个人资料页因此隐藏「修改密码」，直到用户通过改密接口设置一个已知密码
+    OidcOnlyLogin *bool `json:"oidc_only_login,omitempty"`
 }
 ```
 
@@ -143,6 +148,10 @@ type TenantMember struct {
 
 登录响应里返回 `Membership{TenantID, TenantName, Role}` 投影列表，前端据此渲染工作空间切换器。
 
+一个空间可以有**多位** Owner，约束是「至少一位」：降级或移除成员、成员自己退出时，只有会让空间失去最后一位活跃 Owner 的操作被拒绝（`ErrLastOwner`）。
+
+**孤儿空间自愈**：一个空间在 `tenant_members` 里没有任何活跃成员时（典型情况是只被 API Key 用过），把它作为自己首页空间（`users.tenant_id`）登录的第一个真人会被自动提升为 Owner，并记审计日志，避免空间被锁死。跨空间访问、给别的空间签发的 token 都不会触发这条路径。
+
 ### 1.4 TenantAPIKey（API Key）
 
 `internal/types/tenant_api_key.go`：
@@ -162,7 +171,7 @@ type TenantAPIKey struct {
 }
 ```
 
-- **落库加密**：配置了 `SYSTEM_AES_KEY` 时，`BeforeSave` 钩子将 `api_key` 列以 AES-GCM 加密存储，`AfterFind` 自动解密；查表始终走不可逆的 `KeyHash`。
+- **落库加密**：`BeforeSave` 钩子用 `SYSTEM_AES_KEY` 将 `api_key` 列以 AES-GCM 加密存储，`AfterFind` 自动解密；查表始终走不可逆的 `KeyHash`。`SYSTEM_AES_KEY` 是必填项，留空或长度不对时服务拒绝启动（见 §3.1）。
 - **校验流程**：请求携带 `X-API-Key` → 计算哈希 → 按 `KeyHash` 查表 → 检查 `RevokedAt` / `ExpiresAt` → 将 `TenantAPIKeyScope{KeyID, ScopeType, FullAccess, KnowledgeBaseIDs, Capabilities}` 注入 context，后续用 `types.TenantAPIKeyScopeFromContext` 读取。
 
 ### 1.5 Organization（组织 / 共享空间）
@@ -180,7 +189,7 @@ type Organization struct {
     InviteCodeValidityDays int     // 允许 0(永久)/1/7/30，默认 7
     RequireApproval        bool    // 加入需审批
     Searchable             bool    // 是否可被搜索发现
-    MemberLimit            int     // 默认 50
+    MemberLimit            int     // 0 = 不限；服务层创建时默认 200（列上的 gorm 默认值 50 不生效）
 }
 
 type OrganizationTenantMember struct { // 成员单位是"租户"
@@ -199,7 +208,7 @@ const (
 
 ## 2. 注册与登录
 
-### 2.1 注册模式（invite-only）
+### 2.1 注册模式
 
 `internal/handler/auth.go` + `internal/config/config.go`：
 
@@ -220,7 +229,9 @@ func (c *AuthConfig) IsInviteOnly() bool {
 
 **每次请求时**（`resolveRegistrationMode()`）只比较两个来源：数据库 `system_settings` 的 `auth.registration_mode` 行 > 上面合成的 cfg 值 > 硬编码兜底 `auto`。`DISABLE_REGISTRATION` **不会**被逐请求重新读取。
 
-`auto` 模式下，只要系统里还没有任何用户，注册就是开放的，且首个注册者会同时成为租户 Owner 与系统管理员；之后公开注册自动关闭（邀请注册走另一个端点，不受影响）。首个用户的创建在注册事务里判定，两个人同时注册也只有一个能成功。
+`auto` 模式下，只要系统里还没有任何用户，注册就是开放的，且首个注册者会同时成为租户 Owner 与系统管理员；之后公开注册自动关闭（邀请注册走另一个端点，不受影响）。首个用户的创建在注册事务里判定，两个人同时注册也只有一个能成功。无法识别的模式值按 `auto` 处理，拼写错误不会意外打开注册；`config.yaml` 里写了非法值则启动校验直接报错。
+
+公开注册关闭时，`POST /auth/register` 返回 403，提示「请管理员创建账号或发送邀请链接」。之后的账号有三个来源：邀请链接注册（§2.3）、系统管理员在控制台直接创建（`POST /system/admin/users/create`，见[平台管理与系统管理员](20-platform-admin.md)）、OIDC 首次登录。
 
 后果是：系统管理员在界面上把 `auth.registration_mode` 设成 `self_serve` 后，即使部署里仍写着 `DISABLE_REGISTRATION=true`，公开注册也是开着的。要彻底关掉，得把数据库里那一行重置（`DELETE /system/admin/settings/auth.registration_mode`）。
 
@@ -238,7 +249,7 @@ func (c *AuthConfig) IsInviteOnly() bool {
   - **`POST /auth/register`（后端）**：只有 binding 的 `min=6`——`Register()` **不调用** `ValidatePasswordPolicy`，所以直接打接口能设出 6 位纯数字密码；
   - **`ValidatePasswordPolicy`（8–32 + 字母 + 数字）**：只用于**修改密码**（`user.go` 的改密路径）与**系统管理员重置他人密码**（`handler/system.go`）。
 
-  也就是说走界面注册受 8 位强校验，走 API 注册只受 6 位下限约束。
+  也就是说走界面注册受 8 位强校验，走 API 注册只受 6 位下限约束。系统管理员直接创建用户（`POST /system/admin/users/create`）时提供的密码同样要过 `ValidatePasswordPolicy`；不提供则生成一个符合策略的随机密码，只在响应里返回一次。
 
 ### 2.3 邀请注册（register-by-invite）
 
@@ -256,20 +267,42 @@ type registerByInviteRequest struct {
 
 流程：校验 token（`LookupByToken`）→ 检查邮箱未注册（已注册返回 409）→ 以 `tenantless` 模式创建用户 → 将邀请租户设为用户首租户 → `AcceptByToken` 创建 `tenant_members` 行（状态 `active`，角色取邀请中指定的角色）。
 
-配套端点 `POST /auth/invitations/lookup`（无需认证）返回邀请上下文 `{tenant_id, tenant_name, role, expires_at}` 供注册页展示；**故意使用 POST + body 而非 GET + path，避免 token 落入访问日志**；token 无效/被撤销返回 410。
+配套端点 `POST /auth/invitations/lookup`（无需认证）返回邀请上下文 `{tenant_id, tenant_name, role, expires_at}` 供注册页展示；**故意使用 POST + body 而非 GET + path，避免 token 落入访问日志**；token 无效/被撤销返回 410。已经有账号的用户登录后用 `POST /me/invitations/accept-by-token` 凭同一个 token 加入空间，不新建账号。
+
+### 2.4 登录保护：按 IP 限流与账户锁定
+
+未认证的凭据端点都有防暴力破解的限制，超限返回 429 并带 `Retry-After` 头：
+
+| 端点 | 每个 IP 每分钟上限 |
+| --- | --- |
+| `POST /auth/login` | 30 |
+| `POST /auth/register` | 10 |
+| `POST /auth/switch-tenant` | 60 |
+| `POST /auth/register-by-invite`、`POST /auth/invitations/lookup` | 两者合计 30（进程内滑动窗口） |
+
+IP 取 Gin 的 `ClientIP()`，只信任 `YUHENG_TRUSTED_PROXIES` 配置的代理，伪造 `X-Forwarded-For` 换不到新的计数桶；代理把地址剥掉时归入同一个 `_unknown_` 桶，而不是不限流。
+
+**账户锁定**针对分散在多个 IP 上的猜测：同一邮箱 15 分钟内登录失败 5 次，锁定 15 分钟。锁定期间无论密码对错都返回 429「Too many failed login attempts」，登录成功会清零计数。锁按提交的邮箱（小写、去空白后哈希）计，不管该账号是否存在，所以锁与不锁都不会泄露账号是否存在；未知邮箱与密码错误的响应耗时也被对齐（与一个固定 bcrypt 哈希比较）。
+
+配置了 Redis 时，IP 限流与锁定计数都存在 Redis 里，多个副本共享；没有 Redis 或 Redis 出错时退回进程内计数。
 
 ## 3. JWT 机制
 
 实现于 `internal/application/service/user.go`，使用 `github.com/golang-jwt/jwt`（HMAC-SHA256）。
 
-### 3.1 密钥来源
+### 3.1 密钥来源与启动校验
 
-```go
-func getJwtSecret() string {
-    // 1) 环境变量 JWT_SECRET
-    // 2) 否则启动时生成 32 字节安全随机密钥（Base64），进程重启后旧 token 失效
-}
-```
+签名密钥来自环境变量 `JWT_SECRET`。启动时 `internal/runtime/startup.go` 的 `ValidateSecrets` 检查部署密钥，下列任一情况都**拒绝启动**，并在错误信息里说明原因与生成方法：
+
+| 变量 | 拒绝条件 | 生成方法 |
+| --- | --- | --- |
+| `JWT_SECRET` | 未设置；仍是 `.env.example` 里公开过的示例值；不足 32 个字符 | `openssl rand -hex 32` |
+| `SYSTEM_AES_KEY` | 未设置；仍是示例值；长度不是正好 32 字节 | `openssl rand -hex 16` |
+| `GRPC_AUTH_TOKEN` | 设置了但是示例值或不足 16 个字符（未设置是允许的，docreader 此时不鉴权） | `openssl rand -hex 24` |
+
+之所以不允许 `JWT_SECRET` 留空：留空时代码会为每个进程随机生成一个密钥，每次重启所有人都会被登出，多副本之间 token 也互不认。多个副本必须使用同一个 `JWT_SECRET`。`SYSTEM_AES_KEY` 加密模型 API Key、数据源凭据等落库密钥，丢失或更换后已加密字段无法解密，需要妥善备份。
+
+`YUHENG_INSECURE_DEV=true` 可以跳过这项检查（每次启动打印警告），只用于一次性的本地试验，不能用在别人能访问的部署上。
 
 ### 3.2 签发（Access + Refresh 双 token）
 
@@ -333,6 +366,7 @@ refreshClaims := jwt.MapClaims{
 | `system_settings_read` / `system_settings_manage` | 平台级：系统设置 |
 | `system_runtime_read` / `system_runtime_manage` | 平台级：运行时队列 / 任务 |
 | `system_audit_read` | 平台级：审计日志 |
+| `docs_read` / `docs_write` / `docs_admin` | 在线文档模块：读（空间、页面、评论、搜索、事件流）/ 写作 / 页面权限与租户分组 |
 
 ### 4.2 路由声明机制
 
@@ -373,7 +407,7 @@ requireTenantAPIKeyKnowledgeBases(ctx, "kb-1", "kb-2") // → forbidden
 
 ### 5.1 配置
 
-`internal/config/config.go` 的 `OIDCAuthConfig`：
+`internal/config/config.go` 的 `OIDCAuthConfig`，位于 `config.yaml` 的 `oidc_auth` 节：
 
 | 配置项 | 说明 |
 | --- | --- |
@@ -386,7 +420,7 @@ requireTenantAPIKeyKnowledgeBases(ctx, "kb-1", "kb-2") // → forbidden
 | `scopes` | 请求的 scope（如 `openid email profile`） |
 | `user_info_mapping.username` / `.email` | claims 字段映射（默认 `name` / `email`） |
 
-端点解析顺序：若 `authorization_endpoint` 与 `token_endpoint` 均已配置则直接使用；否则从 `discovery_url` 动态发现；两者都缺失则报错。
+端点解析顺序：若 `authorization_endpoint` 与 `token_endpoint` 均已配置则直接使用；否则从 `discovery_url` 动态发现。`enable: true` 时启动校验要求 `client_id`、`client_secret`，以及 `discovery_url` 或这两个端点，缺一则拒绝启动。
 
 路由（`internal/router/router.go`）：
 
@@ -394,14 +428,19 @@ requireTenantAPIKeyKnowledgeBases(ctx, "kb-1", "kb-2") // → forbidden
 r.GET("/auth/oidc/config",   handler.GetOIDCConfig)           // 前端探测是否启用
 r.GET("/auth/oidc/url",      handler.GetOIDCAuthorizationURL) // 获取授权 URL
 r.GET("/auth/oidc/callback", handler.OIDCRedirectCallback)    // 授权码回调
+r.GET("/auth/oidc/start",    handler.OIDCStart)               // 直接 302 跳转到 IdP，供无法用 JS 取 URL 的场景
 ```
 
 ### 5.2 流程与安全设计
 
 `internal/application/service/user.go`：
 
+整体上，OIDC 登录由**后端**完成：前端只负责跳转，授权码 `code` 换 token、取用户信息、关联或创建本地账号都在后端做，最后签发 Yuheng 自己的 JWT。IdP 的 token 只用来确认「你是谁」，访问 Yuheng API 用的始终是本地 JWT。
+
 - `GetOIDCAuthorizationURL`：生成 24 字节随机 `nonce`，用 `secutils.SignOIDCState` 把 `{nonce, redirect_uri}` **签名进 state**（防 CSRF / 重放 / 回调地址篡改）；nonce 通过 HttpOnly cookie 下发（响应 JSON 中 `json:"-"` 省略）。
-- `LoginWithOIDC`：授权码换 token → UserInfo 端点取用户信息（按 `user_info_mapping` 映射）→ **按 email 匹配本地用户**；未找到则 `provisionOIDCUser` 自动开户 → 签发与密码登录完全相同的本地 JWT 对。
+- `LoginWithOIDC`：用 state 里记录的 `redirect_uri`（保证与授权时一致）向 `token_endpoint` 换 token → 解析用户信息 → **按 email 匹配本地用户**；未找到则 `provisionOIDCUser` 自动开户 → 签发与密码登录完全相同的本地 JWT 对。
+- 用户信息的来源：先解码 `id_token` 的 payload（直接取自 token 端点的响应，不单独验签），再在配置了 `user_info_endpoint` 时调用它，两边的 claims 合并、UserInfo 覆盖同名字段。用户名按 `user_info_mapping.username` → `preferred_username` → `name` → 邮箱前缀依次取；**拿不到邮箱则登录失败**，因为本地账号按邮箱关联。
+- 发现文档与各端点地址都经过 SSRF 校验：部署在内网（例如本机 `127.0.0.1`）的 IdP 需要加入 `SSRF_WHITELIST`。
 
 自动开户细节：
 
@@ -429,8 +468,28 @@ sequenceDiagram
     IdP-->>W: claims (email, name)
     W->>W: 按 email 查用户，不存在则自动开户 provisionOIDCUser
     W->>W: 签发本地 JWT (access 24h + refresh 7d)
-    W-->>B: LoginResponse {user, memberships, token, refresh_token, is_new_user}
+    W-->>B: 302 /#oidc_result=base64url({success, token, refresh_token, is_new_user})
+    B->>B: App.vue 解析 hash, 写入 token
+    B->>W: GET /auth/me 补全用户与空间
 ```
+
+**回调结果怎么回到前端**：`/auth/oidc/callback` 不返回 JSON，而是 302 到前端根路径 `/`，结果放在 URL hash 里（不会再作为请求发回服务端，前端读取后立即清除）：
+
+| hash | 含义 |
+| --- | --- |
+| `#oidc_result=…` | 成功，内容是回调响应 JSON 的 base64url 编码 |
+| `#oidc_error=<IdP 的 error>&oidc_error_description=…` | IdP 返回了错误 |
+| `#oidc_error=invalid_state` | state 签名无效，或 nonce cookie 缺失 / 不匹配 |
+| `#oidc_error=missing_code` | 回调没有带 `code` |
+| `#oidc_error=login_failed&oidc_error_description=…` | 换 token、取用户信息或本地登录失败（例如账号被停用） |
+
+前端在 `frontend/src/App.vue` 统一处理这个 hash（`Login.vue` 不处理回调）：失败时回到 `/login` 并提示；成功时保存 token 与 refresh token，调 `/auth/me` 取用户与空间，若 OIDC 跳转前在邀请注册页暂存了邀请 token，先凭它加入对应空间，最后进入 `/platform/knowledge-bases`（没有可用空间时进入 `/onboarding/workspace`）。
+
+### 5.3 部署与本地联调
+
+- 配置写在 `config.yaml` 的 `oidc_auth` 节，也可以全部用环境变量：`OIDC_AUTH_ENABLE`、`OIDC_AUTH_ISSUER_URL`、`OIDC_AUTH_DISCOVERY_URL`、`OIDC_AUTH_PROVIDER_DISPLAY_NAME`（默认 `OIDC`）、`OIDC_AUTH_CLIENT_ID`、`OIDC_AUTH_CLIENT_SECRET`、`OIDC_AUTH_AUTHORIZATION_ENDPOINT`、`OIDC_AUTH_TOKEN_ENDPOINT`、`OIDC_AUTH_USER_INFO_ENDPOINT`、`OIDC_AUTH_SCOPES`（默认 `openid profile email`，空格或逗号分隔）、`OIDC_USER_INFO_MAPPING_USER_NAME`、`OIDC_USER_INFO_MAPPING_EMAIL`，示例见 `.env.example` 的 F3 节；
+- 前端传给后端的回调地址固定是 `${window.location.origin}/api/v1/auth/oidc/callback`，IdP 客户端里登记的 redirect URI 必须与之**完全一致**。从 `http://127.0.0.1:5173`（开发服务器）和从 nginx 入口访问，得到的是两个不同的地址，都要登记；
+- 本地联调可以用 Dex：`docker compose -f docker-compose.dev.yml --profile dex up -d dex`，配置在 `misc/dex-config.yaml`，其中已登记上面两个本地回调地址（client secret 需自行补上）。Keycloak 等符合 OpenID Connect 的 IdP 同样可用。
 
 ## 6. RBAC：角色、所有权与守卫矩阵
 
@@ -480,7 +539,7 @@ sequenceDiagram
 | `OwnedChunkKBOrAdmin` / `...FromChunkID` | `:knowledge_id` 或 chunk `:id` → KB.CreatorID | chunk 变更 |
 | `OwnedWikiKBOrAdmin` | `:kb_id` → KB.CreatorID | Wiki 页面 CRUD |
 
-子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、KB share 接错轴的 bug）。
+子资源必须继承父 KB 的门禁（注释明确点名曾修复过 FAQ/Tag、KB share 接错轴的 bug）。归属链是 `chunk / FAQ 条目 / 生成的问题 / 标签 / Wiki 页面 → knowledge → KB → knowledge_bases.creator_id`；`creator_id` 为空的 KB 视为空间共有，只有 Admin+ 能改。这样 Contributor 在自己的 KB 里像 Owner，在别人的 KB 里像 Viewer。
 
 ### 6.4 中间件语义（`internal/middleware/rbac.go`）
 
@@ -495,15 +554,21 @@ sequenceDiagram
 
 强制执行开关 `TenantConfig.EnableRBAC`：`nil` 或 `true` = 强制（当前默认），`false` = 只记日志不拒绝（发布过渡用）；可用环境变量 `YUHENG_TENANT_ENABLE_RBAC` 覆盖。
 
+观察模式下：角色不足的请求照常放行，应用日志记一行 `[rbac] role insufficient (logged but not enforced): user=… have=… need=… path=…`；找不到成员关系时按 Admin 放行，避免成员数据滞后时锁死现有部署。切回强制前，把这些日志逐条处理掉（调整成员角色，或把脚本改用 API Key），它们就是切换后会变成 403 的请求。`tenant_members` 与 `creator_id` 数据在两种模式下都保留，来回切换不需要重做任何迁移。
+
+拒绝写审计日志 `rbac.access_denied` 只在强制模式下发生，并按 1 分钟窗口去重（同一调用者、路径、动作一分钟内只写一行），防止探测请求刷表；完整序列仍在应用日志里。审计日志的保留期由 `audit.retention_days` / `YUHENG_AUDIT_RETENTION_DAYS` 控制（默认 90 天，0 关闭清理），见[可观测性与审计](16-observability.md) §4.5。
+
+前端 `authStore` 暴露 `currentTenantRole` 与 `hasRole('admin')` 等按层级判断的函数，页面再叠加 `kb.creator_id === 当前用户` 做单个资源的判断，原则是后端会 403 的按钮前端直接不显示。
+
 `RequireSystemAdmin`：JWT 用户须 `IsSystemAdmin=true`；API Key 须为 platform key（tenant key 一律 403）。
 
 ### 6.5 KB 访问守卫（跨租户共享通道）
 
-`middleware/kb_access.go`（由 `rbac.go` 的 `KBAccess*` 系列包装）统一了三条访问路径：
+`middleware/kb_access.go`（由 `rbac.go` 的 `KBAccess*` 系列包装）统一了两条访问路径：
 
 ```text
-1. 自有 KB                    → 等效 Admin 级完全访问
-2. 组织共享 KB (Plan 3)       → 受共享权限封顶
+1. 自有 KB        → 等效 Admin 级完全访问
+2. 组织共享 KB    → 受共享权限封顶（见 §8.3）
 ```
 
 守卫成功后把 `(KB, 有效租户 ID, 权限)` 存入 context 并**改写请求的租户 ID 为有效租户**，下游 handler 无需感知 KB 是自有还是共享。变体 `KBAccessReadFromKnowledgeIDParam` / `...FromChunkIDParam` 支持从 knowledge / chunk ID 反查 KB。读路由最低 `OrgRoleViewer`，写路由最低 `OrgRoleEditor`。
@@ -520,20 +585,21 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 | `POST /tenants/:id/members` | Owner | 直接添加现有用户 `{email, role}` |
 | `PUT /tenants/:id/members/:user_id` | Owner | 修改角色 |
 | `DELETE /tenants/:id/members/:user_id` | Owner | 移除成员 |
+| `POST /tenants/:id/leave` | Viewer | 本人退出空间；会让空间失去最后一个 Owner 时拒绝 |
 | `POST /tenants/:id/invitations` | Owner | 定向邀请现有用户 `{email, role, message}` |
 | `GET /tenants/:id/invitations` | Viewer | 列出邀请 |
 | `DELETE /tenants/:id/invitations/:inv_id` | Owner | 撤销邀请 |
-| `GET /me/invitations` | 本人 | 邀请收件箱 |
+| `GET /me/invitations`、`GET /me/invitations/pending-count` | 本人 | 邀请收件箱 / 待处理数量 |
 | `POST /me/invitations/:inv_id/accept` / `.../decline` | 本人 | 接受 / 拒绝 |
 
-`TenantInvitation` 状态机：`pending → accepted / declined / revoked / expired`（过期由惰性清扫转移并审计 `rbac.invitation_expired`）。成员与邀请全生命周期都有审计事件：`rbac.member_added` / `member_removed` / `member_role_changed` / `member_left` / `invitation_sent` / `invitation_accepted` / `invitation_declined` / `invitation_revoked`（`internal/types/audit_log.go`）。
+`TenantInvitation` 状态机：`pending → accepted / declined / revoked / expired`（过期由惰性清扫转移并审计 `rbac.invitation_expired`）。邀请（定向邀请与邀请链接）的有效期默认 7 天，由 `YUHENG_INVITATION_TTL`（Go duration，如 `168h`）调整。成员与邀请全生命周期都有审计事件：`rbac.member_added` / `member_removed` / `member_role_changed` / `member_left` / `invitation_sent` / `invitation_accepted` / `invitation_declined` / `invitation_revoked`（`internal/types/audit_log.go`）。
 
 ### 7.2 共享邀请链接（invite link）
 
 `internal/handler/tenant_invite_link.go`。与定向邀请同表存储：`InviteeUserID` 为空即共享链接（多人可用，`AcceptedCount` 计数），非空即定向邀请。
 
 - `POST /tenants/:id/invite-links`（Owner）：`{role, message}` → 返回 `invite_url`（`{FrontendBaseURL}/register?token=...`，`FrontendBaseURL` 取 YAML `frontend_base_url` → 环境变量 `FRONTEND_BASE_URL` → 相对路径兜底）；
-- `GET /tenants/:id/invite-links`（Viewer）列出；`DELETE /tenants/:id/invite-links/:inv_id`（Owner）撤销。
+- 邀请链接没有单独的列表和撤销端点：它们和定向邀请一起出现在 `GET /tenants/:id/invitations`（Viewer）里，用 `DELETE /tenants/:id/invitations/:inv_id`（Owner）撤销。
 
 链接持续有效直到过期或撤销，配合 §2.3 的 `register-by-invite` 打通 invite-only 模式下的开户闭环。
 
@@ -541,16 +607,28 @@ Handler：`internal/handler/tenant_member.go`、`tenant_invitation.go`。`/tenan
 
 ### 8.1 组织生命周期
 
-`internal/application/service/organization.go`：
+组织（界面上叫「共享空间」）的成员单位是**空间**，所以创建、加入、退出组织，以及在组织里做管理操作，都要求调用者是当前空间的 Admin+。组织本身不拥有知识库，只记录「某个知识库以某种权限共享到了这里」；知识库的归属与 `creator_id` 不因共享而改变。
 
+| 组织内角色 | 能做什么 |
+| --- | --- |
+| `admin` | 组织设置（名称、描述、头像、邀请码有效期、是否需审批、成员上限）、生成邀请码、添加 / 移除成员与改角色、审批加入与升级申请、撤销任意指向本组织的共享；以及下面两级的全部能力 |
+| `editor` | 把本空间的知识库共享到组织；编辑以「可写」共享进来的知识库内容；申请升级角色 |
+| `viewer` | 查看、检索共享进来的知识库；申请升级角色 |
+
+生命周期（`internal/application/service/organization.go`）：
+
+- 创建者所在的空间是组织的**所有者空间**（`OwnerTenantID`），它不能被移除，角色也不能被改；只有所有者空间能删除组织，删除时该组织下的全部共享记录一并删除；
+- 成员上限默认 200（`DefaultMemberLimit`，0 表示不限）；满员时邀请码加入、管理员添加、审批通过都会被拒绝；把上限改到低于当前成员数也会被拒绝；
+- 邀请码加入的空间默认是 `viewer`；组织开启了「加入需审批」时要改为提交加入申请，管理员审批时可以指定角色，不指定则用申请里填的角色；
+- 成员空间可以随时退出（`POST /organizations/:id/leave`），也可以申请提升角色（`POST /organizations/:id/request-upgrade`）；
 - 创建组织时生成唯一 `InviteCode`，有效期 `invite_code_validity_days ∈ {0(永久), 1, 7, 30}`，默认 7 天（`ValidInviteCodeValidityDays` 白名单，非法值报 `ErrInvalidValidityDays`）；
 - `GetOrganizationByInviteCode` 按邀请码入组（区分 `ErrInviteCodeNotFound` / `ErrInviteCodeExpired`）；`RequireApproval=true` 时产生待审批的 join request；
 - `Searchable=true` 的组织可被 `SearchSearchableOrganizations` 发现；
-- 邀请码与待审批数仅对"组织 admin 或 owner 租户"可见（`internal/handler/organization.go` 中 `isAdmin || isOwner` 判定）。
+- 邀请码与待审批数仅对"组织 admin 或 owner 租户"可见（`internal/handler/organization.go` 中 `isAdmin || isOwner` 判定）；重新生成邀请码后旧码失效。
 
 ### 8.2 邀请搜索：按空间（租户）而非按用户
 
-Plan 3 之后成员单位是租户，一个用户可能属于多个空间，按用户名/邮箱搜索会产生"管理员到底想邀请哪个空间"的歧义。因此 `GET /organizations/:id/search-tenants`（仅组织 admin 可调）**严格按空间名匹配**：
+组织的成员单位是租户，一个用户可能属于多个空间，按用户名/邮箱搜索会产生"管理员到底想邀请哪个空间"的歧义。因此 `GET /organizations/:id/search-tenants`（仅组织 admin 可调）**严格按空间名匹配**：
 
 ```go
 // SearchTenantsForInvite：
@@ -579,7 +657,7 @@ type KnowledgeBaseShare struct {
 }
 ```
 
-**共享的前置条件**（`ShareKnowledgeBase`）：调用者租户必须**拥有**该 KB（`kb.TenantID == tenantID`），且在目标组织中角色为 **editor+**。重复共享转为更新权限。
+**共享的前置条件**（`ShareKnowledgeBase`）：调用者租户必须**拥有**该 KB（`kb.TenantID == tenantID`），且在目标组织中角色为 **editor+**（viewer 空间不能把任何知识库共享出去）。重复共享转为更新权限。同一个知识库可以共享到多个组织，每个组织一条记录、各自设权限。
 
 **管理共享的三条豁免路径**（`callerCanManageShare`，用于改权限 / 撤销共享）：
 
@@ -603,6 +681,10 @@ func applyTenantRoleCap(p types.OrgMemberRole, callerTenantRole types.TenantRole
 
 共享相关操作会写入 KB 活动流：`kb.share_added` / `kb.share_permission_changed` / `kb.share_removed`。
 
+两套机制叠加的效果：对别人共享给你的知识库做写操作，要同时满足共享记录是「可写」、你的空间在组织里至少是 editor、你在自己空间里不是 Viewer。共享不会绕过源空间的归属规则，也不会让 API Key 获得写权限——组织内的权限看的是空间在组织里的角色，与 API Key 的能力无关。
+
+共享给别的组织的知识库读不到时，按这个顺序排查：共享记录是否还在；对方空间在组织里的角色；对方用户在他自己空间里是不是 Viewer（写操作会被压到只读）；共享权限本身是只读还是可写。
+
 ```mermaid
 flowchart LR
     subgraph srcT["来源租户 (SourceTenant)"]
@@ -625,14 +707,27 @@ flowchart LR
 
 | 配置项 | 取值 | 默认 | 作用 |
 | --- | --- | --- | --- |
-| `auth.registration_mode` | `auto` / `self_serve` / `invite_only` | `auto` | 公开注册开关（DB system_settings 可热改） |
-| `auth.default_tenant_mode` | `create_personal` / `tenantless` | `create_personal` | 新用户是否自动建个人租户 |
-| `tenant.enable_rbac` | `true` / `false` | `true` | RBAC 强制执行 / 仅日志模式 |
-| `JWT_SECRET`（环境变量） | 任意字符串 | 随机 32 字节 | JWT HMAC 密钥 |
-| `SYSTEM_AES_KEY`（环境变量） | AES 密钥 | 未设置 | API Key 明文落库加密 |
-| `oidc.*` | 见 §5.1 | 关闭 | OIDC 单点登录 |
+| `auth.registration_mode` | `auto` / `self_serve` / `invite_only` | `auto` | 公开注册策略（DB system_settings 可热改） |
+| `DISABLE_REGISTRATION`（环境变量） | 留空 / `true` / `false` | 留空 | `true` 改写为 `invite_only`，`false` 改写为 `self_serve`，留空沿用 YAML（见 §2.1） |
+| `auth.default_tenant_mode` / `YUHENG_AUTH_DEFAULT_TENANT_MODE` | `create_personal` / `tenantless` | `create_personal` | 新用户是否自动建个人租户 |
+| `tenant.enable_rbac` / `YUHENG_TENANT_ENABLE_RBAC` | `true` / `false` | `true` | RBAC 强制执行 / 仅日志模式 |
+| `tenant.enable_cross_tenant_access` / `YUHENG_TENANT_ENABLE_CROSS_TENANT_ACCESS` | `true` / `false` | `false` | 跨空间超级用户开关（还需用户行上的 `can_access_all_tenants`） |
+| `YUHENG_TENANT_SELF_SERVICE_CREATION_ENABLED` | `true` / `false` | `true` | 普通用户能否自助新建空间 |
+| `JWT_SECRET`（环境变量） | 至少 32 个字符 | 无，必填 | JWT HMAC 密钥（§3.1） |
+| `SYSTEM_AES_KEY`（环境变量） | 正好 32 字节 | 无，必填 | API Key、模型凭据等落库加密（§3.1） |
+| `YUHENG_INSECURE_DEV`（环境变量） | `true` / `false` | `false` | 跳过密钥校验，仅限本地试验 |
+| `oidc_auth.*` | 见 §5.1 | 关闭 | OIDC 单点登录 |
 | `frontend_base_url` / `FRONTEND_BASE_URL` | URL | 相对路径 | 邀请链接注册页地址 |
-| `Tenant.StorageQuota` | 字节 | 10737418240（10GB） | 租户存储配额 |
+| `YUHENG_INVITATION_TTL` | Go duration | `168h` | 邀请与邀请链接的有效期 |
+| `YUHENG_TRUSTED_PROXIES` | CIDR 列表 | loopback + 私网段 | 计算客户端 IP（限流用）时信任的代理 |
+| `YUHENG_CORS_ALLOWED_ORIGINS` | 逗号分隔的来源 | 留空（任意来源，不带 credentials） | 浏览器跨域策略（见 §10） |
+| `YUHENG_TENANT_DEFAULT_STORAGE_QUOTA_GB` | 整数 GB | 10 | 新建租户的存储配额；`Tenant.StorageQuota` ≤ 0 表示不限 |
+
+## 10. 跨域（CORS）
+
+API 的认证全部走请求头（`Authorization`、`X-API-Key`），不依赖 cookie，所以浏览器请求不需要携带凭据。默认（`YUHENG_CORS_ALLOWED_ORIGINS` 留空或含 `*`）允许任意来源，但**不**返回 `Access-Control-Allow-Credentials: true`——通配来源与 credentials 同时出现是 CORS 规范禁止、浏览器也会拒绝的组合。设置了明确的来源列表（如 `https://app.example.com,https://admin.example.com`）时，只放行这些来源，并声明 credentials。
+
+自带 nginx 的前端与 API 同源，通常不需要设置；只有让其他网站上的浏览器脚本直接调用 API 时才需要收紧（`internal/router/cors.go`）。
 
 ## 实现参考
 
@@ -654,4 +749,7 @@ flowchart LR
 | 组织 / KB 共享服务 | `internal/application/service/organization.go`、`kbshare.go` |
 | RBAC 中间件 | `internal/middleware/rbac.go` |
 | RBAC 路由守卫矩阵 | `internal/router/rbac.go` |
-| 认证配置 | `internal/config/config.go`（`AuthConfig` / `OIDCAuthConfig` / `TenantConfig`） |
+| 认证配置 | `internal/config/config.go`（`AuthConfig` / `OIDCAuthConfig` / `TenantConfig`，`applyAuthAndTenantDefaults`） |
+| 启动时密钥校验 | `internal/runtime/startup.go`（`ValidateSecrets`） |
+| 按 IP 限流 / 账户锁定 | `internal/middleware/auth_ip_ratelimit.go`、`auth_public_ratelimit.go`、`internal/ratelimit/lockout.go` |
+| CORS | `internal/router/cors.go` |

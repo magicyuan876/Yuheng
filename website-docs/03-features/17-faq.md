@@ -1,10 +1,16 @@
 # FAQ 能力
 
-有些问题的答案是固定的——退货政策、报销流程、常见报错处理。这类内容用文档检索绕一圈反而不稳，直接维护成问答对更可靠：建库时把类型选成 **FAQ**，条目按「标准问 + 相似问 + 反例问 + 答案」录入，提问时匹配的是问题而不是文档片段，命中就直接给准备好的答案。
+有些问题的答案是固定的——退货政策、报销流程、常见报错处理。这类内容用文档检索绕一圈反而不稳，直接维护成问答对更可靠：建库时把类型选成 **FAQ**，条目按「标准问 + 相似问 + 反例问 + 答案」录入，检索匹配的是问题而不是文档片段，命中后把准备好的问答交给模型作答。
 
-常见用法：先用 Excel / CSV 批量导入历史工单里的常见问题，再在界面上补相似问；对容易误命中的问题补反例问。FAQ 库可以和文档库一起被同一会话检索，命中的 FAQ 分块与其它知识分块一样参与排序、被引用。
+## 怎么用
 
-下文覆盖 FAQ 条目模型、API、导入导出、去重归一化算法、检索命中策略、与普通知识的区别，以及克隆 / 共享场景下的状态同步机制。
+1. **建库**：新建知识库时在「基本信息」→「知识库类型」里选「问答」，在「FAQ 设置」里选索引方式（界面默认「仅索引问题」+ 每个问题单独索引，见 §1.3）。
+2. **录入条目**：在 FAQ 库里逐条新建，或批量导入 JSON / CSV / Excel（`.json`、`.csv`、`.xlsx`、`.xls`，文件在浏览器里解析后提交，界面提供 CSV 与 Excel 示例文件下载）。导入可以选追加或替换，可以先只校验不落库，完成后有导入结果面板。
+3. **维护**：按分类（标签）筛选、搜索，批量启用/停用、设置是否可推荐、改分类、删除；对容易误命中的问题补反例问。也可以导出为 CSV 或 JSON，编辑后再导入。
+
+FAQ 库可以和文档库一起被同一会话检索，命中的 FAQ 分块与其它知识分块一样参与排序、被引用。
+
+下文覆盖 FAQ 条目模型、API、导入导出、去重归一化算法、检索命中策略、与普通知识的区别，以及知识库复制时的状态同步机制。
 
 ## 1. 数据模型
 
@@ -60,14 +66,14 @@ type FAQEntry struct {
 
 | 配置 | 取值 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| `index_mode` | `question_only` / `question_answer` | `question_answer` | 索引内容是否包含答案 |
-| `question_index_mode` | `combined` / `separate` | `combined` | 标准问 + 相似问合成一个索引项，或每个问题独立索引项 |
+| `index_mode` | `question_only` / `question_answer` | 后端缺省 `question_answer`；界面新建时默认 `question_only` | 索引内容是否包含答案（仅索引问题精度更高，索引问答召回更高） |
+| `question_index_mode` | `combined` / `separate` | 后端缺省 `combined`；界面新建时默认 `separate` | 标准问 + 相似问合成一个索引项，或每个问题独立索引项 |
 
 `separate` 模式下每个相似问单独生成索引项，`SourceID = fmt.Sprintf("%s-%s", chunk.ID, hashQuestion(similarQ))`，支持相似问级别的精细增删。
 
 ## 2. API 端点
 
-`internal/handler/faq.go`（路由注册于 `internal/router/router.go`，KB 门禁与知识库一致：读走 KBAccessRead，写走 KBAccessWrite；API Key 需 `ingest` / `retrieve` 能力）：
+`internal/handler/faq.go`（路由注册于 `internal/router/routes_knowledge.go` 的 `RegisterFAQRoutes`，KB 门禁与知识库一致：读走 Viewer + KBAccessRead，写走 KB 所有者或 Admin + KBAccessWrite；API Key 读需 `retrieve`、写需 `ingest` 能力）：
 
 | 方法 | 路径 | 功能 |
 | --- | --- | --- |
@@ -80,14 +86,14 @@ type FAQEntry struct {
 | PUT | `/knowledge-bases/:id/faq/entries/fields` | 批量更新字段（启用 / 推荐 / 策略） |
 | PUT | `/knowledge-bases/:id/faq/entries/tags` | 批量更新标签 |
 | DELETE | `/knowledge-bases/:id/faq/entries` | 批量删除 |
-| POST | `/knowledge-bases/:id/faq/search` | FAQ 检索（混合搜索） |
+| POST | `/knowledge-bases/:id/faq/search` | FAQ 检索（向量检索） |
 | GET | `/knowledge-bases/:id/faq/entries/export` | 导出（CSV / JSON） |
 | GET | `/faq/import/progress/:task_id` | 导入任务进度 |
 | PUT | `/knowledge-bases/:id/faq/import/last-result/display` | 导入结果面板显示状态（open/close） |
 
 列表查询参数：`page` / `page_size`、`tag_id`（单标签）或 `tag_ids`（逗号分隔，OR 语义）、`keyword` + `search_field`（`standard_question` / `similar_questions` / `answers`，缺省搜全部）、`sort_order`（`asc`，默认倒序）。
 
-**写入校验**（`sanitizeFAQEntryPayload` + `checkFAQQuestionDuplicate`）：标准问必填；答案至少一个；`answer_strategy` 只能是 `all` / `random`（默认 `all`）；相似问 / 反例 / 答案去空白去重；并做四级重复检查——相似问 vs 标准问、相似问互查、反例 vs 标准问及相似问、DB 内跨条目冲突（返回详细冲突信息）。
+**写入校验**（`sanitizeFAQEntryPayload` + `checkFAQQuestionDuplicate`）：标准问必填；答案至少一个；`answer_strategy` 只能是 `all` / `random`（默认 `all`。这个字段随条目存储、导出、同步并在 API 中返回，供调用方决定如何展示答案；Yuheng 自己在检索和问答时不据此挑选答案，问答时全部答案都交给模型）；相似问 / 反例 / 答案去空白去重；并做四级重复检查——相似问 vs 标准问、相似问互查、反例 vs 标准问及相似问、DB 内跨条目冲突（返回详细冲突信息）。
 
 ## 3. 归一化与内容哈希（去重核心）
 
@@ -114,7 +120,7 @@ func (c *Chunk) SetFAQMetadata(meta *FAQChunkMetadata) error {
 
 ```go
 type FAQBatchUpsertPayload struct {
-    Entries     []FAQEntryPayload `json:"entries" binding:"required"` // 也可经 EntriesURL 从对象存储拉取
+    Entries     []FAQEntryPayload `json:"entries" binding:"required"`
     Mode        string            `json:"mode" binding:"oneof=append replace"`
     KnowledgeID string            `json:"knowledge_id"`
     TaskID      string            `json:"task_id"` // 可选，不传自动生成 UUID
@@ -127,7 +133,7 @@ type FAQBatchUpsertPayload struct {
 ```mermaid
 flowchart TB
     A["POST /faq/entries (mode=append|replace, dry_run?)"] --> B["校验 KB 类型 = faq, 创建 Asynq 任务, 返回 task_id"]
-    B --> C["ProcessFAQImport (幂等: 已完成则跳过)"]
+    B --> C["ProcessFAQImport (幂等: 已完成则跳过; 条目量大时任务载荷只存对象存储里的 entries_url)"]
     C --> D["第一步: executeFAQDryRunValidation (格式校验 + 批内去重 + DB 查重 + 内容安全)"]
     D --> E{"dry_run?"}
     E -- "是" --> F["直接返回验证结果"]
@@ -179,19 +185,19 @@ type FAQSearchRequest struct {
 
 命中流程：
 
-1. **混合召回**：查询文本归一化后做向量检索 + BM25 关键词检索，融合去重；
-2. **两级标签优先**：`FirstPriorityTagIDs` 命中的条目排最前，其次 `SecondPriorityTagIDs`；
+1. **向量召回**：`SearchFAQ` 调用知识库的 `HybridSearch`，但显式关闭关键词匹配（`DisableKeywordsMatch: true`），因此这个接口实际只做向量检索；缺省阈值 0.7、返回 10 条，上限 50；
+2. **两级标签限定**：传了 `first_priority_tag_ids` / `second_priority_tag_ids` 时，只在这些标签内检索（两级并行查询），一级的结果排在前面，二级去重后追加；`only_recommended` 只在带优先标签的查询里生效。不传优先标签时在全库检索；
 3. **负例过滤**（`filterByNegativeQuestions`）：查询文本与某条目的任一反例问完全匹配（小写比较）→ 该条目从结果中剔除。典型场景：用户问"不支持 X 吗"，避免返回"支持 X"的条目；
-4. **迭代召回**（`applyFAQPostProcessing`）：当过滤后的唯一条目数不足 `match_count` 且向量结果打满时触发 `iterativeRetrieveWithDeduplication`——最多迭代 5 次、每次 TopK 翻倍（种子 `MatchCount*3` 与每轮增长均封顶 500，触顶即停），带去重与负例过滤缓存，无新结果提前终止；
-5. 结果附带 `score`、`match_type`、`matched_question`（实际命中的是标准问还是哪个相似问），答案按 `answer_strategy`（all / random）返回。
+4. **迭代召回**（`applyFAQPostProcessing`）：当去重后的唯一条目数不足 `match_count` 且向量结果打满时触发 `iterativeRetrieveWithDeduplication`——最多迭代 5 次、每次 TopK 翻倍（种子 `MatchCount*3` 与每轮增长均封顶 500，触顶即停），带去重与负例过滤缓存，无新结果提前终止；
+5. 结果附带 `score`、`match_type`、`matched_question`（实际命中的是标准问还是哪个相似问）。
 
 非 FAQ 类型 KB 直接跳过该后处理（`if kb.Type != types.KnowledgeBaseTypeFAQ { return chunks, nil }`），普通混合检索不受影响；聊天管线的检索在 FAQ 库上同样经过这条后处理路径。
 
 **聊天管线侧**：FAQ 分块作为普通检索结果进入 RAG 流程——按得分与其它分块统一排序、统一渲染引用，不再有独立的优先级。渲染 Prompt 前，`internal/application/service/chat_pipeline/merge_faq.go` 的 `populateFAQAnswers` 会把分块内容替换为标准问 + 答案的完整文本（无条件执行，与命中得分无关），因此模型看到的仍是准备好的问答内容。本项目不包含旧的 FAQ 优先策略（结果前置、得分加权 `FAQScoreBoost`、高置信直答阈值 `FAQDirectAnswerThreshold`）：这些开关已随重构移除，不再存在，FAQ 命中与其它知识一视同仁。
 
-## 7. 克隆 / 共享同步机制
+## 7. 知识库复制时的状态同步
 
-`internal/application/service/faq_clone_sync.go`。触发场景：**知识库克隆（copy）** 与 **共享知识库内容同步**——克隆产生的目标库 FAQ chunk 是新记录，运营状态（启停 / 推荐 / 标签 / 答案策略）需要与源库对齐：
+`internal/application/service/faq_clone_sync.go`，由 `knowledge_clone_move.go` 的 `cloneFAQKnowledgeBase` 调用。触发场景是**知识库复制（copy）**：复制产生的目标库 FAQ chunk 是新记录，运营状态（启停 / 推荐 / 标签 / 答案策略）需要与源库对齐：
 
 - **配对**：按 `ContentHash` 匹配源 / 目标条目，得到 `FAQChunkSyncPair{SrcChunkID, DstChunkID}`（归一化哈希保证繁简 / 全半角 / 顺序差异不破坏配对，`internal/types/faq_sync_test.go` 佐证）；
 - **同步内容**：`IsEnabled` 启停状态、`Flags` 的 `ChunkFlagRecommended` 推荐位、`TagID` 标签归属、`AnswerStrategy` 答案策略；
@@ -221,6 +227,9 @@ sequenceDiagram
 | FAQ Handler | `internal/handler/faq.go` |
 | 条目 CRUD / 导出服务 | `internal/application/service/knowledge_faq.go` |
 | 异步导入服务 | `internal/application/service/knowledge_faq_import.go` |
-| 克隆 / 同步 | `internal/application/service/faq_clone_sync.go` |
+| 复制 / 同步 | `internal/application/service/faq_clone_sync.go`、`knowledge_clone_move.go`（`cloneFAQKnowledgeBase`） |
+| 问答时的 FAQ 内容替换 | `internal/application/service/chat_pipeline/merge_faq.go` |
+| 路由 | `internal/router/routes_knowledge.go`（`RegisterFAQRoutes`） |
+| 前端 | `frontend/src/views/knowledge/components/FAQEntryManager.vue` |
 | FAQ 检索后处理 | `internal/application/service/knowledgebase_search_faq.go` |
 | KB 级 FAQ 配置 | `internal/types/knowledgebase.go`（`FAQConfig`） |

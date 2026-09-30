@@ -2,16 +2,20 @@
 
 上传一堆散乱的文档之后，你常常还是不知道「这批资料里到底有什么」。Wiki 就是为这件事准备的：文档入库后，Yuheng 用大模型从原文里抽出人物、产品、概念等条目，为每个条目生成一篇带出处的 Markdown 页面，页面之间互相链接，形成一个可以像维基百科一样浏览的知识站点。
 
-它和普通问答的区别在于：问答是「你问我答」，Wiki 是「先替你把知识整理好」。资料越多、越零散，Wiki 的价值越明显。而且这些页面不只给人看——问答管线检索时会把 Wiki 页面作为一类来源（见检索引擎文档的 Wiki 加权）；模型写错的地方你可以直接改，每次改动都留版本、可回滚（见「人工编辑与版本历史」）。
+它和普通问答的区别在于：问答是「你问我答」，Wiki 是「先替你把知识整理好」。资料越多、越零散，Wiki 的价值越明显。而且这些页面不只给人看——问答管线检索时会把 Wiki 页面作为一类来源并加权（见下文「与问答管线的关系」）；模型写错的地方你可以直接改，每次改动都留版本、可回滚（见「人工编辑与版本历史」）。
 
 ## 怎么开启
 
-1. 编辑知识库 → 「索引策略」里打开 **Wiki**；
-2. 上传文档（已有文档也会被纳入，无需重传）；
-3. 等待生成。Wiki 生成是异步的，文档多时会持续一段时间，知识库面包屑上有「索引中」提示；
-4. 完成后进入知识库的 **Wiki** 页签浏览，**图谱**页签可以看条目之间的链接关系。
+1. **创建知识库时选上 Wiki**：在知识库设置的「基本信息」→「索引策略」里勾选「Wiki 知识库」（可以与「RAG 检索」「知识图谱」同时开启，至少保留一种）。知识库里已经有内容时索引策略被锁定（「知识库已有内容，索引策略暂不支持调整。如需变更，请先清空知识库」），所以要在上传文档之前决定是否开启。
+2. **调整 Wiki 设置**（勾选后出现在同一页）：
+   - 「提取粒度」：聚焦 / 标准（默认）/ 详尽，见下文「抽取粒度」；
+   - 「Wiki 内容生成要求」：控制摘要、页面和首页的表达重点，引用、合并与防幻觉规则由系统固定维护；
+   - 「Wiki 提取重点」：说明应重点识别的领域实体和概念。
+   另外在「模型配置」里可以单独指定「Wiki 合成模型」，不设置时回退使用知识库的摘要模型。修改这些设置后，已有内容要重新解析才会受影响。
+3. **上传文档，等待生成**。Wiki 生成是异步的，文档多时会持续一段时间，知识库面包屑上有「索引中」提示。
+4. **浏览**：进入知识库的 **Wiki** 页签浏览页面，**图谱**页签看条目之间的链接关系。页面可以直接编辑、新建、移动到文件夹，每次改动都留版本、可回滚（见「人工编辑与版本历史」）。
 
-生成过程要调大模型，成本与文档量成正比。抽取密度可以在知识库的 Wiki 配置里调（`focused` / `standard` / `exhaustive`，见下文「抽取粒度」）。
+生成过程要调大模型，成本与文档量成正比。Wiki 页面也可以通过 MCP 工具 `wiki_search` / `wiki_read_page` / `wiki_index_view` 读取（见 [MCP 集成](08-mcp.md)）。
 
 ## 页面模型与层级
 
@@ -127,7 +131,7 @@ flowchart TD
 
 ## 发布与访问
 
-所有 Wiki 路由挂在 `/api/v1/knowledgebase/:kb_id/wiki` 之下（`internal/router/router.go`），**没有免登录的公开访问模式**，读写均受 RBAC 与 KB 访问控制约束：
+所有 Wiki 路由挂在 `/api/v1/knowledgebase/:kb_id/wiki` 之下（`internal/router/routes_knowledge.go` 的 `RegisterWikiPageRoutes`），**没有免登录的公开访问模式**，读写均受 RBAC 与 KB 访问控制约束：
 
 ### 读接口（Viewer + KBAccessRead）
 
@@ -157,7 +161,7 @@ flowchart TD
 | PUT | `/issues/:issue_id/status` | 更新问题状态 |
 | POST | `/revert` | 回滚到指定版本（body：`{slug, version}`） |
 
-写权限按 KB 归属判定：贡献者只要拥有该 KB 即可管理其 wiki，否则 403。API Key 场景按 `ingest` / `retrieve` capability 映射。
+写权限按 KB 归属判定：贡献者只要拥有该 KB 即可管理其 wiki，否则 403。API Key 场景下读接口需要 `retrieve` 能力，写接口需要 `ingest` 能力（或全量权限）。
 
 前端由 `WikiBrowser.vue` 提供浏览界面；文档解析期间 `wikiStatusRefresh.ts` 轮询 `parse_status`（`pending` / `processing` / `finalizing`），解析完成而摘要仍在生成时继续轮询。目录树的展开状态由 `wikiDirectoryState.ts` 单独维护：新建文件夹或刷新数据后，`expandWikiDirectoryPath()` 会把当前路径上的各级目录标记为「用户已展开」，避免刷新时整棵树塌回默认折叠状态。
 
@@ -196,9 +200,9 @@ Wiki 页面是 LLM 生成的，难免有需要人工订正的地方。页面因�
 
 Wiki 页面是问答管线的一类检索来源：rerank 之后 `wiki_boost.go` 会对 `wiki_page` 类型的 chunk 加权（×1.3），让 LLM 预综合的 Wiki 页面优先于原始分块进入上下文；被引用的 Wiki 内容同样出现在引用面板中。
 
-**Wiki 修复对话**：Wiki 编辑器里的「自动修复」走一次限定范围的问答——请求带 `builtin-wiki-fixer` 标记，后端只用它来选择检索/模型的租户作用域（跨租户共享 KB 时提升到源租户上下文），让模型基于该 KB 的内容给出修复建议（`internal/handler/session/wiki_fixer_scope.go`）。
+**质量检查**：`GET /lint`（`wiki_lint.go`）按需计算问题报告，类型包括孤立页面（`orphan_page`）、死链（`broken_link`）、过期引用（`stale_ref`）、缺少交叉引用（`missing_cross_ref`）、内容过少（`empty_content`）、重复 slug（`duplicate_slug`）；`POST /auto-fix` 自动修复其中可自动修复的项（死链改为纯文本、内容过少的页面归档）。这两个接口目前只能通过 API 调用，界面上没有入口。
 
-**问题闭环**：`wiki_page_issues` 表 + lint 接口 + `auto-fix`——lint 自动检查死链、实体混淆等问题，人和修复对话都可以报告/处理问题。
+**页面问题与修复助手**：WikiBrowser 显示 `wiki_page_issues` 表里状态为待处理的问题（页面顶部「待修复内容问题」、全库问题抽屉），可以「忽略误报」（`PUT /issues/:issue_id/status`），或点修复按钮打开「Wiki 智能修复助手」抽屉。修复助手是一个限定在当前知识库的普通问答会话：请求带 `builtin-wiki-fixer` 标记，后端只用它选择检索/模型的租户作用域（跨租户共享 KB 时提升到源租户上下文，`internal/handler/session/wiki_fixer_scope.go`），模型基于该 KB 的内容给出修改建议，**不会自动改页面**，改动仍由人在编辑器里完成。注意：本仓库里目前没有任何代码路径会新建 `wiki_page_issues` 记录（`CreateIssue` 没有调用方），所以这个列表通常为空。
 
 ## 操作历史（知识库活动流）
 
@@ -206,8 +210,8 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 
 现在**知识库活动流是唯一的操作历史入口**：
 
-- ingest 批次结束时，`wiki_ingest_batch.go` 汇总本批各类动作数量，调用 `service.RecordWikiContentActivity()` 写一条 `wiki_content_changed` 活动；
-- 人工在 WikiBrowser 中创建/更新/删除页面时，`internal/handler/wiki_page.go` 同样把 `manual_create` / `manual_update` / `manual_delete` 投影到活动流；
+- ingest 批次结束时，`wiki_ingest_batch.go` 汇总本批各类动作数量，调用 `service.RecordWikiContentActivity()` 写一条 `wiki.content_changed` 活动；
+- 人工在 WikiBrowser 中创建/编辑/删除页面时，`internal/handler/wiki_page.go` 同样把 `manual_create` / `manual_edit` / `manual_delete` 投影到活动流；
 - 活动记录落在审计日志体系（`kb_activity.go` → `AuditLogService`），可在「知识库 → 设置 → 活动」查看，保留策略与其它审计日志一致（见[可观测性与审计](16-observability.md)）；
 - 写入是 best-effort：活动记录失败不会让 wiki 编辑本身失败。
 
@@ -230,10 +234,12 @@ Wiki 曾经维护一份独立的操作日志（`wiki_log_entries` 表 + `GET /wi
 | 数据结构 | `internal/types/wiki_page.go` |
 | HTTP Handler | `internal/handler/wiki_page.go` |
 | 生成管道 | `internal/application/service/wiki_ingest.go`、`wiki_ingest_batch.go`、`wiki_ingest_cite.go`、`wiki_ingest_dedup.go`、`wiki_ingest_taxonomy.go` |
-| 页面服务 | `internal/application/service/wiki_page.go`、`wiki_linkify.go`、`wiki_lint.go`、`wiki_slug_alias.go`、`wiki_slug_handles.go` |
+| 页面服务 | `internal/application/service/wiki_page.go`、`wiki_linkify.go`、`wiki_lint.go`、`wiki_slug_handles.go` |
+| 问答加权 | `internal/application/service/chat_pipeline/wiki_boost.go` |
+| 活动流 | `internal/application/service/kb_activity.go` |
 | LLM 提示词 | `internal/application/service/wikiprompts/prompts_wiki.go` |
 | Wiki 修复作用域 | `internal/handler/session/wiki_fixer_scope.go` |
 | 失败恢复 | `internal/container/recover_pending_wiki_tasks.go` |
-| 路由 | `internal/router/router.go`（行为测试见 `internal/router/router_wiki_test.go`） |
-| 数据库迁移 | `migrations/versioned/000037_wiki_and_indexing.up.sql`、`000061_wiki_page_hierarchy.up.sql`、`000077_remove_wiki_log.up.sql` |
-| 前端 | `frontend/src/views/knowledge/wiki/WikiBrowser.vue`、`frontend/src/api/wiki/`、`frontend/src/utils/wikiToolReferences.ts` |
+| 路由 | `internal/router/routes_knowledge.go`（行为测试见 `internal/router/router_wiki_test.go`） |
+| 数据库迁移 | `migrations/versioned/000037_wiki_and_indexing.up.sql`、`000061_wiki_page_hierarchy.up.sql`、`000075_wiki_page_revisions.up.sql`、`000077_remove_wiki_log.up.sql` |
+| 前端 | `frontend/src/views/knowledge/wiki/WikiBrowser.vue`、`WikiRevisionDrawer.vue`、`wikiDirectoryState.ts`、`frontend/src/views/knowledge/wikiStatusRefresh.ts`、`frontend/src/api/wiki/`、`frontend/src/utils/wikiRevisionDiff.ts` |

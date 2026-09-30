@@ -6,19 +6,33 @@
 
 | 界面元素 | 说明 |
 | --- | --- |
-| 流水线进度条 | 回答生成前展示当前阶段：附件解析、图片理解、检索文档、联网、工具调用、思考、生成回答 |
+| 流水线进度条 | 回答生成前展示当前阶段，如附件解析、检索知识库（和网络）及命中数量、思考；检索步骤可以点开看引用 |
 | 思考过程 | 模型的推理内容内联展示在时间线里，可折叠 |
 | 引用角标 | 回答正文中的来源标记，点击定位到原文分块 |
 | 引用面板（references drawer） | 侧栏列出本轮所有检索来源，含 Wiki 页面的返回结果 |
+| 有帮助 / 没帮助 | 回答工具栏上的两个按钮，只在回答引用了知识库文档时出现，见下文「对回答的反馈」 |
 | 追问建议 | 回答结束后给出的下一步问题，见 [会话与聊天 API](../04-api/02-api-chat.md)的「建议问题」 |
 
 ### 进度条的两种等待态
 
-所有可见阶段都完成、但模型还没吐字时会有一段静默期，进度条据此区分两种提示：确实跑过检索的显示「正在生成回答」，纯附件问答这类没有检索步骤的显示中性的「准备中」。超过 60 秒仍无回答转为停滞态——SSE 断连时后端不会再发完成事件，没有这个上限进度条会一直宣称「马上就好」。实现见 [Web 前端](../05-clients/01-frontend.md)。
+所有可见阶段都完成、但模型还没吐字时会有一段静默期，进度条据此区分两种提示：确实跑过检索的显示「正在连接模型并生成回答…」，纯附件问答这类没有检索步骤的显示中性的「正在准备回答…」。超过 60 秒（`RAG_WAIT_STALL_DELAY_MS`）仍无回答转为停滞态「模型响应较慢，仍在等待…」——SSE 断连时后端不会再发完成事件，没有这个上限进度条会一直宣称「马上就好」。实现见 [Web 前端](../05-clients/01-frontend.md)。
 
-### 引用开不开，与引用面板无关
+### 对回答的反馈
 
-问答请求里的 `citation_enabled` 只控制**回答正文里的角标**。关掉之后正文变干净，但检索来源照常送进引用面板——也就是说「不显示引用」不等于「不给出处」。该字段为 `nil` 时按开启处理，保证这个选项引入之前的行为不变。
+回答引用了知识库文档时，工具栏上有「有帮助」「没帮助」两个按钮；没有引用任何文档的回答不显示，因为没有可以转交的人。
+
+- 点「有帮助」直接记录；再点一次已按下的按钮即撤回反馈。
+- 点「没帮助」会先弹出「哪里不对？」，可以写一段意见（最多 1000 字，可选），并可以勾选「附上我的问题，帮助负责人判断」（默认不勾选）。发送后提示「已反馈，谢谢」。
+- 弹窗里写明了谁能看到什么：意见和回答开头会出现在**被引用文档的知识健康**里，交给文档负责人处理，知识库成员也能看到；只有勾选后才附上提问者的问题。
+- 「没帮助」是知识健康里「有争议」发现的证据来源：自文档上次被确认以来，引用它的回答收到的「没帮助」会被累计成一条发现交给文档负责人。具体规则见[知识健康](22-knowledge-health.md)。
+- 反馈只在本空间内生效：回答引用了其他空间共享来的知识库时，这里的问题不会出现在对方的知识健康里。
+
+接口（均在 `/api/v1/sessions` 下，Viewer+；API Key 需 `chat` 能力或全量权限）：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/:id/feedback` | 当前用户在该会话里给出的全部反馈，按消息 ID 索引 |
+| PUT | `/:id/messages/:message_id/feedback` | 设置反馈：`rating` 为 `up` / `down`，空串表示撤回；`down` 时可带 `comment` 与 `share_question` |
 
 ### 导出对话
 
@@ -40,7 +54,7 @@
 
 行为要点：
 
-- 状态机：`uploaded` → `processing` → `ready`，解析是异步的。发问时如果附件还没解析完，会等待到 `YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC`（默认 60 秒，扫描件建议调大）；
+- 状态机：`uploaded` → `processing` → `ready`（失败为 `failed`），解析是异步的。发问时如果附件还没解析完，会等待到 `YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC`（默认 60 秒，扫描件建议调大）；
 - 解析产物保留 `YUHENG_CHAT_ATTACHMENT_TTL_HOURS`（默认 24 小时）后清理，附件不会长期占用存储；
 - 扫描件/图片型文档走 VLM OCR，并发与页数上限由 `YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY`（默认 8）与 `YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES`（默认 8）控制；
 - 附件走哪个解析引擎由租户级 `chat_parser_engine_rules` 配置（`internal/types/tenant.go`）；
@@ -69,10 +83,25 @@
 | GET | `/api/v1/messages/chat-history-stats` | 同上 |
 | GET | `/api/v1/messages/:session_id/load` | Viewer+；API Key 需 `chat` 能力（只能读自己会话） |
 
-`message_history` 是一个独立能力，用意是让做数据分析的集成能搜历史元数据，而不必给它一把 full-access Key。开关与保留策略在「设置 → 聊天历史」（`chathistory` 分区，需 Admin）。
+`message_history` 是一个独立能力，用意是让做数据分析的集成能搜历史元数据，而不必给它一把 full-access Key。消息索引的开关与所用的 Embedding 模型在「设置 → 消息管理」（`chathistory` 分区，保存需空间 Admin；已有消息被索引后 Embedding 模型不可再改）。
 
 ## 5. 相关章节
 
+- 「没帮助」反馈如何变成待处理的发现：[知识健康](22-knowledge-health.md)
 - 建议问题（开场问题与追问）：[会话与聊天 API](../04-api/02-api-chat.md)
 - 回答里的图片与文件怎么送到客户端：[API 总览](../04-api/01-api-overview.md)的「文件引用形式」
 - 会话与消息的完整接口：[API 参考：会话与聊天](../04-api/02-api-chat.md)
+
+## 实现参考
+
+| 路径 | 内容 |
+|---|---|
+| `frontend/src/views/chat/components/botmsg.vue`、`AnswerFeedback.vue`、`RagPipelineProgress.vue` | 回答卡片、反馈按钮、流水线进度 |
+| `frontend/src/utils/rag-pipeline-state.ts` | 等待态与 60 秒停滞判定 |
+| `frontend/src/utils/sessionMarkdown.ts` | 导出对话为 Markdown |
+| `frontend/src/stores/answerFeedback.ts`、`frontend/src/api/feedback/` | 反馈的前端状态与接口 |
+| `internal/handler/message_feedback.go`、`internal/application/service/message_feedback.go`、`internal/application/repository/message_feedback.go` | 反馈接口、写入与被引用文档的检查 |
+| `internal/application/service/findings/dispute.go` | 把「没帮助」累计成知识健康的发现 |
+| `internal/router/routes_chat.go` | 会话、附件、消息、反馈路由 |
+| `internal/types/temporary_document.go`、`migrations/versioned/000070_temporary_documents.up.sql` | 会话内临时附件 |
+| `internal/application/service/session.go` | 渠道会话的可见性 |

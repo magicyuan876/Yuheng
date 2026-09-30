@@ -2,17 +2,17 @@
 
 检索的准确度很大程度上取决于文档被切成什么样：切太碎，单块信息不完整、答不全；切太大，一块里混了好几个主题，向量表达不准。分块就是这一步。
 
-大多数情况下用默认值就行（分块 512 字、重叠 80 字、自适应策略），需要调的时候按下面这张表判断：
+在界面上新建知识库时，「分块设置」的初始值是：分块 512 字符、重叠 80 字符、策略 `auto`（自适应），并开启父子分块（父块 4096、子块 384）。只开 Wiki、不开 RAG 检索的知识库改用另一套初始值：分块 2048、关闭父子分块。大多数情况下用初始值就行，需要调的时候按下面这张表判断：
 
 | 遇到的情况 | 建议 |
 | --- | --- |
 | 回答缺上下文、经常答半句 | 调大 `chunk_size`，或开启父子分块（子块检索、父块回答） |
 | 检索命中的块跟问题关系不大 | 调小 `chunk_size`，让每块主题更集中 |
-| 资料是条目式的（FAQ、字典、参数表） | 重叠设为 0，避免相邻条目互相污染 |
+| 资料是条目式的（字典、参数表） | 把重叠调小，减少相邻条目互相污染。注意重叠填 0 会被当作「未设置」，按 80 处理（见 §1.1），能生效的最小值是 1 |
 | 资料是长篇叙述（报告、论文） | 重叠调到 150–200，保住跨块的语义连贯 |
-| 想先看看会切成什么样 | 用分块预览接口 `POST /api/v1/chunker/preview` 试切，不落库 |
+| 想先看看会切成什么样 | 「分块设置」里策略选择框旁的试切按钮，或分块预览接口 `POST /api/v1/chunker/preview`，不落库 |
 
-改完分块配置需要对已有文档重新解析才会生效。下面是完整机制。
+问答对形式的内容更适合建 FAQ 知识库，它不经过分块（§6）。改完分块配置需要对已有文档重新解析才会生效。下面是完整机制。
 
 Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包），采用"文档画像 → 分层策略 → 结果校验 → 逐级回退"的自适应架构；Python 侧 `docreader/splitter/` 保留了同源的递归分块器供 docreader sidecar 使用（生产主路径是 Go 实现，`docreader/splitter/splitter.py` 注释明确说明二者默认值已对齐）。
 
@@ -41,13 +41,13 @@ Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包）�
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `chunk_size` | int | 512（字符） | 单块目标大小。约 100–130 英文 token / 300 中文 token。FAQ 式原子内容建议 200–400，长叙事文档 1000–2000 |
-| `chunk_overlap` | int | 80（约 15%） | 相邻块重叠字符数。原子数据可设 0，长叙事可 150–200。超过 `chunk_size/2` 会被钳制到一半 |
-| `separators` | []string | `["\n\n", "\n", "。"]` | 递归分块的分隔符优先级序列 |
-| `strategy` | string | `""`（= legacy） | 分块策略：`auto` / `heading` / `heuristic` / `recursive` / `legacy`，见 §2 |
-| `token_limit` | int | 0（不启用） | 以近似 token 数上限约束块大小；>0 时按语言换算字符预算并取更小者（0.9 安全系数） |
+| `chunk_size` | int | 512（字符，≤0 时取默认） | 单块目标大小。约 100–130 英文 token / 300 中文 token。FAQ 式原子内容建议 200–400，长叙事文档 1000–2000 |
+| `chunk_overlap` | int | 80（约 15%，≤0 时取默认） | 相邻块重叠字符数，是上限而非目标值（见 §3.3）。**0 与负数都会被改写为 80**，所以没有「完全不重叠」的配置；长叙事可 150–200。超过 `chunk_size/2` 会被钳制到一半 |
+| `separators` | []string | 后端缺省 `["\n\n", "\n", "。"]`；界面新建时填 `["\n\n", "\n", "。", "！", "？", ";", "；"]` | 递归分块的分隔符优先级序列 |
+| `strategy` | string | 后端缺省 `""`（= legacy）；界面新建时填 `auto` | 分块策略：`auto` / `heading` / `heuristic` / `recursive` / `legacy`，见 §2。通过 API 建库不传此字段时是 legacy；在界面上清空选择也回到 legacy |
+| `token_limit` | int | 0（不启用） | 以近似 token 数上限约束块大小；>0 时按语言换算字符预算并取更小者（0.9 安全系数）。父子分块时只作用于子块，父块保持配置的上下文窗口 |
 | `languages` | []string | 空（自动检测） | 启发式模式的语言提示，如 `["zh"]`、`["en","de"]` |
-| `enable_parent_child` | bool | false | 启用父子（两级）分块，见 §5 |
+| `enable_parent_child` | bool | 后端缺省 false；界面新建时开启（仅 Wiki 的库关闭） | 启用父子（两级）分块，见 §5 |
 | `parent_chunk_size` | int | 4096 | 父块大小（仅父子模式） |
 | `child_chunk_size` | int | 384 | 子块大小（仅父子模式），子块 overlap 固定为 `child_size/5`（约 20%） |
 | `parser_engine_rules` | []ParserEngineRule | 空 | 文件类型 → 解析引擎路由，附带解析器级开关如 `xlsx_first_row_as_header`（属于解析而非分块，但同在此结构） |
@@ -64,11 +64,24 @@ const (
 
 > 迁移注意（源码注释原文）：历史上 Go DefaultConfig 用 64、knowledge.go 用 50、Python docreader 用 100 三种 overlap 默认值，现已统一为 80。存量 KB 若 DB 中存的是 `ChunkOverlap=0`，重建索引时会取 80，embedding 与旧值不再逐位一致。
 
+界面上「分块设置」各项的可调范围（`KBChunkingSettings.vue`）与取值建议：
+
+| 设置 | 界面范围 | 建议 |
+|------|----------|------|
+| 分块大小 | 100–4000 字符 | 默认 512 适合大多数资料；条目式内容 200–400；叙述性长文 1000–2000 |
+| 重叠 | 0–500 字符 | 滑块能拖到 0，但 0 按 80 处理（见上表）；论证跨段落的长文 150–200 |
+| 父块大小 | 512–8192 字符 | 默认 4096（约 1000 英文 token）；问答模型上下文窗口小（如 4k）时用 1024–2048 |
+| 子块大小 | 64–2048 字符 | 默认 384（约 95 英文 token）；需要精确匹配短问答时 128–256；embedding 模型能吃 1000+ token 时可到 512–1024 |
+| Token 上限 | 0–8192 | embedding 模型上下文在 2000 token 以上时保持 0；上下文只有 512 或 256 token 的小模型，设为其上限的约 80%（如 400、200），CJK 文本每字符 token 更密，留出余量 |
+| 语言 | de / en / zh 多选 | 语料单一语种时显式指定，缩小启发式规则的匹配范围 |
+
+策略下拉只列 `auto` / `heading` / `heuristic` / `legacy` 四项；`recursive` 在 API 里可用，但与 `legacy` 行为相同，界面上不单独列出。短文档（如几页的说明）开父子分块收益不大，关掉可省约一半的分块存储。
+
 ### 1.2 SplitterConfig（运行时配置）
 
-服务层通过 `buildSplitterConfigFromChunking`（`knowledge_process.go`）把 `ChunkingConfig` 映射为 `chunker.SplitterConfig{ChunkSize, ChunkOverlap, Separators, Strategy, TokenLimit, Languages}`；chunker 包内 `ensureDefaults` 再做兜底：
+服务层通过 `buildSplitterConfigFromChunking`（`knowledge_process.go`）把 `ChunkingConfig` 映射为 `chunker.SplitterConfig{ChunkSize, ChunkOverlap, Separators, Strategy, TokenLimit, Languages}`，并经 `chunker.NormalizeSplitterConfig` 把 ≤0 的 `ChunkSize` / `ChunkOverlap` 与空 `Separators` 换成默认值；chunker 包内 `ensureDefaults` 再做兜底：
 
-- `TokenLimit > 0` 时：`charBudget = CharsForTokenLimit(TokenLimit, lang)`，若小于 `ChunkSize` 则取代之（`tokens.go`，字符/Token 比：en 4.0、de 4.5、zh 1.7、mixed 3.0，附 0.9 安全系数——确保块不超过 embedding 模型的 token 上限）；
+- `TokenLimit > 0` 时：`charBudget = CharsForTokenLimit(TokenLimit, lang)`（`lang` 取 `Languages[0]`，未设置时按 mixed），若小于 `ChunkSize` 则取代之（`tokens.go`，字符/Token 比：en 4.0、de 4.5、zh 1.7、mixed 3.0，附 0.9 安全系数——确保块不超过 embedding 模型的 token 上限）；
 - `ChunkOverlap > ChunkSize/2` 时钳制为 `ChunkSize/2`。
 
 ### 1.3 IndexingStrategy 与分块的关系
@@ -109,7 +122,7 @@ Validator 的拒绝规则：
 | 无输出 | `no chunks produced` |
 | 文档超过 `2*chunkSize` 却只产出 1 块 | `single chunk for large document` |
 | 非末尾的 <50 字符小块超过总数 1/4 且 >2 个 | `too many tiny chunks` |
-| 最大块不足 `chunkSize/4`（过度碎片化） | `all chunks far below target size` |
+| 文档长于 `chunkSize`，但最大块不足 `chunkSize/4`（过度碎片化） | `all chunks far below target size` |
 | 最大块超过 `2*chunkSize`（无视预算） | `chunk exceeds 2x target size` |
 
 ### 2.1 文档画像（profiler.go）
@@ -339,7 +352,7 @@ processDocument
 
 ## 8. 调试能力：POST /api/v1/chunker/preview（chunker_debug.go）
 
-只读预览端点，KB 编辑器的"分块调试面板"使用它在改参数前试切样例文本——**不写 DB、不产生 embedding、不记录文本日志**。
+只读预览端点，KB 编辑器「分块设置」里的「测试分块效果」面板使用它：粘贴一段样例文本（最多 64K 字符），点「运行预览」，面板显示胜出的策略层、被拒绝的层及原因、文档画像（标题数、换页符、章节标记、检测到的语言）、全量分块的长度统计，以及每个分块的字符数、近似 token 数、位置区间、标题面包屑与内容预览。改参数前用同一段样例对比不同配置，比反复重新上传快得多。它**不写 DB、不产生 embedding、不记录文本日志**。
 
 请求体：
 
@@ -378,7 +391,36 @@ g.apiKeyRoute(r, http.MethodPost, "/chunker/preview",
     apiKeyRetrieve(apiKeyIngest(apiKeyFullAccess())), g.Viewer(), handler.PreviewChunking)
 ```
 
-## 9. Python 侧分块器（docreader/splitter/）
+## 9. 通过 API 修改分块配置
+
+有三个接口会写分块配置，字段命名风格不同：
+
+- **`PUT /api/v1/initialization/config/:kbId`**：知识库编辑弹窗实际调用的接口（`frontend/src/api/initialization`），请求体用 **camelCase**，分块参数放在 `documentSplitting` 里：
+
+  ```json
+  {
+    "documentSplitting": {
+      "chunkSize": 512, "chunkOverlap": 80,
+      "separators": ["\n\n", "\n", "。", "！", "？", ";", "；"],
+      "strategy": "auto", "tokenLimit": 0, "languages": ["zh"],
+      "enableParentChild": true, "parentChunkSize": 4096, "childChunkSize": 384
+    }
+  }
+  ```
+
+  `strategy`、`tokenLimit`、`languages`（以及 `tableMetadataInstructions`）在服务端是指针字段：请求里**不带**该字段表示不修改，**带上空串 / 0 / 空数组**表示清回默认（`strategy` 清空即回到 legacy）。
+- **`POST /api/v1/knowledge-bases`、`PUT /api/v1/knowledge-bases/:id`**：知识库 CRUD，同样的字段用 **snake_case**，放在 `chunking_config` 里（更新时位于 `config.chunking_config`），字段即 §1.1 的表。
+- **`POST /api/v1/chunker/preview`**：snake_case 的 `chunking_config` 加一个 `text`，只预览不保存（§8）。
+
+无论从哪个接口修改，都**不会自动重建已有文档的索引**：改完需要对受影响的文档重新解析（文档列表的重新解析或批量重新解析），新配置才会作用到它们。
+
+## 10. 已知取舍
+
+- **标题面包屑有成本**：heading 层把面包屑拼进 embedding 输入，每块的 embedding 输入会长一些；换来的是结构化文档切出的块更少、每块自带章节语境。
+- **解析器造成的问题分块器修不了**：竖排文字被 OCR 拆成逐字一行这类问题出在解析阶段；heuristic 层按换页符对齐分块，只能减轻，不能消除。
+- **0 重叠不可配置**：见 §1.1。
+
+## 11. Python 侧分块器（docreader/splitter/）
 
 `docreader/splitter/splitter.py` 的 `TextSplitter` 是 Go legacy 实现的原型，仍随 docreader sidecar 保留：
 
@@ -387,7 +429,7 @@ g.apiKeyRoute(r, http.MethodPost, "/chunker/preview",
 - 产出 `(start, end, text)` 三元组并断言 `"".join(splits) == text` 可完整还原；`restore_text` 演示了去重叠还原算法；
 - `docreader/splitter/header_hook.py` 的 `HeaderTracker` 与 Go `header_tracker.go` 行为一致（表头识别、空表头补全、列数不匹配时结束）。
 
-## 10. 参数速查与调优建议
+## 12. 参数速查与调优建议
 
 | 场景 | strategy | chunk_size | chunk_overlap | 其他 |
 |------|----------|------------|---------------|------|
@@ -398,4 +440,12 @@ g.apiKeyRoute(r, http.MethodPost, "/chunker/preview",
 | 精确检索 + 长上下文 | 任意 | — | — | `enable_parent_child=true`，parent 4096 / child 384 |
 | FAQ / 原子记录 | 不适用（FAQ KB 逐条成块） | — | 0 | `FAQIndexMode` 控制答案是否入索引 |
 | 严格 token 上限的 embedding 模型 | 任意 | — | — | 设 `token_limit`，自动换算字符预算 |
+| 带分页的 PDF 报告 | `auto`（会命中 heuristic） | 800–1200 | 100–150 | 开父子分块 |
+| 代码文档 | `legacy` | 800 | 100 | 父子分块可选 |
+| 多语种混合语料 | `auto`，`languages` 留空 | 512 | 80 | — |
+| 表格类报告 / CSV 转出的文本 | `legacy` | 400 | 尽量小 | 关父子分块 |
 | 复现旧版本行为 | `legacy` | 原值 | 显式设 64 | 见 §1.1 迁移注意 |
+
+## 实现参考
+
+源码位置见文首「涉及源码」表。另有两处与界面相关：分块设置与试切面板在 `frontend/src/views/knowledge/settings/KBChunkingSettings.vue`、`KBChunkingDebug.vue`；新建知识库时的分块初始值（含仅 Wiki 预设）在 `frontend/src/views/knowledge/KnowledgeBaseEditorModal.vue`。
