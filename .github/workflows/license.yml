@@ -6,8 +6,12 @@ name: License
 # again if a dependency shows up under a license we cannot ship under MIT.
 #
 # The attribution half runs on every change, because a stray sed can strip a
-# copyright header from any file. The dependency half only runs when a manifest
-# moves, since it has to resolve the module/package caches first.
+# copyright header from any file. The dependency half resolves the module and
+# package caches first, scans them, and also fails when THIRD_PARTY_NOTICES.md
+# no longer matches the scan: its per-ecosystem lists are generated, so a
+# dependency change must land together with `tools/license_check.sh notices`.
+# Each job checks only the sections it can scan -- Go and both npm trees here,
+# each Python project in its own job.
 
 on:
   push:
@@ -50,7 +54,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            collab/package-lock.json
 
       - uses: actions/setup-python@v5
         with:
@@ -66,8 +72,14 @@ jobs:
         working-directory: frontend
         run: npm ci --ignore-scripts
 
-      - name: Scan dependency licenses
-        run: tools/license_check.sh deps
+      # The collaboration service is its own npm tree and its own image; without
+      # this install its section of the notices would go unchecked.
+      - name: Install collab dependencies
+        working-directory: collab
+        run: npm ci --ignore-scripts
+
+      - name: Scan dependency licenses and check the notices
+        run: tools/license_check.sh deps go npm-frontend npm-collab
 
   docreader-dependencies:
     name: Dependency licenses (docreader)
@@ -75,11 +87,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # --locked fails if uv.lock is stale against pyproject.toml, and the sync
+      # leaves the amd64 wheels in uv's cache for the scan below to reuse.
       - name: Sync docreader
         run: uv sync --project docreader --locked
-      - name: Scan installed distributions
-        run: |
-          uv run --project docreader python tools/licensescan/scan_python.py py.json
+      # The scan resolves the lock for the image's Python on linux/amd64 and
+      # linux/arm64 (tools/licensescan/scan_python.py), not for this runner.
+      - name: Scan dependency licenses and check the notices
+        run: tools/license_check.sh deps python-docreader
 
   mcp-dependencies:
     name: Dependency licenses (mcp-server)
@@ -89,6 +104,5 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Sync mcp-server
         run: uv sync --project mcp-server --locked
-      - name: Scan installed distributions
-        run: |
-          uv run --project mcp-server python tools/licensescan/scan_python.py py.json
+      - name: Scan dependency licenses and check the notices
+        run: tools/license_check.sh deps python-mcp-server

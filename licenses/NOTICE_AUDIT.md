@@ -89,11 +89,16 @@ detection.
 |---|---|---|
 | `frontend/src/assets/fonts/TencentSans.ttf` | Was a Tencent typeface shipped in the repo, not covered by the MIT license. | **Resolved 2026-09-17:** the `@font-face` was never referenced by any stylesheet, so the file and `fonts.css` were deleted. No replacement needed. |
 | `tld` 0.13.1 (Python) | MPL-1.1 OR GPL-2.0-only OR LGPL-2.1-or-later | Elect **MPL-1.1**; record the election (done in THIRD_PARTY_NOTICES.md). |
-| `docx2txt` 0.9 (Python) | No license declared in package metadata | Upstream repo states MIT; confirm and pin, or replace with `python-docx` (already a dependency). |
+| `docx2txt` 0.9 (Python) | No license declared in package metadata | **Resolved 2026-09-18:** no longer a dependency; it left the lock together with `textract` (§1.3). |
 | `caniuse-lite` (npm) | CC-BY-4.0 — attribution required | Attribution given in THIRD_PARTY_NOTICES.md. Build-time only; not in the shipped bundle. |
 | `dompurify` (npm) | MPL-2.0 OR Apache-2.0 | Elected **Apache-2.0**; recorded. |
-| 4 Go modules unresolved offline | `danieljoos/wincred`, `erikgeiser/coninput`, `inconshreveable/mousetrap`, `mattn/go-localereader` are Windows/terminal-only and absent from the Linux module cache used for the scan | Re-run `tools/license_check.sh` on a machine with the full module cache (`GOOS=windows go mod download`) before a release that ships Windows binaries. |
-| `packages/dsh-yuheng`, `website-docs`, `miniprogram` npm trees | Not installed, so not scanned | Scan before publishing anything from those directories. |
+| 4 Go modules unresolved offline | `danieljoos/wincred`, `erikgeiser/coninput`, `inconshreveable/mousetrap`, `mattn/go-localereader` were absent from the module cache used for the first scan | **Resolved 2026-09-30:** they are `cli/` dependencies, and only the root module's had been downloaded. `go mod download` fetches every required module whatever the GOOS, so running it in `.`, `cli/` and `client/` (as CI does) makes the scan complete. Three classify normally; `go-localereader` ships no LICENSE file at all — its README states MIT, which the notices record through the generator's annotation map. |
+| `lightningcss` (npm, 12 entries with its platform binaries) | MPL-2.0; arrived with Tailwind v4 as its CSS compiler | Build-time only and used unmodified; nothing MPL-covered is in the shipped bundle. Recorded in THIRD_PARTY_NOTICES.md. |
+| `@esbuild/*` 0.25.6 binaries, `fsevents` (npm) | Platform-specific packages whose license `frontend/package-lock.json` does not record; the generator reads platform-specific licenses from the lockfile only (so the list is the same on every OS) and shows them as UNRESOLVED | All are MIT per their own `package.json`, and build/dev-time only; recorded in THIRD_PARTY_NOTICES.md. A future lockfile refresh that records the field clears them. |
+| `pypdfium2` (Python, docreader) | Declares "BSD-3-Clause, Apache-2.0, dependency licenses": the wheel bundles a PDFium build with FreeType, ICU, libjpeg-turbo, libpng, libtiff, Little CMS, OpenJPEG, zlib, abseil and others | All permissive; texts ship in the wheel's `dist-info/licenses/`. FreeType is dual FTL / GPL-2.0 — FTL elected, recorded in THIRD_PARTY_NOTICES.md. |
+| `third_party/anydoc-go/` static libraries | The vendored Go bindings link `libanydoc_go`, a Rust library built from the vendored crate; its `Cargo.lock` resolves 168 crates, and no scanner covers Cargo | Scan the crate licenses (e.g. `cargo about` / `cargo deny` in the upstream checkout) before a release, and add what it finds to the Bundled assets row. |
+| mcp-server image | `mcp-server/Dockerfile` installs `requirements.txt` (version ranges) with pip, not `uv.lock`, so the image can resolve other versions than the ones THIRD_PARTY_NOTICES.md lists | Build the image from the lock (`uv export --frozen --no-dev`, as docreader does) so the notices describe what ships. |
+| `packages/dsh-yuheng`, `packages/docs-schema`, `website-docs` npm trees | Not scanned | Scan before publishing anything from those directories. |
 
 ---
 
@@ -169,8 +174,8 @@ in this tree — every Apache-2.0 dependency is consumed unmodified from its
 registry — so no per-file change notices are required.
 
 **MPL-2.0 §3.2**: likewise, no MPL-2.0 covered file is modified. The MPL
-components (`certifi`, `dompurify`, `go-sql-driver/mysql`, `shoenig/go-m1cpu`,
-`hashicorp/errwrap`, `hashicorp/go-multierror`, `tld`) are used as published;
+components (`certifi`, `dompurify`, `go-sql-driver/mysql`, `lightningcss`,
+`tld`) are used as published;
 their sources remain available at the upstream URLs recorded in
 THIRD_PARTY_NOTICES.md.
 
@@ -178,18 +183,56 @@ THIRD_PARTY_NOTICES.md.
 
 ## 5. Method, and what this audit does not cover
 
-**How the inventories were built.** `tools/license_check.sh` is the reproducible
-form of what was run here:
+**How the inventories are built.** `tools/license_check.sh` runs one scanner per
+ecosystem, from `tools/licensescan/`, and each writes JSON:
 
-* **Go** — the module list is parsed out of all four `go.mod` files (383 unique
-  modules), then each module's `LICENSE`/`COPYING`/`NOTICE` file is located in
-  the module cache and matched against SPDX signatures. Submodule paths
-  (`.../v18`, `.../lib/linux-arm64`) fall back to the repository root's license.
-* **npm** — every `package.json` under `frontend/node_modules` (382 packages),
-  reading `license` / `licenses`.
-* **Python** — `importlib.metadata` inside the built `docreader` (72 dists) and
-  `mcp-server` (55 dists) images, preferring `License-Expression`, then
-  `License ::` classifiers, then the free-text `License` field.
+* **Go** (`collect_gomods.py`, `scan_go.py`) — every `go.mod` that `git ls-files`
+  finds is parsed with `go mod edit -json`; `replace` directives are applied, so
+  a module replaced by another version is read at the replacement and one
+  replaced by a local directory (`third_party/anydoc-go`, the sibling `client`
+  module) is read from the working tree. Each module's `LICENSE`/`COPYING`/
+  `NOTICE` file is located in the module cache and matched against SPDX
+  signatures; submodule paths (`.../v18`, `.../lib/linux-arm64`) fall back to the
+  repository root's license. A module of this repository takes the license
+  `NOTICE` declares.
+* **npm** (`scan_npm.py`) — the package list is `package-lock.json`, for
+  `frontend/` and `collab/` separately, not the installed tree: npm installs only
+  the platform binaries that match the machine, so a list built from
+  `node_modules` differs between macOS and Linux. Licenses come from each
+  installed `package.json` (`license` / `licenses`); for platform-specific
+  packages, from the lockfile only. A `node_modules` that does not match the
+  lockfile stops the scan.
+* **Python** (`scan_python.py`) — the runtime dependencies in `uv.lock` (no dev
+  group, not the project itself) are exported and installed with `uv pip install
+  --target --python-platform` for linux/amd64 and linux/arm64 and for the Python
+  version of the image's `FROM` line, and `importlib.metadata` reads each wheel's
+  `License-Expression`, then its `License ::` classifiers, then the free-text
+  `License` field. Resolving for the published images rather than the local venv
+  matters: docreader locks a different onnxruntime on macOS and on arm64 than on
+  x86-64 Linux.
+
+**The notices are generated from that JSON, and CI checks them.**
+`tools/licensescan/render_notices.py` renders each ecosystem's license summary
+and full list into `THIRD_PARTY_NOTICES.md`, between `<!-- BEGIN GENERATED:
+<section> -->` / `<!-- END GENERATED: <section> -->` markers; the introduction,
+the bundled assets and the licence elections stay hand-written. Facts no scanner
+can see (a module with no license file) sit in a small annotation map in the
+renderer, which fails if an entry stops matching the scan. The hand-kept
+snapshot this replaced had drifted to dozens of modules no longer in any
+`go.mod`, stale versions, and missing dependencies.
+
+* `tools/license_check.sh notices [section…]` regenerates every section whose
+  scan can run on the machine and leaves the others untouched (no module cache,
+  no `node_modules`, no `uv` → skipped with a message).
+* `tools/license_check.sh deps [section…]` scans, fails on a new copyleft or
+  source-available license, and fails when a scanned section no longer matches
+  the file, printing the diff and naming the `notices` command to run. In
+  `.github/workflows/license.yml` the Go + npm job checks `go`, `npm-frontend`
+  and `npm-collab`; the docreader and mcp-server jobs each check their own
+  Python section.
+
+The component counts live in the generated sections only; nothing in this audit
+or in the notices' summary is a hand-maintained number.
 
 **Two false positives were found and corrected in the scanner**, which is worth
 recording because both would have produced a wrong blocking list:
@@ -206,16 +249,18 @@ recording because both would have produced a wrong blocking list:
   ("license not found"). It ships an **MIT** LICENSE — `Copyright (c) 2018
   Leonardo Di Donato` — visible in the module cache. Upstream's scanner missed it.
 * `docx-0.2.4` is listed upstream under `unknown`. It is **not a dependency of
-  this tree**: docreader uses `python-docx` 1.2.0 (MIT) and `docx2txt` 0.9. The
+  this tree**: docreader uses `python-docx` 1.2.0 (MIT). The
   entry is stale from an older upstream dependency set.
 
 **Not covered by this audit:**
 
+* The Rust crates statically linked into `third_party/anydoc-go` (§2).
+
 * Transitive licenses of the base container images (`debian:12.12-slim`,
   `paradedb/paradedb`, `redis`, `minio`, …). Those are separately
   licensed artifacts, not part of this source tree.
-* The npm trees under `website-docs/`, `packages/dsh-yuheng/` and `miniprogram/`
-  — not installed on the audit machine.
+* The npm trees under `website-docs/`, `packages/dsh-yuheng/` and
+  `packages/docs-schema/`.
 * Patent grants, trademark policy, and export-control classification.
 * Whether any Chrome-extension, mini-program or IM-platform developer agreement
   imposes obligations on a renamed fork.
@@ -229,11 +274,12 @@ good-faith engineering record, not legal advice.
 
 **Legal — must be green**
 
-- [ ] Resolve blocking item 1.1 (`cedar-go`, GPL-2.0 in every binary)
-- [ ] Resolve blocking item 1.2 (`EbookLib`, AGPL-3.0)
-- [ ] Resolve blocking item 1.3 (`chardet`, LGPL-2.1)
+- [x] Resolve blocking item 1.1 (`cedar-go`, GPL-2.0 in every binary) — 2026-09-18
+- [x] Resolve blocking item 1.2 (`EbookLib`, AGPL-3.0) — 2026-09-18
+- [x] Resolve blocking item 1.3 (`chardet`, LGPL-2.1) — 2026-09-18
 - [x] `TencentSans.ttf` removed (unused `@font-face`; deleted together with `fonts.css`)
-- [ ] Re-run `tools/license_check.sh` with a full (multi-GOOS) module cache
+- [x] Complete Go scan — `go mod download` in every module is GOOS-independent (§2), and CI runs it
+- [ ] Scan the Rust crates linked into `third_party/anydoc-go` (§2)
 - [ ] Confirm `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `licenses/` are in
       the source tarball, in the container images, and in any binary archive
 

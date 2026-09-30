@@ -1,8 +1,24 @@
-"""Read the declared license of every package under a node_modules tree.
+"""Read the declared license of every package an npm project's lockfile resolves.
 
-npm lockfiles do not record licenses, so the installed tree is the only offline
-source. Nested node_modules are walked too, because a hoisting conflict can put
-a second copy of a package at a different version and license.
+    scan_npm.py <project dir> <out.json>
+
+The package list comes from `package-lock.json`, not from walking node_modules.
+The installed tree is platform-specific -- npm installs only the esbuild,
+rollup or lightningcss binary that matches the machine -- and it can hold
+leftovers from an earlier install, so a list built from it differs between a
+developer's Mac and the Linux CI runner. The lockfile lists every package for
+every platform and is the same everywhere.
+
+Licenses are read from the installed package's own package.json, which is what
+the package actually declares (the lockfile's `license` field is npm's copy,
+and is missing for a few dozen packages). Platform-specific packages are the
+exception: which of them are installed depends on the machine, so their license
+is taken from the lockfile only, and reported as NOT-RECORDED when the lockfile
+has none. Everything else must be installed at the locked version; if it is
+not, node_modules is stale and the scan stops rather than guess.
+
+The JSON output is what render_notices.py turns into THIRD_PARTY_NOTICES.md;
+the text on stdout is what tools/license_check.sh gates on.
 """
 import io
 import json
@@ -27,40 +43,58 @@ def declared(meta):
     return lic or "NOT-DECLARED"
 
 
-def walk(base, out):
-    if not os.path.isdir(base):
-        return
-    for name in sorted(os.listdir(base)):
-        if name == ".bin":
-            continue
-        d = os.path.join(base, name)
-        if name.startswith("@") and os.path.isdir(d):
-            walk(d, out)
-            continue
-        pj = os.path.join(d, "package.json")
-        if not os.path.isfile(pj):
-            continue
-        try:
-            meta = json.load(io.open(pj, encoding="utf-8"))
-        except Exception:
-            continue
-        out[(meta.get("name", name), meta.get("version", ""))] = declared(meta)
-        walk(os.path.join(d, "node_modules"), out)
-
-
 def main():
-    root = sys.argv[1]
-    out_path = sys.argv[2]
+    project, out_path = sys.argv[1], sys.argv[2]
+    with io.open(os.path.join(project, "package-lock.json"), encoding="utf-8") as fh:
+        lock = json.load(fh)
+
     found = {}
-    walk(root, found)
+    stale = []
+    for path, entry in lock.get("packages", {}).items():
+        # "" is the project itself; paths without node_modules/ are workspace
+        # sources, and links point at one of those. None is a dependency.
+        # "extraneous" entries are orphans npm sometimes leaves in the lockfile
+        # after an uninstall; nothing depends on them and `npm ci` does not
+        # install them, so they are not shipped either.
+        if "node_modules/" not in path or entry.get("link") or entry.get("extraneous"):
+            continue
+        name = entry.get("name") or path.rsplit("node_modules/", 1)[1]
+        version = entry.get("version", "")
+        if entry.get("os") or entry.get("cpu"):
+            lic = entry.get("license") or "NOT-RECORDED"
+        else:
+            pj = os.path.join(project, *path.split("/"), "package.json")
+            try:
+                with io.open(pj, encoding="utf-8") as fh:
+                    meta = json.load(fh)
+            except (OSError, ValueError):
+                stale.append(f"{path} is not installed")
+                continue
+            if meta.get("version") != version:
+                stale.append(f"{path} is {meta.get('version')}, the lockfile says {version}")
+                continue
+            lic = declared(meta)
+        found.setdefault((name, version), set()).add(lic)
 
-    rows = [{"name": n, "version": v, "license": lic}
-            for (n, v), lic in sorted(found.items())]
-    json.dump(rows, io.open(out_path, "w", encoding="utf-8"), indent=1)
+    if stale:
+        print(f"{project}/node_modules does not match package-lock.json "
+              f"(run 'npm ci' in {project}/):", file=sys.stderr)
+        for s in stale[:20]:
+            print(f"  {s}", file=sys.stderr)
+        sys.exit(2)
 
-    for lic, n in Counter(r["license"] for r in rows).most_common():
+    # The same name@version installed at two paths is one package; its license
+    # cannot differ, but if it ever did both spellings are kept.
+    rows = [{"name": n, "version": v, "license": " / ".join(sorted(lics))}
+            for (n, v), lics in sorted(found.items())]
+    result = {"meta": {"lockfile": f"{project}/package-lock.json"}, "rows": rows}
+    with io.open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(result, fh, indent=1)
+
+    counts = Counter(r["license"] for r in rows)
+    for lic in sorted(counts, key=lambda k: (-counts[k], k)):
         flag = "" if lic in ALLOWED else "   <-- REVIEW"
-        print(f"{n:4d}  {lic}{flag}")
+        print(f"{counts[lic]:4d}  {lic}{flag}")
     print()
     for r in rows:
         if r["license"] not in ALLOWED:

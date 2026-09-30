@@ -12,6 +12,13 @@
 #   tools/license_check.sh              # all checks
 #   tools/license_check.sh attribution  # just the file/notice checks (no deps)
 #   tools/license_check.sh deps         # just the dependency license scan
+#   tools/license_check.sh notices      # regenerate THIRD_PARTY_NOTICES.md's lists
+#
+# deps and notices take optional section names (go, npm-frontend, npm-collab,
+# python-docreader, python-mcp-server) to limit the run to those ecosystems.
+# A section whose scan cannot run here (no module cache, no node_modules, no
+# uv) is skipped with a warning. deps also fails when THIRD_PARTY_NOTICES.md no
+# longer matches what it scanned; the fix is always `notices`, then commit.
 #
 # Exit codes: 0 clean, 1 a check failed, 2 the script could not run a check.
 
@@ -142,68 +149,152 @@ check_residual_brand() {
 }
 
 # ---------------------------------------------------------------------------
-# 3. Dependency licenses.
+# 3. Dependency licenses, and the generated half of THIRD_PARTY_NOTICES.md.
 # ---------------------------------------------------------------------------
 # Anything in DENIED stops a release outright. Anything not in ALLOWED and not in
 # DENIED is reported for a human to classify, rather than passed silently.
 DENIED_RE='GPL|AGPL|LGPL|SSPL|Elastic|Business Source|BUSL|Commons Clause'
 
+# One section of THIRD_PARTY_NOTICES.md per scanned ecosystem; the names are the
+# ones in its GENERATED markers and in tools/licensescan/render_notices.py.
+ALL_SECTIONS=(go npm-frontend npm-collab python-docreader python-mcp-server)
+
+label() {
+  case "$1" in
+    go)                echo "Go" ;;
+    npm-frontend)      echo "npm (frontend)" ;;
+    npm-collab)        echo "npm (collab)" ;;
+    python-docreader)  echo "Python (docreader)" ;;
+    python-mcp-server) echo "Python (mcp-server)" ;;
+  esac
+}
+
+# The image each Python project ships as. scan_python.py resolves the lockfile
+# for that image's Python, read from its FROM line, not for whatever Python the
+# machine running the scan happens to have.
+python_dockerfile() {
+  case "$1" in
+    docreader)  echo docker/Dockerfile.docreader ;;
+    mcp-server) echo mcp-server/Dockerfile ;;
+  esac
+}
+
+# scan_section NAME DIR — run one ecosystem's scanner, leaving DIR/NAME.json
+# (for render_notices.py) and DIR/NAME.txt (for report). Returns 0 when the scan
+# ran, 3 when it cannot run in this environment (with a warning saying what is
+# missing), and 1 when it ran and failed.
+scan_section() {
+  local name=$1 dir=$2
+  local json="$dir/$name.json" txt="$dir/$name.txt" status=0
+  case "$name" in
+    go)
+      local cache
+      cache=$(go env GOMODCACHE 2>/dev/null)
+      if [[ -z $cache || ! -d $cache ]]; then
+        warn "go: no Go toolchain or module cache; skipping (run 'go mod download' in ., cli/ and client/)"
+        return 3
+      fi
+      { "$PY" tools/licensescan/collect_gomods.py "$ROOT" "$dir/gomods.json" \
+          && "$PY" tools/licensescan/scan_go.py --modcache "$cache" --repo "$ROOT" \
+               "$dir/gomods.json" "$json"; } > "$txt" 2>&1 || status=$?
+      ;;
+    npm-*)
+      local project=${name#npm-}
+      if [[ ! -d $project/node_modules ]]; then
+        warn "$name: $project/node_modules not found; skipping (run 'npm ci --ignore-scripts' in $project/)"
+        return 3
+      fi
+      "$PY" tools/licensescan/scan_npm.py "$project" "$json" > "$txt" 2>&1 || status=$?
+      ;;
+    python-*)
+      # The Python scans resolve the lockfile for the published images with uv
+      # (see scan_python.py), so they need uv, not an activated venv.
+      local project=${name#python-}
+      if ! command -v uv >/dev/null 2>&1; then
+        warn "$name: uv not found; skipping (CI checks this section in its own job)"
+        return 3
+      fi
+      "$PY" tools/licensescan/scan_python.py --project "$project" \
+          --dockerfile "$(python_dockerfile "$project")" "$json" > "$txt" 2>&1 || status=$?
+      ;;
+  esac
+  if (( status != 0 )); then
+    fail "$name: the scan did not complete"
+    sed 's/^/      /' "$txt"
+    return 1
+  fi
+  return 0
+}
+
+# The dependency gate: scan each section, fail on a license we cannot ship, and
+# fail when THIRD_PARTY_NOTICES.md no longer says what the scan found. The
+# second check is what keeps the notices from drifting again: a dependency
+# change that lands without `tools/license_check.sh notices` breaks the build.
 check_deps() {
   echo
   echo "== dependency licenses =="
 
   command -v "$PY" >/dev/null 2>&1 || { fail "python3 not found; set PYTHON=..."; return; }
 
-  local tmp
+  local tmp name
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' RETURN
 
-  # -- Go -------------------------------------------------------------------
-  if [[ -d "${GOMODCACHE:-$(go env GOMODCACHE 2>/dev/null)}" ]]; then
-    "$PY" tools/licensescan/collect_gomods.py "$ROOT" "$tmp/gomods.json" >/dev/null
-    MOD_ROOT="$(go env GOMODCACHE)" "$PY" tools/licensescan/scan_go.py \
-        "$tmp/gomods.json" "$tmp/go.json" > "$tmp/go.txt" 2>&1
-    report "Go" "$tmp/go.txt"
-  else
-    warn "Go module cache not found; skipping the Go scan (run 'go mod download' first)"
-  fi
+  for name in "${SECTIONS[@]}"; do
+    scan_section "$name" "$tmp" || continue
+    report "$(label "$name")" "$tmp/$name.txt"
+    verify_notices "$name" "$tmp/$name.json"
+  done
+}
 
-  # -- npm ------------------------------------------------------------------
-  if [[ -d frontend/node_modules ]]; then
-    "$PY" tools/licensescan/scan_npm.py frontend/node_modules "$tmp/npm.json" > "$tmp/npm.txt" 2>&1
-    report "npm (frontend)" "$tmp/npm.txt"
-  else
-    warn "frontend/node_modules not found; skipping the npm scan (run 'npm ci' first)"
-  fi
+verify_notices() {
+  local name=$1 json=$2 out status=0
+  out=$("$PY" tools/licensescan/render_notices.py --check "$name=$json" 2>&1) || status=$?
+  case $status in
+    0) pass "$(label "$name"): THIRD_PARTY_NOTICES.md matches the scan" ;;
+    1) fail "$(label "$name"): THIRD_PARTY_NOTICES.md is out of date — run 'tools/license_check.sh notices $name' and commit the result"
+       printf '%s\n' "$out" | sed 's/^/      /' ;;
+    *) fail "$(label "$name"): could not render THIRD_PARTY_NOTICES.md"
+       printf '%s\n' "$out" | sed 's/^/      /' ;;
+  esac
+}
 
-  # The collaboration service is a second npm ecosystem (Node, shipped as its
-  # own image), so it is scanned separately from the frontend bundle.
-  if [[ -d collab/node_modules ]]; then
-    "$PY" tools/licensescan/scan_npm.py collab/node_modules "$tmp/npm-collab.json" > "$tmp/npm-collab.txt" 2>&1
-    report "npm (collab)" "$tmp/npm-collab.txt"
-  else
-    warn "collab/node_modules not found; skipping the collab npm scan (run 'npm ci' in collab/ first)"
-  fi
+# Regenerate every section whose scan can run here. A section that cannot be
+# scanned (no uv, no node_modules) is left exactly as it is, so running this on
+# a machine with only part of the toolchain never deletes what another machine
+# generated.
+generate_notices() {
+  echo "== THIRD_PARTY_NOTICES.md =="
 
-  # -- Python ---------------------------------------------------------------
-  # Must run against an interpreter that actually has this project's Python
-  # dependencies installed -- a bare system python3 would report the base
-  # image's Debian packages instead, which is both wrong and alarming.
-  # In CI, call this inside the docreader / mcp-server image, or after 'uv sync'
-  # with PYTHON pointing at the venv.
-  if "$PY" -c 'import grpc_tools' 2>/dev/null || "$PY" -c 'import mcp' 2>/dev/null; then
-    "$PY" tools/licensescan/scan_python.py "$tmp/py.json" > "$tmp/py.txt" 2>&1
-    report "Python ($PY)" "$tmp/py.txt"
+  command -v "$PY" >/dev/null 2>&1 || { fail "python3 not found; set PYTHON=..."; return; }
+
+  local tmp name out status=0 specs=()
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' RETURN
+
+  for name in "${SECTIONS[@]}"; do
+    scan_section "$name" "$tmp" && specs+=("$name=$tmp/$name.json")
+  done
+  if (( ${#specs[@]} == 0 )); then
+    warn "no section could be scanned here; THIRD_PARTY_NOTICES.md left untouched"
+    return
+  fi
+  out=$("$PY" tools/licensescan/render_notices.py "${specs[@]}" 2>&1) || status=$?
+  if (( status != 0 )); then
+    fail "could not render THIRD_PARTY_NOTICES.md"
+    printf '%s\n' "$out" | sed 's/^/      /'
   else
-    warn "$PY has no docreader/mcp-server dependencies installed; skipping the Python scan"
-    warn "  (run it inside the docreader image, or set PYTHON=<venv>/bin/python)"
+    printf '%s\n' "$out" | sed 's/^/ok    /'
   fi
 }
 
 # A disjunction like '(MIT OR GPL-3.0-or-later)' is not a copyleft dependency:
 # the licensee picks. Only fail when every option is copyleft, and record the
 # elections in THIRD_PARTY_NOTICES.md so the choice is written down somewhere.
-PERMISSIVE_RE='MIT|Apache-2\.0|BSD|ISC|Unlicense|CC0|Zlib|PSF|Python-2\.0'
+# MPL counts as an acceptable option: its copyleft is per file, and a covered
+# file used unmodified obliges nothing an MIT distribution cannot meet (this is
+# how `tld`'s MPL-1.1 OR GPL OR LGPL is elected; NOTICE_AUDIT.md §2).
+PERMISSIVE_RE='MIT|Apache-2\.0|BSD|ISC|Unlicense|CC0|Zlib|PSF|Python-2\.0|MPL'
 
 EXCEPTIONS=licenses/known-exceptions.txt
 
@@ -224,6 +315,9 @@ is_known_exception() {
   return 1
 }
 
+# Every scanner prints one '  <name> <version> -> <license>' line per component
+# that is not plainly permissive. Only the license part is matched, so a package
+# whose *name* happens to contain 'gpl' or 'mit' is not misread.
 report() {
   local eco=$1 out=$2
   if [[ ! -s "$out" ]]; then
@@ -231,48 +325,57 @@ report() {
     return
   fi
 
-  local bad='' known='' line
+  local bad='' known='' line lic
   while IFS= read -r line; do
-    if [[ "$line" == *' OR '* ]] && [[ "$line" =~ $PERMISSIVE_RE ]]; then
+    lic=${line##* -> }
+    lic=${lic%% (file: *}
+    [[ $lic =~ $DENIED_RE ]] || continue
+    if [[ $lic == *' OR '* ]] && [[ $lic =~ $PERMISSIVE_RE ]]; then
       continue   # dual-licensed; a permissive option exists
     fi
     if is_known_exception "$line"; then
-      known+="$line"$'
-'
+      known+="$line"$'\n'
     else
-      bad+="$line"$'
-'
+      bad+="$line"$'\n'
     fi
-  done < <(grep -E "$DENIED_RE" "$out" | grep -- " -> " || true)
+  done < <(grep -- " -> " "$out" || true)
 
-  if [[ -n "${bad//[$'
-' ]/}" ]]; then
+  if [[ -n "${bad//[$'\n' ]/}" ]]; then
     fail "$eco: NEW copyleft / source-available dependency"
     printf '%s' "$bad" | sed 's/^/      /'
   else
     pass "$eco: no new denied licenses"
   fi
 
-  if [[ -n "${known//[$'
-' ]/}" ]]; then
+  if [[ -n "${known//[$'\n' ]/}" ]]; then
     warn "$eco: known blockers still present — releases stay blocked (NOTICE_AUDIT.md §1)"
     printf '%s' "$known" | sed 's/^/      /'
   fi
 
   local review
-  review=$(grep -E 'REVIEW|NOT-DECLARED|UNRECOGNISED|NO-LICENSE-FILE|NOT-IN-CACHE' "$out" || true)
+  review=$(grep -E 'REVIEW|NOT-DECLARED|NOT-RECORDED|UNRECOGNISED|NO-LICENSE-FILE|NOT-IN-CACHE' "$out" || true)
   if [[ -n "$review" ]]; then
     warn "$eco: components needing manual classification"
-    printf '%s
-' "$review" | head -15 | sed 's/^/      /'
+    printf '%s\n' "$review" | head -15 | sed 's/^/      /'
   fi
 }
+
+# Sections named after the mode narrow the dependency scan to those ecosystems;
+# the Python CI jobs use this to check only their own section.
+shift $(( $# > 0 ? 1 : 0 ))
+SECTIONS=("$@")
+(( ${#SECTIONS[@]} )) || SECTIONS=("${ALL_SECTIONS[@]}")
+for name in "${SECTIONS[@]}"; do
+  [[ " ${ALL_SECTIONS[*]} " == *" $name "* ]] || {
+    echo "unknown section '$name' (expected one of: ${ALL_SECTIONS[*]})" >&2; exit 2; }
+done
 
 case "$MODE" in
   attribution) check_attribution; check_residual_brand ;;
   deps)        check_deps ;;
+  notices)     generate_notices ;;
   all)         check_attribution; check_residual_brand; check_deps ;;
-  *)           echo "usage: $0 [all|attribution|deps]" >&2; exit 2 ;;
+  *)           echo "usage: $0 [all|attribution|deps|notices] [section...]" >&2; exit 2 ;;
 esac
 
 echo
