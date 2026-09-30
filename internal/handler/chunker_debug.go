@@ -54,8 +54,10 @@ type PreviewChunkingRequest struct {
 // directly because it carries unrelated parser rules and table-processing
 // metadata that the preview path does not use.
 type PreviewChunkingPayload struct {
-	ChunkSize         int      `json:"chunk_size"`
-	ChunkOverlap      int      `json:"chunk_overlap"`
+	ChunkSize int `json:"chunk_size"`
+	// ChunkOverlap follows types.ChunkingConfig: omitted takes the default,
+	// 0 is no overlap, so the preview splits the way ingestion will.
+	ChunkOverlap      *int     `json:"chunk_overlap"`
 	Separators        []string `json:"separators"`
 	EnableParentChild bool     `json:"enable_parent_child"`
 	ParentChunkSize   int      `json:"parent_chunk_size"`
@@ -150,7 +152,7 @@ func PreviewChunking(c *gin.Context) {
 
 	cfg := chunker.NormalizeSplitterConfig(chunker.SplitterConfig{
 		ChunkSize:    req.ChunkingConfig.ChunkSize,
-		ChunkOverlap: req.ChunkingConfig.ChunkOverlap,
+		ChunkOverlap: chunker.ChunkOverlapOrDefault(req.ChunkingConfig.ChunkOverlap),
 		Separators:   req.ChunkingConfig.Separators,
 		Strategy:     req.ChunkingConfig.Strategy,
 		TokenLimit:   req.ChunkingConfig.TokenLimit,

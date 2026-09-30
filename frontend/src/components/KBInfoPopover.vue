@@ -175,6 +175,7 @@
 </template>
 
 <script setup lang="ts">
+import { chunkOverlapOrDefault } from "@/config/chunking";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { InfoIcon } from "@lucide/vue";
@@ -372,13 +373,13 @@ const chunkingRows = computed<Array<{ key: string; label: string; value: string 
       value: `${cfg.chunk_size} ${chars}`,
     });
   }
-  if (typeof cfg.chunk_overlap === "number") {
-    rows.push({
-      key: "overlap",
-      label: t("knowledgeEditor.chunking.overlapLabel"),
-      value: `${cfg.chunk_overlap} ${chars}`,
-    });
-  }
+  // Always shown: an overlap that was never chosen is the backend default,
+  // not "none", and a deliberate 0 is shown as 0.
+  rows.push({
+    key: "overlap",
+    label: t("knowledgeEditor.chunking.overlapLabel"),
+    value: `${chunkOverlapOrDefault(cfg.chunk_overlap)} ${chars}`,
+  });
   if (cfg.enable_parent_child) {
     const parent = cfg.parent_chunk_size || 4096;
     const child = cfg.child_chunk_size || 384;

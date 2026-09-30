@@ -254,7 +254,8 @@ func mergeChunkingConfig(base types.ChunkingConfig, override *types.ChunkingConf
 	if override.ChunkSize != 0 {
 		result.ChunkSize = override.ChunkSize
 	}
-	if override.ChunkOverlap != 0 {
+	// nil keeps the base's overlap; an explicit 0 turns overlap off.
+	if override.ChunkOverlap != nil {
 		result.ChunkOverlap = override.ChunkOverlap
 	}
 	if len(override.Separators) > 0 {

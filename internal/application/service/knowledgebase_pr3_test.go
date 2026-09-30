@@ -426,7 +426,7 @@ func TestDuplicateKnowledgeBase_CreatesSettingsOnlyDuplicate(t *testing.T) {
 		IsTemporary: true,
 		ChunkingConfig: types.ChunkingConfig{
 			ChunkSize:    800,
-			ChunkOverlap: 80,
+			ChunkOverlap: new(80),
 			Separators:   []string{"\n\n", "."},
 			ParserEngineRules: []types.ParserEngineRule{{
 				FileTypes: []string{"pdf"},

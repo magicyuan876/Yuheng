@@ -216,8 +216,9 @@ func TestEnsureDefaults(t *testing.T) {
 	if cfg.ChunkSize != DefaultChunkSize {
 		t.Errorf("expected default ChunkSize %d, got %d", DefaultChunkSize, cfg.ChunkSize)
 	}
-	if cfg.ChunkOverlap != DefaultChunkOverlap {
-		t.Errorf("expected default ChunkOverlap %d, got %d", DefaultChunkOverlap, cfg.ChunkOverlap)
+	// 0 overlap is a setting, not a missing value, so it survives.
+	if cfg.ChunkOverlap != 0 {
+		t.Errorf("expected ChunkOverlap 0 to be kept, got %d", cfg.ChunkOverlap)
 	}
 	if len(cfg.Separators) == 0 {
 		t.Error("expected default separators")
@@ -229,11 +230,49 @@ func TestNormalizeSplitterConfig_MatchesIngestionDefaults(t *testing.T) {
 	if cfg.ChunkSize != DefaultChunkSize {
 		t.Errorf("chunk size: got %d want %d", cfg.ChunkSize, DefaultChunkSize)
 	}
-	if cfg.ChunkOverlap != DefaultChunkOverlap {
-		t.Errorf("chunk overlap: got %d want %d", cfg.ChunkOverlap, DefaultChunkOverlap)
+	if cfg.ChunkOverlap != 0 {
+		t.Errorf("chunk overlap: got %d want 0 (no overlap is a setting)", cfg.ChunkOverlap)
+	}
+	if got := NormalizeSplitterConfig(SplitterConfig{ChunkOverlap: -5}).ChunkOverlap; got != 0 {
+		t.Errorf("negative chunk overlap: got %d want 0", got)
 	}
 	if len(cfg.Separators) != 3 {
 		t.Fatalf("separators: got %v", cfg.Separators)
+	}
+}
+
+func TestChunkOverlapOrDefault(t *testing.T) {
+	if got := ChunkOverlapOrDefault(nil); got != DefaultChunkOverlap {
+		t.Errorf("unset overlap: got %d want %d", got, DefaultChunkOverlap)
+	}
+	zero := 0
+	if got := ChunkOverlapOrDefault(&zero); got != 0 {
+		t.Errorf("explicit 0 overlap: got %d want 0", got)
+	}
+}
+
+// With no overlap, consecutive chunks share nothing: each starts where the
+// one before it ended. The same text with an overlap does share, which keeps
+// the first half from passing on a text that could never overlap.
+func TestSplitWithoutOverlapSharesNothing(t *testing.T) {
+	text := strings.Repeat("alpha beta gamma delta.\n", 60)
+	overlapping := func(overlap int) bool {
+		chunks := Split(text, SplitterConfig{ChunkSize: 100, ChunkOverlap: overlap, Strategy: StrategyRecursive})
+		if len(chunks) < 2 {
+			t.Fatalf("overlap %d: want several chunks, got %d", overlap, len(chunks))
+		}
+		for i := 1; i < len(chunks); i++ {
+			if chunks[i].Start < chunks[i-1].End {
+				return true
+			}
+		}
+		return false
+	}
+	if overlapping(0) {
+		t.Error("chunks overlap although the overlap is 0")
+	}
+	if !overlapping(30) {
+		t.Error("chunks do not overlap although the overlap is 30")
 	}
 }
 

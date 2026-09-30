@@ -738,6 +738,7 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, chunkOverlapOrDefault } from "@/config/chunking";
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import KbCreateContextualGuide from "@/components/KbCreateContextualGuide.vue";
 import { KB_EDITOR_FOCUS_SECTION_EVENT, markContextualGuideDone } from "@/config/contextualGuides";
@@ -902,8 +903,8 @@ const WIKI_ONLY_CHUNKING_PRESET = {
 // the same numbers whether the editor sets them or the splitter
 // falls back to its package defaults.
 const DEFAULT_CHUNKING_PRESET = {
-  chunkSize: 512,
-  chunkOverlap: 80,
+  chunkSize: DEFAULT_CHUNK_SIZE,
+  chunkOverlap: DEFAULT_CHUNK_OVERLAP,
   enableParentChild: true,
 } as const;
 
@@ -1059,10 +1060,8 @@ const initFormData = (type: "document" | "faq" = "document") => {
       wikiSynthesisModelId: "",
     },
     chunkingConfig: {
-      chunkSize: 512,
-      // 80 ≈ 15% of chunkSize — community-recommended sweet spot.
-      // Aligned with chunker.DefaultChunkOverlap on the backend.
-      chunkOverlap: 80,
+      chunkSize: DEFAULT_CHUNK_SIZE,
+      chunkOverlap: DEFAULT_CHUNK_OVERLAP,
       separators: ["\n\n", "\n", "。", "！", "？", ";", "；"],
       parserEngineRules: undefined as any,
       enableParentChild: true,
@@ -1189,10 +1188,9 @@ const loadKBData = async (kbIdOverride?: string) => {
         wikiSynthesisModelId: kb.wiki_config?.synthesis_model_id || "",
       },
       chunkingConfig: {
-        chunkSize: kb.chunking_config?.chunk_size || 512,
-        // Fallback only used when the loaded KB has no chunk_overlap stored.
-        // Aligned with chunker.DefaultChunkOverlap on the backend.
-        chunkOverlap: kb.chunking_config?.chunk_overlap || 80,
+        chunkSize: kb.chunking_config?.chunk_size || DEFAULT_CHUNK_SIZE,
+        // Absent means "never chosen"; 0 is a real setting (no overlap).
+        chunkOverlap: chunkOverlapOrDefault(kb.chunking_config?.chunk_overlap),
         separators: kb.chunking_config?.separators || ["\n\n", "\n", "。", "！", "？", ";", "；"],
         parserEngineRules: kb.chunking_config?.parser_engine_rules || undefined,
         enableParentChild: kb.chunking_config?.enable_parent_child || false,

@@ -191,8 +191,11 @@ func NormalizeSplitterConfig(cfg SplitterConfig) SplitterConfig {
 	if cfg.ChunkSize <= 0 {
 		cfg.ChunkSize = DefaultChunkSize
 	}
-	if cfg.ChunkOverlap <= 0 {
-		cfg.ChunkOverlap = DefaultChunkOverlap
+	// Overlap is not defaulted: 0 is a setting (no overlap), and the
+	// default for an unset one is resolved by ChunkOverlapOrDefault before
+	// the config gets here.
+	if cfg.ChunkOverlap < 0 {
+		cfg.ChunkOverlap = 0
 	}
 	if len(cfg.Separators) == 0 {
 		cfg.Separators = []string{"\n\n", "\n", "。"}
@@ -324,8 +327,11 @@ func ensureDefaults(cfg SplitterConfig) SplitterConfig {
 	if cfg.ChunkSize <= 0 {
 		cfg.ChunkSize = DefaultChunkSize
 	}
-	if cfg.ChunkOverlap <= 0 {
-		cfg.ChunkOverlap = DefaultChunkOverlap
+	// Overlap is not defaulted: 0 is a setting (no overlap), and the
+	// default for an unset one is resolved by ChunkOverlapOrDefault before
+	// the config gets here.
+	if cfg.ChunkOverlap < 0 {
+		cfg.ChunkOverlap = 0
 	}
 	if len(cfg.Separators) == 0 {
 		cfg.Separators = []string{"\n\n", "\n", "。"}

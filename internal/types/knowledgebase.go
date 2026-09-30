@@ -252,8 +252,13 @@ type ParserEngineRule struct {
 type ChunkingConfig struct {
 	// Chunk size
 	ChunkSize int `yaml:"chunk_size"    json:"chunk_size"`
-	// Chunk overlap
-	ChunkOverlap int `yaml:"chunk_overlap" json:"chunk_overlap"`
+	// ChunkOverlap is how many characters consecutive chunks share. nil means
+	// not chosen, and takes the chunker's default (chunker.ChunkOverlapOrDefault);
+	// 0 means no overlap, which atomic content such as a wiki-only base wants.
+	// A pointer because the two used to be one: an int field could not tell
+	// an omitted overlap from a deliberate 0, so 0 was read as "default" and
+	// could never be set.
+	ChunkOverlap *int `yaml:"chunk_overlap,omitempty" json:"chunk_overlap,omitempty"`
 	// Separators
 	Separators []string `yaml:"separators"    json:"separators"`
 	// ParserEngineRules configures which parser engine to use for each file type.

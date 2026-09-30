@@ -980,6 +980,7 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, chunkOverlapOrDefault } from "@/config/chunking";
 import { ref, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { MessagePlugin } from "tdesign-vue-next";
@@ -1604,8 +1605,8 @@ function goToSection(key: ConfigSectionKey) {
 function createDefaultUIState(): UploadUIState {
   return {
     chunkingConfig: {
-      chunkSize: 512,
-      chunkOverlap: 80,
+      chunkSize: DEFAULT_CHUNK_SIZE,
+      chunkOverlap: DEFAULT_CHUNK_OVERLAP,
       separators: ["\n\n", "\n", "。", "！", "？", ";", "；"],
       parserEngineRules: undefined,
       enableParentChild: true,
@@ -1640,8 +1641,9 @@ function initFromKbInfo(kb: any) {
 
   uiState.value = {
     chunkingConfig: {
-      chunkSize: kb.chunking_config?.chunk_size || 512,
-      chunkOverlap: kb.chunking_config?.chunk_overlap || 80,
+      chunkSize: kb.chunking_config?.chunk_size || DEFAULT_CHUNK_SIZE,
+      // Absent means "never chosen"; 0 is a real setting (no overlap).
+      chunkOverlap: chunkOverlapOrDefault(kb.chunking_config?.chunk_overlap),
       separators: kb.chunking_config?.separators || ["\n\n", "\n", "。", "！", "？", ";", "；"],
       parserEngineRules: kb.chunking_config?.parser_engine_rules || undefined,
       enableParentChild: kb.chunking_config?.enable_parent_child ?? false,

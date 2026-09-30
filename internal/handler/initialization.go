@@ -22,6 +22,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/errors"
 	"github.com/magicyuan876/yuheng/internal/handler/dto"
+	"github.com/magicyuan876/yuheng/internal/infrastructure/chunker"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/models/asr"
 	"github.com/magicyuan876/yuheng/internal/models/chat"
@@ -102,17 +103,18 @@ type KBModelConfigRequest struct {
 	// 文档分块配置
 	DocumentSplitting struct {
 		ChunkSize         int                      `json:"chunkSize"`
-		ChunkOverlap      int                      `json:"chunkOverlap"`
 		Separators        []string                 `json:"separators"`
 		ParserEngineRules []types.ParserEngineRule `json:"parserEngineRules,omitempty"`
 		EnableParentChild bool                     `json:"enableParentChild"`
 		ParentChunkSize   int                      `json:"parentChunkSize,omitempty"`
 		ChildChunkSize    int                      `json:"childChunkSize,omitempty"`
-		// Strategy / TokenLimit / Languages use pointer types so the
-		// handler can distinguish "field absent in payload" (no change)
-		// from "field present with empty/zero value" (clear / disable).
-		// Without that distinction, users could set strategy="auto" once
-		// but never reset it back to legacy / unset.
+		// ChunkOverlap / Strategy / TokenLimit / Languages use pointer types
+		// so the handler can distinguish "field absent in payload" (no
+		// change) from "field present with empty/zero value" (clear /
+		// disable). Without that distinction, users could set
+		// strategy="auto" once but never reset it back to legacy / unset,
+		// and could never turn overlap off.
+		ChunkOverlap              *int      `json:"chunkOverlap,omitempty" binding:"omitempty,min=0"`
 		Strategy                  *string   `json:"strategy,omitempty"`
 		TokenLimit                *int      `json:"tokenLimit,omitempty"`
 		Languages                 *[]string `json:"languages,omitempty"`
@@ -182,8 +184,10 @@ type InitializationRequest struct {
 	} `json:"multimodal"`
 
 	DocumentSplitting struct {
-		ChunkSize    int      `json:"chunkSize" binding:"required,min=100,max=10000"`
-		ChunkOverlap int      `json:"chunkOverlap" binding:"min=0"`
+		ChunkSize int `json:"chunkSize" binding:"required,min=100,max=10000"`
+		// ChunkOverlap is a pointer so an omitted overlap takes the
+		// chunker's default while an explicit 0 turns overlap off.
+		ChunkOverlap *int     `json:"chunkOverlap" binding:"omitempty,min=0"`
 		Separators   []string `json:"separators" binding:"required,min=1"`
 	} `json:"documentSplitting" binding:"required"`
 
@@ -312,7 +316,7 @@ func (h *InitializationHandler) UpdateKBConfig(c *gin.Context) {
 	if req.DocumentSplitting.ChunkSize > 0 {
 		kb.ChunkingConfig.ChunkSize = req.DocumentSplitting.ChunkSize
 	}
-	if req.DocumentSplitting.ChunkOverlap >= 0 {
+	if req.DocumentSplitting.ChunkOverlap != nil {
 		kb.ChunkingConfig.ChunkOverlap = req.DocumentSplitting.ChunkOverlap
 	}
 	if len(req.DocumentSplitting.Separators) > 0 {
@@ -1481,7 +1485,7 @@ func (h *InitializationHandler) buildConfigResponse(ctx context.Context, models 
 	if kb != nil {
 		ds := map[string]interface{}{
 			"chunkSize":    kb.ChunkingConfig.ChunkSize,
-			"chunkOverlap": kb.ChunkingConfig.ChunkOverlap,
+			"chunkOverlap": chunker.ChunkOverlapOrDefault(kb.ChunkingConfig.ChunkOverlap),
 			"separators":   kb.ChunkingConfig.Separators,
 		}
 		if kb.ChunkingConfig.Strategy != "" {

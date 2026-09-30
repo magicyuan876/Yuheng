@@ -212,9 +212,9 @@ func markKnowledgeProcessing(knowledge *types.Knowledge, now time.Time) {
 }
 
 // buildSplitterConfig creates a SplitterConfig with fallbacks from a KnowledgeBase.
-// Defaults mirror chunker.DefaultChunkSize / DefaultChunkOverlap so behavior is
-// identical whether callers come through this path or invoke the chunker
-// directly with a zero-value config.
+// The chunk size and separators fall back to the chunker's defaults the same
+// way a direct caller of the chunker gets them; an overlap the base never
+// chose resolves to chunker.DefaultChunkOverlap, and a chosen 0 stays 0.
 func buildSplitterConfig(kb *types.KnowledgeBase) chunker.SplitterConfig {
 	return buildSplitterConfigFromChunking(kb.ChunkingConfig)
 }
@@ -222,7 +222,7 @@ func buildSplitterConfig(kb *types.KnowledgeBase) chunker.SplitterConfig {
 func buildSplitterConfigFromChunking(cc types.ChunkingConfig) chunker.SplitterConfig {
 	return chunker.NormalizeSplitterConfig(chunker.SplitterConfig{
 		ChunkSize:    cc.ChunkSize,
-		ChunkOverlap: cc.ChunkOverlap,
+		ChunkOverlap: chunker.ChunkOverlapOrDefault(cc.ChunkOverlap),
 		Separators:   cc.Separators,
 		Strategy:     cc.Strategy,
 		TokenLimit:   cc.TokenLimit,

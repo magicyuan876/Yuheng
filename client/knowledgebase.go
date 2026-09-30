@@ -50,9 +50,12 @@ type KnowledgeBaseConfig struct {
 
 // ChunkingConfig represents document chunking configuration
 type ChunkingConfig struct {
-	ChunkSize    int      `json:"chunk_size"`    // Chunk size
-	ChunkOverlap int      `json:"chunk_overlap"` // Overlap size
-	Separators   []string `json:"separators"`    // Separators
+	ChunkSize int `json:"chunk_size"` // Chunk size
+	// ChunkOverlap is how many characters consecutive chunks share. Leave it
+	// nil for the server's default; point it at 0 for no overlap. In a
+	// per-upload override, nil keeps the knowledge base's overlap.
+	ChunkOverlap *int     `json:"chunk_overlap,omitempty"`
+	Separators   []string `json:"separators"` // Separators
 }
 
 // FAQConfig represents faq-specific configuration

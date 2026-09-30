@@ -36,12 +36,13 @@ func ExampleUsage() {
 
 	// 1. Create a knowledge base
 	fmt.Println("1. Creating knowledge base...")
+	chunkOverlap := 50
 	kb := &KnowledgeBase{
 		Name:        "Test Knowledge Base",
 		Description: "This is a test knowledge base",
 		ChunkingConfig: ChunkingConfig{
 			ChunkSize:    500,
-			ChunkOverlap: 50,
+			ChunkOverlap: &chunkOverlap,
 			Separators:   []string{"\n\n", "\n", ". ", "? ", "! "},
 		},
 		ImageProcessingConfig: ImageProcessingConfig{

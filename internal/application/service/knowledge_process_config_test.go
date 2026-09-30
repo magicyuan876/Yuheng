@@ -27,14 +27,14 @@ func TestResolveProcessConfig_OverridesChunkSize(t *testing.T) {
 	t.Parallel()
 
 	kb := &types.KnowledgeBase{
-		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: 50},
+		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: new(50)},
 	}
 	overrides := &types.KnowledgeProcessOverrides{
 		ChunkingConfig: &types.ChunkingConfig{ChunkSize: 2048},
 	}
 	eff := ResolveProcessConfig(kb, overrides)
 	require.Equal(t, 2048, eff.ChunkingConfig.ChunkSize)
-	require.Equal(t, 50, eff.ChunkingConfig.ChunkOverlap)
+	require.Equal(t, new(50), eff.ChunkingConfig.ChunkOverlap)
 }
 
 func TestResolveProcessConfig_OverrideTogglesParentChild(t *testing.T) {
@@ -85,7 +85,7 @@ func TestResolveProcessConfig_NilOverridesUsesKBDefaults(t *testing.T) {
 	t.Parallel()
 
 	kb := &types.KnowledgeBase{
-		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: 50},
+		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: new(50)},
 		VLMConfig:      types.VLMConfig{Enabled: true, ModelID: "vlm-1"},
 		ASRConfig:      types.ASRConfig{Enabled: true, ModelID: "asr-1"},
 		QuestionGenerationConfig: &types.QuestionGenerationConfig{
@@ -99,7 +99,7 @@ func TestResolveProcessConfig_NilOverridesUsesKBDefaults(t *testing.T) {
 	eff := ResolveProcessConfig(kb, nil)
 
 	require.Equal(t, 512, eff.ChunkingConfig.ChunkSize)
-	require.Equal(t, 50, eff.ChunkingConfig.ChunkOverlap)
+	require.Equal(t, new(50), eff.ChunkingConfig.ChunkOverlap)
 	require.True(t, eff.EnableMultimodel)
 	require.Equal(t, "vlm-1", eff.VLMConfig.ModelID)
 	require.Equal(t, "asr-1", eff.ASRConfig.ModelID)
@@ -114,10 +114,10 @@ func TestBuildSplitterConfigFromChunking_UsesEffectiveChunkingConfig(t *testing.
 	t.Parallel()
 
 	kb := &types.KnowledgeBase{
-		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: 50, Strategy: "token"},
+		ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: new(50), Strategy: "token"},
 	}
 	overrides := &types.KnowledgeProcessOverrides{
-		ChunkingConfig: &types.ChunkingConfig{ChunkSize: 1500, ChunkOverlap: 120, Strategy: "character"},
+		ChunkingConfig: &types.ChunkingConfig{ChunkSize: 1500, ChunkOverlap: new(120), Strategy: "character"},
 	}
 	eff := ResolveProcessConfig(kb, overrides)
 	cfg := buildSplitterConfigFromChunking(eff.ChunkingConfig)
@@ -524,4 +524,35 @@ func TestBuildParentChildConfigs_PropagatesStrategy(t *testing.T) {
 	require.Equal(t, 512/5, child.ChunkOverlap)
 	require.Equal(t, base.Separators, parent.Separators)
 	require.Equal(t, base.Separators, child.Separators)
+}
+
+// An overlap the base never chose splits with the chunker's default; one it
+// set to 0 splits without overlap. They used to be the same int, so 0 could
+// never take effect.
+func TestBuildSplitterConfigDistinguishesUnsetOverlapFromZero(t *testing.T) {
+	t.Parallel()
+
+	unset := buildSplitterConfigFromChunking(types.ChunkingConfig{ChunkSize: 512})
+	require.Equal(t, chunker.DefaultChunkOverlap, unset.ChunkOverlap)
+
+	zero := buildSplitterConfigFromChunking(types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: new(0)})
+	require.Zero(t, zero.ChunkOverlap)
+}
+
+// A per-upload override that omits the overlap keeps the base's; one that
+// sets 0 turns overlap off for that document.
+func TestResolveProcessConfig_OverlapOverride(t *testing.T) {
+	t.Parallel()
+
+	kb := &types.KnowledgeBase{ChunkingConfig: types.ChunkingConfig{ChunkSize: 512, ChunkOverlap: new(50)}}
+
+	kept := ResolveProcessConfig(kb, &types.KnowledgeProcessOverrides{
+		ChunkingConfig: &types.ChunkingConfig{ChunkSize: 1024},
+	})
+	require.Equal(t, new(50), kept.ChunkingConfig.ChunkOverlap)
+
+	off := ResolveProcessConfig(kb, &types.KnowledgeProcessOverrides{
+		ChunkingConfig: &types.ChunkingConfig{ChunkSize: 1024, ChunkOverlap: new(0)},
+	})
+	require.Equal(t, new(0), off.ChunkingConfig.ChunkOverlap)
 }

@@ -8,7 +8,7 @@
 | --- | --- |
 | 回答缺上下文、经常答半句 | 调大 `chunk_size`，或开启父子分块（子块检索、父块回答） |
 | 检索命中的块跟问题关系不大 | 调小 `chunk_size`，让每块主题更集中 |
-| 资料是条目式的（字典、参数表） | 把重叠调小，减少相邻条目互相污染。注意重叠填 0 会被当作「未设置」，按 80 处理（见 §1.1），能生效的最小值是 1 |
+| 资料是条目式的（字典、参数表） | 把重叠调小，减少相邻条目互相污染；填 0 即完全不重叠 |
 | 资料是长篇叙述（报告、论文） | 重叠调到 150–200，保住跨块的语义连贯 |
 | 想先看看会切成什么样 | 「分块设置」里策略选择框旁的试切按钮，或分块预览接口 `POST /api/v1/chunker/preview`，不落库 |
 
@@ -42,7 +42,7 @@ Yuheng 的分块在 **Go 侧**完成（`internal/infrastructure/chunker` 包）�
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `chunk_size` | int | 512（字符，≤0 时取默认） | 单块目标大小。约 100–130 英文 token / 300 中文 token。FAQ 式原子内容建议 200–400，长叙事文档 1000–2000 |
-| `chunk_overlap` | int | 80（约 15%，≤0 时取默认） | 相邻块重叠字符数，是上限而非目标值（见 §3.3）。**0 与负数都会被改写为 80**，所以没有「完全不重叠」的配置；长叙事可 150–200。超过 `chunk_size/2` 会被钳制到一半 |
+| `chunk_overlap` | int | 80（约 15%，不传时取默认） | 相邻块重叠字符数，是上限而非目标值（见 §3.3）。**不传（或 `null`）取默认 80，传 0 即完全不重叠**；负数按 0 处理。长叙事可 150–200。超过 `chunk_size/2` 会被钳制到一半。单篇上传的 `process_config.chunking_config` 同理：不传沿用知识库的值，传 0 关闭重叠 |
 | `separators` | []string | 后端缺省 `["\n\n", "\n", "。"]`；界面新建时填 `["\n\n", "\n", "。", "！", "？", ";", "；"]` | 递归分块的分隔符优先级序列 |
 | `strategy` | string | 后端缺省 `""`（= legacy）；界面新建时填 `auto` | 分块策略：`auto` / `heading` / `heuristic` / `recursive` / `legacy`，见 §2。通过 API 建库不传此字段时是 legacy；在界面上清空选择也回到 legacy |
 | `token_limit` | int | 0（不启用） | 以近似 token 数上限约束块大小；>0 时按语言换算字符预算并取更小者（0.9 安全系数）。父子分块时只作用于子块，父块保持配置的上下文窗口 |
@@ -62,14 +62,16 @@ const (
 )
 ```
 
-> 迁移注意（源码注释原文）：历史上 Go DefaultConfig 用 64、knowledge.go 用 50、Python docreader 用 100 三种 overlap 默认值，现已统一为 80。存量 KB 若 DB 中存的是 `ChunkOverlap=0`，重建索引时会取 80，embedding 与旧值不再逐位一致。
+> 迁移注意：历史上 Go DefaultConfig 用 64、knowledge.go 用 50、Python docreader 用 100 三种 overlap 默认值，现已统一为 80。
+>
+> 早先 `chunk_overlap` 是普通整数，「没传」和「传了 0」存成同一个 0，分块器一律按 80 处理，所以 0 设不上。现在二者分开：不传表示取默认，0 表示不重叠。迁移 000129 把库里已存的 `chunk_overlap: 0`（知识库配置与单篇解析覆盖）改为「未设置」——它们一直按 80 切分，迁移后仍按 80，存量知识库的切分结果不变；想要不重叠的，重新设为 0 即可生效。
 
 界面上「分块设置」各项的可调范围（`KBChunkingSettings.vue`）与取值建议：
 
 | 设置 | 界面范围 | 建议 |
 |------|----------|------|
 | 分块大小 | 100–4000 字符 | 默认 512 适合大多数资料；条目式内容 200–400；叙述性长文 1000–2000 |
-| 重叠 | 0–500 字符 | 滑块能拖到 0，但 0 按 80 处理（见上表）；论证跨段落的长文 150–200 |
+| 重叠 | 0–500 字符 | 条目式资料调小或设 0（不重叠）；论证跨段落的长文 150–200 |
 | 父块大小 | 512–8192 字符 | 默认 4096（约 1000 英文 token）；问答模型上下文窗口小（如 4k）时用 1024–2048 |
 | 子块大小 | 64–2048 字符 | 默认 384（约 95 英文 token）；需要精确匹配短问答时 128–256；embedding 模型能吃 1000+ token 时可到 512–1024 |
 | Token 上限 | 0–8192 | embedding 模型上下文在 2000 token 以上时保持 0；上下文只有 512 或 256 token 的小模型，设为其上限的约 80%（如 400、200），CJK 文本每字符 token 更密，留出余量 |
@@ -150,7 +152,7 @@ chain = append(chain, TierLegacy) // 永远兜底
 
 ```mermaid
 flowchart TD
-    A["输入 Markdown 文本 + SplitterConfig"] --> B["ensureDefaults<br/>(512/80 兜底, TokenLimit 换算, overlap 钳制)"]
+    A["输入 Markdown 文本 + SplitterConfig"] --> B["ensureDefaults<br/>(512 兜底, TokenLimit 换算, overlap 钳制)"]
     B --> C{"cfg.Strategy ?"}
     C -->|"legacy / recursive / 空"| L["Tier 3: SplitText (递归分块)"]
     C -->|"heading"| H1["Tier 1: 标题分块"]
@@ -408,17 +410,16 @@ g.apiKeyRoute(r, http.MethodPost, "/chunker/preview",
   }
   ```
 
-  `strategy`、`tokenLimit`、`languages`（以及 `tableMetadataInstructions`）在服务端是指针字段：请求里**不带**该字段表示不修改，**带上空串 / 0 / 空数组**表示清回默认（`strategy` 清空即回到 legacy）。
-- **`POST /api/v1/knowledge-bases`、`PUT /api/v1/knowledge-bases/:id`**：知识库 CRUD，同样的字段用 **snake_case**，放在 `chunking_config` 里（更新时位于 `config.chunking_config`），字段即 §1.1 的表。
+  `strategy`、`tokenLimit`、`languages`（以及 `tableMetadataInstructions`）在服务端是指针字段：请求里**不带**该字段表示不修改，**带上空串 / 0 / 空数组**表示清回默认（`strategy` 清空即回到 legacy）。`chunkOverlap` 同样是指针：不带表示不修改，带 0 表示不重叠，负数返回 400。
+- **`POST /api/v1/knowledge-bases`、`PUT /api/v1/knowledge-bases/:id`**：知识库 CRUD，同样的字段用 **snake_case**，放在 `chunking_config` 里（更新时位于 `config.chunking_config`），字段即 §1.1 的表。更新时 `chunking_config` 整体替换，其中不带 `chunk_overlap` 即回到默认 80。
 - **`POST /api/v1/chunker/preview`**：snake_case 的 `chunking_config` 加一个 `text`，只预览不保存（§8）。
 
-无论从哪个接口修改，都**不会自动重建已有文档的索引**：改完需要对受影响的文档重新解析（文档列表的重新解析或批量重新解析），新配置才会作用到它们。
+无论从哪个接口修改，都**不会自动重建已有文档的索引**：改完需要对受影响的文档重新解析（文档列表的重新解析、批量重新解析，或用 `POST /api/v1/knowledge-bases/:id/rebuild-index` 重新解析整个库），新配置才会作用到它们。
 
 ## 10. 已知取舍
 
 - **标题面包屑有成本**：heading 层把面包屑拼进 embedding 输入，每块的 embedding 输入会长一些；换来的是结构化文档切出的块更少、每块自带章节语境。
 - **解析器造成的问题分块器修不了**：竖排文字被 OCR 拆成逐字一行这类问题出在解析阶段；heuristic 层按换页符对齐分块，只能减轻，不能消除。
-- **0 重叠不可配置**：见 §1.1。
 
 ## 11. Python 侧分块器（docreader/splitter/）
 

@@ -1,0 +1,4 @@
+-- Migration 000129 Down: nothing to undo.
+-- The up migration removed chunk_overlap keys that held 0. The code before it
+-- reads an absent key as 0, exactly what was stored before, so no rollback is
+-- needed.

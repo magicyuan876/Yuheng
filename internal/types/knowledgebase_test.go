@@ -305,3 +305,47 @@ func TestEffectiveStorageProvider_CrossBackendDetection(t *testing.T) {
 			dstSame.EffectiveStorageProvider(tenantDefault), sp)
 	}
 }
+
+// A chunking config tells an overlap that was never given from one set to 0,
+// both on the way in from the API and through a round trip to the database.
+func TestChunkingConfigOverlapUnsetVersusZero(t *testing.T) {
+	for _, tc := range []struct {
+		name, in string
+		want     *int
+	}{
+		{"absent", `{"chunk_size": 512}`, nil},
+		{"null", `{"chunk_size": 512, "chunk_overlap": null}`, nil},
+		{"zero", `{"chunk_size": 512, "chunk_overlap": 0}`, new(0)},
+		{"set", `{"chunk_size": 512, "chunk_overlap": 120}`, new(120)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var cfg ChunkingConfig
+			if err := json.Unmarshal([]byte(tc.in), &cfg); err != nil {
+				t.Fatal(err)
+			}
+			assertOverlap(t, "decoded", cfg.ChunkOverlap, tc.want)
+
+			stored, err := cfg.Value()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var back ChunkingConfig
+			if err := back.Scan(stored); err != nil {
+				t.Fatal(err)
+			}
+			assertOverlap(t, "after a round trip", back.ChunkOverlap, tc.want)
+		})
+	}
+}
+
+func assertOverlap(t *testing.T, when string, got, want *int) {
+	t.Helper()
+	switch {
+	case want == nil && got != nil:
+		t.Errorf("%s: overlap = %d; want unset", when, *got)
+	case want != nil && got == nil:
+		t.Errorf("%s: overlap unset; want %d", when, *want)
+	case want != nil && *got != *want:
+		t.Errorf("%s: overlap = %d; want %d", when, *got, *want)
+	}
+}
