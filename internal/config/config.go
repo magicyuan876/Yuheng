@@ -590,33 +590,49 @@ func LoadConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-// warnLegacyEnvPrefix shouts when a deployment still carries YUHENG_* variables.
+// legacyEnvPrefix is the prefix every environment variable carried in the
+// upstream project Yuheng was forked from (Tencent WeKnora).
+const legacyEnvPrefix = "WEKNORA_" // license-check: attribution
+
+// warnLegacyEnvPrefix shouts when a deployment still carries variables with
+// the upstream prefix.
 //
-// This project renamed every environment variable from the YUHENG_ prefix it
+// This project renamed every environment variable from the prefix it
 // inherited from its upstream to YUHENG_. Nothing reads the old names any more,
 // so a stale .env does not fail — it silently falls back to defaults, which is
 // far worse than an error (RBAC quietly off, concurrency quietly wrong). One
 // loud line at startup turns that silence into something an operator can see.
 // Printf rather than logger: LoadConfig runs before the logger sink is wired.
+//
+// It once looked for the YUHENG_ prefix itself — the rename rewrote this check
+// along with everything else — and so warned every correctly configured
+// deployment that its settings were ignored.
 func warnLegacyEnvPrefix() {
+	stale := legacyEnvNames(os.Environ())
+	if len(stale) == 0 {
+		return
+	}
+	fmt.Printf(
+		"[config] WARNING: %d environment variable(s) with the old %s prefix are set and IGNORED: %s\n"+
+			"[config]          rename the prefix to YUHENG_ (see .env.example) or these settings do nothing.\n",
+		len(stale), legacyEnvPrefix, strings.Join(stale, ", "),
+	)
+}
+
+// legacyEnvNames returns, sorted, the names in environ ("NAME=value" pairs)
+// that carry the upstream prefix.
+func legacyEnvNames(environ []string) []string {
 	var stale []string
-	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "YUHENG_") {
+	for _, kv := range environ {
+		if !strings.HasPrefix(kv, legacyEnvPrefix) {
 			continue
 		}
 		if name, _, ok := strings.Cut(kv, "="); ok {
 			stale = append(stale, name)
 		}
 	}
-	if len(stale) == 0 {
-		return
-	}
 	sort.Strings(stale)
-	fmt.Printf(
-		"[config] WARNING: %d legacy YUHENG_* environment variable(s) are set and IGNORED: %s\n"+
-			"[config]          rename the prefix to YUHENG_ (see .env.example) or these settings do nothing.\n",
-		len(stale), strings.Join(stale, ", "),
-	)
+	return stale
 }
 
 // ValidateConfig performs basic validation of the loaded configuration.
