@@ -299,6 +299,35 @@
                           class="max-h-[142px] min-h-[76px]"
                         />
                       </div>
+                      <!-- Periodic review: how long a document may go without
+                           anybody confirming or changing it before its owner
+                           is asked to look. Off unless someone commits to it. -->
+                      <div class="mb-4 last:mb-0">
+                        <label
+                          for="kb-review-interval"
+                          class="text-foreground mb-2 block [font-family:var(--app-font-family)] text-[15px] font-medium"
+                        >
+                          {{ $t("knowledgeEditor.basic.reviewIntervalLabel") }}
+                        </label>
+                        <div class="flex items-center gap-2">
+                          <Input
+                            id="kb-review-interval"
+                            v-model.number="formData.reviewIntervalDays"
+                            type="number"
+                            min="0"
+                            :max="MAX_REVIEW_INTERVAL_DAYS"
+                            step="1"
+                            class="w-28"
+                            data-testid="kb-review-interval"
+                          />
+                          <span class="text-muted-foreground text-sm">{{
+                            $t("knowledgeEditor.basic.reviewIntervalUnit")
+                          }}</span>
+                        </div>
+                        <p class="text-placeholder m-0 mt-1.5 text-xs">
+                          {{ $t("knowledgeEditor.basic.reviewIntervalHint") }}
+                        </p>
+                      </div>
 
                       <!-- Wiki 合成模型移至模型配置页 -->
                     </div>
@@ -1084,6 +1113,7 @@ const initFormData = (type: "document" | "faq" = "document") => {
       maxTags: 3,
       skipIfTagged: true,
     },
+    reviewIntervalDays: 0,
     wikiConfig: {
       synthesisModelId: "",
       maxPagesPerIngest: 0,
@@ -1212,6 +1242,7 @@ const loadKBData = async (kbIdOverride?: string) => {
         // backend treats that as "skip", so mirror it here.
         skipIfTagged: kb.auto_tag_config?.skip_if_tagged ?? true,
       },
+      reviewIntervalDays: kb.review_interval_days || 0,
       wikiConfig: {
         synthesisModelId: kb.wiki_config?.synthesis_model_id || "",
         maxPagesPerIngest: kb.wiki_config?.max_pages_per_ingest || 0,
@@ -1472,6 +1503,14 @@ const validateForm = (): boolean => {
 };
 
 // 构建提交数据
+/** The review period as the server takes it: whole days, 0 (off) to ten
+ * years, whatever the number field holds while someone is typing. */
+const MAX_REVIEW_INTERVAL_DAYS = 3650;
+const normalizeReviewInterval = (value: unknown): number => {
+  const days = Math.floor(Number(value));
+  return Number.isFinite(days) ? Math.min(MAX_REVIEW_INTERVAL_DAYS, Math.max(0, days)) : 0;
+};
+
 const buildSubmitData = () => {
   if (!formData.value) return null;
 
@@ -1552,6 +1591,8 @@ const buildSubmitData = () => {
       custom_instructions: formData.value.questionGenerationConfig?.customInstructions || "",
     };
   }
+
+  data.review_interval_days = normalizeReviewInterval(formData.value.reviewIntervalDays);
 
   data.auto_tag_config = {
     enabled: formData.value.autoTagConfig?.enabled || false,
@@ -1692,6 +1733,7 @@ const doSubmit = async () => {
           graph_enabled: formData.value.indexingStrategy?.graphEnabled ?? false,
         };
       }
+      updateConfig.review_interval_days = data.review_interval_days;
       await updateKnowledgeBase(kbId, {
         name: data.name,
         description: data.description,

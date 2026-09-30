@@ -14,6 +14,9 @@ import enUS from "@/i18n/locales/en-US";
 const api = vi.hoisted(() => ({ listPageFindings: vi.fn(), supersedeFromPage: vi.fn() }));
 vi.mock("@/api/findings", () => api);
 
+const docsApi = vi.hoisted(() => ({ confirmPageReviewed: vi.fn() }));
+vi.mock("@/api/docs", () => docsApi);
+
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("tdesign-vue-next", () => ({ MessagePlugin: toast }));
 
@@ -146,4 +149,18 @@ test("a reader is not offered to supersede anything", async () => {
   await wrapper.get('[data-testid="page-findings-details"]').trigger("click");
   await flushPromises();
   assert.equal(document.body.querySelector('[data-testid="page-findings-supersede"]'), null);
+});
+
+test("a review that is due is about this page alone, and a writer confirms it here", async () => {
+  const due: PageFinding = { ...item("r1", ""), type: "stale", related_page: null, evidence: [] };
+  const wrapper = await mountNotice({ canEdit: true }, { items: [due], other_count: 0 });
+  assert.match(wrapper.get('[data-testid="page-findings-count"]').text(), /due for review/);
+
+  await wrapper.get('[data-testid="page-findings-details"]').trigger("click");
+  await flushPromises();
+  docsApi.confirmPageReviewed.mockResolvedValue(undefined);
+  (document.body.querySelector('[data-testid="page-findings-confirm"]') as HTMLElement).click();
+  await flushPromises();
+  assert.deepEqual(docsApi.confirmPageReviewed.mock.calls[0], ["p1"]);
+  assert.equal(wrapper.find('[data-testid="page-findings-notice"]').exists(), false);
 });

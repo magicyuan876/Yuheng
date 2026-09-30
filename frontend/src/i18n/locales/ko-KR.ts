@@ -3197,6 +3197,10 @@ export default {
       namePlaceholder: "지식베이스 이름을 입력해주세요",
       descriptionLabel: "지식베이스 설명",
       descriptionPlaceholder: "지식베이스 설명을 입력해주세요 (선택)",
+      reviewIntervalLabel: "정기 검토",
+      reviewIntervalUnit: "일(0이면 검토 안 함)",
+      reviewIntervalHint:
+        "이 기간 동안 아무도 확인하거나 수정하지 않은 문서는 담당자에게 검토를 요청합니다. 수정하거나 ‘여전히 유효함 확인’을 누르면 기간이 다시 시작됩니다.",
     },
     errors: {
       vectorStoreBindingInvalid:
@@ -4879,6 +4883,7 @@ export default {
     types: {
       duplicate: "중복 내용",
       divergent: "내용 불일치",
+      stale: "검토 필요",
     },
     severity: {
       info: "정보",
@@ -4919,6 +4924,8 @@ export default {
     typeHints: {
       duplicate: "두 문서에 똑같은 단락이 있습니다. 하나만 남기고 다른 쪽에서는 링크로 참조하세요.",
       divergent: "두 문서가 거의 같은 내용을 다루지만 세부 사항이 다릅니다. 한쪽이 오래되었을 수 있으니 확인하세요.",
+      stale:
+        "지식 베이스의 검토 주기 동안 아무도 이 문서를 확인하지 않았습니다. 여전히 유효한지 확인하거나 수정하세요.",
     },
     resolution: {
       distinct_scope: "적용 범위가 다름",
@@ -4953,6 +4960,9 @@ export default {
     supersededDeleted: "《{title}》을(를) 삭제했습니다",
     supersededExcluded: "《{title}》이(가) 지식 베이스에서 빠지고 대체됨으로 표시되었습니다",
     supersedeFailed: "대체할 수 없습니다",
+    confirm: "여전히 유효함 확인",
+    confirmedPending: "확인했습니다. 다음 검사에서 문제가 닫힙니다",
+    confirmFailed: "확인할 수 없습니다",
     wiki: {
       title: "Wiki 점검 보고서",
       pending: "검토 대기 중인 Wiki 문제 {count}건",
@@ -5001,6 +5011,7 @@ export default {
       supersedeOk: "확인",
       superseded: "《{title}》을(를) 이 페이지로 대체했습니다",
       supersedeFailed: "대체할 수 없습니다",
+      reviewDue: "이 페이지는 검토가 필요합니다",
       dismiss: "이번 세션 동안 숨기기",
     },
     owner: {

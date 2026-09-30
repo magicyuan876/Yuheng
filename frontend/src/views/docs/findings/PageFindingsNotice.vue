@@ -10,15 +10,11 @@
     data-testid="page-findings-notice"
   >
     <component
-      :is="divergentCount ? GitCompareIcon : CopyIcon"
+      :is="divergentCount ? GitCompareIcon : pairCount ? CopyIcon : CalendarClockIcon"
       class="text-warning size-3.5 shrink-0"
       aria-hidden="true"
     />
-    <span data-testid="page-findings-count">{{
-      divergentCount
-        ? t("docs.findings.noticeDivergent", { count: divergentCount })
-        : t("docs.findings.notice", { count: items.length })
-    }}</span>
+    <span data-testid="page-findings-count">{{ headline }}</span>
     <span v-if="otherCount > 0" class="text-muted-foreground" data-testid="page-findings-other">
       {{ t("docs.findings.more", { count: otherCount }) }}
     </span>
@@ -33,64 +29,91 @@
         <div class="text-foreground text-sm font-semibold">{{ t("docs.findings.title") }}</div>
         <ul class="m-0 flex list-none flex-col gap-3 p-0">
           <li v-for="item in items" :key="item.id" class="flex flex-col gap-1.5" data-testid="page-findings-item">
-            <div class="flex flex-wrap items-center gap-2">
-              <RouterLink
-                :to="linkTo(item.related_page)"
-                class="text-primary min-w-0 truncate font-medium hover:underline"
-                @click="detailsOpen = false"
-              >
-                {{ item.related_page.title || t("docs.tree.untitled") }}
-              </RouterLink>
-              <Badge variant="secondary">{{ findingTypeLabel(item.type, t) }}</Badge>
-              <span class="text-muted-foreground text-xs">
-                {{ t("knowledgeHealth.similarity", { value: formatPercent(item.score) }) }} ·
-                {{ t("knowledgeHealth.overlap", { value: formatPercent(item.overlap_ratio) }) }}
-              </span>
-              <span v-if="item.assignee" class="text-muted-foreground text-xs" data-testid="page-findings-assignee">
-                {{ t("docs.findings.assignee", { name: item.assignee.username || item.assignee.id }) }}
-              </span>
-            </div>
-            <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
-              {{ findingTypeHint(item.type, t) }}
-            </p>
-            <!-- The writer of the newer version is the one who knows it
-                 replaces the other: one click, confirmed by a second. The
-                 other page stays readable and says what replaced it. -->
-            <div v-if="canEdit" class="flex flex-wrap items-center gap-2">
-              <Button
-                v-if="confirmingId !== item.id"
-                variant="outline"
-                size="xs"
-                :disabled="supersedingId !== null"
-                data-testid="page-findings-supersede"
-                @click="confirmingId = item.id"
-              >
-                <ReplaceIcon />
-                {{ t("docs.findings.supersede") }}
-              </Button>
-              <template v-else>
-                <span class="text-muted-foreground text-xs">
-                  {{
-                    t("docs.findings.supersedeConfirm", { title: item.related_page.title || t("docs.tree.untitled") })
-                  }}
-                </span>
-                <Button
-                  size="xs"
-                  :disabled="supersedingId !== null"
-                  data-testid="page-findings-supersede-ok"
-                  @click="supersede(item)"
+            <!-- A finding about this page and another. -->
+            <template v-if="item.related_page">
+              <div class="flex flex-wrap items-center gap-2">
+                <RouterLink
+                  :to="linkTo(item.related_page)"
+                  class="text-primary min-w-0 truncate font-medium hover:underline"
+                  @click="detailsOpen = false"
                 >
-                  {{ t("docs.findings.supersedeOk") }}
+                  {{ item.related_page.title || t("docs.tree.untitled") }}
+                </RouterLink>
+                <Badge variant="secondary">{{ findingTypeLabel(item.type, t) }}</Badge>
+                <span class="text-muted-foreground text-xs">
+                  {{ t("knowledgeHealth.similarity", { value: formatPercent(item.score) }) }} ·
+                  {{ t("knowledgeHealth.overlap", { value: formatPercent(item.overlap_ratio) }) }}
+                </span>
+                <span v-if="item.assignee" class="text-muted-foreground text-xs" data-testid="page-findings-assignee">
+                  {{ t("docs.findings.assignee", { name: item.assignee.username || item.assignee.id }) }}
+                </span>
+              </div>
+              <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
+                {{ findingTypeHint(item.type, t) }}
+              </p>
+              <!-- The writer of the newer version is the one who knows it
+                   replaces the other: one click, confirmed by a second. The
+                   other page stays readable and says what replaced it. -->
+              <div v-if="canEdit" class="flex flex-wrap items-center gap-2">
+                <Button
+                  v-if="confirmingId !== item.id"
+                  variant="outline"
+                  size="xs"
+                  :disabled="busyId !== null"
+                  data-testid="page-findings-supersede"
+                  @click="confirmingId = item.id"
+                >
+                  <ReplaceIcon />
+                  {{ t("docs.findings.supersede") }}
                 </Button>
-                <Button variant="ghost" size="xs" @click="confirmingId = null">{{ t("common.cancel") }}</Button>
-              </template>
-            </div>
-            <FindingEvidenceList
-              v-if="item.evidence.length"
-              :evidence="item.evidence"
-              :subject-title="pageTitle || t('docs.findings.thisPage')"
-              :related-title="item.related_page.title || t('docs.tree.untitled')"
-            />
+                <template v-else>
+                  <span class="text-muted-foreground text-xs">
+                    {{
+                      t("docs.findings.supersedeConfirm", { title: item.related_page.title || t("docs.tree.untitled") })
+                    }}
+                  </span>
+                  <Button
+                    size="xs"
+                    :disabled="busyId !== null"
+                    data-testid="page-findings-supersede-ok"
+                    @click="supersede(item)"
+                  >
+                    {{ t("docs.findings.supersedeOk") }}
+                  </Button>
+                  <Button variant="ghost" size="xs" @click="confirmingId = null">{{ t("common.cancel") }}</Button>
+                </template>
+              </div>
+              <FindingEvidenceList
+                v-if="item.evidence.length"
+                :evidence="item.evidence"
+                :subject-title="pageTitle || t('docs.findings.thisPage')"
+                :related-title="item.related_page.title || t('docs.tree.untitled')"
+              />
+            </template>
+            <!-- A finding about this page alone: a review that is due. -->
+            <template v-else>
+              <div class="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{{ findingTypeLabel(item.type, t) }}</Badge>
+                <span v-if="item.assignee" class="text-muted-foreground text-xs" data-testid="page-findings-assignee">
+                  {{ t("docs.findings.assignee", { name: item.assignee.username || item.assignee.id }) }}
+                </span>
+              </div>
+              <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
+                {{ findingTypeHint(item.type, t) }}
+              </p>
+              <div v-if="canEdit && item.type === 'stale'">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  :disabled="busyId !== null"
+                  data-testid="page-findings-confirm"
+                  @click="confirmReviewed(item)"
+                >
+                  <BadgeCheckIcon />
+                  {{ t("knowledgeHealth.confirm") }}
+                </Button>
+              </div>
+            </template>
           </li>
         </ul>
         <p v-if="otherCount > 0" class="text-placeholder m-0 text-xs">
@@ -118,8 +141,9 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
-import { CopyIcon, GitCompareIcon, ReplaceIcon, XIcon } from "@lucide/vue";
+import { BadgeCheckIcon, CalendarClockIcon, CopyIcon, GitCompareIcon, ReplaceIcon, XIcon } from "@lucide/vue";
 
+import { confirmPageReviewed } from "@/api/docs";
 import { listPageFindings, supersedeFromPage, type PageFinding, type RelatedDocsPage } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
 import { findingTypeHint, findingTypeLabel, formatPercent } from "@/components/findings/findingDisplay";
@@ -149,18 +173,18 @@ const dismissed = ref(false);
 const detailsOpen = ref(false);
 /** The finding whose "supersede" awaits its confirming second click. */
 const confirmingId = ref<string | null>(null);
-const supersedingId = ref<string | null>(null);
+/** The finding an action is on its way to the server for. */
+const busyId = ref<string | null>(null);
 
 /** The other page leaves the knowledge base and every finding naming it
  * goes with it, so the list is fetched again rather than patched. */
 async function supersede(item: PageFinding) {
-  if (supersedingId.value) return;
-  supersedingId.value = item.id;
+  if (busyId.value || !item.related_page) return;
+  const title = item.related_page.title || t("docs.tree.untitled");
+  busyId.value = item.id;
   try {
     await supersedeFromPage(props.pageId, item.id);
-    void MessagePlugin.success(
-      t("docs.findings.superseded", { title: item.related_page.title || t("docs.tree.untitled") }),
-    );
+    void MessagePlugin.success(t("docs.findings.superseded", { title }));
     confirmingId.value = null;
     await load(props.pageId);
   } catch (err) {
@@ -169,13 +193,40 @@ async function supersede(item: PageFinding) {
       msg ? `${t("docs.findings.supersedeFailed")}: ${msg}` : t("docs.findings.supersedeFailed"),
     );
   } finally {
-    supersedingId.value = null;
+    busyId.value = null;
+  }
+}
+
+/** Vouching for the page settles its review at the check that follows; the
+ * finding leaves the notice now, the person having done what it asked. */
+async function confirmReviewed(item: PageFinding) {
+  if (busyId.value) return;
+  busyId.value = item.id;
+  try {
+    await confirmPageReviewed(props.pageId);
+    items.value = items.value.filter((i) => i.id !== item.id);
+    void MessagePlugin.success(t("knowledgeHealth.confirmedPending"));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    void MessagePlugin.error(
+      msg ? `${t("knowledgeHealth.confirmFailed")}: ${msg}` : t("knowledgeHealth.confirmFailed"),
+    );
+  } finally {
+    busyId.value = null;
   }
 }
 
 /** Pages that say nearly what this one says, but not quite: worth more
  * attention than a copy, so the notice leads with them. */
 const divergentCount = computed(() => items.value.filter((i) => i.type === "divergent").length);
+/** Findings about this page and another; the rest are about this page alone. */
+const pairCount = computed(() => items.value.filter((i) => i.related_page).length);
+
+const headline = computed(() => {
+  if (divergentCount.value) return t("docs.findings.noticeDivergent", { count: divergentCount.value });
+  if (pairCount.value) return t("docs.findings.notice", { count: pairCount.value });
+  return t("docs.findings.reviewDue");
+});
 
 const eligible = computed(() => !!props.pageId && !!props.knowledgeBaseId && !props.excluded);
 const visible = computed(() => eligible.value && !dismissed.value && items.value.length > 0);

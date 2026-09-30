@@ -18,6 +18,8 @@ export function findingTypeLabel(type: string, t: Translate): string {
       return t("knowledgeHealth.types.duplicate");
     case "divergent":
       return t("knowledgeHealth.types.divergent");
+    case "stale":
+      return t("knowledgeHealth.types.stale");
     default:
       return type;
   }
@@ -31,6 +33,8 @@ export function findingTypeHint(type: string, t: Translate): string {
       return t("knowledgeHealth.typeHints.duplicate");
     case "divergent":
       return t("knowledgeHealth.typeHints.divergent");
+    case "stale":
+      return t("knowledgeHealth.typeHints.stale");
     default:
       return "";
   }

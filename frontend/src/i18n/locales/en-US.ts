@@ -1644,6 +1644,10 @@ export default {
       namePlaceholder: "Enter knowledge base name",
       descriptionLabel: "Knowledge Base Description",
       descriptionPlaceholder: "Enter knowledge base description (optional)",
+      reviewIntervalLabel: "Periodic review",
+      reviewIntervalUnit: "days (0 turns review off)",
+      reviewIntervalHint:
+        "A document nobody has confirmed or changed for this long is taken to its owner to look at. Changing it, or confirming it is still valid, restarts the clock.",
     },
     wiki: {
       title: "Wiki Settings",
@@ -4928,6 +4932,7 @@ export default {
     types: {
       duplicate: "Duplicate content",
       divergent: "Conflicting details",
+      stale: "Review due",
     },
     severity: {
       info: "Info",
@@ -4969,6 +4974,8 @@ export default {
       duplicate: "The two documents share passages word for word. Keep one and link to it from the other.",
       divergent:
         "The two documents say nearly the same thing but differ in the details; one may be out of date. Check which is right.",
+      stale:
+        "Nobody has confirmed this document within the knowledge base's review period. Confirm it is still right, or change it.",
     },
     resolution: {
       distinct_scope: "Different scope",
@@ -5003,6 +5010,9 @@ export default {
     supersededDeleted: "“{title}” was deleted",
     supersededExcluded: "“{title}” left the knowledge base and is marked superseded",
     supersedeFailed: "Could not supersede",
+    confirm: "Confirm still valid",
+    confirmedPending: "Confirmed; the finding closes at the next check",
+    confirmFailed: "Could not confirm",
     wiki: {
       title: "Wiki lint report",
       pending: "{count} wiki issue(s) waiting for review",
@@ -5051,6 +5061,7 @@ export default {
       supersedeOk: "Confirm",
       superseded: "“{title}” is superseded by this page",
       supersedeFailed: "Could not supersede",
+      reviewDue: "This page is due for review",
       dismiss: "Hide for this session",
     },
     owner: {

@@ -22,6 +22,9 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("@/api/findings", () => api);
 
+const stewardship = vi.hoisted(() => ({ confirmKnowledgeReviewed: vi.fn() }));
+vi.mock("@/api/stewardship", () => stewardship);
+
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("tdesign-vue-next", () => ({ MessagePlugin: toast }));
 
@@ -32,6 +35,7 @@ const mounted: VueWrapper[] = [];
 
 beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
+  stewardship.confirmKnowledgeReviewed.mockReset();
   toast.success.mockReset();
   toast.error.mockReset();
 });
@@ -366,4 +370,25 @@ test("superseding is confirmed with both titles, then the lists are fetched agai
   assert.match(String(toast.success.mock.calls[0][0]), /Doc f1 A.*marked superseded/);
   assert.equal(api.getFindingsSummary.mock.calls.length, 2, "the summary is fetched again");
   assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 0);
+});
+
+test("a document due for review is confirmed from its finding, which then leaves the open list", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary({ open_total: 1, open_by_type: { stale: 1 } }));
+  api.listFindings.mockResolvedValue({
+    items: [finding("f1", { type: "stale", severity: "info", related: null, evidence: [] })],
+    total: 1,
+    page: 1,
+    page_size: 20,
+  });
+  stewardship.confirmKnowledgeReviewed.mockResolvedValue({});
+  const wrapper = await mountView();
+  const row = wrapper.get('[data-testid="finding-item"]');
+  assert.match(row.text(), /Review due/);
+  assert.equal(wrapper.find('[data-testid="finding-supersede"]').exists(), false, "one document: nothing to supersede");
+
+  await wrapper.get('[data-testid="finding-confirm"]').trigger("click");
+  await flushPromises();
+  assert.deepEqual(stewardship.confirmKnowledgeReviewed.mock.calls[0], ["f1-a"]);
+  assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 0);
+  assert.match(wrapper.get('[data-testid="health-summary"]').text(), /0 open/);
 });

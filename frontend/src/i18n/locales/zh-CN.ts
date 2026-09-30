@@ -3120,6 +3120,10 @@ export default {
       namePlaceholder: "请输入知识库名称",
       descriptionLabel: "知识库描述",
       descriptionPlaceholder: "请输入知识库描述（可选）",
+      reviewIntervalLabel: "定期复核",
+      reviewIntervalUnit: "天（0 表示不复核）",
+      reviewIntervalHint:
+        "文档超过这么多天无人确认或修改，就请它的负责人看一眼。修改内容或点“确认仍然有效”都会重新计时。",
     },
     errors: {
       vectorStoreBindingInvalid: "无法使用所选向量存储。请选择其他存储或使用系统默认值。",
@@ -4783,6 +4787,7 @@ export default {
     types: {
       duplicate: "内容重复",
       divergent: "内容有出入",
+      stale: "需要复核",
     },
     severity: {
       info: "提示",
@@ -4822,6 +4827,7 @@ export default {
     typeHints: {
       duplicate: "两篇文档有逐字相同的段落。建议保留一份，另一处改为引用。",
       divergent: "两篇文档说的几乎是同一件事，但细节不一致，其中一份可能已经过时。请核对后以正确的为准。",
+      stale: "超过知识库的复核周期无人确认。请确认内容仍然有效，或修改它。",
     },
     resolution: {
       distinct_scope: "适用范围不同",
@@ -4856,6 +4862,9 @@ export default {
     supersededDeleted: "《{title}》已删除",
     supersededExcluded: "《{title}》已退出知识库，并在页面上标记为已被取代",
     supersedeFailed: "无法取代",
+    confirm: "确认仍然有效",
+    confirmedPending: "已确认，问题会在稍后的检查中关闭",
+    confirmFailed: "无法确认",
     wiki: {
       title: "Wiki 检查报告",
       pending: "{count} 个 Wiki 问题待处理",
@@ -4904,6 +4913,7 @@ export default {
       supersedeOk: "确认",
       superseded: "《{title}》已被本页取代",
       supersedeFailed: "无法取代",
+      reviewDue: "本页需要复核",
       dismiss: "本次会话不再提示",
     },
     owner: {

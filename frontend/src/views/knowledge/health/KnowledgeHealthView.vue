@@ -166,6 +166,7 @@
           @reopen="(f) => changeStatus(f, 'open')"
           @assign="assign"
           @supersede="askSupersede"
+          @confirm="confirmDocument"
         />
       </ul>
 
@@ -269,6 +270,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { confirmKnowledgeReviewed } from "@/api/stewardship";
 import { useAuthStore } from "@/stores/auth";
 
 import FindingItem from "./FindingItem.vue";
@@ -512,6 +514,30 @@ async function assign(finding: Finding, assigneeId: string) {
 }
 
 const currentUserId = () => authStore.user?.id ?? "";
+
+/**
+ * Confirming vouches for the document; the check it schedules resolves the
+ * finding a little later. The finding leaves the open list now, since the
+ * person has done what it asked.
+ */
+async function confirmDocument(finding: Finding) {
+  if (busyIds.value.includes(finding.id)) return;
+  busyIds.value = [...busyIds.value, finding.id];
+  try {
+    await confirmKnowledgeReviewed(finding.subject.knowledge_id);
+    if (statusFilter.value === "open") {
+      items.value = items.value.filter((f) => f.id !== finding.id);
+      total.value = Math.max(0, total.value - 1);
+      adjustOpenCount(finding.type, -1);
+      if (summary.value) emit("summary-change", summary.value);
+    }
+    MessagePlugin.success(t("knowledgeHealth.confirmedPending"));
+  } catch (err) {
+    MessagePlugin.error(errorText(err, t("knowledgeHealth.confirmFailed")));
+  } finally {
+    busyIds.value = busyIds.value.filter((id) => id !== finding.id);
+  }
+}
 
 interface PendingSupersede {
   finding: Finding;

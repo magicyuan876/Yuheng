@@ -797,6 +797,14 @@ export async function setPageOwner(pageId: string, ownerId: string): Promise<Pag
   return unwrap<PageView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/owner`, { owner_id: ownerId }));
 }
 
+/**
+ * Backend: POST /api/v1/docs/pages/:pid/review (page writer). Vouches for the page as it stands,
+ * restarting its review clock in the knowledge base.
+ */
+export async function confirmPageReviewed(pageId: string): Promise<void> {
+  unwrap<unknown>(await post(`${base}/pages/${encodeURIComponent(pageId)}/review`, {}));
+}
+
 // ---- templates ---------------------------------------------------------------
 
 /**

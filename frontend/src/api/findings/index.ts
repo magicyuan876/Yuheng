@@ -12,7 +12,7 @@ import { get, patch, post, put } from "@/utils/request";
 /** Finding types this build has a label for. The type field stays a plain
  * string because other editions add detectors (e.g. "contradiction") that an
  * older frontend must still be able to list, under their raw name. */
-export type KnownFindingType = "duplicate" | "divergent";
+export type KnownFindingType = "duplicate" | "divergent" | "stale";
 export type FindingSeverity = "info" | "warning" | "error";
 export type FindingStatus = "open" | "dismissed" | "resolved";
 /** What the list can be filtered by: one status, or every status at once. */
@@ -124,7 +124,8 @@ export interface PageFinding {
   severity: FindingSeverity;
   score: number;
   overlap_ratio: number;
-  related_page: RelatedDocsPage;
+  /** The other page; null for a finding about this page alone (a review that is due). */
+  related_page: RelatedDocsPage | null;
   evidence: FindingEvidence[];
   assignee?: PersonRef | null;
 }

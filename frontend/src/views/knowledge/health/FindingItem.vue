@@ -97,6 +97,19 @@
         <!-- A host's own actions, e.g. "go and deal with it" in the to-do
              list, where the finding is read rather than acted on. -->
         <slot name="actions" />
+        <!-- A document due for review is settled by somebody vouching for
+             it; the finding closes at the check that follows. -->
+        <Button
+          v-if="canEdit && finding.status === 'open' && CONFIRMABLE.has(finding.type)"
+          variant="outline"
+          size="xs"
+          :disabled="busy"
+          data-testid="finding-confirm"
+          @click="emit('confirm', finding)"
+        >
+          <BadgeCheckIcon />
+          {{ t("knowledgeHealth.confirm") }}
+        </Button>
         <!-- Keeping one of two alike documents and taking the other out of
              the knowledge base: the resolution a copy or an out-of-date
              account usually needs. The view confirms before anything goes. -->
@@ -175,6 +188,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   ArrowLeftRightIcon,
+  BadgeCheckIcon,
   ChevronDownIcon,
   EyeOffIcon,
   ReplaceIcon,
@@ -218,6 +232,8 @@ const emit = defineEmits<{
   assign: [finding: Finding, assigneeId: string];
   /** Keep this document, take the other out of the knowledge base. */
   supersede: [finding: Finding, keepKnowledgeId: string];
+  /** Vouch for the finding's document as it stands. */
+  confirm: [finding: Finding];
 }>();
 
 const DISMISS_REASONS: FindingDismissReason[] = ["distinct_scope", "intentional"];
@@ -226,6 +242,9 @@ const { t } = useI18n();
 const expanded = ref(false);
 
 const typeHint = computed(() => findingTypeHint(props.finding.type, t));
+
+/** The kinds of finding a person settles by confirming the document is still right. */
+const CONFIRMABLE = new Set(["stale"]);
 
 /** The kinds of finding that are settled by keeping one of their two documents. */
 const SUPERSEDABLE = new Set(["duplicate", "divergent"]);
