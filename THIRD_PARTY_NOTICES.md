@@ -28,7 +28,7 @@ cutting a release: it carries the blocking items.
 
 | Asset | Origin | License |
 |---|---|---|
-| `docs/images/*`, `frontend/src/assets/img/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
+| `frontend/src/assets/img/*` (except `yuheng-mark.svg`) | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
 | `skills/preloaded/*` | Inherited from upstream WeKnora | MIT, as part of the upstream repository |
 | `internal/types/opencc/TSPhrases.txt`, `TSCharacters.txt` | [OpenCC](https://github.com/BYVoid/OpenCC) (Open Chinese Convert), © BYVoid and contributors | Apache-2.0 — copied unmodified; license text in `internal/types/opencc/LICENSE`, provenance in the README beside it |
 | `third_party/anydoc-go/` | github.com/firecrawl/anydoc | MIT — Copyright (c) 2026 Sideguide Technologies Inc.; see `third_party/anydoc-go/LICENSE` |

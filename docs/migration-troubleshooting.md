@@ -116,17 +116,23 @@ repair it by hand:
    and open `migrations/versioned/<N>_*.up.sql`. Which statements were applied?
 2. Undo or finish those statements yourself with `psql`, or restore the backup
    you took before upgrading.
-3. Set the version table to the last migration that fully applied (usually
-   `N - 1`), then re-run:
+3. Set the version table to the last migration that fully applied, which is
+   the **previous version that exists** in `migrations/versioned/`, then
+   re-run. That is not always `N - 1`: the numbering has a gap (000090–000119
+   are unused because the online-documents module reserved 000120–000139), so
+   for a dirty 000120 the previous version is **89**. golang-migrate cannot
+   continue from a version that has no file, so `force 119` would leave you
+   stuck. The startup error prints the right number for you.
 
    ```bash
    make migrate-version            # confirm what is recorded
-   make migrate-force version=<N-1>
+   make migrate-force version=<previous version>
    make migrate-up                 # optional: apply pending migrations now
    ```
 
-   In the app container: `docker exec Yuheng-app ./scripts/migrate.sh force <N-1>`
-   (the script reads `DB_*` from the container environment).
+   In the app container: `docker exec Yuheng-app ./scripts/migrate.sh force <previous version>`
+   (the image carries `scripts/`, `migrations/` and the `migrate` CLI; the
+   script reads `DB_*` from the container environment).
 4. Restart Yuheng.
 
 **`AUTO_RECOVER_DIRTY=true`** (default `false`) makes the server do step 3 by

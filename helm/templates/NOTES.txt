@@ -116,7 +116,7 @@ Access Neo4j Browser:
 --------------------------------------------------------------------------------
 
   GitHub:  https://github.com/magicyuan876/yuheng
-  API Docs: https://github.com/magicyuan876/yuheng/blob/main/docs/api/README.md
+  API Docs: https://github.com/magicyuan876/yuheng/blob/main/website-docs/04-api/01-api-overview.md
   FAQ:     https://github.com/magicyuan876/yuheng/blob/main/docs/QA.md
 
 --------------------------------------------------------------------------------

@@ -17,7 +17,7 @@ docker compose down
 docker compose down && make clean-db
 ```
 
-`scripts/start_all.sh` 默认会先拉取镜像（`--no-pull` 可跳过），而本版本没有可拉取的镜像，所以这里不推荐使用。
+也可以用 `scripts/start_all.sh`：它默认不拉取镜像、在本机构建（`--pull` 才会拉取，而本版本没有可拉取的镜像）。完整的部署方式见[安装部署](../website-docs/01-getting-started/02-installation.md)。
 
 ## 3. 服务启动后无法正常上传文档？
 
@@ -33,7 +33,7 @@ docker compose down && make clean-db
 
 ### 1. 确认多模态功能已正确配置
 
-在知识库设置中开启**高级设置 - 多模态功能**，并在界面中配置相应的多模态模型。
+在知识库设置「索引与解析」分组的**图像处理**页开启多模态，并选好视觉（VLM）模型。
 
 ### 2. 确认对象存储可用
 
@@ -55,7 +55,7 @@ S3_ADDRESSING_STYLE=path
 
 ### 3. 检查 Bucket 与凭据
 
-1. 在 **设置 → 存储后端** 里对当前配置点「测试连接」，或调用 `POST /system/storage-engine-check`，根据返回的 `message` 定位问题
+1. 在 **设置 → 存储引擎** 里对当前后端点「测试」，或调用 `POST /api/v1/system/storage-engine-check`，根据返回的 `message` 定位问题。存储配置的完整说明见[存储后端](../website-docs/03-features/19-storage-backends.md)
 2. 确认 `S3_BUCKET_NAME` 对应的 bucket 可读写。bucket 不存在时，首次使用会自动创建
 3. 使用云厂商（阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS）时，`S3_ADDRESSING_STYLE` 必须设为 `virtual`，否则请求会被拒绝
 
@@ -65,33 +65,17 @@ S3_ADDRESSING_STYLE=path
 
 ### 4. 图片链接无法从其他设备访问
 
-图片默认以内部引用（`resource://`）保存，浏览器通过带登录态的 `/files` 代理读取，不依赖对象存储对外可达。如果需要生成外部可访问的直链，请配置 `APP_EXTERNAL_URL`，或让 S3 endpoint 本身公网可达。`S3_ENDPOINT` 使用 `localhost` 或容器内地址时，其他设备无法直接访问该地址。
+图片默认以内部引用（`resource://`）保存，浏览器通过带登录态的 `/files` 代理读取，不依赖对象存储对外可达。如果需要生成外部可访问的直链，请配置 `APP_EXTERNAL_URL`，或让 S3 endpoint 本身公网可达。`S3_ENDPOINT` 使用 `localhost` 或容器内地址时，其他设备无法直接访问该地址。详见[图片与文件的对外访问](../website-docs/03-features/21-file-access.md)。
 
-## 5. 平台兼容性说明
+## 5. 扫描件或图片里的文字没有被识别出来？
 
-**重要提示**：`OCR_BACKEND=paddle` 模式在部分平台上可能无法正常运行。如果遇到 PaddleOCR 启动失败的问题，请选择以下解决方案
+docreader 本身不做 OCR，图片与扫描件的文字识别由主服务调用视觉模型（VLM）完成。旧版本里 docreader 的 `OCR_BACKEND`（PaddleOCR / `no_ocr` / `vlm`）等变量已经不存在，设置它们没有效果。按下面检查：
 
-### 方案一：关闭 OCR 识别
+1. 知识库开启了**图像处理**并配置了视觉模型（见上一条）；
+2. 扫描件或网页打印的 PDF，在上传确认对话框里勾选「按扫描件解析 PDF」，逐页渲染后由视觉模型识别；
+3. 版式复杂的 PDF 可以在知识库「解析引擎」里换引擎（MarkItDown、OpenDataLoader，或配置好的 MinerU / PaddleOCR-VL 服务）。
 
-在 `docker-compose.yml` 文件的 `docreader` 服务中删除 `OCR_BACKEND` 配置，然后重启 docreader 服务
-
-**注意**：设置为 `no_ocr` 后，文档解析将不会使用 OCR 功能，这可能会影响图片和扫描文档的文字识别效果。
-
-### 方案二：使用外部 OCR 模型（推荐）
-
-如果需要 OCR 功能，可以使用外部的视觉语言模型（VLM）来替代 PaddleOCR。在 `docker-compose.yml` 文件的 `docreader` 服务中配置：
-
-```yaml
-environment:
-  - OCR_BACKEND=vlm
-  - OCR_API_BASE_URL=${OCR_API_BASE_URL:-}
-  - OCR_API_KEY=${OCR_API_KEY:-}
-  - OCR_MODEL=${OCR_MODEL:-}
-```
-
-然后重启 docreader 服务
-
-**优势**：使用外部 OCR 模型可以获得更好的识别效果，且不受平台限制。
+详见[文档解析服务](../website-docs/03-features/03-document-parsing.md)。
 
 ## 6. 页面里刚保存的配置几秒后又消失了？
 
@@ -121,7 +105,7 @@ docker compose restart app
 - **IPv6**：如 `2001:db8::1`（不要带方括号）
 - **CIDR**：如 `10.0.0.0/8`、`2001:db8::/32`
 
-列入白名单的地址会在 URL 校验等处绕过常规 SSRF 规则，**生产环境请谨慎配置**，仅加入确实需要且可信的目标。
+列入白名单的地址会在 URL 校验等处绕过常规 SSRF 规则，**生产环境请谨慎配置**，仅加入确实需要且可信的目标。系统管理员也可以在「设置 → 系统管理 → 系统设置」里修改 `ssrf.whitelist`，立即生效，且数据库里的值优先于环境变量；compose 默认通过 `SSRF_WHITELIST_EXTRA=searxng,rustfs` 放行自带服务，这个变量只能由部署方设置。
 
 示例（与 `.env.example` 一致，可按需取消注释并修改）：
 
@@ -132,42 +116,38 @@ docker compose restart app
 
 ## 8. 如何开启和查看 Langfuse 可观测性追踪？
 
-Yuheng 支持通过 Langfuse 对 RAG 检索管道、大模型 Token 消耗以及异步任务流水线进行全链路追踪。
+Yuheng 可以把问答、检索、文档入库的完整调用链与各类模型调用的 token 用量上报到 Langfuse（Langfuse Cloud，或用 compose 的 `langfuse` profile 自建）。
 
-**开启步骤**：
-1. 准备一个可用的 Langfuse 实例（支持云端版或私有部署版）。
-2. 在 `.env` 文件中配置以下环境变量：
-```bash
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
-LANGFUSE_HOST=https://cloud.langfuse.com # 或你的私有部署地址
-```
-3. 重启服务后，系统会自动对所有支持的模型调用和问答请求进行追踪，你可以在 Langfuse 的 Traces 面板中直观地看到每次对话和后台任务的详细执行瀑布图与 Token 统计。
+在 `.env` 里同时填上 `LANGFUSE_PUBLIC_KEY` 与 `LANGFUSE_SECRET_KEY` 即启用；接 Langfuse Cloud 时不用设 `LANGFUSE_HOST`，自建时设为 `http://langfuse-web:3000`。重启 app 后启动日志出现 `[Langfuse] enabled ...` 即接通，之后在 Langfuse 的 Traces 页查看每次对话与后台任务的调用树与 token 统计。
+
+自建步骤、全部调优变量、token 口径与排查见[可观测性与审计 · 接入 Langfuse](../website-docs/03-features/16-observability.md#langfuse-setup)。
 
 ## 9. 什么是 Wiki 模式？如何使用？
 
-Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链接的 Markdown Wiki 知识库，从而实现复杂知识的体系化沉淀和图谱化。
+Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链接的 Markdown Wiki 页面，把零散资料整理成可以浏览的知识站点。
 
 **使用方法**：
-1. 进入指定**知识库的设置** -> **索引策略 (Indexing Strategy)**。
-2. 开启 **Wiki** 索引功能（可同时结合开启**知识图谱**）。
-3. 当你向该知识库上传文档时，系统会自动触发异步任务，通过大模型提取文档中的实体与核心概念，并自动生成结构化的 Wiki 页面及页面间的知识图谱链接。
-4. 你可以在该知识库的“Wiki”标签页中，使用专用的 Wiki 浏览器查阅、管理页面，并通过可视化的知识图谱查看不同内容之间的关联关系。
+1. **新建知识库时**在「基本信息 → 索引策略」里勾选「Wiki 知识库」。知识库里已经有内容时索引策略被锁定，所以要在上传文档前决定。
+2. 按需调整提取粒度、内容生成要求与提取重点，以及「模型配置」里的 Wiki 合成模型。
+3. 上传文档后，系统异步用大模型抽取实体与概念，生成页面及页面之间的链接。
+4. 在知识库的「Wiki」页签浏览、编辑页面（每次修改都留版本、可回滚），「图谱」页签查看页面之间的链接关系。这张图是 Wiki 页面的引用关系，与需要 Neo4j 的「知识图谱」（实体关系图）不是一回事。
 
-## 10. 升级到 0.6.0 后，原本能做的操作变成了「权限不足」？
+详见 [Wiki 能力](../website-docs/03-features/14-wiki.md)。
 
-0.6.0 引入了空间内 RBAC（角色矩阵 + 资源归属），所有写入接口都会按角色 + `creator_id` 鉴权。常见现象：
+## 10. 原本能做的操作提示「权限不足」？
 
-- **看得到但点不动**：你大概率是该资源的 `Viewer` 或非创建者的 `Contributor`，UI 已经把写操作隐藏/置灰。检查 **用户菜单 → 当前工作区** 角色徽章。
-- **共享空间里的 KB**：他人共享给你的 KB 默认按 `Viewer` 看待；要写需要在源空间里被授予 `Admin+`。
-- **API Key 调用**：`X-API-Key` 合成虚拟用户固定为所属空间的 `Admin`（仅删除空间需 `Owner`），脚本一般无需迁移。
-- **跨空间超管**：要 `User.CanAccessAllTenants=true` 且 `enable_cross_tenant_access=true`，并通过 `X-Tenant-ID` 切空间。
+空间内有 RBAC（角色矩阵 + 资源归属），写入接口会按角色与资源创建者鉴权。常见现象：
 
-如需临时回退到「仅审计、不拦截」灰度窗口，可在配置里设置 `tenant.enable_rbac=false`（或环境变量 `YUHENG_TENANT_ENABLE_RBAC=false`）。完整的角色矩阵和归属链请见 [`docs/RBAC说明.md`](./RBAC说明.md)。
+- **看得到但点不动**：你大概率是该资源的 `Viewer`，或不是创建者的 `Contributor`，界面已经把写操作隐藏或置灰。
+- **共享空间里的知识库**：别人共享给你的知识库按共享时授予的权限（只读或可编辑）处理。
+- **API Key 调用**：API Key 不沿用成员角色，而是按它被授予的能力（capability）与知识库白名单授权，未声明策略的接口默认拒绝；报 403 时检查这把 Key 是否有对应能力。
+- **跨空间超管**：需要 `User.CanAccessAllTenants=true` 且配置 `enable_cross_tenant_access=true`，并通过 `X-Tenant-ID` 切换空间。
+
+需要临时回退到「只记录、不拦截」时，可设置 `tenant.enable_rbac=false`（或环境变量 `YUHENG_TENANT_ENABLE_RBAC=false`）。角色矩阵与 API Key 能力见[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)。
 
 ## 11. 为什么登录后没有自动回到上次的工作区？
 
-升级到 0.6.0 后系统会记住「最后活跃工作区」并在登录后自动恢复。若仍未恢复，通常是：
+系统会记住「最后活跃工作区」（`last_active_tenant_id`）并在登录后自动恢复。若仍未恢复，通常是：
 
 1. 浏览器清理了 LocalStorage / 切换了浏览器；
 2. 你最后访问的那个工作区已经把你移除（`/leave` 或被管理员剔除）— 系统会回退到默认空间；
@@ -175,26 +155,25 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 ## 12. 如何让多人协作时正确分配权限？
 
-按照 [`docs/RBAC说明.md`](./RBAC说明.md) 的角色矩阵：
+按照[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)里的角色矩阵：
 
 - 只读用户 → `Viewer`
 - 普通成员（上传文档、维护「自己」的 KB）→ `Contributor`
 - 运维人员（管理共享模型、向量库、解析器等基础设施）→ `Admin`
 - 空间所有者（拥有删除空间权限；每空间至少一位，可以有多位，最后一位不能被降级或移除）→ `Owner`
 
-如果你希望开启「invite-only」（不允许自助注册到本空间），可在空间设置里打开邀请制，并通过「邀请」入口签发邀请码或链接。
+成员通过空间的「邀请」入口加入。是否允许公网自助注册是平台级设置：系统管理员把 `auth.registration_mode` 设为 `invite_only` 即可关闭公网注册，只能凭邀请加入（见[平台管理与系统管理员](../website-docs/03-features/20-platform-admin.md)）。
 
 ## 13. 文档解析卡在「处理中」/ 解析追踪时间线打不开怎么办？
 
-0.6.1 起每个文档解析都会记录一棵 Langfuse 风格的 Span 树（`knowledge_processing_spans` 表），可在知识库卡片菜单或卡片上的「Trace」入口打开侧边时间线，逐阶段查看进度。常见情况：
+每个文档的解析都会记录一棵阶段树（`knowledge_processing_spans` 表，接口 `GET /api/v1/knowledge/:id/spans`），在文档的「查看 Trace」入口打开侧边时间线，逐阶段查看进度。常见情况：
 
-- **文档长时间停在「处理中」**：先打开时间线看是哪个阶段没有推进（解析 / 切分 / 向量化 / 后处理）。0.6.1 已修复多数「卡死」场景，并加入看门狗轮询；如确认是某次解析挂死，可在时间线面板点击「中止解析」，文档会进入 finalizing 后处理状态后结束。
-- **时间线一直显示「更新中」但无数据**：通常是轮询请求静默失败（网络 / 反向代理截断 SSE）。0.6.1 会显式暴露轮询失败，刷新页面或检查 Nginx 是否缓冲了响应即可。
-- **升级后没有时间线数据**：确认数据库迁移 `000055_knowledge_processing_spans`、`000056_knowledge_pending_subtasks` 已执行（服务启动会自动迁移）。
+- **文档长时间停在「处理中」**：先打开时间线看是哪个阶段没有推进（解析 / 切分 / 向量化 / 后处理）。确认某次解析挂死时，可以「停止解析」（`POST /api/v1/knowledge/:id/cancel-parse`）后再重新解析。积压的后台任务也可以在「设置 → 系统管理 → 任务队列」查看。
+- **时间线一直显示「更新中」但无数据**：通常是轮询请求失败（网络或反向代理问题），刷新页面，或检查反向代理是否缓冲、截断了响应。
 
 ## 14. 能否改用 Elasticsearch / OpenSearch / Milvus / Qdrant 等外部向量库？
 
-社区版只支持一种检索引擎：带 ParadeDB（`pg_search`，BM25）与 pgvector 的 PostgreSQL，即 `RETRIEVE_DRIVER=postgres`。Elasticsearch、OpenSearch、Milvus、Weaviate、Qdrant、Doris、腾讯云 VectorDB 的驱动已从社区版移除，`docker-compose.yml` 也不再带对应服务与环境变量；「设置 → 向量库」的注册机制仍在，但社区版没有可注册的引擎。
+只支持一种检索引擎：带 ParadeDB（`pg_search`，BM25）与 pgvector 的 PostgreSQL，即 `RETRIEVE_DRIVER=postgres`。Elasticsearch、OpenSearch、Milvus、Weaviate、Qdrant、Doris、腾讯云 VectorDB 的驱动已经移除，`docker-compose.yml` 也不再带对应服务与环境变量；「设置 → 向量数据库引擎」的注册机制仍在，但没有其他可注册的引擎。详见[检索引擎与向量存储](../website-docs/03-features/05-retrieval-engines.md)。
 
 如果启动时报错，提示 PostgreSQL 缺少 `vector` 或 `pg_search` 扩展，说明所连数据库不是 `docker-compose.yml` 使用的 ParadeDB 镜像。处理办法二选一：
 
@@ -203,32 +182,33 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 ## 15. 内置模型（builtin models）如何用 YAML 声明式管理？
 
-0.6.1 起平台内置模型由 `config/builtin_models.yaml` 声明式驱动，支持 `${ENV}` 变量插值，并通过 `managed_by` 字段与漂移巡检保持数据库与 YAML 一致。常见问题：
+平台内置模型由 `config/builtin_models.yaml` 声明式驱动，支持 `${ENV}` 变量插值，并通过 `managed_by` 字段与漂移巡检保持数据库与 YAML 一致。常见问题：
 
 - **改了 YAML 不生效**：内置模型在服务启动时做生命周期对账（drift sweep）；确认重启了服务，且条目通过了 schema 校验（ID 长度、必填字段）。
 - **Docker 下环境变量未注入**：`builtin_models` 依赖 `env_file` 数组形式注入变量，确认 compose 中按数组形式挂载了 `.env`。
 - 参考样例：`config/builtin_models.yaml.example`。
+- 系统管理员在界面上保存过某个内置模型后，该行不再由 YAML 托管，之后改 YAML 不会覆盖它；界面也不能删除仍由 YAML 托管的行。
 
 ## 16. 系统管理员（System Admin）与平台设置怎么用？
 
-0.6.1 引入了系统管理员与统一平台设置面板（含平台审计日志），与空间内 RBAC 区分：系统管理员管理的是「平台级」配置，而非单个空间内的资源。首次启用需通过系统管理员 bootstrap 流程晋升首个管理员；撤销管理员权限有安全防护（避免误撤导致无人可管）。相关迁移为 `000053_system_admin_and_settings`。
+系统管理员管理的是整个部署（全局系统设置、任务队列、平台 API Key、平台审计、集中管控基础设施），与空间内的角色分开。默认的注册模式下，**部署的第一个注册用户自动成为系统管理员**；之后在「设置 → 系统管理 → 系统设置」里提升或撤销其他管理员。第一个用户不合适时，可以在没有任何系统管理员时用 `YUHENG_BOOTSTRAP_SYSTEM_ADMIN_EMAIL` 引导。撤销有防护：不能撤销自己，也不能撤销最后一个系统管理员。详见[平台管理与系统管理员](../website-docs/03-features/20-platform-admin.md)。
 
 ## 17. 上传时如何自定义解析配置（process_config）？
 
-0.6.2 起，文件 / URL / 文件夹上传可携带 `process_config`（`KnowledgeProcessOverrides`），在**本次批次**内覆盖知识库默认的解析引擎、分块、多模态（VLM / ASR）、问题生成、图谱抽取等设置，而不会改动 KB 全局配置。Web UI 在上传前会弹出确认对话框供调整；API 与 `yuheng doc upload` 传同名 JSON 即可。
+文件 / URL / 文件夹上传可携带 `process_config`（`KnowledgeProcessOverrides`），在**本次批次**内覆盖知识库默认的解析引擎、分块、多模态（VLM / ASR）、问题生成、图谱抽取等设置，而不会改动 KB 全局配置。Web UI 在上传前会弹出确认对话框供调整；调 API 时在上传表单里带 `process_config` 字段（JSON 字符串）即可，`yuheng doc upload` 目前没有对应参数。
 
 - **与 KB 默认配置的关系**：未传的字段沿用 KB 默认值；`graph_enabled` 仅在 `extract_config.enabled` 为 true 时生效。
 - **重新解析**：`POST /knowledge/:id/reparse` 可在 body 中传 `process_config` 以新配置重跑解析，覆盖项会写入 `knowledge.metadata.process_overrides`。
 - **图片 / 音频校验**：批次含图片时需 KB 已配置 VLM；含音频时需已配置 ASR，否则上传会被拒绝。
-- 详见 [`docs/api/knowledge.md`](./api/knowledge.md)。
+- 详见 [知识 API](../website-docs/04-api/02-api-knowledge.md)。
 
 ## 18. pgvector 检索变慢或刚升级后需要做什么？
 
-0.6.2 新增迁移 `000059_embeddings_hnsw_1024`，为 **1024 维** embedding（如 bge-m3）在 PostgreSQL pgvector 上创建 HNSW 索引。服务启动会自动执行迁移；若你使用其他维度，该索引可能不适用，需按自身 embedding 维度另行调优。升级后首次大批量入库期间索引构建可能占用额外 I/O，属正常现象。
+迁移 `000059_embeddings_hnsw_1024`，为 **1024 维** embedding（如 bge-m3）在 PostgreSQL pgvector 上创建 HNSW 索引。服务启动会自动执行迁移；若你使用其他维度，该索引可能不适用，需按自身 embedding 维度另行调优。升级后首次大批量入库期间索引构建可能占用额外 I/O，属正常现象。
 
 ## 19. 文档如何设置多个标签？
 
-0.6.3 将文档标签从单选升级为**多标签**（迁移 `000063_knowledge_multi_tags`）。在知识库列表可为文档打多个标签，侧边栏支持按标签筛选；**标签管理**抽屉可批量维护标签。API 上传 / 更新知识时传 `tag_ids` 数组（取代旧的单 `tag_id`）。
+文档标签支持**多标签**（迁移 `000063_knowledge_multi_tags`）。在知识库列表可为文档打多个标签，侧边栏支持按标签筛选；**标签管理**抽屉可批量维护标签。API 上传 / 更新知识时传 `tag_ids` 数组（取代旧的单 `tag_id`）。
 
 ## 20. 如何批量重新解析文档？
 
@@ -236,59 +216,60 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 ## 21. RSS 数据源如何配置？
 
-0.6.3 新增 **RSS / Atom** 连接器。在知识库 **设置 → 数据源** 中选择 RSS，填写 Feed URL 与同步策略即可全量 / 增量拉取正文入库。若部分条目失败，同步日志会展示 partial failure 详情；编辑数据源保存配置**不会**自动触发同步，需手动点同步。
+在知识库设置「存储与数据 → 数据源」中选择「RSS / Atom 订阅」，每行填一个订阅源地址，再设同步策略即可全量 / 增量拉取正文入库（私有订阅源可配自定义请求头）。若部分条目失败，同步日志会展示 partial failure 详情；编辑数据源保存配置**不会**自动触发同步，需手动点同步。所有连接器的说明见[数据源导入](../website-docs/03-features/10-datasource.md)。
 
 ## 22. Embedding 维度如何覆盖？
 
-在 **设置 → 模型** 编辑 Embedding 模型时可填写 **dimensions** 覆盖值（如 1024、1536）。0.6.3 修复了部分提供商请求未携带 `dimensions` 的问题（#1654）。若向量库索引维度与模型不一致，检索可能异常，请保持 KB 绑定向量库与模型维度一致。
+在 **设置 → 模型管理** 编辑 Embedding 模型时可填写 **dimensions** 覆盖值（如 1024、1536）。若向量库索引维度与模型不一致，检索可能异常，请保持 KB 绑定向量库与模型维度一致。
 
 ## 23. 如何创建并限制权限范围 API Key？
 
-Yuheng 采用**权限范围 API Key 与 Principal 模型**（迁移 `000064_principal_model`、`000065_tenant_api_keys`）。API Key 不再等同于某个人类用户，而是独立的 Principal，携带显式角色与能力（capability）授权：
+API Key 是独立的机器主体，不等同于某个用户：它要么是全量权限（full access），要么携带显式的能力（capability）集合，并可以限定到指定知识库。
 
-- 在 **设置 → API 集成**（Owner 可见）中创建 Key，可勾选能力（如 `manage_kbs` 覆盖 KB 全生命周期、`manage_storage_backends` 等），并可限制到指定知识库。
+- 空间 Owner 通过 `POST /api/v1/tenants/:id/api-keys` 创建（列出、修改、删除同在该路径下），可勾选能力（如 `retrieve`、`chat`、`ingest`、`manage_kbs`、`manage_storage_backends`）并限定知识库。
+- 路由按声明的策略放行，未声明策略的接口对 API Key 默认拒绝；给集成用具备所需能力的受限 Key，而不是全量 Key。
 - Key 的 `last_used_at` 按节流更新，避免高频写库。
-- 路由级守卫会拒绝越权访问；管理类接口对 API Key Principal 默认拒绝，请为集成使用具备对应能力的 Key，而非全权 Key。
-- MCP OAuth 与嵌入会话按 Principal 隔离，不同集成之间互不串号。
+
+能力清单与知识库白名单见[租户、用户与认证授权](../website-docs/03-features/01-tenant-auth.md)的「API Key 体系」。
 
 ### 如何用一个 API Key 自动化管理多个空间？
 
-SystemAdmin 可在 **系统管理 → 平台 API Key** 创建 `scope_type=platform` 的 Key。平台 Key 不绑定单一空间：调用普通空间 API 时必须携带 `X-Tenant-ID`，并继续受原有 capability 和知识库范围守卫约束；调用开放的系统控制面接口则需要对应的 `system_*` capability。平台 Key 不支持 `full_access`，也不能创建、轮换或吊销其他平台 Key。
+系统管理员可在 **设置 → 系统管理 → 平台 API Key** 创建 `scope_type=platform` 的 Key。平台 Key 不绑定单一空间：调用普通空间 API 时必须携带 `X-Tenant-ID`，并继续受原有 capability 和知识库范围守卫约束；调用开放的系统控制面接口则需要对应的 `system_*` capability。平台 Key 不支持 `full_access`，也不能创建、轮换或吊销其他平台 Key。
 
 ## 24. 一个空间如何绑定多个对象存储实例？
 
 Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。一个空间可注册多个存储实例（`local` / `s3`，MinIO、RustFS、AWS S3、阿里云 OSS、腾讯云 COS 等都用 `s3` 接入），不同知识库绑定到不同实例，空间维度还有一个默认实例：
 
-- 在 **设置 → 存储后端** 创建/测试/设为默认（需 Admin+；API Key 需 `manage_storage_backends` 能力）。
+- 在 **设置 → 存储引擎** 创建/测试/设为默认（需 Admin+，开启集中管控后创建与修改仅限系统管理员；API Key 需 `manage_storage_backends` 能力）。
 - 未显式绑定的新知识库使用空间默认实例；响应中的 `access_key_id` / `secret_access_key` 会被掩码，更新时提交掩码占位符不会覆盖库中真实凭据。
-- 若创建知识库时提示存储引擎不可用，请确认目标 provider 在 `STORAGE_ALLOW_LIST` 允许范围内。详见 [`docs/api/storage-backend.md`](./api/storage-backend.md)。
+- 若创建知识库时提示存储引擎不可用，请确认目标 provider 在 `STORAGE_ALLOW_LIST` 允许范围内。详见[存储后端](../website-docs/03-features/19-storage-backends.md)与[存储后端 API](../website-docs/04-api/02-api-infra.md)。
 
 ## 25. 后台解析/入库任务积压或需要排查失败任务怎么办？
 
 系统管理员可使用**运行时任务队列面板**与 **Worker 池治理**。文档处理从单一聚合池改为分阶段独立池（core / 后处理 / enrichment / maintenance）+ 弹性共享池，Wiki 独立治理：
 
-- 在 **系统设置 → 运行时队列** 查看队列深度、按模型并发统计、失败任务详情，并可手动重试。
+- 在 **设置 → 系统管理 → 任务队列** 查看队列深度、按模型的后台并发、失败任务详情，并可重试、删除或清空归档任务。
 - 可通过 `YUHENG_ASYNQ_*_CONCURRENCY` 与 `asynq.*_concurrency` 系统设置调整各池并发（需重启服务）；`model.max_concurrency` 用于约束单模型后台并发。
-- 详见 [`docs/worker-pool-governance.md`](./worker-pool-governance.md)。注意：Worker 并发只是调度预算，仍受模型配额、DocReader 容量、向量库与数据库连接数限制。
+- 详见 [异步任务系统 · 配置与容量规划](../website-docs/02-architecture/05-async-tasks.md)。注意：Worker 并发只是调度预算，仍受模型配额、DocReader 容量、向量库与数据库连接数限制。
 
 ## 26. 对话中如何临时上传图片/文档做一次性问答？
 
-支持**会话级临时附件**（迁移 `000070_temporary_documents`）。在对话输入区上传图片或文档，系统异步解析后仅用于当前会话的问答，不会写入知识库。图片与附件共享一个合并数量上限；附件内容会在多轮对话中保留。
+支持**会话级临时附件**（迁移 `000070_temporary_documents`）。在对话输入区上传图片或文档，系统异步解析后仅用于当前会话的问答，不会写入知识库。图片与附件共享一个合并数量上限；附件内容会在多轮对话中保留，解析产物默认 24 小时后清理（`YUHENG_CHAT_ATTACHMENT_TTL_HOURS`）。详见[会话与对话体验](../website-docs/03-features/18-chat-experience.md)。
 
 ## 27. 如何为 Redis 启用 TLS？
 
-支持 Redis 的 **TLS 连接**（#1930）。按环境变量启用 TLS 后，启动日志会打印 TLS 配置状态便于确认。若连接失败，请核对证书/CA 配置与 Redis 服务端是否要求 TLS。
+支持 Redis 的 **TLS 连接**（如 AWS ElastiCache）：设置 `REDIS_USE_TLS=true`；地址是 IP 时用 `REDIS_TLS_SERVER_NAME` 指定证书校验与 SNI 的服务器名；`REDIS_TLS_INSECURE_SKIP_VERIFY=true` 跳过证书校验，只用于开发或自签证书。启动日志会打印 TLS 配置状态便于确认。若连接失败，请核对证书与 Redis 服务端是否要求 TLS。
 
 ## 28. 如何使用火山引擎 Rerank / 智谱 AI 网络搜索？
 
 支持两个供应商：
 
-- **火山引擎 Rerank**：在 **设置 → 模型** 中添加 Rerank 模型并选择火山引擎。当单次请求文档数超过 API 上限时，客户端会自动分批发送并合并结果。vLLM Rerank 现默认不再发送 `truncate_prompt_tokens` 以提升兼容性。
-- **智谱 AI 网络搜索**：在 **设置 → 网络搜索** 中选择智谱 AI 作为搜索供应商并填写凭据即可，用于问答联网检索。
+- **火山引擎 Rerank**：在 **设置 → 模型管理** 中添加 Rerank 模型并选择火山引擎。当单次请求文档数超过 API 上限时，客户端会自动分批发送并合并结果。
+- **智谱 AI 网络搜索**：在 **设置 → 网络搜索** 中添加智谱搜索并设为默认。注意 Web 对话界面目前不会打开联网搜索，只有请求里带 `web_search_enabled: true` 的 API / SDK / MCP 调用才会用到，见[网络搜索与网页抓取](../website-docs/03-features/11-web-search.md)。
 
 ## 29. 官方文档在哪里看？如何本地或独立部署文档站？
 
-完整的官方产品文档位于仓库 [`website-docs/`](../website-docs/README.md) 目录，按「入门 → 架构 → 功能 → API → 客户端 → 开发」六个板块组织，覆盖约 220 个 API 端点、约 330 个环境变量（含 `.env.example` 中的注释示例）与 7 大扩展点。
+完整的官方产品文档位于仓库 [`website-docs/`](../website-docs/README.md) 目录，按「入门 → 架构 → 功能 → API → 客户端 → 开发」六个板块组织，覆盖 API 端点、环境变量与扩展点。
 
 该目录同时是一个 VitePress 站点，两种使用方式：
 
@@ -303,7 +284,7 @@ docker run -d -p 8081:8081 yuheng-docs
 
 站点的版本号在构建时自动读取仓库根目录的 `VERSION` 文件，因此升级版本后无需手动改文档。
 
-`website-docs/sample-data/` 下还提供了 4 份 Markdown 样例文档与 1 份 FAQ 导入 JSON，可以直接用来跑一遍「建库 → 上传 → 问答」；`examples/mcp-demo/` 是一个可直接运行的本地 MCP 服务示例。
+`website-docs/sample-data/` 下还提供了 4 份 Markdown 样例文档与 1 份 FAQ 导入 JSON，可以直接用来跑一遍「建库 → 上传 → 问答」。
 
 ## 30. 文件夹上传后文档标题变成了一长串路径？
 
@@ -336,23 +317,23 @@ docker run -d -p 8081:8081 yuheng-docs
 注意事项：
 
 - 直链依赖 `APP_EXTERNAL_URL`（或存储后端本身公网可达）才能生成；无法生成时该引用会保持 `resource://` 原样，客户端仍可回退到 `/files`。
-- `public` 会为每个被引用文件签发**限时匿名可读**链接（Yuheng 侧 2 小时，存储后端预签名的时长由存储决定），请评估是否符合你的安全要求。
-- 限定了知识库范围的 API Key **始终返回 handle**，不受该变量影响。
+- `public` 会为每个被引用文件签发**限时匿名可读**链接（Yuheng 的 `/r/<token>` 2 小时，S3 预签名 24 小时），请评估是否符合你的安全要求。
+- 限定了知识库范围的 API Key 在 `public` 模式下（无论来自请求参数还是 `RESOURCE_URL_MODE`）会返回 **403**，这类 Key 需要带 `?resource_urls=handle`。
 - 建议同时配置 `SYSTEM_AES_KEY`，以便复用 grant 行、稳定直链 URL 并降低读接口的写入压力。
 
-详见 [API 文档 · 文件与图片引用](./api/README.md)。
+详见 [图片与文件的对外访问](../website-docs/03-features/21-file-access.md)。
 
 ## 34. 使用 AWS S3 但不想在配置里写 AK/SK？
 
-支持 **AWS SDK 默认凭据链**（#2008）：把 `S3_ACCESS_KEY` 与 `S3_SECRET_KEY` **同时留空**即可，SDK 会依次尝试 EC2/ECS/EKS 实例角色、IRSA / Web Identity、环境变量与共享配置文件。注意两者必须同时填写或同时留空，只填一个会报配置错误。`S3_ENDPOINT` 也可留空，此时使用 `S3_REGION` 对应的 AWS 标准端点。
+支持 **AWS SDK 默认凭据链**：把 `S3_ACCESS_KEY` 与 `S3_SECRET_KEY` **同时留空**即可，SDK 会依次尝试 EC2/ECS/EKS 实例角色、IRSA / Web Identity、环境变量与共享配置文件。注意两者必须同时填写或同时留空，只填一个会报配置错误。`S3_ENDPOINT` 也可留空，此时使用 `S3_REGION` 对应的 AWS 标准端点。
 
 ## 35. MCP Server 用 `uvx` 启动失败，或者应该装哪个包？
 
 Yuheng 的 MCP Server 包名为 **`yuheng-mcp`**，命令行入口是 `yuheng-mcp-server` / `yuheng-server`（源码运行：`uv run --project mcp-server yuheng-mcp-server`）。
 
-服务端 Agent 能力剥离后，MCP Server 的工具面聚焦知识平台能力，工具总数为 23 个（知识库 / 文档 / 检索 / RAG 问答 / 分块 / Wiki / 模型管理），已移除 Agent 相关的工具解析逻辑；传输支持 stdio / SSE / HTTP。配置见 [`mcp-server/MCP_CONFIG.md`](../mcp-server/MCP_CONFIG.md)。
+该包没有发布到 PyPI，`uvx --from yuheng-mcp ...` 这类从 PyPI 拉包的写法会失败，请从源码安装（`pip install ./mcp-server`）或用上面的 `uv run`。工具共 23 个（租户 / 知识库 / 知识 / 检索 / RAG 问答 / 分块 / Wiki / 模型管理），传输支持 stdio / SSE / HTTP，网络传输必须配置 `MCP_SERVER_AUTH_TOKEN`。只需要只读访问时，也可以用 `yuheng mcp serve`（8 个只读工具）。详见 [MCP 集成](../website-docs/03-features/08-mcp.md)与 [`mcp-server/MCP_CONFIG.md`](../mcp-server/MCP_CONFIG.md)。
 
 行为变化提醒：工具执行失败时，MCPServer 2.x 返回 `CallToolResult(isError=True)`，不再像旧版低层 API 那样以成功响应返回 `"Error executing …"` 文本前缀。只解析 `content[0].text` 的客户端通常无感，依赖 `isError` 标志的集成方行为会更符合 MCP 规范。
 
 ## P.S.
-如果以上方式未解决问题，请在issue中描述您的问题，并提供必要的日志信息辅助我们进行问题排查
+如果以上方式未解决问题，请提交 issue 描述问题，并附上相关日志（`docker compose logs app`，必要时把 `LOG_LEVEL` 设为 `debug`）。

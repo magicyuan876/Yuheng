@@ -18,4 +18,4 @@ regexes = ['''keyAlphabet\s*=''']
 
 [[allowlists]]
 description = "API documentation examples; the sample keys in them are obvious placeholders"
-paths = ['''^docs/api/.*\.md$''', '''^website-docs/.*\.md$''']
+paths = ['''^website-docs/.*\.md$''']
