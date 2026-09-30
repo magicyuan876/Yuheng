@@ -6,9 +6,10 @@ title = "Yuheng gitleaks configuration"
 useDefault = true
 
 [[allowlists]]
-description = "Fixed keys and tokens that exist only inside tests"
+description = "Fixed keys and tokens that exist only inside tests (Go and frontend)"
 paths = [
   '''(^|/)[^/]*_test\.go$''',
+  '''(^|/)frontend/src/.*\.test\.(ts|mjs|js)$''',
 ]
 
 [[allowlists]]
