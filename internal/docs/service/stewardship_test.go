@@ -84,3 +84,30 @@ func TestTheMirrorCarriesThePagesStewardship(t *testing.T) {
 	assert.Equal(t, "alice", st.owner)
 	assert.Equal(t, updates, kb.updates, "a hand-over is not a content change")
 }
+
+// A writer vouches for the page as it stands: the mirror's review is theirs,
+// now. A reader cannot, and a page outside the knowledge base has nothing to
+// confirm.
+func TestAWriterConfirmsAPageIsStillRight(t *testing.T) {
+	p, kb := newIndexEnv(t)
+	page := p.create(t, p.alice, nil, "VPN guide")
+	p.write(t, p.alice, page.ID, "Connect to vpn.example.com with your badge number.")
+	_, err := p.svc.Pages.SyncPageToKnowledge(ctx(), 1, page.ID)
+	require.NoError(t, err)
+	fresh, err := p.repos.Pages.GetAny(ctx(), 1, page.ID)
+	require.NoError(t, err)
+	before, _ := kb.steward(*fresh.KnowledgeID)
+
+	require.Error(t, p.svc.Pages.ConfirmReviewed(ctx(), p.carol, p.decision(t, p.carol, page.ID)))
+	require.NoError(t, p.svc.Pages.ConfirmReviewed(ctx(), p.bob, p.decision(t, p.bob, page.ID)))
+	after, _ := kb.steward(*fresh.KnowledgeID)
+	assert.Equal(t, "bob", after.reviewedBy)
+	assert.Equal(t, "alice", after.owner, "confirming is not taking the page over")
+	assert.True(t, after.reviewedAt.After(before.reviewedAt))
+	assert.True(t, p.audit.has(audit.PageReviewed))
+
+	unbound := newPageEnv(t)
+	loose := unbound.create(t, unbound.alice, nil, "Scratch")
+	err = unbound.svc.Pages.ConfirmReviewed(ctx(), unbound.alice, unbound.decision(t, unbound.alice, loose.ID))
+	require.Error(t, err)
+}

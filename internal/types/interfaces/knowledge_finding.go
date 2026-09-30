@@ -79,6 +79,11 @@ type KnowledgeFindingRepository interface {
 	// CountOpenAssigned counts the open findings assigned to a person in a
 	// tenant.
 	CountOpenAssigned(ctx context.Context, tenantID uint64, assigneeID string) (int64, error)
+	// ListReviewChecksDue lists up to limit entries, across tenants, whose
+	// periodic-review state changed with time or with their knowledge
+	// base's review period, and so need a check (see the findings review
+	// sweep).
+	ListReviewChecksDue(ctx context.Context, now time.Time, limit int) ([]types.KnowledgeFindingsPayload, error)
 	// CountOpenByType counts the open findings of a knowledge base by type.
 	CountOpenByType(ctx context.Context, tenantID uint64, kbID string) (map[string]int64, error)
 	// LastScanAt is when an entry of the knowledge base was last checked.

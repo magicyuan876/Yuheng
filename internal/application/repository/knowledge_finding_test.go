@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -380,4 +381,57 @@ func TestFindingsAssignedToAPerson(t *testing.T) {
 	n, err = f.repo.CountOpenAssigned(ctx, 1, "me")
 	require.NoError(t, err)
 	assert.Zero(t, n)
+}
+
+// The review sweep lists the entries whose review state changed on its own:
+// come due without a finding of this cycle, or flagged although no longer due.
+func TestListReviewChecksDue(t *testing.T) {
+	f := newFindingFixture(t)
+	ctx := context.Background()
+	now := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, f.db.Exec(`
+		INSERT INTO knowledge_bases (id, name, tenant_id, embedding_model_id, summary_model_id, review_interval_days)
+		VALUES (?, 'Handbook', 1, '', '', 30)`, f.kb).Error)
+	entry := func(title string, vouchedDaysAgo int, status string) string {
+		id := f.doc(t, title)
+		at := now.AddDate(0, 0, -vouchedDaysAgo)
+		require.NoError(t, f.db.Exec(`UPDATE knowledges SET created_at = ?, reviewed_at = ?, parse_status = ?
+			WHERE id = ?`, at.AddDate(0, 0, -1), at, status, id).Error)
+		return id
+	}
+	stale := func(id, status string, updated time.Time) {
+		require.NoError(t, f.db.Exec(`
+			INSERT INTO knowledge_findings (id, tenant_id, knowledge_base_id, type, detector, severity, status,
+			                                fingerprint, subject_knowledge_id, updated_at)
+			VALUES (?, 1, ?, 'stale', 'review', 'info', ?, ?, ?, ?)`,
+			uuid.NewString(), f.kb, status, "stale:"+id, id, updated).Error)
+	}
+
+	due := entry("due", 40, types.ParseStatusCompleted)
+	flagged := entry("flagged", 40, types.ParseStatusCompleted)
+	stale(flagged, types.FindingStatusOpen, now)
+	dismissedNow := entry("dismissed this cycle", 40, types.ParseStatusCompleted)
+	stale(dismissedNow, types.FindingStatusDismissed, now.AddDate(0, 0, -1))
+	dismissedBefore := entry("dismissed a cycle ago", 40, types.ParseStatusCompleted)
+	stale(dismissedBefore, types.FindingStatusDismissed, now.AddDate(0, 0, -100))
+	_ = entry("fresh", 5, types.ParseStatusCompleted)
+	_ = entry("indexing", 40, types.ParseStatusProcessing)
+	reviewed := entry("reviewed since", 5, types.ParseStatusCompleted)
+	stale(reviewed, types.FindingStatusOpen, now.AddDate(0, 0, -10))
+
+	ids := func() []string {
+		rows, err := f.repo.ListReviewChecksDue(ctx, now, 100)
+		require.NoError(t, err)
+		out := []string{}
+		for _, r := range rows {
+			assert.Equal(t, uint64(1), r.TenantID)
+			assert.Equal(t, f.kb, r.KnowledgeBaseID)
+			out = append(out, r.KnowledgeID)
+		}
+		return out
+	}
+	assert.ElementsMatch(t, []string{due, dismissedBefore, reviewed}, ids())
+
+	require.NoError(t, f.db.Exec(`UPDATE knowledge_bases SET review_interval_days = 0 WHERE id = ?`, f.kb).Error)
+	assert.ElementsMatch(t, []string{flagged, reviewed}, ids(), "switched off: the open findings are to be resolved")
 }

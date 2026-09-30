@@ -8067,6 +8067,29 @@ paths:
       summary: 恢复页面
       tags:
       - 在线文档
+  /docs/pages/{pid}/review:
+    post:
+      description: 页面写作者确认内容无误：页面在知识库中的镜像重新开始复核计时，“需要复核”这类问题在随后的检查中关闭。页面不在知识库中时返回
+        409
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 确认页面仍然有效
+      tags:
+      - 在线文档
   /docs/pages/{pid}/revisions:
     get:
       description: |-

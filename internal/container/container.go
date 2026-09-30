@@ -182,6 +182,8 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	// the runner is built from the group after the extension hooks have run.
 	must(container.Provide(findings.NewFinderResolver))
 	must(container.Provide(newDuplicateDetector, dig.Group(findings.DetectorGroup)))
+	must(container.Provide(newReviewDetector, dig.Group(findings.DetectorGroup)))
+	must(container.Provide(newReviewSweep))
 	must(container.Provide(findings.NewRunnerFromContainer))
 	must(container.Provide(findings.NewTrigger, dig.As(new(interfaces.KnowledgeFindingsTrigger))))
 	must(container.Provide(findings.NewTaskHandler, dig.Name("knowledgeFindings")))
@@ -279,6 +281,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Invoke(startDataSourceScheduler))
 	logger.Debugf(ctx, "[Container] Data source sync framework registered")
 	must(container.Invoke(startAuditLogRetention))
+	must(container.Invoke(startReviewSweep))
 	logger.Debugf(ctx, "[Container] Audit log retention runner registered")
 	must(container.Provide(service.NewHousekeepingService))
 	must(container.Invoke(startHousekeepingService))

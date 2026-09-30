@@ -26,8 +26,8 @@ type PageFindingPage struct {
 	SpaceSlug string `json:"space_slug"`
 }
 
-// PageFindingView is one finding of a page. RelatedPage is null only for a
-// finding about the page alone; the core's duplicate finding always has one.
+// PageFindingView is one finding of a page. RelatedPage is null for a finding
+// about the page alone, such as a review that is due.
 type PageFindingView struct {
 	ID           string                  `json:"id"`
 	Type         string                  `json:"type"`

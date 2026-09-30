@@ -47,6 +47,7 @@ const (
 	PageKnowledgeIncluded types.AuditAction = "docs.page.knowledge_included"
 	PageOwnerChanged      types.AuditAction = "docs.page.owner_changed"
 	PageSuperseded        types.AuditAction = "docs.page.superseded"
+	PageReviewed          types.AuditAction = "docs.page.reviewed"
 	PageReplaced          types.AuditAction = "docs.page.content_replaced"
 	PageRestoredTo        types.AuditAction = "docs.page.revision_restored"
 

@@ -26,6 +26,9 @@ const (
 	// the same and not quite: an edited copy, one of which is probably out
 	// of date, or two accounts of one thing that disagree.
 	FindingTypeDivergent = "divergent"
+	// FindingTypeStale is a document nobody has confirmed or changed within
+	// its knowledge base's review period.
+	FindingTypeStale = "stale"
 )
 
 // Finding severities, in increasing order of urgency.

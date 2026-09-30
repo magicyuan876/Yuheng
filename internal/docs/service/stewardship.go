@@ -121,3 +121,27 @@ func (s *PageService) syncStewardship(ctx context.Context, page *model.Page, kno
 	}
 	return s.d.Knowledge.SyncStewardship(ctx, page.TenantID, knowledgeID, page.Steward(), reviewedBy, reviewedAt)
 }
+
+// ConfirmReviewed records that the caller, a writer of the page, vouches for
+// it as it stands: its mirror entry's review clock restarts, and the problems
+// that only asked for a look are settled at the check that follows. It is
+// recorded on the entry, where the review clock lives; a page excluded from
+// the knowledge base has no entry and nothing to confirm.
+func (s *PageService) ConfirmReviewed(ctx context.Context, actor *acl.Identity, d acl.Decision) error {
+	if err := requireRole(d, model.RoleWriter); err != nil {
+		return err
+	}
+	page := d.Page
+	if s.d.Knowledge == nil || page.KnowledgeID == nil || *page.KnowledgeID == "" {
+		return conflict("the page is not in a knowledge base, so there is nothing to confirm")
+	}
+	if err := s.d.Knowledge.SyncStewardship(ctx, page.TenantID, *page.KnowledgeID, page.Steward(), actorID(actor),
+		time.Now().UTC()); err != nil {
+		return err
+	}
+	s.audit(ctx, audit.Entry{
+		TenantID: page.TenantID, ActorUserID: actorID(actor), ActorRole: actorRole(actor),
+		Action: audit.PageReviewed, SpaceID: page.SpaceID, TargetType: audit.TargetPage, TargetID: page.ID,
+	})
+	return nil
+}

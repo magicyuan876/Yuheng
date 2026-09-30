@@ -3952,6 +3952,41 @@
                 }
             }
         },
+        "/docs/pages/{pid}/review": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "页面写作者确认内容无误：页面在知识库中的镜像重新开始复核计时，“需要复核”这类问题在随后的检查中关闭。页面不在知识库中时返回 409",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "确认页面仍然有效",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/pages/{pid}/revisions": {
             "get": {
                 "security": [

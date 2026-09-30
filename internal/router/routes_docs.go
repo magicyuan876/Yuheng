@@ -280,6 +280,9 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// service keeps it to the current maintainer or an administrator.
 	write.PUT("/pages/:pid/owner", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetOwner)
+	// Vouching for a page as it stands restarts its review clock: a writer's.
+	write.POST("/pages/:pid/review", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.ConfirmReviewed)
 
 	// Public links. Listing them needs only read access, because "this page
 	// is published on the internet" is something every reader of it should be

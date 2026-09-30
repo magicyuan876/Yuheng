@@ -122,3 +122,27 @@ func (h *PageHandler) SetOwner(c *gin.Context) {
 	}
 	ok(c, view)
 }
+
+// ConfirmReviewed godoc
+// @Summary      确认页面仍然有效
+// @Description  页面写作者确认内容无误：页面在知识库中的镜像重新开始复核计时，“需要复核”这类问题在随后的检查中关闭。页面不在知识库中时返回 409
+// @Tags         在线文档
+// @Produce      json
+// @Param        pid  path  string  true  "页面 ID"
+// @Success      200  {object}  map[string]interface{}
+// @Security     Bearer
+// @Router       /docs/pages/{pid}/review [post]
+func (h *PageHandler) ConfirmReviewed(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	actor, d, found := pageScope(c)
+	if !found {
+		return
+	}
+	if err := h.svc.ConfirmReviewed(c.Request.Context(), actor, d); err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, gin.H{"page_id": d.Page.ID})
+}

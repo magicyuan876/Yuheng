@@ -383,6 +383,58 @@ func (r *knowledgeFindingRepository) ListCheckableKnowledgeIDs(ctx context.Conte
 	return ids, err
 }
 
+// reviewDueSQL is true for an entry k of knowledge base kb that is past its
+// review date at @now. It mirrors types.KnowledgeSteward.Overdue: the clock
+// runs from the last review, or from creation for an entry reviewed before it
+// existed (a page's content older than a re-created mirror) or never.
+const reviewDueSQL = `kb.review_interval_days > 0
+	AND GREATEST(COALESCE(k.reviewed_at, k.created_at), k.created_at)
+	    + make_interval(days => kb.review_interval_days) <= @now`
+
+// ListReviewChecksDue implements interfaces.KnowledgeFindingRepository.
+//
+// Two kinds of entry, whose review state changed without anybody touching
+// them: one that has come due and carries no stale finding of this cycle
+// (none open, and no dismissal made since it was last vouched for — a
+// dismissal from an earlier cycle is reconsidered by the check); and one whose
+// open stale finding no longer holds, because the period was shortened,
+// lengthened or switched off. Entries still being indexed are left for their
+// indexing, which checks them anyway.
+func (r *knowledgeFindingRepository) ListReviewChecksDue(ctx context.Context, now time.Time, limit int,
+) ([]types.KnowledgeFindingsPayload, error) {
+	var rows []types.KnowledgeFindingsPayload
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT tenant_id, knowledge_base_id, knowledge_id FROM (
+			(SELECT k.tenant_id, k.knowledge_base_id, k.id AS knowledge_id,
+			        GREATEST(COALESCE(k.reviewed_at, k.created_at), k.created_at) AS vouched
+			   FROM knowledges k
+			   JOIN knowledge_bases kb ON kb.id = k.knowledge_base_id AND kb.deleted_at IS NULL
+			  WHERE k.deleted_at IS NULL AND k.parse_status IN @checkable AND `+reviewDueSQL+`
+			    AND NOT EXISTS (
+			        SELECT 1 FROM knowledge_findings f
+			         WHERE f.subject_knowledge_id = k.id AND f.type = @stale
+			           AND (f.status = 'open' OR (f.status = 'dismissed'
+			                AND f.updated_at >= GREATEST(COALESCE(k.reviewed_at, k.created_at), k.created_at))))
+			  ORDER BY vouched, k.id
+			  LIMIT @limit)
+			UNION ALL
+			(SELECT f.tenant_id, f.knowledge_base_id, f.subject_knowledge_id AS knowledge_id, f.updated_at AS vouched
+			   FROM knowledge_findings f
+			   JOIN knowledges k ON k.id = f.subject_knowledge_id AND k.deleted_at IS NULL
+			   JOIN knowledge_bases kb ON kb.id = k.knowledge_base_id AND kb.deleted_at IS NULL
+			  WHERE f.type = @stale AND f.status = 'open' AND k.parse_status IN @checkable
+			    AND NOT (`+reviewDueSQL+`)
+			  ORDER BY f.updated_at, f.id
+			  LIMIT @limit)
+		) due
+		LIMIT @limit`,
+		map[string]any{
+			"now": now, "limit": limit, "stale": types.FindingTypeStale,
+			"checkable": []string{types.ParseStatusCompleted, types.ParseStatusFinalizing},
+		}).Scan(&rows).Error
+	return rows, err
+}
+
 // DeleteForKnowledge implements interfaces.KnowledgeFindingRepository.
 func (r *knowledgeFindingRepository) DeleteForKnowledge(ctx context.Context, tenantID uint64,
 	knowledgeID string,

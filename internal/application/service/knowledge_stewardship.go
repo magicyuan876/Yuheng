@@ -123,8 +123,11 @@ func (s *knowledgeStewardshipService) SyncFromSource(ctx context.Context, tenant
 		}
 		changed = true
 	}
-	if reviewedBy != "" && !reviewedAt.IsZero() &&
-		(steward.ReviewedAt == nil || steward.ReviewedAt.Before(reviewedAt) || steward.ReviewedBy != reviewedBy) {
+	// Only a review later than the one recorded counts: the page's last
+	// edit arrives at every synchronisation, and a confirmation made since
+	// must stand — and must not schedule a check each time it does.
+	later := steward.ReviewedAt == nil || steward.ReviewedAt.Before(reviewedAt)
+	if reviewedBy != "" && !reviewedAt.IsZero() && later {
 		if err := s.repo.MarkReviewed(ctx, tenantID, knowledgeID, reviewedBy, reviewedAt); err != nil {
 			return err
 		}
