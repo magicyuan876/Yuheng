@@ -92,6 +92,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 // into this component's scoped Less before), so it is loaded from here.
 import "./css/markdown.css";
 import KnowledgeProcessingTimeline from "@/components/knowledge-processing-timeline.vue";
+import KnowledgeStewardship from "@/components/findings/KnowledgeStewardship.vue";
 import { resolveKnowledgeDownloadFileName } from "@/views/knowledge/knowledgeDownloadFileName";
 
 const { t } = useI18n();
@@ -2120,6 +2121,7 @@ const onDrawerPointerDownOutside = (event: CustomEvent<{ originalEvent: PointerE
                   </span>
                 </span>
               </div>
+              <KnowledgeStewardship :knowledge-id="details.id" :can-edit="!!canEditKB" />
             </div>
           </section>
 

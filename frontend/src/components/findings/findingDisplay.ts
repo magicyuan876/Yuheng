@@ -16,8 +16,36 @@ export function findingTypeLabel(type: string, t: Translate): string {
   switch (type) {
     case "duplicate":
       return t("knowledgeHealth.types.duplicate");
+    case "divergent":
+      return t("knowledgeHealth.types.divergent");
     default:
       return type;
+  }
+}
+
+/** One sentence on what a finding of this type means and what to do about
+ * it; empty for a type this build does not know. */
+export function findingTypeHint(type: string, t: Translate): string {
+  switch (type) {
+    case "duplicate":
+      return t("knowledgeHealth.typeHints.duplicate");
+    case "divergent":
+      return t("knowledgeHealth.typeHints.divergent");
+    default:
+      return "";
+  }
+}
+
+/** Why a closed finding was closed, for its status badge; empty when there is
+ * nothing to add. */
+export function resolutionLabel(resolution: string | null | undefined, t: Translate): string {
+  switch (resolution) {
+    case "distinct_scope":
+      return t("knowledgeHealth.resolution.distinct_scope");
+    case "intentional":
+      return t("knowledgeHealth.resolution.intentional");
+    default:
+      return "";
   }
 }
 

@@ -270,6 +270,8 @@ export interface DocsPage {
   source_refs: string[];
   contributor_ids: string[];
   creator_id?: string | null;
+  /** Set when the page was handed to another maintainer; see steward_id. */
+  owner_id?: string | null;
   last_editor_id?: string | null;
   deleted_by?: string | null;
   word_count: number;
@@ -290,6 +292,13 @@ export interface PageView extends DocsPage {
   labels?: LabelView[];
   /** Whether the caller starred this page. */
   favourite?: boolean;
+  /** The page's maintainer: the person it was handed to, else its creator.
+   * Knowledge health takes the problems of the page to them. */
+  steward_id?: string;
+  /** Whether the caller may hand the page to somebody else. */
+  can_change_owner?: boolean;
+  /** The maintainer, named. */
+  steward?: { user_id: string; username?: string; email?: string; avatar?: string } | null;
 }
 
 export interface TreeNode extends DocsPage {
@@ -766,6 +775,14 @@ export async function setPageLocked(pageId: string, locked: boolean): Promise<Pa
  */
 export async function setPageKnowledgeExcluded(pageId: string, excluded: boolean): Promise<PageView> {
   return unwrap<PageView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/knowledge`, { excluded }));
+}
+
+/**
+ * Backend: PUT /api/v1/docs/pages/:pid/owner. Hands the page to another maintainer, who must be
+ * able to edit it; only the current maintainer or an administrator of the page may.
+ */
+export async function setPageOwner(pageId: string, ownerId: string): Promise<PageView> {
+  return unwrap<PageView>(await put(`${base}/pages/${encodeURIComponent(pageId)}/owner`, { owner_id: ownerId }));
 }
 
 // ---- templates ---------------------------------------------------------------

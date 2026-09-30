@@ -76,6 +76,7 @@ const KB_ACTIVITY_ACTION_LABELS_EN: Record<string, string> = {
   "faq.import_failed": "FAQ import failed",
   "finding.status_changed": "Finding dismissed or reopened",
   "finding.scan_requested": "Knowledge health re-check requested",
+  "finding.assigned": "Finding assigned",
 };
 
 const KB_ACTIVITY_OUTCOME_LABELS_EN: Record<string, string> = {

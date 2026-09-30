@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { createPinia } from "pinia";
 import { createI18n } from "vue-i18n";
 
 import type { Finding, FindingsSummary } from "@/api/findings";
@@ -16,12 +17,14 @@ const api = vi.hoisted(() => ({
   listFindings: vi.fn(),
   scanFindings: vi.fn(),
   updateFindingStatus: vi.fn(),
+  assignFinding: vi.fn(),
 }));
 vi.mock("@/api/findings", () => api);
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("tdesign-vue-next", () => ({ MessagePlugin: toast }));
 
+import FindingItem from "./FindingItem.vue";
 import KnowledgeHealthView from "./KnowledgeHealthView.vue";
 
 const mounted: VueWrapper[] = [];
@@ -74,10 +77,21 @@ const finding = (id: string, over: Partial<Finding> = {}): Finding => ({
 
 async function mountView(props: Record<string, unknown> = {}) {
   const i18n = createI18n({ legacy: false, locale: "en-US", messages: { "en-US": enUS } });
-  const wrapper = mount(KnowledgeHealthView, { props: { kbId: "kb1", ...props }, global: { plugins: [i18n] } });
+  const wrapper = mount(KnowledgeHealthView, {
+    props: { kbId: "kb1", canEdit: true, ...props },
+    global: { plugins: [i18n, createPinia()] },
+  });
   mounted.push(wrapper);
   await flushPromises();
   return wrapper;
+}
+
+/** Dismisses the first finding for the reason "intentional", as picking it
+ * from the card's menu does. */
+async function dismissFirst(wrapper: VueWrapper) {
+  const item = wrapper.findAllComponents(FindingItem)[0];
+  item.vm.$emit("dismiss", item.props("finding"), "intentional");
+  await wrapper.vm.$nextTick();
 }
 
 test("lists the open findings with both documents, similarity and overlap", async () => {
@@ -86,7 +100,7 @@ test("lists the open findings with both documents, similarity and overlap", asyn
 
   const wrapper = await mountView();
 
-  assert.deepEqual(api.listFindings.mock.calls[0], ["kb1", { status: "open", page: 1, page_size: 20 }]);
+  assert.deepEqual(api.listFindings.mock.calls[0], ["kb1", { status: "open", mine: false, page: 1, page_size: 20 }]);
   const rows = wrapper.findAll('[data-testid="finding-item"]');
   assert.equal(rows.length, 2);
   assert.match(rows[0].text(), /Doc f1 A/);
@@ -133,14 +147,14 @@ test("dismissing removes the finding at once and keeps it gone when the server a
   api.updateFindingStatus.mockReturnValue(new Promise<Finding>((resolve) => (answer = resolve)));
   const wrapper = await mountView();
 
-  await wrapper.findAll('[data-testid="finding-dismiss"]')[0].trigger("click");
+  await dismissFirst(wrapper);
   // Before the server has answered.
   assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 1);
   assert.match(wrapper.get('[data-testid="health-summary"]').text(), /1 open/);
 
   answer(finding("f1", { status: "dismissed" }));
   await flushPromises();
-  assert.deepEqual(api.updateFindingStatus.mock.calls[0], ["kb1", "f1", "dismissed"]);
+  assert.deepEqual(api.updateFindingStatus.mock.calls[0], ["kb1", "f1", "dismissed", "intentional"]);
   assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 1);
   assert.equal(toast.success.mock.calls.length, 1);
   const lastSummary = wrapper.emitted("summary-change")?.at(-1)?.[0] as FindingsSummary;
@@ -153,7 +167,7 @@ test("a refused dismissal puts the finding back where it was and says so", async
   api.updateFindingStatus.mockRejectedValue(new Error("forbidden"));
   const wrapper = await mountView();
 
-  await wrapper.findAll('[data-testid="finding-dismiss"]')[0].trigger("click");
+  await dismissFirst(wrapper);
   await flushPromises();
 
   const rows = wrapper.findAll('[data-testid="finding-item"]');
@@ -184,7 +198,7 @@ test("the dismissed filter lists dismissed findings, which can be reopened", asy
   api.updateFindingStatus.mockResolvedValue(finding("f9", { status: "open" }));
   await wrapper.get('[data-testid="finding-reopen"]').trigger("click");
   await flushPromises();
-  assert.deepEqual(api.updateFindingStatus.mock.calls[0], ["kb1", "f9", "open"]);
+  assert.deepEqual(api.updateFindingStatus.mock.calls[0], ["kb1", "f9", "open", undefined]);
   assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 0);
 });
 
@@ -249,4 +263,82 @@ test("a wiki knowledge base links to the wiki's own issue list", async () => {
   assert.match(section.text(), /3 wiki issue/);
   await section.get("button").trigger("click");
   assert.equal(wiki.emitted("open-wiki-issues")?.length, 1);
+});
+
+test("only mine asks the server for the caller's findings", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary());
+  api.listFindings.mockResolvedValue({ items: [finding("f1")], total: 1, page: 1, page_size: 20 });
+  const wrapper = await mountView();
+
+  await wrapper.get('[data-testid="health-filter-mine"]').trigger("click");
+  await flushPromises();
+  assert.equal(api.listFindings.mock.calls.at(-1)?.[1].mine, true);
+  assert.equal(wrapper.get('[data-testid="health-filter-mine"]').attributes("aria-pressed"), "true");
+});
+
+test("assigning waits for the server and shows who it named", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary());
+  api.listFindings.mockResolvedValue({ items: [finding("f1")], total: 1, page: 1, page_size: 20 });
+  api.assignFinding.mockResolvedValue(
+    finding("f1", { assignee: { id: "u2", username: "Bob", active: true }, assigned_manually: true }),
+  );
+  const wrapper = await mountView();
+  assert.match(wrapper.get('[data-testid="finding-assignee"]').text(), /Unassigned/);
+
+  const item = wrapper.findAllComponents(FindingItem)[0];
+  item.vm.$emit("assign", item.props("finding"), "u2");
+  await flushPromises();
+  assert.deepEqual(api.assignFinding.mock.calls[0], ["kb1", "f1", "u2"]);
+  assert.match(wrapper.get('[data-testid="finding-assignee"]').text(), /Bob/);
+  assert.match(wrapper.get('[data-testid="finding-assignee"]').text(), /assigned by hand/);
+});
+
+test("a reader sees who deals with a finding and cannot act on it", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary());
+  api.listFindings.mockResolvedValue({
+    items: [finding("f1", { assignee: { id: "u1", username: "Alice", active: false } })],
+    total: 1,
+    page: 1,
+    page_size: 20,
+  });
+  const wrapper = await mountView({ canEdit: false });
+  assert.match(wrapper.get('[data-testid="finding-assignee"]').text(), /Alice/);
+  assert.match(wrapper.get('[data-testid="finding-assignee"]').text(), /left/);
+  assert.equal(wrapper.find('[data-testid="finding-dismiss"]').exists(), false);
+  assert.equal(wrapper.find('[data-testid="finding-assign"]').exists(), false);
+});
+
+test("a divergent finding explains itself and marks where the passages differ", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary({ open_by_type: { divergent: 1 } }));
+  api.listFindings.mockResolvedValue({
+    items: [
+      finding("f1", {
+        type: "divergent",
+        evidence: [
+          {
+            subject_chunk_id: "c1",
+            subject_excerpt: "Every employee has fifteen days of paid leave a year.",
+            related_chunk_id: "c2",
+            related_excerpt: "Every employee has ten days of paid leave a year.",
+            score: 0.97,
+            differs: true,
+          },
+        ],
+      }),
+    ],
+    total: 1,
+    page: 1,
+    page_size: 20,
+  });
+  const wrapper = await mountView();
+  const row = wrapper.get('[data-testid="finding-item"]');
+  assert.match(row.text(), /Conflicting details/);
+  assert.match(row.get('[data-testid="finding-hint"]').text(), /out of date/);
+
+  await wrapper.get('[data-testid="finding-evidence-toggle"]').trigger("click");
+  // "fifteen" against "ten": the characters "ten" shares with it are not a
+  // difference, the rest of the word is.
+  const marks = wrapper.findAll('[data-testid="finding-diff-mark"]').map((m) => m.text());
+  assert.ok(marks.join("").includes("fif"), `marked: ${JSON.stringify(marks)}`);
+  assert.equal(wrapper.find('[data-differs="true"]').exists(), true);
 });

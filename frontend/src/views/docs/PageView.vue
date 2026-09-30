@@ -218,6 +218,7 @@
             <BotIcon v-else />
             {{ page.exclude_from_knowledge ? t("docs.lock.knowledgeOff") : t("docs.lock.knowledgeOn") }}
           </Button>
+          <PageOwner :page="page" @changed="onOwnerChanged" />
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="ghost" size="icon-xs" class="page-action" :aria-label="t('docs.pages.pageWidth.title')">
@@ -451,6 +452,7 @@ import PageAccessPanel from "./access/PageAccessPanel.vue";
 import SharePanel from "./share/SharePanel.vue";
 import PageLabels from "./labels/PageLabels.vue";
 import PageFindingsNotice from "./findings/PageFindingsNotice.vue";
+import PageOwner from "./findings/PageOwner.vue";
 import { browserStore, recordVisit } from "./home/recentlyViewed";
 import NotificationCentre from "./notifications/NotificationCentre.vue";
 import CommentsPanel from "./comments/CommentsPanel.vue";
@@ -585,6 +587,11 @@ async function toggleLock() {
   } catch (err) {
     void MessagePlugin.error(errorText(err, t("docs.lock.changeFailed")));
   }
+}
+
+function onOwnerChanged(next: PageViewDto) {
+  const current = page.value;
+  if (current) page.value = { ...current, ...next };
 }
 
 async function toggleKnowledge() {

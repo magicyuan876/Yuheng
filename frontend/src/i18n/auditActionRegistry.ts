@@ -84,6 +84,7 @@ export const KB_ACTIVITY_ACTIONS = [
   "faq.import_failed",
   "finding.status_changed",
   "finding.scan_requested",
+  "finding.assigned",
 ] as const;
 
 /** KB activity outcome column / filter values (`AuditOutcome` subset used in activity UI). */

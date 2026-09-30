@@ -119,6 +119,17 @@
         >
           {{ t(STATUS_LABEL_KEYS[option]) }}
         </Button>
+        <Separator orientation="vertical" class="mx-1 h-4" />
+        <Button
+          :variant="mineOnly ? 'secondary' : 'ghost'"
+          size="sm"
+          :aria-pressed="mineOnly"
+          data-testid="health-filter-mine"
+          @click="toggleMine"
+        >
+          <UserRoundIcon />
+          {{ t("knowledgeHealth.mineOnly") }}
+        </Button>
         <span class="text-placeholder ml-auto text-xs">{{ t("knowledgeHealth.total", { count: total }) }}</span>
       </div>
 
@@ -149,9 +160,11 @@
           :key="finding.id"
           :finding="finding"
           :busy="busyIds.includes(finding.id)"
+          :can-edit="canEdit"
           @open-knowledge="(id) => emit('open-knowledge', id)"
-          @dismiss="(f) => changeStatus(f, 'dismissed')"
+          @dismiss="(f, reason) => changeStatus(f, 'dismissed', reason)"
           @reopen="(f) => changeStatus(f, 'open')"
+          @assign="assign"
         />
       </ul>
 
@@ -196,14 +209,17 @@ import {
   Loader2Icon,
   PowerOffIcon,
   RefreshCwIcon,
+  UserRoundIcon,
 } from "@lucide/vue";
 
 import {
+  assignFinding,
   getFindingsSummary,
   listFindings,
   scanFindings,
   updateFindingStatus,
   type Finding,
+  type FindingDismissReason,
   type FindingsSummary,
   type FindingStatusFilter,
 } from "@/api/findings";
@@ -211,7 +227,10 @@ import { findingTypeLabel } from "@/components/findings/findingDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+
+import { useAuthStore } from "@/stores/auth";
 
 import FindingItem from "./FindingItem.vue";
 
@@ -220,11 +239,13 @@ const props = withDefaults(
     kbId: string;
     /** Knowledge-base administrators may queue a full re-check. */
     canRescan?: boolean;
+    /** Editors of the knowledge base may dismiss, reopen and assign. */
+    canEdit?: boolean;
     isWiki?: boolean;
     /** Open wiki lint issues, as the knowledge base screen already polls them. */
     wikiPendingIssues?: number;
   }>(),
-  { canRescan: false, isWiki: false, wikiPendingIssues: 0 },
+  { canRescan: false, canEdit: false, isWiki: false, wikiPendingIssues: 0 },
 );
 
 const emit = defineEmits<{
@@ -235,6 +256,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const authStore = useAuthStore();
 
 const PAGE_SIZE = 20;
 const STATUS_OPTIONS: FindingStatusFilter[] = ["open", "dismissed", "resolved", "all"];
@@ -250,6 +272,8 @@ const summaryLoading = ref(false);
 const summaryError = ref(false);
 
 const statusFilter = ref<FindingStatusFilter>("open");
+/** Only the findings routed to the caller. */
+const mineOnly = ref(false);
 const page = ref(1);
 const items = ref<Finding[]>([]);
 const total = ref(0);
@@ -300,7 +324,12 @@ async function loadList() {
   const seq = ++listSeq;
   listLoading.value = true;
   try {
-    const res = await listFindings(kbId, { status: statusFilter.value, page: page.value, page_size: PAGE_SIZE });
+    const res = await listFindings(kbId, {
+      status: statusFilter.value,
+      mine: mineOnly.value,
+      page: page.value,
+      page_size: PAGE_SIZE,
+    });
     if (seq !== listSeq) return;
     items.value = res.items;
     total.value = res.total;
@@ -330,6 +359,7 @@ watch(
     total.value = 0;
     page.value = 1;
     statusFilter.value = "open";
+    mineOnly.value = false;
     queuedCount.value = null;
     if (kbId) void reloadAll();
   },
@@ -339,6 +369,13 @@ watch(
 function setFilter(next: FindingStatusFilter) {
   if (next === statusFilter.value) return;
   statusFilter.value = next;
+  page.value = 1;
+  items.value = [];
+  void loadList();
+}
+
+function toggleMine() {
+  mineOnly.value = !mineOnly.value;
   page.value = 1;
   items.value = [];
   void loadList();
@@ -364,7 +401,7 @@ function adjustOpenCount(type: string, delta: number) {
  * puts back only this finding, at the place it had, so another change made
  * meanwhile is not thrown away with it.
  */
-async function changeStatus(finding: Finding, next: "dismissed" | "open") {
+async function changeStatus(finding: Finding, next: "dismissed" | "open", reason?: FindingDismissReason) {
   if (busyIds.value.includes(finding.id) || finding.status === next) return;
   const previous = finding.status;
   const index = items.value.findIndex((f) => f.id === finding.id);
@@ -375,13 +412,15 @@ async function changeStatus(finding: Finding, next: "dismissed" | "open") {
     items.value = items.value.filter((f) => f.id !== finding.id);
     total.value = Math.max(0, total.value - 1);
   } else {
-    items.value = items.value.map((f) => (f.id === finding.id ? { ...f, status: next } : f));
+    items.value = items.value.map((f) =>
+      f.id === finding.id ? { ...f, status: next, resolution: next === "dismissed" ? reason : null } : f,
+    );
   }
   adjustOpenCount(finding.type, openDelta);
   busyIds.value = [...busyIds.value, finding.id];
 
   try {
-    const updated = await updateFindingStatus(props.kbId, finding.id, next);
+    const updated = await updateFindingStatus(props.kbId, finding.id, next, reason);
     if (!leavesList && updated?.id) {
       items.value = items.value.map((f) => (f.id === updated.id ? updated : f));
     }
@@ -408,6 +447,32 @@ async function changeStatus(finding: Finding, next: "dismissed" | "open") {
     busyIds.value = busyIds.value.filter((id) => id !== finding.id);
   }
 }
+
+/**
+ * Assigning waits for the server rather than guessing: it decides whether the
+ * person may take the finding on, and names them in its answer. Under "only
+ * mine" a finding given to somebody else leaves the list.
+ */
+async function assign(finding: Finding, assigneeId: string) {
+  if (busyIds.value.includes(finding.id)) return;
+  busyIds.value = [...busyIds.value, finding.id];
+  try {
+    const updated = await assignFinding(props.kbId, finding.id, assigneeId);
+    if (mineOnly.value && updated.assignee?.id !== currentUserId()) {
+      items.value = items.value.filter((f) => f.id !== finding.id);
+      total.value = Math.max(0, total.value - 1);
+    } else {
+      items.value = items.value.map((f) => (f.id === updated.id ? updated : f));
+    }
+    MessagePlugin.success(assigneeId ? t("knowledgeHealth.assigned") : t("knowledgeHealth.assignedAutomatic"));
+  } catch (err) {
+    MessagePlugin.error(errorText(err, t("knowledgeHealth.assignFailed")));
+  } finally {
+    busyIds.value = busyIds.value.filter((id) => id !== finding.id);
+  }
+}
+
+const currentUserId = () => authStore.user?.id ?? "";
 
 async function rescan() {
   if (!props.canRescan || scanning.value) return;

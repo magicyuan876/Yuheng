@@ -9,8 +9,16 @@
     role="status"
     data-testid="page-findings-notice"
   >
-    <CopyIcon class="text-warning size-3.5 shrink-0" aria-hidden="true" />
-    <span data-testid="page-findings-count">{{ t("docs.findings.notice", { count: items.length }) }}</span>
+    <component
+      :is="divergentCount ? GitCompareIcon : CopyIcon"
+      class="text-warning size-3.5 shrink-0"
+      aria-hidden="true"
+    />
+    <span data-testid="page-findings-count">{{
+      divergentCount
+        ? t("docs.findings.noticeDivergent", { count: divergentCount })
+        : t("docs.findings.notice", { count: items.length })
+    }}</span>
     <span v-if="otherCount > 0" class="text-muted-foreground" data-testid="page-findings-other">
       {{ t("docs.findings.more", { count: otherCount }) }}
     </span>
@@ -33,12 +41,18 @@
               >
                 {{ item.related_page.title || t("docs.tree.untitled") }}
               </RouterLink>
-              <Badge v-if="item.type !== 'duplicate'" variant="secondary">{{ findingTypeLabel(item.type, t) }}</Badge>
+              <Badge variant="secondary">{{ findingTypeLabel(item.type, t) }}</Badge>
               <span class="text-muted-foreground text-xs">
                 {{ t("knowledgeHealth.similarity", { value: formatPercent(item.score) }) }} ·
                 {{ t("knowledgeHealth.overlap", { value: formatPercent(item.overlap_ratio) }) }}
               </span>
+              <span v-if="item.assignee" class="text-muted-foreground text-xs" data-testid="page-findings-assignee">
+                {{ t("docs.findings.assignee", { name: item.assignee.username || item.assignee.id }) }}
+              </span>
             </div>
+            <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
+              {{ findingTypeHint(item.type, t) }}
+            </p>
             <FindingEvidenceList
               v-if="item.evidence.length"
               :evidence="item.evidence"
@@ -71,11 +85,11 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
-import { CopyIcon, XIcon } from "@lucide/vue";
+import { CopyIcon, GitCompareIcon, XIcon } from "@lucide/vue";
 
 import { listPageFindings, type PageFinding, type RelatedDocsPage } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
-import { findingTypeLabel, formatPercent } from "@/components/findings/findingDisplay";
+import { findingTypeHint, findingTypeLabel, formatPercent } from "@/components/findings/findingDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -98,6 +112,10 @@ const items = ref<PageFinding[]>([]);
 const otherCount = ref(0);
 const dismissed = ref(false);
 const detailsOpen = ref(false);
+
+/** Pages that say nearly what this one says, but not quite: worth more
+ * attention than a copy, so the notice leads with them. */
+const divergentCount = computed(() => items.value.filter((i) => i.type === "divergent").length);
 
 const eligible = computed(() => !!props.pageId && !!props.knowledgeBaseId && !props.excluded);
 const visible = computed(() => eligible.value && !dismissed.value && items.value.length > 0);

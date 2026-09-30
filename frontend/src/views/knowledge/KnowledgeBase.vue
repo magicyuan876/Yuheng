@@ -2603,6 +2603,7 @@ const handleKBEditorSuccess = (kbIdValue: string) => {
           v-if="kbId"
           :kb-id="kbId"
           :can-rescan="canManage"
+          :can-edit="canEdit"
           :is-wiki="isWiki"
           :wiki-pending-issues="wikiStatus.pendingIssues"
           @open-knowledge="openSourceDoc"

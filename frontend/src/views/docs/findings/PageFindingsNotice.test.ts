@@ -113,3 +113,9 @@ test("putting the notice away keeps it away for the session", async () => {
   assert.equal(second.find('[data-testid="page-findings-notice"]').exists(), false);
   assert.equal(api.listPageFindings.mock.calls.length, 0);
 });
+
+test("a page that nearly matches another leads with the difference", async () => {
+  const divergent: PageFinding = { ...item("2", "Leave policy 2024"), type: "divergent" };
+  const wrapper = await mountNotice({}, { items: [item("1", "Copy"), divergent], other_count: 0 });
+  assert.match(wrapper.get('[data-testid="page-findings-count"]').text(), /nearly matches 1 other page/);
+});
