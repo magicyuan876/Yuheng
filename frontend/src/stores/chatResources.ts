@@ -2,12 +2,13 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { listKnowledgeBases, getKnowledgeBaseById } from "@/api/knowledge-base";
 import { listModels, type ModelConfig } from "@/api/model";
+import { listWebSearchProviders, type WebSearchProviderEntity } from "@/api/web-search-provider";
 import { useOrganizationStore } from "@/stores/organization";
 
 /** 空间级资源缓存 TTL */
 const CACHE_TTL_MS = 60_000;
 
-type ResourceKey = "knowledgeBases" | "models";
+type ResourceKey = "knowledgeBases" | "models" | "webSearchProviders";
 
 export type ListCreatorFilter = "all" | "mine" | "others";
 
@@ -22,6 +23,7 @@ function isKbModelReady(kb: any): boolean {
 export const useChatResourcesStore = defineStore("chatResources", () => {
   const rawKnowledgeBases = ref<any[]>([]);
   const allModels = ref<ModelConfig[]>([]);
+  const webSearchProviders = ref<WebSearchProviderEntity[]>([]);
 
   const loadedAt = ref<Partial<Record<ResourceKey, number>>>({});
   const inflight = new Map<ResourceKey, Promise<void>>();
@@ -37,6 +39,11 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
 
   const validKnowledgeBases = computed(() => rawKnowledgeBases.value.filter(isKbModelReady));
   const chatModels = computed(() => allModels.value.filter((m) => m.type === "KnowledgeQA"));
+  // Mirrors the backend's resolveWebSearchProviderID: a chat turn searches the
+  // web with the workspace's default provider, falling back to a platform-shared
+  // default. The list endpoint returns exactly those two sets, so "some
+  // provider is the default" is the same test.
+  const hasDefaultWebSearchProvider = computed(() => webSearchProviders.value.some((p) => p.is_default));
 
   function isFresh(key: ResourceKey): boolean {
     const at = loadedAt.value[key];
@@ -99,6 +106,20 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
     });
   }
 
+  async function ensureWebSearchProviders(force = false): Promise<void> {
+    return runOnce("webSearchProviders", force, async () => {
+      try {
+        const res = (await listWebSearchProviders()) as unknown as { data?: WebSearchProviderEntity[] };
+        webSearchProviders.value = Array.isArray(res?.data) ? res.data : [];
+      } catch {
+        // No list, no switch: failing closed hides web search rather than
+        // offering a toggle the backend would silently ignore.
+        webSearchProviders.value = [];
+      }
+      loadedAt.value.webSearchProviders = Date.now();
+    });
+  }
+
   /** @deprecated 使用 ensureModels；保留别名供对话输入栏调用 */
   async function ensureChatModels(force = false): Promise<void> {
     return ensureModels(force);
@@ -153,6 +174,7 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
       loadedAt.value = {};
       rawKnowledgeBases.value = [];
       allModels.value = [];
+      webSearchProviders.value = [];
       kbAllInflight = null;
       invalidateKnowledgeBaseDetail();
       // 同时丢弃所有 inflight 句柄，否则失效后仍在飞行的请求会把旧数据写回缓存。
@@ -174,10 +196,13 @@ export const useChatResourcesStore = defineStore("chatResources", () => {
     validKnowledgeBases,
     allModels,
     chatModels,
+    webSearchProviders,
+    hasDefaultWebSearchProvider,
     isFresh,
     fetchKnowledgeBasesForList,
     ensureKnowledgeBases,
     ensureModels,
+    ensureWebSearchProviders,
     ensureChatModels,
     prefetchChatInput,
     fetchKnowledgeBaseById,

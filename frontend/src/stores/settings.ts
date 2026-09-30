@@ -15,6 +15,13 @@ interface Settings {
   modelConfig: ModelConfig; // 模型配置
   ollamaConfig: OllamaConfig; // Ollama配置
   conversationModels: ConversationModels;
+  /**
+   * The user's web-search switch in the chat input. It is a preference, sent
+   * as web_search_enabled only while web search is actually available (see
+   * useWebSearchToggle), so a workspace that loses its provider does not
+   * leave the flag stuck on.
+   */
+  webSearchEnabled: boolean;
 }
 
 interface ConversationModels {
@@ -74,6 +81,7 @@ const defaultSettings: Settings = {
     rerankModelId: "",
     selectedChatModelId: "", // 用户当前选择的对话模型ID
   },
+  webSearchEnabled: false,
 };
 
 export const useSettingsStore = defineStore("settings", {
@@ -104,6 +112,9 @@ export const useSettingsStore = defineStore("settings", {
 
     // 获取模型配置
     modelConfig: (state) => state.settings.modelConfig || defaultSettings.modelConfig,
+
+    // Settings saved before the switch existed have no such field.
+    isWebSearchEnabled: (state) => state.settings.webSearchEnabled === true,
   },
 
   actions: {
@@ -137,6 +148,11 @@ export const useSettingsStore = defineStore("settings", {
     updateConversationModels(models: Partial<ConversationModels>) {
       const current = this.settings.conversationModels || defaultSettings.conversationModels;
       this.settings.conversationModels = { ...current, ...models };
+      localStorage.setItem("Yuheng_settings", JSON.stringify(this.settings));
+    },
+
+    setWebSearchEnabled(enabled: boolean) {
+      this.settings.webSearchEnabled = enabled;
       localStorage.setItem("Yuheng_settings", JSON.stringify(this.settings));
     },
 
@@ -362,6 +378,9 @@ export const useSettingsStore = defineStore("settings", {
           const existing = this.settings.selectedTags || [];
           this.settings.selectedTags = existing.filter((tag) => state.tag_ids?.includes(tag.id));
         }
+        if (typeof state.web_search_enabled === "boolean") {
+          this.settings.webSearchEnabled = state.web_search_enabled;
+        }
       } finally {
         // 复位必须延后到下一次 flush 之后：监听 store 字段的 watcher 默认
         // flush:'pre'，是异步执行的；若在此处同步复位，watcher 真正运行时标志早已
@@ -392,4 +411,5 @@ export interface SessionLastRequestStatePayload {
     kb_id?: string;
     kb_name?: string;
   }>;
+  web_search_enabled?: boolean;
 }

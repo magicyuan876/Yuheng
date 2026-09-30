@@ -926,9 +926,8 @@ export default {
     testConnection: "Test Connection",
     testing: "Testing...",
     viewDocs: "View docs for API key",
-    noProvidersDesc:
-      "Add a web search provider to enable your agents to retrieve real-time information from the internet.",
-    setAsDefaultDesc: "This provider will be used by default when an agent doesn't specify one",
+    noProvidersDesc: "Add a web search provider so chat can draw on real-time information from the internet.",
+    setAsDefaultDesc: "Web search in chat uses the default provider; without one the web-search switch is hidden",
     proxyUrlLabel: "HTTP proxy",
     proxyUrlPlaceholder: "e.g. http://proxy.example.com:3128 (optional; http/https only)",
     proxyUrlHelp:
@@ -1338,6 +1337,9 @@ export default {
     noModel: "No available models",
     stopGeneration: "Stop Generation",
     send: "Send",
+    webSearch: "Web search",
+    webSearchOn: "Web search is on: answers also use search results",
+    webSearchOff: "Web search is off",
     messages: {
       enterContent: "Please enter content first!",
       replying: "Currently replying, please try again later!",

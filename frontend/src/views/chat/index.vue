@@ -150,6 +150,7 @@ import { deleteTemporaryAttachment, uploadTemporaryAttachment } from "@/api/chat
 import { useStream } from "../../api/chat/streame";
 import { useMenuStore } from "@/stores/menu";
 import { useSettingsStore } from "@/stores/settings";
+import { useWebSearchToggle } from "@/composables/useWebSearchToggle";
 import { MessagePlugin } from "tdesign-vue-next";
 import { useI18n } from "vue-i18n";
 import { useUIStore } from "@/stores/ui";
@@ -183,6 +184,8 @@ const props = defineProps({
 
 const usemenuStore = useMenuStore();
 const useSettingsStoreInstance = useSettingsStore();
+// The input bar's web-search switch; a turn sends it only while web search is available.
+const webSearch = useWebSearchToggle();
 
 const uiStore = useUIStore();
 const { navigateToKnowledgeBaseList } = useKnowledgeBaseCreationNavigation();
@@ -652,6 +655,7 @@ const sendMsg = async (value, modelId = "", mentionedItems = [], imageFiles = []
     knowledge_base_ids: kbIds,
     knowledge_ids: knowledgeIds,
     tag_ids: tagIds,
+    web_search_enabled: webSearch.requested.value,
     summary_model_id: modelId,
     mentioned_items: mentionedItems,
     images: imageAttachments.length > 0 ? imageAttachments : undefined,

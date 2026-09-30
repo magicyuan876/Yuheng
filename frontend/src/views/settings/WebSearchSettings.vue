@@ -457,6 +457,7 @@ import CredentialResource, {
 } from "@/components/credentials/CredentialResource.vue";
 import { useConfirmDelete } from "@/components/settings/useConfirmDelete";
 import { useAuthStore } from "@/stores/auth";
+import { useChatResourcesStore } from "@/stores/chatResources";
 import { providerLogo } from "./providerLogos";
 
 import { Badge } from "@/components/ui/badge";
@@ -483,6 +484,7 @@ import { CircleCheckIcon, CircleXIcon, EllipsisIcon, LinkIcon, Loader2Icon, Lock
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const chatResources = useChatResourcesStore();
 const confirmDelete = useConfirmDelete();
 
 // ===== State =====
@@ -671,6 +673,14 @@ const loadProviderEntities = async () => {
   }
 };
 
+// After a create, edit or delete. The chat input decides whether to offer
+// web search from its own cached copy of this list (a default provider must
+// exist), and it stays mounted under the settings modal, so refresh that too.
+const reloadAfterChange = async () => {
+  await loadProviderEntities();
+  void chatResources.ensureWebSearchProviders(true);
+};
+
 const loadProviderTypes = async () => {
   try {
     providerTypes.value = await listWebSearchProviderTypes();
@@ -755,7 +765,7 @@ const saveProvider = async () => {
       MessagePlugin.success(t("webSearchSettings.toasts.providerCreated"));
     }
     showAddProviderDialog.value = false;
-    await loadProviderEntities();
+    await reloadAfterChange();
   } catch (error: any) {
     MessagePlugin.error(error?.message || "Failed to save provider");
   } finally {
@@ -770,7 +780,7 @@ const deleteProvider = (entity: WebSearchProviderEntity) => {
       try {
         await deleteWebSearchProviderAPI(entity.id!);
         MessagePlugin.success(t("webSearchSettings.toasts.providerDeleted"));
-        await loadProviderEntities();
+        await reloadAfterChange();
       } catch (error: any) {
         MessagePlugin.error(error?.message || "Failed to delete provider");
       }
@@ -896,7 +906,7 @@ async function doToggleSharing() {
     await setWebSearchProviderSharing(entity.id!, shared);
     MessagePlugin.success(shared ? t("platformSharing.sharedToast") : t("platformSharing.unsharedToast"));
     sharingDialogVisible.value = false;
-    await loadProviderEntities();
+    await reloadAfterChange();
   } catch (error: any) {
     MessagePlugin.error(error?.message || t("platformSharing.failedToast"));
   } finally {

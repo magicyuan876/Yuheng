@@ -20,6 +20,7 @@ import { type ModelConfig } from "@/api/model";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { useI18n } from "vue-i18n";
 import AttachmentUpload, { type AttachmentFile } from "./AttachmentUpload.vue";
+import WebSearchToggle from "./chat/WebSearchToggle.vue";
 import type { MentionItem, MentionItemType, MentionRequestItem } from "@/types/mention";
 
 const route = useRoute();
@@ -1591,6 +1592,9 @@ defineExpose({
               }}</span>
             </TooltipContent>
           </Tooltip>
+
+          <!-- 网络搜索开关：仅在本空间可用网络搜索时出现 -->
+          <WebSearchToggle />
 
           <!-- 模型显示 -->
           <div class="ml-auto flex shrink-0 items-center">

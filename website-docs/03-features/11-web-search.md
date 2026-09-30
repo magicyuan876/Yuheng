@@ -5,7 +5,7 @@
 ## 怎么用
 
 1. **配置搜索引擎**：在「设置 → 网络搜索」里点「添加搜索引擎」，选择引擎类型，填写名称、API 密钥（或 SearXNG 的实例地址）、可选的 HTTP 代理，可以先「测试连接」，再「设为默认」。一个工作空间可以有多个配置，问答时使用**默认**的那个；工作空间自己没有默认配置时，回退到系统管理员共享给全平台的默认配置。
-2. **在问答请求里打开联网搜索**：请求体带 `web_search_enabled: true`。目前 Web 前端的对话框和 `yuheng` CLI 都不发送这个字段，联网搜索只能通过 REST API（`POST /knowledge-chat/:session_id`）、Go SDK（`WebSearchEnabled`）或 MCP 工具 `chat` 的 `web_search_enabled` 参数使用。
+2. **在问答请求里打开联网搜索**：Web 对话框的输入栏有一个地球图标的开关，只在当前空间能解析到默认搜索引擎（自己的默认配置，或平台共享的默认配置）时出现；打开后每次提问都带 `web_search_enabled: true`。开关状态随其他输入栏选项一起记住，打开旧会话时恢复为该会话上次提问时的状态。程序调用则在请求体里带这个字段：REST API（`POST /knowledge-chat/:session_id`）、Go SDK（`WebSearchEnabled`）或 MCP 工具 `chat` 的 `web_search_enabled` 参数；`yuheng` CLI 目前不发送它。
 3. 不想申请 API Key 时，可以用 compose 自带的 SearXNG（见下文），实例地址填 `http://searxng:8080`。
 
 配置接口在 `/web-search-providers` 下，写操作需要空间 Admin（开启集中管理基础设施时只有系统管理员可以写），API Key 调用需要 `manage_web_search` 能力或全量权限。

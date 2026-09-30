@@ -265,7 +265,7 @@ Yuheng 支持**多实例存储后端**（迁移 `000068_storage_backends`）。�
 支持两个供应商：
 
 - **火山引擎 Rerank**：在 **设置 → 模型管理** 中添加 Rerank 模型并选择火山引擎。当单次请求文档数超过 API 上限时，客户端会自动分批发送并合并结果。
-- **智谱 AI 网络搜索**：在 **设置 → 网络搜索** 中添加智谱搜索并设为默认。注意 Web 对话界面目前不会打开联网搜索，只有请求里带 `web_search_enabled: true` 的 API / SDK / MCP 调用才会用到，见[网络搜索与网页抓取](../website-docs/03-features/11-web-search.md)。
+- **智谱 AI 网络搜索**：在 **设置 → 网络搜索** 中添加智谱搜索并设为默认。设好默认后，Web 对话输入栏会出现网络搜索开关，打开后提问即带 `web_search_enabled: true`；API / SDK / MCP 调用需自己在请求里带这个字段，见[网络搜索与网页抓取](../website-docs/03-features/11-web-search.md)。
 
 ## 29. 官方文档在哪里看？如何本地或独立部署文档站？
 

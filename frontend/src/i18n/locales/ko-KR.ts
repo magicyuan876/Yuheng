@@ -3439,6 +3439,9 @@ export default {
     noModel: "사용 가능한 모델 없음",
     stopGeneration: "생성 중지",
     send: "전송",
+    webSearch: "웹 검색",
+    webSearchOn: "웹 검색 켜짐: 답변에 검색 결과도 함께 사용합니다",
+    webSearchOff: "웹 검색 꺼짐",
     messages: {
       enterContent: "먼저 내용을 입력해주세요!",
       replying: "응답 중입니다. 잠시 후 다시 시도해주세요!",
@@ -3843,8 +3846,9 @@ export default {
     testConnection: "연결 테스트",
     testing: "테스트 중...",
     viewDocs: "문서에서 API 키 확인",
-    noProvidersDesc: "웹 검색 프로바이더를 추가하여 에이전트가 인터넷에서 실시간 정보를 가져올 수 있도록 합니다.",
-    setAsDefaultDesc: "에이전트가 검색 엔진을 지정하지 않은 경우 이 프로바이더가 기본적으로 사용됩니다",
+    noProvidersDesc: "웹 검색 프로바이더를 추가하면 대화에서 인터넷의 실시간 정보를 참고할 수 있습니다.",
+    setAsDefaultDesc:
+      "대화의 웹 검색은 기본 프로바이더를 사용합니다. 기본 프로바이더가 없으면 웹 검색 스위치가 표시되지 않습니다",
     proxyUrlLabel: "HTTP 프록시",
     proxyUrlPlaceholder: "예: http://127.0.0.1:7890 (선택 사항)",
     proxyUrlHelp: "검색 API 접근에 프록시가 필요한 경우 입력합니다. 비우면 HTTP_PROXY/HTTPS_PROXY를 사용합니다.",
