@@ -374,3 +374,59 @@ func TestLoadBuiltinModelsConfig_PreservesEntryIDOverBeforeCreate(t *testing.T) 
 	assert.Equal(t, []string{"stable-id-123"}, ids,
 		"YAML-declared id must survive across reloads (no UUID regeneration)")
 }
+
+// An entry that stops validating must not read as "removed from the file":
+// its existing row stays, and so does every other yaml-managed row the sweep
+// would otherwise judge, until the file applies cleanly again.
+func TestLoadBuiltinModelsConfig_InvalidEntryIsNotPruned(t *testing.T) {
+	db := setupBuiltinModelsDB(t)
+	dir := writeYAML(t, `builtin_models:
+  - id: builtin-llm
+    name: gpt-4o-mini
+    type: KnowledgeQA
+  - id: builtin-rerank
+    name: bge
+    type: Rerank
+  - id: builtin-embed
+    name: bge-m3
+    type: Embedding
+`)
+	require.NoError(t, LoadBuiltinModelsConfig(context.Background(), db, dir))
+
+	// Round 2: the rerank entry gets a typo in its type, and the embedding
+	// entry loses its id key, so neither validates.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "builtin_models.yaml"), []byte(`builtin_models:
+  - id: builtin-llm
+    name: gpt-4o-mini
+    type: KnowledgeQA
+  - id: builtin-rerank
+    name: bge
+    type: rerank
+  - name: bge-m3
+    type: Embedding
+`), 0o644))
+	require.NoError(t, LoadBuiltinModelsConfig(context.Background(), db, dir))
+
+	for _, id := range []string{"builtin-llm", "builtin-rerank", "builtin-embed"} {
+		live, _ := countModels(t, db, id)
+		assert.Equal(t, int64(1), live, "%s must survive a run in which some entries did not apply", id)
+	}
+	var rerank Model
+	require.NoError(t, db.Where("id = ?", "builtin-rerank").First(&rerank).Error)
+	assert.Equal(t, ModelTypeRerank, rerank.Type, "the invalid entry must not overwrite the stored row")
+
+	// Round 3: the file is fixed, with the embedding entry now deliberately
+	// gone; the sweep runs again and retires it.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "builtin_models.yaml"), []byte(`builtin_models:
+  - id: builtin-llm
+    name: gpt-4o-mini
+    type: KnowledgeQA
+  - id: builtin-rerank
+    name: bge
+    type: Rerank
+`), 0o644))
+	require.NoError(t, LoadBuiltinModelsConfig(context.Background(), db, dir))
+	live, deleted := countModels(t, db, "builtin-embed")
+	assert.Equal(t, int64(0), live)
+	assert.Equal(t, int64(1), deleted)
+}

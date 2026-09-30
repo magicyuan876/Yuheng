@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -77,7 +78,7 @@ func interpolateBuiltinModelEnv(s string) string {
 //   - After all UPSERTs, any pre-existing yaml-managed row whose id is no
 //     longer in the file is soft-deleted. Removing an entry from YAML is
 //     therefore the supported way to retire a built-in model — no manual
-//     SQL needed.
+//     SQL needed. The sweep runs only when every entry applied (see below).
 //   - If is_default=true is set on a YAML entry, the loader first clears
 //     is_default on any other rows in the same (tenant_id, type) bucket,
 //     mirroring the invariant enforced by the API path. Multiple entries
@@ -89,9 +90,13 @@ func interpolateBuiltinModelEnv(s string) string {
 //   - YAML parse error: prints a warning and aborts the reconcile (the
 //     drift sweep is NOT run, so a malformed file cannot accidentally wipe
 //     YAML-managed rows)
-//   - per-entry UPSERT error: prints a warning, the entry is dropped from
-//     the "current YAML id set" so the sweep won't delete its existing
-//     row either (treats the failure as "leave alone")
+//   - an entry that fails validation, or whose lookup or UPSERT fails: prints
+//     a warning, leaves that entry's existing row as it is, and skips the
+//     drift sweep for this run. Retiring rows is the one destructive step, and
+//     a file that did not apply cleanly cannot be trusted to name the full set
+//     of models to keep: an entry whose id was mistyped or whose "id:" key was
+//     lost would otherwise read as "removed" and retire a model that knowledge
+//     bases still use. The sweep catches up on the first clean start.
 func LoadBuiltinModelsConfig(ctx context.Context, db *gorm.DB, configDir string) error {
 	path := os.Getenv("BUILTIN_MODELS_CONFIG")
 	if path == "" {
@@ -123,14 +128,17 @@ func LoadBuiltinModelsConfig(ctx context.Context, db *gorm.DB, configDir string)
 
 	// yamlIDs collects every id we successfully upserted this run. Used by
 	// the drift sweep below to determine which previously-yaml-managed rows
-	// have disappeared and should be retired.
+	// have disappeared and should be retired. failed counts the entries that
+	// did not apply; any failure skips the sweep, so an entry missing from
+	// yamlIDs because it failed can never read as removed.
 	yamlIDs := make([]string, 0, len(file.BuiltinModels))
-	applied := 0
+	applied, failed := 0, 0
 
 	for i := range file.BuiltinModels {
 		e := &file.BuiltinModels[i]
 		if err := validateBuiltinModelEntry(e, i); err != nil {
 			log.Printf("[builtin-models] WARN: %v; skipping", err)
+			failed++
 			continue
 		}
 		m := e.toModel()
@@ -148,8 +156,9 @@ func LoadBuiltinModelsConfig(ctx context.Context, db *gorm.DB, configDir string)
 			log.Printf("[builtin-models] preserving runtime override: id=%s", m.ID)
 			continue
 		}
-		if lookupErr != nil && lookupErr != gorm.ErrRecordNotFound {
+		if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
 			log.Printf("[builtin-models] WARN: inspect existing model %s failed: %v; skipping", m.ID, lookupErr)
+			failed++
 			continue
 		}
 
@@ -177,11 +186,20 @@ func LoadBuiltinModelsConfig(ctx context.Context, db *gorm.DB, configDir string)
 		}).Create(&m)
 		if res.Error != nil {
 			log.Printf("[builtin-models] WARN: upsert %s failed: %v; continuing", e.ID, res.Error)
+			failed++
 			continue
 		}
 		applied++
 		yamlIDs = append(yamlIDs, e.ID)
 		log.Printf("[builtin-models] upserted: id=%s name=%s type=%s", e.ID, e.Name, e.Type)
+	}
+
+	if failed > 0 {
+		log.Printf("[builtin-models] WARN: %d of %d entries in %s did not apply; "+
+			"drift sweep skipped, no model is retired until the file applies cleanly",
+			failed, len(file.BuiltinModels), path)
+		log.Printf("[builtin-models] applied: %d upserted, sweep skipped", applied)
+		return nil
 	}
 
 	// Drift sweep: retire YAML-managed rows that no longer appear in the
@@ -208,8 +226,9 @@ func LoadBuiltinModelsConfig(ctx context.Context, db *gorm.DB, configDir string)
 //   - When keepIDs is empty the sweep retires ALL yaml-managed rows. That
 //     matches the natural reading of "the YAML file declares zero entries
 //     ⇒ no yaml-managed models should exist". The caller has already
-//     short-circuited on parse failure, so we only reach this branch when
-//     the operator deliberately reduced the file to an empty list.
+//     short-circuited on a parse failure or any entry that did not apply,
+//     so we only reach this branch when the operator deliberately reduced
+//     the file to an empty list.
 func pruneOrphanYAMLManagedModels(ctx context.Context, db *gorm.DB, keepIDs []string) (int64, error) {
 	q := db.WithContext(ctx).
 		Where("managed_by = ?", BuiltinModelManagedBy)

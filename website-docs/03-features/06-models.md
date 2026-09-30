@@ -238,10 +238,10 @@ builtin_models:
 
 - 文件不存在（或是个目录——Docker 绑定挂载一个不存在的源文件时会替换成目录）时记一行日志跳过，不报错；
 - 读取失败或 YAML 解析失败只打 WARN 并**跳过整次对账**，不执行漂移清理，一次手抖的改动不会成批软删已有模型；
-- 单个条目校验不通过（id 为空或超过 64 字符 `ModelIDMaxLen`、type 非法、status 非法）时跳过该条；
+- 单个条目校验不通过（id 为空或超过 64 字符 `ModelIDMaxLen`、type 非法、status 非法），或查询 / UPSERT 失败时，跳过该条、保留它在库里的现有行，并且**本次不做漂移清理**（日志 `drift sweep skipped`）：没能完整应用的文件不足以说明「哪些模型该保留」，写错 type 或丢了 `id:` 的条目不应被当成「已从文件删除」而软删掉仍在使用的模型。文件改正后的第一次启动会补做清理；
 - 每个条目按 `id` UPSERT，写入 `is_builtin=true`、`managed_by="yaml"`，并把 `deleted_at` 重置为 NULL（从文件里拿掉再加回来等于恢复）；已被运行时接管（`managed_by` 为空）的同 ID 行跳过，日志 `preserving runtime override`；
 - `is_default: true` 的条目先清掉同 `(tenant_id, type)` 里其他行的默认标记，保持「每类一个默认」；
-- **漂移清理**：`managed_by='yaml'` 且 id 不在本次文件里的行被软删除。手工 SQL 插入或界面共享的行（`managed_by` 为空）永远不受影响。
+- **漂移清理**（仅在所有条目都应用成功时执行）：`managed_by='yaml'` 且 id 不在本次文件里的行被软删除。手工 SQL 插入或界面共享的行（`managed_by` 为空）永远不受影响。
 
 需要临时停用 YAML 接管又不想改文件时，把 `BUILTIN_MODELS_CONFIG` 指向一个不存在的路径并重启：加载器看到文件缺失直接跳过，也不做漂移清理，已写入的行原样保留。
 
