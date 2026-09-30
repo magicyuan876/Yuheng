@@ -425,6 +425,7 @@ export default {
     resume: "恢复",
     paused: "已暂停",
     resumed: "已恢复",
+    resumeFailed: "恢复数据源失败",
     pauseFailed: "暂停失败",
     logs: "日志",
     syncModeLabel: "同步模式",
@@ -2502,6 +2503,8 @@ export default {
     },
   },
   chat: {
+    editorOpened: "已在编辑器中打开，保存后即可加入知识库",
+    emptyContentWarning: "还没有回答内容",
     feedback: {
       helpful: "有帮助",
       notHelpful: "没帮助",
@@ -3464,6 +3467,7 @@ export default {
     },
   },
   file: {
+    downloadFailed: "下载失败，请重试",
     upload: "上传文件",
   },
   mentionDetail: {
@@ -3480,6 +3484,7 @@ export default {
     save: "保存",
     delete: "删除",
     edit: "编辑",
+    copyFailed: "复制失败，请手动选中文本复制",
     copy: "复制",
     copied: "已复制",
     copyCode: "复制代码",
@@ -3902,6 +3907,7 @@ export default {
       sealRecognition: "印章识别",
       chartRecognition: "图表识别",
       language: "语言",
+      checking: "检测中…",
       testConnection: "测试连接",
       docs: "文档",
       loadFailed: "加载解析引擎列表失败",
@@ -4131,6 +4137,8 @@ export default {
     tagNameRequired: "请先输入标签名称",
     tagCreateSuccess: "标签创建成功",
     tagEditSuccess: "标签更新成功",
+    tagDeleteDesc: "确定删除标签「{name}」吗？该标签下的所有 FAQ 条目也会一并删除。",
+    selectKnowledgeBase: "请先选择知识库",
     tagDeleteDescDoc: '确定删除标签"{name}"？该标签下的所有文档将被一并删除',
     tagDeleteSuccess: "标签已删除",
     tagEditAction: "重命名",
@@ -4623,6 +4631,7 @@ export default {
     openNewWindow: "在新窗口中打开",
     deleteSession: "删除对话",
     renamePlaceholder: "输入对话标题",
+    pinSuccess: "已置顶对话",
     unpinSuccess: "已取消置顶",
     sessionIdCopied: "会话 ID 已复制",
     linkCopied: "对话链接已复制",

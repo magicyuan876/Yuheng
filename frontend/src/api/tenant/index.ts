@@ -328,7 +328,7 @@ export async function createTenant(payload: {
     const code = error?.error?.code ?? error?.code;
     return {
       success: false,
-      message: code === 2005 ? t("tenant.create.disabled") : error.message || t("error.tenant.createFailed"),
+      message: code === 2005 ? t("tenant.create.disabled") : error.message || t("tenant.create.failed"),
     };
   }
 }

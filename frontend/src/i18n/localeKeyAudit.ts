@@ -236,6 +236,51 @@ export function collectStaticI18nKeysFromSources(rootDir = SOURCE_ROOT): Set<str
   return collectI18nUsageFromSources(rootDir).staticKeys;
 }
 
+// Call sites that name a key literally, beyond the plain t("key") forms of
+// STATIC_KEY_PATTERNS: both branches of t(cond ? "a" : "b"), and the keys
+// copyWithToast takes as its second and third arguments.
+const TERNARY_KEY_PATTERN =
+  /(?:\$t|i18n\.global\.t|(?<![.\w])t)\(\s*[^,()?]+\?\s*['"]([^'"]+)['"]\s*:\s*['"]([^'"]+)['"]/g;
+const COPY_TOAST_KEY_PATTERN =
+  /copyWithToast\([^,()]*(?:\([^()]*\))?[^,()]*,\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?/g;
+// A key a caller builds by concatenation ("a.b." + x) is not a key on its
+// own; the dynamic-key checks cover those.
+const DOTTED_KEY = /^[A-Za-z][\w-]*(?:\.[\w-]+)+$/;
+
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+}
+
+/**
+ * Collect every key the app asks the translator for by name, with the files
+ * asking for it. Unlike collectStaticI18nKeysFromSources this counts call
+ * sites only, never a string that merely looks like a key (setting names,
+ * audit actions, capability ids), so a key listed here and missing from the
+ * locale bundles is text a user sees as the raw key.
+ */
+export function collectCalledI18nKeysFromSources(rootDir = SOURCE_ROOT): Map<string, string[]> {
+  const called = new Map<string, string[]>();
+  const add = (key: string | undefined, file: string) => {
+    if (!key || !DOTTED_KEY.test(key)) return;
+    const files = called.get(key) ?? [];
+    if (!files.includes(file)) files.push(file);
+    called.set(key, files);
+  };
+  for (const file of getSourceFiles(rootDir)) {
+    const content = stripComments(readFileSync(file, "utf8"));
+    for (const pattern of [...STATIC_KEY_PATTERNS, TERNARY_KEY_PATTERN, COPY_TOAST_KEY_PATTERN]) {
+      pattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(content)) !== null) {
+        // "a.b." + x is caught by the plain pattern as "a.b."; DOTTED_KEY drops it.
+        add(match[1], file);
+        add(match[2], file);
+      }
+    }
+  }
+  return called;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

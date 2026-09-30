@@ -34,6 +34,7 @@ export default {
     openNewWindow: "Open in New Window",
     deleteSession: "Delete Conversation",
     renamePlaceholder: "Enter a conversation title",
+    pinSuccess: "Conversation pinned",
     unpinSuccess: "Conversation unpinned",
     sessionIdCopied: "Session ID copied",
     linkCopied: "Conversation link copied",
@@ -338,6 +339,8 @@ export default {
     tagNameRequired: "Please provide a tag name",
     tagCreateSuccess: "Tag created",
     tagEditSuccess: "Tag updated",
+    tagDeleteDesc: 'Delete tag "{name}"? All FAQ entries under this tag will also be deleted.',
+    selectKnowledgeBase: "Select a knowledge base first",
     tagDeleteDescDoc: 'Delete tag "{name}"? All documents under this tag will also be deleted.',
     tagDeleteSuccess: "Tag deleted",
     tagEditAction: "Rename",
@@ -794,6 +797,7 @@ export default {
       sealRecognition: "Seal Recognition",
       chartRecognition: "Chart Recognition",
       language: "Language",
+      checking: "Checking…",
       testConnection: "Test Connection",
       docs: "Docs",
       loadFailed: "Failed to load parser engine list",
@@ -1183,6 +1187,7 @@ export default {
     save: "Save",
     delete: "Delete",
     edit: "Edit",
+    copyFailed: "Copy failed. Select the text and copy it manually.",
     copy: "Copy",
     copied: "Copied",
     copyCode: "Copy code",
@@ -1231,6 +1236,7 @@ export default {
     belongsToOrg: "Space: ",
   },
   file: {
+    downloadFailed: "Download failed. Please try again.",
     upload: "Upload File",
   },
   manualEditor: {
@@ -2157,6 +2163,8 @@ export default {
     },
   },
   chat: {
+    editorOpened: "Opened in the editor. Save it to add it to a knowledge base.",
+    emptyContentWarning: "There is no answer yet",
     feedback: {
       helpful: "Helpful",
       notHelpful: "Not helpful",
@@ -4115,6 +4123,7 @@ export default {
     resume: "Resume",
     paused: "Paused",
     resumed: "Resumed",
+    resumeFailed: "Failed to resume the data source",
     pauseFailed: "Failed to pause",
     logs: "Logs",
     syncModeLabel: "Sync mode",

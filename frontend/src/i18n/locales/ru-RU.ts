@@ -439,6 +439,7 @@ export default {
     resume: "Возобновить",
     paused: "Приостановлено",
     resumed: "Возобновлено",
+    resumeFailed: "Не удалось возобновить источник данных",
     pauseFailed: "Не удалось приостановить",
     logs: "Журнал",
     syncModeLabel: "Режим синхронизации",
@@ -2588,6 +2589,8 @@ export default {
     },
   },
   chat: {
+    editorOpened: "Открыто в редакторе. Сохраните, чтобы добавить в базу знаний.",
+    emptyContentWarning: "Ответа пока нет",
     feedback: {
       helpful: "Полезно",
       notHelpful: "Бесполезно",
@@ -3584,6 +3587,7 @@ export default {
     },
   },
   file: {
+    downloadFailed: "Не удалось скачать. Повторите попытку.",
     upload: "Загрузить файл",
   },
   mentionDetail: {
@@ -3600,6 +3604,7 @@ export default {
     save: "Сохранить",
     delete: "Удалить",
     edit: "Редактировать",
+    copyFailed: "Не удалось скопировать. Выделите текст и скопируйте вручную.",
     copy: "Копировать",
     copied: "Скопировано",
     copyCode: "Копировать код",
@@ -4037,6 +4042,7 @@ export default {
       sealRecognition: "Распознавание печатей",
       chartRecognition: "Распознавание диаграмм",
       language: "Язык",
+      checking: "Проверка…",
       testConnection: "Проверить с текущими параметрами",
       docs: "Документация",
       loadFailed: "Не удалось загрузить список парсеров",
@@ -4269,6 +4275,8 @@ export default {
     tagNameRequired: "Пожалуйста, укажите название тега",
     tagCreateSuccess: "Тег создан",
     tagEditSuccess: "Тег обновлён",
+    tagDeleteDesc: "Удалить тег «{name}»? Все записи FAQ с этим тегом тоже будут удалены.",
+    selectKnowledgeBase: "Сначала выберите базу знаний",
     tagDeleteDescDoc: "Удалить тег «{name}»? Все документы под этим тегом также будут удалены.",
     tagDeleteSuccess: "Тег удалён",
     tagEditAction: "Переименовать",
@@ -4769,6 +4777,7 @@ export default {
     openNewWindow: "Открыть в новом окне",
     deleteSession: "Удалить диалог",
     renamePlaceholder: "Введите название диалога",
+    pinSuccess: "Диалог закреплён",
     unpinSuccess: "Диалог откреплён",
     sessionIdCopied: "ID сессии скопирован",
     linkCopied: "Ссылка на диалог скопирована",

@@ -12,6 +12,7 @@ import {
   CRITICAL_LOCALE_KEYS,
   LOCALE_BUNDLES,
   alignLocaleBundleToReferenceKeys,
+  collectCalledI18nKeysFromSources,
   collectI18nUsageFromSources,
   collectLocaleKeys,
   collectReferencedLocaleKeys,
@@ -54,6 +55,22 @@ test("critical runtime i18n trees are present", () => {
   const en = localeKeysByName["en-US"];
   const missing = CRITICAL_LOCALE_KEYS.filter((key) => !en.has(key));
   assert.deepEqual(missing, [], missing.join("\n"));
+});
+
+// The test above starts from the keys the reference bundle has, so a key the
+// code asks for and no bundle defines never reaches it. This one starts from
+// the code.
+test("every key the app asks the translator for by name exists", () => {
+  const en = localeKeysByName[REFERENCE_LOCALE];
+  // A te()/tm() may name a subtree rather than a message.
+  const subtrees = new Set(
+    [...en].flatMap((key) => key.split(".").map((_, i, parts) => parts.slice(0, i + 1).join("."))),
+  );
+  const missing = [...collectCalledI18nKeysFromSources()]
+    .filter(([key]) => !en.has(key) && !subtrees.has(key))
+    .map(([key, files]) => `${key} <- ${files.map((f) => f.replace(/^.*\/src\//, "src/")).join(", ")}`)
+    .sort();
+  assert.deepEqual(missing, [], missing.slice(0, 30).join("\n"));
 });
 
 test("referenced i18n keys used in app code exist in every locale", () => {

@@ -434,6 +434,7 @@ export default {
     resume: "재개",
     paused: "일시정지됨",
     resumed: "재개됨",
+    resumeFailed: "데이터 소스를 재개하지 못했습니다",
     pauseFailed: "일시정지 실패",
     logs: "로그",
     syncModeLabel: "동기화 모드",
@@ -2560,6 +2561,8 @@ export default {
     },
   },
   chat: {
+    editorOpened: "편집기에서 열었습니다. 저장하면 지식 베이스에 추가됩니다.",
+    emptyContentWarning: "아직 답변이 없습니다",
     feedback: {
       helpful: "도움이 됨",
       notHelpful: "도움이 안 됨",
@@ -3546,6 +3549,7 @@ export default {
     },
   },
   file: {
+    downloadFailed: "다운로드하지 못했습니다. 다시 시도하세요.",
     upload: "파일 업로드",
   },
   mentionDetail: {
@@ -3562,6 +3566,7 @@ export default {
     save: "저장",
     delete: "삭제",
     edit: "편집",
+    copyFailed: "복사하지 못했습니다. 텍스트를 선택해 직접 복사하세요.",
     copy: "복사",
     copied: "복사됨",
     copyCode: "코드 복사",
@@ -3992,6 +3997,7 @@ export default {
       sealRecognition: "인장 인식",
       chartRecognition: "차트 인식",
       language: "언어",
+      checking: "확인 중…",
       testConnection: "연결 테스트",
       docs: "문서",
       loadFailed: "파서 엔진 목록 로드 실패",
@@ -4223,6 +4229,8 @@ export default {
     tagNameRequired: "태그 이름을 먼저 입력하세요",
     tagCreateSuccess: "태그 생성 성공",
     tagEditSuccess: "태그 업데이트 성공",
+    tagDeleteDesc: '태그 "{name}"을(를) 삭제할까요? 이 태그에 속한 모든 FAQ 항목도 함께 삭제됩니다.',
+    selectKnowledgeBase: "먼저 지식 베이스를 선택하세요",
     tagDeleteDescDoc: '"{name}" 태그를 삭제하시겠습니까? 해당 태그의 모든 문서가 함께 삭제됩니다',
     tagDeleteSuccess: "태그가 삭제되었습니다",
     tagEditAction: "이름 변경",
@@ -4719,6 +4727,7 @@ export default {
     openNewWindow: "새 창에서 열기",
     deleteSession: "대화 삭제",
     renamePlaceholder: "대화 제목을 입력하세요",
+    pinSuccess: "대화를 고정했습니다",
     unpinSuccess: "대화 고정이 해제되었습니다",
     sessionIdCopied: "세션 ID가 복사되었습니다",
     linkCopied: "대화 링크가 복사되었습니다",
