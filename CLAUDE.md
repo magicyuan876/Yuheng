@@ -18,31 +18,34 @@ Docker Compose stack. Solo-maintained, in active development.
 
 ## Frontend (`frontend/`)
 
-Vue 3.5 + TypeScript + Vite 7 + Pinia + vue-router + vue-i18n. **Two styling
-stacks coexist while the old one is retired, screen by screen.**
+Vue 3.5 + TypeScript + Vite 7 + Pinia + vue-router + vue-i18n. The UI is
+**Tailwind v4 + shadcn-vue**; the migration off TDesign and Less is done in
+the templates. What is left of TDesign is deliberate and small:
 
-| | New stack — use for all new code | Legacy — do not extend |
+| | Use | Left of the old stack — do not extend |
 |---|---|---|
-| Styling | Tailwind v4 utility classes | Less in `<style scoped lang="less">` |
-| Components | shadcn-vue, copied into `src/components/ui/` (Reka UI underneath) | TDesign `<t-*>` |
-| Icons | `@lucide/vue` (`XIcon` naming) | `<t-icon name="…">` |
+| Styling | Tailwind v4 utility classes | none (no Less remains) |
+| Components | shadcn-vue, copied into `src/components/ui/` (Reka UI underneath) | `<t-config-provider>` in `App.vue` only |
+| Icons | `@lucide/vue` (`XIcon` naming) | none |
+| Feedback | — | `MessagePlugin`, `DialogPlugin`, `NotifyPlugin` from `tdesign-vue-next` (JS APIs, replaced separately) |
 
 Rules:
 
-1. **A component is all-new or all-old.** Never mix `<t-*>` with shadcn, or
-   Less with utilities, inside one `.vue` file. Migrating a screen means the
-   whole file; its child components stay as they are (the boundary is the
-   component).
+1. **No new `<t-*>` or Less.** A new or changed component uses the stack
+   above; `SegmentedRadio.vue` and friends show how a TDesign widget was
+   rebuilt when one was needed.
 2. `src/components/ui/*` is **our source**. Read it, edit it, add
    components with `npx shadcn-vue@latest add <name>` (run with proxy
    variables unset if the registry fetch fails; the CLI ignores
-   `HTTPS_PROXY` handling that the rest of the toolchain has).
+   `HTTPS_PROXY` handling that the rest of the toolchain has). The
+   `shadcn-vue` dev dependency is not just the CLI: `tailwind.css` imports
+   `shadcn-vue/tailwind.css` from it.
 3. `src/views/docs/**` is the pilot module and is held strictly: no `any`
    (ESLint enforces it there and only there).
-4. Toasts still go through `MessagePlugin` from `tdesign-vue-next`; that is a
-   JS API, not a template component, and is replaced separately.
+4. Toasts and confirmations still go through `MessagePlugin` /
+   `DialogPlugin`; they are JS APIs, not template components.
 
-How the two stacks coexist is decided in **`src/assets/tailwind.css`** and the
+How TDesign's remaining CSS and Tailwind coexist is decided in **`src/assets/tailwind.css`** and the
 `tdesignInLayer` plugin in `vite.config.ts`. Read those two files before
 touching global styles. In short: cascade layers ordered
 `theme, base, tdesign, components, utilities`; no Tailwind preflight (the
@@ -50,8 +53,8 @@ Markdown views need browser defaults); element resets are scoped to
 `[data-slot]` — put `data-slot="…"` on a bare element to opt it in; every
 semantic token (`bg-primary`, `text-muted-foreground`, `text-placeholder`,
 `text-warning`, `rounded-md`…) is bridged to a TDesign `--td-*` variable, so
-both stacks share one palette and one dark mode (`theme-mode="dark"` on
-`<html>`; use the `dark:` variant).
+the toasts and dialogs share the app's palette and dark mode
+(`theme-mode="dark"` on `<html>`; use the `dark:` variant).
 
 ### Commands (run in `frontend/`)
 
@@ -72,14 +75,15 @@ CI (`.github/workflows/frontend.yml`) runs format → lint → test → type-che
 
 - Vitest + happy-dom; assertions use `node:assert/strict`. Component tests
   should mount with `@vue/test-utils`.
-- Thirteen inherited tests read a component's *source as text* and
+- Six inherited tests still read a component's *source as text* and
   regex-match it (`// @vitest-environment node` at the top). They are the
   weakest tests in the suite — a formatting change can fail them. Do not
   write new ones; replace them with mounted tests when you touch that area.
 - Two guards worth knowing: `localeKeyAudit.test.ts` (all four locales carry
-  the same keys) and `commands.test.ts` (no two slash-menu entries may read
-  the same in any language). Adding a menu item means adding its label to
-  `en-US`, `zh-CN`, `ko-KR`, `ru-RU`.
+  the same keys, and every key the code passes literally to `t()`, `$t()`,
+  `te()` or `copyWithToast()` exists) and `commands.test.ts` (no two
+  slash-menu entries may read the same in any language). Adding a menu item
+  means adding its label to `en-US`, `zh-CN`, `ko-KR`, `ru-RU`.
 
 ### Conventions
 
