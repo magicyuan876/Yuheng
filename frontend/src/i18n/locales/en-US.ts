@@ -3452,7 +3452,7 @@ export default {
       confirmShare:
         'Sharing "{name}" makes it visible and usable in every workspace on this deployment. Credentials and the base URL stay hidden from everyone but system administrators.',
       confirmUnshare:
-        'After you stop sharing "{name}", other workspaces can no longer use it. The request is rejected while any workspace still has a knowledge base or agent bound to this model.',
+        'After you stop sharing "{name}", other workspaces can no longer use it. The request is rejected while any workspace still has a knowledge base that uses this model.',
       embeddingWarning:
         "Note: this is an embedding model. Existing knowledge bases store vectors produced by it; replacing or removing it breaks retrieval until those indexes are rebuilt.",
       sharedToast: "Model shared platform-wide",

@@ -34,9 +34,9 @@
           }}
         </p>
         <a
-          v-if="docsUrl('BUILTIN_MODELS.md')"
+          v-if="docsUrl('03-features/06-models#内置模型')"
           class="text-primary inline-flex items-center gap-0.5 text-[13px] hover:underline"
-          :href="docsUrl('BUILTIN_MODELS.md')"
+          :href="docsUrl('03-features/06-models#内置模型')"
           target="_blank"
           rel="noopener noreferrer"
         >

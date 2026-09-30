@@ -298,7 +298,7 @@ function formatUptime(totalSeconds: number): string {
   return parts.join(" ");
 }
 
-const troubleshootingDocsURL = docsUrl("migration-troubleshooting.md");
+const troubleshootingDocsURL = docsUrl("01-getting-started/05-backup-and-upgrade#迁移失败时如何读启动报错");
 
 // Pre-fills a new issue with the current migration error so users don't have to
 // paste it manually. Body is intentionally minimal — the bug template will fill

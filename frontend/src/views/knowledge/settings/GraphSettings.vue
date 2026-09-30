@@ -752,7 +752,7 @@ const loadSystemInfo = async (force = false) => {
   }
 };
 
-const graphGuideUrl = import.meta.env.VITE_KG_GUIDE_URL || docsUrl("KnowledgeGraph.md");
+const graphGuideUrl = import.meta.env.VITE_KG_GUIDE_URL || docsUrl("03-features/09-knowledge-graph");
 
 // Open guide documentation to show how to enable graph database
 const handleOpenGraphGuide = () => {

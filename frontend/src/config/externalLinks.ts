@@ -9,7 +9,7 @@
  * docsUrl() 会拼出对应页面；无需改动各个组件。
  */
 
-/** 文档站根地址，例如 'https://kb-docs.internal.example.com'。留空则隐藏所有文档入口。 */
+/** 文档站根地址，例如 'https://kb.example.com/docs'（website-docs 构建时 base 为 /docs/）。留空则隐藏所有文档入口。 */
 export const DOCS_BASE_URL: string = "";
 
 /** 源码仓库地址。留空则隐藏「GitHub」类入口。 */
@@ -19,7 +19,7 @@ export const REPO_URL: string = "";
 export const ISSUE_TRACKER_URL: string = "";
 
 /**
- * 拼出一篇文档的地址。`path` 用相对路径，例如 'RBAC.md' 或 'features/graph'。
+ * 拼出一篇文档的地址。`path` 用相对路径，即文档站（website-docs）里的页面路径，不带 .md，例如 '03-features/06-models#内置模型'。
  * DOCS_BASE_URL 为空时返回空串，调用方据此隐藏入口。
  */
 export function docsUrl(path: string): string {

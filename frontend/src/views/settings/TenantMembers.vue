@@ -99,8 +99,8 @@
         {{ $t("tenantMember.sectionDescription") }}
         <a
           class="doc-link"
-          v-if="docsUrl('RBAC.md')"
-          :href="docsUrl('RBAC.md')"
+          v-if="docsUrl('03-features/01-tenant-auth')"
+          :href="docsUrl('03-features/01-tenant-auth')"
           target="_blank"
           rel="noopener noreferrer"
         >

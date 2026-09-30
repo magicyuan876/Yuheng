@@ -1377,7 +1377,7 @@ export default {
       confirmShare:
         "将「{name}」设为平台共享后，本部署下的所有空间都能看到并使用它。凭据和 Base URL 不会暴露给非系统管理员。",
       confirmUnshare:
-        "取消「{name}」的平台共享后，其他空间将无法再使用它。若仍有空间的知识库或智能体绑定该模型，操作会被拒绝。",
+        "取消「{name}」的平台共享后，其他空间将无法再使用它。若仍有空间的知识库在使用该模型，操作会被拒绝。",
       embeddingWarning: "注意：这是 Embedding 模型。已建知识库的向量与它绑定，更换或移除会导致检索失效，需要重建索引。",
       sharedToast: "已设为平台共享",
       unsharedToast: "已取消平台共享",
