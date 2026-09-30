@@ -357,7 +357,6 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 | `YUHENG_DOCS_DRAWIO_URL` | 空 | 浏览器可访问的 draw.io 地址；空则不能新建、编辑 draw.io 图表 |
 | `YUHENG_DOCS_PUBLIC_SHARING` | `false` | 是否允许公开链接和公开空间 |
 | `YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES` | `60` | 后台清理（孤立附件、过期回收站、过期导出、中断的导入）的间隔 |
-| `YUHENG_DOCS_REVISION_INTERVAL_MINUTES` | `10` | **读取但未使用**：快照间隔实际由代码常量决定（见 3.7） |
 
 协同服务容器（compose 的 `collab`）另有：`COLLAB_BACKEND_URL`（默认 `http://app:8080`）、`COLLAB_REDIS_URL`（多实例必填，否则各实例上的同一文档互相看不见、后落盘的覆盖先落盘的）、`COLLAB_LOG_LEVEL`、`COLLAB_PORT`、`COLLAB_BIND`。draw.io 容器：`DRAWIO_PORT`（8087）、`DRAWIO_BIND`、`DRAWIO_VERSION`。
 
@@ -446,7 +445,6 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 - 没有邮件通知；「最近浏览」不跨设备。
 - 搜索是子串匹配，大空间上的单字查询会是一次宽扫描。
 - 已删除的空间不会被自动清理。
-- `YUHENG_DOCS_REVISION_INTERVAL_MINUTES` 被读取但没有任何代码使用。
 - `.env.example` 说 `YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES` 取负数可关闭后台清理，但配置加载时负数被当作非法值回退为 60，实际关不掉；清理器本身支持非正数间隔关闭，只是环境变量到达不了。
 - 各类上限：标题 500 字、正文 4 MiB、文档最多 20 万节点 / 64 层嵌套；页面授权 100 条；评论讨论 1000 个；标签每空间 200、每页 20；模板每范围 200；公开链接每页 20；导出 5000 页；导入 5000 个文件；复制子树 2000 页。
 

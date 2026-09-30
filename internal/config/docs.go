@@ -32,9 +32,6 @@ type DocsConfig struct {
 	MaxAttachmentBytes int64 `yaml:"max_attachment_bytes" json:"max_attachment_bytes"`
 	// TrashRetentionDays is how long deleted pages stay restorable (default 30).
 	TrashRetentionDays int `yaml:"trash_retention_days" json:"trash_retention_days"`
-	// RevisionIntervalMinutes is the minimum spacing between automatic
-	// history snapshots of one page (default 10).
-	RevisionIntervalMinutes int `yaml:"revision_interval_minutes" json:"revision_interval_minutes"`
 	// IndexDebounceSeconds delays knowledge-base re-indexing after an edit
 	// so a burst of saves becomes one rebuild (default 60).
 	IndexDebounceSeconds int `yaml:"index_debounce_seconds" json:"index_debounce_seconds"`
@@ -107,22 +104,21 @@ func (d *DocsConfig) IsEnabled() bool { return d != nil && d.Enabled }
 // a startup warning rather than aborting boot.
 func loadDocsConfig() *DocsConfig {
 	d := &DocsConfig{
-		Enabled:                 envBool("YUHENG_DOCS_ENABLED", false),
-		CollabURL:               strings.TrimSpace(os.Getenv("YUHENG_COLLAB_URL")),
-		CollabSharedSecret:      strings.TrimSpace(os.Getenv("YUHENG_COLLAB_SHARED_SECRET")),
-		CollabInternalBaseURL:   strings.TrimSpace(os.Getenv("YUHENG_COLLAB_INTERNAL_URL")),
-		MaxYDocBytes:            envInt64("YUHENG_DOCS_MAX_YDOC_BYTES", 20*1024*1024),
-		MaxAttachmentBytes:      envInt64("YUHENG_DOCS_MAX_ATTACHMENT_BYTES", 200*1024*1024),
-		TrashRetentionDays:      int(envInt64("YUHENG_DOCS_TRASH_RETENTION_DAYS", 30)),
-		RevisionIntervalMinutes: int(envInt64("YUHENG_DOCS_REVISION_INTERVAL_MINUTES", 10)),
-		IndexDebounceSeconds:    int(envInt64("YUHENG_DOCS_INDEX_DEBOUNCE_SECONDS", 60)),
-		ACLCacheTTLSeconds:      int(envInt64("YUHENG_DOCS_ACL_CACHE_TTL_SECONDS", 60)),
-		EmbedProviders:          envList("YUHENG_DOCS_EMBED_PROVIDERS"),
-		EmbedExtraHosts:         envList("YUHENG_DOCS_EMBED_EXTRA_HOSTS"),
-		DrawioURL:               strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
-		PublicSharing:           envBool("YUHENG_DOCS_PUBLIC_SHARING", false),
-		DefaultSpaceQuotaBytes:  envInt64("YUHENG_DOCS_SPACE_QUOTA_BYTES", 0),
-		CleanupIntervalMinutes:  int(envInt64("YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES", 60)),
+		Enabled:                envBool("YUHENG_DOCS_ENABLED", false),
+		CollabURL:              strings.TrimSpace(os.Getenv("YUHENG_COLLAB_URL")),
+		CollabSharedSecret:     strings.TrimSpace(os.Getenv("YUHENG_COLLAB_SHARED_SECRET")),
+		CollabInternalBaseURL:  strings.TrimSpace(os.Getenv("YUHENG_COLLAB_INTERNAL_URL")),
+		MaxYDocBytes:           envInt64("YUHENG_DOCS_MAX_YDOC_BYTES", 20*1024*1024),
+		MaxAttachmentBytes:     envInt64("YUHENG_DOCS_MAX_ATTACHMENT_BYTES", 200*1024*1024),
+		TrashRetentionDays:     int(envInt64("YUHENG_DOCS_TRASH_RETENTION_DAYS", 30)),
+		IndexDebounceSeconds:   int(envInt64("YUHENG_DOCS_INDEX_DEBOUNCE_SECONDS", 60)),
+		ACLCacheTTLSeconds:     int(envInt64("YUHENG_DOCS_ACL_CACHE_TTL_SECONDS", 60)),
+		EmbedProviders:         envList("YUHENG_DOCS_EMBED_PROVIDERS"),
+		EmbedExtraHosts:        envList("YUHENG_DOCS_EMBED_EXTRA_HOSTS"),
+		DrawioURL:              strings.TrimSpace(os.Getenv("YUHENG_DOCS_DRAWIO_URL")),
+		PublicSharing:          envBool("YUHENG_DOCS_PUBLIC_SHARING", false),
+		DefaultSpaceQuotaBytes: envInt64("YUHENG_DOCS_SPACE_QUOTA_BYTES", 0),
+		CleanupIntervalMinutes: int(envInt64("YUHENG_DOCS_CLEANUP_INTERVAL_MINUTES", 60)),
 	}
 	if d.Enabled && d.CollabEnabled() && d.CollabSharedSecret == "" {
 		// Printf: LoadConfig runs before the logger is wired.
