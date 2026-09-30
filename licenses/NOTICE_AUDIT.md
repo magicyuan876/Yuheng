@@ -127,7 +127,7 @@ unless the operator acts; they are listed in the release checklist (§6).
 | Identifier | Old | New | Breaks |
 |---|---|---|---|
 | Go module path | `github.com/Tencent/WeKnora[/cli,/client,…]` | `github.com/magicyuan876/yuheng[…]` | Import paths in 1 366 Go files; all four `go.mod` files |
-| Environment variables | `WEKNORA_*` (90 names, 922 occurrences) | `YUHENG_*` | **Every existing `.env`.** A stale variable is silently ignored — a startup warning was added (`internal/config/config.go`, `warnLegacyEnvPrefix`) so it is not silent in practice |
+| Environment variables | `WEKNORA_*` (90 names, 922 occurrences) | `YUHENG_*` | **Every existing `.env`.** A stale variable is silently ignored. No deployment predates the rename (every one is recreated from `.env.example`), so the startup warning that once caught stale names was removed |
 | Vector collection / table | `weknora_embeddings`, `weknora_embeddings_{768,1024}` | `yuheng_embeddings*` | Existing pgvector / Qdrant / Milvus / Weaviate / Doris data becomes invisible; needs a rename or re-index |
 | Postgres database name | `weknora` | `yuheng` | `DB_NAME` in `.env`; existing volumes |
 | Redis key namespace | `weknora:*` | `yuheng:*` | Cache and sandbox-session keys; cold start after upgrade |
@@ -313,8 +313,8 @@ good-faith engineering record, not legal advice.
 
 **Operational — for anyone upgrading an existing deployment**
 
-- [ ] `.env`: rename every `WEKNORA_*` key to `YUHENG_*` (the server warns but
-      does not fail if you forget)
+- [ ] `.env`: rename every `WEKNORA_*` key to `YUHENG_*` (a stale name is
+      ignored silently; the server no longer warns about it)
 - [ ] `.env`: `DB_NAME` `weknora` → `yuheng`, or keep the old value explicitly
 - [ ] Vector store: rename or re-index `weknora_embeddings*` collections
 - [ ] `SYSTEM_AES_KEY` / `JWT_SECRET`: confirm they are not the published example
