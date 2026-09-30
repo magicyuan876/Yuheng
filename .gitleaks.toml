@@ -17,5 +17,7 @@ paths = ['''internal/docs/share/share\.go''']
 regexes = ['''keyAlphabet\s*=''']
 
 [[allowlists]]
+# docs/api/ no longer exists, but the scan walks the whole history, where
+# its pages still carry the same placeholder keys.
 description = "API documentation examples; the sample keys in them are obvious placeholders"
-paths = ['''^website-docs/.*\.md$''']
+paths = ['''^docs/api/.*\.md$''', '''^website-docs/.*\.md$''']

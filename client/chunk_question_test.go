@@ -25,7 +25,8 @@ func TestDeleteGeneratedQuestionUsesTheQuestionsRoute(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := NewClient(srv.URL, WithAPIKey("sk-test")).DeleteGeneratedQuestion(context.Background(), "c-1", "q-1"); err != nil {
+	c := NewClient(srv.URL, WithAPIKey("sk-test"))
+	if err := c.DeleteGeneratedQuestion(context.Background(), "c-1", "q-1"); err != nil {
 		t.Fatal(err)
 	}
 }
