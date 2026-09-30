@@ -7,10 +7,10 @@ const { theme } = useData()
 const versionLabel = theme.value.yuhengVersion ?? 'unknown'
 
 const stats = [
-  { value: '25', unit: '种', label: '文件格式：文档、网页、扫描件、图片、音频' },
-  { value: '26', unit: '家+', label: '模型厂商，也可全部换成本地推理' },
-  { value: '5', unit: '个', label: '使用入口：Web、命令行、API、MCP、dsh 插件' },
+  { value: '9', unit: '类', label: '数据源连接器：飞书 / Lark、Notion、语雀、RSS、GitLab、ima' },
   { value: '4', unit: '路', label: '索引同时生效：向量、关键词、Wiki、图谱' },
+  { value: '4', unit: '种', label: '知识健康信号：重复、内容有出入、到期复核、回答反馈' },
+  { value: '23', unit: '个', label: 'MCP 工具，外加 REST API、Go SDK 与 CLI' },
 ]
 
 const schema = [
@@ -18,25 +18,31 @@ const schema = [
     step: '01',
     name: '接入',
     hint: '资料从哪里来',
-    items: ['文件上传', 'URL 抓取', '飞书', 'Notion', '语雀', 'RSS'],
+    items: ['文件与网页', '飞书 / Notion / 语雀', 'RSS / GitLab', '在线协同文档'],
   },
   {
     step: '02',
-    name: '理解',
-    hint: '转成结构化文本',
-    items: ['版式分析', '扫描件 OCR', '表格抽取', '图片描述', '音频转写'],
+    name: '组织',
+    hint: '解析、分块、四路索引',
+    items: ['版式与 OCR', '自适应分块', '向量 + BM25', 'Wiki', '知识图谱'],
   },
   {
     step: '03',
-    name: '索引',
-    hint: '四路可同时开启',
-    items: ['自适应分块', '向量', '关键词', 'Wiki', '知识图谱'],
+    name: '问答',
+    hint: '有出处的回答',
+    items: ['混合检索', '重排', '流式引用', 'FAQ', '联网搜索'],
   },
   {
     step: '04',
-    name: '应用',
-    hint: '对外提供的能力',
-    items: ['知识问答', 'Wiki 站点', 'FAQ'],
+    name: '维护',
+    hint: '知识不悄悄变旧',
+    items: ['重复与出入', '定期复核', '回答反馈', '负责人与待办'],
+  },
+  {
+    step: '05',
+    name: '开放',
+    hint: '交给你的智能体',
+    items: ['REST API', 'MCP', 'Go SDK', 'CLI'],
   },
 ]
 
@@ -66,7 +72,7 @@ const chain = [
     step: '04',
     icon: 'answer',
     title: '给出可核对的回答',
-    desc: '先做意图识别与查询改写，向量与 BM25 并行召回、RRF 融合后交给大模型生成。回答流式返回，逐段标注出处，可点开原文核对。',
+    desc: '大模型只依据召回的证据作答，回答流式返回、逐段标注出处，点开即可核对原文。觉得答得不对，点「没帮助」——意见会交给被引用文档的负责人。',
     href: '/02-architecture/04-rag-pipeline',
   },
 ]
@@ -75,10 +81,25 @@ const surfaces = [
   { icon: 'console', name: 'Web 控制台', desc: '知识库管理、对话、Wiki 浏览与系统配置的完整界面。' },
   { icon: 'cli', name: '命令行 yuheng', desc: '文档管理、检索与带引用的流式问答，默认 JSON 输出，便于脚本化。' },
   { icon: 'api', name: 'REST API 与 Go SDK', desc: '完整 /api/v1 接口；API Key 支持按能力与知识库范围授权。' },
-  { icon: 'mcp', name: 'MCP Server', desc: '将 Yuheng 暴露为 MCP 工具，供 Claude、Cursor 等客户端检索。' },
+  { icon: 'mcp', name: 'MCP Server', desc: '将 Yuheng 暴露为 23 个 MCP 工具，供 Claude、Cursor 等客户端检索、问答与写入。' },
+  { icon: 'extension', name: 'DeepSeek Harness 插件', desc: '在 dsh 里直接检索与问答 Yuheng 的知识库。' },
 ]
 
 const features = [
+  {
+    icon: 'docs',
+    title: '在线协同文档',
+    desc: '空间与页面树、多人实时协同、评论与通知、修订历史、draw.io 与 Mermaid。空间绑定知识库后，页面自动同步为知识；受限页面绝不进入知识库，不参与检索的页面可一键排除。',
+    href: '/03-features/07-docs',
+    tag: '知识生产',
+  },
+  {
+    icon: 'health',
+    title: '知识健康',
+    desc: '内容变化时自动比对：逐字重复、「几乎一样却不一样」（标出差异）；按复核周期提醒无人确认的文档；把「没帮助」的回答交给被引用文档。每个问题派给该处理的人，进入个人待办。',
+    href: '/03-features/22-knowledge-health',
+    tag: '知识维护',
+  },
   {
     icon: 'wiki',
     title: 'Wiki 模式',
@@ -117,7 +138,7 @@ const features = [
   {
     icon: 'pluggable',
     title: '可插拔架构',
-    desc: '解析引擎、分块策略、检索引擎、模型厂商、搜索引擎与存储后端均以注册表接入，可按配置替换；知识库支持分别绑定不同的向量库与存储实例。',
+    desc: '解析引擎、分块策略、模型厂商、联网搜索、存储后端与知识健康检测器均以注册表接入；扩展通过 dig 分组与钩子注册路由、检测器和迁移，无需修改核心代码。',
     href: '/06-development/03-extension-points',
     tag: '架构',
   },
@@ -149,12 +170,13 @@ const map = [
     index: '01',
     icon: 'start',
     title: '快速开始',
-    brief: '按顺序读完四篇，可完成部署并跑通首次问答。',
+    brief: '按顺序读完前三篇，可完成部署并跑通首次问答。',
     items: [
       { text: '产品介绍', link: '/01-getting-started/01-introduction' },
       { text: '安装部署', link: '/01-getting-started/02-installation' },
       { text: '快速上手', link: '/01-getting-started/03-quickstart' },
       { text: '配置详解', link: '/01-getting-started/04-configuration' },
+      { text: '备份与升级', link: '/01-getting-started/05-backup-and-upgrade' },
     ],
   },
   {
@@ -174,7 +196,7 @@ const map = [
     index: '03',
     icon: 'modules',
     title: '功能模块',
-    brief: '十八项能力的配置项、行为约定与实现路径。',
+    brief: '二十项能力的用法、配置项、行为约定与实现路径。',
     items: [
       { text: '租户、用户与认证授权', link: '/03-features/01-tenant-auth' },
       { text: '知识库与知识管理', link: '/03-features/02-knowledge-base' },
@@ -182,6 +204,7 @@ const map = [
       { text: '分块机制', link: '/03-features/04-chunking' },
       { text: '检索引擎与向量存储', link: '/03-features/05-retrieval-engines' },
       { text: '模型管理', link: '/03-features/06-models' },
+      { text: '在线文档', link: '/03-features/07-docs' },
       { text: 'MCP 集成', link: '/03-features/08-mcp' },
       { text: '知识图谱', link: '/03-features/09-knowledge-graph' },
       { text: '数据源导入', link: '/03-features/10-datasource' },
@@ -201,7 +224,7 @@ const map = [
     index: '04',
     icon: 'api',
     title: 'API 参考',
-    brief: '约 290 个端点，含权限要求、参数表与 curl 示例。',
+    brief: '约 400 个端点，含权限要求、参数表与 curl 示例。',
     items: [
       { text: 'API 总览', link: '/04-api/01-api-overview' },
       { text: '认证与用户', link: '/04-api/02-api-auth' },
@@ -221,7 +244,7 @@ const map = [
     index: '05',
     icon: 'clients',
     title: '客户端',
-    brief: '三种客户端：Web、CLI 与 Go SDK，另有 MCP Server 与 dsh 插件。',
+    brief: 'Web、CLI 与 Go SDK；MCP Server 与 dsh 插件见功能模块。',
     items: [
       { text: 'Web 前端', link: '/05-clients/01-frontend' },
       { text: '命令行工具 CLI', link: '/05-clients/02-cli' },
@@ -232,7 +255,7 @@ const map = [
     index: '06',
     icon: 'dev',
     title: '开发指南',
-    brief: '本地开发环境、数据库迁移，以及七类可插拔扩展点。',
+    brief: '本地开发环境、数据库与迁移，以及可插拔的扩展点。',
     items: [
       { text: '开发指南', link: '/06-development/01-dev-guide' },
       { text: '数据库与迁移', link: '/06-development/02-database-schema' },
@@ -253,12 +276,15 @@ const deployments = [
     <section class="hero">
       <div class="shell hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">开源 · Yuheng {{ versionLabel }} · 项目文档</p>
+          <p class="eyebrow">
+            <img class="eyebrow-mark" :src="withBase('/brand/yuheng-mark.svg')" alt="" />
+            开源 · Yuheng {{ versionLabel }} · 项目文档
+          </p>
           <h1 class="display">
-            开源的知识库问答系统
+            AI 智能体时代的知识平台
           </h1>
-          <p class="lede">Yuheng（玉衡）将 PDF、Word、网页与飞书 / Notion / 语雀等来源的资料汇入知识库，提供检索增强的问答能力，回答标注可追溯的出处。除基础问答外，还提供 <strong>Wiki 自动成书</strong>、<strong>知识图谱增强检索</strong>、<strong>FAQ 精确问答</strong>，以及面向团队的<strong>多空间隔离、四级 RBAC、作用域 API Key 与审计日志</strong>。支持完整私有部署，模型可全部替换为本地推理。</p>
-          <p class="lede lede-sub">本文档覆盖部署与配置、功能说明、约 290 个 API 端点的接口参考，以及二次开发的扩展点。</p>
+          <p class="lede">Yuheng（玉衡）把散落在文件、网页、飞书、Notion、语雀里的资料接进来，也可以直接在<strong>在线协同文档</strong>里写作；整理成可检索的知识，用<strong>带出处的问答</strong>回答人的问题；由<strong>知识健康</strong>持续发现重复、过时与被质疑的内容并交给负责人处理；再通过 <strong>REST 与 MCP</strong> 把同样的能力交给你的 AI 智能体。它不当智能体，只做好知识层。支持完整私有部署，模型可全部换成本地推理。</p>
+          <p class="lede lede-sub">本文档覆盖部署与配置、功能说明、约 400 个 API 端点的接口参考，以及二次开发的扩展点。</p>
           <p class="lede lede-sub lang-note">
             文档以中文为主。仅「安装部署」和「快速上手」两篇有英文版：
             <a :href="withBase('/en/01-getting-started/02-installation')">Installation</a>、
@@ -331,7 +357,7 @@ const deployments = [
       <div class="shell">
         <Illus name="flow" class="panorama-illus" />
         <p class="panorama-note">
-          资料从文件、网页、音频与图片进来，统一解析后并行写入向量、关键词、Wiki 与知识图谱四路索引；
+          资料从文件、网页、音频、图片与在线文档进来，统一解析后并行写入向量、关键词、Wiki 与知识图谱四路索引；
           同一套知识库再展开成多种客户端，换入口不用换一套系统。
         </p>
       </div>
@@ -377,7 +403,7 @@ const deployments = [
         <header class="chapter-head">
           <span class="marker">核心能力</span>
           <h2 class="chapter-title">超出基础检索问答的部分</h2>
-          <p class="chapter-sub">以下能力为 Yuheng 的主要投入方向，可作为技术选型时的对比维度。</p>
+          <p class="chapter-sub">知识从哪里来、怎样保持可信、怎样交给智能体——这些是 Yuheng 的主要投入方向。</p>
         </header>
 
         <div class="features">
@@ -398,8 +424,8 @@ const deployments = [
       <div class="shell">
         <header class="chapter-head">
           <span class="marker">接入方式</span>
-          <h2 class="chapter-title">七种客户端与集成入口</h2>
-          <p class="chapter-sub">同一套知识库与权限配置，可从浏览器、桌面、移动端、终端与外部智能体访问，无需为各入口重复搭建。</p>
+          <h2 class="chapter-title">五种使用入口</h2>
+          <p class="chapter-sub">同一套知识库与权限配置，可从浏览器、终端、程序与外部智能体访问，无需为各入口重复搭建。</p>
         </header>
 
         <div class="surfaces">
@@ -493,7 +519,7 @@ docker compose up -d --build
 
 <span class="c"># 4 确认服务就绪</span>
 docker compose ps
-curl http://localhost:8080/health
+curl http://localhost:8080/ready
 
 <span class="c"># 5 打开前端（默认 80 端口，可用 FRONTEND_PORT 改）</span>
 open http://localhost
@@ -511,24 +537,7 @@ open http://localhost
     <footer class="closing">
       <div class="shell closing-inner">
         <div class="closing-brand">
-          <svg width="34" height="26" viewBox="0 0 34 26" fill="none" aria-hidden="true">
-            <path
-              d="M20.6 3.2c.36-.5 1.16-.22 1.13.39l-.53 10.2-6.9-.05c-.6 0-.86-.75-.4-1.13L20.6 3.2z"
-              fill="currentColor"
-            />
-            <path
-              d="M1.5 18.4c6.4-1.9 12.2-1.1 18.1.35 4.3 1.05 8.2 1.6 12.9.1"
-              stroke="currentColor"
-              stroke-width="2.1"
-              stroke-linecap="round"
-            />
-            <path
-              d="M4.4 22.1c5.6-1.35 10.8-.7 16 .5 3.8.87 7.2 1.2 11.3.15"
-              stroke="var(--wk-gold)"
-              stroke-width="1.4"
-              stroke-linecap="round"
-            />
-          </svg>
+          <img class="closing-mark" :src="withBase('/brand/yuheng-mark.svg')" alt="" />
           <span>Yuheng</span>
         </div>
         <p class="closing-note">文档基于仓库 {{ versionLabel }} 源码整理。源码路径均相对仓库根目录，API 路径默认带 <code>/api/v1</code> 前缀，配置示例中的密钥均为占位符。</p>
@@ -549,6 +558,21 @@ open http://localhost
   /* 与文档页铺满视口的正文列保持同一量级，避免首页明显更窄 */
   --shell: 1600px;
   color: var(--wk-ink);
+}
+
+.eyebrow-mark {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  vertical-align: -5px;
+  border-radius: 6px;
+}
+
+.closing-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
 }
 
 .shell {

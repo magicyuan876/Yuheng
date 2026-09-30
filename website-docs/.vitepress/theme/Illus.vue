@@ -238,6 +238,26 @@ const s = {
 
   <!-- ==================== 核心能力 九枚 ==================== -->
 
+  <!-- 在线文档：一页正在书写 -->
+  <svg v-else-if="name === 'docs'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
+    <path v-bind="s" d="M5 2.5h9.5L19 7v14.5H5z" />
+    <path v-bind="s" opacity="0.5" d="M14.5 2.5V7H19M8 11h8M8 14h5" />
+    <path :stroke="gold" stroke-width="1.4" stroke-linecap="round" fill="none" d="M8 17.5h3.5l1-1.2" />
+  </svg>
+
+  <!-- 知识健康：北斗与一颗被衡量的星 -->
+  <svg v-else-if="name === 'health'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
+    <path v-bind="s" opacity="0.55" d="M3 8l1 6 5 1.5 .5-5.5 4-.8 4 1.2 3 4.6" />
+    <g v-bind="s">
+      <circle cx="3" cy="8" r="1.1" />
+      <circle cx="4" cy="14" r="1.1" />
+      <circle cx="9" cy="15.5" r="1.1" />
+      <circle cx="18.5" cy="10" r="1.1" />
+      <circle cx="21.5" cy="14.6" r="1.1" />
+    </g>
+    <path :fill="gold" d="M14.5 5.2q0 4.3 4.3 4.3-4.3 0-4.3 4.3 0-4.3-4.3-4.3 4.3 0 4.3-4.3z" />
+  </svg>
+
   <!-- Wiki：互链的页面 -->
   <svg v-else-if="name === 'wiki'" class="illus" viewBox="0 0 24 24" aria-hidden="true">
     <rect v-bind="s" x="2.5" y="3" width="8" height="10" rx="1.5" />

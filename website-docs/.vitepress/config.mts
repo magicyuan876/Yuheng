@@ -64,7 +64,7 @@ export default withMermaid(
   defineConfig({
     title: 'Yuheng',
     titleTemplate: ':title · Yuheng 文档',
-    description: 'Yuheng（玉衡）文档：部署、配置、功能说明、API 参考与二次开发',
+    description: 'Yuheng（玉衡），AI 智能体时代的知识平台：部署、配置、功能说明、API 参考与二次开发',
     lang: 'zh-CN',
 
     // Chinese is the primary language and lives at the site root. English exists
@@ -115,13 +115,14 @@ export default withMermaid(
     head: [
       ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
       ['meta', { name: 'theme-color', content: '#101f38' }],
+      ['meta', { property: 'og:image', content: `${site}/brand/yuheng-banner.png` }],
       ['meta', { property: 'og:type', content: 'website' }],
       ['meta', { property: 'og:title', content: 'Yuheng 文档' }],
       [
         'meta',
         {
           property: 'og:description',
-          content: '把 PDF、Word、网页与飞书 / Notion / 语雀的资料收进知识库，做成答案带出处的问答系统',
+          content: 'AI 智能体时代的知识平台：接入资料与在线文档，带出处的问答，知识健康持续维护，REST 与 MCP 开放给智能体',
         },
       ],
     ],

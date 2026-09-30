@@ -1,6 +1,6 @@
 ---
 layout: page
-title: 开源的知识库问答系统
+title: AI 智能体时代的知识平台
 titleTemplate: Yuheng 文档
 pageClass: landing-page
 sidebar: false
