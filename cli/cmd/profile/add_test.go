@@ -10,6 +10,16 @@ import (
 	"github.com/magicyuan876/yuheng/cli/internal/iostreams"
 )
 
+// runAdd drives `profile add` below the cobra layer: the same validation the
+// command runs before its dry-run gate, then the write.
+func runAdd(opts *AddOptions, fopts *cmdutil.FormatOptions, name string) error {
+	host, cfg, err := validateAdd(opts, name)
+	if err != nil {
+		return err
+	}
+	return runAddWithConfig(opts, fopts, name, host, cfg)
+}
+
 func TestAdd_HappyPath(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	out, _ := iostreams.SetForTest(t)

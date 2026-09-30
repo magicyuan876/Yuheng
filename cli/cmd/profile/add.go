@@ -60,26 +60,11 @@ adds leave the current profile untouched unless --use is passed.`,
 			}
 			fopts.ResolveDefault(iostreams.IO.IsStdoutTTY())
 			// Pure-local validation runs before the dry-run gate so --dry-run
-			// rejects identically to the live path. Same typed errors as runAdd
-			// (kept there for direct-call callers).
+			// rejects identically to the live path.
 			name := args[0]
-			if err := cmdutil.ValidateProfileName(name); err != nil {
-				return err
-			}
-			host, err := cmdutil.NormalizeHost(opts.Host)
+			host, cfg, err := validateAdd(opts, name)
 			if err != nil {
 				return err
-			}
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-			if _, exists := cfg.Profiles[name]; exists {
-				return &cmdutil.Error{
-					Code:    cmdutil.CodeResourceAlreadyExists,
-					Message: fmt.Sprintf("profile %q already exists", name),
-					Hint:    fmt.Sprintf("use a different name, or run `yuheng profile remove %s` first", name),
-				}
 			}
 			if handled, err := cmdutil.HandleDryRun(c, opts.DryRun, cmdutil.DryRunPlan{
 				Action: "profile.add",
@@ -110,34 +95,33 @@ adds leave the current profile untouched unless --use is passed.`,
 	return cmd
 }
 
-// runAdd is the legacy direct-call entrypoint: revalidates inputs and loads
-// config. Preserved for tests / external callers that bypass the cobra layer.
-// The cobra RunE path validates earlier and delegates to runAddWithConfig.
-func runAdd(opts *AddOptions, fopts *cmdutil.FormatOptions, name string) error {
+// validateAdd checks everything `profile add` can reject without writing:
+// the profile name, the host URL, and that the name is not already taken. It
+// returns the normalized host and the loaded config for runAddWithConfig.
+func validateAdd(opts *AddOptions, name string) (string, *config.Config, error) {
 	if err := cmdutil.ValidateProfileName(name); err != nil {
-		return err
+		return "", nil, err
 	}
 	host, err := cmdutil.NormalizeHost(opts.Host)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
-
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 	if _, exists := cfg.Profiles[name]; exists {
-		return &cmdutil.Error{
+		return "", nil, &cmdutil.Error{
 			Code:    cmdutil.CodeResourceAlreadyExists,
 			Message: fmt.Sprintf("profile %q already exists", name),
 			Hint:    fmt.Sprintf("use a different name, or run `yuheng profile remove %s` first", name),
 		}
 	}
-	return runAddWithConfig(opts, fopts, name, host, cfg)
+	return host, cfg, nil
 }
 
-// runAddWithConfig performs the side-effectful write. Inputs are assumed to be
-// pre-validated (ValidateProfileName, NormalizeHost, dup-check) by the caller.
+// runAddWithConfig performs the side-effectful write. Inputs must already have
+// passed validateAdd.
 func runAddWithConfig(opts *AddOptions, fopts *cmdutil.FormatOptions, name, host string, cfg *config.Config) error {
 	if cfg.Profiles == nil {
 		cfg.Profiles = map[string]config.Profile{}

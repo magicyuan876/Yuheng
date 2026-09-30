@@ -301,7 +301,7 @@ func TestChat_SDKError_MidStream_AbortsAsSSE(t *testing.T) {
 	// CodeSSEStreamAborted (separate from generic transport failure).
 	_, _ = iostreams.SetForTest(t)
 	svc := &fakeChatService{
-		streamEvents: []*sdk.StreamResponse{{Content: "partial"}},
+		streamEvents: []*sdk.StreamResponse{{ResponseType: sdk.ResponseTypeAnswer, Content: "partial"}},
 		streamErr:    errors.New("connection reset"),
 	}
 	opts := &Options{Query: "q", KBID: "kb"}
@@ -523,7 +523,10 @@ func TestChat_FormatJSON_ReferenceAddsIndexes(t *testing.T) {
 		streamEvents: []*sdk.StreamResponse{
 			{ResponseType: sdk.ResponseTypeAnswer, Content: "the answer"},
 			{ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{
-				{ID: "c1", Content: "BULKY FULL CHUNK CONTENT", ParentChunkID: "p1", KnowledgeTitle: "Doc One", Score: 0.5},
+				{
+					ID: "c1", KnowledgeBaseID: "kb_1", Content: "BULKY FULL CHUNK CONTENT",
+					ParentChunkID: "p1", KnowledgeTitle: "Doc One", Score: 0.5,
+				},
 			}},
 			{ResponseType: sdk.ResponseTypeComplete, Done: true, SessionID: "sess_auto"},
 		},

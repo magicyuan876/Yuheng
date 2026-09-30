@@ -232,7 +232,7 @@ func runChatText(ctx context.Context, opts *Options, sessionID string, autoCreat
 		Channel:          "api",
 	}
 
-	projector := sse.NewProjector(opts.Verbose, opts.Reference, opts.KBID)
+	projector := sse.NewProjector(opts.Verbose, opts.Reference)
 	renderer := sse.NewTextRenderer(iostreams.IO.Out, opts.Verbose)
 
 	cb := func(r *sdk.StreamResponse) error {
@@ -288,7 +288,7 @@ func runChatJSON(ctx context.Context, opts *Options, fopts *cmdutil.FormatOption
 		Channel:          "api",
 	}
 
-	projector := sse.NewProjector(opts.Verbose, opts.Reference, opts.KBID)
+	projector := sse.NewProjector(opts.Verbose, opts.Reference)
 	events := make([]sse.ProjectedEvent, 0)
 	cb := func(r *sdk.StreamResponse) error {
 		if event, include := projector.Chat(r); include {

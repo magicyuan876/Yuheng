@@ -14,20 +14,16 @@ type ReferenceIndex struct {
 
 // IndexReferences projects full SDK search results into stable lookup keys.
 // It never mutates the SDK events, which keeps the raw NDJSON path lossless.
-// fallbackKBID is used by `chat`, whose single KB is known by the CLI even
-// when an older server omits knowledge_base_id from a reference.
-func IndexReferences(refs []*sdk.SearchResult, fallbackKBID string) []ReferenceIndex {
+// KBID is left empty for a reference that belongs to no knowledge base (a web
+// search hit, for instance) rather than attributed to the KB the chat targeted.
+func IndexReferences(refs []*sdk.SearchResult) []ReferenceIndex {
 	indexes := make([]ReferenceIndex, 0, len(refs))
 	for _, r := range refs {
 		if r == nil || r.ID == "" {
 			continue
 		}
-		kbID := r.KnowledgeBaseID
-		if kbID == "" {
-			kbID = fallbackKBID
-		}
 		indexes = append(indexes, ReferenceIndex{
-			KBID:          kbID,
+			KBID:          r.KnowledgeBaseID,
 			ChunkID:       r.ID,
 			ParentChunkID: r.ParentChunkID,
 		})

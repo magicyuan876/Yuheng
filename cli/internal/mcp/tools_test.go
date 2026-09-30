@@ -397,9 +397,9 @@ func TestTool_SearchChunks_PassesMatchCountFromLimit(t *testing.T) {
 func TestTool_Chat_DefaultReturnsAnswerEventsOnly(t *testing.T) {
 	svc := &fakeSvc{
 		kbStreamEvents: []*sdk.StreamResponse{
-			{Content: "Hello "},
-			{Content: "world."},
-			{KnowledgeReferences: []*sdk.SearchResult{{
+			{ResponseType: sdk.ResponseTypeAnswer, Content: "Hello "},
+			{ResponseType: sdk.ResponseTypeAnswer, Content: "world."},
+			{ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{
 				ID:            "c1",
 				KnowledgeID:   "k1",
 				ParentChunkID: "p1",

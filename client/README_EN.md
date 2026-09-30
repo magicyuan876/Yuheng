@@ -31,7 +31,7 @@ import (
 // Create client instance
 apiClient := client.NewClient(
     "http://api.example.com", 
-    client.WithToken("your-auth-token"),
+    client.WithAPIKey("your-api-key"),
     client.WithTimeout(30*time.Second),
 )
 ```
@@ -44,7 +44,7 @@ You can set a default workspace with `WithTenantID`; the client will automatical
 tenantID := uint64(10000)
 apiClient := client.NewClient(
     "http://api.example.com",
-    client.WithToken("your-auth-token"),
+    client.WithAPIKey("your-api-key"),
     client.WithTenantID(tenantID),
 )
 ```

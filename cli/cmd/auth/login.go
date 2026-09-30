@@ -157,9 +157,9 @@ func loginServiceFor(host string) LoginService {
 }
 
 func runLogin(ctx context.Context, opts *LoginOptions, fopts *cmdutil.FormatOptions, f *cmdutil.Factory, svc LoginService) error {
-	// Resolve the target profile + host from the active profile in config.
-	// `auth login` no longer takes --host / --name; it authenticates the
-	// already-existing active profile (override via the global --profile).
+	// `auth login` authenticates an existing profile — the active one, or the
+	// one named by the global --profile — so host and name come from config;
+	// `profile add` is the only command that creates them.
 	name, host, err := resolveActiveProfile(f)
 	if err != nil {
 		return err

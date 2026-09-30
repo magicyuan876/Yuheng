@@ -20,23 +20,16 @@ import (
 type Config struct {
 	CurrentProfile string             `yaml:"current_profile,omitempty"`
 	Profiles       map[string]Profile `yaml:"profiles,omitempty"`
-
-	// Defaults holds CLI-wide defaults; fields opt-in.
-	Defaults struct {
-		Format         string `yaml:"format,omitempty"`
-		NoVersionCheck bool   `yaml:"no_version_check,omitempty"`
-	} `yaml:"defaults,omitempty"`
 }
 
 // Profile is one named connection target (host + tenant + credential reference).
 type Profile struct {
-	Host        string `yaml:"host"`
-	TenantID    uint64 `yaml:"tenant_id,omitempty"`
-	User        string `yaml:"user,omitempty"`
-	APIKeyRef   string `yaml:"api_key_ref,omitempty"` // keychain://... or file://...
-	TokenRef    string `yaml:"token_ref,omitempty"`   // keychain://... or file://...
-	RefreshRef  string `yaml:"refresh_token_ref,omitempty"`
-	DefaultKBID string `yaml:"default_kb_id,omitempty"`
+	Host       string `yaml:"host"`
+	TenantID   uint64 `yaml:"tenant_id,omitempty"`
+	User       string `yaml:"user,omitempty"`
+	APIKeyRef  string `yaml:"api_key_ref,omitempty"` // keychain://... or file://...
+	TokenRef   string `yaml:"token_ref,omitempty"`   // keychain://... or file://...
+	RefreshRef string `yaml:"refresh_token_ref,omitempty"`
 }
 
 // ErrCorrupt is returned by Load when the file exists but cannot be parsed.

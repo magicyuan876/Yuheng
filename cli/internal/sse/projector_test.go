@@ -10,7 +10,7 @@ import (
 )
 
 func TestProjector_DefaultKeepsOnlyAnswerEvents(t *testing.T) {
-	p := sse.NewProjector(false, false, "kb_fallback")
+	p := sse.NewProjector(false, false)
 	input := []*sdk.StreamResponse{
 		{ID: "think", ResponseType: sdk.ResponseTypeThinking, Content: "hidden"},
 		{ID: "a", ResponseType: sdk.ResponseTypeAnswer, Content: "one", KnowledgeReferences: []*sdk.SearchResult{{ID: "piggyback", Content: "bulk"}}},
@@ -36,7 +36,7 @@ func TestProjector_DefaultKeepsOnlyAnswerEvents(t *testing.T) {
 }
 
 func TestProjector_VerboseAndReferenceIncludeBothDetailClasses(t *testing.T) {
-	p := sse.NewProjector(true, true, "kb_fallback")
+	p := sse.NewProjector(true, true)
 	input := []*sdk.StreamResponse{
 		{ID: "t", ResponseType: sdk.ResponseTypeThinking, Content: "think"},
 		{ID: "call", ResponseType: sdk.ResponseTypeToolCall, Content: "search"},
@@ -69,7 +69,7 @@ func TestProjector_VerboseAndReferenceIncludeBothDetailClasses(t *testing.T) {
 }
 
 func TestProjector_ReferenceOnlyAddsIndexesWithoutExecutionTrace(t *testing.T) {
-	p := sse.NewProjector(false, true, "kb_fallback")
+	p := sse.NewProjector(false, true)
 	input := []*sdk.StreamResponse{
 		{ID: "think", ResponseType: sdk.ResponseTypeThinking, Content: "hidden"},
 		{ID: "refs", ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1", KnowledgeBaseID: "kb1", Content: "bulk"}}},
@@ -91,7 +91,7 @@ func TestProjector_ReferenceOnlyAddsIndexesWithoutExecutionTrace(t *testing.T) {
 }
 
 func TestProjector_VerboseDoesNotImplicitlyAddReferences(t *testing.T) {
-	p := sse.NewProjector(true, false, "kb")
+	p := sse.NewProjector(true, false)
 	input := []*sdk.StreamResponse{
 		{ResponseType: sdk.ResponseTypeThinking, Content: "thinking"},
 		{ResponseType: sdk.ResponseTypeReferences, KnowledgeReferences: []*sdk.SearchResult{{ID: "c1"}}},
@@ -112,7 +112,7 @@ func TestProjector_VerboseDoesNotImplicitlyAddReferences(t *testing.T) {
 }
 
 func TestProjector_TerminalErrorMarksDone(t *testing.T) {
-	p := sse.NewProjector(false, false, "kb")
+	p := sse.NewProjector(false, false)
 	_, include := p.Chat(&sdk.StreamResponse{
 		ResponseType: sdk.ResponseTypeAnswer,
 		Content:      "partial",

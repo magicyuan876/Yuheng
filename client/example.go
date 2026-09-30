@@ -24,7 +24,7 @@ func ExampleUsage() {
 	tenantID := uint64(10000) // default tenant for all requests from this client
 	apiClient := NewClient(
 		"http://localhost:8080",
-		WithToken("your-auth-token"),
+		WithAPIKey("your-api-key"),
 		WithTimeout(30*time.Second),
 		WithTenantID(tenantID), // default tenant for all requests from this client
 	)

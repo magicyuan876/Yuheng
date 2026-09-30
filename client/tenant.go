@@ -67,40 +67,29 @@ type TenantListResponse struct {
 	} `json:"data"`
 }
 
-// TenantAPIKeyRole is the tenant RBAC role bound to a revocable API key.
-type TenantAPIKeyRole string
-
-const (
-	TenantAPIKeyRoleViewer      TenantAPIKeyRole = "viewer"
-	TenantAPIKeyRoleContributor TenantAPIKeyRole = "contributor"
-	TenantAPIKeyRoleAdmin       TenantAPIKeyRole = "admin"
-)
-
-// TenantAPIKey is the API key metadata returned by list/create APIs.
+// TenantAPIKey is the API key metadata returned by list/create/update APIs.
+// The server never returns the secret after creation: APIKey carries only a
+// display hint (prefix and suffix) so a key can be recognised in a list.
 type TenantAPIKey struct {
-	ID               uint64           `json:"id"`
-	TenantID         uint64           `json:"tenant_id"`
-	ScopeType        string           `json:"scope_type"`
-	Name             string           `json:"name"`
-	APIKey           string           `json:"api_key"`
-	Role             TenantAPIKeyRole `json:"role"`
-	FullAccess       bool             `json:"full_access"`
-	KnowledgeBaseIDs []string         `json:"knowledge_base_ids"`
-	Capabilities     []string         `json:"capabilities"`
-	LastUsedAt       *time.Time       `json:"last_used_at,omitempty"`
-	ExpiresAt        *time.Time       `json:"expires_at,omitempty"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
+	ID               uint64     `json:"id"`
+	ScopeType        string     `json:"scope_type"`
+	Name             string     `json:"name"`
+	APIKey           string     `json:"api_key"`
+	FullAccess       bool       `json:"full_access"`
+	KnowledgeBaseIDs []string   `json:"knowledge_base_ids"`
+	Capabilities     []string   `json:"capabilities"`
+	LastUsedAt       *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt        *time.Time `json:"expires_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 // CreateTenantAPIKeyRequest creates a revocable tenant API key.
 type CreateTenantAPIKeyRequest struct {
-	Name             string           `json:"name"`
-	Role             TenantAPIKeyRole `json:"role,omitempty"`
-	FullAccess       bool             `json:"full_access,omitempty"`
-	KnowledgeBaseIDs []string         `json:"knowledge_base_ids,omitempty"`
-	Capabilities     []string         `json:"capabilities,omitempty"`
-	ExpiresAtUnix    *int64           `json:"expires_at_unix,omitempty"`
+	Name             string   `json:"name"`
+	FullAccess       bool     `json:"full_access,omitempty"`
+	KnowledgeBaseIDs []string `json:"knowledge_base_ids,omitempty"`
+	Capabilities     []string `json:"capabilities,omitempty"`
+	ExpiresAtUnix    *int64   `json:"expires_at_unix,omitempty"`
 }
 
 // UpdateTenantAPIKeyRequest replaces an existing tenant API key's configurable attributes.
@@ -112,8 +101,8 @@ type UpdateTenantAPIKeyRequest struct {
 	ExpiresAtUnix    *int64   `json:"expires_at_unix"`
 }
 
-// CreatedTenantAPIKey includes the created API key. Token is kept for
-// backward-compatible clients; APIKey is also returned by list APIs.
+// CreatedTenantAPIKey is the create response. Token is the full secret and is
+// returned exactly once, here; every later read exposes only the APIKey hint.
 type CreatedTenantAPIKey struct {
 	TenantAPIKey
 	Token string `json:"token,omitempty"`

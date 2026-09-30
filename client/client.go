@@ -21,8 +21,7 @@ import (
 //   - Bearer JWT (short-lived, set via Authorization)— see WithBearerToken
 //
 // Both may be configured simultaneously; X-API-Key takes precedence at the
-// HTTP layer. The legacy WithToken is kept as an alias for WithAPIKey for two
-// minor versions of compatibility.
+// HTTP layer.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -75,15 +74,6 @@ func WithBearerToken(token string) ClientOption {
 	return func(c *Client) {
 		c.bearerToken = token
 	}
-}
-
-// WithToken is the v0.x compatibility alias for WithAPIKey. Prefer WithAPIKey
-// (or WithBearerToken for JWT). Will be removed in the next major; the alias
-// is preserved for two minor versions per ADR.
-//
-// Deprecated: use WithAPIKey for X-API-Key, WithBearerToken for JWT.
-func WithToken(token string) ClientOption {
-	return WithAPIKey(token)
 }
 
 // WithTenantID sets X-Tenant-ID on every request. Use only for explicit
@@ -232,8 +222,9 @@ func (c *Client) Raw(ctx context.Context, method, path string, body interface{})
 //	var apiErr *client.APIError
 //	if errors.As(err, &apiErr) && apiErr.StatusCode == 404 { ... }
 //
-// Error() intentionally preserves the legacy "HTTP error <status>: <body>"
-// format so existing string-matching consumers keep working unchanged.
+// Error() renders "HTTP error <status>: <body>". The CLI's error classifier
+// (cli/internal/cmdutil.ClassifyHTTPError) parses that prefix, so the format
+// is part of the SDK's contract until the classifier switches to errors.As.
 type APIError struct {
 	StatusCode int    // HTTP status (401, 404, 409, 429, 500, …)
 	Body       string // raw response body

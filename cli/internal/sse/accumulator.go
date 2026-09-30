@@ -49,14 +49,6 @@ func (a *Accumulator) Append(r *sdk.StreamResponse) {
 		if r.Content != "" {
 			a.thinking.WriteString(r.Content)
 		}
-	default:
-		// Frames without a typed ResponseType (legacy / metadata-only
-		// payloads) that still carry an answer fragment fall through here.
-		// Preserve the legacy contract by treating untyped Content as
-		// answer text.
-		if r.ResponseType == "" && r.Content != "" {
-			a.answer.WriteString(r.Content)
-		}
 	}
 	if r.SessionID != "" && a.SessionID == "" {
 		a.SessionID = r.SessionID

@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // ErrSSEStreamTerminal marks a terminal response_type=error, done=true frame
@@ -31,19 +30,9 @@ func NewSSEStreamError(content string) error {
 	return &SSEStreamError{Content: content}
 }
 
-// IsSSEStreamError reports whether err is a terminal SSE stream error from the
-// SDK readers, including wrapped *SSEStreamError values and legacy
-// fmt.Errorf("SSE stream error: ...") chains.
+// IsSSEStreamError reports whether err is, or wraps, a terminal SSE stream
+// error returned by the SDK's streaming readers.
 func IsSSEStreamError(err error) bool {
 	var sse *SSEStreamError
-	if errors.As(err, &sse) {
-		return true
-	}
-	for err != nil {
-		if strings.HasPrefix(err.Error(), "SSE stream error: ") {
-			return true
-		}
-		err = errors.Unwrap(err)
-	}
-	return false
+	return errors.As(err, &sse)
 }

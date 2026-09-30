@@ -30,7 +30,7 @@ import (
 // 创建客户端实例
 apiClient := client.NewClient(
     "http://api.example.com", 
-    client.WithToken("your-auth-token"),
+    client.WithAPIKey("your-api-key"),
     client.WithTimeout(30*time.Second),
 )
 ```
@@ -43,7 +43,7 @@ apiClient := client.NewClient(
 tenantID := uint64(10000)
 apiClient := client.NewClient(
     "http://api.example.com",
-    client.WithToken("your-auth-token"),
+    client.WithAPIKey("your-api-key"),
     client.WithTenantID(tenantID),
 )
 ```

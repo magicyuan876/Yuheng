@@ -94,11 +94,9 @@ profiles:
     api_key_ref: keychain://...    # API key 的存储引用（keychain:// 或 file://）
     token_ref: keychain://...      # JWT access token 引用
     refresh_token_ref: keychain://...
-    default_kb_id: "..."           # 可选：默认知识库
-defaults:
-  format: json                 # 可选：CLI 级默认输出格式
-  no_version_check: true       # 可选：关闭版本兼容检查
 ```
+
+默认输出格式与默认知识库不在 config.yaml 中：前者由 `YUHENG_FORMAT` 决定，后者按 `--kb`、`YUHENG_KB_ID`、`.yuheng/project.yaml`（`yuheng link`）的顺序解析。
 
 ### 凭证存储（secrets）
 

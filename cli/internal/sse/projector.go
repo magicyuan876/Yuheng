@@ -33,15 +33,16 @@ type ProjectedEvent struct {
 type Projector struct {
 	verbose            bool
 	reference          bool
-	fallbackKBID       string
 	seen               bool
 	done               bool
 	sessionID          string
 	assistantMessageID string
 }
 
-func NewProjector(verbose, reference bool, fallbackKBID string) *Projector {
-	return &Projector{verbose: verbose, reference: reference, fallbackKBID: fallbackKBID}
+// NewProjector returns a Projector for one chat stream. verbose adds execution
+// and lifecycle events; reference adds bounded citation events.
+func NewProjector(verbose, reference bool) *Projector {
+	return &Projector{verbose: verbose, reference: reference}
 }
 
 func (p *Projector) Seen() bool                 { return p.seen }
@@ -68,22 +69,14 @@ func (p *Projector) Chat(r *sdk.StreamResponse) (ProjectedEvent, bool) {
 		p.done = true
 	}
 
-	responseType := string(r.ResponseType)
-	isAnswer := r.ResponseType == sdk.ResponseTypeAnswer || (r.ResponseType == "" && r.Content != "")
 	isReference := r.ResponseType == sdk.ResponseTypeReferences
-	include := isAnswer || (p.verbose && !isReference) || (p.reference && isReference)
-	if !include && p.reference && len(r.KnowledgeReferences) > 0 {
-		return p.chatReferenceEvent(r), true
-	}
+	include := r.ResponseType == sdk.ResponseTypeAnswer || (p.verbose && !isReference) || (p.reference && isReference)
 	if !include {
 		return ProjectedEvent{}, false
 	}
-	if responseType == "" {
-		responseType = string(sdk.ResponseTypeAnswer)
-	}
 	event := ProjectedEvent{
 		ID:                 r.ID,
-		ResponseType:       responseType,
+		ResponseType:       string(r.ResponseType),
 		Content:            r.Content,
 		Done:               r.Done,
 		SessionID:          r.SessionID,
@@ -92,20 +85,9 @@ func (p *Projector) Chat(r *sdk.StreamResponse) (ProjectedEvent, bool) {
 		Data:               r.Data,
 	}
 	if p.reference {
-		event.KnowledgeReferences = format.IndexReferences(r.KnowledgeReferences, p.fallbackKBID)
+		event.KnowledgeReferences = format.IndexReferences(r.KnowledgeReferences)
 	}
 	return event, true
-}
-
-func (p *Projector) chatReferenceEvent(r *sdk.StreamResponse) ProjectedEvent {
-	return ProjectedEvent{
-		ID:                  r.ID,
-		ResponseType:        string(sdk.ResponseTypeReferences),
-		Done:                r.Done,
-		KnowledgeReferences: format.IndexReferences(r.KnowledgeReferences, p.fallbackKBID),
-		SessionID:           r.SessionID,
-		AssistantMessageID:  r.AssistantMessageID,
-	}
 }
 
 // TextRenderer writes projected events as a human-readable stream.

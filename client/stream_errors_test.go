@@ -14,7 +14,7 @@ func TestIsSSEStreamError(t *testing.T) {
 	}{
 		{"typed", NewSSEStreamError("boom"), true},
 		{"wrapped", fmt.Errorf("request failed: %w", NewSSEStreamError("boom")), true},
-		{"legacy_string", fmt.Errorf("SSE stream error: boom"), true},
+		{"untyped_lookalike", fmt.Errorf("SSE stream error: boom"), false},
 		{"http", fmt.Errorf("HTTP error 500: internal"), false},
 		{"nil", nil, false},
 	}

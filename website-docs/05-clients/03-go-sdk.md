@@ -49,7 +49,6 @@ type Client struct {
 |---|---|
 | `WithAPIKey(key string)` | 设置长期有效的 API Key，以 `X-API-Key` 请求头发送 |
 | `WithBearerToken(token string)` | 设置短期 JWT，以 `Authorization: Bearer <token>` 请求头发送（通常在 `Login` 成功后使用） |
-| `WithToken(token string)` | **Deprecated**：`WithAPIKey` 的 v0.x 兼容别名，将在下个大版本移除 |
 | `WithTimeout(timeout time.Duration)` | 同时设置普通请求与流式请求的超时上限 |
 | `WithTransport(rt http.RoundTripper)` | 替换底层 `http.RoundTripper`（用于重试/埋点/签名等中间件）；传 `nil` 恢复 `http.DefaultTransport` |
 | `WithTenantID(tenantID uint64)` | 在每个请求上附加 `X-Tenant-ID` 请求头，仅用于具备 `CanAccessAllTenants` 权限的跨租户显式访问 |
@@ -269,7 +268,7 @@ SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组�
 
 | 方法 | 说明 |
 |---|---|
-| `GetInitializationConfig` / `InitializeByKB` / `UpdateKBConfig` / `SetKBModelConfig` | 知识库初始化与模型配置 |
+| `GetInitializationConfig` / `SetKBModelConfig` | 读取知识库的模型配置（不含密钥）/ 把知识库绑定到已注册的模型 |
 | `CheckOllamaStatus` / `ListOllamaModels` / `CheckOllamaModels` | Ollama 状态与模型探测 |
 | `DownloadOllamaModel` / `GetOllamaDownloadProgress` / `ListOllamaDownloadTasks` | Ollama 模型下载任务 |
 | `CheckRemoteModel` / `TestEmbeddingModel` / `CheckRerankModel` / `TestMultimodalFunction` | 远程 LLM / Embedding / Rerank / 多模态连通性检测 |
@@ -348,7 +347,7 @@ if errors.As(err, &apiErr) {
 }
 ```
 
-`Code` 为响应体 `{"code":N}` 中的结构化错误码，包内提供常量 `ServerErrBadRequest`(1000) 至 `ServerErrValidation`(1010)。`Error()` 保持 `"HTTP error <status>: <body>"` 的旧格式以兼容字符串匹配的消费者。
+`Code` 为响应体 `{"code":N}` 中的结构化错误码，包内提供常量 `ServerErrBadRequest`(1000) 至 `ServerErrValidation`(1010)。`Error()` 输出 `"HTTP error <status>: <body>"`；CLI 的错误分类器（`cli/internal/cmdutil.ClassifyHTTPError`）解析这个前缀，因此该格式属于 SDK 契约。
 
 ### 流层：`SSEStreamError`（`client/stream_errors.go`）
 
@@ -360,13 +359,13 @@ type SSEStreamError struct {
 }
 ```
 
-判断方式（两者等价，推荐前者）：
+判断方式（两者等价）：
 
 ```go
 // 方式一：哨兵错误（SSEStreamError.Unwrap() 返回它）
 if errors.Is(err, client.ErrSSEStreamTerminal) { ... }
 
-// 方式二：辅助函数（兼容旧版 fmt.Errorf("SSE stream error: ...") 链）
+// 方式二：辅助函数（errors.As 到 *SSEStreamError）
 if client.IsSSEStreamError(err) { ... }
 ```
 

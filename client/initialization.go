@@ -8,16 +8,6 @@ import (
 	"time"
 )
 
-// InitializationConfig is the WRITE payload for InitializeByKB / UpdateKBConfig
-// (the server's write endpoint accepts these flat model ids). It is NOT the
-// shape the read endpoint returns — see KBModelConfigView / GetInitializationConfig.
-type InitializationConfig struct {
-	ChatModelID      string `json:"chat_model_id,omitempty"`
-	EmbeddingModelID string `json:"embedding_model_id,omitempty"`
-	RerankModelID    string `json:"rerank_model_id,omitempty"`
-	MultimodalID     string `json:"multimodal_id,omitempty"`
-}
-
 // KBModelConfigView is the secret-free, read-only model configuration of a
 // knowledge base, returned by GetInitializationConfig. The server's read
 // response nests config under embedding/llm/rerank/multimodal and INCLUDES
@@ -120,28 +110,6 @@ func (c *Client) GetInitializationConfig(ctx context.Context, kbID string) (*KBM
 		Multimodal:     MultimodalSlotView{Enabled: d.Multimodal.Enabled},
 	}
 	return view, nil
-}
-
-// InitializeByKB initializes a knowledge base with model configuration
-func (c *Client) InitializeByKB(ctx context.Context, kbID string, config *InitializationConfig) error {
-	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/initialization/initialize/%s", kbID), config, nil)
-	if err != nil {
-		return err
-	}
-	return parseResponse(resp, nil)
-}
-
-// UpdateKBConfig updates the model configuration for a knowledge base.
-//
-// Deprecated: the PUT /initialization/config endpoint binds KBModelConfigRequest
-// (fields llmModelId / embeddingModelId), not InitializationConfig, so this
-// method sends a shape the server rejects. Use SetKBModelConfig instead.
-func (c *Client) UpdateKBConfig(ctx context.Context, kbID string, config *InitializationConfig) error {
-	resp, err := c.doRequest(ctx, http.MethodPut, fmt.Sprintf("/api/v1/initialization/config/%s", kbID), config, nil)
-	if err != nil {
-		return err
-	}
-	return parseResponse(resp, nil)
 }
 
 // KBModelConfig points a knowledge base at already-registered models. Field

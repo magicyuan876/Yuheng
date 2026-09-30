@@ -222,15 +222,10 @@ func resolveLogLevel(cmd *cobra.Command) (level, source string) {
 	return level, "default"
 }
 
-// resolveFormatDefault reports the configured default output format: the
-// config.yaml defaults.format value, else YUHENG_FORMAT, else the hard
-// default. This is the *default* used when --format is unset — not the
-// per-invocation --format flag value.
+// resolveFormatDefault reports the output format used when --format is unset:
+// YUHENG_FORMAT when it names a valid mode, else the hard default. It mirrors
+// FormatOptions.FromEnv, which is what commands actually apply.
 func resolveFormatDefault() string {
-	cfg, err := config.Load()
-	if err == nil && cfg != nil && cfg.Defaults.Format != "" {
-		return cfg.Defaults.Format
-	}
 	if v := os.Getenv("YUHENG_FORMAT"); v == "text" || v == "json" || v == "ndjson" {
 		return v
 	}

@@ -468,7 +468,7 @@ func addChat(server *mcpsdk.Server, svc chatService) {
 			KnowledgeBaseIDs: []string{in.KBID},
 			Channel:          "api",
 		}
-		projector := sse.NewProjector(in.Verbose, in.Reference, in.KBID)
+		projector := sse.NewProjector(in.Verbose, in.Reference)
 		events := make([]sse.ProjectedEvent, 0)
 		streamErr := svc.KnowledgeQAStream(ctx, sessionID, req, func(r *sdk.StreamResponse) error {
 			if event, include := projector.Chat(r); include {
