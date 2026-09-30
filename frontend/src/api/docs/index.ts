@@ -265,6 +265,8 @@ export interface DocsPage {
   ydoc_version: number;
   /** Kept out of the space's knowledge base, and so out of AI answers. Not a permission. */
   exclude_from_knowledge: boolean;
+  /** Set while the page is excluded because another document superseded it. */
+  superseded_by?: SupersededBy | null;
   is_locked: boolean;
   template_id?: string | null;
   source_refs: string[];
@@ -280,6 +282,16 @@ export interface DocsPage {
   updated_at: string;
   content_updated_at?: string | null;
   deleted_at?: string | null;
+}
+
+/** A snapshot of what superseded a page, taken when it happened. */
+export interface SupersededBy {
+  knowledge_id: string;
+  title: string;
+  /** Set when the replacement is a page. */
+  page_id?: string;
+  by?: string;
+  at: string;
 }
 
 export interface PageView extends DocsPage {

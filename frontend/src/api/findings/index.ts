@@ -215,6 +215,35 @@ export async function assignFinding(kbId: string, findingId: string, assigneeId:
   );
 }
 
+/** How a superseded document left its knowledge base: an upload is deleted; a docs page is excluded
+ * from the knowledge base and marked superseded, and stays readable. */
+export type RetiredHow = "deleted" | "excluded";
+
+export interface SupersedeResult {
+  retired_knowledge_id: string;
+  how: RetiredHow;
+}
+
+/** Backend: POST /api/v1/knowledge-bases/:id/findings/:finding_id/supersede. Keeps one of the
+ * finding's two documents and takes the other out of the knowledge base. */
+export async function supersedeFinding(
+  kbId: string,
+  findingId: string,
+  keepKnowledgeId: string,
+): Promise<SupersedeResult> {
+  return unwrap<SupersedeResult>(
+    await post(`${kbBase(kbId)}/${encodeURIComponent(findingId)}/supersede`, { keep_knowledge_id: keepKnowledgeId }),
+  );
+}
+
+/** Backend: POST /api/v1/docs/pages/:pid/supersede — the page stays, the other page of the
+ * finding leaves the knowledge base. Needs write access to both pages. */
+export async function supersedeFromPage(pageId: string, findingId: string): Promise<SupersedeResult> {
+  return unwrap<SupersedeResult>(
+    await post(`/api/v1/docs/pages/${encodeURIComponent(pageId)}/supersede`, { finding_id: findingId }),
+  );
+}
+
 /** Backend: GET /api/v1/findings/assigned — the caller's findings across the workspace. */
 export async function listAssignedFindings(
   params: Pick<ListFindingsParams, "status" | "page" | "page_size"> = {},

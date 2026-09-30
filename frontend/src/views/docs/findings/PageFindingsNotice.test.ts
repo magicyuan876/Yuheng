@@ -11,8 +11,11 @@ import enUS from "@/i18n/locales/en-US";
 // space with a knowledge base, and not kept out of it), what it says, and
 // where its links lead.
 
-const api = vi.hoisted(() => ({ listPageFindings: vi.fn() }));
+const api = vi.hoisted(() => ({ listPageFindings: vi.fn(), supersedeFromPage: vi.fn() }));
 vi.mock("@/api/findings", () => api);
+
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock("tdesign-vue-next", () => ({ MessagePlugin: toast }));
 
 import PageFindingsNotice from "./PageFindingsNotice.vue";
 
@@ -20,6 +23,7 @@ const mounted: VueWrapper[] = [];
 
 beforeEach(() => {
   api.listPageFindings.mockReset();
+  api.supersedeFromPage.mockReset();
   sessionStorage.clear();
 });
 
@@ -118,4 +122,28 @@ test("a page that nearly matches another leads with the difference", async () =>
   const divergent: PageFinding = { ...item("2", "Leave policy 2024"), type: "divergent" };
   const wrapper = await mountNotice({}, { items: [item("1", "Copy"), divergent], other_count: 0 });
   assert.match(wrapper.get('[data-testid="page-findings-count"]').text(), /nearly matches 1 other page/);
+});
+
+test("a writer says this page replaces the other, with a confirming second click", async () => {
+  const wrapper = await mountNotice({ canEdit: true }, { items: [item("1", "Old policy")], other_count: 0 });
+  await wrapper.get('[data-testid="page-findings-details"]').trigger("click");
+  await flushPromises();
+  (document.body.querySelector('[data-testid="page-findings-supersede"]') as HTMLElement).click();
+  await flushPromises();
+  assert.equal(api.supersedeFromPage.mock.calls.length, 0, "the first click only asks");
+
+  api.supersedeFromPage.mockResolvedValue({ retired_knowledge_id: "k1", how: "excluded" });
+  api.listPageFindings.mockResolvedValue({ items: [], other_count: 0 });
+  (document.body.querySelector('[data-testid="page-findings-supersede-ok"]') as HTMLElement).click();
+  await flushPromises();
+  assert.deepEqual(api.supersedeFromPage.mock.calls[0], ["p1", "1"]);
+  assert.match(String(toast.success.mock.calls[0][0]), /Old policy/);
+  assert.equal(wrapper.find('[data-testid="page-findings-notice"]').exists(), false, "nothing left to point at");
+});
+
+test("a reader is not offered to supersede anything", async () => {
+  const wrapper = await mountNotice({ canEdit: false }, { items: [item("1", "Old policy")], other_count: 0 });
+  await wrapper.get('[data-testid="page-findings-details"]').trigger("click");
+  await flushPromises();
+  assert.equal(document.body.querySelector('[data-testid="page-findings-supersede"]'), null);
 });

@@ -53,6 +53,38 @@
             <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
               {{ findingTypeHint(item.type, t) }}
             </p>
+            <!-- The writer of the newer version is the one who knows it
+                 replaces the other: one click, confirmed by a second. The
+                 other page stays readable and says what replaced it. -->
+            <div v-if="canEdit" class="flex flex-wrap items-center gap-2">
+              <Button
+                v-if="confirmingId !== item.id"
+                variant="outline"
+                size="xs"
+                :disabled="supersedingId !== null"
+                data-testid="page-findings-supersede"
+                @click="confirmingId = item.id"
+              >
+                <ReplaceIcon />
+                {{ t("docs.findings.supersede") }}
+              </Button>
+              <template v-else>
+                <span class="text-muted-foreground text-xs">
+                  {{
+                    t("docs.findings.supersedeConfirm", { title: item.related_page.title || t("docs.tree.untitled") })
+                  }}
+                </span>
+                <Button
+                  size="xs"
+                  :disabled="supersedingId !== null"
+                  data-testid="page-findings-supersede-ok"
+                  @click="supersede(item)"
+                >
+                  {{ t("docs.findings.supersedeOk") }}
+                </Button>
+                <Button variant="ghost" size="xs" @click="confirmingId = null">{{ t("common.cancel") }}</Button>
+              </template>
+            </div>
             <FindingEvidenceList
               v-if="item.evidence.length"
               :evidence="item.evidence"
@@ -85,9 +117,10 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
-import { CopyIcon, GitCompareIcon, XIcon } from "@lucide/vue";
+import { MessagePlugin } from "tdesign-vue-next";
+import { CopyIcon, GitCompareIcon, ReplaceIcon, XIcon } from "@lucide/vue";
 
-import { listPageFindings, type PageFinding, type RelatedDocsPage } from "@/api/findings";
+import { listPageFindings, supersedeFromPage, type PageFinding, type RelatedDocsPage } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
 import { findingTypeHint, findingTypeLabel, formatPercent } from "@/components/findings/findingDisplay";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +137,8 @@ const props = defineProps<{
   knowledgeBaseId?: string | null;
   /** A page kept out of the knowledge base is never checked. */
   excluded?: boolean;
+  /** The reader may edit the page, and so say it supersedes another. */
+  canEdit?: boolean;
 }>();
 
 const { t } = useI18n();
@@ -112,6 +147,31 @@ const items = ref<PageFinding[]>([]);
 const otherCount = ref(0);
 const dismissed = ref(false);
 const detailsOpen = ref(false);
+/** The finding whose "supersede" awaits its confirming second click. */
+const confirmingId = ref<string | null>(null);
+const supersedingId = ref<string | null>(null);
+
+/** The other page leaves the knowledge base and every finding naming it
+ * goes with it, so the list is fetched again rather than patched. */
+async function supersede(item: PageFinding) {
+  if (supersedingId.value) return;
+  supersedingId.value = item.id;
+  try {
+    await supersedeFromPage(props.pageId, item.id);
+    void MessagePlugin.success(
+      t("docs.findings.superseded", { title: item.related_page.title || t("docs.tree.untitled") }),
+    );
+    confirmingId.value = null;
+    await load(props.pageId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    void MessagePlugin.error(
+      msg ? `${t("docs.findings.supersedeFailed")}: ${msg}` : t("docs.findings.supersedeFailed"),
+    );
+  } finally {
+    supersedingId.value = null;
+  }
+}
 
 /** Pages that say nearly what this one says, but not quite: worth more
  * attention than a copy, so the notice leads with them. */

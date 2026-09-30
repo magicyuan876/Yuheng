@@ -77,6 +77,7 @@ const KB_ACTIVITY_ACTION_LABELS_EN: Record<string, string> = {
   "finding.status_changed": "Finding dismissed or reopened",
   "finding.scan_requested": "Knowledge health re-check requested",
   "finding.assigned": "Finding assigned",
+  "finding.superseded": "Document superseded",
 };
 
 const KB_ACTIVITY_OUTCOME_LABELS_EN: Record<string, string> = {

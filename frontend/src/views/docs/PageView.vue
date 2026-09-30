@@ -245,6 +245,7 @@
           :labels="labels"
           @change="onLabelsChanged"
         />
+        <SupersededBanner class="mt-2.5" :page="page" @restore="toggleKnowledge" />
         <!-- Loads itself once the page is idle, so it never holds up the page. -->
         <PageFindingsNotice
           class="mt-2.5"
@@ -252,6 +253,7 @@
           :page-title="page.title"
           :knowledge-base-id="space.knowledge_base_id"
           :excluded="page.exclude_from_knowledge"
+          :can-edit="page.can_edit"
         />
       </header>
 
@@ -453,6 +455,7 @@ import SharePanel from "./share/SharePanel.vue";
 import PageLabels from "./labels/PageLabels.vue";
 import PageFindingsNotice from "./findings/PageFindingsNotice.vue";
 import PageOwner from "./findings/PageOwner.vue";
+import SupersededBanner from "./findings/SupersededBanner.vue";
 import { browserStore, recordVisit } from "./home/recentlyViewed";
 import NotificationCentre from "./notifications/NotificationCentre.vue";
 import CommentsPanel from "./comments/CommentsPanel.vue";

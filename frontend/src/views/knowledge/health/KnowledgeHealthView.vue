@@ -165,6 +165,7 @@
           @dismiss="(f, reason) => changeStatus(f, 'dismissed', reason)"
           @reopen="(f) => changeStatus(f, 'open')"
           @assign="assign"
+          @supersede="askSupersede"
         />
       </ul>
 
@@ -190,6 +191,34 @@
         </Button>
       </div>
     </template>
+
+    <!-- Superseding takes a document out of the knowledge base, deleting an
+         upload outright, so it is confirmed with both titles in view. -->
+    <Dialog :open="!!pendingSupersede" @update:open="(open: boolean) => !open && (pendingSupersede = null)">
+      <DialogContent class="sm:max-w-[480px]" data-testid="supersede-confirm">
+        <DialogHeader>
+          <DialogTitle>{{ t("knowledgeHealth.supersedeConfirm.title") }}</DialogTitle>
+          <DialogDescription v-if="pendingSupersede">
+            {{
+              t("knowledgeHealth.supersedeConfirm.body", {
+                keep: pendingSupersede.keepTitle,
+                retire: pendingSupersede.retireTitle,
+              })
+            }}
+          </DialogDescription>
+        </DialogHeader>
+        <p class="text-muted-foreground m-0 text-xs">{{ t("knowledgeHealth.supersedeConfirm.how") }}</p>
+        <DialogFooter>
+          <DialogClose as-child>
+            <Button variant="outline" :disabled="superseding">{{ t("common.cancel") }}</Button>
+          </DialogClose>
+          <Button :disabled="superseding" data-testid="supersede-confirm-ok" @click="confirmSupersede">
+            <Loader2Icon v-if="superseding" class="animate-spin" />
+            {{ t("knowledgeHealth.supersedeConfirm.ok") }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -217,6 +246,7 @@ import {
   getFindingsSummary,
   listFindings,
   scanFindings,
+  supersedeFinding,
   updateFindingStatus,
   type Finding,
   type FindingDismissReason,
@@ -226,6 +256,15 @@ import {
 import { findingTypeLabel } from "@/components/findings/findingDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -473,6 +512,53 @@ async function assign(finding: Finding, assigneeId: string) {
 }
 
 const currentUserId = () => authStore.user?.id ?? "";
+
+interface PendingSupersede {
+  finding: Finding;
+  keepId: string;
+  keepTitle: string;
+  retireTitle: string;
+}
+const pendingSupersede = ref<PendingSupersede | null>(null);
+const superseding = ref(false);
+
+function askSupersede(finding: Finding, keepId: string) {
+  if (!finding.related) return;
+  const keepSubject = keepId === finding.subject.knowledge_id;
+  const keep = keepSubject ? finding.subject : finding.related;
+  const retire = keepSubject ? finding.related : finding.subject;
+  pendingSupersede.value = {
+    finding,
+    keepId,
+    keepTitle: keep.title || keep.knowledge_id,
+    retireTitle: retire.title || retire.knowledge_id,
+  };
+}
+
+/**
+ * The document that leaves takes every finding naming it along, this one
+ * included, so the list and the summary are fetched again rather than
+ * patched: which other findings went with it is the server's to know.
+ */
+async function confirmSupersede() {
+  const pending = pendingSupersede.value;
+  if (!pending || superseding.value) return;
+  superseding.value = true;
+  try {
+    const res = await supersedeFinding(props.kbId, pending.finding.id, pending.keepId);
+    MessagePlugin.success(
+      t(res.how === "excluded" ? "knowledgeHealth.supersededExcluded" : "knowledgeHealth.supersededDeleted", {
+        title: pending.retireTitle,
+      }),
+    );
+    pendingSupersede.value = null;
+    await reloadAll();
+  } catch (err) {
+    MessagePlugin.error(errorText(err, t("knowledgeHealth.supersedeFailed")));
+  } finally {
+    superseding.value = false;
+  }
+}
 
 async function rescan() {
   if (!props.canRescan || scanning.value) return;

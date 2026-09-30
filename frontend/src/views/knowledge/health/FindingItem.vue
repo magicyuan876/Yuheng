@@ -97,6 +97,30 @@
         <!-- A host's own actions, e.g. "go and deal with it" in the to-do
              list, where the finding is read rather than acted on. -->
         <slot name="actions" />
+        <!-- Keeping one of two alike documents and taking the other out of
+             the knowledge base: the resolution a copy or an out-of-date
+             account usually needs. The view confirms before anything goes. -->
+        <DropdownMenu v-if="canSupersede">
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" size="xs" :disabled="busy" data-testid="finding-supersede">
+              <ReplaceIcon />
+              {{ t("knowledgeHealth.supersede") }}
+              <ChevronDownIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" class="max-w-80">
+            <DropdownMenuItem
+              v-for="keep in keepOptions"
+              :key="keep.knowledge_id"
+              :data-testid="`finding-supersede-keep-${keep.knowledge_id}`"
+              @select="emit('supersede', finding, keep.knowledge_id)"
+            >
+              <span class="truncate">{{
+                t("knowledgeHealth.keepThis", { title: keep.title || keep.knowledge_id })
+              }}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <!-- Dismissing says why: the two reasons a person has to leave a
              finding as it is. Resolved findings are the detector's to close:
              the content changed and the overlap is gone. -->
@@ -149,7 +173,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { ArrowLeftRightIcon, ChevronDownIcon, EyeOffIcon, RotateCcwIcon, UserRoundIcon } from "@lucide/vue";
+import {
+  ArrowLeftRightIcon,
+  ChevronDownIcon,
+  EyeOffIcon,
+  ReplaceIcon,
+  RotateCcwIcon,
+  UserRoundIcon,
+} from "@lucide/vue";
 
 import type { Finding, FindingDismissReason } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
@@ -185,6 +216,8 @@ const emit = defineEmits<{
   reopen: [finding: Finding];
   /** An empty ID hands the finding back to the automatic routing. */
   assign: [finding: Finding, assigneeId: string];
+  /** Keep this document, take the other out of the knowledge base. */
+  supersede: [finding: Finding, keepKnowledgeId: string];
 }>();
 
 const DISMISS_REASONS: FindingDismissReason[] = ["distinct_scope", "intentional"];
@@ -193,6 +226,19 @@ const { t } = useI18n();
 const expanded = ref(false);
 
 const typeHint = computed(() => findingTypeHint(props.finding.type, t));
+
+/** The kinds of finding that are settled by keeping one of their two documents. */
+const SUPERSEDABLE = new Set(["duplicate", "divergent"]);
+const canSupersede = computed(
+  () =>
+    !!props.canEdit &&
+    props.finding.status === "open" &&
+    !!props.finding.related &&
+    SUPERSEDABLE.has(props.finding.type),
+);
+const keepOptions = computed(() =>
+  props.finding.related ? [props.finding.subject, props.finding.related] : [props.finding.subject],
+);
 
 const statusLabel = computed(() => {
   switch (props.finding.status) {

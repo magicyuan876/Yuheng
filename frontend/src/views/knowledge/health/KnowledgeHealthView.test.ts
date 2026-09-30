@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
   scanFindings: vi.fn(),
   updateFindingStatus: vi.fn(),
   assignFinding: vi.fn(),
+  supersedeFinding: vi.fn(),
 }));
 vi.mock("@/api/findings", () => api);
 
@@ -37,6 +38,7 @@ beforeEach(() => {
 
 afterEach(() => {
   while (mounted.length) mounted.pop()?.unmount();
+  document.body.innerHTML = "";
 });
 
 const summary = (over: Partial<FindingsSummary> = {}): FindingsSummary => ({
@@ -80,6 +82,7 @@ async function mountView(props: Record<string, unknown> = {}) {
   const wrapper = mount(KnowledgeHealthView, {
     props: { kbId: "kb1", canEdit: true, ...props },
     global: { plugins: [i18n, createPinia()] },
+    attachTo: document.body,
   });
   mounted.push(wrapper);
   await flushPromises();
@@ -341,4 +344,26 @@ test("a divergent finding explains itself and marks where the passages differ", 
   const marks = wrapper.findAll('[data-testid="finding-diff-mark"]').map((m) => m.text());
   assert.ok(marks.join("").includes("fif"), `marked: ${JSON.stringify(marks)}`);
   assert.equal(wrapper.find('[data-differs="true"]').exists(), true);
+});
+
+test("superseding is confirmed with both titles, then the lists are fetched again", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary());
+  api.listFindings.mockResolvedValue({ items: [finding("f1")], total: 1, page: 1, page_size: 20 });
+  api.supersedeFinding.mockResolvedValue({ retired_knowledge_id: "f1-a", how: "excluded" });
+  const wrapper = await mountView();
+
+  const item = wrapper.findAllComponents(FindingItem)[0];
+  item.vm.$emit("supersede", item.props("finding"), "f1-b");
+  await flushPromises();
+  const dialog = document.body.querySelector('[data-testid="supersede-confirm"]');
+  assert.ok(dialog?.textContent?.includes("Keep “Doc f1 B” and take “Doc f1 A” out"), dialog?.textContent ?? "");
+  assert.equal(api.supersedeFinding.mock.calls.length, 0, "nothing goes before the confirmation");
+
+  api.listFindings.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 });
+  (document.body.querySelector('[data-testid="supersede-confirm-ok"]') as HTMLElement).click();
+  await flushPromises();
+  assert.deepEqual(api.supersedeFinding.mock.calls[0], ["kb1", "f1", "f1-b"]);
+  assert.match(String(toast.success.mock.calls[0][0]), /Doc f1 A.*marked superseded/);
+  assert.equal(api.getFindingsSummary.mock.calls.length, 2, "the summary is fetched again");
+  assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 0);
 });
