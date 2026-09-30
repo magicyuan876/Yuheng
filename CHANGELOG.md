@@ -30,6 +30,16 @@ recorded in [`NOTICE`](./NOTICE).
 - Interfaces for other software: REST API (`/api/v1`, Swagger UI), an MCP server
   with 23 tools, a Go SDK, the `yuheng` CLI and a DeepSeek Harness plugin.
 - Optional collaborative documents (`docs` Compose profile).
+- Knowledge health: documents of a knowledge base are compared as they
+  change — word-for-word copies are reported as duplicates, near-copies that
+  differ (one of the two probably out of date) as divergent, with the
+  differences marked — and a knowledge base can set a review period after
+  which a document nobody has confirmed is due for review. "Not helpful" on an
+  answer is taken to the documents it cites. Every problem is routed to a
+  person from the documents' owners and recent editors, collected in a
+  personal to-do, and settled by confirming a document, superseding one of
+  two (a docs page is excluded and marked, not deleted), or dismissing with a
+  reason. See `website-docs/03-features/22-knowledge-health.md`.
 - A Docker Compose stack (frontend, backend, docreader, PostgreSQL/ParadeDB,
   Redis, RustFS) and a Helm chart. Images are not published; build them locally.
 

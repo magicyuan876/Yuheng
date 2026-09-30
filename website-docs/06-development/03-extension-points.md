@@ -607,7 +607,7 @@ r.APIKeys(extension.APIKeyFullAccess()).GET("/acme/report", extension.RequireFea
 
 ## 9. 知识健康检测器（internal/application/service/findings）
 
-知识健康（见 [功能说明](../03-features/22-knowledge-health.md)）在文档索引完成后运行一组**检测器**，把它们报告的问题存为 `knowledge_findings` 记录。核心自带一个：重复检测（`DuplicateDetector`，只比较已存储的向量）。新的检测——内容矛盾、版本替代、跨库比较等——以检测器的形式接入，**不需要修改任何核心文件**。
+知识健康（见 [功能说明](../03-features/22-knowledge-health.md)）在文档索引完成后运行一组**检测器**，把它们报告的问题存为 `knowledge_findings` 记录。核心自带三个：内容比对（`DuplicateDetector`，比较已存储的向量并逐字比对，报告 `duplicate` 与 `divergent`）、定期复核（`ReviewDetector`，`stale`）、回答反馈（`DisputeDetector`，`disputed`）。新的检测——用大模型判断矛盾、跨库比较等——以检测器的形式接入，**不需要修改任何核心文件**。
 
 ### 接口定义
 
@@ -634,7 +634,16 @@ type Candidate struct {
     Score              float64
     Fingerprint        string // 留空 = PairFingerprint(Type, 知识库, 主体, 相关)，与方向无关
     Details            types.FindingDetails // Evidence / OverlapRatio / EvidenceHash / Extra
+    Assign             AssignRule // 派给谁，零值 = 主体文档的负责人
 }
+
+type AssignRule int
+
+const (
+    AssignSubjectOwner AssignRule = iota // 主体文档的负责人（→ 最近经手人 → 知识库创建者）
+    AssignLatestHand                     // 两篇中最近被经手那篇的经手人（适合「副本」类问题）
+    AssignStalestOwner                   // 两篇中最久没人经手那篇的负责人（适合「过时 / 矛盾」类问题）
+)
 
 var ErrUnsupported = errors.New("detector does not apply here")
 
@@ -665,6 +674,7 @@ type SimilarChunkFinder interface {
 - 返回 `ErrUnsupported`（可包装）表示「不适用」：不算失败、不重试，它以前的问题保持原样；
 - 返回其它错误表示失败：其它检测器的结果照常记录，任务按队列策略重试，失败的检测器以前的问题保持原样；
 - `dismissed` 的问题在 `EvidenceHash` 不变时保持忽略，变了就重新打开。所以 `EvidenceHash` 应当只取决于证据的**内容**（重复检测对匹配段落的文字取哈希，重新解析不会改变它），不要放分块 ID、时间或分数；
+- 每次运行都按 `Assign` 重新派发，找人时跳过已离开空间或被停用的人；被人手动指派过的问题保持原处理人；
 - 问题记录不会比文档活得久：文档软删除、硬删除或移到其它知识库时，数据库触发器删除相关记录，所有读取也只返回两侧文档都还在的记录。检测器不需要自己清理。
 
 `Details.Extra` 放检测器自己的字段（键名建议带检测器前缀），核心原样存储、原样返回给 API。
