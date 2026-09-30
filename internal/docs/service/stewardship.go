@@ -40,6 +40,23 @@ func canChangeOwner(ctx context.Context, d acl.Decision) bool {
 	return ok && uid != "" && uid == d.Page.Steward()
 }
 
+// steward names the page's maintainer for its view. Nil when the page has
+// none, or the directory is unavailable or fails: the name is a courtesy, and
+// the ID is in the view regardless.
+func (s *PageService) steward(ctx context.Context, page *model.Page) *UserView {
+	id := page.Steward()
+	if id == "" || s.d.Users == nil {
+		return nil
+	}
+	users, err := s.d.Users.GetUsersByIDs(ctx, []string{id})
+	if err != nil {
+		logger.Warnf(ctx, "[docs] naming the maintainer of page %s failed: %v", page.ID, err)
+		return nil
+	}
+	v := userView(id, users)
+	return &v
+}
+
 // SetOwner hands a page to another maintainer, who must be able to write it.
 // Allowed on a locked page: who maintains a page is not its content.
 func (s *PageService) SetOwner(ctx context.Context, actor *acl.Identity, d acl.Decision, ownerID string,
