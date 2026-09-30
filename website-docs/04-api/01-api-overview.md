@@ -238,4 +238,4 @@ X-Accel-Buffering: no
 | 系统与平台管理 | [02-api-system.md](./02-api-system.md) | `/system`、`/system/admin` |
 | 基础设施与数据源 | [02-api-infra.md](./02-api-infra.md) | `/vector-stores`、`/storage-backends`、`/web-search-providers`、`/datasource` |
 | 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/api/v1/files/presigned`、`/r/:token` |
-| 在线文档 | [在线文档](../03-features/07-docs.md)（功能页内附接口说明） | `/docs`、`/groups` |
+| 在线文档 | [02-api-docs.md](./02-api-docs.md)，概念见[在线文档](../03-features/07-docs.md) | `/docs`、`/groups`，匿名的 `/docs/public`、`/docs/public-spaces` |
