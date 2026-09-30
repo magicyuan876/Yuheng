@@ -226,7 +226,7 @@ Wiki 模式会根据原始文档自动生成并维护一套结构化、相互链
 
 API Key 是独立的机器主体，不等同于某个用户：它要么是全量权限（full access），要么携带显式的能力（capability）集合，并可以限定到指定知识库。
 
-- 空间 Owner 通过 `POST /api/v1/tenants/:id/api-keys` 创建（列出、修改、删除同在该路径下），可勾选能力（如 `retrieve`、`chat`、`ingest`、`manage_kbs`、`manage_storage_backends`）并限定知识库。
+- 空间 Owner 在 **设置 → 空间 → API Key** 创建、修改和吊销（对应 `/api/v1/tenants/:id/api-keys` 下的 GET / POST / PUT / DELETE），可勾选能力（如 `retrieve`、`chat`、`ingest`、`manage_kbs`、`manage_storage_backends`）、限定知识库并设置过期时间。密钥明文只在创建时显示一次。
 - 路由按声明的策略放行，未声明策略的接口对 API Key 默认拒绝；给集成用具备所需能力的受限 Key，而不是全量 Key。
 - Key 的 `last_used_at` 按节流更新，避免高频写库。
 

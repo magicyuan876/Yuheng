@@ -21,6 +21,9 @@ export const SETTINGS_SECTION_MIN_ROLE: Record<string, SettingsRoleKey> = {
   tenant: "viewer",
   members: "viewer",
   groups: "viewer",
+  // GET/POST/PUT/DELETE /tenants/:id/api-keys are g.Owner(); a lower role
+  // could open the page but not even list the keys.
+  apikeys: "owner",
   // A read-only description of the Enterprise edition; nothing on it can change state.
   enterprise: "viewer",
 };

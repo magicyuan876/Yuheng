@@ -129,7 +129,7 @@ curl -s -X POST $BASE/knowledge-search -H "$AUTH" -H "Content-Type: application/
 | 方式 | 请求头 | 适用 |
 | --- | --- | --- |
 | JWT | `Authorization: Bearer <token>` | 浏览器 / 交互式调用，登录接口签发 |
-| API Key | `X-API-Key: <key>` | 服务端集成与智能体；由空间 Owner 调 `POST /api/v1/tenants/:id/api-keys` 创建（空间级 Key 暂无管理界面），支持细粒度能力（`retrieve`/`chat`/`ingest`/`manage_kbs` 等）与知识库白名单 |
+| API Key | `X-API-Key: <key>` | 服务端集成与智能体；由空间 Owner 在「设置 → 空间 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`），支持细粒度能力（`retrieve`/`chat`/`ingest`/`manage_kbs` 等）、知识库白名单与过期时间 |
 | 指定空间 | `X-Tenant-ID: <id>` | 多空间用户切换当前工作空间 |
 
 服务端集成建议用 API Key 而不是 JWT：

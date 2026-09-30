@@ -2952,6 +2952,10 @@ export default {
       createApiPrincipalTestTokenFailed: "Failed to create API test token",
       updateFailed: "Failed to update workspace information",
       deleteFailed: "Failed to delete workspace",
+      listApiKeysFailed: "Failed to load API keys",
+      createApiKeyFailed: "Failed to create API key",
+      updateApiKeyFailed: "Failed to update API key",
+      deleteApiKeyFailed: "Failed to revoke API key",
     },
     initialization: {
       checkFailed: "Check failed",
@@ -4379,79 +4383,6 @@ export default {
       ingest_failed: "Ingest failed; see server logs",
     },
   },
-  integrations: {
-    api: {
-      title: "API Integration",
-      apiKeyCapabilityGroupKnowledge: "Knowledge-base data",
-      apiKeyCapabilityGroupAutomation: "Agents and integrations",
-      apiKeyCapabilityGroupCollaboration: "Members and spaces",
-      apiKeyCapabilityGroupTenant: "Workspace configuration",
-      apiKeyCapabilityGroupDocs: "Documents",
-      capabilityDocsRead: "Read documents",
-      capabilityDocsReadHint: "Read pages, members and attachment metadata of visible spaces; no changes.",
-      capabilityDocsWrite: "Edit documents",
-      capabilityDocsWriteHint: "Create, edit and move pages, manage labels and comments; limited by space role.",
-      capabilityDocsAdmin: "Administer documents",
-      capabilityDocsAdminHint: "Manage space members, page-level permissions and user groups, like a space admin.",
-      apiKeyCapabilitySelectGroup: "Select all",
-      apiKeyCapabilityClearGroup: "Clear",
-      capabilityRetrieve: "Retrieve knowledge bases",
-      capabilityRetrieveHint:
-        "Read, query, and search data inside the selected knowledge-base scope. Does not create sessions or modify content.",
-      capabilityChat: "Chat",
-      capabilityChatHint:
-        "Let this key hold conversations and manage its own sessions. Does not modify knowledge-base content.",
-      capabilityIngest: "Write KB content",
-      capabilityIngestHint:
-        "Let this key write content into its allowed knowledge bases (upload documents, edit chunks/FAQ/tags/wiki). It cannot create knowledge bases or agents, cannot clear a knowledge base, and stays bounded to the selected knowledge bases.",
-      capabilityManageKbs: "Manage knowledge bases",
-      capabilityManageKbsHint:
-        "Let this key manage the full knowledge-base lifecycle: create, copy, update, and delete knowledge bases and change their initialization/configuration. Operations on existing knowledge bases (copy/update/delete) stay bounded by the selected scope; creating a new knowledge base is unrestricted (the new KB belongs to this space).",
-      capabilityMessageHistory: "Message history",
-      capabilityMessageHistoryHint:
-        "Let this key search workspace chat history and read chat-history stats. It does not grant workspace configuration access.",
-      capabilityManageModels: "Manage models",
-      capabilityManageModelsHint: "Manage model definitions, credentials, and connectivity checks.",
-      capabilityManageDatasources: "Manage data sources",
-      capabilityManageDatasourcesHint:
-        "Manage data-source connectors, credentials, resource selection, and sync jobs. Knowledge-base scope still applies when a source is bound to a KB.",
-      capabilityManageVectorStores: "Manage retrieval infrastructure",
-      capabilityManageVectorStoresHint:
-        "Manage vector-store configuration plus parser, document reader, and storage engine connectivity checks.",
-      capabilityManageStorageBackends: "Manage storage backends",
-      capabilityManageStorageBackendsHint:
-        "Manage object/file storage backend instances (e.g. S3-compatible or local file storage): their CRUD lifecycle, connectivity tests, and the workspace default selection.",
-      capabilityManageWebSearch: "Manage web search",
-      capabilityManageWebSearchHint: "Manage web-search provider configurations, credentials, and connection tests.",
-      capabilityRunEvaluations: "Run evaluations",
-      capabilityRunEvaluationsHint: "Run evaluation jobs and read evaluation results.",
-      capabilityManageMembers: "Manage members",
-      capabilityManageMembersHint:
-        "List and manage workspace members, roles, invitations, and invite links. Does not include API key management, workspace deletion, or ownership transfer.",
-      capabilityManageSpaces: "Manage spaces",
-      capabilityManageSpacesHint:
-        "Manage organization spaces, join flows, space membership, invitations, and shared-space visibility. Does not grant KB or agent share management.",
-      capabilityManageTenantSettings: "Manage workspace settings",
-      capabilityManageTenantSettingsHint:
-        "Read and update workspace-level integration settings such as API end-user identity mode, request header configuration, and workspace KV settings. Does not include API key management, member management, workspace deletion, or ownership transfer.",
-      updateApiKeyScopeFailed: "Failed to update API key",
-    },
-    imOverview: {
-      title: "Connected IM channels",
-    },
-    embedOverview: {
-      title: "Web embed channels",
-    },
-    agentEditor: {
-      desc: "Publish this agent to IM platforms or websites. Manage in Integrations.",
-    },
-    chrome: {
-      title: "Knowledge Assistant",
-    },
-    claw: {
-      title: "Yuheng Skill",
-    },
-  },
   credential: {
     configured: "Configured",
     unconfigured: "Not configured",
@@ -4678,6 +4609,124 @@ export default {
       generic: "Something went wrong. Please try again.",
     },
   },
+  apiKeys: {
+    capabilityGroups: {
+      knowledge: "Knowledge-base data",
+      dataSources: "Data sources",
+      collaboration: "Members and spaces",
+      docs: "Documents",
+      tenant: "Workspace configuration",
+      system: "Platform control plane",
+    },
+    selectGroup: "Select all",
+    clearGroup: "Clear",
+    capabilityMore: "+{count}",
+    viewAllCapabilities: "View all capabilities",
+    neverUsed: "Never",
+    secret: {
+      description: "Copy and store this key now. The full value will not be shown again.",
+      copy: "Copy key",
+      copySuccess: "Key copied",
+    },
+    capabilities: {
+      retrieve: {
+        label: "Retrieve knowledge bases",
+        hint: "Read, query, and search data inside the selected knowledge-base scope. Does not create sessions or modify content.",
+      },
+      chat: {
+        label: "Chat",
+        hint: "Let this key hold conversations and manage its own sessions. Does not modify knowledge-base content.",
+      },
+      ingest: {
+        label: "Write KB content",
+        hint: "Let this key write content into its allowed knowledge bases (upload documents, edit chunks/FAQ/tags/wiki). It cannot create or clear knowledge bases, and stays bounded to the selected knowledge bases.",
+      },
+      manage_kbs: {
+        label: "Manage knowledge bases",
+        hint: "Let this key manage the full knowledge-base lifecycle: create, copy, update, and delete knowledge bases and change their initialization/configuration. Operations on existing knowledge bases (copy/update/delete) stay bounded by the selected scope; creating a new knowledge base is unrestricted (the new KB belongs to this space).",
+      },
+      message_history: {
+        label: "Message history",
+        hint: "Let this key search workspace chat history and read chat-history stats. It does not grant workspace configuration access.",
+      },
+      manage_datasources: {
+        label: "Manage data sources",
+        hint: "Manage data-source connectors, credentials, resource selection, and sync jobs. Knowledge-base scope still applies when a source is bound to a KB.",
+      },
+      manage_members: {
+        label: "Manage members",
+        hint: "List and manage workspace members, roles, invitations, and invite links. Does not include API key management, workspace deletion, or ownership transfer.",
+      },
+      manage_spaces: {
+        label: "Manage spaces",
+        hint: "Manage organization spaces, join flows, space membership, invitations, and shared-space visibility. Does not grant knowledge-base share management.",
+      },
+      docs_read: {
+        label: "Read documents",
+        hint: "Read pages, members and attachment metadata of visible spaces; no changes.",
+      },
+      docs_write: {
+        label: "Edit documents",
+        hint: "Create, edit and move pages, manage labels and comments; limited by space role.",
+      },
+      docs_admin: {
+        label: "Administer documents",
+        hint: "Manage space members, page-level permissions and user groups, like a space admin.",
+      },
+      manage_models: {
+        label: "Manage models",
+        hint: "Manage model definitions, credentials, and connectivity checks.",
+      },
+      manage_vector_stores: {
+        label: "Manage retrieval infrastructure",
+        hint: "Manage vector-store configuration plus parser, document reader, and storage engine connectivity checks.",
+      },
+      manage_storage_backends: {
+        label: "Manage storage backends",
+        hint: "Manage object/file storage backend instances (e.g. S3-compatible or local file storage): their CRUD lifecycle, connectivity tests, and the workspace default selection.",
+      },
+      manage_web_search: {
+        label: "Manage web search",
+        hint: "Manage web-search provider configurations, credentials, and connection tests.",
+      },
+      run_evaluations: {
+        label: "Run evaluations",
+        hint: "Run evaluation jobs and read evaluation results.",
+      },
+      manage_tenant_settings: {
+        label: "Manage workspace settings",
+        hint: "Read and update workspace-level integration settings such as API end-user identity mode, request header configuration, and workspace KV settings. Does not include API key management, member management, workspace deletion, or ownership transfer.",
+      },
+      system_tenants_read: {
+        label: "Read workspaces",
+        hint: "List, search, and inspect every workspace.",
+      },
+      system_tenants_manage: {
+        label: "Manage workspaces",
+        hint: "Create, update, delete workspaces and apply global workspace settings.",
+      },
+      system_settings_read: {
+        label: "Read system settings",
+        hint: "Read platform runtime settings.",
+      },
+      system_settings_manage: {
+        label: "Manage system settings",
+        hint: "Update and reset platform runtime settings.",
+      },
+      system_runtime_read: {
+        label: "Read runtime",
+        hint: "Inspect task queues and task details.",
+      },
+      system_runtime_manage: {
+        label: "Manage runtime",
+        hint: "Retry, run, cancel, or delete runtime tasks.",
+      },
+      system_audit_read: {
+        label: "Read system audit",
+        hint: "Read platform audit events.",
+      },
+    },
+  },
   platformApiKeys: {
     title: "Platform API Keys",
     description: "Create platform credentials for cross-workspace automation. Use X-Tenant-ID for workspace APIs.",
@@ -4691,37 +4740,12 @@ export default {
     namePlaceholder: "For example: central operations automation",
     key: "Key",
     capability: "Capabilities",
-    capabilityMore: "+{count}",
-    viewAllCapabilities: "View all capabilities",
     capabilityHint:
       "Workspace capabilities apply to the X-Tenant-ID target; system capabilities apply to control-plane APIs.",
     lastUsed: "Last used",
     createdAt: "Created",
     actions: "Actions",
-    never: "Never",
-    systemCapabilityGroup: "Platform control plane",
-    capabilities: {
-      tenantsRead: "Read workspaces",
-      tenantsManage: "Manage workspaces",
-      settingsRead: "Read system settings",
-      settingsManage: "Manage system settings",
-      runtimeRead: "Read runtime",
-      runtimeManage: "Manage runtime",
-      auditRead: "Read system audit",
-    },
-    capabilityHints: {
-      tenantsRead: "List, search, and inspect every workspace.",
-      tenantsManage: "Create, update, delete workspaces and apply global workspace settings.",
-      settingsRead: "Read platform runtime settings.",
-      settingsManage: "Update and reset platform runtime settings.",
-      runtimeRead: "Inspect task queues and task details.",
-      runtimeManage: "Retry, run, cancel, or delete runtime tasks.",
-      auditRead: "Read platform audit events.",
-    },
     createdTitle: "Platform API key created",
-    createdDescription: "Copy and store this key now. The full value will not be shown again.",
-    copy: "Copy key",
-    copySuccess: "Key copied",
     deleteConfirm: "Delete “{name}”? Automation using this key will stop immediately.",
     deleteSuccess: "Platform API key deleted",
     deleteFailed: "Failed to delete platform API key",
@@ -4729,6 +4753,56 @@ export default {
     capabilityRequired: "Select at least one capability",
     loadFailed: "Failed to load platform API keys",
     createFailed: "Failed to create platform API key",
+  },
+  workspaceApiKeys: {
+    title: "API keys",
+    description:
+      "Credentials for scripts and external systems that call this workspace's API. A key can only reach this workspace.",
+    securityNotice:
+      "The secret is shown once, when the key is created. Grant only what the integration needs, and set an expiry where you can.",
+    create: "Create API key",
+    editTitle: "Edit API key",
+    createDescription: "Choose what this key may do. The scope can be changed later; the secret cannot be shown again.",
+    editDescription: "Changes take effect on the next request made with this key.",
+    loading: "Loading…",
+    empty: "No API keys yet",
+    name: "Name",
+    namePlaceholder: "e.g. Support bot retrieval",
+    nameRequired: "Enter a name",
+    key: "Key",
+    access: "Access",
+    fullAccess: "Full access",
+    fullAccessHint:
+      "Can call every workspace endpoint that accepts API keys, on every knowledge base. It cannot manage API keys.",
+    scoped: "Selected capabilities",
+    scopedHint: "Only the capabilities ticked below.",
+    capabilities: "Capabilities",
+    capabilityRequired: "Choose at least one capability",
+    knowledgeBases: "Knowledge bases",
+    allKnowledgeBases: "All knowledge bases",
+    knowledgeBaseCount: "{count} knowledge bases",
+    knowledgeBaseHint:
+      "Bounds the retrieval, chat, ingest, knowledge-base and data-source capabilities. Leave empty to allow every knowledge base.",
+    knowledgeBaseUnused: "None of the selected capabilities is bounded by knowledge base.",
+    knowledgeBaseSearch: "Search knowledge bases",
+    knowledgeBaseEmpty: "This workspace has no knowledge bases",
+    knowledgeBaseMissing: "Deleted knowledge base",
+    knowledgeBaseLoadFailed: "Failed to load knowledge bases",
+    expires: "Expires",
+    expiryNever: "Never",
+    expiryInDays: "In {days} days",
+    expiryOnDate: "On a date",
+    expiryDate: "Expiry date",
+    expiryInFuture: "Choose a date in the future",
+    expired: "Expired",
+    lastUsed: "Last used",
+    createdAt: "Created",
+    actions: "Actions",
+    revoke: "Revoke",
+    revokeConfirm: "Revoke “{name}”? Anything using this key stops working immediately.",
+    revokeSuccess: "API key revoked",
+    updateSuccess: "API key updated",
+    createdTitle: "API key created",
   },
   // Teasers for the closed-source Enterprise edition. Wording stays factual: a feature
   // that is not released says so, and nothing here promises availability.

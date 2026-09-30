@@ -124,7 +124,7 @@
             <div class="bg-card settings-content flex-1 overflow-y-auto">
               <div
                 :class="
-                  currentSection === 'members'
+                  WIDE_WORKSPACE_SECTIONS.has(currentSection)
                     ? 'box-border w-full px-9 pt-8 pb-10'
                     : SYSTEM_ADMIN_SECTIONS.has(currentSection)
                       ? 'box-border w-full px-[34px] pt-[30px] pb-10'
@@ -226,6 +226,10 @@
                     <TenantMembers />
                   </div>
 
+                  <div v-if="currentSection === 'apikeys'" class="section">
+                    <WorkspaceAPIKeys />
+                  </div>
+
                   <!-- 用户组（在线文档模块的第一个消费者） -->
                   <div v-if="currentSection === 'groups'" class="section">
                     <TenantGroups />
@@ -268,6 +272,7 @@ import ParserEngineSettings from "./ParserEngineSettings.vue";
 import StorageEngineSettings from "./StorageBackendSettings.vue";
 import TenantMembers from "./TenantMembers.vue";
 import TenantGroups from "./TenantGroups.vue";
+import WorkspaceAPIKeys from "./WorkspaceAPIKeys.vue";
 import EnterpriseSettings from "./EnterpriseSettings.vue";
 import SystemSettings from "@/views/system/SystemSettings.vue";
 import RuntimeQueues from "@/views/system/RuntimeQueues.vue";
@@ -297,6 +302,7 @@ import {
   FileSearchIcon,
   HistoryIcon,
   InfoIcon,
+  KeyRoundIcon,
   ListIcon,
   ListTodoIcon,
   LockIcon,
@@ -354,6 +360,9 @@ type NavGroup = {
 //   ModelSettings.vue 里另用 hasRole('admin') 自己 gate，所以入口保留
 //   viewer 是合理的（contributor 也能浏览模型列表）。
 const SYSTEM_ADMIN_SECTIONS = SYSTEM_ADMIN_SETTINGS_SECTIONS;
+// Table-heavy workspace pages get the full content width instead of the
+// 760px reading column.
+const WIDE_WORKSPACE_SECTIONS = new Set(["members", "apikeys"]);
 
 const normalizeSettingsSection = (section: string) => {
   return normalizeSettingsSectionFromQuery(section, route.query.tab as string | undefined);
@@ -419,6 +428,7 @@ const navItems = computed(() => {
     { key: "tenant", icon: CircleUserRoundIcon, label: t("settings.tenantInfo") },
     { key: "members", icon: UsersIcon, label: t("tenantMember.title") },
     { key: "groups", icon: ListIcon, label: t("docs.groups.title") },
+    { key: "apikeys", icon: KeyRoundIcon, label: t("workspaceApiKeys.title") },
     { key: "enterprise", icon: SparklesIcon, label: t("enterprise.title") },
   ];
   // currentTenantRole 为空表示「membership 还没加载」—— 比起渲染整套
@@ -446,7 +456,7 @@ const navGroups = computed<NavGroup[]>(() => {
     {
       key: "workspace",
       label: t("settings.navGroups.workspace"),
-      items: pickItems(["tenant", "members", "groups", "chathistory"]),
+      items: pickItems(["tenant", "members", "groups", "apikeys", "chathistory"]),
     },
     {
       key: "models_runtime",

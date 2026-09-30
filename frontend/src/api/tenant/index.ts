@@ -48,20 +48,24 @@ export interface APIPrincipalTestToken {
   external_user_id: string;
 }
 
-// Bounded per-key grants for non-full-access API keys.
+// Bounded per-key grants for non-full-access API keys; mirrors
+// types.APIKeyCapability in internal/types/tenant_api_key.go.
 //  - 'retrieve': read/search knowledge-base data within scope
-//  - 'chat': run the conversation flow (sessions + agent listing + self identity)
+//  - 'chat': run the conversation flow (own sessions + self identity)
 //  - 'ingest': write content into allowed knowledge bases (docs/chunks/FAQ/tags/wiki)
 //  - 'manage_kbs': manage the KB lifecycle (create/copy/duplicate/update/delete + config)
 //  - 'message_history': search/read tenant chat-history metadata
 //  - 'manage_models': manage tenant model definitions, checks, and credentials
 //  - 'manage_datasources': manage data-source connectors and sync jobs
 //  - 'manage_vector_stores': manage vector stores and parser/storage checks
+//  - 'manage_storage_backends': manage object/file storage backends
 //  - 'manage_web_search': manage web-search providers
 //  - 'run_evaluations': run/read evaluation jobs
 //  - 'manage_members': manage tenant members and invitations
 //  - 'manage_spaces': manage organization/space collaboration
 //  - 'manage_tenant_settings': read/update tenant integration settings (API principal mode, headers, tenant KV)
+//  - 'docs_read' / 'docs_write' / 'docs_admin': the online-documents module
+//  - 'system_*': platform control plane; honoured on platform keys only
 export type TenantAPIKeyCapability =
   | "retrieve"
   | "chat"
@@ -92,6 +96,11 @@ export interface TenantAPIKey {
   id: number;
   scope_type?: "tenant" | "platform";
   name: string;
+  /**
+   * Display form of the key, never something the UI should treat as the
+   * secret: the plaintext is `token`, returned once by the create call. Render
+   * it through maskApiKey — see there for why.
+   */
   api_key: string;
   full_access: boolean;
   knowledge_base_ids: string[] | null;
@@ -246,7 +255,7 @@ export async function updateTenantAPIKey(
   } catch (error: any) {
     return {
       success: false,
-      message: error.message || t("integrations.api.updateApiKeyScopeFailed"),
+      message: error.message || t("error.tenant.updateApiKeyFailed"),
     };
   }
 }

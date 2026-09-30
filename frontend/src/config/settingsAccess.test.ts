@@ -10,6 +10,11 @@ import {
   isPromotionSection,
 } from "./settingsAccess";
 
+test("workspace API keys are Owner-only, like the routes behind them", () => {
+  // internal/router/routes_auth_tenant.go: /tenants/:id/api-keys is g.Owner().
+  assert.equal(SETTINGS_SECTION_MIN_ROLE.apikeys, "owner");
+});
+
 test("management shortcuts are stricter than read-only settings pages", () => {
   assert.equal(SETTINGS_SECTION_MIN_ROLE.members, "viewer");
   assert.equal(SETTINGS_MANAGEMENT_SHORTCUT_MIN_ROLE.members, "owner");
@@ -41,22 +46,10 @@ test("centralised mode only relocates shared-infrastructure sections", () => {
 });
 
 test("workspace and personal sections are never relocated to the platform", () => {
-  // Integrations stay with the workspace: each team publishes its own bot,
-  // widget and API keys, which is workspace business rather than shared
+  // API keys stay with the workspace: each team issues credentials for its
+  // own integrations, which is workspace business rather than shared
   // infrastructure. The rest are plainly workspace/personal dimension.
-  for (const key of [
-    "general",
-    "userprofile",
-    "mymemory",
-    "tenant",
-    "members",
-    "chathistory",
-    "memory",
-    "system",
-    "integrations-im",
-    "integrations-embed",
-    "integrations-api",
-  ]) {
+  for (const key of ["general", "userprofile", "tenant", "members", "groups", "apikeys", "chathistory", "system"]) {
     assert.equal(
       isPlatformManagedSection(key, true),
       false,

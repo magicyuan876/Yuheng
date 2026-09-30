@@ -318,7 +318,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 
 | 名称 | 默认值 | 说明 |
 | --- | --- | --- |
-| `YUHENG_API_KEY` | 空 | mcp-server 调 Yuheng REST 用的 API Key，用 `POST /api/v1/tenants/:id/api-keys` 创建 |
+| `YUHENG_API_KEY` | 空 | mcp-server 调 Yuheng REST 用的 API Key，由空间 Owner 在「设置 → 空间 → API Key」创建（或调 `POST /api/v1/tenants/:id/api-keys`） |
 | `MCP_SERVER_AUTH_TOKEN` | 空 | **HTTP/SSE 传输必填**，缺失时进程直接拒绝启动；客户端以 `Authorization: Bearer` 携带 |
 | `YUHENG_CHAT_TIMEOUT` | 300 | 调 Yuheng REST 的读超时（秒） |
 | `YUHENG_VERIFY_SSL` | true | 是否校验后端 TLS 证书，自签证书可设 false |

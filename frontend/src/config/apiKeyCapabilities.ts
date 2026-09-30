@@ -1,47 +1,70 @@
 import type { TenantAPIKeyCapability } from "@/api/tenant";
 
-export type ApiKeyCapabilityOption = {
-  value: TenantAPIKeyCapability;
-  labelKey: string;
-  hintKey: string;
-};
+/**
+ * The capability vocabulary of API keys, grouped the way the pickers show it.
+ *
+ * Mirrors types.APIKeyCapability in internal/types/tenant_api_key.go. The
+ * groups are the single source: the flat capability lists below are derived
+ * from them, so a capability added to a group is automatically part of what a
+ * form submits. (It used to be a separate hand-kept list, which is how the
+ * three docs_* capabilities were shown on the platform screen but silently
+ * dropped from the request.)
+ *
+ * Labels live under `apiKeys.capabilities.<value>` and group titles under
+ * `apiKeys.capabilityGroups.<key>` in every locale; use the helpers below
+ * rather than spelling the keys out.
+ */
+export type ApiKeyCapabilityGroupKey = "knowledge" | "dataSources" | "collaboration" | "docs" | "tenant" | "system";
 
-export type ApiKeyCapabilityGroup = {
-  key: string;
-  labelKey: string;
-  capabilities: ApiKeyCapabilityOption[];
-};
+export interface ApiKeyCapabilityGroup {
+  key: ApiKeyCapabilityGroupKey;
+  capabilities: TenantAPIKeyCapability[];
+}
 
-export const TENANT_API_KEY_CAPABILITIES: TenantAPIKeyCapability[] = [
-  "retrieve",
-  "chat",
-  "ingest",
-  "manage_kbs",
-  "message_history",
-  "manage_datasources",
-  "manage_models",
-  "manage_vector_stores",
-  "manage_storage_backends",
-  "manage_web_search",
-  "run_evaluations",
-  "manage_members",
-  "manage_spaces",
-  "manage_tenant_settings",
+/** What a workspace key can be granted. Platform keys get these as well, applied to the X-Tenant-ID target. */
+export const TENANT_API_KEY_CAPABILITY_GROUPS: readonly ApiKeyCapabilityGroup[] = [
+  { key: "knowledge", capabilities: ["retrieve", "chat", "ingest", "manage_kbs", "message_history"] },
+  { key: "dataSources", capabilities: ["manage_datasources"] },
+  { key: "collaboration", capabilities: ["manage_members", "manage_spaces"] },
+  { key: "docs", capabilities: ["docs_read", "docs_write", "docs_admin"] },
+  {
+    key: "tenant",
+    capabilities: [
+      "manage_models",
+      "manage_vector_stores",
+      "manage_storage_backends",
+      "manage_web_search",
+      "run_evaluations",
+      "manage_tenant_settings",
+    ],
+  },
 ];
 
-export const SYSTEM_API_KEY_CAPABILITIES: TenantAPIKeyCapability[] = [
-  "system_tenants_read",
-  "system_tenants_manage",
-  "system_settings_read",
-  "system_settings_manage",
-  "system_runtime_read",
-  "system_runtime_manage",
-  "system_audit_read",
+/** The platform control plane. The backend honours these on platform keys only. */
+export const SYSTEM_API_KEY_CAPABILITY_GROUP: ApiKeyCapabilityGroup = {
+  key: "system",
+  capabilities: [
+    "system_tenants_read",
+    "system_tenants_manage",
+    "system_settings_read",
+    "system_settings_manage",
+    "system_runtime_read",
+    "system_runtime_manage",
+    "system_audit_read",
+  ],
+};
+
+export const PLATFORM_API_KEY_CAPABILITY_GROUPS: readonly ApiKeyCapabilityGroup[] = [
+  SYSTEM_API_KEY_CAPABILITY_GROUP,
+  ...TENANT_API_KEY_CAPABILITY_GROUPS,
 ];
 
-export const DEFAULT_TENANT_API_KEY_CAPABILITIES = new Set<TenantAPIKeyCapability>(["retrieve", "chat"]);
-
-export const KB_SCOPED_API_KEY_CAPABILITIES = new Set<TenantAPIKeyCapability>([
+/**
+ * Capabilities whose routes are bounded by a key's knowledge_base_ids
+ * allow-list. For every other capability the allow-list has no effect, so the
+ * workspace form only asks for one when at least one of these is granted.
+ */
+export const KB_SCOPED_API_KEY_CAPABILITIES: ReadonlySet<TenantAPIKeyCapability> = new Set([
   "retrieve",
   "chat",
   "ingest",
@@ -49,163 +72,19 @@ export const KB_SCOPED_API_KEY_CAPABILITIES = new Set<TenantAPIKeyCapability>([
   "manage_datasources",
 ]);
 
-export const TENANT_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
-  {
-    key: "knowledge",
-    labelKey: "integrations.api.apiKeyCapabilityGroupKnowledge",
-    capabilities: [
-      {
-        value: "retrieve",
-        labelKey: "integrations.api.capabilityRetrieve",
-        hintKey: "integrations.api.capabilityRetrieveHint",
-      },
-      { value: "chat", labelKey: "integrations.api.capabilityChat", hintKey: "integrations.api.capabilityChatHint" },
-      {
-        value: "ingest",
-        labelKey: "integrations.api.capabilityIngest",
-        hintKey: "integrations.api.capabilityIngestHint",
-      },
-      {
-        value: "manage_kbs",
-        labelKey: "integrations.api.capabilityManageKbs",
-        hintKey: "integrations.api.capabilityManageKbsHint",
-      },
-      {
-        value: "message_history",
-        labelKey: "integrations.api.capabilityMessageHistory",
-        hintKey: "integrations.api.capabilityMessageHistoryHint",
-      },
-    ],
-  },
-  {
-    key: "automation",
-    labelKey: "integrations.api.apiKeyCapabilityGroupAutomation",
-    capabilities: [
-      {
-        value: "manage_datasources",
-        labelKey: "integrations.api.capabilityManageDatasources",
-        hintKey: "integrations.api.capabilityManageDatasourcesHint",
-      },
-    ],
-  },
-  {
-    key: "collaboration",
-    labelKey: "integrations.api.apiKeyCapabilityGroupCollaboration",
-    capabilities: [
-      {
-        value: "manage_members",
-        labelKey: "integrations.api.capabilityManageMembers",
-        hintKey: "integrations.api.capabilityManageMembersHint",
-      },
-      {
-        value: "manage_spaces",
-        labelKey: "integrations.api.capabilityManageSpaces",
-        hintKey: "integrations.api.capabilityManageSpacesHint",
-      },
-    ],
-  },
-  {
-    key: "docs",
-    labelKey: "integrations.api.apiKeyCapabilityGroupDocs",
-    capabilities: [
-      {
-        value: "docs_read",
-        labelKey: "integrations.api.capabilityDocsRead",
-        hintKey: "integrations.api.capabilityDocsReadHint",
-      },
-      {
-        value: "docs_write",
-        labelKey: "integrations.api.capabilityDocsWrite",
-        hintKey: "integrations.api.capabilityDocsWriteHint",
-      },
-      {
-        value: "docs_admin",
-        labelKey: "integrations.api.capabilityDocsAdmin",
-        hintKey: "integrations.api.capabilityDocsAdminHint",
-      },
-    ],
-  },
-  {
-    key: "tenant",
-    labelKey: "integrations.api.apiKeyCapabilityGroupTenant",
-    capabilities: [
-      {
-        value: "manage_models",
-        labelKey: "integrations.api.capabilityManageModels",
-        hintKey: "integrations.api.capabilityManageModelsHint",
-      },
-      {
-        value: "manage_vector_stores",
-        labelKey: "integrations.api.capabilityManageVectorStores",
-        hintKey: "integrations.api.capabilityManageVectorStoresHint",
-      },
-      {
-        value: "manage_storage_backends",
-        labelKey: "integrations.api.capabilityManageStorageBackends",
-        hintKey: "integrations.api.capabilityManageStorageBackendsHint",
-      },
-      {
-        value: "manage_web_search",
-        labelKey: "integrations.api.capabilityManageWebSearch",
-        hintKey: "integrations.api.capabilityManageWebSearchHint",
-      },
-      {
-        value: "run_evaluations",
-        labelKey: "integrations.api.capabilityRunEvaluations",
-        hintKey: "integrations.api.capabilityRunEvaluationsHint",
-      },
-      {
-        value: "manage_tenant_settings",
-        labelKey: "integrations.api.capabilityManageTenantSettings",
-        hintKey: "integrations.api.capabilityManageTenantSettingsHint",
-      },
-    ],
-  },
-];
+/** Every capability in the given groups, in display order. */
+export function capabilitiesOf(groups: readonly ApiKeyCapabilityGroup[]): TenantAPIKeyCapability[] {
+  return groups.flatMap((group) => group.capabilities);
+}
 
-export const SYSTEM_API_KEY_CAPABILITY_GROUP: ApiKeyCapabilityGroup = {
-  key: "system",
-  labelKey: "platformApiKeys.systemCapabilityGroup",
-  capabilities: [
-    {
-      value: "system_tenants_read",
-      labelKey: "platformApiKeys.capabilities.tenantsRead",
-      hintKey: "platformApiKeys.capabilityHints.tenantsRead",
-    },
-    {
-      value: "system_tenants_manage",
-      labelKey: "platformApiKeys.capabilities.tenantsManage",
-      hintKey: "platformApiKeys.capabilityHints.tenantsManage",
-    },
-    {
-      value: "system_settings_read",
-      labelKey: "platformApiKeys.capabilities.settingsRead",
-      hintKey: "platformApiKeys.capabilityHints.settingsRead",
-    },
-    {
-      value: "system_settings_manage",
-      labelKey: "platformApiKeys.capabilities.settingsManage",
-      hintKey: "platformApiKeys.capabilityHints.settingsManage",
-    },
-    {
-      value: "system_runtime_read",
-      labelKey: "platformApiKeys.capabilities.runtimeRead",
-      hintKey: "platformApiKeys.capabilityHints.runtimeRead",
-    },
-    {
-      value: "system_runtime_manage",
-      labelKey: "platformApiKeys.capabilities.runtimeManage",
-      hintKey: "platformApiKeys.capabilityHints.runtimeManage",
-    },
-    {
-      value: "system_audit_read",
-      labelKey: "platformApiKeys.capabilities.auditRead",
-      hintKey: "platformApiKeys.capabilityHints.auditRead",
-    },
-  ],
-};
+export function capabilityLabelKey(capability: TenantAPIKeyCapability): string {
+  return `apiKeys.capabilities.${capability}.label`;
+}
 
-export const PLATFORM_API_KEY_CAPABILITY_GROUPS: ApiKeyCapabilityGroup[] = [
-  SYSTEM_API_KEY_CAPABILITY_GROUP,
-  ...TENANT_API_KEY_CAPABILITY_GROUPS,
-];
+export function capabilityHintKey(capability: TenantAPIKeyCapability): string {
+  return `apiKeys.capabilities.${capability}.hint`;
+}
+
+export function capabilityGroupLabelKey(group: ApiKeyCapabilityGroupKey): string {
+  return `apiKeys.capabilityGroups.${group}`;
+}

@@ -1,4 +1,122 @@
 export default {
+  apiKeys: {
+    capabilityGroups: {
+      knowledge: "지식베이스 데이터",
+      dataSources: "데이터 소스",
+      collaboration: "멤버 및 공간",
+      docs: "온라인 문서",
+      tenant: "워크스페이스 설정",
+      system: "플랫폼 제어 영역",
+    },
+    selectGroup: "전체 선택",
+    clearGroup: "비우기",
+    capabilityMore: "+{count}",
+    viewAllCapabilities: "모든 권한 보기",
+    neverUsed: "사용 안 함",
+    secret: {
+      description: "지금 복사하여 안전하게 보관하세요. 전체 키는 다시 표시되지 않습니다.",
+      copy: "키 복사",
+      copySuccess: "키가 복사되었습니다",
+    },
+    capabilities: {
+      retrieve: {
+        label: "지식베이스 검색",
+        hint: "선택한 지식베이스 범위 내 데이터를 읽고 조회하고 검색할 수 있습니다. 세션을 만들거나 콘텐츠를 수정하지 않습니다.",
+      },
+      chat: {
+        label: "대화 기능",
+        hint: "이 키로 대화를 시작하고 자체 세션을 관리할 수 있습니다. 지식베이스 콘텐츠는 수정하지 않습니다.",
+      },
+      ingest: {
+        label: "지식베이스 콘텐츠 쓰기",
+        hint: "허용된 지식베이스에 콘텐츠를 작성할 수 있습니다(문서 업로드, 청크/FAQ/태그/wiki 편집). 지식베이스를 새로 만들거나 비울 수 없으며, 선택한 지식베이스 범위로 제한됩니다.",
+      },
+      manage_kbs: {
+        label: "지식베이스 관리",
+        hint: "지식베이스 전체 수명 주기를 관리할 수 있습니다: 생성, 복사, 수정, 삭제 및 초기화/설정 변경. 기존 지식베이스에 대한 작업(복사/수정/삭제)은 선택한 범위로 제한되며, 새 지식베이스 생성은 제한되지 않습니다(새 지식베이스는 이 스페이스에 속함).",
+      },
+      message_history: {
+        label: "메시지 기록",
+        hint: "워크스페이스 채팅 기록 검색과 채팅 기록 통계 조회를 허용합니다. 워크스페이스 설정 권한은 부여하지 않습니다.",
+      },
+      manage_datasources: {
+        label: "데이터 소스 관리",
+        hint: "데이터 소스 커넥터, 자격 증명, 리소스 선택 및 동기화 작업을 관리합니다. 지식베이스에 연결된 경우 범위 제한은 계속 적용됩니다.",
+      },
+      manage_members: {
+        label: "멤버 관리",
+        hint: "워크스페이스 멤버, 역할, 초대 및 초대 링크를 조회하고 관리할 수 있습니다. API Key 관리, 워크스페이스 삭제 또는 소유권 이전은 포함하지 않습니다.",
+      },
+      manage_spaces: {
+        label: "공간 관리",
+        hint: "조직/공간, 가입 흐름, 공간 멤버, 초대 및 공유 공간 표시를 관리할 수 있습니다. 지식베이스 공유 관리는 부여하지 않습니다.",
+      },
+      docs_read: {
+        label: "문서 읽기",
+        hint: "보이는 공간의 페이지, 구성원, 첨부 메타데이터를 읽습니다. 내용은 변경하지 않습니다.",
+      },
+      docs_write: {
+        label: "문서 편집",
+        hint: "페이지 생성·편집·이동, 라벨과 댓글 관리를 허용합니다. 공간 역할의 제한을 받습니다.",
+      },
+      docs_admin: {
+        label: "문서 관리",
+        hint: "공간 구성원, 페이지 권한, 사용자 그룹을 관리합니다. 공간 관리자와 동일합니다.",
+      },
+      manage_models: {
+        label: "모델 관리",
+        hint: "모델 설정, 자격 증명 및 연결 테스트를 관리합니다.",
+      },
+      manage_vector_stores: {
+        label: "검색 인프라 관리",
+        hint: "벡터 스토어 설정과 파서, 문서 리더, 스토리지 엔진 연결 검사를 관리합니다.",
+      },
+      manage_storage_backends: {
+        label: "스토리지 백엔드 관리",
+        hint: "객체/파일 스토리지 백엔드 인스턴스(예: S3 호환 또는 로컬 파일 스토리지)의 CRUD, 연결 테스트 및 워크스페이스 기본 스토리지 설정을 관리합니다.",
+      },
+      manage_web_search: {
+        label: "웹 검색 관리",
+        hint: "웹 검색 공급자 설정, 자격 증명 및 연결 테스트를 관리합니다.",
+      },
+      run_evaluations: {
+        label: "평가 실행",
+        hint: "평가 작업을 실행하고 결과를 읽을 수 있습니다.",
+      },
+      manage_tenant_settings: {
+        label: "워크스페이스 설정 관리",
+        hint: "API 최종 사용자 식별 모드, 요청 헤더 설정, 워크스페이스 KV 설정 등 워크스페이스 수준 통합 설정을 읽고 업데이트합니다. API Key 관리, 멤버 관리, 워크스페이스 삭제 또는 소유권 이전은 포함하지 않습니다.",
+      },
+      system_tenants_read: {
+        label: "워크스페이스 조회",
+        hint: "모든 워크스페이스를 조회하고 검색합니다.",
+      },
+      system_tenants_manage: {
+        label: "워크스페이스 관리",
+        hint: "워크스페이스를 생성, 수정, 삭제합니다.",
+      },
+      system_settings_read: {
+        label: "시스템 설정 조회",
+        hint: "플랫폼 설정을 조회합니다.",
+      },
+      system_settings_manage: {
+        label: "시스템 설정 관리",
+        hint: "플랫폼 설정을 변경합니다.",
+      },
+      system_runtime_read: {
+        label: "런타임 조회",
+        hint: "작업 큐와 상세 정보를 조회합니다.",
+      },
+      system_runtime_manage: {
+        label: "런타임 관리",
+        hint: "작업을 재시도, 실행, 취소 또는 삭제합니다.",
+      },
+      system_audit_read: {
+        label: "시스템 감사 조회",
+        hint: "플랫폼 감사 로그를 조회합니다.",
+      },
+    },
+  },
   platformApiKeys: {
     title: "플랫폼 API 키",
     description: "워크스페이스 간 자동화를 위한 플랫폼 자격 증명입니다. 워크스페이스 API에는 X-Tenant-ID를 사용하세요.",
@@ -12,18 +130,11 @@ export default {
     namePlaceholder: "예: 중앙 운영 자동화",
     key: "키",
     capability: "권한",
-    capabilityMore: "+{count}",
-    viewAllCapabilities: "모든 권한 보기",
     capabilityHint: "워크스페이스 권한은 X-Tenant-ID 대상에, 시스템 권한은 플랫폼 제어 API에 적용됩니다.",
     lastUsed: "마지막 사용",
     createdAt: "생성 시간",
     actions: "작업",
-    never: "사용 안 함",
-    systemCapabilityGroup: "플랫폼 제어 영역",
     createdTitle: "플랫폼 API 키가 생성되었습니다",
-    createdDescription: "지금 복사하여 안전하게 보관하세요. 전체 키는 다시 표시되지 않습니다.",
-    copy: "키 복사",
-    copySuccess: "키가 복사되었습니다",
     deleteConfirm: "“{name}”을(를) 삭제할까요? 이 키를 사용하는 자동화가 즉시 중단됩니다.",
     deleteSuccess: "플랫폼 API 키가 삭제되었습니다",
     deleteFailed: "플랫폼 API 키를 삭제하지 못했습니다",
@@ -31,24 +142,57 @@ export default {
     capabilityRequired: "권한을 하나 이상 선택하세요",
     loadFailed: "플랫폼 API 키를 불러오지 못했습니다",
     createFailed: "플랫폼 API 키를 만들지 못했습니다",
-    capabilityHints: {
-      tenantsRead: "모든 워크스페이스를 조회하고 검색합니다.",
-      tenantsManage: "워크스페이스를 생성, 수정, 삭제합니다.",
-      settingsRead: "플랫폼 설정을 조회합니다.",
-      settingsManage: "플랫폼 설정을 변경합니다.",
-      runtimeRead: "작업 큐와 상세 정보를 조회합니다.",
-      runtimeManage: "작업을 재시도, 실행, 취소 또는 삭제합니다.",
-      auditRead: "플랫폼 감사 로그를 조회합니다.",
-    },
-    capabilities: {
-      tenantsRead: "워크스페이스 조회",
-      tenantsManage: "워크스페이스 관리",
-      settingsRead: "시스템 설정 조회",
-      settingsManage: "시스템 설정 관리",
-      runtimeRead: "런타임 조회",
-      runtimeManage: "런타임 관리",
-      auditRead: "시스템 감사 조회",
-    },
+  },
+  workspaceApiKeys: {
+    title: "API 키",
+    description:
+      "스크립트와 외부 시스템이 이 워크스페이스 API를 호출할 때 쓰는 자격 증명입니다. 키는 이 워크스페이스에만 접근할 수 있습니다.",
+    securityNotice:
+      "비밀 키는 생성할 때 한 번만 표시됩니다. 연동에 필요한 권한만 부여하고, 가능하면 만료일을 설정하세요.",
+    create: "API 키 만들기",
+    editTitle: "API 키 편집",
+    createDescription:
+      "이 키가 할 수 있는 작업을 선택하세요. 범위는 나중에 바꿀 수 있지만 비밀 키는 다시 표시되지 않습니다.",
+    editDescription: "변경 사항은 이 키의 다음 요청부터 적용됩니다.",
+    loading: "불러오는 중…",
+    empty: "API 키가 없습니다",
+    name: "이름",
+    namePlaceholder: "예: 고객지원 봇 검색",
+    nameRequired: "이름을 입력하세요",
+    key: "키",
+    access: "접근 범위",
+    fullAccess: "전체 접근",
+    fullAccessHint:
+      "API 키를 허용하는 모든 워크스페이스 엔드포인트를 모든 지식베이스에 대해 호출할 수 있습니다. API 키는 관리할 수 없습니다.",
+    scoped: "선택한 권한",
+    scopedHint: "아래에서 선택한 권한만 허용합니다.",
+    capabilities: "권한",
+    capabilityRequired: "권한을 하나 이상 선택하세요",
+    knowledgeBases: "지식베이스 범위",
+    allKnowledgeBases: "모든 지식베이스",
+    knowledgeBaseCount: "지식베이스 {count}개",
+    knowledgeBaseHint:
+      "검색, 대화, 쓰기, 지식베이스 관리, 데이터 소스 권한이 접근할 지식베이스를 제한합니다. 비워 두면 모든 지식베이스를 허용합니다.",
+    knowledgeBaseUnused: "선택한 권한 중 지식베이스 범위의 제한을 받는 권한이 없습니다.",
+    knowledgeBaseSearch: "지식베이스 검색",
+    knowledgeBaseEmpty: "이 워크스페이스에 지식베이스가 없습니다",
+    knowledgeBaseMissing: "삭제된 지식베이스",
+    knowledgeBaseLoadFailed: "지식베이스를 불러오지 못했습니다",
+    expires: "만료",
+    expiryNever: "만료 없음",
+    expiryInDays: "{days}일 후",
+    expiryOnDate: "날짜 지정",
+    expiryDate: "만료일",
+    expiryInFuture: "오늘 이후 날짜를 선택하세요",
+    expired: "만료됨",
+    lastUsed: "마지막 사용",
+    createdAt: "생성 시간",
+    actions: "작업",
+    revoke: "폐기",
+    revokeConfirm: "“{name}”을(를) 폐기할까요? 이 키를 사용하는 호출이 즉시 중단됩니다.",
+    revokeSuccess: "API 키가 폐기되었습니다",
+    updateSuccess: "API 키가 업데이트되었습니다",
+    createdTitle: "API 키가 생성되었습니다",
   },
   tenantInvitation: {
     inboxTooltip: "대기 중인 초대 보기",
@@ -272,78 +416,6 @@ export default {
     removeFailed: "credential 제거 실패",
     confirmRemovePrompt: "이 credential을 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     confirmRemove: "제거 확인",
-  },
-  integrations: {
-    claw: {
-      title: "Yuheng Skill",
-    },
-    chrome: {
-      title: "지식 관리 어시스턴트",
-    },
-    agentEditor: {
-      desc: "IM 플랫폼 또는 웹사이트에 에이전트를 게시합니다. 통합 센터에서 관리하세요.",
-    },
-    embedOverview: {
-      title: "웹 임베드 채널",
-    },
-    imOverview: {
-      title: "연결된 IM",
-    },
-    api: {
-      title: "API 연동",
-      apiKeyCapabilityGroupKnowledge: "지식베이스 데이터",
-      apiKeyCapabilityGroupAutomation: "에이전트 및 통합",
-      apiKeyCapabilityGroupCollaboration: "멤버 및 공간",
-      apiKeyCapabilityGroupTenant: "워크스페이스 설정",
-      apiKeyCapabilityGroupDocs: "온라인 문서",
-      capabilityDocsRead: "문서 읽기",
-      capabilityDocsReadHint: "보이는 공간의 페이지, 구성원, 첨부 메타데이터를 읽습니다. 내용은 변경하지 않습니다.",
-      capabilityDocsWrite: "문서 편집",
-      capabilityDocsWriteHint: "페이지 생성·편집·이동, 라벨과 댓글 관리를 허용합니다. 공간 역할의 제한을 받습니다.",
-      capabilityDocsAdmin: "문서 관리",
-      capabilityDocsAdminHint: "공간 구성원, 페이지 권한, 사용자 그룹을 관리합니다. 공간 관리자와 동일합니다.",
-      apiKeyCapabilitySelectGroup: "전체 선택",
-      apiKeyCapabilityClearGroup: "비우기",
-      capabilityRetrieve: "지식베이스 검색",
-      capabilityRetrieveHint:
-        "선택한 지식베이스 범위 내 데이터를 읽고 조회하고 검색할 수 있습니다. 세션을 만들거나 콘텐츠를 수정하지 않습니다.",
-      capabilityChat: "대화 기능",
-      capabilityChatHint:
-        "이 키로 대화를 시작하고 자체 세션을 관리할 수 있습니다. 지식베이스 콘텐츠는 수정하지 않습니다.",
-      capabilityIngest: "지식베이스 콘텐츠 쓰기",
-      capabilityIngestHint:
-        "허용된 지식베이스에 콘텐츠를 작성할 수 있습니다(문서 업로드, 청크/FAQ/태그/wiki 편집). 지식베이스나 에이전트를 새로 만들 수 없고, 지식베이스를 비울 수 없으며, 선택한 지식베이스 범위로 제한됩니다.",
-      capabilityManageKbs: "지식베이스 관리",
-      capabilityManageKbsHint:
-        "지식베이스 전체 수명 주기를 관리할 수 있습니다: 생성, 복사, 수정, 삭제 및 초기화/설정 변경. 기존 지식베이스에 대한 작업(복사/수정/삭제)은 선택한 범위로 제한되며, 새 지식베이스 생성은 제한되지 않습니다(새 지식베이스는 이 스페이스에 속함).",
-      capabilityMessageHistory: "메시지 기록",
-      capabilityMessageHistoryHint:
-        "워크스페이스 채팅 기록 검색과 채팅 기록 통계 조회를 허용합니다. 워크스페이스 설정 권한은 부여하지 않습니다.",
-      capabilityManageModels: "모델 관리",
-      capabilityManageModelsHint: "모델 설정, 자격 증명 및 연결 테스트를 관리합니다.",
-      capabilityManageDatasources: "데이터 소스 관리",
-      capabilityManageDatasourcesHint:
-        "데이터 소스 커넥터, 자격 증명, 리소스 선택 및 동기화 작업을 관리합니다. 지식베이스에 연결된 경우 범위 제한은 계속 적용됩니다.",
-      capabilityManageVectorStores: "검색 인프라 관리",
-      capabilityManageVectorStoresHint: "벡터 스토어 설정과 파서, 문서 리더, 스토리지 엔진 연결 검사를 관리합니다.",
-      capabilityManageStorageBackends: "스토리지 백엔드 관리",
-      capabilityManageStorageBackendsHint:
-        "객체/파일 스토리지 백엔드 인스턴스(예: S3 호환 또는 로컬 파일 스토리지)의 CRUD, 연결 테스트 및 워크스페이스 기본 스토리지 설정을 관리합니다.",
-      capabilityManageWebSearch: "웹 검색 관리",
-      capabilityManageWebSearchHint: "웹 검색 공급자 설정, 자격 증명 및 연결 테스트를 관리합니다.",
-      capabilityRunEvaluations: "평가 실행",
-      capabilityRunEvaluationsHint: "평가 작업을 실행하고 결과를 읽을 수 있습니다.",
-      capabilityManageMembers: "멤버 관리",
-      capabilityManageMembersHint:
-        "워크스페이스 멤버, 역할, 초대 및 초대 링크를 조회하고 관리할 수 있습니다. API Key 관리, 워크스페이스 삭제 또는 소유권 이전은 포함하지 않습니다.",
-      capabilityManageSpaces: "공간 관리",
-      capabilityManageSpacesHint:
-        "조직/공간, 가입 흐름, 공간 멤버, 초대 및 공유 공간 표시를 관리할 수 있습니다. 지식베이스 또는 에이전트 공유 관리는 부여하지 않습니다.",
-      capabilityManageTenantSettings: "워크스페이스 설정 관리",
-      capabilityManageTenantSettingsHint:
-        "API 최종 사용자 식별 모드, 요청 헤더 설정, 워크스페이스 KV 설정 등 워크스페이스 수준 통합 설정을 읽고 업데이트합니다. API Key 관리, 멤버 관리, 워크스페이스 삭제 또는 소유권 이전은 포함하지 않습니다.",
-      updateApiKeyScopeFailed: "API Key 업데이트 실패",
-    },
   },
   datasource: {
     title: "데이터 소스 관리",
@@ -1787,6 +1859,10 @@ export default {
       createApiPrincipalTestTokenFailed: "API 테스트 토큰 생성 실패",
       updateFailed: "워크스페이스 정보 업데이트 실패",
       deleteFailed: "Failed to delete workspace",
+      listApiKeysFailed: "API 키를 불러오지 못했습니다",
+      createApiKeyFailed: "API 키를 만들지 못했습니다",
+      updateApiKeyFailed: "API 키를 업데이트하지 못했습니다",
+      deleteApiKeyFailed: "API 키를 폐기하지 못했습니다",
     },
     model: {
       createFailed: "모델 생성 실패",
