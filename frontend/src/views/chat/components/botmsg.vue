@@ -52,6 +52,8 @@
         >
           <BookmarkPlusIcon class="size-4 stroke-[1.2]" aria-hidden="true" />
         </button>
+        <!-- 有帮助 / 没帮助：只对引用了知识库文档的回答显示，“没帮助”会交给被引用文档的负责人。 -->
+        <AnswerFeedback v-if="canGiveFeedback" :session-id="sessionId" :message-id="session.id" />
         <!-- Fallback 提示图标: dimmer than its neighbours, it only explains, it does nothing. -->
         <Tooltip v-if="session.is_fallback">
           <TooltipTrigger as-child>
@@ -105,6 +107,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import deepThink from "./deepThink.vue";
 import RagPipelineProgress from "./RagPipelineProgress.vue";
 import ChatRequestInfoButton from "@/components/ChatRequestInfoButton.vue";
+import AnswerFeedback from "./AnswerFeedback.vue";
 import ChatCitationFloat from "@/components/ChatCitationFloat.vue";
 import picturePreview from "@/components/picture-preview.vue";
 import {
@@ -188,6 +191,12 @@ const props = defineProps({
 });
 
 const showRequestInfo = computed(() => !!(props.session?.request_id || props.session?.id));
+
+// Feedback reaches the documents an answer cites, so an answer citing none
+// has nobody to tell; and an answer still streaming has no ID to rate.
+const canGiveFeedback = computed(
+  () => !!props.sessionId && !!props.session?.id && (props.session?.knowledge_references?.length ?? 0) > 0,
+);
 
 const preview = (url) => {
   nextTick(() => {

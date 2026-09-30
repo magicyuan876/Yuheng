@@ -12,7 +12,7 @@ import { get, patch, post, put } from "@/utils/request";
 /** Finding types this build has a label for. The type field stays a plain
  * string because other editions add detectors (e.g. "contradiction") that an
  * older frontend must still be able to list, under their raw name. */
-export type KnownFindingType = "duplicate" | "divergent" | "stale";
+export type KnownFindingType = "duplicate" | "divergent" | "stale" | "disputed";
 export type FindingSeverity = "info" | "warning" | "error";
 export type FindingStatus = "open" | "dismissed" | "resolved";
 /** What the list can be filtered by: one status, or every status at once. */
@@ -22,6 +22,16 @@ export type FindingDismissReason = "distinct_scope" | "intentional";
 /** Why a closed finding was closed: a dismissal's reason, or "cleared" when
  * the content changed and the detectors stopped reporting it. */
 export type FindingResolution = FindingDismissReason | "cleared";
+
+/** One "not helpful" on an answer citing the document, as a dispute shows it.
+ * The question is there only when the person attached it. */
+export interface DisputeReport {
+  feedback_id: string;
+  question: string;
+  answer: string;
+  comment: string;
+  at: string;
+}
 
 /** A person named in a response. */
 export interface PersonRef {
@@ -64,6 +74,8 @@ export interface Finding {
   /** The other document, for findings that are about a pair. */
   related: FindingDocumentRef | null;
   evidence: FindingEvidence[];
+  /** A detector's own details: "due_at" for a review, "count" and "reports" for a dispute. */
+  extra?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -128,6 +140,7 @@ export interface PageFinding {
   related_page: RelatedDocsPage | null;
   evidence: FindingEvidence[];
   assignee?: PersonRef | null;
+  extra?: Record<string, unknown>;
 }
 
 export interface PageFindings {

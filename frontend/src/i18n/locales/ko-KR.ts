@@ -2581,6 +2581,18 @@ export default {
     },
   },
   chat: {
+    feedback: {
+      helpful: "도움이 됨",
+      notHelpful: "도움이 안 됨",
+      whatWasWrong: "무엇이 잘못되었나요?",
+      commentPlaceholder: "예: 연차는 이제 10일입니다(선택)",
+      shareQuestion: "담당자가 판단할 수 있도록 내 질문 첨부",
+      whoSees:
+        "의견과 답변 앞부분은 인용된 문서의 지식 상태에 표시되어 문서 담당자가 처리하며, 지식 베이스 구성원도 볼 수 있습니다. 질문은 체크한 경우에만 첨부됩니다.",
+      send: "보내기",
+      sent: "피드백 감사합니다",
+      failed: "피드백을 보낼 수 없습니다",
+    },
     followUpQuestions: "이어서 질문",
     followUpQuestionsLoading: "추천 질문 로딩 중",
     refreshSuggestedQuestions: "다른 질문",
@@ -4884,6 +4896,7 @@ export default {
       duplicate: "중복 내용",
       divergent: "내용 불일치",
       stale: "검토 필요",
+      disputed: "답변 이의 제기",
     },
     severity: {
       info: "정보",
@@ -4926,6 +4939,8 @@ export default {
       divergent: "두 문서가 거의 같은 내용을 다루지만 세부 사항이 다릅니다. 한쪽이 오래되었을 수 있으니 확인하세요.",
       stale:
         "지식 베이스의 검토 주기 동안 아무도 이 문서를 확인하지 않았습니다. 여전히 유효한지 확인하거나 수정하세요.",
+      disputed:
+        "이 문서를 인용한 답변이 ‘도움이 안 됨’으로 표시되었습니다. 내용을 확인하고, 맞으면 유효함을 확인하고 틀리면 수정하세요.",
     },
     resolution: {
       distinct_scope: "적용 범위가 다름",
@@ -4963,6 +4978,11 @@ export default {
     confirm: "여전히 유효함 확인",
     confirmedPending: "확인했습니다. 다음 검사에서 문제가 닫힙니다",
     confirmFailed: "확인할 수 없습니다",
+    dueAt: "{time}까지 검토",
+    disputeCount: "피드백 {count}건",
+    noComment: "(의견 없음)",
+    reportQuestion: "질문: {text}",
+    reportAnswer: "답변: {text}",
     wiki: {
       title: "Wiki 점검 보고서",
       pending: "검토 대기 중인 Wiki 문제 {count}건",
@@ -5012,6 +5032,7 @@ export default {
       superseded: "《{title}》을(를) 이 페이지로 대체했습니다",
       supersedeFailed: "대체할 수 없습니다",
       reviewDue: "이 페이지는 검토가 필요합니다",
+      disputed: "이 페이지를 인용한 답변이 ‘도움이 안 됨’으로 표시되었습니다",
       dismiss: "이번 세션 동안 숨기기",
     },
     owner: {

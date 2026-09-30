@@ -2197,6 +2197,18 @@ export default {
     },
   },
   chat: {
+    feedback: {
+      helpful: "Helpful",
+      notHelpful: "Not helpful",
+      whatWasWrong: "What was wrong?",
+      commentPlaceholder: "e.g. annual leave is ten days now (optional)",
+      shareQuestion: "Attach my question to help the owner judge",
+      whoSees:
+        "Your comment and the start of the answer appear in the knowledge health of the documents cited, for their owners; members of the knowledge base can see them too. Your question is attached only if you tick the box.",
+      send: "Send",
+      sent: "Thanks for the feedback",
+      failed: "Could not send the feedback",
+    },
     followUpQuestions: "Keep asking",
     followUpQuestionsLoading: "Loading suggested questions",
     refreshSuggestedQuestions: "More",
@@ -4933,6 +4945,7 @@ export default {
       duplicate: "Duplicate content",
       divergent: "Conflicting details",
       stale: "Review due",
+      disputed: "Answers disputed",
     },
     severity: {
       info: "Info",
@@ -4976,6 +4989,8 @@ export default {
         "The two documents say nearly the same thing but differ in the details; one may be out of date. Check which is right.",
       stale:
         "Nobody has confirmed this document within the knowledge base's review period. Confirm it is still right, or change it.",
+      disputed:
+        "Answers citing this document were marked not helpful. Check it: confirm it is still valid if it is right, change it if it is not.",
     },
     resolution: {
       distinct_scope: "Different scope",
@@ -5013,6 +5028,11 @@ export default {
     confirm: "Confirm still valid",
     confirmedPending: "Confirmed; the finding closes at the next check",
     confirmFailed: "Could not confirm",
+    dueAt: "Review due by {time}",
+    disputeCount: "{count} report(s)",
+    noComment: "(no comment)",
+    reportQuestion: "Question: {text}",
+    reportAnswer: "Answer: {text}",
     wiki: {
       title: "Wiki lint report",
       pending: "{count} wiki issue(s) waiting for review",
@@ -5062,6 +5082,7 @@ export default {
       superseded: "“{title}” is superseded by this page",
       supersedeFailed: "Could not supersede",
       reviewDue: "This page is due for review",
+      disputed: "Answers citing this page were marked not helpful",
       dismiss: "Hide for this session",
     },
     owner: {

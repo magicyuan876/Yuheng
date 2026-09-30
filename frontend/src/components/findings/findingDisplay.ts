@@ -1,4 +1,4 @@
-import type { FindingSeverity } from "@/api/findings";
+import type { DisputeReport, FindingSeverity } from "@/api/findings";
 
 // How a knowledge-health finding reads on screen. Shared by the knowledge
 // base's health view and the docs page notice, so a finding looks the same
@@ -20,6 +20,8 @@ export function findingTypeLabel(type: string, t: Translate): string {
       return t("knowledgeHealth.types.divergent");
     case "stale":
       return t("knowledgeHealth.types.stale");
+    case "disputed":
+      return t("knowledgeHealth.types.disputed");
     default:
       return type;
   }
@@ -35,6 +37,8 @@ export function findingTypeHint(type: string, t: Translate): string {
       return t("knowledgeHealth.typeHints.divergent");
     case "stale":
       return t("knowledgeHealth.typeHints.stale");
+    case "disputed":
+      return t("knowledgeHealth.typeHints.disputed");
     default:
       return "";
   }
@@ -84,4 +88,18 @@ export function severityLabel(severity: FindingSeverity | string, t: Translate):
 export function formatPercent(ratio: number | null | undefined): string {
   const value = typeof ratio === "number" && Number.isFinite(ratio) ? ratio : 0;
   return `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`;
+}
+
+/** The finding types about two documents, which have a similarity and an
+ * overlap to show; the rest are about one document alone. */
+export const PAIR_FINDING_TYPES = new Set(["duplicate", "divergent"]);
+
+/** The finding types a person settles by confirming the document is still right. */
+export const CONFIRMABLE_FINDING_TYPES = new Set(["stale", "disputed"]);
+
+/** The reports of a dispute finding, read defensively from its extra: an
+ * older server or another detector may put something else there. */
+export function disputeReports(extra: Record<string, unknown> | undefined): DisputeReport[] {
+  const raw = extra?.reports;
+  return Array.isArray(raw) ? (raw as DisputeReport[]) : [];
 }

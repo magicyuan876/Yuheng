@@ -45,12 +45,27 @@
     <p v-if="typeHint" class="text-muted-foreground m-0 mt-1 text-xs" data-testid="finding-hint">{{ typeHint }}</p>
 
     <div class="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-      <span data-testid="finding-score">{{
-        t("knowledgeHealth.similarity", { value: formatPercent(finding.score) })
-      }}</span>
-      <span :title="t('knowledgeHealth.overlapHint')">
-        {{ t("knowledgeHealth.overlap", { value: formatPercent(finding.overlap_ratio) }) }}
-      </span>
+      <template v-if="isPair">
+        <span data-testid="finding-score">{{
+          t("knowledgeHealth.similarity", { value: formatPercent(finding.score) })
+        }}</span>
+        <span :title="t('knowledgeHealth.overlapHint')">
+          {{ t("knowledgeHealth.overlap", { value: formatPercent(finding.overlap_ratio) }) }}
+        </span>
+      </template>
+      <span v-if="dueAt" data-testid="finding-due">{{ t("knowledgeHealth.dueAt", { time: formatDay(dueAt) }) }}</span>
+      <Button
+        v-if="reports.length"
+        variant="ghost"
+        size="xs"
+        class="text-muted-foreground -ml-2"
+        :aria-expanded="expanded"
+        data-testid="finding-reports-toggle"
+        @click="expanded = !expanded"
+      >
+        <ChevronDownIcon class="transition-transform" :class="expanded ? 'rotate-180' : ''" />
+        {{ t("knowledgeHealth.disputeCount", { count: disputeCount }) }}
+      </Button>
       <!-- Who deals with it. Routed by the documents' stewardship unless a
            person chose; an editor of the knowledge base can choose again. -->
       <span class="inline-flex items-center gap-1" data-testid="finding-assignee">
@@ -100,7 +115,7 @@
         <!-- A document due for review is settled by somebody vouching for
              it; the finding closes at the check that follows. -->
         <Button
-          v-if="canEdit && finding.status === 'open' && CONFIRMABLE.has(finding.type)"
+          v-if="canEdit && finding.status === 'open' && CONFIRMABLE_FINDING_TYPES.has(finding.type)"
           variant="outline"
           size="xs"
           :disabled="busy"
@@ -173,8 +188,32 @@
       </div>
     </div>
 
+    <!-- What people said about answers citing the document: their comment,
+         the start of the answer, and the question where they attached it. -->
+    <ol
+      v-if="expanded && reports.length"
+      class="m-0 mt-3 flex list-none flex-col gap-2 p-0"
+      data-testid="finding-reports"
+    >
+      <li
+        v-for="report in reports"
+        :key="report.feedback_id"
+        class="border-border rounded-md border px-3 py-2 text-[13px]"
+      >
+        <div class="text-placeholder mb-1 text-xs">{{ formatDate(report.at) }}</div>
+        <p v-if="report.comment" class="text-foreground m-0 break-words whitespace-pre-wrap">{{ report.comment }}</p>
+        <p v-else class="text-placeholder m-0">{{ t("knowledgeHealth.noComment") }}</p>
+        <p v-if="report.question" class="text-muted-foreground m-0 mt-1 text-xs break-words">
+          {{ t("knowledgeHealth.reportQuestion", { text: report.question }) }}
+        </p>
+        <p v-if="report.answer" class="text-muted-foreground m-0 mt-1 line-clamp-3 text-xs break-words">
+          {{ t("knowledgeHealth.reportAnswer", { text: report.answer }) }}
+        </p>
+      </li>
+    </ol>
+
     <FindingEvidenceList
-      v-if="expanded"
+      v-if="expanded && finding.evidence.length"
       class="mt-3"
       :evidence="finding.evidence"
       :subject-title="finding.subject.title"
@@ -200,6 +239,9 @@ import type { Finding, FindingDismissReason } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
 import MemberPicker from "@/components/findings/MemberPicker.vue";
 import {
+  CONFIRMABLE_FINDING_TYPES,
+  PAIR_FINDING_TYPES,
+  disputeReports,
   findingTypeHint,
   findingTypeLabel,
   formatPercent,
@@ -242,9 +284,16 @@ const { t } = useI18n();
 const expanded = ref(false);
 
 const typeHint = computed(() => findingTypeHint(props.finding.type, t));
-
-/** The kinds of finding a person settles by confirming the document is still right. */
-const CONFIRMABLE = new Set(["stale"]);
+const isPair = computed(() => PAIR_FINDING_TYPES.has(props.finding.type));
+const dueAt = computed(() => {
+  const due = props.finding.extra?.due_at;
+  return typeof due === "string" ? due : "";
+});
+const reports = computed(() => disputeReports(props.finding.extra));
+const disputeCount = computed(() => {
+  const count = props.finding.extra?.count;
+  return typeof count === "number" ? count : reports.value.length;
+});
 
 /** The kinds of finding that are settled by keeping one of their two documents. */
 const SUPERSEDABLE = new Set(["duplicate", "divergent"]);
@@ -271,6 +320,11 @@ const statusLabel = computed(() => {
       return t("knowledgeHealth.status.open");
   }
 });
+
+const formatDay = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
+};
 
 const formatDate = (iso: string | null | undefined) => {
   if (!iso) return "";

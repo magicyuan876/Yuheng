@@ -101,7 +101,10 @@
               <p v-if="findingTypeHint(item.type, t)" class="text-muted-foreground m-0 text-xs">
                 {{ findingTypeHint(item.type, t) }}
               </p>
-              <div v-if="canEdit && item.type === 'stale'">
+              <p v-if="item.type === 'disputed'" class="text-muted-foreground m-0 text-xs">
+                {{ t("knowledgeHealth.disputeCount", { count: disputeCount(item) }) }}
+              </p>
+              <div v-if="canEdit && CONFIRMABLE_FINDING_TYPES.has(item.type)">
                 <Button
                   variant="outline"
                   size="xs"
@@ -146,7 +149,12 @@ import { BadgeCheckIcon, CalendarClockIcon, CopyIcon, GitCompareIcon, ReplaceIco
 import { confirmPageReviewed } from "@/api/docs";
 import { listPageFindings, supersedeFromPage, type PageFinding, type RelatedDocsPage } from "@/api/findings";
 import FindingEvidenceList from "@/components/findings/FindingEvidenceList.vue";
-import { findingTypeHint, findingTypeLabel, formatPercent } from "@/components/findings/findingDisplay";
+import {
+  CONFIRMABLE_FINDING_TYPES,
+  findingTypeHint,
+  findingTypeLabel,
+  formatPercent,
+} from "@/components/findings/findingDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -219,12 +227,18 @@ async function confirmReviewed(item: PageFinding) {
 /** Pages that say nearly what this one says, but not quite: worth more
  * attention than a copy, so the notice leads with them. */
 const divergentCount = computed(() => items.value.filter((i) => i.type === "divergent").length);
+const disputeCount = (item: PageFinding) => {
+  const count = item.extra?.count;
+  return typeof count === "number" ? count : 0;
+};
+
 /** Findings about this page and another; the rest are about this page alone. */
 const pairCount = computed(() => items.value.filter((i) => i.related_page).length);
 
 const headline = computed(() => {
   if (divergentCount.value) return t("docs.findings.noticeDivergent", { count: divergentCount.value });
   if (pairCount.value) return t("docs.findings.notice", { count: pairCount.value });
+  if (items.value.some((i) => i.type === "disputed")) return t("docs.findings.disputed");
   return t("docs.findings.reviewDue");
 });
 

@@ -2524,6 +2524,18 @@ export default {
     },
   },
   chat: {
+    feedback: {
+      helpful: "有帮助",
+      notHelpful: "没帮助",
+      whatWasWrong: "哪里不对？",
+      commentPlaceholder: "例如：年假已经改成 10 天了（可选）",
+      shareQuestion: "附上我的问题，帮助负责人判断",
+      whoSees:
+        "你的意见和回答开头会出现在被引用文档的知识健康里，交给文档负责人处理，知识库成员也能看到；勾选后才会附上你的问题。",
+      send: "发送",
+      sent: "已反馈，谢谢",
+      failed: "无法提交反馈",
+    },
     followUpQuestions: "继续问",
     followUpQuestionsLoading: "加载推荐问题",
     refreshSuggestedQuestions: "换一批",
@@ -4788,6 +4800,7 @@ export default {
       duplicate: "内容重复",
       divergent: "内容有出入",
       stale: "需要复核",
+      disputed: "回答被反馈有误",
     },
     severity: {
       info: "提示",
@@ -4828,6 +4841,7 @@ export default {
       duplicate: "两篇文档有逐字相同的段落。建议保留一份，另一处改为引用。",
       divergent: "两篇文档说的几乎是同一件事，但细节不一致，其中一份可能已经过时。请核对后以正确的为准。",
       stale: "超过知识库的复核周期无人确认。请确认内容仍然有效，或修改它。",
+      disputed: "引用这篇文档的回答被标记为“没帮助”。请核对内容：无误就确认仍然有效，有误就修改它。",
     },
     resolution: {
       distinct_scope: "适用范围不同",
@@ -4865,6 +4879,11 @@ export default {
     confirm: "确认仍然有效",
     confirmedPending: "已确认，问题会在稍后的检查中关闭",
     confirmFailed: "无法确认",
+    dueAt: "应于 {time} 复核",
+    disputeCount: "{count} 条反馈",
+    noComment: "（没有留下意见）",
+    reportQuestion: "提问：{text}",
+    reportAnswer: "回答：{text}",
     wiki: {
       title: "Wiki 检查报告",
       pending: "{count} 个 Wiki 问题待处理",
@@ -4914,6 +4933,7 @@ export default {
       superseded: "《{title}》已被本页取代",
       supersedeFailed: "无法取代",
       reviewDue: "本页需要复核",
+      disputed: "引用本页的回答被反馈有误",
       dismiss: "本次会话不再提示",
     },
     owner: {

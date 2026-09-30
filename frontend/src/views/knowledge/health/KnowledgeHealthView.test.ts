@@ -392,3 +392,50 @@ test("a document due for review is confirmed from its finding, which then leaves
   assert.equal(wrapper.findAll('[data-testid="finding-item"]').length, 0);
   assert.match(wrapper.get('[data-testid="health-summary"]').text(), /0 open/);
 });
+
+test("a disputed document shows what people said and can be confirmed, without a similarity", async () => {
+  api.getFindingsSummary.mockResolvedValue(summary({ open_total: 1, open_by_type: { disputed: 1 } }));
+  api.listFindings.mockResolvedValue({
+    items: [
+      finding("f1", {
+        type: "disputed",
+        related: null,
+        evidence: [],
+        score: 2,
+        extra: {
+          count: 2,
+          reports: [
+            {
+              feedback_id: "fb1",
+              question: "",
+              answer: "Fifteen days.",
+              comment: "It is ten now",
+              at: "2026-09-30T08:00:00Z",
+            },
+            {
+              feedback_id: "fb2",
+              question: "Leave for interns?",
+              answer: "Fifteen.",
+              comment: "",
+              at: "2026-09-29T08:00:00Z",
+            },
+          ],
+        },
+      }),
+    ],
+    total: 1,
+    page: 1,
+    page_size: 20,
+  });
+  const wrapper = await mountView();
+  const row = wrapper.get('[data-testid="finding-item"]');
+  assert.match(row.text(), /Answers disputed/);
+  assert.equal(wrapper.find('[data-testid="finding-score"]').exists(), false, "no similarity for one document");
+  assert.ok(wrapper.find('[data-testid="finding-confirm"]').exists());
+
+  await wrapper.get('[data-testid="finding-reports-toggle"]').trigger("click");
+  const reports = wrapper.get('[data-testid="finding-reports"]').text();
+  assert.match(reports, /It is ten now/);
+  assert.match(reports, /Question: Leave for interns\?/);
+  assert.match(reports, /\(no comment\)/);
+});
