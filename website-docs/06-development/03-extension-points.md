@@ -1,6 +1,6 @@
 # 扩展点指南
 
-Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、IM 渠道、Agent 工具、对象存储九个层面都预留了清晰的扩展点，并为独立扩展包提供 `internal/extension` 接缝（第 8 节）。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
+Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、IM 渠道、Agent 工具、对象存储九个层面都预留了清晰的扩展点，并为独立扩展包提供 `internal/extension` 接缝（第 8 节）；知识健康的检测器同样可以由扩展接入（第 9 节）。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
 
 ## 0. 扩展点总览
 
@@ -247,6 +247,7 @@ const PostgresRetrieverEngineType RetrieverEngineType = "postgres"
 3. 写一个 `EngineDescriptor`，把它提供进 dig 值组 `retriever.EngineGroup`（`"retrieve_engines"`）。描述符在 `NewEngineCatalog` 构建目录时被收集；描述符不合格（缺类型、缺驱动名、可注册却没有连接测试等）会在注册时报错。目录必须在扩展钩子（`internal/extension`）执行之后才能构建，所以由扩展提供的引擎也会进入目录；
 4. 若引擎允许工作空间自行注册（`Registrable: true`），需提供 `ConnectionFields` / `IndexFields`、`DialAddresses` 与 `TestConnection`；它才会出现在 `GET /vector-stores/types` 与设置页。社区版没有可注册的引擎，该列表为空；
 5. 若引擎需要独立部署，在 `docker-compose.dev.yml` 加一个带 profile 的服务，并在 `.env.example` 补连接变量。
+6. 可选：实现 `interfaces.SimilarChunkFinder`（比较已存储的向量，见第 9 节），知识健康的重复检测才能在使用该引擎的知识库上运行。仓储实现它即可，`KVHybridRetrieveEngine` 会把能力透传出去；不实现的引擎在健康概览里显示为「不支持」。
 
 ---
 
@@ -545,6 +546,7 @@ type Hook func(c *dig.Container) error
 | 路由注册器 `RouteRegistrar` | 在核心路由**之后**向 `/api/v1` 增加路由；值组 `route_registrars` | `internal/extension/routes.go`，装配点 `internal/router/routes_extension.go` |
 | `RequireFeature(features, f)` | 路由中间件：特性未启用时返回 403，且不调用处理函数 | `internal/extension/routes.go` |
 | 迁移源 | `database.RegisterMigrationSource(name, fsys, table)`：扩展自带一套迁移和独立的版本表（不得与核心的 `schema_migrations` 或其他扩展重名），无需改 `migrations/versioned` | `internal/database/migration.go` |
+| 知识健康检测器 `findings.Detector` | 提供检测器进值组 `finding_detectors`，文档变化后与核心的重复检测一起运行（见第 9 节） | `internal/application/service/findings/detector.go` |
 | 检索主体 `RetrieveParams.Subjects` | 调用者的权限主体，供支持 ACL 的引擎过滤（见下方「尚未强制」） | `internal/types/retriever.go` |
 
 ### 路由注册器
@@ -603,6 +605,95 @@ r.APIKeys(extension.APIKeyFullAccess()).GET("/acme/report", extension.RequireFea
 
 ---
 
+## 9. 知识健康检测器（internal/application/service/findings）
+
+知识健康（见 [功能说明](../03-features/22-knowledge-health.md)）在文档索引完成后运行一组**检测器**，把它们报告的问题存为 `knowledge_findings` 记录。核心自带一个：重复检测（`DuplicateDetector`，只比较已存储的向量）。新的检测——内容矛盾、版本替代、跨库比较等——以检测器的形式接入，**不需要修改任何核心文件**。
+
+### 接口定义
+
+```go
+// internal/application/service/findings/detector.go
+const DetectorGroup = "finding_detectors"
+
+type Detector interface {
+    Name() string // 存进 detector 列，必须唯一且跨版本稳定
+    Detect(ctx context.Context, scope Scope) ([]Candidate, error)
+}
+
+type Scope struct {
+    TenantID      uint64
+    KnowledgeBase *types.KnowledgeBase // 调用方已加载，只读
+    Knowledge     *types.Knowledge     // 发生变化的文档
+}
+
+type Candidate struct {
+    Type               string // 问题类型，如 "duplicate"；1-32 字符
+    Severity           string // info / warning / error
+    SubjectKnowledgeID string
+    RelatedKnowledgeID string // 只涉及一篇文档的问题留空
+    Score              float64
+    Fingerprint        string // 留空 = PairFingerprint(Type, 知识库, 主体, 相关)，与方向无关
+    Details            types.FindingDetails // Evidence / OverlapRatio / EvidenceHash / Extra
+}
+
+var ErrUnsupported = errors.New("detector does not apply here")
+
+// 可选：不运行也能回答「这个知识库能不能检测」，用于健康概览的 supported
+type SupportChecker interface {
+    Supports(ctx context.Context, kb *types.KnowledgeBase) (bool, error)
+}
+```
+
+引擎能力（重复检测依赖它，其它检测器也可以用）：
+
+```go
+// internal/types/interfaces/knowledge_finding.go
+type SimilarChunkFinder interface {
+    // 该文档每个启用分块，在同一知识库其它文档、同一维度内的最近邻，相似度 >= minScore
+    SimilarChunks(ctx context.Context, kbID, knowledgeID string, minScore float64, perChunk int) ([]types.ChunkSimilarity, error)
+}
+```
+
+检测器通过 `findings.NewFinderResolver` 提供的 `FinderResolver` 拿到知识库对应引擎的 `SimilarChunkFinder`，不必自己解析向量库绑定。
+
+### 运行语义
+
+`Runner` 对每次变化依次运行所有检测器（按名字排序），再与已存储的记录对账：
+
+- 报告的问题按 `(tenant_id, fingerprint)` 插入或更新；
+- 本次**运行过的**检测器不再报告、且涉及这篇文档的 `open` 问题，自动变为 `resolved`（`resolved_by = "system"`）；
+- 返回 `ErrUnsupported`（可包装）表示「不适用」：不算失败、不重试，它以前的问题保持原样；
+- 返回其它错误表示失败：其它检测器的结果照常记录，任务按队列策略重试，失败的检测器以前的问题保持原样；
+- `dismissed` 的问题在 `EvidenceHash` 不变时保持忽略，变了就重新打开。所以 `EvidenceHash` 应当只取决于证据的**内容**（重复检测对匹配段落的文字取哈希，重新解析不会改变它），不要放分块 ID、时间或分数；
+- 问题记录不会比文档活得久：文档软删除、硬删除或移到其它知识库时，数据库触发器删除相关记录，所有读取也只返回两侧文档都还在的记录。检测器不需要自己清理。
+
+`Details.Extra` 放检测器自己的字段（键名建议带检测器前缀），核心原样存储、原样返回给 API。
+
+### 注册步骤
+
+核心注册自己的检测器与扩展注册的方式完全相同（`internal/container/container.go`）：
+
+```go
+must(container.Provide(newDuplicateDetector, dig.Group(findings.DetectorGroup)))
+```
+
+扩展在钩子里做同样的事：
+
+```go
+func init() {
+    extension.RegisterHook("acme-findings", func(c *dig.Container) error {
+        // newContradictionDetector 可以依赖容器里的任何服务（模型服务、分块仓储、FinderResolver……）
+        return c.Provide(newContradictionDetector, dig.Group(findings.DetectorGroup))
+    })
+}
+```
+
+`Runner` 在扩展钩子执行之后才构建（`findings.NewRunnerFromContainer` 用 `extension.RequireApplied` 保证），因此扩展提供的检测器一定会被收进来；重名或空名在启动时报错。检测结果自动出现在现有的列表、概览、忽略/重新打开和在线文档页面接口里；新的 `type` 值由前端按原样显示，需要专门展示时再在前端补文案。
+
+检测任务 `knowledge:findings` 由核心调度（按文档 30 秒防抖，走维护队列），检测器不需要、也不能注册自己的任务类型。耗时的检测器（例如调用大模型）应在 `Detect` 内自行限流，并尊重 `ctx` 的取消。
+
+---
+
 ## 附：扩展点速查表
 
 | 扩展点 | 核心接口 | 接口文件 | 注册点 |
@@ -617,3 +708,4 @@ r.APIKeys(extension.APIKeyFullAccess()).GET("/acme/report", extension.RequireFea
 | 扩展包路由 | `extension.RouteRegistrar` | `internal/extension/routes.go` | 值组 `route_registrars`（`extension.RouteRegistrarGroup`） |
 | 特性注册表 | `extension.Features` | `internal/extension/extension.go` | `extension.RegisterHook` + `Decorate` |
 | 扩展迁移 | `fs.FS` + 独立版本表 | `internal/database/migration.go` | `database.RegisterMigrationSource()` |
+| 知识健康检测器 | `findings.Detector`（可选 `SupportChecker`） | `internal/application/service/findings/detector.go` | 值组 `finding_detectors`（`findings.DetectorGroup`） |

@@ -16,6 +16,8 @@ import (
 
 	"github.com/magicyuan876/yuheng/internal/config"
 	"github.com/magicyuan876/yuheng/internal/docs"
+	"github.com/magicyuan876/yuheng/internal/router"
+	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
@@ -88,6 +90,20 @@ func TestServerStartsWithItsOwnDefaults(t *testing.T) {
 			}
 			assertRoutePresent(t, s.Engine, http.MethodGet, "/api/v1/docs/spaces")
 
+			// Knowledge health: its routes are mounted, the page-level view
+			// is part of the docs module, and without Redis the check task
+			// has a handler — otherwise every enqueue after indexing would
+			// fail with "no handler registered" and nothing would be found.
+			assertRoutePresent(t, s.Engine, http.MethodGet, "/api/v1/knowledge-bases/:id/findings")
+			assertRoutePresent(t, s.Engine, http.MethodGet, "/api/v1/docs/pages/:pid/findings")
+			if !shape.redis {
+				must1(t, s.DI.Invoke(func(e *router.SyncTaskExecutor) {
+					if !e.Handles(types.TypeKnowledgeFindings) {
+						t.Error("the Redis-less executor has no handler for the knowledge-health check")
+					}
+				}))
+			}
+
 			// Anything else the router needs must resolve too; this is the
 			// list of interfaces the docs bridge and the knowledge mirror
 			// depend on, resolved from the same container.
@@ -132,6 +148,7 @@ var knownOptionalDependencies = map[string]string{
 	"docs.Params.KnowledgeBaseService": "asserted via Module.Degraded",
 	"docs.Params.ModelService":         "asserted via Module.Degraded",
 	"docs.Params.KnowledgeService":     "asserted via Module.Degraded",
+	"docs.Params.Findings":             "asserted via Module.Degraded",
 	// Legitimately absent: single-process mode has no Redis. The container
 	// provides a nil client then, and the test above asserts nil-iff-unset.
 	"docs.Params.Redis": "absent by design without REDIS_ADDR; asserted in both shapes",

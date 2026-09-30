@@ -45,6 +45,35 @@ func (h *PageHandler) Backlinks(c *gin.Context) {
 	ok(c, rows)
 }
 
+// Findings godoc
+// @Summary      本页的知识健康问题
+// @Description  本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count
+// @Tags         在线文档
+// @Produce      json
+// @Param        pid  path  string  true  "页面 ID"
+// @Success      200  {object}  map[string]interface{}  "data: {items, other_count}"
+// @Security     Bearer
+// @Router       /docs/pages/{pid}/findings [get]
+func (h *PageHandler) Findings(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	actor, found := identity(c)
+	if !found {
+		return
+	}
+	d, found := decision(c)
+	if !found {
+		return
+	}
+	view, err := h.svc.Findings(c.Request.Context(), actor, d)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, view)
+}
+
 // ResolveTitles godoc
 // @Summary      批量解析页面链接标题
 // @Description  把页面 ID 解析成当前标题，供编辑器里的页面链接显示；页面已删除或调用者无权查看时 resolved=false，两种情况不作区分

@@ -100,6 +100,28 @@ func (c *CompositeRetrieveEngine) SupportRetriever(r types.RetrieverType) bool {
 	return false
 }
 
+// SimilarChunkFinder returns the vector engine of the composite that can
+// compare the vectors it stores (see interfaces.SimilarChunkFinder), and false
+// when none can. Only an engine serving vector retrieval is asked: a keyword
+// engine has no vectors to compare.
+func (c *CompositeRetrieveEngine) SimilarChunkFinder() (interfaces.SimilarChunkFinder, bool) {
+	for _, info := range c.engineInfos {
+		if info == nil || !slices.Contains(info.retrieverType, types.VectorRetrieverType) {
+			continue
+		}
+		if provider, ok := info.retrieveEngine.(interfaces.SimilarChunkFinderProvider); ok {
+			if finder, ok := provider.SimilarChunkFinder(); ok {
+				return finder, true
+			}
+			continue
+		}
+		if finder, ok := info.retrieveEngine.(interfaces.SimilarChunkFinder); ok {
+			return finder, true
+		}
+	}
+	return nil, false
+}
+
 // BatchUpdateChunkEnabledStatus updates the enabled status of chunks in batch
 func (c *CompositeRetrieveEngine) BatchUpdateChunkEnabledStatus(
 	ctx context.Context,

@@ -35,6 +35,9 @@
 //     routes under /api/v1 with the core's authentication and API-key rules
 //     (see routes.go); RequireFeature gates them on a feature.
 //   - Retrieval engines: descriptors in the retriever package's engine group.
+//   - Knowledge-health detectors: findings.Detector values in the findings
+//     package's DetectorGroup, run with the core's own after every indexed
+//     change (see that package).
 //   - Schema: database.RegisterMigrationSource.
 //
 // Auth providers, audit sinks, quotas, task handlers and a frontend registry

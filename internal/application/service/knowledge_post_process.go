@@ -26,6 +26,9 @@ type KnowledgePostProcessService struct {
 	pendingRepo   interfaces.TaskPendingOpsRepository
 	redisClient   *redis.Client
 	spanTracker   SpanTracker
+	// findings schedules the knowledge-health check once the document's
+	// chunks are indexed. Nil (tests, trimmed builds) schedules nothing.
+	findings interfaces.KnowledgeFindingsTrigger
 }
 
 func NewKnowledgePostProcessService(
@@ -36,6 +39,7 @@ func NewKnowledgePostProcessService(
 	pendingRepo interfaces.TaskPendingOpsRepository,
 	redisClient *redis.Client,
 	spanTracker SpanTracker,
+	findings interfaces.KnowledgeFindingsTrigger,
 ) interfaces.TaskHandler {
 	return &KnowledgePostProcessService{
 		knowledgeRepo: knowledgeRepo,
@@ -45,6 +49,7 @@ func NewKnowledgePostProcessService(
 		pendingRepo:   pendingRepo,
 		redisClient:   redisClient,
 		spanTracker:   spanTracker,
+		findings:      findings,
 	}
 }
 
@@ -339,6 +344,13 @@ func (s *KnowledgePostProcessService) Handle(ctx context.Context, task *asynq.Ta
 		}
 	}
 
+	// The chunks are indexed: schedule the knowledge-health check. Every way
+	// a document's content changes — upload, re-parse, a manual edit, a docs
+	// page mirrored into its space's base — ends in this task, so this one
+	// call covers them all. Best-effort: the check is debounced and owns no
+	// finalizing slot, and a failure to schedule it must not fail indexing.
+	s.triggerFindings(ctx, payload)
+
 	// Queue best-effort automatic tagging only after the processing row has
 	// successfully handed off to finalizing. This avoids model calls from a
 	// duplicate post-process delivery that observes an already terminal row.
@@ -484,6 +496,28 @@ func (s *KnowledgePostProcessService) Handle(ctx context.Context, task *asynq.Ta
 	s.tracker().FinalizeAttempt(ctx, payload.KnowledgeID, attempt,
 		types.SpanStatusDone, postOutput, "", "")
 	return nil
+}
+
+// triggerFindings schedules the knowledge-health check of a freshly indexed
+// document.
+//
+// It is scheduled for every knowledge base, FAQ and keyword-only ones
+// included, although the core's duplicate detector skips those: which
+// detector applies where is each detector's own decision, and one added by an
+// extension may well apply to a base the core's does not. A check that no
+// detector applies to ends after two lookups.
+func (s *KnowledgePostProcessService) triggerFindings(
+	ctx context.Context,
+	payload types.KnowledgePostProcessPayload,
+) {
+	if s.findings == nil {
+		return
+	}
+	if err := s.findings.TriggerKnowledgeFindings(ctx, payload.TenantID, payload.KnowledgeBaseID,
+		payload.KnowledgeID); err != nil {
+		logger.Warnf(ctx, "[KnowledgePostProcess] Failed to schedule the health check of %s: %v",
+			payload.KnowledgeID, err)
+	}
 }
 
 // enqueueAutoTagTask schedules best-effort classification against the KB's

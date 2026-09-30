@@ -256,6 +256,31 @@ func RegisterKnowledgeBaseActivityRoutes(r *gin.RouterGroup, auditHandler *handl
 		g.OwnedKBOrAdmin(), g.KBAccessRead("id"), auditHandler.ListKnowledgeBaseActivity)
 }
 
+// RegisterKnowledgeFindingRoutes exposes knowledge health: the problems found
+// by comparing a knowledge base's documents.
+//
+// Findings are KB content, so they take the KB's own gates. Reading them is a
+// read of the base (Viewer+, KBAccessRead; API keys with retrieve). Dismissing
+// or reopening one changes what everybody sees, so it takes the same gate as
+// editing the base's content: its creator or an Admin+, with editor access
+// (API keys with ingest). A full re-check is a management action on the base
+// (API keys with manage_kbs); the handler additionally keeps it to the owning
+// workspace, so an organisation sharee with editor access cannot start one.
+func RegisterKnowledgeFindingRoutes(r *gin.RouterGroup, h *handler.KnowledgeFindingHandler, g *rbacGuards) {
+	if h == nil {
+		return
+	}
+	findings := g.apiKeyGroup(r.Group("/knowledge-bases/:id/findings"), apiKeyIngest(apiKeyFullAccess()))
+	read := findings.With(apiKeyRetrieve(apiKeyFullAccess()))
+	manage := findings.With(apiKeyManageKnowledgeBases(apiKeyFullAccess()))
+	{
+		read.GET("", g.Viewer(), g.KBAccessRead("id"), h.ListFindings)
+		read.GET("/summary", g.Viewer(), g.KBAccessRead("id"), h.FindingSummary)
+		findings.PATCH("/:finding_id", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.UpdateFinding)
+		manage.POST("/scan", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.ScanFindings)
+	}
+}
+
 // RegisterKnowledgeTagRoutes 注册知识库标签相关路由。
 //
 // Tags are KB metadata: Viewer reads, Contributor writes. Per-KB

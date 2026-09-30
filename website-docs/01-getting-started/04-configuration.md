@@ -244,6 +244,7 @@ AWS S3 的 `S3_ACCESS_KEY` / `S3_SECRET_KEY` 可以**同时留空**，此时走 
 | --- | --- | --- |
 | `YUHENG_CHAT_ATTACHMENT_TTL_HOURS` / `_WAIT_TIMEOUT_SEC` / `_OCR_CONCURRENCY` / `_OCR_MAX_PAGES` | 24 / 60 / 8 / 8 | 聊天附件解析保留时长、等待超时与 OCR 并发/页数上限 |
 | `YUHENG_HOUSEKEEPING_ENABLED` | 启用 | 回收卡在 processing 的脏数据 |
+| `YUHENG_FINDINGS_ENABLED` / `YUHENG_FINDINGS_DUPLICATE_MIN_SCORE` | true / 0.95 | 知识健康：索引后自动检测重复文档；阈值取值 0.5–1，超出范围拒绝启动（见 [知识健康](../03-features/22-knowledge-health.md)） |
 | `YUHENG_DOCUMENT_PROCESS_TIMEOUT` / `YUHENG_DOCREADER_CALL_TIMEOUT` | 2h / 30m | 文档处理任务与单次 RPC 超时 |
 
 ### 可观测性（Langfuse）

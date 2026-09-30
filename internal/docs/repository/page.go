@@ -21,6 +21,9 @@ type PageRepository interface {
 	GetByShortID(ctx context.Context, tenantID uint64, shortID string) (*model.Page, error)
 	// GetSummaries loads summary columns for a set of live pages.
 	GetSummaries(ctx context.Context, tenantID uint64, ids []string) ([]*model.Page, error)
+	// GetByKnowledgeIDs loads the live pages mirrored into any of the given
+	// knowledge entries, summary columns and knowledge_id only.
+	GetByKnowledgeIDs(ctx context.Context, tenantID uint64, knowledgeIDs []string) ([]*model.Page, error)
 
 	// RecentlyEdited lists a space's live pages by when their bodies last
 	// changed, newest first. Draft pages are included: somebody coming back
@@ -200,6 +203,18 @@ func (r *pageRepository) GetSummaries(ctx context.Context, tenantID uint64, ids 
 	var out []*model.Page
 	err := r.db.WithContext(ctx).Select(model.PageSummaryColumns).
 		Where("tenant_id = ? AND id IN ? AND deleted_at IS NULL", tenantID, ids).
+		Find(&out).Error
+	return out, err
+}
+
+func (r *pageRepository) GetByKnowledgeIDs(ctx context.Context, tenantID uint64, knowledgeIDs []string,
+) ([]*model.Page, error) {
+	if len(knowledgeIDs) == 0 {
+		return nil, nil
+	}
+	var out []*model.Page
+	err := r.db.WithContext(ctx).Select(append(append([]string{}, model.PageSummaryColumns...), "knowledge_id")).
+		Where("tenant_id = ? AND knowledge_id IN ? AND deleted_at IS NULL", tenantID, knowledgeIDs).
 		Find(&out).Error
 	return out, err
 }

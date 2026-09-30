@@ -60,6 +60,9 @@ type Params struct {
 	// nothing is sent to it, which is exactly the state this module was in
 	// before T5.2.
 	KnowledgeService interfaces.KnowledgeService `optional:"true"`
+	// Findings shows a page's knowledge-health findings to its readers.
+	// Optional like the rest: without it every page reports none.
+	Findings interfaces.KnowledgeFindingService `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -158,6 +161,9 @@ func NewModule(p Params) *Module {
 	if p.UserService != nil {
 		deps.Tokens = p.UserService
 	}
+	if p.Findings != nil {
+		deps.Findings = p.Findings
+	}
 	if collabClient != nil {
 		deps.Collab = collabClient
 	}
@@ -218,6 +224,7 @@ func (p Params) degraded() []string {
 	note("KnowledgeBaseService", p.KnowledgeBaseService == nil)
 	note("ModelService", p.ModelService == nil)
 	note("KnowledgeService", p.KnowledgeService == nil)
+	note("Findings", p.Findings == nil)
 	return missing
 }
 

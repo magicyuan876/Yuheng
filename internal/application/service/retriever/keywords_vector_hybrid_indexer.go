@@ -57,6 +57,13 @@ func (v *KeywordsVectorHybridRetrieveEngineService) EngineType() types.Retriever
 	return v.engineType
 }
 
+// SimilarChunkFinder implements interfaces.SimilarChunkFinderProvider: the
+// engine can compare stored vectors exactly when the store beneath it can.
+func (v *KeywordsVectorHybridRetrieveEngineService) SimilarChunkFinder() (interfaces.SimilarChunkFinder, bool) {
+	finder, ok := v.indexRepository.(interfaces.SimilarChunkFinder)
+	return finder, ok
+}
+
 // Retrieve performs retrieval based on the provided parameters
 func (v *KeywordsVectorHybridRetrieveEngineService) Retrieve(ctx context.Context,
 	params types.RetrieveParams,

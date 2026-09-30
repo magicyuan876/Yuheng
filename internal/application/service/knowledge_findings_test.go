@@ -1,0 +1,317 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/magicyuan876/yuheng/internal/application/repository"
+	"github.com/magicyuan876/yuheng/internal/application/service/findings"
+	werrors "github.com/magicyuan876/yuheng/internal/errors"
+	"github.com/magicyuan876/yuheng/internal/types"
+	"github.com/magicyuan876/yuheng/internal/types/interfaces"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// fakeFindingRepo keeps findings in memory.
+type fakeFindingRepo struct {
+	interfaces.KnowledgeFindingRepository
+	rows      map[string]*types.KnowledgeFindingRow
+	checkable []string
+	lastScan  *time.Time
+	lastSet   struct{ status, actor string }
+}
+
+func (f *fakeFindingRepo) Get(_ context.Context, _ uint64, kbID, id string) (*types.KnowledgeFindingRow, error) {
+	row, ok := f.rows[id]
+	if !ok || row.KnowledgeBaseID != kbID {
+		return nil, interfaces.ErrFindingNotFound
+	}
+	copied := *row
+	return &copied, nil
+}
+
+func (f *fakeFindingRepo) SetStatus(ctx context.Context, tenantID uint64, kbID, id, status,
+	actor string,
+) (*types.KnowledgeFindingRow, error) {
+	f.lastSet.status, f.lastSet.actor = status, actor
+	f.rows[id].Status = status
+	return f.Get(ctx, tenantID, kbID, id)
+}
+
+func (f *fakeFindingRepo) List(_ context.Context, _ uint64, _ string,
+	filter types.KnowledgeFindingFilter,
+) ([]*types.KnowledgeFindingRow, int64, error) {
+	var out []*types.KnowledgeFindingRow
+	for _, row := range f.rows {
+		if filter.Status == "all" || row.Status == filter.Status {
+			out = append(out, row)
+		}
+	}
+	return out, int64(len(out)), nil
+}
+
+func (f *fakeFindingRepo) CountOpenByType(context.Context, uint64, string) (map[string]int64, error) {
+	out := map[string]int64{}
+	for _, row := range f.rows {
+		if row.Status == types.FindingStatusOpen {
+			out[row.Type]++
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeFindingRepo) LastScanAt(context.Context, uint64, string) (*time.Time, error) {
+	return f.lastScan, nil
+}
+
+func (f *fakeFindingRepo) ListOpenForKnowledge(context.Context, uint64, string) ([]*types.KnowledgeFindingRow, error) {
+	var out []*types.KnowledgeFindingRow
+	for _, row := range f.rows {
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+func (f *fakeFindingRepo) ListCheckableKnowledgeIDs(context.Context, uint64, string, int) ([]string, error) {
+	return f.checkable, nil
+}
+
+type fakeFindingKBs struct {
+	interfaces.KnowledgeBaseRepository
+	kb *types.KnowledgeBase
+}
+
+func (f fakeFindingKBs) GetKnowledgeBaseByIDAndTenant(_ context.Context, id string, tenantID uint64,
+) (*types.KnowledgeBase, error) {
+	if f.kb == nil || f.kb.ID != id || f.kb.TenantID != tenantID {
+		return nil, repository.ErrKnowledgeBaseNotFound
+	}
+	return f.kb, nil
+}
+
+type scheduleCall struct {
+	knowledgeID string
+	delay       time.Duration
+}
+
+type fakeScheduler struct {
+	calls   []scheduleCall
+	pending map[string]bool
+}
+
+func (f *fakeScheduler) TriggerKnowledgeFindings(context.Context, uint64, string, string) error {
+	return nil
+}
+
+func (f *fakeScheduler) ScheduleKnowledgeFindings(_ context.Context, _ uint64, _ string, id string,
+	extra time.Duration,
+) (bool, error) {
+	f.calls = append(f.calls, scheduleCall{id, extra})
+	return !f.pending[id], nil
+}
+
+type capturedAudit struct {
+	interfaces.AuditLogService
+	mu   sync.Mutex
+	rows []*types.AuditLog
+}
+
+func (a *capturedAudit) Log(_ context.Context, e *types.AuditLog) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.rows = append(a.rows, e)
+	return nil
+}
+
+type supportDetector struct{ supported bool }
+
+func (supportDetector) Name() string { return "duplicate" }
+
+func (supportDetector) Detect(context.Context, findings.Scope) ([]findings.Candidate, error) {
+	return nil, nil
+}
+
+func (d supportDetector) Supports(context.Context, *types.KnowledgeBase) (bool, error) {
+	return d.supported, nil
+}
+
+type findingServiceFixture struct {
+	svc   interfaces.KnowledgeFindingService
+	repo  *fakeFindingRepo
+	sched *fakeScheduler
+	audit *capturedAudit
+}
+
+func newFindingServiceFixture(t *testing.T, enabled, supported bool) *findingServiceFixture {
+	t.Helper()
+	related := "doc-b"
+	score := 0.97
+	repo := &fakeFindingRepo{rows: map[string]*types.KnowledgeFindingRow{
+		"f1": {
+			KnowledgeFinding: types.KnowledgeFinding{
+				ID: "f1", KnowledgeBaseID: "kb-1", Type: types.FindingTypeDuplicate, Detector: "duplicate",
+				Severity: types.FindingSeverityWarning, Status: types.FindingStatusOpen,
+				SubjectKnowledgeID: "doc-a", RelatedKnowledgeID: &related, Score: &score,
+				Details: types.FindingDetails{OverlapRatio: 0.9, Evidence: []types.FindingEvidence{{
+					SubjectChunkID: "ca", SubjectExcerpt: "from a", RelatedChunkID: "cb", RelatedExcerpt: "from b",
+					Score: score,
+				}}},
+			},
+			SubjectTitle: "Doc A", RelatedTitle: "Doc B",
+		},
+	}}
+	sched := &fakeScheduler{pending: map[string]bool{}}
+	audit := &capturedAudit{}
+	runner, err := findings.NewRunner(repo, supportDetector{supported: supported})
+	require.NoError(t, err)
+	kbs := fakeFindingKBs{kb: &types.KnowledgeBase{ID: "kb-1", TenantID: 1}}
+	svc := &knowledgeFindingService{
+		repo: repo, kbs: kbs, trigger: sched, runner: runner, audit: audit, enabled: enabled,
+	}
+	return &findingServiceFixture{svc: svc, repo: repo, sched: sched, audit: audit}
+}
+
+func asUser(user string) context.Context {
+	ctx := context.WithValue(context.Background(), types.TenantIDContextKey, uint64(1))
+	return context.WithValue(ctx, types.UserIDContextKey, user)
+}
+
+func httpCodeOf(t *testing.T, err error) int {
+	t.Helper()
+	var appErr *werrors.AppError
+	require.True(t, errors.As(err, &appErr), "want an AppError, got %v", err)
+	return appErr.HTTPCode
+}
+
+func TestFindingListDefaultsToOpenAndValidatesStatus(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	page, err := f.svc.List(asUser("u"), 1, "kb-1", types.KnowledgeFindingFilter{Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	assert.EqualValues(t, 1, page.Total)
+	assert.Equal(t, 1, page.Page)
+	assert.Equal(t, 20, page.PageSize)
+	assert.Equal(t, "Doc A", page.Items[0].Subject.Title)
+
+	_, err = f.svc.List(asUser("u"), 1, "kb-1", types.KnowledgeFindingFilter{Status: "closed"})
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err))
+}
+
+// Dismissing and reopening are recorded in the base's activity, with who did
+// it; moves the detectors own are refused.
+func TestFindingStatusChangesAreAuditedAndConstrained(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	ctx := asUser("user-9")
+
+	view, err := f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed)
+	require.NoError(t, err)
+	assert.Equal(t, types.FindingStatusDismissed, view.Status)
+	assert.Equal(t, "user-9", f.repo.lastSet.actor)
+	require.Len(t, f.audit.rows, 1)
+	row := f.audit.rows[0]
+	assert.Equal(t, types.AuditActionFindingStatusChanged, row.Action)
+	assert.Equal(t, "knowledge_base", row.ScopeType)
+	assert.Equal(t, "kb-1", row.ScopeID)
+	assert.Equal(t, "f1", row.TargetID)
+	assert.Contains(t, string(row.Details), `"to":"dismissed"`)
+	assert.Contains(t, string(row.Details), "Doc A")
+
+	// Setting the status it already has changes and records nothing.
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusDismissed)
+	require.NoError(t, err)
+	assert.Len(t, f.audit.rows, 1)
+
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen)
+	require.NoError(t, err)
+	assert.Len(t, f.audit.rows, 2)
+
+	f.repo.rows["f1"].Status = types.FindingStatusResolved
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusOpen)
+	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err), "resolved is the detectors' to change")
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "f1", types.FindingStatusResolved)
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err))
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-1", "missing", types.FindingStatusDismissed)
+	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err))
+	_, err = f.svc.UpdateStatus(ctx, 1, "kb-other", "f1", types.FindingStatusDismissed)
+	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err), "a finding is addressed through its own base")
+}
+
+func TestFindingSummaryReportsCountsAndCapability(t *testing.T) {
+	scanned := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	f := newFindingServiceFixture(t, true, true)
+	f.repo.lastScan = &scanned
+	sum, err := f.svc.Summary(asUser("u"), 1, "kb-1")
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, sum.OpenTotal)
+	assert.Equal(t, map[string]int64{types.FindingTypeDuplicate: 1}, sum.OpenByType)
+	assert.Equal(t, &scanned, sum.LastScanAt)
+	assert.True(t, sum.Enabled)
+	assert.True(t, sum.Supported)
+
+	f = newFindingServiceFixture(t, false, false)
+	sum, err = f.svc.Summary(asUser("u"), 1, "kb-1")
+	require.NoError(t, err)
+	assert.False(t, sum.Enabled)
+	assert.False(t, sum.Supported)
+	assert.Nil(t, sum.LastScanAt)
+
+	_, err = f.svc.Summary(asUser("u"), 2, "kb-1")
+	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err), "the base is looked up in its owner's tenant")
+}
+
+// A full re-check schedules every indexed document, spread out, and counts
+// only what was newly scheduled.
+func TestFindingScanSchedulesEveryDocumentOnce(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	f.repo.checkable = []string{"doc-a", "doc-b", "doc-c"}
+	f.sched.pending["doc-b"] = true
+
+	queued, err := f.svc.Scan(asUser("admin"), 1, "kb-1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, queued, "a document with a check already pending is not counted twice")
+	require.Len(t, f.sched.calls, 3)
+	assert.Zero(t, f.sched.calls[0].delay)
+	assert.Greater(t, f.sched.calls[2].delay, f.sched.calls[1].delay, "the checks are staggered")
+	require.Len(t, f.audit.rows, 1)
+	assert.Equal(t, types.AuditActionFindingScanRequested, f.audit.rows[0].Action)
+
+	for _, tc := range []struct {
+		name               string
+		enabled, supported bool
+	}{{"switched off", false, true}, {"unsupported base", true, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFindingServiceFixture(t, tc.enabled, tc.supported)
+			f.repo.checkable = []string{"doc-a"}
+			queued, err := f.svc.Scan(asUser("admin"), 1, "kb-1")
+			require.NoError(t, err)
+			assert.Zero(t, queued)
+			assert.Empty(t, f.sched.calls)
+		})
+	}
+}
+
+// Asked about a document, every finding names it as the subject, with the
+// evidence turned round to match.
+func TestOpenFindingsAreOrientedTowardsTheDocumentAskedAbout(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	views, err := f.svc.OpenForKnowledge(asUser("u"), 1, "doc-b")
+	require.NoError(t, err)
+	require.Len(t, views, 1)
+	v := views[0]
+	assert.Equal(t, "doc-b", v.Subject.KnowledgeID)
+	assert.Equal(t, "Doc B", v.Subject.Title)
+	require.NotNil(t, v.Related)
+	assert.Equal(t, "doc-a", v.Related.KnowledgeID)
+	assert.Equal(t, "cb", v.Evidence[0].SubjectChunkID)
+	assert.Equal(t, "from b", v.Evidence[0].SubjectExcerpt)
+
+	views, err = f.svc.OpenForKnowledge(asUser("u"), 1, "doc-a")
+	require.NoError(t, err)
+	assert.Equal(t, "doc-a", views[0].Subject.KnowledgeID)
+	assert.Equal(t, "ca", views[0].Evidence[0].SubjectChunkID)
+}

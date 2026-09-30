@@ -95,6 +95,15 @@ type Favourites interface {
 	Remove(ctx context.Context, userID string, tenantID uint64, resourceType, resourceID string) error
 }
 
+// Findings reads the knowledge-health findings of a page's mirror entry.
+// interfaces.KnowledgeFindingService satisfies it; the module needs this one
+// method of it and nothing else of the knowledge-health service.
+type Findings interface {
+	// OpenForKnowledge lists the open findings naming the entry, each
+	// oriented so that the entry asked about is the subject.
+	OpenForKnowledge(ctx context.Context, tenantID uint64, knowledgeID string) ([]*types.KnowledgeFindingView, error)
+}
+
 type Deps struct {
 	Repos    *repository.Repositories
 	Resolver *acl.Resolver
@@ -132,6 +141,9 @@ type Deps struct {
 	// Knowledge mirrors pages into a space's knowledge base. Nil leaves
 	// every space unindexed, which is the state of a build without it.
 	Knowledge Knowledge
+	// Findings reads what knowledge health found about a page's mirror. Nil
+	// shows every page as having none.
+	Findings Findings
 	// DefaultSpaceQuotaBytes is the attachment limit for spaces that have
 	// none of their own; 0 leaves those spaces unlimited. It lets a careful
 	// deployment be careful without anybody visiting every space.

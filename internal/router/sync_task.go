@@ -19,11 +19,20 @@ import (
 type SyncTaskExecutor struct {
 	mu       sync.RWMutex
 	handlers map[string]func(context.Context, *asynq.Task) error
+
+	// pendingIDs holds the asynq.TaskID of every task scheduled or running,
+	// so a second task with the same ID is refused with ErrTaskIDConflict
+	// the way asynq refuses it. Callers use deterministic IDs to debounce
+	// (the knowledge-health check) or to deduplicate (the data-source
+	// scheduler); without this they would run every copy in this mode.
+	idMu       sync.Mutex
+	pendingIDs map[string]struct{}
 }
 
 func NewSyncTaskExecutor() *SyncTaskExecutor {
 	return &SyncTaskExecutor{
-		handlers: make(map[string]func(context.Context, *asynq.Task) error),
+		handlers:   make(map[string]func(context.Context, *asynq.Task) error),
+		pendingIDs: make(map[string]struct{}),
 	}
 }
 
@@ -32,6 +41,16 @@ func (e *SyncTaskExecutor) RegisterHandler(pattern string, handler func(context.
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.handlers[pattern] = handler
+}
+
+// Handles reports whether a handler is registered for the task type. The
+// start-up test uses it to check that every task the server enqueues can run
+// without Redis.
+func (e *SyncTaskExecutor) Handles(taskType string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	_, ok := e.handlers[taskType]
+	return ok
 }
 
 // Enqueue satisfies interfaces.TaskEnqueuer.
@@ -49,8 +68,13 @@ func (e *SyncTaskExecutor) Enqueue(task *asynq.Task, opts ...asynq.Option) (*asy
 	var delay time.Duration
 	maxRetry := 25 // asynq default
 	maxRetrySet := false
+	taskID := ""
 	for _, opt := range opts {
 		switch opt.Type() {
+		case asynq.TaskIDOpt:
+			if id, ok := opt.Value().(string); ok {
+				taskID = id
+			}
 		case asynq.ProcessInOpt:
 			if d, ok := opt.Value().(time.Duration); ok {
 				delay = d
@@ -68,7 +92,17 @@ func (e *SyncTaskExecutor) Enqueue(task *asynq.Task, opts ...asynq.Option) (*asy
 		maxRetry = 0
 	}
 
-	taskID := uuid.New().String()
+	if taskID != "" {
+		e.idMu.Lock()
+		if _, taken := e.pendingIDs[taskID]; taken {
+			e.idMu.Unlock()
+			return nil, asynq.ErrTaskIDConflict
+		}
+		e.pendingIDs[taskID] = struct{}{}
+		e.idMu.Unlock()
+	} else {
+		taskID = uuid.New().String()
+	}
 	info := &asynq.TaskInfo{
 		ID:    taskID,
 		Queue: "sync",
@@ -76,6 +110,13 @@ func (e *SyncTaskExecutor) Enqueue(task *asynq.Task, opts ...asynq.Option) (*asy
 	}
 
 	go func() {
+		// The ID is free again once the task has finished, whatever the
+		// outcome — asynq keeps a finished task only when asked to retain it.
+		defer func() {
+			e.idMu.Lock()
+			delete(e.pendingIDs, taskID)
+			e.idMu.Unlock()
+		}()
 		if delay > 0 {
 			time.Sleep(delay)
 		}
@@ -129,6 +170,7 @@ type SyncTaskParams struct {
 	KnowledgePostProcess interfaces.TaskHandler `name:"knowledgePostProcess"`
 	KnowledgeAutoTag     interfaces.TaskHandler `name:"knowledgeAutoTag"`
 	WikiIngest           interfaces.TaskHandler `name:"wikiIngest"`
+	KnowledgeFindings    interfaces.TaskHandler `name:"knowledgeFindings"`
 	TemporaryDocument    interfaces.TemporaryDocumentService
 }
 
@@ -155,5 +197,6 @@ func RegisterSyncHandlers(params SyncTaskParams) {
 	params.Executor.RegisterHandler(types.TypeDataSourceSync, params.DataSourceService.ProcessSync)
 	params.Executor.RegisterHandler(types.TypeWikiIngest, params.WikiIngest.Handle)
 	params.Executor.RegisterHandler(types.TypeWikiFinalize, params.WikiIngest.Handle)
+	params.Executor.RegisterHandler(types.TypeKnowledgeFindings, params.KnowledgeFindings.Handle)
 	logger.Infof(context.Background(), "[SyncTask] All task handlers registered (no Redis)")
 }

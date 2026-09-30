@@ -176,6 +176,10 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// the caller cannot otherwise see.
 	read.GET("/pages/:pid/backlinks", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Backlinks)
+	// Knowledge health of the page's mirror. The page reader's gate; which
+	// findings are shown is then decided per related page by the service.
+	read.GET("/pages/:pid/findings", g.Viewer(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Findings)
 	read.GET("/pages/:pid/mention-candidates", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.SuggestMentions)
 	// Page-level permissions. Reading the panel needs only read access:

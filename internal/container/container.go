@@ -29,6 +29,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/application/service"
 	chatpipeline "github.com/magicyuan876/yuheng/internal/application/service/chat_pipeline"
 	"github.com/magicyuan876/yuheng/internal/application/service/file"
+	"github.com/magicyuan876/yuheng/internal/application/service/findings"
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/common"
 	"github.com/magicyuan876/yuheng/internal/config"
@@ -140,6 +141,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(repository.NewWikiPageRepository))
 	must(container.Provide(repository.NewTaskPendingOpsRepository))
 	must(container.Provide(repository.NewTaskDeadLetterRepository))
+	must(container.Provide(repository.NewKnowledgeFindingRepository))
 
 	// Business service layer
 	logger.Debugf(ctx, "[Container] Registering business services...")
@@ -173,6 +175,16 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(service.NewImageMultimodalService, dig.Name("imageMultimodal")))
 	must(container.Provide(service.NewKnowledgePostProcessService, dig.Name("knowledgePostProcess")))
 	must(container.Provide(service.NewKnowledgeAutoTagService, dig.Name("knowledgeAutoTag")))
+
+	// Knowledge health. The core's duplicate detector goes into the detector
+	// group the same way an extension adds one (see the findings package);
+	// the runner is built from the group after the extension hooks have run.
+	must(container.Provide(findings.NewFinderResolver))
+	must(container.Provide(newDuplicateDetector, dig.Group(findings.DetectorGroup)))
+	must(container.Provide(findings.NewRunnerFromContainer))
+	must(container.Provide(findings.NewTrigger, dig.As(new(interfaces.KnowledgeFindingsTrigger))))
+	must(container.Provide(findings.NewTaskHandler, dig.Name("knowledgeFindings")))
+	must(container.Provide(service.NewKnowledgeFindingService))
 
 	must(container.Provide(service.NewMessageService))
 	must(container.Provide(service.NewMessageSuggestionService))
@@ -319,6 +331,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewDataSourceHandler))
 	// Wiki page handler
 	must(container.Provide(handler.NewWikiPageHandler))
+	must(container.Provide(handler.NewKnowledgeFindingHandler))
 	logger.Debugf(ctx, "[Container] HTTP handlers registered")
 
 	// Wire the chat package's local image resolver so multimodal chat can read

@@ -167,6 +167,15 @@ const (
 	AuditActionFAQImportStarted   AuditAction = "faq.import_started"
 	AuditActionFAQImportCompleted AuditAction = "faq.import_completed"
 	AuditActionFAQImportFailed    AuditAction = "faq.import_failed"
+
+	// AuditActionFindingStatusChanged is a person dismissing or reopening a
+	// knowledge-health finding; details carry from/to and the documents'
+	// titles. Findings the system opens or resolves on its own are not
+	// recorded: they follow every document change and would drown the feed.
+	AuditActionFindingStatusChanged AuditAction = "finding.status_changed"
+	// AuditActionFindingScanRequested is a full re-check of a knowledge base
+	// being scheduled; details carry how many documents were queued.
+	AuditActionFindingScanRequested AuditAction = "finding.scan_requested"
 )
 
 // AuditOutcome separates asynchronous acceptance from terminal business

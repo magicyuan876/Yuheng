@@ -80,6 +80,8 @@ migrations/
 | `embeddings` | 向量 + BM25 索引（Postgres/ParadeDB 检索引擎专用，受 `app.skip_embedding` 门控） | `id`、`source_id`+`source_type`（唯一，chunk/wiki 页等来源）、`chunk_id`/`knowledge_id`/`knowledge_base_id`、`content`（BM25 全文）、`dimension`、`embedding`（halfvec，HNSW 索引按 768/1024/3584 维分建）、`is_enabled`、`tag_id` |
 | `knowledge_tags` | 知识标签（FAQ 分类等） | `id`、`tenant_id`、`knowledge_base_id`、`name`、`seq_id` |
 | `knowledge_tag_relations` | 文档 ↔ 标签多对多（000063） | 复合主键（`knowledge_id`,`tag_id`）+ `created_at`；两侧各建索引。**同时删掉了 `knowledges.tag_id` 列**（存量单标签数据已迁入本表）。FAQ 条目的标签不在这里，仍是 `chunks.tag_id` 单标签 |
+| `knowledge_findings` | 知识健康检测出的问题（000124），见 [知识健康](../03-features/22-knowledge-health.md) | `id`、`tenant_id`、`knowledge_base_id`、`type`（duplicate…）、`detector`、`severity`（info/warning/error）、`status`（open/dismissed/resolved）、`fingerprint`（租户内唯一，与触发方向无关）、`subject_knowledge_id`、`related_knowledge_id`（可空）、`score`、`details`（JSONB：证据段落对、`overlap_ratio`、`evidence_hash`）、`resolved_at`/`resolved_by`。`knowledges` 上的触发器在文档软删除、硬删除或换知识库时删除相关记录 |
+| `knowledge_finding_scans` | 每篇文档最近一次健康检测的时间（000124） | `knowledge_id`（主键）、`tenant_id`、`knowledge_base_id`、`scanned_at` |
 | `vector_stores` | 外接向量库连接配置（000032） | `id`、`tenant_id`、`name`（租户内唯一）、`engine_type`、`connection_config`/`index_config`（JSONB） |
 
 ### 3.3 会话与消息

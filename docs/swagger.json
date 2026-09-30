@@ -3304,6 +3304,41 @@
                 }
             }
         },
+        "/docs/pages/{pid}/findings": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "本页的知识健康问题",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {items, other_count}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/docs/pages/{pid}/grants": {
             "get": {
                 "security": [
@@ -8288,6 +8323,249 @@
                     },
                     "400": {
                         "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "列出自动检测到的问题（目前是重复文档）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "列出知识库的健康问题",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "open（默认）/ dismissed / resolved / all",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "问题类型，如 duplicate",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "只列出涉及该文档的问题",
+                        "name": "knowledge_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 20，最大 100",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {items, total, page, page_size}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings/scan": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属空间可发起",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "重新检测整个知识库",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {queued}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings/summary": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "未处理问题总数及按类型计数、最近一次检测时间，以及本部署是否启用、这个知识库能否检测",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "知识库健康概览",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {open_total, open_by_type, last_scan_at, ...}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings/{finding_id}": {
+            "patch": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "status=dismissed 忽略（证据不变时不再出现），status=open 重新打开一个已忽略的问题。操作记入知识库动态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "忽略或重新打开一个问题",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "问题 ID",
+                        "name": "finding_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新状态",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.UpdateFindingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: 更新后的问题",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -18187,7 +18465,9 @@
                 "wiki.content_changed",
                 "faq.import_started",
                 "faq.import_completed",
-                "faq.import_failed"
+                "faq.import_failed",
+                "finding.status_changed",
+                "finding.scan_requested"
             ],
             "x-enum-varnames": [
                 "AuditActionMemberAdded",
@@ -18248,7 +18528,9 @@
                 "AuditActionWikiContentChanged",
                 "AuditActionFAQImportStarted",
                 "AuditActionFAQImportCompleted",
-                "AuditActionFAQImportFailed"
+                "AuditActionFAQImportFailed",
+                "AuditActionFindingStatusChanged",
+                "AuditActionFindingScanRequested"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_types.AuditLog": {
@@ -24364,6 +24646,18 @@
                 },
                 "is_enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_handler.UpdateFindingRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "description": "Status is \"dismissed\" or \"open\".",
+                    "type": "string"
                 }
             }
         },

@@ -347,6 +347,8 @@ definitions:
     - faq.import_started
     - faq.import_completed
     - faq.import_failed
+    - finding.status_changed
+    - finding.scan_requested
     type: string
     x-enum-varnames:
     - AuditActionMemberAdded
@@ -408,6 +410,8 @@ definitions:
     - AuditActionFAQImportStarted
     - AuditActionFAQImportCompleted
     - AuditActionFAQImportFailed
+    - AuditActionFindingStatusChanged
+    - AuditActionFindingScanRequested
   github_com_magicyuan876_yuheng_internal_types.AuditLog:
     properties:
       action:
@@ -4982,6 +4986,14 @@ definitions:
       is_enabled:
         type: boolean
     type: object
+  internal_handler.UpdateFindingRequest:
+    properties:
+      status:
+        description: Status is "dismissed" or "open".
+        type: string
+    required:
+    - status
+    type: object
   internal_handler.UpdateKnowledgeBaseRequest:
     properties:
       config:
@@ -7561,6 +7573,29 @@ paths:
       security:
       - Bearer: []
       summary: 收藏或取消收藏页面
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/findings:
+    get:
+      description: 本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入
+        other_count
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {items, other_count}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 本页的知识健康问题
       tags:
       - 在线文档
   /docs/pages/{pid}/grants:
@@ -10728,6 +10763,159 @@ paths:
       summary: 搜索FAQ
       tags:
       - FAQ管理
+  /knowledge-bases/{id}/findings:
+    get:
+      description: 列出自动检测到的问题（目前是重复文档）。status 默认 open，all 列出全部；knowledge_id 只看涉及该文档的问题
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: open（默认）/ dismissed / resolved / all
+        in: query
+        name: status
+        type: string
+      - description: 问题类型，如 duplicate
+        in: query
+        name: type
+        type: string
+      - description: 只列出涉及该文档的问题
+        in: query
+        name: knowledge_id
+        type: string
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {items, total, page, page_size}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 列出知识库的健康问题
+      tags:
+      - 知识健康
+  /knowledge-bases/{id}/findings/{finding_id}:
+    patch:
+      consumes:
+      - application/json
+      description: status=dismissed 忽略（证据不变时不再出现），status=open 重新打开一个已忽略的问题。操作记入知识库动态
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 问题 ID
+        in: path
+        name: finding_id
+        required: true
+        type: string
+      - description: 新状态
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.UpdateFindingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 更新后的问题'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 忽略或重新打开一个问题
+      tags:
+      - 知识健康
+  /knowledge-bases/{id}/findings/scan:
+    post:
+      description: 为知识库中所有已完成索引的文档安排一次健康检测（分批错开执行，已在排队的不重复安排），返回新安排的数量。仅知识库所属空间可发起
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {queued}'
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 重新检测整个知识库
+      tags:
+      - 知识健康
+  /knowledge-bases/{id}/findings/summary:
+    get:
+      description: 未处理问题总数及按类型计数、最近一次检测时间，以及本部署是否启用、这个知识库能否检测
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {open_total, open_by_type, last_scan_at, ...}'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      - ApiKeyAuth: []
+      summary: 知识库健康概览
+      tags:
+      - 知识健康
   /knowledge-bases/{id}/hybrid-search:
     get:
       consumes:
