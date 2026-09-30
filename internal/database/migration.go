@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -290,10 +291,10 @@ func runSource(
 	if oldDirty {
 		logger.Warnf(ctx, "[%s] Database is in dirty state at version %d", label, oldVersion)
 		if !opts.AutoRecoverDirty {
-			return fail(m, dirtyError(label, oldVersion, false))
+			return fail(m, dirtyError(label, src, oldVersion, false))
 		}
 		logger.Infof(ctx, "[%s] AUTO_RECOVER_DIRTY is enabled, attempting recovery...", label)
-		if err := recoverFromDirtyState(ctx, m, oldVersion); err != nil {
+		if err := recoverFromDirtyState(ctx, m, src, oldVersion); err != nil {
 			return fail(m, err)
 		}
 		// Update oldVersion after recovery
@@ -311,10 +312,10 @@ func runSource(
 		}
 		logger.Warnf(ctx, "[%s] Migration caused dirty state at version %d", label, currentVersion)
 		if !opts.AutoRecoverDirty {
-			return fail(m, fmt.Errorf("%w\n%w", err, dirtyError(label, currentVersion, true)))
+			return fail(m, fmt.Errorf("%w\n%w", err, dirtyError(label, src, currentVersion, true)))
 		}
 		logger.Infof(ctx, "[%s] Attempting to recover from dirty state...", label)
-		if recoverErr := recoverFromDirtyState(ctx, m, currentVersion); recoverErr != nil {
+		if recoverErr := recoverFromDirtyState(ctx, m, src, currentVersion); recoverErr != nil {
 			return fail(m, recoverErr)
 		}
 		logger.Infof(ctx, "[%s] Retrying migration after recovery...", label)
@@ -350,10 +351,11 @@ func runSource(
 // dirtyError explains a dirty version table and how to repair it by hand.
 // failedNow says the migration has only just failed in this run, as opposed to
 // having been left dirty by an earlier one.
-func dirtyError(label string, version uint, failedNow bool) error {
-	forceVersion := int(version) - 1
-	if forceVersion < 0 {
-		forceVersion = 0
+func dirtyError(label string, src source.Driver, version uint, failedNow bool) error {
+	forceVersion, err := versionBefore(src, version)
+	if err != nil {
+		return fmt.Errorf("database is in a dirty state at version %d, which is not a migration of this build (%w); "+
+			"restore the backup you took before upgrading, or run the build that wrote it", version, err)
 	}
 	what := "a previous migration run was interrupted or failed part-way"
 	if failedNow {
@@ -379,44 +381,50 @@ func dirtyError(label string, version uint, failedNow bool) error {
 	)
 }
 
-// recoverFromDirtyState attempts to recover from a dirty migration state
-// by forcing to the previous version and allowing the migration to be retried
-func recoverFromDirtyState(ctx context.Context, m *migrate.Migrate, dirtyVersion uint) error {
-	// Special case: if dirty at version 0 (init migration), we cannot go back further
-	// The only option is to force to version 0 and retry, but this requires the migration to be idempotent
-	if dirtyVersion == 0 {
-		logger.Warnf(ctx, "Database is in dirty state at version 0 (init migration). "+
-			"This is the initial migration, cannot rollback further. "+
-			"Will attempt to clear dirty flag and retry. "+
-			"Note: This only works if the init migration uses IF NOT EXISTS clauses.")
-
-		// Force to version -1 (no version) to allow re-running version 0
-		// This effectively tells migrate that no migrations have been applied
-		if err := m.Force(-1); err != nil {
-			return fmt.Errorf(
-				"failed to recover from dirty state at version 0. "+
-					"Manual intervention required:\n"+
-					"1. Check what was partially created in the database\n"+
-					"2. Either drop all created objects and retry, or\n"+
-					"3. Manually complete the migration and run: ./scripts/migrate.sh force 0\n"+
-					"Error: %w", err)
-		}
-
-		logger.Infof(ctx, "Cleared migration state, will retry from version 0")
-		return nil
+// versionBefore is the migration version that precedes v in src — what a
+// migration left dirty at v is forced back to, so that v runs again — or -1
+// when v is the first migration (no version at all).
+//
+// It is not v-1. Versions are not contiguous: the docs module reserved
+// 000120-000139 after 000089, so the version before 000120 is 89, and
+// golang-migrate cannot migrate up from a version it has no file for. A v that
+// is not a migration of this build is an error: guessing its predecessor could
+// re-run migrations that already applied.
+func versionBefore(src source.Driver, v uint) (int, error) {
+	r, _, err := src.ReadUp(v)
+	if err != nil {
+		return 0, fmt.Errorf("version %d has no migration: %w", v, err)
 	}
+	_ = r.Close()
+	prev, err := src.Prev(v)
+	if errors.Is(err, fs.ErrNotExist) {
+		return -1, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return int(prev), nil
+}
 
-	forceVersion := int(dirtyVersion) - 1
-
-	logger.Warnf(ctx, "Database is in dirty state at version %d, attempting auto-recovery by forcing to version %d",
-		dirtyVersion, forceVersion)
-
-	// Force to previous version to clear dirty state
+// recoverFromDirtyState clears a dirty flag by forcing the version table back
+// to the migration before the dirty one, so the interrupted migration is
+// retried. Only safe for a migration that can run twice (AutoRecoverDirty).
+func recoverFromDirtyState(ctx context.Context, m *migrate.Migrate, src source.Driver, dirtyVersion uint) error {
+	forceVersion, err := versionBefore(src, dirtyVersion)
+	if err != nil {
+		return fmt.Errorf("cannot recover from the dirty state at version %d: %w", dirtyVersion, err)
+	}
+	if forceVersion < 0 {
+		logger.Warnf(ctx, "Database is in dirty state at version %d, the first migration; clearing the version "+
+			"so it runs again. This only works if it uses IF NOT EXISTS clauses.", dirtyVersion)
+	} else {
+		logger.Warnf(ctx, "Database is in dirty state at version %d, attempting auto-recovery by forcing to "+
+			"version %d", dirtyVersion, forceVersion)
+	}
 	if err := m.Force(forceVersion); err != nil {
-		return fmt.Errorf("failed to force migration version during recovery: %w", err)
+		return fmt.Errorf("failed to force migration version %d during recovery: %w", forceVersion, err)
 	}
-
-	logger.Infof(ctx, "Successfully forced migration to version %d, migration will be retried", forceVersion)
+	logger.Infof(ctx, "Forced migration to version %d, migration will be retried", forceVersion)
 	return nil
 }
 
