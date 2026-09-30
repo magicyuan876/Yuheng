@@ -39,6 +39,11 @@ func TestIsSupportedImportExtension(t *testing.T) {
 		{name: "unsupported", ext: "exe", want: false},
 		{name: "video", ext: "mp4", want: true},
 		{name: "video mov", ext: "mov", want: true},
+		{name: "xmind", ext: "xmind", want: true},
+		{name: "webp", ext: "webp", want: true},
+		// Parsed but not carried end to end; see supportedImportFileExtensions.
+		{name: "bmp", ext: "bmp", want: false},
+		{name: "tiff", ext: "tiff", want: false},
 		{name: "empty", ext: "", want: false},
 		{name: "unknown sentinel", ext: unknownFileType, want: false},
 	}

@@ -14,3 +14,12 @@ test("shouldRejectKnowledgeFileType preserves dynamic whitelist behavior", () =>
   assert.equal(shouldRejectKnowledgeFileType("page.html", ["pdf"]), true);
   assert.equal(shouldRejectKnowledgeFileType("page.html", []), false);
 });
+
+test("the fallback whitelist accepts what the backend import paths accept", () => {
+  for (const name of ["mind.xmind", "photo.webp", "anim.gif", "notes.markdown", "data.json"]) {
+    assert.equal(shouldRejectKnowledgeFileType(name), false, name);
+  }
+  // Parsed by some engines but not carried end to end, so the backend refuses them too.
+  assert.equal(shouldRejectKnowledgeFileType("scan.tiff"), true);
+  assert.equal(shouldRejectKnowledgeFileType("scan.bmp"), true);
+});

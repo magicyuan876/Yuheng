@@ -288,8 +288,8 @@ func FetchOptionsFromConfig(config *types.DataSourceConfig) FetchOptions {
 
 // SupportedImageExt sniffs image bytes and returns the filename extension and
 // content type Yuheng accepts for a standalone image knowledge item (png/jpg/
-// gif — the image set isValidFileType admits). ok is false for non-image or
-// unsupported formats (e.g. webp/bmp), which the caller skips rather than
+// gif/webp — the image set isValidFileType admits). ok is false for non-image
+// or unsupported formats (e.g. bmp), which the caller skips rather than
 // mislabel — a wrong extension would fail parsing. The detected content type is
 // returned even when ok is false so the caller can log it without re-sniffing.
 func SupportedImageExt(data []byte) (ext, contentType string, ok bool) {
@@ -300,6 +300,8 @@ func SupportedImageExt(data []byte) (ext, contentType string, ok bool) {
 		return ".jpg", ct, true
 	case "image/gif":
 		return ".gif", ct, true
+	case "image/webp":
+		return ".webp", ct, true
 	default:
 		return "", ct, false
 	}

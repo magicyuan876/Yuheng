@@ -101,8 +101,8 @@ kb.POST("/manual", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.CreateManu
 `internal/application/service/knowledge_util.go` 里的 `supportedImportFileExtensions` 是**所有导入路径的唯一事实来源**——直接上传、文件 URL 下载、以及 worker 下载完成后的复检都查同一张表：
 
 ```
-pdf txt docx doc epub html htm mhtml md markdown
-png jpg jpeg gif csv xlsx xls pptx ppt json
+pdf txt docx doc epub html htm mhtml md markdown xmind
+png jpg jpeg gif webp csv xlsx xls pptx ppt json
 mp3 wav m4a flac ogg
 mp4 mov avi mkv webm wmv flv m4v
 ```

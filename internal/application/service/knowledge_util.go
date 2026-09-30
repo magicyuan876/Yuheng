@@ -27,10 +27,20 @@ const unknownFileType = "unknown"
 // accepted by every knowledge import path: direct upload, file-URL download,
 // and the worker's post-download re-check. Keeping one set avoids the drift
 // that let direct upload accept xlsx while URL import rejected it (#2447).
+//
+// An extension belongs here only when the default pipeline carries it end to
+// end: parsed (docreader's XMindParser for xmind), stored, captioned and
+// OCR'd by the VLM, and shown in the browser. bmp and tiff are left out
+// although the parsers accept them. An image reaches the VLM with the MIME
+// type sniffed from its bytes, and the sniffer does not know TIFF, so a TIFF
+// would be sent labelled as PNG; BMP is sniffed but refused by the common
+// VLM APIs (OpenAI-compatible ones take png, jpeg, gif and webp); and
+// browsers do not display TIFF. Accepting them would store files that come
+// out as an empty, unsearchable entry.
 var supportedImportFileExtensions = map[string]struct{}{
 	"pdf": {}, "txt": {}, "docx": {}, "doc": {}, "epub": {},
-	"html": {}, "htm": {}, "mhtml": {}, "md": {}, "markdown": {},
-	"png": {}, "jpg": {}, "jpeg": {}, "gif": {},
+	"html": {}, "htm": {}, "mhtml": {}, "md": {}, "markdown": {}, "xmind": {},
+	"png": {}, "jpg": {}, "jpeg": {}, "gif": {}, "webp": {},
 	"csv": {}, "xlsx": {}, "xls": {}, "pptx": {}, "ppt": {}, "json": {},
 	"mp3": {}, "wav": {}, "m4a": {}, "flac": {}, "ogg": {},
 	"mp4": {}, "mov": {}, "avi": {}, "mkv": {}, "webm": {}, "wmv": {}, "flv": {}, "m4v": {},

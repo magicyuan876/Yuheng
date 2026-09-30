@@ -1848,7 +1848,7 @@ func TestFeishuCursorRoundTrip(t *testing.T) {
 	}
 }
 
-// TestSupportedImageExt covers every arm of the sniff table: the png/jpg/gif
+// TestSupportedImageExt covers every arm of the sniff table: the png/jpg/gif/webp
 // formats Yuheng accepts (aligned with isValidFileType's image set), and the
 // unsupported case which must return ok=false while still surfacing the detected
 // content type so the caller can log it without re-sniffing.
@@ -1863,7 +1863,8 @@ func TestSupportedImageExt(t *testing.T) {
 		{"png", []byte("\x89PNG\r\n\x1a\nrest"), ".png", "image/png", true},
 		{"jpeg", []byte("\xFF\xD8\xFF\xE0\x00\x10JFIF"), ".jpg", "image/jpeg", true},
 		{"gif", []byte("GIF89a\x01\x00\x01\x00"), ".gif", "image/gif", true},
-		{"webp_unsupported", append([]byte("RIFF\x00\x00\x00\x00WEBPVP8 "), make([]byte, 8)...), "", "image/webp", false},
+		{"webp", append([]byte("RIFF\x00\x00\x00\x00WEBPVP8 "), make([]byte, 8)...), ".webp", "image/webp", true},
+		{"bmp_unsupported", append([]byte("BM"), make([]byte, 16)...), "", "image/bmp", false},
 		{"text_unsupported", []byte("just some plain text, not an image at all"), "", "text/plain; charset=utf-8", false},
 	}
 	for _, tc := range cases {

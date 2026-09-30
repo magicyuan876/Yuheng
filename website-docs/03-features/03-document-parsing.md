@@ -6,10 +6,10 @@
 
 | 类别 | 格式 |
 | --- | --- |
-| 文档 | PDF、Word（doc/docx）、PPT（ppt/pptx）、Excel（xls/xlsx）、EPUB |
+| 文档 | PDF、Word（doc/docx）、PPT（ppt/pptx）、Excel（xls/xlsx）、EPUB、XMind 思维导图（xmind） |
 | 文本 | txt、Markdown（md/markdown）、CSV、JSON |
 | 网页 | 在线 URL 抓取、本地 HTML（html/htm）/ MHTML 归档 |
-| 图片 | jpg、jpeg、png、gif（需要在知识库里开启图像处理并配置视觉模型才能理解内容） |
+| 图片 | jpg、jpeg、png、gif、webp（需要在知识库里开启图像处理并配置视觉模型才能理解内容） |
 | 音频 | mp3、wav、m4a、flac、ogg（需要配置语音识别模型） |
 | 视频 | mp4、mov、avi、mkv、webm、wmv、flv、m4v（需要语音识别模型转写音轨，或开启图像处理描述关键帧，至少其一；docreader 需装有 ffmpeg） |
 
@@ -129,7 +129,7 @@ sequenceDiagram
 | `mineru_tianshu` | 自托管 MinerU 天枢任务队列 | 另含 xls、xlsx、html、htm | 配置了服务地址（及所需凭据）且探测可达 |
 | `paddleocr_vl` / `paddleocr_vl_cloud` | 自托管 PaddleOCR-VL / AI Studio 云 API | pdf、jpg、jpeg、png、bmp、tiff | 配置了服务地址 / Token 且探测可达 |
 
-MinerU、PaddleOCR-VL 这类远程引擎的地址与凭据是空间级配置（`Tenant.ParserEngineConfig`），由 Go 直接调用，不经 docreader。上表的文件类型是引擎能处理的范围，最终能否上传仍受上传白名单约束（例如 `bmp`、`tiff`、`odt` 不在白名单内）。
+MinerU、PaddleOCR-VL 这类远程引擎的地址与凭据是空间级配置（`Tenant.ParserEngineConfig`），由 Go 直接调用，不经 docreader。上表的文件类型是引擎能处理的范围，最终能否上传仍受上传白名单约束（例如 `bmp`、`tiff`、`odt` 不在白名单内：图片以按字节嗅探出的 MIME 类型送给视觉模型，TIFF 嗅探不出、会被当作 PNG 发送，BMP 常见的视觉模型接口不收，浏览器也不显示 TIFF，放行只会得到一条没有内容可检索的知识）。
 
 docreader 侧 `ParserEngineRegistry`（`docreader/parser/registry.py`）维护 `引擎名 → {文件扩展名 → 解析器类}` 的两级映射，并支持每个引擎注册 `check_available` 探针（用于 `ListEngines` 汇报可用性与不可用原因）。`_build_default_registry()` 注册三个引擎：
 
@@ -138,8 +138,6 @@ docreader 侧 `ParserEngineRegistry`（`docreader/parser/registry.py`）维护 `
 | `builtin` | `docx`(Docx2Parser)、`doc`(DocParser)、`pdf`(PDFParser)、`md`/`markdown`(MarkdownParser)、`xlsx`/`xls`(ExcelParser)、`pptx`/`ppt`(MarkitdownParser)、`epub`(EPUBParser)、`html`/`htm`(HTMLParser)、`mhtml`(MHTMLParser)、`xmind`(XMindParser)、`jpg`/`jpeg`/`png`/`gif`/`bmp`/`tiff`/`webp`(ImageParser)、`mp4`/`mov`/`avi`/`mkv`/`webm`/`wmv`/`flv`/`m4v`(VideoParser，仅在 PATH 上有 ffmpeg 与 ffprobe 时注册) | 内置解析引擎 |
 | `markitdown` | `md`、`markdown`、`pdf`、`docx`、`doc`、`pptx`、`ppt`、`xlsx`、`xls`、`csv`（全部 MarkitdownParser） | 微软 MarkItDown 库 |
 | `opendataloader` | `pdf`(OpenDataLoaderParser) | OpenDataLoader PDF 版面分析，需 Java 11+；`check_available` 探测 java、Python 包及 hybrid 服务健康 |
-
-`xmind` 在 builtin 注册表里，但不在上传白名单内，目前只会经数据源同步（腾讯 ima）进来。
 
 调度规则（`get_parser_class`）：请求指定的引擎若不支持该文件类型，**自动回退 `builtin` 引擎**；builtin 也没有则抛 `ValueError("Unsupported file type")`。
 
