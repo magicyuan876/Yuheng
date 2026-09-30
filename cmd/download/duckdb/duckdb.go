@@ -49,7 +49,7 @@ func printVersion() {
 	if err != nil {
 		panic(err)
 	}
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	var version string
 	if err := sqlDB.QueryRow("SELECT library_version FROM pragma_version()").Scan(&version); err != nil {
 		panic(err)
