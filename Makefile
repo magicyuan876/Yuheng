@@ -1,4 +1,4 @@
-.PHONY: help build run test fmt fmt-check lint clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend build-images-collab clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
+.PHONY: help build run test fmt fmt-check lint clean docker-build-app docker-build-docreader docker-build-frontend docker-build-all docker-run clean-db migrate-up migrate-down docker-restart docker-stop start-all stop-all start-ollama stop-ollama build-images build-images-app build-images-docreader build-images-frontend build-images-collab clean-images check-env list-containers pull-images show-platform dev-start dev-stop dev-restart dev-logs dev-status dev-app dev-frontend docs install-swagger anydoc-lib build-anydoc
 
 # Show help
 help:
@@ -269,17 +269,42 @@ build-prod:
 download_spatial:
 	go run cmd/download/duckdb/duckdb.go
 
+# The volumes clean-db deletes, by their key in docker-compose.yml. Docker
+# creates each one as <project>_<key>, and the project name is not fixed: it is
+# the checkout's directory name unless COMPOSE_PROJECT_NAME or a top-level
+# `name:` says otherwise. Hard-coding "yuheng_<key>" therefore broke twice over —
+# on any other checkout name, and when the redis key was written as redis_data
+# while compose declares redis-data, so Redis silently survived every clean-db.
+# The recipe asks compose for the project name, refuses a key compose does not
+# declare (so a rename fails loudly instead of skipping), and finds the volume
+# by the labels compose puts on it rather than by a name filter, which is a
+# substring match.
+CLEAN_DB_VOLUMES := postgres-data rustfs_data redis-data
+
 clean-db:
-	@echo "Cleaning database..."
-	@if [ $$(docker volume ls -q -f name=yuheng_postgres-data) ]; then \
-		docker volume rm yuheng_postgres-data; \
-	fi
-	@if [ $$(docker volume ls -q -f name=yuheng_rustfs_data) ]; then \
-		docker volume rm yuheng_rustfs_data; \
-	fi
-	@if [ $$(docker volume ls -q -f name=yuheng_redis_data) ]; then \
-		docker volume rm yuheng_redis_data; \
-	fi
+	@project=$$(docker compose config 2>/dev/null | sed -n '1s/^name: //p'); \
+	if [ -z "$$project" ]; then \
+		echo "clean-db: 'docker compose config' failed; run it to see why (a missing .env is the usual cause)" >&2; \
+		exit 1; \
+	fi; \
+	declared=" $$(docker compose --profile '*' config --volumes 2>/dev/null | tr '\n' ' ') "; \
+	for key in $(CLEAN_DB_VOLUMES); do \
+		case "$$declared" in *" $$key "*) ;; *) \
+			echo "clean-db: docker-compose.yml declares no volume '$$key'; update CLEAN_DB_VOLUMES" >&2; \
+			exit 1;; \
+		esac; \
+	done; \
+	echo "Cleaning database volumes of compose project '$$project'..."; \
+	for key in $(CLEAN_DB_VOLUMES); do \
+		vol=$$(docker volume ls -q \
+			--filter "label=com.docker.compose.project=$$project" \
+			--filter "label=com.docker.compose.volume=$$key"); \
+		if [ -n "$$vol" ]; then \
+			docker volume rm $$vol || { echo "clean-db: stop the stack first (docker compose down)" >&2; exit 1; }; \
+		else \
+			echo "  $$key: no such volume, skipped"; \
+		fi; \
+	done
 
 # Environment check
 check-env:

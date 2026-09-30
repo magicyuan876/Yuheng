@@ -21,14 +21,18 @@ RUN if [ -n "$APK_MIRROR_ARG" ]; then \
     apt-get update && \
     apt-get install -y git build-essential curl
 
-# Install migrate tool
-RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-
 # Copy go mod files. go.mod replace-points anydoc at ./third_party/anydoc-go,
 # so that module's go.mod must exist before `go mod download`.
 COPY go.mod go.sum ./
 COPY third_party/anydoc-go/go.mod third_party/anydoc-go/go.mod
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
+
+# The migrate CLI behind scripts/migrate.sh, at the golang-migrate version the
+# server itself links (go.mod), not @latest: the CLI and the server share the
+# schema_migrations table and its dirty flag, and must agree on both.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go install -tags 'postgres' \
+        "github.com/golang-migrate/migrate/v4/cmd/migrate@$(go list -m -f '{{.Version}}' github.com/golang-migrate/migrate/v4)"
 COPY cmd/download cmd/download
 # Extensions pre-downloaded into docker/duckdb-extensions (see the README
 # there) are used first, then those kept in a build cache from an earlier build;
@@ -96,23 +100,24 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Then switch to mirror if specified and install other packages
+# Then switch to mirror if specified and install the runtime packages. The
+# list is what the running container actually uses, nothing more:
+#   tzdata             time zones for the server (TZ in compose)
+#   curl               the compose healthcheck (curl -f /ready)
+#   gosu               docker-entrypoint.sh drops root to appuser with it
+#   postgresql-client  psql for an operator in the container; with an external
+#                      database (Helm postgresql.enabled=false) it is the only
+#                      client inside the cluster network
+# Python, Node/npm, uvx and a compiler used to be here for the built-in agent's
+# MCP client, the MySQL client for MySQL support, and ffmpeg: those features are
+# gone (PostgreSQL is the only database, video is parsed by docreader) and
+# nothing in the image calls any of them.
 RUN if [ -n "$APK_MIRROR_ARG" ]; then \
         sed -i "s@deb.debian.org@${APK_MIRROR_ARG}@g" /etc/apt/sources.list.d/debian.sources; \
     fi && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential postgresql-client default-mysql-client tzdata sed curl bash vim wget \
-        python3 python3-pip python3-dev libffi-dev libssl-dev \
-        nodejs npm \
-        gosu \
-        ffmpeg && \
-    python3 -m pip install --break-system-packages --upgrade pip setuptools wheel && \
-    mkdir -p /home/appuser/.local/bin && \
-    curl -LsSf https://astral.sh/uv/install.sh | CARGO_HOME=/home/appuser/.cargo UV_INSTALL_DIR=/home/appuser/.local/bin sh && \
-    chown -R appuser:appuser /home/appuser && \
-    ln -sf /home/appuser/.local/bin/uvx /usr/local/bin/uvx && \
-    chmod +x /usr/local/bin/uvx && \
+        tzdata curl gosu postgresql-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

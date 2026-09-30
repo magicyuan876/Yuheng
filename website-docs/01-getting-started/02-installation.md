@@ -226,7 +226,7 @@ make dev-logs / dev-status / dev-stop / dev-restart
 
 | Dockerfile | 产物镜像 | 要点 |
 | --- | --- | --- |
-| `docker/Dockerfile.app` | `magicyuan876/yuheng-app` | 两阶段：`golang:1.26-bookworm` 编译（`make build-prod`；默认 `WITH_ANYDOC=1` 链接进程内解析引擎 anydoc，需要 Rust 工具链，设 `WITH_ANYDOC=0` 跳过；注入版本信息；预下载 DuckDB 扩展）→ `debian:12.12-slim` 运行层（含 `migrate` 迁移工具、ffmpeg、gosu 等）。入口 `scripts/docker-entrypoint.sh` 修复挂载目录属主后以 `appuser` 运行 `./Yuheng`。数据库迁移已嵌入二进制，启动时自动执行 |
+| `docker/Dockerfile.app` | `magicyuan876/yuheng-app` | 两阶段：`golang:1.26-bookworm` 编译（`make build-prod`；默认 `WITH_ANYDOC=1` 链接进程内解析引擎 anydoc，需要 Rust 工具链，设 `WITH_ANYDOC=0` 跳过；注入版本信息；预下载 DuckDB 扩展）→ `debian:12.12-slim` 运行层（只装运行时真正用到的：`migrate` 迁移工具（与服务同一版本的 golang-migrate）、gosu、curl（健康检查）、tzdata、psql）。入口 `scripts/docker-entrypoint.sh` 修复挂载目录属主后以 `appuser` 运行 `./Yuheng`。数据库迁移已嵌入二进制，启动时自动执行 |
 | `docker/Dockerfile.docreader` | `magicyuan876/yuheng-docreader` | Python 3.10 + uv 锁定依赖；运行层安装 LibreOffice、OpenJDK 17、antiword、Playwright（WebKit）与 `grpc_health_probe`，不含 PaddleOCR；以非 root 运行。支持 `APT_MIRROR`、`PIP_INDEX_URL` 构建参数 |
 | `collab/Dockerfile` | `magicyuan876/yuheng-collab` | 在线文档协同服务（Node 24），构建上下文是仓库根目录（要打包 `packages/docs-schema`） |
 | `docker/Dockerfile.odl-hybrid` | `yuheng-odl-hybrid:local` | 安装 `opendataloader-pdf[hybrid]`（Docling），监听 5002，默认 `--no-ocr` |
@@ -246,15 +246,15 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 | --- | --- |
 | `make build-images*` / `clean-images` | 从源码构建 / 清理镜像 |
 | `make dev-*` | 开发模式（见上文） |
-| `make start-all` / `stop-all` | 调 `scripts/start_all.sh` 启停（含 Ollama 检查）。不带参数时它会先拉取镜像，本版本拉不到；要在本机构建请直接运行 `./scripts/start_all.sh --no-pull` |
+| `make start-all` / `stop-all` | 调 `scripts/start_all.sh` 启停（含 Ollama 检查）。启动时总是在本机构建 Yuheng 自身的镜像（`docker compose up --build`） |
 | `make docker-run` / `docker-stop` / `docker-restart` | 以前台方式运行 `docker-compose up` / `down` / `restart`（需要 v1 的 `docker-compose` 命令；`.env` 不存在时自动从 `.env.example` 复制） |
 | `make check-env` / `list-containers` / `show-platform` | 环境检查 / 容器列表 / 构建平台（自动识别 amd64 / arm64） |
 | `make migrate-up` / `migrate-down` / `migrate-version` / `migrate-create name=x` / `migrate-force version=n` / `migrate-goto version=n` | 手工管理数据库迁移（`scripts/migrate.sh`）；平时不需要，app 启动时自动迁移（`AUTO_MIGRATE=true`） |
 | `make build` / `run` / `build-prod` | 本地编译运行 `cmd/server`（`build-prod` 需要 CGO，注入版本号） |
 | `make docs` / `install-swagger` | 生成 Swagger 文档（`GIN_MODE=debug` 时在 `http://localhost:8080/swagger/index.html` 查看） |
-| `make clean-db` | 删除 postgres、rustfs 数据卷（危险操作；按 `yuheng_` 项目前缀匹配卷名） |
+| `make clean-db` | 删除 postgres、rustfs、redis 数据卷（危险操作；先 `docker compose down`。项目名向 `docker compose` 查询，目录不叫 `yuheng` 或设了 `COMPOSE_PROJECT_NAME` 也能找对卷） |
 
-`make pull-images` 会去拉取镜像，本版本没有可拉取的镜像。
+`make pull-images` 只拉取第三方镜像（postgres、redis 等）；Yuheng 自身的镜像不发布，带 `build` 的服务会被跳过。
 
 ## 六、scripts/ 部署脚本
 
@@ -263,7 +263,7 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 | `scripts/deploy.sh`（`deploy_us.sh` / `deploy_cn.sh`） | 一键源码部署，见第二节 |
 | `scripts/build_frontend_dist.sh` | 构建前端静态产物 `frontend/dist`（frontend 镜像的前置步骤） |
 | `scripts/build_images.sh` | 构建镜像并注入版本（git tag / commit / 构建时间），参数 `--app` / `--docreader` / `--frontend` / `--collab` / `--clean` |
-| `scripts/start_all.sh` | 启停脚本：`-o`（仅 Ollama）、`-d`（仅 Docker）、`-a`（全部，默认）、`-s`（停止）、`-c`（检查环境）、`-l`（列容器）、`-r <容器>`（重建并重启单个容器）、`-p`（拉镜像）、`--no-pull`（本机构建并启动） |
+| `scripts/start_all.sh` | 启停脚本：`-o`（仅 Ollama）、`-d`（仅 Docker）、`-a`（全部，默认）、`-s`（停止）、`-c`（检查环境）、`-l`（列容器）、`-r <容器>`（重建并重启单个容器）、`-p`（只拉第三方镜像后退出）；启动总是在本机构建 |
 | `scripts/dev.sh` | 开发环境编排，子命令 `start` / `stop` / `restart` / `logs` / `status` / `app` / `frontend` |
 | `scripts/check-env.sh` | 校验 `.env` 必填变量与 Go / npm / Docker 工具链 |
 | `scripts/migrate.sh` | golang-migrate 封装（`version`、`force` 等，排障用） |
@@ -274,11 +274,13 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 
 `helm/Chart.yaml`：chart 名 `yuheng`，`appVersion` 为 `v0.1.0`，要求 Kubernetes >= 1.25.0。
 
-Chart 包含 `app`、`frontend`、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`，可选启用 `neo4j`、在线文档（`docs.enabled`）与协同服务（`collab.enabled`）。本版本不发布镜像，请自行构建、推到自己的仓库，并覆盖各组件的 `image.repository` / `image.tag`。
+Chart 包含 `app`、`frontend`、`docreader`、`postgresql`（ParadeDB 镜像）、`redis`，可选启用 `neo4j`、在线文档（`docs.enabled`）与协同服务（`collab.enabled`）。本版本不发布镜像，请自行构建、推到自己的仓库，再用 `global.imageRegistry` 告诉 chart 去哪里拉（`<仓库>/yuheng-app` 等，标签默认 `appVersion`；单个组件可用 `image.repository` / `image.tag` 覆盖）。不设时 `helm install` / `helm template` 直接报错，而不是装出一堆拉不到镜像的 Pod。构建与推送步骤见 `helm/README.md` 的「Images」。
 
 `helm/values.yaml` 关键配置：
 
 ```yaml
+global:
+  imageRegistry: ""                 # 必填：Yuheng 自身镜像所在的仓库路径
 app:
   replicaCount: 1
   env:
@@ -308,13 +310,14 @@ secrets:                            # 或用 existingSecret 引用已有 Secret
 
 ```bash
 helm install yuheng ./helm -n yuheng --create-namespace \
+  --set global.imageRegistry=registry.example.com/yuheng \
   --set secrets.dbPassword=xxx --set secrets.redisPassword=xxx \
   --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16)
 ```
 
 `systemAesKey` 建议显式设置：留空时生成的随机值保存在 chart 创建的 Secret 里，一旦这个 Secret 被删除重建，旧数据就再也解不开。app 的 `startupProbe` 与 `livenessProbe` 指向 `/health`，`readinessProbe` 指向 `/ready`。
 
-注意 chart 里 ParadeDB 的默认镜像标签（`postgresql.image.tag`）与 `docker-compose.yml` 不同，部署前核对并按需统一。
+chart 的 ParadeDB 镜像（`postgresql.image.tag`）与 `docker-compose.yml` 一致，都是 `v0.22.2-pg17`。从旧 chart（`v0.18.9-pg17`）升级时要在数据库里执行一次 `ALTER EXTENSION pg_search UPDATE;`，见 `helm/README.md` 的「Upgrading」。
 
 ## 八、源码编译运行
 

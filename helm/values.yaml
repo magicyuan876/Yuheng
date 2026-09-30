@@ -16,6 +16,15 @@ global:
   # Set to "-" to use cluster default, or specify a storage class name
   storageClass: ""
 
+  # -- Registry and path holding Yuheng's own images. **Required** (unless
+  # every enabled component sets its own image.repository): Yuheng publishes
+  # no images, so there is nothing to pull until you build them and push them
+  # somewhere. The chart pulls <imageRegistry>/yuheng-app, /yuheng-ui,
+  # /yuheng-docreader and /yuheng-collab, tagged Chart.appVersion unless a
+  # component's image.tag says otherwise, and refuses to render without it.
+  # See "Images" in README.md. Example: registry.example.com/yuheng
+  imageRegistry: ""
+
   # -- Image pull secrets for private registries
   # @default -- []
   imagePullSecrets: []
@@ -59,9 +68,9 @@ app:
   replicaCount: 1
 
   image:
-    # -- Image repository
-    repository: magicyuan876/yuheng-app
-    # -- Image tag (defaults to Chart.appVersion if empty)
+    # -- Image repository (default: <global.imageRegistry>/yuheng-app)
+    repository: ""
+    # -- Image tag (default: Chart.appVersion)
     tag: ""
     # -- Image pull policy
     pullPolicy: IfNotPresent
@@ -170,10 +179,10 @@ frontend:
   replicaCount: 1
 
   image:
-    # -- Image repository
-    repository: magicyuan876/yuheng-ui
-    # -- Image tag
-    tag: latest
+    # -- Image repository (default: <global.imageRegistry>/yuheng-ui)
+    repository: ""
+    # -- Image tag (default: Chart.appVersion)
+    tag: ""
     # -- Image pull policy
     pullPolicy: IfNotPresent
 
@@ -217,10 +226,10 @@ docreader:
   replicaCount: 1
 
   image:
-    # -- Image repository
-    repository: magicyuan876/yuheng-docreader
-    # -- Image tag
-    tag: latest
+    # -- Image repository (default: <global.imageRegistry>/yuheng-docreader)
+    repository: ""
+    # -- Image tag (default: Chart.appVersion)
+    tag: ""
     # -- Image pull policy
     pullPolicy: IfNotPresent
 
@@ -300,10 +309,10 @@ collab:
   replicaCount: 1
 
   image:
-    # -- Image repository
-    repository: magicyuan876/yuheng-collab
-    # -- Image tag
-    tag: latest
+    # -- Image repository (default: <global.imageRegistry>/yuheng-collab)
+    repository: ""
+    # -- Image tag (default: Chart.appVersion)
+    tag: ""
     # -- Image pull policy
     pullPolicy: IfNotPresent
 
@@ -365,8 +374,11 @@ postgresql:
   image:
     # -- Image repository (ParadeDB for vector search)
     repository: paradedb/paradedb
-    # -- Image tag
-    tag: v0.18.9-pg17
+    # -- Image tag. Keep it equal to docker-compose.yml and to the image the
+    # Go tests run the schema against (internal/testutil/pgtest); a ParadeDB
+    # upgrade on an existing volume needs `ALTER EXTENSION pg_search UPDATE`,
+    # see "Upgrading" in README.md.
+    tag: v0.22.2-pg17
 
   # -- Resource requests and limits
   resources:

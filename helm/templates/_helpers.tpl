@@ -105,33 +105,45 @@ Secret name - supports existing secret
 {{- end }}
 
 {{/*
-Return the app image with tag.
-Defaults to Chart.appVersion if tag is not specified.
+Return one of Yuheng's own images (app, frontend, docreader, collab).
+
+Yuheng publishes no images, so there is no default that could be pulled: the
+repository is <component>.image.repository when set, otherwise
+<global.imageRegistry>/<name>, and rendering fails with instructions when
+neither is set. Failing at `helm install` is the point — the alternative was a
+chart that installed cleanly and then sat in ImagePullBackOff pointing at a
+registry that has nothing in it. The tag defaults to Chart.appVersion, never to
+a moving `latest`.
+
+Usage: {{ include "yuheng.ownImage" (dict "root" . "component" "app" "name" "yuheng-app" "image" .Values.app.image) }}
 */}}
+{{- define "yuheng.ownImage" -}}
+{{- $root := .root }}
+{{- $repository := .image.repository }}
+{{- if not $repository }}
+{{- $registry := $root.Values.global.imageRegistry | default "" | trimSuffix "/" }}
+{{- if not $registry }}
+{{- fail (printf "set global.imageRegistry (or %s.image.repository): Yuheng publishes no container images, so build them from source and push them to a registry this cluster can pull from; see \"Images\" in helm/README.md" .component) }}
+{{- end }}
+{{- $repository = printf "%s/%s" $registry .name }}
+{{- end }}
+{{- printf "%s:%s" $repository (.image.tag | default $root.Chart.AppVersion) }}
+{{- end }}
+
 {{- define "yuheng.app.image" -}}
-{{- $tag := default .Chart.AppVersion .Values.app.image.tag }}
-{{- printf "%s:%s" .Values.app.image.repository $tag }}
+{{- include "yuheng.ownImage" (dict "root" . "component" "app" "name" "yuheng-app" "image" .Values.app.image) }}
 {{- end }}
 
-{{/*
-Return the frontend image with tag.
-*/}}
 {{- define "yuheng.frontend.image" -}}
-{{- printf "%s:%s" .Values.frontend.image.repository .Values.frontend.image.tag }}
+{{- include "yuheng.ownImage" (dict "root" . "component" "frontend" "name" "yuheng-ui" "image" .Values.frontend.image) }}
 {{- end }}
 
-{{/*
-Return the docreader image with tag.
-*/}}
 {{- define "yuheng.docreader.image" -}}
-{{- printf "%s:%s" .Values.docreader.image.repository .Values.docreader.image.tag }}
+{{- include "yuheng.ownImage" (dict "root" . "component" "docreader" "name" "yuheng-docreader" "image" .Values.docreader.image) }}
 {{- end }}
 
-{{/*
-Return the collaboration service image with tag.
-*/}}
 {{- define "yuheng.collab.image" -}}
-{{- printf "%s:%s" .Values.collab.image.repository .Values.collab.image.tag }}
+{{- include "yuheng.ownImage" (dict "root" . "component" "collab" "name" "yuheng-collab" "image" .Values.collab.image) }}
 {{- end }}
 
 {{/*

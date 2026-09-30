@@ -229,7 +229,7 @@ For the development workflow, tests and code conventions see the [development gu
 
 | Dockerfile | Image | Notes |
 | --- | --- | --- |
-| `docker/Dockerfile.app` | `magicyuan876/yuheng-app` | Two stages: compile in `golang:1.26-bookworm` (`make build-prod`; `WITH_ANYDOC=1` by default links the in-process anydoc parser, which needs a Rust toolchain, and `WITH_ANYDOC=0` skips it; injects version info; pre-downloads the DuckDB extensions), then a `debian:12.12-slim` runtime layer (with the `migrate` tool, ffmpeg, gosu and more). The entry point `scripts/docker-entrypoint.sh` fixes mount ownership and runs `./Yuheng` as `appuser`. Database migrations are embedded in the binary and run at start-up. |
+| `docker/Dockerfile.app` | `magicyuan876/yuheng-app` | Two stages: compile in `golang:1.26-bookworm` (`make build-prod`; `WITH_ANYDOC=1` by default links the in-process anydoc parser, which needs a Rust toolchain, and `WITH_ANYDOC=0` skips it; injects version info; pre-downloads the DuckDB extensions), then a `debian:12.12-slim` runtime layer (only what the running container uses: the `migrate` tool at the server's own golang-migrate version, gosu, curl for the healthcheck, tzdata and psql). The entry point `scripts/docker-entrypoint.sh` fixes mount ownership and runs `./Yuheng` as `appuser`. Database migrations are embedded in the binary and run at start-up. |
 | `docker/Dockerfile.docreader` | `magicyuan876/yuheng-docreader` | Python 3.10 with locked uv dependencies; the runtime layer installs LibreOffice, OpenJDK 17, antiword, Playwright (WebKit) and `grpc_health_probe`, without PaddleOCR; runs as non-root. Supports `APT_MIRROR` and `PIP_INDEX_URL` build arguments. |
 | `collab/Dockerfile` | `magicyuan876/yuheng-collab` | The online-documents collaboration service (Node 24). The build context is the repository root, because it bundles `packages/docs-schema`. |
 | `docker/Dockerfile.odl-hybrid` | `yuheng-odl-hybrid:local` | Installs `opendataloader-pdf[hybrid]` (Docling), listens on 5002, `--no-ocr` by default. |
@@ -249,15 +249,15 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 | --- | --- |
 | `make build-images*` / `clean-images` | Build / remove images from source |
 | `make dev-*` | Development mode (see above) |
-| `make start-all` / `stop-all` | Start or stop through `scripts/start_all.sh` (with an Ollama check). Without arguments it pulls images first, which this release cannot do; to build locally run `./scripts/start_all.sh --no-pull` directly |
+| `make start-all` / `stop-all` | Start or stop through `scripts/start_all.sh` (with an Ollama check). Starting always builds Yuheng's own images locally (`docker compose up --build`) |
 | `make docker-run` / `docker-stop` / `docker-restart` | Run `docker-compose up` / `down` / `restart` in the foreground (needs the v1 `docker-compose` command; copies `.env.example` to `.env` if `.env` is missing) |
 | `make check-env` / `list-containers` / `show-platform` | Environment check / list containers / build platform (amd64 or arm64, detected automatically) |
 | `make migrate-up` / `migrate-down` / `migrate-version` / `migrate-create name=x` / `migrate-force version=n` / `migrate-goto version=n` | Manage database migrations by hand (`scripts/migrate.sh`); normally not needed, because app migrates at start-up (`AUTO_MIGRATE=true`) |
 | `make build` / `run` / `build-prod` | Build and run `cmd/server` locally (`build-prod` needs CGO and injects the version) |
 | `make docs` / `install-swagger` | Generate the Swagger docs (served at `http://localhost:8080/swagger/index.html` when `GIN_MODE=debug`) |
-| `make clean-db` | Delete the postgres and rustfs data volumes (dangerous; matches volume names by the `yuheng_` project prefix) |
+| `make clean-db` | Delete the postgres, rustfs and redis data volumes (dangerous; `docker compose down` first. The project name is asked of `docker compose`, so it finds the right volumes when the checkout is not called `yuheng` or `COMPOSE_PROJECT_NAME` is set) |
 
-`make pull-images` tries to pull images, and this release has none to pull.
+`make pull-images` pulls only the third-party images (postgres, redis and so on); Yuheng's own images are not published, so the services that have a `build` section are skipped.
 
 ## 6. Deployment scripts in scripts/
 
@@ -266,7 +266,7 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 | `scripts/deploy.sh` (`deploy_us.sh` / `deploy_cn.sh`) | One-command deploy from source; see section 2 |
 | `scripts/build_frontend_dist.sh` | Builds the static frontend assets in `frontend/dist` (a prerequisite of the frontend image) |
 | `scripts/build_images.sh` | Builds the images and injects the version (git tag / commit / build time); options `--app` / `--docreader` / `--frontend` / `--collab` / `--clean` |
-| `scripts/start_all.sh` | Start/stop script: `-o` (Ollama only), `-d` (Docker only), `-a` (all, default), `-s` (stop), `-c` (check environment), `-l` (list containers), `-r <container>` (rebuild and restart one container), `-p` (pull images), `--no-pull` (build locally and start) |
+| `scripts/start_all.sh` | Start/stop script: `-o` (Ollama only), `-d` (Docker only), `-a` (all, default), `-s` (stop), `-c` (check environment), `-l` (list containers), `-r <container>` (rebuild and restart one container), `-p` (pull the third-party images only, then exit); starting always builds locally |
 | `scripts/dev.sh` | Development orchestration; subcommands `start` / `stop` / `restart` / `logs` / `status` / `app` / `frontend` |
 | `scripts/check-env.sh` | Validates the required `.env` variables and the Go / npm / Docker toolchain |
 | `scripts/migrate.sh` | A wrapper around golang-migrate (`version`, `force` and so on, for troubleshooting) |
@@ -277,11 +277,13 @@ make docker-build-app / docker-build-docreader / docker-build-frontend
 
 `helm/Chart.yaml`: chart name `yuheng`, `appVersion` `v0.1.0`, Kubernetes >= 1.25.0 required.
 
-The chart has `app`, `frontend`, `docreader`, `postgresql` (the ParadeDB image) and `redis`, and can optionally enable `neo4j`, online documents (`docs.enabled`) and the collaboration service (`collab.enabled`). Because this release publishes no images, build them yourself, push them to your own registry, and override each component's `image.repository` / `image.tag`.
+The chart has `app`, `frontend`, `docreader`, `postgresql` (the ParadeDB image) and `redis`, and can optionally enable `neo4j`, online documents (`docs.enabled`) and the collaboration service (`collab.enabled`). Because this release publishes no images, build them yourself, push them to your own registry, and tell the chart where they are with `global.imageRegistry` (it pulls `<registry>/yuheng-app` and so on, tagged `appVersion`; one component's `image.repository` / `image.tag` override that). Left unset, `helm install` / `helm template` fail with an error instead of installing pods that can never pull. The build-and-push steps are under "Images" in `helm/README.md`.
 
 Key settings in `helm/values.yaml`:
 
 ```yaml
+global:
+  imageRegistry: ""                 # required: where Yuheng's own images live
 app:
   replicaCount: 1
   env:
@@ -311,13 +313,14 @@ secrets:                            # or reference an existing Secret with exist
 
 ```bash
 helm install yuheng ./helm -n yuheng --create-namespace \
+  --set global.imageRegistry=registry.example.com/yuheng \
   --set secrets.dbPassword=xxx --set secrets.redisPassword=xxx \
   --set secrets.jwtSecret=$(openssl rand -hex 32) --set secrets.systemAesKey=$(openssl rand -hex 16)
 ```
 
 Set `systemAesKey` explicitly: a generated value lives only in the Secret the chart creates, and if that Secret is ever deleted and recreated the old data can no longer be decrypted. The app's `startupProbe` and `livenessProbe` use `/health`; its `readinessProbe` uses `/ready`.
 
-The chart's default ParadeDB image tag (`postgresql.image.tag`) differs from the one in `docker-compose.yml`; check it before deploying and align them if needed.
+The chart's ParadeDB image (`postgresql.image.tag`) is the one `docker-compose.yml` runs, `v0.22.2-pg17`. Upgrading from the older chart (`v0.18.9-pg17`) needs one `ALTER EXTENSION pg_search UPDATE;` in the database; see "Upgrading" in `helm/README.md`.
 
 ## 8. Running from source
 

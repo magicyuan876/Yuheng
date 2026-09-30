@@ -16,7 +16,7 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 VERSION="1.0.1" # 版本更新
 SCRIPT_NAME=$(basename "$0")
 
-# 显示帮助信息
+# 显示帮助信息；参数是退出码（-h 为 0，未知选项为 1）
 show_help() {
     printf "%b\n" "${GREEN}Yuheng 启动脚本 v${VERSION}${NC}"
     printf "%b\n" "${GREEN}用法:${NC} $0 [选项]"
@@ -29,10 +29,12 @@ show_help() {
     echo "  -c, --check    检查环境并诊断问题"
     echo "  -r, --restart  重新构建并重启指定容器"
     echo "  -l, --list     列出所有正在运行的容器"
-    echo "  -p, --pull     先拉取Docker镜像（当前版本不发布镜像，通常不需要）"
-    echo "  --no-pull      启动时不拉取镜像，在本机构建（默认；当前版本不发布镜像）"
+    echo "  -p, --pull     只拉取第三方镜像（postgres、redis 等）然后退出；"
+    echo "                 Yuheng 自身的镜像不发布，带 build 的服务跳过"
     echo "  -v, --version  显示版本信息"
-    exit 0
+    echo ""
+    echo "启动 Docker 服务时总是在本机构建 Yuheng 自身的镜像（docker compose up --build）。"
+    exit "${1:-0}"
 }
 
 # 显示版本信息
@@ -334,16 +336,11 @@ start_docker() {
     
     # 启动基本服务
     log_info "启动核心服务容器..."
-	# 统一通过已检测到的 Compose 命令启动
-	if [ "$NO_PULL" = true ]; then
-		# 不拉取镜像，使用本地镜像
-		log_info "跳过镜像拉取，使用本地镜像..."
-		PLATFORM=$PLATFORM "$DOCKER_COMPOSE_BIN" $DOCKER_COMPOSE_SUBCMD up --build -d
-	else
-		# 拉取最新镜像
-		log_info "拉取最新镜像..."
-		PLATFORM=$PLATFORM "$DOCKER_COMPOSE_BIN" $DOCKER_COMPOSE_SUBCMD up --pull always -d
-	fi
+	# Yuheng 不发布自己的镜像（app、frontend、docreader 等只能在本机构建），
+	# 所以启动总是 --build：改过源码就重建，没改则命中构建缓存。第三方镜像
+	# 缺失时 compose 会自行拉取。
+	log_info "在本机构建 Yuheng 镜像并启动..."
+	PLATFORM=$PLATFORM "$DOCKER_COMPOSE_BIN" $DOCKER_COMPOSE_SUBCMD up --build -d
     if [ $? -ne 0 ]; then
         log_error "Docker容器启动失败"
         return 1
@@ -403,9 +400,10 @@ list_containers() {
     return 0
 }
 
-# 拉取最新的Docker镜像
+# 拉取第三方镜像。Yuheng 自身的镜像不发布，compose 里带 build 的服务要跳过，
+# 否则 pull 会因为拉不到 magicyuan876/yuheng-* 而整体失败。
 pull_images() {
-    log_info "正在拉取最新的Docker镜像..."
+    log_info "正在拉取第三方Docker镜像..."
     
     # 检查Docker环境
     check_docker
@@ -425,15 +423,18 @@ pull_images() {
     # 进入项目根目录再执行docker-compose命令
     cd "$PROJECT_ROOT"
     
-    # 拉取所有镜像
-    log_info "拉取所有服务的最新镜像..."
-	PLATFORM=$PLATFORM "$DOCKER_COMPOSE_BIN" $DOCKER_COMPOSE_SUBCMD pull
+	# Compose v2 能直接跳过带 build 的服务；v1 没有这个选项，只能忽略拉取失败。
+	local skip_buildable="--ignore-buildable"
+	if [ "$DOCKER_COMPOSE_BIN" = "docker-compose" ]; then
+		skip_buildable="--ignore-pull-failures"
+	fi
+	PLATFORM=$PLATFORM "$DOCKER_COMPOSE_BIN" $DOCKER_COMPOSE_SUBCMD pull $skip_buildable
     if [ $? -ne 0 ]; then
         log_error "镜像拉取失败"
         return 1
     fi
 
-    log_success "所有镜像已成功拉取到最新版本"
+    log_success "第三方镜像已拉取到最新版本"
     
     # 显示拉取的镜像信息
     log_info "已拉取的镜像:"
@@ -573,7 +574,6 @@ CHECK_ENVIRONMENT=false
 LIST_CONTAINERS=false
 RESTART_CONTAINER=false
 PULL_IMAGES=false
-NO_PULL=true
 CONTAINER_NAME=""
 
 # 没有参数时默认启动所有服务
@@ -584,7 +584,7 @@ fi
 
 while [ "$1" != "" ]; do
     case $1 in
-        -h | --help )       show_help
+        -h | --help )       show_help 0
                             ;;
         -o | --ollama )     START_OLLAMA=true
                             ;;
@@ -601,10 +601,6 @@ while [ "$1" != "" ]; do
                             ;;
         -p | --pull )       PULL_IMAGES=true
                             ;;
-        --no-pull )         NO_PULL=true
-                            START_OLLAMA=true
-                            START_DOCKER=true
-                            ;;
         -r | --restart )    RESTART_CONTAINER=true
                             CONTAINER_NAME="$2"
                             shift
@@ -612,7 +608,7 @@ while [ "$1" != "" ]; do
         -v | --version )    show_version
                             ;;
         * )                 log_error "未知选项: $1"
-                            show_help
+                            show_help 1
                             ;;
     esac
     shift

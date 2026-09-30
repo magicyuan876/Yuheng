@@ -20,6 +20,29 @@ DB_USER=${DB_USER:-postgres}
 DB_PASSWORD=${DB_PASSWORD:-postgres}
 DB_NAME=${DB_NAME:-Yuheng}
 
+# Percent-encode one URL component (RFC 3986 unreserved characters pass
+# through). Plain bash on purpose: this script runs inside the app image, which
+# carries no Python. It used to shell out to python3 with the password pasted
+# into the Python source, so a quote in the password broke the command, and
+# without python3 it fell back to the raw password, which breaks on any of
+# @ : / ? #. LC_ALL=C makes it walk bytes, so UTF-8 is encoded byte by byte;
+# the mask undoes the sign extension older bash (macOS 3.2) applies above 0x7F.
+urlencode() {
+    local LC_ALL=C s="$1" out="" c n hex i
+    for ((i = 0; i < ${#s}; i++)); do
+        c="${s:i:1}"
+        case "$c" in
+            [a-zA-Z0-9.~_-]) out+="$c" ;;
+            *)
+                printf -v n '%d' "'$c"
+                printf -v hex '%%%02X' $((n & 255))
+                out+="$hex"
+                ;;
+        esac
+    done
+    printf '%s' "$out"
+}
+
 # Use versioned migrations directory
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-migrations/versioned}"
 
@@ -48,24 +71,16 @@ if [ -n "$DB_URL" ]; then
         DB_URL="${DB_URL//sslmode=prefer/sslmode=disable}"
     fi
 else
-    # Use Python to properly URL encode password if it contains special characters
-    # This handles special characters in passwords correctly
-    if command -v python3 &> /dev/null; then
-        ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASSWORD', safe=''))")
-    else
-        # Fallback: try to use printf for basic encoding (may not work for all special chars)
-        ENCODED_PASSWORD="$DB_PASSWORD"
-    fi
-    DB_URL="postgres://${DB_USER}:${ENCODED_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+    DB_URL="postgres://$(urlencode "$DB_USER"):$(urlencode "$DB_PASSWORD")@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 fi
 
 # Execute migration based on command
 case "$1" in
     up)
+        # DB_URL and DB_PASSWORD are not echoed: both carry the password, and
+        # this runs in container logs and CI output.
         echo "Running migrations up..."
-        echo "DB_URL: ${DB_URL}"
         echo "DB_USER: ${DB_USER}"
-        echo "DB_PASSWORD: ${DB_PASSWORD}"
         echo "DB_HOST: ${DB_HOST}"
         echo "DB_PORT: ${DB_PORT}"
         echo "DB_NAME: ${DB_NAME}"

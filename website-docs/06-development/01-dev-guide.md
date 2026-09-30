@@ -111,10 +111,11 @@ make dev-restart  # 重启
 ### 2.4 本地单独跑 docreader
 
 ```bash
-cd docreader
-uv sync                       # 按 uv.lock 安装依赖
-uv run -m docreader.main      # 启动 gRPC 服务，监听 DOCREADER_GRPC_PORT（默认 50051）
+make -C docreader run         # 在仓库根目录执行；按 uv.lock 装依赖后启动 gRPC 服务，监听 DOCREADER_GRPC_PORT（默认 50051）
+make -C docreader proto       # 改了 docreader/proto/docreader.proto 后重新生成 pb 代码
 ```
+
+服务把自己当作 `docreader` 包导入，所以 Python 必须从仓库根目录（`docreader/` 的上一级）启动，和镜像里 `/app/docreader` 的布局一致；在 `docreader/` 里直接 `uv run -m docreader.main` 会报 `No module named 'docreader'`。Makefile 替你切到根目录并用 `--project docreader` 指向 uv 项目。
 
 docreader 的调优参数（PDF 渲染 DPI、扫描件判定、SSRF 白名单、gRPC TLS 等）以 `DOCREADER_*` 环境变量注入，完整清单见 `docker-compose.dev.yml` 的 `docreader.environment` 段。
 
@@ -146,7 +147,7 @@ docreader 的调优参数（PDF 渲染 DPI、扫描件判定、SSRF 白名单、
 | `docker-run` / `docker-stop` / `docker-restart` | 确保 `.env` 存在后 `docker compose up` / `down` / 重启 |
 | `start-all` / `stop-all` / `start-ollama` / `start-docker` / `check-env` / `list-containers` / `pull-images` | `scripts/start_all.sh` 的各个子命令 |
 | `show-platform` | 显示 `uname -m` 与 Docker 构建平台 |
-| `clean-db` | 删除 `yuheng_postgres-data` / `yuheng_rustfs_data` / `yuheng_redis_data` 三个 volume（**清空数据**） |
+| `clean-db` | 删除 compose 里 `postgres-data` / `rustfs_data` / `redis-data` 三个 volume（**清空数据**；项目名向 `docker compose` 查询，不写死 `yuheng_` 前缀；需先 `docker compose down`） |
 
 ### 3.3 数据库迁移（详见《数据库与迁移》）
 
