@@ -2545,6 +2545,21 @@ definitions:
           workspace. Empty removes the owner.
         type: string
     type: object
+  github_com_magicyuan876_yuheng_internal_types.SetMessageFeedbackRequest:
+    properties:
+      comment:
+        description: |-
+          Comment says what was wrong. It is shown in the knowledge health of
+          the documents the answer cites, to whoever can read their knowledge
+          base.
+        type: string
+      rating:
+        description: Rating is "up", "down", or empty to take the feedback back.
+        type: string
+      share_question:
+        description: ShareQuestion attaches the question to what is shown.
+        type: boolean
+    type: object
   github_com_magicyuan876_yuheng_internal_types.ShareKnowledgeBaseRequest:
     properties:
       organization_id:
@@ -14751,6 +14766,32 @@ paths:
       summary: 更新会话
       tags:
       - 会话
+  /sessions/{id}/feedback:
+    get:
+      description: 当前用户对该会话各条回答的反馈（有帮助 / 没帮助及意见），以消息 ID 为键
+      parameters:
+      - description: 会话 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {message_id: feedback}'
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 我对会话中回答的反馈
+      tags:
+      - 会话
   /sessions/{id}/messages:
     delete:
       consumes:
@@ -14782,6 +14823,55 @@ paths:
       - Bearer: []
       - ApiKeyAuth: []
       summary: 清空会话消息
+      tags:
+      - 会话
+  /sessions/{id}/messages/{message_id}/feedback:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        rating=up（有帮助）/ down（没帮助）/ 空（撤回）。“没帮助”会以“回答被反馈有误”出现在回答所引用文档的知识健康里，
+        交给文档负责人，知识库成员可见：显示意见和回答开头，share_question=true 时附上提问。只对本空间的文档生效。需要登录用户
+      parameters:
+      - description: 会话 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 回答的消息 ID
+        in: path
+        name: message_id
+        required: true
+        type: string
+      - description: 评价
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SetMessageFeedbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: 反馈，撤回时为 null'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 评价一条回答
       tags:
       - 会话
   /sessions/{id}/pin:

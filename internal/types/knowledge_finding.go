@@ -218,11 +218,14 @@ type KnowledgeFindingView struct {
 	Subject         KnowledgeRef      `json:"subject"`
 	Related         *KnowledgeRef     `json:"related"`
 	Evidence        []FindingEvidence `json:"evidence"`
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
-	ResolvedAt      *time.Time        `json:"resolved_at"`
-	ResolvedBy      *string           `json:"resolved_by"`
-	Resolution      *string           `json:"resolution"`
+	// Extra is what a detector shows beyond passage pairs, under keys of its
+	// own: the review detector's due date, the dispute detector's reports.
+	Extra      map[string]any `json:"extra,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	ResolvedAt *time.Time     `json:"resolved_at"`
+	ResolvedBy *string        `json:"resolved_by"`
+	Resolution *string        `json:"resolution"`
 	// Assignee is who the finding is taken to; nil when nobody could be
 	// found. AssignedManually says a person chose them.
 	Assignee         *PersonRef `json:"assignee"`
@@ -247,6 +250,7 @@ func (r *KnowledgeFindingRow) View() *KnowledgeFindingView {
 		Severity: r.Severity, Status: r.Status, OverlapRatio: r.Details.OverlapRatio,
 		Subject:   KnowledgeRef{KnowledgeID: r.SubjectKnowledgeID, Title: r.SubjectTitle},
 		Evidence:  append([]FindingEvidence{}, r.Details.Evidence...),
+		Extra:     r.Details.Extra,
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy,
 		Resolution: r.Resolution, AssignedManually: r.AssignedBy != nil && *r.AssignedBy != "",
 		KnowledgeBaseName: r.KnowledgeBaseName,

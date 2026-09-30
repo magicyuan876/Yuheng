@@ -82,6 +82,21 @@ func RegisterSessionRoutes(
 	}
 }
 
+// RegisterMessageFeedbackRoutes exposes feedback on answers. Like the rest of
+// a session, it is its owner's: Viewer+ keeps non-members out, and the
+// service checks the session is the caller's. Wildcard names follow the
+// session routes' trees (GET and PUT use :id).
+func RegisterMessageFeedbackRoutes(r *gin.RouterGroup, h *handler.MessageFeedbackHandler, g *rbacGuards) {
+	if h == nil {
+		return
+	}
+	feedback := g.apiKeyGroup(r.Group("/sessions", g.Viewer()), apiKeyChat(apiKeyFullAccess()))
+	{
+		feedback.GET("/:id/feedback", h.ListFeedback)
+		feedback.PUT("/:id/messages/:message_id/feedback", h.SetFeedback)
+	}
+}
+
 // RegisterChatRoutes 注册路由。Chat endpoints are tenant-member usage
 // surfaces; Viewer+ is sufficient because per-session authorisation is
 // enforced inside the handlers.

@@ -143,6 +143,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(repository.NewTaskDeadLetterRepository))
 	must(container.Provide(repository.NewKnowledgeFindingRepository))
 	must(container.Provide(repository.NewKnowledgeStewardshipRepository))
+	must(container.Provide(repository.NewMessageFeedbackRepository))
 
 	// Business service layer
 	logger.Debugf(ctx, "[Container] Registering business services...")
@@ -183,6 +184,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(findings.NewFinderResolver))
 	must(container.Provide(newDuplicateDetector, dig.Group(findings.DetectorGroup)))
 	must(container.Provide(newReviewDetector, dig.Group(findings.DetectorGroup)))
+	must(container.Provide(newDisputeDetector, dig.Group(findings.DetectorGroup)))
 	must(container.Provide(newReviewSweep))
 	must(container.Provide(findings.NewRunnerFromContainer))
 	must(container.Provide(findings.NewTrigger, dig.As(new(interfaces.KnowledgeFindingsTrigger))))
@@ -190,6 +192,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(service.NewKnowledgeRetirers))
 	must(container.Provide(service.NewKnowledgeFindingService))
 	must(container.Provide(service.NewKnowledgeStewardshipService))
+	must(container.Provide(service.NewMessageFeedbackService))
 
 	must(container.Provide(service.NewMessageService))
 	must(container.Provide(service.NewMessageSuggestionService))
@@ -339,6 +342,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(handler.NewWikiPageHandler))
 	must(container.Provide(handler.NewKnowledgeFindingHandler))
 	must(container.Provide(handler.NewKnowledgeStewardshipHandler))
+	must(container.Provide(handler.NewMessageFeedbackHandler))
 	logger.Debugf(ctx, "[Container] HTTP handlers registered")
 
 	// Wire the chat package's local image resolver so multimodal chat can read

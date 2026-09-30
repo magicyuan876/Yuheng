@@ -39,6 +39,8 @@ type PageFindingView struct {
 	// Assignee is who the finding is taken to, nil when nobody could be
 	// found.
 	Assignee *types.PersonRef `json:"assignee"`
+	// Extra carries a detector's own details (a due date, disputes).
+	Extra map[string]any `json:"extra,omitempty"`
 }
 
 // PageFindingsView answers GET /docs/pages/{pid}/findings.
@@ -104,7 +106,7 @@ func (s *PageService) Findings(ctx context.Context, actor *acl.Identity, d acl.D
 	for _, f := range findings {
 		view := &PageFindingView{
 			ID: f.ID, Type: f.Type, Severity: f.Severity, Score: f.Score, OverlapRatio: f.OverlapRatio,
-			Evidence: append([]types.FindingEvidence{}, f.Evidence...), Assignee: f.Assignee,
+			Evidence: append([]types.FindingEvidence{}, f.Evidence...), Assignee: f.Assignee, Extra: f.Extra,
 		}
 		if f.Related != nil {
 			other, ok := byKnowledge[f.Related.KnowledgeID]

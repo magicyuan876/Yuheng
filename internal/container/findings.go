@@ -29,6 +29,15 @@ func newReviewDetector(stewards interfaces.KnowledgeStewardshipRepository) findi
 	return findings.NewReviewDetector(stewards)
 }
 
+// newDisputeDetector provides the detector that turns down-voted answers into
+// disputes of the documents they cite.
+func newDisputeDetector(
+	feedback interfaces.MessageFeedbackRepository,
+	stewards interfaces.KnowledgeStewardshipRepository,
+) findings.Detector {
+	return findings.NewDisputeDetector(feedback, stewards)
+}
+
 // newReviewSweep builds the sweep that schedules the review checks nobody's
 // action would. It runs only when knowledge health does.
 func newReviewSweep(
