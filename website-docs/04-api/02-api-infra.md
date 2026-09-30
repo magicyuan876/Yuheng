@@ -1,53 +1,30 @@
 # API 参考：基础设施与数据源
 
-路由注册：`internal/router/router.go` 的 `RegisterVectorStoreRoutes`、`RegisterStorageBackendRoutes`、`RegisterWebSearchRoutes`、`RegisterWebSearchProviderRoutes`、`RegisterDataSourceRoutes`。Handler：`internal/handler/vectorstore.go`、`internal/handler/storagebackend.go`、`internal/handler/web_search.go`、`internal/handler/web_search_provider.go`、`internal/handler/web_search_provider_credentials.go`、`internal/handler/datasource.go`、`internal/handler/datasource_credentials.go`。
+路由注册：`internal/router/routes_infra.go` 的 `RegisterVectorStoreRoutes`、`RegisterStorageBackendRoutes`、`RegisterWebSearchRoutes`、`RegisterWebSearchProviderRoutes`、`RegisterDataSourceRoutes`。Handler：`internal/handler/vectorstore.go`、`internal/handler/storagebackend.go`、`internal/handler/web_search.go`、`internal/handler/web_search_provider.go`、`internal/handler/web_search_provider_credentials.go`、`internal/handler/datasource.go`、`internal/handler/datasource_credentials.go`。
 
-统一约定：读 Viewer+，写/连接测试 Admin+（凭证探测外部系统）。API key capability：向量库 `manage_vector_stores`、存储后端 `manage_storage_backends`、Web 搜索 `manage_web_search`、数据源 `manage_datasources`（均可 full-access）。
+统一约定：读 Viewer+。向量存储、存储后端、Web 搜索提供方的写操作与连接测试挂 `PlatformManaged` 守卫（`internal/router/rbac.go`）：系统设置 `governance.centralized_infra` 关闭时为 Admin+，开启后只允许系统管理员；读接口始终 Viewer+，便于在知识库编辑页选用平台资源。数据源的写操作为 Admin+。文中写作“权限：平台管理”的即指 `PlatformManaged`。API key capability：向量库 `manage_vector_stores`、存储后端 `manage_storage_backends`、Web 搜索 `manage_web_search`、数据源 `manage_datasources`（均可 full-access）。
 
 ## 向量存储（/api/v1/vector-stores）
 
+检索引擎只有 PostgreSQL 一种（ParadeDB 做关键词检索、pgvector 做向量检索），跑在应用自己的数据库里，由环境变量 `RETRIEVE_DRIVER=postgres` 启用，以虚拟 store `__env_postgres__` 的形式出现在列表中。该引擎不可注册（`internal/application/service/retriever/engine_postgres.go`：嵌入表名固定、不按 store 分区，同一台服务器上的第二个 store 隔离不了任何数据），所以当前版本 `GET /types` 返回空数组，创建和原始配置测试会被拒绝。下面的注册类接口为引擎注册表（`internal/application/service/retriever/catalog.go`）预留，供将来可注册的引擎使用。
+
+本组错误响应是 `{"success":false,"error":"..."}`（字符串，不是 `AppError` 结构）；修改或删除 env store 返回 400 `environment-configured vector stores cannot be modified via API`。
+
 ### GET /api/v1/vector-stores/types
 
-用途：可用引擎类型与配置 schema。权限：Viewer+。
+用途：可注册的引擎类型与表单字段（`type,display_name,connection_fields,index_fields`）。权限：Viewer+。
 
-响应：200 `{"success":true,"data":[类型定义]}`
+响应：200 `{"success":true,"data":[]}`（当前版本没有可注册的引擎）
 
 ```bash
 curl $BASE/api/v1/vector-stores/types -H "Authorization: Bearer $TOKEN"
-```
-
-### POST /api/v1/vector-stores/test
-
-用途：用原始配置测试连接（不落库）。权限：Admin+。
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `engine_type` | string | 是（`binding:"required"`） | 引擎类型 |
-| `connection_config` | object | 是（`binding:"required"`） | 连接配置 |
-
-响应：200 `{"success":true|false,"version":"...","error":"..."}`
-
-```bash
-curl -X POST $BASE/api/v1/vector-stores/test -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"engine_type":"example_engine","connection_config":{"addr":"store.example:1234"}}'
-```
-
-### POST /api/v1/vector-stores
-
-用途：创建向量库配置。权限：Admin+。字段：`name`（必填）、`engine_type`（必填）、`connection_config`（必填）、`index_config`（可选）。
-
-响应：201 `{"success":true,"data":{VectorStoreResponse}}`（`id,tenant_id,name,engine_type,connection_config,index_config,...`）
-
-```bash
-curl -X POST $BASE/api/v1/vector-stores -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"example-main","engine_type":"example_engine","connection_config":{"addr":"store.example:1234"}}'
 ```
 
 ### GET /api/v1/vector-stores
 
 用途：向量库列表（环境变量注入的 `__env_*` store 在前）。权限：Viewer+。
 
-响应：200 `{"success":true,"data":[VectorStoreResponse]}`
+响应：200 `{"success":true,"data":[VectorStoreResponse]}`（`id,tenant_id,name,engine_type,connection_config,index_config,is_builtin,source,readonly,created_at,updated_at`；连接配置中的凭证掩码）。`source` 为 `env` 或 `user`，env store 的 `readonly` 为 true。PostgreSQL 的 env store 形如 `{"id":"__env_postgres__","name":"PostgreSQL","engine_type":"postgres","connection_config":{"use_default_connection":true},"source":"env","readonly":true}`。平台共享的 store 对非平台管理员整段隐去 `connection_config`，只保留名称、引擎类型与状态。
 
 ```bash
 curl $BASE/api/v1/vector-stores -H "Authorization: Bearer $TOKEN"
@@ -60,39 +37,30 @@ curl $BASE/api/v1/vector-stores -H "Authorization: Bearer $TOKEN"
 响应：200 `{"success":true,"data":{VectorStoreResponse}}`
 
 ```bash
-curl $BASE/api/v1/vector-stores/vs-1 -H "Authorization: Bearer $TOKEN"
-```
-
-### PUT /api/v1/vector-stores/:id
-
-用途：更新（仅重命名；env store 不可改）。权限：Admin+。请求体：`{"name":"..."}`（`binding:"required"`）。
-
-响应：200 `{"success":true,"data":{VectorStoreResponse}}`
-
-```bash
-curl -X PUT $BASE/api/v1/vector-stores/vs-1 -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"name":"example-prod"}'
-```
-
-### DELETE /api/v1/vector-stores/:id
-
-用途：删除（env store 不可删）。权限：Admin+。
-
-响应：200 `{"success":true}`
-
-```bash
-curl -X DELETE $BASE/api/v1/vector-stores/vs-1 -H "Authorization: Bearer $TOKEN"
+curl $BASE/api/v1/vector-stores/__env_postgres__ -H "Authorization: Bearer $TOKEN"
 ```
 
 ### POST /api/v1/vector-stores/:id/test
 
-用途：测试已保存/env 向量库。权限：Admin+。
+用途：测试已保存或 env 向量库的连通性。权限：平台管理。PostgreSQL 引擎就在应用自己的数据库里，只要应用在运行即视为可达。
 
-响应：200 `{"success":true|false,"version","error"}`
+响应：200 `{"success":true,"version":"..."}`；测试失败时 HTTP 状态码仍是 200，返回 `{"success":false,"error":"..."}`。引擎报不出版本时 `version` 为空串（PostgreSQL 即如此）。
 
 ```bash
-curl -X POST $BASE/api/v1/vector-stores/vs-1/test -H "Authorization: Bearer $TOKEN"
+curl -X POST $BASE/api/v1/vector-stores/__env_postgres__/test -H "Authorization: Bearer $TOKEN"
 ```
+
+### 注册类接口
+
+以下接口只对可注册的引擎生效，当前版本调用创建或原始测试会返回错误。权限均为平台管理。
+
+| 方法与路径 | 用途 | 请求体 |
+| --- | --- | --- |
+| `POST /api/v1/vector-stores/test` | 用原始配置测试连接（不落库） | `engine_type`、`connection_config`（均必填） |
+| `POST /api/v1/vector-stores` | 创建向量库配置，201 | `name`、`engine_type`、`connection_config`（必填），`index_config`（可选） |
+| `PUT /api/v1/vector-stores/:id` | 仅重命名；env store 不可改 | `{"name":"..."}`（必填） |
+| `DELETE /api/v1/vector-stores/:id` | 删除；env store 不可删 | 无 |
+| `PUT /api/v1/vector-stores/:id/sharing` | 设为平台共享或取消共享（服务层限定系统管理员） | `{"shared":true}`（必填） |
 
 ## 存储后端（/api/v1/storage-backends）
 
@@ -101,13 +69,35 @@ curl -X POST $BASE/api/v1/vector-stores/vs-1/test -H "Authorization: Bearer $TOK
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是（`binding:"required"`） | 名称 |
-| `provider` | string | 是（`binding:"required"`） | 提供方（`local` 或 `s3`；S3 兼容服务的 endpoint 与 `addressing_style` 见[安装部署](../01-getting-started/02-installation.md)） |
-| `config` | object | 否 | 提供方配置（响应中凭证掩码） |
-| `status` | string | 否 | 状态 |
+| `provider` | string | 是（`binding:"required"`） | 提供方（`local` 或 `s3`，S3 协议兼容的对象存储都走 `s3`；S3 兼容服务的 endpoint 与 `addressing_style` 见[安装部署](../01-getting-started/02-installation.md)） |
+| `config` | object | 否 | 提供方配置，见下表（响应中凭证掩码） |
+| `status` | string | 否 | `active`（默认）或 `disabled` |
+
+`config` 字段：`local` 只看 `path_prefix`，其余字段属于 `s3`。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `endpoint` | string | S3 兼容服务地址，可带 `http://` / `https://`；不带协议时按 `use_ssl` 补；留空表示 AWS S3 |
+| `region` | string | 区域，`s3` 必填 |
+| `bucket_name` | string | Bucket，`s3` 必填；不存在时首次使用自动创建 |
+| `access_key_id` / `secret_access_key` | string | 必须同时提供或同时留空，同时留空走 AWS 默认凭证链；加密存储，响应中为 `***` |
+| `path_prefix` | string | 对象前缀，必须是相对路径，不能以 `/` 开头，也不能用 `..` 上跳 |
+| `use_ssl` | bool | 只在 `endpoint` 不带协议头时生效 |
+| `addressing_style` | string | `auto`（默认）/ `path` / `virtual`。`auto` 时 endpoint 为空或属于 `amazonaws.com` 用 virtual-hosted，其他 endpoint（RustFS、MinIO 等）用 path-style；阿里云 OSS、腾讯云 COS、火山引擎 TOS、华为云 OBS 不接受 path-style，必须显式设为 `virtual` |
+
+响应里的 `StorageBackend` 另有 `id`、`tenant_id`、`source`（`user`，或由 `STORAGE_TYPE`、`S3_*` 等环境变量生成的只读实例 `env`）、`legacy_alias`（env 实例为 true）、`is_builtin`（平台共享）、`created_at`、`updated_at`。env 实例每次启动按环境变量刷新，不能经 API 修改或删除。
+
+规则一览（违反时返回 400，名称冲突 409）：
+
+- 创建与更新都会先校验配置、对 `s3` 的 endpoint 做 SSRF 校验（`rustfs:9000` 这类内网地址要在 `SSRF_WHITELIST` 中放行），再实际连一次；连接失败的错误信息经过脱敏，不含内部主机名、IP、端口与 TLS 细节。同一空间内名称唯一。
+- `provider` 与决定物理位置的 `endpoint`、`region`、`bucket_name`、`path_prefix` 创建后不可改，要换位置走存储迁移；凭证可以单独轮换，更新时凭证字段传 `***` 表示保留原值。
+- 默认实例或仍有知识库绑定的实例不能改为 `disabled`。
+- 删除是软删除，以下情况拒绝：平台共享中（先取消共享）、是空间默认实例、仍有知识库或活跃资源绑定、是 legacy 别名（旧文件路径可能仍引用它）。
+- 只有 `active` 的实例能设为默认。
 
 ### GET /api/v1/storage-backends/types
 
-用途：允许的存储类型。权限：Viewer+。响应：200 `{"success":true,"data":[...]}`
+用途：允许的存储类型：`local`、`s3` 中被环境变量 `STORAGE_ALLOW_LIST` 放行的部分（未设置时两者都放行）。权限：Viewer+。响应：200 `{"success":true,"data":["local","s3"]}`
 
 ```bash
 curl $BASE/api/v1/storage-backends/types -H "Authorization: Bearer $TOKEN"
@@ -115,7 +105,7 @@ curl $BASE/api/v1/storage-backends/types -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/storage-backends/test
 
-用途：原始配置连接测试。权限：Admin+。响应：200 `{"success":bool,"error"}`
+用途：原始配置连接测试，不落库。权限：平台管理。响应：200 `{"success":true}`；失败时仍为 200，返回 `{"success":false,"error":"<脱敏后的原因>"}`。
 
 ```bash
 curl -X POST $BASE/api/v1/storage-backends/test -H "Authorization: Bearer $TOKEN" \
@@ -124,7 +114,7 @@ curl -X POST $BASE/api/v1/storage-backends/test -H "Authorization: Bearer $TOKEN
 
 ### POST /api/v1/storage-backends
 
-用途：创建存储后端。权限：Admin+。响应：201 `{"success":true,"data":{StorageBackend}}`
+用途：创建存储后端。权限：平台管理。详见[存储后端](../03-features/19-storage-backends.md)。响应：201 `{"success":true,"data":{StorageBackend}}`
 
 ```bash
 curl -X POST $BASE/api/v1/storage-backends -H "Authorization: Bearer $TOKEN" \
@@ -149,7 +139,7 @@ curl $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN"
 
 ### PUT /api/v1/storage-backends/:id
 
-用途：更新。权限：Admin+。响应：200 `{"success":true,"data":{StorageBackend}}`
+用途：更新。权限：平台管理。响应：200 `{"success":true,"data":{StorageBackend}}`
 
 ```bash
 curl -X PUT $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN" \
@@ -158,7 +148,7 @@ curl -X PUT $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN"
 
 ### DELETE /api/v1/storage-backends/:id
 
-用途：删除。权限：Admin+。响应：200 `{"success":true}`
+用途：删除。权限：平台管理。响应：200 `{"success":true}`
 
 ```bash
 curl -X DELETE $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOKEN"
@@ -166,15 +156,26 @@ curl -X DELETE $BASE/api/v1/storage-backends/sb-1 -H "Authorization: Bearer $TOK
 
 ### POST /api/v1/storage-backends/:id/test
 
-用途：测试已保存后端。权限：Admin+。响应：200 `{"success":bool,"error"}`
+用途：用已保存的凭证测试连通性。权限：平台管理。响应：同原始配置测试，失败也返回 200。
 
 ```bash
 curl -X POST $BASE/api/v1/storage-backends/sb-1/test -H "Authorization: Bearer $TOKEN"
 ```
 
+### PUT /api/v1/storage-backends/:id/sharing
+
+用途：设为平台共享（所有空间可见可选用，端点与凭证对非系统管理员隐藏）或取消共享。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。取消共享时，若 owner 之外的空间仍有默认存储、知识库或活跃资源绑定，返回 400。
+
+响应：200 `{"success":true,"data":{StorageBackend}}`
+
+```bash
+curl -X PUT $BASE/api/v1/storage-backends/sb-1/sharing -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"shared":true}'
+```
+
 ### PUT /api/v1/storage-backends/:id/default
 
-用途：设为默认后端。权限：Admin+。响应：200 `{"success":true}`
+用途：设为本空间的默认后端。权限：Admin+（集中管理模式下也是 Admin+：它只是在可用后端中选一个给本空间用，不改后端本身）。响应：200 `{"success":true}`
 
 ```bash
 curl -X PUT $BASE/api/v1/storage-backends/sb-1/default -H "Authorization: Bearer $TOKEN"
@@ -194,9 +195,9 @@ curl $BASE/api/v1/web-search/providers -H "Authorization: Bearer $TOKEN"
 
 ### GET /api/v1/web-search-providers/types
 
-用途：提供方类型与参数 schema。权限：Viewer+。Handler: `internal/handler/web_search_provider.go`
+用途：提供方类型与参数 schema，供前端动态生成表单。权限：Viewer+。Handler: `internal/handler/web_search_provider.go`
 
-响应：200 `{"success":true,"data":[...]}`
+响应：200 `{"success":true,"data":[{id,name,description,docs_url,requires_api_key,supports_optional_api_key,requires_engine_id,requires_base_url,supports_proxy,config_fields}]}`。`config_fields` 描述该提供方的非密钥配置项（`key,label,type,required,default,options,...`），取值保存在 `parameters.extra_config`。`GET /web-search/providers` 返回的是同一份目录。
 
 ```bash
 curl $BASE/api/v1/web-search-providers/types -H "Authorization: Bearer $TOKEN"
@@ -204,7 +205,7 @@ curl $BASE/api/v1/web-search-providers/types -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/web-search-providers/test
 
-用途：原始凭证测试（不落库）。权限：Admin+。请求体：`provider`（`binding:"required"`）、`parameters`（可选）。
+用途：原始凭证测试（不落库）。权限：平台管理。请求体：`provider`（`binding:"required"`）、`parameters`（可选）。
 
 响应：200 `{"success":bool,"error"}`
 
@@ -215,21 +216,27 @@ curl -X POST $BASE/api/v1/web-search-providers/test -H "Authorization: Bearer $T
 
 ### POST /api/v1/web-search-providers
 
-用途：创建提供方配置。权限：Admin+。
+用途：创建提供方配置。权限：平台管理。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是（`binding:"required"`） | 名称 |
-| `provider` | string | 是（`binding:"required"`） | 类型（bing/tavily/google…） |
+| `provider` | string | 是（`binding:"required"`） | 类型：`bing`、`google`、`duckduckgo`、`tavily`、`ollama`、`baidu`、`searxng`、`keenable`、`zhipu`、`exa`、`metaso`、`firecrawl` |
 | `description` | string | 否 | 描述 |
-| `parameters` | object | 否 | 参数（api_key 建议走 credentials 子资源） |
+| `parameters` | object | 否 | `api_key`（建议走 credentials 子资源）、`engine_id`（如 Google CSE）、`base_url`（如自建 SearXNG）、`proxy_url`（`supports_proxy` 的提供方才生效）、`extra_config`（map） |
 | `is_default` | bool | 否 | 默认提供方 |
 
 响应：201 `{"success":true,"data":{WebSearchProviderResponse}}`
 
+智谱的 `extra_config`：`search_engine` 取 `search_std`（默认）、`search_pro`、`search_pro_sogou`、`search_pro_quark`；`content_size` 取 `medium`（默认）或 `high`，非法值会被拒绝；智谱必须带 `api_key`。
+
 ```bash
 curl -X POST $BASE/api/v1/web-search-providers -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"name":"tavily-main","provider":"tavily"}'
+
+curl -X POST $BASE/api/v1/web-search-providers -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"zhipu","provider":"zhipu","parameters":{"api_key":"<zhipu-key>","extra_config":{"search_engine":"search_std","content_size":"medium"}}}'
 ```
 
 ### GET /api/v1/web-search-providers
@@ -250,7 +257,7 @@ curl $BASE/api/v1/web-search-providers/wsp-1 -H "Authorization: Bearer $TOKEN"
 
 ### PUT /api/v1/web-search-providers/:id
 
-用途：更新（空字段保留原值；APIKey 保留）。权限：Admin+。请求体：`name/description/parameters/is_default`（均可选）。
+用途：更新（空字段保留原值；APIKey 保留）。权限：平台管理。请求体：`name/description/parameters/is_default`（均可选）。提供方类型 `provider` 创建后不能改，请求里没有这个字段。
 
 响应：200 `{"success":true,"data":{...}}`
 
@@ -261,7 +268,7 @@ curl -X PUT $BASE/api/v1/web-search-providers/wsp-1 -H "Authorization: Bearer $T
 
 ### DELETE /api/v1/web-search-providers/:id
 
-用途：删除。权限：Admin+。响应：200 `{"success":true}`
+用途：删除。权限：平台管理。响应：200 `{"success":true}`
 
 ```bash
 curl -X DELETE $BASE/api/v1/web-search-providers/wsp-1 -H "Authorization: Bearer $TOKEN"
@@ -269,7 +276,7 @@ curl -X DELETE $BASE/api/v1/web-search-providers/wsp-1 -H "Authorization: Bearer
 
 ### PUT /api/v1/web-search-providers/:id/credentials
 
-用途：设置 API key（`{"api_key":"..."}`，省略时返回状态）。权限：Admin+。Handler: `internal/handler/web_search_provider_credentials.go`
+用途：设置 API key（`{"api_key":"..."}`，省略时返回状态）。权限：平台管理。Handler: `internal/handler/web_search_provider_credentials.go`
 
 响应：200 `{"success":true,"data":{"fields":{"api_key":{"configured":bool}}}}`
 
@@ -280,7 +287,7 @@ curl -X PUT $BASE/api/v1/web-search-providers/wsp-1/credentials -H "Authorizatio
 
 ### DELETE /api/v1/web-search-providers/:id/credentials/:field
 
-用途：删除凭证字段（`field` 仅 `api_key`）。权限：Admin+。响应：204。
+用途：删除凭证字段（`field` 仅 `api_key`）。权限：平台管理。响应：204。
 
 ```bash
 curl -X DELETE $BASE/api/v1/web-search-providers/wsp-1/credentials/api_key -H "Authorization: Bearer $TOKEN"
@@ -288,15 +295,26 @@ curl -X DELETE $BASE/api/v1/web-search-providers/wsp-1/credentials/api_key -H "A
 
 ### POST /api/v1/web-search-providers/:id/test
 
-用途：测试已保存提供方。权限：Admin+。响应：200 `{"success":bool,"error"}`
+用途：测试已保存提供方。权限：平台管理。响应：200 `{"success":bool,"error"}`
 
 ```bash
 curl -X POST $BASE/api/v1/web-search-providers/wsp-1/test -H "Authorization: Bearer $TOKEN"
 ```
 
+### PUT /api/v1/web-search-providers/:id/sharing
+
+用途：设为平台共享或取消共享。权限：平台管理，服务层限定系统管理员。请求体：`{"shared":true}`（必填）。
+
+响应：200 `{"success":true,"data":{...}}`
+
+```bash
+curl -X PUT $BASE/api/v1/web-search-providers/wsp-1/sharing -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"shared":false}'
+```
+
 ## 数据源（/api/v1/datasource）
 
-外部内容连接器（Feishu/Notion/语雀等），同步任务会写入 KB。Handler: `internal/handler/datasource.go`。本组多数响应为原始对象/数组（无 `success` 包装）。
+外部内容连接器（`internal/datasource/`：飞书、Notion、语雀、GitLab、IMA、RSS），同步任务会写入 KB，详见[数据源导入](../03-features/10-datasource.md)。Handler: `internal/handler/datasource.go`。本组多数响应为原始对象/数组（无 `success` 包装）。
 
 ### GET /api/v1/datasource/types
 

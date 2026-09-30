@@ -146,9 +146,9 @@ Handler: `internal/handler/tag.go`。读：Viewer+ + KB read（API key `retrieve
 
 ### GET /api/v1/knowledge-bases/:id/tags
 
-用途：标签列表。查询参数：`page`、`page_size`、`keyword`（均可选）。
+用途：标签列表。查询参数：`page`、`page_size`（默认 20）、`keyword`（均可选）。
 
-响应：200 `{"success":true,"data":[KnowledgeTag]}`
+响应：200 `{"success":true,"data":{"data":[KnowledgeTag],"total","page","page_size"}}`（分页结果整体放在外层 `data` 里）
 
 ```bash
 curl $BASE/api/v1/knowledge-bases/kb-1/tags -H "Authorization: Bearer $TOKEN"
@@ -160,7 +160,7 @@ curl $BASE/api/v1/knowledge-bases/kb-1/tags -H "Authorization: Bearer $TOKEN"
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `name` | string | 是（`binding:"required"`） | 标签名 |
+| `name` | string | 是（`binding:"required"`） | 标签名，同一知识库内不可重复（重复返回 409 `标签名称已存在`） |
 | `color` | string | 否 | 颜色 |
 | `sort_order` | int | 否 | 排序 |
 
@@ -184,7 +184,7 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1/tags/t-1 -H "Authorization: Bearer
 
 ### DELETE /api/v1/knowledge-bases/:id/tags/:tag_id
 
-用途：删除标签。查询参数：`force`（bool，强制删除）、`content_only`（bool，仅删内容保留标签）。请求体（可选）：`{"exclude_ids":[int64]}`。
+用途：删除标签。标签下还有文档或分块时，不带 `force` 会被拒绝。查询参数：`force=true`（先删除该标签下的全部内容再删标签）、`content_only=true`（只删除标签下的内容，保留标签本身）。请求体（可选）：`{"exclude_ids":[int64]}`，按分块 `seq_id` 排除不删的分块。
 
 响应：200 `{"success":true}`
 

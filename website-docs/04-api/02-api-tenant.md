@@ -1,6 +1,6 @@
 # API 参考：租户（空间）与成员
 
-路由注册：`internal/router/router.go` 的 `RegisterTenantRoutes`。Handler：`internal/handler/tenant.go`、`internal/handler/tenant_member.go`、`internal/handler/tenant_invitation.go`、`internal/handler/tenant_invite_link.go`、`internal/handler/audit_log.go`。
+路由注册：`internal/router/routes_auth_tenant.go` 的 `RegisterTenantRoutes`（KB 活动流在 `internal/router/routes_knowledge.go` 的 `RegisterKnowledgeBaseActivityRoutes`）。Handler：`internal/handler/tenant.go`、`internal/handler/tenant_member.go`、`internal/handler/tenant_invitation.go`、`internal/handler/tenant_invite_link.go`、`internal/handler/audit_log.go`。
 
 所有 `/tenants/:id/*` 路由在组级挂载 `PathTenantMatch()`（`internal/middleware/access.go`）：URL 中的 `:id` 必须等于当前活跃空间（跨空间超管例外），防止越权操作他人空间。
 
@@ -17,7 +17,7 @@
 
 跨空间超管可提交完整 `types.Tenant`（含 `storage_quota`、`status` 等）。
 
-响应：201 `{"success":true,"data":{Tenant}}`（配置允许时可能携带 `api_key`）。自助创建被禁用返回 403（code 2005），超配额返回 429。
+响应：201 `{"success":true,"data":{Tenant}}`。默认不发放 API key，需要时创建后再调 `POST /tenants/:id/api-keys`。系统设置 `tenant.auto_create_api_key`（环境变量 `YUHENG_TENANT_AUTO_CREATE_API_KEY`，默认 false）打开时恢复旧行为：创建空间顺带生成一个 `full_access` key，明文只在这次响应的 `data.api_key` 里返回。自助创建被禁用返回 403（code 2005），超配额返回 429。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants -H "Authorization: Bearer $TOKEN" \
@@ -98,7 +98,23 @@ curl -X DELETE $BASE/api/v1/tenants/1 -H "Authorization: Bearer $TOKEN"
 
 ## 空间 KV 配置
 
-`:key` 为配置键而非空间 ID（空间取自认证上下文），可选值：`web-search-config`、`prompt-templates`、`parser-engine-config`、`storage-engine-config`、`chat-history-config`、`retrieval-config`。
+`:key` 为配置键而非空间 ID（空间取自认证上下文，URL 里不接受 tenant_id），可选值如下，其他键返回 400 `unsupported key`：
+
+| key | 内容 | 读写要求 |
+| --- | --- | --- |
+| `web-search-config` | 网页搜索配置 | 读写都要 Admin+（API key 需 full-access 或 `manage_tenant_settings`），否则 403；开启集中管控后只有系统管理员能写 |
+| `parser-engine-config` | 空间级解析引擎覆盖 | 同上 |
+| `storage-engine-config` | 存储引擎配置（local / s3） | 同上 |
+| `chat-history-config` | 聊天历史索引配置 | 读 Viewer+，写 Admin+ |
+| `retrieval-config` | 全局检索配置 | 读 Viewer+，写 Admin+ |
+| `prompt-templates` | 系统提示词模板，按请求语言本地化 | 只读，不支持 PUT |
+
+写入时的校验：
+
+- `web-search-config`：`max_results` 取 1-50。
+- `retrieval-config`：`vector_threshold`、`keyword_threshold` 取 0-1，`rerank_threshold` 取 -10 到 10，`embedding_top_k`、`rerank_top_k` 取 0-200。
+- `storage-engine-config`：`default_provider` 必须在 `STORAGE_ALLOW_LIST` 允许的列表内（缺省时取列表里第一个）。
+- `chat-history-config`：启用、设置了 `embedding_model_id` 且还没有关联知识库时，会自动建一个隐藏知识库并把它的 ID 写回配置；换了 embedding 模型则不沿用旧知识库。
 
 ### GET /api/v1/tenants/kv/:key
 
@@ -139,18 +155,30 @@ curl $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN"
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `name` | string | 是 | key 名称 |
+| `name` | string | 是 | key 名称，不能为空白 |
 | `full_access` | bool | 否 | 空间全权 key（默认 false） |
-| `knowledge_base_ids` | []string | 否 | KB 白名单（scoped key） |
-| `capabilities` | []string | 否 | capability 列表（见总览） |
-| `expires_at_unix` | *int64 | 否 | 过期时间戳 |
+| `knowledge_base_ids` | []string | 否 | KB 白名单（scoped key）；每个 ID 必须存在且属于本空间，空列表表示不限 KB |
+| `capabilities` | []string | scoped key 必填 | capability 列表（见[总览](./01-api-overview.md)）；`full_access=false` 时至少一个，出现未知值返回 1010 |
+| `expires_at_unix` | *int64 | 否 | 过期时间（Unix 秒） |
 
-响应：201 `{"success":true,"data":{...,"api_key":"<明文>","token":"<明文>"}}`
+响应：201 `{"success":true,"data":{...,"api_key":"<明文>","token":"<明文>"}}`。明文只在创建时返回一次，之后列表里只有掩码。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants/1/api-keys -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"ingest-bot","capabilities":["ingest","retrieve"],"knowledge_base_ids":["kb-1"]}'
+```
+
+### PUT /api/v1/tenants/:id/api-keys/:key_id
+
+用途：修改已创建 key 的名称、全权开关、KB 白名单、capability 与过期时间，key 本身不变。权限：Owner，仅 JWT。请求体字段与创建接口相同，校验规则也相同（整体替换，不是局部合并）。
+
+响应：200 `{"success":true,"data":{tenantAPIKeyResponse}}`；key 不存在返回 404。
+
+```bash
+curl -X PUT $BASE/api/v1/tenants/1/api-keys/5 -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"ingest-bot","capabilities":["ingest","retrieve","manage_kbs"],"knowledge_base_ids":["kb-1"]}'
 ```
 
 ### DELETE /api/v1/tenants/:id/api-keys/:key_id
@@ -167,7 +195,7 @@ curl -X DELETE $BASE/api/v1/tenants/1/api-keys/5 -H "Authorization: Bearer $TOKE
 
 用途：读取 API 外部用户主体配置。权限：Owner，仅 JWT。Handler: `internal/handler/tenant.go`
 
-响应：200 `{"success":true,"data":{"mode":"tenant|direct|signed_token","direct_header_name","signed_token_header_name","require_direct_header","has_hmac_secret"}}`
+响应：200 `{"success":true,"data":{"mode":"tenant|direct_header|signed_token","direct_header_name","signed_token_header_name","require_direct_header","has_hmac_secret"}}`
 
 ```bash
 curl $BASE/api/v1/tenants/1/api-principal-config -H "Authorization: Bearer $TOKEN"
@@ -179,9 +207,13 @@ curl $BASE/api/v1/tenants/1/api-principal-config -H "Authorization: Bearer $TOKE
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `mode` | string | 是 | `tenant` / `direct` / `signed_token` |
-| `require_direct_header` | bool | 否 | direct 模式是否强制 Header |
+| `mode` | string | 是 | `tenant` / `direct_header` / `signed_token`，其他值返回 1010 |
+| `require_direct_header` | bool | 否 | `direct_header` 模式下缺 Header 时是否返回 401（否则回落为空间级主体） |
 | `hmac_secret` | *string | 否 | signed_token 模式密钥（传 `***` 保留原值） |
+
+切到 `signed_token` 时必须已有或本次提供 `hmac_secret`，否则返回 1010。各模式的安全假设见[总览](./01-api-overview.md)的「外部用户主体」：`direct_header` 的用户 ID 可被任何持有 key 的调用方伪造，面向终端用户的集成应使用 `signed_token`。
+
+Header 名固定为 `X-External-User-ID` 与 `X-External-User-Token`：请求里的 `direct_header_name` / `signed_token_header_name` 会被忽略，服务端总是写回默认值。
 
 响应：200，同 GET。
 
@@ -293,7 +325,7 @@ curl $BASE/api/v1/tenants/1/invitations -H "Authorization: Bearer $TOKEN"
 
 ### POST /api/v1/tenants/:id/invitations
 
-用途：邀请成员（被邀请人在 `/me/invitations` 确认后才入库）。权限：Owner。
+用途：按邮箱邀请**已注册**用户。默认生成一条 pending 邀请，被邀请人在 `/me/invitations` 确认后才成为成员。权限：Owner。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -301,7 +333,9 @@ curl $BASE/api/v1/tenants/1/invitations -H "Authorization: Bearer $TOKEN"
 | `role` | string | 是（`binding:"required"`） | 授予角色 |
 | `message` | string | 否 | 附言 |
 
-响应：201 `{"success":true,"data":{TenantInvitationResponse}}`
+响应：201 `{"success":true,"data":{TenantInvitationResponse}}`；已有待处理邀请或对方已是成员返回 409。
+
+系统设置 `tenant.auto_accept_invitation`（环境变量 `YUHENG_TENANT_AUTO_ACCEPT_INVITATION`，默认 false）打开时跳过确认：直接写入成员关系并清理对方已有的 pending 邀请，响应的 `data` 是成员对象（含 `user_id`、`status:"active"`），不再是邀请对象。受邀人没有默认空间时，这个空间成为其默认空间。客户端可以从 `GET /auth/me` 的 `capabilities.auto_accept_invitation` 得知当前行为。
 
 ```bash
 curl -X POST $BASE/api/v1/tenants/1/invitations -H "Authorization: Bearer $TOKEN" \

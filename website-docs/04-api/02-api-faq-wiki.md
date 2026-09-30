@@ -1,10 +1,12 @@
 # API 参考：FAQ 与 Wiki
 
-路由注册：`internal/router/router.go` 的 `RegisterFAQRoutes` 与 `RegisterWikiPageRoutes`。Handler：`internal/handler/faq.go`、`internal/handler/wiki_page.go`。
+路由注册：`internal/router/routes_knowledge.go` 的 `RegisterFAQRoutes` 与 `RegisterWikiPageRoutes`。Handler：`internal/handler/faq.go`、`internal/handler/wiki_page.go`。
 
 两组均为 KB 内容子资源：读为 Viewer+ 且 KB read（API key `retrieve`/full）；写为“KB 创建者 OR Admin+”且 KB write（API key `ingest`/full），并受 KB 白名单约束。
 
 ## FAQ（/api/v1/knowledge-bases/:id/faq）
+
+路径里的 `:entry_id`，以及批量接口里的 `by_id`、`by_tag`、`exclude_ids`、`ids`、`updates` 的键，都是整数 `seq_id`，不是字符串 ID；标签也按标签的 `seq_id` 引用。导入进度接口 `/faq/import/progress/:task_id` 不在知识库分组下，只凭任务 ID 调用。
 
 ### GET /api/v1/knowledge-bases/:id/faq/entries
 
@@ -12,7 +14,7 @@
 
 | 查询参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `page` / `page_size` | int | 否 | 分页 |
+| `page` / `page_size` | int | 否 | 分页（默认 1/20） |
 | `tag_id` | int | 否 | 旧版单标签 seq_id |
 | `tag_ids` | string | 否 | 逗号分隔标签 UUID |
 | `keyword` | string | 否 | 关键字 |
@@ -27,9 +29,9 @@ curl "$BASE/api/v1/knowledge-bases/kb-1/faq/entries?page=1" -H "Authorization: B
 
 ### GET /api/v1/knowledge-bases/:id/faq/entries/export
 
-用途：导出 FAQ。查询参数：`format`（`csv` 默认 / `json`）。
+用途：导出知识库下全部 FAQ。查询参数：`format`（`csv` 默认 / `json`）。
 
-响应：200 文件下载（`text/csv` 或 `application/json`）。
+响应：200 文件下载：CSV 为 `text/csv; charset=utf-8`、文件名 `faq_export.csv`，带 UTF-8 BOM 以便 Excel 打开；JSON 为 `application/json`、文件名 `faq_export.json`。
 
 ```bash
 curl -OJ "$BASE/api/v1/knowledge-bases/kb-1/faq/entries/export?format=csv" -H "Authorization: Bearer $TOKEN"
@@ -47,15 +49,17 @@ curl $BASE/api/v1/knowledge-bases/kb-1/faq/entries/12 -H "Authorization: Bearer 
 
 ### POST /api/v1/knowledge-bases/:id/faq/entries
 
-用途：批量 upsert / 导入（异步任务）。Handler 方法 `UpsertEntries`。
+用途：批量 upsert / 导入（异步任务）。立即返回 `task_id`，结果通过 `GET /faq/import/progress/:task_id` 查询。Handler 方法 `UpsertEntries`。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `entries` | []FAQEntryPayload | 是（`binding:"required"`） | 批量条目 |
-| `mode` | string | 是（`binding:"oneof=append replace"`） | 追加或替换 |
+| `mode` | string | 是（`binding:"oneof=append replace"`） | `append` 追加；`replace` 以本次条目为准，库中不在其中的条目会被删除 |
 | `knowledge_id` | string | 否 | FAQ 知识实体 ID |
 | `task_id` | string | 否 | 自定义任务 ID |
-| `dry_run` | bool | 否 | 仅校验不落库 |
+| `dry_run` | bool | 否 | 只执行校验（格式、批内重复、与库内重复、内容安全），不写入；同样通过进度接口查看结果 |
+
+`entries` 中每项为 `FAQEntryPayload`（字段见下一个接口），另可带 `id` 指定 `seq_id`，用于数据迁移，必须小于自增起始值 100000000。
 
 响应：200 `{"success":true,"data":{"task_id"}}`
 
@@ -67,7 +71,7 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/faq/entries -H "X-API-Key: $API_K
 
 ### POST /api/v1/knowledge-bases/:id/faq/entry
 
-用途：创建单条 FAQ。请求体（`types.FAQEntryPayload`）：
+用途：同步创建单条 FAQ，会即时检查标准问与相似问是否和库内已有条目重复（重复返回 400，如 `相似问「...」重复`）。请求体（`types.FAQEntryPayload`）：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
@@ -117,8 +121,10 @@ curl -X POST $BASE/api/v1/knowledge-bases/kb-1/faq/entries/12/similar-questions 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `by_id` | map[int64]object | 否 | 按条目 seq_id 更新 |
-| `by_tag` | map[int64]object | 否 | 按标签批量更新 |
+| `by_tag` | map[int64]object | 否 | 按标签 seq_id，对该标签下全部条目应用同一更新 |
 | `exclude_ids` | []int64 | 否 | `by_tag` 时排除的条目 |
+
+每个 object 为 `FAQEntryFieldsUpdate`：`is_enabled`、`is_recommended`、`tag_id`，都可选，只更新传入的字段。`by_id` 与 `by_tag` 可同时使用；两者都为空时什么也不做。
 
 响应：200 `{"success":true}`
 
@@ -183,7 +189,7 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1/faq/import/last-result/display \
 
 用途：查询 FAQ 导入/dry-run 进度（任务按空间隔离）。权限：Viewer+；API key `retrieve`/`ingest`/full。
 
-响应：200 `{"success":true,"data":{status,progress,failed_entries,...}}`
+响应：200 `{"success":true,"data":{FAQImportProgress}}`，主要字段：`task_id`、`kb_id`、`knowledge_id`、`status`（`pending`/`processing`/`completed`/`failed`）、`progress`（0-100）、`total`、`processed`、`success_count`、`failed_count`、`partial_failed_count`、`skipped_count`、`added_count`、`merged_count`、`success_entries`、`failed_entries_url`、`message`、`error`、`dry_run`、`created_at`/`updated_at`（Unix 秒）。有失败条目时会生成 CSV，通过 `failed_entries_url` 下载，内联的 `failed_entries` 随之清空。dry-run 任务的 `success_entries` 不会真正写入。
 
 ```bash
 curl $BASE/api/v1/faq/import/progress/task-1 -H "X-API-Key: $API_KEY"
@@ -248,7 +254,7 @@ curl $BASE/api/v1/knowledgebase/kb-1/wiki/pages/overview -H "Authorization: Bear
 
 ### PUT /api/v1/knowledgebase/:kb_id/wiki/pages/*slug
 
-用途：更新页面（请求体同创建）。旧版本会先整份快照进 `wiki_page_revisions`，`version` 递增，`last_edit_source` 记为 `user`（Agent 工具写入时为 `agent`）。
+用途：局部更新页面（`types.WikiPageUpdateRequest`），只改传入的字段：`title`、`content`、`summary`、`page_type`、`status`、`aliases`。可带 `version` 做乐观并发控制：与当前版本不一致时返回 409，响应带 `current_version`。旧版本会先整份快照进 `wiki_page_revisions`，`version` 递增，`last_edit_source` 记为 `user`。
 
 响应：200 `WikiPage`
 
@@ -267,7 +273,7 @@ curl -X PUT $BASE/api/v1/knowledgebase/kb-1/wiki/pages/overview -H "Authorizatio
 | `limit` | int | 否 | 默认 50，上限 200；仅列表模式生效 |
 | `offset` | int | 否 | 分页偏移 |
 
-不带 `version` 时返回历史列表（版本号倒序、**不含正文**）加上页面当前版本号；每条含 `edit_source`（`pipeline` / `agent` / `user` / `revert`）、`editor_id`、`edited_at`。
+不带 `version` 时返回历史列表（版本号倒序、**不含正文**）加上页面当前版本号；每条含 `edit_source`（`pipeline` / `user` / `revert`；从上游迁移来的历史数据里可能还有 `agent`）、`editor_id`、`edited_at`。
 
 历史保留是两级上限：软上限 50 版只裁剪 `pipeline` 与空来源的快照，硬上限 200 版对所有来源生效，因此人工编辑不会被管道刷掉。
 
@@ -364,7 +370,7 @@ curl $BASE/api/v1/knowledgebase/kb-1/wiki/index -H "Authorization: Bearer $TOKEN
 ```
 
 ::: warning 已移除
-`GET /api/v1/knowledgebase/:kb_id/wiki/log`（Wiki 变更日志）已随 migration `000077_remove_wiki_log` 一并下线，`wiki_log_entries` 表被删除。Wiki 变更现在统一投影到知识库活动流，改用 `GET /api/v1/knowledge-bases/:id/activity`。
+`GET /api/v1/knowledgebase/:kb_id/wiki/log`（Wiki 变更日志）已随 migration `000077_remove_wiki_log` 一并下线，`wiki_log_entries` 表被删除。Wiki 变更现在统一投影到知识库活动流，改用 `GET /api/v1/knowledge-bases/:id/activity`（见[租户与成员](./02-api-tenant.md)）。
 :::
 
 ### GET /api/v1/knowledgebase/:kb_id/wiki/graph

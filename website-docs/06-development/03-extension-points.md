@@ -1,6 +1,6 @@
 # 扩展点指南
 
-Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、IM 渠道、Agent 工具、对象存储九个层面都预留了清晰的扩展点，并为独立扩展包提供 `internal/extension` 接缝（第 8 节）；知识健康的检测器同样可以由扩展接入（第 9 节）。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
+Yuheng 在文档解析、分块、检索、模型接入、联网搜索、数据源、对象存储七个层面都预留了清晰的扩展点，并为独立扩展包提供 `internal/extension` 接缝（第 8 节）；知识健康的检测器同样可以由扩展接入（第 9 节）。本章逐个给出：**核心接口定义（真实源码）→ 现有实现列表 → 新增实现步骤（含注册点文件）**。所有接口代码均摘自当前仓库源码。
 
 ## 0. 扩展点总览
 
@@ -76,7 +76,7 @@ class ParserEngineRegistry:
 
 | 引擎 | Parser | 文件 |
 | --- | --- | --- |
-| `builtin` | `Docx2Parser` / `DocParser` / `PDFParser` / `MarkdownParser` / `ExcelParser` / `EPUBParser` / `HTMLParser` / `MHTMLParser` / `ImageParser`（jpg/png/gif/bmp/tiff/webp 等） | `docreader/parser/docx2_parser.py`、`doc_parser.py`、`pdf_parser.py`、`markdown_parser.py`、`excel_parser.py`、`epub_parser.py`、`html_parser.py`、`mhtml_parser.py`、`image_parser.py` |
+| `builtin` | `Docx2Parser` / `DocParser` / `PDFParser` / `MarkdownParser` / `ExcelParser` / `EPUBParser` / `HTMLParser` / `MHTMLParser` / `XMindParser` / `ImageParser`（jpg/png/gif/bmp/tiff/webp 等）/ `VideoParser`（仅在检测到 ffmpeg 时注册）；pptx/ppt 在 builtin 下也交给 `MarkitdownParser` | `docreader/parser/docx2_parser.py`、`doc_parser.py`、`pdf_parser.py`、`markdown_parser.py`、`excel_parser.py`、`epub_parser.py`、`html_parser.py`、`mhtml_parser.py`、`xmind_parser.py`、`image_parser.py`、`video_parser.py` |
 | `markitdown` | `MarkitdownParser`（微软 MarkItDown，多格式） | `docreader/parser/markitdown_parser.py` |
 | `opendataloader` | `OpenDataLoaderParser`（PDF 版面分析，需 Java 11+，带 `check_available` 探测） | `docreader/parser/opendataloader_parser.py` |
 
@@ -184,7 +184,7 @@ var splitByHeuristics = func(text string, cfg SplitterConfig, _ *DocProfile) []C
    - 增加策略常量（如 `StrategyMine = "mine"`）与新的 `StrategyTier`；
    - 在 `resolveChain`/`resolveChainWithProfile` 的 switch 中为新策略返回 tier 链（建议以 `TierLegacy` 兜底）；
    - 在 `runTier()` 中新增 case；
-3. 调用方无需改动：知识库的 `chunking_config.strategy`（JSONB）经 `internal/application/service/knowledge.go` 的 `buildSplitterConfig` 传入；
+3. 调用方无需改动：知识库的 `chunking_config.strategy`（JSONB）经 `internal/application/service/knowledge_process.go` 的 `buildSplitterConfig` / `buildSplitterConfigFromChunking` 传入；
 4. 用 `SplitWithDiagnostics` 写单测验证 tier 选择与 `ValidateChunks` 验收行为。
 
 ---
@@ -313,7 +313,7 @@ type Reranker interface {
 
 ### 现有实现
 
-`internal/models/provider/provider.go` 中已定义 26 个 `ProviderName` 常量：openai、anthropic、aliyun、zhipu、openrouter、requesty、siliconflow、jina、generic、deepseek、gemini、volcengine、hunyuan、minimax、mimo、gpustack、moonshot、modelscope、qianfan、qiniu、longcat、lkeap、nvidia 等。具体 Provider 实现分布在 `internal/models/provider/` 下的各文件（如 `zhipu.go`、`gemini.go`、`hunyuan.go`、`generic.go`）；特殊 embedding 实现如 `internal/models/embedding/jina.go`、`volcengine.go`、`nvidia.go`。
+`internal/models/provider/provider.go` 中已定义 25 个 `ProviderName` 常量：openai、anthropic、aliyun、zhipu、openrouter、requesty、siliconflow、jina、generic、deepseek、gemini、volcengine、hunyuan、minimax、mimo、gpustack、moonshot、modelscope、qianfan、qiniu、longcat、lkeap、nvidia 等。具体 Provider 实现分布在 `internal/models/provider/` 下的各文件（如 `zhipu.go`、`gemini.go`、`hunyuan.go`、`generic.go`）；特殊 embedding 实现如 `internal/models/embedding/jina.go`、`volcengine.go`、`nvidia.go`。
 
 ### 新增步骤
 
@@ -356,13 +356,31 @@ func (r *Registry) CreateProvider(providerType string, params types.WebSearchPro
 
 ### 现有实现
 
-`internal/infrastructure/web_search/` 目录：`duckduckgo.go`、`google.go`、`bing.go`、`tavily.go`、`ollama.go`、`baidu.go`、`searxng.go`、`keenable.go`、`zhipu.go`（另有 `proxy.go` 出站代理支持）。类型常量在 `internal/types/web_search_provider.go`（`WebSearchProviderTypeBing/Google/DuckDuckGo/Tavily/Ollama/Baidu/Searxng/Keenable/Zhipu`）。
+`internal/infrastructure/web_search/` 目录：`duckduckgo.go`、`google.go`、`bing.go`、`tavily.go`、`ollama.go`、`baidu.go`、`searxng.go`、`keenable.go`、`zhipu.go`、`exa.go`、`metaso.go`、`firecrawl.go`（另有 `proxy.go` 出站代理支持），共 12 个。类型常量在 `internal/types/web_search_provider.go`（`WebSearchProviderTypeBing/Google/DuckDuckGo/Tavily/Ollama/Baidu/Searxng/Keenable/Zhipu/Exa/Metaso/Firecrawl`）。
+
+### 设计约束
+
+- **端点写死在代码里**：服务商的 API 地址是 Provider 实现里的常量，不向用户暴露 BaseURL，从源头消除 SSRF。唯一的例外是自托管的 SearxNG（`RequiresBaseURL`），它的地址经 `ValidateSearxngBaseURL` 校验并受 `SSRF_WHITELIST` 约束；
+- **出站 HTTP 用 `NewSearchHTTPClient`**（`proxy.go`）：SSRF 安全的拨号、可选代理（`SupportsProxy` 时由 `ProxyURL` 或环境代理提供）、重定向校验；
+- **工厂只读参数**：构造函数签名固定为 `func(types.WebSearchProviderParameters) (interfaces.WebSearchProvider, error)`，凭据来自租户在 `web_search_providers` 表里的配置（`APIKey`、`EngineID`、`BaseURL`、`ProxyURL`、`ExtraConfig`），不读环境变量。实例按需创建。
 
 ### 新增步骤
 
-1. 在 `internal/types/web_search_provider.go` 增加 `WebSearchProviderType` 常量；
-2. 在 `internal/infrastructure/web_search/` 新建 `mysearch.go`，实现 `WebSearchProvider` 并暴露工厂 `func NewMySearchProvider(params types.WebSearchProviderParameters) (interfaces.WebSearchProvider, error)`；
-3. **注册点：`internal/container/container.go` 的 `registerWebSearchProviders()`**：
+1. **类型常量**：在 `internal/types/web_search_provider.go` 增加 `WebSearchProviderType` 常量（值即存进数据库的 `provider`，之后不可更改）；
+2. **类型元数据**：在同文件的 `GetWebSearchProviderTypes()` 追加一条 `WebSearchProviderTypeInfo`，前端的添加对话框由它渲染（经 `GET /api/v1/web-search-providers/types`）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `ID` / `Name` / `Description` / `DocsURL` | 标识、展示名、描述、官方文档链接 |
+| `RequiresAPIKey` / `SupportsOptionalAPIKey` | 是否必须 / 可选 API Key |
+| `RequiresEngineID` | 是否需要额外 ID（如 Google CSE） |
+| `RequiresBaseURL` | 是否需要用户提供地址（只应用于自托管服务） |
+| `SupportsProxy` | 是否允许配置出站代理 |
+| `ConfigFields` | 额外参数的表单定义（`Key`、`Label`/`LabelKey`、`Type`、`Required`、`Default`、`Options`），值存入 `ExtraConfig`，参见 `metaso` 的 `scope` |
+
+3. **实现**：新建 `internal/infrastructure/web_search/mysearch.go`，实现 `WebSearchProvider`（`Name()`、`Search()`），导出工厂 `NewMySearchProvider`；额外参数从 `params.ExtraConfig` 读取，需要校验时导出 `ValidateMySearchParameters`；
+4. **参数校验**：在 `internal/application/service/web_search_provider.go` 的 `isValidProviderType` 加入新类型，并在 `validateProviderParameters` 的 switch 中加 case；
+5. **注册点：`internal/container/container.go` 的 `registerWebSearchProviders()`**：
 
 ```go
 func registerWebSearchProviders(registry *infra_web_search.Registry) {
@@ -373,13 +391,12 @@ func registerWebSearchProviders(registry *infra_web_search.Registry) {
 }
 ```
 
-4. 前端的 provider 下拉与参数表单如需展示新引擎，同步 `frontend/` 相应配置页组件；租户配置持久化在 `web_search_providers` 表。
+6. **前端**：设置页 `frontend/src/views/settings/WebSearchSettings.vue` 按类型元数据渲染表单；新引擎的图标与文案按需补充，文案要同时加到四个语言包；
+7. **验证**：`go build ./...` 后调用 `GET /api/v1/web-search-providers/types` 确认新类型出现，再 `POST /api/v1/web-search-providers`（`{"name":…,"provider":"mysearch","parameters":{"api_key":…},"is_default":true}`）创建实例，或用 `POST /api/v1/web-search-providers/test` 在不落库的情况下测试凭据。
 
 ---
 
 ## 6. 新增数据源连接器（internal/datasource/connector）
-
-> 目录内附有实现指南 `internal/datasource/CONNECTOR_IMPLEMENTATION_GUIDE.md`，可对照阅读。
 
 ### 接口定义
 
@@ -432,15 +449,55 @@ type StreamingConnector interface {
 
 | 类型 | 目录 | 说明 |
 | --- | --- | --- |
-| `feishu` / `lark` | `internal/datasource/connector/feishu/` | 同一实现，`NewConnector(RegionFeishu / RegionLark)` 区分区域 |
+| `feishu` / `lark` | `internal/datasource/connector/feishu/wiki/` | 知识库；同一实现，`wiki.NewConnector(core.RegionFeishu / core.RegionLark)` 区分区域 |
+| `feishu_drive` / `lark_drive` | `internal/datasource/connector/feishu/drive/` | 云盘；`drive.NewDriveConnector(core.RegionFeishuDrive / core.RegionLarkDrive)`，公共部分在 `feishu/core/` |
 | `notion` | `internal/datasource/connector/notion/` | 页面与数据库 |
 | `yuque` | `internal/datasource/connector/yuque/` | 语雀 |
 | `rss` | `internal/datasource/connector/rss/` | RSS 订阅 |
+| `gitlab` | `internal/datasource/connector/gitlab/` | GitLab |
+| `ima` | `internal/datasource/connector/ima/` | 腾讯 ima |
+
+`internal/types/datasource.go` 里还有 `confluence`、`github`、`google_drive`、`onedrive`、`dingtalk`、`slack` 等类型常量，它们没有实现，也没有注册。
+
+### 同步是怎么运行的
+
+连接器只负责"从外部拉东西"；数据源的增删改、调度、入库、日志都由 `DataSourceService`（`internal/application/service/datasource_service.go`）统一处理，新增连接器不需要改它。
+
+```mermaid
+flowchart TD
+    M["手动同步 POST /datasource/:id/sync"] --> Q
+    C["Cron 触发 (datasource.Scheduler)"] --> D{"HasRunningSync?"}
+    D -->|"是"| X["跳过本次"]
+    D -->|"否"| Q["创建 sync_logs (running)<br/>入队 datasource:sync (sync 队列)"]
+    Q --> P["ProcessSync: 加载数据源 → 解密凭据 → 取 Connector"]
+    P --> S{"实现 StreamingConnector?"}
+    S -->|"是"| FS["FetchStream: 逐条 Emit 入库<br/>分页 Checkpoint 保存游标"]
+    S -->|"否, 全量"| FA["FetchAll"]
+    S -->|"否, 增量"| FI["FetchIncremental(cursor)"]
+    FS --> A["applyFetchedItem / ingestItem"]
+    FA --> A
+    FI --> A
+    A --> R["更新 sync_logs 计数与状态<br/>更新 data_sources 游标 / last_sync_*"]
+```
+
+- **调度**（`internal/datasource/scheduler.go`）：`robfig/cron/v3` 的 6 段表达式（含秒，如 `0 */30 * * * *`），启动时从库里加载 `active` 且有 `sync_schedule` 的数据源；创建、改调度、暂停、恢复、删除时增删对应的 cron 条目。去重两层：`HasRunningSync` 防止上一次还没跑完又触发；确定性任务 ID `dssync:<数据源ID>:<UTC 分钟>` 让多实例同一分钟只有一个入队成功，其余的 sync log 记为 `canceled`；
+- **任务**：手动与定时同步都进 `sync` 队列（maintenance 池），`MaxRetry(5)`、超时 6 小时。`ProcessSync` 会丢弃重启后重投的过期副本：同一数据源已有另一条 `running` 的 sync log 时让路；
+- **入库**（`ingestItem`）：`IsDeleted` 的条目在开启 `sync_deletions` 时删除本数据源下对应 `external_id` 的知识；有 `Content` 的走 `CreateKnowledgeFromFile`，只有 `URL` 的走 `CreateKnowledgeFromURL`。已存在同一 `external_id`（按数据源限定，不同数据源不会互相覆盖）时，冲突策略 `overwrite`（默认）先删后建，`skip` 保持原样。写入的 `metadata` 带 `external_id`、`source_resource_id`、`datasource_id`，`channel` 取连接器给的 `metadata["channel"]`，缺省为数据源类型；每个数据源自动建一个标签打在它同步的条目上；
+- **失败**：单条拉取或入库失败只计入 `items_failed`、不中断整次同步，错误样本有上限；可重试的失败（大小限制、服务不可用、超时、限流）通过可选的 `RetryableIngestTracker` 让流式连接器不推进该节点的游标，下次同步重拉；内容完全相同的重复文档计入 `items_skipped`；
+- **状态**：数据源 `active` / `paused` / `error` / `deleted`；`ValidateConnection` 失败置 `error`，恢复后回到 `active`。sync log `running` / `success` / `partial` / `failed` / `canceled`。
+
+核心类型在 `internal/types/datasource.go`：`DataSourceConfig`（解密后的 `credentials`、`resource_ids`、`settings`）、`Resource`（可选资源，`ParentID` 构成树）、`FetchedItem`（`ExternalID`、`Title`、`Content`、`ContentType`、`FileName`、`URL`、`UpdatedAt`、`Metadata`、`IsDeleted`、`SourceResourceID`）、`SyncCursor`（`LastSyncTime`、连接器自定义的 `ConnectorCursor`、`LastSchemaHash`）。
 
 ### 新增步骤
 
-1. 在 `internal/datasource/connector/mysource/` 新建包，实现 `Connector`（大数据量建议同时实现 `StreamingConnector`），提供 `NewConnector()`；
-2. **注册点一：`internal/container/container.go` 的 `initConnectorRegistry()`**：
+1. **实现**：在 `internal/datasource/connector/mysource/` 新建包，实现 `Connector`，提供 `NewConnector()`。建议的文件划分是 `types.go`（平台 API 类型）、`client.go`（API 客户端与 token 管理，出站请求用 `internal/datasource/httpclient.go` 的 `NewConnectorHTTPClient`，用户可配置的 API 地址先过 `ValidateConnectorBaseURL`）、`connector.go`（接口实现）。要点：
+   - `Validate` 真正调用一次平台 API（如换取 token），`POST /api/v1/datasource/validate-credentials` 在创建前用它测试凭据；
+   - `ListResources` 支持按 `parentID` 懒加载；一次返回整棵树或平铺列表的连接器，非空 `parentID` 返回空即可，`ResolveResourceAncestors` 也可返回空；
+   - `FetchIncremental` 可以复用 `FetchAll` 加编辑时间比较，把每个节点的编辑时间存进 `ConnectorCursor`；
+   - 数据量大时实现 `StreamingConnector`：边拉边 `Emit`，按页 `Checkpoint`，游标必须是可完整恢复的快照；
+   - 不支持的文档类型静默跳过，单条失败不要返回错误，而是作为错误条目放进 item 的 `Metadata`（`error_reason`，以及前端可本地化的 `error_reason_code`）；
+2. **类型常量**：在 `internal/types/datasource.go` 增加 `ConnectorTypeMySource`；
+3. **注册点一：`internal/container/container.go` 的 `initConnectorRegistry()`**：
 
 ```go
 if err := registry.Register(mysourceConnector.NewConnector()); err != nil {
@@ -448,8 +505,9 @@ if err := registry.Register(mysourceConnector.NewConnector()); err != nil {
 }
 ```
 
-3. **注册点二：`internal/datasource/connector.go` 的 `ConnectorMetadataRegistry`** — 增加类型常量（`internal/types` 的 `ConnectorTypeXxx`）与元数据条目（Name/Description/AuthType/Capabilities）；
-4. 同步配置结构：`types.DataSourceConfig` 若需新增凭证字段，注意加密存储约定；前端数据源接入页按元数据渲染。
+4. **注册点二：`internal/datasource/connector.go` 的 `ConnectorMetadataRegistry`** — 增加元数据条目（`Type`、`Name`、`Description`、`Icon`、`Priority`（越小越靠前）、`AuthType`（`oauth2` / `api_key` / `token` 等）、`Capabilities`（`incremental`、`deletion_sync` 等）），`GET /api/v1/datasource/types` 返回的就是它；
+5. **前端**：在 `frontend/src/views/knowledge/settings/DataSourceEditorDialog.vue` 加类型选项与凭据表单字段，图标放 `datasourceIcons.ts`，文案加到四个语言包；
+6. 凭据随 `DataSourceConfig` 以 `SYSTEM_AES_KEY` 加密存储，不要另存明文。更细的逐步说明见包内的 `internal/datasource/CONNECTOR_IMPLEMENTATION_GUIDE.md`，飞书连接器（`connector/feishu/`）是最完整的参考实现。
 
 ---
 

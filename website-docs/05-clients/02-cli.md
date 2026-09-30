@@ -1,11 +1,11 @@
 # Yuheng CLI（yuheng 命令行工具）
 
-Yuheng CLI（二进制名 `yuheng`）是 Yuheng RAG 服务的官方命令行客户端，源码位于仓库的 `cli/` 目录（独立 Go module：`github.com/magicyuan876/yuheng/cli`，要求 Go 1.26+）。它面向两类使用者：
+Yuheng CLI（二进制名 `yuheng`）是 Yuheng 的官方命令行客户端，源码位于仓库的 `cli/` 目录（独立 Go module：`github.com/magicyuan876/yuheng/cli`，要求 Go 1.26+）。它面向两类使用者：
 
 - **人类用户**：管理知识库（Knowledge Base）与文档、执行混合检索（hybrid search）、进行有引用溯源（grounded）的流式问答；
 - **AI Agent / 脚本**：默认输出 JSON envelope、提供类型化错误码与退出码矩阵、`--dry-run` 预演、`yuheng schema` 机器可读契约，以及 `yuheng mcp serve` MCP 服务器模式。
 
-命令树入口在 `cli/cmd/root.go`，各命令组按目录组织在 `cli/cmd/` 下。
+命令树入口在 `cli/cmd/root.go`，各命令组按目录组织在 `cli/cmd/` 下。根命令下共挂 20 个命令：12 个带子命令的命令组（`profile`、`auth`、`config`、`kb`、`doc`、`chunk`、`search`、`session`、`message`、`model`、`mcp`、`skills`）和 8 个单命令（`link`、`unlink`、`chat`、`api`、`doctor`、`version`、`schema`、`exit-codes`），另有 cobra 自带的 `completion`。CLI 通过 Go SDK（`client/`）访问服务端，覆盖的是知识库、文档、检索与对话这条主线；SDK 与 CLI 都没有封装的接口可以用 `yuheng api` 直接调用。
 
 ## 总体架构
 
@@ -294,8 +294,8 @@ yuheng kb config set <kb-id> --chat-model <id> --embedding-model <id> -y
 
 | 子命令 | Use | 说明 |
 |---|---|---|
-| upload | `upload <file>` | 上传本地文件；`--name`、`--recursive` + `--glob`（目录批量，如 `'*.pdf'`）、`--metadata key=value`（可重复）、`--enable-multimodel`、`--channel` |
-| fetch | `fetch <url>` | 抓取远程文档；`--name`、`--title`、`--file-type`（URL 无扩展名时的类型提示）、`--tag-id`、`--channel` |
+| upload | `upload <file>` | 上传本地文件；`--name`、`--recursive` + `--glob`（目录批量，默认 `*`，如 `'*.pdf'`）、`--metadata key=value`（可重复）、`--enable-multimodel`、`--channel` |
+| fetch | `fetch <url>` | 抓取远程文档；`--name`、`--title`、`--file-type`（URL 无扩展名时的类型提示）、`--tag-id`、`--enable-multimodel`、`--channel` |
 | create | `create` | 用内联 Markdown 文本建条目：`--text`（必填）、`--title`、`--tag-id`、`--channel` |
 | list | `list` | 列表；`--status pending|processing|completed|failed`、`--keyword`、`--file-type`、`--source`、`--tag-id`、`--start-time/--end-time`（RFC3339）、`--limit/-L`、`--page-size`、`--all-pages` |
 | view | `view <doc-id>` | 查看文档 |
@@ -323,9 +323,9 @@ yuheng doc wait <doc-id> --timeout 5m && yuheng search chunks "RRF" --kb docs
 | 子命令 | Use | 说明 |
 |---|---|---|
 | chunks | `chunks "<query>"` | **混合检索**（向量 + 关键词）：`--kb`、`--limit/-L`（默认 8，为 RAG 上下文窗口调优）、`--vector-threshold`、`--keyword-threshold`、`--no-vector`、`--no-keyword` |
-| docs | `docs "<query>"` | 按关键词找文档（服务端过滤）：`--kb`、`--limit`、`--page-size`、`--all-pages` |
+| docs | `docs "<query>"` | 按关键词找文档（服务端过滤）：`--kb`、`--limit`、`--page-size`、`--all-pages`（默认开启） |
 | kb | `kb "<query>"` | 按名称/描述找知识库（客户端子串匹配）：`--limit` |
-| sessions | `sessions "<query>"` | 按标题/描述找会话（客户端子串匹配）：`--limit`、`--page-size`、`--all-pages` |
+| sessions | `sessions "<query>"` | 按标题/描述找会话（客户端子串匹配）：`--limit`、`--page-size`、`--all-pages`（默认开启） |
 
 ```bash
 yuheng search chunks "rate limiting design" --kb docs --limit 5 --format json --jq '.data[].content'
@@ -406,6 +406,8 @@ yuheng api /api/v1/knowledge-bases/<id> -X DELETE -y
 | serve | `serve` | 在 stdin/stdout 上运行 JSON-RPC 2.0 MCP 服务器（当前仅 stdio 传输）；日志走 stderr；启动即急切构建 SDK client，无 profile 时以 `auth.unauthenticated` 立即失败 |
 
 暴露**精选 8 个工具**（实现见 `cli/internal/mcp/tools.go`）：`kb_list` / `kb_view` / `doc_list` / `doc_view` / `doc_download` / `search_chunks` / `chunk_list` 为只读；`chat` 会创建会话/消息记录。破坏性动词（create / delete / upload）被刻意排除。
+
+它与仓库 `mcp-server/` 下的 Yuheng MCP Server（`yuheng-mcp`，23 个工具，支持 stdio / SSE / HTTP）是两个独立的实现：`yuheng mcp serve` 复用 CLI 的 profile 与凭证、只读为主，适合在本机给一个 Agent 挂上检索与问答；需要写入能力或网络传输时用 `yuheng-mcp`，见 [MCP 集成](../03-features/08-mcp.md)。
 
 MCP 客户端注册示例（写入客户端的 `mcpServers` 配置）：
 

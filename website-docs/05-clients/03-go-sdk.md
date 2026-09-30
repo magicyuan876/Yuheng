@@ -1,6 +1,6 @@
 # Go SDK
 
-Yuheng 官方 Go SDK 位于仓库的 `client/` 目录，是一个独立的 Go module，封装了 Yuheng 服务端 `/api/v1/*` 全部主要资源的 CRUD 操作与 SSE 流式对话能力。服务端自身、官方 CLI（`yuheng`）均基于此 SDK 构建。
+Yuheng 官方 Go SDK 位于仓库的 `client/` 目录，是一个独立的 Go module，封装了 Yuheng 服务端 `/api/v1/*` 主要资源的操作与 SSE 流式对话能力。官方 CLI（`yuheng`）基于此 SDK 构建（`cli/go.mod` 通过 `replace` 指向仓库内的 `../client`）。Yuheng 当前为 0.1.0 预览版，`/api/v1` 在 0.x 版本之间可能变化，SDK 随之调整。
 
 ## 安装
 
@@ -65,10 +65,13 @@ SDK 支持两种凭证，可同时配置，HTTP 层 `X-API-Key` 优先：
 
 ```go
 c := client.NewClient("http://localhost:8080")
-loginResp, err := c.Login(ctx, client.LoginRequest{ /* email + password */ })
-// 然后用返回的 access token 重建带认证的客户端
+loginResp, err := c.Login(ctx, client.LoginRequest{Email: "user@example.com", Password: "..."})
+if err != nil {
+    return err
+}
+// LoginResponse.Token 是 JWT access token，RefreshToken 用于续期
 authed := client.NewClient("http://localhost:8080",
-    client.WithBearerToken(loginResp.AccessToken))
+    client.WithBearerToken(loginResp.Token))
 ```
 
 ### 租户（Tenant）与请求头注入
@@ -95,15 +98,18 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 
 ## 资源与方法总览
 
-以下均为 `Client` 的公开方法，内部方法（`buildRequest`、`doRequest`、`doRequestStream` 等）不列入。
+以下均为 `Client` 的公开方法（共 159 个），内部方法（`buildRequest`、`doRequest`、`doRequestStream`、`applyAuthHeaders`）不列入。
+
+SDK 覆盖知识库、文档、检索与对话这条主线，以及租户、组织、模型等管理接口；以下服务端接口**没有**类型化方法，需要时用 `Raw` 调用：知识健康（`/knowledge-bases/:id/findings`、`/findings/assigned`、`/knowledge/:id/stewardship` 等，见[知识健康](../03-features/22-knowledge-health.md)）、答案反馈（`/sessions/:id/feedback`）、在线文档（`/docs/...`）、Wiki、数据源、向量存储与存储后端、Web 搜索 provider 管理、成员与邀请、审计日志、系统管理（`/system/admin/...`）。
 
 ### 认证 Auth — `client/auth.go`
 
 | 方法 | 说明 |
 |---|---|
-| `Login` | 邮箱密码登录，返回 JWT access/refresh token |
+| `Login` | 邮箱密码登录，返回 JWT access/refresh token（`POST /api/v1/auth/login`） |
 | `GetCurrentUser` | 获取当前登录主体与租户信息（`GET /api/v1/auth/me`） |
 | `RefreshToken` | 用 refresh token 换取新 access token |
+| `ChangePassword` | 修改当前用户密码（`POST /api/v1/auth/change-password`）；成功后服务端吊销该用户所有会话，调用方应丢弃本地 token |
 
 ### 知识库 KnowledgeBase — `client/knowledgebase.go`
 
@@ -118,9 +124,9 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `HybridSearch` | 在知识库内混合检索（向量 + 关键词） |
 | `TogglePinKnowledgeBase` | 置顶/取消置顶 |
 | `ListMoveTargets` | 列出知识可迁移的目标知识库 |
-| `CopyKnowledgeBase` | 复制知识库 |
-| `DuplicateKnowledgeBase` | 复制（duplicate）知识库 |
-| `GetKBCloneProgress` | 查询克隆任务进度 |
+| `CopyKnowledgeBase` | 复制知识库（异步任务） |
+| `DuplicateKnowledgeBase` | 创建知识库副本（只复制设置，不复制内容） |
+| `GetKBCloneProgress` | 查询复制任务进度 |
 
 ### 知识 Knowledge — `client/knowledge.go`
 
@@ -128,35 +134,37 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 |---|---|
 | `CreateKnowledgeFromFile` | 从本地文件上传创建知识（multipart，支持 metadata、多模态开关、自定义文件名、channel、解析配置覆盖） |
 | `CreateKnowledgeFromURL` | 从 URL 创建知识 |
+| `CreateManualKnowledge` / `UpdateManualKnowledge` | 创建/更新手写（manual）知识 |
 | `GetKnowledge` | 获取知识详情 |
 | `GetKnowledgeBatch` | 批量获取知识 |
 | `ListKnowledge` | 分页列出知识 |
 | `ListKnowledgeWithFilter` | 带过滤条件列出知识 |
+| `FilterKnowledge` | 按关键词/文件类型跨库搜索知识 |
+| `UpdateKnowledge` | 更新知识 |
 | `DeleteKnowledge` | 删除知识 |
 | `DownloadKnowledgeFile` | 下载知识原始文件到本地路径 |
 | `OpenKnowledgeFile` | 以流方式打开知识原始文件（返回文件名 + `io.ReadCloser`） |
-| `UpdateKnowledge` | 更新知识 |
+| `PreviewKnowledgeFile` | 预览知识文件（返回原始 `*http.Response`） |
 | `ReparseKnowledge` | 重新解析知识 |
 | `CancelKnowledgeParse` | 取消解析任务 |
-| `GetKnowledgeProcessingSpans` | 获取知识处理链路 span |
+| `GetKnowledgeProcessingSpans` | 获取知识处理链路 span（`GET /api/v1/knowledge/:id/spans`） |
 | `UpdateImageInfo` | 更新图片信息 |
-| `CreateManualKnowledge` | 创建手写（manual）知识 |
-| `UpdateManualKnowledge` | 更新手写知识 |
-| `FilterKnowledge` | 按关键词/文件类型过滤知识 |
+| `ListKnowledgeFolders` | 获取知识库的文件夹树 |
+| `MoveKnowledgeToFolder` | 把知识移入文件夹（空路径表示移回根目录） |
+| `RenameKnowledgeFolder` | 重命名文件夹（连同所有子路径） |
 | `MoveKnowledge` | 跨知识库迁移知识 |
 | `GetKnowledgeMoveProgress` | 查询迁移任务进度 |
-| `PreviewKnowledgeFile` | 预览知识文件（返回原始 `*http.Response`） |
 | `BatchUpdateKnowledgeTags` | 批量更新知识标签 |
 
 ### 分块 Chunk — `client/chunk.go`
 
 | 方法 | 说明 |
 |---|---|
-| `ListKnowledgeChunks` | 分页列出某个知识的 chunk |
+| `ListKnowledgeChunks` | 分页列出某个知识的 chunk，可按 chunk 类型过滤 |
 | `UpdateChunk` | 更新 chunk 内容/启用状态 |
 | `DeleteChunk` | 删除 chunk |
 | `GetChunkByIDOnly` | 仅凭 chunk ID 获取 chunk |
-| `DeleteGeneratedQuestion` | 删除 chunk 生成的问题 |
+| `DeleteGeneratedQuestion` | 删除 chunk 生成的问题。注意：该方法当前请求的是 `DELETE /api/v1/chunks/{chunkID}/delete-question`，而服务端注册的删除路由是 `DELETE /api/v1/chunks/by-id/:id/questions`，在修复前不要依赖它 |
 | `DeleteChunksByKnowledgeID` | 删除某知识的全部 chunk |
 
 ### 会话 Session — `client/session.go`
@@ -165,7 +173,7 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 |---|---|
 | `CreateSession` | 创建会话 |
 | `GetSession` | 获取会话 |
-| `GetSessionsByTenant` | 分页列出租户会话 |
+| `GetSessionsByTenant` | 分页列出会话 |
 | `UpdateSession` | 更新会话 |
 | `DeleteSession` | 删除会话 |
 | `BatchDeleteSessions` | 批量删除会话 |
@@ -173,7 +181,7 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `KnowledgeQAStream` | 知识问答（SSE 流式，见下文） |
 | `ContinueStream` | 续接进行中的流（断线重连场景） |
 | `StopSession` | 停止某条 assistant 消息的生成 |
-| `SearchKnowledge` | 知识检索 |
+| `SearchKnowledge` | 知识检索（不经 LLM 总结，`POST /api/v1/knowledge-search`） |
 
 ### 消息 Message — `client/message.go`、`client/message_suggestion.go`
 
@@ -183,11 +191,13 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `GetRecentMessages` | 获取最近 N 条消息 | `client/message.go` |
 | `GetMessagesBefore` | 获取某时间点之前的消息 | `client/message.go` |
 | `SearchMessages` | 搜索历史消息 | `client/message.go` |
-| `GetChatHistoryKBStats` | 聊天历史按知识库统计 | `client/message.go` |
+| `GetChatHistoryKBStats` | 聊天历史知识库统计 | `client/message.go` |
 | `DeleteMessage` | 删除消息 | `client/message.go` |
 | `EnsureMessageSuggestions` | 确保（可强制重新）生成推荐问题 | `client/message_suggestion.go` |
 | `GetMessageSuggestions` | 获取消息的推荐问题 | `client/message_suggestion.go` |
 | `RecordMessageSuggestionEvent` | 上报推荐问题点击/曝光事件 | `client/message_suggestion.go` |
+
+`KnowledgeQAStream`、`ContinueStream`、`SearchKnowledge`、`LoadMessages` 接受可选的 `ResourceURLOptions`（`client/resource_urls.go`）：`ResourceURLModePublic` 让服务端把文件引用返回成无需 Yuheng 凭证即可加载的限时 HTTP(S) URL，默认的 `ResourceURLModeHandle` 返回 `resource://` 句柄，需经已认证的 `/files` 代理取回。
 
 ### 模型 Model — `client/model.go`
 
@@ -200,24 +210,19 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `DeleteModel` | 删除模型 |
 | `ListModelProviders` | 按模型类型列出模型提供商 |
 
+包级辅助函数 `AllModelTypes()`、`AllModelSources()` 返回模型类型与来源的全部枚举值。
+
 ### 租户 Tenant — `client/tenant.go`
 
 | 方法 | 说明 |
 |---|---|
-| `CreateTenant` | 创建租户 |
-| `GetTenant` | 获取租户 |
-| `UpdateTenant` | 更新租户 |
-| `DeleteTenant` | 删除租户 |
-| `ListTenants` | 列出租户 |
-| `ListAllTenants` | 列出全部租户（管理员） |
-| `SearchTenants` | 搜索租户（分页） |
-| `ListTenantAPIKeys` | 列出租户 API Key |
-| `CreateTenantAPIKey` | 创建租户 API Key |
-| `DeleteTenantAPIKey` | 删除租户 API Key |
-| `GetTenantKV` | 读取租户级 KV 配置 |
-| `UpdateTenantKV` | 更新租户级 KV 配置 |
-| `GetAPIPrincipalConfig` | 获取 API 主体配置 |
-| `UpdateAPIPrincipalConfig` | 更新 API 主体配置 |
+| `CreateTenant` / `GetTenant` / `UpdateTenant` / `DeleteTenant` | 租户 CRUD |
+| `ListTenants` | 列出当前用户可访问的租户 |
+| `ListAllTenants` | 列出全部租户（跨租户权限） |
+| `SearchTenants` | 搜索租户（分页，跨租户权限） |
+| `ListTenantAPIKeys` / `CreateTenantAPIKey` / `UpdateTenantAPIKey` / `DeleteTenantAPIKey` | 租户 API Key 管理 |
+| `GetTenantKV` / `UpdateTenantKV` | 读取/更新租户级 KV 配置 |
+| `GetAPIPrincipalConfig` / `UpdateAPIPrincipalConfig` | API 主体配置 |
 | `CreateAPIPrincipalTestToken` | 创建 API 主体测试 token |
 
 ### 组织与共享 Organization — `client/organization.go`
@@ -226,20 +231,19 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 |---|---|
 | `CreateOrganization` / `ListMyOrganizations` / `GetOrganization` / `UpdateOrganization` / `DeleteOrganization` | 组织 CRUD |
 | `SearchOrganizations` / `PreviewOrganizationByInviteCode` | 搜索/邀请码预览组织 |
-| `JoinOrganizationByInviteCode` / `SubmitJoinRequest` / `JoinByOrganizationID` / `LeaveOrganization` / `RequestRoleUpgrade` | 加入/退出/升级角色 |
+| `JoinOrganizationByInviteCode` / `SubmitJoinRequest` / `JoinByOrganizationID` / `LeaveOrganization` / `RequestRoleUpgrade` | 加入/退出/申请升级角色 |
 | `GenerateInviteCode` / `SearchUsersForInvite` / `InviteMember` | 邀请成员 |
 | `ListOrgMembers` / `UpdateMemberRole` / `RemoveMember` | 成员管理 |
 | `ListJoinRequests` / `ReviewJoinRequest` | 加入申请审批 |
 | `ShareKnowledgeBase` / `ListKBShares` / `UpdateSharePermission` / `RemoveKBShare` | 知识库共享 |
-| `ShareAgent` / `ListAgentShares` / `RemoveAgentShare` | Agent 共享 |
-| `ListOrgShares` / `ListOrgAgentShares` / `ListSharedKnowledgeBases` / `ListSharedAgents` | 共享资源查询 |
+| `ListOrgShares` / `ListSharedKnowledgeBases` | 组织内共享的知识库、共享给我的知识库 |
 
 ### FAQ — `client/faq.go`
 
 | 方法 | 说明 |
 |---|---|
 | `ListFAQEntries` | 分页列出 FAQ 条目 |
-| `UpsertFAQEntries` | 批量新增/更新 FAQ 条目 |
+| `UpsertFAQEntries` | 批量新增/更新 FAQ 条目（异步导入） |
 | `CreateFAQEntry` | 创建单条 FAQ |
 | `GetFAQEntry` | 获取单条 FAQ |
 | `UpdateFAQEntry` | 更新单条 FAQ |
@@ -261,15 +265,6 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | `UpdateTag` / `UpdateTagBySeqID` | 更新标签（按 ID / 按 seq ID） |
 | `DeleteTag` / `DeleteTagBySeqID` | 删除标签（按 ID / 按 seq ID） |
 
-### MCP 服务 — `client/mcp_service.go`
-
-| 方法 | 说明 |
-|---|---|
-| `CreateMCPService` / `ListMCPServices` / `GetMCPService` / `UpdateMCPService` / `DeleteMCPService` | MCP 服务 CRUD |
-| `TestMCPService` | 连通性测试 |
-| `GetMCPServiceTools` / `GetMCPServiceResources` | 列出 MCP 工具/资源 |
-| `ResolveToolApproval` | 处理工具调用审批 |
-
 ### 初始化与模型检测 — `client/initialization.go`
 
 | 方法 | 说明 |
@@ -285,8 +280,9 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | 方法 | 说明 |
 |---|---|
 | `GetSystemInfo` | 获取系统信息（版本等） |
+| `GetDeploymentCapabilities` | 获取部署能力快照（`GET /api/v1/system/capabilities`） |
 | `ListParserEngines` / `CheckParserEngines` | 文档解析引擎列表/检测 |
-| `ReconnectDocReader` | 重连 DocReader 服务 |
+| `ReconnectDocReader` | 重连 docreader 服务 |
 | `GetStorageEngineStatus` / `CheckStorageEngine` | 存储引擎状态/检测 |
 
 ### 其他
@@ -294,11 +290,8 @@ kb, err := apiClient.GetKnowledgeBase(ctx, kbID)
 | 方法 | 说明 | 源文件 |
 |---|---|---|
 | `StartEvaluation` / `GetEvaluationResult` | 发起评估任务 / 查询评估结果 | `client/evaluation.go` |
-| `ListSkills` | 列出预置 Agent skill | `client/skill.go` |
 | `GetWebSearchProviders` | 列出可用 Web 搜索提供商 | `client/web_search.go` |
 | `Raw` | 原始 HTTP 逃生舱（Experimental） | `client/client.go` |
-
-合计约 170 个公开方法，覆盖约 20 类资源。
 
 ## 流式对话（SSE）
 
@@ -317,9 +310,9 @@ func (c *Client) KnowledgeQAStream(
 ) error
 ```
 
-每帧 `StreamResponse` 携带 `ResponseType`（`answer`、`references`、`thinking`、`tool_call`、`error`、`session_title`、`complete`）、增量 `Content`、结束标记 `Done`，以及 `Done` 帧上的 `KnowledgeReferences`（引用来源）。
+每帧 `StreamResponse` 携带 `ResponseType`、增量 `Content`、结束标记 `Done`、引用来源 `KnowledgeReferences`，以及 `SessionID`、`AssistantMessageID`、`Data` 等字段。SDK 定义的 `ResponseType` 常量有 `answer`、`references`、`thinking`、`tool_call`、`tool_result`、`error`、`reflection`、`session_title`、`agent_query`、`complete`（`agent_query` 是流的首个事件名，携带 session_id 与 assistant_message_id，与已移除的 Agent 功能无关）。
 
-`KnowledgeQARequest` 支持 `KnowledgeBaseIDs`、`KnowledgeIDs`、`WebSearchEnabled`、`MentionedItems`（@提及知识库/文件/标签）、`Images`（多模态图片）等字段：
+`KnowledgeQARequest` 的字段有 `Query`、`KnowledgeBaseIDs`、`KnowledgeIDs`、`WebSearchEnabled`、`SummaryModelID`（覆盖会话默认模型）、`DisableTitle`（不自动生成标题）、`Images`（多模态图片，base64）与 `Channel`：
 
 ```go
 err := apiClient.KnowledgeQAStream(ctx, session.ID, &client.KnowledgeQARequest{

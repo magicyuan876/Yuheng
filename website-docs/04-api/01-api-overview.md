@@ -2,18 +2,33 @@
 
 本节介绍 Yuheng HTTP API 的通用约定：Base URL、认证方式、响应结构、错误码、分页、SSE 与限流。
 
+Yuheng 是给 AI Agent 用的知识层，本身不是 Agent 框架：它负责知识的入库、治理、检索与基于知识的问答，由调用方（你的 Agent、脚本或业务系统）决定何时调用。对接方式有四种，底层都是同一套 `/api/v1`：
+
+| 方式 | 适用场景 | 文档 |
+| --- | --- | --- |
+| REST API | 任意语言直接调用 | 本章 |
+| MCP Server（`mcp-server/`，23 个工具） | 让支持 MCP 的 Agent / IDE 直接检索、问答、入库 | [MCP 集成](../03-features/08-mcp.md) |
+| Go SDK（`client/`） | Go 服务集成 | [Go SDK](../05-clients/03-go-sdk.md) |
+| `yuheng` CLI（`cli/`） | 运维脚本、CI、终端里的 Agent | [命令行工具](../05-clients/02-cli.md) |
+
 > **稳定性**：Yuheng 处于 0.x 预览阶段，`/api/v1` 在 0.x 各版本之间仍可能变化，升级前请对照更新日志；MCP 工具名是稳定的，不会改名。
 
 ## Base URL 与版本前缀
 
 - 所有业务 API 挂载在 `/api/v1` 前缀下（`router.go` 中 `r.Group("/api/v1")`）。
-- 健康检查：`GET /health`（无需认证），返回 `{"status":"ok"}`。
-- Swagger UI：`GET /swagger/*any`，仅在非 `release` 模式（`GIN_MODE != release`）下注册。
-- 认证之外的特殊路径：`GET|HEAD /r/:token`（短时效资源授权 URL）、`GET /files`（认证后文件代理）、`GET|HEAD /api/v1/files/presigned`（HMAC 签名 URL，无需认证）、`GET /api/v1/files/presigned-preview`（Admin 诊断）。
+- 健康检查：`GET /health`（无需认证，存活探针），返回 `{"status":"ok"}`。
+- 就绪检查：`GET /ready`（无需认证，就绪探针），检查数据库、Redis（未配置时为 `disabled`）与启动时的迁移结果，全部正常返回 200 `{"status":"ok","checks":{...}}`，否则 503 `{"status":"unavailable","checks":{...}}`。
+- Swagger UI：`GET /swagger/index.html`（路由 `/swagger/*any`），仅在非 `release` 模式（`GIN_MODE != release`）下注册，生产部署默认没有。它由 handler 注释生成（`docs/swagger.json`），列出全部端点的参数与 schema，可在浏览器里直接试调；本章与 swagger 不一致时以 swagger 为准。
+- 认证之外的特殊路径：`GET|HEAD /r/:token`（短时效资源授权 URL）、`GET /files`（认证后文件代理）、`GET|HEAD /api/v1/files/presigned`（HMAC 签名 URL，无需认证）、`GET /api/v1/files/presigned-preview`（Admin 诊断）、`/api/v1/docs/public/*` 与 `/api/v1/docs/public-spaces/*`（在线文档的公开分享链接，无需认证，见[在线文档](../03-features/07-docs.md)）。
 
 ```
 BASE=http://localhost:8080
 ```
+
+两个通用请求头：
+
+- `X-Request-ID`：可选。带上时服务端沿用该值，不带时生成一个 UUID；它会原样写回响应头，并出现在该请求的每条日志里，排查问题时按它检索。
+- `Accept-Language`：取第一个语言标签（如 `zh-CN`）决定错误信息、提示词模板等的语言；部署设置了 `YUHENG_LANGUAGE` 时以它为准。
 
 ## 认证方式
 
@@ -36,13 +51,18 @@ X-API-Key: <api_key>
 ```
 
 - 空间级（workspace）key：在 `POST /api/v1/tenants/:id/api-keys` 创建，绑定到单一空间；携带 `X-Tenant-ID` 指向其它空间会得到 403。
-- 平台级（platform）key：在 `POST /api/v1/system/admin/api-keys` 创建，必须携带 `X-Tenant-ID` 选择目标空间（`/system/admin/*`、`/tenants/all|search`、`POST /tenants` 除外），否则返回 409 `TENANT_REQUIRED`。
+- 平台级（platform）key：由系统管理员在 `POST /api/v1/system/admin/api-keys` 创建，不绑定单一空间，也没有 `full_access`，每个操作都要有对应 capability。调用空间内接口时必须携带 `X-Tenant-ID` 选择目标空间（`/system/admin/*`、`/tenants/all|search`、`POST /tenants` 除外），否则返回 409 `TENANT_REQUIRED`；此后照常走该空间的路由 capability 与 KB 白名单检查。平台 key 除 `system_*` 外也可以带空间 capability（如 `retrieve`、`ingest`、`manage_kbs`），作用于 `X-Tenant-ID` 指定的空间。
+
+  ```bash
+  curl $BASE/api/v1/knowledge-bases -H "X-API-Key: $PLATFORM_KEY" -H 'X-Tenant-ID: 10000'
+  ```
 - 授权模型（`internal/middleware/api_key_gate.go`，默认拒绝）：每个 `/api/v1` 路由必须显式声明 API key 策略，未声明的路由对任何 key 一律 403。
   - `full_access` key：空间内全权（等效 Owner 的机器形态）。
-  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`manage_kbs`、`message_history`、`manage_models`、`manage_datasources`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`、`manage_spaces`、`manage_tenant_settings`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
-- 外部用户主体（可选，按空间 `api-principal-config` 配置）：
-  - `direct` 模式：`X-External-User-ID: <外部用户ID>`（≤128 字符）。
-  - `signed_token` 模式：`X-External-User-Token: <HS256 JWT>`，要求 `aud=yuheng`、`exp`（生存期 ≤24h）、`tenant_id` claim 与目标空间一致、`sub` 为外部用户 ID。
+  - 受限（scoped）key：按 capability 放行，并受 `knowledge_base_ids` 白名单约束。Capability 常量见 `internal/types/tenant_api_key.go`：`retrieve`、`ingest`、`chat`、`manage_kbs`、`message_history`、`manage_models`、`manage_datasources`、`manage_vector_stores`、`manage_storage_backends`、`manage_web_search`、`run_evaluations`、`manage_members`、`manage_spaces`、`manage_tenant_settings`，在线文档模块另有 `docs_read`、`docs_write`、`docs_admin`；平台能力：`system_tenants_read/manage`、`system_settings_read/manage`、`system_runtime_read/manage`、`system_audit_read`。
+- 外部用户主体（可选，按空间 `api-principal-config` 配置，见[租户与成员](./02-api-tenant.md)）：把一个 API key 请求映射到你系统里的某个终端用户，用来按用户隔离会话（会话的创建、列表与读取按外部用户分开）。它**不会**缩小 key 的路由权限，权限仍只由 capability 与 KB 白名单决定。
+  - `tenant` 模式（默认）：全空间共用一个空间级主体。
+  - `direct_header` 模式：`X-External-User-ID: <外部用户ID>`（≤128 字符）。这个 ID 由调用方自报，任何持有 key 的调用方都能冒充别的外部用户，只适合可信的服务端到服务端调用。缺少该 Header 时，`require_direct_header=false` 回落为空间级主体，`true` 返回 401。
+  - `signed_token` 模式（面向终端用户时推荐）：`X-External-User-Token: <HS256 JWT>`，由你的后端用空间配置的 `hmac_secret` 签发，要求 `aud=yuheng`、`exp`（生存期 ≤24h）、`tenant_id` claim 与目标空间一致、`sub` 为外部用户 ID。缺失或无效返回 401，不回落为空间级主体。
 
 ### 认证流程图
 
@@ -82,12 +102,13 @@ flowchart TD
 | 角色 | 说明 |
 | --- | --- |
 | `owner` | 空间所有者：空间生命周期、API key、成员管理 |
-| `admin` | 空间管理员：模型/基础设施/渠道等空间级配置 |
+| `admin` | 空间管理员：模型、基础设施、数据源等空间级配置，审计日志 |
 | `contributor` | 贡献者：可创建 KB，可修改**自己创建**的资源 |
 | `viewer` | 只读成员：读取与会话使用 |
 | SystemAdmin | 平台级管理员（`User.IsSystemAdmin`），独立于空间角色，守卫 `/system/admin/*`，始终强制 |
 
 - 文档中“Viewer+ / Contributor+ / Admin+ / Owner”表示最低角色要求；“创建者 OR Admin+”对应 `RequireOwnershipOrRole`（Contributor 只能改自己创建的 KB/内容）。
+- “PlatformManaged”用于共享基础设施（模型、Web 搜索引擎、向量存储、存储后端、解析引擎、Ollama）的写操作：系统设置 `governance.centralized_infra` 关闭时为 Admin+，开启后只允许 SystemAdmin；对应的读接口保持 Viewer+，建库时仍能选用平台资源。
 - `cfg.Tenant.EnableRBAC=false` 时角色守卫只记录日志不拦截（rollout fail-open）；SystemAdmin 守卫不受此开关影响。
 - KB 级访问守卫 `KBAccessRead/Write`（`internal/middleware/kb_access.go`）：解析“自有 / 组织共享”两类访问，并把请求上下文的 tenant 重写为 KB 属主空间。
 - API key 主体会短路 JWT 角色守卫，其真实权限完全由 APIKeyGate（capability + KB 白名单）决定。
@@ -162,10 +183,11 @@ X-Accel-Buffering: no
 | `knowledge_references` | []SearchResult | `references` 事件携带的引用 |
 | `tool_calls` | []LLMToolCall | 工具调用事件 |
 | `session_id` / `assistant_message_id` | string | `agent_query` 事件携带 |
+| `data` | object | 附加数据，如 `agent_query` 事件里的 `user_message_id` 与消息创建时间 |
 | `usage` | TokenUsage | `prompt_tokens/completion_tokens/total_tokens/cache_*` |
 | `finish_reason` | string | 结束原因 |
 
-流以 `response_type:"complete"`（`done:true`）终止；出错时以 `response_type:"error"`（`done:true`）终止。`continue-stream` 采用重放 + 100ms 轮询追增量的续传语义（`?message_id=` 必填）。
+`agent_query` 是每次问答的第一个事件（名称沿用上游，与 Agent 无关），用来告诉客户端本轮用户消息与助手消息的 ID；`tool_call` / `tool_result` 承载检索流水线的进度步骤（检索、重排等），不是 Agent 工具调用。流以 `response_type:"complete"`（`done:true`）终止；出错时以 `response_type:"error"`（`done:true`）终止。`continue-stream` 采用重放 + 100ms 轮询追增量的续传语义（`?message_id=` 必填）。
 
 ## 文件引用形式（resource_urls）
 
@@ -194,6 +216,8 @@ X-Accel-Buffering: no
 | 面 | 限制 | 来源 |
 | --- | --- | --- |
 | 公开分享链接接口（`/auth/invitations/lookup`、`/auth/register-by-invite`） | 每 IP 30 次/分钟（两个端点共享额度），超限 429（code 1006） | `internal/middleware/auth_public_ratelimit.go` |
+| 凭据接口 | 每 IP 每分钟：`/auth/login` 30 次、`/auth/register` 10 次、`/auth/switch-tenant` 60 次；有 Redis 时多实例共享计数。登录另有按账号的失败锁定 | `internal/middleware/auth_ip_ratelimit.go` |
+| 在线文档加密分享解锁（`POST /docs/public/:key/unlock`） | 每 IP 10 次/分钟 | 同上 |
 | 反代信任 | 仅信任 `YUHENG_TRUSTED_PROXIES`（默认回环+内网段）的 `X-Forwarded-For`，防止伪造 IP 绕过限流 | `router.go` `trustedProxies()` |
 
 其余业务接口无全局限流；自助创建空间等配额类拒绝同样使用 429（code 1006）。
@@ -202,14 +226,16 @@ X-Accel-Buffering: no
 
 | 分组 | 文档 | 主要前缀 |
 | --- | --- | --- |
-| 认证与用户 | [02-api-auth.md](./02-api-auth.md) | `/auth`、`/me/invitations` |
+| 认证与用户 | [02-api-auth.md](./02-api-auth.md) | `/auth`、`/me/invitations`、`/user/favorites` |
 | 租户（空间）与成员 | [02-api-tenant.md](./02-api-tenant.md) | `/tenants` |
 | 组织与共享 | [02-api-org.md](./02-api-org.md) | `/organizations`、`/shared-*`、`/knowledge-bases/:id/shares` |
 | 知识库与知识 | [02-api-knowledge.md](./02-api-knowledge.md) | `/knowledge-bases`、`/knowledge`、知识库文件夹 |
+| 知识健康 | [02-api-knowledge.md](./02-api-knowledge.md)，概念见[知识健康](../03-features/22-knowledge-health.md) | `/knowledge-bases/:id/findings`、`/findings/assigned`、`/knowledge/:id/stewardship` |
 | 分块与标签 | [02-api-chunks.md](./02-api-chunks.md) | `/chunks`、`/knowledge-bases/:id/tags`、`/chunker/preview` |
 | FAQ 与 Wiki | [02-api-faq-wiki.md](./02-api-faq-wiki.md) | `/knowledge-bases/:id/faq`、`/faq`、`/knowledgebase/:kb_id/wiki` |
-| 会话、消息与聊天 | [02-api-chat.md](./02-api-chat.md) | `/sessions`、`/messages`、`/knowledge-chat`、`/knowledge-search` |
+| 会话、消息与聊天 | [02-api-chat.md](./02-api-chat.md) | `/sessions`、`/messages`、`/knowledge-chat`、`/knowledge-search`，回答反馈 `/sessions/:id/feedback` |
 | 模型与初始化 | [02-api-model-system.md](./02-api-model-system.md) | `/models`、`/initialization`、`/evaluation` |
 | 系统与平台管理 | [02-api-system.md](./02-api-system.md) | `/system`、`/system/admin` |
 | 基础设施与数据源 | [02-api-infra.md](./02-api-infra.md) | `/vector-stores`、`/storage-backends`、`/web-search-providers`、`/datasource` |
 | 文件服务 | [02-api-files.md](./02-api-files.md) | `/files`、`/api/v1/files/presigned`、`/r/:token` |
+| 在线文档 | [在线文档](../03-features/07-docs.md)（功能页内附接口说明） | `/docs`、`/groups` |
