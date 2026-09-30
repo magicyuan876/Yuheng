@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/hibiken/asynq"
@@ -96,28 +97,28 @@ func TestReparseKnowledgeManualEnqueueFailureIsVisible(t *testing.T) {
 	require.GreaterOrEqual(t, repo.updateCalls, 2, "pending and failed states must both be persisted")
 }
 
-func TestRunKnowledgeListReparseSubmissionsReportsPartialFailure(t *testing.T) {
+func TestReparseRunReportsPartialFailure(t *testing.T) {
 	firstErr := errors.New("first failed")
 	secondErr := errors.New("second failed")
 	var attempted []string
 
-	outcome, err := runKnowledgeListReparseSubmissions(
-		[]string{"ok-1", "bad-1", "ok-2", "bad-2"},
-		func(id string) error {
-			attempted = append(attempted, id)
-			switch id {
-			case "bad-1":
-				return firstErr
-			case "bad-2":
-				return secondErr
-			default:
-				return nil
-			}
-		},
-	)
+	var run reparseRun
+	run.reparse([]string{"ok-1", "bad-1", "ok-2", "bad-2"}, func(id string) error {
+		attempted = append(attempted, id)
+		switch id {
+		case "bad-1":
+			return firstErr
+		case "bad-2":
+			return secondErr
+		default:
+			return nil
+		}
+	})
+	err := run.err()
 
 	require.Equal(t, []string{"ok-1", "bad-1", "ok-2", "bad-2"}, attempted)
-	require.Equal(t, knowledgeListReparseOutcome{Submitted: 2, Failed: 2}, outcome)
+	require.Equal(t, 2, run.Submitted)
+	require.Equal(t, 2, run.Failed)
 	require.ErrorIs(t, err, asynq.SkipRetry)
 	require.ErrorIs(t, err, firstErr)
 	require.ErrorIs(t, err, secondErr)
@@ -125,12 +126,30 @@ func TestRunKnowledgeListReparseSubmissionsReportsPartialFailure(t *testing.T) {
 	require.ErrorContains(t, err, "knowledge bad-2")
 }
 
-func TestRunKnowledgeListReparseSubmissionsSucceeds(t *testing.T) {
-	outcome, err := runKnowledgeListReparseSubmissions(
-		[]string{"knowledge-1", "knowledge-2"},
-		func(string) error { return nil },
-	)
+func TestReparseRunSucceeds(t *testing.T) {
+	var run reparseRun
+	run.reparse([]string{"knowledge-1"}, func(string) error { return nil })
+	// A second call adds to the tally: the index rebuild feeds the run one
+	// page at a time.
+	run.reparse([]string{"knowledge-2"}, func(string) error { return nil })
 
-	require.NoError(t, err)
-	require.Equal(t, knowledgeListReparseOutcome{Submitted: 2}, outcome)
+	require.NoError(t, run.err())
+	require.Equal(t, 2, run.Submitted)
+	require.Zero(t, run.Failed)
+}
+
+// A run over thousands of failing documents reports all of them in its
+// counts but keeps only the first few errors, so the task's last error stays
+// readable.
+func TestReparseRunCapsReportedFailures(t *testing.T) {
+	ids := make([]string, maxReportedReparseFailures+5)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("bad-%d", i)
+	}
+	var run reparseRun
+	run.reparse(ids, func(string) error { return errors.New("parser down") })
+
+	require.Equal(t, len(ids), run.Failed)
+	require.Len(t, run.failures, maxReportedReparseFailures)
+	require.ErrorContains(t, run.err(), fmt.Sprintf("failed %d", len(ids)))
 }

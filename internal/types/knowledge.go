@@ -70,6 +70,13 @@ const (
 	ParseStatusCancelled = "cancelled"
 )
 
+// ParseStatusesSkippedByRebuild are the entries an index rebuild of a
+// knowledge base leaves alone. A draft was never indexed, and re-processing
+// it would publish text its author has not released. An entry being deleted
+// is on its way out; re-processing it would race the deletion and could put
+// its chunks back.
+var ParseStatusesSkippedByRebuild = []string{ManualKnowledgeStatusDraft, ParseStatusDeleting}
+
 // Summary status constants for async summary generation
 const (
 	// SummaryStatusNone indicates no summary task is needed

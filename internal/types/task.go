@@ -77,7 +77,7 @@ var queueDefinitions = []QueueDefinition{
 	{Name: QueueSync, Pool: WorkerPoolMaintenance, Weight: 2, TaskTypes: []string{TypeDataSourceSync}},
 	{Name: QueueMaintenance, Pool: WorkerPoolMaintenance, Weight: 1, TaskTypes: []string{
 		TypeFAQImport, TypeKBClone, TypeIndexDelete, TypeKBDelete,
-		TypeKnowledgeListDelete, TypeKnowledgeListReparse, TypeKnowledgeMove,
+		TypeKnowledgeListDelete, TypeKnowledgeListReparse, TypeKBRebuildIndex, TypeKnowledgeMove,
 		// Knowledge-health checks read the database and compare stored
 		// vectors; they call no model, so they belong with the other
 		// background upkeep rather than in the enrichment pool.
@@ -241,6 +241,7 @@ const (
 	TypeKBDelete                 = "kb:delete"                  // 知识库删除任务
 	TypeKnowledgeListDelete      = "knowledge:list_delete"      // 批量删除知识任务
 	TypeKnowledgeListReparse     = "knowledge:list_reparse"     // 批量重解析知识任务
+	TypeKBRebuildIndex           = "kb:rebuild_index"           // 知识库重建索引（逐篇重解析）
 	TypeKnowledgeMove            = "knowledge:move"             // 知识移动任务
 	TypeDataTableSummary         = "datatable:summary"          // 表格摘要任务
 	TypeImageMultimodal          = "image:multimodal"           // 图片多模态处理任务（OCR + VLM Caption）
@@ -429,6 +430,27 @@ type KnowledgeListReparsePayload struct {
 	KnowledgeIDs  []string                   `json:"knowledge_ids"`
 	ProcessConfig *KnowledgeProcessOverrides `json:"process_config,omitempty"`
 	Initiator     TaskInitiator              `json:"initiator,omitempty"`
+}
+
+// KBRebuildIndexPayload is the payload of TypeKBRebuildIndex. It names the
+// knowledge base, not its documents: the worker pages through them itself, so
+// the payload stays small however large the base is, and documents added
+// between the request and the run are covered too. The field is
+// knowledge_base_id so that deleting the base cancels a rebuild still waiting
+// in the queue (see matchesKnowledgeBase in the task inspector).
+type KBRebuildIndexPayload struct {
+	TracingContext
+	TenantID        uint64        `json:"tenant_id"`
+	KnowledgeBaseID string        `json:"knowledge_base_id"`
+	Initiator       TaskInitiator `json:"initiator,omitempty"`
+}
+
+// KBRebuildIndexResult answers a request to rebuild a knowledge base's index.
+type KBRebuildIndexResult struct {
+	// TaskID is the queued rebuild; empty when there was nothing to rebuild.
+	TaskID string `json:"task_id,omitempty"`
+	// DocumentCount is how many documents the rebuild re-processes.
+	DocumentCount int64 `json:"document_count"`
 }
 
 // KnowledgeMovePayload represents the knowledge move task payload

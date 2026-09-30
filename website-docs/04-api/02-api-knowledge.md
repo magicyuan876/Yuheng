@@ -98,6 +98,18 @@ curl -X PUT $BASE/api/v1/knowledge-bases/kb-1 -H "Authorization: Bearer $TOKEN" 
   -H 'Content-Type: application/json' -d '{"name":"产品文档 v2"}'
 ```
 
+### POST /api/v1/knowledge-bases/:id/rebuild-index
+
+用途：重建索引——逐篇重新解析 KB 内的全部文档，使修改后的 `indexing_strategy`（向量/关键词/Wiki/图谱）作用于已有文档。每篇文档按单篇 `reparse` 的规则处理，沿用其上传时保存的解析覆盖；草稿与删除中的文档跳过。异步执行：请求只统计文档数并排入 maintenance 队列，由后台任务分页逐篇提交解析，大库不会在请求里加载全部文档。权限：创建者 OR Admin+，KB write（组织共享需 editor）；API key `ingest`/full。无请求体。
+
+同一 KB 已有重建在排队或进行中时返回 409，不会重复解析；FAQ 知识库没有可重新解析的文档，返回 400。没有可处理的文档时不排任务，返回 `document_count: 0`。
+
+响应：200 `{"success":true,"data":{"task_id":"…","document_count":N}}`（`document_count` 为 0 时无 `task_id`）
+
+```bash
+curl -X POST $BASE/api/v1/knowledge-bases/kb-1/rebuild-index -H "Authorization: Bearer $TOKEN"
+```
+
 ### DELETE /api/v1/knowledge-bases/:id
 
 用途：删除知识库，级联清理其下全部知识与分块（锁定为属主空间 + Admin；共享 editor 不可删，返回 403 `Only knowledge base owner can delete`）。权限：创建者 OR Admin+，KB write；API key `manage_kbs`/full。

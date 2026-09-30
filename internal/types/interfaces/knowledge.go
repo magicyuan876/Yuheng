@@ -214,6 +214,12 @@ type KnowledgeService interface {
 	ProcessKnowledgeListDelete(ctx context.Context, t *asynq.Task) error
 	// ProcessKnowledgeListReparse handles Asynq knowledge list reparse tasks
 	ProcessKnowledgeListReparse(ctx context.Context, t *asynq.Task) error
+	// RebuildKnowledgeBaseIndex queues a re-parse of every document of the
+	// knowledge base, so a change to how it indexes reaches the documents
+	// already in it. The context carries the tenant that owns the base.
+	RebuildKnowledgeBaseIndex(ctx context.Context, kb *types.KnowledgeBase) (*types.KBRebuildIndexResult, error)
+	// ProcessKBRebuildIndex handles Asynq knowledge base index rebuild tasks
+	ProcessKBRebuildIndex(ctx context.Context, t *asynq.Task) error
 	// GetKBCloneProgress retrieves the progress of a knowledge base clone task
 	GetKBCloneProgress(ctx context.Context, taskID string) (*types.KBCloneProgress, error)
 	// SaveKBCloneProgress saves the progress of a knowledge base clone task
@@ -314,6 +320,12 @@ type KnowledgeRepository interface {
 	CountKnowledgeByKnowledgeBaseID(ctx context.Context, tenantID uint64, kbID string) (int64, error)
 	// CountKnowledgeByStatus counts the number of knowledge items with the specified parse status.
 	CountKnowledgeByStatus(ctx context.Context, tenantID uint64, kbID string, parseStatuses []string) (int64, error)
+	// CountRebuildableKnowledge counts the entries an index rebuild of the
+	// knowledge base re-processes (all but types.ParseStatusesSkippedByRebuild).
+	CountRebuildableKnowledge(ctx context.Context, tenantID uint64, kbID string) (int64, error)
+	// ListRebuildableKnowledgeIDs returns up to limit ids of those entries,
+	// ordered by id and starting after afterID ("" for the first page).
+	ListRebuildableKnowledgeIDs(ctx context.Context, tenantID uint64, kbID, afterID string, limit int) ([]string, error)
 	// SearchKnowledge searches knowledge items by keyword across the tenant.
 	// fileTypes: optional list of file extensions to filter by (e.g., ["csv", "xlsx"])
 	SearchKnowledge(ctx context.Context, tenantID uint64, keyword string, offset, limit int, fileTypes []string) ([]*types.Knowledge, bool, error)

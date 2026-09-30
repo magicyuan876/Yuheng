@@ -453,6 +453,24 @@ func TestKnowledgeBatchWriteRoutesDeclareIngestCapability(t *testing.T) {
 	}
 }
 
+// Rebuilding a base's index re-parses its documents, a content write like
+// reparsing one of them, so an ingest-capable key may call it.
+func TestKBRebuildIndexRouteDeclaresIngestCapability(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	g := &rbacGuards{}
+	v1 := gin.New().Group("/api/v1")
+
+	RegisterKnowledgeRoutes(v1, &handler.KnowledgeHandler{}, g)
+
+	policy := mustLookupAPIKeyPolicy(t, g, http.MethodPost, "/api/v1/knowledge-bases/:id/rebuild-index")
+	if !policy.RequireFullAccess {
+		t.Fatal("policy should require full access without a matching capability")
+	}
+	if !policyHasCapability(policy, types.APIKeyCapabilityIngest) {
+		t.Fatalf("policy capabilities = %#v, want ingest", policy.Capabilities)
+	}
+}
+
 func TestKBCloneProgressRouteRequiresRetrieveOrManageKbsCapability(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	g := &rbacGuards{}

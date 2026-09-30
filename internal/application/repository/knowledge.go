@@ -699,6 +699,41 @@ func (r *knowledgeRepository) CountKnowledgeByStatus(
 	return count, nil
 }
 
+// rebuildableKnowledge scopes a query to the entries of one knowledge base
+// that an index rebuild re-processes. The statuses it leaves out are named,
+// with the reason, on types.ParseStatusesSkippedByRebuild.
+func (r *knowledgeRepository) rebuildableKnowledge(ctx context.Context, tenantID uint64, kbID string) *gorm.DB {
+	return r.db.WithContext(ctx).Model(&types.Knowledge{}).
+		Where("tenant_id = ? AND knowledge_base_id = ?", tenantID, kbID).
+		Where("parse_status NOT IN ?", types.ParseStatusesSkippedByRebuild)
+}
+
+// CountRebuildableKnowledge counts the entries an index rebuild of the
+// knowledge base would re-process.
+func (r *knowledgeRepository) CountRebuildableKnowledge(
+	ctx context.Context, tenantID uint64, kbID string,
+) (int64, error) {
+	var count int64
+	err := r.rebuildableKnowledge(ctx, tenantID, kbID).Count(&count).Error
+	return count, err
+}
+
+// ListRebuildableKnowledgeIDs pages through the entries an index rebuild
+// re-processes, ordered by id. It pages by key (id > afterID) rather than by
+// offset: the rebuild rewrites the rows it has already visited, and an offset
+// over a set that is changing underneath it can skip or repeat rows.
+func (r *knowledgeRepository) ListRebuildableKnowledgeIDs(
+	ctx context.Context, tenantID uint64, kbID, afterID string, limit int,
+) ([]string, error) {
+	var ids []string
+	err := r.rebuildableKnowledge(ctx, tenantID, kbID).
+		Where("id > ?", afterID).
+		Order("id ASC").
+		Limit(limit).
+		Pluck("id", &ids).Error
+	return ids, err
+}
+
 // SearchKnowledge searches knowledge items by keyword across the tenant
 // If keyword is empty, returns recent files
 // Only returns documents from document-type knowledge bases (excludes FAQ)

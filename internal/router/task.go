@@ -291,6 +291,9 @@ func RunAsynqServer(params AsynqTaskParams) *asynq.ServeMux {
 	// Register knowledge list reparse handler
 	mux.HandleFunc(types.TypeKnowledgeListReparse, params.KnowledgeService.ProcessKnowledgeListReparse)
 
+	// Register knowledge base index rebuild handler
+	mux.HandleFunc(types.TypeKBRebuildIndex, params.KnowledgeService.ProcessKBRebuildIndex)
+
 	// Register index delete handler
 	mux.HandleFunc(types.TypeIndexDelete, params.TagService.ProcessIndexDelete)
 

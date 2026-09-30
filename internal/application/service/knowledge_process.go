@@ -3950,43 +3950,53 @@ func (s *knowledgeService) ProcessKnowledgeListReparse(ctx context.Context, t *a
 	ctx = context.WithValue(ctx, types.TenantIDContextKey, payload.TenantID)
 	ctx = context.WithValue(ctx, types.TenantInfoContextKey, tenant)
 
-	outcome, err := runKnowledgeListReparseSubmissions(payload.KnowledgeIDs, func(id string) error {
+	var run reparseRun
+	run.reparse(payload.KnowledgeIDs, func(id string) error {
 		_, err := s.ReparseKnowledge(ctx, id, payload.ProcessConfig)
 		return err
 	})
-	logger.Infof(ctx, "Knowledge list reparse task finished: %d submitted, %d failed",
-		outcome.Submitted, outcome.Failed)
-	return err
+	logger.Infof(ctx, "Knowledge list reparse task finished: %d submitted, %d failed", run.Submitted, run.Failed)
+	return run.err()
 }
 
-type knowledgeListReparseOutcome struct {
+// reparseRun re-parses entries one after another and keeps the tally. The
+// batch reparse and the knowledge-base index rebuild both drive their entries
+// through it, so the two agree on what a partial failure means.
+type reparseRun struct {
 	Submitted int
 	Failed    int
+	// failures keeps the first maxReportedReparseFailures errors. A rebuild
+	// of a large knowledge base whose parser is down would otherwise carry
+	// one error per document into the task's last error.
+	failures []error
 }
 
-// runKnowledgeListReparseSubmissions attempts every item so one bad document
-// cannot block the remainder of the batch. A partial failure is non-retryable:
-// retrying the wrapper task would destructively reparse items that were already
-// submitted successfully. Failed rows remain selectable for an explicit retry.
-func runKnowledgeListReparseSubmissions(
-	ids []string,
-	submit func(string) error,
-) (knowledgeListReparseOutcome, error) {
-	var outcome knowledgeListReparseOutcome
-	failures := make([]error, 0)
+const maxReportedReparseFailures = 20
+
+// reparse attempts every id, so one bad document cannot block the rest.
+func (r *reparseRun) reparse(ids []string, submit func(string) error) {
 	for _, id := range ids {
 		if err := submit(id); err != nil {
-			failures = append(failures, fmt.Errorf("knowledge %s: %w", secutils.SanitizeForLog(id), err))
-			outcome.Failed++
+			if len(r.failures) < maxReportedReparseFailures {
+				r.failures = append(r.failures, fmt.Errorf("knowledge %s: %w", secutils.SanitizeForLog(id), err))
+			}
+			r.Failed++
 			continue
 		}
-		outcome.Submitted++
+		r.Submitted++
 	}
-	if len(failures) == 0 {
-		return outcome, nil
+}
+
+// err reports the failures of the run, nil when there were none. A partial
+// failure is non-retryable: retrying the wrapping task would destructively
+// reparse the entries that were already submitted. The entries that failed
+// stay selectable for an explicit retry.
+func (r *reparseRun) err() error {
+	if r.Failed == 0 {
+		return nil
 	}
-	return outcome, fmt.Errorf(
-		"%w: batch reparse submitted %d item(s) and failed %d: %w",
-		asynq.SkipRetry, outcome.Submitted, outcome.Failed, errors.Join(failures...),
+	return fmt.Errorf(
+		"%w: reparse submitted %d item(s) and failed %d (first %d shown): %w",
+		asynq.SkipRetry, r.Submitted, r.Failed, len(r.failures), errors.Join(r.failures...),
 	)
 }

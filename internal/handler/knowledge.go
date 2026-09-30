@@ -2592,6 +2592,50 @@ func (h *KnowledgeHandler) BatchReparseKnowledge(c *gin.Context) {
 	})
 }
 
+// RebuildKnowledgeBaseIndex godoc
+// @Summary      重建知识库索引
+// @Description  逐篇重新解析知识库内的全部文档（草稿与删除中的除外），使修改后的索引策略作用于已有文档。异步执行；同一知识库已有重建在排队或进行中时返回 409。
+// @Tags         知识管理
+// @Produce      json
+// @Param        id   path      string                  true  "知识库ID"
+// @Success      200  {object}  map[string]interface{}  "任务已提交，data.document_count 为将重新处理的文档数"
+// @Failure      400  {object}  errors.AppError         "FAQ 知识库不支持"
+// @Failure      403  {object}  errors.AppError         "权限不足"
+// @Failure      409  {object}  errors.AppError         "已有重建在进行中"
+// @Security     Bearer
+// @Security     ApiKeyAuth
+// @Router       /knowledge-bases/{id}/rebuild-index [post]
+func (h *KnowledgeHandler) RebuildKnowledgeBaseIndex(c *gin.Context) {
+	ctx := c.Request.Context()
+	kb, _, effectiveTenantID, permission, err := h.validateKnowledgeBaseAccessWithKBID(c, c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	// The same rule as reparsing a batch: rewriting the base's content takes
+	// write access to it, which an organisation viewer does not have.
+	if permission != types.OrgRoleAdmin && permission != types.OrgRoleEditor {
+		_ = c.Error(errors.NewForbiddenError("no permission to rebuild the index of this kb"))
+		return
+	}
+	ctx = context.WithValue(ctx, types.TenantIDContextKey, effectiveTenantID)
+
+	result, err := h.kgService.RebuildKnowledgeBaseIndex(ctx, kb)
+	if err != nil {
+		if appErr, ok := errors.IsAppError(err); ok {
+			_ = c.Error(appErr)
+			return
+		}
+		logger.Errorf(ctx, "Failed to queue index rebuild of kb %s: %v", secutils.SanitizeForLog(kb.ID), err)
+		_ = c.Error(errors.NewInternalServerError("Failed to queue the index rebuild"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
 func requireTenantAPIKeyKnowledgeBase(ctx context.Context, kbID string) error {
 	return requireTenantAPIKeyKnowledgeBases(ctx, kbID)
 }

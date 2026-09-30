@@ -81,6 +81,13 @@ func RegisterKnowledgeRoutes(r *gin.RouterGroup, handler *handler.KnowledgeHandl
 		kb.With(apiKeyFullAccess()).DELETE("", g.Admin(), g.KBAccessWrite("id"), handler.ClearKnowledgeBaseContents)
 	}
 
+	// Rebuilding the index re-parses every document of the base, so it takes
+	// the gates of reparsing one: the base's creator or an Admin+, with write
+	// access to it, and for API keys the ingest capability. It is addressed
+	// to the base rather than under /knowledge because it names no document.
+	g.apiKeyRoute(r, http.MethodPost, "/knowledge-bases/:id/rebuild-index", apiKeyIngest(apiKeyFullAccess()),
+		g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), handler.RebuildKnowledgeBaseIndex)
+
 	// 知识路由组（URL :id is a knowledge id; the guard walks it to the parent KB）
 	kgrp := r.Group("/knowledge")
 	k := g.apiKeyGroup(kgrp, apiKeyIngest(apiKeyFullAccess()))
