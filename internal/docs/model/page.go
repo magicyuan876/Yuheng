@@ -21,10 +21,13 @@ type Page struct {
 	// ExcludeFromKnowledge keeps the page out of its space's knowledge base, and so
 	// out of AI answers. It is not a permission: everybody who may read the page
 	// still can.
-	ExcludeFromKnowledge bool       `json:"exclude_from_knowledge" gorm:"not null;default:false"`
-	IsLocked             bool       `json:"is_locked"         gorm:"not null;default:false"`
-	TemplateID           *string    `json:"template_id,omitempty" gorm:"type:varchar(36)"`
-	SourceRefs           StringList `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
+	ExcludeFromKnowledge bool `json:"exclude_from_knowledge" gorm:"not null;default:false"`
+	// SupersededBy is set while the page is excluded because another
+	// document superseded it, and cleared when it is let back in.
+	SupersededBy *SupersededBy `json:"superseded_by,omitempty" gorm:"type:jsonb"`
+	IsLocked     bool          `json:"is_locked"         gorm:"not null;default:false"`
+	TemplateID   *string       `json:"template_id,omitempty" gorm:"type:varchar(36)"`
+	SourceRefs   StringList    `json:"source_refs"       gorm:"type:json;not null;default:'[]'"`
 	// KnowledgeID is the knowledge-base entry mirroring this page, when its
 	// space is bound to one and the page is eligible. nil means not indexed.
 	KnowledgeID    *string    `json:"knowledge_id,omitempty" gorm:"type:varchar(36)"`
@@ -66,7 +69,8 @@ func (p *Page) IsDeleted() bool { return p.DeletedAt != nil }
 // large columns (content, ydoc) are only loaded when a page is opened.
 var PageSummaryColumns = []string{
 	"id", "short_id", "tenant_id", "space_id", "parent_id", "position", "title", "icon", "cover",
-	"ydoc_version", "exclude_from_knowledge", "is_locked", "template_id", "source_refs", "contributor_ids",
+	"ydoc_version", "exclude_from_knowledge", "superseded_by", "is_locked", "template_id", "source_refs",
+	"contributor_ids",
 	"creator_id", "owner_id", "last_editor_id", "deleted_by", "word_count", "attachment_bytes",
 	"created_at", "updated_at", "content_updated_at", "deleted_at",
 }

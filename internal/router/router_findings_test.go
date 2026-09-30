@@ -74,6 +74,12 @@ func (s *stubFindingService) CountAssigned(_ context.Context, tenantID uint64) (
 	return 0, nil
 }
 
+func (s *stubFindingService) Supersede(_ context.Context, tenantID uint64, _, _, keep string,
+) (*types.SupersedeResult, error) {
+	s.tenants = append(s.tenants, tenantID)
+	return &types.SupersedeResult{RetiredKnowledgeID: "other-than-" + keep, How: types.RetiredDeleted}, nil
+}
+
 func (s *stubFindingService) Scan(_ context.Context, tenantID uint64, _ string) (int, error) {
 	s.tenants = append(s.tenants, tenantID)
 	s.scans++

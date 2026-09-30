@@ -352,6 +352,7 @@ definitions:
     - finding.status_changed
     - finding.scan_requested
     - finding.assigned
+    - finding.superseded
     type: string
     x-enum-varnames:
     - AuditActionMemberAdded
@@ -418,6 +419,7 @@ definitions:
     - AuditActionFindingStatusChanged
     - AuditActionFindingScanRequested
     - AuditActionFindingAssigned
+    - AuditActionFindingSuperseded
   github_com_magicyuan876_yuheng_internal_types.AuditLog:
     properties:
       action:
@@ -2613,6 +2615,16 @@ definitions:
       suggestion_set_id:
         type: string
     type: object
+  github_com_magicyuan876_yuheng_internal_types.SupersedeFindingRequest:
+    properties:
+      keep_knowledge_id:
+        description: |-
+          KeepKnowledgeID is the document that stays: one of the finding's two.
+          The other leaves the knowledge base.
+        type: string
+    required:
+    - keep_knowledge_id
+    type: object
   github_com_magicyuan876_yuheng_internal_types.SyncLog:
     properties:
       created_at:
@@ -4112,6 +4124,16 @@ definitions:
     - principal_id
     - principal_type
     - role
+    type: object
+  handler.SupersedeRequest:
+    properties:
+      finding_id:
+        description: |-
+          FindingID is one of the page's findings; its other page is the one
+          this page supersedes.
+        type: string
+    required:
+    - finding_id
     type: object
   handler.TemplateRequest:
     properties:
@@ -7623,7 +7645,7 @@ paths:
       - 在线文档
   /docs/pages/{pid}/findings:
     get:
-      description: 本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入
+      description: 本页在知识库中的镜像被检测出的未处理问题（与其他文档重复或内容有出入）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入
         other_count
       parameters:
       - description: 页面 ID
@@ -8275,6 +8297,38 @@ paths:
       security:
       - Bearer: []
       summary: 修改公开链接的设置
+      tags:
+      - 在线文档
+  /docs/pages/{pid}/supersede:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        处理本页的一个知识健康问题：保留本页，把问题另一方的页面排除出知识库并标记为“已被本页取代”，该页面仍可阅读，重新参与知识库时标记清除。
+        需要能编辑两个页面；另一方不是页面时返回 409（上传的文档由知识库编辑者在知识健康里处理）
+      parameters:
+      - description: 页面 ID（保留的一方）
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 问题 ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SupersedeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {retired_knowledge_id, how}'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 用本页取代另一个页面
       tags:
       - 在线文档
   /docs/pages/{pid}/watch:
@@ -11037,6 +11091,60 @@ paths:
       security:
       - Bearer: []
       summary: 指派问题的处理人
+      tags:
+      - 知识健康
+  /knowledge-bases/{id}/findings/{finding_id}/supersede:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        处理“内容重复”或“内容有出入”的问题：保留 keep_knowledge_id 指定的文档，另一份退出知识库。
+        上传的文档会被删除；在线文档页面会被排除出知识库并标记为已被取代，页面本身仍可阅读（需要能编辑该页面）；
+        数据源同步的文档无法在这里移除（下次同步会回来），返回 409。操作记入知识库动态
+      parameters:
+      - description: 知识库 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 问题 ID
+        in: path
+        name: finding_id
+        required: true
+        type: string
+      - description: 保留哪一份
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_types.SupersedeFindingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'data: {retired_knowledge_id, how}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError'
+      security:
+      - Bearer: []
+      summary: 以一份取代另一份
       tags:
       - 知识健康
   /knowledge-bases/{id}/findings/scan:

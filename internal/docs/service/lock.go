@@ -84,8 +84,13 @@ func (s *PageService) SetKnowledgeExcluded(ctx context.Context, actor *acl.Ident
 	if d.Page.ExcludeFromKnowledge == excluded {
 		return s.view(ctx, d)
 	}
-	if err := s.d.Repos.Pages.UpdateMeta(ctx, actor.TenantID, d.Page.ID,
-		map[string]any{"exclude_from_knowledge": excluded}); err != nil {
+	fields := map[string]any{"exclude_from_knowledge": excluded}
+	if !excluded {
+		// A page let back in is no longer superseded: whoever did it
+		// decided it still says something the other document does not.
+		fields["superseded_by"] = nil
+	}
+	if err := s.d.Repos.Pages.UpdateMeta(ctx, actor.TenantID, d.Page.ID, fields); err != nil {
 		return nil, err
 	}
 	action := audit.PageKnowledgeIncluded

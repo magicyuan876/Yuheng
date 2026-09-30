@@ -39,7 +39,11 @@ type knowledgeFindingService struct {
 	audit    interfaces.AuditLogService
 	stewards interfaces.KnowledgeStewardshipRepository
 	users    interfaces.UserRepository
-	enabled  bool
+	// knowledge deletes a superseded entry maintained here; retirers take
+	// out the others, in the way their source requires.
+	knowledge interfaces.KnowledgeService
+	retirers  interfaces.KnowledgeRetirers
+	enabled   bool
 }
 
 // NewKnowledgeFindingService returns the finding API service.
@@ -51,11 +55,13 @@ func NewKnowledgeFindingService(
 	audit interfaces.AuditLogService,
 	stewards interfaces.KnowledgeStewardshipRepository,
 	users interfaces.UserRepository,
+	knowledge interfaces.KnowledgeService,
+	retirers interfaces.KnowledgeRetirers,
 	cfg *config.Config,
 ) interfaces.KnowledgeFindingService {
 	return &knowledgeFindingService{
 		repo: repo, kbs: kbs, trigger: trigger, runner: runner, audit: audit, stewards: stewards, users: users,
-		enabled: cfg != nil && cfg.Findings.IsEnabled(),
+		knowledge: knowledge, retirers: retirers, enabled: cfg != nil && cfg.Findings.IsEnabled(),
 	}
 }
 
@@ -320,6 +326,85 @@ func (s *knowledgeFindingService) checkAssignee(ctx context.Context, tenantID ui
 		}
 	}
 	return werrors.NewValidationError("the assignee must be an active member who can act on these documents")
+}
+
+// Supersede implements interfaces.KnowledgeFindingService.
+//
+// The document that leaves goes the way its source requires: an entry
+// maintained here is deleted; a docs page is excluded from the knowledge base
+// and marked superseded, and stays readable (its retirer, registered by the
+// docs module, also checks that the caller may change the page); an entry a
+// data-source sync keeps in step is refused, because the next sync would bring
+// it back — it has to go at the source. Taking the entry out removes the
+// findings naming it, this one included.
+func (s *knowledgeFindingService) Supersede(ctx context.Context, tenantID uint64, kbID, findingID,
+	keepKnowledgeID string,
+) (*types.SupersedeResult, error) {
+	f, err := s.finding(ctx, tenantID, kbID, findingID)
+	if err != nil {
+		return nil, err
+	}
+	if f.Status != types.FindingStatusOpen {
+		return nil, werrors.NewConflictError("only an open finding can be settled by superseding a document")
+	}
+	if f.RelatedKnowledgeID == nil {
+		return nil, werrors.NewValidationError("a finding about one document has nothing to supersede")
+	}
+	retire, keepTitle, retireTitle := "", "", ""
+	switch keepKnowledgeID {
+	case f.SubjectKnowledgeID:
+		retire, keepTitle, retireTitle = *f.RelatedKnowledgeID, f.SubjectTitle, f.RelatedTitle
+	case *f.RelatedKnowledgeID:
+		retire, keepTitle, retireTitle = f.SubjectKnowledgeID, f.RelatedTitle, f.SubjectTitle
+	default:
+		return nil, werrors.NewValidationError("the document to keep must be one of the finding's two")
+	}
+	if s.stewards == nil {
+		return nil, werrors.NewInternalServerError("superseding is not available")
+	}
+	stewards, err := s.stewards.Stewards(ctx, tenantID, []string{retire})
+	if err != nil {
+		return nil, err
+	}
+	st, ok := stewards[retire]
+	if !ok {
+		return nil, werrors.NewNotFoundError("knowledge not found")
+	}
+
+	var how string
+	switch st.Origin {
+	case types.KnowledgeOriginLocal:
+		if s.knowledge == nil {
+			return nil, werrors.NewInternalServerError("superseding is not available")
+		}
+		if err := s.knowledge.DeleteKnowledge(ctx, retire); err != nil {
+			return nil, err
+		}
+		how = types.RetiredDeleted
+	case types.KnowledgeOriginSynced:
+		return nil, werrors.NewConflictError(
+			"this document is kept in step with an external source; remove it there, or the next sync brings it back")
+	default:
+		var retirer interfaces.KnowledgeRetirer
+		if s.retirers != nil {
+			retirer, ok = s.retirers.For(st.Origin)
+		}
+		if retirer == nil || !ok {
+			return nil, werrors.NewConflictError("a document of this kind cannot be taken out from here")
+		}
+		kept := types.KnowledgeRef{KnowledgeID: keepKnowledgeID, Title: keepTitle}
+		how, err = retirer.Retire(ctx, tenantID, retire, kept)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	details := findingActivityDetails(f)
+	details["kept_knowledge_id"], details["retired_knowledge_id"], details["how"] = keepKnowledgeID, retire, how
+	details["kept_title"], details["retired_title"] = keepTitle, retireTitle
+	recordKBActivity(ctx, s.audit, tenantID, kbID, types.AuditActionFindingSuperseded,
+		"finding", findingID, types.AuditOutcomeSuccess, details)
+	return &types.SupersedeResult{RetiredKnowledgeID: retire, How: how}, nil
 }
 
 // finding loads one finding, as a not-found error when it does not exist.

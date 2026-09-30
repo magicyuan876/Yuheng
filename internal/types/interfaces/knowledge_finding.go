@@ -127,10 +127,38 @@ type KnowledgeFindingService interface {
 		pageSize int) (*types.KnowledgeFindingPage, error)
 	// CountAssigned counts the caller's open findings in the tenant.
 	CountAssigned(ctx context.Context, tenantID uint64) (int64, error)
+	// Supersede settles a finding about two documents by keeping one and
+	// taking the other out of the knowledge base, the way its source
+	// requires (see KnowledgeRetirer).
+	Supersede(ctx context.Context, tenantID uint64, kbID, findingID,
+		keepKnowledgeID string) (*types.SupersedeResult, error)
 	// Scan schedules a check of every indexed entry of the knowledge base and
 	// reports how many were scheduled.
 	Scan(ctx context.Context, tenantID uint64, kbID string) (int, error)
 	// OpenForKnowledge lists the open findings naming a knowledge entry, each
 	// oriented so that the entry asked about is the subject.
 	OpenForKnowledge(ctx context.Context, tenantID uint64, knowledgeID string) ([]*types.KnowledgeFindingView, error)
+}
+
+// KnowledgeRetirer takes an entry out of its knowledge base in the way its
+// source requires, because it has been superseded by another entry.
+//
+// An entry maintained in the knowledge base is simply deleted, which the
+// findings service does itself. An entry that mirrors something else cannot
+// be: deleting a docs page's mirror would bring it back at the page's next
+// synchronisation. Such a source registers a retirer for its origin; the docs
+// module does for pages, excluding the page from the knowledge base and
+// marking it superseded.
+type KnowledgeRetirer interface {
+	// Retire takes the entry out on behalf of the person in ctx, who must be
+	// allowed to change its source (an AppError says why not), and reports
+	// how (types.Retired*). replacement is the entry that supersedes it.
+	Retire(ctx context.Context, tenantID uint64, knowledgeID string, replacement types.KnowledgeRef) (string, error)
+}
+
+// KnowledgeRetirers is where sources register their retirers. Registration
+// happens while the container is built; lookups after.
+type KnowledgeRetirers interface {
+	Register(origin types.KnowledgeOrigin, retirer KnowledgeRetirer)
+	For(origin types.KnowledgeOrigin) (KnowledgeRetirer, bool)
 }

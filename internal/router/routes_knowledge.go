@@ -279,6 +279,7 @@ func RegisterKnowledgeFindingRoutes(r *gin.RouterGroup, h *handler.KnowledgeFind
 		read.GET("/summary", g.Viewer(), g.KBAccessRead("id"), h.FindingSummary)
 		findings.PATCH("/:finding_id", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.UpdateFinding)
 		findings.PUT("/:finding_id/assignee", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.AssignFinding)
+		findings.POST("/:finding_id/supersede", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.SupersedeFinding)
 		manage.POST("/scan", g.OwnedKBOrAdmin(), g.KBAccessWrite("id"), h.ScanFindings)
 	}
 

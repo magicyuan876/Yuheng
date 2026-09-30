@@ -47,7 +47,7 @@ func (h *PageHandler) Backlinks(c *gin.Context) {
 
 // Findings godoc
 // @Summary      本页的知识健康问题
-// @Description  本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count
+// @Description  本页在知识库中的镜像被检测出的未处理问题（与其他文档重复或内容有出入）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count
 // @Tags         在线文档
 // @Produce      json
 // @Param        pid  path  string  true  "页面 ID"
@@ -165,4 +165,44 @@ func (h *PageHandler) SuggestMentions(c *gin.Context) {
 		return
 	}
 	ok(c, rows)
+}
+
+// SupersedeRequest is the body of POST /docs/pages/:pid/supersede.
+type SupersedeRequest struct {
+	// FindingID is one of the page's findings; its other page is the one
+	// this page supersedes.
+	FindingID string `json:"finding_id" binding:"required"`
+}
+
+// Supersede godoc
+// @Summary      用本页取代另一个页面
+// @Description  处理本页的一个知识健康问题：保留本页，把问题另一方的页面排除出知识库并标记为“已被本页取代”，该页面仍可阅读，重新参与知识库时标记清除。
+// @Description  需要能编辑两个页面；另一方不是页面时返回 409（上传的文档由知识库编辑者在知识健康里处理）
+// @Tags         在线文档
+// @Accept       json
+// @Produce      json
+// @Param        pid      path  string            true  "页面 ID（保留的一方）"
+// @Param        request  body  SupersedeRequest  true  "问题 ID"
+// @Success      200  {object}  map[string]interface{}  "data: {retired_knowledge_id, how}"
+// @Security     Bearer
+// @Router       /docs/pages/{pid}/supersede [post]
+func (h *PageHandler) Supersede(c *gin.Context) {
+	if !h.ready(c) {
+		return
+	}
+	actor, d, found := pageScope(c)
+	if !found {
+		return
+	}
+	var req SupersedeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid request body: "+err.Error())
+		return
+	}
+	result, err := h.svc.SupersedeFromPage(c.Request.Context(), actor, d, req.FindingID)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	ok(c, result)
 }

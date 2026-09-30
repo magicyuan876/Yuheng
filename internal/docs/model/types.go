@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // JSON is a raw JSON column, stored as JSONB. It is handed to the driver as
@@ -281,3 +282,47 @@ const (
 
 // DefaultGroupName is the reserved name of the implicit "everyone" group.
 const DefaultGroupName = "everyone"
+
+// SupersededBy records that a page was superseded by another document: a
+// snapshot of the replacement taken when it happened, so that it still reads
+// after the replacement is renamed or gone. Stored as JSONB; nil when the page
+// is not superseded.
+type SupersededBy struct {
+	// KnowledgeID and Title name the replacement's knowledge entry.
+	KnowledgeID string `json:"knowledge_id"`
+	Title       string `json:"title"`
+	// PageID is set when the replacement is a page.
+	PageID string    `json:"page_id,omitempty"`
+	By     string    `json:"by,omitempty"`
+	At     time.Time `json:"at"`
+}
+
+// Value implements driver.Valuer.
+func (s SupersededBy) Value() (driver.Value, error) {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil
+}
+
+// Scan implements sql.Scanner.
+func (s *SupersededBy) Scan(value any) error {
+	var raw []byte
+	switch v := value.(type) {
+	case nil:
+		*s = SupersededBy{}
+		return nil
+	case []byte:
+		raw = v
+	case string:
+		raw = []byte(v)
+	default:
+		return fmt.Errorf("model.SupersededBy: cannot scan %T", value)
+	}
+	if len(raw) == 0 {
+		*s = SupersededBy{}
+		return nil
+	}
+	return json.Unmarshal(raw, s)
+}

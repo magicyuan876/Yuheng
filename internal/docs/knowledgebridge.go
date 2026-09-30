@@ -148,3 +148,20 @@ func (b *knowledgeBridge) SyncStewardship(ctx context.Context, tenantID uint64, 
 	}
 	return b.stewardship.SyncFromSource(ctx, tenantID, knowledgeID, ownerID, reviewedBy, reviewedAt)
 }
+
+// pageRetirer is the docs module's interfaces.KnowledgeRetirer: a superseded
+// page mirror leaves the knowledge base by its page being excluded, never by
+// its entry being deleted, which the page's next synchronisation would undo.
+type pageRetirer struct {
+	pages *service.PageService
+}
+
+// Retire implements interfaces.KnowledgeRetirer.
+func (r pageRetirer) Retire(ctx context.Context, tenantID uint64, knowledgeID string,
+	replacement types.KnowledgeRef,
+) (string, error) {
+	if err := r.pages.RetireMirror(ctx, tenantID, knowledgeID, replacement); err != nil {
+		return "", err
+	}
+	return types.RetiredExcluded, nil
+}

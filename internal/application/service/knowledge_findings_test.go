@@ -302,6 +302,77 @@ func TestFindingAssignment(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, httpCodeOf(t, err))
 }
 
+type deletingKnowledge struct {
+	interfaces.KnowledgeService
+	deleted []string
+}
+
+func (k *deletingKnowledge) DeleteKnowledge(_ context.Context, id string) error {
+	k.deleted = append(k.deleted, id)
+	return nil
+}
+
+type recordingRetirer struct {
+	retired     []string
+	replacement types.KnowledgeRef
+	err         error
+}
+
+func (r *recordingRetirer) Retire(_ context.Context, _ uint64, id string, replacement types.KnowledgeRef,
+) (string, error) {
+	r.retired, r.replacement = append(r.retired, id), replacement
+	return types.RetiredExcluded, r.err
+}
+
+// Superseding keeps one document and takes the other out the way its source
+// requires: an upload is deleted, a page is left to its module, a synced
+// entry is refused.
+func TestFindingSupersedeRetiresTheOtherDocumentByItsOrigin(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	svc := f.svc.(*knowledgeFindingService)
+	knowledge := &deletingKnowledge{}
+	retirer := &recordingRetirer{}
+	svc.knowledge = knowledge
+	svc.retirers = NewKnowledgeRetirers()
+	svc.retirers.Register(types.KnowledgeOriginDocs, retirer)
+	ctx := asUser("editor")
+
+	res, err := f.svc.Supersede(ctx, 1, "kb-1", "f1", "doc-a")
+	require.NoError(t, err)
+	assert.Equal(t, &types.SupersedeResult{RetiredKnowledgeID: "doc-b", How: types.RetiredDeleted}, res)
+	assert.Equal(t, []string{"doc-b"}, knowledge.deleted, "an upload is deleted")
+	require.Len(t, f.audit.rows, 1)
+	assert.Equal(t, types.AuditActionFindingSuperseded, f.audit.rows[0].Action)
+	assert.Contains(t, string(f.audit.rows[0].Details), `"kept_title":"Doc A"`)
+
+	f.stewards.stewards["doc-a"].Origin = types.KnowledgeOriginDocs
+	res, err = f.svc.Supersede(ctx, 1, "kb-1", "f1", "doc-b")
+	require.NoError(t, err)
+	assert.Equal(t, types.RetiredExcluded, res.How)
+	assert.Equal(t, []string{"doc-a"}, retirer.retired, "a page is taken out by its module")
+	assert.Equal(t, types.KnowledgeRef{KnowledgeID: "doc-b", Title: "Doc B"}, retirer.replacement)
+
+	f.stewards.stewards["doc-b"].Origin = types.KnowledgeOriginSynced
+	_, err = f.svc.Supersede(ctx, 1, "kb-1", "f1", "doc-a")
+	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err), "the next sync would bring it back")
+
+	_, err = f.svc.Supersede(ctx, 1, "kb-1", "f1", "doc-z")
+	assert.Equal(t, http.StatusBadRequest, httpCodeOf(t, err), "the kept document is one of the two")
+	f.repo.rows["f1"].Status = types.FindingStatusDismissed
+	_, err = f.svc.Supersede(ctx, 1, "kb-1", "f1", "doc-a")
+	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err))
+}
+
+// A source that registered no retirer cannot be superseded from here.
+func TestFindingSupersedeWithoutARetirerIsRefused(t *testing.T) {
+	f := newFindingServiceFixture(t, true, true)
+	svc := f.svc.(*knowledgeFindingService)
+	svc.retirers = NewKnowledgeRetirers()
+	f.stewards.stewards["doc-b"].Origin = types.KnowledgeOriginDocs
+	_, err := f.svc.Supersede(asUser("editor"), 1, "kb-1", "f1", "doc-a")
+	assert.Equal(t, http.StatusConflict, httpCodeOf(t, err))
+}
+
 func TestFindingSummaryReportsCountsAndCapability(t *testing.T) {
 	scanned := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	f := newFindingServiceFixture(t, true, true)

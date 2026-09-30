@@ -185,6 +185,9 @@ const (
 	// AuditActionFindingAssigned is a person choosing who a finding is taken
 	// to, or handing it back to the automatic routing.
 	AuditActionFindingAssigned AuditAction = "finding.assigned"
+	// AuditActionFindingSuperseded is a person settling a finding by keeping
+	// one document and taking the other out of the knowledge base.
+	AuditActionFindingSuperseded AuditAction = "finding.superseded"
 )
 
 // AuditOutcome separates asynchronous acceptance from terminal business

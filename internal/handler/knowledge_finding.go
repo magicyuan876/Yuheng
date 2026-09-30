@@ -171,6 +171,41 @@ func (h *KnowledgeFindingHandler) AssignFinding(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": view})
 }
 
+// SupersedeFinding godoc
+// @Summary      以一份取代另一份
+// @Description  处理“内容重复”或“内容有出入”的问题：保留 keep_knowledge_id 指定的文档，另一份退出知识库。
+// @Description  上传的文档会被删除；在线文档页面会被排除出知识库并标记为已被取代，页面本身仍可阅读（需要能编辑该页面）；
+// @Description  数据源同步的文档无法在这里移除（下次同步会回来），返回 409。操作记入知识库动态
+// @Tags         知识健康
+// @Accept       json
+// @Produce      json
+// @Param        id          path  string                         true  "知识库 ID"
+// @Param        finding_id  path  string                         true  "问题 ID"
+// @Param        request     body  types.SupersedeFindingRequest  true  "保留哪一份"
+// @Success      200  {object}  map[string]interface{}  "data: {retired_knowledge_id, how}"
+// @Failure      400  {object}  apperrors.AppError
+// @Failure      403  {object}  apperrors.AppError
+// @Failure      404  {object}  apperrors.AppError
+// @Failure      409  {object}  apperrors.AppError
+// @Security     Bearer
+// @Router       /knowledge-bases/{id}/findings/{finding_id}/supersede [post]
+func (h *KnowledgeFindingHandler) SupersedeFinding(c *gin.Context) {
+	ctx := c.Request.Context()
+	var req types.SupersedeFindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(apperrors.NewBadRequestError("请求参数不合法").WithDetails(err.Error()))
+		return
+	}
+	result, err := h.svc.Supersede(ctx, types.MustTenantIDFromContext(ctx),
+		secutils.SanitizeForLog(c.Param("id")), secutils.SanitizeForLog(c.Param("finding_id")),
+		strings.TrimSpace(req.KeepKnowledgeID))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 // ListAssignedFindings godoc
 // @Summary      我的知识待办
 // @Description  当前空间里派给我处理的知识健康问题，跨知识库，附知识库名称。status 默认 open，all 列出全部

@@ -150,6 +150,7 @@ var knownOptionalDependencies = map[string]string{
 	"docs.Params.KnowledgeService":     "asserted via Module.Degraded",
 	"docs.Params.Findings":             "asserted via Module.Degraded",
 	"docs.Params.Stewardship":          "asserted via Module.Degraded",
+	"docs.Params.Retirers":             "asserted via Module.Degraded",
 	// Legitimately absent: single-process mode has no Redis. The container
 	// provides a nil client then, and the test above asserts nil-iff-unset.
 	"docs.Params.Redis": "absent by design without REDIS_ADDR; asserted in both shapes",

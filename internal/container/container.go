@@ -185,6 +185,7 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(findings.NewRunnerFromContainer))
 	must(container.Provide(findings.NewTrigger, dig.As(new(interfaces.KnowledgeFindingsTrigger))))
 	must(container.Provide(findings.NewTaskHandler, dig.Name("knowledgeFindings")))
+	must(container.Provide(service.NewKnowledgeRetirers))
 	must(container.Provide(service.NewKnowledgeFindingService))
 	must(container.Provide(service.NewKnowledgeStewardshipService))
 

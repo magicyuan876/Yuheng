@@ -3318,7 +3318,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "本页在知识库中的镜像被检测出的未处理问题（目前是与其他文档重复）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count",
+                "description": "本页在知识库中的镜像被检测出的未处理问题（与其他文档重复或内容有出入）。只列出另一方是调用者有权查看的页面的问题；另一方不是页面或调用者看不到的，只计入 other_count",
                 "produces": [
                     "application/json"
                 ],
@@ -4304,6 +4304,53 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/pages/{pid}/supersede": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "处理本页的一个知识健康问题：保留本页，把问题另一方的页面排除出知识库并标记为“已被本页取代”，该页面仍可阅读，重新参与知识库时标记清除。\n需要能编辑两个页面；另一方不是页面时返回 409（上传的文档由知识库编辑者在知识健康里处理）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "用本页取代另一个页面",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID（保留的一方）",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "问题 ID",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.SupersedeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {retired_knowledge_id, how}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -8776,6 +8823,84 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/findings/{finding_id}/supersede": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "处理“内容重复”或“内容有出入”的问题：保留 keep_knowledge_id 指定的文档，另一份退出知识库。\n上传的文档会被删除；在线文档页面会被排除出知识库并标记为已被取代，页面本身仍可阅读（需要能编辑该页面）；\n数据源同步的文档无法在这里移除（下次同步会回来），返回 409。操作记入知识库动态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识健康"
+                ],
+                "summary": "以一份取代另一份",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "问题 ID",
+                        "name": "finding_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "保留哪一份",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.SupersedeFindingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: {retired_knowledge_id, how}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -18839,7 +18964,8 @@ const docTemplate = `{
                 "faq.import_failed",
                 "finding.status_changed",
                 "finding.scan_requested",
-                "finding.assigned"
+                "finding.assigned",
+                "finding.superseded"
             ],
             "x-enum-varnames": [
                 "AuditActionMemberAdded",
@@ -18905,7 +19031,8 @@ const docTemplate = `{
                 "AuditActionFAQImportFailed",
                 "AuditActionFindingStatusChanged",
                 "AuditActionFindingScanRequested",
-                "AuditActionFindingAssigned"
+                "AuditActionFindingAssigned",
+                "AuditActionFindingSuperseded"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_types.AuditLog": {
@@ -21782,6 +21909,18 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_magicyuan876_yuheng_internal_types.SupersedeFindingRequest": {
+            "type": "object",
+            "required": [
+                "keep_knowledge_id"
+            ],
+            "properties": {
+                "keep_knowledge_id": {
+                    "description": "KeepKnowledgeID is the document that stays: one of the finding's two.\nThe other leaves the knowledge base.",
+                    "type": "string"
+                }
+            }
+        },
         "github_com_magicyuan876_yuheng_internal_types.SyncLog": {
             "type": "object",
             "properties": {
@@ -23753,6 +23892,18 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.SupersedeRequest": {
+            "type": "object",
+            "required": [
+                "finding_id"
+            ],
+            "properties": {
+                "finding_id": {
+                    "description": "FindingID is one of the page's findings; its other page is the one\nthis page supersedes.",
                     "type": "string"
                 }
             }

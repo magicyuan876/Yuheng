@@ -17,6 +17,7 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/repository"
 	"github.com/magicyuan876/yuheng/internal/docs/service"
 	"github.com/magicyuan876/yuheng/internal/logger"
+	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/dig"
@@ -67,6 +68,10 @@ type Params struct {
 	// Optional: without it mirror entries carry no maintainer, and their
 	// problems go to the fallbacks.
 	Stewardship interfaces.KnowledgeStewardshipService `optional:"true"`
+	// Retirers is where the module says how a superseded page mirror leaves
+	// the knowledge base. Optional: without it superseding a page is
+	// refused from the knowledge base's side, and still works from the page.
+	Retirers interfaces.KnowledgeRetirers `optional:"true"`
 }
 
 // Module is the assembled docs feature.
@@ -182,6 +187,9 @@ func NewModule(p Params) *Module {
 		logger.Warnf(context.Background(), "[docs] running without optional dependencies: %v", degraded)
 	}
 	services := service.New(deps)
+	if p.Retirers != nil {
+		p.Retirers.Register(types.KnowledgeOriginDocs, pageRetirer{pages: services.Pages})
+	}
 	h := handler.New(handler.Deps{
 		Config: cfg, Repos: repos, Resolver: resolver, Guard: guard, Bus: bus, Audit: rec, Idempotency: idem,
 		Services: services,
@@ -230,6 +238,7 @@ func (p Params) degraded() []string {
 	note("KnowledgeService", p.KnowledgeService == nil)
 	note("Findings", p.Findings == nil)
 	note("Stewardship", p.Stewardship == nil)
+	note("Retirers", p.Retirers == nil)
 	return missing
 }
 

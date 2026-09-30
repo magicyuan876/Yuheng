@@ -180,6 +180,10 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	// findings are shown is then decided per related page by the service.
 	read.GET("/pages/:pid/findings", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.Findings)
+	// Keeping this page over the other of one of its findings: a writer of
+	// this page, and the service requires writing the other one too.
+	write.POST("/pages/:pid/supersede", g.Contributor(),
+		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.Supersede)
 	read.GET("/pages/:pid/mention-candidates", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), pg.SuggestMentions)
 	// Page-level permissions. Reading the panel needs only read access:

@@ -327,3 +327,27 @@ type KnowledgeFindingsPayload struct {
 	KnowledgeBaseID string `json:"knowledge_base_id"`
 	KnowledgeID     string `json:"knowledge_id"`
 }
+
+// SupersedeFindingRequest is the body of POST
+// /knowledge-bases/{id}/findings/{finding_id}/supersede.
+type SupersedeFindingRequest struct {
+	// KeepKnowledgeID is the document that stays: one of the finding's two.
+	// The other leaves the knowledge base.
+	KeepKnowledgeID string `json:"keep_knowledge_id" binding:"required"`
+}
+
+// How a superseded document left its knowledge base.
+const (
+	// RetiredDeleted: an entry maintained here was deleted.
+	RetiredDeleted = "deleted"
+	// RetiredExcluded: a docs page was excluded from the knowledge base; the
+	// page itself stays readable, marked as superseded.
+	RetiredExcluded = "excluded"
+)
+
+// SupersedeResult answers a supersede.
+type SupersedeResult struct {
+	RetiredKnowledgeID string `json:"retired_knowledge_id"`
+	// How is RetiredDeleted or RetiredExcluded.
+	How string `json:"how"`
+}
