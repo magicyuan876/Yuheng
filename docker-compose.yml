@@ -57,7 +57,7 @@ services:
       - ./config/config.yaml:/app/config/config.yaml
       # Optional: declarative built-in models. Copy config/builtin_models.yaml.example
       # to config/builtin_models.yaml, edit it for your deployment, then
-      # uncomment the line below. See docs/BUILTIN_MODELS.md.
+      # uncomment the line below. See website-docs/03-features/06-models.md (内置模型).
       # - ./config/builtin_models.yaml:/app/config/builtin_models.yaml:ro
     # /ready, not /health: the frontend and collab wait on this check, and they
     # should wait for a database that answers and a clean migration state, not
@@ -123,9 +123,9 @@ services:
       - DB_MAX_OPEN_CONNS=${DB_MAX_OPEN_CONNS:-50}
       - DB_MAX_IDLE_CONNS=${DB_MAX_IDLE_CONNS:-10}
       - DB_CONN_MAX_LIFETIME_MINUTES=${DB_CONN_MAX_LIFETIME_MINUTES:-10}
-      # IM 渠道图片/文件外链的外部可达 URL。IM 显示知识库图片需二选一：
-      # 存储后端公网可达（如 S3_ENDPOINT 设为公网），或设本变量走 <APP_EXTERNAL_URL>/r/<token>（需 nginx 代理 /r/）。
-      # 默认内网对象存储部署 / local 后端需设本变量。
+      # 外部客户端（第三方应用、API 调用方）加载图片/文件的外链前缀。它们要直接拿到图需二选一：
+      # 存储后端对它们可达（如 S3_ENDPOINT 设为可达地址），或设本变量走 <APP_EXTERNAL_URL>/r/<token>（需 nginx 代理 /r/）。
+      # 只用自带的 Web 界面时不需要。
       - APP_EXTERNAL_URL=${APP_EXTERNAL_URL:-}
       # 前端外部 origin，用于邀请链接等绝对 URL（留空走 host-relative）
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
@@ -155,7 +155,7 @@ services:
       - DB_NAME=${DB_NAME:-}
       # ========== Langfuse (optional observability) ==========
       # Enabled automatically when LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY are set.
-      # See docs/Langfuse集成.md for the full list of tuning knobs.
+      # See website-docs/03-features/16-observability.md §3 for the full list of tuning knobs.
       - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
@@ -285,7 +285,7 @@ services:
       - YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC=${YUHENG_CHAT_ATTACHMENT_WAIT_TIMEOUT_SEC:-60}
       - YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY=${YUHENG_CHAT_ATTACHMENT_OCR_CONCURRENCY:-8}
       - YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES=${YUHENG_CHAT_ATTACHMENT_OCR_MAX_PAGES:-8}
-      # Tenant / RBAC（详见 docs/RBAC说明.md 与 .env.example 注释）
+      # Tenant / RBAC（详见 website-docs/03-features/01-tenant-auth.md §6 与 .env.example 注释）
       # - YUHENG_TENANT_ENABLE_RBAC: 是否启用空间角色强制鉴权（true / false），默认 true
       # - YUHENG_TENANT_MAX_OWNED_PER_USER: 单个非超管自助创建空间的上限
       #   >0 强制限额；=0 走 handler 默认；<0 关闭限额（不建议共享部署使用）
@@ -991,7 +991,7 @@ services:
       - YUHENG_CHAT_TIMEOUT=${YUHENG_CHAT_TIMEOUT:-300}
       # 是否校验 Yuheng 后端 TLS 证书（默认 true；自签证书可设 false）
       - YUHENG_VERIFY_SSL=${YUHENG_VERIFY_SSL:-true}
-      # 允许上传的目录白名单（逗号分隔；留空禁用文件上传工具）
+      # 允许上传的目录白名单（逗号分隔）。留空时只允许容器的工作目录 /app
       - MCP_ALLOWED_UPLOAD_DIRS=${MCP_ALLOWED_UPLOAD_DIRS:-}
     depends_on:
       app:
