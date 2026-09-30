@@ -126,7 +126,14 @@
   "overrides": {
     "esbuild": "^0.25.0",
     "serialize-javascript": "^7.0.3",
-    "tdesign-icons-vue-next": "0.4.4"
+    "tdesign-icons-vue-next": "0.4.4",
+    "lodash-es": "^4.18.1",
+    "@excalidraw/excalidraw": {
+      "nanoid": "^3.3.19"
+    },
+    "@excalidraw/mermaid-to-excalidraw": {
+      "nanoid": "^5.1.16"
+    }
   },
   "resolutions": {
     "esbuild": "^0.25.0",
