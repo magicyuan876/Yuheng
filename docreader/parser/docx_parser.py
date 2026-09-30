@@ -119,8 +119,8 @@ class DocxParser(BaseParser):
             def _inline_upload(local_path: str) -> str:
                 """Read temp image file, base64-encode, and return a ref path.
 
-                The Go-side ImageResolver (or main.py _resolve_images) handles
-                actual storage upload from Document.images.
+                main.py streams Document.images to the Go app, whose
+                ImageResolver uploads them to storage.
                 """
                 import base64
                 import uuid as _uuid

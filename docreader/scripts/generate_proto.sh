@@ -1,36 +1,50 @@
 #!/bin/bash
-set -ex
+# Regenerate the Python and Go stubs from docreader/proto/docreader.proto.
+# Run from the repository root inside the docreader uv environment, which is
+# what `make -C docreader proto` does.
+#
+# Both languages are compiled by the protoc that grpcio-tools bundles, so the
+# compiler version stamped into every stub header is the one uv.lock pins and
+# no system protoc is needed. The Go plugins are not Python packages; install
+# them at the versions the committed stubs name in their headers, so a
+# regeneration changes only what the .proto changed:
+#
+#   go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+#   go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+set -euxo pipefail
 
-# 设置目录
 PROTO_DIR="docreader/proto"
-PYTHON_OUT="docreader/proto"
-GO_OUT="docreader/proto"
+OUT_DIR="docreader/proto"
 
-# 生成Python代码
-python3 -m grpc_tools.protoc -I${PROTO_DIR} \
-    --python_out=${PYTHON_OUT} \
-    --pyi_out=${PYTHON_OUT} \
-    --grpc_python_out=${PYTHON_OUT} \
-    ${PROTO_DIR}/docreader.proto
-
-# 生成Go代码（仅在 protoc-gen-go 可用时执行）
-if command -v protoc-gen-go &> /dev/null; then
-    protoc -I${PROTO_DIR} --go_out=${GO_OUT} \
-        --go_opt=paths=source_relative \
-        --go-grpc_out=${GO_OUT} \
-        --go-grpc_opt=paths=source_relative \
-        ${PROTO_DIR}/docreader.proto
+go_out=()
+if command -v protoc-gen-go >/dev/null && command -v protoc-gen-go-grpc >/dev/null; then
+    go_out=(
+        --go_out="${OUT_DIR}" --go_opt=paths=source_relative
+        --go-grpc_out="${OUT_DIR}" --go-grpc_opt=paths=source_relative
+    )
 else
-    echo "protoc-gen-go not found, skipping Go code generation"
+    # Without the Go stubs the Go app would silently keep compiling against
+    # the old schema, so say so loudly rather than skipping in passing.
+    echo "WARNING: protoc-gen-go / protoc-gen-go-grpc not on PATH; Go stubs NOT regenerated" >&2
 fi
+# The ${a[@]+...} form expands an empty array to nothing; a plain "${a[@]}"
+# trips `set -u` on the bash 3.2 macOS ships.
 
-# 修复Python导入问题（MacOS兼容版本）
+python3 -m grpc_tools.protoc -I"${PROTO_DIR}" \
+    --python_out="${OUT_DIR}" \
+    --pyi_out="${OUT_DIR}" \
+    --grpc_python_out="${OUT_DIR}" \
+    ${go_out[@]+"${go_out[@]}"} \
+    "${PROTO_DIR}/docreader.proto"
+
+# grpc_tools emits a top-level `import docreader_pb2`, which only resolves when
+# docreader/proto is itself on sys.path. The service imports the stubs as the
+# package docreader.proto, so rewrite the import to the package path. The
+# in-place flag differs between BSD sed (macOS) and GNU sed.
 if [ "$(uname)" == "Darwin" ]; then
-    # MacOS版本
-    sed -i '' 's/import docreader_pb2/from docreader.proto import docreader_pb2/g' ${PYTHON_OUT}/docreader_pb2_grpc.py
+    sed -i '' 's/^import docreader_pb2/from docreader.proto import docreader_pb2/' "${OUT_DIR}/docreader_pb2_grpc.py"
 else
-    # Linux版本
-    sed -i 's/import docreader_pb2/from docreader.proto import docreader_pb2/g' ${PYTHON_OUT}/docreader_pb2_grpc.py
+    sed -i 's/^import docreader_pb2/from docreader.proto import docreader_pb2/' "${OUT_DIR}/docreader_pb2_grpc.py"
 fi
 
 echo "Proto files generated successfully!"

@@ -26,7 +26,13 @@ if _version_not_supported:
 
 
 class DocReaderStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """Removing a field from a message that is still in use leaves its number and
+    name `reserved`. Reusing either for a new field would let a peer built from
+    the previous schema, such as a half-upgraded stack running a new app against
+    an old docreader image, decode the old field as the new one without any
+    error. A message removed outright needs no reservation: nothing can reuse
+    its fields.
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -34,11 +40,6 @@ class DocReaderStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Read = channel.unary_unary(
-                '/docreader.DocReader/Read',
-                request_serializer=docreader__pb2.ReadRequest.SerializeToString,
-                response_deserializer=docreader__pb2.ReadResponse.FromString,
-                _registered_method=True)
         self.ReadStream = channel.unary_stream(
                 '/docreader.DocReader/ReadStream',
                 request_serializer=docreader__pb2.ReadRequest.SerializeToString,
@@ -52,21 +53,21 @@ class DocReaderStub(object):
 
 
 class DocReaderServicer(object):
-    """Missing associated documentation comment in .proto file."""
-
-    def Read(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+    """Removing a field from a message that is still in use leaves its number and
+    name `reserved`. Reusing either for a new field would let a peer built from
+    the previous schema, such as a half-upgraded stack running a new app against
+    an old docreader image, decode the old field as the new one without any
+    error. A message removed outright needs no reservation: nothing can reuse
+    its fields.
+    """
 
     def ReadStream(self, request, context):
-        """ReadStream is the streaming counterpart of Read. It first emits one
-        ReadStreamResponse carrying the parse metadata (markdown / metadata /
-        error), then emits one message per image. This keeps every gRPC message
-        small so large scanned PDFs (hundreds of page images, far exceeding the
-        unary message-size cap) can be returned without RESOURCE_EXHAUSTED and
-        with bounded memory on both ends.
+        """ReadStream parses one document. It first emits one ReadStreamResponse
+        carrying the parse metadata (markdown / metadata / error), then the audio
+        track of a video, then one message per image. Streaming is the only read
+        path because it keeps every gRPC message small: a large scanned PDF
+        (hundreds of page images) would exceed any single-message cap, and
+        neither end has to hold the whole result in memory at once.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -81,11 +82,6 @@ class DocReaderServicer(object):
 
 def add_DocReaderServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Read': grpc.unary_unary_rpc_method_handler(
-                    servicer.Read,
-                    request_deserializer=docreader__pb2.ReadRequest.FromString,
-                    response_serializer=docreader__pb2.ReadResponse.SerializeToString,
-            ),
             'ReadStream': grpc.unary_stream_rpc_method_handler(
                     servicer.ReadStream,
                     request_deserializer=docreader__pb2.ReadRequest.FromString,
@@ -105,34 +101,13 @@ def add_DocReaderServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class DocReader(object):
-    """Missing associated documentation comment in .proto file."""
-
-    @staticmethod
-    def Read(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/docreader.DocReader/Read',
-            docreader__pb2.ReadRequest.SerializeToString,
-            docreader__pb2.ReadResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
+    """Removing a field from a message that is still in use leaves its number and
+    name `reserved`. Reusing either for a new field would let a peer built from
+    the previous schema, such as a half-upgraded stack running a new app against
+    an old docreader image, decode the old field as the new one without any
+    error. A message removed outright needs no reservation: nothing can reuse
+    its fields.
+    """
 
     @staticmethod
     def ReadStream(request,

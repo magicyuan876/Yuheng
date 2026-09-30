@@ -305,7 +305,7 @@ Worker 消费 `TypeDocumentProcess` 后按五个规范化阶段推进，每个�
 引擎目录集中在 `internal/infrastructure/docparser/engines.go`：每个引擎同时声明元数据（名称、描述、文件类型、可用性探针）与 `NewReader` 工厂，`docparser.NewReader` 按名字分发，未注册的名字（如只存在于 docreader 的 `markitdown`）落到 docreader 客户端。
 5. 文件模式：从 `FileService.GetFile(payload.FilePath)` 读回字节填入 `ReadRequest.FileContent`。
 
-**docreader 服务侧**（`docreader/`，Python gRPC）：proto 定义 `docreader/proto/docreader.proto`，服务方法 `Read` / `ReadStream`（流式：首帧 meta + 每图一帧，避免大扫描件 PDF 触发 gRPC 消息上限）/ `ListEngines`。内置 parser 覆盖 docx/doc/pdf/md/xlsx/xls/epub/html/htm/mhtml/图片/网页（`WebParser` 处理 URL），并可选注册 `markitdown`（微软 MarkItDown）与 `opendataloader`（PDF 版面分析，需 Java 11+）引擎，Go 侧通过 `ListEngines` 自发现远程引擎。返回统一为 `ReadResult{MarkdownContent, ImageRefs, Metadata, IsAudio, AudioData}` —— **解析产物统一是 Markdown 文本 + 图片字节**，图片持久化由 Go 侧负责。
+**docreader 服务侧**（`docreader/`，Python gRPC）：proto 定义 `docreader/proto/docreader.proto`，服务方法只有 `ReadStream`（流式：首帧 meta，随后视频音轨分段，再每图一帧，大扫描件 PDF 也不会触发 gRPC 消息上限）与 `ListEngines`。内置 parser 覆盖 docx/doc/pdf/md/xlsx/xls/epub/html/htm/mhtml/图片/网页（`WebParser` 处理 URL），并可选注册 `markitdown`（微软 MarkItDown）与 `opendataloader`（PDF 版面分析，需 Java 11+）引擎，Go 侧通过 `ListEngines` 自发现远程引擎。Go 侧把这些帧收拢为 `ReadResult{MarkdownContent, Metadata, ImageRefs, AudioSegments, …}` —— **解析产物统一是 Markdown 文本 + 图片字节（视频另有音轨分段）**，图片持久化由 Go 侧负责。
 
 ### 6.2 ASR 转写（音频文件）
 

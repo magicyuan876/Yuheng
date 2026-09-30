@@ -12,8 +12,8 @@ class ImageParser(BaseParser):
     """Parser for standalone image files.
 
     Returns the image as a markdown reference with the raw image data
-    in Document.images so that the Go-side ImageResolver (or main.py's
-    _resolve_images) can handle storage upload.
+    in Document.images; main.py streams it to the Go app, whose ImageResolver
+    uploads it to storage.
     """
 
     def parse_into_text(self, content: bytes) -> Document:

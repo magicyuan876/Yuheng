@@ -2,16 +2,21 @@ syntax = "proto3";
 
 package docreader;
 
-option go_package = "github.com/magicyuan876/yuheng/internal/docreader/proto";
+option go_package = "github.com/magicyuan876/yuheng/docreader/proto";
 
+// Removing a field from a message that is still in use leaves its number and
+// name `reserved`. Reusing either for a new field would let a peer built from
+// the previous schema, such as a half-upgraded stack running a new app against
+// an old docreader image, decode the old field as the new one without any
+// error. A message removed outright needs no reservation: nothing can reuse
+// its fields.
 service DocReader {
-  rpc Read(ReadRequest) returns (ReadResponse) {}
-  // ReadStream is the streaming counterpart of Read. It first emits one
-  // ReadStreamResponse carrying the parse metadata (markdown / metadata /
-  // error), then emits one message per image. This keeps every gRPC message
-  // small so large scanned PDFs (hundreds of page images, far exceeding the
-  // unary message-size cap) can be returned without RESOURCE_EXHAUSTED and
-  // with bounded memory on both ends.
+  // ReadStream parses one document. It first emits one ReadStreamResponse
+  // carrying the parse metadata (markdown / metadata / error), then the audio
+  // track of a video, then one message per image. Streaming is the only read
+  // path because it keeps every gRPC message small: a large scanned PDF
+  // (hundreds of page images) would exceed any single-message cap, and
+  // neither end has to hold the whole result in memory at once.
   rpc ReadStream(ReadRequest) returns (stream ReadStreamResponse) {}
   rpc ListEngines(ListEnginesRequest) returns (ListEnginesResponse) {}
 }
@@ -19,9 +24,6 @@ service DocReader {
 message ReadConfig {
   string parser_engine = 1;
   map<string, string> parser_engine_overrides = 2;
-  // image_storage removed: image persistence is now handled entirely by the Go App.
-  // Field number 3 is reserved for backward compatibility.
-  reserved 3;
 }
 
 // Unified read request: set file_content for file mode, url for URL mode.
@@ -43,8 +45,11 @@ message ImageRef {
   string filename = 1;
   string original_ref = 2;
   string mime_type = 3;
-  string storage_key = 4;    // download URL from shared storage
-  bytes  image_data = 5;     // inline bytes fallback
+  // storage_key (a download URL in shared storage) was never set: images
+  // travel inline and the Go app persists them itself.
+  reserved 4;
+  reserved "storage_key";
+  bytes  image_data = 5;
   // Timestamp of this frame within the source media, in milliseconds.
   // Set for video keyframes; 0 for ordinary document images.
   int64  timestamp_ms = 6;
@@ -61,22 +66,13 @@ message MediaInfo {
   int32  height = 6;
 }
 
-message ReadResponse {
-  string markdown_content = 1;
-  repeated ImageRef image_refs = 2;
-  string image_dir_path = 3;
-  map<string, string> metadata = 4;
-  string error = 5;
-  MediaInfo media = 6;
-  // Extracted audio track for ASR (unary fallback only — capped by the gRPC
-  // message-size limit; the streaming RPC sends the track as AudioChunk frames).
-  bytes audio_data = 7;
-}
-
 // Metadata header for a streamed read. Sent exactly once, before any image.
 message ReadStreamMeta {
   string markdown_content = 1;
-  string image_dir_path = 2;
+  // image_dir_path (a shared-volume directory holding the images) was always
+  // empty: images arrive as ImageRef frames.
+  reserved 2;
+  reserved "image_dir_path";
   map<string, string> metadata = 3;
   string error = 4;
   uint32 image_count = 5; // best-effort total image count (0 if unknown)

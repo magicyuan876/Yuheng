@@ -20,7 +20,6 @@ from docreader.parser.registry import registry
 from docreader.proto.docreader_pb2 import (
     AudioChunk,
     ReadRequest,
-    ReadResponse,
     ImageRef,
     MediaInfo,
     ReadStreamMeta,
@@ -100,61 +99,6 @@ def _iter_audio_chunks(result):
             )
 
 
-def _resolve_images(
-    images: dict, request_id: str, timestamps: dict | None = None
-) -> tuple[str, list]:
-    """Resolve document images into inline bytes for the Go App to persist.
-
-    ``images`` is a dict of {relative_path: raw_data} where raw_data is
-    base64-encoded string or raw bytes.
-
-    The Go App is solely responsible for persisting images to the configured
-    storage backend (local/s3). This function only decodes images
-    and returns them as inline bytes via ImageRef.
-
-    Returns ("", list[ImageRef]).  image_dir_path is always empty.
-    """
-    import base64
-
-    if not images:
-        return "", []
-
-    timestamps = timestamps or {}
-
-    mime_map = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-        ".bmp": "image/bmp",
-    }
-
-    refs = []
-    for ref_path, b64data in images.items():
-        try:
-            img_bytes = base64.b64decode(b64data)
-        except Exception:
-            img_bytes = b64data.encode("utf-8") if isinstance(b64data, str) else b64data
-
-        fname = os.path.basename(ref_path) or f"{uuid.uuid4().hex}.png"
-        ext = os.path.splitext(fname)[1].lower()
-        mime = mime_map.get(ext, "application/octet-stream")
-
-        refs.append(
-            ImageRef(
-                filename=fname,
-                original_ref=ref_path,
-                mime_type=mime,
-                image_data=img_bytes,
-                timestamp_ms=int(timestamps.get(ref_path, 0)),
-            )
-        )
-
-    logger.info("Resolved %d images (mode=inline)", len(refs))
-    return "", refs
-
-
 def _mime_for_ref(ref_path: str) -> tuple[str, str]:
     """Return (filename, mime_type) for an image reference path."""
     mime_map = {
@@ -173,9 +117,9 @@ def _mime_for_ref(ref_path: str) -> tuple[str, str]:
 def _iter_image_refs(images: dict, timestamps: dict | None = None):
     """Yield ImageRef one at a time, freeing each source entry as we go.
 
-    Used by the streaming RPC so we never hold every decoded image plus its
-    base64 source in memory simultaneously (the inline path's peak-memory and
-    message-size problem for large scanned PDFs).
+    Each image leaves ``images`` as it is decoded, so the server never holds
+    every decoded image plus its base64 source at once; for a large scanned
+    PDF that pair is what dominates peak memory.
     """
     import base64
 
@@ -221,10 +165,7 @@ class DocReaderServicer(docreader_pb2_grpc.DocReaderServicer):
         return resolved
 
     def _parse_request(self, request: ReadRequest):
-        """Run the parser for a ReadRequest, returning (result, source_desc).
-
-        Shared by the unary Read and streaming ReadStream RPCs.
-        """
+        """Run the parser for a ReadRequest, returning (result, source_desc)."""
         cfg = request.config
         parser_engine = cfg.parser_engine if cfg else ""
         engine_overrides = dict(cfg.parser_engine_overrides) if cfg else {}
@@ -273,55 +214,12 @@ class DocReaderServicer(docreader_pb2_grpc.DocReaderServicer):
         )
         return result, request.file_name
 
-    def Read(self, request: ReadRequest, context):
-        """Unified read: file mode (file_content set) or URL mode (url set)."""
-        request_id = request.request_id or str(uuid.uuid4())
-
-        with request_id_context(request_id):
-            try:
-                result, source_desc = self._parse_request(request)
-
-                if not result or not result.content:
-                    error_msg = f"Failed to parse: {source_desc}"
-                    logger.error(error_msg)
-                    return ReadResponse(error=error_msg)
-
-                _c = to_valid_utf8_text
-                image_dir, image_refs = _resolve_images(
-                    result.images, request_id, timestamps=result.image_timestamps
-                )
-
-                response = ReadResponse(
-                    markdown_content=_c(result.content),
-                    image_refs=image_refs,
-                    image_dir_path=image_dir,
-                    metadata={k: _c(str(v)) for k, v in result.metadata.items()}
-                    if result.metadata
-                    else {},
-                    media=_media_info_from(result),
-                    audio_data=b"".join(
-                        seg.data for seg in (result.audio_segments or [])
-                    ),
-                )
-                logger.info(
-                    "Read response: content_len=%d, images=%d",
-                    len(result.content),
-                    len(image_refs),
-                )
-                return response
-
-            except Exception as e:
-                error_msg = f"Error reading document: {e}"
-                logger.error(error_msg)
-                logger.info("Traceback: %s", traceback.format_exc())
-                return ReadResponse(error=str(e))
-
     def ReadStream(self, request: ReadRequest, context):
-        """Streaming read: yields one meta frame, then one frame per image.
+        """Parse one document: yield a meta frame, the audio track, then images.
 
         Each frame is a small, independent gRPC message, so documents with many
-        page images (large scanned PDFs) are returned without hitting the unary
-        message-size cap, and neither side has to hold the whole payload at once.
+        page images (large scanned PDFs) never approach the message-size cap,
+        and neither side has to hold the whole payload at once.
         """
         request_id = request.request_id or str(uuid.uuid4())
 
@@ -346,7 +244,6 @@ class DocReaderServicer(docreader_pb2_grpc.DocReaderServicer):
             yield ReadStreamResponse(
                 meta=ReadStreamMeta(
                     markdown_content=_c(result.content),
-                    image_dir_path="",
                     metadata={k: _c(str(v)) for k, v in result.metadata.items()}
                     if result.metadata
                     else {},

@@ -19,7 +19,6 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DocReader_Read_FullMethodName        = "/docreader.DocReader/Read"
 	DocReader_ReadStream_FullMethodName  = "/docreader.DocReader/ReadStream"
 	DocReader_ListEngines_FullMethodName = "/docreader.DocReader/ListEngines"
 )
@@ -27,14 +26,20 @@ const (
 // DocReaderClient is the client API for DocReader service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Removing a field from a message that is still in use leaves its number and
+// name `reserved`. Reusing either for a new field would let a peer built from
+// the previous schema, such as a half-upgraded stack running a new app against
+// an old docreader image, decode the old field as the new one without any
+// error. A message removed outright needs no reservation: nothing can reuse
+// its fields.
 type DocReaderClient interface {
-	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*ReadResponse, error)
-	// ReadStream is the streaming counterpart of Read. It first emits one
-	// ReadStreamResponse carrying the parse metadata (markdown / metadata /
-	// error), then emits one message per image. This keeps every gRPC message
-	// small so large scanned PDFs (hundreds of page images, far exceeding the
-	// unary message-size cap) can be returned without RESOURCE_EXHAUSTED and
-	// with bounded memory on both ends.
+	// ReadStream parses one document. It first emits one ReadStreamResponse
+	// carrying the parse metadata (markdown / metadata / error), then the audio
+	// track of a video, then one message per image. Streaming is the only read
+	// path because it keeps every gRPC message small: a large scanned PDF
+	// (hundreds of page images) would exceed any single-message cap, and
+	// neither end has to hold the whole result in memory at once.
 	ReadStream(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadStreamResponse], error)
 	ListEngines(ctx context.Context, in *ListEnginesRequest, opts ...grpc.CallOption) (*ListEnginesResponse, error)
 }
@@ -45,16 +50,6 @@ type docReaderClient struct {
 
 func NewDocReaderClient(cc grpc.ClientConnInterface) DocReaderClient {
 	return &docReaderClient{cc}
-}
-
-func (c *docReaderClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (*ReadResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReadResponse)
-	err := c.cc.Invoke(ctx, DocReader_Read_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *docReaderClient) ReadStream(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadStreamResponse], error) {
@@ -89,14 +84,20 @@ func (c *docReaderClient) ListEngines(ctx context.Context, in *ListEnginesReques
 // DocReaderServer is the server API for DocReader service.
 // All implementations must embed UnimplementedDocReaderServer
 // for forward compatibility.
+//
+// Removing a field from a message that is still in use leaves its number and
+// name `reserved`. Reusing either for a new field would let a peer built from
+// the previous schema, such as a half-upgraded stack running a new app against
+// an old docreader image, decode the old field as the new one without any
+// error. A message removed outright needs no reservation: nothing can reuse
+// its fields.
 type DocReaderServer interface {
-	Read(context.Context, *ReadRequest) (*ReadResponse, error)
-	// ReadStream is the streaming counterpart of Read. It first emits one
-	// ReadStreamResponse carrying the parse metadata (markdown / metadata /
-	// error), then emits one message per image. This keeps every gRPC message
-	// small so large scanned PDFs (hundreds of page images, far exceeding the
-	// unary message-size cap) can be returned without RESOURCE_EXHAUSTED and
-	// with bounded memory on both ends.
+	// ReadStream parses one document. It first emits one ReadStreamResponse
+	// carrying the parse metadata (markdown / metadata / error), then the audio
+	// track of a video, then one message per image. Streaming is the only read
+	// path because it keeps every gRPC message small: a large scanned PDF
+	// (hundreds of page images) would exceed any single-message cap, and
+	// neither end has to hold the whole result in memory at once.
 	ReadStream(*ReadRequest, grpc.ServerStreamingServer[ReadStreamResponse]) error
 	ListEngines(context.Context, *ListEnginesRequest) (*ListEnginesResponse, error)
 	mustEmbedUnimplementedDocReaderServer()
@@ -109,9 +110,6 @@ type DocReaderServer interface {
 // pointer dereference when methods are called.
 type UnimplementedDocReaderServer struct{}
 
-func (UnimplementedDocReaderServer) Read(context.Context, *ReadRequest) (*ReadResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Read not implemented")
-}
 func (UnimplementedDocReaderServer) ReadStream(*ReadRequest, grpc.ServerStreamingServer[ReadStreamResponse]) error {
 	return status.Error(codes.Unimplemented, "method ReadStream not implemented")
 }
@@ -137,24 +135,6 @@ func RegisterDocReaderServer(s grpc.ServiceRegistrar, srv DocReaderServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&DocReader_ServiceDesc, srv)
-}
-
-func _DocReader_Read_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReadRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DocReaderServer).Read(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DocReader_Read_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DocReaderServer).Read(ctx, req.(*ReadRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _DocReader_ReadStream_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -193,10 +173,6 @@ var DocReader_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "docreader.DocReader",
 	HandlerType: (*DocReaderServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Read",
-			Handler:    _DocReader_Read_Handler,
-		},
 		{
 			MethodName: "ListEngines",
 			Handler:    _DocReader_ListEngines_Handler,

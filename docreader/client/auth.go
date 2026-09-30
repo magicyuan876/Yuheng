@@ -1,7 +1,9 @@
-// Package client provides a docreader gRPC client and the shared TLS / token
-// authentication helpers used by both the standalone Go SDK in this package
-// and the internal docparser wrapper. Keep all auth/TLS construction here so
-// the two call sites cannot drift on security defaults.
+// Package client holds the Go side of docreader's transport security: the TLS
+// and bearer-token settings the Go app reads from its environment and the gRPC
+// dial options that apply them. It lives next to the server's counterpart
+// (docreader/auth.py) so the two halves of one contract change together. The
+// connection itself is owned by internal/infrastructure/docparser, which also
+// does the logging; this package stays silent so a connect is reported once.
 package client
 
 import (
@@ -61,7 +63,6 @@ func (c *AuthConfig) BuildDialOptions(maxMsgSize int) ([]grpc.DialOption, error)
 			return nil, fmt.Errorf("failed to build TLS credentials: %w", err)
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
-		Logger.Printf("INFO: TLS enabled for gRPC client")
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
@@ -74,7 +75,6 @@ func (c *AuthConfig) BuildDialOptions(maxMsgSize int) ([]grpc.DialOption, error)
 			token:           c.AuthToken,
 			requireTLSGuard: c.TLSEnabled,
 		}))
-		Logger.Printf("INFO: Token authentication enabled for gRPC client (TLS=%v)", c.TLSEnabled)
 	}
 
 	return opts, nil
@@ -105,7 +105,6 @@ func (c *AuthConfig) buildTLSCredentials() (credentials.TransportCredentials, er
 			return nil, fmt.Errorf("failed to load client certificate: %w", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
-		Logger.Printf("INFO: mTLS enabled (client certificate loaded)")
 	case c.CertFile != "" || c.KeyFile != "":
 		return nil, fmt.Errorf(
 			"GRPC_TLS_CERT and GRPC_TLS_KEY must be set together for mTLS",
@@ -123,7 +122,7 @@ type tokenAuth struct {
 	requireTLSGuard bool
 }
 
-func (t *tokenAuth) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (t *tokenAuth) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
 	return map[string]string{
 		"authorization": "Bearer " + t.token,
 	}, nil

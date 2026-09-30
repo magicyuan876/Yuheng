@@ -48,13 +48,13 @@ class BaseParser(ABC):
 
 Go 侧客户端还支持 `DOCREADER_TRANSPORT=http`，按 `/read`、`/list-engines` 的 JSON 协议调用一个兼容的 HTTP 服务（`internal/infrastructure/docparser/http_parser.go`）；本仓库的 docreader 本身只提供 gRPC，默认 `DOCREADER_TRANSPORT=grpc`、`DOCREADER_ADDR=docreader:50051`。`DOCREADER_ADDR` 为空时主服务以「未连接」状态启动，此时只能处理 Go 原生支持的格式。
 
-Proto 定义在 `docreader/proto/docreader.proto`，共 3 个 RPC：
+Proto 定义在 `docreader/proto/docreader.proto`，共 2 个 RPC：
 
 ```protobuf
 service DocReader {
-  rpc Read(ReadRequest) returns (ReadResponse) {}
-  // 流式版本：先发 1 帧 meta（markdown/metadata/error），之后每帧 1 张图片。
-  // 避免大扫描件 PDF（数百页图片）撞上 unary 消息大小上限（RESOURCE_EXHAUSTED）。
+  // 唯一的解析入口，流式返回：先发 1 帧 meta（markdown/metadata/error），
+  // 然后是视频的音轨分段，最后每帧 1 张图片。每帧都很小，大扫描件 PDF
+  // （数百页图片）也不会撞上单条消息的大小上限（RESOURCE_EXHAUSTED）。
   rpc ReadStream(ReadRequest) returns (stream ReadStreamResponse) {}
   rpc ListEngines(ListEnginesRequest) returns (ListEnginesResponse) {}
 }
@@ -62,9 +62,15 @@ service DocReader {
 
 `ReadRequest` 是统一请求：设置 `file_content`/`file_name`/`file_type` 为文件模式，设置 `url`/`title` 为 URL 模式；另有 `file_path`，供大体积媒体（多 GB 的视频）走共享卷——Go 传两个容器都挂载的路径而不是把字节塞进 gRPC，docreader 校验路径必须落在 `DOCREADER_SHARED_DATA_DIR`（默认 `/data/files`）之内。`config.parser_engine` 指定引擎（`builtin` / `markitdown` / `opendataloader`），`config.parser_engine_overrides` 传递引擎级覆盖参数（如 `pdf_force_scanned`、`xlsx_first_row_as_header`、`odl_hybrid`）。
 
-`ReadResponse` 返回 `markdown_content` + `repeated ImageRef image_refs`（图片以 **inline bytes** 内联返回，`image_dir_path` 恒为空字符串——图片持久化完全由 Go App 负责，proto 中原来的 `image_storage` 字段 3 已 `reserved`）。解析视频时还带 `MediaInfo`（时长、分辨率、是否有音轨）与抽出的音轨：unary 版放在 `audio_data`，流式版按固定时长分段作为 `AudioChunk` 帧发送；关键帧的 `ImageRef` 带 `timestamp_ms`。
+`ReadStream` 的每一帧（`ReadStreamResponse`）是 `oneof`：
 
-`ReadStream` 的价值（见 `main.py::ReadStream` 与 `_iter_image_refs`）：首帧是元数据，随后是音频分段（仅视频），最后每张图片一帧；每帧独立、体积小；服务端边解码 base64 边 `images.pop(ref_path)` 释放源数据，双方都不必同时持有全部图片，解决大扫描件 PDF 的峰值内存和消息尺寸问题。Go 侧 `internal/infrastructure/docparser/grpc_parser.go` 优先调用 `ReadStream`，遇到旧版本 docreader 返回 `Unimplemented` 时自动回退 unary `Read`。
+- 首帧 `ReadStreamMeta`：`markdown_content`、`metadata`、`error`、`image_count`（尽力而为的图片总数，未知时为 0）；解析视频时还带 `MediaInfo`（时长、分辨率、是否有音轨）。
+- 随后是 `AudioChunk`（仅视频）：音轨按固定时长切成段，每段再按传输大小切片，同一段的切片共享 `segment_index` / `start_ms` / `end_ms`，Go 侧按到达顺序拼回。
+- 最后每张图片一帧 `ImageRef`：`filename`、`original_ref`、`mime_type`、`image_data`（**inline bytes**），视频关键帧另带 `timestamp_ms`。图片持久化完全由 Go App 负责，docreader 不写任何共享目录或存储。
+
+流式的价值（见 `main.py::ReadStream` 与 `_iter_image_refs`）：每帧独立、体积小；服务端边解码 base64 边 `images.pop(ref_path)` 释放源数据，双方都不必同时持有全部图片，解决大扫描件 PDF 的峰值内存和消息尺寸问题。Go 侧 `internal/infrastructure/docparser/grpc_parser.go` 只调用 `ReadStream`，没有 unary 回退。
+
+proto 里被删掉的字段，若所在消息仍在使用，就把编号和名字一起 `reserved`（如 `ImageRef` 的 `storage_key = 4`、`ReadStreamMeta` 的 `image_dir_path = 2`），防止以后新字段复用同一编号，被仍按旧 schema 编解码的一端误读；整条消息删掉的（如原来的 `ReadResponse`）无需保留。
 
 `ListEngines` 返回 docreader 注册的引擎及其可用性。设置页的引擎列表由 Go 侧 `docparser.ListAllEngines`（`internal/infrastructure/docparser/engine_registry.go`）合并而成：Go 本地注册的引擎总在列表里；docreader 已连接时再调用 `ListEngines`，同名引擎以 docreader 报告的文件类型为准，Go 不认识的引擎（`markitdown`、`opendataloader`）原样追加，并在解析时路由给 docreader。`docreader/parser/registry.py` 里「Go 已不再调用该 RPC」的注释已经过时。
 
@@ -76,7 +82,7 @@ service DocReader {
 
 **TLS / mTLS（`load_tls_credentials`）**：`GRPC_TLS_ENABLED=true` 时必须提供 `GRPC_TLS_CERT` / `GRPC_TLS_KEY`，可选 `GRPC_TLS_CA`；`GRPC_MTLS_REQUIRE_CLIENT_CERT=true` 强制客户端证书（未设置时按 `GRPC_TLS_CA` 是否存在自动判断）。任何 TLS 配置缺失/加载失败都抛 `TLSConfigError`，`main()` 捕获后 `sys.exit(1)` **fail-fast，拒绝静默降级到明文**。
 
-Go 侧客户端在 `docreader/client/auth.go`（`LoadAuthConfigFromEnv` 读取同名环境变量 `GRPC_TLS_ENABLED/CERT/KEY/CA/SERVER_NAME` 与 `GRPC_AUTH_TOKEN`），`docreader/client/client.go` 的 `NewClient` 构建带 round_robin 负载均衡与 `MAX_FILE_SIZE_MB` 消息上限的连接。
+Go 侧的对应部分在 `docreader/client/auth.go`：`LoadAuthConfigFromEnv` 读取同名环境变量 `GRPC_TLS_ENABLED/CERT/KEY/CA/SERVER_NAME` 与 `GRPC_AUTH_TOKEN`，`BuildDialOptions` 生成带 round_robin 负载均衡、消息上限、TLS 与 token 的 dial options。连接本身由 `internal/infrastructure/docparser/grpc_parser.go` 建立（消息上限取 `MAX_FILE_SIZE_MB`）。同目录的 `client_test.go` 是对真实 docreader 的 `ReadStream` / `ListEngines` 集成测试，CI（`.github/workflows/docreader.yml`）会先拉起服务再跑；本地没有服务时自动跳过。
 
 ### 1.3 与主服务的交互时序
 
@@ -104,7 +110,6 @@ sequenceDiagram
         loop "每张图片"
             D-->>G: "帧N: ImageRef{filename, original_ref, mime_type, image_data(inline bytes)}"
         end
-        Note over G: "旧版 docreader 无 ReadStream 时回退 unary Read"
     end
     G->>S: "ImageResolver 持久化图片, 重写 markdown 中 images/xxx 引用为存储 URL"
     G->>M: "视觉模型: scanned_pdf 页面图用扫描件 OCR 提示词, 插图 OCR + caption，音频/视频音轨交给 ASR"
@@ -333,10 +338,7 @@ flowchart TD
 
 docreader 侧的图片契约非常简单：每个解析器把图片以 `Document.images = {"images/<文件名>": "<base64>"}` 返回，markdown 正文中以 `![...](images/<文件名>)` 相对引用。
 
-`main.py` 的两条回传路径：
-
-- unary `Read`：`_resolve_images()` 把全部图片 base64 解码为 `ImageRef.image_data` **内联字节**一次性返回（`image_dir_path` 恒为空——历史上"写共享卷目录"的模式已废弃，图片持久化完全由 Go App 负责，写入配置的存储后端：本地或 S3 兼容存储）；
-- streaming `ReadStream`：`_iter_image_refs()` 逐张 yield，边发边 `pop` 释放内存。
+`main.py` 只有一条回传路径：`ReadStream` 里 `_iter_image_refs()` 把图片逐张 base64 解码成 `ImageRef.image_data` **内联字节**、一帧一张 yield，边发边 `pop` 释放内存。图片持久化完全由 Go App 负责，写入配置的存储后端（本地或 S3 兼容存储）。
 
 Go 侧接手后（`internal/infrastructure/docparser/image_resolver.go`）：将 inline bytes 上传对象存储、把 markdown 中的 `images/...` 引用重写为存储 URL；随后 `internal/application/service/image_multimodal.go` 用知识库配置的视觉模型（`VLMConfig`）处理每张图：OCR 时 `image_source_type=scanned_pdf` 的整页图用专门的扫描件提示词、其余图用通用 OCR 提示词，并为图片生成描述；结果成为 `image_ocr` / `image_caption` 子分块。知识库没有开启图像处理时，这一步不执行，扫描页也就没有文字。**docreader 内没有任何模型调用**。
 

@@ -437,8 +437,8 @@ class MarkdownImageBase64(BaseParser):
     """Parser for extracting base64 images from Markdown.
 
     Extracts base64-encoded images, replaces them with path references,
-    and returns the raw image data in Document.images for the Go-side
-    ImageResolver (or main.py _resolve_images) to handle storage.
+    and returns the raw image data in Document.images; main.py streams it to
+    the Go app, whose ImageResolver uploads it to storage.
     """
 
     def __init__(self, **kwargs):
