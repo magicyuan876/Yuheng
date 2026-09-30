@@ -421,8 +421,13 @@ func (s *PageService) auditTemplate(ctx context.Context, actor *acl.Identity, ro
 		entry.SpaceID = *row.SpaceID
 	}
 	s.audit(ctx, entry)
-	s.publish(ctx, events.New(events.TemplateChanged, row.TenantID).
-		WithActor(actorID(actor)).With("template_id", row.ID))
+	// A space template is news only to that space's readers; carrying the
+	// space lets the event stream scope it. A workspace template has none.
+	ev := events.New(events.TemplateChanged, row.TenantID).WithActor(actorID(actor)).With("template_id", row.ID)
+	if row.SpaceID != nil {
+		ev = ev.WithSpace(*row.SpaceID)
+	}
+	s.publish(ctx, ev)
 }
 
 func cleanTemplateName(raw string) (string, error) {

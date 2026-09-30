@@ -119,8 +119,9 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 	write.POST("/spaces/:sid/imports", g.Contributor(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleWriter), pg.StartImport)
 	// Reader, not writer: an export takes nothing out of the space that the
-	// person could not already read page by page.
-	write.POST("/spaces/:sid/export", g.Viewer(),
+	// person could not already read page by page. For the same reason an API
+	// key needs only docs_read, although starting the job is a POST.
+	read.POST("/spaces/:sid/export", g.Viewer(),
 		guard.RequireSpace("sid", acl.SpaceByID, model.RoleReader), idem, pg.ExportSpace)
 
 	// ---- pages ---------------------------------------------------------------
@@ -295,7 +296,7 @@ func RegisterDocsRoutes(r *gin.RouterGroup, m *docs.Module, g *rbacGuards) {
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.UpdateShare)
 	write.DELETE("/pages/:pid/shares/:shid", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.RevokeShare)
-	write.POST("/pages/:pid/export", g.Viewer(),
+	read.POST("/pages/:pid/export", g.Viewer(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleReader), idem, pg.ExportPage)
 	write.PUT("/pages/:pid/labels", g.Contributor(),
 		guard.RequirePage("pid", acl.PageByID, model.RoleWriter), idem, pg.SetPageLabels)

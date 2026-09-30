@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,38 +10,44 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/docs/events"
+	"github.com/magicyuan876/yuheng/internal/logger"
 )
 
 // EventStream pushes docs events to a browser over Server-Sent Events.
 //
 // One connection per tab; the client narrows the feed with ?space=<id> and/or
-// ?page=<id>. Events for other spaces are dropped server-side so a large
-// tenant does not flood every tab. The stream is a refresh hint: clients
-// re-fetch what changed, they never apply payloads as truth.
+// ?page=<id>, so a large tenant does not flood every tab. That narrowing is a
+// convenience. What a subscriber may see is decided per event by an
+// acl.Audience, against their current permissions. The stream is a refresh
+// hint: clients re-fetch what changed, they never apply payloads as truth.
 type EventStream struct {
 	bus       events.Bus
+	res       *acl.Resolver
 	heartbeat time.Duration
 	// buffer is how many events a slow client may fall behind before we
 	// drop events (the client will re-sync on its next refresh anyway).
 	buffer int
 }
 
-// NewEventStream builds the handler. heartbeat <= 0 uses 25s.
-func NewEventStream(bus events.Bus, heartbeat time.Duration) *EventStream {
+// NewEventStream builds the handler. heartbeat <= 0 uses 25s. Without a bus
+// or a resolver the stream answers 503: it never serves unfiltered events.
+func NewEventStream(bus events.Bus, res *acl.Resolver, heartbeat time.Duration) *EventStream {
 	if heartbeat <= 0 {
 		heartbeat = 25 * time.Second
 	}
-	return &EventStream{bus: bus, heartbeat: heartbeat, buffer: 64}
+	return &EventStream{bus: bus, res: res, heartbeat: heartbeat, buffer: 64}
 }
 
 // Handle godoc
 // @Summary      订阅文档事件流（SSE）
 // @Description  Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等
-// @Description  只推送调用者当前可见的空间；权限变更后不再可见的页面事件会被过滤
-// @Description  可用 space 参数只订阅一个空间；连接期间每 25 秒发一次心跳注释行
+// @Description  每个事件按调用者当前的权限过滤：页面事件要能读该页面，空间事件要能读该空间，通知只推给接收人；
+// @Description  连接期间失去权限的内容，只会再收到让它消失的那一个事件；调用者被移出工作区时连接结束
+// @Description  可用 space / page 参数只订阅一个空间或页面；连接期间每 25 秒发一次心跳注释行
 // @Tags         在线文档
 // @Produce      text/event-stream
 // @Param        space  query  string  false  "只订阅该空间的事件"
+// @Param        page   query  string  false  "只订阅该页面的事件"
 // @Success      200  {string}  string  "event stream"
 // @Security     Bearer
 // @Router       /docs/events [get]
@@ -52,8 +59,15 @@ func (s *EventStream) Handle(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "identity required"})
 		return
 	}
-	if s.bus == nil {
+	if s.bus == nil || s.res == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": "event stream unavailable"})
+		return
+	}
+	ctx := c.Request.Context()
+	audience, err := s.res.Audience(ctx, id)
+	if err != nil {
+		logger.Errorf(ctx, "[docs.events] audience for user=%s: %v", id.UserID, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": "permission check unavailable"})
 		return
 	}
 	spaceFilter := c.Query("space")
@@ -87,7 +101,6 @@ func (s *EventStream) Handle(c *gin.Context) {
 
 	ticker := time.NewTicker(s.heartbeat)
 	defer ticker.Stop()
-	ctx := c.Request.Context()
 	for {
 		select {
 		case <-ctx.Done():
@@ -98,6 +111,20 @@ func (s *EventStream) Handle(c *gin.Context) {
 			}
 			w.Flush()
 		case e := <-ch:
+			// Authorised here, on the stream's own goroutine: the bus calls
+			// the subscription synchronously on the publisher's, which must
+			// not wait on permission lookups.
+			admitted, err := audience.Admits(ctx, e)
+			if errors.Is(err, acl.ErrNoLongerMember) {
+				return
+			}
+			if err != nil {
+				logger.Warnf(ctx, "[docs.events] dropping %s for user=%s: %v", e.Type, id.UserID, err)
+				continue
+			}
+			if !admitted {
+				continue
+			}
 			payload, err := json.Marshal(e)
 			if err != nil {
 				continue

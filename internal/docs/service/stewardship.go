@@ -9,7 +9,6 @@ import (
 	"github.com/magicyuan876/yuheng/internal/docs/audit"
 	"github.com/magicyuan876/yuheng/internal/docs/model"
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/types"
 )
 
 // Who maintains a page.
@@ -29,15 +28,14 @@ import (
 // canChangeOwner reports whether the caller of the request may hand the page
 // over: its maintainer, or an administrator of it. Handing over somebody
 // else's responsibility is not a writer's to do.
-func canChangeOwner(ctx context.Context, d acl.Decision) bool {
+func canChangeOwner(d acl.Decision) bool {
 	if d.Page == nil || !d.Role.AtLeast(model.RoleWriter) {
 		return false
 	}
 	if d.Role == model.RoleAdmin {
 		return true
 	}
-	uid, ok := types.UserIDFromContext(ctx)
-	return ok && uid != "" && uid == d.Page.Steward()
+	return d.UserID != "" && d.UserID == d.Page.Steward()
 }
 
 // steward names the page's maintainer for its view. Nil when the page has

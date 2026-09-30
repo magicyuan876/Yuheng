@@ -50,18 +50,37 @@ type Identity struct {
 	Principals []model.Principal
 	// DefaultGroupID is the implicit "everyone" group, if one exists.
 	DefaultGroupID string
+	// Machine marks an API key's identity (see MachineIdentity); UserID is
+	// then not a user account.
+	Machine bool `json:",omitempty"`
+	// KnowledgeBases, when set, limits the identity to spaces bound to one of
+	// these knowledge bases. Only machine identities carry it.
+	KnowledgeBases map[string]bool `json:",omitempty"`
 }
 
-// IsTenantAdmin reports whether the identity administers the whole tenant.
+// IsTenantAdmin reports whether the identity administers the whole tenant:
+// every space, and the workspace-level settings of the module (groups,
+// workspace templates, the space trash). An identity limited to some
+// knowledge bases never does, whatever its role.
 func (id *Identity) IsTenantAdmin() bool {
+	return id.administers() && id.KnowledgeBases == nil
+}
+
+// administers reports a tenant Owner or Admin role, which makes the identity
+// admin of every space it can reach.
+func (id *Identity) administers() bool {
 	return id.Member && (id.TenantRole == types.TenantRoleOwner || id.TenantRole == types.TenantRoleAdmin)
 }
 
 // Decision is the outcome of resolving a page.
 type Decision struct {
-	Role  model.SpaceRole
-	Page  *model.Page
-	Space *model.Space
+	// UserID is who the decision was made for: a user, or an API key's
+	// machine identity. Rules about "the caller" read it here rather than
+	// from the request, whose user an API key does not act as.
+	UserID string
+	Role   model.SpaceRole
+	Page   *model.Page
+	Space  *model.Space
 	// Chain lists ancestor IDs root-first followed by the page itself.
 	Chain []string
 	// RestrictedAt lists which chain members cut inheritance.
@@ -163,10 +182,10 @@ func (r *Resolver) defaultGroup(ctx context.Context, tenantID uint64) (string, e
 
 // SpaceRole resolves the caller's role in a space (layers 1 and 2).
 func (r *Resolver) SpaceRole(ctx context.Context, id *Identity, space *model.Space) (model.SpaceRole, error) {
-	if !id.Member {
+	if !id.Member || !id.reaches(space) {
 		return model.RoleNone, nil
 	}
-	if id.IsTenantAdmin() {
+	if id.administers() {
 		return model.RoleAdmin, nil
 	}
 	direct, err := r.repos.Members.RolesFor(ctx, id.TenantID, space.ID, id.Principals)
@@ -206,9 +225,11 @@ func (r *Resolver) VisibleSpaces(ctx context.Context, id *Identity) (map[string]
 	if err != nil {
 		return nil, fmt.Errorf("acl: spaces: %w", err)
 	}
-	if id.IsTenantAdmin() {
+	if id.administers() {
 		for _, s := range spaces {
-			out[s.ID] = model.RoleAdmin
+			if id.reaches(s) {
+				out[s.ID] = model.RoleAdmin
+			}
 		}
 		return out, nil
 	}
@@ -217,6 +238,9 @@ func (r *Resolver) VisibleSpaces(ctx context.Context, id *Identity) (map[string]
 		return nil, fmt.Errorf("acl: space roles: %w", err)
 	}
 	for _, s := range spaces {
+		if !id.reaches(s) {
+			continue
+		}
 		var d []model.SpaceRole
 		if role, ok := direct[s.ID]; ok {
 			d = []model.SpaceRole{role}
@@ -247,7 +271,7 @@ func (r *Resolver) Page(ctx context.Context, id *Identity, pageID string) (Decis
 		if json.Unmarshal(raw, &cached) == nil && cached.SpaceID == page.SpaceID {
 			if space, err := r.repos.Spaces.Get(ctx, id.TenantID, page.SpaceID); err == nil {
 				d := cached.toDecision()
-				d.Page, d.Space = page, space
+				d.UserID, d.Page, d.Space = id.UserID, page, space
 				return d, nil
 			}
 		}
@@ -302,7 +326,7 @@ func (r *Resolver) Decide(ctx context.Context, id *Identity, page *model.Page) (
 		}
 		return Decision{}, err
 	}
-	d := Decision{Page: page, Space: space}
+	d := Decision{UserID: id.UserID, Page: page, Space: space}
 
 	ancestors, err := r.repos.Pages.ListAncestors(ctx, id.TenantID, page.ID)
 	if err != nil {

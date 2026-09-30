@@ -25,7 +25,17 @@
 | 身份不是本工作区活跃成员 | 403 `Forbidden: not an active member of this workspace` |
 | 权限解析失败（数据库或缓存故障） | 503 `{"error":"permission check unavailable"}` |
 
-API key 在本模块里以用户身份解析权限：空间级 key 取 `users.tenant_id` 指向本空间、创建最早的那个用户（通常是空间创建者），按他的空间与页面角色判定，审计记录也记在他名下；该用户不存在或不是活跃成员时一律 403。平台级 key 是合成身份，不是任何空间的成员，调用本模块全部返回 403。
+API key 在本模块里以**自己的身份**解析权限，不借用任何真人账号：身份 ID 为 `api_tenant_key:<工作区ID>:<keyID>`（解析出外部用户时为 `api_external_user:<工作区ID>:<外部用户ID>`，平台级 key 为 `api_platform:<keyID>`），页面的作者、审计记录都记在这个 ID 下。它能看到的是工作区给「所有人」的那部分，再按能力封顶：
+
+| key 的能力 | 相当于 | 能看到、能做 |
+| --- | --- | --- |
+| `docs_read` | 工作区 Viewer | 开放与公开空间、授权给默认组「所有人」的空间和页面，最多 reader |
+| `docs_write` | 工作区 Contributor | 同上，角色按空间的默认角色或「所有人」的授权，最高 writer |
+| `docs_admin` 或完全访问 | 工作区 Admin | 所有空间的 admin，包括私有空间与受限页面 |
+
+- 私有空间和只授权给具体人员的受限页面，非管理员 key 看不到：没有办法把权限授给一个 key。
+- key 限定了知识库时，只能看到绑定到这些知识库之一的空间；即使是 `docs_admin`，也只是这些空间的 admin，不能管理用户组、工作区模板和已删除的空间。
+- key 不会被自动加入页面关注，也不会收到通知。
 
 ### 响应与错误
 
@@ -49,6 +59,14 @@ TOKEN=<JWT>
 ### GET /api/v1/docs/events
 
 用途：SSE 事件流，作为「该刷新了」的提示，客户端应重新拉取数据，不要把事件内容当作真相。权限：Viewer+，成员；key `docs_read`。
+
+每个事件推送前都按订阅者**当前**的权限过滤，与发起一次请求的判定相同：
+
+- 通知（`docs.notification.created`）只推给接收人；
+- 页面事件推给能读该页面的人；页面已被彻底删除，或已移到别的空间（从原空间看的那一条），则推给能读事件所在空间的人，这时只带 ID；
+- 空间事件推给能读该空间的人；不带空间和页面的事件（用户组、工作区模板、缓存失效）只带 ID，推给所有成员；
+- 连接期间失去某个页面或空间的权限时，只会再收到让它消失的那一个事件，之后的事件不再推送；
+- 订阅者被移出工作区时，连接直接结束。
 
 | 查询参数 | 说明 |
 | --- | --- |
@@ -661,7 +679,7 @@ curl -X POST $BASE/api/v1/docs/spaces/<sid>/imports -H "Authorization: Bearer $T
 
 ### POST /api/v1/docs/pages/:pid/export
 
-用途：同步导出单页，直接返回文件。权限：Viewer+，页面 reader；key `docs_write`（声明在写组里，只有 `docs_read` 的 key 调不到）。请求体可省略：`{"format":"markdown"|"html"}`（也接受 `md`、`htm`，默认 Markdown），其它值 400。
+用途：同步导出单页，直接返回文件。权限：Viewer+，页面 reader；key `docs_read`（导出不改变任何内容，虽然是 POST）。请求体可省略：`{"format":"markdown"|"html"}`（也接受 `md`、`htm`，默认 Markdown），其它值 400。
 
 响应：200，文件本身（`Content-Disposition: attachment`，中文文件名用 RFC 5987 `filename*`）。
 
@@ -672,7 +690,7 @@ curl -X POST $BASE/api/v1/docs/pages/<pid>/export -H "Authorization: Bearer $TOK
 
 ### POST /api/v1/docs/spaces/:sid/export
 
-用途：整个空间打包成 zip，后台任务；压缩包只含发起人当时能读的页面，最多 5000 页，24 小时后删除，附件不打包。权限：Viewer+，空间 reader；key `docs_write`。请求体同单页导出。
+用途：整个空间打包成 zip，后台任务；压缩包只含发起人当时能读的页面，最多 5000 页，24 小时后删除，附件不打包。权限：Viewer+，空间 reader；key `docs_read`。请求体同单页导出。
 
 响应：202 `{"success":true,"data":{ExportJob}}`；部署没有配置导出存储时 403。
 

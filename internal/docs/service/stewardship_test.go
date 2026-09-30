@@ -1,14 +1,12 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/magicyuan876/yuheng/internal/docs/audit"
-	"github.com/magicyuan876/yuheng/internal/types"
 )
 
 // A page is maintained by its creator until handed over, and only the
@@ -44,17 +42,14 @@ func TestAPageIsHandedOverByItsMaintainerOrAnAdministrator(t *testing.T) {
 func TestThePageViewSaysWhoMayHandItOver(t *testing.T) {
 	p := newPageEnv(t)
 	page := p.create(t, p.alice, nil, "Notes")
-	as := func(user string) context.Context {
-		return context.WithValue(ctx(), types.UserIDContextKey, user)
-	}
 	d := p.decision(t, p.bob, page.ID)
-	assert.False(t, canChangeOwner(as("bob"), d), "a writer who does not maintain it")
-	assert.True(t, canChangeOwner(as("alice"), p.decision(t, p.alice, page.ID)))
+	assert.False(t, canChangeOwner(d), "a writer who does not maintain it")
+	assert.True(t, canChangeOwner(p.decision(t, p.alice, page.ID)))
 
 	_, err := p.svc.Pages.SetOwner(ctx(), p.alice, p.decision(t, p.alice, page.ID), "bob")
 	require.NoError(t, err)
-	assert.True(t, canChangeOwner(as("bob"), p.decision(t, p.bob, page.ID)), "its maintainer")
-	assert.False(t, canChangeOwner(as("carol"), p.decision(t, p.carol, page.ID)))
+	assert.True(t, canChangeOwner(p.decision(t, p.bob, page.ID)), "its maintainer")
+	assert.False(t, canChangeOwner(p.decision(t, p.carol, page.ID)))
 }
 
 // The mirror entry carries the page's maintainer and its last edit as a

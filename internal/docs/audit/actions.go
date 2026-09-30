@@ -7,7 +7,6 @@ package audit
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
 	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
@@ -142,43 +141,6 @@ func (r *Recorder) Record(ctx context.Context, e Entry) {
 		TargetType:   e.TargetType,
 		TargetID:     e.TargetID,
 		TargetUserID: e.TargetUserID,
-	}
-	if e.SpaceID == "" {
-		row.ScopeType = ""
-	}
-	if err := r.svc.Log(ctx, row); err != nil {
-		logger.Errorf(ctx, "[docs.audit] failed to record %s: %v", e.Action, err)
-	}
-}
-
-// RecordRequest is Record with the actor and request path taken from the gin
-// context set by the auth middleware.
-func (r *Recorder) RecordRequest(c *gin.Context, e Entry) {
-	if r == nil || r.svc == nil {
-		return
-	}
-	ctx := c.Request.Context()
-	if e.ActorUserID == "" {
-		e.ActorUserID, _ = types.UserIDFromContext(ctx)
-	}
-	if e.ActorRole == "" {
-		e.ActorRole = string(types.TenantRoleFromContext(ctx))
-	}
-	if e.TenantID == 0 {
-		e.TenantID, _ = types.TenantIDFromContext(ctx)
-	}
-	row := &types.AuditLog{
-		TenantID:      e.TenantID,
-		ActorUserID:   e.ActorUserID,
-		ActorRole:     e.ActorRole,
-		Action:        e.Action,
-		ScopeType:     ScopeSpace,
-		ScopeID:       e.SpaceID,
-		TargetType:    e.TargetType,
-		TargetID:      e.TargetID,
-		TargetUserID:  e.TargetUserID,
-		RequestPath:   c.FullPath(),
-		RequestMethod: c.Request.Method,
 	}
 	if e.SpaceID == "" {
 		row.ScopeType = ""

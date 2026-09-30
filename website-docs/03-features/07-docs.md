@@ -95,7 +95,7 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 
 看不到的空间和页面一律返回 404，而不是 403。权限判定结果带缓存（`YUHENG_DOCS_ACL_CACHE_TTL_SECONDS`，默认 60 秒），任何成员、组、授权、页面树的变化都会立即让整个工作区的缓存失效。
 
-除了上面的角色，路由还有一层工作区角色下限：读操作需要 Viewer，写操作需要 Contributor——但评论、收藏、关注、导出这类「读者就能做」的操作只要 Viewer。API Key 需要 `docs_read` / `docs_write` / `docs_admin` 能力（或完全访问）。
+除了上面的角色，路由还有一层工作区角色下限：读操作需要 Viewer，写操作需要 Contributor——但评论、收藏、关注、导出这类「读者就能做」的操作只要 Viewer。API Key 需要 `docs_read` / `docs_write` / `docs_admin` 能力（或完全访问），并以自己的身份访问：它能看到的是工作区给「所有人」的空间和页面，按能力封顶到 reader / writer；`docs_admin` 或完全访问时是所有空间的 admin（见 [API 参考](../04-api/02-api-docs.md#通用约定)）。
 
 ### 2.3 受限页面
 
@@ -237,7 +237,7 @@ Helm 部署见 `helm/README.md`（`docs.enabled`、`collab.enabled`、`secrets.c
 
 已读的通知不会被合并进新事件；自己的操作不会通知自己；除提及外，静音的页面对作者和被回复的人同样生效。通知只在站内收件箱里（页面顶栏的通知中心），可以标记已读；**没有邮件通知**，代码里明确没有实现（部署没有邮件配置）。
 
-页面、树、评论、权限的变化通过 SSE（`/api/v1/docs/events`）推给打开的页面，只作为「该刷新了」的提示。
+页面、树、评论、权限的变化通过 SSE（`/api/v1/docs/events`）推给打开的页面，只作为「该刷新了」的提示。每个事件都按订阅者当前的权限过滤：看不到的页面，它的标题不会出现在事件里；通知只推给接收人（规则见 [API 参考](../04-api/02-api-docs.md#get-api-v1-docs-events)）。
 
 ### 4.4 收藏、最近编辑与空间首页
 

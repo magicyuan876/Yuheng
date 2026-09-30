@@ -161,7 +161,9 @@ func watchView(row *model.Watcher) *WatchView {
 // Best-effort throughout: failing to record a watch must not fail the comment
 // that caused it, and the next thing they do enrols them again.
 func (b *base) autoWatch(ctx context.Context, page *model.Page, userID, action string) {
-	if b.d.Repos.Watchers == nil || page == nil || userID == "" {
+	// An API key has no inbox: enrolling it would only fill the watcher list
+	// with an entry nobody reads.
+	if b.d.Repos.Watchers == nil || page == nil || userID == "" || acl.IsMachineUserID(userID) {
 		return
 	}
 	reason, ok := notify.AutoWatch(action)

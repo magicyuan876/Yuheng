@@ -196,16 +196,23 @@ func (g *Guard) identity(c *gin.Context) (*Identity, bool) {
 		c.Abort()
 		return nil, false
 	}
-	userID, ok := types.UserIDFromContext(ctx)
-	if !ok || userID == "" {
-		// Machine principals (API keys) are authorised by the API-key gate and
-		// carry no user; docs routes that admit them resolve as a synthetic
-		// identity in the handler layer (T0.5), not here.
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: docs routes require a user session"})
-		c.Abort()
-		return nil, false
+	var id *Identity
+	var err error
+	if scope, isKey := types.TenantAPIKeyScopeFromContext(ctx); isKey {
+		// An API key acts as itself. The auth layer also attaches a user to
+		// key requests (the workspace's oldest account), which must not lend
+		// the key that person's memberships and grants.
+		principal, _ := types.PrincipalFromContext(ctx)
+		id, err = g.res.MachineIdentity(ctx, tenantID, scope, principal)
+	} else {
+		userID, ok := types.UserIDFromContext(ctx)
+		if !ok || userID == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: docs routes require a user session"})
+			c.Abort()
+			return nil, false
+		}
+		id, err = g.res.Identity(ctx, tenantID, userID)
 	}
-	id, err := g.res.Identity(ctx, tenantID, userID)
 	if err != nil {
 		g.fail(c, err)
 		return nil, false

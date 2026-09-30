@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/magicyuan876/yuheng/internal/docs/acl"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/redis/go-redis/v9"
 )
@@ -75,8 +76,7 @@ func Idempotency(store IdempotencyStore, ttl time.Duration) gin.HandlerFunc {
 		}
 		ctx := c.Request.Context()
 		tenantID, _ := types.TenantIDFromContext(ctx)
-		userID, _ := types.UserIDFromContext(ctx)
-		scoped := scopeKey(tenantID, userID, c.Request.Method, c.FullPath(), key)
+		scoped := scopeKey(tenantID, callerID(c), c.Request.Method, c.FullPath(), key)
 
 		if resp, inflight, ok, err := store.Get(ctx, scoped); err == nil {
 			if ok {
@@ -331,4 +331,17 @@ func (s *RedisIdempotencyStore) Release(ctx context.Context, key string) error {
 		return nil
 	}
 	return s.rdb.Del(ctx, key).Err()
+}
+
+// callerID scopes a key to whoever the docs guard resolved, which for an API
+// key is the key itself; the request's user would lump every key of a
+// workspace together with the account the auth layer attaches to them.
+// Routes run the guard before this middleware, so the identity is there; the
+// request's user is only a fallback for a route that does not.
+func callerID(c *gin.Context) string {
+	if id, ok := acl.IdentityFromGin(c); ok {
+		return id.UserID
+	}
+	userID, _ := types.UserIDFromContext(c.Request.Context())
+	return userID
 }

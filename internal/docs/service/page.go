@@ -336,7 +336,7 @@ func (s *PageService) view(ctx context.Context, d acl.Decision) (*PageView, erro
 	return &PageView{
 		Page: d.Page, Role: d.Role, CanEdit: canEdit(d.Role, d.Page),
 		HasChildren: counts[d.Page.ID] > 0, Restricted: restricted,
-		StewardID: d.Page.Steward(), Steward: s.steward(ctx, d.Page), CanChangeOwner: canChangeOwner(ctx, d),
+		StewardID: d.Page.Steward(), Steward: s.steward(ctx, d.Page), CanChangeOwner: canChangeOwner(d),
 	}, nil
 }
 

@@ -46,7 +46,7 @@ type Handler struct {
 // New builds the handler set.
 func New(deps Deps) *Handler {
 	h := &Handler{
-		deps: deps, Events: NewEventStream(deps.Bus, 0),
+		deps: deps, Events: NewEventStream(deps.Bus, deps.Resolver, 0),
 		Spaces: &SpaceHandler{}, Groups: &GroupHandler{}, Pages: &PageHandler{},
 		Leases: &LeaseHandler{}, Files: &AttachmentHandler{},
 	}
