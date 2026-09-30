@@ -30,7 +30,19 @@ COPY go.mod go.sum ./
 COPY third_party/anydoc-go/go.mod third_party/anydoc-go/go.mod
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY cmd/download cmd/download
-RUN go run cmd/download/duckdb/duckdb.go
+# Extensions pre-downloaded into docker/duckdb-extensions (see the README
+# there) are used first, then those kept in a build cache from an earlier build;
+# only what is still missing is downloaded (INSTALL skips an extension already
+# present). The download is slow or fails from some networks, and without the
+# cache every change to go.mod, which invalidates this layer, would repeat it.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/duckdb-extensions \
+    --mount=type=bind,source=docker/duckdb-extensions,target=/tmp/duckdb-seed \
+    mkdir -p /root/.duckdb/extensions && \
+    cp -a /root/.cache/duckdb-extensions/. /root/.duckdb/extensions/ && \
+    cp -a /tmp/duckdb-seed/. /root/.duckdb/extensions/ && rm -f /root/.duckdb/extensions/README.md && \
+    go run cmd/download/duckdb/duckdb.go && \
+    cp -a /root/.duckdb/extensions/. /root/.cache/duckdb-extensions/
 COPY . .
 
 # Get version and commit info for build injection

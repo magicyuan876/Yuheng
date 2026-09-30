@@ -77,3 +77,6 @@ miniprogram/project.private.config.json
 
 # Cygwin/MSYS crash dumps
 *.stackdump
+
+# Optional pre-downloaded DuckDB extensions for the app image (see docker/duckdb-extensions/README.md).
+docker/duckdb-extensions/*/

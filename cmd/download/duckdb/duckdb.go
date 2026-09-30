@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 )
@@ -34,5 +35,24 @@ func downloadExtensions() {
 }
 
 func main() {
+	// -print-version reports the DuckDB version this module links, so a script
+	// can fetch the matching extension files on the host.
+	if len(os.Args) > 1 && os.Args[1] == "-print-version" {
+		printVersion()
+		return
+	}
 	downloadExtensions()
+}
+
+func printVersion() {
+	sqlDB, err := sql.Open("duckdb", ":memory:")
+	if err != nil {
+		panic(err)
+	}
+	defer sqlDB.Close()
+	var version string
+	if err := sqlDB.QueryRow("SELECT library_version FROM pragma_version()").Scan(&version); err != nil {
+		panic(err)
+	}
+	fmt.Println(version)
 }
