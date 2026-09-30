@@ -231,9 +231,11 @@ docs:
 	@echo "文档已生成到 ./docs 目录"
 	@echo "启动服务后访问 http://localhost:8080/swagger/index.html 查看文档"
 
-# Install swagger tool
+# Install swagger tool, at the swaggo/swag version go.mod pins: the generator
+# and the swag runtime the server links must agree, and @latest regenerated
+# docs/ differently from one machine to the next.
 install-swagger:
-	go install github.com/swaggo/swag/cmd/swag@latest
+	go install github.com/swaggo/swag/cmd/swag@$$(go list -m -f '{{.Version}}' github.com/swaggo/swag)
 
 # Format code. gofumpt (a stricter gofmt), pinned to the version golangci-lint
 # embeds, over the whole root module: see scripts/gofumpt-tree.sh.

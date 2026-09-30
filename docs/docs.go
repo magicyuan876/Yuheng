@@ -1235,7 +1235,7 @@ const docTemplate = `{
         },
         "/datasource/types": {
             "get": {
-                "description": "Get list of available data source connectors",
+                "description": "Get list of the data source connectors this server implements",
                 "produces": [
                     "application/json"
                 ],
@@ -1905,7 +1905,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等\n只推送调用者当前可见的空间；权限变更后不再可见的页面事件会被过滤\n可用 space 参数只订阅一个空间；连接期间每 25 秒发一次心跳注释行",
+                "description": "Server-Sent Events：页面内容/元数据变更、评论、通知、权限变更等\n每个事件按调用者当前的权限过滤：页面事件要能读该页面，空间事件要能读该空间，通知只推给接收人；\n连接期间失去权限的内容，只会再收到让它消失的那一个事件；调用者被移出工作区时连接结束\n可用 space / page 参数只订阅一个空间或页面；连接期间每 25 秒发一次心跳注释行",
                 "produces": [
                     "text/event-stream"
                 ],
@@ -1918,6 +1918,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "只订阅该空间的事件",
                         "name": "space",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "只订阅该页面的事件",
+                        "name": "page",
                         "in": "query"
                     }
                 ],
@@ -4583,6 +4589,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/docs/public-spaces/{sid}/attachments/{aid}": {
+            "get": {
+                "description": "只提供该空间内未受限、不在回收站的页面上的附件",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取公开空间页面里的附件（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "空间 ID",
+                        "name": "sid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "附件 ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "图片宽度（320/800/1600）",
+                        "name": "w",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    }
+                }
+            }
+        },
         "/docs/public-spaces/{sid}/pages/{short}": {
             "get": {
                 "description": "受限页面与回收站里的页面一律返回 404，和私有页面无从区分",
@@ -4651,6 +4699,54 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/public/{key}/attachments/{aid}": {
+            "get": {
+                "description": "只提供链接覆盖范围内、未受限的页面上的附件；链接被撤销、过期或页面受限后立即不可访问\n带密码的链接需要页面渲染时附在地址上的 sig 签名（只对这一个附件有效，12 小时过期）",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "在线文档"
+                ],
+                "summary": "读取公开链接页面里的附件（无需登录）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "公开链接 key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "附件 ID",
+                        "name": "aid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "附件签名（带密码的链接必填，由渲染的 HTML 给出）",
+                        "name": "sig",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "图片宽度（320/800/1600）",
+                        "name": "w",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
                         }
                     }
                 }
@@ -6877,62 +6973,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/initialization/initialize/{kbId}": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    },
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "根据知识库ID执行完整配置更新",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "初始化"
-                ],
-                "summary": "初始化知识库配置",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "知识库ID",
-                        "name": "kbId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "初始化请求",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.InitializationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "初始化成功",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
-                        }
-                    }
-                }
-            }
-        },
         "/initialization/multimodal/test": {
             "post": {
                 "security": [
@@ -7293,7 +7333,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.RemoteModelCheckRequest"
+                            "$ref": "#/definitions/internal_handler.ModelTestRequest"
                         }
                     }
                 ],
@@ -7849,12 +7889,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "每页数量",
                         "name": "page_size",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "标签ID筛选(seq_id)，兼容旧版单标签",
-                        "name": "tag_id",
                         "in": "query"
                     },
                     {
@@ -8944,60 +8978,6 @@ const docTemplate = `{
             }
         },
         "/knowledge-bases/{id}/hybrid-search": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    },
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "在知识库中执行向量和关键词混合搜索。推荐使用 POST；GET 携带 JSON 请求体仍受支持（兼容旧客户端）。",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "知识库"
-                ],
-                "summary": "混合搜索",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "知识库ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "搜索参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.SearchParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "搜索结果",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -9007,7 +8987,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "在知识库中执行向量和关键词混合搜索。推荐使用 POST；GET 携带 JSON 请求体仍受支持（兼容旧客户端）。",
+                "description": "在知识库中执行向量和关键词混合搜索。",
                 "consumes": [
                     "application/json"
                 ],
@@ -9647,6 +9627,62 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "知识库不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/knowledge-bases/{id}/rebuild-index": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "逐篇重新解析知识库内的全部文档（草稿与删除中的除外），使修改后的索引策略作用于已有文档。异步执行；同一知识库已有重建在排队或进行中时返回 409。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "知识管理"
+                ],
+                "summary": "重建知识库索引",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "知识库ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "任务已提交，data.document_count 为将重新处理的文档数",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "FAQ 知识库不支持",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "已有重建在进行中",
                         "schema": {
                             "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
                         }
@@ -11688,117 +11724,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/knowledgebase/{kb_id}/wiki/issues": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "List issues flagged on wiki pages with optional filtering",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Wiki"
-                ],
-                "summary": "List wiki page issues",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Knowledge base ID",
-                        "name": "kb_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by page slug",
-                        "name": "slug",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by status (pending, ignored, resolved)",
-                        "name": "status",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.WikiPageIssue"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/knowledgebase/{kb_id}/wiki/issues/{issue_id}/status": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Update the status of a flagged wiki page issue",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Wiki"
-                ],
-                "summary": "Update wiki page issue status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Knowledge base ID",
-                        "name": "kb_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Issue ID",
-                        "name": "issue_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "New status {'status': 'ignored'}",
-                        "name": "status",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_errors.AppError"
-                        }
-                    }
-                }
-            }
-        },
         "/knowledgebase/{kb_id}/wiki/lint": {
             "get": {
                 "security": [
@@ -13082,7 +13007,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "将模型设为平台共享（所有空间可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。\n取消共享时，若仍有任意空间的知识库或智能体绑定该模型，请求会被拒绝。",
+                "description": "将模型设为平台共享（所有空间可见可用，凭据对非系统管理员隐藏）或取消共享。仅系统管理员可调用。\n取消共享时，若仍有任意空间的知识库绑定该模型，请求会被拒绝。",
                 "consumes": [
                     "application/json"
                 ],
@@ -13147,7 +13072,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "获取当前空间所属的所有组织，并附带各空间内知识库/智能体数量",
+                "description": "获取当前空间所属的所有组织，并附带各空间内知识库数量",
                 "produces": [
                     "application/json"
                 ],
@@ -13564,7 +13489,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "管理员直接添加用户为组织成员",
+                "description": "管理员直接把一个空间（tenant_id）添加为组织成员",
                 "consumes": [
                     "application/json"
                 ],
@@ -14041,12 +13966,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/organizations/{id}/search-users": {
-            "get": {
-                "deprecated": true,
-                "responses": {}
-            }
-        },
         "/organizations/{id}/shared-knowledge-bases": {
             "get": {
                 "security": [
@@ -14158,7 +14077,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "来源过滤：web / embed / api / feishu / wechat / slack / ...（api、embed、IM 渠道需 Admin+）",
+                        "description": "来源过滤：web / api / embed（旧版嵌入会话）/ ...；除 web 外均需 Admin+，未知来源按 web 处理",
                         "name": "source",
                         "in": "query"
                     }
@@ -16436,7 +16355,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "返回是否启用「集中管控基础设施」。开启后模型、MCP、解析引擎、向量库、存储、沙箱、",
+                "description": "返回是否启用「集中管控基础设施」。开启后模型、解析引擎、向量库、存储、",
                 "produces": [
                     "application/json"
                 ],
@@ -16643,7 +16562,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "创建新的空间。任意已登录用户均可调用以建立自己的新工作区，\n调用方会被自动设为该空间的 Owner。跨空间超管仍可像以前一样\n通过本接口创建任意空间。\n当 tenant.auto_create_api_key（或 YUHENG_TENANT_AUTO_CREATE_API_KEY）\n开启时，会自动创建一个 full_access API Key，并在响应体的 data.api_key 字段返回其明文 token。",
+                "description": "创建新的空间。任意已登录用户均可调用以建立自己的新工作区，\n调用方会被自动设为该空间的 Owner。跨空间超管仍可像以前一样\n通过本接口创建任意空间。不会随空间发放 API Key，需要时通过 API Key 管理接口显式创建。",
                 "consumes": [
                     "application/json"
                 ],
@@ -16667,7 +16586,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "创建的空间（可选含 api_key）",
+                        "description": "创建的空间",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -17772,7 +17691,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Resource type (kb | agent)",
+                        "description": "Resource type (kb | doc_page | doc_space)",
                         "name": "type",
                         "in": "query",
                         "required": true
@@ -18810,10 +18729,6 @@ const docTemplate = `{
                 2003,
                 2004,
                 2005,
-                2100,
-                2101,
-                2102,
-                2103,
                 2200,
                 2201
             ],
@@ -18835,10 +18750,6 @@ const docTemplate = `{
                 "ErrTenantNameRequired",
                 "ErrTenantInvalidStatus",
                 "ErrTenantCreationDisabled",
-                "ErrAgentMissingThinkingModel",
-                "ErrAgentMissingAllowedTools",
-                "ErrAgentInvalidMaxIterations",
-                "ErrAgentInvalidTemperature",
                 "ErrVectorStoreBindingInvalid",
                 "ErrVectorStoreUnavailable"
             ]
@@ -19298,7 +19209,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "chunk_overlap": {
-                    "description": "Chunk overlap",
+                    "description": "ChunkOverlap is how many characters consecutive chunks share. nil means\nnot chosen, and takes the chunker's default (chunker.ChunkOverlapOrDefault);\n0 means no overlap, which atomic content such as a wiki-only base wants.\nA pointer because the two used to be one: an int field could not tell\nan omitted overlap from a deliberate 0, so 0 was read as \"default\" and\ncould never be set.",
                     "type": "integer"
                 },
                 "chunk_size": {
@@ -19335,7 +19246,7 @@ const docTemplate = `{
                     }
                 },
                 "strategy": {
-                    "description": "Strategy selects the adaptive chunking tier. Empty / \"legacy\" preserves\nthe historical recursive splitter; \"auto\" lets a profiler pick between\nheading-aware, heuristic and recursive tiers; \"heading\" / \"heuristic\" /\n\"recursive\" pin the tier explicitly.",
+                    "description": "Strategy selects the adaptive chunking tier. Empty / \"legacy\" is the\nplain recursive splitter; \"auto\" lets a profiler pick between\nheading-aware, heuristic and recursive tiers; \"heading\" / \"heuristic\" /\n\"recursive\" pin the tier explicitly.",
                     "type": "string"
                 },
                 "table_metadata_instructions": {
@@ -19545,7 +19456,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "type": {
-                    "description": "Connector type (feishu, notion, confluence, etc.)",
+                    "description": "Connector type (feishu, notion, yuque, etc.)",
                     "type": "string"
                 },
                 "updated_at": {
@@ -19883,11 +19794,12 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.InviteMemberRequest": {
             "type": "object",
             "required": [
-                "role"
+                "role",
+                "tenant_id"
             ],
             "properties": {
                 "representative_user_id": {
-                    "description": "RepresentativeUserID identifies the user attached to the OTM row for\ndisplay/audit. Optional: when unset, the handler picks a stable default\n(the user from the legacy UserID field, or the workspace's owner).",
+                    "description": "RepresentativeUserID identifies the user attached to the OTM row for\ndisplay/audit. Optional; the handler drops a user who does not belong\nto TenantID, leaving the row without a representative.",
                     "type": "string"
                 },
                 "role": {
@@ -19899,12 +19811,8 @@ const docTemplate = `{
                     ]
                 },
                 "tenant_id": {
-                    "description": "TenantID is the workspace to enrol as an org member. Preferred field.",
+                    "description": "TenantID is the workspace to enrol as an org member.",
                     "type": "integer"
-                },
-                "user_id": {
-                    "description": "UserID is retained for backward compatibility. When set without\nTenantID, the handler resolves the user's TenantID and uses this\nuser as the representative.",
-                    "type": "string"
                 }
             }
         },
@@ -19996,7 +19904,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "creator_id": {
-                    "description": "CreatorID records the user ID of whoever originally created the KB.\nUsed by the workspace-level RBAC middleware to let Contributors edit\ntheir own KBs without granting them access to everyone else's.\nNullable for backward compatibility with rows created before the\nRBAC migration backfilled the column to the workspace Owner.",
+                    "description": "CreatorID records the user ID of whoever originally created the KB.\nUsed by the workspace-level RBAC middleware to let Contributors edit\ntheir own KBs without granting them access to everyone else's.\nEmpty for KBs no human created (built-in ones, and those created\nthrough an API key): they are tenant-owned.",
                     "type": "string"
                 },
                 "creator_name": {
@@ -20056,7 +19964,7 @@ const docTemplate = `{
                     ]
                 },
                 "is_pinned": {
-                    "description": "IsPinned and PinnedAt are computed per-caller from user_kb_pins\n(see migration 000050). They used to be stored on the row itself,\nwhich made pinning a workspace-wide ordering decision gated behind\nthe kb-edit RBAC guard. The columns are still present in legacy\nschemas for rollback safety but are no longer read or written by\nthe application — both fields are tagged ` + "`" + `gorm:\"-\"` + "`" + ` so GORM\nignores them on every CRUD call and the list handler stamps them\nafter enriching with the caller's pin set.",
+                    "description": "IsPinned and PinnedAt are computed per-caller from user_kb_pins:\npinning is a personal ordering choice, not a property of the KB.\nBoth fields are tagged ` + "`" + `gorm:\"-\"` + "`" + `; the list handler stamps them after\nenriching with the caller's pin set.",
                     "type": "boolean"
                 },
                 "is_processing": {
@@ -20495,13 +20403,9 @@ const docTemplate = `{
                 4,
                 5,
                 6,
-                7,
-                8,
-                9
+                7
             ],
             "x-enum-comments": {
-                "MatchTypeDataAnalysis": "数据分析匹配类型",
-                "MatchTypeDirectLoad": "Deprecated: reserved to preserve serialized enum values",
                 "MatchTypeParentChunk": "父Chunk匹配类型",
                 "MatchTypeRelationChunk": "关系Chunk匹配类型",
                 "MatchTypeWebSearch": "网络搜索匹配类型"
@@ -20514,9 +20418,7 @@ const docTemplate = `{
                 "父Chunk匹配类型",
                 "关系Chunk匹配类型",
                 "",
-                "网络搜索匹配类型",
-                "Deprecated: reserved to preserve serialized enum values",
-                "数据分析匹配类型"
+                "网络搜索匹配类型"
             ],
             "x-enum-varnames": [
                 "MatchTypeEmbedding",
@@ -20526,9 +20428,7 @@ const docTemplate = `{
                 "MatchTypeParentChunk",
                 "MatchTypeRelationChunk",
                 "MatchTypeGraph",
-                "MatchTypeWebSearch",
-                "MatchTypeDirectLoad",
-                "MatchTypeDataAnalysis"
+                "MatchTypeWebSearch"
             ]
         },
         "github_com_magicyuan876_yuheng_internal_types.Membership": {
@@ -20590,7 +20490,7 @@ const docTemplate = `{
                     }
                 },
                 "channel": {
-                    "description": "Channel indicates the source channel of this message (e.g., \"web\", \"api\", \"im\")",
+                    "description": "Channel indicates the source channel of this message (e.g., \"web\", \"api\")",
                     "type": "string"
                 },
                 "content": {
@@ -20976,9 +20876,6 @@ const docTemplate = `{
                 "tenant_name": {
                     "type": "string"
                 },
-                "user_id": {
-                    "type": "string"
-                },
                 "username": {
                     "type": "string"
                 }
@@ -21085,10 +20982,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "mineru_enable_formula": {
-                    "type": "boolean"
-                },
-                "mineru_enable_ocr": {
-                    "description": "MinerUEnableOCR is retained for compatibility with configurations saved\nbefore parse_method supported auto/ocr/txt.",
                     "type": "boolean"
                 },
                 "mineru_enable_table": {
@@ -21787,7 +21680,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "knowledge_channel": {
-                    "description": "KnowledgeChannel indicates through which channel the knowledge was ingested (web, api, wechat, etc.)",
+                    "description": "KnowledgeChannel indicates through which channel the knowledge was ingested (web, api, feishu, etc.)",
                     "type": "string"
                 },
                 "knowledge_custom_metadata": {
@@ -21903,7 +21796,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
-                    "description": "UserID is the owner scope for this session. Yuheng user UUIDs, API\nexternal-user principals, and embed visitor principals all use this column.",
+                    "description": "UserID is the owner scope for this session: a Yuheng user UUID or an\nAPI principal (see SessionOwnerIDFromContext). Every session has one.",
                     "type": "string"
                 }
             }
@@ -22162,7 +22055,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category": {
-                    "description": "Category groups settings in the management UI (\"limits\", \"agent\",\n\"auth\", ...). Free-form string so adding a new category is a\ndata-only change.",
+                    "description": "Category groups settings in the management UI (\"file\", \"security\",\n\"auth\", ...). Free-form string so adding a new category is a\ndata-only change.",
                     "type": "string"
                 },
                 "created_at": {
@@ -22362,10 +22255,6 @@ const docTemplate = `{
                     "$ref": "#/definitions/github_com_magicyuan876_yuheng_internal_types.PromptCacheStatus"
                 },
                 "cache_write_tokens": {
-                    "type": "integer"
-                },
-                "cached_tokens": {
-                    "description": "CachedTokens is the legacy alias for CacheReadTokens. It remains on the\nwire for compatibility with existing API consumers.",
                     "type": "integer"
                 },
                 "completion_tokens": {
@@ -22637,14 +22526,6 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.VLMConfig": {
             "type": "object",
             "properties": {
-                "api_key": {
-                    "description": "API Key",
-                    "type": "string"
-                },
-                "base_url": {
-                    "description": "Base URL",
-                    "type": "string"
-                },
                 "custom_instructions": {
                     "description": "CustomInstructions adds KB-specific image interpretation guidance without\nreplacing the system-owned OCR and Markdown output contract.",
                     "type": "string"
@@ -22656,15 +22537,7 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
-                "interface_type": {
-                    "description": "Interface Type: \"ollama\" or \"openai\"",
-                    "type": "string"
-                },
                 "model_id": {
-                    "type": "string"
-                },
-                "model_name": {
-                    "description": "兼容老版本\nModel Name",
                     "type": "string"
                 }
             }
@@ -22672,10 +22545,6 @@ const docTemplate = `{
         "github_com_magicyuan876_yuheng_internal_types.WebSearchConfig": {
             "type": "object",
             "properties": {
-                "api_key": {
-                    "description": "Deprecated: Use WebSearchProviderEntity.Parameters.APIKey instead.",
-                    "type": "string"
-                },
                 "blacklist": {
                     "description": "黑名单规则列表",
                     "type": "array",
@@ -22706,10 +22575,6 @@ const docTemplate = `{
                 "max_results": {
                     "description": "最大搜索结果数",
                     "type": "integer"
-                },
-                "provider": {
-                    "description": "Deprecated: Use WebSearchProviderEntity.Parameters.APIKey instead.",
-                    "type": "string"
                 },
                 "proxy_url": {
                     "description": "Optional per-request proxy override; normally empty — use WebSearchProviderEntity.Parameters.proxy_url. Merged at call time when set.",
@@ -23234,7 +23099,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_edit_source": {
-                    "description": "LastEditSource records who authored the CURRENT version: pipeline |\nagent | user | revert. Empty for legacy rows (treated as pipeline).\nWhen the version is superseded this value travels into the revision\nsnapshot, so each historical version keeps its own author kind.",
+                    "description": "LastEditSource records who authored the CURRENT version: pipeline |\nuser | revert. Empty (a write that did not say) is treated as pipeline.\nWhen the version is superseded this value travels into the revision\nsnapshot, so each historical version keeps its own author kind.",
                     "type": "string"
                 },
                 "last_editor_id": {
@@ -23272,7 +23137,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "source_refs": {
-                    "description": "References to source knowledge IDs that contributed to this page.\nFormat matches the legacy \"\u003cknowledge_id\u003e|\u003cdoc_title\u003e\" convention used\nacross the ingest pipeline, so retract / display code can split on ` + "`" + `|` + "`" + `\nto recover the title. Document-level granularity.",
+                    "description": "References to source knowledge IDs that contributed to this page.\nFormat is \"\u003cknowledge_id\u003e|\u003cdoc_title\u003e\", the convention used across the\ningest pipeline, so retract / display code can split on ` + "`" + `|` + "`" + ` to recover\nthe title. Document-level granularity.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -23304,50 +23169,6 @@ const docTemplate = `{
                 },
                 "wiki_path": {
                     "description": "WikiPath is a normalized, sortable path derived from page_type,\ncategory_path, and title. It keeps large directory listings cheap to sort.",
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_magicyuan876_yuheng_internal_types.WikiPageIssue": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "deleted_at": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "issue_type": {
-                    "type": "string"
-                },
-                "knowledge_base_id": {
-                    "type": "string"
-                },
-                "reported_by": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "suspected_knowledge_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "tenant_id": {
-                    "type": "integer"
-                },
-                "updated_at": {
                     "type": "string"
                 }
             }
@@ -23504,7 +23325,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "version": {
-                    "description": "Version is the optimistic-lock guard: when \u003e 0 the update is rejected\nwith a conflict if the stored version differs (someone else edited the\npage since the client loaded it). 0 skips the check (legacy clients).",
+                    "description": "Version is the optimistic-lock guard: when \u003e 0 the update is rejected\nwith a conflict if the stored version differs (someone else edited the\npage since the client loaded it). 0 skips the check (a client that does\nnot track versions).",
                     "type": "integer"
                 }
             }
@@ -23526,10 +23347,6 @@ const docTemplate = `{
                         "type": "integer",
                         "format": "int64"
                     }
-                },
-                "pending_issues": {
-                    "description": "number of pending wiki issues",
-                    "type": "integer"
                 },
                 "pending_tasks": {
                     "description": "number of documents waiting to be ingested",
@@ -24417,195 +24234,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handler.InitializationRequest": {
-            "type": "object",
-            "required": [
-                "documentSplitting",
-                "embedding",
-                "llm"
-            ],
-            "properties": {
-                "documentSplitting": {
-                    "type": "object",
-                    "required": [
-                        "chunkSize",
-                        "separators"
-                    ],
-                    "properties": {
-                        "chunkOverlap": {
-                            "type": "integer",
-                            "minimum": 0
-                        },
-                        "chunkSize": {
-                            "type": "integer",
-                            "maximum": 10000,
-                            "minimum": 100
-                        },
-                        "separators": {
-                            "type": "array",
-                            "minItems": 1,
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                },
-                "embedding": {
-                    "type": "object",
-                    "required": [
-                        "modelName",
-                        "source"
-                    ],
-                    "properties": {
-                        "apiKey": {
-                            "type": "string"
-                        },
-                        "baseUrl": {
-                            "type": "string"
-                        },
-                        "dimension": {
-                            "description": "添加embedding维度字段",
-                            "type": "integer"
-                        },
-                        "modelName": {
-                            "type": "string"
-                        },
-                        "source": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "llm": {
-                    "type": "object",
-                    "required": [
-                        "modelName",
-                        "source"
-                    ],
-                    "properties": {
-                        "apiKey": {
-                            "type": "string"
-                        },
-                        "baseUrl": {
-                            "type": "string"
-                        },
-                        "modelName": {
-                            "type": "string"
-                        },
-                        "source": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "multimodal": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean"
-                        },
-                        "storageType": {
-                            "type": "string"
-                        },
-                        "vlm": {
-                            "type": "object",
-                            "properties": {
-                                "apiKey": {
-                                    "type": "string"
-                                },
-                                "baseUrl": {
-                                    "type": "string"
-                                },
-                                "interfaceType": {
-                                    "description": "\"ollama\" or \"openai\"",
-                                    "type": "string"
-                                },
-                                "modelName": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                },
-                "nodeExtract": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean"
-                        },
-                        "nodes": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "attributes": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
-                        "relations": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "node1": {
-                                        "type": "string"
-                                    },
-                                    "node2": {
-                                        "type": "string"
-                                    },
-                                    "type": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
-                        "tags": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        "text": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "questionGeneration": {
-                    "type": "object",
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean"
-                        },
-                        "questionCount": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "rerank": {
-                    "type": "object",
-                    "properties": {
-                        "apiKey": {
-                            "type": "string"
-                        },
-                        "baseUrl": {
-                            "type": "string"
-                        },
-                        "enabled": {
-                            "type": "boolean"
-                        },
-                        "modelName": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "internal_handler.KBModelConfigRequest": {
             "type": "object",
             "required": [
@@ -24623,7 +24251,9 @@ const docTemplate = `{
                             "type": "integer"
                         },
                         "chunkOverlap": {
-                            "type": "integer"
+                            "description": "ChunkOverlap / Strategy / TokenLimit / Languages use pointer types\nso the handler can distinguish \"field absent in payload\" (no\nchange) from \"field present with empty/zero value\" (clear /\ndisable). Without that distinction, users could set\nstrategy=\"auto\" once but never reset it back to unset,\nand could never turn overlap off.",
+                            "type": "integer",
+                            "minimum": 0
                         },
                         "chunkSize": {
                             "type": "integer"
@@ -24653,7 +24283,6 @@ const docTemplate = `{
                             }
                         },
                         "strategy": {
-                            "description": "Strategy / TokenLimit / Languages use pointer types so the\nhandler can distinguish \"field absent in payload\" (no change)\nfrom \"field present with empty/zero value\" (clear / disable).\nWithout that distinction, users could set strategy=\"auto\" once\nbut never reset it back to legacy / unset.",
                             "type": "string"
                         },
                         "tableMetadataInstructions": {
@@ -24913,6 +24542,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "chunk_overlap": {
+                    "description": "ChunkOverlap follows types.ChunkingConfig: omitted takes the default,\n0 is no overlap, so the preview splits the way ingestion will.",
                     "type": "integer"
                 },
                 "chunk_size": {
@@ -25019,59 +24649,6 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_handler.RemoteModelCheckRequest": {
-            "type": "object",
-            "required": [
-                "modelName"
-            ],
-            "properties": {
-                "apiKey": {
-                    "type": "string"
-                },
-                "appSecret": {
-                    "description": "AppSecret 用于 LKEAP / Volcengine Rerank 等需要第二段密钥的场景（对应模型 Parameters.AppSecret）。",
-                    "type": "string"
-                },
-                "baseUrl": {
-                    "type": "string"
-                },
-                "customHeaders": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "dimension": {
-                    "type": "integer"
-                },
-                "extraConfig": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "interfaceType": {
-                    "type": "string"
-                },
-                "modelId": {
-                    "description": "ModelID, when set, instructs the handler to substitute any missing\nsecrets (APIKey, AppSecret via ExtraConfig) from the stored model\nrecord before assembling the test client. This lets the \"Test\nconnection\" button work on existing models without making the\nfrontend reload — and ship — the plaintext API key. Other fields\n(BaseURL, ModelName, etc.) on this request still override the\nstored values, so a user can validate a new endpoint against the\nexisting credentials in one click.",
-                    "type": "string"
-                },
-                "modelName": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                },
-                "source": {
-                    "description": "为空时按需默认为 \"remote\"",
-                    "type": "string"
-                },
-                "supportsDimensionOverride": {
-                    "type": "boolean"
                 }
             }
         },
@@ -25816,10 +25393,6 @@ const docTemplate = `{
                 "query"
             ],
             "properties": {
-                "agent_id": {
-                    "description": "Optional behaviour marker (builtin-wiki-fixer); no agent resolution",
-                    "type": "string"
-                },
                 "attachment_ids": {
                     "description": "Pre-uploaded session-scoped document IDs",
                     "type": "array",
@@ -25972,10 +25545,6 @@ const docTemplate = `{
                 "query"
             ],
             "properties": {
-                "knowledge_base_id": {
-                    "description": "Single knowledge base ID (for backward compatibility)",
-                    "type": "string"
-                },
                 "knowledge_base_ids": {
                     "description": "IDs of knowledge bases to search (multi-KB support)",
                     "type": "array",
