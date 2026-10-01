@@ -4,7 +4,7 @@ import { test } from "vitest";
 import {
   buildProtectedFileRequest,
   isProtectedFileProxyPath,
-  isProviderFileURL,
+  isResourceRef,
   resolveProtectedFileAccess,
   type ProtectedFileAccessContext,
 } from "./protectedFileAccess.ts";
@@ -36,10 +36,14 @@ test("message access routes through the session-message-scoped proxy", () => {
   );
 });
 
-test("non-storage sources are not proxied", () => {
+test("only resource references are proxied", () => {
   assert.equal(buildProtectedFileRequest("https://example.com/a.png", { mode: "tenant" }), null);
-  assert.equal(isProviderFileURL("https://example.com/a.png"), false);
-  assert.equal(isProviderFileURL("storage://backend-1/local://42/a.png"), true);
+  assert.equal(isResourceRef("https://example.com/a.png"), false);
+  // Storage locators never leave the server; the proxies refuse them.
+  assert.equal(isResourceRef("storage://backend-1/local://42/a.png"), false);
+  assert.equal(isResourceRef("local://42/a.png"), false);
+  assert.equal(buildProtectedFileRequest("local://42/a.png", { mode: "tenant" }), null);
+  assert.equal(isResourceRef(RESOURCE), true);
 });
 
 test("a component scope refines the tenant default, and an empty one falls back to it", () => {

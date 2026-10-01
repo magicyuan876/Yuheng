@@ -11,11 +11,8 @@ import (
 	"github.com/magicyuan876/yuheng/internal/models/chat"
 )
 
-// storedRefRE recognizes both reference forms stored text can carry: resource://
-// handles and the physical provider URLs (local://, s3://, optionally prefixed
-// by storage://<backend>/) that file services return and that therefore still
-// appear in stored content and file paths. Both get the same kind of
-// request-local handle.
+// storedRefRE recognizes the reference stored text carries for a file: a
+// resource:// handle, which gets a request-local handle.
 //
 // The final alternative handles wiki summary-page slugs (summary/<uuid>). They
 // are not storage handles, but they share the exact failure mode this registry
@@ -29,8 +26,6 @@ import (
 // they are deliberately left untouched.
 var storedRefRE = regexp.MustCompile(
 	`resource://[0-9A-Za-z_-]{22}|` +
-		`(?:storage://[0-9A-Za-z_-]+/)?` +
-		`(?:local|s3)://[^\s)\]>"']+|` +
 		`summary/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`,
 )
 

@@ -560,12 +560,7 @@
                       </TooltipTrigger>
                       <TooltipContent side="top">{{ $t("knowledgeList.features.knowledgeGraph") }}</TooltipContent>
                     </Tooltip>
-                    <Tooltip
-                      v-if="
-                        kb.vlm_config?.enabled ||
-                        (kb.storage_backend?.provider && kb.storage_backend.provider !== 'local')
-                      "
-                    >
+                    <Tooltip v-if="kb.vlm_config?.enabled">
                       <TooltipTrigger as-child>
                         <div
                           class="text-warning flex h-[22px] w-[22px] cursor-default items-center justify-center rounded-[5px] bg-[rgba(255,152,0,0.08)] transition-colors duration-200 hover:bg-[rgba(255,152,0,0.12)]"
@@ -836,12 +831,7 @@
                       </TooltipTrigger>
                       <TooltipContent side="top">{{ $t("knowledgeList.features.knowledgeGraph") }}</TooltipContent>
                     </Tooltip>
-                    <Tooltip
-                      v-if="
-                        kb.vlm_config?.enabled ||
-                        (kb.storage_backend?.provider && kb.storage_backend.provider !== 'local')
-                      "
-                    >
+                    <Tooltip v-if="kb.vlm_config?.enabled">
                       <TooltipTrigger as-child>
                         <div
                           class="text-warning flex h-[22px] w-[22px] cursor-default items-center justify-center rounded-[5px] bg-[rgba(255,152,0,0.08)] transition-colors duration-200 hover:bg-[rgba(255,152,0,0.12)]"
@@ -1298,7 +1288,6 @@ import { onMounted, onUnmounted, ref, computed, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { MessagePlugin } from "tdesign-vue-next";
 import { deleteKnowledgeBase, duplicateKnowledgeBase, togglePinKnowledgeBase } from "@/api/knowledge-base";
-import type { StorageBackendRef } from "@/api/storage-backend";
 import { useChatResourcesStore } from "@/stores/chatResources";
 import { formatStringDate } from "@/utils/index";
 import { useUIStore } from "@/stores/ui";
@@ -1469,7 +1458,6 @@ interface KB {
   showMore?: boolean;
   vlm_config?: { enabled?: boolean; model_id?: string };
   extract_config?: { enabled?: boolean };
-  storage_backend?: StorageBackendRef;
   question_generation_config?: { enabled?: boolean; question_count?: number };
   knowledge_count?: number;
   chunk_count?: number;

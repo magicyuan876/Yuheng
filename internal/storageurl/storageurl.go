@@ -21,16 +21,10 @@ import (
 	"github.com/magicyuan876/yuheng/internal/logger"
 )
 
-// Pattern matches every internal storage reference form: `resource://` handles,
-// bare `provider://` paths (what a file service without a backend binding
-// returns), and canonical `storage://<backend-id>/provider://` paths. The
-// trailing character class stops at Markdown/HTML delimiters so a reference
-// inside `![alt](…)` or `src="…"` is matched without them.
-var Pattern = regexp.MustCompile(
-	`\b(?:resource://[0-9A-Za-z_-]+|` +
-		`(?:storage://[0-9A-Za-z_-]+/)?` +
-		`(?:local|s3)://[^\s)\]>"]+)`,
-)
+// Pattern matches a `resource://` handle, the only storage reference stored
+// content carries. The handle alphabet stops at Markdown/HTML delimiters, so a
+// reference inside `![alt](…)` or `src="…"` is matched without them.
+var Pattern = regexp.MustCompile(`\bresource://[0-9A-Za-z_-]+`)
 
 // IsHTTPURL reports whether s is an http(s) URL — the only form an external
 // client can fetch; any provider scheme (s3://, local://, …) is not. Scheme

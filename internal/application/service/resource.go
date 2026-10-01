@@ -47,9 +47,6 @@ func resourceLocationHash(path string) string {
 // prefixes may well hand out the same relative path, and they are still two
 // different files.
 func resourceLocationKey(backendID, physicalPath string) string {
-	if backendID == "" {
-		return physicalPath
-	}
 	return backendID + "\x00" + physicalPath
 }
 
@@ -62,20 +59,14 @@ func (s *resourceCatalog) Register(
 ) (string, error) {
 	physicalPath = strings.TrimSpace(physicalPath)
 	backendID = strings.TrimSpace(backendID)
-	if tenantID == 0 || physicalPath == "" {
-		return "", fmt.Errorf("resource registration requires tenant and physical path")
+	if tenantID == 0 || backendID == "" || physicalPath == "" {
+		return "", fmt.Errorf("resource registration requires tenant, storage backend and physical path")
 	}
 	if _, ok := types.ParseResourcePath(physicalPath); ok {
-		return physicalPath, nil
-	}
-	providerPath := physicalPath
-	if backendID == "" {
-		if scopedID, inner, scoped := types.ParseStorageBackendPath(physicalPath); scoped {
-			backendID, providerPath = scopedID, inner
-		}
+		return "", fmt.Errorf("a resource reference is not a physical location")
 	}
 	locationHash := resourceLocationHash(resourceLocationKey(backendID, physicalPath))
-	existing, err := s.repo.GetByTenantLocation(ctx, tenantID, locationHash)
+	existing, err := s.repo.GetByLocation(ctx, backendID, locationHash)
 	if err != nil {
 		return "", err
 	}
@@ -83,10 +74,6 @@ func (s *resourceCatalog) Register(
 		return types.BuildResourcePath(existing.Handle), nil
 	}
 
-	provider := types.ParseProviderScheme(providerPath)
-	if provider == "" {
-		return "", fmt.Errorf("resource physical path has unsupported provider scheme")
-	}
 	lifecycle := types.ResourceLifecyclePersistent
 	if meta.Temporary {
 		lifecycle = types.ResourceLifecycleTemporary
@@ -100,7 +87,6 @@ func (s *resourceCatalog) Register(
 			Handle:           handle,
 			TenantID:         tenantID,
 			StorageBackendID: backendID,
-			Provider:         provider,
 			PhysicalPath:     physicalPath,
 			LocationHash:     locationHash,
 			Kind:             meta.Kind,
@@ -115,7 +101,7 @@ func (s *resourceCatalog) Register(
 		} else if !strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return "", err
 		}
-		existing, lookupErr := s.repo.GetByTenantLocation(ctx, tenantID, locationHash)
+		existing, lookupErr := s.repo.GetByLocation(ctx, backendID, locationHash)
 		if lookupErr == nil && existing != nil {
 			return types.BuildResourcePath(existing.Handle), nil
 		}

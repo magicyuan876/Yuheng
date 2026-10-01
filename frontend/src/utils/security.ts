@@ -13,21 +13,16 @@ import {
 import {
   buildProtectedFileRequest,
   isProtectedFileProxyPath,
-  isProviderFileURL,
-  PROVIDER_SCHEME_PATTERN,
+  isResourceRef,
   resolveProtectedFileAccess,
   type ProtectedFileAccessContext,
 } from "./protectedFileAccess.ts";
 
-const PROVIDER_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-const PROVIDER_IMG_SRC_RE = new RegExp(
-  `<img\\b([^>]*?)\\ssrc=(["'])(${PROVIDER_SCHEME_PATTERN}):(?:\\/\\/|&#x2f;&#x2f;|&#47;&#47;)([^"']+)\\2([^>]*)>`,
-  "gi",
-);
-const STORAGE_BACKEND_IMG_SRC_RE = new RegExp(
-  `<img\\b([^>]*?)\\ssrc=(["'])storage:\\/\\/([0-9A-Za-z_-]+)\\/(${PROVIDER_SCHEME_PATTERN}):(?:\\/\\/|&#x2f;&#x2f;|&#47;&#47;)([^"']+)\\2([^>]*)>`,
-  "gi",
-);
+const STORED_IMAGE_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+// An <img> whose src is a resource:// handle, with the slashes possibly
+// HTML-escaped by the Markdown renderer.
+const RESOURCE_IMG_SRC_RE =
+  /<img\b([^>]*?)\ssrc=(["'])resource:(?:\/\/|&#x2f;&#x2f;|&#47;&#47;)([0-9A-Za-z_-]+)\2([^>]*)>/gi;
 
 type SecurityHooks = {
   beforeSanitizeElements: NodeHook;
@@ -240,7 +235,7 @@ export function sanitizeHTML(html: string): string {
   }
 
   try {
-    const preparedHTML = protectProviderImageSrcInHTML(html);
+    const preparedHTML = protectStoredImageSrcInHTML(html);
     return sanitizeWithSecurityHooks(preparedHTML, DOMPurifyConfig as unknown as Config, domPurifySecurityHooks);
   } catch (error) {
     console.error("HTML sanitization failed:", error);
@@ -256,7 +251,7 @@ export function sanitizeMarkdownHTML(html: string): string {
   }
 
   try {
-    const preparedHTML = protectProviderImageSrcInHTML(html);
+    const preparedHTML = protectStoredImageSrcInHTML(html);
     return sanitizeWithSecurityHooks(
       preparedHTML,
       markdownDomPurifyConfig as unknown as Config,
@@ -285,25 +280,17 @@ function buildProtectedImageTag(before: string, quote: string, protectedSrc: str
   // Not hydrated yet: render the 1x1 placeholder but tag it so CSS can give
   // it a stable skeleton box. Otherwise width:auto/height:auto collapse the
   // 1x1 gif to a ~1px line that violently jumps to full size once loaded.
-  return `<img${before} src=${quote}${PROVIDER_IMAGE_PLACEHOLDER}${quote} data-protected-src=${quote}${protectedSrc}${quote} data-img-loading=${quote}1${quote}${after}>`;
+  return `<img${before} src=${quote}${STORED_IMAGE_PLACEHOLDER}${quote} data-protected-src=${quote}${protectedSrc}${quote} data-img-loading=${quote}1${quote}${after}>`;
 }
 
-export function protectProviderImageSrcInHTML(html: string): string {
+export function protectStoredImageSrcInHTML(html: string): string {
   if (!html) return html;
-  const withProviderImages = html.replace(PROVIDER_IMG_SRC_RE, (_m, before, quote, provider, restPathRaw, after) => {
-    const restPath = decodeProviderURL(restPathRaw);
-    return buildProtectedImageTag(before, quote, `${provider}://${restPath}`, after);
-  });
-  return withProviderImages.replace(
-    STORAGE_BACKEND_IMG_SRC_RE,
-    (_m, before, quote, backendID, provider, restPathRaw, after) => {
-      const restPath = decodeProviderURL(restPathRaw);
-      return buildProtectedImageTag(before, quote, `storage://${backendID}/${provider}://${restPath}`, after);
-    },
+  return html.replace(RESOURCE_IMG_SRC_RE, (_m, before, quote, handle, after) =>
+    buildProtectedImageTag(before, quote, `resource://${handle}`, after),
   );
 }
 
-function decodeProviderURL(raw: string): string {
+function decodeEscapedURL(raw: string): string {
   return raw
     .trim()
     .replace(/&#x2f;/gi, "/")
@@ -312,9 +299,9 @@ function decodeProviderURL(raw: string): string {
     .replace(/&quot;/g, '"');
 }
 
-function providerSourceFromImageSrc(src: string): string | null {
-  const decodedSrc = decodeProviderURL(src);
-  if (isProviderFileURL(decodedSrc)) {
+function storedSourceFromImageSrc(src: string): string | null {
+  const decodedSrc = decodeEscapedURL(src);
+  if (isResourceRef(decodedSrc)) {
     return decodedSrc;
   }
 
@@ -326,23 +313,23 @@ function providerSourceFromImageSrc(src: string): string | null {
     }
 
     const filePath = (url.searchParams.get("file_path") || "").trim();
-    return isProviderFileURL(filePath) ? filePath : null;
+    return isResourceRef(filePath) ? filePath : null;
   } catch {
     return null;
   }
 }
 
 function normalizeProtectedImageElement(img: HTMLImageElement): string | null {
-  const protectedSrc = providerSourceFromImageSrc(img.getAttribute("data-protected-src") || "");
+  const protectedSrc = storedSourceFromImageSrc(img.getAttribute("data-protected-src") || "");
   const src = img.getAttribute("src") || "";
-  const sourceURL = protectedSrc || providerSourceFromImageSrc(src);
+  const sourceURL = protectedSrc || storedSourceFromImageSrc(src);
   if (!sourceURL) {
     return null;
   }
 
   img.setAttribute("data-protected-src", sourceURL);
   if (!src.trim().startsWith("blob:")) {
-    img.setAttribute("src", PROVIDER_IMAGE_PLACEHOLDER);
+    img.setAttribute("src", STORED_IMAGE_PLACEHOLDER);
   }
   return sourceURL;
 }
@@ -390,8 +377,8 @@ export function isValidURL(url: string): boolean {
     return true;
   }
 
-  // 允许 provider:// 形式，由前端后续鉴权拉取并替换为 blob URL
-  if (isProviderFileURL(trimmed)) {
+  // 允许 resource:// 引用，由前端后续鉴权拉取并替换为 blob URL
+  if (isResourceRef(trimmed)) {
     return true;
   }
 
@@ -508,7 +495,7 @@ const protectedFileCacheState = (() => {
 })();
 
 const protectedFileBlobCache = protectedFileCacheState.blobByRequest;
-// Blob URL keyed by the protected source URL (e.g. `local://...`). Once an image
+// Blob URL keyed by the protected source URL (`resource://...`). Once an image
 // has been hydrated, re-renders of the same markdown can emit the blob src
 // directly instead of the placeholder. Without this, the typewriter re-renders
 // the answer every frame, recreating each <img> as a placeholder that hydration
@@ -591,9 +578,7 @@ export async function hydrateProtectedFileImages(
     return;
   }
 
-  const images = root.querySelectorAll<HTMLImageElement>(
-    'img[data-protected-src], img[src^="resource://"], img[src^="storage://"], img[src^="local://"], img[src^="minio://"], img[src^="cos://"], img[src^="tos://"], img[src^="s3://"], img[src^="oss://"], img[src^="ks3://"], img[src^="obs://"]',
-  );
+  const images = root.querySelectorAll<HTMLImageElement>('img[data-protected-src], img[src^="resource://"]');
   if (!images.length) {
     return;
   }

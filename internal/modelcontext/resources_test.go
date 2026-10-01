@@ -15,12 +15,12 @@ func TestRegistryRoundTripAndDeduplicate(t *testing.T) {
 	require.Equal(t, "![a]("+ref+") and "+ref, r.DecodeText(encoded))
 }
 
-func TestRegistryAliasesPhysicalProviderReferences(t *testing.T) {
+// A storage locator is never stored content; text that happens to contain one
+// is passed through as it is.
+func TestRegistryLeavesStorageLocatorsAlone(t *testing.T) {
 	r := newResourceRegistry()
-	ref := "storage://c0d93536-702c-4977-aa5e-fe670073c3cb/local://10000/exports/image.png"
-	encoded := r.EncodeText("![image](" + ref + ")")
-	require.Equal(t, "![image](res://0001)", encoded)
-	require.Equal(t, "![image]("+ref+")", r.DecodeText(encoded))
+	text := "![image](local://10000/exports/image.png)"
+	require.Equal(t, text, r.EncodeText(text))
 }
 
 func TestRegistryAliasesWikiSummarySlug(t *testing.T) {

@@ -18,49 +18,19 @@ func TestFindIncompleteRef(t *testing.T) {
 		want int // expected return; -1 means no match expected
 	}{
 		{
-			"complete URL terminated by )",
-			"![img](local://1/abc/img.png)",
-			// The URL `local://1/abc/img.png` ends with `)` which is a terminator,
-			// but the regex [^\s)\]>"]* matches up to `)` — the `)` is NOT included.
-			// So the URL portion is `local://1/abc/img.png` and `)` terminates it.
-			// The match does NOT reach end of string → should return -1.
+			"complete handle terminated by )",
+			// The handle ends at `)`, which is a terminator, so the match
+			// does not reach the end of the string.
+			"![img](resource://xifDo7NTSL300Lp1goVutw)",
 			-1,
 		},
-		{
-			"complete URL terminated by space",
-			"text local://1/abc/img.png more text",
-			-1,
-		},
-		{
-			"truncated URL at end",
-			"text ![img](local://1/abc/im",
-			12, // starts at `l` in `local://`
-		},
-		{
-			"just scheme at end",
-			"text s3://",
-			5,
-		},
-		{
-			"partial scoped URL at end",
-			"text storage://backend-a/co",
-			5,
-		},
-		{
-			"no storage URL",
-			"just plain text http://example.com",
-			-1,
-		},
-		{
-			"URL at very end",
-			"local://1/img.png",
-			0,
-		},
-		{
-			"truncated resource handle at end",
-			"see ![img](resource://xifDo7NTSL",
-			11,
-		},
+		{"complete handle terminated by space", "text resource://xifDo7NTSL300Lp1goVutw more text", -1},
+		{"truncated handle at end", "text ![img](resource://xifDo7NT", 12},
+		{"just scheme at end", "text resource://", 5},
+		{"no storage reference", "just plain text http://example.com", -1},
+		{"handle at very end", "resource://xifDo7NTSL300Lp1goVutw", 0},
+		// Storage locators are never stored content, so they are not held.
+		{"a raw locator is plain text", "text local://1/abc/im", -1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -75,14 +45,14 @@ func TestFindIncompleteMarkdownImage(t *testing.T) {
 		in   string
 		want int
 	}{
-		{"complete image", "![img](local://1/a.png)", -1},
-		{"complete then text", "![img](local://1/a.png) trailing", -1},
-		{"truncated provider URL in image", `![知识助理"知识库"管理视图界面](s3://wizard-test/10000/exports/c91cf852`, 0},
+		{"complete image", "![img](resource://xifDo7NTSL300Lp1goVutw)", -1},
+		{"complete then text", "![img](resource://xifDo7NTSL300Lp1goVutw) trailing", -1},
+		{"truncated handle in image", `![知识助理"知识库"管理视图界面](resource://xifDo7NT`, 0},
 		{"open paren only", "text ![alt](", 5},
-		{"bare provider suffix without markdown", "text s3://wizard-test/10000/exp", -1},
-		{"two images complete", "![a](local://1/a.png) ![b](local://1/b.png)", -1},
-		{"first complete second incomplete", "![a](local://1/a.png) ![b](s3://part", 22},
-		{"bracket inside alt text", "![a[b]](s3://wizard-test/10000/part", 0},
+		{"bare handle suffix without markdown", "text resource://xifDo7", -1},
+		{"two images complete", "![a](resource://aaaabbbbccccddddeeeeff) ![b](resource://xifDo7NTSL300Lp1goVutw)", -1},
+		{"first complete second incomplete", "![a](resource://aaaabbbbccccddddeeeeff) ![b](resource://xi", 40},
+		{"bracket inside alt text", "![a[b]](resource://xifDo7NT", 0},
 		{"destination with whitespace is prose, not a link", "![alt](see the figure below", -1},
 		{
 			"destination too long to be a link",
@@ -103,9 +73,9 @@ func TestHoldbackCutoff(t *testing.T) {
 		in   string
 		want int // -1 means "expect len(in)", i.e. no holdback
 	}{
-		{"no holdback needed", "plain text with complete ![img](local://1/img.png) content", -1},
-		{"truncated URL inside markdown image", "text ![img](local://1/abc/im", 5},
-		{"bare truncated reference", "text local://1/abc/im", 5},
+		{"no holdback needed", "plain text with complete ![img](resource://xifDo7NTSL300Lp1goVutw) content", -1},
+		{"truncated handle inside markdown image", "text ![img](resource://xifDo7", 5},
+		{"bare truncated reference", "text resource://xifDo7", 5},
 		{"unopened image destination", "prefix ![alt](", 7},
 		{"empty chunk", "", -1},
 	}

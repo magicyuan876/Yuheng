@@ -82,7 +82,7 @@ const IMAGE_CONTEXT_ORIGINAL_RE = /<image_original>([\s\S]*?)<\/image_original>/
 const IMAGE_CONTEXT_CAPTION_RE = /<image_caption>([\s\S]*?)<\/image_caption>/i;
 const IMAGE_CONTEXT_OCR_RE = /<image_ocr>([\s\S]*?)<\/image_ocr>/i;
 const COMPLETE_MARKDOWN_CODE_RE = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g;
-const IMAGE_URL_SCHEME = "(?:https?|resource|storage|local|minio|s3|cos|tos|oss|obs|ks3)";
+const IMAGE_URL_SCHEME = "(?:https?|resource)";
 const FULLWIDTH_IMAGE_OPEN_RE = new RegExp(`(!\\[[^\\]\\n]*\\])（(?=${IMAGE_URL_SCHEME}://)`, "gi");
 const FULLWIDTH_IMAGE_CLOSE_RE = new RegExp(`(!\\[[^\\]\\n]*\\]\\(${IMAGE_URL_SCHEME}://[^）\\n]*?)）`, "gi");
 

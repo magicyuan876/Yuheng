@@ -30,19 +30,19 @@ func fixedURL(url string) *stubResolver {
 	return &stubResolver{url: func(string) (string, bool, error) { return url, true, nil }}
 }
 
-func TestRewriter_RewritesEveryReferenceForm(t *testing.T) {
+// Only resource handles are references; a storage locator in text is never
+// stored content and must not be sent to the resolver.
+func TestRewriter_RewritesResourceHandlesOnly(t *testing.T) {
 	svc := fixedURL("https://cdn.example.com/signed.png")
 	w := NewRewriter(svc, "TEST")
 
 	in := "handle ![a](resource://xifDo7NTSL300Lp1goVutw) " +
-		"legacy ![b](s3://bucket/10000/exports/b.png) " +
-		"scoped ![c](storage://backend-a/s3://bucket/ap/10000/exports/c.png)"
+		"locator ![b](s3://bucket/10000/exports/b.png)"
 	out := w.String(context.Background(), in)
 
-	assert.NotContains(t, out, "resource://")
-	assert.NotContains(t, out, "s3://")
-	assert.NotContains(t, out, "storage://")
-	assert.Equal(t, 3, svc.calls)
+	assert.Equal(t, "handle ![a](https://cdn.example.com/signed.png) "+
+		"locator ![b](s3://bucket/10000/exports/b.png)", out)
+	assert.Equal(t, 1, svc.calls)
 }
 
 // An already-public URL in the answer must be left alone.
@@ -55,7 +55,7 @@ func TestRewriter_LeavesHTTPURLsAlone(t *testing.T) {
 // Emitting an unfetchable URL is worse than leaving the handle: the client can
 // still fall back to the authenticated /files proxy for a handle.
 func TestRewriter_NonHTTPResultIsNoOp(t *testing.T) {
-	w := NewRewriter(fixedURL("storage://7cb970a6/s3://bucket/10000/exports/a.png"), "TEST")
+	w := NewRewriter(fixedURL("s3://bucket/10000/exports/a.png"), "TEST")
 	in := "![img](resource://xifDo7NTSL300Lp1goVutw)"
 	assert.Equal(t, in, w.String(context.Background(), in))
 }

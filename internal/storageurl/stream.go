@@ -18,9 +18,7 @@ import (
 
 // incompleteRefSuffixRe matches a storage reference that reaches the end of the
 // string — it may continue in the next chunk.
-var incompleteRefSuffixRe = regexp.MustCompile(
-	`\b(?:resource|storage|local|s3)://[^\s)\]>"]*$`,
-)
+var incompleteRefSuffixRe = regexp.MustCompile(`\bresource://[^\s)\]>"]*$`)
 
 // FindIncompleteRef returns the byte offset of a potentially truncated storage
 // reference at the tail of s, or -1 if none.
@@ -33,9 +31,9 @@ func FindIncompleteRef(s string) int {
 }
 
 // incompleteMarkdownImageSuffixRe matches a Markdown image whose destination URL
-// (the parenthesized part) is not yet closed — e.g. "![alt](s3://part" or
-// "![alt](". Holding back only from "s3://" would flush "![alt](" to the
-// client and break the image once the URL arrives in the next chunk.
+// (the parenthesized part) is not yet closed — e.g. "![alt](resource://par" or
+// "![alt](". Holding back only from "resource://" would flush "![alt](" to
+// the client and break the image once the URL arrives in the next chunk.
 //
 // The destination must be whitespace-free, and FindIncompleteMarkdownImage caps
 // its length: a URL contains neither whitespace nor a newline, and even a
@@ -53,7 +51,7 @@ const maxIncompleteImageBytes = 2048
 // `![alt](url` suffix at the end of s, or -1 if none.
 func FindIncompleteMarkdownImage(s string) int {
 	// Prefer pairing a trailing reference fragment with the nearest preceding
-	// `![…](` so alt text may itself contain ']' (e.g. `![a[b]](s3://part`).
+	// `![…](` so alt text may itself contain ']' (e.g. `![a[b]](resource://par`).
 	if urlIdx := FindIncompleteRef(s); urlIdx >= 0 {
 		if imgIdx := strings.LastIndex(s[:urlIdx], "!["); imgIdx >= 0 {
 			if strings.Contains(s[imgIdx:urlIdx], "](") {

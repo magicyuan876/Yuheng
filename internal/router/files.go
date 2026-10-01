@@ -328,7 +328,9 @@ func servePresignedPreview(
 			}
 			url, ok, err := files.URL(ctx, ref, 0)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "provider": resource.Provider})
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": err.Error(), "storage_backend_id": resource.StorageBackendID,
+				})
 				return
 			}
 			// The no-URL case is the whole point of the endpoint: local
@@ -339,11 +341,11 @@ func servePresignedPreview(
 				hint = "no public URL: set APP_EXTERNAL_URL and make sure the reverse proxy forwards /r/"
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"file_path": ref,
-				"provider":  resource.Provider,
-				"url":       url,
-				"rewritten": ok,
-				"hint":      hint,
+				"file_path":          ref,
+				"storage_backend_id": resource.StorageBackendID,
+				"url":                url,
+				"rewritten":          ok,
+				"hint":               hint,
 			})
 		})
 }

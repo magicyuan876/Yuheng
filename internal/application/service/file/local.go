@@ -94,7 +94,7 @@ func (s *localFileService) SaveFile(ctx context.Context,
 	}
 
 	logger.Infof(ctx, "File saved successfully: %s", filePath)
-	// Return provider:// path format: local://{relative_path}
+	// Return the driver-native locator: local://{relative_path}
 	relPath, _ := filepath.Rel(s.baseDir, filePath)
 	return localScheme + filepath.ToSlash(relPath), nil
 }

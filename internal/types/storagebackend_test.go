@@ -7,15 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStorageBackendPathRoundTrip(t *testing.T) {
-	path := BuildStorageBackendPath("backend-a", "s3://bucket/7/file.pdf")
-	id, inner, ok := ParseStorageBackendPath(path)
-	require.True(t, ok)
-	assert.Equal(t, "backend-a", id)
-	assert.Equal(t, "s3://bucket/7/file.pdf", inner)
-	assert.Equal(t, "s3", ParseProviderScheme(path))
-}
-
 // Two knowledge bases share storage only when they are bound to the same
 // backend; the same provider is not enough (two S3 buckets are two stores).
 func TestSharesStorageBackendWithComparesBackendIDs(t *testing.T) {

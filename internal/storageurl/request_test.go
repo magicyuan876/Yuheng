@@ -35,7 +35,7 @@ func TestRewriteMessages(t *testing.T) {
 			Content: "answer ![fig](resource://xifDo7NTSL300Lp1goVutw)",
 			Images: types.MessageImages{{
 				URL:     "resource://aaaabbbbccccddddeeeeff",
-				Caption: "shows ![inline](s3://bucket/10000/exports/a.png)",
+				Caption: "shows ![inline](resource://xifDo7NTSL300Lp1goVutw)",
 			}},
 			KnowledgeReferences: types.References{{
 				Content:   "chunk ![c](resource://xifDo7NTSL300Lp1goVutw)",

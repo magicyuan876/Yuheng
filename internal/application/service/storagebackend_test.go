@@ -92,7 +92,7 @@ func TestDeleteIsRefusedWhileAnythingIsBound(t *testing.T) {
 		},
 		"stored file": func(t *testing.T, db *gorm.DB, id string) {
 			require.NoError(t, db.Create(&types.StoredResource{
-				Handle: "AbCdEfGhIjKlMnOpQrStUv", TenantID: 2, StorageBackendID: id, Provider: "local",
+				Handle: "AbCdEfGhIjKlMnOpQrStUv", TenantID: 2, StorageBackendID: id,
 				PhysicalPath: "local://2/exports/a.png", LocationHash: "h",
 			}).Error)
 		},

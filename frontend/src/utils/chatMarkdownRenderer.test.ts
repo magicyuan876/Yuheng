@@ -39,7 +39,7 @@ test("preprocessMathDelimiters converts escaped math delimiters for marked-katex
 
 test("replaceIncompleteImageWithPlaceholder hides an unfinished streaming image", () => {
   assert.equal(
-    replaceIncompleteImageWithPlaceholder("before ![chart](local://bucket/path"),
+    replaceIncompleteImageWithPlaceholder("before ![chart](resource://yB7V7wE1"),
     'before <span class="streaming-image-loading"><span class="streaming-image-loading__skeleton"></span></span>',
   );
 });

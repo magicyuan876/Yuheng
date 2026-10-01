@@ -42,16 +42,16 @@ func (r *resourceRepository) GetByHandle(ctx context.Context, handle string) (*t
 	return &resource, err
 }
 
-func (r *resourceRepository) GetByTenantLocation(
+func (r *resourceRepository) GetByLocation(
 	ctx context.Context,
-	tenantID uint64,
+	backendID string,
 	locationHash string,
 ) (*types.StoredResource, error) {
 	var resource types.StoredResource
 	err := r.db.WithContext(ctx).
 		Where(
-			"tenant_id = ? AND location_hash = ? AND state = ?",
-			tenantID,
+			"storage_backend_id = ? AND location_hash = ? AND state = ?",
+			backendID,
 			locationHash,
 			types.ResourceStateActive,
 		).

@@ -9,24 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const storageBackendScheme = "storage://"
-
-func BuildStorageBackendPath(backendID, providerPath string) string {
-	return storageBackendScheme + strings.TrimSpace(backendID) + "/" + providerPath
-}
-
-func ParseStorageBackendPath(path string) (backendID, providerPath string, ok bool) {
-	if !strings.HasPrefix(path, storageBackendScheme) {
-		return "", "", false
-	}
-	rest := strings.TrimPrefix(path, storageBackendScheme)
-	parts := strings.SplitN(rest, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", false
-	}
-	return parts[0], parts[1], true
-}
-
 // KnowledgeBaseType represents the type of the knowledge base
 const (
 	// KnowledgeBaseTypeDocument represents the document knowledge base type
@@ -326,28 +308,6 @@ func normalizeParserFileType(fileType string) string {
 // same backend, which a server-side copy between them needs.
 func (kb *KnowledgeBase) SharesStorageBackendWith(other *KnowledgeBase) bool {
 	return kb != nil && other != nil && kb.StorageBackendID != "" && kb.StorageBackendID == other.StorageBackendID
-}
-
-// InferStorageFromFilePath deduces the storage provider from a file path format.
-// Used as a safety fallback when the KB's configured provider doesn't match the data.
-// Only the provider:// scheme (local://, s3://) is recognised.
-func InferStorageFromFilePath(filePath string) string {
-	return ParseProviderScheme(filePath)
-}
-
-// ParseProviderScheme extracts the provider from a provider:// scheme path.
-// e.g. "s3://bucket/key" → "s3", "local://tenant/file.pdf" → "local"
-// Returns "" if the path does not use a known provider scheme.
-func ParseProviderScheme(filePath string) string {
-	if _, inner, ok := ParseStorageBackendPath(filePath); ok {
-		filePath = inner
-	}
-	for _, provider := range []string{"local", "s3", "dummy"} {
-		if strings.HasPrefix(filePath, provider+"://") {
-			return provider
-		}
-	}
-	return ""
 }
 
 // ImageProcessingConfig represents the image processing configuration

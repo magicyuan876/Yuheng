@@ -82,7 +82,7 @@ func TestEnvStorageSyncRefusesToMoveStoredFiles(t *testing.T) {
 
 	require.NoError(t, db.Create(&types.StoredResource{
 		Handle: "AbCdEfGhIjKlMnOpQrStUv", TenantID: 1, StorageBackendID: types.EnvStorageBackendID,
-		Provider: "s3", PhysicalPath: "s3://second/yuheng/1/exports/a.png", LocationHash: "h",
+		PhysicalPath: "s3://second/yuheng/1/exports/a.png", LocationHash: "h",
 	}).Error)
 
 	setS3Env(t, "third")

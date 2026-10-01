@@ -79,10 +79,6 @@ func NewFileStore(
 // credentials; they are read from the environment here, every time, so they
 // never touch the database.
 func (s *fileStore) backend(ctx context.Context, id string) (*types.StorageBackend, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("no storage backend named")
-	}
 	backend, err := s.backends.Find(ctx, id)
 	if err != nil {
 		return nil, err
@@ -140,14 +136,7 @@ func (s *fileStore) locate(ctx context.Context, ref string) (*location, error) {
 	if err != nil {
 		return nil, err
 	}
-	physical := resource.PhysicalPath
-	// Rows written by the backend-scoped wrapper carry its
-	// storage://<backend>/ prefix in front of the driver path; the driver
-	// itself only understands what is behind it.
-	if _, inner, scoped := types.ParseStorageBackendPath(physical); scoped {
-		physical = inner
-	}
-	return &location{resource: resource, backend: backend, driver: driver, physical: physical}, nil
+	return &location{resource: resource, backend: backend, driver: driver, physical: resource.PhysicalPath}, nil
 }
 
 // ---- reads ------------------------------------------------------------------

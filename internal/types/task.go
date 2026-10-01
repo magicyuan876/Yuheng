@@ -492,7 +492,7 @@ type ImageMultimodalPayload struct {
 	KnowledgeID     string `json:"knowledge_id"`
 	KnowledgeBaseID string `json:"knowledge_base_id"`
 	ChunkID         string `json:"chunk_id"`  // parent text chunk
-	ImageURL        string `json:"image_url"` // provider:// URL (e.g. local://..., s3://...)
+	ImageURL        string `json:"image_url"` // resource:// reference, or an http(s) URL
 	EnableOCR       bool   `json:"enable_ocr"`
 	EnableCaption   bool   `json:"enable_caption"`
 	Language        string `json:"language,omitempty"`          // Request locale for {{language}} in prompt templates

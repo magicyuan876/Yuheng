@@ -1,8 +1,10 @@
 export const domPurifyForbidTags = ["script", "style", "object", "embed", "form", "input"] as const;
 export const domPurifyForbidAttr = ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur"] as const;
 
+// resource: is the one storage scheme stored content carries; the hydration
+// step swaps it for a blob URL fetched through an authenticated file proxy.
 export const domPurifyAllowedUriRegexp =
-  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|blob):|data:image\/|(?:resource|storage|local|minio|cos|tos|s3|oss|ks3|obs):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|blob|resource):|data:image\/|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 
 /** Shared DOMPurify security options (FORBID_*, URI scheme, DOM flags). */
 export const domPurifySecurityOptions = {

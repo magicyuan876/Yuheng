@@ -24,15 +24,17 @@ const (
 // that release objects treat it as "already done".
 var ErrResourceNotFound = errors.New("resource not found")
 
-// StoredResource is the stable application identity of one stored object. PhysicalPath
-// is deliberately internal: API responses, persisted rich text and LLM prompts
-// use resource://<handle> instead.
+// StoredResource is the stable application identity of one stored object, and
+// the only record of where it is: the backend it was written to and the
+// driver-native locator on that backend (local://<rel>, s3://<bucket>/<key>).
+// Both are deliberately internal: API responses, persisted rich text and LLM
+// prompts use resource://<handle> instead, and every read resolves the handle
+// back to this row.
 type StoredResource struct {
 	ID               string         `json:"id" gorm:"type:varchar(36);primaryKey"`
 	Handle           string         `json:"handle" gorm:"type:varchar(22);not null;uniqueIndex"`
 	TenantID         uint64         `json:"tenant_id" gorm:"not null;index"`
-	StorageBackendID string         `json:"storage_backend_id,omitempty" gorm:"type:varchar(36);index"`
-	Provider         string         `json:"provider" gorm:"type:varchar(32);not null"`
+	StorageBackendID string         `json:"storage_backend_id" gorm:"type:varchar(36);not null;index"`
 	PhysicalPath     string         `json:"-" gorm:"type:text;not null"`
 	LocationHash     string         `json:"-" gorm:"type:varchar(64);not null"`
 	Kind             string         `json:"kind" gorm:"type:varchar(32);not null;default:'file'"`

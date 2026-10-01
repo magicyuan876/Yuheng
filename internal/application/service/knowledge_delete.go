@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// collectImageURLs extracts unique provider:// image URLs from image_info JSON strings.
+// collectImageURLs extracts unique image references from image_info JSON strings.
 func collectImageURLs(ctx context.Context, imageInfos []string) []string {
 	seen := make(map[string]struct{})
 	var urls []string

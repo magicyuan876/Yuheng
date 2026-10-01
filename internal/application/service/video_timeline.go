@@ -200,7 +200,7 @@ func videoWindowMarkdown(w videoTimelineWindow) string {
 
 // buildVideoMarkdown renders the full timeline document (window sections
 // separated by blank lines). Frame references use their OriginalRef paths;
-// the image resolver later replaces them with provider:// serving URLs.
+// the image resolver later replaces them with resource:// references.
 func buildVideoMarkdown(windows []videoTimelineWindow) string {
 	sections := make([]string, 0, len(windows))
 	for _, w := range windows {

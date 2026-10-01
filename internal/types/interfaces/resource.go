@@ -21,7 +21,9 @@ type ResourceRepository interface {
 	Create(ctx context.Context, resource *types.StoredResource) error
 	GetByID(ctx context.Context, id string) (*types.StoredResource, error)
 	GetByHandle(ctx context.Context, handle string) (*types.StoredResource, error)
-	GetByTenantLocation(ctx context.Context, tenantID uint64, locationHash string) (*types.StoredResource, error)
+	// GetByLocation finds the live resource for one object: a backend and the
+	// hash of its location on it.
+	GetByLocation(ctx context.Context, backendID, locationHash string) (*types.StoredResource, error)
 	MarkDeleted(ctx context.Context, id string) error
 	CreateBinding(ctx context.Context, binding *types.ResourceBinding) error
 	CreateGrant(ctx context.Context, grant *types.ResourceAccessGrant) error

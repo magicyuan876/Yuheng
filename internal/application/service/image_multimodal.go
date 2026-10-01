@@ -77,7 +77,7 @@ func buildVLMVideoFramePrompt(ctx context.Context, cfg types.VLMConfig, timestam
 }
 
 // ImageMultimodalService handles image:multimodal asynq tasks.
-// It reads images from storage (via FileService for provider:// URLs),
+// It reads images from storage (via FileStore for resource:// references),
 // performs OCR and VLM caption, and creates child chunks.
 type ImageMultimodalService struct {
 	chunkService   interfaces.ChunkService
@@ -238,7 +238,7 @@ func (s *ImageMultimodalService) Handle(ctx context.Context, task *asynq.Task) e
 	// separate hop to the KB config.
 	imgOut["vlm_model_id"] = vlmCfg.ModelID
 
-	// Read image bytes. A provider:// URL must be resolved via FileService —
+	// Read image bytes. A resource:// reference must be resolved via FileStore —
 	// it must NEVER be handed to the HTTP downloader (which would fail with
 	// "unsupported URL scheme"). On unrecoverable read failure for a single
 	// image, skip it (deferred finalize will count it).

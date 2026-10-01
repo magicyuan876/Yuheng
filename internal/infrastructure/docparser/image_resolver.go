@@ -58,7 +58,7 @@ func isIconImage(data []byte) bool {
 // StoredImage describes an image that has been saved to storage.
 type StoredImage struct {
 	OriginalRef string // reference in the original markdown
-	ServingURL  string // provider:// URL (e.g. local://images/xxx.png, s3://bucket/key)
+	ServingURL  string // resource:// reference of the stored copy
 	MimeType    string
 	// TimestampMs is the frame's position in the source media for video
 	// keyframes (0 for ordinary document images), copied from the ImageRef.
@@ -78,7 +78,7 @@ func NewImageResolver() *ImageResolver {
 }
 
 // ResolveAndStore reads images from the convert result, persists them via fileSvc,
-// and replaces markdown references with provider:// URLs.
+// and replaces markdown references with resource:// references.
 // It returns the updated markdown and a list of stored images.
 func (r *ImageResolver) ResolveAndStore(
 	ctx context.Context,
@@ -121,9 +121,9 @@ func (r *ImageResolver) ResolveAndStore(
 			continue
 		}
 
-		// Skip already-resolved URLs (http/https, unified /files/, or provider:// scheme)
+		// Skip already-resolved targets: http(s) URLs and stored resource handles.
 		if strings.HasPrefix(refPath, "http://") || strings.HasPrefix(refPath, "https://") ||
-			isProviderScheme(refPath) {
+			isStoredReference(refPath) {
 			continue
 		}
 
@@ -241,14 +241,11 @@ func extFromMime(mime string) string {
 	}
 }
 
-// isProviderScheme checks if the path uses a provider:// scheme (local://, s3://).
-func isProviderScheme(p string) bool {
-	for _, prefix := range []string{"local://", "s3://"} {
-		if strings.HasPrefix(p, prefix) {
-			return true
-		}
-	}
-	return false
+// isStoredReference reports whether p already names a stored file: a
+// resource:// handle, which is what every image this resolver stores becomes.
+func isStoredReference(p string) bool {
+	_, ok := types.ParseResourcePath(p)
+	return ok
 }
 
 // isWhitelistedImageHost checks if the image URL's host is in the whitelist.
@@ -433,7 +430,7 @@ func (r *ImageResolver) ResolveRelativeHTMLImages(
 		m := matches[i]
 		src := strings.TrimSpace(markdown[m[4]:m[5]])
 		if src == "" || strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") ||
-			isProviderScheme(src) || strings.HasPrefix(strings.ToLower(src), "data:image/") {
+			isStoredReference(src) || strings.HasPrefix(strings.ToLower(src), "data:image/") {
 			continue
 		}
 

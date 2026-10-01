@@ -139,8 +139,8 @@ func TestResolveRemoteImages_NonImageContentType(t *testing.T) {
 	}
 }
 
-func TestResolveRemoteImages_ProviderSchemeSkipped(t *testing.T) {
-	markdown := "![already](local://images/abc.png)\n![also](s3://bucket/key.jpg)"
+func TestResolveRemoteImages_StoredReferencesSkipped(t *testing.T) {
+	markdown := "![already](resource://AbCdEfGhIjKlMnOpQrStUv)\n![also](resource://xifDo7NTSL300Lp1goVutw)"
 
 	resolver := NewImageResolver()
 	fSvc := &mockFileService{}
@@ -151,10 +151,10 @@ func TestResolveRemoteImages_ProviderSchemeSkipped(t *testing.T) {
 	}
 
 	if len(images) != 0 {
-		t.Errorf("expected 0 images for provider:// URLs, got %d", len(images))
+		t.Errorf("expected 0 images for stored references, got %d", len(images))
 	}
 	if updated != markdown {
-		t.Errorf("markdown should be unchanged for provider:// URLs")
+		t.Errorf("markdown should be unchanged for stored references")
 	}
 }
 

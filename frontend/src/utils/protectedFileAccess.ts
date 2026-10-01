@@ -1,5 +1,5 @@
 /**
- * 受保护文件（provider:// / resource:// 等）的访问上下文。
+ * 受保护文件（resource:// 引用）的访问上下文。
  *
  * 后端按访问主体拆分文件代理，鉴权模型互不相同：
  *   - `/files`                                   → 登录态 Bearer + X-Tenant-ID
@@ -10,13 +10,10 @@
  * 单一真相源，渲染组件只需声明作用域，不再各自拼 URL。
  */
 
-export const PROVIDER_SCHEME_PATTERN = "resource|local|minio|cos|tos|s3|oss|ks3|obs";
-
-const PROVIDER_FILE_SCHEME_RE = new RegExp(`^(${PROVIDER_SCHEME_PATTERN}):\\/\\/\\S+$`, "i");
-const STORAGE_BACKEND_FILE_SCHEME_RE = new RegExp(
-  `^storage:\\/\\/[0-9A-Za-z_-]+\\/(${PROVIDER_SCHEME_PATTERN}):\\/\\/\\S+$`,
-  "i",
-);
+// A stored file is referenced as resource://<handle>, and nothing else: the
+// backend's own locators (local://, s3://) never leave the server, which also
+// refuses them on every file proxy. The handle alphabet is URL-safe base64.
+const RESOURCE_REF_RE = /^resource:\/\/[0-9A-Za-z_-]{22}$/;
 
 const KB_FILE_PROXY_PATH_RE = /^\/api\/v1\/knowledge-bases\/[^/]+\/files$/;
 const MESSAGE_FILE_PROXY_PATH_RE = /^\/api\/v1\/sessions\/[^/]+\/messages\/[^/]+\/files$/;
@@ -49,10 +46,9 @@ export function resolveProtectedFileAccess(override?: ProtectedFileAccessContext
   return override;
 }
 
-/** 是否为需要经代理拉取的存储路径（provider:// 或 storage://<backend>/provider://）。 */
-export function isProviderFileURL(url: string): boolean {
-  const trimmed = url.trim();
-  return PROVIDER_FILE_SCHEME_RE.test(trimmed) || STORAGE_BACKEND_FILE_SCHEME_RE.test(trimmed);
+/** 是否为需要经代理拉取的存储引用（resource://<handle>）。 */
+export function isResourceRef(url: string): boolean {
+  return RESOURCE_REF_RE.test(url.trim());
 }
 
 /** 是否为受保护文件代理之一的路径。 */
@@ -85,14 +81,14 @@ function tenantRequestHeaders(): Record<string, string> {
 }
 
 /**
- * 为一个存储路径构造代理请求。返回 null 表示这不是需要代理的存储路径。
+ * 为一个存储引用构造代理请求。返回 null 表示这不是需要代理的存储引用。
  */
 export function buildProtectedFileRequest(
   sourceURL: string,
   access: ProtectedFileAccessContext,
 ): ProtectedFileRequest | null {
   const filePath = sourceURL.trim();
-  if (!isProviderFileURL(filePath)) return null;
+  if (!isResourceRef(filePath)) return null;
 
   const query = new URLSearchParams({ file_path: filePath }).toString();
 

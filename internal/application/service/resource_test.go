@@ -38,7 +38,6 @@ func TestResourceCatalogRegisterResolveAndDeduplicate(t *testing.T) {
 	require.Equal(t, physical, resource.PhysicalPath)
 	require.Equal(t, uint64(7), resource.TenantID)
 	require.Equal(t, "backend-a", resource.StorageBackendID)
-	require.Equal(t, "local", resource.Provider)
 }
 
 func TestResourceCatalogBindingAndAccessGrant(t *testing.T) {
@@ -150,9 +149,27 @@ func TestResourceCatalogWithoutSigningKeyMintsFreshGrants(t *testing.T) {
 	require.NotEqual(t, first, second)
 }
 
-func TestResourceCatalogRejectsUnsupportedPhysicalPath(t *testing.T) {
+// A location is a backend plus a driver path; registering half of one, or a
+// handle in place of a path, is refused.
+func TestResourceCatalogRequiresALocation(t *testing.T) {
 	catalog, _ := newResourceCatalogForTest(t)
-	_, err := catalog.Register(context.Background(), 7, "backend-a", "https://example.com/a.png",
+	ctx := context.Background()
+
+	_, err := catalog.Register(ctx, 7, "", "local://7/exports/a.png", interfaces.ResourceRegistration{})
+	require.ErrorContains(t, err, "storage backend")
+	_, err = catalog.Register(ctx, 7, "backend-a", "resource://AbCdEfGhIjKlMnOpQrStUv",
 		interfaces.ResourceRegistration{})
-	require.ErrorContains(t, err, "unsupported provider")
+	require.ErrorContains(t, err, "not a physical location")
+}
+
+// The same driver path on two backends is two objects.
+func TestResourceCatalogLocationIsPerBackend(t *testing.T) {
+	catalog, _ := newResourceCatalogForTest(t)
+	ctx := context.Background()
+
+	onA, err := catalog.Register(ctx, 7, "backend-a", "local://7/exports/a.png", interfaces.ResourceRegistration{})
+	require.NoError(t, err)
+	onB, err := catalog.Register(ctx, 7, "backend-b", "local://7/exports/a.png", interfaces.ResourceRegistration{})
+	require.NoError(t, err)
+	require.NotEqual(t, onA, onB)
 }

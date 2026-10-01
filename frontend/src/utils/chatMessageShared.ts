@@ -19,7 +19,7 @@ export const replaceIncompleteImageWithPlaceholder = (content: string): string =
   const hasParenClose = tail.includes(")");
   if (!hasImageOpen) return content;
 
-  // Incomplete image syntax at stream tail, e.g. ![alt](local://...
+  // Incomplete image syntax at stream tail, e.g. ![alt](resource://...
   if (!hasBracketClose || (hasParenOpen && !hasParenClose)) {
     return content.slice(0, lastImgStart) + STREAMING_IMAGE_PLACEHOLDER;
   }

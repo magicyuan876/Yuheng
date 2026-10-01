@@ -140,9 +140,10 @@ func IsValidURL(url string) bool {
 		return false
 	}
 
-	// Internal resource references are resolved through authenticated file
-	// proxies; the provider schemes are the ones stored content is written with.
-	allowedProtocols := []string{"http://", "https://", "resource://", "storage://", "local://", "s3://"}
+	// Stored content references its files as resource:// handles, which the
+	// authenticated file proxies resolve; no storage locator is ever valid
+	// content.
+	allowedProtocols := []string{"http://", "https://", "resource://"}
 	isAllowed := false
 	for _, protocol := range allowedProtocols {
 		if strings.HasPrefix(strings.ToLower(url), protocol) {
