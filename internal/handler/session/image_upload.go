@@ -7,10 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	filesvc "github.com/magicyuan876/yuheng/internal/application/service/file"
 	"github.com/magicyuan876/yuheng/internal/logger"
-	"github.com/magicyuan876/yuheng/internal/types"
-	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 )
 
 const (
@@ -23,7 +20,10 @@ const (
 // This is always called when images are present. VLM analysis is handled
 // separately (either in the pipeline rewrite step for RAG paths, or via
 // analyzeImageAttachments for pure chat paths with non-vision models).
-func (h *Handler) saveImageAttachments(ctx context.Context, images []ImageAttachment, tenantID uint64, storageProvider string) error {
+//
+// Chat images belong to no knowledge base, so they go to the workspace's
+// default storage backend.
+func (h *Handler) saveImageAttachments(ctx context.Context, images []ImageAttachment, tenantID uint64) error {
 	if len(images) == 0 {
 		return nil
 	}
@@ -31,7 +31,10 @@ func (h *Handler) saveImageAttachments(ctx context.Context, images []ImageAttach
 		return fmt.Errorf("too many images, max %d", maxImagesCount)
 	}
 
-	fileSvc := h.resolveImageFileService(ctx, storageProvider)
+	fileSvc, err := h.files.ForTenantDefault(ctx, tenantID)
+	if err != nil {
+		return fmt.Errorf("resolve image storage: %w", err)
+	}
 
 	for i := range images {
 		img := &images[i]
@@ -138,32 +141,4 @@ func mimeToExt(mime string) string {
 	default:
 		return ".png"
 	}
-}
-
-func (h *Handler) resolveImageFileService(ctx context.Context, storageProvider string) interfaces.FileService {
-	tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant)
-	if tenant == nil {
-		return h.fileService
-	}
-	if h.storageResolver != nil {
-		svc, resolvedProvider, err := h.storageResolver.ResolveFileService(ctx, tenant, "", storageProvider, "")
-		if err == nil && svc != nil {
-			logger.Infof(ctx, "[image-storage] using storage instance provider=%s for image uploads", resolvedProvider)
-			return svc
-		}
-		if err != nil {
-			logger.Warnf(ctx, "[image-storage] failed to resolve storage instance for provider=%s: %v", storageProvider, err)
-		}
-	}
-	if strings.TrimSpace(storageProvider) == "" || tenant.StorageEngineConfig == nil {
-		return h.fileService
-	}
-
-	svc, resolvedProvider, err := filesvc.NewFileServiceFromStorageConfig(storageProvider, tenant.StorageEngineConfig, "")
-	if err != nil {
-		logger.Warnf(ctx, "[image-storage] failed to create %s file service: %v, fallback to default", storageProvider, err)
-		return h.fileService
-	}
-	logger.Infof(ctx, "[image-storage] using provider=%s for image uploads", resolvedProvider)
-	return svc
 }

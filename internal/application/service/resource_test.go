@@ -33,9 +33,9 @@ func TestResourceCatalogRegisterResolveAndDeduplicate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ref, again)
 
-	resolvedPath, resource, err := catalog.ResolvePath(ctx, ref)
+	resource, err := catalog.Resolve(ctx, ref)
 	require.NoError(t, err)
-	require.Equal(t, physical, resolvedPath)
+	require.Equal(t, physical, resource.PhysicalPath)
 	require.Equal(t, uint64(7), resource.TenantID)
 	require.Equal(t, "backend-a", resource.StorageBackendID)
 	require.Equal(t, "local", resource.Provider)

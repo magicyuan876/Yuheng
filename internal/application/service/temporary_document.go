@@ -94,8 +94,10 @@ var temporaryTextExtensions = map[string]struct{}{
 }
 
 type temporaryDocumentService struct {
-	repo            interfaces.TemporaryDocumentRepository
-	fileService     interfaces.FileService
+	repo interfaces.TemporaryDocumentRepository
+	// files stores a chat attachment, and the images extracted from it, on
+	// the workspace's default backend: a session belongs to no knowledge base.
+	files           interfaces.FileStore
 	resourceCatalog interfaces.ResourceCatalog
 	documentReader  interfaces.DocumentReader
 	imageResolver   *docparser.ImageResolver
@@ -106,7 +108,7 @@ type temporaryDocumentService struct {
 
 func NewTemporaryDocumentService(
 	repo interfaces.TemporaryDocumentRepository,
-	fileService interfaces.FileService,
+	files interfaces.FileStore,
 	resourceCatalog interfaces.ResourceCatalog,
 	documentReader interfaces.DocumentReader,
 	imageResolver *docparser.ImageResolver,
@@ -115,7 +117,7 @@ func NewTemporaryDocumentService(
 	taskEnqueuer interfaces.TaskEnqueuer,
 ) interfaces.TemporaryDocumentService {
 	return &temporaryDocumentService{
-		repo: repo, fileService: fileService, resourceCatalog: resourceCatalog,
+		repo: repo, files: files, resourceCatalog: resourceCatalog,
 		documentReader: documentReader, imageResolver: imageResolver,
 		modelService: modelService, tenantService: tenantService, taskEnqueuer: taskEnqueuer,
 	}
@@ -172,8 +174,12 @@ func (s *temporaryDocumentService) Create(
 		fileSize = int64(len(data))
 	}
 
+	writer, err := s.files.ForTenantDefault(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve attachment storage: %w", err)
+	}
 	storageName := fmt.Sprintf("chat_attachment_%s%s", uuid.NewString()[:12], ext)
-	resourceRef, err := s.fileService.SaveBytes(ctx, data, tenantID, storageName, true)
+	resourceRef, err := writer.SaveBytes(ctx, data, tenantID, storageName, true)
 	if err != nil {
 		return nil, fmt.Errorf("save attachment: %w", err)
 	}
@@ -185,13 +191,13 @@ func (s *temporaryDocumentService) Create(
 		ProcessingOptions: types.JSON(optionsJSON),
 	}
 	if err := s.repo.Create(ctx, document); err != nil {
-		_ = s.fileService.DeleteFile(ctx, resourceRef)
+		_ = s.files.Delete(ctx, resourceRef)
 		return nil, fmt.Errorf("create attachment record: %w", err)
 	}
 	if s.resourceCatalog != nil {
 		if err := s.resourceCatalog.Bind(ctx, resourceRef, "temporary_document", document.ID, "source_file"); err != nil {
 			_ = s.repo.DeleteScoped(ctx, tenantID, sessionID, document.ID)
-			_ = s.fileService.DeleteFile(ctx, resourceRef)
+			_ = s.files.Delete(ctx, resourceRef)
 			return nil, fmt.Errorf("bind attachment resource: %w", err)
 		}
 	}
@@ -253,7 +259,7 @@ func (s *temporaryDocumentService) OpenFile(ctx context.Context, tenantID uint64
 	if document == nil {
 		return nil, "", fmt.Errorf("attachment not found")
 	}
-	file, err := s.fileService.GetFile(ctx, document.ResourceRef)
+	file, _, err := s.files.Open(ctx, document.ResourceRef)
 	if err != nil {
 		return nil, "", err
 	}
@@ -270,9 +276,9 @@ func (s *temporaryDocumentService) Delete(ctx context.Context, tenantID uint64, 
 		return err
 	}
 	for _, ref := range temporaryDocumentImageRefs(document.ImageRefs) {
-		_ = s.fileService.DeleteFile(ctx, ref.URL)
+		_ = s.files.Delete(ctx, ref.URL)
 	}
-	_ = s.fileService.DeleteFile(ctx, document.ResourceRef)
+	_ = s.files.Delete(ctx, document.ResourceRef)
 	return s.repo.DeleteScoped(ctx, tenantID, sessionID, documentID)
 }
 
@@ -349,7 +355,7 @@ func (s *temporaryDocumentService) Process(ctx context.Context, task *asynq.Task
 }
 
 func (s *temporaryDocumentService) parse(ctx context.Context, document *types.TemporaryDocument) (string, []types.TemporaryDocumentImage, map[string]string, error) {
-	file, err := s.fileService.GetFile(ctx, document.ResourceRef)
+	file, _, err := s.files.Open(ctx, document.ResourceRef)
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("open source file: %w", err)
 	}
@@ -410,9 +416,17 @@ func (s *temporaryDocumentService) parse(ctx context.Context, document *types.Te
 	pageImages := collectImageBytes(result.ImageRefs, maxOCRPages)
 	images := make([]types.TemporaryDocumentImage, 0)
 	if s.imageResolver != nil {
-		updated, stored, resolveErr := s.imageResolver.ResolveAndStore(
-			ctx, result, temporarySaveFileService{s.fileService}, document.TenantID,
+		writer, writerErr := s.files.ForTenantDefault(ctx, document.TenantID)
+		var (
+			updated    string
+			stored     []docparser.StoredImage
+			resolveErr = writerErr
 		)
+		if writerErr == nil {
+			updated, stored, resolveErr = s.imageResolver.ResolveAndStore(
+				ctx, result, temporarySaveFileService{writer}, document.TenantID,
+			)
+		}
 		if resolveErr != nil {
 			logger.Warnf(ctx, "temporary document image resolution failed: %v", resolveErr)
 		} else {

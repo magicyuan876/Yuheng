@@ -41,10 +41,6 @@ func (s *stubResourceCatalog) Resolve(_ context.Context, ref string) (*types.Sto
 	return s.resource, nil
 }
 
-func (s *stubResourceCatalog) ResolvePath(context.Context, string) (string, *types.StoredResource, error) {
-	panic("unexpected ResolvePath")
-}
-
 func (s *stubResourceCatalog) Bind(context.Context, string, string, string, string) error {
 	panic("unexpected Bind")
 }

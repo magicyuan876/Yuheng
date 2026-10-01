@@ -40,18 +40,30 @@ func collectImageURLs(ctx context.Context, imageInfos []string) []string {
 	return urls
 }
 
+// deleteStoredFile releases one stored object from the backend its resource
+// row names, which need not be the knowledge base's current binding. A value
+// that is not a resource reference (an external image URL kept in
+// image_info) was never stored here and is left alone, and a reference that
+// is already released counts as done. Other errors are logged: deletion runs
+// after the rows are gone, and failing it now would only strand the caller.
+func deleteStoredFile(ctx context.Context, files interfaces.FileStore, ref string) {
+	if _, ok := types.ParseResourcePath(ref); !ok {
+		return
+	}
+	if err := files.Delete(ctx, ref); err != nil && !errors.Is(err, types.ErrResourceNotFound) {
+		logger.Errorf(ctx, "Failed to delete stored file %s: %v", ref, err)
+	}
+}
+
 // deleteExtractedImages deletes all extracted image files from storage.
 // Standalone function — callable from both knowledgeService and knowledgeBaseService.
-// Errors are logged but do not fail the overall deletion.
-func deleteExtractedImages(ctx context.Context, fileSvc interfaces.FileService, imageURLs []string) {
+func deleteExtractedImages(ctx context.Context, files interfaces.FileStore, imageURLs []string) {
 	if len(imageURLs) == 0 {
 		return
 	}
 	logger.Infof(ctx, "Deleting %d extracted images", len(imageURLs))
 	for _, url := range imageURLs {
-		if err := fileSvc.DeleteFile(ctx, url); err != nil {
-			logger.Errorf(ctx, "Failed to delete extracted image %s: %v", url, err)
-		}
+		deleteStoredFile(ctx, files, url)
 	}
 }
 
@@ -86,9 +98,7 @@ func (s *knowledgeService) DeleteKnowledge(ctx context.Context, id string) error
 		s.dequeueKnowledgeTasks(ctx, id)
 	}
 
-	// Resolve file service for this KB before spawning goroutines
 	kb, _ := s.kbService.GetKnowledgeBaseByID(ctx, knowledge.KnowledgeBaseID)
-	kbFileSvc := s.resolveFileService(ctx, kb)
 
 	// Collect image URLs before chunks are deleted (ImageInfo references are lost after deletion)
 	tenantID := ctx.Value(types.TenantIDContextKey).(uint64)
@@ -109,8 +119,8 @@ func (s *knowledgeService) DeleteKnowledge(ctx context.Context, id string) error
 	// and GetEmbeddingModel would fail with "model ID cannot be empty".
 	if strings.TrimSpace(knowledge.EmbeddingModelID) != "" {
 		wg.Go(func() error {
-			// kb was already loaded above for resolveFileService — reuse its
-			// VectorStoreID for engine routing.
+			// kb was already loaded above — reuse its VectorStoreID for
+			// engine routing.
 			var boundStoreID *string
 			if kb != nil {
 				boundStoreID = kb.VectorStoreID
@@ -186,12 +196,8 @@ func (s *knowledgeService) DeleteKnowledge(ctx context.Context, id string) error
 
 	// Best-effort physical cleanup. Errors here only leak storage; they must not
 	// fail the delete now that the row is already gone.
-	if knowledge.FilePath != "" {
-		if err := kbFileSvc.DeleteFile(ctx, knowledge.FilePath); err != nil {
-			logger.GetLogger(ctx).WithField("error", err).Errorf("DeleteKnowledge delete file failed")
-		}
-	}
-	deleteExtractedImages(ctx, kbFileSvc, imageURLs)
+	deleteStoredFile(ctx, s.files, knowledge.FilePath)
+	deleteExtractedImages(ctx, s.files, imageURLs)
 	tenantInfo := ctx.Value(types.TenantInfoContextKey).(*types.Tenant)
 	tenantInfo.StorageUsed -= knowledge.StorageSize
 	if err := s.tenantRepo.AdjustStorageUsed(ctx, tenantInfo.ID, -knowledge.StorageSize); err != nil {
@@ -525,14 +531,12 @@ func (s *knowledgeService) DeleteKnowledgeList(ctx context.Context, ids []string
 		s.dequeueKnowledgeTasks(ctx, kid)
 	}
 
-	// Pre-resolve KB metadata and file services so goroutines don't need DB access.
+	// Pre-resolve KB metadata so goroutines don't need DB access.
 	knowledgeBases := make(map[string]*types.KnowledgeBase)
-	kbFileServices := make(map[string]interfaces.FileService)
 	for _, knowledge := range knowledgeList {
-		if _, ok := kbFileServices[knowledge.KnowledgeBaseID]; !ok {
+		if _, ok := knowledgeBases[knowledge.KnowledgeBaseID]; !ok {
 			kb, _ := s.kbService.GetKnowledgeBaseByID(ctx, knowledge.KnowledgeBaseID)
 			knowledgeBases[knowledge.KnowledgeBaseID] = kb
-			kbFileServices[knowledge.KnowledgeBaseID] = s.resolveFileService(ctx, kb)
 		}
 	}
 
@@ -647,22 +651,11 @@ func (s *knowledgeService) DeleteKnowledgeList(ctx context.Context, ids []string
 
 	storageAdjust := int64(0)
 	for _, knowledge := range knowledgeList {
-		if knowledge.FilePath != "" {
-			fSvc := kbFileServices[knowledge.KnowledgeBaseID]
-			if err := fSvc.DeleteFile(ctx, knowledge.FilePath); err != nil {
-				logger.GetLogger(ctx).WithField("error", err).Errorf("DeleteKnowledge delete file failed")
-			}
-		}
+		deleteStoredFile(ctx, s.files, knowledge.FilePath)
 		storageAdjust -= knowledge.StorageSize
 	}
-	// Delete extracted images per KB
-	for kbID, urls := range kbImageURLs {
-		fSvc := kbFileServices[kbID]
-		if fSvc == nil {
-			logger.Warnf(ctx, "No file service for KB %s, skipping %d image deletions", kbID, len(urls))
-			continue
-		}
-		deleteExtractedImages(ctx, fSvc, urls)
+	for _, urls := range kbImageURLs {
+		deleteExtractedImages(ctx, s.files, urls)
 	}
 	tenantInfo.StorageUsed += storageAdjust
 	if err := s.tenantRepo.AdjustStorageUsed(ctx, tenantInfo.ID, storageAdjust); err != nil {
@@ -736,8 +729,6 @@ func (s *knowledgeService) cleanupKnowledgeResources(ctx context.Context, knowle
 	}
 
 	// Collect image URLs before chunks are deleted
-	kb, _ := s.kbService.GetKnowledgeBaseByID(ctx, knowledge.KnowledgeBaseID)
-	fileSvc := s.resolveFileService(ctx, kb)
 	chunkImageInfos, imgErr := s.chunkService.GetRepository().ListImageInfoByKnowledgeIDs(ctx, tenantInfo.ID, []string{knowledge.ID})
 	if imgErr != nil {
 		logger.GetLogger(ctx).WithField("error", imgErr).Error("Failed to collect image URLs for cleanup")
@@ -755,7 +746,7 @@ func (s *knowledgeService) cleanupKnowledgeResources(ctx context.Context, knowle
 	}
 
 	// Delete extracted images after chunks are deleted
-	deleteExtractedImages(ctx, fileSvc, imageURLs)
+	deleteExtractedImages(ctx, s.files, imageURLs)
 
 	namespace := types.NameSpace{KnowledgeBase: knowledge.KnowledgeBaseID, Knowledge: knowledge.ID}
 	if err := s.graphEngine.DelGraph(ctx, []types.NameSpace{namespace}); err != nil {

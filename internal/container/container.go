@@ -28,7 +28,6 @@ import (
 	neo4jRepo "github.com/magicyuan876/yuheng/internal/application/repository/retriever/neo4j"
 	"github.com/magicyuan876/yuheng/internal/application/service"
 	chatpipeline "github.com/magicyuan876/yuheng/internal/application/service/chat_pipeline"
-	"github.com/magicyuan876/yuheng/internal/application/service/file"
 	"github.com/magicyuan876/yuheng/internal/application/service/findings"
 	"github.com/magicyuan876/yuheng/internal/application/service/retriever"
 	"github.com/magicyuan876/yuheng/internal/common"
@@ -83,7 +82,6 @@ func BuildContainer(container *dig.Container) *dig.Container {
 	must(container.Provide(config.LoadConfig))
 	must(container.Provide(initLangfuse))
 	must(container.Provide(initDatabase))
-	must(container.Provide(initFileService))
 	must(container.Provide(initRedisClient))
 	must(container.Provide(initAntsPool))
 
@@ -800,63 +798,6 @@ func syncSequences(db *gorm.DB) {
 		} else {
 			logger.Infof(context.Background(), "Synced sequence %s with table %s", seq, table)
 		}
-	}
-}
-
-// initFileService initializes file storage service
-// Creates the appropriate file storage service based on configuration
-// Supports the local filesystem and any S3-compatible object storage.
-// Parameters:
-//   - cfg: Application configuration
-//
-// Returns:
-//   - Configured file service implementation
-//   - Error if initialization fails
-func initFileService(cfg *config.Config, catalog interfaces.ResourceCatalog) (interfaces.FileService, error) {
-	inner, err := initRawFileService(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return file.NewResourceCatalogFileService(inner, catalog), nil
-}
-
-func initRawFileService(_ *config.Config) (interfaces.FileService, error) {
-	storageType := strings.TrimSpace(os.Getenv("STORAGE_TYPE"))
-	if storageType == "" {
-		storageType = "local"
-	}
-	switch storageType {
-	case types.StorageProviderS3:
-		accessKey, secretKey := os.Getenv("S3_ACCESS_KEY"), os.Getenv("S3_SECRET_KEY")
-		if os.Getenv("S3_REGION") == "" ||
-			os.Getenv("S3_BUCKET_NAME") == "" ||
-			(accessKey == "") != (secretKey == "") {
-			return nil, fmt.Errorf("missing S3 configuration")
-		}
-		pathPrefix := os.Getenv("S3_PATH_PREFIX")
-		if pathPrefix == "" {
-			pathPrefix = "yuheng/"
-		}
-		return file.NewS3FileService(file.S3Options{
-			Endpoint:        os.Getenv("S3_ENDPOINT"),
-			Region:          os.Getenv("S3_REGION"),
-			AccessKey:       accessKey,
-			SecretKey:       secretKey,
-			BucketName:      os.Getenv("S3_BUCKET_NAME"),
-			PathPrefix:      pathPrefix,
-			UseSSL:          !strings.EqualFold(os.Getenv("S3_USE_SSL"), "false"),
-			AddressingStyle: strings.ToLower(strings.TrimSpace(os.Getenv("S3_ADDRESSING_STYLE"))),
-		})
-	case types.StorageProviderLocal:
-		baseDir := os.Getenv("LOCAL_STORAGE_BASE_DIR")
-		if baseDir == "" {
-			baseDir = "/data/files"
-		}
-		return file.NewLocalFileService(baseDir), nil
-	case "dummy":
-		return file.NewDummyFileService(), nil
-	default:
-		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
 	}
 }
 

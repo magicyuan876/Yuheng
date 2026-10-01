@@ -135,7 +135,7 @@ func TestCreateKnowledgeFromFileDoesNotPersistWhenStorageSaveFails(t *testing.T)
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-1"}},
-		fileSvc:   fileSvc,
+		files:     storeOver(fileSvc),
 	}
 
 	knowledge, err := svc.CreateKnowledgeFromFile(
@@ -165,7 +165,7 @@ func TestCreateKnowledgeFromFilePersistsStoredFilePathOnCreate(t *testing.T) {
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-1"}},
-		fileSvc:   fileSvc,
+		files:     storeOver(fileSvc),
 		task:      task,
 	}
 
@@ -206,7 +206,7 @@ func TestCreateKnowledgeFromImageFallsBackWhenLegacyStorageConfigIsIncomplete(t 
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: kb},
-		fileSvc:   fileSvc,
+		files:     storeOver(fileSvc),
 		task:      task,
 	}
 	ctx := context.WithValue(newCreateKnowledgeFileContext(), types.TenantInfoContextKey, &types.Tenant{
@@ -243,7 +243,7 @@ func TestCreateKnowledgeFromFileDeletesStoredFileWhenCreateFails(t *testing.T) {
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-1"}},
-		fileSvc:   fileSvc,
+		files:     storeOver(fileSvc),
 	}
 
 	knowledge, err := svc.CreateKnowledgeFromFile(
@@ -275,7 +275,7 @@ func TestCreateKnowledgeFromFile_PersistsProcessOverrides(t *testing.T) {
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-1"}},
-		fileSvc:   fileSvc,
+		files:     storeOver(fileSvc),
 		task:      task,
 	}
 

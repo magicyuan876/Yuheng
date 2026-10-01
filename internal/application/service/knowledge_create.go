@@ -58,7 +58,10 @@ func (s *knowledgeService) CreateKnowledgeFromFile(ctx context.Context,
 		return nil, werrors.NewBadRequestError("FAQ 知识库不支持文件上传，请使用 FAQ 导入功能")
 	}
 
-	if err := s.checkStorageEngineConfigured(ctx, kb); err != nil {
+	// Resolve where the file goes before any work is done on it, so an
+	// unusable backend is reported before the whole-file hash below.
+	fileSvc, err := s.kbWriter(ctx, kb)
+	if err != nil {
 		return nil, err
 	}
 
@@ -173,9 +176,8 @@ func (s *knowledgeService) CreateKnowledgeFromFile(ctx context.Context,
 		}
 	}
 
-	// Save the file to storage (use KB-level storage engine if configured)
+	// Save the file to the knowledge base's storage backend.
 	logger.Infof(ctx, "Saving file, knowledge ID: %s", knowledge.ID)
-	fileSvc := s.resolveFileService(ctx, kb)
 	filePath, err := fileSvc.SaveFile(ctx, file, knowledge.TenantID, knowledge.ID)
 	if err != nil {
 		logger.Errorf(ctx, "Failed to save file, knowledge ID: %s, error: %v", knowledge.ID, err)
@@ -309,10 +311,6 @@ func (s *knowledgeService) CreateKnowledgeFromURL(ctx context.Context,
 	kb, err := s.kbService.GetKnowledgeBaseByID(ctx, kbID)
 	if err != nil {
 		logger.Errorf(ctx, "Failed to get knowledge base: %v", err)
-		return nil, err
-	}
-
-	if err := s.checkStorageEngineConfigured(ctx, kb); err != nil {
 		return nil, err
 	}
 
@@ -517,10 +515,6 @@ func (s *knowledgeService) createKnowledgeFromFileURL(
 
 	if kb.Type == types.KnowledgeBaseTypeFAQ {
 		return nil, werrors.NewBadRequestError("FAQ 知识库不支持文件上传，请使用 FAQ 导入功能")
-	}
-
-	if err := s.checkStorageEngineConfigured(ctx, kb); err != nil {
-		return nil, err
 	}
 
 	// Validate URL format and security (static check only, no HEAD request)
@@ -752,10 +746,6 @@ func (s *knowledgeService) CreateKnowledgeFromManual(ctx context.Context,
 	kb, err := s.kbService.GetKnowledgeBaseByID(ctx, kbID)
 	if err != nil {
 		logger.Errorf(ctx, "Failed to get knowledge base: %v", err)
-		return nil, err
-	}
-
-	if err := s.checkStorageEngineConfigured(ctx, kb); err != nil {
 		return nil, err
 	}
 
@@ -1184,24 +1174,30 @@ func (s *knowledgeService) triggerManualProcessing(ctx context.Context,
 	}
 
 	// Resolve embedded data:base64 images and remote http(s) images → storage, replace URLs.
-	// Runs before chunking so chunks contain stable provider:// URLs.
+	// Runs before chunking so chunks contain stable resource:// references. A
+	// knowledge base whose backend is unusable keeps the images as written.
 	var resolvedImages []docparser.StoredImage
 	if s.imageResolver != nil {
-		fileSvc := s.resolveFileService(ctx, kb)
-		afterDataURI, fromDataURI, _ := s.imageResolver.ResolveDataURIImages(ctx, clean, fileSvc, knowledge.TenantID)
-		if len(fromDataURI) > 0 {
-			logger.Infof(ctx, "Resolved %d data-URI images for manual knowledge %s", len(fromDataURI), knowledge.ID)
-			clean = afterDataURI
-			resolvedImages = append(resolvedImages, fromDataURI...)
-		}
-		updatedContent, storedImages, resolveErr := s.imageResolver.ResolveRemoteImages(ctx, clean, fileSvc, knowledge.TenantID)
-		if resolveErr != nil {
-			logger.Warnf(ctx, "Remote image resolution partially failed: %v", resolveErr)
-		}
-		if len(storedImages) > 0 {
-			logger.Infof(ctx, "Resolved %d remote images for manual knowledge %s", len(storedImages), knowledge.ID)
-			clean = updatedContent
-			resolvedImages = append(resolvedImages, storedImages...)
+		if fileSvc, err := s.kbWriter(ctx, kb); err != nil {
+			logger.Warnf(ctx, "Skipping image storage for manual knowledge %s: %v", knowledge.ID, err)
+		} else {
+			afterDataURI, fromDataURI, _ := s.imageResolver.ResolveDataURIImages(
+				ctx, clean, fileSvc, knowledge.TenantID)
+			if len(fromDataURI) > 0 {
+				logger.Infof(ctx, "Resolved %d data-URI images for manual knowledge %s", len(fromDataURI), knowledge.ID)
+				clean = afterDataURI
+				resolvedImages = append(resolvedImages, fromDataURI...)
+			}
+			updatedContent, storedImages, resolveErr := s.imageResolver.ResolveRemoteImages(
+				ctx, clean, fileSvc, knowledge.TenantID)
+			if resolveErr != nil {
+				logger.Warnf(ctx, "Remote image resolution partially failed: %v", resolveErr)
+			}
+			if len(storedImages) > 0 {
+				logger.Infof(ctx, "Resolved %d remote images for manual knowledge %s", len(storedImages), knowledge.ID)
+				clean = updatedContent
+				resolvedImages = append(resolvedImages, storedImages...)
+			}
 		}
 	}
 

@@ -27,8 +27,11 @@ const (
 
 // AttachmentProcessor saves uploaded file attachments and extracts their text content
 // for injection into the LLM prompt.
+//
+// A chat attachment belongs to no knowledge base, so it and the images
+// extracted from it go to the workspace's default storage backend.
 type AttachmentProcessor struct {
-	fileService    interfaces.FileService
+	files          interfaces.FileStore
 	documentReader interfaces.DocumentReader
 	imageResolver  *docparser.ImageResolver
 	modelService   interfaces.ModelService // used to obtain the ASR model
@@ -36,13 +39,13 @@ type AttachmentProcessor struct {
 
 // NewAttachmentProcessor creates an AttachmentProcessor with the given dependencies.
 func NewAttachmentProcessor(
-	fileService interfaces.FileService,
+	files interfaces.FileStore,
 	documentReader interfaces.DocumentReader,
 	imageResolver *docparser.ImageResolver,
 	modelService interfaces.ModelService,
 ) *AttachmentProcessor {
 	return &AttachmentProcessor{
-		fileService:    fileService,
+		files:          files,
 		documentReader: documentReader,
 		imageResolver:  imageResolver,
 		modelService:   modelService,
@@ -83,7 +86,11 @@ func (p *AttachmentProcessor) ProcessAttachment(
 
 	uniqueFileName := fmt.Sprintf("attachment_%s%s", uuid.New().String()[:12], ext)
 
-	storageURL, err := p.fileService.SaveBytes(ctx, data, tenantID, uniqueFileName, false)
+	writer, err := p.files.ForTenantDefault(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve attachment storage: %w", err)
+	}
+	storageURL, err := writer.SaveBytes(ctx, data, tenantID, uniqueFileName, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save attachment: %w", err)
 	}
@@ -107,12 +114,12 @@ func (p *AttachmentProcessor) ProcessAttachment(
 			attachment.Content = fmt.Sprintf("<error><message>Failed to transcribe audio file</message><details>%v</details></error>", err)
 		}
 	} else if docparser.IsSimpleFormat(ext) {
-		if err := p.processWithDocParser(ctx, data, baseName, ext, attachment, tenantID); err != nil {
+		if err := p.processWithDocParser(ctx, data, baseName, ext, attachment, writer, tenantID); err != nil {
 			logger.Warnf(ctx, "SimpleFormatReader failed: %v", err)
 			attachment.Content = fmt.Sprintf("<error><message>Failed to parse document</message><details>%v</details></error>", err)
 		}
 	} else {
-		if err := p.processWithDocumentReader(ctx, data, baseName, ext, attachment, tenantID); err != nil {
+		if err := p.processWithDocumentReader(ctx, data, baseName, ext, attachment, writer, tenantID); err != nil {
 			logger.Warnf(ctx, "DocumentReader failed: %v, keeping metadata only", err)
 			attachment.Content = fmt.Sprintf("<error><message>Failed to read document</message><details>%v</details></error>", err)
 		}
@@ -166,6 +173,7 @@ func (p *AttachmentProcessor) processWithDocParser(
 	fileName string,
 	fileType string,
 	attachment *types.MessageAttachment,
+	writer interfaces.FileService,
 	tenantID uint64,
 ) error {
 	reader := &docparser.SimpleFormatReader{}
@@ -180,7 +188,7 @@ func (p *AttachmentProcessor) processWithDocParser(
 
 	// Resolve embedded image refs to storage URLs.
 	if len(result.ImageRefs) > 0 && p.imageResolver != nil {
-		updatedMarkdown, _, err := p.imageResolver.ResolveAndStore(ctx, result, p.fileService, tenantID)
+		updatedMarkdown, _, err := p.imageResolver.ResolveAndStore(ctx, result, writer, tenantID)
 		if err != nil {
 			logger.Warnf(ctx, "image resolution failed: %v", err)
 		} else {
@@ -230,6 +238,7 @@ func (p *AttachmentProcessor) processWithDocumentReader(
 	fileName string,
 	fileType string,
 	attachment *types.MessageAttachment,
+	writer interfaces.FileService,
 	tenantID uint64,
 ) error {
 	if p.documentReader == nil {
@@ -273,7 +282,7 @@ func (p *AttachmentProcessor) processWithDocumentReader(
 
 	// Resolve embedded image refs to storage URLs.
 	if len(result.ImageRefs) > 0 && p.imageResolver != nil {
-		updatedMarkdown, _, err := p.imageResolver.ResolveAndStore(ctx, result, p.fileService, tenantID)
+		updatedMarkdown, _, err := p.imageResolver.ResolveAndStore(ctx, result, writer, tenantID)
 		if err != nil {
 			logger.Warnf(ctx, "image resolution failed: %v", err)
 		} else {

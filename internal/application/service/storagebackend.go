@@ -319,11 +319,11 @@ func (s *StorageBackendService) Test(ctx context.Context, backend *types.Storage
 	c := backend.Config
 	switch backend.Provider {
 	case "local":
-		fileService, _, err := filesvc.NewFileServiceFromStorageConfig("local", backend.ToStorageEngineConfig(), "")
+		driver, err := filesvc.NewDriver(backend)
 		if err != nil {
 			return err
 		}
-		return fileService.CheckConnectivity(ctx)
+		return driver.CheckConnectivity(ctx)
 	case types.StorageProviderS3:
 		return filesvc.CheckS3Connectivity(ctx, filesvc.S3Options{
 			Endpoint: c.Endpoint, Region: c.Region, AccessKey: c.AccessKeyID, SecretKey: c.SecretAccessKey,
@@ -348,39 +348,10 @@ func storageEngineDefaultProvider(sec *types.StorageEngineConfig) string {
 	return strings.ToLower(strings.TrimSpace(sec.DefaultProvider))
 }
 
-// hydrateTenantStorage fills DefaultStorageBackendID / StorageEngineConfig from
-// the workspace row when the caller only passed a stub Tenant{ID: ...} (the
-// docs attachment store falls back to one when it cannot load the tenant row),
-// and without the default the factory returns "empty provider".
-func (s *StorageBackendService) hydrateTenantStorage(ctx context.Context, tenant *types.Tenant) *types.Tenant {
-	if tenant == nil || tenant.ID == 0 || s.db == nil {
-		return tenant
-	}
-	if storageBackendID(tenant.DefaultStorageBackendID) != "" {
-		return tenant
-	}
-	var stored types.Tenant
-	if err := s.db.WithContext(ctx).
-		Select("id", "default_storage_backend_id", "storage_engine_config").
-		Where("id = ?", tenant.ID).
-		Take(&stored).Error; err != nil {
-		return tenant
-	}
-	out := *tenant
-	if storageBackendID(out.DefaultStorageBackendID) == "" {
-		out.DefaultStorageBackendID = stored.DefaultStorageBackendID
-	}
-	if out.StorageEngineConfig == nil {
-		out.StorageEngineConfig = stored.StorageEngineConfig
-	}
-	return &out
-}
-
 func (s *StorageBackendService) ResolveBackend(ctx context.Context, tenant *types.Tenant, backendID, provider string) (*types.StorageBackend, error) {
 	if tenant == nil {
 		return nil, fmt.Errorf("workspace context missing")
 	}
-	tenant = s.hydrateTenantStorage(ctx, tenant)
 	backendID = strings.TrimSpace(backendID)
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if backendID == "" && provider != "" {
@@ -406,43 +377,6 @@ func (s *StorageBackendService) ResolveBackend(ctx context.Context, tenant *type
 		return backend, nil
 	}
 	return nil, nil
-}
-
-func (s *StorageBackendService) ResolveFileService(ctx context.Context, tenant *types.Tenant, backendID, provider, localBaseDir string) (interfaces.FileService, string, error) {
-	if tenant == nil {
-		return nil, "", fmt.Errorf("workspace context missing")
-	}
-	tenant = s.hydrateTenantStorage(ctx, tenant)
-	backend, err := s.ResolveBackend(ctx, tenant, backendID, provider)
-	if err != nil {
-		return nil, "", err
-	}
-	if backend != nil {
-		inner, provider, err := filesvc.NewFileServiceFromStorageConfig(backend.Provider, backend.ToStorageEngineConfig(), localBaseDir)
-		if err != nil {
-			return nil, provider, err
-		}
-		scoped := filesvc.NewBackendScopedFileService(backend.ID, inner)
-		return filesvc.NewResourceCatalogFileService(scoped, s.resourceCatalog), provider, nil
-	}
-	sec := tenant.StorageEngineConfig
-	if strings.TrimSpace(provider) == "" && storageEngineDefaultProvider(sec) == "" {
-		if env := types.StorageBackendFromEnvironment(tenant.ID); env != nil {
-			provider = env.Provider
-			if sec == nil {
-				sec = env.ToStorageEngineConfig()
-			}
-		}
-	}
-	inner, resolvedProvider, err := filesvc.NewFileServiceFromStorageConfig(
-		provider,
-		sec,
-		localBaseDir,
-	)
-	if err != nil {
-		return nil, resolvedProvider, err
-	}
-	return filesvc.NewResourceCatalogFileService(inner, s.resourceCatalog), resolvedProvider, nil
 }
 
 func validateStorageBackendEndpoint(backend *types.StorageBackend) error {

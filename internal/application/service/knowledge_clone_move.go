@@ -188,18 +188,13 @@ func rewriteContentImageURLs(content string, urlCache map[string]string) string 
 // cleanupCopiedObjects deletes objects that were newly created during a clone
 // that subsequently failed, to avoid orphaning storage. It is best-effort:
 // delete errors are logged but never returned (the original clone error wins).
-func cleanupCopiedObjects(ctx context.Context, svc interfaces.FileService, paths []string) {
-	if len(paths) == 0 || svc == nil {
+func cleanupCopiedObjects(ctx context.Context, files interfaces.FileStore, paths []string) {
+	if len(paths) == 0 {
 		return
 	}
 	logger.Infof(ctx, "Cleaning up %d copied objects after clone failure", len(paths))
 	for _, p := range paths {
-		if p == "" {
-			continue
-		}
-		if err := svc.DeleteFile(ctx, p); err != nil {
-			logger.Errorf(ctx, "Failed to clean up copied object %s: %v", p, err)
-		}
+		deleteStoredFile(ctx, files, p)
 	}
 }
 
@@ -301,12 +296,15 @@ func (s *knowledgeService) CloneChunk(ctx context.Context, src, dst *types.Knowl
 	if dstKBErr != nil {
 		return fmt.Errorf("failed to load destination knowledge base for image copy: %w", dstKBErr)
 	}
-	dstSvc := s.resolveFileService(ctx, dstKB)
+	dstSvc, err := s.kbWriter(ctx, dstKB)
+	if err != nil {
+		return err
+	}
 	urlCache := map[string]string{}
 	var copiedURLs []string
 	defer func() {
 		if err != nil {
-			cleanupCopiedObjects(ctx, dstSvc, copiedURLs)
+			cleanupCopiedObjects(ctx, s.files, copiedURLs)
 		}
 	}()
 
@@ -651,12 +649,15 @@ func (s *knowledgeService) cloneFAQKnowledgeBase(
 	// Deep-copy extracted FAQ images into objects owned by the destination KB.
 	// urlCache dedups identical source images across chunks; copiedURLs tracks
 	// new objects for best-effort cleanup if the clone fails partway through.
-	dstSvc := s.resolveFileService(ctx, dstKB)
+	dstSvc, retErr := s.kbWriter(ctx, dstKB)
+	if retErr != nil {
+		return retErr
+	}
 	imageURLCache := map[string]string{}
 	var copiedImageURLs []string
 	defer func() {
 		if retErr != nil {
-			cleanupCopiedObjects(ctx, dstSvc, copiedImageURLs)
+			cleanupCopiedObjects(ctx, s.files, copiedImageURLs)
 		}
 	}()
 

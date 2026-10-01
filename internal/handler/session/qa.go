@@ -159,7 +159,7 @@ func (h *Handler) parseQARequest(c *gin.Context, logPrefix string) (*qaRequestCo
 	// For pure chat paths with non-vision models, VLM analysis runs here as fallback.
 	if len(request.Images) > 0 {
 		tenantID := c.GetUint64(types.TenantIDContextKey.String())
-		if err := h.saveImageAttachments(ctx, request.Images, tenantID, ""); err != nil {
+		if err := h.saveImageAttachments(ctx, request.Images, tenantID); err != nil {
 			logger.Errorf(ctx, "[%s] Failed to save images: %v", logPrefix, err)
 			return nil, nil, errors.NewBadRequestError(fmt.Sprintf("Image save failed: %v", err))
 		}

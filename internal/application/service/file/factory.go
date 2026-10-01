@@ -11,64 +11,6 @@ import (
 	secutils "github.com/magicyuan876/yuheng/internal/utils"
 )
 
-// NewFileServiceFromStorageConfig builds a provider-specific FileService from tenant storage config.
-// provider can be empty; in that case it falls back to sec.DefaultProvider.
-// Returns the resolved provider name together with the service.
-func NewFileServiceFromStorageConfig(
-	provider string,
-	sec *types.StorageEngineConfig,
-	localBaseDir string,
-) (interfaces.FileService, string, error) {
-	p := strings.ToLower(strings.TrimSpace(provider))
-	if p == "" && sec != nil {
-		p = strings.ToLower(strings.TrimSpace(sec.DefaultProvider))
-	}
-	if p == "" {
-		return nil, "", fmt.Errorf("empty provider")
-	}
-
-	if localBaseDir == "" {
-		localBaseDir = strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-	}
-	if localBaseDir == "" {
-		localBaseDir = "/data/files"
-	}
-
-	switch p {
-	case types.StorageProviderLocal:
-		baseDir := localBaseDir
-		if sec != nil && sec.Local != nil {
-			rawPrefix := strings.TrimSpace(sec.Local.PathPrefix)
-			prefix := strings.Trim(rawPrefix, "/\\")
-			if prefix != "" {
-				candidate := filepath.Join(baseDir, prefix)
-				if safeBaseDir, err := secutils.SafePathUnderBase(baseDir, candidate); err == nil {
-					baseDir = safeBaseDir
-				}
-			}
-		}
-		return NewLocalFileService(baseDir), p, nil
-
-	case types.StorageProviderS3:
-		if sec == nil || sec.S3 == nil || sec.S3.Region == "" || sec.S3.BucketName == "" || (sec.S3.AccessKey == "") != (sec.S3.SecretKey == "") {
-			return nil, p, fmt.Errorf("incomplete s3 config")
-		}
-		pathPrefix := strings.TrimSpace(sec.S3.PathPrefix)
-		if pathPrefix == "" {
-			pathPrefix = "yuheng/"
-		}
-		svc, err := NewS3FileService(S3Options{
-			Endpoint: sec.S3.Endpoint, Region: sec.S3.Region, AccessKey: sec.S3.AccessKey, SecretKey: sec.S3.SecretKey,
-			BucketName: sec.S3.BucketName, PathPrefix: pathPrefix, UseSSL: sec.S3.UseSSL,
-			AddressingStyle: sec.S3.AddressingStyle,
-		})
-		return svc, p, err
-
-	default:
-		return nil, p, fmt.Errorf("unsupported storage provider %q (supported: local, s3)", p)
-	}
-}
-
 // LocalBaseDir is the directory every local-provider backend lives under:
 // LOCAL_STORAGE_BASE_DIR, or the container default. A local backend's
 // path_prefix is a subdirectory of it, never a separate root, so one volume
@@ -100,6 +42,12 @@ func LocalBackendDir(pathPrefix string) (string, error) {
 func NewDriver(backend *types.StorageBackend) (interfaces.FileService, error) {
 	if backend == nil {
 		return nil, fmt.Errorf("storage backend is required")
+	}
+	// Rows are validated when they are written; checking again here keeps a
+	// row edited behind the application's back from producing a driver that
+	// fails on first use with a less useful error.
+	if err := backend.Config.ValidateForProvider(backend.Provider); err != nil {
+		return nil, err
 	}
 	c := backend.Config
 	switch backend.Provider {

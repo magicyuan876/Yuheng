@@ -48,7 +48,6 @@ type ResourceCatalog interface {
 	Register(ctx context.Context, tenantID uint64, backendID, physicalPath string,
 		meta ResourceRegistration) (string, error)
 	Resolve(ctx context.Context, reference string) (*types.StoredResource, error)
-	ResolvePath(ctx context.Context, value string) (string, *types.StoredResource, error)
 	Bind(ctx context.Context, reference, ownerType, ownerID, relation string) error
 	MarkDeleted(ctx context.Context, reference string) error
 	CreateAccessGrant(ctx context.Context, reference string, ttl time.Duration) (string, error)

@@ -12,9 +12,7 @@ import (
 	"strings"
 	"time"
 
-	filesvc "github.com/magicyuan876/yuheng/internal/application/service/file"
 	werrors "github.com/magicyuan876/yuheng/internal/errors"
-	"github.com/magicyuan876/yuheng/internal/logger"
 	"github.com/magicyuan876/yuheng/internal/types"
 	"github.com/magicyuan876/yuheng/internal/types/interfaces"
 	secutils "github.com/magicyuan876/yuheng/internal/utils"
@@ -164,52 +162,17 @@ func (s *knowledgeService) getVLMConfig(ctx context.Context, kb *types.Knowledge
 	}, nil
 }
 
-// resolveFileService returns the FileService for the given knowledge base,
-// based on the KB's StorageProviderConfig and the tenant's StorageEngineConfig.
-// Falls back to the global fileSvc when no tenant-level storage config is found.
-func (s *knowledgeService) resolveFileService(ctx context.Context, kb *types.KnowledgeBase) interfaces.FileService {
-	if kb == nil {
-		logger.Infof(ctx, "[storage] resolveFileService fallback default: kb=nil")
-		return s.fileSvc
-	}
-
-	provider := kb.GetStorageProvider()
-
-	tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant)
-	backendID := ""
-	if kb.StorageBackendID != nil {
-		backendID = strings.TrimSpace(*kb.StorageBackendID)
-	}
-	if s.storageResolver != nil && tenant != nil {
-		baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-		svc, resolvedProvider, err := s.storageResolver.ResolveFileService(ctx, tenant, backendID, provider, baseDir)
-		if err == nil && svc != nil {
-			logger.Infof(ctx, "[storage] resolveFileService selected instance: kb=%s backend=%s provider=%s", kb.ID, backendID, resolvedProvider)
-			return svc
-		}
-		if err != nil {
-			logger.Errorf(ctx, "Failed to resolve storage backend for kb=%s: %v", kb.ID, err)
-		}
-	}
-	if provider == "" && tenant != nil && tenant.StorageEngineConfig != nil {
-		provider = strings.ToLower(strings.TrimSpace(tenant.StorageEngineConfig.DefaultProvider))
-	}
-
-	if provider == "" || tenant == nil || tenant.StorageEngineConfig == nil {
-		logger.Infof(ctx, "[storage] resolveFileService fallback default: kb=%s provider=%q tenant_cfg=%v",
-			kb.ID, provider, tenant != nil && tenant.StorageEngineConfig != nil)
-		return s.fileSvc
-	}
-
-	sec := tenant.StorageEngineConfig
-	baseDir := strings.TrimSpace(os.Getenv("LOCAL_STORAGE_BASE_DIR"))
-	svc, resolvedProvider, err := filesvc.NewFileServiceFromStorageConfig(provider, sec, baseDir)
+// kbWriter returns the writer for the knowledge base's bound storage backend:
+// where this knowledge base's new files go. It decides nothing about existing
+// files, which are read and deleted through their own resource rows, so a
+// knowledge base can be rebound without stranding any of them.
+func (s *knowledgeService) kbWriter(ctx context.Context, kb *types.KnowledgeBase) (interfaces.FileService, error) {
+	writer, err := s.files.ForKnowledgeBase(ctx, kb)
 	if err != nil {
-		logger.Errorf(ctx, "Failed to create %s file service from tenant config: %v, falling back to default", provider, err)
-		return s.fileSvc
+		return nil, werrors.NewBadRequestError("the knowledge base's storage backend is unavailable").
+			WithDetails(err.Error())
 	}
-	logger.Infof(ctx, "[storage] resolveFileService selected: kb=%s provider=%s", kb.ID, resolvedProvider)
-	return svc
+	return writer, nil
 }
 
 func IsImageType(fileType string) bool {

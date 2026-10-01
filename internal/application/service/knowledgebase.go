@@ -38,7 +38,7 @@ type knowledgeBaseService struct {
 	retrieveEngine  interfaces.RetrieveEngineRegistry
 	ownership       retriever.TenantStoreOwnership
 	tenantRepo      interfaces.TenantRepository
-	fileSvc         interfaces.FileService
+	files           interfaces.FileStore
 	storageResolver interfaces.StorageBackendResolver
 	graphEngine     interfaces.RetrieveGraphRepository
 	asynqClient     interfaces.TaskEnqueuer
@@ -61,7 +61,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 	retrieveEngine interfaces.RetrieveEngineRegistry,
 	ownership retriever.TenantStoreOwnership,
 	tenantRepo interfaces.TenantRepository,
-	fileSvc interfaces.FileService,
+	files interfaces.FileStore,
 	storageResolver interfaces.StorageBackendResolver,
 	graphEngine interfaces.RetrieveGraphRepository,
 	asynqClient interfaces.TaskEnqueuer,
@@ -83,7 +83,7 @@ func NewKnowledgeBaseService(repo interfaces.KnowledgeBaseRepository,
 		retrieveEngine:  retrieveEngine,
 		ownership:       ownership,
 		tenantRepo:      tenantRepo,
-		fileSvc:         fileSvc,
+		files:           files,
 		storageResolver: storageResolver,
 		graphEngine:     graphEngine,
 		asynqClient:     asynqClient,
@@ -940,14 +940,10 @@ func (s *knowledgeBaseService) ProcessKBDelete(ctx context.Context, t *asynq.Tas
 		logger.Infof(ctx, "Deleting physical files and extracted images")
 		storageAdjust := int64(0)
 		for _, knowledge := range knowledgeList {
-			if knowledge.FilePath != "" {
-				if err := s.fileSvc.DeleteFile(ctx, knowledge.FilePath); err != nil {
-					logger.Warnf(ctx, "Failed to delete file %s: %v", knowledge.FilePath, err)
-				}
-			}
+			deleteStoredFile(ctx, s.files, knowledge.FilePath)
 			storageAdjust -= knowledge.StorageSize
 		}
-		deleteExtractedImages(ctx, s.fileSvc, imageURLs)
+		deleteExtractedImages(ctx, s.files, imageURLs)
 		if storageAdjust != 0 {
 			if err := s.tenantRepo.AdjustStorageUsed(ctx, tenantID, storageAdjust); err != nil {
 				logger.Warnf(ctx, "Failed to adjust tenant storage: %v", err)

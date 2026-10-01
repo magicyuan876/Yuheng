@@ -138,6 +138,13 @@ func (s *knowledgeService) UpsertFAQEntries(ctx context.Context,
 		Initiator:   types.TaskInitiatorFromContext(ctx),
 	}
 
+	// Large imports park their entries in the knowledge base's own storage
+	// backend while the task waits in the queue.
+	fileSvc, err := s.kbWriter(ctx, kb)
+	if err != nil {
+		return "", err
+	}
+
 	// 阈值：超过 200 条或序列化后超过 50KB 时使用对象存储
 	const (
 		entryCountThreshold  = 200
@@ -157,7 +164,7 @@ func (s *knowledgeService) UpsertFAQEntries(ctx context.Context,
 
 		// 上传到私有桶（主桶），任务处理完成后清理
 		fileName := fmt.Sprintf("faq_import_entries_%s_%d.json", taskID, enqueuedAt)
-		entriesURL, err := s.fileSvc.SaveBytes(ctx, entriesData, tenantID, fileName, false)
+		entriesURL, err := fileSvc.SaveBytes(ctx, entriesData, tenantID, fileName, false)
 		if err != nil {
 			logger.Errorf(ctx, "Failed to upload FAQ entries to object storage: %v", err)
 			return "", fmt.Errorf("failed to upload entries: %w", err)
@@ -183,7 +190,7 @@ func (s *knowledgeService) UpsertFAQEntries(ctx context.Context,
 		// payload 太大但还没上传，现在上传
 		entriesData, _ := json.Marshal(payload.Entries)
 		fileName := fmt.Sprintf("faq_import_entries_%s_%d.json", taskID, enqueuedAt)
-		entriesURL, err := s.fileSvc.SaveBytes(ctx, entriesData, tenantID, fileName, false)
+		entriesURL, err := fileSvc.SaveBytes(ctx, entriesData, tenantID, fileName, false)
 		if err != nil {
 			logger.Errorf(ctx, "Failed to upload FAQ entries to object storage: %v", err)
 			return "", fmt.Errorf("failed to upload entries: %w", err)
@@ -235,9 +242,12 @@ func (s *knowledgeService) UpsertFAQEntries(ctx context.Context,
 	return taskID, nil
 }
 
-// generateFailedEntriesCSV 生成失败条目的 CSV 文件并上传
+// generateFailedEntriesCSV writes the failed entries as a CSV file to the
+// knowledge base's storage backend and returns a link to it: a public URL when
+// one can exist, otherwise the resource reference, which the client fetches
+// through the authenticated proxy.
 func (s *knowledgeService) generateFailedEntriesCSV(ctx context.Context,
-	tenantID uint64, taskID string, failedEntries []types.FAQFailedEntry,
+	tenantID uint64, kbID, taskID string, failedEntries []types.FAQFailedEntry,
 ) (string, error) {
 	// 生成 CSV 内容
 	var buf strings.Builder
@@ -281,13 +291,21 @@ func (s *knowledgeService) generateFailedEntriesCSV(ctx context.Context,
 
 	// 上传 CSV 文件到临时存储（会自动过期）
 	fileName := fmt.Sprintf("faq_dryrun_failed_%s.csv", taskID)
-	filePath, err := s.fileSvc.SaveBytes(ctx, []byte(buf.String()), tenantID, fileName, true)
+	kb, err := s.kbService.GetKnowledgeBaseByIDOnly(ctx, kbID)
+	if err != nil {
+		return "", fmt.Errorf("failed to load knowledge base: %w", err)
+	}
+	fileSvc, err := s.kbWriter(ctx, kb)
+	if err != nil {
+		return "", err
+	}
+	filePath, err := fileSvc.SaveBytes(ctx, []byte(buf.String()), tenantID, fileName, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to save CSV file: %w", err)
 	}
 
 	// 获取下载 URL
-	fileURL, err := s.fileSvc.GetFileURL(ctx, filePath)
+	fileURL, err := fileSvc.GetFileURL(ctx, filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get file URL: %w", err)
 	}
@@ -1701,7 +1719,7 @@ func (s *knowledgeService) cleanupFAQEntriesFileOnFinalFailure(ctx context.Conte
 	if entriesURL == "" || retryCount < maxRetry {
 		return
 	}
-	if err := s.fileSvc.DeleteFile(ctx, entriesURL); err != nil {
+	if err := s.files.Delete(ctx, entriesURL); err != nil {
 		logger.Warnf(ctx, "Failed to delete FAQ entries file from object storage on final failure: %v", err)
 	} else {
 		logger.Infof(ctx, "Deleted FAQ entries file from object storage on final failure: %s", entriesURL)
@@ -2244,7 +2262,7 @@ func (s *knowledgeService) ProcessFAQImport(ctx context.Context, t *asynq.Task) 
 	// 如果 entries 存储在对象存储中，先下载
 	if payload.EntriesURL != "" && len(payload.Entries) == 0 {
 		logger.Infof(ctx, "Downloading FAQ entries from object storage: %s", payload.EntriesURL)
-		reader, err := s.fileSvc.GetFile(ctx, payload.EntriesURL)
+		reader, _, err := s.files.Open(ctx, payload.EntriesURL)
 		if err != nil {
 			logger.Errorf(ctx, "Failed to download FAQ entries from object storage: %v", err)
 			return fmt.Errorf("failed to download entries: %w", err)
@@ -2472,7 +2490,7 @@ func (s *knowledgeService) finalizeFAQValidation(ctx context.Context, payload *t
 ) error {
 	// 清理对象存储中的 entries 文件（如果有）
 	if payload.EntriesURL != "" {
-		if err := s.fileSvc.DeleteFile(ctx, payload.EntriesURL); err != nil {
+		if err := s.files.Delete(ctx, payload.EntriesURL); err != nil {
 			logger.Warnf(ctx, "Failed to delete FAQ entries file from object storage: %v", err)
 		} else {
 			logger.Infof(ctx, "Deleted FAQ entries file from object storage: %s", payload.EntriesURL)
@@ -2482,7 +2500,8 @@ func (s *knowledgeService) finalizeFAQValidation(ctx context.Context, payload *t
 
 	// 如果有失败条目，生成 CSV 文件
 	if len(progress.FailedEntries) > 0 {
-		csvURL, err := s.generateFailedEntriesCSV(ctx, payload.TenantID, payload.TaskID, progress.FailedEntries)
+		csvURL, err := s.generateFailedEntriesCSV(
+			ctx, payload.TenantID, payload.KBID, payload.TaskID, progress.FailedEntries)
 		if err != nil {
 			logger.Warnf(ctx, "Failed to generate failed entries CSV: %v", err)
 		} else {

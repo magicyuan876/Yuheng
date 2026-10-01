@@ -138,17 +138,6 @@ func (s *resourceCatalog) Resolve(ctx context.Context, reference string) (*types
 	return resource, nil
 }
 
-func (s *resourceCatalog) ResolvePath(ctx context.Context, value string) (string, *types.StoredResource, error) {
-	if _, ok := types.ParseResourcePath(value); !ok {
-		return value, nil, nil
-	}
-	resource, err := s.Resolve(ctx, value)
-	if err != nil {
-		return "", nil, err
-	}
-	return resource.PhysicalPath, resource, nil
-}
-
 func (s *resourceCatalog) Bind(ctx context.Context, reference, ownerType, ownerID, relation string) error {
 	resource, err := s.Resolve(ctx, reference)
 	if err != nil {

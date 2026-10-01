@@ -17,7 +17,7 @@ func createKnowledgeInFolder(t *testing.T, uploadName, customFileName string) *t
 	svc := &knowledgeService{
 		repo:      repo,
 		kbService: &createKnowledgeFileKBServiceStub{kb: &types.KnowledgeBase{ID: "kb-1"}},
-		fileSvc:   &createKnowledgeFileServiceStub{},
+		files:     storeOver(&createKnowledgeFileServiceStub{}),
 		task:      &createKnowledgeTaskEnqueuerStub{},
 	}
 

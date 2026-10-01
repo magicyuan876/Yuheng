@@ -45,22 +45,21 @@ var (
 // knowledgeService implements the knowledge service interface
 // service 实现知识服务接口
 type knowledgeService struct {
-	config          *config.Config
-	retrieveEngine  interfaces.RetrieveEngineRegistry
-	ownership       retriever.TenantStoreOwnership
-	repo            interfaces.KnowledgeRepository
-	kbService       interfaces.KnowledgeBaseService
-	tenantRepo      interfaces.TenantRepository
-	tenantService   interfaces.TenantService
-	documentReader  interfaces.DocumentReader
-	chunkService    interfaces.ChunkService
-	chunkRepo       interfaces.ChunkRepository
-	tagRepo         interfaces.KnowledgeTagRepository
-	tagService      interfaces.KnowledgeTagService
-	fileSvc         interfaces.FileService
-	storageResolver interfaces.StorageBackendResolver
-	// files resolves every stored reference through its resource row; it is
-	// the only way this service reads a file.
+	config         *config.Config
+	retrieveEngine interfaces.RetrieveEngineRegistry
+	ownership      retriever.TenantStoreOwnership
+	repo           interfaces.KnowledgeRepository
+	kbService      interfaces.KnowledgeBaseService
+	tenantRepo     interfaces.TenantRepository
+	tenantService  interfaces.TenantService
+	documentReader interfaces.DocumentReader
+	chunkService   interfaces.ChunkService
+	chunkRepo      interfaces.ChunkRepository
+	tagRepo        interfaces.KnowledgeTagRepository
+	tagService     interfaces.KnowledgeTagService
+	// files is this service's only way to storage: reads and deletes go
+	// through each reference's resource row, writes through a knowledge
+	// base's bound backend (kbWriter).
 	files           interfaces.FileStore
 	resourceCatalog interfaces.ResourceCatalog
 	modelService    interfaces.ModelService
@@ -106,8 +105,6 @@ func NewKnowledgeService(
 	chunkRepo interfaces.ChunkRepository,
 	tagRepo interfaces.KnowledgeTagRepository,
 	tagService interfaces.KnowledgeTagService,
-	fileSvc interfaces.FileService,
-	storageResolver interfaces.StorageBackendResolver,
 	files interfaces.FileStore,
 	resourceCatalog interfaces.ResourceCatalog,
 	modelService interfaces.ModelService,
@@ -137,8 +134,6 @@ func NewKnowledgeService(
 		chunkRepo:       chunkRepo,
 		tagRepo:         tagRepo,
 		tagService:      tagService,
-		fileSvc:         fileSvc,
-		storageResolver: storageResolver,
 		files:           files,
 		resourceCatalog: resourceCatalog,
 		modelService:    modelService,
@@ -449,41 +444,6 @@ func (s *knowledgeService) isKnowledgeAborted(
 		return true, knowledge.ParseStatus
 	}
 	return false, knowledge.ParseStatus
-}
-
-// checkStorageEngineConfigured verifies that the knowledge base has a storage engine configured
-// (either at the KB level or via the tenant default).
-//
-// 内部版兜底语义：当 KB 与空间都未配置 storage provider 时，如果服务实例持有
-// 全局 FileService（由容器按 STORAGE_TYPE 注入，默认 local），允许直接落到该
-// 全局 fileSvc 上，不再硬性阻断。这与 resolveFileService / resolveFileServiceForPath
-// 在 provider 为空时回退到 s.fileSvc 的行为保持一致，避免上层闸门和下游解析口径不一。
-// 仅当 KB/空间/全局三处都拿不到任何可用 FileService 时才报错。
-func (s *knowledgeService) checkStorageEngineConfigured(ctx context.Context, kb *types.KnowledgeBase) error {
-	provider := kb.GetStorageProvider()
-	if provider == "" {
-		tenant, _ := ctx.Value(types.TenantInfoContextKey).(*types.Tenant)
-		if tenant != nil && tenant.StorageEngineConfig != nil {
-			provider = strings.ToLower(strings.TrimSpace(tenant.StorageEngineConfig.DefaultProvider))
-		}
-	}
-	if provider != "" {
-		return nil
-	}
-	if s != nil && s.fileSvc != nil {
-		logger.Warnf(ctx,
-			"[storage] checkStorageEngineConfigured: no KB/tenant provider, fallback to global fileSvc (kb=%s)",
-			kbIDOrEmpty(kb))
-		return nil
-	}
-	return werrors.NewBadRequestError("请先为知识库选择存储引擎，再上传内容。请前往知识库设置页面进行配置。")
-}
-
-func kbIDOrEmpty(kb *types.KnowledgeBase) string {
-	if kb == nil {
-		return ""
-	}
-	return kb.ID
 }
 
 func defaultChannel(ch string) string {

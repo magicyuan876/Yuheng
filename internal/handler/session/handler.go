@@ -21,11 +21,9 @@ type Handler struct {
 	sessionService      interfaces.SessionService // Service for managing sessions
 	streamManager       interfaces.StreamManager  // Manager for handling streaming responses
 	config              *config.Config            // Application configuration
-	fileService         interfaces.FileService    // Service for file storage (image uploads)
-	storageResolver     interfaces.StorageBackendResolver
-	files               interfaces.FileStore    // Storage runtime: resolves resource:// references
-	modelService        interfaces.ModelService // Service for model management (VLM access)
-	attachmentProcessor *AttachmentProcessor    // Processor for file attachments
+	files               interfaces.FileStore      // Storage runtime: chat image writes, resource URLs
+	modelService        interfaces.ModelService   // Service for model management (VLM access)
+	attachmentProcessor *AttachmentProcessor      // Processor for file attachments
 	temporaryDocuments  interfaces.TemporaryDocumentService
 }
 
@@ -36,8 +34,6 @@ func NewHandler(
 	suggestionService interfaces.MessageSuggestionService,
 	streamManager interfaces.StreamManager,
 	config *config.Config,
-	fileService interfaces.FileService,
-	storageResolver interfaces.StorageBackendResolver,
 	files interfaces.FileStore,
 	modelService interfaces.ModelService,
 	documentReader interfaces.DocumentReader,
@@ -50,13 +46,11 @@ func NewHandler(
 		suggestionService:  suggestionService,
 		streamManager:      streamManager,
 		config:             config,
-		fileService:        fileService,
-		storageResolver:    storageResolver,
 		files:              files,
 		modelService:       modelService,
 		temporaryDocuments: temporaryDocuments,
 		attachmentProcessor: NewAttachmentProcessor(
-			fileService,
+			files,
 			documentReader,
 			imageResolver,
 			modelService,

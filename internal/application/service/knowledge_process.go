@@ -64,7 +64,10 @@ func (s *knowledgeService) cloneKnowledge(
 	// object is tracked for cleanup if the clone fails downstream.
 	var copiedFilePaths []string
 	if src.FilePath != "" {
-		dstSvc := s.resolveFileService(ctx, targetKB)
+		dstSvc, writerErr := s.kbWriter(ctx, targetKB)
+		if writerErr != nil {
+			return writerErr
+		}
 		newPath, copyErr := copyOwnedObject(ctx, s.files, dstSvc, src.FilePath, targetKB.TenantID)
 		if copyErr != nil {
 			return fmt.Errorf("clone knowledge file copy failed: %w", copyErr)
@@ -76,7 +79,7 @@ func (s *knowledgeService) cloneKnowledge(
 	defer func() {
 		if err != nil {
 			if len(copiedFilePaths) > 0 {
-				cleanupCopiedObjects(ctx, s.resolveFileService(ctx, targetKB), copiedFilePaths)
+				cleanupCopiedObjects(ctx, s.files, copiedFilePaths)
 			}
 			dst.ParseStatus = "failed"
 			dst.ErrorMessage = err.Error()
@@ -2968,7 +2971,11 @@ func (s *knowledgeService) ProcessDocument(ctx context.Context, t *asynq.Task) e
 			s.repo.UpdateKnowledge(ctx, knowledge)
 		}
 
-		fileSvc := s.resolveFileService(ctx, kb)
+		fileSvc, err := s.kbWriter(ctx, kb)
+		if err != nil {
+			_, failErr := s.failKnowledge(ctx, knowledge, isLastRetry, "storage unavailable: %v", err)
+			return failErr
+		}
 		filePath, err := fileSvc.SaveBytes(ctx, contentBytes, payload.TenantID, resolvedFileName, true)
 		if err != nil {
 			if isLastRetry {
@@ -3118,7 +3125,11 @@ func (s *knowledgeService) ProcessDocument(ctx context.Context, t *asynq.Task) e
 	var storedImages []docparser.StoredImage
 
 	if s.imageResolver != nil && convertResult != nil {
-		fileSvc := s.resolveFileService(ctx, kb)
+		fileSvc, err := s.kbWriter(ctx, kb)
+		if err != nil {
+			_, failErr := s.failKnowledge(ctx, knowledge, isLastRetry, "storage unavailable: %v", err)
+			return failErr
+		}
 		tenantID, _ := ctx.Value(types.TenantIDContextKey).(uint64)
 		updatedMarkdown, images, resolveErr := s.imageResolver.ResolveAndStore(ctx, convertResult, fileSvc, tenantID)
 		if resolveErr != nil {
